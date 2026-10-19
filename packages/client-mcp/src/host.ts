@@ -322,6 +322,7 @@ export function createMcpHost(options: McpHostOptions = {}): McpHost {
     // The HTTP face keeps the token and the origins of the policy (CLI-11 moves the checks to the host)
     const policyOrigins = policy.browser.allowedOrigins;
     const allowedOrigins = faces.http.allowedOrigins ?? (Array.isArray(policyOrigins) ? policyOrigins : undefined);
+    const allowedHosts = faces.http.allowedHosts ?? policy.browser.allowedHosts;
     const token = faces.http.token ?? policy.token;
     transports.push(
       new McpServerTransport(server, {
@@ -331,6 +332,7 @@ export function createMcpHost(options: McpHostOptions = {}): McpHost {
           ...faces.http,
           ...(token !== undefined ? { token } : {}),
           ...(allowedOrigins ? { allowedOrigins: [...allowedOrigins] } : {}),
+          ...(allowedHosts !== undefined ? { allowedHosts } : {}),
         },
       }),
     );

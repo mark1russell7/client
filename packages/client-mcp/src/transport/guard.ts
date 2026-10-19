@@ -1,36 +1,41 @@
 /**
  * The checks of a request to the Streamable HTTP face (CLI-35), in one place.
  *
- * The face and the listener of a procedures host (CLI-11) call `guardMcpRequest` before a request
- * reaches the MCP SDK. The checks:
+ * The `handle` of the face calls `guardMcpRequest` before a request reaches the MCP SDK. The face
+ * mounts on more than one kind of listener, so the listener adds no second check for its path.
  *
  * - The checks of a web browser (`checkBrowserRequest` of the core): a request on a loopback
- *   address names a loopback host (DNS rebinding), and an `Origin` header names the server or an
- *   allowed origin. A request with cookies needs a named origin (CSRF).
- * - The bearer token. The check compares the SHA-256 digests of the two tokens in constant time,
- *   so the time tells neither the text nor the length of the token.
+ *   address names a loopback host or an allowed host (DNS rebinding), and an `Origin` header names
+ *   the server or a permitted origin. A request with cookies needs a named origin (CSRF).
+ * - The bearer token, with `tokenMatches` of the core: its time does not tell the token.
  *
  * The other guards of the face:
  *
- * - `readMcpBody` reads the body of a request that starts a session, to a limit (4 MiB). Only an
- *   `initialize` request starts a session, so a stray POST makes no MCP server.
- * - The face keeps at most `maxSessions` sessions (32). A new session above the limit closes the
- *   session that was idle longest, with no task in progress and no open GET stream.
+ * - The face reads the body of a request that starts a session to a limit (4 MiB, the limit of
+ *   the SDK), with `readJsonBody` of the core. Only an `initialize` request starts a session, so
+ *   a stray POST makes no MCP server.
+ * - With `maxSessions`, the face keeps at most that many sessions. A new session above the limit
+ *   closes the session that was idle longest: no task in progress and no open response.
  * - `assertLoopbackBind` refuses a listener on an address that is not loopback, unless the
  *   operator allows it. The owner of the listener calls it before it listens.
  */
 
-import { createHash, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage } from "node:http";
-import { bearerOf, checkBrowserRequest, isLoopbackHost, type BrowserGuardOptions } from "@procedures/client";
+import { bearerOf, checkBrowserRequest, isLoopbackHost, tokenMatches, type BrowserGuardOptions } from "@procedures/client";
 
-/** The limits of the Streamable HTTP face. `maxSessions` and `maxBodyBytes` of the HTTP options change them. */
-export const MCP_HTTP_LIMITS = {
-  /** The largest body of a request that starts a session: 4 MiB, the limit of the SDK. */
+/** The limits of the Streamable HTTP face. `maxBodyBytes` and `maxSessions` of the HTTP options change them. */
+export const MCP_HTTP_LIMITS: {
+  /** The largest body of a request: 4 MiB, the limit of the SDK. */
+  readonly maxBodyBytes: 4_194_304;
+  /** The most sessions at one time: no limit, unless the HTTP options give one. */
+  readonly maxSessions: number;
+  /** The seconds in the `Retry-After` header of a 503, when each session is busy. */
+  readonly retryAfterSeconds: 5;
+} = {
   maxBodyBytes: 4_194_304,
-  /** The most sessions at one time. */
-  maxSessions: 32,
-} as const;
+  maxSessions: Number.POSITIVE_INFINITY,
+  retryAfterSeconds: 5,
+};
 
 /** The options of `guardMcpRequest`. */
 export interface McpRequestGuardOptions {
@@ -55,17 +60,6 @@ export type McpGuardResult =
       readonly headers?: Readonly<Record<string, string>> | undefined;
     };
 
-const digest = (text: string): Buffer => createHash("sha256").update(text, "utf8").digest();
-
-/**
- * True when the presented token is the expected one. The function compares the SHA-256 digests in
- * constant time, so the time depends on neither the text nor the length of either token.
- */
-export function sameToken(presented: string | undefined, expected: string): boolean {
-  if (presented === undefined) return false;
-  return timingSafeEqual(digest(presented), digest(expected));
-}
-
 /** The checks of a request to the MCP endpoint: the browser checks, then the token. */
 export function guardMcpRequest(req: Pick<IncomingMessage, "method" | "headers" | "socket">, options: McpRequestGuardOptions = {}): McpGuardResult {
   const browser: BrowserGuardOptions = {
@@ -74,7 +68,7 @@ export function guardMcpRequest(req: Pick<IncomingMessage, "method" | "headers" 
   };
   const checked = checkBrowserRequest(req, browser, false, options.ambient === true);
   if (!checked.ok) return checked;
-  if (options.token !== undefined && !sameToken(bearerOf(req.headers.authorization), options.token)) {
+  if (options.token !== undefined && !tokenMatches(options.token, bearerOf(req.headers.authorization))) {
     return {
       ok: false,
       status: 401,
@@ -84,34 +78,6 @@ export function guardMcpRequest(req: Pick<IncomingMessage, "method" | "headers" 
     };
   }
   return { ok: true };
-}
-
-/** The error of `readMcpBody`: the body is too large (413) or is not JSON (400). */
-export class McpBodyError extends Error {
-  constructor(
-    message: string,
-    readonly status: 400 | 413
-  ) {
-    super(message);
-    this.name = "McpBodyError";
-  }
-}
-
-/** This function reads the JSON body of a request to a limit of bytes. */
-export async function readMcpBody(req: AsyncIterable<unknown>, limit: number = MCP_HTTP_LIMITS.maxBodyBytes): Promise<unknown> {
-  const parts: Buffer[] = [];
-  let size = 0;
-  for await (const chunk of req) {
-    const part = typeof chunk === "string" ? Buffer.from(chunk) : (chunk as Buffer);
-    size += part.length;
-    if (size > limit) throw new McpBodyError(`The body of the request is larger than ${String(limit)} bytes`, 413);
-    parts.push(part);
-  }
-  try {
-    return JSON.parse(Buffer.concat(parts).toString("utf8")) as unknown;
-  } catch {
-    throw new McpBodyError("The body of the request is not JSON", 400);
-  }
 }
 
 /**

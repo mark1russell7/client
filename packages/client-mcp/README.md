@@ -102,7 +102,7 @@ Each face is one `McpServerTransport` on the server of the host. A host can have
 |---|---|
 | `stdio: true` | The standard input and output. Over stdio, `console.log` writes to stderr from `start()` on, because stdout carries the protocol. |
 | `stdio: { stdin, stdout, stopOnEnd, redirectConsole }` | Other streams, for a test or an embedding. With `stopOnEnd: true` (the default), the host stops when the input ends. |
-| `http: { port, host, path, token, allowedOrigins, maxSessions, maxBodyBytes }` | Streamable HTTP. The host listens on `127.0.0.1` by default. Without a token, the face takes the token of the policy. |
+| `http: { port, host, path, token, allowedOrigins, allowedHosts, maxSessions, maxBodyBytes }` | Streamable HTTP. The host listens on `127.0.0.1` by default. Without a token, the face takes the token of the policy. |
 | `sdk` | One or more MCP SDK transports, for example the `InMemoryTransport` of a test. |
 
 When the client closes the input of stdio, the host stops, and `closed` resolves. The entry `dist/server.js` of `@procedures/mcp-dev-tools` then ends its process.
@@ -111,10 +111,10 @@ Each tool call over Streamable HTTP carries the credentials of its HTTP request:
 
 The Streamable HTTP face checks each request with `guardMcpRequest` before the request reaches the MCP SDK. The owner of another listener calls the same function.
 
-- A request on a loopback address must name a loopback host in its `Host` header, so DNS rebinding cannot reach the tools. An `Origin` header must name the server or a permitted origin.
-- With a token, each request sends `Authorization: Bearer <token>`. The check compares the SHA-256 digests of the two tokens in constant time. A request without the token gets 401 with a `WWW-Authenticate` header.
-- Only an `initialize` request starts a session, and its body has a limit of 4 MiB (`maxBodyBytes`). Thus a stray POST makes no MCP server.
-- The face keeps at most 32 sessions (`maxSessions`). A new session above the limit closes the session that was idle longest, with no task in progress and no open GET stream. A client that sends to a closed session gets 404. A client of the MCP specification then sends a new `initialize`.
+- A request on a loopback address must name a loopback host, or a host of `allowedHosts` (the default is `browser.allowedHosts` of the policy), in its `Host` header. Thus DNS rebinding cannot reach the tools. An `Origin` header must name the server or a permitted origin.
+- With a token, each request sends `Authorization: Bearer <token>`. The check is `tokenMatches` of the core: its time does not tell the token. A request without the token gets 401 with a `WWW-Authenticate` header.
+- Only an `initialize` request starts a session. Thus a stray POST makes no MCP server. The body of each request has a limit of 4 MiB (`maxBodyBytes`).
+- The sessions have no limit by default. With `maxSessions`, a new session above the limit closes the session that was idle longest: no task in progress and no open response (a call or a GET stream). When each session is busy, the new session gets 503 with a `Retry-After` header. A client that sends to a closed session gets 404, and a client of the MCP specification then sends a new `initialize`.
 - `assertLoopbackBind(host, allowRemote)` refuses a listener on an address that is not loopback, unless `allowRemote` is true.
 
 ## Questions to the person
@@ -216,7 +216,8 @@ host.tasks?.running(); // the tasks that did not end, for a status page
 - The tool list gives `execution.taskSupport` of each such tool. Without the option `tasks`, the list does not give it, and each call is a normal request.
 - A progress of the procedure becomes the status message of its task, for example `2 of 5 done`. The message holds only the counts, so no text of the work leaves its envelopes. A client that sent a progress token also gets the progress notifications.
 - A cancel of the task (`tasks/cancel`) aborts `ctx.signal` of the procedure. The close of a session cancels its tasks, and the stop of the host cancels each task.
-- The store runs at most `maxRunning` tasks at one time (8 by default). A task above the limit starts, and then fails at once. The result of the task gives the reason. (The SDK 1.32.1 cannot give an error for a task request.)
+- The store runs at most `maxRunning` tasks at one time (8 by default). A task holds its place until its procedure returns, also after a cancel. A task above the limit starts, and then fails at once. The result of the task gives the reason. (The SDK 1.32.1 cannot give an error for a task request.)
+- The time to keep a task (`ttl`) starts when the task ends. The store does not remove a task whose procedure still runs.
 - The call of a task cannot ask the person: the procedure gets no `ctx.elicit`.
 - A normal call of an optional tool runs in the request, with the progress and the cancel of the request. A normal call of a tool with `taskSupport: "required"`, or a task for a tool without task support, gets the error `-32601`.
 - To share one store with other parts, give `tasks: { store: new McpTaskStore({ maxRunning: 4 }) }`. The host closes only a store that it made.

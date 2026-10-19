@@ -341,7 +341,11 @@ export class McpServerTransport implements ServerTransport {
         await server.notification(notification).catch(() => undefined);
       },
     };
-    void this.callTool(server, tool, args, background, false).then(finish);
+    // The slot of the task stays taken until the call settles, also after a cancel
+    void this.callTool(server, tool, args, background, false)
+      .then(finish)
+      .catch(() => undefined)
+      .finally(() => store.settle(id));
     return { task };
   }
 

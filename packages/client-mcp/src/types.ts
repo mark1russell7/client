@@ -64,6 +64,11 @@ export interface HttpTransportOptions {
   token?: string | undefined;
   /** Browser origins that can call the server, besides loopback origins */
   allowedOrigins?: string[] | undefined;
+  /**
+   * The host names that a request on a loopback address can name in its `Host` header, besides
+   * the loopback names (`browser.allowedHosts` of the host policy). `"*"` turns the check off.
+   */
+  allowedHosts?: readonly string[] | "*" | undefined;
   /** An HTTP server to answer on, in place of a server of the transport (it does not listen then) */
   server?: import("node:http").Server | undefined;
   /**
@@ -78,12 +83,13 @@ export interface HttpTransportOptions {
   ambientCredentials?: import("@procedures/client").AmbientCredentials | undefined;
   /**
    * The most sessions at one time (CLI-35). A new session above the limit closes the session that
-   * was idle longest, with no task in progress and no open stream.
-   * @default 32
+   * was idle longest: no task in progress and no open response. When each session is busy, the
+   * new session gets 503 with `Retry-After`.
+   * @default Infinity (no limit)
    */
   maxSessions?: number | undefined;
   /**
-   * The largest body of a request that starts a session, in bytes (CLI-35).
+   * The largest body of a request, in bytes (CLI-35).
    * @default 4194304 (4 MiB, the limit of the SDK)
    */
   maxBodyBytes?: number | undefined;

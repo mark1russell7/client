@@ -14,7 +14,7 @@
  * with a cookie only from a named origin (CSRF).
  *
  * The checks of each request are in `guard.ts` (CLI-35). Only an `initialize` request starts a
- * session, its body has a limit, and the endpoint keeps at most `maxSessions` sessions.
+ * session, each body has a limit, and with `maxSessions` the endpoint keeps at most that many sessions.
  */
 
 import { randomUUID } from "node:crypto";
@@ -23,14 +23,15 @@ import type { AddressInfo } from "node:net";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { hasAmbientCredentials } from "@procedures/client";
+import { BodyError, readJsonBody } from "@procedures/client/node";
 import type { HttpTransportOptions } from "../types.js";
-import { MCP_HTTP_LIMITS, McpBodyError, guardMcpRequest, readMcpBody } from "./guard.js";
+import { MCP_HTTP_LIMITS, guardMcpRequest } from "./guard.js";
 
-/** The limits of the sessions of the endpoint (CLI-35). */
+/** The limits of the sessions of the endpoint (CLI-35). The HTTP options win over them. */
 export interface McpHttpSessionOptions {
-  /** The most sessions at one time. The default is 32. */
+  /** The most sessions at one time. The default is no limit. */
   readonly maxSessions?: number | undefined;
-  /** The largest body of a request that starts a session. The default is 4 MiB. */
+  /** The largest body of a request. The default is 4 MiB, the limit of the SDK. */
   readonly maxBodyBytes?: number | undefined;
   /** The sessions that have a task in progress: the session limit does not close them. */
   readonly busySessions?: (() => ReadonlySet<string>) | undefined;
@@ -51,6 +52,11 @@ export interface McpHttpTransport {
   close(): Promise<void>;
 }
 
+/** True for a limit: an integer of 1 or more, or no limit (`Infinity`). */
+function isLimit(value: number): boolean {
+  return value === Number.POSITIVE_INFINITY || (Number.isInteger(value) && value >= 1);
+}
+
 /**
  * This function makes the Streamable HTTP endpoint of an MCP server. `connect` connects the
  * transport of a new session to an MCP server of its own.
@@ -68,11 +74,13 @@ export function createHttpTransport(
   const sessions = new Map<string, StreamableHTTPServerTransport>();
   /** The time of the last request of each session: the session limit closes the session that was idle longest */
   const lastUsed = new Map<string, number>();
-  /** The open GET streams of each session: a client that only listens is not idle */
-  const openStreams = new Map<string, number>();
+  /** The open responses of each session (a call, a GET stream): a session with one is not idle */
+  const openResponses = new Map<string, number>();
+  /** The new sessions that do not have their id yet: the session limit counts them */
+  let pending = 0;
   const maxSessions = options.maxSessions ?? limits.maxSessions ?? MCP_HTTP_LIMITS.maxSessions;
   const maxBodyBytes = options.maxBodyBytes ?? limits.maxBodyBytes ?? MCP_HTTP_LIMITS.maxBodyBytes;
-  if (!Number.isInteger(maxSessions) || maxSessions < 1) throw new RangeError(`maxSessions must be an integer of 1 or more, not ${String(maxSessions)}`);
+  if (!isLimit(maxSessions)) throw new RangeError(`maxSessions must be an integer of 1 or more, or Infinity, not ${String(maxSessions)}`);
   if (!Number.isInteger(maxBodyBytes) || maxBodyBytes < 1) throw new RangeError(`maxBodyBytes must be an integer of 1 or more, not ${String(maxBodyBytes)}`);
 
   const refuse = (res: ServerResponse, status: number, code: string, message: string, headers: Readonly<Record<string, string>> = {}): void => {
@@ -82,24 +90,69 @@ export function createHttpTransport(
     res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32001, message, data: { code } }, id: null }));
   };
 
+  /** This function counts an open response of a session until the response closes. */
+  const track = (sessionId: string, res: ServerResponse): void => {
+    openResponses.set(sessionId, (openResponses.get(sessionId) ?? 0) + 1);
+    res.once("close", () => {
+      const left = (openResponses.get(sessionId) ?? 1) - 1;
+      if (left > 0) openResponses.set(sessionId, left);
+      else openResponses.delete(sessionId);
+      if (sessions.has(sessionId)) lastUsed.set(sessionId, Date.now());
+    });
+  };
+
+  const forget = (sessionId: string): void => {
+    sessions.delete(sessionId);
+    lastUsed.delete(sessionId);
+    openResponses.delete(sessionId);
+  };
+
   /**
-   * This function closes the session that was idle longest, with no task in progress and no open
-   * GET stream. It gives false when each session is busy.
+   * This function closes the session that was idle longest: no task in progress and no open
+   * response (a call or a GET stream). It gives false when each session is busy.
    */
   const evict = async (): Promise<boolean> => {
     const busy = limits.busySessions?.() ?? new Set<string>();
     let oldest: string | undefined;
     for (const id of sessions.keys()) {
-      if (busy.has(id) || (openStreams.get(id) ?? 0) > 0) continue;
+      if (busy.has(id) || (openResponses.get(id) ?? 0) > 0) continue;
       if (oldest === undefined || (lastUsed.get(id) ?? 0) < (lastUsed.get(oldest) ?? 0)) oldest = id;
     }
     if (oldest === undefined) return false;
     const transport = sessions.get(oldest);
-    sessions.delete(oldest);
-    lastUsed.delete(oldest);
-    openStreams.delete(oldest);
+    forget(oldest);
     await transport?.close().catch(() => undefined);
     return true;
+  };
+
+  /** This function starts a session for an `initialize` request whose body it read. */
+  const open = async (req: IncomingMessage, res: ServerResponse, body: unknown): Promise<void> => {
+    // The limit counts the sessions and the new sessions without an id; the awaits below cannot pass it
+    while (sessions.size + pending > maxSessions) {
+      if (!(await evict())) {
+        refuse(res, 503, "SESSIONS_FULL", "Each session of the server is busy (a task, a call or a stream): try again later", {
+          "retry-after": String(MCP_HTTP_LIMITS.retryAfterSeconds),
+        });
+        return;
+      }
+    }
+    const transport: StreamableHTTPServerTransport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => randomUUID(),
+      onsessioninitialized: (id) => {
+        sessions.set(id, transport);
+        lastUsed.set(id, Date.now());
+        track(id, res);
+      },
+      // The SDK reads the body of each later request of the session to the same limit
+      maxRequestBodySize: maxBodyBytes,
+    });
+    transport.onclose = () => {
+      if (transport.sessionId) forget(transport.sessionId);
+    };
+    await connect(transport);
+    await transport.handleRequest(req, res, body);
+    // The SDK refused the initialize (406, 415, or a batch with another message): no session, so the server closes
+    if (!transport.sessionId) await transport.close().catch(() => undefined);
   };
 
   /**
@@ -115,51 +168,30 @@ export function createHttpTransport(
         return;
       }
       lastUsed.set(sessionId, Date.now());
-      if (req.method === "GET") {
-        // An open GET stream keeps its session busy until the stream closes
-        openStreams.set(sessionId, (openStreams.get(sessionId) ?? 0) + 1);
-        res.once("close", () => {
-          const left = (openStreams.get(sessionId) ?? 1) - 1;
-          if (left > 0) openStreams.set(sessionId, left);
-          else openStreams.delete(sessionId);
-          if (sessions.has(sessionId)) lastUsed.set(sessionId, Date.now());
-        });
-      }
+      // A call or a GET stream keeps its session busy until its response closes
+      track(sessionId, res);
       await transport.handleRequest(req, res);
       return;
     }
-    let body: unknown;
+    pending++;
     try {
-      body = await readMcpBody(req, maxBodyBytes);
-    } catch (error) {
-      const status = error instanceof McpBodyError ? error.status : 400;
-      refuse(res, status, status === 413 ? "PAYLOAD_TOO_LARGE" : "BAD_REQUEST", error instanceof Error ? error.message : String(error));
-      return;
+      let body: unknown;
+      try {
+        body = await readJsonBody(req, maxBodyBytes);
+      } catch (error) {
+        const status = error instanceof BodyError ? error.httpStatus : 400;
+        refuse(res, status, status === 413 ? "PAYLOAD_TOO_LARGE" : "BAD_REQUEST", error instanceof Error ? error.message : String(error));
+        return;
+      }
+      const initializes = Array.isArray(body) ? body.some((message) => isInitializeRequest(message)) : isInitializeRequest(body);
+      if (!initializes) {
+        refuse(res, 400, "BAD_REQUEST", "No session: the first request of a session is initialize, or give the mcp-session-id header");
+        return;
+      }
+      await open(req, res, body);
+    } finally {
+      pending--;
     }
-    const initializes = Array.isArray(body) ? body.some((message) => isInitializeRequest(message)) : isInitializeRequest(body);
-    if (!initializes) {
-      refuse(res, 400, "BAD_REQUEST", "No session: the first request of a session is initialize, or give the mcp-session-id header");
-      return;
-    }
-    if (sessions.size >= maxSessions && !(await evict())) {
-      refuse(res, 503, "SESSIONS_FULL", "Each session of the server has a task in progress: try again later");
-      return;
-    }
-    const transport: StreamableHTTPServerTransport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => randomUUID(),
-      onsessioninitialized: (id) => {
-        sessions.set(id, transport);
-        lastUsed.set(id, Date.now());
-      },
-    });
-    transport.onclose = () => {
-      if (!transport.sessionId) return;
-      sessions.delete(transport.sessionId);
-      lastUsed.delete(transport.sessionId);
-      openStreams.delete(transport.sessionId);
-    };
-    await connect(transport);
-    await transport.handleRequest(req, res, body);
   };
 
   const handle = (req: IncomingMessage, res: ServerResponse): boolean => {
@@ -176,6 +208,7 @@ export function createHttpTransport(
     const guard = guardMcpRequest(req, {
       ...(options.token !== undefined ? { token: options.token } : {}),
       ...(options.allowedOrigins ? { allowedOrigins: options.allowedOrigins } : {}),
+      ...(options.allowedHosts ? { allowedHosts: options.allowedHosts } : {}),
       ambient,
     });
     if (!guard.ok) {
@@ -217,7 +250,7 @@ export function createHttpTransport(
       const open = [...sessions.values()];
       sessions.clear();
       lastUsed.clear();
-      openStreams.clear();
+      openResponses.clear();
       await Promise.all(open.map((transport) => transport.close().catch(() => undefined)));
       if (owned && server?.listening) {
         await new Promise<void>((resolve) => {

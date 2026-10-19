@@ -6,16 +6,15 @@
 
 import { describe, it, expect, afterEach } from "vitest";
 import { createServer } from "node:net";
-import { Readable } from "node:stream";
 import { z } from "zod";
 import { Client as McpClient } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { Server as SdkServer } from "@modelcontextprotocol/sdk/server/index.js";
 import type { Transport as SdkTransport } from "@modelcontextprotocol/sdk/shared/transport.js";
-import { CreateTaskResultSchema } from "@modelcontextprotocol/sdk/types.js";
+import { CallToolResultSchema, CreateTaskResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import { createProcedure, defineModule, type AnyProcedure } from "@procedures/client";
 import { createMcpHost } from "../host.js";
-import { MCP_HTTP_LIMITS, McpBodyError, assertLoopbackBind, guardMcpRequest, readMcpBody, sameToken } from "./guard.js";
+import { assertLoopbackBind, guardMcpRequest } from "./guard.js";
 import { createHttpTransport } from "./http.js";
 
 async function freePort(): Promise<number> {
@@ -48,6 +47,11 @@ const INITIALIZE = {
 
 const POST_HEADERS = { "content-type": "application/json", accept: "application/json, text/event-stream" };
 
+async function until(check: () => boolean): Promise<void> {
+  for (let tries = 0; tries < 300 && !check(); tries++) await new Promise((resolve) => setTimeout(resolve, 10));
+  expect(check()).toBe(true);
+}
+
 describe("guardMcpRequest", () => {
   it("passes a local request with the token", () => {
     expect(guardMcpRequest(request({ host: "127.0.0.1:3003", authorization: "Bearer secret-token-0123" }), { token: "secret-token-0123" })).toEqual({ ok: true });
@@ -63,24 +67,11 @@ describe("guardMcpRequest", () => {
 
   it("refuses DNS rebinding and a web page of another origin before it reads the token", () => {
     expect(guardMcpRequest(request({ host: "attacker.example" }), { token: "t" })).toMatchObject({ ok: false, status: 403, code: "FORBIDDEN_HOST" });
+    expect(guardMcpRequest(request({ host: "box.local" }), { allowedHosts: ["box.local"] })).toEqual({ ok: true });
     expect(guardMcpRequest(request({ host: "127.0.0.1", origin: "https://evil.example" }))).toMatchObject({ ok: false, status: 403, code: "FORBIDDEN_ORIGIN" });
     expect(guardMcpRequest(request({ host: "127.0.0.1", origin: "https://app.example" }), { allowedOrigins: ["https://app.example"] })).toEqual({ ok: true });
     // A request with a cookie needs a named origin: "*" does not permit it (CSRF)
     expect(guardMcpRequest(request({ host: "127.0.0.1", origin: "https://app.example", cookie: "s=1" }), { allowedOrigins: "*", ambient: true })).toMatchObject({ ok: false, status: 403 });
-  });
-});
-
-describe("the other guards", () => {
-  it("compares tokens of any length", () => {
-    expect(sameToken("secret-token-0123", "secret-token-0123")).toBe(true);
-    expect(sameToken("secret", "secret-token-0123")).toBe(false);
-    expect(sameToken(undefined, "secret-token-0123")).toBe(false);
-  });
-
-  it("reads a JSON body to its limit", async () => {
-    await expect(readMcpBody(Readable.from([Buffer.from('{"a":'), Buffer.from("1}")]))).resolves.toEqual({ a: 1 });
-    await expect(readMcpBody(Readable.from([Buffer.alloc(11)]), 10)).rejects.toMatchObject({ status: 413 });
-    await expect(readMcpBody(Readable.from([Buffer.from("not json")]))).rejects.toBeInstanceOf(McpBodyError);
   });
 
   it("refuses a listener that is not loopback, unless it is allowed", () => {
@@ -92,75 +83,97 @@ describe("the other guards", () => {
 });
 
 describe("the sessions of the Streamable HTTP endpoint", () => {
-  /** An endpoint on its own port with an SDK server for each session, and a limit of sessions. */
-  async function endpoint(limits: Parameters<typeof createHttpTransport>[2] = {}, token?: string) {
+  /** An endpoint on its own port with an SDK server for each session. */
+  async function endpoint(options: { maxSessions?: number; maxBodyBytes?: number; token?: string } = {}, busy?: () => ReadonlySet<string>) {
     const port = await freePort();
-    let made = 0;
+    const servers: SdkServer[] = [];
     const http = createHttpTransport(
-      { port, ...(token ? { token } : {}) },
+      { port, ...options },
       async (transport) => {
-        made++;
         const server = new SdkServer({ name: "guard", version: "0" }, { capabilities: {} });
+        servers.push(server);
         await server.connect(transport as unknown as SdkTransport);
       },
-      limits
+      busy ? { busySessions: busy } : {}
     );
     const url = await http.listen();
     cleanups.push(() => http.close());
-    return { http, url, made: () => made };
+    return { http, url, servers };
+  }
+
+  /** This function starts a session with a bare initialize request. */
+  async function initialize(url: string, headers: Record<string, string> = POST_HEADERS): Promise<Response> {
+    const response = await fetch(url, { method: "POST", headers, body: JSON.stringify(INITIALIZE) });
+    await response.text();
+    return response;
   }
 
   it("starts a session only for initialize, so a stray POST makes no server", async () => {
-    const { http, url, made } = await endpoint();
+    const { http, url, servers } = await endpoint();
     const stray = await fetch(url, { method: "POST", headers: POST_HEADERS, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) });
     expect(stray.status).toBe(400);
-    expect(made()).toBe(0);
     const bad = await fetch(url, { method: "POST", headers: POST_HEADERS, body: "{" });
     expect(bad.status).toBe(400);
-    const ok = await fetch(url, { method: "POST", headers: POST_HEADERS, body: JSON.stringify(INITIALIZE) });
-    expect(ok.status).toBe(200);
-    expect(made()).toBe(1);
+    expect(servers).toHaveLength(0);
+    expect((await initialize(url)).status).toBe(200);
+    expect(servers).toHaveLength(1);
     expect(http.sessions).toBe(1);
   });
 
-  it("refuses a body above the limit", async () => {
-    const { url, made } = await endpoint({ maxBodyBytes: 100 });
-    const big = await fetch(url, { method: "POST", headers: POST_HEADERS, body: JSON.stringify({ ...INITIALIZE, pad: "x".repeat(200) }) });
+  it("closes the server of an initialize that the SDK refuses", async () => {
+    const { http, url, servers } = await endpoint();
+    // Without text/event-stream in Accept, the SDK answers 406 and makes no session
+    const refused = await initialize(url, { "content-type": "application/json", accept: "application/json" });
+    expect(refused.status).toBe(406);
+    expect(http.sessions).toBe(0);
+    expect(servers).toHaveLength(1);
+    await until(() => servers[0]!.transport === undefined);
+  });
+
+  it("refuses a body above the limit, at the start of a session and in a session", async () => {
+    const { url, servers } = await endpoint({ maxBodyBytes: 400 });
+    const big = await fetch(url, { method: "POST", headers: POST_HEADERS, body: JSON.stringify({ ...INITIALIZE, pad: "x".repeat(500) }) });
     expect(big.status).toBe(413);
-    expect(made()).toBe(0);
-    expect(MCP_HTTP_LIMITS.maxBodyBytes).toBe(4_194_304);
+    expect(servers).toHaveLength(0);
+    const id = (await initialize(url)).headers.get("mcp-session-id")!;
+    const later = await fetch(url, {
+      method: "POST",
+      headers: { ...POST_HEADERS, "mcp-session-id": id, "mcp-protocol-version": "2025-06-18" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "ping", params: { pad: "x".repeat(500) } }),
+    });
+    expect(later.status).toBe(413);
   });
 
   it("answers 401 with the scheme for a request without the token", async () => {
-    const { url } = await endpoint({}, "secret-token-0123");
+    const { url } = await endpoint({ token: "secret-token-0123" });
     const refused = await fetch(url, { method: "POST", headers: POST_HEADERS, body: JSON.stringify(INITIALIZE) });
     expect(refused.status).toBe(401);
     expect(refused.headers.get("www-authenticate")).toBe('Bearer realm="mcp"');
   });
 
-  /** This function starts a session with a bare initialize request, and gives its id. */
-  async function initialize(url: string): Promise<Response> {
-    const response = await fetch(url, { method: "POST", headers: POST_HEADERS, body: JSON.stringify(INITIALIZE) });
-    await response.text();
-    return response;
-  }
+  it("has no session limit by default", async () => {
+    const { http, url } = await endpoint();
+    for (let count = 0; count < 40; count++) expect((await initialize(url)).status).toBe(200);
+    expect(http.sessions).toBe(40);
+    expect(() => createHttpTransport({ mount: true, maxSessions: Number.POSITIVE_INFINITY }, async () => undefined)).not.toThrow();
+    expect(() => createHttpTransport({ mount: true, maxSessions: 0 }, async () => undefined)).toThrow(RangeError);
+    expect(() => createHttpTransport({ mount: true, maxBodyBytes: 0.5 }, async () => undefined)).toThrow(RangeError);
+  });
 
-  it("closes the session that was idle longest at the limit, and keeps a busy session", async () => {
+  it("with maxSessions, closes the session that was idle longest, and keeps a busy session", async () => {
     let busy = new Set<string>();
-    const { http, url } = await endpoint({ maxSessions: 1, busySessions: () => busy });
+    const { http, url } = await endpoint({ maxSessions: 1 }, () => busy);
     const first = (await initialize(url)).headers.get("mcp-session-id")!;
     const second = (await initialize(url)).headers.get("mcp-session-id")!;
     expect(http.sessions).toBe(1);
     // The second session closed the first one: its next request finds no session
-    const gone = await fetch(url, {
-      method: "POST",
-      headers: { ...POST_HEADERS, "mcp-session-id": first },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "ping" }),
-    });
+    const gone = await fetch(url, { method: "POST", headers: { ...POST_HEADERS, "mcp-session-id": first }, body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "ping" }) });
     expect(gone.status).toBe(404);
-    // Each session has a task in progress: a new session waits
+    // Each session has a task in progress: a new session waits, and the answer says when to try again
     busy = new Set([second]);
-    expect((await initialize(url)).status).toBe(503);
+    const full = await initialize(url);
+    expect(full.status).toBe(503);
+    expect(full.headers.get("retry-after")).toBe("5");
     expect(http.sessions).toBe(1);
   });
 
@@ -183,44 +196,86 @@ describe("the sessions of the Streamable HTTP endpoint", () => {
     expect(http.sessions).toBe(1);
   });
 
-  it("takes the limits from the HTTP options, and refuses a limit below 1", async () => {
-    const port = await freePort();
-    expect(() => createHttpTransport({ port, maxSessions: 0 }, async () => undefined)).toThrow(RangeError);
-    const { url, made } = await endpoint({});
-    void url;
-    expect(made()).toBe(0);
+  it("does not pass the limit when sessions start at the same time", async () => {
+    // Every session is busy, so no session closes: of five at the same time, two start and three get 503
+    const everyone = { has: () => true } as unknown as ReadonlySet<string>;
+    const { http, url } = await endpoint({ maxSessions: 2 }, () => everyone);
+    const statuses = await Promise.all(Array.from({ length: 5 }, async () => (await initialize(url)).status));
+    expect(statuses.filter((status) => status === 200)).toHaveLength(2);
+    expect(statuses.filter((status) => status === 503)).toHaveLength(3);
+    expect(http.sessions).toBe(2);
+  });
+
+  it("passes the allowed hosts of the policy to the face of a host", async () => {
+    const host = createMcpHost({ modules: [], faces: { http: { port: await freePort() } }, policy: { browser: { allowedHosts: ["box.local"] } } });
+    await host.start();
+    cleanups.push(() => host.stop());
+    const url = new URL(host.state().faces[0]!.url!);
+    const response = await fetch(url, { method: "POST", headers: { ...POST_HEADERS, host: `box.local:${url.port}` }, body: JSON.stringify(INITIALIZE) });
+    expect(response.status).toBe(200);
+    await response.text();
   });
 });
 
-describe("the tasks of a session over Streamable HTTP", () => {
-  it("cancels the tasks of a session that closes", async () => {
-    let aborted = false;
-    let started = false;
+describe("the tasks of sessions over Streamable HTTP", () => {
+  function waitModule(state: { started: number; aborted: number }) {
     const wait = createProcedure()
       .path(["crawl", "wait"])
       .input(z.object({}).passthrough())
       .output(z.object({ aborted: z.boolean() }))
       .meta({ description: "wait", effects: { reads: [], writes: [] }, taskSupport: "optional" })
       .handler((async (_input: unknown, ctx: { signal?: AbortSignal }) => {
-        started = true;
+        state.started++;
         await new Promise<void>((resolve) => ctx.signal?.addEventListener("abort", () => resolve(), { once: true }));
-        aborted = true;
-        return { aborted };
+        state.aborted++;
+        return { aborted: true };
       }) as never)
       .build() as AnyProcedure;
-    const host = createMcpHost({ modules: [defineModule("http-task", [wait])], faces: { http: { port: await freePort() } }, tasks: {} });
-    await host.start();
-    cleanups.push(() => host.stop());
+    return defineModule("http-task", [wait]);
+  }
+
+  async function host(maxRunning?: number) {
+    const state = { started: 0, aborted: 0 };
+    const mcpHost = createMcpHost({ modules: [waitModule(state)], faces: { http: { port: await freePort() } }, tasks: maxRunning ? { maxRunning } : {} });
+    await mcpHost.start();
+    cleanups.push(() => mcpHost.stop());
+    return { host: mcpHost, state, url: new URL(mcpHost.state().faces[0]!.url!) };
+  }
+
+  async function connect(url: URL) {
     const client = new McpClient({ name: "test", version: "0" });
-    const transport = new StreamableHTTPClientTransport(new URL(host.state().faces[0]!.url!));
+    const transport = new StreamableHTTPClientTransport(url);
     await client.connect(transport as never);
     cleanups.push(() => client.close());
-    await client.request({ method: "tools/call", params: { name: "crawl.wait", arguments: {}, task: {} } }, CreateTaskResultSchema);
-    for (let tries = 0; tries < 200 && !started; tries++) await new Promise((resolve) => setTimeout(resolve, 10));
-    expect(host.tasks?.running()).toHaveLength(1);
+    return { client, transport };
+  }
+
+  const startTask = (client: McpClient) =>
+    client.request({ method: "tools/call", params: { name: "crawl.wait", arguments: {}, task: {} } }, CreateTaskResultSchema).then((created) => created.task);
+
+  it("cancels the tasks of a session that closes", async () => {
+    const { host: mcpHost, state, url } = await host();
+    const { client, transport } = await connect(url);
+    await startTask(client);
+    await until(() => state.started === 1);
+    expect(mcpHost.tasks?.running()).toHaveLength(1);
     await transport.terminateSession();
-    for (let tries = 0; tries < 200 && !aborted; tries++) await new Promise((resolve) => setTimeout(resolve, 10));
-    expect(aborted).toBe(true);
-    expect(host.tasks?.running()).toEqual([]);
+    await until(() => state.aborted === 1);
+    await until(() => mcpHost.tasks?.running().length === 0);
+  });
+
+  it("applies the task limit across sessions", async () => {
+    const { host: mcpHost, state, url } = await host(1);
+    const one = await connect(url);
+    const two = await connect(url);
+    expect((await startTask(one.client)).status).toBe("working");
+    const refused = await startTask(two.client);
+    expect(refused.status).toBe("failed");
+    const reason = await two.client.experimental.tasks.getTaskResult(refused.taskId, CallToolResultSchema);
+    expect(JSON.stringify(reason.content)).toMatch(/its limit/);
+    // A session sees only its own tasks
+    await expect(one.client.experimental.tasks.getTask(refused.taskId)).rejects.toThrow();
+    await until(() => state.started === 1);
+    expect(mcpHost.tasks?.running()).toHaveLength(1);
   });
 });

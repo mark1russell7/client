@@ -64,6 +64,17 @@ function taskModule(seen: Seen, held: Promise<void>) {
       },
       { taskSupport: "optional" }
     ),
+    procedure(
+      ["crawl", "stubborn"],
+      z.object({ done: z.boolean() }),
+      async () => {
+        // This procedure does not read its signal: it ends only when the test opens the gate
+        seen.started++;
+        await held;
+        return { done: true };
+      },
+      { taskSupport: "optional" }
+    ),
     procedure(["crawl", "all"], z.object({ ok: z.boolean() }), async () => ({ ok: true }), { taskSupport: "required" }),
     procedure(["crawl", "fetch"], z.object({ ok: z.boolean() }), async () => ({ ok: true })),
   ]);
@@ -108,7 +119,7 @@ describe("the tools of a host with tasks", () => {
     const { tools } = await client.listTools();
     const crawl = tools.filter((tool) => tool.name.startsWith("crawl."));
     const support = Object.fromEntries(crawl.map((tool) => [tool.name, tool.execution?.taskSupport ?? null]));
-    expect(support).toEqual({ "crawl.site": "optional", "crawl.wait": "optional", "crawl.all": "required", "crawl.fetch": null });
+    expect(support).toEqual({ "crawl.site": "optional", "crawl.wait": "optional", "crawl.stubborn": "optional", "crawl.all": "required", "crawl.fetch": null });
     expect(client.getServerCapabilities()?.tasks).toMatchObject({ list: {}, cancel: {}, requests: { tools: { call: {} } } });
   });
 
@@ -162,7 +173,8 @@ describe("a tool call as a task", () => {
     const cancelled = await client.experimental.tasks.cancelTask(created.taskId);
     expect(cancelled.status).toBe("cancelled");
     await until(() => seen.aborted);
-    expect(host.tasks?.running()).toEqual([]);
+    // The slot is free when the procedure returns
+    await until(() => host.tasks?.running().length === 0);
     expect((await client.experimental.tasks.getTask(created.taskId)).status).toBe("cancelled");
     await expect(client.experimental.tasks.cancelTask(created.taskId)).rejects.toThrow(/terminal status/);
   });
@@ -198,6 +210,38 @@ describe("a tool call as a task", () => {
       task = await client.experimental.tasks.getTask(all.taskId);
     }
     expect(task.status).toBe("completed");
+  });
+
+  it("keeps a task whose work runs past its ttl: the limit and the cancel still apply", async () => {
+    const { client, host, seen } = await start({ tasks: { maxRunning: 1 } });
+    const created = await startTask(client, "crawl.wait", 1000);
+    expect(created.ttl).toBe(1000);
+    await until(() => seen.started === 1);
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    expect((await client.experimental.tasks.getTask(created.taskId)).status).toBe("working");
+    expect((await startTask(client, "crawl.wait")).status).toBe("failed");
+    expect((await client.experimental.tasks.cancelTask(created.taskId)).status).toBe("cancelled");
+    await until(() => seen.aborted);
+    await until(() => host.tasks?.running().length === 0);
+  });
+
+  it("does not pass the limit when tasks start at the same time", async () => {
+    const { client } = await start({ tasks: { maxRunning: 1 } });
+    const tasks = await Promise.all([1, 2, 3].map(() => startTask(client, "crawl.wait")));
+    expect(tasks.map((task) => task.status).sort()).toEqual(["failed", "failed", "working"]);
+  });
+
+  it("keeps the slot of a cancelled task until its work ends", async () => {
+    const { client, host, held, seen } = await start({ tasks: { maxRunning: 1 } });
+    const created = await startTask(client, "crawl.stubborn");
+    await until(() => seen.started === 1);
+    await client.experimental.tasks.cancelTask(created.taskId);
+    // The procedure still runs: the task is cancelled, but its slot stays taken
+    expect(host.tasks?.running()).toMatchObject([{ id: created.taskId, status: "cancelled" }]);
+    expect((await startTask(client, "crawl.site")).status).toBe("failed");
+    held.open();
+    await until(() => host.tasks?.running().length === 0);
+    expect((await startTask(client, "crawl.site")).status).toBe("working");
   });
 
   it("cancels each task that runs when the host stops", async () => {
