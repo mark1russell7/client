@@ -77,7 +77,13 @@
     "provenance": true
   },
   "client": {
-    "procedures": "./dist/register.js"
+    "procedures": "./dist/register.js",
+    "browser": [
+      ".",
+      "./module",
+      "./register",
+      "./runtime"
+    ]
   },
   "dependencies": {
     "@procedures/client": "workspace:*",

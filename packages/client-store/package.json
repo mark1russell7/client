@@ -77,7 +77,10 @@
     "test:watch": "vitest"
   },
   "client": {
-    "procedures": "./dist/register.js"
+    "procedures": "./dist/register.js",
+    "browser": [
+      "./indexeddb"
+    ]
   },
   "dependencies": {
     "@mark1russell7/service": "^0.5.1",
