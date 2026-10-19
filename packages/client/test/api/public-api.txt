@@ -1076,13 +1076,14 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./node (dist/node.d.ts): 31 names
+## ./node (dist/node.d.ts): 33 names
 
 type Addressing: dist/adapters/http/server/addressing.d.ts#Addressing
 type BodyPathAddressingOptions: dist/adapters/http/server/addressing.d.ts#BodyPathAddressingOptions
 type CallAddress: dist/adapters/http/server/addressing.d.ts#CallAddress
 type ConnectionEventHandler: dist/adapters/websocket/server/types.d.ts#ConnectionEventHandler
 type CorsOptions: dist/adapters/http/server/cors.d.ts#CorsOptions
+type CredentialedCorsOptions: dist/adapters/http/server/cors.d.ts#CredentialedCorsOptions
 type NdjsonError: dist/adapters/http/server/ndjson.d.ts#NdjsonError
 type NodeProcedureHandler: dist/adapters/http/server/handler.d.ts#NodeProcedureHandler
 type NodeUpgradeHandler: dist/adapters/websocket/server/upgrade.d.ts#NodeUpgradeHandler
@@ -1103,6 +1104,7 @@ WebSocketTransport: dist/adapters/websocket/client/node.d.ts#WebSocketTransport
 type WebSocketTransportOptions: dist/adapters/websocket/client/types.d.ts#WebSocketTransportOptions
 type WriteNdjsonStreamOptions: dist/adapters/http/server/ndjson.d.ts#WriteNdjsonStreamOptions
 bodyPathAddressing: dist/adapters/http/server/addressing.d.ts#bodyPathAddressing
+credentialedCors: dist/adapters/http/server/cors.d.ts#credentialedCors
 defaultServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#defaultServerUrlStrategy
 procedureHandler: dist/adapters/http/server/handler.d.ts#procedureHandler
 rpcServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#rpcServerUrlStrategy
@@ -1733,6 +1735,12 @@ export interface CorsOptions {
     readonly credentials?: boolean | undefined;
     readonly maxAge?: Duration | undefined;
 }
+
+### dist/adapters/http/server/cors.d.ts#CredentialedCorsOptions
+export type CredentialedCorsOptions = Omit<CorsOptions, "origin" | "credentials">;
+
+### dist/adapters/http/server/cors.d.ts#credentialedCors
+export declare function credentialedCors(allowedOrigins: BrowserGuardOptions["allowedOrigins"], options?: CredentialedCorsOptions): (req: IncomingMessage, res: ServerResponse) => boolean;
 
 ### dist/adapters/http/server/handler.d.ts#NodeProcedureHandler
 export interface NodeProcedureHandler {
