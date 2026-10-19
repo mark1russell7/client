@@ -9,6 +9,7 @@ import { describe, it, expect } from "vitest";
 import { createCollectionProcedures, type CollectionProceduresOptions } from "./procedures.js";
 import { collectionChangeTopic, type CollectionChangeEvent } from "./changes.js";
 import { collectionTopicPartition, collectionTopicTarget, PARTITION_PATTERN, type PartitionResolver } from "./partition.js";
+import { collectionTopicRule } from "./topic.js";
 import type { CollectionStorage } from "./storage.js";
 import type { ZodLike } from "../../client/validation/types.js";
 import { invokeProcedure, InvocationError, outputValue } from "../invoke.js";
@@ -386,8 +387,8 @@ describe("the subscriptions of a partitioned collection (CLI-17)", () => {
 
 describe("the partitions of a collection whose name has a dot (CLI-42)", () => {
   /** A subscription of a principal to the topics of a host, with its capability. */
-  async function subscribeTo(h: ReturnType<typeof host>, topics: string[], principal: Principal, reads: string[] = ["collection:graph.nodes"]) {
-    const publisher = new EventPublisher({ bus: h.bus, topics: ["collections.*"] });
+  async function subscribeTo(h: ReturnType<typeof host>, topics: string[], principal: Principal, reads: string[] = ["collection:graph.nodes"], rule: string[] = ["collections.*"]) {
+    const publisher = new EventPublisher({ bus: h.bus, topics: rule });
     const controller = new AbortController();
     const output = await invokeProcedure(publisher.procedure, { topics }, {
       bus: h.bus,
@@ -457,6 +458,25 @@ describe("the partitions of a collection whose name has a dot (CLI-42)", () => {
     const allowed = await subscribeTo(h, ["collections.graph%2Enodes.board"], ann);
     expect(allowed.first).toEqual({ type: "subscribed", topics: ["collections.graph%2Enodes.board"] });
     allowed.stop();
+  });
+
+  it("serves the plain topic and the encoded topics of a dotted name under the rule of collectionTopicRule()", async () => {
+    const h = host(byTenant, {}, "graph.nodes");
+    const rule = collectionTopicRule("graph.nodes");
+    const plain = await subscribeTo(h, ["collections.graph.nodes"], ann, undefined, rule);
+    const scoped = await subscribeTo(h, [collectionChangeTopic("graph.nodes", "board")], ann, undefined, rule);
+    expect(plain.first).toEqual({ type: "subscribed", topics: ["collections.graph.nodes"] });
+    expect(scoped.first).toEqual({ type: "subscribed", topics: ["collections.graph%2Enodes.board"] });
+    await h.run("set", { id: "s", value: 1, partition: "board" }, ann);
+    await settle();
+    expect(scoped.received.map((item) => item.topic)).toEqual(["collections.graph%2Enodes.board"]);
+    plain.stop();
+    scoped.stop();
+    // The rule of the old form, the unencoded form and an alias of an escape are not topics of the host
+    for (const topic of ["collections.graph.nodes.board", "collections.graph%2enodes.board"]) {
+      expect((await errorOf(subscribeTo(h, [topic], ann, undefined, rule))).code, topic).toBe("TOPIC_NOT_FOUND");
+    }
+    expect((await errorOf(subscribeTo(h, [collectionChangeTopic("graph.nodes", "board")], ann, undefined, ["collections.graph.nodes.*"]))).code).toBe("TOPIC_NOT_FOUND");
   });
 
   it("refuses a partition topic whose name is not encoded: graph is no collection of the host", async () => {

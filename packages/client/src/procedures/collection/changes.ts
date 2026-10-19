@@ -27,7 +27,8 @@
 import type { EventBus } from "../../events/types.js";
 import { withRows } from "../../events/rows.js";
 import type { StorageChanges } from "./storage.js";
-import { splitCollectionTopic } from "./topic.js";
+import type { RepositoryProvider } from "../types.js";
+import { collectionTopicTarget } from "./topic.js";
 
 /**
  * The change event of the writes of a collection, on the topic `collections.<name>` (roadmap
@@ -61,13 +62,16 @@ export { collectionChangeTopic } from "./topic.js";
 /**
  * This function gives the resources that a subscriber of a topic reads: `collection:<name>` for
  * the topic `collections.<name>` and for a topic of a partition, `collections.<name>.<partition>`.
- * It reads the topic with the parse of `collectionTopicPartition()`, so the name of a topic of a
- * partition is decoded (roadmap CLI-42). Another topic gives no resource. `EventPublisher` uses it
- * as its default `reads`.
+ * Another topic gives no resource. `EventPublisher` uses it as its default `reads`, with the
+ * repository of the call.
+ *
+ * It reads the topic with `collectionTopicTarget()`, the parse of the listener of the publisher
+ * (roadmap CLI-42). With the repository, the plain topic of a dotted name, `collections.graph.nodes`,
+ * reads `collection:graph.nodes`. Without it, the first dot ends the name.
  */
-export function collectionTopicReads(topic: string): readonly string[] {
-  const parts = splitCollectionTopic(topic);
-  return parts ? [`collection:${parts.collection}`] : [];
+export function collectionTopicReads(topic: string, repository?: RepositoryProvider): readonly string[] {
+  const target = collectionTopicTarget(topic, repository);
+  return target ? [`collection:${target.collection}`] : [];
 }
 
 /** The part of a storage that the change events read. */

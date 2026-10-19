@@ -130,6 +130,7 @@ export {
   PARTITION_PATTERN,
   collectionTopicPartition,
   collectionTopicTarget,
+  collectionTopicRule,
   // The query language of the collection storages (roadmap CLI-14, CLI-34)
   DEFAULT_FIND_LIMIT,
   DEFAULT_QUERY_OPERATORS,

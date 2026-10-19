@@ -6,10 +6,11 @@
 
 import { describe, it, expect } from "vitest";
 import fc from "fast-check";
-import { collectionChangeTopic, collectionTopicPartition, splitCollectionTopic } from "./topic.js";
+import { collectionChangeTopic, collectionTopicPartition, collectionTopicRule } from "./topic.js";
 import { collectionTopicReads } from "./changes.js";
 import { collectionTopicTarget } from "./partition.js";
 import type { RepositoryProvider } from "../types.js";
+import { topicMatcher } from "../../events/publisher.js";
 
 /** A repository that knows some collections, with or without partitions. */
 function repositoryWith(partitioned: readonly string[], plain: readonly string[] = []): RepositoryProvider {
@@ -76,10 +77,30 @@ describe("the topic of a partition (CLI-42)", () => {
     for (const [collection, partition] of pairs) {
       expect(collectionTopicPartition(collectionChangeTopic(collection, partition))).toEqual({ collection, partition });
     }
-    // The decode takes each case of the escape of the dot
-    expect(collectionTopicPartition("collections.graph%2enodes.t1")).toEqual({ collection: "graph.nodes", partition: "t1" });
-    // A % before other characters stays as it is
-    expect(collectionTopicPartition("collections.a%41.t1")).toEqual({ collection: "a%41", partition: "t1" });
+  });
+
+  it("reads only the canonical form: a lowercase escape or a raw % names no collection", () => {
+    const repository = repositoryWith(["graph.nodes", "a%41"]);
+    for (const alias of ["collections.graph%2enodes.t1", "collections.a%2eb%2Ec.t1", "collections.a%41.t1", "collections.100%.t1"]) {
+      expect(collectionTopicPartition(alias), alias).toBeUndefined();
+      expect(collectionTopicTarget(alias, repository), alias).toBeUndefined();
+      expect(collectionTopicReads(alias, repository), alias).toEqual([]);
+    }
+    // The canonical forms of the same names
+    expect(collectionTopicPartition("collections.graph%2Enodes.t1")).toEqual({ collection: "graph.nodes", partition: "t1" });
+    expect(collectionTopicPartition(collectionChangeTopic("a%41", "t1"))).toEqual({ collection: "a%41", partition: "t1" });
+  });
+
+  it("gives a collection and a partition only for a topic that collectionChangeTopic() gives again", () => {
+    const rest = fc.oneof(hardString, fc.string({ maxLength: 24 }), fc.tuple(hardString, hardString).map(([a, b]) => `${a}.${b}`));
+    fc.assert(
+      fc.property(rest, (tail) => {
+        const topic = `collections.${tail}`;
+        const parts = collectionTopicPartition(topic);
+        if (parts) expect(collectionChangeTopic(parts.collection, parts.partition)).toBe(topic);
+      }),
+      { numRuns: 2000 },
+    );
   });
 
   it("parses each generated name and partition back to the same pair, also with a repository", () => {
@@ -99,16 +120,35 @@ describe("the topic of a partition (CLI-42)", () => {
   it("gives the read of the collection of a topic with an encoded name", () => {
     expect(collectionTopicReads("collections.graph%2Enodes.acme/space")).toEqual(["collection:graph.nodes"]);
     expect(collectionTopicReads("collections.users.team-1")).toEqual(["collection:users"]);
-    expect(collectionTopicReads("collections.users.")).toEqual(["collection:users"]);
+    expect(collectionTopicReads("collections.users.")).toEqual([]);
     expect(collectionTopicReads("collections..x")).toEqual([]);
     expect(collectionTopicReads("collections.")).toEqual([]);
+  });
+
+  it("reads the plain topic of a dotted name with the parse of the publisher, when it has the repository", () => {
+    const repository = repositoryWith(["graph.nodes"]);
+    expect(collectionTopicReads("collections.graph.nodes", repository)).toEqual(["collection:graph.nodes"]);
+    expect(collectionTopicReads("collections.graph.nodes", repository)).toEqual([`collection:${collectionTopicTarget("collections.graph.nodes", repository)!.collection}`]);
+    // Without the repository, the first dot ends the name
+    expect(collectionTopicReads("collections.graph.nodes")).toEqual(["collection:graph"]);
   });
 
   it("reads a topic that is not of a collection, or that has no name or an empty partition, as before", () => {
     for (const topic of ["orders.created", "collections", "collections.", "collections..x", "collections.notes."]) {
       expect(collectionTopicPartition(topic), topic).toBeUndefined();
     }
-    expect(splitCollectionTopic("collections.notes.")).toEqual({ collection: "notes", partition: "" });
+  });
+
+  it("gives the topic rule of a collection: the plain topic and the canonical topics of its partitions", () => {
+    expect(collectionTopicRule("notes")).toEqual(["collections.notes", "collections.notes.*"]);
+    expect(collectionTopicRule("graph.nodes")).toEqual(["collections.graph.nodes", "collections.graph%2Enodes.*"]);
+    expect(collectionTopicRule("rate%")).toEqual(["collections.rate%", "collections.rate%25.*"]);
+    const known = topicMatcher(collectionTopicRule("graph.nodes"));
+    expect(known("collections.graph.nodes")).toBe(true);
+    expect(known(collectionChangeTopic("graph.nodes", "acme/space"))).toBe(true);
+    expect(known("collections.graph%2enodes.acme/space")).toBe(false);
+    expect(known("collections.graph.nodes.acme/space")).toBe(false);
+    expect(known("collections.graph")).toBe(false);
   });
 
   it("lets a collection of the repository whose name is the whole topic win, with or without partitions", () => {

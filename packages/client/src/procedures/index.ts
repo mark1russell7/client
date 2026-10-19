@@ -133,6 +133,7 @@ export {
   PARTITION_PATTERN,
   collectionTopicPartition,
   collectionTopicTarget,
+  collectionTopicRule,
   DEFAULT_FIND_LIMIT,
   DEFAULT_QUERY_OPERATORS,
   DEFAULT_QUERY_POLICY,

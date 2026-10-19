@@ -17,9 +17,8 @@
  */
 import type { ZodLike } from "../../client/validation/types.js";
 import { InvocationError } from "../invoke.js";
-import type { ProcedureContext, RepositoryProvider } from "../types.js";
+import type { ProcedureContext } from "../types.js";
 import type { CollectionStorage } from "./storage.js";
-import { collectionTopicPartition } from "./topic.js";
 
 /** The characters of a partition: letters, digits and `_ . : @ ~ + | / -`, 256 at most. */
 export const PARTITION_PATTERN: RegExp = /^[A-Za-z0-9_.:@~+|/-]{1,256}$/;
@@ -132,21 +131,5 @@ export function storageOfCall<T>(ctx: ProcedureContext, collection: string, part
   return repository.getPartitionStorage<T>(collection, partition);
 }
 
-export { collectionTopicPartition } from "./topic.js";
-
-/**
- * This function gives the collection and the partition part of a topic of a call, with the
- * repository of the call: one rule for the read check and for the listener of the publisher.
- *
- * - A collection of the repository whose name is the whole rest of the topic wins, with or without
- *   partitions: its name can have a dot. The call then asks for no partition.
- * - Else `collectionTopicPartition()` reads the topic: the first dot after the name ends the name,
- *   and the rest is the partition that the call asks for. In this form, the name encodes `%` and
- *   `.`, so the name of a collection with partitions can have a dot (roadmap CLI-42).
- */
-export function collectionTopicTarget(topic: string, repository: RepositoryProvider | undefined): { collection: string; partition: string | undefined } | undefined {
-  if (!topic.startsWith("collections.")) return undefined;
-  const whole = topic.slice("collections.".length);
-  if (whole !== "" && repository?.hasCollection(whole)) return { collection: whole, partition: undefined };
-  return collectionTopicPartition(topic);
-}
+// The parse of a topic lives in topic.ts, with the encode (roadmap CLI-42)
+export { collectionTopicPartition, collectionTopicTarget } from "./topic.js";

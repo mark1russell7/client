@@ -370,7 +370,20 @@ The name of a collection with partitions can have a dot (roadmap CLI-42):
 - The partition stays as it is, and it can have each character. The topic of the partition `acme/space` of `graph.nodes` is `collections.graph%2Enodes.acme/space`.
 - A name without `.` and `%` keeps its topic. The topic of a collection without a partition keeps the name as it is: `collections.graph.nodes`.
 - `collectionChangeTopic(name, partition)` makes a topic, and `collectionTopicPartition(topic)` reads it. Use these functions. Do not join the parts yourself.
-- A topic rule for the partitions of a dotted name uses the encoded name, for example `collections.graph%2Enodes.*`.
+- Only the canonical form of a topic counts. The parse gives a collection and a partition only when `collectionChangeTopic()` gives the same topic again. Thus `collections.graph%2enodes.t1` names no collection.
+- A name with `%` or `.` gets a new topic of a partition. Upgrade the publishers and the subscribers of such a name together.
+
+Build the topic rule of a collection with `collectionTopicRule(name)`:
+
+```ts
+const publisher = new EventPublisher({ bus, topics: ["orders.*", ...collectionTopicRule("graph.nodes")] });
+// collectionTopicRule("graph.nodes") gives ["collections.graph.nodes", "collections.graph%2Enodes.*"]
+```
+
+- The rule has the plain topic and the pattern of the topics of the partitions. A rule that you join yourself, for example `collections.graph.nodes.*`, matches no topic of a partition of a dotted name.
+- For a collection with partitions, the plain topic asks for no partition, and the resolver decides.
+- For a collection without partitions, a topic of a partition passes the rule. The publisher then refuses it with `FORBIDDEN` (reason `partition-not-allowed`).
+- The pattern matches only the canonical form, so an alias of an escape gets `TOPIC_NOT_FOUND`.
 
 ### The publisher
 
