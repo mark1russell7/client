@@ -182,3 +182,6 @@ export type {
 // Materialized views driven by change streams (Graph's split plan, P4)
 export { ViewMaterializer, identityPartition, partitionTargetId, viewFilter, VIEW_GENERATION_FIELD, VIEW_HASH_FIELD } from "./storage/index.js";
 export type { MaterializedView, MaterializedViewStatus, ViewMaterializerOptions, ViewPartitionOf, ViewPipelineScope, ViewTargetId } from "./storage/index.js";
+// A read-only storage of a view for the collection procedures: one generation for each read (roadmap CLI-38)
+export { MongoViewStorage } from "./storage/index.js";
+export type { MongoViewStorageOptions } from "./storage/index.js";
