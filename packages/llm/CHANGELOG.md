@@ -1,5 +1,14 @@
 # @procedures/llm
 
+## 0.16.0
+
+### Patch Changes
+
+- Updated dependencies [deada4b]
+  - @procedures/client@0.16.0
+  - @procedures/http@0.16.0
+  - @procedures/json@0.16.0
+
 ## 0.15.1
 
 ### Patch Changes

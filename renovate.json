@@ -1,0 +1,74 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":dependencyDashboard"],
+  "timezone": "UTC",
+  "schedule": ["before 6am on monday"],
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "rangeStrategy": "update-lockfile",
+  "minimumReleaseAge": "3 days",
+  "lockFileMaintenance": { "enabled": false },
+  "ignorePaths": [
+    "**/node_modules/**",
+    ".github/workflows/release.yml",
+    "scripts/release/**",
+    "packages/*/.github/**",
+    "packages/*/fixtures/**"
+  ],
+  "vulnerabilityAlerts": { "schedule": ["at any time"] },
+  "packageRules": [
+    {
+      "description": "One weekly PR for all patch updates of npm packages, merged on green CI",
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["patch"],
+      "groupName": "npm patch updates",
+      "groupSlug": "npm-patch",
+      "automerge": true
+    },
+    {
+      "description": "One weekly PR for minor updates of development dependencies, merged on green CI",
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor"],
+      "groupName": "npm dev dependencies (minor)",
+      "groupSlug": "npm-dev-minor",
+      "automerge": true
+    },
+    {
+      "description": "One weekly PR for minor updates of runtime dependencies, for review",
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["dependencies", "optionalDependencies"],
+      "matchUpdateTypes": ["minor"],
+      "groupName": "npm dependencies (minor)",
+      "groupSlug": "npm-minor",
+      "automerge": false
+    },
+    {
+      "description": "Before 1.0.0 a minor update can break (SemVer): never merge it automatically",
+      "matchCurrentVersion": "/^[~^]?0[.]/",
+      "matchUpdateTypes": ["minor"],
+      "automerge": false
+    },
+    {
+      "description": "Peer dependency ranges are a promise to the users: change them by hand",
+      "matchDepTypes": ["peerDependencies"],
+      "enabled": false
+    },
+    {
+      "description": "The Stryker vitest runner carries a pnpm patch for its exact version (patches/): update it by hand",
+      "matchPackageNames": ["@stryker-mutator/core", "@stryker-mutator/vitest-runner"],
+      "enabled": false
+    },
+    {
+      "description": "One weekly PR for the GitHub Actions; minor and patch merge on green CI",
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+      "groupSlug": "github-actions"
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "automerge": true
+    }
+  ]
+}
