@@ -46,6 +46,23 @@ describe("MongoStorage", () => {
     expect(await storage.getAll()).toEqual(["y"]);
   });
 
+  it("refuses a write with an expected version: its documents have no version (CLI-16)", async () => {
+    setDefaultConnection(fakeConnection(new FakeServer()));
+    const storage = new MongoStorage<string>({ collection: "items" });
+    await storage.set("a", "x");
+    for (const write of [
+      () => storage.set("a", "y", { expectedVersion: null }),
+      () => storage.delete("a", { expectedVersion: "1" }),
+      () => storage.setBatch([["a", "y"]], { expectedVersions: [["a", null]] }),
+    ]) {
+      await expect(write()).rejects.toMatchObject({ code: "PRECONDITION_NOT_SUPPORTED" });
+    }
+    expect(await storage.get("a")).toBe("x");
+    // Without a precondition, the writes work as before
+    await storage.setBatch([["a", "z"]], { expectedVersions: [] });
+    expect(await storage.get("a")).toBe("z");
+  });
+
   it("rejects each operation after close(), also an empty batch, and a second close() does nothing", async () => {
     setDefaultConnection(fakeConnection(new FakeServer()));
     const storage = new MongoStorage<string>({ collection: "items" });

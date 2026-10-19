@@ -500,7 +500,7 @@ The MCP server serves no remote events: MCP carries only the tool calls.
  * writes nothing to stdout, and the server sends console.log to stderr.
  */
 async function startMcp(args: string[], fsRoot?: string): Promise<void> {
-  const { loadConfig, startDevToolsServer } = await import("@procedures/mcp-dev-tools");
+  const { loadConfig, runDevToolsServer } = await import("@procedures/mcp-dev-tools");
   const config = loadConfig();
   // `mark --fs-root <folder> mcp` replaces MCP_FS_ROOT, and `mark mcp --fs-root` replaces both
   if (fsRoot !== undefined) config.fsRoot = fsRoot;
@@ -541,8 +541,9 @@ async function startMcp(args: string[], fsRoot?: string): Promise<void> {
       throw new Error(`Unknown option of mark mcp: ${arg}. Run 'mark mcp --help'.`);
     }
   }
-  // The server reads stdin until the client closes it: the process stays alive until then
-  await startDevToolsServer(config);
+  // The server runs under run() of the service (CLI-11): the runner owns the signals, the stop
+  // in stages and the exit. Over stdio, the end of the input stops it.
+  await runDevToolsServer(config);
 }
 
 /**

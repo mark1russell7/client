@@ -2,7 +2,7 @@
  * The procedures of @procedures/ics as data. Importing this file registers nothing.
  */
 
-import { defineModule, registerModules, PROCEDURE_REGISTRY, type ProcedureModule, type ProcedureRegistry } from "@procedures/client";
+import { defineModule, registerModules, PROCEDURE_REGISTRY, type ProcedureModule, type ProcedureRegistry } from "@procedures/client/browser";
 import { icsProcedures } from "./procedures.js";
 
 export const icsModule: ProcedureModule = defineModule("@procedures/ics", icsProcedures);

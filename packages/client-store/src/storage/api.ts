@@ -7,10 +7,19 @@
  * This is the KEY integration between Collections and Universal Client!
  */
 
-import type { CollectionStorage, StorageChanges, StorageMetadata, StorageWriteOptions } from "@procedures/collections";
+import type {
+  CollectionStorage,
+  StorageBatchWriteOptions,
+  StorageChanges,
+  StorageItemWriteOptions,
+  StorageMetadata,
+  StorageWriteOptions,
+} from "@procedures/collections";
 import {
   QUERY_OPERATORS,
+  asVersionConflictError,
   patchProblems,
+  preconditionNotSupported,
   queryEntries,
   queryOptionsProblems,
   selectorProblems,
@@ -22,7 +31,7 @@ import {
 import type { Client } from "@procedures/client";
 import type { Method } from "@procedures/client";
 import type { CallOptions } from "@procedures/client/client";
-import { optionalMs, realClock, type Clock, type Duration } from "@procedures/client";
+import { optionalMs, realClock, type Clock, type Duration } from "@procedures/client/browser";
 import { backoffDelay, type Backoff } from "@mark1russell7/service/backoff";
 
 /**
@@ -244,6 +253,11 @@ function entriesOf<T>(output: unknown, label: string): Array<[string, T]> {
  * - patch(id, fields) → `collections.<collection>.patch` with `{ id, fields }`
  * - etc.
  *
+ * A write with a precondition (roadmap CLI-16) sends `expectedVersion` (`set`, `delete`), or the
+ * `expectedVersion` of each item (`setBatch`). A conflict of the server (`VERSION_CONFLICT`) rejects
+ * with `VersionConflictError`, with the current items. A custom `service` gets no precondition: a
+ * write with one rejects with a `TypeError`.
+ *
  * Before, the class expected a `{ data }` envelope and called `<service>.get`: no core
  * procedure matched, and every read was undefined (deep dive CORE-9, DATA-9).
  *
@@ -283,6 +297,8 @@ export class ApiStorage<T> implements CollectionStorage<T> {
     askFound: boolean;
     /** True when the writes send their origin: the core collection procedures take it (roadmap CLI-15) */
     sendOrigin: boolean;
+    /** True when the writes can send a precondition: the core collection procedures take it (roadmap CLI-16) */
+    sendPreconditions: boolean;
   };
   private closed = false;
   /** True when the server does not know the procedure `ids`: `getIds()` reads the entries */
@@ -339,6 +355,8 @@ export class ApiStorage<T> implements CollectionStorage<T> {
       askFound: options.service === undefined && (options.operations?.get ?? "get") === "get",
       // A custom service can refuse an unknown input field: it gets no origin
       sendOrigin: options.service === undefined,
+      // A custom service can ignore an unknown input field: a precondition must not be lost
+      sendPreconditions: options.service === undefined,
     };
   }
 
@@ -473,14 +491,15 @@ export class ApiStorage<T> implements CollectionStorage<T> {
 
   /**
    * This method sets an item on the server. The origin of the options goes to the procedure `set`,
-   * so the storage of the server and the change event of the write have it (roadmap CLI-15).
+   * so the storage of the server and the change event of the write have it (roadmap CLI-15). The
+   * expected version goes with it (roadmap CLI-16).
    */
-  async set(id: string, value: T, options?: StorageWriteOptions): Promise<void> {
-    await this.call("set", { id, value, ...this.originOf(options) });
+  async set(id: string, value: T, options?: StorageItemWriteOptions): Promise<void> {
+    await this.call("set", { id, value, ...this.originOf(options), ...this.expectedVersionOf(options) });
   }
 
-  async delete(id: string, options?: StorageWriteOptions): Promise<boolean> {
-    return (await this.call<boolean>("delete", { id, ...this.originOf(options) })) === true;
+  async delete(id: string, options?: StorageItemWriteOptions): Promise<boolean> {
+    return (await this.call<boolean>("delete", { id, ...this.originOf(options), ...this.expectedVersionOf(options) })) === true;
   }
 
   async clear(options?: StorageWriteOptions): Promise<void> {
@@ -504,9 +523,24 @@ export class ApiStorage<T> implements CollectionStorage<T> {
   // ═══ Bulk Operations ═══
   //
 
-  async setBatch(items: Array<[string, T]>, options?: StorageWriteOptions): Promise<void> {
+  /**
+   * This method sets several items on the server. The expected version of an id goes on the first
+   * item of the id (roadmap CLI-16). An expected version of an id that the batch does not write
+   * rejects with a `TypeError`: the procedure takes the versions only on its items.
+   */
+  async setBatch(items: Array<[string, T]>, options?: StorageBatchWriteOptions): Promise<void> {
+    const expected = new Map(this.preconditionsOf(options?.expectedVersions ?? []));
+    for (const [id] of expected) {
+      if (!items.some(([itemId]) => itemId === id)) throw new TypeError(`setBatch has an expected version of ${JSON.stringify(id)}, but no item of that id`);
+    }
     // The collection procedure takes objects, not tuples
-    await this.call("setBatch", { items: items.map(([id, value]) => ({ id, value })), ...this.originOf(options) });
+    const sent = items.map(([id, value]) => {
+      if (!expected.has(id)) return { id, value };
+      const expectedVersion = expected.get(id);
+      expected.delete(id);
+      return { id, value, expectedVersion };
+    });
+    await this.call("setBatch", { items: sent, ...this.originOf(options) });
   }
 
   async deleteBatch(ids: string[], options?: StorageWriteOptions): Promise<number> {
@@ -564,6 +598,21 @@ export class ApiStorage<T> implements CollectionStorage<T> {
     return this.options.sendOrigin && options?.origin !== undefined ? { origin: options.origin } : {};
   }
 
+  /** The field `expectedVersion` of a write input, or no field (roadmap CLI-16). */
+  private expectedVersionOf(options: StorageItemWriteOptions | undefined): { expectedVersion?: string | null } {
+    if (options?.expectedVersion === undefined) return {};
+    this.preconditionsOf([["", options.expectedVersion]]);
+    return { expectedVersion: options.expectedVersion };
+  }
+
+  /** The preconditions of a write. A custom service cannot take them: the write rejects with a `TypeError`. */
+  private preconditionsOf(expected: ReadonlyArray<readonly [string, string | null]>): ReadonlyArray<readonly [string, string | null]> {
+    if (expected.length > 0 && !this.options.sendPreconditions) {
+      throw preconditionNotSupported(`The ApiStorage of the service ${this.options.service}`, "use the core collection procedures (the option collection)");
+    }
+    return expected;
+  }
+
   /**
    * Make an RPC call via the universal client, with the timeout, the signal and the retries. The
    * wait before retry `n` is `backoffDelay(backoff, n)`, or the wait that the error asks for when
@@ -583,7 +632,8 @@ export class ApiStorage<T> implements CollectionStorage<T> {
         return await this.attempt<TRes>(method, payload, label);
       } catch (error) {
         if (attempt >= this.options.attempts || !isRetryable(error) || this.options.signal?.aborted) {
-          throw error;
+          // A conflict of a precondition gives its current items (roadmap CLI-16)
+          throw asVersionConflictError(error) ?? error;
         }
         const delay = Math.max(backoffDelay(this.options.backoff, attempt, this.options.random), retryAfterOf(error));
         await wait(this.options.clock, delay, this.options.signal, () => error as Error);

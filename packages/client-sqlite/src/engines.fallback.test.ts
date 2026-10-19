@@ -59,6 +59,9 @@ describe("SqliteStorage when the import of node:sqlite fails", () => {
 // The fallback keeps the contract
 describeCollectionStorageContract(
   "SqliteStorage (auto without node:sqlite) in a file",
-  { create: () => new SqliteStorage<ContractItem>({ path: tempDb(), table: "items" }) },
+  {
+    create: () => new SqliteStorage<ContractItem>({ path: tempDb(), table: "items" }),
+    createWithVersions: (versionOf) => new SqliteStorage<ContractItem>({ path: tempDb(), table: "items", versionOf }),
+  },
   { describe, it },
 );

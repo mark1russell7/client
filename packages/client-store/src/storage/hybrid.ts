@@ -15,6 +15,9 @@
  * - The queue is durable through the `queueStore` that the application gives.
  * - A sync asks for the changes since a version when the remote has `getChangesSince`.
  * - With `versionOf`, a conflict is a change on both sides, and `conflictResolution` decides.
+ * - With `versionOf`, the push of a queued write sends its base version as `expectedVersion`
+ *   (roadmap CLI-16). A `VERSION_CONFLICT` of the remote goes to `conflictResolution`, as a
+ *   conflict of a pull does. The option `sendBaseVersions: false` stops it.
  * - `pullInterval` keeps the local copy fresh.
  * - Each write takes a copy of the value (`structuredClone`), for the local copy, the queue and the
  *   remote. The reads give the copies of the local copy, or of the remote in `remote-only` mode.
@@ -42,23 +45,27 @@
 
 import type {
   CollectionStorage,
+  StorageBatchWriteOptions,
   StorageChangeBatch,
   StorageChangeEvent,
   StorageChanges,
+  StorageItemWriteOptions,
   StorageMetadata,
   StorageObserver,
   StorageWriteOptions,
+  VersionConflict,
 } from "@procedures/collections";
 import { InMemoryStorage, StorageListeners, type ListenerErrorHandler } from "@procedures/collections";
 import {
   queryEntries,
   queryOptionsProblems,
   selectorProblems,
+  versionConflictsOf,
   type StorageQueryOptions,
   type StorageQueryPolicy,
   type StorageSelector,
 } from "@procedures/client/query";
-import { optionalMs, realClock, type Cancel, type Clock, type Duration } from "@procedures/client";
+import { optionalMs, realClock, type Cancel, type Clock, type Duration } from "@procedures/client/browser";
 import { backoffDelay } from "@mark1russell7/service/backoff";
 import { MemoryQueueStore, idsOf, withoutId, type QueuedOperation, type QueueStore } from "./queue.js";
 import type { SyncError, SyncStatus } from "./types.js";
@@ -146,6 +153,19 @@ export interface HybridStorageOptions {
    * local item only for a conflict, or when it does not know the version of the item.
    */
   versionOf?: (item: any) => string | undefined;
+
+  /**
+   * With `versionOf`: true sends the base version of each queued write to the remote as its
+   * `expectedVersion` (roadmap CLI-16). The remote then refuses a write over a change of another
+   * writer with `VERSION_CONFLICT`, and `conflictResolution` decides, as for a pull. The base
+   * version is the remote version of the id when the local write was queued. False: the push
+   * sends no precondition, and the queued write replaces the remote item, as before CLI-16.
+   *
+   * The remote must test the precondition: an `ApiStorage` of the core collection procedures over
+   * a storage with the same `versionOf`. A remote that cannot test it refuses each push.
+   * @default true
+   */
+  sendBaseVersions?: boolean;
 
   /**
    * Automatic sync interval (for write-back mode), for example `seconds(5)`.
@@ -530,6 +550,15 @@ type PulledChanges<T> = Omit<StorageChanges<T>, "version"> & { version?: string 
 /** The data of a queued operation of each type. */
 type OperationData<T> = { id: string; value: T; ids: string[]; items: Array<[string, T]> };
 
+/** True when two values have the same JSON. A value without JSON is never the same. */
+function sameJson(a: unknown, b: unknown): boolean {
+  try {
+    return JSON.stringify(a) === JSON.stringify(b);
+  } catch {
+    return false;
+  }
+}
+
 /** A change with an origin, when there is one. */
 function withOrigin<T>(change: StorageChangeEvent<T>, origin: string | undefined): StorageChangeEvent<T> {
   return origin === undefined ? change : { ...change, origin };
@@ -752,6 +781,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     mergeFn?: <T>(local: T, remote: T) => T;
     keyOf: (item: T) => string | undefined;
     versionOf?: (item: T) => string | undefined;
+    sendBaseVersions: boolean;
     syncInterval: number;
     pullInterval: number;
     syncOnInit: boolean;
@@ -874,7 +904,10 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     remote: CollectionStorage<T>,
     options: HybridStorageOptions = {}
   ) {
-    this.local = (options.local as LocalCopyStorage<T> | undefined) ?? new InMemoryStorage<T>();
+    // The local copy tests the preconditions of the callers (roadmap CLI-16): it gets `versionOf`
+    this.local =
+      (options.local as LocalCopyStorage<T> | undefined) ??
+      new InMemoryStorage<T>(options.versionOf !== undefined ? { versionOf: options.versionOf as (item: T) => string | undefined } : {});
     this.remote = remote;
     this.queueStore = options.queueStore ?? new MemoryQueueStore();
     this.mode = checkMode(options.mode ?? options.writeStrategy ?? "write-through");
@@ -883,6 +916,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       ...(options.mergeFn !== undefined && { mergeFn: options.mergeFn }),
       keyOf: options.keyOf ?? defaultKeyOf,
       ...(options.versionOf !== undefined && { versionOf: options.versionOf }),
+      sendBaseVersions: options.sendBaseVersions ?? true,
       syncInterval: optionalMs(options.syncInterval, "syncInterval") ?? 5000,
       pullInterval: optionalMs(options.pullInterval, "pullInterval") ?? 0,
       syncOnInit: options.syncOnInit ?? true,
@@ -1603,22 +1637,34 @@ export class HybridStorage<T> implements CollectionStorage<T> {
    * This method sets an item. The storage takes a copy of the value, so a later change of the
    * value does not change the local copy, the queue or the remote write. The origin of the options
    * goes to the batches of `observe()`. The local copy and the remote get the origin of the storage.
+   *
+   * An `expectedVersion` (roadmap CLI-16) is a precondition on the item as the storage reads it.
+   * The local copy tests it (the default local copy needs `versionOf`). In `write-through` mode, the
+   * remote write also gets it. In `remote-only` mode, only the remote tests it.
    */
-  async set(id: string, written: T, options?: StorageWriteOptions): Promise<void> {
+  async set(id: string, written: T, options?: StorageItemWriteOptions): Promise<void> {
     const value = structuredClone(written);
     const origin = options?.origin;
+    const expected = this.expectedOf(options);
     await this.write("set", { id, value }, [id], origin, async () => {
       this.bump(id);
-      await this.localSet(id, value, origin);
-    }, () => this.remote.set(id, value, this.own));
+      await this.localSet(id, value, origin, expected);
+    }, () => this.remote.set(id, value, { ...this.own, ...expected }));
   }
 
-  async delete(id: string, options?: StorageWriteOptions): Promise<boolean> {
+  /** This method deletes an item. An `expectedVersion` is a precondition, as for `set`. */
+  async delete(id: string, options?: StorageItemWriteOptions): Promise<boolean> {
     const origin = options?.origin;
+    const expected = this.expectedOf(options);
     return this.write("delete", { id }, [id], origin, async () => {
       this.bump(id);
-      return this.localDelete(id, origin);
-    }, () => this.remote.delete(id, this.own));
+      return this.localDelete(id, origin, expected);
+    }, () => this.remote.delete(id, { ...this.own, ...expected }));
+  }
+
+  /** The precondition of the caller: the field `expectedVersion`, or no field. */
+  private expectedOf(options: StorageItemWriteOptions | undefined): { expectedVersion?: string | null } {
+    return options?.expectedVersion === undefined ? {} : { expectedVersion: options.expectedVersion };
   }
 
   async clear(options?: StorageWriteOptions): Promise<void> {
@@ -1633,14 +1679,18 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   // ═══ Bulk Operations ═══
   //
 
-  /** This method sets several items. The storage takes a copy of each value, as `set` does. */
-  async setBatch(written: Array<[string, T]>, options?: StorageWriteOptions): Promise<void> {
+  /**
+   * This method sets several items. The storage takes a copy of each value, as `set` does. The
+   * `expectedVersions` are preconditions, as `expectedVersion` of `set` is.
+   */
+  async setBatch(written: Array<[string, T]>, options?: StorageBatchWriteOptions): Promise<void> {
     const items = written.map(([id, value]): [string, T] => [id, structuredClone(value)]);
     const origin = options?.origin;
+    const expected = options?.expectedVersions !== undefined && options.expectedVersions.length > 0 ? { expectedVersions: options.expectedVersions } : {};
     await this.write("setBatch", { items }, items.map(([id]) => id), origin, async () => {
       for (const [id] of items) this.bump(id);
-      await this.localSetBatch(items, origin);
-    }, () => this.remote.setBatch(items, this.own));
+      await this.localSetBatch(items, origin, expected);
+    }, () => this.remote.setBatch(items, { ...this.own, ...expected }));
   }
 
   async deleteBatch(ids: string[], options?: StorageWriteOptions): Promise<number> {
@@ -2248,19 +2298,22 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   // The writes of the local copy have the origin of this storage, so the capture does not queue
   // them. The observers get each change with the origin of the caller.
 
-  private async localSet(id: string, value: T, origin: string | undefined): Promise<void> {
-    await this.writeLocal(() => [[id, this.recordedVersion(value)]], () => this.local.set(id, value, this.own));
+  // A precondition of a caller goes to the local copy, which tests it and writes in one step
+  // (roadmap CLI-16).
+
+  private async localSet(id: string, value: T, origin: string | undefined, expected: { expectedVersion?: string | null } = {}): Promise<void> {
+    await this.writeLocal(() => [[id, this.recordedVersion(value)]], () => this.local.set(id, value, { ...this.own, ...expected }));
     if (this.observers.size > 0) this.emit([setChange(id, value, origin)]);
   }
 
-  private async localDelete(id: string, origin: string | undefined): Promise<boolean> {
-    const existed = await this.writeLocal(() => [[id, undefined]], () => this.local.delete(id, this.own));
+  private async localDelete(id: string, origin: string | undefined, expected: { expectedVersion?: string | null } = {}): Promise<boolean> {
+    const existed = await this.writeLocal(() => [[id, undefined]], () => this.local.delete(id, { ...this.own, ...expected }));
     if (existed) this.emit([withOrigin<T>({ type: "delete", id }, origin)]);
     return existed;
   }
 
-  private async localSetBatch(items: Array<[string, T]>, origin: string | undefined): Promise<void> {
-    await this.writeLocal(() => items.map(([id, value]) => [id, this.recordedVersion(value)]), () => this.local.setBatch(items, this.own));
+  private async localSetBatch(items: Array<[string, T]>, origin: string | undefined, expected: StorageBatchWriteOptions = {}): Promise<void> {
+    await this.writeLocal(() => items.map(([id, value]) => [id, this.recordedVersion(value)]), () => this.local.setBatch(items, { ...this.own, ...expected }));
     if (this.observers.size > 0) this.emit(items.map(([id, value]) => setChange(id, value, origin)));
   }
 
@@ -2576,6 +2629,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   private async pushQueue(): Promise<void> {
     this.pushing = true;
     let sent = 0;
+    // The operations whose conflicts this push resolved once (roadmap CLI-16)
+    const resolved = new Set<QueuedOperation>();
     try {
       while (this.offlineOps.length > 0) {
         const op = this.offlineOps[0]!;
@@ -2588,8 +2643,16 @@ export class HybridStorage<T> implements CollectionStorage<T> {
           this.echoSent(op);
           await this.executeOperation(op);
         } catch (error) {
+          // The remote refused a base version: the conflict policy decides, then the push goes on
+          const conflicts = this.sendsBaseVersions() ? versionConflictsOf(error) : undefined;
+          if (conflicts !== undefined && conflicts.length > 0 && !resolved.has(op)) {
+            resolved.add(op);
+            this.isOnline = true;
+            await this.resolvePushConflicts(op, conflicts);
+            continue;
+          }
           // This operation and the later ones stay queued
-          this.isOnline = false;
+          if (conflicts === undefined) this.isOnline = false;
           throw error;
         }
         this.noteRemoteWrite(op);
@@ -2914,15 +2977,15 @@ export class HybridStorage<T> implements CollectionStorage<T> {
 
     switch (op.type) {
       case "set":
-        await this.remote.set(data.id, data.value, this.own);
+        await this.remote.set(data.id, data.value, this.withBase(data.id));
         break;
 
       case "delete":
-        await this.remote.delete(data.id, this.own);
+        await this.remote.delete(data.id, this.withBase(data.id));
         break;
 
       case "setBatch":
-        await this.remote.setBatch(data.items, this.own);
+        await this.remote.setBatch(data.items, this.withBases(data.items));
         break;
 
       case "deleteBatch":
@@ -2933,6 +2996,127 @@ export class HybridStorage<T> implements CollectionStorage<T> {
         await this.remote.clear(this.own);
         break;
     }
+  }
+
+  //
+  // ═══ The base versions as preconditions (roadmap CLI-16) ═══
+  //
+
+  /** True when a push sends the base versions of its operations as expected versions. */
+  private sendsBaseVersions(): boolean {
+    return this.options.sendBaseVersions && this.options.versionOf !== undefined;
+  }
+
+  /**
+   * The options of the push of a set or a delete of one id: the base version of the id as its
+   * expected version. The first queued operation of an id changes the remote version in `bases`.
+   * An id without a known base version gets no precondition: the queued write wins, as before.
+   */
+  private withBase(id: string): StorageItemWriteOptions {
+    if (!this.sendsBaseVersions()) return this.own;
+    const base = this.bases.get(id);
+    return base === undefined ? this.own : { ...this.own, expectedVersion: base };
+  }
+
+  /** The options of the push of a batch: the base version of each id that has one. */
+  private withBases(items: Array<[string, T]>): StorageBatchWriteOptions {
+    if (!this.sendsBaseVersions()) return this.own;
+    const expectedVersions: Array<[string, string | null]> = [];
+    for (const id of new Set(items.map(([id]) => id))) {
+      const base = this.bases.get(id);
+      if (base !== undefined) expectedVersions.push([id, base]);
+    }
+    return expectedVersions.length === 0 ? this.own : { ...this.own, expectedVersions };
+  }
+
+  /**
+   * The value that a queued operation writes for an id: the value of the last item of the id, or
+   * `null` for a delete. Undefined when the operation does not write the id.
+   */
+  private writtenValue(op: QueuedOperation, id: string): { value: T } | null | undefined {
+    const data = op.data as OperationData<T>;
+    switch (op.type) {
+      case "set":
+        return data.id === id ? { value: data.value } : undefined;
+      case "setBatch": {
+        const item = data.items.findLast(([itemId]) => itemId === id);
+        return item ? { value: item[1] } : undefined;
+      }
+      case "delete":
+        return data.id === id ? null : undefined;
+      default:
+        return undefined;
+    }
+  }
+
+  /**
+   * This method applies the conflicts of a push that the remote refused (`VERSION_CONFLICT`). Each
+   * conflict goes to `conflictResolution`, as a conflict of a pull does:
+   *
+   * - The remote item is the value of the operation itself: an earlier send of it reached the
+   *   remote, and its answer was lost. The base becomes the current version, and the push sends
+   *   the operation again.
+   * - `remote`: the remote item replaces the local item, and the queued writes of the id go.
+   * - `merge`: the merged item replaces the local item, and a new queued write sends it.
+   * - `local`: the base becomes the current version, so the next send replaces the remote item.
+   * - `error`: the queue keeps the operation, and the push throws `ConflictError` with the ids.
+   */
+  private async resolvePushConflicts(op: QueuedOperation, conflicts: readonly VersionConflict[]): Promise<void> {
+    const ids: string[] = [];
+    let queueChanged = false;
+    for (const conflict of conflicts) {
+      const { id } = conflict;
+      const written = this.writtenValue(op, id);
+      if (written === undefined) continue;
+      if (conflict.found) {
+        const remoteItem = conflict.value as T;
+        const remoteVersion = conflict.version ?? this.versionOfItem(remoteItem);
+        // The echo of this operation, or a remote item without a version: the queued write wins
+        if (remoteVersion === undefined || (written !== null && sameJson(written.value, remoteItem))) {
+          if (remoteVersion === undefined) this.bases.delete(id);
+          else this.bases.set(id, remoteVersion);
+          continue;
+        }
+        const localItem = await this.readLocal(id);
+        if (await this.resolvePending(id, localItem, remoteItem, remoteVersion, ids)) queueChanged = true;
+        continue;
+      }
+      // The remote has no item: the echo of a delete, or a delete of another writer
+      if (written === null) {
+        this.bases.set(id, null);
+        continue;
+      }
+      if (await this.resolveRemoteDelete(id, ids)) queueChanged = true;
+    }
+    if (queueChanged) {
+      this.storeDirty = true;
+      // The status gets the failure of the queue store. A later direct write repairs the store first.
+      await this.persistAll().catch(() => undefined);
+    }
+    if (ids.length > 0) throw new ConflictError(ids);
+  }
+
+  /**
+   * A queued write of an id that the remote deleted: a conflict, and the policy decides, as for
+   * a delete of a pull. True when the queue changed.
+   */
+  private async resolveRemoteDelete(id: string, conflicts: string[]): Promise<boolean> {
+    this.stats.conflicts++;
+    switch (this.options.conflictResolution) {
+      case "remote":
+        if (!this.dropQueued(id)) break;
+        await this.localDelete(id, this.syncOrigin);
+        this.bases.set(id, null);
+        return true;
+      case "error":
+        conflicts.push(id);
+        return false;
+      default:
+        // "local", and "merge" with one deleted side: the queued write wins
+        break;
+    }
+    this.bases.set(id, null);
+    return false;
   }
 
   /**

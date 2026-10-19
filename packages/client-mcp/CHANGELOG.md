@@ -1,5 +1,91 @@
 # @procedures/mcp-server
 
+## 0.15.0
+
+### Patch Changes
+
+- Updated dependencies [c7198ca]
+  - @procedures/client@0.15.0
+  - @procedures/mcp@0.15.0
+
+## 0.14.1
+
+### Patch Changes
+
+- 85999c1: MCP tasks and the guards of the HTTP face (CLI-35).
+  
+  - A procedure with `metadata.taskSupport` (`"optional"` or `"required"`) can run as an MCP task. `@procedures/mcp` gives it in the tool definition as `execution.taskSupport`, and exports `taskSupportOf`.
+  - `createMcpHost` and `McpServerTransport` take the option `tasks`: a store (`McpTaskStore`), or the options of a new store (`maxRunning`, `ttl`). The host shares one store with each face, and `host.tasks` gives it. A task holds its place in the limit until its procedure returns, also after a cancel. A task above the limit starts and then fails at once with the reason, and the store keeps it for 1 minute. The time to keep a task starts when the task ends, and each session keeps at most 100 tasks. A cancel aborts `ctx.signal` of the procedure. The close of a session and the stop of the host cancel their tasks. Without the option `tasks`, the tools do not change.
+  - The checks of a request to the Streamable HTTP face are in one function, `guardMcpRequest`, with the browser checks and `tokenMatches` of the core. A 401 now has a `WWW-Authenticate` header. The package also exports `assertLoopbackBind`, for the owner of a listener.
+  - The HTTP face takes `allowedHosts`, `maxSessions` and `maxBodyBytes`. `createMcpHost` and `mcpFace` give the face `browser.allowedHosts` of the policy, so a host of that list can reach the endpoint. Before, the face refused it. Thus a policy with `allowedHosts: "*"` now also turns off the DNS-rebinding check of the face, as it does for the other faces.
+  - `maxSessions` has no default: the sessions have no limit, as before. With it, a new session above the limit closes the session that was idle longest (no task in progress and no open response), and when each session is busy, the new session gets 503 with `Retry-After`.
+  - `maxBodyBytes` (4 MiB by default, the limit of the SDK) applies to each request of the face.
+  - The state of an HTTP face (`getState()`, and `host.state().faces`) gives `sessions`, the count of its open sessions.
+  - `@procedures/client/node` exports `readJsonBody` and `BodyError`: the procedure handler and the MCP face read a JSON body with this one function.
+  
+  One default of the Streamable HTTP face changes: only an `initialize` request starts a session. Before, a POST without a session id made a new MCP server, and then the SDK refused the request with 400 ("Server not initialized"). Now the face refuses it with 400 before it makes a server, so a stray request uses no memory. This agrees with the MCP specification, and a caller sees the same status. When the SDK refuses an `initialize` (for example 406), the face now closes the server of that request.
+- 5efe2d2: New: the option `narrowing` of `mcpFace()` (CLI-43). The option gives each call of the face a narrower capability, as a `CapabilityRequest` or a list of them. The face adds it as one more source of the narrowing key (`procedure-narrowing`, CLI-30), so the server applies the meet of all the sources. A narrowing can only narrow: a part that asks for more than the policy of the host gives has no effect. The face lists only the tools that the narrowed capability permits. Thus `mcpFace({ narrowing: { effects: { writes: [] } } })` is a read-only MCP face on the port of the host, as `mark mcp --read-only` is over stdio. A narrowing that is not valid stops the factory with an error. Without the option, the face does not change.
+- a96c870: The MCP hosts run under `run()` of `@mark1russell7/service` (CLI-11, step 1).
+  
+  - `McpHost.declare(svc)` gives an MCP host to a service. The server of the host is a transport part, and each storage is a dependency. A host with a stdio face declares the trigger `stdin-close`. Then the runner starts the host and stops it in stages.
+  - `McpHost.handleHttp(req, res)` answers for the Streamable HTTP face with `mount: true`. Mount it on a listener, for example an `httpTransport` of `@mark1russell7/service/http`.
+  - `runDevToolsServer()` of `@procedures/mcp-dev-tools` runs the dev-tools server under `run()`. Over stdio, the profile is `ephemeral`, and the end of the input stops the server. With HTTP, the profile is `localDev`, and a listener of the service answers at `/mcp`. `dist/server.js` and `mark mcp` use it.
+  
+  PATCH: each change adds a function or an option, and the old ones still operate.
+  
+  Deprecated, and the next MINOR removes them (decision D13):
+  
+  - The listener of the Streamable HTTP face: the options `port`, `host` and `server` of `HttpTransportOptions`, and `McpHttpTransport.listen()`. Give `mount: true`, and mount `McpHost.handleHttp` on a listener of the service.
+  - `startDevToolsServer()` of `@procedures/mcp-dev-tools`. Use `runDevToolsServer()`.
+  
+  Migration for the next MINOR: the site uses none of them. MiniMongo uses none of them. Graph mounts `mcpFace()` on its host, and its stdio host keeps `createMcpHost()` with `stdio`: no change. jarvis uses `createMcpHost()` with stdio and SDK faces: no change. A host with `faces.http: { port }` moves to `faces.http: { mount: true }` and a listener of the service.
+- Updated dependencies [85999c1]
+- Updated dependencies [fc968f6]
+- Updated dependencies [dc7a462]
+- Updated dependencies [e091108]
+- Updated dependencies [073e4c3]
+- Updated dependencies [6969637]
+  - @procedures/mcp@0.14.1
+  - @procedures/client@0.14.1
+
+## 0.14.0
+
+### Patch Changes
+
+- 217a90f: From 0.14.0, a call that the shutdown cuts ends with `UNAVAILABLE` and `retryable: false` when the call can have had its effect. Before, it ended with `INTERNAL_ERROR` (server stack CLI-48). This is true before and after the first item. This change is a break of the server stack, thus it is its own MINOR (decision D13). No 0.13 release marks the old code as deprecated, because no host relies on it.
+  
+  The error registry gives `INTERNAL_ERROR` to a bug of the server, with the severity `CRITICAL`. A cut is not a bug: the server stopped. Thus an alert on `INTERNAL_ERROR` does not fire at each deploy that cuts a write. The code tells why the call ended, and the flag `retryable` tells if a retry is safe.
+  
+  The behavior that changes:
+  
+  - `createProcedureHost()` of `@procedures/peer`: each cut has the code `UNAVAILABLE`. This is the same on HTTP, WebSocket and MCP.
+  - A cut after the first item ends the stream in-band. A cut before the first item is the answer of the call. Before, a cut of a call that can have had its effect had the code `INTERNAL_ERROR` in the two cases.
+  - The flag `retryable` of a cut comes from the operation of the call. It is false for a call that can have had its effect (the operation `once`), and true for a repeatable call.
+  - `procedureHandler()` of `@procedures/client`: a handler error with `retryable: false` gets the HTTP status 500, not 503. A 503 invites a retry at the HTTP level (decision D3). Thus a cut before the first item of a call that can have had its effect is 500 with `UNAVAILABLE`, with no `Retry-After`. A retryable cut stays 503.
+  - `ProcedureServer` of `@procedures/client`: a handler error without a retryable flag gets the flag of its code in `ERROR_CODES`. Before, it got false. Thus `UNAVAILABLE` without a flag is retryable, and it keeps the HTTP status 503.
+  - The close of each face and of each listener of the host first waits until each answer that a face ended has gone out. It waits for the event `finish` of each ended response, and for the write callback of each upgraded socket. Thus the close of the transports does not lose the answer of a call that the deadline of the drain cuts. An open stream that is not ended does not hold the close.
+  - The WebSocket face keeps its connections open after the cooperative abort of the drain, until each cut call ends in-band. Before, the connections closed at the abort, and a cut call lost its end.
+  - `@procedures/mcp-server`: the error result of a failed stream has `_meta` with `code` and `retryable`. The error result of a failed call also has `retryable` in `_meta`. These fields are new.
+  
+  The behavior that does not change:
+  
+  - A real failure of a handler keeps its own code, for example `INTERNAL_ERROR` or `HANDLER_ERROR`.
+  - A refusal at the stop of the intake stays `UNAVAILABLE`, 503 and retryable.
+  - The retry middleware reads the flag `retryable`, not the code. Thus it does not retry a cut of a call that can have had its effect.
+  
+  Migration steps:
+  
+  - A caller that finds a cut by the code `INTERNAL_ERROR`: look for `UNAVAILABLE` in its place. Do not retry the call when `retryable` is false.
+  - A handler that throws `UNAVAILABLE` with `retryable: false`: its HTTP status is 500 in place of 503. Without the flag, the error is retryable and gets 503. A retry middleware then sends the call again, so give `retryable: false` when the call can have had its effect.
+  - The site: no change is necessary. Its code does not read the code of a cut, or the HTTP status 503.
+  - MiniMongo: no change is necessary. Its code does not read `INTERNAL_ERROR`, `UNAVAILABLE` or the severity of an error.
+  - The procedures host of Graph (GRAPH-11): no change is necessary. Its code does not read `INTERNAL_ERROR`. Its error "the server has no AGENT_TOKEN" is `UNAVAILABLE` with `retryable: false`, so its HTTP status is 500 in place of 503. No code of Graph reads that status.
+  - jarvis: no change is necessary. Its drain test already expects `UNAVAILABLE` with `retryable: false` for a cut procedure call (S6 A12). Its code reads only `NOT_FOUND` and `FORBIDDEN`.
+  - The `mark` CLI and `procedure-server`: no change is necessary. The lifecycle test of CI-2 expects `UNAVAILABLE` for the cut of `lifecycle.ticksOnce`.
+- Updated dependencies [217a90f]
+  - @procedures/client@0.14.0
+  - @procedures/mcp@0.14.0
+
 ## 0.13.2
 
 ### Patch Changes

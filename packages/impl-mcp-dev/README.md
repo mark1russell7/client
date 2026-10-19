@@ -51,6 +51,12 @@ When the client closes the input of stdio, the server stops: the calls in flight
 
 `mark mcp` starts the same server. Its flags replace the variables: `--bundles`, `--tool-timeout`, `--read-only`, `--http`, `--host`, `--token` and `--fs-root`.
 
+The server operates under `run()` of `@mark1russell7/service` (CLI-11). The runner owns the signals, the stop in stages and the exit of the process.
+
+- Over stdio, the profile is `ephemeral`. When the client closes the input, the server stops in stages and the process exits with the code 0. A first Ctrl-C stops the work, and a second one exits at once.
+- Over Streamable HTTP, the profile is `localDev`. A listener of the service answers on the port, and the MCP endpoint is at `/mcp`.
+- In code, `runDevToolsServer(config)` starts the server under the runner and gives the host, the service, the lifecycle and the URL. `startDevToolsServer()` is deprecated, and the next MINOR removes it.
+
 The server serves no remote events (`documentation/EVENTS.md`). Its transport carries only MCP, and `events.subscribe` is not a tool. Thus the host has no variable for the topics.
 
 ## The root of the files

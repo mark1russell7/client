@@ -85,6 +85,7 @@ const PROTOCOL_CATEGORIES: Readonly<Record<ProtocolErrorCode, ErrorCategory>> = 
   CONNECTION_NOT_FOUND: ErrorCategory.CLIENT,
   TOPIC_NOT_FOUND: ErrorCategory.CLIENT,
   TOPIC_CLEARED: ErrorCategory.CANCELLED,
+  VERSION_CONFLICT: ErrorCategory.CLIENT,
   RATE_LIMITED: ErrorCategory.RATE_LIMIT,
 };
 

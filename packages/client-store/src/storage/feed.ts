@@ -21,7 +21,7 @@ import {
   type SubscribeOptions,
   type Subscription,
   type SubscriptionError,
-} from "@procedures/client";
+} from "@procedures/client/browser";
 import type { EventTransport } from "@procedures/client/events";
 
 /**

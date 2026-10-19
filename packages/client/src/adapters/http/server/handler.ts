@@ -29,6 +29,7 @@ import { ms, type Duration } from "../../../duration.js";
 import { NDJSON_MEDIA_TYPE as NDJSON, defaultNdjsonError as errorOf, keepAliveMsOf, writeNdjsonStream } from "./ndjson.js";
 import { applyCors, corsOrigins, corsPolicy, type CorsOptions, type CorsPolicy } from "./cors.js";
 import { urlAddressing, type Addressing } from "./addressing.js";
+import { BodyError, readJsonBody } from "./body.js";
 import { NARROWING_METADATA_KEY, addNarrowing } from "../../../procedures/narrowing.js";
 import { retryAfterSeconds } from "@mark1russell7/service/limiter";
 
@@ -72,7 +73,9 @@ export interface ProcedureHandlerOptions extends BrowserGuardOptions {
   readonly addressing?: Addressing | undefined;
   /**
    * The CORS headers of the requests on the path. `true` uses the defaults: each origin, without
-   * credentials. The permitted origins of the browser checks follow the CORS origins.
+   * credentials. The permitted origins of the browser checks follow the CORS origins. An origin
+   * that the CORS does not permit gets no `Access-Control-*` header. With a list or a function of
+   * origins, each response gets `Vary: Origin`.
    * @default false
    */
   readonly cors?: boolean | CorsOptions | undefined;
@@ -162,16 +165,6 @@ export interface HandlerCompat {
   readonly matchAll?: boolean | undefined;
   /** The name of the face and of its CORS origin option, for the error of `assertNamedOrigins`. */
   readonly face?: { readonly name: string; readonly originOption: string } | undefined;
-}
-
-/** The error of a request body or of a header that the handler cannot read. */
-class BodyError extends Error {
-  constructor(
-    message: string,
-    readonly httpStatus: number
-  ) {
-    super(message);
-  }
 }
 
 /** True when a stream response has no end (`STREAM_METADATA_KEY` of procedure-server.ts). */
@@ -296,8 +289,9 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
   const clock = options.clock ?? realClock;
   const corsOptions: CorsOptions | undefined = options.cors === true ? {} : options.cors === false ? undefined : options.cors;
   // A list of origins or a function: the default sends the credentials. "*" with credentials is invalid.
+  // An origin that is not permitted gets no CORS header, and each response still varies by the origin (CLI-56)
   const cors: CorsPolicy | undefined =
-    corsOptions === undefined || compat.corsOutside ? undefined : corsPolicy(corsOptions, (corsOptions.origin ?? "*") !== "*");
+    corsOptions === undefined || compat.corsOutside ? undefined : { ...corsPolicy(corsOptions, (corsOptions.origin ?? "*") !== "*"), permittedOnly: true };
   const guard: BrowserGuardOptions = {
     allowedOrigins: options.allowedOrigins ?? corsOrigins(corsOptions),
     allowedHosts: options.allowedHosts,
@@ -354,26 +348,7 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
    * The request body. A body parser of a framework (`express.json({ strict: false })`) gives
    * `req.body`. Without one, the handler reads the JSON body itself (deep dive TRN-10).
    */
-  const readBody = async (req: IncomingMessage): Promise<unknown> => {
-    const parsed = (req as { body?: unknown }).body;
-    if (parsed !== undefined) return parsed;
-    if (req.method === "GET" || req.method === "HEAD" || req.readableEnded) return undefined;
-    const chunks: Buffer[] = [];
-    let size = 0;
-    for await (const chunk of req as AsyncIterable<Buffer | string>) {
-      const buffer = typeof chunk === "string" ? Buffer.from(chunk) : chunk;
-      size += buffer.length;
-      if (size > bodyLimit) throw new BodyError(`The request body is larger than ${bodyLimit} bytes`, 413);
-      chunks.push(buffer);
-    }
-    const text = Buffer.concat(chunks).toString("utf8");
-    if (text.trim() === "") return undefined;
-    try {
-      return JSON.parse(text) as unknown;
-    } catch {
-      throw new BodyError("The request body is not valid JSON", 400);
-    }
-  };
+  const readBody = (req: IncomingMessage): Promise<unknown> => readJsonBody(req, bodyLimit);
 
   /**
    * This function converts an HTTP request to a `ServerRequest`, or gives null when the addressing
@@ -488,12 +463,15 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
     if (hasRetryAfter) res.setHeader("Retry-After", String(retryAfterSeconds({ value: retryAfterMs, unit: "ms" })));
     // The reason of a FORBIDDEN error travels on each face (roadmap R25)
     const reason = typeof metadata["reason"] === "string" ? metadata["reason"] : undefined;
+    // The current items of a VERSION_CONFLICT error (roadmap CLI-16)
+    const conflicts = Array.isArray(metadata["conflicts"]) ? metadata["conflicts"] : undefined;
     sendJson(res, httpStatusCode, {
       error: status.message,
       code: status.code,
       retryable: status.retryable,
       ...(hasRetryAfter ? { retryAfterMs } : {}),
       ...(reason !== undefined ? { reason } : {}),
+      ...(conflicts !== undefined ? { conflicts } : {}),
     });
   };
 
