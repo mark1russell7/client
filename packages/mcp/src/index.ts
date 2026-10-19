@@ -12,6 +12,8 @@ export type {
   JsonSchema,
   McpToolDefinition,
   McpToolAnnotations,
+  McpToolExecution,
+  McpTaskSupport,
   McpTool,
   McpContentItem,
   McpToolResult,
@@ -49,6 +51,7 @@ export {
   createToolMap,
   findToolByPath,
   withUntrustedFields,
+  taskSupportOf,
   UNTRUSTED_FIELD_DESCRIPTION,
 } from "./mapping/index.js";
 

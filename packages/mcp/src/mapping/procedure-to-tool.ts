@@ -5,7 +5,7 @@
  */
 
 import { inferredEffectsOf, isDataDriven, toolHintsOf, untrustedFieldsOf, type AnyProcedure, type Effects, type ProcedurePath } from "@procedures/client";
-import type { JsonSchema, McpTool, McpToolDefinition, McpToolFilter } from "../types.js";
+import type { JsonSchema, McpTaskSupport, McpTool, McpToolDefinition, McpToolFilter } from "../types.js";
 import { cachedToolInputSchema, cachedToolOutputSchema } from "../schema/tool-schema.js";
 import { encodePath, sanitizePath } from "./path-encoder.js";
 
@@ -113,6 +113,12 @@ export function procedureToMcpTool(procedure: AnyProcedure): McpTool {
     tool.annotations = { ...hints };
   }
 
+  // A long procedure can run as an MCP task (MCP 2025-11-25): `metadata.taskSupport`
+  const taskSupport = taskSupportOf(procedure);
+  if (taskSupport !== undefined) {
+    tool.execution = { taskSupport };
+  }
+
   // Only add optional properties if they have values
   if (procedure.streaming !== undefined) {
     tool.streaming = procedure.streaming;
@@ -122,6 +128,18 @@ export function procedureToMcpTool(procedure: AnyProcedure): McpTool {
   }
 
   return tool;
+}
+
+const TASK_SUPPORT: readonly McpTaskSupport[] = ["forbidden", "optional", "required"];
+
+/**
+ * How a client can call the tool of a procedure (MCP tasks): `metadata.taskSupport` of the
+ * procedure, `"optional"` or `"required"` for a long procedure. Another value gives undefined:
+ * the tool is a normal request.
+ */
+export function taskSupportOf(procedure: AnyProcedure): McpTaskSupport | undefined {
+  const value = (procedure.metadata as { taskSupport?: unknown } | undefined)?.taskSupport;
+  return TASK_SUPPORT.find((support) => support === value);
 }
 
 /** The description of an untrusted field in the output schema of a tool. */
@@ -163,6 +181,9 @@ export function toToolDefinition(tool: McpTool): McpToolDefinition {
   }
   if (tool.annotations !== undefined) {
     def.annotations = tool.annotations;
+  }
+  if (tool.execution !== undefined) {
+    def.execution = { ...tool.execution };
   }
 
   return def;

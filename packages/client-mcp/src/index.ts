@@ -20,6 +20,15 @@ export { createMcpHost, mcpExposeRule, redirectConsoleToStderr } from "./host.js
 export type { McpHost, McpHostOptions, McpHostFaces, McpStdioFace, McpHostServerOptions, McpHostParts, McpHostState } from "./host.js";
 export { DEFAULT_ELICIT_TIMEOUT_MS } from "./transport/mcp-transport.js";
 
+// MCP tasks (CLI-35): a long tool call runs as a task, with a limit of tasks that run at one time
+export { McpTaskStore, MCP_TASK_LIMITS } from "./tasks.js";
+export type { McpTaskInfo, McpTaskStoreOptions, McpTasksOptions } from "./tasks.js";
+
+// The checks of a request to the Streamable HTTP face (CLI-35), for the face and a listener of a host
+export { guardMcpRequest, sameToken, readMcpBody, assertLoopbackBind, McpBodyError, MCP_HTTP_LIMITS } from "./transport/guard.js";
+export type { McpRequestGuardOptions, McpGuardResult } from "./transport/guard.js";
+export type { McpHttpSessionOptions } from "./transport/http.js";
+
 // The MCP face of a procedures host (CLI-7): Streamable HTTP on a listener of the host
 export { mcpFace } from "./face.js";
 export type { McpFace, McpFaceContext, McpFaceOptions } from "./face.js";
@@ -52,6 +61,8 @@ export { mcpListToolsProcedure } from "./procedures/mcp/list-tools.js";
 export type {
   McpTool,
   McpToolDefinition,
+  McpToolExecution,
+  McpTaskSupport,
   McpToolFilter,
   McpServerInfo,
   McpTransportType,
@@ -61,6 +72,7 @@ export type {
 export {
   proceduresToMcpTools,
   procedureToMcpTool,
+  taskSupportOf,
   encodePath,
   decodePath,
 } from "@procedures/mcp";

@@ -17,6 +17,7 @@
 - [The faces](#the-faces)
 - [Questions to the person](#questions-to-the-person)
 - [Progress and cancel](#progress-and-cancel)
+- [Tasks](#tasks)
 - [Text from outside the host](#text-from-outside-the-host)
 - [The result of a tool](#the-result-of-a-tool)
 - [The transport](#the-transport)
@@ -108,6 +109,14 @@ When the client closes the input of stdio, the host stops, and `closed` resolves
 
 Each tool call over Streamable HTTP carries the credentials of its HTTP request: the bearer token, the cookies, the headers and the query. Thus the request hook of the policy (`principalOf`) and the token check of the server apply to each call. When the server reads cookies, the face trusts a request with a cookie only from a named origin (CSRF). A call over stdio comes from this process and has no credentials.
 
+The Streamable HTTP face checks each request with `guardMcpRequest` before the request reaches the MCP SDK. The owner of another listener calls the same function.
+
+- A request on a loopback address must name a loopback host in its `Host` header, so DNS rebinding cannot reach the tools. An `Origin` header must name the server or a permitted origin.
+- With a token, each request sends `Authorization: Bearer <token>`. The check compares the SHA-256 digests of the two tokens in constant time. A request without the token gets 401 with a `WWW-Authenticate` header.
+- Only an `initialize` request starts a session, and its body has a limit of 4 MiB. Thus a stray POST makes no MCP server.
+- The face keeps at most 32 sessions. A new session above the limit closes the session that was idle longest and has no task in progress.
+- `assertLoopbackBind(host, allowRemote)` refuses a listener on an address that is not loopback, unless `allowRemote` is true.
+
 ## Questions to the person
 
 A procedure can ask the person at the caller for input or a confirmation during a call. MCP elicitation is one face that answers. The shape is not specific to MCP: another face (a terminal) can answer the same questions.
@@ -184,6 +193,33 @@ handler: async (input, ctx) => {
 - The function does not reject. A client that is gone does not stop the call.
 - A stream does not need it: the face gives each item of a stream as progress. When the procedure of a stream uses `ctx.progress`, the face gives only those updates.
 - When the client cancels a call (`notifications/cancelled`), `ctx.signal` of the procedure aborts.
+
+## Tasks
+
+A long call can run as an MCP task (MCP 2025-11-25). The client gets a task at once, polls its status, gets the result later, and can cancel the task. Two parts turn it on:
+
+- The procedure declares it in its metadata: `taskSupport: "optional"` (a task or a normal call) or `taskSupport: "required"` (only a task).
+- The host has a task store: the option `tasks`.
+
+```typescript
+const crawlSite = createProcedure()
+  .path(["crawl", "site"])
+  .meta({ description: "Crawl a site", effects: { reads: ["net"], writes: ["store"] }, taskSupport: "optional" })
+  // input, output and handler as for each procedure
+  .build();
+
+const host = createMcpHost({ modules: [crawlModule], tasks: { maxRunning: 4 } });
+await host.start();
+host.tasks?.running(); // the tasks that did not end, for a status page
+```
+
+- The tool list gives `execution.taskSupport` of each such tool. Without the option `tasks`, the list does not give it, and each call is a normal request.
+- A progress of the procedure becomes the status message of its task, for example `2 of 5 done`. The message holds only the counts, so no text of the work leaves its envelopes. A client that sent a progress token also gets the progress notifications.
+- A cancel of the task (`tasks/cancel`) aborts `ctx.signal` of the procedure. The close of a session cancels its tasks, and the stop of the host cancels each task.
+- The store runs at most `maxRunning` tasks at one time (8 by default). A task above the limit starts, and then fails at once. The result of the task gives the reason. (The SDK 1.32.1 cannot give an error for a task request.)
+- The call of a task cannot ask the person: the procedure gets no `ctx.elicit`.
+- A normal call of an optional tool runs in the request, with the progress and the cancel of the request. A normal call of a tool with `taskSupport: "required"`, or a task for a tool without task support, gets the error `-32601`.
+- To share one store with other parts, give `tasks: { store: new McpTaskStore({ maxRunning: 4 }) }`. The host closes only a store that it made.
 
 ## Text from outside the host
 

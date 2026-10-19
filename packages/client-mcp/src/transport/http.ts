@@ -12,14 +12,29 @@
  * Each tool call carries the credentials of its HTTP request (CLI-10), so the request hook of the
  * server (`principalOf`) and its token check apply. A server that reads cookies trusts a request
  * with a cookie only from a named origin (CSRF).
+ *
+ * The checks of each request are in `guard.ts` (CLI-35). Only an `initialize` request starts a
+ * session, its body has a limit, and the endpoint keeps at most `maxSessions` sessions.
  */
 
 import { randomUUID } from "node:crypto";
 import { createServer, type IncomingMessage, type Server as HttpServer, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { bearerOf, checkBrowserRequest, hasAmbientCredentials, tokenMatches } from "@procedures/client";
+import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
+import { hasAmbientCredentials } from "@procedures/client";
 import type { HttpTransportOptions } from "../types.js";
+import { MCP_HTTP_LIMITS, McpBodyError, guardMcpRequest, readMcpBody } from "./guard.js";
+
+/** The limits of the sessions of the endpoint (CLI-35). */
+export interface McpHttpSessionOptions {
+  /** The most sessions at one time. The default is 32. */
+  readonly maxSessions?: number | undefined;
+  /** The largest body of a request that starts a session. The default is 4 MiB. */
+  readonly maxBodyBytes?: number | undefined;
+  /** The sessions that have a task in progress: the session limit does not close them. */
+  readonly busySessions?: (() => ReadonlySet<string>) | undefined;
+}
 
 /** The HTTP endpoint of an MCP server, with a session for each client. */
 export interface McpHttpTransport {
@@ -43,6 +58,7 @@ export interface McpHttpTransport {
 export function createHttpTransport(
   options: HttpTransportOptions,
   connect: (transport: StreamableHTTPServerTransport) => Promise<void>,
+  limits: McpHttpSessionOptions = {},
 ): McpHttpTransport {
   const path = options.path ?? "/mcp";
   const host = options.host ?? "127.0.0.1";
@@ -50,29 +66,81 @@ export function createHttpTransport(
   const owned = !mounted && options.server === undefined;
   const server: HttpServer | undefined = mounted ? undefined : (options.server ?? createServer());
   const sessions = new Map<string, StreamableHTTPServerTransport>();
+  /** The time of the last request of each session: the session limit closes the session that was idle longest */
+  const lastUsed = new Map<string, number>();
+  const maxSessions = limits.maxSessions ?? MCP_HTTP_LIMITS.maxSessions;
+  const maxBodyBytes = limits.maxBodyBytes ?? MCP_HTTP_LIMITS.maxBodyBytes;
 
-  const refuse = (res: ServerResponse, status: number, code: string, message: string): void => {
+  const refuse = (res: ServerResponse, status: number, code: string, message: string, headers: Readonly<Record<string, string>> = {}): void => {
     res.statusCode = status;
     res.setHeader("content-type", "application/json");
+    for (const [name, value] of Object.entries(headers)) res.setHeader(name, value);
     res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32001, message, data: { code } }, id: null }));
   };
 
-  /** The transport of a request: the one of its session, or a new one for an `initialize`. */
-  const transportOf = async (req: IncomingMessage): Promise<StreamableHTTPServerTransport | undefined> => {
+  /** This function closes the session that was idle longest and has no task in progress. It gives false when each session has a task. */
+  const evict = async (): Promise<boolean> => {
+    const busy = limits.busySessions?.() ?? new Set<string>();
+    let oldest: string | undefined;
+    for (const id of sessions.keys()) {
+      if (busy.has(id)) continue;
+      if (oldest === undefined || (lastUsed.get(id) ?? 0) < (lastUsed.get(oldest) ?? 0)) oldest = id;
+    }
+    if (oldest === undefined) return false;
+    const transport = sessions.get(oldest);
+    sessions.delete(oldest);
+    lastUsed.delete(oldest);
+    await transport?.close().catch(() => undefined);
+    return true;
+  };
+
+  /**
+   * This function answers a request: in its session, or in a new session for an `initialize`. Only
+   * an `initialize` makes a session, so a stray POST makes no MCP server (CLI-35).
+   */
+  const serve = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     const sessionId = req.headers["mcp-session-id"];
-    if (typeof sessionId === "string") return sessions.get(sessionId);
-    if (req.method !== "POST") return undefined;
+    if (typeof sessionId === "string" || req.method !== "POST") {
+      const transport = typeof sessionId === "string" ? sessions.get(sessionId) : undefined;
+      if (!transport || typeof sessionId !== "string") {
+        refuse(res, 404, "SESSION_NOT_FOUND", "No session: start one with an initialize request");
+        return;
+      }
+      lastUsed.set(sessionId, Date.now());
+      await transport.handleRequest(req, res);
+      return;
+    }
+    let body: unknown;
+    try {
+      body = await readMcpBody(req, maxBodyBytes);
+    } catch (error) {
+      const status = error instanceof McpBodyError ? error.status : 400;
+      refuse(res, status, status === 413 ? "PAYLOAD_TOO_LARGE" : "BAD_REQUEST", error instanceof Error ? error.message : String(error));
+      return;
+    }
+    const initializes = Array.isArray(body) ? body.some((message) => isInitializeRequest(message)) : isInitializeRequest(body);
+    if (!initializes) {
+      refuse(res, 400, "BAD_REQUEST", "No session: the first request of a session is initialize, or give the mcp-session-id header");
+      return;
+    }
+    if (sessions.size >= maxSessions && !(await evict())) {
+      refuse(res, 503, "SESSIONS_FULL", "Each session of the server has a task in progress: try again later");
+      return;
+    }
     const transport: StreamableHTTPServerTransport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
       onsessioninitialized: (id) => {
         sessions.set(id, transport);
+        lastUsed.set(id, Date.now());
       },
     });
     transport.onclose = () => {
-      if (transport.sessionId) sessions.delete(transport.sessionId);
+      if (!transport.sessionId) return;
+      sessions.delete(transport.sessionId);
+      lastUsed.delete(transport.sessionId);
     };
     await connect(transport);
-    return transport;
+    await transport.handleRequest(req, res, body);
   };
 
   const handle = (req: IncomingMessage, res: ServerResponse): boolean => {
@@ -82,29 +150,22 @@ export function createHttpTransport(
       refuse(res, 404, "NOT_FOUND", `No MCP endpoint at ${url.pathname}`);
       return true;
     }
-    // A web page must not reach the tools: the host and the origin of the request. A server that
-    // reads cookies trusts a request with ambient credentials only from a named origin (CSRF)
+    // A web page must not reach the tools: the host and the origin of the request, then the token
+    // (guard.ts). A server that reads cookies trusts a request with ambient credentials only from a
+    // named origin (CSRF)
     const ambient = options.ambientCredentials === "always" || hasAmbientCredentials(req.headers);
-    const guard = checkBrowserRequest(req, { ...(options.allowedOrigins ? { allowedOrigins: options.allowedOrigins } : {}) }, false, ambient);
+    const guard = guardMcpRequest(req, {
+      ...(options.token !== undefined ? { token: options.token } : {}),
+      ...(options.allowedOrigins ? { allowedOrigins: options.allowedOrigins } : {}),
+      ambient,
+    });
     if (!guard.ok) {
-      refuse(res, guard.status, guard.code, guard.message);
+      refuse(res, guard.status, guard.code, guard.message, guard.headers);
       return true;
     }
-    if (options.token !== undefined && !tokenMatches(options.token, bearerOf(req.headers["authorization"]))) {
-      refuse(res, 401, "UNAUTHORIZED", "Unauthorized: this server requires its token");
-      return true;
-    }
-    void transportOf(req)
-      .then((transport) => {
-        if (!transport) {
-          refuse(res, 404, "SESSION_NOT_FOUND", "No session: start one with an initialize request");
-          return;
-        }
-        return transport.handleRequest(req, res);
-      })
-      .catch((error: unknown) => {
-        if (!res.headersSent) refuse(res, 500, "INTERNAL_ERROR", error instanceof Error ? error.message : String(error));
-      });
+    serve(req, res).catch((error: unknown) => {
+      if (!res.headersSent) refuse(res, 500, "INTERNAL_ERROR", error instanceof Error ? error.message : String(error));
+    });
     return true;
   };
   const onRequest = (req: IncomingMessage, res: ServerResponse): void => {
@@ -136,6 +197,7 @@ export function createHttpTransport(
       server?.off("request", onRequest);
       const open = [...sessions.values()];
       sessions.clear();
+      lastUsed.clear();
       await Promise.all(open.map((transport) => transport.close().catch(() => undefined)));
       if (owned && server?.listening) {
         await new Promise<void>((resolve) => {

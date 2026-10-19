@@ -10,6 +10,7 @@ import type { ElicitationPolicy, ProcedureRegistry } from "@procedures/client";
 import type { McpServerInfo, McpTool, McpToolFilter } from "@procedures/mcp";
 import type { Duration } from "@procedures/client";
 import type { UntrustedContentOptions } from "./untrusted.js";
+import type { McpTasksOptions } from "./tasks.js";
 
 /** The streams of the stdio transport, and what happens when its input ends. */
 export interface StdioTransportOptions {
@@ -164,6 +165,13 @@ export interface McpServerTransportOptions {
    * @default { items: 100, time: seconds(30) }
    */
   streamLimits?: { items?: number; time?: Duration } | undefined;
+
+  /**
+   * MCP tasks (CLI-35): a store, or the options of a new store (`maxRunning`, `ttl`). With it, a
+   * tool whose procedure has `metadata.taskSupport` can run as a task. Without it, each tool call
+   * is a normal request. The stop of the transport closes a store that it made.
+   */
+  tasks?: McpTasksOptions | undefined;
 }
 
 /**

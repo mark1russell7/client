@@ -17,6 +17,8 @@
  *   input ends.
  * - What each tool call gets: the questions to the person (elicitation, with the consents of the
  *   operator), the progress, the envelopes of untrusted text, and the instructions of the server.
+ * - The tasks (CLI-35): one store for each face, with a limit of tasks that run at one time. A
+ *   procedure with `metadata.taskSupport` runs as a task when the client asks for one.
  */
 
 import type { Transport as SdkTransport } from "@modelcontextprotocol/sdk/shared/transport.js";
@@ -49,6 +51,7 @@ import type {
   StdioTransportOptions,
 } from "./types.js";
 import type { UntrustedContentOptions } from "./untrusted.js";
+import { taskStoreOf, type McpTaskStore, type McpTasksOptions } from "./tasks.js";
 
 /** The stdio face of a host. */
 export interface McpStdioFace extends Omit<StdioTransportOptions, "onEnd"> {
@@ -148,6 +151,11 @@ export interface McpHostOptions {
   streamLimits?: { items?: number; time?: Duration } | undefined;
   /** True: debug lines go to stderr. */
   debug?: boolean | undefined;
+  /**
+   * MCP tasks (CLI-35): a store, or the options of a new store (`maxRunning`, the default 8, and
+   * `ttl`). Each face shares the store. Without it, the host has no tasks.
+   */
+  tasks?: McpTasksOptions | undefined;
 }
 
 /** The state of a host: if it operates, and the state of each face. */
@@ -165,6 +173,8 @@ export interface McpHost {
   readonly expose: ((path: ProcedurePath) => boolean) | undefined;
   /** The MCP transports of the faces, in the order stdio, Streamable HTTP, SDK transports. */
   readonly transports: readonly McpServerTransport[];
+  /** The store of the tasks of each face, or undefined when the host has no tasks (CLI-35). */
+  readonly tasks: McpTaskStore | undefined;
   /** A promise that resolves when the host stopped: by `stop()`, or at the end of the stdio input. */
   readonly closed: Promise<void>;
   /** This function starts each face. */
@@ -255,6 +265,9 @@ export function createMcpHost(options: McpHostOptions = {}): McpHost {
   });
   const server = new ProcedureServer({ ...procedureServerOptions(policy, registry), ...options.serverOptions });
 
+  // One store of the tasks for each face. The stop of the host closes a store that the host made
+  const tasks = taskStoreOf(options.tasks);
+
   let resolveClosed: () => void = () => undefined;
   const closed = new Promise<void>((resolve) => {
     resolveClosed = resolve;
@@ -264,7 +277,8 @@ export function createMcpHost(options: McpHostOptions = {}): McpHost {
   const stop = (stopOptions: { grace?: Duration | undefined } = {}): Promise<void> => {
     stopping ??= server
       .stop(stopOptions.grace !== undefined ? { grace: stopOptions.grace } : {})
-      .finally(() => {
+      .finally(async () => {
+        if (tasks?.owned) await tasks.store.close().catch(() => undefined);
         running = false;
         resolveClosed();
       });
@@ -285,6 +299,7 @@ export function createMcpHost(options: McpHostOptions = {}): McpHost {
     ...(options.json ? { json: options.json } : {}),
     ...(options.streamLimits ? { streamLimits: options.streamLimits } : {}),
     ...(options.debug !== undefined ? { debug: options.debug } : {}),
+    ...(tasks ? { tasks: { store: tasks.store } } : {}),
   };
 
   const faces = options.faces ?? { stdio: true };
@@ -332,6 +347,7 @@ export function createMcpHost(options: McpHostOptions = {}): McpHost {
     server,
     expose: policy.expose,
     transports,
+    tasks: tasks?.store,
     closed,
     async start() {
       if (stopping) throw new Error("This MCP host stopped. A host stops one time: create a new host.");
