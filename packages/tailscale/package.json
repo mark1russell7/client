@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/tailscale",
-  "version": "0.13.2",
+  "version": "0.14.0",
   "description": "The tailscale CLI as one procedure: status, ip, serve, up and down, with JSON output.",
   "keywords": [
     "tailscale",
