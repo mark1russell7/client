@@ -4,7 +4,6 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 0 names
 ## . (dist/index.d.ts): 573 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -581,7 +580,6 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 0 names
 ## ./browser (dist/browser.d.ts): 555 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
