@@ -147,7 +147,8 @@ export interface ProcedureServerOptions extends ServerOptions {
   /**
    * This function gives the principal of a request, or undefined to refuse it with
    * `UNAUTHORIZED`. It runs after the token check. The capability function can read
-   * `request.principal`.
+   * `request.principal`. Like the request hook, it can run more than one time for one request or
+   * one task: `admits()` and `identify()` run it too (roadmap CLI-69).
    */
   authenticate?: ((request: ServerRequest<unknown>) => Principal | undefined | Promise<Principal | undefined>) | undefined;
 
@@ -159,6 +160,9 @@ export interface ProcedureServerOptions extends ServerOptions {
    * `request.principal`. Undefined or an error refuses the request with `UNAUTHORIZED`. A local
    * request (`LOCAL_CREDENTIALS`) does not go through the hook. A server with a hook refuses a
    * request without credentials, and the hook does not run for it (CLI-1).
+   *
+   * The hook can run more than one time for one request or one task: `admits()` and `identify()`
+   * run it too (CLI-69).
    */
   principalOf?: PrincipalOf | undefined;
 
