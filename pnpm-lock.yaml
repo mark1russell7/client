@@ -1847,6 +1847,9 @@ importers:
       '@mark1russell7/cue':
         specifier: ^1.0.0
         version: 1.0.0
+      '@mark1russell7/site-pages':
+        specifier: ^0.1.0
+        version: 0.1.0
       '@playwright/test':
         specifier: ^1.64.0
         version: 1.64.0
@@ -3177,6 +3180,11 @@ packages:
         optional: true
       zod:
         optional: true
+
+  '@mark1russell7/site-pages@0.1.0':
+    resolution: {integrity: sha512-5i0SwzNy2XblsSiL0YIaU3El0Eor06D2AOwbXzbkA6EWJa86rqCIAmkZe3Zok0VwczGHwvkYdk5+O97t6Bgd9Q==}
+    engines: {node: '>=22'}
+    hasBin: true
 
   '@mark1russell7/splay@0.1.0':
     resolution: {integrity: sha512-68MO5gAKRv+sjAJdO+I/TYCjl45QcG3vU8mK8Jj28B3e7EeR+GQKRCgSE3/56JdCNKLh19khwTBHLZuly4EH8g==}
@@ -6275,6 +6283,8 @@ snapshots:
       '@mark1russell7/quantity': 0.2.0(zod@4.6.5)
     optionalDependencies:
       zod: 4.6.5
+
+  '@mark1russell7/site-pages@0.1.0': {}
 
   '@mark1russell7/splay@0.1.0': {}
 
