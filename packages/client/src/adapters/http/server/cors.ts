@@ -1,9 +1,10 @@
 /**
  * The CORS headers of a procedure server, without a framework. `procedureHandler` applies them to
  * the requests on its path. The Express shim `HttpServerTransport` applies them to each request of
- * its app, as before. `credentialedCors()` applies them to a route of the app next to the faces,
- * for example the auth routes, from the trusted origins of the host (CLI-49). This module imports
- * only the types of `node:http`.
+ * its app. Both send no CORS header to an origin that is not permitted (CLI-56, CLI-59).
+ * `credentialedCors()` applies them to a route of the app next to the faces, for example the auth
+ * routes. It takes the trusted origins of the host (CLI-49). This module imports only the types of
+ * `node:http`.
  */
 
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -80,7 +81,7 @@ export interface CorsPolicy {
   readonly credentials: boolean;
   /** The value of `Access-Control-Max-Age` in seconds, or undefined. */
   readonly maxAge: string | undefined;
-  /** True: a response for an origin that is not permitted gets no CORS header (`credentialedCors()`, `procedureHandler`). */
+  /** True: a response for an origin that is not permitted gets no CORS header (`credentialedCors()`, `procedureHandler`, `HttpServerTransport`). */
   readonly permittedOnly?: boolean | undefined;
 }
 

@@ -65,8 +65,9 @@ export class HttpServerTransport implements ServerTransport {
     // inferring the operation from the verb (BUGS-2026-07 C3, bug 16)
     const urlStrategy = options.urlStrategy ?? createPatternServerUrlStrategy(basePath);
     const corsOptions = this.options.cors ? (options.corsOptions ?? {}) : undefined;
-    // The given options go over the defaults, and the transport sends the credentials by default
-    this.cors = corsOptions ? corsPolicy(corsOptions, true) : undefined;
+    // The given options go over the defaults, and the transport sends the credentials by default.
+    // An origin that is not permitted gets no CORS header, as with procedureHandler (CLI-59)
+    this.cors = corsOptions ? { ...corsPolicy(corsOptions, true), permittedOnly: true } : undefined;
     this.handler = createProcedureHandler(
       server,
       {
