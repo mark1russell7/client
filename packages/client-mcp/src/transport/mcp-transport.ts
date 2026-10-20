@@ -129,6 +129,8 @@ const MAX_STREAM_BLOCKS = 100;
 /**
  * The `_meta` of the error of a stream: its code and its retryable flag, as the error line of
  * NDJSON and the error frame of WebSocket give them (CLI-48). A code that is not a string gives `HANDLER_ERROR`.
+ * An error without a flag gets false, not the flag of its code: the end is in-band, and a retry can
+ * send the items again (CLI-58, `WIRE-PROTOCOL.md`, section "Error codes").
  */
 function streamErrorMeta(error: unknown): { code: string; retryable: boolean } {
   const { code, retryable } = (error ?? {}) as { code?: unknown; retryable?: unknown };

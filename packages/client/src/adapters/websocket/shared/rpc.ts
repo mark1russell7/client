@@ -99,7 +99,11 @@ export class StreamCredit {
   }
 }
 
-/** The error of a failed stream or handler: its code (a string) and its retryable flag. */
+/**
+ * The error of a failed stream or handler: its code (a string) and its retryable flag. An error
+ * without a flag gets false, not the flag of its code: the end of a stream is in-band, and a retry
+ * can send the items again (CLI-58, `WIRE-PROTOCOL.md`, section "Error codes").
+ */
 export function errorStatus(error: unknown): { type: "error"; code: string; message: string; retryable: boolean } {
   const code = (error as { code?: unknown } | undefined)?.code;
   const retryable = (error as { retryable?: unknown } | undefined)?.retryable;

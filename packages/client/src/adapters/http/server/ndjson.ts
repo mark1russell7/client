@@ -55,7 +55,9 @@ export interface WriteNdjsonStreamOptions {
 
 /**
  * This function gives the `error` line of a thrown error: its code, its message and its retryable
- * flag (deep dive TRN-7). A code that is not a string gives `HANDLER_ERROR`.
+ * flag (deep dive TRN-7). A code that is not a string gives `HANDLER_ERROR`. An error without a flag
+ * gets false, not the flag of its code: the end is in-band, and a retry can send the items again
+ * (CLI-58, `WIRE-PROTOCOL.md`, section "Error codes").
  */
 export function defaultNdjsonError(error: unknown): NdjsonError {
   const retryable = (error as { retryable?: unknown } | null | undefined)?.retryable;
