@@ -1,5 +1,21 @@
 # @procedures/bundle-dev
 
+## 0.18.0
+
+### Patch Changes
+
+- Updated dependencies [5e68b6a]
+  - @procedures/client@0.18.0
+  - @procedures/cli-run@0.18.0
+  - @procedures/dag@0.18.0
+  - @procedures/fs@0.18.0
+  - @procedures/git@0.18.0
+  - @procedures/lib@0.18.0
+  - @procedures/pnpm@0.18.0
+  - @procedures/procedure@0.18.0
+  - @procedures/shell@0.18.0
+  - @procedures/compiler@0.18.0
+
 ## 0.17.4
 
 ### Patch Changes
