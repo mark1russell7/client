@@ -5,6 +5,13 @@
   ],
   "ignorePaths": [
     "**/node_modules/**",
+    "**/bower_components/**",
+    "**/vendor/**",
+    "**/examples/**",
+    "**/__tests__/**",
+    "**/test/**",
+    "**/tests/**",
+    "**/__fixtures__/**",
     "packages/*/.github/**",
     "packages/*/fixtures/**"
   ],
