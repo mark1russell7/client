@@ -30,21 +30,14 @@ export const COMMAND_CONTROLLER = "command";
 export const COMMAND_ROUTE = "RUN";
 
 /**
- * The profile of a command on the CLI server (the warm mode): `ephemeral`. The exit code is 130
- * after a first Ctrl-C, and 143 after SIGTERM. Before CLI-26, the signal ended the process, and
- * the server continued the call.
- */
-export const WARM_COMMAND_PROFILE: Profile = ephemeral;
-
-/**
- * The profile of a command in this process (the cold mode): `ephemeral`, with the exit code 1
- * after a first Ctrl-C. The other fields are the fields of `ephemeral`.
+ * The profile of each command, in the warm mode and in the cold mode: `ephemeral`. The exit code is
+ * 130 after a first Ctrl-C, 143 after SIGTERM and 131 after SIGQUIT. A second signal during the
+ * stop ends the process at once with 1.
  *
- * @deprecated The exit code 1 after a first Ctrl-C keeps the exit code of a cold command before
- * CLI-26. A later MINOR of the client group removes this profile. A cold command then uses
- * `ephemeral` too, and a first Ctrl-C gives the exit code 130.
+ * Before CLI-26, a cold command gave 1 after a first Ctrl-C and 130 after a second one. A signal
+ * ended a warm command at once, and the server continued the call.
  */
-export const COLD_COMMAND_PROFILE: Profile = Object.freeze({ ...ephemeral, exitCodes: Object.freeze({ ...ephemeral.exitCodes, SIGINT: 1 }) });
+export const COMMAND_PROFILE: Profile = ephemeral;
 
 /** This function declares the controller and the route of the one request of a command. */
 export function declareCommand(svc: ServiceBuilder): ServiceBuilder {
@@ -108,7 +101,7 @@ export function commandOf(life: Lifecycle): CommandRun {
 
 /** This function starts the service of a command on the CLI server (the warm mode). */
 export async function startWarmCommand(where: CommandProcess = {}): Promise<CommandRun> {
-  const svc = declareCommand(service(COMMAND_SERVICE).profile(WARM_COMMAND_PROFILE));
+  const svc = declareCommand(service(COMMAND_SERVICE).profile(COMMAND_PROFILE));
   return commandOf(await svc.run(commandRunOptions(where)));
 }
 
@@ -160,7 +153,7 @@ export interface ColdStartFailure {
 
 /**
  * This function starts a command in this process (the cold mode): the procedures host of the CLI
- * server, under `runProcedureHost()` with `COLD_COMMAND_PROFILE`. After a startup that failed, it
+ * server, under `runProcedureHost()` with `COMMAND_PROFILE`. After a startup that failed, it
  * gives the errors and the lifecycle.
  */
 export async function startColdCommand(registry: ProcedureRegistry, where: CommandProcess = {}): Promise<ColdCommand | ColdStartFailure> {
@@ -173,7 +166,7 @@ export async function startColdCommand(registry: ProcedureRegistry, where: Comma
   const running = await runProcedureHost({
     name: COMMAND_SERVICE,
     mode: "foreground",
-    profile: COLD_COMMAND_PROFILE,
+    profile: COMMAND_PROFILE,
     host: { ...options, faces: { local: local.face } },
     declare: (svc) => {
       declareCommand(svc);

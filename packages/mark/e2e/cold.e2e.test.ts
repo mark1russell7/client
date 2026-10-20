@@ -38,10 +38,10 @@ describe("mark: the cold mode under run() (CLI-26)", () => {
       const sent = Date.now();
       child.kill("SIGINT");
       const { code, signal } = await exited;
-      // The runner ends the process: no death by the signal. A cold command keeps the exit code 1 after
-      // a first Ctrl-C (deprecated: a later MINOR gives 130, as the profile ephemeral does).
+      // The runner ends the process: no death by the signal, and the exit code 130 of the profile
+      // ephemeral (before CLI-26, a cold command gave 1 after a first Ctrl-C)
       expect(signal, stderr).toBeNull();
-      expect(code, stderr).toBe(1);
+      expect(code, stderr).toBe(130);
       expect(Date.now() - sent).toBeLessThan(10000);
     } finally {
       if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");

@@ -17,7 +17,7 @@ import { createProcedureHost, localFace } from "@procedures/peer";
 import { runProcedureHost, type RunningHost } from "@procedures/server";
 import { executeArgs, type CliContext } from "./cli.js";
 import { cliServerConnection } from "./client-mode.js";
-import { COLD_COMMAND_PROFILE, WARM_COMMAND_PROFILE, commandRunOptions, markHostOptions, startColdCommand, startWarmCommand } from "./command.js";
+import { COMMAND_PROFILE, commandRunOptions, markHostOptions, startColdCommand, startWarmCommand } from "./command.js";
 import { loadEcosystemRegistry } from "./ecosystem.js";
 import { testProcedures } from "../test/procedures.js";
 
@@ -33,8 +33,10 @@ function newMark(): { promise: Promise<void>; resolve: () => void } {
 /** The state of the endless stream: its first row went out, and its call got the abort. */
 let firstRow = newMark();
 let abortSeen = newMark();
+/** The release of the endless stream without its abort: the stop of a test that exits before the drain. */
+let release = newMark();
 
-/** A stream that gives one row, and then waits until the abort of its call. */
+/** A stream that gives one row, and then waits until the abort of its call, or the release of the test. */
 function endlessProcedure(): AnyProcedure {
   return createProcedure()
     .path(["test", "endless"])
@@ -44,11 +46,12 @@ function endlessProcedure(): AnyProcedure {
     .handler(async function* (_input: unknown, ctx: { signal?: AbortSignal | undefined }) {
       yield "row 1";
       firstRow.resolve();
-      await new Promise<void>((resolve) => {
+      const abort = new Promise<void>((resolve) => {
         if (!ctx.signal || ctx.signal.aborted) return resolve();
         ctx.signal.addEventListener("abort", () => resolve(), { once: true });
       });
-      abortSeen.resolve();
+      await Promise.race([abort, release.promise]);
+      if (ctx.signal?.aborted) abortSeen.resolve();
     } as never)
     .build() as unknown as AnyProcedure;
 }
@@ -86,8 +89,10 @@ afterEach(async () => {
     await running.life.shutdown("the test ended");
     await running.life.done;
   }
+  release.resolve();
   firstRow = newMark();
   abortSeen = newMark();
+  release = newMark();
 });
 
 describe("the cold mode (CLI-26)", () => {
@@ -129,9 +134,9 @@ describe("the cold mode (CLI-26)", () => {
     await abortSeen.promise;
     expect(output()).toContain("row 1");
     expect(output()).toContain("Request was aborted");
-    // The exit code of a cold command after a first Ctrl-C stays 1 (deprecated, see COLD_COMMAND_PROFILE)
-    expect(proc.exits).toEqual([1]);
-    expect(Number(process.exitCode ?? 0)).toBe(1);
+    // The exit code of a first Ctrl-C: 130, the code of the profile ephemeral (before CLI-26: 1)
+    expect(proc.exits).toEqual([130]);
+    expect(Number(process.exitCode ?? 0)).toBe(130);
   });
 
   it("runs the --json reference under the runner", async () => {
@@ -156,12 +161,28 @@ describe("the cold mode (CLI-26)", () => {
 });
 
 describe("the profiles and the ports of a command", () => {
-  it("gives exit code 130 for a warm command and 1 for a cold command after SIGINT, with the other fields of ephemeral", () => {
-    expect(WARM_COMMAND_PROFILE.exitCodes).toEqual({ SIGINT: 130, SIGTERM: 143, SIGQUIT: 131 });
-    expect(COLD_COMMAND_PROFILE.exitCodes).toEqual({ SIGINT: 1, SIGTERM: 143, SIGQUIT: 131 });
-    expect({ ...COLD_COMMAND_PROFILE, exitCodes: undefined }).toEqual({ ...WARM_COMMAND_PROFILE, exitCodes: undefined });
-    expect(COLD_COMMAND_PROFILE.onRepeatSignal).toBe("exit");
-    expect(COLD_COMMAND_PROFILE.cooperativeFloor).toBe("none");
+  it("is the profile ephemeral for each command: 130 after SIGINT, an abort at the start of the drain, and an exit at a repeat signal", async () => {
+    const { ephemeral } = await import("@mark1russell7/service");
+    expect(COMMAND_PROFILE).toBe(ephemeral);
+    expect(COMMAND_PROFILE.exitCodes).toEqual({ SIGINT: 130, SIGTERM: 143, SIGQUIT: 131 });
+    expect(COMMAND_PROFILE.onRepeatSignal).toBe("exit");
+    expect(COMMAND_PROFILE.cooperativeFloor).toBe("none");
+  });
+
+  it("ends the process with 1 at a second signal during the stop", async () => {
+    capture();
+    const proc = fakeProcess();
+    const command = executeArgs(["test", "endless", "--local"], context(), { run: { process: proc } });
+    await firstRow.promise;
+    // The second signal comes while the stop runs: the runner exits at once with 1, also before the drain
+    proc.signal("SIGINT");
+    proc.signal("SIGINT");
+    expect(proc.exits).toEqual([1]);
+    // A fake process does not end: the release of the test ends the stream, and then the command
+    release.resolve();
+    await command;
+    expect(proc.exits).toEqual([1]);
+    expect(Number(process.exitCode ?? 0)).toBe(1);
   });
 
   it("gives the process of Node only to a run that owns its process", async () => {
@@ -209,7 +230,7 @@ describe("the warm mode (CLI-26)", () => {
     expect(result?.success).toBe(false);
     // The work of the command ends after the abort: the runner records its end
     expect(["done", "cut"]).toContain(end.kind);
-    // The exit code of a warm command after a first Ctrl-C: 130, as the signal gave before CLI-26
+    // The exit code of a warm command after a first Ctrl-C: 130 (before CLI-26, the signal ended the process)
     expect(await command.end(1)).toBe(130);
     expect(proc.exits).toEqual([130]);
   });

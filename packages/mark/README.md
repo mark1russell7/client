@@ -253,7 +253,7 @@ A procedure reports a failure in one of three ways:
 
 For a streaming procedure, `mark` examines each item. One failed item makes the command fail.
 
-A signal stops a command through the runner (CLI-26, since the MINOR 0.24.0):
+The exit codes of a command, since the MINOR of CLI-26. A signal stops a command through the runner:
 
 | Event | Cold mode | Warm mode |
 |---|---|---|
