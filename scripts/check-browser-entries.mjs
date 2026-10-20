@@ -9,10 +9,8 @@
 // without it (`http`). The list of the built-ins is `builtinModules` of `node:module`. A browser
 // bundler cannot bundle a built-in: Vite externalizes it with a warning, and the page fails.
 //
-// The root of @procedures/client is not a browser entry yet. It exports HttpServerTransport and
-// WebSocketServerTransport, which import `http` and `ws`. CLI-6 moves them to ./node, and then the
-// root joins `client.browser` of the client. Until then, a package that runs in a browser imports
-// @procedures/client/browser (or another entry of that list), not the root.
+// The root of @procedures/client is a browser entry since CLI-6 step 2. HttpServerTransport and
+// WebSocketServerTransport, which import `http` and `ws`, are only in ./node.
 //
 // Start it after `pnpm build`: node scripts/check-browser-entries.mjs. Exit code 1 on a failure.
 // The tests of the check: node --test scripts/check-browser-entries.test.mjs.

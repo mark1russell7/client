@@ -59,10 +59,11 @@
     "./dist/register.js"
   ],
   "devDependencies": {
-    "@procedures/fs": "workspace:*",
-    "@mark1russell7/cue": "^1.0.0",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.3"
+    "@types/node": "^22.0.0",
+    "@mark1russell7/cue": "^1.0.0",
+    "vitest": "^5.0.3",
+    "@procedures/fs": "workspace:*"
   },
   "engines": {
     "node": ">=22"

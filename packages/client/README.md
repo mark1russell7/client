@@ -297,7 +297,7 @@ interface WebSocketTransportOptions {
 // dead peer, its socket stays open until the kernel stops it (924.6 s in the cells of R36).
 import { WebSocketTransport } from "@procedures/client/node";
 
-// The server transports are in the Node entry too (CLI-6)
+// The server transports are only in the Node entry (CLI-6)
 import { WebSocketServerTransport } from "@procedures/client/node";
 
 // The server pings each connection, and closes one that misses 2 pongs (option heartbeat)
@@ -604,7 +604,7 @@ interface HttpServerTransportOptions {
   port?: number;                 // default: 3000
   host?: string;                 // default: "127.0.0.1"
   basePath?: string;             // default: "/api"
-  urlStrategy?: HttpUrlStrategy;
+  urlStrategy?: HttpUrlStrategy; // (req: UrlStrategyRequest) => Method | null
   cors?: boolean;
   corsOptions?: { origin?: string | string[]; methods?: string[]; allowedHeaders?: string[]; credentials?: boolean };
   bodyLimit?: number;            // default: 1 MiB
@@ -612,6 +612,8 @@ interface HttpServerTransportOptions {
   clock?: Clock;                 // the clock of the keep-alive timers
 }
 ```
+
+A URL strategy gets a `UrlStrategyRequest`: the method, the path, the URL, the headers, the query and the body. The type is structural. A `Request` of Express agrees with it, and so does the `UrlRequest` of `procedureHandler`.
 
 A client that accepts `application/x-ndjson` gets a stream as NDJSON lines ([WIRE-PROTOCOL.md](../documentation/WIRE-PROTOCOL.md)).
 
@@ -809,7 +811,7 @@ import { ... } from "@procedures/client/events";
 
 | Entry | Use |
 |---|---|
-| `@procedures/client` | Node. The browser entry. Its `WebSocketTransport` uses the global `WebSocket`. It also exports the server transports, but these exports are deprecated. The next MINOR removes them (CLI-6). |
+| `@procedures/client` | Node or a browser bundle. The browser entry, the URL strategies and the browser checks of the server. It imports no `http`, `ws` or `express`, and its declarations name none of them (CLI-6). Its `WebSocketTransport` uses the global `WebSocket`. |
 | `@procedures/client/browser` | A browser bundle. It does not import `http` or `ws`. |
 | `@procedures/client/node` | Node. A `WebSocketTransport` whose sockets are of the `ws` package: a drop ends a socket at once. `writeNdjsonStream`: the NDJSON stream response of `HttpServerTransport`, for a `ServerResponse` of `node:http`. `procedureHandler` and `upgradeHandler`: the procedure faces of HTTP and WebSocket, without a framework. `HttpServerTransport` and `WebSocketServerTransport`: the server transports. |
 | `@procedures/client/register` | It registers the core procedures in the global registry. |

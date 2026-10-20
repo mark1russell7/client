@@ -89,6 +89,7 @@
   ],
   "client": {
     "browser": [
+      ".",
       "./browser",
       "./client",
       "./events",

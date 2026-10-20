@@ -22,8 +22,6 @@
  * Each refusal is the error `FORBIDDEN` of wire v1, with the status 403 and a reason (CLI-4).
  */
 
-import type { IncomingHttpHeaders } from "node:http";
-
 const LOOPBACK_NAMES = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
 
 /** The options of the browser checks of a server transport. */
@@ -48,10 +46,24 @@ export interface BrowserGuardOptions {
   allowGet?: boolean | undefined;
 }
 
-/** The parts of an incoming request that the checks read. */
+/**
+ * The headers of a request, by lower-case name. The type is structural, so the root names no Node
+ * module (CLI-61). `IncomingHttpHeaders` of `node:http` agrees with it.
+ */
+export interface GuardedHeaders {
+  readonly [name: string]: string | string[] | undefined;
+  readonly host?: string | undefined;
+  readonly origin?: string | undefined;
+  readonly cookie?: string | undefined;
+  readonly "content-type"?: string | undefined;
+  readonly "content-length"?: string | undefined;
+  readonly "transfer-encoding"?: string | undefined;
+}
+
+/** The parts of an incoming request that the checks read. An `IncomingMessage` of `node:http` agrees with it. */
 export interface GuardedRequest {
   method?: string | undefined;
-  headers: IncomingHttpHeaders;
+  headers: GuardedHeaders;
   socket?: { localAddress?: string | undefined } | undefined;
 }
 
@@ -121,7 +133,7 @@ function isJsonType(contentType: string | undefined): boolean {
 }
 
 /** True when the request has a body: a `Content-Length` above 0, or a chunked body. */
-function hasBody(headers: IncomingHttpHeaders): boolean {
+function hasBody(headers: GuardedHeaders): boolean {
   const length = Number(headers["content-length"] ?? 0);
   return length > 0 || headers["transfer-encoding"] !== undefined;
 }
@@ -130,7 +142,7 @@ function hasBody(headers: IncomingHttpHeaders): boolean {
  * True when a request carries ambient credentials: a `Cookie` header, which a browser sends by
  * itself, also for a request that another site starts.
  */
-export function hasAmbientCredentials(headers: IncomingHttpHeaders): boolean {
+export function hasAmbientCredentials(headers: GuardedHeaders): boolean {
   const cookie = headers.cookie;
   return typeof cookie === "string" && cookie.trim() !== "";
 }
@@ -143,7 +155,7 @@ export function hasAmbientCredentials(headers: IncomingHttpHeaders): boolean {
  *
  * @internal
  */
-export function needsNamedOrigin(mode: "always" | "cookies" | undefined, headers: IncomingHttpHeaders, cookiesNamed: boolean): boolean {
+export function needsNamedOrigin(mode: "always" | "cookies" | undefined, headers: GuardedHeaders, cookiesNamed: boolean): boolean {
   return mode === "always" || (hasAmbientCredentials(headers) && (cookiesNamed || mode !== undefined));
 }
 
