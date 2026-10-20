@@ -200,7 +200,8 @@ export const serverStartProcedure: Procedure<
       }
     }
 
-    // Timed out waiting for lockfile, but child may still be alive
+    // Timed out waiting for lockfile, but child may still be alive. Deprecated (CLI-9): from the
+    // next MINOR of the client group, this result is `success: false`, with the PID of the child.
     if (child.pid && isProcessAlive(child.pid)) {
       return {
         success: true,

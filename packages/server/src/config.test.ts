@@ -36,6 +36,14 @@ describe("parseConfig", () => {
     expect(parseConfig([]).fsRoot).toBeUndefined();
   });
 
+  it("reads the port of the probe server (CLI-9)", () => {
+    expect(parseConfig(["--probe-port", "9090"]).probePort).toBe(9090);
+    expect(parseConfig(["--probe-port=9091", "--port", "4000"]).probePort).toBe(9091);
+    expect(parseConfig([]).probePort).toBeUndefined();
+    expect(() => parseConfig(["--probe-port", "probes"])).toThrow('Invalid port: "probes"');
+    expect(() => parseConfig(["--probe-port"])).toThrow("--probe-port needs a value");
+  });
+
   it("reports an invalid topic pattern", () => {
     expect(() => parseConfig(["--events", "orders.*.created"])).toThrow('Invalid topic pattern: "orders.*.created"');
     expect(() => parseConfig(["--events", " , "])).toThrow("--events needs a topic pattern");

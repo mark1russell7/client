@@ -130,9 +130,9 @@ The package provides a `mark` binary for command-line usage.
 
 ```bash
 mark [global options] <path...> [positional...] [--options]
-mark serve [--procedures pkgs] [--port N] [--token T | --no-token] [--expose patterns] [--events topics] [--fs-root folder]
+mark serve [--procedures pkgs] [--port N] [--token T | --no-token] [--expose patterns] [--events topics] [--fs-root folder] [--probe-port N]
 mark mcp [--bundles list] [--tool-timeout ms] [--read-only] [--http port] [--fs-root folder] [--debug]
-mark --server [--port N] [--host H] [--transport http|websocket|both] [--events topics]
+mark --server [--port N] [--host H] [--transport http|websocket|both] [--events topics] [--probe-port N]
 mark -i
 mark --fs-root <folder> <command | --server | -i | serve | mcp>
 ```
@@ -165,6 +165,19 @@ The bin is `dist/bin.js`. `node dist/cli.js` also runs the CLI. Importing `@proc
 ```bash
 mark --server --transport both --events "orders.*"
 mark serve --procedures ./my-procedures.js --events orders.created --events audit.created
+```
+
+#### The health probes of the hosts
+
+`mark --server` and `mark serve` answer the probes of their service (CLI-9, decision D5). The probes give only the status, and they need no token.
+
+- By default, each listener answers `GET /_probes/startup`, `/_probes/readiness` and `/_probes/liveness`. The answer is 200, or 503 with `Retry-After`.
+- `--probe-port <port>` moves the probes to a port of their own, on the address of `--host`: `/startup`, `/readiness`, `/liveness` and `/report`. The listeners then answer no probes.
+- The startup prints the URL of the probes.
+
+```bash
+curl http://127.0.0.1:3000/_probes/readiness
+mark --server --probe-port 9090
 ```
 
 #### The root of the files

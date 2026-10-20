@@ -16,13 +16,15 @@
  * - The collections: the option `collections` gives the storages, and the host serves
  *   `collections.<name>.*`. Each storage is a dependency of the service. The expose rule applies
  *   to the collection procedures. Only `host.*` and `events.subscribe` are always on (CLI-47).
+ * - The probes: each listener of the host answers the probes of the service under `/_probes`,
+ *   through `probeHandler()` of the service (CLI-9, decision D5). The option `probes` changes them.
  */
 
 import { createServer } from "node:http";
 import type { IncomingMessage, ServerResponse as NodeResponse } from "node:http";
 import type { Duplex } from "node:stream";
-import type { Check, CheckFn, Dependency, DependencyHandle, Lifecycle, Operation, OperationOf, ServiceBuilder, TransportImpl } from "@mark1russell7/service";
-import { httpTransport, pathOf, type HttpKnobs } from "@mark1russell7/service/http";
+import type { Check, CheckFn, Dependency, DependencyHandle, Health, Lifecycle, Operation, OperationOf, ServiceBuilder, TransportImpl } from "@mark1russell7/service";
+import { httpTransport, pathOf, probeHandler, type HttpKnobs, type RequestHandler } from "@mark1russell7/service/http";
 import type { KeyedLimiter } from "@mark1russell7/service/limiter";
 import {
   PROCEDURE_REGISTRY,
@@ -61,6 +63,22 @@ export const LOCAL_LISTENER_KNOBS: HttpKnobs = Object.freeze({
   server_idle_sweep_interval: seconds(1),
   server_retry_after: seconds(1),
 });
+
+/**
+ * The prefix of the probe paths on each listener of a host (CLI-9). By default, no face serves a path
+ * under it: the faces serve under `/api`, `/ws` and `/mcp`. The probes mount first, thus a probe
+ * path never reaches a face.
+ */
+export const HOST_PROBE_PREFIX = "/_probes";
+
+/**
+ * The probes of the service on the listeners of a host (CLI-9, decision D5). The probes answer
+ * from the cache of the health of the service, without the token. They give only the status.
+ */
+export interface HostProbes {
+  /** The path before each probe path. It starts with `/`, and it does not end with `/`. The default is `/_probes`. */
+  readonly prefix?: string | undefined;
+}
 
 /** A collection of the host: its storage, and the procedures `collections.<name>.*`. */
 export interface HostCollection {
@@ -142,6 +160,18 @@ export interface ProcedureHostOptions {
   readonly controller?: HostControllerOptions | undefined;
   /** The listeners that the host owns. Without them, the app mounts `host.handler` and `host.upgrade`. */
   readonly listen?: readonly HostListener[] | undefined;
+  /**
+   * The probes of the service on each listener of the host (CLI-9, decision D5). The default is
+   * `true`: `GET /_probes/startup`, `/_probes/readiness` and `/_probes/liveness` answer 200 or 503.
+   *
+   * - The probes come from `probeHandler()` of `@mark1russell7/service/http`. They answer each
+   *   caller, without the token and the browser checks, and they give only the status.
+   * - The report of the service (`/_probes/report`) gives the names of the checks and the dependencies.
+   *   Thus a listener of the host does not answer it. `host.health` gives the details with the token.
+   * - `false` turns them off, for example for a process with a probe server on a port of its own.
+   * - Without a listener, the app mounts `probeHandler()` on its own listener.
+   */
+  readonly probes?: boolean | HostProbes | undefined;
   /** The collections by name: a storage, or a storage and its procedures. */
   readonly collections?: Readonly<Record<string, CollectionStorage<unknown> | HostCollection>> | undefined;
   /** The clock of the host: give the clock of the lifecycle. The default is the clock of the platform. */
@@ -199,6 +229,11 @@ export interface HostInfo {
   readonly startedAt: number;
   /** The endpoints of the faces on the listeners of the host. A listener has its address only after its start. */
   endpoints(): HostEndpoint[];
+  /**
+   * The base URL of the probes on each listener of the host, for example `http://127.0.0.1:3000/_probes`
+   * (CLI-9). The list is empty when the option `probes` is false. A listener has its address only after its start.
+   */
+  probes(): string[];
   /** The number of the procedures that the host serves now. */
   procedureCount(): number;
 }
@@ -261,6 +296,25 @@ function messageOf(error: unknown): string {
 
 /** The operations of a storage as a dependency: a read can go again, a write cannot. */
 const STORAGE_OPERATIONS: Readonly<Record<string, Operation>> = Object.freeze({ read: { idempotent: true }, write: { idempotent: false } });
+
+/** The prefix of the probes of the option `probes`, or undefined when the option turns them off. */
+function probePrefixOf(probes: ProcedureHostOptions["probes"]): string | undefined {
+  if (probes === false) return undefined;
+  return (probes === true || probes === undefined ? undefined : probes.prefix) ?? HOST_PROBE_PREFIX;
+}
+
+/**
+ * This function gives the probes of a listener of a host: `probeHandler()` of the service, without
+ * the report. The report gives the whole verdict, with the names of the checks and the dependencies.
+ * A listener answers each caller without the token, thus the report goes to the next handler.
+ */
+function listenerProbes(health: () => Health | null | undefined, prefix: string): RequestHandler {
+  const probes = probeHandler(health, { prefix });
+  const report = `${prefix}/report`;
+  const handler = (req: IncomingMessage, res: NodeResponse, context: Parameters<RequestHandler>[2]): boolean | Promise<boolean> =>
+    pathOf(req.url) !== report && probes(req, res, context);
+  return Object.assign(handler, { until: probes.until });
+}
 
 /**
  * This function builds a procedures host. It starts nothing: the service of the process starts
@@ -332,10 +386,23 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
   const listeners = options.listen ?? [];
   const onListener = new Set<string>();
   const endpoints: Array<() => HostEndpoint[]> = [];
+  // The probes of the service on each listener (CLI-9, D5): from the health of the lifecycle, which
+  // the part of the server gets before a listener starts
+  const probePrefix = probePrefixOf(options.probes);
+  const probeBases: Array<() => string | undefined> = [];
   const listenerParts: HostPart[] = listeners.map((listener, index) => {
     const host = listener.host ?? "127.0.0.1";
     const listenerName = listener.name ?? (listeners.length === 1 ? "http" : String(listener.port || index));
     const transport = httpTransport(createServer(), listener.knobs, { listen: { port: listener.port, host }, clock });
+    const shown = host === "0.0.0.0" || host === "::" ? "localhost" : host;
+    // The probes mount first: a probe path never reaches a face, and a face gets each other path as before
+    if (probePrefix !== undefined) {
+      transport.mount(listenerProbes(() => life?.health, probePrefix));
+      probeBases.push(() => {
+        const address = transport.server.address();
+        return typeof address === "object" && address !== null ? `http://${shown}:${address.port}${probePrefix}` : undefined;
+      });
+    }
     const mounted = (listener.faces ?? [...faces.keys()]).map((faceName) => {
       const face = faces.get(faceName);
       if (!face) throw new Error(`The listener "${listenerName}" names the face "${faceName}", which the host does not have`);
@@ -357,7 +424,6 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
       }
       return face;
     });
-    const shown = host === "0.0.0.0" || host === "::" ? "localhost" : host;
     endpoints.push(() => {
       const address = transport.server.address();
       if (typeof address !== "object" || address === null) return [];
@@ -458,6 +524,7 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
     id,
     startedAt,
     endpoints: () => [...endpoints.flatMap((each) => each()), ...(options.endpoints ?? [])],
+    probes: () => probeBases.flatMap((each) => each() ?? []),
     procedureCount: () => server.procedureCount,
   };
   // host.health, host.info and host.metrics: pinned on the server, not in the registry (R19). They

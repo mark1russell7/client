@@ -30,6 +30,11 @@ export interface ServerConfig {
   events?: string[] | undefined;
   /** The root of the files (`--fs-root`): each procedure keeps its paths in it, or it is refused. Undefined: no root. */
   fsRoot?: string | undefined;
+  /**
+   * The port of the probe server (`--probe-port`, CLI-9). Undefined: each listener answers the probes
+   * under `/_probes`, and the server has no probe server.
+   */
+  probePort?: number | undefined;
 }
 
 export interface ServerCreateResult {
@@ -52,7 +57,14 @@ export interface ServerStartInput {
 }
 
 export interface ServerStartOutput {
-  /** Whether start succeeded */
+  /**
+   * True when the server started.
+   *
+   * @deprecated Only the value at the timeout is deprecated, not this field (CLI-9). At the
+   * timeout, a server that still starts gives `true` and the message "still loading". From the next
+   * MINOR of the client group, a start that is not ready at the timeout gives `success: false`, with
+   * the PID of the process that still starts. Read the readiness probe or `mark server status` for the state.
+   */
   success: boolean;
   /** Process ID of server */
   pid?: number | undefined;
