@@ -343,6 +343,8 @@ function withRequestTimeout(
  * (VALIDATION_ERROR, NOT_EXPOSED, ABORTED and so on). An error of the handler keeps its own code
  * when it is a string, as for a stream (`WIRE-PROTOCOL.md`). Without a code, it is HANDLER_ERROR.
  * An error without a retryable flag gets the flag of its code in `ERROR_CODES`, or false (CLI-48).
+ * This default applies only before the stream starts. An in-band end without a flag gets false
+ * (CLI-58, `WIRE-PROTOCOL.md`, section "Error codes").
  */
 export function errorResponse(id: string, error: unknown): ServerResponse<unknown> {
   // An error that says it is retryable stays retryable: before, every error lost the flag
