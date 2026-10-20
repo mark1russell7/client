@@ -187,7 +187,8 @@ export interface McpServerTransportOptions {
   streamLimits?: { items?: number; time?: Duration } | undefined;
 
   /**
-   * MCP tasks (CLI-35): a store, or the options of a new store (`maxRunning`, `maxStored`, `ttl`).
+   * MCP tasks (CLI-35): a store, or the options of a new store (`maxRunning`, `maxStored`,
+   * `reserve`, `shareKey`, `ttl`, `clock`).
    * With it, a tool whose procedure has `metadata.taskSupport` can run as a task. Without it, each
    * tool call is a normal request. The stop of the transport closes a store that it made.
    */

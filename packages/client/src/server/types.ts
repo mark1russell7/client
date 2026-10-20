@@ -169,6 +169,13 @@ export interface RequestHandler {
    * trusts such a request only from a named origin. Absent: the handler reads no cookies.
    */
   readonly ambientCredentials?: AmbientCredentials | undefined;
+  /**
+   * This function gives the principal of a request with these credentials, before a call
+   * (CLI-69). It uses the checks of each call, and gives undefined when they refuse the
+   * credentials or give no principal. `ProcedureServer` has it. Absent: a face knows the principal
+   * only in the call.
+   */
+  identify?(credentials: Credentials): Promise<Principal | undefined>;
 }
 
 /**

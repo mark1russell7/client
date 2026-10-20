@@ -297,6 +297,11 @@ async function* releasedAtEnd<T>(items: AsyncIterable<T>, release: () => void): 
   }
 }
 
+/** The request of credentials without a call: `admits()` and `identify()` give it to the checks of each call. */
+function credentialsRequest(id: string, credentials: Credentials): ServerRequest<unknown> {
+  return { id, method: { service: "", operation: "" }, payload: undefined, metadata: {}, credentials };
+}
+
 /** A signal that aborts when one of the signals aborts. */
 function joinSignals(first: AbortSignal | undefined, second: AbortSignal): AbortSignal {
   if (!first) return second;
@@ -992,8 +997,19 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    * connection.
    */
   async admits(credentials: Credentials): Promise<boolean> {
-    const request: ServerRequest<unknown> = { id: "connection", method: { service: "", operation: "" }, payload: undefined, metadata: {}, credentials };
-    return (await this.admit(request)) === undefined;
+    return (await this.admit(credentialsRequest("connection", credentials))) === undefined;
+  }
+
+  /**
+   * This method gives the principal of a request with these credentials, before a call (CLI-69).
+   * It uses the path of each call: the request hook, the token check and the authenticate
+   * function. It gives undefined when the server refuses the credentials, or when the request has
+   * no principal. The MCP face uses it for the fair share of its task store. Each use runs the
+   * request hook and the authenticate function one more time.
+   */
+  async identify(credentials: Credentials): Promise<Principal | undefined> {
+    const request = credentialsRequest("identify", credentials);
+    return (await this.admit(request)) === undefined ? request.principal : undefined;
   }
 
   /**

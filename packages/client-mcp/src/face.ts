@@ -107,6 +107,8 @@ function faceNarrowing(narrowing: NonNullable<McpFaceOptions["narrowing"]>, cont
       handle: (request) =>
         inner.handle({ ...request, metadata: { ...request.metadata, [NARROWING_METADATA_KEY]: addNarrowing(request.metadata[NARROWING_METADATA_KEY], sources) } }),
       ...(inner.ambientCredentials ? { ambientCredentials: inner.ambientCredentials } : {}),
+      // The principal before a call (CLI-69): the narrowing does not change it
+      ...(inner.identify ? { identify: inner.identify.bind(inner) } : {}),
     },
     permits: (path) => {
       const procedure = registry.get(path);
