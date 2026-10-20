@@ -188,11 +188,20 @@ describe("the warm mode (CLI-26)", () => {
     const proc = fakeProcess();
     const command = await startWarmCommand({ run: { process: proc } });
     const items: unknown[] = [];
+    // The first row reached this side: the server sent it, and the call is in flight
+    const received = newMark();
     let result: Awaited<ReturnType<NonNullable<typeof connection>["call"]>> | undefined;
     const request = command.request(async (signal) => {
-      result = await connection!.call({}, (item) => items.push(item), signal);
+      result = await connection!.call(
+        {},
+        (item) => {
+          items.push(item);
+          received.resolve();
+        },
+        signal,
+      );
     });
-    await firstRow.promise;
+    await received.promise;
     proc.signal("SIGINT");
     const end = await request;
     await abortSeen.promise;
