@@ -1,5 +1,11 @@
 # @procedures/procedure
 
+## 0.22.0
+
+### Patch Changes
+
+- @procedures/client@0.22.0
+
 ## 0.21.0
 
 ### Patch Changes
