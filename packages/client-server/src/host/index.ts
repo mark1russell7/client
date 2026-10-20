@@ -24,7 +24,7 @@ import { createServer } from "node:http";
 import type { IncomingMessage, ServerResponse as NodeResponse } from "node:http";
 import type { Duplex } from "node:stream";
 import type { Check, CheckFn, Dependency, DependencyHandle, Health, Lifecycle, Operation, OperationOf, ServiceBuilder, TransportImpl } from "@mark1russell7/service";
-import { httpTransport, pathOf, probeHandler, type HttpKnobs, type MountStage, type RequestHandler } from "@mark1russell7/service/http";
+import { httpTransport, pathOf, probeHandler, type HttpKnobs, type MountStage, type ProbeKind, type RequestHandler } from "@mark1russell7/service/http";
 import type { KeyedLimiter } from "@mark1russell7/service/limiter";
 import {
   PROCEDURE_REGISTRY,
@@ -313,14 +313,15 @@ function probesOf(probes: ProcedureHostOptions["probes"]): { prefix: string; unt
 }
 
 /**
- * This function gives the probes of a listener of a host: `probeHandler()` of the service, without
- * the report. The report gives the whole verdict, with the names of the checks and the dependencies.
- * A listener answers each caller without the token, thus the report goes to the next handler.
+ * The probe kinds of a listener of a host: each kind except the report. The report gives the whole
+ * verdict, with the names of the checks and the dependencies. A listener answers each caller without
+ * the token, thus `probeHandler()` passes the report path on to the next handler (SYS-30).
  */
+const LISTENER_PROBE_KINDS: readonly ProbeKind[] = Object.freeze(["startup", "readiness", "liveness"]);
+
+/** This function gives the probes of a listener of a host: `probeHandler()` of the service, without the report. */
 function listenerProbes(health: () => Health | null | undefined, prefix: string): RequestHandler {
-  const probes = probeHandler(health, { prefix });
-  const report = `${prefix}/report`;
-  return (req, res, context) => pathOf(req.url) !== report && probes(req, res, context);
+  return probeHandler(health, { prefix, kinds: LISTENER_PROBE_KINDS });
 }
 
 /**

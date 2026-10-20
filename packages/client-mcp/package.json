@@ -79,6 +79,6 @@
     "@mark1russell7/cue": "^1.0.0",
     "vitest": "^5.0.3",
     "@procedures/client": "workspace:*",
-    "@mark1russell7/service": "^0.5.2"
+    "@mark1russell7/service": "^0.5.8"
   }
 }

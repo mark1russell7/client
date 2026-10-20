@@ -68,7 +68,7 @@
     "start": "node dist/cli.js"
   },
   "dependencies": {
-    "@mark1russell7/service": "^0.5.2",
+    "@mark1russell7/service": "^0.5.8",
     "@procedures/client": "workspace:*",
     "@procedures/peer": "workspace:*",
     "zod": "^4.6.5"

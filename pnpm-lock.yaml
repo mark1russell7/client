@@ -435,8 +435,8 @@ importers:
         specifier: ^0.2.0
         version: 0.2.0(zod@4.6.5)
       '@mark1russell7/service':
-        specifier: ^0.5.3
-        version: 0.5.3(zod@4.6.5)
+        specifier: ^0.5.8
+        version: 0.5.8(zod@4.6.5)
       '@types/ws':
         specifier: ^8.18.1
         version: 8.18.2
@@ -706,8 +706,8 @@ importers:
         specifier: ^1.0.0
         version: 1.0.0
       '@mark1russell7/service':
-        specifier: ^0.5.2
-        version: 0.5.3(zod@4.6.5)
+        specifier: ^0.5.8
+        version: 0.5.8(zod@4.6.5)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -880,8 +880,8 @@ importers:
   packages/client-server:
     dependencies:
       '@mark1russell7/service':
-        specifier: ^0.5.3
-        version: 0.5.3(zod@4.6.5)
+        specifier: ^0.5.8
+        version: 0.5.8(zod@4.6.5)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1041,8 +1041,8 @@ importers:
   packages/client-store:
     dependencies:
       '@mark1russell7/service':
-        specifier: ^0.5.1
-        version: 0.5.3(zod@4.6.5)
+        specifier: ^0.5.8
+        version: 0.5.8(zod@4.6.5)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1303,8 +1303,8 @@ importers:
   packages/impl-mcp-dev:
     dependencies:
       '@mark1russell7/service':
-        specifier: ^0.5.2
-        version: 0.5.3(zod@4.6.5)
+        specifier: ^0.5.8
+        version: 0.5.8(zod@4.6.5)
       '@procedures/bundle-mcp':
         specifier: workspace:*
         version: link:../bundle-mcp
@@ -1390,8 +1390,8 @@ importers:
   packages/llm:
     dependencies:
       '@mark1russell7/service':
-        specifier: ^0.5.1
-        version: 0.5.3(zod@4.6.5)
+        specifier: ^0.5.8
+        version: 0.5.8(zod@4.6.5)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1777,8 +1777,8 @@ importers:
         specifier: ^1.0.0
         version: 1.0.0
       '@mark1russell7/service':
-        specifier: ^0.5.1
-        version: 0.5.3(zod@4.6.5)
+        specifier: ^0.5.8
+        version: 0.5.8(zod@4.6.5)
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1792,8 +1792,8 @@ importers:
   packages/server:
     dependencies:
       '@mark1russell7/service':
-        specifier: ^0.5.2
-        version: 0.5.3(zod@4.6.5)
+        specifier: ^0.5.8
+        version: 0.5.8(zod@4.6.5)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -2040,8 +2040,8 @@ importers:
   packages/systems:
     dependencies:
       '@mark1russell7/service':
-        specifier: ^0.5.1
-        version: 0.5.3(zod@4.6.5)
+        specifier: ^0.5.8
+        version: 0.5.8(zod@4.6.5)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -3169,8 +3169,8 @@ packages:
       zod:
         optional: true
 
-  '@mark1russell7/service@0.5.3':
-    resolution: {integrity: sha512-lUigYnoxFVwL5E1DRvNON20HN11WQW873P5/C5ggUMLm91dBZOySqGJKs5ab/wEh+tOZ23MNhvzdAb4Lqqn7Jw==}
+  '@mark1russell7/service@0.5.8':
+    resolution: {integrity: sha512-ksanAboBmtfOlSNzLrJtXhFwGiy1/4UNt8q9dVK+x44Gs9Zh7OMoyQblPX1X5nfagQVN7l1YF73A7wQVf7M41A==}
     engines: {node: '>=22.19'}
     peerDependencies:
       ioredis: ^6.0.0
@@ -6277,7 +6277,7 @@ snapshots:
     optionalDependencies:
       zod: 4.6.5
 
-  '@mark1russell7/service@0.5.3(zod@4.6.5)':
+  '@mark1russell7/service@0.5.8(zod@4.6.5)':
     dependencies:
       '@mark1russell7/algebra': 0.7.2(zod@4.6.5)
       '@mark1russell7/quantity': 0.2.0(zod@4.6.5)
