@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/mongo",
-  "version": "0.18.1",
+  "version": "0.19.0",
   "description": "MongoDB as typed procedures: documents, bulk writes, distinct, explain, collections, indexes, aggregation, change streams and database info, with safe update and delete targets.",
   "keywords": [
     "mongodb",

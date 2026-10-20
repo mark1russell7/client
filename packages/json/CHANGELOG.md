@@ -1,5 +1,13 @@
 # @procedures/json
 
+## 0.19.0
+
+### Patch Changes
+
+- Updated dependencies [5cb934d]
+  - @procedures/client@0.19.0
+  - @procedures/compiler@0.19.0
+
 ## 0.18.1
 
 ### Patch Changes
