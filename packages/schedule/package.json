@@ -60,7 +60,7 @@
   "devDependencies": {
     "@procedures/fs": "workspace:*",
     "@mark1russell7/cue": "^1.0.0",
-    "@mark1russell7/service": "^0.5.1",
+    "@mark1russell7/service": "^0.5.8",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3"
   },
