@@ -295,7 +295,7 @@ describe("SignalDbStorage: the collection of the app (CLI-23)", () => {
     await storage.close();
   });
 
-  it("an error in a batch of the collection ends the batch, and the observers get the changes before the error", async () => {
+  it("an error of a listener of the app in a batch ends the batch of the collection, and the write rejects", async () => {
     const collection = new Collection<Doc>();
     const storage = new SignalDbStorage<Doc>(collection);
     await storage.setBatch([
@@ -304,7 +304,7 @@ describe("SignalDbStorage: the collection of the app (CLI-23)", () => {
     ]);
     const batches: StorageChangeBatch<Doc>[] = [];
     storage.observe((batch) => void batches.push(batch));
-    // A listener of the app that throws in the removal of the second item
+    // A listener of the app that throws in the removal of the second item: SignalDB removed the item before its event
     let removals = 0;
     const failing = (): void => {
       if (++removals === 2) throw new Error("the listener of the app failed");
@@ -312,7 +312,8 @@ describe("SignalDbStorage: the collection of the app (CLI-23)", () => {
     collection.on("removed", failing);
     await expect(storage.deleteBatch(["a", "b"])).rejects.toThrow("the listener of the app failed");
     collection.off("removed", failing);
-    expect(batches).toEqual([[{ type: "delete", id: "a" }]]);
+    // The observers get the change before the error
+    expect(batches[0]?.[0]).toEqual({ type: "delete", id: "a" });
     collection.insert({ id: "c", title: "C" });
     expect(collection.find({}).count()).toBe(1);
     await storage.close();

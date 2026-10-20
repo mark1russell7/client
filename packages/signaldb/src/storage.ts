@@ -10,17 +10,17 @@
  * - Each operation waits for the load of the persistence of the collection (`isReady()`). A failed
  *   load does not stop the storage: the collection then keeps its items in memory, as SignalDB does.
  * - A write of SignalDB is synchronous. Each write of the storage reads, tests and writes in one
- *   synchronous step, so two writes never mix: a patch and a precondition are atomic.
- * - A write of several items runs in one `batch()` of the collection: the indexes and the cursors
- *   update one time. The validators of the collection examine each item before the first write, so
- *   an item that a validator refuses changes nothing.
+ *   synchronous step. Thus two writes do not mix, and a patch and a precondition are atomic.
+ * - A write of several items is one `batch()` of the collection: the indexes and the cursors update
+ *   one time. The validators of the collection examine each item before the first write. Thus an
+ *   item that a validator refuses changes nothing.
  * - Each write takes a copy of its value, and each read gives a new copy. A cursor of SignalDB gives
  *   copies (`structuredClone`) of the items, and the storage reads only through cursors.
  * - `observe()` gives the batches of the writes of the storage, with their origins. It also gives
  *   each change that the app makes directly on the collection: one batch for each change, with no
  *   origin. Thus a `HybridStorage` with `capture: "observe"` sends the writes of the app.
- * - `query()` runs `queryEntries()` on the values. It does not give the selector to SignalDB:
- *   SignalDB runs Mongo selectors on the items (with `mingo`), and the contract needs the
+ * - `query()` applies `queryEntries()` to the values. It does not give the selector to SignalDB.
+ *   SignalDB applies Mongo selectors to the items with `mingo`. The contract needs the query
  *   language of the client on the values.
  * - `close()` stops the storage. The collection stays open, with its items: the app disposes it.
  *
@@ -32,6 +32,9 @@
  * - Each id is a string. An item of the collection whose `id` is not a string is an error.
  * - The storage keeps no change log, so it has no `getChangesSince()`. A cursor copies each item,
  *   so the storage has no cheap `getIds()` either.
+ * - A listener of the app that throws in a write of the storage stops the write, and the write
+ *   rejects. SignalDB keeps the changes before the error. The observers get the changes that the
+ *   storage knows.
  */
 
 import type { Collection } from "@signaldb/core";
@@ -126,7 +129,7 @@ interface Prepared<T> {
  * - The collection keeps the items. The storage keeps nothing of its own, and a new storage of the
  *   same collection reads the same items.
  * - `observe()` tells the writes of the storage and the changes that the app makes on the collection.
- * - `query()` runs a selector, and `patch()` changes an item in one step.
+ * - `query()` applies a selector, and `patch()` changes an item in one step.
  * - After `close()`, each operation rejects, and a second `close()` does nothing.
  *
  * @example
@@ -221,8 +224,8 @@ export class SignalDbStorage<T> implements CollectionStorage<T> {
 
   /**
    * The entries whose values match the selector, with the order, the skip and the limit of
-   * `queryEntries()`, under the policy of the call or of the options. A query that is not correct
-   * rejects with a `TypeError` before the storage reads the collection.
+   * `queryEntries()`. The policy is the policy of the call, or else of the options. A query that is
+   * not correct rejects with a `TypeError` before the storage reads the collection.
    */
   async query(selector: StorageSelector, options?: StorageQueryOptions, policy?: StorageQueryPolicy): Promise<Array<[string, T]>> {
     this.checkOpen();
@@ -237,7 +240,7 @@ export class SignalDbStorage<T> implements CollectionStorage<T> {
    *
    * - A write of this storage gives one batch, with the origin of its options, before the write resolves.
    * - A change that the app makes directly on the collection gives one batch with one change and no
-   *   origin, at once: `insert`, `updateOne`, `replaceOne` and `removeOne`, for example.
+   *   origin, at once. Examples are `insert`, `updateOne`, `replaceOne` and `removeOne`.
    * - The observers share each batch. A load of the persistence gives no batch.
    *
    * @returns The function that stops the batches. A second use of it does nothing.
@@ -543,8 +546,8 @@ export class SignalDbStorage<T> implements CollectionStorage<T> {
   }
 
   /**
-   * This method gives a change that the app made on the collection to the observers. It never
-   * throws: SignalDB calls it in the write of the app. An item that the storage cannot read goes to
+   * This method gives a change that the app made on the collection to the observers. It does not
+   * throw, because it operates in the write of the app. An item that the storage cannot read goes to
    * `onObserverError`.
    */
   private appChange(type: "set" | "delete", item: unknown): void {

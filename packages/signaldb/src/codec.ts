@@ -51,7 +51,7 @@ export function isPlainObject(value: unknown): value is Record<string, unknown> 
  * The default codec. A plain object whose `id` is its key is the item itself. Each other value goes
  * into an envelope with the field `valueField`.
  *
- * - A document never has the field `valueField`: a value with that field goes into an envelope.
+ * - A document does not have the field `valueField`: a value with that field goes into an envelope.
  *   Thus an item with the field is always an envelope, and each value comes back as it was.
  * - The field `valueField` is reserved. An item of the app with that field reads as an envelope.
  *
