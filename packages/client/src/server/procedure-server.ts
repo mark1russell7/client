@@ -28,7 +28,7 @@ import { optionalMs, type Duration } from "../duration.js";
 import type { CollectionStorage } from "../procedures/collection/storage.js";
 import { TIMER_DEFAULTS } from "../timers.js";
 import { realClock, type Clock } from "../clock.js";
-import { ERROR_CODES, errorCodeOf, isProtocolErrorCode } from "../protocol.js";
+import { errorCodeOf, retryableOf } from "../protocol.js";
 import { EventPublisher, type EventPublisherOptions } from "../events/publisher.js";
 import { getGlobalEventBus } from "../events/bus.js";
 import type { CollectionProceduresOptions } from "../procedures/collection/procedures.js";
@@ -297,6 +297,24 @@ async function* releasedAtEnd<T>(items: AsyncIterable<T>, release: () => void): 
   }
 }
 
+/**
+ * The items of the stream of a keyed call. When the stream ends with a retryable error, `forget`
+ * runs before the error goes on: the next try with the key then runs again, as after a retryable
+ * error response (CLI-68). The flag is the flag of the in-band end on each face (`retryableOf`).
+ */
+async function* forgottenAtRetryableEnd<T>(items: AsyncIterable<T>, forget: () => void): AsyncGenerator<T, void, undefined> {
+  let count = 0;
+  try {
+    for await (const item of items) {
+      count++;
+      yield item;
+    }
+  } catch (error) {
+    if (retryableOf(error, count)) forget();
+    throw error;
+  }
+}
+
 /** A signal that aborts when one of the signals aborts. */
 function joinSignals(first: AbortSignal | undefined, second: AbortSignal): AbortSignal {
   if (!first) return second;
@@ -346,17 +364,11 @@ function withRequestTimeout(
  * (VALIDATION_ERROR, NOT_EXPOSED, ABORTED and so on). An error of the handler keeps its own code
  * when it is a string, as for a stream (`WIRE-PROTOCOL.md`). Without a code, it is HANDLER_ERROR.
  * An error without a retryable flag gets the flag of its code in `ERROR_CODES`, or false (CLI-48).
- * This default applies only before the stream starts. An in-band end without a flag gets false
- * (CLI-58, `WIRE-PROTOCOL.md`, section "Error codes").
- *
- * Deprecated (D13): the flag false for an in-band end without a flag before the first item. From
- * the next MINOR of the client group (CLI-68), that end gets the flag of its code, as this response
- * does. After the first item, the flag stays false. This response does not change.
+ * An in-band end before the first item of a stream gets the same default. After the first item,
+ * an in-band end without a flag gets false (`retryableOf`, CLI-58, CLI-68, `WIRE-PROTOCOL.md`,
+ * section "Error codes").
  */
 export function errorResponse(id: string, error: unknown): ServerResponse<unknown> {
-  // An error that says it is retryable stays retryable: before, every error lost the flag
-  // (deep dive TRN-7)
-  const retryable = (error as { retryable?: unknown } | undefined)?.retryable;
   // A refusal of the capability says why (CAPABILITIES-2026-10)
   const reason = error instanceof InvocationError ? error.reason : undefined;
   // An error can ask the client to wait before a retry: retryAfterMs, in milliseconds (R12)
@@ -373,8 +385,10 @@ export function errorResponse(id: string, error: unknown): ServerResponse<unknow
       type: "error",
       code,
       message: error instanceof Error ? error.message : String(error),
-      // Without a flag, the default of the code: UNAVAILABLE stays retryable, and keeps HTTP 503 (CLI-48)
-      retryable: typeof retryable === "boolean" ? retryable : isProtocolErrorCode(code) ? ERROR_CODES[code].retryable : false,
+      // An error that says it is retryable stays retryable: before, every error lost the flag (deep
+      // dive TRN-7). Without a flag, the default of the code: UNAVAILABLE stays retryable, and
+      // keeps HTTP 503 (CLI-48). No item went out before this response.
+      retryable: retryableOf(error, 0),
     },
     metadata,
   };
@@ -1027,7 +1041,12 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
       // A retryable error lets the next try run again: the handler said that a retry is safe
       (response) => !(response.status.type === "error" && response.status.retryable),
     );
-    if (first) return result;
+    if (first) {
+      // A stream that ends with a retryable error lets the next try run again too. Thus the retry
+      // of a stream that fails before its first item runs the procedure again (CLI-68).
+      const forget = (): void => this.idempotency!.forget(cacheKey, result);
+      return result.then((response) => (response.stream ? { ...response, stream: forgottenAtRetryableEnd(response.stream, forget) } : response));
+    }
     const response = await untilAborted(result, request.signal);
     if (response === undefined) return errorResponse(request.id, new InvocationError("ABORTED", "The request was aborted", procedure.path));
     if (response.stream) {

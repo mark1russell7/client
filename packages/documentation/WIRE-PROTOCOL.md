@@ -158,7 +158,7 @@ Each line ends with LF. A frame line is one JSON object.
 
 - The `seq` of the `item` and `done` lines follows the rules of the stream frames (refer to "The sequence numbers of a stream").
 - The `done` line or the `error` line is the last line. A stream that ends without one of them is a broken stream.
-- The flag `retryable` of the `error` line follows the rule of an in-band end (refer to "Error codes"). An error of a handler without a flag gets false on this line (CLI-58). Before the first item, this false is deprecated (CLI-68).
+- The flag `retryable` of the `error` line follows the rule of an in-band end (refer to "Error codes"). An error of a handler without a flag gets the flag of its code before the first `item` line (CLI-68). After an `item` line, it gets false (CLI-58).
 - `writeNdjsonStream` of `@procedures/client/node` writes these lines for a `ServerResponse` of `node:http`.
 - `procedureHandler` of `@procedures/client/node` serves the HTTP wire of this document on a `node:http` server, without a framework. It writes its streams with `writeNdjsonStream`.
 - `HttpServerTransport` is an Express shim over `procedureHandler`, so the two faces write the same bytes.
@@ -276,16 +276,18 @@ An error of a handler with a code of its own keeps that code on each face, for a
 - Each other code gets the status 500.
 - An error with `retryable: false` does not get 503, because a 503 invites a retry at the HTTP level. It gets 500 with no `Retry-After` from the error, for example `UNAVAILABLE` with `retryable: false` (CLI-48).
 - An error of a handler without a retryable flag gets the flag of its code in this table, or false. Thus `UNAVAILABLE` without a flag is retryable and gets 503.
-- This default applies only before the stream starts: the handler throws before it gives its value or its stream (CLI-58).
+- This default applies to each error before the first item (CLI-68). The handler throws before it gives its value or its stream, or its stream fails before its first item.
 - After the stream starts, the HTTP status is 200, and an error ends the stream in-band. Refer to "The lines of an NDJSON stream".
 - The in-band end is the `error` line of NDJSON, the `error` frame of WebSocket, or the `_meta` of the MCP result.
-- An in-band end without a retryable flag gets false, also when the stream gave no item. The reader can have items, and a retry can send them again.
-- Deprecated (D13): the flag false of an in-band end before the first item. The next MINOR of the client group changes it (CLI-68):
-  - An in-band end without a flag before the first item then gets the flag of its code in this table. An error before the stream starts gets it at this time.
-  - Thus the retry middleware of the client then sends a stream again when it ends with `UNAVAILABLE` before its first item.
-  - After the first item, the flag stays false. A handler that gives `retryable: false` keeps the flag false before the first item too.
-- A handler gives `retryable: true` when a retry is safe. Then the in-band end is retryable too.
-- The retry middleware of the client does not retry after an item reached the reader. Thus after the first item, the flag only tells the application.
+- An in-band end without a retryable flag before the first item gets the flag of its code. The HTTP status stays 200, because the stream started.
+- An in-band end without a retryable flag after the first item gets false. The reader has items, and a retry can send them again (CLI-58).
+- The items are the `item` lines of NDJSON, the `stream` frames with an item of WebSocket, or the items of the MCP result.
+- A handler gives `retryable: true` when a retry is safe. Then the in-band end is retryable too, also after the first item.
+- A handler gives `retryable: false` when a retry is not safe, for example after an effect. Then the end is not retryable, also before the first item.
+- The retry middleware of the client retries only while no item reached the reader. Thus it sends a stream again when the first item is a retryable error.
+- After the first item, the flag only tells the application.
+- For a keyed call to a procedure that is not idempotent, the server keeps the response of the first try. A retryable end of its stream removes that response, as a retryable error response does. Thus the next try with the key starts the procedure again.
+- Without NDJSON, the server reads the stream and gives its last item as JSON. An error of the stream before its first item gets the flag of its code, and after an item false.
 - This rule agrees with the rule of a cut (CLI-48): the flag is false when the call can have had its effect.
 
 | Code | HTTP | Retryable | Meaning |
@@ -384,7 +386,9 @@ A circuit breaker does not count `RATE_LIMITED`, because the server is not unhea
 
 ## MCP
 
-The MCP face follows the MCP specification. An error result has `isError: true`, a text block with the message and the reason, and `_meta` with `code`, `retryable` and `reason`. An error with a wait also has `retryAfterMs` in `_meta` (CLI-40). The error of a stream also has `_meta` with `code` and `retryable` (CLI-48). Its flag follows the rule of an in-band end (refer to "Error codes", CLI-58). Before the first item, the flag false of an error without a flag is deprecated (CLI-68).
+The MCP face follows the MCP specification. An error result has `isError: true`, a text block with the message and the reason, and `_meta` with `code`, `retryable` and `reason`. An error with a wait also has `retryAfterMs` in `_meta` (CLI-40).
+
+The error of a stream also has `_meta` with `code` and `retryable` (CLI-48). Its flag follows the rule of an in-band end (refer to "Error codes", CLI-58, CLI-68). Before the first item, an error without a flag gets the flag of its code. After an item, it gets false.
 
 - The name of a tool is the path with dots, for example `notes.list`, or the name of the option `toolName`. A path of one segment has its segment as its name, for example `morning`.
 - Each tool name names one procedure. Two procedures can have one name after the join, for example `["a_b", "c"]` and `["a", "b_c"]` with `path.join("_")`. Then the face leaves out the two tools and writes the reason to stderr. Thus a call does not reach the wrong procedure.
