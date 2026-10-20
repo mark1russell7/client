@@ -234,6 +234,16 @@ A procedure reports a failure in one of three ways:
 
 For a streaming procedure, `mark` examines each item. One failed item makes the command fail.
 
+#### Deprecated: a signal during a command
+
+The MINOR of CLI-26 starts each command under `run()` of `@mark1russell7/service` (decision D17). The runner then owns the signals and the exit. These behaviors are deprecated, and that MINOR changes them:
+
+- **The first Ctrl-C in the cold mode.** A command in this process gives the exit code 1. After the change, it gives 130.
+- **A second signal.** A second Ctrl-C in the cold mode ends the process at once with the exit code 130. After the change, the exit code is 1.
+- **`mark server create` in the cold mode.** The peer of the command keeps the process alive after the command. After the change, the peer stops at the end of the command. For a server in the foreground, use `mark --server` or `procedure-server`.
+
+The cold mode is a command in this process: no CLI server operates in this folder, or the command has `--local`. A command on the CLI server (the warm mode) keeps the exit codes 0 and 1.
+
 #### Examples
 
 ```bash
