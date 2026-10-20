@@ -253,18 +253,24 @@ A procedure reports a failure in one of three ways:
 
 For a streaming procedure, `mark` examines each item. One failed item makes the command fail.
 
-A signal stops a command through the runner (CLI-26):
+A signal stops a command through the runner (CLI-26, since the MINOR 0.24.0):
 
 | Event | Cold mode | Warm mode |
 |---|---|---|
-| The first `SIGINT` (Ctrl-C) | 1 | 130 |
+| The command ends without a failure | 0 | 0 |
+| The command fails | 1 | 1 |
+| The first `SIGINT` (Ctrl-C) | 130 | 130 |
 | `SIGTERM` | 143 | 143 |
 | `SIGQUIT` | 131 | 131 |
 | A second signal during the stop | 1 | 1 |
 
-- In the cold mode, the exit code 1 after a first Ctrl-C is the exit code before CLI-26. This exit code is deprecated. A later MINOR of the client group changes it to 130, as in the warm mode.
-- Before CLI-26, a second Ctrl-C in the cold mode gave 130. The runner gives 1.
-- Before CLI-26, a signal in the warm mode ended the process, and the shell showed 130 or 143. The runner gives the same codes, after the server aborts the call.
+The cold mode is a command in this process: no CLI server operates in this folder, or the command has `--local`. The MINOR of CLI-26 changed three behaviors. The release before it marked them as deprecated:
+
+- **The first Ctrl-C in the cold mode.** Before, the aborted command gave the exit code 1. The runner gives 130.
+- **A second signal.** Before, a second Ctrl-C in the cold mode gave the exit code 130. The runner gives 1.
+- **`mark server create` in the cold mode.** Before, the peer of the command kept the process alive after the command. The peer stops at the end of the command. For a server in the foreground, use `mark --server` or `procedure-server`.
+
+Before CLI-26, a signal in the warm mode ended the process, and the server continued the call. The shell showed 130 or 143. The runner gives the same codes, after the server aborts the call.
 
 #### Examples
 
