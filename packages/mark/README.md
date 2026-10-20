@@ -131,7 +131,7 @@ The package provides a `mark` binary for command-line usage.
 ```bash
 mark [global options] <path...> [positional...] [--options]
 mark serve [--procedures pkgs] [--port N] [--token T | --no-token] [--expose patterns] [--events topics] [--fs-root folder] [--probe-port N]
-mark mcp [--bundles list] [--tool-timeout ms] [--read-only] [--http port] [--fs-root folder] [--debug]
+mark mcp [--bundles list] [--tool-timeout ms] [--read-only] [--http port] [--max-sessions n] [--fs-root folder] [--debug]
 mark --server [--port N] [--host H] [--transport http|websocket|both] [--events topics] [--probe-port N]
 mark -i
 mark --fs-root <folder> <command | --server | -i | serve | mcp>

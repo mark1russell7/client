@@ -49,4 +49,31 @@ describe("runDevToolsServer", () => {
     expect(host.mcp.state().running).toBe(false);
     expect(proc.exits).toHaveLength(1);
   }, 60_000);
+
+  it("gives config.http.maxSessions to the HTTP face (CLI-51, mark mcp --max-sessions)", async () => {
+    const proc = fakeProcess();
+    const { host, life, url } = await runDevToolsServer({ ...config, debug: false, http: { port: 0, maxSessions: 1 } }, { process: proc });
+    const ids: string[] = [];
+    for (let count = 0; count < 2; count++) {
+      const response = await fetch(url!, {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+        body: INITIALIZE,
+      });
+      expect(response.status).toBe(200);
+      await response.text();
+      ids.push(response.headers.get("mcp-session-id") ?? "");
+    }
+    // The second session closed the first one, which was idle: the face keeps one session
+    expect(host.mcp.state().faces[0]?.sessions).toBe(1);
+    const gone = await fetch(url!, {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-session-id": ids[0]! },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "ping" }),
+    });
+    expect(gone.status).toBe(404);
+    await gone.text();
+    proc.signal("SIGTERM");
+    await life.done;
+  }, 60_000);
 });

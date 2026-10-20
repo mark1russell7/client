@@ -14,8 +14,10 @@
  * - The face reads the body of a request that starts a session to a limit (4 MiB, the limit of
  *   the SDK), with `readJsonBody` of the core. Only an `initialize` request starts a session, so
  *   a stray POST makes no MCP server.
- * - With `maxSessions`, the face keeps at most that many sessions. A new session above the limit
- *   closes the session that was idle longest: no task in progress and no open response.
+ * - The face keeps at most `maxSessions` sessions: 256 by default (CLI-51). A new session above
+ *   the limit closes the session that was idle longest: no task in progress and no open response.
+ *   When each session is busy, the new session gets 503 with `Retry-After`. `Infinity` turns the
+ *   limit off.
  * - `assertLoopbackBind` refuses a listener on an address that is not loopback, unless the
  *   operator allows it. The owner of the listener calls it before it listens.
  */
@@ -27,13 +29,18 @@ import { bearerOf, checkBrowserRequest, isLoopbackHost, tokenMatches, type Brows
 export const MCP_HTTP_LIMITS: {
   /** The largest body of a request: 4 MiB, the limit of the SDK. */
   readonly maxBodyBytes: 4_194_304;
-  /** The most sessions at one time: no limit, unless the HTTP options give one. */
-  readonly maxSessions: number;
+  /**
+   * The most sessions at one time: 256 (CLI-51). Each live client of the MCP SDK keeps its GET
+   * stream open, so the limit does not close it. Thus the limit is much more than the clients of
+   * one host. Each live session also holds a socket, and 256 is much less than the usual limit of
+   * 1024 open files of a process. `maxSessions: Infinity` turns the limit off.
+   */
+  readonly maxSessions: 256;
   /** The seconds in the `Retry-After` header of a 503, when each session is busy. */
   readonly retryAfterSeconds: 5;
 } = {
   maxBodyBytes: 4_194_304,
-  maxSessions: Number.POSITIVE_INFINITY,
+  maxSessions: 256,
   retryAfterSeconds: 5,
 };
 

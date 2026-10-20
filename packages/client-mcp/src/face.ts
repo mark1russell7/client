@@ -41,7 +41,7 @@ export interface McpFaceOptions extends Omit<McpServerTransportOptions, "transpo
   readonly allowedOrigins?: string[] | undefined;
   /** The host names that a request on a loopback address can name. The default is `browser.allowedHosts` of the policy. */
   readonly allowedHosts?: readonly string[] | "*" | undefined;
-  /** The most sessions at one time (CLI-35). The default is no limit. */
+  /** The most sessions at one time (CLI-35). The default is 256 (CLI-51). `Infinity` turns the limit off. */
   readonly maxSessions?: number | undefined;
   /** The largest body of a request, in bytes (CLI-35). The default is 4 MiB. */
   readonly maxBodyBytes?: number | undefined;

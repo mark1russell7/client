@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/llm",
-  "version": "0.20.0",
+  "version": "0.22.0",
   "description": "A language model as procedures: a completion with tools, a stream of the answer and a structured answer, through the Anthropic Messages API, with the key from the environment.",
   "keywords": [
     "procedures",
