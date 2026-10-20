@@ -1,5 +1,48 @@
 # @procedures/mcp-dev-tools
 
+## 0.17.4
+
+### Patch Changes
+
+- @procedures/bundle-mcp@0.17.4
+  - @procedures/client@0.17.4
+  - @procedures/fs@0.17.4
+  - @procedures/mcp-server@0.17.4
+  - @procedures/compiler@0.17.4
+
+## 0.17.3
+
+### Patch Changes
+
+- @procedures/bundle-mcp@0.17.3
+  - @procedures/client@0.17.3
+  - @procedures/fs@0.17.3
+  - @procedures/mcp-server@0.17.3
+  - @procedures/compiler@0.17.3
+
+## 0.17.2
+
+### Patch Changes
+
+- Updated dependencies [8b7e20c]
+- Updated dependencies [571dad1]
+  - @procedures/client@0.17.2
+  - @procedures/mcp-server@0.17.2
+  - @procedures/bundle-mcp@0.17.2
+  - @procedures/fs@0.17.2
+  - @procedures/compiler@0.17.2
+
+## 0.17.1
+
+### Patch Changes
+
+- Updated dependencies [1ceb990]
+  - @procedures/client@0.17.1
+  - @procedures/bundle-mcp@0.17.1
+  - @procedures/fs@0.17.1
+  - @procedures/mcp-server@0.17.1
+  - @procedures/compiler@0.17.1
+
 ## 0.17.0
 
 ### Minor Changes

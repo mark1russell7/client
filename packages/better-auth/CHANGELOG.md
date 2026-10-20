@@ -1,5 +1,31 @@
 # @procedures/better-auth
 
+## 0.17.4
+
+### Patch Changes
+
+- @procedures/client@0.17.4
+
+## 0.17.3
+
+### Patch Changes
+
+- @procedures/client@0.17.3
+
+## 0.17.2
+
+### Patch Changes
+
+- Updated dependencies [8b7e20c]
+  - @procedures/client@0.17.2
+
+## 0.17.1
+
+### Patch Changes
+
+- Updated dependencies [1ceb990]
+  - @procedures/client@0.17.1
+
 ## 0.17.0
 
 ### Patch Changes

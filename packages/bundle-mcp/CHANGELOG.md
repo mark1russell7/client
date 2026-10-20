@@ -1,5 +1,72 @@
 # @procedures/bundle-mcp
 
+## 0.17.4
+
+### Patch Changes
+
+- @procedures/sqlite@0.17.4
+  - @procedures/client@0.17.4
+  - @procedures/cue@0.17.4
+  - @procedures/dag@0.17.4
+  - @procedures/docker@0.17.4
+  - @procedures/lib@0.17.4
+  - @procedures/mongo@0.17.4
+  - @procedures/procedure@0.17.4
+  - @procedures/vitest@0.17.4
+  - @procedures/compiler@0.17.4
+  - @procedures/json@0.17.4
+
+## 0.17.3
+
+### Patch Changes
+
+- Updated dependencies [636f098]
+  - @procedures/lib@0.17.3
+  - @procedures/sqlite@0.17.3
+  - @procedures/client@0.17.3
+  - @procedures/cue@0.17.3
+  - @procedures/dag@0.17.3
+  - @procedures/docker@0.17.3
+  - @procedures/mongo@0.17.3
+  - @procedures/procedure@0.17.3
+  - @procedures/vitest@0.17.3
+  - @procedures/compiler@0.17.3
+  - @procedures/json@0.17.3
+
+## 0.17.2
+
+### Patch Changes
+
+- Updated dependencies [8b7e20c]
+  - @procedures/client@0.17.2
+  - @procedures/cue@0.17.2
+  - @procedures/dag@0.17.2
+  - @procedures/docker@0.17.2
+  - @procedures/lib@0.17.2
+  - @procedures/mongo@0.17.2
+  - @procedures/procedure@0.17.2
+  - @procedures/sqlite@0.17.2
+  - @procedures/vitest@0.17.2
+  - @procedures/compiler@0.17.2
+  - @procedures/json@0.17.2
+
+## 0.17.1
+
+### Patch Changes
+
+- Updated dependencies [1ceb990]
+  - @procedures/client@0.17.1
+  - @procedures/cue@0.17.1
+  - @procedures/dag@0.17.1
+  - @procedures/docker@0.17.1
+  - @procedures/lib@0.17.1
+  - @procedures/mongo@0.17.1
+  - @procedures/procedure@0.17.1
+  - @procedures/sqlite@0.17.1
+  - @procedures/vitest@0.17.1
+  - @procedures/compiler@0.17.1
+  - @procedures/json@0.17.1
+
 ## 0.17.0
 
 ### Patch Changes

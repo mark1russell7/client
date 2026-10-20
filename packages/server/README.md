@@ -165,6 +165,7 @@ procedure-server -p @procedures/mongo/register -t http,websocket
 | `--expose` | `-e` | every loaded procedure | Comma-separated procedures to serve: exact keys (`git.status`) or prefixes (`git.*`) |
 | `--events` | - | no topics | The topics of the event bus that a peer can subscribe to. Exact names (`orders.created`), prefixes (`orders.*`) or `*`. Repeat the option, or separate the patterns with commas. |
 | `--fs-root` | - | no root | The root of the files: each procedure keeps its paths in this folder, also in the nested calls, or the server refuses it |
+| `--probe-port` | - | the probes answer on each listener under `/_probes` | The port of the health probes, on the address of `--host`. Refer to "The health probes". |
 | `--verbose` | `-v` | - | Verbose output |
 | `--help` | `-h` | - | Show help |
 
@@ -182,6 +183,21 @@ The server always serves the procedure `events.subscribe` ([EVENTS.md](../docume
 
 ```bash
 procedure-server -p ./my-procedures.js -t http,websocket --events "orders.*" --events audit.created
+```
+
+### The health probes
+
+The server answers the probes of its service (CLI-9, decision D5). The probes come from `@mark1russell7/service/http`. They give only the status, and they need no token.
+
+- By default, each listener answers `GET /_probes/startup`, `/_probes/readiness` and `/_probes/liveness` (`probeHandler()`). The answer is 200, or 503 with `Retry-After` during the startup and the shutdown.
+- The probes of a listener stop when the intake stops. Then the listener closes, and a new connection is refused, as before.
+- With `--probe-port <port>`, a probe server on its own port answers `/startup`, `/readiness`, `/liveness` and `/report` (`probeServer()`). It starts first and closes last, thus the probes answer through the whole drain. The listeners then answer no probes.
+- A listener does not answer `/_probes/report`, because the report names the checks and the dependencies. The probe server answers it: give it an address that only the platform reaches.
+- The startup prints the URL of the probes.
+
+```bash
+procedure-server --port 3000 --probe-port 9090
+curl -i http://127.0.0.1:9090/readiness
 ```
 
 ### The root of the files
@@ -228,13 +244,14 @@ The package has three procedures. They manage the background server of the `mark
 
 | Procedure | Function |
 |---|---|
-| `server.start` | Start the CLI server as a background process. It writes `~/.mark/server.log`. |
+| `server.start` | Start the CLI server as a background process. It writes `~/.mark/server.log`. It waits up to 15 s for the server. |
 | `server.stop` | Stop the CLI servers of the lockfiles, or the server of one port. A process that does not answer as the peer of its lockfile gets no signal. |
 | `server.status` | Give the state of the CLI servers. It deletes the lockfile of a server that does not answer. |
 
 - `import "@procedures/server/register"` registers them in the global registry. The package root and the `./module` entry register nothing.
 - `mark` finds the package from its `client.procedures` field: `mark server start`, `mark server stop` and `mark server status` run them.
 - The lockfiles stay in `@procedures/peer` (`@procedures/peer/lockfile`), because the peer of `mark --server` writes them.
+- **Deprecated (CLI-9):** at the timeout of 15 s, `server.start` gives `success: true` with the message "still loading" when the process still starts. From the next MINOR of the client group, a start that is not ready at the timeout gives `success: false`, with the PID of the process that still starts. Read the readiness probe (`/_probes/readiness`) or `mark server status` for the state.
 
 ---
 
@@ -316,6 +333,7 @@ await life.done; // the runner ends the process after the stop in stages
 - **The signals.** The runner owns `SIGINT`, `SIGTERM` and `SIGQUIT`. The entry installs no signal handler and no hard-exit timer.
 - **The profiles.** The mode `foreground` has the profile `localDev`: a second Ctrl-C exits at once. The mode `background` (`mark --server`) has the profile `daemon`: a repeat signal has no effect. The caps of the stages sum to 10 s.
 - **The lockfile.** `lockfile` makes the lockfile a dependency of the service. The startup writes it before the listeners start, and the shutdown removes it after the listeners close.
+- **The probes.** Each listener of the host answers the probes under `/_probes` (CLI-9). `probes: { port, host, prefix, retryAfter }` moves them to a probe server on a port of its own (decision D5). `probes()` of the result gives the base URL of each place that answers them.
 - **The parts of the app.** `declare(svc, host)` gives the builder of the service to the app before `run()` (CLI-62). The app declares its transports, dependencies, checks and phase work with the methods of the builder. `describe()` shows them, and the runner starts and stops them with the host. The example follows this list.
 - **Outside a service.** `startServer()` starts the same server as a peer, for a test or an app that has its own lifecycle.
 

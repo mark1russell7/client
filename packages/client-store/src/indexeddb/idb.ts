@@ -30,8 +30,8 @@ export interface IdbFactoryLike {
 /** An open database. */
 export interface IdbDatabaseLike {
   readonly objectStoreNames: { contains(name: string): boolean };
-  createObjectStore(name: string, options?: { keyPath?: string; autoIncrement?: boolean }): unknown;
-  transaction(names: string, mode?: "readonly" | "readwrite"): IdbTransactionLike;
+  createObjectStore(name: string, options?: { keyPath?: string; autoIncrement?: boolean }): IdbObjectStoreLike;
+  transaction(names: string | string[], mode?: "readonly" | "readwrite"): IdbTransactionLike;
   close(): void;
   onversionchange: ((event: any) => void) | null;
 }
@@ -55,6 +55,30 @@ export interface IdbObjectStoreLike {
   add(value: unknown, key?: string): IdbRequestLike<unknown>;
   delete(key: string): IdbRequestLike<unknown>;
   clear(): IdbRequestLike<unknown>;
+  index(name: string): IdbIndexLike;
+  createIndex(name: string, keyPath: string, options?: { unique?: boolean }): unknown;
+}
+
+/**
+ * An index of an object store. The results follow the order of the keys of the index. A record
+ * without the key path of the index is not in the index.
+ */
+export interface IdbIndexLike {
+  /** The records, the first `count` of them when `count` is given. */
+  getAll(query?: null, count?: number): IdbRequestLike<unknown[]>;
+  /** The primary keys of the records, without their values. */
+  getAllKeys(query?: null, count?: number): IdbRequestLike<unknown[]>;
+  count(): IdbRequestLike<number>;
+  /** A cursor over the records. `"prev"` starts at the highest key of the index. */
+  openCursor(query?: null, direction?: "next" | "prev"): IdbRequestLike<IdbCursorLike | null>;
+}
+
+/** A cursor of an index, with the value of its record. */
+export interface IdbCursorLike {
+  /** The key of the index. */
+  readonly key: unknown;
+  readonly value: unknown;
+  continue(): void;
 }
 
 /** The options of the IndexedDB stores. */
@@ -85,48 +109,95 @@ function errorOf(cause: unknown, message: string): Error {
 }
 
 /**
- * One object store in its own database, version 1. The connection opens at the first operation,
+ * This function calls `then` with the result of the request when the request succeeds. An error of
+ * `then` goes to `fail`, which aborts the transaction. Thus a check in a step of a transaction
+ * undoes each request of the transaction.
+ */
+export function onResult<R>(request: IdbRequestLike<R>, fail: (error: unknown) => void, then: (result: R) => void): void {
+  request.onsuccess = () => {
+    try {
+      then(request.result);
+    } catch (error) {
+      fail(error);
+    }
+  };
+}
+
+/** An object store of a database, with its indexes. */
+export interface IdbStoreSchema {
+  readonly name: string;
+  readonly options?: { keyPath?: string; autoIncrement?: boolean };
+  readonly indexes?: ReadonlyArray<{ readonly name: string; readonly keyPath: string; readonly unique?: boolean }>;
+}
+
+/**
+ * The work of one transaction. It makes the requests, and it gives a function that reads their
+ * results after the commit. `fail` aborts the transaction: the promise of the transaction then
+ * rejects with the error of `fail`, and each request is undone.
+ */
+export type IdbWork<R> = (transaction: IdbTransactionLike, fail: (error: unknown) => void) => () => R;
+
+/**
+ * One database, version 1, with its object stores. The connection opens at the first operation,
  * and a failed open tries again at the next operation.
  */
-export class IdbStoreConnection {
+export class IdbConnection {
   private connection: Promise<IdbDatabaseLike> | undefined;
   private closed = false;
 
   constructor(
     /** The name of the database. */
     readonly database: string,
-    /** The name of the object store. */
-    readonly store: string,
-    private readonly storeOptions: { keyPath?: string; autoIncrement?: boolean },
+    /** The object stores of the database. */
+    private readonly stores: readonly IdbStoreSchema[],
     private readonly factory: IdbFactoryLike | undefined,
+    /** The function that writes the first records when the open makes the object stores. */
+    private readonly onCreate?: (store: (name: string) => IdbObjectStoreLike) => void,
   ) {}
 
   /**
-   * This method runs work in one transaction. The work makes the requests, and it gives a function that reads
-   * their results. The promise resolves after the transaction commits, so a write is durable when
-   * the promise resolves. An error of a request aborts the transaction: each request is undone.
+   * This method runs work in one transaction over the object stores of `names`. The promise resolves
+   * after the transaction commits, so a write is durable when the promise resolves. An error of a
+   * request, a throw of the work and a call of `fail` abort the transaction: each request is undone.
    */
-  async run<R>(mode: "readonly" | "readwrite", work: (store: IdbObjectStoreLike) => () => R): Promise<R> {
+  async transaction<R>(mode: "readonly" | "readwrite", names: readonly string[], work: IdbWork<R>): Promise<R> {
     const db = await this.open();
     return new Promise<R>((resolve, reject) => {
-      let transaction: IdbTransactionLike;
+      let transaction: IdbTransactionLike | undefined;
+      let failure: { readonly error: unknown } | undefined;
+      const abort = (): void => {
+        try {
+          transaction?.abort();
+        } catch {
+          // The transaction ended already
+        }
+      };
+      const fail = (error: unknown): void => {
+        if (failure) return;
+        failure = { error };
+        abort();
+        reject(error);
+      };
       let read: () => R;
       try {
-        transaction = db.transaction(this.store, mode);
-        read = work(transaction.objectStore(this.store));
+        transaction = db.transaction(names.length === 1 ? names[0]! : [...names], mode);
+        read = work(transaction, fail);
       } catch (error) {
-        reject(error);
+        // A request that the work made before the throw does not commit
+        fail(error);
         return;
       }
-      transaction.oncomplete = () => {
+      const current = transaction;
+      current.oncomplete = () => {
         try {
           resolve(read());
         } catch (error) {
           reject(error);
         }
       };
-      transaction.onerror = () => reject(errorOf(transaction.error, `The IndexedDB transaction on ${this.database} failed`));
-      transaction.onabort = () => reject(errorOf(transaction.error, `The IndexedDB transaction on ${this.database} was aborted`));
+      current.onerror = (event?: { target?: { error?: unknown } }) =>
+        reject(failure ? failure.error : errorOf(event?.target?.error ?? current.error, `The IndexedDB transaction on ${this.database} failed`));
+      current.onabort = () => reject(failure ? failure.error : errorOf(current.error, `The IndexedDB transaction on ${this.database} was aborted`));
     });
   }
 
@@ -168,13 +239,27 @@ export class IdbStoreConnection {
       }
       request.onupgradeneeded = () => {
         const db = request.result;
-        if (!db.objectStoreNames.contains(this.store)) db.createObjectStore(this.store, this.storeOptions);
+        const created = new Map<string, IdbObjectStoreLike>();
+        for (const schema of this.stores) {
+          if (db.objectStoreNames.contains(schema.name)) continue;
+          const store = db.createObjectStore(schema.name, schema.options ?? {});
+          for (const index of schema.indexes ?? []) store.createIndex(index.name, index.keyPath, { unique: index.unique ?? false });
+          created.set(schema.name, store);
+        }
+        if (this.onCreate && created.size > 0) {
+          this.onCreate((name) => {
+            const store = created.get(name);
+            if (!store) throw new Error(`The object store ${name} of ${this.database} existed before the open`);
+            return store;
+          });
+        }
       };
       request.onsuccess = () => {
         const db = request.result;
-        if (!db.objectStoreNames.contains(this.store)) {
+        const missing = this.stores.find((schema) => !db.objectStoreNames.contains(schema.name));
+        if (missing) {
           db.close();
-          reject(new Error(`The IndexedDB database ${this.database} exists, and it has no object store ${this.store}`));
+          reject(new Error(`The IndexedDB database ${this.database} exists, and it has no object store ${missing.name}`));
           return;
         }
         // Another tab wants a new version: close this connection, so the upgrade can run
@@ -186,5 +271,35 @@ export class IdbStoreConnection {
       };
       request.onerror = () => reject(errorOf(request.error, `IndexedDB could not open the database ${this.database}`));
     });
+  }
+}
+
+/** One object store in its own database, version 1. The stores of programs, queues and sync states use it. */
+export class IdbStoreConnection {
+  private readonly connection: IdbConnection;
+
+  constructor(
+    /** The name of the database. */
+    readonly database: string,
+    /** The name of the object store. */
+    readonly store: string,
+    storeOptions: { keyPath?: string; autoIncrement?: boolean },
+    factory: IdbFactoryLike | undefined,
+  ) {
+    this.connection = new IdbConnection(database, [{ name: store, options: storeOptions }], factory);
+  }
+
+  /**
+   * This method runs work in one transaction. The work makes the requests, and it gives a function that reads
+   * their results. The promise resolves after the transaction commits, so a write is durable when
+   * the promise resolves. An error of a request aborts the transaction: each request is undone.
+   */
+  run<R>(mode: "readonly" | "readwrite", work: (store: IdbObjectStoreLike) => () => R): Promise<R> {
+    return this.connection.transaction(mode, [this.store], (transaction) => work(transaction.objectStore(this.store)));
+  }
+
+  /** This method closes the connection. A later operation throws. */
+  close(): Promise<void> {
+    return this.connection.close();
   }
 }

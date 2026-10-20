@@ -43,6 +43,12 @@ export const CLI_GLOBAL_FLAGS: readonly CliGlobalFlag[] = [
   { long: "port", takesValue: true, serverOption: true, description: "The port of the CLI server (with --server)" },
   { long: "host", takesValue: true, serverOption: true, description: "The host of the CLI server (with --server)" },
   {
+    long: "probe-port",
+    takesValue: true,
+    serverOption: true,
+    description: "The port of the health probes of the CLI server, on the address of --host (with --server)",
+  },
+  {
     long: "transport",
     takesValue: true,
     serverOption: true,
