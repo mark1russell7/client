@@ -1,5 +1,11 @@
 # @procedures/dag
 
+## 0.17.0
+
+### Patch Changes
+
+- @procedures/client@0.17.0
+
 ## 0.16.0
 
 ### Patch Changes

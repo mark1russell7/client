@@ -28,6 +28,7 @@ const PAGES = [
   "claude/",
   "status/",
   "status/?status=open",
+  "status/?done=1",
   "releases/",
   "lab/",
   "catalog/git.status/",
@@ -215,17 +216,94 @@ test.describe("the new pages", () => {
     await expect(page.getByRole("button", { name: /Call of client\.multiply, selected/ })).toBeFocused();
   });
 
-  test("the status board filters the findings, and a link keeps the filters", async ({ page }) => {
+  test("the status board shows the open work of the roadmap, its filters work, and a link keeps them", async ({ page }) => {
     await open(page, "status/");
-    const count = page.locator("p", { hasText: /of \d+ findings/ });
-    await expect(count).toBeVisible();
-    const openChip = page.getByRole("group", { name: "Status", exact: true }).getByRole("button", { name: "Open", exact: true });
-    await openChip.click();
-    await expect(page).toHaveURL(/status=open/);
-    const filtered = await count.textContent();
+    const lead = page.locator(".status-board .lead-text");
+    await expect(lead).toHaveText(/^\d+ open roadmap items?(, \d+ open pull requests? and \d+ open issues?)?, read at \w{3} \d+, \d{4}, \d\d:\d\d UTC/);
+    // The log of CI shows the lead line of the built page
+    console.log(`/status/ lead line: ${await lead.textContent()}`);
+
+    const work = page.getByRole("region", { name: "Open work" });
+    const rows = work.locator("table.board-table tbody tr");
+    const count = work.locator("p", { hasText: /^\d+ of \d+ open items?$/ });
+    const total = Number(/of (\d+)/.exec((await count.textContent()) ?? "")?.[1] ?? 0);
+    expect(total, "the open items of the roadmap").toBeGreaterThan(0);
+    await expect(rows).toHaveCount(total);
+    // The ID of a row links to its line in the roadmap file
+    await expect(rows.first().getByRole("rowheader").getByRole("link")).toHaveAttribute("href", /\/blob\/[^/]+\/.+\.md#L\d+$/);
+
+    // A status chip shows the items of its class only, and the URL keeps the filter
+    const chips = work.getByRole("group", { name: "Status of the items" }).getByRole("button");
+    const labels = (await chips.allTextContents()).map((text) => text.trim());
+    const index = labels.findIndex((text) => Number(/(\d+)$/.exec(text)?.[1] ?? 0) > 0);
+    expect(index, `a status chip with items: ${labels.join(" | ")}`).toBeGreaterThanOrEqual(0);
+    const inClass = Number(/(\d+)$/.exec(labels[index] ?? "")?.[1]);
+    await chips.nth(index).click();
+    await expect(chips.nth(index)).toHaveAttribute("aria-pressed", "true");
+    await expect(page).toHaveURL(/[?&]status=\w+/);
+    await expect(work.locator("section.board-group")).toHaveCount(1);
+    await expect(rows).toHaveCount(inClass);
     await page.reload();
-    await expect(count).toHaveText(filtered ?? "");
-    await expect(openChip).toHaveAttribute("aria-pressed", "true");
+    await page.waitForFunction(() => document.querySelector("[data-prerendered]") === null);
+    await expect(chips.nth(index)).toHaveAttribute("aria-pressed", "true");
+    await expect(rows).toHaveCount(inClass);
+
+    // A section chip shows the open items of its section
+    await work.getByRole("button", { name: "Clear the filters" }).click();
+    await expect(rows).toHaveCount(total);
+    const section = work.getByRole("group", { name: "Section of the roadmap" }).getByRole("button").first();
+    const inSection = Number(/(\d+)$/.exec(((await section.textContent()) ?? "").trim())?.[1]);
+    await section.click();
+    await expect(page).toHaveURL(/[?&]section=[\w-]+/);
+    await expect(rows).toHaveCount(inSection);
+    await work.getByRole("button", { name: "Clear the filters" }).click();
+
+    // The done items show on demand
+    const done = Number(/(\d+) items? (?:is|are) done/.exec((await work.locator(".board-done-line").textContent()) ?? "")?.[1] ?? 0);
+    test.skip(done === 0, "The roadmap has no done item");
+    await work.getByRole("button", { name: "Show the done items" }).click();
+    await expect(work.getByRole("button", { name: "Hide the done items" })).toHaveAttribute("aria-expanded", "true");
+    await expect(page).toHaveURL(/[?&]done=1/);
+    await expect(work.locator("#done-items tbody tr")).toHaveCount(done);
+  });
+
+  test("the status board lists the open pull requests and issues, or says that the build could not read GitHub", async ({ page }) => {
+    await open(page, "status/");
+    const pulls = page.getByRole("region", { name: "Pull requests" });
+    const issues = page.getByRole("region", { name: "Issues" });
+    if ((await pulls.getByText(/The build could not read GitHub/).count()) > 0) {
+      console.log("/status/: the build could not read GitHub");
+      await expect(issues.getByText(/The build could not read GitHub/)).toBeVisible();
+      await expect(page.locator(".status-board .lead-text")).toContainText("The build could not read GitHub.");
+      return;
+    }
+    const cards = pulls.locator(".board-card");
+    const count = await cards.count();
+    console.log(`/status/: ${count} pull requests, ${await issues.locator(".board-card").count()} issues`);
+    if (count === 0) await expect(pulls.locator(".callout")).toContainText("No pull request is open");
+    for (let index = 0; index < count; index++) {
+      const card = cards.nth(index);
+      await expect(card.getByRole("link").first()).toHaveAttribute("href", /\/pull\/\d+$/);
+      await expect(card.locator(".board-check")).toHaveText(/^(Checks pass|Checks fail|Checks run|No checks)$/);
+      await expect(card.locator(".pill").first()).toHaveText(/^(Draft|Ready)$/);
+      await expect(card.locator("time")).toHaveAttribute("datetime", /^\d{4}-\d\d-\d\dT/);
+    }
+    if ((await issues.locator(".board-card").count()) === 0) await expect(issues.locator(".callout")).toContainText("No issue is open");
+  });
+
+  test("the history of the status page is closed, and it opens with the findings", async ({ page }) => {
+    await open(page, "status/");
+    const history = page.getByRole("region", { name: "History" });
+    const details = history.locator("details");
+    await expect(details).not.toHaveAttribute("open");
+    await expect(history.getByRole("heading", { name: "Findings" })).toHaveCount(0);
+    await history.getByText("The October deep dive and the July bug register").click();
+    await expect(details).toHaveAttribute("open", "");
+    await expect(history.getByRole("heading", { name: "Findings" })).toBeVisible();
+    const count = history.locator("p", { hasText: /of \d+ findings/ });
+    const before = (await count.textContent()) ?? "";
+    await history.getByRole("group", { name: "Status of the findings" }).getByRole("button", { name: "Open", exact: true }).click();
+    await expect(count).not.toHaveText(before);
   });
 
   test("the releases timeline selects a version by a click and by the arrow keys", async ({ page }) => {
@@ -397,6 +475,9 @@ test.describe("the layout", () => {
 test.describe("accessibility", () => {
   for (const colorScheme of ["light", "dark"] as const) {
     test(`axe finds no serious problem (${colorScheme})`, async ({ page }) => {
+      // One test examines each page and several states of the app: it needs more time than the
+      // default 60 s. With the Releases page and the live status board it took 59 s in dark mode.
+      test.setTimeout(180_000);
       await page.emulateMedia({ colorScheme });
       const problems: string[] = [];
       const check = async (name: string): Promise<void> => {
@@ -418,6 +499,11 @@ test.describe("accessibility", () => {
         await page.waitForTimeout(400);
         await check(hash);
       }
+      // The history of the status page, open
+      await open(page, "status/");
+      await page.getByText("The October deep dive and the July bug register").click();
+      await expect(page.getByRole("heading", { name: "Findings" })).toBeVisible();
+      await check("the history of the status page");
       // The Composer with its states: a problem list, insert choices, an open call of the trace
       await open(page, `composer/?p=${encode({ $proc: ["client", "add"], input: { a: { $ref: "nope" }, b: { $proc: ["client", "multiply"], input: { a: 2, b: 3 } } } })}`);
       await page.getByRole("button", { name: "▶ Run" }).click();

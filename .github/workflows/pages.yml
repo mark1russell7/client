@@ -5,6 +5,10 @@
 # site (deep dive SITE-10). It builds the commit that CI tested, runs the browser smoke test
 # against the built site, then deploys. Only the deploy job can write to Pages: the build job
 # runs install scripts, so it gets read access only.
+#
+# It also starts every three hours. The status page reads the open pull requests and issues
+# from GitHub at build time, so the schedule keeps that page current without a push (fleet
+# issue #2). A scheduled run builds the newest commit of main that passed CI.
 name: Pages
 
 on:
@@ -12,6 +16,8 @@ on:
     workflows: [CI]
     types: [completed]
     branches: [main]
+  schedule:
+    - cron: "17 */3 * * *"
   workflow_dispatch:
 
 permissions:
@@ -25,17 +31,42 @@ concurrency:
 jobs:
   build:
     if: >-
-      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ||
       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    # Read access only. The status page reads the open pull requests and issues, with the state of
+    # their checks. A scheduled run reads the runs of CI to find the newest commit that passed.
     permissions:
       contents: read
+      pull-requests: read
+      issues: read
+      checks: read
+      statuses: read
+      actions: read
     steps:
+      # The commit that CI tested. A manual run builds the selected branch. A scheduled run builds
+      # the newest commit of main whose CI passed on a push.
+      - name: Select the commit
+        id: commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          if [ "$EVENT" = "schedule" ]; then
+            sha=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?branch=main&event=push&status=success&per_page=1" --jq '.workflow_runs[0].head_sha // empty')
+          else
+            sha="${RUN_SHA:-$GITHUB_SHA}"
+          fi
+          if [ -z "$sha" ]; then echo "::error::No commit of main passed CI."; exit 1; fi
+          echo "Build $sha"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          # The event of a schedule has no repository object, so the name comes from GITHUB_REPOSITORY
+          echo "name=${GITHUB_REPOSITORY#*/}" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v7
         with:
-          # The commit that CI tested. A manual run builds the selected branch.
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ steps.commit.outputs.sha }}
           # The whole history: the status board of the site links each commit hash of the status
           # documents to its repository, and git tells which hashes are commits of this one
           fetch-depth: 0
@@ -54,15 +85,17 @@ jobs:
       # The data of the site comes from the dist/ of every package. The site depends on each
       # package that registers procedures, so `pnpm build` builds the site last.
       # SITE_PRERENDER=1: the deploy has the prerendered pages, or the build fails.
+      # GITHUB_TOKEN: the status page reads the open pull requests and issues (read access only).
       - run: pnpm build
         env:
-          SITE_BASE: /${{ github.event.repository.name }}/
-          SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+          SITE_BASE: /${{ steps.commit.outputs.name }}/
+          SITE_URL: https://${{ github.repository_owner }}.github.io/${{ steps.commit.outputs.name }}/
           SITE_PRERENDER: "1"
+          GITHUB_TOKEN: ${{ github.token }}
       - name: Browser smoke test of the built site
         run: pnpm --filter @procedures/site test:e2e
         env:
-          SITE_BASE: /${{ github.event.repository.name }}/
+          SITE_BASE: /${{ steps.commit.outputs.name }}/
       - uses: actions/upload-pages-artifact@v5
         with:
           path: packages/site/dist
@@ -82,9 +115,11 @@ jobs:
         uses: actions/deploy-pages@v5
 
   # Tell the IndexNow search engines (Bing and others) about the pages of the new deploy. A
-  # failure here does not fail the deploy.
+  # failure here does not fail the deploy. A scheduled deploy changes only the status page, so it
+  # sends nothing.
   indexnow:
     needs: deploy
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     continue-on-error: true

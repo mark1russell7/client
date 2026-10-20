@@ -9,7 +9,8 @@ import { createCollectionProcedures, type CollectionProceduresOptions } from "./
 import { admittedStorage, type CollectionAdmission, type CollectionWrite } from "./admission.js";
 import { applyPatch, queryEntries, type StoragePatch, type StorageQueryOptions, type StorageQueryPolicy, type StorageSelector } from "./query.js";
 import type { CollectionChangeEvent } from "./changes.js";
-import type { CollectionStorage, StorageChanges } from "./storage.js";
+import type { CollectionStorage, StorageBatchWriteOptions, StorageChanges, StorageItemWriteOptions, StorageWriteOptions } from "./storage.js";
+import { VersionConflictError, preconditionNotSupported, versionConflicts, versionConflictsOf, type VersionOf } from "./precondition.js";
 import { invokeProcedure, outputValue, type AdmitItem } from "../invoke.js";
 import type { ProcedureContext, RepositoryProvider } from "../types.js";
 import type { Principal } from "../../server/types.js";
@@ -17,7 +18,10 @@ import { createEventBus } from "../../events/bus.js";
 import { EventPublisher } from "../../events/publisher.js";
 import type { EventItem } from "../../events/remote.js";
 
-/** A storage of a Map with a change log (`v:<number>`), and with `query()` and `patch()` when asked. */
+/**
+ * A storage of a Map with a change log (`v:<number>`), and with `query()` and `patch()` when asked.
+ * With `versionOf`, the writes test their expected versions (roadmap CLI-16).
+ */
 class RowStorage implements CollectionStorage<unknown> {
   readonly data = new Map<string, unknown>();
   private seq = 0;
@@ -25,10 +29,14 @@ class RowStorage implements CollectionStorage<unknown> {
   private readonly deletedAt = new Map<string, number>();
   /** The pages that `query()` gave: the skip and the limit of each call. */
   readonly pages: Array<{ skip: number | undefined; limit: number | undefined }> = [];
+  /** The operation and the options of each `set`, `delete`, `setBatch` and `patch`. */
+  readonly writes: Array<[string, unknown]> = [];
+  private readonly versionOf: VersionOf<unknown> | undefined;
   query?: NonNullable<CollectionStorage<unknown>["query"]>;
   patch?: NonNullable<CollectionStorage<unknown>["patch"]>;
 
-  constructor(features: { query?: boolean; patch?: boolean } = {}) {
+  constructor(features: { query?: boolean; patch?: boolean; versionOf?: VersionOf<unknown> } = {}) {
+    this.versionOf = features.versionOf;
     if (features.query) {
       this.query = async (selector: StorageSelector, options?: StorageQueryOptions, policy?: StorageQueryPolicy) => {
         this.pages.push({ skip: options?.skip, limit: options?.limit });
@@ -36,7 +44,8 @@ class RowStorage implements CollectionStorage<unknown> {
       };
     }
     if (features.patch) {
-      this.patch = async (id: string, fields: StoragePatch) => {
+      this.patch = async (id: string, fields: StoragePatch, options?: StorageWriteOptions) => {
+        this.writes.push(["patch", options]);
         const current = this.data.get(id);
         if (current === undefined) return undefined;
         const next = applyPatch(current, fields);
@@ -54,6 +63,13 @@ class RowStorage implements CollectionStorage<unknown> {
     this.data.set(id, value);
     this.changedAt.set(id, ++this.seq);
     this.deletedAt.delete(id);
+  }
+  /** This method throws `VersionConflictError` unless each current item has the expected version. */
+  private expect(expected: ReadonlyArray<readonly [string, string | null]>): void {
+    if (expected.length === 0) return;
+    if (!this.versionOf) throw preconditionNotSupported("This RowStorage");
+    const conflicts = versionConflicts(expected, (id) => (this.data.has(id) ? { found: true, value: this.data.get(id) } : { found: false }), this.versionOf);
+    if (conflicts.length > 0) throw new VersionConflictError(conflicts);
   }
   private remove(id: string): boolean {
     const existed = this.data.delete(id);
@@ -89,16 +105,22 @@ class RowStorage implements CollectionStorage<unknown> {
   async size() {
     return this.data.size;
   }
-  async set(id: string, value: unknown) {
+  async set(id: string, value: unknown, options?: StorageItemWriteOptions) {
+    this.writes.push(["set", options]);
+    if (options?.expectedVersion !== undefined) this.expect([[id, options.expectedVersion]]);
     this.write(id, value);
   }
-  async delete(id: string) {
+  async delete(id: string, options?: StorageItemWriteOptions) {
+    this.writes.push(["delete", options]);
+    if (options?.expectedVersion !== undefined) this.expect([[id, options.expectedVersion]]);
     return this.remove(id);
   }
   async clear() {
     for (const id of [...this.data.keys()]) this.remove(id);
   }
-  async setBatch(items: Array<[string, unknown]>) {
+  async setBatch(items: Array<[string, unknown]>, options?: StorageBatchWriteOptions) {
+    this.writes.push(["setBatch", options]);
+    this.expect(options?.expectedVersions ?? []);
     for (const [id, value] of items) this.write(id, value);
   }
   async deleteBatch(ids: string[]) {
@@ -351,5 +373,240 @@ describe("the rule of the rows of the change events (CLI-41)", () => {
     expect(bobSub.received[0]!.withheld).toEqual(["a5"]);
     annSub.stop();
     bobSub.stop();
+  });
+});
+
+describe("the version of each guarded write (CLI-55)", () => {
+  /** The version of a note: its field `rev`. */
+  const revOf: VersionOf<unknown> = (item) => (item as { rev?: string } | null)?.rev;
+  /** The rules: the guard of the own writes, and the version of each note. */
+  const versioned: CollectionAdmission = { guard: ownWrites(), versionOf: revOf };
+  /** A storage with versions, and a note of Ann and a note of Bob. */
+  function revisions(features: { patch?: boolean; versionOf?: VersionOf<unknown> } = { versionOf: revOf }): RowStorage {
+    const storage = new RowStorage(features);
+    storage.data.set("a1", { owner: "ann", text: "A1", rev: "1" });
+    storage.data.set("b1", { owner: "bob", text: "B1", rev: "1" });
+    return storage;
+  }
+  /**
+   * A storage whose first read of an item (`get` or `getBatch`) runs a write of another writer after
+   * the read. The guard thus examines the item before that write.
+   */
+  function racing(storage: RowStorage, other: (storage: RowStorage) => Promise<void>): RowStorage {
+    let raced = false;
+    const race = async (): Promise<void> => {
+      if (raced) return;
+      raced = true;
+      await other(storage);
+    };
+    return new Proxy(storage, {
+      get(target, key, receiver) {
+        if (key === "get") {
+          return async (id: string) => {
+            const value = await target.get(id);
+            await race();
+            return value;
+          };
+        }
+        if (key === "getBatch") {
+          return async (ids: string[]) => {
+            const found = await target.getBatch(ids);
+            await race();
+            return found;
+          };
+        }
+        return Reflect.get(target, key, receiver) as unknown;
+      },
+    });
+  }
+  /** Bob takes the note a1 of Ann. */
+  const taken = { owner: "bob", text: "taken", rev: "7" };
+  const bobTakesA1 = (storage: RowStorage): Promise<void> => storage.set("a1", taken);
+
+  it("gives set and delete the version that the guard read, and null for an id without an item", async () => {
+    const storage = revisions();
+    const { run } = host(storage, { admission: versioned });
+    await run("set", { id: "a1", value: { owner: "ann", text: "A1+", rev: "2" }, origin: "me" }, ann);
+    await run("set", { id: "a9", value: { owner: "ann", rev: "1" } }, ann);
+    expect(await run("delete", { id: "a1" }, ann)).toBe(true);
+    expect(await run("delete", { id: "zz" }, ann)).toBe(false);
+    expect(storage.writes).toEqual([
+      ["set", { origin: "me", expectedVersion: "1" }],
+      ["set", { expectedVersion: null }],
+      ["delete", { expectedVersion: "2" }],
+      ["delete", { expectedVersion: null }],
+    ]);
+    expect([...storage.data.keys()]).toEqual(["b1", "a9"]);
+  });
+
+  it("gives setBatch the version that the guard read for each item", async () => {
+    const storage = revisions();
+    const { run } = host(storage, { admission: versioned });
+    await run("setBatch", { items: [{ id: "a1", value: { owner: "ann", rev: "2" } }, { id: "a9", value: { owner: "ann", rev: "1" } }] }, ann);
+    expect(storage.writes).toEqual([["setBatch", { expectedVersions: [["a1", "1"], ["a9", null]] }]]);
+    expect(storage.data.get("a1")).toEqual({ owner: "ann", rev: "2" });
+  });
+
+  it("writes a guarded patch as a set of the merged item, with the version that the guard read", async () => {
+    for (const patch of [false, true]) {
+      const storage = revisions({ patch, versionOf: revOf });
+      const { run } = host(storage, { admission: versioned });
+      expect(await run("patch", { id: "a1", fields: { text: "A1+", rev: "2" } }, ann)).toEqual({ found: true, value: { owner: "ann", text: "A1+", rev: "2" } });
+      // patch() of the storage does not run: the storage writes the item that the guard examined
+      expect(storage.writes).toEqual([["set", { expectedVersion: "1" }]]);
+    }
+  });
+
+  const races: Array<[string, unknown]> = [
+    ["set", { id: "a1", value: { owner: "ann", text: "mine", rev: "2" } }],
+    ["delete", { id: "a1" }],
+    ["patch", { id: "a1", fields: { text: "mine", rev: "2" } }],
+    ["setBatch", { items: [{ id: "a1", value: { owner: "ann", rev: "2" } }, { id: "a9", value: { owner: "ann", rev: "1" } }] }],
+  ];
+  for (const patch of [false, true]) {
+    for (const [operation, input] of races) {
+      it(`gives ${operation} VERSION_CONFLICT when another writer changes the row after the read of the guard${patch ? ", with patch() of the storage" : ""}`, async () => {
+        const storage = revisions({ patch, versionOf: revOf });
+        const { run } = host(racing(storage, bobTakesA1), { admission: versioned });
+        const error = await errorOf(run(operation, input, ann));
+        expect(error.code).toBe("VERSION_CONFLICT");
+        expect(versionConflictsOf(error)).toEqual([{ id: "a1", expected: "1", found: true, value: taken, version: "7" }]);
+        // The row stays as the other writer left it, and the batch writes no item
+        expect(storage.data.get("a1")).toEqual(taken);
+        expect(storage.data.has("a9")).toBe(false);
+      });
+    }
+  }
+
+  it("gives VERSION_CONFLICT to a set of a new id when another writer makes the item after the read of the guard", async () => {
+    const storage = revisions();
+    const theirs = { owner: "bob", rev: "1" };
+    const { run } = host(racing(storage, (s) => s.set("n1", theirs)), { admission: versioned });
+    const error = await errorOf(run("set", { id: "n1", value: { owner: "ann", rev: "1" } }, ann));
+    expect(error.code).toBe("VERSION_CONFLICT");
+    expect(storage.data.get("n1")).toEqual(theirs);
+  });
+
+  it("keeps an expected version of the caller", async () => {
+    const storage = revisions();
+    const { run } = host(storage, { admission: versioned });
+    await run("set", { id: "a1", value: { owner: "ann", rev: "2" }, expectedVersion: "1" }, ann);
+    // The caller expects another version than the guard read: the version of the caller goes, and the write conflicts
+    const error = await errorOf(run("set", { id: "a1", value: { owner: "ann", rev: "3" }, expectedVersion: "9" }, ann));
+    expect(error.code).toBe("VERSION_CONFLICT");
+    await run("delete", { id: "a1", expectedVersion: "2" }, ann);
+    await run("setBatch", { items: [{ id: "a2", value: { owner: "ann", rev: "1" }, expectedVersion: null }, { id: "a3", value: { owner: "ann", rev: "1" } }] }, ann);
+    expect(storage.writes).toEqual([
+      ["set", { expectedVersion: "1" }],
+      ["set", { expectedVersion: "9" }],
+      ["delete", { expectedVersion: "2" }],
+      ["setBatch", { expectedVersions: [["a2", null], ["a3", null]] }],
+    ]);
+  });
+
+  it("sends no precondition without versionOf: the writes go through as before, and a change after the read of the guard is lost", async () => {
+    const storage = revisions({});
+    const { run } = host(storage, { admission: { guard: ownWrites() } });
+    await run("set", { id: "a1", value: { owner: "ann", rev: "2" } }, ann);
+    await run("setBatch", { items: [{ id: "a2", value: { owner: "ann" } }] }, ann);
+    await run("patch", { id: "a2", fields: { text: "A2" } }, ann);
+    expect(await run("delete", { id: "a2" }, ann)).toBe(true);
+    expect(storage.writes).toEqual([
+      ["set", undefined],
+      ["setBatch", undefined],
+      ["set", undefined],
+      ["delete", undefined],
+    ]);
+    // The window stays: the write of Ann replaces the write of Bob that the guard did not see
+    const raced = revisions({});
+    const h = host(racing(raced, bobTakesA1), { admission: { guard: ownWrites() } });
+    await h.run("set", { id: "a1", value: { owner: "ann", text: "mine" } }, ann);
+    expect(raced.data.get("a1")).toEqual({ owner: "ann", text: "mine" });
+  });
+
+  it("passes the refusal of a storage without versionOf through: PRECONDITION_NOT_SUPPORTED", async () => {
+    const storage = revisions({});
+    const before = storage.snapshot();
+    const { run } = host(storage, { admission: versioned });
+    await expect(run("set", { id: "a1", value: { owner: "ann" } }, ann)).rejects.toMatchObject({ code: "PRECONDITION_NOT_SUPPORTED" });
+    expect(storage.snapshot()).toEqual(before);
+  });
+
+  it("gives no precondition for an item without a version", async () => {
+    const storage = revisions();
+    storage.data.set("a5", { owner: "ann" });
+    const { run } = host(storage, { admission: versioned });
+    await run("set", { id: "a5", value: { owner: "ann", rev: "1" } }, ann);
+    expect(storage.writes).toEqual([["set", undefined]]);
+  });
+
+  it("gives no value of a current item that the rule refuses in a conflict", async () => {
+    const storage = revisions();
+    const { run } = host(racing(storage, bobTakesA1), { admission: { ...versioned, admit: ownRows } });
+    const error = await errorOf(run("set", { id: "a1", value: { owner: "ann", rev: "2" } }, ann));
+    expect(error).toBeInstanceOf(VersionConflictError);
+    expect(versionConflictsOf(error)).toEqual([{ id: "a1", expected: "1", found: true, version: "7" }]);
+    // A current item that the rule admits keeps its value
+    const own = revisions();
+    const mine = { owner: "ann", text: "other tab", rev: "5" };
+    const h = host(racing(own, (s) => s.set("a1", mine)), { admission: { ...versioned, admit: ownRows } });
+    const conflict = await errorOf(h.run("set", { id: "a1", value: { owner: "ann", rev: "2" } }, ann));
+    expect(versionConflictsOf(conflict)).toEqual([{ id: "a1", expected: "1", found: true, value: mine, version: "5" }]);
+  });
+});
+
+describe("the bound of the scan of find (CLI-55)", () => {
+  /** A big collection: Ann has one row of each 100, at n = 50, 150, 250 and so on. */
+  function big(features: { query?: boolean }): RowStorage {
+    const storage = new RowStorage(features);
+    for (let n = 0; n < 1000; n++) storage.data.set(`n${String(n).padStart(4, "0")}`, { owner: n % 100 === 50 ? "ann" : "bob", n });
+    return storage;
+  }
+  /** The rule of the rows, with the number of rows that it examined. */
+  function counted(): { admit: AdmitItem; examined: () => number } {
+    let rows = 0;
+    const admit: AdmitItem = (row, invocation) => {
+      rows++;
+      return ownRows(row, invocation);
+    };
+    return { admit, examined: () => rows };
+  }
+  const ids = (page: unknown): string[] => (page as Array<{ id: string }>).map((row) => row.id);
+
+  for (const query of [true, false]) {
+    const storageKind = query ? "a storage with query()" : "a storage without query()";
+
+    it(`stops the scan at maxScanned and gives the admitted rows that it found, on ${storageKind}`, async () => {
+      const storage = big({ query });
+      const rule = counted();
+      const { run } = host(storage, { admission: { admit: rule.admit, maxScanned: 250 }, queryPolicy: { maxLimit: 100 } });
+      // Ann has 10 rows, but the scan stops after 250 rows: the page is short
+      expect(ids(await run("find", { selector: {}, sort: { n: 1 }, limit: 5 }, ann))).toEqual(["n0050", "n0150"]);
+      expect(rule.examined()).toBe(250);
+      // The view asks the storage for no row after the bound
+      if (query) expect(storage.pages).toEqual([{ skip: 0, limit: 100 }, { skip: 100, limit: 100 }, { skip: 200, limit: 50 }]);
+      // The rows of the skip count, and a selector counts only the rows that match it
+      expect(ids(await run("find", { selector: {}, sort: { n: 1 }, skip: 1, limit: 5 }, ann))).toEqual(["n0150"]);
+      expect(ids(await run("find", { selector: { n: { $gte: 500 } }, sort: { n: 1 }, limit: 5 }, ann))).toEqual(["n0550", "n0650"]);
+      // A page that gets full before the bound is the same as without the option
+      expect(ids(await run("find", { selector: {}, sort: { n: 1 }, limit: 1 }, ann))).toEqual(["n0050"]);
+    });
+
+    it(`reads all the rows without maxScanned, as before, on ${storageKind}`, async () => {
+      const storage = big({ query });
+      const rule = counted();
+      const { run } = host(storage, { admission: { admit: rule.admit }, queryPolicy: { maxLimit: 100 } });
+      const page = ids(await run("find", { selector: {}, sort: { n: 1 }, limit: 20 }, ann));
+      expect(page).toHaveLength(10);
+      expect(page[9]).toBe("n0950");
+      expect(rule.examined()).toBe(1000);
+    });
+  }
+
+  it("refuses a maxScanned that is not a whole number of 1 or more", () => {
+    for (const maxScanned of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => createCollectionProcedures("notes", { admission: { admit: ownRows, maxScanned } })).toThrow(/maxScanned must be a whole number/);
+    }
+    expect(() => createCollectionProcedures("notes", { admission: { admit: ownRows, maxScanned: 1 } })).not.toThrow();
   });
 });

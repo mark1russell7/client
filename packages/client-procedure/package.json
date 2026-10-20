@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/procedure",
-  "version": "0.16.0",
+  "version": "0.17.0",
   "description": "Procedure scaffolding and management: procedure.new writes typed procedure files, plus get, list, define and the procedure store.",
   "keywords": [
     "scaffolding",
