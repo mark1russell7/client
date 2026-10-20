@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/git",
-  "version": "0.22.0",
+  "version": "0.22.1",
   "description": "Git as 45 typed procedures: status, diff, log, show, blame, commit, push, pull, branch, tag, merge, rebase, worktree, stash and more, run with argv, async and abortable.",
   "keywords": [
     "git",
