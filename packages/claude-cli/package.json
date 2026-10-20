@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/claude-cli",
-  "version": "0.17.3",
+  "version": "0.17.4",
   "description": "One turn of the Claude Code CLI as a detached process that writes stream-json to a file: start, follow, normalised events and cancel.",
   "keywords": [
     "claude",

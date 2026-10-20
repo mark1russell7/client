@@ -1,5 +1,11 @@
 # @procedures/http
 
+## 0.17.4
+
+### Patch Changes
+
+- @procedures/client@0.17.4
+
 ## 0.17.3
 
 ### Patch Changes
