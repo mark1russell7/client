@@ -194,6 +194,10 @@ export interface ExecuteOptions {
  * A signal that aborts on the first Ctrl+C while a command runs in this process (roadmap R14):
  * the procedure gets the abort (a shell command stops its process tree). A second Ctrl+C exits
  * at once. `release()` removes the listener when the command ends.
+ *
+ * @deprecated The MINOR of CLI-26 removes this handler: the runner of `@mark1russell7/service`
+ * owns the signals of each command (decision D17). The exit codes then change: 130 after the
+ * first Ctrl-C (now 1, when the aborted command fails), and 1 after a second signal (now 130).
  */
 function interruptSignal(): { signal: AbortSignal; release: () => void } {
   const controller = new AbortController();
