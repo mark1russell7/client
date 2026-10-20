@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/mcp",
-  "version": "0.17.4",
+  "version": "0.18.0",
   "description": "Map typed procedures to MCP tools: JSON Schema from Zod, tool names, and input and result conversion for Model Context Protocol servers.",
   "keywords": [
     "mcp",
