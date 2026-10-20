@@ -1,5 +1,12 @@
 # @procedures/mcp-server
 
+## 0.21.0
+
+### Patch Changes
+
+- @procedures/client@0.21.0
+  - @procedures/mcp@0.21.0
+
 ## 0.20.0
 
 ### Patch Changes
