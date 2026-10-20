@@ -233,7 +233,11 @@ The questions of the authentication:
 
 - The host policy of the client is the one place that makes a principal from a request. `systems` holds no authentication.
 - The client exports one constant-time `tokenMatches`. Each face uses it through the host policy.
-- When the host has a token, it refuses a request without credentials (CLI-1). A local face sets an explicit `local` marker.
+- Each face sets the credentials of its requests, or an explicit local marker, `LOCAL_CREDENTIALS` (CLI-1). The key of the marker is a symbol, so a network request cannot carry it.
+- The server examines a request in one of three ways (CLI-1):
+  - A local request skips the token and the request hook. Only the local marker makes a request local.
+  - A request without credentials gets `UNAUTHORIZED` when the host has a token or a request hook. The hook does not operate for it.
+  - A request with credentials goes through the request hook and the token check. The hook can give the bearer token that the check compares.
 - The cookie and the header of jarvis are options of the request hook. Its guard of the loopback `Host` goes into the browser checks of `HostPolicy`.
 
 ## Facts that the brief had wrong

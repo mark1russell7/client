@@ -8,6 +8,7 @@
 import { Server, type ServerOptions } from "./server.js";
 import type { AmbientCredentials, Credentials, Method, Principal, PrincipalOf, RequestIdentity, ServerHandler, ServerRequest, ServerResponse } from "./types.js";
 import { methodToPath, pathToMethod } from "./method.js";
+import { isLocalCredentials } from "./request-auth.js";
 import type {
   AnyProcedure,
   ProcedurePath,
@@ -135,10 +136,11 @@ export interface ProcedureServerOptions extends ServerOptions {
   idempotency?: IdempotencyOptions | false | undefined;
 
   /**
-   * The token of the server (roadmap R18). Each request with credentials (a network request)
-   * must present it as its bearer token, or the server answers `UNAUTHORIZED`. Before, only the
-   * Express middleware of the peer examined the token, so a `ProcedureServer` with the HTTP or
-   * WebSocket transport of the core and the token of a host policy accepted each request.
+   * The token of the server (roadmap R18). Each request must present it as its bearer token, or
+   * the server answers `UNAUTHORIZED`. Only a local request (`LOCAL_CREDENTIALS`) skips it. The
+   * server refuses a request without credentials (CLI-1). Before, only the Express middleware of
+   * the peer examined the token, so a `ProcedureServer` with the HTTP or WebSocket transport of the
+   * core and the token of a host policy accepted each request.
    */
   token?: string | undefined;
 
@@ -154,8 +156,9 @@ export interface ProcedureServerOptions extends ServerOptions {
    * header, the query) and gives a bearer token, a principal and a narrowing. It runs before the
    * token check: its bearer token replaces the bearer token of the credentials. Its principal
    * replaces the principal of the token check. `authenticate` runs after it and can read
-   * `request.principal`. Undefined or an error refuses the request with `UNAUTHORIZED`. A request
-   * without credentials (from this process) does not go through the hook.
+   * `request.principal`. Undefined or an error refuses the request with `UNAUTHORIZED`. A local
+   * request (`LOCAL_CREDENTIALS`) does not go through the hook. A server with a hook refuses a
+   * request without credentials, and the hook does not run for it (CLI-1).
    */
   principalOf?: PrincipalOf | undefined;
 
@@ -888,7 +891,9 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
   /**
    * The token check and the principal of a request (roadmap R18). The request hook reads the
    * credentials of a network request first: a bearer token, a principal and a narrowing. A
-   * network request (with credentials) must present the token. The authenticate function gives
+   * network request must present the token. Only a local request (`LOCAL_CREDENTIALS`) skips the
+   * hook and the token. A request without credentials is not local: a server with a token or a
+   * request hook refuses it, and the hook does not run (CLI-1). The authenticate function gives
    * the principal. The function gives an UNAUTHORIZED response, or undefined when the request
    * passes.
    */
@@ -898,7 +903,15 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
       status: { type: "error", code: "UNAUTHORIZED", message, retryable: false },
       metadata: {},
     });
-    const credentials = request.credentials;
+    // Only a local request skips the token and the request hook (CLI-1). A face that sets no
+    // credentials skips neither: the server refuses it, and the hook does not run. Before, such a
+    // request passed as a request of this process.
+    if (request.credentials === undefined && (this.token !== undefined || this.principalOf !== undefined)) {
+      return unauthorized("Unauthorized: this server authenticates each request, and the request has no credentials");
+    }
+    // A local face (this process, MCP over stdio, a message port) sets the local marker. The
+    // marker key is a symbol, so a request from the network cannot carry it (CLI-1).
+    const credentials = isLocalCredentials(request.credentials) ? undefined : request.credentials;
     let identity: RequestIdentity | undefined;
     if (this.principalOf && credentials !== undefined) {
       try {
@@ -975,7 +988,8 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    * This method tells if the server admits a connection with these credentials, before its first
    * call. It uses the path of each call: the request hook, the token check and the authenticate
    * function (R18, CLI-2a). A face of connections refuses the upgrade when it gives false (CLI-7).
-   * A request hook that accepts a request without credentials (an empty identity) admits it.
+   * A request hook that accepts empty credentials (`{}`) with an empty identity admits the
+   * connection.
    */
   async admits(credentials: Credentials): Promise<boolean> {
     const request: ServerRequest<unknown> = { id: "connection", method: { service: "", operation: "" }, payload: undefined, metadata: {}, credentials };

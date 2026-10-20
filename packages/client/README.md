@@ -707,7 +707,7 @@ interface ProcedureServerOptions {
   storage?: StorageConfig;
   transports?: ServerTransport[];
   events?: EventPublisherOptions | EventPublisher;   // the remote events: refer to "Remote events"
-  token?: string;                // the token that each network request presents
+  token?: string;                // the token that each request presents, except a local request
   principalOf?: PrincipalOf;     // the request hook: refer to "The request hook"
   authenticate?: (request: ServerRequest) => Principal | undefined | Promise<Principal | undefined>;
 }
@@ -735,8 +735,26 @@ const server = new ProcedureServer({
 - `principal`: the principal of the request, for example the user of a session cookie. The procedure reads it as `ctx.principal`, and its nested calls get the same principal.
 - `narrowing`: a narrower capability that the request asks for. The server narrows the capability of the call with it. A request for more has no effect.
 - An empty object accepts the request without a principal. Undefined, or an error, refuses the request with `UNAUTHORIZED`.
-- `authenticate` operates after the hook and can read `request.principal`. A request of this process (no credentials) does not go through the hook.
+- `authenticate` operates after the hook and can read `request.principal`. A local request does not go through the hook.
 - `hostPolicy({ principalOf })` gives the hook to each server of the policy.
+
+#### Local requests
+
+Each face sets the credentials of its requests, or the local marker `LOCAL_CREDENTIALS` (CLI-1). A local request comes from this application, so the token and the request hook do not apply to it.
+
+- The local faces are MCP over stdio, an SDK transport of `McpServerTransport` and `PortTransport`. The peer of stdio is the parent process. Only the holder of the other end of a port can send to it.
+- A network face never sets the marker: HTTP, WebSocket, and MCP over Streamable HTTP. The key of the marker is a symbol, so JSON, a header, a cookie or a query cannot carry it.
+- A server with a token or a request hook refuses a request without credentials with `UNAUTHORIZED`. The hook does not operate for it. Before, such a request skipped the token and the hook.
+- A call of the code of the application to `server.handle()` sets the marker itself:
+
+```typescript
+import { LOCAL_CREDENTIALS } from "@procedures/client";
+
+await server.handle({ id: "1", method, payload, metadata: {}, credentials: LOCAL_CREDENTIALS });
+```
+
+- The nested calls of a procedure do not go through the token check again. They keep the principal of their caller.
+- A `PortTransport` that a part outside the application can reach takes `credentials: {}`. Then the token applies. A `Window` is such a port.
 
 #### Cookies and CSRF
 

@@ -20,7 +20,8 @@
  */
 
 import type { Message, ResponseItem, Transport } from "../../client/types.js";
-import type { RequestHandler } from "../../server/types.js";
+import type { Credentials, RequestHandler } from "../../server/types.js";
+import { LOCAL_CREDENTIALS } from "../../server/request-auth.js";
 import type { WebSocketMessage } from "../websocket/server/types.js";
 import { IncomingCalls, OutgoingCalls } from "../websocket/shared/rpc.js";
 import { withoutInternalKeys } from "../metadata.js";
@@ -48,6 +49,15 @@ export interface PortLike {
 export interface PortTransportOptions {
   /** The handler of the calls of the other side, for example a `ProcedureServer`. */
   serve?: RequestHandler | undefined;
+  /**
+   * The credentials of each call of the other side (CLI-1). The default is `LOCAL_CREDENTIALS`:
+   * only the holder of the other end of a worker or a `MessagePort` can send to it, and that holder
+   * is a part of this application. A `ProcedureServer` with a token thus serves the calls.
+   *
+   * A `Window` is not such a port: each page that has a reference to it can post to it. For a port
+   * that a part outside this application can reach, give `{}`. Then the token of the server applies.
+   */
+  credentials?: Credentials | undefined;
   /** The number of stream items that the reader holds. The default is 64. */
   streamWindow?: number | undefined;
 }
@@ -82,17 +92,20 @@ export class PortTransport implements Transport {
       idPrefix: "",
     });
     if (options.serve) {
+      // A call over a port comes from a part of this application: the local marker (CLI-1). This
+      // side sets the credentials. A frame cannot carry them: structured clone drops a symbol key.
+      const credentials = options.credentials ?? LOCAL_CREDENTIALS;
       this.incoming = new IncomingCalls({
         handler: options.serve,
         send,
         isOpen,
-        // A call over a port comes from a part of this application: it has no credentials
         requestOf: (frame, signal) => ({
           id: frame.id,
           method: frame.method!,
           payload: frame.payload === undefined ? {} : frame.payload,
           metadata: withoutInternalKeys(frame.metadata),
           signal,
+          credentials,
         }),
       });
     }
