@@ -220,7 +220,7 @@ A review of the `@procedures` stack after 0.2.2 found these items.
 | 0.2 The MCP surface | done | `ee52893`, `e1b5b57` | |
 | 0.3 One `pathToMethod` and a conformance test | done | `201f920` | `pathToMethod`/`methodToPath` in `client`. The test covers Local, HTTP, WebSocket and `Server.handle`. |
 | 0.4 Live registry lookup, `procedure.delete` unregisters, MCP `list_changed` | done | `201f920`, `8a9e7c7` | |
-| 1.1 Program Format v1 and one evaluator | done | `8a9e7c7`, `88edf02` | One interpreter, and `documentation/PROGRAM-FORMAT.md`. Its section 11 lists the open points. |
+| 1.1 Program Format v1 and one evaluator | done | `8a9e7c7`, `88edf02` | One interpreter, and `documentation/PROGRAM-FORMAT.md`. Its section 12 lists the open points. |
 | 1.2 Interceptors in `invokeProcedure` | done | `9e20de8` | Timeout, tracing and metrics interceptors. Nested calls inherit the chain. The MCP server limits each tool call. |
 | 1.3 A build-time manifest and a thin `mark` path | done | `978175a` | `mark --help` went from 1127 ms to 164 ms, and a warm-server call from 1170 ms to 352 ms. |
 | 2.1 Standard Schema, real schemas for exposed procedures | done | `580a72a`, `8306c1e`, `830af9c`, `b223979`, `448141d` | zod 4 everywhere. The core takes any Standard Schema validator. `jsonSchemaOf()` serves MCP, `mark` and the site. Every tool has a real input schema. Every procedure has a real output schema (`448141d` for the 100 core procedures and the 20 core tools), and the MCP server sends structured output for each tool with an object result. |
