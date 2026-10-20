@@ -146,6 +146,13 @@ await svc.run();
 - **The expose rule.** The rule of the policy applies to each procedure that the host serves, also to the collection procedures (CLI-47). A host with an expose rule must list the collection procedures that it serves, for example `collections.notes.*`. An `exclude` hides one of them, for example `collections.notes.clear`. The option `expose` of the host wins over the rule of the policy, for the server and for each face.
 - **Always on.** `host.health`, `host.info`, `host.metrics` and `events.subscribe` stay on, whatever the expose rule says. The host pins them with `registerProcedures(procedures, { alwaysOn: true })`. The topic rule is the expose rule of `events.subscribe`.
 - **No `/health` route.** The probes come from the runner (`probeHandler` or `probeServer`). A client checks a lockfile with `host.info` and the token of the lockfile.
+- **The probes.** Each listener of the host answers the probes of the service under `/_probes` (CLI-9, decision D5). The handler is `probeHandler()` of `@mark1russell7/service/http`, and it mounts before the faces.
+  - `GET /_probes/startup`, `/_probes/readiness` and `/_probes/liveness` answer 200, or 503 with `Retry-After`. `/_probes/readiness/<controller>` gives the readiness of one controller.
+  - The probes answer each caller without the token and the browser checks. They give only the status. Each other path goes to the faces, with the token and the browser checks as before.
+  - A listener does not answer the report (`/_probes/report`), because it names the checks and the dependencies. `host.health` gives the details with the token.
+  - The probes stop when the intake stops. Then the listener closes, as without the probes, and a new connection is refused. `probes: { until: "close transports" }` keeps the listener open through the drain: the probes answer 503, and each other request gets 503 with `Retry-After`.
+  - `probes: { prefix }` changes the prefix. `probes: false` turns the probes off, for example when the process has a probe server on a port of its own (`probeServer()`, or the option `probes` of `runProcedureHost()`).
+  - `host.info.probes()` gives the base URL of the probes on each listener. Without `listen`, the app mounts `probeHandler()` on its own listener.
 
 ### Creating a Server Peer
 

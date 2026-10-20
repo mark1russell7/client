@@ -113,7 +113,9 @@ export interface HttpServerTransportOptions extends BrowserGuardOptions {
 
   /**
    * Custom CORS options. `origin` is "*", one origin or a list: the response names the
-   * request's origin when it is in the list.
+   * request's origin when it is in the list. A response for another origin, or for a request
+   * without an origin, gets no `Access-Control-*` header (CLI-59). Each response gets
+   * `Vary: Origin` when `origin` is not "*".
    */
   corsOptions?: {
     origin?: string | string[];

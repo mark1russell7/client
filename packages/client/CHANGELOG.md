@@ -1,5 +1,96 @@
 # @procedures/client
 
+## 0.18.1
+
+### Patch Changes
+
+- d69c8cb: A host that serves a plain collection `a.b` and a collection `a` with partitions fails at registration. To correct it, rename the plain collection. Before, the two had the same topic `collections.a.b`. Thus the readers of `a.b` got the events of the tenant `b` of `a`, a leak across tenants (roadmap CLI-57, decision D23).
+  
+  - The refusal is the new export `CollectionTopicCollisionError`. It names the two collections, the partition and the topic.
+  - `useStorage`, `useStorages`, the option `collections` of a host and `usePartitions` do the check. The check finds the pair in each order, also when the registrations come at different times.
+  - The check also refuses a deeper name, for example `a.b.c` next to `a` with partitions: `b.c` is a partition of `a`.
+  - The check also refuses a storage of `a.b` for the calls without a partition while `a` has partitions, also when `a.b` has partitions. That storage publishes on `collections.a.b`.
+  - A name without a dot does not change. A dotted name without a partitioned prefix does not change. Two collections with partitions, for example `a` and `a.b`, do not change, because the partitions of `a.b` encode its name.
+  
+  PATCH (decision D23): the change refuses only a configuration that leaks events across tenants, so no caller can rely on it. Each correct configuration behaves as before.
+  
+  Migration steps:
+  
+  - When a host fails with `CollectionTopicCollisionError`, rename the plain collection, for example `a.b` to `a_b`. A name without a dot has no topic of a partition.
+  - The site: no change is necessary. It serves no collection.
+  - MiniMongo: no change is necessary. Its server serves no collection.
+  - Graph: no change is necessary. Its host gives partitions to each served collection (`examples`), and no collection has a plain storage.
+  - jarvis: no change is necessary. Its host serves no collection.
+- 0379278: Docs and tests: the rule of the retryable flag of an in-band end (CLI-58). The behavior does not change, thus this change is a PATCH of the client group (decision D13).
+  
+  - Before the stream starts, an error of a handler without a retryable flag gets the flag of its code in `ERROR_CODES` (CLI-48). Thus `UNAVAILABLE` without a flag is retryable, and the HTTP face answers 503.
+  - After the stream starts, an error ends the stream in-band. The in-band end is the `error` line of NDJSON, the `error` frame of WebSocket or the `_meta` of the MCP result.
+  - An in-band end without a retryable flag gets `retryable: false`, also when the stream gave no item. The reader can have items, and a retry can send them again.
+  - A handler gives `retryable: true` when a retry is safe. Then the in-band end is retryable too.
+  - The retry middleware of the client does not retry after an item reached the reader. Thus after the first item, the flag only tells the application.
+  - This rule agrees with the rule of a cut (CLI-48): the flag is false when the call can have had its effect.
+  - `WIRE-PROTOCOL.md` gives the rule in the section "Error codes". Tests pin it on the wire of HTTP and WebSocket, and on the HTTP, WebSocket and MCP faces of the procedures host.
+  
+  The site, MiniMongo, Graph and jarvis: no change.
+
+## 0.18.0
+
+### Minor Changes
+
+- 5e68b6a: Each face gives only the error codes of wire v1 (server stack CLI-4). The stray codes fold into `UNAVAILABLE`, `FORBIDDEN` and `INTERNAL_ERROR`. This change is a break of the server stack, thus it is its own MINOR (decision D13).
+  
+  Before, `procedureHandler` gave the codes of wire v1, but other paths kept their former codes. `HttpServerTransport` answered `SERVER_STOPPED` after `stop()`. The browser checks gave `FORBIDDEN_HOST`, `FORBIDDEN_ORIGIN`, `METHOD_NOT_ALLOWED` (405) and `UNSUPPORTED_MEDIA_TYPE` (415). `Server` and `ServerError` gave the code `"500"`.
+  
+  The behavior that changes:
+  
+  | Former code | Former status | Code of wire v1 | Status | Reason |
+  |---|---|---|---|---|
+  | `SERVER_STOPPED` | 503 | `UNAVAILABLE` | 503 | — |
+  | `FORBIDDEN_HOST` | 403 | `FORBIDDEN` | 403 | `host-header-not-allowed` |
+  | `FORBIDDEN_ORIGIN` | 403 | `FORBIDDEN` | 403 | `origin-not-allowed` |
+  | `METHOD_NOT_ALLOWED` | 405 | `FORBIDDEN` | 403 | `method-not-allowed` |
+  | `UNSUPPORTED_MEDIA_TYPE` | 415 | `FORBIDDEN` | 403 | `media-type-not-allowed` |
+  | `"500"` | 500 | `INTERNAL_ERROR` | 500 | — |
+  
+  - `HttpServerTransport` answers a request after `stop()` with `UNAVAILABLE` (503, retryable), as `procedureHandler` does. The message is "The server is stopping".
+  - `HttpServerTransport` refuses a browser request with `FORBIDDEN` (403) and the field `reason` in the body, as `procedureHandler` does. A `GET` without `allowGet` and a body that is not JSON get 403, not 405 or 415.
+  - `checkBrowserRequest()` gives `{ ok: false, status: 403, code: "FORBIDDEN", reason, message }`. The type `GuardResult` has the new field `reason`. The MCP endpoint of `@procedures/mcp-server` uses it, so its refusal has `data.code` `FORBIDDEN`.
+  - `Server` answers an error outside a handler with `INTERNAL_ERROR`. `new ServerError(message)` has the default code `INTERNAL_ERROR`.
+  - The message of the refusals of the method and of the body starts with "Forbidden:".
+  
+  For one release, the client reads the former codes of an older server:
+  
+  - `HttpTransport` and the WebSocket transports read `SERVER_STOPPED` as `UNAVAILABLE` and `"500"` as `INTERNAL_ERROR`.
+  - `HttpTransport` reads `FORBIDDEN_HOST` and `FORBIDDEN_ORIGIN` as `FORBIDDEN`, and sets the metadata key `reason`.
+  - `isAvailabilityFailure()` still counts `SERVER_STOPPED`.
+  - The client keeps `METHOD_NOT_ALLOWED` and `UNSUPPORTED_MEDIA_TYPE`. They are also the codes of the HTTP statuses 405 and 415 of each server.
+  - The next breaking release of the client group removes these aliases.
+  
+  Migration steps:
+  
+  - Code that matches `SERVER_STOPPED`: match `UNAVAILABLE`. The flag `retryable` stays true.
+  - Code that matches `FORBIDDEN_HOST` or `FORBIDDEN_ORIGIN`: match `FORBIDDEN`, then read `reason` (the body field, or the metadata key `reason`).
+  - Code that matches the status 405 or 415 of a procedure server: match the status 403 and the reasons `method-not-allowed` and `media-type-not-allowed`.
+  - Code that reads `GuardResult.code` of `checkBrowserRequest()`: read `reason`.
+  - Code that matches the code `"500"` or the default code of `ServerError`: match `INTERNAL_ERROR`.
+  - The site, MiniMongo, Graph and jarvis: no code of theirs matches a former code, so no change is necessary.
+  - MiniMongo: its dev server uses `HttpServerTransport`, and its answers change only as the table says.
+  - jarvis: its host uses `procedureHandler`, which gave the codes of wire v1 already.
+
+## 0.17.4
+
+No changes in this release.
+
+## 0.17.3
+
+No changes in this release.
+
+## 0.17.2
+
+### Patch Changes
+
+- 8b7e20c: The Express shim `HttpServerTransport` sends no CORS header to an origin that it does not permit (CLI-59). A request without an origin also gets no CORS header. `procedureHandler` does this since 0.14.1 (CLI-56). A browser refuses such a response before and after the change, so no page can depend on the removed headers. Each response still gets `Vary: Origin` when `corsOptions.origin` is not `"*"`.
+
 ## 0.17.1
 
 ### Patch Changes

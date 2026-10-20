@@ -4,8 +4,8 @@
  * The transport mounts the procedure handler of `handler.ts` on an Express app, with the CORS of
  * the app, and it owns its own `node:http` server unless the caller gives one. The handler does
  * the work: the request, the body, the metadata, the credentials, the response and the NDJSON
- * streams. The transport keeps its former error codes (`SERVER_STOPPED` and the codes of the
- * browser checks), so its behavior stays the same.
+ * streams. The error codes are the codes of wire v1, as for `procedureHandler` (CLI-4). A stopped
+ * transport answers `UNAVAILABLE`, and a refused browser request gets `FORBIDDEN` with a reason.
  */
 
 import type { Request, Response, Express } from "express";
@@ -65,8 +65,9 @@ export class HttpServerTransport implements ServerTransport {
     // inferring the operation from the verb (BUGS-2026-07 C3, bug 16)
     const urlStrategy = options.urlStrategy ?? createPatternServerUrlStrategy(basePath);
     const corsOptions = this.options.cors ? (options.corsOptions ?? {}) : undefined;
-    // The given options go over the defaults, and the transport sends the credentials by default
-    this.cors = corsOptions ? corsPolicy(corsOptions, true) : undefined;
+    // The given options go over the defaults, and the transport sends the credentials by default.
+    // An origin that is not permitted gets no CORS header, as with procedureHandler (CLI-59)
+    this.cors = corsOptions ? { ...corsPolicy(corsOptions, true), permittedOnly: true } : undefined;
     this.handler = createProcedureHandler(
       server,
       {

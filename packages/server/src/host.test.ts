@@ -260,6 +260,121 @@ describe("runProcedureHost: the parts of the app (CLI-62)", () => {
   }, 20000);
 });
 
+describe("runProcedureHost: the probes (CLI-9, decision D5)", () => {
+  /** The status of a GET, and its Retry-After and its body. */
+  async function probe(url: string): Promise<{ status: number; retryAfter: string | null; body: Record<string, unknown> | null }> {
+    const response = await fetch(url);
+    const text = await response.text();
+    return { status: response.status, retryAfter: response.headers.get("retry-after"), body: text.startsWith("{") ? (JSON.parse(text) as Record<string, unknown>) : null };
+  }
+
+  it("answers the probes on each listener of the host under /_probes by default", async () => {
+    const running = await host.runProcedureHost({ name: "app-port", mode: "background", host: hostOptions("peer-app-port"), run: { process: fakeProcess() } });
+    lives.push(running.life);
+    const [base] = running.probes();
+    const [endpoint] = running.host.info.endpoints();
+    expect(base).toBe(`${new URL(endpoint!.address).origin}/_probes`);
+    expect(running.probes()).toEqual(running.host.info.probes());
+    for (const kind of ["startup", "readiness", "liveness"]) {
+      expect(await probe(`${base}/${kind}`), kind).toMatchObject({ status: 200, body: { status: "pass", probe: kind, service: "app-port" } });
+    }
+    // The service declares no health server: the listener is the one place of the probes
+    expect((await probe(`${base}/report`)).status).toBe(404);
+  }, 20000);
+
+  it("moves the probes to a probe server on a port of its own: it answers the report, and the listeners answer no probe", async () => {
+    const process = fakeProcess();
+    const running = await host.runProcedureHost({
+      name: "own-port",
+      mode: "background",
+      host: hostOptions("peer-own-port"),
+      probes: { port: 0 },
+      run: { process },
+    });
+    lives.push(running.life);
+    expect(running.life.state).toBe("running");
+    const [base] = running.probes();
+    expect(base).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+    expect(running.host.info.probes()).toEqual([]);
+    const [endpoint] = running.host.info.endpoints();
+    const listener = new URL(endpoint!.address).origin;
+    expect(base).not.toBe(listener);
+
+    for (const kind of ["startup", "readiness", "liveness"]) {
+      expect(await probe(`${base}/${kind}`), kind).toMatchObject({ status: 200, body: { status: "pass", probe: kind, service: "own-port" } });
+    }
+    // The port of the probes answers the report with the whole verdict
+    const report = await probe(`${base}/report`);
+    expect(report.status).toBe(200);
+    expect(report.body?.["verdict"]).toMatchObject({ started: true, ready: true, alive: true, controllers: { procedures: true } });
+    // The listener of the host answers no probe
+    expect((await probe(`${listener}/_probes/readiness`)).status).toBe(404);
+
+    // The probe server closes last: after the exit, nothing answers on its port
+    process.signal("SIGTERM");
+    expect(await running.life.done).toBe(0);
+    lives.splice(0);
+    await expect(fetch(`${base}/readiness`)).rejects.toThrow();
+  }, 20000);
+
+  it("leaves out the report on the probe port when the option kinds does not name it (SYS-30)", async () => {
+    const running = await host.runProcedureHost({
+      name: "no-report",
+      mode: "background",
+      host: hostOptions("peer-no-report"),
+      probes: { port: 0, kinds: ["startup", "readiness", "liveness"] },
+      run: { process: fakeProcess() },
+    });
+    lives.push(running.life);
+    const [base] = running.probes();
+    expect((await probe(`${base}/readiness`)).status).toBe(200);
+    expect((await probe(`${base}/report`)).status).toBe(404);
+  }, 20000);
+
+  it("answers on the two places when the options of the host ask for the probes of the listeners too", async () => {
+    const running = await host.runProcedureHost({
+      name: "both",
+      mode: "background",
+      host: { ...hostOptions("peer-both"), probes: true },
+      probes: { port: 0, prefix: "/health" },
+      run: { process: fakeProcess() },
+    });
+    lives.push(running.life);
+    const [base] = running.probes();
+    expect(base).toMatch(/\/health$/);
+    expect((await probe(`${base}/readiness`)).status).toBe(200);
+    const [listener] = running.host.info.probes();
+    expect((await probe(`${listener}/readiness`)).status).toBe(200);
+  }, 20000);
+
+  it("answers 503 with the Retry-After of the option while the startup runs", async () => {
+    const port = await freePort();
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const slow: TransportImpl = { start: () => held, stopIntake: () => undefined, drain: () => undefined, inFlight: () => 0, close: () => undefined };
+    const starting = host.runProcedureHost({
+      name: "starting",
+      mode: "background",
+      host: hostOptions("peer-starting"),
+      probes: { port, retryAfter: seconds(3) },
+      declare: (svc) => void svc.server("app.slow", {}, slow),
+      run: { process: fakeProcess() },
+    });
+    // The probe server starts first, so it answers while the parts start
+    let answer = await probe(`http://127.0.0.1:${port}/readiness`).catch(() => null);
+    for (let attempt = 0; answer === null && attempt < 200; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      answer = await probe(`http://127.0.0.1:${port}/readiness`).catch(() => null);
+    }
+    expect(answer).toMatchObject({ status: 503, retryAfter: "3", body: { status: "fail", probe: "readiness" } });
+    expect(await probe(`http://127.0.0.1:${port}/startup`)).toMatchObject({ status: 503, retryAfter: "3" });
+    release();
+    const running = await starting;
+    lives.push(running.life);
+    expect(await probe(`http://127.0.0.1:${port}/readiness`)).toMatchObject({ status: 200, retryAfter: null });
+  }, 20000);
+});
+
 describe("runServer (CLI-8)", () => {
   it("installs no signal handler: a signal of the process port stops the server in stages", async () => {
     const port = await freePort();

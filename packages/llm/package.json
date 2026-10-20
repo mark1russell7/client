@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/llm",
-  "version": "0.17.1",
+  "version": "0.18.1",
   "description": "A language model as procedures: a completion with tools, a stream of the answer and a structured answer, through the Anthropic Messages API, with the key from the environment.",
   "keywords": [
     "procedures",
@@ -72,7 +72,7 @@
     "procedures": "./dist/register.js"
   },
   "dependencies": {
-    "@mark1russell7/service": "^0.5.1",
+    "@mark1russell7/service": "^0.5.8",
     "@procedures/client": "workspace:*",
     "@procedures/http": "workspace:*",
     "@procedures/json": "workspace:*",

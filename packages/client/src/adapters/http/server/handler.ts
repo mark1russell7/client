@@ -21,7 +21,8 @@ import type { Metadata, Method } from "../../../client/types.js";
 import type { RequestHandler, ServerRequest, ServerResponse } from "../../../server/types.js";
 import { decodeMetadataHeader, METADATA_HEADER_LIMIT } from "../shared/index.js";
 import { ERROR_REGISTRY } from "../../../client/errors/index.js";
-import { assertNamedOrigins, checkBrowserRequest, needsNamedOrigin, type BrowserGuardOptions, type GuardResult } from "../../../server/browser-guard.js";
+import { assertNamedOrigins, checkBrowserRequest, needsNamedOrigin, type BrowserGuardOptions } from "../../../server/browser-guard.js";
+import { isUnboundedStream } from "../../../server/procedure-server.js";
 import { headerNames, isSecretHeader, queryRecord, requestCredentials, urlParts, withoutSecretHeaders } from "../../../server/request-auth.js";
 import { PROTOCOL_HEADER, PROTOCOL_VERSION, httpStatusOf, protocolVersionOf } from "../../../protocol.js";
 import { realClock, type Cancel, type Clock } from "../../../clock.js";
@@ -150,9 +151,9 @@ export interface NodeProcedureHandler {
  */
 export interface HandlerCompat {
   /**
-   * True: the error codes and the behavior of `HttpServerTransport` before the handler. A stopped
-   * transport answers `SERVER_STOPPED`, a refused browser request has the code of the check, and
-   * an `OPTIONS` request goes to the procedures.
+   * True: the behavior of `HttpServerTransport` before the handler. An `OPTIONS` request goes to
+   * the procedures, and the query parameter `token` stays in the metadata. The error codes are the
+   * codes of wire v1, as for a new mount (CLI-4).
    */
   readonly legacy?: boolean | undefined;
   /** The method of a request: the URL strategy of Express. */
@@ -165,11 +166,6 @@ export interface HandlerCompat {
   readonly matchAll?: boolean | undefined;
   /** The name of the face and of its CORS origin option, for the error of `assertNamedOrigins`. */
   readonly face?: { readonly name: string; readonly originOption: string } | undefined;
-}
-
-/** True when a stream response has no end (`STREAM_METADATA_KEY` of procedure-server.ts). */
-function isUnboundedStream(response: { metadata?: Record<string, unknown> | undefined }): boolean {
-  return response.metadata?.["stream"] === "unbounded";
 }
 
 /** The metadata keys that the transport sets: a query parameter or a header cannot replace them. */
@@ -200,14 +196,6 @@ const STANDARD_HEADERS = new Set([
 
 /** The known custom headers whose metadata key is not the header name (lower case to camel case). */
 const HEADER_MAPPINGS: Record<string, string> = { collectionname: "collectionName" };
-
-/** The reasons of the `FORBIDDEN` errors of the browser checks (wire v1). */
-const GUARD_REASONS: Record<string, string> = {
-  FORBIDDEN_HOST: "host-header-not-allowed",
-  FORBIDDEN_ORIGIN: "origin-not-allowed",
-  METHOD_NOT_ALLOWED: "method-not-allowed",
-  UNSUPPORTED_MEDIA_TYPE: "media-type-not-allowed",
-};
 
 /** This function sets a key as an own property, also the key `__proto__` (the `put` of the query language). */
 function put(target: Record<string, unknown>, key: string, value: unknown): void {
@@ -334,14 +322,6 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
   /** The error body of wire v1: the message, the code, the retryable flag and the more fields. */
   const sendError = (res: NodeResponse, status: number, message: string, code: string, retryable = false, more: Record<string, unknown> = {}): void => {
     sendJson(res, status, { error: message, code, retryable, ...more });
-  };
-
-  const refuseGuard = (res: NodeResponse, refusal: Extract<GuardResult, { ok: false }>): void => {
-    if (legacy) {
-      sendError(res, refusal.status, refusal.message, refusal.code);
-      return;
-    }
-    sendError(res, 403, refusal.message, "FORBIDDEN", false, { reason: GUARD_REASONS[refusal.code] ?? refusal.code.toLowerCase() });
   };
 
   /**
@@ -525,9 +505,9 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
       });
       return;
     }
+    // A stopped handler and the shim give the same code (CLI-4: before, the shim gave SERVER_STOPPED)
     if (stopped) {
-      if (legacy) sendError(res, 503, "Server stopped", "SERVER_STOPPED", true);
-      else sendError(res, 503, "The server is stopping", "UNAVAILABLE", true);
+      sendError(res, 503, "The server is stopping", "UNAVAILABLE", true);
       return;
     }
     // A preflight without CORS: no procedure runs for it, and the browser sees no CORS header
@@ -540,9 +520,10 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
     // Ambient credentials (cookies) are trusted only from a named origin. The shim keeps its former
     // checks for a server that reads no cookies.
     const ambient = needsNamedOrigin(ambientMode, req.headers, !legacy);
+    // A refusal is FORBIDDEN with its reason, also in the shim (CLI-4)
     const check = checkBrowserRequest(req, guard, true, ambient);
     if (!check.ok) {
-      refuseGuard(res, check);
+      sendError(res, check.status, check.message, check.code, false, { reason: check.reason });
       return;
     }
     // A closed connection or close() aborts the request: a stream stops, and its handler gets return()

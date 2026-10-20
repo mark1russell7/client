@@ -25,7 +25,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { readCoreFields } from "./core-fields.mjs";
 import { readStatusData } from "./status-data.mjs";
-import { readStatusBoard } from "./status-board-data.mjs";
+import { readStatusBoard } from "@mark1russell7/site-pages";
 import { readReleases, splitReleases } from "./releases-data.mjs";
 import { docModuleName, readDocs } from "./docs-data.mjs";
 import { countTests, npmVersion } from "./site-metrics.mjs";
@@ -242,8 +242,8 @@ const commit = process.env["SITE_COMMIT"] || git("rev-parse", "HEAD");
 const build = { commit, date: (commit && git("show", "-s", "--format=%cI", commit)) || new Date().toISOString() };
 
 // ---------------------------------------------------------------------------
-// The status page: the live board (scripts/status-board-data.mjs) reads the roadmap file and the
-// open pull requests and issues on GitHub. Without GITHUB_TOKEN, or when GitHub does not answer,
+// The status page: the live board (`readStatusBoard` of @mark1russell7/site-pages) reads the
+// roadmap file and the open pull requests and issues on GitHub. Without GITHUB_TOKEN, or when GitHub does not answer,
 // the board shows the roadmap only. Its history reads the closed status documents.
 // ---------------------------------------------------------------------------
 
@@ -265,12 +265,18 @@ try {
 }
 
 // ---------------------------------------------------------------------------
-// The releases: the changelog of each package, and the dates from git (scripts/releases-data.mjs)
+// The releases: the changelog of each package, and the dates from git and GitHub
+// (scripts/releases-data.mjs, with @mark1russell7/site-pages)
 // ---------------------------------------------------------------------------
 
 let releases;
 try {
-  releases = readReleases(PACKAGES, SITE, (message) => process.stderr.write(`gen-data: ${message}\n`));
+  releases = await readReleases({
+    repoDir: join(PACKAGES, ".."),
+    token: process.env["GITHUB_TOKEN"],
+    ref: commit ?? "HEAD",
+    warn: (message) => process.stderr.write(`gen-data: ${message}\n`),
+  });
 } catch (error) {
   fail(`the releases cannot be read from the changelogs. ${error?.message ?? error}`);
 }

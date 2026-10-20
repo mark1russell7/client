@@ -30,7 +30,7 @@ import type {
   ElicitOptions,
   ReportProgress,
 } from "@procedures/client";
-import { NARROWING_METADATA_KEY, PROCEDURE_REGISTRY, addNarrowing, pathToMethod, createElicit, elicitWithPolicy, requestCredentials, untrustedTextsOf } from "@procedures/client";
+import { LOCAL_CREDENTIALS, NARROWING_METADATA_KEY, PROCEDURE_REGISTRY, addNarrowing, pathToMethod, createElicit, elicitWithPolicy, requestCredentials, untrustedTextsOf } from "@procedures/client";
 import {
   proceduresToMcpTools,
   toToolDefinition,
@@ -98,14 +98,16 @@ function progressMessage(progress: number, total: number | undefined): string {
 }
 
 /**
- * The credentials of a tool call that came over the network (CLI-10): the bearer token, the
- * cookies, the headers and the query of its HTTP request. A call over stdio or an in-memory
- * transport has none: it comes from this process.
+ * The credentials of a tool call. A call that came over the network has the bearer token, the
+ * cookies, the headers and the query of its HTTP request (CLI-10). A call of a local face without
+ * an HTTP request has the local marker (CLI-1). The local faces are stdio, whose peer is the parent
+ * process, and a given SDK transport, for example the in-memory transport. A session of Streamable
+ * HTTP is never local: without its HTTP request, the call presents no credentials.
  */
-function callCredentials(extra: CallExtra): Credentials | undefined {
+function callCredentials(extra: CallExtra, localFace: boolean): Credentials {
   const info = extra.requestInfo;
-  if (!info) return undefined;
-  return requestCredentials({ headers: info.headers, url: info.url ? `${info.url.pathname}${info.url.search}` : undefined });
+  if (info) return requestCredentials({ headers: info.headers, url: info.url ? `${info.url.pathname}${info.url.search}` : undefined });
+  return localFace ? LOCAL_CREDENTIALS : {};
 }
 
 /**
@@ -129,6 +131,8 @@ const MAX_STREAM_BLOCKS = 100;
 /**
  * The `_meta` of the error of a stream: its code and its retryable flag, as the error line of
  * NDJSON and the error frame of WebSocket give them (CLI-48). A code that is not a string gives `HANDLER_ERROR`.
+ * An error without a flag gets false, not the flag of its code: the end is in-band, and a retry can
+ * send the items again (CLI-58, `WIRE-PROTOCOL.md`, section "Error codes").
  */
 function streamErrorMeta(error: unknown): { code: string; retryable: boolean } {
   const { code, retryable } = (error ?? {}) as { code?: unknown; retryable?: unknown };
@@ -369,8 +373,9 @@ export class McpServerTransport implements ServerTransport {
     // and a sanitized segment does not decode to the segment of the procedure.
     const path = tool.procedurePath;
 
-    // Build ServerRequest
-    const credentials = callCredentials(extra);
+    // Build ServerRequest. The main SDK server is the face of stdio or of a given SDK transport:
+    // a local face. Each other SDK server is a session of Streamable HTTP (CLI-1).
+    const credentials = callCredentials(extra, server === this.mcpServer);
     const narrowing = callNarrowing(extra);
     const serverRequest = {
       id: generateRequestId(),
@@ -385,8 +390,8 @@ export class McpServerTransport implements ServerTransport {
       // A cancelled tool call (notifications/cancelled) aborts the procedure
       signal: extra.signal,
       // The credentials of a call over the network: the request hook (principalOf) and the
-      // token check of the server apply to it (CLI-10)
-      ...(credentials ? { credentials } : {}),
+      // token check of the server apply to it (CLI-10). The local marker of a local face (CLI-1).
+      credentials,
     };
     // What this face offers the procedure (CLI-12): the questions to the person, and the
     // progress for a caller that sent a progress token

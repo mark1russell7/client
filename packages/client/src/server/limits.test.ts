@@ -25,6 +25,7 @@ import { hostPolicy, procedureServerOptions } from "./host-policy.js";
 import { pathToMethod } from "./method.js";
 import type { CallLimit } from "./limits.js";
 import type { PrincipalOf, ServerResponse } from "./types.js";
+import { LOCAL_CREDENTIALS } from "./request-auth.js";
 
 const WRITES = { reads: ["notes"], writes: ["notes"] };
 const READS = { reads: ["notes"], writes: [] };
@@ -83,14 +84,14 @@ function serverOf(limits: readonly CallLimit[], clock: FakeClock = fakeClock(), 
 }
 
 let sent = 0;
-/** A call of a procedure: with the token of a tenant (a network call), or without credentials (a call of this process). */
+/** A call of a procedure: with the token of a tenant (a network call), or with the local marker (a call of this process, CLI-1). */
 function call(server: ProcedureServer, tenant: string | undefined, procedure: string): Promise<ServerResponse<unknown>> {
   return server.handle({
     id: `call-${++sent}`,
     method: pathToMethod(["notes", procedure]),
     payload: {},
     metadata: {},
-    ...(tenant !== undefined ? { credentials: { bearer: `tok-${tenant}` } } : {}),
+    credentials: tenant !== undefined ? { bearer: `tok-${tenant}` } : LOCAL_CREDENTIALS,
   });
 }
 
