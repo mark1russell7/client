@@ -1,5 +1,21 @@
 # @procedures/mark
 
+## 0.21.0
+
+### Patch Changes
+
+- Updated dependencies [4e496ba]
+  - @procedures/server@0.21.0
+  - @procedures/client@0.21.0
+  - @procedures/cli-run@0.21.0
+  - @procedures/lib@0.21.0
+  - @procedures/pnpm@0.21.0
+  - @procedures/procedure@0.21.0
+  - @procedures/peer@0.21.0
+  - @procedures/shell@0.21.0
+  - @procedures/vitest@0.21.0
+  - @procedures/mcp-dev-tools@0.21.0
+
 ## 0.20.0
 
 ### Patch Changes
