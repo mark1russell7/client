@@ -136,6 +136,14 @@ export class IdempotencyCache<T> {
     return { result: entry.done, first: true };
   }
 
+  /**
+   * This method removes the result of a key, so the next call with the key runs again. It removes
+   * the entry only when `result` is its result: an entry of a newer call with the key stays.
+   */
+  forget(key: string, result: Promise<T>): void {
+    if (this.entries.get(key)?.done === result) this.entries.delete(key);
+  }
+
   /** This function removes the expired results, and the oldest finished results above the limit. */
   private evict(): void {
     const now = this.now();

@@ -187,6 +187,23 @@ describe("IdempotencyCache", () => {
     expect(cache.size).toBe(0);
   });
 
+  it("forgets a key on request, but only the entry of the given result (CLI-68)", async () => {
+    const cache = new IdempotencyCache<number>();
+    let runs = 0;
+    const first = cache.run("a", async () => ++runs, () => true);
+    expect(await first.result).toBe(1);
+    // Another result does not remove the entry
+    cache.forget("a", Promise.resolve(1));
+    expect(await cache.run("a", async () => ++runs, () => true).result).toBe(1);
+    cache.forget("a", first.result);
+    expect(cache.size).toBe(0);
+    const second = cache.run("a", async () => ++runs, () => true);
+    expect(await second.result).toBe(2);
+    // The old result does not remove the entry of the newer call
+    cache.forget("a", first.result);
+    expect(cache.size).toBe(1);
+  });
+
   it("keeps at most maxEntries finished results, and drops the oldest first", async () => {
     const cache = new IdempotencyCache<number>({ maxEntries: 2 });
     for (const key of ["a", "b", "c"]) await cache.run(key, async () => 1, () => true).result;

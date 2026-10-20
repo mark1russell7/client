@@ -472,10 +472,16 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
 
     if (!ndjson) {
       let last: { value: unknown } | undefined;
+      // The count of the items of the stream: an error before the first item gets the flag of its
+      // code, and an error after it gets false without a flag of its own (CLI-68)
+      let items = 0;
       try {
-        for await (const item of stream) last = { value: item };
+        for await (const item of stream) {
+          items++;
+          last = { value: item };
+        }
       } catch (error) {
-        toHttp({ id: response.id, status: { type: "error", ...errorOf(error) }, metadata: {} }, res);
+        toHttp({ id: response.id, status: { type: "error", ...errorOf(error, items) }, metadata: {} }, res);
         return;
       }
       if (!last) {

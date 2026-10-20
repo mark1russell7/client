@@ -1,16 +1,21 @@
 /**
  * The retryable flag of an error of a handler, before and after the start of its stream, on the
- * wire of HTTP and WebSocket (CLI-58, `WIRE-PROTOCOL.md`, section "Error codes"). The calls go to
- * the server without a client, so the test reads the NDJSON lines and the frames.
+ * wire of HTTP and WebSocket (CLI-58, CLI-68, `WIRE-PROTOCOL.md`, section "Error codes"). The first
+ * cases send the calls to the server without a client, so they read the NDJSON lines and the frames.
  *
  * - Before the stream starts, an error without a flag gets the flag of its code in `ERROR_CODES`
  *   (`errorResponse`, CLI-48). Thus `UNAVAILABLE` is retryable, and HTTP answers 503.
  * - After the stream starts, the end is in-band: the `error` line of NDJSON (`defaultNdjsonError`)
- *   and the `error` frame of WebSocket (`errorStatus`). An error without a flag is not retryable
- *   there, also when the stream gave no item, because a retry can send the items again.
- * - An error with `retryable: true` stays retryable after the first item.
+ *   and the `error` frame of WebSocket (`errorStatus`).
+ * - An in-band end without a flag before the first item gets the flag of its code too (CLI-68).
+ *   The HTTP status stays 200, because the stream started.
+ * - An in-band end without a flag after the first item is not retryable, because a retry can send
+ *   the items again (CLI-58). An error with its own flag keeps it.
  *
- * The procedures host has the same cases on its three faces, MCP too, in
+ * The last cases send the calls with a `Client` and the retry middleware. A stream that fails before
+ * its first item goes again, and the caller gets the items of the retry.
+ *
+ * The procedures host has the same wire cases on its three faces, MCP too, in
  * `client-server/src/host/in-band-retryable.test.ts`.
  */
 
@@ -21,7 +26,13 @@ import express from "express";
 import { z } from "zod";
 import { WebSocket as WsClient } from "ws";
 import { HttpServerTransport } from "../adapters/http/server/index.js";
+import { HttpTransport } from "../adapters/http/client/index.js";
 import { WebSocketServerTransport } from "../adapters/websocket/server/transport.js";
+import { WebSocketTransport } from "../adapters/websocket/client/transport.js";
+import { Client } from "../client/client.js";
+import { createRetryMiddleware } from "../client/middleware/retry.js";
+import type { Transport } from "../client/types.js";
+import { ms } from "../duration.js";
 import { createProcedure } from "../procedures/define.js";
 import { createRegistry } from "../procedures/module.js";
 import type { ProcedureRegistry } from "../procedures/registry.js";
@@ -29,6 +40,8 @@ import { ProcedureServer } from "./procedure-server.js";
 import { pathToMethod } from "./method.js";
 
 const READS = { reads: [], writes: [] };
+/** The effects of a procedure that is not repeatable: the server runs a keyed call of it one time. */
+const WRITES = { reads: [], writes: ["rows"] };
 
 /**
  * Where the handler throws: `call` before it gives its stream, `stream` in its stream before the
@@ -87,8 +100,14 @@ const CASES: Case[] = [
     status: 200,
   },
   {
-    name: "an error without a flag after the start of the stream and before its first item is not retryable: the end is in-band",
+    name: "an error without a flag after the start of the stream and before its first item gets the flag of its code (CLI-68)",
     input: { at: "stream" },
+    end: { code: "UNAVAILABLE", retryable: true, items: 0 },
+    status: 200,
+  },
+  {
+    name: "an error with retryable: false before the first item stays not retryable: the opt-out of the handler",
+    input: { at: "stream", retryable: false },
     end: { code: "UNAVAILABLE", retryable: false, items: 0 },
     status: 200,
   },
@@ -112,6 +131,39 @@ async function fail(input: FailInput) {
   })();
 }
 
+/**
+ * The input of `test.flaky` and `test.flakyWrite`: the first `fails` calls with the key fail `at`
+ * the place of the input, with the flag of the input. Each later call gives two items.
+ */
+interface FlakyInput extends FailInput {
+  readonly key: string;
+  readonly fails: number;
+}
+
+/** The count of the calls of `test.flaky` and `test.flakyWrite`, by key. */
+const flakyCalls = new Map<string, number>();
+
+/** The handler of `test.flaky` and `test.flakyWrite`. It always gives a stream. */
+async function flaky(input: FlakyInput) {
+  const call = (flakyCalls.get(input.key) ?? 0) + 1;
+  flakyCalls.set(input.key, call);
+  return (async function* () {
+    if (call <= input.fails) {
+      if (input.at === "item") yield `partial ${call}`;
+      throw unavailable(input);
+    }
+    yield `row 1 of call ${call}`;
+    yield `row 2 of call ${call}`;
+  })();
+}
+
+const FLAKY_INPUT = z.object({
+  key: z.string(),
+  fails: z.number(),
+  at: z.enum(["call", "stream", "item"]),
+  retryable: z.boolean().optional(),
+});
+
 function registryOf(): ProcedureRegistry {
   return createRegistry({
     name: "in-band-retryable",
@@ -123,6 +175,8 @@ function registryOf(): ProcedureRegistry {
         .meta({ effects: READS })
         .handler(fail as never)
         .build(),
+      createProcedure().path(["test", "flaky"]).input(FLAKY_INPUT).output(z.string()).meta({ effects: READS }).handler(flaky as never).build(),
+      createProcedure().path(["test", "flakyWrite"]).input(FLAKY_INPUT).output(z.string()).meta({ effects: WRITES }).handler(flaky as never).build(),
     ],
   });
 }
@@ -232,11 +286,119 @@ async function wsEnd(input: FailInput): Promise<WsEnd> {
   }
 }
 
-describe("the retryable flag of an error before and after the start of a stream, on the wire (CLI-58)", () => {
+describe("the retryable flag of an error before and after the start of a stream, on the wire (CLI-58, CLI-68)", () => {
   for (const { name, input, end, status } of CASES) {
     it(name, async () => {
       expect(await httpEnd(input), `HTTP ${JSON.stringify(input)}`).toMatchObject({ ...end, status });
       expect(await wsEnd(input), `WebSocket ${JSON.stringify(input)}`).toMatchObject({ ...end, error: { code: end.code, retryable: end.retryable } });
     });
+  }
+});
+
+describe("the retryable flag of a stream error for a client without NDJSON (CLI-68)", () => {
+  /** The JSON answer of a call without NDJSON: the server reads the whole stream, and gives its last item. */
+  async function spongeEnd(input: FailInput): Promise<{ status: number; code?: string; retryable?: boolean }> {
+    const response = await fetch(`http://127.0.0.1:${httpPort}/api/test/fail`, {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify(input),
+    });
+    const body = (await response.json()) as { code?: string; retryable?: boolean };
+    return { status: response.status, ...body };
+  }
+
+  it("an error before the first item of the stream gets the flag and the status of its code", async () => {
+    expect(await spongeEnd({ at: "stream" })).toMatchObject({ status: 503, code: "UNAVAILABLE", retryable: true });
+  });
+
+  it("an error after an item of the stream gets false, and thus 500 and not 503", async () => {
+    expect(await spongeEnd({ at: "item" })).toMatchObject({ status: 500, code: "UNAVAILABLE", retryable: false });
+  });
+});
+
+/** The items that a caller reads from a stream, and the code and the flag of the error that ended it. */
+interface CallerView {
+  readonly items: readonly string[];
+  readonly error?: { readonly code: string | undefined; readonly retryable: boolean | undefined };
+}
+
+/** A client with the retry middleware: short delays, no jitter and no budget, so the test is fast and exact. */
+function retryingClient(transport: Transport) {
+  return new Client({ transport, throwOnError: true }).use(createRetryMiddleware({ retryDelay: ms(1), jitter: 0, budget: false }));
+}
+
+/** The items of a stream call of a `Client`, and the error that ended it. */
+async function readAll(client: ReturnType<typeof retryingClient>, path: readonly string[], input: FlakyInput): Promise<CallerView> {
+  const items: string[] = [];
+  try {
+    for await (const item of client.stream<FlakyInput, string>(pathToMethod(path), input)) items.push(item);
+    return { items };
+  } catch (error) {
+    const { code, retryable } = error as { code?: string; retryable?: boolean };
+    return { items, error: { code, retryable } };
+  }
+}
+
+/** The faces of the retry cases: a `Client` over HTTP with NDJSON, and a `Client` over WebSocket. */
+const RETRY_FACES: ReadonlyArray<{ readonly face: string; readonly transport: () => Transport }> = [
+  { face: "HTTP", transport: () => new HttpTransport({ baseUrl: `http://127.0.0.1:${httpPort}/api` }) },
+  { face: "WebSocket", transport: () => new WebSocketTransport({ url: wsUrl, heartbeat: { enabled: false }, reconnect: { enabled: false } }) },
+];
+
+/**
+ * The procedures of the retry cases. The server runs `test.flaky` again for each try. The retry
+ * gives each try of `test.flakyWrite` one idempotency key, so the server runs it one time for the
+ * key, unless the stream ended with a retryable error.
+ */
+const FLAKY_PATHS: ReadonlyArray<readonly string[]> = [
+  ["test", "flaky"],
+  ["test", "flakyWrite"],
+];
+
+describe("the retry middleware and a stream that fails before its first item (CLI-68)", () => {
+  let next = 0;
+  /** A new key for each case, so the counts of the calls of the cases do not mix. */
+  const keyOf = (name: string): string => `${name}-${++next}`;
+
+  for (const { face, transport: transportOf } of RETRY_FACES) {
+    for (const path of FLAKY_PATHS) {
+      const label = `${face}, ${path.join(".")}`;
+
+      it(`retries the stream, and the caller gets the items of the retry, not the error (${label})`, async () => {
+        const transport = transportOf();
+        try {
+          const key = keyOf("retry");
+          const view = await readAll(retryingClient(transport), path, { key, fails: 1, at: "stream" });
+          expect(view).toEqual({ items: ["row 1 of call 2", "row 2 of call 2"] });
+          expect(flakyCalls.get(key)).toBe(2);
+        } finally {
+          await transport.close();
+        }
+      });
+
+      it(`does not retry the stream after its first item: the caller gets the item and the error (${label})`, async () => {
+        const transport = transportOf();
+        try {
+          const key = keyOf("after-item");
+          const view = await readAll(retryingClient(transport), path, { key, fails: 1, at: "item" });
+          expect(view).toEqual({ items: ["partial 1"], error: { code: "UNAVAILABLE", retryable: false } });
+          expect(flakyCalls.get(key)).toBe(1);
+        } finally {
+          await transport.close();
+        }
+      });
+
+      it(`does not retry the stream when the handler gives retryable: false, the opt-out (${label})`, async () => {
+        const transport = transportOf();
+        try {
+          const key = keyOf("opt-out");
+          const view = await readAll(retryingClient(transport), path, { key, fails: 1, at: "stream", retryable: false });
+          expect(view).toEqual({ items: [], error: { code: "UNAVAILABLE", retryable: false } });
+          expect(flakyCalls.get(key)).toBe(1);
+        } finally {
+          await transport.close();
+        }
+      });
+    }
   }
 });

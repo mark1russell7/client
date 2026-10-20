@@ -30,7 +30,7 @@ import type {
   ElicitOptions,
   ReportProgress,
 } from "@procedures/client";
-import { LOCAL_CREDENTIALS, NARROWING_METADATA_KEY, PROCEDURE_REGISTRY, addNarrowing, pathToMethod, createElicit, elicitWithPolicy, requestCredentials, untrustedTextsOf } from "@procedures/client";
+import { LOCAL_CREDENTIALS, NARROWING_METADATA_KEY, PROCEDURE_REGISTRY, addNarrowing, pathToMethod, createElicit, elicitWithPolicy, requestCredentials, retryableOf, untrustedTextsOf } from "@procedures/client";
 import {
   proceduresToMcpTools,
   toToolDefinition,
@@ -131,12 +131,13 @@ const MAX_STREAM_BLOCKS = 100;
 /**
  * The `_meta` of the error of a stream: its code and its retryable flag, as the error line of
  * NDJSON and the error frame of WebSocket give them (CLI-48). A code that is not a string gives `HANDLER_ERROR`.
- * An error without a flag gets false, not the flag of its code: the end is in-band, and a retry can
- * send the items again (CLI-58, `WIRE-PROTOCOL.md`, section "Error codes").
+ * `items` is the count of the items before the error. An error without a flag gets the flag of its
+ * code before the first item (CLI-68). After the first item, it gets false: a retry can send the
+ * items again (CLI-58, `retryableOf`, `WIRE-PROTOCOL.md`, section "Error codes").
  */
-function streamErrorMeta(error: unknown): { code: string; retryable: boolean } {
-  const { code, retryable } = (error ?? {}) as { code?: unknown; retryable?: unknown };
-  return { code: typeof code === "string" ? code : "HANDLER_ERROR", retryable: typeof retryable === "boolean" ? retryable : false };
+function streamErrorMeta(error: unknown, items: number): { code: string; retryable: boolean } {
+  const code = (error as { code?: unknown } | null | undefined)?.code;
+  return { code: typeof code === "string" ? code : "HANDLER_ERROR", retryable: retryableOf(error, items) };
 }
 
 /** The text of a value: a string as it is, another value as JSON (pretty, or compact on one line). */
@@ -511,8 +512,9 @@ export class McpServerTransport implements ServerTransport {
     } catch (error) {
       blocks.push({ type: "text", text: error instanceof Error ? error.message : String(error) });
       // The code and the retryable flag of the end travel on each face: a stream that the
-      // shutdown cuts ends with UNAVAILABLE (CLI-48)
-      return { content: blocks, isError: true, _meta: streamErrorMeta(error) };
+      // shutdown cuts ends with UNAVAILABLE (CLI-48). Before the first item, an error without a
+      // flag gets the flag of its code (CLI-68).
+      return { content: blocks, isError: true, _meta: streamErrorMeta(error, count) };
     }
     if (count > MAX_STREAM_BLOCKS) {
       blocks.unshift({ type: "text", text: `(${count} items: the first ${count - MAX_STREAM_BLOCKS} are not shown)` });
