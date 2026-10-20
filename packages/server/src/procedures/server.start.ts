@@ -1,17 +1,21 @@
 /**
  * Procedure: server.start
- * Starts the CLI server as a background daemon
+ *
+ * This procedure starts the CLI server (`mark --server`) as a background process. Then it waits
+ * for the readiness of the server (CLI-9). It stops the wait as soon as the server is ready or the
+ * process exits. At the timeout, it gives `success: false` with the PID of the process.
  *
  * The procedure came from `@procedures/peer`: it belongs to the host. The lockfiles stay in the
  * peer package, because the peer of `mark --server` writes them.
  */
 
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { createProcedure, zodAdapter, type Effects, type FsRootRules, type Procedure } from "@procedures/client";
-import { checkServer, readLockfileForPort } from "@procedures/peer/lockfile";
+import { HOST_PROBE_PREFIX } from "@procedures/peer";
+import { checkServer, readLockfileForPort, type LockfileData } from "@procedures/peer/lockfile";
 import { ServerStartOutputSchema, serverStartInputSchema } from "../schemas.js";
 import type { ServerStartInput, ServerStartOutput } from "../types.js";
 
