@@ -475,6 +475,9 @@ test.describe("the layout", () => {
 test.describe("accessibility", () => {
   for (const colorScheme of ["light", "dark"] as const) {
     test(`axe finds no serious problem (${colorScheme})`, async ({ page }) => {
+      // One test examines each page and several states of the app: it needs more time than the
+      // default 60 s. With the Releases page and the live status board it took 59 s in dark mode.
+      test.setTimeout(180_000);
       await page.emulateMedia({ colorScheme });
       const problems: string[] = [];
       const check = async (name: string): Promise<void> => {
