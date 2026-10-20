@@ -64,7 +64,12 @@
     "test:watch": "vitest"
   },
   "client": {
-    "procedures": "./dist/register.js"
+    "procedures": "./dist/register.js",
+    "browser": [
+      ".",
+      "./module",
+      "./register"
+    ]
   },
   "devDependencies": {
     "typescript": "^7.0.2",
