@@ -11,7 +11,7 @@ import { describe, it, expect, vi } from "vitest";
 import { fakeClock } from "@mark1russell7/service/testing";
 import { InMemoryStorage, type CollectionStorage, type StorageChangeBatch } from "@procedures/collections";
 import { ms } from "@procedures/client";
-import { HybridStorage, SyncStateError, type HybridStorageOptions } from "./hybrid.js";
+import { HybridStorage, QueueStoreError, SyncStateError, type HybridStorageOptions } from "./hybrid.js";
 import { MemoryQueueStore, type QueuedOperation, type QueueStore } from "./queue.js";
 import { MemorySyncStateStore, type SyncState, type SyncStateChange, type SyncStateStore } from "./sync-state.js";
 import type { RemoteChangeFeed, RemoteChangeHint, RemoteChangeListener, RemoteChanges } from "./feed.js";
@@ -273,6 +273,37 @@ describe("HybridStorage capture: \"observe\" (CLI-21)", () => {
     const withoutObserve = Object.assign(Object.create(local) as InMemoryStorage<Item>, { observe: undefined });
     expect(() => new HybridStorage<Item>(remote.storage, { local: withoutObserve, capture: "observe" })).toThrow(TypeError);
     expect(() => new HybridStorage<Item>(remote.storage, { capture: "everything" as never })).toThrow(/Unknown capture/);
+  });
+
+  it("whenQueued() resolves when the queue store holds the captured changes, and sends nothing (CLI-25)", async () => {
+    const remote = remoteOf();
+    const local = new InMemoryStorage<Item>();
+    const store = new MemoryQueueStore();
+    const append = store.append.bind(store);
+    let release: (() => void) | undefined;
+    store.append = (op) => new Promise<void>((resolve) => (release = () => resolve(append(op))));
+    const hybrid = new HybridStorage<Item>(remote.storage, { ...base, mode: "write-back", local, queueStore: store, capture: "observe" });
+    await hybrid.getAll();
+    await local.set("a", { n: 1 });
+    let queued = false;
+    const waiting = hybrid.whenQueued().then(() => void (queued = true));
+    await vi.waitFor(() => expect(release).toBeDefined());
+    expect(queued).toBe(false);
+    expect(store.size).toBe(0);
+    release!();
+    await waiting;
+    expect(store.size).toBe(1);
+    expect(remote.count("set")).toBe(0);
+    await hybrid.close();
+  });
+
+  it("whenQueued() rejects with the error of the load when the queue store could not load", async () => {
+    const remote = remoteOf();
+    const broken = new MemoryQueueStore();
+    broken.load = () => Promise.reject(new Error("The disk is gone"));
+    const hybrid = new HybridStorage<Item>(remote.storage, { ...base, queueStore: broken });
+    await expect(hybrid.whenQueued()).rejects.toBeInstanceOf(QueueStoreError);
+    await hybrid.close();
   });
 });
 

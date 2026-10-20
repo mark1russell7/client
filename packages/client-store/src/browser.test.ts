@@ -36,6 +36,7 @@ const EXPORTS = [
   "QueueFullError",
   "QueueStoreError",
   "SyncStateError",
+  "TabCoordinator",
   "hasIndexedDb",
 ];
 
@@ -94,7 +95,9 @@ describe("the entry @procedures/store/browser", () => {
   it("loads no module of Node and no package entry outside the browser-safe list", () => {
     const files = walk(join(SRC, "browser.ts"));
     const reached = [...files.keys()].map((file) => relative(SRC, file).replaceAll("\\", "/"));
-    expect(reached).toEqual(expect.arrayContaining(["storage/hybrid.ts", "storage/api.ts", "storage/feed.ts", "indexeddb/idb.ts"]));
+    expect(reached).toEqual(
+      expect.arrayContaining(["storage/hybrid.ts", "storage/api.ts", "storage/feed.ts", "storage/tab-coordinator.ts", "indexeddb/idb.ts"]),
+    );
     expect(reached).not.toContain("program-store/file.ts");
     expect(reached).not.toContain("storage/file-queue.ts");
 
