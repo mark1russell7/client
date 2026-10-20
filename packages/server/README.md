@@ -243,14 +243,16 @@ The package has three procedures. They manage the background server of the `mark
 
 | Procedure | Function |
 |---|---|
-| `server.start` | Start the CLI server as a background process. It writes `~/.mark/server.log`. It waits up to 15 s for the server. |
+| `server.start` | Start the CLI server as a background process, and wait for its readiness. It writes `~/.mark/server.log`. |
 | `server.stop` | Stop the CLI servers of the lockfiles, or the server of one port. A process that does not answer as the peer of its lockfile gets no signal. |
 | `server.status` | Give the state of the CLI servers. It deletes the lockfile of a server that does not answer. |
 
 - `import "@procedures/server/register"` registers them in the global registry. The package root and the `./module` entry register nothing.
 - `mark` finds the package from its `client.procedures` field: `mark server start`, `mark server stop` and `mark server status` run them.
 - The lockfiles stay in `@procedures/peer` (`@procedures/peer/lockfile`), because the peer of `mark --server` writes them.
-- **Deprecated (CLI-9):** at the timeout of 15 s, `server.start` gives `success: true` with the message "still loading" when the process still starts. From the next MINOR of the client group, a start that is not ready at the timeout gives `success: false`, with the PID of the process that still starts. Read the readiness probe (`/_probes/readiness`) or `mark server status` for the state.
+- `server.start` waits for the readiness of the server (CLI-9). It reads the readiness probe of the listener (`/_probes/readiness`) until it answers 200. The probe has no identity, thus `host.info` must also answer the token of the new lockfile with its peer id. A listener without probes (a build of `mark` before CLI-9) answers 404, and then `host.info` alone tells the readiness.
+- The wait stops as soon as the server is ready or its process exits. `timeout` (milliseconds, default 15000) sets the limit.
+- At the timeout, `server.start` gives `success: false` with the PID of the process that still starts. Before CLI-9, it gave `success: true` with the message "still loading".
 
 ---
 

@@ -54,16 +54,15 @@ export interface ServerStartInput {
   host?: string | undefined;
   /** Transport type */
   transport?: "http" | "websocket" | "both" | undefined;
+  /** The time to wait for the readiness of the server, in milliseconds. The default is 15000 (CLI-9). */
+  timeout?: number | undefined;
 }
 
 export interface ServerStartOutput {
   /**
-   * True when the server started.
-   *
-   * @deprecated Only the value at the timeout is deprecated, not this field (CLI-9). At the
-   * timeout, a server that still starts gives `true` and the message "still loading". From the next
-   * MINOR of the client group, a start that is not ready at the timeout gives `success: false`, with
-   * the PID of the process that still starts. Read the readiness probe or `mark server status` for the state.
+   * True when the server is ready: its readiness probe answers 200, and `host.info` answers the
+   * token of its lockfile (CLI-9). A start that is not ready at the timeout gives false, with the
+   * PID of the process that still starts. Before CLI-9, it gave true.
    */
   success: boolean;
   /** Process ID of server */

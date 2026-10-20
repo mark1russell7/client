@@ -180,7 +180,85 @@ describe("server.stop", () => {
   }, 20_000);
 });
 
-describe("server.start", () => {
+describe("server.start (CLI-9: it waits for the readiness of the server)", () => {
+  /** The PIDs of the fake CLI processes that a test started. Each one stops after the test. */
+  const started: number[] = [];
+  afterEach(() => {
+    for (const pid of started.splice(0)) {
+      try {
+        process.kill(pid);
+      } catch {
+        // The process ended before
+      }
+    }
+  });
+
+  /**
+   * A fake CLI in a temporary folder. It writes the lockfile of its `--port`, as `mark --server`
+   * does, and then it acts as `mode` says:
+   * - `ready`: its probe answers 503 for `readyAfterMs`, then 200. `host.info` answers the token.
+   * - `no-probes`: the listener has no probes (404), as a build of `mark` before CLI-9. `host.info` answers.
+   * - `never-ready`: its probe answers 503 for each read.
+   * - `no-listener`: it writes the lockfile and listens on nothing.
+   */
+  function fakeCli(mode: "ready" | "no-probes" | "never-ready" | "no-listener", readyAfterMs = 0): { cli: string; folder: string } {
+    const folder = mkdtempSync(join(tmpdir(), "server-start-cli-"));
+    const cli = join(folder, "cli.js");
+    const source = [
+      'const http = require("node:http");',
+      'const fs = require("node:fs");',
+      'const path = require("node:path");',
+      'const os = require("node:os");',
+      "const argv = process.argv.slice(2);",
+      'const port = Number(argv[argv.indexOf("--port") + 1]);',
+      `const mode = ${JSON.stringify(mode)};`,
+      'const token = "fake-token";',
+      'const peerId = "peer-fake-" + process.pid;',
+      'const dir = path.join(os.homedir(), ".mark", "servers");',
+      "fs.mkdirSync(dir, { recursive: true });",
+      'const endpoint = "http://127.0.0.1:" + port + "/api";',
+      'const lockfile = { pid: process.pid, port, transport: "http", endpoint, startedAt: new Date().toISOString(), token, cwd: process.cwd(), build: "fake", peerId };',
+      'fs.writeFileSync(path.join(dir, port + ".lock"), JSON.stringify(lockfile));',
+      `const readyAt = Date.now() + ${readyAfterMs};`,
+      "setInterval(() => undefined, 1000);",
+      'if (mode !== "no-listener") {',
+      "  http.createServer((req, res) => {",
+      '    if (req.url === "/_probes/readiness") {',
+      '      if (mode === "no-probes") { res.statusCode = 404; res.end(); return; }',
+      '      const ready = mode === "ready" && Date.now() >= readyAt;',
+      "      res.statusCode = ready ? 200 : 503;",
+      '      res.end(JSON.stringify({ status: ready ? "pass" : "fail", probe: "readiness" }));',
+      "      return;",
+      "    }",
+      '    if (req.url === "/api/host/info" && req.headers.authorization === "Bearer " + token) {',
+      '      res.setHeader("content-type", "application/json");',
+      "      res.end(JSON.stringify({ peerId }));",
+      "      return;",
+      "    }",
+      "    res.statusCode = 401;",
+      '    res.end("{}");',
+      '  }).listen(port, "127.0.0.1");',
+      "}",
+      "",
+    ];
+    writeFileSync(cli, source.join("\n"));
+    return { cli, folder };
+  }
+
+  /** This function starts `server.start` with a fake CLI: the procedure takes the running script as the CLI when its name ends in cli.js. */
+  async function startWith(cli: string, input: Record<string, unknown>): Promise<{ result: Record<string, unknown>; elapsed: number }> {
+    const script = process.argv[1];
+    process.argv[1] = cli;
+    const begin = Date.now();
+    try {
+      const result = await run(start, input);
+      if (typeof result["pid"] === "number") started.push(result["pid"]);
+      return { result, elapsed: Date.now() - begin };
+    } finally {
+      process.argv[1] = script!;
+    }
+  }
+
   it("refuses a port where a server of a lockfile answers", async () => {
     const port = await healthServer("peer-running");
     lock(port, "peer-running");
@@ -190,25 +268,121 @@ describe("server.start", () => {
     });
   });
 
-  it("reports a failure when the CLI process ends before it writes its lockfile", async () => {
-    // The CLI of this test ends at once. server.start takes the running script as the CLI when
-    // its name ends in cli.js.
+  it("stops the wait as soon as the CLI process exits, and gives its PID and its exit code", async () => {
     const folder = mkdtempSync(join(tmpdir(), "server-start-cli-"));
     const cli = join(folder, "cli.js");
     writeFileSync(cli, "process.exit(1);\n");
-    const script = process.argv[1];
-    process.argv[1] = cli;
     try {
       const port = await closedPort();
-      const result = await run(start, { port, transport: "websocket" });
+      const { result, elapsed } = await startWith(cli, { port, transport: "websocket" });
+      const log = join(home, ".mark", "server.log");
       expect(result).toEqual({
         success: false,
-        message: `Failed to start server. Check ${join(home, ".mark", "server.log")} for details.`,
+        pid: expect.any(Number),
+        logFile: log,
+        message: `The server process (PID ${String(result["pid"])}) exited with the code 1 before it was ready. Check ${log} for details.`,
       });
+      expect(elapsed).toBeLessThan(10_000);
       expect(lockfiles.readLockfileForPort(port)).toBeNull();
     } finally {
-      process.argv[1] = script!;
       rmSync(folder, { recursive: true, force: true });
     }
   }, 20_000);
+
+  it("waits until the readiness probe answers 200 and host.info answers the token of the new lockfile", async () => {
+    const { cli, folder } = fakeCli("ready", 800);
+    try {
+      const port = await closedPort();
+      const { result, elapsed } = await startWith(cli, { port });
+      expect(result).toMatchObject({ success: true, port, endpoint: `http://127.0.0.1:${port}/api`, logFile: join(home, ".mark", "server.log") });
+      expect(result["message"]).toBe(`Server started (PID ${String(result["pid"])})`);
+      // The PID is the PID of the new server, from its lockfile
+      expect(result["pid"]).toBe(lockfiles.readLockfileForPort(port)?.pid);
+      // The wait stops as soon as the server is ready, long before the timeout of 15 s
+      expect(elapsed).toBeGreaterThanOrEqual(700);
+      expect(elapsed).toBeLessThan(10_000);
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }, 20_000);
+
+  it("takes host.info alone when the listener has no probes (a build of mark before CLI-9)", async () => {
+    const { cli, folder } = fakeCli("no-probes");
+    try {
+      const port = await closedPort();
+      const { result } = await startWith(cli, { port });
+      expect(result).toMatchObject({ success: true, port });
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }, 20_000);
+
+  it("gives success false with the PID at the timeout, while the process still starts", async () => {
+    const { cli, folder } = fakeCli("never-ready");
+    try {
+      const port = await closedPort();
+      const { result, elapsed } = await startWith(cli, { port, timeout: 1_000 });
+      const log = join(home, ".mark", "server.log");
+      expect(result).toEqual({
+        success: false,
+        pid: expect.any(Number),
+        port,
+        logFile: log,
+        message: `The server is not ready after 1000 ms. Its process (PID ${String(result["pid"])}) still starts: check ${log}, and run 'mark server status' later.`,
+      });
+      expect(elapsed).toBeGreaterThanOrEqual(1_000);
+      expect(elapsed).toBeLessThan(10_000);
+      // The process still runs: the procedure does not stop it
+      expect(() => process.kill(result["pid"] as number, 0)).not.toThrow();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }, 20_000);
+
+  it("is not ready when another server answers the probe of the port: host.info must answer as the new lockfile", async () => {
+    // Another server holds the port: its probe answers 200, and its host.info gives another peer id
+    const port = await healthServer("peer-other");
+    const { cli, folder } = fakeCli("no-listener");
+    try {
+      const { result } = await startWith(cli, { port, timeout: 1_000 });
+      expect(result).toMatchObject({ success: false, port, pid: expect.any(Number) });
+      expect(result["message"]).toContain("is not ready after 1000 ms");
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }, 20_000);
+
+  it("reads the probe that a real host answers: readinessUrl() is the readiness probe of its listener", async () => {
+    const { runProcedureHost } = await import("../host.js");
+    const { readinessUrl } = await import("./server.start.js");
+    const { LOCAL_LISTENER_KNOBS } = await import("@procedures/peer");
+    const { createRegistry, hostPolicy } = await import("@procedures/client");
+    const { fakeProcess } = await import("@mark1russell7/service/testing");
+    const port = await closedPort();
+    const running = await runProcedureHost({
+      name: "mark-server",
+      mode: "background",
+      host: { registry: createRegistry(), policy: hostPolicy({ token: "t" }), listen: [{ port, knobs: LOCAL_LISTENER_KNOBS }] },
+      run: { process: fakeProcess() },
+    });
+    try {
+      expect(running.probes()).toEqual([`http://127.0.0.1:${port}/_probes`]);
+      const answer = await fetch(readinessUrl("127.0.0.1", port));
+      expect(answer.status).toBe(200);
+      expect(await answer.json()).toMatchObject({ status: "pass", probe: "readiness" });
+      // An address of all interfaces reads the probe on loopback
+      expect(readinessUrl("0.0.0.0", port)).toBe(`http://127.0.0.1:${port}/_probes/readiness`);
+      expect(readinessUrl("::", port)).toBe(`http://[::1]:${port}/_probes/readiness`);
+    } finally {
+      await running.life.shutdown("the test ended");
+      await running.life.done;
+    }
+  }, 20_000);
+
+  it("validates the timeout", async () => {
+    const input = (await import("../schemas.js")).serverStartInputSchema;
+    expect(input.parse({ timeout: 30_000 })).toEqual({ timeout: 30_000 });
+    expect(() => input.parse({ timeout: 0 })).toThrow();
+    expect(() => input.parse({ timeout: 1.5 })).toThrow();
+  });
 });
