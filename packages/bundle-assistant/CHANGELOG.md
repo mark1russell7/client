@@ -1,5 +1,17 @@
 # @procedures/bundle-assistant
 
+## 0.20.0
+
+### Patch Changes
+
+- Updated dependencies [5f49860]
+  - @procedures/client@0.20.0
+  - @procedures/exif@0.20.0
+  - @procedures/geo@0.20.0
+  - @procedures/ics@0.20.0
+  - @procedures/mail@0.20.0
+  - @procedures/weather@0.20.0
+
 ## 0.19.0
 
 ### Patch Changes
