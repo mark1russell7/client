@@ -56,6 +56,7 @@ export type {
   TabChannelLike,
   TabCoordinatorOptions,
   TabLockManagerLike,
+  TabRetryOptions,
   TabRole,
 } from "./tab-coordinator.js";
 // The push feed of the remote changes (roadmap CLI-21, CLI-15)
