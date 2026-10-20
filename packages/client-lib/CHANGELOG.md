@@ -1,5 +1,16 @@
 # @procedures/lib
 
+## 0.17.4
+
+### Patch Changes
+
+- @procedures/client@0.17.4
+  - @procedures/dag@0.17.4
+  - @procedures/fs@0.17.4
+  - @procedures/git@0.17.4
+  - @procedures/pnpm@0.17.4
+  - @procedures/shell@0.17.4
+
 ## 0.17.3
 
 ### Patch Changes
