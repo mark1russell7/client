@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 571 names
+## . (dist/index.d.ts): 572 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -53,6 +53,7 @@ type CollectionPartitions: dist/procedures/collection/partition.d.ts#CollectionP
 type CollectionProceduresOptions: dist/procedures/collection/procedures.d.ts#CollectionProceduresOptions
 type CollectionRow: dist/procedures/collection/admission.d.ts#CollectionRow
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
+CollectionTopicCollisionError: dist/procedures/collection/partition.d.ts#CollectionTopicCollisionError
 type CollectionWrite: dist/procedures/collection/admission.d.ts#CollectionWrite
 type CollectionWriteGuard: dist/procedures/collection/admission.d.ts#CollectionWriteGuard
 type ConfirmationOptions: dist/procedures/elicit.d.ts#ConfirmationOptions
@@ -578,7 +579,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 553 names
+## ./browser (dist/browser.d.ts): 554 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -626,6 +627,7 @@ type CollectionPartitions: dist/procedures/collection/partition.d.ts#CollectionP
 type CollectionProceduresOptions: dist/procedures/collection/procedures.d.ts#CollectionProceduresOptions
 type CollectionRow: dist/procedures/collection/admission.d.ts#CollectionRow
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
+CollectionTopicCollisionError: dist/procedures/collection/partition.d.ts#CollectionTopicCollisionError
 type CollectionWrite: dist/procedures/collection/admission.d.ts#CollectionWrite
 type CollectionWriteGuard: dist/procedures/collection/admission.d.ts#CollectionWriteGuard
 type ConfirmationOptions: dist/procedures/elicit.d.ts#ConfirmationOptions
@@ -1357,7 +1359,7 @@ throttleChannel: dist/events/bus.d.ts#throttleChannel
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
-## ./procedures (dist/procedures/index.d.ts): 313 names
+## ./procedures (dist/procedures/index.d.ts): 314 names
 
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
@@ -1378,6 +1380,7 @@ type CollectionPartitions: dist/procedures/collection/partition.d.ts#CollectionP
 type CollectionProceduresOptions: dist/procedures/collection/procedures.d.ts#CollectionProceduresOptions
 type CollectionRow: dist/procedures/collection/admission.d.ts#CollectionRow
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
+CollectionTopicCollisionError: dist/procedures/collection/partition.d.ts#CollectionTopicCollisionError
 type CollectionWrite: dist/procedures/collection/admission.d.ts#CollectionWrite
 type CollectionWriteGuard: dist/procedures/collection/admission.d.ts#CollectionWriteGuard
 type ConfirmationOptions: dist/procedures/elicit.d.ts#ConfirmationOptions
@@ -3683,6 +3686,16 @@ export declare function collectionTopicReads(topic: string, repository?: Reposit
 export interface CollectionPartitions<T = unknown> {
     storageOf(partition: string): CollectionStorage<T>;
     resolve: PartitionResolver;
+}
+
+### dist/procedures/collection/partition.d.ts#CollectionTopicCollisionError
+export declare class CollectionTopicCollisionError extends Error {
+    readonly name = "CollectionTopicCollisionError";
+    readonly collection: string;
+    readonly partitioned: string;
+    readonly partition: string;
+    readonly topic: string;
+    constructor(collection: string, partitioned: string, partition: string);
 }
 
 ### dist/procedures/collection/partition.d.ts#PARTITION_PATTERN

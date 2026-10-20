@@ -403,6 +403,14 @@ The name of a collection with partitions can have a dot (roadmap CLI-42):
 - Only the canonical form of a topic counts. The parse gives a collection and a partition only when `collectionChangeTopic()` gives the same topic again. Thus `collections.graph%2enodes.t1` names no collection.
 - A name with `%` or `.` gets a new topic of a partition. Upgrade the publishers and the subscribers of such a name together.
 
+The plain topic of a dotted name, `collections.a.b`, is also the topic of the partition `b` of the collection `a`. Thus a server refuses the two together (roadmap CLI-57, decision D23):
+
+- `ProcedureServer` refuses a storage of `a.b` while `a` has partitions. It also refuses partitions of `a` while it has a storage of `a.b`.
+- The refusal is a `CollectionTopicCollisionError`. It names the two collections, the partition and the topic.
+- The check applies to `useStorage`, `useStorages`, the option `collections` of a host and `usePartitions`, at each time.
+- To correct it, rename the collection `a.b`, for example to `a_b`. A name without a dot has no topic of a partition.
+- The partitions of `a.b` encode its name, so a collection `a.b` with partitions next to `a` with partitions is correct.
+
 Build the topic rule of a collection with `collectionTopicRule(name)`:
 
 ```ts
