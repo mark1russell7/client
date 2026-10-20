@@ -349,6 +349,26 @@ A new leader and a closed tab:
 - The load of the queue writes the queued operations to the local copy again. Thus the observers can get them again, with the origin `syncOrigin`.
 - `close()` of a follower stops its lock request. `close()` does not close the local copy, because the application owns it.
 
+A setup that fails (roadmap CLI-67):
+
+- A tab becomes the leader only after its `HybridStorage` loaded the queue. Until then, the tab is a follower.
+- When `remote()` throws or the load of the queue fails, the tab gives the error to `onError`. Then it releases the lock, and another tab can lead.
+- The tab stays a follower, and it asks for the lock again after a backoff. Thus a short failure does not leave the browser without a sync.
+- The option `retry` sets the backoff: `delay` (1 second), `factor` (2), `maxDelay` (1 minute) and `jitter` (0.5).
+- After `n` failures in a row, the wait is `delay × factor^(n − 1)`, at most `maxDelay`. The jitter makes each wait shorter by up to its fraction.
+- A setup that succeeds sets the wait back to `delay`. `close()` stops a wait.
+- In the single mode, the tab tries its setup again after the same backoff.
+- The options `clock` and `random` take the clock and the random numbers of the backoff, for example `fakeClock` of `@mark1russell7/service/testing` in a test.
+
+The status of the sync (roadmap CLI-65):
+
+- `getStatus()` gives the `SyncStatus` in each tab. Before the first status and after `close()`, it gives `undefined`.
+- `onStatus()` tells each new status to a listener, one time.
+- The leader gives the status of its own `HybridStorage`. It sends each change to the followers, and it answers the hello of a new tab with its status.
+- After a change of the leader, a follower keeps the last status until the new leader sends its status.
+- A message keeps only values that a structured clone can copy. Thus in a follower, `error.error` is an `Error` with the `name`, the `message` and the `code` of the error of the leader.
+- A tab of an older release ignores the status messages. It still copies the batches, because the version of the messages stays 1.
+
 Without the Web Locks API or `BroadcastChannel`, the coordinator is in the single mode. The tab does its own sync, and it opens no channel. A browser has the Web Locks API only in a secure context, for example HTTPS or `localhost`.
 
 ```ts
@@ -368,8 +388,9 @@ const users = new TabCoordinator<User>({
 });
 
 users.observe((batch) => render(batch));
+users.onStatus((status) => showSync(status)); // The status of the sync, in each tab
 await local.set("1", { name: "Ada" });
-users.syncStorage?.getStatus(); // In the leader only
+users.getStatus(); // The last status, in each tab
 ```
 
 - `role` is `follower`, `leader`, `single` or `closed`. `onRole()` tells each change.

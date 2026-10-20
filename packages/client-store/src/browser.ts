@@ -37,6 +37,7 @@ export type {
   TabChannelLike,
   TabCoordinatorOptions,
   TabLockManagerLike,
+  TabRetryOptions,
   TabRole,
 } from "./storage/tab-coordinator.js";
 export type { ConflictResolution, SyncError, SyncStatus } from "./storage/types.js";

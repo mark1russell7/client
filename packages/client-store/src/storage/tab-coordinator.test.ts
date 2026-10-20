@@ -2,23 +2,27 @@
  * `TabCoordinator` (roadmap CLI-25), in a browser in memory: a lock manager and the channels of its
  * tabs, and `fake-indexeddb` for the shared local copy and the shared queue store. The tests cover
  * the election, the failover, the followers that never sync, the way of a write of a follower to
- * the remote, the batches in the other tabs, the echoes, the single mode and `close()`.
+ * the remote, the batches in the other tabs, the echoes, the single mode and `close()`. They also
+ * cover the new try after a failed setup (CLI-67) and the status of the leader in each tab (CLI-65).
  */
 
 import { describe, it, expect, vi } from "vitest";
 import { IDBFactory } from "fake-indexeddb";
 import { InMemoryStorage, type CollectionStorage, type StorageChangeBatch } from "@procedures/collections";
-import { ms } from "@procedures/client";
+import { ms, type Clock } from "@procedures/client";
+import { fakeClock } from "@mark1russell7/service/testing";
 import { IndexedDbQueueStore, IndexedDbStorage } from "../indexeddb.js";
-import type { HybridMode } from "./hybrid.js";
-import { MemoryQueueStore } from "./queue.js";
+import { QueueStoreError, type HybridMode } from "./hybrid.js";
+import { MemoryQueueStore, type QueuedOperation, type QueueStore } from "./queue.js";
 import {
   TabCoordinator,
   type TabChannelFactory,
   type TabChannelLike,
   type TabLockManagerLike,
+  type TabRetryOptions,
   type TabRole,
 } from "./tab-coordinator.js";
+import type { SyncStatus } from "./types.js";
 
 type Item = { n: number };
 
@@ -131,12 +135,19 @@ class FakeBrowser {
 /** A tab of the browser: its lock manager and its channel factory. */
 class FakeTab {
   dead = false;
+  /** The number of the lock requests of the tab */
+  requests = 0;
   readonly channels: FakeChannel[] = [];
   readonly locks: TabLockManagerLike;
   readonly channel: TabChannelFactory;
 
   constructor(readonly browser: FakeBrowser) {
-    this.locks = { request: (name, options, callback) => this.browser.request(this, name, options, callback) };
+    this.locks = {
+      request: (name, options, callback) => {
+        this.requests++;
+        return this.browser.request(this, name, options, callback);
+      },
+    };
     this.channel = (name) => {
       const channel = new FakeChannel(name, this);
       this.channels.push(channel);
@@ -177,15 +188,20 @@ class FakeChannel implements TabChannelLike {
   }
 }
 
+/** The methods of a remote that write. */
+const WRITES: ReadonlySet<string> = new Set(["set", "setBatch", "delete", "deleteBatch", "clear"]);
+
 /**
  * The remote in memory. Each tab opens its own view, which records its calls. The close of a view
- * leaves the data open. `writes` has each change of the data, in its order.
+ * leaves the data open. `writes` has each change of the data, in its order. While `down.failure`
+ * has a value, each write rejects with it.
  */
 function remoteOf() {
   const data = new InMemoryStorage<Item>();
   const calls: string[] = [];
   const opened: string[] = [];
   const writes: string[] = [];
+  const down: { failure?: unknown } = {};
   data.observe((batch) => void writes.push(...batch.map((change) => (change.type === "clear" ? "clear" : `${change.type}:${change.id}`))));
   const open = (tab: string): CollectionStorage<Item> => {
     opened.push(tab);
@@ -196,12 +212,41 @@ function remoteOf() {
         if (typeof value !== "function") return value;
         return (...args: unknown[]) => {
           calls.push(`${tab}:${String(property)}`);
+          if (down.failure !== undefined && WRITES.has(String(property))) return Promise.reject(down.failure);
           return (value as (...a: unknown[]) => unknown).apply(target, args);
         };
       },
     });
   };
-  return { data, calls, opened, writes, open };
+  return { data, calls, opened, writes, down, open };
+}
+
+/** A queue store in memory whose loads wait for `open()`. */
+class GatedQueueStore extends MemoryQueueStore {
+  loads = 0;
+  open: () => void = () => undefined;
+  private readonly opened = new Promise<void>((resolve) => (this.open = resolve));
+
+  override async load(): Promise<QueuedOperation[]> {
+    this.loads++;
+    await this.opened;
+    return super.load();
+  }
+}
+
+/** A queue store in memory whose first loads fail. */
+class FlakyQueueStore extends MemoryQueueStore {
+  constructor(private failures: number) {
+    super();
+  }
+
+  override load(): Promise<QueuedOperation[]> {
+    if (this.failures > 0) {
+      this.failures--;
+      return Promise.reject(new Error("The queue store is blocked"));
+    }
+    return super.load();
+  }
 }
 
 type Remote = ReturnType<typeof remoteOf>;
@@ -209,6 +254,12 @@ type Remote = ReturnType<typeof remoteOf>;
 interface TabOptions {
   readonly copy: "shared" | "tab";
   readonly mode?: HybridMode;
+  /** The function `remote` of the tab. The default opens a view of the remote in memory. */
+  readonly remote?: () => CollectionStorage<Item>;
+  /** The default is the shared `IndexedDbQueueStore` of the browser. */
+  readonly queueStore?: QueueStore;
+  readonly clock?: Clock;
+  readonly retry?: TabRetryOptions;
 }
 
 /** A tab of the app: its local copy, its coordinator, the batches of its observer and its errors. */
@@ -220,14 +271,18 @@ function openTab(browser: FakeBrowser, remote: Remote, name: string, options: Ta
     name: NAME,
     local,
     copy: options.copy,
-    remote: () => remote.open(name),
+    remote: options.remote ?? (() => remote.open(name)),
     hybrid: {
       mode: options.mode ?? "write-back",
       syncInterval: ms(0),
-      queueStore: new IndexedDbQueueStore(`${NAME}-queue`, { indexedDB: browser.indexedDB }),
+      queueStore: options.queueStore ?? new IndexedDbQueueStore(`${NAME}-queue`, { indexedDB: browser.indexedDB }),
     },
     locks: tab.locks,
     channel: tab.channel,
+    ...(options.clock && { clock: options.clock }),
+    ...(options.retry && { retry: options.retry }),
+    // No jitter: each wait is the backoff
+    random: () => 0,
     onError: (error) => void errors.push(error),
   });
   const batches: StorageChangeBatch<Item>[] = [];
@@ -481,7 +536,18 @@ describe("TabCoordinator: the writes and the batches (CLI-25)", () => {
     stranger.postMessage({ v: 1, type: "changes", from: "x", seq: 1, changes: [{ type: "set", id: 7 }] });
     stranger.postMessage({ v: 1, type: "hello", from: "x", seq: 1, pending: "none" });
     stranger.postMessage("text");
+    // A type of a later release, and statuses of a wrong shape (CLI-65)
+    stranger.postMessage({ v: 1, type: "future", from: "x", seq: 1 });
+    stranger.postMessage({ v: 1, type: "status", from: "x", seq: 9, status: { connected: "yes", syncing: false, pendingChanges: 0 } });
+    stranger.postMessage({
+      v: 1,
+      type: "status",
+      from: "x",
+      seq: 9,
+      status: { connected: true, syncing: false, pendingChanges: 0, error: { operation: "explode", name: "Error", message: "m" } },
+    });
     await settle();
+    expect(b.coordinator.getStatus()).toEqual(a.coordinator.getStatus());
     expect(a.batches).toEqual([]);
     expect(b.batches).toEqual([]);
     expect(await b.local.size()).toBe(0);
@@ -587,5 +653,355 @@ describe("TabCoordinator: close() and the single mode (CLI-25)", () => {
     expect(() => new TabCoordinator<Item>({ ...base, local: withoutObserve })).toThrow(/observe/);
     expect(() => new TabCoordinator<Item>({ ...base, copy: "both" as never })).toThrow(/Unknown copy/);
     expect(() => new TabCoordinator<Item>({ ...base, remote: undefined as never })).toThrow(/remote/);
+    // The backoff of a new try (CLI-67)
+    expect(() => new TabCoordinator<Item>({ ...base, retry: { delay: ms(0) } })).toThrow(RangeError);
+    expect(() => new TabCoordinator<Item>({ ...base, retry: { factor: 0.5 } })).toThrow(/retry.factor/);
+    expect(() => new TabCoordinator<Item>({ ...base, retry: { jitter: 2 } })).toThrow(/retry.jitter/);
+    expect(() => new TabCoordinator<Item>({ ...base, retry: { delay: 100 as never } })).toThrow(TypeError);
+  });
+});
+
+describe("TabCoordinator: a new try after a failed setup (CLI-67)", () => {
+  it("a tab whose remote fails asks for the lock again after a backoff that grows up to its cap, and then it leads", async () => {
+    const browser = new FakeBrowser();
+    const remote = remoteOf();
+    const clock = fakeClock();
+    const refused = new Error("The remote is not ready");
+    let failures = 3;
+    const a = openTab(browser, remote, "A", { copy: "tab" });
+    const b = openTab(browser, remote, "B", {
+      copy: "tab",
+      clock,
+      retry: { delay: ms(100), maxDelay: ms(250) },
+      remote: () => {
+        if (failures > 0) {
+          failures--;
+          throw refused;
+        }
+        return remote.open("B");
+      },
+    });
+    const roles: TabRole[] = [];
+    b.coordinator.onRole((role) => void roles.push(role));
+    await leaderReady(browser, a, 1);
+    expect(b.tab.requests).toBe(1);
+
+    // The leader closes: B gets the lock, its setup fails, and it releases the lock
+    await a.coordinator.close();
+    await vi.waitFor(() => expect(b.errors).toEqual([refused]));
+    await settle();
+    expect(b.coordinator.role).toBe("follower");
+    expect(b.coordinator.syncStorage).toBeUndefined();
+    expect(browser.holder(b.coordinator.lockName)).toBeUndefined();
+    expect(clock.pending).toBe(1);
+    // A write during the wait stays in the outbox of B
+    await b.local.set("w", { n: 1 });
+
+    // The first wait is 100 ms
+    await clock.advance(99);
+    await settle();
+    expect(b.tab.requests).toBe(1);
+    await clock.advance(1);
+    await vi.waitFor(() => expect(b.errors).toHaveLength(2));
+    expect(b.tab.requests).toBe(2);
+    // The second wait is 200 ms
+    await clock.advance(199);
+    await settle();
+    expect(b.tab.requests).toBe(2);
+    await clock.advance(1);
+    await vi.waitFor(() => expect(b.errors).toHaveLength(3));
+    expect(b.tab.requests).toBe(3);
+    // The third wait is the cap of 250 ms, not 400 ms
+    await clock.advance(249);
+    await settle();
+    expect(b.tab.requests).toBe(3);
+    expect(b.coordinator.role).toBe("follower");
+    await clock.advance(1);
+    await vi.waitFor(() => expect(b.coordinator.role).toBe("leader"));
+
+    expect(b.tab.requests).toBe(4);
+    expect(roles).toEqual(["leader"]);
+    expect(b.errors).toEqual([refused, refused, refused]);
+    expect(clock.pending).toBe(0);
+    // The write of the wait reaches the remote through the new leader
+    await b.coordinator.syncStorage!.flush();
+    expect(await remote.data.get("w")).toEqual({ n: 1 });
+    expect(remote.opened).toEqual(["A", "B"]);
+    await b.coordinator.close();
+  });
+
+  it("a failed load of the queue releases the lock: the tab leads only after a load that succeeds", async () => {
+    const browser = new FakeBrowser();
+    const remote = remoteOf();
+    const clock = fakeClock();
+    const b = openTab(browser, remote, "B", { copy: "tab", clock, queueStore: new FlakyQueueStore(1) });
+    const roles: TabRole[] = [];
+    b.coordinator.onRole((role) => void roles.push(role));
+
+    await vi.waitFor(() => expect(b.errors).toHaveLength(1));
+    expect(b.errors[0]).toBeInstanceOf(QueueStoreError);
+    await settle();
+    // The tab did not lead with a storage that refuses each operation
+    expect(b.coordinator.role).toBe("follower");
+    expect(b.coordinator.syncStorage).toBeUndefined();
+    expect(roles).toEqual([]);
+    expect(browser.sent.some((message) => message.type === "leader")).toBe(false);
+    expect(browser.holder(b.coordinator.lockName)).toBeUndefined();
+    await b.local.set("w", { n: 1 });
+
+    // The default first wait is 1 second
+    await clock.advance(999);
+    await settle();
+    expect(b.tab.requests).toBe(1);
+    await clock.advance(1);
+    await vi.waitFor(() => expect(b.coordinator.role).toBe("leader"));
+    expect(roles).toEqual(["leader"]);
+    await b.coordinator.syncStorage!.flush();
+    expect(await remote.data.get("w")).toEqual({ n: 1 });
+    // The storage that failed opened a remote too
+    expect(remote.opened).toEqual(["B", "B"]);
+    expect(b.errors).toHaveLength(1);
+    await b.coordinator.close();
+  });
+
+  it("a tab that got the lock is a follower until its queue loaded, and a write of that time goes out one time", async () => {
+    const browser = new FakeBrowser();
+    const remote = remoteOf();
+    const queueStore = new GatedQueueStore();
+    const b = openTab(browser, remote, "B", { copy: "tab", queueStore });
+    await vi.waitFor(() => expect(queueStore.loads).toBe(1));
+    expect(browser.holder(b.coordinator.lockName)).toBe(b.tab);
+    expect(b.coordinator.role).toBe("follower");
+    expect(b.coordinator.syncStorage).toBeUndefined();
+
+    // The capture of the storage ignores the local copy during the load: the write goes to the outbox only
+    await b.local.set("w", { n: 1 }, { origin: "ui" });
+    await settle();
+    queueStore.open();
+    await vi.waitFor(() => expect(b.coordinator.role).toBe("leader"));
+    await b.coordinator.syncStorage!.flush();
+    expect(remote.writes).toEqual(["set:w"]);
+    expect(b.batches).toEqual([[{ type: "set", id: "w", value: { n: 1 }, origin: "ui" }]]);
+    expect(browser.sent.filter((message) => message.type === "changes")).toHaveLength(1);
+    expect(b.errors).toEqual([]);
+    await b.coordinator.close();
+  });
+
+  it("close() during the load of the queue releases the lock, and the tab does not lead", async () => {
+    const browser = new FakeBrowser();
+    const remote = remoteOf();
+    const queueStore = new GatedQueueStore();
+    const b = openTab(browser, remote, "B", { copy: "tab", queueStore });
+    await vi.waitFor(() => expect(queueStore.loads).toBe(1));
+    expect(browser.holder(b.coordinator.lockName)).toBe(b.tab);
+
+    // The close of the storage waits for its load
+    const closing = b.coordinator.close();
+    queueStore.open();
+    await closing;
+    await settle();
+    expect(b.coordinator.role).toBe("closed");
+    expect(browser.sent.some((message) => message.type === "leader")).toBe(false);
+    expect(browser.holder(b.coordinator.lockName)).toBeUndefined();
+    expect(b.tab.requests).toBe(1);
+    expect(b.errors).toEqual([]);
+  });
+
+  it("close() during the wait stops the next try", async () => {
+    const browser = new FakeBrowser();
+    const remote = remoteOf();
+    const clock = fakeClock();
+    const refused = new Error("The remote is not ready");
+    const b = openTab(browser, remote, "B", {
+      copy: "tab",
+      clock,
+      remote: () => {
+        throw refused;
+      },
+    });
+    await vi.waitFor(() => expect(b.errors).toEqual([refused]));
+    await settle();
+    expect(clock.pending).toBe(1);
+
+    await b.coordinator.close();
+    expect(clock.pending).toBe(0);
+    await clock.advance(60_000);
+    await settle();
+    expect(b.tab.requests).toBe(1);
+    expect(b.coordinator.role).toBe("closed");
+    expect(browser.holder(b.coordinator.lockName)).toBeUndefined();
+    expect(b.errors).toEqual([refused]);
+  });
+
+  it("in the single mode, a tab whose setup failed tries again after the wait, with its writes of the wait", async () => {
+    const remote = remoteOf();
+    const clock = fakeClock();
+    const local = new InMemoryStorage<Item>();
+    const refused = new Error("The remote is not ready");
+    const errors: unknown[] = [];
+    let failures = 1;
+    const coordinator = new TabCoordinator<Item>({
+      name: NAME,
+      local,
+      copy: "tab",
+      remote: () => {
+        if (failures > 0) {
+          failures--;
+          throw refused;
+        }
+        return remote.open("single");
+      },
+      hybrid: { mode: "write-back", syncInterval: ms(0) },
+      locks: null,
+      clock,
+      // The jitter of 0.5 at its most: the wait is half of the backoff
+      random: () => 1,
+      onError: (error) => void errors.push(error),
+    });
+    expect(coordinator.role).toBe("follower");
+    expect(coordinator.syncStorage).toBeUndefined();
+    expect(errors).toEqual([refused]);
+    await local.set("w", { n: 1 }, { origin: "ui" });
+
+    await clock.advance(499);
+    expect(coordinator.role).toBe("follower");
+    await clock.advance(1);
+    expect(coordinator.role).toBe("single");
+    await coordinator.syncStorage!.flush();
+    expect(await remote.data.get("w")).toEqual({ n: 1 });
+    expect(errors).toEqual([refused]);
+    await coordinator.close();
+  });
+});
+
+describe("TabCoordinator: the status of the sync in each tab (CLI-65)", () => {
+  it("the followers get each status change of the leader one time", async () => {
+    const browser = new FakeBrowser();
+    const remote = remoteOf();
+    const a = openTab(browser, remote, "A", { copy: "tab" });
+    const b = openTab(browser, remote, "B", { copy: "tab" });
+    const c = openTab(browser, remote, "C", { copy: "tab" });
+    await leaderReady(browser, a, 2);
+    // The answers to the hellos gave the status of the leader to each follower
+    expect(a.coordinator.getStatus()).toEqual(a.coordinator.syncStorage!.getStatus());
+    expect(b.coordinator.getStatus()).toEqual(a.coordinator.getStatus());
+    expect(c.coordinator.getStatus()).toEqual(a.coordinator.getStatus());
+
+    const leader: SyncStatus[] = [];
+    const seenB: SyncStatus[] = [];
+    const seenC: SyncStatus[] = [];
+    a.coordinator.onStatus((status) => void leader.push(status));
+    b.coordinator.onStatus((status) => void seenB.push(status));
+    c.coordinator.onStatus((status) => void seenC.push(status));
+
+    // A write of a follower goes in the queue of the leader, and the push empties the queue
+    await c.local.set("x", { n: 1 });
+    await vi.waitFor(() => expect(b.coordinator.getStatus()?.pendingChanges).toBe(1));
+    await a.coordinator.syncStorage!.flush();
+    await vi.waitFor(() => expect(b.coordinator.getStatus()?.pendingChanges).toBe(0));
+    await settle();
+
+    expect(leader.map((status) => status.pendingChanges)).toContain(1);
+    expect(leader.at(-1)).toMatchObject({ pendingChanges: 0, syncing: false, connected: true });
+    // Each status of the leader one time, in its order
+    expect(seenB).toEqual(leader);
+    expect(seenC).toEqual(leader);
+    expect(b.coordinator.getStatus()).toEqual(a.coordinator.getStatus());
+    expect([...a.errors, ...b.errors, ...c.errors]).toEqual([]);
+    await Promise.all([a.coordinator.close(), b.coordinator.close(), c.coordinator.close()]);
+    expect(a.coordinator.getStatus()).toBeUndefined();
+    expect(b.coordinator.getStatus()).toBeUndefined();
+    expect(() => b.coordinator.onStatus(() => undefined)).toThrow(/closed/);
+  });
+
+  it("a new tab gets the current status in the answer to its hello, and the other followers do not get it again", async () => {
+    const browser = new FakeBrowser();
+    const remote = remoteOf();
+    const a = openTab(browser, remote, "A", { copy: "tab" });
+    const b = openTab(browser, remote, "B", { copy: "tab" });
+    await leaderReady(browser, a, 1);
+    // A write in the leader tab waits in the queue of the write-back mode
+    await a.local.set("x", { n: 1 });
+    await vi.waitFor(() => expect(b.coordinator.getStatus()?.pendingChanges).toBe(1));
+    await settle();
+    const seenB: SyncStatus[] = [];
+    b.coordinator.onStatus((status) => void seenB.push(status));
+    const statuses = browser.sent.filter((message) => message.type === "status").length;
+
+    const d = openTab(browser, remote, "D", { copy: "tab" });
+    expect(d.coordinator.getStatus()).toBeUndefined();
+    await vi.waitFor(() => expect(d.coordinator.getStatus()).toEqual(a.coordinator.getStatus()));
+    await settle();
+    expect(d.coordinator.getStatus()).toMatchObject({ pendingChanges: 1, mode: "write-back" });
+    // One answer to the hello of D, with the number of the last status: B ignores it
+    expect(browser.sent.filter((message) => message.type === "status")).toHaveLength(statuses + 1);
+    expect(seenB).toEqual([]);
+    expect([...a.errors, ...b.errors, ...d.errors]).toEqual([]);
+  });
+
+  it("the status follows a failover: the new leader gives the status of its own storage, and the followers get it", async () => {
+    const browser = new FakeBrowser();
+    const remote = remoteOf();
+    const a = openTab(browser, remote, "A", { copy: "tab" });
+    const b = openTab(browser, remote, "B", { copy: "tab" });
+    const c = openTab(browser, remote, "C", { copy: "tab" });
+    await leaderReady(browser, a, 2);
+    const seenB: SyncStatus[] = [];
+    const seenC: SyncStatus[] = [];
+    b.coordinator.onStatus((status) => void seenB.push(status));
+    c.coordinator.onStatus((status) => void seenC.push(status));
+
+    await a.coordinator.close();
+    await leaderReady(browser, b, 1);
+    // B gives the status of its own storage. C got each status of B one time.
+    expect(seenB.length).toBeGreaterThan(0);
+    expect(b.coordinator.getStatus()).toEqual(b.coordinator.syncStorage!.getStatus());
+    await vi.waitFor(() => expect(c.coordinator.getStatus()).toEqual(b.coordinator.getStatus()));
+    expect(seenC).toEqual(seenB);
+    const fromB = browser.sent.filter((message) => message.type === "status" && message.from === b.coordinator.id);
+    expect(fromB.length).toBeGreaterThan(0);
+
+    // A write of C reaches the queue of B, and the status of C shows it
+    await c.local.set("y", { n: 2 });
+    await vi.waitFor(() => expect(c.coordinator.getStatus()?.pendingChanges).toBe(1));
+    expect(b.coordinator.getStatus()?.pendingChanges).toBe(1);
+    expect([...a.errors, ...b.errors, ...c.errors]).toEqual([]);
+    await b.coordinator.close();
+    await c.coordinator.close();
+  });
+
+  it("an error of the leader reaches the followers as an Error with its name, message and code, also when it does not clone", async () => {
+    const browser = new FakeBrowser();
+    const remote = remoteOf();
+    const a = openTab(browser, remote, "A", { copy: "tab" });
+    const b = openTab(browser, remote, "B", { copy: "tab" });
+    await leaderReady(browser, a, 1);
+    // A function does not clone: postMessage refuses this value
+    const failure = { name: "NetworkError", message: "The server is down", code: 503, retry: () => undefined };
+    expect(() => structuredClone(failure)).toThrow();
+    remote.down.failure = failure;
+
+    await b.local.set("x", { n: 1 });
+    await vi.waitFor(() => expect(a.coordinator.getStatus()?.pendingChanges).toBe(1));
+    await expect(a.coordinator.syncStorage!.flush()).rejects.toBe(failure);
+    await vi.waitFor(() => expect(b.coordinator.getStatus()?.error).toBeDefined());
+
+    // The leader keeps its own error. The follower gets a copy.
+    expect(a.coordinator.getStatus()!.error).toEqual({ operation: "push", error: failure });
+    const status = b.coordinator.getStatus()!;
+    expect(status).toMatchObject({ connected: false, pendingChanges: 1, syncing: false });
+    expect(status.error!.operation).toBe("push");
+    expect(status.error!.error).toBeInstanceOf(Error);
+    expect(status.error!.error).toMatchObject({ name: "NetworkError", message: "The server is down", code: 503 });
+    // No clone error went to onError
+    expect([...a.errors, ...b.errors]).toEqual([]);
+
+    // The next push succeeds: the error goes from the status of the follower too
+    delete remote.down.failure;
+    await a.coordinator.syncStorage!.flush();
+    await vi.waitFor(() => expect(b.coordinator.getStatus()?.error).toBeUndefined());
+    expect(b.coordinator.getStatus()).toMatchObject({ connected: true, pendingChanges: 0 });
+    await a.coordinator.close();
+    await b.coordinator.close();
   });
 });
