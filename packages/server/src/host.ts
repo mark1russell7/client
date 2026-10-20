@@ -12,6 +12,8 @@
  * - No check gates readiness or liveness, so the host is ready from the end of its startup.
  * - The lockfile is a dependency: its connect writes it before the listeners start, and its close
  *   removes it after the listeners close.
+ * - The option `declare` gives the builder of the service to the app before `run()`. The app
+ *   declares its own parts and dependencies with the vocabulary of the runner (CLI-62).
  */
 
 import { daemon, localDev, service, type Lifecycle, type Profile, type RunOptions, type ServiceBuilder } from "@mark1russell7/service";
@@ -40,6 +42,22 @@ export interface ProcedureHostRunConfig {
   readonly log?: ((line: string) => void) | undefined;
   /** The options of `run()`: a process port and a clock, for a test. The host gets the same clock. */
   readonly run?: RunOptions | undefined;
+  /**
+   * This function declares the parts of the app on the service of the process, before `run()`
+   * (CLI-62). It gets the builder of the service and the host.
+   *
+   * - The app uses the methods of the builder: `svc.server()`, `svc.worker()` and `svc.consumer()`
+   *   for a transport, `svc.dependency()` with its handle, `svc.check()` and `svc.onPhase()`.
+   * - `describe()` shows each part. The runner starts each part with the host, and stops it in
+   *   its stage of the shutdown.
+   * - The parts of the app come after the parts of the host. Thus the server of the host starts
+   *   before a transport of the app, and a listener of the app can mount `host.handler`.
+   * - The lockfile comes after the dependencies of the app: it connects last and closes first.
+   * - A dependency of the app can gate the calls with the option `controller.requires` of the host.
+   *
+   * The return value has no effect.
+   */
+  readonly declare?: ((svc: ServiceBuilder, host: ProcedureHost) => void) | undefined;
 }
 
 /** A host that runs under `run()`: the host, the service of the process and its lifecycle. */
@@ -67,7 +85,10 @@ export async function runProcedureHost(config: ProcedureHostRunConfig): Promise<
   // A repeat signal: an exit at once in the foreground, no effect in the background (D6)
   svc.onRepeatSignal(profile.onRepeatSignal ?? (config.mode === "foreground" ? "exit" : "ignore"));
   host.declare(svc);
-  // The lockfile: after the storages it connects, and before them it closes
+  // The parts of the app (CLI-62): after the parts of the host, so the server of the host has the
+  // lifecycle before a transport of the app takes a call
+  config.declare?.(svc, host);
+  // The lockfile: after the storages and the dependencies of the app it connects, and before them it closes
   if (config.lockfile) svc.dependency("lockfile", { system: null, knobs: {}, operations: {} }, lockfileHandle(config.lockfile));
   const log = config.log;
   if (log && profile.phases?.some((phase) => phase.name === "stop intake")) svc.onPhase("stop intake", () => log("\nShutting down..."));
