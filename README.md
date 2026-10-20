@@ -111,6 +111,8 @@ Until October 2026, these packages had the scope `@mark1russell7` (for example `
 
 `pnpm build` builds the packages in the sequence of their dependencies. Each package writes its output to its `dist/` folder. Git ignores `dist/`. [ONBOARDING.md](packages/documentation/ONBOARDING.md) tells more.
 
+The fault cells of the harness of `systems` run in the workflow `harness.yml` on the WebSocket client and server of each commit. [harness/procedures-subject](harness/procedures-subject/README.md) tells more.
+
 ## Release
 
 [RELEASE.md](packages/documentation/RELEASE.md) tells how the packages go to npm. `node scripts/check-packages.mjs` examines each package as npm gives it.

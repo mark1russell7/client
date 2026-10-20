@@ -3,6 +3,7 @@
   "include": [
     "README.md",
     "CLAUDE.md",
+    "harness/procedures-subject/README.md",
     "packages/documentation/*.md",
     "packages/client/docs/CAPABILITIES.md",
     "packages/bundle-dev/README.md",
