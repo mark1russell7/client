@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/restic",
-  "version": "0.17.1",
+  "version": "0.17.2",
   "description": "The restic backup program as one procedure: backup, snapshots, restore and forget, with JSON output and no secret as input.",
   "keywords": [
     "restic",
