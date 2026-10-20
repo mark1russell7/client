@@ -1,5 +1,101 @@
 # @procedures/bundle-assistant
 
+## 0.18.0
+
+### Patch Changes
+
+- Updated dependencies [5e68b6a]
+  - @procedures/client@0.18.0
+  - @procedures/exif@0.18.0
+  - @procedures/geo@0.18.0
+  - @procedures/ics@0.18.0
+  - @procedures/mail@0.18.0
+  - @procedures/weather@0.18.0
+
+## 0.17.4
+
+### Patch Changes
+
+- @procedures/client@0.17.4
+  - @procedures/exif@0.17.4
+  - @procedures/geo@0.17.4
+  - @procedures/ics@0.17.4
+  - @procedures/mail@0.17.4
+  - @procedures/weather@0.17.4
+
+## 0.17.3
+
+### Patch Changes
+
+- @procedures/client@0.17.3
+  - @procedures/exif@0.17.3
+  - @procedures/geo@0.17.3
+  - @procedures/ics@0.17.3
+  - @procedures/mail@0.17.3
+  - @procedures/weather@0.17.3
+
+## 0.17.2
+
+### Patch Changes
+
+- Updated dependencies [8b7e20c]
+  - @procedures/client@0.17.2
+  - @procedures/exif@0.17.2
+  - @procedures/geo@0.17.2
+  - @procedures/ics@0.17.2
+  - @procedures/mail@0.17.2
+  - @procedures/weather@0.17.2
+
+## 0.17.1
+
+### Patch Changes
+
+- Updated dependencies [1ceb990]
+  - @procedures/client@0.17.1
+  - @procedures/exif@0.17.1
+  - @procedures/geo@0.17.1
+  - @procedures/ics@0.17.1
+  - @procedures/mail@0.17.1
+  - @procedures/weather@0.17.1
+
+## 0.17.0
+
+### Patch Changes
+
+- @procedures/client@0.17.0
+  - @procedures/exif@0.17.0
+  - @procedures/geo@0.17.0
+  - @procedures/ics@0.17.0
+  - @procedures/mail@0.17.0
+  - @procedures/weather@0.17.0
+
+## 0.16.0
+
+### Patch Changes
+
+- Updated dependencies [deada4b]
+  - @procedures/client@0.16.0
+  - @procedures/exif@0.16.0
+  - @procedures/geo@0.16.0
+  - @procedures/ics@0.16.0
+  - @procedures/mail@0.16.0
+  - @procedures/weather@0.16.0
+
+## 0.15.1
+
+### Patch Changes
+
+- Updated dependencies [c78da2d]
+- Updated dependencies [d99b2d5]
+- Updated dependencies [534e4ea]
+- Updated dependencies [44fdd60]
+  - @procedures/client@0.15.1
+  - @procedures/exif@0.15.1
+  - @procedures/geo@0.15.1
+  - @procedures/ics@0.15.1
+  - @procedures/mail@0.15.1
+  - @procedures/weather@0.15.1
+
 ## 0.15.0
 
 ### Patch Changes

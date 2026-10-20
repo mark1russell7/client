@@ -349,4 +349,28 @@ describe("CORS with a list of origins", () => {
     const other = await fetch(`${url}/t/echo`, { method: "OPTIONS", headers: { Origin: "https://evil.example" } });
     expect(other.headers.get("access-control-allow-origin")).toBeNull();
   }, 10_000);
+
+  it("sends no Access-Control header to an origin that it does not permit, and Vary: Origin on each response (CLI-59)", async () => {
+    const { url } = await startHttp({ origin: ["https://a.example"] });
+    const accessControl = (headers: Headers): string[] => [...headers.keys()].filter((name) => name.startsWith("access-control-"));
+    const preflight = await fetch(`${url}/t/echo`, { method: "OPTIONS", headers: { Origin: "https://evil.example", "Access-Control-Request-Method": "POST" } });
+    expect(preflight.status).toBe(204);
+    expect(accessControl(preflight.headers)).toEqual([]);
+    expect(preflight.headers.get("vary")).toContain("Origin");
+    const call = await fetch(`${url}/t/echo`, { method: "POST", headers: { Origin: "https://evil.example", "Content-Type": "application/json" }, body: "{}" });
+    expect(call.status).toBe(403);
+    expect(accessControl(call.headers)).toEqual([]);
+    // A request without an origin gets no CORS header either, and the same Vary
+    const plain = await fetch(`${url}/t/echo`, { method: "OPTIONS" });
+    expect(accessControl(plain.headers)).toEqual([]);
+    expect(plain.headers.get("vary")).toContain("Origin");
+    // The permitted origin keeps the headers, with the credentials of the shim by default
+    const allowed = await fetch(`${url}/t/echo`, { method: "OPTIONS", headers: { Origin: "https://a.example", "Access-Control-Request-Method": "POST" } });
+    expect(accessControl(allowed.headers).sort()).toEqual([
+      "access-control-allow-credentials",
+      "access-control-allow-headers",
+      "access-control-allow-methods",
+      "access-control-allow-origin",
+    ]);
+  }, 10_000);
 });

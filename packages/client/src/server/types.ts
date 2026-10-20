@@ -282,12 +282,13 @@ export class HandlerNotFoundError extends Error {
 }
 
 /**
- * Server error with status code.
+ * A server error with an error code. The default code is `INTERNAL_ERROR` of wire v1 (CLI-4:
+ * before, the default was the string `"500"`).
  */
 export class ServerError extends Error {
   constructor(
     message: string,
-    public readonly code: string = "500",
+    public readonly code: string = "INTERNAL_ERROR",
     public readonly retryable: boolean = false
   ) {
     super(message);

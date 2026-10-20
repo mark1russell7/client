@@ -131,6 +131,8 @@ const MAX_STREAM_BLOCKS = 100;
 /**
  * The `_meta` of the error of a stream: its code and its retryable flag, as the error line of
  * NDJSON and the error frame of WebSocket give them (CLI-48). A code that is not a string gives `HANDLER_ERROR`.
+ * An error without a flag gets false, not the flag of its code: the end is in-band, and a retry can
+ * send the items again (CLI-58, `WIRE-PROTOCOL.md`, section "Error codes").
  */
 function streamErrorMeta(error: unknown): { code: string; retryable: boolean } {
   const { code, retryable } = (error ?? {}) as { code?: unknown; retryable?: unknown };
@@ -762,8 +764,9 @@ export class McpServerTransport implements ServerTransport {
       // Connect MCP server to transport
       if (transport) await this.mcpServer.connect(transport);
       if (this.http) {
-        this.httpUrl = await this.http.listen();
-        this.log(`Using Streamable HTTP at ${this.httpUrl}`);
+        // The endpoint has no listener (CLI-11): the owner of a listener mounts handleHttp
+        this.httpUrl = this.http.path;
+        this.log(`Using Streamable HTTP at the path ${this.httpUrl}`);
       }
     } catch (error) {
       this.removeRegistryListeners();
@@ -809,7 +812,7 @@ export class McpServerTransport implements ServerTransport {
 
   /**
    * This method answers a request of the Streamable HTTP endpoint on a listener that another part
-   * owns (`httpOptions.mount`, CLI-7). It gives false for another path, and before `start()`.
+   * owns (CLI-7, CLI-11). It gives false for another path, and before `start()`.
    */
   handleHttp(req: IncomingMessage, res: ServerResponse): boolean {
     return this.http?.handle(req, res) ?? false;

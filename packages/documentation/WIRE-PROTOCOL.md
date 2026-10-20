@@ -158,6 +158,7 @@ Each line ends with LF. A frame line is one JSON object.
 
 - The `seq` of the `item` and `done` lines follows the rules of the stream frames (refer to "The sequence numbers of a stream").
 - The `done` line or the `error` line is the last line. A stream that ends without one of them is a broken stream.
+- The flag `retryable` of the `error` line follows the rule of an in-band end (refer to "Error codes"). An error of a handler without a flag gets false on this line (CLI-58).
 - `writeNdjsonStream` of `@procedures/client/node` writes these lines for a `ServerResponse` of `node:http`.
 - `procedureHandler` of `@procedures/client/node` serves the HTTP wire of this document on a `node:http` server, without a framework. It writes its streams with `writeNdjsonStream`.
 - `HttpServerTransport` is an Express shim over `procedureHandler`, so the two faces write the same bytes.
@@ -275,6 +276,13 @@ An error of a handler with a code of its own keeps that code on each face, for a
 - Each other code gets the status 500.
 - An error with `retryable: false` does not get 503, because a 503 invites a retry at the HTTP level. It gets 500 with no `Retry-After` from the error, for example `UNAVAILABLE` with `retryable: false` (CLI-48).
 - An error of a handler without a retryable flag gets the flag of its code in this table, or false. Thus `UNAVAILABLE` without a flag is retryable and gets 503.
+- This default applies only before the stream starts: the handler throws before it gives its value or its stream (CLI-58).
+- After the stream starts, the HTTP status is 200, and an error ends the stream in-band. Refer to "The lines of an NDJSON stream".
+- The in-band end is the `error` line of NDJSON, the `error` frame of WebSocket, or the `_meta` of the MCP result.
+- An in-band end without a retryable flag gets false, also when the stream gave no item. The reader can have items, and a retry can send them again.
+- A handler gives `retryable: true` when a retry is safe. Then the in-band end is retryable too.
+- The retry middleware of the client does not retry after an item reached the reader. Thus after the first item, the flag only tells the application.
+- This rule agrees with the rule of a cut (CLI-48): the flag is false when the call can have had its effect.
 
 | Code | HTTP | Retryable | Meaning |
 |---|---|---|---|
@@ -331,12 +339,30 @@ A `FORBIDDEN` error tells its reason in the metadata key `reason`. The HTTP body
 | `topic-not-allowed` | The publisher of the events | The publisher refuses the topic. |
 | `partition-not-allowed` | The collection procedures | The partition resolver of the collection refuses the partition of the call (CLI-17). |
 | `write-not-allowed` | The collection procedures | The guard of the collection (`admission.guard`) refuses a write. The storage does not change (CLI-41). |
-| `origin-not-allowed` | The browser checks of `procedureHandler` | The `Origin` of the request is not the origin of the server or a permitted origin. A cross-site request without a permitted origin gets it too. |
-| `host-header-not-allowed` | The browser checks of `procedureHandler` | A request on a loopback address names a `Host` that is not permitted (DNS rebinding). |
-| `method-not-allowed` | The browser checks of `procedureHandler` | The HTTP method is `GET` or `HEAD`, and the option `allowGet` is off. |
-| `media-type-not-allowed` | The browser checks of `procedureHandler` | The request body is not JSON. |
+| `origin-not-allowed` | The browser checks | The `Origin` of the request is not the origin of the server or a permitted origin. A cross-site request without a permitted origin gets it too. |
+| `host-header-not-allowed` | The browser checks | A request on a loopback address names a `Host` that is not permitted (DNS rebinding). |
+| `method-not-allowed` | The browser checks of HTTP | The HTTP method is `GET` or `HEAD`, and the option `allowGet` is off. |
+| `media-type-not-allowed` | The browser checks of HTTP | The request body is not JSON. |
 
-A deadline that passed before the procedure started gives the code `TIMEOUT`, not `FORBIDDEN`. `HttpServerTransport` keeps its former codes for the four browser checks: `FORBIDDEN_ORIGIN`, `FORBIDDEN_HOST`, `METHOD_NOT_ALLOWED` and `UNSUPPORTED_MEDIA_TYPE`, with the status 403, 405 or 415.
+A deadline that passed before the procedure started gives the code `TIMEOUT`, not `FORBIDDEN`.
+
+The browser checks are `checkBrowserRequest` of `packages/client/src/server/browser-guard.ts`. `procedureHandler`, `HttpServerTransport`, the WebSocket faces and the MCP endpoint use them. Each refusal has the code `FORBIDDEN` and the status 403. The HTTP faces also send the reason. The MCP endpoint does not send the reason at this time. A WebSocket upgrade gets only the status 403.
+
+### The codes before wire v1
+
+Before CLI-4, some faces gave codes outside the table. Since CLI-4, each face gives the code of the table:
+
+| Former code | Former status | Code of wire v1 | Reason |
+|---|---|---|---|
+| `SERVER_STOPPED` | 503 | `UNAVAILABLE` | — |
+| `FORBIDDEN_HOST` | 403 | `FORBIDDEN` | `host-header-not-allowed` |
+| `FORBIDDEN_ORIGIN` | 403 | `FORBIDDEN` | `origin-not-allowed` |
+| `METHOD_NOT_ALLOWED` | 405 | `FORBIDDEN` (403) | `method-not-allowed` |
+| `UNSUPPORTED_MEDIA_TYPE` | 415 | `FORBIDDEN` (403) | `media-type-not-allowed` |
+| `"500"` of `Server` and `ServerError` | 500 | `INTERNAL_ERROR` | — |
+
+- For one release, the client reads `SERVER_STOPPED`, `FORBIDDEN_HOST`, `FORBIDDEN_ORIGIN` and `"500"` of an older server as the code of wire v1. It also sets the reason.
+- The client keeps `METHOD_NOT_ALLOWED` and `UNSUPPORTED_MEDIA_TYPE`. They are also the codes of the HTTP statuses 405 and 415 of each server.
 
 ### The limits of the calls
 
@@ -354,7 +380,7 @@ A circuit breaker does not count `RATE_LIMITED`, because the server is not unhea
 
 ## MCP
 
-The MCP face follows the MCP specification. An error result has `isError: true`, a text block with the message and the reason, and `_meta` with `code`, `retryable` and `reason`. An error with a wait also has `retryAfterMs` in `_meta` (CLI-40). The error of a stream also has `_meta` with `code` and `retryable` (CLI-48).
+The MCP face follows the MCP specification. An error result has `isError: true`, a text block with the message and the reason, and `_meta` with `code`, `retryable` and `reason`. An error with a wait also has `retryAfterMs` in `_meta` (CLI-40). The error of a stream also has `_meta` with `code` and `retryable` (CLI-48). Its flag follows the rule of an in-band end (refer to "Error codes", CLI-58).
 
 - The name of a tool is the path with dots, for example `notes.list`, or the name of the option `toolName`. A path of one segment has its segment as its name, for example `morning`.
 - Each tool name names one procedure. Two procedures can have one name after the join, for example `["a_b", "c"]` and `["a", "b_c"]` with `path.join("_")`. Then the face leaves out the two tools and writes the reason to stderr. Thus a call does not reach the wrong procedure.

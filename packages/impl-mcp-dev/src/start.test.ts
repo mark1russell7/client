@@ -1,15 +1,14 @@
 /**
  * The dev-tools server in the process of the test. `runDevToolsServer()` runs it under `run()` of
  * the service (CLI-11), with a fake process of the service: the listener of the service answers
- * for the Streamable HTTP face, and a signal stops the server in stages. `startDevToolsServer()`
- * (deprecated) starts the host of `createMcpHost()` with a listener of the face (CLI-10). Each
- * face answers `initialize` with the server info of the configuration.
+ * for the Streamable HTTP face, and a signal stops the server in stages. The face answers
+ * `initialize` with the server info of the configuration.
  */
 
 import { describe, it, expect } from "vitest";
 import { fakeProcess } from "@mark1russell7/service/testing";
 import type { McpServerConfig } from "./config.js";
-import { runDevToolsServer, startDevToolsServer } from "./host.js";
+import { runDevToolsServer } from "./host.js";
 
 /** The body of an `initialize` request. */
 const INITIALIZE = JSON.stringify({
@@ -49,27 +48,5 @@ describe("runDevToolsServer", () => {
     await host.mcp.closed;
     expect(host.mcp.state().running).toBe(false);
     expect(proc.exits).toHaveLength(1);
-  }, 60_000);
-});
-
-describe("startDevToolsServer", () => {
-  it("starts the face of the configuration, and stops one time", async () => {
-    const host = await startDevToolsServer(config);
-    try {
-      const face = host.mcp.state().faces[0];
-      expect(face).toMatchObject({ transport: "http", running: true });
-      expect(face?.toolCount).toBeGreaterThan(50);
-      const response = await fetch(face!.url!, {
-        method: "POST",
-        headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
-        body: INITIALIZE,
-      });
-      expect(response.status).toBe(200);
-      expect(await response.text()).toContain('"name":"start-test"');
-    } finally {
-      await host.mcp.stop();
-    }
-    await host.mcp.closed;
-    expect(host.mcp.state().running).toBe(false);
   }, 60_000);
 });

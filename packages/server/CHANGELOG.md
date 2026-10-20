@@ -1,5 +1,98 @@
 # @procedures/server
 
+## 0.18.0
+
+### Patch Changes
+
+- Updated dependencies [5e68b6a]
+  - @procedures/client@0.18.0
+  - @procedures/peer@0.18.0
+
+## 0.17.4
+
+### Patch Changes
+
+- 8281370: The probes use the option `kinds` of `@mark1russell7/service` 0.5.8 (SYS-30).
+  
+  - Each listener of `createProcedureHost()` asks `probeHandler()` for the kinds `startup`, `readiness` and `liveness`. The host has no filter of its own for `/_probes/report`. The answers do not change: the report path goes on to the next handler, as before.
+  - The probe port of `runProcedureHost()` takes the new option `probes.kinds`. The default is all four kinds, as in 0.17.3. Leave out `report` on a port that is not private.
+  - The packages of the group use `@mark1russell7/service` `^0.5.8`, so a host has one copy of the service.
+- Updated dependencies [8281370]
+  - @procedures/peer@0.17.4
+  - @procedures/client@0.17.4
+
+## 0.17.3
+
+### Patch Changes
+
+- 636f098: New: the procedures host answers the health probes of its service (CLI-9, decision D5). The probes come from `probeHandler()` and `probeServer()` of `@mark1russell7/service/http`. This change is additive, thus it is a PATCH of the client group (decision D13).
+  
+  - Each listener of `createProcedureHost()` answers `GET /_probes/startup`, `/_probes/readiness` and `/_probes/liveness` from the health of the service. The answer is 200, or 503 with `Retry-After` during the startup and the shutdown. `/_probes/readiness/<controller>` gives the readiness of one controller.
+  - The probes need no token and pass no browser check. They give only the status. They mount before the faces, thus a probe path never reaches a procedure. Each other path goes to the faces with the token and the browser checks, as before.
+  - A listener does not answer the report of the service (`/_probes/report`), because it names the checks and the dependencies. The procedure `host.health` gives the details with the token.
+  - The probes of a listener stop when the intake stops. Thus the listener still closes at the stop of the intake, and a new connection is refused, as before. `probes: { until: "close transports" }` keeps the listener open through the drain: the probes answer 503, and each other request gets 503 with `Retry-After`.
+  - The new option `probes` of `createProcedureHost()`: `{ prefix, until }` changes the prefix and the last stage, and `false` turns the probes off. `HOST_PROBE_PREFIX` is `/_probes`. `host.info.probes()` gives the base URL of the probes on each listener.
+  - The new option `probes` of `runProcedureHost()`: `{ port, host, prefix, retryAfter }` declares a probe server on a port of its own (`svc.healthServer(probeServer(...))`). It starts first and closes last, thus its probes answer through the whole drain. It also answers `/report`. The listeners of the host then answer no probes, unless the host options give `probes`. `probes()` of the result gives the base URL of each place that answers the probes.
+  - The new flag `--probe-port <port>` of `procedure-server`, `mark serve` and `mark --server` gives the probe server, on the address of `--host`. `mark` refuses it without `--server` before a command, as it refuses `--port`. The startup prints the URL of the probes.
+  
+  Deprecated: at the timeout of 15 s, `server.start` gives `success: true` with the message "still loading" while the process still starts. From the next MINOR of the client group, a start that is not ready at the timeout gives `success: false`, with the PID of the process that still starts. Read the readiness probe or `mark server status` for the state.
+  
+  The site, MiniMongo, Graph and jarvis: no change. A host with a listener now also answers the paths under `/_probes`. Before, these paths got 404.
+- Updated dependencies [636f098]
+  - @procedures/peer@0.17.3
+  - @procedures/client@0.17.3
+
+## 0.17.2
+
+### Patch Changes
+
+- Updated dependencies [8b7e20c]
+  - @procedures/client@0.17.2
+  - @procedures/peer@0.17.2
+
+## 0.17.1
+
+### Patch Changes
+
+- b805a48: New: the option `declare` of `runProcedureHost()` adds the parts and the dependencies of an app to the service of the process (CLI-62). Before, an app had no hook to declare its own parts. MiniMongo gave its Vite dev server to the host as a face with stop parts only, and its Mongo connection had no part.
+  
+  - `declare(svc, host)` gets the builder of the service and the host before `run()`. The app uses the methods of the builder: `svc.server()`, `svc.dependency()` with its handle, `svc.check()` and `svc.onPhase()`.
+  - `describe()` shows each part of the app. The runner starts each part with the host, and stops it in its stage of the shutdown.
+  - The parts of the app come after the parts of the host. Thus the server of the host starts before a transport of the app, and a listener of the app can mount `host.handler`.
+  - The lockfile comes after the dependencies of the app. It connects last, and it closes first.
+  - A dependency of the app can gate the calls with the option `controller.requires` of the host.
+  
+  PATCH: a new optional option. Without it, the service has only the parts of the host, as before.
+- Updated dependencies [1ceb990]
+  - @procedures/client@0.17.1
+  - @procedures/peer@0.17.1
+
+## 0.17.0
+
+### Patch Changes
+
+- @procedures/peer@0.17.0
+  - @procedures/client@0.17.0
+
+## 0.16.0
+
+### Patch Changes
+
+- Updated dependencies [deada4b]
+  - @procedures/client@0.16.0
+  - @procedures/peer@0.16.0
+
+## 0.15.1
+
+### Patch Changes
+
+- Updated dependencies [c78da2d]
+- Updated dependencies [d99b2d5]
+- Updated dependencies [534e4ea]
+- Updated dependencies [44fdd60]
+  - @procedures/client@0.15.1
+  - @procedures/peer@0.15.1
+
 ## 0.15.0
 
 ### Patch Changes

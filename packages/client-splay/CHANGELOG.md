@@ -1,5 +1,68 @@
 # @procedures/splay
 
+## 0.18.0
+
+### Patch Changes
+
+- Updated dependencies [5e68b6a]
+  - @procedures/client@0.18.0
+
+## 0.17.4
+
+### Patch Changes
+
+- @procedures/client@0.17.4
+
+## 0.17.3
+
+### Patch Changes
+
+- @procedures/client@0.17.3
+
+## 0.17.2
+
+### Patch Changes
+
+- Updated dependencies [8b7e20c]
+  - @procedures/client@0.17.2
+
+## 0.17.1
+
+### Patch Changes
+
+- bb14898: Fixed: `splay.bridge.info` reads its version without a Node built-in (CLI-52). Before, the procedure read its `package.json` with a lazy `import("node:fs/promises")`. Thus a browser bundler could not bundle `@procedures/splay`, and its entries were not in the browser check of CLI-39.
+  
+  - `src/module.ts` imports its `package.json` with `with { type: "json" }`. TypeScript, Node, esbuild and Vite support this import.
+  - The procedure gives the same name and the same version as before.
+  - The entries `.`, `./module` and `./register` are in `client.browser` of the `package.json`. Thus `scripts/check-browser-entries.mjs` examines them.
+  
+  PATCH: a fix with no change to the public API.
+- Updated dependencies [1ceb990]
+  - @procedures/client@0.17.1
+
+## 0.17.0
+
+### Patch Changes
+
+- @procedures/client@0.17.0
+
+## 0.16.0
+
+### Patch Changes
+
+- Updated dependencies [deada4b]
+  - @procedures/client@0.16.0
+
+## 0.15.1
+
+### Patch Changes
+
+- Updated dependencies [c78da2d]
+- Updated dependencies [d99b2d5]
+- Updated dependencies [534e4ea]
+- Updated dependencies [44fdd60]
+  - @procedures/client@0.15.1
+
 ## 0.15.0
 
 ### Patch Changes

@@ -91,7 +91,7 @@ export interface EventPublisherOptions {
    * collection that the publisher listens to: the collection of `collectionTopicTarget(topic,
    * repository)` with the repository of the host. A function that reads the first part of the
    * topic alone checks `collection:a` for the dotted collection `a.b`.
-   * @default the read of the collection of `collectionTopicTarget()`, with the repository of the call
+   * @default `collectionTopicReads(topic, repository)`: the read of the collection of `collectionTopicTarget()`, with the repository of the call
    */
   reads?: ((topic: string) => readonly string[]) | undefined;
   /**
@@ -459,14 +459,13 @@ export class EventPublisher {
   }
 
   /**
-   * The resources that a subscriber of a topic reads. The default reads the collection of the
-   * topic with the rule of the listener (`collectionTopicTarget`), so the read check and the
-   * listener name the same collection.
+   * The resources that a subscriber of a topic reads. The default (`collectionTopicReads`) reads
+   * the collection of the topic with the rule of the listener (`collectionTopicTarget`) and the
+   * repository of the call, so the read check and the listener name the same collection.
    */
   private readsOf(topic: string, ctx: ProcedureContext): readonly string[] {
     if (!this.defaultReads) return this.reads(topic);
-    const target = collectionTopicTarget(topic, ctx.repository);
-    return target ? [`collection:${target.collection}`] : [];
+    return collectionTopicReads(topic, ctx.repository);
   }
 
   /**

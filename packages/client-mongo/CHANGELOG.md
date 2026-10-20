@@ -1,5 +1,72 @@
 # @procedures/mongo
 
+## 0.18.0
+
+### Patch Changes
+
+- Updated dependencies [5e68b6a]
+  - @procedures/client@0.18.0
+  - @procedures/collections@0.18.0
+
+## 0.17.4
+
+### Patch Changes
+
+- @procedures/client@0.17.4
+  - @procedures/collections@0.17.4
+
+## 0.17.3
+
+### Patch Changes
+
+- @procedures/client@0.17.3
+  - @procedures/collections@0.17.3
+
+## 0.17.2
+
+### Patch Changes
+
+- Updated dependencies [8b7e20c]
+  - @procedures/client@0.17.2
+  - @procedures/collections@0.17.2
+
+## 0.17.1
+
+### Patch Changes
+
+- Updated dependencies [1ceb990]
+  - @procedures/client@0.17.1
+  - @procedures/collections@0.17.1
+
+## 0.17.0
+
+### Patch Changes
+
+- @procedures/client@0.17.0
+  - @procedures/collections@0.17.0
+
+## 0.16.0
+
+### Patch Changes
+
+- Updated dependencies [deada4b]
+  - @procedures/client@0.16.0
+  - @procedures/collections@0.16.0
+
+## 0.15.1
+
+### Patch Changes
+
+- bce8f5c: New: `MongoViewStorage`, a read-only storage of one materialized view for the collection procedures (roadmap CLI-38). A `ViewMaterializer` writes a big rebuild as a new generation in groups, and then it changes the generation in the status of the view. During the rebuild, a plain query of the target reads the rows of two generations.
+  
+  Each read of `MongoViewStorage` finds the current generation of the view one time, and reads only its rows (`viewFilter`). Thus `get`, `getAll`, `find`, `changes` and the other reads of the procedures give one whole generation. The key of a row is its text `_id` in the result of the pipeline. Each write rejects with `FORBIDDEN`, because only the materializer writes a target. Collections that are not views keep their storages, and nothing changes for them.
+- Updated dependencies [c78da2d]
+- Updated dependencies [d99b2d5]
+- Updated dependencies [534e4ea]
+- Updated dependencies [44fdd60]
+  - @procedures/client@0.15.1
+  - @procedures/collections@0.15.1
+
 ## 0.15.0
 
 ### Minor Changes

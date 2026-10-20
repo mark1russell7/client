@@ -45,7 +45,8 @@ export type GlobalName =
   | "port"
   | "host"
   | "transport"
-  | "events";
+  | "events"
+  | "probe-port";
 
 /** The global flags that the command line gives: true for a flag, text for a flag with a value */
 export type Globals = Partial<Record<GlobalName, string | boolean>>;

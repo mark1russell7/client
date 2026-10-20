@@ -58,7 +58,7 @@ describe("McpHost.declare", () => {
 
   it("closes the task store of the host in the close of the runner part (CLI-35)", async () => {
     const parts: McpRunnerPart[] = [];
-    const host = createMcpHost({ modules: [testModule], faces: { http: { mount: true } }, tasks: {} });
+    const host = createMcpHost({ modules: [testModule], faces: { http: {} }, tasks: {} });
     host.declare({ server: (_name, _knobs, impl) => parts.push(impl), dependency: () => undefined, trigger: () => undefined });
     await parts[0]!.start(new AbortController().signal, undefined);
     const store = host.tasks!;
@@ -70,7 +70,7 @@ describe("McpHost.declare", () => {
 
   it("declares no trigger without a stdio face", () => {
     const calls: string[] = [];
-    const host = createMcpHost({ modules: [testModule], faces: { http: { mount: true } } });
+    const host = createMcpHost({ modules: [testModule], faces: { http: {} } });
     host.declare({ server: (name) => calls.push(`server ${name}`), dependency: () => undefined, trigger: (trigger) => calls.push(`trigger ${trigger}`) });
     expect(calls).toEqual(["server mcp"]);
   });
@@ -103,7 +103,7 @@ describe("McpHost.declare", () => {
   });
 
   it("serves Streamable HTTP on a listener of the service, and the stop closes it", async () => {
-    const host = createMcpHost({ modules: [testModule], faces: { http: { mount: true } } });
+    const host = createMcpHost({ modules: [testModule], faces: { http: {} } });
     const listener = httpTransport(
       createServer(),
       { server_idle_close: seconds(5), server_idle_sweep_interval: seconds(1), server_retry_after: seconds(1) },

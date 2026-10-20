@@ -28,6 +28,8 @@ import type { EventBus } from "../../events/types.js";
 import { withRows } from "../../events/rows.js";
 import type { AdmitItem } from "../invoke.js";
 import type { StorageChanges } from "./storage.js";
+import type { RepositoryProvider } from "../types.js";
+import { collectionTopicTarget } from "./topic.js";
 
 /**
  * The change event of the writes of a collection, on the topic `collections.<name>` (roadmap
@@ -56,22 +58,21 @@ export interface CollectionChangeEvent {
   readonly origin?: string | undefined;
 }
 
-/**
- * This function gives the topic of the change events of a collection: `collections.<name>`, or
- * `collections.<name>.<partition>` for a partition (roadmap CLI-17).
- */
-export function collectionChangeTopic(collection: string, partition?: string): string {
-  return partition === undefined ? `collections.${collection}` : `collections.${collection}.${partition}`;
-}
+export { collectionChangeTopic } from "./topic.js";
 
 /**
  * This function gives the resources that a subscriber of a topic reads: `collection:<name>` for
  * the topic `collections.<name>` and for a topic of a partition, `collections.<name>.<partition>`.
- * Another topic gives no resource. `EventPublisher` uses it as its default `reads`.
+ * Another topic gives no resource. `EventPublisher` uses it as its default `reads`, with the
+ * repository of the call.
+ *
+ * It reads the topic with `collectionTopicTarget()`, the parse of the listener of the publisher
+ * (roadmap CLI-42). With the repository, the plain topic of a dotted name, `collections.graph.nodes`,
+ * reads `collection:graph.nodes`. Without it, the first dot ends the name.
  */
-export function collectionTopicReads(topic: string): readonly string[] {
-  const match = /^collections\.([^.]+)(?:\.|$)/.exec(topic);
-  return match ? [`collection:${match[1]}`] : [];
+export function collectionTopicReads(topic: string, repository?: RepositoryProvider): readonly string[] {
+  const target = collectionTopicTarget(topic, repository);
+  return target ? [`collection:${target.collection}`] : [];
 }
 
 /** The part of a storage that the change events read. */

@@ -53,6 +53,8 @@ Decision D13 sets these rules. The section "Releases of the server stack" of the
 - The general packages are in other repositories, with the npm scope `@mark1russell7`: `cue`, `logger`, `splay`, `splay-react`, `docker-sqlite` and `docker-mongo`.
 - A package of this repository uses a general package with its npm version (for example `"@mark1russell7/cue": "^1.0.0"`). A `github:` specifier blocks the npm release.
 - A general package must not use a package of this repository.
+- Declare each package that the published code imports in `dependencies`, `peerDependencies` or `optionalDependencies`.
+- `scripts/check-declared-imports.mjs` fails when an entry of a published package reaches an import of an undeclared package.
 
 ## Commands
 

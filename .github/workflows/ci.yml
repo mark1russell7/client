@@ -80,6 +80,14 @@ jobs:
         run: |
           node --test scripts/check-browser-entries.test.mjs
           node scripts/check-browser-entries.mjs
+      # Each package that an entry of a published package imports (its exports map and its bins)
+      # is in its dependencies, peerDependencies or optionalDependencies. A strict install (pnpm)
+      # finds no other package, and the tests here do not show it (CLI-63). First the tests of the
+      # check, then the check.
+      - name: Check the declared imports
+        run: |
+          node --test scripts/check-declared-imports.test.mjs
+          node scripts/check-declared-imports.mjs
       # Each package against the template of `lib new`. The step reads the JSON result, because
       # `mark` exits with 0 also for `success: false` (deep dive CLI-8). A procedure without
       # metadata.effects is a warning annotation: it does not fail the step.
@@ -245,6 +253,13 @@ jobs:
     name: Site (browser smoke test)
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    # Read access only: the status page reads the open pull requests and issues of the repository
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      checks: read
+      statuses: read
     steps:
       - uses: actions/checkout@v7
         with:
@@ -261,9 +276,12 @@ jobs:
       # Chromium first: the site build prerenders each page in it, so the tests see the real HTML
       - name: Install Chromium for Playwright
         run: pnpm --filter @procedures/site exec playwright install --with-deps chromium
+      # GITHUB_TOKEN: the status page reads GitHub as the Pages build does. Without it (a fork),
+      # the page says that the build could not read GitHub, and the tests pass too.
       - run: pnpm build
         env:
           SITE_PRERENDER: "1"
+          GITHUB_TOKEN: ${{ github.token }}
       # The examples run, share links round-trip, no page scrolls sideways at 375 px, axe-core,
       # the keyboard, and the code of the TypeScript tab runs with Node
       - run: pnpm --filter @procedures/site test:e2e

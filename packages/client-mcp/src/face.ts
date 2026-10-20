@@ -146,7 +146,6 @@ export function mcpFace(options: McpFaceOptions = {}): (context: McpFaceContext)
       toolFilter,
       transport: "http",
       httpOptions: {
-        mount: true,
         path,
         ...(token !== undefined ? { token } : {}),
         ...(allowedOrigins ? { allowedOrigins } : {}),

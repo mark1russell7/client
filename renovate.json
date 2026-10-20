@@ -1,0 +1,28 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "github>mark1russell7/template//renovate/default"
+  ],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/bower_components/**",
+    "**/vendor/**",
+    "**/examples/**",
+    "**/__tests__/**",
+    "**/test/**",
+    "**/tests/**",
+    "**/__fixtures__/**",
+    "packages/*/.github/**",
+    "packages/*/fixtures/**"
+  ],
+  "packageRules": [
+    {
+      "description": "The Stryker vitest runner carries a pnpm patch for its exact version (patches/): update it by hand",
+      "matchPackageNames": [
+        "@stryker-mutator/core",
+        "@stryker-mutator/vitest-runner"
+      ],
+      "enabled": false
+    }
+  ]
+}

@@ -1,5 +1,124 @@
 # @procedures/peer
 
+## 0.18.0
+
+### Patch Changes
+
+- Updated dependencies [5e68b6a]
+  - @procedures/client@0.18.0
+
+## 0.17.4
+
+### Patch Changes
+
+- 8281370: The probes use the option `kinds` of `@mark1russell7/service` 0.5.8 (SYS-30).
+  
+  - Each listener of `createProcedureHost()` asks `probeHandler()` for the kinds `startup`, `readiness` and `liveness`. The host has no filter of its own for `/_probes/report`. The answers do not change: the report path goes on to the next handler, as before.
+  - The probe port of `runProcedureHost()` takes the new option `probes.kinds`. The default is all four kinds, as in 0.17.3. Leave out `report` on a port that is not private.
+  - The packages of the group use `@mark1russell7/service` `^0.5.8`, so a host has one copy of the service.
+- @procedures/client@0.17.4
+
+## 0.17.3
+
+### Patch Changes
+
+- 636f098: New: the procedures host answers the health probes of its service (CLI-9, decision D5). The probes come from `probeHandler()` and `probeServer()` of `@mark1russell7/service/http`. This change is additive, thus it is a PATCH of the client group (decision D13).
+  
+  - Each listener of `createProcedureHost()` answers `GET /_probes/startup`, `/_probes/readiness` and `/_probes/liveness` from the health of the service. The answer is 200, or 503 with `Retry-After` during the startup and the shutdown. `/_probes/readiness/<controller>` gives the readiness of one controller.
+  - The probes need no token and pass no browser check. They give only the status. They mount before the faces, thus a probe path never reaches a procedure. Each other path goes to the faces with the token and the browser checks, as before.
+  - A listener does not answer the report of the service (`/_probes/report`), because it names the checks and the dependencies. The procedure `host.health` gives the details with the token.
+  - The probes of a listener stop when the intake stops. Thus the listener still closes at the stop of the intake, and a new connection is refused, as before. `probes: { until: "close transports" }` keeps the listener open through the drain: the probes answer 503, and each other request gets 503 with `Retry-After`.
+  - The new option `probes` of `createProcedureHost()`: `{ prefix, until }` changes the prefix and the last stage, and `false` turns the probes off. `HOST_PROBE_PREFIX` is `/_probes`. `host.info.probes()` gives the base URL of the probes on each listener.
+  - The new option `probes` of `runProcedureHost()`: `{ port, host, prefix, retryAfter }` declares a probe server on a port of its own (`svc.healthServer(probeServer(...))`). It starts first and closes last, thus its probes answer through the whole drain. It also answers `/report`. The listeners of the host then answer no probes, unless the host options give `probes`. `probes()` of the result gives the base URL of each place that answers the probes.
+  - The new flag `--probe-port <port>` of `procedure-server`, `mark serve` and `mark --server` gives the probe server, on the address of `--host`. `mark` refuses it without `--server` before a command, as it refuses `--port`. The startup prints the URL of the probes.
+  
+  Deprecated: at the timeout of 15 s, `server.start` gives `success: true` with the message "still loading" while the process still starts. From the next MINOR of the client group, a start that is not ready at the timeout gives `success: false`, with the PID of the process that still starts. Read the readiness probe or `mark server status` for the state.
+  
+  The site, MiniMongo, Graph and jarvis: no change. A host with a listener now also answers the paths under `/_probes`. Before, these paths got 404.
+- @procedures/client@0.17.3
+
+## 0.17.2
+
+### Patch Changes
+
+- Updated dependencies [8b7e20c]
+  - @procedures/client@0.17.2
+
+## 0.17.1
+
+### Patch Changes
+
+- Updated dependencies [1ceb990]
+  - @procedures/client@0.17.1
+
+## 0.17.0
+
+### Patch Changes
+
+- @procedures/client@0.17.0
+
+## 0.16.0
+
+### Patch Changes
+
+- Updated dependencies [deada4b]
+  - @procedures/client@0.16.0
+
+## 0.15.1
+
+### Patch Changes
+
+- c78da2d: The procedures server can limit the calls of each principal, tenant or route (server stack CLI-40). This change is additive. Without the new option, nothing changes. Thus it is a PATCH of the client group (decision D13).
+  
+  The new behavior:
+  
+  - `hostPolicy()` and `ProcedureServer` of `@procedures/client` have the new option `limits`. Each limit has a name, a key over the call, the calls that it covers, a limit policy, a store and a bound on its keys.
+  - The key is the principal, a claim of the principal (`{ claim: "tenant" }`), the route, a list of these, or a function of the call. A call without a value of its key is outside the limit.
+  - The option `covers` takes `{ writes: true }` for only the calls that can change data, `{ routes: [...] }` for some procedures, or a function of the call.
+  - Each limit is a keyed limiter of `@mark1russell7/service/limiter` (SYS-28) on the clock of the server. The option `limitStores` gives the stores that the replicas share.
+  - The server takes one unit of each limit that covers a call, after the authentication and before the run. This is one step for each face: HTTP, WebSocket, MCP and the calls in the process.
+  - A call above a limit gets the new error code `RATE_LIMITED` (retryable). Its metadata has the wait in `retry-after` (milliseconds) and the cause in `reason` (`limit`, `cap` or `store`). The call does not run.
+  - HTTP gives 429 with `Retry-After` in whole seconds. WebSocket gives the same code and metadata. MCP gives the code, `reason` and `retryAfterMs` in `_meta`.
+  - A circuit breaker does not count `RATE_LIMITED`, because the server is healthy.
+  - `createProcedureHost()` of `@procedures/peer` declares each limiter on its service with `svc.limiter()`. Thus `describe()` and `lint()` see it. `host.limiters` gives the limiters, and `ProcedureServer.limiters()` gives them too.
+  - The rate limit middleware of the client (`createRateLimitMiddleware`) uses the same keyed limiter. Its bucket, its queue and its statistics do not change. The new option `clock` gives the clock of the bucket and of the queue. The default is `Date.now()` and `setTimeout`, as before.
+  - The `Retry-After` header of the HTTP face rounds the wait up to whole seconds with the rule of `@mark1russell7/service`. A wait above a whole second only by an error of floating point does not add a second.
+  - The client packages use `@mark1russell7/service` 0.5.3 and `@mark1russell7/algebra` 0.7.2.
+  
+  An example for the writes of each tenant:
+  
+  ```ts
+  hostPolicy({
+    principalOf,
+    limits: [
+      {
+        name: "graph.writes",
+        key: { claim: "tenant" },
+        covers: { writes: true },
+        policy: { type: "sliding-window", limit: { value: 120, unit: "count" }, window: { value: 1, unit: "min" } },
+        store: { kind: "local" },
+        evict: { maxKeys: { value: 10000, unit: "count" } },
+      },
+    ],
+  });
+  ```
+- 534e4ea: Fixed: `bearerOf` also reads the scheme of an `Authorization` header in another case (CLI-60). RFC 7235 makes the scheme case-insensitive, with one or more spaces (`1*SP`) before the token. Before, `bearerOf` read only a header that starts with `Bearer ` and one space, so a correct `bearer <token>` got 401.
+  
+  Each header that `bearerOf` read before gives the same token. A correct header in another case passes too, also with more spaces before the token.
+  
+  - A header that starts with `Bearer ` gives the rest of the header, as before.
+  - A header with the scheme in another case, for example `bearer` or `BEARER`, gives the token after one or more spaces. Spaces or tabs can come after the token. The token has no whitespace (`token68`).
+  - A tab between the scheme and the token is not `1*SP`, so it gives no token.
+  - `Basic x`, `Bearer` with no space and an empty header give no token, as before.
+  - The token comparison (`tokenMatches`) does not change.
+  
+  Each user of `bearerOf` gets the change. These users are `credentialsOf`, `requestCredentials`, `procedureHandler` and the WebSocket server. The WebSocket admission of `createProcedureHost()`, `guardMcpRequest` and the credentials of the MCP face also get it.
+- Updated dependencies [c78da2d]
+- Updated dependencies [d99b2d5]
+- Updated dependencies [534e4ea]
+- Updated dependencies [44fdd60]
+  - @procedures/client@0.15.1
+
 ## 0.15.0
 
 ### Patch Changes

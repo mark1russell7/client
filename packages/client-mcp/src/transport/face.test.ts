@@ -6,7 +6,8 @@
  */
 
 import { describe, it, expect, afterEach } from "vitest";
-import { createServer } from "node:net";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { z } from "zod";
 import { Client as McpClient } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -24,7 +25,7 @@ import {
   type ElicitationPolicy,
   type ProcedureContext,
 } from "@procedures/client";
-import { createMcpHost, type McpHostOptions } from "../host.js";
+import { createMcpHost, type McpHost, type McpHostOptions } from "../host.js";
 
 const NONE = { reads: [], writes: [] };
 
@@ -91,6 +92,27 @@ afterEach(async () => {
   for (const cleanup of cleanups.reverse()) await cleanup().catch(() => {});
   cleanups = [];
 });
+
+/**
+ * This function mounts the Streamable HTTP face of a host on a listener of the test, on a free port
+ * of loopback, and gives the URL of the endpoint. The face has no listener of its own (CLI-11).
+ */
+async function listenFor(host: McpHost): Promise<URL> {
+  const listener = createServer((req, res) => {
+    if (host.handleHttp(req, res)) return;
+    res.statusCode = 404;
+    res.end();
+  });
+  await new Promise<void>((resolve) => listener.listen(0, "127.0.0.1", resolve));
+  cleanups.push(
+    () =>
+      new Promise<void>((resolve) => {
+        listener.close(() => resolve());
+        listener.closeAllConnections();
+      }),
+  );
+  return new URL(`http://127.0.0.1:${(listener.address() as AddressInfo).port}/mcp`);
+}
 
 type Answer = (request: { params: { message: string; requestedSchema?: unknown } }) => SdkElicitResult | Promise<SdkElicitResult>;
 
@@ -208,37 +230,21 @@ describe("elicitation (CLI-12)", () => {
   });
 
   it("asks over Streamable HTTP", async () => {
-    const port = await new Promise<number>((resolve) => {
-      const probe = createServer();
-      probe.listen(0, "127.0.0.1", () => {
-        const address = probe.address();
-        probe.close(() => resolve(typeof address === "object" && address ? address.port : 0));
-      });
-    });
-    const host = createMcpHost({ modules: [testModule({ aborted: false })], faces: { http: { port } } });
+    const host = createMcpHost({ modules: [testModule({ aborted: false })], faces: { http: {} } });
     await host.start();
     cleanups.push(() => host.stop());
-    const url = host.state().faces[0]?.url;
-    expect(url).toBe(`http://127.0.0.1:${port}/mcp`);
+    expect(host.state().faces[0]?.url).toBe("/mcp");
+    const url = (await listenFor(host)).href;
     const client = new McpClient({ name: "test", version: "0" }, { capabilities: { elicitation: {} } });
     client.setRequestHandler(ElicitRequestSchema, async () => ({ action: "accept", content: { gave_url: true } }));
     // The SDK types do not agree with exactOptionalPropertyTypes
-    await client.connect(new StreamableHTTPClientTransport(new URL(url!)) as never);
+    await client.connect(new StreamableHTTPClientTransport(new URL(url)) as never);
     cleanups.push(() => client.close());
     expect((await call(client, "ask.release")).structuredContent).toEqual({ released: true, by: "person", note: null });
   });
 });
 
 describe("the credentials of a call over Streamable HTTP (CLI-10)", () => {
-  async function freePort(): Promise<number> {
-    return new Promise<number>((resolve) => {
-      const probe = createServer();
-      probe.listen(0, "127.0.0.1", () => {
-        const address = probe.address();
-        probe.close(() => resolve(typeof address === "object" && address ? address.port : 0));
-      });
-    });
-  }
 
   it("gives each tool call to the request hook of the policy (principalOf)", async () => {
     const seenHeaders: string[] = [];
@@ -251,11 +257,11 @@ describe("the credentials of a call over Streamable HTTP (CLI-10)", () => {
           return user ? { principal: { id: user, via: "x-user" } } : undefined;
         },
       },
-      faces: { http: { port: await freePort() } },
+      faces: { http: {} },
     });
     await host.start();
     cleanups.push(() => host.stop());
-    const url = new URL(host.state().faces[0]!.url!);
+    const url = await listenFor(host);
 
     const connectAs = async (user?: string): Promise<McpClient> => {
       const client = new McpClient({ name: "test", version: "0" });

@@ -41,8 +41,9 @@ console.log(await client.exec(["math", "addTen"], { x: 5 })); // 15
 
 ### The stores of a browser
 
-The entry `@procedures/store/indexeddb` has the stores of a browser. The package root does not import it, and it does not import the client or zod.
+The entry `@procedures/store/indexeddb` has the stores of a browser. The package root does not import it. It does not import the root of the client or zod.
 
+- `IndexedDbStorage` is a collection storage in IndexedDB. Refer to "The collection storage of a browser".
 - `IndexedDbProgramStore` keeps the programs in one database, `procedures-programs` by default.
 - `IndexedDbQueueStore` keeps the queue of a `HybridStorage`. Give each storage its own database.
 - `hasIndexedDb()` tells if the browser has IndexedDB. `MemoryProgramStore` and `MemoryQueueStore` are the fallbacks.
@@ -111,6 +112,34 @@ Notes:
 - `HybridStorage.close()` waits for the operations, the switch and the syncs that run. Then it sends the queue, and it closes the remote and the local copy.
 - `SyncedProcedureRegistry.close()` closes its storage. After it, `register()` and `unregister()` change only the registry in memory.
 
+### The collection storage of a browser
+
+`IndexedDbStorage` of `@procedures/store/indexeddb` keeps the items of one collection in IndexedDB (roadmap CLI-22). It is the durable local copy of a `HybridStorage` in a browser app without SignalDB.
+
+- Give each collection its own database. The storage makes the database at the first operation.
+- The items stay after `close()` and after a reload of the page. A new storage of the same database reads them.
+- The entries keep the order of the first set of each id, as a `Map` does. Each record keeps the number of its first set.
+- `getChangesSince()` gives the changes after a version. A version stays valid after a reload.
+- Each write is one transaction of IndexedDB. A batch that fails changes nothing. Two patches at the same time keep each field.
+- `query()` applies a selector. `patch()` changes an item in one transaction.
+- `observe()` tells each write of this storage before the write resolves. It does not tell the writes of another tab.
+- With the option `versionOf`, a write can expect the version of the current item. The test and the write are one transaction.
+- The storage checks each record that it reads. A record of another application or of another version is an error.
+- The contract suite of `@procedures/collections/testing` tests the storage, and a `HybridStorage` with the storage as its local copy.
+- `InMemoryStorage` of `@procedures/collections` is the fallback for a browser without IndexedDB.
+
+```ts
+import { ApiStorage, HybridStorage, IndexedDbQueueStore, IndexedDbStorage, IndexedDbSyncStateStore } from "@procedures/store/browser";
+
+const versionOf = (user: User) => user.rev;
+const users = new HybridStorage(new ApiStorage(client, { collection: "users" }), {
+  local: new IndexedDbStorage<User>("users", { versionOf }),
+  versionOf,
+  queueStore: new IndexedDbQueueStore("users-queue"),
+  syncState: new IndexedDbSyncStateStore("users-sync"),
+});
+```
+
 ## The modes of `HybridStorage`
 
 `HybridStorage` keeps a local copy of a remote collection storage. It has four modes, and `setMode()` changes the mode while the storage operates.
@@ -163,10 +192,11 @@ await users.setMode("write-through"); // The switch sends the queue, then syncs 
 
 - The option `local` gives the storage of the local copy. The default is a new `InMemoryStorage`.
 - A durable local copy keeps the items after a restart. `SqliteStorage` of `@procedures/sqlite` keeps them in a SQLite file.
+- `IndexedDbStorage` of `@procedures/store/indexeddb` keeps them in the IndexedDB of a browser.
 - With a durable local copy, a new storage in `local-only` mode reads the items of the last run. It makes no remote call.
 - Give a durable `queueStore` with a durable local copy. A restart applies the loaded queue to the local copy again, and the result does not change.
 - The first sync after a restart reads all remote items. It removes each local item that the remote deleted and that no queued write changes.
-- A full sync reads the local ids with `getIds()` of the local copy. `InMemoryStorage` and `SqliteStorage` give the ids without a copy of the values. A local copy without `getIds()` gives its entries.
+- A full sync reads the local ids with `getIds()` of the local copy. `InMemoryStorage`, `SqliteStorage` and `IndexedDbStorage` give the ids without a copy of the values. A local copy without `getIds()` gives its entries.
 - `HybridStorage.getIds()` gives the ids of the local copy, or of the remote in `remote-only` mode.
 - `close()` closes the local copy and the remote. A durable local copy keeps its items. A remote stays open when its own `close()` leaves it open, as `ApiStorage.close()` leaves the server.
 
@@ -244,7 +274,7 @@ const stop = users.onStatus((status) => {
 
 ### The changes, the capture, the sync state and the push feed
 
-`HybridStorage` is a sync engine for each local copy: `InMemoryStorage`, `SqliteStorage`, IndexedDB or a SignalDB collection (server stack D9, CLI-21, CLI-15).
+`HybridStorage` is a sync engine for each local copy: `InMemoryStorage`, `SqliteStorage`, `IndexedDbStorage` or a SignalDB collection (server stack D9, CLI-21, CLI-15).
 
 - `observe(observer)` gives one batch of `set`, `delete` and `clear` changes for each change of the storage.
 - A write of the storage gives its batch with the `origin` of its options. A pull and a delta of the feed give their changes with the origin `syncOrigin`, `"sync"` by default.
@@ -289,6 +319,84 @@ const users = new HybridStorage(new ApiStorage(client, { collection: "users" }),
 - The server serves the events with the option `events` of `ProcedureServer`, for example `{ topics: ["collections.*"] }`. Without a subscriber, the procedures publish nothing.
 - `ApiStorage` sends the `origin` of a write to the procedure. Thus the storage of the server and the event have it.
 
+### The tabs of a browser
+
+`TabCoordinator` of `@procedures/store/browser` lets one leader tab run the sync of a `HybridStorage` (roadmap CLI-25). The other tabs copy its changes. Without it, each tab pulls and pushes, and each tab writes over the queue of the other tabs.
+
+- The election uses the Web Locks API. The tab that holds the lock of the coordinator is the leader.
+- Only the leader makes the `HybridStorage`, with `capture: "observe"` on its local copy. The followers make no remote call and start no timer.
+- The application writes to the local copy in each tab. A tab sends the change batches of its local copy to the other tabs on a `BroadcastChannel`.
+- `observe()` gives the batches of this tab and of the other tabs, each batch one time, with the origin of each change.
+- The leader also sends the changes of its sync. They have the origin `syncOrigin`, `"sync"` by default.
+- A tab does not send again a batch of another tab.
+- The leader captures the batches of the followers: its `HybridStorage` queues them and pushes them. Thus a write of a follower reaches the remote one time.
+- Only the leader writes to the queue store and to the store of the sync state. Give the same `IndexedDbQueueStore` and `IndexedDbSyncStateStore` in each tab.
+
+The option `copy` tells the kind of the local copy:
+
+- `"shared"`: the tabs open the same durable local copy, for example an `IndexedDbStorage` of one database. A tab gives the batches of the other tabs only to its observers.
+- `"tab"`: each tab has its own local copy, for example a SignalDB collection. A tab writes the batches of the other tabs to its copy, and then gives them to its observers.
+- In the mode `"tab"`, a new tab gets only the changes after its start. Its local copy loads the older items itself, for example from its persistence.
+- In the mode `"shared"`, a pull of the leader can come between the write of a follower and its capture. The tabs agree again after the push and the next pull.
+
+A new leader and a closed tab:
+
+- A follower keeps each own batch until the leader acknowledges it. The leader acknowledges a batch when its queue store holds it.
+- A new leader tells the other tabs. Each follower then sends the batches that no leader acknowledged. Thus a write during the change of the leader reaches the new leader.
+- `close()` of the leader sends the queue, and then it releases the lock. The queue store keeps the operations that the remote did not take.
+- When the browser closes the tab of the leader, the browser releases the lock. The next leader loads the shared queue store and pushes the queue.
+- When the leader stops during a push, the next leader sends the operation again. A set or a delete gives the same result two times.
+- The load of the queue writes the queued operations to the local copy again. Thus the observers can get them again, with the origin `syncOrigin`.
+- `close()` of a follower stops its lock request. `close()` does not close the local copy, because the application owns it.
+
+A setup that fails (roadmap CLI-67):
+
+- A tab becomes the leader only after its `HybridStorage` loaded the queue. Until then, the tab is a follower.
+- When `remote()` throws or the load of the queue fails, the tab gives the error to `onError`. Then it releases the lock, and another tab can lead.
+- The tab stays a follower, and it asks for the lock again after a backoff. Thus a short failure does not leave the browser without a sync.
+- The option `retry` sets the backoff: `delay` (1 second), `factor` (2), `maxDelay` (1 minute) and `jitter` (0.5).
+- After `n` failures in a row, the wait is `delay × factor^(n − 1)`, at most `maxDelay`. The jitter makes each wait shorter by up to its fraction.
+- A setup that succeeds sets the wait back to `delay`. `close()` stops a wait.
+- In the single mode, the tab tries its setup again after the same backoff.
+- The options `clock` and `random` take the clock and the random numbers of the backoff, for example `fakeClock` of `@mark1russell7/service/testing` in a test.
+
+The status of the sync (roadmap CLI-65):
+
+- `getStatus()` gives the `SyncStatus` in each tab. Before the first status and after `close()`, it gives `undefined`.
+- `onStatus()` tells each new status to a listener, one time.
+- The leader gives the status of its own `HybridStorage`. It sends each change to the followers, and it answers the hello of a new tab with its status.
+- After a change of the leader, a follower keeps the last status until the new leader sends its status.
+- A message keeps only values that a structured clone can copy. Thus in a follower, `error.error` is an `Error` with the `name`, the `message` and the `code` of the error of the leader.
+- A tab of an older release ignores the status messages. It still copies the batches, because the version of the messages stays 1.
+
+Without the Web Locks API or `BroadcastChannel`, the coordinator is in the single mode. The tab does its own sync, and it opens no channel. A browser has the Web Locks API only in a secure context, for example HTTPS or `localhost`.
+
+```ts
+import { ApiStorage, IndexedDbQueueStore, IndexedDbStorage, IndexedDbSyncStateStore, TabCoordinator } from "@procedures/store/browser";
+
+const local = new IndexedDbStorage<User>("users");
+const users = new TabCoordinator<User>({
+  name: "users",
+  local,
+  copy: "shared",
+  remote: () => new ApiStorage(client, { collection: "users" }),
+  hybrid: {
+    mode: "write-back",
+    queueStore: new IndexedDbQueueStore("users-queue"),
+    syncState: new IndexedDbSyncStateStore("users-sync"),
+  },
+});
+
+users.observe((batch) => render(batch));
+users.onStatus((status) => showSync(status)); // The status of the sync, in each tab
+await local.set("1", { name: "Ada" });
+users.getStatus(); // The last status, in each tab
+```
+
+- `role` is `follower`, `leader`, `single` or `closed`. `onRole()` tells each change.
+- The options `locks` and `channel` take a lock manager and a channel factory, for example the ones of a test. `null` sets the single mode.
+- `HybridStorage.whenQueued()` resolves when the queue store holds the queue. The leader acknowledges the batches of the followers after it.
+
 ### The change of a storage in a server
 
 `ProcedureServer.useStorage(name, storage, { drain: true, close: true })` first starts `flush()` of the old storage. Then it uses the new storage and closes the old one. When the flush fails, the old storage stays.
@@ -311,7 +419,8 @@ The entry `@procedures/store/browser` has the parts of the store that run in a b
 - `HybridStorage`, its errors and its types.
 - `ApiStorage`, the remote storage over the collection procedures of a server.
 - `EventsChangeFeed`, the push feed of the remote changes.
-- All of `@procedures/store/indexeddb`: the IndexedDB stores and their fallbacks in memory.
+- `TabCoordinator`: one leader tab does the sync of a `HybridStorage`, and the other tabs copy its changes.
+- All of `@procedures/store/indexeddb`: `IndexedDbStorage`, the IndexedDB stores and their fallbacks in memory.
 
 No module of the entry imports a module of Node. The modules import `@procedures/client/browser` and not the root of the client, because the root imports `http` and `ws`. The test `src/browser.test.ts` examines the imports of each module of the entry. The entry is in `client.browser` of `package.json`, so the CI check of the browser entries (`scripts/check-browser-entries.mjs`) bundles it for a browser too.
 

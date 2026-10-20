@@ -1,5 +1,172 @@
 # @procedures/client
 
+## 0.18.0
+
+### Minor Changes
+
+- 5e68b6a: Each face gives only the error codes of wire v1 (server stack CLI-4). The stray codes fold into `UNAVAILABLE`, `FORBIDDEN` and `INTERNAL_ERROR`. This change is a break of the server stack, thus it is its own MINOR (decision D13).
+  
+  Before, `procedureHandler` gave the codes of wire v1, but other paths kept their former codes. `HttpServerTransport` answered `SERVER_STOPPED` after `stop()`. The browser checks gave `FORBIDDEN_HOST`, `FORBIDDEN_ORIGIN`, `METHOD_NOT_ALLOWED` (405) and `UNSUPPORTED_MEDIA_TYPE` (415). `Server` and `ServerError` gave the code `"500"`.
+  
+  The behavior that changes:
+  
+  | Former code | Former status | Code of wire v1 | Status | Reason |
+  |---|---|---|---|---|
+  | `SERVER_STOPPED` | 503 | `UNAVAILABLE` | 503 | — |
+  | `FORBIDDEN_HOST` | 403 | `FORBIDDEN` | 403 | `host-header-not-allowed` |
+  | `FORBIDDEN_ORIGIN` | 403 | `FORBIDDEN` | 403 | `origin-not-allowed` |
+  | `METHOD_NOT_ALLOWED` | 405 | `FORBIDDEN` | 403 | `method-not-allowed` |
+  | `UNSUPPORTED_MEDIA_TYPE` | 415 | `FORBIDDEN` | 403 | `media-type-not-allowed` |
+  | `"500"` | 500 | `INTERNAL_ERROR` | 500 | — |
+  
+  - `HttpServerTransport` answers a request after `stop()` with `UNAVAILABLE` (503, retryable), as `procedureHandler` does. The message is "The server is stopping".
+  - `HttpServerTransport` refuses a browser request with `FORBIDDEN` (403) and the field `reason` in the body, as `procedureHandler` does. A `GET` without `allowGet` and a body that is not JSON get 403, not 405 or 415.
+  - `checkBrowserRequest()` gives `{ ok: false, status: 403, code: "FORBIDDEN", reason, message }`. The type `GuardResult` has the new field `reason`. The MCP endpoint of `@procedures/mcp-server` uses it, so its refusal has `data.code` `FORBIDDEN`.
+  - `Server` answers an error outside a handler with `INTERNAL_ERROR`. `new ServerError(message)` has the default code `INTERNAL_ERROR`.
+  - The message of the refusals of the method and of the body starts with "Forbidden:".
+  
+  For one release, the client reads the former codes of an older server:
+  
+  - `HttpTransport` and the WebSocket transports read `SERVER_STOPPED` as `UNAVAILABLE` and `"500"` as `INTERNAL_ERROR`.
+  - `HttpTransport` reads `FORBIDDEN_HOST` and `FORBIDDEN_ORIGIN` as `FORBIDDEN`, and sets the metadata key `reason`.
+  - `isAvailabilityFailure()` still counts `SERVER_STOPPED`.
+  - The client keeps `METHOD_NOT_ALLOWED` and `UNSUPPORTED_MEDIA_TYPE`. They are also the codes of the HTTP statuses 405 and 415 of each server.
+  - The next breaking release of the client group removes these aliases.
+  
+  Migration steps:
+  
+  - Code that matches `SERVER_STOPPED`: match `UNAVAILABLE`. The flag `retryable` stays true.
+  - Code that matches `FORBIDDEN_HOST` or `FORBIDDEN_ORIGIN`: match `FORBIDDEN`, then read `reason` (the body field, or the metadata key `reason`).
+  - Code that matches the status 405 or 415 of a procedure server: match the status 403 and the reasons `method-not-allowed` and `media-type-not-allowed`.
+  - Code that reads `GuardResult.code` of `checkBrowserRequest()`: read `reason`.
+  - Code that matches the code `"500"` or the default code of `ServerError`: match `INTERNAL_ERROR`.
+  - The site, MiniMongo, Graph and jarvis: no code of theirs matches a former code, so no change is necessary.
+  - MiniMongo: its dev server uses `HttpServerTransport`, and its answers change only as the table says.
+  - jarvis: its host uses `procedureHandler`, which gave the codes of wire v1 already.
+
+## 0.17.4
+
+No changes in this release.
+
+## 0.17.3
+
+No changes in this release.
+
+## 0.17.2
+
+### Patch Changes
+
+- 8b7e20c: The Express shim `HttpServerTransport` sends no CORS header to an origin that it does not permit (CLI-59). A request without an origin also gets no CORS header. `procedureHandler` does this since 0.14.1 (CLI-56). A browser refuses such a response before and after the change, so no page can depend on the removed headers. Each response still gets `Vary: Origin` when `corsOptions.origin` is not `"*"`.
+
+## 0.17.1
+
+### Patch Changes
+
+- 1ceb990: The guard of the writes of a collection closes the gap between its read and the write, and `find` with the rule of the rows gets a bound of its scan (roadmap CLI-55).
+  
+  PATCH: a correction of a race and a new optional option. Without the new options, nothing changes.
+  
+  - New option `admission.versionOf` of `createCollectionProcedures()`: the version of a stored item, the same function as the option `versionOf` of the storage. With it, each `set`, `delete`, `setBatch` and `patch` that the guard permits expects the version of the item that the guard examined (`expectedVersion`, `expectedVersions`, roadmap CLI-16). An id without an item expects `null`. An expected version of the caller stays.
+  - A change for callers: before, a write of another writer between the read of the guard and the write was lost, and the guard did not examine the new item. With `admission.versionOf`, such a write now fails with `VERSION_CONFLICT`, and the storage does not change. A guarded `patch` writes the merged item that the guard examined with `set`, not with `patch()` of the storage. A storage without `versionOf` refuses each guarded write with `PRECONDITION_NOT_SUPPORTED`.
+  - `deleteBatch`, `clear` and an item without a version get no precondition, because the storage cannot test one for them.
+  - A `VERSION_CONFLICT` of a write through the procedures has no value for a current item that the rule `admit` refuses. Before, the conflict gave that item to the caller.
+  - New option `admission.maxScanned`: the largest number of rows that one `find` examines with the rule `admit`. At the bound, `find` gives the admitted rows that it found, and that page can be shorter than the limit. The result has no other mark, because the output of `find` is a list and the protocol has no code for this case.
+
+## 0.17.0
+
+No changes in this release.
+
+## 0.16.0
+
+### Minor Changes
+
+- deada4b: The name of a collection with partitions can have a dot (roadmap CLI-42). In the topic of a partition, the name encodes `%` and `.`, so the name and the partition of each topic stay apart. This change is a break of the server stack, thus it is its own MINOR (decision D13, decision D22). No earlier release marks it as deprecated, because no export moves. Only the topic form of these names changes.
+  
+  Before, `usePartitions` refused a name with a dot, because the topic `collections.<name>.<partition>` did not show where the name ends.
+  
+  - In the topic of a partition, the name encodes `%` as `%25` and `.` as `%2E`. The first dot after the name thus ends the name. The partition stays as it is, and it can have each character, also `.`, `/` and `%`.
+  - `collectionChangeTopic()` makes each topic, and `collectionTopicPartition()` reads it back to the same name and the same partition.
+  - Only the canonical form of a topic counts. The parse gives a collection and a partition only when `collectionChangeTopic()` gives the same topic again. Thus `collections.a%2eb.t1` names no collection.
+  - `collectionTopicTarget()`, `collectionTopicReads()` and `EventPublisher` use the same parse. `collectionTopicReads(topic, repository)` takes the repository, as the default read check of the publisher does.
+  - New `collectionTopicRule(name)`: the topic rule of a collection for the option `topics` of `EventPublisher`. It gives the plain topic and the pattern of the topics of the partitions, for example `["collections.graph.nodes", "collections.graph%2Enodes.*"]`.
+  - The topic of a partition of a name without `%` and `.` does not change. The topic of a collection without a partition does not change.
+  
+  The behavior that changes:
+  
+  - A collection with partitions whose name has `%` gets a new topic for each partition. For example, the topic of the partition `t1` of `rate%` changes from `collections.rate%.t1` to `collections.rate%25.t1`.
+  - A collection with partitions whose name has `.` is new. Its topics of a partition have the encoded name, for example `collections.graph%2Enodes.acme/space`. A topic or a rule that joins the raw name, for example `collections.graph.nodes.*`, matches none of them.
+  - In a deployment with two versions, an old publisher and a new subscriber of such a name do not match. The reverse is also true.
+  - `collectionTopicReads()` gives no read for a topic that names no collection, for example `collections.notes.` with an empty partition.
+  
+  Migration steps:
+  
+  - For each collection with partitions whose name has `%` or `.`, upgrade the publishers and the subscribers together.
+  - Build each topic rule of a collection with `collectionTopicRule()`. Do not join the parts yourself.
+  - The site: no change is necessary. It has no collection with partitions.
+  - MiniMongo: no change is necessary. It has no collection with partitions.
+  - Graph: no change is necessary. Graph has dotted names of collections, but no dotted name has partitions yet. When a dotted name gets partitions, build the rule of `graph-host.ts` with `collectionTopicRule()`, not `collections.${c}.*`.
+  - jarvis: no change is necessary. It has no collection with partitions.
+
+## 0.15.1
+
+### Patch Changes
+
+- c78da2d: The procedures server can limit the calls of each principal, tenant or route (server stack CLI-40). This change is additive. Without the new option, nothing changes. Thus it is a PATCH of the client group (decision D13).
+  
+  The new behavior:
+  
+  - `hostPolicy()` and `ProcedureServer` of `@procedures/client` have the new option `limits`. Each limit has a name, a key over the call, the calls that it covers, a limit policy, a store and a bound on its keys.
+  - The key is the principal, a claim of the principal (`{ claim: "tenant" }`), the route, a list of these, or a function of the call. A call without a value of its key is outside the limit.
+  - The option `covers` takes `{ writes: true }` for only the calls that can change data, `{ routes: [...] }` for some procedures, or a function of the call.
+  - Each limit is a keyed limiter of `@mark1russell7/service/limiter` (SYS-28) on the clock of the server. The option `limitStores` gives the stores that the replicas share.
+  - The server takes one unit of each limit that covers a call, after the authentication and before the run. This is one step for each face: HTTP, WebSocket, MCP and the calls in the process.
+  - A call above a limit gets the new error code `RATE_LIMITED` (retryable). Its metadata has the wait in `retry-after` (milliseconds) and the cause in `reason` (`limit`, `cap` or `store`). The call does not run.
+  - HTTP gives 429 with `Retry-After` in whole seconds. WebSocket gives the same code and metadata. MCP gives the code, `reason` and `retryAfterMs` in `_meta`.
+  - A circuit breaker does not count `RATE_LIMITED`, because the server is healthy.
+  - `createProcedureHost()` of `@procedures/peer` declares each limiter on its service with `svc.limiter()`. Thus `describe()` and `lint()` see it. `host.limiters` gives the limiters, and `ProcedureServer.limiters()` gives them too.
+  - The rate limit middleware of the client (`createRateLimitMiddleware`) uses the same keyed limiter. Its bucket, its queue and its statistics do not change. The new option `clock` gives the clock of the bucket and of the queue. The default is `Date.now()` and `setTimeout`, as before.
+  - The `Retry-After` header of the HTTP face rounds the wait up to whole seconds with the rule of `@mark1russell7/service`. A wait above a whole second only by an error of floating point does not add a second.
+  - The client packages use `@mark1russell7/service` 0.5.3 and `@mark1russell7/algebra` 0.7.2.
+  
+  An example for the writes of each tenant:
+  
+  ```ts
+  hostPolicy({
+    principalOf,
+    limits: [
+      {
+        name: "graph.writes",
+        key: { claim: "tenant" },
+        covers: { writes: true },
+        policy: { type: "sliding-window", limit: { value: 120, unit: "count" }, window: { value: 1, unit: "min" } },
+        store: { kind: "local" },
+        evict: { maxKeys: { value: 10000, unit: "count" } },
+      },
+    ],
+  });
+  ```
+- d99b2d5: New: an open subscription can get the checks of its admission again (roadmap CLI-44). Before, `EventPublisher` examined the rights of a subscriber only at the start of `events.subscribe`. A subscription of a collection change feed thus continued after the app revoked a right.
+  
+  `rightsChanged(change)` of `EventPublisher` starts a check of each open subscription that the change touches. The change is the id of a principal, a test of the principal, or no value for each subscription. The new option `recheck` of `EventPublisherOptions` has `maxAge`, a check after a time on the clock of the publisher. It also has `rightsChanges`, a source of the changes of the app.
+  
+  The check is the same function as at the start: the topic rule, the reads, `allow` and the partition. While it operates, the events of the subscription wait. A refusal ends the subscription with its error, for example `FORBIDDEN`. The events that waited do not reach the subscriber. The new option `clock` of `EventPublisherOptions` is the clock of `maxAge`, and a `ProcedureServer` gives its own clock. Without a call of `rightsChanged()` and without the option `recheck`, nothing changes.
+- 534e4ea: Fixed: `bearerOf` also reads the scheme of an `Authorization` header in another case (CLI-60). RFC 7235 makes the scheme case-insensitive, with one or more spaces (`1*SP`) before the token. Before, `bearerOf` read only a header that starts with `Bearer ` and one space, so a correct `bearer <token>` got 401.
+  
+  Each header that `bearerOf` read before gives the same token. A correct header in another case passes too, also with more spaces before the token.
+  
+  - A header that starts with `Bearer ` gives the rest of the header, as before.
+  - A header with the scheme in another case, for example `bearer` or `BEARER`, gives the token after one or more spaces. Spaces or tabs can come after the token. The token has no whitespace (`token68`).
+  - A tab between the scheme and the token is not `1*SP`, so it gives no token.
+  - `Basic x`, `Bearer` with no space and an empty header give no token, as before.
+  - The token comparison (`tokenMatches`) does not change.
+  
+  Each user of `bearerOf` gets the change. These users are `credentialsOf`, `requestCredentials`, `procedureHandler` and the WebSocket server. The WebSocket admission of `createProcedureHost()`, `guardMcpRequest` and the credentials of the MCP face also get it.
+- 44fdd60: `@types/ws` is a dependency of `@procedures/client`, not a development dependency (CLI-61). The published declarations of the WebSocket transports name the types of `ws`, which is a dependency. Before, a project that checks the declarations of its libraries (`skipLibCheck: false`) and had no `@types/ws` failed to compile. Now each install gets the types with `ws`.
+  
+  The types of `express` stay an optional part, as `express` is an optional peer dependency. A project that checks library declarations and imports the root of the client needs `@types/express` until the next breaking release of the server stack (CLI-6 step 2), which takes the Express types out of the root.
+  
+  PATCH: a dependency of the package changes, and no API changes.
+
 ## 0.15.0
 
 ### Minor Changes

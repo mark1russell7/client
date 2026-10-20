@@ -247,6 +247,11 @@ export async function startServer(
   };
 }
 
+/** The address of the probe server of `--probe-port`: the address of the first network transport, as `--host` gives it. */
+function probeHostOf(config: ServerConfig): string {
+  return config.transports.find((transport) => transport.type !== "local")?.host ?? "127.0.0.1";
+}
+
 /**
  * The `server` CLI: parse the options, start the server under `run()` of `@mark1russell7/service`,
  * and print where it listens. `mark serve` calls it with its own arguments. The runner owns the
@@ -262,11 +267,13 @@ export async function runServer(argv: string[], options: ServerRunOptions = {}):
   }
 
   const { registry, policy, token, generated, confined } = await prepareServer(config, console.log, options);
-  const { host, life } = await runProcedureHost({
+  const { host, life, probes } = await runProcedureHost({
     name: "procedure-server",
     mode: "foreground",
     host: peerHostOptions({ id: newPeerId(), transports: config.transports, registry, policy }, "procedures"),
     log: console.log,
+    // --probe-port: the probes answer on a port of their own, on the address of --host (CLI-9, D5)
+    ...(config.probePort !== undefined ? { probes: { port: config.probePort, host: probeHostOf(config) } } : {}),
     ...(options.run ? { run: options.run } : {}),
   });
   if (life.state !== "running") {
@@ -283,6 +290,9 @@ export async function runServer(argv: string[], options: ServerRunOptions = {}):
   console.log("\nEndpoints:");
   for (const endpoint of host.info.endpoints()) {
     console.log(`  [${endpoint.type}] ${endpoint.address}`);
+  }
+  for (const base of probes()) {
+    console.log(`  [probes] ${base}/startup, ${base}/readiness, ${base}/liveness (no token)`);
   }
   if (token === undefined) {
     console.log("\nNo token: any program on this computer can call the server.");

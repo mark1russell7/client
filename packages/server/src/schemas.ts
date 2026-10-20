@@ -43,7 +43,11 @@ export const serverStatusInputSchema: ZodLikeSchema<ServerStatusInput> = zodAdap
 );
 
 export const ServerStartOutputSchema: z.ZodType<ServerStartOutput> = z.looseObject({
-  success: z.boolean().describe("True when the server started"),
+  success: z
+    .boolean()
+    .describe(
+      "True when the server started. Deprecated (CLI-9): at the timeout, a server that still starts gives true. From the next MINOR, it gives false."
+    ),
   pid: z.number().optional().describe("The process id of the server"),
   port: z.number().optional().describe("The port of the server"),
   endpoint: z.string().optional().describe("The URL of the server"),

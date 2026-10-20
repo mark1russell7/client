@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 573 names
+## . (dist/index.d.ts): 575 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -53,6 +53,7 @@ type CollectionPartitions: dist/procedures/collection/partition.d.ts#CollectionP
 type CollectionProceduresOptions: dist/procedures/collection/procedures.d.ts#CollectionProceduresOptions
 type CollectionRow: dist/procedures/collection/admission.d.ts#CollectionRow
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
+CollectionTopicCollisionError: dist/procedures/collection/partition.d.ts#CollectionTopicCollisionError
 type CollectionWrite: dist/procedures/collection/admission.d.ts#CollectionWrite
 type CollectionWriteGuard: dist/procedures/collection/admission.d.ts#CollectionWriteGuard
 type ConfirmationOptions: dist/procedures/elicit.d.ts#ConfirmationOptions
@@ -370,10 +371,11 @@ checkBrowserRequest: dist/server/browser-guard.d.ts#checkBrowserRequest
 checkEffects: dist/procedures/capability.d.ts#checkEffects
 clearRuntimeProcedures: dist/procedures/define-procedure.d.ts#clearRuntimeProcedures
 clientModule: dist/procedures/module.d.ts#clientModule
-collectionChangeTopic: dist/procedures/collection/changes.d.ts#collectionChangeTopic
-collectionTopicPartition: dist/procedures/collection/partition.d.ts#collectionTopicPartition
+collectionChangeTopic: dist/procedures/collection/topic.d.ts#collectionChangeTopic
+collectionTopicPartition: dist/procedures/collection/topic.d.ts#collectionTopicPartition
 collectionTopicReads: dist/procedures/collection/changes.d.ts#collectionTopicReads
-collectionTopicTarget: dist/procedures/collection/partition.d.ts#collectionTopicTarget
+collectionTopicRule: dist/procedures/collection/topic.d.ts#collectionTopicRule
+collectionTopicTarget: dist/procedures/collection/topic.d.ts#collectionTopicTarget
 compareStorageValues: dist/procedures/collection/query.d.ts#compareStorageValues
 compileSelector: dist/procedures/collection/query.d.ts#compileSelector
 conditionalProcedure: dist/procedures/core/index.d.ts#conditionalProcedure
@@ -580,7 +582,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 555 names
+## ./browser (dist/browser.d.ts): 557 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -628,6 +630,7 @@ type CollectionPartitions: dist/procedures/collection/partition.d.ts#CollectionP
 type CollectionProceduresOptions: dist/procedures/collection/procedures.d.ts#CollectionProceduresOptions
 type CollectionRow: dist/procedures/collection/admission.d.ts#CollectionRow
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
+CollectionTopicCollisionError: dist/procedures/collection/partition.d.ts#CollectionTopicCollisionError
 type CollectionWrite: dist/procedures/collection/admission.d.ts#CollectionWrite
 type CollectionWriteGuard: dist/procedures/collection/admission.d.ts#CollectionWriteGuard
 type ConfirmationOptions: dist/procedures/elicit.d.ts#ConfirmationOptions
@@ -934,10 +937,11 @@ chainProcedure: dist/procedures/core/index.d.ts#chainProcedure
 checkEffects: dist/procedures/capability.d.ts#checkEffects
 clearRuntimeProcedures: dist/procedures/define-procedure.d.ts#clearRuntimeProcedures
 clientModule: dist/procedures/module.d.ts#clientModule
-collectionChangeTopic: dist/procedures/collection/changes.d.ts#collectionChangeTopic
-collectionTopicPartition: dist/procedures/collection/partition.d.ts#collectionTopicPartition
+collectionChangeTopic: dist/procedures/collection/topic.d.ts#collectionChangeTopic
+collectionTopicPartition: dist/procedures/collection/topic.d.ts#collectionTopicPartition
 collectionTopicReads: dist/procedures/collection/changes.d.ts#collectionTopicReads
-collectionTopicTarget: dist/procedures/collection/partition.d.ts#collectionTopicTarget
+collectionTopicRule: dist/procedures/collection/topic.d.ts#collectionTopicRule
+collectionTopicTarget: dist/procedures/collection/topic.d.ts#collectionTopicTarget
 compareStorageValues: dist/procedures/collection/query.d.ts#compareStorageValues
 compileSelector: dist/procedures/collection/query.d.ts#compileSelector
 conditionalProcedure: dist/procedures/core/index.d.ts#conditionalProcedure
@@ -1361,7 +1365,7 @@ throttleChannel: dist/events/bus.d.ts#throttleChannel
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
-## ./procedures (dist/procedures/index.d.ts): 312 names
+## ./procedures (dist/procedures/index.d.ts): 314 names
 
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
@@ -1382,6 +1386,7 @@ type CollectionPartitions: dist/procedures/collection/partition.d.ts#CollectionP
 type CollectionProceduresOptions: dist/procedures/collection/procedures.d.ts#CollectionProceduresOptions
 type CollectionRow: dist/procedures/collection/admission.d.ts#CollectionRow
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
+CollectionTopicCollisionError: dist/procedures/collection/partition.d.ts#CollectionTopicCollisionError
 type CollectionWrite: dist/procedures/collection/admission.d.ts#CollectionWrite
 type CollectionWriteGuard: dist/procedures/collection/admission.d.ts#CollectionWriteGuard
 type ConfirmationOptions: dist/procedures/elicit.d.ts#ConfirmationOptions
@@ -1546,10 +1551,11 @@ chainProcedure: dist/procedures/core/index.d.ts#chainProcedure
 checkEffects: dist/procedures/capability.d.ts#checkEffects
 clearRuntimeProcedures: dist/procedures/define-procedure.d.ts#clearRuntimeProcedures
 clientModule: dist/procedures/module.d.ts#clientModule
-collectionChangeTopic: dist/procedures/collection/changes.d.ts#collectionChangeTopic
-collectionTopicPartition: dist/procedures/collection/partition.d.ts#collectionTopicPartition
+collectionChangeTopic: dist/procedures/collection/topic.d.ts#collectionChangeTopic
+collectionTopicPartition: dist/procedures/collection/topic.d.ts#collectionTopicPartition
 collectionTopicReads: dist/procedures/collection/changes.d.ts#collectionTopicReads
-collectionTopicTarget: dist/procedures/collection/partition.d.ts#collectionTopicTarget
+collectionTopicRule: dist/procedures/collection/topic.d.ts#collectionTopicRule
+collectionTopicTarget: dist/procedures/collection/topic.d.ts#collectionTopicTarget
 compareStorageValues: dist/procedures/collection/query.d.ts#compareStorageValues
 compileSelector: dist/procedures/collection/query.d.ts#compileSelector
 conditionalProcedure: dist/procedures/core/index.d.ts#conditionalProcedure
@@ -3639,6 +3645,8 @@ export declare function toolHints(procedure: AnyProcedure): ToolHints;
 export interface CollectionAdmission {
     admit?: AdmitItem | undefined;
     guard?: CollectionWriteGuard | undefined;
+    versionOf?: VersionOf<unknown> | undefined;
+    maxScanned?: number | undefined;
 }
 
 ### dist/procedures/collection/admission.d.ts#CollectionRow
@@ -3678,16 +3686,23 @@ export interface CollectionChangeEvent {
     readonly origin?: string | undefined;
 }
 
-### dist/procedures/collection/changes.d.ts#collectionChangeTopic
-export declare function collectionChangeTopic(collection: string, partition?: string): string;
-
 ### dist/procedures/collection/changes.d.ts#collectionTopicReads
-export declare function collectionTopicReads(topic: string): readonly string[];
+export declare function collectionTopicReads(topic: string, repository?: RepositoryProvider): readonly string[];
 
 ### dist/procedures/collection/partition.d.ts#CollectionPartitions
 export interface CollectionPartitions<T = unknown> {
     storageOf(partition: string): CollectionStorage<T>;
     resolve: PartitionResolver;
+}
+
+### dist/procedures/collection/partition.d.ts#CollectionTopicCollisionError
+export declare class CollectionTopicCollisionError extends Error {
+    readonly name = "CollectionTopicCollisionError";
+    readonly collection: string;
+    readonly partitioned: string;
+    readonly partition: string;
+    readonly topic: string;
+    constructor(collection: string, partitioned: string, partition: string);
 }
 
 ### dist/procedures/collection/partition.d.ts#PARTITION_PATTERN
@@ -3700,18 +3715,6 @@ export interface PartitionInput {
 
 ### dist/procedures/collection/partition.d.ts#PartitionResolver
 export type PartitionResolver = (ctx: ProcedureContext, requested: string | undefined) => string | undefined | null | Promise<string | undefined | null>;
-
-### dist/procedures/collection/partition.d.ts#collectionTopicPartition
-export declare function collectionTopicPartition(topic: string): {
-    collection: string;
-    partition: string | undefined;
-} | undefined;
-
-### dist/procedures/collection/partition.d.ts#collectionTopicTarget
-export declare function collectionTopicTarget(topic: string, repository: RepositoryProvider | undefined): {
-    collection: string;
-    partition: string | undefined;
-} | undefined;
 
 ### dist/procedures/collection/precondition.d.ts#CurrentItem
 export type CurrentItem<T> = {
@@ -3984,6 +3987,24 @@ export interface StorageSetChange<T> {
 export interface StorageWriteOptions {
     readonly origin?: string | undefined;
 }
+
+### dist/procedures/collection/topic.d.ts#collectionChangeTopic
+export declare function collectionChangeTopic(collection: string, partition?: string): string;
+
+### dist/procedures/collection/topic.d.ts#collectionTopicPartition
+export declare function collectionTopicPartition(topic: string): {
+    collection: string;
+    partition: string | undefined;
+} | undefined;
+
+### dist/procedures/collection/topic.d.ts#collectionTopicRule
+export declare function collectionTopicRule(collection: string): string[];
+
+### dist/procedures/collection/topic.d.ts#collectionTopicTarget
+export declare function collectionTopicTarget(topic: string, repository: RepositoryProvider | undefined): {
+    collection: string;
+    partition: string | undefined;
+} | undefined;
 
 ### dist/procedures/core/index.d.ts#allCoreModules
 export declare const allCoreModules: Array<{
@@ -5340,8 +5361,9 @@ export type GuardResult = {
     readonly ok: true;
 } | {
     readonly ok: false;
-    readonly status: 403 | 405 | 415;
-    readonly code: string;
+    readonly status: 403;
+    readonly code: "FORBIDDEN";
+    readonly reason: "host-header-not-allowed" | "origin-not-allowed" | "method-not-allowed" | "media-type-not-allowed";
     readonly message: string;
 };
 
