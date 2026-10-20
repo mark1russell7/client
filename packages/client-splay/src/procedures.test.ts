@@ -63,11 +63,14 @@ async function call<T>(registry: ProcedureRegistry, path: ProcedurePath, input?:
 describe("splay.bridge.info and splay.bridge.health", () => {
   it("give the bridge information and its health", async () => {
     const registry = registryWith();
-    // The real version of the package: before, the procedure gave "1.0.0" for each version
+    // The real version of the package, as the read of the file gave it before the JSON import
+    // (CLI-52): before R33, the procedure gave "1.0.0" for each version
     const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { name: string; version: string };
+    expect(manifest.name).toBe("@procedures/splay");
+    expect(manifest.version).toMatch(/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/);
     const info = { name: manifest.name, version: manifest.version, description: "Bridge between splay and client" };
     expect(await call(registry, ["splay", "bridge", "info"])).toEqual(info);
-    // The second call uses the first read
+    // The second call gives the same answer
     expect(await call(registry, ["splay", "bridge", "info"])).toEqual(info);
     const health = await call<{ status: string; timestamp: string }>(registry, ["splay", "bridge", "health"]);
     expect(health.status).toBe("healthy");
