@@ -11,7 +11,7 @@ import { WebSocketState } from "./types.js";
 import { withoutInternalKeys } from "../../metadata.js";
 import { IncomingCalls } from "../shared/rpc.js";
 import { StreamSequence, gapOf, itemMetadata } from "../../sequence.js";
-import type { RequestHandler, ServerResponse } from "../../../server/types.js";
+import type { Credentials, RequestHandler, ServerResponse } from "../../../server/types.js";
 import { methodToPath } from "../../../server/method.js";
 import { optionalMs } from "../../../duration.js";
 import { PROTOCOL_VERSION, protocolVersionOf } from "../../../protocol.js";
@@ -112,6 +112,12 @@ interface PendingRequest {
  */
 /** The `readyState` of an open socket. The global `WebSocket` and the `ws` package use the same number. */
 const OPEN = 1;
+
+/**
+ * The credentials of a call that the server sends to this client (CLI-1). The call comes over the
+ * network, and the client reads no credentials for it. Thus they are empty, without the local marker.
+ */
+const NETWORK_WITHOUT_CREDENTIALS: Credentials = Object.freeze({});
 
 /**
  * The error handler of a socket that the transport left. A `WebSocket` of the `ws` package that
@@ -531,14 +537,15 @@ export class WebSocketTransport implements Transport {
       handler,
       send: (frame) => ws.send(JSON.stringify(frame)),
       isOpen: () => this.ws === ws && ws.readyState === OPEN,
-      // A call of the server that this client opened: the client trusts it, so it has no
-      // credentials (a ProcedureServer applies no token to it)
+      // A call of the server over the network: it is not local, and it presents no credentials.
+      // A ProcedureServer with a token refuses it, and its request hook gets empty credentials (CLI-1).
       requestOf: (frame, signal) => ({
         id: frame.id,
         method: frame.method!,
         payload: frame.payload === undefined ? {} : frame.payload,
         metadata: withoutInternalKeys(frame.metadata),
         signal,
+        credentials: NETWORK_WITHOUT_CREDENTIALS,
       }),
     });
   }

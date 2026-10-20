@@ -19,10 +19,9 @@
  * (CLI-31). `urlAddressing()` is the default, and `bodyPathAddressing()` reads the path from the
  * body of a single endpoint.
  *
- * The server transports are in this entry too (CLI-6): `HttpServerTransport`, the Express shim
- * over `procedureHandler`, and `WebSocketServerTransport`. The root and `./server` also export
- * them, but these exports are deprecated. The next MINOR removes them, so the root imports no
- * `http` and no `ws`.
+ * The server transports are in this entry only (CLI-6): `HttpServerTransport`, the Express shim
+ * over `procedureHandler`, and `WebSocketServerTransport`. Thus the root and `./server` import no
+ * `http`, no `ws` and no `express`.
  */
 
 export { WebSocketTransport } from "./adapters/websocket/client/node.js";
@@ -36,12 +35,12 @@ export type { ProcedureHandlerOptions, NodeProcedureHandler, NodeUrlStrategy, Ur
 export type { CorsOptions, CredentialedCorsOptions } from "./adapters/http/server/cors.js";
 // The credentialed CORS of the trusted origins of a host, for a route of the app (CLI-49)
 export { credentialedCors } from "./adapters/http/server/cors.js";
-export type { RoutedRequest } from "./adapters/http/server/strategies.js";
+export type { RoutedRequest, UrlStrategyRequest } from "./adapters/http/server/strategies.js";
 export { defaultServerUrlStrategy, rpcServerUrlStrategy } from "./adapters/http/server/strategies.js";
 // The addressing of a request: the URL (the default), or the path in the body of a single endpoint (CLI-31)
 export { urlAddressing, bodyPathAddressing } from "./adapters/http/server/addressing.js";
 export type { Addressing, CallAddress, UrlAddressingOptions, BodyPathAddressingOptions } from "./adapters/http/server/addressing.js";
-// The server transports (CLI-6): the root and ./server export them only until the next MINOR
+// The server transports (CLI-6): only this entry exports them
 export { HttpServerTransport } from "./adapters/http/server/transport.js";
 export type { HttpServerTransportOptions, HttpUrlStrategy } from "./adapters/http/server/types.js";
 export { upgradeHandler } from "./adapters/websocket/server/upgrade.js";

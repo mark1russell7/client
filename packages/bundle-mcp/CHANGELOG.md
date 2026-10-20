@@ -1,5 +1,90 @@
 # @procedures/bundle-mcp
 
+## 0.19.0
+
+### Patch Changes
+
+- Updated dependencies [5cb934d]
+  - @procedures/client@0.19.0
+  - @procedures/cue@0.19.0
+  - @procedures/dag@0.19.0
+  - @procedures/docker@0.19.0
+  - @procedures/lib@0.19.0
+  - @procedures/mongo@0.19.0
+  - @procedures/procedure@0.19.0
+  - @procedures/sqlite@0.19.0
+  - @procedures/vitest@0.19.0
+  - @procedures/compiler@0.19.0
+  - @procedures/json@0.19.0
+
+## 0.18.1
+
+### Patch Changes
+
+- Updated dependencies [d69c8cb]
+- Updated dependencies [0379278]
+  - @procedures/client@0.18.1
+  - @procedures/cue@0.18.1
+  - @procedures/dag@0.18.1
+  - @procedures/docker@0.18.1
+  - @procedures/lib@0.18.1
+  - @procedures/mongo@0.18.1
+  - @procedures/procedure@0.18.1
+  - @procedures/sqlite@0.18.1
+  - @procedures/vitest@0.18.1
+  - @procedures/compiler@0.18.1
+  - @procedures/json@0.18.1
+
+## 0.18.0
+
+### Patch Changes
+
+- Updated dependencies [5e68b6a]
+  - @procedures/client@0.18.0
+  - @procedures/cue@0.18.0
+  - @procedures/dag@0.18.0
+  - @procedures/docker@0.18.0
+  - @procedures/lib@0.18.0
+  - @procedures/mongo@0.18.0
+  - @procedures/procedure@0.18.0
+  - @procedures/sqlite@0.18.0
+  - @procedures/vitest@0.18.0
+  - @procedures/compiler@0.18.0
+  - @procedures/json@0.18.0
+
+## 0.17.4
+
+### Patch Changes
+
+- @procedures/sqlite@0.17.4
+  - @procedures/client@0.17.4
+  - @procedures/cue@0.17.4
+  - @procedures/dag@0.17.4
+  - @procedures/docker@0.17.4
+  - @procedures/lib@0.17.4
+  - @procedures/mongo@0.17.4
+  - @procedures/procedure@0.17.4
+  - @procedures/vitest@0.17.4
+  - @procedures/compiler@0.17.4
+  - @procedures/json@0.17.4
+
+## 0.17.3
+
+### Patch Changes
+
+- Updated dependencies [636f098]
+  - @procedures/lib@0.17.3
+  - @procedures/sqlite@0.17.3
+  - @procedures/client@0.17.3
+  - @procedures/cue@0.17.3
+  - @procedures/dag@0.17.3
+  - @procedures/docker@0.17.3
+  - @procedures/mongo@0.17.3
+  - @procedures/procedure@0.17.3
+  - @procedures/vitest@0.17.3
+  - @procedures/compiler@0.17.3
+  - @procedures/json@0.17.3
+
 ## 0.17.2
 
 ### Patch Changes

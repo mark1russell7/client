@@ -16,6 +16,8 @@
  * - The topic of a collection whose name has a dot, `collections.a.b`, has the same form as the
  *   topic of the partition `b` of the collection `a`. Only the repository knows the collection, so
  *   `collectionTopicTarget()` decides with it.
+ * - `ProcedureServer` refuses a storage of `a.b` while `a` has partitions, in each order (roadmap
+ *   CLI-57, decision D23). Thus the readers of `a.b` do not get the events of a partition of `a`.
  */
 import type { RepositoryProvider } from "../types.js";
 

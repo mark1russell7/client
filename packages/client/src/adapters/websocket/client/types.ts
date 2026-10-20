@@ -148,6 +148,9 @@ export interface WebSocketTransportOptions {
    * the client: streaming, credit, cancel, the signal and the deadline (`procedure-timeout`). The
    * server reaches it with `callConnection()` or `transportFor()`. Without it (and without
    * `onServerRequest`), the client answers each call of the server with `NOT_FOUND`.
+   *
+   * A call of the server comes over the network, so it is not local. Its credentials are empty
+   * (CLI-1). A `ProcedureServer` with a token refuses it. Give `serve` a server without a token.
    */
   serve?: RequestHandler;
 

@@ -8,6 +8,7 @@
 import { Server, type ServerOptions } from "./server.js";
 import type { AmbientCredentials, Credentials, Method, Principal, PrincipalOf, RequestIdentity, ServerHandler, ServerRequest, ServerResponse } from "./types.js";
 import { methodToPath, pathToMethod } from "./method.js";
+import { isLocalCredentials } from "./request-auth.js";
 import type {
   AnyProcedure,
   ProcedurePath,
@@ -19,7 +20,7 @@ import { ProcedureRegistry, PROCEDURE_REGISTRY } from "../procedures/registry.js
 import { createCollectionProcedures } from "../procedures/collection/procedures.js";
 import { InvocationError, invokeProcedure, type AdmitItem, type Interceptor, type Invocation } from "../procedures/invoke.js";
 import type { Capability, ClearanceOrder, ProcedureContext, ResourcesOf } from "../procedures/types.js";
-import type { CollectionPartitions } from "../procedures/collection/partition.js";
+import { assertTopicsApart, type CollectionPartitions } from "../procedures/collection/partition.js";
 import { VERSION_CONFLICTS_METADATA_KEY, versionConflictsOf } from "../procedures/collection/precondition.js";
 import { TIMEOUT_METADATA_KEY, effectsOf, joinNarrowing, narrowCapability } from "../procedures/capability.js";
 import { IdempotencyCache, idempotencyKeyOf, isRepeatable, type IdempotencyOptions } from "../procedures/idempotency.js";
@@ -135,10 +136,11 @@ export interface ProcedureServerOptions extends ServerOptions {
   idempotency?: IdempotencyOptions | false | undefined;
 
   /**
-   * The token of the server (roadmap R18). Each request with credentials (a network request)
-   * must present it as its bearer token, or the server answers `UNAUTHORIZED`. Before, only the
-   * Express middleware of the peer examined the token, so a `ProcedureServer` with the HTTP or
-   * WebSocket transport of the core and the token of a host policy accepted each request.
+   * The token of the server (roadmap R18). Each request must present it as its bearer token, or
+   * the server answers `UNAUTHORIZED`. Only a local request (`LOCAL_CREDENTIALS`) skips it. The
+   * server refuses a request without credentials (CLI-1). Before, only the Express middleware of
+   * the peer examined the token, so a `ProcedureServer` with the HTTP or WebSocket transport of the
+   * core and the token of a host policy accepted each request.
    */
   token?: string | undefined;
 
@@ -154,8 +156,9 @@ export interface ProcedureServerOptions extends ServerOptions {
    * header, the query) and gives a bearer token, a principal and a narrowing. It runs before the
    * token check: its bearer token replaces the bearer token of the credentials. Its principal
    * replaces the principal of the token check. `authenticate` runs after it and can read
-   * `request.principal`. Undefined or an error refuses the request with `UNAUTHORIZED`. A request
-   * without credentials (from this process) does not go through the hook.
+   * `request.principal`. Undefined or an error refuses the request with `UNAUTHORIZED`. A local
+   * request (`LOCAL_CREDENTIALS`) does not go through the hook. A server with a hook refuses a
+   * request without credentials, and the hook does not run for it (CLI-1).
    */
   principalOf?: PrincipalOf | undefined;
 
@@ -343,6 +346,8 @@ function withRequestTimeout(
  * (VALIDATION_ERROR, NOT_EXPOSED, ABORTED and so on). An error of the handler keeps its own code
  * when it is a string, as for a stream (`WIRE-PROTOCOL.md`). Without a code, it is HANDLER_ERROR.
  * An error without a retryable flag gets the flag of its code in `ERROR_CODES`, or false (CLI-48).
+ * This default applies only before the stream starts. An in-band end without a flag gets false
+ * (CLI-58, `WIRE-PROTOCOL.md`, section "Error codes").
  */
 export function errorResponse(id: string, error: unknown): ServerResponse<unknown> {
   // An error that says it is retryable stays retryable: before, every error lost the flag
@@ -495,7 +500,8 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
     this.publisher = events instanceof EventPublisher ? events : events ? new EventPublisher({ ...events, clock: events.clock ?? this.clock }) : undefined;
     if (this.publisher) this.registerProcedure(this.publisher.procedure, { alwaysOn: true });
 
-    // Configure collections
+    // Configure collections. A new server has no partitions yet: usePartitions() examines these
+    // storages for a shared topic (roadmap CLI-57)
     if (options.collections) {
       for (const [name, storage] of Object.entries(options.collections)) {
         this.storages.set(name, storage);
@@ -577,13 +583,29 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    * The name can have a dot (roadmap CLI-42). The topic of a partition encodes the name, so the
    * name and the partition of a topic stay apart (`collectionChangeTopic()`).
    *
+   * The server refuses partitions of `a` while it has a storage of `a.b` (roadmap CLI-57, decision
+   * D23). The plain topic of `a.b` is the topic of the partition `b` of `a`. `useStorage` refuses
+   * the other order.
+   *
    * @param name - Collection name
    * @param partitions - The storage of each partition, and the resolver
    * @returns this (for chaining)
+   * @throws CollectionTopicCollisionError when the topic of a partition is the topic of a collection with a storage
    */
   usePartitions<T>(name: string, partitions: CollectionPartitions<T>): this {
+    assertTopicsApart(this.storages.keys(), (collection) => collection === name);
     this.partitions.set(name, partitions as CollectionPartitions<unknown>);
     return this;
+  }
+
+  /**
+   * The check of the topics of new storages (roadmap CLI-57, decision D23). The plain topic of each
+   * one must not be the topic of a partition of a collection with partitions.
+   *
+   * @throws CollectionTopicCollisionError for the first pair with the same topic
+   */
+  private assertPlainTopicsApart(names: Iterable<string>): void {
+    assertTopicsApart(names, (collection) => this.partitions.has(collection));
   }
 
   // ===========================================================================
@@ -606,15 +628,21 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    *   that took the old storage, for the time of `grace` at most. Before, such a call could fail
    *   because the storage was closed.
    *
+   * The server refuses a storage of `a.b` while `a` has partitions (roadmap CLI-57, decision D23).
+   * The plain topic of `a.b` is the topic of the partition `b` of `a`. With options, the promise
+   * rejects, and the old storage stays as it is.
+   *
    * @param name - Collection name
    * @param storage - Storage backend
    * @param options - Drain and close the old storage
    * @returns this (for chaining), or a promise of it when options are given
+   * @throws CollectionTopicCollisionError when the topic of the collection is the topic of a partition
    */
   useStorage<T>(name: string, storage: CollectionStorage<T>): this;
   useStorage<T>(name: string, storage: CollectionStorage<T>, options: UseStorageOptions): Promise<this>;
   useStorage<T>(name: string, storage: CollectionStorage<T>, options?: UseStorageOptions): this | Promise<this> {
     if (options === undefined) {
+      this.assertPlainTopicsApart([name]);
       this.storages.set(name, storage as CollectionStorage<unknown>);
       return this;
     }
@@ -626,6 +654,9 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    * the old storage, and close it.
    */
   private async replaceStorage(name: string, storage: CollectionStorage<unknown>, options: UseStorageOptions): Promise<this> {
+    // Before the flush: a refused storage changes nothing (roadmap CLI-57). With an old storage,
+    // usePartitions() sees the name during the flush. Without one, no await comes before the set.
+    this.assertPlainTopicsApart([name]);
     const graceMs = optionalMs(options.grace, "grace") ?? TIMER_DEFAULTS.server.storageGraceMs;
     const old = this.storages.get(name);
     const other = old !== undefined && old !== storage ? old : undefined;
@@ -697,10 +728,15 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
   /**
    * Configure multiple storages at once.
    *
+   * The server examines all the names before it sets a storage: a refused name sets none (roadmap
+   * CLI-57, decision D23).
+   *
    * @param storages - Map of collection names to storage backends
    * @returns this (for chaining)
+   * @throws CollectionTopicCollisionError when the topic of a collection is the topic of a partition
    */
   useStorages(storages: Record<string, CollectionStorage<unknown>>): this {
+    this.assertPlainTopicsApart(Object.keys(storages));
     for (const [name, storage] of Object.entries(storages)) {
       this.storages.set(name, storage);
     }
@@ -855,7 +891,9 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
   /**
    * The token check and the principal of a request (roadmap R18). The request hook reads the
    * credentials of a network request first: a bearer token, a principal and a narrowing. A
-   * network request (with credentials) must present the token. The authenticate function gives
+   * network request must present the token. Only a local request (`LOCAL_CREDENTIALS`) skips the
+   * hook and the token. A request without credentials is not local: a server with a token or a
+   * request hook refuses it, and the hook does not run (CLI-1). The authenticate function gives
    * the principal. The function gives an UNAUTHORIZED response, or undefined when the request
    * passes.
    */
@@ -865,7 +903,15 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
       status: { type: "error", code: "UNAUTHORIZED", message, retryable: false },
       metadata: {},
     });
-    const credentials = request.credentials;
+    // Only a local request skips the token and the request hook (CLI-1). A face that sets no
+    // credentials skips neither: the server refuses it, and the hook does not run. Before, such a
+    // request passed as a request of this process.
+    if (request.credentials === undefined && (this.token !== undefined || this.principalOf !== undefined)) {
+      return unauthorized("Unauthorized: this server authenticates each request, and the request has no credentials");
+    }
+    // A local face (this process, MCP over stdio, a message port) sets the local marker. The
+    // marker key is a symbol, so a request from the network cannot carry it (CLI-1).
+    const credentials = isLocalCredentials(request.credentials) ? undefined : request.credentials;
     let identity: RequestIdentity | undefined;
     if (this.principalOf && credentials !== undefined) {
       try {
@@ -942,7 +988,8 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    * This method tells if the server admits a connection with these credentials, before its first
    * call. It uses the path of each call: the request hook, the token check and the authenticate
    * function (R18, CLI-2a). A face of connections refuses the upgrade when it gives false (CLI-7).
-   * A request hook that accepts a request without credentials (an empty identity) admits it.
+   * A request hook that accepts empty credentials (`{}`) with an empty identity admits the
+   * connection.
    */
   async admits(credentials: Credentials): Promise<boolean> {
     const request: ServerRequest<unknown> = { id: "connection", method: { service: "", operation: "" }, payload: undefined, metadata: {}, credentials };

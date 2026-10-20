@@ -1,11 +1,11 @@
 /**
  * Universal Client Library: the browser-safe entry point.
  *
- * This module exports everything of the package except the Node server transports
- * (`HttpServerTransport` and `WebSocketServerTransport`, which use `http` and `ws`).
- * A browser bundle imports "@procedures/client/browser". The root entry point
- * re-exports this module. It also adds the server transports as deprecated aliases: their entry
- * is "@procedures/client/node", and the next MINOR removes them from the root (CLI-6).
+ * This module exports the client, the procedures, the events and the server engine. The Node
+ * server transports (`HttpServerTransport` and `WebSocketServerTransport`, which use `http` and `ws`)
+ * have the entry "@procedures/client/node" (CLI-6). A browser bundle imports
+ * "@procedures/client/browser". The root entry point re-exports this module. It also adds the URL
+ * strategies and the browser checks of the server, which are browser-safe too.
  *
  * Collections (maps, caches, collection storage) are in @procedures/collections.
  * The program store, the storage backends that need a Client (ApiStorage, HybridStorage) and the
@@ -78,7 +78,7 @@ export { Server } from "./server/server.js";
 export type { ServerOptions } from "./server/server.js";
 export { ProcedureServer, createProcedureServer, STREAM_METADATA_KEY, isUnboundedStream, tokenMatches } from "./server/procedure-server.js";
 // The credentials of a network request (roadmap R18), and the parts that a request hook reads (CLI-2a)
-export { credentialsOf, bearerOf, withoutSecretHeaders, cookiesOf, requestCredentials } from "./server/request-auth.js";
+export { credentialsOf, bearerOf, withoutSecretHeaders, cookiesOf, requestCredentials, LOCAL_CREDENTIALS, isLocalCredentials } from "./server/request-auth.js";
 export type { RequestCredentialsOptions } from "./server/request-auth.js";
 // The procedures of a host: host.health, host.info, host.metrics (roadmap R19)
 export { hostProcedures } from "./server/host-procedures.js";
@@ -91,6 +91,7 @@ export type { CallLimit, CallLimitCovers, CallLimitKey, CallLimitKeyPart, Limite
 export {
   HandlerNotFoundError,
   ServerError,
+  LOCAL_MARKER,
 } from "./server/types.js";
 export { pathToMethod, methodToPath, methodName } from "./server/method.js";
 export type {
@@ -134,6 +135,8 @@ export {
   collectionTopicPartition,
   collectionTopicTarget,
   collectionTopicRule,
+  // The refusal of a storage whose topic is the topic of a partition (roadmap CLI-57)
+  CollectionTopicCollisionError,
   // The rules of the rows of a collection (roadmap CLI-41)
   admittedStorage,
   admitsRow,

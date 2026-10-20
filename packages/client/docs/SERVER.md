@@ -341,6 +341,14 @@ const server = new ProcedureServer({
 - The procedure reads the principal as `ctx.principal`. The nested calls get the same principal.
 - Undefined, or an error, refuses the request with `UNAUTHORIZED`.
 
+### Local requests
+
+Each face sets the credentials of its requests, or the local marker `LOCAL_CREDENTIALS` (CLI-1). The token and the request hook do not apply to a local request.
+
+- The local faces are MCP over stdio, an SDK transport of `McpServerTransport` and `PortTransport`.
+- A network face never sets the marker. The key of the marker is a symbol, so a request from the network cannot carry it.
+- A server with a token or a request hook refuses a request without credentials with `UNAUTHORIZED`. The hook does not operate for it. A direct `handle()` of the application gives `credentials: LOCAL_CREDENTIALS`.
+
 ### Cookies and CSRF
 
 A browser sends the cookies of a server by itself, also for a request that a page of another site starts. Thus a server that reads cookies trusts a request only from a named origin.

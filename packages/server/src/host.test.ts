@@ -317,6 +317,20 @@ describe("runProcedureHost: the probes (CLI-9, decision D5)", () => {
     await expect(fetch(`${base}/readiness`)).rejects.toThrow();
   }, 20000);
 
+  it("leaves out the report on the probe port when the option kinds does not name it (SYS-30)", async () => {
+    const running = await host.runProcedureHost({
+      name: "no-report",
+      mode: "background",
+      host: hostOptions("peer-no-report"),
+      probes: { port: 0, kinds: ["startup", "readiness", "liveness"] },
+      run: { process: fakeProcess() },
+    });
+    lives.push(running.life);
+    const [base] = running.probes();
+    expect((await probe(`${base}/readiness`)).status).toBe(200);
+    expect((await probe(`${base}/report`)).status).toBe(404);
+  }, 20000);
+
   it("answers on the two places when the options of the host ask for the probes of the listeners too", async () => {
     const running = await host.runProcedureHost({
       name: "both",

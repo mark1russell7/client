@@ -72,6 +72,8 @@ export type { CollectionChangeEvent } from "./changes.js";
 
 // The partitions of a collection (roadmap CLI-17)
 export { PARTITION_PATTERN, collectionTopicPartition, collectionTopicTarget, partitionOfCall, storageOfCall, withPartition } from "./partition.js";
+// The refusal of a storage whose topic is the topic of a partition (roadmap CLI-57, decision D23)
+export { CollectionTopicCollisionError } from "./partition.js";
 // The topic rule of a collection for EventPublisher (roadmap CLI-42)
 export { collectionTopicRule } from "./topic.js";
 export type { CollectionPartitions, PartitionInput, PartitionResolver } from "./partition.js";

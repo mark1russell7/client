@@ -17,6 +17,7 @@ import type { WebSocketMessage } from "../server/types.js";
 import { withoutInternalKeys } from "../../metadata.js";
 import { StreamSequence, gapOf, itemMetadata } from "../../sequence.js";
 import { DELIVERY_METADATA_KEY } from "../../../client/middleware/items.js";
+import { foldedErrorCode } from "../../../protocol.js";
 
 /**
  * A queue of response items that one reader takes in order: push, then end or fail. The reader
@@ -99,7 +100,11 @@ export class StreamCredit {
   }
 }
 
-/** The error of a failed stream or handler: its code (a string) and its retryable flag. */
+/**
+ * The error of a failed stream or handler: its code (a string) and its retryable flag. An error
+ * without a flag gets false, not the flag of its code: the end of a stream is in-band, and a retry
+ * can send the items again (CLI-58, `WIRE-PROTOCOL.md`, section "Error codes").
+ */
 export function errorStatus(error: unknown): { type: "error"; code: string; message: string; retryable: boolean } {
   const code = (error as { code?: unknown } | undefined)?.code;
   const retryable = (error as { retryable?: unknown } | undefined)?.retryable;
@@ -122,13 +127,14 @@ function textOf(value: unknown): string {
 export function itemOfFrame(frame: WebSocketMessage, messageId: string): ResponseItem<unknown> {
   let status: ResponseItem<unknown>["status"];
   if (frame.status && frame.status.type === "error") {
-    status = { type: "error", code: String(frame.status.code), message: textOf(frame.status.message), retryable: frame.status.retryable || false };
+    // A code of an older server becomes its code of wire v1 (CLI-4): "500" is INTERNAL_ERROR
+    status = { type: "error", code: foldedErrorCode(String(frame.status.code)).code, message: textOf(frame.status.message), retryable: frame.status.retryable || false };
   } else if (frame.status && frame.status.type === "success") {
     status = { type: "success", code: Number(frame.status.code) };
   } else if (frame.type === "error") {
     status = {
       type: "error",
-      code: String(frame.error?.code || "UNKNOWN_ERROR"),
+      code: foldedErrorCode(String(frame.error?.code || "UNKNOWN_ERROR")).code,
       message: textOf(frame.error?.message),
       retryable: frame.error?.retryable || false,
     };

@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 571 names
+## . (dist/index.d.ts): 569 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -53,6 +53,7 @@ type CollectionPartitions: dist/procedures/collection/partition.d.ts#CollectionP
 type CollectionProceduresOptions: dist/procedures/collection/procedures.d.ts#CollectionProceduresOptions
 type CollectionRow: dist/procedures/collection/admission.d.ts#CollectionRow
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
+CollectionTopicCollisionError: dist/procedures/collection/partition.d.ts#CollectionTopicCollisionError
 type CollectionWrite: dist/procedures/collection/admission.d.ts#CollectionWrite
 type CollectionWriteGuard: dist/procedures/collection/admission.d.ts#CollectionWriteGuard
 type ConfirmationOptions: dist/procedures/elicit.d.ts#ConfirmationOptions
@@ -109,6 +110,7 @@ type ExecutionContext: dist/client/batch-executor.d.ts#ExecutionContext
 type ForbiddenReason: dist/procedures/invoke.d.ts#ForbiddenReason
 type FsRootRules: dist/procedures/types.d.ts#FsRootRules
 type GuardResult: dist/server/browser-guard.d.ts#GuardResult
+type GuardedHeaders: dist/server/browser-guard.d.ts#GuardedHeaders
 type GuardedRequest: dist/server/browser-guard.d.ts#GuardedRequest
 type Handler: dist/adapters/local/client/types.d.ts#Handler
 HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
@@ -117,11 +119,8 @@ type HostPolicy: dist/server/host-policy.d.ts#HostPolicy
 type HostPolicyOptions: dist/server/host-policy.d.ts#HostPolicyOptions
 type HostSource: dist/server/host-procedures.d.ts#HostSource
 type HttpMethodStrategy: dist/adapters/http/shared/strategies.d.ts#HttpMethodStrategy
-HttpServerTransport: dist/server/index.d.ts#HttpServerTransport
-type HttpServerTransportOptions: dist/server/index.d.ts#HttpServerTransportOptions
 HttpTransport: dist/adapters/http/client/transport.d.ts#HttpTransport
 type HttpTransportOptions: dist/adapters/http/client/types.d.ts#HttpTransportOptions
-type HttpUrlStrategy: dist/server/index.d.ts#HttpUrlStrategy
 type HydrateOptions: dist/procedures/ref.d.ts#HydrateOptions
 type HydrationEvent: dist/procedures/ref.d.ts#HydrationEvent
 IDEMPOTENCY_KEY_METADATA: dist/procedures/idempotency.d.ts#IDEMPOTENCY_KEY_METADATA
@@ -146,6 +145,8 @@ type JsonSchema: dist/procedures/schema.d.ts#JsonSchema
 type JsonSchemaSource: dist/procedures/schema.d.ts#JsonSchemaSource
 type JsonSchemaTarget: dist/procedures/schema.d.ts#JsonSchemaTarget
 LITERAL_KEY: dist/procedures/ref.d.ts#LITERAL_KEY
+LOCAL_CREDENTIALS: dist/server/request-auth.d.ts#LOCAL_CREDENTIALS
+LOCAL_MARKER: dist/server/types.d.ts#LOCAL_MARKER
 type LimitedCall: dist/server/limits.d.ts#LimitedCall
 LocalTransport: dist/adapters/local/client/transport.d.ts#LocalTransport
 type LocalTransportOptions: dist/adapters/local/client/types.d.ts#LocalTransportOptions
@@ -254,6 +255,7 @@ type RouteNode: dist/client/call-types.d.ts#RouteNode
 type RouteResolutionError: dist/client/route-resolver.d.ts#RouteResolutionError
 type RouteResolutionResult: dist/client/route-resolver.d.ts#RouteResolutionResult
 RouteResolver: dist/client/route-resolver.d.ts#RouteResolver
+type RoutedRequest: dist/adapters/http/server/strategies.d.ts#RoutedRequest
 STANDARD_RESOURCES: dist/procedures/capability.d.ts#STANDARD_RESOURCES
 STREAM_GAP_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_GAP_METADATA_KEY
 STREAM_ITEM_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_ITEM_METADATA_KEY
@@ -336,11 +338,6 @@ WEBSOCKET_CONNECTION_MACHINE: dist/machines.d.ts#WEBSOCKET_CONNECTION_MACHINE
 WHEN_IMMEDIATE: dist/procedures/ref.d.ts#WHEN_IMMEDIATE
 WHEN_NEVER: dist/procedures/ref.d.ts#WHEN_NEVER
 WHEN_PARENT: dist/procedures/ref.d.ts#WHEN_PARENT
-type WebSocketAuthHandler: dist/server/index.d.ts#WebSocketAuthHandler
-type WebSocketConnectionHandler: dist/server/index.d.ts#WebSocketConnectionHandler
-type WebSocketMessage: dist/server/index.d.ts#WebSocketMessage
-WebSocketServerTransport: dist/server/index.d.ts#WebSocketServerTransport
-type WebSocketServerTransportOptions: dist/server/index.d.ts#WebSocketServerTransportOptions
 WebSocketState: dist/adapters/websocket/client/types.d.ts#WebSocketState
 WebSocketTransport: dist/adapters/websocket/client/transport.d.ts#WebSocketTransport
 type WebSocketTransportOptions: dist/adapters/websocket/client/types.d.ts#WebSocketTransportOptions
@@ -459,6 +456,7 @@ isDuration: dist/duration.d.ts#isDuration
 isExpectedVersion: dist/procedures/collection/precondition.d.ts#isExpectedVersion
 isKnownError: dist/client/errors/registry.d.ts#isKnownError
 isLiteral: dist/procedures/ref.d.ts#isLiteral
+isLocalCredentials: dist/server/request-auth.d.ts#isLocalCredentials
 isLoopbackAddress: dist/server/browser-guard.d.ts#isLoopbackAddress
 isLoopbackHost: dist/server/browser-guard.d.ts#isLoopbackHost
 isOpenWorld: dist/procedures/capability.d.ts#isOpenWorld
@@ -578,7 +576,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 553 names
+## ./browser (dist/browser.d.ts): 557 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -626,6 +624,7 @@ type CollectionPartitions: dist/procedures/collection/partition.d.ts#CollectionP
 type CollectionProceduresOptions: dist/procedures/collection/procedures.d.ts#CollectionProceduresOptions
 type CollectionRow: dist/procedures/collection/admission.d.ts#CollectionRow
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
+CollectionTopicCollisionError: dist/procedures/collection/partition.d.ts#CollectionTopicCollisionError
 type CollectionWrite: dist/procedures/collection/admission.d.ts#CollectionWrite
 type CollectionWriteGuard: dist/procedures/collection/admission.d.ts#CollectionWriteGuard
 type ConfirmationOptions: dist/procedures/elicit.d.ts#ConfirmationOptions
@@ -714,6 +713,8 @@ type JsonSchema: dist/procedures/schema.d.ts#JsonSchema
 type JsonSchemaSource: dist/procedures/schema.d.ts#JsonSchemaSource
 type JsonSchemaTarget: dist/procedures/schema.d.ts#JsonSchemaTarget
 LITERAL_KEY: dist/procedures/ref.d.ts#LITERAL_KEY
+LOCAL_CREDENTIALS: dist/server/request-auth.d.ts#LOCAL_CREDENTIALS
+LOCAL_MARKER: dist/server/types.d.ts#LOCAL_MARKER
 type LimitedCall: dist/server/limits.d.ts#LimitedCall
 LocalTransport: dist/adapters/local/client/transport.d.ts#LocalTransport
 type LocalTransportOptions: dist/adapters/local/client/types.d.ts#LocalTransportOptions
@@ -1018,6 +1019,7 @@ isDuration: dist/duration.d.ts#isDuration
 isExpectedVersion: dist/procedures/collection/precondition.d.ts#isExpectedVersion
 isKnownError: dist/client/errors/registry.d.ts#isKnownError
 isLiteral: dist/procedures/ref.d.ts#isLiteral
+isLocalCredentials: dist/server/request-auth.d.ts#isLocalCredentials
 isOpenWorld: dist/procedures/capability.d.ts#isOpenWorld
 isPatchOperations: dist/procedures/collection/query.d.ts#isPatchOperations
 isPlainObject: dist/procedures/ref.d.ts#isPlainObject
@@ -1134,7 +1136,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./node (dist/node.d.ts): 38 names
+## ./node (dist/node.d.ts): 39 names
 
 type Addressing: dist/adapters/http/server/addressing.d.ts#Addressing
 BodyError: dist/adapters/http/server/body.d.ts#BodyError
@@ -1156,6 +1158,7 @@ type TrackedConnection: dist/adapters/websocket/server/types.d.ts#TrackedConnect
 type UpgradeHandlerOptions: dist/adapters/websocket/server/upgrade.d.ts#UpgradeHandlerOptions
 type UrlAddressingOptions: dist/adapters/http/server/addressing.d.ts#UrlAddressingOptions
 type UrlRequest: dist/adapters/http/server/handler.d.ts#UrlRequest
+type UrlStrategyRequest: dist/adapters/http/server/strategies.d.ts#UrlStrategyRequest
 type WebSocketAuthHandler: dist/adapters/websocket/server/types.d.ts#WebSocketAuthHandler
 type WebSocketClass: dist/adapters/websocket/client/types.d.ts#WebSocketClass
 type WebSocketConnectionHandler: dist/adapters/websocket/server/types.d.ts#WebSocketConnectionHandler
@@ -1357,7 +1360,7 @@ throttleChannel: dist/events/bus.d.ts#throttleChannel
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
-## ./procedures (dist/procedures/index.d.ts): 313 names
+## ./procedures (dist/procedures/index.d.ts): 314 names
 
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
@@ -1378,6 +1381,7 @@ type CollectionPartitions: dist/procedures/collection/partition.d.ts#CollectionP
 type CollectionProceduresOptions: dist/procedures/collection/procedures.d.ts#CollectionProceduresOptions
 type CollectionRow: dist/procedures/collection/admission.d.ts#CollectionRow
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
+CollectionTopicCollisionError: dist/procedures/collection/partition.d.ts#CollectionTopicCollisionError
 type CollectionWrite: dist/procedures/collection/admission.d.ts#CollectionWrite
 type CollectionWriteGuard: dist/procedures/collection/admission.d.ts#CollectionWriteGuard
 type ConfirmationOptions: dist/procedures/elicit.d.ts#ConfirmationOptions
@@ -1689,14 +1693,11 @@ compose: dist/middleware/compose.d.ts#compose
 wrapWithAsyncMiddlewares: dist/middleware/compose.d.ts#wrapWithAsyncMiddlewares
 wrapWithSyncMiddlewares: dist/middleware/compose.d.ts#wrapWithSyncMiddlewares
 
-## ./server (dist/server/index.d.ts): 42 names
+## ./server (dist/server/index.d.ts): 35 names
 
 type AmbientCredentials: dist/server/types.d.ts#AmbientCredentials
 type Credentials: dist/server/types.d.ts#Credentials
 HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
-HttpServerTransport: dist/server/index.d.ts#HttpServerTransport
-HttpServerTransportOptions: dist/server/index.d.ts#HttpServerTransportOptions
-HttpUrlStrategy: dist/server/index.d.ts#HttpUrlStrategy
 type Principal: dist/server/types.d.ts#Principal
 type PrincipalOf: dist/server/types.d.ts#PrincipalOf
 ProcedureServer: dist/server/procedure-server.d.ts#ProcedureServer
@@ -1704,6 +1705,7 @@ type ProcedureServerOptions: dist/server/procedure-server.d.ts#ProcedureServerOp
 type RegisterProcedureOptions: dist/server/procedure-server.d.ts#RegisterProcedureOptions
 type RequestHandler: dist/server/types.d.ts#RequestHandler
 type RequestIdentity: dist/server/types.d.ts#RequestIdentity
+type RoutedRequest: dist/adapters/http/server/strategies.d.ts#RoutedRequest
 STREAM_METADATA_KEY: dist/server/procedure-server.d.ts#STREAM_METADATA_KEY
 Server: dist/server/server.d.ts#Server
 type ServerContext: dist/server/types.d.ts#ServerContext
@@ -1721,11 +1723,6 @@ type StopParts: dist/server/procedure-server.d.ts#StopParts
 type StorageConfig: dist/server/procedure-server.d.ts#StorageConfig
 type StorageHandle: dist/server/procedure-server.d.ts#StorageHandle
 type UseStorageOptions: dist/server/procedure-server.d.ts#UseStorageOptions
-WebSocketAuthHandler: dist/server/index.d.ts#WebSocketAuthHandler
-WebSocketConnectionHandler: dist/server/index.d.ts#WebSocketConnectionHandler
-WebSocketMessage: dist/server/index.d.ts#WebSocketMessage
-WebSocketServerTransport: dist/server/index.d.ts#WebSocketServerTransport
-WebSocketServerTransportOptions: dist/server/index.d.ts#WebSocketServerTransportOptions
 createProcedureServer: dist/server/procedure-server.d.ts#createProcedureServer
 defaultServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#defaultServerUrlStrategy
 isUnboundedStream: dist/server/procedure-server.d.ts#isUnboundedStream
@@ -1917,6 +1914,16 @@ export interface RoutedRequest {
     readonly path: string;
 }
 
+### dist/adapters/http/server/strategies.d.ts#UrlStrategyRequest
+export interface UrlStrategyRequest extends RoutedRequest {
+    readonly url: string;
+    readonly headers: {
+        readonly [name: string]: string | string[] | undefined;
+    };
+    readonly query?: unknown;
+    readonly body?: unknown;
+}
+
 ### dist/adapters/http/server/strategies.d.ts#defaultServerUrlStrategy
 export declare function defaultServerUrlStrategy(req: RoutedRequest): Method | null;
 
@@ -1957,7 +1964,7 @@ export interface HttpServerTransportOptions extends BrowserGuardOptions {
 }
 
 ### dist/adapters/http/server/types.d.ts#HttpUrlStrategy
-export type HttpUrlStrategy = (req: Request) => Method | null;
+export type HttpUrlStrategy = (req: UrlStrategyRequest) => Method | null;
 
 ### dist/adapters/http/shared/strategies.d.ts#HttpMethodStrategy
 export type HttpMethodStrategy = (method: Method) => HTTPMethod;
@@ -2073,6 +2080,7 @@ export declare class PortTransport implements Transport {
 ### dist/adapters/port/transport.d.ts#PortTransportOptions
 export interface PortTransportOptions {
     serve?: RequestHandler | undefined;
+    credentials?: Credentials | undefined;
     streamWindow?: number | undefined;
 }
 
@@ -3683,6 +3691,16 @@ export declare function collectionTopicReads(topic: string, repository?: Reposit
 export interface CollectionPartitions<T = unknown> {
     storageOf(partition: string): CollectionStorage<T>;
     resolve: PartitionResolver;
+}
+
+### dist/procedures/collection/partition.d.ts#CollectionTopicCollisionError
+export declare class CollectionTopicCollisionError extends Error {
+    readonly name = "CollectionTopicCollisionError";
+    readonly collection: string;
+    readonly partitioned: string;
+    readonly partition: string;
+    readonly topic: string;
+    constructor(collection: string, partitioned: string, partition: string);
 }
 
 ### dist/procedures/collection/partition.d.ts#PARTITION_PATTERN
@@ -5341,15 +5359,27 @@ export type GuardResult = {
     readonly ok: true;
 } | {
     readonly ok: false;
-    readonly status: 403 | 405 | 415;
-    readonly code: string;
+    readonly status: 403;
+    readonly code: "FORBIDDEN";
+    readonly reason: "host-header-not-allowed" | "origin-not-allowed" | "method-not-allowed" | "media-type-not-allowed";
     readonly message: string;
 };
+
+### dist/server/browser-guard.d.ts#GuardedHeaders
+export interface GuardedHeaders {
+    readonly [name: string]: string | string[] | undefined;
+    readonly host?: string | undefined;
+    readonly origin?: string | undefined;
+    readonly cookie?: string | undefined;
+    readonly "content-type"?: string | undefined;
+    readonly "content-length"?: string | undefined;
+    readonly "transfer-encoding"?: string | undefined;
+}
 
 ### dist/server/browser-guard.d.ts#GuardedRequest
 export interface GuardedRequest {
     method?: string | undefined;
-    headers: IncomingHttpHeaders;
+    headers: GuardedHeaders;
     socket?: {
         localAddress?: string | undefined;
     } | undefined;
@@ -5359,7 +5389,7 @@ export interface GuardedRequest {
 export declare function checkBrowserRequest(req: GuardedRequest, options?: BrowserGuardOptions, http?: boolean, ambient?: boolean): GuardResult;
 
 ### dist/server/browser-guard.d.ts#hasAmbientCredentials
-export declare function hasAmbientCredentials(headers: IncomingHttpHeaders): boolean;
+export declare function hasAmbientCredentials(headers: GuardedHeaders): boolean;
 
 ### dist/server/browser-guard.d.ts#hostNameOf
 export declare function hostNameOf(header: string | undefined): string;
@@ -5439,32 +5469,6 @@ export interface HostSource {
 
 ### dist/server/host-procedures.d.ts#hostProcedures
 export declare function hostProcedures(source: HostSource): AnyProcedure[];
-
-### dist/server/index.d.ts#HttpServerTransport
-export declare const HttpServerTransport: typeof NodeHttpServerTransport;
-export type HttpServerTransport = NodeHttpServerTransport;
-
-### dist/server/index.d.ts#HttpServerTransportOptions
-export type HttpServerTransportOptions = NodeHttpServerTransportOptions;
-
-### dist/server/index.d.ts#HttpUrlStrategy
-export type HttpUrlStrategy = NodeHttpUrlStrategy;
-
-### dist/server/index.d.ts#WebSocketAuthHandler
-export type WebSocketAuthHandler = NodeWebSocketAuthHandler;
-
-### dist/server/index.d.ts#WebSocketConnectionHandler
-export type WebSocketConnectionHandler = NodeWebSocketConnectionHandler;
-
-### dist/server/index.d.ts#WebSocketMessage
-export type WebSocketMessage<TReq = unknown> = NodeWebSocketMessage<TReq>;
-
-### dist/server/index.d.ts#WebSocketServerTransport
-export declare const WebSocketServerTransport: typeof NodeWebSocketServerTransport;
-export type WebSocketServerTransport = NodeWebSocketServerTransport;
-
-### dist/server/index.d.ts#WebSocketServerTransportOptions
-export type WebSocketServerTransportOptions = NodeWebSocketServerTransportOptions;
 
 ### dist/server/limits.d.ts#CallLimit
 export interface CallLimit {
@@ -5628,6 +5632,9 @@ export declare function isUnboundedStream(response: {
 ### dist/server/procedure-server.d.ts#tokenMatches
 export declare function tokenMatches(expected: string, presented: string | undefined): boolean;
 
+### dist/server/request-auth.d.ts#LOCAL_CREDENTIALS
+export declare const LOCAL_CREDENTIALS: Credentials;
+
 ### dist/server/request-auth.d.ts#RequestCredentialsOptions
 export interface RequestCredentialsOptions {
     readonly tokenQuery?: string | false | undefined;
@@ -5644,6 +5651,9 @@ export declare function credentialsOf(request: {
     headers: Record<string, unknown>;
     url?: string | undefined;
 }): Credentials;
+
+### dist/server/request-auth.d.ts#isLocalCredentials
+export declare function isLocalCredentials(credentials: Credentials | undefined): boolean;
 
 ### dist/server/request-auth.d.ts#requestCredentials
 export declare function requestCredentials(request: {
@@ -5680,6 +5690,7 @@ export type AmbientCredentials = "always" | "cookies";
 
 ### dist/server/types.d.ts#Credentials
 export interface Credentials {
+    readonly [LOCAL_MARKER]?: true | undefined;
     readonly bearer?: string | undefined;
     readonly cookies?: Readonly<Record<string, string>> | undefined;
     readonly headers?: Readonly<Record<string, string>> | undefined;
@@ -5690,6 +5701,9 @@ export interface Credentials {
 export declare class HandlerNotFoundError extends Error {
     constructor(method: Method);
 }
+
+### dist/server/types.d.ts#LOCAL_MARKER
+export declare const LOCAL_MARKER: unique symbol;
 
 ### dist/server/types.d.ts#Principal
 export interface Principal {

@@ -18,9 +18,9 @@
  * - A request with ambient credentials (the cookies that a browser sends by itself) is trusted
  *   only from a named origin. `"*"` does not open the origin check for it (CSRF). A list or a
  *   function of origins still does.
+ *
+ * Each refusal is the error `FORBIDDEN` of wire v1, with the status 403 and a reason (CLI-4).
  */
-
-import type { IncomingHttpHeaders } from "node:http";
 
 const LOOPBACK_NAMES = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
 
@@ -46,17 +46,49 @@ export interface BrowserGuardOptions {
   allowGet?: boolean | undefined;
 }
 
-/** The parts of an incoming request that the checks read. */
+/**
+ * The headers of a request, by lower-case name. The type is structural, so the root names no Node
+ * module (CLI-61). `IncomingHttpHeaders` of `node:http` agrees with it.
+ */
+export interface GuardedHeaders {
+  readonly [name: string]: string | string[] | undefined;
+  readonly host?: string | undefined;
+  readonly origin?: string | undefined;
+  readonly cookie?: string | undefined;
+  readonly "content-type"?: string | undefined;
+  readonly "content-length"?: string | undefined;
+  readonly "transfer-encoding"?: string | undefined;
+}
+
+/** The parts of an incoming request that the checks read. An `IncomingMessage` of `node:http` agrees with it. */
 export interface GuardedRequest {
   method?: string | undefined;
-  headers: IncomingHttpHeaders;
+  headers: GuardedHeaders;
   socket?: { localAddress?: string | undefined } | undefined;
 }
 
-/** The result of the checks: the request passes, or the HTTP status and the error to send. */
+/**
+ * The result of the checks: the request passes, or the HTTP status and the error to send.
+ *
+ * A refusal is the error `FORBIDDEN` of wire v1 with the status 403. Its `reason` tells which
+ * check refused the request. Before CLI-4, the checks gave the codes `FORBIDDEN_HOST`,
+ * `FORBIDDEN_ORIGIN`, `METHOD_NOT_ALLOWED` (405) and `UNSUPPORTED_MEDIA_TYPE` (415).
+ */
 export type GuardResult =
   | { readonly ok: true }
-  | { readonly ok: false; readonly status: 403 | 405 | 415; readonly code: string; readonly message: string };
+  | {
+      readonly ok: false;
+      readonly status: 403;
+      readonly code: "FORBIDDEN";
+      /** The check that refused the request, as in `documentation/WIRE-PROTOCOL.md`. */
+      readonly reason: "host-header-not-allowed" | "origin-not-allowed" | "method-not-allowed" | "media-type-not-allowed";
+      readonly message: string;
+    };
+
+/** The refusal of a check: the error `FORBIDDEN` of wire v1 with its reason (CLI-4). */
+function refusal(reason: Extract<GuardResult, { ok: false }>["reason"], message: string): Extract<GuardResult, { ok: false }> {
+  return { ok: false, status: 403, code: "FORBIDDEN", reason, message };
+}
 
 /** True for a host name or a bind address that only this computer can reach. */
 export function isLoopbackHost(host: string): boolean {
@@ -101,7 +133,7 @@ function isJsonType(contentType: string | undefined): boolean {
 }
 
 /** True when the request has a body: a `Content-Length` above 0, or a chunked body. */
-function hasBody(headers: IncomingHttpHeaders): boolean {
+function hasBody(headers: GuardedHeaders): boolean {
   const length = Number(headers["content-length"] ?? 0);
   return length > 0 || headers["transfer-encoding"] !== undefined;
 }
@@ -110,7 +142,7 @@ function hasBody(headers: IncomingHttpHeaders): boolean {
  * True when a request carries ambient credentials: a `Cookie` header, which a browser sends by
  * itself, also for a request that another site starts.
  */
-export function hasAmbientCredentials(headers: IncomingHttpHeaders): boolean {
+export function hasAmbientCredentials(headers: GuardedHeaders): boolean {
   const cookie = headers.cookie;
   return typeof cookie === "string" && cookie.trim() !== "";
 }
@@ -123,7 +155,7 @@ export function hasAmbientCredentials(headers: IncomingHttpHeaders): boolean {
  *
  * @internal
  */
-export function needsNamedOrigin(mode: "always" | "cookies" | undefined, headers: IncomingHttpHeaders, cookiesNamed: boolean): boolean {
+export function needsNamedOrigin(mode: "always" | "cookies" | undefined, headers: GuardedHeaders, cookiesNamed: boolean): boolean {
   return mode === "always" || (hasAmbientCredentials(headers) && (cookiesNamed || mode !== undefined));
 }
 
@@ -159,29 +191,29 @@ export function checkBrowserRequest(
   if (options.allowedHosts !== "*" && isLoopbackAddress(req.socket?.localAddress)) {
     const name = hostNameOf(headers.host);
     if (!LOOPBACK_NAMES.has(name) && !(options.allowedHosts ?? []).includes(name)) {
-      return { ok: false, status: 403, code: "FORBIDDEN_HOST", message: `Forbidden: the host "${name}" is not allowed` };
+      return refusal("host-header-not-allowed", `Forbidden: the host "${name}" is not allowed`);
     }
   }
 
   const origin = typeof headers.origin === "string" ? headers.origin : undefined;
   if (origin !== undefined) {
     if (!sameOrigin(origin, headers.host) && !originAllowedBy(origin, options.allowedOrigins, ambient)) {
-      return { ok: false, status: 403, code: "FORBIDDEN_ORIGIN", message: `Forbidden: the origin "${origin}" is not allowed` };
+      return refusal("origin-not-allowed", `Forbidden: the origin "${origin}" is not allowed`);
     }
   } else {
     const site = headers["sec-fetch-site"];
     if ((site === "cross-site" || site === "same-site") && (options.allowedOrigins !== "*" || ambient)) {
-      return { ok: false, status: 403, code: "FORBIDDEN_ORIGIN", message: "Forbidden: a request from another site" };
+      return refusal("origin-not-allowed", "Forbidden: a request from another site");
     }
   }
 
   if (http) {
     const method = (req.method ?? "GET").toUpperCase();
     if ((method === "GET" || method === "HEAD") && !options.allowGet) {
-      return { ok: false, status: 405, code: "METHOD_NOT_ALLOWED", message: "Call a procedure with POST" };
+      return refusal("method-not-allowed", "Forbidden: call a procedure with POST");
     }
     if (hasBody(headers) && !isJsonType(headers["content-type"])) {
-      return { ok: false, status: 415, code: "UNSUPPORTED_MEDIA_TYPE", message: "The request body must be JSON (Content-Type: application/json)" };
+      return refusal("media-type-not-allowed", "Forbidden: the request body must be JSON (Content-Type: application/json)");
     }
   }
 

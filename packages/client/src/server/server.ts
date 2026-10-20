@@ -349,12 +349,13 @@ export class Server {
       };
     }
 
-    // Generic error
+    // Another error: the server failed outside a handler of the protocol. The code is of wire v1
+    // (CLI-4: before, the code was the string "500").
     return {
       id,
       status: {
         type: "error",
-        code: "500",
+        code: "INTERNAL_ERROR",
         message: error.message || "Internal server error",
         retryable: false,
       },
