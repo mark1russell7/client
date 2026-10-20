@@ -1,7 +1,7 @@
 /**
  * The status board: the types of its data, and the pure parts of the page. These parts are the
- * lead line, the groups of the open items, the filters and the times. `scripts/status-board-data.mjs`
- * makes the data at build time. This module names no project, so another site can use it.
+ * lead line, the groups of the open items, the filters and the times. `@mark1russell7/site-pages`
+ * makes the data at build time, in the shape of its `status.json`. This module names no project, so another site can use it.
  */
 
 /** The class of a status. The board shows the open classes in this order, and "done" last. */
@@ -60,7 +60,7 @@ export interface BoardIssue {
   labels: string[];
 }
 
-/** The data of the board, as `scripts/status-board-data.mjs` makes it. */
+/** The data of the board, as `readStatusBoard` of `@mark1russell7/site-pages` makes it. */
 export interface StatusBoardData {
   /** The ISO time of the build that read the data. */
   generatedAt: string;
