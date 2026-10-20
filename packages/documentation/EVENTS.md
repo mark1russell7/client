@@ -411,6 +411,13 @@ The plain topic of a dotted name, `collections.a.b`, is also the topic of the pa
 - To correct it, rename the collection `a.b`, for example to `a_b`. A name without a dot has no topic of a partition.
 - The partitions of `a.b` encode its name, so a collection `a.b` with partitions next to `a` with partitions is correct.
 
+A collection `a.b` with partitions and no storage passes that check. When its resolver gives no partition, a subscriber of `a.b` listens to the plain topic `collections.a.b`. Thus the publisher examines that topic too (roadmap CLI-70, decision D23):
+
+- While `a` has partitions, the publisher refuses the subscriber with `FORBIDDEN` (reason `partition-not-allowed`). Before, the subscriber got the events of the partition `b` of `a`.
+- The publisher does the check at the start of the subscription, at each re-check and before each event. Thus partitions of `a` that come later also end an open subscription.
+- The check is in the one route from the topic of a subscriber to the topic of the bus. Thus each subscriber over HTTP, WebSocket or MCP gets it.
+- A subscriber of `a.b` whose resolver gives a partition does not change. The topic of that partition encodes the name `a.b`.
+
 Build the topic rule of a collection with `collectionTopicRule(name)`:
 
 ```ts

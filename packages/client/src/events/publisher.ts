@@ -31,7 +31,7 @@ import { createProcedure } from "../procedures/define.js";
 import { InvocationError, type Invocation } from "../procedures/invoke.js";
 import { capabilityRefusal } from "../procedures/capability.js";
 import { collectionChangeTopic, collectionTopicReads } from "../procedures/collection/changes.js";
-import { collectionTopicTarget, partitionOfCall } from "../procedures/collection/partition.js";
+import { collectionTopicTarget, partitionOfCall, plainTopicCheck } from "../procedures/collection/partition.js";
 import type { AnyProcedure, Capability, ProcedureContext } from "../procedures/types.js";
 import type { Principal } from "../server/types.js";
 import type { EventBus, Unsubscribe } from "./types.js";
@@ -173,6 +173,12 @@ const eventItemSchema = z.discriminatedUnion("type", [
 ]);
 
 /**
+ * A topic of a subscriber, the topic of the bus that it listens to, and the check of each event
+ * of that topic of the bus, or undefined (roadmap CLI-70). The check throws the refusal.
+ */
+type Route = readonly [topic: string, busTopic: string, check?: (() => void) | undefined];
+
+/**
  * One subscription: the listeners on the bus and the queue of its events. It is the async
  * iterator of the stream of the call. `return()`, the abort of the signal of the call and
  * `fail()` remove the listeners. When `clear()` of the bus removes a listener, the subscription
@@ -196,8 +202,8 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
 
   constructor(
     bus: EventBus,
-    /** The topics of the subscriber, each with the topic of the bus that it listens to */
-    routes: ReadonlyArray<readonly [topic: string, busTopic: string]>,
+    /** The topics of the subscriber, each with the topic of the bus that it listens to and the check of each event */
+    routes: ReadonlyArray<Route>,
     private readonly buffer: number,
     private readonly signal: AbortSignal | undefined,
     private readonly onClose: (subscription: TopicSubscription) => void,
@@ -208,10 +214,27 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
   ) {
     this.confirmation = { type: "subscribed", topics: routes.map(([topic]) => topic) };
     // Before, clear() removed the listeners, and the subscriber saw no end (EVENTS.md)
-    this.unsubscribes = routes.map(([topic, busTopic]) =>
-      bus.on(busTopic, (data) => this.push(topic, data), { onClear: () => this.fail(clearedError(topic), { keepQueue: true }) }),
+    this.unsubscribes = routes.map(([topic, busTopic, check]) =>
+      bus.on(busTopic, (data) => this.take(topic, data, check), { onClear: () => this.fail(clearedError(topic), { keepQueue: true }) }),
     );
     signal?.addEventListener("abort", this.onAbort, { once: true });
+  }
+
+  /**
+   * This function takes one event of a route. When the check of the route throws, the subscription
+   * ends with the refusal, and the event goes (roadmap CLI-70).
+   */
+  private take(topic: string, data: unknown, check: (() => void) | undefined): void {
+    if (this.closed) return;
+    if (check) {
+      try {
+        check();
+      } catch (error) {
+        this.fail(error);
+        return;
+      }
+    }
+    this.push(topic, data);
   }
 
   /** This function closes a subscription whose call aborted before it started. */
@@ -450,12 +473,21 @@ export class EventPublisher {
    * collection names the partition that the subscriber asks for, as the input of a procedure does:
    * the resolver of the repository gives the partition, so a subscriber cannot name the topic of
    * another tenant. A collection without partitions refuses a topic with a partition.
+   *
+   * Without a partition, the topic of the bus is the plain topic of the collection. The plain topic
+   * of `a.b` is also the topic of the partition `b` of `a`. While `a` has partitions, the route
+   * refuses the subscriber, at the start, at each re-check and before each event (roadmap CLI-70,
+   * decision D23). Thus HTTP, WebSocket and MCP subscribers all get the refusal.
    */
-  private async busTopic(topic: string, ctx: ProcedureContext): Promise<string> {
+  private async route(topic: string, ctx: ProcedureContext): Promise<Route> {
     const target = collectionTopicTarget(topic, ctx.repository);
-    if (!target) return topic;
+    if (!target) return [topic, topic];
     const partition = await partitionOfCall(ctx, target.collection, target.partition);
-    return collectionChangeTopic(target.collection, partition);
+    const busTopic = collectionChangeTopic(target.collection, partition);
+    const check = partition === undefined ? plainTopicCheck(ctx, target.collection) : undefined;
+    if (!check) return [topic, busTopic];
+    check();
+    return [topic, busTopic, check];
   }
 
   /**
@@ -495,14 +527,14 @@ export class EventPublisher {
 
   /**
    * The admission of an open subscription again (roadmap CLI-44): the checks of its start, and the
-   * partition of each topic. A refusal of the resolver throws its error. A topic whose partition
-   * changed throws `FORBIDDEN` (reason `partition-not-allowed`), because the listener has the old
-   * partition.
+   * partition of each topic. A refusal of the resolver or of the check of a plain topic throws its
+   * error. A topic whose partition changed throws `FORBIDDEN` (reason `partition-not-allowed`),
+   * because the listener has the old partition.
    */
-  private async readmit(routes: ReadonlyArray<readonly [string, string]>, ctx: ProcedureContext): Promise<void> {
+  private async readmit(routes: ReadonlyArray<Route>, ctx: ProcedureContext): Promise<void> {
     this.admitTopics(routes.map(([topic]) => topic), ctx);
     for (const [topic, busTopic] of routes) {
-      if ((await this.busTopic(topic, ctx)) !== busTopic) {
+      if ((await this.route(topic, ctx))[1] !== busTopic) {
         throw new InvocationError("FORBIDDEN", `The partition of the topic "${topic}" changed, so the subscription ends`, ctx.path, "partition-not-allowed");
       }
     }
@@ -515,8 +547,8 @@ export class EventPublisher {
   private async subscribe(topics: readonly string[], ctx: ProcedureContext): Promise<TopicSubscription> {
     const unique = [...new Set(topics)];
     this.admitTopics(unique, ctx);
-    const routes: Array<readonly [string, string]> = [];
-    for (const topic of unique) routes.push([topic, await this.busTopic(topic, ctx)]);
+    const routes: Route[] = [];
+    for (const topic of unique) routes.push(await this.route(topic, ctx));
     const subscription = new TopicSubscription(this.bus, routes, this.buffer, ctx.signal, (closed) => this.open.delete(closed), ctx.admit, ctx.invocation);
     this.open.add(subscription);
     // The same checks run again at a change of the rights and after the max age (roadmap CLI-44)

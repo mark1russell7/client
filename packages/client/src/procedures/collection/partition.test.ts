@@ -641,3 +641,159 @@ describe("a plain collection and a partition of another collection (CLI-57, D23)
   });
 });
 
+describe("a collection a.b with partitions and no storage next to a with partitions (CLI-70, D23)", () => {
+  /** The error of a refused subscription, or of the end of one. */
+  type Refusal = Error & { code?: string; reason?: string };
+  /** The tenant b: the partition b of a is its partition, with the topic collections.a.b. */
+  const cat: Principal = { id: "cat", via: "test", claims: { tenant: "b" } };
+  /** The plain topic of a.b. It is also the topic of the partition b of a. */
+  const shared = "collections.a.b";
+  /** No partition: a.b has no storage, so its calls fail, and no event of a.b goes to its plain topic. */
+  const noPartition: PartitionResolver = () => undefined;
+
+  /** The partitions of a collection with a resolver: a storage for each partition. */
+  function partitionsWith(resolve: PartitionResolver): CollectionPartitions<unknown> {
+    const storages = new Map<string, MapStorage>();
+    return {
+      storageOf: (partition) => {
+        let storage = storages.get(partition);
+        if (!storage) storages.set(partition, (storage = new MapStorage()));
+        return storage;
+      },
+      resolve,
+    };
+  }
+
+  /**
+   * A server with the collections of the order: a gets partitions by tenant, and a.b gets
+   * partitions with the resolver of a.b (by default no partition). Neither has a storage. A
+   * listener of the bus records the events of the shared topic.
+   */
+  function setup(order: ReadonlyArray<"a" | "a.b">, resolveAB: PartitionResolver = noPartition) {
+    const server = new ProcedureServer({ autoRegister: false });
+    const register = (name: "a" | "a.b"): void => {
+      server.usePartitions(name, partitionsWith(name === "a" ? byTenant : resolveAB));
+    };
+    for (const name of order) register(name);
+    const bus = createEventBus();
+    const repository = repositoryOf(server);
+    const publisher = new EventPublisher({ bus, topics: ["collections.*"] });
+    const set = createCollectionProcedures("a").find((procedure) => procedure.path[2] === "set")!;
+    /** A write to a: the tenant of the principal is the partition. */
+    const write = async (id: string, principal: Principal): Promise<void> => {
+      outputValue(await invokeProcedure(set, { id, value: id }, { repository, bus, principal }), set.path);
+    };
+    const onBus: unknown[] = [];
+    bus.on(shared, (data) => void onBus.push(data));
+    return { server, register, bus, repository, publisher, write, onBus };
+  }
+
+  /** A subscription of a principal: its confirmation or its refusal, its events, and the error that ends it. */
+  async function subscribe(h: ReturnType<typeof setup>, topics: string[], principal: Principal) {
+    const controller = new AbortController();
+    const received: Array<Extract<EventItem, { type: "event" }>> = [];
+    const result: { first?: EventItem; refusal?: Refusal; end?: Refusal; received: typeof received; stop: () => void } = { received, stop: () => controller.abort() };
+    try {
+      const output = await invokeProcedure(h.publisher.procedure, { topics }, { bus: h.bus, repository: h.repository, signal: controller.signal, principal });
+      if (output.kind !== "stream") throw new Error("events.subscribe gives a stream");
+      const items = output.items as AsyncGenerator<EventItem, void, undefined>;
+      result.first = (await items.next()).value as EventItem;
+      void (async () => {
+        for await (const item of items) if (item.type === "event") received.push(item);
+      })().catch((error: unknown) => {
+        result.end = error as Refusal;
+      });
+    } catch (error) {
+      result.refusal = error as Refusal;
+    }
+    return result;
+  }
+  /** A few turns of the event loop: each event on the bus reaches the loop of its subscriber. */
+  const settle = async () => {
+    for (let turn = 0; turn < 5; turn++) await new Promise((resolve) => setImmediate(resolve));
+  };
+
+  it("refuses a subscriber of a.b whose resolver gives no partition, in each order: it never gets an event of the partition b of a", async () => {
+    // The plain topic of a.b and the topic of the partition b of a are the same topic
+    expect(collectionChangeTopic("a.b")).toBe(shared);
+    expect(collectionChangeTopic("a", "b")).toBe(shared);
+    for (const order of [["a", "a.b"], ["a.b", "a"]] as const) {
+      const label = order.join(" then ");
+      const h = setup(order);
+      expect(h.server.hasPartitions("a") && h.server.hasPartitions("a.b"), label).toBe(true);
+      expect(() => h.server.getStorage("a.b"), label).toThrow(/not configured/);
+      // Ann (tenant t1) subscribes to a.b. Its resolver gives no partition, so the topic of the bus is the plain topic
+      const sub = await subscribe(h, [shared], ann);
+      // Cat (tenant b) writes to its partition b of a
+      await h.write("x", cat);
+      await settle();
+      expect(h.onBus, label).toHaveLength(1);
+      expect(sub.received, label).toEqual([]);
+      expect(sub.first, label).toBeUndefined();
+      expect(sub.refusal, label).toMatchObject({ code: "FORBIDDEN", reason: "partition-not-allowed" });
+      expect(sub.refusal?.message, label).toContain('"collections.a.b" is also the topic of the partition "b" of a');
+      sub.stop();
+    }
+  });
+
+  it("refuses the whole call when one of its topics is the plain topic of a.b", async () => {
+    const h = setup(["a", "a.b"]);
+    const sub = await subscribe(h, ["collections.a", shared], ann);
+    await h.write("x", cat);
+    await settle();
+    expect(sub.received).toEqual([]);
+    expect(sub.refusal).toMatchObject({ code: "FORBIDDEN", reason: "partition-not-allowed" });
+    expect(h.publisher.subscriptions).toBe(0);
+  });
+
+  it("keeps each subscriber that cannot get the events of another collection", async () => {
+    const h = setup(["a", "a.b"]);
+    // Cat subscribes to a: the resolver of a gives the partition b, so cat gets the events of its own partition
+    const own = await subscribe(h, ["collections.a"], cat);
+    expect(own.first).toEqual({ type: "subscribed", topics: ["collections.a"] });
+    await h.write("x", cat);
+    await settle();
+    expect(own.received.map((item) => item.topic)).toEqual(["collections.a"]);
+    own.stop();
+    // A resolver of a.b that gives a partition: the topic of that partition encodes the name a.b
+    const scoped = setup(["a", "a.b"], byTenant);
+    const sub = await subscribe(scoped, [shared], ann);
+    expect(sub.first).toEqual({ type: "subscribed", topics: [shared] });
+    await scoped.write("x", cat);
+    await settle();
+    expect(scoped.onBus).toHaveLength(1);
+    expect(sub.received).toEqual([]);
+    sub.stop();
+    // Without partitions of a, the plain topic of a.b is not the topic of a partition
+    const alone = setup(["a.b"]);
+    alone.server.useStorage("a", new MapStorage());
+    const plain = await subscribe(alone, [shared], ann);
+    expect(plain.first).toEqual({ type: "subscribed", topics: [shared] });
+    plain.stop();
+  });
+
+  it("ends an open subscriber of a.b when a gets partitions later: at a re-check and at the next event", async () => {
+    const h = setup(["a.b"]);
+    // Before a has partitions, the plain topic of a.b is the topic of no partition
+    const byEvent = await subscribe(h, [shared], ann);
+    const byRecheck = await subscribe(h, [shared], bob);
+    expect(byEvent.first).toEqual({ type: "subscribed", topics: [shared] });
+    expect(byRecheck.first).toEqual({ type: "subscribed", topics: [shared] });
+    // The server accepts the partitions of a: a and a.b both have partitions (CLI-57)
+    h.register("a");
+    // A re-check of the subscriptions of Bob refuses the topic
+    await h.publisher.rightsChanged("bob");
+    await settle();
+    expect(byRecheck.end).toMatchObject({ code: "FORBIDDEN", reason: "partition-not-allowed" });
+    expect(h.publisher.subscriptions).toBe(1);
+    // The first event of the partition b of a ends the other subscription, and the subscriber does not get it
+    await h.write("x", cat);
+    await settle();
+    expect(h.onBus).toHaveLength(1);
+    expect(byEvent.received).toEqual([]);
+    expect(byEvent.end).toMatchObject({ code: "FORBIDDEN", reason: "partition-not-allowed" });
+    expect(h.publisher.subscriptions).toBe(0);
+    expect(byRecheck.received).toEqual([]);
+  });
+});
+
