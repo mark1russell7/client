@@ -104,11 +104,13 @@ export interface DevToolsHost {
 
 /**
  * The face of the configuration: Streamable HTTP with `config.http`, else stdio. The HTTP face has
- * no listener of its own: the listener of the service answers for it (CLI-11).
+ * no listener of its own: the listener of the service answers for it (CLI-11). Without
+ * `maxSessions`, the face keeps its default limit of 256 sessions (CLI-51).
  */
 function facesOf(config: McpServerConfig): McpHostFaces {
   if (!config.http) return { stdio: true };
-  return { http: { ...(config.http.token ? { token: config.http.token } : {}) } };
+  const { token, maxSessions } = config.http;
+  return { http: { ...(token ? { token } : {}), ...(maxSessions !== undefined ? { maxSessions } : {}) } };
 }
 
 /** This function builds the host. It starts no transport. */

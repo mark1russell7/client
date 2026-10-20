@@ -589,6 +589,8 @@ Options:
   --http <port>         Serve over Streamable HTTP on this port, not over stdio (MCP_HTTP_PORT)
   --host <host>         The address of --http (default: 127.0.0.1, only this computer)
   --token <token>       A secret that each HTTP request must send as a bearer token
+  --max-sessions <n>    The most sessions of --http at one time (default: MCP_HTTP_MAX_SESSIONS,
+                        or 256). Infinity turns the limit off.
   --fs-root <folder>    Keep each path of each tool in this folder, also in the nested calls,
                         and refuse each tool that the folder cannot confine (default:
                         MCP_FS_ROOT, or no root). The list of the tools stays the same.
@@ -636,6 +638,13 @@ async function startMcp(args: string[], fsRoot?: string): Promise<void> {
       config.http = { port: config.http?.port ?? 3003, ...config.http, host: value() };
     } else if (name === "--token") {
       config.http = { port: config.http?.port ?? 3003, ...config.http, token: value() };
+    } else if (name === "--max-sessions") {
+      // The session limit of the HTTP face (CLI-51): an integer of 1 or more, or Infinity
+      const maxSessions = Number(value());
+      if (maxSessions !== Number.POSITIVE_INFINITY && (!Number.isInteger(maxSessions) || maxSessions < 1)) {
+        throw new Error("--max-sessions needs an integer of 1 or more, or Infinity");
+      }
+      config.http = { port: config.http?.port ?? 3003, ...config.http, maxSessions };
     } else if (name === "--fs-root") {
       config.fsRoot = value();
     } else if (name === "--debug") {

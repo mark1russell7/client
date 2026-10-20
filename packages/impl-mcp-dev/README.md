@@ -46,10 +46,11 @@ When the client closes the input of stdio, the server stops: the calls in flight
 | `MCP_TOOL_TIMEOUT_MS` | `600000` | The time limit of a tool call, in milliseconds. `0` turns the limit off. |
 | `MCP_READ_ONLY` | `false` | With `true`, the tools are only the procedures that change nothing |
 | `MCP_HTTP_PORT`, `MCP_HTTP_HOST`, `MCP_HTTP_TOKEN` | not set | The server uses Streamable HTTP on this port, not stdio. The host is `127.0.0.1` by default. |
+| `MCP_HTTP_MAX_SESSIONS` | `256` | The most sessions of the Streamable HTTP face at one time (CLI-51). `Infinity` turns the limit off. |
 | `MCP_PROGRAM_CHECK` | `true` | With `false`, a program starts without the check before the run |
 | `MCP_FS_ROOT` | not set | The root of the files: each tool keeps its paths in this folder, or the host refuses it. Refer to "The root of the files". |
 
-`mark mcp` starts the same server. Its flags replace the variables: `--bundles`, `--tool-timeout`, `--read-only`, `--http`, `--host`, `--token` and `--fs-root`.
+`mark mcp` starts the same server. Its flags replace the variables: `--bundles`, `--tool-timeout`, `--read-only`, `--http`, `--host`, `--token`, `--max-sessions` and `--fs-root`.
 
 The server operates under `run()` of `@mark1russell7/service` (CLI-11). The runner owns the signals, the stop in stages and the exit of the process.
 

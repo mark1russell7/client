@@ -18,7 +18,8 @@
  * Thus the runner of the process owns the port, the stop in stages and the exit.
  *
  * The checks of each request are in `guard.ts` (CLI-35). Only an `initialize` request starts a
- * session, each body has a limit, and with `maxSessions` the endpoint keeps at most that many sessions.
+ * session, and each body has a limit. The endpoint keeps at most `maxSessions` sessions: 256 by
+ * default (CLI-51), or no limit with `Infinity`.
  */
 
 import { randomUUID } from "node:crypto";
@@ -32,7 +33,7 @@ import { MCP_HTTP_LIMITS, guardMcpRequest } from "./guard.js";
 
 /** The limits of the sessions of the endpoint (CLI-35). The HTTP options win over them. */
 export interface McpHttpSessionOptions {
-  /** The most sessions at one time. The default is no limit. */
+  /** The most sessions at one time. The default is 256 (CLI-51). `Infinity` turns the limit off. */
   readonly maxSessions?: number | undefined;
   /** The largest body of a request. The default is 4 MiB, the limit of the SDK. */
   readonly maxBodyBytes?: number | undefined;

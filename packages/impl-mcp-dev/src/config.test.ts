@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { DEFAULT_TOOL_TIMEOUT_MS, loadConfig, parseTimeout } from "./config.js";
+import { DEFAULT_TOOL_TIMEOUT_MS, loadConfig, parseMaxSessions, parseTimeout } from "./config.js";
 
 describe("parseTimeout", () => {
   it("reads milliseconds, and 0 turns the limit off", () => {
@@ -16,6 +16,35 @@ describe("parseTimeout", () => {
     expect(parseTimeout("")).toBe(DEFAULT_TOOL_TIMEOUT_MS);
     expect(parseTimeout("ten")).toBe(DEFAULT_TOOL_TIMEOUT_MS);
     expect(parseTimeout("-5")).toBe(DEFAULT_TOOL_TIMEOUT_MS);
+  });
+});
+
+describe("MCP_HTTP_MAX_SESSIONS (CLI-51)", () => {
+  it("reads the session limit, and Infinity turns it off", () => {
+    expect(parseMaxSessions("64")).toBe(64);
+    expect(parseMaxSessions(" 512 ")).toBe(512);
+    expect(parseMaxSessions("Infinity")).toBe(Number.POSITIVE_INFINITY);
+  });
+
+  it("gives undefined for a missing value, so the face keeps its default of 256", () => {
+    expect(parseMaxSessions(undefined)).toBeUndefined();
+    expect(parseMaxSessions("  ")).toBeUndefined();
+  });
+
+  it("goes to the HTTP options of the configuration", () => {
+    const before = { port: process.env["MCP_HTTP_PORT"], max: process.env["MCP_HTTP_MAX_SESSIONS"] };
+    try {
+      process.env["MCP_HTTP_PORT"] = "3003";
+      delete process.env["MCP_HTTP_MAX_SESSIONS"];
+      expect(loadConfig().http?.maxSessions).toBeUndefined();
+      process.env["MCP_HTTP_MAX_SESSIONS"] = "32";
+      expect(loadConfig().http).toMatchObject({ port: 3003, maxSessions: 32 });
+    } finally {
+      if (before.port === undefined) delete process.env["MCP_HTTP_PORT"];
+      else process.env["MCP_HTTP_PORT"] = before.port;
+      if (before.max === undefined) delete process.env["MCP_HTTP_MAX_SESSIONS"];
+      else process.env["MCP_HTTP_MAX_SESSIONS"] = before.max;
+    }
   });
 });
 
