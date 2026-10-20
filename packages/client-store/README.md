@@ -319,6 +319,63 @@ const users = new HybridStorage(new ApiStorage(client, { collection: "users" }),
 - The server serves the events with the option `events` of `ProcedureServer`, for example `{ topics: ["collections.*"] }`. Without a subscriber, the procedures publish nothing.
 - `ApiStorage` sends the `origin` of a write to the procedure. Thus the storage of the server and the event have it.
 
+### The tabs of a browser
+
+`TabCoordinator` of `@procedures/store/browser` lets one leader tab run the sync of a `HybridStorage` (roadmap CLI-25). The other tabs copy its changes. Without it, each tab pulls and pushes, and each tab writes over the queue of the other tabs.
+
+- The election uses the Web Locks API. The tab that holds the lock of the coordinator is the leader.
+- Only the leader makes the `HybridStorage`, with `capture: "observe"` on its local copy. The followers make no remote call and start no timer.
+- The application writes to the local copy in each tab. A tab sends the change batches of its local copy to the other tabs on a `BroadcastChannel`.
+- `observe()` gives the batches of this tab and of the other tabs, each batch one time, with the origin of each change.
+- The leader also sends the changes of its sync. They have the origin `syncOrigin`, `"sync"` by default.
+- A tab does not send again a batch of another tab.
+- The leader captures the batches of the followers: its `HybridStorage` queues them and pushes them. Thus a write of a follower reaches the remote one time.
+- Only the leader writes to the queue store and to the store of the sync state. Give the same `IndexedDbQueueStore` and `IndexedDbSyncStateStore` in each tab.
+
+The option `copy` tells the kind of the local copy:
+
+- `"shared"`: the tabs open the same durable local copy, for example an `IndexedDbStorage` of one database. A tab gives the batches of the other tabs only to its observers.
+- `"tab"`: each tab has its own local copy, for example a SignalDB collection. A tab writes the batches of the other tabs to its copy, and then gives them to its observers.
+- In the mode `"tab"`, a new tab gets only the changes after its start. Its local copy loads the older items itself, for example from its persistence.
+- In the mode `"shared"`, a pull of the leader can come between the write of a follower and its capture. The tabs agree again after the push and the next pull.
+
+A new leader and a closed tab:
+
+- A follower keeps each own batch until the leader acknowledges it. The leader acknowledges a batch when its queue store holds it.
+- A new leader tells the other tabs. Each follower then sends the batches that no leader acknowledged. Thus a write during the change of the leader reaches the new leader.
+- `close()` of the leader sends the queue, and then it releases the lock. The queue store keeps the operations that the remote did not take.
+- When the browser closes the tab of the leader, the browser releases the lock. The next leader loads the shared queue store and pushes the queue.
+- When the leader stops during a push, the next leader sends the operation again. A set or a delete gives the same result two times.
+- The load of the queue writes the queued operations to the local copy again. Thus the observers can get them again, with the origin `syncOrigin`.
+- `close()` of a follower stops its lock request. `close()` does not close the local copy, because the application owns it.
+
+Without the Web Locks API or `BroadcastChannel`, the coordinator is in the single mode. The tab does its own sync, and it opens no channel. A browser has the Web Locks API only in a secure context, for example HTTPS or `localhost`.
+
+```ts
+import { ApiStorage, IndexedDbQueueStore, IndexedDbStorage, IndexedDbSyncStateStore, TabCoordinator } from "@procedures/store/browser";
+
+const local = new IndexedDbStorage<User>("users");
+const users = new TabCoordinator<User>({
+  name: "users",
+  local,
+  copy: "shared",
+  remote: () => new ApiStorage(client, { collection: "users" }),
+  hybrid: {
+    mode: "write-back",
+    queueStore: new IndexedDbQueueStore("users-queue"),
+    syncState: new IndexedDbSyncStateStore("users-sync"),
+  },
+});
+
+users.observe((batch) => render(batch));
+await local.set("1", { name: "Ada" });
+users.syncStorage?.getStatus(); // In the leader only
+```
+
+- `role` is `follower`, `leader`, `single` or `closed`. `onRole()` tells each change.
+- The options `locks` and `channel` take a lock manager and a channel factory, for example the ones of a test. `null` sets the single mode.
+- `HybridStorage.whenQueued()` resolves when the queue store holds the queue. The leader acknowledges the batches of the followers after it.
+
 ### The change of a storage in a server
 
 `ProcedureServer.useStorage(name, storage, { drain: true, close: true })` first starts `flush()` of the old storage. Then it uses the new storage and closes the old one. When the flush fails, the old storage stays.
@@ -341,6 +398,7 @@ The entry `@procedures/store/browser` has the parts of the store that run in a b
 - `HybridStorage`, its errors and its types.
 - `ApiStorage`, the remote storage over the collection procedures of a server.
 - `EventsChangeFeed`, the push feed of the remote changes.
+- `TabCoordinator`: one leader tab does the sync of a `HybridStorage`, and the other tabs copy its changes.
 - All of `@procedures/store/indexeddb`: `IndexedDbStorage`, the IndexedDB stores and their fallbacks in memory.
 
 No module of the entry imports a module of Node. The modules import `@procedures/client/browser` and not the root of the client, because the root imports `http` and `ws`. The test `src/browser.test.ts` examines the imports of each module of the entry. The entry is in `client.browser` of `package.json`, so the CI check of the browser entries (`scripts/check-browser-entries.mjs`) bundles it for a browser too.

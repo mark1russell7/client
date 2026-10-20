@@ -1994,6 +1994,20 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   }
 
   /**
+   * This method resolves when the queue store holds the operations that the queue has at the call
+   * (roadmap CLI-25): the loaded queue, the captured changes and the queued writes. It sends
+   * nothing to the remote. A failed write of the store resolves it too, and the status keeps the
+   * failure. A `TabCoordinator` acknowledges the batches of another tab after it.
+   *
+   * @throws The error of the load, when the storage could not load its queue
+   */
+  async whenQueued(): Promise<void> {
+    await this.loaded;
+    if (this.loadError) throw this.loadError;
+    await this.storeChain;
+  }
+
+  /**
    * Force a full sync (both directions).
    */
   async sync(): Promise<void> {
