@@ -1,5 +1,12 @@
 # @procedures/server
 
+## 0.22.0
+
+### Patch Changes
+
+- @procedures/peer@0.22.0
+  - @procedures/client@0.22.0
+
 ## 0.21.0
 
 ### Minor Changes
