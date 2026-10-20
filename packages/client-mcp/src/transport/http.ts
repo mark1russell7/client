@@ -80,11 +80,12 @@ export function createHttpTransport(
   if (!isLimit(maxSessions)) throw new RangeError(`maxSessions must be an integer of 1 or more, or Infinity, not ${String(maxSessions)}`);
   if (!Number.isInteger(maxBodyBytes) || maxBodyBytes < 1) throw new RangeError(`maxBodyBytes must be an integer of 1 or more, not ${String(maxBodyBytes)}`);
 
-  const refuse = (res: ServerResponse, status: number, code: string, message: string, headers: Readonly<Record<string, string>> = {}): void => {
+  const refuse = (res: ServerResponse, status: number, code: string, message: string, headers: Readonly<Record<string, string>> = {}, reason?: string): void => {
     res.statusCode = status;
     res.setHeader("content-type", "application/json");
     for (const [name, value] of Object.entries(headers)) res.setHeader(name, value);
-    res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32001, message, data: { code } }, id: null }));
+    // The reason of a FORBIDDEN refusal goes with its code, as on the other faces (CLI-4)
+    res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32001, message, data: { code, ...(reason !== undefined ? { reason } : {}) } }, id: null }));
   };
 
   /** This function counts an open response of a session until the response closes. */
@@ -215,7 +216,7 @@ export function createHttpTransport(
       ambient,
     });
     if (!guard.ok) {
-      refuse(res, guard.status, guard.code, guard.message, guard.headers);
+      refuse(res, guard.status, guard.code, guard.message, guard.headers, guard.reason);
       return true;
     }
     serve(req, res).catch((error: unknown) => {

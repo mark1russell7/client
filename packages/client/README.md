@@ -297,7 +297,7 @@ interface WebSocketTransportOptions {
 // dead peer, its socket stays open until the kernel stops it (924.6 s in the cells of R36).
 import { WebSocketTransport } from "@procedures/client/node";
 
-// The server transports are in the Node entry too (CLI-6)
+// The server transports are only in the Node entry (CLI-6)
 import { WebSocketServerTransport } from "@procedures/client/node";
 
 // The server pings each connection, and closes one that misses 2 pongs (option heartbeat)
@@ -604,7 +604,7 @@ interface HttpServerTransportOptions {
   port?: number;                 // default: 3000
   host?: string;                 // default: "127.0.0.1"
   basePath?: string;             // default: "/api"
-  urlStrategy?: HttpUrlStrategy;
+  urlStrategy?: HttpUrlStrategy; // (req: UrlStrategyRequest) => Method | null
   cors?: boolean;
   corsOptions?: { origin?: string | string[]; methods?: string[]; allowedHeaders?: string[]; credentials?: boolean };
   bodyLimit?: number;            // default: 1 MiB
@@ -612,6 +612,8 @@ interface HttpServerTransportOptions {
   clock?: Clock;                 // the clock of the keep-alive timers
 }
 ```
+
+A URL strategy gets a `UrlStrategyRequest`: the method, the path, the URL, the headers, the query and the body. The type is structural. A `Request` of Express agrees with it, and so does the `UrlRequest` of `procedureHandler`.
 
 A client that accepts `application/x-ndjson` gets a stream as NDJSON lines ([WIRE-PROTOCOL.md](../documentation/WIRE-PROTOCOL.md)).
 
@@ -707,7 +709,7 @@ interface ProcedureServerOptions {
   storage?: StorageConfig;
   transports?: ServerTransport[];
   events?: EventPublisherOptions | EventPublisher;   // the remote events: refer to "Remote events"
-  token?: string;                // the token that each network request presents
+  token?: string;                // the token that each request presents, except a local request
   principalOf?: PrincipalOf;     // the request hook: refer to "The request hook"
   authenticate?: (request: ServerRequest) => Principal | undefined | Promise<Principal | undefined>;
 }
@@ -735,8 +737,26 @@ const server = new ProcedureServer({
 - `principal`: the principal of the request, for example the user of a session cookie. The procedure reads it as `ctx.principal`, and its nested calls get the same principal.
 - `narrowing`: a narrower capability that the request asks for. The server narrows the capability of the call with it. A request for more has no effect.
 - An empty object accepts the request without a principal. Undefined, or an error, refuses the request with `UNAUTHORIZED`.
-- `authenticate` operates after the hook and can read `request.principal`. A request of this process (no credentials) does not go through the hook.
+- `authenticate` operates after the hook and can read `request.principal`. A local request does not go through the hook.
 - `hostPolicy({ principalOf })` gives the hook to each server of the policy.
+
+#### Local requests
+
+Each face sets the credentials of its requests, or the local marker `LOCAL_CREDENTIALS` (CLI-1). A local request comes from this application, so the token and the request hook do not apply to it.
+
+- The local faces are MCP over stdio, an SDK transport of `McpServerTransport` and `PortTransport`. The peer of stdio is the parent process. Only the holder of the other end of a port can send to it.
+- A network face never sets the marker: HTTP, WebSocket, and MCP over Streamable HTTP. The key of the marker is a symbol, so JSON, a header, a cookie or a query cannot carry it.
+- A server with a token or a request hook refuses a request without credentials with `UNAUTHORIZED`. The hook does not operate for it. Before, such a request skipped the token and the hook.
+- A call of the code of the application to `server.handle()` sets the marker itself:
+
+```typescript
+import { LOCAL_CREDENTIALS } from "@procedures/client";
+
+await server.handle({ id: "1", method, payload, metadata: {}, credentials: LOCAL_CREDENTIALS });
+```
+
+- The nested calls of a procedure do not go through the token check again. They keep the principal of their caller.
+- A `PortTransport` that a part outside the application can reach takes `credentials: {}`. Then the token applies. A `Window` is such a port.
 
 #### Cookies and CSRF
 
@@ -791,7 +811,7 @@ import { ... } from "@procedures/client/events";
 
 | Entry | Use |
 |---|---|
-| `@procedures/client` | Node. The browser entry. Its `WebSocketTransport` uses the global `WebSocket`. It also exports the server transports, but these exports are deprecated. The next MINOR removes them (CLI-6). |
+| `@procedures/client` | Node or a browser bundle. The browser entry, the URL strategies and the browser checks of the server. It imports no `http`, `ws` or `express`, and its declarations name none of them (CLI-6). Its `WebSocketTransport` uses the global `WebSocket`. |
 | `@procedures/client/browser` | A browser bundle. It does not import `http` or `ws`. |
 | `@procedures/client/node` | Node. A `WebSocketTransport` whose sockets are of the `ws` package: a drop ends a socket at once. `writeNdjsonStream`: the NDJSON stream response of `HttpServerTransport`, for a `ServerResponse` of `node:http`. `procedureHandler` and `upgradeHandler`: the procedure faces of HTTP and WebSocket, without a framework. `HttpServerTransport` and `WebSocketServerTransport`: the server transports. |
 | `@procedures/client/register` | It registers the core procedures in the global registry. |

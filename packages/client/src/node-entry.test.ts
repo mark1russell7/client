@@ -1,37 +1,21 @@
 /**
- * The server transports of the Node entry (CLI-6 step 1). `@procedures/client/node` exports
- * `HttpServerTransport` and `WebSocketServerTransport` with their option types. The root and
- * `./server` export the same classes and types through deprecated aliases, so the old imports
- * keep their behavior until the next MINOR removes them.
+ * The server transports of the Node entry (CLI-6). Only `@procedures/client/node` exports
+ * `HttpServerTransport` and `WebSocketServerTransport` with their option types. Step 1 kept them in
+ * the root and in `./server` as deprecated aliases. Step 2 removes these aliases, so the root and
+ * `./server` import no `http`, no `ws` and no `express`.
+ *
+ * The URL strategy of `HttpServerTransport` takes a structural request (CLI-61): a `Request` of
+ * Express agrees with it, and so does the `UrlRequest` of `procedureHandler`.
  */
 
 import { describe, it, expect, expectTypeOf } from "vitest";
-import express from "express";
+import express, { type Request } from "express";
 import * as nodeEntry from "./node.js";
 import * as rootEntry from "./index.js";
 import * as serverEntry from "./server/index.js";
-import { HttpServerTransport, WebSocketServerTransport } from "./node.js";
-import type {
-  HttpServerTransportOptions,
-  HttpUrlStrategy,
-  WebSocketServerTransportOptions,
-  WebSocketAuthHandler,
-  WebSocketConnectionHandler,
-  WebSocketMessage,
-} from "./node.js";
-import {
-  // The deprecated aliases of the root: this test pins that they still work
-  HttpServerTransport as RootHttpServerTransport,
-  WebSocketServerTransport as RootWebSocketServerTransport,
-} from "./index.js";
-import type {
-  HttpServerTransportOptions as RootHttpServerTransportOptions,
-  HttpUrlStrategy as RootHttpUrlStrategy,
-  WebSocketServerTransportOptions as RootWebSocketServerTransportOptions,
-  WebSocketAuthHandler as RootWebSocketAuthHandler,
-  WebSocketConnectionHandler as RootWebSocketConnectionHandler,
-  WebSocketMessage as RootWebSocketMessage,
-} from "./index.js";
+import { HttpServerTransport, WebSocketServerTransport, defaultServerUrlStrategy, rpcServerUrlStrategy } from "./node.js";
+import type { HttpUrlStrategy, UrlRequest, UrlStrategyRequest, NodeUrlStrategy } from "./node.js";
+import type { Method } from "./client/types.js";
 import type { RequestHandler } from "./server/types.js";
 
 /** A request handler that the tests never call: the constructors only keep it. */
@@ -41,61 +25,83 @@ const handler: RequestHandler = {
   },
 };
 
+/** The names that step 1 deprecated in the root and in `./server`, and that step 2 removes. */
+const REMOVED_VALUES = ["HttpServerTransport", "WebSocketServerTransport"] as const;
+
 describe("@procedures/client/node: the server transports (CLI-6)", () => {
   it("exports HttpServerTransport and WebSocketServerTransport as classes", () => {
     expect(typeof nodeEntry.HttpServerTransport).toBe("function");
     expect(typeof nodeEntry.WebSocketServerTransport).toBe("function");
     expect(nodeEntry.HttpServerTransport.name).toBe("HttpServerTransport");
     expect(nodeEntry.WebSocketServerTransport.name).toBe("WebSocketServerTransport");
+    expect(new HttpServerTransport(handler, { app: express() }).name).toBe("http");
+    expect(new WebSocketServerTransport(handler, { heartbeat: false }).name).toBe("websocket");
   });
 
-  it("gives the same class as the root and ./server (the deprecated aliases)", () => {
-    expect(rootEntry.HttpServerTransport).toBe(nodeEntry.HttpServerTransport);
-    expect(rootEntry.WebSocketServerTransport).toBe(nodeEntry.WebSocketServerTransport);
-    expect(serverEntry.HttpServerTransport).toBe(nodeEntry.HttpServerTransport);
-    expect(serverEntry.WebSocketServerTransport).toBe(nodeEntry.WebSocketServerTransport);
+  it("the root and ./server do not export the server transports (step 2)", () => {
+    for (const name of REMOVED_VALUES) {
+      expect(name in rootEntry, `the root exports ${name}`).toBe(false);
+      expect(name in serverEntry, `./server exports ${name}`).toBe(false);
+    }
+    expectTypeOf(rootEntry).not.toHaveProperty("HttpServerTransport");
+    expectTypeOf(rootEntry).not.toHaveProperty("WebSocketServerTransport");
+    expectTypeOf(serverEntry).not.toHaveProperty("HttpServerTransport");
+    expectTypeOf(serverEntry).not.toHaveProperty("WebSocketServerTransport");
   });
 
-  it("keeps the strategies in the root and in ./node, with the same functions", () => {
+  it("keeps the strategies in the root, in ./server and in ./node, with the same functions", () => {
     expect(rootEntry.defaultServerUrlStrategy).toBe(nodeEntry.defaultServerUrlStrategy);
     expect(rootEntry.rpcServerUrlStrategy).toBe(nodeEntry.rpcServerUrlStrategy);
     expect(serverEntry.defaultServerUrlStrategy).toBe(nodeEntry.defaultServerUrlStrategy);
+    expect(serverEntry.rpcServerUrlStrategy).toBe(nodeEntry.rpcServerUrlStrategy);
+  });
+});
+
+describe("HttpUrlStrategy takes a structural request (CLI-61)", () => {
+  it("its parameter is UrlStrategyRequest, and an Express Request and a UrlRequest agree with it", () => {
+    expectTypeOf<Parameters<HttpUrlStrategy>[0]>().toEqualTypeOf<UrlStrategyRequest>();
+    expectTypeOf<Request>().toExtend<UrlStrategyRequest>();
+    expectTypeOf<UrlRequest>().toExtend<UrlStrategyRequest>();
+    // The strategies of the package are URL strategies of the transport
+    expectTypeOf(defaultServerUrlStrategy).toExtend<HttpUrlStrategy>();
+    expectTypeOf(rpcServerUrlStrategy).toExtend<HttpUrlStrategy>();
   });
 
-  it("an alias of the root works with new, instanceof and extends", () => {
-    const http = new RootHttpServerTransport(handler, { app: express() });
-    expect(http).toBeInstanceOf(HttpServerTransport);
-    expect(http.name).toBe("http");
-    const ws = new RootWebSocketServerTransport(handler, { heartbeat: false });
-    expect(ws).toBeInstanceOf(WebSocketServerTransport);
+  it("a strategy serves the view of procedureHandler too", () => {
+    const strategy: HttpUrlStrategy = (req) => {
+      const tenant = req.headers["x-tenant"];
+      return req.path.startsWith("/rpc/") && typeof tenant === "string" ? { service: tenant, operation: req.path.slice("/rpc/".length) } : null;
+    };
+    const nodeStrategy: NodeUrlStrategy = (view) => strategy(view);
+    const view: UrlRequest = { method: "POST", path: "/rpc/list", url: "/rpc/list?x=1", headers: { "x-tenant": "acme" }, query: { x: "1" } };
+    expect(nodeStrategy(view, undefined as never)).toEqual<Method>({ service: "acme", operation: "list" });
+    expect(strategy({ ...view, headers: {} })).toBeNull();
+  });
 
-    // A subclass of an alias is a subclass of the class of ./node
-    class NamedWebSocketServerTransport extends RootWebSocketServerTransport {
-      readonly label = "named";
+  it("the transport gives the strategy the request with its method, path, url, headers and query", async () => {
+    const seen: UrlStrategyRequest[] = [];
+    const app = express();
+    const transport = new HttpServerTransport(handler, {
+      app,
+      port: 0,
+      urlStrategy: (req) => {
+        seen.push(req);
+        return null;
+      },
+    });
+    await transport.start();
+    try {
+      const response = await fetch(`http://127.0.0.1:${transport.port()}/api/a/b?q=1`, { method: "POST", headers: { "content-type": "application/json", "x-tenant": "acme" }, body: "{}" });
+      await response.text();
+    } finally {
+      await transport.stop();
     }
-    const named = new NamedWebSocketServerTransport(handler, { heartbeat: false });
-    expect(named).toBeInstanceOf(WebSocketServerTransport);
-    expect(named).toBeInstanceOf(RootWebSocketServerTransport);
-    expect(named.label).toBe("named");
-
-    // The instance types are the same in the two directions
-    const fromRoot: HttpServerTransport = http;
-    const fromNode: RootHttpServerTransport = new HttpServerTransport(handler, { app: express() });
-    expect(fromRoot).toBeInstanceOf(RootHttpServerTransport);
-    expect(fromNode).toBeInstanceOf(HttpServerTransport);
-  });
-
-  it("the types of the root are the types of ./node", () => {
-    expectTypeOf<RootHttpServerTransport>().toEqualTypeOf<HttpServerTransport>();
-    expectTypeOf<RootWebSocketServerTransport>().toEqualTypeOf<WebSocketServerTransport>();
-    expectTypeOf<typeof RootHttpServerTransport>().toEqualTypeOf<typeof HttpServerTransport>();
-    expectTypeOf<typeof RootWebSocketServerTransport>().toEqualTypeOf<typeof WebSocketServerTransport>();
-    expectTypeOf<RootHttpServerTransportOptions>().toEqualTypeOf<HttpServerTransportOptions>();
-    expectTypeOf<RootHttpUrlStrategy>().toEqualTypeOf<HttpUrlStrategy>();
-    expectTypeOf<RootWebSocketServerTransportOptions>().toEqualTypeOf<WebSocketServerTransportOptions>();
-    expectTypeOf<RootWebSocketAuthHandler>().toEqualTypeOf<WebSocketAuthHandler>();
-    expectTypeOf<RootWebSocketConnectionHandler>().toEqualTypeOf<WebSocketConnectionHandler>();
-    expectTypeOf<RootWebSocketMessage>().toEqualTypeOf<WebSocketMessage>();
-    expectTypeOf<RootWebSocketMessage<{ n: number }>>().toEqualTypeOf<WebSocketMessage<{ n: number }>>();
+    expect(seen).toHaveLength(1);
+    const [req] = seen;
+    expect(req?.method).toBe("POST");
+    expect(req?.path).toBe("/api/a/b");
+    expect(req?.url).toBe("/api/a/b?q=1");
+    expect(req?.headers["x-tenant"]).toBe("acme");
+    expect(req?.query).toEqual({ q: "1" });
   });
 });

@@ -19,7 +19,7 @@
  */
 
 import { daemon, localDev, service, type Lifecycle, type Profile, type RunOptions, type ServiceBuilder } from "@mark1russell7/service";
-import { probeServer } from "@mark1russell7/service/http";
+import { probeServer, type ProbeKind } from "@mark1russell7/service/http";
 import { seconds, type Duration } from "@procedures/client";
 import { LOCAL_LISTENER_KNOBS, createProcedureHost, type ProcedureHost, type ProcedureHostOptions } from "@procedures/peer";
 import { lockfileHandle, type LockfileData } from "@procedures/peer/lockfile";
@@ -33,7 +33,8 @@ export const HOST_PROFILES: Readonly<Record<HostRunMode, Profile>> = Object.free
 /**
  * A probe server on a port of its own (CLI-9, decision D5): `probeServer()` of
  * `@mark1russell7/service/http`. It starts first and closes last, thus its probes answer through
- * the whole drain. It also answers `/report`, with the whole verdict of the service.
+ * the whole drain. By default, it also answers `/report`, with the whole verdict of the service.
+ * The option `kinds` leaves out a kind, for example the report on a port that is not private.
  */
 export interface HostProbeServer {
   /** The port of the probes. 0 gives a free port, and `RunningHost.probes()` gives the real one. */
@@ -44,6 +45,11 @@ export interface HostProbeServer {
   readonly prefix?: string | undefined;
   /** The `Retry-After` of each 503 of a probe. The default is the knob `server_retry_after` of `LOCAL_LISTENER_KNOBS`: 1 s. */
   readonly retryAfter?: Duration | undefined;
+  /**
+   * The probe kinds that the port answers (SYS-30). The default is all four: `startup`, `readiness`,
+   * `liveness` and `report`. The port answers 404 for a kind that is not in the list.
+   */
+  readonly kinds?: readonly ProbeKind[] | undefined;
 }
 
 /** The configuration of `runProcedureHost()`. */
@@ -119,6 +125,7 @@ export async function runProcedureHost(config: ProcedureHostRunConfig): Promise<
         port: dedicated.port,
         host: dedicated.host ?? "127.0.0.1",
         ...(dedicated.prefix !== undefined ? { prefix: dedicated.prefix } : {}),
+        ...(dedicated.kinds !== undefined ? { kinds: dedicated.kinds } : {}),
         server_retry_after: dedicated.retryAfter ?? LOCAL_LISTENER_KNOBS.server_retry_after,
       })
     : undefined;

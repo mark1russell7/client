@@ -11,7 +11,7 @@ minimumReleaseAgeExclude:
   - "@mark1russell7/docker-sqlite@0.1.0"
   - "@mark1russell7/splay@0.1.0"
   - "@mark1russell7/algebra@0.2.0 || 0.5.0 || 0.7.0 || 0.7.1 || 0.7.2"
-  - "@mark1russell7/service@0.2.0 || 0.4.0 || 0.4.1 || 0.5.1 || 0.5.2 || 0.5.3"
+  - "@mark1russell7/service@0.2.0 || 0.4.0 || 0.4.1 || 0.5.1 || 0.5.2 || 0.5.3 || 0.5.8"
   - "@mark1russell7/quantity@0.2.0"
   - "@mark1russell7/site-pages@0.1.0"
 

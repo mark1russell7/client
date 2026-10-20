@@ -1,5 +1,74 @@
 # @procedures/store
 
+## 0.20.0
+
+### Patch Changes
+
+- Updated dependencies [5f49860]
+  - @procedures/client@0.20.0
+  - @procedures/collections@0.20.0
+
+## 0.19.0
+
+### Patch Changes
+
+- Updated dependencies [5cb934d]
+  - @procedures/client@0.19.0
+  - @procedures/collections@0.19.0
+
+## 0.18.1
+
+### Patch Changes
+
+- d2713c5: Changed: a `TabCoordinator` whose setup of the sync fails asks for the lock again after a backoff (roadmap CLI-67). Before, it released the lock and never asked again.
+  
+  - A tab becomes the leader only after its `HybridStorage` loaded the queue. Until then, the tab is a follower.
+  - When `remote()` throws or the load of the queue fails, the tab gives the error to `onError` and releases the lock. Another tab can lead.
+  - The tab stays a follower and asks again after the wait. `close()` stops the wait. In the single mode, the tab tries its setup again.
+  - The new option `retry` sets the backoff: `delay` (1 second), `factor` (2), `maxDelay` (1 minute) and `jitter` (0.5). The options `clock` and `random` serve a test.
+  
+  Added: the status of the sync in each tab (roadmap CLI-65).
+  
+  - `TabCoordinator.getStatus()` gives the `SyncStatus` of the leader in each tab, or `undefined` before the first status.
+  - `TabCoordinator.onStatus()` tells each new status to a listener, one time.
+  - The leader sends each change of its status to the followers, and it answers the hello of a new tab with its status.
+  - In a follower, `error.error` is an `Error` with the `name`, the `message` and the `code` of the error of the leader, because a message keeps only the values that a structured clone copies.
+  - The new message type `status` keeps the version 1 of the messages. A tab of an older release ignores it and still copies the batches.
+  
+  PATCH: new methods, a new option with a default and a new message type that are backward compatible, before 1.0.0 (decision D13).
+- Updated dependencies [d69c8cb]
+- Updated dependencies [0379278]
+  - @procedures/client@0.18.1
+  - @procedures/collections@0.18.1
+
+## 0.18.0
+
+### Patch Changes
+
+- Updated dependencies [5e68b6a]
+  - @procedures/client@0.18.0
+  - @procedures/collections@0.18.0
+
+## 0.17.4
+
+### Patch Changes
+
+- b0ccc96: Added: `TabCoordinator`, so one leader tab of a browser does the sync of a `HybridStorage`, and the other tabs copy its changes (roadmap CLI-25). It is in `@procedures/store/browser` and in the package root.
+  
+  - The election uses the Web Locks API. When the leader closes, or the browser closes its tab, the next tab becomes the leader.
+  - Only the leader makes the `HybridStorage`, with `capture: "observe"`. The followers make no remote call and start no timer.
+  - The tabs send the change batches of their local copies on a `BroadcastChannel`. `observe()` gives each batch of each tab one time, with its origin. A tab does not send again a batch that it got.
+  - The leader captures the batches of the followers, and its queue store keeps them. Only the leader writes to the shared queue store.
+  - A follower keeps each own batch until the leader acknowledges it. A new leader gets the batches that no leader acknowledged.
+  - The option `copy` is `"shared"` for one durable local copy of all tabs, or `"tab"` for a local copy in each tab, for example a SignalDB collection.
+  - Without the Web Locks API or `BroadcastChannel`, the tab does its own sync in the single mode.
+  
+  Added: `HybridStorage.whenQueued()`. It resolves when the queue store holds the queue, and it sends nothing.
+  
+  PATCH: new exports and a new method that are backward compatible, before 1.0.0.
+- @procedures/client@0.17.4
+  - @procedures/collections@0.17.4
+
 ## 0.17.3
 
 ### Patch Changes

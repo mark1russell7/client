@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/bundle-assistant",
-  "version": "0.17.3",
+  "version": "0.20.0",
   "description": "The opt-in tools of the personal assistant for an MCP host: calendar files, mail parsing, places, routes, weather and photo metadata, without the procedures that can carry data out.",
   "keywords": [
     "mcp",

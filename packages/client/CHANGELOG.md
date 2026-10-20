@@ -1,5 +1,146 @@
 # @procedures/client
 
+## 0.20.0
+
+### Minor Changes
+
+- 5f49860: The root of `@procedures/client` and the entry `@procedures/client/server` do not export the server transports (CLI-6 step 2). Thus the root imports no `http`, no `ws` and no `express`, and its declarations name none of them (CLI-61). This change is a break of the server stack, thus it is its own MINOR (decision D13). The PATCH 0.14.1 marked each removed name as `@deprecated`.
+  
+  - Removed from the root and from `./server`: `HttpServerTransport`, `HttpServerTransportOptions`, `HttpUrlStrategy`, `WebSocketServerTransport`, `WebSocketServerTransportOptions`, `WebSocketAuthHandler`, `WebSocketConnectionHandler` and `WebSocketMessage`. `@procedures/client/node` exports each of them, as before.
+  - Changed: `HttpUrlStrategy` takes a structural request, `UrlStrategyRequest`, not the `Request` of Express. `UrlStrategyRequest` has `method`, `path`, `url` and `headers`, and the optional `query` and `body`. A `Request` of Express agrees with it, and so does the `UrlRequest` of `procedureHandler`. `HttpServerTransport` still gives the strategy the request of Express. `@procedures/client/node` exports `UrlStrategyRequest`.
+  - Changed: the headers of `GuardedRequest` (the request of `checkBrowserRequest`) and of `hasAmbientCredentials` have the new structural type `GuardedHeaders`, not `IncomingHttpHeaders` of `node:http`. The headers of an `IncomingMessage` agree with it, so a call with a request of Node does not change.
+  - New: the root exports the types `RoutedRequest` and `GuardedHeaders`. `./server` exports `RoutedRequest`.
+  - New: the root is a browser entry (`client.browser`). The CI check bundles it for a browser, and a test examines the declarations of each entry other than `./node`. A project that checks the declarations of its libraries (`skipLibCheck: false`) and imports the root needs no `@types/express`.
+  
+  MINOR: before 1.0.0, a break of the public API raises the MINOR. The removal of exports and the new parameter type of `HttpUrlStrategy` break the API.
+  
+  Migration:
+  
+  - Import `HttpServerTransport`, `WebSocketServerTransport` and their types from `@procedures/client/node`.
+  - A URL strategy whose parameter has the type `express.Request` does not compile as an `HttpUrlStrategy`. Give the parameter the type `UrlStrategyRequest` of `@procedures/client/node`, or give it no type: `HttpUrlStrategy` gives it the type.
+  - A strategy that reads a part of the Express request outside `UrlStrategyRequest`, for example `req.params`, casts the request: `(req as express.Request).params`.
+  - Code that reads a header of `GuardedHeaders` without a declared property, for example `accept`, gets `string | string[] | undefined`. Examine the value with `typeof` before use.
+  - Before, an import of the root also loaded the types of Node (`@types/node`) into the program. A project that used `process`, `Buffer`, `URL`, `setTimeout` or a `node:` module without `@types/node` in its own configuration compiled only because of that. Such a project fails to compile after this release. Add `@types/node` to its development dependencies and `"types": ["node"]` to its `tsconfig.json`. In this repository, `@procedures/archive`, `@procedures/env`, `@procedures/gh`, `@procedures/http`, `@procedures/llm`, `@procedures/npm` and `@procedures/schedule` got the `node` feature of `cue-config` for this reason. Their APIs do not change.
+  
+  The migration steps of the known consumers:
+  
+  - The site: no change. It imports none of these names. It names `HttpServerTransport` and `WebSocketServerTransport` only in the text of its journey.
+  - MiniMongo: no change. It imports none of these names, and its host uses `runProcedureHost`. Its `vite.config.ts` maps the root to `@procedures/client/browser`. The map can stay, because the root is also a browser entry.
+  - Graph: no change. It imports none of these names.
+  - jarvis: no change. It imports none of these names.
+  - The procedures image of the harness of `systems` (`packages/harness/image/procedures/server-ws.mjs`) imports `WebSocketServerTransport` from the root. It pins `@procedures/client` 0.7.0. When it moves to this MINOR or a later version, import `WebSocketServerTransport` from `@procedures/client/node`.
+  - `headroom` (`packages/daemon/src/gateway.ts`) gives `checkBrowserRequest` of the root a request of `node:http`: no change.
+
+## 0.19.0
+
+### Minor Changes
+
+- 5cb934d: Breaking: a `ProcedureServer` with a token or a request hook (`principalOf`) refuses a request without credentials (CLI-1). The error code is `UNAUTHORIZED`, and the hook does not run for it. Before, such a request skipped the token check and the request hook. Thus a face that set no credentials, for example a custom transport, went around the authentication.
+  
+  New: the local marker `LOCAL_CREDENTIALS`, with `isLocalCredentials()` and its key `LOCAL_MARKER`. A local face sets it. Only a local request skips the token and the request hook.
+  
+  The server examines a request in one of three ways:
+  
+  - A local request skips the token and the request hook.
+  - A request without credentials gets `UNAUTHORIZED` when the server has a token or a request hook.
+  - A request with credentials goes through the request hook and the token check, as before.
+  
+  - The local faces are MCP over stdio, an SDK transport of `McpServerTransport` and `PortTransport`. The peer of stdio is the parent process. Only the holder of the other end of a port can send to it.
+  - A network face never sets the marker: HTTP, WebSocket and MCP over Streamable HTTP. The key of the marker is a symbol. JSON, structured clone, a header, a cookie and a query cannot carry it.
+  - The calls of a WebSocket server to the `serve` handler of its client are not local. Their credentials are empty, so a `serve` server with a token refuses them.
+  - `PortTransport` has the new option `credentials`. Give `{}` for a port that a part outside the application can reach, for example a `Window`.
+  - The nested calls of a procedure do not go through the token check. They keep the principal of their caller.
+  
+  Migration:
+  
+  - A custom transport or face that sends no credentials to a server with a token or a request hook now gets `UNAUTHORIZED`. Set the credentials of its request (`requestCredentials()`), or `LOCAL_CREDENTIALS` for a face in this process.
+  - Code that calls `server.handle()` of a server with a token or a request hook gives `credentials: LOCAL_CREDENTIALS`.
+  - The site: no change. Its servers have no token and no request hook, and its workers serve over `PortTransport`, which sets the marker.
+  - MiniMongo: no change. `scripts/dev.ts` starts a server without a token and without a request hook. Its HTTP and WebSocket faces set the credentials of each request.
+  - Graph: no change. The procedure host (`packages/server/graph-host.ts`) has a request hook (`graphPrincipalOf` of `packages/server/graph-procedures.ts`) and no token. All its faces send credentials: HTTP, WebSocket and MCP over Streamable HTTP (`mcpFace`). No code of Graph calls `handle()` directly. The MCP host (`packages/mcp/src/host.ts`) operates over stdio, which is local.
+  - jarvis: no change. The loopback server and the remote server of `packages/http/src/procedures.ts` have a request hook (`principalOf`), and the remote server has a token. `makeProcedureHandler` mounts `procedureHandler`, which sends the credentials of each request. A test that calls `handle()` of such a server gives `LOCAL_CREDENTIALS`, or credentials with the token.
+
+## 0.18.1
+
+### Patch Changes
+
+- d69c8cb: A host that serves a plain collection `a.b` and a collection `a` with partitions fails at registration. To correct it, rename the plain collection. Before, the two had the same topic `collections.a.b`. Thus the readers of `a.b` got the events of the tenant `b` of `a`, a leak across tenants (roadmap CLI-57, decision D23).
+  
+  - The refusal is the new export `CollectionTopicCollisionError`. It names the two collections, the partition and the topic.
+  - `useStorage`, `useStorages`, the option `collections` of a host and `usePartitions` do the check. The check finds the pair in each order, also when the registrations come at different times.
+  - The check also refuses a deeper name, for example `a.b.c` next to `a` with partitions: `b.c` is a partition of `a`.
+  - The check also refuses a storage of `a.b` for the calls without a partition while `a` has partitions, also when `a.b` has partitions. That storage publishes on `collections.a.b`.
+  - A name without a dot does not change. A dotted name without a partitioned prefix does not change. Two collections with partitions, for example `a` and `a.b`, do not change, because the partitions of `a.b` encode its name.
+  
+  PATCH (decision D23): the change refuses only a configuration that leaks events across tenants, so no caller can rely on it. Each correct configuration behaves as before.
+  
+  Migration steps:
+  
+  - When a host fails with `CollectionTopicCollisionError`, rename the plain collection, for example `a.b` to `a_b`. A name without a dot has no topic of a partition.
+  - The site: no change is necessary. It serves no collection.
+  - MiniMongo: no change is necessary. Its server serves no collection.
+  - Graph: no change is necessary. Its host gives partitions to each served collection (`examples`), and no collection has a plain storage.
+  - jarvis: no change is necessary. Its host serves no collection.
+- 0379278: Docs and tests: the rule of the retryable flag of an in-band end (CLI-58). The behavior does not change, thus this change is a PATCH of the client group (decision D13).
+  
+  - Before the stream starts, an error of a handler without a retryable flag gets the flag of its code in `ERROR_CODES` (CLI-48). Thus `UNAVAILABLE` without a flag is retryable, and the HTTP face answers 503.
+  - After the stream starts, an error ends the stream in-band. The in-band end is the `error` line of NDJSON, the `error` frame of WebSocket or the `_meta` of the MCP result.
+  - An in-band end without a retryable flag gets `retryable: false`, also when the stream gave no item. The reader can have items, and a retry can send them again.
+  - A handler gives `retryable: true` when a retry is safe. Then the in-band end is retryable too.
+  - The retry middleware of the client does not retry after an item reached the reader. Thus after the first item, the flag only tells the application.
+  - This rule agrees with the rule of a cut (CLI-48): the flag is false when the call can have had its effect.
+  - `WIRE-PROTOCOL.md` gives the rule in the section "Error codes". Tests pin it on the wire of HTTP and WebSocket, and on the HTTP, WebSocket and MCP faces of the procedures host.
+  
+  The site, MiniMongo, Graph and jarvis: no change.
+
+## 0.18.0
+
+### Minor Changes
+
+- 5e68b6a: Each face gives only the error codes of wire v1 (server stack CLI-4). The stray codes fold into `UNAVAILABLE`, `FORBIDDEN` and `INTERNAL_ERROR`. This change is a break of the server stack, thus it is its own MINOR (decision D13).
+  
+  Before, `procedureHandler` gave the codes of wire v1, but other paths kept their former codes. `HttpServerTransport` answered `SERVER_STOPPED` after `stop()`. The browser checks gave `FORBIDDEN_HOST`, `FORBIDDEN_ORIGIN`, `METHOD_NOT_ALLOWED` (405) and `UNSUPPORTED_MEDIA_TYPE` (415). `Server` and `ServerError` gave the code `"500"`.
+  
+  The behavior that changes:
+  
+  | Former code | Former status | Code of wire v1 | Status | Reason |
+  |---|---|---|---|---|
+  | `SERVER_STOPPED` | 503 | `UNAVAILABLE` | 503 | — |
+  | `FORBIDDEN_HOST` | 403 | `FORBIDDEN` | 403 | `host-header-not-allowed` |
+  | `FORBIDDEN_ORIGIN` | 403 | `FORBIDDEN` | 403 | `origin-not-allowed` |
+  | `METHOD_NOT_ALLOWED` | 405 | `FORBIDDEN` | 403 | `method-not-allowed` |
+  | `UNSUPPORTED_MEDIA_TYPE` | 415 | `FORBIDDEN` | 403 | `media-type-not-allowed` |
+  | `"500"` | 500 | `INTERNAL_ERROR` | 500 | — |
+  
+  - `HttpServerTransport` answers a request after `stop()` with `UNAVAILABLE` (503, retryable), as `procedureHandler` does. The message is "The server is stopping".
+  - `HttpServerTransport` refuses a browser request with `FORBIDDEN` (403) and the field `reason` in the body, as `procedureHandler` does. A `GET` without `allowGet` and a body that is not JSON get 403, not 405 or 415.
+  - `checkBrowserRequest()` gives `{ ok: false, status: 403, code: "FORBIDDEN", reason, message }`. The type `GuardResult` has the new field `reason`. The MCP endpoint of `@procedures/mcp-server` uses it, so its refusal has `data.code` `FORBIDDEN`.
+  - `Server` answers an error outside a handler with `INTERNAL_ERROR`. `new ServerError(message)` has the default code `INTERNAL_ERROR`.
+  - The message of the refusals of the method and of the body starts with "Forbidden:".
+  
+  For one release, the client reads the former codes of an older server:
+  
+  - `HttpTransport` and the WebSocket transports read `SERVER_STOPPED` as `UNAVAILABLE` and `"500"` as `INTERNAL_ERROR`.
+  - `HttpTransport` reads `FORBIDDEN_HOST` and `FORBIDDEN_ORIGIN` as `FORBIDDEN`, and sets the metadata key `reason`.
+  - `isAvailabilityFailure()` still counts `SERVER_STOPPED`.
+  - The client keeps `METHOD_NOT_ALLOWED` and `UNSUPPORTED_MEDIA_TYPE`. They are also the codes of the HTTP statuses 405 and 415 of each server.
+  - The next breaking release of the client group removes these aliases.
+  
+  Migration steps:
+  
+  - Code that matches `SERVER_STOPPED`: match `UNAVAILABLE`. The flag `retryable` stays true.
+  - Code that matches `FORBIDDEN_HOST` or `FORBIDDEN_ORIGIN`: match `FORBIDDEN`, then read `reason` (the body field, or the metadata key `reason`).
+  - Code that matches the status 405 or 415 of a procedure server: match the status 403 and the reasons `method-not-allowed` and `media-type-not-allowed`.
+  - Code that reads `GuardResult.code` of `checkBrowserRequest()`: read `reason`.
+  - Code that matches the code `"500"` or the default code of `ServerError`: match `INTERNAL_ERROR`.
+  - The site, MiniMongo, Graph and jarvis: no code of theirs matches a former code, so no change is necessary.
+  - MiniMongo: its dev server uses `HttpServerTransport`, and its answers change only as the table says.
+  - jarvis: its host uses `procedureHandler`, which gave the codes of wire v1 already.
+
+## 0.17.4
+
+No changes in this release.
+
 ## 0.17.3
 
 No changes in this release.

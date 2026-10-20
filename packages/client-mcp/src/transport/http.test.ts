@@ -85,5 +85,7 @@ describe("MCP over Streamable HTTP (R26)", () => {
       body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
     });
     expect(response.status).toBe(403);
+    // The core gives FORBIDDEN of wire v1 (CLI-4): before, the code was FORBIDDEN_ORIGIN
+    expect(((await response.json()) as { error: { data: unknown } }).error.data).toEqual({ code: "FORBIDDEN", reason: "origin-not-allowed" });
   });
 });

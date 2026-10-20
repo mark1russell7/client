@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/env",
-  "version": "0.17.3",
+  "version": "0.20.0",
   "description": "Environment variables as procedures: one variable, the names, and the check of the required ones, with the secrets masked.",
   "keywords": [
     "procedures",
@@ -57,8 +57,9 @@
     "./dist/register.js"
   ],
   "devDependencies": {
-    "@mark1russell7/cue": "^1.0.0",
     "typescript": "^7.0.2",
+    "@types/node": "^22.0.0",
+    "@mark1russell7/cue": "^1.0.0",
     "vitest": "^5.0.3"
   },
   "engines": {

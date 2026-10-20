@@ -1,5 +1,45 @@
 # @procedures/peer
 
+## 0.20.0
+
+### Patch Changes
+
+- Updated dependencies [5f49860]
+  - @procedures/client@0.20.0
+
+## 0.19.0
+
+### Patch Changes
+
+- Updated dependencies [5cb934d]
+  - @procedures/client@0.19.0
+
+## 0.18.1
+
+### Patch Changes
+
+- Updated dependencies [d69c8cb]
+- Updated dependencies [0379278]
+  - @procedures/client@0.18.1
+
+## 0.18.0
+
+### Patch Changes
+
+- Updated dependencies [5e68b6a]
+  - @procedures/client@0.18.0
+
+## 0.17.4
+
+### Patch Changes
+
+- 8281370: The probes use the option `kinds` of `@mark1russell7/service` 0.5.8 (SYS-30).
+  
+  - Each listener of `createProcedureHost()` asks `probeHandler()` for the kinds `startup`, `readiness` and `liveness`. The host has no filter of its own for `/_probes/report`. The answers do not change: the report path goes on to the next handler, as before.
+  - The probe port of `runProcedureHost()` takes the new option `probes.kinds`. The default is all four kinds, as in 0.17.3. Leave out `report` on a port that is not private.
+  - The packages of the group use `@mark1russell7/service` `^0.5.8`, so a host has one copy of the service.
+- @procedures/client@0.17.4
+
 ## 0.17.3
 
 ### Patch Changes

@@ -160,6 +160,38 @@ describe("createMcpHost", () => {
     await expect(host.start()).rejects.toThrow("stops one time");
   });
 
+  it("serves the tools over stdio with a token in the policy: stdio is a local face (CLI-1)", async () => {
+    const stdin = new PassThrough();
+    const stdout = new PassThrough();
+    const lines: string[] = [];
+    stdout.on("data", (chunk: Buffer) => lines.push(...chunk.toString("utf8").split("\n").filter(Boolean)));
+    const host = createMcpHost({
+      modules: [graphModule],
+      surface: { namespaces: ["graph"] },
+      policy: { token: "stdio-host-token-0123456789" },
+      faces: { stdio: { stdin, stdout, stopOnEnd: false, redirectConsole: false } },
+    });
+    cleanups.push(() => host.stop());
+    await host.start();
+    const answerTo = async (id: number): Promise<Record<string, unknown>> => {
+      const until = Date.now() + 5000;
+      for (;;) {
+        const line = lines.map((text) => JSON.parse(text) as Record<string, unknown>).find((message) => message["id"] === id);
+        if (line) return line;
+        if (Date.now() > until) throw new Error(`no answer to ${id}`);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+    };
+    const send = (message: Record<string, unknown>): void => void stdin.write(JSON.stringify({ jsonrpc: "2.0", ...message }) + "\n");
+    send({ id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "t", version: "0" } } });
+    await answerTo(1);
+    send({ method: "notifications/initialized" });
+    send({ id: 2, method: "tools/call", params: { name: "graph.get", arguments: {} } });
+    const result = (await answerTo(2))["result"] as { isError?: boolean; structuredContent?: unknown };
+    expect(result.isError).not.toBe(true);
+    expect(result.structuredContent).toEqual({ text: "doc" });
+  });
+
   it("keeps running at the end of stdio without stopOnEnd", async () => {
     const stdin = new PassThrough();
     const host = createMcpHost({ modules: [graphModule], faces: { stdio: { stdin, stdout: new PassThrough(), stopOnEnd: false, redirectConsole: false } } });

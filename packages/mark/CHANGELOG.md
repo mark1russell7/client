@@ -1,5 +1,86 @@
 # @procedures/mark
 
+## 0.20.0
+
+### Patch Changes
+
+- Updated dependencies [5f49860]
+  - @procedures/client@0.20.0
+  - @procedures/cli-run@0.20.0
+  - @procedures/lib@0.20.0
+  - @procedures/pnpm@0.20.0
+  - @procedures/procedure@0.20.0
+  - @procedures/peer@0.20.0
+  - @procedures/shell@0.20.0
+  - @procedures/vitest@0.20.0
+  - @procedures/mcp-dev-tools@0.20.0
+  - @procedures/server@0.20.0
+
+## 0.19.0
+
+### Patch Changes
+
+- Updated dependencies [5cb934d]
+  - @procedures/client@0.19.0
+  - @procedures/cli-run@0.19.0
+  - @procedures/lib@0.19.0
+  - @procedures/pnpm@0.19.0
+  - @procedures/procedure@0.19.0
+  - @procedures/peer@0.19.0
+  - @procedures/shell@0.19.0
+  - @procedures/vitest@0.19.0
+  - @procedures/mcp-dev-tools@0.19.0
+  - @procedures/server@0.19.0
+
+## 0.18.1
+
+### Patch Changes
+
+- Updated dependencies [d69c8cb]
+- Updated dependencies [0379278]
+  - @procedures/client@0.18.1
+  - @procedures/cli-run@0.18.1
+  - @procedures/lib@0.18.1
+  - @procedures/pnpm@0.18.1
+  - @procedures/procedure@0.18.1
+  - @procedures/peer@0.18.1
+  - @procedures/shell@0.18.1
+  - @procedures/vitest@0.18.1
+  - @procedures/mcp-dev-tools@0.18.1
+  - @procedures/server@0.18.1
+
+## 0.18.0
+
+### Patch Changes
+
+- Updated dependencies [5e68b6a]
+  - @procedures/client@0.18.0
+  - @procedures/cli-run@0.18.0
+  - @procedures/lib@0.18.0
+  - @procedures/pnpm@0.18.0
+  - @procedures/procedure@0.18.0
+  - @procedures/peer@0.18.0
+  - @procedures/shell@0.18.0
+  - @procedures/vitest@0.18.0
+  - @procedures/mcp-dev-tools@0.18.0
+  - @procedures/server@0.18.0
+
+## 0.17.4
+
+### Patch Changes
+
+- Updated dependencies [8281370]
+  - @procedures/peer@0.17.4
+  - @procedures/server@0.17.4
+  - @procedures/client@0.17.4
+  - @procedures/cli-run@0.17.4
+  - @procedures/lib@0.17.4
+  - @procedures/pnpm@0.17.4
+  - @procedures/procedure@0.17.4
+  - @procedures/shell@0.17.4
+  - @procedures/vitest@0.17.4
+  - @procedures/mcp-dev-tools@0.17.4
+
 ## 0.17.3
 
 ### Patch Changes

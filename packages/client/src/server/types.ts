@@ -48,11 +48,14 @@ export interface ServerRequest<TReq = unknown> {
   signal?: AbortSignal;
 
   /**
-   * The credentials that a network transport read from the request (roadmap R18). They have the
-   * bearer token of an `Authorization` header, or of the `token` query of a WebSocket connection.
-   * They also have the cookies, the headers and the query of the request. They are not in the
-   * metadata, so a handler and a nested call do not see them. A request without credentials comes
-   * from this process (a direct `handle()`, MCP over stdio).
+   * The credentials of the request (roadmap R18). A network face reads them from the request: the
+   * bearer token of an `Authorization` header or of the `token` query of a WebSocket connection,
+   * the cookies, the headers and the query. A local face sets `LOCAL_CREDENTIALS` (CLI-1). They are
+   * not in the metadata, so a handler and a nested call do not see them.
+   *
+   * A server with a token or a request hook (`principalOf`) refuses a request without credentials
+   * with `UNAUTHORIZED`, and the hook does not run (CLI-1). Before, such a request skipped the
+   * token check and the hook.
    */
   credentials?: Credentials | undefined;
 
@@ -68,10 +71,24 @@ export interface ServerRequest<TReq = unknown> {
 }
 
 /**
+ * The key of the local marker of credentials (CLI-1). The key is a symbol. JSON, structured clone,
+ * a header, a cookie and a query cannot carry a symbol key. Thus a remote request cannot claim to
+ * be local. Use `LOCAL_CREDENTIALS` to set the marker.
+ */
+export const LOCAL_MARKER: unique symbol = Symbol.for("@procedures/client.local-credentials");
+
+/**
  * The credentials of a request. A network transport sets each field that it can read. The request
- * hook of the server (`principalOf`) reads them.
+ * hook of the server (`principalOf`) reads them. A local face sets only the local marker
+ * (`LOCAL_CREDENTIALS`).
  */
 export interface Credentials {
+  /**
+   * The local marker (CLI-1): the request comes from this application, not from the network. The
+   * server applies no token and no request hook to a local request. Only a local face sets it: a
+   * call in this process, MCP over stdio, or a message port. A network face never sets it.
+   */
+  readonly [LOCAL_MARKER]?: true | undefined;
   /** The bearer token that the request presents. */
   readonly bearer?: string | undefined;
   /** The cookies of the request, by name (the `Cookie` header of an HTTP request or of an upgrade). */
@@ -265,12 +282,13 @@ export class HandlerNotFoundError extends Error {
 }
 
 /**
- * Server error with status code.
+ * A server error with an error code. The default code is `INTERNAL_ERROR` of wire v1 (CLI-4:
+ * before, the default was the string `"500"`).
  */
 export class ServerError extends Error {
   constructor(
     message: string,
-    public readonly code: string = "500",
+    public readonly code: string = "INTERNAL_ERROR",
     public readonly retryable: boolean = false
   ) {
     super(message);

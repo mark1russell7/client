@@ -1,5 +1,85 @@
 # @procedures/bundle-dev
 
+## 0.20.0
+
+### Patch Changes
+
+- Updated dependencies [5f49860]
+  - @procedures/client@0.20.0
+  - @procedures/cli-run@0.20.0
+  - @procedures/dag@0.20.0
+  - @procedures/fs@0.20.0
+  - @procedures/git@0.20.0
+  - @procedures/lib@0.20.0
+  - @procedures/pnpm@0.20.0
+  - @procedures/procedure@0.20.0
+  - @procedures/shell@0.20.0
+  - @procedures/compiler@0.20.0
+
+## 0.19.0
+
+### Patch Changes
+
+- Updated dependencies [5cb934d]
+  - @procedures/client@0.19.0
+  - @procedures/cli-run@0.19.0
+  - @procedures/dag@0.19.0
+  - @procedures/fs@0.19.0
+  - @procedures/git@0.19.0
+  - @procedures/lib@0.19.0
+  - @procedures/pnpm@0.19.0
+  - @procedures/procedure@0.19.0
+  - @procedures/shell@0.19.0
+  - @procedures/compiler@0.19.0
+
+## 0.18.1
+
+### Patch Changes
+
+- Updated dependencies [d69c8cb]
+- Updated dependencies [0379278]
+  - @procedures/client@0.18.1
+  - @procedures/cli-run@0.18.1
+  - @procedures/dag@0.18.1
+  - @procedures/fs@0.18.1
+  - @procedures/git@0.18.1
+  - @procedures/lib@0.18.1
+  - @procedures/pnpm@0.18.1
+  - @procedures/procedure@0.18.1
+  - @procedures/shell@0.18.1
+  - @procedures/compiler@0.18.1
+
+## 0.18.0
+
+### Patch Changes
+
+- Updated dependencies [5e68b6a]
+  - @procedures/client@0.18.0
+  - @procedures/cli-run@0.18.0
+  - @procedures/dag@0.18.0
+  - @procedures/fs@0.18.0
+  - @procedures/git@0.18.0
+  - @procedures/lib@0.18.0
+  - @procedures/pnpm@0.18.0
+  - @procedures/procedure@0.18.0
+  - @procedures/shell@0.18.0
+  - @procedures/compiler@0.18.0
+
+## 0.17.4
+
+### Patch Changes
+
+- @procedures/client@0.17.4
+  - @procedures/cli-run@0.17.4
+  - @procedures/dag@0.17.4
+  - @procedures/fs@0.17.4
+  - @procedures/git@0.17.4
+  - @procedures/lib@0.17.4
+  - @procedures/pnpm@0.17.4
+  - @procedures/procedure@0.17.4
+  - @procedures/shell@0.17.4
+  - @procedures/compiler@0.17.4
+
 ## 0.17.3
 
 ### Patch Changes

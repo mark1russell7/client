@@ -19,6 +19,22 @@ export interface RoutedRequest {
 }
 
 /**
+ * The request that a URL strategy of `HttpServerTransport` gets (CLI-61). The type is structural:
+ * a `Request` of Express agrees with it, and so does the `UrlRequest` of `procedureHandler`. Thus
+ * the type names no `express` and no Node module.
+ */
+export interface UrlStrategyRequest extends RoutedRequest {
+  /** The URL of the request line: the path and the query. */
+  readonly url: string;
+  /** The headers of the request, by lower-case name. */
+  readonly headers: { readonly [name: string]: string | string[] | undefined };
+  /** The query parameters. Express gives its parsed query. */
+  readonly query?: unknown;
+  /** The body that a body parser of the app gives. Without a body parser, the body is absent. */
+  readonly body?: unknown;
+}
+
+/**
  * Default URL strategy: RESTful routes.
  *
  * Maps:

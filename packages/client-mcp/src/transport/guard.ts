@@ -63,6 +63,8 @@ export type McpGuardResult =
       readonly ok: false;
       readonly status: 401 | 403 | 405 | 415;
       readonly code: string;
+      /** The reason of a FORBIDDEN refusal of wire v1, for example `origin-not-allowed` (CLI-4). */
+      readonly reason?: string | undefined;
       readonly message: string;
       readonly headers?: Readonly<Record<string, string>> | undefined;
     };

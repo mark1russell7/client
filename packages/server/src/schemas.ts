@@ -26,6 +26,7 @@ export const serverStartInputSchema: ZodLikeSchema<ServerStartInput> = zodAdapte
     port: port.optional().describe("The port to listen on (default: 3000)"),
     host: z.string().min(1).optional().describe("The host to bind to (default: 127.0.0.1)"),
     transport: z.enum(["http", "websocket", "both"]).optional().describe("The transport (default: http)"),
+    timeout: z.number().int().min(1).max(600_000).optional().describe("The time to wait for the readiness of the server, in milliseconds (default: 15000)"),
   })
 );
 
@@ -43,11 +44,7 @@ export const serverStatusInputSchema: ZodLikeSchema<ServerStatusInput> = zodAdap
 );
 
 export const ServerStartOutputSchema: z.ZodType<ServerStartOutput> = z.looseObject({
-  success: z
-    .boolean()
-    .describe(
-      "True when the server started. Deprecated (CLI-9): at the timeout, a server that still starts gives true. From the next MINOR, it gives false."
-    ),
+  success: z.boolean().describe("True when the server is ready. A start that is not ready at the timeout gives false, with the PID (CLI-9)"),
   pid: z.number().optional().describe("The process id of the server"),
   port: z.number().optional().describe("The port of the server"),
   endpoint: z.string().optional().describe("The URL of the server"),

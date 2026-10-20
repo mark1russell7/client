@@ -35,7 +35,9 @@
     "packages/impl-mcp-dev/README.md",
     "packages/client-mcp/README.md",
     "packages/better-auth/README.md",
-    "packages/access/README.md"
+    "packages/access/README.md",
+    "packages/signaldb/README.md",
+    "packages/signaldb/src/**/*.ts"
   ],
   "ignore": [
     "**/node_modules/**",

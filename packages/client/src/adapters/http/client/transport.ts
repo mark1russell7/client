@@ -49,7 +49,7 @@ import {
   createErrorFromException,
 } from "../shared/index.js";
 import { optionalMs } from "../../../duration.js";
-import { PROTOCOL_HEADER, PROTOCOL_VERSION } from "../../../protocol.js";
+import { PROTOCOL_HEADER, PROTOCOL_VERSION, foldedErrorCode } from "../../../protocol.js";
 
 /**
  * HTTP Client Transport
@@ -186,9 +186,11 @@ export class HttpTransport implements Transport {
       if (status.type === "error") {
         const retryAfter = retryAfterMsOf(response.headers.get("Retry-After"), responseBody);
         if (retryAfter !== undefined) metadata[RETRY_AFTER_METADATA_KEY] = retryAfter;
-        // The reason of a FORBIDDEN error (roadmap R25)
-        const reason = (responseBody as { reason?: unknown } | null | undefined)?.reason;
-        if (typeof reason === "string") metadata["reason"] = reason;
+        // The reason of a FORBIDDEN error (roadmap R25). An older server gave the reason in its
+        // code (CLI-4): FORBIDDEN_ORIGIN gives FORBIDDEN with the reason origin-not-allowed.
+        const body = responseBody as { reason?: unknown; code?: unknown } | null | undefined;
+        const reason = typeof body?.reason === "string" ? body.reason : typeof body?.code === "string" ? foldedErrorCode(body.code).reason : undefined;
+        if (reason !== undefined) metadata["reason"] = reason;
         // The current items of a VERSION_CONFLICT error (roadmap CLI-16)
         const conflicts = (responseBody as { conflicts?: unknown } | null | undefined)?.conflicts;
         if (Array.isArray(conflicts)) metadata["conflicts"] = conflicts;
@@ -289,7 +291,7 @@ export class HttpTransport implements Transport {
               id,
               status: {
                 type: "error",
-                code: frame.error?.code ?? "HANDLER_ERROR",
+                code: foldedErrorCode(frame.error?.code ?? "HANDLER_ERROR").code,
                 message: frame.error?.message ?? "Unknown error",
                 retryable: frame.error?.retryable ?? false,
               },
@@ -334,7 +336,8 @@ export class HttpTransport implements Transport {
 
     return {
       type: "error",
-      code: typeof serverError?.code === "string" ? serverError.code : errorDetails.code,
+      // A code of an older server becomes its code of wire v1 (CLI-4): SERVER_STOPPED is UNAVAILABLE
+      code: typeof serverError?.code === "string" ? foldedErrorCode(serverError.code).code : errorDetails.code,
       message: typeof serverError?.error === "string" ? serverError.error : errorDetails.message,
       retryable: typeof serverError?.retryable === "boolean" ? serverError.retryable : errorDetails.retryable,
     };
