@@ -79,6 +79,12 @@ function send(
   });
 }
 
+/** The status and the error fields of a refused request. */
+function refusalOf(res: { status: number; body: string }): { status: number; code?: unknown; reason?: unknown; retryable?: unknown } {
+  const body = JSON.parse(res.body) as { code?: unknown; reason?: unknown; retryable?: unknown };
+  return { status: res.status, code: body.code, reason: body.reason, retryable: body.retryable };
+}
+
 describe("HTTP server transport: browser checks", () => {
   it("answers a JSON POST from a program (no Origin)", async () => {
     const { port, calls } = await startHttp();
@@ -90,14 +96,16 @@ describe("HTTP server transport: browser checks", () => {
   it("refuses a text/plain body, the cross-site 'simple' POST, and runs nothing", async () => {
     const { port, calls } = await startHttp();
     const res = await send(port, "POST", { "content-type": "text/plain" }, '{"command":"calc"}');
-    expect(res.status).toBe(415);
+    // CLI-4: FORBIDDEN of wire v1 with its reason. Before, the code was UNSUPPORTED_MEDIA_TYPE (415).
+    expect(refusalOf(res)).toEqual({ status: 403, code: "FORBIDDEN", reason: "media-type-not-allowed", retryable: false });
     expect(calls.count).toBe(0);
   });
 
   it("refuses a page of another origin, and accepts the server's own origin", async () => {
     const { port, calls } = await startHttp();
     const json = { "content-type": "application/json" };
-    expect((await send(port, "POST", { ...json, origin: "https://evil.example" }, "{}")).status).toBe(403);
+    // CLI-4: before, the code was FORBIDDEN_ORIGIN
+    expect(refusalOf(await send(port, "POST", { ...json, origin: "https://evil.example" }, "{}"))).toEqual({ status: 403, code: "FORBIDDEN", reason: "origin-not-allowed", retryable: false });
     expect((await send(port, "POST", { ...json, origin: `http://localhost:${port}`, host: `localhost:${port}` }, "{}")).status).toBe(200);
     expect(calls.count).toBe(1);
   });
@@ -105,13 +113,14 @@ describe("HTTP server transport: browser checks", () => {
   it("refuses a cross-site request that has no Origin (an image tag or a form)", async () => {
     const { port, calls } = await startHttp({ allowGet: true });
     const res = await send(port, "GET", { "sec-fetch-site": "cross-site" });
-    expect(res.status).toBe(403);
+    expect(refusalOf(res)).toMatchObject({ status: 403, code: "FORBIDDEN", reason: "origin-not-allowed" });
     expect(calls.count).toBe(0);
   });
 
   it("refuses a GET call unless allowGet is set", async () => {
     const closed = await startHttp();
-    expect((await send(closed.port, "GET", {})).status).toBe(405);
+    // CLI-4: FORBIDDEN of wire v1 with its reason. Before, the code was METHOD_NOT_ALLOWED (405).
+    expect(refusalOf(await send(closed.port, "GET", {}))).toEqual({ status: 403, code: "FORBIDDEN", reason: "method-not-allowed", retryable: false });
     expect(closed.calls.count).toBe(0);
     const open = await startHttp({ allowGet: true });
     expect((await send(open.port, "GET", {})).status).toBe(200);
@@ -120,7 +129,8 @@ describe("HTTP server transport: browser checks", () => {
   it("refuses another host name on a loopback address (DNS rebinding)", async () => {
     const { port, calls } = await startHttp();
     const res = await send(port, "POST", { "content-type": "application/json", host: `rebind.evil.example:${port}` }, "{}");
-    expect(res.status).toBe(403);
+    // CLI-4: before, the code was FORBIDDEN_HOST
+    expect(refusalOf(res)).toEqual({ status: 403, code: "FORBIDDEN", reason: "host-header-not-allowed", retryable: false });
     expect(calls.count).toBe(0);
   });
 
@@ -226,6 +236,18 @@ describe("checkBrowserRequest", () => {
   it("refuses the origin 'null' (a sandboxed frame or a file) unless every origin is allowed", () => {
     expect(check({ host: "localhost", origin: "null" }).ok).toBe(false);
     expect(check({ host: "localhost", origin: "null" }, { allowedOrigins: "*" }).ok).toBe(true);
+  });
+
+  it("refuses with FORBIDDEN of wire v1, the status 403 and the reason of the check (CLI-4)", () => {
+    const refused = (headers: Record<string, string>, method = "POST") => {
+      const result = check(headers, {}, method);
+      return result.ok ? result : { status: result.status, code: result.code, reason: result.reason };
+    };
+    expect(refused({ host: "evil.example" })).toEqual({ status: 403, code: "FORBIDDEN", reason: "host-header-not-allowed" });
+    expect(refused({ host: "localhost", origin: "https://evil.example" })).toEqual({ status: 403, code: "FORBIDDEN", reason: "origin-not-allowed" });
+    expect(refused({ host: "localhost", "sec-fetch-site": "cross-site" })).toEqual({ status: 403, code: "FORBIDDEN", reason: "origin-not-allowed" });
+    expect(refused({ host: "localhost" }, "GET")).toEqual({ status: 403, code: "FORBIDDEN", reason: "method-not-allowed" });
+    expect(refused({ host: "localhost", "content-type": "text/plain", "content-length": "2" })).toEqual({ status: 403, code: "FORBIDDEN", reason: "media-type-not-allowed" });
   });
 
   it("accepts JSON types with parameters and +json types", () => {

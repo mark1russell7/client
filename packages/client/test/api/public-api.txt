@@ -5341,8 +5341,9 @@ export type GuardResult = {
     readonly ok: true;
 } | {
     readonly ok: false;
-    readonly status: 403 | 405 | 415;
-    readonly code: string;
+    readonly status: 403;
+    readonly code: "FORBIDDEN";
+    readonly reason: "host-header-not-allowed" | "origin-not-allowed" | "method-not-allowed" | "media-type-not-allowed";
     readonly message: string;
 };
 

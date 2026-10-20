@@ -94,9 +94,9 @@ describe("guardMcpRequest", () => {
   });
 
   it("refuses DNS rebinding and a web page of another origin before it reads the token", () => {
-    expect(guardMcpRequest(request({ host: "attacker.example" }), { token: "t" })).toMatchObject({ ok: false, status: 403, code: "FORBIDDEN_HOST" });
+    expect(guardMcpRequest(request({ host: "attacker.example" }), { token: "t" })).toMatchObject({ ok: false, status: 403, code: "FORBIDDEN", reason: "host-header-not-allowed" });
     expect(guardMcpRequest(request({ host: "box.local" }), { allowedHosts: ["box.local"] })).toEqual({ ok: true });
-    expect(guardMcpRequest(request({ host: "127.0.0.1", origin: "https://evil.example" }))).toMatchObject({ ok: false, status: 403, code: "FORBIDDEN_ORIGIN" });
+    expect(guardMcpRequest(request({ host: "127.0.0.1", origin: "https://evil.example" }))).toMatchObject({ ok: false, status: 403, code: "FORBIDDEN", reason: "origin-not-allowed" });
     expect(guardMcpRequest(request({ host: "127.0.0.1", origin: "https://app.example" }), { allowedOrigins: ["https://app.example"] })).toEqual({ ok: true });
     // A request with a cookie needs a named origin: "*" does not permit it (CSRF)
     expect(guardMcpRequest(request({ host: "127.0.0.1", origin: "https://app.example", cookie: "s=1" }), { allowedOrigins: "*", ambient: true })).toMatchObject({ ok: false, status: 403 });
