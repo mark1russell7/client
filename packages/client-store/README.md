@@ -41,8 +41,9 @@ console.log(await client.exec(["math", "addTen"], { x: 5 })); // 15
 
 ### The stores of a browser
 
-The entry `@procedures/store/indexeddb` has the stores of a browser. The package root does not import it, and it does not import the client or zod.
+The entry `@procedures/store/indexeddb` has the stores of a browser. The package root does not import it. It does not import the root of the client or zod.
 
+- `IndexedDbStorage` is a collection storage in IndexedDB. Refer to "The collection storage of a browser".
 - `IndexedDbProgramStore` keeps the programs in one database, `procedures-programs` by default.
 - `IndexedDbQueueStore` keeps the queue of a `HybridStorage`. Give each storage its own database.
 - `hasIndexedDb()` tells if the browser has IndexedDB. `MemoryProgramStore` and `MemoryQueueStore` are the fallbacks.
@@ -111,6 +112,34 @@ Notes:
 - `HybridStorage.close()` waits for the operations, the switch and the syncs that run. Then it sends the queue, and it closes the remote and the local copy.
 - `SyncedProcedureRegistry.close()` closes its storage. After it, `register()` and `unregister()` change only the registry in memory.
 
+### The collection storage of a browser
+
+`IndexedDbStorage` of `@procedures/store/indexeddb` keeps the items of one collection in IndexedDB (roadmap CLI-22). It is the durable local copy of a `HybridStorage` in a browser app without SignalDB.
+
+- Give each collection its own database. The storage makes the database at the first operation.
+- The items stay after `close()` and after a reload of the page. A new storage of the same database reads them.
+- The entries keep the order of the first set of each id, as a `Map` does. Each record keeps the number of its first set.
+- `getChangesSince()` gives the changes after a version. A version stays valid after a reload.
+- Each write is one transaction of IndexedDB. A batch that fails changes nothing. Two patches at the same time keep each field.
+- `query()` applies a selector. `patch()` changes an item in one transaction.
+- `observe()` tells each write of this storage before the write resolves. It does not tell the writes of another tab.
+- With the option `versionOf`, a write can expect the version of the current item. The test and the write are one transaction.
+- The storage checks each record that it reads. A record of another application or of another version is an error.
+- The contract suite of `@procedures/collections/testing` tests the storage, and a `HybridStorage` with the storage as its local copy.
+- `InMemoryStorage` of `@procedures/collections` is the fallback for a browser without IndexedDB.
+
+```ts
+import { ApiStorage, HybridStorage, IndexedDbQueueStore, IndexedDbStorage, IndexedDbSyncStateStore } from "@procedures/store/browser";
+
+const versionOf = (user: User) => user.rev;
+const users = new HybridStorage(new ApiStorage(client, { collection: "users" }), {
+  local: new IndexedDbStorage<User>("users", { versionOf }),
+  versionOf,
+  queueStore: new IndexedDbQueueStore("users-queue"),
+  syncState: new IndexedDbSyncStateStore("users-sync"),
+});
+```
+
 ## The modes of `HybridStorage`
 
 `HybridStorage` keeps a local copy of a remote collection storage. It has four modes, and `setMode()` changes the mode while the storage operates.
@@ -163,10 +192,11 @@ await users.setMode("write-through"); // The switch sends the queue, then syncs 
 
 - The option `local` gives the storage of the local copy. The default is a new `InMemoryStorage`.
 - A durable local copy keeps the items after a restart. `SqliteStorage` of `@procedures/sqlite` keeps them in a SQLite file.
+- `IndexedDbStorage` of `@procedures/store/indexeddb` keeps them in the IndexedDB of a browser.
 - With a durable local copy, a new storage in `local-only` mode reads the items of the last run. It makes no remote call.
 - Give a durable `queueStore` with a durable local copy. A restart applies the loaded queue to the local copy again, and the result does not change.
 - The first sync after a restart reads all remote items. It removes each local item that the remote deleted and that no queued write changes.
-- A full sync reads the local ids with `getIds()` of the local copy. `InMemoryStorage` and `SqliteStorage` give the ids without a copy of the values. A local copy without `getIds()` gives its entries.
+- A full sync reads the local ids with `getIds()` of the local copy. `InMemoryStorage`, `SqliteStorage` and `IndexedDbStorage` give the ids without a copy of the values. A local copy without `getIds()` gives its entries.
 - `HybridStorage.getIds()` gives the ids of the local copy, or of the remote in `remote-only` mode.
 - `close()` closes the local copy and the remote. A durable local copy keeps its items. A remote stays open when its own `close()` leaves it open, as `ApiStorage.close()` leaves the server.
 
@@ -244,7 +274,7 @@ const stop = users.onStatus((status) => {
 
 ### The changes, the capture, the sync state and the push feed
 
-`HybridStorage` is a sync engine for each local copy: `InMemoryStorage`, `SqliteStorage`, IndexedDB or a SignalDB collection (server stack D9, CLI-21, CLI-15).
+`HybridStorage` is a sync engine for each local copy: `InMemoryStorage`, `SqliteStorage`, `IndexedDbStorage` or a SignalDB collection (server stack D9, CLI-21, CLI-15).
 
 - `observe(observer)` gives one batch of `set`, `delete` and `clear` changes for each change of the storage.
 - A write of the storage gives its batch with the `origin` of its options. A pull and a delta of the feed give their changes with the origin `syncOrigin`, `"sync"` by default.
@@ -311,7 +341,7 @@ The entry `@procedures/store/browser` has the parts of the store that run in a b
 - `HybridStorage`, its errors and its types.
 - `ApiStorage`, the remote storage over the collection procedures of a server.
 - `EventsChangeFeed`, the push feed of the remote changes.
-- All of `@procedures/store/indexeddb`: the IndexedDB stores and their fallbacks in memory.
+- All of `@procedures/store/indexeddb`: `IndexedDbStorage`, the IndexedDB stores and their fallbacks in memory.
 
 No module of the entry imports a module of Node. The modules import `@procedures/client/browser` and not the root of the client, because the root imports `http` and `ws`. The test `src/browser.test.ts` examines the imports of each module of the entry. The entry is in `client.browser` of `package.json`, so the CI check of the browser entries (`scripts/check-browser-entries.mjs`) bundles it for a browser too.
 
