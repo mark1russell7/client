@@ -693,7 +693,7 @@ The server stack does the rest of R37. Each Node host starts under `run()` and `
 | CLI-56 | HTTP host | procedureHandler sends no CORS header to an untrusted origin | S | done | CLI-49 | server-stack | [client #73](https://github.com/mark1russell7/client/pull/73), [client 8bf0de2a](https://github.com/mark1russell7/client/commit/8bf0de2a), in 0.14.1 |
 | CLI-57 | Sync | A plain collection and a partition of another do not share a topic | S | open | CLI-42 | server-stack | — |
 | CLI-58 | Streams | The in-band error ends take the default flag of their code | S | open | CLI-48 | server-stack | — |
-| CLI-59 | HTTP host | The Express shim sends no CORS header to an untrusted origin | S | blocked | CLI-56, CLI-6 | client | — |
+| CLI-59 | HTTP host | The Express shim sends no CORS header to an untrusted origin | S | in progress | CLI-56 | client | — |
 | CLI-60 | Auth | The core bearerOf reads the auth scheme in any case | S | done | — | server-stack | [client #83](https://github.com/mark1russell7/client/pull/83), [client 15f9cf1d](https://github.com/mark1russell7/client/commit/15f9cf1d), in 0.15.1 |
 | CLI-61 | Packaging | A consumer with strict library checks needs no express or ws types | S | in progress | CLI-6 | client | [client #84 (ws types)](https://github.com/mark1russell7/client/pull/84), [client f1c267cb](https://github.com/mark1russell7/client/commit/f1c267cb) |
 | DOC-1 | Docs | Replace HOST-OWNERSHIP-BRIEF with a server layer contract | M | done | D14, REL-0 | server-stack | [client #6](https://github.com/mark1russell7/client/pull/6), [client 94407186](https://github.com/mark1russell7/client/commit/94407186) |
