@@ -62,7 +62,8 @@
       "@procedures/mcp-dev-tools",
       "@procedures/server",
       "@procedures/better-auth",
-      "@procedures/access"
+      "@procedures/access",
+      "@procedures/signaldb"
     ]
   ],
   "linked": [],
