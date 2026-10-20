@@ -171,7 +171,7 @@ mark serve --procedures ./my-procedures.js --events orders.created --events audi
 
 `mark --server` and `mark serve` answer the probes of their service (CLI-9, decision D5). The probes give only the status, and they need no token.
 
-- By default, each listener answers `GET /_probes/startup`, `/_probes/readiness` and `/_probes/liveness`. The answer is 200, or 503 with `Retry-After`.
+- By default, each listener answers `GET /_probes/startup`, `/_probes/readiness` and `/_probes/liveness`. The answer is 200, or 503 with `Retry-After`. The probes stop when the listener closes at the stop of the intake.
 - `--probe-port <port>` moves the probes to a port of their own, on the address of `--host`: `/startup`, `/readiness`, `/liveness` and `/report`. The listeners then answer no probes.
 - The startup prints the URL of the probes.
 
