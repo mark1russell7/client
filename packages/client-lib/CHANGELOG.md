@@ -1,5 +1,18 @@
 # @procedures/lib
 
+## 0.18.1
+
+### Patch Changes
+
+- Updated dependencies [d69c8cb]
+- Updated dependencies [0379278]
+  - @procedures/client@0.18.1
+  - @procedures/dag@0.18.1
+  - @procedures/fs@0.18.1
+  - @procedures/git@0.18.1
+  - @procedures/pnpm@0.18.1
+  - @procedures/shell@0.18.1
+
 ## 0.18.0
 
 ### Patch Changes
