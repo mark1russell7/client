@@ -23,8 +23,9 @@ export interface McpServerConfig {
   /**
    * The Streamable HTTP endpoint of the server (roadmap R26), in place of stdio. The server
    * listens on loopback by default. A token makes each request send `Authorization: Bearer`.
+   * `maxSessions` is the most sessions at one time: 256 by default (CLI-51), `Infinity` for no limit.
    */
-  http?: { port: number; host?: string | undefined; token?: string | undefined } | undefined;
+  http?: { port: number; host?: string | undefined; token?: string | undefined; maxSessions?: number | undefined } | undefined;
   /**
    * False: the host does not check a program before it runs it (roadmap R22). The default is
    * true: a program with an error does not start, so no step of it writes.
@@ -49,6 +50,7 @@ export interface McpServerConfig {
  * - MCP_TOOL_TIMEOUT_MS: The time limit of each tool call (default: 600000, 10 minutes; 0: no limit)
  * - MCP_READ_ONLY: "true" or "1" gives only the tools that change nothing (default: false)
  * - MCP_HTTP_PORT, MCP_HTTP_HOST, MCP_HTTP_TOKEN: serve over Streamable HTTP, not stdio
+ * - MCP_HTTP_MAX_SESSIONS: the most sessions of the HTTP face (default: 256; "Infinity": no limit)
  * - MCP_PROGRAM_CHECK: "false" or "0" starts a program without the check before the run
  * - MCP_FS_ROOT: the root of the files: each tool keeps its paths in it, or it is refused (default: no root)
  */
@@ -62,10 +64,21 @@ export function parseTimeout(value: string | undefined): number {
   return Number.isFinite(ms) && ms >= 0 ? ms : DEFAULT_TOOL_TIMEOUT_MS;
 }
 
+/**
+ * The session limit of the HTTP face from its environment variable, or undefined for the default
+ * of the face (256). The face refuses a value that is not a limit when it starts: a wrong value
+ * stops the start, so it cannot remove the limit by mistake.
+ */
+export function parseMaxSessions(value: string | undefined): number | undefined {
+  if (value === undefined || value.trim() === "") return undefined;
+  return Number(value.trim());
+}
+
 export function loadConfig(): McpServerConfig {
   const bundlesEnv = process.env["MCP_BUNDLES"] ?? "@procedures/bundle-mcp";
   const bundles = bundlesEnv.split(",").map((b) => b.trim()).filter(Boolean);
   const fsRoot = process.env["MCP_FS_ROOT"]?.trim();
+  const maxSessions = parseMaxSessions(process.env["MCP_HTTP_MAX_SESSIONS"]);
 
   return {
     bundles,
@@ -82,6 +95,7 @@ export function loadConfig(): McpServerConfig {
             port: Number(process.env["MCP_HTTP_PORT"]),
             ...(process.env["MCP_HTTP_HOST"] ? { host: process.env["MCP_HTTP_HOST"] } : {}),
             ...(process.env["MCP_HTTP_TOKEN"] ? { token: process.env["MCP_HTTP_TOKEN"] } : {}),
+            ...(maxSessions !== undefined ? { maxSessions } : {}),
           },
         }
       : {}),

@@ -8,7 +8,7 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { z } from "zod";
 import { Client as McpClient } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { CallToolResultSchema, CreateTaskResultSchema } from "@modelcontextprotocol/sdk/types.js";
+import { CallToolResultSchema, CreateTaskResultSchema, ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { createProcedure, defineModule, type AnyProcedure, type ProcedureContext } from "@procedures/client";
 import { createMcpHost, type McpHostOptions } from "./host.js";
 import { MCP_TASK_LIMITS, McpTaskStore } from "./tasks.js";
@@ -230,6 +230,15 @@ describe("a tool call as a task", () => {
     await until(() => host.tasks?.running().length === 0);
   });
 
+  it("gives an error for a task above the total limit of the store, and keeps nothing of it (CLI-51)", async () => {
+    const { client } = await start({ tasks: { maxStored: 1 } });
+    const first = await startTask(client, "crawl.wait");
+    expect(first.status).toBe("working");
+    // The task of the first call still runs, so the session has no task that ended to remove
+    await expect(startTask(client, "crawl.wait")).rejects.toThrow(/limit of stored tasks/);
+    expect((await client.experimental.tasks.listTasks()).tasks.map((task) => task.taskId)).toEqual([first.taskId]);
+  });
+
   it("does not pass the limit when tasks start at the same time", async () => {
     const { client } = await start({ tasks: { maxRunning: 1 } });
     const tasks = await Promise.all([1, 2, 3].map(() => startTask(client, "crawl.wait")));
@@ -310,8 +319,68 @@ describe("McpTaskStore", () => {
     await store.close();
   });
 
+  it("keeps at most 1000 tasks for all the sessions: a new session gets an error, and the store keeps nothing of it (CLI-51)", async () => {
+    expect(MCP_TASK_LIMITS.maxStored).toBe(1000);
+    const store = new McpTaskStore();
+    const sessions = MCP_TASK_LIMITS.maxStored / MCP_TASK_LIMITS.maxStoredPerSession;
+    const oldest: string[] = [];
+    for (let session = 0; session < sessions; session++) {
+      for (let count = 0; count < MCP_TASK_LIMITS.maxStoredPerSession; count++) {
+        const task = await store.createTask({}, count, request, `s${session}`);
+        await store.storeTaskResult(task.taskId, "completed", { content: [] }, `s${session}`);
+        store.settle(task.taskId);
+        if (count === 0) oldest.push(task.taskId);
+      }
+    }
+    // The store is full, and the new session has no task that ended: its request gets an error
+    const refused = await store.createTask({}, 0, request, "new").then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    expect(refused).toBeInstanceOf(McpError);
+    expect((refused as McpError).message).toMatch(/limit of stored tasks/);
+    expect((refused as McpError).code).toBe(ErrorCode.InvalidRequest);
+    expect((refused as McpError).data).toEqual({ code: "TASKS_FULL" });
+    expect((await store.listTasks(undefined, "new")).tasks).toEqual([]);
+    // A session with a task that ended removes its own oldest task, and the tasks of the other sessions stay
+    expect((await store.createTask({}, 100, request, "s0")).status).toBe("working");
+    expect(await store.getTask(oldest[0]!, "s0")).toBeNull();
+    for (let session = 1; session < sessions; session++) expect(await store.getTask(oldest[session]!, `s${session}`)).not.toBeNull();
+    await store.close();
+  });
+
+  it("counts the tasks that run: with maxStored 2, a third task gets an error until a task ends", async () => {
+    const store = new McpTaskStore({ maxStored: 2 });
+    const first = await store.createTask({}, 1, request, "s1");
+    await store.createTask({}, 2, request, "s2");
+    await expect(store.createTask({}, 3, request, "s1")).rejects.toThrow(/limit of stored tasks/);
+    await store.storeTaskResult(first.taskId, "completed", { content: [] }, "s1");
+    store.settle(first.taskId);
+    // The task that ended makes room for a new task of its own session, not of another session
+    await expect(store.createTask({}, 4, request, "s3")).rejects.toThrow(/limit of stored tasks/);
+    expect((await store.createTask({}, 5, request, "s1")).status).toBe("working");
+    expect(await store.getTask(first.taskId, "s1")).toBeNull();
+    await store.close();
+  });
+
+  it("has no total limit with maxStored: Infinity", async () => {
+    const store = new McpTaskStore({ maxStored: Number.POSITIVE_INFINITY });
+    for (let session = 0; session < MCP_TASK_LIMITS.maxStored / MCP_TASK_LIMITS.maxStoredPerSession; session++) {
+      for (let count = 0; count < MCP_TASK_LIMITS.maxStoredPerSession; count++) {
+        const task = await store.createTask({}, count, request, `s${session}`);
+        await store.storeTaskResult(task.taskId, "completed", { content: [] }, `s${session}`);
+        store.settle(task.taskId);
+      }
+    }
+    expect((await store.createTask({}, 0, request, "new")).status).toBe("working");
+    await store.close();
+  });
+
   it("refuses a limit below 1", () => {
     expect(() => new McpTaskStore({ maxRunning: 0 })).toThrow(RangeError);
+    expect(() => new McpTaskStore({ maxStored: 0 })).toThrow(RangeError);
+    expect(() => new McpTaskStore({ maxStored: 1.5 })).toThrow(RangeError);
+    expect(() => new McpTaskStore({ maxStored: Number.POSITIVE_INFINITY })).not.toThrow();
   });
 
   it("gives an aborted signal for a task that it does not know", () => {

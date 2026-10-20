@@ -83,8 +83,8 @@ export interface HttpTransportOptions {
   /**
    * The most sessions at one time (CLI-35). A new session above the limit closes the session that
    * was idle longest: no task in progress and no open response. When each session is busy, the
-   * new session gets 503 with `Retry-After`.
-   * @default Infinity (no limit)
+   * new session gets 503 with `Retry-After`. `Infinity` turns the limit off.
+   * @default 256 (CLI-51, `MCP_HTTP_LIMITS.maxSessions`)
    */
   maxSessions?: number | undefined;
   /**
@@ -183,9 +183,9 @@ export interface McpServerTransportOptions {
   streamLimits?: { items?: number; time?: Duration } | undefined;
 
   /**
-   * MCP tasks (CLI-35): a store, or the options of a new store (`maxRunning`, `ttl`). With it, a
-   * tool whose procedure has `metadata.taskSupport` can run as a task. Without it, each tool call
-   * is a normal request. The stop of the transport closes a store that it made.
+   * MCP tasks (CLI-35): a store, or the options of a new store (`maxRunning`, `maxStored`, `ttl`).
+   * With it, a tool whose procedure has `metadata.taskSupport` can run as a task. Without it, each
+   * tool call is a normal request. The stop of the transport closes a store that it made.
    */
   tasks?: McpTasksOptions | undefined;
 }

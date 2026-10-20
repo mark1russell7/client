@@ -77,6 +77,29 @@ describe("mcpFace (CLI-7)", () => {
     expect(result.content[0]!.text).toBe("hi");
   });
 
+  it("gives maxSessions to its endpoint (CLI-51)", async () => {
+    const registry = createRegistry();
+    const policy = hostPolicy({});
+    const server = new ProcedureServer(procedureServerOptions(policy, registry));
+    const face = mcpFace({ maxSessions: 1 })({ handler: server, registry, policy });
+    await face.parts.start();
+    cleanups.push(() => face.parts.close());
+    const base = await listen(face.handler);
+    const initialize = JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "test", version: "0" } },
+    });
+    for (let count = 0; count < 2; count++) {
+      const response = await fetch(`${base}/mcp`, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream" }, body: initialize });
+      expect(response.status).toBe(200);
+      await response.text();
+    }
+    // The second session closed the first one, which was idle: the limit of the face is 1, not the default
+    expect(face.transport.getState().sessions).toBe(1);
+  });
+
   it("lists no collection procedure that the expose rule hides, and the server refuses a call of it (CLI-47)", async () => {
     let clears = 0;
     const storage: CollectionStorage<unknown> = {

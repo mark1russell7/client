@@ -1,7 +1,7 @@
 /**
  * The checks of a request to the Streamable HTTP face (CLI-35): the browser checks and the token
- * in one function, the body limit, the initialize rule, the session limit, and the cancel of the
- * tasks of a session that closes.
+ * in one function, the body limit, the initialize rule, the session limit (256 by default since
+ * CLI-51), and the cancel of the tasks of a session that closes.
  */
 
 import { describe, it, expect, afterEach } from "vitest";
@@ -15,7 +15,7 @@ import type { Transport as SdkTransport } from "@modelcontextprotocol/sdk/shared
 import { CallToolResultSchema, CreateTaskResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import { createProcedure, defineModule, type AnyProcedure } from "@procedures/client";
 import { createMcpHost } from "../host.js";
-import { assertLoopbackBind, guardMcpRequest } from "./guard.js";
+import { MCP_HTTP_LIMITS, assertLoopbackBind, guardMcpRequest } from "./guard.js";
 import { createHttpTransport } from "./http.js";
 
 let cleanups: Array<() => Promise<void>> = [];
@@ -180,12 +180,44 @@ describe("the sessions of the Streamable HTTP endpoint", () => {
     expect((await initialize(url, { ...POST_HEADERS, authorization: "bearer secret-token-0123" })).status).toBe(200);
   });
 
-  it("has no session limit by default", async () => {
-    const { http, url } = await endpoint();
-    for (let count = 0; count < 40; count++) expect((await initialize(url)).status).toBe(200);
-    expect(http.sessions).toBe(40);
+  /** This function starts `count` sessions, 32 at a time, and gives the status of each answer. */
+  async function initializeMany(url: string, count: number): Promise<number[]> {
+    const statuses: number[] = [];
+    for (let start = 0; start < count; start += 32) {
+      const batch = Array.from({ length: Math.min(32, count - start) }, async () => (await initialize(url)).status);
+      statuses.push(...(await Promise.all(batch)));
+    }
+    return statuses;
+  }
+
+  /** Each session is busy, as the GET stream of a live client of the SDK makes it: the limit closes no session. */
+  const everyone = { has: () => true } as unknown as ReadonlySet<string>;
+
+  it("keeps at most 256 sessions by default: the session past the limit gets 503 with Retry-After (CLI-51)", async () => {
+    expect(MCP_HTTP_LIMITS.maxSessions).toBe(256);
+    const { http, url } = await endpoint({}, () => everyone);
+    const statuses = await initializeMany(url, MCP_HTTP_LIMITS.maxSessions);
+    expect(statuses.every((status) => status === 200)).toBe(true);
+    expect(http.sessions).toBe(MCP_HTTP_LIMITS.maxSessions);
+    const full = await fetch(url, { method: "POST", headers: POST_HEADERS, body: JSON.stringify(INITIALIZE) });
+    expect(full.status).toBe(503);
+    expect(full.headers.get("retry-after")).toBe(String(MCP_HTTP_LIMITS.retryAfterSeconds));
+    expect(await full.json()).toMatchObject({ error: { data: { code: "SESSIONS_FULL" } } });
+    expect(http.sessions).toBe(MCP_HTTP_LIMITS.maxSessions);
+  }, 60_000);
+
+  it("has no session limit with maxSessions: Infinity", async () => {
+    const { http, url } = await endpoint({ maxSessions: Number.POSITIVE_INFINITY }, () => everyone);
+    const statuses = await initializeMany(url, MCP_HTTP_LIMITS.maxSessions + 1);
+    expect(statuses.every((status) => status === 200)).toBe(true);
+    expect(http.sessions).toBe(MCP_HTTP_LIMITS.maxSessions + 1);
+  }, 60_000);
+
+  it("takes a limit of 1 or more, or Infinity", () => {
     expect(() => createHttpTransport({ maxSessions: Number.POSITIVE_INFINITY }, async () => undefined)).not.toThrow();
     expect(() => createHttpTransport({ maxSessions: 0 }, async () => undefined)).toThrow(RangeError);
+    expect(() => createHttpTransport({ maxSessions: 2.5 }, async () => undefined)).toThrow(RangeError);
+    expect(() => createHttpTransport({ maxSessions: Number.NaN }, async () => undefined)).toThrow(RangeError);
     expect(() => createHttpTransport({ maxBodyBytes: 0.5 }, async () => undefined)).toThrow(RangeError);
   });
 

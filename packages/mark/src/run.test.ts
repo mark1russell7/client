@@ -78,6 +78,14 @@ describe("run: the options of the modes", () => {
     expect(help.output).toContain("serves no remote events");
     await expect(runOf(["mcp", "--bogus"])).rejects.toThrow("Unknown option of mark mcp: --bogus");
   }, 60000);
+
+  it("shows --max-sessions in the help of mark mcp, and refuses a value that is not a limit (CLI-51)", async () => {
+    const help = await runOf(["mcp", "--help"]);
+    expect(help.output).toContain("--max-sessions <n>");
+    for (const value of ["0", "-1", "2.5", "many", ""]) {
+      await expect(runOf(["mcp", "--http", "0", `--max-sessions=${value}`]), value).rejects.toThrow("--max-sessions needs an integer of 1 or more, or Infinity");
+    }
+  }, 60000);
 });
 
 describe("run: --fs-root", () => {

@@ -15,8 +15,12 @@
  *   for a task request, so the client reads the reason in the result of the task.
  * - The time to keep a task (`ttl`) starts when the task ends. The store never removes a task
  *   whose work runs, so a short `ttl` does not let work escape the limit or the cancel. A refused
- *   task stays 1 minute, and each session keeps at most 100 tasks: a new task removes the oldest
- *   task of its session that ended.
+ *   task stays 1 minute.
+ * - Each session keeps at most 100 tasks, and the store keeps at most `maxStored` tasks for all
+ *   the sessions together: 1000 by default (CLI-51). A new task removes the oldest task of its
+ *   own session that ended. When the store is full and the session has no task that ended, the
+ *   request of the new task gets an error, and the store keeps nothing of it. Thus a client
+ *   cannot remove the results of another session. `Infinity` turns the total limit off.
  * - A cancel of a task (`tasks/cancel`) aborts the signal of its procedure call. The close of a
  *   session cancels its tasks, and the stop of the host cancels each task.
  *
@@ -46,6 +50,11 @@ export const MCP_TASK_LIMITS = {
   refusedTtlMs: 60_000,
   /** The most tasks that the store keeps for one session. A new task removes the oldest task of its session that ended. */
   maxStoredPerSession: 100,
+  /**
+   * The most tasks that the store keeps for all the sessions together (CLI-51): ten sessions with
+   * their most tasks. Without it, only the session limit times 100 bounds the store.
+   */
+  maxStored: 1_000,
 } as const;
 
 /** A task whose work did not end, as a status page of the host shows it. */
@@ -66,6 +75,12 @@ export interface McpTaskInfo {
 export interface McpTaskStoreOptions {
   /** The most tasks whose work runs at one time. The default is 8. */
   readonly maxRunning?: number | undefined;
+  /**
+   * The most tasks that the store keeps for all the sessions together, also the tasks that ended
+   * (CLI-51). The default is 1000. A new task above the limit gets an error. `Infinity` turns the
+   * limit off.
+   */
+  readonly maxStored?: number | undefined;
   /** The time that a task and its result stay after the task ends, when the client asks for no time. The default is 1 hour. */
   readonly ttl?: Duration | undefined;
   /** This function runs when a task starts, changes its status or ends. An error of it does not stop a task. */
@@ -100,6 +115,7 @@ const TERMINAL = new Set<Task["status"]>(["completed", "failed", "cancelled"]);
 export class McpTaskStore implements TaskStore {
   private readonly entries = new Map<string, Entry>();
   private readonly maxRunning: number;
+  private readonly maxStored: number;
   private readonly ttlMs: number;
   private closed = false;
 
@@ -107,6 +123,11 @@ export class McpTaskStore implements TaskStore {
     const maxRunning = options.maxRunning ?? MCP_TASK_LIMITS.maxRunning;
     if (!Number.isInteger(maxRunning) || maxRunning < 1) throw new RangeError(`maxRunning must be an integer of 1 or more, not ${String(maxRunning)}`);
     this.maxRunning = maxRunning;
+    const maxStored = options.maxStored ?? MCP_TASK_LIMITS.maxStored;
+    if (maxStored !== Number.POSITIVE_INFINITY && (!Number.isInteger(maxStored) || maxStored < 1)) {
+      throw new RangeError(`maxStored must be an integer of 1 or more, or Infinity, not ${String(maxStored)}`);
+    }
+    this.maxStored = maxStored;
     this.ttlMs = optionalMs(options.ttl, "ttl") ?? MCP_TASK_LIMITS.ttlMs;
   }
 
@@ -143,12 +164,14 @@ export class McpTaskStore implements TaskStore {
   }
 
   /**
-   * This method removes the oldest tasks of a session that ended, until the session has room for
-   * one more task. A task whose work runs stays: the limit of the running tasks bounds them.
+   * This method removes the oldest tasks of a session that ended, until the session and the store
+   * have room for one more task. It removes only the tasks of the same session, so a client cannot
+   * remove the results of another session. A task whose work runs stays: the limit of the running
+   * tasks bounds them.
    */
   private makeRoom(sessionId: string | undefined): void {
     const own = [...this.entries.values()].filter((entry) => entry.sessionId === sessionId);
-    let excess = own.length + 1 - MCP_TASK_LIMITS.maxStoredPerSession;
+    let excess = Math.max(own.length + 1 - MCP_TASK_LIMITS.maxStoredPerSession, this.entries.size + 1 - this.maxStored);
     for (const entry of own) {
       if (excess <= 0) break;
       if (!entry.settled || !TERMINAL.has(entry.task.status)) continue;
@@ -165,10 +188,20 @@ export class McpTaskStore implements TaskStore {
     return count;
   }
 
-  /** The store counts and inserts a task in one step, so a batch of requests cannot pass the limit. */
+  /**
+   * The store counts and inserts a task in one step, so a batch of requests cannot pass the limits.
+   * When the store is full after `makeRoom`, the request gets an error and the store keeps nothing.
+   */
   async createTask(params: CreateTaskOptions, _requestId: RequestId, request: Request, sessionId?: string): Promise<Task> {
     if (this.closed) throw new McpError(ErrorCode.InvalidRequest, "The MCP host is stopping: it starts no task");
     this.makeRoom(sessionId);
+    if (this.entries.size >= this.maxStored) {
+      throw new McpError(
+        ErrorCode.InvalidRequest,
+        `The host stores ${String(this.entries.size)} tasks, its limit of stored tasks. Try again when the time of a task ends.`,
+        { code: "TASKS_FULL" },
+      );
+    }
     const running = this.runningCount();
     const refused =
       running >= this.maxRunning ? `The host runs ${String(running)} tasks, its limit. Wait for a task to end, or cancel one.` : undefined;
