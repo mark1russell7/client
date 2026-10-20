@@ -1569,6 +1569,11 @@ class CollectionSync<T> implements TabCollection<T> {
     const cancel = this.group.clock.after(this.settings.snapshot.timeout, () => {
       this.cancelSnapshotWait = undefined;
       if (this.closed || !this.snapshot) return;
+      // This tab holds the lock and loads its queue: the snapshot ends when the collection leads
+      if (this.group.lease) {
+        this.waitSnapshot();
+        return;
+      }
       this.group.onError(new Error(`No leader sent the snapshot of the collection ${JSON.stringify(this.name)} in time`));
       this.endSnapshot();
     });
