@@ -245,6 +245,13 @@ jobs:
     name: Site (browser smoke test)
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    # Read access only: the status page reads the open pull requests and issues of the repository
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      checks: read
+      statuses: read
     steps:
       - uses: actions/checkout@v7
         with:
@@ -261,9 +268,12 @@ jobs:
       # Chromium first: the site build prerenders each page in it, so the tests see the real HTML
       - name: Install Chromium for Playwright
         run: pnpm --filter @procedures/site exec playwright install --with-deps chromium
+      # GITHUB_TOKEN: the status page reads GitHub as the Pages build does. Without it (a fork),
+      # the page says that the build could not read GitHub, and the tests pass too.
       - run: pnpm build
         env:
           SITE_PRERENDER: "1"
+          GITHUB_TOKEN: ${{ github.token }}
       # The examples run, share links round-trip, no page scrolls sideways at 375 px, axe-core,
       # the keyboard, and the code of the TypeScript tab runs with Node
       - run: pnpm --filter @procedures/site test:e2e
