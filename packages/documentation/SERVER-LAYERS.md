@@ -206,6 +206,8 @@ Decision D17 makes a one-shot command a service too: a `mark` command, and the k
 - In the cold mode, the same host operates in the process under `run()`, with the ephemeral profile. It has no port and no lockfile.
 - In the two modes, the command is one request through the same `Client` call site.
 - After the command, the process exits with the exit code of the command (CLI-26, SYS-16).
+- In the cold mode, the client sends its calls to the host through `localFace()` of `@procedures/peer`. Each call goes through the request tracking of the service.
+- In the cold mode, a first Ctrl-C still gives the exit code 1 of a command before CLI-26. This exit code is deprecated. Its own MINOR changes it to 130, the code of the ephemeral profile.
 
 ## The three decisions of the brief
 

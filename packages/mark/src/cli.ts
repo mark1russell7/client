@@ -7,7 +7,8 @@
  */
 
 import { print } from "./print.js";
-import type { Method, AnyProcedure } from "@procedures/client";
+import type { Method, AnyProcedure, ProcedureRegistry } from "@procedures/client";
+import type { RequestEnd, RunOptions } from "@mark1russell7/service";
 import { readFileSync, realpathSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,7 +18,8 @@ import { askMissing, canAsk, missingFields, processTerminal, terminalAsker, type
 import { formatOutput, type OutputFormat, type Print } from "./format.js";
 import { loadEcosystemRegistry } from "./ecosystem.js";
 import { startServerMode, parsePort, parseTransport } from "./server-mode.js";
-import { tryClientMode } from "./client-mode.js";
+import { connectCliServer } from "./client-mode.js";
+import type { ColdCommand, CommandRun } from "./command.js";
 import { startRepl } from "./repl.js";
 import { findChildren, findProcedure, parseCommandLine, parseLeadingGlobals } from "./args.js";
 import { failureOf } from "./failure.js";
@@ -165,8 +167,17 @@ async function eventPatterns(value: string | boolean | undefined): Promise<strin
  * CLI execution context, created once and reused
  */
 export interface CliContext {
+  /**
+   * A client of the registry in this process, for a program. `executeArgs()` does not use it: a
+   * command in this process runs on the procedures host of the cold mode (CLI-26).
+   */
   client: InstanceType<typeof import("@procedures/client").Client>;
   procedures: AnyProcedure[];
+  /**
+   * The registry of the procedures: the registry of the host of the cold mode. Without it, the
+   * host gets a registry of `procedures`.
+   */
+  registry?: ProcedureRegistry | undefined;
   verbose: boolean;
   /** The absolute path of the root of the `fs.*` procedures (`--fs-root`), or undefined. */
   fsRoot?: string | undefined;
@@ -184,25 +195,36 @@ export interface ManifestContext {
   load: () => Promise<CliContext>;
 }
 
-/** The terminal and the asker of the questions for missing arguments (tests give fakes) */
+/** The terminal and the asker of the questions for missing arguments (tests give fakes), and the options of `run()` */
 export interface ExecuteOptions {
   terminal?: Terminal;
   ask?: Asker;
+  /**
+   * The options of `run()` of `@mark1russell7/service` for the service of each command (CLI-26):
+   * the process port and the clock. A test gives `fakeProcess()` of `@mark1russell7/service/testing`.
+   */
+  run?: RunOptions | undefined;
+  /**
+   * True when this run owns its process, as the bin of `mark` does. Without `run`, each command
+   * then runs on the process of Node: the runner owns the signals, and it ends the process with
+   * the exit code of the command. False (the default): the port is `embeddedProcess()`. A command
+   * then installs no signal handler, does not end the process, and records its exit code in `process.exitCode`.
+   */
+  ownsProcess?: boolean | undefined;
 }
 
-/**
- * A signal that aborts on the first Ctrl+C while a command runs in this process (roadmap R14):
- * the procedure gets the abort (a shell command stops its process tree). A second Ctrl+C exits
- * at once. `release()` removes the listener when the command ends.
- */
-function interruptSignal(): { signal: AbortSignal; release: () => void } {
-  const controller = new AbortController();
-  const onInterrupt = (): void => {
-    if (controller.signal.aborted) process.exit(130);
-    controller.abort();
-  };
-  process.on("SIGINT", onInterrupt);
-  return { signal: controller.signal, release: () => process.off("SIGINT", onInterrupt) };
+/** The registry of the host of a context: its registry, or a registry of its procedures. */
+async function registryOf(ctx: CliContext): Promise<ProcedureRegistry> {
+  if (ctx.registry) return ctx.registry;
+  const { ProcedureRegistry } = await import("@procedures/client");
+  const registry = new ProcedureRegistry();
+  for (const procedure of ctx.procedures) registry.register(procedure);
+  return registry;
+}
+
+/** The text of an error. */
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 /**
@@ -225,7 +247,7 @@ export async function initCli(verbose = false, fsRoot?: string): Promise<CliCont
 
   const procedures = registry.getAll();
 
-  return { client, procedures, verbose, ...(ecosystem.fsRoot !== undefined ? { fsRoot: ecosystem.fsRoot } : {}) };
+  return { client, procedures, registry, verbose, ...(ecosystem.fsRoot !== undefined ? { fsRoot: ecosystem.fsRoot } : {}) };
 }
 
 /**
@@ -238,6 +260,12 @@ export async function initCli(verbose = false, fsRoot?: string): Promise<CliCont
  *
  * With a ManifestContext, the help and a call to the CLI server need no procedures: they load
  * only when the command runs in this process (roadmap 1.3).
+ *
+ * A command that runs a procedure starts under `run()` of `@mark1russell7/service` (CLI-26). On
+ * the CLI server (the warm mode), the service has only the command. In this process (the cold
+ * mode), the service also has the procedures host of the CLI server, with the same registry and
+ * policy. The runner owns the signals: a first Ctrl-C aborts the call. `options.run` gives the
+ * process port. The help and the problems of the command line start no service.
  */
 export async function executeArgs(
   argv: string[],
@@ -302,7 +330,8 @@ export async function executeArgs(
     return;
   }
 
-  // Handle --json flag for raw procedure reference execution
+  // Handle --json flag for raw procedure reference execution. The reference runs in this process,
+  // as the one request of the cold mode under run() (CLI-26): a Ctrl-C aborts its signal.
   if (globals.json !== undefined) {
     let parsedJson: unknown;
     try {
@@ -315,19 +344,32 @@ export async function executeArgs(
       fail('--json needs a procedure reference: an object with "$proc".');
       return;
     }
-    const interrupt = interruptSignal();
+    let runtime: CliContext;
     try {
-      const { client } = await local();
-      const result = await client.exec(parsedJson as Parameters<typeof client.exec>[0], undefined, { signal: interrupt.signal });
-      formatOutput(print as unknown as Print, result, "json");
-      if (failureOf(result)) {
-        process.exitCode = 1;
-      }
+      runtime = await local();
     } catch (error) {
-      fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      interrupt.release();
+      fail(`Error: ${messageOf(error)}`);
+      return;
     }
+    const cold = await startCold(runtime, options);
+    if (!cold) {
+      return;
+    }
+    let failed = false;
+    const end = await cold.command.request(async (signal) => {
+      try {
+        const result = await cold.client.exec(parsedJson as Parameters<typeof cold.client.exec>[0], undefined, { signal });
+        formatOutput(print as unknown as Print, result, "json");
+        if (failureOf(result)) {
+          failed = true;
+          process.exitCode = 1;
+        }
+      } catch (error) {
+        failed = true;
+        fail(`Error: ${messageOf(error)}`);
+      }
+    });
+    await endCommand(cold.command, end, failed);
     return;
   }
 
@@ -390,40 +432,53 @@ export async function executeArgs(
 
   // Each item prints when it arrives. A failed item makes the command fail.
   let failure: string | undefined;
+  let failed = false;
+  const failCommand = (message: string): void => {
+    failed = true;
+    fail(message);
+  };
   const printItem = (item: unknown): void => {
     formatOutput(print as unknown as Print, item, outputFormat);
     failure ??= failureOf(item);
   };
   const reportFailure = (): void => {
     if (failure !== undefined) {
-      fail(`mark ${path.join(" ")} failed: ${failure}`);
+      failCommand(`mark ${path.join(" ")} failed: ${failure}`);
     }
   };
 
-  // Try client mode: connect to running server if available (unless --local)
+  // The warm mode: a running CLI server takes the command (unless --local). The command runs under
+  // run() too, so a Ctrl-C aborts the call on the server (CLI-26).
   if (!globals.local) {
-    const clientResult = await tryClientMode(path, validated, printItem, ctx.fsRoot);
-    if (clientResult !== null) {
-      if (clientResult.success) {
-        if (!clientResult.printed) {
-          printItem(clientResult.result);
+    const server = await connectCliServer(path, ctx.fsRoot);
+    if (server !== null) {
+      const { startWarmCommand } = await import("./command.js");
+      const command = await startWarmCommand(options);
+      const end = await command.request(async (signal) => {
+        const clientResult = await server.call(validated, printItem, signal);
+        if (clientResult.success) {
+          if (!clientResult.printed) {
+            printItem(clientResult.result);
+          }
+          reportFailure();
+          return;
         }
-        reportFailure();
-        return;
-      }
-      // The server ran (or started to run) the command and it failed. Running it again
-      // locally could repeat its side effects, so report the error instead.
-      fail(clientResult.error ?? "The command failed on the CLI server.");
+        // The server ran (or started to run) the command and it failed. Running it again
+        // locally could repeat its side effects, so report the error instead.
+        failCommand(clientResult.error ?? "The command failed on the CLI server.");
+      });
+      await endCommand(command, end, failed);
       return;
     }
   }
 
-  // The command runs in this process: the procedures load now (a ManifestContext)
+  // The cold mode: the procedures load now (a ManifestContext). The command runs on the procedures
+  // host of the CLI server, in this process, under run() (CLI-26).
   let runtime: CliContext;
   try {
     runtime = await local();
   } catch (error) {
-    fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    fail(`Error: ${messageOf(error)}`);
     return;
   }
   const target = findProcedure(runtime.procedures, path);
@@ -435,40 +490,88 @@ export async function executeArgs(
     return;
   }
 
-  try {
+  const cold = await startCold(runtime, options);
+  if (!cold) {
+    return;
+  }
+  const end = await cold.command.request(async (signal) => {
     let spinner: ReturnType<typeof print.spin> | undefined;
-
-    if (outputFormat === "streaming") {
-      spinner = print.spin(`Running ${path.join(" ")}...`);
-    }
-
-    const method = await pathToMethod(path);
-    const { client } = runtime;
-
-    // A streaming procedure gives many items: print each one when it arrives. A
-    // request/response procedure gives one item, so its output does not change.
-    let items = 0;
-    const interrupt = interruptSignal();
     try {
-      for await (const item of client.stream(method, validated, { signal: interrupt.signal })) {
+      if (outputFormat === "streaming") {
+        spinner = print.spin(`Running ${path.join(" ")}...`);
+      }
+
+      const method = await pathToMethod(path);
+
+      // A streaming procedure gives many items: print each one when it arrives. A
+      // request/response procedure gives one item, so its output does not change. The signal of
+      // the request goes with the call: the drain of a stop aborts it (CLI-26).
+      let items = 0;
+      for await (const item of cold.client.stream(method, validated, { signal })) {
         if (spinner && items === 0) spinner.stop();
         items++;
         printItem(item);
       }
-    } finally {
-      interrupt.release();
-    }
 
-    if (spinner) {
-      if (failure === undefined) {
-        spinner.succeed(`${path.join(" ")} complete`);
-      } else {
-        spinner.fail(`${path.join(" ")} failed`);
+      if (spinner) {
+        if (failure === undefined) {
+          spinner.succeed(`${path.join(" ")} complete`);
+        } else {
+          spinner.fail(`${path.join(" ")} failed`);
+        }
       }
+      reportFailure();
+    } catch (error) {
+      // Before, a spinner kept its timer after an error
+      spinner?.stop();
+      failCommand(`Error: ${messageOf(error)}`);
     }
-    reportFailure();
+  });
+  await endCommand(cold.command, end, failed);
+}
+
+/**
+ * This function starts the cold mode of a command: the procedures host of the CLI server, in this
+ * process, under `run()` (CLI-26). After a startup that failed, it prints the errors, waits for the
+ * exit of the lifecycle and gives undefined.
+ */
+async function startCold(runtime: CliContext, options: ExecuteOptions): Promise<ColdCommand | undefined> {
+  const { startColdCommand } = await import("./command.js");
+  let started: Awaited<ReturnType<typeof startColdCommand>>;
+  try {
+    started = await startColdCommand(await registryOf(runtime), options);
   } catch (error) {
-    fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    fail(`Error: ${messageOf(error)}`);
+    return undefined;
+  }
+  if ("errors" in started) {
+    print.error("The procedures host of the command did not start:");
+    for (const error of started.errors) print.error(`  ${error}`);
+    process.exitCode = await started.life.done;
+    return undefined;
+  }
+  return started;
+}
+
+/**
+ * This function ends the service of a command with the exit code of the command: 1 when it
+ * failed, else 0 (CLI-26). A signal that started the stop first keeps its exit code. With the
+ * process of Node, the runner then ends the process. With another port, the exit code of the
+ * lifecycle goes to `process.exitCode` when it is not 0.
+ */
+async function endCommand(command: CommandRun, end: RequestEnd, failed: boolean): Promise<void> {
+  let code = failed ? 1 : 0;
+  if (end.kind === "failed") {
+    fail(`Error: ${messageOf(end.error)}`);
+    code = 1;
+  } else if (end.kind === "refused") {
+    // The stop started before the command: a signal while the service started
+    fail(`The command did not run: ${end.cause}`);
+    code = 1;
+  }
+  const exitCode = await command.end(code);
+  if (exitCode !== 0) {
+    process.exitCode = exitCode;
   }
 }
 
@@ -546,10 +649,14 @@ async function startMcp(args: string[], fsRoot?: string): Promise<void> {
   await runDevToolsServer(config);
 }
 
+/** The options of `run()` and `main()`: the process of the service of each command (CLI-26). */
+export type RunCliOptions = Pick<ExecuteOptions, "run" | "ownsProcess">;
+
 /**
- * Run the CLI
+ * Run the CLI. By default, the caller owns the process: a command records its exit code in
+ * `process.exitCode`, and the process does not end. The bin gives `ownsProcess: true`.
  */
-async function run(argv: string[]): Promise<void> {
+async function run(argv: string[], options: RunCliOptions = {}): Promise<void> {
   // The global flags before the command: read without loading the procedures
   const leading = parseLeadingGlobals(argv);
   if (leading.errors.length > 0) {
@@ -636,7 +743,7 @@ async function run(argv: string[]): Promise<void> {
   // server do not load them (roadmap 1.3)
   const manifest = readFreshManifest();
   if (manifest) {
-    await executeArgs(argv, { commands: manifest.commands, verbose, fsRoot, load: () => initCli(verbose, fsRoot) });
+    await executeArgs(argv, { commands: manifest.commands, verbose, fsRoot, load: () => initCli(verbose, fsRoot) }, options);
     return;
   }
 
@@ -650,17 +757,17 @@ async function run(argv: string[]): Promise<void> {
       print.warning(`mark: the manifest was not written: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
-  await executeArgs(argv, ctx);
+  await executeArgs(argv, ctx, options);
 }
 
 /**
  * Run the CLI and report an error that escapes it as one line, with exit code 1. With
  * `--verbose`, the stack follows. (Before, an error such as an invalid port showed only an
- * unhandled-rejection stack: deep dive CLI-16.)
+ * unhandled-rejection stack: deep dive CLI-16.) The bin gives `ownsProcess: true` (CLI-26).
  */
-export async function main(argv: readonly string[]): Promise<void> {
+export async function main(argv: readonly string[], options: RunCliOptions = {}): Promise<void> {
   try {
-    await run([...argv]);
+    await run([...argv], options);
   } catch (error) {
     print.error(error instanceof Error ? error.message : String(error));
     if ((argv.includes("--verbose") || argv.includes("-V")) && error instanceof Error && error.stack) {
@@ -689,9 +796,10 @@ function isEntryPoint(): boolean {
   }
 }
 
-// Importing @procedures/mark does not run the CLI (deep dive CLI-17)
+// Importing @procedures/mark does not run the CLI (deep dive CLI-17). The entry owns its process:
+// the runner of each command owns the signals and the exit (CLI-26).
 if (isEntryPoint()) {
-  await main(process.argv.slice(2));
+  await main(process.argv.slice(2), { ownsProcess: true });
 }
 
 export { run };
