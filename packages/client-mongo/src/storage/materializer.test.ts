@@ -39,8 +39,17 @@ function setup() {
 }
 
 /** This function waits until the check passes, 10 s at most. */
+/** The longest wait of `eventually`. */
+const EVENTUALLY_MS = 10_000;
+
+/**
+ * The time limit of each test of the suite: more than the wait of `eventually`, with room for the
+ * setup. The default of vitest (5 s) cut a test before `eventually` ended, in the Coverage job of CI.
+ */
+const TEST_TIMEOUT_MS = 30_000;
+
 async function eventually(check: () => Promise<void>): Promise<void> {
-  const until = Date.now() + 10_000;
+  const until = Date.now() + EVENTUALLY_MS;
   for (;;) {
     try {
       await check();
@@ -74,7 +83,7 @@ const rowOf = (db: Db, collection: string, id: string, partition = "t1") => db.c
 
 const withMongo = url ? describe : describe.skip;
 
-withMongo("ViewMaterializer on MongoDB", () => {
+withMongo("ViewMaterializer on MongoDB", { timeout: TEST_TIMEOUT_MS }, () => {
   it("materializes a view for its partition, and follows inserts, updates and deletes", async (context) => {
     if (!replicaSet) return context.skip?.("change streams need a replica set");
     const { db, views } = setup();
