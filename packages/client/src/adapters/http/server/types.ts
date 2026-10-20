@@ -4,18 +4,21 @@
  * Type definitions for HTTP server adapter.
  */
 
-import type { Request, Express } from "express";
+import type { Express } from "express";
 import type { Server as HttpServer } from "http";
 import type { Method } from "../../../client/types.js";
 import type { BrowserGuardOptions } from "../../../server/browser-guard.js";
 import type { Clock } from "../../../clock.js";
 import type { Duration } from "../../../duration.js";
 import type { Addressing } from "./addressing.js";
+import type { UrlStrategyRequest } from "./strategies.js";
 
 /**
- * URL strategy for converting HTTP requests to RPC methods.
+ * The URL strategy of `HttpServerTransport`: it gives the method of a request, or null when the URL
+ * names no method. The transport gives it the `Request` of Express. The parameter type is
+ * structural (CLI-61), so a strategy also serves the `UrlRequest` of `procedureHandler`.
  */
-export type HttpUrlStrategy = (req: Request) => Method | null;
+export type HttpUrlStrategy = (req: UrlStrategyRequest) => Method | null;
 
 /**
  * HTTP server transport options.
