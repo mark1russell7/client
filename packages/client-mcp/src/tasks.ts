@@ -11,8 +11,9 @@
  *   session and each face of a host.
  * - A slot of the limit (`maxRunning`) stays taken until the work of the task ends, not until its
  *   status ends: a cancelled task holds its slot until its procedure returns. A task above the
- *   limit is created, and then fails at once with the reason. The SDK 1.32.1 cannot give an error
- *   for a task request, so the client reads the reason in the result of the task.
+ *   limit is created, and then fails at once with the reason: the client gets a task, and reads
+ *   the reason in the result of the task. A full store (`maxStored`) is different: it creates no
+ *   task, and the request gets the error `-32600` with the code `TASKS_FULL`.
  * - The time to keep a task (`ttl`) starts when the task ends. The store never removes a task
  *   whose work runs, so a short `ttl` does not let work escape the limit or the cancel. A refused
  *   task stays 1 minute.
