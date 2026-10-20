@@ -3633,6 +3633,8 @@ export declare function toolHints(procedure: AnyProcedure): ToolHints;
 export interface CollectionAdmission {
     admit?: AdmitItem | undefined;
     guard?: CollectionWriteGuard | undefined;
+    versionOf?: VersionOf<unknown> | undefined;
+    maxScanned?: number | undefined;
 }
 
 ### dist/procedures/collection/admission.d.ts#CollectionRow

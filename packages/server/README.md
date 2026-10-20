@@ -316,7 +316,31 @@ await life.done; // the runner ends the process after the stop in stages
 - **The signals.** The runner owns `SIGINT`, `SIGTERM` and `SIGQUIT`. The entry installs no signal handler and no hard-exit timer.
 - **The profiles.** The mode `foreground` has the profile `localDev`: a second Ctrl-C exits at once. The mode `background` (`mark --server`) has the profile `daemon`: a repeat signal has no effect. The caps of the stages sum to 10 s.
 - **The lockfile.** `lockfile` makes the lockfile a dependency of the service. The startup writes it before the listeners start, and the shutdown removes it after the listeners close.
+- **The parts of the app.** `declare(svc, host)` gives the builder of the service to the app before `run()` (CLI-62). The app declares its transports, dependencies, checks and phase work with the methods of the builder. `describe()` shows them, and the runner starts and stops them with the host. The example follows this list.
 - **Outside a service.** `startServer()` starts the same server as a peer, for a test or an app that has its own lifecycle.
+
+```typescript
+const { host, life } = await runProcedureHost({
+  name: "app-dev",
+  mode: "foreground",
+  // The calls wait for the readiness of the dependency of the app (CLI-45)
+  host: { name: "app", registry, policy, controller: { requires: ["mongo"] }, listen },
+  declare: (svc) => {
+    // A connection of the app: it connects before the listeners start, and it closes after them
+    svc.dependency("mongo", { system: null, knobs: {}, operations: { find: { idempotent: true } } }, {
+      connect: () => mongo.connect(),
+      close: () => mongo.close(),
+    });
+    svc.check({ name: "mongo.ping", dependency: "mongo", step: "round-trip", ownConnection: true, gates: "readiness", poll }, ping);
+    // A child process of the app, for example the Vite dev server: it starts after the host, and it stops in the stage "close transports"
+    svc.server("app.vite", {}, viteTransport);
+  },
+});
+```
+
+- The parts of the app come after the parts of the host. Thus the server of the host starts before a transport of the app. A listener of the app can mount `host.handler`.
+- The lockfile comes after the dependencies of the app. It connects last, and it closes first.
+- Without `declare`, the service has only the parts of the host.
 
 ### Package Hierarchy
 

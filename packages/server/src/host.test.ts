@@ -7,6 +7,8 @@
  *   background host has the profile `daemon`, where a repeat signal has no effect (D6).
  * - `runServer()` installs no signal handler: a signal of the process port starts the stop in
  *   stages, and the promise ends with the lifecycle.
+ * - The option `declare` adds the parts and the dependencies of the app to the service (CLI-62).
+ *   The runner starts them with the host and stops each one in its stage.
  *
  * The lockfile module reads the home folder when it loads, so this file sets HOME (and
  * USERPROFILE on Windows) before it imports the modules under test.
@@ -14,12 +16,15 @@
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
+import { createServer as createHttpServer } from "node:http";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fakeProcess } from "@mark1russell7/service/testing";
-import type { Lifecycle } from "@mark1russell7/service";
-import { createRegistry, hostPolicy } from "@procedures/client";
+import { fakeClock, fakeProcess, scriptedCheck, seeded } from "@mark1russell7/service/testing";
+import { httpTransport } from "@mark1russell7/service/http";
+import type { DependencyHandle, Lifecycle, LifecycleEvent, ServiceBuilder, TransportImpl } from "@mark1russell7/service";
+import { createRegistry, hostPolicy, seconds } from "@procedures/client";
+import type { ProcedureHost } from "@procedures/peer";
 
 const home = mkdtempSync(join(tmpdir(), "server-host-home-"));
 const saved = { HOME: process.env["HOME"], USERPROFILE: process.env["USERPROFILE"] };
@@ -122,6 +127,136 @@ describe("runProcedureHost (CLI-8)", () => {
     // The caps of the stages sum to 10 s: they replace the hard-exit timer of 10 s
     const caps = foreground.service.describe().shutdown.phases.reduce((sum, phase) => sum + phase.cap.value * (phase.cap.unit === "ms" ? 0.001 : 1), 0);
     expect(caps).toBeLessThanOrEqual(10);
+  }, 20000);
+});
+
+describe("runProcedureHost: the parts of the app (CLI-62)", () => {
+  /** The lockfile of a host on a port that nothing listens on: only its file counts. */
+  function lockfileOf(port: number, peerId: string) {
+    return { pid: 1, port, transport: "http", endpoint: `http://127.0.0.1:${port}/api`, startedAt: new Date().toISOString(), token: "t", cwd: "/work", build: "build-1", peerId };
+  }
+
+  it("declares a part and a dependency of the app: describe() shows them, the runner starts them with the host, and the stop closes each one in its stage", async () => {
+    const clock = fakeClock();
+    const process = fakeProcess({ clock });
+    const port = 40002;
+    // The stage of the lifecycle at each step: the startup, then each phase of the shutdown
+    let stage = "startup";
+    const started: string[] = [];
+    const record = (event: LifecycleEvent): void => {
+      if (event.machine === "drain") stage = event.to;
+      if (event.on === "component.started" && event.detail !== undefined) started.push(event.detail);
+    };
+    const steps: string[] = [];
+    const lockfile = (): string => (lockfiles.readLockfileForPort(port) === null ? "no lockfile" : "lockfile");
+    // A child process of the app, for example the Vite dev server: a transport with stop parts only
+    const vite: TransportImpl = {
+      start: () => void steps.push(`vite.start in ${stage}`),
+      stopIntake: () => void steps.push(`vite.stopIntake in ${stage}`),
+      drain: () => void steps.push(`vite.drain in ${stage}`),
+      inFlight: () => 0,
+      close: () => void steps.push(`vite.close in ${stage}`),
+    };
+    // A connection of the app, for example to Mongo: a dependency with its handle and its check
+    const mongo: DependencyHandle = {
+      connect: () => void steps.push(`mongo.connect in ${stage}, ${lockfile()}`),
+      close: () => void steps.push(`mongo.close in ${stage}, ${lockfile()}`),
+    };
+    const ping = scriptedCheck("ok");
+    let given: ProcedureHost | undefined;
+    const declare = (svc: ServiceBuilder, host: ProcedureHost): ServiceBuilder => {
+      given = host;
+      return svc
+        .dependency("mongo", { system: null, knobs: {}, operations: { find: { idempotent: true }, insert: { idempotent: false } } }, mongo)
+        .check(
+          { name: "mongo.ping", dependency: "mongo", step: "round-trip", ownConnection: true, gates: "readiness", poll: { interval: seconds(5), jitter: 0.2, timeout: seconds(4) } },
+          ping.run
+        )
+        .server("app.vite", {}, vite);
+    };
+
+    const running = await host.runProcedureHost({
+      name: "app",
+      mode: "background",
+      // The controller of the host requires the dependency of the app: describe() refuses it without the declaration
+      host: { name: "app", id: "peer-app", registry: createRegistry(), policy: hostPolicy({ token: "t" }), controller: { requires: ["mongo"] } },
+      lockfile: lockfileOf(port, "peer-app"),
+      declare,
+      run: { process, clock, random: seeded(7), record },
+    });
+    lives.push(running.life);
+    expect(running.life.state).toBe("running");
+    expect(given).toBe(running.host);
+
+    // describe() shows the parts of the app after the parts of the host, and the lockfile last
+    const description = running.service.describe();
+    expect(description.transports.map((transport) => transport.name)).toEqual(["app", "app.vite"]);
+    expect(description.dependencies.map((dependency) => dependency.name)).toEqual(["mongo", "lockfile"]);
+    expect(description.checks.map((check) => check.name)).toEqual(["mongo.ping"]);
+    expect(description.controllers.find((controller) => controller.name === "app")?.requires).toEqual(["mongo"]);
+
+    // The startup: the dependencies connect, the lockfile last, then the server of the host starts before the part of the app
+    expect(started).toEqual(["dependency mongo", "dependency lockfile", "server app", "server app.vite"]);
+    expect(steps).toEqual(["mongo.connect in startup, no lockfile", "vite.start in startup"]);
+    expect(lockfiles.readLockfileForPort(port)?.peerId).toBe("peer-app");
+    // The check of the dependency polls on the clock of the run
+    const polls = ping.calls;
+    expect(polls).toBeGreaterThanOrEqual(1);
+    await clock.advance(6_000);
+    expect(ping.calls).toBeGreaterThan(polls);
+    expect(running.life.health.verdict().controllers).toMatchObject({ app: true });
+
+    // A signal starts the stop in stages: each part of the app stops in its stage, and the lockfile closes before the dependency of the app
+    process.signal("SIGTERM");
+    expect(await running.life.done).toBe(0);
+    lives.splice(0);
+    expect(steps.slice(2)).toEqual([
+      "vite.stopIntake in stop intake",
+      "vite.drain in drain",
+      "vite.close in close transports",
+      "mongo.close in tear down dependencies, no lockfile",
+    ]);
+    expect(process.exits).toEqual([0]);
+  }, 20000);
+
+  it("gives the host to the declaration: a listener of the app mounts host.handler", async () => {
+    let address: () => string = () => "";
+    const running = await host.runProcedureHost({
+      name: "mounted",
+      mode: "background",
+      host: { name: "mounted", id: "peer-mounted", registry: createRegistry(), policy: hostPolicy({ token: "t" }) },
+      declare: (svc, given) => {
+        const listener = httpTransport(createHttpServer(), peer.LOCAL_LISTENER_KNOBS, { listen: { port: 0, host: "127.0.0.1" } });
+        listener.mount((req, res) => given.handler(req, res));
+        address = () => {
+          const bound = listener.server.address();
+          return `http://127.0.0.1:${typeof bound === "object" && bound ? bound.port : 0}`;
+        };
+        svc.server("app.listen", listener.knobs, listener);
+      },
+      run: { process: fakeProcess() },
+    });
+    lives.push(running.life);
+    expect(running.life.state).toBe("running");
+    // The host owns no listener: the listener of the app answers the calls of the host
+    expect(running.host.info.endpoints()).toEqual([]);
+    const info = await fetch(`${address()}/api/host/info`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: "Bearer t" },
+      body: "{}",
+    });
+    expect(info.status).toBe(200);
+    expect(((await info.json()) as { peerId: string }).peerId).toBe("peer-mounted");
+  }, 20000);
+
+  it("changes nothing without the option: the service has only the parts of the host", async () => {
+    const running = await host.runProcedureHost({ name: "plain", mode: "background", host: hostOptions("peer-plain"), run: { process: fakeProcess() } });
+    lives.push(running.life);
+    const description = running.service.describe();
+    expect(description.transports.map((transport) => transport.name)).toEqual(running.host.parts.map((part) => part.name));
+    expect(description.dependencies.map((dependency) => dependency.name)).toEqual(running.host.dependencies.map((dependency) => dependency.name));
+    expect(description.checks.map((check) => check.name)).toEqual(running.host.checks.map(({ check }) => check.name));
+    expect(description.transports.map((transport) => transport.name)).toEqual(["procedures", "procedures.listen.http"]);
   }, 20000);
 });
 

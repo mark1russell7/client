@@ -426,6 +426,10 @@ const procedures = createCollectionProcedures("notes", {
     admit: (row, invocation) => canRead(invocation.principal, row.value),
     // Each set, patch and delete: { op, id, doc, prev }. True permits it.
     guard: (write, invocation) => canWrite(invocation.principal, write),
+    // The version of an item: the same function as the option versionOf of the storage.
+    versionOf: (item) => item.rev,
+    // The largest number of rows that one find examines.
+    maxScanned: 10_000,
   },
 });
 ```
@@ -440,6 +444,25 @@ const procedures = createCollectionProcedures("notes", {
 - `setBatch` gives one `set` to the guard for each item. `deleteBatch` and `clear` give one `delete` for each id. One refused write refuses the call.
 - A call without an invocation gets no row and makes no write.
 - `accessAdmitItem` and `accessWriteGuard` of `@procedures/access` give the two rules from access lists.
+
+The guard reads the stored item before the write. The option `versionOf` closes the gap between that read and the write (roadmap CLI-55):
+
+- With `versionOf`, each guarded `set`, `delete`, `setBatch` and `patch` expects the version of the item that the guard examined. An id without an item expects `null`.
+- A change of another writer between the read of the guard and the write then gives `VERSION_CONFLICT`. The storage does not change.
+- An expected version of the caller stays. The view adds a version only for an id without one.
+- A guarded `patch` writes the merged item that the guard examined with `set`.
+- An item without a version gets no precondition. `deleteBatch` and `clear` get no precondition, because the storage cannot test one for them.
+- Give the same function as the option `versionOf` of the storage. A storage without it refuses each guarded write with `PRECONDITION_NOT_SUPPORTED`.
+- Without `versionOf`, a guarded write has no precondition. A change of another writer after the read of the guard is then lost.
+- A `VERSION_CONFLICT` has the current item of each conflict. When the rule `admit` refuses that item, the conflict has no value.
+
+A caller with few admitted rows makes `find` read many rows of the storage. The option `maxScanned` sets a bound (roadmap CLI-55):
+
+- `maxScanned` is the largest number of rows that one `find` examines. The rows that match the selector count, from the first row. The rows of the skip also count.
+- At the bound, `find` gives the admitted rows that it found. That page can be shorter than the limit, also when more rows match. The result has no other mark.
+- A storage with `query()` gives the rows page by page, and the view asks for no row after the bound.
+- A storage without `query()` gives all its entries in one read. The rule then examines at most `maxScanned` rows.
+- Without `maxScanned`, `find` reads the rows until its page is full, or until the rows end.
 
 ### The publisher
 

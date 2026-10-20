@@ -60,7 +60,7 @@ import { DEFAULT_FIND_LIMIT, queryEntries, type StorageQueryOptions, type Storag
 import type { CollectionStorage, StorageBatchWriteOptions, StorageItemWriteOptions, StorageWriteOptions } from "./storage.js";
 import { collectionChangeTopic, startChangeChain, writeWithChangeEvent } from "./changes.js";
 import { partitionOfCall, storageOfCall, withPartition, type PartitionInput } from "./partition.js";
-import { admitsRow, admittedStorage, type CollectionAdmission } from "./admission.js";
+import { admitsRow, admittedStorage, checkAdmission, type CollectionAdmission } from "./admission.js";
 import { patchItem } from "./patch-in-parts.js";
 
 // =============================================================================
@@ -127,8 +127,9 @@ export interface CollectionProceduresOptions {
   /**
    * The rules of the rows (roadmap CLI-41). `admit` examines each row of each read and of each
    * change event with values. `guard` examines each write before the storage changes, and a
-   * refused write gets `FORBIDDEN` (reason `write-not-allowed`). Without it, the procedures check
-   * only the partition.
+   * refused write gets `FORBIDDEN` (reason `write-not-allowed`). With `versionOf`, a guarded write
+   * expects the version that the guard read. `maxScanned` stops the scan of a `find` (roadmap
+   * CLI-55). Without it, the procedures check only the partition.
    */
   admission?: CollectionAdmission | undefined;
 }
@@ -181,6 +182,7 @@ export function createCollectionProcedures(collectionName: string, options: Coll
   const topicOf = (ctx: ProcedureContext, partition: string | undefined): string | undefined => topicRule?.(collectionName, ctx, partition);
   const withValues = events !== false && events !== true && events.values === true;
   const admission = options.admission;
+  checkAdmission(admission);
   /** A write, and then its change event on the bus of the context. The chain of the events belongs to the storage, not to its view. */
   const changing = <R>(ctx: ProcedureContext, partition: string | undefined, storage: CollectionStorage<unknown>, ids: readonly string[] | "*", origin: string | undefined, write: () => Promise<R>): Promise<R> =>
     writeWithChangeEvent(ctx.bus, storage, topicRule ? topicOf(ctx, partition) : undefined, ids, origin, write, withValues, admission?.admit);

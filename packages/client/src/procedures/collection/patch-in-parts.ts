@@ -4,6 +4,7 @@
  */
 import { applyPatch, type StoragePatch } from "./query.js";
 import type { CollectionStorage, StorageWriteOptions } from "./storage.js";
+import type { VersionOf } from "./precondition.js";
 
 /**
  * The patches of a storage without `patch()` that run, for each id. A patch of an id waits for the
@@ -16,6 +17,10 @@ const PATCHES = new WeakMap<object, Map<string, Promise<unknown>>>();
  * This function patches an item of a storage without `patch()`: a read, a merge and a write. The
  * check gets the stored item and the merged item before the write. An error of the check stops
  * the patch, and the storage does not change.
+ *
+ * With `versionOf`, the write expects the version of the item that the patch read (roadmap
+ * CLI-55). A change of another writer between the read and the write then gives
+ * `VERSION_CONFLICT`. An item without a version gets no precondition.
  */
 export function patchInParts(
   storage: CollectionStorage<unknown>,
@@ -23,6 +28,7 @@ export function patchInParts(
   fields: StoragePatch,
   options?: StorageWriteOptions,
   check?: (prev: unknown, next: unknown) => Promise<void>,
+  versionOf?: VersionOf<unknown>,
 ): Promise<unknown> {
   let running = PATCHES.get(storage);
   if (!running) {
@@ -36,7 +42,8 @@ export function patchInParts(
     if (current === undefined) return undefined;
     const next = applyPatch(current, fields);
     if (check) await check(current, next);
-    await storage.set(id, next, options);
+    const expectedVersion = versionOf?.(current);
+    await storage.set(id, next, expectedVersion === undefined ? options : { ...options, expectedVersion });
     return next;
   });
   const settled = patch.then(
