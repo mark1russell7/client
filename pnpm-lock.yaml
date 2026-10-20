@@ -234,6 +234,9 @@ importers:
       '@mark1russell7/cue':
         specifier: ^1.0.0
         version: 1.0.0
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -1177,6 +1180,9 @@ importers:
       '@mark1russell7/cue':
         specifier: ^1.0.0
         version: 1.0.0
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -1249,6 +1255,9 @@ importers:
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -1408,6 +1417,9 @@ importers:
       '@mark1russell7/cue':
         specifier: ^1.0.0
         version: 1.0.0
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -1782,6 +1794,9 @@ importers:
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
       typescript:
         specifier: ^7.0.2
         version: 7.0.2

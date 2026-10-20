@@ -18,6 +18,7 @@ Migration:
 - A URL strategy whose parameter has the type `express.Request` does not compile as an `HttpUrlStrategy`. Give the parameter the type `UrlStrategyRequest` of `@procedures/client/node`, or give it no type: `HttpUrlStrategy` gives it the type.
 - A strategy that reads a part of the Express request outside `UrlStrategyRequest`, for example `req.params`, casts the request: `(req as express.Request).params`.
 - Code that reads a header of `GuardedHeaders` without a declared property, for example `accept`, gets `string | string[] | undefined`. Examine the value with `typeof` before use.
+- Before, an import of the root also loaded the types of Node (`@types/node`) into the program. A project that used `process`, `Buffer`, `URL`, `setTimeout` or a `node:` module without `@types/node` in its own configuration compiled only because of that. Such a project fails to compile after this release. Add `@types/node` to its development dependencies and `"types": ["node"]` to its `tsconfig.json`. In this repository, `@procedures/archive`, `@procedures/env`, `@procedures/gh`, `@procedures/http`, `@procedures/llm`, `@procedures/npm` and `@procedures/schedule` got the `node` feature of `cue-config` for this reason. Their APIs do not change.
 
 The migration steps of the known consumers:
 
