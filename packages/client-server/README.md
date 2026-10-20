@@ -150,6 +150,7 @@ await svc.run();
   - `GET /_probes/startup`, `/_probes/readiness` and `/_probes/liveness` answer 200, or 503 with `Retry-After`. `/_probes/readiness/<controller>` gives the readiness of one controller.
   - The probes answer each caller without the token and the browser checks. They give only the status. Each other path goes to the faces, with the token and the browser checks as before.
   - A listener does not answer the report (`/_probes/report`), because it names the checks and the dependencies. `host.health` gives the details with the token.
+  - The probes stop when the intake stops. Then the listener closes, as without the probes, and a new connection is refused. `probes: { until: "close transports" }` keeps the listener open through the drain: the probes answer 503, and each other request gets 503 with `Retry-After`.
   - `probes: { prefix }` changes the prefix. `probes: false` turns the probes off, for example when the process has a probe server on a port of its own (`probeServer()`, or the option `probes` of `runProcedureHost()`).
   - `host.info.probes()` gives the base URL of the probes on each listener. Without `listen`, the app mounts `probeHandler()` on its own listener.
 

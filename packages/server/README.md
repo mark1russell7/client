@@ -190,6 +190,7 @@ procedure-server -p ./my-procedures.js -t http,websocket --events "orders.*" --e
 The server answers the probes of its service (CLI-9, decision D5). The probes come from `@mark1russell7/service/http`. They give only the status, and they need no token.
 
 - By default, each listener answers `GET /_probes/startup`, `/_probes/readiness` and `/_probes/liveness` (`probeHandler()`). The answer is 200, or 503 with `Retry-After` during the startup and the shutdown.
+- The probes of a listener stop when the intake stops. Then the listener closes, and a new connection is refused, as before.
 - With `--probe-port <port>`, a probe server on its own port answers `/startup`, `/readiness`, `/liveness` and `/report` (`probeServer()`). It starts first and closes last, thus the probes answer through the whole drain. The listeners then answer no probes.
 - A listener does not answer `/_probes/report`, because the report names the checks and the dependencies. The probe server answers it: give it an address that only the platform reaches.
 - The startup prints the URL of the probes.

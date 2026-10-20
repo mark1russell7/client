@@ -14,7 +14,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { request } from "node:http";
 import { z } from "zod";
 import { service, type Lifecycle, type ServiceBuilder, type TransportImpl } from "@mark1russell7/service";
-import { fakeClock, fakeProcess } from "@mark1russell7/service/testing";
+import { fakeClock, fakeProcess, type FakeClock } from "@mark1russell7/service/testing";
 import { createProcedure, createRegistry, hostPolicy, ms, seconds, type ProcedureRegistry } from "@procedures/client";
 import { createProcedureHost, HOST_PROBE_PREFIX, LOCAL_LISTENER_KNOBS, type ProcedureHost, type ProcedureHostOptions } from "./index.js";
 
@@ -95,6 +95,47 @@ async function probeBase(host: ProcedureHost): Promise<string> {
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
   throw new Error("the listener of the host did not start");
+}
+
+/**
+ * This function ends a shutdown on a fake clock: the stages do real work (the close of the sockets),
+ * thus the fake clock moves no faster than the real one. It gives the exit code.
+ */
+async function finish(clock: FakeClock, exited: Promise<number>, first = 0): Promise<number | undefined> {
+  let code: number | undefined;
+  void exited.then((value) => (code = value));
+  if (first > 0) await clock.advance(first);
+  for (let step = 0; code === undefined && step < 2_000; step++) {
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await clock.advance(5);
+  }
+  return code;
+}
+
+/** A part of the app whose drain holds until the test releases it, thus the test reads the listener during the drain. */
+function holdingPart(): { part: TransportImpl; draining: () => boolean; release: () => void } {
+  let release: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  let draining = false;
+  let done = false;
+  const part: TransportImpl = {
+    start: () => undefined,
+    stopIntake: () => undefined,
+    drain: async () => {
+      draining = true;
+      await held;
+      done = true;
+    },
+    inFlight: () => (done ? 0 : 1),
+    close: () => undefined,
+  };
+  return { part, draining: () => draining, release };
+}
+
+/** This function waits, in real time, until the condition is true. */
+async function until(condition: () => boolean): Promise<void> {
+  for (let attempt = 0; !condition() && attempt < 500; attempt++) await new Promise((resolve) => setTimeout(resolve, 10));
+  expect(condition()).toBe(true);
 }
 
 const lives: Lifecycle[] = [];
@@ -217,17 +258,49 @@ describe("the probes of a host (CLI-9)", () => {
     expect(readiness.headers["retry-after"]).toBe("1");
     // The process is still alive while it drains
     expect((await send(`${base}/liveness`)).status).toBe(200);
-    // The other stages do real work (the close of the sockets): the fake clock moves no faster than the real one
-    let code: number | undefined;
-    void exited.then((value) => (code = value));
-    await clock.advance(2_000);
-    for (let step = 0; code === undefined && step < 2_000; step++) {
-      await new Promise((resolve) => setTimeout(resolve, 5));
-      await clock.advance(5);
-    }
+    expect(await finish(clock, exited, 2_000)).toBe(0);
     expect(life.errors).toEqual([]);
-    expect(code).toBe(0);
     expect(process.exits).toEqual([0]);
+  }, 20000);
+
+  it("stops the probes with the intake by default: the listener closes, and a new connection is refused, as before", async () => {
+    const clock = fakeClock();
+    const host = hostOf({ clock });
+    const hold = holdingPart();
+    const life = await host.declare(serviceOf("intake")).server("app.hold", {}, hold.part).run({ process: fakeProcess({ clock }), clock });
+    const base = await probeBase(host);
+    expect((await send(`${base}/readiness`)).status).toBe(200);
+
+    const exited = life.shutdown("the test stops the host");
+    await until(hold.draining);
+    await expect(send(`${base}/readiness`)).rejects.toMatchObject({ code: "ECONNREFUSED" });
+    hold.release();
+    expect(await finish(clock, exited)).toBe(0);
+  }, 20000);
+
+  it("keeps the listener open through the drain with until close transports: the probes answer 503, and each call gets 503", async () => {
+    const clock = fakeClock();
+    const host = hostOf({ clock, probes: { until: "close transports" } });
+    const hold = holdingPart();
+    const life = await host.declare(serviceOf("through")).server("app.hold", {}, hold.part).run({ process: fakeProcess({ clock }), clock });
+    const base = await probeBase(host);
+    const [endpoint] = host.info.endpoints();
+
+    const exited = life.shutdown("the test stops the host");
+    await until(hold.draining);
+    const readiness = await send(`${base}/readiness`);
+    expect([readiness.status, readiness.headers["retry-after"]]).toEqual([503, "1"]);
+    expect(JSON.parse(readiness.body)).toMatchObject({ status: "fail", probe: "readiness" });
+    expect((await send(`${base}/liveness`)).status).toBe(200);
+    // A call during the drain: the faces stopped with the intake, thus the transport refuses it with Retry-After
+    const call = await send(`${endpoint!.address}/test/echo`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${TOKEN}` },
+      body: JSON.stringify({ text: "hi" }),
+    });
+    expect([call.status, call.headers["retry-after"]]).toEqual([503, "1"]);
+    hold.release();
+    expect(await finish(clock, exited)).toBe(0);
   }, 20000);
 
   it("takes another prefix, or no probes", async () => {

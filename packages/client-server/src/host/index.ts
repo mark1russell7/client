@@ -24,7 +24,7 @@ import { createServer } from "node:http";
 import type { IncomingMessage, ServerResponse as NodeResponse } from "node:http";
 import type { Duplex } from "node:stream";
 import type { Check, CheckFn, Dependency, DependencyHandle, Health, Lifecycle, Operation, OperationOf, ServiceBuilder, TransportImpl } from "@mark1russell7/service";
-import { httpTransport, pathOf, probeHandler, type HttpKnobs, type RequestHandler } from "@mark1russell7/service/http";
+import { httpTransport, pathOf, probeHandler, type HttpKnobs, type MountStage, type RequestHandler } from "@mark1russell7/service/http";
 import type { KeyedLimiter } from "@mark1russell7/service/limiter";
 import {
   PROCEDURE_REGISTRY,
@@ -78,6 +78,13 @@ export const HOST_PROBE_PREFIX = "/_probes";
 export interface HostProbes {
   /** The path before each probe path. It starts with `/`, and it does not end with `/`. The default is `/_probes`. */
   readonly prefix?: string | undefined;
+  /**
+   * The stage of the shutdown at which the probes of a listener stop. The default is `stop intake`:
+   * the listener closes when the intake stops, as without the probes, and a new connection is refused.
+   * `close transports` keeps the listener open through the drain: the probes answer 503, and each
+   * other request gets 503 with `Retry-After`. A probe server on a port of its own also answers through the drain.
+   */
+  readonly until?: MountStage | undefined;
 }
 
 /** A collection of the host: its storage, and the procedures `collections.<name>.*`. */
@@ -168,6 +175,7 @@ export interface ProcedureHostOptions {
    *   caller, without the token and the browser checks, and they give only the status.
    * - The report of the service (`/_probes/report`) gives the names of the checks and the dependencies.
    *   Thus a listener of the host does not answer it. `host.health` gives the details with the token.
+   * - The probes stop when the intake stops, and the listener closes as before. `until` changes this.
    * - `false` turns them off, for example for a process with a probe server on a port of its own.
    * - Without a listener, the app mounts `probeHandler()` on its own listener.
    */
@@ -297,10 +305,11 @@ function messageOf(error: unknown): string {
 /** The operations of a storage as a dependency: a read can go again, a write cannot. */
 const STORAGE_OPERATIONS: Readonly<Record<string, Operation>> = Object.freeze({ read: { idempotent: true }, write: { idempotent: false } });
 
-/** The prefix of the probes of the option `probes`, or undefined when the option turns them off. */
-function probePrefixOf(probes: ProcedureHostOptions["probes"]): string | undefined {
+/** The prefix and the last stage of the probes of the option `probes`, or undefined when the option turns them off. */
+function probesOf(probes: ProcedureHostOptions["probes"]): { prefix: string; until: MountStage } | undefined {
   if (probes === false) return undefined;
-  return (probes === true || probes === undefined ? undefined : probes.prefix) ?? HOST_PROBE_PREFIX;
+  const given = probes === true || probes === undefined ? {} : probes;
+  return { prefix: given.prefix ?? HOST_PROBE_PREFIX, until: given.until ?? "stop intake" };
 }
 
 /**
@@ -311,9 +320,7 @@ function probePrefixOf(probes: ProcedureHostOptions["probes"]): string | undefin
 function listenerProbes(health: () => Health | null | undefined, prefix: string): RequestHandler {
   const probes = probeHandler(health, { prefix });
   const report = `${prefix}/report`;
-  const handler = (req: IncomingMessage, res: NodeResponse, context: Parameters<RequestHandler>[2]): boolean | Promise<boolean> =>
-    pathOf(req.url) !== report && probes(req, res, context);
-  return Object.assign(handler, { until: probes.until });
+  return (req, res, context) => pathOf(req.url) !== report && probes(req, res, context);
 }
 
 /**
@@ -388,19 +395,20 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
   const endpoints: Array<() => HostEndpoint[]> = [];
   // The probes of the service on each listener (CLI-9, D5): from the health of the lifecycle, which
   // the part of the server gets before a listener starts
-  const probePrefix = probePrefixOf(options.probes);
+  const probes = probesOf(options.probes);
   const probeBases: Array<() => string | undefined> = [];
   const listenerParts: HostPart[] = listeners.map((listener, index) => {
     const host = listener.host ?? "127.0.0.1";
     const listenerName = listener.name ?? (listeners.length === 1 ? "http" : String(listener.port || index));
     const transport = httpTransport(createServer(), listener.knobs, { listen: { port: listener.port, host }, clock });
     const shown = host === "0.0.0.0" || host === "::" ? "localhost" : host;
-    // The probes mount first: a probe path never reaches a face, and a face gets each other path as before
-    if (probePrefix !== undefined) {
-      transport.mount(listenerProbes(() => life?.health, probePrefix));
+    // The probes mount first: a probe path never reaches a face, and a face gets each other path as
+    // before. By default they stop with the intake, thus the listener still closes at the stop of the intake.
+    if (probes !== undefined) {
+      transport.mount(listenerProbes(() => life?.health, probes.prefix), { until: probes.until });
       probeBases.push(() => {
         const address = transport.server.address();
-        return typeof address === "object" && address !== null ? `http://${shown}:${address.port}${probePrefix}` : undefined;
+        return typeof address === "object" && address !== null ? `http://${shown}:${address.port}${probes.prefix}` : undefined;
       });
     }
     const mounted = (listener.faces ?? [...faces.keys()]).map((faceName) => {
