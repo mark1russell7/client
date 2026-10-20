@@ -17,6 +17,9 @@
  * - The plain topic of a dotted name, `collections.a.b`, is also the topic of the partition `b` of
  *   `a`. Thus the server refuses a storage of `a.b` while `a` has partitions (roadmap CLI-57,
  *   decision D23).
+ * - A collection `a.b` with partitions and no storage keeps its partitions next to `a`. When its
+ *   resolver gives no partition, the publisher refuses a subscriber of `a.b` while `a` has
+ *   partitions (roadmap CLI-70).
  */
 import type { ZodLike } from "../../client/validation/types.js";
 import { InvocationError } from "../invoke.js";
@@ -204,6 +207,35 @@ export function assertTopicsApart(plain: Iterable<string>, hasPartitions: (colle
     const shared = partitionOfPlainTopic(collection);
     if (shared && hasPartitions(shared.collection)) throw new CollectionTopicCollisionError(collection, shared.collection, shared.partition);
   }
+}
+
+/**
+ * This function gives the check of a subscriber that listens to the plain topic of a collection
+ * (roadmap CLI-70, decision D23). When no partition has that topic, it gives undefined. The check
+ * throws `FORBIDDEN` (reason `partition-not-allowed`) while the repository of the call gives
+ * partitions to the collection of that partition.
+ *
+ * - The plain topic of `a.b` is also the topic of the partition `b` of `a`. Thus a subscriber of
+ *   that topic gets the events of the partition `b` of `a`.
+ * - `ProcedureServer` refuses a storage of `a.b` while `a` has partitions (roadmap CLI-57). A
+ *   collection `a.b` with partitions and no storage passes that check. When its resolver gives no
+ *   partition, a subscriber of `a.b` listens to the plain topic. This check refuses it.
+ * - `EventPublisher` does the check at the start of a subscription, at each re-check and before
+ *   each event. Thus partitions of `a` that come later also end the subscription.
+ *
+ * @param ctx - The context of the subscription: the check reads its repository each time
+ * @param collection - The collection whose plain topic the subscriber listens to
+ */
+export function plainTopicCheck(ctx: ProcedureContext, collection: string): (() => void) | undefined {
+  const shared = partitionOfPlainTopic(collection);
+  if (!shared) return undefined;
+  return () => {
+    if (!ctx.repository?.hasPartitions?.(shared.collection)) return;
+    throw partitionRefused(
+      ctx,
+      `The call has no partition of ${collection}, and the plain topic "${collectionChangeTopic(collection)}" is also the topic of the partition "${shared.partition}" of ${shared.collection} (roadmap CLI-70)`,
+    );
+  };
 }
 
 // The parse of a topic lives in topic.ts, with the encode (roadmap CLI-42)
