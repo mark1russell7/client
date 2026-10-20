@@ -25,6 +25,7 @@ const EXPORTS = [
   "HybridStorage",
   "IndexedDbProgramStore",
   "IndexedDbQueueStore",
+  "IndexedDbStorage",
   "IndexedDbSyncStateStore",
   "MemoryProgramStore",
   "MemoryQueueStore",
@@ -106,5 +107,19 @@ describe("the entry @procedures/store/browser", () => {
       }
     }
     expect(problems).toEqual([]);
+  });
+});
+
+describe("the entry @procedures/store/indexeddb", () => {
+  it("loads only @procedures/client/query and @procedures/collections: not the root of the client, and not zod", () => {
+    const files = walk(join(SRC, "indexeddb.ts"));
+    const reached = [...files.keys()].map((file) => relative(SRC, file).replaceAll("\\", "/"));
+    expect(reached).toEqual(expect.arrayContaining(["indexeddb/document-storage.ts", "indexeddb/idb.ts"]));
+    expect(reached).not.toContain("storage/hybrid.ts");
+    const loaded = new Set<string>();
+    for (const imports of files.values()) {
+      for (const { specifier, typeOnly } of imports) if (!specifier.startsWith(".") && !typeOnly) loaded.add(specifier);
+    }
+    expect([...loaded].sort()).toEqual(["@procedures/client/query", "@procedures/collections"]);
   });
 });

@@ -1,6 +1,6 @@
 /**
  * The live status board: the open work of the roadmap file, the open pull requests and the open
- * issues. The build reads them (`scripts/status-board-data.mjs`), so the board shows the state
+ * issues. The build reads them (`readStatusBoard` of `@mark1russell7/site-pages`), so the board shows the state
  * at the time of the build. The component takes only the data of the board, and it names no
  * project, so another site can use it.
  */

@@ -2,8 +2,8 @@
  * The contract of `CollectionStorage` (the suite of `@procedures/collections/testing`) for the
  * storages of this package: `ApiStorage` against the collection procedures of the core, and
  * `HybridStorage` in each mode with an in-memory remote, also with a queue in IndexedDB
- * (`fake-indexeddb`). No IndexedDB class of this package is a `CollectionStorage`: the IndexedDB
- * stores keep programs and queues.
+ * (`fake-indexeddb`). `indexeddb/document-storage.test.ts` runs the suite for `IndexedDbStorage`,
+ * and for a `HybridStorage` whose local copy is an `IndexedDbStorage`.
  *
  * `ApiStorage` also runs against a server storage without `query()` and `patch()`. Then the core
  * procedures `find` and `patch` run the selector and the merge themselves, with the copy of the

@@ -8,7 +8,7 @@ The website of the client ecosystem. GitHub Pages serves it at <https://mark1rus
 - **Procedures**: every procedure of the workspace, with its input and output schemas, its CLI command and its MCP tool name. The filters are in the URL.
 - **Architecture**: the packages and their dependencies, in levels.
 - **What Claude sees**: the tools of the `dev-tools` MCP server.
-- **Releases**: each version on a timeline, with its date and its changes. `scripts/releases-data.mjs` reads the changelogs and the git tags.
+- **Releases**: each version on a timeline, with its date and its changes. `@mark1russell7/site-pages` reads the changelogs, the git tags and the GitHub releases.
 - **Status**: the open work of the roadmap, the open pull requests and the open issues. Below them, the history has the October deep dive and the July bug register.
 
 ## The Composer
@@ -22,7 +22,7 @@ The website of the client ecosystem. GitHub Pages serves it at <https://mark1rus
 
 ## The Status page
 
-- `scripts/status-board-data.mjs` makes the data of the board at build time. The script names no project, so the site template can use it.
+- `@mark1russell7/site-pages` makes the data of the board at build time. The site template uses the same package, so each site has this page (fleet issue #1).
 - The open work comes from `packages/documentation/ROADMAP-2026-10.md`. Each row of a table with an `ID` column and a `Status` column is one item.
 - The words of a status give its class: done, in progress, waiting, blocked, later or open. The page also shows the text of the status.
 - The open pull requests and issues come from the GitHub GraphQL API in one request. The build gives the token in `GITHUB_TOKEN`.

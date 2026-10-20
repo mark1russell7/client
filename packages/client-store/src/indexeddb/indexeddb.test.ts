@@ -187,6 +187,17 @@ describe("IndexedDbQueueStore", () => {
     expect(await again.load()).toEqual([]);
   });
 
+  it("a replace() that fails changes nothing: the clear and the operations before the error are undone", async () => {
+    const factory = new IDBFactory();
+    const queue = new IndexedDbQueueStore("atomic-queue", { indexedDB: factory });
+    await queue.append(operation("a", 1));
+    // A function has no structured clone: the add of the second operation throws
+    const broken = { type: "set", data: { id: "x", value: { f: () => 1 } }, timestamp: 3 } as unknown as QueuedOperation;
+    await expect(queue.replace([operation("b", 2), broken])).rejects.toThrow();
+    expect((await queue.load()).map((op) => op.timestamp)).toEqual([1]);
+    await queue.close();
+  });
+
   it("refuses a record that is not a queued operation, and a database without a name", async () => {
     const factory = new IDBFactory();
     await putRaw(factory, "queue", "operations", { type: "unknown" });
