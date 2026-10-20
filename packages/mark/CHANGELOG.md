@@ -1,5 +1,37 @@
 # @procedures/mark
 
+## 0.18.0
+
+### Patch Changes
+
+- Updated dependencies [5e68b6a]
+  - @procedures/client@0.18.0
+  - @procedures/cli-run@0.18.0
+  - @procedures/lib@0.18.0
+  - @procedures/pnpm@0.18.0
+  - @procedures/procedure@0.18.0
+  - @procedures/peer@0.18.0
+  - @procedures/shell@0.18.0
+  - @procedures/vitest@0.18.0
+  - @procedures/mcp-dev-tools@0.18.0
+  - @procedures/server@0.18.0
+
+## 0.17.4
+
+### Patch Changes
+
+- Updated dependencies [8281370]
+  - @procedures/peer@0.17.4
+  - @procedures/server@0.17.4
+  - @procedures/client@0.17.4
+  - @procedures/cli-run@0.17.4
+  - @procedures/lib@0.17.4
+  - @procedures/pnpm@0.17.4
+  - @procedures/procedure@0.17.4
+  - @procedures/shell@0.17.4
+  - @procedures/vitest@0.17.4
+  - @procedures/mcp-dev-tools@0.17.4
+
 ## 0.17.3
 
 ### Patch Changes

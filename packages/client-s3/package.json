@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/s3",
-  "version": "0.17.3",
+  "version": "0.18.0",
   "description": "AWS S3 as typed procedures: upload, download with safe part files, list, head, copy, presigned URLs, delete and multipart uploads.",
   "keywords": [
     "s3",
