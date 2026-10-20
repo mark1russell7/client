@@ -65,6 +65,7 @@ export function parseConfig(argv: string[]): ServerConfig {
   const expose: string[] = [];
   const events: string[] = [];
   let fsRoot: string | undefined;
+  let probePort: number | undefined;
 
   for (let i = 0; i < argv.length; i++) {
     const token = argv[i]!;
@@ -91,6 +92,9 @@ export function parseConfig(argv: string[]): ServerConfig {
         break;
       case "--host":
         host = value();
+        break;
+      case "--probe-port":
+        probePort = parsePort(value());
         break;
       case "--transport":
       case "-t":
@@ -170,7 +174,16 @@ export function parseConfig(argv: string[]): ServerConfig {
     return { type };
   });
 
-  return { procedures, transports, verbose, token: serverToken, expose, events, ...(fsRoot !== undefined ? { fsRoot } : {}) };
+  return {
+    procedures,
+    transports,
+    verbose,
+    token: serverToken,
+    expose,
+    events,
+    ...(fsRoot !== undefined ? { fsRoot } : {}),
+    ...(probePort !== undefined ? { probePort } : {}),
+  };
 }
 
 function printHelp(): void {
@@ -196,6 +209,12 @@ OPTIONS:
 
   --base-path <path>        Base path for HTTP transport
                             Default: /api
+
+  --probe-port <number>     Answer the health probes on this port, on the
+                            address of --host: /startup, /readiness,
+                            /liveness and /report. Default: each listener
+                            answers /_probes/startup, /_probes/readiness and
+                            /_probes/liveness
 
   --cors                    Enable CORS
   --no-cors                 Disable CORS (default)

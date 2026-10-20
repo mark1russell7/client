@@ -30,6 +30,11 @@ export interface ServerModeOptions {
   events?: readonly string[] | undefined;
   /** The folder that confines each path of the `fs.*` procedures (`--fs-root`). */
   fsRoot?: string | undefined;
+  /**
+   * The port of the probe server (`--probe-port`, CLI-9), on the address of `host`. Without it, each
+   * listener answers the probes under `/_probes`.
+   */
+  probePort?: number | undefined;
 }
 
 /**
@@ -130,6 +135,8 @@ export async function startServerMode(options: ServerModeOptions, run?: Procedur
       ...(fsRoot !== undefined ? { fsRoot } : {}),
     },
     log: (line) => print.info(line),
+    // --probe-port: the probes answer on a port of their own, else on each listener under /_probes (CLI-9, D5)
+    ...(options.probePort !== undefined ? { probes: { port: options.probePort, host } } : {}),
     ...(run ? { run } : {}),
   });
   if (running.life.state !== "running") {
@@ -148,6 +155,9 @@ export async function startServerMode(options: ServerModeOptions, run?: Procedur
   print.info("\nEndpoints:");
   for (const each of running.host.info.endpoints()) {
     print.info(`  [${each.type}] ${each.address}`);
+  }
+  for (const base of running.probes()) {
+    print.info(`  [probes] ${base}/startup, ${base}/readiness, ${base}/liveness (no token)`);
   }
   print.info(events.length > 0 ? `\nEvent topics (events.subscribe): ${events.join(", ")}` : "\nEvent topics: none (--events adds them)");
   if (fsRoot !== undefined) {

@@ -141,13 +141,13 @@ function showRootHelp(procedures: readonly CommandLike[]): void {
   print.info("Run 'mark <command> --help' for more information.");
   print.info("Hosts: 'mark serve [--procedures pkgs] [--port N] [--expose patterns] [--events topics]' (the procedure server),");
   print.info("       'mark mcp' (the dev-tools MCP server over stdio).");
-  print.info("Modes: 'mark --server [--port N] [--host H] [--transport http|websocket|both] [--events topics]' and 'mark -i' (the REPL).");
+  print.info("Modes: 'mark --server [--port N] [--host H] [--transport http|websocket|both] [--events topics] [--probe-port N]' and 'mark -i' (the REPL).");
   print.info("Root:  'mark --fs-root <folder> <command>' keeps each path of each procedure in the folder, also in each mode and host.");
   print.info("       It refuses the procedures that it cannot confine: git, pnpm, docker run, a program (FORBIDDEN, outside-root).");
 }
 
 /** The global flags that only `--server` takes. */
-const SERVER_OPTIONS = ["port", "host", "transport", "events"] as const;
+const SERVER_OPTIONS = ["port", "host", "transport", "events", "probe-port"] as const;
 
 /** True when the global flags give an option of `--server`. */
 function hasServerOption(globals: Readonly<Record<string, unknown>>): boolean {
@@ -278,7 +278,7 @@ export async function executeArgs(
     return;
   }
   if (hasServerOption(globals)) {
-    fail("--port, --host, --transport and --events are options of --server.");
+    fail("--port, --host, --transport, --events and --probe-port are options of --server.");
     return;
   }
   // The root applies to the whole run: the procedures load with it, and a warm server must have it
@@ -583,12 +583,22 @@ async function run(argv: string[]): Promise<void> {
     const host = globals.host === undefined ? "127.0.0.1" : String(globals.host);
     const transport = globals.transport === undefined ? "http" : parseTransport(String(globals.transport));
     const events = await eventPatterns(globals.events);
-    await startServerMode({ port, host, transport, verbose, events, ...(fsRoot !== undefined ? { fsRoot } : {}) });
+    // --probe-port: the probes answer on a port of their own (CLI-9, decision D5)
+    const probePort = globals["probe-port"] === undefined ? undefined : parsePort(String(globals["probe-port"]));
+    await startServerMode({
+      port,
+      host,
+      transport,
+      verbose,
+      events,
+      ...(probePort !== undefined ? { probePort } : {}),
+      ...(fsRoot !== undefined ? { fsRoot } : {}),
+    });
     return;
   }
   // Before, `mark --port 4000 serve` ignored --port without a word
   if (hasServerOption(globals)) {
-    fail("--port, --host, --transport and --events are options of --server.", "For mark serve, give them after serve.");
+    fail("--port, --host, --transport, --events and --probe-port are options of --server.", "For mark serve, give them after serve.");
     return;
   }
 
