@@ -112,7 +112,9 @@ export function scopeOfNames(names: Readonly<Record<string, unknown>>): RefScope
 }
 
 function setOwn(target: Record<string, unknown>, key: string, value: unknown): void {
-  Object.defineProperty(target, key, { value, enumerable: true, writable: true, configurable: true });
+  // An assignment to "__proto__" changes the prototype: that key needs an own property
+  if (key === "__proto__") Object.defineProperty(target, key, { value, enumerable: true, writable: true, configurable: true });
+  else target[key] = value;
 }
 
 // =============================================================================
@@ -236,6 +238,8 @@ export interface DocumentOrigin {
   readonly deferred?: boolean | undefined;
   /** True for the `client.chain` call that an array of calls makes (an implicit chain). */
   readonly synthesized?: boolean | undefined;
+  /** For a call: its path, its input and its `$name`, as `normalizeRef()` gives them. */
+  readonly call?: { readonly path: ProcedurePath; readonly input: unknown; readonly $name?: string | undefined } | undefined;
 }
 
 const ORIGINS = new WeakMap<object, DocumentOrigin>();
@@ -315,7 +319,11 @@ interface Settings {
   readonly expand: boolean;
   /** The raw inputs that the desugarer expands now: an input that contains itself stays data. */
   readonly expanding: Set<object>;
+  /** The pointer of a child. A run needs no pointers, so only a check (`expand`) makes them. */
+  readonly pointer: (pointer: string, key: string | number) => string;
 }
+
+const NO_POINTER = (): string => "";
 
 function settingsOf(options: DesugarOptions): Settings {
   return {
@@ -325,6 +333,7 @@ function settingsOf(options: DesugarOptions): Settings {
     scoped: options.scoped ?? false,
     expand: options.expand ?? false,
     expanding: new Set(),
+    pointer: options.expand ? childPointer : NO_POINTER,
   };
 }
 
@@ -374,6 +383,7 @@ function rootWalk(settings: Settings, pointer: string): Walk {
 
 /** This function tells if a value holds an object with the shape of an envelope, through its plain objects and arrays. */
 function holdsEnvelopeShape(value: unknown): boolean {
+  if (value === null || typeof value !== "object") return false;
   const seen = new Set<object>();
   const stack: Array<{ readonly item: unknown; readonly depth: number }> = [{ item: value, depth: 0 }];
   while (stack.length > 0) {
@@ -408,6 +418,11 @@ function embedPart(out: Out): unknown {
   return "template" in out ? makeDoc(["program", "data"], out.template) : embed(out);
 }
 
+/** The form of a value as one part, also for data: data becomes a literal. */
+function asPart(out: Out): unknown {
+  return "data" in out ? lit(out.data) : embedPart(out);
+}
+
 /** The value of a call document for an input: `null` for a call without input, else the input. */
 function inputValue(input: unknown, out: Out): unknown {
   if (input === undefined) return null;
@@ -416,7 +431,7 @@ function inputValue(input: unknown, out: Out): unknown {
 }
 
 function child(walk: Walk, parent: object, key: string | number): Walk {
-  return { ...walk, dataDepth: walk.dataDepth + 1, ancestors: { value: parent, up: walk.ancestors }, pointer: childPointer(walk.pointer, key) };
+  return { ...walk, dataDepth: walk.dataDepth + 1, ancestors: { value: parent, up: walk.ancestors }, pointer: walk.settings.pointer(walk.pointer, key) };
 }
 
 /**
@@ -444,26 +459,50 @@ function desugarValue(value: unknown, walk: Walk): Out {
       const chain: ProcedureRefJson = { $proc: ["client", "chain"], input: { steps: value } };
       return desugarRef(chain, { ...walk, skipImplicitChain: true }, true);
     }
-    return combine(value, value.map((item, index) => [index, desugarValue(item, child(walk, value, index))] as const));
+    return combine(value, undefined, walk);
   }
   // Values that are not plain data (a Date, a Map, a typed array, an instance of a class) stay the same object
   if (!isPlainObject(value)) return { data: value, shaped: false };
-  return combine(value, Object.keys(value).map((key) => [key, desugarValue(value[key], child(walk, value, key))] as const));
+  return combine(value, Object.keys(value), walk);
 }
 
-/** This function makes the template of an array or an object from the results of its items. */
-function combine(original: object, items: ReadonlyArray<readonly [string | number, Out]>): Out {
-  if (items.every(([, out]) => "data" in out)) {
-    // A subtree without a document stays the same object
-    return { data: original, shaped: items.some(([, out]) => (out as { shaped: boolean }).shaped) || isEnvelope(original) };
+/** The result of an item that is not an object: the item is its own value. */
+const PRIMITIVE: Out = { data: undefined, shaped: false };
+
+/**
+ * This function desugars the items of an array (no keys) or the fields of an object, and makes
+ * their template. A subtree without a document stays the same object.
+ */
+function combine(original: object, keys: readonly string[] | undefined, walk: Walk): Out {
+  const source = original as Readonly<Record<string | number, unknown>>;
+  const length = keys ? keys.length : (original as readonly unknown[]).length;
+  const outs = new Array<Out>(length);
+  let documents = false;
+  let shaped = false;
+  for (let index = 0; index < length; index += 1) {
+    const key = keys ? keys[index]! : index;
+    const item = source[key];
+    if (item === null || typeof item !== "object") {
+      outs[index] = PRIMITIVE;
+      continue;
+    }
+    const out = desugarValue(item, child(walk, original, key));
+    outs[index] = out;
+    if (!("data" in out)) documents = true;
+    else if (out.shaped) shaped = true;
   }
-  if (Array.isArray(original)) return { template: items.map(([, out]) => embed(out)) };
+  if (!documents) return { data: original, shaped: shaped || isEnvelope(original) };
+  const itemAt = (index: number, form: (out: Out) => unknown): unknown => {
+    const out = outs[index]!;
+    return out === PRIMITIVE ? source[keys ? keys[index]! : index] : form(out);
+  };
+  if (!keys) return { template: Array.from(outs, (_, index) => itemAt(index, embed)) };
   const template: Record<string, unknown> = {};
-  for (const [key, out] of items) setOwn(template, String(key), embed(out));
+  keys.forEach((key, index) => setOwn(template, key, itemAt(index, embed)));
   if (!isEnvelope(template)) return { template };
   // An object with the shape of an envelope is a record document: each field is one part
   const record: Record<string, unknown> = {};
-  for (const [key, out] of items) setOwn(record, String(key), embedPart(out));
+  keys.forEach((key, index) => setOwn(record, key, itemAt(index, embedPart)));
   return { doc: makeDoc(["program", "record"], record) };
 }
 
@@ -471,7 +510,9 @@ function combine(original: object, items: ReadonlyArray<readonly [string | numbe
 function refDoc(value: OutputRef, walk: Walk): ProgramDocument {
   const [first = "", ...fields] = value.$ref.split(".");
   const name = first === "$last" ? LAST : nameKey(first);
-  return makeDoc("ref", ["names", name, ...fields], { source: value, pointer: walk.pointer, scoped: true, deferred: walk.deferred });
+  // A run reads the origin only in the input of a deferred call. A check reads its pointer.
+  const origin = walk.deferred || walk.settings.expand ? { source: value, pointer: walk.pointer, scoped: true, deferred: walk.deferred } : undefined;
+  return makeDoc("ref", ["names", name, ...fields], origin);
 }
 
 /** This function desugars a call of a hydration (`hydrateRef()` of the interpreter before October 2026). */
@@ -491,13 +532,14 @@ function desugarRef(value: AnyProcedureRef, walk: Walk, synthesized = false): Ou
     dataDepth: walk.dataDepth + 1,
     ancestors: { value, up: walk.ancestors },
     consumer: value,
-    pointer: childPointer(walk.pointer, "input"),
+    pointer: walk.settings.pointer(walk.pointer, "input"),
   });
   const origin: DocumentOrigin = {
     source: value,
     pointer: walk.pointer,
     scoped: walk.settings.scoped,
     consumer: walk.consumer,
+    call: ref,
     ...(synthesized ? { synthesized } : {}),
   };
 
@@ -510,7 +552,7 @@ function desugarRef(value: AnyProcedureRef, walk: Walk, synthesized = false): Ou
   }
   if (raw) {
     // The steps of an implicit chain are the array of the program itself
-    const at = synthesized ? (key: string) => (key === "steps" ? walk.pointer : childPointer(walk.pointer, key)) : undefined;
+    const at = synthesized ? (key: string) => (key === "steps" ? walk.pointer : walk.settings.pointer(walk.pointer, key)) : undefined;
     return { doc: makeDoc(callType(ref.path), rawValue(ref, walk.settings, origin.pointer, at), origin, headerName(ref.$name)) };
   }
   const input = desugarValue(ref.input, inputWalk(false));
@@ -526,7 +568,7 @@ function rawValue(
   ref: { readonly path: ProcedurePath; readonly input: unknown },
   settings: Settings,
   pointer: string,
-  inputPointer: (key: string) => string = (key) => childPointer(childPointer(pointer, "input"), key),
+  inputPointer: (key: string) => string = (key) => settings.pointer(settings.pointer(pointer, "input"), key),
 ): unknown {
   if (ref.input === undefined) return null;
   const input = ref.input;
@@ -590,9 +632,9 @@ function desugarOperand(value: unknown, settings: Settings, pointer: string): Ou
 /** This function makes the document of a call whose input is a new hydration: an operand call, or the root call of a program. */
 function operandCall(value: AnyProcedureRef, settings: Settings, pointer: string, name?: string): ProgramDocument {
   const ref = normalizeRef(value);
-  const origin: DocumentOrigin = { source: value, pointer, scoped: settings.scoped };
+  const origin: DocumentOrigin = { source: value, pointer, scoped: settings.scoped, call: ref };
   if (settings.rawInput(ref.path)) return makeDoc(callType(ref.path), rawValue(ref, settings, pointer), origin, name);
-  const inputPointer = childPointer(pointer, "input");
+  const inputPointer = settings.pointer(pointer, "input");
   return makeDoc(callType(ref.path), inputValue(ref.input, desugarValue(ref.input, rootWalk(settings, inputPointer))), origin, name);
 }
 
@@ -601,7 +643,7 @@ function itemsOperand(items: unknown, settings: Settings, pointer: string): unkn
   if (!Array.isArray(items)) return embedPart(desugarValue(items, rootWalk(settings, pointer)));
   return makeDoc(
     ["program", "data"],
-    items.map((item, index) => embed(desugarValue(item, rootWalk(settings, childPointer(pointer, index))))),
+    items.map((item, index) => embed(desugarValue(item, rootWalk(settings, settings.pointer(pointer, index))))),
   );
 }
 
@@ -612,7 +654,8 @@ function itemsOperand(items: unknown, settings: Settings, pointer: string): unkn
  * the operands that the procedure gives names: the steps of a chain, `catch` and `fn`.
  */
 export function desugarControlValue(name: string, input: unknown, options: DesugarOptions = {}): Record<string, unknown> | undefined {
-  return controlValue(name, input, settingsOf(options), (key) => childPointer("", key));
+  const settings = settingsOf(options);
+  return controlValue(name, input, settings, (key) => settings.pointer("", key));
 }
 
 /**
@@ -635,7 +678,8 @@ function controlValue(name: string, input: unknown, settings: Settings, at: (key
   const list = (key: string, scope: Settings): boolean => {
     const items = input[key];
     if (!Array.isArray(items)) return false;
-    operands.set(key, items.map((item, index) => embedPart(desugarOperand(item, scope, childPointer(at(key), index)))));
+    // Each item of a list is one part, so the names of a sequence count each step
+    operands.set(key, items.map((item, index) => asPart(desugarOperand(item, scope, scope.pointer(at(key), index)))));
     return true;
   };
   switch (name) {
@@ -862,7 +906,7 @@ export function programMachine(host: ProgramHost): Machine {
     const { doc, context, parts } = input;
     const origin = originOf(doc);
     const source = origin?.source ?? { $proc: input.typePath[0] === "procs" ? input.typePath.slice(1) : input.typePath, input: doc.value ?? undefined };
-    const ref = normalizeRef(source as AnyProcedureRef);
+    const ref = origin?.call ?? normalizeRef(source as AnyProcedureRef);
     const frame = origin?.synthesized ? undefined : frameOf(context.self);
     const position: CallPosition = frame?.position ?? "nested";
     const raw = host.rawInput(ref.path);
@@ -893,11 +937,12 @@ export function programMachine(host: ProgramHost): Machine {
   }
 
   function* deferred(input: RunInput): Steps {
-    const source = originOf(input.doc)?.source as AnyProcedureRef;
+    const origin = originOf(input.doc);
+    const source = origin?.source as AnyProcedureRef;
     const done = yield* evaluateParts(input.parts, partContext(input.context), input.all, parallel);
     if ("failure" in done) return done.failure;
     const hydrated = (input.fill(done.values) as { readonly input: unknown }).input;
-    return ok(hydrated === normalizeRef(source).input ? source : { ...source, input: hydrated });
+    return ok(hydrated === (origin?.call ?? normalizeRef(source)).input ? source : { ...source, input: hydrated });
   }
 
   function* chain(input: RunInput): Steps {
@@ -1131,6 +1176,19 @@ function notify(onRef: ((event: HydrationEvent) => void) | undefined, event: Hyd
   }
 }
 
+/** The machines of the runs, one for each raw-input rule and each value of `parallel`. */
+const MACHINES = [new WeakMap<object, Machine>(), new WeakMap<object, Machine>()] as const;
+
+function machineFor(rawInput: (path: ProcedurePath) => boolean, parallel: boolean): Machine {
+  const cache = MACHINES[parallel ? 1 : 0];
+  let machine = cache.get(rawInput);
+  if (!machine) {
+    machine = programMachine({ rawInput, parallel });
+    cache.set(rawInput, machine);
+  }
+  return machine;
+}
+
 /** The options of a run of a document. */
 export interface RunDocumentOptions {
   /** The function that does a call. */
@@ -1153,8 +1211,7 @@ export interface RunDocumentOptions {
  * error value), so a caller gets the same error as from the call itself.
  */
 export async function runDocument(doc: ProgramDocument, options: RunDocumentOptions & { readonly self?: unknown }): Promise<unknown> {
-  const rawInput = options.rawInput ?? isControlFlowPath;
-  const machine = programMachine({ rawInput, parallel: options.parallel });
+  const machine = machineFor(options.rawInput ?? isControlFlowPath, options.parallel === true);
   const perform = (effect: Effect): unknown => {
     const payload = effect.payload as CallEffect;
     const path = effect.path as ProcedurePath;

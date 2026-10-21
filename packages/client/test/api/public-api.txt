@@ -4891,6 +4891,11 @@ export interface DocumentOrigin {
     readonly consumer?: AnyProcedureRef | undefined;
     readonly deferred?: boolean | undefined;
     readonly synthesized?: boolean | undefined;
+    readonly call?: {
+        readonly path: ProcedurePath;
+        readonly input: unknown;
+        readonly $name?: string | undefined;
+    } | undefined;
 }
 
 ### dist/procedures/program.d.ts#PROGRAM_WORLD

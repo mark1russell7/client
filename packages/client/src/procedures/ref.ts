@@ -834,11 +834,20 @@ export function takesRawInput(procedure: ProcedureShape): boolean {
 export function rawInputRule(
   registry: { get(path: ProcedurePath): ProcedureShape | undefined } | undefined
 ): (path: ProcedurePath) => boolean {
-  return (path) => {
-    const procedure = registry?.get(path);
-    return procedure ? takesRawInput(procedure) : isControlFlowPath(path);
-  };
+  if (!registry) return isControlFlowPath;
+  // One rule for each registry: the rule reads the registry at each call, so it stays current
+  let rule = RAW_INPUT_RULES.get(registry);
+  if (!rule) {
+    rule = (path) => {
+      const procedure = registry.get(path);
+      return procedure ? takesRawInput(procedure) : isControlFlowPath(path);
+    };
+    RAW_INPUT_RULES.set(registry, rule);
+  }
+  return rule;
 }
+
+const RAW_INPUT_RULES = new WeakMap<object, (path: ProcedurePath) => boolean>();
 
 // =============================================================================
 // Template Extraction

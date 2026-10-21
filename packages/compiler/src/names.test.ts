@@ -65,6 +65,13 @@ describe("the names pass", () => {
     expect(nameDiagnostics(body, { mode: "exec" })).toEqual([]);
   });
 
+  it("counts a step that is data: $last in the second step reads it", () => {
+    const program = call("client.reduce", { items: [1], initial: "text", fn: call("client.chain", { steps: [0, ref("$last"), ref("later")] }) });
+    expect(nameDiagnostics(program, { mode: "exec" }).map((diagnostic) => [diagnostic.code, diagnostic.pointer])).toEqual([
+      ["unknown-name", "/input/fn/input/steps/2"],
+    ]);
+  });
+
   it("gives the steps of an implicit chain their pointers in the array", () => {
     const program = call("t.echo", { list: [call("t.num", { value: 1 }), call("t.num", { value: ref("$last") }), call("t.num", { value: ref("later") })] });
     expect(nameDiagnostics(program, { mode: "exec" }).map((diagnostic) => [diagnostic.code, diagnostic.pointer])).toEqual([
