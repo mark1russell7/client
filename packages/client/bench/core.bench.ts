@@ -12,7 +12,8 @@ import { Client } from "../src/client/client.js";
 import { LocalTransport } from "../src/adapters/local/client/transport.js";
 import { allCoreProcedures } from "../src/procedures/core/index.js";
 import { ProcedureRegistry } from "../src/procedures/registry.js";
-import { createRefScope, hydrateInput } from "../src/procedures/ref.js";
+import { createRefScope } from "../src/procedures/ref.js";
+import { hydrateInput } from "../src/procedures/program.js";
 import { narrowCapability } from "../src/procedures/capability.js";
 
 const registry = new ProcedureRegistry();

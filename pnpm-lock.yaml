@@ -437,6 +437,9 @@ importers:
       '@mark1russell7/algebra':
         specifier: ^0.7.1
         version: 0.7.2(zod@4.6.5)
+      '@mark1russell7/coeval':
+        specifier: ^0.3.1
+        version: 0.3.1
       '@mark1russell7/quantity':
         specifier: ^0.2.0
         version: 0.2.0(zod@4.6.5)
@@ -1139,6 +1142,9 @@ importers:
 
   packages/compiler:
     dependencies:
+      '@mark1russell7/coeval':
+        specifier: ^0.3.1
+        version: 0.3.1
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -3196,6 +3202,9 @@ packages:
     engines: {node: '>=22.19'}
     peerDependencies:
       zod: ^4.1.0
+
+  '@mark1russell7/coeval@0.3.1':
+    resolution: {integrity: sha512-LKX75YtIISv01Xr3NNDl1L/r1BMR8SOBudeNcztzUOjW1aDgUvZopfuPFXUl1o0q7EreCzFTnRxqc6evNLAQww==}
 
   '@mark1russell7/cue@1.0.0':
     resolution: {integrity: sha512-X5rWpFWeoTxXW0jcUmDUcJUnMS7lPtwF4Xhb7QSD+85LifEPH81h1lzhUri+VngQCm7f9lJwj5Z15lJ4wVcODA==}
@@ -6320,6 +6329,8 @@ snapshots:
     dependencies:
       '@mark1russell7/quantity': 0.2.0(zod@4.6.5)
       zod: 4.6.5
+
+  '@mark1russell7/coeval@0.3.1': {}
 
   '@mark1russell7/cue@1.0.0': {}
 

@@ -2,7 +2,9 @@
 
 This document specifies the procedure-as-data format. It is the JSON that `client.exec()`, the control-flow procedures, `procedure.define` and the Composer of the site use. The document is normative for the core of commit `8a9e7c7` ("one interpreter") and later. Each rule names the code and the test that examine it.
 
-The interpreter is one function: `hydrateInput()` in [`packages/client/src/procedures/ref.ts`](../client/src/procedures/ref.ts). The control-flow procedures in [`core/index.ts`](../client/src/procedures/core/index.ts) use it for their operands. `procedure.define` ([`define-procedure.ts`](../client/src/procedures/define-procedure.ts)) uses it for the body of a defined procedure.
+**Revision 2 (October 2026, roadmap item M14).** A program is a run document of the kernel [coeval](https://github.com/mark1russell7/coeval) (decisions D9, D10, D12 and D13). The `$proc` form is a short form: [`program.ts`](../client/src/procedures/program.ts) changes it into a run document, and the kernel operates the document in one run. The rules of sections 1 to 11 did not change. Section 13 gives the run document and the run.
+
+`client.exec()`, `hydrateInput()`, the control-flow procedures in [`core/index.ts`](../client/src/procedures/core/index.ts) and the body of a procedure that `procedure.define` made ([`define-procedure.ts`](../client/src/procedures/define-procedure.ts)) use the same run.
 
 ## How to try the examples
 
@@ -270,9 +272,9 @@ The rules (tests: "procedure.define through a client" in `define-procedure.test.
 
 ## 11. The envelope form
 
-The envelope form is a second form of a program. It comes from the design repository [coeval](https://github.com/mark1russell7/coeval), decisions D6, D9 and D10. A document of coeval is an envelope: `{ "type": T, "value": V }`. The header of an envelope can also have the keys `name` and `own`.
+The envelope form is a second form of a program. It comes from the design repository [coeval](https://github.com/mark1russell7/coeval), decisions D6, D9, D10 and D12. A document of coeval is an envelope: `{ "type": T, "value": V }`. The header of an envelope can also have the keys `name` and `own`.
 
-`client.exec()` and `client.execStream()` accept the two forms. The functions of [`envelope.ts`](../client/src/procedures/envelope.ts) change one form into the other form:
+`client.exec()` and `client.execStream()` accept the two forms. The functions of [`envelope.ts`](../client/src/procedures/envelope.ts) change one form into the other form. They read the envelopes with the helpers of `@mark1russell7/coeval`:
 
 - `isEnvelopeProgram(value)` gives `true` if a value is a program in the envelope form.
 - `fromEnvelopeProgram(program)` changes a program in the envelope form into the `$proc` form.
@@ -307,15 +309,16 @@ The table gives each part of a program in the two forms:
 | the header `"name": "sum"` of a call | `"$name": "sum"` |
 | `{ "type": "ref", "value": ["names", "sum", "total"] }` | `{ "$ref": "sum.total" }` |
 | `{ "type": "ref", "value": ["names", "last"] }` | `{ "$ref": "$last" }` |
-| `{ "type": "literal", "value": x }` | `{ "$literal": x }` |
+| `{ "type": "lit", "value": x }` | `{ "$literal": x }` |
 | an object with a `$proc`, `$ref` or `$literal` key | `{ "$literal": object }` |
 | no envelope form | `$when` |
 
 The rules (test: `envelope.test.ts`):
 
-- **The root decides the form.** `client.exec()` changes an envelope at the root into the `$proc` form. Then it starts the program. In the input of a `$proc` program, an envelope is data. Thus a `$proc` program gives the same result as before.
+- **The root decides the form.** `client.exec()` changes an envelope at the root into the `$proc` form. Then the kernel operates the program (section 13). In the input of a `$proc` program, an envelope is data. Thus a `$proc` program gives the same result as before.
 - **A call.** A call is an object with the keys `type` and `value`. It can also have the header keys `name` and `own`, and no other keys. Its type is the path of a procedure: an array of one or more strings. A ref into the world is also a type. The value is the input.
-- **A call without input.** A call with the value `null` has no input. Its procedure gets `undefined`, as a `$proc` call without `input` gets (section 1). With `passThrough`, `client.chain` gives such a step the result of the step before. For the input `null`, write `{ "type": "literal", "value": null }`.
+- **The kinds of the kernel.** The type `"ref"` is a ref, and the type `"lit"` is a literal (coeval D12). An array with the one key `"ref"` or `"lit"` names the same kind. Before revision 2, the literal had the type `"literal"`. Another text type is data.
+- **A call without input.** A call with the value `null` has no input. Its procedure gets `undefined`, as a `$proc` call without `input` gets (section 1). With `passThrough`, `client.chain` gives such a step the result of the step before. For the input `null`, write `{ "type": "lit", "value": null }`.
 - **The header.** Only a call has a header. The header `name` gives the `$name` of the call. A client program has no own entries: a call with the key `own` is an error.
 - **A reference.** The value of a ref is a path: `["names", name, field, ...]`. Each key is a string without a dot, or an integer of 0 or more. The name `last` reads the result of the step before. The other names are the names of section 4, and they are in the root `names`. A ref with the root `self`, `world`, `event` or `caps` is an error.
 - **Data.** In an envelope program, the `$proc` form is data. Each object with a `$proc`, `$ref` or `$literal` key goes into a `$literal`. A runtime `ProcedureRef` is data too. An envelope of a different type is data, for example `{ "type": "point", "value": 3 }`. The calls and the refs in its value operate.
@@ -335,6 +338,43 @@ The owner decided the root of a defined body in October 2026 (docs review DOC-3)
 - **Parallel hydration.** A program cannot set `parallel: true`. Only `client.parallel` starts refs at the same time.
 - **The scope and a remote call.** A scope does not go over a transport. A control-flow procedure on a different host cannot read the names of the caller.
 - **`$name` as a context.** A `$name` does not make a context for `$when`. Only a runner gives a context name (`"dag.traverse"`).
+
+## 13. Programs on the kernel of coeval
+
+Since revision 2, the kernel of coeval operates each program. The kernel holds the machinery that each language of documents needs. This machinery is the order of the parts, the names of a scope and the references. It is also the parts at the same time, the error values and the static check. The client keeps only what is its own: the program format and the procedures. The test is `program.test.ts`.
+
+### The run document
+
+`desugarProgram()` changes a program into a run document. `desugarInput()` changes the value of a hydration. The rules of sections 3 to 7 decide the shape of the document:
+
+| `$proc` form | Run document |
+|---|---|
+| a call | `{ "type": path, "value": input }`. The world of a program is open: each path is a call. A path that starts with `lit`, `ref`, `program` or `procs` goes under `procs`. |
+| a call without input | the value `null` |
+| `$name` | the header `name`. A step with the name `last` gets the key `$last` |
+| `{ "$ref": "a.b" }` in a scope | `{ "type": "ref", "value": ["names", "a", "b"] }` |
+| `{ "$ref": "$last" }` | the name `last` |
+| `{ "$literal": x }` | `{ "type": "lit", "value": x }` |
+| an array of calls at a hydration root (section 7) | a call of `client.chain` |
+| a value with calls in it, at a hydration root | a document of the kind `program.data` |
+| an object with the shape of an envelope that holds a call | a document of the kind `program.record` |
+| a call that waits for its runner, with calls or refs in its input (section 5) | a document of the kind `program.deferred` |
+| a limit of section 3 or a cycle | a document of the kind `program.fail`. The error comes when the run reaches it, with the message of section 3. |
+| other data | data. Data with the shape of an envelope becomes a literal. |
+
+The kinds of the control-flow procedures tell the names that they bind. `client.chain` binds the `$name` of each step and `last` for the later steps. `client.map` binds `item` (or the name in `as`) and `index` for `fn`. `client.reduce` binds `acc`, `item` and `index` for `fn`. `client.tryCatch` binds `error` for `catch`.
+
+### The run
+
+- **One run.** `client.exec()` operates the program in one run of the kernel (`runProgram()`). The root call is the root document.
+- **A call is an effect.** The runner of a call computes its input, and then it gives the call to the host as an effect. The host starts the call with `client.call()`. Thus `invokeProcedure()` stays the authority for each call: its admission, its validation, its interceptors, its capability and the expose rule of a server. The capabilities of the kernel permit each call. A direct call over HTTP or MCP does not go through the kernel, and it gets the same admission.
+- **Raw input.** A procedure that takes its input raw (section 9) gets the input of the program, with the scope of the caller (`withScope()`).
+- **Control flow.** The handler of a control-flow procedure gives its input to the kernel as a document of its kind (`runControl()`). The runner of the kind starts the operands. `client.parallel` starts its tasks with the parts at the same time of the kernel, with `concurrency` and `failFast`.
+- **Errors.** A call that fails gives the error value `#CALC!` of the kernel, with the error of the call as its cause. The run throws the cause, so the caller gets the error of the call, with its message and its code. The messages of this document come from the runners.
+
+### The static check
+
+The static kit of coeval reads the same documents. `check()` finds a `$ref` whose name no kind around it binds, and a `$ref` that reads a later step. With `expand: true`, `desugarProgram()` also changes the operands of each control-flow call into documents, for a check. The compiler (`@procedures/compiler`) gives the issues as its diagnostics `unknown-name` and `use-before-definition`.
 
 ## Appendix A: differences from the behavior before October 2026
 
@@ -361,3 +401,5 @@ The deep dive of October 2026 replaced three `$ref` interpreters with one. These
 | A `$never` branch, try, task or `fn` started. A `fn` that was not one call was ignored. | A `$never` operand is data. A `fn` that is not one call is an error. | R4 (REV-4) |
 | `procedure.list` and `procedure.get` gave only the defined procedures, or the whole registry when `client-procedure` was loaded. | One implementation for the whole registry, with `runtime: true` for the defined procedures. | DOC-6 |
 | A defined body hydrated its root call as a nested call. A root `$when` applied, and an array of calls in the root input was a list of results. | A body operates as `client.exec()` operates the same program. | DOC-3 |
+| With `failFast`, the other tasks of `client.parallel` went on after the first error. The same was true for the refs of `HydrateOptions.parallel`. | The error comes at once, and the other tasks stop at their next wait. A call that started goes on in its procedure. | M14 |
+| The literal of the envelope form had the type `"literal"`. | It has the type `"lit"` (coeval D12). | M14 |

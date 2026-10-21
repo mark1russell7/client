@@ -88,12 +88,12 @@ import {
   isAnyProcedureRef,
   isPlainObject,
   normalizeRef,
-  prepareRootCall,
   rawInputRule,
   type ProcedureRef,
   type AnyProcedureRef,
   type HydrationEvent,
 } from "../procedures/ref.js";
+import { runProgram } from "../procedures/program.js";
 import { fromEnvelopeProgram, isEnvelopeProgram, type EnvelopeProgram } from "../procedures/envelope.js";
 
 /** Each element of each array item: the stream form of an `outputMode: "batch"` procedure. */
@@ -527,8 +527,10 @@ export class Client<TContext = {}> {
     options: ExecOptions = {}
   ): Promise<TOutput> {
     const caller: CallerContext = callerOf(options);
-    const { path, input: hydratedInput } = await this.prepareRef(refOrPath, input, caller);
-    return this.execInternal<TOutput>(path, hydratedInput, caller);
+    // The program is one run of the kernel: its root call is the root document (PROGRAM-FORMAT section 2)
+    return (await this.runRef(this.prepareRef(refOrPath, input), caller, (path, value) =>
+      this.execInternal(path, value, caller),
+    )) as TOutput;
   }
 
   /**
@@ -551,19 +553,42 @@ export class Client<TContext = {}> {
     const self = this;
     const caller: CallerContext = callerOf(options);
     return (async function* () {
-      const { path, input: hydratedInput } = await self.prepareRef(refOrPath, input, caller);
-      yield* self.execStreamInternal<TOutput>(path, hydratedInput, caller);
+      // The root call gives the items: the kernel gets the stream of the root call as its result
+      const items = await self.runRef(self.prepareRef(refOrPath, input), caller, (path, value) =>
+        self.execStreamInternal<TOutput>(path, value, caller),
+      );
+      yield* items as AsyncIterable<TOutput>;
     })();
   }
 
   /**
-   * The path and the input of a reference, with the refs of the input run (hydrated).
+   * This function runs a program on the kernel. The nested calls go through `execInternal`, and
+   * `root` starts the root call.
    */
-  private async prepareRef(
+  private runRef(ref: ProcedureRef, caller: CallerContext, root: (path: ProcedurePath, input: unknown) => unknown): Promise<unknown> {
+    // A procedure that takes its input raw (control flow, the `runs-refs` and `raw-input` tags,
+    // `procedure.define`) gets its operand refs RAW: it runs them itself, with correct
+    // ordering/laziness/error-scoping. Eagerly hydrating here would run the operands up-front
+    // and can hijack an all-refs array into an implicit chain that clobbers `steps`. See
+    // documentation/BUGS-2026-07.md (C2, H2, H3, M35). The procedure in the registry decides,
+    // also for the refs nested in the input (deep dive CORE-5: before, the last path segment did).
+    // The body of a defined procedure starts its root call the same way (runProgram, DOC-3)
+    return runProgram(ref, {
+      executor: <TIn, TOut>(path: ProcedurePath, inp: TIn): Promise<TOut> => this.execInternal<TOut>(path, inp, caller),
+      rootExecutor: root,
+      rawInput: rawInputRule(this.procedureRegistry),
+      onRef: caller.onRef,
+    });
+  }
+
+  /**
+   * The root call of a program, as a ref: an envelope program changes into the `$proc` form, a
+   * path gets its input, and the fields of `input` go over the fields of the input of a ref.
+   */
+  private prepareRef(
     refOrPathOrEnvelope: AnyProcedureRef | ProcedurePath | EnvelopeProgram,
     input: unknown,
-    caller: CallerContext = {}
-  ): Promise<{ path: ProcedurePath; input: unknown }> {
+  ): ProcedureRef {
     // A program in the envelope form (coeval M7) changes into the $proc form first. The root
     // decides the form: an envelope in the input of a $proc program stays data.
     const refOrPath = isEnvelopeProgram(refOrPathOrEnvelope)
@@ -592,20 +617,7 @@ export class Client<TContext = {}> {
     } else {
       throw new Error("exec() requires a ProcedureRef, $proc JSON, or procedure path array");
     }
-
-    // Create executor function for hydration
-    const executor = async <TIn, TOut>(path: ProcedurePath, inp: TIn): Promise<TOut> => {
-      return this.execInternal<TOut>(path, inp, caller);
-    };
-
-    // A procedure that takes its input raw (control flow, the `runs-refs` and `raw-input` tags,
-    // `procedure.define`) gets its operand refs RAW: it runs them itself, with correct
-    // ordering/laziness/error-scoping. Eagerly hydrating here would run the operands up-front
-    // and can hijack an all-refs array into an implicit chain that clobbers `steps`. See
-    // documentation/BUGS-2026-07.md (C2, H2, H3, M35). The procedure in the registry decides,
-    // also for the refs nested in the input (deep dive CORE-5: before, the last path segment did).
-    // The body of a defined procedure starts its root call the same way (prepareRootCall, DOC-3)
-    return prepareRootCall(ref, executor, { rawInput: rawInputRule(this.procedureRegistry), onRef: caller.onRef });
+    return ref;
   }
 
   /**

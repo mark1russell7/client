@@ -41,13 +41,12 @@ import { anySchema, zodAdapter } from "./core/schemas.js";
 import { keyToPath, pathToKey } from "./types.js";
 import {
   createRefScope,
-  hydrateInput,
   isAnyProcedureRef,
   markDataDriven,
-  prepareRootCall,
   rawInputRule,
   RUNS_REFS_TAG,
 } from "./ref.js";
+import { hydrateInput, runProgram } from "./program.js";
 import { INFERRED_EFFECTS_METADATA_KEY, PURE_EFFECTS, REGISTRY_READ_EFFECTS, effectsValue, withEffects } from "./effects.js";
 import { MANIFEST_FORMAT, describeProcedure as describeEntry, describeRegistry, type ProcedureManifest } from "./manifest.js";
 import type { JsonSchema } from "./schema.js";
@@ -192,9 +191,9 @@ const DeleteOutputSchema = z.looseObject({
 /**
  * Create a handler that executes an aggregation definition.
  *
- * The body runs exactly as `exec()` runs the same program: `prepareRootCall()` gives the path
- * and the input of the root call (a `$when` on the root call does not apply, a list of calls in
- * the root input is an implicit chain), then the body starts the root call. The scope of the
+ * The body runs exactly as `exec()` runs the same program: one run of the kernel (`runProgram()`),
+ * whose root document is the root call (a `$when` on the root call does not apply, a list of calls
+ * in the root input is an implicit chain). The scope of the
  * body has one name, `input`: the input of the procedure. So `{ $ref: "input.dir" }` reads a
  * field of the input, and `$last`, the step names, `item`, `acc` and `index` keep their meaning
  * inside the body. (Deep dive CORE-4: before, a first pass replaced every `$ref` with a field of
@@ -213,8 +212,7 @@ function createAggregationHandler(
     const executor = <TIn, TOut>(path: ProcedurePath, value: TIn): Promise<TOut> => ctx.client.call<TIn, TOut>(path, value);
     const options = { scope, rawInput: rawInputRule(ctx.registry ?? PROCEDURE_REGISTRY), onRef: ctx.onRef };
     if (isAnyProcedureRef(aggregation)) {
-      const root = await prepareRootCall(aggregation, executor, options);
-      return ctx.client.call(root.path, root.input);
+      return runProgram(aggregation, { ...options, executor });
     }
     // A body that is not one call (an older stored program): hydrate it as a root value
     return hydrateInput(aggregation, executor, options);

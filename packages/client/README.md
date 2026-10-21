@@ -510,6 +510,16 @@ const result = await client.exec(procedureRef)
 const hydrated = await hydrateInput(input, executor)
 ```
 
+A program runs on the kernel [coeval](https://github.com/mark1russell7/coeval) (`@mark1russell7/coeval`). `desugarProgram()` changes the `$proc` form into a run document, and one run of the kernel runs it. Each call of the program is an effect that the client does with `client.call()`, so each call keeps its admission, its validation and its interceptors. The static kit of coeval (`check()`) reads the same document. The section "Programs on the kernel of coeval" of [PROGRAM-FORMAT.md](../documentation/PROGRAM-FORMAT.md) gives the run document.
+
+```typescript
+import { check } from "@mark1russell7/coeval";
+import { desugarProgram, programMachine, rawInputRule } from "@procedures/client";
+
+const doc = desugarProgram(program, { expand: true });
+const issues = check(programMachine({ rawInput: rawInputRule(registry) }), doc); // for example, a name that nothing binds
+```
+
 ### Components, Collections and the Program Store
 
 They are not in the core. See the README of `@procedures/splay` (components), `@procedures/collections` (data structures) and `@procedures/store` (the program store and the storage layer).

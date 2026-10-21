@@ -262,6 +262,8 @@ export interface ProgramIR {
   readonly bindingCount: number;
   /** The program, as the source of the IR. */
   readonly program: unknown;
+  /** The pointer of the program in a bigger document (the body of a definition). The default is the root. */
+  readonly base?: Pointer | undefined;
 }
 
 /** True for the nodes that call a procedure (a control-flow node is a call in the interpreter). */
