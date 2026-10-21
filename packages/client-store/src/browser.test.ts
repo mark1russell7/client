@@ -37,6 +37,7 @@ const EXPORTS = [
   "QueueStoreError",
   "SyncStateError",
   "TabCoordinator",
+  "TabGroup",
   "hasIndexedDb",
 ];
 
