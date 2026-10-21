@@ -133,6 +133,10 @@ const MAX_STREAM_BLOCKS = 100;
  * NDJSON and the error frame of WebSocket give them (CLI-48). A code that is not a string gives `HANDLER_ERROR`.
  * An error without a flag gets false, not the flag of its code: the end is in-band, and a retry can
  * send the items again (CLI-58, `WIRE-PROTOCOL.md`, section "Error codes").
+ *
+ * @deprecated The flag false for an error without a flag before the first item of the stream is
+ * deprecated (D13). From the next MINOR of the client group (CLI-68), that error gets the flag of
+ * its code in `ERROR_CODES`. After the first item, the flag stays false.
  */
 function streamErrorMeta(error: unknown): { code: string; retryable: boolean } {
   const { code, retryable } = (error ?? {}) as { code?: unknown; retryable?: unknown };

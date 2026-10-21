@@ -104,6 +104,10 @@ export class StreamCredit {
  * The error of a failed stream or handler: its code (a string) and its retryable flag. An error
  * without a flag gets false, not the flag of its code: the end of a stream is in-band, and a retry
  * can send the items again (CLI-58, `WIRE-PROTOCOL.md`, section "Error codes").
+ *
+ * @deprecated The flag false for an error without a flag before the first item of the stream is
+ * deprecated (D13). From the next MINOR of the client group (CLI-68), that error gets the flag of
+ * its code in `ERROR_CODES`. After the first item, the flag stays false.
  */
 export function errorStatus(error: unknown): { type: "error"; code: string; message: string; retryable: boolean } {
   const code = (error as { code?: unknown } | undefined)?.code;
