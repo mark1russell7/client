@@ -45,7 +45,7 @@ graph TB
 
     subgraph "Execution Layer"
         REGISTRY[Procedure Registry]
-        TRANSPORT[Local Transport]
+        TRANSPORT["Local face of the host"]
         CLIENT[Client]
     end
 
@@ -145,12 +145,31 @@ The bin is `dist/bin.js`. `node dist/cli.js` also runs the CLI. Importing `@proc
 
 | Command | Host | Notes |
 |---|---|---|
-| `mark <command>` | This process | The registry has the module of each workspace package with `client.procedures`. |
+| `mark <command>` | This process (the cold mode), or the CLI server (the warm mode) | The registry has the module of each workspace package with `client.procedures`. In the two modes, the command starts under `run()` of `@mark1russell7/service`. |
 | `mark --server` | The CLI server | The same registry, on `127.0.0.1`, with a token in the lockfile. A later `mark` command in the same folder uses it. |
 | `mark serve` | The procedure server | The options of the `procedure-server` command. A package of `--procedures` resolves from the current folder, then from the folder of `mark`. A token is necessary by default. |
 | `mark mcp` | The dev-tools MCP server, over stdio | The server of Claude Code's MCP configuration. stdout holds only protocol lines, and `mark mcp --help` writes to stderr. |
 
 `mark mcp <procedure>` runs an `mcp.*` procedure (for example `mark mcp listTools`), not the server. Each host gets its policy from `hostPolicy()` of `@procedures/client`.
+
+#### The cold mode and the warm mode
+
+Each command that runs a procedure is a service of one request (CLI-26, decision D17). The runner of `@mark1russell7/service` owns the signals, the stop in stages and the exit. `mark` installs no signal handler of its own.
+
+- **The warm mode.** A CLI server (`mark --server`) of this build operates in this folder, with the same `--fs-root`. The command goes to the server over HTTP.
+- **The cold mode.** No such server operates, or the command has `--local`. The procedures host of the CLI server then operates in this process, with the same registry and policy. It has no port, no token and no lockfile.
+- **The profile.** The service has the profile `ephemeral`: no checks, no probes, and a flush of the output before the exit.
+- **Ctrl-C.** A first Ctrl-C starts the stop. The drain aborts the call at once: a shell command stops its process tree, and a stream ends. In the warm mode, the server aborts the call too. Before, the server continued it.
+- **A second Ctrl-C.** A second signal during the stop ends the process at once, with the exit code 1.
+- **The exit.** After the command, the runner ends the process with the exit code of the command. A timer or a socket that a procedure left open does not keep the process alive.
+- **The REPL.** `mark -i` starts each line in the cold mode, without the signals: the REPL keeps its process.
+
+```mermaid
+graph LR
+    CMD[mark command] --> SVC["service of the command<br/>run(), profile ephemeral"]
+    SVC -->|warm| HTTP[HttpTransport + signal] --> SERVER["CLI server<br/>runProcedureHost, daemon"]
+    SVC -->|cold| FACE["localFace()"] --> HOST["the same host<br/>in this process"]
+```
 
 #### Remote events of the hosts
 
@@ -234,15 +253,24 @@ A procedure reports a failure in one of three ways:
 
 For a streaming procedure, `mark` examines each item. One failed item makes the command fail.
 
-#### Deprecated: a signal during a command
+The exit codes of a command, since the MINOR of CLI-26. A signal stops a command through the runner:
 
-The MINOR of CLI-26 starts each command under `run()` of `@mark1russell7/service` (decision D17). The runner then owns the signals and the exit. These behaviors are deprecated, and that MINOR changes them:
+| Event | Cold mode | Warm mode |
+|---|---|---|
+| The command ends without a failure | 0 | 0 |
+| The command fails | 1 | 1 |
+| The first `SIGINT` (Ctrl-C) | 130 | 130 |
+| `SIGTERM` | 143 | 143 |
+| `SIGQUIT` | 131 | 131 |
+| A second signal during the stop | 1 | 1 |
 
-- **The first Ctrl-C in the cold mode.** A command in this process gives the exit code 1. After the change, it gives 130.
-- **A second signal.** A second Ctrl-C in the cold mode ends the process at once with the exit code 130. After the change, the exit code is 1.
-- **`mark server create` in the cold mode.** The peer of the command keeps the process alive after the command. After the change, the peer stops at the end of the command. For a server in the foreground, use `mark --server` or `procedure-server`.
+The cold mode is a command in this process: no CLI server operates in this folder, or the command has `--local`. The MINOR of CLI-26 changed three behaviors. The release before it marked them as deprecated:
 
-The cold mode is a command in this process: no CLI server operates in this folder, or the command has `--local`. A command on the CLI server (the warm mode) keeps the exit codes 0 and 1.
+- **The first Ctrl-C in the cold mode.** Before, the aborted command gave the exit code 1. The runner gives 130.
+- **A second signal.** Before, a second Ctrl-C in the cold mode gave the exit code 130. The runner gives 1.
+- **`mark server create` in the cold mode.** Before, the peer of the command kept the process alive after the command. The peer stops at the end of the command. For a server in the foreground, use `mark --server` or `procedure-server`.
+
+Before CLI-26, a signal in the warm mode ended the process, and the server continued the call. The shell showed 130 or 143. The runner gives the same codes, after the server aborts the call.
 
 #### Examples
 
@@ -271,7 +299,7 @@ mark --verbose lib new my-pkg
 
 ### Programmatic API
 
-#### `run(argv: string[]): Promise<void>`
+#### `run(argv: string[], options?): Promise<void>`
 
 Main CLI entry point.
 
@@ -281,6 +309,10 @@ import { run } from "@procedures/mark";
 // Execute CLI programmatically
 await run(["lib", "new", "my-package"]);
 ```
+
+- By default, the program keeps its process. A command installs no signal handler, does not end the process, and sets `process.exitCode`.
+- `ownsProcess: true` gives the process to the runner of each command, as the bin does. The runner then owns the signals, and it ends the process with the exit code of the command.
+- `run` gives the options of `run()` of `@mark1russell7/service`: the process port and the clock. A test gives `fakeProcess()` of `@mark1russell7/service/testing`.
 
 #### `parseFromSchema(params, meta, schema?): Record<string, unknown>`
 
@@ -641,19 +673,24 @@ packages/client-lib/
 
 ### Transport Layer
 
+In the cold mode, the client sends each call to the procedures host of this process through `localFace()` of `@procedures/peer` (CLI-26). In the warm mode, the client sends each call to the CLI server through `HttpTransport`.
+
 ```mermaid
 graph LR
     CLI[CLI]
     CLIENT[Client]
-    TRANSPORT[LocalTransport]
+    TRANSPORT["localFace() transport"]
+    HOST["ProcedureServer of the host<br/>(request tracking of the service)"]
     REGISTRY[ProcedureRegistry]
     HANDLER[Procedure Handler]
 
     CLI --> CLIENT
     CLIENT --> TRANSPORT
-    TRANSPORT --> REGISTRY
+    TRANSPORT --> HOST
+    HOST --> REGISTRY
     REGISTRY --> HANDLER
-    HANDLER --> TRANSPORT
+    HANDLER --> HOST
+    HOST --> TRANSPORT
     TRANSPORT --> CLIENT
     CLIENT --> CLI
 
