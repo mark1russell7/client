@@ -46,6 +46,8 @@ The interpreter of `@procedures/client` finds a problem only when it arrives at 
 
 Each diagnostic has a JSON pointer (RFC 6901) to its part of the program.
 
+The static kit of the kernel [coeval](https://github.com/mark1russell7/coeval) finds the problems of the names (`unknown-name`, `use-before-definition`). The client changes the program into a run document (`desugarProgram()`), and `check()` of `@mark1russell7/coeval` examines it. The kinds of the control-flow procedures tell the names that they bind. Thus the check and the run of a program read the names with the same rules. `nameDiagnostics()` gives these diagnostics alone.
+
 ## Effects
 
 The check gives the effects of the whole program, from the bottom up:

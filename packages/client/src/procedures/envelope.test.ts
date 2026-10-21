@@ -14,7 +14,8 @@ import { outputSchema } from "./core/schemas.js";
 import { ProcedureRegistry } from "./registry.js";
 import { allCoreProcedures } from "./core/index.js";
 import { metaProcedures } from "./define-procedure.js";
-import { MAX_DATA_DEPTH, hydrateInput, isProcedureRef, proc, type ProcedureRefJson, type RefExecutor } from "./ref.js";
+import { MAX_DATA_DEPTH, isProcedureRef, proc, type ProcedureRefJson, type RefExecutor } from "./ref.js";
+import { hydrateInput } from "./program.js";
 import { fromEnvelopeProgram, isEnvelopeProgram, toEnvelopeProgram, type EnvelopeProgram } from "./envelope.js";
 
 const RUNS = Number(process.env["FC_RUNS"] ?? 200);
@@ -44,7 +45,7 @@ const call = (path: string[], value: unknown, name?: string): EnvelopeProgram =>
 });
 const ref = (...path: unknown[]) => ({ type: "ref", value: path });
 const names = (...keys: unknown[]) => ref("names", ...keys);
-const literal = (value: unknown) => ({ type: "literal", value });
+const literal = (value: unknown) => ({ type: "lit", value });
 const $call = (path: string[], input: unknown, name?: string): ProcedureRefJson => ({
   $proc: path,
   input,
@@ -353,7 +354,7 @@ describe("isEnvelopeProgram", () => {
       { type: ["client", 1], value: 1 },
       { type: "client.add", value: 1 },
       { type: "ref", value: ["names", "x"] },
-      { type: "literal", value: 1 },
+      { type: "lit", value: 1 },
       { type: ref("world"), value: 1 },
       { type: ref("names", "op"), value: 1 },
       { type: { ...ref("world", "client", "add"), name: "x" }, value: 1 },
@@ -481,7 +482,7 @@ describe("the round trip", () => {
     // Data that uses the keys and the texts of the two forms often
     const key = fc.constantFrom("type", "value", "name", "own", "$proc", "$ref", "$literal", "input", "$name", "a");
     const leaf = fc.oneof(
-      fc.constantFrom("ref", "literal", "names", "world", "last", "$last", "x.y", "client", "add"),
+      fc.constantFrom("ref", "lit", "names", "world", "last", "$last", "x.y", "client", "add"),
       fc.integer({ min: -1, max: 3 }),
       fc.constant(null),
       fc.boolean(),

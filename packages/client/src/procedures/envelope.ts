@@ -1,5 +1,5 @@
 /**
- * The envelope form of a program (coeval, decisions D6, D9 and D10, roadmap item M7).
+ * The envelope form of a program (coeval, decisions D6, D9, D10 and D12, roadmap item M7).
  *
  * A document of coeval is an envelope: `{ type, value }`. The header can also have `name` and
  * `own`. In the envelope form of a program:
@@ -8,13 +8,16 @@
  *   keys. A ref into the world, `{ type: "ref", value: ["world", ...path] }`, is also a type.
  * - A ref is `{ type: "ref", value: ["names", name, ...fields] }`. The name `last` reads the result
  *   of the step before.
- * - A literal is `{ type: "literal", value }`. Nothing in its value runs.
+ * - A literal is `{ type: "lit", value }` (coeval D12). Nothing in its value runs.
  *
- * The envelope form is a surface. `fromEnvelopeProgram()` changes it into the `$proc` form, and
- * `hydrateInput()` starts that form. In the input of a `$proc` program, an envelope is data. Thus
- * the root of a program decides its form, and the old programs do not change.
+ * The functions of this module read the envelopes with the helpers of `@mark1russell7/coeval`
+ * (`isTypeRef`, `typePath`, `ref`). `fromEnvelopeProgram()` changes the envelope form into the
+ * `$proc` form, and `client.exec()` then runs the program on the kernel (`program.ts`). In the
+ * input of a `$proc` program, an envelope is data. Thus the root of a program decides its form,
+ * and the old programs do not change.
  */
 
+import { ENVELOPE_KEYS, isTypeRef, ref as refDocument, typePath } from "@mark1russell7/coeval";
 import {
   LITERAL_KEY,
   MAX_DATA_DEPTH,
@@ -50,9 +53,9 @@ export interface EnvelopeRef {
   readonly value: EnvelopePath;
 }
 
-/** This document gives its value as data. Nothing in the value runs. */
+/** This document gives its value as data. Nothing in the value runs (coeval D12: the kind `lit`). */
 export interface EnvelopeLiteral {
-  readonly type: "literal";
+  readonly type: "lit";
   readonly value: unknown;
 }
 
@@ -76,7 +79,7 @@ export interface EnvelopeProgram {
 // =============================================================================
 
 /** The keys of an envelope (coeval D6). */
-const HEADER_KEYS: ReadonlySet<string> = new Set(["type", "value", "name", "own"]);
+const HEADER_KEYS: ReadonlySet<string> = new Set<string>(ENVELOPE_KEYS);
 
 /** The keys that make an object a construct of the `$proc` form. */
 const NATIVE_KEYS: readonly string[] = [PROCEDURE_JSON_KEY, OUTPUT_REF_KEY, LITERAL_KEY];
@@ -88,7 +91,7 @@ const CALL_KEYS: ReadonlySet<string> = new Set([PROCEDURE_JSON_KEY, "input", PRO
 const RUNTIME_CALL_KEYS: ReadonlySet<string> = new Set(["path", "input", PROCEDURE_NAME_KEY, PROCEDURE_WHEN_KEY]);
 
 const REF_TYPE = "ref";
-const LITERAL_TYPE = "literal";
+const LITERAL_TYPE = "lit";
 const NAMES_ROOT = "names";
 const WORLD_ROOT = "world";
 /** The name of the result of the step before, in the envelope form. */
@@ -102,7 +105,10 @@ type EnvelopeShape = Record<string, unknown> & { type: unknown; value: unknown; 
 /** The kind of an envelope. `bad-type` is an envelope whose type is a ref that is not into the world. */
 type EnvelopeKind = "call" | "ref" | "literal" | "bad-type";
 
-/** This function gives true if a value is a plain object with `type`, `value` and only header keys. */
+/**
+ * This function gives true if a value is a plain object with `type`, `value` and only header keys.
+ * The test is looser than `isEnvelope()` of coeval: a bad header gives an error, not data.
+ */
 function isEnvelopeShape(value: unknown): value is EnvelopeShape {
   return (
     isPlainObject(value) &&
@@ -117,22 +123,31 @@ function isProcedurePath(value: unknown): value is readonly string[] {
   return Array.isArray(value) && value.length > 0 && value.every((key) => typeof key === "string");
 }
 
-/** This function gives the procedure path of the type of a call, or undefined for another type. */
+/** The keys of the type of an envelope (coeval `typePath()`), or undefined for a value that is not a type. */
+function keysOfType(type: unknown): readonly (string | number)[] | undefined {
+  // A ref into the world as a type has only the keys `type` and `value`
+  if (isPlainObject(type) && Object.keys(type).length !== 2) return undefined;
+  return isTypeRef(type) ? typePath(type) : undefined;
+}
+
+/**
+ * This function gives the procedure path of the type of a call, or undefined for another type. The
+ * type of a call is a list of keys, or a ref into the world. A text is a kind of the kernel or data.
+ */
 function callPath(type: unknown): ProcedurePath | undefined {
-  if (isProcedurePath(type)) return [...type];
-  if (!isEnvelopeShape(type) || type.type !== REF_TYPE || Object.keys(type).length !== 2) return undefined;
-  const path = type.value;
-  if (!Array.isArray(path) || path[0] !== WORLD_ROOT) return undefined;
-  const steps: unknown[] = path.slice(1);
-  return isProcedurePath(steps) ? [...steps] : undefined;
+  if (typeof type === "string") return undefined;
+  const keys = keysOfType(type);
+  if (!isProcedurePath(keys) || (keys.length === 1 && (keys[0] === REF_TYPE || keys[0] === LITERAL_TYPE))) return undefined;
+  return [...keys];
 }
 
 /** This function gives the kind of an envelope, or undefined for data. */
 function envelopeKind(value: unknown): EnvelopeKind | undefined {
   if (!isEnvelopeShape(value)) return undefined;
   if (callPath(value.type)) return "call";
-  if (value.type === REF_TYPE) return "ref";
-  if (value.type === LITERAL_TYPE) return "literal";
+  const keys = keysOfType(value.type);
+  if (keys?.length === 1 && keys[0] === REF_TYPE) return "ref";
+  if (keys?.length === 1 && keys[0] === LITERAL_TYPE) return "literal";
   if (isPlainObject(value.type) && value.type["type"] === REF_TYPE) return "bad-type";
   return undefined;
 }
@@ -414,7 +429,7 @@ function toRef(ref: OutputRef): EnvelopeRef {
         `["names", "last"] reads the result of the step before: give the step a different name`
     );
   }
-  return { type: REF_TYPE, value: [NAMES_ROOT, name === NATIVE_LAST ? LAST_NAME : name!, ...fields] };
+  return refDocument(NAMES_ROOT, name === NATIVE_LAST ? LAST_NAME : name!, ...fields) as unknown as EnvelopeRef;
 }
 
 /** This function gives true if a value of the `$proc` form is a call, a `$ref` or a `$literal`. */

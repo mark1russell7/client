@@ -130,7 +130,7 @@ class Normalizer {
     if (mode === "body") {
       const input = this.binding("input", "input", base);
       const root = isAnyProcedureRef(program) ? this.rootCall(program, true, base) : this.hydrateRoot(program, true, base);
-      return { mode, root, input, bindingCount: this.bindingCount, program };
+      return { mode, root, input, bindingCount: this.bindingCount, program, base };
     }
     let root: IRNode;
     if (isAnyProcedureRef(program)) {
@@ -142,7 +142,7 @@ class Normalizer {
       this.report("error", "root-not-call", "The program must be a call ({ $proc, input }): client.exec() starts only a call.", base);
       root = { kind: "fail", pointer: base, message: ROOT_NOT_CALL_MESSAGE };
     }
-    return { mode, root, input: undefined, bindingCount: this.bindingCount, program };
+    return { mode, root, input: undefined, bindingCount: this.bindingCount, program, base };
   }
 
   // ===========================================================================

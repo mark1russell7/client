@@ -17,7 +17,6 @@ import {
   shouldExecuteRef,
   normalizeRef,
   proc,
-  hydrateInput,
   createRefScope,
   getPath,
   resolveOutputRef,
@@ -26,6 +25,7 @@ import {
   type ProcedureRef,
   type ProcedureRefJson,
 } from "./ref.js";
+import { hydrateInput } from "./program.js";
 
 describe("ref.ts", () => {
   describe("type guards", () => {

@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 576 names
+## . (dist/index.d.ts): 597 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -19,12 +19,14 @@ type BatchStrategy: dist/client/call-types.d.ts#BatchStrategy
 type BrowserGuardOptions: dist/server/browser-guard.d.ts#BrowserGuardOptions
 CIRCUIT_BREAKER_MACHINE: dist/machines.d.ts#CIRCUIT_BREAKER_MACHINE
 type CacheOverride: dist/client/call-types.d.ts#CacheOverride
+type CallEffect: dist/procedures/program.d.ts#CallEffect
 type CallHistoryEntry: dist/adapters/mock/client/types.d.ts#CallHistoryEntry
 type CallLimit: dist/server/limits.d.ts#CallLimit
 type CallLimitCovers: dist/server/limits.d.ts#CallLimitCovers
 type CallLimitKey: dist/server/limits.d.ts#CallLimitKey
 type CallLimitKeyPart: dist/server/limits.d.ts#CallLimitKeyPart
 type CallPolicy: dist/procedures/policy.d.ts#CallPolicy
+type CallPosition: dist/procedures/program.d.ts#CallPosition
 type CallRefusal: dist/procedures/policy.d.ts#CallRefusal
 type CallRequest: dist/client/call-types.d.ts#CallRequest
 type CallResponse: dist/client/call-types.d.ts#CallResponse
@@ -69,6 +71,8 @@ type DefineProcedureInput: dist/procedures/define-procedure.d.ts#DefineProcedure
 type DefineProcedureOutput: dist/procedures/define-procedure.d.ts#DefineProcedureOutput
 type DescribeOptions: dist/procedures/manifest.d.ts#DescribeOptions
 type DescribeRegistryOptions: dist/procedures/manifest.d.ts#DescribeRegistryOptions
+type DesugarOptions: dist/procedures/program.d.ts#DesugarOptions
+type DocumentOrigin: dist/procedures/program.d.ts#DocumentOrigin
 type Duration: dist/duration.d.ts#Duration
 ERROR_CODES: dist/protocol.d.ts#ERROR_CODES
 ERROR_REGISTRY: dist/client/errors/registry.d.ts#ERROR_REGISTRY
@@ -186,6 +190,7 @@ PROCEDURE_NAME_KEY: dist/procedures/ref.d.ts#PROCEDURE_NAME_KEY
 PROCEDURE_REGISTRY: dist/procedures/registry.d.ts#PROCEDURE_REGISTRY
 PROCEDURE_SYMBOL: dist/procedures/ref.d.ts#PROCEDURE_SYMBOL
 PROCEDURE_WHEN_KEY: dist/procedures/ref.d.ts#PROCEDURE_WHEN_KEY
+PROGRAM_WORLD: dist/procedures/program.d.ts#PROGRAM_WORLD
 PROTOCOL_HEADER: dist/protocol.d.ts#PROTOCOL_HEADER
 PROTOCOL_VERSION: dist/protocol.d.ts#PROTOCOL_VERSION
 PURE_EFFECTS: dist/procedures/effects.d.ts#PURE_EFFECTS
@@ -223,6 +228,8 @@ ProcedureServer: dist/server/procedure-server.d.ts#ProcedureServer
 type ProcedureServerOptions: dist/server/procedure-server.d.ts#ProcedureServerOptions
 type ProcedureStub: dist/procedures/define.d.ts#ProcedureStub
 type ProcedureWhen: dist/procedures/ref.d.ts#ProcedureWhen
+type ProgramDocument: dist/procedures/program.d.ts#ProgramDocument
+type ProgramHost: dist/procedures/program.d.ts#ProgramHost
 type ProgressUpdate: dist/procedures/progress.d.ts#ProgressUpdate
 type ProtocolErrorCode: dist/protocol.d.ts#ProtocolErrorCode
 QUERY_OPERATORS: dist/procedures/collection/query.d.ts#QUERY_OPERATORS
@@ -260,6 +267,8 @@ type RouteResolutionError: dist/client/route-resolver.d.ts#RouteResolutionError
 type RouteResolutionResult: dist/client/route-resolver.d.ts#RouteResolutionResult
 RouteResolver: dist/client/route-resolver.d.ts#RouteResolver
 type RoutedRequest: dist/adapters/http/server/strategies.d.ts#RoutedRequest
+type RunDocumentOptions: dist/procedures/program.d.ts#RunDocumentOptions
+type RunProgramOptions: dist/procedures/program.d.ts#RunProgramOptions
 STANDARD_RESOURCES: dist/procedures/capability.d.ts#STANDARD_RESOURCES
 STREAM_GAP_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_GAP_METADATA_KEY
 STREAM_ITEM_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_ITEM_METADATA_KEY
@@ -408,6 +417,10 @@ deleteProcedureProcedure: dist/procedures/define-procedure.d.ts#deleteProcedureP
 describeIssues: dist/procedures/schema.d.ts#describeIssues
 describeProcedureEntry: dist/procedures/manifest.d.ts#describeProcedure
 describeRegistry: dist/procedures/manifest.d.ts#describeRegistry
+desugarControlValue: dist/procedures/program.d.ts#desugarControlValue
+desugarInput: dist/procedures/program.d.ts#desugarInput
+desugarProgram: dist/procedures/program.d.ts#desugarProgram
+documentAt: dist/procedures/program.d.ts#documentAt
 effectsIn: dist/procedures/idempotency.d.ts#effectsIn
 effectsOf: dist/procedures/capability.d.ts#effectsOf
 effectsValue: dist/procedures/effects.d.ts#effectsValue
@@ -415,7 +428,7 @@ elicitConfirmation: dist/procedures/elicit.d.ts#elicitConfirmation
 elicitInput: dist/procedures/elicit.d.ts#elicitInput
 elicitWithPolicy: dist/procedures/elicit.d.ts#elicitWithPolicy
 examinesNestedCall: dist/procedures/capability.d.ts#examinesNestedCall
-executeRef: dist/procedures/ref.d.ts#executeRef
+executeRef: dist/procedures/program.d.ts#executeRef
 executeWithConcurrency: dist/client/batch-executor.d.ts#executeWithConcurrency
 explainInvocation: dist/procedures/capability.d.ts#explainInvocation
 exposePatterns: dist/server/host-policy.d.ts#exposePatterns
@@ -444,7 +457,7 @@ hostPolicy: dist/server/host-policy.d.ts#hostPolicy
 hostProcedures: dist/server/host-procedures.d.ts#hostProcedures
 hours: dist/duration.d.ts#hours
 httpStatusOf: dist/protocol.d.ts#httpStatusOf
-hydrateInput: dist/procedures/ref.d.ts#hydrateInput
+hydrateInput: dist/procedures/program.d.ts#hydrateInput
 idempotencyKeyOf: dist/procedures/idempotency.d.ts#idempotencyKeyOf
 idempotentIn: dist/procedures/idempotency.d.ts#idempotentIn
 identityProcedure: dist/procedures/core/index.d.ts#identityProcedure
@@ -498,6 +511,9 @@ minutes: dist/duration.d.ts#minutes
 mockBuilder: dist/adapters/mock/client/builder.d.ts#mockBuilder
 moduleClosure: dist/procedures/module.d.ts#moduleClosure
 ms: dist/duration.d.ts#ms
+nameKey: dist/procedures/program.d.ts#nameKey
+nameOfKey: dist/procedures/program.d.ts#nameOfKey
+namesOfScope: dist/procedures/program.d.ts#namesOfScope
 namespace: dist/procedures/define.d.ts#namespace
 narrowCapability: dist/procedures/capability.d.ts#narrowCapability
 narrowWithin: dist/procedures/narrowing.d.ts#narrowWithin
@@ -509,10 +525,11 @@ newTraceId: dist/tracing/traceparent.d.ts#newTraceId
 noneProcedure: dist/procedures/core/index.d.ts#noneProcedure
 normalizeRef: dist/procedures/ref.d.ts#normalizeRef
 notProcedure: dist/procedures/core/index.d.ts#notProcedure
-observeHydration: dist/procedures/ref.d.ts#observeHydration
+observeHydration: dist/procedures/program.d.ts#observeHydration
 operatorAnswer: dist/procedures/elicit.d.ts#operatorAnswer
 optionalMs: dist/duration.d.ts#optionalMs
 orProcedure: dist/procedures/core/index.d.ts#orProcedure
+originOf: dist/procedures/program.d.ts#originOf
 outputItems: dist/procedures/invoke.d.ts#outputItems
 outputSchema: dist/procedures/core/schemas.d.ts#outputSchema
 outputValue: dist/procedures/invoke.d.ts#outputValue
@@ -524,9 +541,10 @@ pathToKey: dist/procedures/types.d.ts#pathToKey
 pathToMethod: dist/server/method.d.ts#pathToMethod
 postOnlyStrategy: dist/adapters/http/shared/strategies.d.ts#postOnlyStrategy
 preconditionNotSupported: dist/procedures/collection/precondition.d.ts#preconditionNotSupported
-prepareRootCall: dist/procedures/ref.d.ts#prepareRootCall
+prepareRootCall: dist/procedures/program.d.ts#prepareRootCall
 proc: dist/procedures/ref.d.ts#proc
 procedureServerOptions: dist/server/host-policy.d.ts#procedureServerOptions
+programMachine: dist/procedures/program.d.ts#programMachine
 protocolVersionOf: dist/protocol.d.ts#protocolVersionOf
 queryEntries: dist/procedures/collection/query.d.ts#queryEntries
 queryOptionsProblems: dist/procedures/collection/query.d.ts#queryOptionsProblems
@@ -543,8 +561,11 @@ requestCredentials: dist/server/request-auth.d.ts#requestCredentials
 resolveOutputRef: dist/procedures/ref.d.ts#resolveOutputRef
 restfulHttpMethodStrategy: dist/adapters/http/shared/strategies.d.ts#restfulHttpMethodStrategy
 rpcServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#rpcServerUrlStrategy
+runDocument: dist/procedures/program.d.ts#runDocument
+runProgram: dist/procedures/program.d.ts#runProgram
 runtimeProgramOf: dist/procedures/define-procedure.d.ts#runtimeProgramOf
 scopeOf: dist/procedures/ref.d.ts#scopeOf
+scopeOfNames: dist/procedures/program.d.ts#scopeOfNames
 seconds: dist/duration.d.ts#seconds
 selectorProblems: dist/procedures/collection/query.d.ts#selectorProblems
 shouldExecuteRef: dist/procedures/ref.d.ts#shouldExecuteRef
@@ -583,7 +604,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 564 names
+## ./browser (dist/browser.d.ts): 585 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -597,12 +618,14 @@ type BatchItem: dist/client/batch-executor.d.ts#BatchItem
 type BatchStrategy: dist/client/call-types.d.ts#BatchStrategy
 CIRCUIT_BREAKER_MACHINE: dist/machines.d.ts#CIRCUIT_BREAKER_MACHINE
 type CacheOverride: dist/client/call-types.d.ts#CacheOverride
+type CallEffect: dist/procedures/program.d.ts#CallEffect
 type CallHistoryEntry: dist/adapters/mock/client/types.d.ts#CallHistoryEntry
 type CallLimit: dist/server/limits.d.ts#CallLimit
 type CallLimitCovers: dist/server/limits.d.ts#CallLimitCovers
 type CallLimitKey: dist/server/limits.d.ts#CallLimitKey
 type CallLimitKeyPart: dist/server/limits.d.ts#CallLimitKeyPart
 type CallPolicy: dist/procedures/policy.d.ts#CallPolicy
+type CallPosition: dist/procedures/program.d.ts#CallPosition
 type CallRefusal: dist/procedures/policy.d.ts#CallRefusal
 type CallRequest: dist/client/call-types.d.ts#CallRequest
 type CallResponse: dist/client/call-types.d.ts#CallResponse
@@ -647,6 +670,8 @@ type DefineProcedureInput: dist/procedures/define-procedure.d.ts#DefineProcedure
 type DefineProcedureOutput: dist/procedures/define-procedure.d.ts#DefineProcedureOutput
 type DescribeOptions: dist/procedures/manifest.d.ts#DescribeOptions
 type DescribeRegistryOptions: dist/procedures/manifest.d.ts#DescribeRegistryOptions
+type DesugarOptions: dist/procedures/program.d.ts#DesugarOptions
+type DocumentOrigin: dist/procedures/program.d.ts#DocumentOrigin
 type Duration: dist/duration.d.ts#Duration
 ERROR_CODES: dist/protocol.d.ts#ERROR_CODES
 ERROR_REGISTRY: dist/client/errors/registry.d.ts#ERROR_REGISTRY
@@ -761,6 +786,7 @@ PROCEDURE_NAME_KEY: dist/procedures/ref.d.ts#PROCEDURE_NAME_KEY
 PROCEDURE_REGISTRY: dist/procedures/registry.d.ts#PROCEDURE_REGISTRY
 PROCEDURE_SYMBOL: dist/procedures/ref.d.ts#PROCEDURE_SYMBOL
 PROCEDURE_WHEN_KEY: dist/procedures/ref.d.ts#PROCEDURE_WHEN_KEY
+PROGRAM_WORLD: dist/procedures/program.d.ts#PROGRAM_WORLD
 PROTOCOL_HEADER: dist/protocol.d.ts#PROTOCOL_HEADER
 PROTOCOL_VERSION: dist/protocol.d.ts#PROTOCOL_VERSION
 PURE_EFFECTS: dist/procedures/effects.d.ts#PURE_EFFECTS
@@ -798,6 +824,8 @@ ProcedureServer: dist/server/procedure-server.d.ts#ProcedureServer
 type ProcedureServerOptions: dist/server/procedure-server.d.ts#ProcedureServerOptions
 type ProcedureStub: dist/procedures/define.d.ts#ProcedureStub
 type ProcedureWhen: dist/procedures/ref.d.ts#ProcedureWhen
+type ProgramDocument: dist/procedures/program.d.ts#ProgramDocument
+type ProgramHost: dist/procedures/program.d.ts#ProgramHost
 type ProgressUpdate: dist/procedures/progress.d.ts#ProgressUpdate
 type ProtocolErrorCode: dist/protocol.d.ts#ProtocolErrorCode
 QUERY_OPERATORS: dist/procedures/collection/query.d.ts#QUERY_OPERATORS
@@ -834,6 +862,8 @@ type RouteNode: dist/client/call-types.d.ts#RouteNode
 type RouteResolutionError: dist/client/route-resolver.d.ts#RouteResolutionError
 type RouteResolutionResult: dist/client/route-resolver.d.ts#RouteResolutionResult
 RouteResolver: dist/client/route-resolver.d.ts#RouteResolver
+type RunDocumentOptions: dist/procedures/program.d.ts#RunDocumentOptions
+type RunProgramOptions: dist/procedures/program.d.ts#RunProgramOptions
 STANDARD_RESOURCES: dist/procedures/capability.d.ts#STANDARD_RESOURCES
 STREAM_GAP_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_GAP_METADATA_KEY
 STREAM_ITEM_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_ITEM_METADATA_KEY
@@ -980,6 +1010,10 @@ deleteProcedureProcedure: dist/procedures/define-procedure.d.ts#deleteProcedureP
 describeIssues: dist/procedures/schema.d.ts#describeIssues
 describeProcedureEntry: dist/procedures/manifest.d.ts#describeProcedure
 describeRegistry: dist/procedures/manifest.d.ts#describeRegistry
+desugarControlValue: dist/procedures/program.d.ts#desugarControlValue
+desugarInput: dist/procedures/program.d.ts#desugarInput
+desugarProgram: dist/procedures/program.d.ts#desugarProgram
+documentAt: dist/procedures/program.d.ts#documentAt
 effectsIn: dist/procedures/idempotency.d.ts#effectsIn
 effectsOf: dist/procedures/capability.d.ts#effectsOf
 effectsValue: dist/procedures/effects.d.ts#effectsValue
@@ -987,7 +1021,7 @@ elicitConfirmation: dist/procedures/elicit.d.ts#elicitConfirmation
 elicitInput: dist/procedures/elicit.d.ts#elicitInput
 elicitWithPolicy: dist/procedures/elicit.d.ts#elicitWithPolicy
 examinesNestedCall: dist/procedures/capability.d.ts#examinesNestedCall
-executeRef: dist/procedures/ref.d.ts#executeRef
+executeRef: dist/procedures/program.d.ts#executeRef
 executeWithConcurrency: dist/client/batch-executor.d.ts#executeWithConcurrency
 explainInvocation: dist/procedures/capability.d.ts#explainInvocation
 exposePatterns: dist/server/host-policy.d.ts#exposePatterns
@@ -1014,7 +1048,7 @@ hostPolicy: dist/server/host-policy.d.ts#hostPolicy
 hostProcedures: dist/server/host-procedures.d.ts#hostProcedures
 hours: dist/duration.d.ts#hours
 httpStatusOf: dist/protocol.d.ts#httpStatusOf
-hydrateInput: dist/procedures/ref.d.ts#hydrateInput
+hydrateInput: dist/procedures/program.d.ts#hydrateInput
 idempotencyKeyOf: dist/procedures/idempotency.d.ts#idempotencyKeyOf
 idempotentIn: dist/procedures/idempotency.d.ts#idempotentIn
 identityProcedure: dist/procedures/core/index.d.ts#identityProcedure
@@ -1066,6 +1100,9 @@ minutes: dist/duration.d.ts#minutes
 mockBuilder: dist/adapters/mock/client/builder.d.ts#mockBuilder
 moduleClosure: dist/procedures/module.d.ts#moduleClosure
 ms: dist/duration.d.ts#ms
+nameKey: dist/procedures/program.d.ts#nameKey
+nameOfKey: dist/procedures/program.d.ts#nameOfKey
+namesOfScope: dist/procedures/program.d.ts#namesOfScope
 namespace: dist/procedures/define.d.ts#namespace
 narrowCapability: dist/procedures/capability.d.ts#narrowCapability
 narrowWithin: dist/procedures/narrowing.d.ts#narrowWithin
@@ -1077,10 +1114,11 @@ newTraceId: dist/tracing/traceparent.d.ts#newTraceId
 noneProcedure: dist/procedures/core/index.d.ts#noneProcedure
 normalizeRef: dist/procedures/ref.d.ts#normalizeRef
 notProcedure: dist/procedures/core/index.d.ts#notProcedure
-observeHydration: dist/procedures/ref.d.ts#observeHydration
+observeHydration: dist/procedures/program.d.ts#observeHydration
 operatorAnswer: dist/procedures/elicit.d.ts#operatorAnswer
 optionalMs: dist/duration.d.ts#optionalMs
 orProcedure: dist/procedures/core/index.d.ts#orProcedure
+originOf: dist/procedures/program.d.ts#originOf
 outputItems: dist/procedures/invoke.d.ts#outputItems
 outputSchema: dist/procedures/core/schemas.d.ts#outputSchema
 outputValue: dist/procedures/invoke.d.ts#outputValue
@@ -1092,9 +1130,10 @@ pathToKey: dist/procedures/types.d.ts#pathToKey
 pathToMethod: dist/server/method.d.ts#pathToMethod
 postOnlyStrategy: dist/adapters/http/shared/strategies.d.ts#postOnlyStrategy
 preconditionNotSupported: dist/procedures/collection/precondition.d.ts#preconditionNotSupported
-prepareRootCall: dist/procedures/ref.d.ts#prepareRootCall
+prepareRootCall: dist/procedures/program.d.ts#prepareRootCall
 proc: dist/procedures/ref.d.ts#proc
 procedureServerOptions: dist/server/host-policy.d.ts#procedureServerOptions
+programMachine: dist/procedures/program.d.ts#programMachine
 protocolVersionOf: dist/protocol.d.ts#protocolVersionOf
 queryEntries: dist/procedures/collection/query.d.ts#queryEntries
 queryOptionsProblems: dist/procedures/collection/query.d.ts#queryOptionsProblems
@@ -1110,8 +1149,11 @@ replayTransitions: dist/machines.d.ts#replayTransitions
 requestCredentials: dist/server/request-auth.d.ts#requestCredentials
 resolveOutputRef: dist/procedures/ref.d.ts#resolveOutputRef
 restfulHttpMethodStrategy: dist/adapters/http/shared/strategies.d.ts#restfulHttpMethodStrategy
+runDocument: dist/procedures/program.d.ts#runDocument
+runProgram: dist/procedures/program.d.ts#runProgram
 runtimeProgramOf: dist/procedures/define-procedure.d.ts#runtimeProgramOf
 scopeOf: dist/procedures/ref.d.ts#scopeOf
+scopeOfNames: dist/procedures/program.d.ts#scopeOfNames
 seconds: dist/duration.d.ts#seconds
 selectorProblems: dist/procedures/collection/query.d.ts#selectorProblems
 shouldExecuteRef: dist/procedures/ref.d.ts#shouldExecuteRef
@@ -1374,11 +1416,13 @@ throttleChannel: dist/events/bus.d.ts#throttleChannel
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
-## ./procedures (dist/procedures/index.d.ts): 321 names
+## ./procedures (dist/procedures/index.d.ts): 345 names
 
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
 type AnyProcedureRef: dist/procedures/ref.d.ts#AnyProcedureRef
+type CallEffect: dist/procedures/program.d.ts#CallEffect
+type CallPosition: dist/procedures/program.d.ts#CallPosition
 type Caller: dist/procedures/caller.d.ts#Caller
 type CallerOptions: dist/procedures/caller.d.ts#CallerOptions
 type Capability: dist/procedures/types.d.ts#Capability
@@ -1409,6 +1453,8 @@ type DefineProcedureInput: dist/procedures/define-procedure.d.ts#DefineProcedure
 type DefineProcedureOutput: dist/procedures/define-procedure.d.ts#DefineProcedureOutput
 type DescribeOptions: dist/procedures/manifest.d.ts#DescribeOptions
 type DescribeRegistryOptions: dist/procedures/manifest.d.ts#DescribeRegistryOptions
+type DesugarOptions: dist/procedures/program.d.ts#DesugarOptions
+type DocumentOrigin: dist/procedures/program.d.ts#DocumentOrigin
 type Effects: dist/procedures/types.d.ts#Effects
 type EffectsViolation: dist/procedures/capability.d.ts#EffectsViolation
 type Elicit: dist/procedures/elicit.d.ts#Elicit
@@ -1467,6 +1513,7 @@ PROCEDURE_NAME_KEY: dist/procedures/ref.d.ts#PROCEDURE_NAME_KEY
 PROCEDURE_REGISTRY: dist/procedures/registry.d.ts#PROCEDURE_REGISTRY
 PROCEDURE_SYMBOL: dist/procedures/ref.d.ts#PROCEDURE_SYMBOL
 PROCEDURE_WHEN_KEY: dist/procedures/ref.d.ts#PROCEDURE_WHEN_KEY
+PROGRAM_WORLD: dist/procedures/program.d.ts#PROGRAM_WORLD
 PURE_EFFECTS: dist/procedures/effects.d.ts#PURE_EFFECTS
 type PartitionInput: dist/procedures/collection/partition.d.ts#PartitionInput
 type PartitionResolver: dist/procedures/collection/partition.d.ts#PartitionResolver
@@ -1491,6 +1538,8 @@ type ProcedureResult: dist/procedures/types.d.ts#ProcedureResult
 type ProcedureSchema: dist/procedures/schema.d.ts#ProcedureSchema
 type ProcedureStub: dist/procedures/define.d.ts#ProcedureStub
 type ProcedureWhen: dist/procedures/ref.d.ts#ProcedureWhen
+type ProgramDocument: dist/procedures/program.d.ts#ProgramDocument
+type ProgramHost: dist/procedures/program.d.ts#ProgramHost
 type ProgressUpdate: dist/procedures/progress.d.ts#ProgressUpdate
 QUERY_OPERATORS: dist/procedures/collection/query.d.ts#QUERY_OPERATORS
 RAW_INPUT_TAG: dist/procedures/ref.d.ts#RAW_INPUT_TAG
@@ -1506,6 +1555,9 @@ type RegistryListener: dist/procedures/types.d.ts#RegistryListener
 type ReportProgress: dist/procedures/progress.d.ts#ReportProgress
 type RepositoryProvider: dist/procedures/types.d.ts#RepositoryProvider
 type ResourcesOf: dist/procedures/types.d.ts#ResourcesOf
+type RunDocumentOptions: dist/procedures/program.d.ts#RunDocumentOptions
+type RunOperandOptions: dist/procedures/program.d.ts#RunOperandOptions
+type RunProgramOptions: dist/procedures/program.d.ts#RunProgramOptions
 STANDARD_RESOURCES: dist/procedures/capability.d.ts#STANDARD_RESOURCES
 type SchemaResult: dist/procedures/schema.d.ts#SchemaResult
 type StandardJSONSchemaConverter: dist/procedures/schema.d.ts#StandardJSONSchemaConverter
@@ -1589,6 +1641,10 @@ deleteProcedureProcedure: dist/procedures/define-procedure.d.ts#deleteProcedureP
 describeIssues: dist/procedures/schema.d.ts#describeIssues
 describeProcedureEntry: dist/procedures/manifest.d.ts#describeProcedure
 describeRegistry: dist/procedures/manifest.d.ts#describeRegistry
+desugarControlValue: dist/procedures/program.d.ts#desugarControlValue
+desugarInput: dist/procedures/program.d.ts#desugarInput
+desugarProgram: dist/procedures/program.d.ts#desugarProgram
+documentAt: dist/procedures/program.d.ts#documentAt
 effectsIn: dist/procedures/idempotency.d.ts#effectsIn
 effectsOf: dist/procedures/capability.d.ts#effectsOf
 effectsValue: dist/procedures/effects.d.ts#effectsValue
@@ -1596,7 +1652,7 @@ elicitConfirmation: dist/procedures/elicit.d.ts#elicitConfirmation
 elicitInput: dist/procedures/elicit.d.ts#elicitInput
 elicitWithPolicy: dist/procedures/elicit.d.ts#elicitWithPolicy
 examinesNestedCall: dist/procedures/capability.d.ts#examinesNestedCall
-executeRef: dist/procedures/ref.d.ts#executeRef
+executeRef: dist/procedures/program.d.ts#executeRef
 explainInvocation: dist/procedures/capability.d.ts#explainInvocation
 exposedProcedures: dist/procedures/manifest.d.ts#exposedProcedures
 extractTemplate: dist/procedures/ref.d.ts#extractTemplate
@@ -1609,7 +1665,7 @@ getRefWhen: dist/procedures/ref.d.ts#getRefWhen
 getRuntimeProcedure: dist/procedures/define-procedure.d.ts#getRuntimeProcedure
 hasRuntimeProcedure: dist/procedures/define-procedure.d.ts#hasRuntimeProcedure
 hashOf: dist/procedures/manifest.d.ts#hashOf
-hydrateInput: dist/procedures/ref.d.ts#hydrateInput
+hydrateInput: dist/procedures/program.d.ts#hydrateInput
 idempotencyKeyOf: dist/procedures/idempotency.d.ts#idempotencyKeyOf
 idempotentIn: dist/procedures/idempotency.d.ts#idempotentIn
 identityProcedure: dist/procedures/core/index.d.ts#identityProcedure
@@ -1642,6 +1698,9 @@ matchesSelector: dist/procedures/collection/query.d.ts#matchesSelector
 mergePatch: dist/procedures/collection/query.d.ts#mergePatch
 metaProcedures: dist/procedures/define-procedure.d.ts#metaProcedures
 moduleClosure: dist/procedures/module.d.ts#moduleClosure
+nameKey: dist/procedures/program.d.ts#nameKey
+nameOfKey: dist/procedures/program.d.ts#nameOfKey
+namesOfScope: dist/procedures/program.d.ts#namesOfScope
 namespace: dist/procedures/define.d.ts#namespace
 narrowCapability: dist/procedures/capability.d.ts#narrowCapability
 narrowWithin: dist/procedures/narrowing.d.ts#narrowWithin
@@ -1650,17 +1709,19 @@ newIdempotencyKey: dist/procedures/idempotency.d.ts#newIdempotencyKey
 noneProcedure: dist/procedures/core/index.d.ts#noneProcedure
 normalizeRef: dist/procedures/ref.d.ts#normalizeRef
 notProcedure: dist/procedures/core/index.d.ts#notProcedure
-observeHydration: dist/procedures/ref.d.ts#observeHydration
+observeHydration: dist/procedures/program.d.ts#observeHydration
 operatorAnswer: dist/procedures/elicit.d.ts#operatorAnswer
 orProcedure: dist/procedures/core/index.d.ts#orProcedure
+originOf: dist/procedures/program.d.ts#originOf
 outputSchema: dist/procedures/core/schemas.d.ts#outputSchema
 parallelProcedure: dist/procedures/core/index.d.ts#parallelProcedure
 parseProcedureJson: dist/procedures/ref.d.ts#parseProcedureJson
 patchProblems: dist/procedures/collection/query.d.ts#patchProblems
 pathToKey: dist/procedures/types.d.ts#pathToKey
 preconditionNotSupported: dist/procedures/collection/precondition.d.ts#preconditionNotSupported
-prepareRootCall: dist/procedures/ref.d.ts#prepareRootCall
+prepareRootCall: dist/procedures/program.d.ts#prepareRootCall
 proc: dist/procedures/ref.d.ts#proc
+programMachine: dist/procedures/program.d.ts#programMachine
 queryEntries: dist/procedures/collection/query.d.ts#queryEntries
 queryOptionsProblems: dist/procedures/collection/query.d.ts#queryOptionsProblems
 rawInputRule: dist/procedures/ref.d.ts#rawInputRule
@@ -1670,8 +1731,13 @@ registerModule: dist/procedures/discovery.d.ts#registerModule
 registerModules: dist/procedures/module.d.ts#registerModules
 registerProcedures: dist/procedures/discovery.d.ts#registerProcedures
 resolveOutputRef: dist/procedures/ref.d.ts#resolveOutputRef
+runControl: dist/procedures/program.d.ts#runControl
+runDocument: dist/procedures/program.d.ts#runDocument
+runOperand: dist/procedures/program.d.ts#runOperand
+runProgram: dist/procedures/program.d.ts#runProgram
 runtimeProgramOf: dist/procedures/define-procedure.d.ts#runtimeProgramOf
 scopeOf: dist/procedures/ref.d.ts#scopeOf
+scopeOfNames: dist/procedures/program.d.ts#scopeOfNames
 selectorProblems: dist/procedures/collection/query.d.ts#selectorProblems
 shouldExecuteRef: dist/procedures/ref.d.ts#shouldExecuteRef
 stringifyProcedureJson: dist/procedures/ref.d.ts#stringifyProcedureJson
@@ -4393,7 +4459,7 @@ export declare function operatorAnswer(request: ElicitRequest, consent: boolean 
 
 ### dist/procedures/envelope.d.ts#EnvelopeLiteral
 export interface EnvelopeLiteral {
-    readonly type: "literal";
+    readonly type: "lit";
     readonly value: unknown;
 }
 
@@ -4797,6 +4863,136 @@ export declare function nestedCallRefusal(caller: AnyProcedure, path: ProcedureP
 ### dist/procedures/policy.d.ts#validateCalls
 export declare function validateCalls(calls: unknown, path: ProcedurePath): readonly string[] | undefined;
 
+### dist/procedures/program.d.ts#CallEffect
+export interface CallEffect {
+    readonly position: CallPosition;
+    readonly input: unknown;
+    readonly source: unknown;
+    readonly consumer: AnyProcedureRef | undefined;
+}
+
+### dist/procedures/program.d.ts#CallPosition
+export type CallPosition = "root" | "operand" | "nested";
+
+### dist/procedures/program.d.ts#DesugarOptions
+export interface DesugarOptions {
+    readonly rawInput?: ((path: ProcedurePath) => boolean) | undefined;
+    readonly contextStack?: readonly string[] | undefined;
+    readonly maxDepth?: number | undefined;
+    readonly scoped?: boolean | undefined;
+    readonly expand?: boolean | undefined;
+}
+
+### dist/procedures/program.d.ts#DocumentOrigin
+export interface DocumentOrigin {
+    readonly source: unknown;
+    readonly pointer: string;
+    readonly scoped: boolean;
+    readonly consumer?: AnyProcedureRef | undefined;
+    readonly deferred?: boolean | undefined;
+    readonly synthesized?: boolean | undefined;
+    readonly call?: {
+        readonly path: ProcedurePath;
+        readonly input: unknown;
+        readonly $name?: string | undefined;
+    } | undefined;
+}
+
+### dist/procedures/program.d.ts#PROGRAM_WORLD
+export declare const PROGRAM_WORLD: World;
+
+### dist/procedures/program.d.ts#ProgramDocument
+export interface ProgramDocument {
+    readonly type: Json;
+    readonly value: unknown;
+    readonly name?: string;
+    readonly own?: Readonly<Record<string, string>>;
+}
+
+### dist/procedures/program.d.ts#ProgramHost
+export interface ProgramHost {
+    readonly rawInput: (path: ProcedurePath) => boolean;
+    readonly parallel?: boolean | undefined;
+}
+
+### dist/procedures/program.d.ts#RunDocumentOptions
+export interface RunDocumentOptions {
+    readonly executor: RefExecutor;
+    readonly rootExecutor?: ((path: ProcedurePath, input: unknown) => unknown) | undefined;
+    readonly rawInput?: ((path: ProcedurePath) => boolean) | undefined;
+    readonly onRef?: ((event: HydrationEvent) => void) | undefined;
+    readonly scope?: RefScope | undefined;
+    readonly parallel?: boolean | undefined;
+}
+
+### dist/procedures/program.d.ts#RunOperandOptions
+export interface RunOperandOptions extends RunDocumentOptions {
+    readonly extra?: Record<string, unknown> | undefined;
+}
+
+### dist/procedures/program.d.ts#RunProgramOptions
+export interface RunProgramOptions extends RunDocumentOptions {
+}
+
+### dist/procedures/program.d.ts#desugarControlValue
+export declare function desugarControlValue(name: string, input: unknown, options?: DesugarOptions): Record<string, unknown> | undefined;
+
+### dist/procedures/program.d.ts#desugarInput
+export declare function desugarInput(input: unknown, options?: DesugarOptions): ProgramDocument | undefined;
+
+### dist/procedures/program.d.ts#desugarProgram
+export declare function desugarProgram(program: AnyProcedureRef, options?: DesugarOptions): ProgramDocument;
+
+### dist/procedures/program.d.ts#documentAt
+export declare function documentAt(doc: unknown, place: readonly Key[]): unknown;
+
+### dist/procedures/program.d.ts#executeRef
+export declare function executeRef<TOutput = unknown>(ref: AnyProcedureRef, executor: RefExecutor, additionalInput?: Record<string, unknown>, options?: HydrateOptions): Promise<TOutput>;
+
+### dist/procedures/program.d.ts#hydrateInput
+export declare function hydrateInput<T>(input: T, executor: RefExecutor, options?: HydrateOptions): Promise<T>;
+
+### dist/procedures/program.d.ts#nameKey
+export declare function nameKey(name: string): string;
+
+### dist/procedures/program.d.ts#nameOfKey
+export declare function nameOfKey(key: string): string;
+
+### dist/procedures/program.d.ts#namesOfScope
+export declare function namesOfScope(scope: RefScope | undefined): Record<string, unknown>;
+
+### dist/procedures/program.d.ts#observeHydration
+export declare function observeHydration(observer: (event: HydrationEvent) => void): () => void;
+
+### dist/procedures/program.d.ts#originOf
+export declare function originOf(doc: unknown): DocumentOrigin | undefined;
+
+### dist/procedures/program.d.ts#prepareRootCall
+export declare function prepareRootCall(ref: AnyProcedureRef, executor: RefExecutor, options?: Pick<HydrateOptions, "rawInput" | "onRef" | "scope">): Promise<{
+    path: ProcedurePath;
+    input: unknown;
+}>;
+
+### dist/procedures/program.d.ts#programMachine
+export declare function programMachine(host: ProgramHost): Machine;
+
+### dist/procedures/program.d.ts#runControl
+export declare function runControl(name: string, input: unknown, options: RunDocumentOptions): Promise<unknown>;
+
+### dist/procedures/program.d.ts#runDocument
+export declare function runDocument(doc: ProgramDocument, options: RunDocumentOptions & {
+    readonly self?: unknown;
+}): Promise<unknown>;
+
+### dist/procedures/program.d.ts#runOperand
+export declare function runOperand(value: unknown, options: RunOperandOptions): Promise<unknown>;
+
+### dist/procedures/program.d.ts#runProgram
+export declare function runProgram(program: AnyProcedureRef, options: RunProgramOptions): Promise<unknown>;
+
+### dist/procedures/program.d.ts#scopeOfNames
+export declare function scopeOfNames(names: Readonly<Record<string, unknown>>): RefScope;
+
 ### dist/procedures/progress.d.ts#ProgressUpdate
 export interface ProgressUpdate {
     readonly progress: number;
@@ -4927,9 +5123,6 @@ export declare const WHEN_PARENT: string;
 ### dist/procedures/ref.d.ts#createRefScope
 export declare function createRefScope(parent?: RefScope, name?: string): RefScope;
 
-### dist/procedures/ref.d.ts#executeRef
-export declare function executeRef<TOutput = unknown>(ref: AnyProcedureRef, executor: RefExecutor, additionalInput?: Record<string, unknown>, options?: HydrateOptions): Promise<TOutput>;
-
 ### dist/procedures/ref.d.ts#extractTemplate
 export declare function extractTemplate<TInput>(ref: ProcedureRef<TInput>): ProcedureRefJson<unknown>;
 
@@ -4941,9 +5134,6 @@ export declare function getRefName(ref: AnyProcedureRef): string | undefined;
 
 ### dist/procedures/ref.d.ts#getRefWhen
 export declare function getRefWhen(ref: AnyProcedureRef): ProcedureWhen;
-
-### dist/procedures/ref.d.ts#hydrateInput
-export declare function hydrateInput<T>(input: T, executor: RefExecutor, options?: HydrateOptions): Promise<T>;
 
 ### dist/procedures/ref.d.ts#isAnyProcedureRef
 export declare function isAnyProcedureRef(value: unknown): value is AnyProcedureRef;
@@ -4982,17 +5172,8 @@ export declare function markDataDriven<T extends {
 ### dist/procedures/ref.d.ts#normalizeRef
 export declare function normalizeRef<TInput, TOutput>(ref: AnyProcedureRef<TInput, TOutput>): ProcedureRef<TInput, TOutput>;
 
-### dist/procedures/ref.d.ts#observeHydration
-export declare function observeHydration(observer: (event: HydrationEvent) => void): () => void;
-
 ### dist/procedures/ref.d.ts#parseProcedureJson
 export declare function parseProcedureJson<T>(json: string): T;
-
-### dist/procedures/ref.d.ts#prepareRootCall
-export declare function prepareRootCall(ref: AnyProcedureRef, executor: RefExecutor, options?: Pick<HydrateOptions, "rawInput" | "onRef" | "scope">): Promise<{
-    path: ProcedurePath;
-    input: unknown;
-}>;
 
 ### dist/procedures/ref.d.ts#proc
 export declare function proc<TOutput = unknown>(path: ProcedurePath): ProcedureRefBuilder<unknown, TOutput>;

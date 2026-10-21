@@ -130,17 +130,9 @@ import {
   getRefWhen,
   WHEN_NEVER,
   RUNS_REFS_TAG,
-  type RefScope,
+  type AnyProcedureRef,
 } from "../ref.js";
-import {
-  substituteRefs,
-  hydrateOperand,
-  callOperand,
-  evaluateOperand,
-  parentContext,
-  scopeWith,
-  controlFlowTags,
-} from "./operands.js";
+import { substituteRefs, runControlFlow, controlFlowTags } from "./operands.js";
 
 // =============================================================================
 // Chain Procedure
@@ -182,57 +174,27 @@ const chainProcedure: ChainProcedure = defineProcedure({
     tags: controlFlowTags("control-flow"),
   },
   handler: async (input: ChainInput, ctx?: ProcedureContext): Promise<ChainOutput> => {
-    const { steps, passThrough, initialInput, ...parentInput } = input;
+    const { steps } = input;
     if (!Array.isArray(steps)) {
       throw new Error(`client.chain: steps must be an array, got ${steps === null ? "null" : typeof steps}`);
     }
-    const results: unknown[] = [];
-    // The scope of an outer chain is the parent: its names stay visible here
+    if (ctx?.client) {
+      // The runner of the kind client.chain runs the steps on the kernel (program.ts). A step reads
+      // the names of the earlier steps, $last and the names of the caller (the scope of the input).
+      return (await runControlFlow("chain", input, ctx)) as ChainOutput;
+    }
+    // No client context: the result of a step is its input, with the known $refs resolved
     const scope = createRefScope(scopeOf(input));
-
-    // Extract context to propagate to steps (e.g., cwd, node)
-    const { cwd, node } = parentInput as { cwd?: string; node?: unknown };
-
-    // With passThrough, the value that the next step without input gets (docs review DOC-4:
-    // before, the procedure ignored passThrough and initialInput)
-    let passed: unknown = passThrough && ctx?.client ? await hydrateOperand(initialInput, ctx, scope) : undefined;
-
+    const results: unknown[] = [];
     for (const step of steps) {
-      let result: unknown;
-
-      if (isAnyProcedureRef(step) && getRefWhen(step) === WHEN_NEVER) {
-        // A $never step is data, like a $never ref anywhere (docs review DOC-1)
-        result = step;
-      } else if (!ctx?.client) {
-        // No client context: the result of a step is its input, with the known $refs resolved
-        result = substituteRefs(isAnyProcedureRef(step) ? normalizeRef(step).input : step, scope);
-      } else if (isAnyProcedureRef(step)) {
-        // Resolve the $refs of the step's input, run its nested refs, add the parent context (cwd, node).
-        // With passThrough, a step with no input gets the passed value as a literal: it ran already.
-        const operand =
-          passThrough && normalizeRef(step).input === undefined ? { ...step, input: { $literal: passed } } : step;
-        result = await callOperand(operand, ctx, { scope, extra: parentContext({ cwd, node }) });
-      } else {
-        // A $ref, a $literal, or a value that holds refs
-        result = await hydrateOperand(step, ctx, scope);
-      }
-
-      // Store named output
-      const stepName = isAnyProcedureRef(step) ? normalizeRef(step).$name : undefined;
-      if (stepName) {
-        scope.outputs.set(stepName, result);
-      }
-
-      // Update $last
+      const call = isAnyProcedureRef(step) ? normalizeRef(step) : undefined;
+      // A $never step is data, like a $never ref anywhere (docs review DOC-1)
+      const result = call && getRefWhen(step as AnyProcedureRef) === WHEN_NEVER ? step : substituteRefs(call ? call.input : step, scope);
+      if (call?.$name) scope.outputs.set(call.$name, result);
       scope.last = result;
-      passed = result;
       results.push(result);
     }
-
-    return {
-      results,
-      final: results[results.length - 1],
-    };
+    return { results, final: results[results.length - 1] };
   },
 });
 
@@ -282,64 +244,12 @@ const parallelProcedure: ParallelProcedure = defineProcedure({
     tags: controlFlowTags("control-flow"),
   },
   handler: async (input: ParallelInput, ctx?: ProcedureContext): Promise<ParallelOutput> => {
-    const { tasks, concurrency, failFast } = input as ParallelInput & {
-      cwd?: string;
-      node?: unknown;
-    };
-    const { cwd, node } = input as { cwd?: string; node?: unknown };
-    const scope = scopeOf(input);
-
-    // Operands arrive raw (exec() does not pre-hydrate control-flow procedures). Execute
-    // task refs concurrently, honoring `concurrency` and `failFast`, and report per-task
-    // errors. Other tasks are values: their refs run. See BUGS-2026-07 M35.
-    const runTask = async (task: unknown): Promise<unknown> => {
-      if (!ctx?.client) {
-        return task;
-      }
-      return evaluateOperand(task, ctx, { scope, extra: parentContext({ cwd, node }) });
-    };
-
-    const results: unknown[] = new Array(tasks.length);
-    const errors: Array<{ index: number; error: string }> = [];
-
-    const limit =
-      typeof concurrency === "number" && concurrency > 0
-        ? Math.min(concurrency, tasks.length)
-        : tasks.length;
-
-    let nextIndex = 0;
-    let aborted = false;
-
-    const worker = async (): Promise<void> => {
-      while (!aborted) {
-        const index = nextIndex++;
-        if (index >= tasks.length) {
-          return;
-        }
-        try {
-          results[index] = await runTask(tasks[index]);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          if (failFast) {
-            aborted = true;
-            throw error;
-          }
-          errors.push({ index, error: message });
-          results[index] = undefined;
-        }
-      }
-    };
-
-    const workerCount = Math.max(1, limit);
-    await Promise.all(Array.from({ length: workerCount }, () => worker()));
-
-    errors.sort((a, b) => a.index - b.index);
-
-    return {
-      results,
-      allSucceeded: errors.length === 0,
-      errors,
-    };
+    // Operands arrive raw (exec() does not pre-hydrate control-flow procedures). The runner of
+    // the kind client.parallel runs the tasks at the same time on the kernel, with `concurrency`
+    // and `failFast`, and reports the error of each task. See BUGS-2026-07 M35.
+    if (ctx?.client) return (await runControlFlow("parallel", input, ctx)) as ParallelOutput;
+    // Without a client, nothing can run: each task is its value
+    return { results: Array.from(input.tasks), allSucceeded: true, errors: [] };
   },
 });
 
@@ -367,38 +277,15 @@ const conditionalProcedure: ConditionalProcedure = defineProcedure({
     tags: controlFlowTags("control-flow"),
   },
   handler: async (input: ConditionalInput, ctx?: ProcedureContext): Promise<unknown> => {
-    const { condition: rawCondition, then: thenValue, else: elseValue, ...parentInput } = input as ConditionalInput & {
-      cwd?: string;
-      node?: unknown;
-    };
-
-    // Extract context to propagate to branches (e.g., cwd, node)
-    const { cwd, node } = parentInput;
-    const scope = scopeOf(input);
-
     // Operands arrive raw (exec() does not pre-hydrate control-flow procedures), so the
-    // condition runs here, before its truthiness is known. See BUGS-2026-07 H2. A condition
-    // that is a $ref reads the scope of the caller.
-    const condition: unknown = ctx?.client
-      ? await evaluateOperand(rawCondition, ctx, { scope, extra: parentContext({ cwd, node }) })
-      : rawCondition;
-
-    // Determine truthiness - check for .value property (from predicates like git.hasChanges)
-    let isTruthy: boolean;
-    if (condition && typeof condition === "object" && "value" in condition) {
-      isTruthy = Boolean((condition as { value: unknown }).value);
-    } else {
-      isTruthy = Boolean(condition);
-    }
-
-    // Select the branch to execute/return
-    const selectedBranch = isTruthy ? thenValue : elseValue;
-
-    // Only the selected branch runs. Without a client, the branch is the result as it is.
-    if (selectedBranch === undefined || !ctx?.client) {
-      return selectedBranch;
-    }
-    return evaluateOperand(selectedBranch, ctx, { scope, extra: parentContext({ cwd, node }) });
+    // condition runs in the runner of the kind client.conditional, before its truthiness is
+    // known, and only the selected branch runs. See BUGS-2026-07 H2.
+    if (ctx?.client) return runControlFlow("conditional", input, ctx);
+    // Without a client, the branch is the result as it is. The `value` field of an object decides
+    // (a predicate such as git.hasChanges gives { value }).
+    const { condition } = input;
+    const truthy = condition && typeof condition === "object" && "value" in condition ? Boolean((condition as { value: unknown }).value) : Boolean(condition);
+    return truthy ? input.then : input.else;
   },
 });
 
@@ -426,16 +313,17 @@ import {
  * is the last value. (Deep dive CORE-1: before, the handler only tested the raw operands, and a
  * ref is always truthy, so no operand ran.)
  */
-function shortCircuit(stopOn: (value: unknown) => boolean) {
+function shortCircuit(name: "and" | "or", stopOn: (value: unknown) => boolean) {
   return async (input: { values: unknown[]; cwd?: string; node?: unknown }, ctx?: ProcedureContext): Promise<unknown> => {
     const { values } = input;
     if (!Array.isArray(values)) {
       throw new Error(`values must be an array, got ${values === null ? "null" : typeof values}`);
     }
-    const scope = scopeOf(input);
+    // The runner of the kind client.and or client.or runs the operands in order on the kernel
+    if (ctx?.client) return runControlFlow(name, input, ctx);
     let last: unknown = undefined;
     for (const operand of values) {
-      last = ctx?.client ? await evaluateOperand(operand, ctx, { scope, extra: parentContext(input) }) : operand;
+      last = operand;
       if (stopOn(last)) {
         return last;
       }
@@ -456,7 +344,7 @@ const andProcedure: AndProcedure = defineProcedure({
   input: LogicInputSchema as any,
   output: anyOutput("The first falsy operand value, or the last value"),
   metadata: { ...andMetadata, tags: [...andMetadata.tags, RUNS_REFS_TAG] },
-  handler: shortCircuit((value) => !value),
+  handler: shortCircuit("and", (value) => !value),
 });
 
 interface OrInput {
@@ -471,7 +359,7 @@ const orProcedure: OrProcedure = defineProcedure({
   input: LogicInputSchema as any,
   output: anyOutput("The first truthy operand value, or the last value"),
   metadata: { ...orMetadata, tags: [...orMetadata.tags, RUNS_REFS_TAG] },
-  handler: shortCircuit((value) => Boolean(value)),
+  handler: shortCircuit("or", (value) => Boolean(value)),
 });
 
 interface NotInput {
@@ -556,27 +444,6 @@ const MapOutputSchema = z.looseObject({
 
 type MapProcedure = Procedure<MapInput, MapOutput, { description: string; tags: string[] }>;
 
-/**
- * This function runs the refs of an `items` operand. It runs each element separately and in
- * order, so an array whose elements are all refs stays an array (hydration makes such an array
- * a chain).
- */
-async function hydrateItems(items: unknown, ctx: ProcedureContext | undefined, scope: RefScope | undefined): Promise<unknown[]> {
-  if (!ctx?.client) return Array.isArray(items) ? items : [];
-  let value: unknown;
-  if (Array.isArray(items)) {
-    const results: unknown[] = [];
-    for (const item of items) results.push(await hydrateOperand(item, ctx, scope));
-    value = results;
-  } else {
-    value = await hydrateOperand(items, ctx, scope);
-  }
-  if (!Array.isArray(value)) {
-    throw new Error(`items must be an array, got ${value === null ? "null" : typeof value}`);
-  }
-  return value;
-}
-
 const mapProcedure: MapProcedure = defineProcedure({
   path: ["map"],
   input: MapInputSchema as any,
@@ -586,23 +453,15 @@ const mapProcedure: MapProcedure = defineProcedure({
     tags: controlFlowTags("collection"),
   },
   handler: async (input: MapInput, ctx?: ProcedureContext): Promise<MapOutput> => {
-    // map is a control-flow procedure: its operands arrive raw, and it runs them here.
-    // Before, the handler only returned the raw items, so their refs never ran and no
-    // function was applied.
+    // map is a control-flow procedure: its operands arrive raw, and the runner of the kind
+    // client.map runs them on the kernel. Before, the handler only returned the raw items, so
+    // their refs never ran and no function was applied.
     if (input.fn !== undefined && !isAnyProcedureRef(input.fn)) {
       // Before, a fn that was not a call was ignored without a word (roadmap R4)
       throw new Error("client.map: fn must be one call ({ $proc, input }), or absent");
     }
-    const outer = scopeOf(input);
-    const items = await hydrateItems(input.items, ctx, outer);
-    if (!isAnyProcedureRef(input.fn) || !ctx?.client) {
-      return { results: items };
-    }
-    const results: unknown[] = [];
-    for (const [index, item] of items.entries()) {
-      results.push(await callOperand(input.fn, ctx, { scope: scopeWith({ [input.as ?? "item"]: item, index }, outer) }));
-    }
-    return { results };
+    if (ctx?.client) return (await runControlFlow("map", input, ctx)) as MapOutput;
+    return { results: Array.isArray(input.items) ? input.items : [] };
   },
 });
 
@@ -643,18 +502,10 @@ const reduceProcedure: ReduceProcedure = defineProcedure({
     if (!ctx?.client) {
       return input.accumulated ?? input.initial;
     }
-    if (!isAnyProcedureRef(input.fn)) {
-      // Without fn, the result is the accumulated value, hydrated like any operand. (Docs review
-      // DOC-4: before, a call in initial did not run, while map without fn hydrated its items.)
-      return hydrateOperand(input.accumulated ?? input.initial, ctx, scopeOf(input));
-    }
-    const outer = scopeOf(input);
-    const items = await hydrateItems(input.items, ctx, outer);
-    let acc = await hydrateOperand(input.initial, ctx, outer);
-    for (const [index, item] of items.entries()) {
-      acc = await callOperand(input.fn, ctx, { scope: scopeWith({ acc, item, index }, outer) });
-    }
-    return acc;
+    // The runner of the kind client.reduce runs the operands on the kernel. Without fn, the
+    // result is the accumulated value, hydrated like any operand. (Docs review DOC-4: before, a
+    // call in initial did not run, while map without fn hydrated its items.)
+    return runControlFlow("reduce", input, ctx);
   },
 });
 
@@ -773,25 +624,14 @@ const tryCatchProcedure: TryCatchProcedure = defineProcedure({
     tags: controlFlowTags("control-flow"),
   },
   handler: async (input: TryCatchInput, ctx?: ProcedureContext): Promise<TryCatchOutput> => {
-    const { try: tryValue, catch: catchValue } = input;
-
     // Without a client, nothing can run: `try` is the value
     if (!ctx?.client) {
-      return { success: true, value: tryValue };
+      return { success: true, value: input.try };
     }
-
-    // Operands arrive raw (exec() does not pre-hydrate control-flow procedures), so the
-    // `try` operand runs HERE inside a real JS try/catch. If it throws, the `catch` operand
-    // runs (or its value is the result). See BUGS-2026-07 H3.
-    const scope = scopeOf(input);
-    try {
-      const value = await evaluateOperand(tryValue, ctx, { scope });
-      return { success: true, value };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      const value = await evaluateOperand(catchValue, ctx, { scope: scopeWith({ error: message }, scope) });
-      return { success: false, value, error: message };
-    }
+    // Operands arrive raw (exec() does not pre-hydrate control-flow procedures), so the runner of
+    // the kind client.tryCatch runs the `try` operand. If it fails, the `catch` operand runs with
+    // the name `error`, and its value is the result. See BUGS-2026-07 H3.
+    return (await runControlFlow("tryCatch", input, ctx)) as TryCatchOutput;
   },
 });
 

@@ -15,7 +15,8 @@ import { outputSchema, zodAdapter } from "./core/schemas.js";
 import { coreProcedures } from "./core/index.js";
 import { invokeProcedure, outputValue } from "./invoke.js";
 import { capabilityRefusal, ladder, narrowCapability } from "./capability.js";
-import { CONTROL_FLOW_PROCEDURES, createRefScope, getPath, hydrateInput, lookupOutputRef, type RefScope } from "./ref.js";
+import { CONTROL_FLOW_PROCEDURES, createRefScope, getPath, lookupOutputRef, type RefScope } from "./ref.js";
+import { hydrateInput } from "./program.js";
 import type { Capability, CapabilityRequest, PermittedEffects, ProcedurePath } from "./types.js";
 
 const RUNS = Number(process.env["FC_RUNS"] ?? 200);

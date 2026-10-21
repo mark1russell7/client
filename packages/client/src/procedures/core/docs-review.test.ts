@@ -15,7 +15,7 @@ import { defineProcedure } from "../define.js";
 import { outputSchema } from "./schemas.js";
 import { ProcedureRegistry } from "../registry.js";
 import { allCoreProcedures } from "./index.js";
-import { observeHydration } from "../ref.js";
+import { observeHydration } from "../program.js";
 
 const stubTransport = { send: async function* () {} } as unknown as ConstructorParameters<typeof Client>[0];
 
