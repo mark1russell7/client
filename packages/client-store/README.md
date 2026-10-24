@@ -405,13 +405,18 @@ Many collections in one group (roadmap CLI-64):
 - A `TabCollection` has `observe()`, `onRole()`, `getStatus()`, `onStatus()`, `role`, `isLeader` and `syncStorage`, as a `TabCoordinator`.
 - The options of a collection are `local`, `copy`, `remote`, `hybrid` and `snapshot`, as the options of a `TabCoordinator`. Give a different `queueStore` to each collection.
 - The leader of the group has one `HybridStorage` for each collection. Each message has the name of its collection. Each collection has its own batches, acknowledgements and status.
-- Each collection leads when its own queue loaded. A collection whose setup fails tries again alone after its backoff, and the other collections keep their sync.
-- When no collection can lead, the tab releases the lock. It asks for the lock again after the backoff, as a `TabCoordinator` does.
+- Each collection leads when its own queue loaded. It tells the other tabs at once, and the followers then send their batches of that collection. Thus a slow collection does not stop the batches of the other collections.
+- A collection whose setup fails tries again alone after its backoff, and the other collections keep their sync.
+- After a failed setup, the tab sends a status of the collection with the error (operation `load`) to the other tabs. Thus a follower does not show the status of an old leader.
+- When no collection of the group leads or loads its queue, the tab releases the lock. It asks for the lock again after the backoff, as a `TabCoordinator` does.
+- This rule also applies to a collection that the application adds after the tab got the lock. A group without collections keeps the lock until its first collection.
 - The option `open` gives the options of a collection from its name. `collection(name)` uses it. The leader also uses it for a collection that only another tab opened.
 - Without `open`, the leader does the sync of its own collections only. A write of a follower to another collection waits in the follower until a leader has that collection.
 - `close()` of the group closes each collection. A collection has no `close()` of its own.
 - The lock and the channel of a group have the name `@procedures/store/tabs:<name>`. A `TabCoordinator` uses `@procedures/store/tab:<name>`. Thus a group and a coordinator do not share a lock or a channel.
 - A `TabCoordinator` sends its messages without the name of a collection, as before. Thus it works with a tab of an older release.
+
+> **Warning:** A `TabCoordinator` and a `TabGroup` do not see each other. Thus, when you move a collection from a `TabCoordinator` to a `TabGroup`, a tab of the older release can stay open. Then two tabs lead the collection, with one queue store and one remote. To prevent this, give new names to the queue store and the sync state store of that collection. Or close the tabs of the older release before the new release opens. The operations in the old queue store stay there until a tab loads that store.
 
 ```ts
 import { ApiStorage, IndexedDbQueueStore, TabGroup } from "@procedures/store/browser";
@@ -437,13 +442,16 @@ A snapshot for a new tab (roadmap CLI-66):
 - In the mode `"tab"`, the option `snapshot: true` lets a new tab ask the leader for the entries of its local copy. The mode `"shared"` does not take the option.
 - The leader reads the entries of its copy with `getEntries()`. It sends them in chunks of `snapshot.chunk` entries, 500 by default.
 - Each chunk has the number of the last batch of each tab that the entries hold.
-- The new tab keeps the batches of the other tabs until the last chunk comes. Then it writes the entries to its copy, and then the batches with a later number. Thus no batch comes two times.
+- The new tab keeps the batches of the other tabs until the last chunk comes. Then it writes the entries to its copy, and then the batches with a later number.
+- The snapshot can repeat a set. For example, a write of the leader during `getEntries()` can be in the entries and also in a later batch. The second write of the set gives the same state.
 - The observers get the entries in one batch of sets, with the origin `syncOrigin`.
 - The new tab keeps the values of its own writes after the snapshot. The snapshot does not delete an item that only the new tab has.
 - When the leader changes before the last chunk, the tab asks the new leader. It does not use the chunks of the old leader.
 - When no chunk comes in the time `snapshot.timeout` (10 seconds by default), the tab gives an error to `onError`. Then it writes the batches that waited, without a snapshot.
+- In the tab that holds the lock, no other tab sends a snapshot. The snapshot ends when the collection leads. While the collection loads its queue, the wait renews itself, at most 5 times. Thus the batches wait at most 6 × `snapshot.timeout`, also when the load stops.
 - A leader of an older release does not answer. Thus a new tab with a leader of an older release gets the error after the timeout.
-- The leader reads all the entries at one time, and the new tab keeps all the chunks until the last one. Thus a snapshot is for a copy that fits in the memory of a tab. The chunks keep each message small.
+- The leader reads all the entries at one time, and the new tab keeps all the chunks until the last one. Thus a snapshot is for a copy that fits in the memory of a tab.
+- `snapshot.chunk` limits the number of entries in a message, not its bytes. Thus large items give large messages.
 - The snapshot is an option, because the coordinator cannot know if a local copy is durable. A copy with persistence is empty until its load ends, so an empty copy is not a sign.
 
 ### The change of a storage in a server

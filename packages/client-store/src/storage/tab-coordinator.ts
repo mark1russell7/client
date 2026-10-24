@@ -30,10 +30,13 @@
  *
  * - The leader of the group runs one `HybridStorage` for each collection. Each message has the
  *   field `collection`, and each collection has its own batches, acknowledgements and status.
- * - Each collection leads when its own queue loaded. A collection whose setup fails tries again
- *   alone after its backoff, and the other collections keep their sync.
- * - When no collection can lead, the tab releases the lock and asks for it again after the backoff
- *   of the group, as a `TabCoordinator` does.
+ * - Each collection leads when its own queue loaded, and it tells the other tabs at once. Thus a
+ *   slow collection does not stop the batches of the other collections.
+ * - A collection whose setup fails tries again alone after its backoff, and the other collections
+ *   keep their sync. The tab sends a status with the error of the setup to the other tabs.
+ * - When no collection of the group leads or loads its queue, the tab releases the lock. It asks for
+ *   the lock again after the backoff of the group, as a `TabCoordinator` does. This is also true for
+ *   a collection that the application adds after the tab got the lock.
  * - The lock and the channel of a group have the prefix `@procedures/store/tabs:`. A
  *   `TabCoordinator` has the prefix `@procedures/store/tab:`. Thus a group and a coordinator never
  *   share a lock or a channel, also with the same name.
@@ -48,8 +51,12 @@
  * - The new tab keeps the batches of the other tabs until the last chunk comes. It writes the
  *   entries to its copy, and then it writes the batches with a number after the snapshot.
  * - The new tab keeps the values of its own writes after the snapshot.
+ * - A set in the entries can come again in a batch after the snapshot, for example a write of the
+ *   leader during its read. The second write of the set gives the same state.
  * - When the leader changes before the last chunk, the tab asks the new leader. When no chunk comes
  *   in the time `snapshot.timeout`, the tab reports an error and continues without the snapshot.
+ * - In the tab that holds the lock, the wait renews itself while the collection loads its queue, at
+ *   most `SNAPSHOT_RENEWALS` times. Thus the batches of the other tabs wait for a limited time.
  *
  * The limits:
  * - When the leader stops during a push, the next leader sends the operation again: the delivery to
@@ -60,6 +67,10 @@
  *   the observers get them again with the origin `syncOrigin`.
  * - The leader reads all the entries of a snapshot at one time, and the new tab keeps all the chunks
  *   until the last one. Thus a snapshot is for a local copy that fits in the memory of a tab.
+ * - `snapshot.chunk` counts the entries of a message, not its bytes: large items give large messages.
+ * - A `TabCoordinator` and a `TabGroup` of one collection do not see each other. When tabs of both
+ *   releases are open, two tabs lead the collection. Give the group a new queue store, or close
+ *   the tabs of the older release first.
  *
  * Nothing in this module reads a global value when it loads: Node can import it. The coordinator
  * reads `navigator.locks` and `BroadcastChannel` when it starts, and a test gives its own.
@@ -224,7 +235,7 @@ export interface TabRetryOptions {
 export interface TabSnapshotOptions {
   /**
    * The largest number of entries in one message of the snapshot, 1 or more. The leader uses its
-   * own value when it sends a snapshot.
+   * own value when it sends a snapshot. It does not limit the bytes: large items give large messages.
    * @default 500
    */
   chunk?: number;
@@ -232,6 +243,8 @@ export interface TabSnapshotOptions {
   /**
    * The longest wait for the next message of the snapshot, for example `seconds(10)`. After it, the
    * tab gives an error to `onError`, and it copies the batches of the other tabs without a snapshot.
+   * In the tab that holds the lock, the wait renews itself while the collection loads its queue, at
+   * most 5 times.
    * @default 10 seconds
    */
   timeout?: Duration;
@@ -387,6 +400,8 @@ const GROUP_PREFIX = "@procedures/store/tabs:";
 /** The defaults of the snapshot (roadmap CLI-66). */
 const SNAPSHOT_CHUNK = 500;
 const SNAPSHOT_TIMEOUT = 10_000;
+/** The largest number of renewals of the wait for a snapshot in the tab that holds the lock. */
+const SNAPSHOT_RENEWALS = 5;
 
 /** The fields of each message. A message of a `TabGroup` has `collection`, except `leader` for all the collections. */
 interface MessageBase {
@@ -402,7 +417,9 @@ interface MessageBase {
  *   tab increase by one.
  * - `hello`: the tab `from` tells the leader its last number, and the batches that no leader
  *   acknowledged. A tab sends it when it starts, and when a new leader starts.
- * - `leader`: the tab `from` is the new leader.
+ * - `leader`: the tab `from` is the new leader. In a group, a message with `collection` comes when
+ *   that collection leads. The message without `collection` comes when the setup of each collection
+ *   ended: a collection that the leader announced already ignores it.
  * - `ack`: the queue store of the leader holds the batches of the tab `to`, up to `seq`.
  * - `status`: the status of the sync of the leader `from` (roadmap CLI-65). The leader sends it at
  *   each change, and in answer to a hello. The numbers of the statuses of a leader increase by one,
@@ -509,7 +526,8 @@ export class TabCoordinator<T> {
    * this tab, and the batches of the other tabs. Each batch comes one time, with the origin of each
    * change. In the leader, the batches of the sync have the origin `syncOrigin` of the
    * `HybridStorage`. A batch of another tab comes after the local copy of this tab has it. The
-   * entries of a snapshot come in one batch of sets, with the origin `syncOrigin`.
+   * entries of a snapshot come in one batch of sets, with the origin `syncOrigin`. A set of the
+   * snapshot can come again in a later batch, with the same value.
    *
    * @returns The function that stops the batches. A second use of it does nothing.
    * @throws Error after `close()`
@@ -865,8 +883,9 @@ class GroupEngine {
         if (this.closed) return;
         this.abortRequest = undefined;
         if (await this.lead()) {
+          // close() ends the hold. A group whose collections all failed after the start ends it too.
           await held;
-          return;
+          if (this.closed) return;
         }
         // A failed setup releases the lock: another tab tries, and this tab tries again after the backoff
         this.retryLater();
@@ -896,21 +915,54 @@ class GroupEngine {
     const lease = {};
     this.lease = lease;
     const members = [...this.members.values()];
-    // A coordinator tells its new role at once, as before. A group tells it one time for all its collections.
-    const results = await Promise.all(members.map((member) => member.takeLead(lease, this.legacy)));
+    // Each collection tells the other tabs at once when it leads: a slow collection does not stop the batches of the others
+    const results = await Promise.all(members.map((member) => member.takeLead(lease, true)));
     if (this.lease !== lease) return false;
-    if (members.length > 0 && ![...this.members.values()].some((member) => member.leads)) {
-      this.lease = undefined;
+    // A group without collections keeps the lock: its first collection leads, or releases the lock when its setup fails
+    if (!this.canLead()) {
+      this.stepDown();
       return false;
     }
     this.failures = 0;
     this.setRole("leader");
-    // Each follower says hello for each of its collections: the leader gets their batches, and makes the collections that it does not have
+    // Each follower says hello for each collection that it has and that the leader did not announce: the leader makes the collections that it does not have
     if (!this.legacy) this.post(undefined, { v: PROTOCOL, type: "leader", from: this.id });
     members.forEach((member, at) => {
       if (!results[at]) member.retryInLeader();
     });
     return true;
+  }
+
+  /**
+   * This method runs after a failed setup of a collection in a tab that holds the lock, and keeps
+   * it after `lead()`. When no collection of the group leads or loads its queue, the tab releases
+   * the lock and asks for it again after the backoff of the group. Else the collection tries again
+   * alone after its own backoff.
+   */
+  afterFailedSetup(member: CollectionSync<any>, lease: object): void {
+    if (this.closed || this.lease !== lease) return;
+    if (this.canLead()) {
+      member.retryInLeader();
+      return;
+    }
+    this.stepDown();
+    this.setRole("follower");
+    // The lock callback then asks for the lock again after the backoff
+    const release = this.releaseLock;
+    this.releaseLock = undefined;
+    release?.();
+  }
+
+  /** True when the group has no collections yet, or when one of its collections leads or loads its queue. */
+  private canLead(): boolean {
+    const members = [...this.members.values()];
+    return members.length === 0 || members.some((member) => member.leads || member.settingUp);
+  }
+
+  /** This method ends the lease of the lock. A collection that waits for its next try stops its wait: the next lease tries it. */
+  private stepDown(): void {
+    this.lease = undefined;
+    for (const member of this.members.values()) member.stopRetry();
   }
 
   /** This method starts the single mode: each collection runs its sync alone. */
@@ -965,8 +1017,8 @@ class GroupEngine {
     }
     const name = data.collection;
     if (name === undefined) {
-      // A new leader of the group: each collection of this tab says hello
-      if (data.type === "leader") for (const member of [...this.members.values()]) member.receive(data);
+      // A new leader of the group: each collection of this tab that the leader did not announce says hello
+      if (data.type === "leader") for (const member of [...this.members.values()]) member.onLeader(data.from, false);
       return;
     }
     const member = this.members.get(name) ?? this.adopt(name, data.type);
@@ -1053,6 +1105,10 @@ class CollectionSync<T> implements TabCollection<T> {
   private ownClear = 0;
   /** The stop of the wait for the next chunk */
   private cancelSnapshotWait: Cancel | undefined;
+  /** The last tab that told this tab that it leads this collection: the `leader` message of its group does not start a second hello */
+  private announcedBy: string | undefined;
+  /** The error of the last failed setup of the sync */
+  private setupError: unknown;
 
   constructor(group: GroupEngine, name: string, options: TabCollectionOptions<T>, settings: CollectionSettings) {
     this.group = group;
@@ -1087,6 +1143,11 @@ class CollectionSync<T> implements TabCollection<T> {
   /** True while the `HybridStorage` of this tab runs the sync of the collection. */
   get leads(): boolean {
     return this.hybrid !== undefined;
+  }
+
+  /** True while the `HybridStorage` of this tab loads its queue, before the collection leads. */
+  get settingUp(): boolean {
+    return this.candidate !== undefined;
   }
 
   observe(observer: StorageObserver<T>): () => void {
@@ -1153,11 +1214,20 @@ class CollectionSync<T> implements TabCollection<T> {
   // ═══ The setup of the sync ═══
   //
 
-  /** This method sets up the sync in a tab that holds the lock. A failure tries again after the backoff, while the tab holds the lock. */
+  /**
+   * This method sets up the sync in a tab that holds the lock. After a failure, the collection tries
+   * again after its backoff. When no collection of the group can lead, the tab releases the lock.
+   */
   startLead(lease: object, announce: boolean): void {
     void this.takeLead(lease, announce).then((led) => {
-      if (!led && !this.closed && this.group.lease === lease) this.retryInLeader();
+      if (!led && !this.closed && this.group.lease === lease) this.group.afterFailedSetup(this, lease);
     });
+  }
+
+  /** This method stops the wait before the next try of the setup. */
+  stopRetry(): void {
+    this.cancelRetry?.();
+    this.cancelRetry = undefined;
   }
 
   /**
@@ -1180,7 +1250,10 @@ class CollectionSync<T> implements TabCollection<T> {
   async takeLead(lease: object, announce: boolean): Promise<boolean> {
     if (this.hybrid) return true;
     const candidate = this.makeCandidate();
-    if (!candidate) return false;
+    if (!candidate) {
+      this.reportFailure(lease);
+      return false;
+    }
     this.candidate = candidate;
     let failed = false;
     let failure: unknown;
@@ -1198,7 +1271,10 @@ class CollectionSync<T> implements TabCollection<T> {
       this.promote(candidate, "leader", announce);
       return true;
     }
-    if (failed) this.group.onError(failure);
+    if (failed) {
+      this.setupFailed(failure);
+      this.reportFailure(lease);
+    }
     candidate.stop();
     try {
       await candidate.hybrid.close();
@@ -1247,7 +1323,7 @@ class CollectionSync<T> implements TabCollection<T> {
     try {
       remote = this.makeRemote();
     } catch (error) {
-      this.group.onError(error);
+      this.setupFailed(error);
       return undefined;
     }
     const gate = { open: false };
@@ -1260,7 +1336,7 @@ class CollectionSync<T> implements TabCollection<T> {
         origin: this.tag,
       });
     } catch (error) {
-      this.group.onError(error);
+      this.setupFailed(error);
       // The remote of a storage that did not start stays open otherwise
       Promise.resolve()
         .then(() => remote.close())
@@ -1270,6 +1346,38 @@ class CollectionSync<T> implements TabCollection<T> {
     // The observer starts at once: the other tabs get the changes of the load and of the first sync
     const stop = hybrid.observe((batch) => this.onLeaderBatch(batch));
     return { hybrid, gate, stop };
+  }
+
+  /** This method gives the error of a failed setup to `onError`, and keeps it for the status of the failure. */
+  private setupFailed(error: unknown): void {
+    this.setupError = error;
+    this.group.onError(error);
+  }
+
+  /**
+   * In a group, the tab that holds the lock tells the other tabs that the setup of the collection
+   * failed (roadmap CLI-65). Its status has the error, with the operation `load`, and the other
+   * values of the last status. Thus a follower does not keep the status of an old leader. A
+   * `TabCoordinator` releases the lock after a failed setup, and sends no status.
+   */
+  private reportFailure(lease: object): void {
+    if (this.group.legacy || this.closed || this.group.lease !== lease) return;
+    const last = this.status;
+    const status: SyncStatus = {
+      connected: false,
+      pendingChanges: last?.pendingChanges ?? 0,
+      syncing: false,
+      ...(last?.endpoint !== undefined && { endpoint: last.endpoint }),
+      ...(last?.lastSync !== undefined && { lastSync: last.lastSync }),
+      ...(last?.mode !== undefined && { mode: last.mode }),
+      error: { operation: "load", error: this.setupError },
+    };
+    this.status = status;
+    // The status is the status of this tab now: its number follows the last number
+    this.statusFrom = undefined;
+    this.statusSeq++;
+    this.postStatus();
+    this.statusListeners.emit(status);
   }
 
   /**
@@ -1440,11 +1548,7 @@ class CollectionSync<T> implements TabCollection<T> {
         this.onHello(message.from, message.seq, message.pending);
         break;
       case "leader":
-        // The new leader gets the batches that no leader acknowledged, and the snapshot that waits
-        if (this.currentRole === "follower") {
-          this.hello();
-          this.requestSnapshot();
-        }
+        this.onLeader(message.from, true);
         break;
       case "ack":
         if (message.to === this.group.id) this.outbox = this.outbox.filter((batch) => batch.seq > message.seq);
@@ -1459,6 +1563,21 @@ class CollectionSync<T> implements TabCollection<T> {
         this.onSnapshot(message);
         break;
     }
+  }
+
+  /**
+   * A new leader. A follower tells it the batches that no leader acknowledged, and asks it for the
+   * snapshot that waits.
+   *
+   * @param own True when the tab `from` leads this collection. False for the message of a group for
+   *   all its collections: a collection that the tab `from` announced already ignores it.
+   */
+  onLeader(from: string, own: boolean): void {
+    if (this.closed || this.currentRole !== "follower") return;
+    if (own) this.announcedBy = from;
+    else if (this.announcedBy === from) return;
+    this.hello();
+    this.requestSnapshot();
   }
 
   /**
@@ -1487,6 +1606,9 @@ class CollectionSync<T> implements TabCollection<T> {
       this.captured.set(from, Math.max(known ?? 0, seq));
       if (pending.length > 0) this.acknowledge(from, seq);
       // A new tab gets the status now. The other tabs have its number already.
+      this.postStatus();
+    } else if (!this.group.legacy && !this.hybrid && this.group.lease && this.status !== undefined && this.statusFrom === undefined) {
+      // The status of a failed setup in the tab that holds the lock (roadmap CLI-65)
       this.postStatus();
     }
     for (const batch of pending) this.copy(from, batch);
@@ -1563,18 +1685,28 @@ class CollectionSync<T> implements TabCollection<T> {
     this.waitSnapshot();
   }
 
-  /** This method starts the wait for the next chunk again. At its end, the tab continues without the snapshot. */
-  private waitSnapshot(): void {
+  /**
+   * This method starts the wait for the next chunk again. At its end, the tab continues without the
+   * snapshot. In the tab that holds the lock, the wait renews itself while the collection loads its
+   * queue, at most `SNAPSHOT_RENEWALS` times: a load that hangs does not hold the batches forever.
+   *
+   * @param renewals The number of the renewals of the wait in the tab that holds the lock
+   */
+  private waitSnapshot(renewals = 0): void {
     this.cancelSnapshotWait?.();
     const cancel = this.group.clock.after(this.settings.snapshot.timeout, () => {
       this.cancelSnapshotWait = undefined;
       if (this.closed || !this.snapshot) return;
-      // This tab holds the lock and loads its queue: the snapshot ends when the collection leads
       if (this.group.lease) {
-        this.waitSnapshot();
-        return;
+        // This tab holds the lock and loads its queue: the snapshot ends when the collection leads
+        if (renewals < SNAPSHOT_RENEWALS) {
+          this.waitSnapshot(renewals + 1);
+          return;
+        }
+        this.group.onError(new Error(`The collection ${JSON.stringify(this.name)} did not lead in time: it continues without the snapshot`));
+      } else {
+        this.group.onError(new Error(`No leader sent the snapshot of the collection ${JSON.stringify(this.name)} in time`));
       }
-      this.group.onError(new Error(`No leader sent the snapshot of the collection ${JSON.stringify(this.name)} in time`));
       this.endSnapshot();
     });
     // The wait must not keep a Node process alive
