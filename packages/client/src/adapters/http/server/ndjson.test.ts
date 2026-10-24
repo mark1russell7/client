@@ -231,6 +231,33 @@ describe("writeNdjsonStream on node:http", () => {
     expect(broken).toEqual(byDefault);
   });
 
+  it("gives errorOf the count of the item lines, and the default flag of the code before the first item (CLI-68)", async () => {
+    const busy = (): Error => Object.assign(new Error("busy"), { code: "UNAVAILABLE" });
+    const failingAfter = (count: number) =>
+      async function* (): AsyncGenerator<unknown> {
+        for (let item = 1; item <= count; item++) yield item;
+        throw busy();
+      };
+    const lastLine = async (answer: (res: ServerResponse) => Promise<void>): Promise<unknown> => {
+      const plain = await plainServer(answer);
+      const lines = String((await exchange(plain.url))["body"]).trim().split("\n");
+      return JSON.parse(lines[lines.length - 1]!);
+    };
+    // Before the first item, an error without a flag gets the flag of its code: UNAVAILABLE is retryable
+    expect(await lastLine((res) => writeNdjsonStream(res, failingAfter(0)()))).toEqual({ type: "error", error: { code: "UNAVAILABLE", message: "busy", retryable: true } });
+    // After the first item, it gets false: a retry can send the items again (CLI-58)
+    expect(await lastLine((res) => writeNdjsonStream(res, failingAfter(2)()))).toEqual({ type: "error", error: { code: "UNAVAILABLE", message: "busy", retryable: false } });
+    // errorOf gets the count of the item lines before the error
+    const counts: number[] = [];
+    const errorOf = (error: unknown, items: number) => {
+      counts.push(items);
+      return { code: "UNAVAILABLE", message: (error as Error).message, retryable: items === 0 };
+    };
+    await lastLine((res) => writeNdjsonStream(res, failingAfter(0)(), { errorOf }));
+    await lastLine((res) => writeNdjsonStream(res, failingAfter(3)(), { errorOf }));
+    expect(counts).toEqual([0, 3]);
+  });
+
   it("starts one timer for each quiet time, not one for each item", async () => {
     const clock = fakeClock();
     let started = 0;

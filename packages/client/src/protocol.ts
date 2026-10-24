@@ -101,6 +101,25 @@ export function errorCodeOf(error: unknown): string {
   return typeof code === "string" ? code : "HANDLER_ERROR";
 }
 
+/**
+ * The retryable flag of an error that ends a call, on each face (`WIRE-PROTOCOL.md`, section
+ * "Error codes"). `items` is the count of the items that went to the caller before the error.
+ *
+ * - An error with its own boolean flag `retryable` keeps it.
+ * - Without a flag, an error before the first item gets the flag of its code in `ERROR_CODES`, or
+ *   false. This applies before the stream starts (CLI-48) and to an in-band end before the first
+ *   item (CLI-68). Thus `UNAVAILABLE` is retryable there.
+ * - Without a flag, an error after the first item gets false. The reader has items, and a retry
+ *   can send them again (CLI-58).
+ */
+export function retryableOf(error: unknown, items: number): boolean {
+  const own = (error as { retryable?: unknown } | null | undefined)?.retryable;
+  if (typeof own === "boolean") return own;
+  if (items > 0) return false;
+  const code = errorCodeOf(error);
+  return isProtocolErrorCode(code) ? ERROR_CODES[code].retryable : false;
+}
+
 /** The codes that a server before CLI-4 gave, and the code and the reason of wire v1 for each. */
 const FOLDED_ERROR_CODES: ReadonlyMap<string, { readonly code: ProtocolErrorCode; readonly reason?: string }> = new Map([
   ["SERVER_STOPPED", { code: "UNAVAILABLE" }],
