@@ -71,8 +71,18 @@ describe("guardMcpRequest", () => {
     expect(guardMcpRequest(request({ host: "localhost:3003" }))).toEqual({ ok: true });
   });
 
-  it("checks no token: a token option throws, so no token is without its check (CLI-2b)", () => {
-    expect(() => guardMcpRequest(request({ host: "127.0.0.1" }), { token: "secret-token-0123" } as never)).toThrow(/checks no token/);
+  it("checks no token: a token option fails one time with the migration, and each later request stays refused (CLI-2b)", () => {
+    const withToken = { token: "secret-token-0123" } as never;
+    // The first call throws, with a message that names the migration
+    expect(() => guardMcpRequest(request({ host: "127.0.0.1", authorization: "Bearer secret-token-0123" }), withToken)).toThrow(TypeError);
+    // Each later call gives a refusal without an error: no error for each request, and no request passes
+    for (const authorization of ["Bearer secret-token-0123", "Bearer wrong", undefined]) {
+      const refused = guardMcpRequest(request({ host: "127.0.0.1", ...(authorization !== undefined ? { authorization } : {}) }), withToken);
+      expect(refused).toMatchObject({ ok: false, status: 500, code: "INTERNAL_ERROR" });
+      expect(refused.ok === false && refused.message).toMatch(/hostPolicy\(\{ token \}\).*server\.admission\(credentials\)/);
+    }
+    // Without the token option, the browser checks pass as before
+    expect(guardMcpRequest(request({ host: "127.0.0.1" }))).toEqual({ ok: true });
   });
 
   it("refuses DNS rebinding and a web page of another origin", () => {

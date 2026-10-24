@@ -124,8 +124,16 @@ export interface RequestIdentity {
  * with `UNAUTHORIZED`. The hook runs before the token check and before `authenticate`.
  *
  * The hook can run more than one time for one request or one task. `admits()` runs it at a
- * WebSocket upgrade, and `identify()` runs it before the MCP face makes a task (roadmap CLI-69).
- * Thus a hook with a side effect, for example a count or a log line, sees each of these runs.
+ * WebSocket upgrade, and then each call over the connection runs it again. Thus a hook with a
+ * side effect, for example a count or a log line, sees each of these runs.
+ *
+ * On the MCP HTTP face, the hook runs one time for each HTTP request, before its calls (CLI-2b):
+ * `admission()` runs it for `initialize`, a tool call, the GET stream and the DELETE of a session.
+ * A tool call, and `identify()` before a task (CLI-69), use that admission: the hook does not run
+ * again for them. For `admission()`, `admits()` and `identify()`, the request of the hook has an
+ * empty method (`{ service: "", operation: "" }`), the id `admission`, `connection` or `identify`,
+ * no payload and no metadata. Thus a hook must not branch on the method, the payload, the
+ * metadata or the transport of the request. It reads only the credentials.
  */
 export type PrincipalOf = (
   credentials: Credentials,

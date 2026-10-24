@@ -65,7 +65,8 @@ export type McpGuardResult =
   | { readonly ok: true }
   | {
       readonly ok: false;
-      readonly status: 401 | 403 | 405 | 415;
+      /** 500 only for a removed `token` option, after its first error (CLI-2b). */
+      readonly status: 401 | 403 | 405 | 415 | 500;
       readonly code: string;
       /** The reason of a FORBIDDEN refusal of wire v1, for example `origin-not-allowed` (CLI-4). */
       readonly reason?: string | undefined;
@@ -73,14 +74,31 @@ export type McpGuardResult =
       readonly headers?: Readonly<Record<string, string>> | undefined;
     };
 
+/** The message for a `token` option of `guardMcpRequest` (CLI-2b). It names the migration. */
+const TOKEN_OPTION_REMOVED =
+  "guardMcpRequest checks no token since CLI-2b: remove its token option. Give the token to the server, hostPolicy({ token }) or new ProcedureServer({ token }). " +
+  "After guardMcpRequest, admit each request with server.admission(credentials), and answer 401 when ok is false.";
+
+/** True after the first call with a `token` option threw its error. */
+let tokenOptionReported = false;
+
 /**
  * The browser checks of a request to the MCP endpoint: one check of the host and the origin. The
- * credentials are the job of the admission of the server (CLI-2b). A `token` option throws an
- * error: before, this function compared it, and a token without its check opens the endpoint.
+ * credentials are the job of the admission of the server (CLI-2b).
+ *
+ * Before, this function compared a `token` option. A token without its check opens the endpoint,
+ * so a `token` option fails. The function has no point of creation: the first call with a
+ * `token` option throws a `TypeError` with the migration. Each later call with it gives a refusal
+ * with the status 500 and the same message, without an error. Thus the log of the app gets one
+ * error, and each request stays refused.
  */
 export function guardMcpRequest(req: Pick<IncomingMessage, "method" | "headers" | "socket">, options: McpRequestGuardOptions = {}): McpGuardResult {
   if (Reflect.get(options, "token") !== undefined) {
-    throw new TypeError("guardMcpRequest checks no token since CLI-2b. Give the token to the server, and admit each request with admission() of the server.");
+    if (!tokenOptionReported) {
+      tokenOptionReported = true;
+      throw new TypeError(TOKEN_OPTION_REMOVED);
+    }
+    return { ok: false, status: 500, code: "INTERNAL_ERROR", message: TOKEN_OPTION_REMOVED };
   }
   const browser: BrowserGuardOptions = {
     ...(options.allowedOrigins !== undefined ? { allowedOrigins: options.allowedOrigins } : {}),

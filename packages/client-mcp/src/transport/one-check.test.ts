@@ -214,37 +214,60 @@ describe("one check for each request on the standalone MCP face (CLI-2b)", () =>
     expect(since()).toEqual({ admissions: 0, origins: 1, hosts: 1 });
   });
 
-  it("gives a jarvis-style cookie and a Graph-style session their principal, with one run of the request hook for each HTTP request", async () => {
+  it("gives a jarvis-style cookie its principal, with one run of the request hook for each HTTP request", async () => {
     let runs = 0;
-    const sessions = new Map([["session-of-alice", "alice"]]);
-    // A cookie with the token (jarvis), or a session cookie (Graph)
+    // The token in a cookie, as jarvis does
     const principalOf: PrincipalOf = ({ cookies = {} }) => {
       runs++;
-      const user = sessions.get(cookies["graph.session_token"] ?? "");
-      if (user !== undefined) return { bearer: TOKEN, principal: { id: user, via: "session" } };
       const token = cookies["jarvis_token"];
       return token !== undefined ? { bearer: token } : undefined;
     };
     const { url } = await standalone({ policy: { token: TOKEN, principalOf, browser: { allowedOrigins: [APP] } }, faces: { http: {} } });
-    for (const [cookie, principal] of [
-      [`jarvis_token=${TOKEN}`, { id: "token", via: "token" }],
-      ["graph.session_token=session-of-alice", { id: "alice", via: "session" }],
-    ] as const) {
-      const before = runs;
-      const opened = await post(url, INITIALIZE, { cookie, origin: APP });
-      expect(opened.status, cookie).toBe(200);
-      const session = { cookie, origin: APP, "mcp-session-id": opened.session! };
-      await post(url, INITIALIZED, session);
-      expect(principalOfTool((await post(url, CALL, session)).message), cookie).toEqual(principal);
-      // Three HTTP requests: three runs of the hook, and the tool call adds none
-      expect(runs - before, cookie).toBe(3);
-    }
+    const cookie = `jarvis_token=${TOKEN}`;
+    const opened = await post(url, INITIALIZE, { cookie, origin: APP });
+    expect(opened.status).toBe(200);
+    const session = { cookie, origin: APP, "mcp-session-id": opened.session! };
+    await post(url, INITIALIZED, session);
+    expect(principalOfTool((await post(url, CALL, session)).message)).toEqual({ id: "token", via: "token" });
+    // Three HTTP requests: three runs of the hook, and the tool call adds none
+    expect(runs).toBe(3);
     expect((await post(url, INITIALIZE, { cookie: "jarvis_token=wrong", origin: APP })).status).toBe(401);
-    expect((await post(url, INITIALIZE, { cookie: "graph.session_token=forged", origin: APP })).status).toBe(401);
+    expect((await post(url, INITIALIZE, { origin: APP })).status).toBe(401);
     // A cookie needs a named origin (CSRF): a page of another origin is refused before the hook
     const before = runs;
-    expect((await post(url, INITIALIZE, { cookie: `jarvis_token=${TOKEN}`, origin: "https://evil.example" })).status).toBe(403);
+    expect((await post(url, INITIALIZE, { cookie, origin: "https://evil.example" })).status).toBe(403);
     expect(runs).toBe(before);
+  });
+
+  it("gives a Graph-style session its user and a request without a session the anonymous principal, and refuses at initialize when the accounts are not ready", async () => {
+    let runs = 0;
+    let ready = true;
+    const anonymous = { id: "anonymous", via: "anonymous", claims: {} };
+    const sessions = new Map([["session-of-alice", "alice"]]);
+    // The shape of the accounts mode of graphPrincipalOf of Graph
+    const principalOf: PrincipalOf = async ({ cookies = {} }) => {
+      runs++;
+      if (!ready) throw Object.assign(new Error("accounts are not ready"), { code: "UNAVAILABLE", retryable: true });
+      const user = sessions.get(cookies["better-auth.session_token"] ?? "");
+      return { principal: user !== undefined ? { id: user, via: "better-auth" } : anonymous };
+    };
+    const { url } = await standalone({ policy: { principalOf, browser: { allowedOrigins: [APP] } }, faces: { http: {} } });
+    for (const [headers, principal] of [
+      [{ cookie: "better-auth.session_token=session-of-alice", origin: APP }, { id: "alice", via: "better-auth" }],
+      [{ origin: APP }, anonymous],
+      [{ cookie: "better-auth.session_token=forged", origin: APP }, anonymous],
+    ] as const) {
+      const before = runs;
+      const opened = await post(url, INITIALIZE, headers);
+      expect(opened.status, principal.id).toBe(200);
+      const session = { ...headers, "mcp-session-id": opened.session! };
+      await post(url, INITIALIZED, session);
+      expect(principalOfTool((await post(url, CALL, session)).message), principal.id).toEqual(principal);
+      expect(runs - before, principal.id).toBe(3);
+    }
+    // Accounts that are not ready: 401 at initialize, with the scheme
+    ready = false;
+    expect(await post(url, INITIALIZE, { origin: APP })).toMatchObject({ status: 401, wwwAuthenticate: 'Bearer realm="mcp"' });
   });
 
   it("refuses two tokens for one host, and gives the token of the face to the policy", () => {

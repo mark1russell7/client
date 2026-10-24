@@ -8,8 +8,14 @@
  * request of its own, so it gets one admission. The test counts each run, and a request without a
  * token, or with a foreign Host or Origin, is still refused.
  *
- * A jarvis-style cookie (the token in a cookie) and a Graph-style session (a session cookie) each
- * give a principal on the faces.
+ * A jarvis-style cookie (the token in a cookie) gives a principal on the faces. A Graph-style
+ * request hook has the shape of `graphPrincipalOf` of Graph: in the accounts mode a session gives
+ * its user and no session gives the anonymous principal, accounts that are not ready refuse the
+ * request, and in the mode `on` a tenant token gives the tenant.
+ *
+ * Each request path of an MCP session has its check: a tool call, the DELETE of the session,
+ * OPTIONS, and `tasks/get` and `tasks/result` of a task. The MCP face takes `allowedOrigins: "*"`
+ * of the policy, as the HTTP face does, and sends no CORS header.
  */
 
 import { describe, it, expect, afterEach } from "vitest";
@@ -95,13 +101,36 @@ function jarvisHook(counts: Counts): PrincipalOf {
   };
 }
 
-/** A Graph-style request hook: a session cookie gives the user of the session. It counts its runs. */
-function graphHook(counts: Counts): PrincipalOf {
-  const sessions = new Map([["session-of-alice", "alice"]]);
-  return ({ cookies = {} }) => {
+/** The anonymous principal of Graph. */
+const ANONYMOUS = { id: "anonymous", via: "anonymous", claims: {} };
+
+/** The modes of the Graph-style hook, as the AUTH_MODE of Graph. */
+type GraphDeps =
+  | { readonly mode: "off" }
+  | { readonly mode: "on"; readonly tenantTokens: Readonly<Record<string, string>> }
+  | { readonly mode: "accounts"; readonly ready: () => boolean; readonly sessions: ReadonlyMap<string, string>; readonly agentToken?: string };
+
+/**
+ * A Graph-style request hook, with the shape of `graphPrincipalOf` of Graph. It counts its runs.
+ * - `off`: each request is anonymous.
+ * - `on`: a tenant token gives the tenant. Without it, the hook refuses the request.
+ * - `accounts`: accounts that are not ready throw `UNAVAILABLE`. The agent token gives the agent.
+ *   A session cookie gives its user, and a request without a session is anonymous.
+ */
+function graphHook(counts: Counts, deps: GraphDeps): PrincipalOf {
+  return async ({ bearer, cookies = {} }) => {
     counts.hook++;
-    const user = sessions.get(cookies["graph.session_token"] ?? "");
-    return user === undefined ? undefined : { principal: { id: user, via: "session" } };
+    if (deps.mode === "off") return { principal: ANONYMOUS };
+    if (deps.mode === "on") {
+      for (const [tenant, token] of Object.entries(deps.tenantTokens)) {
+        if (bearer === token) return { principal: { id: `tenant:${tenant}`, via: "tenant-token", claims: { tenant } } };
+      }
+      return undefined;
+    }
+    if (!deps.ready()) throw Object.assign(new Error("accounts are not ready"), { code: "UNAVAILABLE", retryable: true });
+    if (deps.agentToken !== undefined && bearer === deps.agentToken) return { principal: { id: "agent", via: "agent-token", claims: { graph: { agent: true } } } };
+    const user = deps.sessions.get(cookies["better-auth.session_token"] ?? "");
+    return { principal: user !== undefined ? { id: user, via: "better-auth", claims: { graph: { user } } } : ANONYMOUS };
   };
 }
 
@@ -120,11 +149,19 @@ async function runHost(policy: HostPolicy): Promise<{ address: (type: string) =>
           .meta({ effects: { reads: [], writes: [] } })
           .handler(async (_input, ctx) => ({ principal: ctx.principal ?? null }))
           .build(),
+        // A tool that can run as an MCP task (CLI-35)
+        createProcedure()
+          .path(["who", "later"])
+          .input(z.object({}).passthrough())
+          .output(z.unknown())
+          .meta({ effects: { reads: [], writes: [] }, taskSupport: "optional" })
+          .handler(async (_input, ctx) => ({ principal: ctx.principal ?? null }))
+          .build(),
       ],
     }),
     clock,
     policy,
-    faces: { http: true, ws: true, mcp: mcpFace({ serverInfo: { name: "one-check", version: "0.0.0" } }) },
+    faces: { http: true, ws: true, mcp: mcpFace({ serverInfo: { name: "one-check", version: "0.0.0" }, tasks: {} }) },
     listen: [{ port: 0, knobs: LOCAL_LISTENER_KNOBS }],
   });
   const svc = host.declare(serviceOf("one-check"));
@@ -207,6 +244,7 @@ function upgrade(port: number, headers: Record<string, string>): Promise<number>
 
 const MCP_HEADERS = { "content-type": "application/json", accept: "application/json, text/event-stream" };
 const INITIALIZE = { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "one-check", version: "0" } } };
+const INITIALIZED = { jsonrpc: "2.0", method: "notifications/initialized" };
 
 /** A JSON-RPC request to the MCP face: the status, the session and the message of the answer (JSON, or one server-sent event). */
 async function postMcp(address: string, body: unknown, headers: Record<string, string>): Promise<{ status: number; session: string | null; message: Record<string, unknown> | undefined }> {
@@ -312,29 +350,139 @@ describe("one check for each request on each face of the host (CLI-2b)", () => {
     expect(since()).toEqual({ hook: 0, origins: 1, hosts: 1 });
   });
 
-  it("a Graph-style session gives its principal on the HTTP, WebSocket and MCP faces, and no session is refused", async () => {
+  it("each request path of an MCP session has its check: a task, tasks/get, tasks/result, a tool call, OPTIONS and the DELETE of the session", async () => {
     const counts: Counts = { hook: 0, origins: 0, hosts: 0 };
-    const { address, port } = await runHost(hostPolicy({ principalOf: graphHook(counts), browser: countedBrowser(counts) }));
+    const { address, port } = await runHost(hostPolicy({ token: TOKEN, principalOf: jarvisHook(counts), browser: countedBrowser(counts) }));
+    const mcp = address("mcp");
+    const page = { ...browserHeaders(port), cookie: `jarvis_token=${TOKEN}` };
+    const opened = await postMcp(mcp, INITIALIZE, page);
+    expect(opened.status).toBe(200);
+    const session = { ...page, "mcp-session-id": opened.session! };
+    await postMcp(mcp, INITIALIZED, session);
+    const since = delta(counts);
+
+    // A tool call as a task: one admission for the HTTP request. The principal of the task
+    // (identify) and the call of the task use it, so the hook does not run again for them.
+    const created = await postMcp(mcp, { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "who.later", arguments: {}, task: {} } }, session);
+    const taskId = (created.message?.["result"] as { task?: { taskId?: string } } | undefined)?.task?.taskId;
+    expect(typeof taskId).toBe("string");
+    // tasks/result waits for the end of the task
+    const result = await postMcp(mcp, { jsonrpc: "2.0", id: 3, method: "tasks/result", params: { taskId } }, session);
+    expect(principalOfTool(result.message)).toEqual({ id: "token", via: "token" });
+    const got = await postMcp(mcp, { jsonrpc: "2.0", id: 4, method: "tasks/get", params: { taskId } }, session);
+    expect(got.message?.["result"]).toMatchObject({ taskId, status: "completed" });
+    expect(since()).toEqual({ hook: 3, origins: 3, hosts: 3 });
+
+    // Each request path of the open session, without the token or with a wrong one: 401
+    const { cookie: _cookie, ...withoutToken } = session;
+    const wrongToken = { ...session, cookie: "jarvis_token=wrong" };
+    for (const headers of [withoutToken, wrongToken]) {
+      const call = await postMcp(mcp, { jsonrpc: "2.0", id: 5, method: "tools/call", params: { name: "who.am", arguments: {} } }, headers);
+      expect(call.status).toBe(401);
+      expect(call.message).toMatchObject({ error: { data: { code: "UNAUTHORIZED" } } });
+      expect((await postMcp(mcp, { jsonrpc: "2.0", id: 6, method: "tasks/get", params: { taskId } }, headers)).status).toBe(401);
+      expect((await postMcp(mcp, { jsonrpc: "2.0", id: 7, method: "tasks/result", params: { taskId } }, headers)).status).toBe(401);
+      const options = await send(mcp, "OPTIONS", headers);
+      expect(options.status).toBe(401);
+      expect(options.headers["www-authenticate"]).toBe('Bearer realm="mcp"');
+      expect((await send(mcp, "DELETE", headers)).status).toBe(401);
+    }
+    // Ten requests: ten admissions, and each one refused
+    expect(since()).toEqual({ hook: 10, origins: 10, hosts: 10 });
+
+    // The refused DELETE did not close the session. The DELETE with the token closes it.
+    const listed = await postMcp(mcp, { jsonrpc: "2.0", id: 8, method: "tools/list" }, session);
+    expect(JSON.stringify(listed.message)).toContain("who.am");
+    expect((await send(mcp, "DELETE", session)).status).toBe(200);
+    expect((await postMcp(mcp, { jsonrpc: "2.0", id: 9, method: "tools/list" }, session)).status).toBe(404);
+  });
+
+  it('the MCP face takes allowedOrigins "*" of the policy, as the HTTP face does: no CORS header, and a request with a cookie needs a named origin', async () => {
+    // A token and no request hook: the server reads no cookies, so only a request with a cookie is ambient
+    const { address, port } = await runHost(hostPolicy({ token: TOKEN, browser: { allowedOrigins: "*" } }));
+    const foreign = { host: `127.0.0.1:${port}`, origin: "https://evil.example", authorization: `Bearer ${TOKEN}` };
+    const mcp = address("mcp");
+    const http = `${address("http")}/who/am`;
+
+    // A foreign origin passes, and the answer has no Access-Control-Allow-Origin header: a web page cannot read it
+    const opened = await send(mcp, "POST", { ...MCP_HEADERS, ...foreign }, JSON.stringify(INITIALIZE));
+    expect(opened.status).toBe(200);
+    expect(opened.headers["access-control-allow-origin"]).toBeUndefined();
+    const called = await send(http, "POST", { "content-type": "application/json", ...foreign }, "{}");
+    expect(called.status).toBe(200);
+    expect(called.headers["access-control-allow-origin"]).toBeUndefined();
+
+    // The same requests with a cookie: 403 (CSRF), with no CORS header
+    for (const refused of [
+      await send(mcp, "POST", { ...MCP_HEADERS, ...foreign, cookie: "s=1" }, JSON.stringify(INITIALIZE)),
+      await send(http, "POST", { "content-type": "application/json", ...foreign, cookie: "s=1" }, "{}"),
+    ]) {
+      expect(refused.status).toBe(403);
+      expect(refused.headers["access-control-allow-origin"]).toBeUndefined();
+    }
+  });
+
+  it("a Graph-style hook in the accounts mode: a session gives its user, no session is anonymous, and accounts that are not ready give 401 at initialize", async () => {
+    const counts: Counts = { hook: 0, origins: 0, hosts: 0 };
+    let ready = true;
+    const deps: GraphDeps = { mode: "accounts", ready: () => ready, sessions: new Map([["session-of-alice", "alice"]]), agentToken: "graph-agent-token" };
+    const { address, port } = await runHost(hostPolicy({ principalOf: graphHook(counts, deps), browser: countedBrowser(counts) }));
     const since = delta(counts);
     const page = browserHeaders(port);
-    const signedIn = { ...page, cookie: "graph.session_token=session-of-alice" };
-    const alice = { id: "alice", via: "session" };
+    const signedIn = { ...page, cookie: "better-auth.session_token=session-of-alice" };
+    const asAgent = { ...page, authorization: "Bearer graph-agent-token" };
+    const alice = { id: "alice", via: "better-auth", claims: { graph: { user: "alice" } } };
+    const agent = { id: "agent", via: "agent-token", claims: { graph: { agent: true } } };
 
+    // The HTTP and WebSocket faces: a request without a session is anonymous, not refused
     expect(await callHttp(address("http"), signedIn)).toMatchObject({ status: 200, body: { principal: alice } });
-    expect((await callHttp(address("http"), page)).status).toBe(401);
+    expect(await callHttp(address("http"), page)).toMatchObject({ status: 200, body: { principal: ANONYMOUS } });
     expect(await upgrade(port, signedIn)).toBe(101);
-    expect(await upgrade(port, { ...page, cookie: "graph.session_token=forged" })).toBe(401);
+    expect(await upgrade(port, page)).toBe(101);
     since();
 
+    // The MCP face: no 401 at initialize without a session. The tool call gives the anonymous principal.
     const mcp = address("mcp");
-    const opened = await postMcp(mcp, INITIALIZE, signedIn);
+    for (const [headers, principal] of [
+      [signedIn, alice],
+      [page, ANONYMOUS],
+      [asAgent, agent],
+    ] as const) {
+      const opened = await postMcp(mcp, INITIALIZE, headers);
+      expect(opened.status, principal.id).toBe(200);
+      const session = { ...headers, "mcp-session-id": opened.session! };
+      await postMcp(mcp, INITIALIZED, session);
+      const called = await postMcp(mcp, { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "who.am", arguments: {} } }, session);
+      expect(principalOfTool(called.message), principal.id).toEqual(principal);
+    }
+    // Nine HTTP requests of the MCP face: nine admissions, and the tool calls add none
+    expect(since()).toEqual({ hook: 9, origins: 9, hosts: 9 });
+
+    // Accounts that are not ready: the hook throws UNAVAILABLE, and the server refuses with 401.
+    // On the MCP face the 401 comes at initialize, with WWW-Authenticate: an MCP client can start OAuth discovery on it.
+    ready = false;
+    expect((await callHttp(address("http"), signedIn)).status).toBe(401);
+    expect(await upgrade(port, signedIn)).toBe(401);
+    const notReady = await send(mcp, "POST", { ...MCP_HEADERS, ...signedIn }, JSON.stringify(INITIALIZE));
+    expect(notReady.status).toBe(401);
+    expect(notReady.headers["www-authenticate"]).toBe('Bearer realm="mcp"');
+  });
+
+  it("a Graph-style hook in the mode on: a tenant token gives its tenant, and without it the MCP face answers 401 at initialize", async () => {
+    const counts: Counts = { hook: 0, origins: 0, hosts: 0 };
+    const { address } = await runHost(hostPolicy({ principalOf: graphHook(counts, { mode: "on", tenantTokens: { acme: "tok-acme" } }) }));
+    const mcp = address("mcp");
+    const tenant = { authorization: "Bearer tok-acme" };
+    const opened = await postMcp(mcp, INITIALIZE, tenant);
     expect(opened.status).toBe(200);
-    const session = { ...signedIn, "mcp-session-id": opened.session! };
-    await postMcp(mcp, { jsonrpc: "2.0", method: "notifications/initialized" }, session);
+    const session = { ...tenant, "mcp-session-id": opened.session! };
+    await postMcp(mcp, INITIALIZED, session);
     const called = await postMcp(mcp, { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "who.am", arguments: {} } }, session);
-    expect(principalOfTool(called.message)).toEqual(alice);
-    // Three HTTP requests of the MCP face: three admissions, and the tool call adds none
-    expect(since()).toEqual({ hook: 3, origins: 3, hosts: 3 });
-    expect((await postMcp(mcp, INITIALIZE, page)).status).toBe(401);
+    expect(principalOfTool(called.message)).toEqual({ id: "tenant:acme", via: "tenant-token", claims: { tenant: "acme" } });
+    for (const headers of [{}, { authorization: "Bearer tok-beta" }]) {
+      const refused = await send(mcp, "POST", { ...MCP_HEADERS, ...headers }, JSON.stringify(INITIALIZE));
+      expect(refused.status).toBe(401);
+      expect(refused.headers["www-authenticate"]).toBe('Bearer realm="mcp"');
+    }
   });
 });

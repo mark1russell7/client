@@ -3,7 +3,9 @@
  * check and the authenticate function one time. Each call with the admitted credentials gets the
  * principal and the narrowing of the admission, and the checks do not run again. A copy of the
  * admitted credentials, and the admission of another server, go through the checks. A jarvis-style
- * cookie and a Graph-style session each give a principal.
+ * cookie gives a principal. A Graph-style hook (the accounts mode of `graphPrincipalOf`) gives a
+ * session its user, a request without a session the anonymous principal, and refuses a request
+ * when its accounts are not ready.
  */
 
 import { describe, it, expect } from "vitest";
@@ -57,18 +59,28 @@ function jarvisStyle(): { readonly hook: PrincipalOf; readonly runs: () => numbe
   };
 }
 
-/** A Graph-style request hook: a session cookie gives the user of the session, with a narrower audience. */
-function graphStyle(): { readonly hook: PrincipalOf; readonly runs: () => number } {
+/** The anonymous principal of Graph. */
+const ANONYMOUS = { id: "anonymous", via: "anonymous", claims: {} };
+
+/**
+ * A Graph-style request hook, with the shape of the accounts mode of `graphPrincipalOf` of Graph.
+ * Accounts that are not ready throw `UNAVAILABLE`. A session cookie gives its user, and a request
+ * without a session is anonymous. The narrowing of a user is an addition of the test.
+ */
+function graphStyle(): { readonly hook: PrincipalOf; readonly runs: () => number; ready: boolean } {
   const sessions = new Map([["session-of-alice", "alice"]]);
   let runs = 0;
-  return {
-    hook: ({ cookies = {} }) => {
-      runs++;
-      const user = sessions.get(cookies["graph.session_token"] ?? "");
-      return user === undefined ? undefined : { principal: { id: user, via: "session" }, narrowing: { clearance: "guest" } };
-    },
+  const state: { readonly hook: PrincipalOf; readonly runs: () => number; ready: boolean } = {
+    ready: true,
     runs: () => runs,
+    hook: async ({ cookies = {} }) => {
+      runs++;
+      if (!state.ready) throw Object.assign(new Error("accounts are not ready"), { code: "UNAVAILABLE", retryable: true });
+      const user = sessions.get(cookies["better-auth.session_token"] ?? "");
+      return user === undefined ? { principal: ANONYMOUS } : { principal: { id: user, via: "better-auth" }, narrowing: { clearance: "guest" } };
+    },
   };
+  return state;
 }
 
 describe("admission() of ProcedureServer (CLI-2b)", () => {
@@ -105,19 +117,30 @@ describe("admission() of ProcedureServer (CLI-2b)", () => {
     expect(await plain.admission(credentialsOf({}))).toMatchObject({ ok: false, code: "UNAUTHORIZED" });
   });
 
-  it("gives a Graph-style session its principal and its narrowing, for each call of the request", async () => {
+  it("gives a Graph-style session its principal and its narrowing for each call of the request, and a request without a session the anonymous principal", async () => {
     const graph = graphStyle();
     const value = server({ principalOf: graph.hook, capability: { clearance: "intimate" }, clearanceOrder: ladder(AUDIENCES) });
-    const admitted = await value.admission(credentialsOf({ cookie: "graph.session_token=session-of-alice" }));
-    expect(admitted).toMatchObject({ ok: true, principal: { id: "alice", via: "session" } });
+    const admitted = await value.admission(credentialsOf({ cookie: "better-auth.session_token=session-of-alice" }));
+    expect(admitted).toMatchObject({ ok: true, principal: { id: "alice", via: "better-auth" } });
     if (!admitted.ok) throw new Error("not admitted");
     const first = await value.handle(call(admitted.credentials));
     const second = await value.handle(call(admitted.credentials));
-    for (const response of [first, second]) expect(response.payload).toEqual({ principal: { id: "alice", via: "session" }, clearance: "guest" });
+    for (const response of [first, second]) expect(response.payload).toEqual({ principal: { id: "alice", via: "better-auth" }, clearance: "guest" });
     expect(graph.runs()).toBe(1);
-    // No session, or an unknown session: the hook refuses the request
-    expect(await value.admission(credentialsOf({}))).toEqual({ ok: false, code: "UNAUTHORIZED", message: "Unauthorized: the server did not accept the credentials" });
-    expect(await value.admission(credentialsOf({ cookie: "graph.session_token=forged" }))).toMatchObject({ ok: false, code: "UNAUTHORIZED" });
+    // No session, or an unknown session: the anonymous principal, as in Graph. The request is not refused.
+    for (const headers of [{}, { cookie: "better-auth.session_token=forged" }]) {
+      const anonymous = await value.admission(credentialsOf(headers));
+      expect(anonymous).toMatchObject({ ok: true, principal: ANONYMOUS });
+      if (!anonymous.ok) throw new Error("not admitted");
+      expect((await value.handle(call(anonymous.credentials))).payload).toEqual({ principal: ANONYMOUS, clearance: "intimate" });
+    }
+    // Accounts that are not ready: the hook throws UNAVAILABLE, and the admission refuses with UNAUTHORIZED
+    graph.ready = false;
+    expect(await value.admission(credentialsOf({ cookie: "better-auth.session_token=session-of-alice" }))).toEqual({
+      ok: false,
+      code: "UNAUTHORIZED",
+      message: "Unauthorized: the server did not accept the credentials",
+    });
   });
 
   it("runs the checks again for a copy of the admitted credentials, and for the admission of another server", async () => {

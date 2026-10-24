@@ -149,6 +149,13 @@ export interface ProcedureServerOptions extends ServerOptions {
    * `UNAUTHORIZED`. It runs after the token check. The capability function can read
    * `request.principal`. Like the request hook, it can run more than one time for one request or
    * one task: `admits()` and `identify()` run it too (roadmap CLI-69).
+   *
+   * On the MCP HTTP face, it runs one time for each HTTP request, in `admission()` (CLI-2b). The
+   * tool calls of the request use that admission, so the function does not run for each call. For
+   * `admission()`, `admits()` and `identify()`, the request has an empty method
+   * (`{ service: "", operation: "" }`), the id `admission`, `connection` or `identify`, no payload
+   * and no metadata. Thus the function must not branch on the method, the payload, the metadata
+   * or the transport of the request. It reads only the credentials and the principal.
    */
   authenticate?: ((request: ServerRequest<unknown>) => Principal | undefined | Promise<Principal | undefined>) | undefined;
 
