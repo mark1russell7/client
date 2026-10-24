@@ -336,7 +336,7 @@ The option `copy` tells the kind of the local copy:
 
 - `"shared"`: the tabs open the same durable local copy, for example an `IndexedDbStorage` of one database. A tab gives the batches of the other tabs only to its observers.
 - `"tab"`: each tab has its own local copy, for example a SignalDB collection. A tab writes the batches of the other tabs to its copy, and then gives them to its observers.
-- In the mode `"tab"`, a new tab gets only the changes after its start. Its local copy loads the older items itself, for example from its persistence.
+- In the mode `"tab"`, a new tab gets only the changes after its start. Its local copy loads the older items itself, for example from its persistence. The option `snapshot` gives it the entries of the leader (roadmap CLI-66).
 - In the mode `"shared"`, a pull of the leader can come between the write of a follower and its capture. The tabs agree again after the push and the next pull.
 
 A new leader and a closed tab:
@@ -397,6 +397,63 @@ users.getStatus(); // The last status, in each tab
 - The options `locks` and `channel` take a lock manager and a channel factory, for example the ones of a test. `null` sets the single mode.
 - `HybridStorage.whenQueued()` resolves when the queue store holds the queue. The leader acknowledges the batches of the followers after it.
 
+Many collections in one group (roadmap CLI-64):
+
+`TabGroup` does the sync of many collections with one lock and one channel, for example all the collections of a tenant. With a `TabCoordinator` for each collection, each tab holds one lock and one channel for each collection.
+
+- `collection(name, options)` adds a collection to the group and gives its `TabCollection`. A second use with the same name gives the same collection.
+- A `TabCollection` has `observe()`, `onRole()`, `getStatus()`, `onStatus()`, `role`, `isLeader` and `syncStorage`, as a `TabCoordinator`.
+- The options of a collection are `local`, `copy`, `remote`, `hybrid` and `snapshot`, as the options of a `TabCoordinator`. Give a different `queueStore` to each collection.
+- The leader of the group has one `HybridStorage` for each collection. Each message has the name of its collection. Each collection has its own batches, acknowledgements and status.
+- Each collection leads when its own queue loaded. It tells the other tabs at once, and the followers then send their batches of that collection. Thus a slow collection does not stop the batches of the other collections.
+- A collection whose setup fails tries again alone after its backoff, and the other collections keep their sync.
+- After a failed setup, the tab sends a status of the collection with the error (operation `load`) to the other tabs. Thus a follower does not show the status of an old leader.
+- When no collection of the group leads or loads its queue, the tab releases the lock. It asks for the lock again after the backoff, as a `TabCoordinator` does.
+- This rule also applies to a collection that the application adds after the tab got the lock. A group without collections keeps the lock until its first collection.
+- The option `open` gives the options of a collection from its name. `collection(name)` uses it. The leader also uses it for a collection that only another tab opened.
+- Without `open`, the leader does the sync of its own collections only. A write of a follower to another collection waits in the follower until a leader has that collection.
+- `close()` of the group closes each collection. A collection has no `close()` of its own.
+- The lock and the channel of a group have the name `@procedures/store/tabs:<name>`. A `TabCoordinator` uses `@procedures/store/tab:<name>`. Thus a group and a coordinator do not share a lock or a channel.
+- A `TabCoordinator` sends its messages without the name of a collection, as before. Thus it works with a tab of an older release.
+
+> **Warning:** A `TabCoordinator` and a `TabGroup` do not see each other. Thus, when you move a collection from a `TabCoordinator` to a `TabGroup`, a tab of the older release can stay open. Then two tabs lead the collection, with one queue store and one remote. To prevent this, give new names to the queue store and the sync state store of that collection. Or close the tabs of the older release before the new release opens. The operations in the old queue store stay there until a tab loads that store.
+
+```ts
+import { ApiStorage, IndexedDbQueueStore, TabGroup } from "@procedures/store/browser";
+
+const tenant = new TabGroup({
+  name: tenantId,
+  open: (collection) => ({
+    local: localCopyOf(collection),
+    copy: "tab",
+    remote: () => new ApiStorage(client, { collection }),
+    hybrid: { queueStore: new IndexedDbQueueStore(`${tenantId}-${collection}-queue`) },
+    snapshot: true,
+  }),
+});
+
+const notes = tenant.collection<Note>("notes");
+notes.observe((batch) => render(batch));
+notes.onStatus((status) => showSync("notes", status)); // The status of the sync of notes, in each tab
+```
+
+A snapshot for a new tab (roadmap CLI-66):
+
+- In the mode `"tab"`, the option `snapshot: true` lets a new tab ask the leader for the entries of its local copy. The mode `"shared"` does not take the option.
+- The leader reads the entries of its copy with `getEntries()`. It sends them in chunks of `snapshot.chunk` entries, 500 by default.
+- Each chunk has the number of the last batch of each tab that the entries hold.
+- The new tab keeps the batches of the other tabs until the last chunk comes. Then it writes the entries to its copy, and then the batches with a later number.
+- The snapshot can repeat a set. For example, a write of the leader during `getEntries()` can be in the entries and also in a later batch. The second write of the set gives the same state.
+- The observers get the entries in one batch of sets, with the origin `syncOrigin`.
+- The new tab keeps the values of its own writes after the snapshot. The snapshot does not delete an item that only the new tab has.
+- When the leader changes before the last chunk, the tab asks the new leader. It does not use the chunks of the old leader.
+- When no chunk comes in the time `snapshot.timeout` (10 seconds by default), the tab gives an error to `onError`. Then it writes the batches that waited, without a snapshot.
+- In the tab that holds the lock, no other tab sends a snapshot. The snapshot ends when the collection leads. While the collection loads its queue, the wait renews itself, at most 5 times. Thus the batches wait at most 6 × `snapshot.timeout`, also when the load stops.
+- A leader of an older release does not answer. Thus a new tab with a leader of an older release gets the error after the timeout.
+- The leader reads all the entries at one time, and the new tab keeps all the chunks until the last one. Thus a snapshot is for a copy that fits in the memory of a tab.
+- `snapshot.chunk` limits the number of entries in a message, not its bytes. Thus large items give large messages.
+- The snapshot is an option, because the coordinator cannot know if a local copy is durable. A copy with persistence is empty until its load ends, so an empty copy is not a sign.
+
 ### The change of a storage in a server
 
 `ProcedureServer.useStorage(name, storage, { drain: true, close: true })` first starts `flush()` of the old storage. Then it uses the new storage and closes the old one. When the flush fails, the old storage stays.
@@ -420,6 +477,7 @@ The entry `@procedures/store/browser` has the parts of the store that run in a b
 - `ApiStorage`, the remote storage over the collection procedures of a server.
 - `EventsChangeFeed`, the push feed of the remote changes.
 - `TabCoordinator`: one leader tab does the sync of a `HybridStorage`, and the other tabs copy its changes.
+- `TabGroup`: one leader tab does the sync of many collections, with one lock and one channel.
 - All of `@procedures/store/indexeddb`: `IndexedDbStorage`, the IndexedDB stores and their fallbacks in memory.
 
 No module of the entry imports a module of Node. The modules import `@procedures/client/browser` and not the root of the client, because the root imports `http` and `ws`. The test `src/browser.test.ts` examines the imports of each module of the entry. The entry is in `client.browser` of `package.json`, so the CI check of the browser entries (`scripts/check-browser-entries.mjs`) bundles it for a browser too.
