@@ -41,6 +41,8 @@
  * - The syncs of one storage run one at a time, in their order: the deltas and the hints of the
  *   feed, the pulls, the pushes, the reads after an own write, and the mode switches. Thus a
  *   remote delta and a full sync never run at the same time (Graph R18).
+ * - `aroundRemoteApply` runs each apply of the remote changes inside a hook, for example inside a
+ *   span of a trace (graph W8).
  */
 
 import type {
@@ -277,6 +279,23 @@ export interface HybridStorageOptions {
   feed?: RemoteChangeFeed<any>;
 
   /**
+   * The hook around each apply of the remote changes (graph W8), for example a span of a trace.
+   * `RemoteApplyHook` gives the arguments.
+   *
+   * - The hook wraps the apply of each delta of the feed, each hint of the feed that applies, and
+   *   each pull that the feed or a pull of the storage causes.
+   * - A pull of the storage is the timer of `pullInterval`, `syncFromRemote()`, `sync()` and the
+   *   first sync. The hint of a pull is undefined.
+   * - A pull that many hints asked for runs one time. Its hint is the last hint, and
+   *   `context.hints` has all of them.
+   * - The hook runs inside the chain of the syncs, so it measures the apply, not the wait.
+   * - The sync of a mode switch and the reads of the remote are not in the hook.
+   * - The errors and the result of `apply` do not change. The status keeps an error of the hook.
+   * - Without the hook, the applies run as before, with the same timing.
+   */
+  aroundRemoteApply?: RemoteApplyHook;
+
+  /**
    * The store of the sync state: the cursor and the base versions (roadmap CLI-21). A new storage
    * with the same store asks the remote only for the changes since the cursor, and it finds the
    * conflicts of the base versions. `IndexedDbSyncStateStore` of `@procedures/store/indexeddb`
@@ -337,6 +356,67 @@ export interface HybridStorageOptions {
    * @default DEFAULT_QUERY_POLICY: no `$regex`
    */
   queryPolicy?: StorageQueryPolicy;
+}
+
+/**
+ * The cause of an apply of the remote changes (graph W8).
+ *
+ * - `"delta"`: a delta of the feed.
+ * - `"hint"`: one or more hints of the feed.
+ * - `"gap"`: a gap of the feed: a lost event, an event of another form, or a new subscription.
+ * - `"pull"`: a pull of the storage: the timer, `syncFromRemote()`, `sync()` or the first sync.
+ */
+export type RemoteApplyCause = "delta" | "hint" | "gap" | "pull";
+
+/** The context of an apply of the remote changes, the third argument of `aroundRemoteApply` (graph W8). */
+export interface RemoteApplyContext {
+  /** The cause of the apply. A pull that hints and gaps asked for has the cause `"hint"`. */
+  readonly cause: RemoteApplyCause;
+  /**
+   * The hints of the apply, in their order of arrival. A delta gives one hint with its ids and no
+   * values. A gap and a pull of the storage give no hint.
+   */
+  readonly hints: readonly RemoteChangeHint[];
+}
+
+/**
+ * The hook around an apply of the remote changes (graph W8). The hook calls `apply` one time and
+ * gives its promise back, for example from inside a span of a trace.
+ *
+ * - The storage waits for the hook and for the apply. A hook that does not settle stops the syncs.
+ * - The result of the apply is the result of the sync. A hook cannot hide or change an error of `apply`.
+ * - A second call of `apply` gets the promise of the first call: the changes apply one time.
+ * - When the hook does not call `apply`, the storage applies the changes after the hook.
+ * - A hook that did not call `apply` one time makes the sync fail with `RemoteApplyHookError`.
+ * - The sync also fails with an error of the hook. The status of the storage keeps it.
+ *
+ * @param hint - The last hint of `context.hints`, or undefined when the apply has no hint
+ * @param apply - The function that reads the changes and applies them to the local copy
+ * @param context - The cause of the apply and all its hints
+ *
+ * @example
+ * ```typescript
+ * aroundRemoteApply: (hint, apply) => {
+ *   const traceparent = hint?.extra?.["traceparent"];
+ *   return runInRemoteTrace(typeof traceparent === "string" ? traceparent : undefined, apply, { name: "realtime.echo" });
+ * },
+ * ```
+ */
+export type RemoteApplyHook = (hint: RemoteChangeHint | undefined, apply: () => Promise<void>, context: RemoteApplyContext) => Promise<unknown>;
+
+/** The hints of an apply without hints. */
+const NO_HINTS: readonly RemoteChangeHint[] = Object.freeze([]);
+
+/** The hint of a delta of the feed: its versions, its ids, its origin and its other fields, without the values (graph W8). */
+function hintOfDelta<T>(changes: RemoteChanges<T>): RemoteChangeHint {
+  return {
+    ...(changes.since !== undefined && { since: changes.since }),
+    ...(changes.version !== undefined && { version: changes.version }),
+    changed: changes.changed.map(([id]) => id),
+    deleted: [...changes.deleted],
+    ...(changes.origin !== undefined && { origin: changes.origin }),
+    ...(changes.extra !== undefined && { extra: changes.extra }),
+  };
 }
 
 /** The kinds of the timers of a `HybridStorage`. */
@@ -519,6 +599,18 @@ export class SyncStateError extends Error {
   readonly code = "SYNC_STATE";
   constructor(action: "load" | "write", cause: unknown) {
     super(`The sync state store could not ${action === "load" ? "load the state" : "keep the state"}`, { cause });
+  }
+}
+
+/**
+ * The hook `aroundRemoteApply` did not call `apply` one time (graph W8). The storage applied the
+ * changes one time all the same. `calls` is the number of calls, and `cause` is the error of the hook.
+ */
+export class RemoteApplyHookError extends Error {
+  override readonly name = "RemoteApplyHookError";
+  readonly code = "REMOTE_APPLY_HOOK";
+  constructor(readonly calls: number, cause?: unknown) {
+    super(`The hook aroundRemoteApply called apply ${calls} times, not 1 time: the storage applied the changes 1 time`, cause !== undefined ? { cause } : undefined);
   }
 }
 
@@ -864,6 +956,10 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   private readonly feed: RemoteChangeFeed<T> | undefined;
   private feedStop: (() => void) | undefined;
   private feedToken = 0;
+  /** The hook around each apply of the remote changes (graph W8) */
+  private readonly aroundRemoteApply: RemoteApplyHook | undefined;
+  /** With the hook: the hints that asked for the pull that waits */
+  private readonly joinedHints: RemoteChangeHint[] = [];
   /** True while a pull that a gap asked for waits to start */
   private gapPull = false;
   /** The stop of the capture of the local copy */
@@ -931,6 +1027,10 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     this.syncOrigin = options.syncOrigin ?? "sync";
     this.observers = new StorageListeners<StorageChangeBatch<T>>(options.onListenerError);
     this.feed = options.feed;
+    if (options.aroundRemoteApply !== undefined && typeof options.aroundRemoteApply !== "function") {
+      throw new TypeError("aroundRemoteApply must be a function");
+    }
+    this.aroundRemoteApply = options.aroundRemoteApply;
     this.stateStore = options.syncState;
     this.bases.tracked = this.stateStore !== undefined;
     this.localGiven = options.local !== undefined;
@@ -1220,7 +1320,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
           if (live()) this.onRemoteHint(hint);
         },
         onGap: () => {
-          if (live()) this.requestPull();
+          if (live()) this.requestPull(undefined);
         },
         onError: (error) => {
           if (live()) this.fail("pull", error);
@@ -1255,11 +1355,11 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     if (this.loadError) throw this.loadError;
     if (this.closed || (this.mode !== "write-through" && this.mode !== "write-back")) return;
     if (changes.version === this.cursor) return;
-    if (changes.since === undefined || changes.since !== this.cursor) {
-      await this.pullRemote(false);
-      return;
-    }
-    await this.applyChanges(changes, (id) => this.changedSince(mark, id));
+    const apply =
+      changes.since === undefined || changes.since !== this.cursor
+        ? () => this.pullRemote(false)
+        : () => this.applyChanges(changes, (id) => this.changedSince(mark, id));
+    await this.remoteApply("delta", () => [hintOfDelta(changes)], apply);
   }
 
   /**
@@ -1285,28 +1385,78 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     if (this.closed || (this.mode !== "write-through" && this.mode !== "write-back")) return;
     if (hint.version !== undefined && hint.version === this.cursor) return;
     if (hint.since !== undefined && hint.since === this.cursor && hint.version !== undefined && hint.changed.length === 0) {
-      await this.applyChanges({ version: hint.version, full: false, changed: [], deleted: [...hint.deleted] }, (id) => this.changedSince(mark, id));
+      const version = hint.version;
+      await this.remoteApply("hint", () => [hint], () =>
+        this.applyChanges({ version, full: false, changed: [], deleted: [...hint.deleted] }, (id) => this.changedSince(mark, id)),
+      );
       return;
     }
-    this.requestPull();
+    this.requestPull(hint);
   }
 
-  /** This method asks for a pull after the syncs that run. A request while a pull waits joins it. */
-  private requestPull(): void {
+  /**
+   * This method asks for a pull after the syncs that run. A request while a pull waits joins it.
+   * With `aroundRemoteApply`, the pull keeps the hints of the requests for the hook.
+   */
+  private requestPull(hint: RemoteChangeHint | undefined): void {
+    if (hint !== undefined && this.aroundRemoteApply) this.joinedHints.push(hint);
     if (this.gapPull) return;
     this.gapPull = true;
     void this.loaded
       .then(() =>
         this.serialize(() => {
           this.gapPull = false;
+          const hints = this.joinedHints.splice(0);
           if (this.closed) return Promise.resolve();
           return this.track("pull", async () => {
             if (this.loadError) throw this.loadError;
-            if (this.mode === "write-through" || this.mode === "write-back") await this.pullRemote(false);
+            if (this.mode === "write-through" || this.mode === "write-back") {
+              await this.remoteApply(hints.length > 0 ? "hint" : "gap", () => hints, () => this.pullRemote(false));
+            }
           });
         }),
       )
       .catch(() => undefined);
+  }
+
+  /**
+   * This method runs an apply of the remote changes, through the hook `aroundRemoteApply` when the
+   * options give it (graph W8). Without the hook, it runs the apply directly, with no other step.
+   */
+  private remoteApply(cause: RemoteApplyCause, hints: () => readonly RemoteChangeHint[], apply: () => Promise<void>): Promise<void> {
+    const hook = this.aroundRemoteApply;
+    return hook ? this.hookedApply(hook, { cause, hints: hints() }, apply) : apply();
+  }
+
+  /**
+   * This method runs an apply through the hook. The apply runs one time: a second call of `apply`
+   * gets the promise of the first call. When the hook does not call it, the apply runs after the
+   * hook, so no change is lost. The error of the apply comes first, then the misuse of the hook,
+   * then the error of the hook.
+   */
+  private async hookedApply(hook: RemoteApplyHook, context: RemoteApplyContext, apply: () => Promise<void>): Promise<void> {
+    let run: Promise<void> | undefined;
+    let calls = 0;
+    const once = (): Promise<void> => {
+      calls++;
+      if (run === undefined) {
+        run = apply();
+        // The method reads the result after the hook: this handler only stops a report of an unhandled rejection
+        run.catch(() => undefined);
+      }
+      return run;
+    };
+    let failure: { readonly error: unknown } | undefined;
+    try {
+      await hook(context.hints.at(-1), once, context);
+    } catch (error) {
+      failure = { error };
+    }
+    const called = calls;
+    // A hook that did not call apply: the storage applies the changes itself
+    await (run ?? once());
+    if (called !== 1) throw new RemoteApplyHookError(called, failure?.error);
+    if (failure) throw failure.error;
   }
 
   //
@@ -2021,7 +2171,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       this.track("pull", async () => {
         await this.loaded;
         if (this.loadError) throw this.loadError;
-        if (this.mode === "write-through" || this.mode === "write-back") await this.pullRemote(false);
+        if (this.mode === "write-through" || this.mode === "write-back") await this.remoteApply("pull", () => NO_HINTS, () => this.pullRemote(false));
       }),
     );
   }
