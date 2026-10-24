@@ -1,16 +1,19 @@
 // The verdicts of the cells of the Harness workflow (CLI-33).
 //
 // Each shard of the workflow uploads a folder with summary.ndjson: one line for each cell, with
-// its decision (`holds`, `fails`, `measured` or `inconclusive`) and the reason. This script reads
-// the summary of each folder under the given root, writes a table to the summary of the job, and
-// writes an annotation for each cell that does not hold.
+// its decision (for example `holds`, `fails`, `measured`, `inconclusive`, `extend` or `void`) and
+// the reason. This script reads the summary of each folder under the given root, writes a table to
+// the summary of the job, and writes an annotation for each cell that does not hold.
 //
-// A cell that `fails` or is `inconclusive` fails the script: the release of this checkout does not
-// do what the prediction of the cell says, or no run counted. A `measured` cell is a record with no
-// band, thus it passes. The raw record of each cell is in the artifact of its shard.
+// Only two decisions pass: `holds`, and `measured` (a record with no band). Each other decision
+// fails the script. This includes `fails`, `inconclusive`, `extend`, `void` and each new value. A
+// `fails` cell shows that the release of this checkout does not do what the prediction of the cell
+// says. An `inconclusive` cell shows that no run counted. The raw record of each cell is in the
+// artifact of its shard.
 //
 // Usage: node .github/scripts/harness-verdicts.mjs <root> [expected shards]
-// Exit code: 1 when a cell fails, when a cell is inconclusive, or when a shard has no summary.
+// Exit code: 1 when a cell has a decision other than `holds` or `measured`, or when a shard has no
+// summary.
 
 import { appendFileSync, existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
