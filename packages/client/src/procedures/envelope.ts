@@ -6,6 +6,8 @@
  *
  * - A call is `{ type: path, value: input }`. The type is the path of a procedure, as an array of
  *   keys. A ref into the world, `{ type: "ref", value: ["world", ...path] }`, is also a type.
+ *   The arrays `["ref"]` and `["lit"]` are kinds of the kernel, not paths. A procedure with the
+ *   path `["ref"]` or `["lit"]` has a ref into the world as its type.
  * - A ref is `{ type: "ref", value: ["names", name, ...fields] }`. The name `last` reads the result
  *   of the step before.
  * - A literal is `{ type: "literal", value }`. Nothing in its value runs. The type `"lit"` (the kind
@@ -137,14 +139,21 @@ function keysOfType(type: unknown): readonly (string | number)[] | undefined {
   return isTypeRef(type) ? typePath(type) : undefined;
 }
 
+/** This function gives true if a procedure path is also a kind of the kernel as an array: `["ref"]` or `["lit"]`. */
+function isKindPath(keys: readonly unknown[]): boolean {
+  return keys.length === 1 && (keys[0] === REF_TYPE || keys[0] === LIT_ALIAS);
+}
+
 /**
  * This function gives the procedure path of the type of a call, or undefined for another type. The
  * type of a call is a list of keys, or a ref into the world. A text is a kind of the kernel or data.
+ * The arrays `["ref"]` and `["lit"]` are kinds. A ref into the world is always a call, so it is the
+ * type of the procedures `["ref"]` and `["lit"]`.
  */
 function callPath(type: unknown): ProcedurePath | undefined {
   if (typeof type === "string") return undefined;
   const keys = keysOfType(type);
-  if (!isProcedurePath(keys) || (keys.length === 1 && (keys[0] === REF_TYPE || keys[0] === LIT_ALIAS))) return undefined;
+  if (!isProcedurePath(keys) || (Array.isArray(type) && isKindPath(keys))) return undefined;
   return [...keys];
 }
 
@@ -355,7 +364,8 @@ function fromValue(value: unknown, path: Set<object>, depth: number): unknown {
  *
  * The conversion:
  * - A call gives `{ type: path, value: input }`. A call without input gives the value `null`.
- *   `$name` gives the header `name`.
+ *   `$name` gives the header `name`. The path `["ref"]` or `["lit"]` gives a ref into the world as
+ *   the type, because these arrays are kinds of the kernel.
  * - `{ $ref: "$last" }` gives `["names", "last"]`. `{ $ref: "a.b" }` gives `["names", "a", "b"]`.
  * - `{ $literal: value }` gives a literal.
  * - Data that the envelope form reads in a different way gives a literal. This data is an object
@@ -419,7 +429,10 @@ function toCall(call: AnyProcedureRef, path: Set<object>, depth: number): Envelo
       : input === null
         ? { type: LITERAL_TYPE, value: null }
         : toValue(input, path, depth + 1);
-  return { type: [...procedurePath], value, ...($name !== undefined ? { name: $name } : {}) };
+  const type: EnvelopeProgram["type"] = isKindPath(procedurePath)
+    ? (refDocument(WORLD_ROOT, ...procedurePath) as unknown as EnvelopeRef)
+    : [...procedurePath];
+  return { type, value, ...($name !== undefined ? { name: $name } : {}) };
 }
 
 /** This function changes a `$ref` object into a ref envelope. */

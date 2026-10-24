@@ -19,11 +19,13 @@ MINOR (D26): before 1.0.0, a breaking change raises MINOR. These behaviors chang
 2. `HydrateOptions.parallel`: the refs that start at the same time now always operate with failFast. After the first error, the other refs stop at their next wait. Before, they went on in the background (`Promise.all`).
 3. A call or an operand that throws `undefined`: the caller now gets `new Error(<reason>)`, with the reason of the kernel. The error of a task of `client.parallel` and the name `error` of `client.tryCatch` get that reason. Before, the caller got `undefined`, and the error text was `"undefined"`. An `Error`, a text and the other values stay as they are.
 4. `resolveScopes()` of `@procedures/compiler` gives the warnings for the raw input first, and then the diagnostics of the names. Before, the diagnostics came in the order of the program tree.
+5. In the envelope form, the types `["ref"]` and `["lit"]` (arrays of one key) are the kinds `ref` and `lit` of the kernel. Before, they were calls of the procedures with the paths `["ref"]` and `["lit"]`. A ref into the world, `{ "type": "ref", "value": ["world", "ref"] }`, stays a call of the procedure, and `toEnvelopeProgram()` now writes this type for these two procedures.
 
 Migration:
 
 - For 1 and 2: when the later calls of the other tasks must run, wait for those tasks yourself (for example, start them in a separate program and join their results), or do not use `failFast` (for 1) or `parallel` (for 2).
 - For 3: throw an `Error`.
 - For 4: sort the diagnostics by `pointer` when the order matters.
+- For 5: for a call of a procedure with the path `["ref"]` or `["lit"]`, write a ref into the world as the type: `{ "type": { "type": "ref", "value": ["world", "ref"] }, "value": input }`. Or keep the program in the `$proc` form: `{ "$proc": ["ref"], "input": input }` is a call, as before.
 
 Speed: the property tests that run each program three ways (`equivalence.test.ts` of the compiler) are about 1.4 times slower on the CI runners: 29.4 s before and 40.0 s after, the sum of the Node 22, 24 and 26 jobs, the mean of 3 runs of main and 4 runs of this change. The program tests of the client (`src/procedures/`) take about the same time: 8.5 s and 8.8 s.

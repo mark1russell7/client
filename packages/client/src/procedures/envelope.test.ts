@@ -191,6 +191,36 @@ describe("the examples of PROGRAM-FORMAT.md in the envelope form", () => {
     expect(await makeClient().exec(nested)).toBe(30);
   });
 
+  it("the arrays [\"ref\"] and [\"lit\"] are kinds: the procedures with these paths have a ref into the world as their type", async () => {
+    const registry = new ProcedureRegistry();
+    for (const procedure of allCoreProcedures) registry.register(procedure);
+    for (const key of ["ref", "lit"]) {
+      registry.register(
+        defineProcedure({
+          path: [key],
+          input: outputSchema<unknown>(),
+          output: outputSchema<unknown>(),
+          handler: (input: unknown) => ({ [key]: input }),
+        }),
+      );
+    }
+    const client = new Client(stubTransport).useRegistry(registry);
+    for (const key of ["ref", "lit"]) {
+      const program = { type: ref("world", key), value: { a: 1 } } as EnvelopeProgram;
+      expect(isEnvelopeProgram(program)).toBe(true);
+      expect(fromEnvelopeProgram(program)).toStrictEqual($call([key], { a: 1 }));
+      expect(await client.exec(program)).toStrictEqual({ [key]: { a: 1 } });
+      const nested = call(["client", "identity"], { value: program });
+      expect(await client.exec(nested)).toStrictEqual({ [key]: { a: 1 } });
+      // toEnvelopeProgram writes this type, so the round trip gives the call back
+      expect(toEnvelopeProgram($call([key], { a: 1 }))).toStrictEqual(program);
+      expect(fromEnvelopeProgram(toEnvelopeProgram($call([key], { a: 1 })))).toStrictEqual($call([key], { a: 1 }));
+      // The array is a kind of the kernel (0.23.0 read it as the path of a procedure)
+      expect(isEnvelopeProgram(call([key], { a: 1 }))).toBe(false);
+    }
+    expect(await client.exec(call(["client", "identity"], { value: { type: ["lit"], value: { a: 1 } } }))).toStrictEqual({ a: 1 });
+  });
+
   it("exec(program, input) puts the fields of input over the input of the program", async () => {
     const result = await makeClient().exec(call(["client", "add"], { a: 1, b: 1 }), { b: 41 });
     expect(result).toBe(42);
