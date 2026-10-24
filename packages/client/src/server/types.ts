@@ -122,6 +122,10 @@ export interface RequestIdentity {
  * The request hook of a server: it reads the credentials of a network request (a cookie, a header,
  * the query) and gives the identity of the request. Undefined, or an error, refuses the request
  * with `UNAUTHORIZED`. The hook runs before the token check and before `authenticate`.
+ *
+ * The hook can run more than one time for one request or one task. `admits()` runs it at a
+ * WebSocket upgrade, and `identify()` runs it before the MCP face makes a task (roadmap CLI-69).
+ * Thus a hook with a side effect, for example a count or a log line, sees each of these runs.
  */
 export type PrincipalOf = (
   credentials: Credentials,
@@ -169,6 +173,13 @@ export interface RequestHandler {
    * trusts such a request only from a named origin. Absent: the handler reads no cookies.
    */
   readonly ambientCredentials?: AmbientCredentials | undefined;
+  /**
+   * This function gives the principal of a request with these credentials, before a call
+   * (CLI-69). It uses the checks of each call, and gives undefined when they refuse the
+   * credentials or give no principal. `ProcedureServer` has it. Absent: a face knows the principal
+   * only in the call.
+   */
+  identify?(credentials: Credentials): Promise<Principal | undefined>;
 }
 
 /**

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/client",
-  "version": "0.22.0",
+  "version": "0.23.0",
   "description": "Procedures as data for TypeScript: define typed procedures once and call them in process, over HTTP, WebSocket, the CLI or MCP. Streaming, middleware, retries, caching and a JSON program format.",
   "keywords": [
     "rpc",

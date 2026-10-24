@@ -250,9 +250,28 @@ host.tasks?.running(); // the tasks that did not end, for a status page
 - The store runs at most `maxRunning` tasks at one time (8 by default). A task holds its place until its procedure returns, also after a cancel. A task above the limit starts, and then fails at once. Thus the client gets a task, and the result of the task gives the reason. A full store is different: refer to `maxStored` below.
 - The time to keep a task (`ttl`) starts when the task ends. The store does not remove a task whose procedure still runs.
 - The store keeps at most 100 tasks for one session, and at most 1000 tasks for all the sessions together (`maxStored`, CLI-51). A new task removes the oldest task of its own session that ended. The store can be full, and the session can have no task that ended. Then the request of the new task gets the error `-32600`, and the store keeps nothing of it. Thus a client cannot remove the results of another session. `maxStored: Infinity` turns the total limit off.
+- The fair share (CLI-69) keeps one client from the whole store. The store keeps the last `reserve` slots (100 of 1000 by default) for the clients below their share. The rules follow this list.
+- The function `shareKey` gives the client of a task. The default `mcpTaskShareKey` gives the principal of the request, else the session. The token of the host is the same for each caller, so it does not identify a client.
+- The timers of the store use its `clock`. A test gives a fake clock.
 - The call of a task cannot ask the person: the procedure gets no `ctx.elicit`.
 - A normal call of an optional tool runs in the request, with the progress and the cancel of the request. A normal call of a tool with `taskSupport: "required"`, or a task for a tool without task support, gets the error `-32601`.
 - To share one store with other parts, give `tasks: { store: new McpTaskStore({ maxRunning: 4 }) }`. The host closes only a store that it made.
+
+The fair share applies these rules to a new task of a client:
+
+1. The share of the client is `maxStored / (k + 1)`. `k` is the number of clients with tasks in the store, the new client included. The `+ 1` keeps a share for the client that comes next.
+2. When `reserve` slots or fewer are free, a client with its share or more gets no more tasks. Its new task replaces the oldest task of its session that ended. Without such a task, the request gets the error `TASKS_FULL`.
+3. A client below its share gets a task while the store has a free slot.
+
+Thus one client keeps at most `maxStored - reserve` tasks, also with many sessions under one principal. A session of another client still gets a task. `reserve: 0` turns the fair share off. The principal comes from `identify` of the handler of the face: the request hook, the token check and the authenticate function of the server.
+
+```typescript
+// One key for each tenant: the tasks of all the users of a tenant count as one client
+const host = createMcpHost({
+  modules: [crawlModule],
+  tasks: { shareKey: ({ principal, sessionId }) => String(principal?.claims?.["tenant"] ?? sessionId ?? "local") },
+});
+```
 
 ## Text from outside the host
 

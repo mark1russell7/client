@@ -1,5 +1,45 @@
 # @procedures/mark
 
+## 0.23.0
+
+### Patch Changes
+
+- Updated dependencies [f20beb1]
+- Updated dependencies [71091a5]
+  - @procedures/client@0.23.0
+  - @procedures/peer@0.23.0
+  - @procedures/mcp-dev-tools@0.23.0
+  - @procedures/cli-run@0.23.0
+  - @procedures/lib@0.23.0
+  - @procedures/pnpm@0.23.0
+  - @procedures/procedure@0.23.0
+  - @procedures/shell@0.23.0
+  - @procedures/vitest@0.23.0
+  - @procedures/server@0.23.0
+
+## 0.22.1
+
+### Patch Changes
+
+- 1681d8c: Deprecated (D13): three behaviors of a `mark` command in this process (the cold mode). The MINOR of CLI-26 changes them, when each command starts under `run()` of `@mark1russell7/service` (decision D17). This release changes no behavior.
+  
+  - The first Ctrl-C of a cold command gives the exit code 1. After the change, it gives 130, as the profile `ephemeral` of the runner does.
+  - A second Ctrl-C of a cold command ends the process at once with the exit code 130. After the change, a second signal gives 1.
+  - A cold `mark server create` keeps its peer alive after the command. After the change, the peer stops at the end of the command. For a server in the foreground, use `mark --server` or `procedure-server`.
+  
+  A command on the CLI server (the warm mode) and the exit codes 0 and 1 of a command that ends do not change.
+- Updated dependencies [c931188]
+  - @procedures/client@0.22.1
+  - @procedures/cli-run@0.22.1
+  - @procedures/lib@0.22.1
+  - @procedures/pnpm@0.22.1
+  - @procedures/procedure@0.22.1
+  - @procedures/peer@0.22.1
+  - @procedures/shell@0.22.1
+  - @procedures/vitest@0.22.1
+  - @procedures/mcp-dev-tools@0.22.1
+  - @procedures/server@0.22.1
+
 ## 0.22.0
 
 ### Minor Changes

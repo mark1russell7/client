@@ -12,6 +12,7 @@ import {
   ListToolsRequestSchema,
   McpError,
   type CallToolResult,
+  type Request,
   type ServerNotification,
   type Task,
 } from "@modelcontextprotocol/sdk/types.js";
@@ -28,6 +29,7 @@ import type {
   ElicitRequest,
   ElicitResult,
   ElicitOptions,
+  Principal,
   ReportProgress,
 } from "@procedures/client";
 import { LOCAL_CREDENTIALS, NARROWING_METADATA_KEY, PROCEDURE_REGISTRY, addNarrowing, pathToMethod, createElicit, elicitWithPolicy, requestCredentials, untrustedTextsOf } from "@procedures/client";
@@ -79,6 +81,8 @@ export const DEFAULT_ELICIT_TIMEOUT_MS = 300_000;
 interface CallExtra {
   signal: AbortSignal;
   requestId: string | number;
+  /** The session of the request: undefined for a face without sessions (stdio, an SDK transport) */
+  sessionId?: string | undefined;
   _meta?: { progressToken?: string | number | undefined; readonly [key: string]: unknown } | undefined;
   sendNotification: (notification: ServerNotification) => Promise<void>;
   /** The HTTP request of the message: present only for a network transport (Streamable HTTP) */
@@ -307,7 +311,7 @@ export class McpServerTransport implements ServerTransport {
         if (!this.taskStore || (support !== "optional" && support !== "required")) {
           throw new McpError(ErrorCode.MethodNotFound, `The tool ${name} does not run as a task`);
         }
-        return this.startTask(server, this.taskStore, tool, args, callExtra);
+        return this.startTask(server, this.taskStore, tool, args, callExtra, { method: request.method, params: request.params });
       }
       if (support === "required") {
         throw new McpError(ErrorCode.MethodNotFound, `The tool ${name} runs only as a task: call it with a task`);
@@ -321,13 +325,23 @@ export class McpServerTransport implements ServerTransport {
    * call goes on. A progress of the procedure becomes the status message of the task, and a
    * progress notification when the client sent a progress token. A cancel of the task aborts the
    * call. A task above the limit of the store fails at once with the reason. The call of a task
-   * cannot ask the person: its request already has its answer.
+   * cannot ask the person: its request already has its answer. The store gets the principal of
+   * the request before the call, for the fair share of its tasks (CLI-69).
    */
-  private async startTask(server: McpServer, store: McpTaskStore, tool: McpTool, args: Record<string, unknown> | undefined, extra: CallExtra): Promise<{ task: Task }> {
+  private async startTask(
+    server: McpServer,
+    store: McpTaskStore,
+    tool: McpTool,
+    args: Record<string, unknown> | undefined,
+    extra: CallExtra,
+    request: Request,
+  ): Promise<{ task: Task }> {
     const taskStore = extra.taskStore;
     if (!taskStore) throw new McpError(ErrorCode.InternalError, "The server has no task store for this request");
     const ttl = extra.taskRequestedTtl;
-    const task = await taskStore.createTask(typeof ttl === "number" ? { ttl } : {});
+    const principal = await this.callPrincipal(server, extra);
+    // The store directly, not the task store of the request: only the store takes the caller
+    const task = await store.createTask(typeof ttl === "number" ? { ttl } : {}, extra.requestId, request, extra.sessionId, principal ? { principal } : {});
     const id = task.taskId;
     const finish = async (result: CallToolResult): Promise<void> => {
       // A cancelled task keeps its status: the store refuses a result after a cancel
@@ -360,6 +374,21 @@ export class McpServerTransport implements ServerTransport {
       .catch(() => undefined)
       .finally(() => store.settle(id));
     return { task };
+  }
+
+  /**
+   * The principal of a call before the call (CLI-69): `identify` of the handler reads the
+   * credentials of the call. A handler without `identify`, a refusal and an error give undefined.
+   * Then the task store keys the task with its session.
+   */
+  private async callPrincipal(server: McpServer, extra: CallExtra): Promise<Principal | undefined> {
+    const handler = this.server;
+    if (!handler.identify) return undefined;
+    try {
+      return await handler.identify(callCredentials(extra, server === this.mcpServer));
+    } catch {
+      return undefined;
+    }
   }
 
   /**

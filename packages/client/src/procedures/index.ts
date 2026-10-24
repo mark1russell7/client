@@ -287,6 +287,10 @@ export type {
   RefScope,
 } from "./ref.js";
 
+// The envelope form of a program (coeval D6, D9 and D10, roadmap item M7)
+export { isEnvelopeProgram, fromEnvelopeProgram, toEnvelopeProgram } from "./envelope.js";
+export type { EnvelopeProgram, EnvelopeRef, EnvelopeLiteral, EnvelopePath } from "./envelope.js";
+
 // Core language procedures (chain, parallel, if, etc.)
 export {
   coreProcedures,
