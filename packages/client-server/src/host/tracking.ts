@@ -220,6 +220,8 @@ export function faceHandler(options: FaceHandlerOptions): FaceHandler {
   return {
     ambientCredentials: server.ambientCredentials,
     getRegistry: () => server.getRegistry(),
+    // The principal before a call (CLI-69): the MCP face keys the fair share of its tasks with it
+    identify: (credentials) => server.identify(credentials),
     handle: (request: ServerRequest): Promise<ServerResponse> => {
       const life = options.life();
       return life ? trackedCall(life, options, request) : server.handle(request);
