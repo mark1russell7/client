@@ -46,7 +46,7 @@ import { InvocationError } from "../../procedures/invoke.js";
 import { HandlerNotFoundError, ServerError } from "../../server/types.js";
 import { errorResponse } from "../../server/procedure-server.js";
 import { errorStatus, itemOfFrame } from "../../adapters/websocket/shared/rpc.js";
-import { ERROR_CODES, httpStatusOf, isProtocolErrorCode, type ProtocolErrorCode } from "../../protocol.js";
+import { ERROR_CODES, httpStatusOf, isProtocolErrorCode, retryableOf, type ProtocolErrorCode } from "../../protocol.js";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -410,14 +410,39 @@ describe("the forms of an error on the wire (R30)", () => {
   });
 
   it("a stream error keeps its code and its retryable flag", () => {
-    expect(errorStatus(Object.assign(new Error("gone"), { code: "UNAVAILABLE", retryable: true }))).toEqual({
+    expect(errorStatus(Object.assign(new Error("gone"), { code: "UNAVAILABLE", retryable: true }), 3)).toEqual({
       type: "error",
       code: "UNAVAILABLE",
       message: "gone",
       retryable: true,
     });
-    expect(errorStatus("text")).toEqual({ type: "error", code: "HANDLER_ERROR", message: "text", retryable: false });
-    expect(errorStatus(Object.assign(new Error("x"), { code: 5, retryable: "no" }))).toMatchObject({ code: "HANDLER_ERROR", retryable: false });
+    expect(errorStatus("text", 0)).toEqual({ type: "error", code: "HANDLER_ERROR", message: "text", retryable: false });
+    expect(errorStatus(Object.assign(new Error("x"), { code: 5, retryable: "no" }), 0)).toMatchObject({ code: "HANDLER_ERROR", retryable: false });
+  });
+
+  it("retryableOf: an own flag wins, and without a flag the default of the code before the first item (CLI-68)", () => {
+    const busy = Object.assign(new Error("busy"), { code: "UNAVAILABLE" });
+    expect(retryableOf(busy, 0)).toBe(true);
+    expect(retryableOf(busy, 1)).toBe(false);
+    expect(retryableOf(Object.assign(new Error("limit"), { code: "RATE_LIMITED" }), 0)).toBe(true);
+    expect(retryableOf(Object.assign(new Error("gone"), { code: "UNAVAILABLE", retryable: false }), 0)).toBe(false);
+    expect(retryableOf(Object.assign(new Error("again"), { retryable: true }), 5)).toBe(true);
+    // A code outside the table, an error without a code and a value that is not an error: false
+    expect(retryableOf(Object.assign(new Error("own"), { code: "E_OWN" }), 0)).toBe(false);
+    expect(retryableOf(new Error("plain"), 0)).toBe(false);
+    expect(retryableOf("text", 0)).toBe(false);
+    expect(retryableOf(null, 0)).toBe(false);
+  });
+
+  it("a stream error without a flag gets the flag of its code before the first item, and false after it (CLI-68)", () => {
+    const busy = Object.assign(new Error("busy"), { code: "UNAVAILABLE" });
+    expect(errorStatus(busy, 0)).toMatchObject({ code: "UNAVAILABLE", retryable: true });
+    expect(errorStatus(busy, 1)).toMatchObject({ code: "UNAVAILABLE", retryable: false });
+    // An own flag wins before and after the first item
+    expect(errorStatus(Object.assign(new Error("gone"), { code: "UNAVAILABLE", retryable: false }), 0)).toMatchObject({ retryable: false });
+    expect(errorStatus(Object.assign(new Error("again"), { code: "HANDLER_ERROR", retryable: true }), 2)).toMatchObject({ retryable: true });
+    // A code that is not retryable stays not retryable before the first item
+    expect(errorStatus(Object.assign(new Error("bad"), { code: "VALIDATION_ERROR" }), 0)).toMatchObject({ retryable: false });
   });
 
   it("a WebSocket error frame gives an error item, with the status or with the error field", () => {

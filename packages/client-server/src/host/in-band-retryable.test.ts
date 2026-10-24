@@ -1,16 +1,18 @@
 /**
  * The retryable flag of an error of a handler, before and after the start of its stream, on each
- * face of the host (CLI-58, `WIRE-PROTOCOL.md`, section "Error codes").
+ * face of the host (CLI-58, CLI-68, `WIRE-PROTOCOL.md`, section "Error codes").
  *
  * - Before the stream starts, an error without a flag gets the flag of its code in `ERROR_CODES`
  *   (`errorResponse`, CLI-48). Thus `UNAVAILABLE` is retryable, and the HTTP face answers 503.
  * - After the stream starts, the end is in-band: the `error` line of NDJSON, the `error` frame of
- *   WebSocket and the `_meta` of the MCP result. An error without a flag is not retryable there,
- *   also when the stream gave no item, because a retry can send the items again.
- * - An error with `retryable: true` stays retryable after the first item.
+ *   WebSocket and the `_meta` of the MCP result.
+ * - An in-band end without a flag before the first item gets the flag of its code too (CLI-68).
+ *   The HTTP status stays 200, because the stream started.
+ * - An in-band end without a flag after the first item is not retryable, because a retry can send
+ *   the items again (CLI-58). An error with its own flag keeps it.
  *
  * The bare server has the same cases on the wire of HTTP and WebSocket, in
- * `client/src/server/in-band-retryable.test.ts`.
+ * `client/src/server/in-band-retryable.test.ts`. That file also has the cases of the retry middleware.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
@@ -76,8 +78,14 @@ const CASES: Case[] = [
     status: 200,
   },
   {
-    name: "an error without a flag after the start of the stream and before its first item is not retryable: the end is in-band",
+    name: "an error without a flag after the start of the stream and before its first item gets the flag of its code (CLI-68)",
     input: { at: "stream" },
+    end: { code: "UNAVAILABLE", retryable: true, items: 0 },
+    status: 200,
+  },
+  {
+    name: "an error with retryable: false before the first item stays not retryable: the opt-out of the handler",
+    input: { at: "stream", retryable: false },
     end: { code: "UNAVAILABLE", retryable: false, items: 0 },
     status: 200,
   },
@@ -214,7 +222,7 @@ afterAll(async () => {
   }
 }, 20000);
 
-describe("the retryable flag of an error before and after the start of a stream, on each face of the host (CLI-58)", () => {
+describe("the retryable flag of an error before and after the start of a stream, on each face of the host (CLI-58, CLI-68)", () => {
   for (const { name, input, end, status } of CASES) {
     it(name, async () => {
       for (const face of FACES) {

@@ -9,7 +9,7 @@
 import type { ServerResponse } from "node:http";
 import { realClock, type Cancel, type Clock } from "../../../clock.js";
 import { toMs, type Duration } from "../../../duration.js";
-import { PROTOCOL_HEADER, PROTOCOL_VERSION, errorCodeOf } from "../../../protocol.js";
+import { PROTOCOL_HEADER, PROTOCOL_VERSION, errorCodeOf, retryableOf } from "../../../protocol.js";
 import { TIMER_DEFAULTS } from "../../../timers.js";
 
 /** The media type of a stream response: one JSON value on each line. */
@@ -42,12 +42,12 @@ export interface WriteNdjsonStreamOptions {
    */
   readonly keepAlive?: Duration | false | undefined;
   /**
-   * The function that gives the `error` line of an error of the stream. The default gives the code
-   * of the error (`errorCodeOf`), its message and its own retryable flag, or `false`. The flag
-   * `false` before the first item is deprecated: from the next MINOR (CLI-68), the default gives
-   * the flag of the code there.
+   * The function that gives the `error` line of an error of the stream. `items` is the count of the
+   * item lines before the error. The default gives the code of the error (`errorCodeOf`), its
+   * message and its retryable flag (`retryableOf`). Without a flag of its own, the error gets the
+   * flag of its code before the first item, and `false` after it (CLI-68).
    */
-  readonly errorOf?: ((error: unknown) => NdjsonError) | undefined;
+  readonly errorOf?: ((error: unknown, items: number) => NdjsonError) | undefined;
   /**
    * The clock of the keep-alive timer (roadmap R35). The default is the clock of the platform. A
    * test gives a fake clock.
@@ -57,20 +57,16 @@ export interface WriteNdjsonStreamOptions {
 
 /**
  * This function gives the `error` line of a thrown error: its code, its message and its retryable
- * flag (deep dive TRN-7). A code that is not a string gives `HANDLER_ERROR`. An error without a flag
- * gets false, not the flag of its code: the end is in-band, and a retry can send the items again
- * (CLI-58, `WIRE-PROTOCOL.md`, section "Error codes").
- *
- * @deprecated The flag false for an error without a flag before the first item of the stream is
- * deprecated (D13). From the next MINOR of the client group (CLI-68), that error gets the flag of
- * its code in `ERROR_CODES`. After the first item, the flag stays false.
+ * flag (deep dive TRN-7). A code that is not a string gives `HANDLER_ERROR`. `items` is the count of
+ * the item lines before the error. An error without a flag gets the flag of its code before the
+ * first item (CLI-68). After the first item, it gets false: a retry can send the items again
+ * (CLI-58, `retryableOf`, `WIRE-PROTOCOL.md`, section "Error codes").
  */
-export function defaultNdjsonError(error: unknown): NdjsonError {
-  const retryable = (error as { retryable?: unknown } | null | undefined)?.retryable;
+export function defaultNdjsonError(error: unknown, items: number): NdjsonError {
   return {
     code: errorCodeOf(error),
     message: error instanceof Error ? error.message : String(error),
-    retryable: typeof retryable === "boolean" ? retryable : false,
+    retryable: retryableOf(error, items),
   };
 }
 
@@ -248,12 +244,15 @@ export async function writeNdjsonStream(res: ServerResponse, items: AsyncIterabl
       endAborted();
       return;
     }
+    // The count of the item lines before the error: before the first item, an error without a flag
+    // gets the flag of its code (CLI-68)
+    const items = seq;
     let info: NdjsonError;
     try {
-      info = errorOf(error);
+      info = errorOf(error, items);
     } catch {
       // A failed errorOf does not leave the response open
-      info = defaultNdjsonError(error);
+      info = defaultNdjsonError(error, items);
     }
     res.end(lineOf({ type: "error", error: info }));
   } finally {
