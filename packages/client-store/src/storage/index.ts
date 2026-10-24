@@ -49,15 +49,19 @@ export {
 } from "./hybrid.js";
 export type { HybridStorageOptions, HybridMode, LocalCopyStorage } from "./hybrid.js";
 // One leader tab runs the sync, and the other tabs copy its changes (roadmap CLI-25)
-export { TabCoordinator } from "./tab-coordinator.js";
+export { TabCoordinator, TabGroup } from "./tab-coordinator.js";
 export type {
   TabAbortSignalLike,
   TabChannelFactory,
   TabChannelLike,
+  TabCollection,
+  TabCollectionOptions,
   TabCoordinatorOptions,
+  TabGroupOptions,
   TabLockManagerLike,
   TabRetryOptions,
   TabRole,
+  TabSnapshotOptions,
 } from "./tab-coordinator.js";
 // The push feed of the remote changes (roadmap CLI-21, CLI-15)
 export { EventsChangeFeed } from "./feed.js";

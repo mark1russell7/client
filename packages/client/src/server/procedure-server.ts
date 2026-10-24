@@ -364,6 +364,10 @@ function withRequestTimeout(
  * An error without a retryable flag gets the flag of its code in `ERROR_CODES`, or false (CLI-48).
  * This default applies only before the stream starts. An in-band end without a flag gets false
  * (CLI-58, `WIRE-PROTOCOL.md`, section "Error codes").
+ *
+ * Deprecated (D13): the flag false for an in-band end without a flag before the first item. From
+ * the next MINOR of the client group (CLI-68), that end gets the flag of its code, as this response
+ * does. After the first item, the flag stays false. This response does not change.
  */
 export function errorResponse(id: string, error: unknown): ServerResponse<unknown> {
   // An error that says it is retryable stays retryable: before, every error lost the flag

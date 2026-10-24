@@ -43,7 +43,9 @@ export interface WriteNdjsonStreamOptions {
   readonly keepAlive?: Duration | false | undefined;
   /**
    * The function that gives the `error` line of an error of the stream. The default gives the code
-   * of the error (`errorCodeOf`), its message and its own retryable flag, or `false`.
+   * of the error (`errorCodeOf`), its message and its own retryable flag, or `false`. The flag
+   * `false` before the first item is deprecated: from the next MINOR (CLI-68), the default gives
+   * the flag of the code there.
    */
   readonly errorOf?: ((error: unknown) => NdjsonError) | undefined;
   /**
@@ -58,6 +60,10 @@ export interface WriteNdjsonStreamOptions {
  * flag (deep dive TRN-7). A code that is not a string gives `HANDLER_ERROR`. An error without a flag
  * gets false, not the flag of its code: the end is in-band, and a retry can send the items again
  * (CLI-58, `WIRE-PROTOCOL.md`, section "Error codes").
+ *
+ * @deprecated The flag false for an error without a flag before the first item of the stream is
+ * deprecated (D13). From the next MINOR of the client group (CLI-68), that error gets the flag of
+ * its code in `ERROR_CODES`. After the first item, the flag stays false.
  */
 export function defaultNdjsonError(error: unknown): NdjsonError {
   const retryable = (error as { retryable?: unknown } | null | undefined)?.retryable;
