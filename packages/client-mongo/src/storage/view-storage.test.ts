@@ -43,8 +43,14 @@ function newDb(): Db {
 }
 
 /** This function waits until the check passes, 10 s at most. */
+/** The longest wait of `eventually`. */
+const EVENTUALLY_MS = 10_000;
+
+/** The time limit of each test of the suite: more than the wait of `eventually`, with room for the setup. */
+const TEST_TIMEOUT_MS = 30_000;
+
 async function eventually(check: () => Promise<void>): Promise<void> {
-  const until = Date.now() + 10_000;
+  const until = Date.now() + EVENTUALLY_MS;
   for (;;) {
     try {
       await check();
@@ -138,7 +144,7 @@ const ids = (entries: unknown): string[] => (entries as Array<{ id: string }>).m
 
 const withMongo = url ? describe : describe.skip;
 
-withMongo("MongoViewStorage on MongoDB", () => {
+withMongo("MongoViewStorage on MongoDB", { timeout: TEST_TIMEOUT_MS }, () => {
   it("gives each read of the procedures the rows of the current generation only, and moves at the change of generation", async () => {
     const db = newDb();
     const first = new ObjectId();
