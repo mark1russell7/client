@@ -45,7 +45,7 @@ const call = (path: string[], value: unknown, name?: string): EnvelopeProgram =>
 });
 const ref = (...path: unknown[]) => ({ type: "ref", value: path });
 const names = (...keys: unknown[]) => ref("names", ...keys);
-const literal = (value: unknown) => ({ type: "lit", value });
+const literal = (value: unknown) => ({ type: "literal", value });
 const $call = (path: string[], input: unknown, name?: string): ProcedureRefJson => ({
   $proc: path,
   input,
@@ -280,6 +280,16 @@ describe("the escapes: in an envelope program, the $proc form is data", () => {
     expect(await makeClient().exec(program)).toEqual(data);
   });
 
+  it("the type \"lit\" (the kind of the kernel) is an alias of \"literal\"", async () => {
+    const data = call(["client", "add"], { a: 1, b: 2 });
+    const program = call(["client", "identity"], { value: { type: "lit", value: data } });
+    expect(await makeClient().exec(program)).toEqual(data);
+    expect(fromEnvelopeProgram(program)).toStrictEqual($call(["client", "identity"], { value: { $literal: data } }));
+    expect(isEnvelopeProgram({ type: "lit", value: 1 })).toBe(false);
+    // The functions of the module write the type "literal"
+    expect(toEnvelopeProgram(fromEnvelopeProgram(program))).toStrictEqual(call(["client", "identity"], { value: literal(data) }));
+  });
+
   it("an envelope of another type is data, and the calls in it run", async () => {
     const program = call(["client", "identity"], { value: { type: "point", value: call(["client", "add"], { a: 1, b: 2 }) } });
     expect(await makeClient().exec(program)).toEqual({ type: "point", value: 3 });
@@ -354,7 +364,7 @@ describe("isEnvelopeProgram", () => {
       { type: ["client", 1], value: 1 },
       { type: "client.add", value: 1 },
       { type: "ref", value: ["names", "x"] },
-      { type: "lit", value: 1 },
+      { type: "literal", value: 1 },
       { type: ref("world"), value: 1 },
       { type: ref("names", "op"), value: 1 },
       { type: { ...ref("world", "client", "add"), name: "x" }, value: 1 },
@@ -482,7 +492,7 @@ describe("the round trip", () => {
     // Data that uses the keys and the texts of the two forms often
     const key = fc.constantFrom("type", "value", "name", "own", "$proc", "$ref", "$literal", "input", "$name", "a");
     const leaf = fc.oneof(
-      fc.constantFrom("ref", "lit", "names", "world", "last", "$last", "x.y", "client", "add"),
+      fc.constantFrom("ref", "literal", "names", "world", "last", "$last", "x.y", "client", "add"),
       fc.integer({ min: -1, max: 3 }),
       fc.constant(null),
       fc.boolean(),

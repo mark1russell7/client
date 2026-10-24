@@ -309,7 +309,7 @@ The table gives each part of a program in the two forms:
 | the header `"name": "sum"` of a call | `"$name": "sum"` |
 | `{ "type": "ref", "value": ["names", "sum", "total"] }` | `{ "$ref": "sum.total" }` |
 | `{ "type": "ref", "value": ["names", "last"] }` | `{ "$ref": "$last" }` |
-| `{ "type": "lit", "value": x }` | `{ "$literal": x }` |
+| `{ "type": "literal", "value": x }`, or the alias `{ "type": "lit", "value": x }` | `{ "$literal": x }` |
 | an object with a `$proc`, `$ref` or `$literal` key | `{ "$literal": object }` |
 | no envelope form | `$when` |
 
@@ -317,8 +317,9 @@ The rules (test: `envelope.test.ts`):
 
 - **The root decides the form.** `client.exec()` changes an envelope at the root into the `$proc` form. Then the kernel operates the program (section 13). In the input of a `$proc` program, an envelope is data. Thus a `$proc` program gives the same result as before.
 - **A call.** A call is an object with the keys `type` and `value`. It can also have the header keys `name` and `own`, and no other keys. Its type is the path of a procedure: an array of one or more strings. A ref into the world is also a type. The value is the input.
-- **The kinds of the kernel.** The type `"ref"` is a ref, and the type `"lit"` is a literal (coeval D12). An array with the one key `"ref"` or `"lit"` names the same kind. Before revision 2, the literal had the type `"literal"`. Another text type is data.
-- **A call without input.** A call with the value `null` has no input. Its procedure gets `undefined`, as a `$proc` call without `input` gets (section 1). With `passThrough`, `client.chain` gives such a step the result of the step before. For the input `null`, write `{ "type": "lit", "value": null }`.
+- **A ref and a literal.** The type `"ref"` is a ref, and the type `"literal"` is a literal. The type `"lit"` is an alias of `"literal"`: it is the kind of the kernel (coeval D12). The functions of the client write the type `"literal"`. Another text type is data.
+- **An array as a type.** An array with the one key `"ref"` or `"lit"` names the same kind. The array `["literal"]` is a call, as in version 0.23.0.
+- **A call without input.** A call with the value `null` has no input. Its procedure gets `undefined`, as a `$proc` call without `input` gets (section 1). With `passThrough`, `client.chain` gives such a step the result of the step before. For the input `null`, write `{ "type": "literal", "value": null }`.
 - **The header.** Only a call has a header. The header `name` gives the `$name` of the call. A client program has no own entries: a call with the key `own` is an error.
 - **A reference.** The value of a ref is a path: `["names", name, field, ...]`. Each key is a string without a dot, or an integer of 0 or more. The name `last` reads the result of the step before. The other names are the names of section 4, and they are in the root `names`. A ref with the root `self`, `world`, `event` or `caps` is an error.
 - **Data.** In an envelope program, the `$proc` form is data. Each object with a `$proc`, `$ref` or `$literal` key goes into a `$literal`. A runtime `ProcedureRef` is data too. An envelope of a different type is data, for example `{ "type": "point", "value": 3 }`. The calls and the refs in its value operate.
@@ -402,4 +403,3 @@ The deep dive of October 2026 replaced three `$ref` interpreters with one. These
 | `procedure.list` and `procedure.get` gave only the defined procedures, or the whole registry when `client-procedure` was loaded. | One implementation for the whole registry, with `runtime: true` for the defined procedures. | DOC-6 |
 | A defined body hydrated its root call as a nested call. A root `$when` applied, and an array of calls in the root input was a list of results. | A body operates as `client.exec()` operates the same program. | DOC-3 |
 | With `failFast`, the other tasks of `client.parallel` went on after the first error. The same was true for the refs of `HydrateOptions.parallel`. | The error comes at once, and the other tasks stop at their next wait. A call that started goes on in its procedure. | M14 |
-| The literal of the envelope form had the type `"literal"`. | It has the type `"lit"` (coeval D12). | M14 |

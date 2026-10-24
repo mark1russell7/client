@@ -8,7 +8,8 @@
  *   keys. A ref into the world, `{ type: "ref", value: ["world", ...path] }`, is also a type.
  * - A ref is `{ type: "ref", value: ["names", name, ...fields] }`. The name `last` reads the result
  *   of the step before.
- * - A literal is `{ type: "lit", value }` (coeval D12). Nothing in its value runs.
+ * - A literal is `{ type: "literal", value }`. Nothing in its value runs. The type `"lit"` (the kind
+ *   of the kernel, coeval D12) is an alias: `{ type: "lit", value }` is also a literal.
  *
  * The functions of this module read the envelopes with the helpers of `@mark1russell7/coeval`
  * (`isTypeRef`, `typePath`, `ref`). `fromEnvelopeProgram()` changes the envelope form into the
@@ -53,9 +54,12 @@ export interface EnvelopeRef {
   readonly value: EnvelopePath;
 }
 
-/** This document gives its value as data. Nothing in the value runs (coeval D12: the kind `lit`). */
+/**
+ * This document gives its value as data. Nothing in the value runs. The functions of this module
+ * write the type `"literal"`, and they also read the alias `"lit"` (coeval D12: the kind `lit`).
+ */
 export interface EnvelopeLiteral {
-  readonly type: "lit";
+  readonly type: "literal";
   readonly value: unknown;
 }
 
@@ -91,7 +95,10 @@ const CALL_KEYS: ReadonlySet<string> = new Set([PROCEDURE_JSON_KEY, "input", PRO
 const RUNTIME_CALL_KEYS: ReadonlySet<string> = new Set(["path", "input", PROCEDURE_NAME_KEY, PROCEDURE_WHEN_KEY]);
 
 const REF_TYPE = "ref";
-const LITERAL_TYPE = "lit";
+/** The type of a literal that this module writes (the form of 0.23.0). */
+const LITERAL_TYPE = "literal";
+/** The alias of the literal type: the kind `lit` of the kernel (coeval D12). */
+const LIT_ALIAS = "lit";
 const NAMES_ROOT = "names";
 const WORLD_ROOT = "world";
 /** The name of the result of the step before, in the envelope form. */
@@ -137,7 +144,7 @@ function keysOfType(type: unknown): readonly (string | number)[] | undefined {
 function callPath(type: unknown): ProcedurePath | undefined {
   if (typeof type === "string") return undefined;
   const keys = keysOfType(type);
-  if (!isProcedurePath(keys) || (keys.length === 1 && (keys[0] === REF_TYPE || keys[0] === LITERAL_TYPE))) return undefined;
+  if (!isProcedurePath(keys) || (keys.length === 1 && (keys[0] === REF_TYPE || keys[0] === LIT_ALIAS))) return undefined;
   return [...keys];
 }
 
@@ -147,7 +154,8 @@ function envelopeKind(value: unknown): EnvelopeKind | undefined {
   if (callPath(value.type)) return "call";
   const keys = keysOfType(value.type);
   if (keys?.length === 1 && keys[0] === REF_TYPE) return "ref";
-  if (keys?.length === 1 && keys[0] === LITERAL_TYPE) return "literal";
+  // The text "literal" (an array ["literal"] is a call, as in 0.23.0), or the alias "lit"
+  if (value.type === LITERAL_TYPE || (keys?.length === 1 && keys[0] === LIT_ALIAS)) return "literal";
   if (isPlainObject(value.type) && value.type["type"] === REF_TYPE) return "bad-type";
   return undefined;
 }

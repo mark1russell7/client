@@ -4459,7 +4459,7 @@ export declare function operatorAnswer(request: ElicitRequest, consent: boolean 
 
 ### dist/procedures/envelope.d.ts#EnvelopeLiteral
 export interface EnvelopeLiteral {
-    readonly type: "lit";
+    readonly type: "literal";
     readonly value: unknown;
 }
 
