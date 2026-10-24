@@ -14,7 +14,7 @@
 
 import { describe, it, expect, afterEach } from "vitest";
 import { randomBytes } from "node:crypto";
-import { request } from "node:http";
+import { request, type IncomingHttpHeaders } from "node:http";
 import { z } from "zod";
 import { service, type ServiceBuilder } from "@mark1russell7/service";
 import { fakeClock, fakeProcess, seeded } from "@mark1russell7/service/testing";
@@ -150,10 +150,37 @@ function delta(counts: Counts): () => Counts {
   };
 }
 
+/** The answer of a raw HTTP request: the status, the headers and the text of the body. */
+interface Answer {
+  readonly status: number;
+  readonly headers: IncomingHttpHeaders;
+  readonly text: string;
+}
+
+/**
+ * A raw HTTP request of `node:http`, on a new connection. Unlike `fetch`, it sends the `Host`
+ * header that the test gives, so the test can send a foreign host name.
+ */
+function send(url: string, method: string, headers: Record<string, string>, body?: string): Promise<Answer> {
+  const target = new URL(url);
+  const length = body !== undefined ? { "content-length": String(Buffer.byteLength(body)) } : {};
+  return new Promise((resolve, reject) => {
+    const req = request({ host: target.hostname, port: target.port, path: target.pathname, method, headers: { ...headers, ...length }, agent: false }, (res) => {
+      let text = "";
+      res.setEncoding("utf8");
+      res.on("data", (chunk: string) => (text += chunk));
+      res.on("end", () => resolve({ status: res.statusCode ?? 0, headers: res.headers, text }));
+    });
+    req.on("error", reject);
+    if (body !== undefined) req.write(body);
+    req.end();
+  });
+}
+
 /** A procedure call on the HTTP face: the status and the body. */
 async function callHttp(address: string, headers: Record<string, string>): Promise<{ status: number; body: Record<string, unknown> }> {
-  const response = await fetch(`${address}/who/am`, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: "{}" });
-  return { status: response.status, body: (await response.json()) as Record<string, unknown> };
+  const answer = await send(`${address}/who/am`, "POST", { "content-type": "application/json", ...headers }, "{}");
+  return { status: answer.status, body: JSON.parse(answer.text) as Record<string, unknown> };
 }
 
 /** The status of an upgrade of the WebSocket face: 101 when the connection opens, else the status of the refusal. */
@@ -183,11 +210,11 @@ const INITIALIZE = { jsonrpc: "2.0", id: 1, method: "initialize", params: { prot
 
 /** A JSON-RPC request to the MCP face: the status, the session and the message of the answer (JSON, or one server-sent event). */
 async function postMcp(address: string, body: unknown, headers: Record<string, string>): Promise<{ status: number; session: string | null; message: Record<string, unknown> | undefined }> {
-  const response = await fetch(address, { method: "POST", headers: { ...MCP_HEADERS, ...headers }, body: JSON.stringify(body) });
-  const text = await response.text();
-  const data = text.split(/\r?\n/).find((line) => line.startsWith("data: "));
-  const json = text.startsWith("{") ? text : data?.slice("data: ".length);
-  return { status: response.status, session: response.headers.get("mcp-session-id"), message: json ? (JSON.parse(json) as Record<string, unknown>) : undefined };
+  const answer = await send(address, "POST", { ...MCP_HEADERS, ...headers }, JSON.stringify(body));
+  const data = answer.text.split(/\r?\n/).find((line) => line.startsWith("data: "));
+  const json = answer.text.startsWith("{") ? answer.text : data?.slice("data: ".length);
+  const session = [answer.headers["mcp-session-id"]].flat()[0] ?? null;
+  return { status: answer.status, session, message: json ? (JSON.parse(json) as Record<string, unknown>) : undefined };
 }
 
 /** The principal that the tool `who.am` gives in an answer of the MCP face. */
@@ -275,9 +302,7 @@ describe("one check for each request on each face of the host (CLI-2b)", () => {
     const refused = await postMcp(mcp, { jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "who.am", arguments: {} } }, withoutToken);
     expect(refused.status).toBe(401);
     expect(refused.message).toMatchObject({ error: { data: { code: "UNAUTHORIZED" } } });
-    const stream = await fetch(mcp, { headers: { ...withoutToken, accept: "text/event-stream" } });
-    expect(stream.status).toBe(401);
-    await stream.body?.cancel();
+    expect((await send(mcp, "GET", { ...withoutToken, accept: "text/event-stream" })).status).toBe(401);
     expect((await postMcp(mcp, INITIALIZE, { ...browserHeaders(port), cookie: "jarvis_token=wrong" })).status).toBe(401);
     since();
     // A foreign Host or Origin: the browser check refuses the request before the admission

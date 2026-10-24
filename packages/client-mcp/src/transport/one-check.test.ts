@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect, afterEach } from "vitest";
-import { createServer } from "node:http";
+import { createServer, request, type IncomingHttpHeaders } from "node:http";
 import type { AddressInfo } from "node:net";
 import { z } from "zod";
 import { localDev, service } from "@mark1russell7/service";
@@ -108,16 +108,45 @@ const INITIALIZE = { jsonrpc: "2.0", id: 1, method: "initialize", params: { prot
 const INITIALIZED = { jsonrpc: "2.0", method: "notifications/initialized" };
 const CALL = { jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "who.am", arguments: {} } };
 
+/** The answer of a raw HTTP request: the status, the headers and the text of the body. */
+interface Answer {
+  readonly status: number;
+  readonly headers: IncomingHttpHeaders;
+  readonly text: string;
+}
+
+/**
+ * A raw HTTP request of `node:http`, on a new connection. Unlike `fetch`, it sends the `Host`
+ * header that the test gives, so the test can send a foreign host name.
+ */
+function send(url: string, method: string, headers: Record<string, string>, body?: string): Promise<Answer> {
+  const target = new URL(url);
+  const length = body !== undefined ? { "content-length": String(Buffer.byteLength(body)) } : {};
+  return new Promise((resolve, reject) => {
+    const req = request({ host: target.hostname, port: target.port, path: target.pathname, method, headers: { ...headers, ...length }, agent: false }, (res) => {
+      let text = "";
+      res.setEncoding("utf8");
+      res.on("data", (chunk: string) => (text += chunk));
+      res.on("end", () => resolve({ status: res.statusCode ?? 0, headers: res.headers, text }));
+    });
+    req.on("error", reject);
+    if (body !== undefined) req.write(body);
+    req.end();
+  });
+}
+
+/** The first value of a header of an answer, or null. */
+const headerOf = (answer: Answer, name: string): string | null => [answer.headers[name]].flat()[0] ?? null;
+
 /** A JSON-RPC request to the endpoint: the status, the session and the message of the answer (JSON, or one server-sent event). */
 async function post(url: string, body: unknown, headers: Record<string, string>): Promise<{ status: number; session: string | null; wwwAuthenticate: string | null; message: Record<string, unknown> | undefined }> {
-  const response = await fetch(url, { method: "POST", headers: { ...MCP_HEADERS, ...headers }, body: JSON.stringify(body) });
-  const text = await response.text();
-  const data = text.split(/\r?\n/).find((line) => line.startsWith("data: "));
-  const json = text.startsWith("{") ? text : data?.slice("data: ".length);
+  const answer = await send(url, "POST", { ...MCP_HEADERS, ...headers }, JSON.stringify(body));
+  const data = answer.text.split(/\r?\n/).find((line) => line.startsWith("data: "));
+  const json = answer.text.startsWith("{") ? answer.text : data?.slice("data: ".length);
   return {
-    status: response.status,
-    session: response.headers.get("mcp-session-id"),
-    wwwAuthenticate: response.headers.get("www-authenticate"),
+    status: answer.status,
+    session: headerOf(answer, "mcp-session-id"),
+    wwwAuthenticate: headerOf(answer, "www-authenticate"),
     message: json ? (JSON.parse(json) as Record<string, unknown>) : undefined,
   };
 }
@@ -176,9 +205,7 @@ describe("one check for each request on the standalone MCP face (CLI-2b)", () =>
     // Each request of a session keeps its check: a call and the GET stream without the token
     const { authorization: _authorization, ...withoutToken } = session;
     expect((await post(url, CALL, withoutToken)).status).toBe(401);
-    const stream = await fetch(url, { headers: { ...withoutToken, accept: "text/event-stream" } });
-    expect(stream.status).toBe(401);
-    await stream.body?.cancel();
+    expect((await send(url, "GET", { ...withoutToken, accept: "text/event-stream" })).status).toBe(401);
     expect(since().admissions).toBe(0);
     // A foreign Host or Origin: the browser check refuses the request before the admission
     expect((await post(url, INITIALIZE, { ...signed, host: `attacker.example:${port}` })).status).toBe(403);
