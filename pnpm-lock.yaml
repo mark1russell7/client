@@ -471,6 +471,9 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
       fast-check:
         specifier: ^4.10.2
         version: 4.10.2
@@ -1389,6 +1392,9 @@ importers:
       '@mark1russell7/cue':
         specifier: ^1.0.0
         version: 1.0.0
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
       fast-check:
         specifier: ^4.10.2
         version: 4.10.2
