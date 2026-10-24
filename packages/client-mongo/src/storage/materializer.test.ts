@@ -38,7 +38,6 @@ function setup() {
   return { db, views, logs };
 }
 
-/** This function waits until the check passes, 10 s at most. */
 /** The longest wait of `eventually`. */
 const EVENTUALLY_MS = 10_000;
 
@@ -48,6 +47,7 @@ const EVENTUALLY_MS = 10_000;
  */
 const TEST_TIMEOUT_MS = 30_000;
 
+/** This function waits until the check passes, `EVENTUALLY_MS` at most. */
 async function eventually(check: () => Promise<void>): Promise<void> {
   const until = Date.now() + EVENTUALLY_MS;
   for (;;) {

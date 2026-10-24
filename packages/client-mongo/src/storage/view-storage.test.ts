@@ -42,13 +42,13 @@ function newDb(): Db {
   return db;
 }
 
-/** This function waits until the check passes, 10 s at most. */
 /** The longest wait of `eventually`. */
 const EVENTUALLY_MS = 10_000;
 
 /** The time limit of each test of the suite: more than the wait of `eventually`, with room for the setup. */
 const TEST_TIMEOUT_MS = 30_000;
 
+/** This function waits until the check passes, `EVENTUALLY_MS` at most. */
 async function eventually(check: () => Promise<void>): Promise<void> {
   const until = Date.now() + EVENTUALLY_MS;
   for (;;) {
