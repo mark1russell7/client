@@ -46,7 +46,7 @@ concurrency:
 env:
   # The commit of mark1russell7/systems whose harness and cells run. Change it by hand to take a
   # newer harness: the cells run from the source of the repository, not from npm.
-  SYSTEMS_REF: f964de1a2d7f26a607c9f9e153b18704cce83865
+  SYSTEMS_REF: 00ff1eadee6d6892d3b3f48ea282d3c7a75b037a
 
 jobs:
   plan:
