@@ -36,6 +36,10 @@
     "./register": {
       "types": "./dist/register.d.ts",
       "import": "./dist/register.js"
+    },
+    "./fresh-bundle": {
+      "types": "./dist/fresh-bundle.d.ts",
+      "import": "./dist/fresh-bundle.js"
     }
   },
   "files": [
@@ -68,11 +72,25 @@
     "@procedures/shell": "workspace:*",
     "zod": "^4.6.5"
   },
+  "peerDependencies": {
+    "esbuild": "^0.28.0",
+    "tsx": "^4.23.0"
+  },
+  "peerDependenciesMeta": {
+    "esbuild": {
+      "optional": true
+    },
+    "tsx": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "typescript": "^7.0.2",
     "@types/node": "^22.0.0",
     "@mark1russell7/cue": "^1.0.0",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.3",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15"
   },
   "client": {
     "procedures": "./dist/register.js"
