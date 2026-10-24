@@ -3,7 +3,9 @@
 "@procedures/compiler": minor
 ---
 
-Changed: a program runs on the kernel of coeval (`@mark1russell7/coeval` 0.3.1, roadmap item M14, coeval decision D13). The program format and its rules do not change.
+Changed: a program runs on the kernel of coeval (`@mark1russell7/coeval` `^0.5.0`, roadmap item M14, coeval decision D13). The program format and its rules do not change.
+
+- The range `^0.5.0` of `@mark1russell7/coeval` has the kernel fixes of 0.4.1 to 0.4.3 (the narrowing of capabilities in `check()`, the place of a compile throw and of a waiting runner, the step parts after a failed `let`, `#DEPTH!` for an endless recursion, unknown `ops.*`/`ext.*` names in `check()`, `docEquals()` on dates and maps). The types of the client that name coeval types stay the same, with one addition: `Machine`, the type that `programMachine()` gives, has the new optional member `known` (coeval 0.4.3). `World`, `Key`, `Json` and `EvalError` do not change.
 
 - `desugarProgram()` changes the `$proc` form into a run document of coeval, and one run of the kernel runs it (`runProgram()`). `client.exec()`, `client.execStream()`, `hydrateInput()`, `prepareRootCall()`, `executeRef()`, the control-flow procedures and the body of a defined procedure use this run.
 - Each call of a program is an effect. The client does it with `client.call()`, so `invokeProcedure()` stays the authority for the admission, the validation, the interceptors and the exposure rules of each call. A failed call throws the same error as before, with its message and its code.
