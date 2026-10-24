@@ -245,7 +245,13 @@ interface ParallelInput {
   tasks: unknown[];
   /** Maximum concurrency (default: unlimited) */
   concurrency?: number;
-  /** Whether to fail fast on first error (default: false) */
+  /**
+   * Whether to fail fast on first error (default: false).
+   *
+   * Deprecated behavior (D26): after the first error, the other tasks go on in the background to
+   * their end. From the next MINOR, they stop at their next wait, and their later calls do not
+   * start. When those calls must start, wait for the tasks yourself, or do not use `failFast`.
+   */
   failFast?: boolean;
 }
 
@@ -254,7 +260,12 @@ interface ParallelOutput {
   results: unknown[];
   /** Whether all tasks succeeded */
   allSucceeded: boolean;
-  /** Errors from failed tasks */
+  /**
+   * Errors from failed tasks.
+   *
+   * Deprecated behavior (D26): the error text of a task that throws `undefined` is `"undefined"`.
+   * From the next MINOR, it is the reason of the kernel. Throw an `Error`.
+   */
   errors: Array<{ index: number; error: string }>;
 }
 
@@ -752,7 +763,12 @@ interface TryCatchOutput {
   success: boolean;
   /** Result value */
   value: unknown;
-  /** Error if failed */
+  /**
+   * Error if failed.
+   *
+   * Deprecated behavior (D26): the error text of a `try` that throws `undefined` is `"undefined"`.
+   * From the next MINOR, it is the reason of the kernel. Throw an `Error`.
+   */
   error?: string;
 }
 

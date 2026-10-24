@@ -61,7 +61,14 @@ export interface EnvelopeLiteral {
  * procedure, or a ref into the world. The value is the input. A value of `null` gives no input.
  */
 export interface EnvelopeProgram {
-  /** The path of the procedure, or a ref into the world: `{ type: "ref", value: ["world", ...path] }`. */
+  /**
+   * The path of the procedure, or a ref into the world: `{ type: "ref", value: ["world", ...path] }`.
+   *
+   * Deprecated behavior (D26): the types `["ref"]` and `["lit"]` (arrays of one key) are calls of
+   * the procedures with these paths. From the next MINOR, they are the kinds `ref` and `lit` of
+   * the kernel, and a ref into the world stays a call. For a call of these procedures, write a
+   * ref into the world as the type: `{ type: { type: "ref", value: ["world", "ref"] }, value }`.
+   */
   readonly type: readonly string[] | EnvelopeRef;
   /** The input of the call. `null` gives a call without input. */
   readonly value: unknown;
