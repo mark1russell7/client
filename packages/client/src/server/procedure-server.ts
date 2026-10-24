@@ -147,7 +147,8 @@ export interface ProcedureServerOptions extends ServerOptions {
   /**
    * This function gives the principal of a request, or undefined to refuse it with
    * `UNAUTHORIZED`. It runs after the token check. The capability function can read
-   * `request.principal`.
+   * `request.principal`. Like the request hook, it can run more than one time for one request or
+   * one task: `admits()` and `identify()` run it too (roadmap CLI-69).
    */
   authenticate?: ((request: ServerRequest<unknown>) => Principal | undefined | Promise<Principal | undefined>) | undefined;
 
@@ -159,6 +160,9 @@ export interface ProcedureServerOptions extends ServerOptions {
    * `request.principal`. Undefined or an error refuses the request with `UNAUTHORIZED`. A local
    * request (`LOCAL_CREDENTIALS`) does not go through the hook. A server with a hook refuses a
    * request without credentials, and the hook does not run for it (CLI-1).
+   *
+   * The hook can run more than one time for one request or one task: `admits()` and `identify()`
+   * run it too (CLI-69).
    */
   principalOf?: PrincipalOf | undefined;
 
@@ -313,6 +317,11 @@ async function* forgottenAtRetryableEnd<T>(items: AsyncIterable<T>, forget: () =
     if (retryableOf(error, count)) forget();
     throw error;
   }
+}
+
+/** The request of credentials without a call: `admits()` and `identify()` give it to the checks of each call. */
+function credentialsRequest(id: string, credentials: Credentials): ServerRequest<unknown> {
+  return { id, method: { service: "", operation: "" }, payload: undefined, metadata: {}, credentials };
 }
 
 /** A signal that aborts when one of the signals aborts. */
@@ -1010,8 +1019,19 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    * connection.
    */
   async admits(credentials: Credentials): Promise<boolean> {
-    const request: ServerRequest<unknown> = { id: "connection", method: { service: "", operation: "" }, payload: undefined, metadata: {}, credentials };
-    return (await this.admit(request)) === undefined;
+    return (await this.admit(credentialsRequest("connection", credentials))) === undefined;
+  }
+
+  /**
+   * This method gives the principal of a request with these credentials, before a call (CLI-69).
+   * It uses the path of each call: the request hook, the token check and the authenticate
+   * function. It gives undefined when the server refuses the credentials, or when the request has
+   * no principal. The MCP face uses it for the fair share of its task store. Each use runs the
+   * request hook and the authenticate function one more time.
+   */
+  async identify(credentials: Credentials): Promise<Principal | undefined> {
+    const request = credentialsRequest("identify", credentials);
+    return (await this.admit(request)) === undefined ? request.principal : undefined;
   }
 
   /**

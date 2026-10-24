@@ -1460,6 +1460,9 @@ importers:
       '@clack/prompts':
         specifier: ^0.7.0
         version: 0.7.0
+      '@mark1russell7/service':
+        specifier: ^0.5.8
+        version: 0.5.8(zod@4.6.5)
       '@procedures/cli-run':
         specifier: workspace:*
         version: link:../client-cli

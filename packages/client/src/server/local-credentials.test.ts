@@ -114,6 +114,29 @@ describe("a request without credentials (CLI-1)", () => {
   });
 });
 
+describe("the principal before a call (identify, CLI-69)", () => {
+  it("gives the principal of the checks of a call, and undefined for a refusal", async () => {
+    const value = server({
+      token: TOKEN,
+      principalOf: (credentials) => {
+        const user = credentials.headers?.["x-user"];
+        return user ? { principal: { id: user, via: "x-user" } } : {};
+      },
+    });
+    expect(await value.identify({ bearer: TOKEN, headers: { "x-user": "mark" } })).toEqual({ id: "mark", via: "x-user" });
+    // The token check gives its principal when the hook gives none
+    expect(await value.identify({ bearer: TOKEN })).toEqual({ id: "token", via: "token" });
+    // A wrong token is a refusal: no principal
+    expect(await value.identify({ bearer: "wrong", headers: { "x-user": "mark" } })).toBeUndefined();
+  });
+
+  it("gives the principal of the authenticate function, and undefined without a principal", async () => {
+    expect(await server({ authenticate: () => ({ id: "local", via: "local" }) }).identify(LOCAL_CREDENTIALS)).toEqual({ id: "local", via: "local" });
+    expect(await server({ authenticate: () => undefined }).identify(LOCAL_CREDENTIALS)).toBeUndefined();
+    expect(await server().identify(LOCAL_CREDENTIALS)).toBeUndefined();
+  });
+});
+
 describe("the local marker (CLI-1)", () => {
   it("passes a server with a token, without the request hook, and gives no principal", async () => {
     let hookCalls = 0;

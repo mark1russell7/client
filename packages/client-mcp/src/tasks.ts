@@ -16,12 +16,13 @@
  *   task, and the request gets the error `-32600` with the code `TASKS_FULL`.
  * - The time to keep a task (`ttl`) starts when the task ends. The store never removes a task
  *   whose work runs, so a short `ttl` does not let work escape the limit or the cancel. A refused
- *   task stays 1 minute.
+ *   task stays 1 minute. The timers run on the clock of the store (`clock`).
  * - Each session keeps at most 100 tasks, and the store keeps at most `maxStored` tasks for all
  *   the sessions together: 1000 by default (CLI-51). A new task removes the oldest task of its
  *   own session that ended. When the store is full and the session has no task that ended, the
  *   request of the new task gets an error, and the store keeps nothing of it. Thus a client
  *   cannot remove the results of another session. `Infinity` turns the total limit off.
+ * - The fair share (CLI-69) keeps one client from the whole store. Refer to `McpTaskStore`.
  * - A cancel of a task (`tasks/cancel`) aborts the signal of its procedure call. The close of a
  *   session cancels its tasks, and the stop of the host cancels each task.
  *
@@ -31,7 +32,7 @@
 import { randomUUID } from "node:crypto";
 import type { CreateTaskOptions, TaskStore } from "@modelcontextprotocol/sdk/experimental/tasks/interfaces.js";
 import { ErrorCode, McpError, type Request, type RequestId, type Result, type Task } from "@modelcontextprotocol/sdk/types.js";
-import { optionalMs, type Duration } from "@procedures/client";
+import { optionalMs, realClock, type Cancel, type Clock, type Duration, type Principal } from "@procedures/client";
 
 /** The limits of the tasks of one MCP host. */
 export const MCP_TASK_LIMITS = {
@@ -56,6 +57,11 @@ export const MCP_TASK_LIMITS = {
    * their most tasks. Without it, only the session limit times 100 bounds the store.
    */
   maxStored: 1_000,
+  /**
+   * The part of `maxStored` that the fair share keeps for the clients below their share (CLI-69):
+   * a tenth, rounded down. Thus the default `reserve` is 100 slots of 1000.
+   */
+  reserveDivisor: 10,
 } as const;
 
 /** A task whose work did not end, as a status page of the host shows it. */
@@ -72,6 +78,34 @@ export interface McpTaskInfo {
   readonly updatedAt: string;
 }
 
+/** What the key of the fair share reads to find the client of a new task (CLI-69). */
+export interface McpTaskShareContext {
+  /** The session of the request. It is undefined for a face without sessions: stdio, or an SDK transport. */
+  readonly sessionId: string | undefined;
+  /** The principal of the request, when the handler of the face gives it before the call (`identify`). */
+  readonly principal: Principal | undefined;
+  /** The request of the task: its method and its params. */
+  readonly request: Request;
+}
+
+/** What a face knows of the caller of a new task (CLI-69): the fifth argument of `createTask`. */
+export interface McpTaskCaller {
+  /** The principal of the request, from `identify` of the handler of the face. */
+  readonly principal?: Principal | undefined;
+}
+
+/**
+ * The default key of the fair share (CLI-69): the principal of the request, else the session.
+ * Each caller with the token of the host gets the same principal (`via: "token"`). That principal
+ * does not identify one client, so such a request gets the key of its session. A request without
+ * a session (stdio, an SDK transport) gets the key `local`.
+ */
+export function mcpTaskShareKey(context: McpTaskShareContext): string {
+  const { principal, sessionId } = context;
+  if (principal !== undefined && principal.via !== "token") return `principal:${principal.via}:${principal.id}`;
+  return sessionId !== undefined ? `session:${sessionId}` : "local";
+}
+
 /** The options of a task store. */
 export interface McpTaskStoreOptions {
   /** The most tasks whose work runs at one time. The default is 8. */
@@ -82,8 +116,22 @@ export interface McpTaskStoreOptions {
    * limit off.
    */
   readonly maxStored?: number | undefined;
+  /**
+   * The last free slots of the store, which only a client below its fair share can take (CLI-69).
+   * The default is a tenth of `maxStored`, rounded down: 100 of 1000. The value is an integer
+   * from 0 to half of `maxStored`. `0` turns the fair share off.
+   */
+  readonly reserve?: number | undefined;
+  /**
+   * This function gives the key of the client of a new task, for the fair share (CLI-69). The
+   * tasks with one key count as the tasks of one client. The default is `mcpTaskShareKey`: the
+   * principal of the request, else the session.
+   */
+  readonly shareKey?: ((context: McpTaskShareContext) => string) | undefined;
   /** The time that a task and its result stay after the task ends, when the client asks for no time. The default is 1 hour. */
   readonly ttl?: Duration | undefined;
+  /** The clock of the timers that remove the tasks. The default is the clock of the platform. A test gives a fake clock. */
+  readonly clock?: Clock | undefined;
   /** This function runs when a task starts, changes its status or ends. An error of it does not stop a task. */
   readonly onChange?: (() => void) | undefined;
 }
@@ -97,6 +145,8 @@ export interface McpTasksOptions extends McpTaskStoreOptions {
 interface Entry {
   readonly task: Task;
   readonly sessionId: string | undefined;
+  /** The key of the client of the task, for the fair share (CLI-69). */
+  readonly key: string;
   readonly tool: string;
   readonly controller: AbortController;
   /** The reason that the task does not start: the store has its most tasks. The task then fails at once. */
@@ -104,20 +154,45 @@ interface Entry {
   result?: Result;
   /** True when the work of the task ended: its slot is free. */
   settled: boolean;
-  timer?: ReturnType<typeof setTimeout>;
+  /** This function stops the timer that removes the task. */
+  cancel?: Cancel | undefined;
 }
 
 const TERMINAL = new Set<Task["status"]>(["completed", "failed", "cancelled"]);
 
+/** True for a limit: an integer of 1 or more, or no limit (`Infinity`). */
+function isLimit(value: number): boolean {
+  return value === Number.POSITIVE_INFINITY || (Number.isInteger(value) && value >= 1);
+}
+
 /**
  * The store of the tasks of an MCP host. It keeps an abort signal for each task, so a cancel of
  * the task aborts the work of its procedure.
+ *
+ * The fair share (CLI-69) keeps one client from the whole store. The key of a task
+ * (`shareKey`) tells its client: by default the principal of the request, else the session.
+ * These are the rules for a new task of a key:
+ *
+ * - The share of the key is `maxStored / (k + 1)`. `k` is the number of keys that have tasks in
+ *   the store, the new key included. The `+ 1` keeps a share for the client that comes next.
+ * - When `reserve` slots or fewer are free, a key with its share or more does not get more tasks.
+ *   Its new task replaces the oldest task of its session that ended. Without such a task, the
+ *   request gets the error `TASKS_FULL`, as for a full store.
+ * - A key below its share gets a task while the store has a free slot.
+ *
+ * Thus one key keeps at most `maxStored - reserve` tasks, because `reserve` is at most half of
+ * `maxStored`. One client with many sessions under one principal cannot take the whole store. A
+ * session of another client gets a task while the reserve has a free slot. The total limit
+ * (`maxStored`) and the limit of 100 tasks of a session stay as they are.
  */
 export class McpTaskStore implements TaskStore {
   private readonly entries = new Map<string, Entry>();
   private readonly maxRunning: number;
   private readonly maxStored: number;
+  private readonly reserve: number;
   private readonly ttlMs: number;
+  private readonly clock: Clock;
+  private readonly shareKey: (context: McpTaskShareContext) => string;
   private closed = false;
 
   constructor(private readonly options: McpTaskStoreOptions = {}) {
@@ -125,11 +200,18 @@ export class McpTaskStore implements TaskStore {
     if (!Number.isInteger(maxRunning) || maxRunning < 1) throw new RangeError(`maxRunning must be an integer of 1 or more, not ${String(maxRunning)}`);
     this.maxRunning = maxRunning;
     const maxStored = options.maxStored ?? MCP_TASK_LIMITS.maxStored;
-    if (maxStored !== Number.POSITIVE_INFINITY && (!Number.isInteger(maxStored) || maxStored < 1)) {
-      throw new RangeError(`maxStored must be an integer of 1 or more, or Infinity, not ${String(maxStored)}`);
-    }
+    if (!isLimit(maxStored)) throw new RangeError(`maxStored must be an integer of 1 or more, or Infinity, not ${String(maxStored)}`);
     this.maxStored = maxStored;
+    // Without a total limit the store is never full, so the fair share has nothing to keep
+    const finite = maxStored !== Number.POSITIVE_INFINITY;
+    const reserve = options.reserve ?? (finite ? Math.floor(maxStored / MCP_TASK_LIMITS.reserveDivisor) : 0);
+    if (!Number.isInteger(reserve) || reserve < 0 || (finite && reserve > Math.floor(maxStored / 2))) {
+      throw new RangeError(`reserve must be an integer from 0 to half of maxStored, not ${String(reserve)}`);
+    }
+    this.reserve = finite ? reserve : 0;
     this.ttlMs = optionalMs(options.ttl, "ttl") ?? MCP_TASK_LIMITS.ttlMs;
+    this.clock = options.clock ?? realClock;
+    this.shareKey = options.shareKey ?? mcpTaskShareKey;
   }
 
   private changed(): void {
@@ -153,33 +235,82 @@ export class McpTaskStore implements TaskStore {
     return entry;
   }
 
+  /** This method removes a task and stops its timer. */
+  private remove(entry: Entry): void {
+    entry.cancel?.();
+    entry.cancel = undefined;
+    this.entries.delete(entry.task.taskId);
+  }
+
   /** The time to keep a task starts when it ends, and the store removes it only when its work also ended. */
   private expire(entry: Entry): void {
-    if (entry.timer) clearTimeout(entry.timer);
+    entry.cancel?.();
+    entry.cancel = undefined;
     if (!TERMINAL.has(entry.task.status) || !entry.settled || this.closed) return;
     const ttl = entry.task.ttl ?? this.ttlMs;
-    entry.timer = setTimeout(() => {
-      this.entries.delete(entry.task.taskId);
-    }, ttl);
-    entry.timer.unref?.();
+    const cancel = this.clock.after(ttl, () => {
+      if (this.entries.get(entry.task.taskId) === entry) this.entries.delete(entry.task.taskId);
+    });
+    // The timer of a task does not keep the process alive
+    cancel.unref?.();
+    entry.cancel = cancel;
+  }
+
+  /** The key of the client of a new task. An error of the function, or a key that is not a string, refuses the task. */
+  private keyOf(context: McpTaskShareContext): string {
+    let key: unknown;
+    try {
+      key = this.shareKey(context);
+    } catch (error) {
+      throw new McpError(ErrorCode.InternalError, `The share key of the task store failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    if (typeof key !== "string") throw new McpError(ErrorCode.InternalError, "The share key of the task store gave no string");
+    return key;
+  }
+
+  /** The tasks of a key, and the number of keys that have tasks, the key included. */
+  private holding(key: string): { held: number; keys: number } {
+    const keys = new Set<string>([key]);
+    let held = 0;
+    for (const entry of this.entries.values()) {
+      keys.add(entry.key);
+      if (entry.key === key) held++;
+    }
+    return { held, keys: keys.size };
   }
 
   /**
-   * This method removes the oldest tasks of a session that ended, until the session and the store
-   * have room for one more task. It removes only the tasks of the same session, so a client cannot
-   * remove the results of another session. A task whose work runs stays: the limit of the running
-   * tasks bounds them.
+   * True when a new task of the key must replace a task of its session: the store is full, or
+   * `reserve` slots or fewer are free and the key has its fair share or more (CLI-69).
    */
-  private makeRoom(sessionId: string | undefined): void {
+  private mustReplace(key: string): boolean {
+    const size = this.entries.size;
+    if (size >= this.maxStored) return true;
+    if (this.reserve === 0 || size < this.maxStored - this.reserve) return false;
+    const { held, keys } = this.holding(key);
+    // The share is maxStored / (keys + 1): the + 1 keeps a share for the client that comes next
+    return held * (keys + 1) >= this.maxStored;
+  }
+
+  /**
+   * This method removes the oldest tasks of a session that ended. It removes one task for a
+   * replacement (`replace`), and enough tasks to keep the session below its limit of 100. It
+   * removes only the tasks of the same session, so a client cannot remove the results of another
+   * session. A task whose work runs stays: the limit of the running tasks bounds them. The method
+   * gives the number of tasks that it removed.
+   */
+  private makeRoom(sessionId: string | undefined, replace: boolean): number {
     const own = [...this.entries.values()].filter((entry) => entry.sessionId === sessionId);
-    let excess = Math.max(own.length + 1 - MCP_TASK_LIMITS.maxStoredPerSession, this.entries.size + 1 - this.maxStored);
+    let excess = Math.max(own.length + 1 - MCP_TASK_LIMITS.maxStoredPerSession, this.entries.size + 1 - this.maxStored, replace ? 1 : 0);
+    let removed = 0;
     for (const entry of own) {
       if (excess <= 0) break;
       if (!entry.settled || !TERMINAL.has(entry.task.status)) continue;
-      if (entry.timer) clearTimeout(entry.timer);
-      this.entries.delete(entry.task.taskId);
+      this.remove(entry);
       excess--;
+      removed++;
     }
+    return removed;
   }
 
   /** The count of the tasks whose work runs. */
@@ -189,20 +320,28 @@ export class McpTaskStore implements TaskStore {
     return count;
   }
 
+  /** The error of a request that the store refuses: the store is full, or the client has its fair share near the limit. */
+  private full(key: string): McpError {
+    const size = this.entries.size;
+    const reason =
+      size >= this.maxStored
+        ? `The host stores ${String(size)} tasks, its limit of stored tasks.`
+        : `The host stores ${String(size)} tasks, near its limit of stored tasks (${String(this.maxStored)}), and this client has its fair share of them (${String(this.holding(key).held)} tasks).`;
+    return new McpError(ErrorCode.InvalidRequest, `${reason} Try again when the time of a task ends.`, { code: "TASKS_FULL" });
+  }
+
   /**
    * The store counts and inserts a task in one step, so a batch of requests cannot pass the limits.
-   * When the store is full after `makeRoom`, the request gets an error and the store keeps nothing.
+   * When the store has no room after `makeRoom`, the request gets an error and the store keeps
+   * nothing. The fifth argument tells the caller (CLI-69): the face gives the principal of the
+   * request, for the key of the fair share.
    */
-  async createTask(params: CreateTaskOptions, _requestId: RequestId, request: Request, sessionId?: string): Promise<Task> {
+  async createTask(params: CreateTaskOptions, _requestId: RequestId, request: Request, sessionId?: string, caller: McpTaskCaller = {}): Promise<Task> {
     if (this.closed) throw new McpError(ErrorCode.InvalidRequest, "The MCP host is stopping: it starts no task");
-    this.makeRoom(sessionId);
-    if (this.entries.size >= this.maxStored) {
-      throw new McpError(
-        ErrorCode.InvalidRequest,
-        `The host stores ${String(this.entries.size)} tasks, its limit of stored tasks. Try again when the time of a task ends.`,
-        { code: "TASKS_FULL" },
-      );
-    }
+    const key = this.keyOf({ sessionId, principal: caller.principal, request });
+    const replace = this.mustReplace(key);
+    const removed = this.makeRoom(sessionId, replace);
+    if (this.entries.size >= this.maxStored || (replace && removed === 0)) throw this.full(key);
     const running = this.runningCount();
     const refused =
       running >= this.maxRunning ? `The host runs ${String(running)} tasks, its limit. Wait for a task to end, or cancel one.` : undefined;
@@ -220,6 +359,7 @@ export class McpTaskStore implements TaskStore {
     this.entries.set(task.taskId, {
       task,
       sessionId,
+      key,
       tool: typeof name === "string" ? name : request.method,
       controller: new AbortController(),
       refused,
@@ -338,7 +478,7 @@ export class McpTaskStore implements TaskStore {
       await this.updateTaskStatus(id, "cancelled", "The MCP host stopped", entry.sessionId).catch(() => undefined);
     }
     this.closed = true;
-    for (const entry of this.entries.values()) if (entry.timer) clearTimeout(entry.timer);
+    for (const entry of this.entries.values()) entry.cancel?.();
     this.entries.clear();
     this.changed();
   }

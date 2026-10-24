@@ -2,9 +2,10 @@
  * The runner entry of the procedures host (CLI-8, decisions D2, D6, D7 and D17).
  *
  * `runProcedureHost(config)` is the only entry that starts `run()` of `@mark1russell7/service` for
- * `procedure-server`, `mark serve` and `mark --server`. It declares the parts of
- * `createProcedureHost()` of `@procedures/peer` in one service. The runner owns the signals, the
- * stop in stages and the exit. Thus the entry installs no signal handler and no hard-exit timer.
+ * `procedure-server`, `mark serve`, `mark --server` and the cold mode of `mark` (CLI-26). It
+ * declares the parts of `createProcedureHost()` of `@procedures/peer` in one service. The runner
+ * owns the signals, the stop in stages and the exit. Thus the entry installs no signal handler and
+ * no hard-exit timer.
  *
  * - The profile: `localDev` for a run in the foreground, where a second Ctrl-C exits at once, and
  *   `daemon` for the background host of `mark`, where a repeat signal has no effect (D6, D7).

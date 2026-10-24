@@ -1,5 +1,88 @@
 # @procedures/peer
 
+## 0.24.0
+
+### Patch Changes
+
+- 4261f65: Breaking: each `mark` command starts under `run()` of `@mark1russell7/service` (CLI-26, decision D17). The cold mode runs the procedures host of the CLI server in its own process. The runner owns the signals, the stop in stages and the exit. Thus the exit codes of a signal change. The release before this one marked the old behaviors as deprecated.
+  
+  The new behavior:
+  
+  - Each `mark` command that runs a procedure is a service of one request, with the profile `ephemeral`. `mark` has no signal handler and no `process.exit` of its own in this path. `interruptSignal()` is gone.
+  - The cold mode (no CLI server in this folder, or `--local`): the host has the same registry and policy as `mark --server` (`markHostOptions()`), and no listener, port, token or lockfile. The client sends each call through the local face of the host.
+  - `localFace()` of `@procedures/peer` is new. It gives a face factory and a transport of `@procedures/client`. A `Client` on the transport sends its calls to the host of the same process, through the request tracking of the service, with `LOCAL_CREDENTIALS`.
+  - A first Ctrl-C starts the stop, and the drain aborts the call at once.
+  - The warm mode: the call to the CLI server gets the abort signal. A Ctrl-C aborts the call on the server too. Before, the signal ended `mark`, and the server continued the call.
+  - After the command, the runner ends the process with the exit code of the command. A timer or a socket that a procedure left open does not keep the process alive.
+  - `run()` and `main()` of `@procedures/mark` get the optional options `run` (the options of `run()`: the process port and the clock) and `ownsProcess`. The bin gives `ownsProcess: true`. Without it, a program keeps its process: no signal handler, and the exit code goes to `process.exitCode`.
+  - `CliContext` gets the optional field `registry`. `executeArgs()` does not use `ctx.client` for a command any more.
+  - A program that calls `run()` or `executeArgs()` without a port, and the REPL (`mark -i`), get no signal handler for a command.
+  
+  The exit codes, in the cold mode and in the warm mode:
+  
+  | Event | Before | From this release |
+  |---|---|---|
+  | The command ends without a failure | 0 | 0 |
+  | The command fails | 1 | 1 |
+  | The first Ctrl-C, cold mode | 1 | 130 |
+  | The first Ctrl-C, warm mode | the signal ended the process (the shell showed 130) | 130 |
+  | `SIGTERM` | the signal ended the process (the shell showed 143) | 143 |
+  | A second signal during the stop, cold mode | 130 | 1 |
+  
+  A cold `mark server create` keeps its peer only until the end of the command. Before, the peer kept the process alive after the command.
+  
+  Migration:
+  
+  - A script that reads the exit code of an interrupted `mark` command: read 130 for a Ctrl-C, also in the cold mode. Read 1 for a second signal.
+  - A script that starts `mark server create` as a server in the foreground: start `mark --server` or `procedure-server` in its place.
+  - A program that calls `run()`, `main()` or `executeArgs()` of `@procedures/mark`: no change. It keeps its process. Give `ownsProcess: true` to give the process to the runner, as the bin does.
+  - The site: no change. It does not start `mark`.
+  - MiniMongo: no change. Its dev host starts through `runProcedureHost()`, not through `mark`.
+  - Graph: no change. It does not start `mark`.
+  - jarvis: no change, unless a script of jarvis reads the exit code of an interrupted `mark` command. Then apply the first step.
+- @procedures/client@0.24.0
+
+## 0.23.0
+
+### Patch Changes
+
+- f20beb1: The task store of an MCP host gives each client a fair share of its tasks (CLI-69). Before, the sessions of one client could fill the store (CLI-51). Then each other client got `TASKS_FULL` until those tasks ended their time.
+  
+  MINOR: a breaking change before 1.0. Near the limit, the store refuses a client with its share or more, also when the store has free slots. Before, the store refused a task only when it was full (decision D13).
+  
+  Changed:
+  
+  - The key of a task (`shareKey`) tells its client. The default `mcpTaskShareKey` gives the principal of the request, else the session. The principal of the host token is the same for each caller, so a request with only the token gets the key of its session.
+  - The share of a client is `maxStored / (k + 1)`. `k` is the number of clients with tasks in the store, the new client included.
+  - When `reserve` slots or fewer are free, a client with its share or more gets no more tasks. Its new task replaces the oldest task of its session that ended. Without such a task, the request gets the error `-32600` with the code `TASKS_FULL`, as for a full store.
+  - A client below its share gets a task while the store has a free slot. Thus one client keeps at most `maxStored - reserve` tasks, also with many sessions.
+  - The total limit (`maxStored`, 1000 by default) and the limit of 100 tasks of a session stay as they are.
+  
+  Added:
+  
+  - The options `reserve`, `shareKey` and `clock` of `McpTaskStore`, and of `tasks` of `createMcpHost()` and `mcpFace()`. The default `reserve` is a tenth of `maxStored`, rounded down: 100 of 1000. `reserve: 0` turns the fair share off.
+  - `mcpTaskShareKey`, and the types `McpTaskShareContext` and `McpTaskCaller`. `createTask` of the store takes the caller as its fifth argument.
+  - `MCP_TASK_LIMITS.reserveDivisor`: 10.
+  - `identify(credentials)` of `ProcedureServer`, and the optional `identify` of `RequestHandler`. It gives the principal of a request before a call, from the checks of each call. The face handler of the procedures host and the narrowed handler of `mcpFace()` give it too. The MCP face uses it for the key of a task. Thus the request hook and the authenticate function run one more time for each new task.
+  
+  Migration:
+  
+  - The site and MiniMongo: no change. They have no MCP host.
+  - Graph: no change. Its MCP hosts have no task store.
+  - jarvis: no change. Its MCP host has no tasks.
+  - polite-crawler-mcp: no change. Each request has the host token, so each session is one client. A session with 100 tasks gets fewer tasks only when ten or more sessions are near the limit. To keep the rule of CLI-51, give `new McpTaskStore({ reserve: 0 })`.
+  - A host whose clients each have many sessions under one principal: each client keeps at most `maxStored - reserve` tasks. To keep the rule of CLI-51, give `reserve: 0` in `tasks` of the host or in `new McpTaskStore()`.
+- Updated dependencies [f20beb1]
+- Updated dependencies [71091a5]
+  - @procedures/client@0.23.0
+
+## 0.22.1
+
+### Patch Changes
+
+- Updated dependencies [c931188]
+  - @procedures/client@0.22.1
+
 ## 0.22.0
 
 ### Patch Changes

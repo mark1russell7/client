@@ -220,6 +220,10 @@ export {
   extractTemplate,
   parseProcedureJson,
   stringifyProcedureJson,
+  // The envelope form of a program (coeval M7)
+  isEnvelopeProgram,
+  fromEnvelopeProgram,
+  toEnvelopeProgram,
   // Core language procedures
   coreProcedures,
   coreModule,
@@ -340,6 +344,11 @@ export type {
   ContinueDecision,
   OutputRef,
   RefScope,
+  // The envelope form of a program (coeval M7)
+  EnvelopeProgram,
+  EnvelopeRef,
+  EnvelopeLiteral,
+  EnvelopePath,
   // Schema types
   ZodLikeSchema,
   // Meta-procedure types

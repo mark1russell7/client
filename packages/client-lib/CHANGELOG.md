@@ -1,5 +1,41 @@
 # @procedures/lib
 
+## 0.24.0
+
+### Patch Changes
+
+- @procedures/client@0.24.0
+  - @procedures/dag@0.24.0
+  - @procedures/fs@0.24.0
+  - @procedures/git@0.24.0
+  - @procedures/pnpm@0.24.0
+  - @procedures/shell@0.24.0
+
+## 0.23.0
+
+### Patch Changes
+
+- Updated dependencies [f20beb1]
+- Updated dependencies [71091a5]
+  - @procedures/client@0.23.0
+  - @procedures/dag@0.23.0
+  - @procedures/fs@0.23.0
+  - @procedures/git@0.23.0
+  - @procedures/pnpm@0.23.0
+  - @procedures/shell@0.23.0
+
+## 0.22.1
+
+### Patch Changes
+
+- Updated dependencies [c931188]
+  - @procedures/client@0.22.1
+  - @procedures/dag@0.22.1
+  - @procedures/fs@0.22.1
+  - @procedures/git@0.22.1
+  - @procedures/pnpm@0.22.1
+  - @procedures/shell@0.22.1
+
 ## 0.22.0
 
 ### Patch Changes

@@ -7,6 +7,7 @@
  * - `EventsChangeFeed` pushes the remote changes to a `HybridStorage`.
  * - `TabCoordinator` lets one leader tab run the sync of a `HybridStorage`, and the other tabs
  *   copy its changes (roadmap CLI-25). It uses the Web Locks API and `BroadcastChannel`.
+ * - `TabGroup` does the same for many collections, with one lock and one channel (roadmap CLI-64).
  * - The entry also has all of `@procedures/store/indexeddb`: `IndexedDbStorage`, the IndexedDB
  *   stores and their fallbacks in memory.
  *
@@ -30,15 +31,19 @@ export {
   SyncStateError,
 } from "./storage/hybrid.js";
 export type { HybridStorageOptions, HybridMode, LocalCopyStorage } from "./storage/hybrid.js";
-export { TabCoordinator } from "./storage/tab-coordinator.js";
+export { TabCoordinator, TabGroup } from "./storage/tab-coordinator.js";
 export type {
   TabAbortSignalLike,
   TabChannelFactory,
   TabChannelLike,
+  TabCollection,
+  TabCollectionOptions,
   TabCoordinatorOptions,
+  TabGroupOptions,
   TabLockManagerLike,
   TabRetryOptions,
   TabRole,
+  TabSnapshotOptions,
 } from "./storage/tab-coordinator.js";
 export type { ConflictResolution, SyncError, SyncStatus } from "./storage/types.js";
 export { ApiStorage } from "./storage/api.js";

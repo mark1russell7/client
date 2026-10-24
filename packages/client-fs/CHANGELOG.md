@@ -1,5 +1,26 @@
 # @procedures/fs
 
+## 0.24.0
+
+### Patch Changes
+
+- @procedures/client@0.24.0
+
+## 0.23.0
+
+### Patch Changes
+
+- Updated dependencies [f20beb1]
+- Updated dependencies [71091a5]
+  - @procedures/client@0.23.0
+
+## 0.22.1
+
+### Patch Changes
+
+- Updated dependencies [c931188]
+  - @procedures/client@0.22.1
+
 ## 0.22.0
 
 ### Patch Changes
