@@ -117,12 +117,23 @@ The Streamable HTTP face checks each request before the request reaches the MCP 
 
 - The browser checks come first, with `guardMcpRequest`. A request on a loopback address must name a loopback host, or a host of `allowedHosts` (the default is `browser.allowedHosts` of the policy), in its `Host` header. Thus DNS rebinding cannot reach the tools. An `Origin` header must name the server or a permitted origin (the default is `browser.allowedOrigins` of the policy).
 - Then the admission of the server checks the credentials. With a token, each request sends `Authorization: Bearer <token>`. The scheme has any case, for example `bearer` (RFC 7235). The check is `tokenMatches` of the core: its time does not tell the token. A refused request gets 401 with a `WWW-Authenticate` header.
-- The token of a host is the token of its policy. A `token` of the HTTP face of `createMcpHost` becomes the token of the policy, and two different tokens stop the host with an error. `McpServerTransport` refuses a token in its HTTP options: give the token to the server.
+- The token of a host is the token of its policy. A `token` of the HTTP face of `createMcpHost` becomes the token of the policy, and two different tokens stop the host with an error. `McpServerTransport` refuses a token in its HTTP options: give the token to the server. Refer to [Deprecated token options](#deprecated-token-options).
 - `guardMcpRequest` refuses a `token` option. The first call with it throws a `TypeError` that names the migration. Each later call with it gives a refusal with the status 500, without an error. Thus each request stays refused, and the log gets one error.
 - Only an `initialize` request starts a session. Thus a stray POST makes no MCP server. The body of each request has a limit of 4 MiB (`maxBodyBytes`).
 - The face keeps at most 256 sessions by default (`maxSessions`, CLI-51). A new session above the limit closes the session that was idle longest: no task in progress and no open response (a call or a GET stream). When each session is busy, the new session gets 503 with a `Retry-After` header. A client that sends to a closed session gets 404, and a client of the MCP specification then sends a new `initialize`.
 - Each live client of the MCP SDK keeps its GET stream open. Thus the limit does not close the session of a live client, and 256 is much more than the clients of one host. To serve more clients, give a larger `maxSessions`. `maxSessions: Infinity` turns the limit off.
 - `assertLoopbackBind(host, allowRemote)` refuses a listener on an address that is not loopback, unless `allowRemote` is true.
+
+### Deprecated token options
+
+The server of the face checks the credentials of each request one time (CLI-2b, decision D13). The face has no token check of its own. The token options of the face have these behaviors:
+
+| Option | Behavior | Replacement |
+|---|---|---|
+| `faces.http.token` of `createMcpHost()` | It becomes the token of the policy. A different token in the policy throws an error. | `policy.token` |
+| `httpOptions.token` of `McpServerTransport` | `start()` throws an error. | `new ProcedureServer({ token })` |
+| `token` of `mcpFace()` | A token that is not the token of the policy throws an error. | `hostPolicy({ token })` |
+| `token` of `guardMcpRequest` | The option is removed. The first call with it throws a `TypeError`, and each later call with it gets a refusal with the status 500. The function does only the browser checks. | The token check of the server, and `admission()` of the server for each request |
 
 ## A host under the runner
 
@@ -369,7 +380,7 @@ const faces = {
 | Option | Default | Function |
 |---|---|---|
 | `path` | `/mcp` | The path of the endpoint. |
-| `token` | the token of the policy | Deprecated. The server of the host checks the token of the policy. Another token stops the factory with an error (CLI-2b). |
+| `token` | the token of the policy | Deprecated. The server of the host checks the token of the policy. Another token stops the factory with an error (CLI-2b). Refer to [Deprecated token options](#deprecated-token-options). |
 | `allowedOrigins` | the origins of the policy | The browser origins that can send requests to the endpoint: a list, `"*"` or a function. |
 | `narrowing` | none | A narrower capability for each call of the face, as a `CapabilityRequest` or a list of them. |
 

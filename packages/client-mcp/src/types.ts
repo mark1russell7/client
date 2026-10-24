@@ -125,7 +125,13 @@ export interface McpServerTransportOptions {
    */
   transport?: "stdio" | "sse" | "http";
 
-  /** The options of the Streamable HTTP transport. */
+  /**
+   * The options of the Streamable HTTP transport.
+   *
+   * Deprecated (CLI-2b): `httpOptions.token`. Give the token to the server of the transport,
+   * `new ProcedureServer({ token })`: the server checks it for each request. From the next MINOR,
+   * `start()` throws an error for a token in `httpOptions`.
+   */
   httpOptions?: HttpTransportOptions | undefined;
 
   /** Procedure registry to use (defaults to PROCEDURE_REGISTRY) */

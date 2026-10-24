@@ -221,6 +221,20 @@ export {
   extractTemplate,
   parseProcedureJson,
   stringifyProcedureJson,
+  // Programs on the coeval kernel (coeval D13, roadmap item M14)
+  runProgram,
+  runDocument,
+  programMachine,
+  PROGRAM_WORLD,
+  desugarProgram,
+  desugarInput,
+  desugarControlValue,
+  originOf,
+  namesOfScope,
+  scopeOfNames,
+  nameKey,
+  nameOfKey,
+  documentAt,
   // The envelope form of a program (coeval M7)
   isEnvelopeProgram,
   fromEnvelopeProgram,
@@ -345,6 +359,15 @@ export type {
   ContinueDecision,
   OutputRef,
   RefScope,
+  // Programs on the coeval kernel (coeval D13, roadmap item M14)
+  ProgramDocument,
+  DocumentOrigin,
+  DesugarOptions,
+  ProgramHost,
+  CallEffect,
+  CallPosition,
+  RunDocumentOptions,
+  RunProgramOptions,
   // The envelope form of a program (coeval M7)
   EnvelopeProgram,
   EnvelopeRef,
@@ -415,7 +438,8 @@ export type { PortLike, PortTransportOptions } from "./adapters/port/transport.j
 export { TRACEPARENT_METADATA_KEY, formatTraceparent, parseTraceparent, newTraceId, newSpanId, isW3cIds } from "./tracing/traceparent.js";
 export type { TraceContext } from "./tracing/traceparent.js";
 // Wire protocol v1: the version and the one list of error codes (roadmap R25)
-export { PROTOCOL_VERSION, PROTOCOL_HEADER, ERROR_CODES, isProtocolErrorCode, httpStatusOf, protocolVersionOf } from "./protocol.js";
+// The retryable flag of an error that ends a call: the default of its code before the first item (CLI-68)
+export { PROTOCOL_VERSION, PROTOCOL_HEADER, ERROR_CODES, isProtocolErrorCode, httpStatusOf, protocolVersionOf, retryableOf } from "./protocol.js";
 export type { ProtocolErrorCode, ErrorCodeInfo } from "./protocol.js";
 // The seq of the stream frames: the metadata key of an item after a gap, and the key of an item
 // that the HTTP client read from an NDJSON stream (WIRE-PROTOCOL.md)

@@ -12,7 +12,6 @@ import {
   createRefScope,
   extractTemplate,
   fromJson,
-  hydrateInput,
   parseProcedureJson,
   proc,
   stringifyProcedureJson,
@@ -20,6 +19,7 @@ import {
   type ProcedureRef,
   type RefExecutor,
 } from "./ref.js";
+import { hydrateInput } from "./program.js";
 
 const echo = vi.fn(async (path: readonly string[], input: unknown) => ({ path: path.join("."), input }));
 

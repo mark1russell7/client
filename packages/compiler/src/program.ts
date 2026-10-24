@@ -10,7 +10,7 @@ import { pathToKey, type Capability, type Effects, type ProcedureManifest, type 
 import type { ProgramIR } from "./ir.js";
 import { manifestFacts, registryFacts, withDefinitions, type ProcedureFacts, type RegistryLike } from "./facts.js";
 import { findDefinitions, normalize } from "./normalize.js";
-import { resolveScopes } from "./scopes.js";
+import { bindScopes, resolveScopes } from "./scopes.js";
 import { inferEffects, toEffects, type EffectSummary } from "./effects.js";
 import { checkCalls } from "./checks.js";
 import { hasErrors, sortDiagnostics, type Diagnostic } from "./diagnostics.js";
@@ -112,7 +112,7 @@ function analyze(program: unknown, options: CheckOptions): Analysis {
     if (body === undefined) return undefined;
     bodies.set(key, "pending");
     const { ir } = normalize(body, facts, { mode: "body" });
-    resolveScopes(ir);
+    bindScopes(ir);
     const summary = inferEffects(ir.root, facts, bodyEffects).program;
     bodies.set(key, summary);
     return summary;
@@ -121,12 +121,12 @@ function analyze(program: unknown, options: CheckOptions): Analysis {
   // The bodies that the program defines are a part of the program: their problems have pointers in it
   for (const definition of definitions.values()) {
     const body = normalize(definition.body, facts, { mode: "body", base: definition.pointer });
-    diagnostics.push(...body.diagnostics, ...resolveScopes(body.ir));
+    diagnostics.push(...body.diagnostics, ...resolveScopes(body.ir, facts));
     diagnostics.push(...checkCalls(body.ir.root, facts, inferEffects(body.ir.root, facts, bodyEffects)));
   }
 
   const result = normalize(program, facts, { mode: options.mode ?? "exec" });
-  diagnostics.push(...result.diagnostics, ...resolveScopes(result.ir));
+  diagnostics.push(...result.diagnostics, ...resolveScopes(result.ir, facts));
   const effects = inferEffects(result.ir.root, facts, bodyEffects);
   diagnostics.push(...checkCalls(result.ir.root, facts, effects, { capability: options.capability }));
   return { facts, ir: result.ir, diagnostics, program: effects.program };

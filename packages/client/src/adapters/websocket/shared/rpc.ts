@@ -17,7 +17,7 @@ import type { WebSocketMessage } from "../server/types.js";
 import { withoutInternalKeys } from "../../metadata.js";
 import { StreamSequence, gapOf, itemMetadata } from "../../sequence.js";
 import { DELIVERY_METADATA_KEY } from "../../../client/middleware/items.js";
-import { foldedErrorCode } from "../../../protocol.js";
+import { errorCodeOf, foldedErrorCode, retryableOf } from "../../../protocol.js";
 
 /**
  * A queue of response items that one reader takes in order: push, then end or fail. The reader
@@ -101,23 +101,18 @@ export class StreamCredit {
 }
 
 /**
- * The error of a failed stream or handler: its code (a string) and its retryable flag. An error
- * without a flag gets false, not the flag of its code: the end of a stream is in-band, and a retry
- * can send the items again (CLI-58, `WIRE-PROTOCOL.md`, section "Error codes").
- *
- * @deprecated The flag false for an error without a flag before the first item of the stream is
- * deprecated (D13). From the next MINOR of the client group (CLI-68), that error gets the flag of
- * its code in `ERROR_CODES`. After the first item, the flag stays false.
+ * The error of a failed stream: its code (a string) and its retryable flag. `items` is the count of
+ * the item frames before the error. An error without a flag gets the flag of its code before the
+ * first item (CLI-68). After the first item, it gets false: a retry can send the items again
+ * (CLI-58, `retryableOf`, `WIRE-PROTOCOL.md`, section "Error codes").
  */
-export function errorStatus(error: unknown): { type: "error"; code: string; message: string; retryable: boolean } {
-  const code = (error as { code?: unknown } | undefined)?.code;
-  const retryable = (error as { retryable?: unknown } | undefined)?.retryable;
+export function errorStatus(error: unknown, items: number): { type: "error"; code: string; message: string; retryable: boolean } {
   return {
     type: "error",
-    code: typeof code === "string" ? code : "HANDLER_ERROR",
+    code: errorCodeOf(error),
     message: error instanceof Error ? error.message : String(error),
     // Before, every stream error lost its retryable flag (deep dive TRN-7)
-    retryable: typeof retryable === "boolean" ? retryable : false,
+    retryable: retryableOf(error, items),
   };
 }
 
@@ -446,7 +441,9 @@ export class IncomingCalls {
     } catch (error) {
       done = true;
       if (signal.aborted) return;
-      const status = errorStatus(error);
+      // `seq` counts the item frames that went out: before the first item, an error without a flag
+      // gets the flag of its code (CLI-68)
+      const status = errorStatus(error, seq);
       this.send({
         id,
         type: "error",
