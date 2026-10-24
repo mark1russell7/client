@@ -73,6 +73,10 @@ export interface McpHostFaces {
    * The face over Streamable HTTP. Without a token of its own, it takes the token of the policy,
    * and without origins of its own, the permitted origins of the policy. The face has no listener
    * (CLI-11): mount `McpHost.handleHttp` on a listener.
+   *
+   * Deprecated (CLI-2b): `http.token`. Give the token in `policy.token`. From the next MINOR,
+   * `http.token` becomes the token of the policy, and the server checks it. A different token in
+   * the policy throws an error.
    */
   http?: HttpTransportOptions | undefined;
   /** SDK transports to connect: the in-memory transport of a test, or an embedding. */
