@@ -6,7 +6,7 @@
  */
 
 import { Server, type ServerOptions } from "./server.js";
-import type { AmbientCredentials, Credentials, Method, Principal, PrincipalOf, RequestIdentity, ServerHandler, ServerRequest, ServerResponse } from "./types.js";
+import type { Admission, AmbientCredentials, Credentials, Method, Principal, PrincipalOf, RequestIdentity, ServerHandler, ServerRequest, ServerResponse } from "./types.js";
 import { methodToPath, pathToMethod } from "./method.js";
 import { isLocalCredentials } from "./request-auth.js";
 import type {
@@ -301,7 +301,7 @@ async function* releasedAtEnd<T>(items: AsyncIterable<T>, release: () => void): 
   }
 }
 
-/** The request of credentials without a call: `admits()` and `identify()` give it to the checks of each call. */
+/** The request of credentials without a call: `admits()`, `identify()` and `admission()` give it to the checks of each call. */
 function credentialsRequest(id: string, credentials: Credentials): ServerRequest<unknown> {
   return { id, method: { service: "", operation: "" }, payload: undefined, metadata: {}, credentials };
 }
@@ -460,6 +460,11 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
   private readonly token: string | undefined;
   private readonly principalOf: PrincipalOf | undefined;
   private readonly authenticate: ProcedureServerOptions["authenticate"];
+  /**
+   * The admissions of this server (CLI-2b): the identity of each object of admitted credentials
+   * that `admission()` gave. Only this server adds an entry, so a request cannot claim one.
+   */
+  private readonly admissions = new WeakMap<Credentials, { readonly principal: Principal | undefined; readonly narrowing: ServerRequest<unknown>["narrowing"] }>();
   /** The functions that `drain()` waits on: each one runs when no call is in flight */
   private idleWaiters: Array<() => void> = [];
   /** The publisher of the remote events, from the option `events`, or undefined. */
@@ -903,8 +908,9 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    * network request must present the token. Only a local request (`LOCAL_CREDENTIALS`) skips the
    * hook and the token. A request without credentials is not local: a server with a token or a
    * request hook refuses it, and the hook does not run (CLI-1). The authenticate function gives
-   * the principal. The function gives an UNAUTHORIZED response, or undefined when the request
-   * passes.
+   * the principal. The credentials of an admission of this server (`admission()`) skip the
+   * checks: the request gets the principal and the narrowing of that admission (CLI-2b). The
+   * function gives an UNAUTHORIZED response, or undefined when the request passes.
    */
   private async admit(request: ServerRequest<unknown>): Promise<ServerResponse<unknown> | undefined> {
     const unauthorized = (message: string): ServerResponse<unknown> => ({
@@ -912,6 +918,17 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
       status: { type: "error", code: "UNAUTHORIZED", message, retryable: false },
       metadata: {},
     });
+    // A face admitted the network request of this call one time (CLI-2b): the checks do not run
+    // again. Only this server makes such credentials, so a copy or a forgery has no entry.
+    const admitted = request.credentials !== undefined ? this.admissions.get(request.credentials) : undefined;
+    if (admitted) {
+      if (admitted.principal) request.principal = admitted.principal;
+      if (admitted.narrowing) {
+        const order = this.capabilityOptions.clearanceOrder;
+        request.narrowing = request.narrowing ? joinNarrowing(request.narrowing, admitted.narrowing, order) : admitted.narrowing;
+      }
+      return undefined;
+    }
     // Only a local request skips the token and the request hook (CLI-1). A face that sets no
     // credentials skips neither: the server refuses it, and the hook does not run. Before, such a
     // request passed as a request of this process.
@@ -1014,6 +1031,25 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
   async identify(credentials: Credentials): Promise<Principal | undefined> {
     const request = credentialsRequest("identify", credentials);
     return (await this.admit(request)) === undefined ? request.principal : undefined;
+  }
+
+  /**
+   * This method admits a network request one time, before its calls (CLI-2b). It runs the checks
+   * of each call: the request hook, the token check and the authenticate function. The admitted
+   * credentials are a new object. A call with them gets the principal and the narrowing of the
+   * admission, and the checks do not run again for it. Only the admitted object skips the checks:
+   * a copy of it and the credentials of another server go through them. A face gives the
+   * admitted credentials only to the calls of the same network request.
+   */
+  async admission(credentials: Credentials): Promise<Admission> {
+    const request = credentialsRequest("admission", credentials);
+    const refusal = await this.admit(request);
+    if (refusal) {
+      return { ok: false, code: "UNAUTHORIZED", message: refusal.status.type === "error" ? refusal.status.message : "Unauthorized" };
+    }
+    const admitted: Credentials = Object.freeze({ ...credentials });
+    this.admissions.set(admitted, { principal: request.principal, narrowing: request.narrowing });
+    return { ok: true, credentials: admitted, ...(request.principal ? { principal: request.principal } : {}) };
   }
 
   /**

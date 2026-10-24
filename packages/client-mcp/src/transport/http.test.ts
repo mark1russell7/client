@@ -32,8 +32,9 @@ async function start(token?: string): Promise<string> {
         .build(),
     ],
   });
-  const server = new ProcedureServer({ registry, autoRegister: true });
-  const mcp = new McpServerTransport(server, { registry, transport: "http", httpOptions: { ...(token ? { token } : {}) } });
+  // The token is the token of the server: its admission checks each HTTP request one time (CLI-2b)
+  const server = new ProcedureServer({ registry, autoRegister: true, ...(token ? { token } : {}) });
+  const mcp = new McpServerTransport(server, { registry, transport: "http" });
   server.addTransport(mcp);
   await server.start();
   cleanups.push(() => server.stop());
@@ -75,6 +76,15 @@ describe("MCP over Streamable HTTP (R26)", () => {
     await expect(connect(url)).rejects.toThrow();
     const client = await connect(url, { Authorization: "Bearer secret-token-0123" });
     expect((await client.listTools()).tools.some((tool) => tool.description === "echo")).toBe(true);
+  });
+
+  it("refuses a token of the HTTP options: the face has no token check of its own (CLI-2b)", async () => {
+    const registry = createRegistry();
+    const server = new ProcedureServer({ registry, autoRegister: true });
+    const mcp = new McpServerTransport(server, { registry, transport: "http", httpOptions: { token: "secret-token-0123" } });
+    server.addTransport(mcp);
+    await expect(server.start()).rejects.toThrow(/checks no token of its own/);
+    await server.stop().catch(() => undefined);
   });
 
   it("refuses a web page of another origin", async () => {

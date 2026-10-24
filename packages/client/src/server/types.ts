@@ -180,7 +180,25 @@ export interface RequestHandler {
    * only in the call.
    */
   identify?(credentials: Credentials): Promise<Principal | undefined>;
+  /**
+   * This function admits a network request one time, before its calls (CLI-2b). It uses the
+   * checks of each call: the request hook, the token check and the authenticate function. A face
+   * that carries the calls of one network request (MCP over Streamable HTTP) gives the admitted
+   * credentials to those calls, so the checks run one time for the request. `ProcedureServer` has
+   * it. Absent: the handler examines each call, and the face refuses no request before its calls.
+   */
+  admission?(credentials: Credentials): Promise<Admission>;
 }
+
+/**
+ * The result of `admission()` of a request handler (CLI-2b). A request that passes gets its
+ * admitted credentials and its principal. Each call of that request with the admitted credentials
+ * gets the principal and the narrowing of the admission, and the checks do not run again. A
+ * refused request gets `UNAUTHORIZED` and the message of the refusal.
+ */
+export type Admission =
+  | { readonly ok: true; readonly credentials: Credentials; readonly principal?: Principal | undefined }
+  | { readonly ok: false; readonly code: "UNAUTHORIZED"; readonly message: string };
 
 /**
  * How a server can authenticate a request with ambient credentials (cookies):

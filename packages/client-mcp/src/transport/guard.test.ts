@@ -1,7 +1,8 @@
 /**
- * The checks of a request to the Streamable HTTP face (CLI-35): the browser checks and the token
- * in one function, the body limit, the initialize rule, the session limit (256 by default since
- * CLI-51), and the cancel of the tasks of a session that closes.
+ * The checks of a request to the Streamable HTTP face (CLI-35): the browser checks in one
+ * function, the one admission of the credentials by the server (CLI-2b), the body limit, the
+ * initialize rule, the session limit (256 by default since CLI-51), and the cancel of the tasks of
+ * a session that closes.
  */
 
 import { describe, it, expect, afterEach } from "vitest";
@@ -13,7 +14,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { Server as SdkServer } from "@modelcontextprotocol/sdk/server/index.js";
 import type { Transport as SdkTransport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { CallToolResultSchema, CreateTaskResultSchema } from "@modelcontextprotocol/sdk/types.js";
-import { createProcedure, defineModule, type AnyProcedure } from "@procedures/client";
+import { ProcedureServer, createProcedure, createRegistry, defineModule, type AnyProcedure } from "@procedures/client";
 import { createMcpHost } from "../host.js";
 import { MCP_HTTP_LIMITS, assertLoopbackBind, guardMcpRequest } from "./guard.js";
 import { createHttpTransport } from "./http.js";
@@ -65,36 +66,17 @@ async function until(check: () => boolean): Promise<void> {
 }
 
 describe("guardMcpRequest", () => {
-  it("passes a local request with the token", () => {
-    expect(guardMcpRequest(request({ host: "127.0.0.1:3003", authorization: "Bearer secret-token-0123" }), { token: "secret-token-0123" })).toEqual({ ok: true });
+  it("passes a local request", () => {
+    expect(guardMcpRequest(request({ host: "127.0.0.1:3003", authorization: "Bearer secret-token-0123" }))).toEqual({ ok: true });
     expect(guardMcpRequest(request({ host: "localhost:3003" }))).toEqual({ ok: true });
   });
 
-  it("reads the bearer scheme in any case, with one or more spaces (RFC 7235, CLI-60)", () => {
-    for (const authorization of ["bearer secret-token-0123", "BEARER secret-token-0123", "bearer   secret-token-0123", "BEARER secret-token-0123 "]) {
-      expect(guardMcpRequest(request({ host: "127.0.0.1:3003", authorization }), { token: "secret-token-0123" }), authorization).toEqual({ ok: true });
-    }
+  it("checks no token: a token option throws, so no token is without its check (CLI-2b)", () => {
+    expect(() => guardMcpRequest(request({ host: "127.0.0.1" }), { token: "secret-token-0123" } as never)).toThrow(/checks no token/);
   });
 
-  it("refuses a request without the token or with a wrong one, and names the scheme", () => {
-    for (const authorization of [
-      undefined,
-      "",
-      "Bearer",
-      "Bearer ",
-      "Bearer wrong",
-      "Bearer secret-token-01234",
-      "Bearer secret-token-0123 x",
-      "Bearer\tsecret-token-0123",
-      "Basic secret-token-0123",
-    ]) {
-      const result = guardMcpRequest(request({ host: "127.0.0.1", ...(authorization !== undefined ? { authorization } : {}) }), { token: "secret-token-0123" });
-      expect(result).toMatchObject({ ok: false, status: 401, code: "UNAUTHORIZED", headers: { "www-authenticate": 'Bearer realm="mcp"' } });
-    }
-  });
-
-  it("refuses DNS rebinding and a web page of another origin before it reads the token", () => {
-    expect(guardMcpRequest(request({ host: "attacker.example" }), { token: "t" })).toMatchObject({ ok: false, status: 403, code: "FORBIDDEN", reason: "host-header-not-allowed" });
+  it("refuses DNS rebinding and a web page of another origin", () => {
+    expect(guardMcpRequest(request({ host: "attacker.example" }))).toMatchObject({ ok: false, status: 403, code: "FORBIDDEN", reason: "host-header-not-allowed" });
     expect(guardMcpRequest(request({ host: "box.local" }), { allowedHosts: ["box.local"] })).toEqual({ ok: true });
     expect(guardMcpRequest(request({ host: "127.0.0.1", origin: "https://evil.example" }))).toMatchObject({ ok: false, status: 403, code: "FORBIDDEN", reason: "origin-not-allowed" });
     expect(guardMcpRequest(request({ host: "127.0.0.1", origin: "https://app.example" }), { allowedOrigins: ["https://app.example"] })).toEqual({ ok: true });
@@ -111,17 +93,25 @@ describe("guardMcpRequest", () => {
 });
 
 describe("the sessions of the Streamable HTTP endpoint", () => {
-  /** An endpoint on its own port with an SDK server for each session. */
+  /**
+   * An endpoint on its own port with an SDK server for each session. With a token, a procedure
+   * server with that token admits each request (CLI-2b): the endpoint has no token check of its own.
+   */
   async function endpoint(options: { maxSessions?: number; maxBodyBytes?: number; token?: string } = {}, busy?: () => ReadonlySet<string>) {
     const servers: SdkServer[] = [];
+    const { token, ...limits } = options;
+    const procedures = token !== undefined ? new ProcedureServer({ registry: createRegistry(), token }) : undefined;
     const http = createHttpTransport(
-      { ...options },
+      { ...limits },
       async (transport) => {
         const server = new SdkServer({ name: "guard", version: "0" }, { capabilities: {} });
         servers.push(server);
         await server.connect(transport as unknown as SdkTransport);
       },
-      busy ? { busySessions: busy } : {}
+      {
+        ...(busy ? { busySessions: busy } : {}),
+        ...(procedures ? { admission: (credentials: Parameters<ProcedureServer["admission"]>[0]) => procedures.admission(credentials) } : {}),
+      }
     );
     cleanups.push(() => http.close());
     const url = await listenFor((req, res) => http.handle(req, res));
@@ -171,13 +161,46 @@ describe("the sessions of the Streamable HTTP endpoint", () => {
     expect(later.status).toBe(413);
   });
 
-  it("answers 401 with the scheme for a request without the token", async () => {
-    const { url } = await endpoint({ token: "secret-token-0123" });
+  it("answers 401 with the scheme for a request without the token: the admission of the server refuses it (CLI-2b)", async () => {
+    const { url, servers } = await endpoint({ token: "secret-token-0123" });
     const refused = await fetch(url, { method: "POST", headers: POST_HEADERS, body: JSON.stringify(INITIALIZE) });
     expect(refused.status).toBe(401);
     expect(refused.headers.get("www-authenticate")).toBe('Bearer realm="mcp"');
+    expect(await refused.json()).toMatchObject({ error: { data: { code: "UNAUTHORIZED" } } });
+    expect(servers).toHaveLength(0);
     // The scheme is case-insensitive (CLI-60)
     expect((await initialize(url, { ...POST_HEADERS, authorization: "bearer secret-token-0123" })).status).toBe(200);
+  });
+
+  it("reads the bearer scheme in any case, with one or more spaces (RFC 7235, CLI-60)", async () => {
+    const { url } = await endpoint({ token: "secret-token-0123" });
+    for (const authorization of ["Bearer secret-token-0123", "bearer secret-token-0123", "BEARER secret-token-0123", "bearer   secret-token-0123", "BEARER secret-token-0123 "]) {
+      expect((await initialize(url, { ...POST_HEADERS, authorization })).status, authorization).toBe(200);
+    }
+  });
+
+  it("refuses a request without the token or with a wrong one, and names the scheme", async () => {
+    const { url, servers } = await endpoint({ token: "secret-token-0123" });
+    for (const authorization of [
+      undefined,
+      "",
+      "Bearer",
+      "Bearer ",
+      "Bearer wrong",
+      "Bearer secret-token-01234",
+      "Bearer secret-token-0123 x",
+      "Bearer\tsecret-token-0123",
+      "Basic secret-token-0123",
+    ]) {
+      const response = await initialize(url, { ...POST_HEADERS, ...(authorization !== undefined ? { authorization } : {}) });
+      expect(response.status, String(authorization)).toBe(401);
+      expect(response.headers.get("www-authenticate")).toBe('Bearer realm="mcp"');
+    }
+    expect(servers).toHaveLength(0);
+  });
+
+  it("refuses a token option: the endpoint has no token check of its own (CLI-2b)", () => {
+    expect(() => createHttpTransport({ token: "secret-token-0123" }, async () => undefined)).toThrow(/checks no token of its own/);
   });
 
   /** This function starts `count` sessions, 32 at a time, and gives the status of each answer. */

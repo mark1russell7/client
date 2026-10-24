@@ -18,6 +18,7 @@
 import { daemon, embeddedProcess, service, type Lifecycle, type Profile } from "@mark1russell7/service";
 import {
   hostPolicy,
+  isLoopbackHost,
   seconds,
   type BrowserGuardOptions,
   type Client,
@@ -30,7 +31,23 @@ import {
 import { defaultServerUrlStrategy, rpcServerUrlStrategy, type ProcedureHandlerOptions, type UpgradeHandlerOptions } from "@procedures/client/node";
 import type { HttpTransportConfig, TransportConfig, TransportType, WebSocketTransportConfig } from "../types.js";
 import { createProcedureHost, httpFace, LOCAL_LISTENER_KNOBS, wsFace, type HostFaceFactory, type HostListener, type ProcedureHost, type ProcedureHostOptions } from "../host/index.js";
-import { originAllowed } from "./security.js";
+
+/**
+ * The origin rule of a peer, as data for the browser checks of the core (CLI-2b): a web page of a
+ * loopback origin (any port), or an origin of the list. The core check (`checkBrowserRequest`)
+ * calls it one time for each request, after the check of the Host header. The peer has no check
+ * of its own: its token and its request hook are the checks of the server of its host.
+ */
+function peerOrigins(allowlist: readonly string[] = []): (origin: string) => boolean {
+  return (origin) => {
+    if (allowlist.includes(origin)) return true;
+    try {
+      return isLoopbackHost(new URL(origin).hostname);
+    } catch {
+      return false;
+    }
+  };
+}
 
 // =============================================================================
 // Types
@@ -122,7 +139,7 @@ function httpOptionsOf(config: HttpTransportConfig, browser: BrowserGuardOptions
     cors: config.cors ?? false,
     ...(config.urlStrategy === "rpc" ? { urlStrategy: rpcServerUrlStrategy } : config.urlStrategy === "rest" ? { urlStrategy: defaultServerUrlStrategy } : {}),
     // The browser checks follow the rule of the peer: loopback origins and the listed ones
-    allowedOrigins: browser.allowedOrigins ?? ((origin: string) => originAllowed(origin, config.corsOrigins)),
+    allowedOrigins: browser.allowedOrigins ?? peerOrigins(config.corsOrigins),
     ...(browser.allowedHosts !== undefined ? { allowedHosts: browser.allowedHosts } : {}),
     // The RESTful strategy calls by GET
     allowGet: browser.allowGet ?? config.urlStrategy === "rest",
@@ -134,7 +151,7 @@ function httpOptionsOf(config: HttpTransportConfig, browser: BrowserGuardOptions
 function wsOptionsOf(config: WebSocketTransportConfig, browser: BrowserGuardOptions): UpgradeHandlerOptions {
   return {
     path: config.path ?? "/ws",
-    allowedOrigins: browser.allowedOrigins ?? ((origin: string) => originAllowed(origin, config.origins)),
+    allowedOrigins: browser.allowedOrigins ?? peerOrigins(config.origins),
     ...(browser.allowedHosts !== undefined ? { allowedHosts: browser.allowedHosts } : {}),
   };
 }
