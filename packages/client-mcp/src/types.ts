@@ -60,7 +60,16 @@ export type McpToolContentHook = (result: McpToolContentInput) => McpToolContent
 export interface HttpTransportOptions {
   /** The path of the MCP endpoint (default: "/mcp") */
   path?: string | undefined;
-  /** A secret that each request must send as `Authorization: Bearer <token>` */
+  /**
+   * A secret that each request must send as `Authorization: Bearer <token>`. The endpoint
+   * compares it itself, next to the token check of the server.
+   * @deprecated Give the token to the server: `policy.token` of `createMcpHost()`,
+   * `hostPolicy({ token })`, or `new ProcedureServer({ token })`. The server checks it for each
+   * request (CLI-2b). From the next MINOR, the endpoint has no token check of its own:
+   * `McpServerTransport` throws an error at `start()` for `httpOptions.token`. In `faces.http` of
+   * `createMcpHost()`, the token becomes the token of the policy, and a different token of the
+   * policy throws an error.
+   */
   token?: string | undefined;
   /** Browser origins that can call the server, besides loopback origins */
   allowedOrigins?: string[] | undefined;
@@ -115,7 +124,13 @@ export interface McpServerTransportOptions {
    */
   transport?: "stdio" | "sse" | "http";
 
-  /** The options of the Streamable HTTP transport. */
+  /**
+   * The options of the Streamable HTTP transport.
+   *
+   * Deprecated (CLI-2b): `httpOptions.token`. Give the token to the server of the transport,
+   * `new ProcedureServer({ token })`: the server checks it for each request. From the next MINOR,
+   * `start()` throws an error for a token in `httpOptions`.
+   */
   httpOptions?: HttpTransportOptions | undefined;
 
   /** Procedure registry to use (defaults to PROCEDURE_REGISTRY) */
