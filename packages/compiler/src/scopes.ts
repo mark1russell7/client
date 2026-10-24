@@ -28,6 +28,10 @@ type Env = readonly Frame[] | undefined;
  * This function resolves the references of the IR, and gives the diagnostics of the names. The
  * static kit of coeval finds the problems of the names (`nameDiagnostics()`). Give the facts of
  * the procedures for their raw-input rule. The default knows the control-flow procedures.
+ *
+ * The order of the diagnostics (D26): first the warnings for the raw input, then the diagnostics
+ * of the names. Before 0.26.0, the diagnostics came in the order of the program tree. Sort the
+ * diagnostics by `pointer` when the order matters.
  */
 export function resolveScopes(ir: ProgramIR, facts?: Pick<ProcedureFacts, "rawInput">): Diagnostic[] {
   const diagnostics = bindScopes(ir);

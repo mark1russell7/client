@@ -679,6 +679,10 @@ export interface HydrateOptions {
   /**
    * Whether sibling refs run at the same time (default: false). With false, the refs run one
    * after the other, from left to right and depth first, so the order of their effects is known.
+   *
+   * With true, the refs operate with failFast (D26): after the first error, the other refs stop
+   * at their next wait. Before 0.26.0, they went on in the background (`Promise.all`). When their
+   * calls must start, give `parallel: false`.
    */
   parallel?: boolean | undefined;
 

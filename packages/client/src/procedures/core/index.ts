@@ -207,7 +207,13 @@ interface ParallelInput {
   tasks: unknown[];
   /** Maximum concurrency (default: unlimited) */
   concurrency?: number;
-  /** Whether to fail fast on first error (default: false) */
+  /**
+   * Whether to fail fast on first error (default: false).
+   *
+   * After the first error, the other tasks stop at their next wait, and their later calls do not
+   * start (D26). Before 0.26.0, they went on in the background to their end. When those calls
+   * must start, wait for the tasks yourself, or do not use `failFast`.
+   */
   failFast?: boolean;
 }
 
@@ -216,7 +222,12 @@ interface ParallelOutput {
   results: unknown[];
   /** Whether all tasks succeeded */
   allSucceeded: boolean;
-  /** Errors from failed tasks */
+  /**
+   * Errors from failed tasks.
+   *
+   * The error text of a task that throws `undefined` is the reason of the kernel (D26). Before
+   * 0.26.0, it was `"undefined"`.
+   */
   errors: Array<{ index: number; error: string }>;
 }
 
@@ -603,7 +614,12 @@ interface TryCatchOutput {
   success: boolean;
   /** Result value */
   value: unknown;
-  /** Error if failed */
+  /**
+   * Error if failed.
+   *
+   * The error text of a `try` that throws `undefined` is the reason of the kernel (D26). Before
+   * 0.26.0, it was `"undefined"`.
+   */
   error?: string;
 }
 

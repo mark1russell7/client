@@ -250,6 +250,8 @@ The normalize pass makes the IR. Each node has the pointer of its source.
 
 `printIR()` gives the IR as text. The passes are also exports: `normalize()`, `resolveScopes()`, `inferEffects()`, `checkCalls()`, `foldProgram()`, `compileClosure()` and `emitText()`.
 
+The order of the diagnostics of `resolveScopes()` (D26): first the warnings for the raw input, and then the diagnostics of the names. Before 0.26.0, the diagnostics came in the order of the program tree. Sort the diagnostics by `pointer` when the order matters.
+
 ## Tests
 
 A property test makes hundreds of random programs. It starts each program three times: with the interpreter, with the closure code and with the source text. The three runs must give the same result or error. They must start the same procedures in the same order. A second property examines that each run has only the inferred effects.
