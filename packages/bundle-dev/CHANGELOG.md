@@ -1,5 +1,21 @@
 # @procedures/bundle-dev
 
+## 0.26.0
+
+### Patch Changes
+
+- Updated dependencies [a16af64]
+  - @procedures/client@0.26.0
+  - @procedures/compiler@0.26.0
+  - @procedures/cli-run@0.26.0
+  - @procedures/dag@0.26.0
+  - @procedures/fs@0.26.0
+  - @procedures/git@0.26.0
+  - @procedures/lib@0.26.0
+  - @procedures/pnpm@0.26.0
+  - @procedures/procedure@0.26.0
+  - @procedures/shell@0.26.0
+
 ## 0.25.0
 
 ### Patch Changes
