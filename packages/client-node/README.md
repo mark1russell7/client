@@ -380,6 +380,55 @@ import { registerNodeProcedures } from "@procedures/node";
 registerNodeProcedures();
 ```
 
+## The fresh bundle: a fast start for a TypeScript CLI
+
+The subpath `@procedures/node/fresh-bundle` starts a TypeScript entry from an esbuild bundle in a cache folder. The package root does not load it, and it registers no procedure.
+
+- The launcher starts the last build only when each file of that build has the same content hash. These files are the sources that esbuild compiled and the files of `inputs`.
+- When a file changed, the launcher makes a new build in a child process. An edit that keeps the size and the modification time also makes a new build.
+- When the build fails, the launcher starts the source through `tsx`. It writes the error output to `build-error.txt` in the cache folder.
+- Each package in `node_modules` stays outside the bundle. It loads from the file that Node.js resolves from its importer, at the same version as under `tsx`.
+- Each file of the bundle keeps its own `import.meta.url`, `import.meta.dirname` and `import.meta.filename`. A different use of `import.meta` makes the build fail.
+- The bundle is an ES module. Use the launcher in a project with `"type": "module"`.
+- A build that no launch used for 6 hours goes away at the next build.
+
+Add the optional peer dependencies `esbuild` and `tsx` to the project:
+
+```sh
+pnpm add @procedures/node esbuild tsx
+```
+
+Write the launcher in JavaScript, so that Node.js starts it without a build:
+
+```js
+// bin/cli.mjs
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { launch } from "@procedures/node/fresh-bundle";
+
+const root = fileURLToPath(new URL("..", import.meta.url));
+
+await launch({
+  entry: join(root, "src", "cli.ts"),
+  // A folder that Git ignores. A new install removes it.
+  outDir: join(root, "node_modules", ".cache", "my-cli"),
+  // The files that decide a build in addition to the sources
+  inputs: [
+    join(root, "package.json"),
+    join(root, "pnpm-lock.yaml"),
+    join(root, "tsconfig.json"),
+    fileURLToPath(import.meta.url),
+  ],
+});
+```
+
+| Export | Description |
+|---|---|
+| `launch(spec)` | It starts the fresh build of the entry, else a new build, else the source through `tsx`. In the entry, `process.argv[1]` is the entry. |
+| `freshEntry(spec)` | It gives the entry file of the fresh build, or `undefined` when a file changed. |
+| `build(spec)` | It makes a build in this process. The process needs the flag `--experimental-import-meta-resolve`. |
+| `FreshBundleSpec` | The type of `spec`: the absolute paths `entry`, `outDir` and `inputs`, and the optional module name `esbuild` (the default is `esbuild`). |
+
 ## Related Packages
 
 - `@procedures/client` - Core client framework
