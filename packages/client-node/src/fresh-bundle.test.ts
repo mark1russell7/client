@@ -120,7 +120,8 @@ function sameSizeAndTime(file: string, text: string): void {
   writeFileSync(file, text);
   utimesSync(file, atime, mtime);
   expect(statSync(file).size).toBe(size);
-  expect(statSync(file).mtimeMs).toBe(mtime.getTime());
+  // utimes takes seconds as a float: the time can come back a fraction of a microsecond off
+  expect(statSync(file).mtimeMs).toBeCloseTo(mtime.getTime(), 0);
 }
 
 describe("build and freshEntry", SLOW, () => {
