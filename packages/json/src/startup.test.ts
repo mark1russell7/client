@@ -50,4 +50,19 @@ describe("the start of @procedures/json (O50)", () => {
   it("the check finds the static import of yaml in src/yaml.ts", async () => {
     expect((await staticImports("src/yaml.ts")).packages.has("yaml")).toBe(true);
   });
+
+  // The entry ./csv reaches no package: thus also no zod through @procedures/client
+  it("./csv (src/csv-entry.ts) reaches no package: no yaml and no zod", async () => {
+    const { packages, files } = await staticImports("src/csv-entry.ts");
+    expect(files, "the check follows the imports of the entry").toBeGreaterThan(1);
+    expect([...packages]).toEqual([]);
+  });
+
+  it("./csv exports the CSV functions of the root", async () => {
+    const [root, csv] = await Promise.all([import("./index.js"), import("./csv-entry.js")]);
+    for (const name of ["parseCsv", "stringifyCsv", "csvParse", "csvStringify", "JsonError"] as const) {
+      expect(csv[name], name).toBe(root[name]);
+    }
+    expect(csv.parseCsv("a,b\n1,2\n", { header: true })).toEqual([{ a: "1", b: "2" }]);
+  });
 });
