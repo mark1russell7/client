@@ -1,5 +1,12 @@
 # @procedures/vite
 
+## 0.24.0
+
+### Patch Changes
+
+- @procedures/client@0.24.0
+  - @procedures/shell@0.24.0
+
 ## 0.23.0
 
 ### Patch Changes
