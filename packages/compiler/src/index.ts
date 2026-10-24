@@ -17,7 +17,9 @@ export { manifestFacts, registryFacts, withDefinitions, coreProcedureOf, entryTa
 export type { ProcedureFacts, RegistryLike, FactsOptions, Definition } from "./facts.js";
 export { normalize, findDefinitions, MAX_REF_DEPTH } from "./normalize.js";
 export type { NormalizeOptions, NormalizeResult } from "./normalize.js";
-export { resolveScopes } from "./scopes.js";
+export { resolveScopes, bindScopes } from "./scopes.js";
+export { nameDiagnostics } from "./names.js";
+export type { NameOptions } from "./names.js";
 export { inferEffects, toEffects, NO_EFFECTS, UNKNOWN_EFFECTS } from "./effects.js";
 export type { EffectSummary, EffectsAnalysis, MayEffects, MustEffects as MustEffectSets, BodyEffects } from "./effects.js";
 export { checkCalls } from "./checks.js";

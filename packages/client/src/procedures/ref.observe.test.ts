@@ -8,7 +8,8 @@ import { describe, it, expect, afterEach } from "vitest";
 import { Client } from "../client/client.js";
 import { ProcedureRegistry } from "./registry.js";
 import { allCoreProcedures } from "./core/index.js";
-import { hydrateInput, observeHydration, normalizeRef, type HydrationEvent, type AnyProcedureRef } from "./ref.js";
+import { normalizeRef, type HydrationEvent, type AnyProcedureRef } from "./ref.js";
+import { hydrateInput, observeHydration } from "./program.js";
 
 const stubTransport = { send: async function* () {} } as unknown as ConstructorParameters<typeof Client>[0];
 

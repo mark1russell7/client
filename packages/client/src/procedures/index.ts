@@ -247,9 +247,6 @@ export {
   toJson,
   normalizeRef,
   // Hydration
-  hydrateInput,
-  prepareRootCall,
-  observeHydration,
   isControlFlowPath,
   isDataDriven,
   markDataDriven,
@@ -266,7 +263,6 @@ export {
   resolveOutputRef,
   withScope,
   scopeOf,
-  executeRef,
   // Templates
   extractTemplate,
   parseProcedureJson,
@@ -286,6 +282,40 @@ export type {
   OutputRef,
   RefScope,
 } from "./ref.js";
+
+// Programs on the coeval kernel (coeval D13, roadmap item M14): the run documents and their machine
+export {
+  hydrateInput,
+  prepareRootCall,
+  observeHydration,
+  executeRef,
+  runProgram,
+  runDocument,
+  runControl,
+  runOperand,
+  programMachine,
+  PROGRAM_WORLD,
+  desugarProgram,
+  desugarInput,
+  desugarControlValue,
+  originOf,
+  namesOfScope,
+  scopeOfNames,
+  nameKey,
+  nameOfKey,
+  documentAt,
+} from "./program.js";
+export type {
+  ProgramDocument,
+  DocumentOrigin,
+  DesugarOptions,
+  ProgramHost,
+  CallEffect,
+  CallPosition,
+  RunDocumentOptions,
+  RunProgramOptions,
+  RunOperandOptions,
+} from "./program.js";
 
 // The envelope form of a program (coeval D6, D9 and D10, roadmap item M7)
 export { isEnvelopeProgram, fromEnvelopeProgram, toEnvelopeProgram } from "./envelope.js";

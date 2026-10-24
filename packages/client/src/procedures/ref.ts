@@ -4,6 +4,10 @@
  * Enables procedures-as-data: procedures can be passed as inputs to other procedures,
  * composed declaratively via JSON, or imperatively via TypeScript.
  *
+ * This module holds the `$proc` form of a program: its keys, its types, the builder, the JSON
+ * helpers, the scope that a raw input carries and the raw-input rules. The kernel of coeval runs
+ * a program: `program.ts` changes the `$proc` form into a run document (roadmap item M14).
+ *
  * Key concepts:
  * - PROCEDURE_SYMBOL: Symbol tag to identify procedure references in JSON/objects
  * - ProcedureRef: A reference to a procedure with pre-bound input
@@ -11,8 +15,6 @@
  * - $name: Names the result of a chain step, for `$ref`
  * - $ref: Reads a name of the scope (a chain step, `$last`, `item`, `acc`, `index`, `input`)
  * - $literal: Gives a value without hydration
- * - hydrateInput: Walks input tree and executes nested procedure references
- * - executeRef: Helper for procedures to execute deferred refs
  * - proc(): Factory function to create procedure references
  *
  * ## Execution Control with $when
@@ -678,9 +680,9 @@ export interface HydrateOptions {
    * Whether sibling refs run at the same time (default: false). With false, the refs run one
    * after the other, from left to right and depth first, so the order of their effects is known.
    *
-   * Deprecated behavior (D26): after the first error, the other refs go on in the background
-   * (`Promise.all`). From the next MINOR, the refs always operate with failFast: the other refs
-   * stop at their next wait. When their calls must start, give `parallel: false`.
+   * With true, the refs operate with failFast (D26): after the first error, the other refs stop
+   * at their next wait. Before 0.26.0, they went on in the background (`Promise.all`). When their
+   * calls must start, give `parallel: false`.
    */
   parallel?: boolean | undefined;
 
@@ -732,305 +734,8 @@ export interface HydrationEvent {
   readonly consumer: AnyProcedureRef | undefined;
 }
 
-/** The observers of `observeHydration()`: they get the events of every hydration. */
-const hydrationObservers = new Set<(event: HydrationEvent) => void>();
-
-/**
- * This function adds an observer of every hydration in this process (or worker), and gives the
- * function that removes it. A host that does not call `hydrateInput` itself (the Composer of
- * the site runs `client.exec()`) uses it for its trace. The observer gets the events of all
- * concurrent hydrations: use it where one program runs at a time. For the events of one program,
- * give `onRef` to that program: `client.exec(ref, input, { onRef })` (docs review DOC-10).
- */
-export function observeHydration(observer: (event: HydrationEvent) => void): () => void {
-  hydrationObservers.add(observer);
-  return () => {
-    hydrationObservers.delete(observer);
-  };
-}
-
 /** The maximum nesting of plain data in an input. A deeper input is an error, not a stack overflow. */
 export const MAX_DATA_DEPTH = 1000;
-
-/** The objects on the path from the root of the input to a value, to find a cycle. */
-interface Ancestors {
-  readonly value: object;
-  readonly up: Ancestors | undefined;
-}
-
-/**
- * Internal context for hydration.
- */
-interface HydrateContext {
-  executor: RefExecutor;
-  maxDepth: number;
-  parallel: boolean;
-  contextStack: string[];
-  scope?: RefScope | undefined;
-  rawInput: (path: ProcedurePath) => boolean;
-  /** Prevent recursive implicit chain detection */
-  skipImplicitChain: boolean;
-  /** Inside a deferred ref, a `$ref` name that is not known yet stays for the runner. */
-  deferred: boolean;
-  /** The `onRef` function of the options */
-  onRef: ((event: HydrationEvent) => void) | undefined;
-}
-
-/**
- * Hydrate an input tree by executing any nested procedure references.
- *
- * Walks the input object tree and replaces any ProcedureRef or ProcedureRefJson
- * objects with the result of executing that procedure, respecting $when timing.
- *
- * The rules:
- * - A ref with `$when: "$immediate"` (the default) runs. A ref whose procedure takes its input
- *   raw (see `HydrateOptions.rawInput`) gets its input unchanged, with the scope attached.
- * - A ref with `$when: "$never"` stays as it is, with its whole subtree.
- * - A ref with `$when: "$parent"` or `$when: "<name>"` stays data for its runner. Its procedure
- *   gets that ref later. The immediate refs of its input run now, unless the procedure takes its
- *   input raw. A named ref runs now only when `contextStack` has the name.
- * - A `$ref` object gives a value from the scope. `{ $literal: value }` gives the value unchanged.
- * - An array whose items are all refs that run now, outside the input of a ref, runs as one
- *   `client.chain`. An array with a deferred ref is a list.
- * - Values that are not plain data (`Date`, `Map`, typed arrays, class instances) stay unchanged.
- *   A subtree without refs stays the same object.
- *
- * @param input - The input object potentially containing procedure references
- * @param executor - Function to execute procedure references
- * @param options - Hydration options
- * @returns The hydrated input with executed procedure refs replaced by their results
- *
- * @example
- * ```typescript
- * const input = {
- *   visit: proc(["git", "add"]).input({ all: true }).build(),
- *   config: { nested: true },
- * };
- *
- * const hydrated = await hydrateInput(input, async (path, input) => {
- *   return await client.call({ path, input });
- * });
- *
- * // hydrated.visit is now the result of executing git.add
- * ```
- */
-export async function hydrateInput<T>(
-  input: T,
-  executor: RefExecutor,
-  options: HydrateOptions = {}
-): Promise<T> {
-  const ctx: HydrateContext = {
-    executor,
-    maxDepth: options.maxDepth ?? 10,
-    parallel: options.parallel ?? false,
-    contextStack: options.contextStack ?? [],
-    scope: options.scope,
-    rawInput: options.rawInput ?? isControlFlowPath,
-    skipImplicitChain: false,
-    deferred: false,
-    onRef: options.onRef,
-  };
-  return hydrateValue(input, ctx, 0, undefined, 0);
-}
-
-/**
- * The path and the input of the root call of a program: the call that `client.exec()` starts.
- * `exec()` and the body of a procedure that `procedure.define` made both use this function, so
- * the same program gives the same result in both (docs review DOC-3: before, a defined body
- * hydrated its root call as a nested ref).
- *
- * The rules of the root call:
- * - A `$when` on the root call does not apply: the caller starts the root call now.
- * - A procedure that takes its input raw (`rawInput`) gets its input unchanged, with the scope
- *   attached, and runs its operands itself.
- * - Another procedure gets its input hydrated as a root: a list of calls that run now is an
- *   implicit chain, and the nested refs run.
- *
- * The caller then starts the call with the path and the input.
- */
-export async function prepareRootCall(
-  ref: AnyProcedureRef,
-  executor: RefExecutor,
-  options: Pick<HydrateOptions, "rawInput" | "onRef" | "scope"> = {}
-): Promise<{ path: ProcedurePath; input: unknown }> {
-  const root = normalizeRef(ref);
-  const rawInput = options.rawInput ?? isControlFlowPath;
-  if (rawInput(root.path)) {
-    return { path: root.path, input: withScope(root.input, options.scope) };
-  }
-  const input = await hydrateInput(root.input, executor, { rawInput, onRef: options.onRef, scope: options.scope });
-  return { path: root.path, input };
-}
-
-/**
- * This function tells the observers that a ref runs now. The consumer is the nearest ref
- * around the ref. An observer that throws does not change the hydration.
- */
-function notifyRef(ctx: HydrateContext, ref: AnyProcedureRef, path: ProcedurePath, ancestors: Ancestors | undefined): void {
-  if (!ctx.onRef && hydrationObservers.size === 0) return;
-  let consumer: AnyProcedureRef | undefined;
-  for (let current = ancestors; current; current = current.up) {
-    if (isAnyProcedureRef(current.value)) {
-      consumer = current.value;
-      break;
-    }
-  }
-  const event: HydrationEvent = { path, ref, consumer };
-  for (const observer of ctx.onRef ? [ctx.onRef, ...hydrationObservers] : hydrationObservers) {
-    try {
-      observer(event);
-    } catch {
-      // A trace must not change the program
-    }
-  }
-}
-
-/** The values of `fn` for each item: one after the other, or at the same time. */
-async function eachValue<T>(items: readonly T[], fn: (item: T) => Promise<unknown>, parallel: boolean): Promise<unknown[]> {
-  if (parallel) return Promise.all(items.map(fn));
-  const results: unknown[] = [];
-  for (const item of items) results.push(await fn(item));
-  return results;
-}
-
-/** This function resolves a `$ref` in the scope of the hydration. */
-function resolveRefValue(value: OutputRef, ctx: HydrateContext): unknown {
-  // No scope: the object is data (for example a JSON Schema reference), or a later scope binds it
-  if (!ctx.scope) return value;
-  const { found, value: resolved } = lookupOutputRef(value.$ref, ctx.scope);
-  if (found) return resolved;
-  // Inside a deferred ref, the runner can bind the name later
-  if (ctx.deferred) return value;
-  const name = value.$ref.split(".")[0];
-  throw new Error(
-    `Unknown $ref name "${name}" in "${value.$ref}": no step, item or input has this name here. ` +
-      `For a literal $ref object, write { "$literal": { "$ref": ... } }.`
-  );
-}
-
-/**
- * Internal recursive hydration function.
- *
- * `refDepth` counts the refs around the value. `dataDepth` counts all levels.
- */
-async function hydrateValue<T>(
-  value: T,
-  ctx: HydrateContext,
-  refDepth: number,
-  ancestors: Ancestors | undefined,
-  dataDepth: number
-): Promise<T> {
-  // Handle null/undefined/primitives
-  if (value === null || typeof value !== "object") {
-    return value;
-  }
-
-  if (dataDepth > MAX_DATA_DEPTH) {
-    throw new Error(`Hydration failed: the input has more than ${MAX_DATA_DEPTH} levels of nesting`);
-  }
-  for (let current = ancestors; current; current = current.up) {
-    if (current.value === value) {
-      throw new Error("Hydration failed: the input is cyclic (an object contains itself)");
-    }
-  }
-
-  // { $literal: value } gives the value without hydration
-  if (isLiteral(value)) {
-    return value.$literal as T;
-  }
-
-  // Check if this is an output reference ($ref)
-  if (isOutputRef(value)) {
-    return resolveRefValue(value, ctx) as T;
-  }
-
-  // Check if this is a procedure reference ($proc)
-  if (isAnyProcedureRef(value)) {
-    return hydrateRef(value, ctx, refDepth, ancestors, dataDepth) as Promise<T>;
-  }
-
-  const inner: Ancestors = { value, up: ancestors };
-
-  // Handle arrays
-  if (Array.isArray(value)) {
-    // An array of procedure refs that all run now is an implicit chain. A deferred ref ($never,
-    // $parent, a context name that the runner did not give) is data, so a list with one is a list
-    // (docs review DOC-1: before, a list of only $never refs ran as a chain). Inside an implicit
-    // chain, the steps do not make another one.
-    if (
-      !ctx.skipImplicitChain &&
-      value.length > 0 &&
-      value.every((item) => isAnyProcedureRef(item) && shouldExecuteRef(item, ctx.contextStack, false))
-    ) {
-      // client.chain runs the steps in order: they reach it raw. (Before, hydration ran the steps
-      // all at once, and client.chain got their results: deep dive, architecture review 3.4.)
-      const implicitChain: ProcedureRefJson = { $proc: ["client", "chain"], input: { steps: value } };
-      return hydrateRef(implicitChain, { ...ctx, skipImplicitChain: true }, refDepth, ancestors, dataDepth) as Promise<T>;
-    }
-
-    const items = await eachValue(value, (item) => hydrateValue(item, ctx, refDepth, inner, dataDepth + 1), ctx.parallel);
-    return (items.every((item, index) => item === value[index]) ? value : items) as T;
-  }
-
-  // Values that are not plain data (Date, Map, typed arrays, class instances) stay unchanged
-  if (!isPlainObject(value)) {
-    return value;
-  }
-
-  // Handle plain objects
-  const entries = Object.entries(value);
-  const values = await eachValue(entries, ([, val]) => hydrateValue(val, ctx, refDepth, inner, dataDepth + 1), ctx.parallel);
-  if (values.every((val, index) => val === entries[index]![1])) {
-    return value;
-  }
-  // Object.fromEntries makes own properties, also for a key such as "__proto__"
-  return Object.fromEntries(entries.map(([key], index) => [key, values[index]])) as T;
-}
-
-/** This function hydrates one procedure ref: it runs the ref, or it keeps the ref as data. */
-async function hydrateRef(
-  value: AnyProcedureRef,
-  ctx: HydrateContext,
-  refDepth: number,
-  ancestors: Ancestors | undefined,
-  dataDepth: number
-): Promise<unknown> {
-  const when = getRefWhen(value);
-
-  // $never: pure data, with its whole subtree (deep dive CORE-11: before, its input was hydrated)
-  if (when === WHEN_NEVER) {
-    return value;
-  }
-
-  if (refDepth >= ctx.maxDepth) {
-    throw new Error(`Hydration depth exceeded maximum of ${ctx.maxDepth}`);
-  }
-
-  const ref = normalizeRef(value);
-  const raw = ctx.rawInput(ref.path);
-  const inner: Ancestors = { value, up: ancestors };
-  // The input of a ref is never an implicit chain
-  const inputCtx = (deferred: boolean): HydrateContext => ({ ...ctx, skipImplicitChain: true, deferred });
-
-  // A ref that waits for its runner ($parent, or a name that the runner did not give) is data.
-  // Its own $name is not a context here: hydration of its input does not run refs that wait for
-  // it, at any depth (deep dive CORE-11: before, this depended on the depth of the ref).
-  if (!shouldExecuteRef(value, ctx.contextStack, false)) {
-    if (raw) return value;
-    const input = await hydrateValue(ref.input, inputCtx(true), refDepth + 1, inner, dataDepth + 1);
-    return input === ref.input ? value : { ...value, input };
-  }
-
-  // A procedure that takes its input raw gets it unchanged, with the scope of the caller
-  if (raw) {
-    notifyRef(ctx, value, ref.path, ancestors);
-    return ctx.executor(ref.path, withScope(ref.input, ctx.scope));
-  }
-
-  const input = await hydrateValue(ref.input, inputCtx(false), refDepth + 1, inner, dataDepth + 1);
-  notifyRef(ctx, value, ref.path, ancestors);
-  return ctx.executor(ref.path, input);
-}
 
 // =============================================================================
 // Control-Flow Procedures
@@ -1133,63 +838,20 @@ export function takesRawInput(procedure: ProcedureShape): boolean {
 export function rawInputRule(
   registry: { get(path: ProcedurePath): ProcedureShape | undefined } | undefined
 ): (path: ProcedurePath) => boolean {
-  return (path) => {
-    const procedure = registry?.get(path);
-    return procedure ? takesRawInput(procedure) : isControlFlowPath(path);
-  };
-}
-
-// =============================================================================
-// Deferred Ref Execution
-// =============================================================================
-
-/**
- * Execute a deferred procedure reference.
- *
- * This is a helper for procedures that receive deferred refs (via $when)
- * and need to execute them with additional context.
- *
- * @param ref - The procedure reference to execute
- * @param executor - Function to execute the procedure
- * @param additionalInput - Additional input to merge (e.g., cwd for dag.traverse)
- * @param options - Hydration options for the input of the ref (for example the runner's `contextStack`)
- * @returns The result of executing the procedure
- *
- * @example
- * ```typescript
- * // In dag.traverse, execute a deferred ref with cwd
- * const result = await executeRef(
- *   input.visit,
- *   (path, input) => ctx.client.call(path, input),
- *   { cwd: node.repoPath }
- * );
- * ```
- */
-export async function executeRef<TOutput = unknown>(
-  ref: AnyProcedureRef,
-  executor: RefExecutor,
-  additionalInput?: Record<string, unknown>,
-  options: HydrateOptions = {}
-): Promise<TOutput> {
-  const normalized = normalizeRef(ref);
-  const baseInput = typeof normalized.input === "object" ? normalized.input : {};
-
-  // Merge additional input
-  const mergedInput = {
-    ...(baseInput as Record<string, unknown>),
-    ...additionalInput,
-  };
-
-  const raw = (options.rawInput ?? isControlFlowPath)(normalized.path);
-  if (raw) {
-    return executor(normalized.path, withScope(mergedInput, options.scope));
+  if (!registry) return isControlFlowPath;
+  // One rule for each registry: the rule reads the registry at each call, so it stays current
+  let rule = RAW_INPUT_RULES.get(registry);
+  if (!rule) {
+    rule = (path) => {
+      const procedure = registry.get(path);
+      return procedure ? takesRawInput(procedure) : isControlFlowPath(path);
+    };
+    RAW_INPUT_RULES.set(registry, rule);
   }
-
-  // Hydrate the merged input (execute any nested $immediate refs)
-  const hydratedInput = await hydrateInput(mergedInput, executor, options);
-
-  return executor(normalized.path, hydratedInput);
+  return rule;
 }
+
+const RAW_INPUT_RULES = new WeakMap<object, (path: ProcedurePath) => boolean>();
 
 // =============================================================================
 // Template Extraction
