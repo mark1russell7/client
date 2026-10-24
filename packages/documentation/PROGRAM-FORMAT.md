@@ -336,6 +336,15 @@ The owner decided the root of a defined body in October 2026 (docs review DOC-3)
 - **The scope and a remote call.** A scope does not go over a transport. A control-flow procedure on a different host cannot read the names of the caller.
 - **`$name` as a context.** A `$name` does not make a context for `$when`. Only a runner gives a context name (`"dag.traverse"`).
 
+## Deprecated behaviors (D26)
+
+These behaviors are deprecated. The next MINOR (D26: the programs on the kernel of coeval, roadmap item M14) changes them:
+
+- **`failFast` of `client.parallel`.** At this time, the other tasks go on in the background after the first error. From the next MINOR, they stop at their next wait, and their later calls do not start. A call that started goes on in its procedure. When those calls must start, wait for the tasks yourself, or do not use `failFast`.
+- **`HydrateOptions.parallel`.** At this time, the other refs go on in the background after the first error. From the next MINOR, they stop at their next wait. When their calls must start, give `parallel: false`.
+- **A thrown `undefined`.** At this time, the program fails with `undefined`, and the error text of `client.parallel` and `client.tryCatch` is `"undefined"`. From the next MINOR, the program fails with an `Error` that has the reason of the kernel. Throw an `Error`.
+- **The order of the diagnostics of the compiler.** At this time, `resolveScopes()` of `@procedures/compiler` gives the diagnostics in the order of the program tree. From the next MINOR, the warnings for the raw input come first, and then the diagnostics of the names. Sort the diagnostics by `pointer` when the order matters.
+
 ## Appendix A: differences from the behavior before October 2026
 
 The deep dive of October 2026 replaced three `$ref` interpreters with one. These changes can break a program that operated correctly before. [deep-dive-2026-10/STATUS.md](./deep-dive-2026-10/STATUS.md) gives the commits.
