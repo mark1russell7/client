@@ -21,7 +21,13 @@ async function agree(harness: Harness, program: Record<string, unknown>): Promis
 const WITH_ERRORS: ProgramOptions = { depth: 4, sequentialParallel: true, store: true, missing: true };
 const LONG_RUNS: ProgramOptions = { depth: 5, sequentialParallel: true, store: true, failures: false };
 
-describe("the compiled program operates as the interpreter", () => {
+/**
+ * The time limit of each property test. Each test does a fixed number of runs. In CI, 500 long
+ * runs took up to 6.4 s, more than the default of vitest (5 s). A hang still fails at this limit.
+ */
+const PROPERTY_TIMEOUT_MS = 30_000;
+
+describe("the compiled program operates as the interpreter", { timeout: PROPERTY_TIMEOUT_MS }, () => {
   it("gives the same result or error and the same calls in the same order, also for programs with errors", async () => {
     const harness = makeHarness();
     await fc.assert(
@@ -97,7 +103,7 @@ describe("the compiled program operates as the interpreter", () => {
   });
 });
 
-describe("the inferred effects contain the observed effects", () => {
+describe("the inferred effects contain the observed effects", { timeout: PROPERTY_TIMEOUT_MS }, () => {
   it("each run reads and writes only what the effects allow, and a run without a failure has the must effects", async () => {
     const harness = makeHarness();
     await fc.assert(

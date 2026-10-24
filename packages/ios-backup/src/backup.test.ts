@@ -68,9 +68,25 @@ interface MessageFixture {
   chats?: number[];
 }
 
+/**
+ * This function opens a database of a test with no sync to the disk, and starts one transaction for
+ * all its writes. Before, each statement had its own syncs: in CI, a slow disk made a test take 12 s.
+ */
+function openFixtureDb(path: string): DatabaseSync {
+  const db = new DatabaseSync(path);
+  db.exec("PRAGMA journal_mode = MEMORY; PRAGMA synchronous = OFF; BEGIN");
+  return db;
+}
+
+/** This function commits the transaction of `openFixtureDb` and closes the database. */
+function closeFixtureDb(db: DatabaseSync): void {
+  db.exec("COMMIT");
+  db.close();
+}
+
 /** This function writes a messages database with two handles, two chats and the messages. */
 function writeSmsDb(path: string, messages: MessageFixture[]): void {
-  const db = new DatabaseSync(path);
+  const db = openFixtureDb(path);
   db.exec(`
     CREATE TABLE message (ROWID INTEGER PRIMARY KEY AUTOINCREMENT, guid TEXT, text TEXT, attributedBody BLOB,
       date INTEGER, is_from_me INTEGER DEFAULT 0, handle_id INTEGER DEFAULT 0, service TEXT);
@@ -86,7 +102,7 @@ function writeSmsDb(path: string, messages: MessageFixture[]): void {
     const { lastInsertRowid } = insert.run(m.guid, m.text ?? null, m.body ?? null, m.date, m.fromMe === true ? 1 : 0, m.handle ?? null, m.service ?? null);
     for (const chat of m.chats ?? []) join.run(chat, lastInsertRowid);
   }
-  db.close();
+  closeFixtureDb(db);
 }
 
 const MESSAGES: MessageFixture[] = [
@@ -109,7 +125,7 @@ interface BackupOptions {
 async function makeBackup(root: string, name: string, options: BackupOptions = {}): Promise<string> {
   const dir = join(root, name);
   await mkdir(dir, { recursive: true });
-  const manifest = new DatabaseSync(join(dir, "Manifest.db"));
+  const manifest = openFixtureDb(join(dir, "Manifest.db"));
   manifest.exec("CREATE TABLE Files (fileID TEXT PRIMARY KEY, domain TEXT, relativePath TEXT, flags INTEGER, file BLOB)");
   const smsId = fileIdOf(SMS_DOMAIN, SMS_RELATIVE_PATH);
   if (options.messages !== false) {
@@ -119,7 +135,7 @@ async function makeBackup(root: string, name: string, options: BackupOptions = {
     writeSmsDb(join(folder, smsId), options.messages ?? MESSAGES);
   }
   manifest.prepare("INSERT INTO Files VALUES (?, ?, ?, 1, NULL)").run(fileIdOf("MediaDomain", "Library/Missing.txt"), "MediaDomain", "Library/Missing.txt");
-  manifest.close();
+  closeFixtureDb(manifest);
   if (options.mtime !== undefined) {
     const time = new Date(options.mtime);
     await utimes(join(dir, "Manifest.db"), time, time);
@@ -229,9 +245,9 @@ describe("findBackupFile", () => {
 
   it("refuses a file name of Manifest.db that is not a hash, so it cannot leave the backup folder", async () => {
     const backup = await makeBackup(await tempDir(), "backup");
-    const manifest = new DatabaseSync(join(backup, "Manifest.db"));
+    const manifest = openFixtureDb(join(backup, "Manifest.db"));
     manifest.prepare("INSERT INTO Files VALUES (?, ?, ?, 1, NULL)").run("../../outside", "HomeDomain", "Library/Evil.db");
-    manifest.close();
+    closeFixtureDb(manifest);
     await expect(findBackupFile(backup, "HomeDomain", "Library/Evil.db")).rejects.toMatchObject({ code: "invalid-file-id" });
   });
 

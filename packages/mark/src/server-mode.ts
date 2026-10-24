@@ -9,7 +9,8 @@
  * The server is the background host of `mark` (decision D17): it runs under `run()` of
  * `@mark1russell7/service` through `runProcedureHost()`, with the profile `daemon` (CLI-8). The
  * runner owns the signals, the stop in stages and the exit. The lockfile is a dependency of the
- * service: its connect writes it, and its close removes it after the listeners close.
+ * service: its connect writes it, and its close removes it after the listeners close. The cold
+ * mode of `mark` runs the same host in its own process (`markHostOptions()`, CLI-26).
  */
 
 import type { ProcedureHostRunConfig } from "@procedures/server";
@@ -108,8 +109,8 @@ export async function startServerMode(options: ServerModeOptions, run?: Procedur
   // serves events.subscribe (EVENTS.md): the topic rule is the --events patterns, else empty.
   // The bus is the global bus, which is also the ctx.bus of the procedures.
   const events = [...(options.events ?? [])];
-  const { hostPolicy } = await import("@procedures/client");
-  const { peerHostOptions } = await import("@procedures/peer");
+  // The options of the host: the same registry and policy as the cold mode of mark (CLI-26)
+  const { markHostOptions } = await import("./command.js");
   const { runProcedureHost } = await import("@procedures/server");
   const id = `peer-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -120,7 +121,7 @@ export async function startServerMode(options: ServerModeOptions, run?: Procedur
   const running = await runProcedureHost({
     name: "mark-server",
     mode: "background",
-    host: peerHostOptions({ id, transports, registry, policy: hostPolicy({ token, events: { topics: events } }) }, "procedures"),
+    host: await markHostOptions({ id, registry, transports, token, events }),
     lockfile: {
       pid: process.pid,
       port,
