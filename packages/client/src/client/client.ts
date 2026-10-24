@@ -94,6 +94,7 @@ import {
   type AnyProcedureRef,
   type HydrationEvent,
 } from "../procedures/ref.js";
+import { fromEnvelopeProgram, isEnvelopeProgram, type EnvelopeProgram } from "../procedures/envelope.js";
 
 /** Each element of each array item: the stream form of an `outputMode: "batch"` procedure. */
 async function* batchElements(items: AsyncIterable<unknown>): AsyncGenerator<unknown, void, undefined> {
@@ -479,7 +480,7 @@ export class Client<TContext = {}> {
    * are automatically executed and replaced with their results before the
    * main procedure runs.
    *
-   * @param refOrPath - Procedure reference, JSON procedure ref, or procedure path
+   * @param refOrPath - Procedure reference, JSON procedure ref, program in the envelope form, or procedure path
    * @param input - Input for the procedure. With a reference, its fields go over the fields of the reference's input.
    * @returns Output of the procedure
    *
@@ -496,6 +497,12 @@ export class Client<TContext = {}> {
    * const result = await client.exec({
    *   $proc: ["git", "add"],
    *   input: { all: true },
+   * });
+   *
+   * // Using the envelope form (see fromEnvelopeProgram)
+   * const result = await client.exec({
+   *   type: ["git", "add"],
+   *   value: { all: true },
    * });
    *
    * // Using path + input (simple form)
@@ -515,7 +522,7 @@ export class Client<TContext = {}> {
    * ```
    */
   async exec<TOutput = unknown>(
-    refOrPath: AnyProcedureRef | ProcedurePath,
+    refOrPath: AnyProcedureRef | ProcedurePath | EnvelopeProgram,
     input?: unknown,
     options: ExecOptions = {}
   ): Promise<TOutput> {
@@ -537,7 +544,7 @@ export class Client<TContext = {}> {
    * ```
    */
   execStream<TOutput = unknown>(
-    refOrPath: AnyProcedureRef | ProcedurePath,
+    refOrPath: AnyProcedureRef | ProcedurePath | EnvelopeProgram,
     input?: unknown,
     options: ExecOptions = {}
   ): AsyncIterable<TOutput> {
@@ -553,10 +560,16 @@ export class Client<TContext = {}> {
    * The path and the input of a reference, with the refs of the input run (hydrated).
    */
   private async prepareRef(
-    refOrPath: AnyProcedureRef | ProcedurePath,
+    refOrPathOrEnvelope: AnyProcedureRef | ProcedurePath | EnvelopeProgram,
     input: unknown,
     caller: CallerContext = {}
   ): Promise<{ path: ProcedurePath; input: unknown }> {
+    // A program in the envelope form (coeval M7) changes into the $proc form first. The root
+    // decides the form: an envelope in the input of a $proc program stays data.
+    const refOrPath = isEnvelopeProgram(refOrPathOrEnvelope)
+      ? fromEnvelopeProgram(refOrPathOrEnvelope)
+      : refOrPathOrEnvelope;
+
     // Normalize to ProcedureRef
     let ref: ProcedureRef;
 

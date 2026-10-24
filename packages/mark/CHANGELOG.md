@@ -1,5 +1,90 @@
 # @procedures/mark
 
+## 0.23.0
+
+### Patch Changes
+
+- Updated dependencies [f20beb1]
+- Updated dependencies [71091a5]
+  - @procedures/client@0.23.0
+  - @procedures/peer@0.23.0
+  - @procedures/mcp-dev-tools@0.23.0
+  - @procedures/cli-run@0.23.0
+  - @procedures/lib@0.23.0
+  - @procedures/pnpm@0.23.0
+  - @procedures/procedure@0.23.0
+  - @procedures/shell@0.23.0
+  - @procedures/vitest@0.23.0
+  - @procedures/server@0.23.0
+
+## 0.22.1
+
+### Patch Changes
+
+- 1681d8c: Deprecated (D13): three behaviors of a `mark` command in this process (the cold mode). The MINOR of CLI-26 changes them, when each command starts under `run()` of `@mark1russell7/service` (decision D17). This release changes no behavior.
+  
+  - The first Ctrl-C of a cold command gives the exit code 1. After the change, it gives 130, as the profile `ephemeral` of the runner does.
+  - A second Ctrl-C of a cold command ends the process at once with the exit code 130. After the change, a second signal gives 1.
+  - A cold `mark server create` keeps its peer alive after the command. After the change, the peer stops at the end of the command. For a server in the foreground, use `mark --server` or `procedure-server`.
+  
+  A command on the CLI server (the warm mode) and the exit codes 0 and 1 of a command that ends do not change.
+- Updated dependencies [c931188]
+  - @procedures/client@0.22.1
+  - @procedures/cli-run@0.22.1
+  - @procedures/lib@0.22.1
+  - @procedures/pnpm@0.22.1
+  - @procedures/procedure@0.22.1
+  - @procedures/peer@0.22.1
+  - @procedures/shell@0.22.1
+  - @procedures/vitest@0.22.1
+  - @procedures/mcp-dev-tools@0.22.1
+  - @procedures/server@0.22.1
+
+## 0.22.0
+
+### Minor Changes
+
+- 25822ee: The Streamable HTTP face of an MCP host keeps at most 256 sessions by default, and a task store keeps at most 1000 tasks (CLI-51). Before, the sessions had no limit by default. Thus one client could increase the memory of the host without a limit.
+  
+  MINOR: a breaking change before 1.0. A new default limit changes a behavior that callers rely on (decision D13).
+  
+  Changed:
+  
+  - The default of `maxSessions` is 256, not `Infinity`. This default applies to `faces.http` of `createMcpHost()`, to `mcpFace()` and to `mark mcp --http`. `MCP_HTTP_LIMITS.maxSessions` is 256.
+  - A new session above the limit closes the session that was idle longest. When each session is busy, the new session gets 503 with a `Retry-After` header, as before with a limit.
+  - Each live client of the MCP SDK keeps its GET stream open, so the limit does not close its session. Thus the limit is much more than the clients of one host. Each live session also holds a socket, and 256 is much less than the usual limit of 1024 open files of a process.
+  - `maxSessions: Infinity` stays valid. It turns the limit off.
+  
+  Added:
+  
+  - The option `maxStored` of `McpTaskStore`, and of `tasks` of `createMcpHost()` and `mcpFace()`. It is the most tasks that the store keeps for all the sessions together. The default is 1000 (`MCP_TASK_LIMITS.maxStored`). Before, only the limit of 100 tasks for each session bounded the store.
+  - A new task removes the oldest task of its own session that ended. The store can be full, and the session can have no task that ended. Then the request of the new task gets the error `-32600` with the code `TASKS_FULL`. The store keeps nothing of that task. Thus a client cannot remove the results of another session. `maxStored: Infinity` turns the limit off.
+  - The flag `--max-sessions <n>` of `mark mcp`, and the variable `MCP_HTTP_MAX_SESSIONS` of `@procedures/mcp-dev-tools`. They set `maxSessions` of the HTTP face. `Infinity` turns the limit off.
+  
+  Migration:
+  
+  - A host with more than 256 clients at one time: give a larger `maxSessions`, or `maxSessions: Infinity` for no limit. Give it in `faces.http` of `createMcpHost()`, in `mcpFace()`, or with `mark mcp --http <port> --max-sessions <n>`.
+  - A host that keeps more than 1000 tasks: give a larger `maxStored`, or `maxStored: Infinity`, in `tasks` of the host or in `new McpTaskStore()`.
+  - The site and MiniMongo: no change. They have no MCP host.
+  - Graph: no change. Its `mcpFace()` on the procedures host gets the limit of 256 sessions, and its MCP host over stdio has no HTTP face. To keep no limit, give `mcpFace({ maxSessions: Infinity })`.
+  - jarvis: no change. Its MCP host has only stdio and SDK faces, and it has no tasks.
+  - polite-crawler-mcp: no change for the sessions, because it sets `maxSessions: 32`. Its `McpTaskStore` gets the limit of 1000 stored tasks. Before, 32 sessions of 100 tasks bounded the store at 3200 tasks. To keep that bound, give `new McpTaskStore({ maxStored: 3200 })`.
+  - polite-crawler-mcp also gives the deprecated option `mount: true`, which has no effect. Remove it when it moves to the new range.
+
+### Patch Changes
+
+- Updated dependencies [25822ee]
+  - @procedures/mcp-dev-tools@0.22.0
+  - @procedures/peer@0.22.0
+  - @procedures/client@0.22.0
+  - @procedures/cli-run@0.22.0
+  - @procedures/lib@0.22.0
+  - @procedures/pnpm@0.22.0
+  - @procedures/procedure@0.22.0
+  - @procedures/shell@0.22.0
+  - @procedures/vitest@0.22.0
+  - @procedures/server@0.22.0
+
 ## 0.21.0
 
 ### Patch Changes

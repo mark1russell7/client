@@ -36,11 +36,11 @@ The runtime form of a call is a `ProcedureRef`. It is an object with the `PROCED
 
 ## 2. A program
 
-A program is a call. `client.exec()` starts it. `client.exec()` also accepts a path and an input: `client.exec(["client", "add"], { a: 1, b: 2 })`. An array or another value at the root is an error: `exec() requires a ProcedureRef, $proc JSON, or procedure path array`.
+A program is a call. `client.exec()` starts it. `client.exec()` also accepts a path and an input: `client.exec(["client", "add"], { a: 1, b: 2 })`. It also accepts a program in the envelope form (section 11). An array or another value at the root is an error: `exec() requires a ProcedureRef, $proc JSON, or procedure path array`.
 
 `client.exec(program, input)` puts the fields of `input` over the fields of the program's input. The test is "Client.exec(ref, input)" in `core/semantics.test.ts`.
 
-`client.exec()` starts a root call also when the call has `$when`. Section 11 compares this with `procedure.define`.
+`client.exec()` starts a root call also when the call has `$when`. Section 12 compares this with `procedure.define`.
 
 ## 3. Hydration: the calls in an input start first
 
@@ -164,7 +164,7 @@ The hydration roots are:
 
 - The input of the root call of `client.exec()`.
 - An operand of a control-flow procedure that is not a call (section 8).
-- The body of a defined procedure. The body is a call, thus its input makes no implicit chain (section 11).
+- The body of a defined procedure. The body is a call, thus its input makes no implicit chain (section 12).
 
 In the input of a nested call, the same array stays a list of results:
 
@@ -268,7 +268,64 @@ The rules (tests: "procedure.define through a client" in `define-procedure.test.
 - `procedure.delete` unregisters a defined procedure. It refuses a code procedure.
 - A defined procedure is data-driven (section 9).
 
-## 11. Open questions and known differences
+## 11. The envelope form
+
+The envelope form is a second form of a program. It comes from the design repository [coeval](https://github.com/mark1russell7/coeval), decisions D6, D9 and D10. A document of coeval is an envelope: `{ "type": T, "value": V }`. The header of an envelope can also have the keys `name` and `own`.
+
+`client.exec()` and `client.execStream()` accept the two forms. The functions of [`envelope.ts`](../client/src/procedures/envelope.ts) change one form into the other form:
+
+- `isEnvelopeProgram(value)` gives `true` if a value is a program in the envelope form.
+- `fromEnvelopeProgram(program)` changes a program in the envelope form into the `$proc` form.
+- `toEnvelopeProgram(program)` changes a program in the `$proc` form into the envelope form. A tool can use it to show a program.
+
+This program is the program of section 4, in the envelope form:
+
+```json
+{
+  "type": ["client", "chain"],
+  "value": {
+    "steps": [
+      { "type": ["client", "add"], "value": { "a": 1, "b": 2 }, "name": "sum" },
+      { "type": ["client", "multiply"], "value": { "a": { "type": "ref", "value": ["names", "sum"] }, "b": 10 } },
+      {
+        "type": ["client", "add"],
+        "value": { "a": { "type": "ref", "value": ["names", "last"] }, "b": { "type": "ref", "value": ["names", "sum"] } }
+      }
+    ]
+  }
+}
+// { "results": [3, 30, 33], "final": 33 }
+```
+
+The table gives each part of a program in the two forms:
+
+| Envelope form | `$proc` form |
+|---|---|
+| `{ "type": ["client", "add"], "value": input }` | `{ "$proc": ["client", "add"], "input": input }` |
+| `{ "type": { "type": "ref", "value": ["world", "client", "add"] }, "value": input }` | `{ "$proc": ["client", "add"], "input": input }` |
+| `{ "type": ["client", "add"], "value": null }` | `{ "$proc": ["client", "add"] }` |
+| the header `"name": "sum"` of a call | `"$name": "sum"` |
+| `{ "type": "ref", "value": ["names", "sum", "total"] }` | `{ "$ref": "sum.total" }` |
+| `{ "type": "ref", "value": ["names", "last"] }` | `{ "$ref": "$last" }` |
+| `{ "type": "literal", "value": x }` | `{ "$literal": x }` |
+| an object with a `$proc`, `$ref` or `$literal` key | `{ "$literal": object }` |
+| no envelope form | `$when` |
+
+The rules (test: `envelope.test.ts`):
+
+- **The root decides the form.** `client.exec()` changes an envelope at the root into the `$proc` form. Then it starts the program. In the input of a `$proc` program, an envelope is data. Thus a `$proc` program gives the same result as before.
+- **A call.** A call is an object with the keys `type` and `value`. It can also have the header keys `name` and `own`, and no other keys. Its type is the path of a procedure: an array of one or more strings. A ref into the world is also a type. The value is the input.
+- **A call without input.** A call with the value `null` has no input. Its procedure gets `undefined`, as a `$proc` call without `input` gets (section 1). With `passThrough`, `client.chain` gives such a step the result of the step before. For the input `null`, write `{ "type": "literal", "value": null }`.
+- **The header.** Only a call has a header. The header `name` gives the `$name` of the call. A client program has no own entries: a call with the key `own` is an error.
+- **A reference.** The value of a ref is a path: `["names", name, field, ...]`. Each key is a string without a dot, or an integer of 0 or more. The name `last` reads the result of the step before. The other names are the names of section 4, and they are in the root `names`. A ref with the root `self`, `world`, `event` or `caps` is an error.
+- **Data.** In an envelope program, the `$proc` form is data. Each object with a `$proc`, `$ref` or `$literal` key goes into a `$literal`. A runtime `ProcedureRef` is data too. An envelope of a different type is data, for example `{ "type": "point", "value": 3 }`. The calls and the refs in its value operate.
+- **Data with the shape of a call.** Put data with the shape of a call, a ref or a literal into a literal.
+- **No `$when`.** The envelope form has no `$when`. A program that needs `$when` keeps the `$proc` form.
+- **The input of `exec()`.** `client.exec(program, input)` puts the fields of `input` over the fields of the converted input. This is the rule of a `$proc` program (section 2). The function does not change `input` itself.
+- **The other direction.** `toEnvelopeProgram()` refuses a program that the envelope form cannot keep. Such a program has a call with `$when` or with other keys, or a ref to a step with the name `last`.
+- **The round trip.** `fromEnvelopeProgram(toEnvelopeProgram(program))` gives the same program, with two exceptions. A call with the input `null` comes back in a `$literal`. Data that the envelope form reads in a different way comes back in a `$literal` too. They give the same values, but a procedure that takes its input raw (section 9) sees the `$literal`.
+
+## 12. Open questions and known differences
 
 These points are not decided. Each point gives the behavior at the time of commit `5c16b25`.
 

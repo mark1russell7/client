@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/splay",
-  "version": "0.21.0",
+  "version": "0.23.0",
   "description": "Render procedure results with splay: a bridge between the client procedures and the splay recursive renderer, with stream helpers.",
   "keywords": [
     "splay",

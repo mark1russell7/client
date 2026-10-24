@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 569 names
+## . (dist/index.d.ts): 576 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -92,6 +92,10 @@ type ElicitTextField: dist/procedures/elicit.d.ts#ElicitTextField
 type ElicitUrlRequest: dist/procedures/elicit.d.ts#ElicitUrlRequest
 type ElicitValue: dist/procedures/elicit.d.ts#ElicitValue
 type ElicitationPolicy: dist/procedures/elicit.d.ts#ElicitationPolicy
+type EnvelopeLiteral: dist/procedures/envelope.d.ts#EnvelopeLiteral
+type EnvelopePath: dist/procedures/envelope.d.ts#EnvelopePath
+type EnvelopeProgram: dist/procedures/envelope.d.ts#EnvelopeProgram
+type EnvelopeRef: dist/procedures/envelope.d.ts#EnvelopeRef
 ErrorCategory: dist/client/errors/types.d.ts#ErrorCategory
 type ErrorCodeInfo: dist/protocol.d.ts#ErrorCodeInfo
 type ErrorContext: dist/client/errors/types.d.ts#ErrorContext
@@ -420,6 +424,7 @@ extractTemplate: dist/procedures/ref.d.ts#extractTemplate
 flattenRoute: dist/client/call-types.d.ts#flattenRoute
 formatError: dist/client/errors/factory.d.ts#formatError
 formatTraceparent: dist/tracing/traceparent.d.ts#formatTraceparent
+fromEnvelopeProgram: dist/procedures/envelope.d.ts#fromEnvelopeProgram
 fromJson: dist/procedures/ref.d.ts#fromJson
 getAllRuntimeProcedures: dist/procedures/define-procedure.d.ts#getAllRuntimeProcedures
 getErrorMetadata: dist/client/errors/registry.d.ts#getErrorMetadata
@@ -453,6 +458,7 @@ isControlFlowPath: dist/procedures/ref.d.ts#isControlFlowPath
 isDataDriven: dist/procedures/ref.d.ts#isDataDriven
 isDestructive: dist/procedures/capability.d.ts#isDestructive
 isDuration: dist/duration.d.ts#isDuration
+isEnvelopeProgram: dist/procedures/envelope.d.ts#isEnvelopeProgram
 isExpectedVersion: dist/procedures/collection/precondition.d.ts#isExpectedVersion
 isKnownError: dist/client/errors/registry.d.ts#isKnownError
 isLiteral: dist/procedures/ref.d.ts#isLiteral
@@ -549,6 +555,7 @@ surfaceRule: dist/server/host-policy.d.ts#surfaceRule
 takesRawInput: dist/procedures/ref.d.ts#takesRawInput
 throwProcedure: dist/procedures/core/index.d.ts#throwProcedure
 timeoutInterceptor: dist/procedures/interceptors.d.ts#timeoutInterceptor
+toEnvelopeProgram: dist/procedures/envelope.d.ts#toEnvelopeProgram
 toJson: dist/procedures/ref.d.ts#toJson
 toMs: dist/duration.d.ts#toMs
 tokenMatches: dist/server/procedure-server.d.ts#tokenMatches
@@ -576,7 +583,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 557 names
+## ./browser (dist/browser.d.ts): 564 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -663,6 +670,10 @@ type ElicitTextField: dist/procedures/elicit.d.ts#ElicitTextField
 type ElicitUrlRequest: dist/procedures/elicit.d.ts#ElicitUrlRequest
 type ElicitValue: dist/procedures/elicit.d.ts#ElicitValue
 type ElicitationPolicy: dist/procedures/elicit.d.ts#ElicitationPolicy
+type EnvelopeLiteral: dist/procedures/envelope.d.ts#EnvelopeLiteral
+type EnvelopePath: dist/procedures/envelope.d.ts#EnvelopePath
+type EnvelopeProgram: dist/procedures/envelope.d.ts#EnvelopeProgram
+type EnvelopeRef: dist/procedures/envelope.d.ts#EnvelopeRef
 ErrorCategory: dist/client/errors/types.d.ts#ErrorCategory
 type ErrorCodeInfo: dist/protocol.d.ts#ErrorCodeInfo
 type ErrorContext: dist/client/errors/types.d.ts#ErrorContext
@@ -985,6 +996,7 @@ extractTemplate: dist/procedures/ref.d.ts#extractTemplate
 flattenRoute: dist/client/call-types.d.ts#flattenRoute
 formatError: dist/client/errors/factory.d.ts#formatError
 formatTraceparent: dist/tracing/traceparent.d.ts#formatTraceparent
+fromEnvelopeProgram: dist/procedures/envelope.d.ts#fromEnvelopeProgram
 fromJson: dist/procedures/ref.d.ts#fromJson
 getAllRuntimeProcedures: dist/procedures/define-procedure.d.ts#getAllRuntimeProcedures
 getErrorMetadata: dist/client/errors/registry.d.ts#getErrorMetadata
@@ -1016,6 +1028,7 @@ isControlFlowPath: dist/procedures/ref.d.ts#isControlFlowPath
 isDataDriven: dist/procedures/ref.d.ts#isDataDriven
 isDestructive: dist/procedures/capability.d.ts#isDestructive
 isDuration: dist/duration.d.ts#isDuration
+isEnvelopeProgram: dist/procedures/envelope.d.ts#isEnvelopeProgram
 isExpectedVersion: dist/procedures/collection/precondition.d.ts#isExpectedVersion
 isKnownError: dist/client/errors/registry.d.ts#isKnownError
 isLiteral: dist/procedures/ref.d.ts#isLiteral
@@ -1109,6 +1122,7 @@ surfaceRule: dist/server/host-policy.d.ts#surfaceRule
 takesRawInput: dist/procedures/ref.d.ts#takesRawInput
 throwProcedure: dist/procedures/core/index.d.ts#throwProcedure
 timeoutInterceptor: dist/procedures/interceptors.d.ts#timeoutInterceptor
+toEnvelopeProgram: dist/procedures/envelope.d.ts#toEnvelopeProgram
 toJson: dist/procedures/ref.d.ts#toJson
 toMs: dist/duration.d.ts#toMs
 tokenMatches: dist/server/procedure-server.d.ts#tokenMatches
@@ -1360,7 +1374,7 @@ throttleChannel: dist/events/bus.d.ts#throttleChannel
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
-## ./procedures (dist/procedures/index.d.ts): 314 names
+## ./procedures (dist/procedures/index.d.ts): 321 names
 
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
@@ -1414,6 +1428,10 @@ type ElicitTextField: dist/procedures/elicit.d.ts#ElicitTextField
 type ElicitUrlRequest: dist/procedures/elicit.d.ts#ElicitUrlRequest
 type ElicitValue: dist/procedures/elicit.d.ts#ElicitValue
 type ElicitationPolicy: dist/procedures/elicit.d.ts#ElicitationPolicy
+type EnvelopeLiteral: dist/procedures/envelope.d.ts#EnvelopeLiteral
+type EnvelopePath: dist/procedures/envelope.d.ts#EnvelopePath
+type EnvelopeProgram: dist/procedures/envelope.d.ts#EnvelopeProgram
+type EnvelopeRef: dist/procedures/envelope.d.ts#EnvelopeRef
 type FsRootRules: dist/procedures/types.d.ts#FsRootRules
 type HydrateOptions: dist/procedures/ref.d.ts#HydrateOptions
 type HydrationEvent: dist/procedures/ref.d.ts#HydrationEvent
@@ -1582,6 +1600,7 @@ executeRef: dist/procedures/ref.d.ts#executeRef
 explainInvocation: dist/procedures/capability.d.ts#explainInvocation
 exposedProcedures: dist/procedures/manifest.d.ts#exposedProcedures
 extractTemplate: dist/procedures/ref.d.ts#extractTemplate
+fromEnvelopeProgram: dist/procedures/envelope.d.ts#fromEnvelopeProgram
 fromJson: dist/procedures/ref.d.ts#fromJson
 getAllRuntimeProcedures: dist/procedures/define-procedure.d.ts#getAllRuntimeProcedures
 getProcedureProcedure: dist/procedures/define-procedure.d.ts#getProcedureProcedure
@@ -1599,6 +1618,7 @@ isAnyProcedureRef: dist/procedures/ref.d.ts#isAnyProcedureRef
 isControlFlowPath: dist/procedures/ref.d.ts#isControlFlowPath
 isDataDriven: dist/procedures/ref.d.ts#isDataDriven
 isDestructive: dist/procedures/capability.d.ts#isDestructive
+isEnvelopeProgram: dist/procedures/envelope.d.ts#isEnvelopeProgram
 isExpectedVersion: dist/procedures/collection/precondition.d.ts#isExpectedVersion
 isLiteral: dist/procedures/ref.d.ts#isLiteral
 isOpenWorld: dist/procedures/capability.d.ts#isOpenWorld
@@ -1657,6 +1677,7 @@ shouldExecuteRef: dist/procedures/ref.d.ts#shouldExecuteRef
 stringifyProcedureJson: dist/procedures/ref.d.ts#stringifyProcedureJson
 takesRawInput: dist/procedures/ref.d.ts#takesRawInput
 throwProcedure: dist/procedures/core/index.d.ts#throwProcedure
+toEnvelopeProgram: dist/procedures/envelope.d.ts#toEnvelopeProgram
 toJson: dist/procedures/ref.d.ts#toJson
 toolHintOverrideOf: dist/procedures/hints.d.ts#toolHintOverrideOf
 toolHintOverrideRefusal: dist/procedures/hints.d.ts#toolHintOverrideRefusal
@@ -2441,8 +2462,8 @@ export declare class Client<TContext = {}> {
     withContext<TAdditional extends object = {}>(context: TAdditional & ClientContextInput<TContext>): Client<TContext & TAdditional>;
     use<TProvides = {}, TRequires extends TContext = TContext>(middleware: TypedClientMiddleware<TProvides, TRequires> | ClientMiddleware): Client<TContext & TProvides>;
     call<TReq, TRes>(method: Method, payload: TReq, options?: CallOptions<TContext> | Metadata): Promise<TRes>;
-    exec<TOutput = unknown>(refOrPath: AnyProcedureRef | ProcedurePath, input?: unknown, options?: ExecOptions): Promise<TOutput>;
-    execStream<TOutput = unknown>(refOrPath: AnyProcedureRef | ProcedurePath, input?: unknown, options?: ExecOptions): AsyncIterable<TOutput>;
+    exec<TOutput = unknown>(refOrPath: AnyProcedureRef | ProcedurePath | EnvelopeProgram, input?: unknown, options?: ExecOptions): Promise<TOutput>;
+    execStream<TOutput = unknown>(refOrPath: AnyProcedureRef | ProcedurePath | EnvelopeProgram, input?: unknown, options?: ExecOptions): AsyncIterable<TOutput>;
     stream<TReq, TRes>(method: Method, payload: TReq, options?: CallOptions<TContext> | Metadata): AsyncIterable<TRes>;
     subscribe<T = unknown>(topics: string | readonly string[], handler: RemoteEventHandler<T>, options?: SubscribeOptions): Subscription;
     events<T = unknown>(topics: string | readonly string[], options?: RemoteEventsOptions): AsyncIterable<RemoteEvent<T>>;
@@ -4370,6 +4391,38 @@ export declare function elicitWithPolicy(face: Elicit | undefined, policy?: Elic
 ### dist/procedures/elicit.d.ts#operatorAnswer
 export declare function operatorAnswer(request: ElicitRequest, consent: boolean | readonly string[] | undefined): ElicitResult | undefined;
 
+### dist/procedures/envelope.d.ts#EnvelopeLiteral
+export interface EnvelopeLiteral {
+    readonly type: "literal";
+    readonly value: unknown;
+}
+
+### dist/procedures/envelope.d.ts#EnvelopePath
+export type EnvelopePath = readonly (string | number)[];
+
+### dist/procedures/envelope.d.ts#EnvelopeProgram
+export interface EnvelopeProgram {
+    readonly type: readonly string[] | EnvelopeRef;
+    readonly value: unknown;
+    readonly name?: string | undefined;
+    readonly own?: unknown;
+}
+
+### dist/procedures/envelope.d.ts#EnvelopeRef
+export interface EnvelopeRef {
+    readonly type: "ref";
+    readonly value: EnvelopePath;
+}
+
+### dist/procedures/envelope.d.ts#fromEnvelopeProgram
+export declare function fromEnvelopeProgram(program: EnvelopeProgram): ProcedureRefJson;
+
+### dist/procedures/envelope.d.ts#isEnvelopeProgram
+export declare function isEnvelopeProgram(value: unknown): value is EnvelopeProgram;
+
+### dist/procedures/envelope.d.ts#toEnvelopeProgram
+export declare function toEnvelopeProgram(program: AnyProcedureRef): EnvelopeProgram;
+
 ### dist/procedures/hints.d.ts#ToolHintOverride
 export interface ToolHintOverride {
     readonly readOnlyHint?: false | undefined;
@@ -5537,6 +5590,7 @@ export declare class ProcedureServer extends Server implements RepositoryProvide
     get callsInFlight(): number;
     get stopping(): boolean;
     admits(credentials: Credentials): Promise<boolean>;
+    identify(credentials: Credentials): Promise<Principal | undefined>;
     registerCollectionProcedures(collectionName: string, options?: CollectionProceduresOptions): void;
     get procedureCount(): number;
     getRegistry(): ProcedureRegistry;
@@ -5719,6 +5773,7 @@ export type PrincipalOf = (credentials: Credentials, request: ServerRequest<unkn
 export interface RequestHandler {
     handle(request: ServerRequest): Promise<ServerResponse>;
     readonly ambientCredentials?: AmbientCredentials | undefined;
+    identify?(credentials: Credentials): Promise<Principal | undefined>;
 }
 
 ### dist/server/types.d.ts#RequestIdentity

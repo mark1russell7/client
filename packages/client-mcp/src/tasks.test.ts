@@ -1,17 +1,20 @@
 /**
  * MCP tasks (CLI-35): a procedure with `metadata.taskSupport` runs as a task when the host has a
  * task store and the client asks for a task. The tests use the client of the MCP SDK over the
- * in-memory transport.
+ * in-memory transport, and over Streamable HTTP for the principal of the fair share (CLI-69).
  */
 
 import { describe, it, expect, afterEach, vi } from "vitest";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { z } from "zod";
 import { Client as McpClient } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { CallToolResultSchema, CreateTaskResultSchema, ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
-import { createProcedure, defineModule, type AnyProcedure, type ProcedureContext } from "@procedures/client";
-import { createMcpHost, type McpHostOptions } from "./host.js";
-import { MCP_TASK_LIMITS, McpTaskStore } from "./tasks.js";
+import { createProcedure, defineModule, type AnyProcedure, type Clock, type ProcedureContext } from "@procedures/client";
+import { createMcpHost, type McpHost, type McpHostOptions } from "./host.js";
+import { MCP_TASK_LIMITS, McpTaskStore, mcpTaskShareKey, type McpTaskCaller, type McpTaskShareContext } from "./tasks.js";
 
 const NONE = { reads: [], writes: [] };
 
@@ -321,7 +324,8 @@ describe("McpTaskStore", () => {
 
   it("keeps at most 1000 tasks for all the sessions: a new session gets an error, and the store keeps nothing of it (CLI-51)", async () => {
     expect(MCP_TASK_LIMITS.maxStored).toBe(1000);
-    const store = new McpTaskStore();
+    // Without the fair share (CLI-69), ten sessions take the whole store
+    const store = new McpTaskStore({ reserve: 0 });
     const sessions = MCP_TASK_LIMITS.maxStored / MCP_TASK_LIMITS.maxStoredPerSession;
     const oldest: string[] = [];
     for (let session = 0; session < sessions; session++) {
@@ -385,5 +389,265 @@ describe("McpTaskStore", () => {
 
   it("gives an aborted signal for a task that it does not know", () => {
     expect(new McpTaskStore().signal("nothing").aborted).toBe(true);
+  });
+});
+
+/** A clock that moves only when the test moves it: the tests do not wait for real time. */
+function manualClock(): Clock & { advance(ms: number): void } {
+  let now = 0;
+  const timers = new Set<{ at: number; run: () => void }>();
+  return {
+    now: () => now,
+    after(ms, run) {
+      const timer = { at: now + Math.max(0, ms), run };
+      timers.add(timer);
+      return () => {
+        timers.delete(timer);
+      };
+    },
+    advance(ms) {
+      now += ms;
+      for (const timer of [...timers].sort((first, second) => first.at - second.at)) {
+        if (timer.at > now || !timers.has(timer)) continue;
+        timers.delete(timer);
+        timer.run();
+      }
+    },
+  };
+}
+
+describe("the fair share of the task store (CLI-69)", () => {
+  const request = { method: "tools/call", params: { name: "crawl.site" } };
+  const as = (id: string): McpTaskCaller => ({ principal: { id, via: "test" } });
+  const tenSessions = Array.from({ length: 10 }, (_, index) => `a${String(index)}`);
+
+  /** The error of a promise, or undefined when it resolves. */
+  const failure = (promise: Promise<unknown>): Promise<unknown> =>
+    promise.then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+
+  /** This function expects the error of a store without room: `-32600` with the code `TASKS_FULL`. */
+  function expectTasksFull(error: unknown): void {
+    expect(error).toBeInstanceOf(McpError);
+    expect((error as McpError).code).toBe(ErrorCode.InvalidRequest);
+    expect((error as McpError).data).toEqual({ code: "TASKS_FULL" });
+  }
+
+  /** This function creates a task and ends its work, so a new task of its session can replace it. */
+  async function ended(store: McpTaskStore, sessionId: string, caller: McpTaskCaller = {}, ttl?: number) {
+    const task = await store.createTask(ttl === undefined ? {} : { ttl }, 0, request, sessionId, caller);
+    await store.storeTaskResult(task.taskId, "completed", { content: [] }, sessionId);
+    store.settle(task.taskId);
+    return task;
+  }
+
+  /** This function creates tasks of a client in its sessions in turn, until the store refuses one. The tasks do not end. */
+  async function flood(store: McpTaskStore, sessions: readonly string[], caller: McpTaskCaller = {}) {
+    const created: string[] = [];
+    for (let count = 0; count < 100; count++) {
+      const error = await failure(store.createTask({}, count, request, sessions[count % sessions.length], caller).then((task) => void created.push(task.taskId)));
+      if (error !== undefined) return { created, error };
+    }
+    return { created, error: undefined };
+  }
+
+  it("keeps one client with many sessions from the whole store: a session of another client still gets a task", async () => {
+    const store = new McpTaskStore({ maxStored: 20, reserve: 4, maxRunning: 50 });
+    // Client a has ten sessions under one principal. Its tasks run, so no task ended that a new task can replace
+    const a = await flood(store, tenSessions, as("a"));
+    expect(a.created).toHaveLength(16);
+    expectTasksFull(a.error);
+    expect((a.error as McpError).message).toMatch(/fair share/);
+    // A session of client b gets a task, and each task of client a stays
+    expect((await store.createTask({}, 0, request, "b0", as("b"))).status).toBe("working");
+    for (const id of a.created) expect(await store.getTask(id)).not.toBeNull();
+    // Client b is below its share: it takes the reserve, and gets the error only when the store is full
+    const b = await flood(store, ["b0"], as("b"));
+    expect(b.created).toHaveLength(3);
+    expectTasksFull(b.error);
+    expect((b.error as McpError).message).toMatch(/its limit of stored tasks\./);
+    await store.close();
+  });
+
+  it("lets one client take the whole store with reserve: 0, as before the fair share", async () => {
+    const store = new McpTaskStore({ maxStored: 20, reserve: 0, maxRunning: 50 });
+    const a = await flood(store, tenSessions, as("a"));
+    expect(a.created).toHaveLength(20);
+    expectTasksFull(a.error);
+    expectTasksFull(await failure(store.createTask({}, 0, request, "b0", as("b"))));
+    await store.close();
+  });
+
+  it("replaces the oldest task that ended in the session of a client with its share near the limit", async () => {
+    const store = new McpTaskStore({ maxStored: 10, reserve: 2 });
+    const first: string[] = [];
+    for (let count = 0; count < 8; count++) first.push((await ended(store, "a1", as("a"))).taskId);
+    // The store has 2 free slots, its reserve, and client a has 8 tasks, more than its share of 5
+    expect((await store.createTask({}, 8, request, "a1", as("a"))).status).toBe("working");
+    expect(await store.getTask(first[0]!, "a1")).toBeNull();
+    expect(await store.getTask(first[1]!, "a1")).not.toBeNull();
+    expect((await store.listTasks(undefined, "a1")).tasks).toHaveLength(8);
+    // Another session of client a has no task that ended: its request gets the error
+    expectTasksFull(await failure(store.createTask({}, 0, request, "a2", as("a"))));
+    // Client b is below its share
+    expect((await store.createTask({}, 0, request, "b1", as("b"))).status).toBe("working");
+    await store.close();
+  });
+
+  it("with the default reserve, the tenth of ten full sessions replaces its own tasks, and a new session still gets a task", async () => {
+    const store = new McpTaskStore();
+    const ids: string[][] = [];
+    for (let session = 0; session < 10; session++) {
+      const own: string[] = [];
+      for (let count = 0; count < MCP_TASK_LIMITS.maxStoredPerSession; count++) own.push((await ended(store, `s${String(session)}`)).taskId);
+      ids.push(own);
+    }
+    const kept = async (session: number): Promise<number> => {
+      let count = 0;
+      for (const id of ids[session]!) if (await store.getTask(id, `s${String(session)}`)) count++;
+      return count;
+    };
+    // Each session is a client without a principal. Near the limit the share of each of ten sessions is 1000 / 11
+    expect(await kept(0)).toBe(100);
+    expect(await kept(8)).toBe(100);
+    expect(await kept(9)).toBe(91);
+    expect(await store.getTask(ids[9]![8]!, "s9")).toBeNull();
+    expect(await store.getTask(ids[9]![9]!, "s9")).not.toBeNull();
+    expect((await store.createTask({}, 0, request, "new")).status).toBe("working");
+    await store.close();
+  });
+
+  it("counts the tasks with one key as one client: the share key is a function of the context", async () => {
+    const contexts: McpTaskShareContext[] = [];
+    const store = new McpTaskStore({
+      maxStored: 20,
+      reserve: 4,
+      maxRunning: 50,
+      // The client is the part of the session id before the dash: a-0, a-1 and a-2 are one client
+      shareKey: (context) => {
+        contexts.push(context);
+        return context.sessionId?.split("-")[0] ?? "local";
+      },
+    });
+    const a = await flood(store, ["a-0", "a-1", "a-2"]);
+    expect(a.created).toHaveLength(16);
+    expectTasksFull(a.error);
+    expect((await store.createTask({}, 0, request, "b-0")).status).toBe("working");
+    expect(contexts[0]).toEqual({ sessionId: "a-0", principal: undefined, request });
+    await store.close();
+  });
+
+  it("gives the default key of the principal, else of the session", () => {
+    expect(mcpTaskShareKey({ sessionId: "s1", principal: { id: "mark", via: "x-user" }, request })).toBe("principal:x-user:mark");
+    // Each caller with the token of the host has the same principal: the key of the session
+    expect(mcpTaskShareKey({ sessionId: "s1", principal: { id: "token", via: "token" }, request })).toBe("session:s1");
+    expect(mcpTaskShareKey({ sessionId: "s1", principal: undefined, request })).toBe("session:s1");
+    expect(mcpTaskShareKey({ sessionId: undefined, principal: undefined, request })).toBe("local");
+  });
+
+  it("refuses a task when the share key throws, and keeps nothing of it", async () => {
+    const store = new McpTaskStore({
+      shareKey: () => {
+        throw new Error("no key");
+      },
+    });
+    const error = await failure(store.createTask({}, 0, request, "s1"));
+    expect(error).toBeInstanceOf(McpError);
+    expect((error as McpError).code).toBe(ErrorCode.InternalError);
+    expect((await store.listTasks(undefined, "s1")).tasks).toEqual([]);
+    await store.close();
+  });
+
+  it("refuses a reserve that is not an integer from 0 to half of maxStored", () => {
+    expect(() => new McpTaskStore({ reserve: -1 })).toThrow(RangeError);
+    expect(() => new McpTaskStore({ reserve: 1.5 })).toThrow(RangeError);
+    expect(() => new McpTaskStore({ maxStored: 10, reserve: 6 })).toThrow(RangeError);
+    expect(() => new McpTaskStore({ maxStored: 10, reserve: 5 })).not.toThrow();
+    expect(() => new McpTaskStore({ maxStored: Number.POSITIVE_INFINITY, reserve: 3 })).not.toThrow();
+  });
+
+  it("refuses a client with its share until the time of its tasks ends, on the clock of the store", async () => {
+    const clock = manualClock();
+    const store = new McpTaskStore({ maxStored: 20, reserve: 4, clock });
+    // Client a has 16 tasks that ended, each in a session of its own, with a time of 1 second
+    for (let session = 0; session < 16; session++) await ended(store, `a${String(session)}`, as("a"), 1000);
+    // A new session of client a has no task that ended to replace: its request gets the error
+    expectTasksFull(await failure(store.createTask({}, 0, request, "a16", as("a"))));
+    clock.advance(999);
+    expectTasksFull(await failure(store.createTask({}, 0, request, "a16", as("a"))));
+    clock.advance(1);
+    // The time of the tasks ended: the store removed them, and client a gets a task again
+    expect((await store.createTask({}, 0, request, "a16", as("a"))).status).toBe("working");
+    await store.close();
+  });
+});
+
+describe("the fair share over Streamable HTTP (CLI-69)", () => {
+  /** This function mounts the HTTP face of a host on a listener of the test, on a free port of loopback. */
+  async function listenFor(host: McpHost): Promise<URL> {
+    const listener = createServer((req, res) => {
+      if (host.handleHttp(req, res)) return;
+      res.statusCode = 404;
+      res.end();
+    });
+    await new Promise<void>((resolve) => listener.listen(0, "127.0.0.1", resolve));
+    cleanups.push(
+      () =>
+        new Promise<void>((resolve) => {
+          listener.close(() => resolve());
+          listener.closeAllConnections();
+        }),
+    );
+    return new URL(`http://127.0.0.1:${String((listener.address() as AddressInfo).port)}/mcp`);
+  }
+
+  it("keys each task with the principal of the request hook: one client with three sessions cannot take the store", async () => {
+    const seen: Seen = { aborted: false, started: 0 };
+    const held = gate();
+    const host = createMcpHost({
+      modules: [taskModule(seen, held.wait)],
+      faces: { http: {} },
+      policy: {
+        principalOf: (credentials) => {
+          const user = credentials.headers?.["x-user"];
+          return user ? { principal: { id: user, via: "x-user" } } : undefined;
+        },
+      },
+      tasks: { maxStored: 10, reserve: 2, maxRunning: 20 },
+    });
+    await host.start();
+    cleanups.push(async () => {
+      held.open();
+      await host.stop();
+    });
+    const url = await listenFor(host);
+    const connectAs = async (user: string): Promise<McpClient> => {
+      const client = new McpClient({ name: "test", version: "0" });
+      // The SDK types do not agree with exactOptionalPropertyTypes
+      await client.connect(new StreamableHTTPClientTransport(url, { requestInit: { headers: { "x-user": user } } }) as never);
+      cleanups.push(() => client.close());
+      return client;
+    };
+    const sessions = [await connectAs("a"), await connectAs("a"), await connectAs("a")];
+    // Each task of client a waits for the gate, so no task ended that a new task can replace
+    const created: string[] = [];
+    let refused: unknown;
+    for (let count = 0; count < 12 && refused === undefined; count++) {
+      await startTask(sessions[count % sessions.length]!, "crawl.wait").then(
+        (task) => void created.push(task.taskId),
+        (error: unknown) => {
+          refused = error;
+        },
+      );
+    }
+    expect(created).toHaveLength(8);
+    expect(refused).toBeInstanceOf(McpError);
+    expect((refused as McpError).message).toMatch(/fair share/);
+    expect((refused as McpError).data).toEqual({ code: "TASKS_FULL" });
+    // A session of client b gets a task that runs
+    const other = await connectAs("b");
+    expect((await startTask(other, "crawl.wait")).status).toBe("working");
   });
 });
