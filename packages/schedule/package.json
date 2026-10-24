@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/schedule",
-  "version": "0.22.1",
+  "version": "0.23.0",
   "description": "A cron for stored programs: schedules as procedures, and a scheduler that a host starts, with an injectable clock and no overlapping runs.",
   "keywords": [
     "procedures",

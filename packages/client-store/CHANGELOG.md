@@ -1,5 +1,14 @@
 # @procedures/store
 
+## 0.23.0
+
+### Patch Changes
+
+- Updated dependencies [f20beb1]
+- Updated dependencies [71091a5]
+  - @procedures/client@0.23.0
+  - @procedures/collections@0.23.0
+
 ## 0.22.1
 
 ### Patch Changes
