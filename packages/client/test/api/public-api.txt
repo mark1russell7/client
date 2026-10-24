@@ -5771,6 +5771,7 @@ export declare class ProcedureServer extends Server implements RepositoryProvide
     get callsInFlight(): number;
     get stopping(): boolean;
     admits(credentials: Credentials): Promise<boolean>;
+    identify(credentials: Credentials): Promise<Principal | undefined>;
     registerCollectionProcedures(collectionName: string, options?: CollectionProceduresOptions): void;
     get procedureCount(): number;
     getRegistry(): ProcedureRegistry;
@@ -5953,6 +5954,7 @@ export type PrincipalOf = (credentials: Credentials, request: ServerRequest<unkn
 export interface RequestHandler {
     handle(request: ServerRequest): Promise<ServerResponse>;
     readonly ambientCredentials?: AmbientCredentials | undefined;
+    identify?(credentials: Credentials): Promise<Principal | undefined>;
 }
 
 ### dist/server/types.d.ts#RequestIdentity

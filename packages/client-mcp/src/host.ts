@@ -158,8 +158,9 @@ export interface McpHostOptions {
   debug?: boolean | undefined;
   /**
    * MCP tasks (CLI-35): a store, or the options of a new store (`maxRunning`, the default 8,
-   * `maxStored`, the default 1000, and `ttl`). Each face shares the store. Without it, the host
-   * has no tasks.
+   * `maxStored`, the default 1000, `reserve` and `shareKey` of the fair share, the default 100
+   * and the principal else the session, `ttl` and `clock`). Each face shares the store. Without
+   * it, the host has no tasks.
    */
   tasks?: McpTasksOptions | undefined;
 }
