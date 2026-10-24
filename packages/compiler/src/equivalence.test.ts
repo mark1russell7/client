@@ -18,23 +18,23 @@ async function agree(harness: Harness, program: Record<string, unknown>): Promis
   expect(await harness.runText(compiled.body)).toEqual(interpreted);
 }
 
-/**
- * The time limit of a property test: hundreds of programs, each run three ways and checked. The
- * names pass of the check and the run of the kernel take time, and the runners of CI vary.
- */
-const PROPERTY_TIMEOUT = 30_000;
-
 const WITH_ERRORS: ProgramOptions = { depth: 4, sequentialParallel: true, store: true, missing: true };
 const LONG_RUNS: ProgramOptions = { depth: 5, sequentialParallel: true, store: true, failures: false };
 
-describe("the compiled program operates as the interpreter", () => {
+/**
+ * The time limit of each property test. Each test does a fixed number of runs. In CI, 500 long
+ * runs took up to 6.4 s, more than the default of vitest (5 s). A hang still fails at this limit.
+ */
+const PROPERTY_TIMEOUT_MS = 30_000;
+
+describe("the compiled program operates as the interpreter", { timeout: PROPERTY_TIMEOUT_MS }, () => {
   it("gives the same result or error and the same calls in the same order, also for programs with errors", async () => {
     const harness = makeHarness();
     await fc.assert(
       fc.asyncProperty(programArbitrary(WITH_ERRORS), (program) => agree(harness, program)),
       { numRuns: 600 },
     );
-  }, PROPERTY_TIMEOUT);
+  });
 
   it("gives the same result and calls for long runs (the unknown names replaced, no failing procedure)", async () => {
     const harness = makeHarness();
@@ -42,7 +42,7 @@ describe("the compiled program operates as the interpreter", () => {
       fc.asyncProperty(programArbitrary(LONG_RUNS), (program) => agree(harness, repairNames(program, harness.facts()))),
       { numRuns: 500 },
     );
-  }, PROPERTY_TIMEOUT);
+  });
 
   it("gives the same result as the body of a defined procedure (mode body)", async () => {
     const harness = makeHarness();
@@ -58,7 +58,7 @@ describe("the compiled program operates as the interpreter", () => {
       }),
       { numRuns: 200 },
     );
-  }, PROPERTY_TIMEOUT);
+  });
 
   it("gives the same result and the same calls with unbounded parallel tasks (the calls of different tasks can interleave)", async () => {
     const harness = makeHarness();
@@ -73,7 +73,7 @@ describe("the compiled program operates as the interpreter", () => {
       }),
       { numRuns: 200 },
     );
-  }, PROPERTY_TIMEOUT);
+  });
 
   it("gives the same result with the fold pass (only core calls fold, so the test calls stay)", async () => {
     const harness = makeHarness();
@@ -87,7 +87,7 @@ describe("the compiled program operates as the interpreter", () => {
       }),
       { numRuns: 200 },
     );
-  }, PROPERTY_TIMEOUT);
+  });
 
   it("gives the same result for client.exec(program, input): the interpreter runs the changed program", async () => {
     const harness = makeHarness();
@@ -100,10 +100,10 @@ describe("the compiled program operates as the interpreter", () => {
       }),
       { numRuns: 100 },
     );
-  }, PROPERTY_TIMEOUT);
+  });
 });
 
-describe("the inferred effects contain the observed effects", () => {
+describe("the inferred effects contain the observed effects", { timeout: PROPERTY_TIMEOUT_MS }, () => {
   it("each run reads and writes only what the effects allow, and a run without a failure has the must effects", async () => {
     const harness = makeHarness();
     await fc.assert(
@@ -127,5 +127,5 @@ describe("the inferred effects contain the observed effects", () => {
       }),
       { numRuns: 400 },
     );
-  }, PROPERTY_TIMEOUT);
+  });
 });

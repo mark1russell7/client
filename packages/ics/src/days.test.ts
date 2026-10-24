@@ -10,6 +10,12 @@ import { localDate, zonedOffset } from "./zone.js";
 
 const NY = "America/New_York";
 
+/**
+ * The time limit of the test that compares each quarter hour of a year. The work of the test is
+ * fixed: in CI, it took up to 4.5 s, near the default of vitest (5 s).
+ */
+const YEAR_SCAN_TIMEOUT_MS = 30_000;
+
 describe("localDate", () => {
   it("gives the date of an instant in a zone, from a text, a number or a Date", () => {
     expect(localDate("2026-10-17T03:00:00Z", NY)).toBe("2026-10-16");
@@ -44,7 +50,7 @@ describe("localDate", () => {
     expect(localDate("2026-10-17T18:15:00Z", "Asia/Kathmandu")).toBe("2026-10-18");
   });
 
-  it("gives the result of the en-CA format of Intl at each quarter hour of a year", () => {
+  it("gives the result of the en-CA format of Intl at each quarter hour of a year", { timeout: YEAR_SCAN_TIMEOUT_MS }, () => {
     for (const zone of [NY, "Europe/Berlin", "Australia/Lord_Howe", "Pacific/Kiritimati"]) {
       const format = new Intl.DateTimeFormat("en-CA", { timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit" });
       for (let time = Date.UTC(2026, 0, 1); time < Date.UTC(2027, 0, 1); time += 900_000) {
