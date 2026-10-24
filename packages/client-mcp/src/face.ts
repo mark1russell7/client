@@ -8,7 +8,8 @@
  *
  * - The tools are the procedures of the registry of the host that its policy exposes.
  * - Without a token of its own, the face takes the token of the policy. Without origins of its
- *   own, it takes the permitted origins of the policy.
+ *   own, it takes the permitted origins of the policy. The token of the face is deprecated
+ *   (CLI-2b): give the token only in the policy. Refer to `McpFaceOptions.token`.
  * - With `narrowing`, each call of the face has a narrower capability (CLI-43). Refer to
  *   `McpFaceOptions.narrowing`.
  * - The types are structural: this package does not depend on `@procedures/peer`.
@@ -35,7 +36,12 @@ import type { McpServerTransportOptions } from "./types.js";
 export interface McpFaceOptions extends Omit<McpServerTransportOptions, "transport" | "httpOptions" | "sdkTransport" | "stdio" | "sseOptions" | "registry"> {
   /** The path of the endpoint. The default is `/mcp`. */
   readonly path?: string | undefined;
-  /** The token that each request sends as `Authorization: Bearer <token>`. The default is the token of the policy. */
+  /**
+   * The token that each request sends as `Authorization: Bearer <token>`. The default is the token of the policy.
+   * @deprecated Give the token only in the policy of the host: `hostPolicy({ token })`. The server
+   * of the host checks it for each request (CLI-2b). From the next MINOR, the face has no token
+   * of its own, and `mcpFace()` throws an error for a token that is not the token of the policy.
+   */
   readonly token?: string | undefined;
   /** The browser origins that can call the endpoint, besides loopback origins. The default is the list of the policy. */
   readonly allowedOrigins?: string[] | undefined;

@@ -7,7 +7,9 @@
  * - The checks of a web browser (`checkBrowserRequest` of the core): a request on a loopback
  *   address names a loopback host or an allowed host (DNS rebinding), and an `Origin` header names
  *   the server or a permitted origin. A request with cookies needs a named origin (CSRF).
- * - The bearer token, with `tokenMatches` of the core: its time does not tell the token.
+ * - The bearer token, with `tokenMatches` of the core: its time does not tell the token. This
+ *   check is deprecated (CLI-2b): the token check of the server is the one check of the
+ *   credentials. From the next MINOR, `guardMcpRequest` does only the browser checks.
  *
  * The other guards of the face:
  *
@@ -46,7 +48,12 @@ export const MCP_HTTP_LIMITS: {
 
 /** The options of `guardMcpRequest`. */
 export interface McpRequestGuardOptions {
-  /** The token that each request sends as `Authorization: Bearer <token>`. Without it, the face checks no token. */
+  /**
+   * The token that each request sends as `Authorization: Bearer <token>`. Without it, the face checks no token.
+   * @deprecated Give the token to the server, and let the server check the credentials of each
+   * request (CLI-2b). From the next MINOR, the option is removed, a `token` option throws an
+   * error, and the owner of a listener admits each request with `admission()` of the server.
+   */
   readonly token?: string | undefined;
   /** The browser origins that can call the face, besides its own origin. */
   readonly allowedOrigins?: BrowserGuardOptions["allowedOrigins"];
@@ -69,7 +76,13 @@ export type McpGuardResult =
       readonly headers?: Readonly<Record<string, string>> | undefined;
     };
 
-/** The checks of a request to the MCP endpoint: the browser checks, then the token. */
+/**
+ * The checks of a request to the MCP endpoint: the browser checks, then the token.
+ *
+ * Deprecated (CLI-2b): the token check of this function. The browser checks stay. Give the token
+ * to the server: the token check of the server is the one check of the credentials. From the
+ * next MINOR, this function does only the browser checks, and a `token` option throws an error.
+ */
 export function guardMcpRequest(req: Pick<IncomingMessage, "method" | "headers" | "socket">, options: McpRequestGuardOptions = {}): McpGuardResult {
   const browser: BrowserGuardOptions = {
     ...(options.allowedOrigins !== undefined ? { allowedOrigins: options.allowedOrigins } : {}),

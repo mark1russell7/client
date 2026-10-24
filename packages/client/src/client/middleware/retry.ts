@@ -280,7 +280,9 @@ export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMi
           // The items pass through as they arrive (BUGS-2026-07 M2: before, the middleware
           // collected the whole stream first). A retry is possible only while no item has
           // reached the reader: the first item is a retryable error, or the attempt throws
-          // before its first item. After that, a retry would repeat items.
+          // before its first item. After that, a retry would repeat items. The server gives an error
+          // without a flag before the first item the flag of its code, so a stream that fails with
+          // UNAVAILABLE before its first item goes again (CLI-68).
           let started = false;
           let lastItem: ResponseItem<TRes> | undefined;
           let retryItem: ResponseItem<TRes> | undefined;

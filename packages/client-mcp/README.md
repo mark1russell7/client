@@ -104,7 +104,7 @@ Each face is one `McpServerTransport` on the server of the host. A host can have
 |---|---|
 | `stdio: true` | The standard input and output. Over stdio, `console.log` writes to stderr from `start()` on, because stdout carries the protocol. |
 | `stdio: { stdin, stdout, stopOnEnd, redirectConsole }` | Other streams, for a test or an embedding. With `stopOnEnd: true` (the default), the host stops when the input ends. |
-| `http: { path, token, allowedOrigins, allowedHosts, maxSessions, maxBodyBytes }` | Streamable HTTP on a listener of the app. Mount `host.handleHttp` on the listener. Without a token, the face takes the token of the policy. |
+| `http: { path, token, allowedOrigins, allowedHosts, maxSessions, maxBodyBytes }` | Streamable HTTP on a listener of the app. Mount `host.handleHttp` on the listener. Without a token, the face takes the token of the policy. The `token` of the face is deprecated: give it in `policy.token`. |
 | `sdk` | One or more MCP SDK transports, for example the `InMemoryTransport` of a test. |
 
 When the client closes the input of stdio, the host stops, and `closed` resolves.
@@ -115,10 +115,22 @@ The Streamable HTTP face checks each request with `guardMcpRequest` before the r
 
 - A request on a loopback address must name a loopback host, or a host of `allowedHosts` (the default is `browser.allowedHosts` of the policy), in its `Host` header. Thus DNS rebinding cannot reach the tools. An `Origin` header must name the server or a permitted origin.
 - With a token, each request sends `Authorization: Bearer <token>`. The scheme has any case, for example `bearer` (RFC 7235). The check is `tokenMatches` of the core: its time does not tell the token. A request without the token gets 401 with a `WWW-Authenticate` header.
+- Deprecated (CLI-2b): the token check of the face and of `guardMcpRequest`. Give the token to the server: `policy.token` of `createMcpHost()`, `hostPolicy({ token })` or `new ProcedureServer({ token })`. The server checks it for each request. Refer to [Deprecated token options](#deprecated-token-options).
 - Only an `initialize` request starts a session. Thus a stray POST makes no MCP server. The body of each request has a limit of 4 MiB (`maxBodyBytes`).
 - The face keeps at most 256 sessions by default (`maxSessions`, CLI-51). A new session above the limit closes the session that was idle longest: no task in progress and no open response (a call or a GET stream). When each session is busy, the new session gets 503 with a `Retry-After` header. A client that sends to a closed session gets 404, and a client of the MCP specification then sends a new `initialize`.
 - Each live client of the MCP SDK keeps its GET stream open. Thus the limit does not close the session of a live client, and 256 is much more than the clients of one host. To serve more clients, give a larger `maxSessions`. `maxSessions: Infinity` turns the limit off.
 - `assertLoopbackBind(host, allowRemote)` refuses a listener on an address that is not loopback, unless `allowRemote` is true.
+
+### Deprecated token options
+
+The token options of the MCP face are deprecated (CLI-2b, decision D13). This release changes no behavior. From the next MINOR, the server of the face checks the credentials of each request one time. The face then has no token check of its own.
+
+| Option | From the next MINOR | Replacement |
+|---|---|---|
+| `faces.http.token` of `createMcpHost()` | It becomes the token of the policy. A different token in the policy throws an error. | `policy.token` |
+| `httpOptions.token` of `McpServerTransport` | `start()` throws an error. | `new ProcedureServer({ token })` |
+| `token` of `mcpFace()` | A token that is not the token of the policy throws an error. | `hostPolicy({ token })` |
+| `token` of `guardMcpRequest` | The option is removed, and a `token` option throws an error. The function does only the browser checks. | The token check of the server, and `admission()` of the server for each request |
 
 ## A host under the runner
 
@@ -365,7 +377,7 @@ const faces = {
 | Option | Default | Function |
 |---|---|---|
 | `path` | `/mcp` | The path of the endpoint. |
-| `token` | the token of the policy | The token that each request sends as `Authorization: Bearer <token>`. |
+| `token` | the token of the policy | The token that each request sends as `Authorization: Bearer <token>`. Deprecated: give the token only in `hostPolicy({ token })`. Refer to [Deprecated token options](#deprecated-token-options). |
 | `allowedOrigins` | the origins of the policy | The browser origins that can send requests to the endpoint. |
 | `narrowing` | none | A narrower capability for each call of the face, as a `CapabilityRequest` or a list of them. |
 

@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 597 names
+## . (dist/index.d.ts): 598 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -560,6 +560,7 @@ replayTransitions: dist/machines.d.ts#replayTransitions
 requestCredentials: dist/server/request-auth.d.ts#requestCredentials
 resolveOutputRef: dist/procedures/ref.d.ts#resolveOutputRef
 restfulHttpMethodStrategy: dist/adapters/http/shared/strategies.d.ts#restfulHttpMethodStrategy
+retryableOf: dist/protocol.d.ts#retryableOf
 rpcServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#rpcServerUrlStrategy
 runDocument: dist/procedures/program.d.ts#runDocument
 runProgram: dist/procedures/program.d.ts#runProgram
@@ -604,7 +605,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 585 names
+## ./browser (dist/browser.d.ts): 586 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -1149,6 +1150,7 @@ replayTransitions: dist/machines.d.ts#replayTransitions
 requestCredentials: dist/server/request-auth.d.ts#requestCredentials
 resolveOutputRef: dist/procedures/ref.d.ts#resolveOutputRef
 restfulHttpMethodStrategy: dist/adapters/http/shared/strategies.d.ts#restfulHttpMethodStrategy
+retryableOf: dist/protocol.d.ts#retryableOf
 runDocument: dist/procedures/program.d.ts#runDocument
 runProgram: dist/procedures/program.d.ts#runProgram
 runtimeProgramOf: dist/procedures/define-procedure.d.ts#runtimeProgramOf
@@ -1988,7 +1990,7 @@ export interface NdjsonError {
 export interface WriteNdjsonStreamOptions {
     readonly signal?: AbortSignal | undefined;
     readonly keepAlive?: Duration | false | undefined;
-    readonly errorOf?: ((error: unknown) => NdjsonError) | undefined;
+    readonly errorOf?: ((error: unknown, items: number) => NdjsonError) | undefined;
     readonly clock?: Clock | undefined;
 }
 
@@ -4517,6 +4519,7 @@ export declare class IdempotencyCache<T> {
         result: Promise<T>;
         first: boolean;
     };
+    forget(key: string, result: Promise<T>): void;
 }
 
 ### dist/procedures/idempotency.d.ts#IdempotencyOptions
@@ -5580,6 +5583,9 @@ export declare function isProtocolErrorCode(code: unknown): code is ProtocolErro
 
 ### dist/protocol.d.ts#protocolVersionOf
 export declare function protocolVersionOf(value: unknown): number | undefined;
+
+### dist/protocol.d.ts#retryableOf
+export declare function retryableOf(error: unknown, items: number): boolean;
 
 ### dist/server/browser-guard.d.ts#BrowserGuardOptions
 export interface BrowserGuardOptions {

@@ -1,8 +1,8 @@
 # @procedures/signaldb
 
-`SignalDbStorage` is a `CollectionStorage` over the [SignalDB](https://signaldb.js.org) collection of an app (roadmap CLI-23). The collection is then the local copy of a `HybridStorage`. The app keeps its cursors, its selectors and its reactivity, and the `HybridStorage` does the sync.
+[![npm](https://img.shields.io/npm/v/@procedures/signaldb?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/signaldb)
 
-The package is not on npm yet. In this repository, a package uses it with `workspace:*`.
+`SignalDbStorage` is a `CollectionStorage` over the [SignalDB](https://signaldb.js.org) collection of an app (roadmap CLI-23). The collection is then the local copy of a `HybridStorage`. The app keeps its cursors, its selectors and its reactivity, and the `HybridStorage` does the sync.
 
 ```sh
 npm install @procedures/signaldb @procedures/store @signaldb/core
