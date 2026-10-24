@@ -364,6 +364,9 @@ interface RetryOptions {
 }
 
 // A Retry-After of the server makes the delay at least that long.
+// A stream goes again only while no item reached the reader: its first item is a retryable error.
+// A stream that fails before its first item with an error without a flag gets the flag of its code,
+// so UNAVAILABLE goes again (CLI-68). A handler gives retryable: false to stop that.
 // The overrides of one call, in its context or as route() overrides (maxAttempts counts the tries)
 client.withContext({ retry: { maxAttempts: 5, delay: ms(200), backoffMultiplier: 3, maxDelay: seconds(2), idempotent: true } });
 ```
@@ -644,6 +647,8 @@ createServer((req, res) => {
   });
 }).listen(3000);
 ```
+
+`errorOf` also gets the count of the item lines before the error. The default gives an error without a flag the flag of its code before the first item, and `false` after it (CLI-68).
 
 The promise of `writeNdjsonStream` resolves when the response ends. A closed connection or an abort of `signal` stops the stream, and the iterator of the items gets `return()`.
 
