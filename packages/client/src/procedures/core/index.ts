@@ -248,10 +248,9 @@ interface ParallelInput {
   /**
    * Whether to fail fast on first error (default: false).
    *
-   * @deprecated The behavior after the first error, from the next MINOR (D26). At this time,
-   * the other tasks go on in the background to their end. From the next MINOR, they stop at
-   * their next wait, and their later calls do not start. When those calls must start, wait for
-   * the tasks yourself, or do not use `failFast`.
+   * Deprecated behavior (D26): after the first error, the other tasks go on in the background to
+   * their end. From the next MINOR, they stop at their next wait, and their later calls do not
+   * start. When those calls must start, wait for the tasks yourself, or do not use `failFast`.
    */
   failFast?: boolean;
 }
@@ -264,9 +263,8 @@ interface ParallelOutput {
   /**
    * Errors from failed tasks.
    *
-   * @deprecated The error text of a task that throws `undefined`, from the next MINOR (D26). At
-   * this time, it is `"undefined"`. From the next MINOR, it is the reason of the kernel. Throw an
-   * `Error`.
+   * Deprecated behavior (D26): the error text of a task that throws `undefined` is `"undefined"`.
+   * From the next MINOR, it is the reason of the kernel. Throw an `Error`.
    */
   errors: Array<{ index: number; error: string }>;
 }
@@ -768,9 +766,8 @@ interface TryCatchOutput {
   /**
    * Error if failed.
    *
-   * @deprecated The error text of a `try` that throws `undefined`, from the next MINOR (D26). At
-   * this time, it is `"undefined"`. From the next MINOR, it is the reason of the kernel. Throw an
-   * `Error`.
+   * Deprecated behavior (D26): the error text of a `try` that throws `undefined` is `"undefined"`.
+   * From the next MINOR, it is the reason of the kernel. Throw an `Error`.
    */
   error?: string;
 }

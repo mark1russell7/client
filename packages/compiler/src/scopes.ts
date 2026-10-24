@@ -26,10 +26,10 @@ type Env = readonly Frame[] | undefined;
 /**
  * This function resolves the references of the IR and gives the diagnostics of the names.
  *
- * @deprecated The order of the diagnostics, from the next MINOR (D26). At this time, they come
- * in the order of the program tree. From the next MINOR, the warnings for the raw input come
- * first, and then the diagnostics of the names. The function, the codes and the messages stay.
- * Sort the diagnostics by `pointer` when the order matters.
+ * Deprecated behavior (D26): the diagnostics come in the order of the program tree. From the next
+ * MINOR, the warnings for the raw input come first, and then the diagnostics of the names. The
+ * function, the codes and the messages stay. Sort the diagnostics by `pointer` when the order
+ * matters.
  */
 export function resolveScopes(ir: ProgramIR): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];

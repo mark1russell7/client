@@ -344,6 +344,7 @@ These behaviors are deprecated. The next MINOR (D26: the programs on the kernel 
 - **`HydrateOptions.parallel`.** At this time, the other refs go on in the background after the first error. From the next MINOR, they stop at their next wait. When their calls must start, give `parallel: false`.
 - **A thrown `undefined`.** At this time, the program fails with `undefined`, and the error text of `client.parallel` and `client.tryCatch` is `"undefined"`. From the next MINOR, the program fails with an `Error` that has the reason of the kernel. Throw an `Error`.
 - **The order of the diagnostics of the compiler.** At this time, `resolveScopes()` of `@procedures/compiler` gives the diagnostics in the order of the program tree. From the next MINOR, the warnings for the raw input come first, and then the diagnostics of the names. Sort the diagnostics by `pointer` when the order matters.
+- **The types `["ref"]` and `["lit"]` of the envelope form.** At this time, an array of the one key `"ref"` or `"lit"` as a type is a call of the procedure with that path. `toEnvelopeProgram()` writes this type for such a call. From the next MINOR, these arrays are the kinds `ref` and `lit` of the kernel. For a call of these procedures, write a ref into the world as the type: `{ "type": { "type": "ref", "value": ["world", "ref"] }, "value": input }`. A ref into the world stays a call, and the `$proc` form does not change.
 
 ## Appendix A: differences from the behavior before October 2026
 
