@@ -138,6 +138,15 @@ await svc.run();
 
 - **The parts.** `host.parts` are the transports: the procedure server, the stop parts of each face, and an `httpTransport` for each listener. `host.dependencies` has one dependency handle for each storage. `host.controllers` has one route pattern for each face.
 - **The faces.** `http` and `ws` are the faces of this package (`httpFace()`, `wsFace()`). `mcp` takes `mcpFace()` of `@procedures/mcp-server`. A face of another package is a function with the same shape.
+- **The local face.** `localFace()` gives a face factory and a transport of `@procedures/client` (CLI-26). A `Client` on the transport sends its calls to the host from the same process, through the request tracking of the service. Each call has `LOCAL_CREDENTIALS`, and the drain aborts its signal. The cold mode of `mark` uses it.
+
+```typescript
+const local = localFace();
+const host = createProcedureHost({ registry, faces: { local: local.face } });
+const life = await host.declare(service("tool").profile(ephemeral)).run();
+const client = new Client({ transport: local.transport });
+```
+
 - **The listeners.** The faces of a listener mount on its mount list, so they share one port. Without `listen`, the app mounts `host.handler` and `host.upgrade` on its own listener.
 - **The request tracking.** Each call goes through `life.request`, with the route `<face> <procedure>`. The function of the pattern gives the idempotency of each call: a repeatable procedure, a keyed call, or a call that runs one time (decision D3).
 - **The readiness of the calls.** The option `controller.requires` names the dependencies of the service that each call needs. While a check of one of them fails readiness, the service refuses each call with `UNAVAILABLE` (CLI-45).
