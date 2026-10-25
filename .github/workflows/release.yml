@@ -7,15 +7,41 @@ name: Release
 # Without it, start `pnpm changeset version` locally, commit the result, and then start this
 # workflow to publish.
 #
+# The jobs follow the security pattern of the release of mark1russell7/template (its CI.md):
+#
+#   build           Stops when the commit has no green CI run or is not on main. Installs, builds
+#                   and does the checks. When changesets wait, it opens or updates the version pull
+#                   request, and the run stops there. Else scripts/publish-ci.mjs packs each version
+#                   that is not on npm (the artifact "release") and writes the plan of the GitHub
+#                   releases (the artifact "tags"). This job runs the code of this repository, so it
+#                   gets no OIDC token. "contents: write" and "pull-requests: write" are only for
+#                   the version pull request.
+#   publish         The npm-publish action of the template publishes each tarball whose version npm
+#                   does not have. Only this job holds "id-token: write". It runs no code of this
+#                   repository: no checkout, no install, no package scripts.
+#   github-release  reusable-release-tag.yml of the template makes the tag <name>@<version> and a
+#                   GitHub release for each version, with its CHANGELOG.md section as the text. It
+#                   holds "contents: write" and runs no code of this repository.
+#   latest          Makes the release of @procedures/client the latest one. It holds
+#                   "contents: write" and runs no code of this repository.
+#
 # The owner starts it by hand (workflow_dispatch): that start is the approval. npm trusts this
 # workflow for each package (trusted publishing with OIDC, no token): node scripts/npm-bootstrap.mjs --trust
 # packages/documentation/RELEASE.md tells the one-time bootstrap and the release steps.
 #
-# The trusted publishers name no GitHub environment, and the job runs in none. This repository has
+# The publish job stays in this file, and only its steps are shared (a composite action). The
+# trusted publisher of each package names this repository and the workflow file release.yml. A
+# composite action runs in the job that uses it, so the OIDC token still names this file. A shared
+# workflow of a different repository can change what npm sees (CI.md of the template).
+#
+# The trusted publishers name no GitHub environment, and the publish job runs in none. This repository has
 # the immutable OIDC subject of GitHub, and on 2026-10-16 npm refused the exchange of a trusted
 # publisher with the environment "npm" ("package not found", npm/cli#9969). The systems repository
 # has the same subject and publishes without an environment. If the exchange fails again, the owner
 # publishes from a computer: node scripts/npm-bootstrap.mjs --publish
+#
+# The release session moves the pins of the template (mark1russell7/template/...@<commit> # main).
+# Renovate does not change this file (renovate/base.json of the template).
 on:
   workflow_dispatch:
 
@@ -26,17 +52,23 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
+  build:
+    name: Check, version or pack
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       # The CI run of the commit (the first step)
       actions: read
-      # The version pull request: a branch and a pull request
+      # The version pull request: a branch and a pull request. No id-token: this job runs the code of this repository.
       contents: write
       pull-requests: write
-      # npm trusted publishing (OIDC) and provenance
-      id-token: write
+    outputs:
+      # version: changesets wait, and the job opened or updated the version pull request.
+      # publish: packages.txt names the versions to publish. none: npm has each version.
+      mode: ${{ steps.changesets.outputs.has-changesets == 'true' && 'version' || steps.pack.outputs.mode }}
+      # The versions to publish, "name@version" with a space between them
+      packages: ${{ steps.pack.outputs.packages }}
+      client-version: ${{ steps.pack.outputs.client-version }}
     steps:
       # A release starts only from a commit with a green CI run: the CI workflow has the gates that
       # this workflow does not repeat (the test types, the scope, the side effects, lib audit, the
@@ -50,16 +82,37 @@ jobs:
             echo "The CI run of $GITHUB_SHA has the result '$conclusion'. Release a commit with a green CI run."
             exit 1
           fi
-      # The Changesets action pushes the version branch, so the checkout keeps its credentials.
+      # A release publishes only a commit on main (the step of reusable-release-build.yml of the
+      # template). The GitHub compare API (main...<commit>) gives "identical" for the head of main
+      # and "behind" for an older commit of main. "ahead" and "diverged" are commits that main does
+      # not have. Thus a temporary branch release/<version> at a version commit of main passes.
+      - name: The commit is on main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! status=$(gh api "repos/$GITHUB_REPOSITORY/compare/main...$GITHUB_SHA" --jq .status); then
+            echo "::error::GitHub did not compare the commit $GITHUB_SHA with main. Start the run again."
+            exit 1
+          fi
+          echo "The commit $GITHUB_SHA ($GITHUB_REF) compared with main: $status"
+          if [ "$status" != identical ] && [ "$status" != behind ]; then
+            echo "::error::A release runs only for a commit that is on main. The commit $GITHUB_SHA of $GITHUB_REF is not on main (status: $status). Merge it to main, then start the release on main."
+            exit 1
+          fi
+      # No credentials in .git/config: the code of this repository runs in this job. Version 2 of
+      # the Changesets action pushes the version commit with the GitHub API and its github-token
+      # input, not with git.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       # The pnpm version comes from "packageManager" in package.json
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      # No registry-url: with it, setup-node writes `_authToken=${NODE_AUTH_TOKEN}` to an .npmrc,
-      # and that empty token can stop the OIDC exchange. The default registry is npmjs.org.
+      # No dependency cache: the tarballs of a release come from the registry and the lockfile only.
+      # No registry-url: this job does not publish.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 26
-          cache: pnpm
+          package-manager-cache: false
       # `lib new` runs cue-config, which needs the CUE binary (the scaffold test of mark)
       # The archive must match the SHA-256 that GitHub records for the release asset (CUE publishes no checksums file)
       - name: Install CUE
@@ -77,24 +130,109 @@ jobs:
       - run: pnpm lint:ste
       # The tarballs as npm gives them. No git dependencies: npm 12 does not install them.
       - run: node scripts/check-packages.mjs
+      # Version 2 of the action: the inputs have the suffix -script, and the token is the default
+      # github-token. With changesets, it opens or updates the version pull request. Without
+      # changesets, it does nothing: it has no publish-script. The later steps pack the versions.
       - id: changesets
         uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
-        # Version 2 of the action: the inputs have the suffix -script, and the token is the default github-token.
-        # The publish: pnpm packs each package, and the npm CLI publishes it with OIDC and provenance.
-        # The publish of pnpm 12 got HTTP 404 on 2026-10-16 (scripts/publish-ci.mjs tells more).
         with:
           version-script: pnpm exec changeset version
-          publish-script: node scripts/publish-ci.mjs
           pr-title: Version the packages
           commit-message: Version the packages
-      # The action makes the GitHub releases at the same time, so any of them can become the latest
-      # one (vite on 2026-10-16). The release of @procedures/client is the latest one.
-      - name: The release of the client is the latest one
-        if: steps.changesets.outputs.published == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
+      # pnpm packs each version that is not on npm, and the script writes the plan of the GitHub
+      # releases. The npm CLI of the publish job publishes the tarballs: the publish of pnpm 12 got
+      # HTTP 404 on 2026-10-16 (scripts/publish-ci.mjs tells more).
+      - name: Pack the versions that are not on npm
+        id: pack
+        if: steps.changesets.outputs.has-changesets == 'false'
         run: |
-          version=$(node -p "require('./packages/client/package.json').version")
-          if gh release view "@procedures/client@$version" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            gh release edit "@procedures/client@$version" --repo "$GITHUB_REPOSITORY" --latest
+          node scripts/publish-ci.mjs "$RUNNER_TEMP/release" "$RUNNER_TEMP/tags.json"
+          packages=$(awk 'NF { printf "%s%s@%s", (n++ ? " " : ""), $1, $2 }' "$RUNNER_TEMP/release/packages.txt")
+          if [ -n "$packages" ]; then mode=publish; else mode=none; fi
+          {
+            echo "mode=$mode"
+            echo "packages=$packages"
+            echo "client-version=$(node -p "require('./packages/client/package.json').version")"
+          } >> "$GITHUB_OUTPUT"
+          if [ "$mode" = none ]; then
+            echo "npm has each version. The run publishes nothing." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - if: steps.pack.outputs.mode == 'publish'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release
+          path: ${{ runner.temp }}/release/
+          if-no-files-found: error
+          retention-days: 30
+      - if: steps.pack.outputs.mode == 'publish'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: tags
+          path: ${{ runner.temp }}/tags.json
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Publish to npm
+    needs: build
+    if: needs.build.outputs.mode == 'publish'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      # npm trusted publishing (OIDC) and provenance
+      id-token: write
+    outputs:
+      # The versions that this run published, "name@version" with a space between them
+      published: ${{ steps.publish.outputs.published }}
+    steps:
+      # The action of the template, pinned to a commit. It runs in this job, so the OIDC token names
+      # this repository and release.yml. It downloads the artifact "release" and publishes each
+      # tarball of packages.txt whose version npm does not have, with the npm CLI and provenance. It
+      # skips each version that is on npm, so a new start after a partial publish is safe.
+      - id: publish
+        uses: mark1russell7/template/.github/actions/npm-publish@67fb145c9cc5e30df25ed74a40a51d60c6d932d7 # main
+
+  github-release:
+    name: Git tags and GitHub releases
+    needs: [build, publish]
+    # Also after a failed publish: each version that it published before the failure gets its tag.
+    if: ${{ !cancelled() && needs.build.result == 'success' && needs.build.outputs.mode == 'publish' }}
+    # It reads the plan (the artifact "tags"). A version of this run gets its tag at the commit of
+    # the run. A version of an earlier run gets its tag only from the npm provenance statement of
+    # this repository. It skips each tag that exists. GitHub refuses (HTTP 403) a tag from the
+    # workflow token on a commit whose workflow files match no branch. Then the summary of the run
+    # has the command for the owner, or start scripts/release-tags.mjs.
+    uses: mark1russell7/template/.github/workflows/reusable-release-tag.yml@67fb145c9cc5e30df25ed74a40a51d60c6d932d7 # main
+    permissions:
+      contents: write
+    with:
+      published: ${{ needs.publish.outputs.published }}
+
+  # The plan puts @procedures/client last, but GitHub can still make a different release the
+  # latest one (vite on 2026-10-16). The release of @procedures/client is the latest one.
+  latest:
+    name: The release of the client is the latest one
+    needs: [build, github-release]
+    if: ${{ !cancelled() && needs.build.result == 'success' && needs.build.outputs.mode == 'publish' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.client-version }}
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9A-Za-z.+-]+$ ]]; then
+            echo "::error::The version \"$VERSION\" of @procedures/client is not correct."
+            exit 1
+          fi
+          tag="@procedures/client@$VERSION"
+          # GitHub never makes a prerelease the latest release
+          if [[ "${VERSION%%+*}" == *-* ]]; then
+            echo "$tag is a prerelease. No release changes."
+          elif gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --latest
+          else
+            echo "The release $tag does not exist. No release changes."
           fi

@@ -82,7 +82,7 @@ The script starts `npm trust github <package> --file release.yml --repo mark1rus
 
 ### 5. Set the repository and the packages
 
-- The release job has no GitHub environment, and the trusted publishers name none. The owner starts each run by hand, and that start is the approval. Refer to "The OIDC exchange of npm".
+- The publish job has no GitHub environment, and the trusted publishers name none. The owner starts each run by hand, and that start is the approval. Refer to "The OIDC exchange of npm".
 - The setting `Allow GitHub Actions to create and approve pull requests` is on (2026-10-17). Thus the release workflow opens the pull request "Version the packages", and nobody pushes the version commit by hand. Before 2026-10-17, the version step was a commit on `main` (ae9ed9f, 41007b6, 844a317).
 - After the first release from the workflow, set "Require two-factor authentication and disallow tokens" for each package. Start this command in a terminal. npm opens the browser for the 2FA:
 
@@ -106,11 +106,40 @@ A user who installs an old package sees "Moved to `@procedures/<name>`". The old
 1. For each change that users see, add a changeset: start `pnpm changeset` and answer the questions. Commit the file.
 2. Start `gh workflow run release.yml --repo mark1russell7/client`, or "Release" from Actions on GitHub. With changesets on `main`, the workflow opens or updates the pull request "Version the packages". It sets the new versions and writes the change logs.
 3. Merge that pull request. Wait for the green CI run of the merge on `main`. Then start the release workflow again. Without changesets, it publishes.
-4. The workflow does the checks and the strict package check. Then `scripts/publish-ci.mjs` publishes each version that is not on npm, with provenance. pnpm packs each package. The npm CLI publishes it with the OIDC token of the job.
-5. For each version that it publishes, the workflow pushes the git tag `<name>@<version>` and makes a GitHub release with the change log of that version.
+4. The workflow does the checks and the strict package check. Then `scripts/publish-ci.mjs` packs each version that is not on npm. A different job publishes the tarballs with provenance.
+5. For each version that it publishes, the workflow makes the git tag `<name>@<version>` and a GitHub release with the change log of that version.
    - If a release made no tags or no GitHub releases, start `node scripts/release-tags.mjs --commit <sha of "Version the packages">`. It makes the missing ones, and `--dry-run` tells them first. The tags and releases of 0.3.0 come from this script.
 6. If the publish stops, start the workflow again. It skips the versions that are on npm.
 7. npm shows a new version some minutes after the publish. Until then, `npm view` shows the previous version.
+
+### The jobs of the release workflow
+
+The workflow has four jobs. Only one job starts the code of this repository, and that job gets no OIDC token. The release of `mark1russell7/template` uses the same pattern.
+
+| Job | Permissions | What it does |
+|---|---|---|
+| `build` | `actions: read`, `contents: write`, `pull-requests: write` | It does the checks. Then it opens the version pull request, or it packs the versions that are not on npm. |
+| `publish` | `id-token: write` | The action `npm-publish` of the template publishes the tarballs with the npm CLI. |
+| `github-release` | `contents: write` | The workflow `reusable-release-tag.yml` of the template makes the git tags and the GitHub releases. |
+| `latest` | `contents: write` | It makes the release of `@procedures/client` the latest release. |
+
+- The job `build` installs, builds and tests the code of this repository. Its write permissions are only for the version pull request.
+- `scripts/publish-ci.mjs` writes two artifacts of the run. The artifact `release` has `packages.txt` and the tarballs. The artifact `tags` has the plan of the GitHub releases.
+- pnpm packs each package, so the tarballs have the versions of the `workspace:*` dependencies.
+- On 2026-10-16, the publish of pnpm 12 got HTTP 404 for each package. Thus the npm CLI publishes the tarballs.
+- The jobs `publish`, `github-release` and `latest` do no checkout and no install. They start only the pinned action and workflow of the template, and `gh`.
+- When npm has each version, the job `build` writes the mode `none`, and the later jobs do not start.
+- The action `npm-publish` skips each version that is on npm. Thus a second run after a partial publish is safe.
+- After a failed publish, the job `github-release` still makes the tags of the versions that the run published.
+- A version of an earlier run gets a tag only when npm has its provenance statement from this repository. The tag goes on the commit of that statement.
+
+### Only a commit on main
+
+A release publishes only a commit that is on `main`. The job `build` compares the commit of the run with `main`. The commit must be the head of `main` or an older commit of `main`.
+
+- A manual run on the branch of a pull request publishes nothing. Merge the pull request first.
+- To publish a version commit after `main` has newer commits, push the branch `release/<version>` at that commit. Then start `gh workflow run release.yml --repo mark1russell7/client --ref release/<version>`.
+- GitHub refuses a tag from the workflow (HTTP 403) when the workflow files of the commit match no branch. Then the summary of the run shows a `gh release create` command. Start it with your own token, or start `scripts/release-tags.mjs`.
 
 ### The OIDC exchange of npm
 
