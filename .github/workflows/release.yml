@@ -77,7 +77,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          conclusion=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$GITHUB_SHA" --status completed --json conclusion --jq '.[0].conclusion // "none"')
+          # Only the CI runs of main count: a branch that starts at the release commit has its own run, often cancelled.
+          conclusion=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --branch main --commit "$GITHUB_SHA" --status completed --json conclusion --jq '.[0].conclusion // "none"')
           if [ "$conclusion" != "success" ]; then
             echo "The CI run of $GITHUB_SHA has the result '$conclusion'. Release a commit with a green CI run."
             exit 1

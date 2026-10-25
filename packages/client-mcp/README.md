@@ -143,6 +143,7 @@ The server of the face checks the credentials of each request one time (CLI-2b, 
 - A host with a stdio face declares the trigger `stdin-close`. The end of the input starts the stop in stages, and the face does not stop the host by itself.
 - The HTTP face has no listener. Mount `host.handleHttp` on an `httpTransport` of `@mark1russell7/service/http`, and declare that transport on the service.
 - At the stop of the intake, the HTTP face ends the idle GET streams, as `mcpFace()` does (CLI-72). Thus the drain of the listener waits only for the calls and the tasks. Refer to [The face of a procedures host](#the-face-of-a-procedures-host).
+- The HTTP face stays on the listener through the drain, as `mcpFace()` does (CLI-74). `host.handleHttp` has `until: "close transports"`, so mount the function itself. A function that wraps it loses `until`. Then give `{ until: "close transports" }` to `mount()`.
 
 ```typescript
 import { createServer } from "node:http";
@@ -156,7 +157,8 @@ await stdioHost.declare(service("my-mcp").profile(ephemeral)).run();
 // Over Streamable HTTP: a listener of the service, and the face at /mcp on it
 const httpHost = createMcpHost({ registry, policy: { token }, faces: { http: {} } });
 const listener = httpTransport(createServer(), knobs, { listen: { port: 3003, host: "127.0.0.1" } });
-listener.mount((req, res) => httpHost.handleHttp(req, res));
+// The function has the stage of its mount: the face stays on the listener through the drain
+listener.mount(httpHost.handleHttp);
 const svc = httpHost.declare(service("my-mcp").profile(localDev));
 svc.server("my-mcp.listen", listener.knobs, listener);
 await svc.run();
@@ -400,6 +402,14 @@ The face stops with the host (CLI-72). At the stop of the intake, the face does 
 - It refuses a new session and a new GET stream with the status 503 and a `Retry-After` header. The other faces refuse new work in the same way. A POST or a DELETE of a session goes on, so a call in progress completes.
 
 Thus the drain of the listener waits only for the calls and the tasks. Before, each GET stream stayed open until the close of the face. Thus each stop with a connected client waited for the full cap of the drain.
+
+The face stays on the listener through the drain (CLI-74). Its handler has `until: "close transports"`, as a `RequestHandler` of `@mark1russell7/service/http`. Thus the listener stays open until the stage `close transports`. During the drain, the face does these steps:
+
+- It gives the answer of an elicitation, a cancel and a ping to the session. Thus a call that asks the person can complete.
+- It refuses a new session and a new GET stream with its 503. A new tool call gets `UNAVAILABLE` from the server, and its procedure does not start.
+- It ends the SSE stream of a cancelled call. The SDK sends no answer to a cancel. Before, that stream held the drain of the listener until its deadline.
+
+Each other path of the listener gets 503 with `Retry-After`, and a new connection gets an answer. The cap of the drain does not change. Before, the listener closed at the stop of the intake. Thus a call that waited for an answer of the person waited until the cooperative abort.
 
 ## The procedures of this package
 

@@ -207,7 +207,9 @@ export async function runDevToolsServer(config: McpServerConfig = loadConfig(), 
   if (config.http) {
     const address = config.http.host ?? "127.0.0.1";
     listener = httpTransport(createServer(), LISTENER_KNOBS, { listen: { port: config.http.port, host: address } });
-    listener.mount((req, res) => host.mcp.handleHttp(req, res));
+    // The handler gives the stage of its mount (CLI-74): the face stays through the drain, so a call
+    // in progress gets the answer of an elicitation and its cancel. A wrapper function loses it.
+    listener.mount(host.mcp.handleHttp);
     svc.server("mcp-dev-tools.listen", listener.knobs, listener);
   }
 

@@ -148,6 +148,8 @@ const client = new Client({ transport: local.transport });
 ```
 
 - **The listeners.** The faces of a listener mount on its mount list, so they share one port. Without `listen`, the app mounts `host.handler` and `host.upgrade` on its own listener.
+  - A face sets the stage at which its mount stops with the property `until` of its handler, as a `RequestHandler` of the service does (CLI-74). The default is `stop intake`.
+  - The MCP face stays until `close transports`. Thus the listener stays open through the drain, and a call in progress gets the answer of an elicitation and its cancel.
 - **The request tracking.** Each call goes through `life.request`, with the route `<face> <procedure>`. The function of the pattern gives the idempotency of each call: a repeatable procedure, a keyed call, or a call that runs one time (decision D3).
 - **The readiness of the calls.** The option `controller.requires` names the dependencies of the service that each call needs. While a check of one of them fails readiness, the service refuses each call with `UNAVAILABLE` (CLI-45).
 - **The streams.** Each call is a stream, and a unary call is a stream of one (decision D4). A stream stays in flight until its end. A cut after the first item ends the stream with an error line. Each cut has the code `UNAVAILABLE`, and its flag `retryable` tells if a retry is safe (CLI-48). Before the first item, the HTTP face answers 503 for a retryable cut and 500 for another cut.
@@ -159,7 +161,7 @@ const client = new Client({ transport: local.transport });
   - `GET /_probes/startup`, `/_probes/readiness` and `/_probes/liveness` answer 200, or 503 with `Retry-After`. `/_probes/readiness/<controller>` gives the readiness of one controller.
   - The probes answer each caller without the token and the browser checks. They give only the status. Each other path goes to the faces, with the token and the browser checks as before.
   - A listener does not answer the report (`/_probes/report`), because it names the checks and the dependencies. `host.health` gives the details with the token.
-  - The probes stop when the intake stops. Then the listener closes, as without the probes, and a new connection is refused. `probes: { until: "close transports" }` keeps the listener open through the drain: the probes answer 503, and each other request gets 503 with `Retry-After`.
+  - The probes stop when the intake stops. Then the listener closes, as without the probes, and a new connection is refused. `probes: { until: "close transports" }` keeps the listener open through the drain: the probes answer 503, and each other request gets 503 with `Retry-After`. A face until `close transports` keeps the listener open in the same way, for example the MCP face (CLI-74).
   - `probes: { prefix }` changes the prefix. `probes: false` turns the probes off, for example when the process has a probe server on a port of its own (`probeServer()`, or the option `probes` of `runProcedureHost()`).
   - `host.info.probes()` gives the base URL of the probes on each listener. Without `listen`, the app mounts `probeHandler()` on its own listener.
 

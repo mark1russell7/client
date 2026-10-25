@@ -46,6 +46,7 @@ import {
   type Duration,
 } from "@procedures/client";
 import { proceduresToMcpTools, type McpTool, type McpToolFilter } from "@procedures/mcp";
+import { throughTheDrain } from "./transport/http.js";
 import { McpServerTransport, distinctTools, httpEndpointOf, namedTools } from "./transport/mcp-transport.js";
 import type {
   HttpTransportOptions,
@@ -234,6 +235,11 @@ export interface McpHost {
    * This function answers a request of the Streamable HTTP face (`faces.http`) and gives true. It
    * gives false for another path, or without that face. Mount it on a listener, for example an
    * `httpTransport` of `@mark1russell7/service/http`.
+   *
+   * With the face, the function has `until` of a `RequestHandler` of the service: `close transports`
+   * (CLI-74). Thus `listener.mount(host.handleHttp)` keeps the face on the listener through the drain,
+   * and a call in progress gets the answer of an elicitation and its cancel. A function that wraps
+   * `handleHttp` loses `until`: then give `{ until: "close transports" }` to `mount()`.
    */
   handleHttp(req: IncomingMessage, res: ServerResponse): boolean;
   /** The tools of the host at this time, from the registry and the expose rule. */
@@ -421,6 +427,11 @@ export function createMcpHost(options: McpHostOptions = {}): McpHost {
   }
   for (const transport of transports) server.addTransport(transport);
 
+  // The face stays on a listener of the service through the drain (CLI-74). Without the face, the
+  // handler takes no request, so it does not keep the listener open.
+  const answer = (req: IncomingMessage, res: ServerResponse): boolean => httpFace?.handleHttp(req, res) ?? false;
+  const handleHttp = httpFace ? throughTheDrain(answer) : answer;
+
   /** This function starts the server and its faces: by `start()`, or by the part of the runner. */
   const begin = async (): Promise<void> => {
     if (stopping) throw new Error("This MCP host stopped. A host stops one time: create a new host.");
@@ -473,7 +484,7 @@ export function createMcpHost(options: McpHostOptions = {}): McpHost {
       if (stdio) svc.trigger("stdin-close");
       return svc;
     },
-    handleHttp: (req, res) => httpFace?.handleHttp(req, res) ?? false,
+    handleHttp,
     tools: () => distinctTools(namedTools(proceduresToMcpTools(registry.getAll(), toolFilter), options.toolName)),
     state: () => ({ running, faces: transports.map((transport) => transport.getState()) }),
   };

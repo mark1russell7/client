@@ -708,7 +708,7 @@ importers:
   packages/client-mcp:
     dependencies:
       '@modelcontextprotocol/sdk':
-        specifier: ^1.0.0
+        specifier: ^1.32.1
         version: 1.32.1(supports-color@7.2.0)(zod@4.6.7)
       '@procedures/mcp':
         specifier: workspace:*
@@ -914,7 +914,7 @@ importers:
         specifier: ^1.0.0
         version: 1.0.0
       '@modelcontextprotocol/sdk':
-        specifier: ^1.0.0
+        specifier: ^1.32.1
         version: 1.32.1(supports-color@7.2.0)(zod@4.6.7)
       '@procedures/better-auth':
         specifier: workspace:*

@@ -4,7 +4,8 @@
  * A face is a factory. The host gives it the handler of its calls, the server, the registry and
  * the policy. The face gives what it mounts on a listener and its stop parts:
  *
- * - `handler`: a request handler for the mount list of a listener. The first match wins.
+ * - `handler`: a request handler for the mount list of a listener. The first match wins. Its property
+ *   `until` sets the stage at which its mount stops (CLI-74).
  * - `upgrade`: an upgrade handler and the path that it takes.
  * - `parts`: a transport of the service, for a face that holds work outside its requests (the
  *   connections of WebSocket).
@@ -59,8 +60,14 @@ export interface HostFaceEndpoint {
 
 /** What a face gives the host. */
 export interface HostFace {
-  /** The request handler of the face. It gives true when it takes a request, and false for another request. */
+  /**
+   * The request handler of the face. It gives true when it takes a request, and false for another request.
+   * The property `until` of the handler, as on a `RequestHandler` of `@mark1russell7/service/http`,
+   * sets the stage at which its mount stops (CLI-74). The default is `stop intake`. The MCP face has
+   * `close transports`, so its calls in progress get the answers of their elicitations and their cancels.
+   */
   readonly handler?: ((req: IncomingMessage, res: NodeResponse) => boolean) | undefined;
+  /** The upgrade handler of the face. The property `until` of its handler sets the stage of its mount, as for `handler`. */
   readonly upgrade?: HostFaceUpgrade | undefined;
   /** The stop parts of the face: a transport of the service, with the name `<host>.<face>`. */
   readonly parts?: TransportImpl | undefined;
