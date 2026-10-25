@@ -210,7 +210,9 @@ jobs:
       # `lib new` runs cue-config, which needs the CUE binary (the scaffold test of mark)
       - name: Install CUE
         run: |
+          # The SHA-256 that GitHub records for the release asset (CUE publishes no checksums.txt for v0.15.1)
           curl -fsSL -o "$RUNNER_TEMP/cue.zip" https://github.com/cue-lang/cue/releases/download/v0.15.1/cue_v0.15.1_windows_amd64.zip
+          echo "516fa080c1af12578ff76a4165cc7bf14ad9bbe5d9724a0c07553860d038885e  $RUNNER_TEMP/cue.zip" | sha256sum -c -
           unzip -o -q "$RUNNER_TEMP/cue.zip" cue.exe -d "$RUNNER_TEMP/cue"
           echo "$RUNNER_TEMP/cue" >> "$GITHUB_PATH"
       - run: pnpm install --frozen-lockfile
