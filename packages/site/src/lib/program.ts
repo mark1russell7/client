@@ -8,6 +8,7 @@
  */
 
 import type { Field } from "../data/index.js";
+import { parseJson } from "./json-parse";
 
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
@@ -165,6 +166,19 @@ function nestsDeeperThan(text: string, limit: number): boolean {
   return false;
 }
 
+/**
+ * This function gives the message of the JavaScript engine for a text that is not JSON, so the
+ * Composer shows the same message as before. The value of `JSON.parse` is not used.
+ */
+function syntaxProblem(text: string, error: unknown): string {
+  try {
+    JSON.parse(text);
+  } catch (engineError) {
+    if (engineError instanceof Error) return engineError.message;
+  }
+  return error instanceof Error ? error.message : String(error);
+}
+
 /** The program of a JSON text, or the reason why the text is not a program. */
 export function parseProgram(text: string): { ok: true; program: Json } | { ok: false; reason: string } {
   if (text.length > LIMITS.text) {
@@ -176,9 +190,10 @@ export function parseProgram(text: string): { ok: true; program: Json } | { ok: 
   }
   let parsed: unknown;
   try {
-    parsed = JSON.parse(text);
+    // Not JSON.parse: V8 13.6 (Node 24) reads some escaped keys wrong, for example the key " (O53)
+    parsed = parseJson(text);
   } catch (error) {
-    return { ok: false, reason: `The JSON is not valid: ${error instanceof Error ? error.message : String(error)}` };
+    return { ok: false, reason: `The JSON is not valid: ${syntaxProblem(text, error)}` };
   }
   const problem = checkProgram(parsed);
   return problem === null ? { ok: true, program: parsed as Json } : { ok: false, reason: problem };
