@@ -58,11 +58,14 @@ const ENTITIES: Readonly<Record<string, string>> = {
   rdquo: '"',
 };
 
+/** A code point above U+10FFFF has no character. It becomes U+FFFD, so a bad entity does not throw. */
+const codePoint = (code: number): string => (code <= 0x10ffff ? String.fromCodePoint(code) : "�");
+
 /** `&amp;` is the last replacement, so `&amp;lt;` stays the text "&lt;". */
 const entities = (text: string): string =>
   text
-    .replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number(code)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => String.fromCodePoint(Number.parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, code: string) => codePoint(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => codePoint(Number.parseInt(hex, 16)))
     .replace(/&([a-z]+);/gi, (whole, name: string) => ENTITIES[name.toLowerCase()] ?? whole)
     .replace(/&amp;/gi, "&");
 

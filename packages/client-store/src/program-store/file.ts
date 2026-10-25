@@ -131,20 +131,32 @@ export class FileProgramStore implements ProgramStore {
     }
   }
 
+  /**
+   * The lock file holds a token of its writer. A writer removes a stale lock only when the lock
+   * still holds the token that it read, and it removes its own lock only. (Before, a writer could
+   * remove the fresh lock of another writer, so two writers ran at one time: audit pass 2.)
+   */
   private async withLock(work: () => Promise<void>): Promise<void> {
     const lockPath = `${this.path}.lock`;
     await mkdir(dirname(this.path), { recursive: true });
+    const token = `${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}`;
     const deadline = Date.now() + LOCK_TIMEOUT_MS;
     for (;;) {
       try {
         const handle = await open(lockPath, "wx");
-        await handle.close();
+        try {
+          await handle.writeFile(token, "utf8");
+        } finally {
+          await handle.close();
+        }
         break;
       } catch (error) {
         if (!isContention(error) || Date.now() > deadline) throw error;
         try {
+          const holder = await readFile(lockPath, "utf8");
           const { mtimeMs } = await stat(lockPath);
-          if (Date.now() - mtimeMs > STALE_LOCK_MS) await rm(lockPath, { force: true });
+          // The second read makes sure that the stale lock is still the lock of the same writer
+          if (Date.now() - mtimeMs > STALE_LOCK_MS && (await readFile(lockPath, "utf8")) === holder) await rm(lockPath, { force: true });
         } catch {
           // The lock went away: try again
         }
@@ -154,7 +166,16 @@ export class FileProgramStore implements ProgramStore {
     try {
       await work();
     } finally {
-      await rm(lockPath, { force: true });
+      await this.unlock(lockPath, token);
+    }
+  }
+
+  /** This function removes the lock file when it still holds the token of this writer. */
+  private async unlock(lockPath: string, token: string): Promise<void> {
+    try {
+      if ((await readFile(lockPath, "utf8")) === token) await rm(lockPath, { force: true });
+    } catch {
+      // The lock is gone already
     }
   }
 }
