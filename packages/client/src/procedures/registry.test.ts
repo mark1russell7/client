@@ -56,6 +56,38 @@ describe("ProcedureRegistry path segments (CORE-6)", () => {
     expect(({} as Record<string, unknown>)["x"]).toBeUndefined();
     expect(typeof Object.prototype.toString).toBe("function");
   });
+
+  it.each([
+    ["the shorter path first", [["a"], ["a", "handler"], ["a", "b", "c"]]],
+    ["the longer path first", [["a", "b", "c"], ["a", "handler"], ["a"]]],
+  ])("getTree does not write into a stored procedure, with %s (audit O56 #10)", (_order, paths) => {
+    const registry = new ProcedureRegistry();
+    for (const path of paths) registry.register(procedureAt(path as ProcedurePath, () => (path as string[]).join(".")));
+    const stored = registry.get(["a"])!;
+    const handler = stored.handler;
+    const keys = Object.keys(stored).sort();
+
+    const tree = registry.getTree() as Record<string, Record<string, unknown>>;
+
+    // The stored procedure keeps its fields: the segment "handler" did not replace its handler
+    expect(registry.get(["a"])).toBe(stored);
+    expect(Object.keys(stored).sort()).toEqual(keys);
+    expect(stored.handler).toBe(handler);
+    expect(stored.handler?.({}, {} as never)).toBe("a");
+    // A node that is a procedure and a namespace keeps the procedure at the key "" (a segment is never empty)
+    const a = tree["a"]!;
+    expect(a[""]).toBe(stored);
+    expect(a["handler"]).toBe(registry.get(["a", "handler"]));
+    expect((a["b"] as Record<string, unknown>)["c"]).toBe(registry.get(["a", "b", "c"]));
+    expect(Object.keys(a).sort()).toEqual(["", "b", "handler"]);
+  });
+
+  it("getTree keeps a procedure as a leaf when no longer path is under it", () => {
+    const registry = new ProcedureRegistry();
+    registry.register(procedureAt(["x", "y"]));
+    const tree = registry.getTree() as Record<string, Record<string, unknown>>;
+    expect(tree["x"]!["y"]).toBe(registry.get(["x", "y"]));
+  });
 });
 
 describe("ProcedureRegistry override", () => {

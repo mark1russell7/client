@@ -4,7 +4,7 @@
  * it ignores the others (alarms, attendees, time zone definitions).
  */
 
-import { zonedInstant } from "./zone.js";
+import { localDate, zonedInstant } from "./zone.js";
 
 /** One event of a calendar (one VEVENT). */
 export interface IcsEvent {
@@ -18,13 +18,17 @@ export interface IcsEvent {
   /** The recurrence rule (`RRULE`), as the calendar gives it. */
   readonly rrule?: string | undefined;
   readonly location?: string | undefined;
-  /** The dates (`YYYY-MM-DD`) that EXDATE removes from the recurrence. */
+  /**
+   * The dates (`YYYY-MM-DD`) that EXDATE removes from the recurrence. Each date is in the zone of
+   * `tzid`, or in UTC for an event without a TZID. A value in UTC or in another zone changes to it.
+   */
   readonly exdates?: readonly string[] | undefined;
   /** The TZID of DTSTART. A recurrence keeps the local time of this zone across a DST change. */
   readonly tzid?: string | undefined;
   /**
-   * The RECURRENCE-ID date (`YYYY-MM-DD`). This event replaces that one occurrence of the series
-   * with the same UID. Use `uid` and `recurrenceId` together as the key of an event.
+   * The RECURRENCE-ID date (`YYYY-MM-DD`), in the zone of `tzid` as `exdates`. This event replaces
+   * that one occurrence of the series with the same UID. Use `uid` and `recurrenceId` together as
+   * the key of an event.
    */
   readonly recurrenceId?: string | undefined;
   /**
@@ -151,27 +155,57 @@ const dateOf = (value: string): string | undefined => {
   return m === null ? undefined : `${m[1]}-${m[2]}-${m[3]}`;
 };
 
+/**
+ * The date (`YYYY-MM-DD`) of an EXDATE or RECURRENCE-ID value in the zone of its event, or in UTC
+ * for an event without a zone. A time in UTC or in another zone changes to that zone. A date, a
+ * floating time and a time in the zone of the event keep their own date. (Before, the occurrences
+ * of an event with a TZID were compared by their date in UTC: audit O56.)
+ */
+const dateInZone = (value: string, valueTz: string | undefined, eventTz: string | undefined): string | undefined => {
+  const date = dateOf(value);
+  const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z?)$/.exec(value.trim());
+  if (date === undefined || m === null) return date;
+  const utc = m[7] === "Z";
+  if (!utc && (valueTz === undefined || valueTz === eventTz)) return date;
+  try {
+    const wall = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6]));
+    const instant = utc ? wall : zonedInstant(wall, valueTz as string);
+    return eventTz === undefined ? toIso(instant).slice(0, 10) : localDate(instant, eventTz);
+  } catch {
+    // A zone that Intl does not know: the date as the calendar gives it
+    return date;
+  }
+};
+
+/** The date of an occurrence: in the zone of its event, or in UTC for an event without a zone. */
+const occurrenceDate = (ms: number, tz: string | undefined): string => (tz === undefined ? toIso(ms).slice(0, 10) : localDate(ms, tz));
+
 /** True when a text is an iCalendar object. A proxy error page is not. */
 export const isCalendar = (text: string): boolean => /^\s*BEGIN:VCALENDAR/i.test(text);
 
 /**
  * This function gives the events of a calendar. It skips an event without a UID or a start, and
- * an event with STATUS:CANCELLED.
+ * an event with STATUS:CANCELLED. The properties of a component inside an event (a VALARM) are
+ * not properties of the event.
  */
 export const parseIcs = (text: string): IcsEvent[] => {
   const events: IcsEvent[] = [];
   let current: Map<string, IcsProp> | undefined;
   // EXDATE can occur more than one time, each with a list of dates: keep them apart from the map
-  let exdates: string[] = [];
+  let exdateProps: IcsProp[] = [];
+  // The depth of the components inside the event. An alarm has its own UID, SUMMARY and
+  // DESCRIPTION. (Before, they replaced those of the event: audit O56.)
+  let nested = 0;
   for (const line of unfold(text)) {
     if (line === "BEGIN:VEVENT") {
       current = new Map();
-      exdates = [];
+      exdateProps = [];
+      nested = 0;
       continue;
     }
     if (line === "END:VEVENT") {
       if (current !== undefined) {
-        const event = eventOf(current, exdates);
+        const event = eventOf(current, exdateProps);
         if (event !== undefined) events.push(event);
       }
       current = undefined;
@@ -180,11 +214,14 @@ export const parseIcs = (text: string): IcsEvent[] => {
     if (current === undefined) continue;
     const prop = parseProp(line);
     if (prop === undefined) continue;
-    if (prop.name === "EXDATE") {
-      for (const value of prop.value.split(",")) {
-        const date = dateOf(value);
-        if (date !== undefined) exdates.push(date);
-      }
+    if (prop.name === "BEGIN") {
+      nested += 1;
+    } else if (prop.name === "END") {
+      nested = Math.max(0, nested - 1);
+    } else if (nested > 0) {
+      continue;
+    } else if (prop.name === "EXDATE") {
+      exdateProps.push(prop);
     } else {
       current.set(prop.name, prop);
     }
@@ -192,7 +229,7 @@ export const parseIcs = (text: string): IcsEvent[] => {
   return events;
 };
 
-const eventOf = (props: ReadonlyMap<string, IcsProp>, exdates: readonly string[]): IcsEvent | undefined => {
+const eventOf = (props: ReadonlyMap<string, IcsProp>, exdateProps: readonly IcsProp[]): IcsEvent | undefined => {
   // UID is a TEXT value (RFC 5545 3.8.4.7), so it can have escapes
   const uidValue = props.get("UID")?.value;
   const uid = uidValue === undefined ? undefined : unescapeText(uidValue);
@@ -202,8 +239,12 @@ const eventOf = (props: ReadonlyMap<string, IcsProp>, exdates: readonly string[]
   const endProp = props.get("DTEND");
   const end = endProp === undefined ? undefined : parseIcsDate(endProp);
   const location = props.get("LOCATION")?.value;
-  const recurrenceValue = props.get("RECURRENCE-ID")?.value;
-  const recurrenceId = recurrenceValue === undefined ? undefined : dateOf(recurrenceValue);
+  // EXDATE and RECURRENCE-ID name an occurrence by its date in the zone of the event
+  const exdates = exdateProps.flatMap((prop) =>
+    prop.value.split(",").flatMap((value) => dateInZone(value, prop.params.get("TZID"), start.tzid) ?? [])
+  );
+  const recurrenceProp = props.get("RECURRENCE-ID");
+  const recurrenceId = recurrenceProp === undefined ? undefined : dateInZone(recurrenceProp.value, recurrenceProp.params.get("TZID"), start.tzid);
   const sequenceValue = props.get("SEQUENCE")?.value;
   const sequence = sequenceValue === undefined ? undefined : Number.parseInt(sequenceValue, 10);
   const lastModified = props.get("LAST-MODIFIED")?.value;
@@ -351,14 +392,15 @@ export const expandOccurrences = (event: IcsEvent, window: TimeWindow): Occurren
     }
   }
 
-  // EXDATE removes an occurrence by its date
+  // EXDATE removes an occurrence by its date in the zone of the event
   const excluded = new Set(event.exdates ?? []);
-  return starts.filter((ms) => !excluded.has(toIso(ms).slice(0, 10))).map(occurrence);
+  return starts.filter((ms) => !excluded.has(occurrenceDate(ms, tz))).map(occurrence);
 };
 
 /**
  * This function gives the occurrences of all events of a calendar in a time window, sorted by
- * start. An event with a RECURRENCE-ID replaces the occurrence of its series on that date.
+ * start. An event with a RECURRENCE-ID replaces the occurrence of its series on that date, in the
+ * zone of the series.
  */
 export const calendarOccurrences = (events: readonly IcsEvent[], window: TimeWindow): Occurrence[] => {
   const replaced = new Set(
@@ -368,7 +410,8 @@ export const calendarOccurrences = (events: readonly IcsEvent[], window: TimeWin
   for (const event of events) {
     for (const occurrence of expandOccurrences(event, window)) {
       const replacedHere =
-        event.recurrenceId === undefined && replaced.has(`${event.uid}|${occurrence.start.slice(0, 10)}`);
+        event.recurrenceId === undefined &&
+        replaced.has(`${event.uid}|${occurrenceDate(Date.parse(occurrence.start), event.tzid)}`);
       if (!replacedHere) out.push(occurrence);
     }
   }

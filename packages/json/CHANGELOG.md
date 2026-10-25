@@ -1,5 +1,13 @@
 # @procedures/json
 
+## 0.27.8
+
+### Patch Changes
+
+- Updated dependencies [1834a5e]
+  - @procedures/client@0.27.8
+  - @procedures/compiler@0.27.8
+
 ## 0.27.7
 
 ### Patch Changes
