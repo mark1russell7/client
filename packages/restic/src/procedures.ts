@@ -91,7 +91,17 @@ const RunInputSchema = z.object({
     .describe('The flags: { tag: ["daily"], "keep-daily": 7, "dry-run": true }'),
   repository: z.string().min(1).optional().describe("The repository (--repo). Default: RESTIC_REPOSITORY of the environment."),
   json: z.boolean().default(true).describe("Ask for JSON output (--json) and read it (default: true)"),
-  executable: z.string().min(1).optional().describe("The restic program (default: RESTIC_EXE of the environment, then restic)"),
+  /**
+   * The restic program.
+   *
+   * @deprecated Give `executable` to `createResticModule()`, or set `RESTIC_EXE`. Version 0.31.0
+   * refuses this input (audit pass 2, O55), because it lets the caller start any program.
+   */
+  executable: z
+    .string()
+    .min(1)
+    .optional()
+    .describe("Deprecated: give executable to createResticModule(), or set RESTIC_EXE. The restic program (default: RESTIC_EXE of the environment, then restic)"),
   cwd: z.string().optional().describe("The working folder"),
   timeout: z.number().int().positive().optional().describe("The time limit, in milliseconds"),
 });
@@ -231,8 +241,28 @@ export async function runRestic(command: ResticCommand, options: ResticRunOption
   };
 }
 
+/** The codes of the deprecation notices that this process emitted. */
+const emitted = new Set<string>();
+
+/** This function emits a deprecation notice one time in each process. */
+function deprecationNotice(code: string, message: string): void {
+  if (emitted.has(code)) return;
+  emitted.add(code);
+  process.emitWarning(message, { type: "DeprecationWarning", code });
+}
+
+/** The notice of the deprecated input `executable` of `restic.run`. */
+const EXECUTABLE_INPUT_NOTICE =
+  "The input executable of restic.run is deprecated. @procedures/restic 0.31.0 refuses it. " +
+  "Give the program to the host: createResticModule({ executable }), or set RESTIC_EXE.";
+
 /** The settings of the host for the procedures of this package. The procedure input cannot change them. */
 export interface ResticProceduresOptions {
+  /**
+   * The restic program, for example the result of `findRestic()`. The default is `RESTIC_EXE` of
+   * the environment of the host, then `restic`. The deprecated input `executable` wins over it.
+   */
+  readonly executable?: string | undefined;
   /** The variables for the restic process only, for example `RESTIC_PASSWORD`. Refer to `ResticRunOptions.env`. */
   readonly env?: Readonly<Record<string, string | undefined>> | undefined;
   /** The function that starts restic (default: `runCommand`). A test gives a fake. */
@@ -257,10 +287,12 @@ export function createResticProcedures(options: ResticProceduresOptions = {}): A
       // repository of type sftp or rclone starts that program.
       effects: { reads: ["fs", "network", "process"], writes: ["fs", "network", "process"], destructive: true },
     })
-    .handler(
-      async (input: RunInput, ctx?: ProcedureContext): Promise<RunOutput> =>
-        runRestic(input, { executable: input.executable, env: options.env, cwd: input.cwd, timeout: input.timeout, signal: ctx?.signal, run: options.run }),
-    )
+    .handler(async (input: RunInput, ctx?: ProcedureContext): Promise<RunOutput> => {
+      // The deprecated input wins over the module, as before (O55: 0.31.0 removes it)
+      if (input.executable !== undefined) deprecationNotice("PROCEDURES_RESTIC_EXECUTABLE_INPUT", EXECUTABLE_INPUT_NOTICE);
+      const executable = input.executable ?? options.executable;
+      return runRestic(input, { executable, env: options.env, cwd: input.cwd, timeout: input.timeout, signal: ctx?.signal, run: options.run });
+    })
     .build() as AnyProcedure;
   return [run];
 }
