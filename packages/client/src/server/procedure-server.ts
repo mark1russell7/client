@@ -162,12 +162,12 @@ export interface ProcedureServerOptions extends ServerOptions {
 
   /**
    * The request hook of the server: it reads the credentials of each network request (a cookie, a
-   * header, the query) and gives a bearer token, a principal and a narrowing. It runs before the
-   * token check: its bearer token replaces the bearer token of the credentials. Its principal
-   * replaces the principal of the token check. `authenticate` runs after it and can read
-   * `request.principal`. Undefined or an error refuses the request with `UNAUTHORIZED`. A local
-   * request (`LOCAL_CREDENTIALS`) does not go through the hook. A server with a hook refuses a
-   * request without credentials, and the hook does not run for it (CLI-1).
+   * header, the query, the connection of the socket) and gives a bearer token, a principal and a
+   * narrowing. It runs before the token check: its bearer token replaces the bearer token of the
+   * credentials. Its principal replaces the principal of the token check. `authenticate` runs
+   * after it and can read `request.principal`. Undefined or an error refuses the request with
+   * `UNAUTHORIZED`. A local request (`LOCAL_CREDENTIALS`) does not go through the hook. A server
+   * with a hook refuses a request without credentials, and the hook does not run for it (CLI-1).
    *
    * The hook can run more than one time for one request or one task: `admits()` and `identify()`
    * run it too (CLI-69).

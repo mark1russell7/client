@@ -99,6 +99,7 @@ export type {
   ServerResponse,
   RequestHandler,
   Credentials,
+  RequestConnection,
   Principal,
   PrincipalOf,
   RequestIdentity,

@@ -41,7 +41,7 @@ import {
 import type { McpServerTransportOptions, McpServerTransportState, McpTextBlock, McpToolContent } from "../types.js";
 import { createStdioTransport } from "./stdio.js";
 import { createSseTransport } from "./sse.js";
-import { admittedCredentials, createHttpTransport, type McpHttpTransport } from "./http.js";
+import { createHttpTransport, requestCredentialsOf, type McpHttpTransport } from "./http.js";
 import { optionalMs } from "@procedures/client";
 import { createUntrustedEnvelopes } from "../untrusted.js";
 import { taskStoreOf, type McpTaskStore } from "../tasks.js";
@@ -105,16 +105,21 @@ function progressMessage(progress: number, total: number | undefined): string {
 
 /**
  * The credentials of a tool call. A call that came over the network has the bearer token, the
- * cookies, the headers and the query of its HTTP request (CLI-10). A call of a local face without
- * an HTTP request has the local marker (CLI-1). The local faces are stdio, whose peer is the parent
- * process, and a given SDK transport, for example the in-memory transport. A session of Streamable
- * HTTP is never local: without its HTTP request, the call presents no credentials. The face
- * admitted the HTTP request of a call one time (CLI-2b): then the call has the admitted
- * credentials of that request, and the server does not run its checks again.
+ * cookies, the headers and the query of its HTTP request (CLI-10). A call of the Streamable HTTP
+ * endpoint of this package also has the connection of its socket (CLI-71). A call of an SDK
+ * transport of the application has no connection, for example a call of the legacy SSE transport
+ * of the SDK. The SDK gives only the headers and the URL of its request.
+ *
+ * A call of a local face without an HTTP request has the local marker (CLI-1). The local faces
+ * are stdio, whose peer is the parent process, and a given SDK transport, for example the
+ * in-memory transport. A session of Streamable HTTP is never local: without its HTTP request, the
+ * call presents no credentials. The face admitted the HTTP request of a call one time (CLI-2b):
+ * then the call has the admitted credentials of that request, and the server does not run its
+ * checks again.
  */
 function callCredentials(extra: CallExtra, localFace: boolean): Credentials {
-  const admitted = admittedCredentials(extra.authInfo);
-  if (admitted) return admitted;
+  const fromRequest = requestCredentialsOf(extra.authInfo);
+  if (fromRequest) return fromRequest;
   const info = extra.requestInfo;
   if (info) return requestCredentials({ headers: info.headers, url: info.url ? `${info.url.pathname}${info.url.search}` : undefined });
   return localFace ? LOCAL_CREDENTIALS : {};

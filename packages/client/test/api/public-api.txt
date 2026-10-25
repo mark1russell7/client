@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 599 names
+## . (dist/index.d.ts): 600 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -250,6 +250,7 @@ type RemoteEventHandler: dist/events/remote.d.ts#RemoteEventHandler
 type RemoteEventsOptions: dist/events/remote.d.ts#RemoteEventsOptions
 type ReportProgress: dist/procedures/progress.d.ts#ReportProgress
 type RepositoryProvider: dist/procedures/types.d.ts#RepositoryProvider
+type RequestConnection: dist/server/types.d.ts#RequestConnection
 type RequestCredentialsOptions: dist/server/request-auth.d.ts#RequestCredentialsOptions
 type RequestHandler: dist/server/types.d.ts#RequestHandler
 type RequestIdentity: dist/server/types.d.ts#RequestIdentity
@@ -606,7 +607,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 587 names
+## ./browser (dist/browser.d.ts): 588 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -848,6 +849,7 @@ type RemoteEventHandler: dist/events/remote.d.ts#RemoteEventHandler
 type RemoteEventsOptions: dist/events/remote.d.ts#RemoteEventsOptions
 type ReportProgress: dist/procedures/progress.d.ts#ReportProgress
 type RepositoryProvider: dist/procedures/types.d.ts#RepositoryProvider
+type RequestConnection: dist/server/types.d.ts#RequestConnection
 type RequestCredentialsOptions: dist/server/request-auth.d.ts#RequestCredentialsOptions
 type RequestHandler: dist/server/types.d.ts#RequestHandler
 type RequestIdentity: dist/server/types.d.ts#RequestIdentity
@@ -1784,7 +1786,7 @@ compose: dist/middleware/compose.d.ts#compose
 wrapWithAsyncMiddlewares: dist/middleware/compose.d.ts#wrapWithAsyncMiddlewares
 wrapWithSyncMiddlewares: dist/middleware/compose.d.ts#wrapWithSyncMiddlewares
 
-## ./server (dist/server/index.d.ts): 36 names
+## ./server (dist/server/index.d.ts): 37 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AmbientCredentials: dist/server/types.d.ts#AmbientCredentials
@@ -1795,6 +1797,7 @@ type PrincipalOf: dist/server/types.d.ts#PrincipalOf
 ProcedureServer: dist/server/procedure-server.d.ts#ProcedureServer
 type ProcedureServerOptions: dist/server/procedure-server.d.ts#ProcedureServerOptions
 type RegisterProcedureOptions: dist/server/procedure-server.d.ts#RegisterProcedureOptions
+type RequestConnection: dist/server/types.d.ts#RequestConnection
 type RequestHandler: dist/server/types.d.ts#RequestHandler
 type RequestIdentity: dist/server/types.d.ts#RequestIdentity
 type RoutedRequest: dist/adapters/http/server/strategies.d.ts#RoutedRequest
@@ -5904,6 +5907,7 @@ export declare function isLocalCredentials(credentials: Credentials | undefined)
 export declare function requestCredentials(request: {
     headers: Record<string, unknown>;
     url?: string | undefined;
+    socket?: RequestConnection | undefined;
 }, options?: RequestCredentialsOptions): Credentials;
 
 ### dist/server/request-auth.d.ts#withoutSecretHeaders
@@ -5951,6 +5955,7 @@ export interface Credentials {
     readonly cookies?: Readonly<Record<string, string>> | undefined;
     readonly headers?: Readonly<Record<string, string>> | undefined;
     readonly query?: Readonly<Record<string, string>> | undefined;
+    readonly connection?: RequestConnection | undefined;
 }
 
 ### dist/server/types.d.ts#HandlerNotFoundError
@@ -5970,6 +5975,14 @@ export interface Principal {
 
 ### dist/server/types.d.ts#PrincipalOf
 export type PrincipalOf = (credentials: Credentials, request: ServerRequest<unknown>) => RequestIdentity | undefined | Promise<RequestIdentity | undefined>;
+
+### dist/server/types.d.ts#RequestConnection
+export interface RequestConnection {
+    readonly remoteAddress?: string | undefined;
+    readonly remotePort?: number | undefined;
+    readonly localAddress?: string | undefined;
+    readonly localPort?: number | undefined;
+}
 
 ### dist/server/types.d.ts#RequestHandler
 export interface RequestHandler {

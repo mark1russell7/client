@@ -6,7 +6,7 @@
  * This module imports no Node code: a server in a browser or a worker can use it too.
  */
 
-import { LOCAL_MARKER, type Credentials } from "./types.js";
+import { LOCAL_MARKER, type Credentials, type RequestConnection } from "./types.js";
 
 /**
  * The credentials of a local face (CLI-1): a call from this application, not from the network.
@@ -166,13 +166,36 @@ export interface RequestCredentialsOptions {
   readonly tokenQuery?: string | false | undefined;
 }
 
+/** True for a port number of a socket: an integer from 0 to 65535. */
+function isPort(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 65535;
+}
+
+/**
+ * The connection of a network request (CLI-71): a frozen copy of the addresses and the ports of
+ * its socket. The copy has only the fields that the socket has. A Unix socket or a named pipe
+ * has no ports. No header goes into the copy.
+ */
+function connectionOf(socket: RequestConnection): RequestConnection {
+  const connection: { remoteAddress?: string; remotePort?: number; localAddress?: string; localPort?: number } = {};
+  const { remoteAddress, remotePort, localAddress, localPort } = socket;
+  if (typeof remoteAddress === "string" && remoteAddress !== "") connection.remoteAddress = remoteAddress;
+  if (isPort(remotePort)) connection.remotePort = remotePort;
+  if (typeof localAddress === "string" && localAddress !== "") connection.localAddress = localAddress;
+  if (isPort(localPort)) connection.localPort = localPort;
+  return Object.freeze(connection);
+}
+
 /**
  * The credentials of a network request (roadmap R18): the bearer token, the cookies, each header
  * (the secret ones too) and the first value of each query parameter. The request hook of a server
  * (`principalOf`) reads them. They are not in the metadata, so a handler does not see them.
+ *
+ * With `request.socket` (the socket of a request of `node:http`), the credentials also have the
+ * connection of the request (CLI-71): the addresses and the ports of that socket, as frozen data.
  */
 export function requestCredentials(
-  request: { headers: Record<string, unknown>; url?: string | undefined },
+  request: { headers: Record<string, unknown>; url?: string | undefined; socket?: RequestConnection | undefined },
   options: RequestCredentialsOptions = {}
 ): Credentials {
   const headers = new Map<string, string>();
@@ -189,5 +212,6 @@ export function requestCredentials(
     cookies: cookiesOf(headers.get("cookie")),
     headers: Object.fromEntries(headers),
     query: queryRecord(query),
+    ...(request.socket ? { connection: connectionOf(request.socket) } : {}),
   };
 }

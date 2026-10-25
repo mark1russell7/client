@@ -107,6 +107,8 @@ export function httpFace(options: ProcedureHandlerOptions = {}): HostFaceFactory
  * - The upgrade: a failed browser check gets 403. A connection that the server does not admit
  *   gets 401: the token check and the request hook of each call run on the credentials of the
  *   upgrade (`ProcedureServer.admits`). Thus no idle connection without credentials stays open.
+ * - The credentials of the upgrade and of each call over it have the connection of the socket
+ *   (`credentials.connection`, CLI-71). A request hook can find the TCP peer with it.
  * - The stop parts refuse new calls at the stop of the intake. In the drain, each connection
  *   closes when its calls end, so the drain of the listener does not wait for an idle connection.
  * - After the cooperative abort, the connections stay open until each cut call ends in-band with
@@ -115,8 +117,9 @@ export function httpFace(options: ProcedureHandlerOptions = {}): HostFaceFactory
 export function wsFace(options: UpgradeHandlerOptions = {}): HostFaceFactory {
   return (context) => {
     const { server } = context;
+    // The credentials of the upgrade have the connection of its socket (CLI-71), as each call over it
     const admits = (req: IncomingMessage): Promise<boolean> =>
-      server.admits(requestCredentials({ headers: req.headers as Record<string, unknown>, url: req.url }, { tokenQuery: "token" }));
+      server.admits(requestCredentials({ headers: req.headers as Record<string, unknown>, url: req.url, socket: req.socket }, { tokenQuery: "token" }));
     const upgrade = upgradeHandler(context.handler, { ...browserOptions(context.policy.browser, false), authenticate: admits, ...options });
     const transport = upgrade.transport;
     return {

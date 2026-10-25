@@ -97,6 +97,42 @@ export interface Credentials {
   readonly headers?: Readonly<Record<string, string>> | undefined;
   /** The first value of each query parameter of the request URL, by name. */
   readonly query?: Readonly<Record<string, string>> | undefined;
+  /**
+   * The connection of a network request (CLI-71): the addresses and the ports of its socket. A
+   * request hook can find the caller from its TCP peer with it, for example from the process that
+   * owns the remote port. Each network face sets it: the HTTP face, the WebSocket face (the upgrade
+   * and each call) and the Streamable HTTP endpoint of the MCP face.
+   *
+   * - A local request (a call in this process, MCP over stdio, a message port) has no connection.
+   * - An SDK transport of the application (`sdkTransport`, for example the legacy SSE transport of
+   *   the MCP SDK) gives no connection. The SDK gives only the headers and the URL of each request.
+   * - The data comes only from the socket. It does not come from a header, for example
+   *   `X-Forwarded-For` or `Forwarded`. Behind a proxy, the peer is the proxy. Thus a request
+   *   hook that trusts the connection there sees the proxy, not the client.
+   * - The key of the idempotency cache has the principal (audit s21). When the principal comes
+   *   from the connection, two callers behind one address can have one principal. Then a call
+   *   of one caller can get the cached result of a call of the other caller with the same
+   *   idempotency key.
+   */
+  readonly connection?: RequestConnection | undefined;
+}
+
+/**
+ * The connection of a network request (CLI-71): the addresses and the ports of its socket, as
+ * frozen plain data. The face copies them from the socket when the request comes in.
+ *
+ * Each field is optional, because a socket does not always have it. A Unix socket and a named
+ * pipe have no IP addresses and no ports. A socket that closed before the copy has no addresses.
+ */
+export interface RequestConnection {
+  /** The IP address of the other end of the socket: the client, or a proxy. */
+  readonly remoteAddress?: string | undefined;
+  /** The port of the other end of the socket. It is the local port of the socket of the client. */
+  readonly remotePort?: number | undefined;
+  /** The IP address of this end of the socket: the address on which the listener took the request. */
+  readonly localAddress?: string | undefined;
+  /** The port of this end of the socket: the port of the listener. */
+  readonly localPort?: number | undefined;
 }
 
 /**
@@ -120,8 +156,9 @@ export interface RequestIdentity {
 
 /**
  * The request hook of a server: it reads the credentials of a network request (a cookie, a header,
- * the query) and gives the identity of the request. Undefined, or an error, refuses the request
- * with `UNAUTHORIZED`. The hook runs before the token check and before `authenticate`.
+ * the query, the connection of the socket) and gives the identity of the request. Undefined, or an
+ * error, refuses the request with `UNAUTHORIZED`. The hook runs before the token check and before
+ * `authenticate`.
  *
  * The hook can run more than one time for one request or one task. `admits()` runs it at a
  * WebSocket upgrade, and then each call over the connection runs it again. Thus a hook with a
@@ -133,7 +170,8 @@ export interface RequestIdentity {
  * again for them. For `admission()`, `admits()` and `identify()`, the request of the hook has an
  * empty method (`{ service: "", operation: "" }`), the id `admission`, `connection` or `identify`,
  * no payload and no metadata. Thus a hook must not branch on the method, the payload, the
- * metadata or the transport of the request. It reads only the credentials.
+ * metadata or the transport of the request. It reads only the credentials. The credentials of a
+ * network request also have the connection of its socket (`credentials.connection`, CLI-71).
  */
 export type PrincipalOf = (
   credentials: Credentials,

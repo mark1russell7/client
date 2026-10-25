@@ -51,6 +51,7 @@ export {
   type ServerResponse,
   type RequestHandler,
   type Credentials,
+  type RequestConnection,
   type Principal,
   type PrincipalOf,
   type RequestIdentity,
