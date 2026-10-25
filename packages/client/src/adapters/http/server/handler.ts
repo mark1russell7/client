@@ -396,8 +396,9 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
       method,
       payload,
       metadata,
-      // A network request: ProcedureServer examines the token and the request hook (R18, CLI-2a)
-      credentials: requestCredentials({ headers: req.headers as Record<string, unknown>, url: req.url }),
+      // A network request: ProcedureServer examines the token and the request hook (R18, CLI-2a).
+      // The credentials have the connection of the socket of the request (CLI-71)
+      credentials: requestCredentials({ headers: req.headers as Record<string, unknown>, url: req.url, socket: req.socket }),
     };
   };
 

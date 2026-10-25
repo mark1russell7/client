@@ -14,7 +14,8 @@
  * call, the GET stream and the DELETE of a session. The endpoint has no token check of its own.
  * The tool calls of the request get the admitted credentials (CLI-10), so the server does not
  * run its checks again for them. A server that reads cookies trusts a request with a cookie only
- * from a named origin (CSRF).
+ * from a named origin (CSRF). The credentials of each request have the connection of its socket
+ * (`credentials.connection`, CLI-71), so a request hook can find the TCP peer.
  *
  * The endpoint has no listener of its own (CLI-11). The owner of a listener mounts `handle`: a
  * listener of the service (`httpTransport` of `@mark1russell7/service/http`) or the procedures host.
@@ -35,10 +36,11 @@ import type { HttpTransportOptions } from "../types.js";
 import { MCP_HTTP_LIMITS, guardMcpRequest } from "./guard.js";
 
 /**
- * The key of the admitted credentials of a request in the auth info of the MCP SDK (CLI-2b). The
- * endpoint sets it on `req.auth`, and the SDK gives it to each message of that request.
+ * The key of the credentials of a request in the auth info of the MCP SDK. The value is the
+ * admitted credentials (CLI-2b). Without an admission, it is the credentials of the request
+ * (CLI-71). The endpoint sets it on `req.auth`, and the SDK gives it to each message of that request.
  */
-const ADMISSION_KEY = "procedures.admission";
+const CREDENTIALS_KEY = "procedures.credentials";
 
 /** The auth info of the MCP SDK on a request (`req.auth`), as far as the endpoint uses it. */
 interface AuthInfoOf {
@@ -49,20 +51,21 @@ interface AuthInfoOf {
 }
 
 /**
- * This function gives the admitted credentials of the HTTP request of a message, from the auth
- * info that the SDK gives the message (CLI-2b). It gives undefined when the endpoint admitted no
- * credentials for the request.
+ * This function gives the credentials of the HTTP request of a message, from the auth info that
+ * the SDK gives the message. They are the admitted credentials (CLI-2b), or the credentials of the
+ * request when the endpoint has no admission. Both have the connection of the socket (CLI-71). It
+ * gives undefined when the endpoint set no credentials for the request.
  */
-export function admittedCredentials(authInfo: { readonly extra?: Record<string, unknown> | undefined } | undefined): Credentials | undefined {
-  const value = authInfo?.extra?.[ADMISSION_KEY];
+export function requestCredentialsOf(authInfo: { readonly extra?: Record<string, unknown> | undefined } | undefined): Credentials | undefined {
+  const value = authInfo?.extra?.[CREDENTIALS_KEY];
   return typeof value === "object" && value !== null ? (value as Credentials) : undefined;
 }
 
-/** This function puts the admitted credentials on the request, for the SDK and each message of the request. */
-function attachAdmission(req: IncomingMessage, credentials: Credentials): void {
+/** This function puts the credentials on the request, for the SDK and each message of the request. */
+function attachCredentials(req: IncomingMessage, credentials: Credentials): void {
   const carrier = req as IncomingMessage & { auth?: AuthInfoOf };
   const auth: AuthInfoOf = carrier.auth ?? { token: "", clientId: "", scopes: [] };
-  carrier.auth = { ...auth, extra: { ...auth.extra, [ADMISSION_KEY]: credentials } };
+  carrier.auth = { ...auth, extra: { ...auth.extra, [CREDENTIALS_KEY]: credentials } };
 }
 
 /**
@@ -255,14 +258,20 @@ export function createHttpTransport(
   /**
    * The one check of the credentials of a request (CLI-2b): the admission of the server of the
    * face. It gives the message of a refusal, or undefined when the request passes. The calls of
-   * the request get the admitted credentials through the auth info of the SDK.
+   * the request get the admitted credentials through the auth info of the SDK. The credentials
+   * have the connection of the socket of the request (CLI-71). Without an admission, the calls
+   * get the credentials of the request, and the handler examines each call.
    */
   const admit = async (req: IncomingMessage): Promise<string | undefined> => {
+    const credentials = requestCredentials({ headers: req.headers as Record<string, unknown>, url: req.url, socket: req.socket });
     const admission = limits.admission;
-    if (!admission) return undefined;
-    const admitted = await admission(requestCredentials({ headers: req.headers as Record<string, unknown>, url: req.url }));
+    if (!admission) {
+      attachCredentials(req, credentials);
+      return undefined;
+    }
+    const admitted = await admission(credentials);
     if (!admitted.ok) return admitted.message;
-    attachAdmission(req, admitted.credentials);
+    attachCredentials(req, admitted.credentials);
     return undefined;
   };
 

@@ -387,8 +387,9 @@ export class WebSocketServerTransport implements ServerTransport {
     };
     this.trackedConnections.set(connectionId, trackedConnection);
     // The credentials of the upgrade, for each call of the connection: the bearer token of its
-    // Authorization header or of its token query, its cookies, its headers and its query (CLI-2a)
-    const credentials = requestCredentials({ headers: req.headers as Record<string, unknown>, url: req.url }, { tokenQuery: "token" });
+    // Authorization header or of its token query, its cookies, its headers and its query (CLI-2a),
+    // and the connection of its socket (CLI-71)
+    const credentials = requestCredentials({ headers: req.headers as Record<string, unknown>, url: req.url, socket: req.socket }, { tokenQuery: "token" });
 
     // The calls of this connection in the two directions (roadmap R24)
     const isOpen = (): boolean => ws.readyState === WebSocket.OPEN;

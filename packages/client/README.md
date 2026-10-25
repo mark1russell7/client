@@ -753,6 +753,7 @@ const server = new ProcedureServer({
 - `narrowing`: a narrower capability that the request asks for. The server narrows the capability of the call with it. A request for more has no effect.
 - An empty object accepts the request without a principal. Undefined, or an error, refuses the request with `UNAUTHORIZED`.
 - `authenticate` operates after the hook and can read `request.principal`. A local request does not go through the hook.
+- `credentials.connection` has the addresses and the ports of the socket of a network request (CLI-71). Only the socket gives them, not `X-Forwarded-For`. Behind a proxy, they are the addresses of the proxy. A local request has no connection.
 - `hostPolicy({ principalOf })` gives the hook to each server of the policy.
 
 #### Local requests
