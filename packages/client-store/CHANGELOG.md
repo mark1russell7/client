@@ -1,5 +1,17 @@
 # @procedures/store
 
+## 0.28.1
+
+### Patch Changes
+
+- 345c740: `FileProgramStore` writes a token into its lock file. A writer removes a stale lock only when it still holds the token that it read, and it removes only its own lock. Before, two writers could run at one time (second code audit, roadmap O57).
+- Updated dependencies [345c740]
+- Updated dependencies [345c740]
+- Updated dependencies [984c13b]
+- Updated dependencies [21dc858]
+  - @procedures/client@0.28.1
+  - @procedures/collections@0.28.1
+
 ## 0.28.0
 
 ### Patch Changes

@@ -1,5 +1,37 @@
 # @procedures/client
 
+## 0.28.1
+
+### Patch Changes
+
+- 345c740: Fixes of the low findings of the second code audit (roadmap O57).
+  
+  - `client.min` and `client.max` use a loop. A spread of a long array as arguments overflowed the stack.
+  - The cache middleware: a call that waits for the same call in flight follows its own abort signal. An abort gives `ABORTED` at once.
+  - The WebSocket server: a request that ends late does not delete the stream credit of a newer request with the same id.
+  - The batch executor removes its listener from the signal of the batch when each call ends. A long-lived signal kept a listener for each call.
+- 984c13b: The guard of `$regex` counts the ways of a nested repetition with a fixed count (weekly audit 2026-10-25).
+  
+  PATCH: a fix of the guard of 0.28.0 (decision D33b). That guard permits a bounded repetition only when it has at most 1000 ways to match. It counted a repetition with a fixed count, for example `{9}`, as one way. Thus `((a|a){9}){9}` passed with 2^9 ways, but it has 2^81 ways, and V8 takes hours on a string of 80 `a` characters.
+  
+  Now each repetition multiplies the ways of the part inside it. The guard refuses `((a|a){9}){9}` and `((a?){9}){9}`. A pattern with few ways still passes, for example `((?:a|b){3}){3}` and `(\d{1,3}\.){3}\d{1,3}`.
+  
+  Migration: the site, MiniMongo, Graph and jarvis do not turn `$regex` on, so they need no change.
+- 21dc858: Fixes for the security findings of the second code audit (roadmap O55).
+  
+  PATCH: bug fixes and additive options. Each fix refuses only an input that the documentation does not give. A caller that uses the documented behavior sees no change. A request to a loopback, private or link-local host still works, with a deprecation notice. Version 0.29.0 refuses it (decision D35).
+  
+  - `procedure.delete` and `procedure.define` of `@procedures/client` obey the expose rule of the host, as `procedure.get` does (R17). `procedure.delete` does not find a hidden procedure, and `procedure.define` refuses to replace one with `NOT_EXPOSED`. A new procedure at a free path stays possible, as before. Before, a caller could remove or replace a hidden procedure that the host defined.
+  - The task store of `@procedures/mcp-server` keeps a task without a session (stdio, an SDK transport) apart from the HTTP sessions, both ways. Before, each HTTP session could list, read and cancel such a task.
+  - `restic.run` of `@procedures/restic` refuses each input that lets the caller choose a program for restic to start: `--from-password-command`, `--password-command2`, an extended option that sets `sftp.command`, `sftp.args`, `rclone.program` or `rclone.args` (each spelling), an sftp or rclone repository whose host or remote starts with `-`, and a positional argument that starts with `-` after a last flag without a value. Before, only `--password-command` was refused.
+  - `@procedures/http` exports `createHostFetch(options)`: a `fetch` for GET requests through the host policy, with the options of `createHttpModule()`. It also exports `httpSettings(options)`. The deprecated option `warnOnRefusal` keeps a refused host working: the process gets one `DeprecationWarning`, and the request goes through the global `fetch`.
+  - `weather.forecast` of `@procedures/weather` sends its request through `createHostFetch()` with `warnOnRefusal`. A `baseUrl` on a loopback, private or link-local address still works, with the warning `PROCEDURES_WEATHER_PRIVATE_HOST`. `createWeatherModule({ fetch })` gives another `fetch`, for a server of the host on such an address.
+  - `@procedures/geo` and `@procedures/ics` add `createGeoModule({ fetch })` and `createIcsModule({ fetch })`. Their default stays the global `fetch`, because their roots run in a browser. A refusal of the host policy keeps its code and its reason. The refusal of `ics.fetch` does not name the feed address.
+  - `@procedures/bundle-assistant` exports `mcpHostModules`: the modules of `geo` and `ics` with `createHostFetch()` and `warnOnRefusal`. A refused host gets the warning `PROCEDURES_GEO_PRIVATE_HOST` or `PROCEDURES_ICS_PRIVATE_HOST`. The bundle keeps the default modules, so `mark` and the site load it next to `geo` and `ics` as before.
+  - The dev-tools server of `@procedures/mcp-dev-tools` gives the `mcpHostModules` of each bundle to `createRegistry()` before the bundles. In one call, the first module of a name counts. Thus `geo.geocode`, `geo.route`, `weather.forecast` and `ics.fetch` of the dev-tools server go through the default host policy.
+  
+  A host that sends `weather.forecast`, or the bundle's `geo` tools, to a server on a private address can remove the warning now. It gives a `fetch` that allows the server: `createWeatherModule({ fetch: createHostFetch({ allow: ["10.0.0.5:8080"] }) })`. This `fetch` refuses each other private host now, as 0.29.0 does by default.
+
 ## 0.28.0
 
 ### Minor Changes
