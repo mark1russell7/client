@@ -168,35 +168,60 @@ The entry `@procedures/fs/root` has the rules of the root without the procedures
 
 ## File helpers
 
-The entry `@procedures/fs/files` has four functions for the files of an app. They are not procedures, and an import of the entry registers nothing. The package root exports them too.
+The entry `@procedures/fs/files` has helpers for the files of an app: the atomic write, the NDJSON tail heal, the keyed lock and the edit. They are not procedures, and an import of the entry registers nothing. The package root exports them too.
 
-### `writeFileAtomic(path, data, options?)`
+### `writeFileAtomic(path, data, options?)` and `writeFileAtomicSync(path, data, options?)`
 
 The function writes a temporary file next to the target, flushes it to the disk and renames it over the target. A reader sees the old file or the whole new file.
 
 ```ts
-import { writeFileAtomic } from "@procedures/fs/files";
+import { writeFileAtomic, writeFileAtomicSync } from "@procedures/fs/files";
 
 await writeFileAtomic("./state.json", JSON.stringify(state));
+writeFileAtomicSync("./meta.json", JSON.stringify(meta));
 ```
 
 - After a failure, the function removes the temporary file.
 - The file keeps the permissions of the target. The option `mode` sets other permissions.
+- When the group and the others cannot read the final file, the temporary file gets `0o600` before the data. Windows ignores most of the mode.
 - On Windows, an open handle of the target blocks the rename. The function tries again for `renameRetryMs` (2000 by default).
+- `writeFileAtomicSync()` does the same steps. On Windows, a locked target blocks the thread for `renameRetryMs` at most.
 
-### `healNdjsonTail(path, options?)`
+The temporary file is in the folder of the target. Its default name is `.<name>.<16 hex digits>.tmp`. The `<name>` is the first 32 characters of the name of the target. A crash between the write and the rename leaves this file. For a `.env` file, add the pattern `..env.*.tmp` to `.gitignore`.
+
+The option `tempName` gives a name of your own. The function gives it the absolute path of the target. A name with `/` or `\` is a `TypeError` with the code `ERR_INVALID_ARG_VALUE`. The name of a file that exists gives the error `EEXIST`.
+
+```ts
+await writeFileAtomic("./.env", text, { tempName: (target) => `${basename(target)}.${process.pid}.tmp` });
+```
+
+### `healNdjsonTail(path, options?)` and `healNdjsonTailSync(path, options?)`
 
 The function repairs the end of an append-only NDJSON file after a crash. Start it before the next append.
 
 ```ts
-import { healNdjsonTail } from "@procedures/fs/files";
+import { healNdjsonTail, healNdjsonTailSync } from "@procedures/fs/files";
 
 const { action, bytes } = await healNdjsonTail("./events.ndjson");
 // "none", "truncated" (a part of a line is cut off) or "newline" (a complete record gets its newline)
+
+const { lastLine } = healNdjsonTailSync("./chat.ndjson", { lastLine: true });
+const nextSeq = lastLine === undefined ? 0 : JSON.parse(lastLine).seq + 1;
 ```
 
 - The function reads only the last line, from the end of the file, up to `maxLineBytes` (16 MiB by default).
 - A missing file and an empty file get no change.
+- With `lastLine: true`, the result has `lastLine`: the last complete line after the repair, without its newline. It is `undefined` when the file has no complete line.
+- Without `lastLine`, the function reads one byte of a file that ends in a newline. With `lastLine`, it also reads the last line.
+- `healNdjsonTailSync()` makes the same repairs, with the same options, the same result and the same errors.
+
+A last line that is longer than `maxLineBytes` stops the function, and the file does not change. The error is a `RangeError` with the code `ERR_NDJSON_LINE_TOO_LONG`, also the export `NDJSON_LINE_TOO_LONG`. Its fields `lineBytes`, `maxLineBytes` and `path` give the length, the limit and the file.
+
+```text
+A line at the end of ./ledger.ndjson has 15728640 bytes, more than the limit maxLineBytes (1048576 bytes). Set the option maxLineBytes to 15728640 or more, or to Infinity for no limit. The file did not change.
+```
+
+The function does not cut or skip a long line, because that removes data from the file. For records of more than 16 MiB, set a larger `maxLineBytes`. The value `Infinity` turns the limit off. Then the function keeps all of the last line in memory.
 
 ### `withLock(key, fn, options?)` and `KeyedLock`
 
@@ -226,6 +251,7 @@ await editFile("./.env", (text) => `${text}TOKEN=abc\n`, { initial: "" });
 
 - A missing file gives `initial`, or `undefined` without it.
 - A transform that gives the same text or `undefined` writes nothing.
+- The options of `writeFileAtomic()` apply to the write, also `tempName`.
 - On Windows, the lock ignores the case of the letters of the path.
 
 ## API Reference

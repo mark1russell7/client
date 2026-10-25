@@ -62,7 +62,8 @@ async function readOrUndefined(path: string, encoding: BufferEncoding): Promise<
  * - A transform that gives the same text, or `undefined`, writes nothing.
  * - Two paths of the same file share the lock, also when the case of the letters is not the same on Windows.
  *
- * The lock is in the process. It does not stop another process. The options of `writeFileAtomic()` apply to the write.
+ * The lock is in the process. It does not stop another process. The options of `writeFileAtomic()` apply to the write,
+ * also `tempName` and the `0o600` temporary file of a secret file.
  */
 export function editFile(
   path: string,
