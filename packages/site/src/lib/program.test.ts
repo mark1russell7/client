@@ -11,6 +11,7 @@ import {
   formatJson,
   getAt,
   newCall,
+  parseProgram,
   readProgram,
   renameKey,
   renameProblem,
@@ -136,5 +137,71 @@ describe("formatJson", () => {
     expect(formatJson({ $proc: ["client", "add"], input: { a: 1, b: "x,y" } })).toBe(
       '{ "$proc": ["client", "add"], "input": { "a": 1, "b": "x,y" } }',
     );
+  });
+});
+
+describe("the format of the editor keeps each object key (O53)", () => {
+  /** Each class of key that needs care in a printer or a parser, with examples. */
+  const keyClasses: Array<[string, string[]]> = [
+    ["double quotes", ['"', '""', 'a"', '"a"']],
+    ["backslashes", ["\\", "\\\\", 'a\\', '\\"', "\\n", "\\u0041", "C:\\Users"]],
+    ["line breaks and tabs", ["\n", "\r", "\r\n", "\t", "\n\t"]],
+    ["control characters", ["\u0000", "\u0001", "\u001f", "\u007f", "\b", "\f"]],
+    ["other Unicode", ["\u2028", "\u2029", "\ud800", "\udfff", "é", "😀"]],
+    ["the empty key and spaces", ["", " ", "  ", " a "]],
+    ["keys that look like numbers", ["0", "1", "01", "-1", "1.5", "1e3", "4294967295", "NaN", "Infinity"]],
+    ["keys that look like keywords", ["true", "false", "null", "undefined", "constructor", "toString", "hasOwnProperty", "valueOf"]],
+    ["the keys of calls and refs", ["$proc", "input", "$ref", "$name", "$when"]],
+    ["the delimiters of the format", ["{", "}", "[", "]", ":", ",", ": ", ", ", '": "', '", "', '{ "a": 1 }', '"a": 1, "b"', "/", "/*", "//"]],
+  ];
+
+  const roundTrip = (program: Json): void => {
+    expect(parseProgram(formatJson(program))).toEqual({ ok: true, program });
+    expect(decodeProgram(encodeProgram(program))).toEqual(program);
+  };
+
+  it.each(keyClasses)("keeps keys with %s", (_name, keys) => {
+    for (const key of keys) {
+      roundTrip({ [key]: 1 });
+      roundTrip({ $proc: ["a"], input: { "": [[{ [key]: key, x: null }]], [key]: { [key]: [key] } } });
+      // A long object: formatJson puts each key on its own line
+      roundTrip({ [key]: "a".repeat(70), z: { [key]: "b".repeat(70) } });
+    }
+  });
+
+  it("keeps all the keys together in one object, in their order", () => {
+    const keys = keyClasses.flatMap(([, list]) => list);
+    const program = Object.fromEntries(keys.map((key, index) => [key, index])) as Json;
+    const parsed = parseProgram(formatJson(program));
+    expect(parsed).toEqual({ ok: true, program });
+    expect(parsed.ok && Object.keys(parsed.program as object)).toEqual(Object.keys(program as object));
+  });
+
+  // V8 13.6 (Node 24) misreads the key of each case in JSON.parse after it reads the earlier key at
+  // the same place. The fast-check seed -1991541530 found the first case. Each case starts
+  // with a new key, so the objects of other tests do not change the hidden classes of V8. The test
+  // makes no object with the keys before the parse: such an object also changes the hidden classes.
+  // The earlier object has a third key: without it, V8 13.6 reads these three keys correctly.
+  it.each([
+    ['"', "\\", 1],
+    ['a"', "a\\", 2],
+    ['""', '\\"', 3],
+    ["\n\t", "\\n", 4],
+    ['C:"', "C:\\", 5],
+  ])("keeps the key %j after JSON.parse reads the key %j", (key, earlier, id) => {
+    const [editor, link] = [`"O53 editor ${id}"`, `"O53 link ${id}"`];
+    const pair = `${JSON.stringify(key)}: null, " ": null`;
+    for (const first of [editor, link]) JSON.parse(`{ ${first}: true, ${JSON.stringify(earlier)}: 1, "j": 2 }`);
+    const fromEditor = parseProgram(`{ "$proc": ["a"], "input": { "x": [[{ ${editor}: null, ${pair} }]] } }`);
+    const linkText = btoa(`[{ ${link}: null, ${pair} }]`).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    const fromLink = readProgram(linkText);
+    expect(fromEditor.ok && fromEditor.program).toEqual({ $proc: ["a"], input: { x: [[{ [JSON.parse(editor)]: null, [key]: null, " ": null }]] } });
+    expect(fromLink.ok && fromLink.program).toEqual([{ [JSON.parse(link)]: null, [key]: null, " ": null }]);
+  });
+
+  it("refuses the key __proto__, also when the text escapes it", () => {
+    expect(parseProgram('{"__proto__": 1}').ok).toBe(false);
+    expect(parseProgram('{"\\u005f_proto__": 1}').ok).toBe(false);
+    expect(parseProgram('{"a": [{"__proto__": {"x": 1}}]}').ok).toBe(false);
   });
 });

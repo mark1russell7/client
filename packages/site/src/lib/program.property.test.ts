@@ -22,7 +22,8 @@ import {
   type Location,
 } from "./program";
 
-const RUNS = Number(process.env["FC_RUNS"] ?? 200);
+// 1,000 runs take about 0.1 s more than 200 (O53)
+const RUNS = Number(process.env["FC_RUNS"] ?? 1000);
 const params = { numRuns: RUNS };
 
 /** A key of a program: any text but `__proto__`. */
@@ -53,26 +54,33 @@ function locations(value: Json, at: Location = []): Location[] {
   return all;
 }
 
+/** The share link gives the same program back. */
+const sharesLink = fc.property(program, (value) => {
+  expect(checkProgram(value)).toBeNull();
+  expect(decodeProgram(encodeProgram(value))).toEqual(value);
+});
+
+/** The JSON text and the format of the editor (the text that the Composer parses) give the same program back. */
+const readsText = fc.property(program, (value) => {
+  expect(parseProgram(JSON.stringify(value))).toEqual({ ok: true, program: value });
+  expect(parseProgram(formatJson(value))).toEqual({ ok: true, program: value });
+});
+
 describe("the programs of the Composer (R29)", () => {
+  // O53: in CI on Node 24, this seed lost the key " at run 88. JSON.parse of V8 13.6 read it as the
+  // key \ of run 76. The earlier runs make the state of V8, so the replay starts at run 1, and it is
+  // the first test: the random runs of the other tests can change that state.
+  it("gives the same programs back for the seed -1991541530 (O53)", () => {
+    fc.assert(sharesLink, { seed: -1991541530, numRuns: 100 });
+    fc.assert(readsText, { seed: -1991541530, numRuns: 100 });
+  });
+
   it("gives the same program back from its share link", () => {
-    fc.assert(
-      fc.property(program, (value) => {
-        expect(checkProgram(value)).toBeNull();
-        expect(decodeProgram(encodeProgram(value))).toEqual(value);
-      }),
-      params,
-    );
+    fc.assert(sharesLink, params);
   });
 
   it("gives the same program back from its JSON text and from the format of the editor", () => {
-    fc.assert(
-      fc.property(program, (value) => {
-        const fromText = parseProgram(JSON.stringify(value));
-        expect(fromText).toEqual({ ok: true, program: value });
-        expect(JSON.parse(formatJson(value))).toEqual(value);
-      }),
-      params,
-    );
+    fc.assert(readsText, params);
   });
 
   it("gives a program or a reason for any link text and any JSON text, and never throws", () => {
