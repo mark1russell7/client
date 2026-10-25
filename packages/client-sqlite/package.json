@@ -72,7 +72,7 @@
     "procedures": "./dist/register.js"
   },
   "dependencies": {
-    "@mark1russell7/docker-sqlite": "^0.1.0",
+    "@mark1russell7/docker-sqlite": "^0.2.0",
     "@procedures/client": "workspace:*",
     "zod": "^4.6.5"
   },

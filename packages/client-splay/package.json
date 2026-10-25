@@ -79,6 +79,6 @@
   },
   "dependencies": {
     "@procedures/client": "workspace:*",
-    "@mark1russell7/splay": "^0.1.0"
+    "@mark1russell7/splay": "^0.2.0"
   }
 }
