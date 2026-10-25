@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/server",
-  "version": "0.27.2",
+  "version": "0.27.3",
   "description": "A standalone procedure server: load procedure packages and serve them over HTTP and WebSocket with a token and an expose list. Its procedures server.start, server.stop and server.status manage the background server of the mark CLI.",
   "keywords": [
     "server",
