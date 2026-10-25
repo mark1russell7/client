@@ -104,7 +104,7 @@ describe("the procedures", () => {
 
   afterEach(() => {
     setImapClientFactory(undefined);
-    delete process.env["TEST_IMAP_PASSWORD"];
+    delete process.env["IMAP_TEST_PASSWORD"];
   });
 
   it("mail.parse gives the subject, the addresses and the text", async () => {
@@ -113,17 +113,38 @@ describe("the procedures", () => {
   });
 
   it("mail.headers reads the password from the environment, never from the input", async () => {
-    await expect(call(["mail", "headers"], { host: "imap.example.org", user: "u", passwordEnv: "TEST_IMAP_PASSWORD" })).rejects.toThrow(
-      /Set the environment variable TEST_IMAP_PASSWORD/
+    await expect(call(["mail", "headers"], { host: "imap.example.org", user: "u", passwordEnv: "IMAP_TEST_PASSWORD" })).rejects.toThrow(
+      /Set the environment variable IMAP_TEST_PASSWORD/
     );
     let seen: string | undefined;
     setImapClientFactory(async (connection) => {
       seen = connection.password;
       return fakeClient([]);
     });
-    process.env["TEST_IMAP_PASSWORD"] = "made-up";
-    const result = await call<{ messages: unknown[] }>(["mail", "headers"], { host: "imap.example.org", user: "u", passwordEnv: "TEST_IMAP_PASSWORD" });
+    process.env["IMAP_TEST_PASSWORD"] = "made-up";
+    const result = await call<{ messages: unknown[] }>(["mail", "headers"], { host: "imap.example.org", user: "u", passwordEnv: "IMAP_TEST_PASSWORD" });
     expect(result.messages).toHaveLength(2);
     expect(seen).toBe("made-up");
+  });
+
+  // Audit pass 2 (O55): before, passwordEnv could name any variable, and the caller chose the host
+  it("mail.headers refuses a variable without the prefix IMAP_ or MAIL_, and connects to no host", async () => {
+    let connected = false;
+    setImapClientFactory(async () => {
+      connected = true;
+      return fakeClient([]);
+    });
+    process.env["MAIL_AUDIT_SECRET"] = "made-up";
+    try {
+      for (const passwordEnv of ["GITHUB_TOKEN", "ANTHROPIC_API_KEY", "PATH", "imap_password", "IMAP_", "XIMAP_PASSWORD"]) {
+        await expect(call(["mail", "headers"], { host: "imap.example.org", user: "u", passwordEnv }), passwordEnv).rejects.toThrow(/starts with IMAP_ or MAIL_/);
+      }
+      expect(connected).toBe(false);
+      // The prefix MAIL_ and the default IMAP_PASSWORD stay valid
+      expect((await call<{ messages: unknown[] }>(["mail", "headers"], { host: "imap.example.org", user: "u", passwordEnv: "MAIL_AUDIT_SECRET" })).messages).toHaveLength(2);
+      expect(connected).toBe(true);
+    } finally {
+      delete process.env["MAIL_AUDIT_SECRET"];
+    }
   });
 });

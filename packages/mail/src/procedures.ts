@@ -67,6 +67,13 @@ export const mailParseProcedure: AnyProcedure = createProcedure()
 // mail.headers
 // =============================================================================
 
+/**
+ * The names of the variables that `passwordEnv` of `mail.headers` can name: `IMAP_` or `MAIL_`,
+ * then letters, digits and underscores (audit pass 2, O55). The caller chooses the host, so a
+ * free name let it send any secret of the host, for example `GITHUB_TOKEN`, to its own server.
+ */
+export const MAIL_PASSWORD_ENV: RegExp = /^(?:IMAP|MAIL)_[A-Za-z0-9_]+$/;
+
 const HeadersInputSchema = z.object({
   host: z.string().min(1).describe("The IMAP server, for example imap.gmail.com"),
   port: z.number().int().min(1).max(65_535).default(993).describe("The port (default: 993)"),
@@ -74,9 +81,11 @@ const HeadersInputSchema = z.object({
   user: z.string().min(1).describe("The user name of the mailbox"),
   passwordEnv: z
     .string()
-    .regex(/^[A-Za-z_][A-Za-z0-9_]*$/)
+    .regex(MAIL_PASSWORD_ENV, "passwordEnv names a variable that starts with IMAP_ or MAIL_, for example IMAP_PASSWORD")
     .default("IMAP_PASSWORD")
-    .describe("The name of the environment variable that holds the password. The password is never an input, so no log records it."),
+    .describe(
+      "The name of the environment variable that holds the password: IMAP_ or MAIL_ and more (default: IMAP_PASSWORD). The password is never an input, so no log records it."
+    ),
   mailbox: z.string().min(1).default("INBOX").describe("The mailbox (default: INBOX)"),
   sinceDays: z.number().int().min(1).max(365).default(1).describe("The messages of this number of days (default: 1)"),
   limit: z.number().int().min(1).max(5_000).default(200).describe("The maximum number of messages, the newest first (default: 200)"),
