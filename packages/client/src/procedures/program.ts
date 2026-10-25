@@ -32,6 +32,7 @@ import {
   type ScopeRule,
   type Steps,
   type World,
+  Failure,
   context as kernelContext,
   isEnvelope,
   ok,
@@ -800,6 +801,27 @@ export function thrownValue(error: EvalError): unknown {
   return error.cause !== undefined ? error.cause : new Error(error.reason);
 }
 
+/**
+ * This function gives the error that a call of the host gives the kernel. Since coeval 0.6.3, the kernel gives a `Failure`
+ * of the host its own error value, without a cause. Thus a new `Failure` with the same error value
+ * keeps the original as its cause. `thrownValue()` then gives the same object, as for each other
+ * error of a procedure (and as with coeval 0.5).
+ */
+function hostError(error: unknown): unknown {
+  return error instanceof Failure ? new Failure({ ...error.error, cause: error }) : error;
+}
+
+/** This function does a call of the host. It changes a `Failure` that the call throws, or that its promise rejects with (`hostError()`). */
+function hostCall(start: () => unknown): unknown {
+  let done: unknown;
+  try {
+    done = start();
+  } catch (error) {
+    throw hostError(error);
+  }
+  return done instanceof Promise ? done.catch((error: unknown) => Promise.reject(hostError(error))) : done;
+}
+
 /** The message of a failed result, as the control-flow procedures read an error. */
 function messageOf(error: EvalError): string {
   const value = thrownValue(error);
@@ -1216,8 +1238,8 @@ export async function runDocument(doc: ProgramDocument, options: RunDocumentOpti
     const payload = effect.payload as CallEffect;
     const path = effect.path as ProcedurePath;
     if (payload.position === "nested") notify(options.onRef, { path, ref: payload.source as AnyProcedureRef, consumer: payload.consumer });
-    if (payload.position === "root" && options.rootExecutor) return options.rootExecutor(path, payload.input);
-    return options.executor(path, payload.input);
+    const rootExecutor = payload.position === "root" ? options.rootExecutor : undefined;
+    return hostCall(() => (rootExecutor ? rootExecutor(path, payload.input) : options.executor(path, payload.input)));
   };
   const ctx = kernelContext({ names: namesOfScope(options.scope), self: options.self ?? null });
   const result = await prepare(machine, doc).run(ctx, { perform });

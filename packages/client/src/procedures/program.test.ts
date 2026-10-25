@@ -23,9 +23,11 @@ import {
   originOf,
   programMachine,
   runDocument,
+  runProgram,
   scopeOfNames,
   type CallEffect,
 } from "./program.js";
+import type { RefExecutor } from "./ref.js";
 
 vi.mock("@mark1russell7/coeval", async (importOriginal) => {
   const original = await importOriginal<typeof import("@mark1russell7/coeval")>();
@@ -136,6 +138,65 @@ describe("a program runs on the kernel", () => {
     };
     expect(await client.exec(program)).toEqual({ results: [4, 16], final: 16 });
     expect(vi.mocked(kernel.prepare)).toHaveBeenCalled();
+  });
+});
+
+describe("a procedure that throws a Failure of coeval gives the caller that Failure (coeval 0.6.3)", () => {
+  /** A client with the procedure test.failure, which throws the Failure. */
+  function failingClient(thrown: unknown): Client {
+    const { client, registry } = makeClient();
+    registry.register(
+      defineProcedure({
+        path: ["test", "failure"],
+        input: outputSchema<unknown>(),
+        output: outputSchema<unknown>(),
+        handler: () => {
+          throw thrown;
+        },
+      }),
+    );
+    return client;
+  }
+
+  it("client.exec() throws the same Failure, with the message <code> <reason>, as with coeval 0.5", async () => {
+    const thrown = new kernel.Failure({ code: "#VALUE!", reason: "add takes numbers." });
+    const client = failingClient(thrown);
+    const nested = await client.exec(call("client.identity", { value: call("test.failure", {}) })).catch((error: unknown) => error);
+    const operand = await client.exec(call("client.chain", { steps: [call("test.failure", {})] })).catch((error: unknown) => error);
+    for (const error of [nested, operand]) {
+      expect(error).toBe(thrown);
+      expect((error as Error).message).toBe("#VALUE! add takes numbers.");
+    }
+  });
+
+  it("runProgram() throws the same Failure for a throw, a rejection and a Failure with a cause", async () => {
+    const plain = new kernel.Failure({ code: "#N/A", reason: "max of nothing." });
+    const caused = new kernel.Failure({ code: "#X!", reason: "the reason", cause: new TypeError("inner") });
+    for (const thrown of [plain, caused]) {
+      const throwing = (() => {
+        throw thrown;
+      }) as unknown as RefExecutor;
+      const rejecting = (() => Promise.reject(thrown)) as unknown as RefExecutor;
+      for (const executor of [throwing, rejecting]) {
+        await expect(runProgram(call("test.failure", {}), { executor })).rejects.toBe(thrown);
+        await expect(runProgram(call("client.identity", { value: call("test.failure", {}) }), { executor, rootExecutor: (_, input) => input })).rejects.toBe(thrown);
+      }
+    }
+  });
+
+  it("client.tryCatch and client.parallel read the message of the Failure, with its code", async () => {
+    const client = failingClient(new kernel.Failure({ code: "#VALUE!", reason: "add takes numbers." }));
+    const message = "#VALUE! add takes numbers.";
+    expect(await client.exec(call("client.tryCatch", { try: call("test.failure", {}), catch: value("caught", { $ref: "error" }) }))).toEqual({
+      success: false,
+      value: message,
+      error: message,
+    });
+    expect(await client.exec(call("client.parallel", { tasks: [value("a", 1), call("test.failure", {})] }))).toEqual({
+      results: [1, undefined],
+      allSucceeded: false,
+      errors: [{ index: 1, error: message }],
+    });
   });
 });
 
