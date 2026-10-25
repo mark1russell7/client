@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/access",
-  "version": "0.30.0",
+  "version": "0.31.0",
   "description": "The rights of a principal on a scope: access lists, owners, implied rights and conditions over a document, with the rules of the app as a policy, and the output filter of a host.",
   "keywords": [
     "procedures",
