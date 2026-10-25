@@ -190,6 +190,14 @@ export async function saveDependencies(
   return writeJson(resolve(projectPath, "dependencies.json"), depsJson, ctx);
 }
 
+/**
+ * This function tells if the manifest has a feature of its own. A name of the prototype, for
+ * example `constructor`, is not a feature (audit pass 2).
+ */
+export function hasFeature(manifest: FeaturesManifest, feature: string): boolean {
+  return Object.hasOwn(manifest.features, feature);
+}
+
 // Flood-fill resolve all transitive dependencies
 export function resolveFeatures(requested: string[], manifest: FeaturesManifest): string[] {
   const resolved = new Set<string>();
@@ -199,8 +207,8 @@ export function resolveFeatures(requested: string[], manifest: FeaturesManifest)
     const feature = queue.shift()!;
     if (resolved.has(feature)) continue;
 
-    const featureDef = manifest.features[feature];
-    if (!featureDef) continue;
+    if (!hasFeature(manifest, feature)) continue;
+    const featureDef = manifest.features[feature]!;
 
     resolved.add(feature);
 

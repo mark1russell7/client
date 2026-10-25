@@ -3,10 +3,10 @@
  * waiting puts and left takers waiting, and L17, an unbuffered channel had a buffer of 1).
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import fc from "fast-check";
 import { asyncQueue } from "../async/async-queue.js";
-import { channel, merge, select, timeout, unbuffered, type Channel } from "../async/channels.js";
+import { channel, merge, pipeline, select, timeout, unbuffered, type Channel } from "../async/channels.js";
 
 const tick = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
 
@@ -322,5 +322,60 @@ describe("merge (audit O56 #6: no value of an input is lost)", () => {
       ),
       { numRuns: 100 },
     );
+  });
+});
+
+describe("peek on an empty queue (audit pass 2)", () => {
+  it("takes nothing: a take that waits after it gets the element, and the order stays", async () => {
+    const queue = asyncQueue<number>();
+    const peeked = queue.peek();
+    const taken = queue.take();
+    await queue.put(1);
+    await queue.put(2);
+    expect(await within(peeked, "peek")).toBe(1);
+    expect(await within(taken, "take")).toBe(1);
+    expect(queue.tryTake()).toBe(2);
+    expect(queue.tryTake()).toBeUndefined();
+  });
+
+  it("sees an element that stays in the queue", async () => {
+    const queue = asyncQueue<number>({ capacity: 1 });
+    const peeked = queue.peek();
+    await queue.put(7);
+    expect(await within(peeked, "peek")).toBe(7);
+    expect(queue.tryTake()).toBe(7);
+  });
+
+  it("rejects when the queue closes empty", async () => {
+    const queue = asyncQueue<number>();
+    const peeked = queue.peek();
+    queue.close();
+    await expect(peeked).rejects.toThrow(/closed/);
+  });
+});
+
+describe("pipeline with a transform that fails (audit pass 2)", () => {
+  it("closes the output, so its reader does not wait forever", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const input = channel<number>(4);
+      const output = pipeline(input, (value) => {
+        if (value === 2) throw new Error("bad value");
+        return value * 10;
+      });
+      await input.send(1);
+      await input.send(2);
+      const got: number[] = [];
+      await within(
+        (async () => {
+          for await (const value of output) got.push(value);
+        })(),
+        "the output",
+      );
+      expect(got).toEqual([10]);
+      expect(errors).toHaveBeenCalledWith("pipeline error:", expect.any(Error));
+    } finally {
+      errors.mockRestore();
+    }
   });
 });

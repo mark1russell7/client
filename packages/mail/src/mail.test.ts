@@ -45,6 +45,10 @@ describe("mime", () => {
     expect(htmlText("<b>a &amp;lt; b</b>")).toBe("a &lt; b");
   });
 
+  it("gives U+FFFD for a numeric entity above U+10FFFF, and does not throw", () => {
+    expect(htmlText("<p>a &#99999999; b &#x110000; c &#65;</p>")).toBe("a � b � c A");
+  });
+
   it("reads the addresses of a header, with quoted commas", () => {
     expect(parseAddresses('"Example, Ada" <ada@example.org>, bob@example.org, nobody')).toEqual([
       { name: "Example, Ada", address: "ada@example.org" },
