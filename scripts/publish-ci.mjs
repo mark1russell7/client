@@ -43,7 +43,7 @@ const MAX_NOTES = 100_000;
 
 /** This function tells if npm has this version of a package. The query string goes around the cache of the registry. */
 async function onNpm(name, version) {
-  const response = await fetch(`https://registry.npmjs.org/${name.replace("/", "%2f")}?t=${Date.now()}`, {
+  const response = await fetch(`https://registry.npmjs.org/${name.replaceAll("/", "%2f")}?t=${Date.now()}`, {
     headers: { accept: "application/vnd.npm.install-v1+json" },
   });
   if (response.status === 404) return false;

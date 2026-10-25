@@ -368,7 +368,7 @@ if (limited > 0) {
   const created = await Promise.all(
     publicPackages().map(async (pkg) => {
       try {
-        const response = await fetch(`https://registry.npmjs.org/${pkg.name.replace("/", "%2f")}`);
+        const response = await fetch(`https://registry.npmjs.org/${pkg.name.replaceAll("/", "%2f")}`);
         return response.ok ? Date.parse((await response.json()).time?.created) : NaN;
       } catch {
         return NaN;
