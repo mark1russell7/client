@@ -112,6 +112,46 @@ describe("editFile", () => {
     expect(await readFile(path, "utf8")).toBe("A=1\nB=2\n");
   });
 
+  it("ignores the case of the letters of a path on Windows", async () => {
+    const original = Object.getOwnPropertyDescriptor(process, "platform")!;
+    Object.defineProperty(process, "platform", { ...original, value: "win32" });
+    try {
+      let inside = 0;
+      let overlap = false;
+      const edit = (name: string) =>
+        editFile(join(folder, name), async () => {
+          overlap ||= inside > 0;
+          inside++;
+          await tick();
+          inside--;
+          return name;
+        });
+      // On a file system that is not case-sensitive, the two names are one file. The lock is one key.
+      await Promise.all([edit("Case.txt"), edit("CASE.TXT"), edit("case.txt")]);
+      expect(overlap).toBe(false);
+    } finally {
+      Object.defineProperty(process, "platform", original);
+    }
+  });
+
+  it("reads and writes with options.encoding", async () => {
+    const path = join(folder, "latin1.txt");
+    await writeFile(path, Buffer.from([0x63, 0x61, 0x66, 0xe9]));
+    expect(await editFile(path, (current) => `${current}!`, { encoding: "latin1" })).toEqual({ changed: true, content: "café!" });
+    expect([...(await readFile(path))]).toEqual([0x63, 0x61, 0x66, 0xe9, 0x21]);
+  });
+
+  it("fails the write for a folder that does not exist", async () => {
+    let called = false;
+    await expect(
+      editFile(join(folder, "missing", "file.txt"), (current) => {
+        called = current === undefined;
+        return "x";
+      }),
+    ).rejects.toMatchObject({ code: "ENOENT" });
+    expect(called).toBe(true);
+  });
+
   it("throws a read error other than a missing file", async () => {
     // A folder at the path: the read fails with EISDIR, not ENOENT
     await mkdir(join(folder, "dir"));

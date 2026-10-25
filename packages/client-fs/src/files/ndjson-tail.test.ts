@@ -135,6 +135,20 @@ describe("healNdjsonTail", () => {
     expect(healed.endsWith(lines.at(-1)!)).toBe(true);
   });
 
+  it("makes the same repairs without a flush (fsync: false)", async () => {
+    await writeFile(path, `${line(1)}{"n":2`);
+    expect((await healNdjsonTail(path, { fsync: false })).action).toBe("truncated");
+    await writeFile(path, `${line(1)}{"n":2}`);
+    expect((await healNdjsonTail(path, { fsync: false })).action).toBe("newline");
+    expect(await readFile(path, "utf8")).toBe(`${line(1)}{"n":2}\n`);
+  });
+
+  // Windows opens a folder for a write, so only the other platforms give EISDIR
+  it.skipIf(process.platform === "win32")("throws an error of the open other than a missing file", async () => {
+    await fsPromises.mkdir(join(folder, "dir"));
+    await expect(healNdjsonTail(join(folder, "dir"))).rejects.toMatchObject({ code: "EISDIR" });
+  });
+
   it("refuses a last line longer than maxLineBytes, and changes nothing", async () => {
     const text = `${line(1)}{"n":2,"pad":"${"z".repeat(5000)}`;
     await writeFile(path, text);

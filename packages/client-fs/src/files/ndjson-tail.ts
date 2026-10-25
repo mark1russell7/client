@@ -38,16 +38,14 @@ const CHUNK_BYTES = 64 * 1024;
 const DEFAULT_MAX_LINE_BYTES = 16 * 1024 * 1024;
 const BOM = [0xef, 0xbb, 0xbf] as const;
 
-/** The bytes of the file from `position`, `length` bytes. */
+/**
+ * The bytes of the file from `position`, `length` bytes or fewer. A read of a local file gives all
+ * the bytes up to the end of the file.
+ */
 async function readAt(handle: FileHandle, position: number, length: number): Promise<Buffer> {
   const buffer = Buffer.alloc(length);
-  let done = 0;
-  while (done < length) {
-    const { bytesRead } = await handle.read(buffer, done, length - done, position + done);
-    if (bytesRead === 0) break;
-    done += bytesRead;
-  }
-  return done === length ? buffer : buffer.subarray(0, done);
+  const { bytesRead } = await handle.read(buffer, 0, length, position);
+  return buffer.subarray(0, bytesRead);
 }
 
 /**

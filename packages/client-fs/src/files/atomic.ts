@@ -29,17 +29,20 @@ export interface WriteFileAtomicOptions {
   renameRetryMs?: number | undefined;
 }
 
-const IS_WINDOWS = process.platform === "win32";
-
 /** On Windows, an antivirus or an indexer that holds the target open gives these errors for a short time. */
 const LOCKED = new Set(["EPERM", "EACCES", "EBUSY"]);
 
 /** A file system that cannot flush a folder gives these errors. The write is complete without the flush. */
 const NO_FOLDER_SYNC = new Set(["EINVAL", "ENOTSUP", "EISDIR", "EBADF", "EPERM", "EACCES"]);
 
-/** The code of a Node.js error, or undefined. */
-function codeOf(error: unknown): string | undefined {
-  return (error as NodeJS.ErrnoException | undefined)?.code;
+/** True on Windows. The function reads the platform at each call, so a test can change it. */
+function isWindows(): boolean {
+  return process.platform === "win32";
+}
+
+/** The code of a Node.js error, or an empty string. */
+function codeOf(error: unknown): string {
+  return (error as NodeJS.ErrnoException | undefined)?.code ?? "";
 }
 
 /** True for the error of a path that does not exist. */
@@ -91,7 +94,7 @@ async function renameWithRetry(from: string, to: string, retryMs: number): Promi
       return;
     } catch (error) {
       const delay = Math.round(step * (0.5 + Math.random()));
-      if (!LOCKED.has(codeOf(error) ?? "") || Date.now() + delay > deadline) throw error;
+      if (!LOCKED.has(codeOf(error)) || Date.now() + delay > deadline) throw error;
       await sleep(delay);
     }
   }
@@ -102,22 +105,26 @@ async function removeTemp(temp: string): Promise<void> {
   try {
     await unlink(temp);
   } catch (error) {
-    // Windows does not remove a read-only file
-    if (IS_WINDOWS && codeOf(error) === "EPERM") {
-      await chmod(temp, 0o666).then(() => unlink(temp)).catch(() => undefined);
+    if (codeOf(error) !== "EPERM") return;
+    // Windows does not remove a read-only file, so the function clears the flag and tries again
+    try {
+      await chmod(temp, 0o666);
+      await unlink(temp);
+    } catch {
+      // The temporary file stays. The error of the write is the error that the caller gets.
     }
   }
 }
 
 /** The flush of the folder, so that the rename is on the disk. Windows cannot open a folder for it. */
 async function syncFolder(folder: string): Promise<void> {
-  if (IS_WINDOWS) return;
+  if (isWindows()) return;
   let handle: FileHandle | undefined;
   try {
     handle = await open(folder, "r");
     await handle.sync();
   } catch (error) {
-    if (!NO_FOLDER_SYNC.has(codeOf(error) ?? "")) throw error;
+    if (!NO_FOLDER_SYNC.has(codeOf(error))) throw error;
   } finally {
     await handle?.close();
   }
@@ -156,9 +163,15 @@ export async function writeFileAtomic(
     if (flush) await handle.sync();
     await handle.close();
     handle = undefined;
-    await renameWithRetry(temp, target, options.renameRetryMs ?? (IS_WINDOWS ? 2000 : 0));
+    await renameWithRetry(temp, target, options.renameRetryMs ?? (isWindows() ? 2000 : 0));
   } catch (error) {
-    await handle?.close().catch(() => undefined);
+    if (handle) {
+      try {
+        await handle.close();
+      } catch {
+        // The error of the write is the error that the caller gets
+      }
+    }
     if (created) await removeTemp(temp);
     throw error;
   }

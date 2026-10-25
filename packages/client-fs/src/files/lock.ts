@@ -26,8 +26,12 @@ export type LockOutcome<T> = { readonly ran: true; readonly value: T } | { reado
 /** A caller that waits for a key. */
 interface Waiter {
   readonly grant: (release: LockRelease) => void;
-  readonly detach: () => void;
+  /** The removal of the abort listener of the waiter. */
+  detach: () => void;
 }
+
+/** The function that does nothing: the `detach` of a waiter without a signal. */
+function noop(): void {}
 
 /**
  * A set of locks, one for each key, in one process. Each instance has its own keys.
@@ -52,9 +56,7 @@ export class KeyedLock {
 
   /** This method takes the key when it has no holder. Otherwise it gives `undefined` and does not wait. */
   tryAcquire(key: string): LockRelease | undefined {
-    if (this.queues.has(key)) return undefined;
-    this.queues.set(key, []);
-    return this.releaseOf(key);
+    return this.queues.has(key) ? undefined : this.take(key);
   }
 
   /**
@@ -64,21 +66,20 @@ export class KeyedLock {
   acquire(key: string, options: { signal?: AbortSignal | undefined } = {}): Promise<LockRelease> {
     const { signal } = options;
     if (signal?.aborted) return Promise.reject(signal.reason);
-    const release = this.tryAcquire(key);
-    if (release) return Promise.resolve(release);
-    const queue = this.queues.get(key) ?? [];
+    const queue = this.queues.get(key);
+    if (!queue) return Promise.resolve(this.take(key));
     return new Promise<LockRelease>((resolve, reject) => {
-      const onAbort = (): void => {
-        const index = queue.indexOf(waiter);
-        if (index !== -1) queue.splice(index, 1);
-        reject(signal?.reason);
-      };
-      const waiter: Waiter = {
-        grant: resolve,
-        detach: () => signal?.removeEventListener("abort", onAbort),
-      };
+      const waiter: Waiter = { grant: resolve, detach: noop };
       queue.push(waiter);
-      signal?.addEventListener("abort", onAbort, { once: true });
+      if (signal) {
+        const onAbort = (): void => {
+          // The grant removes this listener, so the waiter is still in the queue here
+          queue.splice(queue.indexOf(waiter), 1);
+          reject(signal.reason);
+        };
+        signal.addEventListener("abort", onAbort, { once: true });
+        waiter.detach = () => signal.removeEventListener("abort", onAbort);
+      }
     });
   }
 
@@ -110,17 +111,26 @@ export class KeyedLock {
     }
   }
 
-  /** The release of one turn of the key. It gives the key to the first waiter, or removes the key. */
-  private releaseOf(key: string): LockRelease {
+  /** The start of a turn of a key without a holder: an empty queue in the map. */
+  private take(key: string): LockRelease {
+    const queue: Waiter[] = [];
+    this.queues.set(key, queue);
+    return this.releaseOf(key, queue);
+  }
+
+  /**
+   * The release of one turn of the key. It gives the key to the first waiter of `queue`, or removes
+   * the key. The queue stays in the map while the key has a holder.
+   */
+  private releaseOf(key: string, queue: Waiter[]): LockRelease {
     let released = false;
     return () => {
       if (released) return;
       released = true;
-      const queue = this.queues.get(key);
-      const next = queue?.shift();
+      const next = queue.shift();
       if (next) {
         next.detach();
-        next.grant(this.releaseOf(key));
+        next.grant(this.releaseOf(key, queue));
       } else {
         this.queues.delete(key);
       }

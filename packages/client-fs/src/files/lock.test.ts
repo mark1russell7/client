@@ -106,6 +106,19 @@ describe("KeyedLock", () => {
     expect(lock.size).toBe(0);
   });
 
+  it("gives the key to a waiter with a signal, and a later abort changes nothing", async () => {
+    const lock = new KeyedLock();
+    const release = lock.tryAcquire("k")!;
+    const controller = new AbortController();
+    const waiting = lock.acquire("k", { signal: controller.signal });
+    release();
+    const second = await waiting;
+    controller.abort(new Error("late"));
+    expect(lock.isHeld("k")).toBe(true);
+    second();
+    expect(lock.size).toBe(0);
+  });
+
   it("refuses a signal that is aborted already", async () => {
     const lock = new KeyedLock();
     await expect(lock.acquire("k", { signal: AbortSignal.abort(new Error("early")) })).rejects.toThrow("early");
