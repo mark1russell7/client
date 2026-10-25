@@ -7,7 +7,7 @@
  * the reader stops early.
  */
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { gzipSync } from "node:zlib";
@@ -772,5 +772,28 @@ describe("createHostFetch", () => {
       (caught: unknown) => caught,
     );
     expect((error as { name?: string }).name).toBe("TimeoutError");
+  });
+
+  // The default modules of 0.28 keep a refused host working, with a notice (O55, D35)
+  it("with warnOnRefusal, sends a refused request with the global fetch and emits the notice one time", async () => {
+    const emitWarning = vi.spyOn(process, "emitWarning").mockImplementation(() => undefined);
+    try {
+      const notice = { code: "PROCEDURES_TEST_PRIVATE_HOST", message: "a test notice" };
+      const hostFetch = createHostFetch({ warnOnRefusal: notice });
+      seen.delete("/json");
+      const first = await hostFetch(`${base}/json?q=1`, { headers: { "user-agent": "test/1.0" } });
+      expect(first).toMatchObject({ ok: true, status: 200 });
+      expect(await first.json()).toEqual({ a: 1, query: { q: "1" } });
+      expect(seen.get("/json")?.headers["user-agent"]).toBe("test/1.0");
+      const second = await createHostFetch({ warnOnRefusal: notice })(`${base}/missing`);
+      expect(second).toMatchObject({ ok: false, status: 404 });
+      expect(emitWarning).toHaveBeenCalledTimes(1);
+      expect(emitWarning).toHaveBeenCalledWith("a test notice", { type: "DeprecationWarning", code: "PROCEDURES_TEST_PRIVATE_HOST" });
+      // A host of the allowlist gets no notice
+      await createHostFetch({ allow: ["127.0.0.1"], warnOnRefusal: { code: "PROCEDURES_TEST_OTHER", message: "other" } })(`${base}/json`);
+      expect(emitWarning).toHaveBeenCalledTimes(1);
+    } finally {
+      emitWarning.mockRestore();
+    }
   });
 });

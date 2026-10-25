@@ -97,6 +97,7 @@ const registry = createRegistry(createHttpModule({ allow: ["localhost:11434", "1
 - `weather.forecast` uses it by default.
 - `createGeoModule({ fetch })` and `createIcsModule({ fetch })` take it. Their default stays the global `fetch`, because their roots run in a browser.
 - `mcpHostModules` of `@procedures/bundle-assistant` gives it to the modules of `geo` and `ics`. The dev-tools server puts them before its bundles.
+- In 0.28, these default modules give the option `warnOnRefusal`. A refused host then gets one `DeprecationWarning` and the global `fetch`, as before. Version 0.29.0 removes the option, and a refused host gets `FORBIDDEN`.
 
 ```ts
 import { createHostFetch } from "@procedures/http";
