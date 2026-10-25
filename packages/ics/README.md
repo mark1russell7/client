@@ -123,4 +123,4 @@ import { createIcsModule } from "@procedures/ics/module";
 const registry = createRegistry(createIcsModule({ fetch: createHostFetch() }));
 ```
 
-A refusal is `FORBIDDEN` with the reason `host-not-allowed`. Its message does not contain the address of the feed. `mcpHostModules` of `@procedures/bundle-assistant` has a module of `ics` with this policy. The dev-tools server uses it. In 0.28, that module still sends a refused request, with a `DeprecationWarning`. Version 0.29.0 refuses it.
+A refusal is `FORBIDDEN` with the reason `host-not-allowed`. Its message does not contain the address of the feed. `mcpHostModules` of `@procedures/bundle-assistant` has a module of `ics` with this `fetch`. The dev-tools server uses it.
