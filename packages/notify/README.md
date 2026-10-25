@@ -27,3 +27,5 @@ await client.exec(["notify", "send"], { topic: "my-long-random-topic", title: "B
 ## Privacy
 
 On the public server, anyone who knows a topic can read its messages. Use a long random topic name, and do not send private content. For a protected topic, `tokenEnv` names the environment variable with the access token.
+
+The name starts with `NTFY_` or `NOTIFY_`, for example `NTFY_TOKEN`. The procedure refuses another name. The caller chooses the server, so another name lets it send a secret of the host, for example `GITHUB_TOKEN`, to its own server.

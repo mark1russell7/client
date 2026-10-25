@@ -6,6 +6,13 @@ import { createProcedure, zodAdapter, type AnyProcedure, type ProcedureContext }
 import { z } from "zod";
 import { sendNotification } from "./notify.js";
 
+/**
+ * The names of the variables that `tokenEnv` of `notify.send` can name: `NTFY_` or `NOTIFY_`,
+ * then letters, digits and underscores (audit pass 2, O55). The caller chooses the server, so a
+ * free name let it send any secret of the host, for example `GITHUB_TOKEN`, to its own server.
+ */
+export const NOTIFY_TOKEN_ENV: RegExp = /^(?:NTFY|NOTIFY)_[A-Za-z0-9_]+$/;
+
 const SendInputSchema = z.object({
   topic: z
     .string()
@@ -19,9 +26,9 @@ const SendInputSchema = z.object({
   server: z.url().optional().describe("Another ntfy server (default: https://ntfy.sh)"),
   tokenEnv: z
     .string()
-    .regex(/^[A-Za-z_][A-Za-z0-9_]*$/)
+    .regex(NOTIFY_TOKEN_ENV, "tokenEnv names a variable that starts with NTFY_ or NOTIFY_, for example NTFY_TOKEN")
     .optional()
-    .describe("The name of the environment variable with the access token of a protected topic. The token is never an input."),
+    .describe("The name of the environment variable with the access token of a protected topic: NTFY_ or NOTIFY_ and more. The token is never an input."),
   timeoutMs: z.number().int().positive().max(120_000).default(20_000).describe("The time limit, in milliseconds (default: 20000)"),
 });
 type SendInput = z.infer<typeof SendInputSchema>;

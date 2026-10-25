@@ -10,7 +10,7 @@ const send = async (input: unknown): Promise<unknown> =>
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  delete process.env["TEST_NTFY_TOKEN"];
+  delete process.env["NTFY_TEST_TOKEN"];
 });
 
 describe("headerSafe", () => {
@@ -37,12 +37,31 @@ describe("notify.send", () => {
   it("sends the token of a protected topic from the environment", async () => {
     const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
-    await expect(send({ topic: "t", title: "x", message: "y", tokenEnv: "TEST_NTFY_TOKEN" })).rejects.toThrow(/TEST_NTFY_TOKEN/);
-    process.env["TEST_NTFY_TOKEN"] = "tk_madeup";
-    await send({ topic: "t", title: "x", message: "y", tokenEnv: "TEST_NTFY_TOKEN", server: "https://ntfy.example.org" });
+    await expect(send({ topic: "t", title: "x", message: "y", tokenEnv: "NTFY_TEST_TOKEN" })).rejects.toThrow(/NTFY_TEST_TOKEN/);
+    process.env["NTFY_TEST_TOKEN"] = "tk_madeup";
+    await send({ topic: "t", title: "x", message: "y", tokenEnv: "NTFY_TEST_TOKEN", server: "https://ntfy.example.org" });
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, { headers: Record<string, string> }];
     expect(url).toBe("https://ntfy.example.org/t");
     expect(init.headers["authorization"]).toBe("Bearer tk_madeup");
+  });
+
+  // Audit pass 2 (O55): before, tokenEnv could name any variable, and the caller chose the server
+  it("refuses a token variable without the prefix NTFY_ or NOTIFY_, and sends nothing", async () => {
+    const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    for (const tokenEnv of ["GITHUB_TOKEN", "ANTHROPIC_API_KEY", "PATH", "ntfy_token", "NTFY_", "XNTFY_TOKEN"]) {
+      await expect(send({ topic: "t", title: "x", message: "y", tokenEnv, server: "https://ntfy.example.org" }), tokenEnv).rejects.toThrow(
+        /starts with NTFY_ or NOTIFY_/
+      );
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+    process.env["NOTIFY_AUDIT_TOKEN"] = "tk_madeup";
+    try {
+      await send({ topic: "t", title: "x", message: "y", tokenEnv: "NOTIFY_AUDIT_TOKEN" });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      delete process.env["NOTIFY_AUDIT_TOKEN"];
+    }
   });
 
   it("throws when the server refuses, and refuses a topic with a slash", async () => {
