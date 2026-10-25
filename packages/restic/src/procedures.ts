@@ -29,7 +29,10 @@ const RunInputSchema = z.object({
     .describe('The flags: { tag: ["daily"], "keep-daily": 7, "dry-run": true }'),
   repository: z.string().min(1).optional().describe("The repository (--repo). Default: RESTIC_REPOSITORY of the environment."),
   json: z.boolean().default(true).describe("Ask for JSON output (--json) and read it (default: true)"),
-  executable: z.string().min(1).optional().describe("The restic program (default: RESTIC_EXE of the environment, then restic)"),
+  // The program comes from the host (audit pass 2, O55): an input that names one is refused
+  executable: z
+    .never({ error: "restic.run takes its program from the host: give executable to createResticModule(), or set RESTIC_EXE" })
+    .optional(),
   cwd: z.string().optional().describe("The working folder"),
   timeout: z.number().int().positive().optional().describe("The time limit, in milliseconds"),
 });
@@ -144,6 +147,11 @@ export async function runRestic(command: ResticCommand, options: ResticRunOption
 
 /** The settings of the host for the procedures of this package. The procedure input cannot change them. */
 export interface ResticProceduresOptions {
+  /**
+   * The restic program, for example the result of `findRestic()`. The default is `RESTIC_EXE` of
+   * the environment of the host, then `restic`. The input of `restic.run` cannot name a program.
+   */
+  readonly executable?: string | undefined;
   /** The variables for the restic process only, for example `RESTIC_PASSWORD`. Refer to `ResticRunOptions.env`. */
   readonly env?: Readonly<Record<string, string | undefined>> | undefined;
   /** The function that starts restic (default: `runCommand`). A test gives a fake. */
@@ -170,7 +178,7 @@ export function createResticProcedures(options: ResticProceduresOptions = {}): A
     })
     .handler(
       async (input: RunInput, ctx?: ProcedureContext): Promise<RunOutput> =>
-        runRestic(input, { executable: input.executable, env: options.env, cwd: input.cwd, timeout: input.timeout, signal: ctx?.signal, run: options.run }),
+        runRestic(input, { executable: options.executable, env: options.env, cwd: input.cwd, timeout: input.timeout, signal: ctx?.signal, run: options.run }),
     )
     .build() as AnyProcedure;
   return [run];

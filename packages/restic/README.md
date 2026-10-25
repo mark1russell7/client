@@ -50,13 +50,14 @@ The package root exports the functions that `restic.run` uses:
 | `runRestic(command, options)` | Starts a restic command with argv, and reads its JSON output. |
 | `findRestic(options)` | Finds the restic program. |
 | `resticArgv(command)` | Gives the argv of a restic command. |
-| `createResticModule(options)` | Gives the module with the settings of the host: `env` and `run`. |
+| `createResticModule(options)` | Gives the module with the settings of the host: `executable`, `env` and `run`. |
 
 - `command` has `path`, `positional`, `args`, `repository` and `json`. `json` is true when the command does not set it, as in `restic.run`.
 - `options` of `runRestic` has `executable`, `env`, `cwd`, `timeout`, `signal` and `run`.
 - `runRestic` throws when restic does not start. A failed command gives `success: false`, with `exitCode` and `stderr`.
 - `run` replaces the function that starts restic. A test gives a fake runner.
 - `findRestic` gives `RESTIC_EXE` when it is set. On Windows, it then looks for the `restic*.exe` of a WinGet package. Then it gives `restic`, and the `PATH` gives the program.
+- The program of `restic.run` comes from the host: the `executable` option of `createResticModule()`, then `RESTIC_EXE`, then `restic`. An input with `executable` gets a validation error.
 
 ```ts
 const executable = await findRestic();

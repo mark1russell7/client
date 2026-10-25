@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { ProcedureRegistry, createRegistry, invokePath, outputValue } from "@procedures/client";
+import { createRegistry, invokePath, outputValue } from "@procedures/client";
 import type { CommandOptions, CommandResult } from "@procedures/shell/command";
 import { buildArgv, parseJsonOutput } from "./argv.js";
 import { findRestic } from "./executable.js";
 import { createResticModule, resticModule } from "./module.js";
-import { resticArgv, resticProcedures, runRestic, type ResticRunner } from "./procedures.js";
+import { resticArgv, runRestic, type ResticRunner } from "./procedures.js";
 
 /** A runner that records each start of restic and answers with the next scripted result. */
 function fakeRunner(results: Array<Partial<CommandResult>> = []) {
@@ -45,12 +45,20 @@ describe("restic.run", () => {
   });
 
   it("reports a program that does not start", async () => {
-    const registry = new ProcedureRegistry();
-    for (const procedure of resticProcedures) registry.register(procedure);
-    const call = invokePath(["restic", "run"], { path: ["version"], executable: "restic-that-does-not-exist-0" }, { registry }).then((output) =>
-      outputValue(output, ["restic", "run"])
-    );
+    // The program comes from the module (audit pass 2, O55)
+    const registry = createRegistry(createResticModule({ executable: "restic-that-does-not-exist-0" }));
+    const call = invokePath(["restic", "run"], { path: ["version"] }, { registry }).then((output) => outputValue(output, ["restic", "run"]));
     await expect(call).rejects.toThrow(/restic did not start/);
+  });
+
+  // Audit pass 2 (O55): before, the input executable let the caller start any program
+  it("refuses an input that names the program, and starts nothing", async () => {
+    const { starts, run } = fakeRunner();
+    const registry = createRegistry(createResticModule({ run }));
+    const call = invokePath(["restic", "run"], { path: ["snapshots"], executable: "/bin/sh" }, { registry }).then((output) => outputValue(output, ["restic", "run"]));
+    await expect(call).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    await expect(call).rejects.toThrow(/takes its program from the host/);
+    expect(starts).toEqual([]);
   });
 
   it("gives no env to restic: the input has no field for secrets", async () => {
@@ -65,8 +73,8 @@ describe("restic.run", () => {
   it("gives the env of the host to each restic process with createResticModule", async () => {
     const { starts, run } = fakeRunner([{ stdout: "[]" }]);
     const env = { RESTIC_REPOSITORY: "b2:bucket-name:path", RESTIC_PASSWORD: "synthetic-password" };
-    const registry = createRegistry(createResticModule({ env, run }));
-    const output = await outputValue(await invokePath(["restic", "run"], { path: ["snapshots"], executable: "/opt/restic" }, { registry }), ["restic", "run"]);
+    const registry = createRegistry(createResticModule({ env, run, executable: "/opt/restic" }));
+    const output = await outputValue(await invokePath(["restic", "run"], { path: ["snapshots"] }, { registry }), ["restic", "run"]);
     expect(starts[0]).toMatchObject({ command: "/opt/restic", options: { env } });
     // The output has no value of the env
     expect(JSON.stringify(output)).not.toContain("synthetic-password");
