@@ -242,7 +242,8 @@ export function extractSchemaFields(schema: unknown): SchemaFieldInfo[] {
 /** The result of a conversion: the value, or a message for the user */
 export type Converted = { ok: true; value: unknown } | { ok: false; error: string };
 
-const NUMBER_TEXT = /^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$|^0[xX][0-9a-fA-F]+$/;
+// The digits before the point and the digits after it are two groups, so each text has one match
+const NUMBER_TEXT = /^[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?$|^0[xX][0-9a-fA-F]+$/;
 const SAFE_INTEGER_LIMIT = BigInt(Number.MAX_SAFE_INTEGER);
 
 /**

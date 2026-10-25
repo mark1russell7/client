@@ -77,7 +77,8 @@ function procedureSummary(name) {
   return [...namespaces].map(([ns, n]) => `\`${ns}.*\` (${n})`).join(", ");
 }
 
-const esc = (s) => String(s ?? "").replace(/\|/g, "\\|").replace(/\n/g, " ").trim();
+// The backslash first, so that a backslash before a pipe does not undo the escape of the pipe
+const esc = (s) => String(s ?? "").replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\n/g, " ").trim();
 
 let out = "";
 out += "# Package Reference\n\n";

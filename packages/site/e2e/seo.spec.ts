@@ -64,7 +64,7 @@ test.describe("the static pages", () => {
       expect(title).toContain("client");
       expect(attribute(html, /<meta name="description" content="([^"]+)"/), "description").toBeTruthy();
       const canonical = attribute(html, /<link rel="canonical" href="([^"]+)"/);
-      expect(canonical, "canonical").toMatch(new RegExp(`/${route.replace(/\./g, "\\.")}$`));
+      expect(canonical, "canonical").toMatch(new RegExp(`/${route.replace(/[\\^$.*+?()[\]{}|/]/g, "\\$&")}$`));
       expect(attribute(html, /<meta property="og:image" content="([^"]+)"/), "og:image").toMatch(/\/og\/.+\.png$/);
       expect(attribute(html, /<meta name="twitter:card" content="([^"]+)"/)).toBe("summary_large_image");
       const jsonLd = attribute(html, /<script type="application\/ld\+json">([\s\S]*?)<\/script>/);

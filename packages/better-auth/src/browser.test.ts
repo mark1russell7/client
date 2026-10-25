@@ -87,4 +87,13 @@ describe("createBrowserAuth", () => {
     await createBrowserAuth({ baseURL: "", basePath: "/api/auth", fetch: server.fetch }).signOut();
     expect(server.sent[0]!.url).toBe("/api/auth/sign-out");
   });
+
+  it("removes each slash at the end of the base URL, in linear time for a long run of slashes", async () => {
+    const server = fakeServer({ "/sign-out": [200, { success: true }] });
+    await createBrowserAuth({ baseURL: "https://api.example.com///", fetch: server.fetch }).signOut();
+    expect(server.sent[0]!.url).toBe("https://api.example.com/auth/sign-out");
+    const started = performance.now();
+    createBrowserAuth({ baseURL: `https://api.example.com${"/".repeat(50_000)}x`, fetch: server.fetch });
+    expect(performance.now() - started).toBeLessThan(100);
+  });
 });

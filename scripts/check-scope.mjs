@@ -32,7 +32,8 @@ const SKIP_FILES = new Set([
 const BINARY = /\.(png|gif|jpe?g|ico|woff2?|ttf|tgz|zip|pdf)$/i;
 
 const names = Object.keys(OLD_TO_NEW).sort((a, b) => b.length - a.length);
-const pattern = new RegExp(`${OLD_SCOPE.replace("/", "\\/")}(${names.map((n) => n.replace(/[-]/g, "\\-")).join("|")})(?![A-Za-z0-9_-])`, "g");
+const literal = (text) => text.replace(/[\\^$.*+?()[\]{}|/-]/g, "\\$&");
+const pattern = new RegExp(`${literal(OLD_SCOPE)}(${names.map(literal).join("|")})(?![A-Za-z0-9_-])`, "g");
 
 const files = execFileSync("git", ["ls-files"], { cwd: root, encoding: "utf8" }).split("\n").filter(Boolean);
 const findings = [];

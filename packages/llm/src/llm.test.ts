@@ -9,7 +9,7 @@ import { createRegistry, effectsOf, InvocationError, invokePath, isDataDriven, o
 import { createLlmModule, llmModule, type LlmModuleOptions } from "./module.js";
 import { LlmError } from "./errors.js";
 import { constrainedSchema, parseAnswer } from "./schema.js";
-import { FALLBACK_BETA } from "./anthropic.js";
+import { FALLBACK_BETA, messagesUrl } from "./anthropic.js";
 import type { LlmCompleteOutput, LlmStructuredOutput } from "./types.js";
 
 const KEY = "sk-ant-test-key";
@@ -333,6 +333,19 @@ describe("the schema helpers", () => {
     expect(parseAnswer("```\n[1]\n```")).toEqual({ ok: true, value: [1] });
     expect(parseAnswer("")).toEqual({ ok: false, problem: "the answer is empty" });
     expect(parseAnswer("{").ok).toBe(false);
+    expect(parseAnswer('```json\n{"a":1}\n```')).toEqual({ ok: true, value: { a: 1 } });
+    expect(parseAnswer('```json \r\n\n  {"a":1}```')).toEqual({ ok: true, value: { a: 1 } });
+    expect(parseAnswer("```\n```")).toEqual({ ok: false, problem: "the answer is empty" });
+    expect(parseAnswer("```json[1]```").ok).toBe(false);
+    expect(parseAnswer("```json x\n[1]\n```").ok).toBe(false);
+  });
+
+  it("parseAnswer and the URL of the API read a long adversarial text in linear time", () => {
+    const started = performance.now();
+    expect(parseAnswer(`\`\`\`\n${"\n ".repeat(25_000)}x`).ok).toBe(false);
+    expect(messagesUrl(`http://proxy.test${"/".repeat(50_000)}x`)).toBe(`http://proxy.test${"/".repeat(50_000)}x/v1/messages`);
+    expect(messagesUrl("http://proxy.test///")).toBe("http://proxy.test/v1/messages");
+    expect(performance.now() - started).toBeLessThan(100);
   });
 });
 

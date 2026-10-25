@@ -73,10 +73,13 @@ jobs:
           persist-credentials: false
       # The pnpm version comes from "packageManager" in package.json
       - uses: pnpm/action-setup@v6
+      # No dependency cache: this job runs on the default branch, so a cache that it saved or
+      # restored would reach the other runs of main. The install takes the packages from the
+      # registry and the lockfile only.
       - uses: actions/setup-node@v7
         with:
           node-version: 26
-          cache: pnpm
+          package-manager-cache: false
       - run: pnpm install --frozen-lockfile
       # The build of the site renders each page in Chromium (an HTML file for each page, and its
       # Open Graph image), and the smoke test uses it too

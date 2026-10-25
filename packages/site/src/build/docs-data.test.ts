@@ -12,6 +12,7 @@ import {
   convertMarkdown,
   createSlugger,
   linkResolver,
+  plainText,
   programOf,
   readDocs,
   REPOSITORY_URL,
@@ -103,6 +104,13 @@ describe("convertMarkdown", () => {
     expect(programOf('{ "$proc": ["client", "not"], "input": { "value": true } }\n// false')).toMatchObject({ expected: "false" });
     expect(programOf("[1, 2]")).toBeNull();
     expect(programOf("not json")).toBeNull();
+  });
+});
+
+describe("plainText", () => {
+  it("decodes each entity one time, so an escaped entity stays an entity", () => {
+    expect(plainText("a &amp; b &lt;c&gt; &quot;d&quot; &#39;e&#39;")).toBe(`a & b <c> "d" 'e'`);
+    expect(plainText("&amp;lt;script&amp;gt;")).toBe("&lt;script&gt;");
   });
 });
 

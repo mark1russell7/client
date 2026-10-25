@@ -67,6 +67,13 @@ interface Answer {
   json: Record<string, unknown> | undefined;
 }
 
+/** This function removes the slashes at the end of a text. A loop does it, so a long text takes linear time. */
+function trimTrailingSlashes(text: string): string {
+  let end = text.length;
+  while (end > 0 && text[end - 1] === "/") end--;
+  return text.slice(0, end);
+}
+
 const errorOf = (answer: Answer): BrowserAuthError => ({
   error: typeof answer.json?.["message"] === "string" ? answer.json["message"] : `HTTP ${answer.status}`,
 });
@@ -83,7 +90,7 @@ const errorOf = (answer: Answer): BrowserAuthError => ({
  * ```
  */
 export function createBrowserAuth(options: BrowserAuthOptions): BrowserAuth {
-  const base = `${options.baseURL.replace(/\/+$/, "")}${options.basePath ?? "/auth"}`;
+  const base = `${trimTrailingSlashes(options.baseURL)}${options.basePath ?? "/auth"}`;
   const doFetch = options.fetch ?? ((...args: Parameters<typeof fetch>) => fetch(...args));
   const timeoutMs = options.sessionTimeoutMs ?? 4000;
   let ceremonies: Promise<WebAuthnCeremonies> | undefined;

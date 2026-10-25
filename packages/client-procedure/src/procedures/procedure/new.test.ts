@@ -8,7 +8,7 @@
 import { describe, it, expect } from "vitest";
 import { join } from "node:path";
 import type { ProcedureContext } from "@procedures/client";
-import { addToRegistration, procedureLayout, procedureNew, registerSource } from "./new.js";
+import { addToRegistration, ensureNamedImports, procedureLayout, procedureNew, registerSource } from "./new.js";
 
 const HEADER = `import { defineModule, registerModules, PROCEDURE_REGISTRY, type AnyProcedure, type ProcedureModule, type ProcedureRegistry } from "@procedures/client";
 import { shellModule } from "@procedures/shell/module";
@@ -112,6 +112,26 @@ describe("addToRegistration", () => {
     const { source: updated, before } = edited(source);
     expect(updated).toContain("registerProcedures([\n    aProcedure,\n    bProcedure,\n  ]);");
     expect(before).toBe(0);
+  });
+
+  it("follows a variable whose name has a dollar sign", () => {
+    const source = `const $procedures = [aProcedure];\nexport const demoModule = defineModule("@procedures/demo", $procedures);\n`;
+    expect(edited(source).source).toContain("const $procedures = [aProcedure, bProcedure];");
+  });
+});
+
+describe("ensureNamedImports", () => {
+  it("adds only the names that the import does not have, also with type and as", () => {
+    const source = `import { a as b, type c } from "m";\n`;
+    expect(ensureNamedImports(source, "m", ["a", "c", "d"])).toBe(`import { a as b, type c, d } from "m";\n`);
+    expect(ensureNamedImports(source, "m", ["a", "c"])).toBe(source);
+  });
+
+  it("reads a long run of spaces in an import in linear time", () => {
+    const source = `import { a${" ".repeat(50_000)}x } from "m";\n`;
+    const started = performance.now();
+    expect(ensureNamedImports(source, "m", ["z"])).toContain(", z } from \"m\";");
+    expect(performance.now() - started).toBeLessThan(100);
   });
 });
 

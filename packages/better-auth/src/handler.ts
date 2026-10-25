@@ -94,6 +94,13 @@ function keepVaryOrigin(handler: BetterAuthServer["handler"]): BetterAuthServer[
   };
 }
 
+/** This function removes the slashes at the end of a text. A loop does it, so a long text takes linear time. */
+function trimTrailingSlashes(text: string): string {
+  let end = text.length;
+  while (end > 0 && text[end - 1] === "/") end--;
+  return text.slice(0, end);
+}
+
 /** The path of a request URL, without its query. */
 function pathOf(url: string | undefined): string {
   const path = (url ?? "/").split("?")[0] ?? "/";
@@ -111,7 +118,7 @@ function pathOf(url: string | undefined): string {
  * ```
  */
 export function betterAuthHandler(auth: Pick<BetterAuthServer, "handler">, options: BetterAuthHandlerOptions = {}): NodeAuthHandler {
-  const basePath = (options.basePath ?? "/auth").replace(/\/+$/, "") || "/";
+  const basePath = trimTrailingSlashes(options.basePath ?? "/auth") || "/";
   const prefix = basePath === "/" ? "/" : `${basePath}/`;
   const cors = credentialedCors(options.allowedOrigins, { methods: AUTH_CORS_METHODS, allowedHeaders: AUTH_CORS_HEADERS, ...options.cors });
   // The CORS sets `Vary: Origin` on each response, for each origin: the routes keep it
