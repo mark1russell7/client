@@ -1,5 +1,12 @@
 # @procedures/dag
 
+## 0.27.1
+
+### Patch Changes
+
+- Updated dependencies [146d38e]
+  - @procedures/client@0.27.1
+
 ## 0.27.0
 
 ### Patch Changes
