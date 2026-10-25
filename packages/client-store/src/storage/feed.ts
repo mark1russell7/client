@@ -145,11 +145,17 @@ const EVENT_FIELDS: ReadonlySet<string> = new Set(["since", "version", "changed"
 
 /**
  * The other fields of an event, or undefined for an event without them. A field without a value
- * stays out. `Object.fromEntries()` makes each field an own field, also a field `__proto__`.
+ * stays out. `Object.fromEntries()` makes each field an own field, also a field `__proto__`. An
+ * event without other fields makes no array.
  */
 function extraOf(event: object): Readonly<Record<string, unknown>> | undefined {
-  const fields = Object.entries(event).filter(([key, value]) => !EVENT_FIELDS.has(key) && value !== undefined);
-  return fields.length > 0 ? Object.fromEntries(fields) : undefined;
+  let fields: Array<[string, unknown]> | undefined;
+  for (const key in event) {
+    if (EVENT_FIELDS.has(key) || !Object.hasOwn(event, key)) continue;
+    const value = (event as Record<string, unknown>)[key];
+    if (value !== undefined) (fields ??= []).push([key, value]);
+  }
+  return fields && Object.fromEntries(fields);
 }
 
 /**

@@ -4,8 +4,8 @@
  * the election, the failover, the followers that never sync, the way of a write of a follower to
  * the remote, the batches in the other tabs, the echoes, the single mode and `close()`. They also
  * cover the new try after a failed setup (CLI-67) and the status of the leader in each tab (CLI-65).
- * The last tests cover `TabGroup`, many collections with one lock and one channel (CLI-64), and the
- * snapshot for a new tab (CLI-66).
+ * The last tests cover `TabGroup`, many collections with one lock and one channel (CLI-64), the
+ * snapshot for a new tab (CLI-66), and the hook `aroundRemoteApply` that only the leader runs (graph W8).
  */
 
 import { describe, it, expect, vi } from "vitest";
@@ -14,7 +14,7 @@ import { InMemoryStorage, type CollectionStorage, type StorageChangeBatch } from
 import { ms, type Clock } from "@procedures/client";
 import { fakeClock } from "@mark1russell7/service/testing";
 import { IndexedDbQueueStore, IndexedDbStorage } from "../indexeddb.js";
-import { QueueStoreError, type HybridMode, type LocalCopyStorage } from "./hybrid.js";
+import { QueueStoreError, type HybridMode, type LocalCopyStorage, type RemoteApplyHook } from "./hybrid.js";
 import { MemoryQueueStore, type QueuedOperation, type QueueStore } from "./queue.js";
 import {
   TabCoordinator,
@@ -281,6 +281,8 @@ interface TabOptions {
   readonly clock?: Clock;
   readonly retry?: TabRetryOptions;
   readonly snapshot?: boolean | TabSnapshotOptions;
+  /** The hook of the `HybridStorage` of the tab when it leads (graph W8) */
+  readonly aroundRemoteApply?: RemoteApplyHook;
 }
 
 /** A tab of the app: its local copy, its coordinator, the batches of its observer and its errors. */
@@ -297,6 +299,7 @@ function openTab(browser: FakeBrowser, remote: Remote, name: string, options: Ta
       mode: options.mode ?? "write-back",
       syncInterval: ms(0),
       queueStore: options.queueStore ?? new IndexedDbQueueStore(`${NAME}-queue`, { indexedDB: browser.indexedDB }),
+      ...(options.aroundRemoteApply && { aroundRemoteApply: options.aroundRemoteApply }),
     },
     locks: tab.locks,
     channel: tab.channel,
@@ -1058,6 +1061,8 @@ interface GroupTabOptions {
   readonly retry?: TabRetryOptions;
   /** The queue store of a collection. For `undefined`, the shared `IndexedDbQueueStore` of the collection. */
   readonly queueStore?: (collection: string) => QueueStore | undefined;
+  /** The hook of the `HybridStorage` of a collection when the tab leads (graph W8) */
+  readonly aroundRemoteApply?: (collection: string) => RemoteApplyHook;
 }
 
 /** A tab of the app with a group: a local copy for each collection, the batches of each collection and the errors. */
@@ -1080,6 +1085,7 @@ function openGroupTab(browser: FakeBrowser, remotes: Record<string, Remote>, nam
         mode: options.mode ?? "write-back",
         syncInterval: ms(0),
         queueStore: options.queueStore?.(collection) ?? new IndexedDbQueueStore(`${group}-${collection}-queue`, { indexedDB: browser.indexedDB }),
+        ...(options.aroundRemoteApply && { aroundRemoteApply: options.aroundRemoteApply(collection) }),
       },
       ...(options.snapshot !== undefined && { snapshot: options.snapshot }),
     };
@@ -1766,5 +1772,59 @@ describe("TabCoordinator: the snapshot for a new tab (CLI-66)", () => {
     expect(await d.local("notes").has("t1")).toBe(false);
     expect([...a.errors, ...d.errors]).toEqual([]);
     await Promise.all([a.group.close(), d.group.close()]);
+  });
+});
+
+describe("TabCoordinator and TabGroup: the hook aroundRemoteApply (graph W8)", () => {
+  it("only the leader of a TabCoordinator runs the hook, and after a change of the leader only the new leader runs it", async () => {
+    const browser = new FakeBrowser();
+    const remote = remoteOf();
+    const runs: string[] = [];
+    const hookOf = (tab: string): RemoteApplyHook => (_hint, apply, { cause }) => {
+      runs.push(`${tab}:${cause}`);
+      return apply();
+    };
+    const a = openTab(browser, remote, "A", { copy: "shared", aroundRemoteApply: hookOf("A") });
+    const b = openTab(browser, remote, "B", { copy: "shared", aroundRemoteApply: hookOf("B") });
+    const c = openTab(browser, remote, "C", { copy: "shared", aroundRemoteApply: hookOf("C") });
+    await leaderReady(browser, a, 2);
+    // The first sync of the leader
+    expect(runs).toEqual(["A:pull"]);
+    await remote.data.set("x", { n: 1 });
+    await a.coordinator.syncStorage!.syncFromRemote();
+    expect(runs).toEqual(["A:pull", "A:pull"]);
+    expect(await c.local.get("x")).toEqual({ n: 1 });
+
+    await a.coordinator.close();
+    await leaderReady(browser, b, 1);
+    expect(runs).toEqual(["A:pull", "A:pull", "B:pull"]);
+    expect([...a.errors, ...b.errors, ...c.errors]).toEqual([]);
+    await Promise.all([b.coordinator.close(), c.coordinator.close()]);
+  });
+
+  it("only the leader of a TabGroup runs the hook of each collection", async () => {
+    const browser = new FakeBrowser();
+    const remotes = remotesOf("notes", "tasks");
+    const runs: string[] = [];
+    const hookOf =
+      (tab: string) =>
+      (collection: string): RemoteApplyHook =>
+      (_hint, apply, { cause }) => {
+        runs.push(`${tab}:${collection}:${cause}`);
+        return apply();
+      };
+    const a = openGroupTab(browser, remotes, "A", { copy: "tab", aroundRemoteApply: hookOf("A") });
+    const b = openGroupTab(browser, remotes, "B", { copy: "tab", aroundRemoteApply: hookOf("B") });
+    await groupReady(browser, a, 2);
+    // The first sync of each collection of the leader
+    expect([...runs].sort()).toEqual(["A:notes:pull", "A:tasks:pull"]);
+    await remotes["tasks"]!.data.set("t", { n: 1 });
+    await a.handle("tasks").syncStorage!.syncFromRemote();
+    expect(runs.slice(2)).toEqual(["A:tasks:pull"]);
+    // The pull reached the copy of the follower, and the follower ran no hook
+    await vi.waitFor(async () => expect(await b.local("tasks").get("t")).toEqual({ n: 1 }));
+    expect(runs.filter((run) => run.startsWith("B:"))).toEqual([]);
+    expect([...a.errors, ...b.errors]).toEqual([]);
+    await Promise.all([a.group.close(), b.group.close()]);
   });
 });

@@ -46,8 +46,16 @@ export {
   ConflictError,
   ModeSwitchError,
   SyncStateError,
+  RemoteApplyHookError,
 } from "./hybrid.js";
-export type { HybridStorageOptions, HybridMode, LocalCopyStorage } from "./hybrid.js";
+export type {
+  HybridStorageOptions,
+  HybridMode,
+  LocalCopyStorage,
+  RemoteApplyCause,
+  RemoteApplyContext,
+  RemoteApplyHook,
+} from "./hybrid.js";
 // One leader tab runs the sync, and the other tabs copy its changes (roadmap CLI-25)
 export { TabCoordinator, TabGroup } from "./tab-coordinator.js";
 export type {
