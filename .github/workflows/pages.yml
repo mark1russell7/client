@@ -47,39 +47,52 @@ jobs:
     steps:
       # The commit that CI tested. A manual run builds the selected branch. A scheduled run builds
       # the newest commit of main whose CI passed on a push.
+      #
+      # The commit is always one of this repository: never the head of a pull request. For a run
+      # after CI, the step reads that run of CI from the API, and it builds the commit only for a
+      # push to main of this repository that passed. So the code of a fork never runs here, and it
+      # cannot write to the cache of main (code scanning, roadmap O54).
       - name: Select the commit
-        id: commit
+        id: target
         env:
           GH_TOKEN: ${{ github.token }}
           EVENT: ${{ github.event_name }}
-          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
-          if [ "$EVENT" = "schedule" ]; then
-            sha=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?branch=main&event=push&status=success&per_page=1" --jq '.workflow_runs[0].head_sha // empty')
-          else
-            sha="${RUN_SHA:-$GITHUB_SHA}"
-          fi
-          if [ -z "$sha" ]; then echo "::error::No commit of main passed CI."; exit 1; fi
-          echo "Build $sha"
-          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          case "$EVENT" in
+            schedule)
+              revision=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?branch=main&event=push&status=success&per_page=1" --jq '.workflow_runs[0].head_sha // empty')
+              ;;
+            workflow_run)
+              run=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '[.event, .head_branch, .conclusion, .head_repository.full_name] | join(" ")')
+              if [ "$run" != "push main success $GITHUB_REPOSITORY" ]; then
+                echo "::error::The run of CI is not a push to main of this repository that passed: $run"
+                exit 1
+              fi
+              revision=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.head_sha')
+              ;;
+            *)
+              revision="$GITHUB_SHA"
+              ;;
+          esac
+          if [ -z "$revision" ]; then echo "::error::No commit of main passed CI."; exit 1; fi
+          echo "Build $revision"
+          echo "ref=$revision" >> "$GITHUB_OUTPUT"
           # The event of a schedule has no repository object, so the name comes from GITHUB_REPOSITORY
           echo "name=${GITHUB_REPOSITORY#*/}" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v7
         with:
-          ref: ${{ steps.commit.outputs.sha }}
+          ref: ${{ steps.target.outputs.ref }}
           # The whole history: the status board of the site links each commit hash of the status
           # documents to its repository, and git tells which hashes are commits of this one
           fetch-depth: 0
           persist-credentials: false
       # The pnpm version comes from "packageManager" in package.json
       - uses: pnpm/action-setup@v6
-      # No dependency cache: this job runs on the default branch, so a cache that it saved or
-      # restored would reach the other runs of main. The install takes the packages from the
-      # registry and the lockfile only.
       - uses: actions/setup-node@v7
         with:
           node-version: 26
-          package-manager-cache: false
+          cache: pnpm
       - run: pnpm install --frozen-lockfile
       # The build of the site renders each page in Chromium (an HTML file for each page, and its
       # Open Graph image), and the smoke test uses it too
@@ -91,14 +104,14 @@ jobs:
       # GITHUB_TOKEN: the status page reads the open pull requests and issues (read access only).
       - run: pnpm build
         env:
-          SITE_BASE: /${{ steps.commit.outputs.name }}/
-          SITE_URL: https://${{ github.repository_owner }}.github.io/${{ steps.commit.outputs.name }}/
+          SITE_BASE: /${{ steps.target.outputs.name }}/
+          SITE_URL: https://${{ github.repository_owner }}.github.io/${{ steps.target.outputs.name }}/
           SITE_PRERENDER: "1"
           GITHUB_TOKEN: ${{ github.token }}
       - name: Browser smoke test of the built site
         run: pnpm --filter @procedures/site test:e2e
         env:
-          SITE_BASE: /${{ steps.commit.outputs.name }}/
+          SITE_BASE: /${{ steps.target.outputs.name }}/
       - uses: actions/upload-pages-artifact@v5
         with:
           path: packages/site/dist
