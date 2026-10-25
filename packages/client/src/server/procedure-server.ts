@@ -18,7 +18,7 @@ import type {
 import { pathToKey } from "../procedures/types.js";
 import { ProcedureRegistry, PROCEDURE_REGISTRY } from "../procedures/registry.js";
 import { createCollectionProcedures } from "../procedures/collection/procedures.js";
-import { InvocationError, invokeProcedure, type AdmitItem, type Interceptor, type Invocation } from "../procedures/invoke.js";
+import { InvocationError, closableUnread, invokeProcedure, type AdmitItem, type Interceptor, type Invocation } from "../procedures/invoke.js";
 import type { Capability, ClearanceOrder, ProcedureContext, ResourcesOf } from "../procedures/types.js";
 import { assertTopicsApart, type CollectionPartitions } from "../procedures/collection/partition.js";
 import { VERSION_CONFLICTS_METADATA_KEY, versionConflictsOf } from "../procedures/collection/precondition.js";
@@ -131,7 +131,8 @@ export interface ProcedureServerOptions extends ServerOptions {
   /**
    * The results of keyed calls (roadmap R1). A call to a procedure that is not repeatable, with
    * an idempotency key in its metadata, runs one time: a later try with the same key gets the
-   * same result. `false` turns this off. The default keeps 1000 results for 10 minutes.
+   * same result. The results of each principal are apart: a call of another principal with the
+   * same key runs. `false` turns this off. The default keeps 1000 results for 10 minutes.
    */
   idempotency?: IdempotencyOptions | false | undefined;
 
@@ -299,13 +300,19 @@ export interface StorageHandle {
   close(): Promise<void>;
 }
 
-/** The items of a stream. At the end of the stream, or when its reader stops, `release` runs. */
-async function* releasedAtEnd<T>(items: AsyncIterable<T>, release: () => void): AsyncGenerator<T, void, undefined> {
-  try {
-    yield* items;
-  } finally {
-    release();
-  }
+/**
+ * The items of a stream. At the end of the stream, or when its reader stops, `release` runs one
+ * time. A reader that stops before the first item also releases it (audit s21).
+ */
+function releasedAtEnd<T>(items: AsyncIterable<T>, release: () => void): AsyncGenerator<T, void, undefined> {
+  const released = (async function* () {
+    try {
+      yield* items;
+    } finally {
+      release();
+    }
+  })();
+  return closableUnread(released, items, release);
 }
 
 /**
@@ -902,28 +909,19 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
     let response: ServerResponse<unknown> | undefined;
     try {
       const key = this.idempotency ? idempotencyKeyOf(request.metadata) : undefined;
+      // The key of the cache has the principal: another caller with the same key does not get the
+      // result of this call (audit s21). The JSON of the principal has no NUL character.
+      const principal = request.principal ? JSON.stringify([request.principal.via, request.principal.id]) : "";
       response =
         key === undefined || isRepeatable(effectsOf(procedure))
           ? await this.run(procedure, request, joinSignals(request.signal, this.lifetime.signal))
-          : await this.runKeyed(procedure, request, `${pathToKey(procedure.path)}\u0000${key}`);
+          : await this.runKeyed(procedure, request, `${pathToKey(procedure.path)}\u0000${principal}\u0000${key}`);
     } finally {
       // A stream is in flight until its end; another response is done now
       if (!response?.stream) this.callEnded();
     }
-    const stream = response.stream;
-    if (stream) {
-      const ended = (): void => this.callEnded();
-      response = {
-        ...response,
-        stream: (async function* () {
-          try {
-            yield* stream;
-          } finally {
-            ended();
-          }
-        })(),
-      };
-    }
+    // A stream that its reader closes before the first item ends the call too (audit s21)
+    if (response.stream) response = { ...response, stream: releasedAtEnd(response.stream, () => this.callEnded()) };
     return response;
   }
 
@@ -1108,7 +1106,9 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
       // A stream that ends with a retryable error lets the next try run again too. Thus the retry
       // of a stream that fails before its first item runs the procedure again (CLI-68).
       const forget = (): void => this.idempotency!.forget(cacheKey, result);
-      return result.then((response) => (response.stream ? { ...response, stream: forgottenAtRetryableEnd(response.stream, forget) } : response));
+      return result.then((response) =>
+        response.stream ? { ...response, stream: closableUnread(forgottenAtRetryableEnd(response.stream, forget), response.stream) } : response,
+      );
     }
     const response = await untilAborted(result, request.signal);
     if (response === undefined) return errorResponse(request.id, new InvocationError("ABORTED", "The request was aborted", procedure.path));

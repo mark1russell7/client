@@ -176,6 +176,33 @@ describe("tracingInterceptor", () => {
     }
     expect(spans[0]).toMatchObject({ key: "t.stream", kind: "stream", items: 2, status: "ok" });
   });
+
+  it("ends the span of a stream closed before its first item, and the source of the handler gets return() (audit s21)", async () => {
+    const registry = new ProcedureRegistry();
+    // The source opens with the call, as a subscription does: not a generator that starts at the first read
+    const state = { closed: false };
+    const source: AsyncIterableIterator<number> = {
+      [Symbol.asyncIterator]() {
+        return this;
+      },
+      next: async () => ({ value: 1, done: false }),
+      return: async () => {
+        state.closed = true;
+        return { value: undefined, done: true };
+      },
+    };
+    registry.register(defineProcedure({ path: ["t", "opened"], input: any, output: any, handler: (() => source) as never }) as AnyProcedure);
+    const spans: InvocationSpan[] = [];
+    // The timeout wrapper sits between the span and the handler, as for a call with a deadline
+    const interceptors = [tracingInterceptor({ onSpan: (span) => spans.push(span) }), timeoutInterceptor({ limit: ms(1000) })];
+    const output = await invokePath(["t", "opened"], {}, { registry, interceptors });
+    if (output.kind !== "stream") throw new Error("expected a stream");
+    await output.items.return(undefined);
+    // Before, an async generator ignored a return() before its first next(): no wrapper ran its end
+    expect(state.closed).toBe(true);
+    expect(spans).toHaveLength(1);
+    expect(spans[0]).toMatchObject({ key: "t.opened", kind: "stream", items: 0, status: "ok" });
+  });
 });
 
 describe("metricsInterceptor", () => {

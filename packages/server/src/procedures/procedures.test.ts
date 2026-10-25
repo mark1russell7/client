@@ -9,7 +9,7 @@
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -89,6 +89,35 @@ async function run(procedure: AnyProcedure, input: Record<string, unknown>): Pro
 }
 
 const ago = (ms: number) => new Date(Date.now() - ms).toISOString();
+
+/** The path of a fake `mark` CLI in a folder: `mark/dist/cli.js`, as the folder `packages/mark`. */
+function fakeMarkPath(folder: string): string {
+  mkdirSync(join(folder, "mark", "dist"), { recursive: true });
+  return join(folder, "mark", "dist", "cli.js");
+}
+
+describe("findCliPath (audit s21)", () => {
+  /** The CLI path of `server.start` while `script` is the running script. */
+  async function cliPathWhile(script: string): Promise<string> {
+    const { findCliPath } = await import("./server.start.js");
+    const saved = process.argv[1];
+    process.argv[1] = script;
+    try {
+      return findCliPath();
+    } finally {
+      process.argv[1] = saved!;
+    }
+  }
+
+  it("takes the running script only when it is mark: dist/bin.js or dist/cli.js of mark", async () => {
+    expect(await cliPathWhile(join(home, "node_modules", "@procedures", "mark", "dist", "bin.js"))).toBe(join(home, "node_modules", "@procedures", "mark", "dist", "bin.js"));
+    expect(await cliPathWhile(join(home, "packages", "mark", "dist", "cli.js"))).toBe(join(home, "packages", "mark", "dist", "cli.js"));
+    // Before, each script whose name ends in cli.js was mark: a start in procedure-server started procedure-server
+    for (const other of [join(home, "packages", "server", "dist", "cli.js"), join(home, "tool", "dist", "bin.js"), join(home, "claude-cli", "dist", "index.js")]) {
+      expect(await cliPathWhile(other)).not.toBe(other);
+    }
+  });
+});
 
 describe("server.status", () => {
   it("reports no server when there is no lockfile", async () => {
@@ -203,7 +232,7 @@ describe("server.start (CLI-9: it waits for the readiness of the server)", () =>
    */
   function fakeCli(mode: "ready" | "no-probes" | "never-ready" | "no-listener", readyAfterMs = 0): { cli: string; folder: string } {
     const folder = mkdtempSync(join(tmpdir(), "server-start-cli-"));
-    const cli = join(folder, "cli.js");
+    const cli = fakeMarkPath(folder);
     const source = [
       'const http = require("node:http");',
       'const fs = require("node:fs");',
@@ -245,7 +274,7 @@ describe("server.start (CLI-9: it waits for the readiness of the server)", () =>
     return { cli, folder };
   }
 
-  /** This function starts `server.start` with a fake CLI: the procedure takes the running script as the CLI when its name ends in cli.js. */
+  /** This function starts `server.start` with a fake CLI: the procedure takes the running script as the CLI when it is `mark/dist/cli.js`. */
   async function startWith(cli: string, input: Record<string, unknown>): Promise<{ result: Record<string, unknown>; elapsed: number }> {
     const script = process.argv[1];
     process.argv[1] = cli;
@@ -270,7 +299,7 @@ describe("server.start (CLI-9: it waits for the readiness of the server)", () =>
 
   it("stops the wait as soon as the CLI process exits, and gives its PID and its exit code", async () => {
     const folder = mkdtempSync(join(tmpdir(), "server-start-cli-"));
-    const cli = join(folder, "cli.js");
+    const cli = fakeMarkPath(folder);
     writeFileSync(cli, "process.exit(1);\n");
     try {
       const port = await closedPort();

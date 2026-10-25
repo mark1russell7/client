@@ -287,6 +287,35 @@ function nextOrAbort<T>(iterator: AsyncIterator<T>, signal: AbortSignal, path: P
 }
 
 /**
+ * This function gives a generator of the items of `source` a `return()` that also works before
+ * the first `next()`. An async generator ignores such a `return()`: its body and its `finally` do
+ * not run. Then this `return()` gives `return()` to `source`, and `end` runs. Each wrapper of a
+ * stream of the server uses it. Thus a face that refuses a stream before its first item ends the
+ * call, its storages and its source (audit s21).
+ */
+export function closableUnread<T>(generator: AsyncGenerator<T, void, undefined>, source: AsyncIterable<unknown>, end?: () => void): AsyncGenerator<T, void, undefined> {
+  let started = false;
+  const next = generator.next.bind(generator);
+  const close = generator.return.bind(generator);
+  generator.next = (...args) => {
+    started = true;
+    return next(...args);
+  };
+  generator.return = async (value) => {
+    if (started) return close(value);
+    started = true;
+    const result = await close(value);
+    try {
+      await source[Symbol.asyncIterator]().return?.();
+    } finally {
+      end?.();
+    }
+    return result;
+  };
+  return generator;
+}
+
+/**
  * The items of a handler's stream, each validated with the output schema. When the reader stops
  * early or an item is not valid, the handler's generator gets `return()`, so its `finally` runs.
  */
@@ -448,10 +477,11 @@ async function runInvocation<TOutput>(invocation: Invocation, options: InvokeOpt
   // The output filter examines only what leaves the host
   const admit = invocation.depth === 0 ? options.admitItem : undefined;
   if (isAsyncIterable(result)) {
-    const items = validatedItems(procedure, result, options.signal);
+    // A reader that closes the stream before its first item closes the result of the handler too
+    const items = closableUnread(validatedItems(procedure, result, options.signal), result);
     return {
       kind: "stream",
-      items: (admit ? admittedItems(items, admit, invocation) : items) as AsyncGenerator<TOutput, void, undefined>,
+      items: (admit ? closableUnread(admittedItems(items, admit, invocation), items) : items) as AsyncGenerator<TOutput, void, undefined>,
     };
   }
   const value = await validateOutput(procedure, result);

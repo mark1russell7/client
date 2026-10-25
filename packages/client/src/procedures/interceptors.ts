@@ -6,7 +6,7 @@
  * `invokeProcedure(procedure, input, { interceptors })`. See `invoke.ts` for the types.
  */
 
-import { InvocationError, type Interceptor, type Invocation, type ProcedureOutput } from "./invoke.js";
+import { InvocationError, closableUnread, type Interceptor, type Invocation, type ProcedureOutput } from "./invoke.js";
 import { pathToKey, type ProcedurePath } from "./types.js";
 import { toMs, type Duration } from "../duration.js";
 import { TRACEPARENT_METADATA_KEY, formatTraceparent, newSpanId, newTraceId, parseTraceparent } from "../tracing/traceparent.js";
@@ -118,7 +118,7 @@ export function timeoutAfterMs(options: Omit<TimeoutInterceptorOptions, "limit">
       stop();
       return output;
     }
-    return { kind: "stream", items: itemsUntil(output.items, deadline, stop) };
+    return { kind: "stream", items: closableUnread(itemsUntil(output.items, deadline, stop), output.items, stop) };
   };
 }
 
@@ -229,20 +229,25 @@ export function tracingInterceptor(options: TracingInterceptorOptions): Intercep
     const items = output.items;
     return {
       kind: "stream",
-      items: (async function* () {
-        let failure: unknown;
-        try {
-          for await (const item of items) {
-            span.items = (span.items ?? 0) + 1;
-            yield item;
+      items: closableUnread(
+        (async function* () {
+          let failure: unknown;
+          try {
+            for await (const item of items) {
+              span.items = (span.items ?? 0) + 1;
+              yield item;
+            }
+          } catch (error) {
+            failure = error;
+            throw error;
+          } finally {
+            finish(span, invocation.id, failure);
           }
-        } catch (error) {
-          failure = error;
-          throw error;
-        } finally {
-          finish(span, invocation.id, failure);
-        }
-      })(),
+        })(),
+        items,
+        // A stream closed before its first item ends its span too
+        () => finish(span, invocation.id),
+      ),
     };
   };
 }

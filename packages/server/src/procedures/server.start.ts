@@ -143,34 +143,41 @@ function rotateLog(): void {
 }
 
 /**
- * Find the CLI entry point
+ * True when a script is the `mark` CLI: `dist/bin.js` (its bin) or `dist/cli.js` of the package
+ * `@procedures/mark`, or of the folder `packages/mark`. Another program with a `dist/cli.js`, for
+ * example `procedure-server`, is not `mark` (audit s21).
  */
-function findCliPath(): string {
+function isMarkCli(script: string): boolean {
+  // Normalize path for cross-platform check
+  return /\/mark\/dist\/(?:bin|cli)\.js$/.test(script.replace(/\\/g, "/"));
+}
+
+/**
+ * Find the CLI entry point. Each script that it gives is the `mark` CLI (`isMarkCli`). Before, it
+ * took each script whose name ends in `cli.js`, so a start in another program started that
+ * program (audit s21).
+ */
+export function findCliPath(): string {
   // First, try to use the currently running script if it's the CLI
   const currentScript = process.argv[1];
-  if (currentScript) {
-    // Normalize path for cross-platform check
-    const normalized = currentScript.replace(/\\/g, "/");
-    // mark runs as dist/bin.js (its bin) or dist/cli.js
-    if (normalized.endsWith("/dist/bin.js") || normalized.endsWith("cli.js") || normalized.includes("cli/dist")) {
-      // Return absolute path
-      return path.resolve(currentScript);
-    }
+  if (currentScript && isMarkCli(currentScript)) {
+    // Return absolute path
+    return path.resolve(currentScript);
   }
 
   // Try to find the mark CLI in node_modules or as a direct path
   const candidates = [
     path.join(process.cwd(), "node_modules", "@procedures", "mark", "dist", "cli.js"),
     path.join(process.cwd(), "node_modules", ".bin", "mark"),
-    // Check parent directories for monorepo setups
-    path.join(process.cwd(), "..", "cli", "dist", "cli.js"),
-    // Direct check in current directory
+    // Check parent directories for monorepo setups: the folder packages/mark
+    path.join(process.cwd(), "..", "mark", "dist", "cli.js"),
+    // Direct check in current directory: only the folder of mark
     path.join(process.cwd(), "dist", "cli.js"),
   ];
 
   // Check which candidate exists
   for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) {
+    if ((!candidate.endsWith(".js") || isMarkCli(candidate)) && fs.existsSync(candidate)) {
       return candidate;
     }
   }

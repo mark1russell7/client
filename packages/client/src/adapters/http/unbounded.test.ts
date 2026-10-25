@@ -3,7 +3,7 @@
  * 406 at once, and the stream stops. A client with NDJSON reads its items.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import express from "express";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -11,6 +11,7 @@ import { ProcedureRegistry } from "../../procedures/registry.js";
 import { defineProcedure } from "../../procedures/define.js";
 import { outputSchema } from "../../procedures/core/schemas.js";
 import { ProcedureServer } from "../../server/procedure-server.js";
+import { createEventBus } from "../../events/bus.js";
 import { HttpServerTransport } from "./server/transport.js";
 import { HttpTransport } from "./client/transport.js";
 import { Client } from "../../client/client.js";
@@ -36,7 +37,8 @@ async function startServer(state: { started: boolean; stopped: boolean }) {
       },
     }),
   );
-  const server = new ProcedureServer({ registry, autoRegister: true });
+  // The subscriptions of `events.subscribe` are streams without an end too
+  const server = new ProcedureServer({ registry, autoRegister: true, events: { bus: createEventBus(), topics: ["ticks.*"] } });
   const app = express();
   const http = createServer(app);
   server.addTransport(new HttpServerTransport(server, { app, httpServer: http }));
@@ -47,8 +49,12 @@ async function startServer(state: { started: boolean; stopped: boolean }) {
     http.closeAllConnections();
     await new Promise<void>((resolve) => http.close(() => resolve()));
   };
-  return { url: `http://127.0.0.1:${(http.address() as AddressInfo).port}/api`, close };
+  return { url: `http://127.0.0.1:${(http.address() as AddressInfo).port}/api`, server, close };
 }
+
+/** A POST of a JSON body without "Accept: application/x-ndjson". */
+const postJson = (url: string, body: unknown): Promise<Response> =>
+  fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
 
 describe("an unbounded stream over HTTP (R15)", () => {
   it("refuses a request without NDJSON at once, and the stream does not run", async () => {
@@ -63,6 +69,32 @@ describe("an unbounded stream over HTTP (R15)", () => {
       await new Promise((resolve) => setTimeout(resolve, 30));
       // The stream ends before its first item: its body never runs
       expect(state.started).toBe(false);
+    } finally {
+      await close();
+    }
+  });
+
+  it("ends the refused call: it is not in flight, and the stop does not wait for it (audit s21)", async () => {
+    const { url, server, close } = await startServer({ started: false, stopped: false });
+    try {
+      for (let request = 0; request < 3; request++) {
+        expect((await postJson(`${url}/test/ticks`, {})).status).toBe(406);
+      }
+      // Before, each refusal stayed in flight, so `drain()` and `stop()` waited for their deadline
+      await vi.waitFor(() => expect(server.inFlight()).toBe(0));
+    } finally {
+      await close();
+    }
+  });
+
+  it("closes a refused subscription of events.subscribe, so its listeners go (audit s21)", async () => {
+    const { url, server, close } = await startServer({ started: false, stopped: false });
+    try {
+      const response = await postJson(`${url}/events/subscribe`, { topics: ["ticks.a"] });
+      expect(response.status).toBe(406);
+      // The handler opened the subscription before the refusal: the refusal gives it return()
+      await vi.waitFor(() => expect(server.publisher!.subscriptions).toBe(0));
+      expect(server.inFlight()).toBe(0);
     } finally {
       await close();
     }

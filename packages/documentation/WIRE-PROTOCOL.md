@@ -25,7 +25,7 @@ The metadata of a call is a JSON object. These keys have a meaning in the protoc
 |---|---|---|
 | `procedure-timeout` | request | The remaining time of the caller, in milliseconds. The server uses it only to make its deadline earlier. |
 | `procedure-narrowing` | request | A narrower capability that the call asks for, as a JSON object. The server uses it only to make the capability narrower. Refer to "The narrowing key". |
-| `idempotency-key` | request | The key of a call. Each try of one call sends the same key. The server runs a keyed call to a procedure that is not idempotent one time. |
+| `idempotency-key` | request | The key of a call. Each try of one call sends the same key. The server runs a keyed call to a procedure that is not idempotent one time. Two principals with the same key do not share a result. |
 | `traceparent` | request | The W3C trace context of the caller. The server continues that trace. |
 | `reason` | response | The reason of a `FORBIDDEN` error, or the cause of a `RATE_LIMITED` error. Refer to "The reasons of FORBIDDEN" and "The limits of the calls". |
 | `retry-after` | response | The time that a client waits before a retry, in milliseconds. |
