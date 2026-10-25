@@ -1,5 +1,22 @@
 # @procedures/cue
 
+## 0.27.8
+
+### Patch Changes
+
+- Updated dependencies [1834a5e]
+  - @procedures/shell@0.27.8
+  - @procedures/client@0.27.8
+  - @procedures/fs@0.27.8
+
+## 0.27.7
+
+### Patch Changes
+
+- @procedures/client@0.27.7
+  - @procedures/fs@0.27.7
+  - @procedures/shell@0.27.7
+
 ## 0.27.6
 
 ### Patch Changes

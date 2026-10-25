@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/docker",
-  "version": "0.27.6",
+  "version": "0.27.8",
   "description": "Docker and Docker Compose as typed procedures: ps, run, exec, logs (streaming), build, pull, push, tag, images, inspect, volumes, networks, prune, stop, rm, compose up, down, ps, logs, build and restart, run with argv and no shell injection.",
   "keywords": [
     "docker",

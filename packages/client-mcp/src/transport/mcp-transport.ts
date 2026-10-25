@@ -181,6 +181,17 @@ function generateRequestId(): string {
 }
 
 /**
+ * The Streamable HTTP endpoint of each started transport. The stop parts of `mcpFace()` read it,
+ * for the stop of the intake (CLI-72). The root of the package does not export it.
+ */
+const httpEndpoints = new WeakMap<McpServerTransport, McpHttpTransport>();
+
+/** This function gives the Streamable HTTP endpoint of a started transport, else undefined. Only the face of this package uses it. */
+export function httpEndpointOf(transport: McpServerTransport): McpHttpTransport | undefined {
+  return httpEndpoints.get(transport);
+}
+
+/**
  * MCP Server Transport
  *
  * Implements the ServerTransport interface for MCP (Model Context Protocol).
@@ -384,7 +395,11 @@ export class McpServerTransport implements ServerTransport {
     void this.callTool(server, tool, args, background, false)
       .then(finish)
       .catch(() => undefined)
-      .finally(() => store.settle(id));
+      .finally(() => {
+        store.settle(id);
+        // After the stop of the intake, the GET stream of the session ends with the work of its last task (CLI-72)
+        this.http?.endIdleStreams();
+      });
     return { task };
   }
 
@@ -814,6 +829,7 @@ export class McpServerTransport implements ServerTransport {
       if (transport) await this.mcpServer.connect(transport);
       if (this.http) {
         // The endpoint has no listener (CLI-11): the owner of a listener mounts handleHttp
+        httpEndpoints.set(this, this.http);
         this.httpUrl = this.http.path;
         this.log(`Using Streamable HTTP at the path ${this.httpUrl}`);
       }
@@ -821,6 +837,7 @@ export class McpServerTransport implements ServerTransport {
       this.removeRegistryListeners();
       this.stdinEnd?.();
       this.stdinEnd = undefined;
+      httpEndpoints.delete(this);
       await this.http?.close().catch(() => undefined);
       this.http = undefined;
       throw error;
@@ -848,6 +865,7 @@ export class McpServerTransport implements ServerTransport {
     }
 
     await this.mcpServer.close();
+    httpEndpoints.delete(this);
     await this.http?.close();
     for (const sessionServer of this.sessionServers) await sessionServer.close().catch(() => undefined);
     this.sessionServers.clear();

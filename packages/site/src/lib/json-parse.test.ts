@@ -3,6 +3,7 @@
  * holds, it refuses each text that `JSON.parse` refuses, and no earlier object changes its keys.
  */
 
+import vm from "node:vm";
 import { describe, it, expect } from "vitest";
 import fc from "fast-check";
 import { parseJson } from "./json-parse";
@@ -117,6 +118,18 @@ describe("parseJson (O53)", () => {
       JSON.parse(`{${first}: 1, ${JSON.stringify(earlier)}: 2}`);
       expect(Object.keys(parseJson(`{${first}: 1, ${JSON.stringify(key)}: 2}`) as object)).toEqual([`parseJson ${index}`, key]);
     });
+  });
+
+  // The sequence of `scripts/v8-json-key-repro.mjs`. The test examines parseJson, not V8: it passes
+  // also when V8 reads the key correctly. It only logs the key that JSON.parse gives in a new context.
+  it("reads the keys of the V8 repro script correctly", () => {
+    const [first, second] = ['{"":0,"\\\\":0}', '{"":0,"\\"":0}'];
+    JSON.parse(first);
+    expect(Object.keys(parseJson(first) as object)).toEqual(["", "\\"]);
+    expect(Object.keys(parseJson(second) as object)).toEqual(["", '"']);
+    const v8Key: unknown = vm.runInContext(`JSON.parse(${JSON.stringify(first)}); Object.keys(JSON.parse(${JSON.stringify(second)}))[1]`, vm.createContext({}));
+    const state = v8Key === '"' ? "reads the key correctly" : `gives the key ${JSON.stringify(v8Key)}: the V8 bug`;
+    console.log(`O53 V8 repro: Node ${process.version}, V8 ${process.versions.v8}: JSON.parse ${state}`);
   });
 
   it("reads a deep text without recursion", () => {

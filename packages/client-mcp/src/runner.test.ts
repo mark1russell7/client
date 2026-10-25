@@ -11,8 +11,8 @@ import type { AddressInfo } from "node:net";
 import { z } from "zod";
 import { ephemeral, localDev, service } from "@mark1russell7/service";
 import { httpTransport } from "@mark1russell7/service/http";
-import { fakeProcess } from "@mark1russell7/service/testing";
-import { createProcedure, defineModule, seconds, type AnyProcedure } from "@procedures/client";
+import { fakeClock, fakeProcess, seeded } from "@mark1russell7/service/testing";
+import { createProcedure, defineModule, ms, seconds, type AnyProcedure } from "@procedures/client";
 import { createMcpHost, type McpRunnerPart, type McpServiceBuilder } from "./host.js";
 
 const echo: AnyProcedure = createProcedure()
@@ -31,6 +31,12 @@ const INITIALIZE = {
   method: "initialize",
   params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "t", version: "0" } },
 };
+
+/** The protocol version of the raw requests of the tests. */
+const PROTOCOL = "2025-06-18";
+
+/** A tick of the event loop: the work of the promises and of the sockets goes on. */
+const tick = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
 
 /** This function waits until a condition holds, in steps of 5 ms. */
 async function until(condition: () => boolean): Promise<void> {
@@ -139,4 +145,71 @@ describe("McpHost.declare", () => {
     expect(host.state().running).toBe(false);
     expect(listener.server.listening).toBe(false);
   });
+
+  it("ends the idle GET streams of the HTTP face at the stop of the intake: the stop ends well under the cap of the drain (CLI-72)", async () => {
+    const clock = fakeClock();
+    const drainCapMs = 1000;
+    const host = createMcpHost({ modules: [testModule], faces: { http: {} } });
+    const listener = httpTransport(
+      createServer(),
+      { server_idle_close: seconds(5), server_idle_sweep_interval: seconds(1), server_retry_after: seconds(1) },
+      { listen: { port: 0, host: "127.0.0.1" }, clock },
+    );
+    listener.mount((req, res) => host.handleHttp(req, res));
+    const svc = host.declare(
+      service("mcp-idle-test")
+        .readiness({ type: "debounce", interval: seconds(5), failAfter: 3, recoverAfter: 1 })
+        .liveness({ type: "window", failAfter: seconds(45) })
+        .startup(seconds(10))
+        .phase("fail readiness", ms(10))
+        .phase("stop intake", ms(500))
+        .phase("drain", ms(drainCapMs))
+        .phase("close transports", ms(500))
+        .phase("stop the poller", ms(100))
+        .phase("tear down dependencies", ms(500))
+        .phase("close the health server", ms(100))
+        .cooperativeWindow(ms(500))
+        .onRepeatSignal("ignore"),
+    );
+    svc.server("mcp-idle-test.listen", listener.knobs, listener);
+    const life = await svc.run({ clock, process: fakeProcess({ clock }), random: seeded(7) });
+    await clock.advance(0);
+    const endpoint = `http://127.0.0.1:${(listener.server.address() as AddressInfo).port}/mcp`;
+
+    // Six idle clients, as on the fleet site: each one keeps its GET stream open
+    const streams: Array<Promise<string>> = [];
+    for (let client = 0; client < 6; client++) {
+      const headers = { "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-protocol-version": PROTOCOL };
+      const initialized = await fetch(endpoint, { method: "POST", headers, body: JSON.stringify(INITIALIZE) });
+      const session = initialized.headers.get("mcp-session-id")!;
+      await initialized.text();
+      const notified = await fetch(endpoint, { method: "POST", headers: { ...headers, "mcp-session-id": session }, body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) });
+      await notified.text();
+      const stream = await fetch(endpoint, { headers: { accept: "text/event-stream", "mcp-session-id": session, "mcp-protocol-version": PROTOCOL } });
+      expect(stream.status).toBe(200);
+      const text = stream.text();
+      // The test reads the result later: a cut stream must not be an unhandled rejection before that
+      text.catch(() => undefined);
+      streams.push(text);
+    }
+
+    const startedAt = clock.now();
+    let exited = false;
+    void life.shutdown("the test stops the host").then(() => {
+      exited = true;
+    });
+    for (let step = 0; step < 3000 && !exited; step++) {
+      await clock.advance(1);
+      await tick();
+    }
+    const elapsed = clock.now() - startedAt;
+    // The record of the run gives the measured stop
+    console.info(`CLI-72: the stop of createMcpHost with 6 idle MCP sessions took ${elapsed} ms on the fake clock (the cap of the drain is ${drainCapMs} ms)`);
+    expect(exited).toBe(true);
+    // Before CLI-72, the drain waited for its full cap of 1000 ms: the stop took more than 1010 ms
+    expect(elapsed).toBeLessThan(drainCapMs / 4);
+    // Each stream ended in its protocol, before the close of the listener: no stream was cut
+    for (const stream of streams) await expect(stream).resolves.toBeTypeOf("string");
+    await host.closed;
+  }, 20000);
 });
