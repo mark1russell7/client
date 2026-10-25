@@ -77,12 +77,12 @@ jobs:
           esac
           if [ -z "$revision" ]; then echo "::error::No commit of main passed CI."; exit 1; fi
           echo "Build $revision"
-          echo "ref=$revision" >> "$GITHUB_OUTPUT"
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
           # The event of a schedule has no repository object, so the name comes from GITHUB_REPOSITORY
           echo "name=${GITHUB_REPOSITORY#*/}" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v7
         with:
-          ref: ${{ steps.target.outputs.ref }}
+          ref: ${{ steps.target.outputs.revision }}
           # The whole history: the status board of the site links each commit hash of the status
           # documents to its repository, and git tells which hashes are commits of this one
           fetch-depth: 0
