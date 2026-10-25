@@ -1,5 +1,21 @@
 # @procedures/bundle-dev
 
+## 0.27.8
+
+### Patch Changes
+
+- Updated dependencies [1834a5e]
+  - @procedures/shell@0.27.8
+  - @procedures/client@0.27.8
+  - @procedures/cli-run@0.27.8
+  - @procedures/git@0.27.8
+  - @procedures/lib@0.27.8
+  - @procedures/pnpm@0.27.8
+  - @procedures/dag@0.27.8
+  - @procedures/fs@0.27.8
+  - @procedures/procedure@0.27.8
+  - @procedures/compiler@0.27.8
+
 ## 0.27.7
 
 ### Patch Changes

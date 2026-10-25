@@ -10,6 +10,7 @@
 import { StringDecoder } from "node:string_decoder";
 import { killTree } from "./tree-kill.js";
 import { startChild, type SpawnOptions } from "./spawn.js";
+import { unknownEncoding } from "./run.js";
 
 /** One item of a stream: an output line, or the exit of the program (the last item). */
 export type CommandStreamItem =
@@ -44,7 +45,7 @@ const DEFAULT_MAX_LINE_LENGTH = 1024 * 1024;
 /**
  * This function runs `command` and yields each line of stdout and stderr, then one exit item.
  * When the reader stops early, or the signal aborts, the process tree is killed. A program that
- * cannot start makes the generator throw.
+ * cannot start, or an encoding that `Buffer` does not know, makes the generator throw.
  */
 export async function* streamCommand(
   command: string,
@@ -55,6 +56,8 @@ export async function* streamCommand(
   const lowWaterMark = Math.floor(highWaterMark / 2);
   const maxLineLength = Math.max(1, options.maxLineLength ?? DEFAULT_MAX_LINE_LENGTH);
   const encoding = options.encoding ?? "utf8";
+  // An unknown encoding starts nothing: the decoders below are made after the start of the program
+  if (!Buffer.isEncoding(encoding)) throw new TypeError(unknownEncoding(encoding));
 
   const items: CommandStreamItem[] = [];
   let ended = false;

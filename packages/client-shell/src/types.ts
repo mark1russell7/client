@@ -26,8 +26,15 @@ export const ShellRunInputSchema: z.ZodObject<{
   env: z.record(z.string(), z.string()).optional().describe("Environment variables to set"),
   /** Timeout in milliseconds */
   timeout: z.number().optional().describe("Timeout in milliseconds"),
-  /** Encoding for output (default: utf8) */
-  encoding: z.string().default("utf8").describe("Encoding for output (default: utf8)"),
+  /** Encoding for output (default: utf8). An encoding that `Buffer` does not know is refused. */
+  encoding: z
+    .string()
+    // Before, an unknown encoding threw in the listener of the child and ended the host (audit O56)
+    .refine((encoding) => Buffer.isEncoding(encoding), {
+      error: (issue) => `Unknown encoding: ${JSON.stringify(issue.input)}. Use an encoding of Buffer, for example utf8, latin1, base64 or hex`,
+    })
+    .default("utf8")
+    .describe("Encoding for output (default: utf8)"),
 });
 
 export type ShellRunInput = z.infer<typeof ShellRunInputSchema>;
