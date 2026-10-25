@@ -1,5 +1,14 @@
 # @procedures/cue
 
+## 0.27.3
+
+### Patch Changes
+
+- Updated dependencies [194cdfb]
+  - @procedures/fs@0.27.3
+  - @procedures/shell@0.27.3
+  - @procedures/client@0.27.3
+
 ## 0.27.2
 
 ### Patch Changes

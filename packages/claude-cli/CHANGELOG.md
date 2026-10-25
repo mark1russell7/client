@@ -1,5 +1,12 @@
 # @procedures/claude-cli
 
+## 0.27.3
+
+### Patch Changes
+
+- @procedures/shell@0.27.3
+  - @procedures/client@0.27.3
+
 ## 0.27.2
 
 ### Patch Changes
