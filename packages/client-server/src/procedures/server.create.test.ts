@@ -14,7 +14,7 @@ describe("server.create", () => {
   it("counts the procedures when autoRegister has its default (audit pass 2)", async () => {
     const registry = new ProcedureRegistry();
     registry.register(ping);
-    const out = await serverCreateProcedure.handler!({ transports: [{ type: "local" }] }, { registry } as never);
+    const out = await serverCreateProcedure.handler!({ transports: [{ type: "local" }] }, { registry } as never) as { procedureCount: number; serverId: string };
     try {
       expect(out.procedureCount).toBe(1);
     } finally {
@@ -25,7 +25,7 @@ describe("server.create", () => {
   it("gives 0 when autoRegister is false", async () => {
     const registry = new ProcedureRegistry();
     registry.register(ping);
-    const out = await serverCreateProcedure.handler!({ transports: [{ type: "local" }], autoRegister: false }, { registry } as never);
+    const out = await serverCreateProcedure.handler!({ transports: [{ type: "local" }], autoRegister: false }, { registry } as never) as { procedureCount: number; serverId: string };
     try {
       expect(out.procedureCount).toBe(0);
     } finally {
