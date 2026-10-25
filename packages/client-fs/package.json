@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/fs",
-  "version": "0.27.6",
+  "version": "0.27.7",
   "description": "File system procedures: read, write, copy, move, glob, exists, mkdir and JSON read and write, callable in process, over RPC or from Claude through MCP.",
   "keywords": [
     "filesystem",
