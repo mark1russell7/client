@@ -107,9 +107,13 @@ function createReadonly<C extends object>(
   errorMessage: string = "Cannot modify readonly collection"
 ): Middleware<C> {
   return (next: C): C => {
+    // The read methods, bound to the collection: one function for each name
+    const bound = new Map<PropertyKey, { value: Function; method: Function }>();
     return new Proxy(next, {
-      get(target, prop, receiver) {
-        const value = Reflect.get(target, prop, receiver);
+      get(target, prop) {
+        // A read runs on the collection itself, not on the proxy: a read that changes internal
+        // state (a LinkedHashMap with accessOrder moves the entry) does not hit the set trap
+        const value = Reflect.get(target, prop, target);
 
         // Block mutating methods
         if (typeof prop === "string" && MUTATING_METHODS.has(prop)) {
@@ -129,6 +133,14 @@ function createReadonly<C extends object>(
             // Recursively apply readonly to the result
             return createReadonly<typeof result>(errorMessage)(result);
           };
+        }
+
+        if (typeof value === "function") {
+          const known = bound.get(prop);
+          if (known !== undefined && known.value === value) return known.method;
+          const method = (value as Function).bind(target) as Function;
+          bound.set(prop, { value, method });
+          return method;
         }
 
         return value;

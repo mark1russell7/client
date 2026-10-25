@@ -294,6 +294,32 @@ describe("McpTaskStore", () => {
     }
   });
 
+  // Audit pass 2 (O55): before, a task without a session was visible to each HTTP session, and a
+  // request without a session saw the tasks of each HTTP session
+  it("keeps a task without a session apart from the HTTP sessions, both ways", async () => {
+    const store = new McpTaskStore();
+    const local = await store.createTask({}, 1, request);
+    const remote = await store.createTask({}, 2, request, "s1");
+    await store.storeTaskResult(local.taskId, "completed", { content: [{ type: "text", text: "local" }] });
+    await store.storeTaskResult(remote.taskId, "completed", { content: [] }, "s1");
+
+    // An HTTP session does not find the task of the stdio face: no status, no result, no cancel, no list
+    expect(await store.getTask(local.taskId, "s1")).toBeNull();
+    await expect(store.getTaskResult(local.taskId, "s1")).rejects.toThrow(/not found/);
+    await expect(store.updateTaskStatus(local.taskId, "cancelled", undefined, "s1")).rejects.toThrow(/not found/);
+    expect((await store.listTasks(undefined, "s1")).tasks.map((task) => task.taskId)).toEqual([remote.taskId]);
+
+    // A request without a session does not find the task of an HTTP session
+    expect(await store.getTask(remote.taskId)).toBeNull();
+    await expect(store.getTaskResult(remote.taskId)).rejects.toThrow(/not found/);
+    expect((await store.listTasks()).tasks.map((task) => task.taskId)).toEqual([local.taskId]);
+
+    // Each side still reads its own task
+    expect(await store.getTaskResult(local.taskId)).toEqual({ content: [{ type: "text", text: "local" }] });
+    expect(await store.getTask(remote.taskId, "s1")).not.toBeNull();
+    await store.close();
+  });
+
   it("keeps a refused task for 1 minute, whatever ttl the client asks for", async () => {
     const store = new McpTaskStore({ maxRunning: 1 });
     await store.createTask({ ttl: 86_400_000 }, 1, request);
@@ -462,7 +488,8 @@ describe("the fair share of the task store (CLI-69)", () => {
     expect((a.error as McpError).message).toMatch(/fair share/);
     // A session of client b gets a task, and each task of client a stays
     expect((await store.createTask({}, 0, request, "b0", as("b"))).status).toBe("working");
-    for (const id of a.created) expect(await store.getTask(id)).not.toBeNull();
+    const running = new Set(store.running().map((task) => task.id));
+    for (const id of a.created) expect(running.has(id)).toBe(true);
     // Client b is below its share: it takes the reserve, and gets the error only when the store is full
     const b = await flood(store, ["b0"], as("b"));
     expect(b.created).toHaveLength(3);

@@ -73,6 +73,8 @@ export class AsyncQueue<T> implements IAsyncQueue<T> {
   private buffer: T[] = [];
   private putters: Putter<T>[] = [];
   private takers: Resolver<T>[] = [];
+  /** The calls of `peek` that wait: they see the next element, but they do not take it. */
+  private peekers: Resolver<T>[] = [];
   private _isClosed = false;
   private readonly capacity: number;
   private readonly defaultTimeout?: number;
@@ -127,6 +129,9 @@ export class AsyncQueue<T> implements IAsyncQueue<T> {
     if (this.tryPutNow(element)) {
       return;
     }
+
+    // A waiting peek sees the element of a waiting put (a capacity of 0)
+    this.wakePeekers(element);
 
     // Queue is full: wait with the element. (Before, a waiting putter kept only its resolve
     // function, so its element was dropped when space came: BUGS-2026-07 C11.)
@@ -240,15 +245,27 @@ export class AsyncQueue<T> implements IAsyncQueue<T> {
     // A waiting taker gets the element directly (the buffer is empty when a taker waits)
     const taker = this.takers.shift();
     if (taker) {
+      this.wakePeekers(element);
       this.clearTimeout(taker);
       taker.resolve(element);
       return true;
     }
     if (this.buffer.length < this.capacity) {
       this.buffer.push(element);
+      this.wakePeekers(element);
       return true;
     }
     return false;
+  }
+
+  /** Each waiting peek gets the element, which stays where it is. */
+  private wakePeekers(element: T): void {
+    const peekers = this.peekers;
+    this.peekers = [];
+    for (const peeker of peekers) {
+      this.clearTimeout(peeker);
+      peeker.resolve(element);
+    }
   }
 
   /**
@@ -292,10 +309,22 @@ export class AsyncQueue<T> implements IAsyncQueue<T> {
       throw new Error("Queue is closed and empty");
     }
 
-    // Wait for an element, then put it back at the front
-    const element = await this.take();
-    this.buffer.unshift(element);
-    return element;
+    // Wait for the next element without a take. (Before, peek took the element and put it back
+    // at the front: a take that waited after it kept waiting, and the order changed: audit pass 2.)
+    return new Promise<T>((resolve, reject) => {
+      const peeker: Resolver<T> = { resolve, reject };
+      const timeoutMs = this.defaultTimeout;
+      if (timeoutMs !== undefined) {
+        peeker.timeoutId = setTimeout(() => {
+          const index = this.peekers.indexOf(peeker);
+          if (index !== -1) {
+            this.peekers.splice(index, 1);
+          }
+          reject(new Error(`Peek timeout after ${timeoutMs}ms`));
+        }, timeoutMs);
+      }
+      this.peekers.push(peeker);
+    });
   }
 
   /**
@@ -331,6 +360,11 @@ export class AsyncQueue<T> implements IAsyncQueue<T> {
         taker.reject(new Error("Queue closed and empty"));
       }
       this.takers = [];
+      for (const peeker of this.peekers) {
+        this.clearTimeout(peeker);
+        peeker.reject(new Error("Queue closed and empty"));
+      }
+      this.peekers = [];
     }
   }
 

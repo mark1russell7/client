@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProcedureRegistry, invokePath, outputValue } from "@procedures/client";
 import { headerSafe, sendNotification } from "./notify.js";
-import { notifyProcedures } from "./procedures.js";
+import { NOTIFY_TOKEN_ENV, notifyProcedures } from "./procedures.js";
 
 const registry = new ProcedureRegistry();
 for (const procedure of notifyProcedures) registry.register(procedure);
@@ -10,7 +10,7 @@ const send = async (input: unknown): Promise<unknown> =>
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  delete process.env["TEST_NTFY_TOKEN"];
+  delete process.env["NTFY_TEST_TOKEN"];
 });
 
 describe("headerSafe", () => {
@@ -37,12 +37,39 @@ describe("notify.send", () => {
   it("sends the token of a protected topic from the environment", async () => {
     const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
-    await expect(send({ topic: "t", title: "x", message: "y", tokenEnv: "TEST_NTFY_TOKEN" })).rejects.toThrow(/TEST_NTFY_TOKEN/);
-    process.env["TEST_NTFY_TOKEN"] = "tk_madeup";
-    await send({ topic: "t", title: "x", message: "y", tokenEnv: "TEST_NTFY_TOKEN", server: "https://ntfy.example.org" });
+    await expect(send({ topic: "t", title: "x", message: "y", tokenEnv: "NTFY_TEST_TOKEN" })).rejects.toThrow(/NTFY_TEST_TOKEN/);
+    process.env["NTFY_TEST_TOKEN"] = "tk_madeup";
+    await send({ topic: "t", title: "x", message: "y", tokenEnv: "NTFY_TEST_TOKEN", server: "https://ntfy.example.org" });
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, { headers: Record<string, string> }];
     expect(url).toBe("https://ntfy.example.org/t");
     expect(init.headers["authorization"]).toBe("Bearer tk_madeup");
+  });
+
+  // The deprecated path (audit pass 2, O55): a name without the prefix still works in 0.28, with one notice
+  it("still sends the token of a variable without the prefix NTFY_ or NOTIFY_, and emits one notice that names the fix", async () => {
+    const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const emitWarning = vi.spyOn(process, "emitWarning").mockImplementation(() => undefined);
+    process.env["PHONE_AUDIT_TOKEN"] = "tk_old";
+    process.env["NOTIFY_AUDIT_TOKEN"] = "tk_new";
+    try {
+      for (let i = 0; i < 2; i++) await send({ topic: "t", title: "x", message: "y", tokenEnv: "PHONE_AUDIT_TOKEN" });
+      const auth = () => fetchMock.mock.calls.map((call) => (call as unknown as [string, { headers: Record<string, string> }])[1].headers["authorization"]);
+      expect(auth()).toEqual(["Bearer tk_old", "Bearer tk_old"]);
+      expect(emitWarning).toHaveBeenCalledTimes(1);
+      const [message, options] = emitWarning.mock.calls[0]!;
+      expect(options).toEqual({ type: "DeprecationWarning", code: "PROCEDURES_NOTIFY_TOKEN_ENV" });
+      expect(String(message)).toMatch(/NTFY_ or NOTIFY_/);
+      // The new path: a name with the prefix gets no notice
+      await send({ topic: "t", title: "x", message: "y", tokenEnv: "NOTIFY_AUDIT_TOKEN" });
+      expect(auth()[2]).toBe("Bearer tk_new");
+      expect(emitWarning).toHaveBeenCalledTimes(1);
+      for (const name of ["GITHUB_TOKEN", "ntfy_token", "NTFY_", "XNTFY_TOKEN"]) expect(NOTIFY_TOKEN_ENV.test(name), name).toBe(false);
+    } finally {
+      delete process.env["PHONE_AUDIT_TOKEN"];
+      delete process.env["NOTIFY_AUDIT_TOKEN"];
+      emitWarning.mockRestore();
+    }
   });
 
   it("throws when the server refuses, and refuses a topic with a slash", async () => {

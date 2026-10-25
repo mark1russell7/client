@@ -45,6 +45,11 @@ import { ms, seconds } from "@procedures/client";
 /** The exports of a bundle's `module` entry: its module and the lists of its tools. */
 interface BundleModuleExports extends BundleSurfaceModule {
   default?: ProcedureModule;
+  /**
+   * The modules that the host gives to `createRegistry()` before the bundles, for example a module
+   * with the host policy of `@procedures/http`. They replace the modules of the bundles with their names.
+   */
+  mcpHostModules?: readonly ProcedureModule[];
 }
 
 /** The modules and the tool lists of some bundles. */
@@ -61,6 +66,7 @@ export interface LoadedBundles {
 /** This function loads the module entry of each bundle (it registers nothing). */
 export async function loadBundles(bundles: readonly string[]): Promise<LoadedBundles> {
   const modules: ProcedureModule[] = [];
+  const hostModules: ProcedureModule[] = [];
   const surfaces: BundleSurfaceModule[] = [];
   for (const bundle of bundles) {
     let exports: BundleModuleExports;
@@ -72,9 +78,12 @@ export async function loadBundles(bundles: readonly string[]): Promise<LoadedBun
     }
     if (!exports.default) return loadBundlesGlobally(bundles);
     modules.push(exports.default);
+    hostModules.push(...(exports.mcpHostModules ?? []));
     surfaces.push(exports);
   }
-  return { modules, surfaces, global: false };
+  // In one createRegistry() call, the first module of a name counts: the host modules replace the
+  // modules of the bundles with their names (audit pass 2, O55)
+  return { modules: [...hostModules, ...modules], surfaces, global: false };
 }
 
 /** The old way, for a bundle without a module entry: import each `register.js`. */
@@ -198,7 +207,9 @@ export async function runDevToolsServer(config: McpServerConfig = loadConfig(), 
   if (config.http) {
     const address = config.http.host ?? "127.0.0.1";
     listener = httpTransport(createServer(), LISTENER_KNOBS, { listen: { port: config.http.port, host: address } });
-    listener.mount((req, res) => host.mcp.handleHttp(req, res));
+    // The handler gives the stage of its mount (CLI-74): the face stays through the drain, so a call
+    // in progress gets the answer of an elicitation and its cancel. A wrapper function loses it.
+    listener.mount(host.mcp.handleHttp);
     svc.server("mcp-dev-tools.listen", listener.knobs, listener);
   }
 

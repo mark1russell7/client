@@ -88,7 +88,8 @@ The rules and the table of all the procedures are in [CAPABILITIES-2026-10.md](.
 
 ## How it selects the tools
 
-1. The server loads each bundle. A bundle can export `mcpNamespaces` and `mcpExclude`.
+1. The server loads each bundle. A bundle can export `mcpNamespaces`, `mcpExclude` and `mcpHostModules`.
+   The registry gets the `mcpHostModules` before the bundles, so they replace the modules of the bundles with their names. `@procedures/bundle-assistant` gives `geo` and `ics` with the host policy of `@procedures/http` so.
 2. A procedure is a tool when its namespace is in `mcpNamespaces` of a bundle, and its key is not in `mcpExclude`.
 3. A `ProcedureServer` serves the registry with that rule as its `expose` rule. A data-driven procedure (`client.chain`, `client.eval`, a procedure of `procedure.define`) can use only exposed procedures.
 4. `McpServerTransport` gives the exposed procedures as tools over stdio. It tells Claude when the list of tools changes.
