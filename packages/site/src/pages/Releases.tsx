@@ -375,7 +375,7 @@ export function Releases(): ReactElement {
         </>
       ) : null}
       <p className="small muted">
-        Source: the <code>CHANGELOG.md</code> of each package and the git tags of the repository, read when the site was built.
+        Source: the <code>CHANGELOG.md</code> of each package, the git tags, the GitHub releases and the npm publication times, read when the site was built.
       </p>
     </div>
   );

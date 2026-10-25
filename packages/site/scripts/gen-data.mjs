@@ -265,7 +265,7 @@ try {
 }
 
 // ---------------------------------------------------------------------------
-// The releases: the changelog of each package, and the dates from git and GitHub
+// The releases: the changelog of each package, and the dates from git, GitHub and npm
 // (scripts/releases-data.mjs, with @mark1russell7/site-pages)
 // ---------------------------------------------------------------------------
 
