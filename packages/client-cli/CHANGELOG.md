@@ -1,5 +1,12 @@
 # @procedures/cli-run
 
+## 0.32.0
+
+### Patch Changes
+
+- @procedures/client@0.32.0
+  - @procedures/shell@0.32.0
+
 ## 0.31.0
 
 ### Patch Changes
