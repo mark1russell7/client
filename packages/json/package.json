@@ -40,6 +40,10 @@
     "./register": {
       "types": "./dist/register.d.ts",
       "import": "./dist/register.js"
+    },
+    "./csv": {
+      "types": "./dist/csv-entry.d.ts",
+      "import": "./dist/csv-entry.js"
     }
   },
   "files": [
@@ -62,6 +66,7 @@
   ],
   "devDependencies": {
     "@mark1russell7/cue": "^1.0.0",
+    "esbuild": "^0.28.2",
     "fast-check": "^4.10.2",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3"

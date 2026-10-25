@@ -620,6 +620,8 @@ The live tracker shows these items with the items R1 to R54: https://claude.ai/a
 | O44 | New packages | A failed calendar request of `ics` names the system error code | S | done | — | `jarvis-client` | [client PR #13](https://github.com/mark1russell7/client/pull/13), [a03be76](https://github.com/mark1russell7/client/commit/a03be76) |
 | O45 | Testing | `ios-backup` joins a file id from Manifest.db into a path unchecked | S | done | — | `client` | [6cc9da1](https://github.com/mark1russell7/client/commit/6cc9da1), [16ce161](https://github.com/mark1russell7/client/commit/16ce161) |
 | O46 | fs root | `snapshot.create` and `snapshot.diff` run git themselves | M | done | O35 | `client` | [d86363e](https://github.com/mark1russell7/client/commit/d86363e), [CI 39127987697](https://github.com/mark1russell7/client/actions/runs/39127987697) |
+| O49 | Startup | A fresh-bundle launcher helper (from jarvis) | S | next | — | `client` | [jarvis PR #80](https://github.com/mark1russell7/jarvis/pull/80) |
+| O50 | Startup | Lazy imports of `ws` and `yaml` | S | in progress | — | `client` | [client PR #148](https://github.com/mark1russell7/client/pull/148), [jarvis PR #80](https://github.com/mark1russell7/jarvis/pull/80) |
 
 ### The server stack (R37)
 
