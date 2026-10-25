@@ -1,5 +1,20 @@
 # @procedures/signaldb
 
+## 0.26.1
+
+### Patch Changes
+
+- @procedures/client@0.26.1
+  - @procedures/collections@0.26.1
+
+## 0.26.0
+
+### Patch Changes
+
+- Updated dependencies [a16af64]
+  - @procedures/client@0.26.0
+  - @procedures/collections@0.26.0
+
 ## 0.25.0
 
 ### Patch Changes

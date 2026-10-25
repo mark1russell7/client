@@ -100,6 +100,8 @@ stringifyCsv([{ date: "2026-10-01", amount: -4.5 }]);
 // "date,amount\r\n2026-10-01,-4.5\r\n"
 ```
 
+The entry `@procedures/json/csv` exports the same CSV functions and types, and `JsonError`. Its imports reach no other package, so a program that only reads CSV starts faster.
+
 The parse:
 
 - A field in double quotes can have the delimiter, a line break and a quote. Two quotes (`""`) in the field give one quote.
