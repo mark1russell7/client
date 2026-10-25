@@ -1,5 +1,11 @@
 # @procedures/s3
 
+## 0.33.0
+
+### Patch Changes
+
+- @procedures/client@0.33.0
+
 ## 0.32.0
 
 ### Patch Changes

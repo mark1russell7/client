@@ -1,5 +1,13 @@
 # @procedures/cue
 
+## 0.33.0
+
+### Patch Changes
+
+- @procedures/client@0.33.0
+  - @procedures/fs@0.33.0
+  - @procedures/shell@0.33.0
+
 ## 0.32.0
 
 ### Patch Changes
