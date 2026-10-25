@@ -1,5 +1,13 @@
 # @procedures/archive
 
+## 0.27.5
+
+### Patch Changes
+
+- Updated dependencies [2daba21]
+  - @procedures/fs@0.27.5
+  - @procedures/client@0.27.5
+
 ## 0.27.4
 
 ### Patch Changes
