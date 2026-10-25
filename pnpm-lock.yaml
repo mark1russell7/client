@@ -1915,8 +1915,8 @@ importers:
         specifier: ^1.0.0
         version: 1.0.0
       '@mark1russell7/site-pages':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: ^0.1.3
+        version: 0.1.3
       '@playwright/test':
         specifier: ^1.64.0
         version: 1.64.0
@@ -3251,8 +3251,8 @@ packages:
       zod:
         optional: true
 
-  '@mark1russell7/site-pages@0.1.0':
-    resolution: {integrity: sha512-5i0SwzNy2XblsSiL0YIaU3El0Eor06D2AOwbXzbkA6EWJa86rqCIAmkZe3Zok0VwczGHwvkYdk5+O97t6Bgd9Q==}
+  '@mark1russell7/site-pages@0.1.3':
+    resolution: {integrity: sha512-yCJVV6Ad0j+hHye/GNfWuSGhpJxWM4UN8J7MCcfsvOjxZrJOCs9EsW2wu6XKZLGcOh+TMNBIZpb1WxgCLix8ew==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -6365,7 +6365,7 @@ snapshots:
     optionalDependencies:
       zod: 4.6.5
 
-  '@mark1russell7/site-pages@0.1.0': {}
+  '@mark1russell7/site-pages@0.1.3': {}
 
   '@mark1russell7/splay@0.1.0': {}
 
