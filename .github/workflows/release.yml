@@ -190,7 +190,7 @@ jobs:
       # tarball of packages.txt whose version npm does not have, with the npm CLI and provenance. It
       # skips each version that is on npm, so a new start after a partial publish is safe.
       - id: publish
-        uses: mark1russell7/template/.github/actions/npm-publish@67fb145c9cc5e30df25ed74a40a51d60c6d932d7 # main
+        uses: mark1russell7/template/.github/actions/npm-publish@c51e91e385e2d84e1f01d269489a24b9a6910286 # main
 
   github-release:
     name: Git tags and GitHub releases
@@ -202,7 +202,7 @@ jobs:
     # this repository. It skips each tag that exists. GitHub refuses (HTTP 403) a tag from the
     # workflow token on a commit whose workflow files match no branch. Then the summary of the run
     # has the command for the owner, or start scripts/release-tags.mjs.
-    uses: mark1russell7/template/.github/workflows/reusable-release-tag.yml@67fb145c9cc5e30df25ed74a40a51d60c6d932d7 # main
+    uses: mark1russell7/template/.github/workflows/reusable-release-tag.yml@c51e91e385e2d84e1f01d269489a24b9a6910286 # main
     permissions:
       contents: write
     with:
