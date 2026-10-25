@@ -91,3 +91,17 @@ export function gitDependencies(manifest) {
   }
   return found;
 }
+
+/**
+ * The section of a version in the CHANGELOG.md of a package folder, without its heading, or "".
+ * The section starts at the heading "## <version>" and stops at the next "## " heading.
+ */
+export function changelogSection(dir, version) {
+  const file = join(root, "packages", dir, "CHANGELOG.md");
+  if (!existsSync(file)) return "";
+  const lines = readFileSync(file, "utf8").split(/\r?\n/);
+  const start = lines.findIndex((line) => line.trim() === `## ${version}`);
+  if (start === -1) return "";
+  const end = lines.findIndex((line, index) => index > start && line.startsWith("## "));
+  return lines.slice(start + 1, end === -1 ? undefined : end).join("\n").trim();
+}

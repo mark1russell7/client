@@ -1,107 +1,88 @@
-// The publish step of the release workflow (.github/workflows/release.yml).
+// The pack step of the publish (.github/workflows/release.yml, the job "build").
 //
-// pnpm packs each public package: it writes the versions of the workspace:* dependencies. Then the
-// npm CLI publishes the tarball with trusted publishing (OIDC) and provenance. On 2026-10-16 the
-// publish of pnpm 12 got HTTP 404 for each package: it did not use the OIDC token of the job. The
-// npm CLI is the reference client of trusted publishing, and scripts/npm-bootstrap.mjs publishes
-// the first versions the same way.
+//   node scripts/publish-ci.mjs <release folder> <plan file>
 //
-// The script skips each version that is on npm, so a new start continues a release that stopped.
-// It stops at the first failure: when the OIDC exchange fails for one package, it fails for all.
+// The release has two sides. The job "build" runs the code of this repository, with no OIDC token:
+// this script runs there. The job "publish" holds the OIDC token and runs no code of this
+// repository: the npm-publish action of mark1russell7/template publishes the tarballs that this
+// script makes. Thus a change to this script cannot get the OIDC token.
 //
-// The Changesets action gives the file CHANGESETS_OUTPUT. The script writes one line to it for each
-// version that it publishes: {"type":"git-tag","tag":"<name>@<version>","packageName":"<name>"}, the
-// format of `changeset publish`. With these lines the action pushes a git tag for each version and
-// makes a GitHub release from the change log of the package. Without the file, the action makes no
-// tags and no releases. scripts/release-tags.mjs makes the tags and releases that a release missed.
+// 1. For each public package whose version is not on npm, pnpm packs the package into the release
+//    folder. pnpm writes the versions of the workspace:* dependencies. <release folder>/packages.txt
+//    has one line for each tarball, "name version file", a package after the packages that it uses.
+//    The job uploads the folder as the artifact "release". An empty packages.txt: nothing to publish.
+// 2. The plan file (tags.json) has one entry for each public package: name, version, tag,
+//    prerelease and notes. The tag is <name>@<version>, as Changesets makes it. The notes are the
+//    section of the version in the CHANGELOG.md of the package. @procedures/client comes last, so
+//    its GitHub release is the last one. The job uploads the file as the artifact "tags", and
+//    reusable-release-tag.yml of the template reads it.
 //
-// Options: --dry-run (pack each package and start `npm publish --dry-run`).
+// pnpm packs, and the npm CLI publishes. On 2026-10-16 the publish of pnpm 12 got HTTP 404 for
+// each package: it did not use the OIDC token of the job. The npm CLI is the reference client of
+// trusted publishing, and scripts/npm-bootstrap.mjs publishes the first versions the same way.
+//
+// The npm-publish action also skips each version that is on npm, so a new start continues a
+// release that stopped. Start `pnpm build` before this script: the tarballs hold dist/.
 
-import { spawnSync } from "node:child_process";
-import { appendFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { publicPackages, root, run } from "./lib/workspace.mjs";
+import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { changelogSection, publicPackages, run } from "./lib/workspace.mjs";
 
-const dryRun = process.argv.includes("--dry-run");
-const inActions = process.env.GITHUB_ACTIONS === "true";
-
-// Trusted publishing needs npm 11.5.1 or later
-const npmVersion = run("npm", ["--version"], root, true).trim();
-const [major, minor, patch] = npmVersion.split(".").map(Number);
-if (major < 11 || (major === 11 && (minor < 5 || (minor === 5 && patch < 1)))) {
-  console.error(`npm ${npmVersion} cannot publish with trusted publishing. Use npm 11.5.1 or later.`);
-  process.exit(1);
+const [out, planFile] = process.argv.slice(2);
+if (out === undefined || planFile === undefined) {
+  console.error("usage: node scripts/publish-ci.mjs <release folder> <plan file>");
+  process.exit(2);
 }
-console.log(`npm ${npmVersion}`);
+const release = resolve(out);
+mkdirSync(release, { recursive: true });
 
-/** This function tells if npm has this version of a package. */
-function onNpm(name, version) {
-  try {
-    return run("npm", ["view", `${name}@${version}`, "version"], root, true).trim() === version;
-  } catch {
-    return false;
+// The package whose GitHub release is the latest one
+const LATEST = "@procedures/client";
+// GitHub refuses a release text of more than 125000 characters
+const MAX_NOTES = 100_000;
+
+/** This function tells if npm has this version of a package. The query string goes around the cache of the registry. */
+async function onNpm(name, version) {
+  const response = await fetch(`https://registry.npmjs.org/${name.replace("/", "%2f")}?t=${Date.now()}`, {
+    headers: { accept: "application/vnd.npm.install-v1+json" },
+  });
+  if (response.status === 404) return false;
+  if (!response.ok) throw new Error(`The registry gave HTTP ${response.status} for ${name}.`);
+  const packument = await response.json();
+  return packument.versions?.[version] !== undefined;
+}
+
+const packages = publicPackages();
+const lines = [];
+for (const pkg of packages) {
+  if (await onNpm(pkg.name, pkg.version)) {
+    console.log(`skip  ${pkg.name}@${pkg.version}: on npm`);
+    continue;
   }
+  // The new file in the folder is the tarball. The output of pnpm also holds the output of the
+  // package scripts (prepack), so the script does not read it.
+  const before = new Set(readdirSync(release));
+  run("pnpm", ["pack", "--pack-destination", release], pkg.path, true);
+  const added = readdirSync(release).filter((file) => !before.has(file) && file.endsWith(".tgz"));
+  if (added.length !== 1) throw new Error(`pnpm pack of ${pkg.name} made ${added.length} tarballs: ${added.join(", ")}`);
+  lines.push(`${pkg.name} ${pkg.version} ${added[0]}`);
+  console.log(`pack  ${pkg.name}@${pkg.version}: ${added[0]}`);
 }
+writeFileSync(resolve(release, "packages.txt"), lines.length > 0 ? `${lines.join("\n")}\n` : "");
 
-// An empty file when nothing is published: then the action does not warn that the file is missing
-const output = dryRun ? undefined : process.env.CHANGESETS_OUTPUT;
-if (output) writeFileSync(output, "");
+const plan = [...packages]
+  .sort((a, b) => Number(a.name === LATEST) - Number(b.name === LATEST))
+  .map((pkg) => {
+    const section = changelogSection(pkg.dir, pkg.version) || `The release ${pkg.version} of ${pkg.name}.`;
+    const notes = section.length <= MAX_NOTES ? section : `${section.slice(0, MAX_NOTES)}\n\n(The CHANGELOG.md of \`${pkg.name}\` has the full text.)`;
+    return {
+      name: pkg.name,
+      version: pkg.version,
+      tag: `${pkg.name}@${pkg.version}`,
+      prerelease: /^[^+]*-/.test(pkg.version),
+      notes,
+    };
+  });
+writeFileSync(resolve(planFile), `${JSON.stringify(plan, null, 2)}\n`);
 
-const work = mkdtempSync(join(tmpdir(), "client-publish-"));
-const published = [];
-const skipped = [];
-let failed;
-try {
-  for (const pkg of publicPackages()) {
-    if (onNpm(pkg.name, pkg.version)) {
-      skipped.push(`${pkg.name}@${pkg.version}`);
-      console.log(`skip  ${pkg.name}@${pkg.version}: on npm`);
-      continue;
-    }
-    const out = join(work, pkg.dir);
-    mkdirSync(out);
-    run("pnpm", ["pack", "--pack-destination", out], pkg.path, true);
-    const tgz = join(out, readdirSync(out).find((f) => f.endsWith(".tgz")));
-
-    // Provenance comes only from a CI provider. The verbose log tells how npm got its token.
-    const args = ["publish", tgz, "--access", "public", "--loglevel", "verbose"];
-    if (inActions) args.push("--provenance");
-    if (dryRun) args.push("--dry-run");
-    const result = spawnSync("npm", args, { cwd: root, encoding: "utf8", shell: process.platform === "win32" });
-    // The lines of the npm log, without the file list of the tarball
-    const lines = `${result.stdout}\n${result.stderr}`.split("\n").filter((l) => !/^npm notice\s+[\d.]+\s*[kMG]?B /.test(l));
-    for (const line of lines.filter((l) => /oidc|provenance|transparency/i.test(l))) console.log(`      ${line.trim()}`);
-
-    if (result.status === 0) {
-      published.push(`${pkg.name}@${pkg.version}`);
-      console.log(`${dryRun ? "would publish" : "published"} ${pkg.name}@${pkg.version}`);
-      // At once, so that a release that stops later still gets the tags of the versions on npm
-      if (output) {
-        const event = { type: "git-tag", tag: `${pkg.name}@${pkg.version}`, packageName: pkg.name };
-        appendFileSync(output, `${JSON.stringify(event)}
-`);
-      }
-    } else {
-      failed = pkg.name;
-      console.error(`FAIL  ${pkg.name}@${pkg.version}`);
-      for (const line of lines.filter((l) => /^npm (error|http fetch (PUT|POST))/.test(l)).slice(-15)) console.error(`      ${line.trim()}`);
-      if (lines.some((l) => /OIDC token exchange error - package not found/.test(l))) {
-        console.error("npm refused the OIDC exchange. This repository uses the immutable OIDC subject of GitHub");
-        console.error("(https://github.com/npm/cli/issues/9969). Examine `npm trust list <package>`: a trusted publisher with an");
-        console.error("environment fails with this subject. Else publish from the computer of the owner:");
-        console.error("node scripts/npm-bootstrap.mjs --publish");
-      }
-      break;
-    }
-  }
-} finally {
-  rmSync(work, { recursive: true, force: true });
-}
-
-const verb = dryRun ? "would be published" : "published";
-console.log(`\n${published.length} ${verb}, ${skipped.length} on npm already${failed ? `, stopped at ${failed}` : ""}.`);
-if (failed) {
-  console.error("Start the release workflow again after the correction: it skips the versions on npm.");
-  process.exit(1);
-}
+console.log(`\n${lines.length} to publish, ${packages.length - lines.length} on npm already, ${plan.length} in the plan of the GitHub releases.`);

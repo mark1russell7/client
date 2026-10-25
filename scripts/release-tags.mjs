@@ -1,8 +1,9 @@
 // The git tags and the GitHub Releases of the current versions of the public packages.
 //
-// The release workflow makes them through the Changesets action (scripts/publish-ci.mjs tells
-// how). When a release made none, for example 0.3.0 on 2026-10-16, this script makes the missing
-// ones. Each tag is <name>@<version> at the commit of the versions, as the action makes it. Each
+// The release workflow makes them in its job "github-release", from the plan that
+// scripts/publish-ci.mjs writes. When a release made none, for example 0.3.0 on 2026-10-16, or
+// when GitHub refused a tag to the workflow token (HTTP 403), this script makes the missing ones.
+// Each tag is <name>@<version> at the commit of the versions, as the workflow makes it. Each
 // Release has the tag as its title and the section of the version in CHANGELOG.md as its text.
 // The script needs the gh CLI with a token that can write the contents of the repository.
 //
@@ -12,10 +13,10 @@
 //   --dry-run        tell each tag and Release that the script makes, and make nothing
 
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { publicPackages, root } from "./lib/workspace.mjs";
+import { changelogSection, publicPackages, root } from "./lib/workspace.mjs";
 
 const args = process.argv.slice(2);
 const option = (name) => {
@@ -45,17 +46,6 @@ const sha = gh(["api", `repos/${repo.out}/commits/${commit}`, "--jq", ".sha"]);
 if (!sha.ok) {
   console.error(`GitHub does not have the commit ${commit}: ${sha.out}`);
   process.exit(1);
-}
-
-/** This function gives the section of a version in a CHANGELOG.md, without its heading. */
-function changelogSection(dir, version) {
-  const file = join(root, "packages", dir, "CHANGELOG.md");
-  if (!existsSync(file)) return "";
-  const lines = readFileSync(file, "utf8").split(/\r?\n/);
-  const start = lines.findIndex((line) => line.trim() === `## ${version}`);
-  if (start === -1) return "";
-  const end = lines.findIndex((line, index) => index > start && line.startsWith("## "));
-  return lines.slice(start + 1, end === -1 ? undefined : end).join("\n").trim();
 }
 
 const work = mkdtempSync(join(tmpdir(), "release-tags-"));
