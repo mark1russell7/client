@@ -304,27 +304,40 @@ export class ProcedureRegistry {
    * //   weather: { forecast: procedure }
    * // }
    * ```
+   *
+   * A path can be a procedure and also the namespace of longer paths. Its node is then a
+   * namespace, and the procedure is at the key `""` of that node. A path segment is never empty.
    */
   getTree(): Record<string, unknown> {
     // Null-prototype containers and own-property checks: a segment such as "toString" is a
     // name, not a property of Object.prototype (deep dive CORE-6)
     const tree: Record<string, unknown> = Object.create(null);
+    // The namespaces of this tree. Each other value is a stored procedure, and the walk never
+    // writes into it. (Before, a longer path wrote its segment into the stored procedure of a
+    // shorter path, and a segment such as "handler" replaced a field: audit O56.)
+    const namespaces = new WeakSet<object>([tree]);
+    const namespaceAt = (parent: Record<string, unknown>, segment: string): Record<string, unknown> => {
+      const existing = Object.hasOwn(parent, segment) ? parent[segment] : undefined;
+      if (typeof existing === "object" && existing !== null && namespaces.has(existing)) {
+        return existing as Record<string, unknown>;
+      }
+      const namespace: Record<string, unknown> = Object.create(null);
+      namespaces.add(namespace);
+      // A procedure at this path moves to the key "" of the new namespace
+      if (existing !== undefined) namespace[""] = existing;
+      parent[segment] = namespace;
+      return namespace;
+    };
 
     for (const procedure of this.procedures.values()) {
       let current = tree;
-
-      for (let i = 0; i < procedure.path.length; i++) {
-        const segment = procedure.path[i]!;
-        const isLast = i === procedure.path.length - 1;
-
-        if (isLast) {
-          current[segment] = procedure;
-        } else {
-          if (!Object.hasOwn(current, segment)) {
-            current[segment] = Object.create(null);
-          }
-          current = current[segment] as Record<string, unknown>;
-        }
+      for (const segment of procedure.path.slice(0, -1)) current = namespaceAt(current, segment);
+      const last = procedure.path[procedure.path.length - 1]!;
+      const existing = Object.hasOwn(current, last) ? current[last] : undefined;
+      if (typeof existing === "object" && existing !== null && namespaces.has(existing)) {
+        (existing as Record<string, unknown>)[""] = procedure;
+      } else {
+        current[last] = procedure;
       }
     }
 
