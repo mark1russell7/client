@@ -41,7 +41,7 @@ import {
 import type { McpServerTransportOptions, McpServerTransportState, McpTextBlock, McpToolContent } from "../types.js";
 import { createStdioTransport } from "./stdio.js";
 import { createSseTransport } from "./sse.js";
-import { createHttpTransport, type McpHttpTransport } from "./http.js";
+import { admittedCredentials, createHttpTransport, type McpHttpTransport } from "./http.js";
 import { optionalMs } from "@procedures/client";
 import { createUntrustedEnvelopes } from "../untrusted.js";
 import { taskStoreOf, type McpTaskStore } from "../tasks.js";
@@ -87,6 +87,8 @@ interface CallExtra {
   sendNotification: (notification: ServerNotification) => Promise<void>;
   /** The HTTP request of the message: present only for a network transport (Streamable HTTP) */
   requestInfo?: { headers: Record<string, string | string[] | undefined>; url?: URL | undefined } | undefined;
+  /** The auth info of the HTTP request: the Streamable HTTP face puts the admitted credentials of the request in it (CLI-2b) */
+  authInfo?: { readonly extra?: Record<string, unknown> | undefined } | undefined;
   /** The task store of the request, when the server has tasks (CLI-35) */
   taskStore?: RequestTaskStore | undefined;
   /** The time to keep the task that the client asked for */
@@ -106,9 +108,13 @@ function progressMessage(progress: number, total: number | undefined): string {
  * cookies, the headers and the query of its HTTP request (CLI-10). A call of a local face without
  * an HTTP request has the local marker (CLI-1). The local faces are stdio, whose peer is the parent
  * process, and a given SDK transport, for example the in-memory transport. A session of Streamable
- * HTTP is never local: without its HTTP request, the call presents no credentials.
+ * HTTP is never local: without its HTTP request, the call presents no credentials. The face
+ * admitted the HTTP request of a call one time (CLI-2b): then the call has the admitted
+ * credentials of that request, and the server does not run its checks again.
  */
 function callCredentials(extra: CallExtra, localFace: boolean): Credentials {
+  const admitted = admittedCredentials(extra.authInfo);
+  if (admitted) return admitted;
   const info = extra.requestInfo;
   if (info) return requestCredentials({ headers: info.headers, url: info.url ? `${info.url.pathname}${info.url.search}` : undefined });
   return localFace ? LOCAL_CREDENTIALS : {};
@@ -766,9 +772,13 @@ export class McpServerTransport implements ServerTransport {
       } else if (this.options.transport === "http") {
         // Streamable HTTP (roadmap R26): an MCP server of its own for each session
         // The face trusts cookies only as the server reads them (CSRF)
-        const ambientCredentials = (this.server as Partial<RequestHandler>).ambientCredentials;
+        const handler: Partial<RequestHandler> = this.server;
+        const ambientCredentials = handler.ambientCredentials;
         const httpOptions = { ...this.options.httpOptions, ...(ambientCredentials ? { ambientCredentials } : {}) };
         const taskStore = this.taskStore;
+        // The one admission of each HTTP request is the admission of the server (CLI-2b): its
+        // request hook, its token check and its authenticate function
+        const admission = handler.admission?.bind(handler);
         this.http = createHttpTransport(
           httpOptions,
           async (sessionTransport) => {
@@ -781,8 +791,11 @@ export class McpServerTransport implements ServerTransport {
             };
             await sessionServer.connect(sessionTransport as unknown as SdkTransport);
           },
-          // The session limit keeps each session with a task in progress open
-          taskStore ? { busySessions: () => taskStore.busySessions() } : {},
+          {
+            // The session limit keeps each session with a task in progress open
+            ...(taskStore ? { busySessions: () => taskStore.busySessions() } : {}),
+            ...(admission ? { admission } : {}),
+          },
         );
         transport = undefined;
       } else if (this.options.transport === "sse") {

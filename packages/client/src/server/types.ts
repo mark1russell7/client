@@ -124,8 +124,16 @@ export interface RequestIdentity {
  * with `UNAUTHORIZED`. The hook runs before the token check and before `authenticate`.
  *
  * The hook can run more than one time for one request or one task. `admits()` runs it at a
- * WebSocket upgrade, and `identify()` runs it before the MCP face makes a task (roadmap CLI-69).
- * Thus a hook with a side effect, for example a count or a log line, sees each of these runs.
+ * WebSocket upgrade, and then each call over the connection runs it again. Thus a hook with a
+ * side effect, for example a count or a log line, sees each of these runs.
+ *
+ * On the MCP HTTP face, the hook runs one time for each HTTP request, before its calls (CLI-2b):
+ * `admission()` runs it for `initialize`, a tool call, the GET stream and the DELETE of a session.
+ * A tool call, and `identify()` before a task (CLI-69), use that admission: the hook does not run
+ * again for them. For `admission()`, `admits()` and `identify()`, the request of the hook has an
+ * empty method (`{ service: "", operation: "" }`), the id `admission`, `connection` or `identify`,
+ * no payload and no metadata. Thus a hook must not branch on the method, the payload, the
+ * metadata or the transport of the request. It reads only the credentials.
  */
 export type PrincipalOf = (
   credentials: Credentials,
@@ -180,7 +188,25 @@ export interface RequestHandler {
    * only in the call.
    */
   identify?(credentials: Credentials): Promise<Principal | undefined>;
+  /**
+   * This function admits a network request one time, before its calls (CLI-2b). It uses the
+   * checks of each call: the request hook, the token check and the authenticate function. A face
+   * that carries the calls of one network request (MCP over Streamable HTTP) gives the admitted
+   * credentials to those calls, so the checks run one time for the request. `ProcedureServer` has
+   * it. Absent: the handler examines each call, and the face refuses no request before its calls.
+   */
+  admission?(credentials: Credentials): Promise<Admission>;
 }
+
+/**
+ * The result of `admission()` of a request handler (CLI-2b). A request that passes gets its
+ * admitted credentials and its principal. Each call of that request with the admitted credentials
+ * gets the principal and the narrowing of the admission, and the checks do not run again. A
+ * refused request gets `UNAUTHORIZED` and the message of the refusal.
+ */
+export type Admission =
+  | { readonly ok: true; readonly credentials: Credentials; readonly principal?: Principal | undefined }
+  | { readonly ok: false; readonly code: "UNAUTHORIZED"; readonly message: string };
 
 /**
  * How a server can authenticate a request with ambient credentials (cookies):

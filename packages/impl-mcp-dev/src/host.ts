@@ -105,12 +105,13 @@ export interface DevToolsHost {
 /**
  * The face of the configuration: Streamable HTTP with `config.http`, else stdio. The HTTP face has
  * no listener of its own: the listener of the service answers for it (CLI-11). Without
- * `maxSessions`, the face keeps its default limit of 256 sessions (CLI-51).
+ * `maxSessions`, the face keeps its default limit of 256 sessions (CLI-51). The token is the
+ * token of the policy: the server admits each HTTP request one time (CLI-2b).
  */
 function facesOf(config: McpServerConfig): McpHostFaces {
   if (!config.http) return { stdio: true };
-  const { token, maxSessions } = config.http;
-  return { http: { ...(token ? { token } : {}), ...(maxSessions !== undefined ? { maxSessions } : {}) } };
+  const { maxSessions } = config.http;
+  return { http: { ...(maxSessions !== undefined ? { maxSessions } : {}) } };
 }
 
 /** This function builds the host. It starts no transport. */
@@ -134,7 +135,8 @@ export async function createDevToolsHost(config: McpServerConfig = loadConfig())
     registry,
     ...(surface ? { surface } : {}),
     readOnly: config.readOnly === true,
-    policy: { strictCalls: true, timeout: ms(config.toolTimeoutMs) },
+    // The token of the HTTP face is the token of the server: one admission for each HTTP request (CLI-2b)
+    policy: { strictCalls: true, timeout: ms(config.toolTimeoutMs), ...(config.http?.token ? { token: config.http.token } : {}) },
     ...(config.programCheck === false ? {} : { interceptors: ({ expose }) => [programCheckInterceptor({ registry, expose })] }),
     name: config.serverName,
     version: config.serverVersion,

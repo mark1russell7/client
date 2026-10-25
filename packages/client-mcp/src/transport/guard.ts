@@ -7,9 +7,10 @@
  * - The checks of a web browser (`checkBrowserRequest` of the core): a request on a loopback
  *   address names a loopback host or an allowed host (DNS rebinding), and an `Origin` header names
  *   the server or a permitted origin. A request with cookies needs a named origin (CSRF).
- * - The bearer token, with `tokenMatches` of the core: its time does not tell the token. This
- *   check is deprecated (CLI-2b): the token check of the server is the one check of the
- *   credentials. From the next MINOR, `guardMcpRequest` does only the browser checks.
+ * - The credentials are not checked here (CLI-2b). After the browser checks, the face gives each
+ *   request to the admission of its server (`admission()` of the handler): the request hook, the
+ *   token check and the authenticate function, one time for each request. Before, this function
+ *   compared the token itself, next to the token check of the server.
  *
  * The other guards of the face:
  *
@@ -25,7 +26,7 @@
  */
 
 import type { IncomingMessage } from "node:http";
-import { bearerOf, checkBrowserRequest, isLoopbackHost, tokenMatches, type BrowserGuardOptions } from "@procedures/client";
+import { checkBrowserRequest, isLoopbackHost, type BrowserGuardOptions } from "@procedures/client";
 
 /** The limits of the Streamable HTTP face. `maxBodyBytes` and `maxSessions` of the HTTP options change them. */
 export const MCP_HTTP_LIMITS: {
@@ -46,15 +47,11 @@ export const MCP_HTTP_LIMITS: {
   retryAfterSeconds: 5,
 };
 
-/** The options of `guardMcpRequest`. */
+/**
+ * The options of `guardMcpRequest`: the browser checks. Since CLI-2b they have no token. The
+ * server of the face checks the token in its admission, one time for each request.
+ */
 export interface McpRequestGuardOptions {
-  /**
-   * The token that each request sends as `Authorization: Bearer <token>`. Without it, the face checks no token.
-   * @deprecated Give the token to the server, and let the server check the credentials of each
-   * request (CLI-2b). From the next MINOR, the option is removed, a `token` option throws an
-   * error, and the owner of a listener admits each request with `admission()` of the server.
-   */
-  readonly token?: string | undefined;
   /** The browser origins that can call the face, besides its own origin. */
   readonly allowedOrigins?: BrowserGuardOptions["allowedOrigins"];
   /** The host names that a request on a loopback address can name, besides the loopback names. */
@@ -68,7 +65,8 @@ export type McpGuardResult =
   | { readonly ok: true }
   | {
       readonly ok: false;
-      readonly status: 401 | 403 | 405 | 415;
+      /** 500 only for a removed `token` option, after its first error (CLI-2b). */
+      readonly status: 401 | 403 | 405 | 415 | 500;
       readonly code: string;
       /** The reason of a FORBIDDEN refusal of wire v1, for example `origin-not-allowed` (CLI-4). */
       readonly reason?: string | undefined;
@@ -76,29 +74,38 @@ export type McpGuardResult =
       readonly headers?: Readonly<Record<string, string>> | undefined;
     };
 
+/** The message for a `token` option of `guardMcpRequest` (CLI-2b). It names the migration. */
+const TOKEN_OPTION_REMOVED =
+  "guardMcpRequest checks no token since CLI-2b: remove its token option. Give the token to the server, hostPolicy({ token }) or new ProcedureServer({ token }). " +
+  "After guardMcpRequest, admit each request with server.admission(credentials), and answer 401 when ok is false.";
+
+/** True after the first call with a `token` option threw its error. */
+let tokenOptionReported = false;
+
 /**
- * The checks of a request to the MCP endpoint: the browser checks, then the token.
+ * The browser checks of a request to the MCP endpoint: one check of the host and the origin. The
+ * credentials are the job of the admission of the server (CLI-2b).
  *
- * Deprecated (CLI-2b): the token check of this function. The browser checks stay. Give the token
- * to the server: the token check of the server is the one check of the credentials. From the
- * next MINOR, this function does only the browser checks, and a `token` option throws an error.
+ * Before, this function compared a `token` option. A token without its check opens the endpoint,
+ * so a `token` option fails. The function has no point of creation: the first call with a
+ * `token` option throws a `TypeError` with the migration. Each later call with it gives a refusal
+ * with the status 500 and the same message, without an error. Thus the log of the app gets one
+ * error, and each request stays refused.
  */
 export function guardMcpRequest(req: Pick<IncomingMessage, "method" | "headers" | "socket">, options: McpRequestGuardOptions = {}): McpGuardResult {
+  if (Reflect.get(options, "token") !== undefined) {
+    if (!tokenOptionReported) {
+      tokenOptionReported = true;
+      throw new TypeError(TOKEN_OPTION_REMOVED);
+    }
+    return { ok: false, status: 500, code: "INTERNAL_ERROR", message: TOKEN_OPTION_REMOVED };
+  }
   const browser: BrowserGuardOptions = {
     ...(options.allowedOrigins !== undefined ? { allowedOrigins: options.allowedOrigins } : {}),
     ...(options.allowedHosts !== undefined ? { allowedHosts: options.allowedHosts } : {}),
   };
   const checked = checkBrowserRequest(req, browser, false, options.ambient === true);
   if (!checked.ok) return checked;
-  if (options.token !== undefined && !tokenMatches(options.token, bearerOf(req.headers.authorization))) {
-    return {
-      ok: false,
-      status: 401,
-      code: "UNAUTHORIZED",
-      message: "Unauthorized: this server requires its token",
-      headers: { "www-authenticate": 'Bearer realm="mcp"' },
-    };
-  }
   return { ok: true };
 }
 

@@ -54,6 +54,7 @@ export {
   type Principal,
   type PrincipalOf,
   type RequestIdentity,
+  type Admission,
   type AmbientCredentials,
   type ServerDebugReport,
   type ServerHandler,

@@ -4,8 +4,9 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 598 names
+## . (dist/index.d.ts): 599 names
 
+type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AmbientCredentials: dist/server/types.d.ts#AmbientCredentials
@@ -605,8 +606,9 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 586 names
+## ./browser (dist/browser.d.ts): 587 names
 
+type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AmbientCredentials: dist/server/types.d.ts#AmbientCredentials
@@ -1782,8 +1784,9 @@ compose: dist/middleware/compose.d.ts#compose
 wrapWithAsyncMiddlewares: dist/middleware/compose.d.ts#wrapWithAsyncMiddlewares
 wrapWithSyncMiddlewares: dist/middleware/compose.d.ts#wrapWithSyncMiddlewares
 
-## ./server (dist/server/index.d.ts): 35 names
+## ./server (dist/server/index.d.ts): 36 names
 
+type Admission: dist/server/types.d.ts#Admission
 type AmbientCredentials: dist/server/types.d.ts#AmbientCredentials
 type Credentials: dist/server/types.d.ts#Credentials
 HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
@@ -5778,6 +5781,7 @@ export declare class ProcedureServer extends Server implements RepositoryProvide
     get stopping(): boolean;
     admits(credentials: Credentials): Promise<boolean>;
     identify(credentials: Credentials): Promise<Principal | undefined>;
+    admission(credentials: Credentials): Promise<Admission>;
     registerCollectionProcedures(collectionName: string, options?: CollectionProceduresOptions): void;
     get procedureCount(): number;
     getRegistry(): ProcedureRegistry;
@@ -5926,6 +5930,17 @@ export interface ServerOptions {
     onResponse?: (response: ServerResponse) => void;
 }
 
+### dist/server/types.d.ts#Admission
+export type Admission = {
+    readonly ok: true;
+    readonly credentials: Credentials;
+    readonly principal?: Principal | undefined;
+} | {
+    readonly ok: false;
+    readonly code: "UNAUTHORIZED";
+    readonly message: string;
+};
+
 ### dist/server/types.d.ts#AmbientCredentials
 export type AmbientCredentials = "always" | "cookies";
 
@@ -5961,6 +5976,7 @@ export interface RequestHandler {
     handle(request: ServerRequest): Promise<ServerResponse>;
     readonly ambientCredentials?: AmbientCredentials | undefined;
     identify?(credentials: Credentials): Promise<Principal | undefined>;
+    admission?(credentials: Credentials): Promise<Admission>;
 }
 
 ### dist/server/types.d.ts#RequestIdentity

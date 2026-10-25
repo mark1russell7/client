@@ -7,9 +7,10 @@
  * through the request tracking of the service of the host.
  *
  * - The tools are the procedures of the registry of the host that its policy exposes.
- * - Without a token of its own, the face takes the token of the policy. Without origins of its
- *   own, it takes the permitted origins of the policy. The token of the face is deprecated
- *   (CLI-2b): give the token only in the policy. Refer to `McpFaceOptions.token`.
+ * - Each request has one browser check and one admission (CLI-2b). The browser check uses the
+ *   origins and the hosts of the face, else the browser checks of the policy. The admission is
+ *   the admission of the server of the host: its request hook, its token check and its
+ *   authenticate function. The face has no token check of its own.
  * - With `narrowing`, each call of the face has a narrower capability (CLI-43). Refer to
  *   `McpFaceOptions.narrowing`.
  * - The types are structural: this package does not depend on `@procedures/peer`.
@@ -22,6 +23,7 @@ import {
   capabilityRefusal,
   narrowWithin,
   narrowingOf,
+  type BrowserGuardOptions,
   type CapabilityRequest,
   type HostPolicy,
   type ProcedurePath,
@@ -37,14 +39,17 @@ export interface McpFaceOptions extends Omit<McpServerTransportOptions, "transpo
   /** The path of the endpoint. The default is `/mcp`. */
   readonly path?: string | undefined;
   /**
-   * The token that each request sends as `Authorization: Bearer <token>`. The default is the token of the policy.
-   * @deprecated Give the token only in the policy of the host: `hostPolicy({ token })`. The server
-   * of the host checks it for each request (CLI-2b). From the next MINOR, the face has no token
-   * of its own, and `mcpFace()` throws an error for a token that is not the token of the policy.
+   * The token of the policy. The server of the host checks the token of each request (CLI-2b),
+   * so the face has no token of its own. Another token than the token of the policy throws an
+   * error.
+   * @deprecated Give the token only in the policy: `hostPolicy({ token })`.
    */
   readonly token?: string | undefined;
-  /** The browser origins that can call the endpoint, besides loopback origins. The default is the list of the policy. */
-  readonly allowedOrigins?: string[] | undefined;
+  /**
+   * The browser origins that can call the endpoint, besides its own origin: a list, `"*"` or a
+   * function. The default is `browser.allowedOrigins` of the policy.
+   */
+  readonly allowedOrigins?: BrowserGuardOptions["allowedOrigins"];
   /** The host names that a request on a loopback address can name. The default is `browser.allowedHosts` of the policy. */
   readonly allowedHosts?: readonly string[] | "*" | undefined;
   /** The most sessions at one time (CLI-35). The default is 256 (CLI-51). `Infinity` turns the limit off. */
@@ -115,6 +120,8 @@ function faceNarrowing(narrowing: NonNullable<McpFaceOptions["narrowing"]>, cont
       ...(inner.ambientCredentials ? { ambientCredentials: inner.ambientCredentials } : {}),
       // The principal before a call (CLI-69): the narrowing does not change it
       ...(inner.identify ? { identify: inner.identify.bind(inner) } : {}),
+      // The one admission of each request (CLI-2b): the narrowing does not change it
+      ...(inner.admission ? { admission: inner.admission.bind(inner) } : {}),
     },
     permits: (path) => {
       const procedure = registry.get(path);
@@ -137,9 +144,17 @@ export function mcpFace(options: McpFaceOptions = {}): (context: McpFaceContext)
   return (context) => {
     const { path: givenPath, token: givenToken, allowedOrigins: givenOrigins, allowedHosts: givenHosts, maxSessions, maxBodyBytes, narrowing: givenNarrowing, ...common } = options;
     const path = givenPath ?? "/mcp";
-    const token = givenToken ?? context.policy.token;
-    const policyOrigins = context.policy.browser.allowedOrigins;
-    const allowedOrigins = givenOrigins ?? (Array.isArray(policyOrigins) ? [...policyOrigins] : undefined);
+    // The server of the host checks the one token of the policy (CLI-2b): the face has no token of its own
+    if (givenToken !== undefined && givenToken !== context.policy.token) {
+      throw new Error("The MCP face has the token of the host policy (CLI-2b): give the token only in the policy, hostPolicy({ token })");
+    }
+    // Each request gets one admission by the server. A policy that checks credentials needs it, so
+    // no request reaches the tools without a check (for example the handler of an older host)
+    if ((context.policy.token !== undefined || context.policy.principalOf !== undefined) && !context.handler.admission) {
+      throw new Error("The MCP face needs admission() of its handler (CLI-2b), because the policy checks the credentials of each request. Give the handler of the host, or a handler with admission().");
+    }
+    // The browser checks of the policy, as on the other faces. The options of the face win over them.
+    const allowedOrigins = givenOrigins ?? context.policy.browser.allowedOrigins;
     const allowedHosts = givenHosts ?? context.policy.browser.allowedHosts;
     const narrowed = givenNarrowing !== undefined ? faceNarrowing(givenNarrowing, context) : undefined;
     const toolFilter: McpToolFilter = { ...common.toolFilter, ...(context.policy.expose ? { include: context.policy.expose } : {}) };
@@ -155,8 +170,7 @@ export function mcpFace(options: McpFaceOptions = {}): (context: McpFaceContext)
       transport: "http",
       httpOptions: {
         path,
-        ...(token !== undefined ? { token } : {}),
-        ...(allowedOrigins ? { allowedOrigins } : {}),
+        ...(allowedOrigins !== undefined ? { allowedOrigins } : {}),
         ...(allowedHosts !== undefined ? { allowedHosts } : {}),
         ...(maxSessions !== undefined ? { maxSessions } : {}),
         ...(maxBodyBytes !== undefined ? { maxBodyBytes } : {}),

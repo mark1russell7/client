@@ -5,19 +5,22 @@
  * Each client gets a session: its `initialize` request makes a transport and an MCP server of its
  * own, and the later requests of the client carry the `mcp-session-id` header of that session.
  * A session gets the progress of a tool call and the `list_changed` notifications. The checks of
- * a local server apply: the listener of the service listens on loopback by default, the endpoint refuses a web page of
- * another host or origin (DNS rebinding, cross-site requests), and with a token it refuses a
- * request without the token.
+ * a local server apply: the listener of the service listens on loopback by default, and the
+ * endpoint refuses a web page of another host or origin (DNS rebinding, cross-site requests).
  *
- * Each tool call carries the credentials of its HTTP request (CLI-10), so the request hook of the
- * server (`principalOf`) and its token check apply. A server that reads cookies trusts a request
- * with a cookie only from a named origin (CSRF).
+ * Each request has one check of its credentials (CLI-2b): the admission of the server of the
+ * face (`admission()` of its handler). The admission runs the request hook (`principalOf`), the
+ * token check and the authenticate function of the server, for each request: `initialize`, a
+ * call, the GET stream and the DELETE of a session. The endpoint has no token check of its own.
+ * The tool calls of the request get the admitted credentials (CLI-10), so the server does not
+ * run its checks again for them. A server that reads cookies trusts a request with a cookie only
+ * from a named origin (CSRF).
  *
  * The endpoint has no listener of its own (CLI-11). The owner of a listener mounts `handle`: a
  * listener of the service (`httpTransport` of `@mark1russell7/service/http`) or the procedures host.
  * Thus the runner of the process owns the port, the stop in stages and the exit.
  *
- * The checks of each request are in `guard.ts` (CLI-35). Only an `initialize` request starts a
+ * The browser checks of each request are in `guard.ts` (CLI-35). Only an `initialize` request starts a
  * session, and each body has a limit. The endpoint keeps at most `maxSessions` sessions: 256 by
  * default (CLI-51), or no limit with `Infinity`.
  */
@@ -26,12 +29,46 @@ import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
-import { hasAmbientCredentials } from "@procedures/client";
+import { hasAmbientCredentials, requestCredentials, type Admission, type Credentials } from "@procedures/client";
 import { BodyError, readJsonBody } from "@procedures/client/node";
 import type { HttpTransportOptions } from "../types.js";
 import { MCP_HTTP_LIMITS, guardMcpRequest } from "./guard.js";
 
-/** The limits of the sessions of the endpoint (CLI-35). The HTTP options win over them. */
+/**
+ * The key of the admitted credentials of a request in the auth info of the MCP SDK (CLI-2b). The
+ * endpoint sets it on `req.auth`, and the SDK gives it to each message of that request.
+ */
+const ADMISSION_KEY = "procedures.admission";
+
+/** The auth info of the MCP SDK on a request (`req.auth`), as far as the endpoint uses it. */
+interface AuthInfoOf {
+  token: string;
+  clientId: string;
+  scopes: string[];
+  extra?: Record<string, unknown>;
+}
+
+/**
+ * This function gives the admitted credentials of the HTTP request of a message, from the auth
+ * info that the SDK gives the message (CLI-2b). It gives undefined when the endpoint admitted no
+ * credentials for the request.
+ */
+export function admittedCredentials(authInfo: { readonly extra?: Record<string, unknown> | undefined } | undefined): Credentials | undefined {
+  const value = authInfo?.extra?.[ADMISSION_KEY];
+  return typeof value === "object" && value !== null ? (value as Credentials) : undefined;
+}
+
+/** This function puts the admitted credentials on the request, for the SDK and each message of the request. */
+function attachAdmission(req: IncomingMessage, credentials: Credentials): void {
+  const carrier = req as IncomingMessage & { auth?: AuthInfoOf };
+  const auth: AuthInfoOf = carrier.auth ?? { token: "", clientId: "", scopes: [] };
+  carrier.auth = { ...auth, extra: { ...auth.extra, [ADMISSION_KEY]: credentials } };
+}
+
+/**
+ * The parts of the endpoint that its owner gives: the limits of the sessions (CLI-35) and the
+ * admission of each request (CLI-2b). The HTTP options win over the limits.
+ */
 export interface McpHttpSessionOptions {
   /** The most sessions at one time. The default is 256 (CLI-51). `Infinity` turns the limit off. */
   readonly maxSessions?: number | undefined;
@@ -39,6 +76,12 @@ export interface McpHttpSessionOptions {
   readonly maxBodyBytes?: number | undefined;
   /** The sessions that have a task in progress: the session limit does not close them. */
   readonly busySessions?: (() => ReadonlySet<string>) | undefined;
+  /**
+   * The one check of the credentials of each request (CLI-2b): `admission()` of the handler of the
+   * face. A refusal gets 401 with `WWW-Authenticate`. Without it, the endpoint checks no
+   * credentials, and each call goes to the handler with the credentials of its request.
+   */
+  readonly admission?: ((credentials: Credentials) => Promise<Admission>) | undefined;
 }
 
 /** The HTTP endpoint of an MCP server, with a session for each client. */
@@ -79,6 +122,13 @@ export function createHttpTransport(
   const maxBodyBytes = options.maxBodyBytes ?? limits.maxBodyBytes ?? MCP_HTTP_LIMITS.maxBodyBytes;
   if (!isLimit(maxSessions)) throw new RangeError(`maxSessions must be an integer of 1 or more, or Infinity, not ${String(maxSessions)}`);
   if (!Number.isInteger(maxBodyBytes) || maxBodyBytes < 1) throw new RangeError(`maxBodyBytes must be an integer of 1 or more, not ${String(maxBodyBytes)}`);
+  // The endpoint has no token check of its own (CLI-2b). A token here has no check, so it stops the
+  // endpoint: the token goes to the server, and the admission of the server checks it
+  if (options.token !== undefined) {
+    throw new TypeError(
+      "The MCP endpoint checks no token of its own (CLI-2b). Give the token to the server of the face: hostPolicy({ token }), ProcedureServer({ token }), or policy.token of createMcpHost.",
+    );
+  }
 
   const refuse = (res: ServerResponse, status: number, code: string, message: string, headers: Readonly<Record<string, string>> = {}, reason?: string): void => {
     res.statusCode = status;
@@ -202,24 +252,47 @@ export function createHttpTransport(
     await open(req, res, body);
   };
 
+  /**
+   * The one check of the credentials of a request (CLI-2b): the admission of the server of the
+   * face. It gives the message of a refusal, or undefined when the request passes. The calls of
+   * the request get the admitted credentials through the auth info of the SDK.
+   */
+  const admit = async (req: IncomingMessage): Promise<string | undefined> => {
+    const admission = limits.admission;
+    if (!admission) return undefined;
+    const admitted = await admission(requestCredentials({ headers: req.headers as Record<string, unknown>, url: req.url }));
+    if (!admitted.ok) return admitted.message;
+    attachAdmission(req, admitted.credentials);
+    return undefined;
+  };
+
+  /** This function admits a request, and then answers it: in its session, or in a new session. */
+  const admitAndServe = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+    const refused = await admit(req);
+    if (refused !== undefined) {
+      refuse(res, 401, "UNAUTHORIZED", refused, { "www-authenticate": 'Bearer realm="mcp"' });
+      return;
+    }
+    await serve(req, res);
+  };
+
   const handle = (req: IncomingMessage, res: ServerResponse): boolean => {
     const url = new URL(req.url ?? "/", "http://localhost");
     if (url.pathname !== path) return false;
-    // A web page must not reach the tools: the host and the origin of the request, then the token
-    // (guard.ts). A server that reads cookies trusts a request with ambient credentials only from a
-    // named origin (CSRF)
+    // A web page must not reach the tools: one check of the host and the origin of the request
+    // (guard.ts), then one admission of its credentials by the server. A server that reads
+    // cookies trusts a request with ambient credentials only from a named origin (CSRF)
     const ambient = options.ambientCredentials === "always" || hasAmbientCredentials(req.headers);
     const guard = guardMcpRequest(req, {
-      ...(options.token !== undefined ? { token: options.token } : {}),
-      ...(options.allowedOrigins ? { allowedOrigins: options.allowedOrigins } : {}),
-      ...(options.allowedHosts ? { allowedHosts: options.allowedHosts } : {}),
+      ...(options.allowedOrigins !== undefined ? { allowedOrigins: options.allowedOrigins } : {}),
+      ...(options.allowedHosts !== undefined ? { allowedHosts: options.allowedHosts } : {}),
       ambient,
     });
     if (!guard.ok) {
       refuse(res, guard.status, guard.code, guard.message, guard.headers, guard.reason);
       return true;
     }
-    serve(req, res).catch((error: unknown) => {
+    admitAndServe(req, res).catch((error: unknown) => {
       if (!res.headersSent) refuse(res, 500, "INTERNAL_ERROR", error instanceof Error ? error.message : String(error));
     });
     return true;

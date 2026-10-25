@@ -274,12 +274,11 @@ describe("the credentials of a call over Streamable HTTP (CLI-10)", () => {
 
     const mark = await connectAs("mark");
     expect((await call(mark, "who.ami")).structuredContent).toEqual({ principal: "mark" });
-    // Without the header, the hook refuses the call: the tool gives the error UNAUTHORIZED
-    const nobody = await connectAs();
-    const refused = (await nobody.callTool({ name: "who.ami", arguments: {} })) as ToolResult & { _meta?: { code?: unknown } };
-    expect(refused.isError).toBe(true);
-    expect(refused._meta?.code).toBe("UNAUTHORIZED");
+    // Without the header, the hook refuses each HTTP request, also the initialize (CLI-2b):
+    // before, the client opened a session and listed the tools, and only the call got UNAUTHORIZED
+    await expect(connectAs()).rejects.toThrow();
     expect(seenHeaders).toContain("mark");
+    expect(seenHeaders).toContain("");
   });
 
   it("gives the local marker to a call that does not come over the network (CLI-1)", async () => {

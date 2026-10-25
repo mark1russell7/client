@@ -50,6 +50,32 @@ describe("runDevToolsServer", () => {
     expect(proc.exits).toHaveLength(1);
   }, 60_000);
 
+  it("gives config.http.token to the policy, and the server admits each HTTP request with it (CLI-2b, mark mcp --http --token)", async () => {
+    const proc = fakeProcess();
+    const token = "dev-tools-token-0123456789";
+    const { host, life, url } = await runDevToolsServer({ ...config, debug: false, http: { port: 0, token } }, { process: proc });
+    // The token of the HTTP face is the token of the policy: the server checks it, not the face
+    expect(host.policy.token).toBe(token);
+    expect(host.mcp.policy.token).toBe(token);
+    const initialize = (authorization?: string) =>
+      fetch(url!, {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json, text/event-stream", ...(authorization ? { authorization } : {}) },
+        body: INITIALIZE,
+      });
+    for (const authorization of [undefined, "Bearer wrong"]) {
+      const refused = await initialize(authorization);
+      expect(refused.status, String(authorization)).toBe(401);
+      expect(refused.headers.get("www-authenticate")).toBe('Bearer realm="mcp"');
+      await refused.text();
+    }
+    const admitted = await initialize(`Bearer ${token}`);
+    expect(admitted.status).toBe(200);
+    expect(await admitted.text()).toContain('"name":"start-test"');
+    proc.signal("SIGTERM");
+    await life.done;
+  }, 60_000);
+
   it("gives config.http.maxSessions to the HTTP face (CLI-51, mark mcp --max-sessions)", async () => {
     const proc = fakeProcess();
     const { host, life, url } = await runDevToolsServer({ ...config, debug: false, http: { port: 0, maxSessions: 1 } }, { process: proc });

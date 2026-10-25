@@ -70,13 +70,10 @@ export interface McpHostFaces {
   /** The face over the standard input and output. `true`: `process.stdin` and `process.stdout`. */
   stdio?: boolean | McpStdioFace | undefined;
   /**
-   * The face over Streamable HTTP. Without a token of its own, it takes the token of the policy,
-   * and without origins of its own, the permitted origins of the policy. The face has no listener
-   * (CLI-11): mount `McpHost.handleHttp` on a listener.
-   *
-   * Deprecated (CLI-2b): `http.token`. Give the token in `policy.token`. From the next MINOR,
-   * `http.token` becomes the token of the policy, and the server checks it. A different token in
-   * the policy throws an error.
+   * The face over Streamable HTTP. Without origins and hosts of its own, it takes the browser
+   * checks of the policy. The server of the host admits each request one time, with the one token
+   * of the host (CLI-2b). A `token` of the face becomes the token of the policy. The face has no
+   * listener (CLI-11): mount `McpHost.handleHttp` on a listener.
    */
   http?: HttpTransportOptions | undefined;
   /** SDK transports to connect: the in-memory transport of a test, or an embedding. */
@@ -293,6 +290,17 @@ export function mcpExposeRule(
 }
 
 /**
+ * The one token of a host (CLI-2b): the token of the policy, or the token of the HTTP face. The
+ * server of the host checks it for each network request, so two different tokens throw an error.
+ */
+function hostToken(policyToken: string | undefined, faceToken: string | undefined): string | undefined {
+  if (policyToken !== undefined && faceToken !== undefined && policyToken !== faceToken) {
+    throw new Error("An MCP host has one token: give the same token to the policy and to the HTTP face, or give it only in the policy");
+  }
+  return policyToken ?? faceToken;
+}
+
+/**
  * This function builds an MCP host. It starts nothing: `start()` starts the faces. A host
  * stops one time.
  *
@@ -316,9 +324,12 @@ export function createMcpHost(options: McpHostOptions = {}): McpHost {
   const parts: McpHostParts = { registry, expose };
   const hostInterceptors = typeof options.interceptors === "function" ? options.interceptors(parts) : (options.interceptors ?? []);
   const interceptors = [...(options.policy?.interceptors ?? []), ...hostInterceptors];
+  // A host has one token, and its server checks it (CLI-2b): the token of the HTTP face goes to the policy
+  const token = hostToken(options.policy?.token, options.faces?.http?.token);
   const policy = hostPolicy({
     strictCalls: true,
     ...options.policy,
+    ...(token !== undefined ? { token } : {}),
     ...(expose ? { expose } : {}),
     ...(options.readOnly === true ? { readOnly: true } : {}),
     ...(interceptors.length > 0 ? { interceptors } : {}),
@@ -387,18 +398,17 @@ export function createMcpHost(options: McpHostOptions = {}): McpHost {
   }
   let httpFace: McpServerTransport | undefined;
   if (faces.http) {
-    // The HTTP face keeps the token and the origins of the policy (CLI-11 moves the checks to the host)
-    const policyOrigins = policy.browser.allowedOrigins;
-    const allowedOrigins = faces.http.allowedOrigins ?? (Array.isArray(policyOrigins) ? policyOrigins : undefined);
-    const allowedHosts = faces.http.allowedHosts ?? policy.browser.allowedHosts;
-    const token = faces.http.token ?? policy.token;
+    // One check for each request (CLI-2b): the browser checks of the policy, and the admission of
+    // the server with the one token of the host. The face has no token check of its own.
+    const { token: _token, ...http } = faces.http;
+    const allowedOrigins = http.allowedOrigins ?? policy.browser.allowedOrigins;
+    const allowedHosts = http.allowedHosts ?? policy.browser.allowedHosts;
     httpFace = new McpServerTransport(server, {
       ...common,
       transport: "http",
       httpOptions: {
-        ...faces.http,
-        ...(token !== undefined ? { token } : {}),
-        ...(allowedOrigins ? { allowedOrigins: [...allowedOrigins] } : {}),
+        ...http,
+        ...(allowedOrigins !== undefined ? { allowedOrigins } : {}),
         ...(allowedHosts !== undefined ? { allowedHosts } : {}),
       },
     });

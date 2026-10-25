@@ -222,6 +222,9 @@ export function faceHandler(options: FaceHandlerOptions): FaceHandler {
     getRegistry: () => server.getRegistry(),
     // The principal before a call (CLI-69): the MCP face keys the fair share of its tasks with it
     identify: (credentials) => server.identify(credentials),
+    // The one admission of a network request before its calls (CLI-2b): the MCP face admits each
+    // HTTP request with it, and each call of that request uses the admitted credentials
+    admission: (credentials) => server.admission(credentials),
     handle: (request: ServerRequest): Promise<ServerResponse> => {
       const life = options.life();
       return life ? trackedCall(life, options, request) : server.handle(request);

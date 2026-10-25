@@ -21,6 +21,7 @@ import {
   ladder,
   procedureServerOptions,
   type AnyProcedure,
+  type Credentials,
   type HostPolicyOptions,
   type ProcedureRegistry,
   type ServerRequest,
@@ -91,6 +92,8 @@ async function start(faceOptions: McpFaceOptions, policyOptions: HostPolicyOptio
       requests.push(request);
       return server.handle(request);
     },
+    // The one admission of each HTTP request (CLI-2b)
+    admission: (credentials: Credentials) => server.admission(credentials),
   };
   const face = mcpFace({ serverInfo: { name: "face-narrowing", version: "0.0.0" }, ...faceOptions })({ handler, registry, policy });
   await face.parts.start();
@@ -195,6 +198,8 @@ describe("mcpFace({ narrowing }) (CLI-43)", () => {
         requests.push(request);
         return server.handle(request);
       },
+      // The one admission of each HTTP request (CLI-2b)
+      admission: (credentials: Credentials) => server.admission(credentials),
     };
     const face = mcpFace({ serverInfo: { name: "face-narrowing", version: "0.0.0" }, narrowing: READ_ONLY, tasks: {} })({ handler, registry, policy });
     await face.parts.start();

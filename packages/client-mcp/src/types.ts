@@ -6,7 +6,7 @@
 
 import type { Readable, Writable } from "node:stream";
 import type { Transport as SdkTransport } from "@modelcontextprotocol/sdk/shared/transport.js";
-import type { ElicitationPolicy, ProcedureRegistry } from "@procedures/client";
+import type { BrowserGuardOptions, ElicitationPolicy, ProcedureRegistry } from "@procedures/client";
 import type { McpServerInfo, McpTool, McpToolFilter } from "@procedures/mcp";
 import type { Duration } from "@procedures/client";
 import type { UntrustedContentOptions } from "./untrusted.js";
@@ -61,18 +61,19 @@ export interface HttpTransportOptions {
   /** The path of the MCP endpoint (default: "/mcp") */
   path?: string | undefined;
   /**
-   * A secret that each request must send as `Authorization: Bearer <token>`. The endpoint
-   * compares it itself, next to the token check of the server.
-   * @deprecated Give the token to the server: `policy.token` of `createMcpHost()`,
-   * `hostPolicy({ token })`, or `new ProcedureServer({ token })`. The server checks it for each
-   * request (CLI-2b). From the next MINOR, the endpoint has no token check of its own:
-   * `McpServerTransport` throws an error at `start()` for `httpOptions.token`. In `faces.http` of
-   * `createMcpHost()`, the token becomes the token of the policy, and a different token of the
-   * policy throws an error.
+   * A secret that each request must send as `Authorization: Bearer <token>`. The endpoint has no
+   * token check of its own (CLI-2b): the server of the face checks the token in its admission of
+   * each request. `createMcpHost` gives this token to its policy, as `policy.token`. Elsewhere the
+   * option throws an error, because a token without its check opens the endpoint.
+   * @deprecated Give the token to the server: `policy.token` of `createMcpHost`, or `hostPolicy({ token })`.
    */
   token?: string | undefined;
-  /** Browser origins that can call the server, besides loopback origins */
-  allowedOrigins?: string[] | undefined;
+  /**
+   * The browser origins that can call the server, besides its own origin: a list, `"*"` or a
+   * function, as `browser.allowedOrigins` of the host policy. `"*"` does not permit a request with
+   * cookies (CSRF).
+   */
+  allowedOrigins?: BrowserGuardOptions["allowedOrigins"];
   /**
    * The host names that a request on a loopback address can name in its `Host` header, besides
    * the loopback names (`browser.allowedHosts` of the host policy). `"*"` turns the check off.
