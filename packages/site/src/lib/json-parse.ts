@@ -9,6 +9,10 @@
  * `{"": 1, "\"": 2}` gives the key `\` and not `"`. A key `"\n\t"` after a key `\n` (backslash, n)
  * gives `\n`.
  *
+ * The standalone repro is `scripts/v8-json-key-repro.mjs` (`node packages/site/scripts/v8-json-key-repro.mjs`).
+ * It shows the bug on Node 24.21.0 (V8 13.6.233.17) and Node 25.2.1 (V8 14.1.146.11). The test of
+ * the same sequence logs the result of `JSON.parse` for the Node versions of CI.
+ *
  * This parser reads each key from its escapes, so no earlier object changes it. The parser has no
  * recursion: its stack is an array, so a deep text cannot overflow the call stack.
  */
