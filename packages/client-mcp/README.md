@@ -391,6 +391,14 @@ The face adds `narrowing` to each call as one more source of the narrowing key (
 - The face lists only the tools that the narrowed capability permits. The time of a narrowing limits each call, not the tools.
 - A narrowing that is not valid stops the factory with an error. Examples are an unknown field and a clearance outside the order of the policy.
 
+The face stops with the host (CLI-72). At the stop of the intake, the face does these steps:
+
+- It ends the GET stream of each session without a task in progress. The response ends in the protocol, so a client of the MCP SDK connects again, to the next server.
+- It keeps the GET stream of a session with a task in progress. The progress and the end of the task go on that stream. The stream ends with the work of the task.
+- It refuses a new session and a new GET stream with the status 503 and a `Retry-After` header. The other faces refuse new work in the same way. A POST or a DELETE of a session goes on, so a call in progress completes.
+
+Thus the drain of the listener waits only for the calls and the tasks. Before, each GET stream stayed open until the close of the face. Thus each stop with a connected client waited for the full cap of the drain.
+
 ## The procedures of this package
 
 | Procedure | Function |

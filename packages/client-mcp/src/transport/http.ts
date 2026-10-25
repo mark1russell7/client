@@ -95,6 +95,19 @@ export interface McpHttpTransport {
   handle(req: IncomingMessage, res: ServerResponse): boolean;
   /** The number of open sessions. */
   readonly sessions: number;
+  /**
+   * This function stops the intake (CLI-72): a new session and a new GET stream get 503. It ends
+   * the GET stream of each session without a task in progress. Thus the drain of a listener waits
+   * only for the calls and the tasks, not for the idle streams.
+   */
+  stopIntake(): void;
+  /** This function accepts new sessions and new GET streams again, after `stopIntake()`. */
+  startIntake(): void;
+  /**
+   * After the stop of the intake, this function ends the GET stream of each session without a task
+   * in progress. The end of the work of a task calls it.
+   */
+  endIdleStreams(): void;
   /** This function closes each session. The listener stays with its owner. */
   close(): Promise<void>;
 }
@@ -121,6 +134,8 @@ export function createHttpTransport(
   const openResponses = new Map<string, number>();
   /** The new sessions that do not have their id yet: the session limit counts them */
   let pending = 0;
+  /** False from the stop of the intake (CLI-72): a new session and a new GET stream get 503 */
+  let intakeOpen = true;
   const maxSessions = options.maxSessions ?? limits.maxSessions ?? MCP_HTTP_LIMITS.maxSessions;
   const maxBodyBytes = options.maxBodyBytes ?? limits.maxBodyBytes ?? MCP_HTTP_LIMITS.maxBodyBytes;
   if (!isLimit(maxSessions)) throw new RangeError(`maxSessions must be an integer of 1 or more, or Infinity, not ${String(maxSessions)}`);
@@ -139,6 +154,22 @@ export function createHttpTransport(
     for (const [name, value] of Object.entries(headers)) res.setHeader(name, value);
     // The reason of a FORBIDDEN refusal goes with its code, as on the other faces (CLI-4)
     res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32001, message, data: { code, ...(reason !== undefined ? { reason } : {}) } }, id: null }));
+  };
+
+  /** The refusal of new work after the stop of the intake, as on the other faces: 503 with `UNAVAILABLE` and `Retry-After` */
+  const refuseStopping = (res: ServerResponse): void =>
+    refuse(res, 503, "UNAVAILABLE", "The server is stopping", { "retry-after": String(MCP_HTTP_LIMITS.retryAfterSeconds) });
+
+  /**
+   * After the stop of the intake, this function ends the GET stream of each session without a task
+   * in progress (CLI-72). The SDK ends the response in its protocol, so the client can connect
+   * again, to the next server. A session with a task in progress keeps its stream: the progress and
+   * the end of the task go on it.
+   */
+  const endIdleStreams = (): void => {
+    if (intakeOpen) return;
+    const busy = limits.busySessions?.() ?? new Set<string>();
+    for (const [id, transport] of sessions) if (!busy.has(id)) transport.closeStandaloneSSEStream();
   };
 
   /** This function counts an open response of a session until the response closes. */
@@ -178,6 +209,11 @@ export function createHttpTransport(
 
   /** This function starts a session for an `initialize` request whose body it read. */
   const open = async (req: IncomingMessage, res: ServerResponse, body: unknown): Promise<void> => {
+    // After the stop of the intake, a new session goes to another server (CLI-72)
+    if (!intakeOpen) {
+      refuseStopping(res);
+      return;
+    }
     // The limit counts the sessions and the new sessions without an id, so the awaits below cannot
     // pass it. A new session leaves `pending` when it gets its id, or when it gets no session
     pending++;
@@ -231,6 +267,14 @@ export function createHttpTransport(
       const transport = typeof sessionId === "string" ? sessions.get(sessionId) : undefined;
       if (!transport || typeof sessionId !== "string") {
         refuse(res, 404, "SESSION_NOT_FOUND", "No session: start one with an initialize request");
+        return;
+      }
+      // After the stop of the intake, a new GET stream goes to another server (CLI-72). A POST and
+      // a DELETE of the session go on: a call in progress can need them, for example for the
+      // answer of an elicitation.
+      // The check and the start of the stream are in one turn, so the stop cannot come between them.
+      if (!intakeOpen && req.method === "GET") {
+        refuseStopping(res);
         return;
       }
       lastUsed.set(sessionId, Date.now());
@@ -312,6 +356,14 @@ export function createHttpTransport(
     get sessions() {
       return sessions.size;
     },
+    stopIntake: () => {
+      intakeOpen = false;
+      endIdleStreams();
+    },
+    startIntake: () => {
+      intakeOpen = true;
+    },
+    endIdleStreams,
     close: async () => {
       const open = [...sessions.values()];
       sessions.clear();
