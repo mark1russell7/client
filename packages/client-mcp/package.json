@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/mcp-server",
-  "version": "0.27.8",
+  "version": "0.28.0",
   "description": "Model Context Protocol server transport: serve typed procedures as MCP tools to Claude and other MCP clients, with streaming progress, list_changed and an expose policy.",
   "keywords": [
     "mcp",
