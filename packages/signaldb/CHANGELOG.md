@@ -1,5 +1,12 @@
 # @procedures/signaldb
 
+## 0.26.1
+
+### Patch Changes
+
+- @procedures/client@0.26.1
+  - @procedures/collections@0.26.1
+
 ## 0.26.0
 
 ### Patch Changes
