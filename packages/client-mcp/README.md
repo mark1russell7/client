@@ -142,6 +142,7 @@ The server of the face checks the credentials of each request one time (CLI-2b, 
 - The server of the host is the transport part `mcp`. Each storage of the server is a dependency.
 - A host with a stdio face declares the trigger `stdin-close`. The end of the input starts the stop in stages, and the face does not stop the host by itself.
 - The HTTP face has no listener. Mount `host.handleHttp` on an `httpTransport` of `@mark1russell7/service/http`, and declare that transport on the service.
+- At the stop of the intake, the HTTP face ends the idle GET streams, as `mcpFace()` does (CLI-72). Thus the drain of the listener waits only for the calls and the tasks. Refer to [The face of a procedures host](#the-face-of-a-procedures-host).
 
 ```typescript
 import { createServer } from "node:http";
@@ -390,6 +391,14 @@ The face adds `narrowing` to each call as one more source of the narrowing key (
 - A narrowing can only narrow. A part that asks for more than the policy gives has no effect.
 - The face lists only the tools that the narrowed capability permits. The time of a narrowing limits each call, not the tools.
 - A narrowing that is not valid stops the factory with an error. Examples are an unknown field and a clearance outside the order of the policy.
+
+The face stops with the host (CLI-72). At the stop of the intake, the face does these steps:
+
+- It ends the GET stream of each session without a task in progress. The response ends in the protocol, so a client of the MCP SDK connects again, to the next server.
+- It keeps the GET stream of a session with a task in progress. The progress and the end of the task go on that stream. The stream ends with the work of the task.
+- It refuses a new session and a new GET stream with the status 503 and a `Retry-After` header. The other faces refuse new work in the same way. A POST or a DELETE of a session goes on, so a call in progress completes.
+
+Thus the drain of the listener waits only for the calls and the tasks. Before, each GET stream stayed open until the close of the face. Thus each stop with a connected client waited for the full cap of the drain.
 
 ## The procedures of this package
 
