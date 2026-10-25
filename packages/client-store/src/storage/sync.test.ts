@@ -5,13 +5,23 @@
  *
  * - A pull never erases a live change that arrived during the pull (the LiveLog replay of Graph).
  * - The echo of an older own write never writes over a newer local write (the EchoLedger of Graph).
+ *
+ * The last tests cover the hook `aroundRemoteApply` around each apply of the remote changes (graph W8).
  */
 
 import { describe, it, expect, vi } from "vitest";
 import { fakeClock } from "@mark1russell7/service/testing";
 import { InMemoryStorage, type CollectionStorage, type StorageChangeBatch } from "@procedures/collections";
 import { ms } from "@procedures/client";
-import { HybridStorage, QueueStoreError, SyncStateError, type HybridStorageOptions } from "./hybrid.js";
+import {
+  HybridStorage,
+  QueueStoreError,
+  RemoteApplyHookError,
+  SyncStateError,
+  type HybridStorageOptions,
+  type RemoteApplyCause,
+  type RemoteApplyHook,
+} from "./hybrid.js";
 import { MemoryQueueStore, type QueuedOperation, type QueueStore } from "./queue.js";
 import { MemorySyncStateStore, type SyncState, type SyncStateChange, type SyncStateStore } from "./sync-state.js";
 import type { RemoteChangeFeed, RemoteChangeHint, RemoteChangeListener, RemoteChanges } from "./feed.js";
@@ -884,5 +894,274 @@ describe("HybridStorage in remote-only mode (CLI-21)", () => {
     await hybrid.clear();
     expect(batches).toEqual([[["set", "a"], ["set", "b"]], [["delete", "a"]], [["clear", "*"]]]);
     await hybrid.close();
+  });
+});
+
+/** The `traceparent` of the W3C trace context that a server sends with a change event. */
+const TRACE_1 = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
+const TRACE_2 = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01";
+const TRACE_3 = "00-5c2d1e2a9f0b4c3d8e7f6a5b4c3d2e1f-a1b2c3d4e5f60718-01";
+
+/** One call of the hook: its cause, its hint and the hints of its context. */
+interface HookCall {
+  readonly cause: RemoteApplyCause;
+  readonly hint: RemoteChangeHint | undefined;
+  readonly hints: readonly RemoteChangeHint[];
+}
+
+/** A hook that records each call and gives the promise of the apply back. */
+function recordingHook(): { readonly calls: HookCall[]; readonly hook: RemoteApplyHook } {
+  const calls: HookCall[] = [];
+  const hook: RemoteApplyHook = (hint, apply, context) => {
+    calls.push({ cause: context.cause, hint, hints: context.hints });
+    return apply();
+  };
+  return { calls, hook };
+}
+
+/** The error of a promise, or undefined when it resolves. */
+const errorOf = (promise: Promise<unknown>): Promise<unknown> => promise.then(() => undefined, (error: unknown) => error);
+
+describe("HybridStorage aroundRemoteApply (graph W8)", () => {
+  it("wraps each apply: a delta and a hint give their hint with extra, and a gap and a pull of the storage give no hint", async () => {
+    const remote = remoteOf();
+    const feed = new TestFeed();
+    const { calls, hook } = recordingHook();
+    const hybrid = new HybridStorage<Item>(remote.storage, { ...base, feed, aroundRemoteApply: hook });
+    await hybrid.getAll();
+    // The first sync is a pull of the storage
+    expect(calls).toEqual([{ cause: "pull", hint: undefined, hints: [] }]);
+
+    // A delta with the trace of the server: its hint has the ids, the origin and the extra fields, and no value
+    const cursor = await versionNow(remote.data);
+    await remote.data.set("a", { n: 1 });
+    const delta = { ...(await deltaOf(remote.data, cursor, "tab-b")), extra: { traceparent: TRACE_1 } };
+    feed.push(delta);
+    await vi.waitFor(async () => expect(await hybrid.getEntries()).toEqual([["a", { n: 1 }]]));
+    const deltaHint = { since: cursor, version: delta.version, changed: ["a"], deleted: [], origin: "tab-b", extra: { traceparent: TRACE_1 } };
+    expect(calls[1]).toEqual({ cause: "delta", hint: deltaHint, hints: [deltaHint] });
+
+    // A hint without values: the pull that it asks for gets it
+    await remote.data.set("b", { n: 2 });
+    const hint = { since: delta.version, version: await versionNow(remote.data), changed: ["b"], deleted: [], extra: { traceparent: TRACE_2 } };
+    feed.hint(hint);
+    await vi.waitFor(async () => expect(await hybrid.getEntries()).toEqual([["a", { n: 1 }], ["b", { n: 2 }]]));
+    expect(calls[2]).toEqual({ cause: "hint", hint, hints: [hint] });
+    expect(calls[2]!.hint).toBe(hint);
+
+    // A hint with only deletes applies without a read, inside the hook
+    await vi.waitFor(() => expect(hybrid.getStatus().syncing).toBe(false));
+    const reading = reads(remote.calls).length;
+    await remote.data.delete("a");
+    const deletes = { since: hint.version, version: await versionNow(remote.data), changed: [], deleted: ["a"], extra: { traceparent: TRACE_3 } };
+    feed.hint(deletes);
+    await vi.waitFor(async () => expect(await hybrid.getEntries()).toEqual([["b", { n: 2 }]]));
+    expect(reads(remote.calls).length).toBe(reading);
+    expect(calls[3]).toEqual({ cause: "hint", hint: deletes, hints: [deletes] });
+
+    // A gap, and the pulls of the storage
+    feed.gap();
+    await vi.waitFor(() => expect(calls).toHaveLength(5));
+    expect(calls[4]).toEqual({ cause: "gap", hint: undefined, hints: [] });
+    await hybrid.syncFromRemote();
+    expect(calls[5]).toEqual({ cause: "pull", hint: undefined, hints: [] });
+    await hybrid.sync();
+    expect(calls.slice(6)).toEqual([{ cause: "pull", hint: undefined, hints: [] }]);
+    expect(hybrid.getStatus().error).toBeUndefined();
+    await hybrid.close();
+  });
+
+  it("a pull of the timer of pullInterval gets no hint and the cause pull", async () => {
+    const clock = fakeClock();
+    const remote = remoteOf();
+    const { calls, hook } = recordingHook();
+    const hybrid = new HybridStorage<Item>(remote.storage, { syncInterval: ms(0), syncOnInit: false, pullInterval: ms(50), clock, aroundRemoteApply: hook });
+    await hybrid.getAll();
+    expect(calls).toEqual([]);
+    await remote.data.set("a", { n: 1 });
+    await clock.advance(50);
+    await vi.waitFor(async () => expect(await hybrid.getEntries()).toEqual([["a", { n: 1 }]]));
+    expect(calls).toEqual([{ cause: "pull", hint: undefined, hints: [] }]);
+    await hybrid.close();
+  });
+
+  it("the hints that join one pull: the hook gets the last hint, and the context keeps the last 128 in their order", async () => {
+    const remote = remoteOf();
+    const feed = new TestFeed();
+    const { calls, hook } = recordingHook();
+    const hybrid = new HybridStorage<Item>(remote.storage, { ...base, feed, aroundRemoteApply: hook });
+    await hybrid.getAll();
+    const cursor = await versionNow(remote.data);
+    remote.hold.on = true;
+    const first = { since: cursor, version: "v1", changed: ["a"], deleted: [] };
+    feed.hint(first);
+    await vi.waitFor(() => expect(remote.hold.waiting).toBe(1));
+    // The hints that come while the pull waits join one more pull
+    const joined = Array.from({ length: 130 }, (_, n) => ({ since: `v${n + 1}`, version: `v${n + 2}`, changed: ["a"], deleted: [], extra: { n } }));
+    for (const hint of joined) feed.hint(hint);
+    remote.hold.on = false;
+    remote.hold.release.splice(0).forEach((resolve) => resolve());
+    await vi.waitFor(() => expect(calls).toHaveLength(3));
+    await vi.waitFor(() => expect(hybrid.getStatus().syncing).toBe(false));
+    expect(calls[1]).toEqual({ cause: "hint", hint: first, hints: [first] });
+    expect(calls[2]!.cause).toBe("hint");
+    expect(calls[2]!.hint).toBe(joined.at(-1));
+    expect(calls[2]!.hints).toEqual(joined.slice(-128));
+    // The first sync, the pull of the first hint, and one pull for the 130 hints
+    expect(remote.count("getChangesSince")).toBe(3);
+    await hybrid.close();
+  });
+
+  it("a hook that throws makes the pull fail and the status keeps its error, the changes apply, and the next pull clears it", async () => {
+    const remote = remoteOf();
+    const feed = new TestFeed();
+    let mode: "throw" | "after" | "ok" = "ok";
+    // A hook that is not async: it throws before the apply, or it fails after the apply
+    const hook: RemoteApplyHook = (_hint, apply) => {
+      if (mode === "throw") throw new Error("the tracer is down");
+      return apply().then(() => {
+        if (mode === "after") throw new Error("the span did not end");
+      });
+    };
+    const hybrid = new HybridStorage<Item>(remote.storage, { ...base, feed, aroundRemoteApply: hook });
+    await hybrid.getAll();
+    const pulls = remote.count("getChangesSince");
+
+    mode = "throw";
+    await remote.data.set("a", { n: 1 });
+    await expect(hybrid.syncFromRemote()).rejects.toThrow("the tracer is down");
+    expect(hybrid.getStatus().error).toEqual({ operation: "pull", error: expect.objectContaining({ message: "the tracer is down" }) });
+    // The storage applied the changes itself, one time
+    expect(await hybrid.getEntries()).toEqual([["a", { n: 1 }]]);
+    expect(remote.count("getChangesSince")).toBe(pulls + 1);
+
+    mode = "after";
+    const cursor = await versionNow(remote.data);
+    await remote.data.set("b", { n: 2 });
+    feed.push(await deltaOf(remote.data, cursor));
+    await vi.waitFor(() => expect(hybrid.getStatus().error?.error).toMatchObject({ message: "the span did not end" }));
+    expect(await hybrid.getEntries()).toEqual([["a", { n: 1 }], ["b", { n: 2 }]]);
+    expect(remote.count("getChangesSince")).toBe(pulls + 1);
+
+    // The next pull recovers
+    mode = "ok";
+    await hybrid.syncFromRemote();
+    expect(hybrid.getStatus().error).toBeUndefined();
+    await hybrid.close();
+  });
+
+  it("an error of apply makes the pull fail with that error, also when the hook hides it or wraps it", async () => {
+    const remote = remoteOf();
+    const refused = Object.assign(new Error("the remote refused"), { code: "FORBIDDEN" });
+    let mode: "hide" | "wrap" = "hide";
+    const hook: RemoteApplyHook = async (_hint, apply) => {
+      try {
+        await apply();
+      } catch (error) {
+        if (mode === "wrap") throw new Error("the apply failed", { cause: error });
+      }
+    };
+    const hybrid = new HybridStorage<Item>(remote.storage, { ...base, aroundRemoteApply: hook });
+    await hybrid.getAll();
+    remote.data.getChangesSince = () => Promise.reject(refused);
+
+    expect(await errorOf(hybrid.syncFromRemote())).toBe(refused);
+    expect(hybrid.getStatus().error).toEqual({ operation: "pull", error: refused });
+    mode = "wrap";
+    expect(await errorOf(hybrid.syncFromRemote())).toBe(refused);
+    expect(hybrid.getStatus().error).toEqual({ operation: "pull", error: refused });
+
+    // The next pull recovers
+    delete (remote.data as Partial<InMemoryStorage<Item>>).getChangesSince;
+    await remote.data.set("a", { n: 1 });
+    await hybrid.syncFromRemote();
+    expect(hybrid.getStatus().error).toBeUndefined();
+    expect(await hybrid.getEntries()).toEqual([["a", { n: 1 }]]);
+    await hybrid.close();
+  });
+
+  it("a hook that does not call apply, or calls it twice, makes the pull fail with RemoteApplyHookError, and the changes apply one time", async () => {
+    const remote = remoteOf();
+    const feed = new TestFeed();
+    let mode: "skip" | "twice" | "late" | "once" = "once";
+    let late: Promise<void> | undefined;
+    let same: boolean | undefined;
+    const hook: RemoteApplyHook = async (_hint, apply) => {
+      if (mode === "skip") return;
+      if (mode === "late") {
+        // A call after the hook settled
+        late = new Promise((resolve) => setTimeout(resolve, 0)).then(apply);
+        return;
+      }
+      if (mode === "twice") {
+        const first = apply();
+        const second = apply();
+        same = first === second;
+        await Promise.all([first, second]);
+        return;
+      }
+      await apply();
+    };
+    const hybrid = new HybridStorage<Item>(remote.storage, { ...base, feed, aroundRemoteApply: hook });
+    await hybrid.getAll();
+    let pulls = remote.count("getChangesSince");
+
+    for (const [name, count] of [["skip", 0], ["twice", 2], ["late", 0]] as const) {
+      mode = name;
+      await remote.data.set(name, { n: count });
+      const failure = await errorOf(hybrid.syncFromRemote());
+      expect(failure, name).toBeInstanceOf(RemoteApplyHookError);
+      expect(failure, name).toMatchObject({ name: "RemoteApplyHookError", code: "REMOTE_APPLY_HOOK", calls: count });
+      expect(hybrid.getStatus().error, name).toEqual({ operation: "pull", error: failure });
+      expect(remote.count("getChangesSince"), name).toBe(++pulls);
+      expect(await hybrid.has(name), name).toBe(true);
+    }
+    expect(same).toBe(true);
+    // The late call gets the promise of the apply of the storage: it reads nothing again
+    await late;
+    expect(remote.count("getChangesSince")).toBe(pulls);
+
+    // A delta of the feed with a hook that does not call apply: the delta applies, and the syncs go on
+    mode = "skip";
+    const cursor = await versionNow(remote.data);
+    await remote.data.set("d", { n: 4 });
+    feed.push(await deltaOf(remote.data, cursor));
+    await vi.waitFor(async () => expect(await hybrid.has("d")).toBe(true));
+    await vi.waitFor(() => expect(hybrid.getStatus().error?.error).toBeInstanceOf(RemoteApplyHookError));
+
+    mode = "once";
+    await hybrid.syncFromRemote();
+    expect(hybrid.getStatus().error).toBeUndefined();
+    await hybrid.close();
+  });
+
+  it("without the hook, the storage applies as before: the same batches and remote calls as with a hook that only calls apply", async () => {
+    const run = async (aroundRemoteApply?: RemoteApplyHook) => {
+      const remote = remoteOf();
+      const feed = new TestFeed();
+      const hybrid = new HybridStorage<Item>(remote.storage, { ...base, feed, ...(aroundRemoteApply && { aroundRemoteApply }) });
+      await hybrid.getAll();
+      const batches: StorageChangeBatch<Item>[] = [];
+      hybrid.observe((batch) => void batches.push(batch));
+      const cursor = await versionNow(remote.data);
+      await remote.data.set("a", { n: 1 });
+      feed.push(await deltaOf(remote.data, cursor));
+      await vi.waitFor(async () => expect(await hybrid.getEntries()).toHaveLength(1));
+      const next = await versionNow(remote.data);
+      await remote.data.set("b", { n: 2 });
+      feed.hint({ since: next, version: await versionNow(remote.data), changed: ["b"], deleted: [] });
+      await vi.waitFor(async () => expect(await hybrid.getEntries()).toHaveLength(2));
+      await vi.waitFor(() => expect(hybrid.getStatus().syncing).toBe(false));
+      await remote.data.delete("a");
+      await hybrid.sync();
+      const result = { batches, calls: [...remote.calls], entries: await hybrid.getEntries(), error: hybrid.getStatus().error };
+      await hybrid.close();
+      return result;
+    };
+    const plain = await run();
+    expect(plain.entries).toEqual([["b", { n: 2 }]]);
+    expect(plain.error).toBeUndefined();
+    expect(await run((_hint, apply) => apply())).toEqual(plain);
+    expect(() => new HybridStorage<Item>(remoteOf().storage, { ...base, aroundRemoteApply: "span" as unknown as RemoteApplyHook })).toThrow(TypeError);
   });
 });

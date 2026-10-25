@@ -29,8 +29,16 @@ export {
   ConflictError,
   ModeSwitchError,
   SyncStateError,
+  RemoteApplyHookError,
 } from "./storage/hybrid.js";
-export type { HybridStorageOptions, HybridMode, LocalCopyStorage } from "./storage/hybrid.js";
+export type {
+  HybridStorageOptions,
+  HybridMode,
+  LocalCopyStorage,
+  RemoteApplyCause,
+  RemoteApplyContext,
+  RemoteApplyHook,
+} from "./storage/hybrid.js";
 export { TabCoordinator, TabGroup } from "./storage/tab-coordinator.js";
 export type {
   TabAbortSignalLike,
