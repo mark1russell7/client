@@ -34,6 +34,4 @@ const { messages } = await client.exec(["mail", "headers"], {
 
 The password of `mail.headers` is never an input, so no log of a call records it. The procedure reads it from the environment variable that `passwordEnv` names (default: `IMAP_PASSWORD`).
 
-The name starts with `IMAP_` or `MAIL_`, for example `IMAP_PASSWORD` or `MAIL_WORK_PASSWORD`. The export `MAIL_PASSWORD_ENV` is the pattern. The caller chooses the host, so another name lets it send a secret of the host, for example `GITHUB_TOKEN`, to its own server.
-
-In 0.28, another name still works, and the process gets one `DeprecationWarning` with the code `PROCEDURES_MAIL_PASSWORD_ENV`. Version 0.32.0 refuses it.
+The name starts with `IMAP_` or `MAIL_`, for example `IMAP_PASSWORD` or `MAIL_WORK_PASSWORD`. The procedure refuses another name. The caller chooses the host, so another name lets it send a secret of the host, for example `GITHUB_TOKEN`, to its own server.

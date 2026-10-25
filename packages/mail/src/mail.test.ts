@@ -1,8 +1,8 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { ProcedureRegistry, invokePath, outputValue } from "@procedures/client";
 import { decodeWords, htmlText, messageHeaders, messageText, parseAddresses } from "./mime.js";
 import { readHeaders, type ImapClientLike } from "./imap.js";
-import { MAIL_PASSWORD_ENV, mailProcedures, setImapClientFactory } from "./procedures.js";
+import { mailProcedures, setImapClientFactory } from "./procedures.js";
 
 /** Made-up messages. */
 const plain = ["From: Ada Example <ada@example.org>", "To: team@example.org", "Subject: Hello", "", "Line one", "Line two"].join("\r\n");
@@ -131,36 +131,24 @@ describe("the procedures", () => {
     expect(seen).toBe("made-up");
   });
 
-  // The deprecated path (audit pass 2, O55): a name without the prefix still works in 0.28, with one notice
-  it("mail.headers still reads a variable without the prefix IMAP_ or MAIL_, and emits one notice that names the fix", async () => {
-    const emitWarning = vi.spyOn(process, "emitWarning").mockImplementation(() => undefined);
-    const seen: Array<string | undefined> = [];
-    setImapClientFactory(async (connection) => {
-      seen.push(connection.password);
+  // Audit pass 2 (O55): before, passwordEnv could name any variable, and the caller chose the host
+  it("mail.headers refuses a variable without the prefix IMAP_ or MAIL_, and connects to no host", async () => {
+    let connected = false;
+    setImapClientFactory(async () => {
+      connected = true;
       return fakeClient([]);
     });
-    process.env["TEST_AUDIT_SECRET"] = "made-up-old";
-    process.env["MAIL_AUDIT_SECRET"] = "made-up-new";
+    process.env["MAIL_AUDIT_SECRET"] = "made-up";
     try {
-      for (let i = 0; i < 2; i++) {
-        const result = await call<{ messages: unknown[] }>(["mail", "headers"], { host: "imap.example.org", user: "u", passwordEnv: "TEST_AUDIT_SECRET" });
-        expect(result.messages).toHaveLength(2);
+      for (const passwordEnv of ["GITHUB_TOKEN", "ANTHROPIC_API_KEY", "PATH", "imap_password", "IMAP_", "XIMAP_PASSWORD"]) {
+        await expect(call(["mail", "headers"], { host: "imap.example.org", user: "u", passwordEnv }), passwordEnv).rejects.toThrow(/starts with IMAP_ or MAIL_/);
       }
-      expect(seen).toEqual(["made-up-old", "made-up-old"]);
-      expect(emitWarning).toHaveBeenCalledTimes(1);
-      const [message, options] = emitWarning.mock.calls[0]!;
-      expect(options).toEqual({ type: "DeprecationWarning", code: "PROCEDURES_MAIL_PASSWORD_ENV" });
-      expect(String(message)).toMatch(/IMAP_ or MAIL_/);
-      // The new path: a name with the prefix gets no notice
-      await call(["mail", "headers"], { host: "imap.example.org", user: "u", passwordEnv: "MAIL_AUDIT_SECRET" });
-      expect(seen[2]).toBe("made-up-new");
-      expect(emitWarning).toHaveBeenCalledTimes(1);
-      expect(MAIL_PASSWORD_ENV.test("IMAP_PASSWORD")).toBe(true);
-      for (const name of ["GITHUB_TOKEN", "imap_password", "IMAP_", "XIMAP_PASSWORD"]) expect(MAIL_PASSWORD_ENV.test(name), name).toBe(false);
+      expect(connected).toBe(false);
+      // The prefix MAIL_ and the default IMAP_PASSWORD stay valid
+      expect((await call<{ messages: unknown[] }>(["mail", "headers"], { host: "imap.example.org", user: "u", passwordEnv: "MAIL_AUDIT_SECRET" })).messages).toHaveLength(2);
+      expect(connected).toBe(true);
     } finally {
-      delete process.env["TEST_AUDIT_SECRET"];
       delete process.env["MAIL_AUDIT_SECRET"];
-      emitWarning.mockRestore();
     }
   });
 });
