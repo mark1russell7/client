@@ -1,5 +1,17 @@
 # @procedures/lib
 
+## 0.27.0
+
+### Patch Changes
+
+- Updated dependencies [7eac8b5]
+  - @procedures/client@0.27.0
+  - @procedures/dag@0.27.0
+  - @procedures/fs@0.27.0
+  - @procedures/git@0.27.0
+  - @procedures/pnpm@0.27.0
+  - @procedures/shell@0.27.0
+
 ## 0.26.2
 
 ### Patch Changes
