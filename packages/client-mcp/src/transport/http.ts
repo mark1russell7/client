@@ -24,6 +24,11 @@
  * The browser checks of each request are in `guard.ts` (CLI-35). Only an `initialize` request starts a
  * session, and each body has a limit. The endpoint keeps at most `maxSessions` sessions: 256 by
  * default (CLI-51), or no limit with `Infinity`.
+ *
+ * The endpoint stays on its listener through the drain (CLI-74). Its handler has `until` of a
+ * `RequestHandler` of the service: `close transports`. Thus a call in progress gets the answer of an
+ * elicitation and its cancel. The endpoint refuses new work itself, after the stop of its intake. The
+ * SSE stream of a POST ends when each request of the POST has its answer or is cancelled.
  */
 
 import { randomUUID } from "node:crypto";
@@ -115,6 +120,104 @@ export interface McpHttpTransport {
 /** True for a limit: an integer of 1 or more, or no limit (`Infinity`). */
 function isLimit(value: number): boolean {
   return value === Number.POSITIVE_INFINITY || (Number.isInteger(value) && value >= 1);
+}
+
+/**
+ * The stage of the shutdown at which a mount of the endpoint stops: the close of the transports
+ * (CLI-74). A listener of the service reads it as `until` of a `RequestHandler`. Thus the listener
+ * stays open through the drain, and a call in progress gets the answer of an elicitation and its
+ * cancel. The endpoint refuses new work itself after the stop of its intake.
+ */
+export const MCP_MOUNT_STAGE = "close transports";
+
+/**
+ * This function gives the handler of an endpoint with the stage of its mount: `until` of a
+ * `RequestHandler` of `@mark1russell7/service/http` (CLI-74). A function that wraps the handler
+ * loses the stage.
+ */
+export function throughTheDrain<H extends (req: IncomingMessage, res: ServerResponse) => boolean>(handler: H): H & { readonly until: typeof MCP_MOUNT_STAGE } {
+  return Object.assign(handler, { until: MCP_MOUNT_STAGE });
+}
+
+/** The id of a JSON-RPC request. */
+type RequestId = string | number;
+
+/** A JSON-RPC message, as far as the endpoint reads it. */
+interface MessageFields {
+  readonly id?: unknown;
+  readonly method?: unknown;
+  readonly params?: { readonly requestId?: unknown } | undefined;
+}
+
+/** The fields of a JSON-RPC message that the endpoint reads. */
+function fieldsOf(message: unknown): MessageFields {
+  return typeof message === "object" && message !== null ? (message as MessageFields) : {};
+}
+
+/** The id of a JSON-RPC message, when it is a string or a number. */
+function idOf(value: unknown): RequestId | undefined {
+  return typeof value === "string" || typeof value === "number" ? value : undefined;
+}
+
+/** The requests of one POST of a session: the requests without an answer, and the cancelled requests. */
+interface PostRequests {
+  readonly open: Set<RequestId>;
+  readonly cancelled: RequestId[];
+}
+
+/**
+ * This function makes a session end the SSE stream of a POST when each request of the POST has its
+ * answer or is cancelled (CLI-74). The SDK sends no answer to a request that the client cancels with
+ * `notifications/cancelled`. Thus the SDK kept the stream of that POST open until the close of the
+ * session, and the drain of a listener waited for that stream until its deadline.
+ *
+ * - The SDK gives one `requestInfo` to each message of one POST. The function groups the requests by it.
+ * - The function reads a cancel one turn of the event loop later, after the SDK aborted the call.
+ * - The function ends the stream with `closeSSEStream()` of the SDK. A batch POST keeps its stream
+ *   until each other request of the batch has its answer.
+ */
+function endCancelledStreams(transport: StreamableHTTPServerTransport): void {
+  const posts = new WeakMap<object, PostRequests>();
+  const postOf = new Map<RequestId, PostRequests>();
+  // A request leaves its POST at its answer or at its cancel. The stream ends when no request of
+  // the POST waits for an answer, and one of them was cancelled.
+  const settle = (id: RequestId, cancelled: boolean): void => {
+    const post = postOf.get(id);
+    if (post === undefined) return;
+    postOf.delete(id);
+    post.open.delete(id);
+    if (cancelled) post.cancelled.push(id);
+    const first = post.cancelled[0];
+    if (post.open.size === 0 && first !== undefined) transport.closeSSEStream(first);
+  };
+  // The Protocol of the SDK keeps a handler that the transport has before connect(), and calls it first
+  transport.onmessage = (message, extra) => {
+    const { id, method, params } = fieldsOf(message);
+    if (typeof method !== "string") return;
+    const requestId = idOf(id);
+    if (requestId !== undefined) {
+      const key: object = extra?.requestInfo ?? {};
+      const post: PostRequests = posts.get(key) ?? { open: new Set<RequestId>(), cancelled: [] };
+      posts.set(key, post);
+      post.open.add(requestId);
+      postOf.set(requestId, post);
+      return;
+    }
+    const cancelled = method === "notifications/cancelled" ? idOf(params?.requestId) : undefined;
+    // The SDK aborts the call in a later microtask: the stream ends after it
+    if (cancelled !== undefined) setImmediate(() => settle(cancelled, true));
+  };
+  const send = transport.send.bind(transport);
+  transport.send = async (message, options) => {
+    try {
+      await send(message, options);
+    } finally {
+      // An answer of the server to a request of the client: a response has an id and no method
+      const { id, method } = fieldsOf(message);
+      const answered = method === undefined ? idOf(id) : undefined;
+      if (answered !== undefined) settle(answered, false);
+    }
+  };
 }
 
 /**
@@ -248,6 +351,8 @@ export function createHttpTransport(
       created.onclose = () => {
         if (created.sessionId) forget(created.sessionId);
       };
+      // The stream of a cancelled call ends, so it does not hold the drain of the listener (CLI-74)
+      endCancelledStreams(created);
       await connect(created);
       await created.handleRequest(req, res, body);
     } finally {
