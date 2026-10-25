@@ -46,6 +46,11 @@ export interface CommandResult {
   error?: string;
 }
 
+/** The error text of an encoding that `Buffer` does not know. */
+export function unknownEncoding(encoding: unknown): string {
+  return `Unknown encoding: ${JSON.stringify(encoding)}`;
+}
+
 /** This function runs `command` with `options.args`. It does not throw: a failure is in the result. */
 export function runCommand(command: string, options: CommandOptions = {}): Promise<CommandResult> {
   const started = Date.now();
@@ -53,6 +58,12 @@ export function runCommand(command: string, options: CommandOptions = {}): Promi
     return Promise.resolve({ exitCode: 1, stdout: "", stderr: "", success: false, duration: 0, aborted: true });
   }
   const encoding = options.encoding ?? "utf8";
+  // An unknown encoding starts nothing. (Before, the decode threw in the "close" listener: the
+  // exception ended the host, and the promise never settled: audit O56.)
+  if (!Buffer.isEncoding(encoding)) {
+    const error = unknownEncoding(encoding);
+    return Promise.resolve({ exitCode: 1, stdout: "", stderr: error, success: false, duration: 0, error });
+  }
   const limit = options.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES;
   const stdout = new OutputCollector(limit, options.keep);
   const stderr = new OutputCollector(limit, options.keep);

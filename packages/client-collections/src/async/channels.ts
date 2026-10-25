@@ -62,6 +62,19 @@ export class Channel<T> {
   }
 
   /**
+   * This method waits for one value, as `receive` does, and gives it to `onValue`. When the
+   * channel is closed and empty, it calls `onClosed`. These calls are synchronous: they occur in
+   * the call that sends the value or closes the channel.
+   *
+   * The function that it returns withdraws the wait, so no later value goes to it.
+   *
+   * @returns A function that withdraws the wait. It returns true when the wait had no value yet.
+   */
+  waitReceive(onValue: (value: T) => void, onClosed: (error: Error) => void): () => boolean {
+    return this.queue.waitTake(onValue, onClosed);
+  }
+
+  /**
    * Attempts to send without blocking.
    * Returns false if channel is full.
    */
@@ -105,6 +118,7 @@ export class Channel<T> {
       handler,
       tryReceive: () => this.tryReceive(),
       receive: () => this.receive(),
+      wait: (onValue, onClosed) => this.waitReceive(onValue, onClosed),
     };
   }
 
@@ -132,6 +146,54 @@ export interface SelectCase<R> {
   handler: (value: any) => R;
   tryReceive: () => any;
   receive: () => Promise<any>;
+  /**
+   * A wait for one value that `select` can withdraw: `Channel.waitReceive`. A case without it
+   * uses the `waitReceive` method of its channel.
+   */
+  wait?: (onValue: (value: any) => void, onClosed: (error: Error) => void) => () => boolean;
+}
+
+/** A wait for one value that can be withdrawn, as `Channel.waitReceive` gives it. */
+type Wait = (onValue: (value: unknown) => void, onClosed: (error: Error) => void) => () => boolean;
+
+/**
+ * This function gives the first value of the waits, with the index of its wait. It rejects with
+ * the error of the first wait whose channel is closed and empty. It withdraws each other wait in
+ * the same call, so a later value stays in its channel. (Before, the receives of the cases that
+ * lost stayed in their channels and dropped the next value of each: audit O56.)
+ */
+function firstOf(waits: readonly Wait[]): Promise<{ index: number; value: unknown }> {
+  return new Promise((resolve, reject) => {
+    const withdraws: Array<() => boolean> = [];
+    let settled = false;
+    const end = (): void => {
+      settled = true;
+      for (const withdraw of withdraws) withdraw();
+    };
+    // A wait can call back at once, in its own call, when its channel has a value or is closed
+    try {
+      for (let index = 0; index < waits.length && !settled; index++) {
+        withdraws.push(
+          waits[index]!(
+            (value) => {
+              if (settled) return;
+              end();
+              resolve({ index, value });
+            },
+            (error) => {
+              if (settled) return;
+              end();
+              reject(error);
+            },
+          ),
+        );
+      }
+    } catch (error) {
+      // A wait that throws: the waits before it are withdrawn
+      if (!settled) end();
+      reject(error);
+    }
+  });
 }
 
 /**
@@ -139,6 +201,10 @@ export interface SelectCase<R> {
  *
  * Waits for the first channel to have a value available,
  * then calls its handler and returns the result.
+ *
+ * The first case with a value at once wins. The cases that lose keep no receive: a value that
+ * comes later stays in its channel for the next receiver. When the channel of a case is closed
+ * and empty, the returned promise rejects.
  *
  * @example
  * const result = await select(
@@ -148,20 +214,10 @@ export interface SelectCase<R> {
  * )
  */
 export async function select<R>(...cases: SelectCase<R>[]): Promise<R> {
-  // First, try non-blocking receive on all channels
-  for (const c of cases) {
-    const value = c.tryReceive();
-    if (value !== undefined) {
-      return c.handler(value);
-    }
-  }
-
-  // If no immediate value, race all receive operations
-  const promises = cases.map((c, index) =>
-    c.receive().then((value) => ({ index, value }))
+  const { index, value } = await firstOf(
+    cases.map((c): Wait => c.wait ?? ((onValue, onClosed) => c.channel.waitReceive(onValue, onClosed))),
   );
-
-  const { index, value } = await Promise.race(promises);
+  // The handler runs after the race, not in the call of the sender
   return cases[index]!.handler(value);
 }
 
@@ -284,28 +340,36 @@ export function fanIn<T>(...inputs: Channel<T>[]): Channel<T> {
 
 /**
  * Merge: like fanIn but closes output when first input closes.
+ *
+ * It takes one value at a time, from the inputs in turn, and keeps no receive on an input while
+ * it waits for the reader of the output. So each value of each input reaches the output one
+ * time, in the order of its input, or stays in its input.
  */
 export function merge<T>(...inputs: Channel<T>[]): Channel<T> {
   const output = new Channel<T>();
 
   (async () => {
-    const iterators = inputs.map((ch) => ch[Symbol.asyncIterator]());
-
+    // The input after the input of the last value comes first, so a busy input starves no other
+    let start = 0;
     while (true) {
-      const results = await Promise.race(
-        iterators.map(async (it, idx) => {
-          const result = await it.next();
-          return { idx, result };
-        })
-      );
-
-      if (results.result.done) {
-        output.close();
+      const order = inputs.map((_, offset) => (start + offset) % inputs.length);
+      let next: { index: number; value: unknown };
+      try {
+        next = await firstOf(order.map((index): Wait => (onValue, onClosed) => inputs[index]!.waitReceive(onValue, onClosed)));
+      } catch {
+        // An input is closed and empty
         break;
       }
-
-      await output.send(results.result.value);
+      const index = order[next.index]!;
+      start = (index + 1) % inputs.length;
+      try {
+        await output.send(next.value as T);
+      } catch {
+        // The reader closed the output
+        break;
+      }
     }
+    output.close();
   })();
 
   return output;

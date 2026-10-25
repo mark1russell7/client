@@ -7,7 +7,7 @@ import { TIMEOUT_METADATA_KEY, createProcedure, pathToMethod, type Effects, type
 import { wrapSchema } from "../schema.js";
 import { ServerCallOutputSchema } from "../output-schemas.js";
 import { serverCallInputSchema } from "../input-schemas.js";
-import { getConnection, connect } from "../connection/index.js";
+import { getConnection, connect, type Connection } from "../connection/index.js";
 
 // =============================================================================
 // Types
@@ -16,7 +16,7 @@ import { getConnection, connect } from "../connection/index.js";
 export interface ServerCallInput {
   /** Connection ID (from server.connect) */
   connectionId?: string | undefined;
-  /** Remote address (alternative to connectionId - creates one-shot connection) */
+  /** Remote address (alternative to connectionId - creates one-shot connection, closed after the call) */
   address?: string | undefined;
   /** Procedure path on the remote peer - dot-separated string or array */
   path: string | string[];
@@ -64,6 +64,8 @@ export const serverCallProcedure: Procedure<
     // Resolve connection: by ID, or create one-shot from address
     let connectionId: string;
     let client: import("@procedures/client").Client;
+    // The connection that this call makes for itself, from an address
+    let oneShot: Connection | undefined;
 
     if (input.connectionId) {
       const connection = getConnection(input.connectionId);
@@ -76,9 +78,9 @@ export const serverCallProcedure: Procedure<
       client = connection.client;
     } else if (input.address) {
       // Create a connection on-the-fly
-      const connection = await connect({ address: input.address });
-      connectionId = connection.id;
-      client = connection.client;
+      oneShot = await connect({ address: input.address });
+      connectionId = oneShot.id;
+      client = oneShot.client;
     } else {
       throw new Error("Either connectionId or address is required");
     }
@@ -89,15 +91,22 @@ export const serverCallProcedure: Procedure<
 
     // The signal and the remaining time of this call go with the relayed call (roadmap R14)
     const deadline = ctx?.capability?.deadline;
-    const result = await client.call(method, input.input ?? {}, {
-      ...(ctx?.signal ? { signal: ctx.signal } : {}),
-      ...(deadline !== undefined ? { context: { [TIMEOUT_METADATA_KEY]: Math.max(0, deadline - Date.now()) } } : {}),
-    });
+    try {
+      const result = await client.call(method, input.input ?? {}, {
+        ...(ctx?.signal ? { signal: ctx.signal } : {}),
+        ...(deadline !== undefined ? { context: { [TIMEOUT_METADATA_KEY]: Math.max(0, deadline - Date.now()) } } : {}),
+      });
 
-    return {
-      result,
-      connectionId,
-      path: pathArray,
-    };
+      return {
+        result,
+        connectionId,
+        path: pathArray,
+      };
+    } finally {
+      // A one-shot connection ends with its call: after a success, an error and an abort. (Before,
+      // each call left its client, its entry in the map and its socket: audit O56.) An error of the
+      // close does not hide the result of the call.
+      if (oneShot !== undefined) await oneShot.disconnect().catch(() => undefined);
+    }
   })
   .build();
