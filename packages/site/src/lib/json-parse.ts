@@ -10,8 +10,9 @@
  * gives `\n`.
  *
  * The standalone repro is `scripts/v8-json-key-repro.mjs` (`node packages/site/scripts/v8-json-key-repro.mjs`).
- * It shows the bug on Node 24.21.0 (V8 13.6.233.17) and Node 25.2.1 (V8 14.1.146.11). The test of
- * the same sequence logs the result of `JSON.parse` for the Node versions of CI.
+ * It shows the bug on Node 24.21.0 (V8 13.6.233) and Node 25.2.1 (V8 14.1.146). Node 22.23.3 (V8
+ * 12.4.254) and Node 26.12.1 (V8 14.6.202) read the key correctly. The test of the same sequence logs
+ * the result of `JSON.parse` for each Node version of CI.
  *
  * This parser reads each key from its escapes, so no earlier object changes it. The parser has no
  * recursion: its stack is an array, so a deep text cannot overflow the call stack.
