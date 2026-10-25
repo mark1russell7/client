@@ -3,7 +3,8 @@
  *
  * restic reads the repository and its keys from the environment (`RESTIC_REPOSITORY`,
  * `RESTIC_PASSWORD`, `B2_ACCOUNT_ID`, `AWS_ACCESS_KEY_ID` and the others), so no secret is an
- * input. `--password-command` is refused: it starts a program of the caller.
+ * input. `restic.run` refuses each input that lets the caller choose a program for restic to
+ * start (`resticArgv`).
  *
  * A host gives secrets only to the restic process with the `env` option of `runRestic()` or of
  * `createResticProcedures()`. The procedure input has no field for them.
@@ -14,8 +15,69 @@ import { runCommand, type CommandOptions, type CommandResult } from "@procedures
 import { z } from "zod";
 import { buildArgv, parseJsonOutput, type ArgValue } from "./argv.js";
 
-/** The flags that `restic.run` refuses. */
-const REFUSED_FLAGS = new Set(["password-command"]);
+/**
+ * The flags that `restic.run` refuses: each one names a program for restic to start.
+ * `password-command2` is the hidden old name of `from-password-command`.
+ */
+const REFUSED_FLAGS = new Set(["password-command", "from-password-command", "password-command2"]);
+
+/** The flags of extended options (`-o key=value`). `o` gives `--o`, which restic refuses, but the check is the same. */
+const OPTION_FLAGS = new Set(["option", "o"]);
+
+/**
+ * The extended options that start a program: the command or the arguments of `ssh` for an sftp
+ * repository, and the program or the arguments of `rclone` for an rclone repository.
+ */
+const PROGRAM_OPTIONS = ["sftp.command", "sftp.args", "rclone.program", "rclone.args"] as const;
+
+/** The flags whose value is a repository location. `repo2` is the hidden old name of `from-repo`. */
+const REPOSITORY_FLAGS = new Set(["repo", "from-repo", "repo2"]);
+
+/** The values of one named argument, as texts. */
+function argTexts(value: ArgValue): string[] {
+  if (Array.isArray(value)) return [...value];
+  return typeof value === "boolean" ? [] : [String(value)];
+}
+
+/**
+ * The program option that an `--option` value sets, or undefined. restic reads the value as a list
+ * of `key=value` pairs separated with commas, with quotes, and it ignores the case and the spaces of
+ * a key. A key is one run of characters in each of these forms, so a search in the lowercase value
+ * finds each spelling.
+ */
+function programOption(value: string): string | undefined {
+  const text = value.toLowerCase();
+  return PROGRAM_OPTIONS.find((key) => text.includes(key));
+}
+
+/** The text with its percent escapes decoded, or the text itself when an escape is not valid. */
+function decoded(text: string): string {
+  try {
+    return decodeURIComponent(text);
+  } catch {
+    return text;
+  }
+}
+
+/**
+ * The reason to refuse a repository location, or undefined. restic gives the host of an sftp
+ * repository to `ssh`, and the remote of an rclone repository to `rclone`, as one argument. A value
+ * that starts with `-` becomes an option of that program, and an option of `ssh` can start a program.
+ */
+function repositoryRefusal(location: string): string | undefined {
+  let target: string | undefined;
+  if (location.startsWith("sftp://")) {
+    // restic reads this form as a URL: the host comes without its brackets and with its escapes decoded
+    const authority = location.slice("sftp://".length).split("/")[0] ?? "";
+    target = decoded(authority.slice(authority.lastIndexOf("@") + 1)).replace(/^\[/, "");
+  } else if (location.startsWith("sftp:")) {
+    const head = location.slice("sftp:".length).split(":")[0] ?? "";
+    target = head.split("@").slice(-1)[0];
+  } else if (location.startsWith("rclone:")) {
+    target = location.slice("rclone:".length);
+  }
+  return target?.startsWith("-") ? "the host or the remote of the repository starts with -, so ssh or rclone reads it as an option" : undefined;
+}
 
 const RunInputSchema = z.object({
   path: z
@@ -65,10 +127,37 @@ export interface ResticCommand {
   readonly json?: boolean | undefined;
 }
 
-/** This function gives the argv of a restic command. It refuses the flags that start a program. */
+/**
+ * This function gives the argv of a restic command. It refuses each input that lets the caller
+ * choose a program for restic to start:
+ *
+ * - the flags `--password-command`, `--from-password-command` and `--password-command2`;
+ * - an extended option (`--option`) that sets `sftp.command`, `sftp.args`, `rclone.program` or
+ *   `rclone.args`, in each spelling that restic reads;
+ * - an sftp or rclone repository whose host or remote starts with `-` (`repository`, `--repo`,
+ *   `--from-repo`, `--repo2`);
+ * - a positional argument that starts with `-` after a last flag without a value. A flag that
+ *   takes a value then reads the `--` that ends the flags, and restic reads the next arguments as flags.
+ */
 export function resticArgv(input: ResticCommand): string[] {
-  for (const key of Object.keys(input.args ?? {})) {
+  const entries = Object.entries(input.args ?? {});
+  for (const [key, value] of entries) {
     if (REFUSED_FLAGS.has(key)) throw new Error(`restic.run refuses --${key}: it starts a program`);
+    for (const text of argTexts(value)) {
+      const option = OPTION_FLAGS.has(key) ? programOption(text) : undefined;
+      if (option !== undefined) throw new Error(`restic.run refuses the option ${option}: it starts a program`);
+      const refusal = REPOSITORY_FLAGS.has(key) ? repositoryRefusal(text) : undefined;
+      if (refusal !== undefined) throw new Error(`restic.run refuses --${key}: ${refusal}`);
+    }
+  }
+  const repositoryProblem = input.repository !== undefined ? repositoryRefusal(input.repository) : undefined;
+  if (repositoryProblem !== undefined) throw new Error(`restic.run refuses the repository: ${repositoryProblem}`);
+  // The last named argument that gives argv an element: false and an empty list give none
+  const last = entries.filter(([, value]) => value !== false && !(Array.isArray(value) && value.length === 0)).at(-1);
+  if (last?.[1] === true && (input.positional ?? []).some((item) => item.startsWith("-"))) {
+    throw new Error(
+      `restic.run refuses a positional argument that starts with - after the flag --${last[0]} without a value: put a flag with a value last, or start the argument with ./`
+    );
   }
   const flags = [...(input.repository !== undefined ? [`--repo=${input.repository}`] : []), ...(input.json ? ["--json"] : [])];
   return buildArgv({ path: input.path, args: input.args, positional: input.positional, flags });

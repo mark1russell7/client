@@ -7,7 +7,7 @@
  * the reader stops early.
  */
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { gzipSync } from "node:zlib";
@@ -22,6 +22,7 @@ import {
   type ProcedureRegistry,
 } from "@procedures/client";
 import { createHttpModule, httpModule, registerHttpProcedures } from "./module.js";
+import { createHostFetch } from "./host-fetch.js";
 import { HOST_NOT_ALLOWED, isHostNotAllowed, type ResolvedAddress } from "./policy.js";
 import { HttpError } from "./errors.js";
 import type { HttpJsonOutput, HttpRequestOutput, HttpSseOutput } from "./types.js";
@@ -728,5 +729,71 @@ describe("the streams of a POST", () => {
     controller.abort();
     expect(await failure(collect(events))).toMatchObject({ code: "ABORTED" });
     await closing;
+  });
+});
+
+// =============================================================================
+// createHostFetch (audit pass 2, O55)
+// =============================================================================
+
+describe("createHostFetch", () => {
+  it("refuses a loopback, private or metadata host by default, before a request", async () => {
+    const hostFetch = createHostFetch();
+    seen.delete("/json");
+    for (const url of [`${base}/json`, "http://10.0.0.1/x", "http://169.254.169.254/latest/meta-data/"]) {
+      const error = await hostFetch(url).then(
+        () => undefined,
+        (caught: unknown) => caught,
+      );
+      expect(isHostNotAllowed(error)).toBe(true);
+    }
+    expect(seen.has("/json")).toBe(false);
+  });
+
+  it("reads a host of the allowlist, and refuses a redirect to a refused host", async () => {
+    const hostFetch = createHostFetch({ allow: ["127.0.0.1"] });
+    const response = await hostFetch(`${base}/json?q=1`, { headers: { "user-agent": "test/1.0" } });
+    expect(response).toMatchObject({ ok: true, status: 200 });
+    expect(await response.json()).toEqual({ a: 1, query: { q: "1" } });
+    const missing = await hostFetch(`${base}/missing`);
+    expect(missing).toMatchObject({ ok: false, status: 404 });
+    expect(await missing.text()).toBe("no such thing");
+    const redirected = await hostFetch(`${base}/redirect/metadata`).then(
+      () => undefined,
+      (caught: unknown) => caught,
+    );
+    expect(isHostNotAllowed(redirected)).toBe(true);
+  });
+
+  it("throws the reason of the signal of the caller, as fetch does", async () => {
+    const hostFetch = createHostFetch({ allow: ["127.0.0.1"] });
+    const error = await hostFetch(`${base}/hang`, { signal: AbortSignal.timeout(50) }).then(
+      () => undefined,
+      (caught: unknown) => caught,
+    );
+    expect((error as { name?: string }).name).toBe("TimeoutError");
+  });
+
+  // The default modules of 0.28 keep a refused host working, with a notice (O55, D35)
+  it("with warnOnRefusal, sends a refused request with the global fetch and emits the notice one time", async () => {
+    const emitWarning = vi.spyOn(process, "emitWarning").mockImplementation(() => undefined);
+    try {
+      const notice = { code: "PROCEDURES_TEST_PRIVATE_HOST", message: "a test notice" };
+      const hostFetch = createHostFetch({ warnOnRefusal: notice });
+      seen.delete("/json");
+      const first = await hostFetch(`${base}/json?q=1`, { headers: { "user-agent": "test/1.0" } });
+      expect(first).toMatchObject({ ok: true, status: 200 });
+      expect(await first.json()).toEqual({ a: 1, query: { q: "1" } });
+      expect(seen.get("/json")?.headers["user-agent"]).toBe("test/1.0");
+      const second = await createHostFetch({ warnOnRefusal: notice })(`${base}/missing`);
+      expect(second).toMatchObject({ ok: false, status: 404 });
+      expect(emitWarning).toHaveBeenCalledTimes(1);
+      expect(emitWarning).toHaveBeenCalledWith("a test notice", { type: "DeprecationWarning", code: "PROCEDURES_TEST_PRIVATE_HOST" });
+      // A host of the allowlist gets no notice
+      await createHostFetch({ allow: ["127.0.0.1"], warnOnRefusal: { code: "PROCEDURES_TEST_OTHER", message: "other" } })(`${base}/json`);
+      expect(emitWarning).toHaveBeenCalledTimes(1);
+    } finally {
+      emitWarning.mockRestore();
+    }
   });
 });

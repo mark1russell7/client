@@ -4,6 +4,8 @@ export * from "./types.js";
 export { httpRequest, httpJson, httpNdjson, httpSse } from "./procedures/http/index.js";
 // The host policy (roadmap R38)
 export { HOST_NOT_ALLOWED, DEFAULT_HOST_POLICY, createHostPolicy, checkHost, isHostNotAllowed, systemResolver } from "./policy.js";
+// A fetch for GET requests through the host policy, for the procedures of other packages (O55)
+export { createHostFetch, type DeprecationNotice, type HostFetch, type HostFetchInit, type HostFetchOptions, type HostFetchResponse } from "./host-fetch.js";
 export type { AllowedTarget, HostPolicy, HostPolicyOptions, HostResolver, ResolvedAddress } from "./policy.js";
 export { isPublicAddress, parseAddress, specialClass } from "./address.js";
 export { HttpError, type HttpErrorCode } from "./errors.js";

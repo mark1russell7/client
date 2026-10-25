@@ -51,6 +51,21 @@ decodeGeohash("u09tunq"); // { south, west, north, east, center }
 
 The Nominatim policy permits at most one request each second. A `User-Agent` that names your application is necessary, so `geo.geocode` has the field `userAgent`. The OSRM demonstration server has a fair-use limit. Give `baseUrl` to use your own server of either kind.
 
+## The host policy
+
+`geo.geocode` and `geo.route` send their requests with the `fetch` of the module. The default is the global `fetch`, so the root stays safe for a browser.
+
+A Node host that serves other callers gives `createHostFetch()` of `@procedures/http` to `createGeoModule()`. Then the host policy examines each `baseUrl`. It refuses a loopback, private or link-local address, unless the `allow` list of the host has it:
+
+```ts
+import { createHostFetch } from "@procedures/http";
+import { createGeoModule } from "@procedures/geo/module";
+
+const registry = createRegistry(createGeoModule({ fetch: createHostFetch({ allow: ["osrm.lan:5000"] }) }));
+```
+
+A refusal is `FORBIDDEN` with the reason `host-not-allowed`. `mcpHostModules` of `@procedures/bundle-assistant` has a module of `geo` with this policy. The dev-tools server uses it. In 0.28, that module still sends a refused request, with a `DeprecationWarning`. Version 0.29.0 refuses it.
+
 ## Map tiles on disk
 
 The entry `@procedures/geo/tiles` is for Node only. The root of the package stays safe for a browser.

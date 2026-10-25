@@ -90,6 +90,24 @@ const registry = createRegistry(createHttpModule({ allow: ["localhost:11434", "1
 - A bad entry of `allow` makes `createHttpModule()` throw.
 - A host gives `createHttpModule()` to `createRegistry()` before its bundles. Then it replaces the `httpModule` in the modules of a bundle.
 
+### The host policy in other packages
+
+`createHostFetch(options)` gives a `fetch` for GET requests through the same checks. Its options are the options of `createHttpModule()`. A procedure of another package uses it for a URL of its caller:
+
+- `weather.forecast` uses it by default.
+- `createGeoModule({ fetch })` and `createIcsModule({ fetch })` take it. Their default stays the global `fetch`, because their roots run in a browser.
+- `mcpHostModules` of `@procedures/bundle-assistant` gives it to the modules of `geo` and `ics`. The dev-tools server puts them before its bundles.
+- In 0.28, these default modules give the option `warnOnRefusal`. A refused host then gets one `DeprecationWarning` and the global `fetch`, as before. Version 0.29.0 removes the option, and a refused host gets `FORBIDDEN`.
+
+```ts
+import { createHostFetch } from "@procedures/http";
+import { createGeoModule } from "@procedures/geo/module";
+
+const registry = createRegistry(createGeoModule({ fetch: createHostFetch({ allow: ["osrm.lan:5000"] }) }));
+```
+
+A refusal is `FORBIDDEN` with the reason `host-not-allowed`. When the signal of the caller aborts, the function throws the reason of the signal, as `fetch` does.
+
 ## Limits and time
 
 - Each input of `http.request` and `http.json` has `timeoutMs`. The default is 30 seconds.

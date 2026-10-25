@@ -24,6 +24,22 @@ MCP_BUNDLES=@procedures/bundle-mcp,@procedures/bundle-assistant mark mcp
 | `weather.forecast` | It reads one public service. |
 | `exif.read` | It reads the date and the place of a photo on the host. |
 
+The dev-tools server sends the requests of `geo.geocode`, `geo.route`, `weather.forecast` and `ics.fetch` through the default host policy of `@procedures/http`. The policy examines each `baseUrl` and feed.
+
+In 0.28, a `baseUrl` or a feed on a loopback, private or link-local address still works. The process gets one `DeprecationWarning` for each module: `PROCEDURES_GEO_PRIVATE_HOST`, `PROCEDURES_ICS_PRIVATE_HOST` and `PROCEDURES_WEATHER_PRIVATE_HOST`. Version 0.29.0 refuses such an address. To keep a server of the host, give a module with `createHostFetch({ allow: [...] })` before the bundle.
+
+- `weather.forecast` uses the policy in each registry.
+- The export `mcpHostModules` gives `geo` and `ics` with the policy. The dev-tools server gives them to `createRegistry()` before the bundle, so they replace the default modules.
+- The bundle keeps the default modules of `geo` and `ics`. Thus `mark` and the site load the bundle next to the packages `geo` and `ics`.
+
+Another host does the same:
+
+```ts
+import bundleAssistantModule, { mcpHostModules } from "@procedures/bundle-assistant/module";
+
+const registry = createRegistry(...mcpHostModules, bundleAssistantModule);
+```
+
 These procedures are not tools:
 
 - `ics.fetch` fetches any URL, so a tool call can carry data out in the URL.

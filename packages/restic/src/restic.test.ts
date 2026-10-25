@@ -44,6 +44,61 @@ describe("restic.run", () => {
     expect(() => resticArgv({ path: ["snapshots"], json: true, args: { "password-command": "x" } })).toThrow(/refuses --password-command/);
   });
 
+  // Audit pass 2 (O55): before, only --password-command was refused
+  it("refuses each flag that names a program for restic to start", () => {
+    for (const flag of ["password-command", "from-password-command", "password-command2"]) {
+      expect(() => resticArgv({ path: ["copy"], args: { [flag]: "sh -c id" } })).toThrow(new RegExp(`refuses --${flag}`));
+      expect(() => resticArgv({ path: ["copy"], args: { [flag]: ["a", "b"] } })).toThrow(/starts a program/);
+    }
+  });
+
+  it("refuses an extended option that starts a program, in each spelling that restic reads", () => {
+    const spellings = [
+      "sftp.command=sh -c id",
+      " SFTP.Command = sh",
+      "s3.storage-class=STANDARD,sftp.command=sh",
+      '"sftp.command=sh -c id"',
+      "sftp.args=-oProxyCommand=sh",
+      "rclone.program=/bin/sh",
+      "RCLONE.ARGS=serve restic --stdio",
+    ];
+    for (const value of spellings) {
+      expect(() => resticArgv({ path: ["snapshots"], args: { option: value } })).toThrow(/refuses the option/);
+      expect(() => resticArgv({ path: ["snapshots"], args: { option: ["s3.region=x", value] } })).toThrow(/refuses the option/);
+      expect(() => resticArgv({ path: ["snapshots"], args: { o: value } })).toThrow(/refuses the option/);
+    }
+  });
+
+  it("refuses an sftp or rclone repository whose host or remote starts with -", () => {
+    const locations = ["sftp:-oProxyCommand=sh:/repo", "sftp:user@-oProxyCommand=sh:/repo", "sftp://-oProxyCommand=sh/repo", "sftp://u@%2DoProxyCommand=sh/repo", "sftp://[-oX]/repo", "rclone:--config=x"];
+    for (const location of locations) {
+      expect(() => resticArgv({ path: ["snapshots"], repository: location })).toThrow(/refuses the repository/);
+      for (const flag of ["repo", "from-repo", "repo2"]) {
+        expect(() => resticArgv({ path: ["copy"], args: { [flag]: location } })).toThrow(new RegExp(`refuses --${flag}`));
+      }
+    }
+  });
+
+  it("refuses a positional argument that starts with - after a last flag without a value", () => {
+    // --repo takes a value: without "=", it reads the "--" that ends the flags
+    expect(() => resticArgv({ path: ["backup"], args: { repo: true }, positional: ["--password-command=sh"] })).toThrow(/after the flag --repo/);
+    expect(() => resticArgv({ path: ["backup"], args: { option: true, tag: [] }, positional: ["-o", "x"] })).toThrow(/after the flag --option/);
+  });
+
+  it("keeps the documented uses: extended options, sftp and rclone repositories, and paths after --", () => {
+    expect(resticArgv({ path: ["snapshots"], repository: "sftp:user@host:/srv/repo", args: { option: ["sftp.connections=5", "s3.storage-class=STANDARD_IA"] } })).toEqual([
+      "snapshots",
+      "--repo=sftp:user@host:/srv/repo",
+      "--option=sftp.connections=5",
+      "--option=s3.storage-class=STANDARD_IA",
+    ]);
+    expect(resticArgv({ path: ["snapshots"], repository: "sftp://user@host:22//srv/repo" })).toEqual(["snapshots", "--repo=sftp://user@host:22//srv/repo"]);
+    expect(resticArgv({ path: ["init"], args: { "from-repo": "rclone:b2:bucket/repo" } })).toEqual(["init", "--from-repo=rclone:b2:bucket/repo"]);
+    // A path that starts with - is a positional argument when the last flag has a value, or a bool flag is not last
+    expect(resticArgv({ path: ["backup"], args: { "one-file-system": true, limit: 3 }, positional: ["-dir"] })).toEqual(["backup", "--one-file-system", "--limit=3", "--", "-dir"]);
+    expect(resticArgv({ path: ["forget"], args: { "keep-daily": 7, prune: true }, positional: ["abc123"] })).toEqual(["forget", "--keep-daily=7", "--prune", "--", "abc123"]);
+  });
+
   it("reports a program that does not start", async () => {
     const registry = new ProcedureRegistry();
     for (const procedure of resticProcedures) registry.register(procedure);
