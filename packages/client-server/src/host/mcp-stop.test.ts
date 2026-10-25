@@ -10,6 +10,10 @@
  * - After the stop of the intake, a new GET stream and a new session get 503.
  * - After the stop of the intake, a new tool call in a session gets a retryable `UNAVAILABLE`, and
  *   its procedure does not start. The answer of an elicitation and a cancel still pass (CLI-73).
+ * - The face stays on the listener of the host through the drain (CLI-74). Thus the answer of an
+ *   elicitation and a cancel reach the calls in progress there too. The stream of a cancelled call
+ *   ends, so the stop ends soon after the cancel. A stop with an elicitation in progress ends within
+ *   the cap of the drain, and a stop with no MCP client takes the same time as before.
  *
  * The host and its service run on a fake clock, so the test measures each stop on that clock.
  */
@@ -22,10 +26,12 @@ import { service, type Lifecycle, type ServiceBuilder } from "@mark1russell7/ser
 import { fakeClock, fakeProcess, seeded } from "@mark1russell7/service/testing";
 import { createProcedure, createRegistry, elicitInput, ms, seconds, type AnyProcedure, type ProcedureRegistry } from "@procedures/client";
 import { mcpFace } from "@procedures/mcp-server";
-import { createProcedureHost, LOCAL_LISTENER_KNOBS, type ProcedureHost } from "./index.js";
+import { createProcedureHost, LOCAL_LISTENER_KNOBS, type HostFaceFactory, type ProcedureHost } from "./index.js";
 
 type FakeClock = ReturnType<typeof fakeClock>;
 
+/** The cap of the stage "fail readiness" of the test service, in milliseconds: the stage holds for it. */
+const FAIL_READINESS_MS = 10;
 /** The cap of the drain of the test service, in milliseconds. */
 const DRAIN_CAP_MS = 1000;
 /** The fake time of each step of the test, in milliseconds. */
@@ -39,7 +45,7 @@ function serviceOf(name: string): ServiceBuilder {
     .readiness({ type: "debounce", interval: seconds(5), failAfter: 3, recoverAfter: 1 })
     .liveness({ type: "window", failAfter: seconds(45) })
     .startup(seconds(10))
-    .phase("fail readiness", ms(10))
+    .phase("fail readiness", ms(FAIL_READINESS_MS))
     .phase("stop intake", ms(500))
     .phase("drain", ms(DRAIN_CAP_MS))
     .phase("close transports", ms(500))
@@ -195,17 +201,20 @@ async function whileAdvancing<T>(clock: FakeClock, promise: Promise<T>): Promise
   return watched;
 }
 
-/** A host with the MCP face under `run()` on a fake clock. Without `onListener`, the app mounts the face on a listener of its own. */
+/**
+ * A host with the MCP face under `run()` on a fake clock. Without `onListener`, the app mounts the face
+ * on a listener of its own. `face` replaces the MCP face of the host.
+ */
 async function runHost(
   name: string,
-  options: { readonly onListener: boolean; readonly tasks?: boolean; readonly registry?: ProcedureRegistry },
+  options: { readonly onListener: boolean; readonly tasks?: boolean; readonly registry?: ProcedureRegistry; readonly face?: HostFaceFactory },
 ): Promise<{ host: ProcedureHost; life: Lifecycle; clock: FakeClock; endpoint: string }> {
   const clock = fakeClock();
   const host = createProcedureHost({
     name,
     registry: options.registry ?? registryOf(),
     clock,
-    faces: { mcp: mcpFace({ serverInfo: { name, version: "0.0.0" }, ...(options.tasks ? { tasks: {} } : {}) }) },
+    faces: { mcp: options.face ?? mcpFace({ serverInfo: { name, version: "0.0.0" }, ...(options.tasks ? { tasks: {} } : {}) }) },
     ...(options.onListener ? { listen: [{ port: 0, knobs: LOCAL_LISTENER_KNOBS }] } : {}),
   });
   let endpoint: string;
@@ -518,4 +527,219 @@ describe("the MCP face at the stop of the host (CLI-72)", () => {
     expect(clock.now() - stop.startedAt).toBeLessThan(DRAIN_CAP_MS / 2);
     await holding.body?.cancel().catch(() => undefined);
   }, 20000);
+});
+
+/** This function watches the stream of a response: `text` resolves at its end. */
+function watch(response: Response): Stream {
+  let ended = false;
+  const text = response.text().finally(() => {
+    ended = true;
+  });
+  // The test reads the result later: a cut stream must not be an unhandled rejection before that
+  text.catch(() => undefined);
+  return { status: response.status, text, ended: () => ended };
+}
+
+/**
+ * The MCP face as before CLI-74. A function that wraps the handler of the face has no `until`, so
+ * the mount of the face stops with the intake, and the listener closes at the stop of the intake.
+ */
+function faceUntilIntake(name: string): HostFaceFactory {
+  const factory = mcpFace({ serverInfo: { name, version: "0.0.0" } });
+  return (context) => {
+    const face = factory(context);
+    return { handler: (req, res) => face.handler(req, res), parts: face.parts, endpoint: face.endpoint };
+  };
+}
+
+/** The face of a measured stop: the MCP face, or the MCP face as before CLI-74. */
+type Variant = "after" | "before";
+
+/** The options of `runHost()` for the face of a measured stop, on the listener of the host. */
+function variantOf(name: string, variant: Variant, registry?: ProcedureRegistry): Parameters<typeof runHost>[1] {
+  return { onListener: true, ...(registry ? { registry } : {}), ...(variant === "before" ? { face: faceUntilIntake(name) } : {}) };
+}
+
+/** This function measures the stop of a host with the MCP face and no MCP client, on the fake clock. */
+async function idleStop(variant: Variant): Promise<number> {
+  const { life, clock } = await runHost(`mcp-none-${variant}`, variantOf(`mcp-none-${variant}`, variant));
+  const stop = startStop(life, clock);
+  await advanceUntil(clock, stop.exited);
+  expect(stop.exited()).toBe(true);
+  expect(life.errors).toEqual([]);
+  return clock.now() - stop.startedAt;
+}
+
+/**
+ * This function measures the stop of a host with a call that asks the person, on the fake clock. The
+ * person does not answer. The call gets its end on its stream before the close of the listener.
+ */
+async function askingStop(variant: Variant): Promise<number> {
+  const seen: LateSeen = { lateRuns: 0, holding: newLatch(), aborted: newLatch() };
+  const name = `mcp-asking-${variant}`;
+  const { life, clock, endpoint } = await runHost(name, variantOf(name, variant, lateRegistryOf(seen)));
+  const session = await initialize(endpoint, { elicitation: {} });
+  const asking = sseOf(await post(endpoint, session, toolCall(2, "test.ask")));
+  await asking.next((message) => message.method === "elicitation/create");
+  const answer = asking.next((message) => message.id === 2);
+  answer.catch(() => undefined);
+
+  const stop = startStop(life, clock);
+  await advanceUntil(clock, stop.exited);
+  expect(stop.exited()).toBe(true);
+  expect(life.errors).toEqual([]);
+  await expect(answer).resolves.toMatchObject({ id: 2 });
+  return clock.now() - stop.startedAt;
+}
+
+/** The measure of a stop with a cancel: the status of the cancel, and the times of the stop after the cancel and after its start. */
+interface CancelStop {
+  readonly status: number;
+  readonly afterCancel: number;
+  readonly elapsed: number;
+}
+
+/**
+ * This function measures the stop of a host with a call that waits for its cancel, on the fake clock.
+ * The client cancels the call after the stop of the intake.
+ */
+async function cancelStop(variant: Variant): Promise<CancelStop> {
+  const seen: LateSeen = { lateRuns: 0, holding: newLatch(), aborted: newLatch() };
+  const name = `mcp-cancel-${variant}`;
+  const { life, clock, endpoint } = await runHost(name, variantOf(name, variant, lateRegistryOf(seen)));
+  const session = await initialize(endpoint);
+  const holding = watch(await post(endpoint, session, toolCall(2, "test.hold")));
+  await seen.holding.done;
+
+  const stop = startStop(life, clock);
+  // The stage "fail readiness" holds for its cap. Then the intake stops.
+  await advanceUntil(clock, () => clock.now() - stop.startedAt > FAIL_READINESS_MS + STEP_MS);
+  const cancelledAt = clock.now();
+  // The status 0 tells that the listener refused the connection: it closed at the stop of the intake
+  const status = await post(endpoint, session, { jsonrpc: "2.0", method: "notifications/cancelled", params: { requestId: 2, reason: "the client cancels the call" } }).then(
+    async (response) => {
+      await response.text();
+      return response.status;
+    },
+    () => 0,
+  );
+  await advanceUntil(clock, stop.exited);
+  expect(stop.exited()).toBe(true);
+  expect(life.errors).toEqual([]);
+  expect(seen.aborted.fired()).toBe(true);
+  await holding.text;
+  return { status, afterCancel: clock.now() - cancelledAt, elapsed: clock.now() - stop.startedAt };
+}
+
+describe("the MCP face on the listener of the host through the drain (CLI-74)", () => {
+  it("gives the answer of an elicitation and a cancel to the calls in progress, ends the stream of the cancelled call, and refuses new work", async () => {
+    const seen: LateSeen = { lateRuns: 0, holding: newLatch(), aborted: newLatch() };
+    const { life, clock, endpoint } = await runHost("mcp-drain", { onListener: true, registry: lateRegistryOf(seen) });
+    // The client can answer the questions of the server (form elicitation)
+    const session = await initialize(endpoint, { elicitation: {} });
+    const stream = await openStream(endpoint, session);
+    // Two calls in progress at the stop: a question to the person, and a call that waits for its cancel
+    const asking = sseOf(await post(endpoint, session, toolCall(2, "test.ask")));
+    const question = await asking.next((message) => message.method === "elicitation/create");
+    const holding = watch(await post(endpoint, session, toolCall(3, "test.hold")));
+    await seen.holding.done;
+
+    const stop = startStop(life, clock);
+    await advanceUntil(clock, stream.ended);
+    expect(stream.ended()).toBe(true);
+
+    // The listener stays open, and the face refuses a new GET stream and a new session with its own 503
+    const refusals = [
+      await fetch(endpoint, { headers: { accept: "text/event-stream", "mcp-session-id": session, "mcp-protocol-version": PROTOCOL } }),
+      await fetch(endpoint, {
+        method: "POST",
+        headers: HEADERS,
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: PROTOCOL, capabilities: {}, clientInfo: { name: "late", version: "0" } } }),
+      }),
+    ];
+    for (const refusal of refusals) {
+      expect(refusal.status).toBe(503);
+      expect(refusal.headers.get("retry-after")).toBe("5");
+      expect(await refusal.json()).toMatchObject({ error: { message: "The server is stopping", data: { code: "UNAVAILABLE" } } });
+    }
+    // Each other path of the listener gets the 503 of the listener, with the Retry-After of its knobs
+    const other = await fetch(new URL("/elsewhere", endpoint));
+    expect([other.status, other.headers.get("retry-after")]).toEqual([503, "1"]);
+    await other.text();
+
+    // A new tool call gets the refusal of the stop: a retryable UNAVAILABLE. Its procedure does not start.
+    const late = await post(endpoint, session, toolCall(4, "test.late"));
+    expect(late.status).toBe(200);
+    const lateRefusal = messagesOf(await whileAdvancing(clock, late.text())).find((message) => message.id === 4);
+    expect(lateRefusal?.result).toMatchObject({ isError: true, _meta: { code: "UNAVAILABLE", retryable: true } });
+    expect(seen.lateRuns).toBe(0);
+    // A ping of the session gets its answer
+    const ping = await post(endpoint, session, { jsonrpc: "2.0", id: 5, method: "ping" });
+    expect(ping.status).toBe(200);
+    expect(messagesOf(await whileAdvancing(clock, ping.text())).find((message) => message.id === 5)?.result).toEqual({});
+
+    // The answer of the person reaches the call in progress, and the call completes. Before CLI-74,
+    // the answer got the plain 503 of the listener, and the call waited until the cooperative abort.
+    const answered = await post(endpoint, session, { jsonrpc: "2.0", id: question.id, result: { action: "accept", content: { name: "Ada" } } });
+    expect(answered.status).toBe(202);
+    await answered.text();
+    const result = await whileAdvancing(clock, asking.next((message) => message.id === 2));
+    expect(result.result).toMatchObject({ structuredContent: { action: "accept", name: "Ada" } });
+    // The call that waits for its cancel still holds the drain
+    expect(stop.exited()).toBe(false);
+
+    // The cancel reaches the other call. The test does not move the clock until the abort, so the
+    // cooperative abort of the drain cannot be the cause.
+    expect(seen.aborted.fired()).toBe(false);
+    const cancelledAt = clock.now();
+    const cancelled = await post(endpoint, session, { jsonrpc: "2.0", method: "notifications/cancelled", params: { requestId: 3, reason: "the client cancels the call" } });
+    expect(cancelled.status).toBe(202);
+    await cancelled.text();
+    await seen.aborted.done;
+    // The SDK sends no answer to a cancel, so the face ends the stream of the call
+    await advanceUntil(clock, holding.ended);
+    expect(holding.ended()).toBe(true);
+    expect(messagesOf(await holding.text).some((message) => message.id === 3)).toBe(false);
+
+    await advanceUntil(clock, stop.exited);
+    expect(stop.exited()).toBe(true);
+    // An open stream of the cancelled call made the drain of the listener wait until its deadline
+    expect(clock.now() - cancelledAt).toBeLessThan(DRAIN_CAP_MS / 4);
+    expect(clock.now() - stop.startedAt).toBeLessThan(DRAIN_CAP_MS / 2);
+    expect(life.errors).toEqual([]);
+  }, 20000);
+
+  it("ends a stop with an elicitation in progress within the cap of the drain, in the same time as before", async () => {
+    const before = await askingStop("before");
+    const after = await askingStop("after");
+    // The record of the run gives the measured stops
+    console.info(`CLI-74: the stop with an elicitation in progress took ${after} ms on the fake clock, and ${before} ms before (the cap of the drain is ${DRAIN_CAP_MS} ms)`);
+    // The listener stays open through the drain, but the drain still ends within its cap
+    expect(after).toBeLessThan(FAIL_READINESS_MS + DRAIN_CAP_MS);
+    expect(after).toBeLessThanOrEqual(before + STEP_MS);
+  }, 30000);
+
+  it("ends the stop well under the cap of the drain after a cancel", async () => {
+    const before = await cancelStop("before");
+    const after = await cancelStop("after");
+    // The record of the run gives the measured stops
+    console.info(
+      `CLI-74: after a cancel, the stop ended ${after.afterCancel} ms after the cancel (${after.elapsed} ms in all), and ` +
+        `${before.afterCancel} ms after it before (${before.elapsed} ms in all, the cap of the drain is ${DRAIN_CAP_MS} ms)`,
+    );
+    // Before CLI-74, the closed listener refused the cancel, or gave its plain 503. The call waited until the cooperative abort.
+    expect([0, 503]).toContain(before.status);
+    expect(after.status).toBe(202);
+    expect(after.afterCancel).toBeLessThan(DRAIN_CAP_MS / 4);
+    expect(after.elapsed).toBeLessThan(before.elapsed);
+  }, 30000);
+
+  it("keeps the time of a stop with no MCP client: the same as before", async () => {
+    const before = await idleStop("before");
+    const after = await idleStop("after");
+    // The record of the run gives the measured stops
+    console.info(`CLI-74: the stop with no MCP client took ${after} ms on the fake clock, and ${before} ms before`);
+    expect(Math.abs(after - before)).toBeLessThanOrEqual(STEP_MS);
+    expect(after).toBeLessThan(DRAIN_CAP_MS / 4);
+  }, 30000);
 });
