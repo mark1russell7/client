@@ -7,6 +7,7 @@
 "@procedures/geo": patch
 "@procedures/ics": patch
 "@procedures/bundle-assistant": patch
+"@procedures/mcp-dev-tools": patch
 ---
 
 Fixes for the security findings of the second code audit (roadmap O55).
@@ -19,6 +20,7 @@ PATCH: bug fixes and additive options. Each fix refuses only an input that the d
 - `@procedures/http` exports `createHostFetch(options)`: a `fetch` for GET requests through the host policy, with the options of `createHttpModule()`. It also exports `httpSettings(options)`.
 - `weather.forecast` of `@procedures/weather` sends its request through `createHostFetch()`. The policy refuses a `baseUrl` on a loopback, private or link-local address. `createWeatherModule({ fetch })` gives another `fetch`, for a server of the host on such an address.
 - `@procedures/geo` and `@procedures/ics` add `createGeoModule({ fetch })` and `createIcsModule({ fetch })`. Their default stays the global `fetch`, because their roots run in a browser. A refusal of the host policy keeps its code and its reason. The refusal of `ics.fetch` does not name the feed address.
-- `bundleAssistantModule` of `@procedures/bundle-assistant` builds its modules of `geo` and `ics` with `createHostFetch()`. Thus `geo.geocode`, `geo.route`, `weather.forecast` and `ics.fetch` of the dev-tools server go through the default host policy. The `./register` entry keeps the default modules of `geo` and `ics`, so it loads next to their own register entries in the global registry.
+- `@procedures/bundle-assistant` exports `mcpHostModules`: the modules of `geo` and `ics` with `createHostFetch()`. The bundle keeps the default modules, so `mark` and the site load it next to `geo` and `ics` as before.
+- The dev-tools server of `@procedures/mcp-dev-tools` gives the `mcpHostModules` of each bundle to `createRegistry()` before the bundles. In one call, the first module of a name counts. Thus `geo.geocode`, `geo.route`, `weather.forecast` and `ics.fetch` of the dev-tools server go through the default host policy.
 
 A host that sends `weather.forecast`, or the bundle's `geo` tools, to a server on a private address gives a `fetch` that allows it: `createWeatherModule({ fetch: createHostFetch({ allow: ["10.0.0.5:8080"] }) })`.

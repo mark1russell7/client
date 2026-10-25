@@ -24,9 +24,19 @@ MCP_BUNDLES=@procedures/bundle-mcp,@procedures/bundle-assistant mark mcp
 | `weather.forecast` | It reads one public service. |
 | `exif.read` | It reads the date and the place of a photo on the host. |
 
-In `bundleAssistantModule`, the requests of `geo.geocode`, `geo.route`, `weather.forecast` and `ics.fetch` go through the default host policy of `@procedures/http`. The policy refuses a `baseUrl` or a feed on a loopback, private or link-local address. The dev-tools server gives this module to `createRegistry()`.
+The dev-tools server sends the requests of `geo.geocode`, `geo.route`, `weather.forecast` and `ics.fetch` through the default host policy of `@procedures/http`. The policy refuses a `baseUrl` or a feed on a loopback, private or link-local address.
 
-The `./register` entry puts the default modules of `geo` and `ics` in the global registry, as their own register entries do. These modules use the global `fetch`. Only `weather.forecast` goes through the host policy there.
+- `weather.forecast` uses the policy in each registry.
+- The export `mcpHostModules` gives `geo` and `ics` with the policy. The dev-tools server gives them to `createRegistry()` before the bundle, so they replace the default modules.
+- The bundle keeps the default modules of `geo` and `ics`. Thus `mark` and the site load the bundle next to the packages `geo` and `ics`.
+
+Another host does the same:
+
+```ts
+import bundleAssistantModule, { mcpHostModules } from "@procedures/bundle-assistant/module";
+
+const registry = createRegistry(...mcpHostModules, bundleAssistantModule);
+```
 
 These procedures are not tools:
 

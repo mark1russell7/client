@@ -64,7 +64,7 @@ import { createGeoModule } from "@procedures/geo/module";
 const registry = createRegistry(createGeoModule({ fetch: createHostFetch({ allow: ["osrm.lan:5000"] }) }));
 ```
 
-`@procedures/bundle-assistant` builds its module of `geo` so. A refusal is `FORBIDDEN` with the reason `host-not-allowed`.
+`mcpHostModules` of `@procedures/bundle-assistant` has a module of `geo` with this `fetch`. The dev-tools server uses it. A refusal is `FORBIDDEN` with the reason `host-not-allowed`.
 
 ## Map tiles on disk
 

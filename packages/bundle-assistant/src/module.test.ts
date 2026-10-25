@@ -4,11 +4,11 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { createRegistry, effectsOf, invokePath, outputValue, surfaceRule } from "@procedures/client";
+import { createRegistry, effectsOf, invokePath, outputValue, registerModules, surfaceRule } from "@procedures/client";
 import { isHostNotAllowed } from "@procedures/http";
 import geoModule from "@procedures/geo/module";
 import icsModule from "@procedures/ics/module";
-import { bundleAssistantModule, mcpExclude, mcpNamespaces, registerBundleAssistantProcedures } from "./module.js";
+import { bundleAssistantModule, mcpExclude, mcpHostModules, mcpNamespaces } from "./module.js";
 
 const TOOLS = [
   "exif.read",
@@ -45,7 +45,9 @@ describe("bundle-assistant", () => {
   });
 
   // Audit pass 2 (O55): before, these procedures fetched each URL of their caller with the global fetch
-  it("sends the requests of its network procedures through the host policy", async () => {
+  it("sends the requests of its network procedures through the host policy, with mcpHostModules first", async () => {
+    // The dev-tools server builds its registry so
+    const host = createRegistry(...mcpHostModules, bundleAssistantModule);
     const calls: Array<[string, unknown]> = [
       ["geo.geocode", { query: "x", userAgent: "test/1.0", baseUrl: "http://127.0.0.1:8080" }],
       ["geo.route", { from: { lat: 0, lon: 0 }, to: { lat: 1, lon: 1 }, baseUrl: "http://169.254.169.254" }],
@@ -54,7 +56,7 @@ describe("bundle-assistant", () => {
     ];
     for (const [key, input] of calls) {
       const path = key.split(".");
-      const error = await invokePath(path, input, { registry })
+      const error = await invokePath(path, input, { registry: host })
         .then((output) => outputValue(output, path))
         .then(
           () => undefined,
@@ -64,10 +66,11 @@ describe("bundle-assistant", () => {
     }
   });
 
-  // The site and mark import the register entries of geo, ics and this bundle into one registry
-  it("registers next to the default modules of geo and ics in one registry", () => {
-    const shared = createRegistry(icsModule, geoModule);
-    expect(() => registerBundleAssistantProcedures(shared)).not.toThrow();
+  // mark registers the module of each package, one package at a time, in one registry
+  it("registers next to the default modules of geo and ics, one package at a time", () => {
+    const shared = createRegistry(bundleAssistantModule);
+    expect(() => registerModules(shared, [geoModule])).not.toThrow();
+    expect(() => registerModules(shared, [icsModule])).not.toThrow();
     expect(shared.get(["weather", "forecast"])?.handler).toBeDefined();
   });
 

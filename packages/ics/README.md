@@ -122,4 +122,4 @@ import { createIcsModule } from "@procedures/ics/module";
 const registry = createRegistry(createIcsModule({ fetch: createHostFetch() }));
 ```
 
-A refusal is `FORBIDDEN` with the reason `host-not-allowed`. Its message does not contain the address of the feed. `@procedures/bundle-assistant` builds its module of `ics` so.
+A refusal is `FORBIDDEN` with the reason `host-not-allowed`. Its message does not contain the address of the feed. `mcpHostModules` of `@procedures/bundle-assistant` has a module of `ics` with this `fetch`. The dev-tools server uses it.
