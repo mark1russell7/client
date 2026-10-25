@@ -110,9 +110,52 @@ describe("the query policy (roadmap CLI-14)", () => {
       expect(selectorProblems({ a: { $regex: pattern } }).join(), pattern).toMatch(/does not permit the operator \$regex/);
       expect(selectorProblems({ a: { $regex: pattern } }, OPEN).join(), pattern).toMatch(/repeats a group that repeats without a bound/);
     }
-    for (const pattern of ["(ab)+", "(a+)?b", "(a{2,3})+", "(?:a|b)+", "[(a+)]+", "\\(a+\\)+", "a+b*c?"]) {
+    for (const pattern of ["(ab)+", "(a+)?b", "(?:a|b)+", "[(a+)]+", "\\(a+\\)+", "a+b*c?"]) {
       expect(selectorProblems({ a: { $regex: pattern } }, OPEN), pattern).toEqual([]);
     }
+  });
+
+  it("refuses a repeated group with alternatives that overlap or a repetition of variable length (audit O56 #11)", () => {
+    const overlap = ["(a|a)*$", "(a|aa)+$", "(?:a|b|ab)*c", "(\\d|\\w)+$", "([a-c]|b)+", "(?:x|.)+", "(a|)+", "(?:[^,]|a)+", "(?:a|(?:b|a))+"];
+    for (const pattern of overlap) {
+      expect(selectorProblems({ a: { $regex: pattern } }, OPEN).join(), pattern).toMatch(/alternatives that can start with the same character/);
+    }
+    const variable = ["(a{1,50}){1,50}", "(a{2,3})+", "(a?a?)+$", "(?:ab?){2,}", "^(a{1,9}b?){9}$"];
+    for (const pattern of variable) {
+      expect(selectorProblems({ a: { $regex: pattern } }, OPEN).join(), pattern).toMatch(/repetition of variable length/);
+    }
+    // The old refusals keep their reason, also in a lookahead and with a bounded outer repetition
+    for (const pattern of ["(?=(a+)+$)", "(a+){9}", "(\\w+\\s){2}"]) {
+      expect(selectorProblems({ a: { $regex: pattern } }, OPEN).join(), pattern).toMatch(/repeats a group that repeats without a bound/);
+    }
+  });
+
+  it("knows the case of the flag i when it compares the alternatives", () => {
+    expect(selectorProblems({ a: { $regex: "(?:a|A)+" } }, OPEN)).toEqual([]);
+    expect(selectorProblems({ a: { $regex: "(?:a|A)+", $options: "i" } }, OPEN).join()).toMatch(/alternatives that can start with the same character/);
+    expect(selectorProblems({ a: { $regex: "(?:[a-f]|G)+", $options: "i" } }, OPEN)).toEqual([]);
+  });
+
+  it("permits a repeated group whose alternatives start with different characters, and a small bounded repetition", () => {
+    const safe = [
+      "(?:foo|bar)+",
+      "(?:[a-z]|-)+",
+      "(?:\\d|[a-f])+",
+      "(?:\\s|,)+",
+      "(?:[^,\\\\]|\\\\,)+",
+      "(?:(?:a|b)c|d)+",
+      "(\\d{1,3}\\.){3}\\d{1,3}",
+      "(?:ab){2,}",
+      "(a{2})+",
+      "(?<word>[a-z]{3})+",
+      "x(?:a|b)?y",
+    ];
+    for (const pattern of safe) {
+      expect(selectorProblems({ a: { $regex: pattern } }, OPEN), pattern).toEqual([]);
+    }
+    // A pattern that the guard passes still matches as before
+    expect(matchesSelector({ ip: { $regex: "^(\\d{1,3}\\.){3}\\d{1,3}$" } }, { ip: "10.0.0.1" }, OPEN)).toBe(true);
+    expect(matchesSelector({ name: { $regex: "^(?:foo|bar)+$" } }, { name: "foobarfoo" }, OPEN)).toBe(true);
   });
 
   it("refuses an operator, also a logical one, that the policy does not permit", () => {

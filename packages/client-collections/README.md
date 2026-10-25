@@ -205,6 +205,9 @@ await notes.query({ title: { $regex: "^draft", $options: "i" } });
 - The option `queryPolicy` of a storage applies to each call without a policy. The third argument of `query()` gives the policy of one call.
 - The procedure `find` gives the policy of its host to `query()` of the storage, so the host sets the policy in one place.
 - A pattern that repeats a group that repeats without a bound, for example `(a+)+`, is always an error.
+- A repeated group with a repetition of variable length, for example `(a{2,3})+`, is also an error.
+- A repeated group with alternatives that can start with the same character, for example `(a|aa)+`, is also an error.
+- A group with a bounded repetition and few ways to match passes, for example `(\d{1,3}\.){3}`.
 
 #### The two forms of a patch
 
