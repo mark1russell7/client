@@ -70,7 +70,7 @@
     "@procedures/better-auth": "workspace:*",
     "@procedures/fs": "workspace:*",
     "@procedures/mcp-server": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "typescript": "^7.0.2",
     "@types/node": "^22.0.0",
     "@mark1russell7/cue": "^1.0.0",

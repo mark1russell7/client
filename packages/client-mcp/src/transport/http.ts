@@ -188,7 +188,8 @@ function endCancelledStreams(transport: StreamableHTTPServerTransport): void {
     post.open.delete(id);
     if (cancelled) post.cancelled.push(id);
     const first = post.cancelled[0];
-    if (post.open.size === 0 && first !== undefined) transport.closeSSEStream(first);
+    // The floor of the SDK has closeSSEStream(). The check keeps an older SDK from an uncaught error.
+    if (post.open.size === 0 && first !== undefined && typeof transport.closeSSEStream === "function") transport.closeSSEStream(first);
   };
   // The Protocol of the SDK keeps a handler that the transport has before connect(), and calls it first
   transport.onmessage = (message, extra) => {
