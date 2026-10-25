@@ -136,7 +136,7 @@ export const MCP_MOUNT_STAGE = "close transports";
  * loses the stage.
  */
 export function throughTheDrain<H extends (req: IncomingMessage, res: ServerResponse) => boolean>(handler: H): H & { readonly until: typeof MCP_MOUNT_STAGE } {
-  return Object.assign(handler, { until: MCP_MOUNT_STAGE });
+  return Object.assign(handler, { until: MCP_MOUNT_STAGE } as const);
 }
 
 /** The id of a JSON-RPC request. */
