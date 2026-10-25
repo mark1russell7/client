@@ -12,8 +12,8 @@ import { join } from "node:path";
 import { Client, LocalTransport, PROCEDURE_REGISTRY, type ProcedureContext } from "@procedures/client";
 import "./register.js";
 import { cueValidate } from "./procedures/cue/validate.js";
-import { checkCue } from "./shared.js";
-import type { CueAddOutput, CueGenerateOutput, CueInitOutput, CueRemoveOutput, CueValidateOutput } from "./types.js";
+import { checkCue, hasFeature, resolveFeatures } from "./shared.js";
+import type { CueAddOutput, CueGenerateOutput, CueInitOutput, CueRemoveOutput, CueValidateOutput, FeaturesManifest } from "./types.js";
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
@@ -75,4 +75,17 @@ describe("cue file errors", () => {
     const result = await call<CueValidateOutput>("validate", { cwd });
     expect(result).toMatchObject({ success: false, errors: ["No dependencies.json found. Run cue.init first."] });
   });
+});
+
+describe("the names of the prototype (audit pass 2)", () => {
+  it("are not features: add refuses constructor, and resolveFeatures skips it", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "client-cue-"));
+    await call<CueInitOutput>("init", { cwd, preset: "lib" });
+    const added = await call<CueAddOutput>("add", { cwd, feature: "constructor" });
+    expect(added).toMatchObject({ success: false, added: false, error: expect.stringMatching(/Unknown feature: constructor/) });
+    expect(readFileSync(join(cwd, "dependencies.json"), "utf8")).not.toContain('"constructor"');
+    const manifest = { features: { node: { dependencies: [] } } } as unknown as FeaturesManifest;
+    expect(resolveFeatures(["node", "constructor", "toString"], manifest)).toEqual(["node"]);
+    expect(hasFeature(manifest, "toString")).toBe(false);
+  }, 60_000);
 });

@@ -9,6 +9,7 @@ import type { ProcedureContext } from "@procedures/client";
 import type { CueAddInput, CueAddOutput } from "../../types.js";
 import {
   loadFeatures,
+  hasFeature,
   loadDependencies,
   saveDependencies,
 } from "../../shared.js";
@@ -35,7 +36,7 @@ export async function cueAdd(
   }
 
   // Validate feature exists
-  if (!manifest.features[feature]) {
+  if (!hasFeature(manifest, feature)) {
     const available = Object.keys(manifest.features).join(", ");
     return {
       success: false,

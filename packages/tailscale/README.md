@@ -26,4 +26,10 @@ const { json } = await client.exec(["tailscale", "run"], { path: ["status"], jso
 
 ## The program
 
-The procedure uses `executable`, then `TAILSCALE_EXE`, then the Windows install folder, then `tailscale` on the `PATH`. The Windows installer does not put tailscale on the `PATH`.
+The program comes from the host. The procedure uses the `executable` option of `createTailscaleModule()`, then `TAILSCALE_EXE`, then the Windows install folder, then `tailscale` on the `PATH`. The Windows installer does not put tailscale on the `PATH`.
+
+```ts
+const registry = createRegistry(createTailscaleModule({ executable: "/opt/tailscale/bin/tailscale" }));
+```
+
+The input `executable` is deprecated. In 0.28 it still names the program, and the process gets one `DeprecationWarning` with the code `PROCEDURES_TAILSCALE_EXECUTABLE_INPUT`. Version 0.30.0 refuses it, because it lets the caller start any program.

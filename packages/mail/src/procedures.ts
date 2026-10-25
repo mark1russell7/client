@@ -67,6 +67,30 @@ export const mailParseProcedure: AnyProcedure = createProcedure()
 // mail.headers
 // =============================================================================
 
+/**
+ * The names of the variables that `passwordEnv` of `mail.headers` names: `IMAP_` or `MAIL_`, then
+ * letters, digits and underscores (audit pass 2, O55). The caller chooses the host, so a free name
+ * lets it send any secret of the host, for example `GITHUB_TOKEN`, to its own server.
+ *
+ * In 0.28, another name still works, with a deprecation notice. Version 0.32.0 refuses it.
+ */
+export const MAIL_PASSWORD_ENV: RegExp = /^(?:IMAP|MAIL)_[A-Za-z0-9_]+$/;
+
+/** The codes of the deprecation notices that this process emitted. */
+const emitted = new Set<string>();
+
+/** This function emits a deprecation notice one time in each process. */
+function deprecationNotice(code: string, message: string): void {
+  if (emitted.has(code)) return;
+  emitted.add(code);
+  process.emitWarning(message, { type: "DeprecationWarning", code });
+}
+
+/** The notice of a `passwordEnv` without the prefix `IMAP_` or `MAIL_`. */
+const PASSWORD_ENV_NOTICE =
+  "passwordEnv of mail.headers names a variable without the prefix IMAP_ or MAIL_. @procedures/mail 0.32.0 refuses such a name. " +
+  "Rename the variable, for example GMAIL_APP_PASSWORD to IMAP_GMAIL_PASSWORD, and give the new name in passwordEnv.";
+
 const HeadersInputSchema = z.object({
   host: z.string().min(1).describe("The IMAP server, for example imap.gmail.com"),
   port: z.number().int().min(1).max(65_535).default(993).describe("The port (default: 993)"),
@@ -76,7 +100,9 @@ const HeadersInputSchema = z.object({
     .string()
     .regex(/^[A-Za-z_][A-Za-z0-9_]*$/)
     .default("IMAP_PASSWORD")
-    .describe("The name of the environment variable that holds the password. The password is never an input, so no log records it."),
+    .describe(
+      "The name of the environment variable that holds the password: IMAP_ or MAIL_ and more (default: IMAP_PASSWORD). Another name is deprecated. The password is never an input, so no log records it."
+    ),
   mailbox: z.string().min(1).default("INBOX").describe("The mailbox (default: INBOX)"),
   sinceDays: z.number().int().min(1).max(365).default(1).describe("The messages of this number of days (default: 1)"),
   limit: z.number().int().min(1).max(5_000).default(200).describe("The maximum number of messages, the newest first (default: 200)"),
@@ -119,6 +145,8 @@ export const mailHeadersProcedure: AnyProcedure = createProcedure()
     effects: { reads: ["network"], writes: [] },
   })
   .handler(async (input: HeadersInput, ctx?: ProcedureContext): Promise<HeadersOutput> => {
+    // Deprecated (O55): 0.32.0 refuses a name without the prefix
+    if (!MAIL_PASSWORD_ENV.test(input.passwordEnv)) deprecationNotice("PROCEDURES_MAIL_PASSWORD_ENV", PASSWORD_ENV_NOTICE);
     const password = process.env[input.passwordEnv];
     if (!password) throw new Error(`Set the environment variable ${input.passwordEnv} to the password of the mailbox`);
     const messages = await readHeaders(

@@ -10,6 +10,8 @@
  * - Each line ends with CRLF.
  */
 
+import { localTime } from "./zone.js";
+
 /** The STATUS of an event (RFC 5545 3.8.1.11). */
 export type IcsStatus = "TENTATIVE" | "CONFIRMED" | "CANCELLED";
 
@@ -37,8 +39,16 @@ export interface IcsWriteEvent {
   readonly status?: IcsStatus | undefined;
   /** The recurrence rule (`RRULE`) without the property name, for example `FREQ=WEEKLY;COUNT=4`. */
   readonly rrule?: string | undefined;
-  /** The dates (`YYYY-MM-DD`) that the recurrence skips (`EXDATE`). */
+  /**
+   * The dates (`YYYY-MM-DD`) that the recurrence skips (`EXDATE`). Each date is in the zone of
+   * `tzid`, or in UTC for an event without a `tzid`.
+   */
   readonly exdates?: readonly string[] | undefined;
+  /**
+   * The IANA zone of the event, as `parseIcs` gives it. The writer writes each EXDATE as the start
+   * time in this zone, with this TZID. DTSTART stays in UTC.
+   */
+  readonly tzid?: string | undefined;
 }
 
 /** The properties of the calendar (VCALENDAR). The writer always writes `VERSION:2.0`. */
@@ -134,6 +144,21 @@ export const formatDate = (value: string): string => {
   return `${m[1]}${m[2]}${m[3]}`;
 };
 
+/**
+ * The TZID parameter and the local start time (`HHMMSS`) of an event with a zone. A zone with a
+ * quote or a control character, or a zone that `Intl` does not know, gives undefined.
+ */
+const zonedStart = (event: IcsWriteEvent): { param: string; time: string } | undefined => {
+  const tzid = event.tzid;
+  if (tzid === undefined || tzid.length === 0 || /["\u0000-\u001f\u007f]/.test(tzid)) return undefined;
+  try {
+    const time = `${localTime(event.start, tzid).replace(":", "")}${formatUtc(event.start).slice(13, 15)}`;
+    return { param: /[;:,]/.test(tzid) ? `"${tzid}"` : tzid, time };
+  } catch {
+    return undefined;
+  }
+};
+
 const token = (name: string, value: string): string => {
   if (!TOKEN.test(value)) throw new RangeError(`${name} "${value}" is not a token (letters, digits and "-")`);
   return value.toUpperCase();
@@ -154,10 +179,18 @@ const eventLines = (event: IcsWriteEvent, stamp: string): string[] => {
     lines.push(`RRULE:${event.rrule}`);
   }
   if (event.exdates !== undefined && event.exdates.length > 0) {
-    // EXDATE has the value type of DTSTART: a date, or the start time of the skipped occurrence
-    const startTime = allDay ? "" : formatUtc(event.start).slice(8);
-    const values = event.exdates.map((date) => `${formatDate(date)}${startTime}`);
-    lines.push(allDay ? `EXDATE;VALUE=DATE:${values.join(",")}` : `EXDATE:${values.join(",")}`);
+    // EXDATE has the value type of DTSTART: a date, or the start time of the skipped occurrence.
+    // For an event with a zone, the date is in that zone, so the time is the local start time
+    // with the TZID. (Before, the UTC time moved an evening EXDATE to the wrong day: audit O57.)
+    const zoned = allDay ? undefined : zonedStart(event);
+    if (allDay) {
+      lines.push(`EXDATE;VALUE=DATE:${event.exdates.map(formatDate).join(",")}`);
+    } else if (zoned !== undefined) {
+      lines.push(`EXDATE;TZID=${zoned.param}:${event.exdates.map((date) => `${formatDate(date)}T${zoned.time}`).join(",")}`);
+    } else {
+      const startTime = formatUtc(event.start).slice(8);
+      lines.push(`EXDATE:${event.exdates.map((date) => `${formatDate(date)}${startTime}`).join(",")}`);
+    }
   }
   lines.push(...text("LOCATION", event.location), ...text("DESCRIPTION", event.description));
   if (event.url !== undefined) {

@@ -11,11 +11,12 @@ export default resticModule;
 
 /**
  * This function gives the module with the settings of the host, for example the secrets of the
- * repository in `env`. Without options, it gives `resticModule`.
+ * repository in `env` and the program in `executable`. Without options, it gives `resticModule`.
  *
  * @example
  * ```ts
- * const registry = createRegistry(createResticModule({ env: { RESTIC_REPOSITORY: repository, RESTIC_PASSWORD: password } }));
+ * const executable = await findRestic();
+ * const registry = createRegistry(createResticModule({ executable, env: { RESTIC_REPOSITORY: repository, RESTIC_PASSWORD: password } }));
  * ```
  */
 export function createResticModule(options: ResticProceduresOptions = {}): ProcedureModule {

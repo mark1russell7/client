@@ -10,6 +10,7 @@ import type { ProcedureContext } from "@procedures/client";
 import type { CueValidateInput, CueValidateOutput } from "../../types.js";
 import {
   loadFeatures,
+  hasFeature,
   loadDependencies,
   checkCue,
   runCue,
@@ -51,7 +52,7 @@ export async function cueValidate(
 
   // Validate each feature exists
   for (const feature of deps) {
-    if (!manifest.features[feature]) {
+    if (!hasFeature(manifest, feature)) {
       errors.push(`Unknown feature: '${feature}'`);
     }
   }

@@ -48,8 +48,9 @@ const text = writeIcs(
 );
 ```
 
-- An event has `uid` and `start`. The other fields are optional: `end`, `allDay`, `summary`, `location`, `description`, `url`, `sequence`, `status`, `rrule` and `exdates`.
+- An event has `uid` and `start`. The other fields are optional: `end`, `allDay`, `summary`, `location`, `description`, `url`, `sequence`, `status`, `rrule`, `exdates` and `tzid`.
 - The writer writes each time in UTC (`20261101T230000Z`). An all-day event gets `VALUE=DATE`, and its end date is exclusive.
+- An event with `tzid` gets each `EXDATE` in that zone: `EXDATE;TZID=America/Los_Angeles:20261110T200000`. Each date of `exdates` is a date in that zone.
 - The writer escapes `\`, `;`, `,` and each line break in a text value. It removes the other control characters.
 - The writer folds each line at 75 octets of UTF-8. A fold does not divide a character. Each line ends with CRLF.
 - The options set the calendar properties: `prodId`, `method`, `calscale` and `calendarName` (`X-WR-CALNAME`). `VERSION` is always `2.0`.
