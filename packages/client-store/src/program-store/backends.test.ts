@@ -6,9 +6,9 @@
  */
 
 import { describe, it, expect, afterEach } from "vitest";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync, utimesSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { IDBFactory } from "fake-indexeddb";
 import { InMemoryStorage } from "@procedures/collections";
 import { MemoryProgramStore } from "./memory.js";
@@ -111,6 +111,25 @@ describe("FileProgramStore", () => {
     );
     expect(await one.list("c")).toHaveLength(10);
     expect(existsSync(`${path}.lock`)).toBe(false);
+  }, 30_000);
+
+  it("removes a stale lock, and removes only its own lock at the end (audit pass 2)", async () => {
+    const path = tempFile();
+    const store = new FileProgramStore(path);
+    const lock = `${path}.lock`;
+    // A stale lock of a writer that stopped
+    mkdirSync(dirname(lock), { recursive: true });
+    writeFileSync(lock, "a writer that stopped");
+    const old = new Date(Date.now() - 60_000);
+    utimesSync(lock, old, old);
+    await store.put(program("s.one"));
+    expect(existsSync(lock)).toBe(false);
+    // Another writer takes the lock while this writer works: this writer leaves that lock
+    const withLock = (store as unknown as { withLock(work: () => Promise<void>): Promise<void> }).withLock.bind(store);
+    await withLock(async () => {
+      writeFileSync(lock, "another writer");
+    });
+    expect(readFileSync(lock, "utf8")).toBe("another writer");
   }, 30_000);
 
   it("is empty before the first write, and does not write over a file that is not JSON", async () => {

@@ -32,9 +32,23 @@ describe("scopePipeline: the filter of the scope", () => {
     expect(() => scopePipeline({} as never, READ)).toThrow(/array/);
   });
 
-  it("goes into a $match with $text too", () => {
-    const out = scopePipeline([{ $match: { $text: { $search: "x" } } }], READ);
-    expect(out).toEqual([filter, { $match: { $text: { $search: "x" }, _part: "t1" } }]);
+  it("goes into a first $match with $text, which stays the first stage (audit pass 2)", () => {
+    const out = scopePipeline([{ $match: { $text: { $search: "x" } } }, { $limit: 5 }], READ);
+    expect(out).toEqual([{ $match: { $text: { $search: "x" }, _part: "t1" } }, { $limit: 5 }]);
+  });
+
+  it("keeps the options of a $search stage out of the compound (audit pass 2)", () => {
+    const body = { index: "i", text: { query: "q", path: "p" }, highlight: { path: "p" }, count: { type: "total" }, sort: { score: { $meta: "searchScore" } }, returnStoredSource: true, scoreDetails: true };
+    const search = scopePipeline([{ $search: body }], READ)[0]!["$search"] as Document;
+    expect(search).toEqual({
+      index: "i",
+      highlight: { path: "p" },
+      count: { type: "total" },
+      sort: { score: { $meta: "searchScore" } },
+      returnStoredSource: true,
+      scoreDetails: true,
+      compound: { must: [{ text: { query: "q", path: "p" } }], filter: [{ equals: { path: "_part", value: "t1" } }] },
+    });
   });
 
   it("goes into the stages that must be first: $geoNear, $search, $vectorSearch", () => {

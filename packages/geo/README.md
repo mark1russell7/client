@@ -64,7 +64,7 @@ import { createGeoModule } from "@procedures/geo/module";
 const registry = createRegistry(createGeoModule({ fetch: createHostFetch({ allow: ["osrm.lan:5000"] }) }));
 ```
 
-A refusal is `FORBIDDEN` with the reason `host-not-allowed`. `mcpHostModules` of `@procedures/bundle-assistant` has a module of `geo` with this policy. The dev-tools server uses it. In 0.28, that module still sends a refused request, with a `DeprecationWarning`. Version 0.29.0 refuses it.
+`mcpHostModules` of `@procedures/bundle-assistant` has a module of `geo` with this `fetch`. The dev-tools server uses it. A refusal is `FORBIDDEN` with the reason `host-not-allowed`.
 
 ## Map tiles on disk
 

@@ -1,8 +1,8 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProcedureRegistry, invokePath, outputValue } from "@procedures/client";
 import { decodeWords, htmlText, messageHeaders, messageText, parseAddresses } from "./mime.js";
 import { readHeaders, type ImapClientLike } from "./imap.js";
-import { mailProcedures, setImapClientFactory } from "./procedures.js";
+import { MAIL_PASSWORD_ENV, mailProcedures, setImapClientFactory } from "./procedures.js";
 
 /** Made-up messages. */
 const plain = ["From: Ada Example <ada@example.org>", "To: team@example.org", "Subject: Hello", "", "Line one", "Line two"].join("\r\n");
@@ -43,6 +43,10 @@ describe("mime", () => {
 
   it("keeps &amp;lt; as the text &lt;", () => {
     expect(htmlText("<b>a &amp;lt; b</b>")).toBe("a &lt; b");
+  });
+
+  it("gives U+FFFD for a numeric entity above U+10FFFF, and does not throw", () => {
+    expect(htmlText("<p>a &#99999999; b &#x110000; c &#65;</p>")).toBe("a � b � c A");
   });
 
   it("reads the addresses of a header, with quoted commas", () => {
@@ -104,7 +108,7 @@ describe("the procedures", () => {
 
   afterEach(() => {
     setImapClientFactory(undefined);
-    delete process.env["TEST_IMAP_PASSWORD"];
+    delete process.env["IMAP_TEST_PASSWORD"];
   });
 
   it("mail.parse gives the subject, the addresses and the text", async () => {
@@ -113,17 +117,50 @@ describe("the procedures", () => {
   });
 
   it("mail.headers reads the password from the environment, never from the input", async () => {
-    await expect(call(["mail", "headers"], { host: "imap.example.org", user: "u", passwordEnv: "TEST_IMAP_PASSWORD" })).rejects.toThrow(
-      /Set the environment variable TEST_IMAP_PASSWORD/
+    await expect(call(["mail", "headers"], { host: "imap.example.org", user: "u", passwordEnv: "IMAP_TEST_PASSWORD" })).rejects.toThrow(
+      /Set the environment variable IMAP_TEST_PASSWORD/
     );
     let seen: string | undefined;
     setImapClientFactory(async (connection) => {
       seen = connection.password;
       return fakeClient([]);
     });
-    process.env["TEST_IMAP_PASSWORD"] = "made-up";
-    const result = await call<{ messages: unknown[] }>(["mail", "headers"], { host: "imap.example.org", user: "u", passwordEnv: "TEST_IMAP_PASSWORD" });
+    process.env["IMAP_TEST_PASSWORD"] = "made-up";
+    const result = await call<{ messages: unknown[] }>(["mail", "headers"], { host: "imap.example.org", user: "u", passwordEnv: "IMAP_TEST_PASSWORD" });
     expect(result.messages).toHaveLength(2);
     expect(seen).toBe("made-up");
+  });
+
+  // The deprecated path (audit pass 2, O55): a name without the prefix still works in 0.28, with one notice
+  it("mail.headers still reads a variable without the prefix IMAP_ or MAIL_, and emits one notice that names the fix", async () => {
+    const emitWarning = vi.spyOn(process, "emitWarning").mockImplementation(() => undefined);
+    const seen: Array<string | undefined> = [];
+    setImapClientFactory(async (connection) => {
+      seen.push(connection.password);
+      return fakeClient([]);
+    });
+    process.env["TEST_AUDIT_SECRET"] = "made-up-old";
+    process.env["MAIL_AUDIT_SECRET"] = "made-up-new";
+    try {
+      for (let i = 0; i < 2; i++) {
+        const result = await call<{ messages: unknown[] }>(["mail", "headers"], { host: "imap.example.org", user: "u", passwordEnv: "TEST_AUDIT_SECRET" });
+        expect(result.messages).toHaveLength(2);
+      }
+      expect(seen).toEqual(["made-up-old", "made-up-old"]);
+      expect(emitWarning).toHaveBeenCalledTimes(1);
+      const [message, options] = emitWarning.mock.calls[0]!;
+      expect(options).toEqual({ type: "DeprecationWarning", code: "PROCEDURES_MAIL_PASSWORD_ENV" });
+      expect(String(message)).toMatch(/IMAP_ or MAIL_/);
+      // The new path: a name with the prefix gets no notice
+      await call(["mail", "headers"], { host: "imap.example.org", user: "u", passwordEnv: "MAIL_AUDIT_SECRET" });
+      expect(seen[2]).toBe("made-up-new");
+      expect(emitWarning).toHaveBeenCalledTimes(1);
+      expect(MAIL_PASSWORD_ENV.test("IMAP_PASSWORD")).toBe(true);
+      for (const name of ["GITHUB_TOKEN", "imap_password", "IMAP_", "XIMAP_PASSWORD"]) expect(MAIL_PASSWORD_ENV.test(name), name).toBe(false);
+    } finally {
+      delete process.env["TEST_AUDIT_SECRET"];
+      delete process.env["MAIL_AUDIT_SECRET"];
+      emitWarning.mockRestore();
+    }
   });
 });

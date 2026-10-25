@@ -3,11 +3,24 @@
  */
 
 import { defineModule, registerModules, PROCEDURE_REGISTRY, type ProcedureModule, type ProcedureRegistry } from "@procedures/client";
-import { tailscaleProcedures } from "./procedures.js";
+import { createTailscaleProcedures, tailscaleProcedures, type TailscaleProceduresOptions } from "./procedures.js";
 
 export const tailscaleModule: ProcedureModule = defineModule("@procedures/tailscale", tailscaleProcedures);
 
 export default tailscaleModule;
+
+/**
+ * This function gives the module with the settings of the host: the tailscale program. Without
+ * options, it gives `tailscaleModule`.
+ *
+ * ```ts
+ * createRegistry(createTailscaleModule({ executable: "/opt/tailscale/bin/tailscale" }));
+ * ```
+ */
+export function createTailscaleModule(options: TailscaleProceduresOptions = {}): ProcedureModule {
+  if (options.executable === undefined) return tailscaleModule;
+  return defineModule("@procedures/tailscale", createTailscaleProcedures(options));
+}
 
 /**
  * This function registers the procedures of @procedures/tailscale in a registry. The default is the

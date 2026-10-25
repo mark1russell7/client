@@ -91,13 +91,26 @@ describe("renderPdf", () => {
     expect(calls[0]!.options.timeout).toBe(60_000);
   });
 
-  it("deletes an old output file before the print", async () => {
+  it("keeps an old output file when the print fails, and an old file does not pass the check (audit pass 2)", async () => {
     const dir = scratch();
     const output = join(dir, "old.pdf");
     writeFileSync(output, FAKE_PDF);
     const { runner } = fakeBrowser(null, { exitCode: 1, success: false, stderr: "first line\nERROR: no print" });
     await expect(renderPdf({ html: "x", output, executable: "/opt/browser", runner })).rejects.toThrow(/made no PDF file \(exit code 1\): first line\nERROR: no print/);
-    expect(existsSync(output)).toBe(false);
+    expect(readFileSync(output, "utf8")).toBe(FAKE_PDF);
+    const bad = fakeBrowser("<html>not a pdf</html>");
+    await expect(renderPdf({ html: "x", output, executable: "/opt/browser", runner: bad.runner })).rejects.toThrow(/is not a PDF file/);
+    expect(readFileSync(output, "utf8")).toBe(FAKE_PDF);
+  });
+
+  it("replaces an old output file after a good print", async () => {
+    const dir = scratch();
+    const output = join(dir, "old.pdf");
+    writeFileSync(output, "%PDF-old");
+    const { runner } = fakeBrowser();
+    const result = await renderPdf({ html: "x", output, executable: "/opt/browser", runner });
+    expect(result.path).toBe(output);
+    expect(readFileSync(output, "utf8")).toBe(FAKE_PDF);
   });
 
   it("refuses a file that is not a PDF file", async () => {

@@ -1,5 +1,16 @@
 # @procedures/pdf
 
+## 0.28.1
+
+### Patch Changes
+
+- 345c740: `pdf.render` prints into its temporary folder, and the file replaces `output` only after its check. A failed render keeps an old output file. Before, the render deleted it first (second code audit, roadmap O57).
+- Updated dependencies [345c740]
+- Updated dependencies [984c13b]
+- Updated dependencies [21dc858]
+  - @procedures/client@0.28.1
+  - @procedures/shell@0.28.1
+
 ## 0.28.0
 
 ### Patch Changes

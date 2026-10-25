@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createRegistry, invokePath, outputValue } from "@procedures/client";
-import { createHostFetch, isHostNotAllowed } from "@procedures/http";
+import { isHostNotAllowed } from "@procedures/http";
 import { forecastUrl, readForecast, weatherCodeGroup } from "./weather.js";
-import { WEATHER_PRIVATE_HOST_NOTICE, type FetchForecast } from "./procedures.js";
+import type { FetchForecast } from "./procedures.js";
 import { createWeatherModule, weatherModule } from "./module.js";
 
 /** A made-up Open-Meteo answer for two days and two hours. */
@@ -101,32 +101,11 @@ describe("weather.forecast", () => {
     await expect(call({ lat: 0, lon: 0 })).rejects.toThrow(/HTTP 503/);
   });
 
-  // Audit pass 2 (O55, D35): in 0.28 the default module keeps a private baseUrl working, with one notice
-  it("sends a loopback, private or metadata baseUrl of the default module with the global fetch, and emits one notice", async () => {
-    const global = vi.fn(async (_url: string) => Response.json(answer));
-    vi.stubGlobal("fetch", global);
-    const emitWarning = vi.spyOn(process, "emitWarning").mockImplementation(() => undefined);
-    try {
-      const call = caller();
-      const urls = ["http://127.0.0.1:8080", "http://10.0.0.5", "http://169.254.169.254", "http://[::1]:8080"];
-      for (const baseUrl of urls) {
-        const forecast = await call<{ daily: unknown[] }>({ lat: 0, lon: 0, days: 2, baseUrl });
-        expect(forecast.daily).toHaveLength(2);
-      }
-      expect(global.mock.calls.map(([url]) => String(url).split("/v1/")[0])).toEqual(urls);
-      const notices = emitWarning.mock.calls.filter(([, options]) => (options as { code?: string } | undefined)?.code === WEATHER_PRIVATE_HOST_NOTICE.code);
-      expect(notices).toHaveLength(1);
-      expect(String(notices[0]?.[0])).toContain("createWeatherModule({ fetch: createHostFetch({ allow: [...] }) })");
-    } finally {
-      emitWarning.mockRestore();
-    }
-  });
-
-  // The new path: a module with createHostFetch() refuses such a host now, as 0.29.0 does by default
-  it("refuses a loopback, private or metadata baseUrl with a module of createHostFetch()", async () => {
+  // Audit pass 2 (O55): before, the procedure fetched each baseUrl of its caller with the global fetch
+  it("goes through the host policy: the default module refuses a loopback, private or metadata baseUrl", async () => {
     const global = vi.fn(async () => Response.json(answer));
     vi.stubGlobal("fetch", global);
-    const call = caller(createHostFetch());
+    const call = caller();
     for (const baseUrl of ["http://127.0.0.1:8080", "http://10.0.0.5", "http://169.254.169.254", "http://[::1]:8080"]) {
       const error = await call({ lat: 0, lon: 0, baseUrl }).then(
         () => undefined,

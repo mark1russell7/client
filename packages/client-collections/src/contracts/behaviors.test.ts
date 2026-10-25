@@ -9,6 +9,8 @@ import { arrayDeque } from "../impl/array-deque.js";
 import { hashMap } from "../impl/hash-map.js";
 import { treeMap } from "../impl/tree-map.js";
 import { arrayList } from "../impl/array-list.js";
+import { linkedHashMap } from "../impl/linked-hash-map.js";
+import { boundedList } from "../behaviors/bounded.js";
 import { safeDeque } from "../behaviors/safe.js";
 import { readonly } from "../behaviors/readonly.js";
 import { synchronized, readWriteLock } from "../behaviors/synchronized.js";
@@ -102,5 +104,40 @@ describe("readWriteLock (L11)", () => {
     const second = await Promise.race([locked.set("a", 2).then(() => "written"), sleep(200).then(() => "starved")]);
     expect(second).toBe("written");
     expect(await locked.get("a")).toBe(2);
+  });
+});
+
+describe("readonly over a read that changes internal state (audit pass 2)", () => {
+  it("reads a LinkedHashMap with accessOrder, and still blocks a write", () => {
+    const lru = linkedHashMap<string, number>({ accessOrder: true });
+    lru.set("a", 1);
+    lru.set("b", 2);
+    const map = readonly<typeof lru>()(lru);
+    expect(map.get("a")).toBe(1);
+    expect(map.getOrUndefined("b")).toBe(2);
+    expect([...lru.keys()]).toEqual(["a", "b"]);
+    expect(() => map.set("c", 3)).toThrow(/readonly/);
+  });
+});
+
+describe("boundedList with drop-oldest (audit pass 2)", () => {
+  it("drops one element for an unshift: the last one", () => {
+    const list = boundedList<number>({ capacity: 3, policy: "drop-oldest" })(arrayList([1, 2, 3]));
+    list.unshift(0);
+    expect(list.toArray()).toEqual([0, 1, 2]);
+  });
+
+  it("inserts at the index of the caller after the drop, also at the end", () => {
+    const list = boundedList<number>({ capacity: 3, policy: "drop-oldest" })(arrayList([1, 2, 3]));
+    list.insert(3, 4);
+    expect(list.toArray()).toEqual([2, 3, 4]);
+    list.insert(1, 9);
+    expect(list.toArray()).toEqual([9, 3, 4]);
+  });
+
+  it("keeps the order of insertAll when it drops", () => {
+    const list = boundedList<number>({ capacity: 3, policy: "drop-oldest" })(arrayList([1, 2, 3]));
+    list.insertAll(3, [4, 5]);
+    expect(list.toArray()).toEqual([3, 4, 5]);
   });
 });
