@@ -181,6 +181,36 @@ export class AsyncQueue<T> implements IAsyncQueue<T> {
     });
   }
 
+  /**
+   * This method waits for the next element, as `take` does, but it gives the element to
+   * `onElement` and the closure of the queue to `onClosed`. These calls are synchronous: they
+   * occur in the call that adds the element or closes the queue. The method has no timeout.
+   *
+   * The function that it returns withdraws the wait. A withdrawn wait gets no element, so no
+   * element goes to a taker that left. `select` races its cases with this method.
+   *
+   * @returns A function that withdraws the wait. It returns true when the wait had no element yet.
+   */
+  waitTake(onElement: (element: T) => void, onClosed: (error: Error) => void): () => boolean {
+    const next = this.takeNow();
+    if (next.found) {
+      onElement(next.element);
+      return () => false;
+    }
+    if (this._isClosed) {
+      onClosed(new Error("Queue is closed and empty"));
+      return () => false;
+    }
+    const taker: Resolver<T> = { resolve: onElement, reject: onClosed };
+    this.takers.push(taker);
+    return () => {
+      const index = this.takers.indexOf(taker);
+      if (index === -1) return false;
+      this.takers.splice(index, 1);
+      return true;
+    };
+  }
+
   // ========================================================================
   // Non-blocking operations
   // ========================================================================
