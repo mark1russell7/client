@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { ProcedureRegistry, invokePath, outputValue } from "@procedures/client";
-import { tailscaleExecutable, tailscaleProcedures } from "./procedures.js";
+import { createRegistry, invokePath, outputValue } from "@procedures/client";
+import { tailscaleExecutable } from "./procedures.js";
+import { createTailscaleModule, tailscaleModule } from "./module.js";
 import { parseJsonOutput } from "./argv.js";
 
 afterEach(() => {
@@ -14,13 +15,19 @@ describe("tailscale.run", () => {
     expect(tailscaleExecutable()).toBe("/usr/local/bin/tailscale");
   });
 
-  it("reports a program that does not start", async () => {
-    const registry = new ProcedureRegistry();
-    for (const procedure of tailscaleProcedures) registry.register(procedure);
-    const call = invokePath(["tailscale", "run"], { path: ["status"], executable: "tailscale-that-does-not-exist-0" }, { registry }).then(
-      (output) => outputValue(output, ["tailscale", "run"])
-    );
+  it("reports a program that does not start: the program comes from the module", async () => {
+    const registry = createRegistry(createTailscaleModule({ executable: "tailscale-that-does-not-exist-0" }));
+    const call = invokePath(["tailscale", "run"], { path: ["status"] }, { registry }).then((output) => outputValue(output, ["tailscale", "run"]));
     await expect(call).rejects.toThrow(/tailscale did not start/);
+    expect(createTailscaleModule()).toBe(tailscaleModule);
+  });
+
+  // Audit pass 2 (O55): before, the input executable let the caller start any program
+  it("refuses an input that names the program, and starts nothing", async () => {
+    const registry = createRegistry(tailscaleModule);
+    const call = invokePath(["tailscale", "run"], { path: ["status"], executable: "/bin/sh" }, { registry }).then((output) => outputValue(output, ["tailscale", "run"]));
+    await expect(call).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    await expect(call).rejects.toThrow(/takes its program from the host/);
   });
 });
 

@@ -26,4 +26,10 @@ const { json } = await client.exec(["tailscale", "run"], { path: ["status"], jso
 
 ## The program
 
-The procedure uses `executable`, then `TAILSCALE_EXE`, then the Windows install folder, then `tailscale` on the `PATH`. The Windows installer does not put tailscale on the `PATH`.
+The program comes from the host, never from the input. The procedure uses the `executable` option of `createTailscaleModule()`, then `TAILSCALE_EXE`, then the Windows install folder, then `tailscale` on the `PATH`. The Windows installer does not put tailscale on the `PATH`.
+
+```ts
+const registry = createRegistry(createTailscaleModule({ executable: "/opt/tailscale/bin/tailscale" }));
+```
+
+An input with `executable` gets a validation error. Before this change, the input `executable` let the caller start any program.

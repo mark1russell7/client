@@ -1,6 +1,10 @@
 /**
  * The procedure of `@procedures/tailscale`: `tailscale.run`, one procedure for each tailscale
  * command (`status`, `ip`, `serve`, `up`, `down`).
+ *
+ * The program comes from the host, never from the input (audit pass 2, O55): the `executable`
+ * option of `createTailscaleModule()`, then `TAILSCALE_EXE`, then the install folder, then
+ * `tailscale`. Before, an input `executable` let the caller start any program.
  */
 
 import { existsSync } from "node:fs";
@@ -12,7 +16,7 @@ import { buildArgv, parseJsonOutput, type ArgValue } from "./argv.js";
 /** The Windows installer does not put tailscale on the PATH. */
 const WINDOWS_PATH = "C:\\Program Files\\Tailscale\\tailscale.exe";
 
-/** This function gives the tailscale program: the input, TAILSCALE_EXE, the Windows install folder, then tailscale. */
+/** This function gives the tailscale program: the explicit value, TAILSCALE_EXE, the Windows install folder, then tailscale. */
 export function tailscaleExecutable(explicit?: string): string {
   if (explicit !== undefined) return explicit;
   const fromEnv = process.env["TAILSCALE_EXE"];
@@ -31,7 +35,10 @@ const RunInputSchema = z.object({
     .optional()
     .describe('The flags, for example { bg: true }'),
   json: z.boolean().default(false).describe("Ask for JSON output (--json) and read it. Only some commands have it (status, serve status)."),
-  executable: z.string().min(1).optional().describe("The tailscale program (default: TAILSCALE_EXE, then the install folder, then tailscale)"),
+  // The program comes from the host (audit pass 2, O55): an input that names one is refused
+  executable: z
+    .never({ error: "tailscale.run takes its program from the host: give executable to createTailscaleModule(), or set TAILSCALE_EXE" })
+    .optional(),
   timeout: z.number().int().positive().default(60_000).describe("The time limit, in milliseconds (default: 60000)"),
 });
 type RunInput = z.infer<typeof RunInputSchema>;
@@ -54,39 +61,54 @@ const RunOutputSchema = z.object({
   actionUrl: z.string().optional(),
 });
 
-export const tailscaleRunProcedure: AnyProcedure = createProcedure()
-  .path(["tailscale", "run"])
-  .input(zodAdapter<RunInput>(RunInputSchema))
-  .output(zodAdapter<RunOutput>(RunOutputSchema))
-  .meta({
-    description: "Run a tailscale command (status, ip, serve, up, down)",
-    args: ["path"],
-    shorts: { timeout: "t" },
-    output: "json",
-    // up, down and serve change the network of the host. ssh starts a program on another host.
-    effects: { reads: ["network"], writes: ["network", "process"], destructive: true },
-  })
-  .handler(async (input: RunInput, ctx?: ProcedureContext): Promise<RunOutput> => {
-    const argv = buildArgv({
-      path: input.path,
-      flags: input.json ? ["--json"] : [],
-      args: input.args as Record<string, ArgValue> | undefined,
-      positional: input.positional,
-    });
-    const result = await runCommand(tailscaleExecutable(input.executable), { args: argv, timeout: input.timeout, signal: ctx?.signal });
-    if (result.error) throw new Error(`tailscale did not start: ${result.error}`);
-    const json = input.json ? parseJsonOutput(result.stdout) : undefined;
-    // tailscale prints an address to open when a login or a feature needs the owner
-    const actionUrl = /https:\/\/login\.tailscale\.com\/\S+/.exec(`${result.stdout}\n${result.stderr}`)?.[0];
-    return {
-      exitCode: result.exitCode,
-      success: result.exitCode === 0,
-      stdout: result.stdout,
-      stderr: result.stderr,
-      ...(json !== undefined ? { json } : {}),
-      ...(actionUrl !== undefined ? { actionUrl } : {}),
-    };
-  })
-  .build() as AnyProcedure;
+/** The settings of the host for the procedures of this package. The procedure input cannot change them. */
+export interface TailscaleProceduresOptions {
+  /** The tailscale program. The default is `TAILSCALE_EXE`, then the Windows install folder, then `tailscale`. */
+  readonly executable?: string | undefined;
+}
 
-export const tailscaleProcedures: AnyProcedure[] = [tailscaleRunProcedure];
+/**
+ * This function gives the procedures of this package with the settings of the host. The program
+ * of `tailscale.run` is `executable`, or the default of `tailscaleExecutable()` at each call.
+ */
+export function createTailscaleProcedures(options: TailscaleProceduresOptions = {}): AnyProcedure[] {
+  const run = createProcedure()
+    .path(["tailscale", "run"])
+    .input(zodAdapter<RunInput>(RunInputSchema))
+    .output(zodAdapter<RunOutput>(RunOutputSchema))
+    .meta({
+      description: "Run a tailscale command (status, ip, serve, up, down)",
+      args: ["path"],
+      shorts: { timeout: "t" },
+      output: "json",
+      // up, down and serve change the network of the host. ssh starts a program on another host.
+      effects: { reads: ["network"], writes: ["network", "process"], destructive: true },
+    })
+    .handler(async (input: RunInput, ctx?: ProcedureContext): Promise<RunOutput> => {
+      const argv = buildArgv({
+        path: input.path,
+        flags: input.json ? ["--json"] : [],
+        args: input.args as Record<string, ArgValue> | undefined,
+        positional: input.positional,
+      });
+      const result = await runCommand(tailscaleExecutable(options.executable), { args: argv, timeout: input.timeout, signal: ctx?.signal });
+      if (result.error) throw new Error(`tailscale did not start: ${result.error}`);
+      const json = input.json ? parseJsonOutput(result.stdout) : undefined;
+      // tailscale prints an address to open when a login or a feature needs the owner
+      const actionUrl = /https:\/\/login\.tailscale\.com\/\S+/.exec(`${result.stdout}\n${result.stderr}`)?.[0];
+      return {
+        exitCode: result.exitCode,
+        success: result.exitCode === 0,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        ...(json !== undefined ? { json } : {}),
+        ...(actionUrl !== undefined ? { actionUrl } : {}),
+      };
+    })
+    .build() as AnyProcedure;
+  return [run];
+}
+
+export const tailscaleProcedures: AnyProcedure[] = createTailscaleProcedures();
+
+export const tailscaleRunProcedure: AnyProcedure = tailscaleProcedures[0]!;
