@@ -166,6 +166,68 @@ The entry `@procedures/fs/root` has the rules of the root without the procedures
 - `createFsModule({ root })` and `confineFsProcedures()` confine only the `fs.*` procedures and their nested calls. `confineToRoot()` also confines or refuses the other procedures.
 - The root does not replace the permissions of the operating system.
 
+## File helpers
+
+The entry `@procedures/fs/files` has four functions for the files of an app. They are not procedures, and an import of the entry registers nothing. The package root exports them too.
+
+### `writeFileAtomic(path, data, options?)`
+
+The function writes a temporary file next to the target, flushes it to the disk and renames it over the target. A reader sees the old file or the whole new file.
+
+```ts
+import { writeFileAtomic } from "@procedures/fs/files";
+
+await writeFileAtomic("./state.json", JSON.stringify(state));
+```
+
+- After a failure, the function removes the temporary file.
+- The file keeps the permissions of the target. The option `mode` sets other permissions.
+- On Windows, an open handle of the target blocks the rename. The function tries again for `renameRetryMs` (2000 by default).
+
+### `healNdjsonTail(path, options?)`
+
+The function repairs the end of an append-only NDJSON file after a crash. Start it before the next append.
+
+```ts
+import { healNdjsonTail } from "@procedures/fs/files";
+
+const { action, bytes } = await healNdjsonTail("./events.ndjson");
+// "none", "truncated" (a part of a line is cut off) or "newline" (a complete record gets its newline)
+```
+
+- The function reads only the last line, from the end of the file, up to `maxLineBytes` (16 MiB by default).
+- A missing file and an empty file get no change.
+
+### `withLock(key, fn, options?)` and `KeyedLock`
+
+One caller at a time holds a key in the process. The other callers wait in the order of their calls. With `ifHeld: "skip"`, the call does not start `fn` when the key has a holder.
+
+```ts
+import { withLock } from "@procedures/fs/files";
+
+const report = await withLock("morning", () => runMorning());
+const outcome = await withLock("morning", () => runMorning(), { ifHeld: "skip" });
+if (!outcome.ran) console.log("A morning is running.");
+```
+
+- The lock gives the key back when `fn` throws.
+- The option `signal` stops a wait.
+- `new KeyedLock()` has keys of its own, with `acquire()`, `tryAcquire()` and `run()`.
+
+### `editFile(path, transform, options?)`
+
+The function reads a file, waits for `transform` and writes the result with `writeFileAtomic()`. The edits of one path run one at a time in the process.
+
+```ts
+import { editFile } from "@procedures/fs/files";
+
+await editFile("./.env", (text) => `${text}TOKEN=abc\n`, { initial: "" });
+```
+
+- A missing file gives `initial`, or `undefined` without it.
+- A transform that gives the same text or `undefined` writes nothing.
+- On Windows, the lock ignores the case of the letters of the path.
+
 ## API Reference
 
 ### File Operations
@@ -943,6 +1005,7 @@ client-fs/
 │   ├── root.ts                   # The check of a path against the root (the ./root entry)
 │   ├── handlers.ts               # The handlers with a root
 │   ├── confine.ts                # The root for the other procedures of a registry
+│   ├── files/                    # The file helpers (the ./files entry): atomic write, NDJSON tail, lock, edit
 │   ├── procedures/
 │   │   ├── fs.ts                 # Barrel export
 │   │   └── fs/

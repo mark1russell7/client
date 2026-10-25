@@ -17,3 +17,5 @@ export * from "./procedures/fs.js";
 export * from "./module.js";
 // The root that confines each path (roadmap R33)
 export { OUTSIDE_ROOT, isInside, isOutsideRoot } from "./root.js";
+// The file helpers: atomic write, NDJSON tail heal, keyed lock, serialized edit (roadmap O51)
+export * from "./files/index.js";

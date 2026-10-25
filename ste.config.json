@@ -10,6 +10,7 @@
     "packages/bundle-mcp/README.md",
     "packages/client-cli/README.md",
     "packages/client-cue/README.md",
+    "packages/client-fs/src/files/**/*.ts",
     "packages/client-lib/README.md",
     "packages/client-store/README.md",
     "packages/client-node/src/fresh-bundle.ts",
