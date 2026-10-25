@@ -24,7 +24,9 @@ MCP_BUNDLES=@procedures/bundle-mcp,@procedures/bundle-assistant mark mcp
 | `weather.forecast` | It reads one public service. |
 | `exif.read` | It reads the date and the place of a photo on the host. |
 
-The requests of `geo.geocode`, `geo.route`, `weather.forecast` and `ics.fetch` go through the default host policy of `@procedures/http`. The policy refuses a `baseUrl` or a feed on a loopback, private or link-local address.
+In `bundleAssistantModule`, the requests of `geo.geocode`, `geo.route`, `weather.forecast` and `ics.fetch` go through the default host policy of `@procedures/http`. The policy refuses a `baseUrl` or a feed on a loopback, private or link-local address. The dev-tools server gives this module to `createRegistry()`.
+
+The `./register` entry puts the default modules of `geo` and `ics` in the global registry, as their own register entries do. These modules use the global `fetch`. Only `weather.forecast` goes through the host policy there.
 
 These procedures are not tools:
 

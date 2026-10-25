@@ -6,7 +6,9 @@
 import { describe, expect, it } from "vitest";
 import { createRegistry, effectsOf, invokePath, outputValue, surfaceRule } from "@procedures/client";
 import { isHostNotAllowed } from "@procedures/http";
-import { bundleAssistantModule, mcpExclude, mcpNamespaces } from "./module.js";
+import geoModule from "@procedures/geo/module";
+import icsModule from "@procedures/ics/module";
+import { bundleAssistantModule, mcpExclude, mcpNamespaces, registerBundleAssistantProcedures } from "./module.js";
 
 const TOOLS = [
   "exif.read",
@@ -60,6 +62,13 @@ describe("bundle-assistant", () => {
         );
       expect(isHostNotAllowed(error), key).toBe(true);
     }
+  });
+
+  // The site and mark import the register entries of geo, ics and this bundle into one registry
+  it("registers next to the default modules of geo and ics in one registry", () => {
+    const shared = createRegistry(icsModule, geoModule);
+    expect(() => registerBundleAssistantProcedures(shared)).not.toThrow();
+    expect(shared.get(["weather", "forecast"])?.handler).toBeDefined();
   });
 
   it("has tools that change nothing", () => {

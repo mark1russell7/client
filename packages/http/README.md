@@ -96,7 +96,7 @@ const registry = createRegistry(createHttpModule({ allow: ["localhost:11434", "1
 
 - `weather.forecast` uses it by default.
 - `createGeoModule({ fetch })` and `createIcsModule({ fetch })` take it. Their default stays the global `fetch`, because their roots run in a browser.
-- `@procedures/bundle-assistant` gives it to the modules of `geo` and `ics`.
+- `bundleAssistantModule` of `@procedures/bundle-assistant` gives it to the modules of `geo` and `ics`.
 
 ```ts
 import { createHostFetch } from "@procedures/http";
