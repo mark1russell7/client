@@ -62,7 +62,7 @@ export const serverCreateProcedure: Procedure<
     activePeers.set(serverId, peer);
 
     // Get procedure count
-    const procedureCount = input.autoRegister
+    const procedureCount = autoRegister
       ? registry.getAll().filter((p) => p.handler).length
       : 0;
 

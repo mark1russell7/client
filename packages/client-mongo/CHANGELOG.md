@@ -1,5 +1,29 @@
 # @procedures/mongo
 
+## 0.28.1
+
+### Patch Changes
+
+- 345c740: Fixes of the low findings of the second code audit (roadmap O57).
+  
+  - A scoped pipeline: a first `$match` with `$text` takes the scope filter itself and stays the first stage.
+  - A scoped `$search` keeps its stage options (`highlight`, `count`, `sort`, `returnStoredSource`, `scoreDetails` and others) out of the compound operator.
+  - `MongoViewStorage.getBatch()` reads the view one time, so its ids and its filter are of one generation.
+- Updated dependencies [345c740]
+- Updated dependencies [345c740]
+- Updated dependencies [984c13b]
+- Updated dependencies [21dc858]
+  - @procedures/client@0.28.1
+  - @procedures/collections@0.28.1
+
+## 0.28.0
+
+### Patch Changes
+
+- Updated dependencies [06694d7]
+  - @procedures/client@0.28.0
+  - @procedures/collections@0.28.0
+
 ## 0.27.8
 
 ### Patch Changes

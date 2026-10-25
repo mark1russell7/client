@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ProcedureRegistry, invokePath, outputValue } from "@procedures/client";
+import { createRegistry, invokePath, outputValue } from "@procedures/client";
+import { isHostNotAllowed } from "@procedures/http";
 import { forecastUrl, readForecast, weatherCodeGroup } from "./weather.js";
-import { weatherProcedures } from "./procedures.js";
+import type { FetchForecast } from "./procedures.js";
+import { createWeatherModule, weatherModule } from "./module.js";
 
 /** A made-up Open-Meteo answer for two days and two hours. */
 const answer = {
@@ -74,24 +76,49 @@ describe("weatherCodeGroup", () => {
 });
 
 describe("weather.forecast", () => {
-  const registry = new ProcedureRegistry();
-  for (const procedure of weatherProcedures) registry.register(procedure);
-  const call = async <T>(input: unknown): Promise<T> =>
-    (await outputValue(await invokePath(["weather", "forecast"], input, { registry }), ["weather", "forecast"])) as T;
+  /** A caller of the module with a fake fetch, or of the default module. */
+  const caller = (fetch?: FetchForecast) => {
+    const registry = createRegistry(fetch === undefined ? weatherModule : createWeatherModule({ fetch }));
+    return async <T>(input: unknown): Promise<T> =>
+      (await outputValue(await invokePath(["weather", "forecast"], input, { registry }), ["weather", "forecast"])) as T;
+  };
 
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
   it("gives the forecast of a point, and needs the point", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => Response.json(answer)));
+    const fetch = vi.fn(async (_url: string) => Response.json(answer));
+    const call = caller(fetch);
     const forecast = await call<{ daily: unknown[] }>({ lat: 52.5, lon: 13.4, days: 2 });
     expect(forecast.daily).toHaveLength(2);
+    expect(String(fetch.mock.calls[0]?.[0])).toMatch(/^https:\/\/api\.open-meteo\.com\/v1\/forecast\?/);
     await expect(call({ days: 2 })).rejects.toThrow(/lat/);
   });
 
   it("reports an HTTP error", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response("busy", { status: 503 })));
+    const call = caller(async () => new Response("busy", { status: 503 }));
     await expect(call({ lat: 0, lon: 0 })).rejects.toThrow(/HTTP 503/);
+  });
+
+  // Audit pass 2 (O55): before, the procedure fetched each baseUrl of its caller with the global fetch
+  it("goes through the host policy: the default module refuses a loopback, private or metadata baseUrl", async () => {
+    const global = vi.fn(async () => Response.json(answer));
+    vi.stubGlobal("fetch", global);
+    const call = caller();
+    for (const baseUrl of ["http://127.0.0.1:8080", "http://10.0.0.5", "http://169.254.169.254", "http://[::1]:8080"]) {
+      const error = await call({ lat: 0, lon: 0, baseUrl }).then(
+        () => undefined,
+        (caught: unknown) => caught
+      );
+      expect(isHostNotAllowed(error)).toBe(true);
+    }
+    expect(global).not.toHaveBeenCalled();
+  });
+
+  it("reads another server of the host through the fetch of the module", async () => {
+    const fetch = vi.fn(async (_url: string) => Response.json(answer));
+    await caller(fetch)({ lat: 0, lon: 0, baseUrl: "http://10.0.0.5:8080" });
+    expect(String(fetch.mock.calls[0]?.[0])).toMatch(/^http:\/\/10\.0\.0\.5:8080\/v1\/forecast\?/);
   });
 });

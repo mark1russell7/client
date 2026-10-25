@@ -83,6 +83,7 @@ export interface HostProbes {
    * the listener closes when the intake stops, as without the probes, and a new connection is refused.
    * `close transports` keeps the listener open through the drain: the probes answer 503, and each
    * other request gets 503 with `Retry-After`. A probe server on a port of its own also answers through the drain.
+   * A face that stays until `close transports` also keeps the listener open, for example the MCP face (CLI-74).
    */
   readonly until?: MountStage | undefined;
 }
@@ -176,6 +177,7 @@ export interface ProcedureHostOptions {
    * - The report of the service (`/_probes/report`) gives the names of the checks and the dependencies.
    *   Thus a listener of the host does not answer it. `host.health` gives the details with the token.
    * - The probes stop when the intake stops, and the listener closes as before. `until` changes this.
+   *   A face that stays until `close transports` keeps the listener open too, for example the MCP face (CLI-74).
    * - `false` turns them off, for example for a process with a probe server on a port of its own.
    * - Without a listener, the app mounts `probeHandler()` on its own listener.
    */
@@ -319,6 +321,14 @@ function probesOf(probes: ProcedureHostOptions["probes"]): { prefix: string; unt
  */
 const LISTENER_PROBE_KINDS: readonly ProbeKind[] = Object.freeze(["startup", "readiness", "liveness"]);
 
+/**
+ * The stage of the mount of a handler of a face: its `until`, as `mount()` of the service reads it on a
+ * handler (CLI-74). The host wraps each handler of a face, so it gives the stage to the mount.
+ */
+function stageOf(handler: unknown): MountStage | undefined {
+  return (handler as { readonly until?: MountStage | undefined }).until;
+}
+
 /** This function gives the probes of a listener of a host: `probeHandler()` of the service, without the report. */
 function listenerProbes(health: () => Health | null | undefined, prefix: string): RequestHandler {
   return probeHandler(health, { prefix, kinds: LISTENER_PROBE_KINDS });
@@ -404,7 +414,8 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
     const transport = httpTransport(createServer(), listener.knobs, { listen: { port: listener.port, host }, clock });
     const shown = host === "0.0.0.0" || host === "::" ? "localhost" : host;
     // The probes mount first: a probe path never reaches a face, and a face gets each other path as
-    // before. By default they stop with the intake, thus the listener still closes at the stop of the intake.
+    // before. By default they stop with the intake. The listener closes at the stop of the intake,
+    // unless a face on it stays until "close transports" (the MCP face, CLI-74).
     if (probes !== undefined) {
       transport.mount(listenerProbes(() => life?.health, probes.prefix), { until: probes.until });
       probeBases.push(() => {
@@ -416,20 +427,30 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
       const face = faces.get(faceName);
       if (!face) throw new Error(`The listener "${listenerName}" names the face "${faceName}", which the host does not have`);
       onListener.add(faceName);
+      // A face gives the stage of its mount on its handler, as `until` of a handler of the service
+      // (CLI-74). The MCP face stays through the drain: a call in progress gets the answer of an
+      // elicitation and its cancel. Without `until`, the mount stops with the intake.
       if (face.handler) {
         const handle = face.handler;
-        transport.mount((req, res) => {
-          const taken = handle(req, res);
-          if (taken) outgoing.response(res);
-          return taken;
-        });
+        transport.mount(
+          (req, res) => {
+            const taken = handle(req, res);
+            if (taken) outgoing.response(res);
+            return taken;
+          },
+          { until: stageOf(handle) },
+        );
       }
       if (face.upgrade) {
         const upgrade = face.upgrade;
-        transport.upgrade(upgrade.match, (req, socket, head) => {
-          outgoing.socket(socket as Duplex);
-          upgrade.handler(req, socket as Duplex, head as Buffer);
-        });
+        transport.upgrade(
+          upgrade.match,
+          (req, socket, head) => {
+            outgoing.socket(socket as Duplex);
+            upgrade.handler(req, socket as Duplex, head as Buffer);
+          },
+          { until: stageOf(upgrade.handler) },
+        );
       }
       return face;
     });

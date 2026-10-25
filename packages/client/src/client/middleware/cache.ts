@@ -12,6 +12,7 @@ import { isDuration, optionalMs, type Duration } from "../../duration.js";
 import type { Effects } from "../../procedures/types.js";
 import { TIMER_DEFAULTS } from "../../timers.js";
 import { methodName } from "../../server/method.js";
+import { abortedItem } from "./items.js";
 
 /**
  * Cache middleware options.
@@ -207,6 +208,29 @@ function cacheOverrides(value: unknown): { ttl?: number; bypass?: boolean; refre
 /**
  * Default should cache predicate - only cache successful responses.
  */
+/** The value of `untilAbort` when the signal aborts first. */
+const ABORTED: unique symbol = Symbol("aborted");
+
+/** The value of a promise, or `ABORTED` when the signal aborts first. Without a signal, the promise. */
+function untilAbort<T>(promise: Promise<T>, signal: AbortSignal | undefined): Promise<T | typeof ABORTED> {
+  if (signal === undefined) return promise;
+  if (signal.aborted) return Promise.resolve(ABORTED);
+  return new Promise((resolve, reject) => {
+    const onAbort = (): void => resolve(ABORTED);
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
+}
+
 function defaultShouldCache(item: ResponseItem<unknown>): boolean {
   return item.status.type === "success";
 }
@@ -354,7 +378,12 @@ export function createCacheMiddleware(options: CacheOptions): TypedClientMiddlew
       // The same call is in flight: wait for it and give a copy of its response (R13)
       const pending = overrides.refresh ? undefined : inFlight.get(cacheKey);
       if (pending) {
-        const shared = await pending;
+        // The wait follows the signal of this call: an abort ends it, also while the first call runs
+        const shared = await untilAbort(pending, context.message.signal);
+        if (shared === ABORTED) {
+          yield abortedItem<TRes>(context.message.id);
+          return;
+        }
         if (shared) {
           stats.hits++;
           setState(true);

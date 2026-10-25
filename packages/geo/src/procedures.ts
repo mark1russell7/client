@@ -1,10 +1,15 @@
 /**
  * The procedures of `@procedures/geo`: `geo.geocode`, `geo.route`, `geo.distance` and `geo.geohash`.
+ *
+ * `geo.geocode` and `geo.route` send their requests with the `fetch` of the module. The default is
+ * the global `fetch`, so the root stays safe for a browser. A Node host that takes calls from
+ * others gives `createHostFetch()` of `@procedures/http` to `createGeoModule()`. Then the host
+ * policy refuses a `baseUrl` on a loopback, private or link-local address (audit pass 2, O55).
  */
 
 import { createProcedure, zodAdapter, type AnyProcedure, type ProcedureContext } from "@procedures/client/browser";
 import { z } from "zod";
-import { drivingRoute, geocode, type GeocodeResult, type RouteResult } from "./geo.js";
+import { drivingRoute, geocode, type FetchJson, type GeocodeResult, type RouteResult } from "./geo.js";
 import { geoDistance } from "./procedures/geo/distance.js";
 import { geoGeohash } from "./procedures/geo/geohash.js";
 import {
@@ -22,6 +27,15 @@ const NETWORK_READ = { reads: ["network"], writes: [] };
 const PURE = { reads: [], writes: [] };
 const point = z.object({ lat: z.number().min(-90).max(90), lon: z.number().min(-180).max(180) });
 const timeoutMs = z.number().int().positive().max(120_000).default(20_000).describe("The time limit, in milliseconds (default: 20000)");
+
+/** The settings of the host for the procedures of this package. The procedure input cannot change them. */
+export interface GeoProceduresOptions {
+  /**
+   * The function that sends the requests of `geo.geocode` and `geo.route`. The default is the
+   * global `fetch`. A Node host gives `createHostFetch()` of `@procedures/http`.
+   */
+  readonly fetch?: FetchJson | undefined;
+}
 
 // =============================================================================
 // geo.geocode
@@ -48,21 +62,23 @@ const GeocodeOutputSchema = z.object({
   result: z.object({ lat: z.number(), lon: z.number(), displayName: z.string() }).optional(),
 });
 
-export const geoGeocodeProcedure: AnyProcedure = createProcedure()
-  .path(["geo", "geocode"])
-  .input(zodAdapter<GeocodeInput>(GeocodeInputSchema))
-  .output(zodAdapter<GeocodeOutput>(GeocodeOutputSchema))
-  .meta({
-    description: "Find the coordinates of an address or a place name (OpenStreetMap Nominatim)",
-    args: ["query"],
-    output: "json",
-    effects: NETWORK_READ,
-  })
-  .handler(async (input: GeocodeInput, ctx?: ProcedureContext): Promise<GeocodeOutput> => {
-    const result = await geocode(input.query, { ...input, signal: ctx?.signal });
-    return result === undefined ? { found: false } : { found: true, result };
-  })
-  .build() as AnyProcedure;
+function geocodeProcedure(fetch: FetchJson | undefined): AnyProcedure {
+  return createProcedure()
+    .path(["geo", "geocode"])
+    .input(zodAdapter<GeocodeInput>(GeocodeInputSchema))
+    .output(zodAdapter<GeocodeOutput>(GeocodeOutputSchema))
+    .meta({
+      description: "Find the coordinates of an address or a place name (OpenStreetMap Nominatim)",
+      args: ["query"],
+      output: "json",
+      effects: NETWORK_READ,
+    })
+    .handler(async (input: GeocodeInput, ctx?: ProcedureContext): Promise<GeocodeOutput> => {
+      const result = await geocode(input.query, { ...input, signal: ctx?.signal, fetch });
+      return result === undefined ? { found: false } : { found: true, result };
+    })
+    .build() as AnyProcedure;
+}
 
 // =============================================================================
 // geo.route
@@ -77,20 +93,26 @@ const RouteInputSchema = z.object({
 type RouteInput = z.infer<typeof RouteInputSchema>;
 const RouteOutputSchema = z.object({ km: z.number(), minutes: z.number() });
 
-export const geoRouteProcedure: AnyProcedure = createProcedure()
-  .path(["geo", "route"])
-  .input(zodAdapter<RouteInput>(RouteInputSchema))
-  .output(zodAdapter<RouteResult>(RouteOutputSchema))
-  .meta({
-    description: "Give the time and the distance of a drive between two points (OSRM)",
-    output: "json",
-    effects: NETWORK_READ,
-  })
-  .handler(
-    async (input: RouteInput, ctx?: ProcedureContext): Promise<RouteResult> =>
-      drivingRoute(input.from, input.to, { baseUrl: input.baseUrl, timeoutMs: input.timeoutMs, signal: ctx?.signal })
-  )
-  .build() as AnyProcedure;
+function routeProcedure(fetch: FetchJson | undefined): AnyProcedure {
+  return createProcedure()
+    .path(["geo", "route"])
+    .input(zodAdapter<RouteInput>(RouteInputSchema))
+    .output(zodAdapter<RouteResult>(RouteOutputSchema))
+    .meta({
+      description: "Give the time and the distance of a drive between two points (OSRM)",
+      output: "json",
+      effects: NETWORK_READ,
+    })
+    .handler(
+      async (input: RouteInput, ctx?: ProcedureContext): Promise<RouteResult> =>
+        drivingRoute(input.from, input.to, { baseUrl: input.baseUrl, timeoutMs: input.timeoutMs, signal: ctx?.signal, fetch })
+    )
+    .build() as AnyProcedure;
+}
+
+export const geoGeocodeProcedure: AnyProcedure = geocodeProcedure(undefined);
+
+export const geoRouteProcedure: AnyProcedure = routeProcedure(undefined);
 
 // =============================================================================
 // geo.distance
@@ -125,3 +147,12 @@ export const geoGeohashProcedure: AnyProcedure = createProcedure()
   .build() as AnyProcedure;
 
 export const geoProcedures: AnyProcedure[] = [geoGeocodeProcedure, geoRouteProcedure, geoDistanceProcedure, geoGeohashProcedure];
+
+/**
+ * This function gives the procedures of this package with the settings of the host. Without a
+ * `fetch`, it gives `geoProcedures`.
+ */
+export function createGeoProcedures(options: GeoProceduresOptions = {}): AnyProcedure[] {
+  if (options.fetch === undefined) return geoProcedures;
+  return [geocodeProcedure(options.fetch), routeProcedure(options.fetch), geoDistanceProcedure, geoGeohashProcedure];
+}

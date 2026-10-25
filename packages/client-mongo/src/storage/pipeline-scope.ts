@@ -93,6 +93,21 @@ function scoped(selector: unknown, match: Document): Document {
   return typeof selector === "object" && selector !== null && !Array.isArray(selector) ? { ...(selector as Document), ...match } : { ...match };
 }
 
+/** The options of a `$search` or `$searchMeta` stage. They are not operators, so they stay out of the compound. */
+const SEARCH_STAGE_OPTIONS: ReadonlySet<string> = new Set([
+  "index",
+  "highlight",
+  "count",
+  "sort",
+  "returnStoredSource",
+  "returnScope",
+  "scoreDetails",
+  "concurrent",
+  "tracking",
+  "searchAfter",
+  "searchBefore",
+]);
+
 /** The `equals` clauses of `$search` for the filter: each field must be a string, a number or a boolean. */
 function searchFilter(match: Document): Document[] {
   return Object.entries(match).map(([path, value]) => {
@@ -153,10 +168,11 @@ export function scopePipeline(pipeline: readonly Document[], scope: PipelineScop
       const search = { ...(body as Document) };
       let compound: Document;
       if (search["compound"] === undefined) {
+        // Only the operator goes into the compound: the options of the stage stay at the top
         const operator: Document = {};
-        for (const [key, value] of Object.entries(search)) if (key !== "index") operator[key] = value;
-        compound = { must: [operator], filter: [] };
-        for (const key of Object.keys(search)) if (key !== "index") delete search[key];
+        for (const [key, value] of Object.entries(search)) if (!SEARCH_STAGE_OPTIONS.has(key)) operator[key] = value;
+        compound = { must: Object.keys(operator).length > 0 ? [operator] : [], filter: [] };
+        for (const key of Object.keys(operator)) delete search[key];
       } else {
         const existing = search["compound"] as Document;
         compound = { ...existing, filter: Array.isArray(existing["filter"]) ? [...(existing["filter"] as Document[])] : [] };
@@ -164,6 +180,13 @@ export function scopePipeline(pipeline: readonly Document[], scope: PipelineScop
       (compound["filter"] as Document[]).push(...searchFilter(scope.match));
       search["compound"] = compound;
       result.push({ [name]: search });
+      matched = true;
+      continue;
+    }
+
+    // A $match with $text must be the first stage: it takes the filter itself
+    if (!matched && name === "$match" && typeof body === "object" && body !== null && (body as Document)["$text"] !== undefined) {
+      result.push({ $match: { ...(body as Document), ...scope.match } });
       matched = true;
       continue;
     }
@@ -233,10 +256,6 @@ export function scopePipeline(pipeline: readonly Document[], scope: PipelineScop
       const fields = Array.isArray(body) ? body : [body];
       for (const field of fields) if (typeof field === "string" && guarded.has(field)) throw new Error(`A scoped pipeline cannot $unset ${field}`);
       result.push(stage);
-      continue;
-    }
-    if (name === "$match" && typeof body === "object" && body !== null && (body as Document)["$text"] !== undefined) {
-      result.push({ $match: { ...(body as Document), ...scope.match } });
       continue;
     }
     result.push(stage);

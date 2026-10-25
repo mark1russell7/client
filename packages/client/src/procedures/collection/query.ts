@@ -46,6 +46,8 @@ export {
   versionConflictsOf,
 } from "./precondition.js";
 export type { CurrentItem, VersionConflict, VersionOf } from "./precondition.js";
+// The guard of $regex has no imports either
+import { exponentialRegex } from "./regex-guard.js";
 
 //
 // ═══ The types ═══
@@ -458,52 +460,6 @@ function withinDepth(depth: number, at: string, compilation: Compilation): boole
   return false;
 }
 
-/**
- * True when a pattern repeats a group that repeats without a bound, for example `(a+)+` or
- * `(a|b*)*`. Such a pattern can take an exponential time on a long text.
- */
-function repeatsRepetition(pattern: string): boolean {
-  // For each open group: true when it holds a repetition without a bound
-  const groups: boolean[] = [];
-  let lastGroupRepeats = false;
-  let inClass = false;
-  for (let index = 0; index < pattern.length; index++) {
-    const char = pattern[index]!;
-    if (char === "\\") {
-      index++;
-      lastGroupRepeats = false;
-      continue;
-    }
-    if (inClass) {
-      if (char === "]") inClass = false;
-      continue;
-    }
-    if (char === "[") {
-      inClass = true;
-      lastGroupRepeats = false;
-      continue;
-    }
-    if (char === "(") {
-      groups.push(false);
-      lastGroupRepeats = false;
-      continue;
-    }
-    if (char === ")") {
-      lastGroupRepeats = groups.pop() ?? false;
-      // A group that holds a repetition makes each group around it hold one too
-      if (lastGroupRepeats && groups.length > 0) groups[groups.length - 1] = true;
-      continue;
-    }
-    const unbounded = char === "*" || char === "+" || (char === "{" && /^\{\d*,\}/.test(pattern.slice(index)));
-    if (unbounded) {
-      if (lastGroupRepeats) return true;
-      if (groups.length > 0) groups[groups.length - 1] = true;
-    }
-    if (char !== "?") lastGroupRepeats = false;
-  }
-  return false;
-}
-
 //
 // ═══ The compiler of a selector ═══
 //
@@ -666,8 +622,11 @@ function regexOf(pattern: unknown, flags: unknown, at: string, compilation: Comp
     problems.push(`${at}.$options has the flag ${refused.join(", ")}, and the query policy permits only "${limits.regexFlags}"`);
     return undefined;
   }
-  if (repeatsRepetition(pattern)) {
-    problems.push(`${at}.$regex repeats a group that repeats without a bound: such a pattern can take an exponential time`);
+  // The guard reads the pattern with its flags. (Before, it found only a repeated group with an
+  // unbounded repetition inside, not (a|aa)+ or (a{1,50}){1,50}: audit O56.)
+  const risk = exponentialRegex(pattern, typeof flags === "string" ? flags : "");
+  if (risk !== undefined) {
+    problems.push(`${at}.$regex ${risk}: such a pattern can take an exponential time`);
     return undefined;
   }
   try {

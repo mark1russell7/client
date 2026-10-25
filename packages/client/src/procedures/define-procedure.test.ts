@@ -22,6 +22,9 @@ import { Client } from "../client/client.js";
 import { allCoreProcedures } from "./core/index.js";
 import { isDataDriven } from "./ref.js";
 import { valueHandler } from "../../test/value-handler.js";
+import { createRegistry } from "./module.js";
+import { ProcedureServer } from "../server/procedure-server.js";
+import { pathToMethod } from "../server/method.js";
 
 // The tests read one value from the handlers: valueHandler types it so, and checks it
 const defineProcedureProcedure = valueHandler(defineDefinition);
@@ -816,5 +819,55 @@ describe("DOC-3: a defined body runs like exec()", () => {
       input: { path: ["test", "steps"], aggregation: { $proc: ["client", "chain"], input: { steps: [add({ $ref: "input.x" }, 1)] } } },
     });
     expect(await client.exec(["test", "steps"], { x: 5 })).toMatchObject({ final: 6 });
+  });
+});
+
+// Audit pass 2 (O55): procedure.define and procedure.delete obey the expose rule of the host, as
+// procedure.get does (R17). A caller cannot remove or replace a hidden procedure.
+describe("procedure.define and procedure.delete under the expose rule of a host", () => {
+  const identity = (value: unknown) => ({ $proc: ["client", "identity"], input: { value } });
+
+  async function host() {
+    const registry = createRegistry();
+    // The host code defines a hidden procedure, without an expose rule
+    await valueHandler(defineDefinition).handler!({ path: ["admin", "hook"], aggregation: identity("host") }, {
+      capability: {},
+      resources: {},
+      metadata: {},
+      path: ["procedure", "define"],
+      registry,
+      client: { call: async () => undefined as never },
+    } as ProcedureContext);
+    const server = new ProcedureServer({ registry, expose: (path) => path[0] !== "admin" });
+    server.registerFromRegistry();
+    const call = (path: string[], payload: unknown) => server.handle({ id: "1", method: pathToMethod(path), payload, metadata: {} });
+    return { registry, call };
+  }
+
+  it("procedure.delete does not find a hidden procedure, and the procedure stays", async () => {
+    const { registry, call } = await host();
+    expect((await call(["procedure", "delete"], { path: ["admin", "hook"] })).payload).toEqual({ deleted: false });
+    expect(registry.get(["admin", "hook"])).toBeDefined();
+  });
+
+  it("procedure.define refuses to replace a hidden procedure, and the body stays", async () => {
+    const { registry, call } = await host();
+    for (const replace of [true, false]) {
+      const replaced = await call(["procedure", "define"], { path: ["admin", "hook"], aggregation: identity("caller"), replace });
+      expect(replaced.status).toMatchObject({ type: "error" });
+      expect(JSON.stringify(replaced.status)).toContain("Procedure not exposed: admin.hook");
+    }
+    expect(runtimeProgramOf(registry.get(["admin", "hook"])!)).toEqual(identity("host"));
+    // A new procedure at a free hidden path stays possible, as before (the R23 test of impl-mcp-dev)
+    const made = await call(["procedure", "define"], { path: ["admin", "other"], aggregation: identity("caller") });
+    expect(made.status).toMatchObject({ type: "success" });
+  });
+
+  it("still defines, replaces and deletes an exposed procedure", async () => {
+    const { registry, call } = await host();
+    expect((await call(["procedure", "define"], { path: ["tools", "one"], aggregation: identity(1) })).payload).toEqual({ path: ["tools", "one"], replaced: false });
+    expect((await call(["procedure", "define"], { path: ["tools", "one"], aggregation: identity(2), replace: true })).payload).toEqual({ path: ["tools", "one"], replaced: true });
+    expect((await call(["procedure", "delete"], { path: ["tools", "one"] })).payload).toEqual({ deleted: true });
+    expect(registry.get(["tools", "one"])).toBeUndefined();
   });
 });

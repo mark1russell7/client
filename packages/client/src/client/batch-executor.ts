@@ -68,17 +68,21 @@ export interface BatchExecutionResult<TRoute extends Route = Route> {
   results: BatchItem[];
 }
 
-/** An abort controller whose signal also aborts when the parent signal aborts. */
-function linkedController(parent: AbortSignal | undefined): AbortController {
+/**
+ * An abort controller whose signal also aborts when the parent signal aborts. `release` removes
+ * the listener from the parent when the call ends. (Before, each call left its listener on the
+ * parent, so a long-lived signal kept every controller: audit pass 2.)
+ */
+function linkedController(parent: AbortSignal | undefined): { controller: AbortController; release: () => void } {
   const controller = new AbortController();
-  if (parent) {
-    if (parent.aborted) {
-      controller.abort(parent.reason);
-    } else {
-      parent.addEventListener("abort", () => controller.abort(parent.reason), { once: true });
-    }
+  if (!parent) return { controller, release: () => undefined };
+  if (parent.aborted) {
+    controller.abort(parent.reason);
+    return { controller, release: () => undefined };
   }
-  return controller;
+  const onAbort = (): void => controller.abort(parent.reason);
+  parent.addEventListener("abort", onAbort, { once: true });
+  return { controller, release: () => parent.removeEventListener("abort", onAbort) };
 }
 
 function cancelledResult(path: ProcedurePath, message: string): ProcedureCallResult {
@@ -162,13 +166,18 @@ export class BatchExecutor {
     context: ExecutionContext
   ): Promise<BatchExecutionResult<TRoute>> {
     const startTime = Date.now();
-    const controllers = resolved.map(() => linkedController(context.signal));
+    const links = resolved.map(() => linkedController(context.signal));
     const calls = resolved.map((route, index) =>
-      this.runOne(route, { ...context, signal: controllers[index]!.signal }).then((item) => ({ item, index }))
+      this.runOne(route, { ...context, signal: links[index]!.controller.signal }).then((item) => ({ item, index }))
     );
 
-    const winner = await Promise.race(calls);
-    controllers.forEach((controller, index) => {
+    let winner: { item: BatchItem; index: number };
+    try {
+      winner = await Promise.race(calls);
+    } finally {
+      links.forEach((link) => link.release());
+    }
+    links.forEach(({ controller }, index) => {
       if (index !== winner.index) controller.abort();
     });
 
@@ -238,9 +247,10 @@ export class BatchExecutor {
         (bufferSize <= 0 || done.length < bufferSize)
       ) {
         const { route, index } = pending.shift()!;
-        const controller = linkedController(context.signal);
+        const { controller, release } = linkedController(context.signal);
         running.set(index, { path: route.path, controller });
         void this.runOne(route, { ...context, signal: controller.signal }).then((item) => {
+          release();
           // A cancelled call has its result already
           if (!running.delete(index)) return;
           done.push({ ...item, index });

@@ -137,14 +137,17 @@ async function findDirectory(handle: FileHandle, fileSize: number): Promise<{ of
   let offset = tail.readUInt32LE(at + 16);
   if (count === 0xffff || size === 0xffffffff || offset === 0xffffffff) {
     const locatorAt = fileSize - tailLength + at - 20;
-    if (locatorAt < 0) throw new ArchiveError("BAD_ARCHIVE", "The zip64 locator is missing");
-    const locator = await readAt(handle, locatorAt, 20);
-    if (locator.readUInt32LE(0) !== SIG_LOCATOR64) throw new ArchiveError("BAD_ARCHIVE", "The zip64 locator is missing");
-    const end64 = await readAt(handle, u64(locator, 8), 56);
-    if (end64.readUInt32LE(0) !== SIG_END64) throw new ArchiveError("BAD_ARCHIVE", "The zip64 end of the central directory is missing");
-    count = u64(end64, 32);
-    size = u64(end64, 40);
-    offset = u64(end64, 48);
+    const locator = locatorAt < 0 ? undefined : await readAt(handle, locatorAt, 20);
+    if (locator !== undefined && locator.readUInt32LE(0) === SIG_LOCATOR64) {
+      const end64 = await readAt(handle, u64(locator, 8), 56);
+      if (end64.readUInt32LE(0) !== SIG_END64) throw new ArchiveError("BAD_ARCHIVE", "The zip64 end of the central directory is missing");
+      count = u64(end64, 32);
+      size = u64(end64, 40);
+      offset = u64(end64, 48);
+    } else if (size === 0xffffffff || offset === 0xffffffff) {
+      throw new ArchiveError("BAD_ARCHIVE", "The zip64 locator is missing");
+    }
+    // Without a locator, a count of 0xffff is the true count: a zip of 65535 entries without zip64
   }
   if (offset + size > fileSize) throw new ArchiveError("BAD_ARCHIVE", "The central directory of the zip is out of the file");
   if (size > MAX_DIRECTORY_BYTES) throw new ArchiveError("TOO_LARGE", "The central directory of the zip is too large");

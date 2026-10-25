@@ -136,7 +136,11 @@ export class MongoViewStorage<T = Document> implements CollectionStorage<T> {
   /** The rows of the current generation, in the order of their stored `_id`. */
   private async entriesOf(extra?: Document): Promise<Array<[string, T]>> {
     const generation = await this.current();
-    if (!generation) return [];
+    return generation ? this.rowsOf(generation, extra) : [];
+  }
+
+  /** The rows of one generation that was already read, in the order of their stored `_id`. */
+  private async rowsOf(generation: Generation, extra?: Document): Promise<Array<[string, T]>> {
     const docs = await generation.target
       .find({ ...generation.filter, ...extra } as Document)
       .sort({ _id: 1 })
@@ -187,7 +191,9 @@ export class MongoViewStorage<T = Document> implements CollectionStorage<T> {
     const result = new Map<string, T>();
     const generation = await this.current();
     if (!generation || ids.length === 0) return result;
-    const byId = new Map(await this.entriesOf({ _id: { $in: ids.map((id) => this.storedId(id, generation)) } }));
+    // The ids and the filter come from the same generation (before, a second read of the view
+    // could give the filter of a newer generation: audit pass 2)
+    const byId = new Map(await this.rowsOf(generation, { _id: { $in: ids.map((id) => this.storedId(id, generation)) } }));
     // The order of the ids of the call
     for (const id of ids) if (byId.has(id)) result.set(id, byId.get(id)!);
     return result;

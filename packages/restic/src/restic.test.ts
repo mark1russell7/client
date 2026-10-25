@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
-import { ProcedureRegistry, createRegistry, invokePath, outputValue } from "@procedures/client";
+import { describe, expect, it, vi } from "vitest";
+import { createRegistry, invokePath, outputValue } from "@procedures/client";
 import type { CommandOptions, CommandResult } from "@procedures/shell/command";
 import { buildArgv, parseJsonOutput } from "./argv.js";
 import { findRestic } from "./executable.js";
 import { createResticModule, resticModule } from "./module.js";
-import { resticArgv, resticProcedures, runRestic, type ResticRunner } from "./procedures.js";
+import { resticArgv, runRestic, type ResticRunner } from "./procedures.js";
 
 /** A runner that records each start of restic and answers with the next scripted result. */
 function fakeRunner(results: Array<Partial<CommandResult>> = []) {
@@ -44,13 +44,100 @@ describe("restic.run", () => {
     expect(() => resticArgv({ path: ["snapshots"], json: true, args: { "password-command": "x" } })).toThrow(/refuses --password-command/);
   });
 
+  // Audit pass 2 (O55): before, only --password-command was refused
+  it("refuses each flag that names a program for restic to start", () => {
+    for (const flag of ["password-command", "from-password-command", "password-command2"]) {
+      expect(() => resticArgv({ path: ["copy"], args: { [flag]: "sh -c id" } })).toThrow(new RegExp(`refuses --${flag}`));
+      expect(() => resticArgv({ path: ["copy"], args: { [flag]: ["a", "b"] } })).toThrow(/starts a program/);
+    }
+  });
+
+  it("refuses an extended option that starts a program, in each spelling that restic reads", () => {
+    const spellings = [
+      "sftp.command=sh -c id",
+      " SFTP.Command = sh",
+      "s3.storage-class=STANDARD,sftp.command=sh",
+      '"sftp.command=sh -c id"',
+      "sftp.args=-oProxyCommand=sh",
+      "rclone.program=/bin/sh",
+      "RCLONE.ARGS=serve restic --stdio",
+    ];
+    for (const value of spellings) {
+      expect(() => resticArgv({ path: ["snapshots"], args: { option: value } })).toThrow(/refuses the option/);
+      expect(() => resticArgv({ path: ["snapshots"], args: { option: ["s3.region=x", value] } })).toThrow(/refuses the option/);
+      expect(() => resticArgv({ path: ["snapshots"], args: { o: value } })).toThrow(/refuses the option/);
+    }
+  });
+
+  it("refuses an sftp or rclone repository whose host or remote starts with -", () => {
+    const locations = ["sftp:-oProxyCommand=sh:/repo", "sftp:user@-oProxyCommand=sh:/repo", "sftp://-oProxyCommand=sh/repo", "sftp://u@%2DoProxyCommand=sh/repo", "sftp://[-oX]/repo", "rclone:--config=x"];
+    for (const location of locations) {
+      expect(() => resticArgv({ path: ["snapshots"], repository: location })).toThrow(/refuses the repository/);
+      for (const flag of ["repo", "from-repo", "repo2"]) {
+        expect(() => resticArgv({ path: ["copy"], args: { [flag]: location } })).toThrow(new RegExp(`refuses --${flag}`));
+      }
+    }
+  });
+
+  it("refuses a positional argument that starts with - after a last flag without a value", () => {
+    // --repo takes a value: without "=", it reads the "--" that ends the flags
+    expect(() => resticArgv({ path: ["backup"], args: { repo: true }, positional: ["--password-command=sh"] })).toThrow(/after the flag --repo/);
+    expect(() => resticArgv({ path: ["backup"], args: { option: true, tag: [] }, positional: ["-o", "x"] })).toThrow(/after the flag --option/);
+  });
+
+  it("keeps the documented uses: extended options, sftp and rclone repositories, and paths after --", () => {
+    expect(resticArgv({ path: ["snapshots"], repository: "sftp:user@host:/srv/repo", args: { option: ["sftp.connections=5", "s3.storage-class=STANDARD_IA"] } })).toEqual([
+      "snapshots",
+      "--repo=sftp:user@host:/srv/repo",
+      "--option=sftp.connections=5",
+      "--option=s3.storage-class=STANDARD_IA",
+    ]);
+    expect(resticArgv({ path: ["snapshots"], repository: "sftp://user@host:22//srv/repo" })).toEqual(["snapshots", "--repo=sftp://user@host:22//srv/repo"]);
+    expect(resticArgv({ path: ["init"], args: { "from-repo": "rclone:b2:bucket/repo" } })).toEqual(["init", "--from-repo=rclone:b2:bucket/repo"]);
+    // A path that starts with - is a positional argument when the last flag has a value, or a bool flag is not last
+    expect(resticArgv({ path: ["backup"], args: { "one-file-system": true, limit: 3 }, positional: ["-dir"] })).toEqual(["backup", "--one-file-system", "--limit=3", "--", "-dir"]);
+    expect(resticArgv({ path: ["forget"], args: { "keep-daily": 7, prune: true }, positional: ["abc123"] })).toEqual(["forget", "--keep-daily=7", "--prune", "--", "abc123"]);
+  });
+
   it("reports a program that does not start", async () => {
-    const registry = new ProcedureRegistry();
-    for (const procedure of resticProcedures) registry.register(procedure);
-    const call = invokePath(["restic", "run"], { path: ["version"], executable: "restic-that-does-not-exist-0" }, { registry }).then((output) =>
-      outputValue(output, ["restic", "run"])
-    );
+    // The program comes from the module (audit pass 2, O55)
+    const registry = createRegistry(createResticModule({ executable: "restic-that-does-not-exist-0" }));
+    const call = invokePath(["restic", "run"], { path: ["version"] }, { registry }).then((output) => outputValue(output, ["restic", "run"]));
     await expect(call).rejects.toThrow(/restic did not start/);
+  });
+
+  // The deprecated path (audit pass 2, O55): the input executable still works in 0.28, with one notice
+  it("still takes the deprecated input executable over the module, and emits one notice that names the new path", async () => {
+    const emitWarning = vi.spyOn(process, "emitWarning").mockImplementation(() => undefined);
+    try {
+      const { starts, run } = fakeRunner([{ stdout: "[]" }, { stdout: "[]" }]);
+      const registry = createRegistry(createResticModule({ run, executable: "/opt/restic-of-the-module" }));
+      for (let i = 0; i < 2; i++) await invokePath(["restic", "run"], { path: ["snapshots"], executable: "/opt/restic-of-the-input" }, { registry });
+      expect(starts.map((start) => start.command)).toEqual(["/opt/restic-of-the-input", "/opt/restic-of-the-input"]);
+      expect(emitWarning).toHaveBeenCalledTimes(1);
+      const [message, options] = emitWarning.mock.calls[0]!;
+      expect(options).toEqual({ type: "DeprecationWarning", code: "PROCEDURES_RESTIC_EXECUTABLE_INPUT" });
+      expect(String(message)).toContain("createResticModule({ executable })");
+      expect(String(message)).toContain("RESTIC_EXE");
+    } finally {
+      emitWarning.mockRestore();
+    }
+  });
+
+  it("takes the program from RESTIC_EXE without the option, with no notice", async () => {
+    const emitWarning = vi.spyOn(process, "emitWarning").mockImplementation(() => undefined);
+    const before = process.env["RESTIC_EXE"];
+    process.env["RESTIC_EXE"] = "/opt/restic-of-the-env";
+    try {
+      const { starts, run } = fakeRunner([{ stdout: "[]" }]);
+      await invokePath(["restic", "run"], { path: ["snapshots"] }, { registry: createRegistry(createResticModule({ run })) });
+      expect(starts[0]?.command).toBe("/opt/restic-of-the-env");
+      expect(emitWarning).not.toHaveBeenCalled();
+    } finally {
+      if (before === undefined) delete process.env["RESTIC_EXE"];
+      else process.env["RESTIC_EXE"] = before;
+      emitWarning.mockRestore();
+    }
   });
 
   it("gives no env to restic: the input has no field for secrets", async () => {
@@ -65,8 +152,8 @@ describe("restic.run", () => {
   it("gives the env of the host to each restic process with createResticModule", async () => {
     const { starts, run } = fakeRunner([{ stdout: "[]" }]);
     const env = { RESTIC_REPOSITORY: "b2:bucket-name:path", RESTIC_PASSWORD: "synthetic-password" };
-    const registry = createRegistry(createResticModule({ env, run }));
-    const output = await outputValue(await invokePath(["restic", "run"], { path: ["snapshots"], executable: "/opt/restic" }, { registry }), ["restic", "run"]);
+    const registry = createRegistry(createResticModule({ env, run, executable: "/opt/restic" }));
+    const output = await outputValue(await invokePath(["restic", "run"], { path: ["snapshots"] }, { registry }), ["restic", "run"]);
     expect(starts[0]).toMatchObject({ command: "/opt/restic", options: { env } });
     // The output has no value of the env
     expect(JSON.stringify(output)).not.toContain("synthetic-password");

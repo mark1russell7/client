@@ -281,13 +281,18 @@ export function pipeline<T, U>(
 ): Channel<U> {
   const output = new Channel<U>(bufferSize);
 
+  // The output closes also when the transform fails, so its reader does not wait forever. The
+  // error goes to the console, as in workerPool. (Before, it was an unhandled rejection: audit pass 2.)
   (async () => {
-    for await (const value of input) {
-      const transformed = await transform(value);
-      await output.send(transformed);
+    try {
+      for await (const value of input) {
+        const transformed = await transform(value);
+        await output.send(transformed);
+      }
+    } finally {
+      output.close();
     }
-    output.close();
-  })();
+  })().catch((error: unknown) => console.error("pipeline error:", error));
 
   return output;
 }
@@ -305,11 +310,14 @@ export function fanOut<T>(input: Channel<T>, count: number, bufferSize: number =
   const outputs = Array.from({ length: count }, () => new Channel<T>(bufferSize));
 
   (async () => {
-    for await (const value of input) {
-      await Promise.all(outputs.map((ch) => ch.send(value)));
+    try {
+      for await (const value of input) {
+        await Promise.all(outputs.map((ch) => ch.send(value)));
+      }
+    } finally {
+      outputs.forEach((ch) => ch.close());
     }
-    outputs.forEach((ch) => ch.close());
-  })();
+  })().catch((error: unknown) => console.error("fanOut error:", error));
 
   return outputs;
 }
@@ -333,7 +341,11 @@ export function fanIn<T>(...inputs: Channel<T>[]): Channel<T> {
     }
   });
 
-  Promise.all(workers).then(() => output.close());
+  // All the workers settle, then the output closes, also after a failed send
+  Promise.allSettled(workers).then((results) => {
+    output.close();
+    for (const result of results) if (result.status === "rejected") console.error("fanIn error:", result.reason);
+  });
 
   return output;
 }

@@ -24,6 +24,7 @@ export interface IcsWriteInput {
     status?: IcsStatus | undefined;
     rrule?: string | undefined;
     exdates?: string[] | undefined;
+    tzid?: string | undefined;
   }>;
   prodId?: string | undefined;
   method?: string | undefined;
@@ -59,7 +60,8 @@ const IcsWriteEventSchema = z.object({
   exdates: z
     .array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Write a date (YYYY-MM-DD)"))
     .optional()
-    .describe("The dates (YYYY-MM-DD) that the recurrence skips"),
+    .describe("The dates (YYYY-MM-DD) that the recurrence skips, in the zone of tzid"),
+  tzid: z.string().min(1).optional().describe("The IANA zone of the event. The writer writes each EXDATE in this zone"),
 });
 
 export const IcsWriteInputSchema: z.ZodType<IcsWriteInput> = z.object({

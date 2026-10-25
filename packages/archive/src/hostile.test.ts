@@ -411,6 +411,17 @@ describe("a zip64 archive", () => {
     await call("archive.extract", { archive, target });
     expect(readFileSync(join(target, "z.txt"), "utf8")).toBe("zip64!");
   });
+
+  it("is not needed for 65535 entries: a count of 0xffff without a locator is the true count (audit pass 2)", async () => {
+    const { root } = place();
+    const archive = join(root, "many.zip");
+    const entries: ZipWriteEntry[] = Array.from({ length: 0xffff }, (_, index) => ({ name: `d${index}`, kind: "directory" }));
+    await hostileZip(archive, entries);
+    const { readZipDirectory } = await import("./zip.js");
+    const listed = await readZipDirectory(archive, 0x10000);
+    expect(listed).toHaveLength(0xffff);
+    expect(listed[0xfffe]).toMatchObject({ kind: "directory" });
+  }, 30_000);
 });
 
 // =============================================================================

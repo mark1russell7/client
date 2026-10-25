@@ -226,6 +226,26 @@ withMongo("MongoViewStorage on MongoDB", { timeout: TEST_TIMEOUT_MS }, () => {
     expect(await run("size")).toBe(3);
   });
 
+  it("reads the view one time in getBatch, so its ids and its filter are of one generation (audit pass 2)", async () => {
+    const db = newDb();
+    const first = new ObjectId();
+    const second = new ObjectId();
+    await db.collection("_aggregations").insertOne(viewDoc("totals", first) as never);
+    await db.collection("totals").insertMany([row(first, "a", 1), row(first, "b", 2), row(second, "a", 10), row(second, "b", 20)] as never[]);
+    let flips = 0;
+    const flipping = hooked(db, "findOne", {
+      after: async () => {
+        flips++;
+        await db
+          .collection("_aggregations")
+          .updateOne({ _id: "totals" as never }, { $set: { "_materializerStatus.generation": second, "_materializerStatus.previous": { generation: first, flippedAt: new Date() } } });
+      },
+    });
+    const storage = new MongoViewStorage({ view: "totals", db: () => flipping });
+    expect(Object.fromEntries(await storage.getBatch(["b", "a"]))).toEqual({ b: { _id: "b", total: 2 }, a: { _id: "a", total: 1 } });
+    expect(flips).toBe(1);
+  });
+
   it("has no row before the first generation or without its view, refuses each write, and rejects after close", async () => {
     const db = newDb();
     await db.collection("_aggregations").insertOne(viewDoc("waiting", undefined) as never);

@@ -69,7 +69,8 @@ export function boundedList<T>(
   const { capacity, policy = "throw", onOverflow } = options;
 
   return (next: List<T>): List<T> & BoundedCollection => {
-    const handleOverflow = (element: T): void => {
+    // An unshift puts the element at the front, so drop-oldest drops the last element for it
+    const handleOverflow = (element: T, dropFrom: "first" | "last" = "first"): void => {
       // Call overflow handler if provided
       if (onOverflow) {
         const context: OverflowContext<T> = {
@@ -87,9 +88,10 @@ export function boundedList<T>(
           throw new Error(`List is full (capacity: ${capacity})`);
 
         case "drop-oldest":
-          // Remove first element
+          // Remove one element: the first, or the last for an unshift
           if (!next.isEmpty) {
-            next.shift();
+            if (dropFrom === "last") next.pop();
+            else next.shift();
           }
           break;
 
@@ -112,6 +114,9 @@ export function boundedList<T>(
           throw new Error(`Unknown overflow policy: ${policy}`);
       }
     };
+
+    // After drop-oldest removed the first element, an index of the caller is one place lower
+    const shifted = (index: number): number => (policy === "drop-oldest" ? Math.max(0, index - 1) : index);
 
     return new Proxy(next, {
       get(target, prop, receiver) {
@@ -160,13 +165,10 @@ export function boundedList<T>(
             case "unshift":
               return function (element: T): void {
                 if (target.size >= capacity && policy !== "grow") {
-                  handleOverflow(element);
+                  // One element goes: the last one (before, the first and the last went: audit pass 2)
+                  handleOverflow(element, "last");
                   if (policy === "reject" || policy === "drop-newest") {
                     return;
-                  }
-                  // For unshift with drop-oldest, we should drop from the end
-                  if (policy === "drop-oldest" && !target.isEmpty) {
-                    target.pop();
                   }
                 }
                 (value as Function).call(target, element);
@@ -174,13 +176,15 @@ export function boundedList<T>(
 
             case "insert":
               return function (index: number, element: T): void {
+                let at = index;
                 if (target.size >= capacity && policy !== "grow") {
                   handleOverflow(element);
                   if (policy === "reject" || policy === "drop-newest") {
                     return;
                   }
+                  at = shifted(at);
                 }
-                (value as Function).call(target, index, element);
+                (value as Function).call(target, at, element);
               };
 
             case "addAll":
@@ -191,19 +195,23 @@ export function boundedList<T>(
 
                 // Check if adding all elements would exceed capacity
                 if (target.size + elementsArray.length > capacity && policy !== "grow") {
-                  // Add elements one by one with overflow handling
+                  // Add elements one by one with overflow handling. An insert keeps the order of
+                  // the elements, at an index that follows each drop.
                   let added = false;
+                  let at = args[0] as number;
                   for (const element of elementsArray) {
                     if (target.size >= capacity) {
                       handleOverflow(element);
                       if (policy === "reject" || policy === "drop-newest") {
                         break;
                       }
+                      at = shifted(at);
                     }
                     if (prop === "addAll") {
                       target.add(element);
                     } else {
-                      target.insert(args[0] as number, element);
+                      target.insert(at, element);
+                      at++;
                     }
                     added = true;
                   }

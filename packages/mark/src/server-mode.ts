@@ -116,8 +116,7 @@ export async function startServerMode(options: ServerModeOptions, run?: Procedur
 
   // The lockfile for client discovery. A client uses this server only from the same folder,
   // with the same build of mark, and when host.info answers its token with this peer id.
-  const shown = host === "0.0.0.0" ? "localhost" : host;
-  const endpoint = options.transport === "websocket" ? `ws://${shown}:${port}/ws` : `http://${shown}:${port}/api`;
+  const endpoint = serverEndpoint(host, port, options.transport);
   const running = await runProcedureHost({
     name: "mark-server",
     mode: "background",
@@ -169,6 +168,15 @@ export async function startServerMode(options: ServerModeOptions, run?: Procedur
 
   // A signal starts the stop in stages, and the runner ends the process (CLI-8)
   await running.life.done;
+}
+
+/**
+ * The endpoint of the server in the lockfile. A host of all interfaces becomes `localhost`, and an
+ * IPv6 host gets brackets. (Before, `::1` gave `http://::1:3000/api`, which is not a URL: audit pass 2.)
+ */
+export function serverEndpoint(host: string, port: number, transport?: string): string {
+  const shown = host === "0.0.0.0" || host === "::" ? "localhost" : host.includes(":") ? `[${host}]` : host;
+  return transport === "websocket" ? `ws://${shown}:${port}/ws` : `http://${shown}:${port}/api`;
 }
 
 /**

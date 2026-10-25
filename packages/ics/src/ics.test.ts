@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ProcedureRegistry, invokePath, outputValue } from "@procedures/client";
+import { InvocationError, ProcedureRegistry, createRegistry, invokePath, outputValue } from "@procedures/client";
 import { calendarOccurrences, expandOccurrences, isCalendar, parseIcs, unescapeText, zonedToUtc, type IcsEvent } from "./ics.js";
 import { fetchCalendar, icsProcedures } from "./procedures.js";
+import { createIcsModule, icsModule } from "./module.js";
 
 /** A calendar of made-up events. */
 const calendar = (...events: string[][]): string =>
@@ -271,3 +272,27 @@ describe("the procedures", () => {
   });
 });
 
+
+// Audit pass 2 (O55): a host gives the module the fetch of its host policy
+describe("createIcsModule", () => {
+  const secret = "https://calendar.example.com/private-0123456789abcdef/basic.ics";
+  const text = calendar(["UID:a", "SUMMARY:One", "DTSTART:20261020T090000Z", "DTEND:20261020T100000Z"]);
+
+  it("sends the request of ics.fetch with the fetch of the module", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new Error("the global fetch was used"))));
+    const urls: string[] = [];
+    const registry = createRegistry(createIcsModule({ fetch: async (url) => (urls.push(url), { ok: true, status: 200, text: async () => text }) }));
+    const output = await invokePath(["ics", "fetch"], { url: secret }, { registry });
+    expect(((await outputValue(output, ["ics", "fetch"])) as { events: IcsEvent[] }).events[0]?.uid).toBe("a");
+    expect(urls).toEqual([secret]);
+    expect(createIcsModule()).toBe(icsModule);
+  });
+
+  it("keeps the refusal of the host policy, and its message does not name the address", async () => {
+    const refusal = new InvocationError("FORBIDDEN", `http.request: the host of the redirect to ${secret} is not allowed`, ["http", "request"], "host-not-allowed");
+    const registry = createRegistry(createIcsModule({ fetch: async () => Promise.reject(refusal) }));
+    const output = invokePath(["ics", "fetch"], { url: secret }, { registry }).then((result) => outputValue(result, ["ics", "fetch"]));
+    await expect(output).rejects.toMatchObject({ code: "FORBIDDEN", reason: "host-not-allowed" });
+    await expect(output).rejects.not.toThrow(/private-0123456789abcdef/);
+  });
+});
