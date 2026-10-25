@@ -41,6 +41,10 @@
     "./root": {
       "types": "./dist/root.d.ts",
       "import": "./dist/root.js"
+    },
+    "./files": {
+      "types": "./dist/files/index.d.ts",
+      "import": "./dist/files/index.js"
     }
   },
   "files": [
