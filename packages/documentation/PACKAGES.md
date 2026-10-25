@@ -13,7 +13,7 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/access` | `packages/access` | The rights of a principal on a scope: access lists, owners, implied rights and conditions over a document, with the rules of the app as a policy, and the output filter of a host. | — | `client` |
 | `@procedures/archive` | `packages/archive` | Archives as procedures: make, list and extract tar.gz and zip, with a check of each path against zip slip and links out of the target. | `archive.*` (3) | `client`, `fs` |
 | `@procedures/better-auth` | `packages/better-auth` | Better Auth for a procedures server: the sign-in with GitHub, Google and passkeys over MongoDB, and a request hook that gives the principal of a session or of an agent token. | — | `client` |
-| `@procedures/bundle-assistant` | `packages/bundle-assistant` | The opt-in tools of the personal assistant for an MCP host: calendar files, mail parsing, places, routes, weather and photo metadata, without the procedures that can carry data out. | — | `client`, `exif`, `geo`, `ics`, `mail`, `weather` |
+| `@procedures/bundle-assistant` | `packages/bundle-assistant` | The opt-in tools of the personal assistant for an MCP host: calendar files, mail parsing, places, routes, weather and photo metadata, without the procedures that can carry data out. | — | `client`, `exif`, `geo`, `http`, `ics`, `mail`, `weather` |
 | `@procedures/bundle-dev` | `packages/bundle-dev` | One import that registers the development procedures of the client ecosystem: shell, file system, git, pnpm, workspace, DAG and procedure scaffolding. | `client.*` (15), `procedure.*` (5) | `cli-run`, `client`, `compiler`, `dag`, `fs`, `git`, `lib`, `pnpm`, `procedure`, `shell` |
 | `@procedures/bundle-mcp` | `packages/bundle-mcp` | The curated tool surface for Claude: registers the docker, mongo, sqlite, cue, vitest and workspace procedures and selects which ones an MCP server exposes. | — | `client`, `compiler`, `cue`, `dag`, `docker`, `json`, `lib`, `mongo`, `procedure`, `sqlite`, `vitest` |
 | `@procedures/claude-cli` | `packages/claude-cli` | One turn of the Claude Code CLI as a detached process that writes stream-json to a file: start, follow, normalised events and cancel. | `claude.*` (4) | `client`, `shell` |
@@ -67,7 +67,7 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/site` | `packages/site` | The website of the client ecosystem: the Composer, the procedure catalog and the architecture map | — | `client`, `store` |
 | `@procedures/systems` | `packages/systems` | The timer law of systems for the client: it binds the times of the middleware, the transports and the server to the symbols of the law, and examines the rules of the client. | `systems.*` (1) | `@mark1russell7/service` *(general)*, `client` |
 | `@procedures/tailscale` | `packages/tailscale` | The tailscale CLI as one procedure: status, ip, serve, up and down, with JSON output. | `tailscale.*` (1) | `client`, `shell` |
-| `@procedures/weather` | `packages/weather` | A weather forecast for a point from Open-Meteo, without a key: each day and each hour, metric or imperial. | `weather.*` (1) | `client` |
+| `@procedures/weather` | `packages/weather` | A weather forecast for a point from Open-Meteo, without a key: each day and each hour, metric or imperial. | `weather.*` (1) | `client`, `http` |
 
 Procedures are counted for the package whose `register.js` adds them first, in dependency order.
 A bundle (`bundle-dev`, `bundle-mcp`) adds none of its own.

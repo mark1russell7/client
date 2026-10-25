@@ -381,10 +381,11 @@ export class IncomingCalls {
   private async serve(frame: WebSocketMessage): Promise<void> {
     const controller = new AbortController();
     this.inflight.set(frame.id, controller);
+    let credit: StreamCredit | undefined;
     try {
       const response = await this.options.handler.handle(this.options.requestOf(frame, controller.signal));
       if (response.stream) {
-        const credit = typeof frame.credit === "number" && frame.credit > 0 ? new StreamCredit(frame.credit) : undefined;
+        credit = typeof frame.credit === "number" && frame.credit > 0 ? new StreamCredit(frame.credit) : undefined;
         if (credit) this.credits.set(frame.id, credit);
         await this.sendStream(frame.id, response.stream, controller.signal, credit);
       } else {
@@ -408,7 +409,8 @@ export class IncomingCalls {
         this.inflight.delete(frame.id);
         this.options.onSettled?.();
       }
-      this.credits.delete(frame.id);
+      // A newer request with the same id keeps its credit (audit pass 2)
+      if (credit !== undefined && this.credits.get(frame.id) === credit) this.credits.delete(frame.id);
     }
   }
 

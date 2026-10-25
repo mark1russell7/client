@@ -5,7 +5,7 @@
  * `@procedures/shell`. A time limit and the signal of the call stop its process tree.
  */
 
-import { closeSync, mkdirSync, mkdtempSync, openSync, readSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { closeSync, copyFileSync, mkdirSync, mkdtempSync, openSync, readSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -104,6 +104,9 @@ export async function renderPdf(options: RenderPdfOptions): Promise<RenderPdfRes
   const work = mkdtempSync(join(tmpdir(), "procedures-pdf-"));
   const profile = join(work, "profile");
   const output = resolve(options.output ?? join(work, "page.pdf"));
+  // The browser prints into the temporary folder. The file replaces the output only after its
+  // check, so a failed render keeps an old output file (before, it was deleted: audit pass 2).
+  const printed = join(work, "page.pdf");
   let made = false;
   try {
     let page: string;
@@ -115,13 +118,11 @@ export async function renderPdf(options: RenderPdfOptions): Promise<RenderPdfRes
       page = pathToFileURL(resolve(options.file!)).href;
     }
     mkdirSync(dirname(output), { recursive: true });
-    // An old file must not pass the check of the new one
-    rmSync(output, { force: true });
 
     const run = options.runner ?? runCommand;
     const timeout = options.timeout ?? DEFAULT_TIMEOUT_MS;
     const result = await run(browser, {
-      args: pdfArgs(page, output, profile, options.args),
+      args: pdfArgs(page, printed, profile, options.args),
       timeout,
       signal: options.signal,
       maxOutputBytes: 64 * 1024,
@@ -131,12 +132,14 @@ export async function renderPdf(options: RenderPdfOptions): Promise<RenderPdfRes
     if (result.timedOut === true) throw new Error(`The browser did not finish in ${timeout} ms`);
     if (result.aborted === true) throw new Error("The render was cancelled");
 
-    const bytes = fileSize(output);
+    const bytes = fileSize(printed);
     if (bytes === undefined || bytes === 0) {
       const detail = lastLines(result.stderr || result.stdout);
       throw new Error(`The browser made no PDF file (exit code ${result.exitCode})${detail ? `: ${detail}` : ""}`);
     }
-    if (!isPdfFile(output)) throw new Error(`The file ${output} is not a PDF file`);
+    if (!isPdfFile(printed)) throw new Error(`The file ${output} is not a PDF file`);
+    // The temporary folder goes in `finally`, so a copy is enough, also across two drives
+    if (printed !== output) copyFileSync(printed, output);
     made = true;
     return { path: output, bytes, browser };
   } finally {

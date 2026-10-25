@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 import { calendarOccurrences, expandOccurrences, parseIcs } from "./ics.js";
+import { writeIcs } from "./write.js";
 
 const calendar = (...lines: string[]): string =>
   ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Google Inc//Google Calendar 70.9054//EN", ...lines, "END:VCALENDAR", ""].join("\r\n");
@@ -117,5 +118,38 @@ describe("EXDATE and RECURRENCE-ID in the zone of the event", () => {
     expect(event?.exdates).toEqual(["2026-01-06"]);
     const occurrences = expandOccurrences(event!, { from: "2026-01-01T00:00:00Z", to: "2026-01-31T00:00:00Z" });
     expect(occurrences.map((occurrence) => occurrence.start)).toEqual(["2026-01-06T02:00:00Z", "2026-01-08T02:00:00Z"]);
+  });
+});
+
+describe("writeIcs of an event with a TZID (audit O57)", () => {
+  /** A weekly event at 20:00 in Los Angeles: 04:00 UTC of the next day. The second week is skipped. */
+  const EVENING = calendar(
+    "BEGIN:VEVENT",
+    "DTSTART;TZID=America/Los_Angeles:20261103T200000",
+    "DTEND;TZID=America/Los_Angeles:20261103T210000",
+    "RRULE:FREQ=WEEKLY;COUNT=4",
+    "EXDATE;TZID=America/Los_Angeles:20261110T200000",
+    "DTSTAMP:20261001T120000Z",
+    "UID:evening@example.com",
+    "SUMMARY:Evening class",
+    "END:VEVENT",
+  );
+  const NOVEMBER = { from: "2026-11-01T00:00:00Z", to: "2026-12-01T00:00:00Z" };
+
+  it("writes the EXDATE in the TZID of the event, so a parse of the text skips the same occurrence", () => {
+    const [event] = parseIcs(EVENING);
+    expect(event).toMatchObject({ tzid: "America/Los_Angeles", exdates: ["2026-11-10"] });
+    const text = writeIcs([event!], { stamp: "2026-10-25T00:00:00Z" });
+    expect(text).toContain("EXDATE;TZID=America/Los_Angeles:20261110T200000\r\n");
+    const [again] = parseIcs(text);
+    const before = expandOccurrences(event!, NOVEMBER).map((occurrence) => occurrence.start);
+    const after = expandOccurrences(again!, NOVEMBER).map((occurrence) => occurrence.start);
+    expect(before).toEqual(["2026-11-04T04:00:00Z", "2026-11-18T04:00:00Z", "2026-11-25T04:00:00Z"]);
+    expect(after).toEqual(before);
+  });
+
+  it("writes the EXDATE in UTC for an event without a TZID, as before", () => {
+    const text = writeIcs([{ uid: "u@example.com", start: "2026-11-04T04:00:00Z", rrule: "FREQ=WEEKLY;COUNT=2", exdates: ["2026-11-11"] }], { stamp: "2026-10-25T00:00:00Z" });
+    expect(text).toContain("EXDATE:20261111T040000Z\r\n");
   });
 });

@@ -27,7 +27,14 @@ const { json } = await client.exec(["restic", "run"], { path: ["snapshots"] });
 
 ## Secrets
 
-restic reads the repository and its keys from the environment (`RESTIC_REPOSITORY`, `RESTIC_PASSWORD`, `B2_ACCOUNT_ID`, `AWS_ACCESS_KEY_ID` and the others), so no secret is an input. `restic.run` refuses `--password-command`, because that flag starts a program.
+restic reads the repository and its keys from the environment (`RESTIC_REPOSITORY`, `RESTIC_PASSWORD`, `B2_ACCOUNT_ID`, `AWS_ACCESS_KEY_ID` and the others), so no secret is an input.
+
+`restic.run` refuses each input that lets the caller choose a program for restic to start:
+
+- The flags `--password-command`, `--from-password-command` and `--password-command2`.
+- An extended option (`--option`) that sets `sftp.command`, `sftp.args`, `rclone.program` or `rclone.args`, in each spelling that restic reads.
+- An sftp or rclone repository whose host or remote starts with `-`, in `repository`, `--repo`, `--from-repo` or `--repo2`. `ssh` and `rclone` read such a value as an option.
+- A positional argument that starts with `-` after a last flag without a value. Put a flag with a value last, or start the argument with `./`.
 
 A host can give the secrets only to the restic process, with the `env` option of `createResticModule()` or `runRestic()`:
 
@@ -50,13 +57,15 @@ The package root exports the functions that `restic.run` uses:
 | `runRestic(command, options)` | Starts a restic command with argv, and reads its JSON output. |
 | `findRestic(options)` | Finds the restic program. |
 | `resticArgv(command)` | Gives the argv of a restic command. |
-| `createResticModule(options)` | Gives the module with the settings of the host: `env` and `run`. |
+| `createResticModule(options)` | Gives the module with the settings of the host: `executable`, `env` and `run`. |
 
 - `command` has `path`, `positional`, `args`, `repository` and `json`. `json` is true when the command does not set it, as in `restic.run`.
 - `options` of `runRestic` has `executable`, `env`, `cwd`, `timeout`, `signal` and `run`.
 - `runRestic` throws when restic does not start. A failed command gives `success: false`, with `exitCode` and `stderr`.
 - `run` replaces the function that starts restic. A test gives a fake runner.
 - `findRestic` gives `RESTIC_EXE` when it is set. On Windows, it then looks for the `restic*.exe` of a WinGet package. Then it gives `restic`, and the `PATH` gives the program.
+- The program of `restic.run` comes from the host: the `executable` option of `createResticModule()`, then `RESTIC_EXE`, then `restic`.
+- The input `executable` of `restic.run` is deprecated. In 0.28 it still names the program, and the process gets one `DeprecationWarning` with the code `PROCEDURES_RESTIC_EXECUTABLE_INPUT`. Version 0.31.0 refuses it.
 
 ```ts
 const executable = await findRestic();

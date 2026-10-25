@@ -216,7 +216,10 @@ const minProcedure: MinProcedure = defineProcedure({
     if (input.values.length === 0) {
       return Infinity;
     }
-    return Math.min(...input.values);
+    // A loop, not a spread: a long array as arguments overflows the stack (audit pass 2)
+    let min = Infinity;
+    for (const value of input.values) min = Math.min(min, value);
+    return min;
   },
 });
 
@@ -246,7 +249,9 @@ const maxProcedure: MaxProcedure = defineProcedure({
     if (input.values.length === 0) {
       return -Infinity;
     }
-    return Math.max(...input.values);
+    let max = -Infinity;
+    for (const value of input.values) max = Math.max(max, value);
+    return max;
   },
 });
 

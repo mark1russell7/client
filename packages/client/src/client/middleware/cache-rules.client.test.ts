@@ -421,3 +421,24 @@ describe("the cache: statistics and options", () => {
     expect(() => createCacheMiddleware({ methods: [], statsInterval: 5 as never })).toThrow(/^statsInterval must be a duration/);
   });
 });
+
+describe("the cache: an abort while a call in flight runs (audit pass 2)", () => {
+  it("ends the wait of the second caller at once", async () => {
+    const t = scripted();
+    const release = t.hold();
+    const client = new Client(t.transport).use(createCacheMiddleware({ methods: ["users.get"] }));
+    const first = client.call(read, {});
+    await tick();
+    const caller = new AbortController();
+    const second = client.call(read, {}, { signal: caller.signal });
+    const secondOutcome = second.catch((error: unknown) => error);
+    await tick();
+    caller.abort();
+    const outcome = await Promise.race([secondOutcome, new Promise((resolve) => setTimeout(() => resolve("still waiting"), 500))]);
+    expect(outcome).toBeInstanceOf(Error);
+    expect(String((outcome as Error).message)).toMatch(/abort/i);
+    release();
+    expect(await first).toBe(1);
+    expect(t.calls()).toBe(1);
+  });
+});
