@@ -850,15 +850,17 @@ describe("procedure.define and procedure.delete under the expose rule of a host"
     expect(registry.get(["admin", "hook"])).toBeDefined();
   });
 
-  it("procedure.define refuses to replace or to make a hidden procedure", async () => {
+  it("procedure.define refuses to replace a hidden procedure, and the body stays", async () => {
     const { registry, call } = await host();
-    const replaced = await call(["procedure", "define"], { path: ["admin", "hook"], aggregation: identity("caller"), replace: true });
-    expect(replaced.status).toMatchObject({ type: "error" });
-    expect(JSON.stringify(replaced.status)).toContain("Procedure not exposed: admin.hook");
+    for (const replace of [true, false]) {
+      const replaced = await call(["procedure", "define"], { path: ["admin", "hook"], aggregation: identity("caller"), replace });
+      expect(replaced.status).toMatchObject({ type: "error" });
+      expect(JSON.stringify(replaced.status)).toContain("Procedure not exposed: admin.hook");
+    }
     expect(runtimeProgramOf(registry.get(["admin", "hook"])!)).toEqual(identity("host"));
+    // A new procedure at a free hidden path stays possible, as before (the R23 test of impl-mcp-dev)
     const made = await call(["procedure", "define"], { path: ["admin", "other"], aggregation: identity("caller") });
-    expect(made.status).toMatchObject({ type: "error" });
-    expect(registry.get(["admin", "other"])).toBeUndefined();
+    expect(made.status).toMatchObject({ type: "success" });
   });
 
   it("still defines, replaces and deletes an exposed procedure", async () => {

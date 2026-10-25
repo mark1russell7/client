@@ -298,8 +298,7 @@ interface DefineMetadata extends ProcedureMetadata {
  *   stays: an MCP client cannot replace a tool or an internal procedure.
  * - The registry gets the procedure first. A define that fails leaves nothing.
  * - The new procedure is data-driven: with a server's `expose` rule, it calls only exposed paths.
- * - With a server's `expose` rule, the path must be exposed: a caller cannot define or replace a
- *   hidden procedure (`NOT_EXPOSED`).
+ * - With a server's `expose` rule, a caller cannot replace a hidden procedure (`NOT_EXPOSED`).
  * - Its input is raw (the `runs-refs` tag): `exec()` does not run the body at definition time.
  */
 export const defineProcedureProcedure: Procedure<
@@ -328,15 +327,15 @@ export const defineProcedureProcedure: Procedure<
     }
 
     const pathKey = path.join(".");
-    // A path outside the expose rule of the host is not the caller's to define or replace (R17)
-    if (ctx?.expose && !ctx.expose(path)) {
+    const existing = registry.get(path);
+    // A procedure outside the expose rule of the host is not the caller's to replace (R17)
+    if (existing && ctx?.expose && !ctx.expose(path)) {
       throw new InvocationError(
         "NOT_EXPOSED",
-        `Procedure not exposed: ${pathKey}. procedure.define can define or replace only a procedure that this host exposes.`,
+        `Procedure not exposed: ${pathKey}. procedure.define can replace only a procedure that this host exposes.`,
         ctx.path ?? ["procedure", "define"]
       );
     }
-    const existing = registry.get(path);
     if (existing && !isRuntimeDefined(existing)) {
       throw new Error(
         `A code procedure exists at path: ${pathKey}. procedure.define can replace only a procedure that procedure.define made.`
