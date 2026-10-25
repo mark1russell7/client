@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
-import { ProcedureRegistry, createRegistry, invokePath, outputValue } from "@procedures/client";
+import { describe, expect, it, vi } from "vitest";
+import { createRegistry, invokePath, outputValue } from "@procedures/client";
 import type { CommandOptions, CommandResult } from "@procedures/shell/command";
 import { buildArgv, parseJsonOutput } from "./argv.js";
 import { findRestic } from "./executable.js";
 import { createResticModule, resticModule } from "./module.js";
-import { resticArgv, resticProcedures, runRestic, type ResticRunner } from "./procedures.js";
+import { resticArgv, runRestic, type ResticRunner } from "./procedures.js";
 
 /** A runner that records each start of restic and answers with the next scripted result. */
 function fakeRunner(results: Array<Partial<CommandResult>> = []) {
@@ -45,12 +45,44 @@ describe("restic.run", () => {
   });
 
   it("reports a program that does not start", async () => {
-    const registry = new ProcedureRegistry();
-    for (const procedure of resticProcedures) registry.register(procedure);
-    const call = invokePath(["restic", "run"], { path: ["version"], executable: "restic-that-does-not-exist-0" }, { registry }).then((output) =>
-      outputValue(output, ["restic", "run"])
-    );
+    // The program comes from the module (audit pass 2, O55)
+    const registry = createRegistry(createResticModule({ executable: "restic-that-does-not-exist-0" }));
+    const call = invokePath(["restic", "run"], { path: ["version"] }, { registry }).then((output) => outputValue(output, ["restic", "run"]));
     await expect(call).rejects.toThrow(/restic did not start/);
+  });
+
+  // The deprecated path (audit pass 2, O55): the input executable still works in 0.28, with one notice
+  it("still takes the deprecated input executable over the module, and emits one notice that names the new path", async () => {
+    const emitWarning = vi.spyOn(process, "emitWarning").mockImplementation(() => undefined);
+    try {
+      const { starts, run } = fakeRunner([{ stdout: "[]" }, { stdout: "[]" }]);
+      const registry = createRegistry(createResticModule({ run, executable: "/opt/restic-of-the-module" }));
+      for (let i = 0; i < 2; i++) await invokePath(["restic", "run"], { path: ["snapshots"], executable: "/opt/restic-of-the-input" }, { registry });
+      expect(starts.map((start) => start.command)).toEqual(["/opt/restic-of-the-input", "/opt/restic-of-the-input"]);
+      expect(emitWarning).toHaveBeenCalledTimes(1);
+      const [message, options] = emitWarning.mock.calls[0]!;
+      expect(options).toEqual({ type: "DeprecationWarning", code: "PROCEDURES_RESTIC_EXECUTABLE_INPUT" });
+      expect(String(message)).toContain("createResticModule({ executable })");
+      expect(String(message)).toContain("RESTIC_EXE");
+    } finally {
+      emitWarning.mockRestore();
+    }
+  });
+
+  it("takes the program from RESTIC_EXE without the option, with no notice", async () => {
+    const emitWarning = vi.spyOn(process, "emitWarning").mockImplementation(() => undefined);
+    const before = process.env["RESTIC_EXE"];
+    process.env["RESTIC_EXE"] = "/opt/restic-of-the-env";
+    try {
+      const { starts, run } = fakeRunner([{ stdout: "[]" }]);
+      await invokePath(["restic", "run"], { path: ["snapshots"] }, { registry: createRegistry(createResticModule({ run })) });
+      expect(starts[0]?.command).toBe("/opt/restic-of-the-env");
+      expect(emitWarning).not.toHaveBeenCalled();
+    } finally {
+      if (before === undefined) delete process.env["RESTIC_EXE"];
+      else process.env["RESTIC_EXE"] = before;
+      emitWarning.mockRestore();
+    }
   });
 
   it("gives no env to restic: the input has no field for secrets", async () => {
@@ -65,8 +97,8 @@ describe("restic.run", () => {
   it("gives the env of the host to each restic process with createResticModule", async () => {
     const { starts, run } = fakeRunner([{ stdout: "[]" }]);
     const env = { RESTIC_REPOSITORY: "b2:bucket-name:path", RESTIC_PASSWORD: "synthetic-password" };
-    const registry = createRegistry(createResticModule({ env, run }));
-    const output = await outputValue(await invokePath(["restic", "run"], { path: ["snapshots"], executable: "/opt/restic" }, { registry }), ["restic", "run"]);
+    const registry = createRegistry(createResticModule({ env, run, executable: "/opt/restic" }));
+    const output = await outputValue(await invokePath(["restic", "run"], { path: ["snapshots"] }, { registry }), ["restic", "run"]);
     expect(starts[0]).toMatchObject({ command: "/opt/restic", options: { env } });
     // The output has no value of the env
     expect(JSON.stringify(output)).not.toContain("synthetic-password");
