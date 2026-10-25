@@ -1,5 +1,12 @@
 # @procedures/server
 
+## 0.27.7
+
+### Patch Changes
+
+- @procedures/peer@0.27.7
+  - @procedures/client@0.27.7
+
 ## 0.27.6
 
 ### Patch Changes
