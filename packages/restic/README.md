@@ -64,8 +64,7 @@ The package root exports the functions that `restic.run` uses:
 - `runRestic` throws when restic does not start. A failed command gives `success: false`, with `exitCode` and `stderr`.
 - `run` replaces the function that starts restic. A test gives a fake runner.
 - `findRestic` gives `RESTIC_EXE` when it is set. On Windows, it then looks for the `restic*.exe` of a WinGet package. Then it gives `restic`, and the `PATH` gives the program.
-- The program of `restic.run` comes from the host: the `executable` option of `createResticModule()`, then `RESTIC_EXE`, then `restic`.
-- The input `executable` of `restic.run` is deprecated. In 0.28 it still names the program, and the process gets one `DeprecationWarning` with the code `PROCEDURES_RESTIC_EXECUTABLE_INPUT`. Version 0.31.0 refuses it.
+- The program of `restic.run` comes from the host: the `executable` option of `createResticModule()`, then `RESTIC_EXE`, then `restic`. An input with `executable` gets a validation error.
 
 ```ts
 const executable = await findRestic();

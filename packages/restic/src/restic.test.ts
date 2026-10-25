@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createRegistry, invokePath, outputValue } from "@procedures/client";
 import type { CommandOptions, CommandResult } from "@procedures/shell/command";
 import { buildArgv, parseJsonOutput } from "./argv.js";
@@ -106,38 +106,14 @@ describe("restic.run", () => {
     await expect(call).rejects.toThrow(/restic did not start/);
   });
 
-  // The deprecated path (audit pass 2, O55): the input executable still works in 0.28, with one notice
-  it("still takes the deprecated input executable over the module, and emits one notice that names the new path", async () => {
-    const emitWarning = vi.spyOn(process, "emitWarning").mockImplementation(() => undefined);
-    try {
-      const { starts, run } = fakeRunner([{ stdout: "[]" }, { stdout: "[]" }]);
-      const registry = createRegistry(createResticModule({ run, executable: "/opt/restic-of-the-module" }));
-      for (let i = 0; i < 2; i++) await invokePath(["restic", "run"], { path: ["snapshots"], executable: "/opt/restic-of-the-input" }, { registry });
-      expect(starts.map((start) => start.command)).toEqual(["/opt/restic-of-the-input", "/opt/restic-of-the-input"]);
-      expect(emitWarning).toHaveBeenCalledTimes(1);
-      const [message, options] = emitWarning.mock.calls[0]!;
-      expect(options).toEqual({ type: "DeprecationWarning", code: "PROCEDURES_RESTIC_EXECUTABLE_INPUT" });
-      expect(String(message)).toContain("createResticModule({ executable })");
-      expect(String(message)).toContain("RESTIC_EXE");
-    } finally {
-      emitWarning.mockRestore();
-    }
-  });
-
-  it("takes the program from RESTIC_EXE without the option, with no notice", async () => {
-    const emitWarning = vi.spyOn(process, "emitWarning").mockImplementation(() => undefined);
-    const before = process.env["RESTIC_EXE"];
-    process.env["RESTIC_EXE"] = "/opt/restic-of-the-env";
-    try {
-      const { starts, run } = fakeRunner([{ stdout: "[]" }]);
-      await invokePath(["restic", "run"], { path: ["snapshots"] }, { registry: createRegistry(createResticModule({ run })) });
-      expect(starts[0]?.command).toBe("/opt/restic-of-the-env");
-      expect(emitWarning).not.toHaveBeenCalled();
-    } finally {
-      if (before === undefined) delete process.env["RESTIC_EXE"];
-      else process.env["RESTIC_EXE"] = before;
-      emitWarning.mockRestore();
-    }
+  // Audit pass 2 (O55): before, the input executable let the caller start any program
+  it("refuses an input that names the program, and starts nothing", async () => {
+    const { starts, run } = fakeRunner();
+    const registry = createRegistry(createResticModule({ run }));
+    const call = invokePath(["restic", "run"], { path: ["snapshots"], executable: "/bin/sh" }, { registry }).then((output) => outputValue(output, ["restic", "run"]));
+    await expect(call).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    await expect(call).rejects.toThrow(/takes its program from the host/);
+    expect(starts).toEqual([]);
   });
 
   it("gives no env to restic: the input has no field for secrets", async () => {
