@@ -1,5 +1,12 @@
 # @procedures/playground
 
+## 0.27.6
+
+### Patch Changes
+
+- Updated dependencies [d322bef]
+  - @procedures/client@0.27.6
+
 ## 0.27.5
 
 ### Patch Changes
