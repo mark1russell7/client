@@ -15,6 +15,9 @@
  *   `McpFaceOptions.narrowing`.
  * - The stop of the intake ends the GET stream of each session without a task in progress
  *   (CLI-72). Then a new session and a new GET stream get 503. A call in progress completes.
+ * - The face stays on the listener through the drain (CLI-74): its handler has `until` of a
+ *   `RequestHandler` of the service, `close transports`. Thus a call in progress gets the answer of
+ *   an elicitation and its cancel. A new tool call gets `UNAVAILABLE` from the server.
  * - The types are structural: this package does not depend on `@procedures/peer`.
  */
 
@@ -33,6 +36,7 @@ import {
   type RequestHandler,
 } from "@procedures/client";
 import type { McpToolFilter } from "@procedures/mcp";
+import { throughTheDrain } from "./transport/http.js";
 import { McpServerTransport, httpEndpointOf } from "./transport/mcp-transport.js";
 import type { McpServerTransportOptions } from "./types.js";
 
@@ -78,6 +82,10 @@ export interface McpFaceContext {
 
 /** The MCP face: its request handler, its stop parts, its endpoint and its transport. */
 export interface McpFace {
+  /**
+   * The request handler of the face. It has `until` of a `RequestHandler` of the service: `close
+   * transports` (CLI-74). Thus a listener of the service keeps the face through the drain.
+   */
   readonly handler: (req: IncomingMessage, res: ServerResponse) => boolean;
   readonly parts: {
     start(): Promise<void>;
@@ -180,7 +188,10 @@ export function mcpFace(options: McpFaceOptions = {}): (context: McpFaceContext)
       },
     });
     return {
-      handler: (req, res) => transport.handleHttp(req, res),
+      // The face stays on the listener through the drain, so a call in progress gets the answer of
+      // an elicitation and its cancel (CLI-74). Before, the listener closed at the stop of the intake,
+      // and each request got its plain 503. The endpoint refuses new work itself.
+      handler: throughTheDrain((req: IncomingMessage, res: ServerResponse) => transport.handleHttp(req, res)),
       // The tool calls go through the request tracking of the host: the face counts no work of its own.
       // The stop of the intake ends the GET stream of each session without a task in progress, so the
       // drain of the listener waits only for the calls and the tasks (CLI-72). Before, each GET stream

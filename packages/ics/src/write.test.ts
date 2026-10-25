@@ -185,6 +185,14 @@ describe("ics.write", () => {
     ]);
   });
 
+  it("passes tzid to the writer, which writes each EXDATE in that zone (audit O57)", async () => {
+    const { text } = await call<{ text: string }>(["ics", "write"], {
+      events: [{ uid: "e@example.org", start: "2026-11-04T04:00:00Z", rrule: "FREQ=WEEKLY;COUNT=3", exdates: ["2026-11-10"], tzid: "America/Los_Angeles" }],
+      stamp: STAMP,
+    });
+    expect(text).toContain("EXDATE;TZID=America/Los_Angeles:20261110T200000\r\n");
+  });
+
   it("refuses an unknown STATUS and a time that is not ISO 8601", async () => {
     await expect(call(["ics", "write"], { events: [{ uid: "a", start: STAMP, status: "DONE" }] })).rejects.toThrow();
     await expect(call(["ics", "write"], { events: [{ uid: "a", start: "tomorrow" }] })).rejects.toThrow(/ISO 8601/);

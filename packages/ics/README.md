@@ -48,8 +48,9 @@ const text = writeIcs(
 );
 ```
 
-- An event has `uid` and `start`. The other fields are optional: `end`, `allDay`, `summary`, `location`, `description`, `url`, `sequence`, `status`, `rrule` and `exdates`.
+- An event has `uid` and `start`. The other fields are optional: `end`, `allDay`, `summary`, `location`, `description`, `url`, `sequence`, `status`, `rrule`, `exdates` and `tzid`.
 - The writer writes each time in UTC (`20261101T230000Z`). An all-day event gets `VALUE=DATE`, and its end date is exclusive.
+- An event with `tzid` gets each `EXDATE` in that zone: `EXDATE;TZID=America/Los_Angeles:20261110T200000`. Each date of `exdates` is a date in that zone.
 - The writer escapes `\`, `;`, `,` and each line break in a text value. It removes the other control characters.
 - The writer folds each line at 75 octets of UTF-8. A fold does not divide a character. Each line ends with CRLF.
 - The options set the calendar properties: `prodId`, `method`, `calscale` and `calendarName` (`X-WR-CALNAME`). `VERSION` is always `2.0`.
@@ -108,3 +109,18 @@ daysBetween("2026-10-31", "2026-11-02"); // 2
 The address of a private calendar feed is a secret. `ics.fetch` does not put the address in an error message.
 
 The function `fetchCalendar(url, timeoutMs, signal, { fetch })` gets the text of a feed. It refuses an HTTP error and a page that is not a calendar. The option `fetch` replaces the global `fetch`, for a test or a host with its own client.
+
+## The host policy
+
+`ics.fetch` sends its request with the `fetch` of the module. The default is the global `fetch`, so the root stays safe for a browser.
+
+A Node host that serves other callers gives `createHostFetch()` of `@procedures/http` to `createIcsModule()`. Then the host policy examines the feed address and each redirect. It refuses a loopback, private or link-local address, unless the `allow` list of the host has it:
+
+```ts
+import { createHostFetch } from "@procedures/http";
+import { createIcsModule } from "@procedures/ics/module";
+
+const registry = createRegistry(createIcsModule({ fetch: createHostFetch() }));
+```
+
+A refusal is `FORBIDDEN` with the reason `host-not-allowed`. Its message does not contain the address of the feed. `mcpHostModules` of `@procedures/bundle-assistant` has a module of `ics` with this `fetch`. The dev-tools server uses it.

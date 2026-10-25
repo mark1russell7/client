@@ -35,6 +35,19 @@ weatherCodeGroup(61); // "rain"
 weatherCodeGroup(96); // "thunderstorm-hail"
 ```
 
+## The host policy
+
+The request goes through `createHostFetch()` of `@procedures/http`. The policy refuses a `baseUrl` on a loopback, private or link-local address, with the error `FORBIDDEN` and the reason `host-not-allowed`.
+
+A host with its own Open-Meteo server on such an address gives a `fetch` whose `allow` list has that address:
+
+```ts
+import { createHostFetch } from "@procedures/http";
+import { createWeatherModule } from "@procedures/weather/module";
+
+const registry = createRegistry(createWeatherModule({ fetch: createHostFetch({ allow: ["10.0.0.5:8080"] }) }));
+```
+
 ## Units
 
 `units: "metric"` (the default) gives °C and km/h. `units: "imperial"` gives °F and mph. The `units` field of the result names them.

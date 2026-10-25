@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { getEventListeners } from "node:events";
 import { BatchExecutor, type ExecutionContext } from "./batch-executor.js";
 import type { ProcedureCallResult } from "./call-types.js";
 import type { ResolvedRoute } from "./route-resolver.js";
@@ -196,5 +197,32 @@ describe("executeRace", () => {
     const result = await executor.executeRace(["loser", "winner"].map(route), context);
     expect(result.results[0]?.result.data).toBe("winner");
     expect(aborted).toEqual(["loser"]);
+  });
+});
+
+describe("the listeners on the signal of the batch (audit pass 2)", () => {
+  it("are removed when the calls end, so a long-lived signal keeps none", async () => {
+    const parent = new AbortController();
+    const executor = new BatchExecutor(async (resolved) => ok(resolved.path[1]));
+    const withSignal: ExecutionContext = { ...context, signal: parent.signal };
+    for (let i = 0; i < 5; i++) {
+      await executor.executeRace(["a", "b"].map(route), withSignal);
+      for await (const _item of executor.executeStream(["c", "d"].map(route), withSignal)) void _item;
+    }
+    expect(getEventListeners(parent.signal, "abort")).toHaveLength(0);
+  });
+
+  it("still pass on an abort of the batch while a call runs", async () => {
+    const parent = new AbortController();
+    const executor = new BatchExecutor((_resolved, ctx) => new Promise((resolve) => ctx.signal?.addEventListener("abort", () => resolve(ok("aborted")))));
+    const reading = (async () => {
+      const seen: unknown[] = [];
+      for await (const item of executor.executeStream(["a"].map(route), { ...context, signal: parent.signal })) seen.push(item.result.data);
+      return seen;
+    })();
+    await new Promise((resolve) => setImmediate(resolve));
+    parent.abort();
+    expect(await reading).toEqual(["aborted"]);
+    expect(getEventListeners(parent.signal, "abort")).toHaveLength(0);
   });
 });

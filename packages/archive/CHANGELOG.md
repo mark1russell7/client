@@ -1,5 +1,24 @@
 # @procedures/archive
 
+## 0.28.1
+
+### Patch Changes
+
+- 345c740: The zip reader reads a zip of 65535 entries without zip64. A count of 0xffff without a zip64 locator is the true count. Before, `archive.list` refused the output of `archive.create` (second code audit, roadmap O57).
+- Updated dependencies [345c740]
+- Updated dependencies [984c13b]
+- Updated dependencies [21dc858]
+  - @procedures/client@0.28.1
+  - @procedures/fs@0.28.1
+
+## 0.28.0
+
+### Patch Changes
+
+- Updated dependencies [06694d7]
+  - @procedures/client@0.28.0
+  - @procedures/fs@0.28.0
+
 ## 0.27.8
 
 ### Patch Changes

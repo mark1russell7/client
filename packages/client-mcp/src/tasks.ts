@@ -8,7 +8,8 @@
  * call is a normal request.
  *
  * - The store keeps the tasks in memory and binds each task to its session. One store serves each
- *   session and each face of a host.
+ *   session and each face of a host. A task without a session (stdio, an SDK transport) is
+ *   visible only to the requests without a session, not to an HTTP session.
  * - A slot of the limit (`maxRunning`) stays taken until the work of the task ends, not until its
  *   status ends: a cancelled task holds its slot until its procedure returns. A task above the
  *   limit is created, and then fails at once with the reason: the client gets a task, and reads
@@ -222,10 +223,14 @@ export class McpTaskStore implements TaskStore {
     }
   }
 
-  /** The entry of a task, when the session may see it: a task of another session is not found. */
+  /**
+   * The entry of a task, when the session may see it: a task of another session is not found. A
+   * task without a session (stdio, an SDK transport) is visible only to a request without a
+   * session, and a request without a session does not see the tasks of the HTTP sessions.
+   */
   private lookup(taskId: string, sessionId: string | undefined): Entry | undefined {
     const entry = this.entries.get(taskId);
-    if (entry && sessionId !== undefined && entry.sessionId !== undefined && entry.sessionId !== sessionId) return undefined;
+    if (entry && entry.sessionId !== sessionId) return undefined;
     return entry;
   }
 

@@ -1,5 +1,55 @@
 # @procedures/mcp-dev-tools
 
+## 0.28.1
+
+### Patch Changes
+
+- 2572f41: The MCP face stays on its listener through the drain (roadmap CLI-74).
+  
+  PATCH: a fix with no API change (D34).
+  
+  - Before, the mount of the MCP face stopped at the stage `stop intake`. On the listener of a procedures host, the listener closed, and each request got its plain 503. Thus the answer of an elicitation and a cancel did not reach a call in progress.
+  - Now the handler of `mcpFace()` and `McpHost.handleHttp` have `until: "close transports"`, as a `RequestHandler` of `@mark1russell7/service/http`. The procedures host gives the `until` of the handler of each face to its mount.
+  - During the drain, the answer of an elicitation, a cancel and a ping reach the session. A new session and a new GET stream get the 503 of the face. A new tool call gets `UNAVAILABLE` from the server.
+  - The face ends the SSE stream of a cancelled call. The SDK sends no answer to a cancel, so that stream held the drain of the listener until its deadline.
+  - Mount `host.handleHttp` itself, for example `listener.mount(host.handleHttp)`. A function that wraps it loses `until`. The dev-tools server mounts it in this way.
+  - A change you can see: during a drain, a listener with the MCP face answers a new connection with 503 and `Retry-After` until the stage `close transports`. Before, the listener closed at the stage `stop intake`.
+  - Note on the stop time: the cap of the drain does not change, and a stream of the face does not hold the drain past its deadline. A listener with the MCP face now answers a new connection with 503 until the stage `close transports`, and does not refuse it. The test `mcp-stop.test.ts` of `@procedures/peer` measures each stop on the fake clock.
+- 21dc858: Fixes for the security findings of the second code audit (roadmap O55).
+  
+  PATCH: bug fixes and additive options. Each fix refuses only an input that the documentation does not give. A caller that uses the documented behavior sees no change. A request to a loopback, private or link-local host still works, with a deprecation notice. Version 0.29.0 refuses it (decision D35).
+  
+  - `procedure.delete` and `procedure.define` of `@procedures/client` obey the expose rule of the host, as `procedure.get` does (R17). `procedure.delete` does not find a hidden procedure, and `procedure.define` refuses to replace one with `NOT_EXPOSED`. A new procedure at a free path stays possible, as before. Before, a caller could remove or replace a hidden procedure that the host defined.
+  - The task store of `@procedures/mcp-server` keeps a task without a session (stdio, an SDK transport) apart from the HTTP sessions, both ways. Before, each HTTP session could list, read and cancel such a task.
+  - `restic.run` of `@procedures/restic` refuses each input that lets the caller choose a program for restic to start: `--from-password-command`, `--password-command2`, an extended option that sets `sftp.command`, `sftp.args`, `rclone.program` or `rclone.args` (each spelling), an sftp or rclone repository whose host or remote starts with `-`, and a positional argument that starts with `-` after a last flag without a value. Before, only `--password-command` was refused.
+  - `@procedures/http` exports `createHostFetch(options)`: a `fetch` for GET requests through the host policy, with the options of `createHttpModule()`. It also exports `httpSettings(options)`. The deprecated option `warnOnRefusal` keeps a refused host working: the process gets one `DeprecationWarning`, and the request goes through the global `fetch`.
+  - `weather.forecast` of `@procedures/weather` sends its request through `createHostFetch()` with `warnOnRefusal`. A `baseUrl` on a loopback, private or link-local address still works, with the warning `PROCEDURES_WEATHER_PRIVATE_HOST`. `createWeatherModule({ fetch })` gives another `fetch`, for a server of the host on such an address.
+  - `@procedures/geo` and `@procedures/ics` add `createGeoModule({ fetch })` and `createIcsModule({ fetch })`. Their default stays the global `fetch`, because their roots run in a browser. A refusal of the host policy keeps its code and its reason. The refusal of `ics.fetch` does not name the feed address.
+  - `@procedures/bundle-assistant` exports `mcpHostModules`: the modules of `geo` and `ics` with `createHostFetch()` and `warnOnRefusal`. A refused host gets the warning `PROCEDURES_GEO_PRIVATE_HOST` or `PROCEDURES_ICS_PRIVATE_HOST`. The bundle keeps the default modules, so `mark` and the site load it next to `geo` and `ics` as before.
+  - The dev-tools server of `@procedures/mcp-dev-tools` gives the `mcpHostModules` of each bundle to `createRegistry()` before the bundles. In one call, the first module of a name counts. Thus `geo.geocode`, `geo.route`, `weather.forecast` and `ics.fetch` of the dev-tools server go through the default host policy.
+  
+  A host that sends `weather.forecast`, or the bundle's `geo` tools, to a server on a private address can remove the warning now. It gives a `fetch` that allows the server: `createWeatherModule({ fetch: createHostFetch({ allow: ["10.0.0.5:8080"] }) })`. This `fetch` refuses each other private host now, as 0.29.0 does by default.
+- Updated dependencies [345c740]
+- Updated dependencies [2572f41]
+- Updated dependencies [984c13b]
+- Updated dependencies [21dc858]
+  - @procedures/client@0.28.1
+  - @procedures/mcp-server@0.28.1
+  - @procedures/bundle-mcp@0.28.1
+  - @procedures/fs@0.28.1
+  - @procedures/compiler@0.28.1
+
+## 0.28.0
+
+### Patch Changes
+
+- Updated dependencies [06694d7]
+  - @procedures/client@0.28.0
+  - @procedures/bundle-mcp@0.28.0
+  - @procedures/fs@0.28.0
+  - @procedures/mcp-server@0.28.0
+  - @procedures/compiler@0.28.0
+
 ## 0.27.8
 
 ### Patch Changes
