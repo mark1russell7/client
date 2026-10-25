@@ -1,5 +1,9 @@
 # @procedures/client
 
+## 0.27.7
+
+No changes in this release.
+
 ## 0.27.6
 
 ### Patch Changes

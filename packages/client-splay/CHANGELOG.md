@@ -1,5 +1,11 @@
 # @procedures/splay
 
+## 0.27.7
+
+### Patch Changes
+
+- @procedures/client@0.27.7
+
 ## 0.27.6
 
 ### Patch Changes

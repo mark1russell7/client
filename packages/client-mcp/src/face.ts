@@ -13,6 +13,8 @@
  *   authenticate function. The face has no token check of its own.
  * - With `narrowing`, each call of the face has a narrower capability (CLI-43). Refer to
  *   `McpFaceOptions.narrowing`.
+ * - The stop of the intake ends the GET stream of each session without a task in progress
+ *   (CLI-72). Then a new session and a new GET stream get 503. A call in progress completes.
  * - The types are structural: this package does not depend on `@procedures/peer`.
  */
 
@@ -31,7 +33,7 @@ import {
   type RequestHandler,
 } from "@procedures/client";
 import type { McpToolFilter } from "@procedures/mcp";
-import { McpServerTransport } from "./transport/mcp-transport.js";
+import { McpServerTransport, httpEndpointOf } from "./transport/mcp-transport.js";
 import type { McpServerTransportOptions } from "./types.js";
 
 /** The options of `mcpFace()`: the options of an MCP transport, with the path of its endpoint. */
@@ -180,10 +182,16 @@ export function mcpFace(options: McpFaceOptions = {}): (context: McpFaceContext)
     return {
       handler: (req, res) => transport.handleHttp(req, res),
       // The tool calls go through the request tracking of the host: the face counts no work of its own.
-      // An open stream of a session ends at the close of the face.
+      // The stop of the intake ends the GET stream of each session without a task in progress, so the
+      // drain of the listener waits only for the calls and the tasks (CLI-72). Before, each GET stream
+      // stayed open until the close of the face, and each stop waited for the full cap of the drain.
       parts: {
-        start: () => transport.start(),
-        stopIntake: () => undefined,
+        start: async () => {
+          await transport.start();
+          // A start after the stop of the intake accepts new sessions again
+          httpEndpointOf(transport)?.startIntake();
+        },
+        stopIntake: () => httpEndpointOf(transport)?.stopIntake(),
         drain: async () => undefined,
         inFlight: () => 0,
         close: () => transport.stop(),
