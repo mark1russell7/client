@@ -45,6 +45,9 @@ describe("bundle-assistant", () => {
     for (const key of ["notify.send", "restic.run", "tailscale.run"]) expect(registry.get(key.split("."))).toBeUndefined();
   });
 
+  /** The `process` of Node: the tests of this package have no types of Node. */
+  const nodeProcess = (globalThis as unknown as { process: { emitWarning: (message: string, options?: unknown) => void } }).process;
+
   /** The four network calls of the bundle, each to a host that the default host policy refuses. */
   const refusedCalls: Array<[string, unknown]> = [
     ["geo.geocode", { query: "x", userAgent: "test/1.0", baseUrl: "http://127.0.0.1:8080" }],
@@ -66,7 +69,7 @@ describe("bundle-assistant", () => {
   it("sends a refused host of its network procedures with the global fetch, with mcpHostModules first, and emits one notice for each module", async () => {
     const global = vi.fn(async () => Promise.reject(new Error("the global fetch was used")));
     vi.stubGlobal("fetch", global);
-    const emitWarning = vi.spyOn(process, "emitWarning").mockImplementation(() => undefined);
+    const emitWarning = vi.spyOn(nodeProcess, "emitWarning").mockImplementation(() => undefined);
     try {
       // The dev-tools server builds its registry so
       const host = createRegistry(...mcpHostModules, bundleAssistantModule);
@@ -76,7 +79,7 @@ describe("bundle-assistant", () => {
         expect(String((error as Error).message), key).toMatch(/did not answer/);
       }
       expect(global).toHaveBeenCalledTimes(refusedCalls.length);
-      const codes = emitWarning.mock.calls.map(([, options]) => (options as { code?: string } | undefined)?.code);
+      const codes: Array<string | undefined> = emitWarning.mock.calls.map((call: unknown[]) => (call[1] as { code?: string } | undefined)?.code);
       expect(codes.filter((code) => code === GEO_PRIVATE_HOST_NOTICE.code)).toHaveLength(1);
       expect(codes.filter((code) => code === ICS_PRIVATE_HOST_NOTICE.code)).toHaveLength(1);
       expect(codes.filter((code) => code === "PROCEDURES_WEATHER_PRIVATE_HOST")).toHaveLength(1);
