@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/bundle-mcp",
-  "version": "0.30.0",
+  "version": "0.31.0",
   "description": "The curated tool surface for Claude: registers the docker, mongo, sqlite, cue, vitest and workspace procedures and selects which ones an MCP server exposes.",
   "keywords": [
     "mcp",

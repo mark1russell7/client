@@ -1,5 +1,11 @@
 # @procedures/fs
 
+## 0.31.0
+
+### Patch Changes
+
+- @procedures/client@0.31.0
+
 ## 0.30.0
 
 ### Patch Changes
