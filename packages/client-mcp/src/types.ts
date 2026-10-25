@@ -188,7 +188,8 @@ export interface McpServerTransportOptions {
    *
    * This face is local (CLI-1): a call without an HTTP request gets `LOCAL_CREDENTIALS`, so the
    * token of the server does not apply. The network transports of the SDK give the HTTP request of
-   * each call, so their calls keep the credentials of that request.
+   * each call, so their calls keep the credentials of that request. These credentials have no
+   * connection (CLI-71): the SDK gives only the headers and the URL of the request, not its socket.
    */
   sdkTransport?: SdkTransport;
 

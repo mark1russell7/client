@@ -21,6 +21,7 @@ Changed:
 - The MCP HTTP face sets it on the credentials of the one admission of each HTTP request. The admitted credentials keep it. A tool call uses them, and the server does not do the checks again for it (CLI-2b).
 - With a handler without `admission()`, the MCP HTTP face gives each tool call the credentials of its HTTP request, with the connection. Before, the face read the same headers and query again from the request information of the SDK, without the connection.
 - A local request has no connection: a call in this process, MCP over stdio or a message port.
+- An SDK transport of the application (`sdkTransport` of `McpServerTransport`, for example the legacy SSE transport of the MCP SDK) gives no connection. The SDK gives only the headers and the URL of each request, not its socket.
 
 Notes:
 

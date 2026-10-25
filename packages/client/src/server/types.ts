@@ -100,10 +100,12 @@ export interface Credentials {
   /**
    * The connection of a network request (CLI-71): the addresses and the ports of its socket. A
    * request hook can find the caller from its TCP peer with it, for example from the process that
-   * owns the remote port. Each network face sets it: the HTTP face, the WebSocket upgrade and each
-   * call over that connection, and each HTTP request of the MCP face.
+   * owns the remote port. Each network face sets it: the HTTP face, the WebSocket face (the upgrade
+   * and each call) and the Streamable HTTP endpoint of the MCP face.
    *
    * - A local request (a call in this process, MCP over stdio, a message port) has no connection.
+   * - An SDK transport of the application (`sdkTransport`, for example the legacy SSE transport of
+   *   the MCP SDK) gives no connection. The SDK gives only the headers and the URL of each request.
    * - The data comes only from the socket. It does not come from a header, for example
    *   `X-Forwarded-For` or `Forwarded`. Behind a proxy, the peer is the proxy. Thus a request
    *   hook that trusts the connection there sees the proxy, not the client.
