@@ -1,5 +1,11 @@
 # @procedures/compiler
 
+## 0.26.1
+
+### Patch Changes
+
+- @procedures/client@0.26.1
+
 ## 0.26.0
 
 ### Minor Changes
