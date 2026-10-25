@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/npm",
-  "version": "0.27.1",
+  "version": "0.27.2",
   "description": "The npm registry as typed procedures: view, dist-tags, whoami, pack (a dry run by default) and deprecate, run with argv, and a confirmation for each write to the registry.",
   "keywords": [
     "npm",
