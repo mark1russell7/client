@@ -230,6 +230,8 @@ describe("the MCP face at the stop of the host (CLI-72)", () => {
     const stop = startStop(life, clock);
     await advanceUntil(clock, stop.exited);
     const elapsed = clock.now() - stop.startedAt;
+    // The record of the run gives the measured stop
+    console.info(`CLI-72: the stop with 6 idle MCP sessions took ${elapsed} ms on the fake clock (the cap of the drain is ${DRAIN_CAP_MS} ms)`);
     expect(stop.exited()).toBe(true);
     // Before CLI-72, the drain waited for its full cap of 1000 ms: the stop took more than 1010 ms
     expect(elapsed).toBeLessThan(DRAIN_CAP_MS / 4);
