@@ -142,6 +142,7 @@ The server of the face checks the credentials of each request one time (CLI-2b, 
 - The server of the host is the transport part `mcp`. Each storage of the server is a dependency.
 - A host with a stdio face declares the trigger `stdin-close`. The end of the input starts the stop in stages, and the face does not stop the host by itself.
 - The HTTP face has no listener. Mount `host.handleHttp` on an `httpTransport` of `@mark1russell7/service/http`, and declare that transport on the service.
+- At the stop of the intake, the HTTP face ends the idle GET streams, as `mcpFace()` does (CLI-72). Thus the drain of the listener waits only for the calls and the tasks. Refer to [The face of a procedures host](#the-face-of-a-procedures-host).
 
 ```typescript
 import { createServer } from "node:http";

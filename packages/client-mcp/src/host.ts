@@ -46,7 +46,7 @@ import {
   type Duration,
 } from "@procedures/client";
 import { proceduresToMcpTools, type McpTool, type McpToolFilter } from "@procedures/mcp";
-import { McpServerTransport, distinctTools, namedTools } from "./transport/mcp-transport.js";
+import { McpServerTransport, distinctTools, httpEndpointOf, namedTools } from "./transport/mcp-transport.js";
 import type {
   HttpTransportOptions,
   McpServerTransportOptions,
@@ -226,7 +226,8 @@ export interface McpHost {
    * `@mark1russell7/service` (CLI-11). The server is a transport part, and each storage is a
    * dependency. A host with a stdio face declares the trigger `stdin-close`. Then the runner owns
    * the stop: the end of the input starts the staged stop, and the stdio face does not stop the
-   * host by itself. A host declares one time.
+   * host by itself. A host declares one time. At the stop of the intake, the HTTP face ends the GET
+   * stream of each session without a task in progress (CLI-72).
    */
   declare<S extends McpServiceBuilder>(svc: S): S;
   /**
@@ -451,7 +452,12 @@ export function createMcpHost(options: McpHostOptions = {}): McpHost {
       }
       svc.server("mcp", {}, {
         start: () => begin(),
-        stopIntake: () => server.stopIntake(),
+        stopIntake: () => {
+          server.stopIntake();
+          // The HTTP face ends the GET stream of each session without a task in progress, so the drain
+          // of a listener waits only for the calls and the tasks (CLI-72)
+          if (httpFace) httpEndpointOf(httpFace)?.stopIntake();
+        },
         drain: (deadline, signal) => server.drain(deadline, signal),
         inFlight: () => server.inFlight(),
         close: async () => {
