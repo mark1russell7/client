@@ -319,6 +319,42 @@ const users = new HybridStorage(new ApiStorage(client, { collection: "users" }),
 - The server serves the events with the option `events` of `ProcedureServer`, for example `{ topics: ["collections.*"] }`. Without a subscriber, the procedures publish nothing.
 - `ApiStorage` sends the `origin` of a write to the procedure. Thus the storage of the server and the event have it.
 
+### The hook around a remote apply
+
+The option `aroundRemoteApply` puts each apply of the remote changes inside a hook (graph W8). For example, the hook starts a span of a trace with the `traceparent` of the server.
+
+- The hook gets `hint`, `apply` and `context`. It starts `apply` one time and gives back its promise.
+- `context.cause` is `"delta"`, `"hint"`, `"gap"` or `"pull"`. `context.hints` has the hints of the apply.
+- A delta and a hint of the feed give their hint. A gap and a pull of the storage give the hint `undefined`.
+- A pull of the storage is the timer of `pullInterval`, `syncFromRemote()`, `sync()` or the first sync.
+- A pull that many hints asked for runs one time. Its hint is the last hint, and `context.hints` has the last 128 hints.
+- `EventsChangeFeed` puts the other fields of a change event in `hint.extra`, for example `traceparent` and `tracestate`.
+- An error of `apply` or of the hook makes the pull fail. The status keeps the error until a pull succeeds.
+- When the hook does not start `apply` one time, the pull fails with `RemoteApplyHookError`. The changes apply one time all the same.
+- Only the leader of a `TabCoordinator` or a `TabGroup` uses the hook. Give the hook in the option `hybrid`.
+- Without the hook, the storage applies the changes as before.
+
+```ts
+import { context, propagation, trace } from "@opentelemetry/api";
+
+const tracer = trace.getTracer("app");
+
+const users = new HybridStorage(new ApiStorage(client, { collection: "users" }), {
+  feed: new EventsChangeFeed(client, { collection: "users" }),
+  aroundRemoteApply: (hint, apply, { cause }) => {
+    const traceparent = hint?.extra?.["traceparent"];
+    const parent = typeof traceparent === "string" ? propagation.extract(context.active(), { traceparent }) : context.active();
+    return tracer.startActiveSpan("users.apply", { attributes: { cause } }, parent, async (span) => {
+      try {
+        await apply();
+      } finally {
+        span.end();
+      }
+    });
+  },
+});
+```
+
 ### The tabs of a browser
 
 `TabCoordinator` of `@procedures/store/browser` lets one leader tab run the sync of a `HybridStorage` (roadmap CLI-25). The other tabs copy its changes. Without it, each tab pulls and pushes, and each tab writes over the queue of the other tabs.

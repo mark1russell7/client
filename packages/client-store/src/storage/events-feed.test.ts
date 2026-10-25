@@ -333,3 +333,77 @@ describe("EventsChangeFeed (CLI-15)", () => {
     expect(() => new EventsChangeFeed<Item>(new FakeSource(), { topic: "" })).toThrow(TypeError);
   });
 });
+
+/** The `traceparent` of the W3C trace context that a server sends with a change event. */
+const TRACE_1 = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
+const TRACE_2 = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01";
+
+describe("EventsChangeFeed: the other fields of an event (graph W8)", () => {
+  it("gives the other fields, for example a traceparent, in extra of a delta and of a hint", () => {
+    const source = new FakeSource();
+    const listener = recorder();
+    new EventsChangeFeed<Item>(source, { collection: "items" }).subscribe(listener);
+    const values = [{ id: "a", value: { n: 1 } }];
+    source.event({ since: "v0", version: "v1", changed: ["a"], deleted: [], values, origin: "tab-b", traceparent: TRACE_1, tracestate: "app=1" }, 1);
+    // A field without a value stays out
+    source.event({ since: "v1", version: "v2", changed: ["a"], deleted: [], traceparent: TRACE_2, empty: undefined }, 2);
+    // A withheld value: the fields that the feed reads stay out of extra
+    source.event({ since: "v2", version: "v3", changed: ["a", "c"], deleted: [], values, withheld: ["c"], traceparent: TRACE_2 }, 3);
+    // An event without other fields gives no extra
+    source.event({ since: "v3", version: "v4", changed: ["a"], deleted: [], values }, 4);
+    source.event({ since: "v4", version: "v5", changed: ["a"], deleted: [] }, 5);
+    expect(listener.log).toEqual([
+      ["changes", { since: "v0", version: "v1", full: false, changed: [["a", { n: 1 }]], deleted: [], origin: "tab-b", extra: { traceparent: TRACE_1, tracestate: "app=1" } }],
+      ["hint", { since: "v1", version: "v2", changed: ["a"], deleted: [], extra: { traceparent: TRACE_2 } }],
+      ["hint", { since: "v2", version: "v3", changed: ["a", "c"], deleted: [], extra: { traceparent: TRACE_2 } }],
+      ["changes", { since: "v3", version: "v4", full: false, changed: [["a", { n: 1 }]], deleted: [] }],
+      ["hint", { since: "v4", version: "v5", changed: ["a"], deleted: [] }],
+    ]);
+    const extras = listener.log.map(([, event]) => (event as { extra?: object }).extra);
+    expect(Object.keys(extras[1]!)).toEqual(["traceparent"]);
+    expect(Object.keys(extras[2]!)).toEqual(["traceparent"]);
+    expect(listener.log[3]![1]).not.toHaveProperty("extra");
+    expect(listener.log[4]![1]).not.toHaveProperty("extra");
+  });
+
+  it("keeps a field __proto__ of the wire as an own field of extra: it changes no prototype", () => {
+    const source = new FakeSource();
+    const listener = recorder();
+    new EventsChangeFeed<Item>(source, { collection: "items" }).subscribe(listener);
+    source.event(JSON.parse('{"since":"v0","version":"v1","changed":[],"deleted":["a"],"__proto__":{"polluted":true}}'), 1);
+    const hint = listener.log[0]![1] as RemoteChangeHint;
+    expect(Object.getPrototypeOf(hint.extra)).toBe(Object.prototype);
+    expect(Object.hasOwn(hint.extra!, "__proto__")).toBe(true);
+    expect((hint.extra as { polluted?: unknown }).polluted).toBeUndefined();
+    expect(({} as { polluted?: unknown }).polluted).toBeUndefined();
+  });
+
+  it("the hook of a HybridStorage gets the traceparent of the event of a delta and of a hint", async () => {
+    const source = new FakeSource();
+    const remote = new InMemoryStorage<Item>();
+    const seen: unknown[] = [];
+    const hybrid = new HybridStorage<Item>(remote, {
+      feed: new EventsChangeFeed<Item>(source, { collection: "items" }),
+      syncInterval: ms(0),
+      aroundRemoteApply: (hint, apply, { cause }) => {
+        seen.push([cause, hint?.extra?.["traceparent"]]);
+        return apply();
+      },
+    });
+    await hybrid.getAll();
+    const v0 = (await remote.getChangesSince()).version;
+    await remote.set("a", { n: 1 });
+    const v1 = (await remote.getChangesSince()).version;
+    // A delta with values applies without a read, inside the hook
+    source.event({ since: v0, version: v1, changed: ["a"], deleted: [], values: [{ id: "a", value: { n: 1 } }], traceparent: TRACE_1 }, 1);
+    await vi.waitFor(async () => expect(await hybrid.getEntries()).toEqual([["a", { n: 1 }]]));
+    // A hint makes a pull, inside the hook
+    await remote.set("b", { n: 2 });
+    source.event({ since: v1, version: (await remote.getChangesSince()).version, changed: ["b"], deleted: [], traceparent: TRACE_2 }, 2);
+    await vi.waitFor(async () => expect(await hybrid.getEntries()).toEqual([["a", { n: 1 }], ["b", { n: 2 }]]));
+    await vi.waitFor(() => expect(hybrid.getStatus().syncing).toBe(false));
+    expect(seen).toEqual([["pull", undefined], ["delta", TRACE_1], ["hint", TRACE_2]]);
+    expect(hybrid.getStatus().error).toBeUndefined();
+    await hybrid.close();
+  });
+});
