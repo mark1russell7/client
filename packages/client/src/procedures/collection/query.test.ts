@@ -120,7 +120,11 @@ describe("the query policy (roadmap CLI-14)", () => {
     for (const pattern of overlap) {
       expect(selectorProblems({ a: { $regex: pattern } }, OPEN).join(), pattern).toMatch(/alternatives that can start with the same character/);
     }
-    const variable = ["(a{1,50}){1,50}", "(a{2,3})+", "(a?a?)+$", "(?:ab?){2,}", "^(a{1,9}b?){9}$"];
+    // A nested repetition with a fixed count multiplies the ways: ((a|a){9}){9} has 2^81 (weekly audit 2026-10-25)
+    for (const pattern of ["((a|a){9}){9}", "(?:(?:a|ab){4}){4}"]) {
+      expect(selectorProblems({ a: { $regex: pattern } }, OPEN).join(), pattern).toMatch(/alternatives that can start with the same character/);
+    }
+    const variable = ["(a{1,50}){1,50}", "(a{2,3})+", "(a?a?)+$", "(?:ab?){2,}", "^(a{1,9}b?){9}$", "((a?){9}){9}"];
     for (const pattern of variable) {
       expect(selectorProblems({ a: { $regex: pattern } }, OPEN).join(), pattern).toMatch(/repetition of variable length/);
     }
@@ -145,6 +149,7 @@ describe("the query policy (roadmap CLI-14)", () => {
       "(?:[^,\\\\]|\\\\,)+",
       "(?:(?:a|b)c|d)+",
       "(\\d{1,3}\\.){3}\\d{1,3}",
+      "((?:a|b){3}){3}",
       "(?:ab){2,}",
       "(a{2})+",
       "(?<word>[a-z]{3})+",
