@@ -8,6 +8,8 @@
  * - A session with a task in progress keeps its GET stream until the work of the task ends. The
  *   end of the task goes on that stream.
  * - After the stop of the intake, a new GET stream and a new session get 503.
+ * - After the stop of the intake, a new tool call in a session gets a retryable `UNAVAILABLE`, and
+ *   its procedure does not start. The answer of an elicitation and a cancel still pass (CLI-73).
  *
  * The host and its service run on a fake clock, so the test measures each stop on that clock.
  */
@@ -18,7 +20,7 @@ import type { AddressInfo } from "node:net";
 import { z } from "zod";
 import { service, type Lifecycle, type ServiceBuilder } from "@mark1russell7/service";
 import { fakeClock, fakeProcess, seeded } from "@mark1russell7/service/testing";
-import { createProcedure, createRegistry, ms, seconds, type AnyProcedure } from "@procedures/client";
+import { createProcedure, createRegistry, elicitInput, ms, seconds, type AnyProcedure, type ProcedureRegistry } from "@procedures/client";
 import { mcpFace } from "@procedures/mcp-server";
 import { createProcedureHost, LOCAL_LISTENER_KNOBS, type ProcedureHost } from "./index.js";
 
@@ -93,6 +95,84 @@ function registryOf() {
   return createRegistry({ name: "mcp-stop", procedures: [wait] });
 }
 
+/** A latch: `done` resolves at the first `fire()`, and `fired()` tells if it fired. */
+interface Latch {
+  readonly done: Promise<void>;
+  fire(): void;
+  fired(): boolean;
+}
+
+function newLatch(): Latch {
+  let fired = false;
+  let resolve = (): void => undefined;
+  const done = new Promise<void>((given) => {
+    resolve = given;
+  });
+  return {
+    done,
+    fire: () => {
+      fired = true;
+      resolve();
+    },
+    fired: () => fired,
+  };
+}
+
+/** What the procedures of the test of a late call saw (CLI-73). */
+interface LateSeen {
+  /** The number of runs of `test.late`. */
+  lateRuns: number;
+  /** This latch fires when `test.hold` starts. */
+  readonly holding: Latch;
+  /** This latch fires when `test.hold` sees the abort of its call. */
+  readonly aborted: Latch;
+}
+
+/**
+ * The procedures of the test of a late call (CLI-73). `test.ask` asks the person for a name.
+ * `test.hold` waits for the abort of its call. `test.late` counts its runs.
+ */
+function lateRegistryOf(seen: LateSeen) {
+  const none = { reads: [], writes: [] };
+  const ask = createProcedure()
+    .path(["test", "ask"])
+    .input(z.object({}).passthrough())
+    .output(z.object({ action: z.string(), name: z.string().nullable() }))
+    .meta({ description: "ask the person for a name", effects: none })
+    .handler(async (_input, ctx) => {
+      const answer = await elicitInput(ctx, { message: "Your name?", fields: { name: { type: "string", title: "Name" } }, required: ["name"] });
+      const name = answer.content?.["name"];
+      return { action: answer.action, name: typeof name === "string" ? name : null };
+    })
+    .build() as AnyProcedure;
+  const hold = createProcedure()
+    .path(["test", "hold"])
+    .input(z.object({}).passthrough())
+    .output(z.object({ aborted: z.boolean() }))
+    .meta({ description: "wait for the abort of the call", effects: none })
+    .handler(async (_input, ctx) => {
+      seen.holding.fire();
+      await new Promise<void>((resolve) => {
+        if (ctx.signal?.aborted) resolve();
+        ctx.signal?.addEventListener("abort", () => resolve(), { once: true });
+      });
+      seen.aborted.fire();
+      return { aborted: true };
+    })
+    .build() as AnyProcedure;
+  const late = createProcedure()
+    .path(["test", "late"])
+    .input(z.object({}).passthrough())
+    .output(z.object({ done: z.boolean() }))
+    .meta({ description: "count the runs", effects: none })
+    .handler(async () => {
+      seen.lateRuns++;
+      return { done: true };
+    })
+    .build() as AnyProcedure;
+  return createRegistry({ name: "mcp-late", procedures: [ask, hold, late] });
+}
+
 /** A tick of the event loop: the work of the promises and of the sockets goes on. */
 const tick = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
 
@@ -116,11 +196,14 @@ async function whileAdvancing<T>(clock: FakeClock, promise: Promise<T>): Promise
 }
 
 /** A host with the MCP face under `run()` on a fake clock. Without `onListener`, the app mounts the face on a listener of its own. */
-async function runHost(name: string, options: { readonly onListener: boolean; readonly tasks?: boolean }): Promise<{ host: ProcedureHost; life: Lifecycle; clock: FakeClock; endpoint: string }> {
+async function runHost(
+  name: string,
+  options: { readonly onListener: boolean; readonly tasks?: boolean; readonly registry?: ProcedureRegistry },
+): Promise<{ host: ProcedureHost; life: Lifecycle; clock: FakeClock; endpoint: string }> {
   const clock = fakeClock();
   const host = createProcedureHost({
     name,
-    registry: registryOf(),
+    registry: options.registry ?? registryOf(),
     clock,
     faces: { mcp: mcpFace({ serverInfo: { name, version: "0.0.0" }, ...(options.tasks ? { tasks: {} } : {}) }) },
     ...(options.onListener ? { listen: [{ port: 0, knobs: LOCAL_LISTENER_KNOBS }] } : {}),
@@ -171,12 +254,51 @@ function messagesOf(text: string): Message[] {
     .map((line) => JSON.parse(line.slice("data: ".length)) as Message);
 }
 
+/**
+ * The reader of an SSE answer. `next` gives the first message that matches, and reads more of the
+ * stream while no message matches.
+ */
+interface SseReader {
+  next(match: (message: Message) => boolean): Promise<Message>;
+}
+
+function sseOf(response: Response): SseReader {
+  const reader = response.body!.getReader();
+  const decoder = new TextDecoder();
+  const waiting: Message[] = [];
+  let rest = "";
+  return {
+    async next(match) {
+      for (;;) {
+        const at = waiting.findIndex(match);
+        if (at >= 0) return waiting.splice(at, 1)[0]!;
+        const chunk = await reader.read();
+        if (chunk.done) throw new Error("The SSE answer ended before the message came");
+        rest += decoder.decode(chunk.value, { stream: true });
+        const lines = rest.split("\n");
+        rest = lines.pop() ?? "";
+        waiting.push(...messagesOf(lines.join("\n")));
+      }
+    },
+  };
+}
+
+/** This function sends one JSON-RPC message in a session: a request, a response or a notification. */
+function post(endpoint: string, session: string, message: Readonly<Record<string, unknown>>): Promise<Response> {
+  return fetch(endpoint, { method: "POST", headers: { ...HEADERS, "mcp-session-id": session }, body: JSON.stringify(message) });
+}
+
+/** The JSON-RPC request of a call of a tool without arguments. */
+function toolCall(id: number, name: string): Readonly<Record<string, unknown>> {
+  return { jsonrpc: "2.0", id, method: "tools/call", params: { name, arguments: {} } };
+}
+
 /** This function starts a session with `initialize` and `notifications/initialized`, and gives its id. */
-async function initialize(endpoint: string): Promise<string> {
+async function initialize(endpoint: string, capabilities: Readonly<Record<string, unknown>> = {}): Promise<string> {
   const response = await fetch(endpoint, {
     method: "POST",
     headers: HEADERS,
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: PROTOCOL, capabilities: {}, clientInfo: { name: "mcp-stop-test", version: "0" } } }),
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: PROTOCOL, capabilities, clientInfo: { name: "mcp-stop-test", version: "0" } } }),
   });
   expect(response.status).toBe(200);
   const session = response.headers.get("mcp-session-id");
@@ -349,5 +471,51 @@ describe("the MCP face at the stop of the host (CLI-72)", () => {
     expect(JSON.stringify(messagesOf(await whileAdvancing(clock, answer.text())).find((message) => message.id === 2))).toMatch(/\\?"done\\?":\s*true/);
     await advanceUntil(clock, stop.exited);
     expect(stop.exited()).toBe(true);
+  }, 20000);
+
+  it("refuses a new tool call after the stop of the intake, and lets the answer of an elicitation and a cancel pass (CLI-73)", async () => {
+    const seen: LateSeen = { lateRuns: 0, holding: newLatch(), aborted: newLatch() };
+    // The app mounts the face on a listener of its own, so the face answers each request through the drain
+    const { life, clock, endpoint } = await runHost("mcp-late", { onListener: false, registry: lateRegistryOf(seen) });
+    // The client can answer the questions of the server (form elicitation)
+    const session = await initialize(endpoint, { elicitation: {} });
+    const stream = await openStream(endpoint, session);
+    // Two calls in progress at the stop: a question to the person, and a call that waits for its cancel
+    const asking = sseOf(await post(endpoint, session, toolCall(2, "test.ask")));
+    const question = await asking.next((message) => message.method === "elicitation/create");
+    const holding = await post(endpoint, session, toolCall(3, "test.hold"));
+    await seen.holding.done;
+
+    const stop = startStop(life, clock);
+    await advanceUntil(clock, stream.ended);
+    expect(stream.ended()).toBe(true);
+
+    // A new tool call gets the refusal of the stop: a retryable UNAVAILABLE. Its procedure does not start.
+    const late = await post(endpoint, session, toolCall(4, "test.late"));
+    expect(late.status).toBe(200);
+    const refusal = messagesOf(await whileAdvancing(clock, late.text())).find((message) => message.id === 4);
+    expect(refusal?.result).toMatchObject({ isError: true, _meta: { code: "UNAVAILABLE", retryable: true } });
+    expect(seen.lateRuns).toBe(0);
+
+    // The answer of the person reaches the call in progress, and the call completes
+    const answered = await post(endpoint, session, { jsonrpc: "2.0", id: question.id, result: { action: "accept", content: { name: "Ada" } } });
+    expect(answered.status).toBe(202);
+    await answered.text();
+    const result = await whileAdvancing(clock, asking.next((message) => message.id === 2));
+    expect(result.result).toMatchObject({ structuredContent: { action: "accept", name: "Ada" } });
+
+    // The cancel reaches the other call. The test does not move the clock until the abort, so the
+    // cooperative abort of the drain cannot be the cause.
+    expect(seen.aborted.fired()).toBe(false);
+    const cancelled = await post(endpoint, session, { jsonrpc: "2.0", method: "notifications/cancelled", params: { requestId: 3, reason: "the client cancels the call" } });
+    expect(cancelled.status).toBe(202);
+    await cancelled.text();
+    await seen.aborted.done;
+
+    // No call holds the drain now: the stop ends well before the cap of the drain
+    await advanceUntil(clock, stop.exited);
+    expect(stop.exited()).toBe(true);
+    expect(clock.now() - stop.startedAt).toBeLessThan(DRAIN_CAP_MS / 2);
+    await holding.body?.cancel().catch(() => undefined);
   }, 20000);
 });
