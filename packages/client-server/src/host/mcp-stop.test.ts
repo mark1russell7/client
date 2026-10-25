@@ -155,12 +155,20 @@ async function runHost(name: string, options: { readonly onListener: boolean; re
   return { host, life, clock, endpoint };
 }
 
+/** A JSON-RPC message of an SSE stream, as far as the test reads it. */
+interface Message {
+  readonly id?: unknown;
+  readonly method?: string;
+  readonly params?: { readonly status?: string };
+  readonly result?: unknown;
+}
+
 /** The messages of an SSE answer: the JSON of each `data:` line. */
-function messagesOf(text: string): Array<Record<string, unknown>> {
+function messagesOf(text: string): Message[] {
   return text
     .split("\n")
     .filter((line) => line.startsWith("data: ") && line.trim() !== "data:")
-    .map((line) => JSON.parse(line.slice("data: ".length)) as Record<string, unknown>);
+    .map((line) => JSON.parse(line.slice("data: ".length)) as Message);
 }
 
 /** This function starts a session with `initialize` and `notifications/initialized`, and gives its id. */
@@ -301,7 +309,7 @@ describe("the MCP face at the stop of the host (CLI-72)", () => {
     expect(clock.now() - releasedAt).toBeLessThan(DRAIN_CAP_MS / 4);
     // The end of the task went on the stream, and then the stream ended in its protocol
     const statuses = messagesOf(await workingStream.text).filter((message) => message.method === "notifications/tasks/status");
-    expect(statuses.map((message) => (message.params as { status?: string }).status)).toContain("completed");
+    expect(statuses.map((message) => message.params?.status)).toContain("completed");
     await expect(idle.text).resolves.toBeTypeOf("string");
   }, 20000);
 
