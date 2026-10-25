@@ -227,16 +227,20 @@ describe("the connection of a network request on each face of the host (CLI-71)"
     const known = new Set<number>();
     const { port } = await runHost(peerHook(seen, known));
     // The peer of this socket is known, as a process that headroom maps to a Claude session
+    // The test reads each local port before the upgrade: a closed socket has no port
     const knownSocket = await clientSocket(port);
-    known.add(knownSocket.localPort!);
+    const knownPort = knownSocket.localPort!;
+    known.add(knownPort);
     expect(await upgrade(port, knownSocket)).toBe(101);
-    expect(seen).toEqual([{ id: "connection", connection: loopback(knownSocket.localPort, port) }]);
+    expect(seen).toEqual([{ id: "connection", connection: loopback(knownPort, port) }]);
     expect(Object.isFrozen(seen[0]!.connection)).toBe(true);
 
     // Another peer: the same hook refuses the upgrade with 401
     const otherSocket = await clientSocket(port);
+    const otherPort = otherSocket.localPort!;
+    expect(otherPort).not.toBe(knownPort);
     expect(await upgrade(port, otherSocket)).toBe(401);
-    expect(seen[1]).toEqual({ id: "connection", connection: loopback(otherSocket.localPort, port) });
+    expect(seen[1]).toEqual({ id: "connection", connection: loopback(otherPort, port) });
   });
 
   it("the WebSocket face: each call over the connection has the connection of the upgrade", async () => {
