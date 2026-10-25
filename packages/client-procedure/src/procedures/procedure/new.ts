@@ -210,7 +210,8 @@ export function ensureNamedImports(source: string, moduleName: string, names: st
       .split(",")
       .map((part) => part.trim())
       .filter((part) => part.length > 0);
-    const presentNames = new Set(present.map((part) => part.replace(/^type\s+/, "").split(/\s+as\s+/)[0]!.trim()));
+    // The imported name is the first word of a part: "a", "type a" or "a as b" import "a"
+    const presentNames = new Set(present.map((part) => part.replace(/^type\s+/, "").split(/\s/, 1)[0]!));
     const missing = names.filter((name) => !presentNames.has(name));
     if (missing.length === 0) {
       return source;
@@ -343,7 +344,7 @@ function statementStart(source: string, index: number): number {
 
 /** The declaration of `name` in code as an array literal: the start of the statement and the "[" */
 function arrayDeclaration(source: string, name: string, mask: boolean[]): { statement: number; open: number } | undefined {
-  const escaped = name.replace(/\$/g, "\\$");
+  const escaped = name.replace(/[/\\^$*+?.()|[\]{}]/g, "\\$&");
   const pattern = new RegExp(`(?<![\\w$.])(?:const|let|var)\\s+${escaped}\\s*(?::[^=;]*)?=\\s*\\[`, "g");
   for (const match of source.matchAll(pattern)) {
     if (mask[match.index]) {

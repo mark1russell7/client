@@ -66,7 +66,8 @@ export interface ParsedCommandLine<T extends CommandLike = CommandLike> {
   errors: string[];
 }
 
-const NEGATIVE_NUMBER = /^-(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/;
+// The digits before the point and the digits after it are two groups, so each token has one match
+const NEGATIVE_NUMBER = /^-(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?$/;
 const ANY: FieldType = { kind: "any" };
 
 /** A token that is a flag (not a value, not a negative number, not "-" alone) */

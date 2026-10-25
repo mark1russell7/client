@@ -213,4 +213,14 @@ describe("betterAuthHandler (CLI-49)", () => {
     handler.middleware({ url: "/chat" } as IncomingMessage, {} as ServerResponse, () => next++);
     expect(next).toBe(1);
   });
+
+  it("removes each slash at the end of the base path, in linear time for a long run of slashes", () => {
+    const routes = { handler: async () => new Response("auth") };
+    expect(betterAuthHandler(routes, { basePath: "/api/auth///" }).basePath).toBe("/api/auth");
+    expect(betterAuthHandler(routes, { basePath: "///" }).basePath).toBe("/");
+    const started = performance.now();
+    const long = betterAuthHandler(routes, { basePath: `/auth${"/".repeat(50_000)}x` });
+    expect(performance.now() - started).toBeLessThan(100);
+    expect(long.basePath.endsWith("/x")).toBe(true);
+  });
 });

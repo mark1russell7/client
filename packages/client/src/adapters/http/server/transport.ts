@@ -19,6 +19,18 @@ import { applyCors, corsOrigins, corsPolicy, type CorsPolicy } from "./cors.js";
 import { createProcedureHandler, type NodeProcedureHandler } from "./handler.js";
 
 /**
+ * This function gives the route of the procedure handler: each path under the base path. With
+ * `takesBasePath`, the route also matches the base path itself. Each character of the base path
+ * matches only itself, also a backslash or another special character of a regular expression.
+ */
+export function basePathRoute(basePath: string, takesBasePath: boolean): RegExp {
+  const literal = (text: string): string => text.replace(/[\\^$.*+?()[\]{}|/]/g, "\\$&");
+  return takesBasePath
+    ? new RegExp(`^${literal(basePath.replace(/\/$/, ""))}(?:\\/.*)?$`)
+    : new RegExp(`^${literal(basePath)}\\/.*`);
+}
+
+/**
  * HTTP server transport adapter for Express.
  *
  * Converts HTTP requests to unified RPC format and responses back to HTTP.
@@ -122,9 +134,8 @@ export class HttpServerTransport implements ServerTransport {
 
     // Catch-all route for RPC - use regex to match any path under basePath, and the base path
     // itself for an addressing that takes it
-    const base = this.options.basePath.replace(/\//g, "\\/");
     this.app.all(
-      new RegExp(this.options.takesBasePath ? `^${base.replace(/\\\/$/, "")}(?:\\/.*)?$` : `^${base}\\/.*`),
+      basePathRoute(this.options.basePath, this.options.takesBasePath),
       async (req, res) => {
         await this.handler.handle(req, res);
       }

@@ -179,6 +179,16 @@ export function usageOf(raw: unknown, base: LlmUsage = NO_USAGE): LlmUsage {
   return usage;
 }
 
+/**
+ * This function gives the URL of the messages route of a base URL. It removes each slash at the end
+ * of the base URL with a loop, so a long base URL takes linear time.
+ */
+export function messagesUrl(baseUrl: string): string {
+  let end = baseUrl.length;
+  while (end > 0 && baseUrl[end - 1] === "/") end--;
+  return `${baseUrl.slice(0, end)}/v1/messages`;
+}
+
 /** The answer of the API, checked: an answer of another form is a `BAD_RESPONSE`. */
 function parseResponse(text: string): MessagesResponse {
   let body: unknown;
@@ -309,7 +319,7 @@ export async function postMessages(request: MessagesRequest, settings: LlmSettin
   if (request.fallbacks !== undefined) headers["anthropic-beta"] = FALLBACK_BETA;
   let response: Response;
   try {
-    response = await settings.fetch(`${settings.baseUrl.replace(/\/+$/, "")}/v1/messages`, {
+    response = await settings.fetch(messagesUrl(settings.baseUrl), {
       method: "POST",
       headers,
       body: JSON.stringify(request),

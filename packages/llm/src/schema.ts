@@ -69,13 +69,23 @@ export function constrainedSchema(schema: unknown): unknown {
 export type ParsedAnswer = { readonly ok: true; readonly value: unknown } | { readonly ok: false; readonly problem: string };
 
 /**
+ * This function gives the text in a code fence: the text after the first line, without the closing
+ * fence. It gives the text unchanged when it is not one fence. The first line has only a language
+ * name and spaces. This function reads the text in linear time.
+ */
+function withoutFence(text: string): string {
+  const firstLineEnd = text.indexOf("\n");
+  if (!text.startsWith("```") || !text.endsWith("```") || firstLineEnd < 0 || firstLineEnd > text.length - 4) return text;
+  if (!/^[a-zA-Z0-9_-]*\s*$/.test(text.slice(3, firstLineEnd))) return text;
+  return text.slice(firstLineEnd + 1, text.length - 3).trim();
+}
+
+/**
  * This function parses the text of an answer as one JSON value. It removes a code fence around
  * the value (` ```json ... ``` `), because a model can add one without the constraint.
  */
 export function parseAnswer(text: string): ParsedAnswer {
-  let body = text.trim();
-  const fence = /^```[a-zA-Z0-9_-]*\s*\n([\s\S]*?)\n?```$/.exec(body);
-  if (fence) body = fence[1]!.trim();
+  const body = withoutFence(text.trim());
   if (body === "") return { ok: false, problem: "the answer is empty" };
   try {
     return { ok: true, value: JSON.parse(body) as unknown };

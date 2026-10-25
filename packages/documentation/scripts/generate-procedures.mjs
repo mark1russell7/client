@@ -55,7 +55,8 @@ for (const proc of all) {
   groups.get(ns).push(proc);
 }
 
-const esc = (s) => String(s ?? "").replace(/\|/g, "\\|").replace(/\n/g, " ").trim();
+// The backslash first, so that a backslash before a pipe does not undo the escape of the pipe
+const esc = (s) => String(s ?? "").replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\n/g, " ").trim();
 
 let out = "";
 out += "# Mark Ecosystem Procedure Catalog\n\n";

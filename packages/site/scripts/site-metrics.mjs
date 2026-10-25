@@ -41,7 +41,7 @@ export function countTests(packagesDir) {
  */
 export async function npmVersion(name, timeoutMs = 4000) {
   try {
-    const response = await fetch(`https://registry.npmjs.org/${name.replace("/", "%2f")}`, {
+    const response = await fetch(`https://registry.npmjs.org/${name.replace(/\//g, "%2f")}`, {
       headers: { accept: "application/vnd.npm.install-v1+json" },
       signal: AbortSignal.timeout(timeoutMs),
     });

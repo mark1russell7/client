@@ -67,6 +67,9 @@ export function escapeHtml(text) {
   return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+/** The characters of the HTML entities that `plainText` decodes. */
+const ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'" };
+
 /** The plain text of a line of inline Markdown: code spans, emphasis, links and images lose their marks. */
 export function plainText(markdown) {
   return String(markdown)
@@ -77,11 +80,8 @@ export function plainText(markdown) {
     .replace(/(\*|_)(.+?)\1/g, "$2")
     .replace(/<[^>]+>/g, "")
     .replace(/\\([\\`*_{}[\]()#+\-.!|<>])/g, "$1")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
+    // One pass for all the entities, so that "&amp;lt;" becomes "&lt;" and not "<"
+    .replace(/&(amp|lt|gt|quot|#39);/g, (_, name) => ENTITIES[name])
     .replace(/\s+/g, " ")
     .trim();
 }

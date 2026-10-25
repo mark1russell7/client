@@ -4,6 +4,7 @@
 
 import { describe, it, expect } from "vitest";
 import { parseCommandLine, parseLeadingGlobals } from "./args.js";
+import { convertValue } from "./parse.js";
 import { testProcedures } from "../test/procedures.js";
 
 const procedures = testProcedures();
@@ -181,6 +182,18 @@ describe("booleans, negative numbers and -- (CLI-11)", () => {
     expect(parse(["git", "commit", "--count", "-5"]).input).toEqual({ count: -5 });
     expect(parse(["git", "commit", "-n", "-0.5"]).input).toEqual({ count: -0.5 });
     expect(parse(["git", "commit", "-m", "-1"]).input).toEqual({ message: "-1" });
+    expect(parse(["git", "commit", "--count", "-2."]).input).toEqual({ count: -2 });
+    expect(parse(["git", "commit", "--count", "-.5e1"]).input).toEqual({ count: -5 });
+  });
+
+  it("reads a long run of digits in linear time, as a number or as a flag", () => {
+    const digits = "0".repeat(50_000);
+    const started = performance.now();
+    expect(parseLeadingGlobals([`-${digits}`]).rest).toEqual([`-${digits}`]);
+    expect(parseLeadingGlobals([`-${digits}x`]).errors).toHaveLength(1);
+    expect(convertValue(`${digits}x`, { kind: "number" }, "--count")).toMatchObject({ ok: false });
+    expect(convertValue(`-${digits}1`, { kind: "number" }, "--count")).toEqual({ ok: true, value: -1 });
+    expect(performance.now() - started).toBeLessThan(100);
   });
 
   it("reads the arguments after -- as arguments, not flags", () => {
