@@ -1,5 +1,12 @@
 # @procedures/node
 
+## 0.29.0
+
+### Patch Changes
+
+- @procedures/client@0.29.0
+  - @procedures/shell@0.29.0
+
 ## 0.28.1
 
 ### Patch Changes

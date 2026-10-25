@@ -1,5 +1,14 @@
 # @procedures/llm
 
+## 0.29.0
+
+### Patch Changes
+
+- Updated dependencies [fa26063]
+  - @procedures/http@0.29.0
+  - @procedures/client@0.29.0
+  - @procedures/json@0.29.0
+
 ## 0.28.1
 
 ### Patch Changes

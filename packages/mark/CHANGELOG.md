@@ -1,5 +1,20 @@
 # @procedures/mark
 
+## 0.29.0
+
+### Patch Changes
+
+- @procedures/client@0.29.0
+  - @procedures/cli-run@0.29.0
+  - @procedures/lib@0.29.0
+  - @procedures/pnpm@0.29.0
+  - @procedures/procedure@0.29.0
+  - @procedures/peer@0.29.0
+  - @procedures/shell@0.29.0
+  - @procedures/vitest@0.29.0
+  - @procedures/mcp-dev-tools@0.29.0
+  - @procedures/server@0.29.0
+
 ## 0.28.1
 
 ### Patch Changes
