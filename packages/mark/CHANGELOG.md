@@ -1,5 +1,26 @@
 # @procedures/mark
 
+## 0.28.1
+
+### Patch Changes
+
+- 345c740: The lockfile endpoint of `mark` in server mode puts an IPv6 host in brackets, for example `http://[::1]:3000/api`. The host `::` gives `localhost`. (second code audit, roadmap O57).
+- Updated dependencies [345c740]
+- Updated dependencies [345c740]
+- Updated dependencies [2572f41]
+- Updated dependencies [984c13b]
+- Updated dependencies [21dc858]
+  - @procedures/client@0.28.1
+  - @procedures/peer@0.28.1
+  - @procedures/mcp-dev-tools@0.28.1
+  - @procedures/cli-run@0.28.1
+  - @procedures/lib@0.28.1
+  - @procedures/pnpm@0.28.1
+  - @procedures/procedure@0.28.1
+  - @procedures/shell@0.28.1
+  - @procedures/vitest@0.28.1
+  - @procedures/server@0.28.1
+
 ## 0.28.0
 
 ### Patch Changes
