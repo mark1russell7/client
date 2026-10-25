@@ -55,7 +55,7 @@ The Nominatim policy permits at most one request each second. A `User-Agent` tha
 
 `geo.geocode` and `geo.route` send their requests with the `fetch` of the module. The default is the global `fetch`, so the root stays safe for a browser.
 
-A Node host that takes calls from others gives `createHostFetch()` of `@procedures/http` to `createGeoModule()`. Then the host policy examines each `baseUrl`. It refuses a loopback, private or link-local address, unless the host allows it:
+A Node host that serves other callers gives `createHostFetch()` of `@procedures/http` to `createGeoModule()`. Then the host policy examines each `baseUrl`. It refuses a loopback, private or link-local address, unless the `allow` list of the host has it:
 
 ```ts
 import { createHostFetch } from "@procedures/http";

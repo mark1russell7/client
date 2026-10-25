@@ -39,7 +39,7 @@ weatherCodeGroup(96); // "thunderstorm-hail"
 
 The request goes through `createHostFetch()` of `@procedures/http`. The policy refuses a `baseUrl` on a loopback, private or link-local address, with the error `FORBIDDEN` and the reason `host-not-allowed`.
 
-A host with its own Open-Meteo server on such an address gives a `fetch` that allows it:
+A host with its own Open-Meteo server on such an address gives a `fetch` whose `allow` list has that address:
 
 ```ts
 import { createHostFetch } from "@procedures/http";

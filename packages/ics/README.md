@@ -113,7 +113,7 @@ The function `fetchCalendar(url, timeoutMs, signal, { fetch })` gets the text of
 
 `ics.fetch` sends its request with the `fetch` of the module. The default is the global `fetch`, so the root stays safe for a browser.
 
-A Node host that takes calls from others gives `createHostFetch()` of `@procedures/http` to `createIcsModule()`. Then the host policy examines the feed address and each redirect. It refuses a loopback, private or link-local address, unless the host allows it:
+A Node host that serves other callers gives `createHostFetch()` of `@procedures/http` to `createIcsModule()`. Then the host policy examines the feed address and each redirect. It refuses a loopback, private or link-local address, unless the `allow` list of the host has it:
 
 ```ts
 import { createHostFetch } from "@procedures/http";
