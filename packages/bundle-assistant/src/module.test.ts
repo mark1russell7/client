@@ -4,7 +4,8 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { createRegistry, effectsOf, surfaceRule } from "@procedures/client";
+import { createRegistry, effectsOf, invokePath, outputValue, surfaceRule } from "@procedures/client";
+import { isHostNotAllowed } from "@procedures/http";
 import { bundleAssistantModule, mcpExclude, mcpNamespaces } from "./module.js";
 
 const TOOLS = [
@@ -39,6 +40,26 @@ describe("bundle-assistant", () => {
       expect(tools).not.toContain(key);
     }
     for (const key of ["notify.send", "restic.run", "tailscale.run"]) expect(registry.get(key.split("."))).toBeUndefined();
+  });
+
+  // Audit pass 2 (O55): before, these procedures fetched each URL of their caller with the global fetch
+  it("sends the requests of its network procedures through the host policy", async () => {
+    const calls: Array<[string, unknown]> = [
+      ["geo.geocode", { query: "x", userAgent: "test/1.0", baseUrl: "http://127.0.0.1:8080" }],
+      ["geo.route", { from: { lat: 0, lon: 0 }, to: { lat: 1, lon: 1 }, baseUrl: "http://169.254.169.254" }],
+      ["weather.forecast", { lat: 0, lon: 0, baseUrl: "http://10.0.0.5" }],
+      ["ics.fetch", { url: "http://[::1]:5232/calendar.ics" }],
+    ];
+    for (const [key, input] of calls) {
+      const path = key.split(".");
+      const error = await invokePath(path, input, { registry })
+        .then((output) => outputValue(output, path))
+        .then(
+          () => undefined,
+          (caught: unknown) => caught
+        );
+      expect(isHostNotAllowed(error), key).toBe(true);
+    }
   });
 
   it("has tools that change nothing", () => {

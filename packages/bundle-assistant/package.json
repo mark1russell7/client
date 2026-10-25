@@ -72,6 +72,7 @@
     "@procedures/client": "workspace:*",
     "@procedures/exif": "workspace:*",
     "@procedures/geo": "workspace:*",
+    "@procedures/http": "workspace:*",
     "@procedures/ics": "workspace:*",
     "@procedures/mail": "workspace:*",
     "@procedures/weather": "workspace:*",

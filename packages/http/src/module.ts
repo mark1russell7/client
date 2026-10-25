@@ -243,12 +243,17 @@ export interface HttpModuleOptions extends HostPolicyOptions {
  */
 export function createHttpModule(options: HttpModuleOptions = {}): ProcedureModule {
   if (Object.values(options).every((value) => value === undefined)) return httpModule;
-  const settings: HttpSettings = {
+  return defineModule("@procedures/http", httpProcedures(httpSettings(options)));
+}
+
+/** This function gives the settings of the options: the host policy and the size limits. A bad entry of `allow` throws. */
+export function httpSettings(options: HttpModuleOptions = {}): HttpSettings {
+  if (Object.values(options).every((value) => value === undefined)) return DEFAULT_SETTINGS;
+  return {
     policy: createHostPolicy(options),
     maxRequestBytes: options.maxRequestBytes ?? DEFAULT_MAX_BYTES,
     maxResponseBytes: options.maxResponseBytes ?? DEFAULT_MAX_BYTES,
   };
-  return defineModule("@procedures/http", httpProcedures(settings));
 }
 
 /**

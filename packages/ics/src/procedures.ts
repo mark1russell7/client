@@ -1,8 +1,13 @@
 /**
  * The procedures of `@procedures/ics`: `ics.parse`, `ics.occurrences`, `ics.write` and `ics.fetch`.
+ *
+ * `ics.fetch` sends its request with the `fetch` of the module. The default is the global
+ * `fetch`, so the root stays safe for a browser. A Node host that takes calls from others gives
+ * `createHostFetch()` of `@procedures/http` to `createIcsModule()`. Then the host policy refuses a
+ * feed on a loopback, private or link-local address (audit pass 2, O55).
  */
 
-import { createProcedure, zodAdapter, type AnyProcedure, type ProcedureContext } from "@procedures/client/browser";
+import { InvocationError, createProcedure, zodAdapter, type AnyProcedure, type ProcedureContext } from "@procedures/client/browser";
 import { z } from "zod";
 import { calendarOccurrences, isCalendar, parseIcs, type IcsEvent, type Occurrence } from "./ics.js";
 import { icsWrite } from "./procedures/ics/write.js";
@@ -155,6 +160,11 @@ export async function fetchCalendar(
   try {
     response = await fetchText(url, { signal: AbortSignal.any(signals), headers: { accept: "text/calendar, */*" } });
   } catch (error) {
+    // A refusal of the host policy keeps its code and its reason. Its message can name the
+    // address of a redirect, so the new message does not.
+    if (error instanceof InvocationError && error.code === "FORBIDDEN") {
+      throw new InvocationError("FORBIDDEN", "The host policy does not allow the host of the calendar feed or of its redirect", error.path, error.reason);
+    }
     const code = errorCodeOf(error);
     const reason =
       (error as { name?: string }).name === "TimeoutError" ? `no answer in ${timeoutMs} ms` : `the request failed${code === undefined ? "" : ` (${code})`}`;
@@ -168,19 +178,41 @@ export async function fetchCalendar(
   return text;
 }
 
-export const icsFetchProcedure: AnyProcedure = createProcedure()
-  .path(["ics", "fetch"])
-  .input(zodAdapter<FetchInput>(FetchInputSchema))
-  .output(zodAdapter<EventsOutput>(EventsOutputSchema))
-  .meta({
-    description: "Get a calendar feed and read its events",
-    args: ["url"],
-    output: "json",
-    effects: { reads: ["network"], writes: [] },
-  })
-  .handler(async (input: FetchInput, ctx?: ProcedureContext): Promise<EventsOutput> => {
-    return { events: parseIcs(await fetchCalendar(input.url, input.timeoutMs, ctx?.signal)) };
-  })
-  .build() as AnyProcedure;
+/** The settings of the host for the procedures of this package. The procedure input cannot change them. */
+export interface IcsProceduresOptions {
+  /**
+   * The function that sends the request of `ics.fetch`. The default is the global `fetch`. A Node
+   * host gives `createHostFetch()` of `@procedures/http`.
+   */
+  readonly fetch?: FetchText | undefined;
+}
+
+function fetchProcedure(fetch: FetchText | undefined): AnyProcedure {
+  return createProcedure()
+    .path(["ics", "fetch"])
+    .input(zodAdapter<FetchInput>(FetchInputSchema))
+    .output(zodAdapter<EventsOutput>(EventsOutputSchema))
+    .meta({
+      description: "Get a calendar feed and read its events",
+      args: ["url"],
+      output: "json",
+      effects: { reads: ["network"], writes: [] },
+    })
+    .handler(async (input: FetchInput, ctx?: ProcedureContext): Promise<EventsOutput> => {
+      return { events: parseIcs(await fetchCalendar(input.url, input.timeoutMs, ctx?.signal, { fetch })) };
+    })
+    .build() as AnyProcedure;
+}
+
+export const icsFetchProcedure: AnyProcedure = fetchProcedure(undefined);
 
 export const icsProcedures: AnyProcedure[] = [icsParseProcedure, icsOccurrencesProcedure, icsWriteProcedure, icsFetchProcedure];
+
+/**
+ * This function gives the procedures of this package with the settings of the host. Without a
+ * `fetch`, it gives `icsProcedures`.
+ */
+export function createIcsProcedures(options: IcsProceduresOptions = {}): AnyProcedure[] {
+  if (options.fetch === undefined) return icsProcedures;
+  return [icsParseProcedure, icsOccurrencesProcedure, icsWriteProcedure, fetchProcedure(options.fetch)];
+}

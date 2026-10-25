@@ -51,6 +51,7 @@ import { INFERRED_EFFECTS_METADATA_KEY, PURE_EFFECTS, REGISTRY_READ_EFFECTS, eff
 import { MANIFEST_FORMAT, describeProcedure as describeEntry, describeRegistry, type ProcedureManifest } from "./manifest.js";
 import type { JsonSchema } from "./schema.js";
 import { isRuntimeDefined, markRuntimeProgram, runtimeProgramOfHandler } from "./runtime-programs.js";
+import { InvocationError } from "./invoke.js";
 
 // Input schemas of procedure.define and procedure.delete (roadmap 2.1)
 const procedurePathField = z.array(z.string().min(1)).min(1);
@@ -297,6 +298,8 @@ interface DefineMetadata extends ProcedureMetadata {
  *   stays: an MCP client cannot replace a tool or an internal procedure.
  * - The registry gets the procedure first. A define that fails leaves nothing.
  * - The new procedure is data-driven: with a server's `expose` rule, it calls only exposed paths.
+ * - With a server's `expose` rule, the path must be exposed: a caller cannot define or replace a
+ *   hidden procedure (`NOT_EXPOSED`).
  * - Its input is raw (the `runs-refs` tag): `exec()` does not run the body at definition time.
  */
 export const defineProcedureProcedure: Procedure<
@@ -325,6 +328,14 @@ export const defineProcedureProcedure: Procedure<
     }
 
     const pathKey = path.join(".");
+    // A path outside the expose rule of the host is not the caller's to define or replace (R17)
+    if (ctx?.expose && !ctx.expose(path)) {
+      throw new InvocationError(
+        "NOT_EXPOSED",
+        `Procedure not exposed: ${pathKey}. procedure.define can define or replace only a procedure that this host exposes.`,
+        ctx.path ?? ["procedure", "define"]
+      );
+    }
     const existing = registry.get(path);
     if (existing && !isRuntimeDefined(existing)) {
       throw new Error(
@@ -539,7 +550,8 @@ export const manifestProcedure: Procedure<{ namespace?: string | undefined }, Pr
 });
 
 /**
- * Delete a runtime-defined procedure.
+ * Delete a runtime-defined procedure. A procedure outside the expose rule of the host is not
+ * found (R17), so a caller cannot delete a hidden procedure.
  */
 export const deleteProcedureProcedure: Procedure<
   { path: ProcedurePath },
@@ -555,6 +567,10 @@ export const deleteProcedureProcedure: Procedure<
   },
   handler: async (input: { path: ProcedurePath }, ctx?: ProcedureContext): Promise<{ deleted: boolean }> => {
     const registry = ctx?.registry ?? PROCEDURE_REGISTRY;
+    // A procedure outside the expose rule of the host is not found (R17)
+    if (ctx?.expose && !ctx.expose(input.path)) {
+      return { deleted: false };
+    }
     const existing = registry.get(input.path);
     if (!existing) {
       return { deleted: false };

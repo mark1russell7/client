@@ -24,6 +24,8 @@ MCP_BUNDLES=@procedures/bundle-mcp,@procedures/bundle-assistant mark mcp
 | `weather.forecast` | It reads one public service. |
 | `exif.read` | It reads the date and the place of a photo on the host. |
 
+The requests of `geo.geocode`, `geo.route`, `weather.forecast` and `ics.fetch` go through the default host policy of `@procedures/http`. The policy refuses a `baseUrl` or a feed on a loopback, private or link-local address.
+
 These procedures are not tools:
 
 - `ics.fetch` fetches any URL, so a tool call can carry data out in the URL.

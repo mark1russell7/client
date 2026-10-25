@@ -3,6 +3,8 @@
  * distance of a drive between two points (OSRM).
  */
 
+import { InvocationError } from "@procedures/client/browser";
+
 /** A point on the map, in degrees. */
 export interface Point {
   readonly lat: number;
@@ -50,6 +52,8 @@ export async function getJson(
   try {
     response = await fetchJson(url, { signal: AbortSignal.any(signals), headers: { accept: "application/json", ...options.headers } });
   } catch (error) {
+    // A refusal (the host policy of a `fetch` of `createHostFetch()`) keeps its code and its reason
+    if (error instanceof InvocationError && error.code === "FORBIDDEN") throw error;
     const reason = (error as { name?: string }).name === "TimeoutError" ? `no answer in ${options.timeoutMs} ms` : "the request failed";
     throw new Error(`${service} did not answer: ${reason}`, { cause: error });
   }

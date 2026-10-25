@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ProcedureRegistry, invokePath, outputValue } from "@procedures/client";
+import { InvocationError, ProcedureRegistry, createRegistry, invokePath, outputValue } from "@procedures/client";
 import { drivingRoute, geocode } from "./geo.js";
+import { createGeoModule, geoModule } from "./module.js";
 import { geoProcedures } from "./procedures.js";
 
 const registry = new ProcedureRegistry();
@@ -81,5 +82,30 @@ describe("the fetch option", () => {
     const request = geocode("x", { userAgent: "my-app/1.0", timeoutMs: 1_000, fetch: async () => Promise.reject(failure) });
     await expect(request).rejects.toThrow(/Nominatim did not answer: the request failed/);
     await expect(request).rejects.toHaveProperty("cause", failure);
+  });
+});
+
+// Audit pass 2 (O55): a host gives the module the fetch of its host policy
+describe("createGeoModule", () => {
+  const refusal = new InvocationError("FORBIDDEN", "the host of the URL is not allowed: 127.0.0.1 is a loopback address", ["geo", "route"], "host-not-allowed");
+
+  it("sends the requests of geo.geocode and geo.route with the fetch of the module", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new Error("the global fetch was used"))));
+    const urls: string[] = [];
+    const fetch = async (url: string) => {
+      urls.push(url);
+      return { ok: true, status: 200, json: async () => ({ code: "Ok", routes: [{ distance: 1_000, duration: 60 }] }) };
+    };
+    const registry = createRegistry(createGeoModule({ fetch }));
+    const output = await invokePath(["geo", "route"], { from: { lat: 0, lon: 0 }, to: { lat: 1, lon: 1 }, baseUrl: "https://osrm.example.org" }, { registry });
+    expect(await outputValue(output, ["geo", "route"])).toEqual({ km: 1, minutes: 1 });
+    expect(urls[0]).toMatch(/^https:\/\/osrm\.example\.org\/route\/v1\/driving\//);
+    expect(createGeoModule()).toBe(geoModule);
+  });
+
+  it("keeps the refusal of the host policy, with its code and its reason", async () => {
+    const registry = createRegistry(createGeoModule({ fetch: async () => Promise.reject(refusal) }));
+    const output = invokePath(["geo", "geocode"], { query: "x", userAgent: "my-app/1.0", baseUrl: "http://127.0.0.1:8080" }, { registry });
+    await expect(output.then((result) => outputValue(result, ["geo", "geocode"]))).rejects.toMatchObject({ code: "FORBIDDEN", reason: "host-not-allowed" });
   });
 });

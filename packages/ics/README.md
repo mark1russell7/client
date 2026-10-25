@@ -108,3 +108,18 @@ daysBetween("2026-10-31", "2026-11-02"); // 2
 The address of a private calendar feed is a secret. `ics.fetch` does not put the address in an error message.
 
 The function `fetchCalendar(url, timeoutMs, signal, { fetch })` gets the text of a feed. It refuses an HTTP error and a page that is not a calendar. The option `fetch` replaces the global `fetch`, for a test or a host with its own client.
+
+## The host policy
+
+`ics.fetch` sends its request with the `fetch` of the module. The default is the global `fetch`, so the root stays safe for a browser.
+
+A Node host that takes calls from others gives `createHostFetch()` of `@procedures/http` to `createIcsModule()`. Then the host policy examines the feed address and each redirect. It refuses a loopback, private or link-local address, unless the host allows it:
+
+```ts
+import { createHostFetch } from "@procedures/http";
+import { createIcsModule } from "@procedures/ics/module";
+
+const registry = createRegistry(createIcsModule({ fetch: createHostFetch() }));
+```
+
+A refusal is `FORBIDDEN` with the reason `host-not-allowed`. Its message does not contain the address of the feed. `@procedures/bundle-assistant` builds its module of `ics` so.

@@ -16,19 +16,34 @@
  * - `notify.send` (not in the bundle) posts to any topic of a public server.
  * - `restic.run` and `tailscale.run` (not in the bundle) run destructive commands.
  *
+ * The requests of `geo.geocode`, `geo.route`, `weather.forecast` and `ics.fetch` go through the
+ * default host policy of `@procedures/http`: a `baseUrl` or a feed on a loopback, private or
+ * link-local address is refused (audit pass 2, O55).
+ *
  * This file has no side effects: an MCP host builds its own registry from `bundleAssistantModules`.
  * `register.ts` registers the same modules in the global registry.
  */
 
 import { defineModule, registerModules, PROCEDURE_REGISTRY, type ProcedureModule, type ProcedureRegistry } from "@procedures/client";
-import icsModule from "@procedures/ics/module";
+import { createHostFetch } from "@procedures/http";
+import { createIcsModule } from "@procedures/ics/module";
 import mailModule from "@procedures/mail/module";
-import geoModule from "@procedures/geo/module";
+import { createGeoModule } from "@procedures/geo/module";
 import weatherModule from "@procedures/weather/module";
 import exifModule from "@procedures/exif/module";
 
+/** The `fetch` of the network procedures of the bundle: the default host policy of `@procedures/http`. */
+const hostFetch = createHostFetch();
+
 /** The modules of the bundle, for `createRegistry()`. Importing this file registers nothing. */
-export const bundleAssistantModules: readonly ProcedureModule[] = [icsModule, mailModule, geoModule, weatherModule, exifModule];
+export const bundleAssistantModules: readonly ProcedureModule[] = [
+  createIcsModule({ fetch: hostFetch }),
+  mailModule,
+  createGeoModule({ fetch: hostFetch }),
+  // The default module of weather goes through the default host policy
+  weatherModule,
+  exifModule,
+];
 
 /** The bundle as one module: no procedures of its own, and the modules above as requirements. */
 export const bundleAssistantModule: ProcedureModule = defineModule("@procedures/bundle-assistant", [], bundleAssistantModules);
