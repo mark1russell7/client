@@ -157,4 +157,15 @@ describe("editFile", () => {
     await mkdir(join(folder, "dir"));
     await expect(editFile(join(folder, "dir"), () => "x")).rejects.toMatchObject({ code: "EISDIR" });
   });
+
+  it("gives the option tempName to the write", async () => {
+    const path = join(folder, ".env");
+    await writeFile(path, "A=1\n");
+    // A file at the name of the temporary file stops the write, so the write used the name
+    await writeFile(join(folder, ".env.next"), "other");
+    await expect(editFile(path, (text) => `${text}B=2\n`, { tempName: () => ".env.next" })).rejects.toMatchObject({ code: "EEXIST" });
+    expect(await readFile(path, "utf8")).toBe("A=1\n");
+    expect(await editFile(path, (text) => `${text}B=2\n`, { tempName: () => ".env.edit" })).toEqual({ changed: true, content: "A=1\nB=2\n" });
+    expect((await readdir(folder)).sort()).toEqual([".env", ".env.next"]);
+  });
 });
