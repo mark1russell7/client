@@ -18,7 +18,7 @@ import { IDEMPOTENCY_KEY_METADATA, IdempotencyCache, idempotentIn, isRepeatable 
 import { createProcedure } from "../../procedures/define.js";
 import { createRegistry } from "../../procedures/module.js";
 import { ProcedureServer } from "../../server/procedure-server.js";
-import type { ServerRequest, ServerResponse } from "../../server/types.js";
+import type { PrincipalOf, ServerRequest, ServerResponse } from "../../server/types.js";
 import { HttpTransport } from "../../adapters/http/client/transport.js";
 import { HttpServerTransport } from "../../adapters/http/server/transport.js";
 import { ms } from "../../duration.js";
@@ -214,8 +214,11 @@ describe("IdempotencyCache", () => {
   });
 });
 
-/** A server with one write procedure that counts its runs. */
-function counterServer(options: { delayMs?: number; idempotent?: boolean; throwRetryable?: boolean } = {}) {
+/**
+ * A server with one write procedure that counts its runs. With `principals`, the request hook
+ * gives each bearer token the principal of the same name.
+ */
+function counterServer(options: { delayMs?: number; idempotent?: boolean; throwRetryable?: boolean; principals?: boolean } = {}) {
   const state = { runs: 0 };
   const registry = createRegistry({
     name: "orders",
@@ -223,26 +226,28 @@ function counterServer(options: { delayMs?: number; idempotent?: boolean; throwR
       createProcedure()
         .path(["orders", "create"])
         .input(z.object({ item: z.string() }))
-        .output(z.object({ order: z.number() }))
+        .output(z.object({ order: z.number(), by: z.string().optional() }))
         .meta({ effects: { writes: ["orders"], ...(options.idempotent ? { idempotent: true } : {}) } })
-        .handler(async () => {
+        .handler(async (_input, ctx) => {
           state.runs++;
           if (options.delayMs) await new Promise((resolve) => setTimeout(resolve, options.delayMs));
           if (options.throwRetryable) throw Object.assign(new Error("busy"), { retryable: true });
-          return { order: state.runs };
+          return { order: state.runs, ...(ctx.principal ? { by: ctx.principal.id } : {}) };
         })
         .build(),
     ],
   });
-  const server = new ProcedureServer({ registry });
+  const principalOf: PrincipalOf = (credentials) => (credentials.bearer ? { principal: { id: credentials.bearer, via: "test" } } : undefined);
+  const server = new ProcedureServer({ registry, ...(options.principals ? { principalOf } : {}) });
   server.registerFromRegistry();
   const handler = (server as unknown as { findHandler(m: unknown): ((r: ServerRequest<unknown>) => Promise<ServerResponse<unknown>>) | null }).findHandler(method)!;
-  const request = (id: string, key?: string, signal?: AbortSignal): ServerRequest<unknown> => ({
+  const request = (id: string, key?: string, signal?: AbortSignal, bearer?: string): ServerRequest<unknown> => ({
     id,
     method,
     payload: { item: "book" },
     metadata: key ? { [IDEMPOTENCY_KEY_METADATA]: key } : {},
     ...(signal ? { signal } : {}),
+    ...(bearer ? { credentials: { bearer } } : {}),
   });
   return { server, state, handler, request };
 }
@@ -287,6 +292,19 @@ describe("ProcedureServer runs a keyed write one time", () => {
     await repeatable.handler(repeatable.request("1", "k"));
     await repeatable.handler(repeatable.request("2", "k"));
     expect(repeatable.state.runs).toBe(2);
+  });
+
+  it("keeps the results of each principal apart: another principal with the same key runs again (audit s21)", async () => {
+    const { state, handler, request } = counterServer({ principals: true });
+    const alice = await handler(request("1", "k", undefined, "alice"));
+    expect(alice.payload).toEqual({ order: 1, by: "alice" });
+    // Before, the cache key had no principal: bob got the result of alice, and his write did not run
+    const bob = await handler(request("2", "k", undefined, "bob"));
+    expect(bob.payload).toEqual({ order: 2, by: "bob" });
+    expect(state.runs).toBe(2);
+    // A second try of one principal still gets its first result
+    expect((await handler(request("3", "k", undefined, "alice"))).payload).toEqual({ order: 1, by: "alice" });
+    expect(state.runs).toBe(2);
   });
 
   it("runs a key again after a retryable error", async () => {

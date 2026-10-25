@@ -157,14 +157,28 @@ function serverOf(old: CollectionStorage<unknown>) {
       },
     }),
   );
+  registry.register(
+    defineProcedure({
+      path: ["things", "opened"],
+      input: outputSchema<Record<string, unknown>>(),
+      output: outputSchema<unknown>(),
+      // The handler takes the storage before it gives its stream, as a subscription does
+      handler: async (_input: unknown, ctx) => {
+        const storage = ctx.repository!.getStorage("things");
+        return (async function* () {
+          yield await storage.get("a");
+        })();
+      },
+    }),
+  );
   const server = new ProcedureServer({ registry, clock, collections: { things: old } });
   server.registerCollectionProcedures("things");
   server.registerFromRegistry();
   let ids = 0;
-  const call = (path: string[], payload: unknown): Promise<ServerResponse<unknown>> => {
+  const call = (path: string[], payload: unknown, metadata: Record<string, unknown> = {}): Promise<ServerResponse<unknown>> => {
     const method = pathToMethod(path);
     const handler = (server as unknown as { findHandler(m: unknown): (r: ServerRequest<unknown>) => Promise<ServerResponse<unknown>> }).findHandler(method);
-    return handler({ id: String(++ids), method, payload, metadata: {} });
+    return handler({ id: String(++ids), method, payload, metadata });
   };
   return { clock, server, get: (id: string) => call(["collections", "things", "get"], { id }), call };
 }
@@ -283,6 +297,23 @@ describe("ProcedureServer.useStorage with close: the calls on the old storage en
     await replacing;
     expect(events).toEqual(["old.close", "next.get", "next.get", "next.close"]);
   });
+
+  // A face that refuses a stream closes it before its first item: HTTP without NDJSON (audit s21)
+  for (const keyed of [false, true]) {
+    it(`ends a stream closed before its first item: the call and its storage end${keyed ? ", also for a keyed call" : ""}`, async () => {
+      const events: string[] = [];
+      const old = gatedStorage(events, "old", "old value");
+      const { clock, server, call } = serverOf(old.storage);
+      const opened = await call(["things", "opened"], {}, keyed ? { "idempotency-key": "k-1" } : {});
+      expect(server.inFlight()).toBe(1);
+      await opened.stream![Symbol.asyncIterator]().return?.(undefined);
+      // Before, the call stayed in flight and kept the storage in use until the grace ended
+      expect(server.inFlight()).toBe(0);
+      await server.useStorage("things", recordingStorage(events, "next"), { close: true, grace: seconds(5) });
+      expect(events).toEqual(["old.close"]);
+      expect(clock.pending).toBe(0);
+    });
+  }
 
   it("refuses a grace that is a plain number, and changes nothing", async () => {
     const events: string[] = [];
