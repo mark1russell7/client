@@ -5,7 +5,7 @@
  * `@procedures/shell`. A time limit and the signal of the call stop its process tree.
  */
 
-import { closeSync, copyFileSync, mkdirSync, mkdtempSync, openSync, readSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { closeSync, copyFileSync, mkdirSync, mkdtempSync, openSync, readSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -83,20 +83,6 @@ function fileSize(path: string): number | undefined {
   }
 }
 
-/**
- * This function moves a file over another file. A rename replaces the target in one step. Across
- * two drives, a rename fails, so the function copies the file, then removes the source.
- */
-function moveFile(source: string, target: string): void {
-  try {
-    renameSync(source, target);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "EXDEV") throw error;
-    copyFileSync(source, target);
-    rmSync(source, { force: true });
-  }
-}
-
 function lastLines(text: string, count = 5): string {
   return text.trim().split(/\r?\n/).slice(-count).join("\n");
 }
@@ -152,7 +138,8 @@ export async function renderPdf(options: RenderPdfOptions): Promise<RenderPdfRes
       throw new Error(`The browser made no PDF file (exit code ${result.exitCode})${detail ? `: ${detail}` : ""}`);
     }
     if (!isPdfFile(printed)) throw new Error(`The file ${output} is not a PDF file`);
-    if (printed !== output) moveFile(printed, output);
+    // The temporary folder goes in `finally`, so a copy is enough, also across two drives
+    if (printed !== output) copyFileSync(printed, output);
     made = true;
     return { path: output, bytes, browser };
   } finally {
