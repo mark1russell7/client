@@ -177,7 +177,7 @@ importers:
         version: 3.0.3
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@mark1russell7/ste-lint':
         specifier: github:mark1russell7/ste-lint
         version: https://codeload.github.com/mark1russell7/ste-lint/tar.gz/f597d6c1e09bcfcb487bb575825d6d5f29e9e0c7
@@ -208,7 +208,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -236,7 +236,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -267,7 +267,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       mongodb:
         specifier: ^7.7.0
         version: 7.7.0(socks@2.8.10)
@@ -307,7 +307,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -350,7 +350,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -396,7 +396,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -421,7 +421,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -439,16 +439,16 @@ importers:
     dependencies:
       '@mark1russell7/algebra':
         specifier: ^0.7.1
-        version: 0.7.2(zod@4.6.7)
+        version: 0.7.3(zod@4.6.7)
       '@mark1russell7/coeval':
-        specifier: ^0.6.3
-        version: 0.6.3
+        specifier: ^0.7.0
+        version: 0.7.0
       '@mark1russell7/quantity':
         specifier: ^0.2.0
         version: 0.2.0(zod@4.6.7)
       '@mark1russell7/service':
         specifier: ^0.5.8
-        version: 0.5.8(zod@4.6.7)
+        version: 0.5.10(zod@4.6.7)
       '@types/ws':
         specifier: ^8.18.1
         version: 8.18.2
@@ -464,7 +464,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@stryker-mutator/core':
         specifier: 10.0.0
         version: 10.0.0(@types/node@22.20.5)
@@ -504,7 +504,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -523,7 +523,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -541,7 +541,7 @@ importers:
     dependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -576,7 +576,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -601,7 +601,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -626,7 +626,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -654,7 +654,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -694,7 +694,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -719,10 +719,10 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@mark1russell7/service':
         specifier: ^0.5.8
-        version: 0.5.8(zod@4.6.7)
+        version: 0.5.10(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -753,7 +753,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -778,7 +778,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -803,7 +803,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -828,7 +828,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -853,7 +853,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -884,7 +884,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -902,7 +902,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.5.8
-        version: 0.5.8(zod@4.6.7)
+        version: 0.5.10(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -912,7 +912,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@modelcontextprotocol/sdk':
         specifier: ^1.32.1
         version: 1.32.1(supports-color@7.2.0)(zod@4.6.7)
@@ -946,7 +946,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -989,7 +989,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1006,15 +1006,15 @@ importers:
   packages/client-splay:
     dependencies:
       '@mark1russell7/splay':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: ^0.2.0
+        version: 0.2.0
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1028,8 +1028,8 @@ importers:
   packages/client-sqlite:
     dependencies:
       '@mark1russell7/docker-sqlite':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: ^0.2.0
+        version: 0.2.0
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1039,7 +1039,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@procedures/collections':
         specifier: workspace:*
         version: link:../client-collections
@@ -1063,7 +1063,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.5.8
-        version: 0.5.8(zod@4.6.7)
+        version: 0.5.10(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1076,7 +1076,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1110,7 +1110,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1144,7 +1144,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1155,8 +1155,8 @@ importers:
   packages/compiler:
     dependencies:
       '@mark1russell7/coeval':
-        specifier: ^0.6.3
-        version: 0.6.3
+        specifier: ^0.7.0
+        version: 0.7.0
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1166,7 +1166,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       fast-check:
         specifier: ^4.10.2
         version: 4.10.2
@@ -1181,7 +1181,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -1200,7 +1200,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1222,7 +1222,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1247,7 +1247,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1272,7 +1272,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1297,7 +1297,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1319,7 +1319,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1334,7 +1334,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.5.8
-        version: 0.5.8(zod@4.6.7)
+        version: 0.5.10(zod@4.6.7)
       '@procedures/bundle-mcp':
         specifier: workspace:*
         version: link:../bundle-mcp
@@ -1353,7 +1353,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1375,7 +1375,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1406,7 +1406,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2
@@ -1424,7 +1424,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.5.8
-        version: 0.5.8(zod@4.6.7)
+        version: 0.5.10(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1440,7 +1440,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1465,7 +1465,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1483,7 +1483,7 @@ importers:
         version: 0.7.0
       '@mark1russell7/service':
         specifier: ^0.5.8
-        version: 0.5.8(zod@4.6.7)
+        version: 0.5.10(zod@4.6.7)
       '@procedures/cli-run':
         specifier: workspace:*
         version: link:../client-cli
@@ -1532,7 +1532,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@procedures/archive':
         specifier: workspace:*
         version: link:../archive
@@ -1664,7 +1664,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1689,7 +1689,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1714,7 +1714,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1739,7 +1739,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1761,7 +1761,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1789,7 +1789,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1814,10 +1814,10 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@mark1russell7/service':
         specifier: ^0.5.8
-        version: 0.5.8(zod@4.6.7)
+        version: 0.5.10(zod@4.6.7)
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1835,7 +1835,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.5.8
-        version: 0.5.8(zod@4.6.7)
+        version: 0.5.10(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1848,7 +1848,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1873,7 +1873,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@procedures/store':
         specifier: workspace:*
         version: link:../client-store
@@ -1916,10 +1916,10 @@ importers:
         version: 4.13.0(playwright-core@1.64.0)
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@mark1russell7/site-pages':
         specifier: ^0.1.3
-        version: 0.1.3
+        version: 0.1.5
       '@playwright/test':
         specifier: ^1.64.0
         version: 1.64.0
@@ -2111,7 +2111,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.5.8
-        version: 0.5.8(zod@4.6.7)
+        version: 0.5.10(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -2121,7 +2121,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -2143,7 +2143,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -2168,7 +2168,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
-        version: 1.0.0
+        version: 1.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -3218,22 +3218,22 @@ packages:
     resolution: {integrity: sha512-6QEf6yqFbETdwGITKq57aYoPfX/3K8XFNwsAlx0C1M7o8cb79sv1M3w+tWuWvIcSbNqrLF7OD7YpZMVVz335hQ==}
     engines: {node: '>=20.0.0'}
 
-  '@mark1russell7/algebra@0.7.2':
-    resolution: {integrity: sha512-O1gaRMeyI2gYA9I/Hi9WazKwoQXNgTP/IOkP/qsTN3LdtUjAmNrGUzuNAF9+SgA9atJ+85HF1iBeCivRcdbFsg==}
+  '@mark1russell7/algebra@0.7.3':
+    resolution: {integrity: sha512-XTxoC51fc4x/EXKGfJd0AlVULOyJvn+EMlbkvOdyQ2didbIjKURNoHmDx0BpmujHErIMocQ7Z0Ojc2xZ5GP9dg==}
     engines: {node: '>=22.19'}
     peerDependencies:
       zod: ^4.1.0
 
-  '@mark1russell7/coeval@0.6.3':
-    resolution: {integrity: sha512-S04sXaDE0l+ZPDazQa4o/zdRQ2IAfIzJekKPIEOdBtsh3uGFP/AvK+46HNzW5w2rxUYPeznGj0HA68am4TDolw==}
+  '@mark1russell7/coeval@0.7.0':
+    resolution: {integrity: sha512-PLJXG5raA1Kb0QqBL7uEoEP7IPLZay1Gk/FuLXJNNorgC0WKOGNCcTA9E0dQ13mGQQjiE8hCkdGh1sJX8BdO4A==}
 
-  '@mark1russell7/cue@1.0.0':
-    resolution: {integrity: sha512-X5rWpFWeoTxXW0jcUmDUcJUnMS7lPtwF4Xhb7QSD+85LifEPH81h1lzhUri+VngQCm7f9lJwj5Z15lJ4wVcODA==}
+  '@mark1russell7/cue@1.0.2':
+    resolution: {integrity: sha512-ketUJQeJ4eLSmw0X3NpWrGHxXVg30MpMfw/wYdzlpwf7J94BQmmOM80VuGL4OPC4tXczmTj5LWxNdM7NoQKgeA==}
     engines: {node: '>=22'}
     hasBin: true
 
-  '@mark1russell7/docker-sqlite@0.1.0':
-    resolution: {integrity: sha512-iDJU4B8hYy8bGtoAiBhUxvf1ZTnBsyBHHlylpZx/qcbh3/sAaSFZPrIeqCvJJClRc5dYBEtUV1mBkRZDDvqEzg==}
+  '@mark1russell7/docker-sqlite@0.2.0':
+    resolution: {integrity: sha512-07D7n1NIwThVSdVle3Zw/+ATCbO7xFhTLgW382mEdIGjCcnoiMaNfpdqTykGX3YZ4K3WfEJl9MPWm6zDVa1k0A==}
     engines: {node: '>=22'}
 
   '@mark1russell7/quantity@0.2.0':
@@ -3245,8 +3245,8 @@ packages:
       zod:
         optional: true
 
-  '@mark1russell7/service@0.5.8':
-    resolution: {integrity: sha512-ksanAboBmtfOlSNzLrJtXhFwGiy1/4UNt8q9dVK+x44Gs9Zh7OMoyQblPX1X5nfagQVN7l1YF73A7wQVf7M41A==}
+  '@mark1russell7/service@0.5.10':
+    resolution: {integrity: sha512-me8BB7ahcb1QmlSwOxjegOVOi/mA6E/d6qn6UQHtOOw+eB21U4BpcMBa145M+GlsgQMKPH+timuy8YhnFlQqjQ==}
     engines: {node: '>=22.19'}
     peerDependencies:
       ioredis: ^6.0.0
@@ -3257,13 +3257,13 @@ packages:
       zod:
         optional: true
 
-  '@mark1russell7/site-pages@0.1.3':
-    resolution: {integrity: sha512-yCJVV6Ad0j+hHye/GNfWuSGhpJxWM4UN8J7MCcfsvOjxZrJOCs9EsW2wu6XKZLGcOh+TMNBIZpb1WxgCLix8ew==}
+  '@mark1russell7/site-pages@0.1.5':
+    resolution: {integrity: sha512-3v5maA1COISLvZjYC2pC5kt/SLdOaOyH+NbUvgTjN7xJp1HySZ6c6dLTrGXx+Z/4vzX/LkqVo0kGBn8b5ROnzw==}
     engines: {node: '>=22'}
     hasBin: true
 
-  '@mark1russell7/splay@0.1.0':
-    resolution: {integrity: sha512-68MO5gAKRv+sjAJdO+I/TYCjl45QcG3vU8mK8Jj28B3e7EeR+GQKRCgSE3/56JdCNKLh19khwTBHLZuly4EH8g==}
+  '@mark1russell7/splay@0.2.0':
+    resolution: {integrity: sha512-iwTvpGKrAvjnKsNCJXT3nrKKbQDf7+OCi/cZkEk4gKSeFyumKVUDgcSUD3dDmLDBZrmb6xRcTtxEZGkMNaBIjw==}
     engines: {node: '>=22'}
 
   '@mark1russell7/ste-lint@https://codeload.github.com/mark1russell7/ste-lint/tar.gz/f597d6c1e09bcfcb487bb575825d6d5f29e9e0c7':
@@ -6350,16 +6350,16 @@ snapshots:
       tinyglobby: 0.2.17
       yaml: 2.9.1
 
-  '@mark1russell7/algebra@0.7.2(zod@4.6.7)':
+  '@mark1russell7/algebra@0.7.3(zod@4.6.7)':
     dependencies:
       '@mark1russell7/quantity': 0.2.0(zod@4.6.7)
       zod: 4.6.7
 
-  '@mark1russell7/coeval@0.6.3': {}
+  '@mark1russell7/coeval@0.7.0': {}
 
-  '@mark1russell7/cue@1.0.0': {}
+  '@mark1russell7/cue@1.0.2': {}
 
-  '@mark1russell7/docker-sqlite@0.1.0':
+  '@mark1russell7/docker-sqlite@0.2.0':
     dependencies:
       '@types/sql.js': 1.4.11
       sql.js: 1.14.2
@@ -6368,16 +6368,16 @@ snapshots:
     optionalDependencies:
       zod: 4.6.7
 
-  '@mark1russell7/service@0.5.8(zod@4.6.7)':
+  '@mark1russell7/service@0.5.10(zod@4.6.7)':
     dependencies:
-      '@mark1russell7/algebra': 0.7.2(zod@4.6.7)
+      '@mark1russell7/algebra': 0.7.3(zod@4.6.7)
       '@mark1russell7/quantity': 0.2.0(zod@4.6.7)
     optionalDependencies:
       zod: 4.6.7
 
-  '@mark1russell7/site-pages@0.1.3': {}
+  '@mark1russell7/site-pages@0.1.5': {}
 
-  '@mark1russell7/splay@0.1.0': {}
+  '@mark1russell7/splay@0.2.0': {}
 
   '@mark1russell7/ste-lint@https://codeload.github.com/mark1russell7/ste-lint/tar.gz/f597d6c1e09bcfcb487bb575825d6d5f29e9e0c7':
     dependencies:
