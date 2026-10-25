@@ -284,9 +284,14 @@ function collect(nodes: readonly RegexNode[], ways: Ways): void {
       if (node.min !== node.max) {
         ways.variable = true;
         if (node.max === Infinity) ways.unbounded = true;
-        ways.count *= node.max - node.min + 1;
       }
-      collect([node.node], ways);
+      // Each repetition multiplies the ways of the part inside it: ((a|a){9}){9} has 2^81 ways, not 2^9
+      const inner: Ways = { unbounded: false, variable: false, overlap: false, count: 1 };
+      collect([node.node], inner);
+      ways.unbounded ||= inner.unbounded;
+      ways.variable ||= inner.variable;
+      ways.overlap ||= inner.overlap;
+      ways.count *= node.max === Infinity ? Infinity : (node.max - node.min + 1) * inner.count ** node.max;
     } else if (node.kind === "group") {
       if (node.branches.length > 1) {
         ways.count *= node.branches.length;
