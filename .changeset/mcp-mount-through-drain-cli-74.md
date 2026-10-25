@@ -13,4 +13,5 @@ PATCH: a fix with no API change (D34).
 - During the drain, the answer of an elicitation, a cancel and a ping reach the session. A new session and a new GET stream get the 503 of the face. A new tool call gets `UNAVAILABLE` from the server.
 - The face ends the SSE stream of a cancelled call. The SDK sends no answer to a cancel, so that stream held the drain of the listener until its deadline.
 - Mount `host.handleHttp` itself, for example `listener.mount(host.handleHttp)`. A function that wraps it loses `until`. The dev-tools server mounts it in this way.
+- A change you can see: during a drain, a listener with the MCP face answers a new connection with 503 and `Retry-After` until the stage `close transports`. Before, the listener closed at the stage `stop intake`.
 - Note on the stop time: the cap of the drain does not change, and a stream of the face does not hold the drain past its deadline. A listener with the MCP face now answers a new connection with 503 until the stage `close transports`, and does not refuse it. The test `mcp-stop.test.ts` of `@procedures/peer` measures each stop on the fake clock.
