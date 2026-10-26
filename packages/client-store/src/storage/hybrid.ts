@@ -218,7 +218,9 @@ export interface HybridStorageOptions {
   /**
    * True when an error of the remote means "not available now", so the write can wait in the
    * queue. Another error (a refusal of the remote) undoes the write. The default: an error with
-   * `retryable: true`, or an error without a `code`.
+   * `retryable: true`, an error without a `code`, or a `TIMEOUT` (roadmap O68). The remote can have
+   * applied a write that timed out. Its queued copy goes again, and the collection writes are
+   * idempotent: a second send of a value by id gives the same item.
    */
   isUnavailable?: (error: unknown) => boolean;
 
@@ -661,7 +663,9 @@ export class RemoteApplyHookError extends Error {
 const defaultIsUnavailable = (error: unknown): boolean => {
   if (typeof error !== "object" || error === null) return true;
   const { retryable, code } = error as { retryable?: unknown; code?: unknown };
-  return retryable === true || code === undefined;
+  // A TIMEOUT has `retryable: false`, because the remote can have the request. A write of the
+  // queue goes again anyway: it sets a value by id, so a second send changes nothing (roadmap O68).
+  return retryable === true || code === undefined || code === "TIMEOUT";
 };
 
 /** The codes of the protocol that refuse a queued write for good: a new send gets the same refusal (roadmap O67). */
