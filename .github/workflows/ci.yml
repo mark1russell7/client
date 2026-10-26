@@ -118,29 +118,6 @@ jobs:
             }
           ' "$RUNNER_TEMP/audit.json"
 
-  # The ruleset ci-required of main names the checks "CI (Node 22)", "CI (Node 24)" and
-  # "CI (Node 26)" of the old job ci. These jobs keep the names, so that the required checks
-  # report. Each one passes only when the shared CI (all the Node versions) and the repository
-  # checks pass. Delete this job after the ruleset names the new checks (roadmap O62).
-  required:
-    name: CI (Node ${{ matrix.node }})
-    needs: [ci, checks]
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    strategy:
-      fail-fast: false
-      matrix:
-        node: [22, 24, 26]
-    steps:
-      - name: The shared CI and the repository checks passed
-        env:
-          CI_RESULT: ${{ needs.ci.result }}
-          CHECKS_RESULT: ${{ needs.checks.result }}
-        run: |
-          echo "The shared CI: $CI_RESULT. The repository checks: $CHECKS_RESULT."
-          [ "$CI_RESULT" = "success" ] && [ "$CHECKS_RESULT" = "success" ]
-
   mongo:
     # MongoDocumentStorage against a real MongoDB (roadmap CLI-24): the CollectionStorage contract,
     # the partitions, the documents and the change log, on both topologies. On a replica set, each
