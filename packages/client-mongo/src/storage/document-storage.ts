@@ -38,7 +38,9 @@
  *   this, as the storage reads a document.
  * - A document without the fields of the storage (for example one written before the app used the
  *   storage) is an item too. Its id comes from `idOf`, else from `_key`, and its item gets that id
- *   as `_id` and keeps its partition fields, as its readers saw it. A document whose id neither
+ *   as `_id`. Its partition fields follow the rule of a written document without `_kpf`: a field
+ *   with the value of the partition stays out, and a field with another value stays in. So the
+ *   item has the same form before and after its first write. A document whose id neither
  *   tells (for example an `ObjectId` that `idOf` does not name) is not an item: the reads and
  *   `size()` leave it out. Its version is `0`, and it comes before the other items in the order of
  *   the entries (then by `_id`). A full result of the change log has it, and a delta has it after
@@ -157,8 +159,10 @@ export interface StoredForm {
   /**
    * The fields that name a partition. Each document of the partition has them, and they are the
    * filter of the partition. A field with the value `undefined` is absent: the document does not
-   * have it, and the filter is `{ $exists: false }`. Give the same names for each partition. An item
-   * with a field of one of these names is stored as JSON text, so it comes back as it was.
+   * have it, and the filter is `{ $exists: false }`. Give the same names for each partition. A
+   * top-level field of an item with one of these names and the value of the partition is left out
+   * of the stored fields and noted in `_kpf`, and the read gives it back. Another value is refused
+   * with a `TypeError`.
    */
   partitionFields(partition: string | undefined): Readonly<Record<string, unknown>>;
   /**
@@ -343,7 +347,8 @@ interface FlatItem {
  * The item of a stored document (not a tombstone) whose id is known. `_json` gives the item as it
  * was. Else the fields of the storage stay out, the item gets `_id` when it had it (`_kid`), when
  * the document is from outside the storage (no `_key`) or with `addId`, and it gets back the
- * partition fields of `_kpf`. A document from outside the storage keeps its partition fields.
+ * partition fields of `_kpf`. A partition field with the value of the partition stays out (for a
+ * document from outside the storage too); a field with another value stays in.
  */
 function itemOf(doc: Document, id: string, partitionEntries: ReadonlyArray<readonly [string, unknown]>, addId: boolean): unknown {
   if (typeof doc[JSON_FIELD] === "string") {
@@ -354,9 +359,11 @@ function itemOf(doc: Document, id: string, partitionEntries: ReadonlyArray<reado
   const outside = doc[KEY] === undefined;
   const value: Record<string, unknown> = {};
   if (addId || outside || doc[KEEP_ID] === true) value["_id"] = id;
-  const names = new Set(partitionEntries.map(([name]) => name));
+  const partitionValues = new Map(partitionEntries);
   for (const [key, field] of Object.entries(doc)) {
-    if (STORAGE_FIELDS.has(key) || (names.has(key) && !outside)) continue;
+    if (STORAGE_FIELDS.has(key)) continue;
+    // The value of the partition comes back only through `_kpf`, so the item has one form at each age of its document
+    if (partitionValues.has(key) && isDeepStrictEqual(field, partitionValues.get(key))) continue;
     put(value, key, field);
   }
   const kept = doc[KEEP_PART];

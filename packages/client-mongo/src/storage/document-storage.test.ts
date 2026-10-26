@@ -128,7 +128,9 @@ describe("the stored form: the defaults and their inverse (CLI-76)", () => {
     // The form of an app: the partition from partitionOf, the partition fields of _kpf back, a document from outside the storage as it was
     const scoped = { _id: "board:1|acme:n1", _key: "n1", _seq: 3, _ord: 1, tenant: "acme", scope: "board:1", _kpf: ["tenant"], title: "x" };
     expect(decodeStoredDocument(scoped, { form: appForm })).toEqual({ id: "n1", partition: "acme/board:1", item: { _id: "n1", tenant: "acme", title: "x" } });
-    expect(decodeStoredDocument({ _id: "acme:old", tenant: "acme", title: "t" }, { form: appForm })).toEqual({ id: "old", partition: "acme", item: { _id: "old", tenant: "acme", title: "t" } });
+    expect(decodeStoredDocument({ _id: "acme:old", tenant: "acme", title: "t" }, { form: appForm })).toEqual({ id: "old", partition: "acme", item: { _id: "old", title: "t" } });
+    // A partition field with another value than the partition stays in the item
+    expect(decodeStoredDocument({ _id: "acme:old", tenant: "acme", scope: "x", title: "t" }, { form: appForm, partition: "acme" })?.item).toEqual({ _id: "old", scope: "x", title: "t" });
     expect(decodeStoredDocument({ _id: new BSON.ObjectId(), tenant: "acme", title: "t" }, { form: appForm })).toBeUndefined();
     expect(decodeStoredDocument({ _id: "beta:n1", _key: "n1", tenant: "beta" }, { form: appForm, partition: "acme" })).toEqual({ id: "n1", partition: "acme", item: { _id: "n1" } });
   });
@@ -396,17 +398,17 @@ withMongo("MongoDocumentStorage with another stored form (CLI-76)", () => {
     ]);
     const root = fresh<{ title: string }>({ form: appForm, collection: name, versionOf: (item) => item.title });
     const acme = root.forPartition("acme");
-    // The item of a document from outside the storage is as its readers saw it: with its _id and its partition fields
-    expect(await acme.get("old1")).toEqual({ _id: "old1", tenant: "acme", title: "first" });
+    // The item of a document from outside the storage has its _id, and has the form of a written item: no field with the value of the partition
+    expect(await acme.get("old1")).toEqual({ _id: "old1", title: "first" });
     expect(await acme.has("old2")).toBe(true);
     expect(await acme.size()).toBe(3);
     expect(await acme.getAll()).toHaveLength(3);
     expect((await acme.getIds()).sort()).toEqual(["old1", "old2", "old3"]);
-    expect(await acme.query({ title: "second" })).toEqual([["old2", { _id: "old2", tenant: "acme", title: "second" }]]);
+    expect(await acme.query({ title: "second" })).toEqual([["old2", { _id: "old2", title: "second" }]]);
     expect([...(await acme.getBatch(["old3", "old1"])).keys()]).toEqual(["old3", "old1"]);
     expect(await acme.versionOf("old1")).toBe("0");
-    expect(await root.forPartition("acme/board:1").get("old1")).toEqual({ _id: "old1", tenant: "acme", scope: "board:1", title: "scoped" });
-    expect(await root.forPartition("beta").getAll()).toEqual([{ _id: "old1", tenant: "beta", title: "other tenant" }]);
+    expect(await root.forPartition("acme/board:1").get("old1")).toEqual({ _id: "old1", title: "scoped" });
+    expect(await root.forPartition("beta").getAll()).toEqual([{ _id: "old1", title: "other tenant" }]);
     const full = await acme.getChangesSince();
     expect(full.full).toBe(true);
     expect(full.changed.map(([id]) => id).sort()).toEqual(["old1", "old2", "old3"]);
@@ -422,11 +424,12 @@ withMongo("MongoDocumentStorage with another stored form (CLI-76)", () => {
     expect((await acme.getChangesSince(full.version)).changed.map(([id]) => id)).toEqual(["old1", "new"]);
 
     // A patch, a precondition, a delete and a clear of a document without the fields of the storage
-    expect(await acme.patch("old2", { title: "second, patched" })).toEqual({ _id: "old2", tenant: "acme", title: "second, patched" });
+    expect(await acme.patch("old2", { title: "second, patched" })).toEqual({ _id: "old2", title: "second, patched" });
     // The write keeps the item flat: _id and the partition field are noted, not stored as JSON
-    expect((await rawById(name)).get("acme:old2")).toMatchObject({ _key: "old2", _kid: true, _kpf: ["tenant"], tenant: "acme", title: "second, patched" });
+    expect((await rawById(name)).get("acme:old2")).toMatchObject({ _key: "old2", _kid: true, tenant: "acme", title: "second, patched" });
+    expect((await rawById(name)).get("acme:old2")).not.toHaveProperty("_kpf");
     expect((await rawById(name)).get("acme:old2")).not.toHaveProperty("_json");
-    expect(await acme.get("old2")).toEqual({ _id: "old2", tenant: "acme", title: "second, patched" });
+    expect(await acme.get("old2")).toEqual({ _id: "old2", title: "second, patched" });
     await expect(acme.set("old3", { title: "x" }, { expectedVersion: "not third" })).rejects.toMatchObject({ code: "VERSION_CONFLICT" });
     const before = await acme.getChangesSince();
     expect(await acme.delete("old3", { expectedVersion: "third" })).toBe(true);
