@@ -6,14 +6,12 @@
  */
 
 import {
+  definePackage,
   createProcedure,
   RUNS_REFS_TAG,
-  defineModule,
-  PROCEDURE_REGISTRY,
-  registerModules,
   type ProcedureContext,
   type ProcedureModule,
-  type ProcedureRegistry,
+  type PackageDefinition,
 } from "@procedures/client";
 import { dagTraverse } from "./procedures/traverse.js";
 import {
@@ -53,6 +51,8 @@ const dagTraverseProcedure = createProcedure()
 // Registration
 // =============================================================================
 
+const dagPackage: PackageDefinition = definePackage("@procedures/dag", [dagTraverseProcedure]);
+
 /**
  * The module of this package, for `createRegistry()`: its procedures as data. Importing this
  * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
@@ -61,7 +61,7 @@ const dagTraverseProcedure = createProcedure()
  * dependency, because that package depends on this one. A host registers both modules
  * (`bundle-dev`, `bundle-mcp` and `mark` do).
  */
-export const dagModule: ProcedureModule = defineModule("@procedures/dag", [dagTraverseProcedure]);
+export const dagModule: ProcedureModule = dagPackage.module;
 
 export default dagModule;
 
@@ -70,6 +70,4 @@ export default dagModule;
  * global registry. Importing this file registers nothing: the `./register` entry starts this
  * function (ARCHITECTURE-PROPOSALS-2026-10, P9).
  */
-export function registerDagProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [dagModule]);
-}
+export const registerDagProcedures: PackageDefinition["register"] = dagPackage.register;

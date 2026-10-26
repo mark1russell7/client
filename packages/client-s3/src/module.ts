@@ -8,7 +8,7 @@
  * Credentials are loaded from environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY).
  */
 
-import { createProcedure, defineModule, type FsRootRules, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { definePackage, createProcedure, type FsRootRules, type ProcedureModule, type PackageDefinition } from "@procedures/client";
 import {
   s3Upload,
   s3Download,
@@ -285,11 +285,7 @@ const s3PresignProcedure = createProcedure()
 // Registration
 // =============================================================================
 
-/**
- * The module of this package, for `createRegistry()`: its procedures as data. Importing this
- * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
- */
-export const s3Module: ProcedureModule = defineModule("@procedures/s3", [
+const s3Package: PackageDefinition = definePackage("@procedures/s3", [
     s3UploadProcedure,
     s3DownloadProcedure,
     s3ListProcedure,
@@ -304,6 +300,12 @@ export const s3Module: ProcedureModule = defineModule("@procedures/s3", [
     s3PresignProcedure,
   ]);
 
+/**
+ * The module of this package, for `createRegistry()`: its procedures as data. Importing this
+ * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
+ */
+export const s3Module: ProcedureModule = s3Package.module;
+
 export default s3Module;
 
 /**
@@ -311,6 +313,4 @@ export default s3Module;
  * a registry. The default is the global registry. Importing this file registers nothing: the
  * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
  */
-export function registerS3Procedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [s3Module]);
-}
+export const registerS3Procedures: PackageDefinition["register"] = s3Package.register;

@@ -10,7 +10,7 @@
  */
 
 import { z } from "zod";
-import { defineModule, registerModules, PROCEDURE_REGISTRY, type AnyProcedure, type Effects, type FsRootRules, type ProcedureModule, type ProcedureRegistry, createProcedure } from "@procedures/client";
+import { definePackage, type AnyProcedure, type Effects, type FsRootRules, type ProcedureModule, createProcedure, type PackageDefinition } from "@procedures/client";
 import shellModule from "@procedures/shell/module";
 import { ghPrList } from "./procedures/gh/pr/list.js";
 import { ghPrView } from "./procedures/gh/pr/view.js";
@@ -230,7 +230,9 @@ const procedures: AnyProcedure[] = [
   ),
 ];
 
-export const ghModule: ProcedureModule = defineModule("@procedures/gh", procedures, [shellModule]);
+const ghPackage: PackageDefinition = definePackage("@procedures/gh", procedures, [shellModule]);
+
+export const ghModule: ProcedureModule = ghPackage.module;
 
 export default ghModule;
 
@@ -238,6 +240,4 @@ export default ghModule;
  * This function registers the procedures of @procedures/gh in a registry. The default is the
  * global registry.
  */
-export function registerGhProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [ghModule]);
-}
+export const registerGhProcedures: PackageDefinition["register"] = ghPackage.register;

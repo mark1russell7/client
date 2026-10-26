@@ -11,7 +11,7 @@
  */
 
 
-import { createProcedure, defineModule, type FsRootRules, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { definePackage, createProcedure, type FsRootRules, type ProcedureModule, type PackageDefinition } from "@procedures/client";
 import shellModule from "@procedures/shell/module";
 import {
   dockerRun,
@@ -605,11 +605,7 @@ const dockerPruneProcedure = createProcedure()
 // Registration
 // =============================================================================
 
-/**
- * The module of this package, for `createRegistry()`: its procedures as data. Importing this
- * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
- */
-export const dockerModule: ProcedureModule = defineModule("@procedures/docker", [
+const dockerPackage: PackageDefinition = definePackage("@procedures/docker", [
     dockerRunProcedure,
     dockerBuildProcedure,
     dockerPullProcedure,
@@ -637,6 +633,12 @@ export const dockerModule: ProcedureModule = defineModule("@procedures/docker", 
     dockerPruneProcedure,
   ], [shellModule]);
 
+/**
+ * The module of this package, for `createRegistry()`: its procedures as data. Importing this
+ * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
+ */
+export const dockerModule: ProcedureModule = dockerPackage.module;
+
 export default dockerModule;
 
 /**
@@ -644,6 +646,4 @@ export default dockerModule;
  * a registry. The default is the global registry. Importing this file registers nothing: the
  * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
  */
-export function registerDockerProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [dockerModule]);
-}
+export const registerDockerProcedures: PackageDefinition["register"] = dockerPackage.register;

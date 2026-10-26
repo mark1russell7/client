@@ -2,10 +2,12 @@
  * The procedures of @procedures/ios-backup as data. Importing this file registers nothing.
  */
 
-import { defineModule, registerModules, PROCEDURE_REGISTRY, type ProcedureModule, type ProcedureRegistry } from "@procedures/client";
+import { definePackage, type ProcedureModule, type PackageDefinition } from "@procedures/client";
 import { iosBackupProcedures } from "./procedures.js";
 
-export const iosBackupModule: ProcedureModule = defineModule("@procedures/ios-backup", iosBackupProcedures);
+const iosBackupPackage: PackageDefinition = definePackage("@procedures/ios-backup", iosBackupProcedures);
+
+export const iosBackupModule: ProcedureModule = iosBackupPackage.module;
 
 export default iosBackupModule;
 
@@ -13,6 +15,4 @@ export default iosBackupModule;
  * This function registers the procedures of @procedures/ios-backup in a registry. The default is the
  * global registry.
  */
-export function registerIosBackupProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [iosBackupModule]);
-}
+export const registerIosBackupProcedures: PackageDefinition["register"] = iosBackupPackage.register;

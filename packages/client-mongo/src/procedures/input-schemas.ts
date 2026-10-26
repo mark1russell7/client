@@ -12,7 +12,7 @@
  */
 
 import { z } from "zod";
-import { jsonSchemaOf, zodAdapter, type ZodLikeSchema } from "@procedures/client";
+import { jsonSchemaOf, typed, type ZodLikeSchema } from "@procedures/client";
 
 /** The fields that select the database and the collection. */
 export function scopeFields(): { collection: z.ZodOptional<z.ZodString>; database: z.ZodOptional<z.ZodString> } {
@@ -59,5 +59,32 @@ export function idTypeField(): z.ZodOptional<z.ZodEnum<{ auto: "auto"; objectId:
  * that names the same fields.
  */
 export function described<T>(parse: (data: unknown) => T, fields: z.ZodObject): ZodLikeSchema<T> {
-  return Object.assign(zodAdapter<T>({ parse }), { "~jsonSchema": jsonSchemaOf(fields) });
+  type Result = ReturnType<ZodLikeSchema<T>["safeParse"]>;
+  const safeParse = (data: unknown): Result => {
+    try {
+      return { success: true, data: parse(data) };
+    } catch (error) {
+      const err = error as { message?: string; issues?: { message: string; path?: (string | number)[] }[]; errors?: { message: string; path?: (string | number)[] }[] };
+      const message = err.message ?? "Validation failed";
+      // A plain Error has no issues: its message is the one issue
+      const issues = err.issues ?? err.errors;
+      return { success: false, error: { message, issues: issues && issues.length > 0 ? issues : [{ message }] } };
+    }
+  };
+  // typed<T>() gives the type and the shape. The parse function replaces its pass-through validation
+  const schema = typed<T>();
+  return Object.assign(schema, {
+    parse: (data: unknown): T => parse(data),
+    safeParse,
+    "~standard": {
+      ...schema["~standard"],
+      validate: (value: unknown) => {
+        const result = safeParse(value);
+        return result.success
+          ? { value: result.data }
+          : { issues: (result.error.issues ?? []).map((issue) => ({ message: issue.message, path: issue.path })) };
+      },
+    },
+    "~jsonSchema": jsonSchemaOf(fields),
+  });
 }

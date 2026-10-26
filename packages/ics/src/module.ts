@@ -2,10 +2,12 @@
  * The procedures of @procedures/ics as data. Importing this file registers nothing.
  */
 
-import { defineModule, registerModules, PROCEDURE_REGISTRY, type ProcedureModule, type ProcedureRegistry } from "@procedures/client/browser";
+import { defineModule, definePackage, type ProcedureModule, type PackageDefinition } from "@procedures/client/browser";
 import { createIcsProcedures, icsProcedures, type IcsProceduresOptions } from "./procedures.js";
 
-export const icsModule: ProcedureModule = defineModule("@procedures/ics", icsProcedures);
+const icsPackage: PackageDefinition = definePackage("@procedures/ics", icsProcedures);
+
+export const icsModule: ProcedureModule = icsPackage.module;
 
 export default icsModule;
 
@@ -27,6 +29,4 @@ export function createIcsModule(options: IcsProceduresOptions = {}): ProcedureMo
  * This function registers the procedures of @procedures/ics in a registry. The default is the
  * global registry.
  */
-export function registerIcsProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [icsModule]);
-}
+export const registerIcsProcedures: PackageDefinition["register"] = icsPackage.register;

@@ -4,7 +4,7 @@
  * Procedure Registration for Node.js process management
  */
 
-import { createProcedure, defineModule, type ProcedureContext, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { definePackage, createProcedure, type ProcedureContext, type ProcedureModule, type PackageDefinition } from "@procedures/client";
 import { nodeRun } from "./procedures/node/run.js";
 import { nodeSpawn } from "./procedures/node/spawn.js";
 import { nodeKill } from "./procedures/node/kill.js";
@@ -124,17 +124,19 @@ const nodeLogsProcedure = createProcedure()
   .handler((input: NodeLogsInput, ctx: ProcedureContext) => nodeLogs(input, ctx) as unknown as Promise<NodeLogsOutput | NodeLogItem>)
   .build();
 
-/**
- * The module of this package, for `createRegistry()`: its procedures as data. Importing this
- * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
- */
-export const nodeModule: ProcedureModule = defineModule("@procedures/node", [
+const nodePackage: PackageDefinition = definePackage("@procedures/node", [
     nodeRunProcedure,
     nodeSpawnProcedure,
     nodeKillProcedure,
     nodeStatusProcedure,
     nodeLogsProcedure,
   ]);
+
+/**
+ * The module of this package, for `createRegistry()`: its procedures as data. Importing this
+ * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
+ */
+export const nodeModule: ProcedureModule = nodePackage.module;
 
 export default nodeModule;
 
@@ -143,6 +145,4 @@ export default nodeModule;
  * a registry. The default is the global registry. Importing this file registers nothing: the
  * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
  */
-export function registerNodeProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [nodeModule]);
-}
+export const registerNodeProcedures: PackageDefinition["register"] = nodePackage.register;

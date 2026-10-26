@@ -7,7 +7,7 @@
  */
 
 
-import { createProcedure, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { definePackage, createProcedure, type ProcedureModule, type PackageDefinition } from "@procedures/client";
 import shellModule from "@procedures/shell/module";
 import { cliRun } from "./procedures/cli/index.js";
 import { CliRunInputSchema, CliRunOutputSchema, type CliRunInput, type CliRunOutput } from "./types.js";
@@ -39,13 +39,15 @@ const cliRunProcedure = createProcedure()
 // Registration
 // =============================================================================
 
+const cliPackage: PackageDefinition = definePackage("@procedures/cli-run", [
+    cliRunProcedure,
+  ], [shellModule]);
+
 /**
  * The module of this package, for `createRegistry()`: its procedures as data. Importing this
  * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
  */
-export const cliModule: ProcedureModule = defineModule("@procedures/cli-run", [
-    cliRunProcedure,
-  ], [shellModule]);
+export const cliModule: ProcedureModule = cliPackage.module;
 
 export default cliModule;
 
@@ -54,6 +56,4 @@ export default cliModule;
  * a registry. The default is the global registry. Importing this file registers nothing: the
  * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
  */
-export function registerCliProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [cliModule]);
-}
+export const registerCliProcedures: PackageDefinition["register"] = cliPackage.register;

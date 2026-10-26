@@ -7,7 +7,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, defineModule, type AnyProcedure, type Effects, type FsRootRules, type ProcedureContext, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { definePackage, createProcedure, type AnyProcedure, type Effects, type FsRootRules, type ProcedureContext, type ProcedureModule, type PackageDefinition } from "@procedures/client";
 import { underGitRoot } from "./procedures/git/root.js";
 import { gitStatus } from "./procedures/git/status.js";
 import { gitAdd } from "./procedures/git/add.js";
@@ -1046,11 +1046,7 @@ const gitBranchDeleteProcedure = createProcedure()
 // Registration
 // =============================================================================
 
-/**
- * The module of this package, for `createRegistry()`: its procedures as data. Importing this
- * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
- */
-export const gitModule: ProcedureModule = defineModule("@procedures/git", [
+const gitPackage: PackageDefinition = definePackage("@procedures/git", [
     gitStatusProcedure,
     gitAddProcedure,
     gitCommitProcedure,
@@ -1102,6 +1098,12 @@ export const gitModule: ProcedureModule = defineModule("@procedures/git", [
     gitBranchDeleteProcedure,
   ].map(underARoot));
 
+/**
+ * The module of this package, for `createRegistry()`: its procedures as data. Importing this
+ * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
+ */
+export const gitModule: ProcedureModule = gitPackage.module;
+
 export default gitModule;
 
 /**
@@ -1109,6 +1111,4 @@ export default gitModule;
  * a registry. The default is the global registry. Importing this file registers nothing: the
  * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
  */
-export function registerGitProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [gitModule]);
-}
+export const registerGitProcedures: PackageDefinition["register"] = gitPackage.register;

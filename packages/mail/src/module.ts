@@ -2,10 +2,12 @@
  * The procedures of @procedures/mail as data. Importing this file registers nothing.
  */
 
-import { defineModule, registerModules, PROCEDURE_REGISTRY, type ProcedureModule, type ProcedureRegistry } from "@procedures/client";
+import { definePackage, type ProcedureModule, type PackageDefinition } from "@procedures/client";
 import { mailProcedures } from "./procedures.js";
 
-export const mailModule: ProcedureModule = defineModule("@procedures/mail", mailProcedures);
+const mailPackage: PackageDefinition = definePackage("@procedures/mail", mailProcedures);
+
+export const mailModule: ProcedureModule = mailPackage.module;
 
 export default mailModule;
 
@@ -13,6 +15,4 @@ export default mailModule;
  * This function registers the procedures of @procedures/mail in a registry. The default is the
  * global registry.
  */
-export function registerMailProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [mailModule]);
-}
+export const registerMailProcedures: PackageDefinition["register"] = mailPackage.register;

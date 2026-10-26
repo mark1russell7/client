@@ -2,10 +2,12 @@
  * The procedures of @procedures/geo as data. Importing this file registers nothing.
  */
 
-import { defineModule, registerModules, PROCEDURE_REGISTRY, type ProcedureModule, type ProcedureRegistry } from "@procedures/client/browser";
+import { defineModule, definePackage, type ProcedureModule, type PackageDefinition } from "@procedures/client/browser";
 import { createGeoProcedures, geoProcedures, type GeoProceduresOptions } from "./procedures.js";
 
-export const geoModule: ProcedureModule = defineModule("@procedures/geo", geoProcedures);
+const geoPackage: PackageDefinition = definePackage("@procedures/geo", geoProcedures);
+
+export const geoModule: ProcedureModule = geoPackage.module;
 
 export default geoModule;
 
@@ -27,6 +29,4 @@ export function createGeoModule(options: GeoProceduresOptions = {}): ProcedureMo
  * This function registers the procedures of @procedures/geo in a registry. The default is the
  * global registry.
  */
-export function registerGeoProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [geoModule]);
-}
+export const registerGeoProcedures: PackageDefinition["register"] = geoPackage.register;

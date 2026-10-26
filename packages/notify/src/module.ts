@@ -2,10 +2,12 @@
  * The procedures of @procedures/notify as data. Importing this file registers nothing.
  */
 
-import { defineModule, registerModules, PROCEDURE_REGISTRY, type ProcedureModule, type ProcedureRegistry } from "@procedures/client";
+import { definePackage, type ProcedureModule, type PackageDefinition } from "@procedures/client";
 import { notifyProcedures } from "./procedures.js";
 
-export const notifyModule: ProcedureModule = defineModule("@procedures/notify", notifyProcedures);
+const notifyPackage: PackageDefinition = definePackage("@procedures/notify", notifyProcedures);
+
+export const notifyModule: ProcedureModule = notifyPackage.module;
 
 export default notifyModule;
 
@@ -13,6 +15,4 @@ export default notifyModule;
  * This function registers the procedures of @procedures/notify in a registry. The default is the
  * global registry.
  */
-export function registerNotifyProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [notifyModule]);
-}
+export const registerNotifyProcedures: PackageDefinition["register"] = notifyPackage.register;

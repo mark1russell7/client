@@ -5,16 +5,14 @@
  */
 
 import {
+  definePackage,
   createProcedure,
-  defineModule,
-  registerModules,
-  PROCEDURE_REGISTRY,
   RAW_INPUT_TAG,
   REGISTRY_READ_EFFECTS,
   type AnyProcedure,
   type ProcedureContext,
   type ProcedureModule,
-  type ProcedureRegistry,
+  type PackageDefinition,
 } from "@procedures/client/browser";
 import { programCheck } from "./procedures/program/check.js";
 import { programCompile } from "./procedures/program/compile.js";
@@ -143,11 +141,7 @@ const sdkTypescriptProcedure = createProcedure()
   .handler(async (input: SdkTypescriptInput, ctx: ProcedureContext): Promise<SdkTypescriptOutput> => sdkTypescript(input, ctx))
   .build();
 
-/**
- * The module of this package, for `createRegistry()`: `program.check`, `program.compile`,
- * `program.diagram`, `program.explain`, `sdk.openrpc` and `sdk.typescript`.
- */
-export const compilerModule: ProcedureModule = defineModule("@procedures/compiler", [
+const compilerPackage: PackageDefinition = definePackage("@procedures/compiler", [
   programCheckProcedure as AnyProcedure,
   programCompileProcedure as AnyProcedure,
   programDiagramProcedure as AnyProcedure,
@@ -155,6 +149,12 @@ export const compilerModule: ProcedureModule = defineModule("@procedures/compile
   sdkOpenrpcProcedure as AnyProcedure,
   sdkTypescriptProcedure as AnyProcedure,
 ]);
+
+/**
+ * The module of this package, for `createRegistry()`: `program.check`, `program.compile`,
+ * `program.diagram`, `program.explain`, `sdk.openrpc` and `sdk.typescript`.
+ */
+export const compilerModule: ProcedureModule = compilerPackage.module;
 
 /** The same module under the name of its namespace. */
 export const programModule: ProcedureModule = compilerModule;
@@ -165,6 +165,4 @@ export default compilerModule;
  * This function registers the procedures of @procedures/compiler in a registry. The default is the
  * global registry.
  */
-export function registerCompilerProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [compilerModule]);
-}
+export const registerCompilerProcedures: PackageDefinition["register"] = compilerPackage.register;

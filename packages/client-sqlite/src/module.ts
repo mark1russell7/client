@@ -9,7 +9,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, defineModule, type AnyProcedure, type FsRootRules, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { definePackage, createProcedure, type AnyProcedure, type FsRootRules, type ProcedureModule, type PackageDefinition } from "@procedures/client";
 import { z } from "zod";
 import {
   withConnection,
@@ -520,15 +520,17 @@ const sqliteProcedures: readonly AnyProcedure[] = [
 // Registration
 // =============================================================================
 
-/**
- * The module of this package, for `createRegistry()`: its procedures as data. Importing this
- * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
- */
-export const sqliteModule: ProcedureModule = defineModule("@procedures/sqlite", [
+const sqlitePackage: PackageDefinition = definePackage("@procedures/sqlite", [
     ...sqliteProcedures,
     logsStoreProcedure,
     logsQueryProcedure,
   ]);
+
+/**
+ * The module of this package, for `createRegistry()`: its procedures as data. Importing this
+ * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
+ */
+export const sqliteModule: ProcedureModule = sqlitePackage.module;
 
 export default sqliteModule;
 
@@ -537,6 +539,4 @@ export default sqliteModule;
  * a registry. The default is the global registry. Importing this file registers nothing: the
  * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
  */
-export function registerSqliteProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [sqliteModule]);
-}
+export const registerSqliteProcedures: PackageDefinition["register"] = sqlitePackage.register;

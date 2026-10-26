@@ -24,7 +24,7 @@
  * `register.ts` registers the same modules in the global registry.
  */
 
-import { defineModule, registerModules, PROCEDURE_REGISTRY, type ProcedureModule, type ProcedureRegistry } from "@procedures/client";
+import { definePackage, type ProcedureModule, type PackageDefinition } from "@procedures/client";
 import { createHostFetch } from "@procedures/http";
 import icsModule, { createIcsModule } from "@procedures/ics/module";
 import mailModule from "@procedures/mail/module";
@@ -48,8 +48,10 @@ const hostFetch = createHostFetch();
  */
 export const mcpHostModules: readonly ProcedureModule[] = [createIcsModule({ fetch: hostFetch }), createGeoModule({ fetch: hostFetch })];
 
+const bundleAssistantPackage: PackageDefinition = definePackage("@procedures/bundle-assistant", [], bundleAssistantModules);
+
 /** The bundle as one module: no procedures of its own, and the modules above as requirements. */
-export const bundleAssistantModule: ProcedureModule = defineModule("@procedures/bundle-assistant", [], bundleAssistantModules);
+export const bundleAssistantModule: ProcedureModule = bundleAssistantPackage.module;
 
 export default bundleAssistantModule;
 
@@ -63,6 +65,4 @@ export const mcpExclude: readonly string[] = ["ics.fetch", "mail.headers"];
  * This function registers the procedures of @procedures/bundle-assistant, and of the modules that
  * it requires, in a registry. The default is the global registry.
  */
-export function registerBundleAssistantProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [bundleAssistantModule]);
-}
+export const registerBundleAssistantProcedures: PackageDefinition["register"] = bundleAssistantPackage.register;

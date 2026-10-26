@@ -7,7 +7,7 @@
  */
 
 
-import { createProcedure, defineModule, type AnyProcedure, type FsRootRules, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { definePackage, createProcedure, type AnyProcedure, type FsRootRules, type ProcedureModule, type PackageDefinition } from "@procedures/client";
 import shellModule from "@procedures/shell/module";
 import { pnpmInstall, pnpmAdd, pnpmRemove, pnpmLink, pnpmRun, pnpmStorePath } from "./procedures/pnpm/index.js";
 import {
@@ -295,11 +295,7 @@ function underARoot(procedure: AnyProcedure): AnyProcedure {
 // Registration
 // =============================================================================
 
-/**
- * The module of this package, for `createRegistry()`: its procedures as data. Importing this
- * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
- */
-export const pnpmModule: ProcedureModule = defineModule("@procedures/pnpm", [
+const pnpmPackage: PackageDefinition = definePackage("@procedures/pnpm", [
     pnpmInstallProcedure,
     pnpmAddProcedure,
     pnpmRemoveProcedure,
@@ -314,6 +310,12 @@ export const pnpmModule: ProcedureModule = defineModule("@procedures/pnpm", [
     pnpmPackProcedure,
   ].map(underARoot), [shellModule]);
 
+/**
+ * The module of this package, for `createRegistry()`: its procedures as data. Importing this
+ * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
+ */
+export const pnpmModule: ProcedureModule = pnpmPackage.module;
+
 export default pnpmModule;
 
 /**
@@ -321,6 +323,4 @@ export default pnpmModule;
  * a registry. The default is the global registry. Importing this file registers nothing: the
  * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
  */
-export function registerPnpmProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [pnpmModule]);
-}
+export const registerPnpmProcedures: PackageDefinition["register"] = pnpmPackage.register;

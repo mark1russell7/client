@@ -8,7 +8,7 @@
  */
 
 import { z } from "zod";
-import { defineModule, registerModules, PROCEDURE_REGISTRY, PURE_EFFECTS, type ProcedureModule, type ProcedureRegistry, createProcedure } from "@procedures/client";
+import { definePackage, PURE_EFFECTS, type ProcedureModule, createProcedure, type PackageDefinition } from "@procedures/client";
 import { jsonQuery } from "./procedures/json/query.js";
 import { jsonPatch } from "./procedures/json/patch.js";
 import { jsonDiff } from "./procedures/json/diff.js";
@@ -59,7 +59,7 @@ const JsonQueryInputSchema = z.object({
   path: z.string().optional().describe("A path query, for example items[*].name or $..id. Give pointer or path"),
 });
 
-const JsonQueryOutputSchema = z.object({
+const JsonQueryOutputSchema: z.ZodType<JsonQueryOutput> = z.object({
   found: z.boolean().describe("True when one or more values match"),
   value: json("The value of the first match").optional(),
   matches: z.array(z.object({ pointer: z.string().describe("The JSON Pointer of the match"), value: json("The value of the match") })).describe("Each match, in document order"),
@@ -70,7 +70,7 @@ const JsonPatchInputSchema = z.object({
   patch: z.array(operation).describe("The operations of the JSON Patch (RFC 6902), in order"),
 });
 
-const JsonPatchOutputSchema = z.object({ value: json("The value after the patch") });
+const JsonPatchOutputSchema: z.ZodType<JsonPatchOutput> = z.object({ value: json("The value after the patch") });
 
 const JsonDiffInputSchema = z.object({
   from: json("The first JSON value"),
@@ -86,7 +86,7 @@ const JsonMergeInputSchema = z.object({
   patch: json("The merge patch (RFC 7386): an object of changes, where null removes a key"),
 });
 
-const JsonMergeOutputSchema = z.object({ value: json("The value after the merge") });
+const JsonMergeOutputSchema: z.ZodType<JsonMergeOutput> = z.object({ value: json("The value after the merge") });
 
 const JsonValidateInputSchema = z.object({
   value: json("The JSON value to examine"),
@@ -104,7 +104,7 @@ const YamlParseInputSchema = z.object({
   all: z.boolean().optional().describe("True: the text can have more than one document, and value is the list of documents"),
 });
 
-const YamlParseOutputSchema = z.object({ value: json("The JSON value of the text") });
+const YamlParseOutputSchema: z.ZodType<YamlParseOutput> = z.object({ value: json("The JSON value of the text") });
 
 const YamlStringifyInputSchema = z.object({
   value: json("The JSON value to write"),
@@ -147,7 +147,7 @@ const CsvStringifyOutputSchema = z.object({ text: z.string().describe("The CSV t
 const jsonQueryProcedure = createProcedure()
   .path(["json", "query"])
   .input(JsonQueryInputSchema)
-  .output<JsonQueryOutput>(JsonQueryOutputSchema)
+  .output(JsonQueryOutputSchema)
   .meta({
     description: "Find the values at a JSON Pointer or a path in a JSON value",
     args: [],
@@ -161,7 +161,7 @@ const jsonQueryProcedure = createProcedure()
 const jsonPatchProcedure = createProcedure()
   .path(["json", "patch"])
   .input(JsonPatchInputSchema)
-  .output<JsonPatchOutput>(JsonPatchOutputSchema)
+  .output(JsonPatchOutputSchema)
   .meta({
     description: "Apply an RFC 6902 JSON Patch to a JSON value",
     args: [],
@@ -189,7 +189,7 @@ const jsonDiffProcedure = createProcedure()
 const jsonMergeProcedure = createProcedure()
   .path(["json", "merge"])
   .input(JsonMergeInputSchema)
-  .output<JsonMergeOutput>(JsonMergeOutputSchema)
+  .output(JsonMergeOutputSchema)
   .meta({
     description: "Apply an RFC 7386 JSON merge patch to a JSON value",
     args: [],
@@ -217,7 +217,7 @@ const jsonValidateProcedure = createProcedure()
 const yamlParseProcedure = createProcedure()
   .path(["yaml", "parse"])
   .input(YamlParseInputSchema)
-  .output<YamlParseOutput>(YamlParseOutputSchema)
+  .output(YamlParseOutputSchema)
   .meta({
     description: "Parse YAML text into a JSON value",
     args: ["text"],
@@ -270,11 +270,7 @@ const csvStringifyProcedure = createProcedure()
   .handler(async (input: CsvStringifyInput): Promise<CsvStringifyOutput> => csvStringify(input))
   .build();
 
-/**
- * The module of this package, for `createRegistry()`: its procedures as data. Importing this
- * file registers nothing.
- */
-export const jsonModule: ProcedureModule = defineModule("@procedures/json", [
+const jsonPackage: PackageDefinition = definePackage("@procedures/json", [
   jsonQueryProcedure,
   jsonPatchProcedure,
   jsonDiffProcedure,
@@ -286,12 +282,16 @@ export const jsonModule: ProcedureModule = defineModule("@procedures/json", [
   csvStringifyProcedure,
 ]);
 
+/**
+ * The module of this package, for `createRegistry()`: its procedures as data. Importing this
+ * file registers nothing.
+ */
+export const jsonModule: ProcedureModule = jsonPackage.module;
+
 export default jsonModule;
 
 /**
  * This function registers the procedures of @procedures/json in a registry. The default is the
  * global registry.
  */
-export function registerJsonProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [jsonModule]);
-}
+export const registerJsonProcedures: PackageDefinition["register"] = jsonPackage.register;

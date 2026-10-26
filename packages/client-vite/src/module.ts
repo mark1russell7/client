@@ -4,7 +4,7 @@
  * Procedure Registration for Vite dev server management
  */
 
-import { createProcedure, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { definePackage, createProcedure, type ProcedureModule, type PackageDefinition } from "@procedures/client";
 import { viteDev } from "./procedures/vite/dev.js";
 import { viteBuild } from "./procedures/vite/build.js";
 import { vitePreview } from "./procedures/vite/preview.js";
@@ -86,16 +86,18 @@ const viteStopProcedure = createProcedure()
   .handler(async (input: ViteStopInput): Promise<ViteStopOutput> => viteStop(input))
   .build();
 
-/**
- * The module of this package, for `createRegistry()`: its procedures as data. Importing this
- * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
- */
-export const viteModule: ProcedureModule = defineModule("@procedures/vite", [
+const vitePackage: PackageDefinition = definePackage("@procedures/vite", [
     viteDevProcedure,
     viteBuildProcedure,
     vitePreviewProcedure,
     viteStopProcedure,
   ]);
+
+/**
+ * The module of this package, for `createRegistry()`: its procedures as data. Importing this
+ * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
+ */
+export const viteModule: ProcedureModule = vitePackage.module;
 
 export default viteModule;
 
@@ -104,6 +106,4 @@ export default viteModule;
  * a registry. The default is the global registry. Importing this file registers nothing: the
  * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
  */
-export function registerViteProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [viteModule]);
-}
+export const registerViteProcedures: PackageDefinition["register"] = vitePackage.register;

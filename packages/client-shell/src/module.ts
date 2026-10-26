@@ -4,7 +4,7 @@
  * Procedure Registration for shell operations
  */
 
-import { createProcedure, defineModule, type Effects, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { definePackage, createProcedure, type Effects, type ProcedureModule, type PackageDefinition } from "@procedures/client";
 import { shellRun } from "./procedures/shell/run.js";
 import { shellExec } from "./procedures/shell/exec.js";
 import { shellWhich } from "./procedures/shell/which.js";
@@ -105,16 +105,18 @@ const shellStreamProcedure = createProcedure()
   .handler(shellStream)
   .build();
 
-/**
- * The module of this package, for `createRegistry()`: its procedures as data. Importing this
- * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
- */
-export const shellModule: ProcedureModule = defineModule("@procedures/shell", [
+const shellPackage: PackageDefinition = definePackage("@procedures/shell", [
     shellRunProcedure,
     shellExecProcedure,
     shellWhichProcedure,
     shellStreamProcedure,
   ]);
+
+/**
+ * The module of this package, for `createRegistry()`: its procedures as data. Importing this
+ * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
+ */
+export const shellModule: ProcedureModule = shellPackage.module;
 
 export default shellModule;
 
@@ -123,6 +125,4 @@ export default shellModule;
  * a registry. The default is the global registry. Importing this file registers nothing: the
  * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
  */
-export function registerShellProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [shellModule]);
-}
+export const registerShellProcedures: PackageDefinition["register"] = shellPackage.register;

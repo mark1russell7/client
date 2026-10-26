@@ -5,7 +5,7 @@
  * (`dag.traverse` is in the module of `client-dag`. It calls `lib.scan` of `client-lib`.)
  */
 
-import { clientModule, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { definePackage, clientModule, type ProcedureModule, type PackageDefinition } from "@procedures/client";
 import shellModule from "@procedures/shell/module";
 import fsModule from "@procedures/fs/module";
 import cliModule from "@procedures/cli-run/module";
@@ -34,8 +34,10 @@ export const bundleDevModules: readonly ProcedureModule[] = [
   compilerModule,
 ];
 
+const bundleDevPackage: PackageDefinition = definePackage("@procedures/bundle-dev", [], bundleDevModules);
+
 /** The bundle as one module: no procedures of its own, and the modules above as requirements. */
-export const bundleDevModule: ProcedureModule = defineModule("@procedures/bundle-dev", [], bundleDevModules);
+export const bundleDevModule: ProcedureModule = bundleDevPackage.module;
 
 export default bundleDevModule;
 
@@ -44,6 +46,4 @@ export default bundleDevModule;
  * a registry. The default is the global registry. Importing this file registers nothing: the
  * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
  */
-export function registerBundleDevProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [bundleDevModule]);
-}
+export const registerBundleDevProcedures: PackageDefinition["register"] = bundleDevPackage.register;
