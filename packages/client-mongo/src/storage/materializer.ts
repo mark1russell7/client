@@ -52,7 +52,7 @@
 import { createHash } from "node:crypto";
 import { BSON, ObjectId, type ChangeStream, type ClientSession, type Collection, type Db, type Document } from "mongodb";
 import { optionalMs, realClock, type Cancel, type Clock, type Duration } from "@procedures/client";
-import { SEPARATOR } from "./document-storage.js";
+import { SEPARATOR, TOMBSTONE_FIELD } from "./document-storage.js";
 import { scopePipeline } from "./pipeline-scope.js";
 
 /** The definition of a view, as a document of the views collection. */
@@ -310,11 +310,13 @@ export class ViewMaterializer {
 
   /**
    * The guard of a pipeline of a view. A target of another view counts only in its current
-   * generation. A source document has no generation.
+   * generation. A source document has no generation. A tombstone of a `MongoDocumentStorage` (a
+   * deleted item) is not a row of a source (roadmap CLI-79).
    */
   private scoped(pipeline: Document[], partition: string, view: MaterializedView, generations: readonly ObjectId[]): Document[] {
     const match = {
       [this.partitionField]: partition,
+      [TOMBSTONE_FIELD]: { $ne: true },
       $or: [{ [VIEW_GENERATION_FIELD]: { $exists: false } }, { [VIEW_GENERATION_FIELD]: { $in: [...generations] } }],
     };
     if (this.options.scope) return this.options.scope(pipeline, partition, view, match);

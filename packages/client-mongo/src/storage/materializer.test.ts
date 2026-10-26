@@ -114,6 +114,27 @@ withMongo("ViewMaterializer on MongoDB", { timeout: TEST_TIMEOUT_MS }, () => {
     expect(views.inFlight()).toBe(0);
   });
 
+  it("leaves out the tombstones of a source: a deleted item of a MongoDocumentStorage is no row (CLI-79)", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const { db, views } = setup();
+    await db.collection("items").insertMany([
+      { _id: "1" as never, _part: "t1", kind: "a", n: 1 },
+      { _id: "2" as never, _part: "t1", kind: "a", n: 2 },
+      { _id: "3" as never, _part: "t1", kind: "b", n: 4, _tomb: true },
+    ]);
+    await db.collection("_aggregations").insertOne(sumsView() as never);
+    await views.start();
+    const target = () => db.collection("sums").find({}).toArray();
+    expect(sorted(await target())).toEqual([{ _id: "a", _part: "t1", total: 3 }]);
+    // A delete of the storage replaces the document with a tombstone: its row goes
+    await db.collection("items").replaceOne({ _id: "2" as never }, { _part: "t1", _key: "2", _seq: 9, _tomb: true });
+    await eventually(async () => expect(sorted(await target())).toEqual([{ _id: "a", _part: "t1", total: 1 }]));
+    // A document with _tomb other than true is an item
+    await db.collection("items").insertOne({ _id: "4" as never, _part: "t1", kind: "b", n: 5, _tomb: false });
+    await eventually(async () => expect(sorted(await target())).toEqual([{ _id: "a", _part: "t1", total: 1 }, { _id: "b", _part: "t1", total: 5 }]));
+    await views.stop();
+  });
+
   it("runs a chain of views in one pass, marks a cycle, and resumes when the cycle ends", async (context) => {
     if (!replicaSet) return context.skip?.("change streams need a replica set");
     const { db, views } = setup();

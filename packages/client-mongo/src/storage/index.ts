@@ -4,8 +4,17 @@
 
 export { MongoStorage } from "./mongo-storage.js";
 export type { MongoStorageOptions } from "./mongo-storage.js";
-export { MongoDocumentStorage, selectorPrefilter } from "./document-storage.js";
-export type { MongoDocumentStorageOptions } from "./document-storage.js";
+// The stored form of a MongoDocumentStorage is an option (roadmap CLI-76)
+export {
+  MongoDocumentStorage,
+  selectorPrefilter,
+  DOCUMENT_STORAGE_FIELDS,
+  TOMBSTONE_FIELD,
+  defaultIdOf,
+  defaultPartitionFields,
+  defaultStoredId,
+} from "./document-storage.js";
+export type { MongoDocumentStorageOptions, SelectorPrefilterOptions } from "./document-storage.js";
 export {
   BLOCKED_PIPELINE_OPERATORS,
   ALLOWED_PIPELINE_STAGES,

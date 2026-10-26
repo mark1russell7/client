@@ -138,8 +138,17 @@ export type {
 // Storage (CollectionStorage implementation)
 // =============================================================================
 
-export { MongoStorage, MongoDocumentStorage, selectorPrefilter } from "./storage/index.js";
-export type { MongoStorageOptions, MongoDocumentStorageOptions } from "./storage/index.js";
+export {
+  MongoStorage,
+  MongoDocumentStorage,
+  selectorPrefilter,
+  DOCUMENT_STORAGE_FIELDS,
+  TOMBSTONE_FIELD,
+  defaultIdOf,
+  defaultPartitionFields,
+  defaultStoredId,
+} from "./storage/index.js";
+export type { MongoStorageOptions, MongoDocumentStorageOptions, SelectorPrefilterOptions } from "./storage/index.js";
 // The guard of an aggregation pipeline over shared collections, and its limits (Graph's split plan, P3)
 export {
   BLOCKED_PIPELINE_OPERATORS,

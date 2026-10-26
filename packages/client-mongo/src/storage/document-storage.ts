@@ -16,6 +16,23 @@
  *   character U+001F. Each partition reads and writes only its documents: each write filter has the
  *   partition too, so a write of a stored `_id` of another partition fails and changes nothing.
  *
+ * The stored form (roadmap CLI-76): an app with its own form of documents keeps it with three
+ * options. The defaults give the form above, byte for byte.
+ * - `storedId(partition, id)` gives the stored `_id`, and `idOf(storedId, partition)` is its inverse.
+ *   The stored `_id` can be any value but `undefined` and `null`, for example `tenant:key`.
+ * - `partitionFields(partition)` gives the fields that name the partition (default `{ _part }`).
+ *   Each document of the partition has them, and they are the filter of the partition. A field with
+ *   the value `undefined` is absent: the document does not have it, and the filter is
+ *   `{ $exists: false }`.
+ * - The storage adds its fields (`_key`, `_seq`, `_ord`, `_tomb`, and `_kid` or `_json` as needed)
+ *   in each form. A reader of the raw documents can leave them out (`DOCUMENT_STORAGE_FIELDS`), and
+ *   must leave out the tombstones (`TOMBSTONE_FIELD` is `true`).
+ * - A document without the fields of the storage (for example one written before the app used the
+ *   storage) is an item too. Its id comes from `_key`, else from `idOf`. Its version is `0`, and it
+ *   comes before the other items in the order of the entries. A full result of the change log has
+ *   it, and a delta has it after its first write through the storage. That write gives it its
+ *   fields and a version, and keeps its place.
+ *
  * The change log:
  * - Each write gets the next number of the sequence of the collection. `_seq` is also the version
  *   of the item (`versionOf`).
@@ -86,6 +103,34 @@ const STORAGE_FIELDS: ReadonlySet<string> = new Set(["_id", KEY, PART, SEQ, ORD,
 /** The separator of the partition and the id in a stored `_id`. */
 export const SEPARATOR = "\u001f";
 
+/**
+ * The fields that a `MongoDocumentStorage` can add to a stored document, in each stored form
+ * (roadmap CLI-76). A reader of the raw documents can leave them out. The partition fields are
+ * not in the list.
+ */
+export const DOCUMENT_STORAGE_FIELDS: readonly string[] = Object.freeze([KEY, PART, SEQ, ORD, TOMB, JSON_FIELD, KEEP_ID]);
+
+/** The field that is `true` in a tombstone: the document of a deleted item. A reader of the raw documents leaves them out. */
+export const TOMBSTONE_FIELD = TOMB;
+
+/** The default stored `_id`: the id, or `<partition>` + U+001F + `<id>` with a partition. */
+export function defaultStoredId(partition: string | undefined, id: string): string {
+  return partition === undefined ? id : `${partition}${SEPARATOR}${id}`;
+}
+
+/** The inverse of `defaultStoredId`, or `undefined` for a stored `_id` that is not of the partition. */
+export function defaultIdOf(storedId: unknown, partition: string | undefined): string | undefined {
+  if (typeof storedId !== "string") return undefined;
+  if (partition === undefined) return storedId.includes(SEPARATOR) ? undefined : storedId;
+  const prefix = `${partition}${SEPARATOR}`;
+  return storedId.startsWith(prefix) ? storedId.slice(prefix.length) : undefined;
+}
+
+/** The default partition fields: `{ _part: partition }`. Without a partition, `_part` is absent. */
+export function defaultPartitionFields(partition: string | undefined): Record<string, unknown> {
+  return { [PART]: partition };
+}
+
 /** The options of a `MongoDocumentStorage`. */
 export interface MongoDocumentStorageOptions<T = unknown> {
   /** The MongoDB collection. */
@@ -123,6 +168,27 @@ export interface MongoDocumentStorageOptions<T = unknown> {
    * the sequence number of the last write.
    */
   versionOf?: ((item: T) => string | undefined) | undefined;
+  /**
+   * The stored `_id` of an id in a partition (roadmap CLI-76). The default is `defaultStoredId`:
+   * `<partition>` + U+001F + `<id>`, or the id without a partition. It must give a value other than
+   * `undefined` and `null`, and two ids of one partition must not give the same value. Give `idOf`
+   * with it.
+   */
+  storedId?: ((partition: string | undefined, id: string) => unknown) | undefined;
+  /**
+   * The inverse of `storedId`: the id of a stored `_id`, or `undefined` when the `_id` is not of the
+   * partition (default `defaultIdOf`). A read uses it for a document without `_key`, for example a
+   * document written before the app used this storage.
+   */
+  idOf?: ((storedId: unknown, partition: string | undefined) => string | undefined) | undefined;
+  /**
+   * The fields that name a partition (roadmap CLI-76). The default is `defaultPartitionFields`:
+   * `{ _part: partition }`. Each document of the partition has them, and they are the filter of the
+   * partition. A field with the value `undefined` is absent: the document does not have it, and the
+   * filter is `{ $exists: false }`. Give the same names for each partition. An item with a field of
+   * one of these names is stored as JSON text, so it comes back as it was.
+   */
+  partitionFields?: ((partition: string | undefined) => Readonly<Record<string, unknown>>) | undefined;
 }
 
 /** True for the error of a duplicate key: an insert of an upsert whose filter found no document. */
@@ -132,8 +198,8 @@ function isDuplicateKey(error: unknown): boolean {
   return code === 11000 || [writeErrors].flat().some((entry) => (entry as { code?: unknown } | null)?.code === 11000);
 }
 
-/** A stored document. */
-type Stored = Document & { _id: string };
+/** A stored document. Its `_id` comes from `storedId`: a text by default, any value but `undefined` and `null` in another form. */
+type Stored = Document;
 
 /** A range of numbers that a write took and has not written yet. */
 interface PendingRange {
@@ -191,14 +257,14 @@ function enqueue<R>(db: Db, collection: string, task: () => Promise<R>): Promise
 }
 
 /** True for a plain object whose keys a flat document can keep, at each depth. */
-function isFlatSafe(value: unknown, top: boolean): boolean {
+function isFlatSafe(value: unknown, top: boolean, reserved: ReadonlySet<string> = STORAGE_FIELDS): boolean {
   if (Array.isArray(value)) return value.every((element) => isFlatSafe(element, false));
   if (typeof value !== "object" || value === null) return true;
   const proto = Object.getPrototypeOf(value) as unknown;
   if (proto !== Object.prototype && proto !== null) return value instanceof Date;
   for (const [key, field] of Object.entries(value)) {
     if (key.startsWith("$") || key.includes(".") || key === "__proto__") return false;
-    if (top && STORAGE_FIELDS.has(key) && key !== "_id") return false;
+    if (top && reserved.has(key) && key !== "_id") return false;
     if (!isFlatSafe(field, false)) return false;
   }
   return true;
@@ -221,17 +287,49 @@ function isScalar(value: unknown): value is string | number | boolean {
   return typeof value === "string" || typeof value === "boolean" || (typeof value === "number" && Number.isFinite(value));
 }
 
+/** The options of `selectorPrefilter`. */
+export interface SelectorPrefilterOptions {
+  /**
+   * The stored `_id` of an id. With it, a condition on `_id` with text values tests the stored
+   * `_id` (and uses its index). Without it, the condition tests `_key`.
+   */
+  storedId?: ((id: string) => unknown) | undefined;
+  /** More fields that only the storage writes, for example the partition fields: a condition on one of them does not go in the filter. */
+  storageFields?: Iterable<string> | undefined;
+}
+
 /** The field of a stored document for a path of a selector, or undefined when the filter cannot test it. */
-function storedPath(path: string): string | undefined {
+function storedPath(path: string, reserved: ReadonlySet<string>): string | undefined {
   if (path === "_id") return KEY;
   const first = path.split(".")[0]!;
-  if (first === "_id" || STORAGE_FIELDS.has(first)) return undefined;
+  if (first === "_id" || STORAGE_FIELDS.has(first) || reserved.has(first)) return undefined;
   return path;
 }
 
+/**
+ * The filter of a condition on `_id` against the stored `_id`, or undefined. A flat item with an
+ * `_id` has its id as `_id`, and an item stored as JSON passes the filter of `query()` anyway.
+ */
+function idConditionFilter(condition: unknown, storedId: (id: string) => unknown): Document | undefined {
+  try {
+    if (typeof condition === "string") return { _id: storedId(condition) };
+    if (!isPlainObject(condition)) return undefined;
+    const operators: Document = {};
+    const eq = condition["$eq"];
+    if (typeof eq === "string") operators["$eq"] = storedId(eq);
+    const among = condition["$in"];
+    if (Array.isArray(among) && among.length > 0 && among.every((value) => typeof value === "string")) operators["$in"] = among.map((value: string) => storedId(value));
+    return Object.keys(operators).length > 0 ? { _id: operators } : undefined;
+  } catch {
+    // An id that the storage refuses: no condition is a correct filter (it can pass more)
+    return undefined;
+  }
+}
+
 /** The filter of one condition, or undefined when the filter cannot test it in the same way. */
-function conditionFilter(path: string, condition: unknown): Document | undefined {
-  const field = storedPath(path);
+function conditionFilter(path: string, condition: unknown, options: SelectorPrefilterOptions, reserved: ReadonlySet<string>): Document | undefined {
+  if (path === "_id" && options.storedId) return idConditionFilter(condition, options.storedId);
+  const field = storedPath(path, reserved);
   if (field === undefined) return undefined;
   if (isScalar(condition)) return { [field]: condition };
   if (!isPlainObject(condition)) return undefined;
@@ -247,21 +345,25 @@ function conditionFilter(path: string, condition: unknown): Document | undefined
  * This function gives a filter that each item of the selector passes (a filter can pass more),
  * or undefined for no condition. Only conditions that MongoDB tests in the same way go in it.
  */
-export function selectorPrefilter(selector: StorageSelector): Document | undefined {
+export function selectorPrefilter(selector: StorageSelector, options: SelectorPrefilterOptions = {}): Document | undefined {
+  return prefilter(selector, options, new Set(options.storageFields ?? []));
+}
+
+function prefilter(selector: StorageSelector, options: SelectorPrefilterOptions, reserved: ReadonlySet<string>): Document | undefined {
   const parts: Document[] = [];
   for (const [key, condition] of Object.entries(selector as Record<string, unknown>)) {
     if (condition === undefined) continue;
     if (key === "$and" && Array.isArray(condition)) {
       for (const branch of condition) {
-        const filter = isPlainObject(branch) ? selectorPrefilter(branch as StorageSelector) : undefined;
+        const filter = isPlainObject(branch) ? prefilter(branch as StorageSelector, options, reserved) : undefined;
         if (filter) parts.push(filter);
       }
     } else if (key === "$or" && Array.isArray(condition) && condition.length > 0) {
-      const branches = condition.map((branch) => (isPlainObject(branch) ? selectorPrefilter(branch as StorageSelector) : undefined));
+      const branches = condition.map((branch) => (isPlainObject(branch) ? prefilter(branch as StorageSelector, options, reserved) : undefined));
       // A branch without a condition passes each item: then the $or tests nothing
       if (branches.every((branch): branch is Document => branch !== undefined)) parts.push({ $or: branches });
     } else if (!key.startsWith("$")) {
-      const filter = conditionFilter(key, condition);
+      const filter = conditionFilter(key, condition, options, reserved);
       if (filter) parts.push(filter);
     }
   }
@@ -294,6 +396,13 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
   private readonly writeLeaseMs: number;
   /** The storages of the partitions, for `forPartition`: the same storage for the same partition. */
   private readonly partitions: Map<string, MongoDocumentStorage<T>>;
+  /** The stored `_id` of an id, and its inverse (roadmap CLI-76). */
+  private readonly toStoredId: (partition: string | undefined, id: string) => unknown;
+  private readonly fromStoredId: (storedId: unknown, partition: string | undefined) => string | undefined;
+  /** The fields that name the partition, in their order. An `undefined` value is an absent field. */
+  private readonly partitionEntries: ReadonlyArray<readonly [string, unknown]>;
+  /** The fields that only the storage writes: its fields and the partition fields. */
+  private readonly reserved: ReadonlySet<string>;
   private indexes: Promise<void> | undefined;
   private closed = false;
 
@@ -301,6 +410,18 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     if (options.partition !== undefined && (options.partition === "" || options.partition.includes(SEPARATOR))) {
       throw new Error("A partition must be a text without the character U+001F");
     }
+    if ((options.storedId === undefined) !== (options.idOf === undefined)) throw new TypeError("storedId and idOf go together: give both or neither");
+    this.toStoredId = options.storedId ?? defaultStoredId;
+    this.fromStoredId = options.idOf ?? defaultIdOf;
+    const fields = (options.partitionFields ?? defaultPartitionFields)(options.partition);
+    if (!isPlainObject(fields) || Object.keys(fields).length === 0) throw new TypeError("partitionFields must give an object with at least one field");
+    for (const name of Object.keys(fields)) {
+      if (name === "_id" || name.startsWith("$") || name.includes(".") || name === "__proto__" || (STORAGE_FIELDS.has(name) && name !== PART)) {
+        throw new TypeError(`partitionFields cannot have the field ${JSON.stringify(name)}`);
+      }
+    }
+    this.partitionEntries = Object.entries(fields);
+    this.reserved = new Set([...STORAGE_FIELDS, ...Object.keys(fields)]);
     this.options = options;
     this.collectionName = options.collection;
     this.partition = options.partition;
@@ -334,8 +455,9 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
   private async collection(): Promise<{ db: Db; items: Collection<Stored> }> {
     const db = await this.database();
     const items = db.collection<Stored>(this.collectionName);
+    const prefix = Object.fromEntries(this.partitionEntries.map(([name]) => [name, 1]));
     this.indexes ??= items
-      .createIndexes([{ key: { [PART]: 1, [SEQ]: 1 } }, { key: { [PART]: 1, [ORD]: 1 } }, { key: { [PART]: 1, [TOMB]: 1 } }])
+      .createIndexes([{ key: { ...prefix, [SEQ]: 1 } }, { key: { ...prefix, [ORD]: 1 } }, { key: { ...prefix, [TOMB]: 1 } }])
       .then(() => undefined)
       .catch((error: unknown) => {
         this.indexes = undefined;
@@ -347,7 +469,14 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
 
   /** The filter of the documents of the partition. */
   private partitionFilter(): Document {
-    return this.partition === undefined ? { [PART]: { $exists: false } } : { [PART]: this.partition };
+    // An object value is an equality too, never a set of operators
+    const condition = (value: unknown): unknown => (value === undefined ? { $exists: false } : typeof value === "object" && value !== null ? { $eq: value } : value);
+    return Object.fromEntries(this.partitionEntries.map(([name, value]) => [name, condition(value)]));
+  }
+
+  /** This method puts the partition fields on a stored document, in their order. An absent field stays absent. */
+  private putPartition(doc: Stored): void {
+    for (const [name, value] of this.partitionEntries) if (value !== undefined) put(doc, name, value);
   }
 
   /** The filter of the items (not the tombstones) of the partition. */
@@ -356,9 +485,25 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
   }
 
   /** The stored `_id` of an id. An id with the separator could name an item of a partition: it is refused. */
-  private storedId(id: string): string {
+  private storedId(id: string): unknown {
     if (typeof id !== "string" || id.includes(SEPARATOR)) throw new Error("An id must be a text without the character U+001F");
-    return this.partition === undefined ? id : `${this.partition}${SEPARATOR}${id}`;
+    const stored = this.toStoredId(this.partition, id);
+    if (stored === undefined || stored === null) throw new TypeError(`storedId gave ${String(stored)} for the id ${JSON.stringify(id)}`);
+    return stored;
+  }
+
+  /** The id of a stored document: `_key`, else the inverse of its stored `_id`, or undefined when neither tells it. */
+  private idOfDoc(doc: Document): string | undefined {
+    const key = doc[KEY];
+    if (typeof key === "string") return key;
+    const id = this.fromStoredId(doc["_id"], this.partition);
+    return typeof id === "string" ? id : undefined;
+  }
+
+  /** The place of a stored document in the order of the entries. A document without `_ord` comes first. */
+  private placeOf(doc: Document): number {
+    const ord = doc[ORD];
+    return typeof ord === "number" ? ord : 0;
   }
 
   /** The filter of a write of one stored document: its `_id` and the partition. */
@@ -369,9 +514,9 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
   /** The stored document of an item, with the number of this write and the number of its place. */
   private encode(id: string, value: T, seq: number, ord: number): Stored {
     const doc: Stored = { _id: this.storedId(id), [KEY]: id, [SEQ]: seq, [ORD]: ord };
-    if (this.partition !== undefined) doc[PART] = this.partition;
+    this.putPartition(doc);
     const keepsId = isPlainObject(value) && value["_id"] === id;
-    if (isPlainObject(value) && isFlatSafe(value, true) && (!("_id" in value) || keepsId)) {
+    if (isPlainObject(value) && isFlatSafe(value, true, this.reserved) && (!("_id" in value) || keepsId)) {
       if (keepsId) doc[KEEP_ID] = true;
       for (const [key, field] of Object.entries(value)) if (key !== "_id") put(doc, key, field);
     } else {
@@ -380,14 +525,25 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     return doc;
   }
 
-  /** The id and the item of a stored document. */
-  private decode(doc: Document): [string, T] {
-    const id = String(doc[KEY]);
+  /** The id and the item of a stored document, or undefined when the document does not tell its id. */
+  private decode(doc: Document, known?: string): [string, T] | undefined {
+    const id = this.idOfDoc(doc) ?? known;
+    if (id === undefined) return undefined;
     if (typeof doc[JSON_FIELD] === "string") return [id, JSON.parse(doc[JSON_FIELD]) as T];
     const value: Record<string, unknown> = {};
     if (doc[KEEP_ID] === true) value["_id"] = id;
-    for (const [key, field] of Object.entries(doc)) if (!STORAGE_FIELDS.has(key)) put(value, key, field);
+    for (const [key, field] of Object.entries(doc)) if (!this.reserved.has(key)) put(value, key, field);
     return [id, value as T];
+  }
+
+  /** The entries of stored documents, in their order. A document that does not tell its id is left out. */
+  private decodeAll(docs: readonly Document[]): Array<[string, T]> {
+    const entries: Array<[string, T]> = [];
+    for (const doc of docs) {
+      const entry = this.decode(doc);
+      if (entry) entries.push(entry);
+    }
+    return entries;
   }
 
   /**
@@ -559,6 +715,16 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     await db.collection<CounterDoc>(this.countersName).updateOne({ _id: this.floorId() }, { $max: { floor } }, { upsert: true });
   }
 
+  /** The ids of stored documents, in their order. A document that does not tell its id is left out. */
+  private idsOf(docs: readonly Document[]): string[] {
+    const ids: string[] = [];
+    for (const doc of docs) {
+      const id = this.idOfDoc(doc);
+      if (id !== undefined) ids.push(id);
+    }
+    return ids;
+  }
+
   /** The items of the partition, in the order of the entries. */
   private async liveDocs(extra?: Document): Promise<Document[]> {
     const { items } = await this.collection();
@@ -570,7 +736,12 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     const docs = await collection
       .find(this.liveFilter({ _id: { $in: [...new Set(ids)].map((id) => this.storedId(id)) } }), { projection: { [KEY]: 1, [ORD]: 1 } })
       .toArray();
-    return new Map(docs.map((doc) => [String(doc[KEY]), Number(doc[ORD])]));
+    const places = new Map<string, number>();
+    for (const doc of docs) {
+      const id = this.idOfDoc(doc);
+      if (id !== undefined) places.set(id, this.placeOf(doc));
+    }
+    return places;
   }
 
   // ===========================================================================
@@ -580,21 +751,21 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
   async get(id: string): Promise<T | undefined> {
     const { items } = await this.collection();
     const doc = await items.findOne(this.liveFilter({ _id: this.storedId(id) }));
-    return doc ? this.decode(doc)[1] : undefined;
+    return doc ? this.decode(doc, id)?.[1] : undefined;
   }
 
   async getAll(): Promise<T[]> {
-    return (await this.liveDocs()).map((doc) => this.decode(doc)[1]);
+    return this.decodeAll(await this.liveDocs()).map(([, value]) => value);
   }
 
   async getEntries(): Promise<Array<[string, T]>> {
-    return (await this.liveDocs()).map((doc) => this.decode(doc));
+    return this.decodeAll(await this.liveDocs());
   }
 
   async getIds(): Promise<string[]> {
     const { items } = await this.collection();
-    const docs = await items.find(this.liveFilter(), { projection: { [KEY]: 1 } }).sort({ [ORD]: 1 }).toArray();
-    return docs.map((doc) => String(doc[KEY]));
+    const docs = await items.find(this.liveFilter(), { projection: { _id: 1, [KEY]: 1 } }).sort({ [ORD]: 1 }).toArray();
+    return this.idsOf(docs);
   }
 
   async find(predicate: (item: T) => boolean): Promise<T[]> {
@@ -605,9 +776,9 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     const rule = policy ?? this.options.queryPolicy;
     // The reference checks the selector and the options first, without a read of the database
     queryEntries([], selector, options, rule);
-    const filter = selectorPrefilter(selector);
+    const filter = selectorPrefilter(selector, { storedId: (id) => this.storedId(id), storageFields: this.reserved });
     const docs = await this.liveDocs(filter ? { $or: [{ [JSON_FIELD]: { $exists: true } }, filter] } : undefined);
-    return queryEntries(docs.map((doc) => this.decode(doc)), selector, options, rule) as Array<[string, T]>;
+    return queryEntries(this.decodeAll(docs), selector, options, rule) as Array<[string, T]>;
   }
 
   async has(id: string): Promise<boolean> {
@@ -628,7 +799,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     }
     const { items } = await this.collection();
     const docs = await items.find(this.liveFilter({ _id: { $in: ids.map((id) => this.storedId(id)) } })).toArray();
-    const byId = new Map(docs.map((doc) => this.decode(doc)));
+    const byId = new Map(this.decodeAll(docs));
     // The order of the ids of the call
     for (const id of ids) if (byId.has(id)) result.set(id, byId.get(id)!);
     return result;
@@ -654,11 +825,15 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     return cutResults(results, maxResults, bounded.limited);
   }
 
-  /** The version of an item: the sequence number of its last write, or undefined for a missing id. */
+  /**
+   * The version of an item: the sequence number of its last write, or undefined for a missing id.
+   * An item without a write through the storage (no `_seq`) has the version `0`.
+   */
   async versionOf(id: string): Promise<string | undefined> {
     const { items } = await this.collection();
     const doc = await items.findOne(this.liveFilter({ _id: this.storedId(id) }), { projection: { [SEQ]: 1 } });
-    return doc ? String(doc[SEQ]) : undefined;
+    if (!doc) return undefined;
+    return typeof doc[SEQ] === "number" ? String(doc[SEQ]) : "0";
   }
 
   async getChangesSince(since?: string): Promise<StorageChanges<T>> {
@@ -669,7 +844,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
       const full = async (): Promise<StorageChanges<T>> => ({
         version,
         full: true,
-        changed: (await items.find(this.liveFilter()).sort({ [ORD]: 1 }).toArray()).map((doc) => this.decode(doc)),
+        changed: this.decodeAll(await items.find(this.liveFilter()).sort({ [ORD]: 1 }).toArray()),
         deleted: [],
       });
       const match = since === undefined ? null : /^([^.]+)\.(\d+)$/.exec(since);
@@ -686,8 +861,10 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
       const changed: Array<[string, T]> = [];
       const deleted: string[] = [];
       for (const doc of docs) {
-        if (doc[TOMB] === true) deleted.push(String(doc[KEY]));
-        else changed.push(this.decode(doc));
+        const id = this.idOfDoc(doc);
+        if (id === undefined) continue;
+        if (doc[TOMB] === true) deleted.push(id);
+        else changed.push(this.decode(doc, id)!);
       }
       return { version, full: false, changed, deleted };
     });
@@ -749,9 +926,9 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     return this.write(async (db, collection) => {
       const doc = await collection.findOne(this.liveFilter({ _id: this.storedId(id) }));
       if (!doc) return undefined;
-      const next = applyPatch(this.decode(doc)[1], fields) as T;
+      const next = applyPatch(this.decode(doc, id)![1], fields) as T;
       await this.withNumbers(db, collection, 1, (first, session) =>
-        collection.replaceOne(this.writeFilter(id), this.encode(id, next, first, Number(doc[ORD])), { upsert: true, ...(session ? { session } : {}) })
+        collection.replaceOne(this.writeFilter(id), this.encode(id, next, first, this.placeOf(doc)), { upsert: true, ...(session ? { session } : {}) })
       );
       return next;
     });
@@ -787,7 +964,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
         .find(this.liveFilter({ _id: { $in: unique.map((id) => this.storedId(id)) } }), { projection: { _id: 1, [KEY]: 1 } })
         .toArray();
       if (live.length === 0) return 0;
-      const liveIds = new Set(live.map((doc) => String(doc[KEY])));
+      const liveIds = new Set(this.idsOf(live));
       const deleted = unique.filter((id) => liveIds.has(id));
       await this.tombstone(db, collection, deleted);
       return deleted.length;
@@ -796,13 +973,10 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
 
   async clear(_options?: StorageWriteOptions): Promise<void> {
     await this.write(async (db, collection) => {
-      const live = await collection.find(this.liveFilter(), { projection: { [KEY]: 1 } }).sort({ [ORD]: 1 }).toArray();
-      if (live.length === 0) return;
-      await this.tombstone(
-        db,
-        collection,
-        live.map((doc) => String(doc[KEY]))
-      );
+      const live = await collection.find(this.liveFilter(), { projection: { _id: 1, [KEY]: 1 } }).sort({ [ORD]: 1 }).toArray();
+      const ids = this.idsOf(live);
+      if (ids.length === 0) return;
+      await this.tombstone(db, collection, ids);
     });
   }
 
@@ -815,7 +989,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
       const guards = await this.checkVersions(collection, expected, session);
       const operations: AnyBulkWriteOperation<Stored>[] = ids.map((id, index) => {
         const tomb: Stored = { _id: this.storedId(id), [KEY]: id, [SEQ]: first + index, [TOMB]: true };
-        if (this.partition !== undefined) tomb[PART] = this.partition;
+        this.putPartition(tomb);
         return { replaceOne: { filter: { ...this.writeFilter(id), ...guards.get(id) }, replacement: tomb } };
       });
       const result = await collection.bulkWrite(operations, { ordered: true, ...(session ? { session } : {}) });
@@ -841,12 +1015,18 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     const docs = await collection
       .find({ ...this.partitionFilter(), _id: { $in: [...new Set(ids)].map((id) => this.storedId(id)) } } as Filter<Stored>, session ? { session } : {})
       .toArray();
-    return new Map(docs.map((doc) => [String(doc[KEY]), doc]));
+    const byId = new Map<string, Document>();
+    for (const doc of docs) {
+      const id = this.idOfDoc(doc);
+      if (id !== undefined) byId.set(id, doc);
+    }
+    return byId;
   }
 
   /** The current item of a stored document: no item for a tombstone or a missing document. */
   private currentOf(doc: Document | undefined): CurrentItem<T> {
-    return doc && doc[TOMB] !== true ? { found: true, value: this.decode(doc)[1] } : { found: false };
+    const entry = doc && doc[TOMB] !== true ? this.decode(doc) : undefined;
+    return entry ? { found: true, value: entry[1] } : { found: false };
   }
 
   /**
@@ -868,7 +1048,8 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     if (session) return guards;
     for (const [id] of expected) {
       const doc = docs.get(id);
-      guards.set(id, doc ? { [SEQ]: doc[SEQ] } : { [SEQ]: { $exists: false } });
+      // A document without `_seq` (not written through the storage yet) keeps that state until the write
+      guards.set(id, doc && typeof doc[SEQ] === "number" ? { [SEQ]: doc[SEQ] } : { [SEQ]: { $exists: false } });
     }
     return guards;
   }

@@ -6,11 +6,104 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ms } from "@procedures/client";
-import { MongoClient, type Db } from "mongodb";
+import { BSON, MongoClient, type Db, type Document } from "mongodb";
 import { queryEntries, type StorageSelector } from "@procedures/collections";
 import { contractVersionOf, describeCollectionStorageContract, type ContractItem } from "@procedures/collections/testing";
 import { versionConflictsOf } from "@procedures/collections";
-import { MongoDocumentStorage, selectorPrefilter, type MongoDocumentStorageOptions } from "./document-storage.js";
+import {
+  DOCUMENT_STORAGE_FIELDS,
+  MongoDocumentStorage,
+  TOMBSTONE_FIELD,
+  defaultIdOf,
+  defaultPartitionFields,
+  defaultStoredId,
+  selectorPrefilter,
+  type MongoDocumentStorageOptions,
+} from "./document-storage.js";
+
+/**
+ * A stored form of an app (roadmap CLI-76), a generic example. A partition is `<tenant>` or
+ * `<tenant>/<scope>`. The stored `_id` is `<tenant>:<id>` (the bare id for the tenant `main`), with
+ * `<scope>|` in front of it in a scope. The document has the field `tenant`, and `scope` only in a
+ * scope: a document of the tenant itself has no `scope` field.
+ */
+function partsOf(partition: string | undefined): { tenant: string; scope: string | undefined } {
+  const [tenant = "main", ...scope] = (partition ?? "main").split("/");
+  return { tenant, scope: scope.length > 0 ? scope.join("/") : undefined };
+}
+
+const appForm: Pick<MongoDocumentStorageOptions, "storedId" | "idOf" | "partitionFields"> = {
+  storedId: (partition, id) => {
+    const { tenant, scope } = partsOf(partition);
+    const base = tenant === "main" ? id : `${tenant}:${id}`;
+    return scope === undefined ? base : `${scope}|${base}`;
+  },
+  idOf: (stored, partition) => {
+    if (typeof stored !== "string") return undefined;
+    const { tenant, scope } = partsOf(partition);
+    let id = stored;
+    if (scope !== undefined) {
+      if (!id.startsWith(`${scope}|`)) return undefined;
+      id = id.slice(scope.length + 1);
+    }
+    if (tenant !== "main") {
+      if (!id.startsWith(`${tenant}:`)) return undefined;
+      id = id.slice(tenant.length + 1);
+    }
+    return id;
+  },
+  partitionFields: (partition) => partsOf(partition),
+};
+
+describe("the stored form: the defaults and their inverse (CLI-76)", () => {
+  it("gives the stored _id of 0.34.0, and its inverse", () => {
+    expect(defaultStoredId(undefined, "a")).toBe("a");
+    expect(defaultStoredId("t1", "a")).toBe("t1\u001fa");
+    expect(defaultIdOf(defaultStoredId("t1", "a"), "t1")).toBe("a");
+    expect(defaultIdOf("a", undefined)).toBe("a");
+    expect(defaultIdOf("t2\u001fa", "t1")).toBeUndefined();
+    expect(defaultIdOf("t1\u001fa", undefined)).toBeUndefined();
+    expect(defaultIdOf(5, undefined)).toBeUndefined();
+    expect(defaultPartitionFields("t1")).toEqual({ _part: "t1" });
+    expect(defaultPartitionFields(undefined)).toEqual({ _part: undefined });
+    expect(DOCUMENT_STORAGE_FIELDS).toEqual(["_key", "_part", "_seq", "_ord", "_tomb", "_json", "_kid"]);
+    expect(TOMBSTONE_FIELD).toBe("_tomb");
+  });
+
+  it("gives the inverse of the form of an app", () => {
+    for (const partition of ["main", "acme", "acme/board:1", "main/board:1"]) {
+      const stored = appForm.storedId!(partition, "n:1");
+      expect(appForm.idOf!(stored, partition), partition).toBe("n:1");
+    }
+    expect(appForm.storedId!("acme/board:1", "n1")).toBe("board:1|acme:n1");
+    expect(appForm.idOf!("beta:n1", "acme")).toBeUndefined();
+  });
+
+  it("refuses a storedId without idOf, and partition fields that are empty or that the storage writes", () => {
+    const base = { collection: "c" };
+    expect(() => new MongoDocumentStorage({ ...base, storedId: (_partition, id) => id })).toThrow(TypeError);
+    expect(() => new MongoDocumentStorage({ ...base, idOf: (stored) => String(stored) })).toThrow(TypeError);
+    expect(() => new MongoDocumentStorage({ ...base, partitionFields: () => ({}) })).toThrow(/at least one field/);
+    for (const name of ["_id", "_seq", "_key", "_tomb", "$p", "a.b"]) {
+      expect(() => new MongoDocumentStorage({ ...base, partitionFields: () => ({ [name]: "x" }) }), name).toThrow(TypeError);
+    }
+    expect(() => new MongoDocumentStorage({ ...base, partitionFields: (partition) => ({ _part: partition }) })).not.toThrow();
+  });
+
+  it("with storedId, tests a condition on _id against the stored _id; the storage fields stay out", () => {
+    const storedId = (id: string) => `p:${id}`;
+    expect(selectorPrefilter({ _id: "a" }, { storedId })).toEqual({ _id: "p:a" });
+    expect(selectorPrefilter({ _id: { $eq: "a", $in: ["a", "b"] } }, { storedId })).toEqual({ _id: { $eq: "p:a", $in: ["p:a", "p:b"] } });
+    expect(selectorPrefilter({ _id: 5 }, { storedId })).toBeUndefined();
+    expect(selectorPrefilter({ _id: { $in: ["a", 5] } }, { storedId })).toBeUndefined();
+    const refuses = () => {
+      throw new Error("no");
+    };
+    expect(selectorPrefilter({ _id: "a", n: 1 }, { storedId: refuses })).toEqual({ n: 1 });
+    expect(selectorPrefilter({ tenant: "x", title: "y" }, { storageFields: ["tenant"] })).toEqual({ title: "y" });
+    expect(selectorPrefilter({ $or: [{ _id: "a" }, { _id: "b" }] }, { storedId })).toEqual({ $or: [{ _id: "p:a" }, { _id: "p:b" }] });
+  });
+});
 
 describe("selectorPrefilter: the conditions that MongoDB tests in the same way", () => {
   it("sends the equality of a string, a number and a boolean, and $eq and $in of them", () => {
@@ -154,6 +247,157 @@ describeCollectionStorageContract(
   },
   { describe: withMongo, it },
 );
+
+// The form of an app, in a partition whose documents have no `scope` field (the filter is $exists: false)
+describeCollectionStorageContract(
+  "MongoDocumentStorage with the stored form of an app (CLI-76)",
+  {
+    create: () => fresh({ ...appForm, partition: "acme" }),
+    createWithMaxTombstones: (max) => fresh({ ...appForm, partition: "acme", maxTombstones: max }),
+    createWithQueryPolicy: (policy) => fresh({ ...appForm, partition: "acme", queryPolicy: policy }),
+    createWithVersions: (versionOf) => fresh({ ...appForm, partition: "acme", versionOf }),
+  },
+  { describe: withMongo, it },
+);
+
+withMongo("MongoDocumentStorage with another stored form (CLI-76)", () => {
+  /** The stored documents of a collection, by `_id`. */
+  const rawById = async (name: string) => new Map((await db.collection(name).find({}).toArray()).map((doc) => [doc._id as unknown, doc]));
+  const hex = (doc: unknown) => Buffer.from(BSON.serialize(doc as Document)).toString("hex");
+
+  it("with the defaults, writes the documents of 0.34.0, byte for byte", async () => {
+    const name = `c${++next}`;
+    const root = fresh<unknown>({ collection: name });
+    await root.setBatch([
+      ["flat", { title: "a", n: 1 }],
+      ["own", { _id: "own", k: "x" }],
+      ["json", [1, 2]],
+    ]);
+    const t1 = root.forPartition("t1");
+    await t1.set("p", { v: true });
+    await root.set("flat", { title: "b" });
+    await t1.delete("p");
+    const raw = await rawById(name);
+    const expected: Document[] = [
+      { _id: "flat", _key: "flat", _seq: 5, _ord: 1, title: "b" },
+      { _id: "own", _key: "own", _seq: 2, _ord: 2, _kid: true, k: "x" },
+      { _id: "json", _key: "json", _seq: 3, _ord: 3, _json: "[1,2]" },
+      { _id: "t1\u001fp", _key: "p", _seq: 6, _tomb: true, _part: "t1" },
+    ];
+    expect(raw.size).toBe(expected.length);
+    for (const doc of expected) expect(hex(raw.get(doc["_id"])), String(doc["_id"])).toBe(hex(doc));
+    // The flat document of a partition, before its delete
+    const other = fresh<unknown>({ collection: `c${++next}`, partition: "t1" });
+    await other.set("q", { v: 1 });
+    const [stored] = await db.collection(`c${next}`).find({}).toArray();
+    expect(hex(stored)).toBe(hex({ _id: "t1\u001fq", _key: "q", _seq: 1, _ord: 1, _part: "t1", v: 1 }));
+  });
+
+  it("writes the stored _id and the partition fields of the form, and reads each partition apart", async () => {
+    const name = `c${++next}`;
+    const root = fresh<{ title: string }>({ ...appForm, collection: name });
+    const partitions = ["main", "acme", "acme/board:1", "main/board:1"];
+    for (const partition of partitions) await root.forPartition(partition).set("n1", { title: `in ${partition}` });
+    const raw = await rawById(name);
+    expect([...raw.keys()].sort()).toEqual(["acme:n1", "board:1|acme:n1", "board:1|n1", "n1"]);
+    expect(raw.get("acme:n1")).toEqual({ _id: "acme:n1", _key: "n1", _seq: 2, _ord: 2, tenant: "acme", title: "in acme" });
+    expect(raw.get("acme:n1")).not.toHaveProperty("scope");
+    expect(raw.get("board:1|acme:n1")).toMatchObject({ tenant: "acme", scope: "board:1" });
+    for (const partition of partitions) {
+      const storage = root.forPartition(partition);
+      expect(await storage.get("n1"), partition).toEqual({ title: `in ${partition}` });
+      expect(await storage.find((item) => item.title.startsWith("in")), partition).toEqual([{ title: `in ${partition}` }]);
+      expect(await storage.query({ title: `in ${partition}` }), partition).toEqual([["n1", { title: `in ${partition}` }]]);
+      expect(await storage.query({ title: "in main" }), partition).toEqual(partition === "main" ? [["n1", { title: "in main" }]] : []);
+      expect((await storage.getChangesSince()).changed, partition).toEqual([["n1", { title: `in ${partition}` }]]);
+      expect(await storage.size(), partition).toBe(1);
+    }
+    // The change log of a partition gives its writes and its deletes only
+    const acme = root.forPartition("acme");
+    const { version } = await acme.getChangesSince();
+    await acme.set("n2", { title: "new" });
+    await root.forPartition("main").set("n3", { title: "elsewhere" });
+    await acme.delete("n1");
+    expect(await acme.getChangesSince(version)).toMatchObject({ full: false, changed: [["n2", { title: "new" }]], deleted: ["n1"] });
+    expect((await rawById(name)).get("acme:n1")).toEqual({ _id: "acme:n1", _key: "n1", _seq: 7, _tomb: true, tenant: "acme" });
+    // A query on _id reads the stored _id; a field of the partition is not a field of an item
+    await acme.set("own", { _id: "own", title: "own" } as never);
+    expect((await acme.query({ _id: "own" })).map(([id]) => id)).toEqual(["own"]);
+    expect(await acme.query({ tenant: "acme" } as never)).toEqual([]);
+    // An item with a field of the partition is stored as JSON, and comes back as it was
+    await acme.set("odd", { title: "odd", tenant: "beta" } as never);
+    expect(await acme.get("odd")).toEqual({ title: "odd", tenant: "beta" });
+    expect(typeof (await rawById(name)).get("acme:odd")?.["_json"]).toBe("string");
+    expect((await acme.aggregate([{ $count: "n" }])).docs).toEqual([{ n: 3 }]);
+  });
+
+  it("reads the documents written before the storage, gives them the version 0, and the first write gives them a version", async () => {
+    const name = `c${++next}`;
+    await db.collection(name).insertMany([
+      { _id: "acme:old1" as never, tenant: "acme", title: "first" },
+      { _id: "acme:old2" as never, tenant: "acme", title: "second" },
+      { _id: "acme:old3" as never, tenant: "acme", title: "third" },
+      { _id: "board:1|acme:old1" as never, tenant: "acme", scope: "board:1", title: "scoped" },
+      { _id: "beta:old1" as never, tenant: "beta", title: "other tenant" },
+    ]);
+    const root = fresh<{ title: string }>({ ...appForm, collection: name, versionOf: (item) => item.title });
+    const acme = root.forPartition("acme");
+    expect(await acme.get("old1")).toEqual({ title: "first" });
+    expect(await acme.has("old2")).toBe(true);
+    expect(await acme.size()).toBe(3);
+    expect((await acme.getIds()).sort()).toEqual(["old1", "old2", "old3"]);
+    expect(await acme.query({ title: "second" })).toEqual([["old2", { title: "second" }]]);
+    expect([...(await acme.getBatch(["old3", "old1"])).keys()]).toEqual(["old3", "old1"]);
+    expect(await acme.versionOf("old1")).toBe("0");
+    expect(await root.forPartition("acme/board:1").get("old1")).toEqual({ title: "scoped" });
+    expect(await root.forPartition("beta").getAll()).toEqual([{ title: "other tenant" }]);
+    const full = await acme.getChangesSince();
+    expect(full.full).toBe(true);
+    expect(full.changed.map(([id]) => id).sort()).toEqual(["old1", "old2", "old3"]);
+
+    // The first write gives a version, keeps the place before the new items, and is in the next delta
+    await acme.set("old1", { title: "first, edited" }, { expectedVersion: "first" });
+    await acme.set("new", { title: "new" });
+    expect(Number(await acme.versionOf("old1"))).toBeGreaterThan(0);
+    const edited = (await rawById(name)).get("acme:old1");
+    expect(edited).toMatchObject({ _id: "acme:old1", _key: "old1", _ord: 0, tenant: "acme", title: "first, edited" });
+    expect(typeof edited?.["_seq"]).toBe("number");
+    expect((await acme.getIds()).slice(-2)).toEqual(["old1", "new"]);
+    expect((await acme.getChangesSince(full.version)).changed.map(([id]) => id)).toEqual(["old1", "new"]);
+
+    // A patch, a precondition, a delete and a clear of a document without the fields of the storage
+    expect(await acme.patch("old2", { title: "second, patched" })).toEqual({ title: "second, patched" });
+    await expect(acme.set("old3", { title: "x" }, { expectedVersion: "not third" })).rejects.toMatchObject({ code: "VERSION_CONFLICT" });
+    const before = await acme.getChangesSince();
+    expect(await acme.delete("old3", { expectedVersion: "third" })).toBe(true);
+    expect(await acme.getChangesSince(before.version)).toMatchObject({ full: false, changed: [], deleted: ["old3"] });
+    await acme.clear();
+    expect(await acme.size()).toBe(0);
+    // The other partitions keep their documents as they were
+    expect((await rawById(name)).get("beta:old1")).toEqual({ _id: "beta:old1", tenant: "beta", title: "other tenant" });
+    expect((await rawById(name)).get("board:1|acme:old1")).toEqual({ _id: "board:1|acme:old1", tenant: "acme", scope: "board:1", title: "scoped" });
+  });
+
+  it("keeps a stored _id that is not a text, and gives back the id of the inverse", async () => {
+    const name = `c${++next}`;
+    await db.collection(name).insertOne({ _id: 7 as never, title: "seven" });
+    const storage = fresh<{ title: string }>({
+      collection: name,
+      storedId: (_partition, id) => (/^#\d+$/.test(id) ? Number(id.slice(1)) : id),
+      idOf: (stored) => (typeof stored === "number" ? `#${stored}` : typeof stored === "string" ? stored : undefined),
+    });
+    expect(await storage.get("#7")).toEqual({ title: "seven" });
+    await storage.set("#8", { title: "eight" });
+    await storage.set("plain", { title: "text" });
+    expect(await db.collection(name).findOne({ _id: 8 as never })).toMatchObject({ _key: "#8", title: "eight" });
+    expect([...(await storage.getBatch(["#8", "#7"])).keys()]).toEqual(["#8", "#7"]);
+    expect(await storage.getIds()).toEqual(["#7", "#8", "plain"]);
+    expect((await storage.query({ title: { $in: ["seven", "text"] } })).map(([id]) => id)).toEqual(["#7", "plain"]);
+    expect(await storage.delete("#7")).toBe(true);
+    expect(await db.collection(name).findOne({ _id: 7 as never })).toMatchObject({ _key: "#7", _tomb: true });
+    expect((await storage.getChangesSince()).changed.map(([id]) => id)).toEqual(["#8", "plain"]);
+  });
+});
 
 withMongo("MongoDocumentStorage on MongoDB", () => {
   it("keeps the partitions of one collection apart, with the same ids", async () => {
