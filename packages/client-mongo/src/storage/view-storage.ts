@@ -23,7 +23,7 @@
 import type { Collection, Db, Document, ObjectId } from "mongodb";
 import type { CollectionStorage, StorageMetadata } from "@procedures/collections";
 import { ensureConnection } from "../connection.js";
-import { partitionTargetId, viewFilter, VIEW_GENERATION_FIELD, VIEW_HASH_FIELD, type MaterializedView, type MaterializedViewStatus, type ViewTargetId } from "./materializer.js";
+import { defaultRowId, partitionTargetId, viewFilter, VIEW_GENERATION_FIELD, VIEW_HASH_FIELD, type MaterializedView, type MaterializedViewStatus, type ViewTargetId } from "./materializer.js";
 
 /** The options of a `MongoViewStorage`. Give the same names as to the `ViewMaterializer` of the view. */
 export interface MongoViewStorageOptions {
@@ -56,11 +56,6 @@ interface Generation {
   readonly filter: Document;
   readonly partition: string;
   readonly generation: ObjectId;
-}
-
-/** The `_id` of a row in the result, from the stored `_id` of `partitionTargetId`. */
-function defaultRowId(storedId: unknown): unknown {
-  return typeof storedId === "object" && storedId !== null && "id" in storedId ? (storedId as { id: unknown }).id : storedId;
 }
 
 /**

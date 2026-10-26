@@ -797,13 +797,35 @@ const totals = await db.collection("orderTotals").find(viewFilter(view)).toArray
 - The option `targetId` gives another form of the stored `_id`. Two partitions, or two generations, must not give the same `_id`. The write of a row checks the partition, so the view of the second partition fails, and the row of the first one stays. A form without the generation works only in one transaction.
 - A pass keeps in memory the key of each row of the result (at most `maxRows`) and one group of rows. It keeps nothing between passes.
 - An app with targets from an older materializer (the plain key as `_id`, no generation) needs no migration step. The first pass of each view writes its rows in a generation, and removes the rows of its partition with no generation. A row without the partition field stays.
+- A transaction that has a write conflict with another process (code 112) tries again two times after a short wait. Then the run gives way, and the view runs again after `rewatch`. Thus a steady stream of writes does not stop a view.
+- The option `publish` (a function or a bus) gets the hints of the targets that are not in a stored form (roadmap CLI-81). Each run that changes rows publishes one hint with the ids of the changed rows and of the removed rows. `rowIdOf` gives the id of a stored `_id`. The topic is `collectionChangeTopic(view._id)`, or the result of `hintTopic(view, partition)`. Some runs publish a reset hint (`reset: true`): a new generation in groups, an id that is not a text, or more than 10000 ids. Then the subscribers read the view in full.
+
+#### A target in a stored form: `storageTargets`
+
+The option `storageTargets` names the targets whose rows are documents of a `MongoDocumentStorage` (roadmap CLI-81). Give the storage of each target, its stored form, or `{ target, storagePartitionOf }`, by the name of the target collection. A reader then reads the target through a `MongoDocumentStorage` with the same form, and `changes(since)` and `watchStorageChanges()` have each write of a run.
+
+```typescript
+const totals = new MongoDocumentStorage({ collection: "orderTotals", db: () => db });
+const views = new ViewMaterializer({ db: () => db, storageTargets: { orderTotals: totals } });
+const changes = await totals.forPartition("t1").getChangesSince(version);
+```
+
+- The materializer encodes each row as a write of the storage does. A row gets `_key`, `_seq`, `_ord` and the partition fields of the form. It also gets `_kid`, `_kpf` or `_json` when it needs them. The fields of a storage in a row (for example of a source document that the pipeline passes through) do not go into the target. Thus `_json` comes from the content of the row, and each row has its own `_key`, also after `$unwind`, `$lookup` or `$unionWith`.
+- The `_id` of a row is its id: a text without the character U+001F. Two rows of a result must not have the same `_id`.
+- Each row also gets the partition field of the materializer with the partition of the view, so a view that reads the target finds it. When that field is a partition field of the form, the form must give it the partition of the view. `storagePartitionOf` gives the partition of the storage from the partition of the view (default the same partition).
+- A run compares each row with its stored document, without the numbers. A row that did not change writes nothing, and a tombstone is not written again. A row keeps the place (`_ord`) of its stored document.
+- A run takes the numbers of its writes from the sequence of the storage, as pending numbers. It writes with them in its transaction, and ends them after the commit. A late run (its numbers left their `writeLease`) moves to new numbers, so a reader of `changes(since)` misses no row. The transaction does not write the counters, so the writes of the storage do not conflict with it.
+- The materializer does not note its numbers as writes of this process. Thus a watcher of the target with `ownWrites: "skip"` publishes a hint for each write of a run, with its version. It has no raw write to adopt.
+- A row that the result does not have becomes a tombstone. The prune of the tombstones (`maxTombstones`) raises the floor of the change log. Thus a reader that is far behind gets a full result, and it misses no delete. A document of the partition that tells no id becomes a tombstone without `_key`.
+- A view with more rows than `maxTransactionRows`, or whose transaction fails, writes in place in groups, under its lease. A reader can then read a part of the run.
+- One view writes each partition of a target, and only the materializer writes it. A document of the partition that the result does not have becomes a tombstone. The rows have no generation, so `viewFilter()` and `MongoViewStorage` do not read them. Give the same `storageTargets` to each materializer of the views.
 
 To serve a view through the collection procedures, give its storage `new MongoViewStorage({ view: "totals", db })` (roadmap CLI-38):
 
 - Each read finds the current generation of the view one time, and reads only its rows. A reader of `get`, `getAll`, `find` or `changes` thus gets one generation only.
 - A read that starts before a change of generation ends on the previous generation. The materializer keeps its rows for `generationGrace`, so a read must end in that time.
 - The key of a row is its `_id` in the result, a text. The value has that `_id` and the fields of the row.
-- The storage is read-only: a write rejects with `FORBIDDEN`. It has no change log.
+- The storage is read-only: a write rejects with `FORBIDDEN`. It has no change log. The option `publish` of the materializer gives its subscribers a hint for each run.
 - Give it the same `views`, `partitionField`, `statusField` and `targetId` as the materializer.
 
 ## Integration with Ecosystem

@@ -44,17 +44,20 @@
  * that moves a document to another partition also reaches the views of its old partition.
  *
  * Change streams and transactions need a replica set (MongoDB 6 or later). The target of a view is
- * a plain collection that only the materializer writes.
+ * a plain collection that only the materializer writes. A target of `storageTargets` is in the
+ * stored form of a `MongoDocumentStorage` instead (roadmap CLI-81): see `ViewStorageTarget`.
  *
  * The stop has the parts of a transport of a service: `stopIntake()`, `drain()`, `inFlight()` and
  * `close()`. A host composes them with no adapter. The timers come from the injected clock.
  */
 
 import { createHash } from "node:crypto";
-import { BSON, ObjectId, type ChangeStream, type ClientSession, type Collection, type Db, type Document } from "mongodb";
-import { optionalMs, realClock, type Cancel, type Clock, type Duration } from "@procedures/client";
-import { DEFAULT_STORED_FORM, TOMBSTONE_FIELD, type StoredForm } from "./document-storage.js";
+import { isDeepStrictEqual } from "node:util";
+import { BSON, ObjectId, type AnyBulkWriteOperation, type ChangeStream, type ClientSession, type Collection, type Db, type Document } from "mongodb";
+import { collectionChangeTopic, ms, optionalMs, realClock, type Cancel, type Clock, type CollectionChangeEvent, type Duration } from "@procedures/client";
+import { DEFAULT_STORED_FORM, DOCUMENT_STORAGE_FIELDS, MongoDocumentStorage, TOMBSTONE_FIELD, storageWriteTarget, type StorageWriteTarget, type StoredForm } from "./document-storage.js";
 import { scopePipeline } from "./pipeline-scope.js";
+import type { StorageHintPublisher } from "./storage-hints.js";
 
 /** The fields of a storage that a row never keeps: its sequence number and its tombstone flag (roadmap CLI-77). */
 const ROW_DROPPED_FIELDS = ["_seq", TOMBSTONE_FIELD] as const;
@@ -155,6 +158,63 @@ export interface ViewMaterializerOptions {
    * When the form or the function gives `undefined`, the change reaches the views of each partition.
    */
   storageSources?: Readonly<Record<string, ViewPartitionOf | ViewStorageSource>> | undefined;
+  /**
+   * The targets in the stored form of a `MongoDocumentStorage` (roadmap CLI-81), by the name of the
+   * target collection: the storage of the target, its stored form, or a `ViewStorageTarget`. The
+   * rows of such a target are documents of the storage, so a reader reads them through a
+   * `MongoDocumentStorage` with the same form, and `changes(since)` and `watchStorageChanges()`
+   * have each write of a run. See `ViewStorageTarget` for the rules. Give the same targets to each
+   * materializer of the views.
+   */
+  storageTargets?: Readonly<Record<string, AnyDocumentStorage | StoredForm | ViewStorageTarget>> | undefined;
+  /**
+   * The publisher of the hints of the targets that are not in `storageTargets`, for example the bus
+   * of the procedures. After each run that changes rows, the materializer publishes one hint with
+   * the ids of the changed rows and of the removed rows. A change of generation, a row id that is
+   * not a text and more than 10000 ids give a reset hint (`reset: true`): the subscribers read the
+   * view in full. The materializer publishes no hint of a target in a stored form: a watcher of
+   * the storage (`watchStorageChanges()`) does.
+   */
+  publish?: StorageHintPublisher | undefined;
+  /** The topic of the hints of a view, or undefined for no hint (default `collectionChangeTopic(view._id)`). */
+  hintTopic?: ((view: MaterializedView, partition: string) => string | undefined) | undefined;
+  /**
+   * The `_id` of a row in the result, from its stored `_id`, for the ids of a hint. It reverses
+   * `targetId`. The default reads the field `id` of the form of `partitionTargetId`.
+   */
+  rowIdOf?: ((storedId: unknown) => unknown) | undefined;
+}
+
+/**
+ * A storage with items of any type. The type of the items does not change the stored form, and a
+ * `MongoDocumentStorage<T>` of a given `T` is not a `MongoDocumentStorage<unknown>`.
+ */
+type AnyDocumentStorage = MongoDocumentStorage<any>;
+
+/**
+ * A target of `storageTargets` (roadmap CLI-81).
+ *
+ * - The rows are documents of the storage: each row gets `_key`, `_seq`, `_ord`, the partition
+ *   fields of the form, and `_kid`, `_kpf` or `_json` as a write of the storage makes them. The
+ *   materializer encodes each row from its own content: the fields of a storage in a row (for
+ *   example of a source document that the pipeline passes through) do not go into the target.
+ * - The `_id` of a row is its id. It must be a text without the character U+001F, and two rows of
+ *   a result must not have the same `_id`.
+ * - A row also gets the partition field of the materializer with the partition of the view, so a
+ *   view that reads the target finds it. When that field is a partition field of the form, the
+ *   form must give it the partition of the view.
+ * - A run takes the numbers of its writes from the sequence of the storage, and a late run moves
+ *   to new numbers, as a write of the storage does. A removed row becomes a tombstone, and the
+ *   prune of the tombstones raises the floor of the change log.
+ * - The materializer keeps each partition of the target equal to the result of the view: one view
+ *   writes a partition of the target, and only the materializer writes it.
+ * - The rows have no generation, so `viewFilter()` and a `MongoViewStorage` do not read them.
+ */
+export interface ViewStorageTarget {
+  /** The storage of the target, or its stored form. The materializer writes with its own database, and takes the counters, `writeLease` and `maxTombstones` of a storage. */
+  target: AnyDocumentStorage | StoredForm;
+  /** The partition of the storage from the partition of a view (default the same partition). Undefined is the storage without a partition. */
+  storagePartitionOf?: ((viewPartition: string) => string | undefined) | undefined;
 }
 
 /** The function that gives the stored `_id` of a row of a view. */
@@ -210,6 +270,52 @@ function groups<T>(items: readonly T[]): T[][] {
   const result: T[][] = [];
   for (let start = 0; start < items.length; start += WRITE_GROUP) result.push(items.slice(start, start + WRITE_GROUP));
   return result;
+}
+
+/** The most tries of a run in a transaction after a write conflict (code 112). After them, the run gives way, and comes back after `rewatch`. */
+const CONFLICT_RETRIES = 3;
+
+/** The most ids of a hint of a target not in a stored form. More ids give a reset hint. */
+const MAX_HINT_IDS = 10_000;
+
+/** The `_id` of a row in the result, from the stored `_id` of `partitionTargetId`. */
+export function defaultRowId(storedId: unknown): unknown {
+  return typeof storedId === "object" && storedId !== null && "id" in storedId ? (storedId as { id: unknown }).id : storedId;
+}
+
+/** The hash of a stored document without its numbers (`_seq` and `_ord`): two documents with the same content give the same hash. */
+function contentHash(doc: Document): string {
+  const { _seq: _number, _ord: _place, ...rest } = doc;
+  return createHash("sha1")
+    .update(canonical(BSON.EJSON.serialize(rest, { relaxed: false })))
+    .digest("hex");
+}
+
+/** A target of `storageTargets`, ready to write: a storage on the database of the materializer. */
+interface StorageTargetEntry {
+  readonly storage: MongoDocumentStorage<unknown>;
+  readonly storagePartitionOf: (viewPartition: string) => string | undefined;
+}
+
+/** The storage of the partition of a view in its target (roadmap CLI-81). */
+interface TargetPartition {
+  readonly writer: StorageWriteTarget;
+  /** The filter of the rows of the view: the partition of the storage and the partition of the view. */
+  readonly filter: Document;
+  /** True when the partition field of the materializer goes in the content of an item (not a field of the storage or of the form). */
+  readonly partitionInContent: boolean;
+}
+
+/** A row of a target in a stored form that a run writes, with the place of its stored document (`_ord`) when it has one. */
+interface StorageWrite {
+  readonly row: StoredRow;
+  readonly ord: number | undefined;
+}
+
+/** A row of a target in a stored form that a run removes: its stored `_id`, and its id when the stored document tells one that the result does not have. */
+interface StorageRemoval {
+  readonly storedId: unknown;
+  readonly id: string | undefined;
 }
 
 /** The function that gives the partition of the views from the partition of a storage, or `undefined` when it does not know. */
@@ -293,6 +399,8 @@ export class ViewMaterializer {
   private readonly graceMs: number;
   private readonly leaseMs: number;
   private readonly storageSources: ReadonlyMap<string, ViewStorageSource>;
+  private readonly storageTargets: ReadonlyMap<string, StorageTargetEntry>;
+  private readonly rowIdOf: (storedId: unknown) => unknown;
   /** False after `stopIntake()`: a change starts no pass. */
   private intake = false;
   /** The work of each partition, one at a time: the passes and the rebalances. */
@@ -323,6 +431,42 @@ export class ViewMaterializer {
         return [source, normal];
       })
     );
+    this.storageTargets = new Map(Object.entries(options.storageTargets ?? {}).map(([collection, entry]) => [collection, this.storageTargetOf(collection, entry)]));
+    this.rowIdOf = options.rowIdOf ?? defaultRowId;
+  }
+
+  /**
+   * A target of `storageTargets` as a storage on the database of the materializer, so its writes
+   * and the transaction of a run use one client. A given storage gives its form, its counters,
+   * `writeLease` and `maxTombstones`.
+   */
+  private storageTargetOf(collection: string, entry: AnyDocumentStorage | StoredForm | ViewStorageTarget): StorageTargetEntry {
+    const wrapped = typeof entry === "object" && entry !== null && "target" in entry ? entry : { target: entry };
+    const storagePartitionOf = wrapped.storagePartitionOf ?? ((partition: string): string | undefined => partition);
+    if (typeof storagePartitionOf !== "function") throw new TypeError(`The storage target ${collection} needs a function storagePartitionOf`);
+    const db = (): Db => {
+      if (!this.db) throw new Error("The materializer has not started");
+      return this.db;
+    };
+    const target = wrapped.target;
+    if (target instanceof MongoDocumentStorage) {
+      const parts = storageWriteTarget(target);
+      if (parts.collection !== collection) throw new TypeError(`The storage target ${collection} has a storage of the collection ${parts.collection}`);
+      const storage = new MongoDocumentStorage<unknown>({
+        collection,
+        db,
+        form: parts.form,
+        counters: parts.counters,
+        writeLease: ms(parts.writeLeaseMs),
+        maxTombstones: parts.maxTombstones,
+        transactions: "never",
+      });
+      return { storage, storagePartitionOf };
+    }
+    if (typeof target !== "object" || target === null || typeof (target as Partial<StoredForm>).storedId !== "function") {
+      throw new TypeError(`The storage target ${collection} needs a MongoDocumentStorage, a stored form or a ViewStorageTarget`);
+    }
+    return { storage: new MongoDocumentStorage<unknown>({ collection, db, form: target as StoredForm, transactions: "never" }), storagePartitionOf };
   }
 
   private log(level: "info" | "warn" | "error", message: string): void {
@@ -539,6 +683,13 @@ export class ViewMaterializer {
       .collection(view.targetCollection)
       .createIndex({ [this.partitionField]: 1, [VIEW_GENERATION_FIELD]: 1 })
       .catch((error: unknown) => this.log("error", `the index of ${view.targetCollection} failed: ${String((error as Error)?.message ?? error)}`));
+    // A target in a stored form also has the indexes of the storage: the change reads, the order and the tombstones
+    const storageTarget = this.storageTargets.get(view.targetCollection);
+    if (storageTarget) {
+      await storageWriteTarget(storageTarget.storage)
+        .ready()
+        .catch((error: unknown) => this.log("error", `the indexes of the storage ${view.targetCollection} failed: ${String((error as Error)?.message ?? error)}`));
+    }
     await this.rebalance(partition);
   }
 
@@ -792,23 +943,78 @@ export class ViewMaterializer {
    */
   private async run(view: MaterializedView, partition: string): Promise<boolean> {
     const target = this.db!.collection(view.targetCollection);
+    const storage = this.targetPartition(view, partition);
     const { status, now } = await this.statusOf(view, partition);
     if (status?.lease && status.lease.until instanceof Date && now < status.lease.until) throw new PassSuperseded("a pass of another process holds the view");
-    await this.dropOldGenerations(target, partition, status, now);
+    // The rows of a target in a stored form have no generation: a removal is a tombstone, never a delete of an old generation
+    if (!storage) await this.dropOldGenerations(target, partition, status, now);
     const current = status?.generation;
     const generations = await this.currentGenerations(partition);
-    const size = current ? await target.countDocuments({ [this.partitionField]: partition, [VIEW_GENERATION_FIELD]: current }) : 0;
+    // The floor document of the partition of the storage, before the first write (roadmap O66)
+    if (storage) await storage.writer.noteFloor(this.db!);
+    const size = storage
+      ? await target.countDocuments({ ...storage.filter, [TOMBSTONE_FIELD]: { $ne: true } })
+      : current
+        ? await target.countDocuments({ [this.partitionField]: partition, [VIEW_GENERATION_FIELD]: current })
+        : 0;
     if (size <= this.maxTransactionRows) {
-      try {
-        return await this.runInTransaction(view, partition, target, current, generations);
-      } catch (error) {
-        if (error instanceof ViewRunError || error instanceof PassSuperseded) throw error;
-        if (isWriteConflict(error)) throw new PassSuperseded(`another process wrote the view at the same time (${String((error as Error)?.message ?? error)})`);
-        this.log("warn", `${view._id}: the transaction failed (${String((error as Error)?.message ?? error)}): the pass writes a new generation in groups`);
+      for (let attempt = 1; ; attempt++) {
+        try {
+          return storage
+            ? await this.runStorageInTransaction(view, partition, target, storage, current, generations)
+            : await this.runInTransaction(view, partition, target, current, generations);
+        } catch (error) {
+          if (error instanceof ViewRunError || error instanceof PassSuperseded) throw error;
+          if (isWriteConflict(error)) {
+            // A write conflict tries again a few times after a short wait, so a steady stream of writes does not starve the view
+            if (attempt < CONFLICT_RETRIES) {
+              await this.pause(25 * 2 ** attempt * (1 + Math.random()));
+              continue;
+            }
+            throw new PassSuperseded(`another process wrote the view at the same time (${String((error as Error)?.message ?? error)})`);
+          }
+          this.log("warn", `${view._id}: the transaction failed (${String((error as Error)?.message ?? error)}): the pass writes ${storage ? "in groups" : "a new generation in groups"}`);
+          break;
+        }
       }
     }
+    if (storage) return this.runStorageInGroups(view, partition, target, storage, current, generations);
     await this.runInGroups(view, partition, target, current, generations);
     return true;
+  }
+
+  /** This method waits on the clock of the materializer. The timer does not keep the process alive. */
+  private pause(delay: number): Promise<void> {
+    return new Promise((resolve) => {
+      const cancel = this.clock.after(Math.round(delay), resolve);
+      cancel.unref?.();
+    });
+  }
+
+  /**
+   * The storage of the partition of a view in its target, or undefined for a target that is not in
+   * `storageTargets`. A partition that the storage refuses, and a partition field of the form with
+   * another value than the partition of the view, are an error of the view.
+   */
+  private targetPartition(view: MaterializedView, partition: string): TargetPartition | undefined {
+    const entry = this.storageTargets.get(view.targetCollection);
+    if (!entry) return undefined;
+    let writer: StorageWriteTarget;
+    try {
+      const storagePartition = entry.storagePartitionOf(partition);
+      writer = storageWriteTarget(storagePartition === undefined ? entry.storage : entry.storage.forPartition(storagePartition));
+    } catch (error) {
+      throw new ViewRunError(`the partition of the storage ${view.targetCollection}: ${String((error as Error)?.message ?? error)}`);
+    }
+    const field = this.partitionField;
+    if (writer.partitionFields.has(field) && !isDeepStrictEqual(writer.partitionFields.get(field), partition)) {
+      throw new ViewRunError(`the stored form of ${view.targetCollection} gives the field ${field} another value than the partition ${partition}`);
+    }
+    return {
+      writer,
+      filter: { ...writer.partitionFilter(), [field]: partition },
+      partitionInContent: !writer.partitionFields.has(field) && !DOCUMENT_STORAGE_FIELDS.includes(field),
+    };
   }
 
   /**
@@ -852,7 +1058,7 @@ export class ViewMaterializer {
   }
 
   /** The rows of the result, in groups of 1000. A failure of the pipeline, a row without `_id` and too many rows are a `ViewRunError`. */
-  private async *resultGroups(view: MaterializedView, partition: string, generations: readonly ObjectId[], generation: ObjectId): AsyncGenerator<StoredRow[]> {
+  private async *resultGroups(view: MaterializedView, partition: string, generations: readonly ObjectId[], generation: ObjectId, storage?: TargetPartition): AsyncGenerator<StoredRow[]> {
     let pipeline: Document[];
     try {
       pipeline = this.scoped(view.pipeline, partition, view, generations);
@@ -874,6 +1080,14 @@ export class ViewMaterializer {
         }
         if (row === null) break;
         if (++count > this.maxRows) throw new ViewRunError(`the result has more than ${this.maxRows} rows`);
+        if (storage) {
+          group.push(this.storageRowOf(row, partition, storage));
+          if (group.length === WRITE_GROUP) {
+            yield group;
+            group = [];
+          }
+          continue;
+        }
         // The fields of the materializer, for a row that comes from a target: not in the content
         const { _id, [this.partitionField]: _partition, [VIEW_GENERATION_FIELD]: _generation, [VIEW_HASH_FIELD]: _hash, ...content } = row;
         if (_id === undefined || _id === null) throw new ViewRunError("each row of the result needs an _id");
@@ -900,6 +1114,37 @@ export class ViewMaterializer {
     }
   }
 
+  /**
+   * A row of the result as a document of a target in a stored form (roadmap CLI-81). The content is
+   * the row without the fields of the materializer and of a storage: a pass-through row of a source
+   * in a stored form loses its `_key`, `_kid`, `_kpf`, `_ord` and `_json`, and the encoding of the
+   * storage makes them again from the row (`_json` from the content of the row). A field of the row
+   * with the name of a partition field of the form takes the value of the partition of the target.
+   * The numbers (`_seq`, `_ord`) come at the write.
+   */
+  private storageRowOf(row: Document, partition: string, storage: TargetPartition): StoredRow {
+    const { _id, [VIEW_GENERATION_FIELD]: _generation, [VIEW_HASH_FIELD]: _hash, ...content } = row;
+    if (typeof _id !== "string") throw new ViewRunError(`each row of a target in a stored form needs a text _id, not ${BSON.EJSON.stringify({ _id } as Document)}`);
+    const field = this.partitionField;
+    delete content[field];
+    for (const name of DOCUMENT_STORAGE_FIELDS) delete content[name];
+    for (const [name, value] of storage.writer.partitionFields) {
+      if (!(name in content)) continue;
+      if (value === undefined) delete content[name];
+      else content[name] = value;
+    }
+    if (storage.partitionInContent) content[field] = partition;
+    let doc: Document;
+    try {
+      doc = storage.writer.encode(_id, { _id, ...content }, 0, 0);
+    } catch (error) {
+      throw new ViewRunError(`the row ${JSON.stringify(_id)}: ${String((error as Error)?.message ?? error)}`);
+    }
+    // A view that reads the target finds the row by the partition field, also in an item stored as JSON text
+    if (doc[field] === undefined) doc[field] = partition;
+    return { id: _id, key: idKey(doc["_id"]), hash: contentHash(doc), doc };
+  }
+
   private replaceOf(row: StoredRow, partition: string): Document {
     return { replaceOne: { filter: { _id: row.doc["_id"], [this.partitionField]: partition }, replacement: row.doc, upsert: true } };
   }
@@ -918,6 +1163,7 @@ export class ViewMaterializer {
     const generation = current ?? new ObjectId();
     const session = this.db!.client.startSession();
     let changed = current === undefined;
+    const hint = { changed: [] as unknown[], deleted: [] as unknown[] };
     try {
       session.startTransaction();
       // In the transaction: a change of generation by another process since the start supersedes this pass
@@ -930,8 +1176,10 @@ export class ViewMaterializer {
           .find({ _id: { $in: group.map((row) => row.doc["_id"]) }, [this.partitionField]: partition } as Document, { projection: { [VIEW_HASH_FIELD]: 1 }, session })
           .toArray();
         const hashes = new Map(stored.map((doc) => [idKey(doc["_id"]), doc[VIEW_HASH_FIELD]]));
-        const writes = group.filter((row) => hashes.get(row.key) !== row.hash).map((row) => this.replaceOf(row, partition));
+        const rows = group.filter((row) => hashes.get(row.key) !== row.hash);
+        const writes = rows.map((row) => this.replaceOf(row, partition));
         for (const row of group) seen.add(row.key);
+        for (const row of rows) hint.changed.push(row.id);
         if (writes.length > 0) {
           await target.bulkWrite(writes as never, { ordered: false, session });
           changed = true;
@@ -947,6 +1195,7 @@ export class ViewMaterializer {
       }
       for (const group of groups(stale)) await target.deleteMany({ [this.partitionField]: partition, _id: { $in: group } } as Document, { session });
       if (stale.length > 0) changed = true;
+      for (const storedId of stale) hint.deleted.push(this.rowIdOf(storedId));
       if (!current && !(await this.setGeneration(view, partition, generation, { expected: undefined, session }))) {
         throw new PassSuperseded("another process named the first generation of the view");
       }
@@ -957,7 +1206,33 @@ export class ViewMaterializer {
     } finally {
       await session.endSession().catch(() => undefined);
     }
+    if (hint.changed.length > 0 || hint.deleted.length > 0) this.publishHint(view, partition, hint);
     return changed;
+  }
+
+  /**
+   * This method publishes the hint of a run of a target that is not in a stored form: one hint
+   * for the run, with the ids of the changed rows and of the removed rows. Without ids (a change
+   * of generation), with an id that is not a text, or with more than `MAX_HINT_IDS` ids, it is a
+   * reset hint. A failure of the publisher goes to the log: the run does not fail.
+   */
+  private publishHint(view: MaterializedView, partition: string, ids: { changed: readonly unknown[]; deleted: readonly unknown[] } | undefined): void {
+    const publish = this.options.publish;
+    if (!publish) return;
+    const fail = (error: unknown): void => this.log("error", `the hint of ${view._id} failed: ${String((error as Error)?.message ?? error)}`);
+    try {
+      const topic = this.options.hintTopic ? this.options.hintTopic(view, partition) : collectionChangeTopic(view._id);
+      if (topic === undefined) return;
+      const texts = (values: readonly unknown[]): values is readonly string[] => values.every((value) => typeof value === "string");
+      const event: CollectionChangeEvent =
+        ids && ids.changed.length + ids.deleted.length <= MAX_HINT_IDS && texts(ids.changed) && texts(ids.deleted)
+          ? { changed: [...new Set(ids.changed)], deleted: [...new Set(ids.deleted)] }
+          : { changed: [], deleted: [], reset: true };
+      const result = typeof publish === "function" ? publish(topic, event) : publish.emit(topic, event);
+      if (result instanceof Promise) result.catch(fail);
+    } catch (error) {
+      fail(error);
+    }
   }
 
   /**
@@ -995,6 +1270,8 @@ export class ViewMaterializer {
       await this.releaseLease(view, partition, owner).catch(() => undefined);
       throw error;
     }
+    // The readers of the view moved to the new generation at once: a gap, so the subscribers read the view in full
+    this.publishHint(view, partition, undefined);
     await target.deleteMany({ [this.partitionField]: partition, [VIEW_GENERATION_FIELD]: { $exists: false } });
     // At the end of the grace time, the previous generation goes. The time of the server decides it, so a timer that ends early removes nothing
     const key = this.keyOf(partition, view._id);
@@ -1008,6 +1285,202 @@ export class ViewMaterializer {
     });
     cancel.unref?.();
     this.retries.add(cancel);
+  }
+
+  /**
+   * The rows of a group that a run writes in a target in a stored form: each row whose stored
+   * document is absent, is a tombstone, or has other content (the numbers do not count). A row
+   * keeps the place (`_ord`) of its live stored document. Two rows with the same `_id` in a result
+   * are an error of the view.
+   */
+  private async storageWrites(target: Collection, storage: TargetPartition, group: readonly StoredRow[], seen: Set<string>, session: ClientSession | undefined): Promise<StorageWrite[]> {
+    for (const row of group) {
+      if (seen.has(row.key)) throw new ViewRunError(`the result has two rows with the _id ${JSON.stringify(row.id)}`);
+      seen.add(row.key);
+    }
+    const stored = await target
+      .find({ _id: { $in: group.map((row) => row.doc["_id"]) }, ...storage.writer.partitionFilter() } as Document, session ? { session } : {})
+      .toArray();
+    const byKey = new Map(stored.map((doc) => [idKey(doc["_id"]), doc]));
+    const writes: StorageWrite[] = [];
+    for (const row of group) {
+      const doc = byKey.get(row.key);
+      const live = doc !== undefined && doc[TOMBSTONE_FIELD] !== true;
+      if (live && contentHash(doc) === row.hash) continue;
+      writes.push({ row, ord: live && typeof doc["_ord"] === "number" ? doc["_ord"] : undefined });
+    }
+    return writes;
+  }
+
+  /**
+   * The live documents of the partition of a view in a target in a stored form that the result
+   * does not have. A document whose id the result does not have becomes the tombstone of that id. A
+   * document that tells no id, or the id of a row of the result (under another stored `_id`),
+   * becomes a tombstone without `_key`: no reader reads a delete of an item from it. More than
+   * `limit` documents is an error, so a transaction goes in groups.
+   */
+  private async *storageRemovals(
+    target: Collection,
+    storage: TargetPartition,
+    seen: ReadonlySet<string>,
+    session: ClientSession | undefined,
+    limit = Number.POSITIVE_INFINITY
+  ): AsyncGenerator<StorageRemoval[]> {
+    let group: StorageRemoval[] = [];
+    let count = 0;
+    const cursor = target.find({ ...storage.filter, [TOMBSTONE_FIELD]: { $ne: true } } as Document, { projection: { _id: 1, _key: 1 }, ...(session ? { session } : {}) });
+    try {
+      for await (const doc of cursor) {
+        if (seen.has(idKey(doc["_id"]))) continue;
+        if (++count > limit) throw new Error(`more than ${limit} rows to remove`);
+        let id = storage.writer.idOfDoc(doc);
+        try {
+          if (id !== undefined && seen.has(idKey(storage.writer.storedId(id)))) id = undefined;
+        } catch {
+          id = undefined;
+        }
+        group.push({ storedId: doc["_id"], id });
+        if (group.length === WRITE_GROUP) {
+          yield group;
+          group = [];
+        }
+      }
+      if (group.length > 0) yield group;
+    } finally {
+      await cursor.close().catch(() => undefined);
+    }
+  }
+
+  /**
+   * The writes of a target in a stored form with their numbers from `first`: the tombstones first,
+   * then the rows. A new row takes its own number as its place. The filter of a write holds the
+   * partition: a row of another partition of the view fails with a duplicate key.
+   */
+  private storageOperations(storage: TargetPartition, partition: string, writes: readonly StorageWrite[], removals: readonly StorageRemoval[], first: number): AnyBulkWriteOperation<Document>[] {
+    const field = this.partitionField;
+    const operations: AnyBulkWriteOperation<Document>[] = [];
+    let seq = first;
+    for (const removal of removals) {
+      const number = seq++;
+      const tomb: Document = removal.id === undefined ? { _id: removal.storedId, _seq: number, [TOMBSTONE_FIELD]: true } : storage.writer.tombstone(removal.id, number);
+      const replacement: Document = { ...tomb, _id: removal.storedId };
+      for (const [name, value] of storage.writer.partitionFields) if (value !== undefined) replacement[name] = value;
+      replacement[field] = partition;
+      operations.push({ replaceOne: { filter: { _id: removal.storedId, ...storage.filter, [TOMBSTONE_FIELD]: { $ne: true } } as Document, replacement } });
+    }
+    for (const { row, ord } of writes) {
+      const number = seq++;
+      const filter = { _id: row.doc["_id"], ...storage.writer.partitionFilter(), $or: [{ [field]: partition }, { [TOMBSTONE_FIELD]: true }, { [field]: { $exists: false } }] };
+      operations.push({ replaceOne: { filter, replacement: { ...row.doc, _seq: number, _ord: ord ?? number }, upsert: true } });
+    }
+    return operations;
+  }
+
+  /**
+   * A run of a target in a stored form in one transaction (roadmap CLI-81): the rows that changed,
+   * and a tombstone for each row that the result does not have. The numbers are pending numbers of
+   * the storage: the run takes them after its reads, writes with them in the transaction, and ends
+   * them after the commit. A late run moves its documents to new numbers. The transaction does not
+   * write the counters, so the writes of the storage do not conflict with it.
+   */
+  private async runStorageInTransaction(
+    view: MaterializedView,
+    partition: string,
+    target: Collection,
+    storage: TargetPartition,
+    current: ObjectId | undefined,
+    generations: readonly ObjectId[]
+  ): Promise<boolean> {
+    const generation = current ?? new ObjectId();
+    const db = this.db!;
+    const session = db.client.startSession();
+    let count = 0;
+    let removed = 0;
+    try {
+      session.startTransaction();
+      const fresh = await db.collection(this.viewsName).findOne({ _id: view._id, [this.partitionField]: partition } as Document, { projection: { [this.statusField]: 1 }, session });
+      const now = (fresh?.[this.statusField] as Partial<MaterializedViewStatus> | undefined)?.generation;
+      if (!(now === undefined ? current === undefined : current !== undefined && now.equals(current))) throw new PassSuperseded("another process changed the generation of the view");
+      const seen = new Set<string>();
+      const writes: StorageWrite[] = [];
+      for await (const group of this.resultGroups(view, partition, generations, generation, storage)) {
+        writes.push(...(await this.storageWrites(target, storage, group, seen, session)));
+        if (writes.length > this.maxTransactionRows) throw new Error(`more than ${this.maxTransactionRows} rows to write`);
+      }
+      const removals: StorageRemoval[] = [];
+      for await (const group of this.storageRemovals(target, storage, seen, session, this.maxTransactionRows - writes.length)) removals.push(...group);
+      count = writes.length + removals.length;
+      removed = removals.length;
+      const commit = async (first: number): Promise<void> => {
+        for (const operations of groups(this.storageOperations(storage, partition, writes, removals, first))) await target.bulkWrite(operations, { ordered: true, session });
+        if (!current && !(await this.setGeneration(view, partition, generation, { expected: undefined, session }))) {
+          throw new PassSuperseded("another process named the first generation of the view");
+        }
+        await session.commitTransaction();
+      };
+      if (count === 0) await commit(0);
+      else await storage.writer.withPendingNumbers(db, count, commit);
+    } catch (error) {
+      if (session.inTransaction()) await session.abortTransaction().catch(() => undefined);
+      throw error;
+    } finally {
+      await session.endSession().catch(() => undefined);
+    }
+    if (removed > 0) await storage.writer.prune(db);
+    return count > 0 || current === undefined;
+  }
+
+  /**
+   * A run of a target in a stored form in groups, outside a transaction (roadmap CLI-81): the rows
+   * of each group that changed, then the tombstones of the rows that the result does not have, with
+   * the pending numbers of the storage. The run writes in place, so a reader can see a part of it.
+   * It holds the lease of the view, and renews it after each group. The first run names a
+   * generation in the status of the view: the mark of a view that ran.
+   */
+  private async runStorageInGroups(
+    view: MaterializedView,
+    partition: string,
+    target: Collection,
+    storage: TargetPartition,
+    current: ObjectId | undefined,
+    generations: readonly ObjectId[]
+  ): Promise<boolean> {
+    const generation = current ?? new ObjectId();
+    const owner = new ObjectId().toHexString();
+    const db = this.db!;
+    if (!(await this.takeLease(view, partition, owner, generation))) throw new PassSuperseded("a pass of another process holds the view");
+    let changed = current === undefined;
+    let removed = false;
+    try {
+      const seen = new Set<string>();
+      for await (const group of this.resultGroups(view, partition, generations, generation, storage)) {
+        const writes = await this.storageWrites(target, storage, group, seen, undefined);
+        if (writes.length > 0) {
+          changed = true;
+          await storage.writer.withPendingNumbers(db, writes.length, (first) => target.bulkWrite(this.storageOperations(storage, partition, writes, [], first), { ordered: true }));
+        }
+        if (!(await this.renewLease(view, partition, owner))) throw new PassSuperseded("the pass lost its lease");
+      }
+      for await (const removals of this.storageRemovals(target, storage, seen, undefined)) {
+        changed = true;
+        removed = true;
+        await storage.writer.withPendingNumbers(db, removals.length, (first) => target.bulkWrite(this.storageOperations(storage, partition, [], removals, first), { ordered: true }));
+        if (!(await this.renewLease(view, partition, owner))) throw new PassSuperseded("the pass lost its lease");
+      }
+      if (current === undefined) {
+        if (!(await this.setGeneration(view, partition, generation, { expected: undefined, owner }))) {
+          throw new PassSuperseded("the pass lost its lease, or another process named the first generation of the view");
+        }
+      } else {
+        await this.releaseLease(view, partition, owner);
+      }
+    } catch (error) {
+      await this.releaseLease(view, partition, owner).catch(() => undefined);
+      throw error;
+    } finally {
+      if (removed) await storage.writer.prune(db).catch((error: unknown) => this.log("error", `${view._id}: the prune of the tombstones failed: ${String((error as Error)?.message ?? error)}`));
+    }
+    return changed;
   }
 
   /** True while the view is the one that the materializer runs for this key. */
