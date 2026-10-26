@@ -7,7 +7,7 @@
  * needs a replica set or a sharded cluster: a server without one refuses it.
  */
 
-import { createProcedure, zodAdapter, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import type { ChangeStream, ChangeStreamOptions, Document } from "mongodb";
 import { z } from "zod";
 import { collectionFor, databaseFor, copyScope, SCOPE_FIELDS, type ScopeInput } from "../scope.js";
@@ -149,8 +149,7 @@ const watchInputSchema = described<WatchInput>(
     resumeAfter: z.string().min(1).optional().describe("The resume token of an earlier change: the stream starts after it"),
   })
 );
-const watchOutputSchema = zodAdapter<WatchChange>(
-  z.looseObject({
+const watchOutputSchema: z.ZodType<WatchChange> = z.looseObject({
     operationType: z.string().describe("insert, update, replace, delete, drop, rename, dropDatabase or invalidate"),
     ns: z.looseObject({ db: z.string(), coll: z.string().optional() }).optional().describe("The database and the collection of the change"),
     documentKey: z.record(z.string(), z.unknown()).optional().describe("The _id of the changed document"),
@@ -158,8 +157,7 @@ const watchOutputSchema = zodAdapter<WatchChange>(
     updateDescription: z.record(z.string(), z.unknown()).optional().describe("The changed and removed fields of an update"),
     wallTime: z.string().optional().describe("The time of the change on the server (ISO 8601), from MongoDB 6.0"),
     resumeToken: z.string().describe("The resume token of the change: resumeAfter takes it"),
-  })
-);
+  });
 
 export const watchProcedure: Procedure<
   WatchInput,

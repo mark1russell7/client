@@ -3,7 +3,7 @@
  * List indexes on a collection
  */
 
-import { createProcedure, zodAdapter, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { collectionFor, type ScopeInput } from "../scope.js";
 import { scopeFields } from "./input-schemas.js";
 import { z } from "zod";
@@ -18,11 +18,8 @@ interface ListIndexesOutput {
 }
 
 // Schemas
-const listIndexesInputSchema = zodAdapter<ListIndexesInput>(
-  z.object({ ...scopeFields() })
-);
-const listIndexesOutputSchema = zodAdapter<ListIndexesOutput>(
-  z.looseObject({
+const listIndexesInputSchema: z.ZodType<ListIndexesInput> = z.object({ ...scopeFields() });
+const listIndexesOutputSchema: z.ZodType<ListIndexesOutput> = z.looseObject({
     indexes: z
       .array(
         z.looseObject({
@@ -33,8 +30,7 @@ const listIndexesOutputSchema = zodAdapter<ListIndexesOutput>(
         })
       )
       .describe("The indexes of the collection"),
-  })
-);
+  });
 
 export const listIndexesProcedure: Procedure<
   ListIndexesInput,

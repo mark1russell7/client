@@ -9,7 +9,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, zodAdapter, defineModule, type AnyProcedure, type FsRootRules, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, defineModule, type AnyProcedure, type FsRootRules, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import { z } from "zod";
 import {
   withConnection,
@@ -81,7 +81,7 @@ const BACKUP_IN_A_ROOT: FsRootRules = { paths: ["dbPath", "to"], required: ["dbP
 // =============================================================================
 
 // Real schemas (roadmap 2.1): the input is validated before the handler, and the MCP tool list
-// and the help of mark describe each field. zodAdapter<T> checks each schema against its type.
+// and the help of mark describe each field. The annotation `z.ZodType<T>` checks each schema against its type.
 
 // The description is the same on each computer: it does not show the home folder of this one
 const dbPathField = z
@@ -100,31 +100,22 @@ const nonNegativeInteger = (field: string) =>
     .int({ error: `Invalid ${field}: expected a non-negative integer` })
     .min(0, { error: `Invalid ${field}: expected a non-negative integer` });
 
-const dbQueryInputSchema = zodAdapter<DbQueryInput>(
-  z.object({
+const dbQueryInputSchema: z.ZodType<DbQueryInput> = z.object({
     sql: z.string().describe("The SQL query (SELECT)"),
     params: paramsField,
     dbPath: dbPathField,
-  })
-);
-const dbQueryOutputSchema = zodAdapter<DbQueryOutput>(
-  z.looseObject({
+  });
+const dbQueryOutputSchema: z.ZodType<DbQueryOutput> = z.looseObject({
     columns: z.array(z.string()).describe("The column names"),
     rows: z.array(z.record(z.string(), z.unknown())).describe("The rows, one object for each row"),
-  })
-);
-const dbExecuteInputSchema = zodAdapter<DbExecuteInput>(
-  z.object({
+  });
+const dbExecuteInputSchema: z.ZodType<DbExecuteInput> = z.object({
     sql: z.string().describe("The SQL statement or script (INSERT, UPDATE, DELETE, CREATE TABLE, ...)"),
     params: paramsField,
     dbPath: dbPathField,
-  })
-);
-const dbExecuteOutputSchema = zodAdapter<DbExecuteOutput>(
-  z.looseObject({ changes: z.number().describe("The number of rows that the statements changed") })
-);
-const logsStoreInputSchema = zodAdapter<LogsStoreInput>(
-  z.object({
+  });
+const dbExecuteOutputSchema: z.ZodType<DbExecuteOutput> = z.looseObject({ changes: z.number().describe("The number of rows that the statements changed") });
+const logsStoreInputSchema: z.ZodType<LogsStoreInput> = z.object({
     level: logLevel.describe("The level: trace, debug, info, warn or error"),
     message: z.string().describe("The log message"),
     sessionId: z.string().optional().describe("The session that the entry belongs to (to group entries)"),
@@ -133,13 +124,9 @@ const logsStoreInputSchema = zodAdapter<LogsStoreInput>(
     data: z.record(z.string(), z.unknown()).optional().describe("Structured data of the entry"),
     errorStack: z.string().optional().describe("The stack trace of an error"),
     dbPath: dbPathField,
-  })
-);
-const logsStoreOutputSchema = zodAdapter<LogsStoreOutput>(
-  z.looseObject({ id: z.number().describe("The id of the new log row") })
-);
-const logsQueryInputSchema = zodAdapter<LogsQueryInput>(
-  z.object({
+  });
+const logsStoreOutputSchema: z.ZodType<LogsStoreOutput> = z.looseObject({ id: z.number().describe("The id of the new log row") });
+const logsQueryInputSchema: z.ZodType<LogsQueryInput> = z.object({
     sessionId: z.string().optional().describe("Only the entries of this session"),
     command: z.string().optional().describe("Only the entries of this command"),
     level: z.union([logLevel, z.array(logLevel)]).optional().describe("Only the entries of this level, or of these levels"),
@@ -147,10 +134,8 @@ const logsQueryInputSchema = zodAdapter<LogsQueryInput>(
     offset: nonNegativeInteger("offset").optional().describe("The number of entries to skip (for pages)"),
     orderBy: z.enum(["asc", "desc"]).optional().describe("The order by time: desc (the default, newest first) or asc"),
     dbPath: dbPathField,
-  })
-);
-const logsQueryOutputSchema = zodAdapter<LogsQueryOutput>(
-  z.looseObject({
+  });
+const logsQueryOutputSchema: z.ZodType<LogsQueryOutput> = z.looseObject({
     logs: z
       .array(
         z.looseObject({
@@ -167,8 +152,7 @@ const logsQueryOutputSchema = zodAdapter<LogsQueryOutput>(
       )
       .describe("The entries that match the filters, in the order of orderBy"),
     total: z.number().optional().describe("The number of entries that match the filters, without limit and offset"),
-  })
-);
+  });
 
 // =============================================================================
 // Log Table Migrations
@@ -441,8 +425,8 @@ const logsQueryProcedure = createProcedure()
 
 const sqliteTablesProcedure = createProcedure()
   .path(["sqlite", "tables"])
-  .input(zodAdapter<DbTablesInput>(DbTablesInputSchema))
-  .output(zodAdapter<DbTablesOutput>(DbTablesOutputSchema))
+  .input(DbTablesInputSchema)
+  .output(DbTablesOutputSchema)
   .meta({
     description: "The tables and views of a database (read only: a missing file is an error)",
     effects: { reads: ["fs"], writes: [] },
@@ -456,8 +440,8 @@ const sqliteTablesProcedure = createProcedure()
 
 const sqliteSchemaProcedure = createProcedure()
   .path(["sqlite", "schema"])
-  .input(zodAdapter<DbSchemaInput>(DbSchemaInputSchema))
-  .output(zodAdapter<DbSchemaOutput>(DbSchemaOutputSchema))
+  .input(DbSchemaInputSchema)
+  .output(DbSchemaOutputSchema)
   .meta({
     description: "The columns, indexes and foreign keys of a table (read only)",
     effects: { reads: ["fs"], writes: [] },
@@ -471,8 +455,8 @@ const sqliteSchemaProcedure = createProcedure()
 
 const sqliteTransactionProcedure = createProcedure()
   .path(["sqlite", "transaction"])
-  .input(zodAdapter<DbTransactionInput>(DbTransactionInputSchema))
-  .output(zodAdapter<DbTransactionOutput>(DbTransactionOutputSchema))
+  .input(DbTransactionInputSchema)
+  .output(DbTransactionOutputSchema)
   .meta({
     description: "Run statements in one transaction: they all take effect, or none does",
     // The statements of the caller can change or delete any row
@@ -487,8 +471,8 @@ const sqliteTransactionProcedure = createProcedure()
 
 const sqliteMigrateProcedure = createProcedure()
   .path(["sqlite", "migrate"])
-  .input(zodAdapter<DbMigrateInput>(DbMigrateInputSchema))
-  .output(zodAdapter<DbMigrateOutput>(DbMigrateOutputSchema))
+  .input(DbMigrateInputSchema)
+  .output(DbMigrateOutputSchema)
   .meta({
     description: "Apply the numbered migrations (a folder or a list) that a database does not have, in one transaction",
     // A migration can drop a table: destructive. A second call applies nothing.
@@ -503,8 +487,8 @@ const sqliteMigrateProcedure = createProcedure()
 
 const sqliteBackupProcedure = createProcedure()
   .path(["sqlite", "backup"])
-  .input(zodAdapter<DbBackupInput>(DbBackupInputSchema))
-  .output(zodAdapter<DbBackupOutput>(DbBackupOutputSchema))
+  .input(DbBackupInputSchema)
+  .output(DbBackupOutputSchema)
   .meta({
     description: "Copy a database to a new file (it does not replace a file)",
     // It makes a new file, and never replaces one. A second call finds the file and fails.

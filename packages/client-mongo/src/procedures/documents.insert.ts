@@ -3,7 +3,7 @@
  * Insert one or more documents
  */
 
-import { createProcedure, zodAdapter, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { collectionFor, type ScopeInput } from "../scope.js";
 import { scopeFields, documentObject } from "./input-schemas.js";
 import { z } from "zod";
@@ -22,21 +22,17 @@ interface InsertOutput {
 }
 
 // Schemas
-const insertInputSchema = zodAdapter<InsertInput>(
-  z.object({
+const insertInputSchema: z.ZodType<InsertInput> = z.object({
     ...scopeFields(),
     documents: z
       .union([documentObject(), z.array(documentObject())])
       .describe("One document, or a list of documents"),
-  })
-);
-const insertOutputSchema = zodAdapter<InsertOutput>(
-  z.looseObject({
+  });
+const insertOutputSchema: z.ZodType<InsertOutput> = z.looseObject({
     acknowledged: z.boolean().describe("True when the server confirmed the write"),
     insertedIds: z.array(z.string()).describe("The ids of the new documents, as text"),
     insertedCount: z.number().describe("The number of new documents"),
-  })
-);
+  });
 
 export const insertProcedure: Procedure<
   InsertInput,

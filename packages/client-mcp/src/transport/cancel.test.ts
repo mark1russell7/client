@@ -46,7 +46,7 @@ interface Seen {
 /** `test.hold` waits for the abort of its call. `test.gate` waits until the test opens the gate. */
 function registryOf(seen: Seen) {
   const none = { reads: [], writes: [] };
-  const hold = createProcedure()
+  const hold: AnyProcedure = createProcedure()
     .path(["test", "hold"])
     .input(z.object({}).passthrough())
     .output(z.object({ aborted: z.boolean() }))
@@ -60,8 +60,8 @@ function registryOf(seen: Seen) {
       seen.aborted.fire();
       return { aborted: true };
     })
-    .build() as AnyProcedure;
-  const gate = createProcedure()
+    .build();
+  const gate: AnyProcedure = createProcedure()
     .path(["test", "gate"])
     .input(z.object({}).passthrough())
     .output(z.object({ done: z.boolean() }))
@@ -71,7 +71,7 @@ function registryOf(seen: Seen) {
       await seen.gate.done;
       return { done: true };
     })
-    .build() as AnyProcedure;
+    .build();
   return createRegistry({ name: "cancel", procedures: [hold, gate] });
 }
 

@@ -3,7 +3,7 @@
  * Get collection statistics
  */
 
-import { createProcedure, zodAdapter, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { collectionFor, type ScopeInput } from "../scope.js";
 import { scopeFields } from "./input-schemas.js";
 import { z } from "zod";
@@ -14,19 +14,15 @@ import type { CollectionStats } from "../types.js";
 type StatsInput = ScopeInput;
 
 // Schemas
-const statsInputSchema = zodAdapter<StatsInput>(
-  z.object({ ...scopeFields() })
-);
-const statsOutputSchema = zodAdapter<CollectionStats>(
-  z.looseObject({
+const statsInputSchema: z.ZodType<StatsInput> = z.object({ ...scopeFields() });
+const statsOutputSchema: z.ZodType<CollectionStats> = z.looseObject({
     count: z.number().describe("The number of documents"),
     size: z.number().describe("The size of the documents, in bytes"),
     avgObjSize: z.number().describe("The average size of a document, in bytes"),
     storageSize: z.number().describe("The storage size, in bytes"),
     nindexes: z.number().describe("The number of indexes"),
     totalIndexSize: z.number().describe("The size of the indexes, in bytes"),
-  })
-);
+  });
 
 export const statsProcedure: Procedure<
   StatsInput,

@@ -7,7 +7,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, outputSchema, defineModule, PURE_EFFECTS, type AnyProcedure, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client/browser";
+import { createProcedure, typed, defineModule, PURE_EFFECTS, type AnyProcedure, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client/browser";
 // The manifest of this package, one folder above this module in `src` and in `dist`. A JSON import
 // needs no Node built-in, so the browser bundlers include it (CLI-52).
 import packageJson from "../package.json" with { type: "json" };
@@ -31,9 +31,9 @@ interface HealthCheck {
 // Schemas
 // =============================================================================
 
-const voidSchema = outputSchema<void>();
-const bridgeInfoSchema = outputSchema<BridgeInfo>();
-const healthCheckSchema = outputSchema<HealthCheck>();
+const voidSchema = typed<void>();
+const bridgeInfoSchema = typed<BridgeInfo>();
+const healthCheckSchema = typed<HealthCheck>();
 
 // =============================================================================
 // Bridge Procedures

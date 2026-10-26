@@ -3,7 +3,7 @@
  * List all collections in the database
  */
 
-import { createProcedure, zodAdapter, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { databaseFor, type ScopeInput } from "../scope.js";
 import { scopeFields } from "./input-schemas.js";
 import { z } from "zod";
@@ -17,14 +17,10 @@ interface ListOutput {
 }
 
 // Schemas
-const listInputSchema = zodAdapter<ListInput>(
-  z.object({ ...scopeFields() })
-);
-const listOutputSchema = zodAdapter<ListOutput>(
-  z.looseObject({
+const listInputSchema: z.ZodType<ListInput> = z.object({ ...scopeFields() });
+const listOutputSchema: z.ZodType<ListOutput> = z.looseObject({
     collections: z.array(z.string()).describe("The collection names of the database"),
-  })
-);
+  });
 
 export const listProcedure: Procedure<
   ListInput,

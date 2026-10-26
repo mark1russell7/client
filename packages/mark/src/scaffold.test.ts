@@ -143,7 +143,7 @@ describe.skipIf(!cueInstalled && !process.env["CI"])("lib new + procedure new", 
 
   it("gives a new procedure real input and output schemas, so its results are validated", async () => {
     const module = readFileSync(join(packageDir, "src", "module.ts"), "utf8");
-    expect(module).toContain("zodAdapter<DemoHelloOutput>(DemoHelloOutputSchema)");
+    expect(module).toContain("DemoHelloOutputSchema");
     expect(module).not.toContain("outputSchema<");
 
     const types = (await import(pathToFileURL(join(packageDir, "src", "types.ts")).href)) as Record<

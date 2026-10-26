@@ -3,7 +3,7 @@
  * Drop (delete) a collection
  */
 
-import { createProcedure, zodAdapter, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { collectionName, databaseFor, type ScopeInput } from "../scope.js";
 import { scopeFields } from "./input-schemas.js";
 import { z } from "zod";
@@ -20,18 +20,14 @@ interface DropOutput {
 }
 
 // Schemas
-const dropInputSchema = zodAdapter<DropInput>(
-  z.object({
+const dropInputSchema: z.ZodType<DropInput> = z.object({
     ...scopeFields(),
     confirm: z.boolean().describe("Set to true to drop the collection and all of its documents"),
-  })
-);
-const dropOutputSchema = zodAdapter<DropOutput>(
-  z.looseObject({
+  });
+const dropOutputSchema: z.ZodType<DropOutput> = z.looseObject({
     acknowledged: z.boolean().describe("True when the server confirmed the write"),
     dropped: z.boolean().describe("False when the collection did not exist"),
-  })
-);
+  });
 
 export const dropProcedure: Procedure<
   DropInput,

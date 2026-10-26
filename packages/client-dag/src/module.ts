@@ -7,7 +7,6 @@
 
 import {
   createProcedure,
-  zodAdapter,
   RUNS_REFS_TAG,
   defineModule,
   PROCEDURE_REGISTRY,
@@ -30,8 +29,8 @@ import {
 
 const dagTraverseProcedure = createProcedure()
   .path(["dag", "traverse"])
-  .input(zodAdapter<DagTraverseInput>(DagTraverseInputSchema))
-  .output(zodAdapter<DagTraverseOutput>(DagTraverseOutputSchema))
+  .input(DagTraverseInputSchema)
+  .output(DagTraverseOutputSchema)
   .meta({
     description: "Traverse ecosystem packages in dependency order, executing visit procedure for each",
     // It runs the procedure refs of its input: a server with an expose rule limits what they call

@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 600 names
+## . (dist/index.d.ts): 603 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -195,6 +195,7 @@ PROGRAM_WORLD: dist/procedures/program.d.ts#PROGRAM_WORLD
 PROTOCOL_HEADER: dist/protocol.d.ts#PROTOCOL_HEADER
 PROTOCOL_VERSION: dist/protocol.d.ts#PROTOCOL_VERSION
 PURE_EFFECTS: dist/procedures/effects.d.ts#PURE_EFFECTS
+type PackageDefinition: dist/procedures/module.d.ts#PackageDefinition
 type PartitionInput: dist/procedures/collection/partition.d.ts#PartitionInput
 type PartitionResolver: dist/procedures/collection/partition.d.ts#PartitionResolver
 type PermittedEffects: dist/procedures/types.d.ts#PermittedEffects
@@ -412,6 +413,7 @@ declaredCalls: dist/procedures/policy.d.ts#declaredCalls
 defaultServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#defaultServerUrlStrategy
 defaultUrlPattern: dist/adapters/http/shared/strategies.d.ts#defaultUrlPattern
 defineModule: dist/procedures/module.d.ts#defineModule
+definePackage: dist/procedures/module.d.ts#definePackage
 defineProcedure: dist/procedures/define.d.ts#defineProcedure
 defineProcedureProcedure: dist/procedures/define-procedure.d.ts#defineProcedureProcedure
 defineStub: dist/procedures/define.d.ts#defineStub
@@ -590,6 +592,7 @@ toolHintsOf: dist/procedures/hints.d.ts#toolHintsOf
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 tracingInterceptor: dist/procedures/interceptors.d.ts#tracingInterceptor
 tryCatchProcedure: dist/procedures/core/index.d.ts#tryCatchProcedure
+typed: dist/procedures/core/schemas.d.ts#typed
 typedAnySchema: dist/procedures/core/schemas.d.ts#typedAnySchema
 untrustedFieldsOf: dist/procedures/untrusted.d.ts#untrustedFieldsOf
 untrustedText: dist/procedures/untrusted.d.ts#untrustedText
@@ -607,7 +610,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 588 names
+## ./browser (dist/browser.d.ts): 591 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -794,6 +797,7 @@ PROGRAM_WORLD: dist/procedures/program.d.ts#PROGRAM_WORLD
 PROTOCOL_HEADER: dist/protocol.d.ts#PROTOCOL_HEADER
 PROTOCOL_VERSION: dist/protocol.d.ts#PROTOCOL_VERSION
 PURE_EFFECTS: dist/procedures/effects.d.ts#PURE_EFFECTS
+type PackageDefinition: dist/procedures/module.d.ts#PackageDefinition
 type PartitionInput: dist/procedures/collection/partition.d.ts#PartitionInput
 type PartitionResolver: dist/procedures/collection/partition.d.ts#PartitionResolver
 type PermittedEffects: dist/procedures/types.d.ts#PermittedEffects
@@ -1008,6 +1012,7 @@ credentialsOf: dist/server/request-auth.d.ts#credentialsOf
 declaredCalls: dist/procedures/policy.d.ts#declaredCalls
 defaultUrlPattern: dist/adapters/http/shared/strategies.d.ts#defaultUrlPattern
 defineModule: dist/procedures/module.d.ts#defineModule
+definePackage: dist/procedures/module.d.ts#definePackage
 defineProcedure: dist/procedures/define.d.ts#defineProcedure
 defineProcedureProcedure: dist/procedures/define-procedure.d.ts#defineProcedureProcedure
 defineStub: dist/procedures/define.d.ts#defineStub
@@ -1181,6 +1186,7 @@ toolHintsOf: dist/procedures/hints.d.ts#toolHintsOf
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 tracingInterceptor: dist/procedures/interceptors.d.ts#tracingInterceptor
 tryCatchProcedure: dist/procedures/core/index.d.ts#tryCatchProcedure
+typed: dist/procedures/core/schemas.d.ts#typed
 typedAnySchema: dist/procedures/core/schemas.d.ts#typedAnySchema
 untrustedFieldsOf: dist/procedures/untrusted.d.ts#untrustedFieldsOf
 untrustedText: dist/procedures/untrusted.d.ts#untrustedText
@@ -1422,7 +1428,7 @@ throttleChannel: dist/events/bus.d.ts#throttleChannel
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
-## ./procedures (dist/procedures/index.d.ts): 345 names
+## ./procedures (dist/procedures/index.d.ts): 348 names
 
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
@@ -1521,6 +1527,7 @@ PROCEDURE_SYMBOL: dist/procedures/ref.d.ts#PROCEDURE_SYMBOL
 PROCEDURE_WHEN_KEY: dist/procedures/ref.d.ts#PROCEDURE_WHEN_KEY
 PROGRAM_WORLD: dist/procedures/program.d.ts#PROGRAM_WORLD
 PURE_EFFECTS: dist/procedures/effects.d.ts#PURE_EFFECTS
+type PackageDefinition: dist/procedures/module.d.ts#PackageDefinition
 type PartitionInput: dist/procedures/collection/partition.d.ts#PartitionInput
 type PartitionResolver: dist/procedures/collection/partition.d.ts#PartitionResolver
 type PermittedEffects: dist/procedures/types.d.ts#PermittedEffects
@@ -1640,6 +1647,7 @@ createProcedure: dist/procedures/define.d.ts#createProcedure
 createRefScope: dist/procedures/ref.d.ts#createRefScope
 createRegistry: dist/procedures/module.d.ts#createRegistry
 defineModule: dist/procedures/module.d.ts#defineModule
+definePackage: dist/procedures/module.d.ts#definePackage
 defineProcedure: dist/procedures/define.d.ts#defineProcedure
 defineProcedureProcedure: dist/procedures/define-procedure.d.ts#defineProcedureProcedure
 defineStub: dist/procedures/define.d.ts#defineStub
@@ -1756,6 +1764,7 @@ toolHintOverrideRefusal: dist/procedures/hints.d.ts#toolHintOverrideRefusal
 toolHints: dist/procedures/capability.d.ts#toolHints
 toolHintsOf: dist/procedures/hints.d.ts#toolHintsOf
 tryCatchProcedure: dist/procedures/core/index.d.ts#tryCatchProcedure
+typed: dist/procedures/core/schemas.d.ts#typed
 typedAnySchema: dist/procedures/core/schemas.d.ts#typedAnySchema
 untrustedFieldsOf: dist/procedures/untrusted.d.ts#untrustedFieldsOf
 untrustedText: dist/procedures/untrusted.d.ts#untrustedText
@@ -4175,6 +4184,9 @@ export declare const anySchema: ZodLike<any> & StandardSchemaV1<unknown, any> & 
 ### dist/procedures/core/schemas.d.ts#outputSchema
 export declare function outputSchema<T>(): ZodLikeSchema<T> & StandardSchemaV1<unknown, T>;
 
+### dist/procedures/core/schemas.d.ts#typed
+export declare function typed<T>(): ZodLikeSchema<T> & StandardSchemaV1<unknown, T>;
+
 ### dist/procedures/core/schemas.d.ts#typedAnySchema
 export declare function typedAnySchema<T>(): ZodLike<T> & StandardSchemaV1<unknown, T>;
 
@@ -4782,6 +4794,12 @@ export declare function hashOf(value: unknown): string;
 ### dist/procedures/module.d.ts#ModuleInput
 export type ModuleInput = ProcedureModule | readonly ProcedureModule[];
 
+### dist/procedures/module.d.ts#PackageDefinition
+export interface PackageDefinition {
+    readonly module: ProcedureModule;
+    readonly register: (registry?: ProcedureRegistry) => void;
+}
+
 ### dist/procedures/module.d.ts#clientModule
 export declare const clientModule: ProcedureModule;
 
@@ -4790,6 +4808,9 @@ export declare function createRegistry(...modules: ModuleInput[]): ProcedureRegi
 
 ### dist/procedures/module.d.ts#defineModule
 export declare function defineModule(name: string, procedures: readonly AnyProcedure[], requires?: readonly ProcedureModule[]): ProcedureModule;
+
+### dist/procedures/module.d.ts#definePackage
+export declare function definePackage(name: string, procedures: readonly AnyProcedure[], requires?: readonly ProcedureModule[]): PackageDefinition;
 
 ### dist/procedures/module.d.ts#moduleClosure
 export declare function moduleClosure(modules: readonly ProcedureModule[]): ProcedureModule[];

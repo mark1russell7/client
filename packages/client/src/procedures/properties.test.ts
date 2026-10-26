@@ -11,7 +11,7 @@ import fc from "fast-check";
 import { z } from "zod";
 import { ProcedureRegistry } from "./registry.js";
 import { defineProcedure } from "./define.js";
-import { outputSchema, zodAdapter } from "./core/schemas.js";
+import { outputSchema } from "./core/schemas.js";
 import { coreProcedures } from "./core/index.js";
 import { invokeProcedure, outputValue } from "./invoke.js";
 import { capabilityRefusal, ladder, narrowCapability } from "./capability.js";
@@ -413,7 +413,7 @@ function exposeRegistry(counts: Record<string, number>): ProcedureRegistry {
       registry.register(
         defineProcedure({
           path: [namespace, kind],
-          input: zodAdapter<Record<string, unknown>>(z.looseObject({})),
+          input: z.looseObject({}),
           output: outputSchema<unknown>(),
           metadata: { effects: { reads: [], writes: [] } },
           handler: async () => {

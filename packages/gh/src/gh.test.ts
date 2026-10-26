@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { createProcedure, createRegistry, defineModule, effectsOf, invokePath, outputValue, zodAdapter, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, createRegistry, defineModule, effectsOf, invokePath, outputValue, type ProcedureRegistry } from "@procedures/client";
 import { ghModule } from "./module.js";
 import { existsSync, readFileSync } from "node:fs";
 import { GhError, urlOf } from "./procedures/gh/shared.js";
@@ -25,8 +25,8 @@ function fake(results: Array<{ exitCode?: number; stdout?: string; stderr?: stri
   const shell = defineModule("@procedures/shell", [
     createProcedure()
       .path(["shell", "run"])
-      .input(zodAdapter<ShellCall>(z.object({ command: z.string(), args: z.array(z.string()), cwd: z.string().optional(), timeout: z.number().optional(), env: z.record(z.string(), z.string()).optional() })))
-      .output(zodAdapter<unknown>(z.unknown()))
+      .input(z.object({ command: z.string(), args: z.array(z.string()), cwd: z.string().optional(), timeout: z.number().optional(), env: z.record(z.string(), z.string()).optional() }))
+      .output(z.unknown())
       .meta({ effects: { reads: ["process"], writes: ["process"] } })
       .handler(async (input: ShellCall) => {
         calls.push(input);

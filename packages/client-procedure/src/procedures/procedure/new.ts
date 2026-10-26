@@ -456,8 +456,8 @@ function generateRegistration(layout: ProcedureLayout, description: string): str
   const { segments, camelName, pascalName } = layout;
   return `const ${camelName}Procedure = createProcedure()
   .path(${JSON.stringify(segments)})
-  .input(zodAdapter<${pascalName}Input>(${pascalName}InputSchema))
-  .output(zodAdapter<${pascalName}Output>(${pascalName}OutputSchema))
+  .input(${pascalName}InputSchema)
+  .output(${pascalName}OutputSchema)
   .meta({
     description: ${JSON.stringify(description)},
     args: [],
@@ -505,7 +505,7 @@ export function registerSource(
   // The definition goes before the list that uses it, then the imports go after the last import
   const withDefinition =
     edit.source.slice(0, edit.before) + generateRegistration(layout, description) + edit.source.slice(edit.before);
-  const updated = ensureNamedImports(withDefinition, "@procedures/client", ["createProcedure", "zodAdapter"]);
+  const updated = ensureNamedImports(withDefinition, "@procedures/client", ["createProcedure"]);
   return addImports(updated, [
     `import { ${camelName} } from "${importPath}";\n`,
     `import { ${pascalName}InputSchema, ${pascalName}OutputSchema, type ${pascalName}Input, type ${pascalName}Output } from "./types.js";\n`,

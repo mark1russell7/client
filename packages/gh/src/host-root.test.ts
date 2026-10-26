@@ -11,7 +11,7 @@ import { z } from "zod";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { devNull, tmpdir } from "node:os";
 import { join } from "node:path";
-import { createProcedure, createRegistry, defineModule, invokePath, outputValue, zodAdapter, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, createRegistry, defineModule, invokePath, outputValue, type ProcedureRegistry } from "@procedures/client";
 import { confineToRoot, rootDecisionOf } from "@procedures/fs/module";
 import { ghModule } from "./module.js";
 
@@ -42,8 +42,8 @@ function fake(withRoot: boolean) {
   const shell = defineModule("@procedures/shell", [
     createProcedure()
       .path(["shell", "run"])
-      .input(zodAdapter<ShellCall>(z.object({ command: z.string(), args: z.array(z.string()), cwd: z.string().optional(), timeout: z.number().optional(), env: z.record(z.string(), z.string()).optional() })))
-      .output(zodAdapter<unknown>(z.unknown()))
+      .input(z.object({ command: z.string(), args: z.array(z.string()), cwd: z.string().optional(), timeout: z.number().optional(), env: z.record(z.string(), z.string()).optional() }))
+      .output(z.unknown())
       .meta({ effects: { reads: ["process"], writes: ["process"] }, fsRoot: { cwd: "cwd", program: true } })
       .handler(async (input: ShellCall) => {
         calls.push(input);

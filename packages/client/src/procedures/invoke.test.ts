@@ -11,7 +11,7 @@ import { Client } from "../client/client.js";
 import { LocalTransport } from "../adapters/local/client/index.js";
 import { ProcedureRegistry } from "./registry.js";
 import { defineProcedure } from "./define.js";
-import { outputSchema, zodAdapter } from "./core/schemas.js";
+import { outputSchema } from "./core/schemas.js";
 import { coreProcedures } from "./core/index.js";
 import { InvocationError, invokeProcedure, invokePath, outputItems, outputValue } from "./invoke.js";
 import type { ProcedureContext } from "./types.js";
@@ -31,7 +31,7 @@ function makeRegistry(): Fixture {
   registry.register(
     defineProcedure({
       path: ["test", "count"],
-      input: zodAdapter<{ to: number }>(z.object({ to: z.number() })),
+      input: z.object({ to: z.number() }),
       output: outputSchema<number>(),
       handler: async function* (input: { to: number }) {
         try {
@@ -66,7 +66,7 @@ function makeRegistry(): Fixture {
     defineProcedure({
       path: ["test", "badItem"],
       input: outputSchema<Record<string, never>>(),
-      output: zodAdapter<number>(z.number()),
+      output: z.number(),
       handler: async function* () {
         yield 1;
         yield "two" as unknown as number;
@@ -87,7 +87,7 @@ function makeRegistry(): Fixture {
   registry.register(
     defineProcedure({
       path: ["test", "sumOfCount"],
-      input: zodAdapter<{ to: number }>(z.object({ to: z.number() })),
+      input: z.object({ to: z.number() }),
       output: outputSchema<number>(),
       // A procedure that reads another procedure's stream through its context
       handler: async (input: { to: number }, ctx: ProcedureContext) => {
@@ -313,7 +313,7 @@ describe("the scope of a raw input survives input validation (docs review DOC-10
     let seen: unknown;
     const procedure = defineProcedure({
       path: ["test", "runner"],
-      input: zodAdapter<{ x: number }>(z.object({ x: z.number() })),
+      input: z.object({ x: z.number() }),
       output: outputSchema<unknown>(),
       handler: (input: { x: number }) => {
         seen = scopeOf(input)?.outputs.get("outer");

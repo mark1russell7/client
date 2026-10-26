@@ -2,7 +2,7 @@
  * The procedures of `@procedures/mail`: `mail.parse` and `mail.headers`.
  */
 
-import { createProcedure, zodAdapter, type AnyProcedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, type AnyProcedure, type ProcedureContext } from "@procedures/client";
 import { z } from "zod";
 import { readHeaders, type ImapClientFactory, type MailHeader } from "./imap.js";
 import { decodeWords, messageHeaders, messageText, parseAddresses, type MailAddress } from "./mime.js";
@@ -53,15 +53,15 @@ export function parseMessage(raw: string): ParseOutput {
 
 export const mailParseProcedure: AnyProcedure = createProcedure()
   .path(["mail", "parse"])
-  .input(zodAdapter<ParseInput>(ParseInputSchema))
-  .output(zodAdapter<ParseOutput>(ParseOutputSchema))
+  .input(ParseInputSchema)
+  .output(ParseOutputSchema)
   .meta({
     description: "Read the headers, the addresses and the text of a raw email message",
     output: "json",
     effects: { reads: [], writes: [] },
   })
   .handler(async (input: ParseInput): Promise<ParseOutput> => parseMessage(input.raw))
-  .build() as AnyProcedure;
+  .build();
 
 // =============================================================================
 // mail.headers
@@ -119,8 +119,8 @@ export function setImapClientFactory(factory: ImapClientFactory | undefined): vo
 
 export const mailHeadersProcedure: AnyProcedure = createProcedure()
   .path(["mail", "headers"])
-  .input(zodAdapter<HeadersInput>(HeadersInputSchema))
-  .output(zodAdapter<HeadersOutput>(HeadersOutputSchema))
+  .input(HeadersInputSchema)
+  .output(HeadersOutputSchema)
   .meta({
     description: "Give the headers of the recent messages of an IMAP mailbox, read only (no message becomes read)",
     args: ["host", "user"],
@@ -143,6 +143,6 @@ export const mailHeadersProcedure: AnyProcedure = createProcedure()
     );
     return { messages };
   })
-  .build() as AnyProcedure;
+  .build();
 
 export const mailProcedures: AnyProcedure[] = [mailParseProcedure, mailHeadersProcedure];

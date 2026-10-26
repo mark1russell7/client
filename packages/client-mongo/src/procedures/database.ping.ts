@@ -3,7 +3,7 @@
  * Health check and connectivity test
  */
 
-import { createProcedure, zodAdapter, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { databaseFor, type ScopeInput } from "../scope.js";
 import { scopeFields } from "./input-schemas.js";
 import { z } from "zod";
@@ -18,15 +18,11 @@ interface PingOutput {
 }
 
 // Schemas
-const pingInputSchema = zodAdapter<PingInput>(
-  z.object({ ...scopeFields() })
-);
-const pingOutputSchema = zodAdapter<PingOutput>(
-  z.looseObject({
+const pingInputSchema: z.ZodType<PingInput> = z.object({ ...scopeFields() });
+const pingOutputSchema: z.ZodType<PingOutput> = z.looseObject({
     ok: z.boolean().describe("True when the server answered"),
     latencyMs: z.number().describe("The time of the ping, in milliseconds"),
-  })
-);
+  });
 
 export const pingProcedure: Procedure<
   PingInput,

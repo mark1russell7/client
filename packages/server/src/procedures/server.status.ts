@@ -7,7 +7,7 @@
 
 import * as path from "node:path";
 import * as os from "node:os";
-import { createProcedure, zodAdapter, type Effects, type FsRootRules, type Procedure } from "@procedures/client";
+import { createProcedure, type Effects, type FsRootRules, type Procedure } from "@procedures/client";
 import { checkServer, readAllLockfiles, readLockfileForPort, removeLockfileForPort, type LockfileData } from "@procedures/peer/lockfile";
 import { ServerStatusOutputSchema, serverStatusInputSchema } from "../schemas.js";
 import type { ServerStatusInput, ServerStatusOutput } from "../types.js";
@@ -15,7 +15,6 @@ import type { ServerStatusInput, ServerStatusOutput } from "../types.js";
 const MARK_DIR = path.join(os.homedir(), ".mark");
 const LOG_PATH = path.join(MARK_DIR, "server.log");
 
-const serverStatusOutputSchema = zodAdapter<ServerStatusOutput>(ServerStatusOutputSchema);
 
 
 
@@ -62,7 +61,7 @@ export const serverStatusProcedure: Procedure<
 > = createProcedure()
   .path(["server", "status"])
   .input(serverStatusInputSchema)
-  .output(serverStatusOutputSchema)
+  .output(ServerStatusOutputSchema)
   .meta({
     description: "Get CLI server status",
     // It deletes the lockfile of a server that does not answer

@@ -17,7 +17,6 @@ import {
   PROCEDURE_REGISTRY,
   createProcedure,
   markDataDriven,
-  zodAdapter,
   type AnyProcedure,
   type Effects,
   type ProcedureContext,
@@ -206,8 +205,8 @@ const SENDS_TO_MODEL: Effects = Object.freeze({ reads: Object.freeze(["network"]
 function llmProcedures(settings: LlmSettings): AnyProcedure[] {
   const llmCompleteProcedure = createProcedure()
     .path(["llm", "complete"])
-    .input(zodAdapter<LlmCompleteInput>(LlmCompleteInputSchema))
-    .output(zodAdapter<LlmCompleteOutput>(LlmCompleteOutputSchema))
+    .input(LlmCompleteInputSchema)
+    .output(LlmCompleteOutputSchema)
     .meta({
       description: "Send a prompt to a language model and give the text and the usage. The model can use tools and procedures",
       tags: ["llm", "anthropic", "tools"],
@@ -225,8 +224,8 @@ function llmProcedures(settings: LlmSettings): AnyProcedure[] {
 
   const llmStructuredProcedure = createProcedure()
     .path(["llm", "structured"])
-    .input(zodAdapter<LlmStructuredInput>(LlmStructuredInputSchema))
-    .output(zodAdapter<LlmStructuredOutput>(LlmStructuredOutputSchema))
+    .input(LlmStructuredInputSchema)
+    .output(LlmStructuredOutputSchema)
     .meta({
       description: "Send a prompt and a JSON Schema to a language model and give a value that the schema accepts",
       tags: ["llm", "anthropic", "json-schema"],
@@ -240,8 +239,8 @@ function llmProcedures(settings: LlmSettings): AnyProcedure[] {
 
   const llmStreamProcedure = createProcedure()
     .path(["llm", "stream"])
-    .input(zodAdapter<LlmStreamInput>(LlmStreamInputSchema))
-    .output(zodAdapter<LlmStreamOutput>(LlmStreamOutputSchema))
+    .input(LlmStreamInputSchema)
+    .output(LlmStreamOutputSchema)
     .meta({
       description: "Send a prompt to a language model and stream the events of the answer. The model can use tools and procedures",
       tags: ["llm", "anthropic", "stream", "tools"],

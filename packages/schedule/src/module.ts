@@ -14,7 +14,6 @@ import {
   registerModules,
   PROCEDURE_REGISTRY,
   createProcedure,
-  zodAdapter,
   type AnyProcedure,
   type Effects,
   type FsRootRules,
@@ -135,8 +134,8 @@ const STORE_OF_THE_HOST: FsRootRules = Object.freeze({});
 function scheduleProcedures(settings: ScheduleSettings): AnyProcedure[] {
   const scheduleAddProcedure = createProcedure()
     .path(["schedule", "add"])
-    .input(zodAdapter<ScheduleAddInput>(ScheduleAddInputSchema))
-    .output(zodAdapter<ScheduleAddOutput>(ScheduleAddOutputSchema))
+    .input(ScheduleAddInputSchema)
+    .output(ScheduleAddOutputSchema)
     .meta({
       description: "Add a schedule: a cron expression that starts a stored program with an input",
       tags: ["schedule", "cron", "programs"],
@@ -151,8 +150,8 @@ function scheduleProcedures(settings: ScheduleSettings): AnyProcedure[] {
 
   const scheduleListProcedure = createProcedure()
     .path(["schedule", "list"])
-    .input(zodAdapter<ScheduleListInput>(ScheduleListInputSchema))
-    .output(zodAdapter<ScheduleListOutput>(ScheduleListOutputSchema))
+    .input(ScheduleListInputSchema)
+    .output(ScheduleListOutputSchema)
     .meta({
       description: "The schedules, with the next time and the last run of each",
       tags: ["schedule", "cron"],
@@ -167,8 +166,8 @@ function scheduleProcedures(settings: ScheduleSettings): AnyProcedure[] {
 
   const scheduleRemoveProcedure = createProcedure()
     .path(["schedule", "remove"])
-    .input(zodAdapter<ScheduleRemoveInput>(ScheduleRemoveInputSchema))
-    .output(zodAdapter<ScheduleRemoveOutput>(ScheduleRemoveOutputSchema))
+    .input(ScheduleRemoveInputSchema)
+    .output(ScheduleRemoveOutputSchema)
     .meta({
       description: "Remove a schedule",
       tags: ["schedule", "cron"],
@@ -183,8 +182,8 @@ function scheduleProcedures(settings: ScheduleSettings): AnyProcedure[] {
 
   const scheduleNextProcedure = createProcedure()
     .path(["schedule", "next"])
-    .input(zodAdapter<ScheduleNextInput>(ScheduleNextInputSchema))
-    .output(zodAdapter<ScheduleNextOutput>(ScheduleNextOutputSchema))
+    .input(ScheduleNextInputSchema)
+    .output(ScheduleNextOutputSchema)
     .meta({
       description: "The next times of a cron expression",
       tags: ["schedule", "cron"],

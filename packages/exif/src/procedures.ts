@@ -3,7 +3,7 @@
  */
 
 import { open } from "node:fs/promises";
-import { createProcedure, zodAdapter, type AnyProcedure, type FsRootRules } from "@procedures/client";
+import { createProcedure, type AnyProcedure, type FsRootRules } from "@procedures/client";
 import { z } from "zod";
 import { readExif, type PhotoFacts } from "./exif.js";
 
@@ -33,8 +33,8 @@ const READ_IN_A_ROOT: FsRootRules = { paths: ["path"] };
 
 export const exifReadProcedure: AnyProcedure = createProcedure()
   .path(["exif", "read"])
-  .input(zodAdapter<ReadInput>(ReadInputSchema))
-  .output(zodAdapter<PhotoFacts>(ReadOutputSchema))
+  .input(ReadInputSchema)
+  .output(ReadOutputSchema)
   .meta({
     description: "Read when and where a JPEG photo was taken (EXIF time and GPS position)",
     args: ["path"],
@@ -43,6 +43,6 @@ export const exifReadProcedure: AnyProcedure = createProcedure()
     fsRoot: READ_IN_A_ROOT,
   })
   .handler(async (input: ReadInput): Promise<PhotoFacts> => readExif(await readHead(input.path)))
-  .build() as AnyProcedure;
+  .build();
 
 export const exifProcedures: AnyProcedure[] = [exifReadProcedure];

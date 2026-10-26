@@ -7,7 +7,7 @@
  * the verbosity `executionStats` runs the plan.
  */
 
-import { createProcedure, zodAdapter, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import type { Document, ExplainVerbosityLike, FindOptions } from "mongodb";
 import { z } from "zod";
 import { collectionFor, copyScope, SCOPE_FIELDS, type ScopeInput } from "../scope.js";
@@ -108,12 +108,10 @@ const explainInputSchema = described<ExplainInput>(
       .describe("queryPlanner (the default): the plan only. executionStats and allPlansExecution also run the plan."),
   })
 );
-const explainOutputSchema = zodAdapter<ExplainOutput>(
-  z.looseObject({
+const explainOutputSchema: z.ZodType<ExplainOutput> = z.looseObject({
     operation: z.enum(["find", "aggregate"]).describe("The operation that the server explained"),
     plan: z.record(z.string(), z.unknown()).describe("The explain document of the server (queryPlanner, and executionStats with that verbosity)"),
-  })
-);
+  });
 
 export const explainProcedure: Procedure<
   ExplainInput,

@@ -3,7 +3,7 @@
  * `iosBackup.messages`. Each one reads files and changes nothing.
  */
 
-import { createProcedure, zodAdapter, type AnyProcedure, type FsRootRules } from "@procedures/client";
+import { createProcedure, type AnyProcedure, type FsRootRules } from "@procedures/client";
 import { z } from "zod";
 import {
   IosBackupError,
@@ -69,8 +69,8 @@ const FindOutputSchema = z.object({
 
 export const iosBackupFindProcedure: AnyProcedure = createProcedure()
   .path(["iosBackup", "find"])
-  .input(zodAdapter<FindInput>(FindInputSchema))
-  .output(zodAdapter<FindOutput>(FindOutputSchema))
+  .input(FindInputSchema)
+  .output(FindOutputSchema)
   .meta({
     description: "Find the iPhone backups (MobileSync) on this computer, the newest first",
     args: [],
@@ -84,7 +84,7 @@ export const iosBackupFindProcedure: AnyProcedure = createProcedure()
     const latest = backups[0];
     return { ...(latest === undefined ? {} : { latest }), backups, roots };
   })
-  .build() as AnyProcedure;
+  .build();
 
 // iosBackup.file
 
@@ -115,8 +115,8 @@ const FileOutputSchema = z.object({
 
 export const iosBackupFileProcedure: AnyProcedure = createProcedure()
   .path(["iosBackup", "file"])
-  .input(zodAdapter<FileInput>(FileInputSchema))
-  .output(zodAdapter<FileOutput>(FileOutputSchema))
+  .input(FileInputSchema)
+  .output(FileOutputSchema)
   .meta({
     description: "Find a file of an iPhone backup by its domain and relative path in Manifest.db",
     args: ["domain", "relativePath"],
@@ -129,7 +129,7 @@ export const iosBackupFileProcedure: AnyProcedure = createProcedure()
     const file = await findBackupFile(backup, input.domain, input.relativePath);
     return file === undefined ? { backup, found: false } : { backup, found: true, ...file };
   })
-  .build() as AnyProcedure;
+  .build();
 
 // iosBackup.messages
 
@@ -163,8 +163,8 @@ const MessagesOutputSchema = z.object({ backup: z.string(), messages: z.array(Me
 
 export const iosBackupMessagesProcedure: AnyProcedure = createProcedure()
   .path(["iosBackup", "messages"])
-  .input(zodAdapter<MessagesInput>(MessagesInputSchema))
-  .output(zodAdapter<MessagesOutput>(MessagesOutputSchema))
+  .input(MessagesInputSchema)
+  .output(MessagesOutputSchema)
   .meta({
     description: "Read the messages (iMessage and SMS) of an iPhone backup, in time order",
     args: [],
@@ -177,6 +177,6 @@ export const iosBackupMessagesProcedure: AnyProcedure = createProcedure()
     const messages = await readMessages(backup, { since: input.since, until: input.until, limit: input.limit });
     return { backup, messages };
   })
-  .build() as AnyProcedure;
+  .build();
 
 export const iosBackupProcedures: AnyProcedure[] = [iosBackupFindProcedure, iosBackupFileProcedure, iosBackupMessagesProcedure];

@@ -3,7 +3,7 @@
  * Run an aggregation pipeline
  */
 
-import { createProcedure, zodAdapter, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { collectionFor, type ScopeInput } from "../scope.js";
 import { scopeFields, documentObject } from "./input-schemas.js";
 import { z } from "zod";
@@ -25,8 +25,7 @@ interface AggregateOutput {
 }
 
 // Schemas
-const aggregateInputSchema = zodAdapter<AggregateInput>(
-  z.object({
+const aggregateInputSchema: z.ZodType<AggregateInput> = z.object({
     ...scopeFields(),
     pipeline: z.array(documentObject()).describe("The aggregation stages, in order (for example [{ $match: {...} }, { $group: {...} }])"),
     options: z
@@ -36,13 +35,10 @@ const aggregateInputSchema = zodAdapter<AggregateInput>(
       })
       .optional()
       .describe("The options of the aggregation"),
-  })
-);
-const aggregateOutputSchema = zodAdapter<AggregateOutput>(
-  z.looseObject({
+  });
+const aggregateOutputSchema: z.ZodType<AggregateOutput> = z.looseObject({
     results: z.array(z.record(z.string(), z.unknown())).describe("The documents that the pipeline gave"),
-  })
-);
+  });
 
 /** The stages that write to a collection. A read-only procedure refuses them (CAP-2). */
 const WRITING_STAGES = ["$out", "$merge"];

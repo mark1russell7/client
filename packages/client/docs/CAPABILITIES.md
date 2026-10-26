@@ -14,8 +14,8 @@ A procedure declares its effects in its metadata:
 createProcedure()
   .path(["notes", "read"])
   .meta({ description: "Read a note", effects: { reads: ["fs"], writes: [] } })
-  .input(zodAdapter(z.object({ id: z.string() })))
-  .output(zodAdapter(z.string()))
+  .input(z.object({ id: z.string() }))
+  .output(z.string())
   .handler(async ({ id }) => readNote(id))
   .build();
 ```

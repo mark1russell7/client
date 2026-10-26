@@ -13,7 +13,6 @@ import {
   registerModules,
   PROCEDURE_REGISTRY,
   createProcedure,
-  zodAdapter,
   type AnyProcedure,
   type Effects,
   type ProcedureHandler,
@@ -145,8 +144,8 @@ const NETWORK_WRITE: Effects = { reads: ["network"], writes: ["network"] };
 function httpProcedures(settings: HttpSettings): AnyProcedure[] {
   const httpRequestProcedure = createProcedure()
     .path(["http", "request"])
-    .input(zodAdapter<HttpRequestInput>(HttpRequestInputSchema))
-    .output(zodAdapter<HttpRequestOutput>(HttpRequestOutputSchema))
+    .input(HttpRequestInputSchema)
+    .output(HttpRequestOutputSchema)
     .meta({
       description: "Send an HTTP request and give the status, the headers and the body",
       args: ["url"],
@@ -160,8 +159,8 @@ function httpProcedures(settings: HttpSettings): AnyProcedure[] {
 
   const httpJsonProcedure = createProcedure()
     .path(["http", "json"])
-    .input(zodAdapter<HttpJsonInput>(HttpJsonInputSchema))
-    .output(zodAdapter<HttpJsonOutput>(HttpJsonOutputSchema))
+    .input(HttpJsonInputSchema)
+    .output(HttpJsonOutputSchema)
     .meta({
       description: "Send a GET or a POST of JSON and give the parsed JSON response",
       args: ["url"],
@@ -175,8 +174,8 @@ function httpProcedures(settings: HttpSettings): AnyProcedure[] {
 
   const httpNdjsonProcedure = createProcedure()
     .path(["http", "ndjson"])
-    .input(zodAdapter<HttpNdjsonInput>(HttpNdjsonInputSchema))
-    .output(zodAdapter<HttpNdjsonOutput>(HttpNdjsonOutputSchema))
+    .input(HttpNdjsonInputSchema)
+    .output(HttpNdjsonOutputSchema)
     .meta({
       description: "Read an NDJSON response to a GET or a POST as a stream of parsed lines",
       args: ["url"],
@@ -195,8 +194,8 @@ function httpProcedures(settings: HttpSettings): AnyProcedure[] {
 
   const httpSseProcedure = createProcedure()
     .path(["http", "sse"])
-    .input(zodAdapter<HttpSseInput>(HttpSseInputSchema))
-    .output(zodAdapter<HttpSseOutput>(HttpSseOutputSchema))
+    .input(HttpSseInputSchema)
+    .output(HttpSseOutputSchema)
     .meta({
       description: "Read the server-sent events of a GET or a POST as a stream",
       args: ["url"],

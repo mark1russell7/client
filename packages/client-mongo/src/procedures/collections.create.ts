@@ -3,7 +3,7 @@
  * Create a new collection
  */
 
-import { createProcedure, zodAdapter, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { databaseFor, type ScopeInput } from "../scope.js";
 import { scopeFields, documentObject } from "./input-schemas.js";
 import { z } from "zod";
@@ -22,8 +22,7 @@ interface CreateOutput {
 }
 
 // Schemas
-const createInputSchema = zodAdapter<CreateInput>(
-  z.object({
+const createInputSchema: z.ZodType<CreateInput> = z.object({
     ...scopeFields(),
     name: z.string().min(1).describe("The name of the new collection"),
     options: z
@@ -35,14 +34,11 @@ const createInputSchema = zodAdapter<CreateInput>(
       })
       .optional()
       .describe("The options of the collection"),
-  })
-);
-const createOutputSchema = zodAdapter<CreateOutput>(
-  z.looseObject({
+  });
+const createOutputSchema: z.ZodType<CreateOutput> = z.looseObject({
     acknowledged: z.boolean().describe("True when the server confirmed the write"),
     collectionName: z.string().describe("The name of the new collection"),
-  })
-);
+  });
 
 export const createCollectionProcedure: Procedure<
   CreateInput,

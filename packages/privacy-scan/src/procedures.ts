@@ -3,7 +3,7 @@
  * `privacyScan.files` (it reads files). Both change nothing.
  */
 
-import { createProcedure, zodAdapter, type AnyProcedure, type FsRootRules } from "@procedures/client";
+import { createProcedure, type AnyProcedure, type FsRootRules } from "@procedures/client";
 import { z } from "zod";
 import { FINDING_KINDS, readTermList, scanFiles, scanText, type Finding, type FileScan, type FindingKind } from "./scan.js";
 
@@ -39,8 +39,8 @@ const TextOutputSchema = z.object({ findings: z.array(z.object(findingFields)) }
 
 export const privacyScanTextProcedure: AnyProcedure = createProcedure()
   .path(["privacyScan", "text"])
-  .input(zodAdapter<TextInput>(TextInputSchema))
-  .output(zodAdapter<TextOutput>(TextOutputSchema))
+  .input(TextInputSchema)
+  .output(TextOutputSchema)
   .meta({
     description: "Find private data in a text: terms of a list, email addresses, phone numbers, coordinates",
     args: ["text"],
@@ -50,7 +50,7 @@ export const privacyScanTextProcedure: AnyProcedure = createProcedure()
   .handler(async (input: TextInput): Promise<TextOutput> => ({
     findings: scanText(input.text, { terms: input.terms, allow: input.allow, kinds: input.kinds, mask: input.mask }),
   }))
-  .build() as AnyProcedure;
+  .build();
 
 // privacyScan.files
 
@@ -76,8 +76,8 @@ const FILES_IN_A_ROOT: FsRootRules = { paths: ["paths", "termsFile", "allowFile"
 
 export const privacyScanFilesProcedure: AnyProcedure = createProcedure()
   .path(["privacyScan", "files"])
-  .input(zodAdapter<FilesInput>(FilesInputSchema))
-  .output(zodAdapter<FileScan>(FilesOutputSchema))
+  .input(FilesInputSchema)
+  .output(FilesOutputSchema)
   .meta({
     description: "Find private data in files and folders: terms of a list, email addresses, phone numbers, coordinates",
     args: ["paths"],
@@ -90,6 +90,6 @@ export const privacyScanFilesProcedure: AnyProcedure = createProcedure()
     const allow = [...(input.allow ?? []), ...(input.allowFile === undefined ? [] : await readTermList(input.allowFile))];
     return scanFiles(input.paths, { terms, allow, kinds: input.kinds, mask: input.mask });
   })
-  .build() as AnyProcedure;
+  .build();
 
 export const privacyScanProcedures: AnyProcedure[] = [privacyScanTextProcedure, privacyScanFilesProcedure];

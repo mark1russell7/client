@@ -222,7 +222,7 @@ async function auditPackage(
 }
 
 /**
- * The field names of a procedure's input schema (a Zod object, also through zodAdapter)
+ * The field names of a procedure's input schema (a Zod object)
  */
 function inputFieldNames(schema: unknown): string[] {
   const node = schema as { shape?: unknown; _def?: { shape?: () => Record<string, unknown> } } | undefined;

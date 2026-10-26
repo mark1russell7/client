@@ -3,7 +3,7 @@
  * The distinct values of one field in the documents that match a filter
  */
 
-import { createProcedure, zodAdapter, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { collectionFor, type ScopeInput } from "../scope.js";
 import { scopeFields, documentObject } from "./input-schemas.js";
 import { z } from "zod";
@@ -22,18 +22,14 @@ interface DistinctOutput {
 }
 
 // Schemas
-const distinctInputSchema = zodAdapter<DistinctInput>(
-  z.object({
+const distinctInputSchema: z.ZodType<DistinctInput> = z.object({
     ...scopeFields(),
     field: z.string().min(1).describe('The field, with dots for an embedded field (for example "address.city")'),
     query: documentObject().optional().describe("The filter of the documents (default: all documents)"),
-  })
-);
-const distinctOutputSchema = zodAdapter<DistinctOutput>(
-  z.looseObject({
+  });
+const distinctOutputSchema: z.ZodType<DistinctOutput> = z.looseObject({
     values: z.array(z.unknown()).describe("The distinct values of the field. An array field gives each of its elements."),
-  })
-);
+  });
 
 export const distinctProcedure: Procedure<
   DistinctInput,

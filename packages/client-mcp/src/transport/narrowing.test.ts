@@ -12,7 +12,7 @@ import { z } from "zod";
 import { Client as McpClient } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { createProcedure, defineModule, ladder, NARROWING_HEADER, NARROWING_METADATA_KEY, type AnyProcedure } from "@procedures/client";
+import { createProcedure, defineModule, ladder, NARROWING_HEADER, NARROWING_METADATA_KEY } from "@procedures/client";
 import { createMcpHost, type McpHost, type McpHostOptions } from "../host.js";
 
 const AUDIENCES = ["public", "guest", "intimate"];
@@ -25,14 +25,14 @@ function testModule() {
       .output(z.object({ clearance: z.unknown(), writes: z.unknown() }))
       .meta({ description: "notes read", effects: { reads: ["notes"], writes: [] } })
       .handler(async (_input, ctx) => ({ clearance: ctx.capability.clearance ?? null, writes: ctx.capability.effects?.writes ?? null }))
-      .build() as AnyProcedure,
+      .build(),
     createProcedure()
       .path(["notes", "write"])
       .input(z.object({}).passthrough())
       .output(z.object({ written: z.boolean() }))
       .meta({ description: "notes write", effects: { reads: [], writes: ["notes"] } })
       .handler(async () => ({ written: true }))
-      .build() as AnyProcedure,
+      .build(),
   ]);
 }
 

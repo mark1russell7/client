@@ -8,7 +8,7 @@
  */
 
 import { z } from "zod";
-import { defineModule, registerModules, PROCEDURE_REGISTRY, PURE_EFFECTS, type ProcedureModule, type ProcedureRegistry, createProcedure, zodAdapter } from "@procedures/client";
+import { defineModule, registerModules, PROCEDURE_REGISTRY, PURE_EFFECTS, type ProcedureModule, type ProcedureRegistry, createProcedure } from "@procedures/client";
 import { jsonQuery } from "./procedures/json/query.js";
 import { jsonPatch } from "./procedures/json/patch.js";
 import { jsonDiff } from "./procedures/json/diff.js";
@@ -146,8 +146,8 @@ const CsvStringifyOutputSchema = z.object({ text: z.string().describe("The CSV t
 
 const jsonQueryProcedure = createProcedure()
   .path(["json", "query"])
-  .input(zodAdapter<JsonQueryInput>(JsonQueryInputSchema))
-  .output(zodAdapter<JsonQueryOutput>(JsonQueryOutputSchema))
+  .input(JsonQueryInputSchema)
+  .output<JsonQueryOutput>(JsonQueryOutputSchema)
   .meta({
     description: "Find the values at a JSON Pointer or a path in a JSON value",
     args: [],
@@ -160,8 +160,8 @@ const jsonQueryProcedure = createProcedure()
 
 const jsonPatchProcedure = createProcedure()
   .path(["json", "patch"])
-  .input(zodAdapter<JsonPatchInput>(JsonPatchInputSchema))
-  .output(zodAdapter<JsonPatchOutput>(JsonPatchOutputSchema))
+  .input(JsonPatchInputSchema)
+  .output<JsonPatchOutput>(JsonPatchOutputSchema)
   .meta({
     description: "Apply an RFC 6902 JSON Patch to a JSON value",
     args: [],
@@ -174,8 +174,8 @@ const jsonPatchProcedure = createProcedure()
 
 const jsonDiffProcedure = createProcedure()
   .path(["json", "diff"])
-  .input(zodAdapter<JsonDiffInput>(JsonDiffInputSchema))
-  .output(zodAdapter<JsonDiffOutput>(JsonDiffOutputSchema))
+  .input(JsonDiffInputSchema)
+  .output(JsonDiffOutputSchema)
   .meta({
     description: "Give the RFC 6902 JSON Patch that changes one JSON value into another",
     args: [],
@@ -188,8 +188,8 @@ const jsonDiffProcedure = createProcedure()
 
 const jsonMergeProcedure = createProcedure()
   .path(["json", "merge"])
-  .input(zodAdapter<JsonMergeInput>(JsonMergeInputSchema))
-  .output(zodAdapter<JsonMergeOutput>(JsonMergeOutputSchema))
+  .input(JsonMergeInputSchema)
+  .output<JsonMergeOutput>(JsonMergeOutputSchema)
   .meta({
     description: "Apply an RFC 7386 JSON merge patch to a JSON value",
     args: [],
@@ -202,8 +202,8 @@ const jsonMergeProcedure = createProcedure()
 
 const jsonValidateProcedure = createProcedure()
   .path(["json", "validate"])
-  .input(zodAdapter<JsonValidateInput>(JsonValidateInputSchema))
-  .output(zodAdapter<JsonValidateOutput>(JsonValidateOutputSchema))
+  .input(JsonValidateInputSchema)
+  .output(JsonValidateOutputSchema)
   .meta({
     description: "Examine a JSON value against a JSON Schema",
     args: [],
@@ -216,8 +216,8 @@ const jsonValidateProcedure = createProcedure()
 
 const yamlParseProcedure = createProcedure()
   .path(["yaml", "parse"])
-  .input(zodAdapter<YamlParseInput>(YamlParseInputSchema))
-  .output(zodAdapter<YamlParseOutput>(YamlParseOutputSchema))
+  .input(YamlParseInputSchema)
+  .output<YamlParseOutput>(YamlParseOutputSchema)
   .meta({
     description: "Parse YAML text into a JSON value",
     args: ["text"],
@@ -230,8 +230,8 @@ const yamlParseProcedure = createProcedure()
 
 const yamlStringifyProcedure = createProcedure()
   .path(["yaml", "stringify"])
-  .input(zodAdapter<YamlStringifyInput>(YamlStringifyInputSchema))
-  .output(zodAdapter<YamlStringifyOutput>(YamlStringifyOutputSchema))
+  .input(YamlStringifyInputSchema)
+  .output(YamlStringifyOutputSchema)
   .meta({
     description: "Write a JSON value as YAML text",
     args: [],
@@ -244,8 +244,8 @@ const yamlStringifyProcedure = createProcedure()
 
 const csvParseProcedure = createProcedure()
   .path(["csv", "parse"])
-  .input(zodAdapter<CsvParseInput>(CsvParseInputSchema))
-  .output(zodAdapter<CsvParseOutput>(CsvParseOutputSchema))
+  .input(CsvParseInputSchema)
+  .output(CsvParseOutputSchema)
   .meta({
     description: "Parse CSV text into rows",
     args: ["text"],
@@ -258,8 +258,8 @@ const csvParseProcedure = createProcedure()
 
 const csvStringifyProcedure = createProcedure()
   .path(["csv", "stringify"])
-  .input(zodAdapter<CsvStringifyInput>(CsvStringifyInputSchema))
-  .output(zodAdapter<CsvStringifyOutput>(CsvStringifyOutputSchema))
+  .input(CsvStringifyInputSchema)
+  .output(CsvStringifyOutputSchema)
   .meta({
     description: "Write rows as CSV text",
     args: [],

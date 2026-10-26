@@ -2,7 +2,7 @@
  * The procedure of `@procedures/notify`: `notify.send`.
  */
 
-import { createProcedure, zodAdapter, type AnyProcedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, type AnyProcedure, type ProcedureContext } from "@procedures/client";
 import { z } from "zod";
 import { sendNotification } from "./notify.js";
 
@@ -40,8 +40,8 @@ const SendOutputSchema = z.object({ sent: z.literal(true) });
 
 export const notifySendProcedure: AnyProcedure = createProcedure()
   .path(["notify", "send"])
-  .input(zodAdapter<SendInput>(SendInputSchema))
-  .output(zodAdapter<SendOutput>(SendOutputSchema))
+  .input(SendInputSchema)
+  .output(SendOutputSchema)
   .meta({
     description: "Send a push notification through ntfy",
     args: ["topic", "title", "message"],
@@ -55,6 +55,6 @@ export const notifySendProcedure: AnyProcedure = createProcedure()
     await sendNotification(input, { server: input.server, token, timeoutMs: input.timeoutMs, signal: ctx?.signal });
     return { sent: true };
   })
-  .build() as AnyProcedure;
+  .build();
 
 export const notifyProcedures: AnyProcedure[] = [notifySendProcedure];

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import { Client } from "./client.js";
 import { defineProcedure } from "../procedures/define.js";
-import { outputSchema, zodAdapter } from "../procedures/core/schemas.js";
+import { outputSchema } from "../procedures/core/schemas.js";
 import { ProcedureRegistry } from "../procedures/registry.js";
 
 // route() runs registry handlers directly, so a stub transport suffices.
@@ -18,7 +18,7 @@ function makeClient(received: unknown[]): Client {
   reg.register(
     defineProcedure({
       path: ["test", "greet"],
-      input: zodAdapter(GreetInput),
+      input: GreetInput,
       output: outputSchema<{ text: string }>(),
       handler: (input: z.infer<typeof GreetInput>) => {
         received.push(input);

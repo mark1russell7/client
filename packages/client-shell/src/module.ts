@@ -4,7 +4,7 @@
  * Procedure Registration for shell operations
  */
 
-import { createProcedure, zodAdapter, defineModule, type Effects, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, defineModule, type Effects, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import { shellRun } from "./procedures/shell/run.js";
 import { shellExec } from "./procedures/shell/exec.js";
 import { shellWhich } from "./procedures/shell/which.js";
@@ -20,8 +20,6 @@ import {
   type ShellExecOutput,
   type ShellWhichInput,
   type ShellWhichOutput,
-  type ShellStreamInput,
-  type ShellStreamItem,
   ShellRunOutputSchema,
   ShellExecOutputSchema,
   ShellWhichOutputSchema,
@@ -38,8 +36,8 @@ const RUNS_PROGRAM: Effects = { reads: ["process"], writes: ["process"] };
 // Procedure definitions
 const shellRunProcedure = createProcedure()
   .path(["shell", "run"])
-  .input(zodAdapter<ShellRunInput>(ShellRunInputSchema))
-  .output(zodAdapter<ShellRunOutput>(ShellRunOutputSchema))
+  .input(ShellRunInputSchema)
+  .output(ShellRunOutputSchema)
   .meta({
     description: "Run a command with arguments",
     args: ["command"],
@@ -56,8 +54,8 @@ const shellRunProcedure = createProcedure()
 
 const shellExecProcedure = createProcedure()
   .path(["shell", "exec"])
-  .input(zodAdapter<ShellExecInput>(ShellExecInputSchema))
-  .output(zodAdapter<ShellExecOutput>(ShellExecOutputSchema))
+  .input(ShellExecInputSchema)
+  .output(ShellExecOutputSchema)
   .meta({
     description: "Execute command string via shell",
     args: ["command"],
@@ -73,8 +71,8 @@ const shellExecProcedure = createProcedure()
 
 const shellWhichProcedure = createProcedure()
   .path(["shell", "which"])
-  .input(zodAdapter<ShellWhichInput>(ShellWhichInputSchema))
-  .output(zodAdapter<ShellWhichOutput>(ShellWhichOutputSchema))
+  .input(ShellWhichInputSchema)
+  .output(ShellWhichOutputSchema)
   .meta({
     description: "Find the path to a command",
     args: ["command"],
@@ -91,8 +89,8 @@ const shellWhichProcedure = createProcedure()
 
 const shellStreamProcedure = createProcedure()
   .path(["shell", "stream"])
-  .input(zodAdapter<ShellStreamInput>(ShellStreamInputSchema))
-  .output(zodAdapter<ShellStreamItem>(ShellStreamItemSchema))
+  .input(ShellStreamInputSchema)
+  .output(ShellStreamItemSchema)
   .meta({
     description: "Run a command and stream each output line as it arrives",
     args: ["command"],

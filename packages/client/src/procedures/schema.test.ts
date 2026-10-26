@@ -7,7 +7,7 @@ import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import { defineProcedure } from "./define.js";
 import { invokeProcedure, outputValue } from "./invoke.js";
-import { anySchema, outputSchema, zodAdapter } from "./core/schemas.js";
+import { anySchema, outputSchema, typed, typedAnySchema, zodAdapter } from "./core/schemas.js";
 import { describeIssues, jsonSchemaOf, validateSchema, type StandardSchemaV1 } from "./schema.js";
 
 /** A Standard Schema with no zod: a positive number (the shape valibot and arktype give). */
@@ -139,5 +139,32 @@ describe("route resolution with an asynchronous schema", () => {
     const resolution = createRouteResolver(registry).resolve({ t: { async: { in: 3 } } } as never);
     expect(resolution.errors).toEqual([]);
     expect(resolution.resolved[0]).toMatchObject({ input: 3, inputValidated: false });
+  });
+});
+
+describe("typed<T>() (O58)", () => {
+  it("passes each value through, and has no JSON Schema", () => {
+    const schema = typed<{ id: string }>();
+    expect(validateSchema(schema, { id: "a" })).toEqual({ ok: true, value: { id: "a" } });
+    expect(validateSchema(schema, 42)).toEqual({ ok: true, value: 42 });
+    expect(schema.safeParse("x")).toEqual({ success: true, data: "x" });
+    expect(jsonSchemaOf(schema)).toBeUndefined();
+  });
+
+  it("validates like the deprecated names outputSchema and typedAnySchema", () => {
+    for (const schema of [typed<number>(), outputSchema<number>(), typedAnySchema<number>()]) {
+      expect(validateSchema(schema, 7)).toEqual({ ok: true, value: 7 });
+      expect(schema.parse("seven")).toBe("seven");
+    }
+  });
+
+  it("gives its type to a procedure without a cast", async () => {
+    const procedure = defineProcedure({
+      path: ["typed", "double"],
+      input: typed<{ n: number }>(),
+      output: typed<number>(),
+      handler: async ({ n }) => n * 2,
+    });
+    expect(await outputValue(await invokeProcedure(procedure, { n: 4 }))).toBe(8);
   });
 });

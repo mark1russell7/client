@@ -8,7 +8,7 @@
 import { describe, it, expect } from "vitest";
 import fc from "fast-check";
 import { z } from "zod";
-import { createProcedure, outputSchema, zodAdapter, type AnyProcedure } from "@procedures/client";
+import { createProcedure, outputSchema, type AnyProcedure } from "@procedures/client";
 import { parseCommandLine } from "./args.js";
 import { testProcedures } from "../test/procedures.js";
 
@@ -18,8 +18,7 @@ const params = { numRuns: RUNS };
 const command = createProcedure()
   .path(["t", "run"])
   .input(
-    zodAdapter(
-      z.object({
+    z.object({
         name: z.string(),
         rest: z.array(z.string()).optional(),
         count: z.number().optional(),
@@ -28,7 +27,6 @@ const command = createProcedure()
         tags: z.array(z.string()).optional(),
         env: z.record(z.string(), z.string()).optional(),
       }),
-    ),
   )
   .output(outputSchema<unknown>())
   .meta({ args: ["name", "rest"], shorts: { flag: "x" } } as Record<string, unknown>)

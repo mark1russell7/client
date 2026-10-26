@@ -37,7 +37,7 @@ import type {
   Effects,
 } from "./types.js";
 import { z } from "zod";
-import { anySchema, zodAdapter } from "./core/schemas.js";
+import { anySchema } from "./core/schemas.js";
 import { keyToPath, pathToKey } from "./types.js";
 import {
   createRefScope,
@@ -463,7 +463,7 @@ export const getProcedureProcedure: Procedure<
   ProcedureMetadata
 > = defineProcedure({
   path: ["procedure", "get"],
-  input: zodAdapter(getInputSchema),
+  input: getInputSchema,
   output: GetOutputSchema,
   metadata: {
     description: "Describe a procedure by path or key",
@@ -503,7 +503,7 @@ export const listProceduresProcedure: Procedure<
   ProcedureMetadata
 > = defineProcedure({
   path: ["procedure", "list"],
-  input: zodAdapter(listInputSchema),
+  input: listInputSchema,
   output: ListOutputSchema,
   metadata: {
     description: "List the registered procedures",
@@ -530,9 +530,7 @@ export const listProceduresProcedure: Procedure<
  */
 export const manifestProcedure: Procedure<{ namespace?: string | undefined }, ProcedureManifest, ProcedureMetadata> = defineProcedure({
   path: ["procedure", "manifest"],
-  input: zodAdapter(
-    z.object({ namespace: z.string().optional().describe("Only the procedures under this first path segment") }) as z.ZodType<{ namespace?: string | undefined }>,
-  ),
+  input: z.object({ namespace: z.string().optional().describe("Only the procedures under this first path segment") }) as z.ZodType<{ namespace?: string | undefined }>,
   output: ManifestOutputSchema,
   metadata: {
     description: "The manifest of the registry: each exposed procedure with its schemas and effects",

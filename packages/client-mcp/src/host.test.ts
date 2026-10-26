@@ -19,7 +19,7 @@ const read = (path: string[], text: string): AnyProcedure =>
     .output(z.object({ text: z.string() }))
     .meta({ description: `read ${text}`, effects: { reads: ["store"], writes: [] } })
     .handler(async () => ({ text }))
-    .build() as AnyProcedure;
+    .build();
 
 const write = (path: string[]): AnyProcedure =>
   createProcedure()
@@ -28,7 +28,7 @@ const write = (path: string[]): AnyProcedure =>
     .output(z.object({ ok: z.boolean() }))
     .meta({ description: "write", effects: { reads: [], writes: ["store"] } })
     .handler(async () => ({ ok: true }))
-    .build() as AnyProcedure;
+    .build();
 
 /** A module like the one of Graph: graph.* procedures, and one procedure of another namespace. */
 const graphModule = defineModule("graph-test", [

@@ -42,6 +42,40 @@ export function defineModule(
   return { name, procedures: [...procedures], requires };
 }
 
+/** The module of a package and the function that registers it. `definePackage` gives one. */
+export interface PackageDefinition {
+  /** The module: the procedures as data. The `./module` entry of the package exports it. */
+  readonly module: ProcedureModule;
+  /**
+   * This function registers the procedures of the module, and of the modules that it uses, in a
+   * registry. The default is the global registry. The `./register` entry of the package starts it.
+   */
+  readonly register: (registry?: ProcedureRegistry) => void;
+}
+
+/**
+ * This function gives the module of a package and its `register` function. The call registers
+ * nothing, so the `./module` entry of a package can use it.
+ *
+ * ```ts
+ * // src/module.ts
+ * const vitest: PackageDefinition = definePackage("@procedures/vitest", [vitestRunProcedure]);
+ * export const vitestModule: ProcedureModule = vitest.module;
+ * export const registerVitestProcedures: PackageDefinition["register"] = vitest.register;
+ * ```
+ */
+export function definePackage(
+  name: string,
+  procedures: readonly AnyProcedure[],
+  requires: readonly ProcedureModule[] = []
+): PackageDefinition {
+  const module = defineModule(name, procedures, requires);
+  const register = (registry: ProcedureRegistry = PROCEDURE_REGISTRY): void => {
+    registerModules(registry, [module]);
+  };
+  return { module, register };
+}
+
 /**
  * The modules and their required modules, each one time, with each required module before the
  * module that requires it.

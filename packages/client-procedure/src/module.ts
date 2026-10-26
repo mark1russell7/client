@@ -7,7 +7,7 @@
  * client-cli no longer registers these to avoid duplicates.
  */
 
-import { createProcedure, zodAdapter, defineModule, type AnyProcedure, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, defineModule, type AnyProcedure, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import { procedureNew } from "./procedures/procedure/index.js";
 import { procedureRegistryProcedures } from "./procedures/procedure/registry.js";
 import {
@@ -21,8 +21,8 @@ import type { ProcedureContext } from "@procedures/client";
 // procedure.new procedure
 const procedureNewProcedure = createProcedure()
   .path(["procedure", "new"])
-  .input(zodAdapter<ProcedureNewInput>(ProcedureNewInputSchema))
-  .output(zodAdapter<ProcedureNewOutput>(ProcedureNewOutputSchema))
+  .input(ProcedureNewInputSchema)
+  .output(ProcedureNewOutputSchema)
   .meta({
     description: "Scaffold a new procedure with types and registration boilerplate",
     calls: ["fs.exists", "fs.read", "fs.write", "fs.mkdir"],

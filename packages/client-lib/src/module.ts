@@ -7,7 +7,7 @@
  * client-cli no longer registers these to avoid duplicates.
  */
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import gitModule from "@procedures/git/module";
 import fsModule from "@procedures/fs/module";
 import {
@@ -71,8 +71,8 @@ const NEW_UNDER_A_ROOT: FsRootRules = { refuse: "it starts the cue program of th
 
 const libScanProcedure = createProcedure()
   .path(["lib", "scan"])
-  .input(zodAdapter<LibScanInput>(LibScanInputSchema))
-  .output(zodAdapter<LibScanOutput>(LibScanOutputSchema))
+  .input(LibScanInputSchema)
+  .output(LibScanOutputSchema)
   .meta({
     description: "Scan for packages in the git directory",
     calls: ["fs.readdir", "fs.read.json", "git.status", "git.remote"],
@@ -89,8 +89,8 @@ const libScanProcedure = createProcedure()
 
 const libRenameProcedure = createProcedure()
   .path(["lib", "rename"])
-  .input(zodAdapter<LibRenameInput>(LibRenameInputSchema))
-  .output(zodAdapter<LibRenameOutput>(LibRenameOutputSchema))
+  .input(LibRenameInputSchema)
+  .output(LibRenameOutputSchema)
   .meta({
     description: "Rename a package across the ecosystem",
     calls: ["fs.glob", "fs.read.json", "fs.write", "fs.exists"],
@@ -108,8 +108,8 @@ const libRenameProcedure = createProcedure()
 
 const libNewProcedure = createProcedure()
   .path(["lib", "new"])
-  .input(zodAdapter<LibNewInput>(LibNewInputSchema))
-  .output(zodAdapter<LibNewOutput>(LibNewOutputSchema))
+  .input(LibNewInputSchema)
+  .output(LibNewOutputSchema)
   .meta({
     description: "Create a new package in the ecosystem",
     calls: ["shell.run", "fs.exists", "fs.mkdir", "fs.write", "fs.read.json"],
@@ -129,8 +129,8 @@ const libNewProcedure = createProcedure()
 
 const libAuditProcedure = createProcedure()
   .path(["lib", "audit"])
-  .input(zodAdapter<LibAuditInput>(LibAuditInputSchema))
-  .output(zodAdapter<LibAuditOutput>(LibAuditOutputSchema))
+  .input(LibAuditInputSchema)
+  .output(LibAuditOutputSchema)
   .meta({
     description: "Audit ecosystem packages for issues",
     calls: ["fs.readdir", "fs.read.json", "git.status", "git.remote", "fs.exists", "fs.mkdir", "fs.write"],
@@ -151,8 +151,8 @@ const libAuditProcedure = createProcedure()
 // lib.graph (roadmap R44)
 const libGraphProcedure = createProcedure()
   .path(["lib", "graph"])
-  .input(zodAdapter<LibGraphInput>(LibGraphInputSchema))
-  .output(zodAdapter<LibGraphOutput>(LibGraphOutputSchema))
+  .input(LibGraphInputSchema)
+  .output(LibGraphOutputSchema)
   .meta({
     description: "The dependency graph of the workspace packages: nodes, workspace: edges, cycles and build levels",
     calls: ["fs.readdir", "fs.read.json"],
@@ -168,8 +168,8 @@ const libGraphProcedure = createProcedure()
 // lib.importCycles (Graph's split, wave 2, W7)
 const libImportCyclesProcedure = createProcedure()
   .path(["lib", "importCycles"])
-  .input(zodAdapter<LibImportCyclesInput>(LibImportCyclesInputSchema))
-  .output(zodAdapter<LibImportCyclesOutput>(LibImportCyclesOutputSchema))
+  .input(LibImportCyclesInputSchema)
+  .output(LibImportCyclesOutputSchema)
   .meta({
     description: "The import cycles of a tree of TypeScript sources: the cycles at runtime (after the import elision), of the declared imports, or of each import",
     calls: ["fs.glob", "fs.stat", "fs.read"],
@@ -188,8 +188,8 @@ const libImportCyclesProcedure = createProcedure()
 
 const ecosystemProceduresProcedure = createProcedure()
   .path(["ecosystem", "procedures"])
-  .input(zodAdapter<EcosystemProceduresInput>(EcosystemProceduresInputSchema))
-  .output(zodAdapter<EcosystemProceduresOutput>(EcosystemProceduresOutputSchema))
+  .input(EcosystemProceduresInputSchema)
+  .output(EcosystemProceduresOutputSchema)
   .meta({
     description: "List all procedures across the ecosystem",
     // It imports the register file of each package: that code runs, and it registers procedures

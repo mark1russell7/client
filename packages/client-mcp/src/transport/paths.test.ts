@@ -8,7 +8,7 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { z } from "zod";
 import { Client as McpClient } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { createProcedure, defineModule, type AnyProcedure } from "@procedures/client";
+import { createProcedure, defineModule } from "@procedures/client";
 import { createMcpHost, type McpHostOptions } from "../host.js";
 
 const PATHS: string[][] = [["morning"], ["notes", "list"], ["a", "b", "c", "d"], ["a_b", "c"], ["a", "b_c"]];
@@ -24,7 +24,7 @@ function testModule() {
           .output(z.object({ path: z.array(z.string()) }))
           .meta({ description: path.join(" "), effects: { reads: [], writes: [] } })
           .handler(async (_input, ctx) => ({ path: [...ctx.path] }))
-          .build() as AnyProcedure,
+          .build(),
     ),
   );
 }

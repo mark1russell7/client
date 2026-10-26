@@ -13,7 +13,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { createProcedure, zodAdapter, type Effects, type FsRootRules, type Procedure } from "@procedures/client";
+import { createProcedure, type Effects, type FsRootRules, type Procedure } from "@procedures/client";
 import { HOST_PROBE_PREFIX } from "@procedures/peer";
 import { checkServer, readLockfileForPort, type LockfileData } from "@procedures/peer/lockfile";
 import { ServerStartOutputSchema, serverStartInputSchema } from "../schemas.js";
@@ -24,7 +24,6 @@ const SERVERS_DIR = path.join(MARK_DIR, "servers");
 const LOG_PATH = path.join(MARK_DIR, "server.log");
 const LOG_PREV_PATH = path.join(MARK_DIR, "server.log.1");
 
-const serverStartOutputSchema = zodAdapter<ServerStartOutput>(ServerStartOutputSchema);
 
 /** The default time to wait for the readiness of the server: 15 s. */
 export const SERVER_START_TIMEOUT_MS = 15_000;
@@ -201,7 +200,7 @@ export const serverStartProcedure: Procedure<
 > = createProcedure()
   .path(["server", "start"])
   .input(serverStartInputSchema)
-  .output(serverStartOutputSchema)
+  .output(ServerStartOutputSchema)
   .meta({
     description: "Start CLI server as background daemon",
     // The daemon loads the procedure packages of the workspace. The procedure moves server.log

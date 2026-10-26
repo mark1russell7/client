@@ -435,7 +435,7 @@ export class EventPublisher {
         stream: { unbounded: true },
       })
       .handler((async (input: SubscribeInput, ctx: ProcedureContext) => this.subscribe(input.topics, ctx)) as never)
-      .build() as AnyProcedure;
+      .build();
   }
 
   /** This function publishes an event on the bus: each subscription of the topic gets it. */

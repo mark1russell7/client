@@ -8,7 +8,7 @@
  */
 
 import { z } from "zod";
-import { zodAdapter, type ZodLikeSchema } from "@procedures/client";
+import { type ZodLikeSchema } from "@procedures/client";
 import type {
   ManifestGenerateInput,
   ServerConnectInput,
@@ -42,8 +42,7 @@ const webSocketTransport = z.object({
 
 const localTransport = z.object({ type: z.literal("local") });
 
-export const serverCreateInputSchema: ZodLikeSchema<ServerCreateInput> = zodAdapter<ServerCreateInput>(
-  z.object({
+export const serverCreateInputSchema: ZodLikeSchema<ServerCreateInput> = z.object({
     transports: z
       .array(z.discriminatedUnion("type", [httpTransport, webSocketTransport, localTransport]))
       .optional()
@@ -54,25 +53,19 @@ export const serverCreateInputSchema: ZodLikeSchema<ServerCreateInput> = zodAdap
       .array(z.string().min(1))
       .optional()
       .describe("The procedures to serve: exact keys (git.status) or prefixes (git.*). Default: every procedure"),
-  })
-);
+  });
 
-export const serverConnectInputSchema: ZodLikeSchema<ServerConnectInput> = zodAdapter<ServerConnectInput>(
-  z.object({
+export const serverConnectInputSchema: ZodLikeSchema<ServerConnectInput> = z.object({
     address: z.string().min(1).describe("The address of the remote peer"),
     transport: z.enum(["http", "websocket", "local"]).optional().describe("The transport to use"),
     timeout: z.number().int().positive().optional().describe("The connection timeout in milliseconds"),
-  })
-);
+  });
 
-export const serverDisconnectInputSchema: ZodLikeSchema<ServerDisconnectInput> = zodAdapter<ServerDisconnectInput>(
-  z.object({
+export const serverDisconnectInputSchema: ZodLikeSchema<ServerDisconnectInput> = z.object({
     connectionId: z.string().min(1).describe("The connection id from server connect"),
-  })
-);
+  });
 
-export const serverCallInputSchema: ZodLikeSchema<ServerCallInput> = zodAdapter<ServerCallInput>(
-  z
+export const serverCallInputSchema: ZodLikeSchema<ServerCallInput> = z
     .object({
       connectionId: z.string().min(1).optional().describe("The connection id from server connect"),
       address: z.string().min(1).optional().describe("The address of a peer, for a one-time connection"),
@@ -83,16 +76,13 @@ export const serverCallInputSchema: ZodLikeSchema<ServerCallInput> = zodAdapter<
     })
     .refine((input) => input.connectionId !== undefined || input.address !== undefined, {
       message: "Give connectionId or address",
-    })
-);
+    });
 
 export const serverConnectionsInputSchema: ZodLikeSchema<ServerConnectionsInput> =
-  zodAdapter<ServerConnectionsInput>(z.object({}));
+  z.object({});
 
-export const manifestGenerateInputSchema: ZodLikeSchema<ManifestGenerateInput> = zodAdapter<ManifestGenerateInput>(
-  z.object({
+export const manifestGenerateInputSchema: ZodLikeSchema<ManifestGenerateInput> = z.object({
     formats: z.array(z.enum(["json", "typescript"])).optional().describe("The manifest formats (default: json)"),
     namespace: z.array(z.string()).optional().describe("Only the procedures under this path"),
     outputDir: z.string().optional().describe("The folder for the manifest files"),
-  })
-);
+  });

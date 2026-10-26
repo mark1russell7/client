@@ -5,13 +5,12 @@
  * The procedure came from `@procedures/peer`: it belongs to the host.
  */
 
-import { createProcedure, zodAdapter, type Effects, type FsRootRules, type Procedure } from "@procedures/client";
+import { createProcedure, type Effects, type FsRootRules, type Procedure } from "@procedures/client";
 import { checkServer, readAllLockfiles, readLockfileForPort, removeLockfileForPort, type LockfileData } from "@procedures/peer/lockfile";
 import { ServerStopOutputSchema, serverStopInputSchema } from "../schemas.js";
 import type { ServerStopInput, ServerStopOutput } from "../types.js";
 
 
-const serverStopOutputSchema = zodAdapter<ServerStopOutput>(ServerStopOutputSchema);
 
 
 
@@ -44,7 +43,7 @@ export const serverStopProcedure: Procedure<
 > = createProcedure()
   .path(["server", "stop"])
   .input(serverStopInputSchema)
-  .output(serverStopOutputSchema)
+  .output(ServerStopOutputSchema)
   .meta({
     description: "Stop running CLI server",
     // It stops the servers of the lockfiles and deletes their lockfiles

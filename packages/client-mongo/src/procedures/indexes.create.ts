@@ -3,7 +3,7 @@
  * Create an index on a collection
  */
 
-import { createProcedure, zodAdapter, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { collectionFor, type ScopeInput } from "../scope.js";
 import { scopeFields } from "./input-schemas.js";
 import { z } from "zod";
@@ -22,8 +22,7 @@ interface CreateIndexOutput {
 }
 
 // Schemas
-const createIndexInputSchema = zodAdapter<CreateIndexInput>(
-  z.object({
+const createIndexInputSchema: z.ZodType<CreateIndexInput> = z.object({
     ...scopeFields(),
     keys: z
       .record(z.string(), z.union([z.literal(1), z.literal(-1), z.literal("text"), z.literal("2dsphere")]))
@@ -36,14 +35,11 @@ const createIndexInputSchema = zodAdapter<CreateIndexInput>(
       })
       .optional()
       .describe("The options of the index"),
-  })
-);
-const createIndexOutputSchema = zodAdapter<CreateIndexOutput>(
-  z.looseObject({
+  });
+const createIndexOutputSchema: z.ZodType<CreateIndexOutput> = z.looseObject({
     acknowledged: z.boolean().describe("True when the server confirmed the write"),
     indexName: z.string().describe("The name of the new index"),
-  })
-);
+  });
 
 export const createIndexProcedure: Procedure<
   CreateIndexInput,

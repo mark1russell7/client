@@ -14,7 +14,6 @@ import {
   registerModules,
   PROCEDURE_REGISTRY,
   createProcedure,
-  zodAdapter,
   type AnyProcedure,
   type Effects,
   type ProcedureModule,
@@ -87,8 +86,8 @@ const READS_PROCESS: Effects = Object.freeze({ reads: Object.freeze(["process"])
 function envProcedures(settings: EnvSettings): AnyProcedure[] {
   const envGetProcedure = createProcedure()
     .path(["env", "get"])
-    .input(zodAdapter<EnvGetInput>(EnvGetInputSchema))
-    .output(zodAdapter<EnvGetOutput>(EnvGetOutputSchema))
+    .input(EnvGetInputSchema)
+    .output(EnvGetOutputSchema)
     .meta({
       description: "One environment variable. A secret is masked unless the host reveals it",
       tags: ["env", "secrets"],
@@ -102,8 +101,8 @@ function envProcedures(settings: EnvSettings): AnyProcedure[] {
 
   const envListProcedure = createProcedure()
     .path(["env", "list"])
-    .input(zodAdapter<EnvListInput>(EnvListInputSchema))
-    .output(zodAdapter<EnvListOutput>(EnvListOutputSchema))
+    .input(EnvListInputSchema)
+    .output(EnvListOutputSchema)
     .meta({
       description: "The names of the environment variables, never the values of the secrets",
       tags: ["env", "secrets"],
@@ -117,8 +116,8 @@ function envProcedures(settings: EnvSettings): AnyProcedure[] {
 
   const envCheckProcedure = createProcedure()
     .path(["env", "check"])
-    .input(zodAdapter<EnvCheckInput>(EnvCheckInputSchema))
-    .output(zodAdapter<EnvCheckOutput>(EnvCheckOutputSchema))
+    .input(EnvCheckInputSchema)
+    .output(EnvCheckOutputSchema)
     .meta({
       description: "Which required environment variables are missing",
       tags: ["env"],

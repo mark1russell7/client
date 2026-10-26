@@ -2,17 +2,13 @@
  * Module (no side effects): the vitest procedures as data, for `createRegistry()`.
  */
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import {
   VitestCoverageInputSchema,
   VitestListInputSchema,
   VitestRunInputSchema,
   VitestStopInputSchema,
   VitestWatchInputSchema,
-  type VitestListOutput,
-  type VitestRunOutput,
-  type VitestStopOutput,
-  type VitestWatchOutput,
   VitestRunOutputSchema,
   VitestWatchOutputSchema,
   VitestStopOutputSchema,
@@ -25,8 +21,8 @@ import { vitestList } from "./procedures/vitest/list.js";
 
 const vitestRunProcedure = createProcedure()
   .path(["vitest", "run"])
-  .input(zodAdapter(VitestRunInputSchema))
-  .output(zodAdapter<VitestRunOutput>(VitestRunOutputSchema))
+  .input(VitestRunInputSchema)
+  .output(VitestRunOutputSchema)
   .meta({
     description: "Run vitest tests once (no shell; uses the project's own vitest)",
     // The test files are code of the project. The reports go to a temporary folder.
@@ -41,8 +37,8 @@ const vitestRunProcedure = createProcedure()
 
 const vitestCoverageProcedure = createProcedure()
   .path(["vitest", "coverage"])
-  .input(zodAdapter(VitestCoverageInputSchema))
-  .output(zodAdapter<VitestRunOutput>(VitestRunOutputSchema))
+  .input(VitestCoverageInputSchema)
+  .output(VitestRunOutputSchema)
   .meta({
     description: "Run vitest once with coverage, and check a minimum line coverage (no shell)",
     effects: { reads: ["fs"], writes: ["fs", "process"] },
@@ -55,8 +51,8 @@ const vitestCoverageProcedure = createProcedure()
 
 const vitestWatchProcedure = createProcedure()
   .path(["vitest", "watch"])
-  .input(zodAdapter(VitestWatchInputSchema))
-  .output(zodAdapter<VitestWatchOutput>(VitestWatchOutputSchema))
+  .input(VitestWatchInputSchema)
+  .output(VitestWatchOutputSchema)
   .meta({
     description: "Start vitest in watch mode (no shell; uses the project's own vitest)",
     effects: { reads: ["fs"], writes: ["process", "jobs"] },
@@ -69,8 +65,8 @@ const vitestWatchProcedure = createProcedure()
 
 const vitestStopProcedure = createProcedure()
   .path(["vitest", "stop"])
-  .input(zodAdapter(VitestStopInputSchema))
-  .output(zodAdapter<VitestStopOutput>(VitestStopOutputSchema))
+  .input(VitestStopInputSchema)
+  .output(VitestStopOutputSchema)
   .meta({
     description: "Stop a vitest watch process (all of them without an id)",
     // It stops processes of the process registry of client-shell, and starts none
@@ -85,8 +81,8 @@ const vitestStopProcedure = createProcedure()
 
 const vitestListProcedure = createProcedure()
   .path(["vitest", "list"])
-  .input(zodAdapter(VitestListInputSchema))
-  .output(zodAdapter<VitestListOutput>(VitestListOutputSchema))
+  .input(VitestListInputSchema)
+  .output(VitestListOutputSchema)
   .meta({
     description: "List the vitest watch processes of this host",
     effects: { reads: ["jobs"], writes: [] },

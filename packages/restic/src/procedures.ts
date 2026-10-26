@@ -10,7 +10,7 @@
  * `createResticProcedures()`. The procedure input has no field for them.
  */
 
-import { createProcedure, zodAdapter, type AnyProcedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, type AnyProcedure, type ProcedureContext } from "@procedures/client";
 import { runCommand, type CommandOptions, type CommandResult } from "@procedures/shell/command";
 import { z } from "zod";
 import { buildArgv, parseJsonOutput, type ArgValue } from "./argv.js";
@@ -252,10 +252,10 @@ export interface ResticProceduresOptions {
  * each restic process gets those variables, and the caller of `restic.run` does not see them.
  */
 export function createResticProcedures(options: ResticProceduresOptions = {}): AnyProcedure[] {
-  const run = createProcedure()
+  const run: AnyProcedure = createProcedure()
     .path(["restic", "run"])
-    .input(zodAdapter<RunInput>(RunInputSchema))
-    .output(zodAdapter<RunOutput>(RunOutputSchema))
+    .input(RunInputSchema)
+    .output(RunOutputSchema)
     .meta({
       description: "Run a restic command (backup, snapshots, restore, forget, check)",
       args: ["path"],
@@ -269,7 +269,7 @@ export function createResticProcedures(options: ResticProceduresOptions = {}): A
       async (input: RunInput, ctx?: ProcedureContext): Promise<RunOutput> =>
         runRestic(input, { executable: options.executable, env: options.env, cwd: input.cwd, timeout: input.timeout, signal: ctx?.signal, run: options.run }),
     )
-    .build() as AnyProcedure;
+    .build();
   return [run];
 }
 
