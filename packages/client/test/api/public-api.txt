@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 614 names
+## . (dist/index.d.ts): 615 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -66,6 +66,7 @@ type Credentials: dist/server/types.d.ts#Credentials
 type CurrentItem: dist/procedures/collection/precondition.d.ts#CurrentItem
 DEADLINE_METADATA_KEY: dist/client/deadline.d.ts#DEADLINE_METADATA_KEY
 DEFAULT_FIND_LIMIT: dist/procedures/collection/query.d.ts#DEFAULT_FIND_LIMIT
+DEFAULT_KEPT_METADATA: dist/server/error-policy.d.ts#DEFAULT_KEPT_METADATA
 DEFAULT_QUERY_OPERATORS: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_OPERATORS
 DEFAULT_QUERY_POLICY: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_POLICY
 type DefineProcedureInput: dist/procedures/define-procedure.d.ts#DefineProcedureInput
@@ -621,7 +622,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 602 names
+## ./browser (dist/browser.d.ts): 603 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -682,6 +683,7 @@ type Credentials: dist/server/types.d.ts#Credentials
 type CurrentItem: dist/procedures/collection/precondition.d.ts#CurrentItem
 DEADLINE_METADATA_KEY: dist/client/deadline.d.ts#DEADLINE_METADATA_KEY
 DEFAULT_FIND_LIMIT: dist/procedures/collection/query.d.ts#DEFAULT_FIND_LIMIT
+DEFAULT_KEPT_METADATA: dist/server/error-policy.d.ts#DEFAULT_KEPT_METADATA
 DEFAULT_QUERY_OPERATORS: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_OPERATORS
 DEFAULT_QUERY_POLICY: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_POLICY
 type DefineProcedureInput: dist/procedures/define-procedure.d.ts#DefineProcedureInput
@@ -1822,11 +1824,12 @@ compose: dist/middleware/compose.d.ts#compose
 wrapWithAsyncMiddlewares: dist/middleware/compose.d.ts#wrapWithAsyncMiddlewares
 wrapWithSyncMiddlewares: dist/middleware/compose.d.ts#wrapWithSyncMiddlewares
 
-## ./server (dist/server/index.d.ts): 47 names
+## ./server (dist/server/index.d.ts): 48 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AmbientCredentials: dist/server/types.d.ts#AmbientCredentials
 type Credentials: dist/server/types.d.ts#Credentials
+DEFAULT_KEPT_METADATA: dist/server/error-policy.d.ts#DEFAULT_KEPT_METADATA
 type ErrorCall: dist/server/error-policy.d.ts#ErrorCall
 type ExposedError: dist/server/error-policy.d.ts#ExposedError
 HIDDEN_ERROR_MESSAGE: dist/server/error-policy.d.ts#HIDDEN_ERROR_MESSAGE
@@ -5719,6 +5722,9 @@ export declare function isLoopbackAddress(address: string | undefined): boolean;
 ### dist/server/browser-guard.d.ts#isLoopbackHost
 export declare function isLoopbackHost(host: string): boolean;
 
+### dist/server/error-policy.d.ts#DEFAULT_KEPT_METADATA
+export declare const DEFAULT_KEPT_METADATA: readonly string[];
+
 ### dist/server/error-policy.d.ts#ErrorCall
 export interface ErrorCall {
     readonly path: ProcedurePath;
@@ -5740,6 +5746,7 @@ export declare const HIDDEN_ERROR_MESSAGE = "internal error";
 export interface ServerErrorPolicy {
     readonly expose?: "all" | "coded" | undefined;
     readonly codes?: readonly string[] | undefined;
+    readonly keepMetadata?: readonly string[] | undefined;
     readonly map?: ((error: unknown, call: ErrorCall) => ExposedError | undefined) | undefined;
 }
 

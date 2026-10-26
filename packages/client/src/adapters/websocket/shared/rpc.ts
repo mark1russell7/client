@@ -408,7 +408,9 @@ export class IncomingCalls {
       // The last resort: the error policy of the server applies here too (CLI-80)
       const raw = { code: "INTERNAL_ERROR", message: error instanceof Error ? error.message : "Internal server error", retryable: false };
       const exposed = lastResortError(this.options.handler, error, request, raw);
-      this.sendError(frame.id, exposed.message, exposed.code, exposed.retryable === true);
+      // The wait of a map result (retryAfterMs) goes out as on the usual error path (CLI-80)
+      const wait = exposed.retryAfterMs;
+      this.sendError(frame.id, exposed.message, exposed.code, exposed.retryable === true, typeof wait === "number" && Number.isFinite(wait) && wait >= 0 ? { "retry-after": wait } : undefined);
     } finally {
       // Delete only this request's entries (deep dive TRN-9)
       if (this.inflight.get(frame.id) === controller) {
@@ -469,10 +471,11 @@ export class IncomingCalls {
     if (this.options.isOpen()) this.options.send(frame);
   }
 
-  private sendError(id: string, message: string, code: string, retryable = false): void {
+  private sendError(id: string, message: string, code: string, retryable = false, metadata?: Record<string, unknown>): void {
     this.send({
       id,
       type: "error",
+      ...(metadata ? { metadata } : {}),
       status: { type: "error", code, message, retryable },
       error: { code, message, retryable },
     });

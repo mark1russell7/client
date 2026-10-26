@@ -24,7 +24,7 @@ import type { ProcedurePath } from "../procedures/types.js";
 import { closableUnread } from "../procedures/invoke.js";
 import { isKnownErrorCode } from "../client/errors/registry.js";
 import { errorCodeOf } from "../protocol.js";
-import { ERROR_METADATA_KEYS, errorResponse, realErrorOf } from "./error-response.js";
+import { errorResponse, realErrorOf } from "./error-response.js";
 import { methodToPath } from "./method.js";
 import { ServerError, type RequestHandler, type ServerRequest, type ServerResponse } from "./types.js";
 
@@ -59,8 +59,8 @@ export interface ServerErrorPolicy {
    * - `"coded"`: only an error with a known code (`isKnownErrorCode`: `NOT_FOUND`, `FORBIDDEN`,
    *   `VALIDATION_ERROR`, `CONFLICT` and so on, or a code of `codes`), with its code, its
    *   message, its retryable flag and its metadata. Each other error goes to the caller as
-   *   `INTERNAL_ERROR` with the message `"internal error"` and its real retryable flag, without
-   *   the metadata of the error. The codes `INTERNAL_ERROR`, `HANDLER_ERROR`, `UNKNOWN`,
+   *   `INTERNAL_ERROR` with the message `"internal error"` and its real retryable flag, with
+   *   only the metadata keys of `keepMetadata`. The codes `INTERNAL_ERROR`, `HANDLER_ERROR`, `UNKNOWN`,
    *   `OUTPUT_VALIDATION_ERROR` and `NO_OUTPUT` tell of a failure of the server, not of a
    *   refusal, so their message is hidden too. The server gives the real error to its `onError`
    *   logger one time, or to `console.error` without a logger.
@@ -71,6 +71,13 @@ export interface ServerErrorPolicy {
    * example `["QUOTA_EXCEEDED"]`.
    */
   readonly codes?: readonly string[] | undefined;
+  /**
+   * The metadata keys that a hidden error response or a `map` result keeps from the response: an
+   * allowlist. Each other key goes, also a key that the server does not know (`issues`, a key of
+   * the application). The default is `DEFAULT_KEPT_METADATA`: the trace keys `traceparent` and
+   * `tracestate`.
+   */
+  readonly keepMetadata?: readonly string[] | undefined;
   /**
    * This function runs first, for each error that leaves the server. Its result goes to the
    * caller as it is, also with a code of the application, and with the metadata of an error of a
@@ -163,10 +170,14 @@ function errorOfResult(result: ExposedError): Error {
   return result instanceof Error ? result : Object.assign(new Error(result.message), result);
 }
 
-/** The metadata of a response without the keys that an error gives (the reason, the wait, the conflicts). */
-function withoutErrorKeys(metadata: ServerResponse<unknown>["metadata"]): ServerResponse<unknown>["metadata"] {
+/** The metadata keys that a hidden error response keeps by default: the trace keys (CLI-80). */
+export const DEFAULT_KEPT_METADATA: readonly string[] = ["traceparent", "tracestate"];
+
+/** The metadata of a response with only the keys of the allowlist `keepMetadata` of the policy. */
+function keptMetadata(policy: ServerErrorPolicy, metadata: ServerResponse<unknown>["metadata"]): ServerResponse<unknown>["metadata"] {
+  const keys = policy.keepMetadata ?? DEFAULT_KEPT_METADATA;
   const kept: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(metadata ?? {})) if (!ERROR_METADATA_KEYS.has(key)) kept[key] = value;
+  for (const [key, value] of Object.entries(metadata ?? {})) if (keys.includes(key)) kept[key] = value;
   return kept as ServerResponse<unknown>["metadata"];
 }
 
@@ -186,8 +197,8 @@ export function exposedResponse<T>(policy: ServerErrorPolicy, request: ServerReq
     const decision = decide(policy, real, status.code, callOf(request), (mapError) => logOnce(log, mapError, request));
     if (decision.kind === "keep") return response;
     const { stream: _stream, payload: _payload, ...rest } = response;
-    // The metadata keys that the error did not give (for example, headers of a middleware) stay
-    const kept = withoutErrorKeys(response.metadata);
+    // Only the keys of the allowlist stay (the trace keys): an unknown key can tell of the error
+    const kept = keptMetadata(policy, response.metadata);
     if (decision.kind === "replace") {
       // The usual error response of the result: its wait and its conflicts go out too
       const built = errorResponse(response.id, errorOfResult(decision.error));

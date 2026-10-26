@@ -31,7 +31,7 @@ import { createProcedure } from "../procedures/define.js";
 import { createRegistry } from "../procedures/module.js";
 import type { ProcedureContext } from "../procedures/types.js";
 import { ProcedureServer, type ProcedureServerOptions } from "./procedure-server.js";
-import { exposeError, exposedResponse, type ErrorCall, type ServerErrorPolicy } from "./error-policy.js";
+import { DEFAULT_KEPT_METADATA, exposeError, exposedResponse, type ErrorCall, type ServerErrorPolicy } from "./error-policy.js";
 import { errorResponse } from "./error-response.js";
 import { pathToMethod } from "./method.js";
 import { requestCredentials } from "./request-auth.js";
@@ -541,6 +541,32 @@ describe("a map result with metadata (CLI-80)", () => {
     }
   });
 
+  it("sends the wait of a map result on the last-resort path, on each face", async () => {
+    const served = await serve({ expose: "coded", map: busyMap }, {
+      onRequest: () => {
+        throw new Error("the pool is exhausted");
+      },
+    });
+    try {
+      for (const { face, transport: transportOf } of served.faces) {
+        const transport = transportOf();
+        try {
+          let item: { status: unknown; metadata: Record<string, unknown> } | undefined;
+          for await (const got of transport.send({ id: `last-wait-${face}`, method: pathToMethod(["test", "fail"]), payload: { kind: "busy" }, metadata: {} })) {
+            item = got as never;
+            break;
+          }
+          expect(item?.status, face).toMatchObject({ type: "error", code: "TOO_MANY_REQUESTS", message: "Try again soon", retryable: true });
+          expect(item?.metadata["retry-after"], face).toBe(1500);
+        } finally {
+          await transport.close();
+        }
+      }
+    } finally {
+      await served.stop();
+    }
+  });
+
   it("keeps the wait of a map result on the stream path", async () => {
     const response = exposedResponse({ expose: "coded", map: busyMap }, requestOf(), { id: "s1", status: { type: "success", code: 200 }, metadata: {}, stream: failingAfterOne(errorOf("busy")) }, () => undefined);
     expect(await endOf(response.stream!)).toMatchObject({ code: "TOO_MANY_REQUESTS", message: "Try again soon", retryable: true, retryAfterMs: 1500 });
@@ -548,13 +574,30 @@ describe("a map result with metadata (CLI-80)", () => {
 });
 
 describe("the metadata of a hidden error (CLI-80)", () => {
-  it("drops the error keys, and keeps the other keys", () => {
-    const traceparent = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01";
+  const traceparent = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01";
+  const tracestate = "vendor=1";
+  /** An error response with error keys, unknown keys (`issues`, a key of the application) and the trace keys. */
+  function decorated(): ServerResponse {
     const response = errorResponse("r1", Object.assign(new Error(MONGO_MESSAGE), { retryAfterMs: 5 }));
-    const decorated: ServerResponse = { ...response, metadata: { ...response.metadata, reason: "pool", conflicts: [{ id: "a" }], traceparent } };
-    const exposed = exposedResponse({ expose: "coded" }, requestOf(), decorated, () => undefined);
+    return { ...response, metadata: { ...response.metadata, reason: "pool", conflicts: [{ id: "a" }], issues: [{ path: ["email"], value: "a@b.c" }], "app-table": "users_v2", traceparent, tracestate } };
+  }
+
+  it("keeps only the trace keys by default: an unknown key such as issues goes", () => {
+    const exposed = exposedResponse({ expose: "coded" }, requestOf(), decorated(), () => undefined);
     expect(exposed.status).toEqual({ type: "error", code: "INTERNAL_ERROR", message: "internal error", retryable: false });
-    expect(exposed.metadata).toEqual({ traceparent });
+    expect(exposed.metadata).toEqual({ traceparent, tracestate });
+    expect(DEFAULT_KEPT_METADATA).toEqual(["traceparent", "tracestate"]);
+  });
+
+  it("keeps the keys of keepMetadata, and only those", () => {
+    const exposed = exposedResponse({ expose: "coded", keepMetadata: ["app-table"] }, requestOf(), decorated(), () => undefined);
+    expect(exposed.metadata).toEqual({ "app-table": "users_v2" });
+  });
+
+  it("applies the allowlist to a map result too", () => {
+    const exposed = exposedResponse({ expose: "coded", map: () => ({ code: "STORE_DOWN", message: "The store is down" }) }, requestOf(), decorated(), () => undefined);
+    expect(exposed.status).toMatchObject({ code: "STORE_DOWN", message: "The store is down" });
+    expect(exposed.metadata).toEqual({ traceparent, tracestate });
   });
 });
 

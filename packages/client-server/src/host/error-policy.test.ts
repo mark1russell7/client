@@ -89,16 +89,25 @@ async function runHost(errors: ServerErrorPolicy, onRequest?: () => void): Promi
 }
 
 /** The status and the body of a call of `notes.read` on the HTTP face. */
-async function readNotes(url: string): Promise<{ status: number; body: { error?: string; code?: string; retryable?: boolean } }> {
+async function readNotes(url: string): Promise<{ status: number; body: { error?: string; code?: string; retryable?: boolean; retryAfterMs?: number } }> {
   const response = await fetch(`${url}/notes/read`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: "Bearer tok-a" },
     body: "{}",
   });
-  return { status: response.status, body: (await response.json()) as { error?: string; code?: string; retryable?: boolean } };
+  return { status: response.status, body: (await response.json()) as { error?: string; code?: string; retryable?: boolean; retryAfterMs?: number } };
 }
 
 describe("the error policy in a host (CLI-80)", () => {
+  it("sends the wait of a map result when handle() throws", async () => {
+    const { url } = await runHost({ expose: "coded", map: () => ({ code: "TOO_MANY_REQUESTS", message: "Try again soon", retryable: true, retryAfterMs: 1500 }) }, () => {
+      throw new Error("the pool is exhausted");
+    });
+    const { status, body } = await readNotes(url);
+    expect(status).toBe(429);
+    expect(body).toMatchObject({ code: "TOO_MANY_REQUESTS", error: "Try again soon", retryable: true, retryAfterMs: 1500 });
+  });
+
   it("gives map the real error of its own class through the admission of the host, and hides it under coded", async () => {
     const seen: Array<{ error: unknown; call: ErrorCall }> = [];
     const { url, logged } = await runHost({ expose: "coded", map: (error, call) => void seen.push({ error, call }) });

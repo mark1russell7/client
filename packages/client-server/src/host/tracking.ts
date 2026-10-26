@@ -201,7 +201,10 @@ async function trackedCall(life: Lifecycle, options: FaceHandlerOptions, request
   if (event.kind === "failed") {
     // handle() threw: the error policy of the server applies, as in the last-resort catch of a face (CLI-80)
     const exposed = lastResortError(server, event.error, request, { code: "INTERNAL_ERROR", message: messageOf(event.error), retryable: false });
-    return failure(request.id, exposed.code, exposed.message, exposed.retryable === true);
+    const failed = failure(request.id, exposed.code, exposed.message, exposed.retryable === true);
+    // The wait of a map result goes out as on the usual error path
+    const wait = exposed.retryAfterMs;
+    return typeof wait === "number" && Number.isFinite(wait) && wait >= 0 ? { ...failed, metadata: { "retry-after": wait } } : failed;
   }
   if (event.kind !== "item") return endResponse(request.id, event);
   const part = event.value;

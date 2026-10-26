@@ -27,9 +27,6 @@ const ERRORS_OF_STATUSES = new WeakMap<object, unknown>();
 /** The last real error of each request, with the code and the message of its status. */
 const ERRORS_OF_REQUESTS = new WeakMap<object, { readonly code: string; readonly message: string; readonly error: unknown }>();
 
-/** The metadata keys that an error response gets from its error: the reason, the wait and the conflicts. */
-export const ERROR_METADATA_KEYS: ReadonlySet<string> = new Set(["reason", "retry-after", "retryAfterMs", VERSION_CONFLICTS_METADATA_KEY, "details", "cause", "data"]);
-
 /**
  * This function records the real error of an error response, for the error policy: by its status
  * object, and by the request object of the call. The response does not change.

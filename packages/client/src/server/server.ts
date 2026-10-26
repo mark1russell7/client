@@ -32,7 +32,9 @@ export interface ServerOptions {
 
   /**
    * Global error handler.
-   * Called when a handler throws an error.
+   * Called when a handler throws an error. The error policy (`errors`) also gives it each hidden
+   * error one time. A last-resort error of a face that failed before it knew the call comes with
+   * `UNKNOWN_REQUEST`: a request with the id `"unknown"`.
    */
   onError?: (error: Error, request: ServerRequest) => void;
 

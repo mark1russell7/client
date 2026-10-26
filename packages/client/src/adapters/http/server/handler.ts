@@ -506,7 +506,10 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
    */
   const sendLastResort = (res: NodeResponse, error: unknown, request: ServerRequest | undefined, message: string): void => {
     const exposed = lastResortError(server, error, request, { code: "INTERNAL_ERROR", message, retryable: false });
-    toHttp({ id: request?.id ?? "unknown", status: { type: "error", code: exposed.code, message: exposed.message, retryable: exposed.retryable === true }, metadata: {} }, res);
+    // The wait of a map result (retryAfterMs) goes out as on the usual error path (CLI-80)
+    const wait = exposed.retryAfterMs;
+    const metadata = typeof wait === "number" && Number.isFinite(wait) && wait >= 0 ? { "retry-after": wait } : {};
+    toHttp({ id: request?.id ?? "unknown", status: { type: "error", code: exposed.code, message: exposed.message, retryable: exposed.retryable === true }, metadata }, res);
   };
 
   /** This function serves a request that the handler took. */

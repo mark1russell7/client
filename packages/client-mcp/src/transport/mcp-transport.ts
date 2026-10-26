@@ -323,6 +323,7 @@ export class McpServerTransport implements ServerTransport {
         return {
           content: [{ type: "text" as const, text: `Tool not found: ${name}` }],
           isError: true,
+          _meta: { code: "NOT_FOUND", retryable: false },
         };
       }
 
@@ -510,11 +511,13 @@ export class McpServerTransport implements ServerTransport {
       this.log(`Tool ${name} error: ${message}`);
       // The last resort: the error policy of the server applies here too (CLI-80)
       const exposed = lastResortError(this.server, error, serverRequest, { code: "INTERNAL_ERROR", message, retryable: false });
+      // The wait of a map result goes out as on the usual error path (CLI-40, CLI-80)
+      const wait = exposed.retryAfterMs;
 
       return {
         content: [{ type: "text" as const, text: exposed.message }],
         isError: true,
-        _meta: { code: exposed.code, retryable: exposed.retryable === true },
+        _meta: { code: exposed.code, retryable: exposed.retryable === true, ...(typeof wait === "number" && Number.isFinite(wait) && wait >= 0 ? { retryAfterMs: wait } : {}) },
       };
     }
   }

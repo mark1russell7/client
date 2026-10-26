@@ -83,12 +83,18 @@ async function start(errors: ServerErrorPolicy | undefined, onRequest?: () => vo
     const result = (await client.callTool({ name, arguments: { kind, at } })) as {
       content: Array<{ text: string }>;
       isError?: boolean;
-      _meta?: { code?: string; retryable?: boolean };
+      _meta?: { code?: string; retryable?: boolean; retryAfterMs?: number };
     };
     expect(result.isError).toBe(true);
-    return { text: result.content.map((block) => block.text).join("\n"), code: result._meta?.code, retryable: result._meta?.retryable };
+    return { text: result.content.map((block) => block.text).join("\n"), code: result._meta?.code, retryable: result._meta?.retryable, retryAfterMs: result._meta?.retryAfterMs };
   };
-  return { call, logged };
+  /** The `_meta` of the result of a call of a tool that the server does not have. */
+  const unknownTool = async () => {
+    const result = (await client.callTool({ name: "no.such.tool", arguments: {} })) as { isError?: boolean; _meta?: { code?: string; retryable?: boolean } };
+    expect(result.isError).toBe(true);
+    return result._meta;
+  };
+  return { call, logged, unknownTool };
 }
 
 describe("the error policy on the MCP face (CLI-80)", () => {
@@ -120,6 +126,11 @@ describe("the error policy on the MCP face (CLI-80)", () => {
     expect(logged).toEqual([]);
   });
 
+  it("an unknown tool gives _meta with the code NOT_FOUND, as the other error results", async () => {
+    const { unknownTool } = await start({ expose: "coded" });
+    expect(await unknownTool()).toEqual({ code: "NOT_FOUND", retryable: false });
+  });
+
   it("the last-resort catch sends the raw message without a policy, as before", async () => {
     const { call } = await start(undefined, () => {
       throw new Error(MONGO_MESSAGE);
@@ -134,6 +145,16 @@ describe("the error policy on the MCP face (CLI-80)", () => {
     const seen = await call("coded");
     expect(seen).toMatchObject({ code: "INTERNAL_ERROR", text: "internal error", retryable: false });
     expect(logged.map((error) => error.message)).toEqual([MONGO_MESSAGE]);
+  });
+
+  it("the last-resort catch sends the wait of a map result in _meta", async () => {
+    const { call } = await start(
+      { expose: "coded", map: () => ({ code: "TOO_MANY_REQUESTS", message: "Try again soon", retryable: true, retryAfterMs: 1500 }) },
+      () => {
+        throw new Error(MONGO_MESSAGE);
+      },
+    );
+    expect(await call("coded")).toMatchObject({ code: "TOO_MANY_REQUESTS", text: "Try again soon", retryable: true, retryAfterMs: 1500 });
   });
 
   it("map runs first, and its result goes out as it is", async () => {
