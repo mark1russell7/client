@@ -144,11 +144,10 @@ export {
   selectorPrefilter,
   DOCUMENT_STORAGE_FIELDS,
   TOMBSTONE_FIELD,
-  defaultIdOf,
-  defaultPartitionFields,
-  defaultStoredId,
+  DEFAULT_STORED_FORM,
+  decodeStoredDocument,
 } from "./storage/index.js";
-export type { MongoStorageOptions, MongoDocumentStorageOptions, SelectorPrefilterOptions } from "./storage/index.js";
+export type { MongoStorageOptions, MongoDocumentStorageOptions, SelectorPrefilterOptions, StoredForm, DecodeStoredDocumentOptions, StoredDocumentEntry } from "./storage/index.js";
 // The guard of an aggregation pipeline over shared collections, and its limits (Graph's split plan, P3)
 export {
   BLOCKED_PIPELINE_OPERATORS,
@@ -190,7 +189,7 @@ export type {
 } from "mongodb";
 // Materialized views driven by change streams (Graph's split plan, P4)
 export { ViewMaterializer, identityPartition, partitionTargetId, viewFilter, VIEW_GENERATION_FIELD, VIEW_HASH_FIELD } from "./storage/index.js";
-export type { MaterializedView, MaterializedViewStatus, ViewMaterializerOptions, ViewPartitionOf, ViewPipelineScope, ViewTargetId } from "./storage/index.js";
+export type { MaterializedView, MaterializedViewStatus, ViewMaterializerOptions, ViewPartitionOf, ViewPipelineScope, ViewStorageSource, ViewTargetId } from "./storage/index.js";
 // A read-only storage of a view for the collection procedures: one generation for each read (roadmap CLI-38)
 export { MongoViewStorage } from "./storage/index.js";
 export type { MongoViewStorageOptions } from "./storage/index.js";
