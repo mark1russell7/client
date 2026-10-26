@@ -18,6 +18,7 @@ MINOR (pre-1.0): a run with a write conflict (code 112) tries again in place bef
 - **A storage target partition must hold only the rows of this one view.** The run makes a tombstone of each other live document in that partition. A second view of the same target collection and partition of the storage gets the state `errored`.
 - **A target collection gets no images before the change from the materializer.** Turn on `changeStreamPreAndPostImages` on it if raw hard deletes can occur.
 - A transaction with a write conflict (code 112) tries again two times after a short wait on the clock of the materializer. Then the run gives way, and the view runs again after `rewatch`.
+- Fix: the prune of the tombstones of `MongoDocumentStorage` raises the floor of the change log before it deletes the tombstones. Before, a reader far behind could read between the two steps and get a delta without the deletes.
 
 Migration:
 

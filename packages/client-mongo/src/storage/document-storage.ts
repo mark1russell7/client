@@ -1163,9 +1163,10 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     if (oldest.length === 0) return;
     // A watcher of this process reads the delete of a pruned tombstone without the image before the change (roadmap CLI-77)
     notePrunedIds(db, this.collectionName, oldest.map((doc) => doc._id));
-    await items.deleteMany({ _id: { $in: oldest.map((doc) => doc._id) } } as Filter<Stored>);
+    // The floor goes up before the delete: a reader far behind gets a full result, never a delta without the deletes
     const floor = Math.max(...oldest.map((doc) => Number(doc[SEQ])));
     await db.collection<CounterDoc>(this.countersName).updateOne({ _id: this.floorId() }, { $max: { floor } }, { upsert: true });
+    await items.deleteMany({ _id: { $in: oldest.map((doc) => doc._id) } } as Filter<Stored>);
   }
 
   /** The ids of stored documents, in their order. A document that does not tell its id is left out. */
