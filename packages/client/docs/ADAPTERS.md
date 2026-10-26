@@ -84,6 +84,11 @@ const customUrlStrategy = (method: Method) => {
 };
 ```
 
+Build a URL with `defaultUrlPattern.format(pathToMethod(path), baseUrl)`. Do not write it by hand.
+`pathToMethod` encodes a `.` or a `%` in a segment as `%2E` or `%25`, and the URL encodes that `%` again.
+Thus the path `["collections", "cc.dotted", "set"]` has the URL `/rpc/collections.cc%252Edotted/set`.
+A hand-built URL with one encoding gets `NOT_FOUND`.
+
 ### HTTP Method Strategies
 
 ```typescript
