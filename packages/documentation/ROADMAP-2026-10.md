@@ -640,6 +640,7 @@ The live tracker shows these items with the items R1 to R54: https://claude.ai/a
 | O64 | Duplication | O60/O61 follow-ups: pnpm.store.path on shell.run, tailscale on shell.run, drop @clack/prompts from mark | S | done | — | `client` | [#212 (O60)](https://github.com/mark1russell7/client/pull/212), [#216 (O61)](https://github.com/mark1russell7/client/pull/216), [#219](https://github.com/mark1russell7/client/pull/219) |
 | O65 | Duplication | O58/O59 follow-ups: definePackage for the module/register pairs, json and ics schemas, mongo described() | M | done | — | `client` | [#205 (O58)](https://github.com/mark1russell7/client/pull/205), [#206 (O59)](https://github.com/mark1russell7/client/pull/206), [#222 (O65)](https://github.com/mark1russell7/client/pull/222) |
 | O66 | Storage | Gap hints reach each partition: a floor document at the first write | S | done | — | `client` | [client #221](https://github.com/mark1russell7/client/pull/221), [client #226](https://github.com/mark1russell7/client/pull/226) |
+| O67 | Storage | A queued write that the remote refuses leaves the queue | S | done | — | `client` | [client #245](https://github.com/mark1russell7/client/pull/245) |
 
 ### The server stack (R37)
 
