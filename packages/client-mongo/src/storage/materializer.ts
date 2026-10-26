@@ -33,6 +33,8 @@
  *   1000 rows. It keeps nothing between passes.
  * - A change stream that ends (for example after `dropDatabase`) opens again after `rewatch`,
  *   and a pass catches up on the changes that the stream missed.
+ * - Each stream is open on the server before the materializer reads what it watches: the views
+ *   before the read of the views, the sources before a run. A change between the two reaches both.
  * - The status of each view (`ok`, `errored`, `cycle`) goes into the field `statusField` of its
  *   document. The materializer ignores an update of only that field.
  *
@@ -226,6 +228,23 @@ export interface ViewStorageSource {
   viewPartitionOf: ViewPartitionOf;
 }
 
+/**
+ * This function waits until a change stream is open on the server: its first resume token. From
+ * then on, the stream gets each change. The driver sends the `aggregate` of a stream only after
+ * `watch()` returns, so a change before that point does not reach the stream. An error, an end or a
+ * close of the stream also ends the wait: its rewatch catches up (roadmap O63).
+ */
+function openOnServer(stream: ChangeStream): Promise<void> {
+  return new Promise((resolve) => {
+    const events = ["resumeTokenChanged", "error", "end", "close"] as const;
+    const done = (): void => {
+      for (const event of events) stream.off(event, done);
+      resolve();
+    };
+    for (const event of events) stream.on(event, done);
+  });
+}
+
 /** A view that the materializer knows. */
 interface RunningView {
   view: MaterializedView;
@@ -298,6 +317,8 @@ export class ViewMaterializer {
   /** The work of each partition, one at a time: the passes and the rebalances. */
   private readonly chains = new Map<string, Promise<void>>();
   private readonly pending = new Set<Promise<unknown>>();
+  /** The changes of the set of views (a resync, a change of a view document), one at a time, in the order of the views stream. */
+  private viewChain: Promise<unknown> = Promise.resolve();
   private stopped = true;
 
   constructor(options: ViewMaterializerOptions) {
@@ -368,8 +389,9 @@ export class ViewMaterializer {
     this.stopped = false;
     this.intake = true;
     this.db = await this.options.db();
+    // The stream of the views opens before the read of the views: a change between the two reaches both (roadmap O63)
+    await this.watchViews();
     const count = await this.resync();
-    this.watchViews();
     this.log("info", `started: ${count} view(s)`);
   }
 
@@ -452,23 +474,40 @@ export class ViewMaterializer {
     return typeof partition === "string" && partition !== "" ? partition : undefined;
   }
 
-  /** This method closes each view, and opens each view of the views collection again: a full catch-up. */
-  private async resync(): Promise<number> {
-    for (const key of [...this.running.keys()]) this.tearDown(key);
-    const docs = (await this.db!.collection<MaterializedView>(this.viewsName).find({}).toArray()) as MaterializedView[];
-    for (const view of docs) await this.spinUp(view);
-    return docs.length;
+  /**
+   * This method runs a change of the set of views after the changes before it. A change of a view
+   * document that comes during a resync thus applies after the read of the resync, not before it.
+   */
+  private inViewOrder<R>(work: () => R | Promise<R>): Promise<R> {
+    const run = this.viewChain.then(work);
+    this.viewChain = run.catch(() => undefined);
+    return run;
   }
 
-  private watchViews(): void {
-    if (this.stopped || !this.db) return;
+  /**
+   * This method closes each view, and opens each view of the views collection again: a full
+   * catch-up. Open the stream of the views first: then a change after the read reaches the stream.
+   */
+  private async resync(): Promise<number> {
+    const { count, registered } = await this.inViewOrder(async () => {
+      const docs = (await this.db!.collection<MaterializedView>(this.viewsName).find({}).toArray()) as MaterializedView[];
+      for (const key of [...this.running.keys()]) this.tearDown(key);
+      return { count: docs.length, registered: docs.filter((view) => this.register(view)) };
+    });
+    for (const view of registered) await this.activate(view);
+    return count;
+  }
+
+  /** This method opens the stream of the views. The promise resolves when the stream is open on the server. */
+  private watchViews(): Promise<void> {
+    if (this.stopped || !this.db) return Promise.resolve();
     let stream: ChangeStream;
     try {
       stream = this.db.collection(this.viewsName).watch([], { fullDocument: "updateLookup" });
     } catch (error) {
       this.log("error", `cannot watch ${this.viewsName}: ${String((error as Error)?.message ?? error)}`);
-      this.later(() => this.watchViews());
-      return;
+      this.later(() => void this.watchViews());
+      return Promise.resolve();
     }
     const previous = this.viewsStream;
     if (previous && previous !== stream) previous.close().catch(() => undefined);
@@ -481,8 +520,8 @@ export class ViewMaterializer {
       this.log("warn", `the stream of ${this.viewsName} ${reason}: it opens again in ${this.rewatchMs} ms`);
       stream.close().catch(() => undefined);
       this.later(() => {
-        this.watchViews();
-        void this.track(this.resync()).catch((error: unknown) => this.log("error", `the resync failed: ${String((error as Error)?.message ?? error)}`));
+        // The changes while the stream was closed are lost: a resync catches up, after the new stream is open
+        void this.track(this.watchViews().then(() => this.resync())).catch((error: unknown) => this.log("error", `the resync failed: ${String((error as Error)?.message ?? error)}`));
       });
     };
 
@@ -499,6 +538,7 @@ export class ViewMaterializer {
     });
     stream.on("error", (error: Error) => rewatch(`failed: ${error.message}`));
     stream.on("close", () => rewatch("closed"));
+    return openOnServer(stream);
   }
 
   private async onViewChange(change: Document): Promise<void> {
@@ -506,34 +546,47 @@ export class ViewMaterializer {
     if (type === "insert" || type === "replace" || type === "update") {
       const view = change["fullDocument"] as MaterializedView | null;
       if (!view) return;
-      const partition = this.partitionOf(view);
-      if (partition !== undefined) this.tearDown(this.keyOf(partition, view._id));
-      await this.spinUp(view);
+      const registered = await this.inViewOrder(() => {
+        const partition = this.partitionOf(view);
+        if (partition !== undefined) this.tearDown(this.keyOf(partition, view._id));
+        return this.register(view);
+      });
+      if (registered) await this.activate(view);
     } else if (type === "delete") {
       const id = String((change["documentKey"] as Document)["_id"]);
-      const partitions = new Set<string>();
-      for (const [key, view] of [...this.running]) {
-        if (view.view._id === id) {
-          partitions.add(view.partition);
-          this.tearDown(key);
+      const partitions = await this.inViewOrder(() => {
+        const found = new Set<string>();
+        for (const [key, view] of [...this.running]) {
+          if (view.view._id === id) {
+            found.add(view.partition);
+            this.tearDown(key);
+          }
         }
-      }
+        return found;
+      });
       // A removed view can break a cycle of the other views
       for (const partition of partitions) await this.rebalance(partition);
     }
   }
 
-  private async spinUp(view: MaterializedView): Promise<void> {
+  /** This method adds a view to the views that the materializer knows. It gives false for a view that cannot run. */
+  private register(view: MaterializedView): boolean {
     const partition = this.partitionOf(view);
     if (partition === undefined) {
       this.log("warn", `the view ${String(view._id)} has no ${this.partitionField}: it does not run`);
-      return;
+      return false;
     }
     if (!Array.isArray(view.collections) || view.collections.length === 0 || typeof view.targetCollection !== "string" || !Array.isArray(view.pipeline)) {
       this.log("warn", `the view ${view._id} needs collections, a pipeline and a targetCollection: it does not run`);
-      return;
+      return false;
     }
     this.running.set(this.keyOf(partition, view._id), { view, partition, state: "active", streams: [] });
+    return true;
+  }
+
+  /** This method makes the index of the target of a registered view, and rebalances its partition: a new view runs. */
+  private async activate(view: MaterializedView): Promise<void> {
+    const partition = this.partitionOf(view)!;
     // The readers, the counts and the sweeps read the rows of a partition in a generation
     await this.db!
       .collection(view.targetCollection)
@@ -630,8 +683,9 @@ export class ViewMaterializer {
     return this.running.get(this.keyOf(running.partition, running.view._id)) === running;
   }
 
-  private watchSource(running: RunningView, source: string): void {
-    if (this.stopped || !this.db) return;
+  /** This method opens the stream of a source for a view. The promise resolves when the stream is open on the server. */
+  private watchSource(running: RunningView, source: string): Promise<void> {
+    if (this.stopped || !this.db) return Promise.resolve();
     let stream: ChangeStream;
     try {
       stream = this.db
@@ -640,9 +694,9 @@ export class ViewMaterializer {
     } catch (error) {
       this.log("error", `cannot watch ${source} for the view ${running.view._id}: ${String((error as Error)?.message ?? error)}`);
       this.later(() => {
-        if (this.isCurrent(running) && running.state === "active") this.watchSource(running, source);
+        if (this.isCurrent(running) && running.state === "active") void this.watchSource(running, source);
       });
-      return;
+      return Promise.resolve();
     }
     running.streams.push(stream);
     let again = false;
@@ -657,9 +711,8 @@ export class ViewMaterializer {
       this.log("warn", `the stream of ${source} for the view ${running.view._id} ${reason}: it opens again in ${this.rewatchMs} ms`);
       this.later(() => {
         if (!this.isCurrent(running) || running.state !== "active") return;
-        this.watchSource(running, source);
-        // The changes while the stream was closed are lost: a pass catches up
-        this.schedule(running.partition, source);
+        // The changes while the stream was closed are lost: a pass catches up, after the new stream is open
+        void this.watchSource(running, source).then(() => this.schedule(running.partition, source));
       });
     };
     stream.on("change", (change: Document) => {
@@ -670,6 +723,7 @@ export class ViewMaterializer {
     });
     stream.on("error", (error: Error) => rewatch(`failed: ${error.message}`));
     stream.on("close", () => rewatch("closed"));
+    return openOnServer(stream);
   }
 
   /** This method runs a function after `rewatch`, unless the materializer stops. The timer does not keep the process alive. */
@@ -744,7 +798,10 @@ export class ViewMaterializer {
           }
         } else if (running.state === "cyclic" || running.streams.length === 0) {
           running.state = "active";
-          for (const source of view.collections) this.watchSource(running, source);
+          // The streams open before the run reads the sources: a change between the two reaches both (roadmap O63)
+          await Promise.all(view.collections.map((source) => this.watchSource(running, source)));
+          // A change of the view document during the wait replaced this view: the rebalance of the new one runs it
+          if (!this.isCurrent(running)) continue;
           await this.runAndWriteStatus(view, partition);
         }
       }

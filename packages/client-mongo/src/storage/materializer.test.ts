@@ -230,6 +230,55 @@ withMongo("ViewMaterializer on MongoDB", { timeout: TEST_TIMEOUT_MS }, () => {
     await views.stop();
   });
 
+  it("opens each stream on the server before it reads: a change of a view at once after start() or during the open of a source is not lost (O63)", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    await lockFailpoints(context);
+    const admin = client!.db("admin");
+    const failpoints = await admin.command({ configureFailPoint: "failCommand", mode: "off" }).then(
+      () => true,
+      () => false
+    );
+    if (!failpoints) {
+      if (process.env["MONGO_TEST_FAILPOINTS"] === "1") throw new Error("MONGO_TEST_FAILPOINTS is 1, but the server has no test commands (enableTestCommands)");
+      return context.skip?.("the failpoints need a server with enableTestCommands");
+    }
+    // Its own client, so the failpoint makes only the aggregates of the materializer slow: each change stream opens late
+    const own = new MongoClient(url!, { appName: "views-open" });
+    await own.connect();
+    const name = `client_mongo_views_${process.pid}_${Date.now()}_${++next}`;
+    dbs.push(client!.db(name));
+    const views = new ViewMaterializer({ db: () => own.db(name), debounce: ms(20), rewatch: ms(100), log: () => undefined });
+    const db = client!.db(name);
+    const status = async () => (await db.collection("_aggregations").findOne({ _id: "sums" as never }))?.["_materializerStatus"] as Document | undefined;
+    const sumsPipeline = [{ $group: { _id: "$kind", total: { $sum: "$n" } } }];
+    try {
+      await db.collection("items").insertOne({ _id: "1" as never, _part: "t1", kind: "a", n: 1 });
+      await db.collection("_aggregations").insertOne(sumsView({ pipeline: [{ $out: "elsewhere" }] }) as never);
+      await admin.command({ configureFailPoint: "failCommand", mode: "alwaysOn", data: { failCommands: ["aggregate"], appName: "views-open", blockConnection: true, blockTimeMS: 1000 } });
+      await views.start();
+      expect(await status()).toMatchObject({ state: "errored" });
+      // At once: before the fix, the stream of the views opened 1 s after start(), and lost this change
+      await db.collection("_aggregations").updateOne({ _id: "sums" as never }, { $set: { pipeline: sumsPipeline } });
+      await eventually(async () => expect(await status()).toMatchObject({ state: "ok" }));
+      expect(sorted(await db.collection("sums").find({}).toArray())).toEqual([{ _id: "a", _part: "t1", total: 1 }]);
+
+      // A change of the view while its new source stream opens: the run of the replaced view does not start, and the last view wins
+      await db.collection("_aggregations").updateOne({ _id: "sums" as never }, { $set: { targetCollection: "first" } });
+      await eventually(async () => {
+        expect(views.views().get("t1::sums")?.target).toBe("first");
+        expect(views.openStreamCount()).toBe(2);
+      });
+      await db.collection("_aggregations").updateOne({ _id: "sums" as never }, { $set: { targetCollection: "last" } });
+      await eventually(async () => expect(sorted(await db.collection("last").find({}).toArray())).toEqual([{ _id: "a", _part: "t1", total: 1 }]));
+      expect(await status()).toMatchObject({ state: "ok" });
+      expect(await db.collection("first").countDocuments()).toBe(0);
+    } finally {
+      await admin.command({ configureFailPoint: "failCommand", mode: "off" });
+      await views.stop();
+      await own.close();
+    }
+  }, LOCK_WAIT_MS + 30_000);
+
   it("does not run a view without a partition or without its fields, and a lookup outside its collections fails", async (context) => {
     if (!replicaSet) return context.skip?.("change streams need a replica set");
     const { db, views, logs } = setup();
