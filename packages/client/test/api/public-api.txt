@@ -5669,7 +5669,7 @@ export type ResourcesOf = Register extends {
 export declare function keyToPath(key: string): ProcedurePath;
 
 ### dist/procedures/types.d.ts#pathToKey
-export declare function pathToKey(path: ProcedurePath): string;
+export declare function pathToKey(path: readonly string[]): string;
 
 ### dist/procedures/untrusted.d.ts#UntrustedSource
 export type UntrustedSource = Readonly<Record<string, string | number | boolean | null | undefined>>;
