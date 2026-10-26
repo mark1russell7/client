@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 615 names
+## . (dist/index.d.ts): 621 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -128,6 +128,8 @@ HIDDEN_ERROR_MESSAGE: dist/server/error-policy.d.ts#HIDDEN_ERROR_MESSAGE
 type Handler: dist/adapters/local/client/types.d.ts#Handler
 HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
 type HiddenCall: dist/procedures/policy.d.ts#HiddenCall
+type HintImages: dist/procedures/collection/hint-filter.d.ts#HintImages
+type HintRowState: dist/procedures/collection/hint-filter.d.ts#HintRowState
 type HostPolicy: dist/server/host-policy.d.ts#HostPolicy
 type HostPolicyOptions: dist/server/host-policy.d.ts#HostPolicyOptions
 type HostSource: dist/server/host-procedures.d.ts#HostSource
@@ -267,6 +269,8 @@ type ResubscribeBackoff: dist/events/remote.d.ts#ResubscribeBackoff
 type RetryOverride: dist/client/call-types.d.ts#RetryOverride
 type RichError: dist/client/errors/types.d.ts#RichError
 type RightsChange: dist/events/recheck.d.ts#RightsChange
+type RightsScope: dist/events/recheck.d.ts#RightsScope
+type RightsScopes: dist/events/recheck.d.ts#RightsScopes
 type Route: dist/client/call-types.d.ts#Route
 type RouteLeaf: dist/client/consumption.d.ts#RouteLeaf
 type RouteNode: dist/client/call-types.d.ts#RouteNode
@@ -464,6 +468,7 @@ hasCallPolicy: dist/procedures/policy.d.ts#hasCallPolicy
 hasRuntimeProcedure: dist/procedures/define-procedure.d.ts#hasRuntimeProcedure
 hashOf: dist/procedures/manifest.d.ts#hashOf
 hiddenReach: dist/procedures/policy.d.ts#hiddenReach
+hintImagesOf: dist/procedures/collection/hint-filter.d.ts#hintImagesOf
 hostNameOf: dist/server/browser-guard.d.ts#hostNameOf
 hostPolicy: dist/server/host-policy.d.ts#hostPolicy
 hostProcedures: dist/server/host-procedures.d.ts#hostProcedures
@@ -618,11 +623,12 @@ versionConflicts: dist/procedures/collection/precondition.d.ts#versionConflicts
 versionConflictsOf: dist/procedures/collection/precondition.d.ts#versionConflictsOf
 withEffects: dist/procedures/effects.d.ts#withEffects
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
+withHintImages: dist/procedures/collection/hint-filter.d.ts#withHintImages
 withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 603 names
+## ./browser (dist/browser.d.ts): 609 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -742,6 +748,8 @@ HIDDEN_ERROR_MESSAGE: dist/server/error-policy.d.ts#HIDDEN_ERROR_MESSAGE
 type Handler: dist/adapters/local/client/types.d.ts#Handler
 HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
 type HiddenCall: dist/procedures/policy.d.ts#HiddenCall
+type HintImages: dist/procedures/collection/hint-filter.d.ts#HintImages
+type HintRowState: dist/procedures/collection/hint-filter.d.ts#HintRowState
 type HostPolicy: dist/server/host-policy.d.ts#HostPolicy
 type HostPolicyOptions: dist/server/host-policy.d.ts#HostPolicyOptions
 type HostSource: dist/server/host-procedures.d.ts#HostSource
@@ -881,6 +889,8 @@ type ResubscribeBackoff: dist/events/remote.d.ts#ResubscribeBackoff
 type RetryOverride: dist/client/call-types.d.ts#RetryOverride
 type RichError: dist/client/errors/types.d.ts#RichError
 type RightsChange: dist/events/recheck.d.ts#RightsChange
+type RightsScope: dist/events/recheck.d.ts#RightsScope
+type RightsScopes: dist/events/recheck.d.ts#RightsScopes
 type Route: dist/client/call-types.d.ts#Route
 type RouteLeaf: dist/client/consumption.d.ts#RouteLeaf
 type RouteNode: dist/client/call-types.d.ts#RouteNode
@@ -1074,6 +1084,7 @@ hasCallPolicy: dist/procedures/policy.d.ts#hasCallPolicy
 hasRuntimeProcedure: dist/procedures/define-procedure.d.ts#hasRuntimeProcedure
 hashOf: dist/procedures/manifest.d.ts#hashOf
 hiddenReach: dist/procedures/policy.d.ts#hiddenReach
+hintImagesOf: dist/procedures/collection/hint-filter.d.ts#hintImagesOf
 hostPolicy: dist/server/host-policy.d.ts#hostPolicy
 hostProcedures: dist/server/host-procedures.d.ts#hostProcedures
 hours: dist/duration.d.ts#hours
@@ -1224,6 +1235,7 @@ versionConflicts: dist/procedures/collection/precondition.d.ts#versionConflicts
 versionConflictsOf: dist/procedures/collection/precondition.d.ts#versionConflictsOf
 withEffects: dist/procedures/effects.d.ts#withEffects
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
+withHintImages: dist/procedures/collection/hint-filter.d.ts#withHintImages
 withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
@@ -1401,7 +1413,7 @@ seconds: dist/duration.d.ts#seconds
 toMs: dist/duration.d.ts#toMs
 writeRemainingTime: dist/client/deadline.d.ts#writeRemainingTime
 
-## ./events (dist/events/index.d.ts): 49 names
+## ./events (dist/events/index.d.ts): 51 names
 
 type ChannelMap: dist/events/types.d.ts#ChannelMap
 type ChannelTimingOptions: dist/events/bus.d.ts#ChannelTimingOptions
@@ -1426,6 +1438,8 @@ type RemoteEventHandler: dist/events/remote.d.ts#RemoteEventHandler
 type RemoteEventsOptions: dist/events/remote.d.ts#RemoteEventsOptions
 type ResubscribeBackoff: dist/events/remote.d.ts#ResubscribeBackoff
 type RightsChange: dist/events/recheck.d.ts#RightsChange
+type RightsScope: dist/events/recheck.d.ts#RightsScope
+type RightsScopes: dist/events/recheck.d.ts#RightsScopes
 type SubscribeInput: dist/events/remote.d.ts#SubscribeInput
 type SubscribeOptions: dist/events/remote.d.ts#SubscribeOptions
 type Subscription: dist/events/remote.d.ts#Subscription
@@ -1453,7 +1467,7 @@ throttleChannel: dist/events/bus.d.ts#throttleChannel
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
-## ./procedures (dist/procedures/index.d.ts): 352 names
+## ./procedures (dist/procedures/index.d.ts): 356 names
 
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
@@ -1516,6 +1530,8 @@ type EnvelopePath: dist/procedures/envelope.d.ts#EnvelopePath
 type EnvelopeProgram: dist/procedures/envelope.d.ts#EnvelopeProgram
 type EnvelopeRef: dist/procedures/envelope.d.ts#EnvelopeRef
 type FsRootRules: dist/procedures/types.d.ts#FsRootRules
+type HintImages: dist/procedures/collection/hint-filter.d.ts#HintImages
+type HintRowState: dist/procedures/collection/hint-filter.d.ts#HintRowState
 type HydrateOptions: dist/procedures/ref.d.ts#HydrateOptions
 type HydrationEvent: dist/procedures/ref.d.ts#HydrationEvent
 IDEMPOTENCY_KEY_METADATA: dist/procedures/idempotency.d.ts#IDEMPOTENCY_KEY_METADATA
@@ -1706,6 +1722,7 @@ getRefWhen: dist/procedures/ref.d.ts#getRefWhen
 getRuntimeProcedure: dist/procedures/define-procedure.d.ts#getRuntimeProcedure
 hasRuntimeProcedure: dist/procedures/define-procedure.d.ts#hasRuntimeProcedure
 hashOf: dist/procedures/manifest.d.ts#hashOf
+hintImagesOf: dist/procedures/collection/hint-filter.d.ts#hintImagesOf
 hydrateInput: dist/procedures/program.d.ts#hydrateInput
 idempotencyKeyOf: dist/procedures/idempotency.d.ts#idempotencyKeyOf
 idempotentIn: dist/procedures/idempotency.d.ts#idempotentIn
@@ -1805,6 +1822,7 @@ versionConflict: dist/procedures/collection/precondition.d.ts#versionConflict
 versionConflicts: dist/procedures/collection/precondition.d.ts#versionConflicts
 versionConflictsOf: dist/procedures/collection/precondition.d.ts#versionConflictsOf
 withEffects: dist/procedures/effects.d.ts#withEffects
+withHintImages: dist/procedures/collection/hint-filter.d.ts#withHintImages
 withScope: dist/procedures/ref.d.ts#withScope
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
@@ -3338,7 +3356,7 @@ export declare class EventPublisher {
     publish<T>(topic: string, data: T): void;
     get subscriptions(): number;
     end(): void;
-    rightsChanged(change?: RightsChange): Promise<void>;
+    rightsChanged(change?: RightsChange, scope?: RightsScopes): Promise<void>;
 }
 
 ### dist/events/publisher.d.ts#EventPublisherOptions
@@ -3374,10 +3392,19 @@ export declare function topicMatcher(rule: TopicRule): (topic: string) => boolea
 ### dist/events/recheck.d.ts#RightsChange
 export type RightsChange = string | ((principal: Principal | undefined) => boolean);
 
+### dist/events/recheck.d.ts#RightsScope
+export interface RightsScope {
+    readonly collection?: string | ((collection: string) => boolean) | undefined;
+    readonly partition?: string | ((partition: string) => boolean) | undefined;
+}
+
+### dist/events/recheck.d.ts#RightsScopes
+export type RightsScopes = RightsScope | readonly RightsScope[];
+
 ### dist/events/recheck.d.ts#SubscriptionRecheck
 export interface SubscriptionRecheck {
     readonly maxAge?: Duration | undefined;
-    readonly rightsChanges?: ((listener: (change?: RightsChange) => void) => () => void) | undefined;
+    readonly rightsChanges?: ((listener: (change?: RightsChange, scope?: RightsScopes) => void) => () => void) | undefined;
 }
 
 ### dist/events/remote.d.ts#EVENTS_SUBSCRIBE_PATH
@@ -3789,6 +3816,7 @@ export declare function toolHints(procedure: AnyProcedure): ToolHints;
 ### dist/procedures/collection/admission.d.ts#CollectionAdmission
 export interface CollectionAdmission {
     admit?: AdmitItem | undefined;
+    admitsAll?: ((invocation: Invocation, partition: string | undefined) => boolean | Promise<boolean>) | undefined;
     guard?: CollectionWriteGuard | undefined;
     versionOf?: VersionOf<unknown> | undefined;
     maxScanned?: number | undefined;
@@ -3815,7 +3843,7 @@ export type CollectionWriteGuard = (write: CollectionWrite, invocation: Invocati
 export declare function admitsRow(admission: CollectionAdmission | undefined, ctx: ProcedureContext, id: string, value: unknown): Promise<boolean>;
 
 ### dist/procedures/collection/admission.d.ts#admittedStorage
-export declare function admittedStorage<T>(storage: CollectionStorage<T>, admission: CollectionAdmission | undefined, ctx: ProcedureContext): CollectionStorage<T>;
+export declare function admittedStorage<T>(storage: CollectionStorage<T>, admission: CollectionAdmission | undefined, ctx: ProcedureContext, partition?: string): CollectionStorage<T>;
 
 ### dist/procedures/collection/changes.d.ts#CollectionChangeEvent
 export interface CollectionChangeEvent {
@@ -3838,6 +3866,27 @@ export interface CollectionChangeEvent {
 
 ### dist/procedures/collection/changes.d.ts#collectionTopicReads
 export declare function collectionTopicReads(topic: string, repository?: RepositoryProvider): readonly string[];
+
+### dist/procedures/collection/hint-filter.d.ts#HintImages
+export interface HintImages {
+    readonly after?: ReadonlyMap<string, HintRowState> | undefined;
+    readonly before?: ReadonlyMap<string, HintRowState> | undefined;
+    readonly admission?: CollectionAdmission | undefined;
+}
+
+### dist/procedures/collection/hint-filter.d.ts#HintRowState
+export type HintRowState = {
+    readonly found: true;
+    readonly value: unknown;
+} | {
+    readonly found: false;
+};
+
+### dist/procedures/collection/hint-filter.d.ts#hintImagesOf
+export declare function hintImagesOf(event: unknown): HintImages | undefined;
+
+### dist/procedures/collection/hint-filter.d.ts#withHintImages
+export declare function withHintImages<T extends object>(event: T, images: HintImages): T;
 
 ### dist/procedures/collection/partition.d.ts#CollectionPartitions
 export interface CollectionPartitions<T = unknown> {

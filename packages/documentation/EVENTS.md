@@ -259,7 +259,7 @@ server.publisher?.rightsChanged("ann"); // the subscriptions of the principal "a
 ```
 
 - The check is the same function as at the start: the topic rule, the reads of the capability, `events.allow` and the partition of each topic. The capability and the principal stay the values of the call.
-- `rightsChanged(change)` of `EventPublisher` starts a check of each open subscription that the change touches. The change is the id of a principal, or a test of the principal. Without it, each open subscription gets a check.
+- `rightsChanged(change)` of `EventPublisher` starts a check of each open subscription that the change touches. The change is the id of a principal, or a test of the principal. Without it, each open subscription gets a check. The optional `scope` names the rows that the change touches (roadmap CLI-78, "The row filter of the change events").
 - The source `recheck.rightsChanges` gets one listener of the publisher while the publisher has an open subscription. Each call of the listener is a call of `rightsChanged()`.
 - `recheck.maxAge` starts a check when this time passed after the last check. The time is on the clock of the publisher. A `ProcedureServer` gives its own clock to the publisher that it makes. The option has no default.
 - While a check runs, the events of the subscription wait in its queue. The option `buffer` (default 1024) limits the queue, so a slow check holds at most that number of events. When the queue is full, the oldest event goes, and the next event tells the loss (`dropped`).
@@ -344,7 +344,7 @@ Each write of the core collection procedures publishes a change event on the bus
 | `changed` | The ids of the items that changed. |
 | `deleted` | The ids that were deleted. |
 | `values` | Only with the option `values`: the changed items, as `{ id, value }`, that the subscriber can read. |
-| `withheld` | Only with the option `values`: the changed ids whose values the output filter refused. |
+| `withheld` | Only with the option `values`: the changed ids whose values the output filter of the host refused. A row that the rule of the rows refuses is not in the event (roadmap CLI-78). |
 | `versions` | Optional: the version of each changed item, as `{ id, version }`, as `versionOf(id)` of the storage gives it. `watchStorageChanges()` of `@procedures/mongo` sets it when it knows the new version (roadmap CLI-77). A raw write does not carry its old version: the watcher gives it a new version first, or sends no version. |
 | `reset` | Optional: `true`: read the collection in full, with `changes` and no `since`. A publisher sets it when it cannot tell what changed, for example `watchStorageChanges()` of `@procedures/mongo` after a lost resume token, a drop or an adoption that failed (roadmap CLI-77). `EventsChangeFeed` and `HybridStorage` of `@procedures/store` then do a full pull. |
 | `origin` | The origin of the writes, when one origin made all the changes. |
@@ -364,7 +364,7 @@ A value of a collection reaches a caller only through a read with its checks. Th
 - Without that read, the subscription gets `FORBIDDEN` with the reason `effects-exceeded`. The option `reads` of `EventPublisher` gives the rule of other topics.
 - With the option `values: true`, an event also has the values. Each row `{ id, value }` passes the output filter of the host (`admitItem`) for each subscriber.
 - A row that the filter refuses stays out of the event of that subscriber, and its id goes in `withheld`. The subscriber then reads that id with `changes`.
-- The rule of the rows of the collection (`admission.admit`) applies to each row too, with the invocation of the subscription.
+- The rule of the rows of the collection (`admission.admit`) applies to each id of each event, with the invocation of the subscription. A row that the rule refuses is not in the event, also not in `withheld` (roadmap CLI-78). The next section tells the rules.
 - A procedure that sends the data of other writers later, for example a subscription, gets the output filter of its host as `ctx.admit`.
 
 #### The partitions of a collection
@@ -448,13 +448,54 @@ const procedures = createCollectionProcedures("notes", {
 - The procedures apply the rules in one place: the view of the storage of each call (`admittedStorage()`).
 - A refused row is absent from each read: `get`, `has`, `getAll`, `entries`, `ids`, `size`, `getBatch`, `find` and `changes`.
 - `find` counts its skip and its limit in the admitted rows. A storage with `query()` gives the rows page by page.
-- A delta of `changes` puts the id of a refused row in `deleted`. A copy of the caller thus drops the row.
+- A delta of `changes` gives only ids that the caller can read (roadmap CLI-78). The view does not know which rows the caller read before. Thus a delta with a refused row or a deleted row becomes a full answer of the admitted rows. A copy of the caller then drops each other row.
+- When `admission.admitsAll` admits the caller, a delta stays a delta, with its deletes, as before CLI-78.
 - A patch whose new item the rule refuses gives `{ found: true }` without the value.
 - An error of the rule fails the read. It does not hide the rows.
 - The guard examines each write before the storage changes. A refused write gets `FORBIDDEN` with the reason `write-not-allowed`.
 - `setBatch` gives one `set` to the guard for each item. `deleteBatch` and `clear` give one `delete` for each id. One refused write refuses the call.
 - A call without an invocation gets no row and makes no write.
 - `accessAdmitItem` and `accessWriteGuard` of `@procedures/access` give the two rules from access lists.
+
+#### The row filter of the change events
+
+A principal with a rule of the rows can subscribe to a topic of the collection (roadmap CLI-78). The publisher filters each event for each subscriber with `admission.admit`, so the subscriber gets only the ids of the rows that it can read:
+
+```ts
+const procedures = createCollectionProcedures("notes", {
+  admission: {
+    admit: (row, invocation) => canRead(invocation.principal, row.value),
+    // True: the subscriber reads each row of the partition, so its events pass as before
+    admitsAll: (invocation, partition) => readsAll(invocation.principal, partition),
+  },
+});
+```
+
+- The publisher finds the rules in the registry of the call. `createCollectionProcedures()` puts them on the metadata of its procedures. Thus the publisher also filters the events of other publishers on the topic.
+- The rules get an invocation of the collection, not the call of `events.subscribe`. It has the principal, the capability, the metadata and the signal of the subscription. Its path is the path of `changes` of the collection. Its input has the partition that the topic names, as the input of a read has it. Thus a rule that reads `invocation.input.partition` gets the same input for a read and for an event.
+- The rule examines the images of the rows of the event: the row after the change and the row before it. The procedures give the row after the change from the change log. The publisher does not read a storage.
+- While a subscriber has a filter, each write of the procedures reads the rows before it with one `getBatch()`. Without such a subscriber, a write reads nothing more.
+- A changed row that the rule admits stays in `changed`, with its version and its value.
+- A changed row that the rule refuses goes to `deleted` only when the rule admitted the row before the change. A deleted row has the same rule. Thus the subscriber gets the delete of each row that it could read, and no id of another row.
+- When an image is missing, or the rule fails, the subscriber gets a hint without ids and without `since`. It then reads the changes through the rule of the reads.
+- An event with `reset: true` passes without ids. An event without ids passes too.
+- When the subscriber can read no row of an event, it gets no event. Its next event gets the `since` of the last event that it got. Thus the subscriber applies the next delta without a read.
+- The `seq` of the events counts only the events that the subscriber gets, so a filtered event makes no gap. The `dropped` of a slow subscriber does not change.
+- `admitsAll(invocation, partition)` tells that `admit` admits each row of the partition. The events of that subscriber then pass as before, with no filter and no read before a write. The publisher asks at the start of the subscription and at each re-check. An error gives false.
+- At a re-check after a change of the rights (`rightsChanged()`), each subscriber with a filter gets a `reset` hint, and it reads its rows again. A subscriber whose `admitsAll` changes at a re-check also gets a `reset` hint. A re-check after `maxAge` alone does not see a change of a rule that is not `admitsAll`.
+- `rightsChanged(change, scope)` can have a scope: the rows of a collection, or of one partition of a collection. The scope is `{ collection?, partition? }` or a list of them. The partition is the partition after the resolver. Each field is a name or a test of the name. A test can match each partition of a tenant, for example. A test that throws matches, because a `reset` hint too many is safe.
+- With a scope, only the topics of the scope with a filter get a `reset` hint and a new `admitsAll`. Each subscription that the change touches still gets the checks of its start. Without a scope, the change touches each topic.
+
+```ts
+// The rights on the notes of the partition t1 changed: only the subscribers of that topic read their rows again
+await server.publisher?.rightsChanged(undefined, { collection: "notes", partition: "t1" });
+// The rights of the tenant t1 changed: each partition "t1/<key>" of the notes
+await server.publisher?.rightsChanged(undefined, { collection: "notes", partition: (partition) => partition.startsWith("t1/") });
+```
+
+- The cost: the rule examines each id of each event for each subscriber with a filter. Give `admitsAll` for the principals with full rights, so that they cost nothing.
+
+A publisher of change events outside the procedures, for example a watcher of a change stream, can give the images with `withHintImages(event, { after, before })`. Each map gives the state of a row by id: `{ found: true, value }` or `{ found: false }`. A missing id is unknown. Without images, a subscriber with a filter gets a hint without ids. `hintImagesOf(event)` reads the images. They stay in the process, because JSON does not take a symbol key.
 
 The guard reads the stored item before the write. The option `versionOf` closes the gap between that read and the write (roadmap CLI-55):
 
@@ -518,6 +559,9 @@ server.publish("orders.created", { order: 1 }); // the same as bus.emit()
 - `src/events/remote.test.ts`: subscribe, publish, receive and unsubscribe on the local transport, HTTP and WebSocket. The unknown and the refused topic on each face. The shared call, a late subscriber and the end at `clear()` on each face.
 - `src/events/remote.test.ts` also tests the share: one call and one cancel, the keys, an error for each subscriber, and a slow subscriber. The limit of the tries and the backoff of durations use a fake clock.
 - `src/events/recheck.test.ts` (roadmap CLI-44): a revoked right ends a subscription at the signal, or after the max age on a fake clock without a signal. A right that stays valid keeps the subscription. A partition that changes ends it.
+- `src/procedures/collection/admission.test.ts` (roadmap CLI-78): a delta of `changes` with a refused row or a deleted row becomes a full answer of the admitted rows. With `admitsAll`, the delta stays.
+- `src/procedures/collection/row-hints.test.ts` (roadmap CLI-78): each subscriber gets only the ids of the rows that the rule admits for it. A row that leaves the rule comes as a delete, and the chain of the events and `seq` have no gap. A subscriber with full rights keeps its events and its cost. A change of the rights gives a `reset` hint, only on the topics of its scope. The rules get an invocation of the collection.
+- `src/server/row-hints.test.ts` (roadmap CLI-78): a subscriber with full rights and a subscriber with a rule of the rows share one topic. The test uses HTTP and WebSocket, before and after a change of the rights. A rule that reads the partition of the input gets the partition of the topic.
 - `src/events/bus.test.ts`: the option `onClear` of `on()`, with `clear()` and `clearAll()`.
 - `src/adapters/websocket/events.test.ts`: two subscribers and their order, a slow subscriber with credit, and the resubscribe after a drop. It also tests the two directions, the stop of the publisher, and the listeners after `close()`.
 - `src/leaks.test.ts` (roadmap R30): the maps of the two sides and the listeners of the bus are empty after many subscriptions.

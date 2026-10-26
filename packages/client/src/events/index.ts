@@ -59,7 +59,7 @@ export {
 // The remote events: a peer subscribes to the topics of the bus of another peer (EVENTS.md)
 export { EventPublisher, topicMatcher, MAX_SUBSCRIPTION_TOPICS, MAX_TOPIC_LENGTH } from "./publisher.js";
 export type { EventPublisherOptions, TopicRule, TopicCall } from "./publisher.js";
-export type { RightsChange, SubscriptionRecheck } from "./recheck.js";
+export type { RightsChange, RightsScope, RightsScopes, SubscriptionRecheck } from "./recheck.js";
 export { EVENTS_SUBSCRIBE_PATH, SubscriptionError, remoteEvents, subscribeRemote } from "./remote.js";
 export type {
   EventItem,

@@ -148,6 +148,9 @@ export {
   // The rules of the rows of a collection (roadmap CLI-41)
   admittedStorage,
   admitsRow,
+  // The images of the rows of a change event, for the row filter of each subscriber (roadmap CLI-78)
+  withHintImages,
+  hintImagesOf,
   // The query language of the collection storages (roadmap CLI-14, CLI-34)
   DEFAULT_FIND_LIMIT,
   DEFAULT_QUERY_OPERATORS,
@@ -337,6 +340,8 @@ export type {
   CollectionChangeEventsOptions,
   CollectionAdmission,
   CollectionRow,
+  HintImages,
+  HintRowState,
   CollectionWrite,
   CollectionWriteGuard,
   CollectionPartitions,
@@ -590,6 +595,8 @@ export type {
   TopicRule,
   TopicCall,
   RightsChange,
+  RightsScope,
+  RightsScopes,
   SubscriptionRecheck,
   EventItem,
   RemoteEvent,

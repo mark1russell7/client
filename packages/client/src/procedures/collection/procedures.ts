@@ -62,6 +62,7 @@ import { collectionChangeTopic, startChangeChain, writeWithChangeEvent } from ".
 import { partitionOfCall, storageOfCall, withPartition, type PartitionInput } from "./partition.js";
 import { admitsRow, admittedStorage, checkAdmission, type CollectionAdmission } from "./admission.js";
 import { patchItem } from "./patch-in-parts.js";
+import { withCollectionRules } from "./hint-filter.js";
 
 // =============================================================================
 // Handler Factory
@@ -125,8 +126,8 @@ export interface CollectionProceduresOptions {
    */
   changeEvents?: boolean | CollectionChangeEventsOptions | undefined;
   /**
-   * The rules of the rows (roadmap CLI-41). `admit` examines each row of each read and of each
-   * change event with values. `guard` examines each write before the storage changes, and a
+   * The rules of the rows (roadmap CLI-41). `admit` examines each row of each read, and each row of
+   * each change event for each subscriber (roadmap CLI-78). `guard` examines each write before the storage changes, and a
    * refused write gets `FORBIDDEN` (reason `write-not-allowed`). With `versionOf`, a guarded write
    * expects the version that the guard read. `maxScanned` stops the scan of a `find` (roadmap
    * CLI-55). Without it, the procedures check only the partition.
@@ -185,7 +186,7 @@ export function createCollectionProcedures(collectionName: string, options: Coll
   checkAdmission(admission);
   /** A write, and then its change event on the bus of the context. The chain of the events belongs to the storage, not to its view. */
   const changing = <R>(ctx: ProcedureContext, partition: string | undefined, storage: CollectionStorage<unknown>, ids: readonly string[] | "*", origin: string | undefined, write: () => Promise<R>): Promise<R> =>
-    writeWithChangeEvent(ctx.bus, storage, topicRule ? topicOf(ctx, partition) : undefined, ids, origin, write, withValues, admission?.admit);
+    writeWithChangeEvent(ctx.bus, storage, topicRule ? topicOf(ctx, partition) : undefined, ids, origin, write, withValues, admission);
   /**
    * The partition and the storage of a call (roadmap CLI-17). The repository of the call has the
    * partitions of the collection and their resolver: the tenant comes from the principal. Each read
@@ -195,10 +196,11 @@ export function createCollectionProcedures(collectionName: string, options: Coll
     const collection = getCollectionFromPath(ctx.path);
     const partition = await partitionOfCall(ctx, collection, input.partition);
     const storage = storageOfCall<unknown>(ctx, collection, partition);
-    return { storage, view: admittedStorage(storage, admission, ctx), partition };
+    return { storage, view: admittedStorage(storage, admission, ctx, partition), partition };
   };
 
-  return [
+  // The rules of the rows on the metadata: the publisher of the events filters each event with them (roadmap CLI-78)
+  return withCollectionRules([
     // Get
     defineProcedure({
       path: [...basePath, "get"],
@@ -485,5 +487,5 @@ export function createCollectionProcedures(collectionName: string, options: Coll
         return changing(ctx, partition, storage, input.ids, input.origin, () => view.deleteBatch(input.ids, writeOptionsOf(input)));
       },
     }),
-  ];
+  ], admission);
 }

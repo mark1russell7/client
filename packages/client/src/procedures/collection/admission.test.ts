@@ -4,7 +4,7 @@
  * The procedures apply both in one place, the view of the storage of a call.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { createCollectionProcedures, type CollectionProceduresOptions } from "./procedures.js";
 import { admittedStorage, type CollectionAdmission, type CollectionWrite } from "./admission.js";
 import { applyPatch, queryEntries, type StoragePatch, type StorageQueryOptions, type StorageQueryPolicy, type StorageSelector } from "./query.js";
@@ -221,18 +221,70 @@ describe("the rule of the rows of each read (CLI-41)", () => {
     expect(storage.pages.map((query) => query.skip)).toEqual([0, 2, 4, 6]);
   });
 
-  it("puts the id of a refused row of a delta in deleted, so a copy drops it", async () => {
+  /** The ids of an answer of `changes`. */
+  type Changes = { version: string; full: boolean; changed: Array<{ id: string }>; deleted: string[] };
+  const idsOfChanges = (answer: Changes) => ({ full: answer.full, changed: answer.changed.map((row) => row.id).sort(), deleted: [...answer.deleted].sort() });
+
+  it("keeps a delta of admitted rows as a delta", async () => {
     const storage = notes();
     const { run } = host(storage, { admission: { admit: ownRows } });
-    const first = (await run("changes", {}, ann)) as { version: string };
+    const first = (await run("changes", {}, ann)) as Changes;
+    await storage.set("a3", { owner: "ann" });
+    await storage.set("a2", { owner: "ann", text: "A2 again" });
+    expect(idsOfChanges((await run("changes", { since: first.version }, ann)) as Changes)).toEqual({ full: false, changed: ["a2", "a3"], deleted: [] });
+  });
+
+  it("gives no id of a refused row in a delta (CLI-78): the delta becomes a full answer of the admitted rows", async () => {
+    const storage = notes();
+    const { run } = host(storage, { admission: { admit: ownRows } });
+    const first = (await run("changes", {}, ann)) as Changes;
     // Bob takes a1 from Ann, and writes b2 of his own
     await storage.set("a1", { owner: "bob", text: "A1" });
     await storage.set("b2", { owner: "bob" });
     await storage.set("a3", { owner: "ann" });
-    const delta = (await run("changes", { since: first.version }, ann)) as { full: boolean; changed: Array<{ id: string }>; deleted: string[] };
-    expect(delta.full).toBe(false);
-    expect(delta.changed.map((row) => row.id)).toEqual(["a3"]);
-    expect(delta.deleted.sort()).toEqual(["a1", "b2"]);
+    const answer = (await run("changes", { since: first.version }, ann)) as Changes;
+    // The copy of Ann drops a1, because a full answer does not have it. Ann gets no id of b1 or b2.
+    expect(idsOfChanges(answer)).toEqual({ full: true, changed: ["a2", "a3", "p1"], deleted: [] });
+    expect(answer.version).toBe(((await run("changes", {}, ann)) as Changes).version);
+  });
+
+  it("gives no id of a deleted row in a delta (CLI-78): the delta becomes a full answer of the admitted rows", async () => {
+    const storage = notes();
+    const { run } = host(storage, { admission: { admit: ownRows } });
+    const first = (await run("changes", {}, ann)) as Changes;
+    // Bob deletes his note, and Ann deletes hers
+    await storage.delete("b1");
+    await storage.delete("a1");
+    expect(idsOfChanges((await run("changes", { since: first.version }, ann)) as Changes)).toEqual({ full: true, changed: ["a2", "p1"], deleted: [] });
+  });
+
+  it("keeps the delta of a caller that admitsAll admits, at the cost of a delta (CLI-78)", async () => {
+    const storage = notes();
+    const reads = vi.spyOn(storage, "getChangesSince");
+    const admitsAll = vi.fn((invocation: { principal?: Principal | undefined }, partition: string | undefined) => invocation.principal?.id === "bob" && partition === undefined);
+    const { run } = host(storage, { admission: { admit: (row, invocation) => invocation.principal?.id === "bob" || ownRows(row, invocation), admitsAll } });
+    const first = (await run("changes", {}, bob)) as Changes;
+    await storage.delete("a1");
+    await storage.set("b2", { owner: "bob" });
+    reads.mockClear();
+    expect(idsOfChanges((await run("changes", { since: first.version }, bob)) as Changes)).toEqual({ full: false, changed: ["b2"], deleted: ["a1"] });
+    // One read of the log, as before CLI-78
+    expect(reads).toHaveBeenCalledTimes(1);
+    expect(admitsAll).toHaveBeenCalledTimes(1);
+    // A delta without a delete and without a refused row does not ask admitsAll
+    const second = (await run("changes", {}, bob)) as Changes;
+    await storage.set("b3", { owner: "bob" });
+    admitsAll.mockClear();
+    expect(idsOfChanges((await run("changes", { since: second.version }, bob)) as Changes)).toEqual({ full: false, changed: ["b3"], deleted: [] });
+    expect(admitsAll).not.toHaveBeenCalled();
+  });
+
+  it("gives a full answer when admitsAll fails or refuses: it does not leak an id", async () => {
+    const storage = notes();
+    const { run } = host(storage, { admission: { admit: ownRows, admitsAll: () => Promise.reject(new Error("the access lists are not available")) } });
+    const first = (await run("changes", {}, ann)) as Changes;
+    await storage.delete("b1");
+    expect(idsOfChanges((await run("changes", { since: first.version }, ann)) as Changes)).toEqual({ full: true, changed: ["a1", "a2", "p1"], deleted: [] });
   });
 
   it("gives a patch the found mark without the value when the rule refuses the new item", async () => {
@@ -358,7 +410,7 @@ describe("the rule of the rows of the change events (CLI-41)", () => {
     for (let turn = 0; turn < 5; turn++) await new Promise((resolve) => setImmediate(resolve));
   };
 
-  it("gives each subscriber of an event with values only the rows that the rule admits for it", async () => {
+  it("gives each subscriber of an event with values only the rows that the rule admits for it (CLI-78: no withheld id of a refused row)", async () => {
     const admission: CollectionAdmission = { admit: ownRows };
     const h = host(notes(), { admission, changeEvents: { values: true } });
     const annSub = await subscribe(h, ann);
@@ -368,9 +420,11 @@ describe("the rule of the rows of the change events (CLI-41)", () => {
     await h.run("setBatch", { items: [{ id: "a5", value: { owner: "ann" } }, { id: "b5", value: { owner: "bob" } }] }, ann);
     await settle();
     expect(annSub.received.map((event) => event.values?.map((row) => row.id))).toEqual([["a5"]]);
-    expect(annSub.received[0]!.withheld).toEqual(["b5"]);
+    expect(annSub.received[0]!.changed).toEqual(["a5"]);
+    expect(annSub.received[0]!.withheld).toBeUndefined();
     expect(bobSub.received.map((event) => event.values?.map((row) => row.id))).toEqual([["b5"]]);
-    expect(bobSub.received[0]!.withheld).toEqual(["a5"]);
+    expect(bobSub.received[0]!.changed).toEqual(["b5"]);
+    expect(bobSub.received[0]!.withheld).toBeUndefined();
     annSub.stop();
     bobSub.stop();
   });

@@ -444,6 +444,9 @@ export function resetGlobalEventBus(): void {
   globalBus = undefined;
 }
 
+/** The key of the bus under a view of a bus. */
+const BASE_BUS = Symbol.for("procedures.baseBus");
+
 /**
  * A view of a bus whose `stream()` and `once()` use a signal when the caller gives none. The
  * context of a procedure gets this view: when the invocation aborts, the handler's waits on
@@ -455,7 +458,7 @@ export function resetGlobalEventBus(): void {
  */
 export function withEventBusSignal(bus: EventBus, signal: AbortSignal): EventBus {
   const waitOptions = (options?: EventWaitOptions): EventWaitOptions => ({ signal: options?.signal ?? signal });
-  return {
+  const view: EventBus = {
     emit: (channel, data) => bus.emit(channel, data),
     on: (channel, handler, options) => bus.on(channel, handler, options),
     once: (channel, options) => bus.once(channel, waitOptions(options)),
@@ -466,6 +469,8 @@ export function withEventBusSignal(bus: EventBus, signal: AbortSignal): EventBus
     clear: (channel) => bus.clear(channel),
     clearAll: () => bus.clearAll(),
   };
+  // The bus under the view: the marks of the row filters of the events belong to it (roadmap CLI-78)
+  return Object.defineProperty(view, BASE_BUS, { value: (bus as { [BASE_BUS]?: EventBus })[BASE_BUS] ?? bus, enumerable: false });
 }
 
 // =============================================================================

@@ -20,6 +20,12 @@
  *   (`ctx.admit`): each row passes the filter, and the subscriber gets only the admitted rows.
  * - An open subscription gets the same checks again at a change of the rights (`rightsChanged()`,
  *   `recheck.rightsChanges`) and after `recheck.maxAge` (roadmap CLI-44). A refusal ends it.
+ * - The change events of a collection with a rule of the rows (`admission.admit`) reach each
+ *   subscriber through a row filter (roadmap CLI-78, `hint-filter.ts`). The subscriber gets only the
+ *   ids of the rows that it can read. A re-check at a change of the rights gives such a subscriber a
+ *   `reset` hint, so it reads its rows again.
+ * - The `seq` of an event counts the events that the subscriber gets. An event that the row filter
+ *   takes out gets no number, so the subscriber sees no gap.
  *
  * The delivery is at most once. The queue of a subscription holds at most `buffer` events. When
  * it is full, the publisher drops the oldest event, and the next event tells the number of lost
@@ -39,7 +45,8 @@ import { getGlobalEventBus } from "./bus.js";
 import { EVENTS_SUBSCRIBE_PATH, type EventItem, type SubscribeInput } from "./remote.js";
 import { admittedValue, rowsOf } from "./rows.js";
 import { realClock, type Clock } from "../clock.js";
-import { SubscriptionRechecks, type RightsChange, type SubscriptionRecheck } from "./recheck.js";
+import { SubscriptionRechecks, type RecheckCause, type RightsChange, type RightsScope, type RightsScopes, type SubscriptionRecheck } from "./recheck.js";
+import { DROPPED, RowHintFilter, collectionInvocation, collectionRulesOf, markFilteredTopic, type HintFilterMode } from "../procedures/collection/hint-filter.js";
 
 /** The number of topics that one subscription can name. */
 export const MAX_SUBSCRIPTION_TOPICS = 64;
@@ -172,7 +179,45 @@ const eventItemSchema = z.discriminatedUnion("type", [
 ]);
 
 /** A topic of a subscriber, and the topic of the bus that it listens to. */
-type Route = readonly [topic: string, busTopic: string];
+interface Route {
+  readonly topic: string;
+  readonly busTopic: string;
+  /** The collection of a topic of a collection, and its resolved partition (roadmap CLI-78). */
+  readonly collection?: string | undefined;
+  readonly partition?: string | undefined;
+  /** The partition that the topic names, before the resolver: the input of the rules has it. */
+  readonly requested?: string | undefined;
+}
+
+/** True when a change of the rights with this scope touches the rows of the route (roadmap CLI-78). */
+function inScope(route: Route, scope: RightsScopes | undefined): boolean {
+  if (scope === undefined) return true;
+  const scopes: readonly RightsScope[] = Array.isArray(scope) ? scope : [scope as RightsScope];
+  return scopes.some(({ collection, partition }) => matchesName(collection, route.collection) && matchesName(partition, route.partition));
+}
+
+/** True when a name of a route matches a field of a scope. A test that throws matches. */
+function matchesName(field: RightsScope["collection"], name: string | undefined): boolean {
+  if (field === undefined) return true;
+  if (name === undefined) return false;
+  if (typeof field === "string") return field === name;
+  try {
+    return field(name) === true;
+  } catch {
+    return true;
+  }
+}
+
+/** An event of the bus that waits in the queue of a subscription. It gets its `seq` when the subscriber gets it. */
+interface QueuedEvent {
+  readonly topic: string;
+  readonly data: unknown;
+}
+
+/** The `reset` hint that a re-check gives to a subscriber with a row filter (roadmap CLI-78). */
+function resetHint(): unknown {
+  return { changed: [], deleted: [], reset: true };
+}
 
 /**
  * One subscription: the listeners on the bus and the queue of its events. It is the async
@@ -182,7 +227,7 @@ type Route = readonly [topic: string, busTopic: string];
  */
 class TopicSubscription implements AsyncIterableIterator<EventItem> {
   private confirmation: EventItem | undefined;
-  private readonly queue: Array<Extract<EventItem, { type: "event" }>> = [];
+  private readonly queue: QueuedEvent[] = [];
   private seq = 0;
   private dropped = 0;
   private waiter:
@@ -207,10 +252,12 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
     private readonly admit: ((item: unknown) => Promise<boolean>) | undefined,
     /** The invocation of the subscription: the rule of the rows of a value gets it (roadmap CLI-41) */
     private readonly invocation?: Invocation | undefined,
+    /** The row filter of each topic of a collection, by the topic of the subscriber (roadmap CLI-78) */
+    private readonly filters?: ReadonlyMap<string, RowHintFilter> | undefined,
   ) {
-    this.confirmation = { type: "subscribed", topics: routes.map(([topic]) => topic) };
+    this.confirmation = { type: "subscribed", topics: routes.map(({ topic }) => topic) };
     // Before, clear() removed the listeners, and the subscriber saw no end (EVENTS.md)
-    this.unsubscribes = routes.map(([topic, busTopic]) =>
+    this.unsubscribes = routes.map(({ topic, busTopic }) =>
       bus.on(busTopic, (data) => this.push(topic, data), { onClear: () => this.fail(clearedError(topic), { keepQueue: true }) }),
     );
     signal?.addEventListener("abort", this.onAbort, { once: true });
@@ -227,7 +274,7 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
   /** This function takes one event of the bus. It never waits. */
   private push(topic: string, data: unknown): void {
     if (this.closed) return;
-    const event = { type: "event" as const, topic, data, seq: ++this.seq };
+    const event: QueuedEvent = { topic, data };
     const waiter = this.waiter;
     if (waiter && this.queue.length === 0 && !this.recheck) {
       this.waiter = undefined;
@@ -243,22 +290,44 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
   }
 
   /**
-   * The item of an event for the subscriber. The rows of its data pass the output filter of the
-   * host for this subscriber and the rule of the rows, and the subscriber gets only the admitted rows.
+   * This function gives a `reset` hint to the subscriber on a topic (roadmap CLI-78): its rights
+   * changed, so it reads its rows again. The hint goes after the events of the queue.
    */
-  private deliver(event: Extract<EventItem, { type: "event" }>): Promise<IteratorResult<EventItem>> {
-    const item = this.withDropped(event) as Extract<EventItem, { type: "event" }>;
-    const rows = rowsOf(item.data);
-    if (!rows || (!this.admit && !rows.admit)) return Promise.resolve({ value: item, done: false });
-    return admittedValue(item.data, this.admit, this.invocation).then((data): IteratorResult<EventItem> => ({ value: { ...item, data }, done: false }));
+  reset(topic: string): void {
+    this.filters?.get(topic)?.forget();
+    this.push(topic, resetHint());
   }
 
-  /** The event with the number of events that the publisher dropped before it. */
-  private withDropped(event: Extract<EventItem, { type: "event" }>): EventItem {
-    if (this.dropped === 0) return event;
+  /**
+   * The item of an event for the subscriber. The ids of a change event pass the row filter of the
+   * topic (roadmap CLI-78). The rows of its data pass the output filter of the host for this
+   * subscriber and the rule of the rows. The subscriber gets only the admitted rows. An event
+   * that the row filter takes out goes, and the subscriber gets the next event.
+   */
+  private deliver(event: QueuedEvent): Promise<IteratorResult<EventItem>> {
+    const filtered = this.filters?.get(event.topic)?.apply(event.data);
+    if (!filtered) return this.item(event.topic, event.data);
+    return filtered.then(
+      (data) => (data === DROPPED ? this.next() : this.item(event.topic, data)),
+      // A filter that fails: the subscriber reads the changes itself
+      () => this.item(event.topic, { changed: [], deleted: [] }),
+    );
+  }
+
+  /**
+   * The item of the data of an event. It gets the next `seq`, and the number of events that the
+   * publisher dropped before it. A dropped event keeps its number, so the subscriber sees the gap.
+   */
+  private item(topic: string, data: unknown): Promise<IteratorResult<EventItem>> {
     const dropped = this.dropped;
     this.dropped = 0;
-    return { ...event, dropped };
+    this.seq += dropped;
+    const item: Extract<EventItem, { type: "event" }> = { type: "event", topic, data, seq: ++this.seq, ...(dropped > 0 && { dropped }) };
+    const rows = rowsOf(data);
+    if (!rows || (!this.admit && !rows.admit)) return Promise.resolve({ value: item, done: false });
+    // The rule of the rows of a topic of a collection gets the invocation of that topic (roadmap CLI-78)
+    const invocation = this.filters?.get(topic)?.invocation ?? this.invocation;
+    return admittedValue(data, this.admit, invocation).then((admitted): IteratorResult<EventItem> => ({ value: { ...item, data: admitted }, done: false }));
   }
 
   next(): Promise<IteratorResult<EventItem>> {
@@ -441,10 +510,15 @@ export class EventPublisher {
    * and the partition. Its events wait for the check. A refusal ends the subscription with its
    * error, for example `FORBIDDEN`. The promise ends when each check ends, and it does not reject.
    *
+   * The change can also have a scope (roadmap CLI-78): the collections or the partitions whose rows
+   * it touches. Then only the topics of the scope with a row filter get a `reset` hint and a new
+   * `admitsAll`. Each touched subscription still gets the checks of its start.
+   *
    * @param change - The subscriptions that the change touches. Without it, each open subscription gets a check.
+   * @param scope - The rows that the change touches. Without it, the change touches each topic.
    */
-  rightsChanged(change?: RightsChange): Promise<void> {
-    return this.rechecks.rightsChanged(change);
+  rightsChanged(change?: RightsChange, scope?: RightsScopes): Promise<void> {
+    return this.rechecks.rightsChanged(change, scope);
   }
 
   /**
@@ -459,9 +533,9 @@ export class EventPublisher {
    */
   private async route(topic: string, ctx: ProcedureContext): Promise<Route> {
     const target = collectionTopicTarget(topic, ctx.repository);
-    if (!target) return [topic, topic];
+    if (!target) return { topic, busTopic: topic };
     const partition = await partitionOfCall(ctx, target.collection, target.partition);
-    return [topic, collectionChangeTopic(target.collection, partition)];
+    return { topic, busTopic: collectionChangeTopic(target.collection, partition), collection: target.collection, partition, requested: target.partition };
   }
 
   /**
@@ -506,12 +580,28 @@ export class EventPublisher {
    * because the listener has the old partition.
    */
   private async readmit(routes: ReadonlyArray<Route>, ctx: ProcedureContext): Promise<void> {
-    this.admitTopics(routes.map(([topic]) => topic), ctx);
-    for (const [topic, busTopic] of routes) {
-      if ((await this.route(topic, ctx))[1] !== busTopic) {
+    this.admitTopics(routes.map(({ topic }) => topic), ctx);
+    for (const { topic, busTopic } of routes) {
+      if ((await this.route(topic, ctx)).busTopic !== busTopic) {
         throw new InvocationError("FORBIDDEN", `The partition of the topic "${topic}" changed, so the subscription ends`, ctx.path, "partition-not-allowed");
       }
     }
+  }
+
+  /**
+   * The row filters of the topics of the collections of a subscription (roadmap CLI-78). Each one
+   * gets the rules of its collection and the result of `admitsAll`.
+   */
+  private async filtersOf(routes: ReadonlyArray<Route>, ctx: ProcedureContext): Promise<Map<string, RowHintFilter>> {
+    const filters = new Map<string, RowHintFilter>();
+    for (const { topic, collection, partition, requested } of routes) {
+      if (collection === undefined) continue;
+      // The rules get an invocation of the collection and its partition, not the call of `events.subscribe`
+      const filter = new RowHintFilter(() => collectionRulesOf(ctx, collection), collectionInvocation(ctx.invocation, ctx, collection, requested), partition);
+      await filter.refresh();
+      filters.set(topic, filter);
+    }
+    return filters;
   }
 
   /**
@@ -523,10 +613,44 @@ export class EventPublisher {
     this.admitTopics(unique, ctx);
     const routes: Route[] = [];
     for (const topic of unique) routes.push(await this.route(topic, ctx));
-    const subscription = new TopicSubscription(this.bus, routes, this.buffer, ctx.signal, (closed) => this.open.delete(closed), ctx.admit, ctx.invocation);
+    const filters = await this.filtersOf(routes, ctx);
+    const subscription = new TopicSubscription(this.bus, routes, this.buffer, ctx.signal, (closed) => this.open.delete(closed), ctx.admit, ctx.invocation, filters);
     this.open.add(subscription);
+    // The marks of the topics with a row filter: the writes of these topics read the rows before them (roadmap CLI-78)
+    const marks = new Map<string, () => void>();
+    let ended = false;
+    const mark = (route: Route, mode: HintFilterMode): void => {
+      if (ended) return;
+      const marked = marks.get(route.topic);
+      if (mode === "pass") {
+        marked?.();
+        marks.delete(route.topic);
+      } else if (!marked) {
+        marks.set(route.topic, markFilteredTopic(this.bus, route.busTopic));
+      }
+    };
+    for (const route of routes) {
+      const filter = filters.get(route.topic);
+      if (filter) mark(route, filter.mode);
+    }
+    subscription.onEnd(() => {
+      ended = true;
+      for (const unmark of marks.values()) unmark();
+      marks.clear();
+    });
     // The same checks run again at a change of the rights and after the max age (roadmap CLI-44)
-    this.rechecks.watch(subscription, ctx.principal, () => this.readmit(routes, ctx));
+    this.rechecks.watch(subscription, ctx.principal, async (cause: RecheckCause, scope?: RightsScopes) => {
+      await this.readmit(routes, ctx);
+      // The rights can change the rows that the subscriber reads: a `reset` hint makes it read them again (roadmap CLI-78)
+      for (const route of routes) {
+        const filter = filters.get(route.topic);
+        if (!filter || !inScope(route, scope)) continue;
+        const before = filter.mode;
+        const after = await filter.refresh();
+        mark(route, after);
+        if (after !== before || (cause === "rights" && after === "filter")) subscription.reset(route.topic);
+      }
+    });
     return subscription.closeIfAborted();
   }
 }

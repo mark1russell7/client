@@ -81,6 +81,9 @@ export type { CollectionPartitions, PartitionInput, PartitionResolver } from "./
 // The rules of the rows of a collection: a filter of the reads and a guard of the writes (roadmap CLI-41)
 export { admittedStorage, admitsRow } from "./admission.js";
 export type { CollectionAdmission, CollectionRow, CollectionWrite, CollectionWriteGuard } from "./admission.js";
+// The images of the rows of a change event, for the row filter of each subscriber (roadmap CLI-78)
+export { withHintImages, hintImagesOf } from "./hint-filter.js";
+export type { HintImages, HintRowState } from "./hint-filter.js";
 
 // The storage interface of the core (the shape of client-collections' CollectionStorage)
 export type {

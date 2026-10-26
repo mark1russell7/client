@@ -22,12 +22,18 @@
  *   listens to the topic, the procedures publish nothing, and the chain stops.
  * - The publishes of one storage and one topic run one at a time, in the order of the writes. A
  *   write resolves after its event is on the bus. A failed publish never fails the write.
+ * - With the rule `admission.admit`, the publisher filters the ids of each event for each
+ *   subscriber (roadmap CLI-78, `hint-filter.ts`). The event carries the rows after the changes,
+ *   from the change log. While a subscriber has a filter, each write first reads the rows before
+ *   it (`getBatch`). Thus a row that leaves the rule reaches that subscriber as a delete.
  */
 
 import type { EventBus } from "../../events/types.js";
 import { withRows } from "../../events/rows.js";
 import type { AdmitItem } from "../invoke.js";
 import type { StorageChanges } from "./storage.js";
+import type { CollectionAdmission } from "./admission.js";
+import { hasFilteredSubscriber, withHintImages, type HintRowState } from "./hint-filter.js";
 import type { RepositoryProvider } from "../types.js";
 import { collectionTopicTarget } from "./topic.js";
 
@@ -52,7 +58,10 @@ export interface CollectionChangeEvent {
    * Without the option, the event has no values: read them with `changes`.
    */
   readonly values?: ReadonlyArray<{ readonly id: string; readonly value: unknown }> | undefined;
-  /** With the option `values`: the changed ids whose values the filter refused. Read them with `changes`. */
+  /**
+   * With the option `values`: the changed ids whose values the output filter of the host refused.
+   * Read them with `changes`. A row that the rule of the rows refuses is not in the event (roadmap CLI-78).
+   */
   readonly withheld?: readonly string[] | undefined;
   /**
    * The version of each changed item, as `versionOf(id)` of the storage gives it (roadmap CLI-77).
@@ -90,6 +99,8 @@ export function collectionTopicReads(topic: string, repository?: RepositoryProvi
 /** The part of a storage that the change events read. */
 interface ChangeLog {
   getChangesSince?(since?: string): Promise<StorageChanges<unknown>>;
+  /** The stored items of the ids: the rows before a write, for the row filter of the subscribers (roadmap CLI-78). */
+  getBatch?(ids: string[]): Promise<Map<string, unknown>>;
 }
 
 /** A write that ended, and that no event told yet. */
@@ -99,6 +110,8 @@ interface EndedWrite {
   readonly origin: string | undefined;
   /** True when the chain had a version when the write started. */
   readonly anchored: boolean;
+  /** The stored items of the ids before the write, when a subscriber has a row filter (roadmap CLI-78). */
+  before?: ReadonlyMap<string, unknown> | undefined;
 }
 
 /** The chain of the events of one storage and one topic. */
@@ -152,7 +165,8 @@ function hint(version: string | undefined, origin: string | undefined): Collecti
 /**
  * The event of a delta with the values of the changed items. Each row `{ id, value }` passes the
  * output filter of each subscriber and the rule of the rows of the collection, and a refused row
- * goes from `values` to `withheld`.
+ * goes from `values` to `withheld`. The row filter of a subscriber (roadmap CLI-78) first takes the
+ * rows that the rule refuses out of the event. Thus only the output filter of the host withholds a row.
  */
 function withValues(event: CollectionChangeEvent, entries: ReadonlyArray<{ readonly id: string; readonly value: unknown }>, admit: AdmitItem | undefined): CollectionChangeEvent {
   return withRows(
@@ -174,7 +188,8 @@ function withValues(event: CollectionChangeEvent, entries: ReadonlyArray<{ reado
 }
 
 /** One publish: the event of the writes that ended since the last publish. */
-async function publish(chain: ChangeChain, storage: ChangeLog, bus: EventBus, topic: string, values: boolean, admit: AdmitItem | undefined): Promise<void> {
+async function publish(chain: ChangeChain, storage: ChangeLog, bus: EventBus, topic: string, values: boolean, admission: CollectionAdmission | undefined): Promise<void> {
+  const admit = admission?.admit;
   const writes = chain.ended.splice(0);
   // An earlier publish told these writes
   if (writes.length === 0) return;
@@ -211,7 +226,33 @@ async function publish(chain: ChangeChain, storage: ChangeLog, bus: EventBus, to
     deleted: changes.deleted,
     ...(origin !== undefined && { origin }),
   };
-  bus.emit(topic, values ? withValues(event, changes.changed.map(([id, value]) => ({ id, value })), admit) : event);
+  const out = values ? withValues(event, changes.changed.map(([id, value]) => ({ id, value })), admit) : event;
+  // The rows of the event for the row filter of each subscriber (roadmap CLI-78)
+  bus.emit(topic, admit ? withHintImages(out, { after: afterOf(changes), before: beforeOf(writes), admission: admission! }) : out);
+}
+
+/** The rows after the changes, from the change log: a changed id has its item, a deleted id has none. */
+function afterOf(changes: StorageChanges<unknown>): Map<string, HintRowState> {
+  const after = new Map<string, HintRowState>();
+  for (const id of changes.deleted) after.set(id, { found: false });
+  for (const [id, value] of changes.changed) after.set(id, { found: true, value });
+  return after;
+}
+
+/**
+ * The rows before the changes: for each id, the read of the first write that read it. An id
+ * without a read is unknown, so the filter of a subscriber makes a hint without ids for it.
+ */
+function beforeOf(writes: readonly EndedWrite[]): Map<string, HintRowState> {
+  const before = new Map<string, HintRowState>();
+  for (const write of writes) {
+    if (!write.before || write.ids === "*") continue;
+    for (const id of write.ids) {
+      if (before.has(id)) continue;
+      before.set(id, write.before.has(id) ? { found: true, value: write.before.get(id) } : { found: false });
+    }
+  }
+  return before;
 }
 
 /**
@@ -227,7 +268,7 @@ async function publish(chain: ChangeChain, storage: ChangeLog, bus: EventBus, to
  * @param origin - The origin of the write
  * @param write - The write
  * @param values - True: the events carry the values, for the output filter of each subscriber
- * @param admit - The rule of the rows of the collection: each subscriber applies it to the values (roadmap CLI-41)
+ * @param admission - The rules of the rows of the collection: each subscriber applies `admit` to the rows of the event (roadmap CLI-41, CLI-78)
  */
 export async function writeWithChangeEvent<R>(
   bus: EventBus | undefined,
@@ -237,16 +278,24 @@ export async function writeWithChangeEvent<R>(
   origin: string | undefined,
   write: () => Promise<R>,
   values = false,
-  admit?: AdmitItem,
+  admission?: CollectionAdmission,
 ): Promise<R> {
   if (bus === undefined || topic === undefined) return write();
   const chain = chainOf(storage, topic);
   const started: EndedWrite = { ids, origin, anchored: chain.anchor !== undefined };
+  // A subscriber with a row filter: the rows before the write tell it which rows left the rule (roadmap CLI-78)
+  if (admission?.admit && ids !== "*" && ids.length > 0 && storage.getBatch && hasFilteredSubscriber(bus, topic) && bus.hasSubscribers(topic)) {
+    try {
+      started.before = await storage.getBatch([...ids]);
+    } catch {
+      // Without the rows before the write, the filter of a subscriber makes a hint without ids
+    }
+  }
   try {
     return await write();
   } finally {
     chain.ended.push(started);
-    const run = chain.tail.then(() => publish(chain, storage, bus, topic, values, admit));
+    const run = chain.tail.then(() => publish(chain, storage, bus, topic, values, admission));
     chain.tail = run.catch(() => undefined);
     await chain.tail;
   }
