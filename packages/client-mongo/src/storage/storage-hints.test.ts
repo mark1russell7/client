@@ -405,6 +405,7 @@ describe("watchStorageChanges without a server (CLI-77)", () => {
     expect(() => watchStorageChanges(storage, publish, { ownWrites: "keep" as never })).toThrow(TypeError);
     expect(() => watchStorageChanges(storage, publish, { rawWrites: "ignore", sweep: true })).toThrow(TypeError);
     expect(() => watchStorageChanges(storage, publish, { sweep: "yes" as never })).toThrow(TypeError);
+    expect(() => watchStorageChanges(storage, publish, { adoptQueueLimit: 0 })).toThrow(RangeError);
   });
 
   it("rejects ready on a single server before it opens a stream", async () => {
@@ -414,6 +415,43 @@ describe("watchStorageChanges without a server (CLI-77)", () => {
     expect(streams).toEqual([]);
     expect(timers).toEqual([]);
     expect(logs.filter((line) => line.startsWith("error"))).toHaveLength(1);
+    await watch.stop();
+  });
+
+  it("sweeps the raw writes that did not fit in a full queue when the queue is empty", async () => {
+    const { storage, stream, clock, logs, log, published, publish } = fakeWatch();
+    const internals = storage as unknown as {
+      adoptRawAll: (raws: ReadonlyArray<{ storedId: unknown }>) => Promise<unknown[]>;
+      rawDocuments: (after: unknown, limit: number) => Promise<Document[]>;
+    };
+    // The first adoption waits until the test lets it end: the queue fills up behind it
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const adopted: unknown[] = [];
+    vi.spyOn(internals, "adoptRawAll").mockImplementation(async (raws) => {
+      if (adopted.length === 0) await gate;
+      adopted.push(...raws.map((raw) => raw.storedId));
+      return raws.map(() => "adopted");
+    });
+    // The sweep at the open finds nothing. The sweep after the queue is empty finds r4: it has no _seq yet
+    const limits: number[] = [];
+    vi.spyOn(internals, "rawDocuments").mockImplementation(async (_after, limit) => {
+      limits.push(limit);
+      return limits.length === 2 ? [{ _id: "r4", title: "raw" }] : [];
+    });
+    const watch = watchStorageChanges(storage, publish, { clock, log, adoptQueueLimit: 2 });
+    const changes = await stream();
+    // r1 is in the adoption, r2 and r3 wait, and r4 does not fit
+    for (const id of ["r1", "r2", "r3", "r4"]) changes.emit("change", { _id: { t: id }, operationType: "insert", fullDocument: { _id: id, title: "raw" }, documentKey: { _id: id } });
+    await vi.waitFor(() => expect(published).toHaveLength(1));
+    expect(published[0]!.event).toEqual({ changed: ["r4"], deleted: [] });
+    expect(logs.filter((line) => line.includes("wait for an adoption"))).toHaveLength(1);
+    expect(limits).toEqual([2]);
+    release();
+    await vi.waitFor(() => expect(adopted).toEqual(["r1", "r2", "r3", "r4"]));
+    // The sweep pages are no bigger than the queue
+    expect(limits).toEqual([2, 2]);
+    expect(published).toHaveLength(1);
     await watch.stop();
   });
 
@@ -948,9 +986,10 @@ withMongo("watchStorageChanges on MongoDB (CLI-77)", { timeout: TEST_TIMEOUT_MS 
       await eventually(() => expect(eventsOf(published, "r1")).toHaveLength(1));
       // The next getMore of the stream fails with an error that the driver does not resume (BadValue).
       // No error label: with the label ResumableChangeStreamError, the driver would resume the stream itself.
+      // The driver ends the stream with an error or a close: the watcher opens it again in both cases.
       await admin.command({ configureFailPoint: "failCommand", mode: { times: 1 }, data: { failCommands: ["getMore"], appName: "storage-hints-resume", errorCode: 2, errorLabels: [] } });
       await db.collection(collection).insertOne({ _id: "r2" as never, title: "during" });
-      await eventually(() => expect(logs.some((line) => line.startsWith("warn") && line.includes("the stream failed")), logs.join("\n")).toBe(true));
+      await eventually(() => expect(logs.some((line) => line.startsWith("warn") && line.includes("opens again")), logs.join("\n")).toBe(true));
       await db.collection(collection).insertOne({ _id: "r3" as never, title: "after" });
       await eventually(() => expect(eventsOf(published, "r3")).toHaveLength(1));
       expect(eventsOf(published, "r2")).toHaveLength(1);

@@ -27,7 +27,8 @@
  * - The adoptions wait in one queue for each watcher: one adoption at a time, and the raw writes
  *   that wait together take one block of numbers for each partition. An adoption that fails with
  *   an error that can go away tries again after the backoff. After the last try, the partition gets
- *   a gap hint: its subscribers read the changes.
+ *   a gap hint: its subscribers read the changes. When the queue is full, the hint of the next raw
+ *   write goes out without a version, and a sweep adopts those writes when the queue is empty.
  * - The adoption is exact only with the images before the change (`changeStreamPreAndPostImages`).
  *   An insert and a replace show their document, but an update shows only its fields: without the
  *   image, the `_seq` that the update kept comes from the lookup. When a write of the storage comes
@@ -156,10 +157,17 @@ export interface WatchStorageChangesOptions {
   /**
    * True: when the stream opens, and after each gap, the watcher adopts each document without
    * `_seq` (a raw write before the watcher started, or during the gap), in pages, through the queue
-   * of the adoptions. It needs `rawWrites: "adopt"`.
+   * of the adoptions. It needs `rawWrites: "adopt"`. With `false`, a sweep still runs after the
+   * queue of the adoptions was full, for the raw writes that did not fit.
    * @default true with `rawWrites: "adopt"`, else false
    */
   sweep?: boolean | undefined;
+  /**
+   * The most raw writes that wait for an adoption. Internal: for the tests.
+   * @internal
+   * @default 10_000
+   */
+  adoptQueueLimit?: number | undefined;
   /**
    * The backoff before the stream opens again after an error.
    * @default { initialDelay: ms(250), maxDelay: seconds(30), backoffMultiplier: 2, jitter: 1 }
@@ -407,6 +415,9 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
   if (options.sweep !== undefined && typeof options.sweep !== "boolean") throw new TypeError("sweep must be a boolean");
   if (options.sweep === true && !adoptRaw) throw new TypeError('sweep needs rawWrites: "adopt"');
   const sweepOn = options.sweep ?? adoptRaw;
+  const queueLimit = options.adoptQueueLimit ?? MAX_ADOPT_QUEUE;
+  if (!Number.isInteger(queueLimit) || queueLimit < 1) throw new RangeError("adoptQueueLimit must be a whole number of 1 or more");
+  const sweepPage = Math.min(SWEEP_PAGE, queueLimit);
 
   let stopped = false;
   let stream: ChangeStream | undefined;
@@ -423,7 +434,7 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
   /** The raw writes that wait for an adoption, and true while one adoption runs. */
   const queue: AdoptJob[] = [];
   let adopting = false;
-  /** True after the queue was full: the log tells it once, until the queue is empty. */
+  /** True after the queue was full, until it is empty: the log tells it once, and the sweep waits. */
   let full = false;
   /** The timers of the adoptions that try again. */
   const retries = new Map<Cancel, AdoptJob>();
@@ -563,14 +574,19 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
       adopting = false;
     }
     if (stopped) for (const job of queue.splice(0)) job.done?.();
+    // The queue is empty: the sweep of the raw writes that did not fit can start
+    else if (queue.length === 0) startSweep();
   };
 
   const enqueue = (job: AdoptJob): void => {
     if (stopped) return job.done?.();
-    if (queue.length >= MAX_ADOPT_QUEUE) {
-      if (!full) log("warn", `more than ${MAX_ADOPT_QUEUE} raw writes of ${source.collection} wait for an adoption: the next hints go out without a version`);
+    if (queue.length >= queueLimit) {
+      // The write keeps no _seq: the sweep after the queue is empty finds it and adopts it
+      if (!full) log("warn", `more than ${queueLimit} raw writes of ${source.collection} wait for an adoption: the next hints go out without a version, and a sweep adopts those writes when the queue is empty`);
       full = true;
-      publishItem(job.item);
+      sweepWanted = true;
+      // A write of the sweep had its hint already
+      if (!job.done) publishItem(job.item);
       return job.done?.();
     }
     queue.push(job);
@@ -593,7 +609,7 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
     try {
       for (;;) {
         if (stopped) return;
-        const page = await source.rawDocuments(last, SWEEP_PAGE);
+        const page = await source.rawDocuments(last, sweepPage);
         const end = page[page.length - 1];
         if (!end) break;
         last = { id: end["_id"] };
@@ -611,7 +627,7 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
           waits.push(new Promise<void>((resolve) => enqueue({ item, raw: { storedId: doc["_id"], seq: undefined, after: doc }, tries: 0, done: resolve })));
         }
         await Promise.all(waits);
-        if (page.length < SWEEP_PAGE) break;
+        if (page.length < sweepPage) break;
       }
       if (count > 0 && !stopped) log("info", `the sweep of ${source.collection} sent ${count} documents without _seq to the adoption`);
     } catch (error) {
@@ -620,7 +636,8 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
   };
 
   const startSweep = (): void => {
-    if (!sweepWanted || sweeping || stopped) return;
+    // A full queue: the sweep starts when the queue is empty
+    if (!sweepWanted || sweeping || stopped || full) return;
     sweepWanted = false;
     sweeping = true;
     void sweep().finally(() => {
