@@ -148,7 +148,14 @@ The CI names below are the jobs and the steps of `.github/workflows/ci.yml`.
 
 - **Rule.** [WIRE-PROTOCOL.md](./WIRE-PROTOCOL.md) is the wire format. The method name and the path in an HTTP body use the same encoding. Each error gets its code from the error registry (`ERROR_REGISTRY`). The option `errors` of the server (`ServerOptions.errors`, CLI-80) is the only policy that tells what an error shows. An MCP error has `_meta: { code, retryable }`.
 - **Reason.** Each face (HTTP, WebSocket, MCP, the peer) then gives the same call and the same error. A client can then retry from the code, on each face.
-- **Guard.** The tests of each transport, for example the golden tests of the wire (`packages/client/src/protocol.golden.test.ts` and `packages/client/test/wire/`). Planned: one contract suite over HTTP, WebSocket, MCP and the peer (CLI-85).
+- **Guard.** The transport contract suite (CLI-85): `packages/client/test/contract/transport.contract.ts`. Each face sends the same cases through `describeTransportContract()`.
+  - The faces of the client: the local transport, HTTP, the Express shim, two WebSocket servers and a message port (`packages/client/src/server/conformance.test.ts`).
+  - The MCP faces: an in-memory pair and Streamable HTTP (`packages/client-mcp/src/transport/conformance.test.ts`).
+  - The HTTP, WebSocket and MCP faces of a procedure host, as a peer serves them (`packages/client-server/src/host/contract.test.ts`).
+  - The cases of a call: the result, the code and the flag of an error, the error policy, a validation error and `NOT_FOUND`.
+  - The other cases: a segment with "." and "%", a stream, an abort, a subscription, the principal and the size limit.
+  - A face that does not have a feature declares a capability flag, and the suite skips the case of that feature.
+  - The golden tests of the wire: `packages/client/src/protocol.golden.test.ts` and `packages/client/test/wire/`.
 
 ### I5. Storage writes
 
@@ -160,7 +167,12 @@ The CI names below are the jobs and the steps of `.github/workflows/ci.yml`.
 
 - **Rule.** One rule, `admission.admit`, examines the reads, the delta of `changes` and the change hints (CLI-78). `admitsAll` is the only fast path. A change of the rights acts through the re-check of CLI-44 and `rightsChanged(change?, scope?)`.
 - **Reason.** A read, an event and a hint then cannot show different rows to one caller.
-- **Guard.** The tests, for example `packages/client/src/procedures/collection/admission.test.ts`, `packages/client/src/procedures/collection/row-hints.test.ts` and `packages/client/src/events/recheck.test.ts`. Planned: an admission contract test (CLI-85).
+- **Guard.** The admission contract test (CLI-85): `packages/client/src/procedures/collection/admission.contract.test.ts`.
+  - The test reads the procedures of a served collection from the registry of the server. A procedure whose effects read `collection:<name>` is a procedure of the collection.
+  - Each procedure of the collection must have a row in the tables of the test. A new procedure without a row fails the test.
+  - Each read must give its invocation to `admit`, with and without a partition. Each read of a principal must give only the admitted rows.
+  - The change events of each write, with and without values, must not show a refused row to a subscriber.
+  - Other tests: `packages/client/src/procedures/collection/admission.test.ts`, `packages/client/src/procedures/collection/row-hints.test.ts` and `packages/client/src/events/recheck.test.ts`.
 
 ### I7. Public API
 

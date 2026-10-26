@@ -561,7 +561,8 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
         serverRequest = toServerRequest(req, await readBody(req));
       } catch (error) {
         const status = error instanceof BodyError ? error.httpStatus : 400;
-        sendError(res, status, (error as Error).message, "INVALID_REQUEST");
+        // A body above the limit is PAYLOAD_TOO_LARGE, as on the MCP face and the WebSocket face (CLI-85)
+        sendError(res, status, (error as Error).message, status === 413 ? "PAYLOAD_TOO_LARGE" : "INVALID_REQUEST");
         return;
       }
       if (!serverRequest) {

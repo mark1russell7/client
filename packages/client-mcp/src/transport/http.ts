@@ -383,10 +383,23 @@ export function createHttpTransport(
         refuseStopping(res);
         return;
       }
+      // The endpoint reads the body of a POST of the session to the limit, as for an initialize.
+      // Thus a body above the limit gets the code PAYLOAD_TOO_LARGE in a session too (CLI-85).
+      // Before, the SDK read it and refused it without a code.
+      let parsed: unknown;
+      if (req.method === "POST") {
+        try {
+          parsed = await readJsonBody(req, maxBodyBytes);
+        } catch (error) {
+          const status = error instanceof BodyError ? error.httpStatus : 400;
+          refuse(res, status, status === 413 ? "PAYLOAD_TOO_LARGE" : "BAD_REQUEST", error instanceof Error ? error.message : String(error));
+          return;
+        }
+      }
       lastUsed.set(sessionId, Date.now());
       // A call or a GET stream keeps its session busy until its response closes
       track(sessionId, res);
-      await transport.handleRequest(req, res);
+      await transport.handleRequest(req, res, parsed);
       return;
     }
     let body: unknown;

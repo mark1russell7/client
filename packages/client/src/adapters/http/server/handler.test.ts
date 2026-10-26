@@ -248,12 +248,12 @@ describe("procedureHandler: the error codes of wire v1 (CLI-3)", () => {
     expect((await send(port, "POST", "/api/proc/proc/echo", JSON_HEADERS, '{"text":"a"}')).status).toBe(200);
   });
 
-  it("answers INVALID_REQUEST for a bad body, a bad X-Metadata header and a URL without a method", async () => {
+  it("answers INVALID_REQUEST for a bad body, a bad X-Metadata header and a URL without a method, and PAYLOAD_TOO_LARGE for a large body", async () => {
     const { port } = await startApp({ bodyLimit: 16 });
     const bad = await send(port, "POST", "/api/proc/proc/echo", JSON_HEADERS, "{nope");
     expect([bad.status, JSON.parse(bad.body).code]).toEqual([400, "INVALID_REQUEST"]);
     const large = await send(port, "POST", "/api/proc/proc/echo", JSON_HEADERS, JSON.stringify({ text: "x".repeat(64) }));
-    expect([large.status, JSON.parse(large.body).code]).toEqual([413, "INVALID_REQUEST"]);
+    expect([large.status, JSON.parse(large.body).code]).toEqual([413, "PAYLOAD_TOO_LARGE"]);
     const header = await send(port, "POST", "/api/proc/proc/echo", { ...JSON_HEADERS, "x-metadata": "%7Bnot-json" }, "{}");
     expect([header.status, JSON.parse(header.body).code]).toEqual([400, "INVALID_REQUEST"]);
     // Four URL segments name no method. One segment names a path of one segment (CLI-28)
