@@ -6,14 +6,15 @@
  */
 
 import { existsSync } from "node:fs";
-import { execSync } from "node:child_process";
+import type { ProcedureContext } from "@procedures/client";
+import { runPnpm } from "./shared.js";
 import type { PnpmStorePathInput, PnpmStorePathOutput } from "../../types.js";
 
 /**
  * Get pnpm store path
  *
- * Uses `pnpm store path` command to get the actual store location.
- * Falls back to platform-specific defaults if command fails.
+ * Runs `pnpm store path` through `shell.run` (argv, no shell) to get the actual store location.
+ * Falls back to platform-specific defaults if the command fails.
  *
  * Store locations by platform:
  * - Windows: %LocalAppData%\pnpm\store or %AppData%\pnpm\store
@@ -23,22 +24,12 @@ import type { PnpmStorePathInput, PnpmStorePathOutput } from "../../types.js";
  * const result = await client.call(["pnpm", "store", "path"], {});
  * console.log(result.path); // "C:\Users\user\AppData\Local\pnpm\store\v3"
  */
-export async function pnpmStorePath(input: PnpmStorePathInput): Promise<PnpmStorePathOutput> {
+export async function pnpmStorePath(input: PnpmStorePathInput, ctx: ProcedureContext): Promise<PnpmStorePathOutput> {
   const platform = process.platform;
-  let storePath = "";
-
-  try {
-    // Try to get store path from pnpm directly
-    const opts: { cwd?: string; encoding: "utf8" } = { encoding: "utf8" };
-    if (input.cwd) {
-      opts.cwd = input.cwd;
-    }
-
-    storePath = execSync("pnpm store path", opts).trim();
-  } catch {
-    // Fallback to platform-specific defaults
-    storePath = getDefaultStorePath(platform);
-  }
+  // runPnpm does not throw: pnpm not found or a failed command gives a result that is not a success
+  const result = await runPnpm(["store", "path"], { cwd: input.cwd }, ctx);
+  const printed = result.success ? result.stdout.trim() : "";
+  const storePath = printed || getDefaultStorePath(platform);
 
   return {
     path: storePath,

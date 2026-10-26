@@ -1,11 +1,13 @@
 /**
- * The procedures of @procedures/tailscale as data. Importing this file registers nothing.
+ * The procedures of @procedures/tailscale as data. Importing this file registers nothing. The
+ * module requires the module of `@procedures/shell`: `tailscale.run` calls `shell.run`.
  */
 
 import { defineModule, registerModules, PROCEDURE_REGISTRY, type ProcedureModule, type ProcedureRegistry } from "@procedures/client";
+import shellModule from "@procedures/shell/module";
 import { createTailscaleProcedures, tailscaleProcedures, type TailscaleProceduresOptions } from "./procedures.js";
 
-export const tailscaleModule: ProcedureModule = defineModule("@procedures/tailscale", tailscaleProcedures);
+export const tailscaleModule: ProcedureModule = defineModule("@procedures/tailscale", tailscaleProcedures, [shellModule]);
 
 export default tailscaleModule;
 
@@ -19,7 +21,7 @@ export default tailscaleModule;
  */
 export function createTailscaleModule(options: TailscaleProceduresOptions = {}): ProcedureModule {
   if (options.executable === undefined) return tailscaleModule;
-  return defineModule("@procedures/tailscale", createTailscaleProcedures(options));
+  return defineModule("@procedures/tailscale", createTailscaleProcedures(options), [shellModule]);
 }
 
 /**

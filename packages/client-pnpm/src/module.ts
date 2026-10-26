@@ -159,14 +159,15 @@ const pnpmStorePathProcedure = createProcedure()
   .output(PnpmStorePathOutputSchema)
   .meta({
     description: "Get pnpm store path for snapshot/restore",
+    calls: ["shell.run"],
     // `pnpm store path` only reads the configuration of pnpm
     effects: { reads: ["fs"], writes: [] },
     args: [],
     shorts: { cwd: "C" },
     output: "json",
   })
-  .handler(async (input: PnpmStorePathInput): Promise<PnpmStorePathOutput> => {
-    return pnpmStorePath(input);
+  .handler(async (input: PnpmStorePathInput, ctx: ProcedureContext): Promise<PnpmStorePathOutput> => {
+    return pnpmStorePath(input, ctx);
   })
   .build();
 

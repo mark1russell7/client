@@ -219,7 +219,7 @@ Decision D17 makes a one-shot command a service too: a `mark` command, and the k
 A procedure that wraps a CLI tool starts its program with one run path: a nested call of `shell.run`, through `ctx.client`. The dedupe review found two paths (F2, tracker item O60).
 
 - `defineCliTool()` of `@procedures/shell/cli` is the runner. It gives `run`, `runJson`, `output`, `json`, the argument guard and the shared result schema.
-- `gh`, `npm`, `pnpm`, `docker` and `cli.run` use it. A new wrapper package also uses it.
+- `gh`, `npm`, `pnpm`, `docker`, `tailscale` and `cli.run` use it. A new wrapper package also uses it.
 - The tests use `fakeShell()` of `@procedures/shell/testing`. It has the schemas, the effects and the root rules of the real shell procedures.
 
 The reasons for the nested call:
@@ -235,9 +235,9 @@ The reasons for the nested call:
 - `vitest.run` and `vite.build` keep the end of a long output (`keep: "tail"`). `shell.run` keeps the start.
 - `runRestic()` of `@procedures/restic` takes a runner from a test, and it has no procedure context.
 - A long-running process, for example `vite.dev`, starts through `processes` of `@procedures/shell/command`.
-- These packages and `@procedures/tailscale` use the argument helpers of `@procedures/shell/cli`.
+- These packages use the argument helpers of `@procedures/shell/cli`.
 
-The tailscale procedures need no part of that list. Their move to `shell.run` is open work.
+The tailscale procedures and `pnpm.store.path` moved to `shell.run` in tracker item O64.
 
 ## The three decisions of the brief
 
