@@ -303,7 +303,9 @@ describe("expose: \"coded\" hides each error without a known code (CLI-80)", () 
           served.logged.length = 0;
           const seen = await callerError(transport, { kind, at });
           expect(seen, face).toMatchObject({ ...HIDDEN, retryable: HIDDEN_RETRYABLE[kind] });
-          for (const leak of ["E11000", "ECONNREFUSED", "19100", "hunter2", "DuplicateKey", "email"]) expect(seen.text, `${face}: ${leak}`).not.toContain(leak);
+          for (const leak of ["E11000", "ECONNREFUSED", "hunter2", "DuplicateKey", "email"]) expect(seen.text, `${face}: ${leak}`).not.toContain(leak);
+          // The port only as the address or the field: a bare "19100" can occur in a responseId (a Date.now() prefix)
+          for (const leak of [/127\.0\.0\.1:19100/, /"port"\s*:\s*19100/]) expect(seen.text, `${face}: ${leak}`).not.toMatch(leak);
           expect(served.logged, face).toHaveLength(1);
           expect((served.logged[0] as Error).message, face).toBe((errorOf(kind) as Error).message);
           expect((served.logged[0] as Error).stack, face).toBeTypeOf("string");
