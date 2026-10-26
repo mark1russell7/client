@@ -1,7 +1,8 @@
 /**
  * The error policy of the server (roadmap CLI-80) on the MCP face. The server applies the policy
  * in `handle()`, so the tool result of an error has the code and the message of the policy, before
- * a stream and at the end of a stream.
+ * a stream and at the end of a stream. The last-resort catch of the face (when
+ * `handle()` throws) applies the same policy.
  *
  * The HTTP and WebSocket faces have the same cases in `client/src/server/error-policy.test.ts`.
  */
@@ -63,10 +64,10 @@ afterEach(async () => {
 });
 
 /** An MCP client of a server with the error policy, and the errors that the logger of the server got. */
-async function start(errors: ServerErrorPolicy | undefined) {
+async function start(errors: ServerErrorPolicy | undefined, onRequest?: () => void) {
   const registry = registryOf();
   const logged: Error[] = [];
-  const server = new ProcedureServer({ registry, autoRegister: true, onError: (error) => void logged.push(error), ...(errors ? { errors } : {}) });
+  const server = new ProcedureServer({ registry, autoRegister: true, onError: (error) => void logged.push(error), ...(errors ? { errors } : {}), ...(onRequest ? { onRequest } : {}) });
   const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
   server.addTransport(new McpServerTransport(server, { registry, sdkTransport: serverSide }));
   await server.start();
@@ -117,6 +118,22 @@ describe("the error policy on the MCP face (CLI-80)", () => {
     expect(await call("coded")).toMatchObject({ code: "NOT_FOUND", text: "No user has the id u1", retryable: false });
     expect(await call("conflict")).toMatchObject({ code: "CONFLICT", text: "The row changed", retryable: true });
     expect(logged).toEqual([]);
+  });
+
+  it("the last-resort catch sends the raw message without a policy, as before", async () => {
+    const { call } = await start(undefined, () => {
+      throw new Error(MONGO_MESSAGE);
+    });
+    expect(await call("coded")).toMatchObject({ code: "INTERNAL_ERROR", text: MONGO_MESSAGE });
+  });
+
+  it('the last-resort catch sends "internal error" under "coded" when handle() throws, and logs the real error one time', async () => {
+    const { call, logged } = await start({ expose: "coded" }, () => {
+      throw new Error(MONGO_MESSAGE);
+    });
+    const seen = await call("coded");
+    expect(seen).toMatchObject({ code: "INTERNAL_ERROR", text: "internal error", retryable: false });
+    expect(logged.map((error) => error.message)).toEqual([MONGO_MESSAGE]);
   });
 
   it("map runs first, and its result goes out as it is", async () => {

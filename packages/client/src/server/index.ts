@@ -41,6 +41,7 @@
 export { Server } from "./server.js";
 export type { ServerOptions } from "./server.js";
 export type { ServerErrorPolicy, ExposedError, ErrorCall } from "./error-policy.js";
+export { exposeError, lastResortError, HIDDEN_ERROR_MESSAGE } from "./error-policy.js";
 
 export { ProcedureServer, createProcedureServer, STREAM_METADATA_KEY, isUnboundedStream } from "./procedure-server.js";
 export type { ProcedureServerOptions, RegisterProcedureOptions, StorageConfig, StopOptions, StopParts, StorageHandle, UseStorageOptions } from "./procedure-server.js";

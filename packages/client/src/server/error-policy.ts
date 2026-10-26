@@ -3,23 +3,30 @@
  * the process.
  *
  * `Server.handle()` applies the policy to each response, so each face of the server (HTTP,
- * WebSocket, MCP, a message port, the local face of a host) sends the same error. A nested call
+ * WebSocket, MCP, a message port, the local face of a host) sends the same error. When
+ * `handle()` throws, or a face fails after it (for example, a value that JSON cannot encode), the
+ * last-resort catch of the face applies the same policy through `lastResortError`. A nested call
  * of `ctx.client` does not go through `handle()`, so it keeps the real error.
  *
  * - `expose: "all"` (the default): each error goes to the caller as before.
- * - `expose: "coded"`: an error with a known code (`isKnownErrorCode`) goes to the caller as it
- *   is. Each other error goes to the caller as `INTERNAL_ERROR` with the message
- *   `"internal error"`, and the server logs it.
+ * - `expose: "coded"`: an error with a known code (`isKnownErrorCode`, or a code of `codes`) goes
+ *   to the caller as it is. Each other error goes to the caller as `INTERNAL_ERROR` with the
+ *   message `"internal error"`, and the server logs it one time.
  * - `map` runs first. Its result goes to the caller as it is. `undefined` gives the error to
  *   `expose`.
+ *
+ * The policy reads the real error of a response through the links of `error-response.ts`: the
+ * status object, and the request object with the code and the message of the status. A copy of
+ * the response or of its status keeps a link.
  */
 
 import type { ProcedurePath } from "../procedures/types.js";
 import { closableUnread } from "../procedures/invoke.js";
 import { isKnownErrorCode } from "../client/errors/registry.js";
 import { errorCodeOf } from "../protocol.js";
+import { ERROR_METADATA_KEYS, errorResponse, realErrorOf } from "./error-response.js";
 import { methodToPath } from "./method.js";
-import { ServerError, type ServerRequest, type ServerResponse } from "./types.js";
+import { ServerError, type RequestHandler, type ServerRequest, type ServerResponse } from "./types.js";
 
 /** The error that the caller gets: its code, its message and its retryable flag. A `ServerError` is one. */
 export interface ExposedError {
@@ -32,11 +39,13 @@ export interface ExposedError {
    * code before the first item of a stream, and false after it (`retryableOf`).
    */
   readonly retryable?: boolean | undefined;
+  /** The wait before a retry, in milliseconds, as on an error of a handler (`Retry-After` on HTTP). */
+  readonly retryAfterMs?: number | undefined;
 }
 
 /** The call of an error that leaves the server. */
 export interface ErrorCall {
-  /** The path of the procedure. */
+  /** The path of the procedure. Empty when the face failed before it knew the call. */
   readonly path: ProcedurePath;
   /** The face that took the request (`http`, `websocket`, `port`, `mcp`), when the face tells it. */
   readonly transport?: string | undefined;
@@ -48,18 +57,25 @@ export interface ServerErrorPolicy {
    * Which errors go to the caller as they are:
    * - `"all"` (the default): each error, with its code and its message, as before.
    * - `"coded"`: only an error with a known code (`isKnownErrorCode`: `NOT_FOUND`, `FORBIDDEN`,
-   *   `VALIDATION_ERROR`, `CONFLICT` and so on), with its code, its message, its retryable flag
-   *   and its metadata. Each other error goes to the caller as `INTERNAL_ERROR` with the message
-   *   `"internal error"`, not retryable and without metadata. The codes `INTERNAL_ERROR`,
-   *   `HANDLER_ERROR` and `UNKNOWN` tell of a failure, not of a refusal, so their message is
-   *   hidden too. The server gives the real error to its `onError` logger, or to `console.error`
-   *   without a logger.
+   *   `VALIDATION_ERROR`, `CONFLICT` and so on, or a code of `codes`), with its code, its
+   *   message, its retryable flag and its metadata. Each other error goes to the caller as
+   *   `INTERNAL_ERROR` with the message `"internal error"` and its real retryable flag, without
+   *   the metadata of the error. The codes `INTERNAL_ERROR`, `HANDLER_ERROR`, `UNKNOWN`,
+   *   `OUTPUT_VALIDATION_ERROR` and `NO_OUTPUT` tell of a failure of the server, not of a
+   *   refusal, so their message is hidden too. The server gives the real error to its `onError`
+   *   logger one time, or to `console.error` without a logger.
    */
   readonly expose?: "all" | "coded" | undefined;
   /**
+   * The codes of the application that also go to the caller as they are under `"coded"`, for
+   * example `["QUOTA_EXCEEDED"]`.
+   */
+  readonly codes?: readonly string[] | undefined;
+  /**
    * This function runs first, for each error that leaves the server. Its result goes to the
-   * caller as it is, also with a code of the application. `undefined` gives the error to
-   * `expose`. A function that throws gives `INTERNAL_ERROR`.
+   * caller as it is, also with a code of the application, and with the metadata of an error of a
+   * handler (`retryAfterMs`, the conflicts of a `VERSION_CONFLICT` error). `undefined` gives the
+   * error to `expose`. A function that throws gives `INTERNAL_ERROR`.
    */
   readonly map?: ((error: unknown, call: ErrorCall) => ExposedError | undefined) | undefined;
 }
@@ -67,36 +83,44 @@ export interface ServerErrorPolicy {
 /** The message of a hidden error. */
 export const HIDDEN_ERROR_MESSAGE = "internal error";
 
-/** The codes that tell of a failure, not of a refusal: `"coded"` hides their message. */
-const FAILURE_CODES: ReadonlySet<string> = new Set(["INTERNAL_ERROR", "HANDLER_ERROR", "UNKNOWN"]);
+/** The codes that tell of a failure of the server, not of a refusal: `"coded"` hides their message. */
+const FAILURE_CODES: ReadonlySet<string> = new Set(["INTERNAL_ERROR", "HANDLER_ERROR", "UNKNOWN", "OUTPUT_VALIDATION_ERROR", "NO_OUTPUT"]);
+
+/** The errors that a logger got: each path logs an error one time. */
+const LOGGED = new WeakSet<object>();
 
 /**
- * The real error of each error status that the server made from an error. The key is the status
- * object: a copy of a response (`{ ...response, id }`) keeps it, and the wire never sees it.
- */
-const ERRORS_OF_STATUSES = new WeakMap<object, unknown>();
-
-/**
- * This function records the real error of an error response, for the error policy. The response
- * does not change.
+ * This function records that the logger of the server got this error, so the error policy does
+ * not log it again.
  *
  * @internal
  */
-export function withRealError<T extends ServerResponse<unknown>>(response: T, error: unknown): T {
-  ERRORS_OF_STATUSES.set(response.status, error);
-  return response;
+export function markLogged(error: unknown): void {
+  if (typeof error === "object" && error !== null) LOGGED.add(error);
 }
 
 /** The logger of the hidden errors: the hook `onError` of the server, or `console.error`. */
-export type HiddenErrorLog = (error: unknown, request: ServerRequest<unknown>) => void;
+export type HiddenErrorLog = (error: unknown, request: ServerRequest<unknown> | undefined) => void;
+
+/** This function gives an error to the logger, when the logger did not get it before. */
+function logOnce(log: HiddenErrorLog, error: unknown, request: ServerRequest<unknown> | undefined): void {
+  if (typeof error === "object" && error !== null && LOGGED.has(error)) return;
+  markLogged(error);
+  log(error, request);
+}
 
 /** True when the policy can change a response: `"coded"`, or a `map` function. */
 export function policyActs(policy: ServerErrorPolicy | undefined): policy is ServerErrorPolicy {
   return policy !== undefined && (policy.expose === "coded" || policy.map !== undefined);
 }
 
-/** The call of a request, for `map`. */
-function callOf(request: ServerRequest<unknown>): ErrorCall {
+/**
+ * The call of a request, for `map`.
+ *
+ * @internal
+ */
+export function callOf(request: ServerRequest<unknown> | undefined): ErrorCall {
+  if (request === undefined) return { path: [] };
   let path: ProcedurePath;
   try {
     path = methodToPath(request.method);
@@ -114,58 +138,67 @@ type Decision =
 
 /**
  * The decision of the policy for one error. `code` is the code that the error has on the wire. A
- * `map` result is final. `"coded"` keeps an error with a known code that is not a failure code.
+ * `map` result is final. `"coded"` keeps an error with a code of `codes`, or with a known code
+ * that is not a failure code.
  */
-function decide(policy: ServerErrorPolicy, error: unknown, code: string, request: ServerRequest<unknown>, log: HiddenErrorLog): Decision {
+function decide(policy: ServerErrorPolicy, error: unknown, code: string, call: ErrorCall, logMapError: (error: unknown) => void): Decision {
   if (policy.map) {
     let mapped: ExposedError | undefined;
     try {
-      mapped = policy.map(error, callOf(request));
+      mapped = policy.map(error, call);
     } catch (mapError) {
-      log(mapError, request);
+      logMapError(mapError);
       return { kind: "hide" };
     }
     if (mapped !== undefined) return { kind: "replace", error: mapped };
   }
   if (policy.expose !== "coded") return { kind: "keep" };
+  if (policy.codes?.includes(code) === true) return { kind: "keep" };
   if (isKnownErrorCode(code) && !FAILURE_CODES.has(code)) return { kind: "keep" };
   return { kind: "hide" };
 }
 
+/** A `map` result as an error: a result that is not an `Error` becomes one, with its fields. */
+function errorOfResult(result: ExposedError): Error {
+  return result instanceof Error ? result : Object.assign(new Error(result.message), result);
+}
+
+/** The metadata of a response without the keys that an error gives (the reason, the wait, the conflicts). */
+function withoutErrorKeys(metadata: ServerResponse<unknown>["metadata"]): ServerResponse<unknown>["metadata"] {
+  const kept: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(metadata ?? {})) if (!ERROR_METADATA_KEYS.has(key)) kept[key] = value;
+  return kept as ServerResponse<unknown>["metadata"];
+}
+
 /**
  * This function applies the error policy to a response that leaves the server: to an error
- * status, and to the error that ends a stream. `logged` is true when the server gave the error to
- * its logger already.
+ * status, and to the error that ends a stream.
  *
  * @internal
  */
-export function exposedResponse<T>(
-  policy: ServerErrorPolicy,
-  request: ServerRequest<unknown>,
-  response: ServerResponse<T>,
-  log: HiddenErrorLog,
-  logged = false,
-): ServerResponse<T> {
+export function exposedResponse<T>(policy: ServerErrorPolicy, request: ServerRequest<unknown>, response: ServerResponse<T>, log: HiddenErrorLog): ServerResponse<T> {
   const status = response.status;
   if (status.type === "error") {
     // A response that the server made without an error (a refusal of the token, a duplicate
-    // stream) gives `map` a ServerError of its status
-    const real = ERRORS_OF_STATUSES.has(status) ? ERRORS_OF_STATUSES.get(status) : new ServerError(status.message, status.code, status.retryable);
-    const decision = decide(policy, real, status.code, request, log);
+    // stream), or a status without the link, gives `map` a ServerError of its status
+    const link = realErrorOf(response, request);
+    const real = link.found ? link.error : new ServerError(status.message, status.code, status.retryable);
+    const decision = decide(policy, real, status.code, callOf(request), (mapError) => logOnce(log, mapError, request));
     if (decision.kind === "keep") return response;
-    if (decision.kind === "hide" && !logged) log(real, request);
-    const exposed = decision.kind === "replace" ? decision.error : undefined;
     const { stream: _stream, payload: _payload, ...rest } = response;
+    // The metadata keys that the error did not give (for example, headers of a middleware) stay
+    const kept = withoutErrorKeys(response.metadata);
+    if (decision.kind === "replace") {
+      // The usual error response of the result: its wait and its conflicts go out too
+      const built = errorResponse(response.id, errorOfResult(decision.error));
+      return { ...rest, status: built.status, metadata: { ...kept, ...built.metadata } };
+    }
+    logOnce(log, real, request);
     return {
       ...rest,
-      status: {
-        type: "error",
-        code: exposed?.code ?? "INTERNAL_ERROR",
-        message: exposed?.message ?? HIDDEN_ERROR_MESSAGE,
-        retryable: exposed?.retryable ?? false,
-      },
-      // The metadata of the real error (a reason, a wait, the conflicts) does not go out
-      metadata: {},
+      // The retryable flag tells nothing private: a transient failure stays retryable
+      status: { type: "error", code: "INTERNAL_ERROR", message: HIDDEN_ERROR_MESSAGE, retryable: status.retryable },
+      metadata: kept,
     };
   }
   if (response.stream === undefined) return response;
@@ -174,23 +207,56 @@ export function exposedResponse<T>(
 
 /**
  * The items of a stream, with the error policy for the error that ends it. A kept error goes on
- * unchanged. Another error goes on as a `ServerError` of its exposed code and message.
+ * unchanged. Another error goes on as an error of its exposed code and message.
  */
 function exposedStream<T>(policy: ServerErrorPolicy, request: ServerRequest<unknown>, items: AsyncIterable<T>, log: HiddenErrorLog): AsyncGenerator<T, void, undefined> {
   const exposed = (async function* () {
     try {
       yield* items;
     } catch (error) {
-      const decision = decide(policy, error, errorCodeOf(error), request, log);
+      const decision = decide(policy, error, errorCodeOf(error), callOf(request), (mapError) => logOnce(log, mapError, request));
       if (decision.kind === "keep") throw error;
       if (decision.kind === "hide") {
-        log(error, request);
-        throw new ServerError(HIDDEN_ERROR_MESSAGE, "INTERNAL_ERROR", false);
+        logOnce(log, error, request);
+        // The real retryable flag of the error goes on. A last-resort catch that gets this error
+        // does not log it again.
+        const hidden = new ServerError(HIDDEN_ERROR_MESSAGE, "INTERNAL_ERROR", (error as { retryable?: unknown } | null)?.retryable === true);
+        markLogged(hidden);
+        throw hidden;
       }
-      const { code, message, retryable } = decision.error;
       // Without a flag, the face gives the flag of the code (before the first item) or false
-      throw Object.assign(new Error(message), { code, ...(retryable !== undefined ? { retryable } : {}) });
+      throw errorOfResult(decision.error);
     }
   })();
   return closableUnread(exposed, items);
+}
+
+/** The error that a last-resort catch sends without a policy: `INTERNAL_ERROR` with the message of the error. */
+function rawErrorOf(error: unknown): ExposedError {
+  return { code: "INTERNAL_ERROR", message: error instanceof Error ? error.message || "Internal server error" : String(error), retryable: false };
+}
+
+/**
+ * The error that a last-resort catch sends under a policy: when `handle()` throws, or when a face
+ * fails after it. `raw` is the error that the face sends without a policy. `map` runs first. Under
+ * `"coded"`, the code of `raw` decides, so `INTERNAL_ERROR` gives `"internal error"`, and the
+ * logger gets the real error one time.
+ */
+export function exposeError(policy: ServerErrorPolicy | undefined, error: unknown, call: ErrorCall, log: (error: unknown) => void, raw: ExposedError = rawErrorOf(error)): ExposedError {
+  if (!policyActs(policy)) return raw;
+  const once: HiddenErrorLog = (logged) => log(logged);
+  const decision = decide(policy, error, raw.code, call, (mapError) => logOnce(once, mapError, undefined));
+  if (decision.kind === "keep") return raw;
+  if (decision.kind === "replace") return decision.error;
+  logOnce(once, error, undefined);
+  return { code: "INTERNAL_ERROR", message: HIDDEN_ERROR_MESSAGE, retryable: raw.retryable === true };
+}
+
+/**
+ * The error that the last-resort catch of a face sends: the error policy of the handler
+ * (`RequestHandler.exposeError`, which `Server` has), or `raw` for a handler without one. `raw`
+ * is the error that the face sends without a policy.
+ */
+export function lastResortError(handler: RequestHandler, error: unknown, request: ServerRequest<unknown> | undefined, raw: ExposedError = rawErrorOf(error)): ExposedError {
+  return handler.exposeError ? handler.exposeError(error, request, raw) : raw;
 }

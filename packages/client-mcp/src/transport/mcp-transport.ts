@@ -32,7 +32,7 @@ import type {
   Principal,
   ReportProgress,
 } from "@procedures/client";
-import { LOCAL_CREDENTIALS, NARROWING_METADATA_KEY, PROCEDURE_REGISTRY, addNarrowing, pathToMethod, createElicit, elicitWithPolicy, requestCredentials, retryableOf, untrustedTextsOf } from "@procedures/client";
+import { LOCAL_CREDENTIALS, NARROWING_METADATA_KEY, PROCEDURE_REGISTRY, addNarrowing, pathToMethod, createElicit, elicitWithPolicy, lastResortError, requestCredentials, retryableOf, untrustedTextsOf } from "@procedures/client";
 import {
   proceduresToMcpTools,
   toToolDefinition,
@@ -508,10 +508,13 @@ export class McpServerTransport implements ServerTransport {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.log(`Tool ${name} error: ${message}`);
+      // The last resort: the error policy of the server applies here too (CLI-80)
+      const exposed = lastResortError(this.server, error, serverRequest, { code: "INTERNAL_ERROR", message, retryable: false });
 
       return {
-        content: [{ type: "text" as const, text: message }],
+        content: [{ type: "text" as const, text: exposed.message }],
         isError: true,
+        _meta: { code: exposed.code, retryable: exposed.retryable === true },
       };
     }
   }

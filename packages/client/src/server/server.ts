@@ -17,7 +17,8 @@ import type {
 } from "./types.js";
 import { HandlerNotFoundError, ServerError } from "./types.js";
 import { compose } from "../middleware/index.js";
-import { exposedResponse, policyActs, withRealError, type HiddenErrorLog, type ServerErrorPolicy } from "./error-policy.js";
+import { callOf, exposeError, exposedResponse, markLogged, policyActs, type ExposedError, type HiddenErrorLog, type ServerErrorPolicy } from "./error-policy.js";
+import { withRealError } from "./error-response.js";
 
 /**
  * Server configuration options.
@@ -52,9 +53,12 @@ export interface ServerOptions {
    *
    * - `expose: "all"` (the default): each error goes to the caller as before.
    * - `expose: "coded"`: an error with a known code (`isKnownErrorCode`) goes to the caller as it
-   *   is. Each other error goes as `INTERNAL_ERROR` with the message `"internal error"`. The
-   *   server gives the real error to `onError`, or to `console.error` without `onError`.
-   * - `map` runs first. Its result goes to the caller as it is. `undefined` gives the error to `expose`.
+   *   is, and so does an error with a code of `codes`. Each other error goes as `INTERNAL_ERROR`
+   *   with the message `"internal error"` and its real retryable flag. The server gives the real
+   *   error to `onError` one time, or to `console.error` without `onError`.
+   * - `map` runs first, with the real error of its own class. Its result goes to the caller as it
+   *   is, with its `retryAfterMs`. `undefined` gives the error to `expose`.
+   * - The last-resort catch of each face applies the same policy (`exposeError`).
    *
    * @example
    * ```typescript
@@ -87,6 +91,9 @@ interface HandlerEntry {
   matcher: MethodMatcher;
   handler: ServerHandler;
 }
+
+/** The request that `onError` gets for an error of a face that failed before it knew the call (CLI-80). */
+const UNKNOWN_REQUEST: ServerRequest = { id: "unknown", method: { service: "", operation: "" }, payload: undefined, metadata: {} };
 
 /**
  * Universal RPC server.
@@ -224,22 +231,31 @@ export class Server {
   ): Promise<ServerResponse<TRes>> {
     const policy = this.options.errors;
     if (!policyActs(policy)) return this.handleRaw(request);
-    let logged = false;
-    const response = await this.handleRaw<TReq, TRes>(request, () => (logged = true));
-    return exposedResponse(policy, request, response, this.hiddenErrorLog, logged);
+    const response = await this.handleRaw<TReq, TRes>(request);
+    return exposedResponse(policy, request, response, this.hiddenErrorLog);
+  }
+
+  /**
+   * The error that the last-resort catch of a face sends (roadmap CLI-80): when `handle()` throws,
+   * or the face fails after it. `raw` is the error that the face sends without a policy. Under the
+   * option `errors`, `map` runs first, and `"coded"` hides the message of `INTERNAL_ERROR`. The
+   * logger gets each hidden error one time. A face calls it through `lastResortError`.
+   */
+  exposeError(error: unknown, request: ServerRequest | undefined, raw: ExposedError): ExposedError {
+    return exposeError(this.options.errors, error, callOf(request), (real) => this.hiddenErrorLog(real, request), raw);
   }
 
   /** The logger of the errors that the error policy hides: `onError`, or `console.error`. */
   private readonly hiddenErrorLog: HiddenErrorLog = (error, request) => {
     const real = error instanceof Error ? error : new Error(String(error));
-    if (this.options.onError) this.options.onError(real, request);
-    else console.error(`[Server] hidden error of ${request.id}:`, real);
+    // A face that failed before it knew the call gives no request: onError gets a request of no call
+    if (this.options.onError) this.options.onError(real, request ?? UNKNOWN_REQUEST);
+    else console.error(`[Server] hidden error of ${request?.id ?? "a request"}:`, real);
   };
 
-  /** The response of a request, before the error policy. `onLogged` runs when `onError` gets the error. */
+  /** The response of a request, before the error policy. */
   private async handleRaw<TReq, TRes>(
-    request: ServerRequest<TReq>,
-    onLogged?: () => void
+    request: ServerRequest<TReq>
   ): Promise<ServerResponse<TRes>> {
     // Log request
     if (this.options.onRequest) {
@@ -279,11 +295,12 @@ export class Server {
       // Log error
       if (this.options.onError) {
         this.options.onError(error as Error, request);
-        onLogged?.();
+        // The error policy does not log this error again (CLI-80)
+        markLogged(error);
       }
 
       // Convert error to response
-      return this.errorToResponse<TRes>(request.id, error as Error);
+      return this.errorToResponse<TRes>(request, error as Error);
     }
   }
 
@@ -365,8 +382,8 @@ export class Server {
   /**
    * Convert error to response.
    */
-  private errorToResponse<TRes>(id: string, error: Error): ServerResponse<TRes> {
-    return withRealError(this.errorToStatus<TRes>(id, error), error);
+  private errorToResponse<TRes>(request: ServerRequest<unknown>, error: Error): ServerResponse<TRes> {
+    return withRealError(this.errorToStatus<TRes>(request.id, error), error, request);
   }
 
   /** The response of an error, without its record for the error policy. */
