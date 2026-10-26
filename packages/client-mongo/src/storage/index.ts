@@ -30,8 +30,8 @@ export {
 } from "./pipeline-scope.js";
 export type { PipelineLimits, PipelineScope } from "./pipeline-scope.js";
 // Materialized views driven by change streams (Graph's split plan, P4)
-export { ViewMaterializer, identityPartition, partitionTargetId, viewFilter, VIEW_GENERATION_FIELD, VIEW_HASH_FIELD } from "./materializer.js";
-export type { MaterializedView, MaterializedViewStatus, ViewMaterializerOptions, ViewPartitionOf, ViewPipelineScope, ViewStorageSource, ViewTargetId } from "./materializer.js";
+export { ViewMaterializer, identityPartition, defaultStorageRowId, partitionTargetId, viewFilter, VIEW_GENERATION_FIELD, VIEW_HASH_FIELD } from "./materializer.js";
+export type { MaterializedView, MaterializedViewStatus, ViewMaterializerOptions, ViewPartitionOf, ViewPipelineScope, ViewStorageSource, ViewStorageTarget, ViewStorageTargetEntry, ViewTargetId } from "./materializer.js";
 // A read-only storage of a view for the collection procedures: one generation for each read (roadmap CLI-38)
 export { MongoViewStorage } from "./view-storage.js";
 export type { MongoViewStorageOptions } from "./view-storage.js";

@@ -546,6 +546,59 @@ export function storageChangeSource<T>(storage: MongoDocumentStorage<T>): Storag
   return sourceOfStorage(storage);
 }
 
+/**
+ * The write parts of the storage of one partition that a `ViewMaterializer` uses for a target in a
+ * stored form (roadmap CLI-81). The materializer writes the rows of a view through them, so each
+ * row is a document of the storage. The package does not export this type: it is for the modules
+ * of the storage.
+ */
+export interface StorageWriteTarget {
+  /** The MongoDB collection of the items. */
+  readonly collection: string;
+  /** The collection of the sequence counters. */
+  readonly counters: string;
+  /** The stored form. */
+  readonly form: StoredForm;
+  /** The partition of the storage, or undefined for the storage of the whole collection. */
+  readonly partition: string | undefined;
+  /** The lease of a pending number of a write, in milliseconds. */
+  readonly writeLeaseMs: number;
+  /** The most tombstones of the partition. */
+  readonly maxTombstones: number;
+  /** The partition fields and their values. An `undefined` value is an absent field. */
+  readonly partitionFields: ReadonlyMap<string, unknown>;
+  /** The filter of the documents of the partition, the tombstones too. */
+  partitionFilter(): Document;
+  /** The stored `_id` of an id. It throws for an id that the storage refuses. */
+  storedId(id: string): unknown;
+  /** The id of a stored document (its stored `_id`, else `_key`), or undefined. */
+  idOfDoc(doc: Document): string | undefined;
+  /** The stored document of an item, as a write of the storage makes it. It throws a `TypeError` for an item that a document cannot keep. */
+  encode(id: string, value: unknown, seq: number, ord: number): Document;
+  /** The tombstone of an id, as a delete of the storage makes it. */
+  tombstone(id: string, seq: number): Document;
+  /** This method creates the indexes of the storage. */
+  ready(): Promise<void>;
+  /**
+   * This method takes `count` pending numbers, and writes with them (the watermark path of the
+   * writes). A late write moves its documents to new numbers. The numbers are not noted as numbers
+   * of this process, so a watcher of the collection publishes the hints of the write.
+   */
+  withPendingNumbers<R>(db: Db, count: number, write: (first: number) => Promise<R>): Promise<R>;
+  /** This method writes the floor document of the partition once (roadmap O66). */
+  noteFloor(db: Db): Promise<void>;
+  /** This method drops the oldest tombstones over the limit, and raises the floor of the change log. */
+  prune(db: Db): Promise<void>;
+}
+
+/** The reader of the write parts of a storage. The class sets it, so it can read its private fields. */
+let writeTargetOfStorage: <T>(storage: MongoDocumentStorage<T>) => StorageWriteTarget;
+
+/** This function gives the write parts of a storage for a `ViewMaterializer` (roadmap CLI-81). The package does not export it. */
+export function storageWriteTarget<T>(storage: MongoDocumentStorage<T>): StorageWriteTarget {
+  return writeTargetOfStorage(storage);
+}
+
 /** True for a plain object. */
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
@@ -700,6 +753,26 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
       rawDocuments: (after, limit) => storage.rawDocuments(after, limit),
       storedDocuments: (ids) => storage.storedDocuments(ids),
       partitions: () => storage.knownPartitions(),
+    });
+    writeTargetOfStorage = <S>(storage: MongoDocumentStorage<S>): StorageWriteTarget => ({
+      collection: storage.collectionName,
+      counters: storage.countersName,
+      form: storage.form,
+      partition: storage.partition,
+      writeLeaseMs: storage.writeLeaseMs,
+      maxTombstones: storage.maxTombstones,
+      partitionFields: new Map(storage.partitionEntries),
+      partitionFilter: () => storage.partitionFilter(),
+      storedId: (id) => storage.storedId(id),
+      idOfDoc: (doc) => storage.idOfDoc(doc),
+      encode: (id, value, seq, ord) => storage.encode(id, value as S, seq, ord),
+      tombstone: (id, seq) => storage.tombstoneOf(id, seq),
+      ready: async () => {
+        await storage.collection();
+      },
+      withPendingNumbers: (db, count, write) => storage.withPendingNumbers(db, db.collection<Stored>(storage.collectionName), count, write, (): void => undefined),
+      noteFloor: (db) => storage.noteFloor(db),
+      prune: (db) => storage.pruneTombstones(db, db.collection<Stored>(storage.collectionName)),
     });
   }
 
@@ -978,6 +1051,22 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
         await session.endSession();
       }
     }
+    return this.withPendingNumbers(db, collection, count, (first) => write(first), noteOwn);
+  }
+
+  /**
+   * This method takes `count` pending numbers and writes with them: the watermark path of the
+   * writes. The numbers stay pending until the write ends. A late write (its numbers left their
+   * lease, so a reader can have passed them) moves its documents to new numbers. `noteOwn` notes
+   * the numbers for a watcher of this process (roadmap CLI-77).
+   */
+  private async withPendingNumbers<R>(
+    db: Db,
+    collection: Collection<Stored>,
+    count: number,
+    write: (first: number) => Promise<R>,
+    noteOwn: (db: Db, collection: string, first: number, count: number) => void
+  ): Promise<R> {
     let { first } = await this.allocate(db, count);
     noteOwn(db, this.collectionName, first, count);
     let result: R;
@@ -1074,9 +1163,10 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     if (oldest.length === 0) return;
     // A watcher of this process reads the delete of a pruned tombstone without the image before the change (roadmap CLI-77)
     notePrunedIds(db, this.collectionName, oldest.map((doc) => doc._id));
-    await items.deleteMany({ _id: { $in: oldest.map((doc) => doc._id) } } as Filter<Stored>);
+    // The floor goes up before the delete: a reader far behind gets a full result, never a delta without the deletes
     const floor = Math.max(...oldest.map((doc) => Number(doc[SEQ])));
     await db.collection<CounterDoc>(this.countersName).updateOne({ _id: this.floorId() }, { $max: { floor } }, { upsert: true });
+    await items.deleteMany({ _id: { $in: oldest.map((doc) => doc._id) } } as Filter<Stored>);
   }
 
   /** The ids of stored documents, in their order. A document that does not tell its id is left out. */
@@ -1357,6 +1447,13 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     });
   }
 
+  /** The tombstone of an id: the document of a deleted item, with the number of the delete. */
+  private tombstoneOf(id: string, seq: number): Stored {
+    const tomb: Stored = { _id: this.storedId(id), [KEY]: id, [SEQ]: seq, [TOMB]: true };
+    this.putPartition(tomb);
+    return tomb;
+  }
+
   /**
    * This method replaces the items of the ids with tombstones, with new numbers, in the queue of the
    * collection. With preconditions, it tests them first (roadmap CLI-16).
@@ -1364,11 +1461,9 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
   private async tombstone(db: Db, collection: Collection<Stored>, ids: string[], expected: ReadonlyArray<readonly [string, string | null]> = []): Promise<void> {
     await this.withNumbers(db, collection, ids.length, async (first, session) => {
       const guards = await this.checkVersions(collection, expected, session);
-      const operations: AnyBulkWriteOperation<Stored>[] = ids.map((id, index) => {
-        const tomb: Stored = { _id: this.storedId(id), [KEY]: id, [SEQ]: first + index, [TOMB]: true };
-        this.putPartition(tomb);
-        return { replaceOne: { filter: { ...this.writeFilter(id), ...guards.get(id) }, replacement: tomb } };
-      });
+      const operations: AnyBulkWriteOperation<Stored>[] = ids.map((id, index) => ({
+        replaceOne: { filter: { ...this.writeFilter(id), ...guards.get(id) }, replacement: this.tombstoneOf(id, first + index) },
+      }));
       const result = await collection.bulkWrite(operations, { ordered: true, ...(session ? { session } : {}) });
       // A guard that found no document: another writer came between the test and the write
       if (expected.length > 0 && !session && result.matchedCount < operations.length) throw await this.lateConflict(collection, expected);
