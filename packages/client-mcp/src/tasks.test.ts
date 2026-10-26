@@ -12,7 +12,7 @@ import { Client as McpClient } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { CallToolResultSchema, CreateTaskResultSchema, ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
-import { createProcedure, defineModule, type AnyProcedure, type Clock, type ProcedureContext } from "@procedures/client";
+import { createProcedure, defineModule, type Clock, type ProcedureContext } from "@procedures/client";
 import { createMcpHost, type McpHost, type McpHostOptions } from "./host.js";
 import { MCP_TASK_LIMITS, McpTaskStore, mcpTaskShareKey, type McpTaskCaller, type McpTaskShareContext } from "./tasks.js";
 

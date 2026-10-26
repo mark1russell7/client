@@ -21,7 +21,6 @@ import {
   ms,
   untrustedText,
   type ConfirmationResult,
-  type AnyProcedure,
   type ElicitationPolicy,
   type ProcedureContext,
 } from "@procedures/client";

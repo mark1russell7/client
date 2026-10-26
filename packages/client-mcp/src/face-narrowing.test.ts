@@ -20,7 +20,6 @@ import {
   hostPolicy,
   ladder,
   procedureServerOptions,
-  type AnyProcedure,
   type Credentials,
   type HostPolicyOptions,
   type ProcedureRegistry,

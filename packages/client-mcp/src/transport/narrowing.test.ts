@@ -12,7 +12,7 @@ import { z } from "zod";
 import { Client as McpClient } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { createProcedure, defineModule, ladder, NARROWING_HEADER, NARROWING_METADATA_KEY, type AnyProcedure } from "@procedures/client";
+import { createProcedure, defineModule, ladder, NARROWING_HEADER, NARROWING_METADATA_KEY } from "@procedures/client";
 import { createMcpHost, type McpHost, type McpHostOptions } from "../host.js";
 
 const AUDIENCES = ["public", "guest", "intimate"];
