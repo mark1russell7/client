@@ -174,6 +174,29 @@ describe("the helpers", () => {
     }
   });
 
+  it("resolveNpm falls back to npm on the PATH, and fails on Windows, when this Node has no npm", () => {
+    delete process.env["npm_execpath"];
+    const execPath = process.execPath;
+    const platform = Object.getOwnPropertyDescriptor(process, "platform")!;
+    try {
+      process.execPath = join(mkdtempSync(join(tmpdir(), "npm-none-")), "bin", "node");
+      Object.defineProperty(process, "platform", { ...platform, value: "linux" });
+      expect(resolveNpm()).toEqual({ command: "npm", prefix: [] });
+      Object.defineProperty(process, "platform", { ...platform, value: "win32" });
+      expect(() => resolveNpm()).toThrow("npm was not found");
+    } finally {
+      process.execPath = execPath;
+      Object.defineProperty(process, "platform", platform);
+    }
+  });
+
+  it("resolveNpm ignores an npm_execpath that is not the script of npm", () => {
+    const script = join(mkdtempSync(join(tmpdir(), "npm-other-")), "pnpm.cjs");
+    writeFileSync(script, "");
+    process.env["npm_execpath"] = script;
+    expect(resolveNpm().prefix[0]).not.toBe(script);
+  });
+
   it("gives a failed result, not an error, when the shell fails", async () => {
     fakeShell();
     const call = vi.fn().mockRejectedValue(new Error("spawn ENOENT"));
