@@ -426,6 +426,8 @@ Open points:
 - `createErrorFromException` gave ABORTED for `AbortSignal.timeout()` and PARSE_ERROR for a circular structure.
 - `isAvailabilityFailure` did not count `CONNECTION_CLOSED`.
 
+**Later (CLI-86).** Each public package has a report of its public API in `test/api/public-api.txt`. The script `scripts/api-report.mjs` writes the reports from the built `.d.ts` files, and CI fails when a report differs. The script is plain JavaScript and uses no test runner. It replaces the Vitest snapshot test of `@procedures/client`.
+
 ### R31. Coverage
 
 `@vitest/coverage-v8` at the root, with thresholds that only go up.

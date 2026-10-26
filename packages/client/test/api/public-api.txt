@@ -1,8 +1,8 @@
 # The public API of @procedures/client
 #
 # The names of each entry of the exports field, and the declaration of each name, without comments
-# and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
-# dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
 
 ## . (dist/index.d.ts): 621 names
 
