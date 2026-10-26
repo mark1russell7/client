@@ -115,6 +115,86 @@ A registry often has `shell.*`, which starts any program. These rules protect it
 
 `hydrateInput()` in `ref.ts` is the one interpreter of programs. `exec()`, the control-flow procedures and `procedure.define` use it. [PROGRAM-FORMAT.md](./PROGRAM-FORMAT.md) gives its rules, its examples and its open questions.
 
+## Invariants
+
+These rules are true for each change of the stack (roadmap CLI-82). Each invariant has a rule, the reason for the rule and its guard. The guard is the CI step or the script that enforces the rule. "Review rule" tells that no check enforces it yet, and the review of the pull request examines it. "Planned" names the roadmap item of the check that comes.
+
+The checks of CLI-83 to CLI-86 link to these headings. Do not change the number or the name of an invariant. Add a new invariant with the next number.
+
+The CI names below are the jobs and the steps of `.github/workflows/ci.yml`.
+
+### I1. One runner and one server
+
+- **Rule.** Each service starts under `run()` of `@mark1russell7/service` (repository `systems`). Each app talks to a `ProcedureServer` of this repository. An app keeps no server and no socket of its own.
+- **Reason.** One runner gives each host the same start, health checks and stop. One server gives each app the same rights, limits and wire format.
+- **Guard.** Review rule. The CI job "Host lifecycle (SIGTERM in a stream)" tests that the hosts of this repository stop under `run()`. Planned: a check of the app repositories, after GRAPH-7 and OTH-4.
+
+### I2. One way to define procedures and collections
+
+- **Rule.** A package defines its procedures through the module and registry API (`defineModule()`, `createRegistry()`). A collection gets its procedures from `createCollectionProcedures()`. An import of a package registers nothing. Only its `./register` entry registers procedures (P9).
+- **Reason.** A host then knows each procedure from data, and two registries in one process stay apart. A bundler can drop each module that a page does not use.
+- **Guard.** The step "Check the side effects of the imports" (`scripts/check-side-effects.mjs`). The step "Audit the packages" (`mark lib audit`) compares each package with the template of `lib new`. A procedure without `metadata.effects` is only a warning.
+
+### I3. Paths and topics
+
+- **Rule.** Each segment of a path goes through `encodeSegment()`, and each path goes through `pathToMethod()` or `pathToKey()` (decision D36). Each topic goes through `collectionChangeTopic()` and `collectionTopicPartition()`. Do not join or split a path on "." in your code. Do not match a topic with a regular expression.
+- **Reason.** A segment can have a dot or a `%`. Only the codec keeps such a segment as one segment (roadmap CLI-75).
+- **Guard.** The unit tests of the codec: `packages/client/src/procedures/segments.test.ts`, `packages/client/src/server/method.test.ts` and `packages/client/src/procedures/collection/topic.test.ts`. Planned: a lint rule (CLI-84).
+
+### I4. Wire format
+
+- **Rule.** [WIRE-PROTOCOL.md](./WIRE-PROTOCOL.md) is the wire format. The method name and the path in an HTTP body use the same encoding. Each error gets its code from the error registry (`ERROR_REGISTRY`). The option `errors` of the server (`ServerOptions.errors`, CLI-80) is the only policy that tells what an error shows. An MCP error has `_meta: { code, retryable }`.
+- **Reason.** Each face (HTTP, WebSocket, MCP, the peer) then gives the same call and the same error. A client can then retry from the code, on each face.
+- **Guard.** The tests of each transport, for example the golden tests of the wire (`packages/client/src/protocol.golden.test.ts` and `packages/client/test/wire/`). Planned: one contract suite over HTTP, WebSocket, MCP and the peer (CLI-85).
+
+### I5. Storage writes
+
+- **Rule.** Each write to a storage collection goes through the write path of `MongoDocumentStorage`. The `_seq` comes from the allocation of the storage, and the storage fields are those of `DOCUMENT_STORAGE_FIELDS`. A delete writes a `_tomb` tombstone, and a prune raises the floor of the partition. The change-stream watcher adopts a raw write (decision D39). From 0.37.0, a view writes as the storage does when its target has the storage form (CLI-81, pull request #230).
+- **Reason.** `changes(since)` and the change hints are then exact. A client that syncs gets each write one time and in sequence.
+- **Guard.** The CI job "MongoDB (the storage contract)", on a single server and on a replica set. Planned: a lint rule against raw writes outside `storage/`, the materializer and the watcher (CLI-84).
+
+### I6. Rights
+
+- **Rule.** One rule, `admission.admit`, examines the reads, the delta of `changes` and the change hints (CLI-78). `admitsAll` is the only fast path. A change of the rights acts through the re-check of CLI-44 and `rightsChanged(change?, scope?)`.
+- **Reason.** A read, an event and a hint then cannot show different rows to one caller.
+- **Guard.** The tests, for example `packages/client/src/procedures/collection/admission.test.ts`, `packages/client/src/procedures/collection/row-hints.test.ts` and `packages/client/src/events/recheck.test.ts`. Planned: an admission contract test (CLI-85).
+
+### I7. Public API
+
+- **Rule.** An API snapshot has each exported name and type of a public package.
+- **Reason.** A change of the API then fails a test, so each change of the API is a decision.
+- **Guard.** Only `@procedures/client` has a snapshot today: `packages/client/src/api.snapshot.test.ts` compares the API with `packages/client/test/api/public-api.txt` (through `packages/client/test/api/report.ts`). Planned: a snapshot for each public package (CLI-86).
+
+### I8. Package shape
+
+- **Rule.** Each public package installs and starts as npm gives it. Each package that an entry imports is a declared dependency. No file names a package of this repository with the old scope `@mark1russell7`. The generated catalogs agree with the built packages.
+- **Reason.** A consumer gets the package from npm, not from the monorepo. A strict install (pnpm) finds only the declared packages.
+- **Guard.** The CI job "Packages (pack, publint, attw, install)" (`scripts/check-packages.mjs`): it packs each package, examines it with publint `--strict` and attw (the ESM-only profile), installs all the tarballs and starts the bins. The step "Check the declared imports" (`scripts/check-declared-imports.mjs`). The step "Check the package scope" (`scripts/check-scope.mjs`). The step "The generated catalogs are current" ([PROCEDURES.md](./PROCEDURES.md) and [PACKAGES.md](./PACKAGES.md)).
+
+### I9. Import boundaries
+
+- **Rule.** A browser entry imports no Node built-in. A transport does not import the server. An adapter package imports only the public entries of the client, and not the `src/` folder of another package. No package of this repository imports an app.
+- **Reason.** A browser page then bundles each browser entry. Each layer can then change without a change of the layers above it.
+- **Guard.** For the browser entries: the step "Check the browser entries" (`scripts/check-browser-entries.mjs`, CLI-39). For the other rules: planned, dependency-cruiser (CLI-83).
+
+### I10. Bundle size
+
+- **Rule.** Each page of the site stays within its size budget, after gzip.
+- **Reason.** A change in the core can pull code into the main bundle of each page. Example: the budget found that the error policy of CLI-80 went into the main bundle.
+- **Guard.** The tests "the budgets" in `packages/site/e2e/seo.spec.ts`, in the CI job "Site (browser smoke test)". The budgets are 256 kB for a page, 180 kB for its scripts and 128 kB for the scripts of a Web Worker.
+
+### I11. Versioning
+
+- **Rule.** Each change to a published package has a changeset. Before 1.0.0, a break or a changed default raises the MINOR, and its changeset has a migration section that names the consumers ([decision D13](./SERVER-LAYERS.md#releases-of-the-server-stack)). A feature or a fix raises the PATCH.
+- **Reason.** A consumer can then read the version and the migration steps of each release.
+- **Guard.** Review rule. Planned: a changeset check in the template. The prose of the documents and the doc comments obeys ASD-STE100: `pnpm lint:ste`, in the CI job "CI".
+
+### I12. Privacy
+
+- **Rule.** No code of a private app goes into this repository. No file has a path of a local computer or the user name of a computer.
+- **Reason.** This repository is public.
+- **Guard.** Review rule.
+
 ## Where to read next
 
 - [ONBOARDING.md](./ONBOARDING.md): how to build, test and add a package or a procedure.

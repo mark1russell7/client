@@ -16,7 +16,8 @@ A call names a procedure with a method: `{ "service": "docker.compose", "operati
 
 - A path has one segment or more (CLI-28). Each face calls a path of each length.
 - A path of one segment has the empty service: `["morning"]` is `{ "service": "", "operation": "morning" }`.
-- A segment with a dot does not round-trip, because the dot joins the segments of the service.
+- Before the join, each segment encodes `%` as `%25` and `.` as `%2E` (`encodeSegment()` in `pathToMethod()`, CLI-75, from 0.34.0). Thus a segment with a dot or a `%` comes back unchanged. Example: `["collections", "cc.dotted", "set"]` is `{ "service": "collections.cc%2Edotted", "operation": "set" }`.
+- An `/rpc` URL encodes such a segment two times, because the URL encodes the `%` of `%2E` again: `/rpc/collections.cc%252Edotted/set`. A URL with one encoding gets `NOT_FOUND`. Refer to "URL Strategies" in [ADAPTERS.md](../client/docs/ADAPTERS.md#url-strategies).
 - A method with an empty segment names no procedure and gets `NOT_FOUND`. Examples are a `..` segment and a stray dot (`notes.`). Thus `/api/notes/..` does not reach the procedure `notes`.
 
 The metadata of a call is a JSON object. These keys have a meaning in the protocol:
@@ -131,7 +132,7 @@ The server finds the method and the payload of a request with its addressing (CL
 
 - `urlAddressing()` is the default. The URL gives the method, and the body is the payload. This is the format of `HttpTransport`.
 - `bodyPathAddressing()` reads the path and the input from the body of a single endpoint: `POST {base}` with `{"path": ["notes", "list"], "input": {}}`.
-- The path in the body is a list of segments, or a text with dots, for example `"notes.list"`. Without `input`, the payload is `{}`.
+- The path in the body is a list of segments, or a text with dots, for example `"notes.list"`. Each segment of a text decodes `%2E` and `%25`, as in a method (CLI-75). Without `input`, the payload is `{}`.
 - With `bodyPathAddressing()`, the handler also takes the base path itself. The options `pathField` and `inputField` change the names of the fields.
 - The addressing reads only the own fields of the body. A `__proto__` key gives no path.
 - The option `addressing` of `procedureHandler` and of `HttpServerTransport` sets the hook. An application can give its own hook, for example the URL first and then the body.
