@@ -179,6 +179,8 @@ const SIZE_LIMIT = 16 * 1024;
 /** What the handlers saw. */
 interface Seen {
   deadlineLeft: number[];
+  /** The calls of `contract.wait` that started. */
+  waiting: number;
   aborted: number;
   streamClosed: number;
   echoes: number;
@@ -247,6 +249,7 @@ function registryOf(lib: ContractLib, seen: Seen): ProcedureRegistry {
         .input(z.object({}))
         .output(z.string())
         .handler(async (_input, ctx) => {
+          seen.waiting++;
           await new Promise<void>((resolve) => {
             const timer = setTimeout(resolve, 5000);
             ctx.signal?.addEventListener(
@@ -345,7 +348,7 @@ export function describeTransportContract(face: ContractFace): void {
     open = [];
   });
 
-  const fresh = (): Seen => ({ deadlineLeft: [], aborted: 0, streamClosed: 0, echoes: 0, headers: [] });
+  const fresh = (): Seen => ({ deadlineLeft: [], waiting: 0, aborted: 0, streamClosed: 0, echoes: 0, headers: [] });
 
   /** A server of the face, with the procedures of the suite. */
   async function serve(seen: Seen, more: Partial<ContractSpec> = {}): Promise<{ server: ContractServer; storage: LogStorage }> {
@@ -459,7 +462,9 @@ export function describeTransportContract(face: ContractFace): void {
       const caller = await start(seen);
       const controller = new AbortController();
       const call = caller.call(["contract", "wait"], {}, { signal: controller.signal });
-      setTimeout(() => controller.abort(), 50);
+      // The abort comes when the handler runs: on a slow runner, a call can take more than 50 ms to arrive
+      await waitFor(() => seen.waiting === 1, "the start of the handler");
+      controller.abort();
       await expect(call).rejects.toBeDefined();
       await waitFor(() => seen.aborted === 1, "the abort of the handler");
     });
