@@ -43,6 +43,23 @@ jobs:
         node .github/scripts/typecheck-tests.mjs
         pnpm --filter @procedures/mark test:e2e
 
+  # The changesets of a pull request (strategy s38, decision D13): changeset-check of the template
+  # fails a change of a published package without a changeset, a changeset of an unknown package,
+  # and a "major" of a 0.x package. The version PR, an empty changeset and the label no-changeset pass.
+  changesets:
+    name: Changesets
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: mark1russell7/template/.github/actions/changeset-check@ecdba7fc3752946f01a8bba4d772d773341ff0e6 # main
+
   # The checks of this repository, once, on Node 26. They need the build, but not each Node version.
   checks:
     name: Repository checks (catalogs, scope, imports, audit)
