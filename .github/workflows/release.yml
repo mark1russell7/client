@@ -44,6 +44,12 @@ name: Release
 # Renovate does not change this file (renovate/base.json of the template).
 on:
   workflow_dispatch:
+    inputs:
+      new-packages:
+        description: "A package that is not on npm yet: error stops the publish; warning publishes the others and leaves it for after its bootstrap."
+        type: choice
+        options: [error, warning]
+        default: error
 
 permissions: {}
 
@@ -192,6 +198,8 @@ jobs:
       # skips each version that is on npm, so a new start after a partial publish is safe.
       - id: publish
         uses: mark1russell7/template/.github/actions/npm-publish@c51e91e385e2d84e1f01d269489a24b9a6910286 # main
+        with:
+          new-packages: ${{ inputs.new-packages || 'error' }}
 
   github-release:
     name: Git tags and GitHub releases
