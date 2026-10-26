@@ -4,8 +4,10 @@
  * `admission` of `createCollectionProcedures()` gives the rules as data:
  *
  * - `admit` examines each row `{ id, value }` that a read gives. It has the shape of `AdmitItem`,
- *   the output filter of a host. The change events with values give it the same rows for each
- *   subscriber, so the reads and the events obey one rule.
+ *   the output filter of a host. The publisher of the change events gives it the rows of each
+ *   event for each subscriber (roadmap CLI-78). Thus the reads and the events obey one rule.
+ * - `admitsAll` tells that `admit` admits each row of a partition for a call. The events of such a
+ *   subscriber then pass without the filter of each row.
  * - `guard` examines each write `{ op, id, doc, prev }` before the storage changes. A refused write
  *   gets `FORBIDDEN` with the reason `write-not-allowed`.
  * - `versionOf` gives the version of a stored item (roadmap CLI-55). With it, a guarded write
@@ -66,10 +68,23 @@ export type CollectionWriteGuard = (write: CollectionWrite, invocation: Invocati
 export interface CollectionAdmission {
   /**
    * The rule of the rows. It gets each row `{ id, value }` of a read and the invocation of the
-   * call, and it gives true to admit the row. The change events with values apply it for each
-   * subscriber, with the invocation of the subscription.
+   * call, and it gives true to admit the row. The publisher of the change events applies it to the
+   * rows of each event for each subscriber, with the invocation of the subscription (roadmap
+   * CLI-78). A subscriber gets only the ids of the rows that it can read.
    */
   admit?: AdmitItem | undefined;
+  /**
+   * This function tells that the rule `admit` admits each row of a partition for a call (roadmap
+   * CLI-78). It gets the invocation and the partition (undefined for the collection without a
+   * partition). True: the change events reach the subscriber without the filter of each row, as
+   * before CLI-78. The publisher asks at the start of a subscription and at each re-check.
+   *
+   * - Give true only when `admit` admits each row of the partition. Else the subscriber gets the
+   *   ids of rows that it cannot read.
+   * - An error gives false.
+   * - Without it, the publisher examines each row of each event for each subscriber.
+   */
+  admitsAll?: ((invocation: Invocation, partition: string | undefined) => boolean | Promise<boolean>) | undefined;
   /** The guard of each `set`, `patch` and `delete`, also of the batches and of `clear`. */
   guard?: CollectionWriteGuard | undefined;
   /**

@@ -358,7 +358,7 @@ describe("the rule of the rows of the change events (CLI-41)", () => {
     for (let turn = 0; turn < 5; turn++) await new Promise((resolve) => setImmediate(resolve));
   };
 
-  it("gives each subscriber of an event with values only the rows that the rule admits for it", async () => {
+  it("gives each subscriber of an event with values only the rows that the rule admits for it (CLI-78: no withheld id of a refused row)", async () => {
     const admission: CollectionAdmission = { admit: ownRows };
     const h = host(notes(), { admission, changeEvents: { values: true } });
     const annSub = await subscribe(h, ann);
@@ -368,9 +368,11 @@ describe("the rule of the rows of the change events (CLI-41)", () => {
     await h.run("setBatch", { items: [{ id: "a5", value: { owner: "ann" } }, { id: "b5", value: { owner: "bob" } }] }, ann);
     await settle();
     expect(annSub.received.map((event) => event.values?.map((row) => row.id))).toEqual([["a5"]]);
-    expect(annSub.received[0]!.withheld).toEqual(["b5"]);
+    expect(annSub.received[0]!.changed).toEqual(["a5"]);
+    expect(annSub.received[0]!.withheld).toBeUndefined();
     expect(bobSub.received.map((event) => event.values?.map((row) => row.id))).toEqual([["b5"]]);
-    expect(bobSub.received[0]!.withheld).toEqual(["a5"]);
+    expect(bobSub.received[0]!.changed).toEqual(["b5"]);
+    expect(bobSub.received[0]!.withheld).toBeUndefined();
     annSub.stop();
     bobSub.stop();
   });

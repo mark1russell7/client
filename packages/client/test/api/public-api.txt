@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 607 names
+## . (dist/index.d.ts): 611 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -124,6 +124,8 @@ type GuardedRequest: dist/server/browser-guard.d.ts#GuardedRequest
 type Handler: dist/adapters/local/client/types.d.ts#Handler
 HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
 type HiddenCall: dist/procedures/policy.d.ts#HiddenCall
+type HintImages: dist/procedures/collection/hint-filter.d.ts#HintImages
+type HintRowState: dist/procedures/collection/hint-filter.d.ts#HintRowState
 type HostPolicy: dist/server/host-policy.d.ts#HostPolicy
 type HostPolicyOptions: dist/server/host-policy.d.ts#HostPolicyOptions
 type HostSource: dist/server/host-procedures.d.ts#HostSource
@@ -458,6 +460,7 @@ hasCallPolicy: dist/procedures/policy.d.ts#hasCallPolicy
 hasRuntimeProcedure: dist/procedures/define-procedure.d.ts#hasRuntimeProcedure
 hashOf: dist/procedures/manifest.d.ts#hashOf
 hiddenReach: dist/procedures/policy.d.ts#hiddenReach
+hintImagesOf: dist/procedures/collection/hint-filter.d.ts#hintImagesOf
 hostNameOf: dist/server/browser-guard.d.ts#hostNameOf
 hostPolicy: dist/server/host-policy.d.ts#hostPolicy
 hostProcedures: dist/server/host-procedures.d.ts#hostProcedures
@@ -610,11 +613,12 @@ versionConflicts: dist/procedures/collection/precondition.d.ts#versionConflicts
 versionConflictsOf: dist/procedures/collection/precondition.d.ts#versionConflictsOf
 withEffects: dist/procedures/effects.d.ts#withEffects
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
+withHintImages: dist/procedures/collection/hint-filter.d.ts#withHintImages
 withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 595 names
+## ./browser (dist/browser.d.ts): 599 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -730,6 +734,8 @@ type FsRootRules: dist/procedures/types.d.ts#FsRootRules
 type Handler: dist/adapters/local/client/types.d.ts#Handler
 HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
 type HiddenCall: dist/procedures/policy.d.ts#HiddenCall
+type HintImages: dist/procedures/collection/hint-filter.d.ts#HintImages
+type HintRowState: dist/procedures/collection/hint-filter.d.ts#HintRowState
 type HostPolicy: dist/server/host-policy.d.ts#HostPolicy
 type HostPolicyOptions: dist/server/host-policy.d.ts#HostPolicyOptions
 type HostSource: dist/server/host-procedures.d.ts#HostSource
@@ -1060,6 +1066,7 @@ hasCallPolicy: dist/procedures/policy.d.ts#hasCallPolicy
 hasRuntimeProcedure: dist/procedures/define-procedure.d.ts#hasRuntimeProcedure
 hashOf: dist/procedures/manifest.d.ts#hashOf
 hiddenReach: dist/procedures/policy.d.ts#hiddenReach
+hintImagesOf: dist/procedures/collection/hint-filter.d.ts#hintImagesOf
 hostPolicy: dist/server/host-policy.d.ts#hostPolicy
 hostProcedures: dist/server/host-procedures.d.ts#hostProcedures
 hours: dist/duration.d.ts#hours
@@ -1208,6 +1215,7 @@ versionConflicts: dist/procedures/collection/precondition.d.ts#versionConflicts
 versionConflictsOf: dist/procedures/collection/precondition.d.ts#versionConflictsOf
 withEffects: dist/procedures/effects.d.ts#withEffects
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
+withHintImages: dist/procedures/collection/hint-filter.d.ts#withHintImages
 withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
@@ -1436,7 +1444,7 @@ throttleChannel: dist/events/bus.d.ts#throttleChannel
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
-## ./procedures (dist/procedures/index.d.ts): 352 names
+## ./procedures (dist/procedures/index.d.ts): 356 names
 
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
@@ -1499,6 +1507,8 @@ type EnvelopePath: dist/procedures/envelope.d.ts#EnvelopePath
 type EnvelopeProgram: dist/procedures/envelope.d.ts#EnvelopeProgram
 type EnvelopeRef: dist/procedures/envelope.d.ts#EnvelopeRef
 type FsRootRules: dist/procedures/types.d.ts#FsRootRules
+type HintImages: dist/procedures/collection/hint-filter.d.ts#HintImages
+type HintRowState: dist/procedures/collection/hint-filter.d.ts#HintRowState
 type HydrateOptions: dist/procedures/ref.d.ts#HydrateOptions
 type HydrationEvent: dist/procedures/ref.d.ts#HydrationEvent
 IDEMPOTENCY_KEY_METADATA: dist/procedures/idempotency.d.ts#IDEMPOTENCY_KEY_METADATA
@@ -1689,6 +1699,7 @@ getRefWhen: dist/procedures/ref.d.ts#getRefWhen
 getRuntimeProcedure: dist/procedures/define-procedure.d.ts#getRuntimeProcedure
 hasRuntimeProcedure: dist/procedures/define-procedure.d.ts#hasRuntimeProcedure
 hashOf: dist/procedures/manifest.d.ts#hashOf
+hintImagesOf: dist/procedures/collection/hint-filter.d.ts#hintImagesOf
 hydrateInput: dist/procedures/program.d.ts#hydrateInput
 idempotencyKeyOf: dist/procedures/idempotency.d.ts#idempotencyKeyOf
 idempotentIn: dist/procedures/idempotency.d.ts#idempotentIn
@@ -1788,6 +1799,7 @@ versionConflict: dist/procedures/collection/precondition.d.ts#versionConflict
 versionConflicts: dist/procedures/collection/precondition.d.ts#versionConflicts
 versionConflictsOf: dist/procedures/collection/precondition.d.ts#versionConflictsOf
 withEffects: dist/procedures/effects.d.ts#withEffects
+withHintImages: dist/procedures/collection/hint-filter.d.ts#withHintImages
 withScope: dist/procedures/ref.d.ts#withScope
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
@@ -3762,6 +3774,7 @@ export declare function toolHints(procedure: AnyProcedure): ToolHints;
 ### dist/procedures/collection/admission.d.ts#CollectionAdmission
 export interface CollectionAdmission {
     admit?: AdmitItem | undefined;
+    admitsAll?: ((invocation: Invocation, partition: string | undefined) => boolean | Promise<boolean>) | undefined;
     guard?: CollectionWriteGuard | undefined;
     versionOf?: VersionOf<unknown> | undefined;
     maxScanned?: number | undefined;
@@ -3811,6 +3824,27 @@ export interface CollectionChangeEvent {
 
 ### dist/procedures/collection/changes.d.ts#collectionTopicReads
 export declare function collectionTopicReads(topic: string, repository?: RepositoryProvider): readonly string[];
+
+### dist/procedures/collection/hint-filter.d.ts#HintImages
+export interface HintImages {
+    readonly after?: ReadonlyMap<string, HintRowState> | undefined;
+    readonly before?: ReadonlyMap<string, HintRowState> | undefined;
+    readonly admission?: CollectionAdmission | undefined;
+}
+
+### dist/procedures/collection/hint-filter.d.ts#HintRowState
+export type HintRowState = {
+    readonly found: true;
+    readonly value: unknown;
+} | {
+    readonly found: false;
+};
+
+### dist/procedures/collection/hint-filter.d.ts#hintImagesOf
+export declare function hintImagesOf(event: unknown): HintImages | undefined;
+
+### dist/procedures/collection/hint-filter.d.ts#withHintImages
+export declare function withHintImages<T extends object>(event: T, images: HintImages): T;
 
 ### dist/procedures/collection/partition.d.ts#CollectionPartitions
 export interface CollectionPartitions<T = unknown> {

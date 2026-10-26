@@ -44,6 +44,9 @@ export interface SubscriptionRecheck {
   readonly rightsChanges?: ((listener: (change?: RightsChange) => void) => () => void) | undefined;
 }
 
+/** The cause of a re-check: a change of the rights, or the max age. */
+export type RecheckCause = "rights" | "age";
+
 /** A subscription that the re-checks can hold and watch. */
 export interface RecheckedSubscription {
   /**
@@ -61,7 +64,7 @@ interface Watch {
   /** The timer of the max age, or undefined. */
   timer: Cancel | undefined;
   /** This function starts a check at once. The promise ends when the check ends. */
-  readonly recheck: () => Promise<void>;
+  readonly recheck: (cause: RecheckCause) => Promise<void>;
 }
 
 /** True when the change touches a subscription of the principal. A test that throws touches it. */
@@ -76,8 +79,8 @@ function touches(change: RightsChange | undefined, principal: Principal | undefi
 }
 
 /** The promise of a check. A check that throws at once gives a rejected promise. */
-function started(check: () => Promise<void>): Promise<void> {
-  return new Promise<void>((resolve) => resolve(check()));
+function started(check: (cause: RecheckCause) => Promise<void>, cause: RecheckCause): Promise<void> {
+  return new Promise<void>((resolve) => resolve(check(cause)));
 }
 
 /**
@@ -110,15 +113,15 @@ export class SubscriptionRechecks {
 
   /**
    * This function watches a subscription until it ends. A change of the rights of its principal
-   * and its max age start the check. The check must throw the refusal.
+   * and its max age start the check. The check gets the cause, and it must throw the refusal.
    */
-  watch(subscription: RecheckedSubscription, principal: Principal | undefined, check: () => Promise<void>): void {
+  watch(subscription: RecheckedSubscription, principal: Principal | undefined, check: (cause: RecheckCause) => Promise<void>): void {
     const watch: Watch = {
       principal,
       timer: undefined,
-      recheck: () => {
+      recheck: (cause) => {
         this.stopTimer(watch);
-        return subscription.hold(started(check)).then(() => {
+        return subscription.hold(started(check, cause)).then(() => {
           // A check that passes gives the admission a new age
           if (this.watches.has(watch)) this.startTimer(watch);
         });
@@ -145,7 +148,7 @@ export class SubscriptionRechecks {
   rightsChanged(change?: RightsChange): Promise<void> {
     const checks: Array<Promise<void>> = [];
     for (const watch of [...this.watches]) {
-      if (touches(change, watch.principal)) checks.push(watch.recheck());
+      if (touches(change, watch.principal)) checks.push(watch.recheck("rights"));
     }
     return Promise.all(checks).then(() => undefined);
   }
@@ -166,7 +169,7 @@ export class SubscriptionRechecks {
     this.stopTimer(watch);
     const timer = this.clock.after(this.maxAgeMs, () => {
       if (watch.timer === timer) watch.timer = undefined;
-      void watch.recheck();
+      void watch.recheck("age");
     });
     // A check does not keep a Node process alive
     timer.unref?.();
