@@ -366,6 +366,28 @@ describe("EventsChangeFeed: the other fields of an event (graph W8)", () => {
     expect(listener.log[4]![1]).not.toHaveProperty("extra");
   });
 
+  it("reads versions into its own field and reset into a hint, and an event with a wrong versions or reset is of another form (CLI-77)", () => {
+    const source = new FakeSource();
+    const listener = recorder();
+    new EventsChangeFeed<Item>(source, { collection: "items" }).subscribe(listener);
+    const values = [{ id: "a", value: { n: 1 } }];
+    source.event({ since: "v0", version: "v1", changed: ["a"], deleted: [], values, versions: [{ id: "a", version: "7" }] }, 1);
+    source.event({ changed: ["a"], deleted: [], versions: [{ id: "a", version: "8" }] }, 2);
+    // A reset is a hint, also with the values of each changed id
+    source.event({ since: "v1", version: "v2", changed: ["a"], deleted: [], values, reset: true }, 3);
+    source.event({ changed: [], deleted: [], reset: false }, 4);
+    source.event({ changed: [], deleted: [], versions: [{ id: "a" }] }, 5);
+    source.event({ changed: [], deleted: [], reset: "yes" }, 6);
+    expect(listener.log).toEqual([
+      ["changes", { since: "v0", version: "v1", full: false, changed: [["a", { n: 1 }]], deleted: [], versions: [{ id: "a", version: "7" }] }],
+      ["hint", { changed: ["a"], deleted: [], versions: [{ id: "a", version: "8" }] }],
+      ["hint", { since: "v1", version: "v2", changed: ["a"], deleted: [], reset: true }],
+      ["hint", { changed: [], deleted: [] }],
+      ["gap"],
+      ["gap"],
+    ]);
+  });
+
   it("keeps a field __proto__ of the wire as an own field of extra: it changes no prototype", () => {
     const source = new FakeSource();
     const listener = recorder();

@@ -146,8 +146,12 @@ export {
   TOMBSTONE_FIELD,
   DEFAULT_STORED_FORM,
   decodeStoredDocument,
+  versionOfStored,
 } from "./storage/index.js";
 export type { MongoStorageOptions, MongoDocumentStorageOptions, SelectorPrefilterOptions, StoredForm, DecodeStoredDocumentOptions, StoredDocumentEntry } from "./storage/index.js";
+// The change hints of a storage collection from its change stream (roadmap CLI-77)
+export { watchStorageChanges, storageChangeOf } from "./storage/index.js";
+export type { StorageChange, StorageChangeHint, StorageChangesWatch, StorageHintPublisher, WatchStorageChangesOptions } from "./storage/index.js";
 // The guard of an aggregation pipeline over shared collections, and its limits (Graph's split plan, P3)
 export {
   BLOCKED_PIPELINE_OPERATORS,

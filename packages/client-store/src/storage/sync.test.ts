@@ -525,6 +525,24 @@ describe("HybridStorage feed (CLI-21)", () => {
     await hybrid.close();
   });
 
+  it("a hint with reset makes a full pull, also with the version of the cursor (CLI-77)", async () => {
+    const remote = remoteOf();
+    await remote.data.set("a", { n: 1 });
+    await remote.data.set("b", { n: 2 });
+    const feed = new TestFeed();
+    const hybrid = new HybridStorage<Item>(remote.storage, { ...base, feed });
+    await hybrid.getAll();
+    await vi.waitFor(() => expect(hybrid.getStatus().syncing).toBe(false));
+    const cursor = await versionNow(remote.data);
+    const sinces = remote.sinces.length;
+    await remote.data.set("c", { n: 3 });
+    feed.hint({ since: cursor, version: cursor, changed: [], deleted: [], reset: true });
+    await vi.waitFor(async () => expect(await hybrid.getEntries()).toEqual([["a", { n: 1 }], ["b", { n: 2 }], ["c", { n: 3 }]]));
+    // The pull asked for all items, not the changes since the cursor, also with the version of the cursor
+    expect(remote.sinces.slice(sinces)).toEqual([undefined]);
+    await hybrid.close();
+  });
+
   it("a hint with only deletes applies without a read, and a hint of the version of the cursor changes nothing", async () => {
     const remote = remoteOf();
     await remote.data.set("a", { n: 1 });

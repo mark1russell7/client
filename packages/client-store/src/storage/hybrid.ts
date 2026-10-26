@@ -424,6 +424,7 @@ function hintOfDelta<T>(changes: RemoteChanges<T>): RemoteChangeHint {
     changed: changes.changed.map(([id]) => id),
     deleted: [...changes.deleted],
     ...(changes.origin !== undefined && { origin: changes.origin }),
+    ...(changes.versions !== undefined && { versions: changes.versions }),
     ...(changes.extra !== undefined && { extra: changes.extra }),
   };
 }
@@ -972,6 +973,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   private readonly joinedHints: RemoteChangeHint[] = [];
   /** True while a pull that a gap asked for waits to start */
   private gapPull = false;
+  /** True when the pull that waits must read the remote in full: a hint with `reset` asked for it. */
+  private resetPull = false;
   /** The stop of the capture of the local copy */
   private readonly stopCapture: (() => void) | undefined;
   /** The captured changes that came before the end of the load. Undefined after the load. */
@@ -1398,6 +1401,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   private async applyHint(hint: RemoteChangeHint, mark: number): Promise<void> {
     if (this.loadError) throw this.loadError;
     if (this.closed || (this.mode !== "write-through" && this.mode !== "write-back")) return;
+    // The remote cannot tell what changed: a full pull
+    if (hint.reset === true) return this.requestPull(hint, true);
     if (hint.version !== undefined && hint.version === this.cursor) return;
     if (hint.since !== undefined && hint.since === this.cursor && hint.version !== undefined && hint.changed.length === 0) {
       const version = hint.version;
@@ -1418,7 +1423,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
    * This method asks for a pull after the syncs that run. A request while a pull waits joins it.
    * With `aroundRemoteApply`, the pull keeps the last hints of the requests for the hook.
    */
-  private requestPull(hint: RemoteChangeHint | undefined): void {
+  private requestPull(hint: RemoteChangeHint | undefined, full = false): void {
+    if (full) this.resetPull = true;
     if (hint !== undefined && this.aroundRemoteApply) {
       this.joinedHints.push(hint);
       if (this.joinedHints.length > MAX_JOINED_HINTS) this.joinedHints.shift();
@@ -1429,11 +1435,13 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       .then(() =>
         this.serialize(() => {
           this.gapPull = false;
+          const full = this.resetPull;
+          this.resetPull = false;
           const hints = this.joinedHints.length > 0 ? this.joinedHints.splice(0) : NO_HINTS;
           if (this.closed) return Promise.resolve();
           return this.track("pull", async () => {
             if (this.loadError) throw this.loadError;
-            if (this.mode === "write-through" || this.mode === "write-back") await this.pullThrough(hints.length > 0 ? "hint" : "gap", hints);
+            if (this.mode === "write-through" || this.mode === "write-back") await this.pullThrough(hints.length > 0 ? "hint" : "gap", hints, full);
           });
         }),
       )
@@ -1444,9 +1452,9 @@ export class HybridStorage<T> implements CollectionStorage<T> {
    * This method pulls the changes since the cursor, through the hook `aroundRemoteApply` when the
    * options give it (graph W8). Without the hook, it is `pullRemote(false)`, with no other step.
    */
-  private pullThrough(cause: RemoteApplyCause, hints: readonly RemoteChangeHint[]): Promise<void> {
+  private pullThrough(cause: RemoteApplyCause, hints: readonly RemoteChangeHint[], full = false): Promise<void> {
     const hook = this.aroundRemoteApply;
-    return hook ? this.hookedApply(hook, cause, hints, () => this.pullRemote(false)) : this.pullRemote(false);
+    return hook ? this.hookedApply(hook, cause, hints, () => this.pullRemote(full)) : this.pullRemote(full);
   }
 
   /**

@@ -4,7 +4,7 @@
  * tests skip, except in the replica-set job of CI.
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, type TestContext } from "vitest";
 import { MongoClient, ObjectId, type Db, type Document } from "mongodb";
 import { ms, realClock, type Clock } from "@procedures/client";
 import { ViewMaterializer, identityPartition, viewFilter, type MaterializedView, type ViewPartitionOf, type ViewStorageSource } from "./materializer.js";
@@ -25,6 +25,38 @@ beforeAll(async () => {
 });
 
 const dbs: Db[] = [];
+
+/** The longest wait for the lock of the failpoint. A lock that is older is stale: a waiter takes it. */
+const LOCK_WAIT_MS = 45_000;
+
+/**
+ * The failpoint `failCommand` and the server parameters are global to the server, and the test files
+ * run at the same time. This lock (a document in a shared database) lets one test of a failpoint run
+ * at a time. It ends with the test. A run that stopped while it held the lock leaves a stale lock:
+ * after LOCK_WAIT_MS, a waiter takes it.
+ */
+async function lockFailpoints(context: TestContext): Promise<void> {
+  const locks = client!.db("client_mongo_test_locks").collection<{ _id: string; at: Date }>("locks");
+  const until = Date.now() + LOCK_WAIT_MS;
+  let at = new Date();
+  for (;;) {
+    at = new Date();
+    try {
+      await locks.insertOne({ _id: "failCommand", at });
+      break;
+    } catch (error) {
+      if ((error as { code?: unknown }).code !== 11000 || Date.now() > until) throw error;
+      // A stale lock: its test ended long ago without a release
+      const stale = await locks.deleteOne({ _id: "failCommand", at: { $lt: new Date(Date.now() - LOCK_WAIT_MS) } });
+      if (stale.deletedCount === 0) await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+  context.onTestFinished(async () => {
+    // Only this lock: a waiter may have taken it as stale
+    await locks.deleteOne({ _id: "failCommand", at });
+  });
+}
+
 afterAll(async () => {
   for (const db of dbs) await db.dropDatabase().catch(() => undefined);
   await client?.close();
@@ -133,6 +165,22 @@ withMongo("ViewMaterializer on MongoDB", { timeout: TEST_TIMEOUT_MS }, () => {
     // A document with _tomb other than true is an item
     await db.collection("items").insertOne({ _id: "4" as never, _part: "t1", kind: "b", n: 5, _tomb: false });
     await eventually(async () => expect(sorted(await target())).toEqual([{ _id: "a", _part: "t1", total: 1 }, { _id: "b", _part: "t1", total: 5 }]));
+    await views.stop();
+  });
+
+  it("leaves _seq and _tomb of a source out of the rows, and keeps the other fields: a row is no write of a storage (CLI-77)", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const { db, views } = setup();
+    // A document of a MongoDocumentStorage, with each field of the storage
+    await db.collection("items").insertOne({ _id: "t1a" as never, _part: "t1", _key: "a", _seq: 7, _ord: 3, _kid: true, _kpf: ["kind"], _json: "x", kind: "a", n: 1 });
+    // A pipeline that passes the source document through
+    const pipeline = [{ $project: { _id: "$_key", _key: 1, _seq: 1, _ord: 1, _kid: 1, _kpf: 1, _json: 1, _tomb: 1, kind: 1, n: 1 } }];
+    await db.collection("_aggregations").insertOne(sumsView({ _id: "copies", pipeline, targetCollection: "copies" }) as never);
+    await views.start();
+    const rows = await db.collection("copies").find({}).toArray();
+    // A pass-through row of a _json item keeps its content, and a view can project _key
+    expect(sorted(rows)).toEqual([{ _id: "a", _part: "t1", _key: "a", _ord: 3, _kid: true, _kpf: ["kind"], _json: "x", kind: "a", n: 1 }]);
+    for (const name of ["_seq", "_tomb"]) expect(rows[0]).not.toHaveProperty(name);
     await views.stop();
   });
 
@@ -318,6 +366,7 @@ withMongo("ViewMaterializer on MongoDB", { timeout: TEST_TIMEOUT_MS }, () => {
 
   it("writes in groups when its transaction goes over the lifetime limit of the server", async (context) => {
     if (!replicaSet) return context.skip?.("change streams need a replica set");
+    await lockFailpoints(context);
     const admin = client!.db("admin");
     const failpoints = await admin.command({ configureFailPoint: "failCommand", mode: "off" }).then(
       () => true,
@@ -351,7 +400,7 @@ withMongo("ViewMaterializer on MongoDB", { timeout: TEST_TIMEOUT_MS }, () => {
       await views.stop();
       await own.close();
     }
-  }, 30_000);
+  }, LOCK_WAIT_MS + 30_000);
 
   it("gives way to the live lease of another process, keeps the rows of its generation, and removes them when the lease ends", async (context) => {
     if (!replicaSet) return context.skip?.("change streams need a replica set");
@@ -388,6 +437,7 @@ withMongo("ViewMaterializer on MongoDB", { timeout: TEST_TIMEOUT_MS }, () => {
 
   it("keeps one view under two processes: a slow pass in groups keeps its rows, and a pass whose generation changed does not flip", async (context) => {
     if (!replicaSet) return context.skip?.("change streams need a replica set");
+    await lockFailpoints(context);
     const admin = client!.db("admin");
     const failpoints = await admin.command({ configureFailPoint: "failCommand", mode: "off" }).then(
       () => true,
@@ -439,7 +489,7 @@ withMongo("ViewMaterializer on MongoDB", { timeout: TEST_TIMEOUT_MS }, () => {
       await b.stop();
       await Promise.all([clientA.close(), clientB.close()]);
     }
-  }, 30_000);
+  }, LOCK_WAIT_MS + 30_000);
 
   it("has the stop parts of a transport, and takes its timers from the injected clock", async (context) => {
     if (!replicaSet) return context.skip?.("change streams need a replica set");
