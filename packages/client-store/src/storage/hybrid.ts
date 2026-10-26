@@ -223,6 +223,15 @@ export interface HybridStorageOptions {
   isUnavailable?: (error: unknown) => boolean;
 
   /**
+   * This hook gets each queued write that the remote refused (roadmap O67). A refusal is an error
+   * for which `isUnavailable` gives false, and that is not a version conflict. The write leaves the
+   * queue, and the queue goes on with the next write. The local copy of its ids gets the remote
+   * values again, except for an id that a later queued write changes. An error of the hook does
+   * not stop the queue.
+   */
+  onRefused?: (refusal: QueueRefusal) => void | Promise<void>;
+
+  /**
    * The storage of the local copy (roadmap R45). A durable storage, for example `SqliteStorage`
    * of `@procedures/sqlite`, keeps the local copy after a restart. Then a new storage in
    * `local-only` mode reads the items of the last run. Give it with a durable `queueStore`.
@@ -531,6 +540,21 @@ class SyncTimer {
     if (failed || again || this.options.repeat) this.arm();
     else this.active = false;
   }
+}
+
+/** A queued write that the remote refused: the argument of the hook `onRefused` (roadmap O67). */
+export interface QueueRefusal {
+  /** The write. It is not in the queue now. */
+  operation: QueuedOperation;
+  /** The ids of the write, or `"*"` for a clear. */
+  ids: string[] | "*";
+  /** The error of the remote. */
+  error: unknown;
+  /**
+   * True when the local copy got the remote values of the ids. A clear asks for a full pull, and
+   * gives false. A failed read of the remote also gives false.
+   */
+  restored: boolean;
 }
 
 /**
@@ -891,6 +915,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     maxOfflineOps: number;
     offlineQueue: boolean;
     isUnavailable: (error: unknown) => boolean;
+    onRefused?: (refusal: QueueRefusal) => void | Promise<void>;
   };
   private mode: HybridMode;
   private offlineOps: QueuedOperation[] = [];
@@ -1032,6 +1057,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       maxOfflineOps: options.maxOfflineOps ?? 1000,
       offlineQueue: options.offlineQueue ?? true,
       isUnavailable: options.isUnavailable ?? defaultIsUnavailable,
+      ...(options.onRefused !== undefined && { onRefused: options.onRefused }),
     };
     this.statusListeners = new StorageListeners<SyncStatus>(options.onListenerError);
     this.queryPolicy = options.queryPolicy;
@@ -2846,6 +2872,17 @@ export class HybridStorage<T> implements CollectionStorage<T> {
             await this.resolvePushConflicts(op, conflicts);
             continue;
           }
+          if (conflicts === undefined && !(error instanceof QueueStoreError) && !this.options.isUnavailable(error)) {
+            // The remote refused the write: it leaves the queue, and the push goes on (roadmap O67)
+            this.isOnline = true;
+            if (this.offlineOps[0] === op) {
+              this.offlineOps.shift();
+              sent++;
+              this.storeDirty = true;
+            }
+            await this.refuseQueued(op, error);
+            continue;
+          }
           // This operation and the later ones stay queued
           if (conflicts === undefined) this.isOnline = false;
           throw error;
@@ -2867,6 +2904,49 @@ export class HybridStorage<T> implements CollectionStorage<T> {
         await this.persistAll().catch(() => undefined);
       }
     }
+  }
+
+  /**
+   * This method ends a queued write that the remote refused (roadmap O67). The local copy of its ids
+   * gets the remote values, and the hook `onRefused` gets the refusal. A refused clear asks for a
+   * full pull.
+   */
+  private async refuseQueued(op: QueuedOperation, error: unknown): Promise<void> {
+    const ids = idsOf(op);
+    const all = ids.includes("*");
+    let restored = false;
+    if (all) {
+      this.requestPull(undefined, true);
+    } else if (this.mode !== "remote-only") {
+      restored = await this.restoreRemote(ids.filter((id) => !this.hasPendingOp(id)));
+    }
+    try {
+      await this.options.onRefused?.({ operation: op, ids: all ? "*" : ids, error, restored });
+    } catch {
+      // An error of the hook does not stop the queue
+    }
+  }
+
+  /**
+   * This method writes the remote values of these ids into the local copy. It skips an id that a
+   * queued write or an own write in flight changes. It gives false when the read of the remote fails.
+   */
+  private async restoreRemote(ids: string[]): Promise<boolean> {
+    if (ids.length === 0) return true;
+    let items: Map<string, T>;
+    try {
+      items = await this.remote.getBatch(ids);
+    } catch {
+      return false;
+    }
+    for (const id of ids) {
+      if (this.hasPendingOp(id) || this.waitsForRemote(id)) continue;
+      const item = items.get(id);
+      if (item === undefined) await this.localDelete(id, this.syncOrigin);
+      else await this.localSet(id, item, this.syncOrigin);
+      this.noteBase(id, item);
+    }
+    return true;
   }
 
   /** Run syncs one at a time. */

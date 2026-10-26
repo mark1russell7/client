@@ -182,6 +182,10 @@ await users.setMode("write-through"); // The switch sends the queue, then syncs 
 - In the modes `local-only` and `write-back`, each write goes in the queue.
 - In the mode `write-through`, a write that the remote cannot take goes in the queue, and the write throws `PendingWriteError`.
 - A full queue refuses the next write with `QueueFullError`. The limit is `maxOfflineOps`, 1000 by default.
+- A push keeps a write that the remote cannot take at this time (`isUnavailable` gives true). This write and the later writes stay in the queue.
+- A queued write that the remote refuses leaves the queue, and the push goes on with the next write.
+- After a refusal, the local copy gets the remote values of its ids again. An id that a later queued write changes keeps its local value.
+- The option `onRefused` gets each refusal: the write, its ids, the error, and `restored`. An error of the hook does not stop the push.
 - The option `queueStore` keeps the queue. The storage writes each change to the store before the write ends.
 - A new storage with the same store loads the queue, shows its writes, and sends them.
 - `MemoryQueueStore` is the default. `FileQueueStore` keeps the queue in a JSON Lines file, for Node.
