@@ -60,7 +60,8 @@
  *   any more, or the collection was dropped or renamed, the watcher cannot know what it missed: it
  *   publishes a reset hint (a gap: no ids, `reset: true`) on the plain topic and on the topic of
  *   each partition that it knows: the partitions of the counters, of `forPartition()`, of the
- *   hints, of the subscribed topics of the bus, and of `gapPartitions`. The subscribers read the
+ *   hints, of the subscribed topics of the bus, and of `gapPartitions`. The counters have a floor
+ *   document for each partition with a write through a storage. The subscribers read the
  *   collection in full.
  * - The pipeline of the stream is `[]`: the storage of a partition (`forPartition()`) watches the
  *   whole collection and drops the events of other partitions.
@@ -155,10 +156,10 @@ export interface WatchStorageChangesOptions {
    * More partitions for the hint of a gap. The host gives the partitions that its subscribers
    * subscribed to, when the publisher cannot tell them (a function, or a bus without
    * `channels()`). The watcher adds the plain topic, the partitions of the counters and of
-   * `forPartition()`, the partitions of the hints, and the subscribed topics of the bus. A
-   * partition of the counters has a floor document only after a prune. For a complete gap, give
-   * `gapPartitions`. Otherwise a partition gets a gap hint only after a prune, a write that this
-   * watcher saw, or an open forPartition() storage here.
+   * `forPartition()`, the partitions of the hints, and the subscribed topics of the bus. Each
+   * partition with a write through a storage (in any process) has a floor document in the
+   * counters (roadmap O66). So give `gapPartitions` only for the partitions that only raw writes
+   * wrote.
    */
   gapPartitions?: (() => Iterable<string | undefined>) | undefined;
   /**
