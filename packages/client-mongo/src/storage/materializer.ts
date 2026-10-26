@@ -38,8 +38,9 @@
  *
  * A change reaches only the views of its partition when its partition is known. A delete has no
  * document: its partition comes from the pre-image (a collection with
- * `changeStreamPreAndPostImages`), or from the id in a source of `storageSources`, through its
- * mapping. Else it reaches the views of each partition of its source. With pre-images, an update
+ * `changeStreamPreAndPostImages`), or, in a source of `storageSources`, from `partitionOf` of the
+ * stored form and the mapping of the source (roadmap CLI-76). Else it reaches the views of each
+ * partition of its source. With pre-images, an update
  * that moves a document to another partition also reaches the views of its old partition.
  *
  * Change streams and transactions need a replica set (MongoDB 6 or later). The target of a view is
@@ -52,7 +53,7 @@
 import { createHash } from "node:crypto";
 import { BSON, ObjectId, type ChangeStream, type ClientSession, type Collection, type Db, type Document } from "mongodb";
 import { optionalMs, realClock, type Cancel, type Clock, type Duration } from "@procedures/client";
-import { SEPARATOR, TOMBSTONE_FIELD } from "./document-storage.js";
+import { DEFAULT_STORED_FORM, TOMBSTONE_FIELD, type StoredForm } from "./document-storage.js";
 import { scopePipeline } from "./pipeline-scope.js";
 
 /** The definition of a view, as a document of the views collection. */
@@ -142,13 +143,15 @@ export interface ViewMaterializerOptions {
    */
   passLease?: Duration | undefined;
   /**
-   * The sources that are collections of a `MongoDocumentStorage`, each with the function that
-   * gives the partition of the views from the partition of the storage. The stored id of a document
-   * starts with its storage partition and U+001F. A delete without a pre-image then reaches only the
-   * views of its partition. Give `identityPartition` when the two partitions are the same. Without a
-   * function, or when it gives `undefined`, the delete reaches the views of each partition.
+   * The sources that are collections of a `MongoDocumentStorage`. For each one, a function that
+   * gives the partition of the views from the partition of the storage (the storage has the default
+   * form), or a `ViewStorageSource` with the stored form of the storage (`storage.form`) and that
+   * function. A change without a pre-image then reaches only the views of its partition: the
+   * `partitionOf` of the form reads the storage partition from the document of the change (for a
+   * delete, only `documentKey`). Give `identityPartition` when the two partitions are the same.
+   * When the form or the function gives `undefined`, the change reaches the views of each partition.
    */
-  storageSources?: Readonly<Record<string, ViewPartitionOf>> | undefined;
+  storageSources?: Readonly<Record<string, ViewPartitionOf | ViewStorageSource>> | undefined;
 }
 
 /** The function that gives the stored `_id` of a row of a view. */
@@ -211,6 +214,14 @@ export type ViewPartitionOf = (storagePartition: string) => string | undefined;
 
 /** The partition of the views is the partition of the storage. */
 export const identityPartition: ViewPartitionOf = (storagePartition) => storagePartition;
+
+/** A source of `storageSources` with its stored form (roadmap CLI-76). */
+export interface ViewStorageSource {
+  /** The stored form of the storage, for example `storage.form`. Its `partitionOf` reads the storage partition of a document. */
+  form: Pick<StoredForm, "partitionOf">;
+  /** The partition of the views from the partition of the storage. */
+  viewPartitionOf: ViewPartitionOf;
+}
 
 /** A view that the materializer knows. */
 interface RunningView {
@@ -278,7 +289,7 @@ export class ViewMaterializer {
   private readonly maxTransactionRows: number;
   private readonly graceMs: number;
   private readonly leaseMs: number;
-  private readonly storageSources: ReadonlyMap<string, ViewPartitionOf>;
+  private readonly storageSources: ReadonlyMap<string, ViewStorageSource>;
   /** False after `stopIntake()`: a change starts no pass. */
   private intake = false;
   /** The work of each partition, one at a time: the passes and the rebalances. */
@@ -300,7 +311,15 @@ export class ViewMaterializer {
     this.maxTransactionRows = options.maxTransactionRows ?? 10_000;
     this.graceMs = optionalMs(options.generationGrace, "generationGrace") ?? 60_000;
     this.leaseMs = Math.round(optionalMs(options.passLease, "passLease") ?? 60_000);
-    this.storageSources = new Map(Object.entries(options.storageSources ?? {}));
+    this.storageSources = new Map(
+      Object.entries(options.storageSources ?? {}).map(([source, entry]): [string, ViewStorageSource] => {
+        const normal = typeof entry === "function" ? { form: DEFAULT_STORED_FORM, viewPartitionOf: entry } : entry;
+        if (typeof normal?.form?.partitionOf !== "function" || typeof normal.viewPartitionOf !== "function") {
+          throw new TypeError(`The storage source ${source} needs a function, or a form with partitionOf and a viewPartitionOf`);
+        }
+        return [source, normal];
+      })
+    );
   }
 
   private log(level: "info" | "warn" | "error", message: string): void {
@@ -572,21 +591,32 @@ export class ViewMaterializer {
 
   /**
    * True for a change without a pre-image (a delete, a replace, an update), in a source of
-   * `storageSources`, whose id names a storage partition that maps to another partition of the
-   * views. A document that is in the partition after the change, an id without the separator, a
-   * mapping that gives `undefined` and a mapping that fails do not tell another partition: false.
+   * `storageSources`, whose document names a storage partition that maps to another partition of
+   * the views. The document is `fullDocument`, else `fullDocumentBeforeChange`, else `documentKey`,
+   * and `partitionOf` of the form reads its storage partition. A document that is in the partition
+   * after the change, a document that does not tell its partition, a key (`documentKey`) that tells
+   * another storage partition than the document after the change (a move), a mapping that gives
+   * `undefined` and a function that fails do not tell another partition: false.
    */
   private isOtherPartition(change: Document, source: string, partition: string): boolean {
-    const viewPartitionOf = this.storageSources.get(source);
-    if (!viewPartitionOf || change["fullDocumentBeforeChange"]) return false;
+    const storageSource = this.storageSources.get(source);
+    if (!storageSource || change["fullDocumentBeforeChange"]) return false;
     if (!["delete", "replace", "update"].includes(change["operationType"] as string)) return false;
-    if ((change["fullDocument"] as Document | null | undefined)?.[this.partitionField] === partition) return false;
-    const id = (change["documentKey"] as Document | undefined)?.["_id"];
-    const at = typeof id === "string" ? id.indexOf(SEPARATOR) : -1;
-    if (at <= 0) return false;
+    const after = change["fullDocument"] as Document | null | undefined;
+    if (after?.[this.partitionField] === partition) return false;
+    const key = change["documentKey"] as Document | null | undefined;
+    const doc = (after ?? (change["fullDocumentBeforeChange"] as Document | null | undefined) ?? key) as Document | null | undefined;
+    if (!doc) return false;
     let viewPartition: string | undefined;
     try {
-      viewPartition = viewPartitionOf((id as string).slice(0, at));
+      const storagePartition = storageSource.form.partitionOf(doc);
+      if (typeof storagePartition !== "string") return false;
+      // A document whose key tells another partition than the document after the change can have moved out of this partition
+      if (after && key) {
+        const before = storageSource.form.partitionOf(key);
+        if (before !== undefined && before !== storagePartition) return false;
+      }
+      viewPartition = storageSource.viewPartitionOf(storagePartition);
     } catch {
       return false;
     }
