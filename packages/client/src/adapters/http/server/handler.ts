@@ -19,6 +19,7 @@
 import type { IncomingHttpHeaders, IncomingMessage, ServerResponse as NodeResponse } from "node:http";
 import type { Metadata, Method } from "../../../client/types.js";
 import type { RequestHandler, ServerRequest, ServerResponse } from "../../../server/types.js";
+import { lastResortError } from "../../../server/last-resort.js";
 import { decodeMetadataHeader, METADATA_HEADER_LIMIT } from "../shared/index.js";
 import { ERROR_REGISTRY } from "../../../client/errors/index.js";
 import { assertNamedOrigins, checkBrowserRequest, needsNamedOrigin, type BrowserGuardOptions } from "../../../server/browser-guard.js";
@@ -396,6 +397,8 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
       method,
       payload,
       metadata,
+      // The face of the request, for the error policy of the server (CLI-80)
+      transport: "http",
       // A network request: ProcedureServer examines the token and the request hook (R18, CLI-2a).
       // The credentials have the connection of the socket of the request (CLI-71)
       credentials: requestCredentials({ headers: req.headers as Record<string, unknown>, url: req.url, socket: req.socket }),
@@ -497,6 +500,18 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
     await writeNdjsonStream(res, stream, { signal, keepAlive, errorOf, clock });
   };
 
+  /**
+   * The last resort: an error of `handle()` or of this face after it. The error policy of the
+   * server applies here too (CLI-80), and the code of its result gives the HTTP status.
+   */
+  const sendLastResort = (res: NodeResponse, error: unknown, request: ServerRequest | undefined, message: string): void => {
+    const exposed = lastResortError(server, error, request, { code: "INTERNAL_ERROR", message, retryable: false });
+    // The wait of a map result (retryAfterMs) goes out as on the usual error path (CLI-80)
+    const wait = exposed.retryAfterMs;
+    const metadata = typeof wait === "number" && Number.isFinite(wait) && wait >= 0 ? { "retry-after": wait } : {};
+    toHttp({ id: request?.id ?? "unknown", status: { type: "error", code: exposed.code, message: exposed.message, retryable: exposed.retryable === true }, metadata }, res);
+  };
+
   /** This function serves a request that the handler took. */
   const serve = async (req: IncomingMessage, res: NodeResponse): Promise<void> => {
     if (cors && applyCors(req, res, cors)) return;
@@ -540,8 +555,8 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
       if (!res.writableFinished) controller.abort();
       requestEnded(controller);
     });
+    let serverRequest: ServerRequest | null = null;
     try {
-      let serverRequest: ServerRequest | null;
       try {
         serverRequest = toServerRequest(req, await readBody(req));
       } catch (error) {
@@ -562,7 +577,7 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
       }
       toHttp(serverResponse, res);
     } catch (error) {
-      if (!res.headersSent) sendError(res, 500, (error as Error).message || "Internal server error", "INTERNAL_ERROR");
+      if (!res.headersSent) sendLastResort(res, error, serverRequest ?? undefined, (error as Error).message || "Internal server error");
     } finally {
       // An open response (an error before its end) stays in progress until its close event
       if (res.writableEnded || res.destroyed) requestEnded(controller);
@@ -572,7 +587,7 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
   /** This function serves a request, and does not reject: an error ends the response with 500. */
   const settle = (req: IncomingMessage, res: NodeResponse): Promise<void> =>
     serve(req, res).catch((error: unknown) => {
-      if (!res.headersSent) sendError(res, 500, error instanceof Error ? error.message : String(error), "INTERNAL_ERROR");
+      if (!res.headersSent) sendLastResort(res, error, undefined, error instanceof Error ? error.message : String(error));
       else if (!res.writableEnded) res.destroy();
     });
 

@@ -22,6 +22,7 @@ import {
   effectsOf,
   idempotencyKeyOf,
   isRepeatable,
+  lastResortError,
   methodToPath,
   ms,
   pathToKey,
@@ -197,6 +198,14 @@ async function trackedCall(life: Lifecycle, options: FaceHandlerOptions, request
   const first = await events.next();
   if (first.done) return failure(request.id, "INTERNAL_ERROR", "The call ended without a response", false);
   const event = first.value;
+  if (event.kind === "failed") {
+    // handle() threw: the error policy of the server applies, as in the last-resort catch of a face (CLI-80)
+    const exposed = lastResortError(server, event.error, request, { code: "INTERNAL_ERROR", message: messageOf(event.error), retryable: false });
+    const failed = failure(request.id, exposed.code, exposed.message, exposed.retryable === true);
+    // The wait of a map result goes out as on the usual error path
+    const wait = exposed.retryAfterMs;
+    return typeof wait === "number" && Number.isFinite(wait) && wait >= 0 ? { ...failed, metadata: { "retry-after": wait } } : failed;
+  }
   if (event.kind !== "item") return endResponse(request.id, event);
   const part = event.value;
   if (!("head" in part)) {
@@ -225,6 +234,8 @@ export function faceHandler(options: FaceHandlerOptions): FaceHandler {
     // The one admission of a network request before its calls (CLI-2b): the MCP face admits each
     // HTTP request with it, and each call of that request uses the admitted credentials
     admission: (credentials) => server.admission(credentials),
+    // The error policy of the server for the last-resort catch of the face (CLI-80)
+    exposeError: (error, request, raw) => server.exposeError(error, request, raw),
     handle: (request: ServerRequest): Promise<ServerResponse> => {
       const life = options.life();
       return life ? trackedCall(life, options, request) : server.handle(request);

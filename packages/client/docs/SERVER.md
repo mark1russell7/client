@@ -43,6 +43,7 @@ const server = new Server({
   onError: (error, request) => { ... },  // global error handler
   onRequest: (request) => { ... },       // request logger
   onResponse: (response) => { ... },     // response logger
+  errors: { expose: "coded" },           // the error policy (CLI-80), "all" by default
 });
 ```
 
@@ -274,6 +275,29 @@ Errors are automatically converted to responses:
 | `HandlerNotFoundError` | 404 | false |
 | `ServerError` | custom | custom |
 | Other errors | 500 | false |
+
+### The error policy
+
+The option `errors` tells what an error tells the caller (roadmap CLI-80). `handle()` applies it, so each face sends the same error.
+
+- `expose: "all"` is the default. Each error goes to the caller with its code and its message.
+- `expose: "coded"` sends an error with a known code (`isKnownErrorCode`) as it is. Each other error goes to the caller as `INTERNAL_ERROR` with the message `internal error` and its real retryable flag. `onError` gets the real error one time.
+- `codes` adds the codes of the application that go out as they are under `"coded"`.
+- The server applies `map(error, { path, transport })` first. Its result goes to the caller as it is, with its wait.
+- The last-resort catch of each face applies the same policy, for example when `handle()` throws.
+
+```typescript
+const server = new ProcedureServer({
+  errors: {
+    expose: "coded",
+    // A ServerError with the code QUOTA_EXCEEDED goes to the caller as it is
+    codes: ["QUOTA_EXCEEDED"],
+    map: (error) => (isPoolExhausted(error) ? Object.assign(new ServerError("Try again soon", "TOO_MANY_REQUESTS", true), { retryAfterMs: 1000 }) : undefined),
+  },
+});
+```
+
+Refer to [the error policy of a server](../../documentation/WIRE-PROTOCOL.md#the-error-policy-of-a-server).
 
 ---
 

@@ -496,6 +496,8 @@ export class WebSocketServerTransport implements ServerTransport {
         headers: withoutSecretHeaders(req.headers as Record<string, unknown>, this.secretHeaders),
       },
       signal,
+      // The face of the request, for the error policy of the server (CLI-80)
+      transport: "websocket",
       // The credentials of the connection: the bearer token of its upgrade (R18), its cookies,
       // its headers and its query (CLI-2a)
       credentials,

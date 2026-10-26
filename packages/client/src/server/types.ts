@@ -9,6 +9,7 @@ import type { Elicit } from "../procedures/elicit.js";
 import type { ReportProgress } from "../procedures/progress.js";
 import type { Metadata, Status, Method } from "../client/types.js";
 import type { CapabilityRequest } from "../procedures/types.js";
+import type { ExposedError } from "./error-policy.js";
 import { methodName } from "./method.js";
 
 // Re-export Method from client types
@@ -46,6 +47,12 @@ export interface ServerRequest<TReq = unknown> {
 
   /** Abort signal for cancellation */
   signal?: AbortSignal;
+
+  /**
+   * The face that took the request: `"http"`, `"websocket"`, `"port"` or `"mcp"` (roadmap CLI-80). The face
+   * sets it, not the caller. The `map` function of the error policy (`errors`) gets it.
+   */
+  transport?: string | undefined;
 
   /**
    * The credentials of the request (roadmap R18). A network face reads them from the request: the
@@ -213,6 +220,12 @@ export interface ServerDebugReport {
  */
 export interface RequestHandler {
   handle(request: ServerRequest): Promise<ServerResponse>;
+  /**
+   * The error that the last-resort catch of a face sends, when `handle()` throws or the face fails
+   * after it (roadmap CLI-80): `raw` under the error policy of the handler. `Server` has it, and
+   * a face calls it through `lastResortError`. Absent: the face sends `raw`.
+   */
+  exposeError?(error: unknown, request: ServerRequest | undefined, raw: ExposedError): ExposedError;
   /**
    * How the handler can authenticate a network request with ambient credentials: the cookies that
    * a browser sends by itself, also for a request of another site (CSRF). A network face then

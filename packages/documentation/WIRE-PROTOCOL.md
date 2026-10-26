@@ -384,9 +384,39 @@ A call above a limit gets `RATE_LIMITED`. The call did not start, thus a retry a
 
 A circuit breaker does not count `RATE_LIMITED`, because the server is not unhealthy. The retry middleware waits at least for `retry-after` before the next try.
 
+### The error policy of a server
+
+The option `errors` of `Server`, `ProcedureServer` and the `serverOptions` of a host tells what an error tells the caller (CLI-80). `Server.handle()` applies it. Thus each face (HTTP, WebSocket, MCP, a message port) sends the same error. The policy applies to an error before a stream and to the error that ends a stream.
+
+```typescript
+new ProcedureServer({
+  errors: {
+    expose: "coded",
+    map: (error) => (isDuplicateKey(error) ? new ServerError("The item exists", "CONFLICT") : undefined),
+  },
+  onError: (error, request) => logger.error({ err: error, id: request.id }),
+});
+```
+
+- `expose: "all"` is the default. Each error goes to the caller with its code and its message, as before.
+- `expose: "coded"` sends an error with a known code as it is: its code, its message, its retryable flag and its metadata. A known code is a code of the table or another code of `ERROR_REGISTRY`, for example `CONFLICT` or `BAD_REQUEST`. `isKnownErrorCode(code)` of `@procedures/client` does this check. The class of the error has no effect.
+- The option `codes` adds the codes of the application, for example `codes: ["QUOTA_EXCEEDED"]`. Under `"coded"`, an error with one of these codes goes to the caller as it is.
+- Under `"coded"`, each other error goes to the caller as `INTERNAL_ERROR` with the message `internal error`. It keeps its real retryable flag, because the flag tells nothing private: a transient `ECONNREFUSED` with `retryable: true` stays retryable.
+- A hidden error keeps only the metadata keys of an allowlist: the option `keepMetadata`. The default is `DEFAULT_KEPT_METADATA`, the trace keys `traceparent` and `tracestate`. Each other key goes, also a key that the server does not know, for example `issues`. A `map` result keeps the same keys, and adds the keys of its own error. Thus no part of the raw error goes out: not its message, its cause, its details or its data.
+- A code of the platform (`ECONNREFUSED`, `ENOENT`) and a number (a code of MongoDB) are not known codes. The codes `INTERNAL_ERROR`, `HANDLER_ERROR`, `UNKNOWN`, `OUTPUT_VALIDATION_ERROR` and `NO_OUTPUT` tell of a failure of the server, so `"coded"` hides their message too. For example, the message of `OUTPUT_VALIDATION_ERROR` names the fields and the values of the wrong output.
+- The server gives each hidden error to its logger `onError` one time, with its message and its stack. Without `onError`, the server writes it to `console.error`.
+- The server applies `map` first, to each error. `map` gets the real error, of its own class, and the call: `{ path, transport }`. The face sets `transport`: `http`, `websocket`, `port` or `mcp`. 
+- The result of `map` goes to the caller as it is, also with a code of the application. The server makes the usual error response of the result, so its `retryAfterMs` and the conflicts of a `VERSION_CONFLICT` error go out too. `undefined` gives the error to `expose`. A `map` that throws gives `INTERNAL_ERROR`.
+- The server finds the real error of a response through two links. Neither link is a field of the response. One is the status object. The other is the request object, with the code and the message of the status. A middleware that copies the response or its status keeps a link. A status that a middleware makes for another error has no link, and `map` gets a `ServerError` of the status.
+- The last-resort catch of each face applies the same policy: when `handle()` throws, or when the face cannot send the value (for example, a `BigInt` that JSON cannot encode). Under `"coded"`, the caller gets `INTERNAL_ERROR` with the message `internal error`. A face calls `lastResortError(handler, error, request)`, and `Server.exposeError()` applies the policy. The wait of a `map` result (`retryAfterMs`) goes out on this path too. HTTP, WebSocket, a message port and the tracked call of a host send it as `retry-after`. MCP sends it as `retryAfterMs` in `_meta`.
+- A nested call of `ctx.client` does not go through `handle()`, so the procedure gets the real error. `LocalTransport` and `invokeProcedure()` also get the real error.
+- The local face of a host (`localFace()`) uses `handle()`, so the policy applies to it too.
+
 ## MCP
 
 The MCP face follows the MCP specification. An error result has `isError: true`, a text block with the message and the reason, and `_meta` with `code`, `retryable` and `reason`. An error with a wait also has `retryAfterMs` in `_meta` (CLI-40).
+
+Each error result of a `tools/call` has `_meta` with `code` and `retryable` (CLI-80). This is true for an error response of the server, an unknown tool (`NOT_FOUND`), and the last-resort catch. The refusal of a task above the limit of the store has no `_meta`. An MCP protocol error (`McpError`, for example a tool that runs only as a task) is a JSON-RPC error, not a result, so it has no `_meta`.
 
 The error of a stream also has `_meta` with `code` and `retryable` (CLI-48). Its flag follows the rule of an in-band end (refer to "Error codes", CLI-58, CLI-68). Before the first item, an error without a flag gets the flag of its code. After an item, it gets false.
 

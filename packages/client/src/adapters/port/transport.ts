@@ -105,6 +105,8 @@ export class PortTransport implements Transport {
           payload: frame.payload === undefined ? {} : frame.payload,
           metadata: withoutInternalKeys(frame.metadata),
           signal,
+          // The face of the request, for the error policy of the server (CLI-80)
+          transport: "port",
           credentials,
         }),
       });

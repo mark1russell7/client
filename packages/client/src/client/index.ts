@@ -15,6 +15,7 @@ export {
   ERROR_REGISTRY,
   getErrorMetadata,
   isKnownError,
+  isKnownErrorCode,
   createError,
   createErrorFromHTTPStatus,
   createErrorFromException,
