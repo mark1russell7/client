@@ -20,7 +20,7 @@
  * `bundleMcpModules`. `register.ts` registers the same modules in the global registry.
  */
 
-import { clientModule, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { definePackage, clientModule, type ProcedureModule, type PackageDefinition } from "@procedures/client";
 import libModule from "@procedures/lib/module";
 import dagModule from "@procedures/dag/module";
 import procedureModule from "@procedures/procedure/module";
@@ -59,8 +59,10 @@ export const bundleMcpModules: readonly ProcedureModule[] = [
   vitestModule,
 ];
 
+const bundleMcpPackage: PackageDefinition = definePackage("@procedures/bundle-mcp", [], bundleMcpModules);
+
 /** The bundle as one module: no procedures of its own, and the modules above as requirements. */
-export const bundleMcpModule: ProcedureModule = defineModule("@procedures/bundle-mcp", [], bundleMcpModules);
+export const bundleMcpModule: ProcedureModule = bundleMcpPackage.module;
 
 export default bundleMcpModule;
 
@@ -124,6 +126,4 @@ export const mcpExclude: readonly string[] = [
  * a registry. The default is the global registry. Importing this file registers nothing: the
  * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
  */
-export function registerBundleMcpProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [bundleMcpModule]);
-}
+export const registerBundleMcpProcedures: PackageDefinition["register"] = bundleMcpPackage.register;

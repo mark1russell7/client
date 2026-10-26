@@ -7,7 +7,7 @@
  * client-cli no longer registers these to avoid duplicates.
  */
 
-import { createProcedure, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { definePackage, createProcedure, type ProcedureModule, type PackageDefinition } from "@procedures/client";
 import gitModule from "@procedures/git/module";
 import fsModule from "@procedures/fs/module";
 import {
@@ -210,11 +210,7 @@ const ecosystemProceduresProcedure = createProcedure()
 // Registration
 // =============================================================================
 
-/**
- * The module of this package, for `createRegistry()`: its procedures as data. Importing this
- * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
- */
-export const libModule: ProcedureModule = defineModule("@procedures/lib", [
+const libPackage: PackageDefinition = definePackage("@procedures/lib", [
     // lib.* procedures (canonical home)
     libScanProcedure,
     libRenameProcedure,
@@ -226,6 +222,12 @@ export const libModule: ProcedureModule = defineModule("@procedures/lib", [
     ecosystemProceduresProcedure,
   ], [fsModule, gitModule]);
 
+/**
+ * The module of this package, for `createRegistry()`: its procedures as data. Importing this
+ * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
+ */
+export const libModule: ProcedureModule = libPackage.module;
+
 export default libModule;
 
 /**
@@ -233,6 +235,4 @@ export default libModule;
  * a registry. The default is the global registry. Importing this file registers nothing: the
  * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
  */
-export function registerLibProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [libModule]);
-}
+export const registerLibProcedures: PackageDefinition["register"] = libPackage.register;

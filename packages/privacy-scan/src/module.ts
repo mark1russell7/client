@@ -2,10 +2,12 @@
  * The procedures of @procedures/privacy-scan as data. Importing this file registers nothing.
  */
 
-import { defineModule, registerModules, PROCEDURE_REGISTRY, type ProcedureModule, type ProcedureRegistry } from "@procedures/client";
+import { definePackage, type ProcedureModule, type PackageDefinition } from "@procedures/client";
 import { privacyScanProcedures } from "./procedures.js";
 
-export const privacyScanModule: ProcedureModule = defineModule("@procedures/privacy-scan", privacyScanProcedures);
+const privacyScanPackage: PackageDefinition = definePackage("@procedures/privacy-scan", privacyScanProcedures);
+
+export const privacyScanModule: ProcedureModule = privacyScanPackage.module;
 
 export default privacyScanModule;
 
@@ -13,6 +15,4 @@ export default privacyScanModule;
  * This function registers the procedures of @procedures/privacy-scan in a registry. The default is the
  * global registry.
  */
-export function registerPrivacyScanProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [privacyScanModule]);
-}
+export const registerPrivacyScanProcedures: PackageDefinition["register"] = privacyScanPackage.register;

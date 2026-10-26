@@ -2,7 +2,7 @@
  * Module (no side effects): the vitest procedures as data, for `createRegistry()`.
  */
 
-import { createProcedure, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { definePackage, createProcedure, type ProcedureModule, type PackageDefinition } from "@procedures/client";
 import {
   VitestCoverageInputSchema,
   VitestListInputSchema,
@@ -93,17 +93,19 @@ const vitestListProcedure = createProcedure()
   .handler(vitestList)
   .build();
 
-/**
- * The module of this package, for `createRegistry()`: its procedures as data. Importing this
- * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
- */
-export const vitestModule: ProcedureModule = defineModule("@procedures/vitest", [
+const vitestPackage: PackageDefinition = definePackage("@procedures/vitest", [
   vitestRunProcedure,
   vitestCoverageProcedure,
   vitestWatchProcedure,
   vitestStopProcedure,
   vitestListProcedure,
 ]);
+
+/**
+ * The module of this package, for `createRegistry()`: its procedures as data. Importing this
+ * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
+ */
+export const vitestModule: ProcedureModule = vitestPackage.module;
 
 export default vitestModule;
 
@@ -112,6 +114,4 @@ export default vitestModule;
  * a registry. The default is the global registry. Importing this file registers nothing: the
  * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
  */
-export function registerVitestProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [vitestModule]);
-}
+export const registerVitestProcedures: PackageDefinition["register"] = vitestPackage.register;

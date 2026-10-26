@@ -5,14 +5,12 @@
  */
 
 import {
-  defineModule,
-  registerModules,
-  PROCEDURE_REGISTRY,
+  definePackage,
   type AnyProcedure,
   type FsRootRules,
   type ProcedureModule,
-  type ProcedureRegistry,
   createProcedure,
+  type PackageDefinition,
 } from "@procedures/client";
 import { claudeStart } from "./procedures/claude/start.js";
 import { claudeRead } from "./procedures/claude/read.js";
@@ -113,7 +111,9 @@ export const claudeCancelProcedure: AnyProcedure = createProcedure()
 
 export const claudeCliProcedures: AnyProcedure[] = [claudeStartProcedure, claudeReadProcedure, claudeFollowProcedure, claudeCancelProcedure];
 
-export const claudeCliModule: ProcedureModule = defineModule("@procedures/claude-cli", claudeCliProcedures);
+const claudeCliPackage: PackageDefinition = definePackage("@procedures/claude-cli", claudeCliProcedures);
+
+export const claudeCliModule: ProcedureModule = claudeCliPackage.module;
 
 export default claudeCliModule;
 
@@ -121,6 +121,4 @@ export default claudeCliModule;
  * This function registers the procedures of @procedures/claude-cli in a registry. The default is the
  * global registry.
  */
-export function registerClaudeCliProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [claudeCliModule]);
-}
+export const registerClaudeCliProcedures: PackageDefinition["register"] = claudeCliPackage.register;

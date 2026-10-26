@@ -52,12 +52,12 @@ type ParseInput = z.infer<typeof ParseInputSchema>;
 interface EventsOutput {
   events: IcsEvent[];
 }
-const EventsOutputSchema = z.object({ events: z.array(eventSchema) });
+const EventsOutputSchema: z.ZodType<EventsOutput> = z.object({ events: z.array(eventSchema) });
 
 export const icsParseProcedure: AnyProcedure = createProcedure()
   .path(["ics", "parse"])
   .input(ParseInputSchema)
-  .output<EventsOutput>(EventsOutputSchema)
+  .output(EventsOutputSchema)
   .meta({
     description: "Read the events of an iCalendar text",
     output: "json",
@@ -191,7 +191,7 @@ function fetchProcedure(fetch: FetchText | undefined): AnyProcedure {
   return createProcedure()
     .path(["ics", "fetch"])
     .input(FetchInputSchema)
-    .output<EventsOutput>(EventsOutputSchema)
+    .output(EventsOutputSchema)
     .meta({
       description: "Get a calendar feed and read its events",
       args: ["url"],

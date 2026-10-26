@@ -7,7 +7,7 @@
  * (`server.create`, `server.connect` and the others) stay in the peer package.
  */
 
-import { defineModule, registerModules, PROCEDURE_REGISTRY, type AnyProcedure, type ProcedureModule, type ProcedureRegistry } from "@procedures/client";
+import { definePackage, type AnyProcedure, type ProcedureModule, type PackageDefinition } from "@procedures/client";
 import { serverStartProcedure } from "./procedures/server.start.js";
 import { serverStopProcedure } from "./procedures/server.stop.js";
 import { serverStatusProcedure } from "./procedures/server.status.js";
@@ -15,11 +15,13 @@ import { serverStatusProcedure } from "./procedures/server.status.js";
 /** The procedures of the host: `server.start`, `server.stop` and `server.status`. */
 export const hostProcedures: readonly AnyProcedure[] = [serverStartProcedure, serverStopProcedure, serverStatusProcedure];
 
+const serverPackage: PackageDefinition = definePackage("@procedures/server", [...hostProcedures]);
+
 /**
  * The module of this package, for `createRegistry()`: its procedures as data. Importing this
  * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
  */
-export const serverModule: ProcedureModule = defineModule("@procedures/server", [...hostProcedures]);
+export const serverModule: ProcedureModule = serverPackage.module;
 
 export default serverModule;
 
@@ -28,6 +30,4 @@ export default serverModule;
  * global registry. Importing this file registers nothing: the `./register` entry starts this
  * function (ARCHITECTURE-PROPOSALS-2026-10, P9).
  */
-export function registerServerProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [serverModule]);
-}
+export const registerServerProcedures: PackageDefinition["register"] = serverPackage.register;

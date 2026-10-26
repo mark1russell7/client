@@ -5,13 +5,11 @@
  */
 
 import {
-  defineModule,
-  registerModules,
-  PROCEDURE_REGISTRY,
+  definePackage,
   type AnyProcedure,
   type ProcedureModule,
-  type ProcedureRegistry,
   createProcedure,
+  type PackageDefinition,
 } from "@procedures/client";
 import { pdfRender } from "./procedures/pdf/render.js";
 import { PdfRenderInputSchema, PdfRenderOutputSchema, type PdfRenderInput, type PdfRenderOutput } from "./types.js";
@@ -34,7 +32,9 @@ export const pdfRenderProcedure: AnyProcedure = createProcedure()
 
 export const pdfProcedures: AnyProcedure[] = [pdfRenderProcedure];
 
-export const pdfModule: ProcedureModule = defineModule("@procedures/pdf", pdfProcedures);
+const pdfPackage: PackageDefinition = definePackage("@procedures/pdf", pdfProcedures);
+
+export const pdfModule: ProcedureModule = pdfPackage.module;
 
 export default pdfModule;
 
@@ -42,6 +42,4 @@ export default pdfModule;
  * This function registers the procedures of @procedures/pdf in a registry. The default is the
  * global registry.
  */
-export function registerPdfProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [pdfModule]);
-}
+export const registerPdfProcedures: PackageDefinition["register"] = pdfPackage.register;

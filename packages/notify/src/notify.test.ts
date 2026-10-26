@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProcedureRegistry, invokePath, outputValue } from "@procedures/client";
 import { headerSafe, sendNotification } from "./notify.js";
 import { notifyProcedures } from "./procedures.js";
+import { notifyModule, registerNotifyProcedures } from "./module.js";
 
 const registry = new ProcedureRegistry();
 for (const procedure of notifyProcedures) registry.register(procedure);
@@ -91,5 +92,21 @@ describe("sendNotification with the fetch option", () => {
     const request = sendNotification({ topic: "t", title: "x", message: "y" }, { timeoutMs: 1_000, fetch: async () => Promise.reject(failure) });
     await expect(request).rejects.toThrow(/did not answer: the request failed/);
     await expect(request).rejects.toHaveProperty("cause", failure);
+  });
+
+  it("names the timeout when the server gives no answer in time", async () => {
+    const timeout = Object.assign(new Error("timed out"), { name: "TimeoutError" });
+    await expect(sendNotification({ topic: "t", title: "x", message: "y" }, { timeoutMs: 50, fetch: async () => Promise.reject(timeout) })).rejects.toThrow(
+      /did not answer: no answer in 50 ms/
+    );
+  });
+});
+
+describe("the module of the package", () => {
+  it("registers notify.send in the registry that it gets", () => {
+    const target = new ProcedureRegistry();
+    registerNotifyProcedures(target);
+    expect(notifyModule.procedures.map((procedure) => procedure.path.join("."))).toContain("notify.send");
+    expect(target.get(["notify", "send"])).toBeDefined();
   });
 });

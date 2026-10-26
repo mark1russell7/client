@@ -2,10 +2,12 @@
  * The procedures of @procedures/weather as data. Importing this file registers nothing.
  */
 
-import { defineModule, registerModules, PROCEDURE_REGISTRY, type ProcedureModule, type ProcedureRegistry } from "@procedures/client";
+import { defineModule, definePackage, type ProcedureModule, type PackageDefinition } from "@procedures/client";
 import { createWeatherProcedures, weatherProcedures, type WeatherProceduresOptions } from "./procedures.js";
 
-export const weatherModule: ProcedureModule = defineModule("@procedures/weather", weatherProcedures);
+const weatherPackage: PackageDefinition = definePackage("@procedures/weather", weatherProcedures);
+
+export const weatherModule: ProcedureModule = weatherPackage.module;
 
 export default weatherModule;
 
@@ -22,6 +24,4 @@ export function createWeatherModule(options: WeatherProceduresOptions = {}): Pro
  * This function registers the procedures of @procedures/weather in a registry. The default is the
  * global registry.
  */
-export function registerWeatherProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [weatherModule]);
-}
+export const registerWeatherProcedures: PackageDefinition["register"] = weatherPackage.register;

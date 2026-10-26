@@ -8,14 +8,12 @@
  */
 
 import {
-  defineModule,
-  registerModules,
-  PROCEDURE_REGISTRY,
+  definePackage,
   type Effects,
   type ProcedureContext,
   type ProcedureModule,
-  type ProcedureRegistry,
   createProcedure,
+  type PackageDefinition,
 } from "@procedures/client";
 import shellModule from "@procedures/shell/module";
 import { npmView } from "./procedures/npm/view.js";
@@ -168,7 +166,7 @@ const npmDeprecateProcedure = createProcedure()
   .handler(async (input: NpmDeprecateInput, ctx: ProcedureContext): Promise<NpmDeprecateOutput> => npmDeprecate(input, ctx))
   .build();
 
-export const npmModule: ProcedureModule = defineModule(
+const npmPackage: PackageDefinition = definePackage(
   "@procedures/npm",
   [
     npmViewProcedure,
@@ -182,12 +180,12 @@ export const npmModule: ProcedureModule = defineModule(
   [shellModule]
 );
 
+export const npmModule: ProcedureModule = npmPackage.module;
+
 export default npmModule;
 
 /**
  * This function registers the procedures of @procedures/npm, and of the modules that it requires, in
  * a registry. The default is the global registry.
  */
-export function registerNpmProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [npmModule]);
-}
+export const registerNpmProcedures: PackageDefinition["register"] = npmPackage.register;

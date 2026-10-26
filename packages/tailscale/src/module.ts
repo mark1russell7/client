@@ -3,11 +3,13 @@
  * module requires the module of `@procedures/shell`: `tailscale.run` calls `shell.run`.
  */
 
-import { defineModule, registerModules, PROCEDURE_REGISTRY, type ProcedureModule, type ProcedureRegistry } from "@procedures/client";
+import { defineModule, definePackage, type ProcedureModule, type PackageDefinition } from "@procedures/client";
 import shellModule from "@procedures/shell/module";
 import { createTailscaleProcedures, tailscaleProcedures, type TailscaleProceduresOptions } from "./procedures.js";
 
-export const tailscaleModule: ProcedureModule = defineModule("@procedures/tailscale", tailscaleProcedures, [shellModule]);
+const tailscalePackage: PackageDefinition = definePackage("@procedures/tailscale", tailscaleProcedures, [shellModule]);
+
+export const tailscaleModule: ProcedureModule = tailscalePackage.module;
 
 export default tailscaleModule;
 
@@ -28,6 +30,4 @@ export function createTailscaleModule(options: TailscaleProceduresOptions = {}):
  * This function registers the procedures of @procedures/tailscale in a registry. The default is the
  * global registry.
  */
-export function registerTailscaleProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [tailscaleModule]);
-}
+export const registerTailscaleProcedures: PackageDefinition["register"] = tailscalePackage.register;

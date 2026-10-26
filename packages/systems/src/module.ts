@@ -5,7 +5,7 @@
  */
 
 import { z } from "zod";
-import { defineModule, registerModules, PROCEDURE_REGISTRY, PURE_EFFECTS, type ProcedureModule, type ProcedureRegistry, createProcedure } from "@procedures/client";
+import { definePackage, PURE_EFFECTS, type ProcedureModule, createProcedure, type PackageDefinition } from "@procedures/client";
 import { systemsTimers } from "./procedures/systems/timers.js";
 import type { SystemsTimersInput, SystemsTimersOutput } from "./types.js";
 
@@ -85,7 +85,9 @@ const systemsTimersProcedure = createProcedure()
   .handler(async (input: SystemsTimersInput): Promise<SystemsTimersOutput> => systemsTimers(input))
   .build();
 
-export const systemsModule: ProcedureModule = defineModule("@procedures/systems", [systemsTimersProcedure]);
+const systemsPackage: PackageDefinition = definePackage("@procedures/systems", [systemsTimersProcedure]);
+
+export const systemsModule: ProcedureModule = systemsPackage.module;
 
 export default systemsModule;
 
@@ -93,6 +95,4 @@ export default systemsModule;
  * This function registers the procedures of @procedures/systems in a registry. The default is the
  * global registry.
  */
-export function registerSystemsProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [systemsModule]);
-}
+export const registerSystemsProcedures: PackageDefinition["register"] = systemsPackage.register;
