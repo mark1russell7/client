@@ -1,0 +1,265 @@
+# The public API of @procedures/pnpm
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 37 names
+
+type PnpmAddInput: dist/types.d.ts#PnpmAddInput
+PnpmAddInputSchema: dist/types.d.ts#PnpmAddInputSchema
+type PnpmCommandOutput: dist/types.d.ts#PnpmCommandOutput
+type PnpmExecInput: dist/types.d.ts#PnpmExecInput
+PnpmExecInputSchema: dist/types.d.ts#PnpmExecInputSchema
+type PnpmInstallInput: dist/types.d.ts#PnpmInstallInput
+PnpmInstallInputSchema: dist/types.d.ts#PnpmInstallInputSchema
+type PnpmJsonOutput: dist/types.d.ts#PnpmJsonOutput
+type PnpmLinkInput: dist/types.d.ts#PnpmLinkInput
+PnpmLinkInputSchema: dist/types.d.ts#PnpmLinkInputSchema
+type PnpmListInput: dist/types.d.ts#PnpmListInput
+PnpmListInputSchema: dist/types.d.ts#PnpmListInputSchema
+type PnpmOutdatedInput: dist/types.d.ts#PnpmOutdatedInput
+PnpmOutdatedInputSchema: dist/types.d.ts#PnpmOutdatedInputSchema
+type PnpmPackInput: dist/types.d.ts#PnpmPackInput
+PnpmPackInputSchema: dist/types.d.ts#PnpmPackInputSchema
+type PnpmRemoveInput: dist/types.d.ts#PnpmRemoveInput
+PnpmRemoveInputSchema: dist/types.d.ts#PnpmRemoveInputSchema
+type PnpmRunInput: dist/types.d.ts#PnpmRunInput
+PnpmRunInputSchema: dist/types.d.ts#PnpmRunInputSchema
+type PnpmUpdateInput: dist/types.d.ts#PnpmUpdateInput
+PnpmUpdateInputSchema: dist/types.d.ts#PnpmUpdateInputSchema
+type PnpmWhyInput: dist/types.d.ts#PnpmWhyInput
+PnpmWhyInputSchema: dist/types.d.ts#PnpmWhyInputSchema
+pnpmAdd: dist/procedures/pnpm/add.d.ts#pnpmAdd
+pnpmExec: dist/procedures/pnpm/exec.d.ts#pnpmExec
+pnpmInstall: dist/procedures/pnpm/install.d.ts#pnpmInstall
+pnpmLink: dist/procedures/pnpm/link.d.ts#pnpmLink
+pnpmList: dist/procedures/pnpm/list.d.ts#pnpmList
+pnpmOutdated: dist/procedures/pnpm/outdated.d.ts#pnpmOutdated
+pnpmPack: dist/procedures/pnpm/pack.d.ts#pnpmPack
+pnpmRemove: dist/procedures/pnpm/remove.d.ts#pnpmRemove
+pnpmRun: dist/procedures/pnpm/run.d.ts#pnpmRun
+pnpmUpdate: dist/procedures/pnpm/update.d.ts#pnpmUpdate
+pnpmWhy: dist/procedures/pnpm/why.d.ts#pnpmWhy
+registerPnpmProcedures: dist/module.d.ts#registerPnpmProcedures
+resolvePnpm: dist/procedures/pnpm/shared.d.ts#resolvePnpm
+
+## ./module (dist/module.d.ts): 3 names
+
+default: dist/module.d.ts#pnpmModule
+pnpmModule: dist/module.d.ts#pnpmModule
+registerPnpmProcedures: dist/module.d.ts#registerPnpmProcedures
+
+## ./register (dist/register.d.ts): 2 names
+
+pnpmModule: dist/module.d.ts#pnpmModule
+registerPnpmProcedures: dist/module.d.ts#registerPnpmProcedures
+
+## ./register.js (dist/register.d.ts): 2 names
+
+pnpmModule: dist/module.d.ts#pnpmModule
+registerPnpmProcedures: dist/module.d.ts#registerPnpmProcedures
+
+## Declarations
+
+### dist/module.d.ts#pnpmModule
+export declare const pnpmModule: ProcedureModule;
+
+### dist/module.d.ts#registerPnpmProcedures
+export declare const registerPnpmProcedures: PackageDefinition["register"];
+
+### dist/procedures/pnpm/add.d.ts#pnpmAdd
+export declare function pnpmAdd(input: PnpmAddInput, ctx: ProcedureContext): Promise<PnpmCommandOutput>;
+
+### dist/procedures/pnpm/exec.d.ts#pnpmExec
+export declare function pnpmExec(input: PnpmExecInput, ctx: ProcedureContext): Promise<PnpmExecOutput>;
+
+### dist/procedures/pnpm/install.d.ts#pnpmInstall
+export declare function pnpmInstall(input: PnpmInstallInput, ctx: ProcedureContext): Promise<PnpmCommandOutput>;
+
+### dist/procedures/pnpm/link.d.ts#pnpmLink
+export declare function pnpmLink(input: PnpmLinkInput, ctx: ProcedureContext): Promise<PnpmCommandOutput>;
+
+### dist/procedures/pnpm/list.d.ts#pnpmList
+export declare function pnpmList(input: PnpmListInput, ctx: ProcedureContext): Promise<PnpmListOutput>;
+
+### dist/procedures/pnpm/outdated.d.ts#pnpmOutdated
+export declare function pnpmOutdated(input: PnpmOutdatedInput, ctx: ProcedureContext): Promise<PnpmOutdatedOutput>;
+
+### dist/procedures/pnpm/pack.d.ts#pnpmPack
+export declare function pnpmPack(input: PnpmPackInput, ctx: ProcedureContext): Promise<PnpmPackOutput>;
+
+### dist/procedures/pnpm/remove.d.ts#pnpmRemove
+export declare function pnpmRemove(input: PnpmRemoveInput, ctx: ProcedureContext): Promise<PnpmCommandOutput>;
+
+### dist/procedures/pnpm/run.d.ts#pnpmRun
+export declare function pnpmRun(input: PnpmRunInput, ctx: ProcedureContext): Promise<PnpmCommandOutput>;
+
+### dist/procedures/pnpm/shared.d.ts#resolvePnpm
+export declare function resolvePnpm(): {
+    command: string;
+    prefix: string[];
+};
+
+### dist/procedures/pnpm/update.d.ts#pnpmUpdate
+export declare function pnpmUpdate(input: PnpmUpdateInput, ctx: ProcedureContext): Promise<PnpmUpdateOutput>;
+
+### dist/procedures/pnpm/why.d.ts#pnpmWhy
+export declare function pnpmWhy(input: PnpmWhyInput, ctx: ProcedureContext): Promise<PnpmWhyOutput>;
+
+### dist/types.d.ts#PnpmAddInput
+export type PnpmAddInput = z.infer<typeof PnpmAddInputSchema>;
+
+### dist/types.d.ts#PnpmAddInputSchema
+export declare const PnpmAddInputSchema: z.ZodObject<{
+    packages: z.ZodArray<z.ZodString>;
+    dev: z.ZodOptional<z.ZodBoolean>;
+    global: z.ZodOptional<z.ZodBoolean>;
+    filter: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    recursive: z.ZodOptional<z.ZodBoolean>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#PnpmCommandOutput
+export interface PnpmCommandOutput extends CliToolOutput {
+}
+
+### dist/types.d.ts#PnpmExecInput
+export type PnpmExecInput = z.infer<typeof PnpmExecInputSchema>;
+
+### dist/types.d.ts#PnpmExecInputSchema
+export declare const PnpmExecInputSchema: z.ZodObject<{
+    command: z.ZodString;
+    args: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    filter: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    recursive: z.ZodOptional<z.ZodBoolean>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#PnpmInstallInput
+export type PnpmInstallInput = z.infer<typeof PnpmInstallInputSchema>;
+
+### dist/types.d.ts#PnpmInstallInputSchema
+export declare const PnpmInstallInputSchema: z.ZodObject<{
+    packages: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    dev: z.ZodOptional<z.ZodBoolean>;
+    frozen: z.ZodOptional<z.ZodBoolean>;
+    filter: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    recursive: z.ZodOptional<z.ZodBoolean>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#PnpmJsonOutput
+export interface PnpmJsonOutput extends PnpmCommandOutput {
+    data?: unknown;
+}
+
+### dist/types.d.ts#PnpmLinkInput
+export type PnpmLinkInput = z.infer<typeof PnpmLinkInputSchema>;
+
+### dist/types.d.ts#PnpmLinkInputSchema
+export declare const PnpmLinkInputSchema: z.ZodObject<{
+    path: z.ZodOptional<z.ZodString>;
+    global: z.ZodOptional<z.ZodBoolean>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#PnpmListInput
+export type PnpmListInput = z.infer<typeof PnpmListInputSchema>;
+
+### dist/types.d.ts#PnpmListInputSchema
+export declare const PnpmListInputSchema: z.ZodObject<{
+    packages: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    depth: z.ZodOptional<z.ZodNumber>;
+    prod: z.ZodOptional<z.ZodBoolean>;
+    dev: z.ZodOptional<z.ZodBoolean>;
+    filter: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    recursive: z.ZodOptional<z.ZodBoolean>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#PnpmOutdatedInput
+export type PnpmOutdatedInput = z.infer<typeof PnpmOutdatedInputSchema>;
+
+### dist/types.d.ts#PnpmOutdatedInputSchema
+export declare const PnpmOutdatedInputSchema: z.ZodObject<{
+    packages: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    prod: z.ZodOptional<z.ZodBoolean>;
+    dev: z.ZodOptional<z.ZodBoolean>;
+    filter: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    recursive: z.ZodOptional<z.ZodBoolean>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#PnpmPackInput
+export type PnpmPackInput = z.infer<typeof PnpmPackInputSchema>;
+
+### dist/types.d.ts#PnpmPackInputSchema
+export declare const PnpmPackInputSchema: z.ZodObject<{
+    destination: z.ZodOptional<z.ZodString>;
+    dryRun: z.ZodOptional<z.ZodBoolean>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#PnpmRemoveInput
+export type PnpmRemoveInput = z.infer<typeof PnpmRemoveInputSchema>;
+
+### dist/types.d.ts#PnpmRemoveInputSchema
+export declare const PnpmRemoveInputSchema: z.ZodObject<{
+    packages: z.ZodArray<z.ZodString>;
+    global: z.ZodOptional<z.ZodBoolean>;
+    filter: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    recursive: z.ZodOptional<z.ZodBoolean>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#PnpmRunInput
+export type PnpmRunInput = z.infer<typeof PnpmRunInputSchema>;
+
+### dist/types.d.ts#PnpmRunInputSchema
+export declare const PnpmRunInputSchema: z.ZodObject<{
+    script: z.ZodString;
+    args: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    filter: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    recursive: z.ZodOptional<z.ZodBoolean>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#PnpmUpdateInput
+export type PnpmUpdateInput = z.infer<typeof PnpmUpdateInputSchema>;
+
+### dist/types.d.ts#PnpmUpdateInputSchema
+export declare const PnpmUpdateInputSchema: z.ZodObject<{
+    packages: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    latest: z.ZodOptional<z.ZodBoolean>;
+    prod: z.ZodOptional<z.ZodBoolean>;
+    dev: z.ZodOptional<z.ZodBoolean>;
+    filter: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    recursive: z.ZodOptional<z.ZodBoolean>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#PnpmWhyInput
+export type PnpmWhyInput = z.infer<typeof PnpmWhyInputSchema>;
+
+### dist/types.d.ts#PnpmWhyInputSchema
+export declare const PnpmWhyInputSchema: z.ZodObject<{
+    packages: z.ZodArray<z.ZodString>;
+    depth: z.ZodOptional<z.ZodNumber>;
+    prod: z.ZodOptional<z.ZodBoolean>;
+    dev: z.ZodOptional<z.ZodBoolean>;
+    filter: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    recursive: z.ZodOptional<z.ZodBoolean>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;

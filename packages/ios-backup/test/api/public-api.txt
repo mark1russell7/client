@@ -1,0 +1,140 @@
+# The public API of @procedures/ios-backup
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 24 names
+
+APPLE_EPOCH_MS: dist/backup.d.ts#APPLE_EPOCH_MS
+BackupFile: dist/backup.d.ts#BackupFile
+BackupFolder: dist/backup.d.ts#BackupFolder
+BackupMessage: dist/backup.d.ts#BackupMessage
+IosBackupError: dist/backup.d.ts#IosBackupError
+IosBackupErrorCode: dist/backup.d.ts#IosBackupErrorCode
+MessageQuery: dist/backup.d.ts#MessageQuery
+SMS_DOMAIN: dist/backup.d.ts#SMS_DOMAIN
+SMS_RELATIVE_PATH: dist/backup.d.ts#SMS_RELATIVE_PATH
+appleDateToIso: dist/backup.d.ts#appleDateToIso
+defaultBackupRoots: dist/backup.d.ts#defaultBackupRoots
+extractTypedstreamText: dist/backup.d.ts#extractTypedstreamText
+findBackupFile: dist/backup.d.ts#findBackupFile
+findLatestBackup: dist/backup.d.ts#findLatestBackup
+iosBackupFileProcedure: dist/procedures.d.ts#iosBackupFileProcedure
+iosBackupFindProcedure: dist/procedures.d.ts#iosBackupFindProcedure
+iosBackupMessagesProcedure: dist/procedures.d.ts#iosBackupMessagesProcedure
+iosBackupModule: dist/module.d.ts#iosBackupModule
+iosBackupProcedures: dist/procedures.d.ts#iosBackupProcedures
+isoToAppleDate: dist/backup.d.ts#isoToAppleDate
+listBackups: dist/backup.d.ts#listBackups
+readMessages: dist/backup.d.ts#readMessages
+readSmsDatabase: dist/backup.d.ts#readSmsDatabase
+registerIosBackupProcedures: dist/module.d.ts#registerIosBackupProcedures
+
+## ./module (dist/module.d.ts): 3 names
+
+default: dist/module.d.ts#iosBackupModule
+iosBackupModule: dist/module.d.ts#iosBackupModule
+registerIosBackupProcedures: dist/module.d.ts#registerIosBackupProcedures
+
+## ./register (dist/register.d.ts): 2 names
+
+iosBackupModule: dist/module.d.ts#iosBackupModule
+registerIosBackupProcedures: dist/module.d.ts#registerIosBackupProcedures
+
+## Declarations
+
+### dist/backup.d.ts#APPLE_EPOCH_MS
+export declare const APPLE_EPOCH_MS = 978307200000;
+
+### dist/backup.d.ts#BackupFile
+export interface BackupFile {
+    readonly fileId: string;
+    readonly path: string;
+}
+
+### dist/backup.d.ts#BackupFolder
+export interface BackupFolder {
+    readonly path: string;
+    readonly modifiedAt: string;
+}
+
+### dist/backup.d.ts#BackupMessage
+export interface BackupMessage {
+    readonly guid: string;
+    readonly date: string;
+    readonly text: string;
+    readonly is_from_me: boolean;
+    readonly handle?: string | undefined;
+    readonly service?: string | undefined;
+    readonly chat_id?: string | undefined;
+    readonly chat_name?: string | undefined;
+    readonly from_attributed_body?: boolean | undefined;
+}
+
+### dist/backup.d.ts#IosBackupError
+export declare class IosBackupError extends Error {
+    readonly code: IosBackupErrorCode;
+    constructor(code: IosBackupErrorCode, message: string, options?: ErrorOptions);
+}
+
+### dist/backup.d.ts#IosBackupErrorCode
+export type IosBackupErrorCode = "no-backup" | "encrypted" | "no-file" | "missing-file" | "invalid-file-id";
+
+### dist/backup.d.ts#MessageQuery
+export interface MessageQuery {
+    readonly since?: string | undefined;
+    readonly until?: string | undefined;
+    readonly limit?: number | undefined;
+}
+
+### dist/backup.d.ts#SMS_DOMAIN
+export declare const SMS_DOMAIN = "HomeDomain";
+
+### dist/backup.d.ts#SMS_RELATIVE_PATH
+export declare const SMS_RELATIVE_PATH = "Library/SMS/sms.db";
+
+### dist/backup.d.ts#appleDateToIso
+export declare function appleDateToIso(raw: number | bigint): string;
+
+### dist/backup.d.ts#defaultBackupRoots
+export declare function defaultBackupRoots(home?: string): string[];
+
+### dist/backup.d.ts#extractTypedstreamText
+export declare function extractTypedstreamText(body: Uint8Array): string | undefined;
+
+### dist/backup.d.ts#findBackupFile
+export declare function findBackupFile(backup: string, domain: string, relativePath: string): Promise<BackupFile | undefined>;
+
+### dist/backup.d.ts#findLatestBackup
+export declare function findLatestBackup(roots?: readonly string[]): Promise<string | undefined>;
+
+### dist/backup.d.ts#isoToAppleDate
+export declare function isoToAppleDate(iso: string): bigint;
+
+### dist/backup.d.ts#listBackups
+export declare function listBackups(roots?: readonly string[]): Promise<BackupFolder[]>;
+
+### dist/backup.d.ts#readMessages
+export declare function readMessages(backup: string, query?: MessageQuery): Promise<BackupMessage[]>;
+
+### dist/backup.d.ts#readSmsDatabase
+export declare function readSmsDatabase(file: string, query?: MessageQuery): Promise<BackupMessage[]>;
+
+### dist/module.d.ts#iosBackupModule
+export declare const iosBackupModule: ProcedureModule;
+
+### dist/module.d.ts#registerIosBackupProcedures
+export declare const registerIosBackupProcedures: PackageDefinition["register"];
+
+### dist/procedures.d.ts#iosBackupFileProcedure
+export declare const iosBackupFileProcedure: AnyProcedure;
+
+### dist/procedures.d.ts#iosBackupFindProcedure
+export declare const iosBackupFindProcedure: AnyProcedure;
+
+### dist/procedures.d.ts#iosBackupMessagesProcedure
+export declare const iosBackupMessagesProcedure: AnyProcedure;
+
+### dist/procedures.d.ts#iosBackupProcedures
+export declare const iosBackupProcedures: AnyProcedure[];

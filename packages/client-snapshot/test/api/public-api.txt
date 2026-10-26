@@ -1,0 +1,238 @@
+# The public API of @procedures/snapshot
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 28 names
+
+type RepositoryInfo: dist/types.d.ts#RepositoryInfo
+type SnapshotCreateInput: dist/types.d.ts#SnapshotCreateInput
+SnapshotCreateInputSchema: dist/types.d.ts#SnapshotCreateInputSchema
+type SnapshotCreateOutput: dist/types.d.ts#SnapshotCreateOutput
+type SnapshotDeleteInput: dist/types.d.ts#SnapshotDeleteInput
+SnapshotDeleteInputSchema: dist/types.d.ts#SnapshotDeleteInputSchema
+type SnapshotDeleteOutput: dist/types.d.ts#SnapshotDeleteOutput
+type SnapshotDiffInput: dist/types.d.ts#SnapshotDiffInput
+SnapshotDiffInputSchema: dist/types.d.ts#SnapshotDiffInputSchema
+type SnapshotDiffOutput: dist/types.d.ts#SnapshotDiffOutput
+type SnapshotDiffRepository: dist/types.d.ts#SnapshotDiffRepository
+type SnapshotListEntry: dist/types.d.ts#SnapshotListEntry
+type SnapshotListInput: dist/types.d.ts#SnapshotListInput
+SnapshotListInputSchema: dist/types.d.ts#SnapshotListInputSchema
+type SnapshotListOutput: dist/types.d.ts#SnapshotListOutput
+type SnapshotMetadata: dist/types.d.ts#SnapshotMetadata
+type SnapshotPreset: dist/types.d.ts#SnapshotPreset
+SnapshotPresetSchema: dist/types.d.ts#SnapshotPresetSchema
+type SnapshotRestoreInput: dist/types.d.ts#SnapshotRestoreInput
+SnapshotRestoreInputSchema: dist/types.d.ts#SnapshotRestoreInputSchema
+type SnapshotRestoreOutput: dist/types.d.ts#SnapshotRestoreOutput
+registerSnapshotProcedures: dist/module.d.ts#registerSnapshotProcedures
+snapshotCreate: dist/procedures/snapshot/create.d.ts#snapshotCreate
+snapshotDelete: dist/procedures/snapshot/delete.d.ts#snapshotDelete
+snapshotDiff: dist/procedures/snapshot/diff.d.ts#snapshotDiff
+snapshotList: dist/procedures/snapshot/list.d.ts#snapshotList
+snapshotModule: dist/module.d.ts#snapshotModule
+snapshotRestore: dist/procedures/snapshot/restore.d.ts#snapshotRestore
+
+## ./module (dist/module.d.ts): 3 names
+
+default: dist/module.d.ts#snapshotModule
+registerSnapshotProcedures: dist/module.d.ts#registerSnapshotProcedures
+snapshotModule: dist/module.d.ts#snapshotModule
+
+## ./register (dist/register.d.ts): 2 names
+
+registerSnapshotProcedures: dist/module.d.ts#registerSnapshotProcedures
+snapshotModule: dist/module.d.ts#snapshotModule
+
+## ./register.js (dist/register.d.ts): 2 names
+
+registerSnapshotProcedures: dist/module.d.ts#registerSnapshotProcedures
+snapshotModule: dist/module.d.ts#snapshotModule
+
+## Declarations
+
+### dist/module.d.ts#registerSnapshotProcedures
+export declare const registerSnapshotProcedures: PackageDefinition["register"];
+
+### dist/module.d.ts#snapshotModule
+export declare const snapshotModule: ProcedureModule;
+
+### dist/procedures/snapshot/create.d.ts#snapshotCreate
+export declare function snapshotCreate(input: SnapshotCreateInput, ctx: ProcedureContext): Promise<SnapshotCreateOutput>;
+
+### dist/procedures/snapshot/delete.d.ts#snapshotDelete
+export declare function snapshotDelete(input: SnapshotDeleteInput, ctx: ProcedureContext): Promise<SnapshotDeleteOutput>;
+
+### dist/procedures/snapshot/diff.d.ts#snapshotDiff
+export declare function snapshotDiff(input: SnapshotDiffInput, ctx: ProcedureContext): Promise<SnapshotDiffOutput>;
+
+### dist/procedures/snapshot/list.d.ts#snapshotList
+export declare function snapshotList(input: SnapshotListInput, ctx: ProcedureContext): Promise<SnapshotListOutput>;
+
+### dist/procedures/snapshot/restore.d.ts#snapshotRestore
+export declare function snapshotRestore(input: SnapshotRestoreInput, ctx: ProcedureContext): Promise<SnapshotRestoreOutput>;
+
+### dist/types.d.ts#RepositoryInfo
+export interface RepositoryInfo {
+    path: string;
+    name: string;
+    branch: string;
+    commit: string;
+    dirty: boolean;
+    stashCount: number;
+    remoteUrl?: string | undefined;
+    ahead: number;
+    behind: number;
+}
+
+### dist/types.d.ts#SnapshotCreateInput
+export type SnapshotCreateInput = z.infer<typeof SnapshotCreateInputSchema>;
+
+### dist/types.d.ts#SnapshotCreateInputSchema
+export declare const SnapshotCreateInputSchema: z.ZodObject<{
+    name: z.ZodString;
+    preset: z.ZodDefault<z.ZodEnum<{
+        light: "light";
+        medium: "medium";
+        heavy: "heavy";
+    }>>;
+    bucket: z.ZodString;
+    paths: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    description: z.ZodOptional<z.ZodString>;
+}>;
+
+### dist/types.d.ts#SnapshotCreateOutput
+export interface SnapshotCreateOutput {
+    id: string;
+    location: string;
+    metadata: SnapshotMetadata;
+    uploadDuration: number;
+}
+
+### dist/types.d.ts#SnapshotDeleteInput
+export type SnapshotDeleteInput = z.infer<typeof SnapshotDeleteInputSchema>;
+
+### dist/types.d.ts#SnapshotDeleteInputSchema
+export declare const SnapshotDeleteInputSchema: z.ZodObject<{
+    id: z.ZodString;
+    bucket: z.ZodString;
+}>;
+
+### dist/types.d.ts#SnapshotDeleteOutput
+export interface SnapshotDeleteOutput {
+    deleted: boolean;
+    id: string;
+}
+
+### dist/types.d.ts#SnapshotDiffInput
+export type SnapshotDiffInput = z.infer<typeof SnapshotDiffInputSchema>;
+
+### dist/types.d.ts#SnapshotDiffInputSchema
+export declare const SnapshotDiffInputSchema: z.ZodObject<{
+    id: z.ZodString;
+    bucket: z.ZodString;
+    paths: z.ZodOptional<z.ZodArray<z.ZodString>>;
+}>;
+
+### dist/types.d.ts#SnapshotDiffOutput
+export interface SnapshotDiffOutput {
+    snapshotMetadata: SnapshotMetadata;
+    repositories: SnapshotDiffRepository[];
+    summary: {
+        reposChanged: number;
+        totalFilesChanged: number;
+        isMatch: boolean;
+    };
+}
+
+### dist/types.d.ts#SnapshotDiffRepository
+export interface SnapshotDiffRepository {
+    path: string;
+    branchDiff?: {
+        current: string;
+        snapshot: string;
+    } | undefined;
+    commitDiff?: {
+        current: string;
+        snapshot: string;
+    } | undefined;
+    filesChanged: number;
+    newStashes: number;
+}
+
+### dist/types.d.ts#SnapshotListEntry
+export interface SnapshotListEntry {
+    id: string;
+    name: string;
+    preset: SnapshotPreset;
+    createdAt: string;
+    size: number;
+    os: string;
+}
+
+### dist/types.d.ts#SnapshotListInput
+export type SnapshotListInput = z.infer<typeof SnapshotListInputSchema>;
+
+### dist/types.d.ts#SnapshotListInputSchema
+export declare const SnapshotListInputSchema: z.ZodObject<{
+    bucket: z.ZodString;
+    prefix: z.ZodOptional<z.ZodString>;
+    maxResults: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+}>;
+
+### dist/types.d.ts#SnapshotListOutput
+export interface SnapshotListOutput {
+    snapshots: SnapshotListEntry[];
+    count: number;
+}
+
+### dist/types.d.ts#SnapshotMetadata
+export interface SnapshotMetadata {
+    id: string;
+    name: string;
+    preset: SnapshotPreset;
+    createdAt: string;
+    environment: {
+        os: string;
+        nodeVersion: string;
+        pnpmVersion: string;
+        username: string;
+        hostname: string;
+    };
+    repositories: RepositoryInfo[];
+    checksum: string;
+    archiveSize: number;
+    description?: string | undefined;
+}
+
+### dist/types.d.ts#SnapshotPreset
+export type SnapshotPreset = "light" | "medium" | "heavy";
+
+### dist/types.d.ts#SnapshotPresetSchema
+export declare const SnapshotPresetSchema: z.ZodEnum<{
+    light: "light";
+    medium: "medium";
+    heavy: "heavy";
+}>;
+
+### dist/types.d.ts#SnapshotRestoreInput
+export type SnapshotRestoreInput = z.infer<typeof SnapshotRestoreInputSchema>;
+
+### dist/types.d.ts#SnapshotRestoreInputSchema
+export declare const SnapshotRestoreInputSchema: z.ZodObject<{
+    id: z.ZodString;
+    bucket: z.ZodString;
+    targetPath: z.ZodString;
+    overwrite: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+}>;
+
+### dist/types.d.ts#SnapshotRestoreOutput
+export interface SnapshotRestoreOutput {
+    success: boolean;
+    metadata: SnapshotMetadata;
+    restoredPaths: string[];
+    downloadDuration: number;
+    extractDuration: number;
+}

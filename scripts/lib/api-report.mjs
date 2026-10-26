@@ -32,7 +32,8 @@ const relativePath = (root, file) => relative(root, file).split(sep).join("/");
  * comments, the blank lines and the spaces at the ends of the lines.
  */
 export function statementsOf(source) {
-  const text = source.replace(/\r\n?/g, "\n");
+  // The declarations of a bin file keep its `#!` line
+  const text = source.replace(/\r\n?/g, "\n").replace(/^#![^\n]*\n?/, "");
   const statements = [];
   let current = "";
   let depth = 0;
@@ -231,14 +232,14 @@ export function parseDeclarations(source, file = "<text>") {
       if (match[1] !== undefined) info.exported.set(match[2], { local: match[2], typeOnly: false });
       continue;
     }
-    if ((match = /^export \* as ([\w$]+) from ["']([^"']+)["'];?$/.exec(flat))) {
-      info.references.add(match[2]);
-      info.namespaces.push({ name: match[1], from: match[2] });
+    if ((match = /^export (type )?\* as ([\w$]+) from ["']([^"']+)["'];?$/.exec(flat))) {
+      info.references.add(match[3]);
+      info.namespaces.push({ name: match[2], from: match[3], typeOnly: match[1] !== undefined });
       continue;
     }
-    if ((match = /^export \* from ["']([^"']+)["'];?$/.exec(flat))) {
-      info.references.add(match[1]);
-      info.stars.push(match[1]);
+    if ((match = /^export (type )?\* from ["']([^"']+)["'];?$/.exec(flat))) {
+      info.references.add(match[2]);
+      info.stars.push({ from: match[2], typeOnly: match[1] !== undefined });
       continue;
     }
     if ((match = /^export (type )?\{(.*)\} from ["']([^"']+)["'];?$/.exec(flat))) {
@@ -432,7 +433,7 @@ export function entriesOf(manifest, root) {
     for (const file of filesUnder(root, folder)) {
       const part = patternMatch(pattern, file);
       if (part === undefined) continue;
-      const expanded = subpath.replace("*", part);
+      const expanded = subpath.split("*").join(part);
       if (!isExcluded(expanded)) matched.push({ subpath: expanded, types: `./${file}` });
     }
     if (matched.length === 0) entries.push({ subpath, note: `no file matches ${declared}` });
@@ -480,7 +481,7 @@ class Reader {
         const part = patternMatch(pattern, specifier);
         const target = part === undefined ? undefined : targetOf(value);
         if (typeof target === "string" && target.startsWith(".")) {
-          base = resolve(this.root, target.replace("*", part));
+          base = resolve(this.root, target.split("*").join(part));
           break;
         }
       }
@@ -517,19 +518,20 @@ class Reader {
       else throw new Error(`${relativePath(this.root, file)} exports ${local}, and has no declaration or import of it`);
     }
     for (const reexport of info.reexports) result.set(reexport.exported, this.#bindingIn(file, reexport.from, reexport.imported, reexport.typeOnly));
-    for (const namespace of info.namespaces) result.set(namespace.name, this.#bindingIn(file, namespace.from, "*", false));
+    for (const namespace of info.namespaces) result.set(namespace.name, this.#bindingIn(file, namespace.from, "*", namespace.typeOnly));
     // A name of `export *` never replaces an explicit export, and `default` does not pass
     const explicit = new Set(result.keys());
-    for (const star of info.stars) {
+    for (const { from: star, typeOnly } of info.stars) {
       const target = this.fileOf(file, star);
       if (!target) {
         // The names of another package are not in this package: the report names the package
         const name = `* from "${star}"`;
-        if (!result.has(name)) result.set(name, { kind: "external", module: star, name: "*", typeOnly: false });
+        if (!result.has(name)) result.set(name, { kind: "external", module: star, name: "*", typeOnly });
         continue;
       }
+      // `export type *` gives each name as a type only
       for (const [name, binding] of this.exportsOf(target)) {
-        if (name !== "default" && !explicit.has(name) && !result.has(name)) result.set(name, binding);
+        if (name !== "default" && !explicit.has(name) && !result.has(name)) result.set(name, typeOnly ? { ...binding, typeOnly: true } : binding);
       }
     }
     this.#visiting.delete(file);

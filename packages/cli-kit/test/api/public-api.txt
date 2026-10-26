@@ -1,0 +1,361 @@
+# The public API of @procedures/cli-kit
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 57 names
+
+type Answer: dist/ask.d.ts#Answer
+type Asked: dist/ask.d.ts#Asked
+type Asker: dist/ask.d.ts#Asker
+type CLIMeta: dist/fields.d.ts#CLIMeta
+type CliCallOptions: dist/cli.d.ts#CliCallOptions
+type CliClient: dist/cli.d.ts#CliClient
+type CommandLike: dist/fields.d.ts#CommandLike
+type CommandSource: dist/cli.d.ts#CommandSource
+type Converted: dist/fields.d.ts#Converted
+type FieldKind: dist/fields.d.ts#FieldKind
+type FieldType: dist/fields.d.ts#FieldType
+type FormatContext: dist/cli.d.ts#FormatContext
+type FormatHook: dist/cli.d.ts#FormatHook
+type GlobalFlag: dist/args.d.ts#GlobalFlag
+type Globals: dist/args.d.ts#Globals
+type HelpOptions: dist/help.d.ts#HelpOptions
+type OutputFormat: dist/format.d.ts#OutputFormat
+type ParseOptions: dist/args.d.ts#ParseOptions
+type ParsedCommandLine: dist/args.d.ts#ParsedCommandLine
+type Print: dist/format.d.ts#Print
+type ProcedureCli: dist/cli.d.ts#ProcedureCli
+type ProcedureCliOptions: dist/cli.d.ts#ProcedureCliOptions
+type ProcedureCliRunOptions: dist/cli.d.ts#ProcedureCliRunOptions
+type RootHelpOptions: dist/help.d.ts#RootHelpOptions
+STANDARD_GLOBAL_FLAGS: dist/cli.d.ts#STANDARD_GLOBAL_FLAGS
+type SchemaFieldInfo: dist/fields.d.ts#SchemaFieldInfo
+type Spinner: dist/format.d.ts#Spinner
+type Terminal: dist/ask.d.ts#Terminal
+askMissing: dist/ask.d.ts#askMissing
+canAsk: dist/ask.d.ts#canAsk
+convertValue: dist/fields.d.ts#convertValue
+createProcedureCli: dist/cli.d.ts#createProcedureCli
+extractSchemaFields: dist/fields.d.ts#extractSchemaFields
+failureOf: dist/failure.d.ts#failureOf
+fieldTypeOf: dist/fields.d.ts#fieldTypeOf
+fieldsOf: dist/fields.d.ts#fieldsOf
+findChildren: dist/args.d.ts#findChildren
+findGlobalFlag: dist/args.d.ts#findGlobalFlag
+findProcedure: dist/args.d.ts#findProcedure
+formatOutput: dist/format.d.ts#formatOutput
+generateHelp: dist/help.d.ts#generateHelp
+groupHelp: dist/help.d.ts#groupHelp
+mergeValue: dist/fields.d.ts#mergeValue
+missingFields: dist/ask.d.ts#missingFields
+parseCommandLine: dist/args.d.ts#parseCommandLine
+parseLeadingGlobals: dist/args.d.ts#parseLeadingGlobals
+plainPrint: dist/format.d.ts#plainPrint
+procedureFlags: dist/args.d.ts#procedureFlags
+processTerminal: dist/ask.d.ts#processTerminal
+questionOf: dist/ask.d.ts#questionOf
+resultFieldsOf: dist/fields.d.ts#resultFieldsOf
+resultFieldsOfSchema: dist/fields.d.ts#resultFieldsOfSchema
+rootHelp: dist/help.d.ts#rootHelp
+terminalAsker: dist/ask.d.ts#terminalAsker
+toCamel: dist/fields.d.ts#toCamel
+toKebab: dist/fields.d.ts#toKebab
+validationMessage: dist/help.d.ts#validationMessage
+
+## Declarations
+
+### dist/args.d.ts#GlobalFlag
+export interface GlobalFlag {
+    readonly long: string;
+    readonly short?: string | undefined;
+    readonly takesValue: boolean;
+    readonly repeatable?: boolean | undefined;
+    readonly hidden?: boolean | undefined;
+    readonly description: string;
+}
+
+### dist/args.d.ts#Globals
+export type Globals = Record<string, string | boolean | undefined>;
+
+### dist/args.d.ts#ParseOptions
+export interface ParseOptions {
+    name: string;
+    globals: readonly GlobalFlag[];
+    readFile?: ((path: string) => string) | undefined;
+}
+
+### dist/args.d.ts#ParsedCommandLine
+export interface ParsedCommandLine<T extends CommandLike = CommandLike> {
+    path: string[];
+    procedure: T | undefined;
+    input: Record<string, unknown>;
+    globals: Globals;
+    extraArguments: string[];
+    errors: string[];
+}
+
+### dist/args.d.ts#findChildren
+export declare function findChildren<T extends CommandLike>(procedures: readonly T[], path: readonly string[]): T[];
+
+### dist/args.d.ts#findGlobalFlag
+export declare function findGlobalFlag(globals: readonly GlobalFlag[], name: string, short: boolean): GlobalFlag | undefined;
+
+### dist/args.d.ts#findProcedure
+export declare function findProcedure<T extends CommandLike>(procedures: readonly T[], path: readonly string[]): T | undefined;
+
+### dist/args.d.ts#parseCommandLine
+export declare function parseCommandLine<T extends CommandLike>(argv: readonly string[], procedures: readonly T[], options: ParseOptions): ParsedCommandLine<T>;
+
+### dist/args.d.ts#parseLeadingGlobals
+export declare function parseLeadingGlobals(argv: readonly string[], options: Pick<ParseOptions, "globals">): {
+    globals: Globals;
+    rest: string[];
+    errors: string[];
+};
+
+### dist/args.d.ts#procedureFlags
+export declare function procedureFlags(procedure: CommandLike | undefined): ProcedureFlags;
+
+### dist/ask.d.ts#Answer
+export type Answer = {
+    value: unknown;
+} | {
+    cancelled: true;
+};
+
+### dist/ask.d.ts#Asked
+export type Asked = {
+    ok: true;
+    input: Record<string, unknown>;
+} | {
+    ok: false;
+    cancelled: boolean;
+    error: string;
+};
+
+### dist/ask.d.ts#Asker
+export type Asker = (field: SchemaFieldInfo, message: string) => Promise<Answer>;
+
+### dist/ask.d.ts#Terminal
+export interface Terminal {
+    stdinIsTTY: boolean;
+    stdoutIsTTY: boolean;
+    env: Record<string, string | undefined>;
+}
+
+### dist/ask.d.ts#askMissing
+export declare function askMissing(missing: readonly SchemaFieldInfo[], input: Record<string, unknown>, ask: Asker): Promise<Asked>;
+
+### dist/ask.d.ts#canAsk
+export declare function canAsk(noInput: boolean, meta: CLIMeta, terminal: Terminal): boolean;
+
+### dist/ask.d.ts#missingFields
+export declare function missingFields(fields: readonly SchemaFieldInfo[], input: Record<string, unknown>): SchemaFieldInfo[];
+
+### dist/ask.d.ts#processTerminal
+export declare function processTerminal(): Terminal;
+
+### dist/ask.d.ts#questionOf
+export declare function questionOf(field: SchemaFieldInfo): string;
+
+### dist/ask.d.ts#terminalAsker
+export declare const terminalAsker: Asker;
+
+### dist/cli.d.ts#CliCallOptions
+export interface CliCallOptions {
+    signal?: AbortSignal | undefined;
+}
+
+### dist/cli.d.ts#CliClient
+export interface CliClient {
+    stream?(method: Method, payload: unknown, options?: CliCallOptions): AsyncIterable<unknown>;
+    call?(method: Method, payload: unknown, options?: CliCallOptions): Promise<unknown>;
+}
+
+### dist/cli.d.ts#CommandSource
+export type CommandSource = readonly CommandLike[] | {
+    getAll(): readonly CommandLike[];
+};
+
+### dist/cli.d.ts#FormatContext
+export interface FormatContext {
+    path: readonly string[];
+    input: unknown;
+    format: OutputFormat;
+    print: Print;
+}
+
+### dist/cli.d.ts#FormatHook
+export type FormatHook = (result: unknown, context: FormatContext) => string | readonly string[] | undefined | void;
+
+### dist/cli.d.ts#ProcedureCli
+export interface ProcedureCli {
+    readonly name: string;
+    readonly globals: readonly GlobalFlag[];
+    run(argv: readonly string[], options?: ProcedureCliRunOptions): Promise<number>;
+}
+
+### dist/cli.d.ts#ProcedureCliOptions
+export interface ProcedureCliOptions {
+    name: string;
+    version?: string | undefined;
+    description?: string | undefined;
+    procedures: CommandSource | (() => CommandSource | Promise<CommandSource>);
+    client?: CliClient | ((globals: Globals) => CliClient | Promise<CliClient>) | undefined;
+    globals?: readonly GlobalFlag[] | undefined;
+    format?: Readonly<Record<string, FormatHook>> | undefined;
+    print?: Print | undefined;
+    footer?: readonly string[] | undefined;
+    terminal?: Terminal | undefined;
+    ask?: Asker | undefined;
+    readFile?: ((path: string) => string) | false | undefined;
+}
+
+### dist/cli.d.ts#ProcedureCliRunOptions
+export interface ProcedureCliRunOptions {
+    signal?: AbortSignal | undefined;
+}
+
+### dist/cli.d.ts#STANDARD_GLOBAL_FLAGS
+export declare const STANDARD_GLOBAL_FLAGS: readonly GlobalFlag[];
+
+### dist/cli.d.ts#createProcedureCli
+export declare function createProcedureCli(options: ProcedureCliOptions): ProcedureCli;
+
+### dist/failure.d.ts#failureOf
+export declare function failureOf(result: unknown): string | undefined;
+
+### dist/fields.d.ts#CLIMeta
+export interface CLIMeta {
+    description?: string;
+    args?: string[];
+    shorts?: Record<string, string>;
+    output?: "text" | "json" | "table" | "streaming";
+    interactive?: boolean;
+}
+
+### dist/fields.d.ts#CommandLike
+export interface CommandLike {
+    path: readonly string[];
+    metadata?: unknown;
+    input?: unknown;
+    output?: unknown;
+    fields?: readonly SchemaFieldInfo[];
+    resultFields?: readonly SchemaFieldInfo[];
+}
+
+### dist/fields.d.ts#Converted
+export type Converted = {
+    ok: true;
+    value: unknown;
+} | {
+    ok: false;
+    error: string;
+};
+
+### dist/fields.d.ts#FieldKind
+export type FieldKind = "string" | "number" | "bigint" | "boolean" | "enum" | "literal" | "date" | "array" | "record" | "object" | "union" | "any";
+
+### dist/fields.d.ts#FieldType
+export interface FieldType {
+    kind: FieldKind;
+    item?: FieldType;
+    value?: FieldType;
+    options?: FieldType[];
+    values?: readonly string[];
+    literal?: unknown;
+}
+
+### dist/fields.d.ts#SchemaFieldInfo
+export interface SchemaFieldInfo {
+    name: string;
+    type: string;
+    fieldType: FieldType;
+    required: boolean;
+    description: string | undefined;
+    defaultValue: unknown;
+    enumValues: readonly string[] | undefined;
+}
+
+### dist/fields.d.ts#convertValue
+export declare function convertValue(text: string, type: FieldType, label: string): Converted;
+
+### dist/fields.d.ts#extractSchemaFields
+export declare function extractSchemaFields(schema: unknown): SchemaFieldInfo[];
+
+### dist/fields.d.ts#fieldTypeOf
+export declare function fieldTypeOf(schema: unknown): FieldType;
+
+### dist/fields.d.ts#fieldsOf
+export declare function fieldsOf(command: CommandLike): SchemaFieldInfo[];
+
+### dist/fields.d.ts#mergeValue
+export declare function mergeValue(previous: unknown, next: unknown, type: FieldType): unknown;
+
+### dist/fields.d.ts#resultFieldsOf
+export declare function resultFieldsOf(command: CommandLike): SchemaFieldInfo[];
+
+### dist/fields.d.ts#resultFieldsOfSchema
+export declare function resultFieldsOfSchema(output: unknown): SchemaFieldInfo[];
+
+### dist/fields.d.ts#toCamel
+export declare function toCamel(str: string): string;
+
+### dist/fields.d.ts#toKebab
+export declare function toKebab(str: string): string;
+
+### dist/format.d.ts#OutputFormat
+export type OutputFormat = "text" | "json" | "table" | "streaming";
+
+### dist/format.d.ts#Print
+export interface Print {
+    info: (message: string) => void;
+    error: (message: string) => void;
+    success: (message: string) => void;
+    warning: (message: string) => void;
+    table: (data: string[][], options?: {
+        format?: string;
+    }) => void;
+    spin: (message: string) => Spinner;
+}
+
+### dist/format.d.ts#Spinner
+export interface Spinner {
+    stop: () => void;
+    succeed: (message?: string) => void;
+    fail: (message?: string) => void;
+    text: string;
+}
+
+### dist/format.d.ts#formatOutput
+export declare function formatOutput(print: Print, result: unknown, format?: OutputFormat): void;
+
+### dist/format.d.ts#plainPrint
+export declare function plainPrint(): Print;
+
+### dist/help.d.ts#HelpOptions
+export interface HelpOptions {
+    name: string;
+    globals?: readonly GlobalFlag[] | undefined;
+}
+
+### dist/help.d.ts#RootHelpOptions
+export interface RootHelpOptions {
+    name: string;
+    title?: string | undefined;
+    footer?: readonly string[] | undefined;
+}
+
+### dist/help.d.ts#generateHelp
+export declare function generateHelp(path: readonly string[], meta: CLIMeta, schema: unknown, result: readonly SchemaFieldInfo[], options: HelpOptions): string;
+
+### dist/help.d.ts#groupHelp
+export declare function groupHelp(name: string, commands: readonly CommandLike[], path: readonly string[]): string[] | undefined;
+
+### dist/help.d.ts#rootHelp
+export declare function rootHelp(commands: readonly CommandLike[], options: RootHelpOptions): string[];
+
+### dist/help.d.ts#validationMessage
+export declare function validationMessage(error: unknown): string;

@@ -1,0 +1,264 @@
+# The public API of @procedures/gh
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 40 names
+
+GhApiFieldValue: dist/types.d.ts#GhApiFieldValue
+GhApiInput: dist/types.d.ts#GhApiInput
+GhApiMethod: dist/types.d.ts#GhApiMethod
+GhApiOutput: dist/types.d.ts#GhApiOutput
+GhCommonInput: dist/types.d.ts#GhCommonInput
+GhCreatedOutput: dist/types.d.ts#GhCreatedOutput
+GhIssueCommentInput: dist/types.d.ts#GhIssueCommentInput
+GhIssueCommentOutput: dist/types.d.ts#GhIssueCommentOutput
+GhIssueCreateInput: dist/types.d.ts#GhIssueCreateInput
+GhIssueCreateOutput: dist/types.d.ts#GhIssueCreateOutput
+GhIssueListInput: dist/types.d.ts#GhIssueListInput
+GhIssueListOutput: dist/types.d.ts#GhIssueListOutput
+GhIssueViewInput: dist/types.d.ts#GhIssueViewInput
+GhIssueViewOutput: dist/types.d.ts#GhIssueViewOutput
+GhItemOutput: dist/types.d.ts#GhItemOutput
+GhListOutput: dist/types.d.ts#GhListOutput
+GhPrChecksInput: dist/types.d.ts#GhPrChecksInput
+GhPrChecksOutput: dist/types.d.ts#GhPrChecksOutput
+GhPrCreateInput: dist/types.d.ts#GhPrCreateInput
+GhPrCreateOutput: dist/types.d.ts#GhPrCreateOutput
+GhPrListInput: dist/types.d.ts#GhPrListInput
+GhPrListOutput: dist/types.d.ts#GhPrListOutput
+GhPrViewInput: dist/types.d.ts#GhPrViewInput
+GhPrViewOutput: dist/types.d.ts#GhPrViewOutput
+GhReleaseListInput: dist/types.d.ts#GhReleaseListInput
+GhReleaseListOutput: dist/types.d.ts#GhReleaseListOutput
+GhReleaseViewInput: dist/types.d.ts#GhReleaseViewInput
+GhReleaseViewOutput: dist/types.d.ts#GhReleaseViewOutput
+GhRunDownloadInput: dist/types.d.ts#GhRunDownloadInput
+GhRunDownloadOutput: dist/types.d.ts#GhRunDownloadOutput
+GhRunListInput: dist/types.d.ts#GhRunListInput
+GhRunListOutput: dist/types.d.ts#GhRunListOutput
+GhRunRerunInput: dist/types.d.ts#GhRunRerunInput
+GhRunRerunOutput: dist/types.d.ts#GhRunRerunOutput
+GhRunViewInput: dist/types.d.ts#GhRunViewInput
+GhRunViewOutput: dist/types.d.ts#GhRunViewOutput
+GhWorkflowRunInput: dist/types.d.ts#GhWorkflowRunInput
+GhWorkflowRunOutput: dist/types.d.ts#GhWorkflowRunOutput
+ghModule: dist/module.d.ts#ghModule
+registerGhProcedures: dist/module.d.ts#registerGhProcedures
+
+## ./module (dist/module.d.ts): 3 names
+
+default: dist/module.d.ts#ghModule
+ghModule: dist/module.d.ts#ghModule
+registerGhProcedures: dist/module.d.ts#registerGhProcedures
+
+## ./register (dist/register.d.ts): 2 names
+
+ghModule: dist/module.d.ts#ghModule
+registerGhProcedures: dist/module.d.ts#registerGhProcedures
+
+## Declarations
+
+### dist/module.d.ts#ghModule
+export declare const ghModule: ProcedureModule;
+
+### dist/module.d.ts#registerGhProcedures
+export declare const registerGhProcedures: PackageDefinition["register"];
+
+### dist/types.d.ts#GhApiFieldValue
+export type GhApiFieldValue = string | number | boolean | null;
+
+### dist/types.d.ts#GhApiInput
+export interface GhApiInput extends GhCommonInput {
+    endpoint: string;
+    method?: GhApiMethod | undefined;
+    fields?: Record<string, GhApiFieldValue> | undefined;
+    body?: unknown;
+    paginate?: boolean | undefined;
+}
+
+### dist/types.d.ts#GhApiMethod
+export type GhApiMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
+### dist/types.d.ts#GhApiOutput
+export interface GhApiOutput {
+    data: unknown;
+}
+
+### dist/types.d.ts#GhCommonInput
+export interface GhCommonInput {
+    repo?: string | undefined;
+    cwd?: string | undefined;
+    timeoutMs?: number | undefined;
+}
+
+### dist/types.d.ts#GhCreatedOutput
+export interface GhCreatedOutput {
+    url: string;
+}
+
+### dist/types.d.ts#GhIssueCommentInput
+export interface GhIssueCommentInput extends GhCommonInput {
+    issue: string;
+    body: string;
+}
+
+### dist/types.d.ts#GhIssueCommentOutput
+export type GhIssueCommentOutput = GhCreatedOutput;
+
+### dist/types.d.ts#GhIssueCreateInput
+export interface GhIssueCreateInput extends GhCommonInput {
+    title: string;
+    body: string;
+    labels?: string[] | undefined;
+}
+
+### dist/types.d.ts#GhIssueCreateOutput
+export type GhIssueCreateOutput = GhCreatedOutput;
+
+### dist/types.d.ts#GhIssueListInput
+export interface GhIssueListInput extends GhCommonInput {
+    state?: "open" | "closed" | "all" | undefined;
+    label?: string | undefined;
+    author?: string | undefined;
+    search?: string | undefined;
+    limit?: number | undefined;
+}
+
+### dist/types.d.ts#GhIssueListOutput
+export type GhIssueListOutput = GhListOutput;
+
+### dist/types.d.ts#GhIssueViewInput
+export interface GhIssueViewInput extends GhCommonInput {
+    issue: string;
+}
+
+### dist/types.d.ts#GhIssueViewOutput
+export type GhIssueViewOutput = GhItemOutput;
+
+### dist/types.d.ts#GhItemOutput
+export interface GhItemOutput {
+    item: Record<string, unknown>;
+}
+
+### dist/types.d.ts#GhListOutput
+export interface GhListOutput {
+    items: Array<Record<string, unknown>>;
+}
+
+### dist/types.d.ts#GhPrChecksInput
+export interface GhPrChecksInput extends GhCommonInput {
+    pr: string;
+}
+
+### dist/types.d.ts#GhPrChecksOutput
+export type GhPrChecksOutput = GhListOutput;
+
+### dist/types.d.ts#GhPrCreateInput
+export interface GhPrCreateInput extends GhCommonInput {
+    title: string;
+    body: string;
+    base?: string | undefined;
+    head?: string | undefined;
+    draft?: boolean | undefined;
+}
+
+### dist/types.d.ts#GhPrCreateOutput
+export type GhPrCreateOutput = GhCreatedOutput;
+
+### dist/types.d.ts#GhPrListInput
+export interface GhPrListInput extends GhCommonInput {
+    state?: "open" | "closed" | "merged" | "all" | undefined;
+    author?: string | undefined;
+    base?: string | undefined;
+    head?: string | undefined;
+    search?: string | undefined;
+    limit?: number | undefined;
+}
+
+### dist/types.d.ts#GhPrListOutput
+export type GhPrListOutput = GhListOutput;
+
+### dist/types.d.ts#GhPrViewInput
+export interface GhPrViewInput extends GhCommonInput {
+    pr: string;
+}
+
+### dist/types.d.ts#GhPrViewOutput
+export type GhPrViewOutput = GhItemOutput;
+
+### dist/types.d.ts#GhReleaseListInput
+export interface GhReleaseListInput extends GhCommonInput {
+    limit?: number | undefined;
+}
+
+### dist/types.d.ts#GhReleaseListOutput
+export type GhReleaseListOutput = GhListOutput;
+
+### dist/types.d.ts#GhReleaseViewInput
+export interface GhReleaseViewInput extends GhCommonInput {
+    tag?: string | undefined;
+}
+
+### dist/types.d.ts#GhReleaseViewOutput
+export type GhReleaseViewOutput = GhItemOutput;
+
+### dist/types.d.ts#GhRunDownloadInput
+export interface GhRunDownloadInput extends GhCommonInput {
+    run: number;
+    names?: string[] | undefined;
+    patterns?: string[] | undefined;
+    dir?: string | undefined;
+}
+
+### dist/types.d.ts#GhRunDownloadOutput
+export interface GhRunDownloadOutput {
+    run: number;
+    dir: string;
+}
+
+### dist/types.d.ts#GhRunListInput
+export interface GhRunListInput extends GhCommonInput {
+    workflow?: string | undefined;
+    branch?: string | undefined;
+    status?: string | undefined;
+    limit?: number | undefined;
+}
+
+### dist/types.d.ts#GhRunListOutput
+export type GhRunListOutput = GhListOutput;
+
+### dist/types.d.ts#GhRunRerunInput
+export interface GhRunRerunInput extends GhCommonInput {
+    run: number;
+    failedOnly?: boolean | undefined;
+}
+
+### dist/types.d.ts#GhRunRerunOutput
+export interface GhRunRerunOutput {
+    run: number;
+}
+
+### dist/types.d.ts#GhRunViewInput
+export interface GhRunViewInput extends GhCommonInput {
+    run: number;
+}
+
+### dist/types.d.ts#GhRunViewOutput
+export type GhRunViewOutput = GhItemOutput;
+
+### dist/types.d.ts#GhWorkflowRunInput
+export interface GhWorkflowRunInput extends GhCommonInput {
+    workflow: string;
+    ref?: string | undefined;
+    inputs?: Record<string, string> | undefined;
+}
+
+### dist/types.d.ts#GhWorkflowRunOutput
+export interface GhWorkflowRunOutput {
+    workflow: string;
+    ref?: string | undefined;
+    url?: string | undefined;
+    run?: number | undefined;
+}

@@ -1,0 +1,539 @@
+# The public API of @procedures/docker
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 79 names
+
+type DockerBuildInput: dist/types.d.ts#DockerBuildInput
+DockerBuildInputSchema: dist/types.d.ts#DockerBuildInputSchema
+type DockerCommandOutput: dist/types.d.ts#DockerCommandOutput
+type DockerComposeBuildInput: dist/types.d.ts#DockerComposeBuildInput
+DockerComposeBuildInputSchema: dist/types.d.ts#DockerComposeBuildInputSchema
+type DockerComposeDownInput: dist/types.d.ts#DockerComposeDownInput
+DockerComposeDownInputSchema: dist/types.d.ts#DockerComposeDownInputSchema
+type DockerComposeLogsInput: dist/types.d.ts#DockerComposeLogsInput
+DockerComposeLogsInputSchema: dist/types.d.ts#DockerComposeLogsInputSchema
+type DockerComposePsInput: dist/types.d.ts#DockerComposePsInput
+DockerComposePsInputSchema: dist/types.d.ts#DockerComposePsInputSchema
+type DockerComposeRestartInput: dist/types.d.ts#DockerComposeRestartInput
+DockerComposeRestartInputSchema: dist/types.d.ts#DockerComposeRestartInputSchema
+type DockerComposeUpInput: dist/types.d.ts#DockerComposeUpInput
+DockerComposeUpInputSchema: dist/types.d.ts#DockerComposeUpInputSchema
+type DockerExecInput: dist/types.d.ts#DockerExecInput
+DockerExecInputSchema: dist/types.d.ts#DockerExecInputSchema
+type DockerImagesInput: dist/types.d.ts#DockerImagesInput
+DockerImagesInputSchema: dist/types.d.ts#DockerImagesInputSchema
+type DockerInspectInput: dist/types.d.ts#DockerInspectInput
+DockerInspectInputSchema: dist/types.d.ts#DockerInspectInputSchema
+type DockerInspectOutput: dist/types.d.ts#DockerInspectOutput
+type DockerLogItem: dist/types.d.ts#DockerLogItem
+type DockerLogsInput: dist/types.d.ts#DockerLogsInput
+DockerLogsInputSchema: dist/types.d.ts#DockerLogsInputSchema
+type DockerNetworkCreateInput: dist/types.d.ts#DockerNetworkCreateInput
+DockerNetworkCreateInputSchema: dist/types.d.ts#DockerNetworkCreateInputSchema
+type DockerNetworkListInput: dist/types.d.ts#DockerNetworkListInput
+DockerNetworkListInputSchema: dist/types.d.ts#DockerNetworkListInputSchema
+type DockerNetworkRemoveInput: dist/types.d.ts#DockerNetworkRemoveInput
+DockerNetworkRemoveInputSchema: dist/types.d.ts#DockerNetworkRemoveInputSchema
+type DockerPruneInput: dist/types.d.ts#DockerPruneInput
+DockerPruneInputSchema: dist/types.d.ts#DockerPruneInputSchema
+type DockerPsInput: dist/types.d.ts#DockerPsInput
+DockerPsInputSchema: dist/types.d.ts#DockerPsInputSchema
+type DockerPullInput: dist/types.d.ts#DockerPullInput
+DockerPullInputSchema: dist/types.d.ts#DockerPullInputSchema
+type DockerPushInput: dist/types.d.ts#DockerPushInput
+DockerPushInputSchema: dist/types.d.ts#DockerPushInputSchema
+type DockerRmInput: dist/types.d.ts#DockerRmInput
+DockerRmInputSchema: dist/types.d.ts#DockerRmInputSchema
+type DockerRunInput: dist/types.d.ts#DockerRunInput
+DockerRunInputSchema: dist/types.d.ts#DockerRunInputSchema
+type DockerStopInput: dist/types.d.ts#DockerStopInput
+DockerStopInputSchema: dist/types.d.ts#DockerStopInputSchema
+type DockerTagInput: dist/types.d.ts#DockerTagInput
+DockerTagInputSchema: dist/types.d.ts#DockerTagInputSchema
+type DockerVolumeCreateInput: dist/types.d.ts#DockerVolumeCreateInput
+DockerVolumeCreateInputSchema: dist/types.d.ts#DockerVolumeCreateInputSchema
+type DockerVolumeListInput: dist/types.d.ts#DockerVolumeListInput
+DockerVolumeListInputSchema: dist/types.d.ts#DockerVolumeListInputSchema
+type DockerVolumeRemoveInput: dist/types.d.ts#DockerVolumeRemoveInput
+DockerVolumeRemoveInputSchema: dist/types.d.ts#DockerVolumeRemoveInputSchema
+dockerBuild: dist/procedures/docker/build.d.ts#dockerBuild
+dockerComposeBuild: dist/procedures/docker/compose/build.d.ts#dockerComposeBuild
+dockerComposeDown: dist/procedures/docker/down.d.ts#dockerComposeDown
+dockerComposeLogs: dist/procedures/docker/compose/logs.d.ts#dockerComposeLogs
+dockerComposePs: dist/procedures/docker/compose/ps.d.ts#dockerComposePs
+dockerComposeRestart: dist/procedures/docker/compose/restart.d.ts#dockerComposeRestart
+dockerComposeUp: dist/procedures/docker/up.d.ts#dockerComposeUp
+dockerExec: dist/procedures/docker/exec.d.ts#dockerExec
+dockerImages: dist/procedures/docker/images.d.ts#dockerImages
+dockerInspect: dist/procedures/docker/inspect.d.ts#dockerInspect
+dockerLogs: dist/procedures/docker/logs.d.ts#dockerLogs
+dockerNetworkCreate: dist/procedures/docker/network/create.d.ts#dockerNetworkCreate
+dockerNetworkList: dist/procedures/docker/network/list.d.ts#dockerNetworkList
+dockerNetworkRemove: dist/procedures/docker/network/remove.d.ts#dockerNetworkRemove
+dockerPrune: dist/procedures/docker/prune.d.ts#dockerPrune
+dockerPs: dist/procedures/docker/ps.d.ts#dockerPs
+dockerPull: dist/procedures/docker/pull.d.ts#dockerPull
+dockerPush: dist/procedures/docker/push.d.ts#dockerPush
+dockerRm: dist/procedures/docker/rm.d.ts#dockerRm
+dockerRun: dist/procedures/docker/run.d.ts#dockerRun
+dockerStop: dist/procedures/docker/stop.d.ts#dockerStop
+dockerTag: dist/procedures/docker/tag.d.ts#dockerTag
+dockerVolumeCreate: dist/procedures/docker/volume/create.d.ts#dockerVolumeCreate
+dockerVolumeList: dist/procedures/docker/volume/list.d.ts#dockerVolumeList
+dockerVolumeRemove: dist/procedures/docker/volume/remove.d.ts#dockerVolumeRemove
+registerDockerProcedures: dist/module.d.ts#registerDockerProcedures
+
+## ./module (dist/module.d.ts): 3 names
+
+default: dist/module.d.ts#dockerModule
+dockerModule: dist/module.d.ts#dockerModule
+registerDockerProcedures: dist/module.d.ts#registerDockerProcedures
+
+## ./register (dist/register.d.ts): 2 names
+
+dockerModule: dist/module.d.ts#dockerModule
+registerDockerProcedures: dist/module.d.ts#registerDockerProcedures
+
+## ./register.js (dist/register.d.ts): 2 names
+
+dockerModule: dist/module.d.ts#dockerModule
+registerDockerProcedures: dist/module.d.ts#registerDockerProcedures
+
+## Declarations
+
+### dist/module.d.ts#dockerModule
+export declare const dockerModule: ProcedureModule;
+
+### dist/module.d.ts#registerDockerProcedures
+export declare const registerDockerProcedures: PackageDefinition["register"];
+
+### dist/procedures/docker/build.d.ts#dockerBuild
+export declare function dockerBuild(input: DockerBuildInput, ctx: ProcedureContext): Promise<DockerCommandOutput>;
+
+### dist/procedures/docker/compose/build.d.ts#dockerComposeBuild
+export declare function dockerComposeBuild(input: DockerComposeBuildInput, ctx: ProcedureContext): Promise<DockerComposeBuildOutput>;
+
+### dist/procedures/docker/compose/logs.d.ts#dockerComposeLogs
+export declare function dockerComposeLogs(input: DockerComposeLogsInput, ctx: ProcedureContext): Promise<DockerComposeLogsOutput>;
+
+### dist/procedures/docker/compose/ps.d.ts#dockerComposePs
+export declare function dockerComposePs(input: DockerComposePsInput, ctx: ProcedureContext): Promise<DockerComposePsOutput>;
+
+### dist/procedures/docker/compose/restart.d.ts#dockerComposeRestart
+export declare function dockerComposeRestart(input: DockerComposeRestartInput, ctx: ProcedureContext): Promise<DockerComposeRestartOutput>;
+
+### dist/procedures/docker/down.d.ts#dockerComposeDown
+export declare function dockerComposeDown(input: DockerComposeDownInput, ctx: ProcedureContext): Promise<DockerCommandOutput>;
+
+### dist/procedures/docker/exec.d.ts#dockerExec
+export declare function dockerExec(input: DockerExecInput, ctx: ProcedureContext): Promise<DockerCommandOutput>;
+
+### dist/procedures/docker/images.d.ts#dockerImages
+export declare function dockerImages(input: DockerImagesInput, ctx: ProcedureContext): Promise<DockerImagesOutput>;
+
+### dist/procedures/docker/inspect.d.ts#dockerInspect
+export declare function dockerInspect(input: DockerInspectInput, ctx: ProcedureContext): Promise<DockerInspectOutput>;
+
+### dist/procedures/docker/logs.d.ts#dockerLogs
+export declare function dockerLogs(input: DockerLogsInput, ctx: ProcedureContext): Promise<DockerCommandOutput | AsyncGenerator<DockerLogItem, void, undefined>>;
+
+### dist/procedures/docker/network/create.d.ts#dockerNetworkCreate
+export declare function dockerNetworkCreate(input: DockerNetworkCreateInput, ctx: ProcedureContext): Promise<DockerNetworkCreateOutput>;
+
+### dist/procedures/docker/network/list.d.ts#dockerNetworkList
+export declare function dockerNetworkList(input: DockerNetworkListInput, ctx: ProcedureContext): Promise<DockerNetworkListOutput>;
+
+### dist/procedures/docker/network/remove.d.ts#dockerNetworkRemove
+export declare function dockerNetworkRemove(input: DockerNetworkRemoveInput, ctx: ProcedureContext): Promise<DockerNetworkRemoveOutput>;
+
+### dist/procedures/docker/prune.d.ts#dockerPrune
+export declare function dockerPrune(input: DockerPruneInput, ctx: ProcedureContext): Promise<DockerPruneOutput>;
+
+### dist/procedures/docker/ps.d.ts#dockerPs
+export declare function dockerPs(input: DockerPsInput, ctx: ProcedureContext): Promise<DockerCommandOutput>;
+
+### dist/procedures/docker/pull.d.ts#dockerPull
+export declare function dockerPull(input: DockerPullInput, ctx: ProcedureContext): Promise<DockerCommandOutput>;
+
+### dist/procedures/docker/push.d.ts#dockerPush
+export declare function dockerPush(input: DockerPushInput, ctx: ProcedureContext): Promise<DockerPushOutput>;
+
+### dist/procedures/docker/rm.d.ts#dockerRm
+export declare function dockerRm(input: DockerRmInput, ctx: ProcedureContext): Promise<DockerCommandOutput>;
+
+### dist/procedures/docker/run.d.ts#dockerRun
+export declare function dockerRun(input: DockerRunInput, ctx: ProcedureContext): Promise<DockerCommandOutput>;
+
+### dist/procedures/docker/stop.d.ts#dockerStop
+export declare function dockerStop(input: DockerStopInput, ctx: ProcedureContext): Promise<DockerCommandOutput>;
+
+### dist/procedures/docker/tag.d.ts#dockerTag
+export declare function dockerTag(input: DockerTagInput, ctx: ProcedureContext): Promise<DockerTagOutput>;
+
+### dist/procedures/docker/up.d.ts#dockerComposeUp
+export declare function dockerComposeUp(input: DockerComposeUpInput, ctx: ProcedureContext): Promise<DockerCommandOutput>;
+
+### dist/procedures/docker/volume/create.d.ts#dockerVolumeCreate
+export declare function dockerVolumeCreate(input: DockerVolumeCreateInput, ctx: ProcedureContext): Promise<DockerVolumeCreateOutput>;
+
+### dist/procedures/docker/volume/list.d.ts#dockerVolumeList
+export declare function dockerVolumeList(input: DockerVolumeListInput, ctx: ProcedureContext): Promise<DockerVolumeListOutput>;
+
+### dist/procedures/docker/volume/remove.d.ts#dockerVolumeRemove
+export declare function dockerVolumeRemove(input: DockerVolumeRemoveInput, ctx: ProcedureContext): Promise<DockerVolumeRemoveOutput>;
+
+### dist/types.d.ts#DockerBuildInput
+export type DockerBuildInput = z.infer<typeof DockerBuildInputSchema>;
+
+### dist/types.d.ts#DockerBuildInputSchema
+export declare const DockerBuildInputSchema: z.ZodObject<{
+    context: z.ZodString;
+    tag: z.ZodString;
+    dockerfile: z.ZodOptional<z.ZodString>;
+    buildArgs: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    noCache: z.ZodOptional<z.ZodBoolean>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#DockerCommandOutput
+export interface DockerCommandOutput extends CliToolOutput {
+}
+
+### dist/types.d.ts#DockerComposeBuildInput
+export type DockerComposeBuildInput = z.infer<typeof DockerComposeBuildInputSchema>;
+
+### dist/types.d.ts#DockerComposeBuildInputSchema
+export declare const DockerComposeBuildInputSchema: z.ZodObject<{
+    file: z.ZodOptional<z.ZodString>;
+    services: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    noCache: z.ZodOptional<z.ZodBoolean>;
+    pull: z.ZodOptional<z.ZodBoolean>;
+    buildArgs: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#DockerComposeDownInput
+export type DockerComposeDownInput = z.infer<typeof DockerComposeDownInputSchema>;
+
+### dist/types.d.ts#DockerComposeDownInputSchema
+export declare const DockerComposeDownInputSchema: z.ZodObject<{
+    file: z.ZodOptional<z.ZodString>;
+    volumes: z.ZodOptional<z.ZodBoolean>;
+    removeOrphans: z.ZodOptional<z.ZodBoolean>;
+    rmi: z.ZodOptional<z.ZodEnum<{
+        all: "all";
+        local: "local";
+    }>>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#DockerComposeLogsInput
+export type DockerComposeLogsInput = z.infer<typeof DockerComposeLogsInputSchema>;
+
+### dist/types.d.ts#DockerComposeLogsInputSchema
+export declare const DockerComposeLogsInputSchema: z.ZodObject<{
+    file: z.ZodOptional<z.ZodString>;
+    services: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    tail: z.ZodOptional<z.ZodNumber>;
+    since: z.ZodOptional<z.ZodString>;
+    timestamps: z.ZodOptional<z.ZodBoolean>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#DockerComposePsInput
+export type DockerComposePsInput = z.infer<typeof DockerComposePsInputSchema>;
+
+### dist/types.d.ts#DockerComposePsInputSchema
+export declare const DockerComposePsInputSchema: z.ZodObject<{
+    file: z.ZodOptional<z.ZodString>;
+    services: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    all: z.ZodOptional<z.ZodBoolean>;
+    format: z.ZodOptional<z.ZodString>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#DockerComposeRestartInput
+export type DockerComposeRestartInput = z.infer<typeof DockerComposeRestartInputSchema>;
+
+### dist/types.d.ts#DockerComposeRestartInputSchema
+export declare const DockerComposeRestartInputSchema: z.ZodObject<{
+    file: z.ZodOptional<z.ZodString>;
+    services: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    time: z.ZodOptional<z.ZodNumber>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#DockerComposeUpInput
+export type DockerComposeUpInput = z.infer<typeof DockerComposeUpInputSchema>;
+
+### dist/types.d.ts#DockerComposeUpInputSchema
+export declare const DockerComposeUpInputSchema: z.ZodObject<{
+    file: z.ZodOptional<z.ZodString>;
+    services: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    detach: z.ZodOptional<z.ZodBoolean>;
+    build: z.ZodOptional<z.ZodBoolean>;
+    forceRecreate: z.ZodOptional<z.ZodBoolean>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#DockerExecInput
+export type DockerExecInput = z.infer<typeof DockerExecInputSchema>;
+
+### dist/types.d.ts#DockerExecInputSchema
+export declare const DockerExecInputSchema: z.ZodObject<{
+    container: z.ZodString;
+    command: z.ZodOptional<z.ZodString>;
+    args: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    interactive: z.ZodOptional<z.ZodBoolean>;
+    tty: z.ZodOptional<z.ZodBoolean>;
+    workdir: z.ZodOptional<z.ZodString>;
+    env: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#DockerImagesInput
+export type DockerImagesInput = z.infer<typeof DockerImagesInputSchema>;
+
+### dist/types.d.ts#DockerImagesInputSchema
+export declare const DockerImagesInputSchema: z.ZodObject<{
+    repository: z.ZodOptional<z.ZodString>;
+    all: z.ZodOptional<z.ZodBoolean>;
+    filter: z.ZodOptional<z.ZodString>;
+    format: z.ZodOptional<z.ZodString>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#DockerInspectInput
+export type DockerInspectInput = z.infer<typeof DockerInspectInputSchema>;
+
+### dist/types.d.ts#DockerInspectInputSchema
+export declare const DockerInspectInputSchema: z.ZodObject<{
+    targets: z.ZodArray<z.ZodString>;
+    type: z.ZodOptional<z.ZodEnum<{
+        container: "container";
+        image: "image";
+        volume: "volume";
+        network: "network";
+    }>>;
+    format: z.ZodOptional<z.ZodString>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#DockerInspectOutput
+export interface DockerInspectOutput extends DockerCommandOutput {
+    data?: unknown;
+}
+
+### dist/types.d.ts#DockerLogItem
+export type DockerLogItem = {
+    type: "stdout" | "stderr";
+    line: string;
+} | {
+    type: "exit";
+    exitCode: number;
+    duration: number;
+    signal?: string | undefined;
+    timedOut?: boolean | undefined;
+    aborted?: boolean | undefined;
+};
+
+### dist/types.d.ts#DockerLogsInput
+export type DockerLogsInput = z.infer<typeof DockerLogsInputSchema>;
+
+### dist/types.d.ts#DockerLogsInputSchema
+export declare const DockerLogsInputSchema: z.ZodObject<{
+    container: z.ZodString;
+    follow: z.ZodOptional<z.ZodBoolean>;
+    tail: z.ZodOptional<z.ZodNumber>;
+    timestamps: z.ZodOptional<z.ZodBoolean>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#DockerNetworkCreateInput
+export type DockerNetworkCreateInput = z.infer<typeof DockerNetworkCreateInputSchema>;
+
+### dist/types.d.ts#DockerNetworkCreateInputSchema
+export declare const DockerNetworkCreateInputSchema: z.ZodObject<{
+    name: z.ZodString;
+    driver: z.ZodOptional<z.ZodString>;
+    internal: z.ZodOptional<z.ZodBoolean>;
+    labels: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#DockerNetworkListInput
+export type DockerNetworkListInput = z.infer<typeof DockerNetworkListInputSchema>;
+
+### dist/types.d.ts#DockerNetworkListInputSchema
+export declare const DockerNetworkListInputSchema: z.ZodObject<{
+    filter: z.ZodOptional<z.ZodString>;
+    format: z.ZodOptional<z.ZodString>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#DockerNetworkRemoveInput
+export type DockerNetworkRemoveInput = z.infer<typeof DockerNetworkRemoveInputSchema>;
+
+### dist/types.d.ts#DockerNetworkRemoveInputSchema
+export declare const DockerNetworkRemoveInputSchema: z.ZodObject<{
+    networks: z.ZodArray<z.ZodString>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#DockerPruneInput
+export type DockerPruneInput = z.infer<typeof DockerPruneInputSchema>;
+
+### dist/types.d.ts#DockerPruneInputSchema
+export declare const DockerPruneInputSchema: z.ZodObject<{
+    kind: z.ZodOptional<z.ZodEnum<{
+        system: "system";
+        container: "container";
+        image: "image";
+        volume: "volume";
+        network: "network";
+        builder: "builder";
+    }>>;
+    all: z.ZodOptional<z.ZodBoolean>;
+    volumes: z.ZodOptional<z.ZodBoolean>;
+    filter: z.ZodOptional<z.ZodString>;
+    confirm: z.ZodLiteral<true>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#DockerPsInput
+export type DockerPsInput = z.infer<typeof DockerPsInputSchema>;
+
+### dist/types.d.ts#DockerPsInputSchema
+export declare const DockerPsInputSchema: z.ZodObject<{
+    all: z.ZodOptional<z.ZodBoolean>;
+    filter: z.ZodOptional<z.ZodString>;
+    format: z.ZodOptional<z.ZodString>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#DockerPullInput
+export type DockerPullInput = z.infer<typeof DockerPullInputSchema>;
+
+### dist/types.d.ts#DockerPullInputSchema
+export declare const DockerPullInputSchema: z.ZodObject<{
+    image: z.ZodString;
+    tag: z.ZodOptional<z.ZodString>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#DockerPushInput
+export type DockerPushInput = z.infer<typeof DockerPushInputSchema>;
+
+### dist/types.d.ts#DockerPushInputSchema
+export declare const DockerPushInputSchema: z.ZodObject<{
+    image: z.ZodString;
+    allTags: z.ZodOptional<z.ZodBoolean>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#DockerRmInput
+export type DockerRmInput = z.infer<typeof DockerRmInputSchema>;
+
+### dist/types.d.ts#DockerRmInputSchema
+export declare const DockerRmInputSchema: z.ZodObject<{
+    containers: z.ZodArray<z.ZodString>;
+    force: z.ZodOptional<z.ZodBoolean>;
+    volumes: z.ZodOptional<z.ZodBoolean>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#DockerRunInput
+export type DockerRunInput = z.infer<typeof DockerRunInputSchema>;
+
+### dist/types.d.ts#DockerRunInputSchema
+export declare const DockerRunInputSchema: z.ZodObject<{
+    image: z.ZodString;
+    name: z.ZodOptional<z.ZodString>;
+    ports: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    volumes: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    env: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    detach: z.ZodOptional<z.ZodBoolean>;
+    rm: z.ZodOptional<z.ZodBoolean>;
+    command: z.ZodOptional<z.ZodString>;
+    args: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#DockerStopInput
+export type DockerStopInput = z.infer<typeof DockerStopInputSchema>;
+
+### dist/types.d.ts#DockerStopInputSchema
+export declare const DockerStopInputSchema: z.ZodObject<{
+    containers: z.ZodArray<z.ZodString>;
+    time: z.ZodOptional<z.ZodNumber>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#DockerTagInput
+export type DockerTagInput = z.infer<typeof DockerTagInputSchema>;
+
+### dist/types.d.ts#DockerTagInputSchema
+export declare const DockerTagInputSchema: z.ZodObject<{
+    source: z.ZodString;
+    target: z.ZodString;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#DockerVolumeCreateInput
+export type DockerVolumeCreateInput = z.infer<typeof DockerVolumeCreateInputSchema>;
+
+### dist/types.d.ts#DockerVolumeCreateInputSchema
+export declare const DockerVolumeCreateInputSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    driver: z.ZodOptional<z.ZodString>;
+    labels: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#DockerVolumeListInput
+export type DockerVolumeListInput = z.infer<typeof DockerVolumeListInputSchema>;
+
+### dist/types.d.ts#DockerVolumeListInputSchema
+export declare const DockerVolumeListInputSchema: z.ZodObject<{
+    filter: z.ZodOptional<z.ZodString>;
+    format: z.ZodOptional<z.ZodString>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#DockerVolumeRemoveInput
+export type DockerVolumeRemoveInput = z.infer<typeof DockerVolumeRemoveInputSchema>;
+
+### dist/types.d.ts#DockerVolumeRemoveInputSchema
+export declare const DockerVolumeRemoveInputSchema: z.ZodObject<{
+    volumes: z.ZodArray<z.ZodString>;
+    force: z.ZodOptional<z.ZodBoolean>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;

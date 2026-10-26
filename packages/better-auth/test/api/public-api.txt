@@ -1,0 +1,278 @@
+# The public API of @procedures/better-auth
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 27 names
+
+AGENT_ID: dist/principal-of.d.ts#AGENT_ID
+ANONYMOUS_ID: dist/principal-of.d.ts#ANONYMOUS_ID
+AUTH_CORS_HEADERS: dist/handler.d.ts#AUTH_CORS_HEADERS
+AUTH_CORS_METHODS: dist/handler.d.ts#AUTH_CORS_METHODS
+ActAsPolicy: dist/principal-of.d.ts#ActAsPolicy
+AuthRequestTracker: dist/handler.d.ts#AuthRequestTracker
+BetterAuthConfig: dist/config.d.ts#BetterAuthConfig
+BetterAuthConfigOptions: dist/config.d.ts#BetterAuthConfigOptions
+BetterAuthFace: dist/handler.d.ts#BetterAuthFace
+BetterAuthFaceContext: dist/handler.d.ts#BetterAuthFaceContext
+BetterAuthHandlerOptions: dist/handler.d.ts#BetterAuthHandlerOptions
+BetterAuthPrincipalOfOptions: dist/principal-of.d.ts#BetterAuthPrincipalOfOptions
+BetterAuthServer: dist/auth.d.ts#BetterAuthServer
+NodeAuthHandler: dist/handler.d.ts#NodeAuthHandler
+OAuthClient: dist/config.d.ts#OAuthClient
+SessionPrincipals: dist/principals.d.ts#SessionPrincipals
+SessionPrincipalsOptions: dist/principals.d.ts#SessionPrincipalsOptions
+SessionSource: dist/principals.d.ts#SessionSource
+SignedInUser: dist/principals.d.ts#SignedInUser
+UserGroup: dist/principals.d.ts#UserGroup
+VIA: dist/principal-of.d.ts#VIA
+betterAuthConfig: dist/config.d.ts#betterAuthConfig
+betterAuthFace: dist/handler.d.ts#betterAuthFace
+betterAuthHandler: dist/handler.d.ts#betterAuthHandler
+betterAuthPrincipalOf: dist/principal-of.d.ts#betterAuthPrincipalOf
+createBetterAuth: dist/auth.d.ts#createBetterAuth
+headersOf: dist/principal-of.d.ts#headersOf
+
+## ./browser (dist/browser.d.ts): 6 names
+
+BrowserAuth: dist/browser.d.ts#BrowserAuth
+BrowserAuthError: dist/browser.d.ts#BrowserAuthError
+BrowserAuthOptions: dist/browser.d.ts#BrowserAuthOptions
+BrowserUser: dist/browser.d.ts#BrowserUser
+WebAuthnCeremonies: dist/browser.d.ts#WebAuthnCeremonies
+createBrowserAuth: dist/browser.d.ts#createBrowserAuth
+
+## Declarations
+
+### dist/auth.d.ts#BetterAuthServer
+export interface BetterAuthServer {
+    readonly handler: (request: Request) => Promise<Response>;
+    readonly api: {
+        getSession(context: {
+            headers: Headers;
+        }): Promise<{
+            user: Record<string, unknown>;
+            session: Record<string, unknown>;
+        } | null>;
+    };
+}
+
+### dist/auth.d.ts#createBetterAuth
+export declare function createBetterAuth(db: Db, client: MongoClient, config: BetterAuthConfig): BetterAuthServer;
+
+### dist/browser.d.ts#BrowserAuth
+export interface BrowserAuth {
+    session(): Promise<BrowserUser | undefined>;
+    signInSocial(provider: string, callbackURL: string, errorCallbackURL?: string): Promise<{
+        readonly url: string;
+    } | BrowserAuthError>;
+    signOut(): Promise<{
+        readonly signedOut: true;
+    } | BrowserAuthError>;
+    addPasskey(name: string): Promise<{
+        readonly added: true;
+        readonly name: string;
+    } | BrowserAuthError>;
+    signInWithPasskey(): Promise<{
+        readonly signedIn: true;
+    } | BrowserAuthError>;
+    signInWithPassword(input: {
+        email: string;
+        password: string;
+        name?: string | undefined;
+        signUp?: boolean | undefined;
+    }): Promise<{
+        readonly signedIn: true;
+        readonly user?: string | undefined;
+    } | BrowserAuthError>;
+}
+
+### dist/browser.d.ts#BrowserAuthError
+export interface BrowserAuthError {
+    readonly error: string;
+}
+
+### dist/browser.d.ts#BrowserAuthOptions
+export interface BrowserAuthOptions {
+    readonly baseURL: string;
+    readonly basePath?: string | undefined;
+    readonly fetch?: typeof fetch | undefined;
+    readonly webauthn?: WebAuthnCeremonies | undefined;
+    readonly sessionTimeoutMs?: number | undefined;
+}
+
+### dist/browser.d.ts#BrowserUser
+export interface BrowserUser {
+    readonly id: string;
+    readonly name?: string | undefined;
+    readonly email?: string | undefined;
+}
+
+### dist/browser.d.ts#WebAuthnCeremonies
+export interface WebAuthnCeremonies {
+    startRegistration(options: {
+        optionsJSON: unknown;
+    }): Promise<unknown>;
+    startAuthentication(options: {
+        optionsJSON: unknown;
+    }): Promise<unknown>;
+}
+
+### dist/browser.d.ts#createBrowserAuth
+export declare function createBrowserAuth(options: BrowserAuthOptions): BrowserAuth;
+
+### dist/config.d.ts#BetterAuthConfig
+export interface BetterAuthConfig {
+    readonly appName: string;
+    readonly basePath: string;
+    readonly secret: string;
+    readonly baseURL: string;
+    readonly trustedOrigins: readonly string[];
+    readonly github?: OAuthClient | undefined;
+    readonly google?: OAuthClient | undefined;
+    readonly testAccounts: boolean;
+    readonly rpID: string;
+    readonly crossSiteCookies?: boolean | undefined;
+}
+
+### dist/config.d.ts#BetterAuthConfigOptions
+export interface BetterAuthConfigOptions {
+    readonly port: number;
+    readonly trustedOrigins: readonly string[];
+    readonly appName?: string | undefined;
+    readonly basePath?: string | undefined;
+}
+
+### dist/config.d.ts#OAuthClient
+export interface OAuthClient {
+    readonly clientId: string;
+    readonly clientSecret: string;
+}
+
+### dist/config.d.ts#betterAuthConfig
+export declare function betterAuthConfig(env: Readonly<Record<string, string | undefined>>, options: BetterAuthConfigOptions): BetterAuthConfig | string;
+
+### dist/handler.d.ts#AUTH_CORS_HEADERS
+export declare const AUTH_CORS_HEADERS: readonly string[];
+
+### dist/handler.d.ts#AUTH_CORS_METHODS
+export declare const AUTH_CORS_METHODS: readonly string[];
+
+### dist/handler.d.ts#AuthRequestTracker
+export type AuthRequestTracker = (req: IncomingMessage, res: ServerResponse, key: string, serve: (signal: AbortSignal) => Promise<void> | void) => Promise<void>;
+
+### dist/handler.d.ts#BetterAuthFace
+export interface BetterAuthFace {
+    readonly handler: (req: IncomingMessage, res: ServerResponse) => boolean;
+    readonly endpoint: {
+        readonly type: string;
+        readonly scheme: "http";
+        readonly path: string;
+    };
+}
+
+### dist/handler.d.ts#BetterAuthFaceContext
+export interface BetterAuthFaceContext {
+    readonly policy: HostPolicy;
+    readonly track?: AuthRequestTracker | undefined;
+}
+
+### dist/handler.d.ts#BetterAuthHandlerOptions
+export interface BetterAuthHandlerOptions {
+    readonly allowedOrigins?: BrowserGuardOptions["allowedOrigins"];
+    readonly basePath?: string | undefined;
+    readonly cors?: CredentialedCorsOptions | undefined;
+    readonly track?: AuthRequestTracker | undefined;
+}
+
+### dist/handler.d.ts#NodeAuthHandler
+export interface NodeAuthHandler {
+    (req: IncomingMessage, res: ServerResponse): boolean;
+    matches(req: IncomingMessage): boolean;
+    middleware(req: IncomingMessage, res: ServerResponse, next: (error?: unknown) => void): void;
+    readonly basePath: string;
+}
+
+### dist/handler.d.ts#betterAuthFace
+export declare function betterAuthFace(auth: Pick<BetterAuthServer, "handler">, options?: BetterAuthHandlerOptions): (context: BetterAuthFaceContext) => BetterAuthFace;
+
+### dist/handler.d.ts#betterAuthHandler
+export declare function betterAuthHandler(auth: Pick<BetterAuthServer, "handler">, options?: BetterAuthHandlerOptions): NodeAuthHandler;
+
+### dist/principal-of.d.ts#AGENT_ID
+export declare const AGENT_ID = "agent";
+
+### dist/principal-of.d.ts#ANONYMOUS_ID
+export declare const ANONYMOUS_ID = "anonymous";
+
+### dist/principal-of.d.ts#ActAsPolicy
+export type ActAsPolicy = (user: SignedInUser, credentials: Credentials) => boolean | Promise<boolean>;
+
+### dist/principal-of.d.ts#BetterAuthPrincipalOfOptions
+export interface BetterAuthPrincipalOfOptions {
+    readonly principals: SessionPrincipals;
+    readonly agentToken?: string | undefined;
+    readonly actAsHeader?: string | undefined;
+    readonly actAs?: ActAsPolicy | undefined;
+    readonly anonymous?: CapabilityRequest | false | undefined;
+}
+
+### dist/principal-of.d.ts#VIA
+export declare const VIA: {
+    readonly session: "better-auth";
+    readonly agent: "agent-token";
+    readonly agentAs: "agent-as";
+    readonly anonymous: "anonymous";
+};
+
+### dist/principal-of.d.ts#betterAuthPrincipalOf
+export declare function betterAuthPrincipalOf(options: BetterAuthPrincipalOfOptions): PrincipalOf;
+
+### dist/principal-of.d.ts#headersOf
+export declare function headersOf(credentials: Credentials): Headers;
+
+### dist/principals.d.ts#SessionPrincipals
+export declare class SessionPrincipals {
+    constructor(options: SessionPrincipalsOptions);
+    ofHeaders(headers: Headers): Promise<SignedInUser | undefined>;
+    ofUser(id: string): Promise<SignedInUser | undefined>;
+    groupsOf(id: string): Promise<readonly UserGroup[]>;
+    forgetGroups(id: string): void;
+}
+
+### dist/principals.d.ts#SessionPrincipalsOptions
+export interface SessionPrincipalsOptions {
+    readonly auth: SessionSource;
+    readonly db: Db;
+    readonly trustUnverifiedEmail?: boolean | undefined;
+    readonly sessionMemoMs?: number | undefined;
+    readonly groupsMemoMs?: number | undefined;
+    readonly now?: (() => number) | undefined;
+    readonly warn?: ((message: string) => void) | undefined;
+}
+
+### dist/principals.d.ts#SessionSource
+export interface SessionSource {
+    readonly api: {
+        getSession(context: {
+            headers: Headers;
+        }): Promise<{
+            user?: unknown;
+        } | null | undefined>;
+    };
+}
+
+### dist/principals.d.ts#SignedInUser
+export interface SignedInUser {
+    readonly id: string;
+    readonly email?: string | undefined;
+    readonly name?: string | undefined;
+    readonly groups: readonly UserGroup[];
+}
+
+### dist/principals.d.ts#UserGroup
+export interface UserGroup {
+    readonly id: string;
+    readonly role: string;
+}

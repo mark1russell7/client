@@ -1,0 +1,82 @@
+# The public API of @procedures/notify
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 10 names
+
+FetchPost: dist/notify.d.ts#FetchPost
+NOTIFY_TOKEN_ENV: dist/procedures.d.ts#NOTIFY_TOKEN_ENV
+NTFY_URL: dist/notify.d.ts#NTFY_URL
+Notification: dist/notify.d.ts#Notification
+headerSafe: dist/notify.d.ts#headerSafe
+notifyModule: dist/module.d.ts#notifyModule
+notifyProcedures: dist/procedures.d.ts#notifyProcedures
+notifySendProcedure: dist/procedures.d.ts#notifySendProcedure
+registerNotifyProcedures: dist/module.d.ts#registerNotifyProcedures
+sendNotification: dist/notify.d.ts#sendNotification
+
+## ./module (dist/module.d.ts): 3 names
+
+default: dist/module.d.ts#notifyModule
+notifyModule: dist/module.d.ts#notifyModule
+registerNotifyProcedures: dist/module.d.ts#registerNotifyProcedures
+
+## ./register (dist/register.d.ts): 2 names
+
+notifyModule: dist/module.d.ts#notifyModule
+registerNotifyProcedures: dist/module.d.ts#registerNotifyProcedures
+
+## Declarations
+
+### dist/module.d.ts#notifyModule
+export declare const notifyModule: ProcedureModule;
+
+### dist/module.d.ts#registerNotifyProcedures
+export declare const registerNotifyProcedures: PackageDefinition["register"];
+
+### dist/notify.d.ts#FetchPost
+export type FetchPost = (url: string, init: {
+    method: string;
+    headers: Record<string, string>;
+    body: string;
+    signal: AbortSignal;
+}) => Promise<{
+    ok: boolean;
+    status: number;
+}>;
+
+### dist/notify.d.ts#NTFY_URL
+export declare const NTFY_URL = "https://ntfy.sh";
+
+### dist/notify.d.ts#Notification
+export interface Notification {
+    readonly topic: string;
+    readonly title: string;
+    readonly message: string;
+    readonly priority?: "min" | "low" | "default" | "high" | "max" | undefined;
+    readonly tags?: readonly string[] | undefined;
+    readonly click?: string | undefined;
+}
+
+### dist/notify.d.ts#headerSafe
+export declare const headerSafe: (text: string) => string;
+
+### dist/notify.d.ts#sendNotification
+export declare function sendNotification(notification: Notification, options: {
+    server?: string | undefined;
+    token?: string | undefined;
+    timeoutMs: number;
+    signal?: AbortSignal | undefined;
+    fetch?: FetchPost | undefined;
+}): Promise<void>;
+
+### dist/procedures.d.ts#NOTIFY_TOKEN_ENV
+export declare const NOTIFY_TOKEN_ENV: RegExp;
+
+### dist/procedures.d.ts#notifyProcedures
+export declare const notifyProcedures: AnyProcedure[];
+
+### dist/procedures.d.ts#notifySendProcedure
+export declare const notifySendProcedure: AnyProcedure;

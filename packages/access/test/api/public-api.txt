@@ -1,0 +1,133 @@
+# The public API of @procedures/access
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 17 names
+
+Access: dist/access.d.ts#Access
+AccessAdmitOptions: dist/admit.d.ts#AccessAdmitOptions
+AccessContext: dist/access.d.ts#AccessContext
+AccessEntry: dist/access.d.ts#AccessEntry
+AccessList: dist/access.d.ts#AccessList
+AccessLists: dist/access.d.ts#AccessLists
+AccessPolicy: dist/access.d.ts#AccessPolicy
+AccessSubject: dist/access.d.ts#AccessSubject
+AccessWriteGuardOptions: dist/admit.d.ts#AccessWriteGuardOptions
+DEFAULT_RIGHTS: dist/access.d.ts#DEFAULT_RIGHTS
+Right: dist/access.d.ts#Right
+RightsModel: dist/access.d.ts#RightsModel
+SubjectOfOptions: dist/admit.d.ts#SubjectOfOptions
+accessAdmitItem: dist/admit.d.ts#accessAdmitItem
+accessWriteGuard: dist/admit.d.ts#accessWriteGuard
+asAccessList: dist/access.d.ts#asAccessList
+subjectOf: dist/admit.d.ts#subjectOf
+
+## Declarations
+
+### dist/access.d.ts#Access
+export declare class Access {
+    constructor(policy?: AccessPolicy);
+    implied(rights: Iterable<Right>): Set<Right>;
+    names(principal: string, subject: AccessSubject): boolean;
+    listRights(list: AccessList, subject: AccessSubject, context?: AccessContext): Set<Right>;
+    rightsOn(scope: string, subject: AccessSubject, lists: AccessLists, context?: AccessContext): Set<Right>;
+    can(right: Right, scope: string, subject: AccessSubject, lists: AccessLists, context?: AccessContext): boolean;
+    conditionalOn(right: Right, scope: string, subject: AccessSubject, lists: AccessLists): boolean;
+    readable(scopes: readonly string[], subject: AccessSubject, lists: AccessLists): string[];
+}
+
+### dist/access.d.ts#AccessContext
+export interface AccessContext {
+    readonly op: string;
+    readonly doc?: unknown;
+    readonly prev?: unknown;
+}
+
+### dist/access.d.ts#AccessEntry
+export interface AccessEntry {
+    readonly principal: string;
+    readonly rights: readonly Right[];
+    readonly when?: unknown;
+}
+
+### dist/access.d.ts#AccessList
+export interface AccessList {
+    readonly owner?: string | undefined;
+    readonly access?: readonly AccessEntry[] | undefined;
+}
+
+### dist/access.d.ts#AccessLists
+export type AccessLists = ReadonlyMap<string, AccessList>;
+
+### dist/access.d.ts#AccessPolicy
+export interface AccessPolicy {
+    readonly rights?: RightsModel | undefined;
+    readonly evaluate?: ((condition: unknown, variables: Readonly<Record<string, unknown>>) => boolean) | undefined;
+    readonly implicit?: ((scope: string, subject: AccessSubject) => Iterable<Right> | undefined) | undefined;
+    readonly parent?: ((scope: string) => string | undefined) | undefined;
+    readonly fallback?: ((scope: string, subject: AccessSubject) => Iterable<Right> | undefined) | undefined;
+    readonly names?: ((principal: string, subject: AccessSubject) => boolean | undefined) | undefined;
+    readonly superuser?: ((subject: AccessSubject) => boolean) | undefined;
+}
+
+### dist/access.d.ts#AccessSubject
+export interface AccessSubject {
+    readonly user?: string | undefined;
+    readonly email?: string | undefined;
+    readonly groups?: readonly {
+        readonly id: string;
+        readonly role: string;
+    }[] | undefined;
+    readonly agent?: boolean | undefined;
+}
+
+### dist/access.d.ts#DEFAULT_RIGHTS
+export declare const DEFAULT_RIGHTS: RightsModel;
+
+### dist/access.d.ts#Right
+export type Right = string;
+
+### dist/access.d.ts#RightsModel
+export interface RightsModel {
+    readonly all: readonly Right[];
+    readonly implies: Readonly<Record<Right, readonly Right[]>>;
+}
+
+### dist/access.d.ts#asAccessList
+export declare function asAccessList(raw: unknown): AccessList | undefined;
+
+### dist/admit.d.ts#AccessAdmitOptions
+export interface AccessAdmitOptions {
+    readonly access: Access;
+    readonly lists: (invocation: Invocation) => AccessLists | Promise<AccessLists>;
+    readonly scopeOf: (item: unknown) => string | undefined;
+    readonly subjectOf?: ((principal: Principal | undefined) => AccessSubject) | undefined;
+    readonly right?: Right | undefined;
+    readonly docOf?: ((item: unknown) => unknown) | undefined;
+}
+
+### dist/admit.d.ts#AccessWriteGuardOptions
+export interface AccessWriteGuardOptions {
+    readonly access: Access;
+    readonly lists: (invocation: Invocation) => AccessLists | Promise<AccessLists>;
+    readonly scopeOf: (doc: unknown) => string | undefined;
+    readonly subjectOf?: ((principal: Principal | undefined) => AccessSubject) | undefined;
+    readonly right?: Right | undefined;
+}
+
+### dist/admit.d.ts#SubjectOfOptions
+export interface SubjectOfOptions {
+    readonly anonymousVia?: readonly string[] | undefined;
+    readonly serviceVia?: readonly string[] | undefined;
+}
+
+### dist/admit.d.ts#accessAdmitItem
+export declare function accessAdmitItem(options: AccessAdmitOptions): AdmitItem;
+
+### dist/admit.d.ts#accessWriteGuard
+export declare function accessWriteGuard(options: AccessWriteGuardOptions): CollectionWriteGuard;
+
+### dist/admit.d.ts#subjectOf
+export declare function subjectOf(principal: Principal | undefined, options?: SubjectOfOptions): AccessSubject;

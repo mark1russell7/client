@@ -1,0 +1,1217 @@
+# The public API of @procedures/mongo
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 159 names
+
+ALLOWED_PIPELINE_STAGES: dist/storage/pipeline-scope.d.ts#ALLOWED_PIPELINE_STAGES
+type AggregateInput: dist/procedures/documents.aggregate.d.ts#AggregateInput
+type AggregateOptions: mongodb#AggregateOptions (external)
+type AggregateOutput: dist/procedures/documents.aggregate.d.ts#AggregateOutput
+type AggregationOptions: dist/types.d.ts#AggregationOptions
+type AggregationStage: dist/types.d.ts#AggregationStage
+BLOCKED_PIPELINE_OPERATORS: dist/storage/pipeline-scope.d.ts#BLOCKED_PIPELINE_OPERATORS
+type BaseDocument: dist/types.d.ts#BaseDocument
+type BaseMeta: dist/types.d.ts#BaseMeta
+type BulkDeleteMany: dist/types.d.ts#BulkDeleteMany
+type BulkDeleteOne: dist/types.d.ts#BulkDeleteOne
+type BulkInput: dist/procedures/documents.bulk.d.ts#BulkInput
+type BulkInsertOne: dist/types.d.ts#BulkInsertOne
+type BulkOperation: dist/types.d.ts#BulkOperation
+type BulkOutput: dist/procedures/documents.bulk.d.ts#BulkOutput
+type BulkUpdateMany: dist/types.d.ts#BulkUpdateMany
+type BulkUpdateOne: dist/types.d.ts#BulkUpdateOne
+type BulkWriteResult: dist/types.d.ts#BulkWriteResult
+type Collection: mongodb#Collection (external)
+type CollectionMeta: dist/types.d.ts#CollectionMeta
+type CollectionOptions: dist/types.d.ts#CollectionOptions
+type CollectionStats: dist/types.d.ts#CollectionStats
+type CountInput: dist/procedures/documents.count.d.ts#CountInput
+type CountOutput: dist/procedures/documents.count.d.ts#CountOutput
+type CreateCollectionInput: dist/procedures/collections.create.d.ts#CreateInput
+type CreateCollectionOutput: dist/procedures/collections.create.d.ts#CreateOutput
+type CreateIndexInput: dist/procedures/indexes.create.d.ts#CreateIndexInput
+type CreateIndexOutput: dist/procedures/indexes.create.d.ts#CreateIndexOutput
+DEFAULT_PIPELINE_LIMITS: dist/storage/pipeline-scope.d.ts#DEFAULT_PIPELINE_LIMITS
+DEFAULT_STORED_FORM: dist/storage/document-storage.d.ts#DEFAULT_STORED_FORM
+DOCUMENT_STORAGE_FIELDS: dist/storage/document-storage.d.ts#DOCUMENT_STORAGE_FIELDS
+type DatabaseInfo: dist/types.d.ts#DatabaseInfo
+type Db: mongodb#Db (external)
+type DecodeStoredDocumentOptions: dist/storage/document-storage.d.ts#DecodeStoredDocumentOptions
+type DeleteInput: dist/procedures/documents.delete.d.ts#DeleteInput
+type DeleteOutput: dist/procedures/documents.delete.d.ts#DeleteOutput
+type DistinctInput: dist/procedures/documents.distinct.d.ts#DistinctInput
+type DistinctOutput: dist/procedures/documents.distinct.d.ts#DistinctOutput
+type Document: mongodb#Document (external)
+type DocumentId: dist/types.d.ts#DocumentId
+type DocumentQuery: dist/types.d.ts#DocumentQuery
+type DocumentUpdate: dist/types.d.ts#DocumentUpdate
+type DropCollectionInput: dist/procedures/collections.drop.d.ts#DropInput
+type DropCollectionOutput: dist/procedures/collections.drop.d.ts#DropOutput
+type DropIndexInput: dist/procedures/indexes.drop.d.ts#DropIndexInput
+type DropIndexOutput: dist/procedures/indexes.drop.d.ts#DropIndexOutput
+type ExplainInput: dist/procedures/documents.explain.d.ts#ExplainInput
+type ExplainOutput: dist/procedures/documents.explain.d.ts#ExplainOutput
+type Filter: mongodb#Filter (external)
+type FindInput: dist/procedures/documents.find.d.ts#FindInput
+type FindOptions: mongodb#FindOptions (external)
+type FindOutput: dist/procedures/documents.find.d.ts#FindOutput
+type GetInput: dist/procedures/documents.get.d.ts#GetInput
+type GetOutput: dist/procedures/documents.get.d.ts#GetOutput
+type IndexInfo: dist/types.d.ts#IndexInfo
+type IndexOptions: dist/types.d.ts#IndexOptions
+type IndexSpec: dist/types.d.ts#IndexSpec
+type InfoInput: dist/procedures/database.info.d.ts#InfoInput
+type InsertInput: dist/procedures/documents.insert.d.ts#InsertInput
+type InsertOutput: dist/procedures/documents.insert.d.ts#InsertOutput
+type ListCollectionsInput: dist/procedures/collections.list.d.ts#ListInput
+type ListCollectionsOutput: dist/procedures/collections.list.d.ts#ListOutput
+type ListIndexesInput: dist/procedures/indexes.list.d.ts#ListIndexesInput
+type ListIndexesOutput: dist/procedures/indexes.list.d.ts#ListIndexesOutput
+type MaterializedView: dist/storage/materializer.d.ts#MaterializedView
+type MaterializedViewStatus: dist/storage/materializer.d.ts#MaterializedViewStatus
+type MongoConnection: dist/connection.d.ts#MongoConnection
+type MongoConnectionOptions: dist/connection.d.ts#MongoConnectionOptions
+type MongoDocument: dist/types.d.ts#MongoDocument
+MongoDocumentStorage: dist/storage/document-storage.d.ts#MongoDocumentStorage
+type MongoDocumentStorageOptions: dist/storage/document-storage.d.ts#MongoDocumentStorageOptions
+type MongoProcedures: dist/procedures.types.d.ts#MongoProcedures
+MongoStorage: dist/storage/mongo-storage.d.ts#MongoStorage
+type MongoStorageOptions: dist/storage/mongo-storage.d.ts#MongoStorageOptions
+MongoViewStorage: dist/storage/view-storage.d.ts#MongoViewStorage
+type MongoViewStorageOptions: dist/storage/view-storage.d.ts#MongoViewStorageOptions
+type ObjectId: mongodb#ObjectId (external)
+type PaginationInput: dist/types.d.ts#PaginationInput
+type PaginationOutput: dist/types.d.ts#PaginationOutput
+type PingInput: dist/procedures/database.ping.d.ts#PingInput
+type PingOutput: dist/procedures/database.ping.d.ts#PingOutput
+type PipelineLimits: dist/storage/pipeline-scope.d.ts#PipelineLimits
+type PipelineScope: dist/storage/pipeline-scope.d.ts#PipelineScope
+type ProcedureInput: dist/procedures.types.d.ts#ProcedureInput
+type ProcedureOutput: dist/procedures.types.d.ts#ProcedureOutput
+type ScopeInput: dist/scope.d.ts#ScopeInput
+type SelectorPrefilterOptions: dist/storage/document-storage.d.ts#SelectorPrefilterOptions
+type SortOrder: dist/types.d.ts#SortOrder
+type SortSpec: dist/types.d.ts#SortSpec
+type StatsInput: dist/procedures/collections.stats.d.ts#StatsInput
+type StorageChange: dist/storage/storage-hints.d.ts#StorageChange
+type StorageChangeHint: dist/storage/storage-hints.d.ts#StorageChangeHint
+type StorageChangesWatch: dist/storage/storage-hints.d.ts#StorageChangesWatch
+type StorageHintPublisher: dist/storage/storage-hints.d.ts#StorageHintPublisher
+type StoredDocumentEntry: dist/storage/document-storage.d.ts#StoredDocumentEntry
+type StoredForm: dist/storage/document-storage.d.ts#StoredForm
+TOMBSTONE_FIELD: dist/storage/document-storage.d.ts#TOMBSTONE_FIELD
+type UpdateFilter: mongodb#UpdateFilter (external)
+type UpdateInput: dist/procedures/documents.update.d.ts#UpdateInput
+type UpdateOutput: dist/procedures/documents.update.d.ts#UpdateOutput
+VIEW_GENERATION_FIELD: dist/storage/materializer.d.ts#VIEW_GENERATION_FIELD
+VIEW_HASH_FIELD: dist/storage/materializer.d.ts#VIEW_HASH_FIELD
+ViewMaterializer: dist/storage/materializer.d.ts#ViewMaterializer
+type ViewMaterializerOptions: dist/storage/materializer.d.ts#ViewMaterializerOptions
+type ViewPartitionOf: dist/storage/materializer.d.ts#ViewPartitionOf
+type ViewPipelineScope: dist/storage/materializer.d.ts#ViewPipelineScope
+type ViewStorageSource: dist/storage/materializer.d.ts#ViewStorageSource
+type ViewTargetId: dist/storage/materializer.d.ts#ViewTargetId
+type WatchChange: dist/procedures/watch.d.ts#WatchChange
+type WatchInput: dist/procedures/watch.d.ts#WatchInput
+type WatchStorageChangesOptions: dist/storage/storage-hints.d.ts#WatchStorageChangesOptions
+aggregateProcedure: dist/procedures/documents.aggregate.d.ts#aggregateProcedure
+assertNoBlockedOperators: dist/storage/pipeline-scope.d.ts#assertNoBlockedOperators
+boundPipeline: dist/storage/pipeline-scope.d.ts#boundPipeline
+bulkProcedure: dist/procedures/documents.bulk.d.ts#bulkProcedure
+configure: dist/connection.d.ts#configure
+connect: dist/connection.d.ts#connect
+countProcedure: dist/procedures/documents.count.d.ts#countProcedure
+createCollectionProcedure: dist/procedures/collections.create.d.ts#createCollectionProcedure
+createIndexProcedure: dist/procedures/indexes.create.d.ts#createIndexProcedure
+cutResults: dist/storage/pipeline-scope.d.ts#cutResults
+decodeStoredDocument: dist/storage/document-storage.d.ts#decodeStoredDocument
+deleteProcedure: dist/procedures/documents.delete.d.ts#deleteProcedure
+disconnect: dist/connection.d.ts#disconnect
+distinctProcedure: dist/procedures/documents.distinct.d.ts#distinctProcedure
+dropIndexProcedure: dist/procedures/indexes.drop.d.ts#dropIndexProcedure
+dropProcedure: dist/procedures/collections.drop.d.ts#dropProcedure
+ensureConnection: dist/connection.d.ts#ensureConnection
+explainProcedure: dist/procedures/documents.explain.d.ts#explainProcedure
+findProcedure: dist/procedures/documents.find.d.ts#findProcedure
+getBaseMeta: dist/types.d.ts#getBaseMeta
+getClient: dist/connection.d.ts#getClient
+getDb: dist/connection.d.ts#getDb
+getDefaultConnection: dist/connection.d.ts#getDefaultConnection
+getProcedure: dist/procedures/documents.get.d.ts#getProcedure
+hasCollection: dist/types.d.ts#hasCollection
+hasDefaultConnection: dist/connection.d.ts#hasDefaultConnection
+identityPartition: dist/storage/materializer.d.ts#identityPartition
+infoProcedure: dist/procedures/database.info.d.ts#infoProcedure
+insertProcedure: dist/procedures/documents.insert.d.ts#insertProcedure
+isTimeLimitError: dist/storage/pipeline-scope.d.ts#isTimeLimitError
+listIndexesProcedure: dist/procedures/indexes.list.d.ts#listIndexesProcedure
+listProcedure: dist/procedures/collections.list.d.ts#listProcedure
+partitionTargetId: dist/storage/materializer.d.ts#partitionTargetId
+pingProcedure: dist/procedures/database.ping.d.ts#pingProcedure
+procedures: dist/module.d.ts#procedures
+registerMongoProcedures: dist/module.d.ts#registerMongoProcedures
+requireCollection: dist/types.d.ts#requireCollection
+schema: @procedures/client#outputSchema (external)
+scopePipeline: dist/storage/pipeline-scope.d.ts#scopePipeline
+selectorPrefilter: dist/storage/document-storage.d.ts#selectorPrefilter
+setDefaultConnection: dist/connection.d.ts#setDefaultConnection
+statsProcedure: dist/procedures/collections.stats.d.ts#statsProcedure
+storageChangeOf: dist/storage/storage-hints.d.ts#storageChangeOf
+updateProcedure: dist/procedures/documents.update.d.ts#updateProcedure
+versionOfStored: dist/storage/document-storage.d.ts#versionOfStored
+viewFilter: dist/storage/materializer.d.ts#viewFilter
+watchProcedure: dist/procedures/watch.d.ts#watchProcedure
+watchStorageChanges: dist/storage/storage-hints.d.ts#watchStorageChanges
+
+## ./module (dist/module.d.ts): 4 names
+
+default: dist/module.d.ts#mongoModule
+mongoModule: dist/module.d.ts#mongoModule
+procedures: dist/module.d.ts#procedures
+registerMongoProcedures: dist/module.d.ts#registerMongoProcedures
+
+## ./procedures (dist/procedures/index.d.ts): 21 names
+
+aggregateProcedure: dist/procedures/documents.aggregate.d.ts#aggregateProcedure
+bulkProcedure: dist/procedures/documents.bulk.d.ts#bulkProcedure
+countProcedure: dist/procedures/documents.count.d.ts#countProcedure
+createCollectionProcedure: dist/procedures/collections.create.d.ts#createCollectionProcedure
+createIndexProcedure: dist/procedures/indexes.create.d.ts#createIndexProcedure
+deleteProcedure: dist/procedures/documents.delete.d.ts#deleteProcedure
+distinctProcedure: dist/procedures/documents.distinct.d.ts#distinctProcedure
+dropIndexProcedure: dist/procedures/indexes.drop.d.ts#dropIndexProcedure
+dropProcedure: dist/procedures/collections.drop.d.ts#dropProcedure
+explainProcedure: dist/procedures/documents.explain.d.ts#explainProcedure
+findProcedure: dist/procedures/documents.find.d.ts#findProcedure
+getProcedure: dist/procedures/documents.get.d.ts#getProcedure
+infoProcedure: dist/procedures/database.info.d.ts#infoProcedure
+insertProcedure: dist/procedures/documents.insert.d.ts#insertProcedure
+listIndexesProcedure: dist/procedures/indexes.list.d.ts#listIndexesProcedure
+listProcedure: dist/procedures/collections.list.d.ts#listProcedure
+pingProcedure: dist/procedures/database.ping.d.ts#pingProcedure
+schema: @procedures/client#outputSchema (external)
+statsProcedure: dist/procedures/collections.stats.d.ts#statsProcedure
+updateProcedure: dist/procedures/documents.update.d.ts#updateProcedure
+watchProcedure: dist/procedures/watch.d.ts#watchProcedure
+
+## ./register (dist/register.d.ts): 3 names
+
+mongoModule: dist/module.d.ts#mongoModule
+procedures: dist/module.d.ts#procedures
+registerMongoProcedures: dist/module.d.ts#registerMongoProcedures
+
+## Declarations
+
+### dist/connection.d.ts#MongoConnection
+export interface MongoConnection {
+    getDb(): Db;
+    getClient(): MongoClient;
+    connect(): Promise<void>;
+    disconnect(): Promise<void>;
+    isConnected(): boolean;
+}
+
+### dist/connection.d.ts#MongoConnectionOptions
+export interface MongoConnectionOptions {
+    uri?: string;
+    database?: string;
+    clientOptions?: MongoClientOptions;
+}
+
+### dist/connection.d.ts#configure
+export declare function configure(options: MongoConnectionOptions): void;
+
+### dist/connection.d.ts#connect
+export declare function connect(options?: MongoConnectionOptions): Promise<MongoConnection>;
+
+### dist/connection.d.ts#disconnect
+export declare function disconnect(): Promise<void>;
+
+### dist/connection.d.ts#ensureConnection
+export declare function ensureConnection(): Promise<MongoConnection>;
+
+### dist/connection.d.ts#getClient
+export declare function getClient(): MongoClient;
+
+### dist/connection.d.ts#getDb
+export declare function getDb(): Db;
+
+### dist/connection.d.ts#getDefaultConnection
+export declare function getDefaultConnection(): MongoConnection;
+
+### dist/connection.d.ts#hasDefaultConnection
+export declare function hasDefaultConnection(): boolean;
+
+### dist/connection.d.ts#setDefaultConnection
+export declare function setDefaultConnection(conn: MongoConnection): void;
+
+### dist/module.d.ts#mongoModule
+export declare const mongoModule: ProcedureModule;
+
+### dist/module.d.ts#procedures
+export declare const procedures: readonly AnyProcedure[];
+
+### dist/module.d.ts#registerMongoProcedures
+export declare const registerMongoProcedures: PackageDefinition["register"];
+
+### dist/procedures.types.d.ts#MongoProcedures
+export interface MongoProcedures {
+    mongo: {
+        database: {
+            ping: {
+                input: PingInput;
+                output: PingOutput;
+            };
+            info: {
+                input: InfoInput;
+                output: DatabaseInfo;
+            };
+        };
+        collections: {
+            list: {
+                input: ListCollectionsInput;
+                output: ListCollectionsOutput;
+            };
+            create: {
+                input: CreateCollectionInput;
+                output: CreateCollectionOutput;
+            };
+            drop: {
+                input: DropCollectionInput;
+                output: DropCollectionOutput;
+            };
+            stats: {
+                input: StatsInput;
+                output: CollectionStats;
+            };
+        };
+        documents: {
+            find: {
+                input: FindInput;
+                output: FindOutput;
+            };
+            get: {
+                input: GetInput;
+                output: GetOutput;
+            };
+            insert: {
+                input: InsertInput;
+                output: InsertOutput;
+            };
+            update: {
+                input: UpdateInput;
+                output: UpdateOutput;
+            };
+            delete: {
+                input: DeleteInput;
+                output: DeleteOutput;
+            };
+            count: {
+                input: CountInput;
+                output: CountOutput;
+            };
+            aggregate: {
+                input: AggregateInput;
+                output: AggregateOutput;
+            };
+            distinct: {
+                input: DistinctInput;
+                output: DistinctOutput;
+            };
+            bulk: {
+                input: BulkInput;
+                output: BulkOutput;
+            };
+            explain: {
+                input: ExplainInput;
+                output: ExplainOutput;
+            };
+        };
+        indexes: {
+            list: {
+                input: ListIndexesInput;
+                output: ListIndexesOutput;
+            };
+            create: {
+                input: CreateIndexInput;
+                output: CreateIndexOutput;
+            };
+            drop: {
+                input: DropIndexInput;
+                output: DropIndexOutput;
+            };
+        };
+        watch: {
+            input: WatchInput;
+            output: WatchChange;
+        };
+    };
+}
+
+### dist/procedures.types.d.ts#ProcedureInput
+export type ProcedureInput<P extends readonly string[]> = P extends ["mongo", "database", "ping"] ? PingInput : P extends ["mongo", "database", "info"] ? InfoInput : P extends ["mongo", "collections", "list"] ? ListCollectionsInput : P extends ["mongo", "collections", "create"] ? CreateCollectionInput : P extends ["mongo", "collections", "drop"] ? DropCollectionInput : P extends ["mongo", "collections", "stats"] ? StatsInput : P extends ["mongo", "documents", "find"] ? FindInput : P extends ["mongo", "documents", "get"] ? GetInput : P extends ["mongo", "documents", "insert"] ? InsertInput : P extends ["mongo", "documents", "update"] ? UpdateInput : P extends ["mongo", "documents", "delete"] ? DeleteInput : P extends ["mongo", "documents", "count"] ? CountInput : P extends ["mongo", "documents", "aggregate"] ? AggregateInput : P extends ["mongo", "documents", "distinct"] ? DistinctInput : P extends ["mongo", "documents", "bulk"] ? BulkInput : P extends ["mongo", "documents", "explain"] ? ExplainInput : P extends ["mongo", "indexes", "list"] ? ListIndexesInput : P extends ["mongo", "indexes", "create"] ? CreateIndexInput : P extends ["mongo", "indexes", "drop"] ? DropIndexInput : P extends ["mongo", "watch"] ? WatchInput : never;
+
+### dist/procedures.types.d.ts#ProcedureOutput
+export type ProcedureOutput<P extends readonly string[]> = P extends ["mongo", "database", "ping"] ? PingOutput : P extends ["mongo", "database", "info"] ? DatabaseInfo : P extends ["mongo", "collections", "list"] ? ListCollectionsOutput : P extends ["mongo", "collections", "create"] ? CreateCollectionOutput : P extends ["mongo", "collections", "drop"] ? DropCollectionOutput : P extends ["mongo", "collections", "stats"] ? CollectionStats : P extends ["mongo", "documents", "find"] ? FindOutput : P extends ["mongo", "documents", "get"] ? GetOutput : P extends ["mongo", "documents", "insert"] ? InsertOutput : P extends ["mongo", "documents", "update"] ? UpdateOutput : P extends ["mongo", "documents", "delete"] ? DeleteOutput : P extends ["mongo", "documents", "count"] ? CountOutput : P extends ["mongo", "documents", "aggregate"] ? AggregateOutput : P extends ["mongo", "documents", "distinct"] ? DistinctOutput : P extends ["mongo", "documents", "bulk"] ? BulkOutput : P extends ["mongo", "documents", "explain"] ? ExplainOutput : P extends ["mongo", "indexes", "list"] ? ListIndexesOutput : P extends ["mongo", "indexes", "create"] ? CreateIndexOutput : P extends ["mongo", "indexes", "drop"] ? DropIndexOutput : P extends ["mongo", "watch"] ? WatchChange : never;
+
+### dist/procedures/collections.create.d.ts#CreateInput
+interface CreateInput extends ScopeInput {
+    name: string;
+    options?: CollectionOptions | undefined;
+}
+
+### dist/procedures/collections.create.d.ts#CreateOutput
+interface CreateOutput {
+    acknowledged: boolean;
+    collectionName: string;
+}
+
+### dist/procedures/collections.create.d.ts#createCollectionProcedure
+export declare const createCollectionProcedure: Procedure<CreateInput, CreateOutput, {
+    description: string;
+    effects?: Effects;
+}>;
+
+### dist/procedures/collections.drop.d.ts#DropInput
+interface DropInput extends ScopeInput {
+    confirm: boolean;
+}
+
+### dist/procedures/collections.drop.d.ts#DropOutput
+interface DropOutput {
+    acknowledged: boolean;
+    dropped: boolean;
+}
+
+### dist/procedures/collections.drop.d.ts#dropProcedure
+export declare const dropProcedure: Procedure<DropInput, DropOutput, {
+    description: string;
+    effects?: Effects;
+}>;
+
+### dist/procedures/collections.list.d.ts#ListInput
+type ListInput = ScopeInput;
+
+### dist/procedures/collections.list.d.ts#ListOutput
+interface ListOutput {
+    collections: string[];
+}
+
+### dist/procedures/collections.list.d.ts#listProcedure
+export declare const listProcedure: Procedure<ListInput, ListOutput, {
+    description: string;
+    effects?: Effects;
+}>;
+
+### dist/procedures/collections.stats.d.ts#StatsInput
+type StatsInput = ScopeInput;
+
+### dist/procedures/collections.stats.d.ts#statsProcedure
+export declare const statsProcedure: Procedure<StatsInput, CollectionStats, {
+    description: string;
+    effects?: Effects;
+}>;
+
+### dist/procedures/database.info.d.ts#InfoInput
+type InfoInput = ScopeInput;
+
+### dist/procedures/database.info.d.ts#infoProcedure
+export declare const infoProcedure: Procedure<InfoInput, DatabaseInfo, {
+    description: string;
+    effects?: Effects;
+}>;
+
+### dist/procedures/database.ping.d.ts#PingInput
+type PingInput = ScopeInput;
+
+### dist/procedures/database.ping.d.ts#PingOutput
+interface PingOutput {
+    ok: boolean;
+    latencyMs: number;
+}
+
+### dist/procedures/database.ping.d.ts#pingProcedure
+export declare const pingProcedure: Procedure<PingInput, PingOutput, {
+    description: string;
+    effects?: Effects;
+}>;
+
+### dist/procedures/documents.aggregate.d.ts#AggregateInput
+interface AggregateInput extends ScopeInput {
+    pipeline: AggregationStage[];
+    options?: AggregationOptions | undefined;
+}
+
+### dist/procedures/documents.aggregate.d.ts#AggregateOutput
+interface AggregateOutput {
+    results: MongoDocument[];
+}
+
+### dist/procedures/documents.aggregate.d.ts#aggregateProcedure
+export declare const aggregateProcedure: Procedure<AggregateInput, AggregateOutput, {
+    description: string;
+    effects?: Effects;
+}>;
+
+### dist/procedures/documents.bulk.d.ts#BulkInput
+interface BulkInput extends ScopeInput {
+    operations: BulkOperation[];
+    ordered?: boolean;
+    confirm?: boolean;
+}
+
+### dist/procedures/documents.bulk.d.ts#BulkOutput
+interface BulkOutput {
+    ok: boolean;
+    insertedCount: number;
+    matchedCount: number;
+    modifiedCount: number;
+    deletedCount: number;
+    upsertedCount: number;
+    insertedIds: Record<string, string>;
+    upsertedIds: Record<string, string>;
+}
+
+### dist/procedures/documents.bulk.d.ts#bulkProcedure
+export declare const bulkProcedure: Procedure<BulkInput, BulkOutput, {
+    description: string;
+    effects?: Effects;
+}>;
+
+### dist/procedures/documents.count.d.ts#CountInput
+interface CountInput extends ScopeInput {
+    query?: DocumentQuery | undefined;
+}
+
+### dist/procedures/documents.count.d.ts#CountOutput
+interface CountOutput {
+    count: number;
+}
+
+### dist/procedures/documents.count.d.ts#countProcedure
+export declare const countProcedure: Procedure<CountInput, CountOutput, {
+    description: string;
+    effects?: Effects;
+}>;
+
+### dist/procedures/documents.delete.d.ts#DeleteInput
+type DeleteInput = TargetInput;
+
+### dist/procedures/documents.delete.d.ts#DeleteOutput
+interface DeleteOutput {
+    acknowledged: boolean;
+    deletedCount: number;
+}
+
+### dist/procedures/documents.delete.d.ts#deleteProcedure
+export declare const deleteProcedure: Procedure<DeleteInput, DeleteOutput, {
+    description: string;
+    effects?: Effects;
+}>;
+
+### dist/procedures/documents.distinct.d.ts#DistinctInput
+interface DistinctInput extends ScopeInput {
+    field: string;
+    query?: DocumentQuery | undefined;
+}
+
+### dist/procedures/documents.distinct.d.ts#DistinctOutput
+interface DistinctOutput {
+    values: unknown[];
+}
+
+### dist/procedures/documents.distinct.d.ts#distinctProcedure
+export declare const distinctProcedure: Procedure<DistinctInput, DistinctOutput, {
+    description: string;
+    effects?: Effects;
+}>;
+
+### dist/procedures/documents.explain.d.ts#ExplainInput
+interface ExplainInput extends ScopeInput {
+    query?: DocumentQuery;
+    projection?: Record<string, 0 | 1>;
+    sort?: SortSpec;
+    limit?: number;
+    pipeline?: AggregationStage[];
+    verbosity?: Verbosity;
+}
+
+### dist/procedures/documents.explain.d.ts#ExplainOutput
+interface ExplainOutput {
+    operation: "find" | "aggregate";
+    plan: Record<string, unknown>;
+}
+
+### dist/procedures/documents.explain.d.ts#explainProcedure
+export declare const explainProcedure: Procedure<ExplainInput, ExplainOutput, {
+    description: string;
+    effects?: Effects;
+}>;
+
+### dist/procedures/documents.find.d.ts#FindInput
+interface FindInput extends ScopeInput {
+    query?: DocumentQuery;
+    projection?: Record<string, 0 | 1>;
+    sort?: SortSpec;
+    page?: number;
+    limit?: number;
+}
+
+### dist/procedures/documents.find.d.ts#FindOutput
+interface FindOutput {
+    documents: MongoDocument[];
+    pagination: PaginationOutput;
+}
+
+### dist/procedures/documents.find.d.ts#findProcedure
+export declare const findProcedure: Procedure<FindInput, FindOutput, {
+    description: string;
+    effects?: Effects;
+}>;
+
+### dist/procedures/documents.get.d.ts#GetInput
+interface GetInput extends ScopeInput {
+    id: string;
+    idType?: IdType;
+}
+
+### dist/procedures/documents.get.d.ts#GetOutput
+interface GetOutput {
+    document: MongoDocument | null;
+}
+
+### dist/procedures/documents.get.d.ts#getProcedure
+export declare const getProcedure: Procedure<GetInput, GetOutput, {
+    description: string;
+    effects?: Effects;
+}>;
+
+### dist/procedures/documents.insert.d.ts#InsertInput
+interface InsertInput extends ScopeInput {
+    documents: MongoDocument | MongoDocument[];
+}
+
+### dist/procedures/documents.insert.d.ts#InsertOutput
+interface InsertOutput {
+    acknowledged: boolean;
+    insertedIds: string[];
+    insertedCount: number;
+}
+
+### dist/procedures/documents.insert.d.ts#insertProcedure
+export declare const insertProcedure: Procedure<InsertInput, InsertOutput, {
+    description: string;
+    effects?: Effects;
+}>;
+
+### dist/procedures/documents.update.d.ts#UpdateInput
+interface UpdateInput extends TargetInput {
+    update: DocumentUpdate;
+    upsert?: boolean;
+}
+
+### dist/procedures/documents.update.d.ts#UpdateOutput
+interface UpdateOutput {
+    acknowledged: boolean;
+    matchedCount: number;
+    modifiedCount: number;
+    upsertedId: string | null;
+    upsertedCount: number;
+}
+
+### dist/procedures/documents.update.d.ts#updateProcedure
+export declare const updateProcedure: Procedure<UpdateInput, UpdateOutput, {
+    description: string;
+    effects?: Effects;
+}>;
+
+### dist/procedures/indexes.create.d.ts#CreateIndexInput
+interface CreateIndexInput extends ScopeInput {
+    keys: IndexSpec;
+    options?: IndexOptions | undefined;
+}
+
+### dist/procedures/indexes.create.d.ts#CreateIndexOutput
+interface CreateIndexOutput {
+    acknowledged: boolean;
+    indexName: string;
+}
+
+### dist/procedures/indexes.create.d.ts#createIndexProcedure
+export declare const createIndexProcedure: Procedure<CreateIndexInput, CreateIndexOutput, {
+    description: string;
+    effects?: Effects;
+}>;
+
+### dist/procedures/indexes.drop.d.ts#DropIndexInput
+interface DropIndexInput extends ScopeInput {
+    indexName: string;
+}
+
+### dist/procedures/indexes.drop.d.ts#DropIndexOutput
+interface DropIndexOutput {
+    acknowledged: boolean;
+}
+
+### dist/procedures/indexes.drop.d.ts#dropIndexProcedure
+export declare const dropIndexProcedure: Procedure<DropIndexInput, DropIndexOutput, {
+    description: string;
+    effects?: Effects;
+}>;
+
+### dist/procedures/indexes.list.d.ts#ListIndexesInput
+type ListIndexesInput = ScopeInput;
+
+### dist/procedures/indexes.list.d.ts#ListIndexesOutput
+interface ListIndexesOutput {
+    indexes: IndexInfo[];
+}
+
+### dist/procedures/indexes.list.d.ts#listIndexesProcedure
+export declare const listIndexesProcedure: Procedure<ListIndexesInput, ListIndexesOutput, {
+    description: string;
+    effects?: Effects;
+}>;
+
+### dist/procedures/watch.d.ts#WatchChange
+interface WatchChange {
+    operationType: string;
+    ns?: {
+        db: string;
+        coll?: string | undefined;
+    } | undefined;
+    documentKey?: Record<string, unknown> | undefined;
+    fullDocument?: Record<string, unknown> | null | undefined;
+    updateDescription?: Record<string, unknown> | undefined;
+    wallTime?: string | undefined;
+    resumeToken: string;
+}
+
+### dist/procedures/watch.d.ts#WatchInput
+interface WatchInput extends ScopeInput {
+    pipeline?: Document[];
+    fullDocument?: FullDocument;
+    resumeAfter?: string;
+}
+
+### dist/procedures/watch.d.ts#watchProcedure
+export declare const watchProcedure: Procedure<WatchInput, WatchChange, {
+    description: string;
+    effects?: Effects;
+    stream?: {
+        unbounded?: boolean;
+    };
+    output?: string;
+}>;
+
+### dist/scope.d.ts#ScopeInput
+export interface ScopeInput {
+    collection?: string | undefined;
+    database?: string | undefined;
+}
+
+### dist/storage/document-storage.d.ts#DEFAULT_STORED_FORM
+export declare const DEFAULT_STORED_FORM: StoredForm;
+
+### dist/storage/document-storage.d.ts#DOCUMENT_STORAGE_FIELDS
+export declare const DOCUMENT_STORAGE_FIELDS: readonly string[];
+
+### dist/storage/document-storage.d.ts#DecodeStoredDocumentOptions
+export interface DecodeStoredDocumentOptions {
+    form?: StoredForm | undefined;
+    partition?: string | undefined;
+    addId?: boolean | undefined;
+}
+
+### dist/storage/document-storage.d.ts#MongoDocumentStorage
+export declare class MongoDocumentStorage<T> implements CollectionStorage<T> {
+    readonly form: StoredForm;
+    constructor(options: MongoDocumentStorageOptions<T>, partitions?: Map<string, MongoDocumentStorage<T>>);
+    forPartition(partition: string): MongoDocumentStorage<T>;
+    get(id: string): Promise<T | undefined>;
+    getAll(): Promise<T[]>;
+    getEntries(): Promise<Array<[string, T]>>;
+    getIds(): Promise<string[]>;
+    find(predicate: (item: T) => boolean): Promise<T[]>;
+    query(selector: StorageSelector, options?: StorageQueryOptions, policy?: StorageQueryPolicy): Promise<Array<[string, T]>>;
+    has(id: string): Promise<boolean>;
+    size(): Promise<number>;
+    getBatch(ids: string[]): Promise<Map<string, T>>;
+    aggregate(pipeline: readonly Document[], limits?: PipelineLimits): Promise<{
+        docs: Document[];
+        truncated: boolean;
+    }>;
+    versionOf(id: string): Promise<string | undefined>;
+    getChangesSince(since?: string): Promise<StorageChanges<T>>;
+    set(id: string, value: T, options?: StorageItemWriteOptions): Promise<void>;
+    setBatch(items: Array<[string, T]>, options?: StorageBatchWriteOptions): Promise<void>;
+    patch(id: string, fields: StoragePatch, _options?: StorageWriteOptions): Promise<T | undefined>;
+    delete(id: string, options?: StorageItemWriteOptions): Promise<boolean>;
+    deleteBatch(ids: string[], _options?: StorageWriteOptions): Promise<number>;
+    clear(_options?: StorageWriteOptions): Promise<void>;
+    close(): Promise<void>;
+    getMetadata(): Promise<StorageMetadata>;
+}
+
+### dist/storage/document-storage.d.ts#MongoDocumentStorageOptions
+export interface MongoDocumentStorageOptions<T = unknown> {
+    collection: string;
+    db?: (() => Db | Promise<Db>) | undefined;
+    partition?: string | undefined;
+    maxTombstones?: number | undefined;
+    queryPolicy?: StorageQueryPolicy | undefined;
+    counters?: string | undefined;
+    writeLease?: Duration | undefined;
+    client?: (() => MongoClient | Promise<MongoClient>) | undefined;
+    transactions?: "auto" | "never" | undefined;
+    versionOf?: ((item: T) => string | undefined) | undefined;
+    form?: StoredForm | undefined;
+}
+
+### dist/storage/document-storage.d.ts#SelectorPrefilterOptions
+export interface SelectorPrefilterOptions {
+    storedId?: ((id: string) => unknown) | undefined;
+    storageFields?: Iterable<string> | undefined;
+}
+
+### dist/storage/document-storage.d.ts#StoredDocumentEntry
+export interface StoredDocumentEntry<T> {
+    id: string;
+    partition: string | undefined;
+    item: T;
+}
+
+### dist/storage/document-storage.d.ts#StoredForm
+export interface StoredForm {
+    storedId(partition: string | undefined, id: string): unknown;
+    idOf(storedId: unknown, partition: string | undefined): string | undefined;
+    partitionFields(partition: string | undefined): Readonly<Record<string, unknown>>;
+    partitionOf(doc: Document): string | undefined;
+}
+
+### dist/storage/document-storage.d.ts#TOMBSTONE_FIELD
+export declare const TOMBSTONE_FIELD: "_tomb";
+
+### dist/storage/document-storage.d.ts#decodeStoredDocument
+export declare function decodeStoredDocument<T = Document>(doc: Document, options?: DecodeStoredDocumentOptions): StoredDocumentEntry<T> | undefined;
+
+### dist/storage/document-storage.d.ts#selectorPrefilter
+export declare function selectorPrefilter(selector: StorageSelector, options?: SelectorPrefilterOptions): Document | undefined;
+
+### dist/storage/document-storage.d.ts#versionOfStored
+export declare function versionOfStored(doc: Document, form?: StoredForm, partition?: string): string | undefined;
+
+### dist/storage/materializer.d.ts#MaterializedView
+export interface MaterializedView {
+    _id: string;
+    collections: string[];
+    pipeline: Document[];
+    targetCollection: string;
+    sourceFields?: Record<string, string[]>;
+    [field: string]: unknown;
+}
+
+### dist/storage/materializer.d.ts#MaterializedViewStatus
+export interface MaterializedViewStatus {
+    state: "ok" | "errored" | "cycle";
+    lastError?: string;
+    at: number;
+    generation?: ObjectId;
+    previous?: {
+        generation: ObjectId | null;
+        flippedAt: Date;
+    };
+    lease?: {
+        owner: string;
+        generation: ObjectId;
+        until: Date;
+    };
+}
+
+### dist/storage/materializer.d.ts#VIEW_GENERATION_FIELD
+export declare const VIEW_GENERATION_FIELD = "_viewGen";
+
+### dist/storage/materializer.d.ts#VIEW_HASH_FIELD
+export declare const VIEW_HASH_FIELD = "_viewHash";
+
+### dist/storage/materializer.d.ts#ViewMaterializer
+export declare class ViewMaterializer {
+    constructor(options: ViewMaterializerOptions);
+    openStreamCount(): number;
+    inFlight(): number;
+    views(): Map<string, {
+        state: "active" | "cyclic";
+        sources: string[];
+        target: string;
+    }>;
+    start(): Promise<void>;
+    stopIntake(): void;
+    drain(deadline: number, signal?: AbortSignal): Promise<void>;
+    close(): Promise<void>;
+    stop(): Promise<void>;
+}
+
+### dist/storage/materializer.d.ts#ViewMaterializerOptions
+export interface ViewMaterializerOptions {
+    db: () => Db | Promise<Db>;
+    views?: string | undefined;
+    partitionField?: string | undefined;
+    statusField?: string | undefined;
+    scope?: ViewPipelineScope | undefined;
+    debounce?: Duration | undefined;
+    rewatch?: Duration | undefined;
+    maxTime?: Duration | undefined;
+    maxRows?: number | undefined;
+    log?: ((level: "info" | "warn" | "error", message: string) => void) | undefined;
+    clock?: Clock | undefined;
+    targetId?: ViewTargetId | undefined;
+    maxTransactionRows?: number | undefined;
+    generationGrace?: Duration | undefined;
+    passLease?: Duration | undefined;
+    storageSources?: Readonly<Record<string, ViewPartitionOf | ViewStorageSource>> | undefined;
+    storageTargets?: Readonly<Record<string, ViewStorageTargetEntry>> | ((collection: string) => ViewStorageTargetEntry | undefined) | undefined;
+    storageRowIdOf?: ((id: unknown) => string) | undefined;
+    publish?: StorageHintPublisher | undefined;
+    hintTopic?: ((view: MaterializedView, partition: string) => string | undefined) | undefined;
+    rowIdOf?: ((storedId: unknown) => unknown) | undefined;
+}
+
+### dist/storage/materializer.d.ts#ViewPartitionOf
+export type ViewPartitionOf = (storagePartition: string) => string | undefined;
+
+### dist/storage/materializer.d.ts#ViewPipelineScope
+export type ViewPipelineScope = (pipeline: Document[], partition: string, view: MaterializedView, match: Document) => Document[];
+
+### dist/storage/materializer.d.ts#ViewStorageSource
+export interface ViewStorageSource {
+    form: Pick<StoredForm, "partitionOf">;
+    viewPartitionOf: ViewPartitionOf;
+}
+
+### dist/storage/materializer.d.ts#ViewTargetId
+export type ViewTargetId = (id: unknown, partition: string, generation: ObjectId) => unknown;
+
+### dist/storage/materializer.d.ts#identityPartition
+export declare const identityPartition: ViewPartitionOf;
+
+### dist/storage/materializer.d.ts#partitionTargetId
+export declare const partitionTargetId: ViewTargetId;
+
+### dist/storage/materializer.d.ts#viewFilter
+export declare function viewFilter(view: MaterializedView, options?: {
+    partitionField?: string | undefined;
+    statusField?: string | undefined;
+}): Document;
+
+### dist/storage/mongo-storage.d.ts#MongoStorage
+export declare class MongoStorage<T> implements CollectionStorage<T> {
+    constructor(options: MongoStorageOptions);
+    get(id: string): Promise<T | undefined>;
+    getAll(): Promise<T[]>;
+    getEntries(): Promise<Array<[string, T]>>;
+    find(predicate: (item: T) => boolean): Promise<T[]>;
+    has(id: string): Promise<boolean>;
+    size(): Promise<number>;
+    set(id: string, value: T, options?: StorageItemWriteOptions): Promise<void>;
+    delete(id: string, options?: StorageItemWriteOptions): Promise<boolean>;
+    clear(): Promise<void>;
+    setBatch(items: Array<[string, T]>, options?: StorageBatchWriteOptions): Promise<void>;
+    deleteBatch(ids: string[]): Promise<number>;
+    getBatch(ids: string[]): Promise<Map<string, T>>;
+    close(): Promise<void>;
+    getMetadata(): Promise<StorageMetadata>;
+}
+
+### dist/storage/mongo-storage.d.ts#MongoStorageOptions
+export interface MongoStorageOptions {
+    collection: string;
+}
+
+### dist/storage/pipeline-scope.d.ts#ALLOWED_PIPELINE_STAGES
+export declare const ALLOWED_PIPELINE_STAGES: ReadonlySet<string>;
+
+### dist/storage/pipeline-scope.d.ts#BLOCKED_PIPELINE_OPERATORS
+export declare const BLOCKED_PIPELINE_OPERATORS: ReadonlySet<string>;
+
+### dist/storage/pipeline-scope.d.ts#DEFAULT_PIPELINE_LIMITS
+export declare const DEFAULT_PIPELINE_LIMITS: Readonly<{
+    maxTime: Duration;
+    maxResults: number;
+}>;
+
+### dist/storage/pipeline-scope.d.ts#PipelineLimits
+export interface PipelineLimits {
+    readonly maxTime?: Duration | undefined;
+    readonly maxResults?: number | undefined;
+}
+
+### dist/storage/pipeline-scope.d.ts#PipelineScope
+export interface PipelineScope {
+    readonly match: Document;
+    readonly collections: readonly string[];
+    readonly stamp?: Document | undefined;
+}
+
+### dist/storage/pipeline-scope.d.ts#assertNoBlockedOperators
+export declare function assertNoBlockedOperators(value: unknown): void;
+
+### dist/storage/pipeline-scope.d.ts#boundPipeline
+export declare function boundPipeline(pipeline: readonly Document[], maxResults: number): {
+    pipeline: Document[];
+    limited: boolean;
+};
+
+### dist/storage/pipeline-scope.d.ts#cutResults
+export declare function cutResults<T>(results: T[], maxResults: number, limited: boolean): {
+    docs: T[];
+    truncated: boolean;
+};
+
+### dist/storage/pipeline-scope.d.ts#isTimeLimitError
+export declare function isTimeLimitError(error: unknown): boolean;
+
+### dist/storage/pipeline-scope.d.ts#scopePipeline
+export declare function scopePipeline(pipeline: readonly Document[], scope: PipelineScope): Document[];
+
+### dist/storage/storage-hints.d.ts#StorageChange
+export interface StorageChange {
+    readonly id: string;
+    readonly partition: string | undefined;
+    readonly deleted: boolean;
+    readonly raw: boolean;
+    readonly version?: string | undefined;
+    readonly seq?: number | undefined;
+}
+
+### dist/storage/storage-hints.d.ts#StorageChangeHint
+export type StorageChangeHint = CollectionChangeEvent;
+
+### dist/storage/storage-hints.d.ts#StorageChangesWatch
+export interface StorageChangesWatch {
+    readonly ready: Promise<void>;
+    stop(): Promise<void>;
+}
+
+### dist/storage/storage-hints.d.ts#StorageHintPublisher
+export type StorageHintPublisher = ((topic: string, event: StorageChangeHint) => void | Promise<void>) | {
+    emit(topic: string, event: StorageChangeHint): void;
+    channels?(): readonly string[];
+};
+
+### dist/storage/storage-hints.d.ts#WatchStorageChangesOptions
+export interface WatchStorageChangesOptions {
+    collection?: string | undefined;
+    topic?: ((collection: string, partition: string | undefined) => string | undefined) | undefined;
+    ownWrites?: "skip" | "publish" | undefined;
+    rawWrites?: "adopt" | "ignore" | undefined;
+    gapPartitions?: (() => Iterable<string | undefined>) | undefined;
+    sweep?: boolean | undefined;
+    sweepAtOpen?: boolean | undefined;
+    backoff?: ResubscribeBackoff | undefined;
+    clock?: Clock | undefined;
+    log?: ((level: "info" | "warn" | "error", message: string) => void) | undefined;
+}
+
+### dist/storage/storage-hints.d.ts#storageChangeOf
+export declare function storageChangeOf(change: Document, form?: StoredForm): StorageChange | undefined;
+
+### dist/storage/storage-hints.d.ts#watchStorageChanges
+export declare function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish: StorageHintPublisher, options?: WatchStorageChangesOptions): StorageChangesWatch;
+
+### dist/storage/view-storage.d.ts#MongoViewStorage
+export declare class MongoViewStorage<T = Document> implements CollectionStorage<T> {
+    constructor(options: MongoViewStorageOptions);
+    get(id: string): Promise<T | undefined>;
+    getAll(): Promise<T[]>;
+    getEntries(): Promise<Array<[string, T]>>;
+    getIds(): Promise<string[]>;
+    find(predicate: (item: T) => boolean): Promise<T[]>;
+    has(id: string): Promise<boolean>;
+    size(): Promise<number>;
+    getBatch(ids: string[]): Promise<Map<string, T>>;
+    set(_id: string, _value: T): Promise<void>;
+    setBatch(_items: Array<[string, T]>): Promise<void>;
+    delete(_id: string): Promise<boolean>;
+    deleteBatch(_ids: string[]): Promise<number>;
+    clear(): Promise<void>;
+    close(): Promise<void>;
+    getMetadata(): Promise<StorageMetadata>;
+}
+
+### dist/storage/view-storage.d.ts#MongoViewStorageOptions
+export interface MongoViewStorageOptions {
+    view: string;
+    db?: (() => Db | Promise<Db>) | undefined;
+    views?: string | undefined;
+    partitionField?: string | undefined;
+    statusField?: string | undefined;
+    targetId?: ViewTargetId | undefined;
+    rowIdOf?: ((storedId: unknown) => unknown) | undefined;
+}
+
+### dist/types.d.ts#AggregationOptions
+export interface AggregationOptions {
+    allowDiskUse?: boolean | undefined;
+    maxTimeMS?: number | undefined;
+}
+
+### dist/types.d.ts#AggregationStage
+export type AggregationStage = Document;
+
+### dist/types.d.ts#BaseDocument
+export type BaseDocument = Document;
+
+### dist/types.d.ts#BaseMeta
+export interface BaseMeta extends Record<string, unknown> {
+    database?: string;
+}
+
+### dist/types.d.ts#BulkDeleteMany
+export interface BulkDeleteMany {
+    deleteMany: {
+        filter: DocumentQuery;
+    };
+}
+
+### dist/types.d.ts#BulkDeleteOne
+export interface BulkDeleteOne {
+    deleteOne: {
+        filter: DocumentQuery;
+    };
+}
+
+### dist/types.d.ts#BulkInsertOne
+export interface BulkInsertOne {
+    insertOne: {
+        document: Document;
+    };
+}
+
+### dist/types.d.ts#BulkOperation
+export type BulkOperation = BulkInsertOne | BulkUpdateOne | BulkUpdateMany | BulkDeleteOne | BulkDeleteMany;
+
+### dist/types.d.ts#BulkUpdateMany
+export interface BulkUpdateMany {
+    updateMany: {
+        filter: DocumentQuery;
+        update: DocumentUpdate;
+        upsert?: boolean;
+    };
+}
+
+### dist/types.d.ts#BulkUpdateOne
+export interface BulkUpdateOne {
+    updateOne: {
+        filter: DocumentQuery;
+        update: DocumentUpdate;
+        upsert?: boolean;
+    };
+}
+
+### dist/types.d.ts#BulkWriteResult
+export interface BulkWriteResult {
+    acknowledged: boolean;
+    insertedCount: number;
+    matchedCount: number;
+    modifiedCount: number;
+    deletedCount: number;
+    upsertedCount: number;
+}
+
+### dist/types.d.ts#CollectionMeta
+export interface CollectionMeta extends BaseMeta {
+    collection: string;
+}
+
+### dist/types.d.ts#CollectionOptions
+export interface CollectionOptions {
+    capped?: boolean | undefined;
+    size?: number | undefined;
+    max?: number | undefined;
+    validator?: Document | undefined;
+}
+
+### dist/types.d.ts#CollectionStats
+export interface CollectionStats {
+    count: number;
+    size: number;
+    avgObjSize: number;
+    storageSize: number;
+    nindexes: number;
+    totalIndexSize: number;
+}
+
+### dist/types.d.ts#DatabaseInfo
+export interface DatabaseInfo {
+    name: string;
+    collections: number;
+    views: number;
+    sizeOnDisk: number;
+    empty: boolean;
+}
+
+### dist/types.d.ts#DocumentId
+export type DocumentId = string | ObjectId;
+
+### dist/types.d.ts#DocumentQuery
+export type DocumentQuery = Filter<Document>;
+
+### dist/types.d.ts#DocumentUpdate
+export type DocumentUpdate = UpdateFilter<Document>;
+
+### dist/types.d.ts#IndexInfo
+export interface IndexInfo {
+    name: string;
+    key: Record<string, number | string>;
+    unique?: boolean | undefined;
+    sparse?: boolean | undefined;
+}
+
+### dist/types.d.ts#IndexOptions
+export interface IndexOptions {
+    name?: string | undefined;
+    unique?: boolean | undefined;
+    sparse?: boolean | undefined;
+    background?: boolean | undefined;
+    expireAfterSeconds?: number | undefined;
+}
+
+### dist/types.d.ts#IndexSpec
+export type IndexSpec = Record<string, 1 | -1 | "text" | "2dsphere">;
+
+### dist/types.d.ts#MongoDocument
+export type MongoDocument = BaseDocument;
+
+### dist/types.d.ts#PaginationInput
+export interface PaginationInput {
+    page?: number;
+    limit?: number;
+}
+
+### dist/types.d.ts#PaginationOutput
+export interface PaginationOutput {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+}
+
+### dist/types.d.ts#SortOrder
+export type SortOrder = 1 | -1;
+
+### dist/types.d.ts#SortSpec
+export type SortSpec = Record<string, SortOrder>;
+
+### dist/types.d.ts#getBaseMeta
+export declare function getBaseMeta(metadata: Record<string, unknown>): BaseMeta;
+
+### dist/types.d.ts#hasCollection
+export declare function hasCollection(metadata: Record<string, unknown>): metadata is CollectionMeta;
+
+### dist/types.d.ts#requireCollection
+export declare function requireCollection(metadata: Record<string, unknown>): CollectionMeta;

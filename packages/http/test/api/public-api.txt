@@ -1,0 +1,336 @@
+# The public API of @procedures/http
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 50 names
+
+type AllowedTarget: dist/policy.d.ts#AllowedTarget
+DEFAULT_HOST_POLICY: dist/policy.d.ts#DEFAULT_HOST_POLICY
+DEFAULT_ITEM_BYTES: dist/exchange.d.ts#DEFAULT_ITEM_BYTES
+DEFAULT_MAX_BYTES: dist/exchange.d.ts#DEFAULT_MAX_BYTES
+DEFAULT_SETTINGS: dist/exchange.d.ts#DEFAULT_SETTINGS
+DEFAULT_TIMEOUT_MS: dist/exchange.d.ts#DEFAULT_TIMEOUT_MS
+HOST_NOT_ALLOWED: dist/policy.d.ts#HOST_NOT_ALLOWED
+type HostFetch: dist/host-fetch.d.ts#HostFetch
+type HostFetchInit: dist/host-fetch.d.ts#HostFetchInit
+type HostFetchResponse: dist/host-fetch.d.ts#HostFetchResponse
+type HostPolicy: dist/policy.d.ts#HostPolicy
+type HostPolicyOptions: dist/policy.d.ts#HostPolicyOptions
+type HostResolver: dist/policy.d.ts#HostResolver
+HttpError: dist/errors.d.ts#HttpError
+type HttpErrorCode: dist/errors.d.ts#HttpErrorCode
+HttpJsonInput: dist/types.d.ts#HttpJsonInput
+HttpJsonOutput: dist/types.d.ts#HttpJsonOutput
+HttpMethod: dist/types.d.ts#HttpMethod
+HttpModuleOptions: dist/module.d.ts#HttpModuleOptions
+HttpNdjsonInput: dist/types.d.ts#HttpNdjsonInput
+HttpNdjsonOutput: dist/types.d.ts#HttpNdjsonOutput
+HttpRequestInput: dist/types.d.ts#HttpRequestInput
+HttpRequestOutput: dist/types.d.ts#HttpRequestOutput
+type HttpSettings: dist/exchange.d.ts#HttpSettings
+HttpSseInput: dist/types.d.ts#HttpSseInput
+HttpSseOutput: dist/types.d.ts#HttpSseOutput
+HttpStreamInput: dist/types.d.ts#HttpStreamInput
+HttpTarget: dist/types.d.ts#HttpTarget
+JsonValue: dist/types.d.ts#JsonValue
+type NdjsonLine: dist/parsers.d.ts#NdjsonLine
+type ResolvedAddress: dist/policy.d.ts#ResolvedAddress
+type ServerSentEvent: dist/parsers.d.ts#ServerSentEvent
+checkHost: dist/policy.d.ts#checkHost
+createHostFetch: dist/host-fetch.d.ts#createHostFetch
+createHostPolicy: dist/policy.d.ts#createHostPolicy
+createHttpModule: dist/module.d.ts#createHttpModule
+httpJson: dist/procedures/http/json.d.ts#httpJson
+httpModule: dist/module.d.ts#httpModule
+httpNdjson: dist/procedures/http/ndjson.d.ts#httpNdjson
+httpRequest: dist/procedures/http/request.d.ts#httpRequest
+httpSettings: dist/module.d.ts#httpSettings
+httpSse: dist/procedures/http/sse.d.ts#httpSse
+isHostNotAllowed: dist/policy.d.ts#isHostNotAllowed
+isPublicAddress: dist/address.d.ts#isPublicAddress
+ndjsonLines: dist/parsers.d.ts#ndjsonLines
+parseAddress: dist/address.d.ts#parseAddress
+registerHttpProcedures: dist/module.d.ts#registerHttpProcedures
+specialClass: dist/address.d.ts#specialClass
+sseEvents: dist/parsers.d.ts#sseEvents
+systemResolver: dist/policy.d.ts#systemResolver
+
+## ./module (dist/module.d.ts): 6 names
+
+HttpModuleOptions: dist/module.d.ts#HttpModuleOptions
+createHttpModule: dist/module.d.ts#createHttpModule
+default: dist/module.d.ts#httpModule
+httpModule: dist/module.d.ts#httpModule
+httpSettings: dist/module.d.ts#httpSettings
+registerHttpProcedures: dist/module.d.ts#registerHttpProcedures
+
+## ./register (dist/register.d.ts): 5 names
+
+HttpModuleOptions: dist/module.d.ts#HttpModuleOptions
+createHttpModule: dist/module.d.ts#createHttpModule
+httpModule: dist/module.d.ts#httpModule
+httpSettings: dist/module.d.ts#httpSettings
+registerHttpProcedures: dist/module.d.ts#registerHttpProcedures
+
+## Declarations
+
+### dist/address.d.ts#isPublicAddress
+export declare function isPublicAddress(address: string | AddressBytes): boolean;
+
+### dist/address.d.ts#parseAddress
+export declare function parseAddress(text: string): AddressBytes | undefined;
+
+### dist/address.d.ts#specialClass
+export declare function specialClass(address: AddressBytes): string | undefined;
+
+### dist/errors.d.ts#HttpError
+export declare class HttpError extends Error {
+    readonly code: HttpErrorCode;
+    readonly status?: number | undefined;
+    readonly name = "HttpError";
+    constructor(code: HttpErrorCode, message: string,
+    status?: number | undefined, options?: ErrorOptions);
+}
+
+### dist/errors.d.ts#HttpErrorCode
+export type HttpErrorCode =
+"BAD_URL"
+ | "REQUEST_TOO_LARGE"
+ | "RESPONSE_TOO_LARGE"
+ | "LINE_TOO_LARGE"
+ | "EVENT_TOO_LARGE"
+ | "TOO_MANY_REDIRECTS"
+ | "REDIRECT"
+ | "HTTP_STATUS"
+ | "BAD_JSON"
+ | "BAD_CONTENT_TYPE"
+ | "CONNECTION";
+
+### dist/exchange.d.ts#DEFAULT_ITEM_BYTES
+export declare const DEFAULT_ITEM_BYTES: number;
+
+### dist/exchange.d.ts#DEFAULT_MAX_BYTES
+export declare const DEFAULT_MAX_BYTES: number;
+
+### dist/exchange.d.ts#DEFAULT_SETTINGS
+export declare const DEFAULT_SETTINGS: HttpSettings;
+
+### dist/exchange.d.ts#DEFAULT_TIMEOUT_MS
+export declare const DEFAULT_TIMEOUT_MS = 30000;
+
+### dist/exchange.d.ts#HttpSettings
+export interface HttpSettings {
+    readonly policy: HostPolicy;
+    readonly maxRequestBytes: number;
+    readonly maxResponseBytes: number;
+}
+
+### dist/host-fetch.d.ts#HostFetch
+export type HostFetch = (url: string, init?: HostFetchInit) => Promise<HostFetchResponse>;
+
+### dist/host-fetch.d.ts#HostFetchInit
+export interface HostFetchInit {
+    readonly headers?: Readonly<Record<string, string>> | undefined;
+    readonly signal?: AbortSignal | undefined;
+}
+
+### dist/host-fetch.d.ts#HostFetchResponse
+export interface HostFetchResponse {
+    readonly ok: boolean;
+    readonly status: number;
+    readonly url: string;
+    text(): Promise<string>;
+    json(): Promise<unknown>;
+}
+
+### dist/host-fetch.d.ts#createHostFetch
+export declare function createHostFetch(options?: HttpModuleOptions): HostFetch;
+
+### dist/module.d.ts#HttpModuleOptions
+export interface HttpModuleOptions extends HostPolicyOptions {
+    readonly maxRequestBytes?: number | undefined;
+    readonly maxResponseBytes?: number | undefined;
+}
+
+### dist/module.d.ts#createHttpModule
+export declare function createHttpModule(options?: HttpModuleOptions): ProcedureModule;
+
+### dist/module.d.ts#httpModule
+export declare const httpModule: ProcedureModule;
+
+### dist/module.d.ts#httpSettings
+export declare function httpSettings(options?: HttpModuleOptions): HttpSettings;
+
+### dist/module.d.ts#registerHttpProcedures
+export declare function registerHttpProcedures(registry?: ProcedureRegistry, options?: HttpModuleOptions): void;
+
+### dist/parsers.d.ts#NdjsonLine
+export interface NdjsonLine {
+    readonly line: number;
+    readonly text: string;
+}
+
+### dist/parsers.d.ts#ServerSentEvent
+export interface ServerSentEvent {
+    readonly event: string;
+    readonly data: string;
+    readonly id?: string;
+    readonly retry?: number;
+}
+
+### dist/parsers.d.ts#ndjsonLines
+export declare function ndjsonLines(chunks: AsyncIterable<Uint8Array | string>, maxLineBytes: number, label?: string): AsyncGenerator<NdjsonLine, void, undefined>;
+
+### dist/parsers.d.ts#sseEvents
+export declare function sseEvents(chunks: AsyncIterable<Uint8Array | string>, maxEventBytes: number, label?: string): AsyncGenerator<ServerSentEvent, void, undefined>;
+
+### dist/policy.d.ts#AllowedTarget
+export interface AllowedTarget {
+    readonly hostname: string;
+    readonly port: number;
+    readonly addresses: readonly ResolvedAddress[];
+}
+
+### dist/policy.d.ts#DEFAULT_HOST_POLICY
+export declare const DEFAULT_HOST_POLICY: HostPolicy;
+
+### dist/policy.d.ts#HOST_NOT_ALLOWED
+export declare const HOST_NOT_ALLOWED = "host-not-allowed";
+
+### dist/policy.d.ts#HostPolicy
+export interface HostPolicy {
+    readonly entries: readonly AllowEntry[];
+    readonly publicHosts: boolean;
+    readonly resolve: HostResolver;
+}
+
+### dist/policy.d.ts#HostPolicyOptions
+export interface HostPolicyOptions {
+    readonly allow?: readonly string[] | undefined;
+    readonly publicHosts?: boolean | undefined;
+    readonly resolve?: HostResolver | undefined;
+}
+
+### dist/policy.d.ts#HostResolver
+export type HostResolver = (hostname: string) => Promise<readonly ResolvedAddress[]>;
+
+### dist/policy.d.ts#ResolvedAddress
+export interface ResolvedAddress {
+    readonly address: string;
+    readonly family: 4 | 6;
+}
+
+### dist/policy.d.ts#checkHost
+export declare function checkHost(policy: HostPolicy, url: URL, procedure: ProcedurePath, what?: string): Promise<AllowedTarget>;
+
+### dist/policy.d.ts#createHostPolicy
+export declare function createHostPolicy(options?: HostPolicyOptions): HostPolicy;
+
+### dist/policy.d.ts#isHostNotAllowed
+export declare function isHostNotAllowed(error: unknown): boolean;
+
+### dist/policy.d.ts#systemResolver
+export declare const systemResolver: HostResolver;
+
+### dist/procedures/http/json.d.ts#httpJson
+export declare function httpJson(input: HttpJsonInput, ctx?: ScopeContext, settings?: HttpSettings): Promise<HttpJsonOutput>;
+
+### dist/procedures/http/ndjson.d.ts#httpNdjson
+export declare function httpNdjson(input: HttpNdjsonInput, ctx?: ScopeContext, settings?: HttpSettings): Promise<AsyncGenerator<HttpNdjsonOutput, void, undefined>>;
+
+### dist/procedures/http/request.d.ts#httpRequest
+export declare function httpRequest(input: HttpRequestInput, ctx?: ScopeContext, settings?: HttpSettings): Promise<HttpRequestOutput>;
+
+### dist/procedures/http/sse.d.ts#httpSse
+export declare function httpSse(input: HttpSseInput, ctx?: ScopeContext, settings?: HttpSettings): Promise<AsyncGenerator<HttpSseOutput, void, undefined>>;
+
+### dist/types.d.ts#HttpJsonInput
+export interface HttpJsonInput extends HttpTarget {
+    method?: "GET" | "POST" | undefined;
+    json?: unknown;
+    timeoutMs?: number | undefined;
+    maxResponseBytes?: number | undefined;
+    failOnStatus?: boolean | undefined;
+}
+
+### dist/types.d.ts#HttpJsonOutput
+export interface HttpJsonOutput {
+    status: number;
+    ok: boolean;
+    url: string;
+    headers: Record<string, string | string[]>;
+    data: unknown;
+}
+
+### dist/types.d.ts#HttpMethod
+export type HttpMethod = "GET" | "HEAD" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS";
+
+### dist/types.d.ts#HttpNdjsonInput
+export interface HttpNdjsonInput extends HttpStreamInput {
+    maxLineBytes?: number | undefined;
+}
+
+### dist/types.d.ts#HttpNdjsonOutput
+export type HttpNdjsonOutput = unknown;
+
+### dist/types.d.ts#HttpRequestInput
+export interface HttpRequestInput extends HttpTarget {
+    method?: HttpMethod | undefined;
+    body?: string | undefined;
+    json?: unknown;
+    bodyBase64?: string | undefined;
+    responseType?: "text" | "json" | "bytes" | undefined;
+    timeoutMs?: number | undefined;
+    maxResponseBytes?: number | undefined;
+    redirect?: "follow" | "manual" | "error" | undefined;
+    maxRedirects?: number | undefined;
+}
+
+### dist/types.d.ts#HttpRequestOutput
+export interface HttpRequestOutput {
+    status: number;
+    statusText: string;
+    ok: boolean;
+    url: string;
+    redirected: boolean;
+    headers: Record<string, string | string[]>;
+    body: unknown;
+    bytes: number;
+}
+
+### dist/types.d.ts#HttpSseInput
+export interface HttpSseInput extends HttpStreamInput {
+    lastEventId?: string | undefined;
+    maxEventBytes?: number | undefined;
+}
+
+### dist/types.d.ts#HttpSseOutput
+export interface HttpSseOutput {
+    event: string;
+    data: string;
+    id?: string | undefined;
+    retry?: number | undefined;
+}
+
+### dist/types.d.ts#HttpStreamInput
+export interface HttpStreamInput extends HttpTarget {
+    method?: "GET" | "POST" | undefined;
+    body?: string | undefined;
+    json?: unknown;
+    timeoutMs?: number | undefined;
+    idleTimeoutMs?: number | undefined;
+}
+
+### dist/types.d.ts#HttpTarget
+export interface HttpTarget {
+    url: string;
+    headers?: Record<string, string> | undefined;
+    query?: Record<string, string | number | boolean | Array<string | number | boolean>> | undefined;
+}
+
+### dist/types.d.ts#JsonValue
+export type JsonValue = string | number | boolean | null | JsonValue[] | {
+    [key: string]: JsonValue;
+};

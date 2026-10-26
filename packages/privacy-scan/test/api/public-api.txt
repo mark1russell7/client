@@ -1,0 +1,111 @@
+# The public API of @procedures/privacy-scan
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 18 names
+
+COORDINATE_PATTERN: dist/scan.d.ts#COORDINATE_PATTERN
+EMAIL_PATTERN: dist/scan.d.ts#EMAIL_PATTERN
+FINDING_KINDS: dist/scan.d.ts#FINDING_KINDS
+FileFinding: dist/scan.d.ts#FileFinding
+FileScan: dist/scan.d.ts#FileScan
+Finding: dist/scan.d.ts#Finding
+FindingKind: dist/scan.d.ts#FindingKind
+PHONE_PATTERN: dist/scan.d.ts#PHONE_PATTERN
+ScanOptions: dist/scan.d.ts#ScanOptions
+maskMatch: dist/scan.d.ts#maskMatch
+privacyScanFilesProcedure: dist/procedures.d.ts#privacyScanFilesProcedure
+privacyScanModule: dist/module.d.ts#privacyScanModule
+privacyScanProcedures: dist/procedures.d.ts#privacyScanProcedures
+privacyScanTextProcedure: dist/procedures.d.ts#privacyScanTextProcedure
+readTermList: dist/scan.d.ts#readTermList
+registerPrivacyScanProcedures: dist/module.d.ts#registerPrivacyScanProcedures
+scanFiles: dist/scan.d.ts#scanFiles
+scanText: dist/scan.d.ts#scanText
+
+## ./module (dist/module.d.ts): 3 names
+
+default: dist/module.d.ts#privacyScanModule
+privacyScanModule: dist/module.d.ts#privacyScanModule
+registerPrivacyScanProcedures: dist/module.d.ts#registerPrivacyScanProcedures
+
+## ./register (dist/register.d.ts): 2 names
+
+privacyScanModule: dist/module.d.ts#privacyScanModule
+registerPrivacyScanProcedures: dist/module.d.ts#registerPrivacyScanProcedures
+
+## Declarations
+
+### dist/module.d.ts#privacyScanModule
+export declare const privacyScanModule: ProcedureModule;
+
+### dist/module.d.ts#registerPrivacyScanProcedures
+export declare const registerPrivacyScanProcedures: PackageDefinition["register"];
+
+### dist/procedures.d.ts#privacyScanFilesProcedure
+export declare const privacyScanFilesProcedure: AnyProcedure;
+
+### dist/procedures.d.ts#privacyScanProcedures
+export declare const privacyScanProcedures: AnyProcedure[];
+
+### dist/procedures.d.ts#privacyScanTextProcedure
+export declare const privacyScanTextProcedure: AnyProcedure;
+
+### dist/scan.d.ts#COORDINATE_PATTERN
+export declare const COORDINATE_PATTERN: RegExp;
+
+### dist/scan.d.ts#EMAIL_PATTERN
+export declare const EMAIL_PATTERN: RegExp;
+
+### dist/scan.d.ts#FINDING_KINDS
+export declare const FINDING_KINDS: readonly FindingKind[];
+
+### dist/scan.d.ts#FileFinding
+export interface FileFinding extends Finding {
+    readonly file: string;
+}
+
+### dist/scan.d.ts#FileScan
+export interface FileScan {
+    readonly findings: FileFinding[];
+    readonly files: number;
+    readonly skipped: string[];
+}
+
+### dist/scan.d.ts#Finding
+export interface Finding {
+    readonly kind: FindingKind;
+    readonly line: number;
+    readonly column: number;
+    readonly match: string;
+}
+
+### dist/scan.d.ts#FindingKind
+export type FindingKind = "term" | "email" | "phone" | "coordinate";
+
+### dist/scan.d.ts#PHONE_PATTERN
+export declare const PHONE_PATTERN: RegExp;
+
+### dist/scan.d.ts#ScanOptions
+export interface ScanOptions {
+    readonly terms?: readonly string[] | undefined;
+    readonly allow?: readonly string[] | undefined;
+    readonly kinds?: readonly FindingKind[] | undefined;
+    readonly mask?: boolean | undefined;
+}
+
+### dist/scan.d.ts#maskMatch
+export declare function maskMatch(text: string): string;
+
+### dist/scan.d.ts#readTermList
+export declare function readTermList(file: string, options?: {
+    readonly optional?: boolean | undefined;
+}): Promise<string[]>;
+
+### dist/scan.d.ts#scanFiles
+export declare function scanFiles(paths: readonly string[], options?: ScanOptions): Promise<FileScan>;
+
+### dist/scan.d.ts#scanText
+export declare function scanText(text: string, options?: ScanOptions): Finding[];

@@ -1,0 +1,214 @@
+# The public API of @procedures/dag
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 32 names
+
+type DAGExecutionOptions: dist/types.d.ts#DAGExecutionOptions
+type DAGNode: dist/types.d.ts#DAGNode
+type DAGResult: dist/types.d.ts#DAGResult
+type DagTraverseInput: dist/procedures/types.d.ts#DagTraverseInput
+DagTraverseInputSchema: dist/procedures/types.d.ts#DagTraverseInputSchema
+type DagTraverseOutput: dist/procedures/types.d.ts#DagTraverseOutput
+DagTraverseOutputSchema: dist/procedures/types.d.ts#DagTraverseOutputSchema
+type DependencyDAG: dist/types.d.ts#DependencyDAG
+type NodeProcessor: dist/types.d.ts#NodeProcessor
+type NodeResult: dist/types.d.ts#NodeResult
+type PackageNode: dist/procedures/types.d.ts#PackageNode
+type ScanOutput: dist/procedures/types.d.ts#ScanOutput
+type ScannedPackage: dist/procedures/types.d.ts#ScannedPackage
+type TraverseNodeResult: dist/procedures/types.d.ts#TraverseNodeResult
+buildLeveledDAG: dist/dag/traversal.d.ts#buildLeveledDAG
+buildNodeMap: dist/dag/builder.d.ts#buildNodeMap
+callsGit: dist/procedures/traverse.d.ts#callsGit
+createNode: dist/dag/builder.d.ts#createNode
+createProcessor: dist/dag/executor.d.ts#createProcessor
+dagModule: dist/module.d.ts#dagModule
+dagTraverse: dist/procedures/traverse.d.ts#dagTraverse
+executeDAG: dist/dag/executor.d.ts#executeDAG
+executeDAGSequential: dist/dag/executor.d.ts#executeDAGSequential
+filterDAGFromRoot: dist/dag/builder.d.ts#filterDAGFromRoot
+getAncestors: dist/dag/builder.d.ts#getAncestors
+getDescendants: dist/dag/builder.d.ts#getDescendants
+getTopologicalOrder: dist/dag/traversal.d.ts#getTopologicalOrder
+keyedLock: dist/procedures/traverse.d.ts#keyedLock
+packageNodes: dist/procedures/traverse.d.ts#packageNodes
+registerDagProcedures: dist/module.d.ts#registerDagProcedures
+repositoryRoot: dist/procedures/traverse.d.ts#repositoryRoot
+visualizeDAG: dist/dag/traversal.d.ts#visualizeDAG
+
+## ./module (dist/module.d.ts): 3 names
+
+dagModule: dist/module.d.ts#dagModule
+default: dist/module.d.ts#dagModule
+registerDagProcedures: dist/module.d.ts#registerDagProcedures
+
+## ./register (dist/register.d.ts): 2 names
+
+dagModule: dist/module.d.ts#dagModule
+registerDagProcedures: dist/module.d.ts#registerDagProcedures
+
+## Declarations
+
+### dist/dag/builder.d.ts#buildNodeMap
+export declare function buildNodeMap<TNode extends DAGNode>(nodes: TNode[]): Map<string, TNode>;
+
+### dist/dag/builder.d.ts#createNode
+export declare function createNode<TData = unknown>(id: string, dependencies?: string[], data?: TData | undefined): DAGNode<TData>;
+
+### dist/dag/builder.d.ts#filterDAGFromRoot
+export declare function filterDAGFromRoot<TNode extends DAGNode>(nodes: Map<string, TNode>, rootId: string): Map<string, TNode>;
+
+### dist/dag/builder.d.ts#getAncestors
+export declare function getAncestors<TNode extends DAGNode>(nodes: Map<string, TNode>, id: string): Set<string>;
+
+### dist/dag/builder.d.ts#getDescendants
+export declare function getDescendants<TNode extends DAGNode>(nodes: Map<string, TNode>, id: string): Set<string>;
+
+### dist/dag/executor.d.ts#createProcessor
+export declare function createProcessor<TNode extends DAGNode>(fn: (node: TNode) => Promise<void>): (node: TNode) => Promise<NodeResult<TNode>>;
+
+### dist/dag/executor.d.ts#executeDAG
+export declare function executeDAG<TNode extends DAGNode>(dag: DependencyDAG<TNode>, processor: (node: TNode) => Promise<NodeResult<TNode>>, options?: DAGExecutionOptions<TNode>): Promise<DAGResult<TNode>>;
+
+### dist/dag/executor.d.ts#executeDAGSequential
+export declare function executeDAGSequential<TNode extends DAGNode>(dag: DependencyDAG<TNode>, processor: (node: TNode) => Promise<NodeResult<TNode>>, options?: Omit<DAGExecutionOptions<TNode>, "concurrency">): Promise<DAGResult<TNode>>;
+
+### dist/dag/traversal.d.ts#buildLeveledDAG
+export declare function buildLeveledDAG<TNode extends DAGNode>(nodes: Map<string, TNode>): DependencyDAG<TNode>;
+
+### dist/dag/traversal.d.ts#getTopologicalOrder
+export declare function getTopologicalOrder<TNode extends DAGNode>(dag: DependencyDAG<TNode>): TNode[];
+
+### dist/dag/traversal.d.ts#visualizeDAG
+export declare function visualizeDAG<TNode extends DAGNode>(dag: DependencyDAG<TNode>): string;
+
+### dist/module.d.ts#dagModule
+export declare const dagModule: ProcedureModule;
+
+### dist/module.d.ts#registerDagProcedures
+export declare const registerDagProcedures: PackageDefinition["register"];
+
+### dist/procedures/traverse.d.ts#callsGit
+export declare function callsGit(value: unknown): boolean;
+
+### dist/procedures/traverse.d.ts#dagTraverse
+export declare function dagTraverse(input: DagTraverseInput, ctx: ProcedureContext): Promise<DagTraverseOutput>;
+
+### dist/procedures/traverse.d.ts#keyedLock
+export declare function keyedLock(): <T>(key: string, task: () => Promise<T>) => Promise<T>;
+
+### dist/procedures/traverse.d.ts#packageNodes
+export declare function packageNodes(packages: ScanOutput["packages"]): Map<string, PackageNode>;
+
+### dist/procedures/traverse.d.ts#repositoryRoot
+export declare function repositoryRoot(path: string): string;
+
+### dist/procedures/types.d.ts#DagTraverseInput
+export type DagTraverseInput = z.infer<typeof DagTraverseInputSchema>;
+
+### dist/procedures/types.d.ts#DagTraverseInputSchema
+export declare const DagTraverseInputSchema: z.ZodObject<{
+    visit: z.ZodUnion<readonly [z.ZodArray<z.ZodString>, typeof ProcRefSchema]>;
+    filter: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    root: z.ZodOptional<z.ZodString>;
+    rootPath: z.ZodOptional<z.ZodString>;
+    concurrency: z.ZodDefault<z.ZodNumber>;
+    serialize: z.ZodDefault<z.ZodEnum<{
+        auto: "auto";
+        repository: "repository";
+        none: "none";
+    }>>;
+    continueOnError: z.ZodDefault<z.ZodBoolean>;
+    dryRun: z.ZodDefault<z.ZodBoolean>;
+}>;
+
+### dist/procedures/types.d.ts#DagTraverseOutput
+export interface DagTraverseOutput {
+    success: boolean;
+    results: TraverseNodeResult[];
+    totalDuration: number;
+    visited: number;
+    failed: number;
+    skipped: number;
+}
+
+### dist/procedures/types.d.ts#DagTraverseOutputSchema
+export declare const DagTraverseOutputSchema: z.ZodType<DagTraverseOutput>;
+
+### dist/procedures/types.d.ts#PackageNode
+export interface PackageNode extends DAGNode {
+    name: string;
+    repoPath: string;
+}
+
+### dist/procedures/types.d.ts#ScanOutput
+export interface ScanOutput {
+    packages: Record<string, ScannedPackage>;
+}
+
+### dist/procedures/types.d.ts#ScannedPackage
+export interface ScannedPackage {
+    name: string;
+    repoPath: string;
+    mark1russell7Deps: string[];
+}
+
+### dist/procedures/types.d.ts#TraverseNodeResult
+export interface TraverseNodeResult {
+    name: string;
+    path: string;
+    success: boolean;
+    duration: number;
+    error?: string | undefined;
+    output?: unknown | undefined;
+    skipped?: boolean | undefined;
+    reason?: string | undefined;
+}
+
+### dist/types.d.ts#DAGExecutionOptions
+export interface DAGExecutionOptions<TNode extends DAGNode = DAGNode> {
+    concurrency?: number;
+    failFast?: boolean;
+    onNodeStart?: (node: TNode) => void;
+    onNodeComplete?: (result: NodeResult<TNode>) => void;
+}
+
+### dist/types.d.ts#DAGNode
+export interface DAGNode<TData = unknown> {
+    id: string;
+    dependencies: string[];
+    level?: number;
+    data?: TData | undefined;
+}
+
+### dist/types.d.ts#DAGResult
+export interface DAGResult<TNode extends DAGNode = DAGNode> {
+    success: boolean;
+    results: Map<string, NodeResult<TNode>>;
+    failedNodes: string[];
+    totalDuration: number;
+}
+
+### dist/types.d.ts#DependencyDAG
+export interface DependencyDAG<TNode extends DAGNode = DAGNode> {
+    nodes: Map<string, TNode>;
+    levels: TNode[][];
+    roots: string[];
+    leaves: string[];
+}
+
+### dist/types.d.ts#NodeProcessor
+export type NodeProcessor<TNode extends DAGNode = DAGNode> = (node: TNode) => Promise<NodeResult<TNode>>;
+
+### dist/types.d.ts#NodeResult
+export interface NodeResult<TNode extends DAGNode = DAGNode> {
+    node: TNode;
+    success: boolean;
+    error?: Error | undefined;
+    duration: number;
+    logs: string[];
+    output?: unknown | undefined;
+}

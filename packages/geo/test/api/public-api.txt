@@ -1,0 +1,310 @@
+# The public API of @procedures/geo
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 42 names
+
+DEFAULT_GEOHASH_PRECISION: dist/geohash.d.ts#DEFAULT_GEOHASH_PRECISION
+EARTH_RADIUS_KM: dist/distance.d.ts#EARTH_RADIUS_KM
+FetchJson: dist/geo.d.ts#FetchJson
+FitZoomOptions: dist/mercator.d.ts#FitZoomOptions
+GEOHASH_ALPHABET: dist/geohash.d.ts#GEOHASH_ALPHABET
+GeoDistanceInput: dist/types.d.ts#GeoDistanceInput
+GeoDistanceInputSchema: dist/types.d.ts#GeoDistanceInputSchema
+GeoDistanceOutput: dist/types.d.ts#GeoDistanceOutput
+GeoDistanceOutputSchema: dist/types.d.ts#GeoDistanceOutputSchema
+GeoGeohashInput: dist/types.d.ts#GeoGeohashInput
+GeoGeohashInputSchema: dist/types.d.ts#GeoGeohashInputSchema
+GeoGeohashOutput: dist/types.d.ts#GeoGeohashOutput
+GeoGeohashOutputSchema: dist/types.d.ts#GeoGeohashOutputSchema
+GeoProceduresOptions: dist/procedures.d.ts#GeoProceduresOptions
+GeocodeResult: dist/geo.d.ts#GeocodeResult
+GeohashCell: dist/geohash.d.ts#GeohashCell
+MAX_GEOHASH_PRECISION: dist/geohash.d.ts#MAX_GEOHASH_PRECISION
+NOMINATIM_URL: dist/geo.d.ts#NOMINATIM_URL
+OSRM_URL: dist/geo.d.ts#OSRM_URL
+Pixel: dist/mercator.d.ts#Pixel
+Point: dist/geo.d.ts#Point
+RouteResult: dist/geo.d.ts#RouteResult
+TILE_SIZE: dist/mercator.d.ts#TILE_SIZE
+ViewTile: dist/mercator.d.ts#ViewTile
+createGeoModule: dist/module.d.ts#createGeoModule
+createGeoProcedures: dist/procedures.d.ts#createGeoProcedures
+decodeGeohash: dist/geohash.d.ts#decodeGeohash
+drivingRoute: dist/geo.d.ts#drivingRoute
+fitZoom: dist/mercator.d.ts#fitZoom
+geoDistanceProcedure: dist/procedures.d.ts#geoDistanceProcedure
+geoGeocodeProcedure: dist/procedures.d.ts#geoGeocodeProcedure
+geoGeohashProcedure: dist/procedures.d.ts#geoGeohashProcedure
+geoModule: dist/module.d.ts#geoModule
+geoProcedures: dist/procedures.d.ts#geoProcedures
+geoRouteProcedure: dist/procedures.d.ts#geoRouteProcedure
+geocode: dist/geo.d.ts#geocode
+geohash: dist/geohash.d.ts#geohash
+getJson: dist/geo.d.ts#getJson
+greatCircleKm: dist/distance.d.ts#greatCircleKm
+project: dist/mercator.d.ts#project
+registerGeoProcedures: dist/module.d.ts#registerGeoProcedures
+tilesFor: dist/mercator.d.ts#tilesFor
+
+## ./module (dist/module.d.ts): 4 names
+
+createGeoModule: dist/module.d.ts#createGeoModule
+default: dist/module.d.ts#geoModule
+geoModule: dist/module.d.ts#geoModule
+registerGeoProcedures: dist/module.d.ts#registerGeoProcedures
+
+## ./register (dist/register.d.ts): 3 names
+
+createGeoModule: dist/module.d.ts#createGeoModule
+geoModule: dist/module.d.ts#geoModule
+registerGeoProcedures: dist/module.d.ts#registerGeoProcedures
+
+## ./tiles (dist/tiles.d.ts): 7 names
+
+CachedTileOptions: dist/tiles.d.ts#CachedTileOptions
+FetchBytes: dist/tiles.d.ts#FetchBytes
+OSM_TILES: dist/tiles.d.ts#OSM_TILES
+Tile: dist/tiles.d.ts#Tile
+cachedTile: dist/tiles.d.ts#cachedTile
+isTile: dist/tiles.d.ts#isTile
+tileUrl: dist/tiles.d.ts#tileUrl
+
+## Declarations
+
+### dist/distance.d.ts#EARTH_RADIUS_KM
+export declare const EARTH_RADIUS_KM = 6371;
+
+### dist/distance.d.ts#greatCircleKm
+export declare const greatCircleKm: (a: Point, b: Point) => number;
+
+### dist/geo.d.ts#FetchJson
+export type FetchJson = (url: string, init: {
+    headers: Record<string, string>;
+    signal: AbortSignal;
+}) => Promise<{
+    ok: boolean;
+    status: number;
+    json(): Promise<unknown>;
+}>;
+
+### dist/geo.d.ts#GeocodeResult
+export interface GeocodeResult extends Point {
+    readonly displayName: string;
+}
+
+### dist/geo.d.ts#NOMINATIM_URL
+export declare const NOMINATIM_URL = "https://nominatim.openstreetmap.org";
+
+### dist/geo.d.ts#OSRM_URL
+export declare const OSRM_URL = "https://router.project-osrm.org";
+
+### dist/geo.d.ts#Point
+export interface Point {
+    readonly lat: number;
+    readonly lon: number;
+}
+
+### dist/geo.d.ts#RouteResult
+export interface RouteResult {
+    readonly km: number;
+    readonly minutes: number;
+}
+
+### dist/geo.d.ts#drivingRoute
+export declare function drivingRoute(from: Point, to: Point, options: {
+    baseUrl?: string | undefined;
+    timeoutMs: number;
+    signal?: AbortSignal | undefined;
+    fetch?: FetchJson | undefined;
+}): Promise<RouteResult>;
+
+### dist/geo.d.ts#geocode
+export declare function geocode(query: string, options: {
+    userAgent: string;
+    countryCodes?: string | undefined;
+    baseUrl?: string | undefined;
+    timeoutMs: number;
+    signal?: AbortSignal | undefined;
+    fetch?: FetchJson | undefined;
+}): Promise<GeocodeResult | undefined>;
+
+### dist/geo.d.ts#getJson
+export declare function getJson(url: string, options: {
+    timeoutMs: number;
+    signal?: AbortSignal | undefined;
+    headers?: Record<string, string>;
+    fetch?: FetchJson | undefined;
+}, service: string): Promise<unknown>;
+
+### dist/geohash.d.ts#DEFAULT_GEOHASH_PRECISION
+export declare const DEFAULT_GEOHASH_PRECISION = 7;
+
+### dist/geohash.d.ts#GEOHASH_ALPHABET
+export declare const GEOHASH_ALPHABET = "0123456789bcdefghjkmnpqrstuvwxyz";
+
+### dist/geohash.d.ts#GeohashCell
+export interface GeohashCell {
+    readonly south: number;
+    readonly west: number;
+    readonly north: number;
+    readonly east: number;
+    readonly center: Point;
+}
+
+### dist/geohash.d.ts#MAX_GEOHASH_PRECISION
+export declare const MAX_GEOHASH_PRECISION = 12;
+
+### dist/geohash.d.ts#decodeGeohash
+export declare const decodeGeohash: (hash: string) => GeohashCell;
+
+### dist/geohash.d.ts#geohash
+export declare const geohash: (point: Point, precision?: number) => string;
+
+### dist/mercator.d.ts#FitZoomOptions
+export interface FitZoomOptions {
+    readonly deepest?: number;
+    readonly margin?: number;
+    readonly single?: number;
+}
+
+### dist/mercator.d.ts#Pixel
+export interface Pixel {
+    readonly x: number;
+    readonly y: number;
+}
+
+### dist/mercator.d.ts#TILE_SIZE
+export declare const TILE_SIZE = 256;
+
+### dist/mercator.d.ts#ViewTile
+export interface ViewTile {
+    readonly x: number;
+    readonly y: number;
+    readonly left: number;
+    readonly top: number;
+}
+
+### dist/mercator.d.ts#fitZoom
+export declare const fitZoom: (points: ReadonlyArray<{
+    readonly lat: number;
+    readonly lon: number;
+}>, width: number, height: number, options?: FitZoomOptions) => number;
+
+### dist/mercator.d.ts#project
+export declare const project: (lat: number, lon: number, zoom: number) => Pixel;
+
+### dist/mercator.d.ts#tilesFor
+export declare const tilesFor: (topLeft: Pixel, width: number, height: number, zoom: number) => ViewTile[];
+
+### dist/module.d.ts#createGeoModule
+export declare function createGeoModule(options?: GeoProceduresOptions): ProcedureModule;
+
+### dist/module.d.ts#geoModule
+export declare const geoModule: ProcedureModule;
+
+### dist/module.d.ts#registerGeoProcedures
+export declare const registerGeoProcedures: PackageDefinition["register"];
+
+### dist/procedures.d.ts#GeoProceduresOptions
+export interface GeoProceduresOptions {
+    readonly fetch?: FetchJson | undefined;
+}
+
+### dist/procedures.d.ts#createGeoProcedures
+export declare function createGeoProcedures(options?: GeoProceduresOptions): AnyProcedure[];
+
+### dist/procedures.d.ts#geoDistanceProcedure
+export declare const geoDistanceProcedure: AnyProcedure;
+
+### dist/procedures.d.ts#geoGeocodeProcedure
+export declare const geoGeocodeProcedure: AnyProcedure;
+
+### dist/procedures.d.ts#geoGeohashProcedure
+export declare const geoGeohashProcedure: AnyProcedure;
+
+### dist/procedures.d.ts#geoProcedures
+export declare const geoProcedures: AnyProcedure[];
+
+### dist/procedures.d.ts#geoRouteProcedure
+export declare const geoRouteProcedure: AnyProcedure;
+
+### dist/tiles.d.ts#CachedTileOptions
+export interface CachedTileOptions {
+    readonly dir: string;
+    readonly userAgent: string;
+    readonly source?: string | undefined;
+    readonly extension?: string | undefined;
+    readonly timeoutMs?: number | undefined;
+    readonly maxBytes?: number | undefined;
+    readonly fetch?: FetchBytes | undefined;
+}
+
+### dist/tiles.d.ts#FetchBytes
+export type FetchBytes = (url: string, init: {
+    headers: Record<string, string>;
+    signal: AbortSignal;
+}) => Promise<{
+    ok: boolean;
+    status: number;
+    arrayBuffer(): Promise<ArrayBuffer>;
+}>;
+
+### dist/tiles.d.ts#OSM_TILES
+export declare const OSM_TILES = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+
+### dist/tiles.d.ts#Tile
+export interface Tile {
+    readonly z: number;
+    readonly x: number;
+    readonly y: number;
+}
+
+### dist/tiles.d.ts#cachedTile
+export declare function cachedTile(tile: Tile, options: CachedTileOptions): Promise<Uint8Array>;
+
+### dist/tiles.d.ts#isTile
+export declare function isTile(tile: Tile, maxZoom?: number): boolean;
+
+### dist/tiles.d.ts#tileUrl
+export declare function tileUrl(template: string, tile: Tile): string;
+
+### dist/types.d.ts#GeoDistanceInput
+export interface GeoDistanceInput {
+    from: Point;
+    to: Point;
+}
+
+### dist/types.d.ts#GeoDistanceInputSchema
+export declare const GeoDistanceInputSchema: z.ZodType<GeoDistanceInput>;
+
+### dist/types.d.ts#GeoDistanceOutput
+export interface GeoDistanceOutput {
+    km: number;
+}
+
+### dist/types.d.ts#GeoDistanceOutputSchema
+export declare const GeoDistanceOutputSchema: z.ZodType<GeoDistanceOutput>;
+
+### dist/types.d.ts#GeoGeohashInput
+export interface GeoGeohashInput {
+    point: Point;
+    precision: number;
+}
+
+### dist/types.d.ts#GeoGeohashInputSchema
+export declare const GeoGeohashInputSchema: z.ZodType<GeoGeohashInput, {
+    point: Point;
+    precision?: number | undefined;
+}>;
+
+### dist/types.d.ts#GeoGeohashOutput
+export interface GeoGeohashOutput {
+    hash: string;
+    cell: GeohashCell;
+}
+
+### dist/types.d.ts#GeoGeohashOutputSchema
+export declare const GeoGeohashOutputSchema: z.ZodType<GeoGeohashOutput>;

@@ -1,0 +1,351 @@
+# The public API of @procedures/fs
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 49 names
+
+ConfinedFs: dist/module.d.ts#ConfinedFs
+type ConfinedRegistry: dist/confine.d.ts#ConfinedRegistry
+type EditFileOptions: dist/files/edit.d.ts#EditFileOptions
+type EditFileResult: dist/files/edit.d.ts#EditFileResult
+type EditTransform: dist/files/edit.d.ts#EditTransform
+FsModuleOptions: dist/module.d.ts#FsModuleOptions
+type HealNdjsonTailOptions: dist/files/ndjson-tail.d.ts#HealNdjsonTailOptions
+KeyedLock: dist/files/lock.d.ts#KeyedLock
+type LockOutcome: dist/files/lock.d.ts#LockOutcome
+type LockRelease: dist/files/lock.d.ts#LockRelease
+type LockSkipOptions: dist/files/lock.d.ts#LockSkipOptions
+type LockWaitOptions: dist/files/lock.d.ts#LockWaitOptions
+NDJSON_LINE_TOO_LONG: dist/files/ndjson-tail.d.ts#NDJSON_LINE_TOO_LONG
+type NdjsonTailAction: dist/files/ndjson-tail.d.ts#NdjsonTailAction
+type NdjsonTailResult: dist/files/ndjson-tail.d.ts#NdjsonTailResult
+OUTSIDE_ROOT: dist/root.d.ts#OUTSIDE_ROOT
+type RootDecision: dist/confine.d.ts#RootDecision
+type RootKind: dist/confine.d.ts#RootKind
+type WriteFileAtomicOptions: dist/files/atomic.d.ts#WriteFileAtomicOptions
+confineFsProcedures: dist/module.d.ts#confineFsProcedures
+confineToRoot: dist/module.d.ts#confineToRoot
+copy: dist/procedures/fs/copy.d.ts#copy
+createFsModule: dist/module.d.ts#createFsModule
+editFile: dist/files/edit.d.ts#editFile
+exists: dist/procedures/fs/exists.d.ts#exists
+fsHash: dist/procedures/fs/hash.d.ts#fsHash
+fsModule: dist/module.d.ts#fsModule
+fsTemp: dist/procedures/fs/temp.d.ts#fsTemp
+fsWatch: dist/procedures/fs/watch.d.ts#fsWatch
+fsWriteJson: dist/procedures/fs/write-json.d.ts#fsWriteJson
+glob: dist/procedures/fs/glob.d.ts#glob
+healNdjsonTail: dist/files/ndjson-tail.d.ts#healNdjsonTail
+healNdjsonTailSync: dist/files/ndjson-tail.d.ts#healNdjsonTailSync
+isInside: dist/root.d.ts#isInside
+isOutsideRoot: dist/root.d.ts#isOutsideRoot
+mkdir: dist/procedures/fs/mkdir.d.ts#mkdir
+move: dist/procedures/fs/move.d.ts#move
+read: dist/procedures/fs/read.d.ts#read
+readJson: dist/procedures/fs/json.d.ts#readJson
+readdir: dist/procedures/fs/readdir.d.ts#readdir
+registerFsProcedures: dist/module.d.ts#registerFsProcedures
+rm: dist/procedures/fs/rm.d.ts#rm
+rootDecisionOf: dist/confine.d.ts#rootDecisionOf
+rootRulesOf: dist/confine.d.ts#rootRulesOf
+stat: dist/procedures/fs/stat.d.ts#stat
+withLock: dist/files/lock.d.ts#withLock
+write: dist/procedures/fs/write.d.ts#write
+writeFileAtomic: dist/files/atomic.d.ts#writeFileAtomic
+writeFileAtomicSync: dist/files/atomic.d.ts#writeFileAtomicSync
+
+## ./module (dist/module.d.ts): 13 names
+
+ConfinedFs: dist/module.d.ts#ConfinedFs
+type ConfinedRegistry: dist/confine.d.ts#ConfinedRegistry
+FsModuleOptions: dist/module.d.ts#FsModuleOptions
+type RootDecision: dist/confine.d.ts#RootDecision
+type RootKind: dist/confine.d.ts#RootKind
+confineFsProcedures: dist/module.d.ts#confineFsProcedures
+confineToRoot: dist/module.d.ts#confineToRoot
+createFsModule: dist/module.d.ts#createFsModule
+default: dist/module.d.ts#fsModule
+fsModule: dist/module.d.ts#fsModule
+registerFsProcedures: dist/module.d.ts#registerFsProcedures
+rootDecisionOf: dist/confine.d.ts#rootDecisionOf
+rootRulesOf: dist/confine.d.ts#rootRulesOf
+
+## ./register (dist/register.d.ts): 12 names
+
+ConfinedFs: dist/module.d.ts#ConfinedFs
+type ConfinedRegistry: dist/confine.d.ts#ConfinedRegistry
+FsModuleOptions: dist/module.d.ts#FsModuleOptions
+type RootDecision: dist/confine.d.ts#RootDecision
+type RootKind: dist/confine.d.ts#RootKind
+confineFsProcedures: dist/module.d.ts#confineFsProcedures
+confineToRoot: dist/module.d.ts#confineToRoot
+createFsModule: dist/module.d.ts#createFsModule
+fsModule: dist/module.d.ts#fsModule
+registerFsProcedures: dist/module.d.ts#registerFsProcedures
+rootDecisionOf: dist/confine.d.ts#rootDecisionOf
+rootRulesOf: dist/confine.d.ts#rootRulesOf
+
+## ./root (dist/root.d.ts): 9 names
+
+OUTSIDE_ROOT: dist/root.d.ts#OUTSIDE_ROOT
+ResolvedRoot: dist/root.d.ts#ResolvedRoot
+inRoot: dist/root.d.ts#inRoot
+isInside: dist/root.d.ts#isInside
+isOutsideRoot: dist/root.d.ts#isOutsideRoot
+outsideRoot: dist/root.d.ts#outsideRoot
+realPathIsInside: dist/root.d.ts#realPathIsInside
+realPathOf: dist/root.d.ts#realPathOf
+resolveRoot: dist/root.d.ts#resolveRoot
+
+## ./files (dist/files/index.d.ts): 19 names
+
+type EditFileOptions: dist/files/edit.d.ts#EditFileOptions
+type EditFileResult: dist/files/edit.d.ts#EditFileResult
+type EditTransform: dist/files/edit.d.ts#EditTransform
+type HealNdjsonTailOptions: dist/files/ndjson-tail.d.ts#HealNdjsonTailOptions
+KeyedLock: dist/files/lock.d.ts#KeyedLock
+type LockOutcome: dist/files/lock.d.ts#LockOutcome
+type LockRelease: dist/files/lock.d.ts#LockRelease
+type LockSkipOptions: dist/files/lock.d.ts#LockSkipOptions
+type LockWaitOptions: dist/files/lock.d.ts#LockWaitOptions
+NDJSON_LINE_TOO_LONG: dist/files/ndjson-tail.d.ts#NDJSON_LINE_TOO_LONG
+type NdjsonTailAction: dist/files/ndjson-tail.d.ts#NdjsonTailAction
+type NdjsonTailResult: dist/files/ndjson-tail.d.ts#NdjsonTailResult
+type WriteFileAtomicOptions: dist/files/atomic.d.ts#WriteFileAtomicOptions
+editFile: dist/files/edit.d.ts#editFile
+healNdjsonTail: dist/files/ndjson-tail.d.ts#healNdjsonTail
+healNdjsonTailSync: dist/files/ndjson-tail.d.ts#healNdjsonTailSync
+withLock: dist/files/lock.d.ts#withLock
+writeFileAtomic: dist/files/atomic.d.ts#writeFileAtomic
+writeFileAtomicSync: dist/files/atomic.d.ts#writeFileAtomicSync
+
+## Declarations
+
+### dist/confine.d.ts#ConfinedRegistry
+export interface ConfinedRegistry {
+    root: string;
+    fs: string[];
+    confined: string[];
+    programs: string[];
+    refused: string[];
+    unchanged: string[];
+}
+
+### dist/confine.d.ts#RootDecision
+export interface RootDecision {
+    readonly kind: RootKind;
+    readonly reason?: string;
+}
+
+### dist/confine.d.ts#RootKind
+export type RootKind = "fs" | "confined" | "program" | "refused" | "unchanged";
+
+### dist/confine.d.ts#rootDecisionOf
+export declare function rootDecisionOf(procedure: Pick<AnyProcedure, "path" | "metadata" | "handler">): RootDecision;
+
+### dist/confine.d.ts#rootRulesOf
+export declare function rootRulesOf(procedure: Pick<AnyProcedure, "path" | "metadata">): FsRootRules | undefined;
+
+### dist/files/atomic.d.ts#WriteFileAtomicOptions
+export interface WriteFileAtomicOptions {
+    encoding?: BufferEncoding | undefined;
+    mode?: number | undefined;
+    fsync?: boolean | undefined;
+    renameRetryMs?: number | undefined;
+    tempName?: ((target: string) => string) | undefined;
+}
+
+### dist/files/atomic.d.ts#writeFileAtomic
+export declare function writeFileAtomic(path: string, data: string | Uint8Array, options?: WriteFileAtomicOptions): Promise<void>;
+
+### dist/files/atomic.d.ts#writeFileAtomicSync
+export declare function writeFileAtomicSync(path: string, data: string | Uint8Array, options?: WriteFileAtomicOptions): void;
+
+### dist/files/edit.d.ts#EditFileOptions
+export interface EditFileOptions extends WriteFileAtomicOptions {
+    initial?: string | undefined;
+    signal?: AbortSignal | undefined;
+}
+
+### dist/files/edit.d.ts#EditFileResult
+export interface EditFileResult {
+    readonly changed: boolean;
+    readonly content: string | undefined;
+}
+
+### dist/files/edit.d.ts#EditTransform
+export type EditTransform<Current> = (current: Current) => string | undefined | PromiseLike<string | undefined>;
+
+### dist/files/edit.d.ts#editFile
+export declare function editFile(path: string, transform: EditTransform<string>, options: EditFileOptions & {
+    initial: string;
+}): Promise<EditFileResult>;
+export declare function editFile(path: string, transform: EditTransform<string | undefined>, options?: EditFileOptions): Promise<EditFileResult>;
+
+### dist/files/lock.d.ts#KeyedLock
+export declare class KeyedLock {
+    get size(): number;
+    isHeld(key: string): boolean;
+    tryAcquire(key: string): LockRelease | undefined;
+    acquire(key: string, options?: {
+        signal?: AbortSignal | undefined;
+    }): Promise<LockRelease>;
+    run<T>(key: string, fn: () => T | PromiseLike<T>, options?: LockWaitOptions): Promise<T>;
+    run<T>(key: string, fn: () => T | PromiseLike<T>, options: LockSkipOptions): Promise<LockOutcome<T>>;
+}
+
+### dist/files/lock.d.ts#LockOutcome
+export type LockOutcome<T> = {
+    readonly ran: true;
+    readonly value: T;
+} | {
+    readonly ran: false;
+};
+
+### dist/files/lock.d.ts#LockRelease
+export type LockRelease = () => void;
+
+### dist/files/lock.d.ts#LockSkipOptions
+export interface LockSkipOptions {
+    ifHeld: "skip";
+}
+
+### dist/files/lock.d.ts#LockWaitOptions
+export interface LockWaitOptions {
+    ifHeld?: "wait" | undefined;
+    signal?: AbortSignal | undefined;
+}
+
+### dist/files/lock.d.ts#withLock
+export declare function withLock<T>(key: string, fn: () => T | PromiseLike<T>, options?: LockWaitOptions): Promise<T>;
+export declare function withLock<T>(key: string, fn: () => T | PromiseLike<T>, options: LockSkipOptions): Promise<LockOutcome<T>>;
+
+### dist/files/ndjson-tail.d.ts#HealNdjsonTailOptions
+export interface HealNdjsonTailOptions {
+    maxLineBytes?: number | undefined;
+    fsync?: boolean | undefined;
+    lastLine?: boolean | undefined;
+}
+
+### dist/files/ndjson-tail.d.ts#NDJSON_LINE_TOO_LONG
+export declare const NDJSON_LINE_TOO_LONG = "ERR_NDJSON_LINE_TOO_LONG";
+
+### dist/files/ndjson-tail.d.ts#NdjsonTailAction
+export type NdjsonTailAction = "none" | "truncated" | "newline";
+
+### dist/files/ndjson-tail.d.ts#NdjsonTailResult
+export interface NdjsonTailResult {
+    readonly action: NdjsonTailAction;
+    readonly bytes: number;
+    readonly size: number;
+    readonly lastLine?: string | undefined;
+}
+
+### dist/files/ndjson-tail.d.ts#healNdjsonTail
+export declare function healNdjsonTail(path: string, options?: HealNdjsonTailOptions): Promise<NdjsonTailResult>;
+
+### dist/files/ndjson-tail.d.ts#healNdjsonTailSync
+export declare function healNdjsonTailSync(path: string, options?: HealNdjsonTailOptions): NdjsonTailResult;
+
+### dist/module.d.ts#ConfinedFs
+export interface ConfinedFs {
+    root: string;
+    procedures: string[];
+}
+
+### dist/module.d.ts#FsModuleOptions
+export interface FsModuleOptions {
+    root?: string | undefined;
+}
+
+### dist/module.d.ts#confineFsProcedures
+export declare function confineFsProcedures(registry: ProcedureRegistry, root: string): ConfinedFs;
+
+### dist/module.d.ts#confineToRoot
+export declare function confineToRoot(registry: ProcedureRegistry, root: string): ConfinedRegistry;
+
+### dist/module.d.ts#createFsModule
+export declare function createFsModule(options?: FsModuleOptions): ProcedureModule;
+
+### dist/module.d.ts#fsModule
+export declare const fsModule: ProcedureModule;
+
+### dist/module.d.ts#registerFsProcedures
+export declare function registerFsProcedures(registry?: ProcedureRegistry, options?: FsModuleOptions): void;
+
+### dist/procedures/fs/copy.d.ts#copy
+export declare function copy(input: CopyInput): Promise<CopyOutput>;
+
+### dist/procedures/fs/exists.d.ts#exists
+export declare function exists(input: ExistsInput): Promise<ExistsOutput>;
+
+### dist/procedures/fs/glob.d.ts#glob
+export declare function glob(input: GlobInput): Promise<GlobOutput>;
+
+### dist/procedures/fs/hash.d.ts#fsHash
+export declare function fsHash(input: FsHashInput): Promise<FsHashOutput>;
+
+### dist/procedures/fs/json.d.ts#readJson
+export declare function readJson(input: ReadJsonInput): Promise<ReadJsonOutput>;
+
+### dist/procedures/fs/mkdir.d.ts#mkdir
+export declare function mkdir(input: MkdirInput): Promise<MkdirOutput>;
+
+### dist/procedures/fs/move.d.ts#move
+export declare function move(input: MoveInput): Promise<MoveOutput>;
+
+### dist/procedures/fs/read.d.ts#read
+export declare function read(input: ReadInput): Promise<ReadOutput>;
+
+### dist/procedures/fs/readdir.d.ts#readdir
+export declare function readdir(input: ReaddirInput): Promise<ReaddirOutput>;
+
+### dist/procedures/fs/rm.d.ts#rm
+export declare function rm(input: RmInput): Promise<RmOutput>;
+
+### dist/procedures/fs/stat.d.ts#stat
+export declare function stat(input: StatInput): Promise<StatOutput>;
+
+### dist/procedures/fs/temp.d.ts#fsTemp
+export declare function fsTemp(input: FsTempInput, base?: string): Promise<FsTempOutput>;
+
+### dist/procedures/fs/watch.d.ts#fsWatch
+export declare function fsWatch(input: FsWatchInput, signal?: AbortSignal): AsyncGenerator<FsWatchOutput, void, undefined>;
+
+### dist/procedures/fs/write-json.d.ts#fsWriteJson
+export declare function fsWriteJson(input: FsWriteJsonInput): Promise<FsWriteJsonOutput>;
+
+### dist/procedures/fs/write.d.ts#write
+export declare function write(input: WriteInput): Promise<WriteOutput>;
+
+### dist/root.d.ts#OUTSIDE_ROOT
+export declare const OUTSIDE_ROOT = "outside-root";
+
+### dist/root.d.ts#ResolvedRoot
+export interface ResolvedRoot {
+    folder: string;
+    real: string;
+}
+
+### dist/root.d.ts#inRoot
+export declare function inRoot(root: ResolvedRoot, path: string, procedure: ProcedurePath, base?: string): Promise<string>;
+
+### dist/root.d.ts#isInside
+export declare function isInside(folder: string, path: string): boolean;
+
+### dist/root.d.ts#isOutsideRoot
+export declare function isOutsideRoot(error: unknown): boolean;
+
+### dist/root.d.ts#outsideRoot
+export declare function outsideRoot(procedure: ProcedurePath, message: string): InvocationError;
+
+### dist/root.d.ts#realPathIsInside
+export declare function realPathIsInside(root: ResolvedRoot, absolute: string): Promise<boolean>;
+
+### dist/root.d.ts#realPathOf
+export declare function realPathOf(path: string, links?: number): Promise<string>;
+
+### dist/root.d.ts#resolveRoot
+export declare function resolveRoot(root: string, owner?: string): Promise<ResolvedRoot>;

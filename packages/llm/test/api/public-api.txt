@@ -1,0 +1,385 @@
+# The public API of @procedures/llm
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 54 names
+
+ANTHROPIC_VERSION: dist/anthropic.d.ts#ANTHROPIC_VERSION
+DEFAULT_API_KEY_ENV: dist/anthropic.d.ts#DEFAULT_API_KEY_ENV
+DEFAULT_BACKOFF: dist/retry.d.ts#DEFAULT_BACKOFF
+DEFAULT_BASE_URL: dist/anthropic.d.ts#DEFAULT_BASE_URL
+DEFAULT_LLM_SETTINGS: dist/anthropic.d.ts#DEFAULT_LLM_SETTINGS
+DEFAULT_MAX_ROUNDS: dist/tools.d.ts#DEFAULT_MAX_ROUNDS
+DEFAULT_MAX_TOKENS: dist/anthropic.d.ts#DEFAULT_MAX_TOKENS
+DEFAULT_MODEL: dist/anthropic.d.ts#DEFAULT_MODEL
+DEFAULT_REQUEST_RETRIES: dist/retry.d.ts#DEFAULT_REQUEST_RETRIES
+DEFAULT_TIMEOUT_MS: dist/anthropic.d.ts#DEFAULT_TIMEOUT_MS
+type EnvSource: dist/anthropic.d.ts#EnvSource
+FALLBACK_BETA: dist/anthropic.d.ts#FALLBACK_BETA
+type FetchFunction: dist/anthropic.d.ts#FetchFunction
+LlmCompleteInput: dist/types.d.ts#LlmCompleteInput
+LlmCompleteOutput: dist/types.d.ts#LlmCompleteOutput
+LlmEffort: dist/types.d.ts#LlmEffort
+LlmError: dist/errors.d.ts#LlmError
+type LlmErrorCode: dist/errors.d.ts#LlmErrorCode
+type LlmErrorOptions: dist/errors.d.ts#LlmErrorOptions
+LlmModuleOptions: dist/module.d.ts#LlmModuleOptions
+LlmRequestInput: dist/types.d.ts#LlmRequestInput
+type LlmSettings: dist/anthropic.d.ts#LlmSettings
+LlmStreamInput: dist/types.d.ts#LlmStreamInput
+LlmStreamOutput: dist/types.d.ts#LlmStreamOutput
+LlmStreamStart: dist/types.d.ts#LlmStreamStart
+LlmStreamStop: dist/types.d.ts#LlmStreamStop
+LlmStreamText: dist/types.d.ts#LlmStreamText
+LlmStreamToolCall: dist/types.d.ts#LlmStreamToolCall
+LlmStreamToolResult: dist/types.d.ts#LlmStreamToolResult
+LlmStreamToolUse: dist/types.d.ts#LlmStreamToolUse
+LlmStructuredInput: dist/types.d.ts#LlmStructuredInput
+LlmStructuredOutput: dist/types.d.ts#LlmStructuredOutput
+LlmTool: dist/types.d.ts#LlmTool
+LlmToolCall: dist/types.d.ts#LlmToolCall
+LlmToolChoice: dist/types.d.ts#LlmToolChoice
+LlmToolInput: dist/types.d.ts#LlmToolInput
+LlmToolUse: dist/types.d.ts#LlmToolUse
+LlmUsage: dist/types.d.ts#LlmUsage
+MAX_REQUEST_RETRIES: dist/retry.d.ts#MAX_REQUEST_RETRIES
+MAX_RETRIES: dist/procedures/llm/structured.d.ts#MAX_RETRIES
+MAX_RETRY_AFTER_MS: dist/retry.d.ts#MAX_RETRY_AFTER_MS
+MAX_TOOL_RESULT_CHARS: dist/tools.d.ts#MAX_TOOL_RESULT_CHARS
+type ToolContext: dist/tools.d.ts#ToolContext
+UNSUPPORTED_KEYWORDS: dist/schema.d.ts#UNSUPPORTED_KEYWORDS
+constrainedSchema: dist/schema.d.ts#constrainedSchema
+createLlmModule: dist/module.d.ts#createLlmModule
+llmComplete: dist/procedures/llm/complete.d.ts#llmComplete
+llmModule: dist/module.d.ts#llmModule
+llmStream: dist/procedures/llm/stream.d.ts#llmStream
+llmStructured: dist/procedures/llm/structured.d.ts#llmStructured
+parseAnswer: dist/schema.d.ts#parseAnswer
+registerLlmProcedures: dist/module.d.ts#registerLlmProcedures
+retryAfterMs: dist/retry.d.ts#retryAfterMs
+toolNameOf: dist/tools.d.ts#toolNameOf
+
+## ./module (dist/module.d.ts): 5 names
+
+LlmModuleOptions: dist/module.d.ts#LlmModuleOptions
+createLlmModule: dist/module.d.ts#createLlmModule
+default: dist/module.d.ts#llmModule
+llmModule: dist/module.d.ts#llmModule
+registerLlmProcedures: dist/module.d.ts#registerLlmProcedures
+
+## ./register (dist/register.d.ts): 4 names
+
+LlmModuleOptions: dist/module.d.ts#LlmModuleOptions
+createLlmModule: dist/module.d.ts#createLlmModule
+llmModule: dist/module.d.ts#llmModule
+registerLlmProcedures: dist/module.d.ts#registerLlmProcedures
+
+## Declarations
+
+### dist/anthropic.d.ts#ANTHROPIC_VERSION
+export declare const ANTHROPIC_VERSION = "2023-06-01";
+
+### dist/anthropic.d.ts#DEFAULT_API_KEY_ENV
+export declare const DEFAULT_API_KEY_ENV = "ANTHROPIC_API_KEY";
+
+### dist/anthropic.d.ts#DEFAULT_BASE_URL
+export declare const DEFAULT_BASE_URL = "https://api.anthropic.com";
+
+### dist/anthropic.d.ts#DEFAULT_LLM_SETTINGS
+export declare const DEFAULT_LLM_SETTINGS: LlmSettings;
+
+### dist/anthropic.d.ts#DEFAULT_MAX_TOKENS
+export declare const DEFAULT_MAX_TOKENS = 16000;
+
+### dist/anthropic.d.ts#DEFAULT_MODEL
+export declare const DEFAULT_MODEL = "claude-sonnet-5-5";
+
+### dist/anthropic.d.ts#DEFAULT_TIMEOUT_MS
+export declare const DEFAULT_TIMEOUT_MS = 600000;
+
+### dist/anthropic.d.ts#EnvSource
+export type EnvSource = Readonly<Record<string, string | undefined>>;
+
+### dist/anthropic.d.ts#FALLBACK_BETA
+export declare const FALLBACK_BETA = "server-side-fallback-2026-07-01";
+
+### dist/anthropic.d.ts#FetchFunction
+export type FetchFunction = (url: string, init: RequestInit) => Promise<Response>;
+
+### dist/anthropic.d.ts#LlmSettings
+export interface LlmSettings {
+    readonly apiKeyEnv: string;
+    readonly env: () => EnvSource;
+    readonly fetch: FetchFunction;
+    readonly baseUrl: string;
+    readonly defaultModel: string;
+    readonly fallback: boolean;
+    readonly retries: number;
+    readonly backoff: Backoff;
+}
+
+### dist/errors.d.ts#LlmError
+export declare class LlmError extends Error {
+    readonly name = "LlmError";
+    readonly code: LlmErrorCode;
+    readonly status: number | undefined;
+    readonly retryable: boolean;
+    readonly retryAfterMs: number | undefined;
+    constructor(code: LlmErrorCode, message: string, options?: LlmErrorOptions);
+}
+
+### dist/errors.d.ts#LlmErrorCode
+export type LlmErrorCode =
+"NO_API_KEY"
+ | "API_ERROR"
+ | "CONNECTION"
+ | "BAD_RESPONSE"
+ | "REFUSAL"
+ | "BAD_TOOL"
+ | "MAX_TOKENS"
+ | "INVALID_OUTPUT";
+
+### dist/errors.d.ts#LlmErrorOptions
+export interface LlmErrorOptions {
+    readonly status?: number | undefined;
+    readonly retryable?: boolean | undefined;
+    readonly retryAfterMs?: number | undefined;
+}
+
+### dist/module.d.ts#LlmModuleOptions
+export interface LlmModuleOptions {
+    readonly apiKeyEnv?: string | undefined;
+    readonly defaultModel?: string | undefined;
+    readonly baseUrl?: string | undefined;
+    readonly fallback?: boolean | undefined;
+    readonly fetch?: FetchFunction | undefined;
+    readonly env?: EnvSource | (() => EnvSource) | undefined;
+    readonly retries?: number | undefined;
+    readonly backoff?: Backoff | undefined;
+}
+
+### dist/module.d.ts#createLlmModule
+export declare function createLlmModule(options?: LlmModuleOptions): ProcedureModule;
+
+### dist/module.d.ts#llmModule
+export declare const llmModule: ProcedureModule;
+
+### dist/module.d.ts#registerLlmProcedures
+export declare function registerLlmProcedures(registry?: ProcedureRegistry, options?: LlmModuleOptions): void;
+
+### dist/procedures/llm/complete.d.ts#llmComplete
+export declare function llmComplete(input: LlmCompleteInput, ctx?: ToolContext, settings?: LlmSettings): Promise<LlmCompleteOutput>;
+
+### dist/procedures/llm/stream.d.ts#llmStream
+export declare function llmStream(input: LlmStreamInput, ctx?: ToolContext, settings?: LlmSettings): AsyncGenerator<LlmStreamOutput, void, undefined>;
+
+### dist/procedures/llm/structured.d.ts#MAX_RETRIES
+export declare const MAX_RETRIES = 2;
+
+### dist/procedures/llm/structured.d.ts#llmStructured
+export declare function llmStructured(input: LlmStructuredInput, ctx?: CallLimits["ctx"], settings?: LlmSettings): Promise<LlmStructuredOutput>;
+
+### dist/retry.d.ts#DEFAULT_BACKOFF
+export declare const DEFAULT_BACKOFF: Backoff;
+
+### dist/retry.d.ts#DEFAULT_REQUEST_RETRIES
+export declare const DEFAULT_REQUEST_RETRIES = 2;
+
+### dist/retry.d.ts#MAX_REQUEST_RETRIES
+export declare const MAX_REQUEST_RETRIES = 10;
+
+### dist/retry.d.ts#MAX_RETRY_AFTER_MS
+export declare const MAX_RETRY_AFTER_MS = 60000;
+
+### dist/retry.d.ts#retryAfterMs
+export declare function retryAfterMs(headers: Pick<Headers, "get">, now?: number): number | undefined;
+
+### dist/schema.d.ts#UNSUPPORTED_KEYWORDS
+export declare const UNSUPPORTED_KEYWORDS: readonly string[];
+
+### dist/schema.d.ts#constrainedSchema
+export declare function constrainedSchema(schema: unknown): unknown;
+
+### dist/schema.d.ts#parseAnswer
+export declare function parseAnswer(text: string): ParsedAnswer;
+
+### dist/tools.d.ts#DEFAULT_MAX_ROUNDS
+export declare const DEFAULT_MAX_ROUNDS = 8;
+
+### dist/tools.d.ts#MAX_TOOL_RESULT_CHARS
+export declare const MAX_TOOL_RESULT_CHARS = 200000;
+
+### dist/tools.d.ts#ToolContext
+export type ToolContext = Pick<ProcedureContext, "signal" | "capability"> & Partial<Pick<ProcedureContext, "client" | "registry" | "expose">>;
+
+### dist/tools.d.ts#toolNameOf
+export declare function toolNameOf(key: string): string;
+
+### dist/types.d.ts#LlmCompleteInput
+export interface LlmCompleteInput extends LlmRequestInput, LlmToolInput {
+}
+
+### dist/types.d.ts#LlmCompleteOutput
+export interface LlmCompleteOutput {
+    text: string;
+    model: string;
+    stopReason: string;
+    usage: LlmUsage;
+    toolUses: LlmToolUse[];
+    toolCalls: LlmToolCall[];
+    rounds: number;
+    roundLimit: boolean;
+}
+
+### dist/types.d.ts#LlmEffort
+export type LlmEffort = "low" | "medium" | "high" | "xhigh" | "max";
+
+### dist/types.d.ts#LlmRequestInput
+export interface LlmRequestInput {
+    prompt: string;
+    system?: string | undefined;
+    model?: string | undefined;
+    maxTokens?: number | undefined;
+    temperature?: number | undefined;
+    effort?: LlmEffort | undefined;
+    timeoutMs?: number | undefined;
+    fallback?: boolean | undefined;
+}
+
+### dist/types.d.ts#LlmStreamInput
+export interface LlmStreamInput extends LlmRequestInput, LlmToolInput {
+}
+
+### dist/types.d.ts#LlmStreamOutput
+export type LlmStreamOutput = LlmStreamStart | LlmStreamText | LlmStreamToolUse | LlmStreamToolCall | LlmStreamToolResult | LlmStreamStop;
+
+### dist/types.d.ts#LlmStreamStart
+export interface LlmStreamStart {
+    type: "start";
+    id: string;
+    model: string;
+    usage: LlmUsage;
+}
+
+### dist/types.d.ts#LlmStreamStop
+export interface LlmStreamStop {
+    type: "stop";
+    model: string;
+    stopReason: string;
+    usage: LlmUsage;
+    text: string;
+    toolUses: LlmToolUse[];
+    toolCalls?: LlmToolCall[] | undefined;
+    rounds?: number | undefined;
+    roundLimit?: boolean | undefined;
+}
+
+### dist/types.d.ts#LlmStreamText
+export interface LlmStreamText {
+    type: "text";
+    index: number;
+    text: string;
+}
+
+### dist/types.d.ts#LlmStreamToolCall
+export interface LlmStreamToolCall {
+    type: "tool_call";
+    round: number;
+    id: string;
+    name: string;
+    procedure: string;
+    input: unknown;
+}
+
+### dist/types.d.ts#LlmStreamToolResult
+export interface LlmStreamToolResult extends LlmToolCall {
+    type: "tool_result";
+    round: number;
+}
+
+### dist/types.d.ts#LlmStreamToolUse
+export interface LlmStreamToolUse {
+    type: "tool_use";
+    index: number;
+    id: string;
+    name: string;
+    input: unknown;
+    partialJson?: string | undefined;
+}
+
+### dist/types.d.ts#LlmStructuredInput
+export interface LlmStructuredInput extends LlmRequestInput {
+    schema: Record<string, unknown>;
+    constrained?: boolean | undefined;
+    retries?: number | undefined;
+    requestRetries?: number | undefined;
+}
+
+### dist/types.d.ts#LlmStructuredOutput
+export interface LlmStructuredOutput {
+    value: unknown;
+    model: string;
+    attempts: number;
+    usage: LlmUsage;
+    unchecked: string[];
+}
+
+### dist/types.d.ts#LlmTool
+export interface LlmTool {
+    name: string;
+    description?: string | undefined;
+    inputSchema: Record<string, unknown>;
+    strict?: boolean | undefined;
+}
+
+### dist/types.d.ts#LlmToolCall
+export interface LlmToolCall {
+    id: string;
+    name: string;
+    procedure: string;
+    input: unknown;
+    isError: boolean;
+    output?: unknown;
+    error?: string | undefined;
+}
+
+### dist/types.d.ts#LlmToolChoice
+export type LlmToolChoice = {
+    type: "auto";
+    disableParallelToolUse?: boolean | undefined;
+} | {
+    type: "any";
+    disableParallelToolUse?: boolean | undefined;
+} | {
+    type: "tool";
+    name: string;
+    disableParallelToolUse?: boolean | undefined;
+} | {
+    type: "none";
+};
+
+### dist/types.d.ts#LlmToolInput
+export interface LlmToolInput {
+    tools?: LlmTool[] | undefined;
+    toolChoice?: LlmToolChoice | undefined;
+    retries?: number | undefined;
+    procedures?: string[] | undefined;
+    maxRounds?: number | undefined;
+}
+
+### dist/types.d.ts#LlmToolUse
+export interface LlmToolUse {
+    id: string;
+    name: string;
+    input: unknown;
+}
+
+### dist/types.d.ts#LlmUsage
+export interface LlmUsage {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadInputTokens: number;
+    cacheCreationInputTokens: number;
+}

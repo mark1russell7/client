@@ -1,0 +1,53 @@
+# The public API of @procedures/exif
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 7 names
+
+PhotoFacts: dist/exif.d.ts#PhotoFacts
+exifModule: dist/module.d.ts#exifModule
+exifProcedures: dist/procedures.d.ts#exifProcedures
+exifReadProcedure: dist/procedures.d.ts#exifReadProcedure
+readExif: dist/exif.d.ts#readExif
+readHead: dist/procedures.d.ts#readHead
+registerExifProcedures: dist/module.d.ts#registerExifProcedures
+
+## ./module (dist/module.d.ts): 3 names
+
+default: dist/module.d.ts#exifModule
+exifModule: dist/module.d.ts#exifModule
+registerExifProcedures: dist/module.d.ts#registerExifProcedures
+
+## ./register (dist/register.d.ts): 2 names
+
+exifModule: dist/module.d.ts#exifModule
+registerExifProcedures: dist/module.d.ts#registerExifProcedures
+
+## Declarations
+
+### dist/exif.d.ts#PhotoFacts
+export interface PhotoFacts {
+    readonly takenAt?: string | undefined;
+    readonly lat?: number | undefined;
+    readonly lon?: number | undefined;
+}
+
+### dist/exif.d.ts#readExif
+export declare const readExif: (bytes: Uint8Array) => PhotoFacts;
+
+### dist/module.d.ts#exifModule
+export declare const exifModule: ProcedureModule;
+
+### dist/module.d.ts#registerExifProcedures
+export declare const registerExifProcedures: PackageDefinition["register"];
+
+### dist/procedures.d.ts#exifProcedures
+export declare const exifProcedures: AnyProcedure[];
+
+### dist/procedures.d.ts#exifReadProcedure
+export declare const exifReadProcedure: AnyProcedure;
+
+### dist/procedures.d.ts#readHead
+export declare function readHead(path: string, size?: number): Promise<Uint8Array>;

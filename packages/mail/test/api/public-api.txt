@@ -1,0 +1,155 @@
+# The public API of @procedures/mail
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 20 names
+
+ImapClientFactory: dist/imap.d.ts#ImapClientFactory
+ImapClientLike: dist/imap.d.ts#ImapClientLike
+ImapConnection: dist/imap.d.ts#ImapConnection
+MAIL_PASSWORD_ENV: dist/procedures.d.ts#MAIL_PASSWORD_ENV
+MailAddress: dist/mime.d.ts#MailAddress
+MailHeader: dist/imap.d.ts#MailHeader
+ReadHeadersOptions: dist/imap.d.ts#ReadHeadersOptions
+decodeWords: dist/mime.d.ts#decodeWords
+htmlText: dist/mime.d.ts#htmlText
+mailHeadersProcedure: dist/procedures.d.ts#mailHeadersProcedure
+mailModule: dist/module.d.ts#mailModule
+mailParseProcedure: dist/procedures.d.ts#mailParseProcedure
+mailProcedures: dist/procedures.d.ts#mailProcedures
+messageHeaders: dist/mime.d.ts#messageHeaders
+messageText: dist/mime.d.ts#messageText
+parseAddresses: dist/mime.d.ts#parseAddresses
+parseMessage: dist/procedures.d.ts#parseMessage
+readHeaders: dist/imap.d.ts#readHeaders
+registerMailProcedures: dist/module.d.ts#registerMailProcedures
+setImapClientFactory: dist/procedures.d.ts#setImapClientFactory
+
+## ./module (dist/module.d.ts): 3 names
+
+default: dist/module.d.ts#mailModule
+mailModule: dist/module.d.ts#mailModule
+registerMailProcedures: dist/module.d.ts#registerMailProcedures
+
+## ./register (dist/register.d.ts): 2 names
+
+mailModule: dist/module.d.ts#mailModule
+registerMailProcedures: dist/module.d.ts#registerMailProcedures
+
+## Declarations
+
+### dist/imap.d.ts#ImapClientFactory
+export type ImapClientFactory = (connection: ImapConnection) => Promise<ImapClientLike>;
+
+### dist/imap.d.ts#ImapClientLike
+export interface ImapClientLike {
+    connect(): Promise<void>;
+    logout(): Promise<void>;
+    close(): void;
+    getMailboxLock(mailbox: string, options?: {
+        readOnly?: boolean;
+    }): Promise<{
+        release(): void;
+    }>;
+    fetch(range: {
+        since: Date;
+    }, query: {
+        envelope: true;
+        flags: true;
+        uid: true;
+    }): AsyncIterable<{
+        uid: number;
+        flags?: Set<string> | undefined;
+        envelope?: {
+            subject?: string | undefined;
+            date?: Date | undefined;
+            from?: Array<{
+                name?: string | undefined;
+                address?: string | undefined;
+            }> | undefined;
+            to?: Array<{
+                name?: string | undefined;
+                address?: string | undefined;
+            }> | undefined;
+        } | undefined;
+    }>;
+}
+
+### dist/imap.d.ts#ImapConnection
+export interface ImapConnection {
+    readonly host: string;
+    readonly port: number;
+    readonly secure: boolean;
+    readonly user: string;
+    readonly password: string;
+}
+
+### dist/imap.d.ts#MailHeader
+export interface MailHeader {
+    readonly uid: number;
+    readonly subject: string;
+    readonly from: MailAddress[];
+    readonly to: MailAddress[];
+    readonly date?: string | undefined;
+    readonly seen: boolean;
+}
+
+### dist/imap.d.ts#ReadHeadersOptions
+export interface ReadHeadersOptions {
+    readonly mailbox: string;
+    readonly since: Date;
+    readonly limit: number;
+    readonly timeoutMs: number;
+    readonly signal?: AbortSignal | undefined;
+    readonly clientFactory?: ImapClientFactory | undefined;
+}
+
+### dist/imap.d.ts#readHeaders
+export declare function readHeaders(connection: ImapConnection, options: ReadHeadersOptions): Promise<MailHeader[]>;
+
+### dist/mime.d.ts#MailAddress
+export interface MailAddress {
+    readonly name?: string | undefined;
+    readonly address: string;
+}
+
+### dist/mime.d.ts#decodeWords
+export declare const decodeWords: (value: string) => string;
+
+### dist/mime.d.ts#htmlText
+export declare const htmlText: (html: string) => string;
+
+### dist/mime.d.ts#messageHeaders
+export declare const messageHeaders: (raw: Uint8Array | string) => ReadonlyMap<string, string>;
+
+### dist/mime.d.ts#messageText
+export declare const messageText: (raw: Uint8Array | string) => string;
+
+### dist/mime.d.ts#parseAddresses
+export declare const parseAddresses: (value: string) => MailAddress[];
+
+### dist/module.d.ts#mailModule
+export declare const mailModule: ProcedureModule;
+
+### dist/module.d.ts#registerMailProcedures
+export declare const registerMailProcedures: PackageDefinition["register"];
+
+### dist/procedures.d.ts#MAIL_PASSWORD_ENV
+export declare const MAIL_PASSWORD_ENV: RegExp;
+
+### dist/procedures.d.ts#mailHeadersProcedure
+export declare const mailHeadersProcedure: AnyProcedure;
+
+### dist/procedures.d.ts#mailParseProcedure
+export declare const mailParseProcedure: AnyProcedure;
+
+### dist/procedures.d.ts#mailProcedures
+export declare const mailProcedures: AnyProcedure[];
+
+### dist/procedures.d.ts#parseMessage
+export declare function parseMessage(raw: string): ParseOutput;
+
+### dist/procedures.d.ts#setImapClientFactory
+export declare function setImapClientFactory(factory: ImapClientFactory | undefined): void;

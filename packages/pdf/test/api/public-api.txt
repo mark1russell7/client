@@ -1,0 +1,147 @@
+# The public API of @procedures/pdf
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 23 names
+
+BROWSER_ENV: dist/browser.d.ts#BROWSER_ENV
+BROWSER_NAMES: dist/browser.d.ts#BROWSER_NAMES
+CHROME_PATH_ENV: dist/browser.d.ts#CHROME_PATH_ENV
+CommandRunner: dist/render.d.ts#CommandRunner
+DEFAULT_TIMEOUT_MS: dist/render.d.ts#DEFAULT_TIMEOUT_MS
+FindBrowserOptions: dist/browser.d.ts#FindBrowserOptions
+PdfRenderInput: dist/types.d.ts#PdfRenderInput
+PdfRenderInputSchema: dist/types.d.ts#PdfRenderInputSchema
+PdfRenderOutput: dist/types.d.ts#PdfRenderOutput
+PdfRenderOutputSchema: dist/types.d.ts#PdfRenderOutputSchema
+RenderPdfOptions: dist/render.d.ts#RenderPdfOptions
+RenderPdfResult: dist/render.d.ts#RenderPdfResult
+WINDOWS_BROWSER_NAMES: dist/browser.d.ts#WINDOWS_BROWSER_NAMES
+browserCandidates: dist/browser.d.ts#browserCandidates
+findBrowser: dist/browser.d.ts#findBrowser
+isPdfFile: dist/render.d.ts#isPdfFile
+pdfArgs: dist/render.d.ts#pdfArgs
+pdfModule: dist/module.d.ts#pdfModule
+pdfProcedures: dist/module.d.ts#pdfProcedures
+pdfRender: dist/procedures/pdf/render.d.ts#pdfRender
+pdfRenderProcedure: dist/module.d.ts#pdfRenderProcedure
+registerPdfProcedures: dist/module.d.ts#registerPdfProcedures
+renderPdf: dist/render.d.ts#renderPdf
+
+## ./module (dist/module.d.ts): 5 names
+
+default: dist/module.d.ts#pdfModule
+pdfModule: dist/module.d.ts#pdfModule
+pdfProcedures: dist/module.d.ts#pdfProcedures
+pdfRenderProcedure: dist/module.d.ts#pdfRenderProcedure
+registerPdfProcedures: dist/module.d.ts#registerPdfProcedures
+
+## ./register (dist/register.d.ts): 4 names
+
+pdfModule: dist/module.d.ts#pdfModule
+pdfProcedures: dist/module.d.ts#pdfProcedures
+pdfRenderProcedure: dist/module.d.ts#pdfRenderProcedure
+registerPdfProcedures: dist/module.d.ts#registerPdfProcedures
+
+## Declarations
+
+### dist/browser.d.ts#BROWSER_ENV
+export declare const BROWSER_ENV = "PDF_BROWSER";
+
+### dist/browser.d.ts#BROWSER_NAMES
+export declare const BROWSER_NAMES: readonly string[];
+
+### dist/browser.d.ts#CHROME_PATH_ENV
+export declare const CHROME_PATH_ENV = "CHROME_PATH";
+
+### dist/browser.d.ts#FindBrowserOptions
+export interface FindBrowserOptions {
+    readonly executable?: string | undefined;
+    readonly env?: Readonly<Record<string, string | undefined>> | undefined;
+    readonly platform?: NodeJS.Platform | undefined;
+    readonly exists?: ((path: string) => boolean) | undefined;
+}
+
+### dist/browser.d.ts#WINDOWS_BROWSER_NAMES
+export declare const WINDOWS_BROWSER_NAMES: readonly string[];
+
+### dist/browser.d.ts#browserCandidates
+export declare function browserCandidates(platform: NodeJS.Platform, env: Readonly<Record<string, string | undefined>>): string[];
+
+### dist/browser.d.ts#findBrowser
+export declare function findBrowser(options?: FindBrowserOptions): string | undefined;
+
+### dist/module.d.ts#pdfModule
+export declare const pdfModule: ProcedureModule;
+
+### dist/module.d.ts#pdfProcedures
+export declare const pdfProcedures: AnyProcedure[];
+
+### dist/module.d.ts#pdfRenderProcedure
+export declare const pdfRenderProcedure: AnyProcedure;
+
+### dist/module.d.ts#registerPdfProcedures
+export declare const registerPdfProcedures: PackageDefinition["register"];
+
+### dist/procedures/pdf/render.d.ts#pdfRender
+export declare function pdfRender(input: PdfRenderInput, ctx?: {
+    signal?: AbortSignal | undefined;
+}, runner?: CommandRunner): Promise<PdfRenderOutput>;
+
+### dist/render.d.ts#CommandRunner
+export type CommandRunner = (command: string, options: CommandOptions) => Promise<CommandResult>;
+
+### dist/render.d.ts#DEFAULT_TIMEOUT_MS
+export declare const DEFAULT_TIMEOUT_MS = 60000;
+
+### dist/render.d.ts#RenderPdfOptions
+export interface RenderPdfOptions extends FindBrowserOptions {
+    readonly html?: string | undefined;
+    readonly file?: string | undefined;
+    readonly output?: string | undefined;
+    readonly args?: readonly string[] | undefined;
+    readonly timeout?: number | undefined;
+    readonly signal?: AbortSignal | undefined;
+    readonly runner?: CommandRunner | undefined;
+}
+
+### dist/render.d.ts#RenderPdfResult
+export interface RenderPdfResult {
+    readonly path: string;
+    readonly bytes: number;
+    readonly browser: string;
+}
+
+### dist/render.d.ts#isPdfFile
+export declare function isPdfFile(path: string): boolean;
+
+### dist/render.d.ts#pdfArgs
+export declare function pdfArgs(page: string, output: string, profile: string, extra?: readonly string[]): string[];
+
+### dist/render.d.ts#renderPdf
+export declare function renderPdf(options: RenderPdfOptions): Promise<RenderPdfResult>;
+
+### dist/types.d.ts#PdfRenderInput
+export interface PdfRenderInput {
+    html?: string | undefined;
+    file?: string | undefined;
+    output?: string | undefined;
+    executable?: string | undefined;
+    args?: string[] | undefined;
+    timeout?: number | undefined;
+}
+
+### dist/types.d.ts#PdfRenderInputSchema
+export declare const PdfRenderInputSchema: z.ZodType<PdfRenderInput>;
+
+### dist/types.d.ts#PdfRenderOutput
+export interface PdfRenderOutput {
+    path: string;
+    bytes: number;
+    browser: string;
+}
+
+### dist/types.d.ts#PdfRenderOutputSchema
+export declare const PdfRenderOutputSchema: z.ZodType<PdfRenderOutput>;

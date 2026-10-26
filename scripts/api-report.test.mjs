@@ -57,6 +57,10 @@ describe("the statements of a declaration file", () => {
     ]);
   });
 
+  it("drops the #! line of the declarations of a bin file", () => {
+    assert.deepEqual(statementsOf('#!/usr/bin/env node\nimport type { A } from "a";\nexport declare const b: A;\n'), ['import type { A } from "a";', "export declare const b: A;"]);
+  });
+
   it("keeps a declare module block and a namespace block as one statement each", () => {
     const source = ['declare module "./x.js" {', "    interface A { b: 1; }", "}", "export declare namespace N {", "    const c: 1;", "}"].join("\n");
     assert.deepEqual(statementsOf(source), ['declare module "./x.js" {\n    interface A { b: 1; }\n}', "export declare namespace N {\n    const c: 1;\n}"]);
@@ -238,6 +242,15 @@ describe("the report of a package", () => {
         ].join("\\n"),
       ),
     );
+  });
+
+  it("gives each name of export type * and export type * as as a type", () => {
+    const report = body({
+      "package.json": { name: "p", types: "./index.d.ts" },
+      "index.d.ts": ['export type * from "./ir.js";', 'export type * as shapes from "./ir.js";', 'export type * from "other-package";'].join("\n"),
+      "ir.d.ts": "export declare const node: 1;\nexport type Edge = 2;\n",
+    });
+    assert.match(report, /type \* from "other-package": other-package#\* \(external\)\ntype Edge: ir\.d\.ts#Edge\ntype node: ir\.d\.ts#node\ntype shapes: ir\.d\.ts#\* \(namespace\)/);
   });
 
   it("lists the ambient declarations of each file that an entry reaches", () => {

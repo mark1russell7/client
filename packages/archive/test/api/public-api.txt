@@ -1,0 +1,260 @@
+# The public API of @procedures/archive
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 39 names
+
+ArchiveCreateInput: dist/types.d.ts#ArchiveCreateInput
+ArchiveCreateOutput: dist/types.d.ts#ArchiveCreateOutput
+ArchiveEntry: dist/types.d.ts#ArchiveEntry
+ArchiveEntryKind: dist/types.d.ts#ArchiveEntryKind
+ArchiveError: dist/errors.d.ts#ArchiveError
+type ArchiveErrorCode: dist/errors.d.ts#ArchiveErrorCode
+ArchiveExtractInput: dist/types.d.ts#ArchiveExtractInput
+ArchiveExtractOutput: dist/types.d.ts#ArchiveExtractOutput
+ArchiveFormat: dist/types.d.ts#ArchiveFormat
+ArchiveListInput: dist/types.d.ts#ArchiveListInput
+ArchiveListOutput: dist/types.d.ts#ArchiveListOutput
+ArchiveModuleOptions: dist/module.d.ts#ArchiveModuleOptions
+type ArchiveSettings: dist/format.d.ts#ArchiveSettings
+DEFAULT_ARCHIVE_SETTINGS: dist/format.d.ts#DEFAULT_ARCHIVE_SETTINGS
+DEFAULT_MAX_BYTES: dist/format.d.ts#DEFAULT_MAX_BYTES
+DEFAULT_MAX_ENTRIES: dist/format.d.ts#DEFAULT_MAX_ENTRIES
+OUTSIDE_ROOT: @procedures/fs/root#OUTSIDE_ROOT (external)
+type PlanOptions: dist/paths.d.ts#PlanOptions
+type PlannedEntry: dist/paths.d.ts#PlannedEntry
+type RawEntry: dist/paths.d.ts#RawEntry
+type ZipEntry: dist/zip.d.ts#ZipEntry
+type ZipWriteEntry: dist/zip.d.ts#ZipWriteEntry
+archiveCreate: dist/procedures/archive/create.d.ts#archiveCreate
+archiveExtract: dist/procedures/archive/extract.d.ts#archiveExtract
+archiveList: dist/procedures/archive/list.d.ts#archiveList
+archiveModule: dist/module.d.ts#archiveModule
+crc32: dist/zip.d.ts#crc32
+createArchiveModule: dist/module.d.ts#createArchiveModule
+entryParts: dist/paths.d.ts#entryParts
+formatOfFile: dist/format.d.ts#formatOfFile
+formatOfName: dist/format.d.ts#formatOfName
+isAbsoluteName: dist/paths.d.ts#isAbsoluteName
+isInside: @procedures/fs/root#isInside (external)
+isOutsideRoot: @procedures/fs/root#isOutsideRoot (external)
+planExtract: dist/paths.d.ts#planExtract
+readZipDirectory: dist/zip.d.ts#readZipDirectory
+registerArchiveProcedures: dist/module.d.ts#registerArchiveProcedures
+sniffFormat: dist/format.d.ts#sniffFormat
+writeZip: dist/zip.d.ts#writeZip
+
+## ./module (dist/module.d.ts): 5 names
+
+ArchiveModuleOptions: dist/module.d.ts#ArchiveModuleOptions
+archiveModule: dist/module.d.ts#archiveModule
+createArchiveModule: dist/module.d.ts#createArchiveModule
+default: dist/module.d.ts#archiveModule
+registerArchiveProcedures: dist/module.d.ts#registerArchiveProcedures
+
+## ./register (dist/register.d.ts): 4 names
+
+ArchiveModuleOptions: dist/module.d.ts#ArchiveModuleOptions
+archiveModule: dist/module.d.ts#archiveModule
+createArchiveModule: dist/module.d.ts#createArchiveModule
+registerArchiveProcedures: dist/module.d.ts#registerArchiveProcedures
+
+## Declarations
+
+### dist/errors.d.ts#ArchiveError
+export declare class ArchiveError extends Error {
+    readonly name = "ArchiveError";
+    readonly code: ArchiveErrorCode;
+    readonly entry: string | undefined;
+    constructor(code: ArchiveErrorCode, message: string, entry?: string);
+}
+
+### dist/errors.d.ts#ArchiveErrorCode
+export type ArchiveErrorCode =
+"BAD_FORMAT"
+ | "BAD_ARCHIVE"
+ | "EXISTS"
+ | "UNSAFE_PATH"
+ | "UNSAFE_LINK"
+ | "UNSUPPORTED_ENTRY"
+ | "TOO_LARGE";
+
+### dist/format.d.ts#ArchiveSettings
+export interface ArchiveSettings {
+    readonly maxBytes: number;
+    readonly maxEntries: number;
+    readonly root?: string | undefined;
+}
+
+### dist/format.d.ts#DEFAULT_ARCHIVE_SETTINGS
+export declare const DEFAULT_ARCHIVE_SETTINGS: ArchiveSettings;
+
+### dist/format.d.ts#DEFAULT_MAX_BYTES
+export declare const DEFAULT_MAX_BYTES: number;
+
+### dist/format.d.ts#DEFAULT_MAX_ENTRIES
+export declare const DEFAULT_MAX_ENTRIES = 100000;
+
+### dist/format.d.ts#formatOfFile
+export declare function formatOfFile(path: string, given: ArchiveFormat | undefined): Promise<ArchiveFormat>;
+
+### dist/format.d.ts#formatOfName
+export declare function formatOfName(path: string, given: ArchiveFormat | undefined): ArchiveFormat;
+
+### dist/format.d.ts#sniffFormat
+export declare function sniffFormat(path: string): Promise<ArchiveFormat | undefined>;
+
+### dist/module.d.ts#ArchiveModuleOptions
+export interface ArchiveModuleOptions {
+    readonly maxBytes?: number | undefined;
+    readonly maxEntries?: number | undefined;
+    readonly root?: string | undefined;
+}
+
+### dist/module.d.ts#archiveModule
+export declare const archiveModule: ProcedureModule;
+
+### dist/module.d.ts#createArchiveModule
+export declare function createArchiveModule(options?: ArchiveModuleOptions): ProcedureModule;
+
+### dist/module.d.ts#registerArchiveProcedures
+export declare function registerArchiveProcedures(registry?: ProcedureRegistry, options?: ArchiveModuleOptions): void;
+
+### dist/paths.d.ts#PlanOptions
+export interface PlanOptions {
+    readonly overwrite: boolean;
+    readonly maxBytes: number;
+    readonly maxEntries: number;
+}
+
+### dist/paths.d.ts#PlannedEntry
+export interface PlannedEntry extends RawEntry {
+    readonly parts: readonly string[];
+    readonly path: string;
+}
+
+### dist/paths.d.ts#RawEntry
+export interface RawEntry {
+    readonly name: string;
+    readonly kind: ArchiveEntryKind;
+    readonly size: number;
+    readonly linkTarget?: string | undefined;
+    readonly index?: number | undefined;
+}
+
+### dist/paths.d.ts#entryParts
+export declare function entryParts(name: string, code?: "UNSAFE_PATH" | "UNSAFE_LINK"): string[];
+
+### dist/paths.d.ts#isAbsoluteName
+export declare function isAbsoluteName(name: string): boolean;
+
+### dist/paths.d.ts#planExtract
+export declare function planExtract(entries: readonly RawEntry[], target: string, options: PlanOptions): PlannedEntry[];
+
+### dist/procedures/archive/create.d.ts#archiveCreate
+export declare function archiveCreate(input: ArchiveCreateInput, settings?: ArchiveSettings): Promise<ArchiveCreateOutput>;
+
+### dist/procedures/archive/extract.d.ts#archiveExtract
+export declare function archiveExtract(input: ArchiveExtractInput, settings?: ArchiveSettings): Promise<ArchiveExtractOutput>;
+
+### dist/procedures/archive/list.d.ts#archiveList
+export declare function archiveList(input: ArchiveListInput, settings?: ArchiveSettings): Promise<ArchiveListOutput>;
+
+### dist/types.d.ts#ArchiveCreateInput
+export interface ArchiveCreateInput {
+    output: string;
+    source?: string | undefined;
+    files?: string[] | undefined;
+    cwd?: string | undefined;
+    format?: ArchiveFormat | undefined;
+    overwrite?: boolean | undefined;
+}
+
+### dist/types.d.ts#ArchiveCreateOutput
+export interface ArchiveCreateOutput {
+    path: string;
+    format: ArchiveFormat;
+    entries: number;
+    bytes: number;
+}
+
+### dist/types.d.ts#ArchiveEntry
+export interface ArchiveEntry {
+    path: string;
+    kind: ArchiveEntryKind;
+    size: number;
+    mode?: number | undefined;
+    mtime?: string | undefined;
+    linkTarget?: string | undefined;
+}
+
+### dist/types.d.ts#ArchiveEntryKind
+export type ArchiveEntryKind = "file" | "directory" | "symlink" | "hardlink" | "other";
+
+### dist/types.d.ts#ArchiveExtractInput
+export interface ArchiveExtractInput {
+    archive: string;
+    target: string;
+    format?: ArchiveFormat | undefined;
+    overwrite?: boolean | undefined;
+}
+
+### dist/types.d.ts#ArchiveExtractOutput
+export interface ArchiveExtractOutput {
+    target: string;
+    format: ArchiveFormat;
+    files: number;
+    directories: number;
+    links: number;
+    bytes: number;
+}
+
+### dist/types.d.ts#ArchiveFormat
+export type ArchiveFormat = "tar.gz" | "tar" | "zip";
+
+### dist/types.d.ts#ArchiveListInput
+export interface ArchiveListInput {
+    archive: string;
+    format?: ArchiveFormat | undefined;
+}
+
+### dist/types.d.ts#ArchiveListOutput
+export interface ArchiveListOutput {
+    format: ArchiveFormat;
+    entries: ArchiveEntry[];
+    bytes: number;
+}
+
+### dist/zip.d.ts#ZipEntry
+export interface ZipEntry {
+    readonly name: string;
+    readonly kind: "file" | "directory" | "symlink";
+    readonly method: number;
+    readonly flags: number;
+    readonly crc: number;
+    readonly compressedSize: number;
+    readonly size: number;
+    readonly localOffset: number;
+    readonly mode: number | undefined;
+    readonly mtime: Date;
+}
+
+### dist/zip.d.ts#ZipWriteEntry
+export interface ZipWriteEntry {
+    readonly name: string;
+    readonly kind: "file" | "directory" | "symlink";
+    readonly data?: Uint8Array | (() => Promise<Uint8Array>) | undefined;
+    readonly mode?: number | undefined;
+    readonly mtime?: Date | undefined;
+}
+
+### dist/zip.d.ts#crc32
+export declare function crc32(bytes: Uint8Array, crc?: number): number;
+
+### dist/zip.d.ts#readZipDirectory
+export declare function readZipDirectory(path: string, maxEntries: number): Promise<ZipEntry[]>;
+
+### dist/zip.d.ts#writeZip
+export declare function writeZip(handle: FileHandle, entries: readonly ZipWriteEntry[]): Promise<number>;
