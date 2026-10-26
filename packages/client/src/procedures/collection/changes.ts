@@ -54,6 +54,12 @@ export interface CollectionChangeEvent {
   readonly values?: ReadonlyArray<{ readonly id: string; readonly value: unknown }> | undefined;
   /** With the option `values`: the changed ids whose values the filter refused. Read them with `changes`. */
   readonly withheld?: readonly string[] | undefined;
+  /**
+   * The version of each changed item, as `versionOf(id)` of the storage gives it (roadmap CLI-77).
+   * A publisher that knows the versions sets it, for example `watchStorageChanges()` of
+   * `@procedures/mongo`. Without it, read the versions with `changes`. A deleted id has no version.
+   */
+  readonly versions?: ReadonlyArray<{ readonly id: string; readonly version: string }> | undefined;
   /** The origin of the writes, when one origin made all the changes of the event. */
   readonly origin?: string | undefined;
 }

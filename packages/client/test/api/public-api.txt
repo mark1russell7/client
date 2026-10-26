@@ -3801,6 +3801,10 @@ export interface CollectionChangeEvent {
         readonly value: unknown;
     }> | undefined;
     readonly withheld?: readonly string[] | undefined;
+    readonly versions?: ReadonlyArray<{
+        readonly id: string;
+        readonly version: string;
+    }> | undefined;
     readonly origin?: string | undefined;
 }
 

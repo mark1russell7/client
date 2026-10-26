@@ -9,8 +9,8 @@
  *   partition of a document comes from `storage.form.partitionOf()`.
  * - The event is a hint, without `since` and without `version` (the version of the change log): the
  *   subscriber reads the changes with `changes`, as for each event without `since`. The event has
- *   the id in `changed` or in `deleted`, and the version of the item in `versions`: the version that
- *   `storage.versionOf(id)` gives (`versionOfStored()`).
+ *   the id in `changed` or in `deleted`, and the version of the item in `versions` (a field of
+ *   `CollectionChangeEvent`): the version that `storage.versionOf(id)` gives (`versionOfStored()`).
  * - A tombstone (a delete through the storage) and a delete of a document are deletes.
  * - The writes of this process through the storage: with `ownWrites: "skip"` (the default), the
  *   watcher skips their events, because the collection procedures publish them already, with
@@ -52,13 +52,10 @@ export interface StorageChange {
 
 /**
  * The change event of `watchStorageChanges()`: a `CollectionChangeEvent` without `since` (a hint),
- * with the version of each changed item. A subscriber of the collection procedures reads it as each
- * other event.
+ * with the version of each changed item in `versions`. A subscriber of the collection procedures
+ * reads it as each other event. It is an alias of `CollectionChangeEvent`.
  */
-export interface StorageChangeHint extends CollectionChangeEvent {
-  /** The version of each changed item: the version that `storage.versionOf(id)` gives. */
-  readonly versions?: ReadonlyArray<{ readonly id: string; readonly version: string }> | undefined;
-}
+export type StorageChangeHint = CollectionChangeEvent;
 
 /** The function or the bus that gets the events of `watchStorageChanges()`, for example the bus of the procedures. */
 export type StorageHintPublisher = ((topic: string, event: StorageChangeHint) => void | Promise<void>) | { emit(topic: string, event: StorageChangeHint): void };
