@@ -8,6 +8,7 @@
  * last text block.
  */
 
+import { pathToKey } from "../index.js";
 import { contractDescription, type ContractCaller } from "./transport-contract.js";
 
 /** The parts of an MCP client of the SDK that the caller uses. */
@@ -72,7 +73,7 @@ export function mcpCaller(open: () => Promise<McpClientLike>): ContractCaller {
   const call = async (path: readonly string[], input: unknown, signal?: AbortSignal): Promise<ToolResult> => {
     try {
       const { mcp, names } = await connect();
-      const name = names.get(contractDescription(path)) ?? path.join(".");
+      const name = names.get(contractDescription(path)) ?? pathToKey(path);
       return (await mcp.callTool({ name, arguments: input as Record<string, unknown> }, undefined, signal ? { signal } : {})) as ToolResult;
     } catch (error) {
       throw refusalOf(error);
