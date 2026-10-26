@@ -95,6 +95,27 @@ export function collectionRulesOf(ctx: ProcedureContext, collection: string): Co
   return undefined;
 }
 
+/**
+ * The invocation that the rules of a collection get for the events of one topic (roadmap CLI-78).
+ * It has the principal, the capability, the metadata and the signal of the subscription. Its path
+ * is the path of `changes` of the collection, and its input has the partition of the topic. Thus
+ * a rule that reads `invocation.input.partition` sees the same input as in a read of the topic.
+ *
+ * @param base - The invocation of the subscription
+ * @param ctx - The context of the subscription. Its registry gives the procedure of `changes`.
+ * @param collection - The collection of the topic
+ * @param partition - The partition that the topic names, before the resolver
+ */
+export function collectionInvocation(base: Invocation | undefined, ctx: ProcedureContext, collection: string, partition: string | undefined): Invocation | undefined {
+  if (base === undefined) return undefined;
+  const procedure = ctx.registry?.get(["collections", collection, "changes"]);
+  return {
+    ...base,
+    ...(procedure !== undefined && { procedure, path: procedure.path }),
+    input: partition === undefined ? {} : { partition },
+  };
+}
+
 /** The subscriptions with a row filter, by bus and by topic: the writes read the rows before them only for these. */
 const FILTERED = new WeakMap<object, Map<string, number>>();
 
@@ -194,8 +215,8 @@ export class RowHintFilter {
   constructor(
     /** The rules of the collection from the registry of the call. */
     private readonly lookup: () => CollectionAdmission | null | undefined,
-    /** The invocation of the subscription: the rule gets it. */
-    private readonly invocation: Invocation | undefined,
+    /** The invocation of the topic (`collectionInvocation()`): the rules get it. */
+    readonly invocation: Invocation | undefined,
     /** The partition of the topic: `admitsAll` gets it. */
     private readonly partition: string | undefined,
   ) {

@@ -11,7 +11,7 @@ import type { AddressInfo } from "node:net";
 import { createRegistry } from "../procedures/module.js";
 import type { AdmitItem } from "../procedures/invoke.js";
 import type { CollectionAdmission } from "../procedures/collection/admission.js";
-import type { CollectionChangeEvent } from "../procedures/collection/changes.js";
+import { collectionChangeTopic, type CollectionChangeEvent } from "../procedures/collection/changes.js";
 import type { CollectionStorage, StorageChanges } from "../procedures/collection/storage.js";
 import { ProcedureServer } from "./procedure-server.js";
 import { pathToMethod } from "./method.js";
@@ -114,11 +114,38 @@ afterEach(async () => {
   shared = {};
 });
 
-/** A server of the collection "notes" on HTTP (/api/proc) and WebSocket (/ws). */
-async function start() {
+/**
+ * The rule of the rows of a partitioned collection: it reads the partition from the input of the
+ * call, as an app does. It refuses each row of a call without a partition.
+ */
+const partitionRows: AdmitItem = (row, invocation) => {
+  const partition = (invocation.input as { partition?: unknown } | undefined)?.partition;
+  if (typeof partition !== "string") return false;
+  return ownRows(row, invocation);
+};
+const partitionAdmission: CollectionAdmission = { admit: partitionRows, admitsAll: (invocation, partition) => invocation.principal?.id === "root" && partition === "t1" };
+
+/**
+ * A server of the collection "notes" on HTTP (/api/proc) and WebSocket (/ws). With `partitioned`,
+ * the notes have the partitions of the input, and the rule reads the partition of the input.
+ */
+async function start(partitioned = false) {
   const server = new ProcedureServer({ registry: createRegistry(), principalOf, events: { topics: ["collections.*"] } });
-  server.useStorage("notes", new LogStorage({ a1: { owner: "ann" }, b1: { owner: "bob" } }));
-  server.registerCollectionProcedures("notes", { admission });
+  const initial = { a1: { owner: "ann" }, b1: { owner: "bob" } };
+  if (partitioned) {
+    const storages = new Map<string, LogStorage>();
+    server.usePartitions("notes", {
+      storageOf: (partition) => {
+        let storage = storages.get(partition);
+        if (!storage) storages.set(partition, (storage = new LogStorage(initial)));
+        return storage;
+      },
+      resolve: (_ctx, requested) => requested ?? null,
+    });
+  } else {
+    server.useStorage("notes", new LogStorage(initial));
+  }
+  server.registerCollectionProcedures("notes", { admission: partitioned ? partitionAdmission : admission });
   const handler = procedureHandler(server, { basePath: "/api/proc" });
   const upgrade = upgradeHandler(server, { path: "/ws", heartbeat: false });
   const http = createServer((req, res) => {
@@ -150,10 +177,10 @@ async function start() {
   return { server, write, http: http1, ws };
 }
 
-/** A subscription to the topic of the notes: the events that it gets. */
-async function subscribe(transport: EventTransport): Promise<{ events: CollectionChangeEvent[]; subscription: Subscription }> {
+/** A subscription to the topic of the notes (by default) or of a partition of the notes: the events that it gets. */
+async function subscribe(transport: EventTransport, topic = "collections.notes"): Promise<{ events: CollectionChangeEvent[]; subscription: Subscription }> {
   const events: CollectionChangeEvent[] = [];
-  const subscription = subscribeRemote<CollectionChangeEvent>(transport, "collections.notes", (data) => void events.push(data));
+  const subscription = subscribeRemote<CollectionChangeEvent>(transport, topic, (data) => void events.push(data));
   cleanups.push(() => subscription());
   await subscription.ready;
   return { events, subscription };
@@ -207,6 +234,32 @@ describe("the row filter of the change events over the network (CLI-78)", () => 
         { changed: ["b3"], deleted: [] },
       ]);
       expect(root.events.some((event) => event.reset === true)).toBe(false);
+    });
+  }
+});
+
+describe("the input of the rule of the rows of a change event (CLI-78)", () => {
+  for (const face of ["http", "ws"] as const) {
+    it(`gives a rule that reads the partition of the input the partition of the topic, over ${face}`, async () => {
+      const host = await start(true);
+      const topic = collectionChangeTopic("notes", "t1");
+      const root = await subscribe(host[face]("root"), topic);
+      const ann = await subscribe(host[face]("ann"), topic);
+      await host.write("changes", { partition: "t1" });
+      // An update and a delete of a note that Ann can read, and a note of Bob
+      await host.write("set", { id: "a1", value: { owner: "ann", text: "again" }, partition: "t1" });
+      await host.write("set", { id: "b2", value: { owner: "bob" }, partition: "t1" });
+      await host.write("delete", { id: "a1", partition: "t1" });
+      await waitFor(() => root.events.length === 3 && ann.events.length === 2, "the events");
+      expect(idsOf(ann.events)).toEqual([
+        { changed: ["a1"], deleted: [] },
+        { changed: [], deleted: ["a1"] },
+      ]);
+      expect(idsOf(root.events)).toEqual([
+        { changed: ["a1"], deleted: [] },
+        { changed: ["b2"], deleted: [] },
+        { changed: [], deleted: ["a1"] },
+      ]);
     });
   }
 });

@@ -595,6 +595,8 @@ export type {
   TopicRule,
   TopicCall,
   RightsChange,
+  RightsScope,
+  RightsScopes,
   SubscriptionRecheck,
   EventItem,
   RemoteEvent,

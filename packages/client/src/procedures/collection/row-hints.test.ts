@@ -4,7 +4,7 @@
  * delete of each row that it could read before.
  */
 
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { createCollectionProcedures, type CollectionProceduresOptions } from "./procedures.js";
 import type { CollectionAdmission } from "./admission.js";
 import type { CollectionChangeEvent } from "./changes.js";
@@ -330,6 +330,57 @@ describe("the row filter of the change events (CLI-78)", () => {
     expect(annSub.received.slice(2)).toEqual([{ changed: [], deleted: [], reset: true }]);
     // A change of the rights of a subscriber with full rights gives no reset hint
     expect(rootSub.received.some((event) => event.reset === true)).toBe(false);
+  });
+
+  it("gives the rules an invocation of the collection, not the call of events.subscribe", async () => {
+    const seen: Array<{ path: readonly string[]; input: unknown; principal: string | undefined }> = [];
+    const admit: AdmitItem = (row, invocation) => {
+      seen.push({ path: invocation.path, input: invocation.input, principal: invocation.principal?.id });
+      return ownRows(row, invocation);
+    };
+    const h = host(notes(), { admission: { admit } });
+    const annSub = await h.subscribe(ann);
+    await h.run("changes", {});
+    seen.length = 0;
+    await h.run("set", { id: "a2", value: { owner: "ann" } });
+    await settle();
+    expect(idsOf(annSub.received)).toEqual([{ changed: ["a2"], deleted: [] }]);
+    // The topic names no partition, so the input has none, as in a read of the topic
+    expect(seen).toEqual([{ path: ["collections", "notes", "changes"], input: {}, principal: "ann" }]);
+  });
+
+  it("limits the reset hints and the new admitsAll to the scope of a change of the rights", async () => {
+    let full = false;
+    const admitsAll = vi.fn(() => full);
+    const h = host(notes(), { admission: { admit: ownRows, admitsAll } });
+    const annSub = await h.subscribe(ann);
+    await h.run("changes", {});
+    admitsAll.mockClear();
+    // A change of the rows of another collection, or of another partition: no reset hint, no new admitsAll
+    await h.publisher.rightsChanged(undefined, { collection: "other" });
+    await h.publisher.rightsChanged("ann", [{ collection: "other" }, { collection: "notes", partition: "t9" }]);
+    await settle();
+    expect(annSub.received).toEqual([]);
+    expect(admitsAll).not.toHaveBeenCalled();
+    // A change of the rows of the notes: a reset hint
+    await h.publisher.rightsChanged("ann", { collection: "notes" });
+    await settle();
+    expect(annSub.received).toEqual([{ changed: [], deleted: [], reset: true }]);
+    expect(admitsAll).toHaveBeenCalledTimes(1);
+    // A scope with a partition only: the topic of the notes has no partition
+    await h.publisher.rightsChanged(undefined, { partition: "t1" });
+    // An empty list touches no topic
+    await h.publisher.rightsChanged(undefined, []);
+    await settle();
+    expect(annSub.received).toHaveLength(1);
+    // Without a scope, the change touches each topic, as before
+    full = true;
+    await h.publisher.rightsChanged();
+    await settle();
+    expect(annSub.received).toEqual([
+      { changed: [], deleted: [], reset: true },
+      { changed: [], deleted: [], reset: true },
+    ]);
   });
 
   it("gives a reset hint at a re-check when the subscriber loses its full rights", async () => {

@@ -27,6 +27,19 @@ import type { Principal } from "../server/types.js";
  */
 export type RightsChange = string | ((principal: Principal | undefined) => boolean);
 
+/**
+ * The rows that a change of the rights touches (roadmap CLI-78): the rows of a collection, or of
+ * one partition of a collection. The partition is the partition after the resolver. Without a
+ * collection, the scope touches each collection.
+ */
+export interface RightsScope {
+  readonly collection?: string | undefined;
+  readonly partition?: string | undefined;
+}
+
+/** One scope or a list of scopes of a change of the rights. A list touches the rows of each scope. */
+export type RightsScopes = RightsScope | readonly RightsScope[];
+
 /** The options of the re-check of the open subscriptions of a publisher (roadmap CLI-44). */
 export interface SubscriptionRecheck {
   /**
@@ -41,7 +54,7 @@ export interface SubscriptionRecheck {
    * removes the listener. Each call of the listener is a call of `rightsChanged()`: without a
    * change, each subscription gets a check.
    */
-  readonly rightsChanges?: ((listener: (change?: RightsChange) => void) => () => void) | undefined;
+  readonly rightsChanges?: ((listener: (change?: RightsChange, scope?: RightsScopes) => void) => () => void) | undefined;
 }
 
 /** The cause of a re-check: a change of the rights, or the max age. */
@@ -64,7 +77,7 @@ interface Watch {
   /** The timer of the max age, or undefined. */
   timer: Cancel | undefined;
   /** This function starts a check at once. The promise ends when the check ends. */
-  readonly recheck: (cause: RecheckCause) => Promise<void>;
+  readonly recheck: (cause: RecheckCause, scope?: RightsScopes) => Promise<void>;
 }
 
 /** True when the change touches a subscription of the principal. A test that throws touches it. */
@@ -79,9 +92,12 @@ function touches(change: RightsChange | undefined, principal: Principal | undefi
 }
 
 /** The promise of a check. A check that throws at once gives a rejected promise. */
-function started(check: (cause: RecheckCause) => Promise<void>, cause: RecheckCause): Promise<void> {
-  return new Promise<void>((resolve) => resolve(check(cause)));
+function started(check: RecheckCheck, cause: RecheckCause, scope: RightsScopes | undefined): Promise<void> {
+  return new Promise<void>((resolve) => resolve(check(cause, scope)));
 }
+
+/** The check of a subscription. A check of a change of the rights can get the scope of the change. */
+type RecheckCheck = (cause: RecheckCause, scope?: RightsScopes) => Promise<void>;
 
 /**
  * The re-checks of the open subscriptions of one publisher (roadmap CLI-44). The publisher gives
@@ -113,15 +129,16 @@ export class SubscriptionRechecks {
 
   /**
    * This function watches a subscription until it ends. A change of the rights of its principal
-   * and its max age start the check. The check gets the cause, and it must throw the refusal.
+   * and its max age start the check. The check gets the cause and the scope of the change. It must
+   * throw the refusal.
    */
-  watch(subscription: RecheckedSubscription, principal: Principal | undefined, check: (cause: RecheckCause) => Promise<void>): void {
+  watch(subscription: RecheckedSubscription, principal: Principal | undefined, check: RecheckCheck): void {
     const watch: Watch = {
       principal,
       timer: undefined,
-      recheck: (cause) => {
+      recheck: (cause, scope) => {
         this.stopTimer(watch);
-        return subscription.hold(started(check, cause)).then(() => {
+        return subscription.hold(started(check, cause, scope)).then(() => {
           // A check that passes gives the admission a new age
           if (this.watches.has(watch)) this.startTimer(watch);
         });
@@ -133,7 +150,7 @@ export class SubscriptionRechecks {
     this.startTimer(watch);
     if (this.source && !this.stopListening) {
       try {
-        this.stopListening = this.source((change) => void this.rightsChanged(change));
+        this.stopListening = this.source((change, scope) => void this.rightsChanged(change, scope));
       } catch (error) {
         // A source that cannot listen cannot tell a revocation: the subscription ends
         void subscription.hold(Promise.reject(error));
@@ -143,12 +160,12 @@ export class SubscriptionRechecks {
 
   /**
    * This function starts a check of each watched subscription that the change touches. The
-   * promise ends when each check ends.
+   * promise ends when each check ends. Each check gets the scope of the change.
    */
-  rightsChanged(change?: RightsChange): Promise<void> {
+  rightsChanged(change?: RightsChange, scope?: RightsScopes): Promise<void> {
     const checks: Array<Promise<void>> = [];
     for (const watch of [...this.watches]) {
-      if (touches(change, watch.principal)) checks.push(watch.recheck("rights"));
+      if (touches(change, watch.principal)) checks.push(watch.recheck("rights", scope));
     }
     return Promise.all(checks).then(() => undefined);
   }

@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 619 names
+## . (dist/index.d.ts): 621 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -269,6 +269,8 @@ type ResubscribeBackoff: dist/events/remote.d.ts#ResubscribeBackoff
 type RetryOverride: dist/client/call-types.d.ts#RetryOverride
 type RichError: dist/client/errors/types.d.ts#RichError
 type RightsChange: dist/events/recheck.d.ts#RightsChange
+type RightsScope: dist/events/recheck.d.ts#RightsScope
+type RightsScopes: dist/events/recheck.d.ts#RightsScopes
 type Route: dist/client/call-types.d.ts#Route
 type RouteLeaf: dist/client/consumption.d.ts#RouteLeaf
 type RouteNode: dist/client/call-types.d.ts#RouteNode
@@ -626,7 +628,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 607 names
+## ./browser (dist/browser.d.ts): 609 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -887,6 +889,8 @@ type ResubscribeBackoff: dist/events/remote.d.ts#ResubscribeBackoff
 type RetryOverride: dist/client/call-types.d.ts#RetryOverride
 type RichError: dist/client/errors/types.d.ts#RichError
 type RightsChange: dist/events/recheck.d.ts#RightsChange
+type RightsScope: dist/events/recheck.d.ts#RightsScope
+type RightsScopes: dist/events/recheck.d.ts#RightsScopes
 type Route: dist/client/call-types.d.ts#Route
 type RouteLeaf: dist/client/consumption.d.ts#RouteLeaf
 type RouteNode: dist/client/call-types.d.ts#RouteNode
@@ -1409,7 +1413,7 @@ seconds: dist/duration.d.ts#seconds
 toMs: dist/duration.d.ts#toMs
 writeRemainingTime: dist/client/deadline.d.ts#writeRemainingTime
 
-## ./events (dist/events/index.d.ts): 49 names
+## ./events (dist/events/index.d.ts): 51 names
 
 type ChannelMap: dist/events/types.d.ts#ChannelMap
 type ChannelTimingOptions: dist/events/bus.d.ts#ChannelTimingOptions
@@ -1434,6 +1438,8 @@ type RemoteEventHandler: dist/events/remote.d.ts#RemoteEventHandler
 type RemoteEventsOptions: dist/events/remote.d.ts#RemoteEventsOptions
 type ResubscribeBackoff: dist/events/remote.d.ts#ResubscribeBackoff
 type RightsChange: dist/events/recheck.d.ts#RightsChange
+type RightsScope: dist/events/recheck.d.ts#RightsScope
+type RightsScopes: dist/events/recheck.d.ts#RightsScopes
 type SubscribeInput: dist/events/remote.d.ts#SubscribeInput
 type SubscribeOptions: dist/events/remote.d.ts#SubscribeOptions
 type Subscription: dist/events/remote.d.ts#Subscription
@@ -3350,7 +3356,7 @@ export declare class EventPublisher {
     publish<T>(topic: string, data: T): void;
     get subscriptions(): number;
     end(): void;
-    rightsChanged(change?: RightsChange): Promise<void>;
+    rightsChanged(change?: RightsChange, scope?: RightsScopes): Promise<void>;
 }
 
 ### dist/events/publisher.d.ts#EventPublisherOptions
@@ -3386,10 +3392,19 @@ export declare function topicMatcher(rule: TopicRule): (topic: string) => boolea
 ### dist/events/recheck.d.ts#RightsChange
 export type RightsChange = string | ((principal: Principal | undefined) => boolean);
 
+### dist/events/recheck.d.ts#RightsScope
+export interface RightsScope {
+    readonly collection?: string | undefined;
+    readonly partition?: string | undefined;
+}
+
+### dist/events/recheck.d.ts#RightsScopes
+export type RightsScopes = RightsScope | readonly RightsScope[];
+
 ### dist/events/recheck.d.ts#SubscriptionRecheck
 export interface SubscriptionRecheck {
     readonly maxAge?: Duration | undefined;
-    readonly rightsChanges?: ((listener: (change?: RightsChange) => void) => () => void) | undefined;
+    readonly rightsChanges?: ((listener: (change?: RightsChange, scope?: RightsScopes) => void) => () => void) | undefined;
 }
 
 ### dist/events/remote.d.ts#EVENTS_SUBSCRIBE_PATH

@@ -45,8 +45,8 @@ import { getGlobalEventBus } from "./bus.js";
 import { EVENTS_SUBSCRIBE_PATH, type EventItem, type SubscribeInput } from "./remote.js";
 import { admittedValue, rowsOf } from "./rows.js";
 import { realClock, type Clock } from "../clock.js";
-import { SubscriptionRechecks, type RecheckCause, type RightsChange, type SubscriptionRecheck } from "./recheck.js";
-import { DROPPED, RowHintFilter, collectionRulesOf, markFilteredTopic, type HintFilterMode } from "../procedures/collection/hint-filter.js";
+import { SubscriptionRechecks, type RecheckCause, type RightsChange, type RightsScope, type RightsScopes, type SubscriptionRecheck } from "./recheck.js";
+import { DROPPED, RowHintFilter, collectionInvocation, collectionRulesOf, markFilteredTopic, type HintFilterMode } from "../procedures/collection/hint-filter.js";
 
 /** The number of topics that one subscription can name. */
 export const MAX_SUBSCRIPTION_TOPICS = 64;
@@ -185,6 +185,17 @@ interface Route {
   /** The collection of a topic of a collection, and its resolved partition (roadmap CLI-78). */
   readonly collection?: string | undefined;
   readonly partition?: string | undefined;
+  /** The partition that the topic names, before the resolver: the input of the rules has it. */
+  readonly requested?: string | undefined;
+}
+
+/** True when a change of the rights with this scope touches the rows of the route (roadmap CLI-78). */
+function inScope(route: Route, scope: RightsScopes | undefined): boolean {
+  if (scope === undefined) return true;
+  const scopes: readonly RightsScope[] = Array.isArray(scope) ? scope : [scope as RightsScope];
+  return scopes.some(
+    ({ collection, partition }) => (collection === undefined || collection === route.collection) && (partition === undefined || partition === route.partition),
+  );
 }
 
 /** An event of the bus that waits in the queue of a subscription. It gets its `seq` when the subscriber gets it. */
@@ -304,7 +315,9 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
     const item: Extract<EventItem, { type: "event" }> = { type: "event", topic, data, seq: ++this.seq, ...(dropped > 0 && { dropped }) };
     const rows = rowsOf(data);
     if (!rows || (!this.admit && !rows.admit)) return Promise.resolve({ value: item, done: false });
-    return admittedValue(data, this.admit, this.invocation).then((admitted): IteratorResult<EventItem> => ({ value: { ...item, data: admitted }, done: false }));
+    // The rule of the rows of a topic of a collection gets the invocation of that topic (roadmap CLI-78)
+    const invocation = this.filters?.get(topic)?.invocation ?? this.invocation;
+    return admittedValue(data, this.admit, invocation).then((admitted): IteratorResult<EventItem> => ({ value: { ...item, data: admitted }, done: false }));
   }
 
   next(): Promise<IteratorResult<EventItem>> {
@@ -487,10 +500,15 @@ export class EventPublisher {
    * and the partition. Its events wait for the check. A refusal ends the subscription with its
    * error, for example `FORBIDDEN`. The promise ends when each check ends, and it does not reject.
    *
+   * The change can also have a scope (roadmap CLI-78): the collections or the partitions whose rows
+   * it touches. Then only the topics of the scope with a row filter get a `reset` hint and a new
+   * `admitsAll`. Each touched subscription still gets the checks of its start.
+   *
    * @param change - The subscriptions that the change touches. Without it, each open subscription gets a check.
+   * @param scope - The rows that the change touches. Without it, the change touches each topic.
    */
-  rightsChanged(change?: RightsChange): Promise<void> {
-    return this.rechecks.rightsChanged(change);
+  rightsChanged(change?: RightsChange, scope?: RightsScopes): Promise<void> {
+    return this.rechecks.rightsChanged(change, scope);
   }
 
   /**
@@ -507,7 +525,7 @@ export class EventPublisher {
     const target = collectionTopicTarget(topic, ctx.repository);
     if (!target) return { topic, busTopic: topic };
     const partition = await partitionOfCall(ctx, target.collection, target.partition);
-    return { topic, busTopic: collectionChangeTopic(target.collection, partition), collection: target.collection, partition };
+    return { topic, busTopic: collectionChangeTopic(target.collection, partition), collection: target.collection, partition, requested: target.partition };
   }
 
   /**
@@ -566,9 +584,10 @@ export class EventPublisher {
    */
   private async filtersOf(routes: ReadonlyArray<Route>, ctx: ProcedureContext): Promise<Map<string, RowHintFilter>> {
     const filters = new Map<string, RowHintFilter>();
-    for (const { topic, collection, partition } of routes) {
+    for (const { topic, collection, partition, requested } of routes) {
       if (collection === undefined) continue;
-      const filter = new RowHintFilter(() => collectionRulesOf(ctx, collection), ctx.invocation, partition);
+      // The rules get an invocation of the collection and its partition, not the call of `events.subscribe`
+      const filter = new RowHintFilter(() => collectionRulesOf(ctx, collection), collectionInvocation(ctx.invocation, ctx, collection, requested), partition);
       await filter.refresh();
       filters.set(topic, filter);
     }
@@ -610,12 +629,12 @@ export class EventPublisher {
       marks.clear();
     });
     // The same checks run again at a change of the rights and after the max age (roadmap CLI-44)
-    this.rechecks.watch(subscription, ctx.principal, async (cause: RecheckCause) => {
+    this.rechecks.watch(subscription, ctx.principal, async (cause: RecheckCause, scope?: RightsScopes) => {
       await this.readmit(routes, ctx);
       // The rights can change the rows that the subscriber reads: a `reset` hint makes it read them again (roadmap CLI-78)
       for (const route of routes) {
         const filter = filters.get(route.topic);
-        if (!filter) continue;
+        if (!filter || !inScope(route, scope)) continue;
         const before = filter.mode;
         const after = await filter.refresh();
         mark(route, after);
