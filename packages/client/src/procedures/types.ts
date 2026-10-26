@@ -15,6 +15,7 @@ import type { EventBus } from "../events/types.js";
 import type { HydrationEvent } from "./ref.js";
 import type { Principal } from "../server/types.js";
 import type { Invocation } from "./invoke.js";
+import { segmentsToTopic, topicToSegments } from "./segments.js";
 
 // =============================================================================
 // Procedure Path
@@ -33,17 +34,20 @@ import type { Invocation } from "./invoke.js";
 export type ProcedurePath = string[];
 
 /**
- * Convert path array to dot-separated key.
+ * This function gives the key of a path: the segments with dots between them. Each segment encodes
+ * `%` as `%25` and `.` as `%2E` (`encodeSegment()`, roadmap CLI-75). Thus the key of
+ * `["a.b", "c"]` is `a%2Eb.c`, and not the key of `["a", "b", "c"]`. A plain path keeps its key.
  */
 export function pathToKey(path: ProcedurePath): string {
-  return path.join(".");
+  return segmentsToTopic(path);
 }
 
 /**
- * Parse dot-separated key to path array.
+ * This function gives the path of a key: it splits the key on each dot and decodes each segment
+ * (`decodeSegment()`, roadmap CLI-75). For each path, `keyToPath(pathToKey(path))` gives the path.
  */
 export function keyToPath(key: string): ProcedurePath {
-  return key.split(".");
+  return topicToSegments(key);
 }
 
 // =============================================================================

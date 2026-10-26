@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 603 names
+## . (dist/index.d.ts): 607 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -410,6 +410,7 @@ createRouteResolver: dist/client/route-resolver.d.ts#createRouteResolver
 createTypedEventBus: dist/events/bus.d.ts#createTypedEventBus
 credentialsOf: dist/server/request-auth.d.ts#credentialsOf
 declaredCalls: dist/procedures/policy.d.ts#declaredCalls
+decodeSegment: dist/procedures/segments.d.ts#decodeSegment
 defaultServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#defaultServerUrlStrategy
 defaultUrlPattern: dist/adapters/http/shared/strategies.d.ts#defaultUrlPattern
 defineModule: dist/procedures/module.d.ts#defineModule
@@ -431,6 +432,7 @@ effectsValue: dist/procedures/effects.d.ts#effectsValue
 elicitConfirmation: dist/procedures/elicit.d.ts#elicitConfirmation
 elicitInput: dist/procedures/elicit.d.ts#elicitInput
 elicitWithPolicy: dist/procedures/elicit.d.ts#elicitWithPolicy
+encodeSegment: dist/procedures/segments.d.ts#encodeSegment
 examinesNestedCall: dist/procedures/capability.d.ts#examinesNestedCall
 executeRef: dist/procedures/program.d.ts#executeRef
 executeWithConcurrency: dist/client/batch-executor.d.ts#executeWithConcurrency
@@ -572,6 +574,7 @@ runtimeProgramOf: dist/procedures/define-procedure.d.ts#runtimeProgramOf
 scopeOf: dist/procedures/ref.d.ts#scopeOf
 scopeOfNames: dist/procedures/program.d.ts#scopeOfNames
 seconds: dist/duration.d.ts#seconds
+segmentsToTopic: dist/procedures/segments.d.ts#segmentsToTopic
 selectorProblems: dist/procedures/collection/query.d.ts#selectorProblems
 shouldExecuteRef: dist/procedures/ref.d.ts#shouldExecuteRef
 streamOutput: dist/procedures/invoke.d.ts#streamOutput
@@ -590,6 +593,7 @@ toolHintOverrideRefusal: dist/procedures/hints.d.ts#toolHintOverrideRefusal
 toolHints: dist/procedures/capability.d.ts#toolHints
 toolHintsOf: dist/procedures/hints.d.ts#toolHintsOf
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
+topicToSegments: dist/procedures/segments.d.ts#topicToSegments
 tracingInterceptor: dist/procedures/interceptors.d.ts#tracingInterceptor
 tryCatchProcedure: dist/procedures/core/index.d.ts#tryCatchProcedure
 typed: dist/procedures/core/schemas.d.ts#typed
@@ -610,7 +614,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 591 names
+## ./browser (dist/browser.d.ts): 595 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -1010,6 +1014,7 @@ createRouteResolver: dist/client/route-resolver.d.ts#createRouteResolver
 createTypedEventBus: dist/events/bus.d.ts#createTypedEventBus
 credentialsOf: dist/server/request-auth.d.ts#credentialsOf
 declaredCalls: dist/procedures/policy.d.ts#declaredCalls
+decodeSegment: dist/procedures/segments.d.ts#decodeSegment
 defaultUrlPattern: dist/adapters/http/shared/strategies.d.ts#defaultUrlPattern
 defineModule: dist/procedures/module.d.ts#defineModule
 definePackage: dist/procedures/module.d.ts#definePackage
@@ -1030,6 +1035,7 @@ effectsValue: dist/procedures/effects.d.ts#effectsValue
 elicitConfirmation: dist/procedures/elicit.d.ts#elicitConfirmation
 elicitInput: dist/procedures/elicit.d.ts#elicitInput
 elicitWithPolicy: dist/procedures/elicit.d.ts#elicitWithPolicy
+encodeSegment: dist/procedures/segments.d.ts#encodeSegment
 examinesNestedCall: dist/procedures/capability.d.ts#examinesNestedCall
 executeRef: dist/procedures/program.d.ts#executeRef
 executeWithConcurrency: dist/client/batch-executor.d.ts#executeWithConcurrency
@@ -1166,6 +1172,7 @@ runtimeProgramOf: dist/procedures/define-procedure.d.ts#runtimeProgramOf
 scopeOf: dist/procedures/ref.d.ts#scopeOf
 scopeOfNames: dist/procedures/program.d.ts#scopeOfNames
 seconds: dist/duration.d.ts#seconds
+segmentsToTopic: dist/procedures/segments.d.ts#segmentsToTopic
 selectorProblems: dist/procedures/collection/query.d.ts#selectorProblems
 shouldExecuteRef: dist/procedures/ref.d.ts#shouldExecuteRef
 streamOutput: dist/procedures/invoke.d.ts#streamOutput
@@ -1184,6 +1191,7 @@ toolHintOverrideRefusal: dist/procedures/hints.d.ts#toolHintOverrideRefusal
 toolHints: dist/procedures/capability.d.ts#toolHints
 toolHintsOf: dist/procedures/hints.d.ts#toolHintsOf
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
+topicToSegments: dist/procedures/segments.d.ts#topicToSegments
 tracingInterceptor: dist/procedures/interceptors.d.ts#tracingInterceptor
 tryCatchProcedure: dist/procedures/core/index.d.ts#tryCatchProcedure
 typed: dist/procedures/core/schemas.d.ts#typed
@@ -1428,7 +1436,7 @@ throttleChannel: dist/events/bus.d.ts#throttleChannel
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
-## ./procedures (dist/procedures/index.d.ts): 348 names
+## ./procedures (dist/procedures/index.d.ts): 352 names
 
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
@@ -1646,6 +1654,7 @@ createElicit: dist/procedures/elicit.d.ts#createElicit
 createProcedure: dist/procedures/define.d.ts#createProcedure
 createRefScope: dist/procedures/ref.d.ts#createRefScope
 createRegistry: dist/procedures/module.d.ts#createRegistry
+decodeSegment: dist/procedures/segments.d.ts#decodeSegment
 defineModule: dist/procedures/module.d.ts#defineModule
 definePackage: dist/procedures/module.d.ts#definePackage
 defineProcedure: dist/procedures/define.d.ts#defineProcedure
@@ -1665,6 +1674,7 @@ effectsValue: dist/procedures/effects.d.ts#effectsValue
 elicitConfirmation: dist/procedures/elicit.d.ts#elicitConfirmation
 elicitInput: dist/procedures/elicit.d.ts#elicitInput
 elicitWithPolicy: dist/procedures/elicit.d.ts#elicitWithPolicy
+encodeSegment: dist/procedures/segments.d.ts#encodeSegment
 examinesNestedCall: dist/procedures/capability.d.ts#examinesNestedCall
 executeRef: dist/procedures/program.d.ts#executeRef
 explainInvocation: dist/procedures/capability.d.ts#explainInvocation
@@ -1752,6 +1762,7 @@ runProgram: dist/procedures/program.d.ts#runProgram
 runtimeProgramOf: dist/procedures/define-procedure.d.ts#runtimeProgramOf
 scopeOf: dist/procedures/ref.d.ts#scopeOf
 scopeOfNames: dist/procedures/program.d.ts#scopeOfNames
+segmentsToTopic: dist/procedures/segments.d.ts#segmentsToTopic
 selectorProblems: dist/procedures/collection/query.d.ts#selectorProblems
 shouldExecuteRef: dist/procedures/ref.d.ts#shouldExecuteRef
 stringifyProcedureJson: dist/procedures/ref.d.ts#stringifyProcedureJson
@@ -1763,6 +1774,7 @@ toolHintOverrideOf: dist/procedures/hints.d.ts#toolHintOverrideOf
 toolHintOverrideRefusal: dist/procedures/hints.d.ts#toolHintOverrideRefusal
 toolHints: dist/procedures/capability.d.ts#toolHints
 toolHintsOf: dist/procedures/hints.d.ts#toolHintsOf
+topicToSegments: dist/procedures/segments.d.ts#topicToSegments
 tryCatchProcedure: dist/procedures/core/index.d.ts#tryCatchProcedure
 typed: dist/procedures/core/schemas.d.ts#typed
 typedAnySchema: dist/procedures/core/schemas.d.ts#typedAnySchema
@@ -1795,7 +1807,7 @@ compose: dist/middleware/compose.d.ts#compose
 wrapWithAsyncMiddlewares: dist/middleware/compose.d.ts#wrapWithAsyncMiddlewares
 wrapWithSyncMiddlewares: dist/middleware/compose.d.ts#wrapWithSyncMiddlewares
 
-## ./server (dist/server/index.d.ts): 37 names
+## ./server (dist/server/index.d.ts): 41 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AmbientCredentials: dist/server/types.d.ts#AmbientCredentials
@@ -1828,12 +1840,16 @@ type StorageConfig: dist/server/procedure-server.d.ts#StorageConfig
 type StorageHandle: dist/server/procedure-server.d.ts#StorageHandle
 type UseStorageOptions: dist/server/procedure-server.d.ts#UseStorageOptions
 createProcedureServer: dist/server/procedure-server.d.ts#createProcedureServer
+decodeSegment: dist/procedures/segments.d.ts#decodeSegment
 defaultServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#defaultServerUrlStrategy
+encodeSegment: dist/procedures/segments.d.ts#encodeSegment
 isUnboundedStream: dist/server/procedure-server.d.ts#isUnboundedStream
 methodName: dist/server/method.d.ts#methodName
 methodToPath: dist/server/method.d.ts#methodToPath
 pathToMethod: dist/server/method.d.ts#pathToMethod
 rpcServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#rpcServerUrlStrategy
+segmentsToTopic: dist/procedures/segments.d.ts#segmentsToTopic
+topicToSegments: dist/procedures/segments.d.ts#topicToSegments
 
 ## ./query (dist/procedures/collection/query.d.ts): 36 names
 
@@ -5363,6 +5379,18 @@ export declare function validateSchema<T>(schema: ProcedureSchema<T>, value: unk
 
 ### dist/procedures/schema.d.ts#validateSchemaAsync
 export declare function validateSchemaAsync<T>(schema: ProcedureSchema<T>, value: unknown): Promise<SchemaResult<T>>;
+
+### dist/procedures/segments.d.ts#decodeSegment
+export declare function decodeSegment(segment: string): string;
+
+### dist/procedures/segments.d.ts#encodeSegment
+export declare function encodeSegment(segment: string): string;
+
+### dist/procedures/segments.d.ts#segmentsToTopic
+export declare function segmentsToTopic(segments: readonly string[]): string;
+
+### dist/procedures/segments.d.ts#topicToSegments
+export declare function topicToSegments(topic: string): string[];
 
 ### dist/procedures/types.d.ts#AnyProcedure
 export type AnyProcedure = Procedure<any, any, ProcedureMetadata>;

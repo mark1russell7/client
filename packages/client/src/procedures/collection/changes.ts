@@ -67,8 +67,8 @@ export { collectionChangeTopic } from "./topic.js";
  * repository of the call.
  *
  * It reads the topic with `collectionTopicTarget()`, the parse of the listener of the publisher
- * (roadmap CLI-42). With the repository, the plain topic of a dotted name, `collections.graph.nodes`,
- * reads `collection:graph.nodes`. Without it, the first dot ends the name.
+ * (roadmap CLI-42). The name in the topic is encoded (roadmap CLI-75): the topic
+ * `collections.graph%2Enodes` reads `collection:graph.nodes`. The repository is not used since CLI-75.
  */
 export function collectionTopicReads(topic: string, repository?: RepositoryProvider): readonly string[] {
   const target = collectionTopicTarget(topic, repository);

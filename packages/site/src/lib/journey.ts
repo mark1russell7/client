@@ -24,6 +24,7 @@ import {
   ProcedureServer,
   allCoreProcedures,
   defineProcedure,
+  methodToPath,
   pathToMethod,
   timeoutInterceptor,
   tracingInterceptor,
@@ -275,7 +276,7 @@ class WireTransport implements Transport {
     const transportName = this.host === "http" ? "HttpTransport" : "WebSocketTransport";
     const request =
       this.host === "http"
-        ? httpRequest([...message.method.service.split("."), message.method.operation], message.payload)
+        ? httpRequest(methodToPath(message.method), message.payload)
         : JSON.stringify({ id, type: "request", method: message.method, payload: message.payload, metadata: {}, credit: 64 }, null, 2);
     this.record({
       lane: "transport",

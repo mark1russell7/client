@@ -3,7 +3,7 @@
  * Call a procedure on a remote peer through an outbound connection
  */
 
-import { TIMEOUT_METADATA_KEY, createProcedure, pathToMethod, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
+import { TIMEOUT_METADATA_KEY, createProcedure, keyToPath, pathToMethod, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { wrapSchema } from "../schema.js";
 import { ServerCallOutputSchema } from "../output-schemas.js";
 import { serverCallInputSchema } from "../input-schemas.js";
@@ -56,9 +56,10 @@ export const serverCallProcedure: Procedure<
     output: "json",
   })
   .handler(async (input: ServerCallInput, ctx?: ProcedureContext): Promise<ServerCallOutput> => {
-    // Normalize path: accept dot-separated string or array
+    // Normalize path: accept dot-separated string or array. A segment of the string decodes
+    // `%2E` to a dot (roadmap CLI-75), as the method name of the wire does
     const pathArray = typeof input.path === "string"
-      ? input.path.split(".")
+      ? keyToPath(input.path)
       : input.path;
 
     // Resolve connection: by ID, or create one-shot from address

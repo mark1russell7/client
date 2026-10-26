@@ -22,7 +22,7 @@
  *   keyed limiter for each limit, and refuses a call above a limit with `RATE_LIMITED`.
  */
 
-import type { Capability, ClearanceOrder, ProcedurePath, ResourcesOf } from "../procedures/types.js";
+import { pathToKey, type Capability, type ClearanceOrder, type ProcedurePath, type ResourcesOf } from "../procedures/types.js";
 import type { AdmitItem, Interceptor, Invocation } from "../procedures/invoke.js";
 import { narrowCapability } from "../procedures/capability.js";
 import type { PrincipalOf, ServerRequest } from "./types.js";
@@ -53,7 +53,8 @@ export function exposePatterns(patterns: readonly string[]): (path: ProcedurePat
   }
   return (path) => {
     if (all) return true;
-    const key = path.join(".");
+    // The key encodes a dot in a segment (roadmap CLI-75), as the method name does
+    const key = pathToKey(path);
     return exact.has(key) || prefixes.some((prefix) => key.startsWith(prefix));
   };
 }
@@ -62,7 +63,7 @@ export function exposePatterns(patterns: readonly string[]): (path: ProcedurePat
 export function surfaceRule(surface: ToolSurface): (path: ProcedurePath) => boolean {
   const namespaces = new Set(surface.namespaces);
   const excluded = new Set(surface.exclude ?? []);
-  return (path) => namespaces.has(path[0] ?? "") && !excluded.has(path.join("."));
+  return (path) => namespaces.has(path[0] ?? "") && !excluded.has(pathToKey(path));
 }
 
 /** The options of `hostPolicy()`. */
@@ -162,7 +163,7 @@ function exposeOf(options: HostPolicyOptions): ((path: ProcedurePath) => boolean
           : surfaceRule(expose as ToolSurface);
   const excluded = new Set(options.exclude ?? []);
   if (excluded.size === 0) return rule;
-  return (path) => !excluded.has(path.join(".")) && (rule ? rule(path) : true);
+  return (path) => !excluded.has(pathToKey(path)) && (rule ? rule(path) : true);
 }
 
 /** This function builds the policy of a host from its options. */

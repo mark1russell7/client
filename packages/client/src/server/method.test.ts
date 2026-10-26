@@ -20,7 +20,8 @@ import { ProcedureServer } from "./procedure-server.js";
 import { ProcedureRegistry } from "../procedures/registry.js";
 import { defineProcedure } from "../procedures/define.js";
 import { outputSchema } from "../procedures/core/schemas.js";
-import { pathToMethod, methodToPath } from "./method.js";
+import { pathToMethod, methodToPath, methodName } from "./method.js";
+import { pathToKey, keyToPath } from "../procedures/types.js";
 import type { ServerResponse } from "./types.js";
 
 const PATH = ["conf", "nested", "echo"];
@@ -88,6 +89,38 @@ describe("pathToMethod and methodToPath", () => {
   it("read both encodings back to one path", () => {
     expect(methodToPath({ service: "docker.compose", operation: "up" })).toEqual(["docker", "compose", "up"]);
     expect(methodToPath({ service: "docker", operation: "compose.up" })).toEqual(["docker", "compose", "up"]);
+  });
+
+  it("keep the wire text of each plain path the same (CLI-75)", () => {
+    expect(methodName(pathToMethod(["docker", "compose", "up"]))).toBe("docker.compose.up");
+    expect(methodName(pathToMethod(["collections", "notes", "find"]))).toBe("collections.notes.find");
+    expect(pathToMethod(["collections", "notes", "find"])).toEqual({ service: "collections.notes", operation: "find" });
+    expect(methodName(pathToMethod(["morning"]))).toBe("morning");
+    expect(pathToKey(["git", "status"])).toBe("git.status");
+  });
+
+  it("encode a segment with a dot or a %, so that it comes back as one segment (CLI-75)", () => {
+    expect(pathToMethod(["collections", "e2e.tabs", "find"])).toEqual({ service: "collections.e2e%2Etabs", operation: "find" });
+    expect(methodName(pathToMethod(["collections", "e2e.tabs", "find"]))).toBe("collections.e2e%2Etabs.find");
+    expect(pathToMethod(["files", "100%", "read.all"])).toEqual({ service: "files.100%25", operation: "read%2Eall" });
+    expect(pathToKey(["collections", "e2e.tabs", "find"])).toBe("collections.e2e%2Etabs.find");
+    for (const path of [
+      ["collections", "e2e.tabs", "find"],
+      ["a.b", "c.d"],
+      ["100%", "a%2Eb", "%25"],
+      ["..", ".", "list"],
+      ["only.one"],
+      ["docker", "compose", "up"],
+    ]) {
+      expect(methodToPath(pathToMethod(path))).toEqual(path);
+      expect(keyToPath(pathToKey(path))).toEqual(path);
+    }
+  });
+
+  it("decode %2e too, and keep a raw % of an old client (CLI-75)", () => {
+    expect(methodToPath({ service: "collections.e2e%2etabs", operation: "find" })).toEqual(["collections", "e2e.tabs", "find"]);
+    expect(methodToPath({ service: "shop", operation: "50%off" })).toEqual(["shop", "50%off"]);
+    expect(keyToPath("shop.50%off")).toEqual(["shop", "50%off"]);
   });
 });
 

@@ -11,21 +11,16 @@
  * - A subscriber names the partition that it asks for in the topic, as an input does:
  *   `collections.<name>.<requested>`. The publisher resolves it in the same way and listens to the
  *   topic of the resolved partition, so a subscriber cannot name the topic of another tenant.
- * - In the topic of a partition, the name encodes `%` and `.` (`topic.ts`, roadmap CLI-42). Thus
- *   the name of a collection with partitions can have a dot.
+ * - In each topic of a collection, the name encodes `%` and `.` (`topic.ts`, roadmap CLI-42 and
+ *   CLI-75). Thus the name of a collection can have a dot, and the topic of `a.b` is not the topic
+ *   of the partition `b` of `a`.
  * - A collection without partitions refuses a call or a topic with a partition.
- * - The plain topic of a dotted name, `collections.a.b`, is also the topic of the partition `b` of
- *   `a`. Thus the server refuses a storage of `a.b` while `a` has partitions (roadmap CLI-57,
- *   decision D23).
- * - A collection `a.b` with partitions and no storage keeps its partitions next to `a`. When its
- *   resolver gives no partition, the publisher refuses a subscriber of `a.b` while `a` has
- *   partitions (roadmap CLI-70).
  */
 import type { ZodLike } from "../../client/validation/types.js";
 import { InvocationError } from "../invoke.js";
 import type { ProcedureContext } from "../types.js";
 import type { CollectionStorage } from "./storage.js";
-import { collectionChangeTopic, collectionTopicPartition } from "./topic.js";
+import { collectionChangeTopic } from "./topic.js";
 
 /** The characters of a partition: letters, digits and `_ . : @ ~ + | / -`, 256 at most. */
 export const PARTITION_PATTERN: RegExp = /^[A-Za-z0-9_.:@~+|/-]{1,256}$/;
@@ -140,9 +135,11 @@ export function storageOfCall<T>(ctx: ProcedureContext, collection: string, part
 
 /**
  * The error of a server that serves two collections with the same topic (roadmap CLI-57, decision
- * D23). The plain topic of a collection with a storage, `collections.a.b`, is also the topic of the
- * partition `b` of the partitioned collection `a`. Thus the readers of `a.b` get the events of the
- * tenant `b` of `a`. To correct it, rename the collection `a.b` to a name without the prefix `a.`.
+ * D23). Before CLI-75, the plain topic of a collection with a storage, `collections.a.b`, was also
+ * the topic of the partition `b` of the partitioned collection `a`.
+ *
+ * @deprecated Since roadmap CLI-75, each topic encodes the name of the collection, so two
+ * collections do not have the same topic. No server throws this error. A later release removes it.
  */
 export class CollectionTopicCollisionError extends Error {
   override readonly name = "CollectionTopicCollisionError";
@@ -156,86 +153,12 @@ export class CollectionTopicCollisionError extends Error {
   readonly topic: string;
 
   constructor(collection: string, partitioned: string, partition: string) {
-    super(collisionMessage(collection, partitioned, partition));
+    super(`The collection "${collection}" and the partition "${partition}" of the collection "${partitioned}" have the same topic (roadmap CLI-57)`);
     this.collection = collection;
     this.partitioned = partitioned;
     this.partition = partition;
     this.topic = collectionChangeTopic(collection);
   }
-}
-
-/** The message of a `CollectionTopicCollisionError`: the two collections, the topic and the fix. */
-function collisionMessage(collection: string, partitioned: string, partition: string): string {
-  // The plain name is the encoded name of the partitioned collection, a dot and the partition
-  const prefix = collection.slice(0, collection.length - partition.length);
-  return (
-    `The collection "${collection}" and the partition "${partition}" of the collection "${partitioned}" have the same topic "${collectionChangeTopic(collection)}", ` +
-    `so the readers of "${collection}" get the events of that partition (roadmap CLI-57). ` +
-    `Rename the collection "${collection}" to a name that does not start with "${prefix}", for example "${collection.replace(/\./g, "_")}".`
-  );
-}
-
-/**
- * This function gives the partition whose topic is the plain topic of a collection, or undefined
- * (roadmap CLI-57). The plain topic of `a.b` is `collections.a.b`, the topic of the partition `b`
- * of `a`. A name without a dot gives undefined. It uses the parse of the publisher, so the two agree.
- *
- * @example
- * ```typescript
- * partitionOfPlainTopic("a.b.c"); // { collection: "a", partition: "b.c" }
- * partitionOfPlainTopic("a%2Eb.c"); // { collection: "a.b", partition: "c" }
- * partitionOfPlainTopic("ab"); // undefined
- * ```
- */
-export function partitionOfPlainTopic(collection: string): { collection: string; partition: string } | undefined {
-  const target = collectionTopicPartition(collectionChangeTopic(collection));
-  return target?.partition === undefined ? undefined : { collection: target.collection, partition: target.partition };
-}
-
-/**
- * This function refuses two collections with the same topic (roadmap CLI-57, decision D23). It
- * examines each collection with a storage: its plain topic must not be the topic of a partition of
- * a collection with partitions. `ProcedureServer` uses it for each new storage and for each new
- * collection with partitions, in each order.
- *
- * @param plain - The collections with a storage without a partition
- * @param hasPartitions - True for a collection with partitions
- * @throws CollectionTopicCollisionError for the first pair with the same topic
- */
-export function assertTopicsApart(plain: Iterable<string>, hasPartitions: (collection: string) => boolean): void {
-  for (const collection of plain) {
-    const shared = partitionOfPlainTopic(collection);
-    if (shared && hasPartitions(shared.collection)) throw new CollectionTopicCollisionError(collection, shared.collection, shared.partition);
-  }
-}
-
-/**
- * This function gives the check of a subscriber that listens to the plain topic of a collection
- * (roadmap CLI-70, decision D23). When no partition has that topic, it gives undefined. The check
- * throws `FORBIDDEN` (reason `partition-not-allowed`) while the repository of the call gives
- * partitions to the collection of that partition.
- *
- * - The plain topic of `a.b` is also the topic of the partition `b` of `a`. Thus a subscriber of
- *   that topic gets the events of the partition `b` of `a`.
- * - `ProcedureServer` refuses a storage of `a.b` while `a` has partitions (roadmap CLI-57). A
- *   collection `a.b` with partitions and no storage passes that check. When its resolver gives no
- *   partition, a subscriber of `a.b` listens to the plain topic. This check refuses it.
- * - `EventPublisher` does the check at the start of a subscription, at each re-check and before
- *   each event. Thus partitions of `a` that come later also end the subscription.
- *
- * @param ctx - The context of the subscription: the check reads its repository each time
- * @param collection - The collection whose plain topic the subscriber listens to
- */
-export function plainTopicCheck(ctx: ProcedureContext, collection: string): (() => void) | undefined {
-  const shared = partitionOfPlainTopic(collection);
-  if (!shared) return undefined;
-  return () => {
-    if (!ctx.repository?.hasPartitions?.(shared.collection)) return;
-    throw partitionRefused(
-      ctx,
-      `The call has no partition of ${collection}, and the plain topic "${collectionChangeTopic(collection)}" is also the topic of the partition "${shared.partition}" of ${shared.collection} (roadmap CLI-70)`,
-    );
-  };
 }
 
 // The parse of a topic lives in topic.ts, with the encode (roadmap CLI-42)

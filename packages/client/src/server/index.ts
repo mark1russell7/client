@@ -44,6 +44,8 @@ export type { ServerOptions } from "./server.js";
 export { ProcedureServer, createProcedureServer, STREAM_METADATA_KEY, isUnboundedStream } from "./procedure-server.js";
 export type { ProcedureServerOptions, RegisterProcedureOptions, StorageConfig, StopOptions, StopParts, StorageHandle, UseStorageOptions } from "./procedure-server.js";
 export { pathToMethod, methodToPath, methodName } from "./method.js";
+// The escape of a segment with a dot, for a method name, a key and a topic (roadmap CLI-75)
+export { encodeSegment, decodeSegment, segmentsToTopic, topicToSegments } from "../procedures/segments.js";
 export {
   HandlerNotFoundError,
   ServerError,

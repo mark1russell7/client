@@ -335,7 +335,7 @@ for await (const event of transport.events(["orders.created", "orders.paid"], { 
 
 ### The change events of the collections
 
-Each write of the core collection procedures publishes a change event on the bus of the procedure (server stack CLI-15). The topic is `collections.<name>`.
+Each write of the core collection procedures publishes a change event on the bus of the procedure (server stack CLI-15). The topic is `collections.<name>`, and a name with `.` or `%` is encoded (roadmap CLI-75). The rules of the encoding are below.
 
 | Field | Meaning |
 |---|---|
@@ -394,35 +394,29 @@ A subscriber names a partition as an input does:
 - A subscriber thus cannot name the topic of another tenant. The events keep the topic that the subscriber named.
 - A topic with a partition of a collection without partitions is refused (`FORBIDDEN`, reason `partition-not-allowed`). A call without a repository is refused in the same way.
 
-The name of a collection with partitions can have a dot (roadmap CLI-42):
+The name of a collection can have a dot (roadmap CLI-42 and CLI-75):
 
-- In the topic of a partition, the name encodes `%` as `%25` and `.` as `%2E`. The first dot after the name thus ends the name.
+- In each topic, the name encodes `%` as `%25` and `.` as `%2E`. The first dot after the name thus ends the name.
+- The topic of `graph.nodes` without a partition is `collections.graph%2Enodes`. Before CLI-75, it was `collections.graph.nodes`.
 - The partition stays as it is, and it can have each character. The topic of the partition `acme/space` of `graph.nodes` is `collections.graph%2Enodes.acme/space`.
-- A name without `.` and `%` keeps its topic. The topic of a collection without a partition keeps the name as it is: `collections.graph.nodes`.
+- A name without `.` and `%` keeps its topics.
 - `collectionChangeTopic(name, partition)` makes a topic, and `collectionTopicPartition(topic)` reads it. Use these functions. Do not join the parts yourself.
 - Only the canonical form of a topic counts. The parse gives a collection and a partition only when `collectionChangeTopic()` gives the same topic again. Thus `collections.graph%2enodes.t1` names no collection.
-- A name with `%` or `.` gets a new topic of a partition. Upgrade the publishers and the subscribers of such a name together.
+- A name with `%` or `.` gets new topics. Upgrade the publishers and the subscribers of such a name together.
 
-The plain topic of a dotted name, `collections.a.b`, is also the topic of the partition `b` of the collection `a`. Thus a server refuses the two together (roadmap CLI-57, decision D23):
+Thus two collections do not have the same topic. Before CLI-75, the plain topic of `a.b` was `collections.a.b`, which is also the topic of the partition `b` of the collection `a`. Thus a server refused the two together (roadmap CLI-57 and CLI-70, decision D23). Since CLI-75, the plain topic of `a.b` is `collections.a%2Eb`:
 
-- `ProcedureServer` refuses a storage of `a.b` while `a` has partitions. It also refuses partitions of `a` while it has a storage of `a.b`.
-- The refusal is a `CollectionTopicCollisionError`. It names the two collections, the partition and the topic.
-- The check applies to `useStorage`, `useStorages`, the option `collections` of a host and `usePartitions`, at each time.
-- To correct it, rename the collection `a.b`, for example to `a_b`. A name without a dot has no topic of a partition.
-- The partitions of `a.b` encode its name, so a collection `a.b` with partitions next to `a` with partitions is correct.
-
-A collection `a.b` with partitions and no storage passes that check. When its resolver gives no partition, a subscriber of `a.b` listens to the plain topic `collections.a.b`. Thus the publisher examines that topic too (roadmap CLI-70, decision D23):
-
-- While `a` has partitions, the publisher refuses the subscriber with `FORBIDDEN` (reason `partition-not-allowed`). Before, the subscriber got the events of the partition `b` of `a`.
-- The publisher does the check at the start of the subscription, at each re-check and before each event. Thus partitions of `a` that come later also end an open subscription.
-- The check is in the one route from the topic of a subscriber to the topic of the bus. Thus each subscriber over HTTP, WebSocket or MCP gets it.
-- A subscriber of `a.b` whose resolver gives a partition does not change. The topic of that partition encodes the name `a.b`.
+- `ProcedureServer` accepts a storage of `a.b` next to partitions of `a`, in each order.
+- A subscriber of `a.b` gets only the events of `a.b`.
+- A subscriber of the partition `b` of `a` gets only the events of that partition.
+- No server throws `CollectionTopicCollisionError`. The export stays for one release, and it is deprecated.
+- The raw topic `collections.a.b` is the topic of the partition `b` of `a`. Thus an old subscriber of `a.b` gets `TOPIC_NOT_FOUND` under `collectionTopicRule("a.b")`.
 
 Build the topic rule of a collection with `collectionTopicRule(name)`:
 
 ```ts
 const publisher = new EventPublisher({ bus, topics: ["orders.*", ...collectionTopicRule("graph.nodes")] });
-// collectionTopicRule("graph.nodes") gives ["collections.graph.nodes", "collections.graph%2Enodes.*"]
+// collectionTopicRule("graph.nodes") gives ["collections.graph%2Enodes", "collections.graph%2Enodes.*"]
 ```
 
 - The rule has the plain topic and the pattern of the topics of the partitions. A rule that you join yourself, for example `collections.graph.nodes.*`, matches no topic of a partition of a dotted name.

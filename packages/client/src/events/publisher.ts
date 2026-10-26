@@ -31,7 +31,7 @@ import { createProcedure } from "../procedures/define.js";
 import { InvocationError, type Invocation } from "../procedures/invoke.js";
 import { capabilityRefusal } from "../procedures/capability.js";
 import { collectionChangeTopic, collectionTopicReads } from "../procedures/collection/changes.js";
-import { collectionTopicTarget, partitionOfCall, plainTopicCheck } from "../procedures/collection/partition.js";
+import { collectionTopicTarget, partitionOfCall } from "../procedures/collection/partition.js";
 import type { AnyProcedure, Capability, ProcedureContext } from "../procedures/types.js";
 import type { Principal } from "../server/types.js";
 import type { EventBus, Unsubscribe } from "./types.js";
@@ -88,10 +88,9 @@ export interface EventPublisherOptions {
    * them: `FORBIDDEN` with the reason `effects-exceeded`.
    *
    * A custom function gets only the topic. For a topic of a collection, give the read of the
-   * collection that the publisher listens to: the collection of `collectionTopicTarget(topic,
-   * repository)` with the repository of the host. A function that reads the first part of the
-   * topic alone checks `collection:a` for the dotted collection `a.b`.
-   * @default `collectionTopicReads(topic, repository)`: the read of the collection of `collectionTopicTarget()`, with the repository of the call
+   * collection that the publisher listens to: the collection of `collectionTopicPartition(topic)`.
+   * Do not split the topic on dots yourself: the name of a dotted collection is encoded (roadmap CLI-75).
+   * @default `collectionTopicReads(topic, repository)`: the read of the collection of `collectionTopicPartition()`
    */
   reads?: ((topic: string) => readonly string[]) | undefined;
   /**
@@ -474,20 +473,15 @@ export class EventPublisher {
    * the resolver of the repository gives the partition, so a subscriber cannot name the topic of
    * another tenant. A collection without partitions refuses a topic with a partition.
    *
-   * Without a partition, the topic of the bus is the plain topic of the collection. The plain topic
-   * of `a.b` is also the topic of the partition `b` of `a`. While `a` has partitions, the route
-   * refuses the subscriber, at the start, at each re-check and before each event (roadmap CLI-70,
-   * decision D23). Thus HTTP, WebSocket and MCP subscribers all get the refusal.
+   * Without a partition, the topic of the bus is the plain topic of the collection. Each topic
+   * encodes the name of the collection (roadmap CLI-75), so the plain topic of `a.b` is not the
+   * topic of the partition `b` of `a`.
    */
   private async route(topic: string, ctx: ProcedureContext): Promise<Route> {
     const target = collectionTopicTarget(topic, ctx.repository);
     if (!target) return [topic, topic];
     const partition = await partitionOfCall(ctx, target.collection, target.partition);
-    const busTopic = collectionChangeTopic(target.collection, partition);
-    const check = partition === undefined ? plainTopicCheck(ctx, target.collection) : undefined;
-    if (!check) return [topic, busTopic];
-    check();
-    return [topic, busTopic, check];
+    return [topic, collectionChangeTopic(target.collection, partition)];
   }
 
   /**

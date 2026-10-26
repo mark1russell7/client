@@ -13,7 +13,6 @@ import {
   collectionTopicPartition,
   collectionTopicTarget,
   PARTITION_PATTERN,
-  partitionOfPlainTopic,
   type CollectionPartitions,
   type PartitionResolver,
 } from "./partition.js";
@@ -357,14 +356,14 @@ describe("the subscriptions of a partitioned collection (CLI-17)", () => {
     expect(error.reason).toBe("partition-not-allowed");
   });
 
-  it("keeps the plain topic of a collection without partitions whose name has a dot", async () => {
+  it("serves the plain topic of a collection without partitions whose name has a dot, with the encoded name (CLI-75)", async () => {
     const h = host(null);
     h.server.useStorage("a.b", new MapStorage());
-    const sub = await subscribe(h, ["collections.a.b"], ann);
-    expect(sub.first).toEqual({ type: "subscribed", topics: ["collections.a.b"] });
-    h.bus.emit("collections.a.b", { changed: ["x"], deleted: [] });
+    const sub = await subscribe(h, [collectionChangeTopic("a.b")], ann);
+    expect(sub.first).toEqual({ type: "subscribed", topics: ["collections.a%2Eb"] });
+    h.bus.emit("collections.a%2Eb", { changed: ["x"], deleted: [] });
     await settle();
-    expect(sub.received.map((item) => item.topic)).toEqual(["collections.a.b"]);
+    expect(sub.received.map((item) => item.topic)).toEqual(["collections.a%2Eb"]);
     sub.stop();
   });
 
@@ -374,7 +373,7 @@ describe("the subscriptions of a partitioned collection (CLI-17)", () => {
     h.server.useStorage("a.b", new MapStorage());
     const publisher = new EventPublisher({ bus: h.bus, topics: ["collections.*"] });
     const subscribeWith = async (reads: string[]) => {
-      const output = await invokeProcedure(publisher.procedure, { topics: ["collections.a.b"] }, {
+      const output = await invokeProcedure(publisher.procedure, { topics: [collectionChangeTopic("a.b")] }, {
         bus: h.bus,
         repository: h.repository,
         principal: ann,
@@ -385,8 +384,10 @@ describe("the subscriptions of a partitioned collection (CLI-17)", () => {
     };
     const refused = await errorOf(subscribeWith(["collection:a"]));
     expect(refused.code).toBe("FORBIDDEN");
-    expect(await subscribeWith(["collection:a.b"])).toEqual({ type: "subscribed", topics: ["collections.a.b"] });
-    expect(collectionTopicTarget("collections.a.b", h.repository)).toEqual({ collection: "a.b", partition: undefined });
+    expect(await subscribeWith(["collection:a.b"])).toEqual({ type: "subscribed", topics: ["collections.a%2Eb"] });
+    expect(collectionTopicTarget("collections.a%2Eb", h.repository)).toEqual({ collection: "a.b", partition: undefined });
+    // The raw form of before CLI-75 is the topic of the partition b of a
+    expect(collectionTopicTarget("collections.a.b", h.repository)).toEqual({ collection: "a", partition: "b" });
     expect(collectionTopicTarget("collections.a.x", h.repository)).toEqual({ collection: "a", partition: "x" });
     expect(collectionTopicTarget("orders.x", h.repository)).toBeUndefined();
   });
@@ -445,15 +446,15 @@ describe("the partitions of a collection whose name has a dot (CLI-42)", () => {
   it("gives a subscriber of the plain topic and of an encoded topic the events of its own partition", async () => {
     const h = host(byTenant, {}, "graph.nodes");
     // The plain topic asks for no partition: the resolver gives the tenant of the principal
-    const plain = await subscribeTo(h, ["collections.graph.nodes"], ann);
-    expect(plain.first).toEqual({ type: "subscribed", topics: ["collections.graph.nodes"] });
+    const plain = await subscribeTo(h, [collectionChangeTopic("graph.nodes")], ann);
+    expect(plain.first).toEqual({ type: "subscribed", topics: ["collections.graph%2Enodes"] });
     // The encoded topic asks for the partition "board.x/y": a partition with a dot and a slash
     const scoped = await subscribeTo(h, [collectionChangeTopic("graph.nodes", "board.x/y")], ann);
     await h.run("set", { id: "b", value: 1 }, bob);
     await h.run("set", { id: "a", value: 1 }, ann);
     await h.run("set", { id: "s", value: 1, partition: "board.x/y" }, ann);
     await settle();
-    expect(plain.received.map((item) => item.topic)).toEqual(["collections.graph.nodes"]);
+    expect(plain.received.map((item) => item.topic)).toEqual(["collections.graph%2Enodes"]);
     expect(scoped.received.map((item) => item.topic)).toEqual(["collections.graph%2Enodes.board.x/y"]);
     plain.stop();
     scoped.stop();
@@ -471,17 +472,17 @@ describe("the partitions of a collection whose name has a dot (CLI-42)", () => {
   it("serves the plain topic and the encoded topics of a dotted name under the rule of collectionTopicRule()", async () => {
     const h = host(byTenant, {}, "graph.nodes");
     const rule = collectionTopicRule("graph.nodes");
-    const plain = await subscribeTo(h, ["collections.graph.nodes"], ann, undefined, rule);
+    const plain = await subscribeTo(h, [collectionChangeTopic("graph.nodes")], ann, undefined, rule);
     const scoped = await subscribeTo(h, [collectionChangeTopic("graph.nodes", "board")], ann, undefined, rule);
-    expect(plain.first).toEqual({ type: "subscribed", topics: ["collections.graph.nodes"] });
+    expect(plain.first).toEqual({ type: "subscribed", topics: ["collections.graph%2Enodes"] });
     expect(scoped.first).toEqual({ type: "subscribed", topics: ["collections.graph%2Enodes.board"] });
     await h.run("set", { id: "s", value: 1, partition: "board" }, ann);
     await settle();
     expect(scoped.received.map((item) => item.topic)).toEqual(["collections.graph%2Enodes.board"]);
     plain.stop();
     scoped.stop();
-    // The rule of the old form, the unencoded form and an alias of an escape are not topics of the host
-    for (const topic of ["collections.graph.nodes.board", "collections.graph%2enodes.board"]) {
+    // The raw plain topic of before CLI-75, the unencoded form and an alias of an escape are not topics of the host
+    for (const topic of ["collections.graph.nodes", "collections.graph.nodes.board", "collections.graph%2enodes.board", "collections.graph%2enodes"]) {
       expect((await errorOf(subscribeTo(h, [topic], ann, undefined, rule))).code, topic).toBe("TOPIC_NOT_FOUND");
     }
     expect((await errorOf(subscribeTo(h, [collectionChangeTopic("graph.nodes", "board")], ann, undefined, ["collections.graph.nodes.*"]))).code).toBe("TOPIC_NOT_FOUND");
@@ -495,164 +496,9 @@ describe("the partitions of a collection whose name has a dot (CLI-42)", () => {
   });
 });
 
-describe("a plain collection and a partition of another collection (CLI-57, D23)", () => {
-  /** The partitions of a collection: a storage for each partition, and the resolver of the tenant. */
-  function partitions(): CollectionPartitions<unknown> {
-    const storages = new Map<string, MapStorage>();
-    return {
-      storageOf: (partition) => {
-        let storage = storages.get(partition);
-        if (!storage) storages.set(partition, (storage = new MapStorage()));
-        return storage;
-      },
-      resolve: byTenant,
-    };
-  }
-  /** The error of a registration that the server refuses. */
-  function refusal(register: () => unknown): CollectionTopicCollisionError {
-    try {
-      register();
-    } catch (error) {
-      expect(error).toBeInstanceOf(CollectionTopicCollisionError);
-      return error as CollectionTopicCollisionError;
-    }
-    throw new Error("the server did not refuse the registration");
-  }
-  const server = (): ProcedureServer => new ProcedureServer({ autoRegister: false });
-
-  it("gives the partition whose topic is the plain topic of a collection", () => {
-    expect(partitionOfPlainTopic("a.b")).toEqual({ collection: "a", partition: "b" });
-    expect(partitionOfPlainTopic("a.b.c")).toEqual({ collection: "a", partition: "b.c" });
-    expect(partitionOfPlainTopic("a%2Eb.c")).toEqual({ collection: "a.b", partition: "c" });
-    // No dot, an empty part, or an escape that is not canonical: no partition has that topic
-    for (const name of ["ab", "notes", "a.", ".a", "a%2eb.c", "100%"]) expect(partitionOfPlainTopic(name), name).toBeUndefined();
-    // The partition has the same topic as the collection
-    for (const name of ["a.b", "a.b.c", "a%2Eb.c", "graph.nodes"]) {
-      const shared = partitionOfPlainTopic(name)!;
-      expect(collectionChangeTopic(shared.collection, shared.partition)).toBe(collectionChangeTopic(name));
-    }
-  });
-
-  it("refuses a storage of a.b while a has partitions, with an error that names the two collections and the fix", () => {
-    const s = server();
-    s.usePartitions("a", partitions());
-    const error = refusal(() => s.useStorage("a.b", new MapStorage()));
-    expect(error.name).toBe("CollectionTopicCollisionError");
-    expect(error).toMatchObject({ collection: "a.b", partitioned: "a", partition: "b", topic: "collections.a.b" });
-    expect(error.topic).toBe(collectionChangeTopic("a", "b"));
-    expect(error.message).toContain('The collection "a.b" and the partition "b" of the collection "a" have the same topic "collections.a.b"');
-    expect(error.message).toContain('Rename the collection "a.b" to a name that does not start with "a.", for example "a_b"');
-    // The server does not serve the refused storage, and keeps the partitions
-    expect(s.hasCollection("a.b")).toBe(false);
-    expect(s.hasPartitions("a")).toBe(true);
-  });
-
-  it("refuses partitions of a while the server has a storage of a.b: the other order", () => {
-    const s = server();
-    s.useStorage("a.b", new MapStorage());
-    const error = refusal(() => s.usePartitions("a", partitions()));
-    expect(error).toMatchObject({ collection: "a.b", partitioned: "a", partition: "b", topic: "collections.a.b" });
-    expect(s.hasPartitions("a")).toBe(false);
-    expect(s.hasCollection("a")).toBe(false);
-    expect(s.hasCollection("a.b")).toBe(true);
-  });
-
-  it("checks each way to give a storage, also at different times on one server", async () => {
-    // The option collections of the constructor, and partitions later
-    const early = new ProcedureServer({ autoRegister: false, collections: { "a.b": new MapStorage() } });
-    expect(refusal(() => early.usePartitions("a", partitions()))).toMatchObject({ collection: "a.b", partitioned: "a" });
-    const s = server();
-    s.usePartitions("a", partitions());
-    // useStorages examines each name before it sets a storage: a refused name sets none
-    expect(refusal(() => s.useStorages({ notes: new MapStorage(), "a.b": new MapStorage() }))).toMatchObject({ collection: "a.b" });
-    expect(s.hasCollection("notes")).toBe(false);
-    // useStorage with options rejects before the flush
-    await expect(s.useStorage("a.b", new MapStorage(), { drain: true, close: true })).rejects.toBeInstanceOf(CollectionTopicCollisionError);
-    expect(s.hasCollection("a.b")).toBe(false);
-    // Later registrations of other collections, and then the pair again
-    s.useStorage("notes", new MapStorage());
-    s.usePartitions("tasks", partitions());
-    expect(refusal(() => s.useStorage("tasks.t1", new MapStorage()))).toMatchObject({ collection: "tasks.t1", partitioned: "tasks", partition: "t1" });
-    s.useStorage("archive", new MapStorage());
-    s.useStorage("archive.old", new MapStorage());
-    expect(refusal(() => s.usePartitions("archive", partitions()))).toMatchObject({ collection: "archive.old", partitioned: "archive" });
-    expect(s.hasPartitions("archive")).toBe(false);
-  });
-
-  it("refuses each storage whose plain topic is the topic of a partition: a deeper name, an encoded name, a partitioned name", () => {
-    // a.b.c has the topic of the partition b.c of a
-    const deep = server();
-    deep.usePartitions("a", partitions());
-    expect(refusal(() => deep.useStorage("a.b.c", new MapStorage()))).toMatchObject({ collection: "a.b.c", partitioned: "a", partition: "b.c" });
-    const deepFirst = server();
-    deepFirst.useStorage("a.b.c", new MapStorage());
-    expect(refusal(() => deepFirst.usePartitions("a", partitions()))).toMatchObject({ collection: "a.b.c", partitioned: "a", partition: "b.c" });
-    // a%2Eb.c has the topic of the partition c of the dotted collection a.b
-    const encoded = server();
-    encoded.usePartitions("a.b", partitions());
-    expect(refusal(() => encoded.useStorage("a%2Eb.c", new MapStorage()))).toMatchObject({ collection: "a%2Eb.c", partitioned: "a.b", partition: "c", topic: collectionChangeTopic("a.b", "c") });
-    // A storage of the partitioned a.b, for the calls without a partition, publishes on collections.a.b too
-    const both = server();
-    both.usePartitions("a.b", partitions());
-    both.usePartitions("a", partitions());
-    expect(refusal(() => both.useStorage("a.b", new MapStorage()))).toMatchObject({ collection: "a.b", partitioned: "a", partition: "b" });
-  });
-
-  it("serves a plain dotted name without a partitioned prefix", () => {
-    const s = server();
-    // a has a storage and no partitions
-    s.useStorage("a", new MapStorage());
-    s.useStorage("a.b", new MapStorage());
-    s.useStorages({ "graph.nodes": new MapStorage(), "x.y.z": new MapStorage() });
-    s.usePartitions("notes", partitions());
-    // The partitions of a.b encode the name, so a.b.c and the partition c of a.b have different topics
-    s.usePartitions("a.b", partitions());
-    s.useStorage("a.b.c", new MapStorage());
-    expect(collectionChangeTopic("a.b.c")).not.toBe(collectionChangeTopic("a.b", "c"));
-    for (const name of ["a", "a.b", "graph.nodes", "x.y.z", "notes", "a.b.c"]) expect(s.hasCollection(name), name).toBe(true);
-  });
-
-  it("serves a partitioned a next to a plain ab: a name without a dot has no topic of a partition", async () => {
-    const s = server();
-    s.usePartitions("a", partitions());
-    s.useStorage("ab", new MapStorage());
-    s.useStorage("a_b", new MapStorage());
-    await s.useStorage("ab", new MapStorage(), { drain: true });
-    const later = server();
-    later.useStorages({ ab: new MapStorage(), "b.a": new MapStorage() });
-    later.usePartitions("a", partitions());
-    expect(later.hasPartitions("a")).toBe(true);
-    expect(later.hasCollection("ab")).toBe(true);
-  });
-
-  it("serves two collections with partitions, also a and a.b: the topics of the partitions of a.b encode its name", () => {
-    const s = server();
-    s.usePartitions("notes", partitions());
-    s.usePartitions("tasks", partitions());
-    s.usePartitions("a", partitions());
-    s.usePartitions("a.b", partitions());
-    const reverse = server();
-    reverse.usePartitions("a.b", partitions());
-    reverse.usePartitions("a", partitions());
-    for (const name of ["notes", "tasks", "a", "a.b"]) expect(s.hasPartitions(name), name).toBe(true);
-    expect(reverse.hasPartitions("a") && reverse.hasPartitions("a.b")).toBe(true);
-    expect(collectionChangeTopic("a.b", "t1")).toBe("collections.a%2Eb.t1");
-    expect(collectionChangeTopic("a.b", "t1")).not.toBe(collectionChangeTopic("a", "b.t1"));
-  });
-});
-
-describe("a collection a.b with partitions and no storage next to a with partitions (CLI-70, D23)", () => {
-  /** The error of a refused subscription, or of the end of one. */
-  type Refusal = Error & { code?: string; reason?: string };
-  /** The tenant b: the partition b of a is its partition, with the topic collections.a.b. */
-  const cat: Principal = { id: "cat", via: "test", claims: { tenant: "b" } };
-  /** The plain topic of a.b. It is also the topic of the partition b of a. */
-  const shared = "collections.a.b";
-  /** No partition: a.b has no storage, so its calls fail, and no event of a.b goes to its plain topic. */
-  const noPartition: PartitionResolver = () => undefined;
-
-  /** The partitions of a collection with a resolver: a storage for each partition. */
-  function partitionsWith(resolve: PartitionResolver): CollectionPartitions<unknown> {
+describe("a plain dotted collection next to a partition of another collection (CLI-75)", () => {
+  /** The partitions of a collection: a storage for each partition, and a resolver. */
+  function partitions(resolve: PartitionResolver = byTenant): CollectionPartitions<unknown> {
     const storages = new Map<string, MapStorage>();
     return {
       storageOf: (partition) => {
@@ -663,137 +509,68 @@ describe("a collection a.b with partitions and no storage next to a with partiti
       resolve,
     };
   }
-
-  /**
-   * A server with the collections of the order: a gets partitions by tenant, and a.b gets
-   * partitions with the resolver of a.b (by default no partition). Neither has a storage. A
-   * listener of the bus records the events of the shared topic.
-   */
-  function setup(order: ReadonlyArray<"a" | "a.b">, resolveAB: PartitionResolver = noPartition) {
-    const server = new ProcedureServer({ autoRegister: false });
-    const register = (name: "a" | "a.b"): void => {
-      server.usePartitions(name, partitionsWith(name === "a" ? byTenant : resolveAB));
-    };
-    for (const name of order) register(name);
-    const bus = createEventBus();
-    const repository = repositoryOf(server);
-    const publisher = new EventPublisher({ bus, topics: ["collections.*"] });
-    const set = createCollectionProcedures("a").find((procedure) => procedure.path[2] === "set")!;
-    /** A write to a: the tenant of the principal is the partition. */
-    const write = async (id: string, principal: Principal): Promise<void> => {
-      outputValue(await invokeProcedure(set, { id, value: id }, { repository, bus, principal }), set.path);
-    };
-    const onBus: unknown[] = [];
-    bus.on(shared, (data) => void onBus.push(data));
-    return { server, register, bus, repository, publisher, write, onBus };
-  }
-
-  /** A subscription of a principal: its confirmation or its refusal, its events, and the error that ends it. */
-  async function subscribe(h: ReturnType<typeof setup>, topics: string[], principal: Principal) {
-    const controller = new AbortController();
-    const received: Array<Extract<EventItem, { type: "event" }>> = [];
-    const result: { first?: EventItem; refusal?: Refusal; end?: Refusal; received: typeof received; stop: () => void } = { received, stop: () => controller.abort() };
-    try {
-      const output = await invokeProcedure(h.publisher.procedure, { topics }, { bus: h.bus, repository: h.repository, signal: controller.signal, principal });
-      if (output.kind !== "stream") throw new Error("events.subscribe gives a stream");
-      const items = output.items as AsyncGenerator<EventItem, void, undefined>;
-      result.first = (await items.next()).value as EventItem;
-      void (async () => {
-        for await (const item of items) if (item.type === "event") received.push(item);
-      })().catch((error: unknown) => {
-        result.end = error as Refusal;
-      });
-    } catch (error) {
-      result.refusal = error as Refusal;
-    }
-    return result;
-  }
+  const server = (): ProcedureServer => new ProcedureServer({ autoRegister: false });
+  /** The tenant b: the partition b of a has the topic collections.a.b. */
+  const cat: Principal = { id: "cat", via: "test", claims: { tenant: "b" } };
   /** A few turns of the event loop: each event on the bus reaches the loop of its subscriber. */
   const settle = async () => {
     for (let turn = 0; turn < 5; turn++) await new Promise((resolve) => setImmediate(resolve));
   };
 
-  it("refuses a subscriber of a.b whose resolver gives no partition, in each order: it never gets an event of the partition b of a", async () => {
-    // The plain topic of a.b and the topic of the partition b of a are the same topic
-    expect(collectionChangeTopic("a.b")).toBe(shared);
-    expect(collectionChangeTopic("a", "b")).toBe(shared);
+  it("gives the plain topic of a.b and the topic of the partition b of a two different topics", () => {
+    expect(collectionChangeTopic("a.b")).toBe("collections.a%2Eb");
+    expect(collectionChangeTopic("a", "b")).toBe("collections.a.b");
+    expect(collectionChangeTopic("a.b.c")).not.toBe(collectionChangeTopic("a", "b.c"));
+    expect(collectionChangeTopic("a.b.c")).not.toBe(collectionChangeTopic("a.b", "c"));
+    expect(collectionTopicPartition(collectionChangeTopic("a.b"))).toEqual({ collection: "a.b", partition: undefined });
+    // The error of CLI-57 stays as a deprecated export, and no server throws it
+    expect(new CollectionTopicCollisionError("a.b", "a", "b").topic).toBe("collections.a%2Eb");
+  });
+
+  it("accepts a storage of a.b and partitions of a in each order and in each way to give a storage", async () => {
+    const first = server();
+    first.usePartitions("a", partitions());
+    first.useStorage("a.b", new MapStorage());
+    first.useStorages({ "a.b.c": new MapStorage(), "tasks.t1": new MapStorage() });
+    await first.useStorage("a.x", new MapStorage(), { drain: true, close: true });
+    const later = new ProcedureServer({ autoRegister: false, collections: { "a.b": new MapStorage() } });
+    later.usePartitions("a", partitions());
+    later.usePartitions("a.b", partitions());
+    for (const name of ["a.b", "a.b.c", "tasks.t1", "a.x"]) expect(first.hasCollection(name), name).toBe(true);
+    expect(first.hasPartitions("a")).toBe(true);
+    expect(later.hasCollection("a.b") && later.hasPartitions("a") && later.hasPartitions("a.b")).toBe(true);
+  });
+
+  it("gives a subscriber of the plain topic of a.b the events of a.b only, and never an event of the partition b of a", async () => {
     for (const order of [["a", "a.b"], ["a.b", "a"]] as const) {
       const label = order.join(" then ");
-      const h = setup(order);
-      expect(h.server.hasPartitions("a") && h.server.hasPartitions("a.b"), label).toBe(true);
-      expect(() => h.server.getStorage("a.b"), label).toThrow(/not configured/);
-      // Ann (tenant t1) subscribes to a.b. Its resolver gives no partition, so the topic of the bus is the plain topic
-      const sub = await subscribe(h, [shared], ann);
-      // Cat (tenant b) writes to its partition b of a
-      await h.write("x", cat);
+      const s = server();
+      for (const name of order) {
+        if (name === "a") s.usePartitions("a", partitions());
+        else s.useStorage("a.b", new MapStorage());
+      }
+      const bus = createEventBus();
+      const repository = repositoryOf(s);
+      const publisher = new EventPublisher({ bus, topics: ["collections.*"] });
+      const controller = new AbortController();
+      const output = await invokeProcedure(publisher.procedure, { topics: [collectionChangeTopic("a.b")] }, { bus, repository, signal: controller.signal, principal: ann });
+      if (output.kind !== "stream") throw new Error("events.subscribe gives a stream");
+      const items = output.items as AsyncGenerator<EventItem, void, undefined>;
+      expect((await items.next()).value, label).toEqual({ type: "subscribed", topics: ["collections.a%2Eb"] });
+      const received: Array<Extract<EventItem, { type: "event" }>> = [];
+      void (async () => {
+        for await (const item of items) if (item.type === "event") received.push(item);
+      })().catch(() => undefined);
+      const onPartition: unknown[] = [];
+      bus.on("collections.a.b", (data) => void onPartition.push(data));
+      const setOf = (name: string) => createCollectionProcedures(name).find((procedure) => procedure.path[2] === "set")!;
+      // Cat (tenant b) writes to its partition b of a, and Ann writes to a.b
+      outputValue(await invokeProcedure(setOf("a"), { id: "x", value: 1 }, { repository, bus, principal: cat }), setOf("a").path);
+      outputValue(await invokeProcedure(setOf("a.b"), { id: "y", value: 2 }, { repository, bus, principal: ann }), setOf("a.b").path);
       await settle();
-      expect(h.onBus, label).toHaveLength(1);
-      expect(sub.received, label).toEqual([]);
-      expect(sub.first, label).toBeUndefined();
-      expect(sub.refusal, label).toMatchObject({ code: "FORBIDDEN", reason: "partition-not-allowed" });
-      expect(sub.refusal?.message, label).toContain('"collections.a.b" is also the topic of the partition "b" of a');
-      sub.stop();
+      expect(onPartition, label).toHaveLength(1);
+      expect(received.map((item) => item.topic), label).toEqual(["collections.a%2Eb"]);
+      controller.abort();
     }
   });
-
-  it("refuses the whole call when one of its topics is the plain topic of a.b", async () => {
-    const h = setup(["a", "a.b"]);
-    const sub = await subscribe(h, ["collections.a", shared], ann);
-    await h.write("x", cat);
-    await settle();
-    expect(sub.received).toEqual([]);
-    expect(sub.refusal).toMatchObject({ code: "FORBIDDEN", reason: "partition-not-allowed" });
-    expect(h.publisher.subscriptions).toBe(0);
-  });
-
-  it("keeps each subscriber that cannot get the events of another collection", async () => {
-    const h = setup(["a", "a.b"]);
-    // Cat subscribes to a: the resolver of a gives the partition b, so cat gets the events of its own partition
-    const own = await subscribe(h, ["collections.a"], cat);
-    expect(own.first).toEqual({ type: "subscribed", topics: ["collections.a"] });
-    await h.write("x", cat);
-    await settle();
-    expect(own.received.map((item) => item.topic)).toEqual(["collections.a"]);
-    own.stop();
-    // A resolver of a.b that gives a partition: the topic of that partition encodes the name a.b
-    const scoped = setup(["a", "a.b"], byTenant);
-    const sub = await subscribe(scoped, [shared], ann);
-    expect(sub.first).toEqual({ type: "subscribed", topics: [shared] });
-    await scoped.write("x", cat);
-    await settle();
-    expect(scoped.onBus).toHaveLength(1);
-    expect(sub.received).toEqual([]);
-    sub.stop();
-    // Without partitions of a, the plain topic of a.b is not the topic of a partition
-    const alone = setup(["a.b"]);
-    alone.server.useStorage("a", new MapStorage());
-    const plain = await subscribe(alone, [shared], ann);
-    expect(plain.first).toEqual({ type: "subscribed", topics: [shared] });
-    plain.stop();
-  });
-
-  it("ends an open subscriber of a.b when a gets partitions later: at a re-check and at the next event", async () => {
-    const h = setup(["a.b"]);
-    // Before a has partitions, the plain topic of a.b is the topic of no partition
-    const byEvent = await subscribe(h, [shared], ann);
-    const byRecheck = await subscribe(h, [shared], bob);
-    expect(byEvent.first).toEqual({ type: "subscribed", topics: [shared] });
-    expect(byRecheck.first).toEqual({ type: "subscribed", topics: [shared] });
-    // The server accepts the partitions of a: a and a.b both have partitions (CLI-57)
-    h.register("a");
-    // A re-check of the subscriptions of Bob refuses the topic
-    await h.publisher.rightsChanged("bob");
-    await settle();
-    expect(byRecheck.end).toMatchObject({ code: "FORBIDDEN", reason: "partition-not-allowed" });
-    expect(h.publisher.subscriptions).toBe(1);
-    // The first event of the partition b of a ends the other subscription, and the subscriber does not get it
-    await h.write("x", cat);
-    await settle();
-    expect(h.onBus).toHaveLength(1);
-    expect(byEvent.received).toEqual([]);
-    expect(byEvent.end).toMatchObject({ code: "FORBIDDEN", reason: "partition-not-allowed" });
-    expect(h.publisher.subscriptions).toBe(0);
-    expect(byRecheck.received).toEqual([]);
-  });
 });
-
