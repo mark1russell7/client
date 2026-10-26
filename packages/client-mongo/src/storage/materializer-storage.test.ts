@@ -443,6 +443,192 @@ withMongo("ViewMaterializer with a target in a stored form", { timeout: TEST_TIM
       await own.close();
     }
   }, LOCK_WAIT_MS + 30_000);
+
+  it("reads a function of storageTargets at each run: a target named after the construction gets the storage path", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const db = newDb();
+    // The app names its targets at run time
+    const named = new Map<string, MongoDocumentStorage<Document>>();
+    let calls = 0;
+    const { views, logs } = materializer(db, {
+      storageTargets: (collection) => {
+        calls++;
+        const storage = named.get(collection);
+        // A new entry object at each call: the materializer keeps the storage that it made for the same form
+        return storage ? { target: storage } : undefined;
+      },
+    });
+    try {
+      await db.collection("items").insertMany([
+        { _id: "1" as never, _part: "t1", kind: "a", n: 1 },
+        { _id: "2" as never, _part: "t1", kind: "b", n: 2 },
+      ]);
+      named.set("sums", new MongoDocumentStorage<Document>({ collection: "sums", db: () => db }));
+      await db.collection("_aggregations").insertOne(sumsView() as never);
+      await views.start();
+      const sums = named.get("sums")!.forPartition("t1");
+      await eventually(async () =>
+        expect(new Map(await sums.getEntries())).toEqual(
+          new Map([
+            ["a", { _id: "a", total: 1 }],
+            ["b", { _id: "b", total: 2 }],
+          ])
+        )
+      );
+      // A target named after the start, with a new view
+      named.set("copies", new MongoDocumentStorage<Document>({ collection: "copies", db: () => db }));
+      await db.collection("_aggregations").insertOne({ _id: "copy", _part: "t1", collections: ["items"], pipeline: [{ $match: { kind: "a" } }, { $project: { _id: "$kind", n: 1 } }], targetCollection: "copies" } as never);
+      await eventually(async () => expect(await named.get("copies")!.forPartition("t1").get("a")).toEqual({ _id: "a", n: 1 }));
+      const raw = await db.collection("copies").findOne({ _id: "t1\u001fa" as never });
+      expect(raw).toMatchObject({ _key: "a", _part: "t1", _ord: raw!["_seq"] });
+      expect(raw).not.toHaveProperty("_viewGen");
+      expect(calls).toBeGreaterThan(1);
+      expect(logs.filter((line) => line.startsWith("error"))).toEqual([]);
+    } finally {
+      await views.stop();
+    }
+  });
+
+  it("gives a row with an _id that is not a text a stable id: a $group with _id null and a number key write and read back", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const db = newDb();
+    const totals = new MongoDocumentStorage<Document>({ collection: "totals", db: () => db });
+    const counts = new MongoDocumentStorage<Document>({ collection: "counts", db: () => db });
+    const { views, logs } = materializer(db, { storageTargets: { totals, counts } });
+    try {
+      await db.collection("items").insertMany([1, 2, 2].map((n, index) => ({ _id: String(index) as never, _part: "t1", n })));
+      await db.collection("_aggregations").insertMany([
+        { _id: "total", _part: "t1", collections: ["items"], pipeline: [{ $group: { _id: null, total: { $sum: "$n" } } }], targetCollection: "totals" },
+        { _id: "byN", _part: "t1", collections: ["items"], pipeline: [{ $group: { _id: "$n", count: { $sum: 1 } } }], targetCollection: "counts" },
+      ] as never[]);
+      await views.start();
+      const total = totals.forPartition("t1");
+      const count = counts.forPartition("t1");
+      await eventually(async () => expect(await total.getEntries()).toEqual([["null", { _id: "null", total: 5 }]]));
+      await eventually(async () =>
+        expect(new Map(await count.getEntries())).toEqual(
+          new Map([
+            ["1", { _id: "1", count: 1 }],
+            ["2", { _id: "2", count: 2 }],
+          ])
+        )
+      );
+      // A later run gives the rows the same ids: the row changes in place
+      await db.collection("items").insertOne({ _id: "3" as never, _part: "t1", n: 2 });
+      await eventually(async () => expect(await total.getEntries()).toEqual([["null", { _id: "null", total: 7 }]]));
+      await eventually(async () => expect(await count.get("2")).toEqual({ _id: "2", count: 3 }));
+      expect(await db.collection("totals").countDocuments({})).toBe(1);
+      expect(await db.collection("counts").countDocuments({ _tomb: true })).toBe(0);
+      expect((await statusOf(db, "total"))?.["state"]).toBe("ok");
+      expect((await statusOf(db, "byN"))?.["state"]).toBe("ok");
+      expect(logs.filter((line) => line.startsWith("error"))).toEqual([]);
+    } finally {
+      await views.stop();
+    }
+  });
+
+  it("refuses a second view of the same partition of a storage target: that view has an error, and the first one keeps its rows", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const db = newDb();
+    const sums = new MongoDocumentStorage<Document>({ collection: "sums", db: () => db });
+    const { views } = materializer(db, { storageTargets: { sums } });
+    try {
+      await db.collection("items").insertMany([
+        { _id: "1" as never, _part: "t1", kind: "a", n: 1 },
+        { _id: "2" as never, _part: "t1", kind: "a", n: 2 },
+      ]);
+      await db.collection("_aggregations").insertMany([sumsView(), sumsView({ _id: "counts", pipeline: [{ $group: { _id: "$kind", count: { $sum: 1 } } }] })] as never[]);
+      await views.start();
+      let winner = "";
+      await eventually(async () => {
+        const states = { sums: await statusOf(db, "sums"), counts: await statusOf(db, "counts") };
+        const errored = Object.entries(states).filter(([, status]) => status?.["state"] === "errored");
+        expect(errored).toHaveLength(1);
+        expect(String(errored[0]![1]!["lastError"])).toContain("one view writes a partition of a storage target");
+        const ok = Object.entries(states).filter(([, status]) => status?.["state"] === "ok");
+        expect(ok).toHaveLength(1);
+        winner = ok[0]![0];
+      });
+      const expected = winner === "sums" ? { _id: "a", total: 3 } : { _id: "a", count: 2 };
+      const t1 = sums.forPartition("t1");
+      expect(await t1.getEntries()).toEqual([["a", expected]]);
+      // A source change runs both views again: the rows stay the rows of the first view
+      await db.collection("items").insertOne({ _id: "3" as never, _part: "t1", kind: "a", n: 4 });
+      const next = winner === "sums" ? { _id: "a", total: 7 } : { _id: "a", count: 3 };
+      await eventually(async () => expect(await t1.getEntries()).toEqual([["a", next]]));
+      expect(await db.collection("sums").countDocuments({ _tomb: true })).toBe(0);
+    } finally {
+      await views.stop();
+    }
+  });
+
+  it("ends consistent when the adoption of a raw write races a run: no lost row, no loop, and the late adoption loses on _seq", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    await lockFailpoints(context);
+    if (!(await hasFailpoints())) return context.skip?.("the failpoints need a server with enableTestCommands");
+    const admin = client!.db("admin");
+    const db = newDb();
+    // The watcher has its own client, so the failpoint blocks only its adoption
+    const watcherClient = new MongoClient(url!, { appName: "views-storage-adopt" });
+    await watcherClient.connect();
+    const sums = new MongoDocumentStorage<Document>({ collection: "sums", db: () => db });
+    const watched = new MongoDocumentStorage<Document>({ collection: "sums", db: () => watcherClient.db(db.databaseName) });
+    const { views, logs } = materializer(db, { storageTargets: { sums } });
+    const hints: CollectionChangeEvent[] = [];
+    const watch = watchStorageChanges(watched, (_topic, event) => void hints.push(event), { rawWrites: "adopt", ownWrites: "skip", log: () => undefined });
+    const reader = sums.forPartition("t1");
+    try {
+      await watch.ready;
+      await db.collection("items").insertMany([
+        { _id: "1" as never, _part: "t1", kind: "a", n: 1 },
+        { _id: "2" as never, _part: "t1", kind: "b", n: 2 },
+      ]);
+      await db.collection("_aggregations").insertOne(sumsView() as never);
+      await views.start();
+      await eventually(async () => expect(await reader.getIds()).toHaveLength(2));
+      const before = (await reader.getChangesSince()).version;
+      // The next update of the watcher (a step of its adoption) waits 5 s
+      const configured = (await admin.command({
+        configureFailPoint: "failCommand",
+        mode: { times: 1 },
+        data: { failCommands: ["update"], appName: "views-storage-adopt", blockConnection: true, blockTimeMS: 5000 },
+      })) as { count?: number };
+      // A raw write in the target: it keeps the `_seq` of the document, so the watcher adopts it
+      await db.collection("sums").updateOne({ _id: "t1\u001fa" as never }, { $set: { total: 999 } });
+      await admin.command({ waitForFailPoint: "failCommand", timesEntered: (configured.count ?? 0) + 1, maxTimeMS: 10_000 });
+      const blockedAt = Date.now();
+      // A run while the adoption waits: it writes the row again, with a new `_seq`
+      await db.collection("items").updateOne({ _id: "1" as never }, { $set: { n: 5 } });
+      await eventually(async () => expect(await reader.get("a")).toEqual({ _id: "a", total: 5 }));
+      const written = (await db.collection("sums").findOne({ _id: "t1\u001fa" as never }))!["_seq"] as number;
+      // After the block, the adoption writes on the state of the raw write: that state is gone, so it loses
+      await sleep(Math.max(0, blockedAt + 6000 - Date.now()));
+      // No loop: the numbers of the collection stop
+      await eventually(async () => {
+        const seq = await seqOf(db, "sums");
+        await sleep(300);
+        expect(await seqOf(db, "sums")).toBe(seq);
+      });
+      expect(await db.collection("sums").findOne({ _id: "t1\u001fa" as never })).toMatchObject({ _seq: written, total: 5 });
+      // No lost row: the target is the result of the view, and the delta has the write of the run
+      expect(new Map(await reader.getEntries())).toEqual(
+        new Map([
+          ["a", { _id: "a", total: 5 }],
+          ["b", { _id: "b", total: 2 }],
+        ])
+      );
+      expect(new Map((await reader.getChangesSince(before)).changed).get("a")).toEqual({ _id: "a", total: 5 });
+      // The watcher published the write of the run with its version
+      const version = await reader.versionOf("a");
+      await eventually(() => expect(hints.some((event) => event.versions?.some((entry) => entry.id === "a" && entry.version === version))).toBe(true));
+      expect(logs.filter((line) => line.startsWith("error"))).toEqual([]);
+    } finally {
+      await admin.command({ configureFailPoint: "failCommand", mode: "off" });
+      await watch.stop();
+      await views.stop();
+      await watcherClient.close();
+    }
+  }, LOCK_WAIT_MS + 30_000);
 });
 
 withMongo("ViewMaterializer hints of a target not in a stored form", { timeout: TEST_TIMEOUT_MS }, () => {

@@ -165,8 +165,19 @@ export interface ViewMaterializerOptions {
    * `MongoDocumentStorage` with the same form, and `changes(since)` and `watchStorageChanges()`
    * have each write of a run. See `ViewStorageTarget` for the rules. Give the same targets to each
    * materializer of the views.
+   *
+   * A function gives the entry of a target collection at each run, or undefined for a target that
+   * is not in a stored form: an app can name its targets at run time. The materializer keeps the
+   * storage that it makes for a collection while the entry gives the same form, counters,
+   * `writeLease` and `maxTombstones`. An error of the function is an error of the view.
    */
-  storageTargets?: Readonly<Record<string, AnyDocumentStorage | StoredForm | ViewStorageTarget>> | undefined;
+  storageTargets?: Readonly<Record<string, ViewStorageTargetEntry>> | ((collection: string) => ViewStorageTargetEntry | undefined) | undefined;
+  /**
+   * The id of a row of a target in a stored form, from the `_id` of the row in the result. It must
+   * give a text, and give the same text for the same `_id` at each run.
+   * @default `defaultStorageRowId`: a text as it is, another value as its relaxed Extended JSON text
+   */
+  storageRowIdOf?: ((id: unknown) => string) | undefined;
   /**
    * The publisher of the hints of the targets that are not in `storageTargets`, for example the bus
    * of the procedures. After each run that changes rows, the materializer publishes one hint with
@@ -191,6 +202,9 @@ export interface ViewMaterializerOptions {
  */
 type AnyDocumentStorage = MongoDocumentStorage<any>;
 
+/** An entry of `storageTargets`: the storage of a target, its stored form, or a `ViewStorageTarget`. */
+export type ViewStorageTargetEntry = AnyDocumentStorage | StoredForm | ViewStorageTarget;
+
 /**
  * A target of `storageTargets` (roadmap CLI-81).
  *
@@ -198,16 +212,21 @@ type AnyDocumentStorage = MongoDocumentStorage<any>;
  *   fields of the form, and `_kid`, `_kpf` or `_json` as a write of the storage makes them. The
  *   materializer encodes each row from its own content: the fields of a storage in a row (for
  *   example of a source document that the pipeline passes through) do not go into the target.
- * - The `_id` of a row is its id. It must be a text without the character U+001F, and two rows of
- *   a result must not have the same `_id`.
+ * - The id of a row is `storageRowIdOf(_id)`: by default the `_id` of the row when it is a text,
+ *   else its relaxed Extended JSON text (`null` gives `"null"`, `5` gives `"5"`, an ObjectId gives
+ *   `{"$oid":"…"}`). The item has that id as its `_id`. Two rows of a result must not have the
+ *   same id.
  * - A row also gets the partition field of the materializer with the partition of the view, so a
  *   view that reads the target finds it. When that field is a partition field of the form, the
  *   form must give it the partition of the view.
  * - A run takes the numbers of its writes from the sequence of the storage, and a late run moves
  *   to new numbers, as a write of the storage does. A removed row becomes a tombstone, and the
  *   prune of the tombstones raises the floor of the change log.
- * - The materializer keeps each partition of the target equal to the result of the view: one view
- *   writes a partition of the target, and only the materializer writes it.
+ * - A partition of the storage holds only the rows of one view. The run makes a tombstone of each
+ *   other live document in that partition. The materializer refuses a second view of the same
+ *   target collection and partition of the storage: that view has an error.
+ * - The materializer gives the target no images before the change. Turn on
+ *   `changeStreamPreAndPostImages` on the target when raw hard deletes can occur.
  * - The rows have no generation, so `viewFilter()` and a `MongoViewStorage` do not read them.
  */
 export interface ViewStorageTarget {
@@ -283,12 +302,32 @@ export function defaultRowId(storedId: unknown): unknown {
   return typeof storedId === "object" && storedId !== null && "id" in storedId ? (storedId as { id: unknown }).id : storedId;
 }
 
+/**
+ * The id of a row of a target in a stored form, from the `_id` of the row in the result: a text as
+ * it is, another value as its relaxed Extended JSON text. The text of a value is the same at each
+ * run (the order of the fields of an object is the order of the result). A row without `_id` has
+ * no id.
+ */
+export function defaultStorageRowId(id: unknown): string {
+  if (typeof id === "string") return id;
+  if (id === undefined) throw new TypeError("the row has no _id");
+  return BSON.EJSON.stringify(id as Document, { relaxed: true });
+}
+
 /** The hash of a stored document without its numbers (`_seq` and `_ord`): two documents with the same content give the same hash. */
 function contentHash(doc: Document): string {
   const { _seq: _number, _ord: _place, ...rest } = doc;
   return createHash("sha1")
     .update(canonical(BSON.EJSON.serialize(rest, { relaxed: false })))
     .digest("hex");
+}
+
+/** The values of a target in a stored form that make its storage. */
+interface StorageTargetValues {
+  readonly form: StoredForm;
+  readonly counters: string | undefined;
+  readonly writeLeaseMs: number | undefined;
+  readonly maxTombstones: number | undefined;
 }
 
 /** A target of `storageTargets`, ready to write: a storage on the database of the materializer. */
@@ -399,7 +438,11 @@ export class ViewMaterializer {
   private readonly graceMs: number;
   private readonly leaseMs: number;
   private readonly storageSources: ReadonlyMap<string, ViewStorageSource>;
-  private readonly storageTargets: ReadonlyMap<string, StorageTargetEntry>;
+  /** The storages that the materializer made for the targets in a stored form, by collection, with the values that made them. */
+  private readonly storageTargetCache = new Map<string, StorageTargetValues & { storage: MongoDocumentStorage<unknown> }>();
+  /** The partition of a storage target that each running view writes (by the key of the view), so a second view of it is refused. */
+  private readonly storageClaims = new Map<string, { claim: string; view: string; partition: string }>();
+  private readonly storageRowIdOf: (id: unknown) => string;
   private readonly rowIdOf: (storedId: unknown) => unknown;
   /** False after `stopIntake()`: a change starts no pass. */
   private intake = false;
@@ -431,7 +474,12 @@ export class ViewMaterializer {
         return [source, normal];
       })
     );
-    this.storageTargets = new Map(Object.entries(options.storageTargets ?? {}).map(([collection, entry]) => [collection, this.storageTargetOf(collection, entry)]));
+    // A record of targets is examined at once: a wrong entry is an error of the options
+    const targets = options.storageTargets;
+    if (targets !== undefined && typeof targets !== "function") {
+      for (const [collection, entry] of Object.entries(targets)) this.storageTargetOf(collection, entry);
+    }
+    this.storageRowIdOf = options.storageRowIdOf ?? defaultStorageRowId;
     this.rowIdOf = options.rowIdOf ?? defaultRowId;
   }
 
@@ -440,33 +488,49 @@ export class ViewMaterializer {
    * and the transaction of a run use one client. A given storage gives its form, its counters,
    * `writeLease` and `maxTombstones`.
    */
-  private storageTargetOf(collection: string, entry: AnyDocumentStorage | StoredForm | ViewStorageTarget): StorageTargetEntry {
+  private storageTargetOf(collection: string, entry: ViewStorageTargetEntry): StorageTargetEntry {
     const wrapped = typeof entry === "object" && entry !== null && "target" in entry ? entry : { target: entry };
     const storagePartitionOf = wrapped.storagePartitionOf ?? ((partition: string): string | undefined => partition);
     if (typeof storagePartitionOf !== "function") throw new TypeError(`The storage target ${collection} needs a function storagePartitionOf`);
+    const target = wrapped.target;
+    let values: StorageTargetValues;
+    if (target instanceof MongoDocumentStorage) {
+      const parts = storageWriteTarget(target);
+      if (parts.collection !== collection) throw new TypeError(`The storage target ${collection} has a storage of the collection ${parts.collection}`);
+      values = { form: parts.form, counters: parts.counters, writeLeaseMs: parts.writeLeaseMs, maxTombstones: parts.maxTombstones };
+    } else if (typeof target === "object" && target !== null && typeof (target as Partial<StoredForm>).storedId === "function") {
+      values = { form: target as StoredForm, counters: undefined, writeLeaseMs: undefined, maxTombstones: undefined };
+    } else {
+      throw new TypeError(`The storage target ${collection} needs a MongoDocumentStorage, a stored form or a ViewStorageTarget`);
+    }
+    // The same values give the storage of the last run: its partitions keep their state (the floor document of O66)
+    const cached = this.storageTargetCache.get(collection);
+    if (cached && cached.form === values.form && cached.counters === values.counters && cached.writeLeaseMs === values.writeLeaseMs && cached.maxTombstones === values.maxTombstones) {
+      return { storage: cached.storage, storagePartitionOf };
+    }
     const db = (): Db => {
       if (!this.db) throw new Error("The materializer has not started");
       return this.db;
     };
-    const target = wrapped.target;
-    if (target instanceof MongoDocumentStorage) {
-      const parts = storageWriteTarget(target);
-      if (parts.collection !== collection) throw new TypeError(`The storage target ${collection} has a storage of the collection ${parts.collection}`);
-      const storage = new MongoDocumentStorage<unknown>({
-        collection,
-        db,
-        form: parts.form,
-        counters: parts.counters,
-        writeLease: ms(parts.writeLeaseMs),
-        maxTombstones: parts.maxTombstones,
-        transactions: "never",
-      });
-      return { storage, storagePartitionOf };
-    }
-    if (typeof target !== "object" || target === null || typeof (target as Partial<StoredForm>).storedId !== "function") {
-      throw new TypeError(`The storage target ${collection} needs a MongoDocumentStorage, a stored form or a ViewStorageTarget`);
-    }
-    return { storage: new MongoDocumentStorage<unknown>({ collection, db, form: target as StoredForm, transactions: "never" }), storagePartitionOf };
+    const storage = new MongoDocumentStorage<unknown>({
+      collection,
+      db,
+      form: values.form,
+      transactions: "never",
+      ...(values.counters !== undefined ? { counters: values.counters } : {}),
+      ...(values.writeLeaseMs !== undefined ? { writeLease: ms(values.writeLeaseMs) } : {}),
+      ...(values.maxTombstones !== undefined ? { maxTombstones: values.maxTombstones } : {}),
+    });
+    this.storageTargetCache.set(collection, { ...values, storage });
+    return { storage, storagePartitionOf };
+  }
+
+  /** The target in a stored form of a collection at this time, or undefined. The function of `storageTargets` runs at each call. */
+  private storageTargetFor(collection: string): StorageTargetEntry | undefined {
+    const targets = this.options.storageTargets;
+    if (targets === undefined) return undefined;
+    const entry = typeof targets === "function" ? targets(collection) : Object.hasOwn(targets, collection) ? targets[collection] : undefined;
+    return entry === undefined || entry === null ? undefined : this.storageTargetOf(collection, entry);
   }
 
   private log(level: "info" | "warn" | "error", message: string): void {
@@ -684,7 +748,13 @@ export class ViewMaterializer {
       .createIndex({ [this.partitionField]: 1, [VIEW_GENERATION_FIELD]: 1 })
       .catch((error: unknown) => this.log("error", `the index of ${view.targetCollection} failed: ${String((error as Error)?.message ?? error)}`));
     // A target in a stored form also has the indexes of the storage: the change reads, the order and the tombstones
-    const storageTarget = this.storageTargets.get(view.targetCollection);
+    let storageTarget: StorageTargetEntry | undefined;
+    try {
+      storageTarget = this.storageTargetFor(view.targetCollection);
+    } catch (error) {
+      // The run of the view gives the error to its status
+      this.log("error", `the storage target ${view.targetCollection}: ${String((error as Error)?.message ?? error)}`);
+    }
     if (storageTarget) {
       await storageWriteTarget(storageTarget.storage)
         .ready()
@@ -698,6 +768,7 @@ export class ViewMaterializer {
     if (!view) return;
     for (const stream of view.streams) stream.close().catch(() => undefined);
     this.running.delete(key);
+    this.storageClaims.delete(key);
   }
 
   /**
@@ -997,15 +1068,31 @@ export class ViewMaterializer {
    * another value than the partition of the view, are an error of the view.
    */
   private targetPartition(view: MaterializedView, partition: string): TargetPartition | undefined {
-    const entry = this.storageTargets.get(view.targetCollection);
+    let entry: StorageTargetEntry | undefined;
+    try {
+      entry = this.storageTargetFor(view.targetCollection);
+    } catch (error) {
+      throw new ViewRunError(`the storage target ${view.targetCollection}: ${String((error as Error)?.message ?? error)}`);
+    }
     if (!entry) return undefined;
     let writer: StorageWriteTarget;
+    let storagePartition: string | undefined;
     try {
-      const storagePartition = entry.storagePartitionOf(partition);
+      storagePartition = entry.storagePartitionOf(partition);
       writer = storageWriteTarget(storagePartition === undefined ? entry.storage : entry.storage.forPartition(storagePartition));
     } catch (error) {
       throw new ViewRunError(`the partition of the storage ${view.targetCollection}: ${String((error as Error)?.message ?? error)}`);
     }
+    // One view writes a partition of a storage target: its run makes a tombstone of each other document of it
+    const claim = JSON.stringify([view.targetCollection, storagePartition ?? null]);
+    const key = this.keyOf(partition, view._id);
+    for (const [other, held] of this.storageClaims) {
+      if (other !== key && held.claim === claim && this.running.has(other)) {
+        const place = storagePartition === undefined ? "the storage" : `the partition ${storagePartition} of the storage`;
+        throw new ViewRunError(`the view ${held.view} (partition ${held.partition}) writes ${place} ${view.targetCollection} already: one view writes a partition of a storage target`);
+      }
+    }
+    this.storageClaims.set(key, { claim, view: view._id, partition });
     const field = this.partitionField;
     if (writer.partitionFields.has(field) && !isDeepStrictEqual(writer.partitionFields.get(field), partition)) {
       throw new ViewRunError(`the stored form of ${view.targetCollection} gives the field ${field} another value than the partition ${partition}`);
@@ -1123,8 +1210,14 @@ export class ViewMaterializer {
    * The numbers (`_seq`, `_ord`) come at the write.
    */
   private storageRowOf(row: Document, partition: string, storage: TargetPartition): StoredRow {
-    const { _id, [VIEW_GENERATION_FIELD]: _generation, [VIEW_HASH_FIELD]: _hash, ...content } = row;
-    if (typeof _id !== "string") throw new ViewRunError(`each row of a target in a stored form needs a text _id, not ${BSON.EJSON.stringify({ _id } as Document)}`);
+    const { _id: rowId, [VIEW_GENERATION_FIELD]: _generation, [VIEW_HASH_FIELD]: _hash, ...content } = row;
+    let _id: string;
+    try {
+      _id = this.storageRowIdOf(rowId);
+    } catch (error) {
+      throw new ViewRunError(`the id of a row of a target in a stored form: ${String((error as Error)?.message ?? error)}`);
+    }
+    if (typeof _id !== "string") throw new ViewRunError(`storageRowIdOf must give a text, not ${typeof _id}`);
     const field = this.partitionField;
     delete content[field];
     for (const name of DOCUMENT_STORAGE_FIELDS) delete content[name];

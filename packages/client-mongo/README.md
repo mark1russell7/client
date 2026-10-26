@@ -810,15 +810,21 @@ const views = new ViewMaterializer({ db: () => db, storageTargets: { orderTotals
 const changes = await totals.forPartition("t1").getChangesSince(version);
 ```
 
+> **Warning:** A storage target partition must hold only the rows of this one view. The run makes a tombstone of each other live document in that partition. The materializer refuses a second view of the same target collection and partition of the storage: that view gets the state `errored`.
+>
+> **Warning:** A target collection gets no images before the change from the materializer. Turn on `changeStreamPreAndPostImages` on the target if raw hard deletes can occur.
+
+`storageTargets` can also be a function, `(collection) => entry | undefined`, when the app names its targets at run time. The materializer uses it at each run. It keeps the storage that it made for a collection while the entry gives the same form, counters, `writeLease` and `maxTombstones`.
+
 - The materializer encodes each row as a write of the storage does. A row gets `_key`, `_seq`, `_ord` and the partition fields of the form. It also gets `_kid`, `_kpf` or `_json` when it needs them. The fields of a storage in a row (for example of a source document that the pipeline passes through) do not go into the target. Thus `_json` comes from the content of the row, and each row has its own `_key`, also after `$unwind`, `$lookup` or `$unionWith`.
-- The `_id` of a row is its id: a text without the character U+001F. Two rows of a result must not have the same `_id`.
+- The id of a row is `storageRowIdOf(_id)`. The default `defaultStorageRowId` keeps a text `_id` as it is. Another value gets its relaxed Extended JSON text: `null` gives `"null"`, `5` gives `"5"`, and an ObjectId gives `{"$oid":"…"}`. Thus a `$group` with `_id: null` or a number key works, and a row keeps its id at each run. The item has that id as its `_id`. Two rows of a result must not have the same id.
 - Each row also gets the partition field of the materializer with the partition of the view, so a view that reads the target finds it. When that field is a partition field of the form, the form must give it the partition of the view. `storagePartitionOf` gives the partition of the storage from the partition of the view (default the same partition).
 - A run compares each row with its stored document, without the numbers. A row that did not change writes nothing, and a tombstone is not written again. A row keeps the place (`_ord`) of its stored document.
 - A run takes the numbers of its writes from the sequence of the storage, as pending numbers. It writes with them in its transaction, and ends them after the commit. A late run (its numbers left their `writeLease`) moves to new numbers, so a reader of `changes(since)` misses no row. The transaction does not write the counters, so the writes of the storage do not conflict with it.
 - The materializer does not note its numbers as writes of this process. Thus a watcher of the target with `ownWrites: "skip"` publishes a hint for each write of a run, with its version. It has no raw write to adopt.
 - A row that the result does not have becomes a tombstone. The prune of the tombstones (`maxTombstones`) raises the floor of the change log. Thus a reader that is far behind gets a full result, and it misses no delete. A document of the partition that tells no id becomes a tombstone without `_key`.
 - A run that writes more than `maxTransactionRows` rows writes in place in groups, under its lease. A run also writes in groups when the target has more than `maxTransactionRows` live rows at its start, or when its transaction fails. A reader can then read a part of the run.
-- One view writes each partition of a target, and only the materializer writes it. A document of the partition that the result does not have becomes a tombstone. The rows have no generation, so `viewFilter()` and `MongoViewStorage` do not read them. Give the same `storageTargets` to each materializer of the views.
+- The rows have no generation, so `viewFilter()` and `MongoViewStorage` do not read them. Give the same `storageTargets` to each materializer of the views.
 
 To serve a view through the collection procedures, give its storage `new MongoViewStorage({ view: "totals", db })` (roadmap CLI-38):
 
