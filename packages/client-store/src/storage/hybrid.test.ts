@@ -145,6 +145,135 @@ describe("write-through failures (R2)", () => {
   });
 });
 
+const forbidden = (): Error => Object.assign(new Error("not allowed"), { code: "FORBIDDEN" });
+
+/** A remote that refuses each write of the ids in `refused`. */
+class PickyRemote extends FlakyRemote {
+  readonly refused = new Set<string>();
+  private guard(ids: string[]): void {
+    if (ids.some((id) => this.refused.has(id))) throw forbidden();
+  }
+  override async set(id: string, value: Item) { this.guard([id]); return super.set(id, value); }
+  override async delete(id: string) { this.guard([id]); return super.delete(id); }
+  override async setBatch(items: Array<[string, Item]>) { this.guard(items.map(([id]) => id)); return super.setBatch(items); }
+  override async deleteBatch(ids: string[]) { this.guard(ids); return super.deleteBatch(ids); }
+}
+
+describe("a queued write that the remote refuses leaves the queue (O67)", () => {
+  it("sends the next writes, restores the remote value and calls onRefused", async () => {
+    const remote = new PickyRemote();
+    await remote.data.set("bad", { n: 0 });
+    const onRefused = vi.fn();
+    const hybrid = new HybridStorage<Item>(remote, { syncOnInit: false, writeStrategy: "write-back", syncInterval: ms(0), onRefused });
+    remote.refused.add("bad");
+    await hybrid.set("bad", { n: 9 });
+    await hybrid.set("b", { n: 2 });
+    await hybrid.flush();
+    expect(hybrid.getPendingOpsCount()).toBe(0);
+    expect(await remote.data.get("b")).toEqual({ n: 2 });
+    expect(await remote.data.get("bad")).toEqual({ n: 0 });
+    expect(await hybrid.get("bad")).toEqual({ n: 0 });
+    expect(onRefused).toHaveBeenCalledTimes(1);
+    const refusal = onRefused.mock.calls[0]![0];
+    expect(refusal).toMatchObject({ ids: ["bad"], restored: true, operation: { type: "set" } });
+    expect((refusal.error as { code?: string }).code).toBe("FORBIDDEN");
+    await hybrid.close();
+  });
+
+  it("restores an item whose queued delete the remote refuses", async () => {
+    const remote = new PickyRemote();
+    await remote.data.set("a", { n: 1 });
+    const hybrid = new HybridStorage<Item>(remote, { writeStrategy: "write-back", syncInterval: ms(0) });
+    expect(await hybrid.get("a")).toEqual({ n: 1 });
+    remote.refused.add("a");
+    await hybrid.delete("a");
+    expect(await hybrid.get("a")).toBeUndefined();
+    await hybrid.flush();
+    expect(hybrid.getPendingOpsCount()).toBe(0);
+    expect(await hybrid.get("a")).toEqual({ n: 1 });
+    await hybrid.close();
+  });
+
+  it("keeps a write that the remote cannot take now, and calls no hook", async () => {
+    const remote = new PickyRemote();
+    const onRefused = vi.fn();
+    const hybrid = new HybridStorage<Item>(remote, { syncOnInit: false, writeStrategy: "write-back", syncInterval: ms(0), onRefused });
+    await hybrid.set("a", { n: 1 });
+    remote.down = true;
+    await expect(hybrid.flush()).rejects.toThrow("the remote is down");
+    expect(hybrid.getPendingOpsCount()).toBe(1);
+    expect(onRefused).not.toHaveBeenCalled();
+    remote.down = false;
+    await hybrid.flush();
+    expect(await remote.data.get("a")).toEqual({ n: 1 });
+    await hybrid.close();
+  });
+
+  it("keeps a write after an error that is not a refusal, such as a timeout", async () => {
+    const remote = new FlakyRemote();
+    const onRefused = vi.fn();
+    const hybrid = new HybridStorage<Item>(remote, { syncOnInit: false, writeStrategy: "write-back", syncInterval: ms(0), onRefused });
+    await hybrid.set("a", { n: 1 });
+    const set = remote.set.bind(remote);
+    remote.set = () => Promise.reject(Object.assign(new Error("timed out"), { code: "TIMEOUT", retryable: false }));
+    await expect(hybrid.flush()).rejects.toThrow("timed out");
+    expect(hybrid.getPendingOpsCount()).toBe(1);
+    expect(onRefused).not.toHaveBeenCalled();
+    remote.set = set;
+    await hybrid.flush();
+    expect(await remote.data.get("a")).toEqual({ n: 1 });
+    await hybrid.close();
+  });
+
+  it("takes the refusals from isRefusal", async () => {
+    const remote = new FlakyRemote();
+    const isRefusal = (error: unknown): boolean => (error as { code?: string }).code === "UNAUTHORIZED";
+    const hybrid = new HybridStorage<Item>(remote, { syncOnInit: false, writeStrategy: "write-back", syncInterval: ms(0), isRefusal });
+    await hybrid.set("a", { n: 1 });
+    remote.set = () => Promise.reject(Object.assign(new Error("no token"), { code: "UNAUTHORIZED" }));
+    await hybrid.flush();
+    expect(hybrid.getPendingOpsCount()).toBe(0);
+    expect(await hybrid.get("a")).toBeUndefined();
+    await hybrid.close();
+  });
+
+  it("goes on when the hook fails", async () => {
+    const remote = new PickyRemote();
+    const hybrid = new HybridStorage<Item>(remote, {
+      syncOnInit: false,
+      writeStrategy: "write-back",
+      syncInterval: ms(0),
+      onRefused: () => {
+        throw new Error("the hook failed");
+      },
+    });
+    remote.refused.add("bad");
+    await hybrid.set("bad", { n: 9 });
+    await hybrid.set("b", { n: 2 });
+    await hybrid.flush();
+    expect(hybrid.getPendingOpsCount()).toBe(0);
+    expect(await remote.data.get("b")).toEqual({ n: 2 });
+    expect(await hybrid.get("bad")).toBeUndefined();
+    await hybrid.close();
+  });
+
+  it("does not fail a new write-through after an older queued write that the remote refuses", async () => {
+    const remote = new PickyRemote();
+    const onRefused = vi.fn();
+    const hybrid = new HybridStorage<Item>(remote, { syncOnInit: false, syncInterval: ms(0), onRefused });
+    remote.down = true;
+    await expect(hybrid.set("bad", { n: 9 })).rejects.toBeInstanceOf(PendingWriteError);
+    remote.down = false;
+    remote.refused.add("bad");
+    await hybrid.set("ok", { n: 1 });
+    expect(hybrid.getPendingOpsCount()).toBe(0);
+    expect(await remote.data.get("ok")).toEqual({ n: 1 });
+    expect(await hybrid.get("bad")).toBeUndefined();
+    expect(onRefused).toHaveBeenCalledTimes(1);
+    await hybrid.close();
+  });
+});
+
 describe("the reads wait for the first sync (R2)", () => {
   it("gives the remote items to a read right after the construction", async () => {
     const remote = new FlakyRemote();
