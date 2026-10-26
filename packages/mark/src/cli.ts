@@ -22,6 +22,7 @@ import { connectCliServer } from "./client-mode.js";
 import type { ColdCommand, CommandRun } from "./command.js";
 import { startRepl } from "./repl.js";
 import { findChildren, findProcedure, parseCommandLine, parseLeadingGlobals } from "./args.js";
+import { groupHelp, rootHelp, validationMessage } from "@procedures/cli-kit";
 import { failureOf } from "./failure.js";
 
 /** The version of this package. This file is `dist/cli.js` (or `src/cli.ts` in the tests): the package.json is one folder up. */
@@ -51,19 +52,6 @@ function fail(message: string, hint?: string): void {
 }
 
 /**
- * The message of a validation error: one line for each issue of a Zod error
- */
-function validationMessage(error: unknown): string {
-  const issues = (error as { issues?: Array<{ path?: unknown[]; message?: string }> }).issues;
-  if (Array.isArray(issues) && issues.length > 0) {
-    return issues
-      .map((issue) => `${(issue.path ?? []).join(".") || "input"}: ${issue.message ?? "invalid"}`)
-      .join("\n  ");
-  }
-  return error instanceof Error ? error.message : String(error);
-}
-
-/**
  * Show help for a path (either a command or a group). Returns false for an unknown path.
  */
 function showHelp(procedures: readonly CommandLike[], path: string[]): boolean {
@@ -77,33 +65,9 @@ function showHelp(procedures: readonly CommandLike[], path: string[]): boolean {
   }
 
   // Show help for group
-  const children = findChildren(procedures, path);
-  if (children.length > 0) {
-    const groupName = path.join(" ");
-    print.info(`${groupName} commands:\n`);
-
-    // Direct children only
-    const directChildren = children.filter((p) => p.path.length === path.length + 1);
-    for (const child of directChildren) {
-      const meta = (child.metadata ?? {}) as CLIMeta;
-      const cmdName = child.path[child.path.length - 1] ?? "";
-      const desc = meta.description ?? "";
-      print.info(`  mark ${groupName} ${cmdName}  ${desc}`);
-    }
-
-    // Child groups
-    const childGroups = new Set<string>();
-    for (const child of children) {
-      if (child.path.length > path.length + 1) {
-        const groupSeg = child.path[path.length];
-        if (groupSeg) childGroups.add(groupSeg);
-      }
-    }
-    for (const group of childGroups) {
-      print.info(`  mark ${groupName} ${group}  ${group} commands`);
-    }
-
-    print.info(`\nRun 'mark ${groupName} <command> --help' for more info.`);
+  const group = groupHelp("mark", procedures, path);
+  if (group) {
+    for (const line of group) print.info(line);
     return true;
   }
 
@@ -116,36 +80,18 @@ function showHelp(procedures: readonly CommandLike[], path: string[]): boolean {
  * Show root help
  */
 function showRootHelp(procedures: readonly CommandLike[]): void {
-  print.info(`mark v${VERSION} - Development workflow automation\n`);
-  print.info("Commands:\n");
-
-  // Group by first path segment
-  const groups = new Map<string, CommandLike[]>();
-  for (const proc of procedures) {
-    const group = proc.path[0] ?? "other";
-    if (!groups.has(group)) {
-      groups.set(group, []);
-    }
-    groups.get(group)!.push(proc);
-  }
-
-  for (const [group, procs] of groups) {
-    print.info(`  ${group}`);
-    for (const proc of procs) {
-      const meta = (proc.metadata ?? {}) as CLIMeta;
-      const cmdPath = proc.path.join(" ");
-      const desc = meta.description ?? "";
-      print.info(`    mark ${cmdPath}  ${desc}`);
-    }
-    print.info("");
-  }
-
-  print.info("Run 'mark <command> --help' for more information.");
-  print.info("Hosts: 'mark serve [--procedures pkgs] [--port N] [--expose patterns] [--events topics]' (the procedure server),");
-  print.info("       'mark mcp' (the dev-tools MCP server over stdio).");
-  print.info("Modes: 'mark --server [--port N] [--host H] [--transport http|websocket|both] [--events topics] [--probe-port N]' and 'mark -i' (the REPL).");
-  print.info("Root:  'mark --fs-root <folder> <command>' keeps each path of each procedure in the folder, also in each mode and host.");
-  print.info("       It refuses the procedures that it cannot confine: git, pnpm, docker run, a program (FORBIDDEN, outside-root).");
+  const lines = rootHelp(procedures, {
+    name: "mark",
+    title: `mark v${VERSION} - Development workflow automation`,
+    footer: [
+      "Hosts: 'mark serve [--procedures pkgs] [--port N] [--expose patterns] [--events topics]' (the procedure server),",
+      "       'mark mcp' (the dev-tools MCP server over stdio).",
+      "Modes: 'mark --server [--port N] [--host H] [--transport http|websocket|both] [--events topics] [--probe-port N]' and 'mark -i' (the REPL).",
+      "Root:  'mark --fs-root <folder> <command>' keeps each path of each procedure in the folder, also in each mode and host.",
+      "       It refuses the procedures that it cannot confine: git, pnpm, docker run, a program (FORBIDDEN, outside-root).",
+    ],
+  });
+  for (const line of lines) print.info(line);
 }
 
 /** The global flags that only `--server` takes. */

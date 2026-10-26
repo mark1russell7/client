@@ -39,6 +39,8 @@
     "packages/client-mcp/README.md",
     "packages/better-auth/README.md",
     "packages/access/README.md",
+    "packages/cli-kit/README.md",
+    "packages/cli-kit/src/cli.ts",
     "packages/signaldb/README.md",
     "packages/signaldb/src/**/*.ts"
   ],
