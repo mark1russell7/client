@@ -26,28 +26,34 @@ beforeAll(async () => {
 
 const dbs: Db[] = [];
 
-/** The longest wait for the lock of the failpoint. */
+/** The longest wait for the lock of the failpoint. A lock that is older is stale: a waiter takes it. */
 const LOCK_WAIT_MS = 45_000;
 
 /**
  * The failpoint `failCommand` and the server parameters are global to the server, and the test files
  * run at the same time. This lock (a document in a shared database) lets one test of a failpoint run
- * at a time. It ends with the test.
+ * at a time. It ends with the test. A run that stopped while it held the lock leaves a stale lock:
+ * after LOCK_WAIT_MS, a waiter takes it.
  */
 async function lockFailpoints(context: TestContext): Promise<void> {
-  const locks = client!.db("client_mongo_test_locks").collection<{ _id: string }>("locks");
+  const locks = client!.db("client_mongo_test_locks").collection<{ _id: string; at: Date }>("locks");
   const until = Date.now() + LOCK_WAIT_MS;
+  let at = new Date();
   for (;;) {
+    at = new Date();
     try {
-      await locks.insertOne({ _id: "failCommand" });
+      await locks.insertOne({ _id: "failCommand", at });
       break;
     } catch (error) {
       if ((error as { code?: unknown }).code !== 11000 || Date.now() > until) throw error;
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // A stale lock: its test ended long ago without a release
+      const stale = await locks.deleteOne({ _id: "failCommand", at: { $lt: new Date(Date.now() - LOCK_WAIT_MS) } });
+      if (stale.deletedCount === 0) await new Promise((resolve) => setTimeout(resolve, 100));
     }
   }
   context.onTestFinished(async () => {
-    await locks.deleteOne({ _id: "failCommand" });
+    // Only this lock: a waiter may have taken it as stale
+    await locks.deleteOne({ _id: "failCommand", at });
   });
 }
 

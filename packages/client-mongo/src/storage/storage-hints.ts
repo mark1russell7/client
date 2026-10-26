@@ -125,7 +125,10 @@ export interface WatchStorageChangesOptions {
    * More partitions for the hint of a gap. The host gives the partitions that its subscribers
    * subscribed to, when the publisher cannot tell them (a function, or a bus without
    * `channels()`). The watcher adds the plain topic, the partitions of the counters and of
-   * `forPartition()`, the partitions of the hints, and the subscribed topics of the bus.
+   * `forPartition()`, the partitions of the hints, and the subscribed topics of the bus. A
+   * partition of the counters has a floor document only after a prune. For a complete gap, give
+   * `gapPartitions`. Otherwise a partition gets a gap hint only after a prune, a write that this
+   * watcher saw, or an open forPartition() storage here.
    */
   gapPartitions?: (() => Iterable<string | undefined>) | undefined;
   /**
