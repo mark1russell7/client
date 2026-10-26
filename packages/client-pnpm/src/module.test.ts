@@ -1,17 +1,14 @@
 /**
  * Each procedure of the module through a registry with the fake shell of `@procedures/shell/testing`,
- * the lookup of pnpm on each platform, and `pnpm.store.path` with a fake `execSync`.
+ * the lookup of pnpm on each platform, and `pnpm.store.path` with the same fake shell.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { createRegistry, invokePath, outputValue, type ProcedurePath } from "@procedures/client";
 import { fakeShell, type FakeShell } from "@procedures/shell/testing";
-
-const execSync = vi.hoisted(() => vi.fn());
-vi.mock("node:child_process", async (importOriginal) => ({ ...(await importOriginal<object>()), execSync }));
 
 const { pnpmModule, registerPnpmProcedures } = await import("./module.js");
 const { resolvePnpm } = await import("./procedures/pnpm/shared.js");
@@ -30,7 +27,6 @@ afterEach(() => {
   restore("PATH", saved.path);
   for (const [name, value] of savedEnv) restore(name, value);
   Object.defineProperty(process, "platform", platform);
-  execSync.mockReset();
 });
 
 function setPlatform(value: string): void {
@@ -140,23 +136,47 @@ describe("resolvePnpm", () => {
 });
 
 describe("pnpm.store.path", () => {
-  const registry = createRegistry(pnpmModule);
+  let shell: FakeShell;
+  let script: string;
+
+  beforeEach(() => {
+    script = join(tempDir(), "pnpm.cjs");
+    writeFileSync(script, "");
+    process.env["npm_execpath"] = script;
+    // By default pnpm fails, so the procedure gives the default of the platform
+    shell = fakeShell({ exitCode: 1, stderr: "pnpm is not installed" });
+  });
 
   async function storePath(input: object = {}): Promise<{ path: string; exists: boolean; platform: string }> {
+    const registry = createRegistry(shell.module, pnpmModule);
     return (await outputValue(await invokePath(["pnpm", "store", "path"], input, { registry }))) as { path: string; exists: boolean; platform: string };
   }
 
-  it("gives the path that pnpm prints", async () => {
+  it("gives the path that pnpm prints, from argv through shell.run", async () => {
     const dir = tempDir();
-    execSync.mockReturnValue(`${dir}\n`);
+    shell = fakeShell({ stdout: `${dir}\n` });
     expect(await storePath({ cwd: dir })).toMatchObject({ path: dir, exists: true });
-    expect(execSync).toHaveBeenCalledWith("pnpm store path", { cwd: dir, encoding: "utf8" });
+    expect(shell.calls).toHaveLength(1);
+    expect(shell.calls[0]).toMatchObject({ args: [script, "store", "path"], cwd: dir });
+  });
+
+  it("gives the default when pnpm is not found or prints nothing", async () => {
+    setPlatform("linux");
+    const home = tempDir();
+    process.env["HOME"] = home;
+    delete process.env["XDG_DATA_HOME"];
+    shell = fakeShell({ stdout: "  \n" });
+    expect((await storePath()).path).toBe(`${home}/.local/share/pnpm/store/v3`);
+    setPlatform("win32");
+    delete process.env["npm_execpath"];
+    process.env["PATH"] = tempDir();
+    process.env["LOCALAPPDATA"] = home;
+    delete process.env["APPDATA"];
+    expect(await storePath()).toMatchObject({ path: `${home}\\pnpm\\store\\v3`, exists: false, platform: "win32" });
+    expect(shell.calls).toHaveLength(1);
   });
 
   it("gives the default of Windows when pnpm does not run", async () => {
-    execSync.mockImplementation(() => {
-      throw new Error("pnpm is not installed");
-    });
     setPlatform("win32");
     const local = tempDir();
     const roaming = tempDir();
@@ -174,9 +194,6 @@ describe("pnpm.store.path", () => {
   });
 
   it("gives the default of macOS and Linux when pnpm does not run", async () => {
-    execSync.mockImplementation(() => {
-      throw new Error("pnpm is not installed");
-    });
     setPlatform("linux");
     const home = tempDir();
     process.env["HOME"] = home;

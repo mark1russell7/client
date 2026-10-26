@@ -1,43 +1,46 @@
 /**
- * The argv, the JSON and the login address of tailscale.run, with a fake runCommand: no program starts.
+ * The argv, the JSON and the login address of tailscale.run, with the fake shell of
+ * `@procedures/shell/testing`: no program starts.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createRegistry, invokePath, outputValue } from "@procedures/client";
+import { fakeShell } from "@procedures/shell/testing";
+import { createTailscaleModule, registerTailscaleProcedures, tailscaleModule } from "./module.js";
+import { buildArgv, FLAG_NAME } from "./argv.js";
 
-const runCommand = vi.hoisted(() => vi.fn());
-vi.mock("@procedures/shell/command", () => ({ runCommand }));
-
-const { createTailscaleModule, registerTailscaleProcedures } = await import("./module.js");
-const { buildArgv, FLAG_NAME } = await import("./argv.js");
-
-function result(fields: { exitCode?: number; stdout?: string; stderr?: string }) {
-  const exitCode = fields.exitCode ?? 0;
-  return { exitCode, stdout: fields.stdout ?? "", stderr: fields.stderr ?? "", success: exitCode === 0, duration: 1 };
-}
-
-beforeEach(() => {
-  runCommand.mockReset();
-});
-
-describe("tailscale.run with a fake runCommand", () => {
+describe("tailscale.run with the fake shell", () => {
   it("builds the argv, reads the JSON and gives the program of the host", async () => {
-    runCommand.mockResolvedValue(result({ stdout: '{"Self":{"Online":true}}' }));
-    const registry = createRegistry(createTailscaleModule({ executable: "/opt/ts" }));
+    const shell = fakeShell({ stdout: '{"Self":{"Online":true}}' });
+    const registry = createRegistry(shell.module, createTailscaleModule({ executable: "/opt/ts" }));
     const output = await outputValue(
       await invokePath(["tailscale", "run"], { path: ["serve", "status"], json: true, args: { bg: true }, positional: ["-x"] }, { registry }),
     );
     expect(output).toEqual({ exitCode: 0, success: true, stdout: '{"Self":{"Online":true}}', stderr: "", json: { Self: { Online: true } } });
-    expect(runCommand).toHaveBeenCalledWith("/opt/ts", expect.objectContaining({ args: ["serve", "status", "--json", "--bg", "--", "-x"], timeout: 60_000 }));
+    expect(shell.calls).toHaveLength(1);
+    expect(shell.calls[0]).toMatchObject({ command: "/opt/ts", args: ["serve", "status", "--json", "--bg", "--", "-x"], timeout: 60_000 });
   });
 
   it("gives the login address and the failed exit code, with no JSON when it was not asked for", async () => {
-    runCommand.mockResolvedValue(result({ exitCode: 1, stderr: "To authenticate, visit:\n\thttps://login.tailscale.com/a/abc123\n" }));
-    const registry = createRegistry();
-    registerTailscaleProcedures(registry);
+    const shell = fakeShell({ exitCode: 1, stderr: "To authenticate, visit:\n\thttps://login.tailscale.com/a/abc123\n" });
+    const registry = createRegistry(shell.module, tailscaleModule);
     const output = await outputValue(await invokePath(["tailscale", "run"], { path: ["up"] }, { registry }));
     expect(output).toMatchObject({ exitCode: 1, success: false, actionUrl: "https://login.tailscale.com/a/abc123" });
     expect(output).not.toHaveProperty("json");
+  });
+
+  it("throws when shell.run tells that the program did not start", async () => {
+    const shell = fakeShell({ exitCode: 1, stderr: "spawn /opt/ts ENOENT" });
+    const registry = createRegistry(shell.module, createTailscaleModule({ executable: "/opt/ts" }));
+    const call = invokePath(["tailscale", "run"], { path: ["status"] }, { registry }).then((output) => outputValue(output, ["tailscale", "run"]));
+    await expect(call).rejects.toThrow("tailscale did not start: spawn /opt/ts ENOENT");
+  });
+
+  it("registers the shell procedures that it calls", () => {
+    const registry = createRegistry();
+    registerTailscaleProcedures(registry);
+    expect(registry.has(["tailscale", "run"])).toBe(true);
+    expect(registry.has(["shell", "run"])).toBe(true);
   });
 
   it("re-exports the argv helpers of @procedures/shell/cli", () => {

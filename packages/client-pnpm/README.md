@@ -563,7 +563,8 @@ export async function pnpmRun(
 ): Promise<PnpmCommandOutput>;
 
 export async function pnpmStorePath(
-  input: PnpmStorePathInput
+  input: PnpmStorePathInput,
+  ctx: ProcedureContext
 ): Promise<PnpmStorePathOutput>;
 
 // Registration function

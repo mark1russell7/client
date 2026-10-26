@@ -2,7 +2,8 @@
  * Unit tests for docker.run procedure
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
+import { fakeShell, type FakeShell } from "@procedures/shell/testing";
 import { dockerRun } from "../src/procedures/docker/run.js";
 import type { ProcedureContext } from "@procedures/client";
 
@@ -10,25 +11,21 @@ import type { ProcedureContext } from "@procedures/client";
  * The command line of the first shell call. The procedures call shell.run with an argument
  * list (no shell), so the test checks the call and joins the arguments to read them.
  */
-function commandLine(callMock: ReturnType<typeof vi.fn>): string {
-  const [path, input] = callMock.mock.calls[0] ?? [];
-  expect(path).toEqual(["shell", "run"]);
-  expect(Array.isArray(input.args)).toBe(true);
-  return [input.command, ...input.args].join(" ");
+function commandLine(shell: FakeShell): string {
+  const input = shell.calls[0];
+  expect(input).toBeDefined();
+  return [input!.command, ...shell.args(0)].join(" ");
 }
 
-// Helper to create mock context
+/** A context whose client is the fake shell of `@procedures/shell/testing`, with one scripted result. */
 function createMockContext(shellResponse: { exitCode: number; stdout: string; stderr: string }) {
-  const callMock = vi.fn().mockResolvedValue(shellResponse);
-  return {
-    client: { call: callMock },
-    callMock,
-  } as unknown as { client: ProcedureContext["client"]; callMock: ReturnType<typeof vi.fn> };
+  const shell = fakeShell(shellResponse);
+  return { client: shell.client, shell };
 }
 
 describe("docker.run", () => {
   it("should run a simple container", async () => {
-    const { client, callMock } = createMockContext({
+    const { client, shell } = createMockContext({
       exitCode: 0,
       stdout: "container-id-abc123",
       stderr: "",
@@ -38,13 +35,13 @@ describe("docker.run", () => {
 
     expect(result.success).toBe(true);
     expect(result.exitCode).toBe(0);
-    expect(callMock).toHaveBeenCalledOnce();
-    expect(commandLine(callMock)).toContain("docker run");
-    expect(commandLine(callMock)).toContain("nginx:latest");
+    expect(shell.calls).toHaveLength(1);
+    expect(commandLine(shell)).toContain("docker run");
+    expect(commandLine(shell)).toContain("nginx:latest");
   });
 
   it("should add -d flag for detached mode", async () => {
-    const { client, callMock } = createMockContext({
+    const { client, shell } = createMockContext({
       exitCode: 0,
       stdout: "abc123",
       stderr: "",
@@ -52,11 +49,11 @@ describe("docker.run", () => {
 
     await dockerRun({ image: "nginx", detach: true }, { client } as ProcedureContext);
 
-    expect(commandLine(callMock)).toContain("-d");
+    expect(commandLine(shell)).toContain("-d");
   });
 
   it("should add --name flag", async () => {
-    const { client, callMock } = createMockContext({
+    const { client, shell } = createMockContext({
       exitCode: 0,
       stdout: "abc123",
       stderr: "",
@@ -64,11 +61,11 @@ describe("docker.run", () => {
 
     await dockerRun({ image: "nginx", name: "my-nginx" }, { client } as ProcedureContext);
 
-    expect(commandLine(callMock)).toContain("--name my-nginx");
+    expect(commandLine(shell)).toContain("--name my-nginx");
   });
 
   it("should add port mappings", async () => {
-    const { client, callMock } = createMockContext({
+    const { client, shell } = createMockContext({
       exitCode: 0,
       stdout: "abc123",
       stderr: "",
@@ -79,13 +76,13 @@ describe("docker.run", () => {
       ports: ["8080:80", "443:443"],
     }, { client } as ProcedureContext);
 
-    const cmd = commandLine(callMock);
+    const cmd = commandLine(shell);
     expect(cmd).toContain("-p 8080:80");
     expect(cmd).toContain("-p 443:443");
   });
 
   it("should add environment variables", async () => {
-    const { client, callMock } = createMockContext({
+    const { client, shell } = createMockContext({
       exitCode: 0,
       stdout: "abc123",
       stderr: "",
@@ -96,7 +93,7 @@ describe("docker.run", () => {
       env: { NODE_ENV: "production", DEBUG: "true" },
     }, { client } as ProcedureContext);
 
-    const cmd = commandLine(callMock);
+    const cmd = commandLine(shell);
     expect(cmd).toContain("-e NODE_ENV=production");
     expect(cmd).toContain("-e DEBUG=true");
   });
@@ -131,17 +128,16 @@ describe("docker.run", () => {
 
 describe("docker procedures do not run a shell (deep dive WRP-1)", () => {
   it("passes a hostile value as one argument, not as shell syntax", async () => {
-    const { client, callMock } = createMockContext({ exitCode: 0, stdout: "", stderr: "" });
+    const { client, shell } = createMockContext({ exitCode: 0, stdout: "", stderr: "" });
     await dockerRun({ image: "alpine", name: "x & echo INJECTED> marker" }, { client } as ProcedureContext);
-    const input = callMock.mock.calls[0]?.[1];
-    expect(callMock.mock.calls[0]?.[0]).toEqual(["shell", "run"]);
-    expect(input.command).toBe("docker");
-    expect(input.args).toContain("x & echo INJECTED> marker");
+    const input = shell.calls[0];
+    expect(input?.command).toBe("docker");
+    expect(input?.args).toContain("x & echo INJECTED> marker");
   });
 
   it("rejects an image that docker would read as an option", async () => {
-    const { client, callMock } = createMockContext({ exitCode: 0, stdout: "", stderr: "" });
+    const { client, shell } = createMockContext({ exitCode: 0, stdout: "", stderr: "" });
     await expect(dockerRun({ image: "--privileged" }, { client } as ProcedureContext)).rejects.toThrow("starts with");
-    expect(callMock).not.toHaveBeenCalled();
+    expect(shell.calls).toEqual([]);
   });
 });
