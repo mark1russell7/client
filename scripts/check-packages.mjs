@@ -111,7 +111,11 @@ try {
     mkdirSync(app);
     writeFileSync(join(app, "package.json"), JSON.stringify({ name: "client-pack-smoke", private: true, type: "module" }));
     console.log("Installing the tarballs into an empty project");
-    run("npm", ["install", "--no-audit", "--no-fund", "--loglevel=error", ...tarballs], app);
+    // The registry as it was one hour ago: an upstream release that is half published (a package
+    // before its dependencies) does not fail the check. On 2026-10-26, better-auth 1.7.14 came 4
+    // minutes before its telemetry 1.7.14, and an install in the gap got ETARGET.
+    const before = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    run("npm", ["install", "--no-audit", "--no-fund", "--loglevel=error", `--before=${before}`, ...tarballs], app);
 
     // Each package root imports and registers nothing. Each register entry registers. The client
     // runs a program (ARCHITECTURE-PROPOSALS-2026-10, P9).
