@@ -41,7 +41,7 @@ function taskModule(seen: Seen, held: Promise<void>) {
       .output(output)
       .meta({ description: path.join(" "), effects: NONE, ...meta })
       .handler(handler as never)
-      .build() as AnyProcedure;
+      .build();
   return defineModule("task-test", [
     procedure(
       ["crawl", "site"],

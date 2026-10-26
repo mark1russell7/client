@@ -8,7 +8,7 @@
  * Credentials are loaded from environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY).
  */
 
-import { createProcedure, zodAdapter, defineModule, type FsRootRules, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, defineModule, type FsRootRules, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import {
   s3Upload,
   s3Download,
@@ -82,8 +82,8 @@ import {
 
 const s3UploadProcedure = createProcedure()
   .path(["s3", "upload"])
-  .input(zodAdapter<S3UploadInput>(S3UploadInputSchema))
-  .output(zodAdapter<S3UploadOutput>(S3UploadOutputSchema))
+  .input(S3UploadInputSchema)
+  .output(S3UploadOutputSchema)
   .meta({
     description: "Upload content to S3 bucket",
     // A put replaces the object of an existing key
@@ -111,8 +111,8 @@ const PRESIGN_IN_A_ROOT: FsRootRules = {};
 
 const s3DownloadProcedure = createProcedure()
   .path(["s3", "download"])
-  .input(zodAdapter<S3DownloadInput>(S3DownloadInputSchema))
-  .output(zodAdapter<S3DownloadOutput>(S3DownloadOutputSchema))
+  .input(S3DownloadInputSchema)
+  .output(S3DownloadOutputSchema)
   .meta({
     description: "Download content from S3 bucket",
     // With destPath, it replaces the file at that path
@@ -128,8 +128,8 @@ const s3DownloadProcedure = createProcedure()
 
 const s3ListProcedure = createProcedure()
   .path(["s3", "list"])
-  .input(zodAdapter<S3ListInput>(S3ListInputSchema))
-  .output(zodAdapter<S3ListOutput>(S3ListOutputSchema))
+  .input(S3ListInputSchema)
+  .output(S3ListOutputSchema)
   .meta({
     description: "List objects in S3 bucket",
     effects: { reads: ["s3", "network"], writes: [] },
@@ -143,8 +143,8 @@ const s3ListProcedure = createProcedure()
 
 const s3ListAllProcedure = createProcedure()
   .path(["s3", "listAll"])
-  .input(zodAdapter<S3ListAllInput>(S3ListAllInputSchema))
-  .output(zodAdapter<S3ListAllOutput>(S3ListAllOutputSchema))
+  .input(S3ListAllInputSchema)
+  .output(S3ListAllOutputSchema)
   .meta({
     description: "List ALL objects in S3 bucket, following continuation tokens (unbounded by 1000)",
     effects: { reads: ["s3", "network"], writes: [] },
@@ -158,8 +158,8 @@ const s3ListAllProcedure = createProcedure()
 
 const s3DeleteProcedure = createProcedure()
   .path(["s3", "delete"])
-  .input(zodAdapter<S3DeleteInput>(S3DeleteInputSchema))
-  .output(zodAdapter<S3DeleteOutput>(S3DeleteOutputSchema))
+  .input(S3DeleteInputSchema)
+  .output(S3DeleteOutputSchema)
   .meta({
     description: "Delete object from S3 bucket",
     effects: { reads: ["s3", "network"], writes: ["s3", "network"] },
@@ -173,8 +173,8 @@ const s3DeleteProcedure = createProcedure()
 
 const s3MultipartInitProcedure = createProcedure()
   .path(["s3", "multipart", "init"])
-  .input(zodAdapter<S3MultipartInitInput>(S3MultipartInitInputSchema))
-  .output(zodAdapter<S3MultipartInitOutput>(S3MultipartInitOutputSchema))
+  .input(S3MultipartInitInputSchema)
+  .output(S3MultipartInitOutputSchema)
   .meta({
     description: "Initialize multipart upload for large files",
     // It starts a new upload: the object of the key does not change before the completion
@@ -189,8 +189,8 @@ const s3MultipartInitProcedure = createProcedure()
 
 const s3MultipartUploadProcedure = createProcedure()
   .path(["s3", "multipart", "upload"])
-  .input(zodAdapter<S3MultipartUploadInput>(S3MultipartUploadInputSchema))
-  .output(zodAdapter<S3MultipartUploadOutput>(S3MultipartUploadOutputSchema))
+  .input(S3MultipartUploadInputSchema)
+  .output(S3MultipartUploadOutputSchema)
   .meta({
     description: "Upload a part in multipart upload",
     // A part replaces the earlier part with the same number
@@ -205,8 +205,8 @@ const s3MultipartUploadProcedure = createProcedure()
 
 const s3MultipartCompleteProcedure = createProcedure()
   .path(["s3", "multipart", "complete"])
-  .input(zodAdapter<S3MultipartCompleteInput>(S3MultipartCompleteInputSchema))
-  .output(zodAdapter<S3MultipartCompleteOutput>(S3MultipartCompleteOutputSchema))
+  .input(S3MultipartCompleteInputSchema)
+  .output(S3MultipartCompleteOutputSchema)
   .meta({
     description: "Complete multipart upload by assembling parts",
     // The assembled object replaces the object of an existing key
@@ -221,8 +221,8 @@ const s3MultipartCompleteProcedure = createProcedure()
 
 const s3MultipartAbortProcedure = createProcedure()
   .path(["s3", "multipart", "abort"])
-  .input(zodAdapter<S3MultipartAbortInput>(S3MultipartAbortInputSchema))
-  .output(zodAdapter<S3MultipartAbortOutput>(S3MultipartAbortOutputSchema))
+  .input(S3MultipartAbortInputSchema)
+  .output(S3MultipartAbortOutputSchema)
   .meta({
     description: "Abort multipart upload and clean up parts",
     effects: { reads: ["s3", "network"], writes: ["s3", "network"] },
@@ -238,8 +238,8 @@ const s3MultipartAbortProcedure = createProcedure()
 
 const s3HeadProcedure = createProcedure()
   .path(["s3", "head"])
-  .input(zodAdapter<S3HeadInput>(S3HeadInputSchema))
-  .output(zodAdapter<S3HeadOutput>(S3HeadOutputSchema))
+  .input(S3HeadInputSchema)
+  .output(S3HeadOutputSchema)
   .meta({
     description: "The metadata of an object, without its content (exists: false for a 404)",
     effects: { reads: ["s3", "network"], writes: [] },
@@ -251,8 +251,8 @@ const s3HeadProcedure = createProcedure()
 
 const s3CopyProcedure = createProcedure()
   .path(["s3", "copy"])
-  .input(zodAdapter<S3CopyInput>(S3CopyInputSchema))
-  .output(zodAdapter<S3CopyOutput>(S3CopyOutputSchema))
+  .input(S3CopyInputSchema)
+  .output(S3CopyOutputSchema)
   .meta({
     description: "Copy an object inside S3 (it replaces the destination, unless overwrite is false)",
     // The copy replaces the object of the destination key: destructive. The same input gives the
@@ -266,8 +266,8 @@ const s3CopyProcedure = createProcedure()
 
 const s3PresignProcedure = createProcedure()
   .path(["s3", "presign"])
-  .input(zodAdapter<S3PresignInput>(S3PresignInputSchema))
-  .output(zodAdapter<S3PresignOutput>(S3PresignOutputSchema))
+  .input(S3PresignInputSchema)
+  .output(S3PresignOutputSchema)
   .meta({
     description: "A presigned URL for a GET or a PUT of an object, with an expiry in seconds",
     // It sends no request to S3. It reads the credentials: the environment, the AWS files of the

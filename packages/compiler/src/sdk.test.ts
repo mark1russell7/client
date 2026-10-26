@@ -23,7 +23,6 @@ import {
   defineProcedure,
   describeRegistry,
   metaProcedures,
-  zodAdapter,
   type AnyProcedure,
   type ProcedureContext,
   type ProcedureSchema,
@@ -46,25 +45,25 @@ function testRegistry(): ProcedureRegistry {
   const procedures = [
     procedure(
       ["files", "read"],
-      zodAdapter(z.object({ path: z.string().describe("The path of the file"), encoding: z.enum(["utf8", "base64"]).optional().describe("The encoding of the content") })),
-      zodAdapter(z.object({ content: z.string(), size: z.number().int().describe("The size in bytes") })),
+      z.object({ path: z.string().describe("The path of the file"), encoding: z.enum(["utf8", "base64"]).optional().describe("The encoding of the content") }),
+      z.object({ content: z.string(), size: z.number().int().describe("The size in bytes") }),
       { description: "Read a file", tags: ["fs"], effects: { reads: ["fs"], writes: [] } },
     ),
     procedure(
       ["files", "write"],
-      zodAdapter(z.object({ path: z.string(), content: z.string(), "mode-bits": z.number().int().optional(), "2fa": z.boolean().optional() })),
-      zodAdapter(z.object({ written: z.literal(true) })),
+      z.object({ path: z.string(), content: z.string(), "mode-bits": z.number().int().optional(), "2fa": z.boolean().optional() }),
+      z.object({ written: z.literal(true) }),
       { description: "Write a file. A comment end */ in a description stays in the comment.", effects: { reads: [], writes: ["fs"], destructive: true } },
     ),
-    procedure(["math", "add"], zodAdapter(z.object({ a: z.number(), b: z.number() })), zodAdapter(z.number()), { description: "Add two numbers", effects: { reads: [], writes: [] } }),
+    procedure(["math", "add"], z.object({ a: z.number(), b: z.number() }), z.number(), { description: "Add two numbers", effects: { reads: [], writes: [] } }),
     procedure(
       ["jobs", "list"],
-      zodAdapter(z.object({ state: z.enum(["queued", "done"]).optional() })),
-      zodAdapter(z.array(z.object({ id: z.string(), state: z.union([z.literal("queued"), z.literal("done")]).nullable() }))),
+      z.object({ state: z.enum(["queued", "done"]).optional() }),
+      z.array(z.object({ id: z.string(), state: z.union([z.literal("queued"), z.literal("done")]).nullable() })),
       { description: "List the jobs" },
     ),
-    procedure(["jobs", "list", "count"], zodAdapter(z.object({})), zodAdapter(z.object({ count: z.number().int() })), { description: "Count the jobs" }),
-    procedure(["config", "get"], zodAdapter(z.object({ key: z.string() })), zodAdapter(z.record(z.string(), z.string())), {}),
+    procedure(["jobs", "list", "count"], z.object({}), z.object({ count: z.number().int() }), { description: "Count the jobs" }),
+    procedure(["config", "get"], z.object({ key: z.string() }), z.record(z.string(), z.string()), {}),
     procedure(["misc", "any"], anySchema, anySchema, { deprecated: true }),
   ];
   for (const entry of procedures) registry.register(entry);

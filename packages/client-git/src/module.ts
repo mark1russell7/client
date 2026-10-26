@@ -7,7 +7,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, zodAdapter, defineModule, type AnyProcedure, type Effects, type FsRootRules, type ProcedureContext, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, defineModule, type AnyProcedure, type Effects, type FsRootRules, type ProcedureContext, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import { underGitRoot } from "./procedures/git/root.js";
 import { gitStatus } from "./procedures/git/status.js";
 import { gitAdd } from "./procedures/git/add.js";
@@ -299,8 +299,8 @@ function underARoot(procedure: AnyProcedure): AnyProcedure {
 
 const gitStatusProcedure = createProcedure()
   .path(["git", "status"])
-  .input(zodAdapter<GitStatusInput>(GitStatusInputSchema))
-  .output(zodAdapter<GitStatusOutput>(GitStatusOutputSchema))
+  .input(GitStatusInputSchema)
+  .output(GitStatusOutputSchema)
   .meta({
     description: "Get git status",
     args: ["paths"],
@@ -315,8 +315,8 @@ const gitStatusProcedure = createProcedure()
 
 const gitAddProcedure = createProcedure()
   .path(["git", "add"])
-  .input(zodAdapter<GitAddInput>(GitAddInputSchema))
-  .output(zodAdapter<GitAddOutput>(GitAddOutputSchema))
+  .input(GitAddInputSchema)
+  .output(GitAddOutputSchema)
   .meta({
     description: "Stage files",
     args: ["paths"],
@@ -331,8 +331,8 @@ const gitAddProcedure = createProcedure()
 
 const gitCommitProcedure = createProcedure()
   .path(["git", "commit"])
-  .input(zodAdapter<GitCommitInput>(GitCommitInputSchema))
-  .output(zodAdapter<GitCommitOutput>(GitCommitOutputSchema))
+  .input(GitCommitInputSchema)
+  .output(GitCommitOutputSchema)
   .meta({
     description: "Create commit",
     args: ["message"],
@@ -348,8 +348,8 @@ const gitCommitProcedure = createProcedure()
 
 const gitPushProcedure = createProcedure()
   .path(["git", "push"])
-  .input(zodAdapter<GitPushInput>(GitPushInputSchema))
-  .output(zodAdapter<GitPushOutput>(GitPushOutputSchema))
+  .input(GitPushInputSchema)
+  .output(GitPushOutputSchema)
   .meta({
     description: "Push to remote",
     args: [],
@@ -365,8 +365,8 @@ const gitPushProcedure = createProcedure()
 
 const gitPullProcedure = createProcedure()
   .path(["git", "pull"])
-  .input(zodAdapter<GitPullInput>(GitPullInputSchema))
-  .output(zodAdapter<GitPullOutput>(GitPullOutputSchema))
+  .input(GitPullInputSchema)
+  .output(GitPullOutputSchema)
   .meta({
     description: "Pull from remote",
     args: [],
@@ -382,8 +382,8 @@ const gitPullProcedure = createProcedure()
 
 const gitCloneProcedure = createProcedure()
   .path(["git", "clone"])
-  .input(zodAdapter<GitCloneInput>(GitCloneInputSchema))
-  .output(zodAdapter<GitCloneOutput>(GitCloneOutputSchema))
+  .input(GitCloneInputSchema)
+  .output(GitCloneOutputSchema)
   .meta({
     description: "Clone repository",
     args: ["url"],
@@ -399,8 +399,8 @@ const gitCloneProcedure = createProcedure()
 
 const gitCheckoutProcedure = createProcedure()
   .path(["git", "checkout"])
-  .input(zodAdapter<GitCheckoutInput>(GitCheckoutInputSchema))
-  .output(zodAdapter<GitCheckoutOutput>(GitCheckoutOutputSchema))
+  .input(GitCheckoutInputSchema)
+  .output(GitCheckoutOutputSchema)
   .meta({
     description: "Checkout branch or files",
     args: ["ref"],
@@ -416,8 +416,8 @@ const gitCheckoutProcedure = createProcedure()
 
 const gitBranchProcedure = createProcedure()
   .path(["git", "branch"])
-  .input(zodAdapter<GitBranchInput>(GitBranchInputSchema))
-  .output(zodAdapter<GitBranchOutput>(GitBranchOutputSchema))
+  .input(GitBranchInputSchema)
+  .output(GitBranchOutputSchema)
   .meta({
     description: "Deprecated: use git.branch.list, git.branch.add or git.branch.delete. Branch operations",
     // Roadmap R40: it stays for one release, and calls the code of the three new procedures
@@ -436,8 +436,8 @@ const gitBranchProcedure = createProcedure()
 
 const gitLogProcedure = createProcedure()
   .path(["git", "log"])
-  .input(zodAdapter<GitLogInput>(GitLogInputSchema))
-  .output(zodAdapter<GitLogOutput>(GitLogOutputSchema))
+  .input(GitLogInputSchema)
+  .output(GitLogOutputSchema)
   .meta({
     description: "Show commit log",
     args: [],
@@ -452,8 +452,8 @@ const gitLogProcedure = createProcedure()
 
 const gitDiffProcedure = createProcedure()
   .path(["git", "diff"])
-  .input(zodAdapter<GitDiffInput>(GitDiffInputSchema))
-  .output(zodAdapter<GitDiffOutput>(GitDiffOutputSchema))
+  .input(GitDiffInputSchema)
+  .output(GitDiffOutputSchema)
   .meta({
     description: "Show changes",
     args: [],
@@ -469,8 +469,8 @@ const gitDiffProcedure = createProcedure()
 
 const gitInitProcedure = createProcedure()
   .path(["git", "init"])
-  .input(zodAdapter<GitInitInput>(GitInitInputSchema))
-  .output(zodAdapter<GitInitOutput>(GitInitOutputSchema))
+  .input(GitInitInputSchema)
+  .output(GitInitOutputSchema)
   .meta({
     description: "Initialize a git repository",
     args: [],
@@ -486,8 +486,8 @@ const gitInitProcedure = createProcedure()
 
 const gitRemoteProcedure = createProcedure()
   .path(["git", "remote"])
-  .input(zodAdapter<GitRemoteInput>(GitRemoteInputSchema))
-  .output(zodAdapter<GitRemoteOutput>(GitRemoteOutputSchema))
+  .input(GitRemoteInputSchema)
+  .output(GitRemoteOutputSchema)
   .meta({
     description: "Get the URL of a remote",
     args: [],
@@ -502,8 +502,8 @@ const gitRemoteProcedure = createProcedure()
 
 const gitRemoteSetProcedure = createProcedure()
   .path(["git", "remote", "set"])
-  .input(zodAdapter<GitRemoteSetInput>(GitRemoteSetInputSchema))
-  .output(zodAdapter<GitRemoteOutput>(GitRemoteOutputSchema))
+  .input(GitRemoteSetInputSchema)
+  .output(GitRemoteOutputSchema)
   .meta({
     description: "Set the URL of a remote, or add the remote",
     args: ["url"],
@@ -519,8 +519,8 @@ const gitRemoteSetProcedure = createProcedure()
 
 const gitFetchProcedure = createProcedure()
   .path(["git", "fetch"])
-  .input(zodAdapter<GitFetchInput>(GitFetchInputSchema))
-  .output(zodAdapter<GitFetchOutput>(GitFetchOutputSchema))
+  .input(GitFetchInputSchema)
+  .output(GitFetchOutputSchema)
   .meta({
     description: "Fetch from remote",
     args: [],
@@ -540,8 +540,8 @@ const gitFetchProcedure = createProcedure()
 
 const gitHasChangesProcedure = createProcedure()
   .path(["git", "hasChanges"])
-  .input(zodAdapter<GitPredicateInput>(GitPredicateInputSchema))
-  .output(zodAdapter<GitPredicateOutput>(GitPredicateOutputSchema))
+  .input(GitPredicateInputSchema)
+  .output(GitPredicateOutputSchema)
   .meta({
     description: "Check if there are any changes (unstaged, staged, or untracked)",
     args: [],
@@ -556,8 +556,8 @@ const gitHasChangesProcedure = createProcedure()
 
 const gitHasStagedChangesProcedure = createProcedure()
   .path(["git", "hasStagedChanges"])
-  .input(zodAdapter<GitPredicateInput>(GitPredicateInputSchema))
-  .output(zodAdapter<GitPredicateOutput>(GitPredicateOutputSchema))
+  .input(GitPredicateInputSchema)
+  .output(GitPredicateOutputSchema)
   .meta({
     description: "Check if there are any staged changes ready to commit",
     args: [],
@@ -572,8 +572,8 @@ const gitHasStagedChangesProcedure = createProcedure()
 
 const gitHasUnstagedChangesProcedure = createProcedure()
   .path(["git", "hasUnstagedChanges"])
-  .input(zodAdapter<GitPredicateInput>(GitPredicateInputSchema))
-  .output(zodAdapter<GitPredicateOutput>(GitPredicateOutputSchema))
+  .input(GitPredicateInputSchema)
+  .output(GitPredicateOutputSchema)
   .meta({
     description: "Check if there are any unstaged changes",
     args: [],
@@ -588,8 +588,8 @@ const gitHasUnstagedChangesProcedure = createProcedure()
 
 const gitHasUntrackedFilesProcedure = createProcedure()
   .path(["git", "hasUntrackedFiles"])
-  .input(zodAdapter<GitPredicateInput>(GitPredicateInputSchema))
-  .output(zodAdapter<GitPredicateOutput>(GitPredicateOutputSchema))
+  .input(GitPredicateInputSchema)
+  .output(GitPredicateOutputSchema)
   .meta({
     description: "Check if there are any untracked files",
     args: [],
@@ -604,8 +604,8 @@ const gitHasUntrackedFilesProcedure = createProcedure()
 
 const gitHasLocalCommitsProcedure = createProcedure()
   .path(["git", "hasLocalCommits"])
-  .input(zodAdapter<GitPredicateInput>(GitPredicateInputSchema))
-  .output(zodAdapter<GitPredicateOutput>(GitPredicateOutputSchema))
+  .input(GitPredicateInputSchema)
+  .output(GitPredicateOutputSchema)
   .meta({
     description: "Check if there are local commits that haven't been pushed",
     args: [],
@@ -621,8 +621,8 @@ const gitHasLocalCommitsProcedure = createProcedure()
 
 const gitIsCleanProcedure = createProcedure()
   .path(["git", "isClean"])
-  .input(zodAdapter<GitPredicateInput>(GitPredicateInputSchema))
-  .output(zodAdapter<GitPredicateOutput>(GitPredicateOutputSchema))
+  .input(GitPredicateInputSchema)
+  .output(GitPredicateOutputSchema)
   .meta({
     description: "Check if the working directory is clean",
     args: [],
@@ -641,8 +641,8 @@ const gitIsCleanProcedure = createProcedure()
 
 const gitStashListProcedure = createProcedure()
   .path(["git", "stash", "list"])
-  .input(zodAdapter<GitStashListInput>(GitStashListInputSchema))
-  .output(zodAdapter<GitStashListOutput>(GitStashListOutputSchema))
+  .input(GitStashListInputSchema)
+  .output(GitStashListOutputSchema)
   .meta({
     description: "List all stashes",
     args: [],
@@ -657,8 +657,8 @@ const gitStashListProcedure = createProcedure()
 
 const gitStashPushProcedure = createProcedure()
   .path(["git", "stash", "push"])
-  .input(zodAdapter<GitStashPushInput>(GitStashPushInputSchema))
-  .output(zodAdapter<GitStashPushOutput>(GitStashPushOutputSchema))
+  .input(GitStashPushInputSchema)
+  .output(GitStashPushOutputSchema)
   .meta({
     description: "Push changes to stash",
     args: ["message"],
@@ -674,8 +674,8 @@ const gitStashPushProcedure = createProcedure()
 
 const gitStashPopProcedure = createProcedure()
   .path(["git", "stash", "pop"])
-  .input(zodAdapter<GitStashPopInput>(GitStashPopInputSchema))
-  .output(zodAdapter<GitStashPopOutput>(GitStashPopOutputSchema))
+  .input(GitStashPopInputSchema)
+  .output(GitStashPopOutputSchema)
   .meta({
     description: "Pop stash (apply and remove)",
     args: [],
@@ -690,8 +690,8 @@ const gitStashPopProcedure = createProcedure()
 
 const gitStashApplyProcedure = createProcedure()
   .path(["git", "stash", "apply"])
-  .input(zodAdapter<GitStashApplyInput>(GitStashApplyInputSchema))
-  .output(zodAdapter<GitStashApplyOutput>(GitStashApplyOutputSchema))
+  .input(GitStashApplyInputSchema)
+  .output(GitStashApplyOutputSchema)
   .meta({
     description: "Apply stash without removing",
     args: [],
@@ -706,8 +706,8 @@ const gitStashApplyProcedure = createProcedure()
 
 const gitStashDropProcedure = createProcedure()
   .path(["git", "stash", "drop"])
-  .input(zodAdapter<GitStashDropInput>(GitStashDropInputSchema))
-  .output(zodAdapter<GitStashDropOutput>(GitStashDropOutputSchema))
+  .input(GitStashDropInputSchema)
+  .output(GitStashDropOutputSchema)
   .meta({
     description: "Drop a stash",
     args: [],
@@ -722,8 +722,8 @@ const gitStashDropProcedure = createProcedure()
 
 const gitStashExportProcedure = createProcedure()
   .path(["git", "stash", "export"])
-  .input(zodAdapter<GitStashExportInput>(GitStashExportInputSchema))
-  .output(zodAdapter<GitStashExportOutput>(GitStashExportOutputSchema))
+  .input(GitStashExportInputSchema)
+  .output(GitStashExportOutputSchema)
   .meta({
     description: "Export stash as patch for snapshot storage",
     args: [],
@@ -738,8 +738,8 @@ const gitStashExportProcedure = createProcedure()
 
 const gitStashImportProcedure = createProcedure()
   .path(["git", "stash", "import"])
-  .input(zodAdapter<GitStashImportInput>(GitStashImportInputSchema))
-  .output(zodAdapter<GitStashImportOutput>(GitStashImportOutputSchema))
+  .input(GitStashImportInputSchema)
+  .output(GitStashImportOutputSchema)
   .meta({
     description: "Import stash from patch",
     args: ["patch"],
@@ -768,8 +768,8 @@ const DELETES: Effects = { reads: ["fs"], writes: ["fs"], destructive: true, ide
 
 const gitShowProcedure = createProcedure()
   .path(["git", "show"])
-  .input(zodAdapter<GitShowInput>(GitShowInputSchema))
-  .output(zodAdapter<GitShowOutput>(GitShowOutputSchema))
+  .input(GitShowInputSchema)
+  .output(GitShowOutputSchema)
   .meta({
     description: "Show a commit (its fields, files and diff), or a file at a commit",
     args: ["ref"],
@@ -782,8 +782,8 @@ const gitShowProcedure = createProcedure()
 
 const gitBlameProcedure = createProcedure()
   .path(["git", "blame"])
-  .input(zodAdapter<GitBlameInput>(GitBlameInputSchema))
-  .output(zodAdapter<GitBlameOutput>(GitBlameOutputSchema))
+  .input(GitBlameInputSchema)
+  .output(GitBlameOutputSchema)
   .meta({
     description: "Show the commit and the author of each line of a file",
     args: ["path"],
@@ -796,8 +796,8 @@ const gitBlameProcedure = createProcedure()
 
 const gitTagListProcedure = createProcedure()
   .path(["git", "tag", "list"])
-  .input(zodAdapter<GitTagListInput>(GitTagListInputSchema))
-  .output(zodAdapter<GitTagListOutput>(GitTagListOutputSchema))
+  .input(GitTagListInputSchema)
+  .output(GitTagListOutputSchema)
   .meta({
     description: "List the tags, with their commits",
     args: ["pattern"],
@@ -810,8 +810,8 @@ const gitTagListProcedure = createProcedure()
 
 const gitTagAddProcedure = createProcedure()
   .path(["git", "tag", "add"])
-  .input(zodAdapter<GitTagAddInput>(GitTagAddInputSchema))
-  .output(zodAdapter<GitTagAddOutput>(GitTagAddOutputSchema))
+  .input(GitTagAddInputSchema)
+  .output(GitTagAddOutputSchema)
   .meta({
     description: "Make a tag. With a message, the tag is annotated. An existing tag is an error",
     args: ["name", "ref"],
@@ -824,8 +824,8 @@ const gitTagAddProcedure = createProcedure()
 
 const gitTagDeleteProcedure = createProcedure()
   .path(["git", "tag", "delete"])
-  .input(zodAdapter<GitTagDeleteInput>(GitTagDeleteInputSchema))
-  .output(zodAdapter<GitTagDeleteOutput>(GitTagDeleteOutputSchema))
+  .input(GitTagDeleteInputSchema)
+  .output(GitTagDeleteOutputSchema)
   .meta({
     description: "Delete a tag",
     args: ["name"],
@@ -838,8 +838,8 @@ const gitTagDeleteProcedure = createProcedure()
 
 const gitRevParseProcedure = createProcedure()
   .path(["git", "revParse"])
-  .input(zodAdapter<GitRevParseInput>(GitRevParseInputSchema))
-  .output(zodAdapter<GitRevParseOutput>(GitRevParseOutputSchema))
+  .input(GitRevParseInputSchema)
+  .output(GitRevParseOutputSchema)
   .meta({
     description: "Give the hash or the short name of a ref. An unknown ref is an error",
     args: ["ref"],
@@ -852,8 +852,8 @@ const gitRevParseProcedure = createProcedure()
 
 const gitResetProcedure = createProcedure()
   .path(["git", "reset"])
-  .input(zodAdapter<GitResetInput>(GitResetInputSchema))
-  .output(zodAdapter<GitResetOutput>(GitResetOutputSchema))
+  .input(GitResetInputSchema)
+  .output(GitResetOutputSchema)
   .meta({
     description: "Move HEAD to a commit, and reset the index (mixed) or also the working tree (hard)",
     args: ["ref"],
@@ -868,8 +868,8 @@ const gitResetProcedure = createProcedure()
 
 const gitRestoreProcedure = createProcedure()
   .path(["git", "restore"])
-  .input(zodAdapter<GitRestoreInput>(GitRestoreInputSchema))
-  .output(zodAdapter<GitRestoreOutput>(GitRestoreOutputSchema))
+  .input(GitRestoreInputSchema)
+  .output(GitRestoreOutputSchema)
   .meta({
     description: "Restore files of the working tree or the index. The changes of the files are lost",
     args: ["paths"],
@@ -883,8 +883,8 @@ const gitRestoreProcedure = createProcedure()
 
 const gitMergeProcedure = createProcedure()
   .path(["git", "merge"])
-  .input(zodAdapter<GitMergeInput>(GitMergeInputSchema))
-  .output(zodAdapter<GitMergeOutput>(GitMergeOutputSchema))
+  .input(GitMergeInputSchema)
+  .output(GitMergeOutputSchema)
   .meta({
     description: "Merge a branch or a commit into the current branch. Conflicts give conflict: true",
     args: ["ref"],
@@ -898,8 +898,8 @@ const gitMergeProcedure = createProcedure()
 
 const gitMergeAbortProcedure = createProcedure()
   .path(["git", "merge", "abort"])
-  .input(zodAdapter<GitMergeAbortInput>(GitMergeAbortInputSchema))
-  .output(zodAdapter<GitMergeAbortOutput>(GitMergeAbortOutputSchema))
+  .input(GitMergeAbortInputSchema)
+  .output(GitMergeAbortOutputSchema)
   .meta({
     description: "Stop a merge that has conflicts, and put back the state before it",
     args: [],
@@ -913,8 +913,8 @@ const gitMergeAbortProcedure = createProcedure()
 
 const gitRebaseProcedure = createProcedure()
   .path(["git", "rebase"])
-  .input(zodAdapter<GitRebaseInput>(GitRebaseInputSchema))
-  .output(zodAdapter<GitRebaseOutput>(GitRebaseOutputSchema))
+  .input(GitRebaseInputSchema)
+  .output(GitRebaseOutputSchema)
   .meta({
     description: "Rebase the current branch on another branch (not interactive). Conflicts give conflict: true",
     args: ["upstream"],
@@ -928,8 +928,8 @@ const gitRebaseProcedure = createProcedure()
 
 const gitRebaseContinueProcedure = createProcedure()
   .path(["git", "rebase", "continue"])
-  .input(zodAdapter<GitRebaseContinueInput>(GitRebaseContinueInputSchema))
-  .output(zodAdapter<GitRebaseContinueOutput>(GitRebaseContinueOutputSchema))
+  .input(GitRebaseContinueInputSchema)
+  .output(GitRebaseContinueOutputSchema)
   .meta({
     description: "Continue a rebase after the conflicts are resolved and staged",
     args: [],
@@ -942,8 +942,8 @@ const gitRebaseContinueProcedure = createProcedure()
 
 const gitRebaseAbortProcedure = createProcedure()
   .path(["git", "rebase", "abort"])
-  .input(zodAdapter<GitRebaseAbortInput>(GitRebaseAbortInputSchema))
-  .output(zodAdapter<GitRebaseAbortOutput>(GitRebaseAbortOutputSchema))
+  .input(GitRebaseAbortInputSchema)
+  .output(GitRebaseAbortOutputSchema)
   .meta({
     description: "Stop a rebase, and go back to the branch as it was before the rebase",
     args: [],
@@ -957,8 +957,8 @@ const gitRebaseAbortProcedure = createProcedure()
 
 const gitWorktreeListProcedure = createProcedure()
   .path(["git", "worktree", "list"])
-  .input(zodAdapter<GitWorktreeListInput>(GitWorktreeListInputSchema))
-  .output(zodAdapter<GitWorktreeListOutput>(GitWorktreeListOutputSchema))
+  .input(GitWorktreeListInputSchema)
+  .output(GitWorktreeListOutputSchema)
   .meta({
     description: "List the working trees of the repository",
     args: [],
@@ -971,8 +971,8 @@ const gitWorktreeListProcedure = createProcedure()
 
 const gitWorktreeAddProcedure = createProcedure()
   .path(["git", "worktree", "add"])
-  .input(zodAdapter<GitWorktreeAddInput>(GitWorktreeAddInputSchema))
-  .output(zodAdapter<GitWorktreeAddOutput>(GitWorktreeAddOutputSchema))
+  .input(GitWorktreeAddInputSchema)
+  .output(GitWorktreeAddOutputSchema)
   .meta({
     description: "Add a working tree in a new folder",
     args: ["path", "ref"],
@@ -986,8 +986,8 @@ const gitWorktreeAddProcedure = createProcedure()
 
 const gitWorktreeRemoveProcedure = createProcedure()
   .path(["git", "worktree", "remove"])
-  .input(zodAdapter<GitWorktreeRemoveInput>(GitWorktreeRemoveInputSchema))
-  .output(zodAdapter<GitWorktreeRemoveOutput>(GitWorktreeRemoveOutputSchema))
+  .input(GitWorktreeRemoveInputSchema)
+  .output(GitWorktreeRemoveOutputSchema)
   .meta({
     description: "Remove a working tree and its folder",
     args: ["path"],
@@ -1001,8 +1001,8 @@ const gitWorktreeRemoveProcedure = createProcedure()
 
 const gitBranchListProcedure = createProcedure()
   .path(["git", "branch", "list"])
-  .input(zodAdapter<GitBranchListInput>(GitBranchListInputSchema))
-  .output(zodAdapter<GitBranchListOutput>(GitBranchListOutputSchema))
+  .input(GitBranchListInputSchema)
+  .output(GitBranchListOutputSchema)
   .meta({
     description: "List the branches, and give the current branch",
     args: [],
@@ -1015,8 +1015,8 @@ const gitBranchListProcedure = createProcedure()
 
 const gitBranchAddProcedure = createProcedure()
   .path(["git", "branch", "add"])
-  .input(zodAdapter<GitBranchAddInput>(GitBranchAddInputSchema))
-  .output(zodAdapter<GitBranchAddOutput>(GitBranchAddOutputSchema))
+  .input(GitBranchAddInputSchema)
+  .output(GitBranchAddOutputSchema)
   .meta({
     description: "Make a branch. An existing branch is an error",
     args: ["name", "startPoint"],
@@ -1029,8 +1029,8 @@ const gitBranchAddProcedure = createProcedure()
 
 const gitBranchDeleteProcedure = createProcedure()
   .path(["git", "branch", "delete"])
-  .input(zodAdapter<GitBranchDeleteInput>(GitBranchDeleteInputSchema))
-  .output(zodAdapter<GitBranchDeleteOutput>(GitBranchDeleteOutputSchema))
+  .input(GitBranchDeleteInputSchema)
+  .output(GitBranchDeleteOutputSchema)
   .meta({
     description: "Delete a branch. With force, also a branch that is not merged",
     args: ["name"],

@@ -19,10 +19,9 @@ import {
   createProcedure,
   getAllRuntimeProcedures,
   keyToPath,
-  outputSchema,
+  typed,
   pathToKey,
   runtimeProgramOf,
-  zodAdapter,
   type AnyProcedure,
   type FsRootRules,
   type ProcedureContext,
@@ -121,15 +120,13 @@ const STORE_OF_THE_HOST: FsRootRules = Object.freeze({});
 
 export const procedureStoreProcedure: AnyProcedure = createProcedure()
   .path(["procedure", "store"])
-  .input(zodAdapter<StoreInput>(z.object({ path: pathField })))
+  .input(z.object({ path: pathField }))
   .output(
-    zodAdapter<StoreOutput>(
-      z.object({
+    z.object({
         stored: z.literal(true).describe("True: the store has the program"),
         path: z.array(z.string()).describe("The path of the procedure"),
         storedAt: z.number().describe("When the store got the program, in milliseconds since 1970"),
       })
-    )
   )
   .meta({
     description: "Write the program of a procedure that procedure.define made to the program store",
@@ -174,23 +171,19 @@ const conflictsField = z
 export const procedureLoadProcedure: AnyProcedure = createProcedure()
   .path(["procedure", "load"])
   .input(
-    zodAdapter<LoadInput>(
-      z.object({
+    z.object({
         path: pathField.optional(),
         prefix: pathField.optional().describe("Load the programs of this path and under it"),
         all: z.boolean().optional().describe("Load every stored program"),
       })
-    )
   )
   .output(
-    zodAdapter<LoadOutput>(
-      z.object({
+    z.object({
         loaded: z.number().describe("The number of programs that the load defined"),
         paths: z.array(z.array(z.string())).describe("The paths of the stored programs that matched"),
         conflicts: conflictsField,
         message: z.string(),
       })
-    )
   )
   .meta({
     description: "Define the stored programs again (procedure.define), after a restart",
@@ -258,8 +251,7 @@ async function push(ctx: ProcedureContext, store: ProgramStore): Promise<number>
 export const procedureSyncProcedure: AnyProcedure = createProcedure()
   .path(["procedure", "sync"])
   .input(
-    zodAdapter<SyncInput>(
-      z.object({
+    z.object({
         direction: z
           .enum(["push", "pull", "both"])
           .optional()
@@ -268,17 +260,14 @@ export const procedureSyncProcedure: AnyProcedure = createProcedure()
               "both (the default): push, then pull the stored programs that the registry does not have"
           ),
       })
-    )
   )
   .output(
-    zodAdapter<SyncOutput>(
-      z.object({
+    z.object({
         pushed: z.number().describe("The number of programs written to the store"),
         pulled: z.number().describe("The number of stored programs defined in the registry"),
         conflicts: conflictsField,
         message: z.string(),
       })
-    )
   )
   .meta({
     description: "Synchronize the runtime-defined procedures of the registry with the program store",
@@ -325,15 +314,13 @@ interface RemoteOutput {
 export const procedureRemoteProcedure: AnyProcedure = createProcedure()
   .path(["procedure", "remote"])
   .input(
-    zodAdapter<RemoteInput>(
-      z.object({
+    z.object({
         action: z
           .enum(["status", "connect", "disconnect"])
           .describe("status: the store of the registry. connect and disconnect: not implemented (the host makes the store)"),
       })
-    )
   )
-  .output(outputSchema<RemoteOutput>())
+  .output(typed<RemoteOutput>())
   .meta({
     description: "The status of the program store of the registry",
     tags: ["procedure", "registry", "storage"],

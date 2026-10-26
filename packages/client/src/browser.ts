@@ -175,6 +175,7 @@ export {
   // Modules and explicit registries (roadmap 3.1)
   clientModule,
   defineModule,
+  definePackage,
   moduleClosure,
   registerModules,
   createRegistry,
@@ -263,6 +264,7 @@ export {
   tryCatchProcedure,
   // Common schemas
   anySchema,
+  typed,
   typedAnySchema,
   zodAdapter,
   outputSchema,
@@ -337,6 +339,7 @@ export type {
   CollectionChangeEvent,
   ProcedureModule,
   ModuleInput,
+  PackageDefinition,
   Caller,
   CallerOptions,
   RegistrationOptions,

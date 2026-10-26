@@ -24,7 +24,7 @@ const echo: AnyProcedure = createProcedure()
   .output(z.object({ text: z.string() }))
   .meta({ description: "echo", effects: { reads: [], writes: [] } })
   .handler(async (input: { text: string }) => ({ text: input.text }))
-  .build() as AnyProcedure;
+  .build();
 
 const testModule = defineModule("runner-test", [echo]);
 
@@ -192,8 +192,8 @@ function lateModule(seen: LateSeen) {
       const name = answer.content?.["name"];
       return { action: answer.action, name: typeof name === "string" ? name : null };
     })
-    .build() as AnyProcedure;
-  const hold = createProcedure()
+    .build();
+  const hold: AnyProcedure = createProcedure()
     .path(["test", "hold"])
     .input(z.object({}).passthrough())
     .output(z.object({ aborted: z.boolean() }))
@@ -207,8 +207,8 @@ function lateModule(seen: LateSeen) {
       seen.aborted.fire();
       return { aborted: true };
     })
-    .build() as AnyProcedure;
-  const late = createProcedure()
+    .build();
+  const late: AnyProcedure = createProcedure()
     .path(["test", "late"])
     .input(z.object({}).passthrough())
     .output(z.object({ done: z.boolean() }))
@@ -217,7 +217,7 @@ function lateModule(seen: LateSeen) {
       seen.lateRuns++;
       return { done: true };
     })
-    .build() as AnyProcedure;
+    .build();
   return defineModule("runner-late", [ask, hold, late]);
 }
 

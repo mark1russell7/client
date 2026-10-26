@@ -87,7 +87,7 @@ afterEach(async () => {
 /** The procedure of the test: it waits until the test opens the gate. It runs as a task when the client asks for one. */
 function registryOf() {
   const meta: Record<string, unknown> = { description: "wait for the gate", effects: { reads: [], writes: [] }, taskSupport: "optional" };
-  const wait = createProcedure()
+  const wait: AnyProcedure = createProcedure()
     .path(["test", "wait"])
     .input(z.object({}).passthrough())
     .output(z.object({ done: z.boolean() }))
@@ -97,7 +97,7 @@ function registryOf() {
       await gate.opened;
       return { done: true };
     })
-    .build() as AnyProcedure;
+    .build();
   return createRegistry({ name: "mcp-stop", procedures: [wait] });
 }
 
@@ -150,8 +150,8 @@ function lateRegistryOf(seen: LateSeen) {
       const name = answer.content?.["name"];
       return { action: answer.action, name: typeof name === "string" ? name : null };
     })
-    .build() as AnyProcedure;
-  const hold = createProcedure()
+    .build();
+  const hold: AnyProcedure = createProcedure()
     .path(["test", "hold"])
     .input(z.object({}).passthrough())
     .output(z.object({ aborted: z.boolean() }))
@@ -165,8 +165,8 @@ function lateRegistryOf(seen: LateSeen) {
       seen.aborted.fire();
       return { aborted: true };
     })
-    .build() as AnyProcedure;
-  const late = createProcedure()
+    .build();
+  const late: AnyProcedure = createProcedure()
     .path(["test", "late"])
     .input(z.object({}).passthrough())
     .output(z.object({ done: z.boolean() }))
@@ -175,7 +175,7 @@ function lateRegistryOf(seen: LateSeen) {
       seen.lateRuns++;
       return { done: true };
     })
-    .build() as AnyProcedure;
+    .build();
   return createRegistry({ name: "mcp-late", procedures: [ask, hold, late] });
 }
 

@@ -5,7 +5,7 @@
  * refuses a `baseUrl` on a loopback, private or link-local address, unless the host allows it.
  */
 
-import { createProcedure, zodAdapter, type AnyProcedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, type AnyProcedure, type ProcedureContext } from "@procedures/client";
 import { createHostFetch, isHostNotAllowed } from "@procedures/http";
 import { z } from "zod";
 import { forecastUrl, readForecast, type Forecast } from "./weather.js";
@@ -69,8 +69,8 @@ export function createWeatherProcedures(options: WeatherProceduresOptions = {}):
   const fetchForecast: FetchForecast = options.fetch ?? createHostFetch();
   const forecast = createProcedure()
     .path(["weather", "forecast"])
-    .input(zodAdapter<ForecastInput>(ForecastInputSchema))
-    .output(zodAdapter<Forecast>(ForecastOutputSchema))
+    .input(ForecastInputSchema)
+    .output(ForecastOutputSchema)
     .meta({
       description: "Give the weather forecast of a point for each day, and optionally each hour (Open-Meteo)",
       output: "json",
@@ -90,7 +90,7 @@ export function createWeatherProcedures(options: WeatherProceduresOptions = {}):
       if (!response.ok) throw new Error(`Open-Meteo gave HTTP ${response.status}`);
       return readForecast(await response.json(), input.hourly);
     })
-    .build() as AnyProcedure;
+    .build();
   return [forecast];
 }
 

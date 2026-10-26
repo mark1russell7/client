@@ -5,7 +5,7 @@
  */
 
 import { z } from "zod";
-import { defineModule, registerModules, PROCEDURE_REGISTRY, PURE_EFFECTS, type ProcedureModule, type ProcedureRegistry, createProcedure, zodAdapter } from "@procedures/client";
+import { defineModule, registerModules, PROCEDURE_REGISTRY, PURE_EFFECTS, type ProcedureModule, type ProcedureRegistry, createProcedure } from "@procedures/client";
 import { systemsTimers } from "./procedures/systems/timers.js";
 import type { SystemsTimersInput, SystemsTimersOutput } from "./types.js";
 
@@ -72,8 +72,8 @@ const SystemsTimersOutputSchema = z.object({
 
 const systemsTimersProcedure = createProcedure()
   .path(["systems","timers"])
-  .input(zodAdapter<SystemsTimersInput>(SystemsTimersInputSchema))
-  .output(zodAdapter<SystemsTimersOutput>(SystemsTimersOutputSchema))
+  .input(SystemsTimersInputSchema)
+  .output(SystemsTimersOutputSchema)
   .meta({
     description: "The verdicts of the timer law for the timer settings of an application",
     args: [],

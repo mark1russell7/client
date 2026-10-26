@@ -24,7 +24,7 @@ function testModule() {
           .output(z.object({ path: z.array(z.string()) }))
           .meta({ description: path.join(" "), effects: { reads: [], writes: [] } })
           .handler(async (_input, ctx) => ({ path: [...ctx.path] }))
-          .build() as AnyProcedure,
+          .build(),
     ),
   );
 }

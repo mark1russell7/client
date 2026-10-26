@@ -31,7 +31,7 @@ A program is JSON that names procedures and their inputs. [PROGRAM-FORMAT.md](./
 A procedure is an object with these fields (`packages/client/src/procedures/types.ts`):
 
 - `path`: an array of strings, for example `["git", "commit"]`. The registry refuses the segments `__proto__`, `constructor`, `prototype` and empty segments.
-- `input` and `output`: schemas with `safeParse()`. Most packages use Zod through `zodAdapter()`. `outputSchema<T>()` accepts any value.
+- `input` and `output`: Standard Schemas. Most packages give a Zod schema directly. `typed<T>()` accepts any value and gives only the type `T`.
 - `handler(input, ctx)`: gives one value, or it is an async generator that yields values (a stream).
 - `metadata`: a description, tags and CLI metadata. The tags `runs-refs` and `raw-input` change how a program gives input to the procedure ([PROGRAM-FORMAT.md](./PROGRAM-FORMAT.md), section 9).
 

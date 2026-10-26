@@ -7,7 +7,7 @@
  * feed on a loopback, private or link-local address (audit pass 2, O55).
  */
 
-import { InvocationError, createProcedure, zodAdapter, type AnyProcedure, type ProcedureContext } from "@procedures/client/browser";
+import { InvocationError, createProcedure, type AnyProcedure, type ProcedureContext } from "@procedures/client/browser";
 import { z } from "zod";
 import { calendarOccurrences, isCalendar, parseIcs, type IcsEvent, type Occurrence } from "./ics.js";
 import { icsWrite } from "./procedures/ics/write.js";
@@ -56,15 +56,15 @@ const EventsOutputSchema = z.object({ events: z.array(eventSchema) });
 
 export const icsParseProcedure: AnyProcedure = createProcedure()
   .path(["ics", "parse"])
-  .input(zodAdapter<ParseInput>(ParseInputSchema))
-  .output(zodAdapter<EventsOutput>(EventsOutputSchema))
+  .input(ParseInputSchema)
+  .output<EventsOutput>(EventsOutputSchema)
   .meta({
     description: "Read the events of an iCalendar text",
     output: "json",
     effects: PURE,
   })
   .handler(async (input: ParseInput): Promise<EventsOutput> => ({ events: parseIcs(input.text) }))
-  .build() as AnyProcedure;
+  .build();
 
 // =============================================================================
 // ics.occurrences
@@ -83,8 +83,8 @@ const OccurrencesOutputSchema = z.object({ occurrences: z.array(occurrenceSchema
 
 export const icsOccurrencesProcedure: AnyProcedure = createProcedure()
   .path(["ics", "occurrences"])
-  .input(zodAdapter<OccurrencesInput>(OccurrencesInputSchema))
-  .output(zodAdapter<OccurrencesOutput>(OccurrencesOutputSchema))
+  .input(OccurrencesInputSchema)
+  .output(OccurrencesOutputSchema)
   .meta({
     description: "Give the occurrences of the events of an iCalendar text in a time window, recurrences included",
     output: "json",
@@ -95,7 +95,7 @@ export const icsOccurrencesProcedure: AnyProcedure = createProcedure()
       occurrences: calendarOccurrences(parseIcs(input.text), { from: input.from, to: input.to }),
     })
   )
-  .build() as AnyProcedure;
+  .build();
 
 // =============================================================================
 // ics.write
@@ -103,15 +103,15 @@ export const icsOccurrencesProcedure: AnyProcedure = createProcedure()
 
 export const icsWriteProcedure: AnyProcedure = createProcedure()
   .path(["ics", "write"])
-  .input(zodAdapter<IcsWriteInput>(IcsWriteInputSchema))
-  .output(zodAdapter<IcsWriteOutput>(IcsWriteOutputSchema))
+  .input(IcsWriteInputSchema)
+  .output(IcsWriteOutputSchema)
   .meta({
     description: "Write an iCalendar text from events: escaped text, folded lines and CRLF line ends",
     output: "json",
     effects: PURE,
   })
   .handler(async (input: IcsWriteInput): Promise<IcsWriteOutput> => icsWrite(input))
-  .build() as AnyProcedure;
+  .build();
 
 // =============================================================================
 // ics.fetch
@@ -190,8 +190,8 @@ export interface IcsProceduresOptions {
 function fetchProcedure(fetch: FetchText | undefined): AnyProcedure {
   return createProcedure()
     .path(["ics", "fetch"])
-    .input(zodAdapter<FetchInput>(FetchInputSchema))
-    .output(zodAdapter<EventsOutput>(EventsOutputSchema))
+    .input(FetchInputSchema)
+    .output<EventsOutput>(EventsOutputSchema)
     .meta({
       description: "Get a calendar feed and read its events",
       args: ["url"],
@@ -201,7 +201,7 @@ function fetchProcedure(fetch: FetchText | undefined): AnyProcedure {
     .handler(async (input: FetchInput, ctx?: ProcedureContext): Promise<EventsOutput> => {
       return { events: parseIcs(await fetchCalendar(input.url, input.timeoutMs, ctx?.signal, { fetch })) };
     })
-    .build() as AnyProcedure;
+    .build();
 }
 
 export const icsFetchProcedure: AnyProcedure = fetchProcedure(undefined);

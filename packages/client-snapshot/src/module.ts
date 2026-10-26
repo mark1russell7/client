@@ -6,7 +6,7 @@
  * Provides snapshot.create, snapshot.list, snapshot.restore, snapshot.diff, snapshot.delete procedures.
  */
 
-import { createProcedure, zodAdapter, defineModule, type FsRootRules, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, defineModule, type FsRootRules, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import type { ProcedureContext } from "@procedures/client";
 import {
   snapshotCreate,
@@ -67,8 +67,8 @@ const DIFF_UNDER_A_ROOT: FsRootRules = { paths: ["paths"], required: ["paths"] }
 
 const snapshotCreateProcedure = createProcedure()
   .path(["snapshot", "create"])
-  .input(zodAdapter<SnapshotCreateInput>(SnapshotCreateInputSchema))
-  .output(zodAdapter<SnapshotCreateOutput>(SnapshotCreateOutputSchema))
+  .input(SnapshotCreateInputSchema)
+  .output(SnapshotCreateOutputSchema)
   .meta({
     description: "Create environment snapshot and upload to S3",
     // It writes the archive to a new folder of the temporary directory and to new S3 keys with a
@@ -86,8 +86,8 @@ const snapshotCreateProcedure = createProcedure()
 
 const snapshotListProcedure = createProcedure()
   .path(["snapshot", "list"])
-  .input(zodAdapter<SnapshotListInput>(SnapshotListInputSchema))
-  .output(zodAdapter<SnapshotListOutput>(SnapshotListOutputSchema))
+  .input(SnapshotListInputSchema)
+  .output(SnapshotListOutputSchema)
   .meta({
     description: "List available snapshots in S3 bucket",
     // It downloads the metadata files into memory, not to a file
@@ -103,8 +103,8 @@ const snapshotListProcedure = createProcedure()
 
 const snapshotRestoreProcedure = createProcedure()
   .path(["snapshot", "restore"])
-  .input(zodAdapter<SnapshotRestoreInput>(SnapshotRestoreInputSchema))
-  .output(zodAdapter<SnapshotRestoreOutput>(SnapshotRestoreOutputSchema))
+  .input(SnapshotRestoreInputSchema)
+  .output(SnapshotRestoreOutputSchema)
   .meta({
     description: "Restore environment from S3 snapshot",
     // With overwrite: true, a restored folder replaces the existing folder
@@ -121,8 +121,8 @@ const snapshotRestoreProcedure = createProcedure()
 
 const snapshotDiffProcedure = createProcedure()
   .path(["snapshot", "diff"])
-  .input(zodAdapter<SnapshotDiffInput>(SnapshotDiffInputSchema))
-  .output(zodAdapter<SnapshotDiffOutput>(SnapshotDiffOutputSchema))
+  .input(SnapshotDiffInputSchema)
+  .output(SnapshotDiffOutputSchema)
   .meta({
     description: "Compare current state against a snapshot",
     // It reads the repositories with git queries that change nothing
@@ -139,8 +139,8 @@ const snapshotDiffProcedure = createProcedure()
 
 const snapshotDeleteProcedure = createProcedure()
   .path(["snapshot", "delete"])
-  .input(zodAdapter<SnapshotDeleteInput>(SnapshotDeleteInputSchema))
-  .output(zodAdapter<SnapshotDeleteOutput>(SnapshotDeleteOutputSchema))
+  .input(SnapshotDeleteInputSchema)
+  .output(SnapshotDeleteOutputSchema)
   .meta({
     description: "Delete a snapshot from S3",
     effects: { reads: ["s3", "network"], writes: ["s3", "network"] },

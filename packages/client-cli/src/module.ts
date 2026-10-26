@@ -7,7 +7,7 @@
  */
 
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import shellModule from "@procedures/shell/module";
 import { cliRun } from "./procedures/cli/index.js";
 import { CliRunInputSchema, CliRunOutputSchema, type CliRunInput, type CliRunOutput } from "./types.js";
@@ -19,8 +19,8 @@ import type { ProcedureContext } from "@procedures/client";
 
 const cliRunProcedure = createProcedure()
   .path(["cli", "run"])
-  .input(zodAdapter<CliRunInput>(CliRunInputSchema))
-  .output(zodAdapter<CliRunOutput>(CliRunOutputSchema))
+  .input(CliRunInputSchema)
+  .output(CliRunOutputSchema)
   .meta({
     description: "Run a mark CLI command",
     args: ["path"],

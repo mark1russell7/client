@@ -8,7 +8,6 @@ import {
   createProcedure,
   defineModule,
   registerModules,
-  zodAdapter,
   PROCEDURE_REGISTRY,
   RAW_INPUT_TAG,
   REGISTRY_READ_EFFECTS,
@@ -54,8 +53,8 @@ import {
 // They read the registry and change nothing.
 const programCheckProcedure = createProcedure()
   .path(["program", "check"])
-  .input(zodAdapter<ProgramCheckInput>(ProgramCheckInputSchema))
-  .output(zodAdapter<ProgramCheckOutput>(ProgramCheckOutputSchema))
+  .input(ProgramCheckInputSchema)
+  .output(ProgramCheckOutputSchema)
   .meta({
     description: "Check a program before it runs: names, procedures, inputs, the capability and the effects",
     tags: ["compiler", RAW_INPUT_TAG],
@@ -69,8 +68,8 @@ const programCheckProcedure = createProcedure()
 
 const programCompileProcedure = createProcedure()
   .path(["program", "compile"])
-  .input(zodAdapter<ProgramCompileInput>(ProgramCompileInputSchema))
-  .output(zodAdapter<ProgramCompileOutput>(ProgramCompileOutputSchema))
+  .input(ProgramCompileInputSchema)
+  .output(ProgramCompileOutputSchema)
   .meta({
     description: "Compile a program to a JavaScript function that makes the same calls in the same order",
     tags: ["compiler", RAW_INPUT_TAG],
@@ -84,8 +83,8 @@ const programCompileProcedure = createProcedure()
 
 const programDiagramProcedure = createProcedure()
   .path(["program", "diagram"])
-  .input(zodAdapter<ProgramDiagramInput>(ProgramDiagramInputSchema))
-  .output(zodAdapter<ProgramDiagramOutput>(ProgramDiagramOutputSchema))
+  .input(ProgramDiagramInputSchema)
+  .output(ProgramDiagramOutputSchema)
   .meta({
     description: "Draw a program as a Mermaid flowchart: the order of the calls, the control flow and the names",
     tags: ["compiler", RAW_INPUT_TAG],
@@ -99,8 +98,8 @@ const programDiagramProcedure = createProcedure()
 
 const programExplainProcedure = createProcedure()
   .path(["program", "explain"])
-  .input(zodAdapter<ProgramExplainInput>(ProgramExplainInputSchema))
-  .output(zodAdapter<ProgramExplainOutput>(ProgramExplainOutputSchema))
+  .input(ProgramExplainInputSchema)
+  .output(ProgramExplainOutputSchema)
   .meta({
     description: "Explain a program before it runs: its effects, each call with the answer of the capability, and the problems",
     tags: ["compiler", RAW_INPUT_TAG],
@@ -116,8 +115,8 @@ const programExplainProcedure = createProcedure()
 // The namespace sdk is not a tool namespace of the MCP server.
 const sdkOpenrpcProcedure = createProcedure()
   .path(["sdk", "openrpc"])
-  .input(zodAdapter<SdkOpenrpcInput>(SdkOpenrpcInputSchema))
-  .output(zodAdapter<SdkOpenrpcOutput>(SdkOpenrpcOutputSchema))
+  .input(SdkOpenrpcInputSchema)
+  .output(SdkOpenrpcOutputSchema)
   .meta({
     description: "Describe the exposed procedures as an OpenRPC 1.3 document",
     tags: ["compiler", "sdk"],
@@ -131,8 +130,8 @@ const sdkOpenrpcProcedure = createProcedure()
 
 const sdkTypescriptProcedure = createProcedure()
   .path(["sdk", "typescript"])
-  .input(zodAdapter<SdkTypescriptInput>(SdkTypescriptInputSchema))
-  .output(zodAdapter<SdkTypescriptOutput>(SdkTypescriptOutputSchema))
+  .input(SdkTypescriptInputSchema)
+  .output(SdkTypescriptOutputSchema)
   .meta({
     description: "Write a typed TypeScript SDK for the exposed procedures",
     tags: ["compiler", "sdk"],

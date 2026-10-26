@@ -25,14 +25,14 @@ function testModule() {
       .output(z.object({ clearance: z.unknown(), writes: z.unknown() }))
       .meta({ description: "notes read", effects: { reads: ["notes"], writes: [] } })
       .handler(async (_input, ctx) => ({ clearance: ctx.capability.clearance ?? null, writes: ctx.capability.effects?.writes ?? null }))
-      .build() as AnyProcedure,
+      .build(),
     createProcedure()
       .path(["notes", "write"])
       .input(z.object({}).passthrough())
       .output(z.object({ written: z.boolean() }))
       .meta({ description: "notes write", effects: { reads: [], writes: ["notes"] } })
       .handler(async () => ({ written: true }))
-      .build() as AnyProcedure,
+      .build(),
   ]);
 }
 

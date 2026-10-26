@@ -11,7 +11,7 @@
  */
 
 
-import { createProcedure, zodAdapter, defineModule, type FsRootRules, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, defineModule, type FsRootRules, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import shellModule from "@procedures/shell/module";
 import {
   dockerRun,
@@ -166,8 +166,8 @@ const COMPOSE_UNDER_A_ROOT: FsRootRules = {
 
 const dockerRunProcedure = createProcedure()
   .path(["docker", "run"])
-  .input(zodAdapter<DockerRunInput>(DockerRunInputSchema))
-  .output(zodAdapter<DockerCommandOutput>(DockerCommandOutputSchema))
+  .input(DockerRunInputSchema)
+  .output(DockerCommandOutputSchema)
   .meta({
     description: "Run a Docker container",
     calls: ["shell.run"],
@@ -186,8 +186,8 @@ const dockerRunProcedure = createProcedure()
 
 const dockerBuildProcedure = createProcedure()
   .path(["docker", "build"])
-  .input(zodAdapter<DockerBuildInput>(DockerBuildInputSchema))
-  .output(zodAdapter<DockerCommandOutput>(DockerCommandOutputSchema))
+  .input(DockerBuildInputSchema)
+  .output(DockerCommandOutputSchema)
   .meta({
     description: "Build a Docker image",
     calls: ["shell.run"],
@@ -206,8 +206,8 @@ const dockerBuildProcedure = createProcedure()
 
 const dockerPullProcedure = createProcedure()
   .path(["docker", "pull"])
-  .input(zodAdapter<DockerPullInput>(DockerPullInputSchema))
-  .output(zodAdapter<DockerCommandOutput>(DockerCommandOutputSchema))
+  .input(DockerPullInputSchema)
+  .output(DockerCommandOutputSchema)
   .meta({
     description: "Pull a Docker image",
     calls: ["shell.run"],
@@ -223,8 +223,8 @@ const dockerPullProcedure = createProcedure()
 
 const dockerExecProcedure = createProcedure()
   .path(["docker", "exec"])
-  .input(zodAdapter<DockerExecInput>(DockerExecInputSchema))
-  .output(zodAdapter<DockerCommandOutput>(DockerCommandOutputSchema))
+  .input(DockerExecInputSchema)
+  .output(DockerCommandOutputSchema)
   .meta({
     description: "Execute command in a running container",
     calls: ["shell.run"],
@@ -242,8 +242,8 @@ const dockerExecProcedure = createProcedure()
 
 const dockerStopProcedure = createProcedure()
   .path(["docker", "stop"])
-  .input(zodAdapter<DockerStopInput>(DockerStopInputSchema))
-  .output(zodAdapter<DockerCommandOutput>(DockerCommandOutputSchema))
+  .input(DockerStopInputSchema)
+  .output(DockerCommandOutputSchema)
   .meta({
     description: "Stop running container(s)",
     calls: ["shell.run"],
@@ -261,8 +261,8 @@ const dockerStopProcedure = createProcedure()
 
 const dockerRmProcedure = createProcedure()
   .path(["docker", "rm"])
-  .input(zodAdapter<DockerRmInput>(DockerRmInputSchema))
-  .output(zodAdapter<DockerCommandOutput>(DockerCommandOutputSchema))
+  .input(DockerRmInputSchema)
+  .output(DockerCommandOutputSchema)
   .meta({
     description: "Remove container(s)",
     calls: ["shell.run"],
@@ -279,8 +279,8 @@ const dockerRmProcedure = createProcedure()
 
 const dockerPsProcedure = createProcedure()
   .path(["docker", "ps"])
-  .input(zodAdapter<DockerPsInput>(DockerPsInputSchema))
-  .output(zodAdapter<DockerCommandOutput>(DockerCommandOutputSchema))
+  .input(DockerPsInputSchema)
+  .output(DockerCommandOutputSchema)
   .meta({
     description: "List containers",
     calls: ["shell.run"],
@@ -296,9 +296,9 @@ const dockerPsProcedure = createProcedure()
 
 const dockerLogsProcedure = createProcedure()
   .path(["docker", "logs"])
-  .input(zodAdapter<DockerLogsInput>(DockerLogsInputSchema))
+  .input(DockerLogsInputSchema)
   // One value, or with follow one item for each log line (a stream)
-  .output(zodAdapter<DockerCommandOutput | DockerLogItem>(DockerLogsOutputSchema))
+  .output(DockerLogsOutputSchema)
   .meta({
     description: "Get container logs",
     calls: ["shell.run", "shell.stream"],
@@ -319,8 +319,8 @@ const dockerLogsProcedure = createProcedure()
 
 const dockerComposeUpProcedure = createProcedure()
   .path(["docker", "compose", "up"])
-  .input(zodAdapter<DockerComposeUpInput>(DockerComposeUpInputSchema))
-  .output(zodAdapter<DockerCommandOutput>(DockerCommandOutputSchema))
+  .input(DockerComposeUpInputSchema)
+  .output(DockerCommandOutputSchema)
   .meta({
     description: "Start services with docker compose",
     calls: ["shell.run"],
@@ -338,8 +338,8 @@ const dockerComposeUpProcedure = createProcedure()
 
 const dockerComposeDownProcedure = createProcedure()
   .path(["docker", "compose", "down"])
-  .input(zodAdapter<DockerComposeDownInput>(DockerComposeDownInputSchema))
-  .output(zodAdapter<DockerCommandOutput>(DockerCommandOutputSchema))
+  .input(DockerComposeDownInputSchema)
+  .output(DockerCommandOutputSchema)
   .meta({
     description: "Stop services with docker compose",
     calls: ["shell.run"],
@@ -361,8 +361,8 @@ const dockerComposeDownProcedure = createProcedure()
 
 const dockerComposePsProcedure = createProcedure()
   .path(["docker", "compose", "ps"])
-  .input(zodAdapter<DockerComposePsInput>(DockerComposePsInputSchema))
-  .output(zodAdapter<DockerComposePsOutput>(DockerComposePsOutputSchema))
+  .input(DockerComposePsInputSchema)
+  .output(DockerComposePsOutputSchema)
   .meta({
     description: "List the containers of a compose project",
     calls: ["shell.run"],
@@ -378,8 +378,8 @@ const dockerComposePsProcedure = createProcedure()
 
 const dockerComposeLogsProcedure = createProcedure()
   .path(["docker", "compose", "logs"])
-  .input(zodAdapter<DockerComposeLogsInput>(DockerComposeLogsInputSchema))
-  .output(zodAdapter<DockerComposeLogsOutput>(DockerComposeLogsOutputSchema))
+  .input(DockerComposeLogsInputSchema)
+  .output(DockerComposeLogsOutputSchema)
   .meta({
     description: "Get the logs of the services of a compose project (without follow)",
     calls: ["shell.run"],
@@ -394,8 +394,8 @@ const dockerComposeLogsProcedure = createProcedure()
 
 const dockerComposeBuildProcedure = createProcedure()
   .path(["docker", "compose", "build"])
-  .input(zodAdapter<DockerComposeBuildInput>(DockerComposeBuildInputSchema))
-  .output(zodAdapter<DockerComposeBuildOutput>(DockerComposeBuildOutputSchema))
+  .input(DockerComposeBuildInputSchema)
+  .output(DockerComposeBuildOutputSchema)
   .meta({
     description: "Build the images of the services of a compose project",
     calls: ["shell.run"],
@@ -412,8 +412,8 @@ const dockerComposeBuildProcedure = createProcedure()
 
 const dockerComposeRestartProcedure = createProcedure()
   .path(["docker", "compose", "restart"])
-  .input(zodAdapter<DockerComposeRestartInput>(DockerComposeRestartInputSchema))
-  .output(zodAdapter<DockerComposeRestartOutput>(DockerComposeRestartOutputSchema))
+  .input(DockerComposeRestartInputSchema)
+  .output(DockerComposeRestartOutputSchema)
   .meta({
     description: "Restart the services of a compose project",
     calls: ["shell.run"],
@@ -429,8 +429,8 @@ const dockerComposeRestartProcedure = createProcedure()
 
 const dockerImagesProcedure = createProcedure()
   .path(["docker", "images"])
-  .input(zodAdapter<DockerImagesInput>(DockerImagesInputSchema))
-  .output(zodAdapter<DockerImagesOutput>(DockerImagesOutputSchema))
+  .input(DockerImagesInputSchema)
+  .output(DockerImagesOutputSchema)
   .meta({
     description: "List images",
     calls: ["shell.run"],
@@ -445,8 +445,8 @@ const dockerImagesProcedure = createProcedure()
 
 const dockerInspectProcedure = createProcedure()
   .path(["docker", "inspect"])
-  .input(zodAdapter<DockerInspectInput>(DockerInspectInputSchema))
-  .output(zodAdapter<DockerInspectOutput>(DockerInspectOutputSchema))
+  .input(DockerInspectInputSchema)
+  .output(DockerInspectOutputSchema)
   .meta({
     description: "Give the details of containers, images, volumes or networks: data has the JSON of docker",
     calls: ["shell.run"],
@@ -461,8 +461,8 @@ const dockerInspectProcedure = createProcedure()
 
 const dockerVolumeListProcedure = createProcedure()
   .path(["docker", "volume", "list"])
-  .input(zodAdapter<DockerVolumeListInput>(DockerVolumeListInputSchema))
-  .output(zodAdapter<DockerVolumeListOutput>(DockerVolumeListOutputSchema))
+  .input(DockerVolumeListInputSchema)
+  .output(DockerVolumeListOutputSchema)
   .meta({
     description: "List volumes",
     calls: ["shell.run"],
@@ -476,8 +476,8 @@ const dockerVolumeListProcedure = createProcedure()
 
 const dockerVolumeCreateProcedure = createProcedure()
   .path(["docker", "volume", "create"])
-  .input(zodAdapter<DockerVolumeCreateInput>(DockerVolumeCreateInputSchema))
-  .output(zodAdapter<DockerVolumeCreateOutput>(DockerVolumeCreateOutputSchema))
+  .input(DockerVolumeCreateInputSchema)
+  .output(DockerVolumeCreateOutputSchema)
   .meta({
     description: "Create a volume. A volume that exists stays as it is",
     calls: ["shell.run"],
@@ -492,8 +492,8 @@ const dockerVolumeCreateProcedure = createProcedure()
 
 const dockerVolumeRemoveProcedure = createProcedure()
   .path(["docker", "volume", "remove"])
-  .input(zodAdapter<DockerVolumeRemoveInput>(DockerVolumeRemoveInputSchema))
-  .output(zodAdapter<DockerVolumeRemoveOutput>(DockerVolumeRemoveOutputSchema))
+  .input(DockerVolumeRemoveInputSchema)
+  .output(DockerVolumeRemoveOutputSchema)
   .meta({
     description: "Remove volumes. Their data is lost",
     calls: ["shell.run"],
@@ -508,8 +508,8 @@ const dockerVolumeRemoveProcedure = createProcedure()
 
 const dockerNetworkListProcedure = createProcedure()
   .path(["docker", "network", "list"])
-  .input(zodAdapter<DockerNetworkListInput>(DockerNetworkListInputSchema))
-  .output(zodAdapter<DockerNetworkListOutput>(DockerNetworkListOutputSchema))
+  .input(DockerNetworkListInputSchema)
+  .output(DockerNetworkListOutputSchema)
   .meta({
     description: "List networks",
     calls: ["shell.run"],
@@ -523,8 +523,8 @@ const dockerNetworkListProcedure = createProcedure()
 
 const dockerNetworkCreateProcedure = createProcedure()
   .path(["docker", "network", "create"])
-  .input(zodAdapter<DockerNetworkCreateInput>(DockerNetworkCreateInputSchema))
-  .output(zodAdapter<DockerNetworkCreateOutput>(DockerNetworkCreateOutputSchema))
+  .input(DockerNetworkCreateInputSchema)
+  .output(DockerNetworkCreateOutputSchema)
   .meta({
     description: "Create a network. A name that exists is an error",
     calls: ["shell.run"],
@@ -539,8 +539,8 @@ const dockerNetworkCreateProcedure = createProcedure()
 
 const dockerNetworkRemoveProcedure = createProcedure()
   .path(["docker", "network", "remove"])
-  .input(zodAdapter<DockerNetworkRemoveInput>(DockerNetworkRemoveInputSchema))
-  .output(zodAdapter<DockerNetworkRemoveOutput>(DockerNetworkRemoveOutputSchema))
+  .input(DockerNetworkRemoveInputSchema)
+  .output(DockerNetworkRemoveOutputSchema)
   .meta({
     description: "Remove networks",
     calls: ["shell.run"],
@@ -554,8 +554,8 @@ const dockerNetworkRemoveProcedure = createProcedure()
 
 const dockerTagProcedure = createProcedure()
   .path(["docker", "tag"])
-  .input(zodAdapter<DockerTagInput>(DockerTagInputSchema))
-  .output(zodAdapter<DockerTagOutput>(DockerTagOutputSchema))
+  .input(DockerTagInputSchema)
+  .output(DockerTagOutputSchema)
   .meta({
     description: "Give an image another name. An image that had the name loses it",
     calls: ["shell.run"],
@@ -570,8 +570,8 @@ const dockerTagProcedure = createProcedure()
 
 const dockerPushProcedure = createProcedure()
   .path(["docker", "push"])
-  .input(zodAdapter<DockerPushInput>(DockerPushInputSchema))
-  .output(zodAdapter<DockerPushOutput>(DockerPushOutputSchema))
+  .input(DockerPushInputSchema)
+  .output(DockerPushOutputSchema)
   .meta({
     description: "Push an image to a registry. The registry replaces an image with the same tag",
     calls: ["shell.run"],
@@ -587,8 +587,8 @@ const dockerPushProcedure = createProcedure()
 
 const dockerPruneProcedure = createProcedure()
   .path(["docker", "prune"])
-  .input(zodAdapter<DockerPruneInput>(DockerPruneInputSchema))
-  .output(zodAdapter<DockerPruneOutput>(DockerPruneOutputSchema))
+  .input(DockerPruneInputSchema)
+  .output(DockerPruneOutputSchema)
   .meta({
     description: "Remove unused containers, images, volumes, networks or build cache. It needs confirm: true",
     calls: ["shell.run"],

@@ -3,7 +3,7 @@
  * Get database information and statistics
  */
 
-import { createProcedure, zodAdapter, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { databaseFor, type ScopeInput } from "../scope.js";
 import { scopeFields } from "./input-schemas.js";
 import { z } from "zod";
@@ -14,18 +14,14 @@ import { type DatabaseInfo } from "../types.js";
 type InfoInput = ScopeInput;
 
 // Schemas
-const infoInputSchema = zodAdapter<InfoInput>(
-  z.object({ ...scopeFields() })
-);
-const infoOutputSchema = zodAdapter<DatabaseInfo>(
-  z.looseObject({
+const infoInputSchema: z.ZodType<InfoInput> = z.object({ ...scopeFields() });
+const infoOutputSchema: z.ZodType<DatabaseInfo> = z.looseObject({
     name: z.string().describe("The database name"),
     collections: z.number().describe("The number of collections (views not counted)"),
     views: z.number().describe("The number of views"),
     sizeOnDisk: z.number().describe("The data size, in bytes"),
     empty: z.boolean().describe("True when the database has no collections"),
-  })
-);
+  });
 
 export const infoProcedure: Procedure<
   InfoInput,

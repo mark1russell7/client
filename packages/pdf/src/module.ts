@@ -12,15 +12,14 @@ import {
   type ProcedureModule,
   type ProcedureRegistry,
   createProcedure,
-  zodAdapter,
 } from "@procedures/client";
 import { pdfRender } from "./procedures/pdf/render.js";
 import { PdfRenderInputSchema, PdfRenderOutputSchema, type PdfRenderInput, type PdfRenderOutput } from "./types.js";
 
 export const pdfRenderProcedure: AnyProcedure = createProcedure()
   .path(["pdf", "render"])
-  .input(zodAdapter<PdfRenderInput>(PdfRenderInputSchema))
-  .output(zodAdapter<PdfRenderOutput>(PdfRenderOutputSchema))
+  .input(PdfRenderInputSchema)
+  .output(PdfRenderOutputSchema)
   .meta({
     description: "Render HTML to a PDF file with a headless Chromium browser",
     args: [],
@@ -31,7 +30,7 @@ export const pdfRenderProcedure: AnyProcedure = createProcedure()
     effects: { reads: ["fs", "network", "process"], writes: ["fs", "process"], destructive: true },
   })
   .handler(async (input: PdfRenderInput, ctx): Promise<PdfRenderOutput> => pdfRender(input, ctx))
-  .build() as AnyProcedure;
+  .build();
 
 export const pdfProcedures: AnyProcedure[] = [pdfRenderProcedure];
 

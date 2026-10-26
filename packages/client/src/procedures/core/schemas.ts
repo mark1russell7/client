@@ -47,8 +47,30 @@ export const anySchema: ZodLike<any> & StandardSchemaV1<unknown, any> & { readon
 };
 
 /**
- * Typed version of anySchema for specific type annotations.
- * Useful when you want to assert a specific type at compile time.
+ * This function gives a pass-through schema for the type `T`: it validates nothing and has no JSON
+ * Schema. The type parameter only gives the TypeScript type.
+ *
+ * Use it for internal procedures where a real schema adds nothing. Give a real schema (zod) to a
+ * procedure that an MCP server or the CLI exposes. Then the host validates its input, and its
+ * tools and help describe the fields (roadmap 2.1).
+ *
+ * ```ts
+ * createProcedure().path(["a", "b"]).input(typed<{ id: string }>()).output(typed<number>())
+ * ```
+ */
+export function typed<T>(): ZodLikeSchema<T> & StandardSchemaV1<unknown, T> {
+  return {
+    parse: (data: unknown) => data as T,
+    safeParse: (data: unknown) => ({ success: true as const, data: data as T }),
+    _output: undefined as unknown as T,
+    "~standard": passThrough<T>(),
+  };
+}
+
+/**
+ * This function gives a pass-through schema for the type `T`.
+ *
+ * @deprecated Use `typed<T>()`. A later MINOR removes `typedAnySchema` (tracker item O58, decision D13).
  */
 export function typedAnySchema<T>(): ZodLike<T> & StandardSchemaV1<unknown, T> {
   return {
@@ -63,11 +85,16 @@ export function typedAnySchema<T>(): ZodLike<T> & StandardSchemaV1<unknown, T> {
 // =============================================================================
 
 /**
- * Gives a zod schema the type of a procedure schema (`ZodLikeSchema<T>`). A zod 4 schema is a
- * Standard Schema already, so the function returns it unchanged: the validation and the JSON
- * Schema come from zod itself.
+ * This function gives a zod schema the type of a procedure schema (`ZodLikeSchema<T>`). A zod 4
+ * schema is a Standard Schema already, so the function returns it unchanged: the validation and
+ * the JSON Schema come from zod itself.
  *
  * An object with only a `parse` method gets `safeParse` and `~standard` around that method.
+ *
+ * @deprecated Give the zod schema to `input()` and `output()` directly: they take each Standard
+ * Schema and infer its type. To check a schema against a type, write `const s: z.ZodType<T> = ...`.
+ * For a parse-only object, write a Standard Schema (`~standard`). A later MINOR removes
+ * `zodAdapter` (tracker item O58, decision D13).
  */
 export function zodAdapter<T>(schema: { parse: (data: unknown) => T }): ZodLikeSchema<T> {
   if (isStandardSchema(schema) && typeof (schema as { safeParse?: unknown }).safeParse === "function") {
@@ -106,18 +133,10 @@ export function zodAdapter<T>(schema: { parse: (data: unknown) => T }): ZodLikeS
 // =============================================================================
 
 /**
- * A pass-through schema: it validates nothing and has no JSON Schema. The type parameter only
- * gives the TypeScript type.
+ * This function gives a pass-through schema for the type `T`.
  *
- * Use it for internal procedures where a real schema adds nothing. A procedure that an MCP
- * server exposes, or that a user calls from the CLI, takes a real schema (zod), so its input
- * is validated and its tools and help describe the fields (roadmap 2.1).
+ * @deprecated Use `typed<T>()`. A later MINOR removes `outputSchema` (tracker item O58, decision D13).
  */
 export function outputSchema<T>(): ZodLikeSchema<T> & StandardSchemaV1<unknown, T> {
-  return {
-    parse: (data: unknown) => data as T,
-    safeParse: (data: unknown) => ({ success: true as const, data: data as T }),
-    _output: undefined as unknown as T,
-    "~standard": passThrough<T>(),
-  };
+  return typed<T>();
 }

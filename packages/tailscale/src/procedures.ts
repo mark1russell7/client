@@ -8,7 +8,7 @@
  */
 
 import { existsSync } from "node:fs";
-import { createProcedure, zodAdapter, type AnyProcedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, type AnyProcedure, type ProcedureContext } from "@procedures/client";
 import { runCommand } from "@procedures/shell/command";
 import { z } from "zod";
 import { buildArgv, parseJsonOutput, type ArgValue } from "./argv.js";
@@ -74,8 +74,8 @@ export interface TailscaleProceduresOptions {
 export function createTailscaleProcedures(options: TailscaleProceduresOptions = {}): AnyProcedure[] {
   const run = createProcedure()
     .path(["tailscale", "run"])
-    .input(zodAdapter<RunInput>(RunInputSchema))
-    .output(zodAdapter<RunOutput>(RunOutputSchema))
+    .input(RunInputSchema)
+    .output(RunOutputSchema)
     .meta({
       description: "Run a tailscale command (status, ip, serve, up, down)",
       args: ["path"],
@@ -105,7 +105,7 @@ export function createTailscaleProcedures(options: TailscaleProceduresOptions = 
         ...(actionUrl !== undefined ? { actionUrl } : {}),
       };
     })
-    .build() as AnyProcedure;
+    .build();
   return [run];
 }
 

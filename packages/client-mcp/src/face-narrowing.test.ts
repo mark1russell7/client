@@ -49,21 +49,21 @@ function testRegistry(): ProcedureRegistry {
           writes: ctx.capability.effects?.writes ?? null,
           deadline: ctx.capability.deadline !== undefined,
         }))
-        .build() as AnyProcedure,
+        .build(),
       createProcedure()
         .path(["notes", "write"])
         .input(z.object({}).passthrough())
         .output(z.object({ written: z.boolean() }))
         .meta({ description: "notes write", effects: { reads: [], writes: ["notes"] } })
         .handler(async () => ({ written: true }))
-        .build() as AnyProcedure,
+        .build(),
       createProcedure()
         .path(["notes", "undeclared"])
         .input(z.object({}).passthrough())
         .output(z.object({ ran: z.boolean() }))
         .meta({ description: "notes undeclared" })
         .handler(async () => ({ ran: true }))
-        .build() as AnyProcedure,
+        .build(),
     ],
   });
 }
@@ -187,7 +187,7 @@ describe("mcpFace({ narrowing }) (CLI-43)", () => {
           .output(z.object({ writes: z.unknown() }))
           .meta({ description: "notes scan", effects: { reads: ["notes"], writes: [] }, taskSupport: "optional" })
           .handler(async (_input, ctx) => ({ writes: ctx.capability.effects?.writes ?? null }))
-          .build() as AnyProcedure,
+          .build(),
       ],
     });
     const policy = hostPolicy({ token: TOKEN, expose: ["notes.*"] });

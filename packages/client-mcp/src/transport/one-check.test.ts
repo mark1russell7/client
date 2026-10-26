@@ -43,7 +43,7 @@ const whoAmI: AnyProcedure = createProcedure()
   .output(z.unknown())
   .meta({ description: "who am I", effects: { reads: [], writes: [] } })
   .handler(async (_input, ctx) => ({ principal: ctx.principal ?? null }))
-  .build() as AnyProcedure;
+  .build();
 
 const whoModule = defineModule("one-check", [whoAmI]);
 

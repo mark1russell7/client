@@ -16,7 +16,6 @@ import {
   type ProcedureModule,
   type ProcedureRegistry,
   createProcedure,
-  zodAdapter,
 } from "@procedures/client";
 import shellModule from "@procedures/shell/module";
 import { npmView } from "./procedures/npm/view.js";
@@ -62,8 +61,8 @@ const READS_REGISTRY: Effects = { reads: ["fs", "network"], writes: [] };
 
 const npmViewProcedure = createProcedure()
   .path(["npm", "view"])
-  .input(zodAdapter<NpmViewInput>(NpmViewInputSchema))
-  .output(zodAdapter<NpmViewOutput>(NpmViewOutputSchema))
+  .input(NpmViewInputSchema)
+  .output(NpmViewOutputSchema)
   .meta({
     description: "Read the fields of a package of the npm registry: data has the JSON of npm view",
     calls: ["shell.run"],
@@ -77,8 +76,8 @@ const npmViewProcedure = createProcedure()
 
 const npmDistTagsListProcedure = createProcedure()
   .path(["npm", "distTags", "list"])
-  .input(zodAdapter<NpmDistTagsListInput>(NpmDistTagsListInputSchema))
-  .output(zodAdapter<NpmDistTagsListOutput>(NpmDistTagsListOutputSchema))
+  .input(NpmDistTagsListInputSchema)
+  .output(NpmDistTagsListOutputSchema)
   .meta({
     description: "List the dist-tags of a package: tags has each tag and its version",
     calls: ["shell.run"],
@@ -92,8 +91,8 @@ const npmDistTagsListProcedure = createProcedure()
 
 const npmDistTagsAddProcedure = createProcedure()
   .path(["npm", "distTags", "add"])
-  .input(zodAdapter<NpmDistTagsAddInput>(NpmDistTagsAddInputSchema))
-  .output(zodAdapter<NpmDistTagsAddOutput>(NpmDistTagsAddOutputSchema))
+  .input(NpmDistTagsAddInputSchema)
+  .output(NpmDistTagsAddOutputSchema)
   .meta({
     description: "Set a dist-tag of a package to a version, in the registry. It needs confirm: true",
     calls: ["shell.run"],
@@ -108,8 +107,8 @@ const npmDistTagsAddProcedure = createProcedure()
 
 const npmDistTagsRemoveProcedure = createProcedure()
   .path(["npm", "distTags", "remove"])
-  .input(zodAdapter<NpmDistTagsRemoveInput>(NpmDistTagsRemoveInputSchema))
-  .output(zodAdapter<NpmDistTagsRemoveOutput>(NpmDistTagsRemoveOutputSchema))
+  .input(NpmDistTagsRemoveInputSchema)
+  .output(NpmDistTagsRemoveOutputSchema)
   .meta({
     description: "Remove a dist-tag of a package, in the registry. It needs confirm: true",
     calls: ["shell.run"],
@@ -123,8 +122,8 @@ const npmDistTagsRemoveProcedure = createProcedure()
 
 const npmWhoamiProcedure = createProcedure()
   .path(["npm", "whoami"])
-  .input(zodAdapter<NpmWhoamiInput>(NpmWhoamiInputSchema))
-  .output(zodAdapter<NpmWhoamiOutput>(NpmWhoamiOutputSchema))
+  .input(NpmWhoamiInputSchema)
+  .output(NpmWhoamiOutputSchema)
   .meta({
     description: "Give the user name of the npm registry",
     calls: ["shell.run"],
@@ -138,8 +137,8 @@ const npmWhoamiProcedure = createProcedure()
 
 const npmPackProcedure = createProcedure()
   .path(["npm", "pack"])
-  .input(zodAdapter<NpmPackInput>(NpmPackInputSchema))
-  .output(zodAdapter<NpmPackOutput>(NpmPackOutputSchema))
+  .input(NpmPackInputSchema)
+  .output(NpmPackOutputSchema)
   .meta({
     description: "List the files of the tarball of the package (a dry run), or with dryRun: false make the tarball",
     calls: ["shell.run"],
@@ -155,8 +154,8 @@ const npmPackProcedure = createProcedure()
 
 const npmDeprecateProcedure = createProcedure()
   .path(["npm", "deprecate"])
-  .input(zodAdapter<NpmDeprecateInput>(NpmDeprecateInputSchema))
-  .output(zodAdapter<NpmDeprecateOutput>(NpmDeprecateOutputSchema))
+  .input(NpmDeprecateInputSchema)
+  .output(NpmDeprecateOutputSchema)
   .meta({
     description: "Deprecate versions of a package in the registry. An empty message removes it. It needs confirm: true",
     calls: ["shell.run"],

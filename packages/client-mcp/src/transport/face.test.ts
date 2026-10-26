@@ -44,7 +44,7 @@ function testModule(seen: Seen) {
       .output(output)
       .meta({ description: path.join(" "), effects: NONE, ...meta })
       .handler(handler as never)
-      .build() as AnyProcedure;
+      .build();
   return defineModule("face-test", [
     procedure(["ask", "release"], z.object({ released: z.boolean(), by: z.string().nullable(), note: z.string().nullable() }), async (_input, ctx) => {
       const answer = await elicitConfirmation(ctx, "Did you give this URL yourself?", { consent: "user-provided", field: "gave_url" });

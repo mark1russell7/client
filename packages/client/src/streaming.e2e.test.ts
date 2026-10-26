@@ -22,7 +22,7 @@ import { WebSocketServerTransport } from "./adapters/websocket/server/transport.
 import { ProcedureServer } from "./server/procedure-server.js";
 import { ProcedureRegistry } from "./procedures/registry.js";
 import { defineProcedure } from "./procedures/define.js";
-import { outputSchema, zodAdapter } from "./procedures/core/schemas.js";
+import { outputSchema } from "./procedures/core/schemas.js";
 import type { Transport } from "./client/types.js";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -102,7 +102,7 @@ function makeServer(gate: Gate, closed: string[]): ProcedureServer {
   registry.register(
     defineProcedure({
       path: ["test", "double"],
-      input: zodAdapter<{ n: number }>(z.object({ n: z.number() })),
+      input: z.object({ n: z.number() }),
       output: outputSchema<number>(),
       handler: (input: { n: number }) => input.n * 2,
     }),

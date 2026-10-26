@@ -13,7 +13,6 @@ import {
   defineModule,
   invokePath,
   outputValue,
-  zodAdapter,
   type Capability,
   type ProcedureContext,
   type ProcedureRegistry,
@@ -43,7 +42,7 @@ async function until(condition: () => boolean | Promise<boolean>, turns = 200): 
   throw new Error("The condition did not come true");
 }
 
-const ok = zodAdapter<{ ok: boolean }>(z.object({ ok: z.boolean() }));
+const ok: z.ZodType<{ ok: boolean }> = z.object({ ok: z.boolean() });
 
 /**
  * A registry with the schedule procedures, the program store procedures and three test procedures,
@@ -59,7 +58,7 @@ async function harness(options: Partial<SchedulerOptions> = {}, store: ScheduleS
   const test = defineModule("test", [
     createProcedure()
       .path(["test", "record"])
-      .input(zodAdapter<{ value?: unknown }>(z.object({ value: z.unknown().optional() })))
+      .input(z.object({ value: z.unknown().optional() }))
       .output(ok)
       .meta({ effects: { reads: [], writes: ["test"] } })
       .handler(async (input: { value?: unknown }) => {
@@ -69,7 +68,7 @@ async function harness(options: Partial<SchedulerOptions> = {}, store: ScheduleS
       .build(),
     createProcedure()
       .path(["test", "block"])
-      .input(zodAdapter<{ obey?: boolean | undefined }>(z.object({ obey: z.boolean().optional() })))
+      .input(z.object({ obey: z.boolean().optional() }))
       .output(ok)
       .meta({ effects: { reads: [], writes: [] } })
       .handler(async (input: { obey?: boolean | undefined }, ctx: ProcedureContext) => {
@@ -87,7 +86,7 @@ async function harness(options: Partial<SchedulerOptions> = {}, store: ScheduleS
       .build(),
     createProcedure()
       .path(["test", "fail"])
-      .input(zodAdapter<Record<string, never>>(z.object({})))
+      .input(z.object({}))
       .output(ok)
       .meta({ effects: { reads: [], writes: [] } })
       .handler(async () => {

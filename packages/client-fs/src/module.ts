@@ -11,7 +11,7 @@
  * a root to all the procedures of a registry (`confine.ts`).
  */
 
-import { createProcedure, zodAdapter, defineModule, type AnyProcedure, type Effects, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, defineModule, type AnyProcedure, type Effects, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import { statSync } from "node:fs";
 import { resolve } from "node:path";
 import { HANDLER_NAMES, rootedHandlers } from "./handlers.js";
@@ -39,28 +39,6 @@ import {
   MoveInputSchema,
   GlobInputSchema,
   ReadJsonInputSchema,
-  type ReadInput,
-  type ReadOutput,
-  type WriteInput,
-  type WriteOutput,
-  type ExistsInput,
-  type ExistsOutput,
-  type MkdirInput,
-  type MkdirOutput,
-  type RmInput,
-  type RmOutput,
-  type ReaddirInput,
-  type ReaddirOutput,
-  type StatInput,
-  type StatOutput,
-  type CopyInput,
-  type CopyOutput,
-  type MoveInput,
-  type MoveOutput,
-  type GlobInput,
-  type GlobOutput,
-  type ReadJsonInput,
-  type ReadJsonOutput,
   ReadOutputSchema,
   WriteOutputSchema,
   ExistsOutputSchema,
@@ -86,14 +64,9 @@ import {
   FsTempOutputSchema,
   FsWatchInputSchema,
   FsWatchOutputSchema,
-  type FsWriteJsonInput,
-  type FsWriteJsonOutput,
   type FsHashInput,
-  type FsHashOutput,
   type FsTempInput,
-  type FsTempOutput,
   type FsWatchInput,
-  type FsWatchOutput,
 } from "./types.js";
 
 // =============================================================================
@@ -105,8 +78,8 @@ const READS_FILES: Effects = { reads: ["fs"], writes: [] };
 
 const fsReadProcedure = createProcedure()
   .path(["fs", "read"])
-  .input(zodAdapter<ReadInput>(ReadInputSchema))
-  .output(zodAdapter<ReadOutput>(ReadOutputSchema))
+  .input(ReadInputSchema)
+  .output(ReadOutputSchema)
   .meta({
     description: "Read file contents",
     args: ["path"],
@@ -119,8 +92,8 @@ const fsReadProcedure = createProcedure()
 
 const fsWriteProcedure = createProcedure()
   .path(["fs", "write"])
-  .input(zodAdapter<WriteInput>(WriteInputSchema))
-  .output(zodAdapter<WriteOutput>(WriteOutputSchema))
+  .input(WriteInputSchema)
+  .output(WriteOutputSchema)
   .meta({
     description: "Write content to file",
     args: ["path", "content"],
@@ -134,8 +107,8 @@ const fsWriteProcedure = createProcedure()
 
 const fsExistsProcedure = createProcedure()
   .path(["fs", "exists"])
-  .input(zodAdapter<ExistsInput>(ExistsInputSchema))
-  .output(zodAdapter<ExistsOutput>(ExistsOutputSchema))
+  .input(ExistsInputSchema)
+  .output(ExistsOutputSchema)
   .meta({
     description: "Check if file or directory exists",
     args: ["path"],
@@ -148,8 +121,8 @@ const fsExistsProcedure = createProcedure()
 
 const fsMkdirProcedure = createProcedure()
   .path(["fs", "mkdir"])
-  .input(zodAdapter<MkdirInput>(MkdirInputSchema))
-  .output(zodAdapter<MkdirOutput>(MkdirOutputSchema))
+  .input(MkdirInputSchema)
+  .output(MkdirOutputSchema)
   .meta({
     description: "Create directory",
     args: ["path"],
@@ -163,8 +136,8 @@ const fsMkdirProcedure = createProcedure()
 
 const fsRmProcedure = createProcedure()
   .path(["fs", "rm"])
-  .input(zodAdapter<RmInput>(RmInputSchema))
-  .output(zodAdapter<RmOutput>(RmOutputSchema))
+  .input(RmInputSchema)
+  .output(RmOutputSchema)
   .meta({
     description: "Remove file or directory",
     args: ["path"],
@@ -177,8 +150,8 @@ const fsRmProcedure = createProcedure()
 
 const fsReaddirProcedure = createProcedure()
   .path(["fs", "readdir"])
-  .input(zodAdapter<ReaddirInput>(ReaddirInputSchema))
-  .output(zodAdapter<ReaddirOutput>(ReaddirOutputSchema))
+  .input(ReaddirInputSchema)
+  .output(ReaddirOutputSchema)
   .meta({
     description: "Read directory contents",
     args: ["path"],
@@ -191,8 +164,8 @@ const fsReaddirProcedure = createProcedure()
 
 const fsStatProcedure = createProcedure()
   .path(["fs", "stat"])
-  .input(zodAdapter<StatInput>(StatInputSchema))
-  .output(zodAdapter<StatOutput>(StatOutputSchema))
+  .input(StatInputSchema)
+  .output(StatOutputSchema)
   .meta({
     description: "Get file or directory stats",
     args: ["path"],
@@ -205,8 +178,8 @@ const fsStatProcedure = createProcedure()
 
 const fsCopyProcedure = createProcedure()
   .path(["fs", "copy"])
-  .input(zodAdapter<CopyInput>(CopyInputSchema))
-  .output(zodAdapter<CopyOutput>(CopyOutputSchema))
+  .input(CopyInputSchema)
+  .output(CopyOutputSchema)
   .meta({
     description: "Copy file or directory. Without overwrite, it refuses an existing destination (EEXIST).",
     args: ["src", "dest"],
@@ -220,8 +193,8 @@ const fsCopyProcedure = createProcedure()
 
 const fsMoveProcedure = createProcedure()
   .path(["fs", "move"])
-  .input(zodAdapter<MoveInput>(MoveInputSchema))
-  .output(zodAdapter<MoveOutput>(MoveOutputSchema))
+  .input(MoveInputSchema)
+  .output(MoveOutputSchema)
   .meta({
     description: "Move or rename file/directory",
     args: ["src", "dest"],
@@ -235,8 +208,8 @@ const fsMoveProcedure = createProcedure()
 
 const fsGlobProcedure = createProcedure()
   .path(["fs", "glob"])
-  .input(zodAdapter<GlobInput>(GlobInputSchema))
-  .output(zodAdapter<GlobOutput>(GlobOutputSchema))
+  .input(GlobInputSchema)
+  .output(GlobOutputSchema)
   .meta({
     description: "Find files matching glob pattern",
     args: ["pattern"],
@@ -249,8 +222,8 @@ const fsGlobProcedure = createProcedure()
 
 const fsReadJsonProcedure = createProcedure()
   .path(["fs", "read.json"])
-  .input(zodAdapter<ReadJsonInput>(ReadJsonInputSchema))
-  .output(zodAdapter<ReadJsonOutput>(ReadJsonOutputSchema))
+  .input(ReadJsonInputSchema)
+  .output(ReadJsonOutputSchema)
   .meta({
     description: "Read and parse JSON file",
     args: ["path"],
@@ -265,8 +238,8 @@ const fsReadJsonProcedure = createProcedure()
 
 const fsWriteJsonProcedure = createProcedure()
   .path(["fs", "write.json"])
-  .input(zodAdapter<FsWriteJsonInput>(FsWriteJsonInputSchema))
-  .output(zodAdapter<FsWriteJsonOutput>(FsWriteJsonOutputSchema))
+  .input(FsWriteJsonInputSchema)
+  .output(FsWriteJsonOutputSchema)
   .meta({
     description: "Write a value as a JSON file, with a rename at the end",
     args: ["path"],
@@ -280,8 +253,8 @@ const fsWriteJsonProcedure = createProcedure()
 
 const fsHashProcedure = createProcedure()
   .path(["fs", "hash"])
-  .input(zodAdapter<FsHashInput>(FsHashInputSchema))
-  .output(zodAdapter<FsHashOutput>(FsHashOutputSchema))
+  .input(FsHashInputSchema)
+  .output(FsHashOutputSchema)
   .meta({
     description: "The hash of a file",
     args: ["path"],
@@ -294,8 +267,8 @@ const fsHashProcedure = createProcedure()
 
 const fsTempProcedure = createProcedure()
   .path(["fs", "temp"])
-  .input(zodAdapter<FsTempInput>(FsTempInputSchema))
-  .output(zodAdapter<FsTempOutput>(FsTempOutputSchema))
+  .input(FsTempInputSchema)
+  .output(FsTempOutputSchema)
   .meta({
     description: "Make a temporary folder",
     args: [],
@@ -309,8 +282,8 @@ const fsTempProcedure = createProcedure()
 
 const fsWatchProcedure = createProcedure()
   .path(["fs", "watch"])
-  .input(zodAdapter<FsWatchInput>(FsWatchInputSchema))
-  .output(zodAdapter<FsWatchOutput>(FsWatchOutputSchema))
+  .input(FsWatchInputSchema)
+  .output(FsWatchOutputSchema)
   .meta({
     description: "The changes of a file or folder, as a stream",
     args: ["path"],

@@ -3,7 +3,7 @@
  * Count documents matching a filter
  */
 
-import { createProcedure, zodAdapter, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { collectionFor, type ScopeInput } from "../scope.js";
 import { scopeFields, documentObject } from "./input-schemas.js";
 import { z } from "zod";
@@ -19,17 +19,13 @@ interface CountOutput {
 }
 
 // Schemas
-const countInputSchema = zodAdapter<CountInput>(
-  z.object({
+const countInputSchema: z.ZodType<CountInput> = z.object({
     ...scopeFields(),
     query: documentObject().optional().describe("The filter of the documents to count (default: all documents)"),
-  })
-);
-const countOutputSchema = zodAdapter<CountOutput>(
-  z.looseObject({
+  });
+const countOutputSchema: z.ZodType<CountOutput> = z.looseObject({
     count: z.number().describe("The number of documents that match"),
-  })
-);
+  });
 
 export const countProcedure: Procedure<
   CountInput,

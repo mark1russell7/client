@@ -4,7 +4,7 @@
  * Procedure Registration for Vite dev server management
  */
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import { viteDev } from "./procedures/vite/dev.js";
 import { viteBuild } from "./procedures/vite/build.js";
 import { vitePreview } from "./procedures/vite/preview.js";
@@ -30,8 +30,8 @@ import {
 
 const viteDevProcedure = createProcedure()
   .path(["vite", "dev"])
-  .input(zodAdapter<ViteDevInput>(ViteDevInputSchema))
-  .output(zodAdapter<ViteDevOutput>(ViteDevOutputSchema))
+  .input(ViteDevInputSchema)
+  .output(ViteDevOutputSchema)
   .meta({
     description: "Start Vite dev server",
     // vite runs the config and the plugins of the project, and the server listens on a port
@@ -45,8 +45,8 @@ const viteDevProcedure = createProcedure()
 
 const viteBuildProcedure = createProcedure()
   .path(["vite", "build"])
-  .input(zodAdapter<ViteBuildInput>(ViteBuildInputSchema))
-  .output(zodAdapter<ViteBuildOutput>(ViteBuildOutputSchema))
+  .input(ViteBuildInputSchema)
+  .output(ViteBuildOutputSchema)
   .meta({
     description: "Build for production",
     // vite runs the config and the plugins of the project, and writes the output folder
@@ -60,8 +60,8 @@ const viteBuildProcedure = createProcedure()
 
 const vitePreviewProcedure = createProcedure()
   .path(["vite", "preview"])
-  .input(zodAdapter<VitePreviewInput>(VitePreviewInputSchema))
-  .output(zodAdapter<VitePreviewOutput>(VitePreviewOutputSchema))
+  .input(VitePreviewInputSchema)
+  .output(VitePreviewOutputSchema)
   .meta({
     description: "Preview production build",
     effects: { reads: ["fs"], writes: ["network", "process", "server"] },
@@ -74,8 +74,8 @@ const vitePreviewProcedure = createProcedure()
 
 const viteStopProcedure = createProcedure()
   .path(["vite", "stop"])
-  .input(zodAdapter<ViteStopInput>(ViteStopInputSchema))
-  .output(zodAdapter<ViteStopOutput>(ViteStopOutputSchema))
+  .input(ViteStopInputSchema)
+  .output(ViteStopOutputSchema)
   .meta({
     description: "Stop a running Vite server",
     effects: { reads: ["server"], writes: ["server"], idempotent: true },

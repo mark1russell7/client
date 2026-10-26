@@ -13,7 +13,6 @@ import {
   type ProcedureModule,
   type ProcedureRegistry,
   createProcedure,
-  zodAdapter,
 } from "@procedures/client";
 import { claudeStart } from "./procedures/claude/start.js";
 import { claudeRead } from "./procedures/claude/read.js";
@@ -32,8 +31,6 @@ import {
   type ClaudeStartOutput,
   type ClaudeReadInput,
   type ClaudeReadOutput,
-  type ClaudeFollowInput,
-  type ClaudeFollowOutput,
   type ClaudeCancelInput,
   type ClaudeCancelOutput,
 } from "./types.js";
@@ -52,8 +49,8 @@ const READ_IN_A_ROOT: FsRootRules = { paths: ["outputFile"] };
 
 export const claudeStartProcedure: AnyProcedure = createProcedure()
   .path(["claude", "start"])
-  .input(zodAdapter<ClaudeStartInput>(ClaudeStartInputSchema))
-  .output(zodAdapter<ClaudeStartOutput>(ClaudeStartOutputSchema))
+  .input(ClaudeStartInputSchema)
+  .output(ClaudeStartOutputSchema)
   .meta({
     description: "Start one turn of the Claude Code CLI as a detached process that writes to a file",
     args: ["prompt"],
@@ -64,12 +61,12 @@ export const claudeStartProcedure: AnyProcedure = createProcedure()
     fsRoot: START_UNDER_A_ROOT,
   })
   .handler(async (input: ClaudeStartInput): Promise<ClaudeStartOutput> => claudeStart(input))
-  .build() as AnyProcedure;
+  .build();
 
 export const claudeReadProcedure: AnyProcedure = createProcedure()
   .path(["claude", "read"])
-  .input(zodAdapter<ClaudeReadInput>(ClaudeReadInputSchema))
-  .output(zodAdapter<ClaudeReadOutput>(ClaudeReadOutputSchema))
+  .input(ClaudeReadInputSchema)
+  .output(ClaudeReadOutputSchema)
   .meta({
     description: "Read the new events of a turn from its output file",
     args: ["outputFile"],
@@ -79,12 +76,12 @@ export const claudeReadProcedure: AnyProcedure = createProcedure()
     fsRoot: READ_IN_A_ROOT,
   })
   .handler(async (input: ClaudeReadInput): Promise<ClaudeReadOutput> => claudeRead(input))
-  .build() as AnyProcedure;
+  .build();
 
 export const claudeFollowProcedure: AnyProcedure = createProcedure()
   .path(["claude", "follow"])
-  .input(zodAdapter<ClaudeFollowInput>(ClaudeFollowInputSchema))
-  .output(zodAdapter<ClaudeFollowOutput>(ClaudeFollowOutputSchema))
+  .input(ClaudeFollowInputSchema)
+  .output(ClaudeFollowOutputSchema)
   .meta({
     description: "Follow the output file of a turn and stream its events until the turn ends",
     args: ["outputFile"],
@@ -97,12 +94,12 @@ export const claudeFollowProcedure: AnyProcedure = createProcedure()
     fsRoot: READ_IN_A_ROOT,
   })
   .handler(claudeFollow)
-  .build() as AnyProcedure;
+  .build();
 
 export const claudeCancelProcedure: AnyProcedure = createProcedure()
   .path(["claude", "cancel"])
-  .input(zodAdapter<ClaudeCancelInput>(ClaudeCancelInputSchema))
-  .output(zodAdapter<ClaudeCancelOutput>(ClaudeCancelOutputSchema))
+  .input(ClaudeCancelInputSchema)
+  .output(ClaudeCancelOutputSchema)
   .meta({
     description: "Stop a turn and the processes that it started",
     args: ["pid"],
@@ -112,7 +109,7 @@ export const claudeCancelProcedure: AnyProcedure = createProcedure()
     effects: { reads: ["jobs"], writes: ["jobs"], destructive: true, idempotent: true },
   })
   .handler(async (input: ClaudeCancelInput): Promise<ClaudeCancelOutput> => claudeCancel(input))
-  .build() as AnyProcedure;
+  .build();
 
 export const claudeCliProcedures: AnyProcedure[] = [claudeStartProcedure, claudeReadProcedure, claudeFollowProcedure, claudeCancelProcedure];
 

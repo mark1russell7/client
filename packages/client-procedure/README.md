@@ -226,14 +226,14 @@ export { userCreate } from "./create.js";
 
    The definition goes before the list that uses it. When the list comes from another file or from a function, `procedure.new` fails and writes nothing. A package of the old kind, without `src/module.ts`, gets the procedure in the `registerProcedures([...])` array of `src/register.ts`:
 ```typescript
-import { createProcedure, outputSchema, registerProcedures, zodAdapter } from "@procedures/client";
+import { createProcedure, registerProcedures, typed } from "@procedures/client";
 import { userCreate } from "./procedures/user/create.js";
 import { UserCreateInputSchema, type UserCreateInput, type UserCreateOutput } from "./types.js";
 
 const userCreateProcedure = createProcedure()
   .path(["user", "create"])
-  .input(zodAdapter<UserCreateInput>(UserCreateInputSchema))
-  .output(outputSchema<UserCreateOutput>())
+  .input(UserCreateInputSchema)
+  .output(typed<UserCreateOutput>())
   .meta({
     description: "Create a new user",
     args: [],

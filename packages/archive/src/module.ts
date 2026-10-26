@@ -15,7 +15,6 @@ import {
   registerModules,
   PROCEDURE_REGISTRY,
   createProcedure,
-  zodAdapter,
   type AnyProcedure,
   type Effects,
   type ProcedureModule,
@@ -106,8 +105,8 @@ const READS_FS: Effects = Object.freeze({ reads: Object.freeze(["fs"]), writes: 
 function archiveProcedures(settings: ArchiveSettings): AnyProcedure[] {
   const archiveCreateProcedure = createProcedure()
     .path(["archive", "create"])
-    .input(zodAdapter<ArchiveCreateInput>(ArchiveCreateInputSchema))
-    .output(zodAdapter<ArchiveCreateOutput>(ArchiveCreateOutputSchema))
+    .input(ArchiveCreateInputSchema)
+    .output(ArchiveCreateOutputSchema)
     .meta({
       description: "Make a tar.gz or zip archive of a folder or of files",
       tags: ["archive", "fs"],
@@ -123,8 +122,8 @@ function archiveProcedures(settings: ArchiveSettings): AnyProcedure[] {
 
   const archiveExtractProcedure = createProcedure()
     .path(["archive", "extract"])
-    .input(zodAdapter<ArchiveExtractInput>(ArchiveExtractInputSchema))
-    .output(zodAdapter<ArchiveExtractOutput>(ArchiveExtractOutputSchema))
+    .input(ArchiveExtractInputSchema)
+    .output(ArchiveExtractOutputSchema)
     .meta({
       description: "Extract a tar.gz or zip archive into a folder, with a check of each path",
       tags: ["archive", "fs"],
@@ -140,8 +139,8 @@ function archiveProcedures(settings: ArchiveSettings): AnyProcedure[] {
 
   const archiveListProcedure = createProcedure()
     .path(["archive", "list"])
-    .input(zodAdapter<ArchiveListInput>(ArchiveListInputSchema))
-    .output(zodAdapter<ArchiveListOutput>(ArchiveListOutputSchema))
+    .input(ArchiveListInputSchema)
+    .output(ArchiveListOutputSchema)
     .meta({
       description: "The entries of a tar.gz or zip archive",
       tags: ["archive", "fs"],

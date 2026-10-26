@@ -4,13 +4,13 @@
 
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
-import { createProcedure, outputSchema, zodAdapter, type AnyProcedure } from "@procedures/client";
+import { createProcedure, outputSchema, type AnyProcedure } from "@procedures/client";
 import { findFlagNotices } from "./audit.js";
 
 function procedure(path: string[], schema: z.ZodTypeAny, shorts: Record<string, string>): AnyProcedure {
   return createProcedure()
     .path(path)
-    .input(zodAdapter(schema))
+    .input(schema)
     .output(outputSchema<unknown>())
     .meta({ shorts })
     .handler(async () => ({}))

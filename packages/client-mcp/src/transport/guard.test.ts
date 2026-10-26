@@ -313,7 +313,7 @@ describe("the sessions of the Streamable HTTP endpoint", () => {
 
 describe("the tasks of sessions over Streamable HTTP", () => {
   function waitModule(state: { started: number; aborted: number }) {
-    const wait = createProcedure()
+    const wait: AnyProcedure = createProcedure()
       .path(["crawl", "wait"])
       .input(z.object({}).passthrough())
       .output(z.object({ aborted: z.boolean() }))
@@ -324,7 +324,7 @@ describe("the tasks of sessions over Streamable HTTP", () => {
         state.aborted++;
         return { aborted: true };
       }) as never)
-      .build() as AnyProcedure;
+      .build();
     return defineModule("http-task", [wait]);
   }
 

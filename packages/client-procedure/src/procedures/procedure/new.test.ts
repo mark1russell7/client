@@ -143,7 +143,11 @@ describe("registerSource", () => {
     expect(definition).toBeGreaterThan(updated.indexOf('import { demoHello } from "./procedures/demo/hello.js";'));
     expect(definition).toBeLessThan(updated.indexOf("const demoProcedures: AnyProcedure[]"));
     expect(updated).toContain("  aProcedure,\n  demoHelloProcedure,\n];");
-    expect(updated).toMatch(/import \{ [^}]*createProcedure, zodAdapter \} from "@procedures\/client";/);
+    expect(updated).toMatch(/import \{ [^}]*createProcedure \} from "@procedures\/client";/);
+    // The template gives the schemas to input() and output() directly: no adapter, no cast
+    expect(updated).toContain(".input(DemoHelloInputSchema)");
+    expect(updated).not.toContain("zodAdapter");
+    expect(updated).not.toContain("as AnyProcedure");
   });
 });
 

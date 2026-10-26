@@ -12,7 +12,6 @@ import {
   invokePath,
   outputItems,
   outputValue,
-  zodAdapter,
   type AnyProcedure,
   type Capability,
   type Effects,
@@ -165,11 +164,11 @@ export function procedure(
 ): AnyProcedure {
   return createProcedure()
     .path(path)
-    .input(zodAdapter(options.input ?? z.object({ city: z.string().describe("The city") })))
-    .output(zodAdapter(z.unknown()))
+    .input(options.input ?? z.object({ city: z.string().describe("The city") }))
+    .output(z.unknown())
     .meta({ ...(options.description !== undefined ? { description: options.description } : {}), effects: options.effects ?? READS_WEATHER, ...options.meta })
     .handler(handler as never)
-    .build() as AnyProcedure;
+    .build();
 }
 
 /** The fake procedure tools of the tests, and the inputs that they got. */

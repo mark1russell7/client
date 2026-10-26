@@ -9,8 +9,8 @@ import { Client } from "../client/client.js";
 import { LocalTransport } from "../adapters/local/client/index.js";
 import { defineProcedure } from "./define.js";
 import { outputSchema } from "./core/schemas.js";
-import { PROCEDURE_REGISTRY, RegistryError } from "./registry.js";
-import { clientModule, createRegistry, defineModule, moduleClosure } from "./module.js";
+import { PROCEDURE_REGISTRY, ProcedureRegistry as Registry, RegistryError } from "./registry.js";
+import { clientModule, createRegistry, defineModule, definePackage, moduleClosure } from "./module.js";
 import type { AnyProcedure, ProcedureContext, ProcedureModule } from "./types.js";
 import type { ProcedureRegistry } from "./registry.js";
 
@@ -105,5 +105,41 @@ describe("module requirements", () => {
     const right: ProcedureModule = { name: "test-right", procedures: [], requires: [left] };
     leftRequires.push(right);
     expect(() => moduleClosure([left])).toThrow(/cycle/);
+  });
+});
+
+describe("definePackage (O58)", () => {
+  it("gives the module of the package and registers nothing at the call", () => {
+    const before = PROCEDURE_REGISTRY.getAll().length;
+    const pkg = definePackage("test-package", [proc(["pkg", "one"], () => 1)], [moduleB]);
+    expect(pkg.module).toEqual({ name: "test-package", procedures: [expect.anything()], requires: [moduleB] });
+    expect(PROCEDURE_REGISTRY.getAll().length).toBe(before);
+    expect(PROCEDURE_REGISTRY.has(["pkg", "one"])).toBe(false);
+  });
+
+  it("register() puts the procedures and the required modules into the given registry", () => {
+    const pkg = definePackage("test-package", [proc(["pkg", "one"], () => 1)], [moduleB]);
+    const registry = new Registry();
+    pkg.register(registry);
+    expect(registry.has(["pkg", "one"])).toBe(true);
+    expect(registry.has(["b", "only"])).toBe(true);
+    // A second call skips the procedures that the registry has already
+    expect(() => pkg.register(registry)).not.toThrow();
+    expect(PROCEDURE_REGISTRY.has(["pkg", "one"])).toBe(false);
+  });
+
+  it("register() without a registry uses the global registry", () => {
+    const pkg = definePackage("test-package-global", [proc(["pkg", "global", "o58"], () => 1)]);
+    try {
+      pkg.register();
+      expect(PROCEDURE_REGISTRY.has(["pkg", "global", "o58"])).toBe(true);
+    } finally {
+      PROCEDURE_REGISTRY.unregister(["pkg", "global", "o58"]);
+    }
+  });
+
+  it("gives the same module as defineModule", () => {
+    const procedures = [proc(["pkg", "same"], () => 1)];
+    expect(definePackage("test-same", procedures).module).toEqual(defineModule("test-same", procedures));
   });
 });

@@ -212,12 +212,13 @@ export {
 export {
   clientModule,
   defineModule,
+  definePackage,
   moduleClosure,
   registerModules,
   createRegistry,
   registerClientProcedures,
 } from "./module.js";
-export type { ModuleInput } from "./module.js";
+export type { ModuleInput, PackageDefinition } from "./module.js";
 // One call for a registry of some modules, `invokePath` and `outputValue`
 export { callerOf } from "./caller.js";
 export type { Caller, CallerOptions } from "./caller.js";
@@ -345,6 +346,7 @@ export {
   tryCatchProcedure,
   // Schemas and result types
   anySchema,
+  typed,
   typedAnySchema,
   zodAdapter,
   outputSchema,

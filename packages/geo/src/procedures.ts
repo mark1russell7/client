@@ -7,7 +7,7 @@
  * policy refuses a `baseUrl` on a loopback, private or link-local address (audit pass 2, O55).
  */
 
-import { createProcedure, zodAdapter, type AnyProcedure, type ProcedureContext } from "@procedures/client/browser";
+import { createProcedure, type AnyProcedure, type ProcedureContext } from "@procedures/client/browser";
 import { z } from "zod";
 import { drivingRoute, geocode, type FetchJson, type GeocodeResult, type RouteResult } from "./geo.js";
 import { geoDistance } from "./procedures/geo/distance.js";
@@ -65,8 +65,8 @@ const GeocodeOutputSchema = z.object({
 function geocodeProcedure(fetch: FetchJson | undefined): AnyProcedure {
   return createProcedure()
     .path(["geo", "geocode"])
-    .input(zodAdapter<GeocodeInput>(GeocodeInputSchema))
-    .output(zodAdapter<GeocodeOutput>(GeocodeOutputSchema))
+    .input(GeocodeInputSchema)
+    .output(GeocodeOutputSchema)
     .meta({
       description: "Find the coordinates of an address or a place name (OpenStreetMap Nominatim)",
       args: ["query"],
@@ -77,7 +77,7 @@ function geocodeProcedure(fetch: FetchJson | undefined): AnyProcedure {
       const result = await geocode(input.query, { ...input, signal: ctx?.signal, fetch });
       return result === undefined ? { found: false } : { found: true, result };
     })
-    .build() as AnyProcedure;
+    .build();
 }
 
 // =============================================================================
@@ -96,8 +96,8 @@ const RouteOutputSchema = z.object({ km: z.number(), minutes: z.number() });
 function routeProcedure(fetch: FetchJson | undefined): AnyProcedure {
   return createProcedure()
     .path(["geo", "route"])
-    .input(zodAdapter<RouteInput>(RouteInputSchema))
-    .output(zodAdapter<RouteResult>(RouteOutputSchema))
+    .input(RouteInputSchema)
+    .output(RouteOutputSchema)
     .meta({
       description: "Give the time and the distance of a drive between two points (OSRM)",
       output: "json",
@@ -107,7 +107,7 @@ function routeProcedure(fetch: FetchJson | undefined): AnyProcedure {
       async (input: RouteInput, ctx?: ProcedureContext): Promise<RouteResult> =>
         drivingRoute(input.from, input.to, { baseUrl: input.baseUrl, timeoutMs: input.timeoutMs, signal: ctx?.signal, fetch })
     )
-    .build() as AnyProcedure;
+    .build();
 }
 
 export const geoGeocodeProcedure: AnyProcedure = geocodeProcedure(undefined);
@@ -120,15 +120,15 @@ export const geoRouteProcedure: AnyProcedure = routeProcedure(undefined);
 
 export const geoDistanceProcedure: AnyProcedure = createProcedure()
   .path(["geo", "distance"])
-  .input(zodAdapter<GeoDistanceInput>(GeoDistanceInputSchema))
-  .output(zodAdapter<GeoDistanceOutput>(GeoDistanceOutputSchema))
+  .input(GeoDistanceInputSchema)
+  .output(GeoDistanceOutputSchema)
   .meta({
     description: "Give the great-circle distance between two points in kilometres (haversine), without the network",
     output: "json",
     effects: PURE,
   })
   .handler(async (input: GeoDistanceInput): Promise<GeoDistanceOutput> => geoDistance(input))
-  .build() as AnyProcedure;
+  .build();
 
 // =============================================================================
 // geo.geohash
@@ -136,15 +136,15 @@ export const geoDistanceProcedure: AnyProcedure = createProcedure()
 
 export const geoGeohashProcedure: AnyProcedure = createProcedure()
   .path(["geo", "geohash"])
-  .input(zodAdapter<GeoGeohashInput>(GeoGeohashInputSchema))
-  .output(zodAdapter<GeoGeohashOutput>(GeoGeohashOutputSchema))
+  .input(GeoGeohashInputSchema)
+  .output(GeoGeohashOutputSchema)
   .meta({
     description: "Give the geohash of a point and the cell of that geohash, without the network",
     output: "json",
     effects: PURE,
   })
   .handler(async (input: GeoGeohashInput): Promise<GeoGeohashOutput> => geoGeohash(input))
-  .build() as AnyProcedure;
+  .build();
 
 export const geoProcedures: AnyProcedure[] = [geoGeocodeProcedure, geoRouteProcedure, geoDistanceProcedure, geoGeohashProcedure];
 

@@ -10,7 +10,7 @@
  * of an update or a delete needs `confirm: true`, and an unknown field is an error.
  */
 
-import { createProcedure, zodAdapter, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import type { AnyBulkWriteOperation, Document } from "mongodb";
 import { z } from "zod";
 import { collectionFor, copyScope, SCOPE_FIELDS, type ScopeInput } from "../scope.js";
@@ -148,8 +148,7 @@ const bulkInputSchema = described<BulkInput>(
     confirm: z.boolean().optional().describe("Set to true to use an empty filter, which matches every document, in an update or a delete"),
   })
 );
-const bulkOutputSchema = zodAdapter<BulkOutput>(
-  z.looseObject({
+const bulkOutputSchema: z.ZodType<BulkOutput> = z.looseObject({
     ok: z.boolean().describe("True when the server confirmed the writes"),
     insertedCount: z.number().describe("The number of inserted documents"),
     matchedCount: z.number().describe("The number of documents that the updates matched"),
@@ -158,8 +157,7 @@ const bulkOutputSchema = zodAdapter<BulkOutput>(
     upsertedCount: z.number().describe("The number of documents that an upsert made"),
     insertedIds: z.record(z.string(), z.string()).describe("The ids of the inserted documents, as text, by the index of their operation"),
     upsertedIds: z.record(z.string(), z.string()).describe("The ids of the upserted documents, as text, by the index of their operation"),
-  })
-);
+  });
 
 export const bulkProcedure: Procedure<
   BulkInput,

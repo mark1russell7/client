@@ -1,12 +1,12 @@
 /**
  * Procedures for the unit tests of the CLI. They are built like the procedures of the client
- * packages (a Zod schema through zodAdapter, and CLI metadata), and they do nothing.
+ * packages (a Zod schema and CLI metadata), and they do nothing.
  *
  * @internal
  */
 
 import { z } from "zod";
-import { createProcedure, outputSchema, zodAdapter, type AnyProcedure } from "@procedures/client";
+import { createProcedure, outputSchema, type AnyProcedure } from "@procedures/client";
 import type { CLIMeta } from "../src/parse.js";
 
 function procedure(
@@ -17,7 +17,7 @@ function procedure(
 ): AnyProcedure {
   return createProcedure()
     .path(path)
-    .input(zodAdapter(schema))
+    .input(schema)
     .output(outputSchema<unknown>())
     .meta(meta as Record<string, unknown>)
     .handler(async (input: unknown) => handler(input))

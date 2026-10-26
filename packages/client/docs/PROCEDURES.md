@@ -282,7 +282,7 @@ This creates:
 ### Manual Definition
 
 ```typescript
-import { createProcedure, registerProcedures } from "@procedures/client";
+import { createProcedure, registerProcedures, typed } from "@procedures/client";
 import { z } from "zod";
 
 // Define input schema
@@ -300,8 +300,8 @@ interface MyOutput {
 // Create procedure
 const myProcedure = createProcedure()
   .path(["myns", "operation"])
-  .input(zodAdapter<MyInput>(MyInputSchema))
-  .output(outputSchema<MyOutput>())
+  .input(MyInputSchema)
+  .output(typed<MyOutput>())
   .meta({
     description: "My custom operation",
     args: ["value"],

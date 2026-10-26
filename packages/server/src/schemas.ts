@@ -9,7 +9,7 @@
  */
 
 import { z } from "zod";
-import { zodAdapter, type ZodLikeSchema } from "@procedures/client";
+import { type ZodLikeSchema } from "@procedures/client";
 import type {
   ServerStartInput,
   ServerStartOutput,
@@ -21,27 +21,21 @@ import type {
 
 const port = z.number().int().min(1).max(65535);
 
-export const serverStartInputSchema: ZodLikeSchema<ServerStartInput> = zodAdapter<ServerStartInput>(
-  z.object({
+export const serverStartInputSchema: ZodLikeSchema<ServerStartInput> = z.object({
     port: port.optional().describe("The port to listen on (default: 3000)"),
     host: z.string().min(1).optional().describe("The host to bind to (default: 127.0.0.1)"),
     transport: z.enum(["http", "websocket", "both"]).optional().describe("The transport (default: http)"),
     timeout: z.number().int().min(1).max(600_000).optional().describe("The time to wait for the readiness of the server, in milliseconds (default: 15000)"),
-  })
-);
+  });
 
-export const serverStopInputSchema: ZodLikeSchema<ServerStopInput> = zodAdapter<ServerStopInput>(
-  z.object({
+export const serverStopInputSchema: ZodLikeSchema<ServerStopInput> = z.object({
     port: port.optional().describe("The port of the server to stop (default: all servers)"),
     force: z.boolean().optional().describe("Stop with SIGKILL instead of SIGTERM"),
-  })
-);
+  });
 
-export const serverStatusInputSchema: ZodLikeSchema<ServerStatusInput> = zodAdapter<ServerStatusInput>(
-  z.object({
+export const serverStatusInputSchema: ZodLikeSchema<ServerStatusInput> = z.object({
     port: port.optional().describe("The port of the server (default: all servers)"),
-  })
-);
+  });
 
 export const ServerStartOutputSchema: z.ZodType<ServerStartOutput> = z.looseObject({
   success: z.boolean().describe("True when the server is ready. A start that is not ready at the timeout gives false, with the PID (CLI-9)"),
