@@ -17,6 +17,7 @@ import {
   TOMBSTONE_FIELD,
   decodeStoredDocument,
   selectorPrefilter,
+  storageChangeSource,
   type MongoDocumentStorageOptions,
   type StoredForm,
 } from "./document-storage.js";
@@ -232,6 +233,73 @@ describe("selectorPrefilter: the conditions that MongoDB tests in the same way",
       const filter = selectorPrefilter(sel);
       for (const [, value] of matched) expect(passes(filter, value as Record<string, unknown>), JSON.stringify({ sel, value })).toBe(true);
     }
+  });
+});
+
+describe("the floor document at the first write, without a server (O66)", () => {
+  /**
+   * A fake database without transactions. The items take each write. The upsert of the floor
+   * rejects with the next error of `floorErrors`, else it succeeds.
+   */
+  function fakeDb(floorErrors: unknown[]) {
+    const floorCalls: unknown[][] = [];
+    const writes: unknown[] = [];
+    let seq = 0;
+    const items = {
+      createIndexes: async () => [],
+      find: () => ({ toArray: async () => [] }),
+      bulkWrite: async (operations: unknown[]) => {
+        writes.push(...operations);
+        return { matchedCount: operations.length };
+      },
+    };
+    const counters = {
+      updateOne: async (...args: unknown[]) => {
+        floorCalls.push(args);
+        if (floorErrors.length > 0) throw floorErrors.shift();
+        return { upsertedCount: 1 };
+      },
+      // The numbers of a write (one at a time), and the release of a write in its lease
+      findOneAndUpdate: async (_filter: unknown, _update: unknown, options: { projection?: unknown }) =>
+        options.projection ? { lastRelease: { from: seq, inLease: true } } : { seq: ++seq, epoch: "e" },
+    };
+    const db = { collection: (name: string) => (name === "__storage_counters" ? counters : items) } as unknown as Db;
+    return { db, floorCalls, writes };
+  }
+
+  it("upserts the floor 0 of the partition once, with $setOnInsert, before the first write", async () => {
+    const { db: fake, floorCalls, writes } = fakeDb([]);
+    const storage = new MongoDocumentStorage<{ n: number }>({ collection: "notes", partition: "p1", db: async () => fake, transactions: "never" });
+    await storage.set("a", { n: 1 });
+    await storage.set("b", { n: 2 });
+    expect(floorCalls).toEqual([[{ _id: "floor\u001fnotes\u001fp1" }, { $setOnInsert: { floor: 0 } }, { upsert: true }]]);
+    expect(writes).toHaveLength(2);
+    // The storage of the whole collection has the floor document of the partition ""
+    const root = fakeDb([]);
+    await new MongoDocumentStorage<{ n: number }>({ collection: "notes", db: async () => root.db, transactions: "never" }).set("a", { n: 1 });
+    expect(root.floorCalls.map(([filter]) => filter)).toEqual([{ _id: "floor\u001fnotes\u001f" }]);
+  });
+
+  it("does not fail the write when the upsert of the floor fails, and tries again at the next write", async () => {
+    const { db: fake, floorCalls, writes } = fakeDb([Object.assign(new Error("host unreachable"), { code: 6 })]);
+    const storage = new MongoDocumentStorage<{ n: number }>({ collection: "notes", partition: "p1", db: async () => fake, transactions: "never" });
+    await expect(storage.set("a", { n: 1 })).resolves.toBeUndefined();
+    expect(writes).toHaveLength(1);
+    expect(floorCalls).toHaveLength(1);
+    await storage.set("b", { n: 2 });
+    expect(floorCalls).toHaveLength(2);
+    // The second upsert succeeded: no more upserts
+    await storage.set("c", { n: 3 });
+    expect(floorCalls).toHaveLength(2);
+    expect(writes).toHaveLength(3);
+  });
+
+  it("takes a duplicate key of the upsert (another process inserted the floor first) as a success", async () => {
+    const { db: fake, floorCalls } = fakeDb([Object.assign(new Error("E11000 duplicate key error"), { code: 11000 })]);
+    const storage = new MongoDocumentStorage<{ n: number }>({ collection: "notes", partition: "p1", db: async () => fake, transactions: "never" });
+    await storage.set("a", { n: 1 });
+    await storage.set("b", { n: 2 });
+    expect(floorCalls).toHaveLength(1);
   });
 });
 
@@ -841,6 +909,42 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
     // Another collection needs its own right: the storage reads only its own collection
     await expect(ann.aggregate([{ $unionWith: "__storage_counters" }])).rejects.toThrow(/collections of the scope/);
     await expect(ann.aggregate([{ $lookup: { from: "users", localField: "a", foreignField: "b", as: "x" } }])).rejects.toThrow(/collections of the scope/);
+  });
+
+  it("writes the floor document of a partition at its first write: a new storage of the collection knows the partition without a prune (O66)", async () => {
+    const name = `c${++next}`;
+    const floors = db.collection<{ _id: string; floor?: number }>("__storage_counters");
+    expect(await storageChangeSource(fresh({ collection: name })).partitions()).not.toContain("p1");
+    const p1 = fresh<{ n: number }>({ collection: name, partition: "p1" });
+    await p1.set("a", { n: 1 });
+    // A new storage of the collection, as in another process: no forPartition("p1") and no prune
+    expect(await storageChangeSource(fresh({ collection: name })).partitions()).toContain("p1");
+    expect(await floors.findOne({ _id: `floor\u001f${name}\u001fp1` })).toEqual({ _id: `floor\u001f${name}\u001fp1`, floor: 0 });
+    // The floor 0 changes no result of the change log: a delta after the first write
+    const first = await p1.getChangesSince();
+    await p1.set("b", { n: 2 });
+    expect(await p1.getChangesSince(first.version)).toMatchObject({ full: false, changed: [["b", { n: 2 }]], deleted: [] });
+    // The storage of the whole collection writes the floor document of the partition ""
+    await fresh<{ n: number }>({ collection: name }).set("c", { n: 3 });
+    expect(await storageChangeSource(fresh({ collection: name })).partitions()).toContain(undefined);
+  });
+
+  it("keeps the floor of a prune: the first write of a new storage of the partition does not lower it (O66)", async () => {
+    const name = `c${++next}`;
+    const floorId = `floor\u001f${name}\u001fp2`;
+    const floors = db.collection<{ _id: string; floor?: number }>("__storage_counters");
+    const first = fresh<{ n: number }>({ collection: name, partition: "p2", maxTombstones: 0 });
+    await first.set("a", { n: 1 });
+    // The prune drops the tombstone at once: the floor is its number
+    await first.delete("a");
+    const pruned = (await floors.findOne({ _id: floorId }))?.floor;
+    expect(pruned).toBeGreaterThan(0);
+    const second = fresh<{ n: number }>({ collection: name, partition: "p2" });
+    await second.set("b", { n: 2 });
+    expect((await floors.findOne({ _id: floorId }))?.floor).toBe(pruned);
+    // A version below the floor still gives a full result
+    const epoch = (await second.getChangesSince()).version.split(".")[0];
+    expect((await second.getChangesSince(`${epoch}.0`)).full).toBe(true);
   });
 
   it("refuses a partition with the separator, and a maxTombstones that is not a whole number", () => {

@@ -482,8 +482,9 @@ export interface StorageChangeSource {
   /** The stored documents of these stored `_id`s: the watcher adopts a raw write again after a full queue or a failure. */
   storedDocuments(ids: readonly unknown[]): Promise<Document[]>;
   /**
-   * The partitions that the storage knows: each partition with a floor document in the counters,
-   * and each partition of `forPartition()` in this process. It rejects when the counters cannot be read.
+   * The partitions that the storage knows: each partition with a floor document in the counters
+   * (the first write of a storage and each prune write one), and each partition of
+   * `forPartition()` in this process. It rejects when the counters cannot be read.
    */
   partitions(): Promise<Array<string | undefined>>;
 }
@@ -683,6 +684,8 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
   /** The fields that only the storage writes: its fields and the partition fields. */
   private readonly reserved: ReadonlySet<string>;
   private indexes: Promise<void> | undefined;
+  /** True after this storage wrote (or found) the floor document of its partition (roadmap O66). A failed write leaves it false. */
+  private floorNoted = false;
   private closed = false;
 
   static {
@@ -1033,6 +1036,31 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     return `floor${SEPARATOR}${this.collectionName}${SEPARATOR}${this.partition ?? ""}`;
   }
 
+  /**
+   * This method writes the floor document of the partition once for this storage, before its first
+   * write (roadmap O66). Then `knownPartitions()` of each process finds the partition, also without
+   * a prune, and a gap of `watchStorageChanges()` sends it a reset hint.
+   *
+   * - The floor `0` is neutral: `getChangesSince` gives a full result only for a version below the
+   *   floor, and a version is never below `0`. A missing floor document also reads as `0`. So the
+   *   document changes no result of the change log.
+   * - `$setOnInsert` writes only a new document: a floor of a prune (`$max`) stays as it is.
+   * - A duplicate key (another process inserted the same document first) is a success.
+   * - The upsert runs in the queue of the writes, before the task, so never in the transaction of
+   *   `withNumbers()`: it adds no write conflict to the transaction of the user, and a transaction
+   *   that tries again does not write it again.
+   * - A failure does not fail the write of the user. The flag stays false, so the next write tries again.
+   */
+  private async noteFloor(db: Db): Promise<void> {
+    if (this.floorNoted) return;
+    try {
+      await db.collection<CounterDoc>(this.countersName).updateOne({ _id: this.floorId() }, { $setOnInsert: { floor: 0 } }, { upsert: true });
+      this.floorNoted = true;
+    } catch (error) {
+      if (isDuplicateKey(error)) this.floorNoted = true;
+    }
+  }
+
   /** This method drops the oldest tombstones of the partition over the limit, and keeps the floor of the log. */
   private async pruneTombstones(db: Db, items: Collection<Stored>): Promise<void> {
     const count = await items.countDocuments({ ...this.partitionFilter(), [TOMB]: true } as Filter<Stored>);
@@ -1218,7 +1246,11 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
 
   private async write<R>(task: (db: Db, items: Collection<Stored>) => Promise<R>): Promise<R> {
     const { db, items } = await this.collection();
-    return enqueue(db, this.collectionName, () => task(db, items));
+    return enqueue(db, this.collectionName, async () => {
+      // The floor document of the partition, outside each transaction of the task (roadmap O66)
+      await this.noteFloor(db);
+      return task(db, items);
+    });
   }
 
   async set(id: string, value: T, options?: StorageItemWriteOptions): Promise<void> {
@@ -1526,7 +1558,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     return fields;
   }
 
-  /** The partitions that the storage knows: the floor documents of the counters, and the storages of `forPartition()`. */
+  /** The partitions that the storage knows: the floor documents of the counters (of the first writes and of the prunes), and the storages of `forPartition()`. */
   private async knownPartitions(): Promise<Array<string | undefined>> {
     const db = await this.database();
     const prefix = `floor${SEPARATOR}${this.collectionName}${SEPARATOR}`;
