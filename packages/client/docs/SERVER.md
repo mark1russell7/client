@@ -43,6 +43,7 @@ const server = new Server({
   onError: (error, request) => { ... },  // global error handler
   onRequest: (request) => { ... },       // request logger
   onResponse: (response) => { ... },     // response logger
+  errors: { expose: "coded" },           // the error policy (CLI-80), "all" by default
 });
 ```
 
@@ -274,6 +275,16 @@ Errors are automatically converted to responses:
 | `HandlerNotFoundError` | 404 | false |
 | `ServerError` | custom | custom |
 | Other errors | 500 | false |
+
+### The error policy
+
+The option `errors` tells what an error tells the caller (roadmap CLI-80). `handle()` applies it, so each face sends the same error.
+
+- `expose: "all"` is the default. Each error goes to the caller with its code and its message.
+- `expose: "coded"` sends an error with a known code (`isKnownErrorCode`) as it is. Each other error goes to the caller as `INTERNAL_ERROR` with the message `internal error`. `onError` gets the real error.
+- The server applies `map(error, { path, transport })` first. Its result goes to the caller as it is.
+
+Refer to [the error policy of a server](../../documentation/WIRE-PROTOCOL.md#the-error-policy-of-a-server).
 
 ---
 
