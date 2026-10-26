@@ -3394,8 +3394,8 @@ export type RightsChange = string | ((principal: Principal | undefined) => boole
 
 ### dist/events/recheck.d.ts#RightsScope
 export interface RightsScope {
-    readonly collection?: string | undefined;
-    readonly partition?: string | undefined;
+    readonly collection?: string | ((collection: string) => boolean) | undefined;
+    readonly partition?: string | ((partition: string) => boolean) | undefined;
 }
 
 ### dist/events/recheck.d.ts#RightsScopes

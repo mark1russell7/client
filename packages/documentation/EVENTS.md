@@ -483,11 +483,14 @@ const procedures = createCollectionProcedures("notes", {
 - The `seq` of the events counts only the events that the subscriber gets, so a filtered event makes no gap. The `dropped` of a slow subscriber does not change.
 - `admitsAll(invocation, partition)` tells that `admit` admits each row of the partition. The events of that subscriber then pass as before, with no filter and no read before a write. The publisher asks at the start of the subscription and at each re-check. An error gives false.
 - At a re-check after a change of the rights (`rightsChanged()`), each subscriber with a filter gets a `reset` hint, and it reads its rows again. A subscriber whose `admitsAll` changes at a re-check also gets a `reset` hint. A re-check after `maxAge` alone does not see a change of a rule that is not `admitsAll`.
-- `rightsChanged(change, scope)` can have a scope: the rows of a collection, or of one partition of a collection. The scope is `{ collection?, partition? }` or a list of them. The partition is the partition after the resolver. With a scope, only the topics of the scope with a filter get a `reset` hint and a new `admitsAll`. Each subscription that the change touches still gets the checks of its start. Without a scope, the change touches each topic.
+- `rightsChanged(change, scope)` can have a scope: the rows of a collection, or of one partition of a collection. The scope is `{ collection?, partition? }` or a list of them. The partition is the partition after the resolver. Each field is a name or a test of the name. A test can match each partition of a tenant, for example. A test that throws matches, because a `reset` hint too many is safe.
+- With a scope, only the topics of the scope with a filter get a `reset` hint and a new `admitsAll`. Each subscription that the change touches still gets the checks of its start. Without a scope, the change touches each topic.
 
 ```ts
 // The rights on the notes of the partition t1 changed: only the subscribers of that topic read their rows again
 await server.publisher?.rightsChanged(undefined, { collection: "notes", partition: "t1" });
+// The rights of the tenant t1 changed: each partition "t1/<key>" of the notes
+await server.publisher?.rightsChanged(undefined, { collection: "notes", partition: (partition) => partition.startsWith("t1/") });
 ```
 
 - The cost: the rule examines each id of each event for each subscriber with a filter. Give `admitsAll` for the principals with full rights, so that they cost nothing.

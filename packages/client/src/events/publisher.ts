@@ -193,9 +193,19 @@ interface Route {
 function inScope(route: Route, scope: RightsScopes | undefined): boolean {
   if (scope === undefined) return true;
   const scopes: readonly RightsScope[] = Array.isArray(scope) ? scope : [scope as RightsScope];
-  return scopes.some(
-    ({ collection, partition }) => (collection === undefined || collection === route.collection) && (partition === undefined || partition === route.partition),
-  );
+  return scopes.some(({ collection, partition }) => matchesName(collection, route.collection) && matchesName(partition, route.partition));
+}
+
+/** True when a name of a route matches a field of a scope. A test that throws matches. */
+function matchesName(field: RightsScope["collection"], name: string | undefined): boolean {
+  if (field === undefined) return true;
+  if (name === undefined) return false;
+  if (typeof field === "string") return field === name;
+  try {
+    return field(name) === true;
+  } catch {
+    return true;
+  }
 }
 
 /** An event of the bus that waits in the queue of a subscription. It gets its `seq` when the subscriber gets it. */

@@ -28,13 +28,18 @@ import type { Principal } from "../server/types.js";
 export type RightsChange = string | ((principal: Principal | undefined) => boolean);
 
 /**
- * The rows that a change of the rights touches (roadmap CLI-78): the rows of a collection, or of
- * one partition of a collection. The partition is the partition after the resolver. Without a
- * collection, the scope touches each collection.
+ * The rows that a change of the rights touches (roadmap CLI-78): the rows of the collections and
+ * of the partitions of the scope. The partition is the partition after the resolver. Without a
+ * collection, the scope touches each collection. Without a partition, it touches each partition.
+ *
+ * - A string matches one name.
+ * - A test matches each name that it admits, for example each partition of a tenant. A test that
+ *   throws matches: a `reset` hint too many is safe, and a missing one is not.
+ * - A partition matches only a topic with a partition.
  */
 export interface RightsScope {
-  readonly collection?: string | undefined;
-  readonly partition?: string | undefined;
+  readonly collection?: string | ((collection: string) => boolean) | undefined;
+  readonly partition?: string | ((partition: string) => boolean) | undefined;
 }
 
 /** One scope or a list of scopes of a change of the rights. A list touches the rows of each scope. */

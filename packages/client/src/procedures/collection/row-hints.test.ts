@@ -7,7 +7,7 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { createCollectionProcedures, type CollectionProceduresOptions } from "./procedures.js";
 import type { CollectionAdmission } from "./admission.js";
-import type { CollectionChangeEvent } from "./changes.js";
+import { collectionChangeTopic, type CollectionChangeEvent } from "./changes.js";
 import type { CollectionStorage, StorageChanges } from "./storage.js";
 import { withHintImages, hintImagesOf } from "./hint-filter.js";
 import { invokeProcedure, outputValue, type AdmitItem } from "../invoke.js";
@@ -130,21 +130,25 @@ afterEach(() => {
 });
 
 /** The procedures of the collection "notes" on one storage, in a registry, with a bus and a publisher. */
-function host(storage: LogStorage, options: CollectionProceduresOptions = { admission: rules }, publisherOptions: Partial<EventPublisherOptions> = {}) {
+function host(
+  storage: LogStorage,
+  options: CollectionProceduresOptions = { admission: rules },
+  publisherOptions: Partial<EventPublisherOptions> = {},
+  repository: RepositoryProvider = { getStorage: <T>() => storage as unknown as CollectionStorage<T>, hasCollection: (name) => name === "notes" },
+) {
   const procedures = createCollectionProcedures("notes", options);
   const registry = new ProcedureRegistry();
   registry.registerAll(procedures);
   const bus: EventBus = createEventBus();
-  const repository: RepositoryProvider = { getStorage: <T>() => storage as unknown as CollectionStorage<T>, hasCollection: (name) => name === "notes" };
   const publisher = new EventPublisher({ bus, topics: ["collections.*"], ...publisherOptions });
   const run = async (operation: string, input: unknown, principal: Principal = root): Promise<unknown> => {
     const procedure = procedures.find((candidate) => candidate.path[2] === operation)!;
     return outputValue(await invokeProcedure(procedure, input, { repository, bus, registry, principal }), procedure.path);
   };
-  /** A subscription of a principal to the topic of the notes: the events that it gets, with their `seq`. */
-  const subscribe = async (principal: Principal) => {
+  /** A subscription of a principal to the topic of the notes (by default): the events that it gets, with their `seq`. */
+  const subscribe = async (principal: Principal, topic = "collections.notes") => {
     const controller = new AbortController();
-    const output = await invokeProcedure(publisher.procedure, { topics: ["collections.notes"] }, { bus, repository, registry, signal: controller.signal, principal });
+    const output = await invokeProcedure(publisher.procedure, { topics: [topic] }, { bus, repository, registry, signal: controller.signal, principal });
     if (output.kind !== "stream") throw new Error("events.subscribe gives a stream");
     const items = output.items as AsyncGenerator<EventItem, void, undefined>;
     await items.next();
@@ -381,6 +385,49 @@ describe("the row filter of the change events (CLI-78)", () => {
       { changed: [], deleted: [], reset: true },
       { changed: [], deleted: [], reset: true },
     ]);
+  });
+
+  it("matches the collections and the partitions of a scope with a test, and a test that throws matches", async () => {
+    // The partitions "<tenant>/<key>": the resolver gives the partition of the input
+    const storages = new Map<string, LogStorage>();
+    const repository: RepositoryProvider = {
+      getStorage: () => {
+        throw new Error("The notes have partitions");
+      },
+      getPartitionStorage: <T>(_name: string, partition: string) => {
+        let storage = storages.get(partition);
+        if (!storage) storages.set(partition, (storage = notes()));
+        return storage as unknown as CollectionStorage<T>;
+      },
+      hasPartitions: () => true,
+      resolvePartition: (_name, _ctx, requested) => requested ?? null,
+      hasCollection: (name) => name === "notes",
+    };
+    const h = host(notes(), { admission: rules }, {}, repository);
+    const partitions = ["t1/a", "t1/b", "t2/a"];
+    const subs = await Promise.all(partitions.map((partition) => h.subscribe(ann, collectionChangeTopic("notes", partition))));
+    const resets = (): number[] => subs.map((sub) => sub.received.filter((event) => event.reset === true).length);
+    // Each partition of the tenant t1
+    await h.publisher.rightsChanged(undefined, { partition: (partition) => partition.startsWith("t1/") });
+    await settle();
+    expect(resets()).toEqual([1, 1, 0]);
+    // A test of the collection that refuses the notes
+    await h.publisher.rightsChanged(undefined, { collection: (collection) => collection === "other" });
+    await settle();
+    expect(resets()).toEqual([1, 1, 0]);
+    // A test that throws matches each topic
+    await h.publisher.rightsChanged(undefined, {
+      collection: "notes",
+      partition: () => {
+        throw new Error("the groups are not available");
+      },
+    });
+    await settle();
+    expect(resets()).toEqual([2, 2, 1]);
+    // A string matches one partition
+    await h.publisher.rightsChanged(undefined, { partition: "t2/a" });
+    await settle();
+    expect(resets()).toEqual([2, 2, 2]);
   });
 
   it("gives a reset hint at a re-check when the subscriber loses its full rights", async () => {
