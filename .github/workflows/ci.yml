@@ -20,7 +20,7 @@ jobs:
   # The check names are "CI / checks (ubuntu-latest, node <version>)".
   ci:
     name: CI
-    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@54b6c4bd5918caa1cdde5d532f7ae245ba033fde # main
+    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@4489d4a4ed3199cbbcdb329cd56949b1da984c61 # main
     with:
       # Build first: each package builds dist/ with `tsc -b`, and dependents read the types from
       # dist/. lint:ste examines the writing rules (ASD-STE100) of the README files and the doc comments.
