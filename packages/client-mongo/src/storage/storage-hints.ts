@@ -24,6 +24,18 @@
  *   storage comes first, one write wins and the others do nothing. A raw write never gets the old
  *   version. With `rawWrites: "ignore"` (for example for a user that can only read), the hint of a
  *   raw write goes out without a version, and `changes(since)` does not have the write.
+ * - The adoptions wait in one queue for each watcher: one adoption at a time, and the raw writes
+ *   that wait together take one block of numbers for each partition. An adoption that fails with
+ *   an error that can go away tries again after the backoff. After the last try, the partition gets
+ *   a gap hint: its subscribers read the changes.
+ * - The adoption is exact only with the images before the change (`changeStreamPreAndPostImages`).
+ *   An insert and a replace show their document, but an update shows only its fields: without the
+ *   image, the `_seq` that the update kept comes from the lookup. When a write of the storage comes
+ *   after the raw update, the adoption can then give that write a newer version, and a client that
+ *   holds the version of that write gets a conflict of its precondition.
+ * - The sweep (`sweep`, on by default with `rawWrites: "adopt"`): when the stream opens, and after
+ *   each gap, the watcher sends each document without `_seq` to the same queue, in pages. Thus the
+ *   raw writes before the watcher started, or during a gap, get their numbers too.
  * - A raw hard delete of an item: with the image before the change, the storage adopts it as a
  *   tombstone. Without the image (no `changeStreamPreAndPostImages` on the collection), the hint
  *   goes out without a version, and the delete stays out of `changes(since)`.
@@ -44,7 +56,8 @@
  *   `gapPartitions`. The subscribers read the changes.
  * - The pipeline of the stream is `[]`: the storage of a partition (`forPartition()`) watches the
  *   whole collection and drops the events of other partitions.
- * - Change streams need a replica set or a sharded cluster. On a single server, `ready` rejects.
+ * - Change streams need a replica set or a sharded cluster. The watcher asks the server (`hello`)
+ *   before the first open: on a single server, `ready` rejects (code 40573).
  */
 import { MongoAPIError, MongoParseError, BSON, type ChangeStream, type Db, type Document } from "mongodb";
 import {
@@ -57,7 +70,16 @@ import {
   type CollectionChangeEvent,
   type ResubscribeBackoff,
 } from "@procedures/client";
-import { DEFAULT_STORED_FORM, TOMBSTONE_FIELD, storageChangeSource, versionOfStored, type MongoDocumentStorage, type StoredForm } from "./document-storage.js";
+import {
+  DEFAULT_STORED_FORM,
+  TOMBSTONE_FIELD,
+  storageChangeSource,
+  versionOfStored,
+  type MongoDocumentStorage,
+  type RawAdoptionResult,
+  type RawStorageWrite,
+  type StoredForm,
+} from "./document-storage.js";
 import { trackOwnNumbers, type OwnNumbers } from "./own-writes.js";
 
 /** The change of one item of a change event of a `MongoDocumentStorage` collection, from `storageChangeOf()`. */
@@ -132,6 +154,13 @@ export interface WatchStorageChangesOptions {
    */
   gapPartitions?: (() => Iterable<string | undefined>) | undefined;
   /**
+   * True: when the stream opens, and after each gap, the watcher adopts each document without
+   * `_seq` (a raw write before the watcher started, or during the gap), in pages, through the queue
+   * of the adoptions. It needs `rawWrites: "adopt"`.
+   * @default true with `rawWrites: "adopt"`, else false
+   */
+  sweep?: boolean | undefined;
+  /**
    * The backoff before the stream opens again after an error.
    * @default { initialDelay: ms(250), maxDelay: seconds(30), backoffMultiplier: 2, jitter: 1 }
    */
@@ -155,6 +184,14 @@ export interface StorageChangesWatch {
   stop(): Promise<void>;
 }
 
+/** A raw write that waits for its adoption. `done` ends a write of the sweep. */
+interface AdoptJob {
+  readonly item: StorageChange;
+  readonly raw: RawStorageWrite;
+  readonly tries: number;
+  readonly done?: (() => void) | undefined;
+}
+
 /** The fields of the storage that the change of an item reads. */
 const SEQ = "_seq";
 const KEY = "_key";
@@ -170,6 +207,21 @@ const PERMANENT_CODES: ReadonlySet<number> = new Set([...REFUSED_CODES, 40573, 1
 
 /** The most partitions whose topics get the hint of a gap. */
 const MAX_GAP_PARTITIONS = 10_000;
+
+/** The most raw writes of one adoption: they take one block of numbers for each partition. */
+const ADOPT_BATCH = 100;
+
+/** The most raw writes that wait for an adoption. The hint of a raw write over the limit goes out without a version. */
+const MAX_ADOPT_QUEUE = 10_000;
+
+/** The tries of an adoption that fails with an error that can go away. */
+const ADOPT_TRIES = 5;
+
+/** The documents of one page of the sweep. */
+const SWEEP_PAGE = 500;
+
+/** The code of a command that the server does not know (an old server without `hello`). */
+const COMMAND_NOT_FOUND = 59;
 
 function asDocument(value: unknown): Document | undefined {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Document) : undefined;
@@ -205,9 +257,9 @@ function keptSeq(type: string, change: Document, after: Document, before: Docume
  * gone (its delete event follows), the delete of a tombstone, or a document whose id neither
  * `idOf` nor `_key` tells.
  *
- * - The partition is `form.partitionOf()` of `fullDocument`, else of `fullDocumentBeforeChange`,
- *   else of `documentKey`.
- * - The id comes from `form.idOf()` of the stored `_id`, else from `_key`.
+ * - The partition is `form.partitionOf()` of `fullDocumentBeforeChange`, else of `fullDocument`,
+ *   else of `documentKey`: the first whose partition gives the id with `form.idOf()` of the stored
+ *   `_id`. Else the id is `_key`, in the partition of the first document.
  * - A tombstone and a delete are deletes.
  * - `raw` tells a raw write, from the event only (see the module comment). A write of the storage
  *   has the version of its new `_seq`. A raw write has no version.
@@ -221,13 +273,28 @@ export function storageChangeOf(change: Document, form: StoredForm = DEFAULT_STO
   const after = type === "delete" ? undefined : asDocument(change["fullDocument"]);
   const before = asDocument(change["fullDocumentBeforeChange"]);
   const key = asDocument(change["documentKey"]);
-  const doc = after ?? before ?? key;
-  if (!doc) return undefined;
-  const partition = form.partitionOf(doc);
-  const fromId = form.idOf((key ?? doc)["_id"], partition);
-  const keyField = (after ?? before)?.[KEY];
-  const id = typeof fromId === "string" ? fromId : typeof keyField === "string" ? keyField : undefined;
-  if (id === undefined) return undefined;
+  // The partition: of the image before the change, else of the document after it, else of the stored _id (the order of the adoption)
+  const places = [before, after, key].filter((doc): doc is Document => doc !== undefined);
+  if (places.length === 0) return undefined;
+  const storedId = (key ?? places[0]!)["_id"];
+  let partition: string | undefined;
+  let id: string | undefined;
+  for (const doc of places) {
+    const place = form.partitionOf(doc);
+    const fromId = form.idOf(storedId, place);
+    if (typeof fromId === "string") {
+      partition = place;
+      id = fromId;
+      break;
+    }
+  }
+  if (id === undefined) {
+    // No partition tells the id through the form: the id is `_key`, in the first partition
+    const keyField = (after ?? before)?.[KEY];
+    if (typeof keyField !== "string") return undefined;
+    partition = form.partitionOf(places[0]!);
+    id = keyField;
+  }
   if (!after) {
     // An update whose document is gone: the delete event follows. A delete of a tombstone deletes no item.
     if (type !== "delete" || before?.[TOMBSTONE_FIELD] === true) return undefined;
@@ -306,6 +373,8 @@ function describeId(storedId: unknown): string {
  * - The adoption of raw writes needs write access. A refused adoption goes to the log once, and
  *   the hint of that write goes out without a version: set `rawWrites: "ignore"` for a user that
  *   can only read.
+ * - The adoption is exact only with `changeStreamPreAndPostImages` on the collection. Without the
+ *   image, a raw update and a later write of the storage can give that write an extra version.
  *
  * @param storage - The storage, for its collection, its database and its stored form
  * @param publish - The function or the bus of the events, for example the bus of the procedures
@@ -335,6 +404,9 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
   if (options.rawWrites !== undefined && options.rawWrites !== "adopt" && options.rawWrites !== "ignore") throw new TypeError('rawWrites must be "adopt" or "ignore"');
   const skipOwn = (options.ownWrites ?? "skip") === "skip";
   const adoptRaw = (options.rawWrites ?? "adopt") === "adopt";
+  if (options.sweep !== undefined && typeof options.sweep !== "boolean") throw new TypeError("sweep must be a boolean");
+  if (options.sweep === true && !adoptRaw) throw new TypeError('sweep needs rawWrites: "adopt"');
+  const sweepOn = options.sweep ?? adoptRaw;
 
   let stopped = false;
   let stream: ChangeStream | undefined;
@@ -346,6 +418,18 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
   let own: OwnNumbers | undefined;
   /** True after the first refused adoption: the log tells it once. */
   let refused = false;
+  /** True after the server said that it has change streams. */
+  let checked = false;
+  /** The raw writes that wait for an adoption, and true while one adoption runs. */
+  const queue: AdoptJob[] = [];
+  let adopting = false;
+  /** True after the queue was full: the log tells it once, until the queue is empty. */
+  let full = false;
+  /** The timers of the adoptions that try again. */
+  const retries = new Map<Cancel, AdoptJob>();
+  /** True when a sweep must run at the next open of the stream, and true while one runs. */
+  let sweepWanted = sweepOn;
+  let sweeping = false;
   /** The partitions that got a hint: the topics of a gap. */
   const partitions = new Set<string | undefined>();
   let markReady: () => void = () => undefined;
@@ -397,6 +481,8 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
   /** The hint of a gap: the subscribers read the changes. */
   const gap = (reason: string): void => {
     log("warn", `${reason}: the subscribers read the changes`);
+    // The raw writes of the gap have no event: the sweep at the next open adopts them
+    if (sweepOn) sweepWanted = true;
     if (source.partition !== undefined) return send(source.partition, { changed: [], deleted: [] });
     const topics = new Set<string | undefined>([undefined, ...partitions]);
     void source
@@ -418,30 +504,129 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
       });
   };
 
-  /** The adoption of a raw write (D39): the change event of the adoption is its hint. */
+  /** The end of one raw write of an adoption. The change event of an adoption is its hint. */
+  const settle = (job: AdoptJob, result: RawAdoptionResult, failed: Map<string | undefined, unknown>): void => {
+    if (typeof result === "string") {
+      // `adopted`: the event of the adoption is the hint. `lost`: a newer write won, and its event is the hint.
+      if (result === "unknown") {
+        log("warn", `the raw write of ${describeId(job.raw.storedId)} in ${source.collection} tells neither its id nor its partition: the storage leaves it`);
+        publishItem(job.item);
+      }
+      return job.done?.();
+    }
+    const error = result.error;
+    if (isRefused(error)) {
+      if (!refused) log("error", `the adoption of a raw write of ${source.collection} was refused (${messageOf(error)}): the watcher needs write access, or set rawWrites: "ignore". The hints of raw writes go out without a version`);
+      refused = true;
+      publishItem(job.item);
+      return job.done?.();
+    }
+    if (isPermanent(error) || job.tries + 1 >= ADOPT_TRIES) {
+      if (!failed.has(job.item.partition)) failed.set(job.item.partition, error);
+      return job.done?.();
+    }
+    // An error that can go away: the adoption tries again after the backoff
+    const retry = clock.after(delayOf(job.tries), () => {
+      retries.delete(retry);
+      enqueue({ ...job, tries: job.tries + 1 });
+    });
+    retry.unref?.();
+    retries.set(retry, job);
+  };
+
+  /** One adoption at a time: the raw writes that wait together take one block of numbers for each storage. */
+  const work = async (): Promise<void> => {
+    adopting = true;
+    try {
+      while (!stopped && queue.length > 0) {
+        const batch = queue.splice(0, ADOPT_BATCH);
+        let results: RawAdoptionResult[];
+        try {
+          results = await source.adoptAll(batch.map((job) => job.raw));
+        } catch (error) {
+          results = batch.map(() => ({ error }));
+        }
+        if (stopped) {
+          for (const job of batch) job.done?.();
+          break;
+        }
+        const failed = new Map<string | undefined, unknown>();
+        batch.forEach((job, index) => settle(job, results[index] ?? "unknown", failed));
+        // The last try failed: a gap hint for each partition, so that its subscribers read the changes
+        for (const [partition, error] of failed) {
+          log("warn", `the adoption of the raw writes of the partition ${partition === undefined ? "(none)" : JSON.stringify(partition)} of ${source.collection} failed (${messageOf(error)}): its subscribers read the changes`);
+          send(partition, { changed: [], deleted: [] });
+        }
+      }
+      if (queue.length === 0) full = false;
+    } finally {
+      adopting = false;
+    }
+    if (stopped) for (const job of queue.splice(0)) job.done?.();
+  };
+
+  const enqueue = (job: AdoptJob): void => {
+    if (stopped) return job.done?.();
+    if (queue.length >= MAX_ADOPT_QUEUE) {
+      if (!full) log("warn", `more than ${MAX_ADOPT_QUEUE} raw writes of ${source.collection} wait for an adoption: the next hints go out without a version`);
+      full = true;
+      publishItem(job.item);
+      return job.done?.();
+    }
+    queue.push(job);
+    if (!adopting) void work();
+  };
+
+  /** The adoption of a raw write (D39), through the queue. */
   const adopt = (item: StorageChange, change: Document, before: Document | undefined): void => {
     const after = change["operationType"] === "delete" ? undefined : asDocument(change["fullDocument"]);
     // A hard delete without the image before the change: the storage cannot write its tombstone
     if (!after && !before) return publishItem(item);
     const storedId = asDocument(change["documentKey"])?.["_id"];
-    source.adopt({ storedId, seq: item.seq, after, before }).then(
-      (result) => {
-        // `adopted`: the event of the adoption is the hint. `lost`: a newer write won, and its event is the hint.
-        if (result !== "unknown" || stopped) return;
-        log("warn", `the raw write of ${describeId(storedId)} in ${source.collection} tells neither its id nor its partition: the storage leaves it`);
-        publishItem(item);
-      },
-      (error: unknown) => {
+    enqueue({ item, raw: { storedId, seq: item.seq, after, before }, tries: 0 });
+  };
+
+  /** The sweep: each document without `_seq` goes to the queue of the adoptions, one page at a time. */
+  const sweep = async (): Promise<void> => {
+    let last: { readonly id: unknown } | undefined;
+    let count = 0;
+    try {
+      for (;;) {
         if (stopped) return;
-        if (isRefused(error)) {
-          if (!refused) log("error", `the adoption of a raw write of ${source.collection} was refused (${messageOf(error)}): the watcher needs write access, or set rawWrites: "ignore". The hints of raw writes go out without a version`);
-          refused = true;
-        } else {
-          log("warn", `the adoption of the raw write of ${describeId(storedId)} in ${source.collection} failed (${messageOf(error)}): its hint goes out without a version`);
+        const page = await source.rawDocuments(last, SWEEP_PAGE);
+        const end = page[page.length - 1];
+        if (!end) break;
+        last = { id: end["_id"] };
+        const waits: Array<Promise<void>> = [];
+        for (const doc of page) {
+          let item: StorageChange | undefined;
+          try {
+            item = storageChangeOf({ operationType: "insert", fullDocument: doc, documentKey: { _id: doc["_id"] } }, source.form);
+          } catch (error) {
+            log("warn", `the sweep leaves ${describeId(doc["_id"])} of ${source.collection}: ${messageOf(error)}`);
+            continue;
+          }
+          if (!item?.raw || (source.partition !== undefined && item.partition !== source.partition)) continue;
+          count++;
+          waits.push(new Promise<void>((resolve) => enqueue({ item, raw: { storedId: doc["_id"], seq: undefined, after: doc }, tries: 0, done: resolve })));
         }
-        publishItem(item);
+        await Promise.all(waits);
+        if (page.length < SWEEP_PAGE) break;
       }
-    );
+      if (count > 0 && !stopped) log("info", `the sweep of ${source.collection} sent ${count} documents without _seq to the adoption`);
+    } catch (error) {
+      if (!stopped) log("warn", `the sweep of the documents without _seq of ${source.collection} failed: ${messageOf(error)}`);
+    }
+  };
+
+  const startSweep = (): void => {
+    if (!sweepWanted || sweeping || stopped) return;
+    sweepWanted = false;
+    sweeping = true;
+    void sweep().finally(() => {
+      sweeping = false;
+      startSweep();
+    });
   };
 
   const onChange = (change: Document): void => {
@@ -483,10 +668,21 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
     timer.unref?.();
   };
 
+  /** The end of the adoptions that wait: a stopped watcher adopts nothing. */
+  const endAdoptions = (): void => {
+    for (const [retry, job] of retries) {
+      retry();
+      job.done?.();
+    }
+    retries.clear();
+    for (const job of queue.splice(0)) job.done?.();
+  };
+
   /** The end of a watcher whose first open failed with an error that does not go away. */
   const fail = (error: unknown): void => {
     log("error", `the stream of ${source.collection} cannot open (${messageOf(error)}): the watcher stops`);
     stopped = true;
+    endAdoptions();
     own?.close();
     own = undefined;
     failReady(error);
@@ -502,6 +698,24 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
       return schedule(`the database is not available (${messageOf(error)})`);
     }
     if (stopped) return;
+    if (!checked) {
+      // On a single server, the driver can wait without an error: the watcher asks the server first
+      let hello: Document | undefined;
+      try {
+        hello = await db.command({ hello: 1 });
+      } catch (error) {
+        // An old server without hello: the stream tells the error
+        if (codeOf(error) !== COMMAND_NOT_FOUND) {
+          if (!opened && isPermanent(error)) return fail(error);
+          return schedule(`the server does not answer hello (${messageOf(error)})`);
+        }
+      }
+      if (stopped) return;
+      if (hello && typeof hello["setName"] !== "string" && hello["msg"] !== "isdbgrid") {
+        return fail(Object.assign(new Error("change streams need a replica set or a sharded cluster, and the server is a single server"), { code: 40573 }));
+      }
+      checked = true;
+    }
     own ??= trackOwnNumbers(db, source.collection, { numbers: skipOwn, clock });
     if (token === undefined && opened) gap(`the stream of ${source.collection} opens again without a resume token`);
     let next: ChangeStream;
@@ -538,10 +752,12 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
       opened = true;
       attempt = 0;
       markReady();
+      startSweep();
     });
     next.on("change", (change: Document) => {
       opened = true;
       markReady();
+      startSweep();
       if (change["operationType"] === "invalidate") {
         // The collection was dropped or renamed: the stream starts after the invalidate event
         token = change["_id"];
@@ -562,6 +778,7 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
       stopped = true;
       timer?.();
       timer = undefined;
+      endAdoptions();
       own?.close();
       own = undefined;
       markReady();

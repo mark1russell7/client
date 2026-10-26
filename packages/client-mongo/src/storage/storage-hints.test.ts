@@ -175,6 +175,15 @@ describe("storageChangeOf (CLI-77)", () => {
     // A delete event has only the documentKey: the stored _id tells the partition
     expect(storageChangeOf({ operationType: "delete", documentKey: { _id: "acme:r1" } }, tenantForm)).toEqual({ id: "r1", partition: "acme", deleted: true, raw: true });
   });
+
+  it("takes the partition of the image before the change first, then of the document after it, then of the stored _id", () => {
+    // A raw replace moved the partition field: the item stays in the partition of its stored _id and of the image before
+    const withoutImage = { operationType: "replace", fullDocument: { _id: "acme:a", tenant: "other", title: "moved" }, documentKey: { _id: "acme:a" } };
+    const change = { ...withoutImage, fullDocumentBeforeChange: { _id: "acme:a", tenant: "acme", _key: "a", _seq: 3 } };
+    expect(storageChangeOf(change, tenantForm)).toMatchObject({ id: "a", partition: "acme", deleted: false, raw: true });
+    // Without the image, the document after the write names a partition whose idOf does not read the stored _id: the stored _id tells it
+    expect(storageChangeOf(withoutImage, tenantForm)).toMatchObject({ id: "a", partition: "acme", raw: true });
+  });
 });
 
 describe("the writes of this process (CLI-77)", () => {
@@ -248,7 +257,7 @@ class FakeStream extends EventEmitter {
 }
 
 /** A storage of a fake database, with its streams, its timers and its log: for the rules that need no server. */
-function fakeWatch(collections: { counters?: Document; items?: Document } = {}) {
+function fakeWatch(collections: { counters?: Document; items?: Document; hello?: Document } = {}) {
   const streams: FakeStream[] = [];
   const items = {
     watch: () => {
@@ -257,15 +266,24 @@ function fakeWatch(collections: { counters?: Document; items?: Document } = {}) 
       return stream;
     },
     createIndexes: async () => [],
+    // The sweep finds no document without _seq
+    find: () => ({ sort: () => ({ limit: () => ({ toArray: async () => [] }) }) }),
     ...collections.items,
   };
-  const db = { databaseName: "fake", collection: (name: string) => (name === "__storage_counters" ? (collections.counters ?? {}) : items) } as unknown as Db;
+  const db = {
+    databaseName: "fake",
+    command: async () => collections.hello ?? { setName: "rs" },
+    collection: (name: string) => (name === "__storage_counters" ? (collections.counters ?? {}) : items),
+  } as unknown as Db;
   const storage = new MongoDocumentStorage<Document>({ collection: "fake_notes", db: async () => db });
   const timers: number[] = [];
+  /** The callbacks of the timers: a test runs them. */
+  const runs: Array<() => void> = [];
   const clock = {
     now: () => 0,
-    after: (delay: number) => {
+    after: (delay: number, run: () => void) => {
       timers.push(delay);
+      runs.push(run);
       return () => undefined;
     },
   } as unknown as Clock;
@@ -278,7 +296,7 @@ function fakeWatch(collections: { counters?: Document; items?: Document } = {}) 
     await vi.waitFor(() => expect(streams[index]).toBeDefined());
     return streams[index]!;
   };
-  return { db, storage, streams, stream, timers, clock, logs, log, published, publish };
+  return { db, storage, streams, stream, timers, runs, clock, logs, log, published, publish };
 }
 
 /** The error of a server, with its code. */
@@ -381,10 +399,39 @@ describe("watchStorageChanges without a server (CLI-77)", () => {
     await watch.stop();
   });
 
-  it("refuses an unknown rawWrites or ownWrites", () => {
+  it("refuses an unknown rawWrites or ownWrites, and a sweep without adoptions", () => {
     const { storage, publish } = fakeWatch();
     expect(() => watchStorageChanges(storage, publish, { rawWrites: "keep" as never })).toThrow(TypeError);
     expect(() => watchStorageChanges(storage, publish, { ownWrites: "keep" as never })).toThrow(TypeError);
+    expect(() => watchStorageChanges(storage, publish, { rawWrites: "ignore", sweep: true })).toThrow(TypeError);
+    expect(() => watchStorageChanges(storage, publish, { sweep: "yes" as never })).toThrow(TypeError);
+  });
+
+  it("rejects ready on a single server before it opens a stream", async () => {
+    const { storage, streams, timers, clock, logs, log, publish } = fakeWatch({ hello: { isWritablePrimary: true } });
+    const watch = watchStorageChanges(storage, publish, { clock, log });
+    await expect(watch.ready).rejects.toMatchObject({ code: 40573 });
+    expect(streams).toEqual([]);
+    expect(timers).toEqual([]);
+    expect(logs.filter((line) => line.startsWith("error"))).toHaveLength(1);
+    await watch.stop();
+  });
+
+  it("tries a failed adoption again after the backoff, and after the last try publishes a gap to its partition", async () => {
+    const { storage, stream, runs, clock, logs, log, published, publish } = fakeWatch({ counters: { findOneAndUpdate: async () => Promise.reject(serverError(6, "host unreachable")) } });
+    const watch = watchStorageChanges(storage, publish, { clock, log, backoff: { initialDelay: ms(10), jitter: 0 } });
+    (await stream()).emit("change", { _id: { t: 1 }, operationType: "insert", fullDocument: { _id: "t5\u001fa", _key: "a", _part: "t5" }, documentKey: { _id: "t5\u001fa" } });
+    // Each try fails: the adoption waits on the clock, then tries again
+    for (let tries = 1; tries < 5; tries++) {
+      await vi.waitFor(() => expect(runs).toHaveLength(tries));
+      expect(published).toEqual([]);
+      runs[tries - 1]!();
+    }
+    await vi.waitFor(() => expect(published).toHaveLength(1));
+    expect(published[0]).toEqual({ topic: collectionChangeTopic("fake_notes", "t5"), event: { changed: [], deleted: [] } });
+    expect(runs).toHaveLength(4);
+    expect(logs.some((line) => line.startsWith("warn") && line.includes("host unreachable") && line.includes('"t5"'))).toBe(true);
+    await watch.stop();
   });
 });
 
@@ -493,10 +540,22 @@ async function withImages(collection: string): Promise<void> {
 withMongo("watchStorageChanges on MongoDB (CLI-77)", { timeout: TEST_TIMEOUT_MS }, () => {
   it("rejects ready on a single server: change streams need a replica set", async (context) => {
     if (replicaSet) return context.skip?.("the test is for a single server");
-    const { storage, log } = setup();
+    const { storage, logs, log } = setup();
     const watch = watchStorageChanges(storage, () => undefined, { log });
-    await expect(watch.ready).rejects.toMatchObject({ code: 40573 });
-    await watch.stop();
+    try {
+      // The watcher asks the server with hello before it opens a stream: ready rejects at once
+      const result = await Promise.race([
+        watch.ready.then(
+          () => "ready",
+          (error: unknown) => error
+        ),
+        new Promise((resolve) => setTimeout(() => resolve("waits"), EVENTUALLY_MS)),
+      ]);
+      // The logs of the watcher are in the message of a failure
+      expect({ result, logs }).toMatchObject({ result: { code: 40573 } });
+    } finally {
+      await watch.stop();
+    }
   });
 
   it("adopts a raw write: the hint has the new version of versionOf, and changes(since) has the write", async (context) => {
@@ -544,6 +603,35 @@ withMongo("watchStorageChanges on MongoDB (CLI-77)", { timeout: TEST_TIMEOUT_MS 
       // The delete through the storage (a tombstone) is skipped
       expect(eventsOf(events, "a")).toHaveLength(1);
       expect(events.every((entry) => entry.topic === topic)).toBe(true);
+    } finally {
+      await watch.stop();
+    }
+  });
+
+  it("sweeps the documents without _seq that were written before the watcher started: changes(since) has them", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const { collection, storage, bus, events, listen, log } = setup<{ title: string }>();
+    const notes = storage.forPartition("t1");
+    listen(collectionChangeTopic(collection, "t1"));
+    const start = (await notes.getChangesSince()).version;
+    // Raw documents of an import: no event of a stream tells them to the watcher
+    await db.collection(collection).insertMany([
+      { _id: "t1\u001fs1" as never, _part: "t1", title: "one" },
+      { _id: "t1\u001fs2" as never, _part: "t1", title: "two" },
+    ]);
+    const watch = watchStorageChanges(storage, bus, { log });
+    try {
+      await watch.ready;
+      await eventually(async () => expect(await db.collection(collection).countDocuments({ _seq: { $exists: false } })).toBe(0));
+      const delta = await notes.getChangesSince(start);
+      expect(delta.full).toBe(false);
+      expect([...delta.changed].sort(([a], [b]) => a.localeCompare(b))).toEqual([
+        ["s1", { _id: "s1", title: "one" }],
+        ["s2", { _id: "s2", title: "two" }],
+      ]);
+      // The event of each adoption is its hint, with its version
+      await eventually(() => expect(eventsOf(events, "s1")).toHaveLength(1));
+      expect(eventsOf(events, "s1")[0]!.event.versions).toEqual([{ id: "s1", version: await notes.versionOf("s1") }]);
     } finally {
       await watch.stop();
     }
@@ -858,10 +946,11 @@ withMongo("watchStorageChanges on MongoDB (CLI-77)", { timeout: TEST_TIMEOUT_MS 
       await watch.ready;
       await db.collection(collection).insertOne({ _id: "r1" as never, title: "before" });
       await eventually(() => expect(eventsOf(published, "r1")).toHaveLength(1));
-      // The next getMore of the stream fails with an error that the driver does not resume (BadValue)
-      await admin.command({ configureFailPoint: "failCommand", mode: { times: 1 }, data: { failCommands: ["getMore"], appName: "storage-hints-resume", errorCode: 2 } });
+      // The next getMore of the stream fails with an error that the driver does not resume (BadValue).
+      // No error label: with the label ResumableChangeStreamError, the driver would resume the stream itself.
+      await admin.command({ configureFailPoint: "failCommand", mode: { times: 1 }, data: { failCommands: ["getMore"], appName: "storage-hints-resume", errorCode: 2, errorLabels: [] } });
       await db.collection(collection).insertOne({ _id: "r2" as never, title: "during" });
-      await eventually(() => expect(logs.some((line) => line.startsWith("warn") && line.includes("failed"))).toBe(true));
+      await eventually(() => expect(logs.some((line) => line.startsWith("warn") && line.includes("the stream failed")), logs.join("\n")).toBe(true));
       await db.collection(collection).insertOne({ _id: "r3" as never, title: "after" });
       await eventually(() => expect(eventsOf(published, "r3")).toHaveLength(1));
       expect(eventsOf(published, "r2")).toHaveLength(1);

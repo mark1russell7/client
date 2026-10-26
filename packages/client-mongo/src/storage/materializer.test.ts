@@ -168,6 +168,21 @@ withMongo("ViewMaterializer on MongoDB", { timeout: TEST_TIMEOUT_MS }, () => {
     await views.stop();
   });
 
+  it("leaves the storage fields of a source out of the rows: a row is no write of a storage (CLI-77)", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const { db, views } = setup();
+    // A document of a MongoDocumentStorage, with each field of the storage
+    await db.collection("items").insertOne({ _id: "t1a" as never, _part: "t1", _key: "a", _seq: 7, _ord: 3, _kid: true, _kpf: ["kind"], _json: "x", kind: "a", n: 1 });
+    // A pipeline that passes the source document through
+    const pipeline = [{ $project: { _id: "$_key", _key: 1, _seq: 1, _ord: 1, _kid: 1, _kpf: 1, _json: 1, _tomb: 1, kind: 1, n: 1 } }];
+    await db.collection("_aggregations").insertOne(sumsView({ _id: "copies", pipeline, targetCollection: "copies" }) as never);
+    await views.start();
+    const rows = await db.collection("copies").find({}).toArray();
+    expect(sorted(rows)).toEqual([{ _id: "a", _part: "t1", kind: "a", n: 1 }]);
+    for (const name of ["_key", "_seq", "_ord", "_kid", "_kpf", "_json", "_tomb"]) expect(rows[0]).not.toHaveProperty(name);
+    await views.stop();
+  });
+
   it("runs a chain of views in one pass, marks a cycle, and resumes when the cycle ends", async (context) => {
     if (!replicaSet) return context.skip?.("change streams need a replica set");
     const { db, views } = setup();

@@ -470,6 +470,16 @@ export interface StorageChangeSource {
   /** This method adopts a raw write (D39): see `RawStorageWrite`. */
   adopt(raw: RawStorageWrite): Promise<RawAdoption>;
   /**
+   * This method adopts several raw writes: the writes of each partition take one block of numbers.
+   * A partition whose writes fail gives `{ error }` for each of its writes.
+   */
+  adoptAll(raws: readonly RawStorageWrite[]): Promise<RawAdoptionResult[]>;
+  /**
+   * One page of the documents without `_seq` (the sweep of the raw writes), in the order of `_id`,
+   * after the `_id` of `after` (from the start without it).
+   */
+  rawDocuments(after: { readonly id: unknown } | undefined, limit: number): Promise<Document[]>;
+  /**
    * The partitions that the storage knows: each partition with a floor document in the counters,
    * and each partition of `forPartition()` in this process. It rejects when the counters cannot be read.
    */
@@ -505,6 +515,9 @@ export interface RawStorageWrite {
 
 /** The result of an adoption: `adopted`, `lost` (the document changed since: another adoption or write won), or `unknown` (no image and no stored `_id` tells the id and the partition). */
 export type RawAdoption = "adopted" | "lost" | "unknown";
+
+/** The result of one raw write of `adoptAll()`: a `RawAdoption`, or the error of the write of its partition. */
+export type RawAdoptionResult = RawAdoption | { readonly error: unknown };
 
 /** The most floor documents that `partitions()` reads. */
 const MAX_KNOWN_PARTITIONS = 10_000;
@@ -669,6 +682,8 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
       form: storage.form,
       partition: storage.partition,
       adopt: (raw) => storage.adoptRaw(raw),
+      adoptAll: (raws) => storage.adoptRawAll(raws),
+      rawDocuments: (after, limit) => storage.rawDocuments(after, limit),
       partitions: () => storage.knownPartitions(),
     });
   }
@@ -1327,66 +1342,105 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
    * general setter of `_seq`.
    */
   private async adoptRaw(raw: RawStorageWrite): Promise<RawAdoption> {
-    const target = this.adoptionTarget(raw);
-    if (!target) return "unknown";
-    const { storage, id } = target;
-    const after = raw.after;
-    if (after === undefined) {
-      // A hard delete: a tombstone with the id and the partition of the image before the change
-      return storage.write(async (db, collection) => {
-        const result = await storage.withNumbers(
-          db,
-          collection,
-          1,
-          async (first, session): Promise<RawAdoption> => {
-            // In a transaction, a duplicate key would end the transaction: the read comes first
-            if (session && (await collection.findOne({ _id: raw.storedId } as Filter<Stored>, { projection: { _id: 1 }, session }))) return "lost";
-            const tomb: Stored = { _id: raw.storedId, [KEY]: id, [SEQ]: first, [TOMB]: true };
-            storage.putPartition(tomb);
-            try {
-              await collection.insertOne(tomb, session ? { session } : {});
-              return "adopted";
-            } catch (error) {
-              // A raw insert of the same _id came after the delete: that insert is the newer state
-              if (isDuplicateKey(error)) return "lost";
-              throw error;
-            }
-          },
-          false
-        );
-        if (result === "adopted") await storage.pruneTombstones(db, collection);
-        return result;
-      });
+    const [result] = await this.adoptRawAll([raw]);
+    if (result === undefined || typeof result !== "string") throw (result as { error: unknown } | undefined)?.error;
+    return result;
+  }
+
+  /**
+   * This method adopts several raw writes. The writes of each partition take one block of numbers
+   * through the path of each write. A number of a write that does not win stays unused.
+   */
+  private async adoptRawAll(raws: readonly RawStorageWrite[]): Promise<RawAdoptionResult[]> {
+    const results: RawAdoptionResult[] = raws.map(() => "unknown");
+    const groups = new Map<MongoDocumentStorage<T>, Array<{ index: number; raw: RawStorageWrite; id: string }>>();
+    raws.forEach((raw, index) => {
+      const target = this.adoptionTarget(raw);
+      if (!target) return;
+      let group = groups.get(target.storage);
+      if (!group) groups.set(target.storage, (group = []));
+      group.push({ index, raw, id: target.id });
+    });
+    for (const [storage, group] of groups) {
+      try {
+        const done = await storage.adoptGroup(group);
+        group.forEach((entry, position) => (results[entry.index] = done[position] ?? "lost"));
+      } catch (error) {
+        for (const entry of group) results[entry.index] = { error };
+      }
     }
-    const fields = storage.restoredFields(raw, after, id);
+    return results;
+  }
+
+  /** The adoption of raw writes of this partition, with one block of numbers. */
+  private async adoptGroup(group: ReadonlyArray<{ raw: RawStorageWrite; id: string }>): Promise<RawAdoption[]> {
+    return this.write(async (db, collection) => {
+      const results = await this.withNumbers(
+        db,
+        collection,
+        group.length,
+        async (first, session): Promise<RawAdoption[]> => {
+          const out: RawAdoption[] = [];
+          for (const [position, { raw, id }] of group.entries()) {
+            const seq = first + position;
+            out.push(raw.after === undefined ? await this.adoptDelete(collection, raw, id, seq, session) : await this.adoptWrite(collection, raw, raw.after, id, seq, session));
+          }
+          return out;
+        },
+        false
+      );
+      if (results.some((result, position) => result === "adopted" && group[position]!.raw.after === undefined)) await this.pruneTombstones(db, collection);
+      return results;
+    });
+  }
+
+  /** A raw hard delete: a tombstone with the id and the partition of the image before the change. */
+  private async adoptDelete(collection: Collection<Stored>, raw: RawStorageWrite, id: string, seq: number, session: ClientSession | undefined): Promise<RawAdoption> {
+    // In a transaction, a duplicate key would end the transaction: the read comes first
+    if (session && (await collection.findOne({ _id: raw.storedId } as Filter<Stored>, { projection: { _id: 1 }, session }))) return "lost";
+    const tomb: Stored = { _id: raw.storedId, [KEY]: id, [SEQ]: seq, [TOMB]: true };
+    this.putPartition(tomb);
+    try {
+      await collection.insertOne(tomb, session ? { session } : {});
+      return "adopted";
+    } catch (error) {
+      // A raw insert of the same _id came after the delete: that insert is the newer state
+      if (isDuplicateKey(error)) return "lost";
+      throw error;
+    }
+  }
+
+  /** A raw insert, replace or update: one conditional write on the exact state of the event. */
+  private async adoptWrite(collection: Collection<Stored>, raw: RawStorageWrite, after: Document, id: string, seq: number, session: ClientSession | undefined): Promise<RawAdoption> {
+    const fields = this.restoredFields(raw, after, id);
     // The exact state of the event: the same `_seq` (or none), and no field that the adoption sets
     const filter: Document = { _id: raw.storedId, [SEQ]: raw.seq ?? { $exists: false } };
     for (const name of Object.keys(fields)) filter[name] = { $exists: false };
-    return storage.write((db, collection) =>
-      storage.withNumbers(
-        db,
-        collection,
-        1,
-        async (first, session): Promise<RawAdoption> => {
-          const result = await collection.updateOne(filter as Filter<Stored>, { $set: { ...fields, [SEQ]: first } }, session ? { session } : {});
-          return result.matchedCount === 1 ? "adopted" : "lost";
-        },
-        false
-      )
-    );
+    const result = await collection.updateOne(filter as Filter<Stored>, { $set: { ...fields, [SEQ]: seq } }, session ? { session } : {});
+    return result.matchedCount === 1 ? "adopted" : "lost";
+  }
+
+  /** One page of the documents without `_seq`, in the order of `_id` (the sweep of `watchStorageChanges()`). */
+  private async rawDocuments(after: { readonly id: unknown } | undefined, limit: number): Promise<Document[]> {
+    const db = await this.database();
+    const filter: Document = { [SEQ]: { $exists: false } };
+    // $expr compares across the BSON types, in the order of the sort
+    if (after) filter["$expr"] = { $gt: ["$_id", { $literal: after.id }] };
+    return db.collection(this.collectionName).find(filter).sort({ _id: 1 }).limit(limit).toArray();
   }
 
   /**
    * The storage of the partition of a raw write and the id of its document, or undefined when
    * neither the documents of the event nor the stored `_id` tell them. The partition comes from
-   * `form.partitionOf()` of the document after the write, else of the image before the change,
-   * else of the stored `_id`. The document must not have a partition field with another value.
+   * `form.partitionOf()` of the image before the change, else of the document after the write,
+   * else of the stored `_id` (the order of `storageChangeOf()`). The document must not have a
+   * partition field with another value.
    */
   private adoptionTarget(raw: RawStorageWrite): { storage: MongoDocumentStorage<T>; id: string } | undefined {
     const doc = raw.after ?? raw.before;
     if (!doc) return undefined;
     const places = new Set<string | undefined>();
-    for (const source of [raw.after, raw.before, { _id: raw.storedId }]) if (isPlainObject(source)) places.add(this.form.partitionOf(source));
+    for (const source of [raw.before, raw.after, { _id: raw.storedId }]) if (isPlainObject(source)) places.add(this.form.partitionOf(source));
     for (const place of places) {
       if (place !== this.partition && (this.partition !== undefined || place === undefined)) continue;
       let storage: MongoDocumentStorage<T>;

@@ -53,7 +53,7 @@
 import { createHash } from "node:crypto";
 import { BSON, ObjectId, type ChangeStream, type ClientSession, type Collection, type Db, type Document } from "mongodb";
 import { optionalMs, realClock, type Cancel, type Clock, type Duration } from "@procedures/client";
-import { DEFAULT_STORED_FORM, TOMBSTONE_FIELD, type StoredForm } from "./document-storage.js";
+import { DEFAULT_STORED_FORM, DOCUMENT_STORAGE_FIELDS, TOMBSTONE_FIELD, type StoredForm } from "./document-storage.js";
 import { scopePipeline } from "./pipeline-scope.js";
 
 /** The definition of a view, as a document of the views collection. */
@@ -874,6 +874,9 @@ export class ViewMaterializer {
         // The fields of the materializer, for a row that comes from a target: not in the content
         const { _id, [this.partitionField]: _partition, [VIEW_GENERATION_FIELD]: _generation, [VIEW_HASH_FIELD]: _hash, ...content } = row;
         if (_id === undefined || _id === null) throw new ViewRunError("each row of the result needs an _id");
+        // The fields of a MongoDocumentStorage, for a row that passes a source document through: a row is
+        // no write of a storage, so a watcher of the target must not read its _seq (roadmap CLI-77)
+        for (const name of DOCUMENT_STORAGE_FIELDS) delete content[name];
         const stored = this.targetId(_id, partition, generation);
         const hash = createHash("sha1").update(canonical(content)).digest("hex");
         group.push({
