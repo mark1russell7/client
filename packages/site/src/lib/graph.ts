@@ -157,6 +157,7 @@ export function buildGraph(program: Json, analysis: Analysis): Graph {
   for (const use of analysis.refs) {
     const reader = enclosing(use.location);
     if (!reader) continue;
+    // path-check: the `$ref` text of a program: a name and its fields (PROGRAM-FORMAT.md).
     const name = use.name.split(".")[0] ?? "";
     let source: GraphNode | undefined;
     if (name === "$last") {

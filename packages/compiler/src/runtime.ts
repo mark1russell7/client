@@ -60,6 +60,7 @@ export function get(value: unknown, fields: readonly string[]): unknown {
 
 /** The error of the interpreter for a `$ref` name that no scope has. */
 export function unknownName(text: string): never {
+  // path-check: the `$ref` text of a program: a name and its fields (PROGRAM-FORMAT.md).
   const name = text.split(".")[0];
   throw new Error(
     `Unknown $ref name "${name}" in "${text}": no step, item or input has this name here. ` +

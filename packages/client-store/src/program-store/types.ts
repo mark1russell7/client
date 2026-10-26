@@ -7,7 +7,7 @@
  * a server with an expose rule lets call only the exposed procedures.
  */
 
-import type { AggregationDefinition, ProcedurePath } from "@procedures/client";
+import { pathToKey, type AggregationDefinition, type ProcedurePath } from "@procedures/client";
 
 /** One stored program. */
 export interface StoredProgram {
@@ -64,8 +64,8 @@ export function checkStoredProgram(value: unknown): StoredProgram {
   if (!Array.isArray(record.path) || record.path.length === 0 || !record.path.every((s) => typeof s === "string" && s !== "")) {
     throw new TypeError("A stored program needs a path: a list of non-empty strings");
   }
-  if (record.key !== record.path.join(".")) {
-    throw new TypeError(`The key of a stored program must be its path with dots: ${record.path.join(".")}`);
+  if (record.key !== pathToKey(record.path)) {
+    throw new TypeError(`The key of a stored program must be the key of its path: ${pathToKey(record.path)}`);
   }
   const program = record.program as { $proc?: unknown } | undefined;
   if (typeof program !== "object" || program === null || !Array.isArray(program.$proc)) {

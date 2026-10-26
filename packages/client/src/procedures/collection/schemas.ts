@@ -93,6 +93,7 @@ const EXPECTED_VERSION_MESSAGE = `expectedVersion must be a string of at most ${
  */
 function expectedVersionError(data: Record<string, unknown>, path: (string | number)[] = []): ZodErrorLike | undefined {
   if (!("expectedVersion" in data) || data["expectedVersion"] === undefined || isExpectedVersion(data["expectedVersion"])) return undefined;
+  // path-check: the field path of the input in an error message.
   const message = path.length === 0 ? EXPECTED_VERSION_MESSAGE : `${path.join(".")}.${EXPECTED_VERSION_MESSAGE}`;
   return { message, errors: [{ path: [...path, "expectedVersion"], message }] };
 }

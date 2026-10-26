@@ -10,7 +10,7 @@
  */
 
 import { z } from "zod";
-import type { ProcedureContext } from "@procedures/client";
+import { pathToKey, type ProcedureContext } from "@procedures/client";
 import { libScan } from "../lib/scan.js";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -243,7 +243,7 @@ async function discoverPackageProcedures(
       if (expectedNamespace && proc.path[0] === expectedNamespace) {
         procedures.push({
           path: proc.path,
-          key: proc.path.join("."),
+          key: pathToKey(proc.path),
           package: packageName,
           packagePath,
           description,
@@ -252,7 +252,7 @@ async function discoverPackageProcedures(
       } else if (packageName === "@procedures/lib" && proc.path[0] === "lib") {
         procedures.push({
           path: proc.path,
-          key: proc.path.join("."),
+          key: pathToKey(proc.path),
           package: packageName,
           packagePath,
           description,
@@ -262,7 +262,7 @@ async function discoverPackageProcedures(
                  (proc.path[0] === "procedure" || proc.path[0] === "dag")) {
         procedures.push({
           path: proc.path,
-          key: proc.path.join("."),
+          key: pathToKey(proc.path),
           package: packageName,
           packagePath,
           description,

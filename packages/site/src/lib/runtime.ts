@@ -20,6 +20,7 @@ import {
   allCoreProcedures,
   metaProcedures,
   observeHydration,
+  pathToKey,
   type AnyProcedure,
   type HydrationEvent,
   type ProcedureContext,
@@ -110,14 +111,14 @@ export async function runProgram(program: Json, onCall?: (count: number) => void
 
   function traced(procedure: AnyProcedure): AnyProcedure {
     const handler = procedure.handler;
-    const key = procedure.path.join(".");
+    const key = pathToKey(procedure.path);
     return {
       ...procedure,
       handler: async (input: unknown, ctx: ProcedureContext): Promise<unknown> => {
         const id = ++nextId;
         const event = pendingRef;
         pendingRef = null;
-        if (event && event.path.join(".") === key) {
+        if (event && pathToKey(event.path) === key) {
           callOfRef.set(event.ref, id);
           consumerOf.set(id, event.consumer ?? null);
         }

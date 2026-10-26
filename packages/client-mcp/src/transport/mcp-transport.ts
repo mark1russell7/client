@@ -32,7 +32,7 @@ import type {
   Principal,
   ReportProgress,
 } from "@procedures/client";
-import { LOCAL_CREDENTIALS, NARROWING_METADATA_KEY, PROCEDURE_REGISTRY, addNarrowing, pathToMethod, createElicit, elicitWithPolicy, lastResortError, requestCredentials, retryableOf, untrustedTextsOf } from "@procedures/client";
+import { LOCAL_CREDENTIALS, NARROWING_METADATA_KEY, PROCEDURE_REGISTRY, addNarrowing, pathToKey, pathToMethod, createElicit, elicitWithPolicy, lastResortError, requestCredentials, retryableOf, untrustedTextsOf } from "@procedures/client";
 import {
   proceduresToMcpTools,
   toToolDefinition,
@@ -722,7 +722,7 @@ export class McpServerTransport implements ServerTransport {
     // A tool name names one procedure: the transport leaves out each name of two procedures (CLI-28)
     const reportCollision = (name: string, paths: readonly (readonly string[])[]): void => {
       // MUST be stderr: stdout carries the protocol of stdio
-      console.error(`[mcp] The procedures ${paths.map((path) => path.join(".")).join(", ")} have the tool name "${name}": the transport leaves them out`);
+      console.error(`[mcp] The procedures ${paths.map(pathToKey).join(", ")} have the tool name "${name}": the transport leaves them out`);
     };
     for (const tool of distinctTools(namedTools(mcpTools, this.options.toolName), reportCollision)) {
       this.tools.set(tool.name, tool);

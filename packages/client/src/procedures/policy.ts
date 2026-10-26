@@ -21,7 +21,7 @@
  */
 
 import type { AnyProcedure, ProcedurePath } from "./types.js";
-import { pathToKey } from "./types.js";
+import { keyToPath, pathToKey } from "./types.js";
 import { isDataDriven } from "./ref.js";
 
 /** The call policy of a host. */
@@ -79,7 +79,7 @@ export function validateCalls(calls: unknown, path: ProcedurePath): readonly str
       );
     }
     const body = entry.endsWith(".*") ? entry.slice(0, -2) : entry;
-    if (body.length === 0 || body.includes("*") || body.split(".").some((segment) => segment.length === 0)) {
+    if (body.length === 0 || body.includes("*") || keyToPath(body).some((segment) => segment.length === 0)) {
       throw new TypeError(`metadata.calls of ${where} has an invalid entry: "${entry}". Use "ns.name" or "ns.*".`);
     }
   }

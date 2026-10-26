@@ -12,6 +12,7 @@ import {
   Client,
   LocalTransport,
   ProcedureRegistry,
+  pathToKey,
   pathToMethod,
   type AnyProcedure,
   type Method,
@@ -317,7 +318,7 @@ export function createProcedureCli(options: ProcedureCliOptions): ProcedureCli {
             : options.client;
 
       // Each item prints when it arrives. A failed item makes the command fail.
-      const hook = outputFormat === "text" || outputFormat === "streaming" ? options.format?.[path.join(".")] : undefined;
+      const hook = outputFormat === "text" || outputFormat === "streaming" ? options.format?.[pathToKey(path)] : undefined;
       let failure: string | undefined;
       const printItem = (item: unknown): void => {
         const text = hook ? hook(item, { path, input: validated, format: outputFormat, print }) : undefined;

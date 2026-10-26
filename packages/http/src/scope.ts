@@ -101,6 +101,7 @@ export class CallScope {
 
   /** The error of the stop. Before a stop, an `ABORTED` error. */
   error(): InvocationError {
+    // path-check: the name of the procedure in the error messages.
     const key = this.path.join(".");
     switch (this.#reason) {
       case "timeout":

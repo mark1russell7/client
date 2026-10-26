@@ -4,7 +4,7 @@
  * Converts procedures from PROCEDURE_REGISTRY to MCP tool definitions.
  */
 
-import { inferredEffectsOf, isDataDriven, toolHintsOf, untrustedFieldsOf, type AnyProcedure, type Effects, type ProcedurePath } from "@procedures/client";
+import { inferredEffectsOf, isDataDriven, pathToKey, toolHintsOf, untrustedFieldsOf, type AnyProcedure, type Effects, type ProcedurePath } from "@procedures/client";
 import type { JsonSchema, McpTaskSupport, McpTool, McpToolDefinition, McpToolFilter } from "../types.js";
 import { cachedToolInputSchema, cachedToolOutputSchema } from "../schema/tool-schema.js";
 import { encodePath, sanitizePath } from "./path-encoder.js";
@@ -77,7 +77,7 @@ export function procedureToMcpTool(procedure: AnyProcedure): McpTool {
   // which the Claude client aliases to "shell_run"), while ensuring two distinct
   // paths that would otherwise encode to the same string no longer collide.
   const toolName = encodePath(sanitizePath(procedure.path));
-  const cacheKey = procedure.path.join(".");
+  const cacheKey = pathToKey(procedure.path);
   const meta = extractMetadata(procedure);
 
   const tool: McpTool = {

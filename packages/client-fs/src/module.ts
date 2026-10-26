@@ -11,7 +11,7 @@
  * a root to all the procedures of a registry (`confine.ts`).
  */
 
-import { createProcedure, defineModule, type AnyProcedure, type Effects, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, defineModule, pathToKey, type AnyProcedure, type Effects, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import { statSync } from "node:fs";
 import { resolve } from "node:path";
 import { HANDLER_NAMES, rootedHandlers } from "./handlers.js";
@@ -348,7 +348,7 @@ export function createFsModule(options: FsModuleOptions = {}): ProcedureModule {
   if (options.root === undefined) return fsModule;
   const handlers = rootedHandlers(options.root);
   const procedures = fsModule.procedures.map((procedure): AnyProcedure => {
-    const key = procedure.path.join(".");
+    const key = pathToKey(procedure.path);
     const name = HANDLER_NAMES[key];
     // A procedure without a rooted handler would operate outside the root
     if (name === undefined) throw new Error(`The root of @procedures/fs has no handler for ${key}: add it to rootedHandlers()`);
@@ -381,7 +381,7 @@ export function confineFsProcedures(registry: ProcedureRegistry, root: string): 
   const folder = rootFolder(root);
   const rooted = rootedFsProcedures(registry, folder);
   for (const procedure of rooted) registry.register(procedure, { override: true });
-  return { root: folder, procedures: rooted.map((procedure) => procedure.path.join(".")) };
+  return { root: folder, procedures: rooted.map((procedure) => pathToKey(procedure.path)) };
 }
 
 /** The absolute path of a root. It throws when the root does not exist or is not a folder. */
@@ -399,10 +399,10 @@ function rootFolder(root: string): string {
 
 /** The procedures with a root for the `fs.*` procedures of a registry. An unknown `fs.*` procedure is an error. */
 function rootedFsProcedures(registry: ProcedureRegistry, folder: string): AnyProcedure[] {
-  const rooted = new Map(createFsModule({ root: folder }).procedures.map((procedure) => [procedure.path.join("."), procedure]));
+  const rooted = new Map(createFsModule({ root: folder }).procedures.map((procedure) => [pathToKey(procedure.path), procedure]));
   const present = registry.getAll().filter((procedure) => procedure.path[0] === "fs");
   return present.map((procedure) => {
-    const key = procedure.path.join(".");
+    const key = pathToKey(procedure.path);
     const replacement = rooted.get(key);
     if (!replacement) throw new Error(`The root of the file procedures cannot confine ${key}: @procedures/fs has no such procedure`);
     return replacement;
@@ -430,7 +430,7 @@ export function confineToRoot(registry: ProcedureRegistry, root: string): Confin
   for (const procedure of registry.getAll()) rootDecisionOf(procedure);
   for (const procedure of rooted) registry.register(procedure, { override: true });
   const others = confineOtherProcedures(registry, folder);
-  return { root: folder, fs: rooted.map((procedure) => procedure.path.join(".")), ...others };
+  return { root: folder, fs: rooted.map((procedure) => pathToKey(procedure.path)), ...others };
 }
 
 /**

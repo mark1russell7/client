@@ -67,6 +67,7 @@ export function nameDiagnostics(program: unknown, options: NameOptions): Diagnos
     const source = origin?.source as { readonly $ref?: unknown } | undefined;
     if (!visit || !origin || typeof source?.$ref !== "string") continue;
     const text = source.$ref;
+    // path-check: the `$ref` text of a program: a name and its fields (PROGRAM-FORMAT.md).
     const name = text.split(".")[0] ?? "";
     const key = (visit.doc.value as readonly unknown[])[1];
     const pointer = `${options.base ?? ""}${origin.pointer}`;

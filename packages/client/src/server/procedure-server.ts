@@ -1264,6 +1264,7 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
       else byStorage.set(storage, [name]);
     }
     return Array.from(byStorage, ([storage, collections]) => ({
+      // path-check: the name of a health dependency, not a topic.
       name: `collections.${collections.join("+")}`,
       collections,
       storage,

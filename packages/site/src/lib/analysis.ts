@@ -17,6 +17,7 @@
  * `analysis.test.ts` runs each rule with the real runtime, so a change of the core shows.
  */
 
+import { pathToKey } from "@procedures/client/browser";
 import { isOutputRef, isPlainObject, isProcRef, keyOf, locationKey, type Json, type Location, type ProcRef } from "./program";
 
 const CONTROL_FLOW = new Set(["chain", "parallel", "conditional", "tryCatch", "and", "or", "map", "reduce"]);
@@ -80,7 +81,7 @@ function definedKeys(value: Json | undefined, keys: Set<string> = new Set()): Se
   }
   if (isProcRef(value) && keyOf(value) === "procedure.define" && isPlainObject(value.input)) {
     const path = value.input["path"];
-    if (Array.isArray(path) && path.length > 0 && path.every((segment) => typeof segment === "string")) keys.add(path.join("."));
+    if (Array.isArray(path) && path.length > 0 && path.every((segment) => typeof segment === "string")) keys.add(pathToKey(path));
   }
   for (const item of Object.values(value)) definedKeys(item as Json, keys);
   return keys;

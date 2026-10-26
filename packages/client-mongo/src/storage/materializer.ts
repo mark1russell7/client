@@ -401,10 +401,10 @@ interface RunningView {
 
 /** A path without its positions in arrays (the segments of digits only): `lines.0.price` gives `lines.price`. */
 function withoutPositions(path: string): string {
-  return path
-    .split(".")
-    .filter((segment) => !/^\d+$/.test(segment))
-    .join(".");
+  // path-check: a field path of a MongoDB document, not a procedure path.
+  const segments = path.split(".");
+  // path-check: a field path of a MongoDB document, not a procedure path.
+  return segments.filter((segment) => !/^\d+$/.test(segment)).join(".");
 }
 
 /** The key of a row id for the signatures: type-aware, so an ObjectId and its text are different keys. */

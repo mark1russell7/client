@@ -324,6 +324,7 @@ function fromRef(ref: EnvelopeShape): { $ref: string } {
     throw new Error(`A ref to the root "names" needs a name: ["names", name, ...fields]. Got ${preview(refPath)}`);
   }
   const [name, ...fields] = steps.map((key) => keyText(key, refPath));
+  // path-check: the `$ref` text of a program: a name and its fields (PROGRAM-FORMAT.md).
   return { $ref: [name === LAST_NAME ? NATIVE_LAST : name, ...fields].join(".") };
 }
 
@@ -450,6 +451,7 @@ function toRef(ref: OutputRef): EnvelopeRef {
       `The $ref object ${preview(ref)} has other keys. The envelope form keeps only the path: keep this program in the $proc form`
     );
   }
+  // path-check: the `$ref` text of a program: a name and its fields (PROGRAM-FORMAT.md).
   const [name, ...fields] = refText.split(".");
   if (name === LAST_NAME) {
     throw new Error(

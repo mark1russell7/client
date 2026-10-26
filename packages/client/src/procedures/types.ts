@@ -38,7 +38,7 @@ export type ProcedurePath = string[];
  * `%` as `%25` and `.` as `%2E` (`encodeSegment()`, roadmap CLI-75). Thus the key of
  * `["a.b", "c"]` is `a%2Eb.c`, and not the key of `["a", "b", "c"]`. A plain path keeps its key.
  */
-export function pathToKey(path: ProcedurePath): string {
+export function pathToKey(path: readonly string[]): string {
   return segmentsToTopic(path);
 }
 

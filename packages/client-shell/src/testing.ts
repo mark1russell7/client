@@ -11,7 +11,7 @@
  * This entry point has no side effects: it registers no procedures.
  */
 
-import { defineModule, type AnyProcedure, type ProcedureContext, type ProcedureModule } from "@procedures/client";
+import { defineModule, pathToKey, type AnyProcedure, type ProcedureContext, type ProcedureModule } from "@procedures/client";
 import { shellModule } from "./module.js";
 import type { ShellRunOutput, ShellStreamItem } from "./types.js";
 
@@ -113,7 +113,7 @@ export function fakeShell(results: FakeShellResults = {}, options: FakeShellOpti
   }
 
   const procedures = shellModule.procedures.map((procedure): AnyProcedure => {
-    switch (procedure.path.join(".")) {
+    switch (pathToKey(procedure.path)) {
       case "shell.run":
         return { ...procedure, handler: async (input: FakeShellInput) => run(input) } as AnyProcedure;
       case "shell.stream":
@@ -133,7 +133,7 @@ export function fakeShell(results: FakeShellResults = {}, options: FakeShellOpti
   const refuse = (path: readonly string[]): Error => new Error(`fakeShell: the fake client answers only shell.run and shell.stream, not ${path.join(".")}`);
   const client = {
     async call(path: readonly string[], input: unknown): Promise<unknown> {
-      const key = path.join(".");
+      const key = pathToKey(path);
       if (key === "shell.run") return run(input as FakeShellInput);
       if (key === "shell.stream") {
         let last: ShellStreamItem | undefined;
@@ -143,7 +143,7 @@ export function fakeShell(results: FakeShellResults = {}, options: FakeShellOpti
       throw refuse(path);
     },
     stream(path: readonly string[], input: unknown): AsyncIterable<unknown> {
-      if (path.join(".") === "shell.stream") return stream(input as FakeShellInput);
+      if (pathToKey(path) === "shell.stream") return stream(input as FakeShellInput);
       throw refuse(path);
     },
   } as unknown as ProcedureContext["client"];

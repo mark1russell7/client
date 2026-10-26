@@ -9,6 +9,7 @@ import {
   isEmptyValue,
   isPlainObject,
   isProcRef,
+  keyOf,
   setAt,
   type Json,
   type Location,
@@ -32,6 +33,7 @@ export interface InsertChoice {
 
 /** The short name of a call: "add" for client.add, else the full key. */
 export function shortName(ref: ProcRef): string {
+  // path-check: the short name of a call as display text.
   return ref.$proc[0] === "client" && ref.$proc.length === 2 ? ref.$proc[1]! : ref.$proc.join(".");
 }
 
@@ -90,7 +92,7 @@ export function insertChoices(program: Json, location: Location, call: ProcRef, 
     choices.push({ id: "append", label: `Add ${name} to the end of the list`, destructive: false, program: setAt(program, select, call), select });
   } else if (isProcRef(target)) {
     const targetName = shortName(target);
-    const free = freeField(target, fieldsOf(target.$proc.join(".")));
+    const free = freeField(target, fieldsOf(keyOf(target)));
     if (free) {
       const fieldLocation = [...location, "input", free.field];
       if (free.append) {
@@ -113,7 +115,7 @@ export function insertChoices(program: Json, location: Location, call: ProcRef, 
         });
       }
     }
-    const wrap = wrapField(call, fieldsOf(call.$proc.join(".")));
+    const wrap = wrapField(call, fieldsOf(keyOf(call)));
     if (wrap) {
       const wrapped: ProcRef = { ...call, input: { ...inputOf(call), [wrap.field]: wrap.list ? [target] : target } };
       choices.push({

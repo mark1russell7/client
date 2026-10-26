@@ -509,6 +509,7 @@ function combine(original: object, keys: readonly string[] | undefined, walk: Wa
 
 /** This function makes the document of a `$ref` in a scope. */
 function refDoc(value: OutputRef, walk: Walk): ProgramDocument {
+  // path-check: the `$ref` text of a program: a name and its fields (PROGRAM-FORMAT.md).
   const [first = "", ...fields] = value.$ref.split(".");
   const name = first === "$last" ? LAST : nameKey(first);
   // A run reads the origin only in the input of a deferred call. A check reads its pointer.
@@ -1157,7 +1158,9 @@ function unknownName(source: unknown, path: readonly unknown[]): Error {
     : path
         .slice(1)
         .map((key, index) => (index === 0 ? (key === LAST ? "$last" : nameOfKey(String(key))) : String(key)))
+        // path-check: the `$ref` text of a program: a name and its fields (PROGRAM-FORMAT.md).
         .join(".");
+  // path-check: the `$ref` text of a program: a name and its fields (PROGRAM-FORMAT.md).
   const name = text.split(".")[0];
   return new Error(
     `Unknown $ref name "${name}" in "${text}": no step, item or input has this name here. ` +

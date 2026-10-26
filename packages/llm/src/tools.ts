@@ -18,6 +18,7 @@ import {
   capabilityRefusal,
   InvocationError,
   jsonSchemaOf,
+  keyToPath,
   PROCEDURE_REGISTRY,
   type AnyProcedure,
   type ProcedureContext,
@@ -54,7 +55,7 @@ const HOST_REFUSALS: ReadonlySet<string> = new Set(["NOT_EXPOSED", "NOT_DECLARED
 
 /** The name of the tool of a procedure: the key with `_` in place of each `.`. */
 export function toolNameOf(key: string): string {
-  return key.split(".").join("_");
+  return key.replaceAll(".", "_");
 }
 
 /** The input schema of a procedure as a tool: an object schema, or a `BAD_TOOL` error. */
@@ -78,7 +79,7 @@ export function procedureTools(keys: readonly string[], ctx: ToolContext | undef
   return keys.map((key): ProcedureTool => {
     if (seen.has(key)) throw new LlmError("BAD_TOOL", `llm: the input names the procedure ${key} two times`);
     seen.add(key);
-    const path = key.split(".");
+    const path = keyToPath(key);
     // The expose rule first: a refused path tells nothing about the procedure
     if (ctx.expose !== undefined && !ctx.expose(path)) {
       throw new InvocationError(
