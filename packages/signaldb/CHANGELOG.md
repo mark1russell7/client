@@ -1,5 +1,14 @@
 # @procedures/signaldb
 
+## 0.34.0
+
+### Patch Changes
+
+- Updated dependencies [d4376c2]
+- Updated dependencies [fa1a61a]
+  - @procedures/client@0.34.0
+  - @procedures/collections@0.34.0
+
 ## 0.33.0
 
 ### Patch Changes

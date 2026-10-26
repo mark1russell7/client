@@ -1,5 +1,31 @@
 # @procedures/weather
 
+## 0.34.0
+
+### Patch Changes
+
+- fa1a61a: Less boilerplate in each procedure definition (dedupe review F1, tracker item O58).
+  
+  PATCH (pre-1.0): this change adds exports and deprecates names. It removes no export and changes no behavior.
+  
+  - `@procedures/client` has the new export `typed<T>()`. It is the one pass-through schema that gives only the type `T`.
+  - `@procedures/client` has the new export `definePackage(name, procedures, requires?)`. It gives `{ module, register }` and registers nothing at the call. The new type `PackageDefinition` is its result.
+  - `zodAdapter` is deprecated. `input()` and `output()` take each Standard Schema and infer its type, so a zod schema goes in directly.
+  - `typedAnySchema` and `outputSchema` are deprecated. Use `typed<T>()`. They give the same pass-through schema.
+  - The procedures of the packages give their zod schemas to `input()` and `output()` directly. The `.build() as AnyProcedure` casts are gone. The schemas, the types of the exports and the validation do not change.
+  - `mark procedure new` writes `.input(<Name>InputSchema)` and `.output(<Name>OutputSchema)`, without `zodAdapter`.
+  
+  Migration:
+  
+  - The site, MiniMongo, Graph and jarvis: no change at this time. The deprecated names work until the next MINOR.
+  - Before the next MINOR, replace `zodAdapter<T>(schema)` with `schema`. To keep the check of a schema against a type, write `const schema: z.ZodType<T> = ...`.
+  - Before the next MINOR, replace `typedAnySchema<T>()` and `outputSchema<T>()` with `typed<T>()`.
+  - A parse-only object (`{ parse }`) in `zodAdapter` becomes a Standard Schema with a `~standard` property.
+- Updated dependencies [d4376c2]
+- Updated dependencies [fa1a61a]
+  - @procedures/client@0.34.0
+  - @procedures/http@0.34.0
+
 ## 0.33.0
 
 ### Patch Changes
