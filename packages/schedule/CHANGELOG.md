@@ -1,5 +1,15 @@
 # @procedures/schedule
 
+## 0.39.0
+
+### Patch Changes
+
+- Updated dependencies [92ae49c]
+- Updated dependencies [55d1e4d]
+  - @procedures/store@0.39.0
+  - @procedures/client@0.39.0
+  - @procedures/fs@0.39.0
+
 ## 0.38.0
 
 ### Patch Changes
