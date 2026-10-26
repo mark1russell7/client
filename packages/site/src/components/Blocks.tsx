@@ -17,6 +17,7 @@ import {
   isOutputRef,
   isPlainObject,
   isProcRef,
+  keyOf,
   locationKey,
   newCall,
   renameKey,
@@ -590,7 +591,7 @@ function FieldRow({
 }
 
 function CallBlock({ value, location, ctx, type }: { value: ProcRef; location: Location; ctx: EditorContext; type: string | undefined }): ReactElement {
-  const key = value.$proc.join(".");
+  const key = keyOf(value);
   const info = procedureByKey(key);
   const category = info ? categoryOf(info) : "other";
   const input = inputOf(value);
@@ -626,6 +627,7 @@ function CallBlock({ value, location, ctx, type }: { value: ProcRef; location: L
             ctx.select(location);
           }}
         >
+          {/* path-check: the namespace as display text. */}
           <span className="block-ns">{value.$proc.slice(0, -1).join(".")}.</span>
           <span className="block-name">{name}</span>
         </button>

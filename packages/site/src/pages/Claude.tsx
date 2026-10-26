@@ -5,6 +5,7 @@ import { href } from "../lib/router";
 export function Claude(): ReactElement {
   const groups = new Map<string, string[]>();
   for (const tool of mcpTools) {
+    // path-check: the namespace of an MCP tool name, as display text.
     const namespace = tool.split(".")[0] ?? tool;
     groups.set(namespace, [...(groups.get(namespace) ?? []), tool]);
   }

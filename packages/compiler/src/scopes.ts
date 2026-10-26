@@ -168,6 +168,7 @@ function scanRaw(node: IRNode, env: Env, diagnostics: Diagnostic[]): void {
     if (value === null || typeof value !== "object" || seen.has(value)) return;
     seen.add(value);
     if (isOutputRef(value)) {
+      // path-check: the `$ref` text of a program: a name and its fields (PROGRAM-FORMAT.md).
       const name = value.$ref.split(".")[0] ?? "";
       if (env && !lookup(env, name)) {
         diagnostics.push({

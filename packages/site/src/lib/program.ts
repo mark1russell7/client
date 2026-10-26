@@ -8,6 +8,7 @@
  */
 
 import type { Field } from "../data/index.js";
+import { pathToKey } from "@procedures/client/browser";
 import { parseJson } from "./json-parse";
 
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
@@ -44,7 +45,7 @@ export function inputOf(ref: ProcRef): { [key: string]: Json } {
 
 /** The key of a call: "client.add". */
 export function keyOf(ref: ProcRef): string {
-  return ref.$proc.join(".");
+  return pathToKey(ref.$proc);
 }
 
 /** A default value for a TypeScript type of a field: 0 for `number`, `[]` for an array and so on. */

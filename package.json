@@ -15,10 +15,12 @@
     "changeset": "changeset",
     "check:packages": "node scripts/check-packages.mjs",
     "check:boundaries": "depcruise --config .dependency-cruiser.cjs \"packages/*/src\"",
+    "check:paths-and-writes": "node scripts/check-paths-and-writes.mjs",
     "release:bootstrap": "node scripts/npm-bootstrap.mjs"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
+    "@babel/parser": "^8.0.7",
     "@changesets/cli": "^3.0.3",
     "@mark1russell7/cue": "^1.0.0",
     "@mark1russell7/ste-lint": "github:mark1russell7/ste-lint",

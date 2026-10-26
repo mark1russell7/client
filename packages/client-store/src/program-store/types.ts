@@ -64,6 +64,7 @@ export function checkStoredProgram(value: unknown): StoredProgram {
   if (!Array.isArray(record.path) || record.path.length === 0 || !record.path.every((s) => typeof s === "string" && s !== "")) {
     throw new TypeError("A stored program needs a path: a list of non-empty strings");
   }
+  // path-check: the entry ./indexeddb cannot load the codec (only @procedures/client/query). A segment with a dot fails here (CLI-84 follow-up).
   if (record.key !== record.path.join(".")) {
     throw new TypeError(`The key of a stored program must be its path with dots: ${record.path.join(".")}`);
   }

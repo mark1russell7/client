@@ -31,7 +31,7 @@ import {
 import type { Client } from "@procedures/client";
 import type { Method } from "@procedures/client";
 import type { CallOptions } from "@procedures/client/client";
-import { encodeSegment, optionalMs, realClock, type Clock, type Duration } from "@procedures/client/browser";
+import { optionalMs, pathToKey, realClock, type Clock, type Duration } from "@procedures/client/browser";
 import { backoffDelay, type Backoff } from "@mark1russell7/service/backoff";
 
 /**
@@ -308,7 +308,7 @@ export class ApiStorage<T> implements CollectionStorage<T> {
 
   constructor(client: Client, options: ApiStorageOptions) {
     // The service encodes a dot in the name of the collection, as `pathToMethod()` does (roadmap CLI-75)
-    const service = options.service ?? (options.collection !== undefined ? `collections.${encodeSegment(options.collection)}` : undefined);
+    const service = options.service ?? (options.collection !== undefined ? pathToKey(["collections", options.collection]) : undefined);
     if (!service) {
       throw new Error("ApiStorage requires a collection or a service");
     }

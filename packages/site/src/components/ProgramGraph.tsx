@@ -186,6 +186,7 @@ export function ProgramGraph({
                   ) : node.flow ? (
                     "control flow"
                   ) : (
+                    // path-check: the namespace as display text.
                     node.key.split(".").slice(0, -1).join(".")
                   )}
                 </span>

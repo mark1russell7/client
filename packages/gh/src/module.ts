@@ -10,7 +10,7 @@
  */
 
 import { z } from "zod";
-import { definePackage, type AnyProcedure, type Effects, type FsRootRules, type ProcedureModule, createProcedure, type PackageDefinition } from "@procedures/client";
+import { definePackage, pathToKey, type AnyProcedure, type Effects, type FsRootRules, type ProcedureModule, createProcedure, type PackageDefinition } from "@procedures/client";
 import shellModule from "@procedures/shell/module";
 import { ghPrList } from "./procedures/gh/pr/list.js";
 import { ghPrView } from "./procedures/gh/pr/view.js";
@@ -77,7 +77,7 @@ function gh<I, O>(
     .path(path)
     .input(input)
     .output(output)
-    .meta({ description, args, shorts: {}, output: "json", effects, calls: ["shell.run"], fsRoot: path.join(".") === "gh.run.download" ? DOWNLOAD_IN_A_ROOT : IN_A_ROOT })
+    .meta({ description, args, shorts: {}, output: "json", effects, calls: ["shell.run"], fsRoot: pathToKey(path) === "gh.run.download" ? DOWNLOAD_IN_A_ROOT : IN_A_ROOT })
     .handler(handler as never)
     .build() as unknown as AnyProcedure;
 }

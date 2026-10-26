@@ -162,6 +162,7 @@ export interface StreamRequestParts extends RequestParts {
  * throw.
  */
 export function prepareStream(parts: StreamRequestParts, path: ProcedurePath, settings: HttpSettings, headers: Record<string, string>): PreparedRequest {
+  // path-check: the name of the procedure in the error messages.
   const name = path.join(".");
   if (parts.body !== undefined && parts.json !== undefined) throw new Error(`${name}: give only one of body and json`);
   const body =

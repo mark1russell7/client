@@ -77,6 +77,7 @@ export function methodToKey(method: Method): MethodKey {
  * Parse a method key back to a Method object.
  */
 export function keyToMethod(key: MethodKey): Method {
+  // path-check: the key of the validation middleware (service, operation and version), a public API of its own.
   const parts = key.split(".");
   if (parts.length === 3 && parts[2]) {
     return { service: parts[0]!, operation: parts[1]!, version: parts[2] };

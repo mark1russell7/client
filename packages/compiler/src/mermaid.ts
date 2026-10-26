@@ -99,6 +99,7 @@ function jsonText(value: unknown): string {
 function callKey(value: unknown): string {
   if (!isAnyProcedureRef(value)) return "a call";
   const path = normalizeRef(value).path as readonly unknown[];
+  // path-check: the label of a call in the diagram, not a key.
   return path.map((segment) => String(segment)).join(".");
 }
 

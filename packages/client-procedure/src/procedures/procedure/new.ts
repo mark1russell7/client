@@ -84,6 +84,7 @@ export interface ProcedureLayout {
  * The layout of a procedure: procedures/<namespace>/<middle segments>/<last segment>.ts
  */
 export function procedureLayout(name: string, namespace?: string): ProcedureLayout {
+  // path-check: the name that the user types: its segments become folders and identifiers, which have no dot.
   const segments = name.split(".");
   return {
     segments,

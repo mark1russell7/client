@@ -251,6 +251,7 @@ async function* streamOnce(request: MessagesRequest, settings: LlmSettings, limi
     if (response.body === null) throw new LlmError("BAD_RESPONSE", "llm: the answer of the API has no body");
     const state = new StreamState(request.model);
     try {
+      // path-check: the label of the stream in the error messages.
       for await (const event of sseEvents(chunksOf(response.body), MAX_EVENT_BYTES, limits.path.join("."))) {
         for (const item of state.apply(event)) {
           progress.started = true;

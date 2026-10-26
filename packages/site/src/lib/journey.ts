@@ -129,6 +129,7 @@ function receiptProcedure(record: Record_) {
       record({ lane: "handler", direction: "down", title: "The handler of shop.receipt starts.", detail: `handler(${JSON.stringify(args)}, ctx)` });
 
       const nested = async <T>(path: [string, string], nestedInput: unknown): Promise<T> => {
+        // path-check: the name of the procedure in the text of the story.
         const key = path.join(".");
         record({ lane: "handler", direction: "down", title: `The handler calls ${key} through ctx.client.`, detail: `await ctx.client.call(["${path[0]}", "${path[1]}"], ${JSON.stringify(nestedInput)})` });
         const value = await ctx.client.call<unknown, T>(path, nestedInput);

@@ -630,6 +630,7 @@ export interface SelectorPrefilterOptions {
 /** The field of a stored document for a path of a selector, or undefined when the filter cannot test it. */
 function storedPath(path: string, reserved: ReadonlySet<string>): string | undefined {
   if (path === "_id") return KEY;
+  // path-check: a field path of a MongoDB document, not a procedure path.
   const parts = path.split(".");
   const first = parts[0]!;
   if (first === "_id" || STORAGE_FIELDS.has(first) || reserved.has(first)) return undefined;

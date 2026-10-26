@@ -12,6 +12,7 @@
 
 import type { ProgramStore, StoredProgram } from "@procedures/store/indexeddb";
 import type { Json } from "./program";
+import { keyToPath, pathToKey } from "@procedures/client/browser";
 
 /** The IndexedDB database of the saved programs. */
 export const SAVED_PROGRAMS_DATABASE = "procedures-site-programs";
@@ -82,6 +83,8 @@ export function toStoredProgram(
   const problem = nameProblem(name);
   if (problem) return { ok: false, reason: problem };
   if (!isCall(program)) return { ok: false, reason: "The store keeps only a program that starts with a call. Put a procedure at the root first." };
-  const key = name.trim();
-  return { ok: true, record: { key, path: key.split("."), program: program as unknown as StoredProgram["program"], storedAt: now } };
+  // The key in its one form: the path of the name, with each segment encoded (roadmap CLI-75)
+  const path = keyToPath(name.trim());
+  const key = pathToKey(path);
+  return { ok: true, record: { key, path, program: program as unknown as StoredProgram["program"], storedAt: now } };
 }

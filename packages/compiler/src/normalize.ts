@@ -105,6 +105,7 @@ function typeName(value: unknown): string {
 
 /** The text of a path for a message. */
 function keyText(path: readonly unknown[]): string {
+  // path-check: the text of a path in a message.
   return path.map((segment) => String(segment)).join(".");
 }
 
@@ -245,6 +246,7 @@ class Normalizer {
         );
         return this.literal(value, "unscoped-ref", pointer);
       }
+      // path-check: the `$ref` text of a program: a name and its fields (PROGRAM-FORMAT.md).
       const [name = "", ...fields] = value.$ref.split(".");
       return { kind: "reference", text: value.$ref, name, fields, deferred: h.deferred, source: value, synthetic: false, binding: undefined, pointer };
     }

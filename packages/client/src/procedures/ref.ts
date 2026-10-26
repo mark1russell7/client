@@ -219,6 +219,7 @@ export function getPath(obj: unknown, path: string[]): unknown {
  * `found` is false when no scope has the name. A missing field is `found` with the value undefined.
  */
 export function lookupOutputRef(refPath: string, scope: RefScope | undefined): { found: boolean; value?: unknown } {
+  // path-check: the `$ref` text of a program: a name and its fields (PROGRAM-FORMAT.md).
   const [first, ...rest] = refPath.split(".");
   for (let current = scope; current; current = current.parent) {
     if (first === "$last") {

@@ -7,7 +7,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { definePackage, createProcedure, type AnyProcedure, type Effects, type FsRootRules, type ProcedureContext, type ProcedureModule, type PackageDefinition } from "@procedures/client";
+import { definePackage, createProcedure, pathToKey, type AnyProcedure, type Effects, type FsRootRules, type ProcedureContext, type ProcedureModule, type PackageDefinition } from "@procedures/client";
 import { underGitRoot } from "./procedures/git/root.js";
 import { gitStatus } from "./procedures/git/status.js";
 import { gitAdd } from "./procedures/git/add.js";
@@ -283,7 +283,7 @@ const ROOT_RULES: Readonly<Record<string, FsRootRules>> = {
  */
 function underARoot(procedure: AnyProcedure): AnyProcedure {
   const handler = procedure.handler as ((input: unknown, ctx: ProcedureContext) => Promise<unknown>) | undefined;
-  const fsRoot = ROOT_RULES[procedure.path.join(".")] ?? IN_A_ROOT;
+  const fsRoot = ROOT_RULES[pathToKey(procedure.path)] ?? IN_A_ROOT;
   return {
     ...procedure,
     metadata: { ...procedure.metadata, fsRoot },

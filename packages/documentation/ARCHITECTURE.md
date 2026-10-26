@@ -139,7 +139,10 @@ The CI names below are the jobs and the steps of `.github/workflows/ci.yml`.
 
 - **Rule.** Each segment of a path goes through `encodeSegment()`, and each path goes through `pathToMethod()` or `pathToKey()` (decision D36). Each topic goes through `collectionChangeTopic()` and `collectionTopicPartition()`. Do not join or split a path on "." in your code. Do not match a topic with a regular expression.
 - **Reason.** A segment can have a dot or a `%`. Only the codec keeps such a segment as one segment (roadmap CLI-75).
-- **Guard.** The unit tests of the codec: `packages/client/src/procedures/segments.test.ts`, `packages/client/src/server/method.test.ts` and `packages/client/src/procedures/collection/topic.test.ts`. Planned: a lint rule (CLI-84).
+- **Guard.** The unit tests of the codec: `packages/client/src/procedures/segments.test.ts`, `packages/client/src/server/method.test.ts` and `packages/client/src/procedures/collection/topic.test.ts`. The rule "path" of the step "Check the paths, topics and storage writes" (`pnpm check:paths-and-writes`, CLI-84). The step parses the `src/` folder of each package, without the tests, and `scripts/check-paths-and-writes.test.mjs` tests the rules.
+  - Outside the files of the codec, a call `join(".")` or `split(".")` fails the step. A `join` in the text of a message does not fail it.
+  - A topic made or read by hand fails the step: the prefix `"collections."` with a value, or a regular expression with `collections\.`.
+  - Dots of another kind, for example a field path or the `$ref` of a program, are not a path. Put the file in `PATH_FILES` of the script with its reason. For one line, write the comment `path-check: <reason>` on the line or above it.
 
 ### I4. Wire format
 
@@ -151,7 +154,7 @@ The CI names below are the jobs and the steps of `.github/workflows/ci.yml`.
 
 - **Rule.** Each write to a storage collection goes through the write path of `MongoDocumentStorage`. The `_seq` comes from the allocation of the storage, and the storage fields are those of `DOCUMENT_STORAGE_FIELDS`. A delete writes a `_tomb` tombstone, and a prune raises the floor of the partition. The change-stream watcher adopts a raw write (decision D39). From 0.37.0, a view writes as the storage does when its target has the storage form (CLI-81, pull request #230).
 - **Reason.** `changes(since)` and the change hints are then exact. A client that syncs gets each write one time and in sequence.
-- **Guard.** The CI job "MongoDB (the storage contract)", on a single server and on a replica set. Planned: a lint rule against raw writes outside `storage/`, the materializer and the watcher (CLI-84).
+- **Guard.** The CI job "MongoDB (the storage contract)", on a single server and on a replica set. The rule "write" of the step "Check the paths, topics and storage writes" (`pnpm check:paths-and-writes`, CLI-84). A call of a write method of the MongoDB driver (`insertOne`, `updateMany`, `bulkWrite`, `findOneAndUpdate` and the others) fails the step, except in the files of `WRITE_FILES` of the script. These files are the storage, the materializer, `MongoStorage`, the procedures `mongo.documents.*` and the storage of SignalDB. Each file has its reason in the script.
 
 ### I6. Rights
 
