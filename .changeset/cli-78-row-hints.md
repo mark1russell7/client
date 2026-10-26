@@ -15,11 +15,14 @@ MINOR (breaking, pre-1.0): this change has a new default. Before, each subscribe
 - With values, an event has only the values of the rows that the rule admits. `withheld` names only the rows that the output filter of the host (`admitItem`) refused.
 - The new optional `admission.admitsAll(invocation, partition)` tells that a subscriber reads each row of its partition. The events of that subscriber then pass as before, with no filter and no read before a write.
 - At a re-check after a change of the rights (`rightsChanged()`, roadmap CLI-44), each subscriber with a filter gets a `reset` hint, so it reads its rows again. A subscriber whose `admitsAll` changes at a re-check also gets a `reset` hint.
+- A delta of `changes` gives only ids that the caller can read. Before, it put the id of each refused row in `deleted`. A delta with a refused row or a deleted row becomes a full answer (`full: true`) of the admitted rows. The copy of the caller then drops each other row. When `admitsAll` admits the caller, the delta stays as before.
+- `admittedStorage()` has a new optional parameter `partition`. `admitsAll` gets it.
 - New exports: `withHintImages(event, images)`, `hintImagesOf(event)` and the types `HintImages` and `HintRowState`. A publisher of change events, for example a watcher of a change stream, gives the rows before and after the change. Without them, a subscriber with a filter gets a hint without ids.
 
 Migration:
 
 - A subscriber that read `withheld` to find the rows that the rule refused: these rows are not in the event. A row that the subscriber read before the change and that the rule refuses after it comes as a delete.
+- A reader of `changes` with a rule of the rows: apply a full answer as a replacement of the copy. The sync of `@procedures/client-store` does this. A full answer comes after each delete, so give `admitsAll` to the principals with full rights.
 - A host whose `allow` of `events.subscribe` refused a principal with a rule of the rows can admit it.
 - A host with full rights for some principals: give `admission.admitsAll`. Without it, the publisher examines each row of each event for each subscriber. Also, each write reads its rows before the change while such a subscriber is open.
 - Graph: give `admitsAll` for the principals that read a whole partition. Then admit the principals with a `when` condition in `allow`.

@@ -18,8 +18,11 @@
  * (`admittedStorage()`). Each read and each write of each procedure goes through this view.
  *
  * - A refused row is absent: `get` gives undefined, `has` gives false, and the lists, `size`,
- *   `find` and `changes` do not have it. A delta of `changes` puts the id of a refused row in
- *   `deleted`, so a copy of the caller drops it.
+ *   `find` and `changes` do not have it.
+ * - A delta of `changes` gives only ids that the caller can read (roadmap CLI-78). The view
+ *   does not know which rows the caller read before the delta. Thus a delta with a refused row or
+ *   with a deleted row becomes a full answer of the admitted rows. The copy of the caller then
+ *   drops each other row. When `admitsAll` admits the caller, the delta stays as it is.
  * - An error of `admit` fails the read. It does not hide the rows, so a sync does not delete them.
  * - The guard reads the stored item before the write. With `versionOf`, the write expects the
  *   version of that item (roadmap CLI-16). A change of another writer between the read and the
@@ -169,8 +172,9 @@ function withoutValue(conflict: VersionConflict): VersionConflict {
  * @param storage - The storage of the call: of the collection, or of its partition
  * @param admission - The rules of the collection
  * @param ctx - The context of the call. The rules get its invocation.
+ * @param partition - The partition of the call. `admitsAll` gets it.
  */
-export function admittedStorage<T>(storage: CollectionStorage<T>, admission: CollectionAdmission | undefined, ctx: ProcedureContext): CollectionStorage<T> {
+export function admittedStorage<T>(storage: CollectionStorage<T>, admission: CollectionAdmission | undefined, ctx: ProcedureContext, partition?: string): CollectionStorage<T> {
   const admit = admission?.admit;
   const guard = admission?.guard;
   if (!admit && !guard) return storage;
@@ -247,6 +251,23 @@ export function admittedStorage<T>(storage: CollectionStorage<T>, admission: Col
     );
     if (kept.every((conflict, index) => conflict === conflicts[index])) return error;
     return new VersionConflictError(kept, error instanceof Error ? error.message : undefined);
+  };
+
+  /** This function tells if `admitsAll` admits the caller. An error gives false. */
+  const readsAll = async (): Promise<boolean> => {
+    if (!admission?.admitsAll || invocation === undefined) return false;
+    try {
+      return (await admission.admitsAll(invocation, partition)) === true;
+    } catch {
+      return false;
+    }
+  };
+  /** The full answer of `changes`: each admitted row, at a version that the rows include. */
+  const fullAnswer = async (): Promise<StorageChanges<T>> => {
+    const all = await storage.getChangesSince!(undefined);
+    if (all.full) return { version: all.version, full: true, changed: await admitted(all.changed), deleted: [] };
+    // A log that does not give all rows: the rows, read after the version, include that version
+    return { version: all.version, full: true, changed: await entries(), deleted: [] };
   };
 
   const view: CollectionStorage<T> = {
@@ -337,10 +358,15 @@ export function admittedStorage<T>(storage: CollectionStorage<T>, admission: Col
       if (!admit) return changes;
       const changed = await admitted(changes.changed);
       if (changes.full) return { ...changes, changed };
-      // A delta: the copy of the caller drops each refused row
       const kept = new Set(changed.map(([id]) => id));
       const refused = changes.changed.filter(([id]) => !kept.has(id)).map(([id]) => id);
-      return { ...changes, changed, deleted: [...changes.deleted, ...refused] };
+      // A delta of admitted rows only gives no id that the caller cannot read
+      if (refused.length === 0 && changes.deleted.length === 0) return { ...changes, changed };
+      // A caller that reads each row of the partition gets the delta as before (roadmap CLI-78)
+      if (await readsAll()) return { ...changes, changed, deleted: [...changes.deleted, ...refused] };
+      // The view does not know if the caller read a refused or a deleted row before. A full answer
+      // gives no other id, and the copy of the caller drops each row that it cannot read.
+      return fullAnswer();
     };
   }
   if (storage.query) {

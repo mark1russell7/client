@@ -448,7 +448,8 @@ const procedures = createCollectionProcedures("notes", {
 - The procedures apply the rules in one place: the view of the storage of each call (`admittedStorage()`).
 - A refused row is absent from each read: `get`, `has`, `getAll`, `entries`, `ids`, `size`, `getBatch`, `find` and `changes`.
 - `find` counts its skip and its limit in the admitted rows. A storage with `query()` gives the rows page by page.
-- A delta of `changes` puts the id of a refused row in `deleted`. A copy of the caller thus drops the row.
+- A delta of `changes` gives only ids that the caller can read (roadmap CLI-78). The view does not know which rows the caller read before. Thus a delta with a refused row or a deleted row becomes a full answer of the admitted rows. A copy of the caller then drops each other row.
+- When `admission.admitsAll` admits the caller, a delta stays a delta, with its deletes, as before CLI-78.
 - A patch whose new item the rule refuses gives `{ found: true }` without the value.
 - An error of the rule fails the read. It does not hide the rows.
 - The guard examines each write before the storage changes. A refused write gets `FORBIDDEN` with the reason `write-not-allowed`.
@@ -547,6 +548,7 @@ server.publish("orders.created", { order: 1 }); // the same as bus.emit()
 - `src/events/remote.test.ts`: subscribe, publish, receive and unsubscribe on the local transport, HTTP and WebSocket. The unknown and the refused topic on each face. The shared call, a late subscriber and the end at `clear()` on each face.
 - `src/events/remote.test.ts` also tests the share: one call and one cancel, the keys, an error for each subscriber, and a slow subscriber. The limit of the tries and the backoff of durations use a fake clock.
 - `src/events/recheck.test.ts` (roadmap CLI-44): a revoked right ends a subscription at the signal, or after the max age on a fake clock without a signal. A right that stays valid keeps the subscription. A partition that changes ends it.
+- `src/procedures/collection/admission.test.ts` (roadmap CLI-78): a delta of `changes` with a refused row or a deleted row becomes a full answer of the admitted rows. With `admitsAll`, the delta stays.
 - `src/procedures/collection/row-hints.test.ts` (roadmap CLI-78): each subscriber gets only the ids of the rows that the rule admits for it. A row that leaves the rule comes as a delete, and the chain of the events and `seq` have no gap. A subscriber with full rights keeps its events and its cost. A change of the rights gives a `reset` hint.
 - `src/server/row-hints.test.ts` (roadmap CLI-78): a subscriber with full rights and a subscriber with a rule of the rows share one topic. The test uses HTTP and WebSocket, before and after a change of the rights.
 - `src/events/bus.test.ts`: the option `onClear` of `on()`, with `clear()` and `clearAll()`.

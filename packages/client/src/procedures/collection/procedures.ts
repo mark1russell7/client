@@ -196,7 +196,7 @@ export function createCollectionProcedures(collectionName: string, options: Coll
     const collection = getCollectionFromPath(ctx.path);
     const partition = await partitionOfCall(ctx, collection, input.partition);
     const storage = storageOfCall<unknown>(ctx, collection, partition);
-    return { storage, view: admittedStorage(storage, admission, ctx), partition };
+    return { storage, view: admittedStorage(storage, admission, ctx, partition), partition };
   };
 
   // The rules of the rows on the metadata: the publisher of the events filters each event with them (roadmap CLI-78)
