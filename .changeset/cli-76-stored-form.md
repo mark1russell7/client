@@ -20,3 +20,8 @@ MINOR: some default behaviors change. A source document with `_tomb: true` is no
 - `selectorPrefilter(selector, options)` takes the new optional `storedId` and `storageFields`. With `storedId`, a condition on `_id` tests the stored `_id`, so `query()` uses the index of `_id`. A path with a part that starts with `$` does not go in the filter.
 - The docs tell three limits. Write through the storage: a raw write takes no number of the sequence, so a delta does not give it. A raw writer must not hard-delete an item while the storage writes it. On a single server, a precondition of a document without `_seq` does not see a writer outside the storage between the test and the write; a replica set is safe. With `db` and no `client`, a write uses the watermark, also on a replica set.
 - `ViewMaterializer` adds `_tomb: { $ne: true }` to the filter of the sources, so a deleted item of a `MongoDocumentStorage` is not in a view.
+
+Migration:
+
+- MiniMongo, Graph and jarvis: an item with a dotted key or a `$` key below the top level needs MongoDB 5.0 or later. On a 4.x server, the write of such an item fails, because 0.34.0 stored it in `_json` and 0.35.0 stores it flat. An item that is already in `_json` reads as before.
+- A view pipeline reads `"a.b"` as a nested path. A literal dotted key of an item is not reachable there without `$getField`.
