@@ -1,5 +1,41 @@
 # @procedures/mongo
 
+## 0.35.1
+
+### Patch Changes
+
+- 9f0405d: `watchStorageChanges()` publishes the change stream of a `MongoDocumentStorage` collection as collection hints, and `versionOfStored()` gives the version of a raw stored document (roadmap CLI-77).
+  
+  PATCH: the change only adds exports and new optional options, and keeps each behavior of 0.35.0 (the watcher is not released yet). Before 1.0.0, a new feature raises the PATCH. The fixed group shares one version, so this rides the next release (0.35.0 when it is not out yet).
+  
+  - `versionOfStored(doc, form?, partition?)` gives the version that `storage.versionOf(id)` gives for a stored document: `_seq` as text, `0` for a document without `_seq`, and `undefined` for a tombstone or a document without an id. It gives the value that `versionOf()` reads.
+  - `watchStorageChanges(storage, publish, options?)` watches the change stream of the collection. It publishes each change on the topic of the collection procedures, `collectionChangeTopic(name, partition)`, with the partition from `storage.form.partitionOf()`. The event is a `CollectionChangeEvent` without `since` (a hint), with the id in `changed` or `deleted` and the version of the item in `versions`. A tombstone and a delete are deletes. It returns `{ ready, stop() }`.
+  - With `ownWrites: "skip"` (the default), the watcher skips the events of the writes of this process through the storage, because the collection procedures publish them already. Each write of the storage notes its sequence numbers while a watcher is open. `ownWrites: "publish"` publishes each change.
+  - With `rawWrites: "adopt"` (the default), the watcher gives a raw write a new `_seq` through the write path of the storage, so `changes(since)` has it. It reads from the event alone whether a write is raw. It gives back the storage fields and the partition fields that a raw replace took, and never changes a field of the item. The write matches only the state that the event saw, so one of two racing watchers wins and the other does nothing. The event of that write publishes the hint with the new version; a raw write does not carry its old version. The adoptions of a watcher wait in one bounded queue, one at a time, in batches that take one block of numbers. The watcher keeps the ids of the raw writes that do not fit in a full queue or whose last try failed (up to 10,000), and adopts them again when the queue is empty, with the documents then. A failure that can go away tries again after the backoff. A failed last try, a second failure, or an id over that limit gives the partition a reset hint. The adoption is exact only with `changeStreamPreAndPostImages`. With the images before the change (`changeStreamPreAndPostImages`), a raw delete becomes a tombstone; without them, it is a hint without a version. A prune of tombstones publishes nothing. `rawWrites: "ignore"` writes nothing and publishes a hint without a version. A read-only user gets the same hint, with one log.
+  - With `sweep` (on by default with `rawWrites: "adopt"`), the watcher adopts each document without `_seq` after each gap, in pages of the index of `_id`. `sweepAtOpen: true` (off by default) also sweeps when the stream opens: the first watcher on a legacy collection adopts every legacy document, and the next delta of every subscriber is the whole collection. A document that the sweep cannot place goes to the log once, and the next sweeps leave it.
+  - `ready` rejects when the first open fails with an error that does not go away (a single server, a refused access, a wrong option). The watcher asks the server with `hello` first, so on a single server `ready` rejects at once. The watcher tries again after other errors.
+  - After an error of the stream, the watcher opens it again after a backoff (`backoff`, on the injected `clock`), from the resume token of the last event. When the server does not know the token any more, or the collection was dropped or renamed, it publishes a reset hint (no ids, `reset: true`) on the plain topic, on each partition of the counters, on each partition that it saw, and on each channel of the bus of the collection. The option `gapPartitions` adds more.
+  - `@procedures/client`: `CollectionChangeEvent` has the new optional field `versions`, `[{ id, version }]`: the version of each changed item, as `versionOf(id)` of the storage gives it. A publisher that knows the versions sets it. The new optional field `reset`: `true` tells the subscriber to read the collection in full, with `changes` and no `since`. PATCH: new optional fields of an output type, and before 1.0.0 a new feature raises the PATCH.
+  - `@procedures/store`: `EventsChangeFeed` reads `versions` and `reset` of an event, and `HybridStorage` does a full pull for a hint with `reset: true`. PATCH: a fix, so that a store does not miss the changes of a reset.
+  - `storageChangeOf(change, form?)` reads the change of an item from a change event, for an app that watches the collection itself.
+  - Fix: `ViewMaterializer` leaves `_seq` and `_tomb` of a source out of the content of a row, before the hash. A row is no write of a storage, so the watcher of the target does not read it as a raw write. The other fields of the source stay in the row.
+- cc80f74: PATCH: internal, no change to the public API. The procedure boilerplate of tracker item O65, after O58.
+  
+  - The `src/module.ts` of 37 packages gives its module and its register function with `definePackage()`. Each export keeps its name, its type and its behavior. The root and `./module` register nothing. `./register` registers in the global registry, as before.
+  - The output schemas of `ics.parse`, `ics.fetch`, `json.query`, `json.patch`, `json.merge` and `yaml.parse` have the type of the declared output (`z.ZodType<T>`). The validation and the JSON Schema stay the same.
+  - The `described()` helper of `@procedures/mongo` uses `typed<T>()` instead of the deprecated `zodAdapter()`. Its schemas validate and describe the input as before.
+- c9239a5: `MongoDocumentStorage` writes the floor document of its partition at its first write (roadmap O66). A gap of `watchStorageChanges()` then sends a reset hint to each partition with a write through a storage, also without a prune.
+  
+  PATCH: a fix, with no change to the API. Before 1.0.0, a fix raises the PATCH.
+  
+  - The floor document has the floor `0`: the change log reads a missing floor as `0` too, so no result of `getChangesSince` changes. The upsert writes only a new document, so the floor of a prune stays.
+  - The upsert runs once for each storage, before its first write and outside each transaction. A failure does not fail the write: the next write tries again.
+  - `gapPartitions` is necessary only for the partitions that only raw writes wrote.
+- Updated dependencies [9f0405d]
+- Updated dependencies [f5c2407]
+  - @procedures/client@0.35.1
+  - @procedures/collections@0.35.1
+
 ## 0.35.0
 
 ### Minor Changes
