@@ -69,6 +69,7 @@
   },
   "dependencies": {
     "@procedures/client": "workspace:*",
+    "@procedures/fs": "workspace:*",
     "@procedures/shell": "workspace:*",
     "zod": "^4.6.5"
   },

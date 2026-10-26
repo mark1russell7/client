@@ -9,9 +9,10 @@
  * changes apart (see the comment of the class).
  */
 
-import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { randomBytes } from "node:crypto";
+import { writeFileAtomic } from "@procedures/fs/files";
 import { checkTimeZone } from "./cron.js";
 import { ScheduleError } from "./errors.js";
 import type { Schedule } from "./types.js";
@@ -266,14 +267,8 @@ export class FileScheduleStore implements ScheduleStore {
 
   /** This method writes the file through a temporary file and a rename. */
   private async write(file: ScheduleFile): Promise<void> {
-    const temporary = `${this.path}.${randomBytes(6).toString("hex")}.tmp`;
-    await writeFile(temporary, JSON.stringify(file, null, 2) + "\n", "utf8");
-    try {
-      await retried(() => rename(temporary, this.path));
-    } catch (error) {
-      await rm(temporary, { force: true });
-      throw error;
-    }
+    // writeFileAtomic flushes the file, tries the rename again on Windows and removes the temporary file after a failure
+    await writeFileAtomic(this.path, JSON.stringify(file, null, 2) + "\n", { encoding: "utf8" });
   }
 
   /**

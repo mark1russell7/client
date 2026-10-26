@@ -769,6 +769,9 @@ importers:
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
+      '@procedures/fs':
+        specifier: workspace:*
+        version: link:../client-fs
       '@procedures/shell':
         specifier: workspace:*
         version: link:../client-shell
@@ -1490,6 +1493,9 @@ importers:
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
+      '@procedures/fs':
+        specifier: workspace:*
+        version: link:../client-fs
       '@procedures/lib':
         specifier: workspace:*
         version: link:../client-lib
@@ -1566,9 +1572,6 @@ importers:
       '@procedures/exif':
         specifier: workspace:*
         version: link:../exif
-      '@procedures/fs':
-        specifier: workspace:*
-        version: link:../client-fs
       '@procedures/geo':
         specifier: workspace:*
         version: link:../geo
@@ -1805,6 +1808,9 @@ importers:
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
+      '@procedures/fs':
+        specifier: workspace:*
+        version: link:../client-fs
       '@procedures/store':
         specifier: workspace:*
         version: link:../client-store
@@ -1818,9 +1824,6 @@ importers:
       '@mark1russell7/service':
         specifier: ^0.5.8
         version: 0.5.14(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
-      '@procedures/fs':
-        specifier: workspace:*
-        version: link:../client-fs
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
