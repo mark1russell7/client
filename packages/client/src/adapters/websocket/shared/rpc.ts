@@ -18,6 +18,7 @@ import { withoutInternalKeys } from "../../metadata.js";
 import { StreamSequence, gapOf, itemMetadata } from "../../sequence.js";
 import { DELIVERY_METADATA_KEY } from "../../../client/middleware/items.js";
 import { errorCodeOf, foldedErrorCode, retryableOf } from "../../../protocol.js";
+import { lastResortError } from "../../../server/last-resort.js";
 
 /**
  * A queue of response items that one reader takes in order: push, then end or fail. The reader
@@ -382,8 +383,10 @@ export class IncomingCalls {
     const controller = new AbortController();
     this.inflight.set(frame.id, controller);
     let credit: StreamCredit | undefined;
+    let request: ServerRequest | undefined;
     try {
-      const response = await this.options.handler.handle(this.options.requestOf(frame, controller.signal));
+      request = this.options.requestOf(frame, controller.signal);
+      const response = await this.options.handler.handle(request);
       if (response.stream) {
         credit = typeof frame.credit === "number" && frame.credit > 0 ? new StreamCredit(frame.credit) : undefined;
         if (credit) this.credits.set(frame.id, credit);
@@ -402,7 +405,12 @@ export class IncomingCalls {
         this.send(out);
       }
     } catch (error) {
-      this.sendError(frame.id, error instanceof Error ? error.message : "Internal server error", "INTERNAL_ERROR");
+      // The last resort: the error policy of the server applies here too (CLI-80)
+      const raw = { code: "INTERNAL_ERROR", message: error instanceof Error ? error.message : "Internal server error", retryable: false };
+      const exposed = lastResortError(this.options.handler, error, request, raw);
+      // The wait of a map result (retryAfterMs) goes out as on the usual error path (CLI-80)
+      const wait = exposed.retryAfterMs;
+      this.sendError(frame.id, exposed.message, exposed.code, exposed.retryable === true, typeof wait === "number" && Number.isFinite(wait) && wait >= 0 ? { "retry-after": wait } : undefined);
     } finally {
       // Delete only this request's entries (deep dive TRN-9)
       if (this.inflight.get(frame.id) === controller) {
@@ -463,12 +471,13 @@ export class IncomingCalls {
     if (this.options.isOpen()) this.options.send(frame);
   }
 
-  private sendError(id: string, message: string, code: string): void {
+  private sendError(id: string, message: string, code: string, retryable = false, metadata?: Record<string, unknown>): void {
     this.send({
       id,
       type: "error",
-      status: { type: "error", code, message, retryable: false },
-      error: { code, message, retryable: false },
+      ...(metadata ? { metadata } : {}),
+      status: { type: "error", code, message, retryable },
+      error: { code, message, retryable },
     });
   }
 }

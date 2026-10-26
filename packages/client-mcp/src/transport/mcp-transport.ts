@@ -32,7 +32,7 @@ import type {
   Principal,
   ReportProgress,
 } from "@procedures/client";
-import { LOCAL_CREDENTIALS, NARROWING_METADATA_KEY, PROCEDURE_REGISTRY, addNarrowing, pathToMethod, createElicit, elicitWithPolicy, requestCredentials, retryableOf, untrustedTextsOf } from "@procedures/client";
+import { LOCAL_CREDENTIALS, NARROWING_METADATA_KEY, PROCEDURE_REGISTRY, addNarrowing, pathToMethod, createElicit, elicitWithPolicy, lastResortError, requestCredentials, retryableOf, untrustedTextsOf } from "@procedures/client";
 import {
   proceduresToMcpTools,
   toToolDefinition,
@@ -323,6 +323,7 @@ export class McpServerTransport implements ServerTransport {
         return {
           content: [{ type: "text" as const, text: `Tool not found: ${name}` }],
           isError: true,
+          _meta: { code: "NOT_FOUND", retryable: false },
         };
       }
 
@@ -445,6 +446,8 @@ export class McpServerTransport implements ServerTransport {
       },
       // A cancelled tool call (notifications/cancelled) aborts the procedure
       signal: extra.signal,
+      // The face of the request, for the error policy of the server (CLI-80)
+      transport: "mcp",
       // The credentials of a call over the network: the request hook (principalOf) and the
       // token check of the server apply to it (CLI-10). The local marker of a local face (CLI-1).
       credentials,
@@ -506,10 +509,15 @@ export class McpServerTransport implements ServerTransport {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.log(`Tool ${name} error: ${message}`);
+      // The last resort: the error policy of the server applies here too (CLI-80)
+      const exposed = lastResortError(this.server, error, serverRequest, { code: "INTERNAL_ERROR", message, retryable: false });
+      // The wait of a map result goes out as on the usual error path (CLI-40, CLI-80)
+      const wait = exposed.retryAfterMs;
 
       return {
-        content: [{ type: "text" as const, text: message }],
+        content: [{ type: "text" as const, text: exposed.message }],
         isError: true,
+        _meta: { code: exposed.code, retryable: exposed.retryable === true, ...(typeof wait === "number" && Number.isFinite(wait) && wait >= 0 ? { retryAfterMs: wait } : {}) },
       };
     }
   }

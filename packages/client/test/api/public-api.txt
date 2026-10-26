@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 607 names
+## . (dist/index.d.ts): 615 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -66,6 +66,7 @@ type Credentials: dist/server/types.d.ts#Credentials
 type CurrentItem: dist/procedures/collection/precondition.d.ts#CurrentItem
 DEADLINE_METADATA_KEY: dist/client/deadline.d.ts#DEADLINE_METADATA_KEY
 DEFAULT_FIND_LIMIT: dist/procedures/collection/query.d.ts#DEFAULT_FIND_LIMIT
+DEFAULT_KEPT_METADATA: dist/server/error-policy.d.ts#DEFAULT_KEPT_METADATA
 DEFAULT_QUERY_OPERATORS: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_OPERATORS
 DEFAULT_QUERY_POLICY: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_POLICY
 type DefineProcedureInput: dist/procedures/define-procedure.d.ts#DefineProcedureInput
@@ -101,6 +102,7 @@ type EnvelopeLiteral: dist/procedures/envelope.d.ts#EnvelopeLiteral
 type EnvelopePath: dist/procedures/envelope.d.ts#EnvelopePath
 type EnvelopeProgram: dist/procedures/envelope.d.ts#EnvelopeProgram
 type EnvelopeRef: dist/procedures/envelope.d.ts#EnvelopeRef
+type ErrorCall: dist/server/error-policy.d.ts#ErrorCall
 ErrorCategory: dist/client/errors/types.d.ts#ErrorCategory
 type ErrorCodeInfo: dist/protocol.d.ts#ErrorCodeInfo
 type ErrorContext: dist/client/errors/types.d.ts#ErrorContext
@@ -116,11 +118,13 @@ EventPublisher: dist/events/publisher.d.ts#EventPublisher
 type EventPublisherOptions: dist/events/publisher.d.ts#EventPublisherOptions
 type EventWaitOptions: dist/events/types.d.ts#EventWaitOptions
 type ExecutionContext: dist/client/batch-executor.d.ts#ExecutionContext
+type ExposedError: dist/server/error-policy.d.ts#ExposedError
 type ForbiddenReason: dist/procedures/invoke.d.ts#ForbiddenReason
 type FsRootRules: dist/procedures/types.d.ts#FsRootRules
 type GuardResult: dist/server/browser-guard.d.ts#GuardResult
 type GuardedHeaders: dist/server/browser-guard.d.ts#GuardedHeaders
 type GuardedRequest: dist/server/browser-guard.d.ts#GuardedRequest
+HIDDEN_ERROR_MESSAGE: dist/server/error-policy.d.ts#HIDDEN_ERROR_MESSAGE
 type Handler: dist/adapters/local/client/types.d.ts#Handler
 HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
 type HiddenCall: dist/procedures/policy.d.ts#HiddenCall
@@ -282,6 +286,7 @@ Server: dist/server/server.d.ts#Server
 type ServerContext: dist/server/types.d.ts#ServerContext
 type ServerDebugReport: dist/server/types.d.ts#ServerDebugReport
 ServerError: dist/server/types.d.ts#ServerError
+type ServerErrorPolicy: dist/server/error-policy.d.ts#ServerErrorPolicy
 type ServerHandler: dist/server/types.d.ts#ServerHandler
 type ServerMiddleware: dist/server/types.d.ts#ServerMiddleware
 type ServerOptions: dist/server/server.d.ts#ServerOptions
@@ -437,6 +442,7 @@ examinesNestedCall: dist/procedures/capability.d.ts#examinesNestedCall
 executeRef: dist/procedures/program.d.ts#executeRef
 executeWithConcurrency: dist/client/batch-executor.d.ts#executeWithConcurrency
 explainInvocation: dist/procedures/capability.d.ts#explainInvocation
+exposeError: dist/server/error-policy.d.ts#exposeError
 exposePatterns: dist/server/host-policy.d.ts#exposePatterns
 exposedProcedures: dist/procedures/manifest.d.ts#exposedProcedures
 extractTemplate: dist/procedures/ref.d.ts#extractTemplate
@@ -480,6 +486,7 @@ isDuration: dist/duration.d.ts#isDuration
 isEnvelopeProgram: dist/procedures/envelope.d.ts#isEnvelopeProgram
 isExpectedVersion: dist/procedures/collection/precondition.d.ts#isExpectedVersion
 isKnownError: dist/client/errors/registry.d.ts#isKnownError
+isKnownErrorCode: dist/client/errors/registry.d.ts#isKnownErrorCode
 isLiteral: dist/procedures/ref.d.ts#isLiteral
 isLocalCredentials: dist/server/request-auth.d.ts#isLocalCredentials
 isLoopbackAddress: dist/server/browser-guard.d.ts#isLoopbackAddress
@@ -500,6 +507,7 @@ isW3cIds: dist/tracing/traceparent.d.ts#isW3cIds
 jsonSchemaOf: dist/procedures/schema.d.ts#jsonSchemaOf
 keyToPath: dist/procedures/types.d.ts#keyToPath
 ladder: dist/procedures/capability.d.ts#ladder
+lastResortError: dist/server/last-resort.d.ts#lastResortError
 listProceduresProcedure: dist/procedures/define-procedure.d.ts#listProceduresProcedure
 lookupOutputRef: dist/procedures/ref.d.ts#lookupOutputRef
 manifestProcedure: dist/procedures/define-procedure.d.ts#manifestProcedure
@@ -614,7 +622,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 595 names
+## ./browser (dist/browser.d.ts): 603 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -675,6 +683,7 @@ type Credentials: dist/server/types.d.ts#Credentials
 type CurrentItem: dist/procedures/collection/precondition.d.ts#CurrentItem
 DEADLINE_METADATA_KEY: dist/client/deadline.d.ts#DEADLINE_METADATA_KEY
 DEFAULT_FIND_LIMIT: dist/procedures/collection/query.d.ts#DEFAULT_FIND_LIMIT
+DEFAULT_KEPT_METADATA: dist/server/error-policy.d.ts#DEFAULT_KEPT_METADATA
 DEFAULT_QUERY_OPERATORS: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_OPERATORS
 DEFAULT_QUERY_POLICY: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_POLICY
 type DefineProcedureInput: dist/procedures/define-procedure.d.ts#DefineProcedureInput
@@ -710,6 +719,7 @@ type EnvelopeLiteral: dist/procedures/envelope.d.ts#EnvelopeLiteral
 type EnvelopePath: dist/procedures/envelope.d.ts#EnvelopePath
 type EnvelopeProgram: dist/procedures/envelope.d.ts#EnvelopeProgram
 type EnvelopeRef: dist/procedures/envelope.d.ts#EnvelopeRef
+type ErrorCall: dist/server/error-policy.d.ts#ErrorCall
 ErrorCategory: dist/client/errors/types.d.ts#ErrorCategory
 type ErrorCodeInfo: dist/protocol.d.ts#ErrorCodeInfo
 type ErrorContext: dist/client/errors/types.d.ts#ErrorContext
@@ -725,8 +735,10 @@ EventPublisher: dist/events/publisher.d.ts#EventPublisher
 type EventPublisherOptions: dist/events/publisher.d.ts#EventPublisherOptions
 type EventWaitOptions: dist/events/types.d.ts#EventWaitOptions
 type ExecutionContext: dist/client/batch-executor.d.ts#ExecutionContext
+type ExposedError: dist/server/error-policy.d.ts#ExposedError
 type ForbiddenReason: dist/procedures/invoke.d.ts#ForbiddenReason
 type FsRootRules: dist/procedures/types.d.ts#FsRootRules
+HIDDEN_ERROR_MESSAGE: dist/server/error-policy.d.ts#HIDDEN_ERROR_MESSAGE
 type Handler: dist/adapters/local/client/types.d.ts#Handler
 HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
 type HiddenCall: dist/procedures/policy.d.ts#HiddenCall
@@ -887,6 +899,7 @@ Server: dist/server/server.d.ts#Server
 type ServerContext: dist/server/types.d.ts#ServerContext
 type ServerDebugReport: dist/server/types.d.ts#ServerDebugReport
 ServerError: dist/server/types.d.ts#ServerError
+type ServerErrorPolicy: dist/server/error-policy.d.ts#ServerErrorPolicy
 type ServerHandler: dist/server/types.d.ts#ServerHandler
 type ServerMiddleware: dist/server/types.d.ts#ServerMiddleware
 type ServerOptions: dist/server/server.d.ts#ServerOptions
@@ -1040,6 +1053,7 @@ examinesNestedCall: dist/procedures/capability.d.ts#examinesNestedCall
 executeRef: dist/procedures/program.d.ts#executeRef
 executeWithConcurrency: dist/client/batch-executor.d.ts#executeWithConcurrency
 explainInvocation: dist/procedures/capability.d.ts#explainInvocation
+exposeError: dist/server/error-policy.d.ts#exposeError
 exposePatterns: dist/server/host-policy.d.ts#exposePatterns
 exposedProcedures: dist/procedures/manifest.d.ts#exposedProcedures
 extractTemplate: dist/procedures/ref.d.ts#extractTemplate
@@ -1081,6 +1095,7 @@ isDuration: dist/duration.d.ts#isDuration
 isEnvelopeProgram: dist/procedures/envelope.d.ts#isEnvelopeProgram
 isExpectedVersion: dist/procedures/collection/precondition.d.ts#isExpectedVersion
 isKnownError: dist/client/errors/registry.d.ts#isKnownError
+isKnownErrorCode: dist/client/errors/registry.d.ts#isKnownErrorCode
 isLiteral: dist/procedures/ref.d.ts#isLiteral
 isLocalCredentials: dist/server/request-auth.d.ts#isLocalCredentials
 isOpenWorld: dist/procedures/capability.d.ts#isOpenWorld
@@ -1099,6 +1114,7 @@ isW3cIds: dist/tracing/traceparent.d.ts#isW3cIds
 jsonSchemaOf: dist/procedures/schema.d.ts#jsonSchemaOf
 keyToPath: dist/procedures/types.d.ts#keyToPath
 ladder: dist/procedures/capability.d.ts#ladder
+lastResortError: dist/server/last-resort.d.ts#lastResortError
 listProceduresProcedure: dist/procedures/define-procedure.d.ts#listProceduresProcedure
 lookupOutputRef: dist/procedures/ref.d.ts#lookupOutputRef
 manifestProcedure: dist/procedures/define-procedure.d.ts#manifestProcedure
@@ -1257,7 +1273,7 @@ writeNdjsonStream: dist/adapters/http/server/ndjson.d.ts#writeNdjsonStream
 ## ./register (dist/register.d.ts): 0 names
 
 
-## ./client (dist/client/index.d.ts): 124 names
+## ./client (dist/client/index.d.ts): 125 names
 
 type AuthOptions: dist/client/middleware/auth.d.ts#AuthOptions
 type BaseCaller: dist/client/typed.d.ts#BaseCaller
@@ -1366,6 +1382,7 @@ invalidateCache: dist/client/middleware/cache.d.ts#invalidateCache
 isCallOptions: dist/client/context.d.ts#isCallOptions
 isDuration: dist/duration.d.ts#isDuration
 isKnownError: dist/client/errors/registry.d.ts#isKnownError
+isKnownErrorCode: dist/client/errors/registry.d.ts#isKnownErrorCode
 isNotSentError: dist/client/middleware/items.d.ts#isNotSentError
 keyToMethod: dist/client/validation/types.d.ts#keyToMethod
 mergeContext: dist/client/context.d.ts#mergeContext
@@ -1807,11 +1824,15 @@ compose: dist/middleware/compose.d.ts#compose
 wrapWithAsyncMiddlewares: dist/middleware/compose.d.ts#wrapWithAsyncMiddlewares
 wrapWithSyncMiddlewares: dist/middleware/compose.d.ts#wrapWithSyncMiddlewares
 
-## ./server (dist/server/index.d.ts): 41 names
+## ./server (dist/server/index.d.ts): 48 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AmbientCredentials: dist/server/types.d.ts#AmbientCredentials
 type Credentials: dist/server/types.d.ts#Credentials
+DEFAULT_KEPT_METADATA: dist/server/error-policy.d.ts#DEFAULT_KEPT_METADATA
+type ErrorCall: dist/server/error-policy.d.ts#ErrorCall
+type ExposedError: dist/server/error-policy.d.ts#ExposedError
+HIDDEN_ERROR_MESSAGE: dist/server/error-policy.d.ts#HIDDEN_ERROR_MESSAGE
 HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
 type Principal: dist/server/types.d.ts#Principal
 type PrincipalOf: dist/server/types.d.ts#PrincipalOf
@@ -1827,6 +1848,7 @@ Server: dist/server/server.d.ts#Server
 type ServerContext: dist/server/types.d.ts#ServerContext
 type ServerDebugReport: dist/server/types.d.ts#ServerDebugReport
 ServerError: dist/server/types.d.ts#ServerError
+type ServerErrorPolicy: dist/server/error-policy.d.ts#ServerErrorPolicy
 type ServerHandler: dist/server/types.d.ts#ServerHandler
 type ServerMiddleware: dist/server/types.d.ts#ServerMiddleware
 type ServerOptions: dist/server/server.d.ts#ServerOptions
@@ -1843,7 +1865,9 @@ createProcedureServer: dist/server/procedure-server.d.ts#createProcedureServer
 decodeSegment: dist/procedures/segments.d.ts#decodeSegment
 defaultServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#defaultServerUrlStrategy
 encodeSegment: dist/procedures/segments.d.ts#encodeSegment
+exposeError: dist/server/error-policy.d.ts#exposeError
 isUnboundedStream: dist/server/procedure-server.d.ts#isUnboundedStream
+lastResortError: dist/server/last-resort.d.ts#lastResortError
 methodName: dist/server/method.d.ts#methodName
 methodToPath: dist/server/method.d.ts#methodToPath
 pathToMethod: dist/server/method.d.ts#pathToMethod
@@ -2651,6 +2675,9 @@ export declare function getErrorMetadata(code: string): ErrorMetadata;
 
 ### dist/client/errors/registry.d.ts#isKnownError
 export declare function isKnownError(code: string): boolean;
+
+### dist/client/errors/registry.d.ts#isKnownErrorCode
+export declare function isKnownErrorCode(code: unknown): code is string;
 
 ### dist/client/errors/types.d.ts#ErrorCategory
 export declare enum ErrorCategory {
@@ -5700,6 +5727,37 @@ export declare function isLoopbackAddress(address: string | undefined): boolean;
 ### dist/server/browser-guard.d.ts#isLoopbackHost
 export declare function isLoopbackHost(host: string): boolean;
 
+### dist/server/error-policy.d.ts#DEFAULT_KEPT_METADATA
+export declare const DEFAULT_KEPT_METADATA: readonly string[];
+
+### dist/server/error-policy.d.ts#ErrorCall
+export interface ErrorCall {
+    readonly path: ProcedurePath;
+    readonly transport?: string | undefined;
+}
+
+### dist/server/error-policy.d.ts#ExposedError
+export interface ExposedError {
+    readonly code: string;
+    readonly message: string;
+    readonly retryable?: boolean | undefined;
+    readonly retryAfterMs?: number | undefined;
+}
+
+### dist/server/error-policy.d.ts#HIDDEN_ERROR_MESSAGE
+export declare const HIDDEN_ERROR_MESSAGE = "internal error";
+
+### dist/server/error-policy.d.ts#ServerErrorPolicy
+export interface ServerErrorPolicy {
+    readonly expose?: "all" | "coded" | undefined;
+    readonly codes?: readonly string[] | undefined;
+    readonly keepMetadata?: readonly string[] | undefined;
+    readonly map?: ((error: unknown, call: ErrorCall) => ExposedError | undefined) | undefined;
+}
+
+### dist/server/error-policy.d.ts#exposeError
+export declare function exposeError(policy: ServerErrorPolicy | undefined, error: unknown, call: ErrorCall, log: (error: unknown) => void, raw?: ExposedError): ExposedError;
+
 ### dist/server/host-policy.d.ts#HostPolicy
 export interface HostPolicy {
     readonly expose: ((path: ProcedurePath) => boolean) | undefined;
@@ -5769,6 +5827,9 @@ export interface HostSource {
 
 ### dist/server/host-procedures.d.ts#hostProcedures
 export declare function hostProcedures(source: HostSource): AnyProcedure[];
+
+### dist/server/last-resort.d.ts#lastResortError
+export declare function lastResortError(handler: RequestHandler, error: unknown, request: ServerRequest<unknown> | undefined, raw?: ExposedError): ExposedError;
 
 ### dist/server/limits.d.ts#CallLimit
 export interface CallLimit {
@@ -5977,6 +6038,7 @@ export declare class Server {
     start(): Promise<void>;
     stop(): Promise<void>;
     handle<TReq, TRes>(request: ServerRequest<TReq>): Promise<ServerResponse<TRes>>;
+    exposeError(error: unknown, request: ServerRequest | undefined, raw: ExposedError): ExposedError;
     protected findHandler(method: Method): ServerHandler | null;
 }
 
@@ -5986,6 +6048,7 @@ export interface ServerOptions {
     onError?: (error: Error, request: ServerRequest) => void;
     onRequest?: (request: ServerRequest) => void;
     onResponse?: (response: ServerResponse) => void;
+    errors?: ServerErrorPolicy | undefined;
 }
 
 ### dist/server/types.d.ts#Admission
@@ -6041,6 +6104,7 @@ export interface RequestConnection {
 ### dist/server/types.d.ts#RequestHandler
 export interface RequestHandler {
     handle(request: ServerRequest): Promise<ServerResponse>;
+    exposeError?(error: unknown, request: ServerRequest | undefined, raw: ExposedError): ExposedError;
     readonly ambientCredentials?: AmbientCredentials | undefined;
     identify?(credentials: Credentials): Promise<Principal | undefined>;
     admission?(credentials: Credentials): Promise<Admission>;
@@ -6090,6 +6154,7 @@ export interface ServerRequest<TReq = unknown> {
     elicit?: Elicit | undefined;
     progress?: ReportProgress | undefined;
     signal?: AbortSignal;
+    transport?: string | undefined;
     credentials?: Credentials | undefined;
     principal?: Principal | undefined;
     narrowing?: CapabilityRequest | undefined;

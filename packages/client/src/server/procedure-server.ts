@@ -6,6 +6,9 @@
  */
 
 import { Server, type ServerOptions } from "./server.js";
+import { errorResponse } from "./error-response.js";
+
+export { errorResponse };
 import type { Admission, AmbientCredentials, Credentials, Method, Principal, PrincipalOf, RequestIdentity, ServerHandler, ServerRequest, ServerResponse } from "./types.js";
 import { methodToPath, pathToMethod } from "./method.js";
 import { isLocalCredentials } from "./request-auth.js";
@@ -21,14 +24,13 @@ import { createCollectionProcedures } from "../procedures/collection/procedures.
 import { InvocationError, closableUnread, invokeProcedure, type AdmitItem, type Interceptor, type Invocation } from "../procedures/invoke.js";
 import type { Capability, ClearanceOrder, ProcedureContext, ResourcesOf } from "../procedures/types.js";
 import type { CollectionPartitions } from "../procedures/collection/partition.js";
-import { VERSION_CONFLICTS_METADATA_KEY, versionConflictsOf } from "../procedures/collection/precondition.js";
 import { TIMEOUT_METADATA_KEY, effectsOf, joinNarrowing, narrowCapability } from "../procedures/capability.js";
 import { IdempotencyCache, idempotencyKeyOf, isRepeatable, type IdempotencyOptions } from "../procedures/idempotency.js";
 import { optionalMs, type Duration } from "../duration.js";
 import type { CollectionStorage } from "../procedures/collection/storage.js";
 import { TIMER_DEFAULTS } from "../timers.js";
 import { realClock, type Clock } from "../clock.js";
-import { errorCodeOf, retryableOf } from "../protocol.js";
+import { retryableOf } from "../protocol.js";
 import { EventPublisher, type EventPublisherOptions } from "../events/publisher.js";
 import { getGlobalEventBus } from "../events/bus.js";
 import type { CollectionProceduresOptions } from "../procedures/collection/procedures.js";
@@ -380,41 +382,6 @@ function withRequestTimeout(
   const timeoutMs = request.metadata[TIMEOUT_METADATA_KEY];
   if (typeof timeoutMs !== "number" || !Number.isFinite(timeoutMs) || timeoutMs < 0) return capability;
   return narrowCapability(capability, { timeoutMs }, order);
-}
-
-/**
- * The error response of a failed invocation. An invocation error keeps its code
- * (VALIDATION_ERROR, NOT_EXPOSED, ABORTED and so on). An error of the handler keeps its own code
- * when it is a string, as for a stream (`WIRE-PROTOCOL.md`). Without a code, it is HANDLER_ERROR.
- * An error without a retryable flag gets the flag of its code in `ERROR_CODES`, or false (CLI-48).
- * An in-band end before the first item of a stream gets the same default. After the first item,
- * an in-band end without a flag gets false (`retryableOf`, CLI-58, CLI-68, `WIRE-PROTOCOL.md`,
- * section "Error codes").
- */
-export function errorResponse(id: string, error: unknown): ServerResponse<unknown> {
-  // A refusal of the capability says why (CAPABILITIES-2026-10)
-  const reason = error instanceof InvocationError ? error.reason : undefined;
-  // An error can ask the client to wait before a retry: retryAfterMs, in milliseconds (R12)
-  const retryAfterMs = (error as { retryAfterMs?: unknown } | undefined)?.retryAfterMs;
-  const metadata: Record<string, unknown> = reason ? { reason } : {};
-  if (typeof retryAfterMs === "number" && Number.isFinite(retryAfterMs) && retryAfterMs >= 0) metadata["retry-after"] = retryAfterMs;
-  // A VERSION_CONFLICT error tells the current item of each conflict (roadmap CLI-16)
-  const conflicts = versionConflictsOf(error);
-  if (conflicts !== undefined) metadata[VERSION_CONFLICTS_METADATA_KEY] = conflicts;
-  const code = errorCodeOf(error);
-  return {
-    id,
-    status: {
-      type: "error",
-      code,
-      message: error instanceof Error ? error.message : String(error),
-      // An error that says it is retryable stays retryable: before, every error lost the flag (deep
-      // dive TRN-7). Without a flag, the default of the code: UNAVAILABLE stays retryable, and
-      // keeps HTTP 503 (CLI-48). No item went out before this response.
-      retryable: retryableOf(error, 0),
-    },
-    metadata,
-  };
 }
 
 // =============================================================================
@@ -977,7 +944,7 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
       return refused ? rateLimitedResponse(request.id, refused) : undefined;
     } catch (error) {
       const message = `The limits of the server cannot admit the call: ${error instanceof Error ? error.message : String(error)}`;
-      return errorResponse(request.id, Object.assign(new Error(message), { code: "INTERNAL_ERROR" }));
+      return errorResponse(request.id, Object.assign(new Error(message), { code: "INTERNAL_ERROR" }), request);
     }
   }
 
@@ -1083,7 +1050,7 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
       );
     }
     const response = await untilAborted(result, request.signal);
-    if (response === undefined) return errorResponse(request.id, new InvocationError("ABORTED", "The request was aborted", procedure.path));
+    if (response === undefined) return errorResponse(request.id, new InvocationError("ABORTED", "The request was aborted", procedure.path), request);
     if (response.stream) {
       return {
         id: request.id,
@@ -1138,7 +1105,7 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
         capability = this.capabilityOf(request);
       } catch (error) {
         const message = `The server cannot narrow the capability of the request: ${error instanceof Error ? error.message : String(error)}`;
-        return errorResponse(request.id, Object.assign(new Error(message), { code: "INTERNAL_ERROR" }));
+        return errorResponse(request.id, Object.assign(new Error(message), { code: "INTERNAL_ERROR" }), request);
       }
       const output = await invokeProcedure(procedure, request.payload, {
         registry: this.procedureRegistry,
@@ -1175,7 +1142,7 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
       }
       return { id: request.id, status: { type: "success", code: 200 }, payload: output.value, metadata: {} };
     } catch (error) {
-      return errorResponse(request.id, error);
+      return errorResponse(request.id, error, request);
     } finally {
       if (!streams) release();
     }

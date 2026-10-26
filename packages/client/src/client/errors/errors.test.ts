@@ -44,7 +44,7 @@ import {
 } from "../middleware/items.js";
 import { InvocationError } from "../../procedures/invoke.js";
 import { HandlerNotFoundError, ServerError } from "../../server/types.js";
-import { errorResponse } from "../../server/procedure-server.js";
+import { errorResponse } from "../../server/error-response.js";
 import { errorStatus, itemOfFrame } from "../../adapters/websocket/shared/rpc.js";
 import { ERROR_CODES, httpStatusOf, isProtocolErrorCode, retryableOf, type ProtocolErrorCode } from "../../protocol.js";
 
