@@ -1,5 +1,13 @@
 # @procedures/mcp
 
+## 0.35.1
+
+### Patch Changes
+
+- Updated dependencies [9f0405d]
+- Updated dependencies [f5c2407]
+  - @procedures/client@0.35.1
+
 ## 0.35.0
 
 ### Patch Changes

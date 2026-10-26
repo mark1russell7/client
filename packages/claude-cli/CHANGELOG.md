@@ -1,5 +1,20 @@
 # @procedures/claude-cli
 
+## 0.35.1
+
+### Patch Changes
+
+- cc80f74: PATCH: internal, no change to the public API. The procedure boilerplate of tracker item O65, after O58.
+  
+  - The `src/module.ts` of 37 packages gives its module and its register function with `definePackage()`. Each export keeps its name, its type and its behavior. The root and `./module` register nothing. `./register` registers in the global registry, as before.
+  - The output schemas of `ics.parse`, `ics.fetch`, `json.query`, `json.patch`, `json.merge` and `yaml.parse` have the type of the declared output (`z.ZodType<T>`). The validation and the JSON Schema stay the same.
+  - The `described()` helper of `@procedures/mongo` uses `typed<T>()` instead of the deprecated `zodAdapter()`. Its schemas validate and describe the input as before.
+- Updated dependencies [9f0405d]
+- Updated dependencies [f5c2407]
+- Updated dependencies [cc80f74]
+  - @procedures/client@0.35.1
+  - @procedures/shell@0.35.1
+
 ## 0.35.0
 
 ### Patch Changes
