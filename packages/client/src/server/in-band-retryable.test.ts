@@ -15,8 +15,8 @@
  * The last cases send the calls with a `Client` and the retry middleware. A stream that fails before
  * its first item goes again, and the caller gets the items of the retry.
  *
- * The procedures host has the same wire cases on its three faces, MCP too, in
- * `client-server/src/host/in-band-retryable.test.ts`.
+ * The transport contract (`src/testing/transport-contract.ts`, CLI-85) has the same rules for a
+ * client of each face: the faces of this package, the MCP faces and the three faces of a host.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";

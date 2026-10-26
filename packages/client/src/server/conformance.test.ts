@@ -1,30 +1,207 @@
 /**
- * A conformance suite of the server faces (roadmap R18). The same calls go through each face:
- * `LocalTransport`, `Server.handle`, HTTP and WebSocket. Each face must give the same value, the
- * same stream, the same error codes, the abort, the deadline and the token rule. The MCP face has
- * its part in `client-mcp` (`conformance.test.ts`).
+ * The faces of `@procedures/client` run the transport contract (roadmap R18, CLI-85): the same
+ * cases go through `LocalTransport`, HTTP (the handler without a framework and the Express shim),
+ * WebSocket (the upgrade handler and the server transport) and a message port. The cases are in
+ * `src/testing/transport-contract.ts` (`@procedures/client/testing`). The MCP faces run them in `client-mcp`, and the faces of
+ * a host run them in `client-server`.
+ *
+ * This file also has the checks that only one face has: the HTTP status of an error and a direct
+ * `handle()` of the server.
  */
 
 import { describe, it, expect, afterEach } from "vitest";
 import { createServer, type Server as HttpServer } from "node:http";
 import type { AddressInfo } from "node:net";
+import { MessageChannel } from "node:worker_threads";
 import express from "express";
 import { z } from "zod";
-import { Client } from "../client/client.js";
 import { HttpTransport } from "../adapters/http/client/index.js";
 import { HttpServerTransport } from "../adapters/http/server/index.js";
+import { procedureHandler } from "../adapters/http/server/handler.js";
 import { WebSocketTransport } from "../adapters/websocket/client/transport.js";
 import { WebSocketServerTransport } from "../adapters/websocket/server/transport.js";
+import { upgradeHandler } from "../adapters/websocket/server/upgrade.js";
 import { LocalTransport } from "../adapters/local/client/transport.js";
-import { createOverallTimeoutMiddleware } from "../client/middleware/timeout.js";
-import { seconds } from "../duration.js";
+import { PortTransport } from "../adapters/port/transport.js";
 import { createProcedure } from "../procedures/define.js";
 import { createRegistry } from "../procedures/module.js";
-import type { ProcedureRegistry } from "../procedures/registry.js";
 import { ProcedureServer } from "./procedure-server.js";
 import { pathToMethod } from "./method.js";
 import { LOCAL_CREDENTIALS } from "./request-auth.js";
-import { VersionConflictError, versionConflictsOf, type VersionConflict } from "../procedures/collection/precondition.js";
+import { VersionConflictError, type VersionConflict } from "../procedures/collection/precondition.js";
+import {
+  clientCaller,
+  describeTransportContract,
+  type ContractCapabilities,
+  type ContractFace,
+  type ContractServer,
+  type ContractSpec,
+} from "../testing/index.js";
+
+async function listen(http: HttpServer): Promise<number> {
+  await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", () => resolve()));
+  return (http.address() as AddressInfo).port;
+}
+
+async function closeHttp(http: HttpServer): Promise<void> {
+  http.closeAllConnections();
+  await new Promise<void>((resolve) => http.close(() => resolve()));
+}
+
+/** The procedure server of a spec. */
+async function serverOf(spec: ContractSpec): Promise<ProcedureServer> {
+  const server = new ProcedureServer({
+    registry: spec.registry,
+    autoRegister: true,
+    collections: spec.collections,
+    events: spec.events,
+    ...(spec.token !== undefined && { token: spec.token }),
+    ...(spec.principalOf !== undefined && { principalOf: spec.principalOf }),
+    ...(spec.errors !== undefined && { errors: spec.errors }),
+    ...(spec.onError !== undefined && { onError: spec.onError }),
+  });
+  return server;
+}
+
+/** The capabilities of a face of the server. */
+const SERVER_FACE: ContractCapabilities = { server: true, auth: true, subscriptions: true, streams: "items", deadline: true, errorMetadata: true, retryable: true };
+
+const httpCaller = (port: number, bearer: string | undefined) =>
+  clientCaller(new HttpTransport({ baseUrl: `http://127.0.0.1:${port}/api`, defaultHeaders: bearer === undefined ? {} : { Authorization: `Bearer ${bearer}` } }));
+
+const wsCaller = (port: number, bearer: string | undefined) => {
+  const transport = new WebSocketTransport({
+    url: `ws://127.0.0.1:${port}/ws${bearer === undefined ? "" : `?token=${bearer}`}`,
+    heartbeat: { enabled: false },
+    reconnect: { enabled: false },
+  });
+  return clientCaller(transport, () => transport.close());
+};
+
+const faces: ContractFace[] = [
+  {
+    name: "LocalTransport",
+    // The local transport calls the registry: it has no server, no network credentials and no event bus
+    capabilities: { server: false, auth: false, subscriptions: false, streams: "items", deadline: true, errorMetadata: true, retryable: false },
+    async start(spec): Promise<ContractServer> {
+      return {
+        connect: async () => clientCaller(new LocalTransport({ registry: spec.registry })),
+        stop: async () => {},
+      };
+    },
+  },
+  {
+    name: "HTTP without a framework",
+    capabilities: { ...SERVER_FACE, sizeLimit: { code: "PAYLOAD_TOO_LARGE" } },
+    async start(spec) {
+      const server = await serverOf(spec);
+      await server.start();
+      const handler = procedureHandler(server, spec.sizeLimit === undefined ? {} : { bodyLimit: spec.sizeLimit });
+      const http = createServer((req, res) => {
+        if (!handler(req, res)) res.end("app");
+      });
+      const port = await listen(http);
+      return {
+        connect: async (bearer) => httpCaller(port, bearer),
+        stop: async () => {
+          await server.stop();
+          await closeHttp(http);
+        },
+      };
+    },
+  },
+  {
+    name: "HTTP with the Express shim",
+    capabilities: { ...SERVER_FACE, sizeLimit: { code: "PAYLOAD_TOO_LARGE" } },
+    async start(spec) {
+      const server = await serverOf(spec);
+      const app = express();
+      const http = createServer(app);
+      server.addTransport(new HttpServerTransport(server, { app, httpServer: http, ...(spec.sizeLimit !== undefined && { bodyLimit: spec.sizeLimit }) }));
+      await server.start();
+      const port = await listen(http);
+      return {
+        connect: async (bearer) => httpCaller(port, bearer),
+        stop: async () => {
+          await server.stop();
+          await closeHttp(http);
+        },
+      };
+    },
+  },
+  {
+    name: "WebSocket with the upgrade handler",
+    capabilities: { ...SERVER_FACE, sizeLimit: { code: "PAYLOAD_TOO_LARGE" } },
+    async start(spec) {
+      const server = await serverOf(spec);
+      await server.start();
+      const upgrade = upgradeHandler(server, { path: "/ws", heartbeat: false, ...(spec.sizeLimit !== undefined && { maxPayload: spec.sizeLimit }) });
+      const http = createServer((_req, res) => res.end("app"));
+      http.on("upgrade", (req, socket, head) => {
+        if (!upgrade(req, socket, head)) socket.destroy();
+      });
+      const port = await listen(http);
+      return {
+        connect: async (bearer) => wsCaller(port, bearer),
+        stop: async () => {
+          await upgrade.close();
+          await server.stop();
+          await closeHttp(http);
+        },
+      };
+    },
+  },
+  {
+    name: "WebSocket with the server transport",
+    capabilities: { ...SERVER_FACE, sizeLimit: { code: "PAYLOAD_TOO_LARGE" } },
+    async start(spec) {
+      const server = await serverOf(spec);
+      const http = createServer();
+      server.addTransport(new WebSocketServerTransport(server, { server: http, path: "/ws", heartbeat: false, ...(spec.sizeLimit !== undefined && { maxPayload: spec.sizeLimit }) }));
+      await server.start();
+      const port = await listen(http);
+      return {
+        connect: async (bearer) => wsCaller(port, bearer),
+        stop: async () => {
+          await server.stop();
+          await closeHttp(http);
+        },
+      };
+    },
+  },
+  {
+    name: "a message port",
+    // A message port is in one process: structured clone copies a message, and it has no size limit
+    capabilities: { ...SERVER_FACE },
+    async start(spec) {
+      const server = await serverOf(spec);
+      await server.start();
+      const closes: Array<() => Promise<void>> = [];
+      return {
+        async connect(bearer) {
+          const channel = new MessageChannel();
+          // The side of the server sets the credentials of each call: here the bearer of the caller
+          const worker = new PortTransport(channel.port1, { serve: server, credentials: bearer === undefined ? {} : { bearer } });
+          const page = new PortTransport(channel.port2);
+          const close = async () => {
+            await page.close();
+            await worker.close();
+            channel.port1.close();
+            channel.port2.close();
+          };
+          closes.push(close);
+          return clientCaller(page, close);
+        },
+        stop: async () => {
+          for (const close of closes) await close().catch(() => undefined);
+          await server.stop();
+        },
+      };
+    },
+  },
+];
+
+for (const face of faces) describeTransportContract(face, { describe, it, afterEach, expect });
 
 /** The conflicts of the procedure `conf.conflict` (roadmap CLI-16). */
 const CONFLICTS: VersionConflict[] = [
@@ -34,14 +211,8 @@ const CONFLICTS: VersionConflict[] = [
 
 const TOKEN = "conformance-token-0123456789";
 
-/** What the handlers saw, for the checks of the context. */
-interface Seen {
-  deadlineLeft: number[];
-  aborted: number;
-  headers: Array<Record<string, unknown> | undefined>;
-}
-
-function registryOf(seen: Seen): ProcedureRegistry {
+/** The procedures of the checks below. */
+function registryOf() {
   const read = { reads: [], writes: [] };
   return createRegistry({
     name: "conformance",
@@ -51,56 +222,15 @@ function registryOf(seen: Seen): ProcedureRegistry {
         .input(z.object({ text: z.string() }))
         .output(z.object({ text: z.string() }))
         .meta({ effects: read })
-        .handler(async (input, ctx) => {
-          const deadline = ctx.capability?.deadline;
-          if (deadline !== undefined) seen.deadlineLeft.push(deadline - Date.now());
-          seen.headers.push(ctx.metadata?.["headers"] as Record<string, unknown> | undefined);
-          return { text: input.text };
-        })
+        .handler(async (input) => ({ text: input.text }))
         .build(),
-      createProcedure()
-        .path(["conf", "count"])
-        .input(z.object({ to: z.number() }))
-        .output(z.number())
-        .meta({ effects: read })
-        .handler(async function* (input: { to: number }) {
-          for (let n = 1; n <= input.to; n++) yield n;
-        } as never)
-        .build(),
-      createProcedure()
-        .path(["conf", "wait"])
-        .input(z.object({}))
-        .output(z.string())
-        .meta({ effects: read })
-        .handler(async (_input, ctx) => {
-          await new Promise<void>((resolve) => {
-            const timer = setTimeout(resolve, 5000);
-            ctx.signal?.addEventListener(
-              "abort",
-              () => {
-                clearTimeout(timer);
-                seen.aborted++;
-                resolve();
-              },
-              { once: true },
-            );
-          });
-          return "ended";
-        })
-        .build(),
-      // A handler error, with the code of the input or without a code (WIRE-PROTOCOL.md: the
-      // server keeps the code of a handler error)
       createProcedure()
         .path(["conf", "fail"])
         .input(z.object({ code: z.string().optional(), retryable: z.boolean().optional() }))
         .output(z.string())
         .meta({ effects: read })
         .handler(async (input: { code?: string | undefined; retryable?: boolean | undefined }) => {
-          throw Object.assign(
-            new Error("it failed"),
-            input.code === undefined ? {} : { code: input.code },
-            input.retryable === undefined ? {} : { retryable: input.retryable },
-          );
+          throw Object.assign(new Error("it failed"), input.code === undefined ? {} : { code: input.code }, input.retryable === undefined ? {} : { retryable: input.retryable });
         })
         .build(),
       createProcedure()
@@ -112,16 +242,6 @@ function registryOf(seen: Seen): ProcedureRegistry {
           throw new VersionConflictError(CONFLICTS);
         })
         .build(),
-      createProcedure()
-        .path(["conf", "failStream"])
-        .input(z.object({ code: z.string().optional() }))
-        .output(z.number())
-        .meta({ effects: read })
-        .handler(async function* (input: { code?: string | undefined }) {
-          yield 1;
-          throw Object.assign(new Error("it failed"), input.code === undefined ? {} : { code: input.code });
-        } as never)
-        .build(),
     ],
   });
 }
@@ -132,136 +252,9 @@ afterEach(async () => {
   cleanups = [];
 });
 
-async function listen(http: HttpServer): Promise<number> {
-  await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", () => resolve()));
-  return (http.address() as AddressInfo).port;
-}
-
-interface Face {
-  name: string;
-  /** A client of the face. With `token`, the server requires it, and the client sends it. */
-  client(seen: Seen, options?: { token?: string; send?: string }): Promise<Client>;
-}
-
-const faces: Face[] = [
-  {
-    name: "LocalTransport",
-    async client(seen) {
-      return new Client({ transport: new LocalTransport({ registry: registryOf(seen) }), throwOnError: true });
-    },
-  },
-  {
-    name: "HTTP",
-    async client(seen, options = {}) {
-      const server = new ProcedureServer({ registry: registryOf(seen), autoRegister: true, ...(options.token ? { token: options.token } : {}) });
-      const app = express();
-      const http = createServer(app);
-      server.addTransport(new HttpServerTransport(server, { app, httpServer: http }));
-      await server.start();
-      const port = await listen(http);
-      cleanups.push(async () => {
-        await server.stop();
-        http.closeAllConnections();
-        await new Promise<void>((resolve) => http.close(() => resolve()));
-      });
-      const headers: Record<string, string> = options.send ? { Authorization: `Bearer ${options.send}` } : {};
-      return new Client({ transport: new HttpTransport({ baseUrl: `http://127.0.0.1:${port}/api`, defaultHeaders: headers }), throwOnError: true });
-    },
-  },
-  {
-    name: "WebSocket",
-    async client(seen, options = {}) {
-      const server = new ProcedureServer({ registry: registryOf(seen), autoRegister: true, ...(options.token ? { token: options.token } : {}) });
-      const http = createServer();
-      const ws = new WebSocketServerTransport(server, { server: http, path: "/ws" });
-      server.addTransport(ws);
-      await server.start();
-      const port = await listen(http);
-      const query = options.send ? `?token=${options.send}` : "";
-      const transport = new WebSocketTransport({ url: `ws://127.0.0.1:${port}/ws${query}`, heartbeat: { enabled: false }, reconnect: { enabled: false } });
-      cleanups.push(async () => {
-        await transport.close();
-        await server.stop();
-        http.closeAllConnections();
-        await new Promise<void>((resolve) => http.close(() => resolve()));
-      });
-      return new Client({ transport, throwOnError: true });
-    },
-  },
-];
-
-const fresh = (): Seen => ({ deadlineLeft: [], aborted: 0, headers: [] });
-
-describe.each(faces)("the conformance of $name (R18)", (face) => {
-  it("gives a value", async () => {
-    const client = await face.client(fresh());
-    expect(await client.call(pathToMethod(["conf", "echo"]), { text: "hi" })).toEqual({ text: "hi" });
-  });
-
-  it("gives the items of a stream in order", async () => {
-    const client = await face.client(fresh());
-    const items: number[] = [];
-    for await (const item of client.stream<unknown, number>(pathToMethod(["conf", "count"]), { to: 3 })) items.push(item);
-    expect(items).toEqual([1, 2, 3]);
-  });
-
-  it("gives VALIDATION_ERROR for an input that is not valid", async () => {
-    const client = await face.client(fresh());
-    await expect(client.call(pathToMethod(["conf", "echo"]), { text: 5 })).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
-  });
-
-  it("gives an error for a procedure that does not exist", async () => {
-    const client = await face.client(fresh());
-    await expect(client.call(pathToMethod(["conf", "missing"]), {})).rejects.toMatchObject({ code: expect.stringMatching(/NOT_FOUND|HANDLER_NOT_FOUND/) });
-  });
-
-  it("gives the deadline of the client to the handler", async () => {
-    const seen = fresh();
-    const client = (await face.client(seen)).use(createOverallTimeoutMiddleware({ overall: seconds(3) }));
-    await client.call(pathToMethod(["conf", "echo"]), { text: "x" });
-    expect(seen.deadlineLeft[0]).toBeGreaterThan(2000);
-    expect(seen.deadlineLeft[0]).toBeLessThanOrEqual(3000);
-  });
-
-  it("aborts the handler when the client aborts", async () => {
-    const seen = fresh();
-    const client = await face.client(seen);
-    const controller = new AbortController();
-    const call = client.call(pathToMethod(["conf", "wait"]), {}, { signal: controller.signal });
-    setTimeout(() => controller.abort(), 50);
-    await expect(call).rejects.toBeDefined();
-    const until = Date.now() + 2000;
-    while (seen.aborted === 0 && Date.now() < until) await new Promise((resolve) => setTimeout(resolve, 10));
-    expect(seen.aborted).toBe(1);
-  });
-
-  it("keeps the code of a handler error for a value and for a stream, and gives HANDLER_ERROR without a code", async () => {
-    const client = await face.client(fresh());
-    await expect(client.call(pathToMethod(["conf", "fail"]), { code: "E_CUSTOM" })).rejects.toMatchObject({ code: "E_CUSTOM", message: "it failed" });
-    await expect(client.call(pathToMethod(["conf", "fail"]), {})).rejects.toMatchObject({ code: "HANDLER_ERROR", message: "it failed" });
-    const read = async (code?: string): Promise<number[]> => {
-      const items: number[] = [];
-      for await (const item of client.stream<unknown, number>(pathToMethod(["conf", "failStream"]), code === undefined ? {} : { code })) items.push(item);
-      return items;
-    };
-    await expect(read("E_CUSTOM")).rejects.toMatchObject({ code: "E_CUSTOM", message: "it failed" });
-    await expect(read()).rejects.toMatchObject({ code: "HANDLER_ERROR" });
-  });
-
-  it("gives the code VERSION_CONFLICT and the current items of the conflicts (CLI-16)", async () => {
-    const client = await face.client(fresh());
-    const error = await client.call(pathToMethod(["conf", "conflict"]), {}).then(
-      () => undefined,
-      (thrown: unknown) => thrown,
-    );
-    expect(error).toMatchObject({ code: "VERSION_CONFLICT", retryable: false });
-    expect(versionConflictsOf(error)).toEqual(CONFLICTS);
-  });
-});
-
 describe("the HTTP status of a handler error (WIRE-PROTOCOL.md)", () => {
   it("follows the code: the status of ERROR_CODES for a code of the protocol, 500 for another code, and 500 for a 503 with retryable false", async () => {
-    const server = new ProcedureServer({ registry: registryOf(fresh()), autoRegister: true });
+    const server = new ProcedureServer({ registry: registryOf(), autoRegister: true });
     const app = express();
     const http = createServer(app);
     server.addTransport(new HttpServerTransport(server, { app, httpServer: http }));
@@ -269,8 +262,7 @@ describe("the HTTP status of a handler error (WIRE-PROTOCOL.md)", () => {
     const port = await listen(http);
     cleanups.push(async () => {
       await server.stop();
-      http.closeAllConnections();
-      await new Promise<void>((resolve) => http.close(() => resolve()));
+      await closeHttp(http);
     });
     const post = async (body: unknown) => {
       const response = await fetch(`http://127.0.0.1:${port}/api/conf/fail`, {
@@ -294,34 +286,22 @@ describe("the HTTP status of a handler error (WIRE-PROTOCOL.md)", () => {
   });
 });
 
-describe.each(faces.filter((face) => face.name !== "LocalTransport"))("the token rule of $name (R18)", (face) => {
-  it("refuses a request without the token, and accepts one with it", async () => {
-    const without = await face.client(fresh(), { token: TOKEN });
-    await expect(without.call(pathToMethod(["conf", "echo"]), { text: "x" })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
-    const seen = fresh();
-    const withToken = await face.client(seen, { token: TOKEN, send: TOKEN });
-    expect(await withToken.call(pathToMethod(["conf", "echo"]), { text: "x" })).toEqual({ text: "x" });
-    // The secret does not reach the handler
-    expect(JSON.stringify(seen.headers[0] ?? {})).not.toContain(TOKEN);
-  });
-});
-
 describe("a direct handle() of the server (R18, CLI-1)", () => {
   it("with the local marker is a request of this process: the token does not apply", async () => {
-    const server = new ProcedureServer({ registry: registryOf(fresh()), autoRegister: true, token: TOKEN });
+    const server = new ProcedureServer({ registry: registryOf(), autoRegister: true, token: TOKEN });
     const response = await server.handle({ id: "1", method: pathToMethod(["conf", "echo"]), payload: { text: "x" }, metadata: {}, credentials: LOCAL_CREDENTIALS });
     expect(response.payload).toEqual({ text: "x" });
   });
 
   it("without credentials does not skip the token (CLI-1)", async () => {
-    const server = new ProcedureServer({ registry: registryOf(fresh()), autoRegister: true, token: TOKEN });
+    const server = new ProcedureServer({ registry: registryOf(), autoRegister: true, token: TOKEN });
     const response = await server.handle({ id: "1", method: pathToMethod(["conf", "echo"]), payload: { text: "x" }, metadata: {} });
     expect(response.status).toMatchObject({ type: "error", code: "UNAUTHORIZED" });
   });
 
   it("an authenticate function gives the principal, and refuses a request without one", async () => {
     const server = new ProcedureServer({
-      registry: registryOf(fresh()),
+      registry: registryOf(),
       autoRegister: true,
       authenticate: (request) => (request.credentials?.bearer === "alice" ? { id: "alice", via: "test" } : undefined),
     });

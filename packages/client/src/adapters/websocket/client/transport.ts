@@ -5,7 +5,7 @@
  * Supports automatic reconnection, heartbeats, and streaming.
  */
 
-import type { Transport, Message, ResponseItem } from "../../../client/types.js";
+import { ClientError, type Transport, type Message, type ResponseItem } from "../../../client/types.js";
 import type { WebSocketTransportOptions, WebSocketMessage, ServerRequestHandler, EventHandler, WebSocketClass } from "./types.js";
 import { WebSocketState } from "./types.js";
 import { withoutInternalKeys } from "../../metadata.js";
@@ -131,6 +131,19 @@ function detach(ws: WebSocket): void {
   ws.onmessage = null;
   ws.onclose = null;
   ws.onerror = ignoreError;
+}
+
+/** The close code of a message above the limit of the other side (RFC 6455, 1009). */
+const MESSAGE_TOO_BIG = 1009;
+
+/**
+ * The error of a pending call when the server closes the connection with 1009: a message was
+ * above the limit of the server (`maxPayload`). The close drops each pending call of the
+ * connection, so each gets this error (CLI-85). Before, each got an error without a code.
+ */
+function tooLarge(id: string): ClientError {
+  const message = "The server closed the connection: a message was larger than its limit (1009)";
+  return new ClientError({ type: "error", code: "PAYLOAD_TOO_LARGE", message, retryable: false }, id);
 }
 
 function errorItem<TRes>(id: string, code: string, message: string, retryable: boolean): ResponseItem<TRes> {
@@ -375,7 +388,7 @@ export class WebSocketTransport implements Transport {
       ws.onclose = (event) => {
         if (this.ws !== ws) return;
         this.ws = null;
-        this.handleClose(event.reason);
+        this.handleClose(event.reason, event.code);
       };
 
       // Connection error
@@ -422,9 +435,9 @@ export class WebSocketTransport implements Transport {
   }
 
   /** Fail every request in progress (a stream ends with the error too). */
-  private failPending(reason: string): void {
-    for (const pending of this.pendingRequests.values()) {
-      pending.queue.fail(new Error(reason));
+  private failPending(reason: string, closeCode?: number): void {
+    for (const [id, pending] of this.pendingRequests) {
+      pending.queue.fail(closeCode === MESSAGE_TOO_BIG ? tooLarge(id) : new Error(reason));
       pending.timeout?.();
     }
     this.pendingRequests.clear();
@@ -433,7 +446,7 @@ export class WebSocketTransport implements Transport {
   /**
    * Handle WebSocket close.
    */
-  private handleClose(reason?: string): void {
+  private handleClose(reason?: string, closeCode?: number): void {
     this.stopHeartbeat();
     this.incoming?.abortAll();
     this.incoming = undefined;
@@ -450,7 +463,7 @@ export class WebSocketTransport implements Transport {
       this.options.onDisconnect(reason);
     }
 
-    this.failPending("WebSocket connection closed");
+    this.failPending("WebSocket connection closed", closeCode);
 
     if (willReconnect) {
       this.scheduleReconnect();

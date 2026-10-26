@@ -74,6 +74,10 @@
     "./query": {
       "types": "./dist/procedures/collection/query.d.ts",
       "import": "./dist/procedures/collection/query.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js"
     }
   },
   "files": [

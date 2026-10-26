@@ -169,6 +169,8 @@ describe("the sessions of the Streamable HTTP endpoint", () => {
       body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "ping", params: { pad: "x".repeat(500) } }),
     });
     expect(later.status).toBe(413);
+    // The refusal in a session has the code of the refusal at the start of a session (CLI-85)
+    expect(((await later.json()) as { error: { data: { code: string } } }).error.data.code).toBe("PAYLOAD_TOO_LARGE");
   });
 
   it("answers 401 with the scheme for a request without the token: the admission of the server refuses it (CLI-2b)", async () => {
