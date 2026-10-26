@@ -283,7 +283,7 @@ type RunProgramOptions: dist/procedures/program.d.ts#RunProgramOptions
 STANDARD_RESOURCES: dist/procedures/capability.d.ts#STANDARD_RESOURCES
 STREAM_GAP_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_GAP_METADATA_KEY
 STREAM_ITEM_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_ITEM_METADATA_KEY
-STREAM_METADATA_KEY: dist/server/procedure-server.d.ts#STREAM_METADATA_KEY
+STREAM_METADATA_KEY: dist/server/stream-metadata.d.ts#STREAM_METADATA_KEY
 type SchemaResult: dist/procedures/schema.d.ts#SchemaResult
 Semaphore: dist/client/batch-executor.d.ts#Semaphore
 Server: dist/server/server.d.ts#Server
@@ -506,7 +506,7 @@ isReadOnly: dist/procedures/capability.d.ts#isReadOnly
 isRepeatable: dist/procedures/idempotency.d.ts#isRepeatable
 isRuntimeDefined: dist/procedures/runtime-programs.d.ts#isRuntimeDefined
 isStandardSchema: dist/procedures/schema.d.ts#isStandardSchema
-isUnboundedStream: dist/server/procedure-server.d.ts#isUnboundedStream
+isUnboundedStream: dist/server/stream-metadata.d.ts#isUnboundedStream
 isValidRoute: dist/client/route-resolver.d.ts#isValidRoute
 isW3cIds: dist/tracing/traceparent.d.ts#isW3cIds
 jsonSchemaOf: dist/procedures/schema.d.ts#jsonSchemaOf
@@ -902,7 +902,7 @@ type RunProgramOptions: dist/procedures/program.d.ts#RunProgramOptions
 STANDARD_RESOURCES: dist/procedures/capability.d.ts#STANDARD_RESOURCES
 STREAM_GAP_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_GAP_METADATA_KEY
 STREAM_ITEM_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_ITEM_METADATA_KEY
-STREAM_METADATA_KEY: dist/server/procedure-server.d.ts#STREAM_METADATA_KEY
+STREAM_METADATA_KEY: dist/server/stream-metadata.d.ts#STREAM_METADATA_KEY
 type SchemaResult: dist/procedures/schema.d.ts#SchemaResult
 Semaphore: dist/client/batch-executor.d.ts#Semaphore
 Server: dist/server/server.d.ts#Server
@@ -1119,7 +1119,7 @@ isReadOnly: dist/procedures/capability.d.ts#isReadOnly
 isRepeatable: dist/procedures/idempotency.d.ts#isRepeatable
 isRuntimeDefined: dist/procedures/runtime-programs.d.ts#isRuntimeDefined
 isStandardSchema: dist/procedures/schema.d.ts#isStandardSchema
-isUnboundedStream: dist/server/procedure-server.d.ts#isUnboundedStream
+isUnboundedStream: dist/server/stream-metadata.d.ts#isUnboundedStream
 isValidRoute: dist/client/route-resolver.d.ts#isValidRoute
 isW3cIds: dist/tracing/traceparent.d.ts#isW3cIds
 jsonSchemaOf: dist/procedures/schema.d.ts#jsonSchemaOf
@@ -1861,7 +1861,7 @@ type RequestConnection: dist/server/types.d.ts#RequestConnection
 type RequestHandler: dist/server/types.d.ts#RequestHandler
 type RequestIdentity: dist/server/types.d.ts#RequestIdentity
 type RoutedRequest: dist/adapters/http/server/strategies.d.ts#RoutedRequest
-STREAM_METADATA_KEY: dist/server/procedure-server.d.ts#STREAM_METADATA_KEY
+STREAM_METADATA_KEY: dist/server/stream-metadata.d.ts#STREAM_METADATA_KEY
 Server: dist/server/server.d.ts#Server
 type ServerContext: dist/server/types.d.ts#ServerContext
 type ServerDebugReport: dist/server/types.d.ts#ServerDebugReport
@@ -1884,7 +1884,7 @@ decodeSegment: dist/procedures/segments.d.ts#decodeSegment
 defaultServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#defaultServerUrlStrategy
 encodeSegment: dist/procedures/segments.d.ts#encodeSegment
 exposeError: dist/server/error-policy.d.ts#exposeError
-isUnboundedStream: dist/server/procedure-server.d.ts#isUnboundedStream
+isUnboundedStream: dist/server/stream-metadata.d.ts#isUnboundedStream
 lastResortError: dist/server/last-resort.d.ts#lastResortError
 methodName: dist/server/method.d.ts#methodName
 methodToPath: dist/server/method.d.ts#methodToPath
@@ -5995,9 +5995,6 @@ export interface RegisterProcedureOptions {
     alwaysOn?: boolean | undefined;
 }
 
-### dist/server/procedure-server.d.ts#STREAM_METADATA_KEY
-export declare const STREAM_METADATA_KEY = "stream";
-
 ### dist/server/procedure-server.d.ts#StopOptions
 export interface StopOptions {
     grace?: Duration | undefined;
@@ -6035,11 +6032,6 @@ export interface UseStorageOptions {
 
 ### dist/server/procedure-server.d.ts#createProcedureServer
 export declare function createProcedureServer(options?: ProcedureServerOptions): ProcedureServer;
-
-### dist/server/procedure-server.d.ts#isUnboundedStream
-export declare function isUnboundedStream(response: {
-    metadata?: Record<string, unknown> | undefined;
-}): boolean;
 
 ### dist/server/procedure-server.d.ts#tokenMatches
 export declare function tokenMatches(expected: string, presented: string | undefined): boolean;
@@ -6099,6 +6091,14 @@ export interface ServerOptions {
     onResponse?: (response: ServerResponse) => void;
     errors?: ServerErrorPolicy | undefined;
 }
+
+### dist/server/stream-metadata.d.ts#STREAM_METADATA_KEY
+export declare const STREAM_METADATA_KEY = "stream";
+
+### dist/server/stream-metadata.d.ts#isUnboundedStream
+export declare function isUnboundedStream(response: {
+    metadata?: Record<string, unknown> | undefined;
+}): boolean;
 
 ### dist/server/types.d.ts#Admission
 export type Admission = {

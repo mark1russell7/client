@@ -99,6 +99,15 @@ jobs:
         run: |
           node --test scripts/check-declared-imports.test.mjs
           node scripts/check-declared-imports.mjs
+      # The import boundaries of invariant I9 (CLI-83), with dependency-cruiser: a transport does not
+      # import the server, an import of another package goes through an entry of its exports map, and
+      # no package imports an app. The rules are in scripts/lib/boundaries.cjs. They read dist/, so
+      # they need the build. First the tests of the rules, then the check.
+      - name: Check the import boundaries
+        if: ${{ !cancelled() }}
+        run: |
+          node --test scripts/check-boundaries.test.mjs
+          pnpm check:boundaries
       # Each package against the template of `lib new`. The step reads the JSON result, because
       # `mark` exits with 0 also for `success: false` (deep dive CLI-8). A procedure without
       # metadata.effects is a warning annotation: it does not fail the step.
