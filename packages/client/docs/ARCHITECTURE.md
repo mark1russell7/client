@@ -1,6 +1,6 @@
 # Architecture
 
-> **History.** The current architecture document is `packages/documentation/ARCHITECTURE.md`. This one describes the library before the monorepo.
+> **History.** The current architecture document is [`packages/documentation/ARCHITECTURE.md`](../../documentation/ARCHITECTURE.md). Its section [Invariants](../../documentation/ARCHITECTURE.md#invariants) gives the rules of the stack. This document describes the library before the monorepo.
 
 This document describes the architecture of the Universal RPC Library.
 
