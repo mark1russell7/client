@@ -1,5 +1,35 @@
 # @procedures/mark
 
+## 0.35.0
+
+### Patch Changes
+
+- 5957933: PATCH: new export createProcedureCli, no break.
+  
+  New package `@procedures/cli-kit`: a command line for any procedure registry (roadmap O61, dedupe review F5). `createProcedureCli({ name, procedures, client, globals, format })` gives help, `--json`, `--data`, questions for missing arguments, `@<file>` input, short flags from `meta.shorts`, and a format hook for each procedure. Its `run(argv)` gives the exit code.
+  
+  `mark` now uses the parts of the kit: the parse of the command line, the help, the questions, the output and the failure rule. Its commands, flags, messages and exit codes do not change. The exports of `@procedures/mark` stay the same.
+- fc5df9d: PATCH: internal, no change to the public API. The follow-ups of the one CLI-tool runner (tracker item O64).
+  
+  - `pnpm.store.path` runs `pnpm store path` with argv through the nested `shell.run` call, as the other pnpm procedures do. Before, it ran a shell string with `execSync`. Its path, schemas, effects and output stay the same. It declares `calls: ["shell.run"]`.
+  - `tailscale.run` runs tailscale through `defineCliTool()` and the nested `shell.run` call. The engine applies its rules to that call, and a cancel stops the program. The module requires the module of `@procedures/shell`. A program that does not start still gives the error "tailscale did not start".
+  - `@procedures/mark` no longer declares `@clack/prompts`. No file of mark imports it since the move to `@procedures/cli-kit`.
+- Updated dependencies [5957933]
+- Updated dependencies [0b0cb42]
+- Updated dependencies [fc5df9d]
+  - @procedures/cli-kit@0.35.0
+  - @procedures/shell@0.35.0
+  - @procedures/pnpm@0.35.0
+  - @procedures/cli-run@0.35.0
+  - @procedures/vitest@0.35.0
+  - @procedures/lib@0.35.0
+  - @procedures/mcp-dev-tools@0.35.0
+  - @procedures/client@0.35.0
+  - @procedures/fs@0.35.0
+  - @procedures/procedure@0.35.0
+  - @procedures/peer@0.35.0
+  - @procedures/server@0.35.0
+
 ## 0.34.0
 
 ### Minor Changes

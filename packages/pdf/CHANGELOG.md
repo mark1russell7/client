@@ -1,5 +1,13 @@
 # @procedures/pdf
 
+## 0.35.0
+
+### Patch Changes
+
+- Updated dependencies [0b0cb42]
+  - @procedures/shell@0.35.0
+  - @procedures/client@0.35.0
+
 ## 0.34.0
 
 ### Patch Changes
