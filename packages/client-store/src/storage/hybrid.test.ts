@@ -209,6 +209,34 @@ describe("a queued write that the remote refuses leaves the queue (O67)", () => 
     await hybrid.close();
   });
 
+  it("keeps a write after an error that is not a refusal, such as a timeout", async () => {
+    const remote = new FlakyRemote();
+    const onRefused = vi.fn();
+    const hybrid = new HybridStorage<Item>(remote, { syncOnInit: false, writeStrategy: "write-back", syncInterval: ms(0), onRefused });
+    await hybrid.set("a", { n: 1 });
+    const set = remote.set.bind(remote);
+    remote.set = () => Promise.reject(Object.assign(new Error("timed out"), { code: "TIMEOUT", retryable: false }));
+    await expect(hybrid.flush()).rejects.toThrow("timed out");
+    expect(hybrid.getPendingOpsCount()).toBe(1);
+    expect(onRefused).not.toHaveBeenCalled();
+    remote.set = set;
+    await hybrid.flush();
+    expect(await remote.data.get("a")).toEqual({ n: 1 });
+    await hybrid.close();
+  });
+
+  it("takes the refusals from isRefusal", async () => {
+    const remote = new FlakyRemote();
+    const isRefusal = (error: unknown): boolean => (error as { code?: string }).code === "UNAUTHORIZED";
+    const hybrid = new HybridStorage<Item>(remote, { syncOnInit: false, writeStrategy: "write-back", syncInterval: ms(0), isRefusal });
+    await hybrid.set("a", { n: 1 });
+    remote.set = () => Promise.reject(Object.assign(new Error("no token"), { code: "UNAUTHORIZED" }));
+    await hybrid.flush();
+    expect(hybrid.getPendingOpsCount()).toBe(0);
+    expect(await hybrid.get("a")).toBeUndefined();
+    await hybrid.close();
+  });
+
   it("goes on when the hook fails", async () => {
     const remote = new PickyRemote();
     const hybrid = new HybridStorage<Item>(remote, {

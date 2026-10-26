@@ -223,11 +223,20 @@ export interface HybridStorageOptions {
   isUnavailable?: (error: unknown) => boolean;
 
   /**
-   * This hook gets each queued write that the remote refused (roadmap O67). A refusal is an error
-   * for which `isUnavailable` gives false, and that is not a version conflict. The write leaves the
-   * queue, and the queue goes on with the next write. The local copy of its ids gets the remote
-   * values again, except for an id that a later queued write changes. An error of the hook does
-   * not stop the queue.
+   * True when an error of the remote refuses a queued write for good: a new send gets the same
+   * refusal (roadmap O67). Such a write leaves the queue, and the push goes on with the next write.
+   * An error for which `isUnavailable` gives true is never a refusal. Another error keeps the write
+   * at the head of the queue, and the next push sends it again. The default: the codes
+   * `FORBIDDEN`, `VALIDATION_ERROR`, `INVALID_REQUEST`, `NOT_EXPOSED` and `NOT_DECLARED`. A
+   * `TIMEOUT` or an `INTERNAL_ERROR` is not a refusal, because the remote can take a new send.
+   * `UNAUTHORIZED` is not a refusal by default, because a new token can let the write through.
+   */
+  isRefusal?: (error: unknown) => boolean;
+
+  /**
+   * This hook gets each queued write that the remote refused (roadmap O67). The local copy of its
+   * ids gets the remote values again, except for an id that a later queued write changes. An
+   * error of the hook does not stop the queue.
    */
   onRefused?: (refusal: QueueRefusal) => void | Promise<void>;
 
@@ -655,6 +664,15 @@ const defaultIsUnavailable = (error: unknown): boolean => {
   return retryable === true || code === undefined;
 };
 
+/** The codes of the protocol that refuse a queued write for good: a new send gets the same refusal (roadmap O67). */
+const REFUSAL_CODES: ReadonlySet<string> = new Set(["FORBIDDEN", "VALIDATION_ERROR", "INVALID_REQUEST", "NOT_EXPOSED", "NOT_DECLARED"]);
+
+/** The default of `isRefusal`: an error with a code of `REFUSAL_CODES`. */
+const defaultIsRefusal = (error: unknown): boolean => {
+  const code = (error as { code?: unknown } | null | undefined)?.code;
+  return typeof code === "string" && REFUSAL_CODES.has(code);
+};
+
 /** True when a remote does not know a procedure: an older server without `changes`. */
 const isNotFound = (error: unknown): boolean =>
   typeof error === "object" && error !== null && (error as { code?: unknown }).code === "NOT_FOUND";
@@ -915,6 +933,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     maxOfflineOps: number;
     offlineQueue: boolean;
     isUnavailable: (error: unknown) => boolean;
+    isRefusal: (error: unknown) => boolean;
     onRefused?: (refusal: QueueRefusal) => void | Promise<void>;
   };
   private mode: HybridMode;
@@ -1057,6 +1076,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       maxOfflineOps: options.maxOfflineOps ?? 1000,
       offlineQueue: options.offlineQueue ?? true,
       isUnavailable: options.isUnavailable ?? defaultIsUnavailable,
+      isRefusal: options.isRefusal ?? defaultIsRefusal,
       ...(options.onRefused !== undefined && { onRefused: options.onRefused }),
     };
     this.statusListeners = new StorageListeners<SyncStatus>(options.onListenerError);
@@ -2872,7 +2892,12 @@ export class HybridStorage<T> implements CollectionStorage<T> {
             await this.resolvePushConflicts(op, conflicts);
             continue;
           }
-          if (conflicts === undefined && !(error instanceof QueueStoreError) && !this.options.isUnavailable(error)) {
+          if (
+            conflicts === undefined &&
+            !(error instanceof QueueStoreError) &&
+            !this.options.isUnavailable(error) &&
+            this.options.isRefusal(error)
+          ) {
             // The remote refused the write: it leaves the queue, and the push goes on (roadmap O67)
             this.isOnline = true;
             if (this.offlineOps[0] === op) {

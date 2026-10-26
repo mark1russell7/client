@@ -184,6 +184,8 @@ await users.setMode("write-through"); // The switch sends the queue, then syncs 
 - A full queue refuses the next write with `QueueFullError`. The limit is `maxOfflineOps`, 1000 by default.
 - A push keeps a write that the remote cannot take at this time (`isUnavailable` gives true). This write and the later writes stay in the queue.
 - A queued write that the remote refuses leaves the queue, and the push goes on with the next write.
+- A refusal is an error for which `isRefusal` gives true. The default codes are `FORBIDDEN`, `VALIDATION_ERROR`, `INVALID_REQUEST`, `NOT_EXPOSED` and `NOT_DECLARED`.
+- Another error, for example `TIMEOUT` or `UNAUTHORIZED`, keeps the write at the head of the queue. The next push sends it again.
 - After a refusal, the local copy gets the remote values of its ids again. An id that a later queued write changes keeps its local value.
 - The option `onRefused` gets each refusal: the write, its ids, the error, and `restored`. An error of the hook does not stop the push.
 - The option `queueStore` keeps the queue. The storage writes each change to the store before the write ends.
