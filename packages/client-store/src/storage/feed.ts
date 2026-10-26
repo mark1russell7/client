@@ -36,6 +36,8 @@ export interface RemoteChanges<T> extends StorageChanges<T> {
   readonly since?: string | undefined;
   /** The origin of the writes of the delta, when one origin made all of them. */
   readonly origin?: string | undefined;
+  /** The version of each changed item, when the publisher knows it (roadmap CLI-77). */
+  readonly versions?: ReadonlyArray<{ readonly id: string; readonly version: string }> | undefined;
   /**
    * The other fields of the change event of the delta, for example a `traceparent` (graph W8).
    * `RemoteChangeHint.extra` gives the rules.
@@ -58,12 +60,19 @@ export interface RemoteChangeHint {
   readonly deleted: readonly string[];
   /** The origin of the writes, when one origin made all of them. */
   readonly origin?: string | undefined;
+  /** The version of each changed item, when the publisher knows it (roadmap CLI-77). */
+  readonly versions?: ReadonlyArray<{ readonly id: string; readonly version: string }> | undefined;
+  /**
+   * True: the publisher cannot tell what changed (roadmap CLI-77). The listener reads the remote in
+   * full: `HybridStorage` does a full pull.
+   */
+  readonly reset?: boolean | undefined;
   /**
    * The other fields of the change event, for example the `traceparent` of a trace (graph W8).
    *
    * - It has each field that the feed does not read, with its value from the wire.
    * - The fields that the feed reads stay out: `since`, `version`, `changed`, `deleted`, `values`,
-   *   `withheld` and `origin`. Thus a hint never has a value of an item.
+   *   `withheld`, `origin`, `versions` and `reset`. Thus a hint never has a value of an item.
    * - A field without a value stays out. An event without other fields gives no `extra`.
    */
   readonly extra?: Readonly<Record<string, unknown>> | undefined;
@@ -141,7 +150,11 @@ const optionalString = (value: unknown): value is string | undefined => value ==
 const isIds = (value: unknown): value is string[] => Array.isArray(value) && value.every((id) => typeof id === "string");
 
 /** The fields of a change event that the feed reads. The other fields go to `extra`. */
-const EVENT_FIELDS: ReadonlySet<string> = new Set(["since", "version", "changed", "deleted", "values", "withheld", "origin"]);
+const EVENT_FIELDS: ReadonlySet<string> = new Set(["since", "version", "changed", "deleted", "values", "withheld", "origin", "versions", "reset"]);
+
+/** True for a list of `{ id, version }`, or for no value. */
+const optionalVersions = (value: unknown): value is Array<{ id: string; version: string }> | undefined =>
+  value === undefined || (Array.isArray(value) && value.every((entry: { id?: unknown; version?: unknown } | null) => typeof entry === "object" && entry !== null && typeof entry.id === "string" && typeof entry.version === "string"));
 
 /**
  * The other fields of an event, or undefined for an event without them. A field without a value
@@ -169,9 +182,10 @@ function extraOf(event: object): Readonly<Record<string, unknown>> | undefined {
  */
 function eventOf<T>(data: unknown): { readonly changes: RemoteChanges<T> } | { readonly hint: RemoteChangeHint } | undefined {
   if (typeof data !== "object" || data === null) return undefined;
-  const event = data as { since?: unknown; version?: unknown; changed?: unknown; deleted?: unknown; values?: unknown; withheld?: unknown; origin?: unknown };
-  const { since, version, origin } = event;
+  const event = data as { since?: unknown; version?: unknown; changed?: unknown; deleted?: unknown; values?: unknown; withheld?: unknown; origin?: unknown; versions?: unknown; reset?: unknown };
+  const { since, version, origin, versions, reset } = event;
   if (!optionalString(since) || !optionalString(version) || !optionalString(origin)) return undefined;
+  if (!optionalVersions(versions) || (reset !== undefined && typeof reset !== "boolean")) return undefined;
   if (!isIds(event.changed) || !isIds(event.deleted) || (event.withheld !== undefined && !isIds(event.withheld))) return undefined;
   let values: Array<[string, T]> | undefined;
   if (event.values !== undefined) {
@@ -184,11 +198,12 @@ function eventOf<T>(data: unknown): { readonly changes: RemoteChanges<T> } | { r
     }
   }
   const extra = extraOf(event);
-  const others = { ...(origin !== undefined && { origin }), ...(extra !== undefined && { extra }) };
+  const others = { ...(origin !== undefined && { origin }), ...(versions !== undefined && { versions: versions.map(({ id, version }) => ({ id, version })) }), ...(extra !== undefined && { extra }) };
   const valued = new Set(values?.map(([id]) => id));
   const withheld = (event.withheld as string[] | undefined) ?? [];
   const complete = values !== undefined && withheld.length === 0 && (event.changed as string[]).every((id) => valued.has(id));
-  if (since !== undefined && version !== undefined && complete) {
+  // A reset is always a hint: the listener reads the remote in full
+  if (since !== undefined && version !== undefined && complete && reset !== true) {
     return { changes: { since, version, full: false, changed: values!, deleted: event.deleted as string[], ...others } };
   }
   return {
@@ -198,6 +213,7 @@ function eventOf<T>(data: unknown): { readonly changes: RemoteChanges<T> } | { r
       changed: event.changed as string[],
       deleted: event.deleted as string[],
       ...others,
+      ...(reset === true && { reset: true }),
     },
   };
 }
@@ -216,7 +232,8 @@ function eventOf<T>(data: unknown): { readonly changes: RemoteChanges<T> } | { r
  *   each confirmation of the subscription (the first one and each resubscribe) call `onGap()`.
  * - The error that ends the subscription goes to `onError` of the options and of the listener.
  * - The other fields of an event, for example a `traceparent`, go to `extra` of the hint or of the
- *   delta (graph W8).
+ *   delta (graph W8). `versions` goes to the field of the hint or of the delta.
+ * - An event with `reset: true` is a hint with `reset`: `HybridStorage` does a full pull.
  *
  * @example
  * ```typescript

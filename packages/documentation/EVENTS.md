@@ -346,6 +346,7 @@ Each write of the core collection procedures publishes a change event on the bus
 | `values` | Only with the option `values`: the changed items, as `{ id, value }`, that the subscriber can read. |
 | `withheld` | Only with the option `values`: the changed ids whose values the output filter refused. |
 | `versions` | Optional: the version of each changed item, as `{ id, version }`, as `versionOf(id)` of the storage gives it. `watchStorageChanges()` of `@procedures/mongo` sets it when it knows the new version (roadmap CLI-77). A raw write does not carry its old version: the watcher gives it a new version first, or sends no version. |
+| `reset` | Optional: `true`: read the collection in full, with `changes` and no `since`. A publisher sets it when it cannot tell what changed, for example `watchStorageChanges()` of `@procedures/mongo` after a lost resume token, a drop or an adoption that failed (roadmap CLI-77). `EventsChangeFeed` and `HybridStorage` of `@procedures/store` then do a full pull. |
 | `origin` | The origin of the writes, when one origin made all the changes. |
 
 - The changes come from the change log of the storage (`getChangesSince`). The events of one storage make a chain: the `since` of an event is the `version` of the event before it.

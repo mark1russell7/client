@@ -60,6 +60,12 @@ export interface CollectionChangeEvent {
    * `@procedures/mongo`. Without it, read the versions with `changes`. A deleted id has no version.
    */
   readonly versions?: ReadonlyArray<{ readonly id: string; readonly version: string }> | undefined;
+  /**
+   * True: read the collection in full, with `changes` and no `since` (roadmap CLI-77). A publisher
+   * sets it when it cannot tell what changed, for example `watchStorageChanges()` of
+   * `@procedures/mongo` after it lost its resume token. A read since the cursor can miss changes.
+   */
+  readonly reset?: boolean | undefined;
   /** The origin of the writes, when one origin made all the changes of the event. */
   readonly origin?: string | undefined;
 }

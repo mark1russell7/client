@@ -168,7 +168,7 @@ withMongo("ViewMaterializer on MongoDB", { timeout: TEST_TIMEOUT_MS }, () => {
     await views.stop();
   });
 
-  it("leaves the storage fields of a source out of the rows: a row is no write of a storage (CLI-77)", async (context) => {
+  it("leaves _seq and _tomb of a source out of the rows, and keeps the other fields: a row is no write of a storage (CLI-77)", async (context) => {
     if (!replicaSet) return context.skip?.("change streams need a replica set");
     const { db, views } = setup();
     // A document of a MongoDocumentStorage, with each field of the storage
@@ -178,8 +178,9 @@ withMongo("ViewMaterializer on MongoDB", { timeout: TEST_TIMEOUT_MS }, () => {
     await db.collection("_aggregations").insertOne(sumsView({ _id: "copies", pipeline, targetCollection: "copies" }) as never);
     await views.start();
     const rows = await db.collection("copies").find({}).toArray();
-    expect(sorted(rows)).toEqual([{ _id: "a", _part: "t1", kind: "a", n: 1 }]);
-    for (const name of ["_key", "_seq", "_ord", "_kid", "_kpf", "_json", "_tomb"]) expect(rows[0]).not.toHaveProperty(name);
+    // A pass-through row of a _json item keeps its content, and a view can project _key
+    expect(sorted(rows)).toEqual([{ _id: "a", _part: "t1", _key: "a", _ord: 3, _kid: true, _kpf: ["kind"], _json: "x", kind: "a", n: 1 }]);
+    for (const name of ["_seq", "_tomb"]) expect(rows[0]).not.toHaveProperty(name);
     await views.stop();
   });
 

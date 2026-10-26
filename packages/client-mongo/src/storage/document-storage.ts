@@ -93,7 +93,7 @@
 
 import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
-import type { AnyBulkWriteOperation, ClientSession, Collection, Db, Document, Filter, MongoClient } from "mongodb";
+import { BSON, type AnyBulkWriteOperation, type ClientSession, type Collection, type Db, type Document, type Filter, type MongoClient } from "mongodb";
 import {
   VersionConflictError,
   applyPatch,
@@ -479,6 +479,8 @@ export interface StorageChangeSource {
    * after the `_id` of `after` (from the start without it).
    */
   rawDocuments(after: { readonly id: unknown } | undefined, limit: number): Promise<Document[]>;
+  /** The stored documents of these stored `_id`s: the watcher adopts a raw write again after a full queue or a failure. */
+  storedDocuments(ids: readonly unknown[]): Promise<Document[]>;
   /**
    * The partitions that the storage knows: each partition with a floor document in the counters,
    * and each partition of `forPartition()` in this process. It rejects when the counters cannot be read.
@@ -515,6 +517,15 @@ export interface RawStorageWrite {
 
 /** The result of an adoption: `adopted`, `lost` (the document changed since: another adoption or write won), or `unknown` (no image and no stored `_id` tells the id and the partition). */
 export type RawAdoption = "adopted" | "lost" | "unknown";
+
+/** True when two values have the same BSON. */
+function sameBson(a: unknown, b: unknown): boolean {
+  try {
+    return Buffer.from(BSON.serialize({ v: a })).equals(Buffer.from(BSON.serialize({ v: b })));
+  } catch {
+    return false;
+  }
+}
 
 /** The result of one raw write of `adoptAll()`: a `RawAdoption`, or the error of the write of its partition. */
 export type RawAdoptionResult = RawAdoption | { readonly error: unknown };
@@ -684,6 +695,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
       adopt: (raw) => storage.adoptRaw(raw),
       adoptAll: (raws) => storage.adoptRawAll(raws),
       rawDocuments: (after, limit) => storage.rawDocuments(after, limit),
+      storedDocuments: (ids) => storage.storedDocuments(ids),
       partitions: () => storage.knownPartitions(),
     });
   }
@@ -1423,10 +1435,21 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
   /** One page of the documents without `_seq`, in the order of `_id` (the sweep of `watchStorageChanges()`). */
   private async rawDocuments(after: { readonly id: unknown } | undefined, limit: number): Promise<Document[]> {
     const db = await this.database();
-    const filter: Document = { [SEQ]: { $exists: false } };
-    // $expr compares across the BSON types, in the order of the sort
-    if (after) filter["$expr"] = { $gt: ["$_id", { $literal: after.id }] };
-    return db.collection(this.collectionName).find(filter).sort({ _id: 1 }).limit(limit).toArray();
+    // The scan walks the index of _id from the last _id: `min` bounds the scan, in the order of the
+    // BSON types. `min` includes that _id, so the page skips it. No index can find the documents
+    // without a field (a partial index cannot express $exists: false): the scan reads each document.
+    let cursor = db.collection(this.collectionName).find({ [SEQ]: { $exists: false } }).hint({ _id: 1 });
+    if (after) cursor = cursor.min({ _id: after.id });
+    const docs = await cursor.limit(after ? limit + 1 : limit).toArray();
+    if (after && docs.length > 0 && sameBson(docs[0]!["_id"], after.id)) docs.shift();
+    return docs.slice(0, limit);
+  }
+
+  /** The stored documents of these stored `_id`s, for the adoptions that `watchStorageChanges()` does again. */
+  private async storedDocuments(ids: readonly unknown[]): Promise<Document[]> {
+    const db = await this.database();
+    const filter: Document = { _id: { $in: [...ids] } };
+    return db.collection(this.collectionName).find(filter).toArray();
   }
 
   /**

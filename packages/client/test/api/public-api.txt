@@ -3805,6 +3805,7 @@ export interface CollectionChangeEvent {
         readonly id: string;
         readonly version: string;
     }> | undefined;
+    readonly reset?: boolean | undefined;
     readonly origin?: string | undefined;
 }
 

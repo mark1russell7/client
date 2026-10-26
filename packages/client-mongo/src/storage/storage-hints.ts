@@ -26,17 +26,23 @@
  *   raw write goes out without a version, and `changes(since)` does not have the write.
  * - The adoptions wait in one queue for each watcher: one adoption at a time, and the raw writes
  *   that wait together take one block of numbers for each partition. An adoption that fails with
- *   an error that can go away tries again after the backoff. After the last try, the partition gets
- *   a gap hint: its subscribers read the changes. When the queue is full, the hint of the next raw
- *   write goes out without a version, and a sweep adopts those writes when the queue is empty.
+ *   an error that can go away tries again after the backoff. When the queue is full, the hint of
+ *   the next raw write goes out without a version. The watcher keeps the ids of the raw writes that
+ *   did not fit or that failed (at most 10,000), and adopts them again when the queue is empty,
+ *   after a sweep. An adoption that fails for good (after its last try, or a second time), or an id
+ *   over that limit, gives its partition a reset hint (`reset: true`): its subscribers read it in full.
  * - The adoption is exact only with the images before the change (`changeStreamPreAndPostImages`).
  *   An insert and a replace show their document, but an update shows only its fields: without the
  *   image, the `_seq` that the update kept comes from the lookup. When a write of the storage comes
  *   after the raw update, the adoption can then give that write a newer version, and a client that
  *   holds the version of that write gets a conflict of its precondition.
- * - The sweep (`sweep`, on by default with `rawWrites: "adopt"`): when the stream opens, and after
- *   each gap, the watcher sends each document without `_seq` to the same queue, in pages. Thus the
- *   raw writes before the watcher started, or during a gap, get their numbers too.
+ * - The sweep: after each gap (`sweep`, on by default with `rawWrites: "adopt"`), after a full
+ *   queue, and when the stream opens (`sweepAtOpen`, off by default), the watcher sends each
+ *   document without `_seq` to the same queue, in pages. Thus a document without `_seq` gets its
+ *   number. A raw update of a document with `_seq` keeps that `_seq`: no sweep finds it, so a gap
+ *   publishes a reset hint. The scan walks the index of `_id` and reads each document of the
+ *   collection: a partial index cannot express `$exists: false`. A document that the sweep cannot
+ *   place (no id, or another partition) goes to the log once, and the next sweeps leave it.
  * - A raw hard delete of an item: with the image before the change, the storage adopts it as a
  *   tombstone. Without the image (no `changeStreamPreAndPostImages` on the collection), the hint
  *   goes out without a version, and the delete stays out of `changes(since)`.
@@ -51,10 +57,11 @@
  *   never an own write.
  * - After an error of the stream, the watcher opens the stream again after a backoff, from the
  *   resume token of the last event: it loses no change. When the server does not have the token
- *   any more, or the collection was dropped, the watcher publishes a hint without ids (a gap) on
- *   the plain topic and on the topic of each partition that it knows: the partitions of the
- *   counters, of `forPartition()`, of the hints, of the subscribed topics of the bus, and of
- *   `gapPartitions`. The subscribers read the changes.
+ *   any more, or the collection was dropped or renamed, the watcher cannot know what it missed: it
+ *   publishes a reset hint (a gap: no ids, `reset: true`) on the plain topic and on the topic of
+ *   each partition that it knows: the partitions of the counters, of `forPartition()`, of the
+ *   hints, of the subscribed topics of the bus, and of `gapPartitions`. The subscribers read the
+ *   collection in full.
  * - The pipeline of the stream is `[]`: the storage of a partition (`forPartition()`) watches the
  *   whole collection and drops the events of other partitions.
  * - Change streams need a replica set or a sharded cluster. The watcher asks the server (`hello`)
@@ -155,19 +162,32 @@ export interface WatchStorageChangesOptions {
    */
   gapPartitions?: (() => Iterable<string | undefined>) | undefined;
   /**
-   * True: when the stream opens, and after each gap, the watcher adopts each document without
-   * `_seq` (a raw write before the watcher started, or during the gap), in pages, through the queue
-   * of the adoptions. It needs `rawWrites: "adopt"`. With `false`, a sweep still runs after the
-   * queue of the adoptions was full, for the raw writes that did not fit.
+   * True: after each gap, the watcher adopts each document without `_seq` (a raw write during the
+   * gap), in pages, through the queue of the adoptions. It needs `rawWrites: "adopt"`. With
+   * `false`, a sweep still runs when the watcher had more raw writes to adopt again than it can
+   * keep.
    * @default true with `rawWrites: "adopt"`, else false
    */
   sweep?: boolean | undefined;
+  /**
+   * True: a sweep also runs when the stream opens first, for the raw writes before the watcher
+   * started. It needs `rawWrites: "adopt"`. The first watcher on a legacy collection adopts every
+   * legacy document, and the next delta of every subscriber is the whole collection.
+   * @default false
+   */
+  sweepAtOpen?: boolean | undefined;
   /**
    * The most raw writes that wait for an adoption. Internal: for the tests.
    * @internal
    * @default 10_000
    */
   adoptQueueLimit?: number | undefined;
+  /**
+   * The most raw writes that the watcher keeps to adopt again. Internal: for the tests.
+   * @internal
+   * @default 10_000
+   */
+  adoptRedoLimit?: number | undefined;
   /**
    * The backoff before the stream opens again after an error.
    * @default { initialDelay: ms(250), maxDelay: seconds(30), backoffMultiplier: 2, jitter: 1 }
@@ -192,11 +212,12 @@ export interface StorageChangesWatch {
   stop(): Promise<void>;
 }
 
-/** A raw write that waits for its adoption. `done` ends a write of the sweep. */
+/** A raw write that waits for its adoption: of a change event, of the sweep, or adopted again. `done` ends a write of the sweep or of the redo. */
 interface AdoptJob {
   readonly item: StorageChange;
   readonly raw: RawStorageWrite;
   readonly tries: number;
+  readonly kind?: "sweep" | "redo" | undefined;
   readonly done?: (() => void) | undefined;
 }
 
@@ -227,6 +248,17 @@ const ADOPT_TRIES = 5;
 
 /** The documents of one page of the sweep. */
 const SWEEP_PAGE = 500;
+
+/** The most raw writes that the watcher keeps to adopt again. Over the limit, the partition gets a reset hint. */
+const MAX_ADOPT_REDO = 10_000;
+
+/** The most documents that the sweep cannot place and that the next sweeps leave. */
+const MAX_UNPLACED = 10_000;
+
+/** The hint of a gap: no ids, and the subscribers read the collection in full. */
+function resetHint(): StorageChangeHint {
+  return { changed: [], deleted: [], reset: true };
+}
 
 /** The code of a command that the server does not know (an old server without `hello`). */
 const COMMAND_NOT_FOUND = 59;
@@ -367,6 +399,11 @@ function describeId(storedId: unknown): string {
   }
 }
 
+/** The key of a stored `_id` in the sets of the watcher, or undefined without an id. */
+function idKey(storedId: unknown): string | undefined {
+  return storedId === undefined || storedId === null ? undefined : describeId(storedId);
+}
+
 /**
  * This function watches the change stream of the collection of a `MongoDocumentStorage`, and
  * publishes a hint of each change of an item on the topic of the collection procedures (roadmap
@@ -414,10 +451,15 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
   const adoptRaw = (options.rawWrites ?? "adopt") === "adopt";
   if (options.sweep !== undefined && typeof options.sweep !== "boolean") throw new TypeError("sweep must be a boolean");
   if (options.sweep === true && !adoptRaw) throw new TypeError('sweep needs rawWrites: "adopt"');
+  if (options.sweepAtOpen !== undefined && typeof options.sweepAtOpen !== "boolean") throw new TypeError("sweepAtOpen must be a boolean");
+  if (options.sweepAtOpen === true && !adoptRaw) throw new TypeError('sweepAtOpen needs rawWrites: "adopt"');
   const sweepOn = options.sweep ?? adoptRaw;
   const queueLimit = options.adoptQueueLimit ?? MAX_ADOPT_QUEUE;
   if (!Number.isInteger(queueLimit) || queueLimit < 1) throw new RangeError("adoptQueueLimit must be a whole number of 1 or more");
+  const redoLimit = options.adoptRedoLimit ?? MAX_ADOPT_REDO;
+  if (!Number.isInteger(redoLimit) || redoLimit < 0) throw new RangeError("adoptRedoLimit must be a whole number of 0 or more");
   const sweepPage = Math.min(SWEEP_PAGE, queueLimit);
+  const redoChunk = Math.min(ADOPT_BATCH, queueLimit);
 
   let stopped = false;
   let stream: ChangeStream | undefined;
@@ -438,9 +480,18 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
   let full = false;
   /** The timers of the adoptions that try again. */
   const retries = new Map<Cancel, AdoptJob>();
-  /** True when a sweep must run at the next open of the stream, and true while one runs. */
-  let sweepWanted = sweepOn;
+  /** True when a sweep must run when the stream is open and the queue is empty, and true while one runs. */
+  let sweepWanted = options.sweepAtOpen ?? false;
   let sweeping = false;
+  /** True while a stream is open: it saw its first resume token or change. */
+  let live = false;
+  /** The raw writes to adopt again when the queue is empty, by the key of the stored id, and true while that runs. */
+  const redo = new Map<string, AdoptJob>();
+  let redoing = false;
+  /** True after the set of the redo was full, until it is empty: the log tells it once. */
+  let redoFull = false;
+  /** The keys of the documents that the sweep cannot place: the next sweeps leave them. */
+  const unplaced = new Set<string>();
   /** The partitions that got a hint: the topics of a gap. */
   const partitions = new Set<string | undefined>();
   let markReady: () => void = () => undefined;
@@ -489,12 +540,15 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
     }
   };
 
-  /** The hint of a gap: the subscribers read the changes. */
+  /** The reset hint of a gap: the subscribers read the collection in full. */
   const gap = (reason: string): void => {
-    log("warn", `${reason}: the subscribers read the changes`);
-    // The raw writes of the gap have no event: the sweep at the next open adopts them
-    if (sweepOn) sweepWanted = true;
-    if (source.partition !== undefined) return send(source.partition, { changed: [], deleted: [] });
+    log("warn", `${reason}: the subscribers read the collection in full`);
+    // The raw writes of the gap have no event: the sweep adopts the documents without _seq
+    if (sweepOn) {
+      sweepWanted = true;
+      afterQueue();
+    }
+    if (source.partition !== undefined) return send(source.partition, resetHint());
     const topics = new Set<string | undefined>([undefined, ...partitions]);
     void source
       .partitions()
@@ -510,18 +564,58 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
         let count = 0;
         for (const partition of topics) {
           if (count++ >= MAX_GAP_PARTITIONS) break;
-          send(partition, { changed: [], deleted: [] });
+          send(partition, resetHint());
         }
       });
   };
 
+  /** The reset hint of each partition of the raw writes: their subscribers read the collection in full. */
+  const resetPartitions = (jobs: Iterable<AdoptJob>): void => {
+    if (stopped) return;
+    const done = new Set<string | undefined>();
+    for (const job of jobs) {
+      if (done.has(job.item.partition)) continue;
+      done.add(job.item.partition);
+      send(job.item.partition, resetHint());
+    }
+  };
+
+  /**
+   * It keeps a raw write to adopt again when the queue is empty, with the newest write of each
+   * document. False when the watcher cannot keep it: no id, or the set is full.
+   */
+  const remember = (job: AdoptJob): boolean => {
+    const key = idKey(job.raw.storedId);
+    if (key === undefined) return false;
+    if (redo.has(key) || redo.size < redoLimit) {
+      redo.set(key, { item: job.item, raw: job.raw, tries: 0 });
+      return true;
+    }
+    if (!redoFull) log("warn", `more than ${redoLimit} raw writes of ${source.collection} wait to be adopted again: the partitions of the next ones get a reset hint, and a sweep runs`);
+    redoFull = true;
+    return false;
+  };
+
+  /** The count and the first of the documents that the current sweep cannot place. */
+  let leftCount = 0;
+  let leftFirst = "";
+  /** A document that the sweep cannot place: the next sweeps leave it. */
+  const leave = (storedId: unknown, why: string): void => {
+    const key = idKey(storedId);
+    if (key !== undefined && unplaced.size < MAX_UNPLACED) unplaced.add(key);
+    if (leftCount++ === 0) leftFirst = `${describeId(storedId)} (${why})`;
+  };
+
   /** The end of one raw write of an adoption. The change event of an adoption is its hint. */
-  const settle = (job: AdoptJob, result: RawAdoptionResult, failed: Map<string | undefined, unknown>): void => {
+  const settle = (job: AdoptJob, result: RawAdoptionResult, failed: Array<{ readonly job: AdoptJob; readonly error: unknown }>): void => {
     if (typeof result === "string") {
       // `adopted`: the event of the adoption is the hint. `lost`: a newer write won, and its event is the hint.
       if (result === "unknown") {
-        log("warn", `the raw write of ${describeId(job.raw.storedId)} in ${source.collection} tells neither its id nor its partition: the storage leaves it`);
-        publishItem(job.item);
+        if (job.kind === "sweep") leave(job.raw.storedId, "neither its id nor its partition");
+        else {
+          log("warn", `the raw write of ${describeId(job.raw.storedId)} in ${source.collection} tells neither its id nor its partition: the storage leaves it`);
+          publishItem(job.item);
+        }
       }
       return job.done?.();
     }
@@ -533,7 +627,7 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
       return job.done?.();
     }
     if (isPermanent(error) || job.tries + 1 >= ADOPT_TRIES) {
-      if (!failed.has(job.item.partition)) failed.set(job.item.partition, error);
+      failed.push({ job, error });
       return job.done?.();
     }
     // An error that can go away: the adoption tries again after the backoff
@@ -561,12 +655,15 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
           for (const job of batch) job.done?.();
           break;
         }
-        const failed = new Map<string | undefined, unknown>();
+        const failed: Array<{ readonly job: AdoptJob; readonly error: unknown }> = [];
         batch.forEach((job, index) => settle(job, results[index] ?? "unknown", failed));
-        // The last try failed: a gap hint for each partition, so that its subscribers read the changes
-        for (const [partition, error] of failed) {
-          log("warn", `the adoption of the raw writes of the partition ${partition === undefined ? "(none)" : JSON.stringify(partition)} of ${source.collection} failed (${messageOf(error)}): its subscribers read the changes`);
-          send(partition, { changed: [], deleted: [] });
+        const first = failed[0];
+        if (first) {
+          // The last try failed: a reset hint for each partition. The redo tries once more; a second failure is for good.
+          const names = [...new Set(failed.map(({ job }) => job.item.partition))].map((partition) => (partition === undefined ? "(none)" : JSON.stringify(partition)));
+          log("warn", `the adoption of ${failed.length} raw writes of ${source.collection} failed (${messageOf(first.error)}): the partitions ${names.join(", ")} get a reset hint`);
+          for (const { job } of failed) if (job.kind !== "redo" && !remember(job)) sweepWanted = true;
+          resetPartitions(failed.map(({ job }) => job));
         }
       }
       if (queue.length === 0) full = false;
@@ -574,19 +671,23 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
       adopting = false;
     }
     if (stopped) for (const job of queue.splice(0)) job.done?.();
-    // The queue is empty: the sweep of the raw writes that did not fit can start
-    else if (queue.length === 0) startSweep();
+    // The queue is empty: the sweep, then the redo, can start
+    else afterQueue();
   };
 
   const enqueue = (job: AdoptJob): void => {
     if (stopped) return job.done?.();
     if (queue.length >= queueLimit) {
-      // The write keeps no _seq: the sweep after the queue is empty finds it and adopts it
-      if (!full) log("warn", `more than ${queueLimit} raw writes of ${source.collection} wait for an adoption: the next hints go out without a version, and a sweep adopts those writes when the queue is empty`);
+      if (!full) log("warn", `more than ${queueLimit} raw writes of ${source.collection} wait for an adoption: the next ones are adopted again when the queue is empty`);
       full = true;
-      sweepWanted = true;
-      // A write of the sweep had its hint already
-      if (!job.done) publishItem(job.item);
+      if (remember(job)) {
+        // The hint of a raw write of a change event goes out now, without a version. Its adoption gives the version.
+        if (job.kind === undefined) publishItem(job.item);
+      } else {
+        // The sweep finds the documents without _seq. A write of the sweep had no hint.
+        sweepWanted = true;
+        if (job.kind !== "sweep") resetPartitions([job]);
+      }
       return job.done?.();
     }
     queue.push(job);
@@ -606,6 +707,7 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
   const sweep = async (): Promise<void> => {
     let last: { readonly id: unknown } | undefined;
     let count = 0;
+    leftCount = 0;
     try {
       for (;;) {
         if (stopped) return;
@@ -615,35 +717,92 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
         last = { id: end["_id"] };
         const waits: Array<Promise<void>> = [];
         for (const doc of page) {
+          const key = idKey(doc["_id"]);
+          if (key !== undefined && unplaced.has(key)) continue;
           let item: StorageChange | undefined;
           try {
             item = storageChangeOf({ operationType: "insert", fullDocument: doc, documentKey: { _id: doc["_id"] } }, source.form);
           } catch (error) {
-            log("warn", `the sweep leaves ${describeId(doc["_id"])} of ${source.collection}: ${messageOf(error)}`);
+            leave(doc["_id"], messageOf(error));
             continue;
           }
-          if (!item?.raw || (source.partition !== undefined && item.partition !== source.partition)) continue;
+          if (!item) {
+            leave(doc["_id"], "no id");
+            continue;
+          }
+          if (source.partition !== undefined && item.partition !== source.partition) {
+            leave(doc["_id"], "another partition");
+            continue;
+          }
+          if (!item.raw) continue;
           count++;
-          waits.push(new Promise<void>((resolve) => enqueue({ item, raw: { storedId: doc["_id"], seq: undefined, after: doc }, tries: 0, done: resolve })));
+          const job: AdoptJob = { item, raw: { storedId: doc["_id"], seq: undefined, after: doc }, tries: 0, kind: "sweep" };
+          waits.push(new Promise<void>((resolve) => enqueue({ ...job, done: resolve })));
         }
         await Promise.all(waits);
         if (page.length < sweepPage) break;
       }
-      if (count > 0 && !stopped) log("info", `the sweep of ${source.collection} sent ${count} documents without _seq to the adoption`);
+      if (stopped) return;
+      if (count > 0) log("info", `the sweep of ${source.collection} sent ${count} documents without _seq to the adoption`);
+      if (leftCount > 0) log("warn", `the sweep of ${source.collection} cannot place ${leftCount} documents without _seq, for example ${leftFirst}: the next sweeps leave them`);
     } catch (error) {
       if (!stopped) log("warn", `the sweep of the documents without _seq of ${source.collection} failed: ${messageOf(error)}`);
     }
   };
 
-  const startSweep = (): void => {
-    // A full queue: the sweep starts when the queue is empty
-    if (!sweepWanted || sweeping || stopped || full) return;
-    sweepWanted = false;
-    sweeping = true;
-    void sweep().finally(() => {
-      sweeping = false;
-      startSweep();
-    });
+  /** The redo: each raw write that did not fit or that failed goes to the queue again, with its document now. */
+  const adoptAgain = async (): Promise<void> => {
+    const jobs = [...redo.values()];
+    redo.clear();
+    redoFull = false;
+    for (let start = 0; start < jobs.length; start += redoChunk) {
+      if (stopped) return;
+      const part = jobs.slice(start, start + redoChunk);
+      let docs: Document[];
+      try {
+        docs = await source.storedDocuments(part.map((job) => job.raw.storedId));
+      } catch (error) {
+        if (stopped) return;
+        log("warn", `the documents of ${part.length} raw writes of ${source.collection} to adopt again cannot be read (${messageOf(error)}): their partitions get a reset hint`);
+        resetPartitions(part);
+        continue;
+      }
+      const current = new Map<string | undefined, Document>(docs.map((doc) => [idKey(doc["_id"]), doc]));
+      const waits: Array<Promise<void>> = [];
+      for (const job of part) {
+        const doc = current.get(idKey(job.raw.storedId));
+        // A newer write (a write of the storage, or a delete) has its own event: no redo
+        let raw: RawStorageWrite | undefined;
+        if (!doc) raw = job.raw.after === undefined ? job.raw : undefined;
+        else raw = seqOf(doc) === job.raw.seq ? { ...job.raw, after: doc } : undefined;
+        if (!raw) continue;
+        const again: AdoptJob = { item: job.item, raw, tries: 0, kind: "redo" };
+        waits.push(new Promise<void>((resolve) => enqueue({ ...again, done: resolve })));
+      }
+      await Promise.all(waits);
+    }
+  };
+
+  /** The work after an empty queue: the sweep when a stream is open, then the redo. */
+  const afterQueue = (): void => {
+    if (stopped || full || adopting || queue.length > 0 || sweeping || redoing) return;
+    if (sweepWanted && live) {
+      sweepWanted = false;
+      sweeping = true;
+      void sweep().finally(() => {
+        sweeping = false;
+        afterQueue();
+      });
+      return;
+    }
+    if (redo.size === 0) return;
+    redoing = true;
+    void adoptAgain()
+      .catch((error: unknown) => log("warn", `the redo of the raw writes of ${source.collection} failed: ${messageOf(error)}`))
+      .finally(() => {
+        redoing = false;
+        afterQueue();
+      });
   };
 
   const onChange = (change: Document): void => {
@@ -693,6 +852,7 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
     }
     retries.clear();
     for (const job of queue.splice(0)) job.done?.();
+    redo.clear();
   };
 
   /** The end of a watcher whose first open failed with an error that does not go away. */
@@ -754,6 +914,7 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
       next.close().catch(() => undefined);
       if (stream !== next || stopped) return;
       stream = undefined;
+      live = false;
       if (!opened && error !== undefined && isPermanent(error)) return fail(error);
       const code = codeOf(error);
       if (code !== undefined && LOST_TOKEN_CODES.has(code) && token !== undefined) {
@@ -769,12 +930,14 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
       opened = true;
       attempt = 0;
       markReady();
-      startSweep();
+      live = true;
+      afterQueue();
     });
     next.on("change", (change: Document) => {
       opened = true;
       markReady();
-      startSweep();
+      live = true;
+      afterQueue();
       if (change["operationType"] === "invalidate") {
         // The collection was dropped or renamed: the stream starts after the invalidate event
         token = change["_id"];

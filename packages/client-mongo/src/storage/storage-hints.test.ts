@@ -266,8 +266,11 @@ function fakeWatch(collections: { counters?: Document; items?: Document; hello?:
       return stream;
     },
     createIndexes: async () => [],
-    // The sweep finds no document without _seq
-    find: () => ({ sort: () => ({ limit: () => ({ toArray: async () => [] }) }) }),
+    // The sweep finds no document without _seq, and the redo finds no document
+    find: () => {
+      const cursor = { sort: () => cursor, hint: () => cursor, min: () => cursor, limit: () => cursor, toArray: async () => [] };
+      return cursor;
+    },
     ...collections.items,
   };
   const db = {
@@ -349,7 +352,7 @@ describe("watchStorageChanges without a server (CLI-77)", () => {
     // A write of the storage in the partition t5 (of another process): a hint
     changes.emit("change", { _id: { t: 1 }, operationType: "insert", fullDocument: { _id: "t5\u001fa", _key: "a", _part: "t5", _seq: 3 }, documentKey: { _id: "t5\u001fa" } });
     changes.emit("change", { _id: { t: 2 }, operationType: "drop" });
-    const gapTopics = (): string[] => events.filter(({ event }) => event.changed.length === 0 && event.deleted.length === 0).map(({ topic }) => topic);
+    const gapTopics = (): string[] => events.filter(({ event }) => event.reset === true && event.changed.length === 0 && event.deleted.length === 0).map(({ topic }) => topic);
     await vi.waitFor(() => expect(gapTopics()).toHaveLength(6));
     expect(new Set(gapTopics())).toEqual(new Set([collectionChangeTopic("fake_notes"), ...topics]));
     await watch.stop();
@@ -363,7 +366,7 @@ describe("watchStorageChanges without a server (CLI-77)", () => {
     const changes = await stream();
     changes.emit("change", { _id: { t: 1 }, operationType: "insert", fullDocument: { _id: "t5\u001fa", _key: "a", _part: "t5", _seq: 3 }, documentKey: { _id: "t5\u001fa" } });
     changes.emit("change", { _id: { t: 2 }, operationType: "rename" });
-    const gaps = (): string[] => published.filter(({ event }) => event.changed.length === 0).map(({ topic }) => topic);
+    const gaps = (): string[] => published.filter(({ event }) => event.reset === true && event.changed.length === 0).map(({ topic }) => topic);
     await vi.waitFor(() => expect(gaps()).toHaveLength(3));
     expect(gaps()).toEqual([undefined, "t5", "t8"].map((partition) => collectionChangeTopic("fake_notes", partition)));
     expect(logs.some((line) => line.startsWith("warn") && line.includes("cannot be read"))).toBe(true);
@@ -405,7 +408,10 @@ describe("watchStorageChanges without a server (CLI-77)", () => {
     expect(() => watchStorageChanges(storage, publish, { ownWrites: "keep" as never })).toThrow(TypeError);
     expect(() => watchStorageChanges(storage, publish, { rawWrites: "ignore", sweep: true })).toThrow(TypeError);
     expect(() => watchStorageChanges(storage, publish, { sweep: "yes" as never })).toThrow(TypeError);
+    expect(() => watchStorageChanges(storage, publish, { rawWrites: "ignore", sweepAtOpen: true })).toThrow(TypeError);
+    expect(() => watchStorageChanges(storage, publish, { sweepAtOpen: "yes" as never })).toThrow(TypeError);
     expect(() => watchStorageChanges(storage, publish, { adoptQueueLimit: 0 })).toThrow(RangeError);
+    expect(() => watchStorageChanges(storage, publish, { adoptRedoLimit: -1 })).toThrow(RangeError);
   });
 
   it("rejects ready on a single server before it opens a stream", async () => {
@@ -418,44 +424,107 @@ describe("watchStorageChanges without a server (CLI-77)", () => {
     await watch.stop();
   });
 
-  it("sweeps the raw writes that did not fit in a full queue when the queue is empty", async () => {
-    const { storage, stream, clock, logs, log, published, publish } = fakeWatch();
-    const internals = storage as unknown as {
-      adoptRawAll: (raws: ReadonlyArray<{ storedId: unknown }>) => Promise<unknown[]>;
-      rawDocuments: (after: unknown, limit: number) => Promise<Document[]>;
-    };
-    // The first adoption waits until the test lets it end: the queue fills up behind it
+  /** The private methods of the storage that the watcher calls. */
+  type Internals = {
+    adoptRawAll: (raws: ReadonlyArray<{ storedId: unknown; seq?: number | undefined }>) => Promise<unknown[]>;
+    rawDocuments: (after: unknown, limit: number) => Promise<Document[]>;
+    storedDocuments: (ids: readonly unknown[]) => Promise<Document[]>;
+  };
+
+  /** The first adoption waits until the test lets it end: the queue fills up behind it. */
+  const gatedAdoptions = (internals: Internals) => {
     let release: () => void = () => undefined;
     const gate = new Promise<void>((resolve) => (release = resolve));
-    const adopted: unknown[] = [];
+    const adopted: Array<{ id: unknown; seq: number | undefined }> = [];
+    let calls = 0;
     vi.spyOn(internals, "adoptRawAll").mockImplementation(async (raws) => {
-      if (adopted.length === 0) await gate;
-      adopted.push(...raws.map((raw) => raw.storedId));
+      if (calls++ === 0) await gate;
+      adopted.push(...raws.map((raw) => ({ id: raw.storedId, seq: raw.seq })));
       return raws.map(() => "adopted");
     });
-    // The sweep at the open finds nothing. The sweep after the queue is empty finds r4: it has no _seq yet
-    const limits: number[] = [];
-    vi.spyOn(internals, "rawDocuments").mockImplementation(async (_after, limit) => {
-      limits.push(limit);
-      return limits.length === 2 ? [{ _id: "r4", title: "raw" }] : [];
+    return { adopted, release: () => release() };
+  };
+
+  it("adopts again the raw writes that did not fit in a full queue when the queue is empty, with their documents then", async () => {
+    const { storage, stream, clock, logs, log, published, publish } = fakeWatch();
+    const internals = storage as unknown as Internals;
+    const { adopted, release } = gatedAdoptions(internals);
+    const sweeps = vi.spyOn(internals, "rawDocuments").mockResolvedValue([]);
+    // r4 has no _seq yet; r5 kept its _seq 5 after a raw update; r6 has a newer write of the storage
+    const now: Document[] = [{ _id: "r4", title: "raw" }, { _id: "r5", _seq: 5, title: "new" }, { _id: "r6", _seq: 9, title: "newer" }];
+    const reads: unknown[][] = [];
+    vi.spyOn(internals, "storedDocuments").mockImplementation(async (ids) => {
+      reads.push([...ids]);
+      return now.filter((doc) => ids.includes(doc["_id"]));
     });
     const watch = watchStorageChanges(storage, publish, { clock, log, adoptQueueLimit: 2 });
     const changes = await stream();
-    // r1 is in the adoption, r2 and r3 wait, and r4 does not fit
+    // r1 is in the adoption, r2 and r3 wait, and r4, r5 and r6 do not fit
     for (const id of ["r1", "r2", "r3", "r4"]) changes.emit("change", { _id: { t: id }, operationType: "insert", fullDocument: { _id: id, title: "raw" }, documentKey: { _id: id } });
-    await vi.waitFor(() => expect(published).toHaveLength(1));
-    expect(published[0]!.event).toEqual({ changed: ["r4"], deleted: [] });
+    for (const [id, seq] of [["r5", 5], ["r6", 6]] as const) {
+      changes.emit("change", { _id: { t: id }, operationType: "update", fullDocument: { _id: id, _seq: seq, title: "new" }, updateDescription: { updatedFields: { title: "new" }, removedFields: [] }, documentKey: { _id: id } });
+    }
+    await vi.waitFor(() => expect(published).toHaveLength(3));
+    expect(published.map(({ event }) => event)).toEqual(["r4", "r5", "r6"].map((id) => ({ changed: [id], deleted: [] })));
     expect(logs.filter((line) => line.includes("wait for an adoption"))).toHaveLength(1);
-    expect(limits).toEqual([2]);
     release();
-    await vi.waitFor(() => expect(adopted).toEqual(["r1", "r2", "r3", "r4"]));
-    // The sweep pages are no bigger than the queue
-    expect(limits).toEqual([2, 2]);
-    expect(published).toHaveLength(1);
+    await vi.waitFor(() => expect(adopted.map(({ id }) => id)).toEqual(["r1", "r2", "r3", "r4", "r5"]));
+    // The redo reads the documents in chunks no bigger than the queue; r5 keeps the _seq that the raw update kept, and the newer write of r6 has its own event
+    expect(reads).toEqual([["r4", "r5"], ["r6"]]);
+    expect(adopted.slice(3)).toEqual([
+      { id: "r4", seq: undefined },
+      { id: "r5", seq: 5 },
+    ]);
+    // No sweep: the sweep at the open is off by default
+    expect(sweeps).not.toHaveBeenCalled();
+    expect(published).toHaveLength(3);
     await watch.stop();
   });
 
-  it("tries a failed adoption again after the backoff, and after the last try publishes a gap to its partition", async () => {
+  it("publishes a reset hint when the raw writes to adopt again are too many, and sweeps when the queue is empty", async () => {
+    const { storage, stream, clock, logs, log, published, publish } = fakeWatch();
+    const internals = storage as unknown as Internals;
+    const { adopted, release } = gatedAdoptions(internals);
+    const sweeps = vi.spyOn(internals, "rawDocuments").mockResolvedValue([]);
+    vi.spyOn(internals, "storedDocuments").mockImplementation(async (ids) => ids.map((id) => ({ _id: id, title: "raw" })));
+    const watch = watchStorageChanges(storage, publish, { clock, log, adoptQueueLimit: 1, adoptRedoLimit: 1 });
+    const changes = await stream();
+    // r1 is in the adoption, r2 waits, r3 is kept to adopt again, and r4 is over the limit
+    for (const id of ["r1", "r2", "r3", "r4"]) changes.emit("change", { _id: { t: id }, operationType: "insert", fullDocument: { _id: id, title: "raw" }, documentKey: { _id: id } });
+    await vi.waitFor(() => expect(published).toHaveLength(2));
+    expect(published).toEqual([
+      { topic: collectionChangeTopic("fake_notes"), event: { changed: ["r3"], deleted: [] } },
+      { topic: collectionChangeTopic("fake_notes"), event: { changed: [], deleted: [], reset: true } },
+    ]);
+    expect(logs.filter((line) => line.includes("wait to be adopted again"))).toHaveLength(1);
+    release();
+    await vi.waitFor(() => expect(adopted.map(({ id }) => id)).toEqual(["r1", "r2", "r3"]));
+    expect(sweeps).toHaveBeenCalledTimes(1);
+    await watch.stop();
+  });
+
+  it("leaves a document that the sweep cannot place: one log, no hint, and the next sweeps leave it", async () => {
+    const { storage, stream, clock, logs, log, published, publish } = fakeWatch();
+    const internals = storage as unknown as Internals;
+    const adoptions = vi.spyOn(internals, "adoptRawAll").mockResolvedValue([]);
+    // The stored _id 7 is no id of the form, and the document has no _key
+    const sweeps = vi.spyOn(internals, "rawDocuments").mockResolvedValue([{ _id: 7, title: "x" }]);
+    const watch = watchStorageChanges(storage, publish, { clock, log });
+    const changes = await stream();
+    // Each drop is a gap: a reset hint, then a sweep
+    changes.emit("change", { _id: { t: 1 }, operationType: "drop" });
+    await vi.waitFor(() => expect(logs.filter((line) => line.includes("cannot place"))).toHaveLength(1));
+    expect(logs.find((line) => line.includes("cannot place"))).toContain('{"_id":{"$numberInt":"7"}}');
+    changes.emit("change", { _id: { t: 2 }, operationType: "drop" });
+    await vi.waitFor(() => expect(sweeps).toHaveBeenCalledTimes(2));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(logs.filter((line) => line.includes("cannot place"))).toHaveLength(1);
+    expect(adoptions).not.toHaveBeenCalled();
+    expect(published.every(({ event }) => event.reset === true && event.changed.length === 0)).toBe(true);
+    await watch.stop();
+  });
+
+  it("tries a failed adoption again after the backoff, and after the last try publishes a reset hint to its partition", async () => {
     const { storage, stream, runs, clock, logs, log, published, publish } = fakeWatch({ counters: { findOneAndUpdate: async () => Promise.reject(serverError(6, "host unreachable")) } });
     const watch = watchStorageChanges(storage, publish, { clock, log, backoff: { initialDelay: ms(10), jitter: 0 } });
     (await stream()).emit("change", { _id: { t: 1 }, operationType: "insert", fullDocument: { _id: "t5\u001fa", _key: "a", _part: "t5" }, documentKey: { _id: "t5\u001fa" } });
@@ -466,7 +535,7 @@ describe("watchStorageChanges without a server (CLI-77)", () => {
       runs[tries - 1]!();
     }
     await vi.waitFor(() => expect(published).toHaveLength(1));
-    expect(published[0]).toEqual({ topic: collectionChangeTopic("fake_notes", "t5"), event: { changed: [], deleted: [] } });
+    expect(published[0]).toEqual({ topic: collectionChangeTopic("fake_notes", "t5"), event: { changed: [], deleted: [], reset: true } });
     expect(runs).toHaveLength(4);
     expect(logs.some((line) => line.startsWith("warn") && line.includes("host unreachable") && line.includes('"t5"'))).toBe(true);
     await watch.stop();
@@ -646,7 +715,7 @@ withMongo("watchStorageChanges on MongoDB (CLI-77)", { timeout: TEST_TIMEOUT_MS 
     }
   });
 
-  it("sweeps the documents without _seq that were written before the watcher started: changes(since) has them", async (context) => {
+  it("sweeps the documents without _seq that were written before the watcher started with sweepAtOpen: changes(since) has them", async (context) => {
     if (!replicaSet) return context.skip?.("change streams need a replica set");
     const { collection, storage, bus, events, listen, log } = setup<{ title: string }>();
     const notes = storage.forPartition("t1");
@@ -657,7 +726,7 @@ withMongo("watchStorageChanges on MongoDB (CLI-77)", { timeout: TEST_TIMEOUT_MS 
       { _id: "t1\u001fs1" as never, _part: "t1", title: "one" },
       { _id: "t1\u001fs2" as never, _part: "t1", title: "two" },
     ]);
-    const watch = watchStorageChanges(storage, bus, { log });
+    const watch = watchStorageChanges(storage, bus, { log, sweepAtOpen: true });
     try {
       await watch.ready;
       await eventually(async () => expect(await db.collection(collection).countDocuments({ _seq: { $exists: false } })).toBe(0));
@@ -673,6 +742,26 @@ withMongo("watchStorageChanges on MongoDB (CLI-77)", { timeout: TEST_TIMEOUT_MS 
     } finally {
       await watch.stop();
     }
+  });
+
+  it("pages the documents without _seq in the order of _id, from the one after the last of a page", async () => {
+    const { collection, storage } = setup<{ title: string }>();
+    await db.collection(collection).insertMany([
+      { _id: "c" as never, title: "3" },
+      { _id: "a" as never, title: "1" },
+      { _id: "b" as never, title: "2", _seq: 4 },
+      { _id: "d" as never, title: "4" },
+    ]);
+    const internals = storage as unknown as {
+      rawDocuments(after: { readonly id: unknown } | undefined, limit: number): Promise<Document[]>;
+      storedDocuments(ids: readonly unknown[]): Promise<Document[]>;
+    };
+    expect((await internals.rawDocuments(undefined, 2)).map((doc) => doc["_id"])).toEqual(["a", "c"]);
+    expect((await internals.rawDocuments({ id: "c" }, 2)).map((doc) => doc["_id"])).toEqual(["d"]);
+    // The last _id of a page can have its _seq now: the next page starts after it all the same
+    expect((await internals.rawDocuments({ id: "b" }, 2)).map((doc) => doc["_id"])).toEqual(["c", "d"]);
+    expect(await internals.rawDocuments({ id: "d" }, 2)).toEqual([]);
+    expect((await internals.storedDocuments(["b", "x", "a"])).map((doc) => doc["_id"]).sort()).toEqual(["a", "b"]);
   });
 
   it("adopts each raw write once: the event of the adoption is never adopted again", async (context) => {
