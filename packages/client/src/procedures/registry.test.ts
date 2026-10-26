@@ -32,12 +32,16 @@ describe("ProcedureRegistry path segments (CORE-6)", () => {
     expect(() => registry.register(procedureAt(["x"]), { pathPrefix: ["__proto__"] })).toThrow(RegistryError);
   });
 
-  it("[a.b, c] and [a, b.c] cannot collide, also with override", () => {
+  it("[a, b, c], [a.b, c] and [a, b.c] are three procedures with three keys (CLI-75)", () => {
     const registry = new ProcedureRegistry();
-    registry.register(procedureAt(["a", "b", "c"]));
-    expect(() => registry.register(procedureAt(["a.b", "c"]))).toThrow(/same key/);
-    expect(() => registry.register(procedureAt(["a", "b.c"]), { override: true })).toThrow(/same key/);
+    registry.register(procedureAt(["a", "b", "c"], () => "abc"));
+    registry.register(procedureAt(["a.b", "c"], () => "a.b c"));
+    registry.register(procedureAt(["a", "b.c"], () => "a b.c"));
     expect(registry.get(["a", "b", "c"])?.path).toEqual(["a", "b", "c"]);
+    expect(registry.get(["a.b", "c"])?.path).toEqual(["a.b", "c"]);
+    expect(registry.get(["a", "b.c"])?.path).toEqual(["a", "b.c"]);
+    // A second registration of one path still needs override
+    expect(() => registry.register(procedureAt(["a.b", "c"]))).toThrow(/already registered/);
   });
 
   it("allows a dot in a segment (client-fs has fs.read.json)", () => {

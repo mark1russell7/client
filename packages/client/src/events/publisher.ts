@@ -171,11 +171,8 @@ const eventItemSchema = z.discriminatedUnion("type", [
   }),
 ]);
 
-/**
- * A topic of a subscriber, the topic of the bus that it listens to, and the check of each event
- * of that topic of the bus, or undefined (roadmap CLI-70). The check throws the refusal.
- */
-type Route = readonly [topic: string, busTopic: string, check?: (() => void) | undefined];
+/** A topic of a subscriber, and the topic of the bus that it listens to. */
+type Route = readonly [topic: string, busTopic: string];
 
 /**
  * One subscription: the listeners on the bus and the queue of its events. It is the async
@@ -201,7 +198,7 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
 
   constructor(
     bus: EventBus,
-    /** The topics of the subscriber, each with the topic of the bus that it listens to and the check of each event */
+    /** The topics of the subscriber, each with the topic of the bus that it listens to */
     routes: ReadonlyArray<Route>,
     private readonly buffer: number,
     private readonly signal: AbortSignal | undefined,
@@ -213,27 +210,10 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
   ) {
     this.confirmation = { type: "subscribed", topics: routes.map(([topic]) => topic) };
     // Before, clear() removed the listeners, and the subscriber saw no end (EVENTS.md)
-    this.unsubscribes = routes.map(([topic, busTopic, check]) =>
-      bus.on(busTopic, (data) => this.take(topic, data, check), { onClear: () => this.fail(clearedError(topic), { keepQueue: true }) }),
+    this.unsubscribes = routes.map(([topic, busTopic]) =>
+      bus.on(busTopic, (data) => this.push(topic, data), { onClear: () => this.fail(clearedError(topic), { keepQueue: true }) }),
     );
     signal?.addEventListener("abort", this.onAbort, { once: true });
-  }
-
-  /**
-   * This function takes one event of a route. When the check of the route throws, the subscription
-   * ends with the refusal, and the event goes (roadmap CLI-70).
-   */
-  private take(topic: string, data: unknown, check: (() => void) | undefined): void {
-    if (this.closed) return;
-    if (check) {
-      try {
-        check();
-      } catch (error) {
-        this.fail(error);
-        return;
-      }
-    }
-    this.push(topic, data);
   }
 
   /** This function closes a subscription whose call aborted before it started. */

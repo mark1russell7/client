@@ -141,7 +141,8 @@ export class ProcedureRegistry {
     if (hintRefusal) throw new RegistryError(`${hintRefusal} (${key})`, path);
 
     const replaced = this.procedures.get(key);
-    // The key joins the segments with dots: ["a.b", "c"] and ["a", "b.c"] have one key
+    // The key encodes each segment (roadmap CLI-75), so ["a.b", "c"] and ["a", "b.c"] have different
+    // keys. The check stays as a guard: two different paths must never share one key
     if (replaced && !samePath(replaced.path, path)) {
       throw new RegistryError(
         `Procedure path ${JSON.stringify(path)} has the same key as ${JSON.stringify(replaced.path)}: ${key}`,

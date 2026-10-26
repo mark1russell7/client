@@ -94,6 +94,28 @@ describe("hostPolicy", () => {
     expect(await call(server, ["tool", "slow"])).toMatchObject({ type: "error", code: "TIMEOUT" });
   });
 
+  it("gives one result for each spelling of an escape in a dotted name (CLI-75)", async () => {
+    const tabs = defineModule("host-policy-dotted", [
+      proc(["collections", "e2e.tabs", "find"], () => "found"),
+      proc(["collections", "e2e.tabs", "drop"], () => "dropped"),
+    ]);
+    const policy = hostPolicy({ expose: ["collections.e2e%2Etabs.*"], exclude: ["collections.e2e%2Etabs.drop"] });
+    const server = new ProcedureServer(procedureServerOptions(policy, createRegistry(tabs)));
+    const handle = async (service: string, operation: string) => {
+      const response = await server.handle({ id: "1", method: { service, operation }, payload: {}, metadata: {} });
+      const status = response.status as { type: string; code?: string };
+      return { type: status.type, ...(status.code ? { code: status.code } : {}) };
+    };
+    // The server decodes the method to a path, and pathToKey gives the one canonical key again
+    for (const service of ["collections.e2e%2Etabs", "collections.e2e%2etabs"]) {
+      expect(await handle(service, "find")).toEqual({ type: "success" });
+      expect(await handle(service, "drop")).toMatchObject({ type: "error", code: "NOT_FOUND" });
+    }
+    // An entry in the raw form of before CLI-75 does not match the encoded key
+    expect(hostPolicy({ exclude: ["collections.e2e.tabs.drop"] }).expose?.(["collections", "e2e.tabs", "drop"])).toBe(true);
+    expect(hostPolicy({ exclude: ["collections.e2e%2Etabs.drop"] }).expose?.(["collections", "e2e.tabs", "drop"])).toBe(false);
+  });
+
   it("keeps the token and the browser checks for the network transports", () => {
     const policy = hostPolicy({ token: "t", browser: { allowedOrigins: ["https://app.example"] } });
     expect(policy.token).toBe("t");

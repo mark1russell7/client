@@ -25,6 +25,7 @@ Migration:
 
 - Upgrade the clients and the servers of a name with `.` or `%` together.
 - A host whose `expose`, policy or limit pattern names such a path in text uses the encoded form, for example `collections.e2e%2Etabs.*`.
+- An `mcpExclude` entry, an `expose` deny entry or a limit entry in the old raw form, for example `collections.e2e.tabs.drop`, does not match. The check compares the encoded key, so the procedure becomes visible, or the limit does not apply. Write each such entry in the encoded form, for example `collections.e2e%2Etabs.drop`.
 - A subscriber of a dotted collection uses `collectionChangeTopic(name)`. The raw topic `collections.a.b` is the topic of the partition `b` of `a`.
 - Graph: read the collection of a topic with `collectionTopicPartition(topic)`, not with a pattern, for example `/^collections\.([^.]+)\./`.
 - The site, MiniMongo and jarvis: no change, if their collection names have no `.` and no `%`.

@@ -80,7 +80,9 @@ export function collectionTopicPartition(topic: string): { collection: string; p
  *   because the plain topic of a dotted name did not encode the name. Now each topic encodes the
  *   name, so the function does not read the repository.
  *
- * @param repository - Not used since roadmap CLI-75. The parameter stays for the callers.
+ * @param repository - Deprecated: not used since roadmap CLI-75. The parameter stays for the
+ *   callers, and a later MINOR removes it. (TSDoc has no `@deprecated` for one parameter, and the
+ *   block tag would deprecate the whole function, which stays.)
  */
 export function collectionTopicTarget(topic: string, repository: RepositoryProvider | undefined): { collection: string; partition: string | undefined } | undefined {
   void repository;
