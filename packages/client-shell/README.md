@@ -326,22 +326,31 @@ const { path, found } = await client.exec(["shell", "which"], {
 
 ### Building CLI Wrappers
 
-The `shell.run` procedure is the foundation for CLI wrapper packages:
+A CLI wrapper package (gh, npm, pnpm, docker, `cli.run`) defines its runner with `defineCliTool()` of `@procedures/shell/cli`. Each command goes as an argument list to `shell.run`, through `ctx.client`, so the host applies its rules to the nested call. `packages/documentation/SERVER-LAYERS.md` ("The run path of a CLI wrapper") gives the reasons.
 
 ```typescript
-// In client-git/src/procedures/git/status.ts
-export async function gitStatus(input: GitStatusInput, ctx: ProcedureContext) {
-  const args = ["status"];
-  if (input.short) args.push("--short");
+import { cliToolOutputSchema, defineCliTool } from "@procedures/shell/cli";
 
-  const result = await ctx.client.call(["shell", "run"], {
-    command: "git",
-    args,
-    cwd: input.cwd,
-  });
+const docker = defineCliTool({ name: "docker" });
 
-  return parseGitStatus(result.stdout);
-}
+// In a handler: a value that starts with "-" is refused, and no shell runs
+const result = await docker.run(["ps", "--filter", docker.arg("filter", input.filter)], { cwd: input.cwd }, ctx);
+// result: { exitCode, stdout, stderr, success, duration }, the shape of cliToolOutputSchema("docker")
+```
+
+- `run` and `runJson` give a failed result and do not throw. `output` and `json` throw the error of the tool.
+- `resolve` finds the program at each command. `nodeScript()`, `execPathProgram()` and `findInPath()` help to find a script of a `.cmd` file.
+- `buildArgv()`, `parseJsonDocument()` and `parseJsonOutput()` build an argv and read JSON output.
+
+The tests of a wrapper use `fakeShell(results)` of `@procedures/shell/testing`:
+
+```typescript
+import { fakeShell } from "@procedures/shell/testing";
+
+const shell = fakeShell([{ stdout: "[]" }, { exitCode: 1, stderr: "not found" }]);
+const registry = createRegistry(shell.module, dockerModule); // the first module of a name counts
+// or, for a handler that a test calls directly: { client: shell.client }
+expect(shell.args()).toEqual(["ps"]);
 ```
 
 ### Checking Command Availability

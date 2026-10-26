@@ -9,6 +9,7 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { cliArg } from "@procedures/shell/cli";
 import { runCommand } from "@procedures/shell/command";
 import type { VitestCoverageInput, VitestRunInput, VitestRunOutput } from "../../types.js";
 import { resolveVitestCli } from "../../vitest-cli.js";
@@ -17,10 +18,7 @@ import { resolveVitestCli } from "../../vitest-cli.js";
 const OUTPUT_LIMIT = 64 * 1024;
 
 function assertPattern(pattern: string): string {
-  if (pattern.startsWith("-")) {
-    throw new Error(`Invalid test pattern (starts with "-"): ${pattern}`);
-  }
-  return pattern;
+  return cliArg("test pattern", pattern);
 }
 
 interface VitestJsonReport {

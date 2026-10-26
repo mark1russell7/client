@@ -4,11 +4,12 @@
  * real pnpm list in an empty temporary project, with no network.
  */
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRegistry, invokePath, outputValue, type Effects, type ProcedureContext } from "@procedures/client";
+import { fakeShell as sharedFakeShell } from "@procedures/shell/testing";
 import { pnpmModule } from "./module.js";
 import { pnpmAdd } from "./procedures/pnpm/add.js";
 import { pnpmExec } from "./procedures/pnpm/exec.js";
@@ -33,17 +34,16 @@ function fakeShell(result: { exitCode: number; stdout?: string; stderr?: string 
   const script = join(mkdtempSync(join(tmpdir(), "pnpm-")), "pnpm.cjs");
   writeFileSync(script, "");
   process.env["npm_execpath"] = script;
-  const call = vi.fn().mockResolvedValue({ stdout: "", stderr: "", ...result });
-  const ctx = { client: { call } } as unknown as ProcedureContext;
+  const shell = sharedFakeShell(result);
+  const ctx = { client: shell.client } as unknown as ProcedureContext;
   /** The arguments of pnpm in the first shell.run call (without the script of pnpm). */
   const args = (): string[] => {
-    expect(call.mock.calls[0]?.[0]).toEqual(["shell", "run"]);
-    const input = call.mock.calls[0]?.[1] as { command: string; args: string[] };
-    expect(input.command).toBe(process.execPath);
-    expect(input.args[0]).toBe(script);
-    return input.args.slice(1);
+    const input = shell.calls[0];
+    expect(input?.command).toBe(process.execPath);
+    expect(input?.args[0]).toBe(script);
+    return shell.args().slice(1);
   };
-  return { ctx, call, args };
+  return { ctx, calls: shell.calls, args };
 }
 
 describe("--filter and --recursive", () => {
@@ -92,7 +92,7 @@ describe("pnpm.exec", () => {
   it("refuses a command that starts with -", async () => {
     const shell = fakeShell();
     await expect(pnpmExec({ command: "--shell-mode" }, shell.ctx)).rejects.toThrow("starts with");
-    expect(shell.call).not.toHaveBeenCalled();
+    expect(shell.calls).toEqual([]);
   });
 });
 

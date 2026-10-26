@@ -4,45 +4,26 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { z } from "zod";
-import { createProcedure, createRegistry, defineModule, effectsOf, invokePath, outputValue, type ProcedureRegistry } from "@procedures/client";
+import { fakeShell, type FakeShellInput, type FakeShellResult } from "@procedures/shell/testing";
+import { createRegistry, effectsOf, invokePath, outputValue, type ProcedureRegistry } from "@procedures/client";
 import { ghModule } from "./module.js";
 import { existsSync, readFileSync } from "node:fs";
 import { GhError, urlOf } from "./procedures/gh/shared.js";
 import { jsonValues, parseGhApiOutput } from "./procedures/gh/api.js";
 
-interface ShellCall {
-  command: string;
-  args: string[];
-  cwd?: string | undefined;
-  timeout?: number | undefined;
-  env?: Record<string, string> | undefined;
-}
-
-/** A registry whose shell.run records each call and answers with the next scripted result. */
-function fake(results: Array<{ exitCode?: number; stdout?: string; stderr?: string }> = [], inspect?: (call: ShellCall) => void) {
-  const calls: ShellCall[] = [];
-  const shell = defineModule("@procedures/shell", [
-    createProcedure()
-      .path(["shell", "run"])
-      .input(z.object({ command: z.string(), args: z.array(z.string()), cwd: z.string().optional(), timeout: z.number().optional(), env: z.record(z.string(), z.string()).optional() }))
-      .output(z.unknown())
-      .meta({ effects: { reads: ["process"], writes: ["process"] } })
-      .handler(async (input: ShellCall) => {
-        calls.push(input);
-        inspect?.(input);
-        const result = results.shift() ?? {};
-        return { exitCode: result.exitCode ?? 0, stdout: result.stdout ?? "[]", stderr: result.stderr ?? "" };
-      })
-      .build(),
-  ]);
+/** A registry whose shell.run records each call and answers with the next scripted result (stdout "[]" by default). */
+function fake(results: FakeShellResult[] = [], inspect?: (call: FakeShellInput) => void) {
+  const shell = fakeShell((input, index) => {
+    inspect?.(input);
+    return { stdout: "[]", ...results[index] };
+  });
   // The first module of a name counts: the fake shell takes the place of the real one
-  const registry: ProcedureRegistry = createRegistry(shell, ghModule);
+  const registry: ProcedureRegistry = createRegistry(shell.module, ghModule);
   const call = async <T>(key: string, input: unknown): Promise<T> => {
     const path = key.split(".");
     return outputValue(await invokePath<T>(path, input, { registry }), path);
   };
-  return { calls, call, registry };
+  return { calls: shell.calls, call, registry };
 }
 
 describe("the gh procedures (R42)", () => {

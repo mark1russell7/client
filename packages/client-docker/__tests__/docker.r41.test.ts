@@ -6,6 +6,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { createRegistry, invokePath, outputValue, type Effects, type ProcedureContext, type ProcedurePath } from "@procedures/client";
+import { fakeShell as sharedFakeShell } from "@procedures/shell/testing";
 import dockerModule, { registerDockerProcedures } from "../src/module.js";
 import { dockerExec } from "../src/procedures/docker/exec.js";
 import { dockerPrune } from "../src/procedures/docker/prune.js";
@@ -18,16 +19,14 @@ const registry = createRegistry(dockerModule);
 
 /** A fake shell: shell.run gives `result` and records each input. */
 function fakeShell(result: { exitCode: number; stdout?: string; stderr?: string } = { exitCode: 0 }) {
-  const call = vi.fn().mockResolvedValue({ stdout: "", stderr: "", ...result });
-  const client = { call } as unknown as ProcedureClient;
+  const shell = sharedFakeShell(result);
+  const client: ProcedureClient = shell.client;
   /** The argument list of docker in the first shell.run call. */
   const args = (): string[] => {
-    expect(call.mock.calls[0]?.[0]).toEqual(["shell", "run"]);
-    const input = call.mock.calls[0]?.[1] as { command: string; args: string[] };
-    expect(input.command).toBe("docker");
-    return input.args;
+    expect(shell.calls[0]?.command).toBe("docker");
+    return shell.args();
   };
-  return { call, client, args };
+  return { calls: shell.calls, client, args };
 }
 
 /** This function calls a docker procedure through the registry, with the fake shell as ctx.client. */
@@ -59,7 +58,7 @@ describe("docker.compose.ps, logs, build and restart", () => {
   it("refuse a service that starts with -", async () => {
     const shell = fakeShell();
     await expect(docker("compose.restart", { services: ["--no-deps"] }, shell.client)).rejects.toThrow("starts with");
-    expect(shell.call).not.toHaveBeenCalled();
+    expect(shell.calls).toEqual([]);
   });
 });
 
@@ -159,7 +158,7 @@ describe("docker.prune", () => {
     await expect(docker("prune", { confirm: "yes" }, shell.client)).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
     // A direct call of the function gets the same check
     await expect(dockerPrune({} as never, { client: shell.client } as never)).rejects.toThrow(/confirm: true/);
-    expect(shell.call).not.toHaveBeenCalled();
+    expect(shell.calls).toEqual([]);
   });
 
   it("prunes the system by default, with --force, and the other kinds", async () => {

@@ -214,6 +214,31 @@ Decision D17 makes a one-shot command a service too: a `mark` command, and the k
   - Before, a second signal ended the process with the exit code 130.
   - Before, `mark server create` kept its peer after the command. The peer stops with the command. A server in the foreground uses `mark --server` or `procedure-server`.
 
+## The run path of a CLI wrapper
+
+A procedure that wraps a CLI tool starts its program with one run path: a nested call of `shell.run`, through `ctx.client`. The dedupe review found two paths (F2, tracker item O60).
+
+- `defineCliTool()` of `@procedures/shell/cli` is the runner. It gives `run`, `runJson`, `output`, `json`, the argument guard and the shared result schema.
+- `gh`, `npm`, `pnpm`, `docker` and `cli.run` use it. A new wrapper package also uses it.
+- The tests use `fakeShell()` of `@procedures/shell/testing`. It has the schemas, the effects and the root rules of the real shell procedures.
+
+The reasons for the nested call:
+
+- The engine applies its rules to the nested call. These rules are the declared calls (`strictCalls`), the effects, the capability and the root of the files.
+- Thus `reachable.snapshot.txt` of `impl-mcp-dev` shows each program that a tool can start. A direct `runCommand` call is not in the snapshot.
+- The nested call gets the signal of the call. Thus a cancel stops the program and its process tree.
+- A test or a host can replace `shell.run` with a fake. No program starts in the tests.
+
+`runCommand` of `@procedures/shell/command` stays for code that needs a part that `shell.run` does not have:
+
+- `git()` of `@procedures/git` writes text to the standard input of git, and it has no procedure context.
+- `vitest.run` and `vite.build` keep the end of a long output (`keep: "tail"`). `shell.run` keeps the start.
+- `runRestic()` of `@procedures/restic` takes a runner from a test, and it has no procedure context.
+- A long-running process, for example `vite.dev`, starts through `processes` of `@procedures/shell/command`.
+- These packages and `@procedures/tailscale` use the argument helpers of `@procedures/shell/cli`.
+
+The tailscale procedures need no part of that list. Their move to `shell.run` is open work.
+
 ## The three decisions of the brief
 
 The brief asked three questions. This contract keeps the three decisions with a new scope.

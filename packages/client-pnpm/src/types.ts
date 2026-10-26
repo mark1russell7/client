@@ -5,23 +5,14 @@
  */
 
 import { z } from "zod";
+import { cliToolJsonOutputSchema, cliToolOutputSchema, type CliToolOutput } from "@procedures/shell/cli";
 
 // =============================================================================
 // Shared Output Type
 // =============================================================================
 
-export interface PnpmCommandOutput {
-  /** Exit code of the command */
-  exitCode: number;
-  /** Standard output */
-  stdout: string;
-  /** Standard error */
-  stderr: string;
-  /** Whether command succeeded (exit code 0) */
-  success: boolean;
-  /** Duration in milliseconds */
-  duration: number;
-}
+/** The result of a pnpm command: the shared result of a CLI tool (`@procedures/shell/cli`). */
+export interface PnpmCommandOutput extends CliToolOutput {}
 
 /** The result of a pnpm command that writes JSON: `data` is its parsed standard output. */
 export interface PnpmJsonOutput extends PnpmCommandOutput {
@@ -200,13 +191,7 @@ export interface PnpmStorePathOutput {
 // result (a strict schema would remove it when the output is validated).
 
 /** The result of a pnpm command: add, install, remove, link and run give it. */
-export const PnpmCommandOutputSchema: z.ZodType<PnpmCommandOutput> = z.looseObject({
-  exitCode: z.number().describe("The exit code of pnpm (0 is success)"),
-  stdout: z.string().describe("The standard output of pnpm"),
-  stderr: z.string().describe("The standard error of pnpm"),
-  success: z.boolean().describe("True when the exit code is 0"),
-  duration: z.number().describe("The time of the command, in milliseconds"),
-});
+export const PnpmCommandOutputSchema: z.ZodType<PnpmCommandOutput> = cliToolOutputSchema("pnpm");
 
 export const PnpmStorePathOutputSchema: z.ZodType<PnpmStorePathOutput> = z.looseObject({
   path: z.string().describe("The absolute path of the pnpm store"),
@@ -215,14 +200,7 @@ export const PnpmStorePathOutputSchema: z.ZodType<PnpmStorePathOutput> = z.loose
 });
 
 /** The result of a pnpm command that writes JSON: list, why, outdated and pack give it. */
-export const PnpmJsonOutputSchema: z.ZodType<PnpmJsonOutput> = z.looseObject({
-  exitCode: z.number().describe("The exit code of pnpm (0 is success)"),
-  stdout: z.string().describe("The standard output of pnpm"),
-  stderr: z.string().describe("The standard error of pnpm"),
-  success: z.boolean().describe("True when the command succeeded"),
-  duration: z.number().describe("The time of the command, in milliseconds"),
-  data: z.unknown().optional().describe("The parsed JSON of the standard output, when it is JSON"),
-});
+export const PnpmJsonOutputSchema: z.ZodType<PnpmJsonOutput> = cliToolJsonOutputSchema("pnpm");
 
 // =============================================================================
 // pnpm.exec Types - Run a program of the dependencies (roadmap R41)

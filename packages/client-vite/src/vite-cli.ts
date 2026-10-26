@@ -9,6 +9,7 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
+import { cliArg } from "@procedures/shell/cli";
 
 export function resolveViteCli(cwd: string): string {
   const require = createRequire(join(resolve(cwd), "package.json"));
@@ -28,8 +29,5 @@ export function resolveViteCli(cwd: string): string {
 
 /** A value that vite reads as an argument (a mode, a folder, a host): it must not start with "-". */
 export function viteArg(name: string, value: string): string {
-  if (value.startsWith("-")) {
-    throw new Error(`Invalid ${name} (starts with "-"): ${value}`);
-  }
-  return value;
+  return cliArg(name, value);
 }

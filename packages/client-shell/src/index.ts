@@ -10,7 +10,9 @@
  * - shell.stream - Run command with args and stream each output line
  *
  * The command helpers (`runCommand`, `streamCommand`, `processes`) are also available without
- * the registration of the procedures, from `@procedures/shell/command`.
+ * the registration of the procedures, from `@procedures/shell/command`. The runner of the CLI
+ * wrapper packages (`defineCliTool`) is in `@procedures/shell/cli`, and the fake shell of their
+ * tests (`fakeShell`) is in `@procedures/shell/testing`.
  *
  * @example
  * ```typescript
@@ -48,6 +50,9 @@ export { shellRun, shellExec, shellWhich, shellStream } from "./procedures/shell
 
 // Command helpers
 export * from "./command/index.js";
+
+// The runner of the CLI wrapper packages (also from `@procedures/shell/cli`)
+export * from "./cli/index.js";
 
 // Registration
 export { registerShellProcedures } from "./module.js";
