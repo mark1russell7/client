@@ -5,7 +5,7 @@
  * job). On a single server, the tests of the watcher skip.
  */
 import { EventEmitter } from "node:events";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi, type TestContext } from "vitest";
 import { MongoClient, ObjectId, type Db, type Document } from "mongodb";
 import { collectionChangeTopic, createEventBus, ms, type Clock } from "@procedures/client";
 import { DEFAULT_STORED_FORM, MongoDocumentStorage, storageChangeSource, versionOfStored, type MongoDocumentStorageOptions, type StoredForm } from "./document-storage.js";
@@ -429,6 +429,31 @@ async function eventually(check: () => void | Promise<void>): Promise<void> {
   }
 }
 
+/** The longest wait for the lock of the failpoint. */
+const LOCK_WAIT_MS = 45_000;
+
+/**
+ * The failpoint `failCommand` and the server parameters are global to the server, and the test files
+ * run at the same time. This lock (a document in a shared database) lets one test of a failpoint run
+ * at a time. It ends with the test.
+ */
+async function lockFailpoints(context: TestContext): Promise<void> {
+  const locks = client!.db("client_mongo_test_locks").collection<{ _id: string }>("locks");
+  const until = Date.now() + LOCK_WAIT_MS;
+  for (;;) {
+    try {
+      await locks.insertOne({ _id: "failCommand" });
+      break;
+    } catch (error) {
+      if ((error as { code?: unknown }).code !== 11000 || Date.now() > until) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+  context.onTestFinished(async () => {
+    await locks.deleteOne({ _id: "failCommand" });
+  });
+}
+
 /** A new collection name, a storage of it, and the events that a subscriber of the bus gets. */
 function setup<T = Document>(options: Partial<MongoDocumentStorageOptions<T>> = {}) {
   const collection = `h${++next}`;
@@ -799,8 +824,9 @@ withMongo("watchStorageChanges on MongoDB (CLI-77)", { timeout: TEST_TIMEOUT_MS 
     }
   });
 
-  it("opens the stream again after an error, from the resume token: no change is lost", async (context) => {
+  it("opens the stream again after an error, from the resume token: no change is lost", { timeout: LOCK_WAIT_MS + TEST_TIMEOUT_MS }, async (context) => {
     if (!replicaSet) return context.skip?.("change streams need a replica set");
+    await lockFailpoints(context);
     const admin = client!.db("admin");
     const failpoints = await admin.command({ configureFailPoint: "failCommand", mode: "off" }).then(
       () => true,
