@@ -653,7 +653,7 @@ Read and parse a JSON file.
 
 ```typescript
 const result = await client.exec(
-  ["fs", "read.json"],
+  ["fs", "read", "json"],
   { path: "./package.json" }
 );
 
@@ -685,7 +685,7 @@ interface PackageJson {
 }
 
 const result = await client.exec(
-  ["fs", "read.json"],
+  ["fs", "read", "json"],
   { path: "./package.json" }
 );
 
@@ -698,7 +698,7 @@ console.log(pkg.name, pkg.version);
 The procedure writes a value as a JSON file, with 2 spaces of indent and a line break at the end. It writes a file next to the target first, then renames it. Thus a reader sees the old file or the whole new file.
 
 ```typescript
-await client.exec(["fs", "write.json"], { path: "./data.json", value: { a: 1 }, indent: 2 });
+await client.exec(["fs", "write", "json"], { path: "./data.json", value: { a: 1 }, indent: 2 });
 ```
 
 #### `fs.hash`
@@ -898,7 +898,7 @@ const { matches: configs } = await client.exec(
 ```typescript
 // Read package.json
 const { data: pkg } = await client.exec(
-  ["fs", "read.json"],
+  ["fs", "read", "json"],
   { path: "./package.json" }
 );
 
@@ -906,7 +906,7 @@ console.log(`Package: ${pkg.name}@${pkg.version}`);
 
 // Read tsconfig.json
 const { data: tsconfig } = await client.exec(
-  ["fs", "read.json"],
+  ["fs", "read", "json"],
   { path: "./tsconfig.json" }
 );
 
@@ -914,7 +914,7 @@ console.log("Compiler options:", tsconfig.compilerOptions);
 
 // Read and modify JSON
 const { data: config } = await client.exec(
-  ["fs", "read.json"],
+  ["fs", "read", "json"],
   { path: "./config.json" }
 );
 

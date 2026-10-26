@@ -326,7 +326,7 @@ export const defineProcedureProcedure: Procedure<
       throw new Error('procedure.define: the aggregation must be a procedure ref: { "$proc": [...], "input": {...} }');
     }
 
-    const pathKey = path.join(".");
+    const pathKey = pathToKey(path);
     const existing = registry.get(path);
     // A procedure outside the expose rule of the host is not the caller's to replace (R17)
     if (existing && ctx?.expose && !ctx.expose(path)) {

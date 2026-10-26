@@ -16,7 +16,7 @@ import { z } from "zod";
 import { service, type Lifecycle, type ServiceBuilder } from "@mark1russell7/service";
 import { httpTransport } from "@mark1russell7/service/http";
 import { fakeClock, fakeProcess, scriptedCheck, seeded } from "@mark1russell7/service/testing";
-import { CollectionTopicCollisionError, createProcedure, createRegistry, hostPolicy, ms, seconds, type CollectionStorage, type ProcedureRegistry } from "@procedures/client";
+import { collectionChangeTopic, createProcedure, createRegistry, hostPolicy, ms, seconds, type CollectionStorage, type ProcedureRegistry } from "@procedures/client";
 import { createProcedureHost, LOCAL_LISTENER_KNOBS, operationOfCall, type ProcedureHost } from "./index.js";
 
 const READ = { reads: [], writes: [] };
@@ -185,18 +185,18 @@ describe("createProcedureHost (CLI-7)", () => {
     expect(host.server.inFlight()).toBe(0);
   }, 20000);
 
-  it("refuses a collection of the option collections whose topic is the topic of a partition, in each order (CLI-57)", () => {
+  it("accepts a collection a.b of the option collections next to partitions of a, in each order: the topics differ (CLI-75)", () => {
     const partitions = { storageOf: () => emptyStorage(), resolve: () => "t1" };
     // The option collections first, and the partitions of a later
     const host = createProcedureHost({ registry: registryOf(), collections: { "a.b": emptyStorage() } });
-    expect(() => host.server.usePartitions("a", partitions)).toThrow(CollectionTopicCollisionError);
-    expect(host.server.hasPartitions("a")).toBe(false);
+    host.server.usePartitions("a", partitions);
+    expect(host.server.hasPartitions("a") && host.server.hasCollection("a.b")).toBe(true);
     // The partitions first, and a storage of a.b later
     const other = createProcedureHost({ registry: registryOf(), collections: { ab: emptyStorage() } });
     other.server.usePartitions("a", partitions);
-    expect(() => other.server.useStorage("a.b", emptyStorage())).toThrow(/Rename the collection "a\.b"/);
-    expect(other.server.hasCollection("a.b")).toBe(false);
-    expect(other.server.hasCollection("ab")).toBe(true);
+    other.server.useStorage("a.b", emptyStorage());
+    expect(other.server.hasCollection("a.b") && other.server.hasCollection("ab")).toBe(true);
+    expect(collectionChangeTopic("a.b")).not.toBe(collectionChangeTopic("a", "b"));
   });
 
   it("mounts on the listener of an app: the app owns the port, and the host gives its handler", async () => {

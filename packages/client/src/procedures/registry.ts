@@ -53,7 +53,8 @@ const RESERVED_SEGMENTS: ReadonlySet<string> = new Set(["__proto__", "constructo
  * This function checks a procedure path: at least one segment, each a non-empty string, and
  * none of `__proto__`, `constructor` or `prototype`. A reserved segment reaches
  * `Object.prototype` in a tree walk (deep dive CORE-6). A segment can contain a dot
- * (`["fs", "read.json"]`), but the registry rejects two different paths with the same key.
+ * (`["collections", "e2e.tabs", "find"]`). The key encodes the dot (roadmap CLI-75), so two
+ * different paths do not have the same key.
  *
  * @throws RegistryError when the path is not valid
  */
@@ -141,7 +142,8 @@ export class ProcedureRegistry {
     if (hintRefusal) throw new RegistryError(`${hintRefusal} (${key})`, path);
 
     const replaced = this.procedures.get(key);
-    // The key joins the segments with dots: ["a.b", "c"] and ["a", "b.c"] have one key
+    // The key encodes each segment (roadmap CLI-75), so ["a.b", "c"] and ["a", "b.c"] have different
+    // keys. The check stays as a guard: two different paths must never share one key
     if (replaced && !samePath(replaced.path, path)) {
       throw new RegistryError(
         `Procedure path ${JSON.stringify(path)} has the same key as ${JSON.stringify(replaced.path)}: ${key}`,

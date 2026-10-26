@@ -215,7 +215,7 @@ export async function libNew(input: LibNewInput, ctx: ProcedureContext): Promise
     operations.push("Setting the package fields");
     const pkgJsonPath = join(packagePath, "package.json");
     const pkgReadResult = await ctx.client.call<{ path: string }, { path: string; data: unknown }>(
-      ["fs", "read.json"],
+      ["fs", "read", "json"],
       { path: pkgJsonPath }
     );
     const pkgJson = (pkgReadResult.data ?? {}) as Record<string, unknown>;

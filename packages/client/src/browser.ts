@@ -94,6 +94,8 @@ export {
   LOCAL_MARKER,
 } from "./server/types.js";
 export { pathToMethod, methodToPath, methodName } from "./server/method.js";
+// The escape of a segment with a dot, for a method name, a key and a topic (roadmap CLI-75)
+export { encodeSegment, decodeSegment, segmentsToTopic, topicToSegments } from "./procedures/segments.js";
 export type {
   ServerRequest,
   ServerResponse,
@@ -137,7 +139,7 @@ export {
   collectionTopicPartition,
   collectionTopicTarget,
   collectionTopicRule,
-  // The refusal of a storage whose topic is the topic of a partition (roadmap CLI-57)
+  // The refusal of a storage whose topic is the topic of a partition (roadmap CLI-57). Deprecated since CLI-75
   CollectionTopicCollisionError,
   // The rules of the rows of a collection (roadmap CLI-41)
   admittedStorage,

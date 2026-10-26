@@ -100,7 +100,7 @@ export async function libGraph(input: LibGraphInput, ctx: ProcedureContext): Pro
   for (const entry of listing.entries.filter((item) => item.type === "directory").sort((a, b) => a.name.localeCompare(b.name))) {
     const path = join(dir, entry.name, "package.json");
     try {
-      const { data } = await ctx.client.call<{ path: string }, { data: unknown }>(["fs", "read.json"], { path });
+      const { data } = await ctx.client.call<{ path: string }, { data: unknown }>(["fs", "read", "json"], { path });
       const manifest = data as PackageJson;
       if (typeof manifest.name !== "string" || manifest.name.length === 0) {
         warnings.push({ path, issue: "package.json has no name" });

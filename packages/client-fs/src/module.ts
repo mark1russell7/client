@@ -221,7 +221,7 @@ const fsGlobProcedure = createProcedure()
   .build();
 
 const fsReadJsonProcedure = createProcedure()
-  .path(["fs", "read.json"])
+  .path(["fs", "read", "json"])
   .input(ReadJsonInputSchema)
   .output(ReadJsonOutputSchema)
   .meta({
@@ -237,7 +237,7 @@ const fsReadJsonProcedure = createProcedure()
 // fs.write.json, fs.hash, fs.temp and fs.watch (roadmap R44)
 
 const fsWriteJsonProcedure = createProcedure()
-  .path(["fs", "write.json"])
+  .path(["fs", "write", "json"])
   .input(FsWriteJsonInputSchema)
   .output(FsWriteJsonOutputSchema)
   .meta({

@@ -61,7 +61,7 @@ export async function cliServerConnection(
   try {
     // Dynamic import client
     const clientModule = await import("@procedures/client");
-    const { Client, HttpTransport } = clientModule;
+    const { Client, HttpTransport, pathToMethod } = clientModule;
 
     // Connect to server
     const transport = new HttpTransport({
@@ -72,8 +72,8 @@ export async function cliServerConnection(
 
     // The method of the path as ProcedureServer registers it: the last segment is the operation.
     // (Before, the first segment was the service, so a path of three segments - docker compose up -
-    // was not found on the server.)
-    method = { service: path.slice(0, -1).join("."), operation: path[path.length - 1]! };
+    // was not found on the server.) The core mapping encodes a dot in a segment (roadmap CLI-75).
+    method = pathToMethod(path);
   } catch {
     // Nothing was sent to the server yet - fall back to local execution
     return null;

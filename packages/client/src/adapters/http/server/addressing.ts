@@ -13,6 +13,7 @@
 import type { IncomingMessage } from "node:http";
 import type { Method } from "../../../client/types.js";
 import { pathToMethod } from "../../../server/method.js";
+import { topicToSegments } from "../../../procedures/segments.js";
 import { createPatternServerUrlStrategy } from "./strategies.js";
 import type { NodeUrlStrategy, UrlRequest } from "./handler.js";
 
@@ -90,9 +91,12 @@ export interface BodyPathAddressingOptions {
   readonly inputField?: string | undefined;
 }
 
-/** The segments of a path in a body: a list of texts, or one text with dots. */
+/**
+ * The segments of a path in a body: a list of raw texts, or one text with dots. Each segment of
+ * the text decodes `%2E` to a dot and `%25` to `%` (roadmap CLI-75).
+ */
 function segmentsOf(value: unknown): string[] | undefined {
-  const segments = typeof value === "string" ? value.split(".") : value;
+  const segments = typeof value === "string" ? topicToSegments(value) : value;
   if (!Array.isArray(segments) || segments.length === 0) return undefined;
   return segments.every((segment): segment is string => typeof segment === "string" && segment !== "") ? segments : undefined;
 }

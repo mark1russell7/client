@@ -1,7 +1,7 @@
 /**
- * The topics of a collection and of a partition (roadmap CLI-42). The topic of a partition encodes
+ * The topics of a collection and of a partition (roadmap CLI-42 and CLI-75). Each topic encodes
  * the name of the collection, so each name and each partition parse back to the same pair, and
- * each topic of a partition that a host had before stays the same.
+ * each topic of a name without `.` and `%` stays the same.
  */
 
 import { describe, it, expect } from "vitest";
@@ -51,9 +51,25 @@ describe("the topic of a partition (CLI-42)", () => {
     );
   });
 
-  it("keeps the topic of a collection without a partition as it is, also with a dot", () => {
-    expect(collectionChangeTopic("graph.nodes")).toBe("collections.graph.nodes");
-    expect(collectionChangeTopic("100%")).toBe("collections.100%");
+  it("encodes the dots and the % of the name in the topic without a partition too (CLI-75)", () => {
+    expect(collectionChangeTopic("graph.nodes")).toBe("collections.graph%2Enodes");
+    expect(collectionChangeTopic("e2e.tabs")).toBe("collections.e2e%2Etabs");
+    expect(collectionChangeTopic("100%")).toBe("collections.100%25");
+    expect(collectionChangeTopic("a%2Eb")).toBe("collections.a%252Eb");
+    expect(collectionTopicPartition("collections.e2e%2Etabs")).toEqual({ collection: "e2e.tabs", partition: undefined });
+    // The pattern of a host that reads the name before the first dot gets the encoded name
+    expect(/^collections\.([^.]+)/.exec(collectionChangeTopic("e2e.tabs", "t1"))?.[1]).toBe("e2e%2Etabs");
+    expect(/^collections\.([^.]+)$/.exec(collectionChangeTopic("e2e.tabs"))?.[1]).toBe("e2e%2Etabs");
+  });
+
+  it("gives back each name without a partition, also a name with a dot or a % (CLI-75)", () => {
+    fc.assert(
+      fc.property(anyPart, (collection) => {
+        expect(collectionTopicPartition(collectionChangeTopic(collection))).toEqual({ collection, partition: undefined });
+        expect(collectionTopicReads(collectionChangeTopic(collection))).toEqual([`collection:${collection}`]);
+      }),
+      { numRuns: 2000 },
+    );
   });
 
   it("encodes the dots and the % of the name in the topic of a partition", () => {
@@ -125,11 +141,12 @@ describe("the topic of a partition (CLI-42)", () => {
     expect(collectionTopicReads("collections.")).toEqual([]);
   });
 
-  it("reads the plain topic of a dotted name with the parse of the publisher, when it has the repository", () => {
+  it("reads the plain topic of a dotted name in the same way with or without the repository (CLI-75)", () => {
     const repository = repositoryWith(["graph.nodes"]);
-    expect(collectionTopicReads("collections.graph.nodes", repository)).toEqual(["collection:graph.nodes"]);
-    expect(collectionTopicReads("collections.graph.nodes", repository)).toEqual([`collection:${collectionTopicTarget("collections.graph.nodes", repository)!.collection}`]);
-    // Without the repository, the first dot ends the name
+    expect(collectionTopicReads("collections.graph%2Enodes", repository)).toEqual(["collection:graph.nodes"]);
+    expect(collectionTopicReads("collections.graph%2Enodes")).toEqual(["collection:graph.nodes"]);
+    // The raw form of before CLI-75 is the topic of the partition nodes of graph
+    expect(collectionTopicReads("collections.graph.nodes", repository)).toEqual(["collection:graph"]);
     expect(collectionTopicReads("collections.graph.nodes")).toEqual(["collection:graph"]);
   });
 
@@ -141,21 +158,25 @@ describe("the topic of a partition (CLI-42)", () => {
 
   it("gives the topic rule of a collection: the plain topic and the canonical topics of its partitions", () => {
     expect(collectionTopicRule("notes")).toEqual(["collections.notes", "collections.notes.*"]);
-    expect(collectionTopicRule("graph.nodes")).toEqual(["collections.graph.nodes", "collections.graph%2Enodes.*"]);
-    expect(collectionTopicRule("rate%")).toEqual(["collections.rate%", "collections.rate%25.*"]);
+    expect(collectionTopicRule("graph.nodes")).toEqual(["collections.graph%2Enodes", "collections.graph%2Enodes.*"]);
+    expect(collectionTopicRule("rate%")).toEqual(["collections.rate%25", "collections.rate%25.*"]);
     const known = topicMatcher(collectionTopicRule("graph.nodes"));
-    expect(known("collections.graph.nodes")).toBe(true);
+    expect(known(collectionChangeTopic("graph.nodes"))).toBe(true);
+    expect(known("collections.graph.nodes")).toBe(false);
     expect(known(collectionChangeTopic("graph.nodes", "acme/space"))).toBe(true);
     expect(known("collections.graph%2enodes.acme/space")).toBe(false);
     expect(known("collections.graph.nodes.acme/space")).toBe(false);
     expect(known("collections.graph")).toBe(false);
   });
 
-  it("lets a collection of the repository whose name is the whole topic win, with or without partitions", () => {
+  it("reads each topic with the parse alone: the repository does not change the result (CLI-75)", () => {
     const repository = repositoryWith(["graph.nodes", "notes"], ["a.b"]);
-    expect(collectionTopicTarget("collections.graph.nodes", repository)).toEqual({ collection: "graph.nodes", partition: undefined });
+    expect(collectionTopicTarget("collections.graph%2Enodes", repository)).toEqual({ collection: "graph.nodes", partition: undefined });
     expect(collectionTopicTarget("collections.graph%2Enodes.acme/space", repository)).toEqual({ collection: "graph.nodes", partition: "acme/space" });
-    expect(collectionTopicTarget("collections.a.b", repository)).toEqual({ collection: "a.b", partition: undefined });
+    expect(collectionTopicTarget("collections.a%2Eb", repository)).toEqual({ collection: "a.b", partition: undefined });
+    // Before CLI-75, the repository made these the plain topics of graph.nodes and a.b
+    expect(collectionTopicTarget("collections.graph.nodes", repository)).toEqual({ collection: "graph", partition: "nodes" });
+    expect(collectionTopicTarget("collections.a.b", repository)).toEqual({ collection: "a", partition: "b" });
     expect(collectionTopicTarget("collections.notes.a.b", repository)).toEqual({ collection: "notes", partition: "a.b" });
     expect(collectionTopicTarget("collections.notes", repository)).toEqual({ collection: "notes", partition: undefined });
     expect(collectionTopicTarget("orders.x", repository)).toBeUndefined();

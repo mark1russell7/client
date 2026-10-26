@@ -12,7 +12,7 @@ import type { AnyProcedure } from "../../../procedures/types.js";
 import { InvocationError, invokeProcedure, isAsyncIterable, type Interceptor } from "../../../procedures/invoke.js";
 import { TIMEOUT_METADATA_KEY } from "../../../client/deadline.js";
 import { narrowCapability } from "../../../procedures/capability.js";
-import type { Capability, ClearanceOrder } from "../../../procedures/types.js";
+import { pathToKey, type Capability, type ClearanceOrder } from "../../../procedures/types.js";
 import { methodToPath } from "../../../server/method.js";
 import { errorCodeOf } from "../../../protocol.js";
 import { VERSION_CONFLICTS_METADATA_KEY, versionConflictsOf } from "../../../procedures/collection/precondition.js";
@@ -141,7 +141,7 @@ export class LocalTransport implements Transport {
   /** The procedure of the registry at the path of a method, or `events.subscribe` of the publisher. */
   private procedureFor(method: Method): AnyProcedure | undefined {
     const path = methodToPath(method);
-    if (this.events && path.join(".") === "events.subscribe") return this.events.procedure;
+    if (this.events && pathToKey(path) === "events.subscribe") return this.events.procedure;
     if (!this.registry) return undefined;
     return this.registry.get(path);
   }

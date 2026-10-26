@@ -27,7 +27,7 @@ const registry: ProcedureRegistry = createRegistry(fsModule);
 
 /** This function starts a procedure of the registry, with the validation of its input and output. */
 async function call<T>(key: string, input: unknown): Promise<T> {
-  const path = key === "fs.read.json" ? ["fs", "read.json"] : key.split(".");
+  const path = key.split(".");
   return outputValue(await invokePath<T>(path, input, { registry }), path);
 }
 

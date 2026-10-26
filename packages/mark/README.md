@@ -220,6 +220,8 @@ mark --fs-root ./data sqlite tables --dbPath notes.db
 mark --fs-root ./data --server
 ```
 
+The command line reads the longest path that names a procedure. Thus `mark fs read json a.json` starts `fs.read.json`, and `mark fs read notes.txt` starts `fs.read`. To read a file with the name `json`, write `mark fs read ./json`.
+
 #### Global Options
 
 A flag before the command path is a global flag. After the path, a flag is the command's flag when the command declares it. Otherwise it is a global flag. For example, `mark docker compose down -v` gives `-v` (volumes) to the command. To show the version, write `mark -v`. `mark lib audit` lists the command flags that hide a global flag.

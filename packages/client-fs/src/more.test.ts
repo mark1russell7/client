@@ -22,7 +22,7 @@ afterEach(() => {
 });
 
 const plain: ProcedureRegistry = createRegistry(fsModule);
-const pathOf = (key: string): string[] => ["fs", key.slice("fs.".length)];
+const pathOf = (key: string): string[] => key.split(".");
 
 async function call<T>(key: string, input: unknown, registry: ProcedureRegistry = plain): Promise<T> {
   return outputValue(await invokePath<T>(pathOf(key), input, { registry }), pathOf(key));

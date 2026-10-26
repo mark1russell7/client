@@ -57,7 +57,7 @@ Each nested call of `ctx.client` goes through `invokePath()` with the same optio
 
 `Client` ([`packages/client/src/client/client.ts`](../client/src/client/client.ts)) has two ways to start a procedure:
 
-- `call(method, input)` and `stream(method, input)` send a method to a transport. A method is `{ service, operation }`. `pathToMethod()` makes it from a path: the last segment is the operation, and the other segments joined with dots are the service. `call()` gives the last item of a stream.
+- `call(method, input)` and `stream(method, input)` send a method to a transport. A method is `{ service, operation }`. `pathToMethod()` makes it from a path: the last segment is the operation, and the other segments joined with dots are the service. Each segment encodes `%` as `%25` and `.` as `%2E` before the join, so a segment with a dot stays one segment (roadmap CLI-75). `methodToPath()` gives the path again. `call()` gives the last item of a stream.
 - `exec(program)` and `execStream(program)` start a program in this process. They hydrate the input first ([PROGRAM-FORMAT.md](./PROGRAM-FORMAT.md)). A path that the local registry does not have goes to the transport.
 
 `route()` and `routeStream()` start a tree of calls in one request, with a batch strategy. The client middlewares wrap the transport: `auth`, `cache` (opt-in for each method), `circuit-breaker`, `pagination`, `rate-limit`, `retry`, `timeout` and `tracing` (`packages/client/src/client/middleware/`). They apply to `call()` and `stream()`, not to procedures in the same process.
