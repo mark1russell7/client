@@ -111,7 +111,19 @@ try {
     mkdirSync(app);
     writeFileSync(join(app, "package.json"), JSON.stringify({ name: "client-pack-smoke", private: true, type: "module" }));
     console.log("Installing the tarballs into an empty project");
-    run("npm", ["install", "--no-audit", "--no-fund", "--loglevel=error", ...tarballs], app);
+    // The registry as it was 15 minutes ago: an upstream release that is half published (a package
+    // before its dependencies) does not fail the check. On 2026-10-26, better-auth 1.7.14 came 4
+    // minutes before its telemetry 1.7.14, and an install in the gap got ETARGET. npm cannot
+    // exempt a scope from `--before`, so a dependency that only a younger version satisfies (a
+    // fresh fleet package) fails that install. Then one install without the cutoff decides.
+    const npmInstall = ["install", "--no-audit", "--no-fund", "--loglevel=error"];
+    const before = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+    try {
+      run("npm", [...npmInstall, `--before=${before}`, ...tarballs], app);
+    } catch {
+      console.log(`The install with --before=${before} failed: installing again without the cutoff`);
+      run("npm", [...npmInstall, ...tarballs], app);
+    }
 
     // Each package root imports and registers nothing. Each register entry registers. The client
     // runs a program (ARCHITECTURE-PROPOSALS-2026-10, P9).
