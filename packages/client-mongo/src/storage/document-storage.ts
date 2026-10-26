@@ -115,6 +115,7 @@ import {
 } from "@procedures/collections";
 import { optionalMs, toMs, type Duration } from "@procedures/client";
 import { ensureConnection } from "../connection.js";
+import { noteOwnNumbers } from "./own-writes.js";
 import { boundPipeline, cutResults, DEFAULT_PIPELINE_LIMITS, scopePipeline, type PipelineLimits } from "./pipeline-scope.js";
 
 /** The fields of the storage in a stored document. */
@@ -419,6 +420,63 @@ export function decodeStoredDocument<T = Document>(doc: Document, options: Decod
   return { id, partition, item: itemOf(doc, id, entries, options.addId ?? true) as T };
 }
 
+/**
+ * This function gives the version of a raw stored document of a `MongoDocumentStorage`: the
+ * version that `storage.versionOf(id)` gives for the same document (roadmap CLI-77). The storage
+ * uses it too, so the two never differ.
+ *
+ * - The version is the sequence number of the last write through the storage (`_seq`), as text.
+ * - A document without `_seq` (an old document, or one that a raw replace wrote) has the version `0`.
+ * - A tombstone, a value that is not a plain object, and a document whose id neither `idOf` nor
+ *   `_key` tells give `undefined`: they are no items, as for `decodeStoredDocument`.
+ *
+ * @param doc - The stored document, for example the `fullDocument` of a change event
+ * @param form - The stored form of the storage, for example `storage.form` (default `DEFAULT_STORED_FORM`)
+ * @param partition - The partition of the document. The default is `form.partitionOf(doc)`.
+ *
+ * @example
+ * ```typescript
+ * const version = versionOfStored(change.fullDocument, notes.form); // the same as await notes.versionOf(id)
+ * ```
+ */
+export function versionOfStored(doc: Document, form: StoredForm = DEFAULT_STORED_FORM, partition?: string): string | undefined {
+  if (!isPlainObject(doc) || doc[TOMB] === true) return undefined;
+  const place = partition ?? form.partitionOf(doc);
+  if (typeof form.idOf(doc["_id"], place) !== "string" && typeof doc[KEY] !== "string") return undefined;
+  return seqVersion(doc);
+}
+
+/** The version of the `_seq` of a stored document: the number as text, or `0` without it. */
+function seqVersion(doc: Document): string {
+  const seq = doc[SEQ];
+  return typeof seq === "number" ? String(seq) : "0";
+}
+
+/**
+ * The parts of a storage that `watchStorageChanges` reads (roadmap CLI-77). The package does not
+ * export this type: it is for the modules of the storage.
+ */
+export interface StorageChangeSource {
+  /** The database of the storage. */
+  db(): Promise<Db>;
+  /** The MongoDB collection of the items. */
+  collection: string;
+  /** The collection of the sequence counters. */
+  counters: string;
+  /** The stored form. */
+  form: StoredForm;
+  /** The partition of the storage, or undefined for the storage of the whole collection. */
+  partition: string | undefined;
+}
+
+/** The reader of the parts of a storage. The class sets it, so it can read its private fields. */
+let sourceOfStorage: <T>(storage: MongoDocumentStorage<T>) => StorageChangeSource;
+
+/** This function gives the parts of a storage that `watchStorageChanges` reads. The package does not export it. */
+export function storageChangeSource<T>(storage: MongoDocumentStorage<T>): StorageChangeSource {
+  return sourceOfStorage(storage);
+}
+
 /** True for a plain object. */
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
@@ -558,6 +616,16 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
   private readonly reserved: ReadonlySet<string>;
   private indexes: Promise<void> | undefined;
   private closed = false;
+
+  static {
+    sourceOfStorage = <S>(storage: MongoDocumentStorage<S>): StorageChangeSource => ({
+      db: () => storage.database(),
+      collection: storage.collectionName,
+      counters: storage.countersName,
+      form: storage.form,
+      partition: storage.partition,
+    });
+  }
 
   constructor(options: MongoDocumentStorageOptions<T>, partitions?: Map<string, MongoDocumentStorage<T>>) {
     if (options.partition !== undefined && (options.partition === "" || options.partition.includes(SEPARATOR))) {
@@ -818,6 +886,8 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
             { upsert: true, returnDocument: "after", session }
           )) as unknown as Counter | null;
           if (!counter) throw new Error(`The sequence of ${this.collectionName} is not available`);
+          // A watcher of the collection in this process skips the events of these numbers (roadmap CLI-77)
+          noteOwnNumbers(db, this.collectionName, counter.seq - count + 1, count);
           return write(counter.seq - count + 1, session);
         });
       } finally {
@@ -825,6 +895,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
       }
     }
     let { first } = await this.allocate(db, count);
+    noteOwnNumbers(db, this.collectionName, first, count);
     let result: R;
     try {
       result = await write(first);
@@ -836,6 +907,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
       if (moves >= MAX_MOVES) throw new Error(`A write of ${this.collectionName} stayed late after ${MAX_MOVES} moves to new numbers`);
       // Late: a reader can have passed these numbers. The write takes new ones.
       const next = (await this.allocate(db, count)).first;
+      noteOwnNumbers(db, this.collectionName, next, count);
       await this.move(collection, first, count, next);
       first = next;
     }
@@ -1013,13 +1085,16 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
 
   /**
    * The version of an item: the sequence number of its last write, or undefined for a missing id.
-   * An item without a write through the storage (no `_seq`) has the version `0`.
+   * An item without a write through the storage (no `_seq`) has the version `0`. It is
+   * `versionOfStored()` of the stored document (roadmap CLI-77).
    */
   async versionOf(id: string): Promise<string | undefined> {
     const { items } = await this.collection();
-    const doc = await items.findOne(this.liveFilter({ _id: this.storedId(id) }), { projection: { [SEQ]: 1 } });
+    const fields = [KEY, SEQ, TOMB, ...this.partitionEntries.map(([name]) => name)];
+    const doc = await items.findOne(this.liveFilter({ _id: this.storedId(id) }), { projection: Object.fromEntries(fields.map((name) => [name, 1])) });
     if (!doc) return undefined;
-    return typeof doc[SEQ] === "number" ? String(doc[SEQ]) : "0";
+    // The filter found the document by the stored `_id` of the id, so it is the item also when the projection does not tell the id
+    return versionOfStored(doc, this.form, this.partition) ?? seqVersion(doc);
   }
 
   async getChangesSince(since?: string): Promise<StorageChanges<T>> {

@@ -686,6 +686,7 @@ server.usePartitions("notes", { storageOf: (partition) => notes.forPartition(par
   - `partitionOf(doc)` gives the partition of a stored document. `ViewMaterializer` gives it the document of a change event: `fullDocument`, else `fullDocumentBeforeChange`, else `documentKey`. A delete event has only `documentKey`, so with another `storedId`, the `_id` must tell the partition, or the collection needs `changeStreamPreAndPostImages`. The storage writes a delete as a tombstone (a replace event with the whole document), so the gap is only for a raw hard delete. The default reads `_part`, else the part of `_id` before U+001F.
   - The storage adds its fields in each form: `_key`, `_seq`, `_ord`, `_tomb`, and `_kid`, `_kpf` or `_json` when an item needs them. `DOCUMENT_STORAGE_FIELDS` names them, so a reader of the raw documents can leave them out. A delete leaves a tombstone (`TOMBSTONE_FIELD` is `true`): a reader of the raw documents must leave it out. `ViewMaterializer` does.
   - `decodeStoredDocument(doc, { form })` reads a raw document as the storage reads it: `undefined` for a tombstone or a document without an id, `_json` parsed, the fields of the storage left out, and the id as `_id`. It gives `{ id, partition, item }`.
+  - `versionOfStored(doc, form)` gives the version of a raw document: the version that `storage.versionOf(id)` gives (roadmap CLI-77). It is `_seq` as text, `0` for a document without `_seq`, and `undefined` for a tombstone or a document without an id. The storage uses it too.
   - An item can have a partition field with the value of its partition (for example `scope: "board:1"` in the partition `acme/board:1`). The write leaves it out and notes it in `_kpf`, and the read gives it back. The same field with another value is refused with a `TypeError`.
   - A document without the fields of the storage (for example a document from before the app used the storage) is an item. Its id comes from `idOf`, else `_key`. Its item gets the id as `_id`. Its partition fields follow the rule of a written document without `_kpf`: a field with the value of the partition stays out, and a field with another value stays in. So the item has the same form before and after its first write. Its version is `0`, and it comes before the other items (then by `_id`). A full result of the change log has it. Its first write through the storage gives it a version, keeps its place, and is in the next delta.
   - A document without `_key` whose id `idOf` does not tell (for example an old `ObjectId`) is not an item: the reads and `size()` leave it out.
@@ -707,6 +708,24 @@ const notes = new MongoDocumentStorage<Note>({
 });
 ```
 - **The tests.** The storage passes the `CollectionStorage` contract on MongoDB 7 in CI. Set `MONGO_TEST_URL` to start them locally.
+
+### Change hints from the change stream: `watchStorageChanges`
+
+The collection procedures publish an event for each of their writes. A write that does not go through them (a raw write, a script, a view, another process) has no event. `watchStorageChanges(storage, publish, options)` watches the change stream of the collection of a storage and publishes a hint of each change (roadmap CLI-77). Change streams need a replica set.
+
+```ts
+const notes = new MongoDocumentStorage<Note>({ collection: "notes" });
+const watch = watchStorageChanges(notes, bus); // the bus of the procedures, or (topic, event) => ...
+await watch.ready; // the stream is open
+// A raw write of a note in the partition t1 reaches the subscribers of collections.notes.t1
+await watch.stop();
+```
+
+- **The same topic and the same event.** The topic is `collectionChangeTopic(name, partition)`, as the procedures publish it. The partition comes from `storage.form.partitionOf()` of `fullDocument`, else `fullDocumentBeforeChange`, else `documentKey`. The event is a `CollectionChangeEvent` without `since`: a hint, so the subscriber reads the changes with `changes`. It has the id in `changed` or `deleted`, and `versions: [{ id, version }]` with the version of `versionOfStored()`. A tombstone and a delete are deletes. The options `collection` and `topic` give the name and the topic rule of the procedures when they are not the defaults.
+- **One event for each write.** With `ownWrites: "skip"` (the default), the watcher skips the events of the writes of this process through the storage: the procedures of this process publish them already, with `since`. Each write of the storage notes its sequence numbers while a watcher of the collection is open, and the event of each number is skipped once. A raw write, or a write of another process, is published. Use `ownWrites: "publish"` when the writes of this process do not go through the procedures, or when the procedures publish no events (`changeEvents: false`).
+- **No lost change.** After an error of the stream, the watcher opens the stream again after a backoff (option `backoff`, on the injected `clock`), from the resume token of the last event. When the server does not know the token any more, or the collection was dropped, the watcher publishes a hint without ids on each topic that it published on: the subscribers read the changes.
+- **The storage of a partition** (`forPartition()`) watches only the documents of its partition. The documents of the counters are in another collection, and they never make a hint.
+- **Your own stream.** `storageChangeOf(change, form)` reads the change of an item from a change event, for an app that watches the collection itself: `{ id, partition, deleted, version, seq }`, or `undefined`.
 
 ### The guard of a pipeline: `scopePipeline`
 

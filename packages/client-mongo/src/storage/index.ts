@@ -12,8 +12,12 @@ export {
   TOMBSTONE_FIELD,
   DEFAULT_STORED_FORM,
   decodeStoredDocument,
+  versionOfStored,
 } from "./document-storage.js";
 export type { MongoDocumentStorageOptions, SelectorPrefilterOptions, StoredForm, DecodeStoredDocumentOptions, StoredDocumentEntry } from "./document-storage.js";
+// The change hints of a storage collection from its change stream (roadmap CLI-77)
+export { watchStorageChanges, storageChangeOf } from "./storage-hints.js";
+export type { StorageChange, StorageChangeHint, StorageChangesWatch, StorageHintPublisher, WatchStorageChangesOptions } from "./storage-hints.js";
 export {
   BLOCKED_PIPELINE_OPERATORS,
   ALLOWED_PIPELINE_STAGES,
