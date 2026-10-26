@@ -132,7 +132,7 @@ describe("the stored form: the defaults and their inverse (CLI-76)", () => {
     // A partition field with another value than the partition stays in the item
     expect(decodeStoredDocument({ _id: "acme:old", tenant: "acme", scope: "x", title: "t" }, { form: appForm, partition: "acme" })?.item).toEqual({ _id: "old", scope: "x", title: "t" });
     expect(decodeStoredDocument({ _id: new BSON.ObjectId(), tenant: "acme", title: "t" }, { form: appForm })).toBeUndefined();
-    expect(decodeStoredDocument({ _id: "beta:n1", _key: "n1", tenant: "beta" }, { form: appForm, partition: "acme" })).toEqual({ id: "n1", partition: "acme", item: { _id: "n1" } });
+    expect(decodeStoredDocument({ _id: "beta:n1", _key: "n1", tenant: "beta" }, { form: appForm, partition: "acme" })).toEqual({ id: "n1", partition: "acme", item: { _id: "n1", tenant: "beta" } });
   });
 
   it("with storedId, tests a condition on _id against the stored _id; the storage fields stay out", () => {
