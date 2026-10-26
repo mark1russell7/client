@@ -14,6 +14,7 @@
       "@procedures/mark",
       "@procedures/client",
       "@procedures/cli-run",
+      "@procedures/cli-kit",
       "@procedures/collections",
       "@procedures/compiler",
       "@procedures/systems",

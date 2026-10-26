@@ -4,7 +4,7 @@
 > from the workspace's package.json files and the live procedure registry.
 > Regenerate with `node packages/documentation/scripts/generate-packages.mjs` after `pnpm build`.
 
-**Packages:** 58. **Procedures:** 298. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
+**Packages:** 59. **Procedures:** 298. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
 
 Dependencies marked *(general)* are separate repositories, published on npm under `@mark1russell7`.
 
@@ -17,6 +17,7 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/bundle-dev` | `packages/bundle-dev` | One import that registers the development procedures of the client ecosystem: shell, file system, git, pnpm, workspace, DAG and procedure scaffolding. | `client.*` (15), `procedure.*` (5) | `cli-run`, `client`, `compiler`, `dag`, `fs`, `git`, `lib`, `pnpm`, `procedure`, `shell` |
 | `@procedures/bundle-mcp` | `packages/bundle-mcp` | The curated tool surface for Claude: registers the docker, mongo, sqlite, cue, vitest and workspace procedures and selects which ones an MCP server exposes. | — | `client`, `compiler`, `cue`, `dag`, `docker`, `json`, `lib`, `mongo`, `procedure`, `sqlite`, `vitest` |
 | `@procedures/claude-cli` | `packages/claude-cli` | One turn of the Claude Code CLI as a detached process that writes stream-json to a file: start, follow, normalised events and cancel. | `claude.*` (4) | `client`, `shell` |
+| `@procedures/cli-kit` | `packages/cli-kit` | A command line for any procedure registry: flags from the input schemas, help, --json, questions for missing arguments, @file input, short flags and a format hook for each procedure. | — | `client` |
 | `@procedures/client` | `packages/client` | Procedures as data for TypeScript: define typed procedures once and call them in process, over HTTP, WebSocket, the CLI or MCP. Streaming, middleware, retries, caching and a JSON program format. | — | `@mark1russell7/algebra` *(general)*, `@mark1russell7/coeval` *(general)*, `@mark1russell7/quantity` *(general)*, `@mark1russell7/service` *(general)* |
 | `@procedures/cli-run` | `packages/client-cli` | Run any mark CLI command as a procedure (cli.run) with a safe argv mapping: no shell, typed flags and captured output. | `cli.*` (1) | `client`, `shell` |
 | `@procedures/collections` | `packages/client-collections` | Collections for TypeScript: ArrayList, LinkedList, ArrayDeque, HashMap, LinkedHashMap, TreeMap (red-black), PriorityQueue, LRU and TTL maps, async queues, channels and collectors, tested with fast-check. | — | `client` |
@@ -54,7 +55,7 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/json` | `packages/json` | Pure JSON, YAML and CSV procedures: a query with JSON Pointer or a path, JSON Patch, a diff, a merge patch, a JSON Schema check, YAML to JSON and back, and CSV (RFC 4180) to rows and back. | `json.*` (5), `yaml.*` (2), `csv.*` (2) | `client`, `compiler` |
 | `@procedures/llm` | `packages/llm` | A language model as procedures: a completion with tools, a stream of the answer and a structured answer, through the Anthropic Messages API, with the key from the environment. | `llm.*` (3) | `@mark1russell7/service` *(general)*, `client`, `http`, `json` |
 | `@procedures/mail` | `packages/mail` | Email procedures: the headers, addresses and text of a raw MIME message, and the headers of recent IMAP messages, read only. | `mail.*` (2) | `client` |
-| `@procedures/mark` | `packages/mark` | mark: one CLI for every procedure package. It finds the procedures, parses flags by their Zod types, runs local or through a fast warm server, and asks for missing arguments. | — | `@mark1russell7/service` *(general)*, `cli-run`, `client`, `fs`, `lib`, `mcp-dev-tools`, `peer`, `pnpm`, `procedure`, `server`, `shell`, `vitest` |
+| `@procedures/mark` | `packages/mark` | mark: one CLI for every procedure package. It finds the procedures, parses flags by their Zod types, runs local or through a fast warm server, and asks for missing arguments. | — | `@mark1russell7/service` *(general)*, `cli-kit`, `cli-run`, `client`, `fs`, `lib`, `mcp-dev-tools`, `peer`, `pnpm`, `procedure`, `server`, `shell`, `vitest` |
 | `@procedures/mcp` | `packages/mcp` | Map typed procedures to MCP tools: JSON Schema from Zod, tool names, and input and result conversion for Model Context Protocol servers. | — | — |
 | `@procedures/notify` | `packages/notify` | Push notifications through ntfy, the public server or your own, with a title, a priority, tags and a tap address. | `notify.*` (1) | `client` |
 | `@procedures/npm` | `packages/npm` | The npm registry as typed procedures: view, dist-tags, whoami, pack (a dry run by default) and deprecate, run with argv, and a confirmation for each write to the registry. | `npm.*` (7) | `client`, `shell` |
