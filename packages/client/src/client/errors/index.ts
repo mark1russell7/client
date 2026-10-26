@@ -46,6 +46,7 @@ export {
   ERROR_REGISTRY,
   getErrorMetadata,
   isKnownError,
+  isKnownErrorCode,
   getErrorsByCategory,
   getRetryableErrors,
 } from "./registry.js";

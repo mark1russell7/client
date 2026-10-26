@@ -384,6 +384,29 @@ A call above a limit gets `RATE_LIMITED`. The call did not start, thus a retry a
 
 A circuit breaker does not count `RATE_LIMITED`, because the server is not unhealthy. The retry middleware waits at least for `retry-after` before the next try.
 
+### The error policy of a server
+
+The option `errors` of `Server`, `ProcedureServer` and the `serverOptions` of a host tells what an error tells the caller (CLI-80). `Server.handle()` applies it. Thus each face (HTTP, WebSocket, MCP, a message port) sends the same error. The policy applies to an error before a stream and to the error that ends a stream.
+
+```typescript
+new ProcedureServer({
+  errors: {
+    expose: "coded",
+    map: (error) => (isDuplicateKey(error) ? new ServerError("The item exists", "CONFLICT") : undefined),
+  },
+  onError: (error, request) => logger.error({ err: error, id: request.id }),
+});
+```
+
+- `expose: "all"` is the default. Each error goes to the caller with its code and its message, as before.
+- `expose: "coded"` sends an error with a known code as it is: its code, its message, its retryable flag and its metadata. A known code is a code of the table or another code of `ERROR_REGISTRY`, for example `CONFLICT` or `BAD_REQUEST`. `isKnownErrorCode(code)` of `@procedures/client` does this check. The class of the error has no effect.
+- Under `"coded"`, each other error goes to the caller as `INTERNAL_ERROR` with the message `internal error`. It is not retryable, and it has no metadata. Thus no part of the raw error goes out: not its message, its cause, its details or its data.
+- A code of the platform (`ECONNREFUSED`, `ENOENT`) and a number (a code of MongoDB) are not known codes. The codes `INTERNAL_ERROR`, `HANDLER_ERROR` and `UNKNOWN` tell of a failure, so `"coded"` hides their message too.
+- The server gives each hidden error to its logger `onError`, with its message and its stack. Without `onError`, the server writes it to `console.error`.
+- The server applies `map` first, to each error. `map` gets the error and the call: `{ path, transport }`. The face sets `transport`: `http`, `websocket`, `port` or `mcp`. The result of `map` goes to the caller as it is, also with a code of the application. `undefined` gives the error to `expose`. A `map` that throws gives `INTERNAL_ERROR`.
+- A nested call of `ctx.client` does not go through `handle()`, so the procedure gets the real error. `LocalTransport` and `invokeProcedure()` also get the real error.
+- The local face of a host (`localFace()`) uses `handle()`, so the policy applies to it too.
+
 ## MCP
 
 The MCP face follows the MCP specification. An error result has `isError: true`, a text block with the message and the reason, and `_meta` with `code`, `retryable` and `reason`. An error with a wait also has `retryAfterMs` in `_meta` (CLI-40).

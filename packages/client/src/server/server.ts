@@ -17,6 +17,7 @@ import type {
 } from "./types.js";
 import { HandlerNotFoundError, ServerError } from "./types.js";
 import { compose } from "../middleware/index.js";
+import { exposedResponse, policyActs, withRealError, type HiddenErrorLog, type ServerErrorPolicy } from "./error-policy.js";
 
 /**
  * Server configuration options.
@@ -43,6 +44,30 @@ export interface ServerOptions {
    * Response logger.
    */
   onResponse?: (response: ServerResponse) => void;
+
+  /**
+   * The error policy (roadmap CLI-80): what an error tells the caller when it leaves the server.
+   * `handle()` applies it, so each face (HTTP, WebSocket, MCP, a message port) sends the same
+   * error. A nested call of `ctx.client` keeps the real error.
+   *
+   * - `expose: "all"` (the default): each error goes to the caller as before.
+   * - `expose: "coded"`: an error with a known code (`isKnownErrorCode`) goes to the caller as it
+   *   is. Each other error goes as `INTERNAL_ERROR` with the message `"internal error"`. The
+   *   server gives the real error to `onError`, or to `console.error` without `onError`.
+   * - `map` runs first. Its result goes to the caller as it is. `undefined` gives the error to `expose`.
+   *
+   * @example
+   * ```typescript
+   * new ProcedureServer({
+   *   errors: {
+   *     expose: "coded",
+   *     map: (error) => (isDuplicateKey(error) ? new ServerError("The item exists", "CONFLICT") : undefined),
+   *   },
+   *   onError: (error, request) => logger.error({ err: error, id: request.id }),
+   * });
+   * ```
+   */
+  errors?: ServerErrorPolicy | undefined;
 }
 
 /**
@@ -197,6 +222,25 @@ export class Server {
   async handle<TReq, TRes>(
     request: ServerRequest<TReq>
   ): Promise<ServerResponse<TRes>> {
+    const policy = this.options.errors;
+    if (!policyActs(policy)) return this.handleRaw(request);
+    let logged = false;
+    const response = await this.handleRaw<TReq, TRes>(request, () => (logged = true));
+    return exposedResponse(policy, request, response, this.hiddenErrorLog, logged);
+  }
+
+  /** The logger of the errors that the error policy hides: `onError`, or `console.error`. */
+  private readonly hiddenErrorLog: HiddenErrorLog = (error, request) => {
+    const real = error instanceof Error ? error : new Error(String(error));
+    if (this.options.onError) this.options.onError(real, request);
+    else console.error(`[Server] hidden error of ${request.id}:`, real);
+  };
+
+  /** The response of a request, before the error policy. `onLogged` runs when `onError` gets the error. */
+  private async handleRaw<TReq, TRes>(
+    request: ServerRequest<TReq>,
+    onLogged?: () => void
+  ): Promise<ServerResponse<TRes>> {
     // Log request
     if (this.options.onRequest) {
       this.options.onRequest(request);
@@ -235,6 +279,7 @@ export class Server {
       // Log error
       if (this.options.onError) {
         this.options.onError(error as Error, request);
+        onLogged?.();
       }
 
       // Convert error to response
@@ -321,6 +366,11 @@ export class Server {
    * Convert error to response.
    */
   private errorToResponse<TRes>(id: string, error: Error): ServerResponse<TRes> {
+    return withRealError(this.errorToStatus<TRes>(id, error), error);
+  }
+
+  /** The response of an error, without its record for the error policy. */
+  private errorToStatus<TRes>(id: string, error: Error): ServerResponse<TRes> {
     if (error instanceof HandlerNotFoundError) {
       return {
         id,

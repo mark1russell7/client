@@ -644,6 +644,19 @@ export function isKnownError(code: string): boolean {
 }
 
 /**
+ * True when a value is a known error code of the client: a code of the wire protocol
+ * (`ERROR_CODES`) or another code of `ERROR_REGISTRY`, for example `CONFLICT` or `BAD_REQUEST`
+ * (roadmap CLI-80). Only a string can be a known code. A code of the platform (`ECONNREFUSED`,
+ * `ENOENT`) and a number (a code of MongoDB) are not known codes.
+ *
+ * The error policy `expose: "coded"` of a server uses this check: an error with a known code is a
+ * deliberate refusal, so its code and its message go to the caller.
+ */
+export function isKnownErrorCode(code: unknown): code is string {
+  return typeof code === "string" && Object.prototype.hasOwnProperty.call(ERROR_REGISTRY, code);
+}
+
+/**
  * Get all error codes by category.
  */
 export function getErrorsByCategory(category: ErrorCategory): ErrorMetadata[] {

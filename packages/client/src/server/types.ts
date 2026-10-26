@@ -48,6 +48,12 @@ export interface ServerRequest<TReq = unknown> {
   signal?: AbortSignal;
 
   /**
+   * The face that took the request: `"http"`, `"websocket"`, `"port"` or `"mcp"` (roadmap CLI-80). The face
+   * sets it, not the caller. The `map` function of the error policy (`errors`) gets it.
+   */
+  transport?: string | undefined;
+
+  /**
    * The credentials of the request (roadmap R18). A network face reads them from the request: the
    * bearer token of an `Authorization` header or of the `token` query of a WebSocket connection,
    * the cookies, the headers and the query. A local face sets `LOCAL_CREDENTIALS` (CLI-1). They are

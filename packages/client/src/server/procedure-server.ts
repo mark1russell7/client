@@ -6,6 +6,7 @@
  */
 
 import { Server, type ServerOptions } from "./server.js";
+import { withRealError } from "./error-policy.js";
 import type { Admission, AmbientCredentials, Credentials, Method, Principal, PrincipalOf, RequestIdentity, ServerHandler, ServerRequest, ServerResponse } from "./types.js";
 import { methodToPath, pathToMethod } from "./method.js";
 import { isLocalCredentials } from "./request-auth.js";
@@ -402,7 +403,8 @@ export function errorResponse(id: string, error: unknown): ServerResponse<unknow
   const conflicts = versionConflictsOf(error);
   if (conflicts !== undefined) metadata[VERSION_CONFLICTS_METADATA_KEY] = conflicts;
   const code = errorCodeOf(error);
-  return {
+  // The error policy of the server (CLI-80) reads the real error of the response
+  return withRealError({
     id,
     status: {
       type: "error",
@@ -414,7 +416,7 @@ export function errorResponse(id: string, error: unknown): ServerResponse<unknow
       retryable: retryableOf(error, 0),
     },
     metadata,
-  };
+  }, error);
 }
 
 // =============================================================================

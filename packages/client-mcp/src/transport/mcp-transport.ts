@@ -445,6 +445,8 @@ export class McpServerTransport implements ServerTransport {
       },
       // A cancelled tool call (notifications/cancelled) aborts the procedure
       signal: extra.signal,
+      // The face of the request, for the error policy of the server (CLI-80)
+      transport: "mcp",
       // The credentials of a call over the network: the request hook (principalOf) and the
       // token check of the server apply to it (CLI-10). The local marker of a local face (CLI-1).
       credentials,
