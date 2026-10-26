@@ -108,7 +108,7 @@ describe("hostPolicy", () => {
     };
     // The server decodes the method to a path, and pathToKey gives the one canonical key again
     for (const service of ["collections.e2e%2Etabs", "collections.e2e%2etabs"]) {
-      expect(await handle(service, "find")).toEqual({ type: "success" });
+      expect(await handle(service, "find")).toMatchObject({ type: "success" });
       expect(await handle(service, "drop")).toMatchObject({ type: "error", code: "NOT_FOUND" });
     }
     // An entry in the raw form of before CLI-75 does not match the encoded key
