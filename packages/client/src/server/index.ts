@@ -43,7 +43,8 @@ export type { ServerOptions } from "./server.js";
 export type { ServerErrorPolicy, ExposedError, ErrorCall } from "./error-policy.js";
 export { exposeError, lastResortError, HIDDEN_ERROR_MESSAGE, DEFAULT_KEPT_METADATA } from "./error-policy.js";
 
-export { ProcedureServer, createProcedureServer, STREAM_METADATA_KEY, isUnboundedStream } from "./procedure-server.js";
+export { ProcedureServer, createProcedureServer } from "./procedure-server.js";
+export { STREAM_METADATA_KEY, isUnboundedStream } from "./stream-metadata.js";
 export type { ProcedureServerOptions, RegisterProcedureOptions, StorageConfig, StopOptions, StopParts, StorageHandle, UseStorageOptions } from "./procedure-server.js";
 export { pathToMethod, methodToPath, methodName } from "./method.js";
 // The escape of a segment with a dot, for a method name, a key and a topic (roadmap CLI-75)

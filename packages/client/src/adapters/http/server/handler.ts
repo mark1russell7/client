@@ -23,7 +23,7 @@ import { lastResortError } from "../../../server/last-resort.js";
 import { decodeMetadataHeader, METADATA_HEADER_LIMIT } from "../shared/index.js";
 import { ERROR_REGISTRY } from "../../../client/errors/index.js";
 import { assertNamedOrigins, checkBrowserRequest, needsNamedOrigin, type BrowserGuardOptions } from "../../../server/browser-guard.js";
-import { isUnboundedStream } from "../../../server/procedure-server.js";
+import { isUnboundedStream } from "../../../server/stream-metadata.js";
 import { headerNames, isSecretHeader, queryRecord, requestCredentials, urlParts, withoutSecretHeaders } from "../../../server/request-auth.js";
 import { PROTOCOL_HEADER, PROTOCOL_VERSION, httpStatusOf, protocolVersionOf } from "../../../protocol.js";
 import { realClock, type Cancel, type Clock } from "../../../clock.js";

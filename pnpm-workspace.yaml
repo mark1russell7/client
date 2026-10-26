@@ -13,3 +13,10 @@ minimumReleaseAgeExclude:
 
 patchedDependencies:
   '@stryker-mutator/vitest-runner@10.0.0': patches/@stryker-mutator__vitest-runner@10.0.0.patch
+
+# dependency-cruiser (the check of the import boundaries, CLI-83) parses TypeScript with the compiler
+# API. TypeScript 7 has no JavaScript API, so dependency-cruiser gets its own TypeScript 6.
+packageExtensions:
+  dependency-cruiser:
+    dependencies:
+      typescript: 6.0.3

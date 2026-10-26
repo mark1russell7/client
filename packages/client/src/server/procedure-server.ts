@@ -12,6 +12,7 @@ export { errorResponse };
 import type { Admission, AmbientCredentials, Credentials, Method, Principal, PrincipalOf, RequestIdentity, ServerHandler, ServerRequest, ServerResponse } from "./types.js";
 import { methodToPath, pathToMethod } from "./method.js";
 import { isLocalCredentials } from "./request-auth.js";
+import { STREAM_METADATA_KEY } from "./stream-metadata.js";
 import type {
   AnyProcedure,
   ProcedurePath,
@@ -228,17 +229,6 @@ export interface RegisterProcedureOptions {
    * @default false
    */
   alwaysOn?: boolean | undefined;
-}
-
-/**
- * The metadata key of a stream response whose procedure declares `stream: { unbounded: true }`.
- * Its value is "unbounded".
- */
-export const STREAM_METADATA_KEY = "stream";
-
-/** True when a stream response can run without an end (roadmap R15). */
-export function isUnboundedStream(response: { metadata?: Record<string, unknown> | undefined }): boolean {
-  return response.metadata?.[STREAM_METADATA_KEY] === "unbounded";
 }
 
 /**

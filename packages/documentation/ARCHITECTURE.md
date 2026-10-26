@@ -175,7 +175,11 @@ The CI names below are the jobs and the steps of `.github/workflows/ci.yml`.
 
 - **Rule.** A browser entry imports no Node built-in. A transport does not import the server. An adapter package imports only the public entries of the client, and not the `src/` folder of another package. No package of this repository imports an app.
 - **Reason.** A browser page then bundles each browser entry. Each layer can then change without a change of the layers above it.
-- **Guard.** For the browser entries: the step "Check the browser entries" (`scripts/check-browser-entries.mjs`, CLI-39). For the other rules: planned, dependency-cruiser (CLI-83).
+- **Guard.** For the browser entries: the step "Check the browser entries" (`scripts/check-browser-entries.mjs`, CLI-39). For the other rules: the step "Check the import boundaries" (`pnpm check:boundaries`, CLI-83). The step starts dependency-cruiser on the `src/` folder of each package, without the tests. The rules are in `scripts/lib/boundaries.cjs`, and `scripts/check-boundaries.test.mjs` tests them. The rules are these:
+  - `transport-imports-server` and `transport-reaches-server`: a transport (`client/src/adapters/` and `client-mcp/src/transport/`) does not import the server, directly or through other modules. The server is `ProcedureServer`, `Server`, the host parts of `client/src/server/`, the `./server` entry of the client, the MCP host and the packages `@procedures/server` and `@procedures/peer`. A transport can import the shared helpers of `client/src/server/`, for example `method.ts` and `types.ts`.
+  - `relative-import-into-another-package` and `import-of-another-package-src`: a relative import stays in its package. No import goes into the `src/` folder of another package.
+  - `not-a-declared-export`: an import of a package of this repository resolves through its exports map. The check reads `dist/`, so start it after `pnpm build`.
+  - `import-of-an-app`: no package imports an app. An app is a private package (`"private": true`), for example `site`.
 
 ### I10. Bundle size
 
