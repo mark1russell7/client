@@ -7,21 +7,13 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { z } from "zod";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { devNull, tmpdir } from "node:os";
 import { join } from "node:path";
-import { createProcedure, createRegistry, defineModule, invokePath, outputValue, type ProcedureRegistry } from "@procedures/client";
+import { createRegistry, invokePath, outputValue, type ProcedureRegistry } from "@procedures/client";
 import { confineToRoot, rootDecisionOf } from "@procedures/fs/module";
+import { fakeShell } from "@procedures/shell/testing";
 import { ghModule } from "./module.js";
-
-interface ShellCall {
-  command: string;
-  args: string[];
-  cwd?: string | undefined;
-  timeout?: number | undefined;
-  env?: Record<string, string> | undefined;
-}
 
 let base: string;
 let root: string;
@@ -38,23 +30,11 @@ afterEach(() => {
 
 /** A registry with a fake shell.run that has the rules of the real one, with or without a root. */
 function fake(withRoot: boolean) {
-  const calls: ShellCall[] = [];
-  const shell = defineModule("@procedures/shell", [
-    createProcedure()
-      .path(["shell", "run"])
-      .input(z.object({ command: z.string(), args: z.array(z.string()), cwd: z.string().optional(), timeout: z.number().optional(), env: z.record(z.string(), z.string()).optional() }))
-      .output(z.unknown())
-      .meta({ effects: { reads: ["process"], writes: ["process"] }, fsRoot: { cwd: "cwd", program: true } })
-      .handler(async (input: ShellCall) => {
-        calls.push(input);
-        return { exitCode: 0, stdout: "[]", stderr: "" };
-      })
-      .build(),
-  ]);
-  const registry: ProcedureRegistry = createRegistry(shell, ghModule);
+  const shell = fakeShell({ stdout: "[]" });
+  const registry: ProcedureRegistry = createRegistry(shell.module, ghModule);
   if (withRoot) confineToRoot(registry, root);
   const call = async <T>(key: string, input: unknown): Promise<T> => outputValue(await invokePath<T>(key.split("."), input, { registry }));
-  return { calls, call };
+  return { calls: shell.calls, call };
 }
 
 describe("the gh procedures under the root of a host", () => {

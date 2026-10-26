@@ -9,28 +9,21 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createRegistry, defineModule, invokePath, outputValue, type AnyProcedure, type ProcedureRegistry } from "@procedures/client";
+import { createRegistry, invokePath, outputValue, type ProcedureRegistry } from "@procedures/client";
 import { confineToRoot, rootDecisionOf } from "@procedures/fs/module";
-import { shellModule } from "@procedures/shell/module";
+import { fakeShell, type FakeShell } from "@procedures/shell/testing";
 import { pnpmModule } from "./module.js";
 import type { PnpmJsonOutput } from "./types.js";
 
-let runs: unknown[];
 let base: string;
 let root: string;
 const savedExecPath = process.env["npm_execpath"];
 
-/** The shell procedures, with a shell.run that records its input and writes JSON. */
-function fakeShell(): AnyProcedure[] {
-  return shellModule.procedures.map((procedure): AnyProcedure =>
-    procedure.path.join(".") === "shell.run"
-      ? { ...procedure, handler: (input: unknown) => (runs.push(input), { exitCode: 0, stdout: "[]", stderr: "", success: true, duration: 1 }) }
-      : procedure,
-  );
-}
+/** The fake shell of each test: its shell.run records its input and writes JSON. */
+let shell: FakeShell;
 
 function registryOf(withRoot: boolean): ProcedureRegistry {
-  const registry = createRegistry(defineModule("@procedures/shell", fakeShell()), pnpmModule);
+  const registry = createRegistry(shell.module, pnpmModule);
   if (withRoot) confineToRoot(registry, root);
   return registry;
 }
@@ -40,7 +33,7 @@ async function call<T>(registry: ProcedureRegistry, key: string, input: unknown)
 }
 
 beforeEach(() => {
-  runs = [];
+  shell = fakeShell({ stdout: "[]" });
   base = mkdtempSync(join(tmpdir(), "pnpm-host-root-"));
   root = join(base, "root");
   mkdirSync(join(root, "app"), { recursive: true });
@@ -71,12 +64,12 @@ describe("the pnpm procedures under the root of a host", () => {
     ] as const) {
       await expect(call(registry, key, input), key).rejects.toMatchObject({ code: "FORBIDDEN", reason: "outside-root" });
     }
-    expect(runs).toEqual([]);
+    expect(shell.calls).toEqual([]);
   });
 
   it("run without a root", async () => {
     const result = await call<PnpmJsonOutput>(registryOf(false), "pnpm.list", { cwd: join(root, "app") });
     expect(result).toMatchObject({ success: true, data: [] });
-    expect(runs).toEqual([expect.objectContaining({ cwd: join(root, "app") })]);
+    expect(shell.calls).toEqual([expect.objectContaining({ cwd: join(root, "app") })]);
   });
 });

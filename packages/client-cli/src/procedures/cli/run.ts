@@ -10,6 +10,7 @@ import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ProcedureContext } from "@procedures/client";
+import { defineCliTool, nodeScript } from "@procedures/shell/cli";
 import type { CliRunInput, CliRunOutput } from "../../types.js";
 
 /**
@@ -56,49 +57,8 @@ export function buildMarkArgs(input: Pick<CliRunInput, "path" | "positional" | "
   return args;
 }
 
-/**
- * Execute via shell (spawn node process)
- */
-async function shellExecution(
-  input: CliRunInput,
-  ctx: ProcedureContext,
-  startTime: number
-): Promise<CliRunOutput> {
-  const args = buildMarkArgs(input);
-
-  // Build shell input
-  const shellInput: {
-    command: string;
-    args: string[];
-    cwd?: string | undefined;
-    timeout?: number | undefined;
-  } = {
-    command: process.execPath,
-    args: [resolveMarkCli(), ...args],
-  };
-
-  if (input.cwd !== undefined) shellInput.cwd = input.cwd;
-  if (input.timeout !== undefined) shellInput.timeout = input.timeout;
-
-  // Call shell.run
-  const result = await ctx.client.call<
-    typeof shellInput,
-    {
-      exitCode: number;
-      stdout: string;
-      stderr: string;
-      signal?: string | undefined;
-    }
-  >(["shell", "run"], shellInput);
-
-  return {
-    exitCode: result.exitCode,
-    stdout: result.stdout,
-    stderr: result.stderr,
-    success: result.exitCode === 0,
-    duration: Date.now() - startTime,
-  };
-}
+/** The runner of mark: the mark CLI of the workspace, run with Node through `shell.run`. */
+const mark = defineCliTool({ name: "mark", resolve: () => nodeScript(resolveMarkCli()) });
 
 /**
  * Run a mark CLI command
@@ -123,20 +83,9 @@ export async function cliRun(
   input: CliRunInput,
   ctx: ProcedureContext
 ): Promise<CliRunOutput> {
-  const startTime = Date.now();
-
-  try {
-    // Always through the mark CLI. Before, a second path sent the input straight to a running
-    // CLI server, without mark's argument mapping, so the two paths gave different results
-    // (a "dry run" wrote files), and it had its own copy of the lockfile logic (deep dive CLI-12).
-    return await shellExecution(input, ctx, startTime);
-  } catch (error) {
-    return {
-      exitCode: 1,
-      stdout: "",
-      stderr: error instanceof Error ? error.message : String(error),
-      success: false,
-      duration: Date.now() - startTime,
-    };
-  }
+  // Always through the mark CLI. Before, a second path sent the input straight to a running
+  // CLI server, without mark's argument mapping, so the two paths gave different results
+  // (a "dry run" wrote files), and it had its own copy of the lockfile logic (deep dive CLI-12).
+  // The runner does not throw: an error gives exit code 1 and its message.
+  return mark.run(buildMarkArgs(input), { cwd: input.cwd, timeout: input.timeout }, ctx);
 }

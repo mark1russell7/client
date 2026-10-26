@@ -41,6 +41,14 @@
     "./command": {
       "types": "./dist/command/index.d.ts",
       "import": "./dist/command/index.js"
+    },
+    "./cli": {
+      "types": "./dist/cli/index.d.ts",
+      "import": "./dist/cli/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js"
     }
   },
   "files": [

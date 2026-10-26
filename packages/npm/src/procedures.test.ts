@@ -9,6 +9,7 @@ import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRegistry, invokePath, outputValue, type Effects, type ProcedureContext, type ProcedurePath } from "@procedures/client";
+import { fakeShell as sharedFakeShell } from "@procedures/shell/testing";
 import { npmModule, registerNpmProcedures } from "./module.js";
 import { npmDeprecate } from "./procedures/npm/deprecate.js";
 import { npmDistTagsAdd } from "./procedures/npm/distTags/add.js";
@@ -32,17 +33,16 @@ function fakeShell(result: { exitCode: number; stdout?: string; stderr?: string 
   const script = join(mkdtempSync(join(tmpdir(), "npm-")), "npm-cli.js");
   writeFileSync(script, "");
   process.env["npm_execpath"] = script;
-  const call = vi.fn().mockResolvedValue({ stdout: "", stderr: "", ...result });
-  const client = { call } as unknown as ProcedureClient;
+  const shell = sharedFakeShell(result);
+  const client: ProcedureClient = shell.client;
   /** The arguments of npm in the first shell.run call (without the script of npm). */
   const args = (): string[] => {
-    expect(call.mock.calls[0]?.[0]).toEqual(["shell", "run"]);
-    const input = call.mock.calls[0]?.[1] as { command: string; args: string[]; cwd?: string; timeout?: number };
-    expect(input.command).toBe(process.execPath);
-    expect(input.args[0]).toBe(script);
-    return input.args.slice(1);
+    const input = shell.calls[0];
+    expect(input?.command).toBe(process.execPath);
+    expect(input?.args[0]).toBe(script);
+    return shell.args().slice(1);
   };
-  return { call, client, args };
+  return { calls: shell.calls, client, args };
 }
 
 /** This function calls an npm procedure through the registry, with the fake shell as ctx.client. */
@@ -56,7 +56,7 @@ describe("npm.view", () => {
     const shell = fakeShell({ exitCode: 0, stdout: '{"version":"4.6.5","dist-tags":{"latest":"4.6.5"}}\n' });
     const result = await npm("view", { package: "zod", fields: ["version", "dist-tags"], registry: "https://registry.example.com/", cwd: "/w", timeout: 5000 }, shell.client);
     expect(shell.args()).toEqual(["view", "--json", "--registry=https://registry.example.com/", "--", "zod", "version", "dist-tags"]);
-    expect(shell.call.mock.calls[0]?.[1]).toMatchObject({ cwd: "/w", timeout: 5000 });
+    expect(shell.calls[0]).toMatchObject({ cwd: "/w", timeout: 5000 });
     expect(result).toMatchObject({ success: true, data: { version: "4.6.5", "dist-tags": { latest: "4.6.5" } } });
   });
 
@@ -85,7 +85,7 @@ describe("npm.distTags.*", () => {
     // A direct call of the functions gets the same check
     await expect(npmDistTagsAdd({ package: "x", version: "1.0.0", tag: "latest" } as never, { client: shell.client } as never)).rejects.toThrow(/confirm: true/);
     await expect(npmDistTagsRemove({ package: "x", tag: "next" } as never, { client: shell.client } as never)).rejects.toThrow(/confirm: true/);
-    expect(shell.call).not.toHaveBeenCalled();
+    expect(shell.calls).toEqual([]);
   });
 
   it("add sets the tag, with the one-time password", async () => {
@@ -136,7 +136,7 @@ describe("npm.deprecate", () => {
     const shell = fakeShell();
     await expect(npm("deprecate", { package: "x@<2", message: "Use 2.x" }, shell.client)).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
     await expect(npmDeprecate({ package: "x@<2", message: "Use 2.x" } as never, { client: shell.client } as never)).rejects.toThrow(/confirm: true/);
-    expect(shell.call).not.toHaveBeenCalled();
+    expect(shell.calls).toEqual([]);
   });
 
   it("passes the message after --, so a message that starts with - stays the message", async () => {

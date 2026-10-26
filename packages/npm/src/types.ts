@@ -5,42 +5,28 @@
  */
 
 import { z } from "zod";
+import { cliToolJsonOutputSchema, cliToolOutputFields, cliToolOutputSchema, type CliToolOutput } from "@procedures/shell/cli";
 
 // =============================================================================
 // The result of an npm command
 // =============================================================================
 
-/** The result of an npm command. A failed command does not throw: `success` is false. */
-export interface NpmCommandOutput {
-  /** The exit code of npm (0 is success) */
-  exitCode: number;
-  stdout: string;
-  stderr: string;
-  /** True when the exit code is 0 */
-  success: boolean;
-  /** The time of the command, in milliseconds */
-  duration: number;
-}
+/**
+ * The result of an npm command: the shared result of a CLI tool (`@procedures/shell/cli`). A
+ * failed command does not throw: `success` is false.
+ */
+export interface NpmCommandOutput extends CliToolOutput {}
 
 /** The result of an npm command that writes JSON: `data` is its parsed standard output. */
 export interface NpmJsonOutput extends NpmCommandOutput {
   data?: unknown;
 }
 
-const commandFields = {
-  exitCode: z.number().describe("The exit code of npm (0 is success)"),
-  stdout: z.string().describe("The standard output of npm"),
-  stderr: z.string().describe("The standard error of npm, or the error message when npm did not start"),
-  success: z.boolean().describe("True when the exit code is 0"),
-  duration: z.number().describe("The time of the command, in milliseconds"),
-};
+const commandFields = cliToolOutputFields("npm");
 
-export const NpmCommandOutputSchema: z.ZodType<NpmCommandOutput> = z.looseObject(commandFields);
+export const NpmCommandOutputSchema: z.ZodType<NpmCommandOutput> = cliToolOutputSchema("npm");
 
-export const NpmJsonOutputSchema: z.ZodType<NpmJsonOutput> = z.looseObject({
-  ...commandFields,
-  data: z.unknown().optional().describe("The parsed JSON of the standard output, when it is JSON"),
-});
+export const NpmJsonOutputSchema: z.ZodType<NpmJsonOutput> = cliToolJsonOutputSchema("npm");
 
 // The fields that several inputs share
 const PACKAGE = z.string().describe("The package, for example zod, @scope/name or zod@4");

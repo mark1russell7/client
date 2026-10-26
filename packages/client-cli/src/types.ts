@@ -5,6 +5,7 @@
  */
 
 import { z } from "zod";
+import { cliToolOutputSchema, type CliToolOutput } from "@procedures/shell/cli";
 
 // =============================================================================
 // cli.run Types
@@ -31,24 +32,8 @@ export const CliRunInputSchema: z.ZodObject<{
 
 export type CliRunInput = z.infer<typeof CliRunInputSchema>;
 
-export interface CliRunOutput {
-  /** Exit code of the command */
-  exitCode: number;
-  /** Standard output */
-  stdout: string;
-  /** Standard error */
-  stderr: string;
-  /** Whether command succeeded (exit code 0) */
-  success: boolean;
-  /** Duration in milliseconds */
-  duration: number;
-}
+/** The result of cli.run: the shared result of a CLI tool (`@procedures/shell/cli`). */
+export interface CliRunOutput extends CliToolOutput {}
 
 /** The output schema of cli.run (roadmap 2.1). Loose: a field that it does not name stays. */
-export const CliRunOutputSchema: z.ZodType<CliRunOutput> = z.looseObject({
-  exitCode: z.number().describe("The exit code of mark"),
-  stdout: z.string().describe("The standard output of mark"),
-  stderr: z.string().describe("The standard error of mark"),
-  success: z.boolean().describe("True when the exit code is 0"),
-  duration: z.number().describe("The time of the command, in milliseconds"),
-});
+export const CliRunOutputSchema: z.ZodType<CliRunOutput> = cliToolOutputSchema("mark");

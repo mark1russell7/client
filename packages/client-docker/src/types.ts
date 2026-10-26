@@ -5,23 +5,14 @@
  */
 
 import { z } from "zod";
+import { cliToolOutputFields, cliToolOutputSchema, type CliToolOutput } from "@procedures/shell/cli";
 
 // =============================================================================
 // Shared Output Type
 // =============================================================================
 
-export interface DockerCommandOutput {
-  /** Exit code of the command */
-  exitCode: number;
-  /** Standard output */
-  stdout: string;
-  /** Standard error */
-  stderr: string;
-  /** Whether command succeeded (exit code 0) */
-  success: boolean;
-  /** Duration in milliseconds */
-  duration: number;
-}
+/** The result of a docker command: the shared result of a CLI tool (`@procedures/shell/cli`). */
+export interface DockerCommandOutput extends CliToolOutput {}
 
 /** One item of a followed log: a line of the container, or the end of `docker logs` (the last item). */
 export type DockerLogItem =
@@ -39,13 +30,7 @@ export type DockerLogItem =
 // result (a strict schema would remove it when the output is validated).
 
 /** The result of a docker command: every docker.* procedure gives it. */
-export const DockerCommandOutputSchema: z.ZodType<DockerCommandOutput> = z.looseObject({
-  exitCode: z.number().describe("The exit code of docker (0 is success)"),
-  stdout: z.string().describe("The standard output of docker"),
-  stderr: z.string().describe("The standard error of docker, or the error message when docker did not start"),
-  success: z.boolean().describe("True when the exit code is 0"),
-  duration: z.number().describe("The time of the command, in milliseconds"),
-});
+export const DockerCommandOutputSchema: z.ZodType<DockerCommandOutput> = cliToolOutputSchema("docker");
 
 /** docker.logs: one result, or with follow a stream of lines and one last exit item. */
 export const DockerLogsOutputSchema: z.ZodType<DockerCommandOutput | DockerLogItem> = z.union([
@@ -697,10 +682,6 @@ export const DockerPushOutputSchema: z.ZodType<DockerPushOutput> = DockerCommand
 export const DockerPruneOutputSchema: z.ZodType<DockerPruneOutput> = DockerCommandOutputSchema;
 
 export const DockerInspectOutputSchema: z.ZodType<DockerInspectOutput> = z.looseObject({
-  exitCode: z.number().describe("The exit code of docker (0 is success)"),
-  stdout: z.string().describe("The standard output of docker"),
-  stderr: z.string().describe("The standard error of docker, or the error message when docker did not start"),
-  success: z.boolean().describe("True when the exit code is 0"),
-  duration: z.number().describe("The time of the command, in milliseconds"),
+  ...cliToolOutputFields("docker"),
   data: z.unknown().optional().describe("The parsed JSON of docker: one object for each target"),
 });
