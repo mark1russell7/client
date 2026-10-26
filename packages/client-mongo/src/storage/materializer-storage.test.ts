@@ -6,9 +6,9 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it, type TestContext } from "vitest";
-import { MongoClient, type Db, type Document } from "mongodb";
+import { MongoClient, type Db, type Document, type ObjectId } from "mongodb";
 import { collectionChangeTopic, ms, type CollectionChangeEvent } from "@procedures/client";
-import { ViewMaterializer, type MaterializedView, type ViewMaterializerOptions } from "./materializer.js";
+import { ViewMaterializer, viewFilter, type MaterializedView, type ViewMaterializerOptions } from "./materializer.js";
 import { DEFAULT_STORED_FORM, MongoDocumentStorage, type StoredForm } from "./document-storage.js";
 import { watchStorageChanges } from "./storage-hints.js";
 
@@ -393,31 +393,45 @@ withMongo("ViewMaterializer with a target in a stored form", { timeout: TEST_TIM
       await main.collection("_aggregations").insertOne(sumsView() as never);
       await views.start();
       await eventually(async () => expect(await reader.get("a")).toEqual({ _id: "a", total: 1 }));
-      const placeOfA = (await db.collection("sums").findOne({ _id: "t1\u001fa" as never }))!["_ord"] as number;
+      const placeOfA = (await db.collection("sums").findOne({ _id: "t1a" as never }))!["_ord"] as number;
       const before = (await reader.getChangesSince()).version;
-      // The write of the next run waits 1 s in its transaction, with its numbers pending
+      // The write of the next run waits in its transaction, with its numbers pending. The block is long
+      // (5 s) against the lease (300 ms), so a slow runner does not change the order of the steps
       await admin.command({
         configureFailPoint: "failCommand",
         mode: { times: 1 },
-        data: { failCommands: ["update"], appName: "views-storage-late", blockConnection: true, blockTimeMS: 1000 },
+        data: { failCommands: ["update"], appName: "views-storage-late", blockConnection: true, blockTimeMS: 5000 },
       });
       await main.collection("items").bulkWrite([
         { updateOne: { filter: { _id: "1" as never }, update: { $set: { n: 2 } } } },
         { insertOne: { document: { _id: "2" as never, _part: "t1", kind: "c", n: 3 } } },
       ]);
-      // After the lease, the watermark passes the pending numbers of the blocked run
-      await sleep(700);
-      const during = await reader.getChangesSince(before);
+      // The run took its numbers: they are pending in the counter of the collection
+      const counters = main.collection<{ _id: string; pending?: Array<{ from: number; to: number }> }>("__storage_counters");
+      let pending: { from: number; to: number } | undefined;
+      await eventually(async () => {
+        pending = (await counters.findOne({ _id: "sums" }))?.pending?.[0];
+        expect(pending).toBeDefined();
+      });
+      // After the lease, the watermark of the reader passes the pending numbers of the blocked run
+      let during = await reader.getChangesSince(before);
+      await eventually(async () => {
+        during = await reader.getChangesSince(before);
+        expect(numberOf(during.version)).toBeGreaterThanOrEqual(pending!.to);
+      });
+      // The run did not commit at that read: its numbers are still pending, and the reader has none of its rows
+      expect((await counters.findOne({ _id: "sums" }))?.pending?.some((entry) => entry.from === pending!.from)).toBe(true);
+      expect(during.changed.map(([id]) => id)).toEqual([]);
       await eventually(async () => expect(await reader.get("c")).toEqual({ _id: "c", total: 3 }));
       await eventually(async () => expect(await reader.get("a")).toEqual({ _id: "a", total: 2 }));
+      // The run moved to new numbers after the version of the reader: the next delta has its rows
       const after = await reader.getChangesSince(during.version);
-      // The run did not commit at the read of the reader, and its rows are after that version: the next delta has them
-      expect(during.changed.map(([id]) => id)).toEqual([]);
       const changed = new Map(after.changed);
       expect(changed.get("a")).toEqual({ _id: "a", total: 2 });
       expect(changed.get("c")).toEqual({ _id: "c", total: 3 });
-      const a = (await db.collection("sums").findOne({ _id: "t1\u001fa" as never }))!;
-      const c = (await db.collection("sums").findOne({ _id: "t1\u001fc" as never }))!;
+      const a = (await db.collection("sums").findOne({ _id: "t1a" as never }))!;
+      const c = (await db.collection("sums").findOne({ _id: "t1c" as never }))!;
+      expect(a["_seq"]).toBeGreaterThan(pending!.to);
       expect(a["_seq"]).toBeGreaterThan(numberOf(during.version));
       // A row keeps its place, and a new row has its own number as its place
       expect(a["_ord"]).toBe(placeOfA);
@@ -445,10 +459,20 @@ withMongo("ViewMaterializer hints of a target not in a stored form", { timeout: 
       await eventually(() => expect(hints).toHaveLength(1));
       expect(hints[0]!.topic).toBe(collectionChangeTopic("sums"));
       expect({ ...hints[0]!.event, changed: [...hints[0]!.event.changed].sort() }).toEqual({ changed: ["a", "b"], deleted: [] });
-      // Three rows and a limit of two: the next run writes a new generation in groups, and the change of generation is a gap
+      // The target has two rows, and the run writes one: a result over the limit with few writes stays one transaction, with one hint
       await db.collection("items").insertOne({ _id: "2" as never, _part: "t1", kind: "c", n: 1 });
       await eventually(() => expect(hints).toHaveLength(2));
-      expect(hints[1]).toEqual({ topic: collectionChangeTopic("sums"), event: { changed: [], deleted: [], reset: true } });
+      expect(hints[1]).toEqual({ topic: collectionChangeTopic("sums"), event: { changed: ["c"], deleted: [] } });
+      const generation = ((await statusOf(db, "sums"))!["generation"] as ObjectId).toHexString();
+      // The target has three rows now, over the limit of two: the next run writes a new generation in groups, and the change of generation is a gap
+      await db.collection("items").updateOne({ _id: "0" as never }, { $set: { n: 2 } });
+      await eventually(() => expect(hints).toHaveLength(3));
+      expect(hints[2]).toEqual({ topic: collectionChangeTopic("sums"), event: { changed: [], deleted: [], reset: true } });
+      expect(((await statusOf(db, "sums"))!["generation"] as ObjectId).toHexString()).not.toBe(generation);
+      // A reader of the current generation reads the whole new result
+      const current = (await db.collection("_aggregations").findOne({ _id: "sums" as never })) as unknown as MaterializedView;
+      const totals = (await db.collection("sums").find(viewFilter(current)).toArray()).map((row) => row["total"] as number).sort();
+      expect(totals).toEqual([1, 1, 2]);
     } finally {
       await views.stop();
     }
