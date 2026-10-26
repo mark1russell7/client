@@ -1,5 +1,23 @@
 # @procedures/mark
 
+## 0.38.0
+
+### Patch Changes
+
+- Updated dependencies [c6fba49]
+  - @procedures/client@0.38.0
+  - @procedures/cli-kit@0.38.0
+  - @procedures/lib@0.38.0
+  - @procedures/cli-run@0.38.0
+  - @procedures/fs@0.38.0
+  - @procedures/pnpm@0.38.0
+  - @procedures/procedure@0.38.0
+  - @procedures/peer@0.38.0
+  - @procedures/shell@0.38.0
+  - @procedures/vitest@0.38.0
+  - @procedures/mcp-dev-tools@0.38.0
+  - @procedures/server@0.38.0
+
 ## 0.37.0
 
 ### Patch Changes
