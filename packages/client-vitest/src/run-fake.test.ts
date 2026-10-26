@@ -102,10 +102,11 @@ describe("resolveVitestCli", () => {
     return dir;
   }
 
-  it("reads a bin that is a string, and fails with no bin or no vitest", () => {
+  // No "vitest is not installed" case: resolution walks up from the temp dir, and on the CI
+  // runner a vitest above it resolves, so the outcome depends on the machine.
+  it("reads a bin that is a string, and fails with no bin", () => {
     const withBin = project({ bin: "vitest.mjs" });
     expect(resolveVitestCli(withBin)).toBe(join(withBin, "node_modules", "vitest", "vitest.mjs"));
     expect(() => resolveVitestCli(project({}))).toThrow('has no "vitest" bin');
-    expect(() => resolveVitestCli(project())).toThrow("vitest is not installed");
   });
 });
