@@ -148,7 +148,7 @@ The CI names below are the jobs and the steps of `.github/workflows/ci.yml`.
 
 - **Rule.** [WIRE-PROTOCOL.md](./WIRE-PROTOCOL.md) is the wire format. The method name and the path in an HTTP body use the same encoding. Each error gets its code from the error registry (`ERROR_REGISTRY`). The option `errors` of the server (`ServerOptions.errors`, CLI-80) is the only policy that tells what an error shows. An MCP error has `_meta: { code, retryable }`.
 - **Reason.** Each face (HTTP, WebSocket, MCP, the peer) then gives the same call and the same error. A client can then retry from the code, on each face.
-- **Guard.** The transport contract suite (CLI-85): `packages/client/test/contract/transport.contract.ts`. Each face sends the same cases through `describeTransportContract()`.
+- **Guard.** The transport contract suite (CLI-85): the entry point `@procedures/client/testing` (`packages/client/src/testing/`). Each face sends the same cases through `describeTransportContract()`. A face in another package imports it by the name of the package, as each other import of the client.
   - The faces of the client: the local transport, HTTP, the Express shim, two WebSocket servers and a message port (`packages/client/src/server/conformance.test.ts`).
   - The MCP faces: an in-memory pair and Streamable HTTP (`packages/client-mcp/src/transport/conformance.test.ts`).
   - The HTTP, WebSocket and MCP faces of a procedure host, as a peer serves them (`packages/client-server/src/host/contract.test.ts`).

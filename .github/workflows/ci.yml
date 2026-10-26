@@ -75,6 +75,19 @@ jobs:
             packages/documentation/PROCEDURES.md
             packages/documentation/PACKAGES.md
           retention-days: 7
+      # The reports of the public API come from the built .d.ts files (roadmap R30, CLI-86). A
+      # difference fails the run, and the new reports are an artifact: review the diff, then commit them.
+      - name: The reports of the public API are current
+        if: ${{ !cancelled() }}
+        run: |
+          UPDATE_API_SNAPSHOT=1 pnpm --filter @procedures/client exec vitest run src/api.snapshot.test.ts
+          git diff --stat --exit-code -- 'packages/*/test/api/public-api.txt'
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: public-api-reports
+          path: packages/*/test/api/public-api.txt
+          retention-days: 7
       # No file names a package of this repository with the old scope @mark1russell7 (2026-10-12)
       - name: Check the package scope
         if: ${{ !cancelled() }}

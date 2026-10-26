@@ -2,7 +2,7 @@
  * The faces of `@procedures/client` run the transport contract (roadmap R18, CLI-85): the same
  * cases go through `LocalTransport`, HTTP (the handler without a framework and the Express shim),
  * WebSocket (the upgrade handler and the server transport) and a message port. The cases are in
- * `test/contract/transport.contract.ts`. The MCP faces run them in `client-mcp`, and the faces of
+ * `src/testing/transport-contract.ts` (`@procedures/client/testing`). The MCP faces run them in `client-mcp`, and the faces of
  * a host run them in `client-server`.
  *
  * This file also has the checks that only one face has: the HTTP status of an error and a direct
@@ -15,8 +15,6 @@ import type { AddressInfo } from "node:net";
 import { MessageChannel } from "node:worker_threads";
 import express from "express";
 import { z } from "zod";
-import * as core from "../index.js";
-import { createOverallTimeoutMiddleware } from "../client/index.js";
 import { HttpTransport } from "../adapters/http/client/index.js";
 import { HttpServerTransport } from "../adapters/http/server/index.js";
 import { procedureHandler } from "../adapters/http/server/handler.js";
@@ -36,12 +34,9 @@ import {
   describeTransportContract,
   type ContractCapabilities,
   type ContractFace,
-  type ContractLib,
   type ContractServer,
   type ContractSpec,
-} from "../../test/contract/transport.contract.js";
-
-const lib: ContractLib = { ...core, createOverallTimeoutMiddleware };
+} from "../testing/index.js";
 
 async function listen(http: HttpServer): Promise<number> {
   await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", () => resolve()));
@@ -72,7 +67,7 @@ async function serverOf(spec: ContractSpec): Promise<ProcedureServer> {
 const SERVER_FACE: ContractCapabilities = { server: true, auth: true, subscriptions: true, streams: "items", deadline: true, errorMetadata: true, retryable: true };
 
 const httpCaller = (port: number, bearer: string | undefined) =>
-  clientCaller(lib, new HttpTransport({ baseUrl: `http://127.0.0.1:${port}/api`, defaultHeaders: bearer === undefined ? {} : { Authorization: `Bearer ${bearer}` } }));
+  clientCaller(new HttpTransport({ baseUrl: `http://127.0.0.1:${port}/api`, defaultHeaders: bearer === undefined ? {} : { Authorization: `Bearer ${bearer}` } }));
 
 const wsCaller = (port: number, bearer: string | undefined) => {
   const transport = new WebSocketTransport({
@@ -80,25 +75,23 @@ const wsCaller = (port: number, bearer: string | undefined) => {
     heartbeat: { enabled: false },
     reconnect: { enabled: false },
   });
-  return clientCaller(lib, transport, () => transport.close());
+  return clientCaller(transport, () => transport.close());
 };
 
 const faces: ContractFace[] = [
   {
     name: "LocalTransport",
-    lib,
     // The local transport calls the registry: it has no server, no network credentials and no event bus
     capabilities: { server: false, auth: false, subscriptions: false, streams: "items", deadline: true, errorMetadata: true, retryable: false },
     async start(spec): Promise<ContractServer> {
       return {
-        connect: async () => clientCaller(lib, new LocalTransport({ registry: spec.registry })),
+        connect: async () => clientCaller(new LocalTransport({ registry: spec.registry })),
         stop: async () => {},
       };
     },
   },
   {
     name: "HTTP without a framework",
-    lib,
     capabilities: { ...SERVER_FACE, sizeLimit: { code: "PAYLOAD_TOO_LARGE" } },
     async start(spec) {
       const server = await serverOf(spec);
@@ -119,7 +112,6 @@ const faces: ContractFace[] = [
   },
   {
     name: "HTTP with the Express shim",
-    lib,
     capabilities: { ...SERVER_FACE, sizeLimit: { code: "PAYLOAD_TOO_LARGE" } },
     async start(spec) {
       const server = await serverOf(spec);
@@ -139,7 +131,6 @@ const faces: ContractFace[] = [
   },
   {
     name: "WebSocket with the upgrade handler",
-    lib,
     capabilities: { ...SERVER_FACE, sizeLimit: { code: "PAYLOAD_TOO_LARGE" } },
     async start(spec) {
       const server = await serverOf(spec);
@@ -162,7 +153,6 @@ const faces: ContractFace[] = [
   },
   {
     name: "WebSocket with the server transport",
-    lib,
     capabilities: { ...SERVER_FACE, sizeLimit: { code: "PAYLOAD_TOO_LARGE" } },
     async start(spec) {
       const server = await serverOf(spec);
@@ -181,7 +171,6 @@ const faces: ContractFace[] = [
   },
   {
     name: "a message port",
-    lib,
     // A message port is in one process: structured clone copies a message, and it has no size limit
     capabilities: { ...SERVER_FACE },
     async start(spec) {
@@ -201,7 +190,7 @@ const faces: ContractFace[] = [
             channel.port2.close();
           };
           closes.push(close);
-          return clientCaller(lib, page, close);
+          return clientCaller(page, close);
         },
         stop: async () => {
           for (const close of closes) await close().catch(() => undefined);
@@ -212,7 +201,7 @@ const faces: ContractFace[] = [
   },
 ];
 
-for (const face of faces) describeTransportContract(face);
+for (const face of faces) describeTransportContract(face, { describe, it, afterEach, expect });
 
 /** The conflicts of the procedure `conf.conflict` (roadmap CLI-16). */
 const CONFLICTS: VersionConflict[] = [

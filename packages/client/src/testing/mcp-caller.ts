@@ -8,7 +8,7 @@
  * last text block.
  */
 
-import { contractDescription, type ContractCaller } from "./transport.contract.js";
+import { contractDescription, type ContractCaller } from "./transport-contract.js";
 
 /** The parts of an MCP client of the SDK that the caller uses. */
 export interface McpClientLike {

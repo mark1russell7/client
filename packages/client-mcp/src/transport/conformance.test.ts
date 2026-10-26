@@ -1,6 +1,6 @@
 /**
  * The MCP faces run the transport contract (roadmap R18, CLI-85): the cases of
- * `client/test/contract/transport.contract.ts` go through an MCP client over an in-memory pair
+ * `@procedures/client/testing` go through an MCP client over an in-memory pair
  * (a local face, as stdio) and over Streamable HTTP (a network face, with the token and the size
  * limit of a request). The other faces run the suite in `client` and in `client-server`.
  *
@@ -16,20 +16,15 @@ import { z } from "zod";
 import { Client as McpClient } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import * as core from "@procedures/client";
 import { ProcedureServer, createProcedure, createRegistry, hostPolicy, procedureServerOptions, seconds } from "@procedures/client";
-import { createOverallTimeoutMiddleware } from "@procedures/client/client";
 import { McpServerTransport } from "./mcp-transport.js";
-import { mcpCaller } from "../../../client/test/contract/mcp-caller.js";
 import {
+  mcpCaller,
   describeTransportContract,
   type ContractCapabilities,
   type ContractFace,
-  type ContractLib,
   type ContractSpec,
-} from "../../../client/test/contract/transport.contract.js";
-
-const lib: ContractLib = { ...core, createOverallTimeoutMiddleware };
+} from "@procedures/client/testing";
 
 /** The server of the options of the spec. */
 function serverOf(spec: ContractSpec): ProcedureServer {
@@ -51,7 +46,6 @@ const MCP_FACE: ContractCapabilities = { server: true, auth: false, subscription
 const faces: ContractFace[] = [
   {
     name: "MCP over an in-memory pair",
-    lib,
     // A local face, as stdio: it presents no network credentials and has no limit of a request
     capabilities: MCP_FACE,
     async start(spec) {
@@ -79,7 +73,6 @@ const faces: ContractFace[] = [
   },
   {
     name: "MCP over Streamable HTTP",
-    lib,
     capabilities: { ...MCP_FACE, auth: true, sizeLimit: { code: "PAYLOAD_TOO_LARGE" } },
     async start(spec) {
       const server = serverOf(spec);
@@ -101,7 +94,7 @@ const faces: ContractFace[] = [
         connect: async (bearer) =>
           mcpCaller(async () => {
             const client = new McpClient({ name: "contract", version: "0" });
-            await client.connect(new StreamableHTTPClientTransport(url, { requestInit: { headers: bearer === undefined ? {} : { authorization: `Bearer ${bearer}` } } }));
+            await client.connect(new StreamableHTTPClientTransport(url, { requestInit: { headers: bearer === undefined ? {} : { authorization: `Bearer ${bearer}` } } }) as never);
             return client;
           }),
         async stop() {
@@ -114,7 +107,7 @@ const faces: ContractFace[] = [
   },
 ];
 
-for (const face of faces) describeTransportContract(face);
+for (const face of faces) describeTransportContract(face, { describe, it, afterEach, expect });
 
 let cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => {

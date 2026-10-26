@@ -19,39 +19,57 @@
  * A face that does not have a feature by design declares it in its capabilities, and the suite
  * skips the cases of that feature. Each skip thus is data in the test file of the face.
  *
- * The suite imports no code of the client at run time. The face gives its own copy (`lib`): the
- * tests of `@procedures/client` give the source, and the tests of other packages give the package.
- * Thus one class never has two copies in one test.
+ * The suite is the entry point `@procedures/client/testing`, so a face in another package (and
+ * a server of an app, for example Graph) runs the same cases with the client that it uses. The
+ * suite imports no test runner: the caller gives `describe`, `it`, `afterEach` and `expect`
+ * (`ContractRunner`). Those of Vitest fit.
  */
 
-import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod";
-import type * as Core from "../../src/index.js";
-import type { createOverallTimeoutMiddleware } from "../../src/client/index.js";
-import type { CollectionStorage } from "../../src/procedures/collection/storage.js";
-import type { ProcedureRegistry } from "../../src/procedures/registry.js";
-import type { PrincipalOf } from "../../src/server/types.js";
-import type { ServerErrorPolicy } from "../../src/server/error-policy.js";
-import type { EventPublisherOptions } from "../../src/events/publisher.js";
-import type { EventTransport } from "../../src/events/remote.js";
-import type { Transport } from "../../src/client/types.js";
-import { LogStorage } from "../log-storage.js";
+import {
+  Client,
+  VersionConflictError,
+  collectionChangeTopic,
+  collectionTopicRule,
+  createCollectionProcedures,
+  createProcedure,
+  createRegistry,
+  ms,
+  pathToMethod,
+  subscribeRemote,
+  versionConflictsOf,
+} from "../index.js";
+import { createOverallTimeoutMiddleware } from "../client/index.js";
+import type { CollectionStorage } from "../procedures/collection/storage.js";
+import type { ProcedureRegistry } from "../procedures/registry.js";
+import type { PrincipalOf } from "../server/types.js";
+import type { ServerErrorPolicy } from "../server/error-policy.js";
+import type { EventPublisherOptions } from "../events/publisher.js";
+import type { EventTransport } from "../events/remote.js";
+import type { Transport } from "../client/types.js";
+import { LogStorage } from "./log-storage.js";
 
-/** The parts of the client that the suite uses: the face gives its own copy. */
-export interface ContractLib {
-  readonly createProcedure: typeof Core.createProcedure;
-  readonly createRegistry: typeof Core.createRegistry;
-  readonly createCollectionProcedures: typeof Core.createCollectionProcedures;
-  readonly collectionChangeTopic: typeof Core.collectionChangeTopic;
-  readonly collectionTopicRule: typeof Core.collectionTopicRule;
-  readonly pathToMethod: typeof Core.pathToMethod;
-  readonly subscribeRemote: typeof Core.subscribeRemote;
-  readonly VersionConflictError: typeof Core.VersionConflictError;
-  readonly versionConflictsOf: typeof Core.versionConflictsOf;
-  readonly Client: typeof Core.Client;
-  /** From the entry point `@procedures/client/client`. */
-  readonly createOverallTimeoutMiddleware: typeof createOverallTimeoutMiddleware;
-  readonly ms: typeof Core.ms;
+/** The assertions of the suite on one value. The `expect` of Vitest gives them. */
+export interface ContractExpectation {
+  toBe(expected: unknown): void;
+  toEqual(expected: unknown): void;
+  toMatchObject(expected: object): void;
+  toContain(expected: unknown): void;
+  toBeGreaterThan(expected: number): void;
+  toBeGreaterThanOrEqual(expected: number): void;
+  toBeLessThanOrEqual(expected: number): void;
+  readonly not: ContractExpectation;
+}
+
+/** A case of the suite. */
+export type ContractCase = (name: string, body: () => Promise<void>) => void;
+
+/** The parts of a test runner that the suite uses. Give those of Vitest: `{ describe, it, afterEach, expect }`. */
+export interface ContractRunner {
+  describe(name: string, body: () => void): void;
+  readonly it: ContractCase & { skipIf(condition: boolean): ContractCase };
+  afterEach(body: () => Promise<void>): void;
+  expect(actual: unknown, message?: string): ContractExpectation;
 }
 
 /**
@@ -144,7 +162,6 @@ export interface ContractServer {
 /** A face of the procedures server for the suite. */
 export interface ContractFace {
   readonly name: string;
-  readonly lib: ContractLib;
   readonly capabilities: ContractCapabilities;
   start(spec: ContractSpec): Promise<ContractServer>;
 }
@@ -193,12 +210,12 @@ const CONFLICTS = [
 ];
 
 /** The procedures of the suite. */
-function registryOf(lib: ContractLib, seen: Seen): ProcedureRegistry {
+function registryOf(seen: Seen): ProcedureRegistry {
   const read = { reads: [], writes: [] };
-  const procedure = (path: readonly string[]) => lib.createProcedure().path([...path]).meta({ effects: read, description: contractDescription(path) });
+  const procedure = (path: readonly string[]) => createProcedure().path([...path]).meta({ effects: read, description: contractDescription(path) });
   const failure = (input: { code?: string | undefined; retryable?: boolean | undefined }) =>
     Object.assign(new Error("it failed"), input.code === undefined ? {} : { code: input.code }, input.retryable === undefined ? {} : { retryable: input.retryable });
-  return lib.createRegistry({
+  return createRegistry({
     name: "transport-contract",
     procedures: [
       procedure(["contract", "echo"])
@@ -285,10 +302,10 @@ function registryOf(lib: ContractLib, seen: Seen): ProcedureRegistry {
         .input(z.object({}))
         .output(z.string())
         .handler(async () => {
-          throw new lib.VersionConflictError(CONFLICTS);
+          throw new VersionConflictError(CONFLICTS);
         })
         .build(),
-      ...lib.createCollectionProcedures(CONTRACT_COLLECTION),
+      ...createCollectionProcedures(CONTRACT_COLLECTION),
     ],
   });
 }
@@ -322,15 +339,15 @@ async function waitFor(check: () => boolean, what: string, limit = 3000): Promis
  * A caller of a `Client` over a transport of the client: HTTP, WebSocket, a message port or the
  * local transport. Each face of the client uses it.
  */
-export function clientCaller(lib: ContractLib, transport: Transport, close?: () => Promise<void>): ContractCaller {
+export function clientCaller(transport: Transport, close?: () => Promise<void>): ContractCaller {
   const clientOf = (options?: ContractCallOptions) => {
-    const client = new lib.Client({ transport, throwOnError: true });
-    return options?.deadlineMs === undefined ? client : client.use(lib.createOverallTimeoutMiddleware({ overall: lib.ms(options.deadlineMs) }));
+    const client = new Client({ transport, throwOnError: true });
+    return options?.deadlineMs === undefined ? client : client.use(createOverallTimeoutMiddleware({ overall: ms(options.deadlineMs) }));
   };
   const callOptions = (options?: ContractCallOptions) => (options?.signal ? { signal: options.signal } : {});
   return {
-    call: (path, input, options) => clientOf(options).call(lib.pathToMethod([...path]), input, callOptions(options)),
-    stream: (path, input, options) => clientOf(options).stream(lib.pathToMethod([...path]), input, callOptions(options)),
+    call: (path, input, options) => clientOf(options).call(pathToMethod([...path]), input, callOptions(options)),
+    stream: (path, input, options) => clientOf(options).stream(pathToMethod([...path]), input, callOptions(options)),
     events: transport,
     ...(close ? { close } : {}),
   };
@@ -338,10 +355,12 @@ export function clientCaller(lib: ContractLib, transport: Transport, close?: () 
 
 /**
  * This function declares the cases of the transport contract for one face. Call it at the top
- * level of the test file of the face.
+ * level of the test file of the face, with the functions of the test runner:
+ * `describeTransportContract(face, { describe, it, afterEach, expect })`.
  */
-export function describeTransportContract(face: ContractFace): void {
-  const { lib, capabilities: caps } = face;
+export function describeTransportContract(face: ContractFace, runner: ContractRunner): void {
+  const caps = face.capabilities;
+  const { describe, it, afterEach, expect } = runner;
   let open: Array<() => Promise<void>> = [];
   afterEach(async () => {
     for (const close of open.reverse()) await close().catch(() => undefined);
@@ -356,9 +375,9 @@ export function describeTransportContract(face: ContractFace): void {
     const principalOf: PrincipalOf = (credentials) =>
       credentials.bearer === CONTRACT_TOKEN ? { principal: { id: CONTRACT_PRINCIPAL, via: "contract" } } : undefined;
     const spec: ContractSpec = {
-      registry: registryOf(lib, seen),
+      registry: registryOf(seen),
       collections: { [CONTRACT_COLLECTION]: storage },
-      events: { topics: lib.collectionTopicRule(CONTRACT_COLLECTION) },
+      events: { topics: collectionTopicRule(CONTRACT_COLLECTION) },
       ...(caps.auth ? { token: CONTRACT_TOKEN, principalOf } : {}),
       ...more,
     };
@@ -448,7 +467,7 @@ export function describeTransportContract(face: ContractFace): void {
       const caller = await start();
       const error = await errorOf(caller.call(["contract", "conflict"], {}));
       expect(error).toMatchObject({ code: "VERSION_CONFLICT", retryable: false });
-      if (caps.errorMetadata) expect(lib.versionConflictsOf(error)).toEqual(CONFLICTS);
+      if (caps.errorMetadata) expect(versionConflictsOf(error)).toEqual(CONFLICTS);
     });
 
     it("gives the items of a stream in order, and then the end", async () => {
@@ -465,7 +484,7 @@ export function describeTransportContract(face: ContractFace): void {
       // The abort comes when the handler runs: on a slow runner, a call can take more than 50 ms to arrive
       await waitFor(() => seen.waiting === 1, "the start of the handler");
       controller.abort();
-      await expect(call).rejects.toBeDefined();
+      await errorOf(call);
       await waitFor(() => seen.aborted === 1, "the abort of the handler");
     });
 
@@ -505,10 +524,10 @@ export function describeTransportContract(face: ContractFace): void {
 
     it.skipIf(!caps.subscriptions)("gives the change hint of a write to a subscriber of the topic of the collection (CLI-15, CLI-75)", async () => {
       const caller = await start();
-      const topic = lib.collectionChangeTopic(CONTRACT_COLLECTION);
+      const topic = collectionChangeTopic(CONTRACT_COLLECTION);
       const hints: Array<{ changed: string[]; deleted: string[] }> = [];
       const topics: string[] = [];
-      const subscription = lib.subscribeRemote<{ changed: string[]; deleted: string[] }>(caller.events!, topic, (data, event) => {
+      const subscription = subscribeRemote<{ changed: string[]; deleted: string[] }>(caller.events!, topic, (data, event) => {
         hints.push(data);
         topics.push(event.topic);
       });

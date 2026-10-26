@@ -1,6 +1,6 @@
 /**
  * The faces of a procedure host run the transport contract (roadmap CLI-85): the cases of
- * `client/test/contract/transport.contract.ts` go through the HTTP, WebSocket and MCP faces of
+ * `@procedures/client/testing` go through the HTTP, WebSocket and MCP faces of
  * one listener of `createProcedureHost`, as a peer serves them. The policy of the host carries the
  * token, the request hook and the events, and `serverOptions` carries the error policy.
  *
@@ -8,28 +8,24 @@
  * suite. The HTTP status of the wire is in `client/src/server/in-band-retryable.test.ts`.
  */
 
+import { describe, it, expect, afterEach } from "vitest";
 import { WebSocketTransport, HttpTransport, hostPolicy, ms, seconds } from "@procedures/client";
-import * as core from "@procedures/client";
-import { createOverallTimeoutMiddleware } from "@procedures/client/client";
 import { service, type Lifecycle, type ServiceBuilder } from "@mark1russell7/service";
 import { fakeProcess } from "@mark1russell7/service/testing";
 import { Client as McpClient } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { mcpFace } from "@procedures/mcp-server";
 import { createProcedureHost, LOCAL_LISTENER_KNOBS } from "./index.js";
-import { mcpCaller } from "../../../client/test/contract/mcp-caller.js";
 import {
+  mcpCaller,
   clientCaller,
   describeTransportContract,
   type ContractCaller,
   type ContractCapabilities,
   type ContractFace,
-  type ContractLib,
   type ContractServer,
   type ContractSpec,
-} from "../../../client/test/contract/transport.contract.js";
-
-const lib: ContractLib = { ...core, createOverallTimeoutMiddleware };
+} from "@procedures/client/testing";
 
 /** A service with short stages, as in `drain-cut.test.ts`. */
 function serviceOf(name: string): ServiceBuilder {
@@ -96,14 +92,14 @@ async function hostOf(spec: ContractSpec, type: FaceType, connect: (address: str
 
 /** A caller of the HTTP face: the address is the base URL of the procedures. */
 const httpConnect = (address: string, bearer: string | undefined) =>
-  clientCaller(lib, new HttpTransport({ baseUrl: address, defaultHeaders: bearer === undefined ? {} : { Authorization: `Bearer ${bearer}` } }));
+  clientCaller(new HttpTransport({ baseUrl: address, defaultHeaders: bearer === undefined ? {} : { Authorization: `Bearer ${bearer}` } }));
 
 /** A caller of the WebSocket face, with the token in the query. */
 const wsConnect = (address: string, bearer: string | undefined) => {
   const url = new URL(address);
   if (bearer !== undefined) url.searchParams.set("token", bearer);
   const transport = new WebSocketTransport({ url: url.toString(), heartbeat: { enabled: false }, reconnect: { enabled: false } });
-  return clientCaller(lib, transport, () => transport.close());
+  return clientCaller(transport, () => transport.close());
 };
 
 /** A caller of the MCP face over Streamable HTTP, with the token in the header. */
@@ -118,16 +114,15 @@ const mcpConnect = (address: string, bearer: string | undefined) =>
 const NETWORK: ContractCapabilities = { server: true, auth: true, subscriptions: true, streams: "items", deadline: true, errorMetadata: true, retryable: true, sizeLimit: { code: "PAYLOAD_TOO_LARGE" } };
 
 const faces: ContractFace[] = [
-  { name: "the HTTP face of a host", lib, capabilities: NETWORK, start: (spec) => hostOf(spec, "http", httpConnect) },
+  { name: "the HTTP face of a host", capabilities: NETWORK, start: (spec) => hostOf(spec, "http", httpConnect) },
   // The face checks the token at the upgrade: no idle connection without credentials stays open
-  { name: "the WebSocket face of a host", lib, capabilities: { ...NETWORK, authRefusal: "connect" }, start: (spec) => hostOf(spec, "websocket", wsConnect) },
+  { name: "the WebSocket face of a host", capabilities: { ...NETWORK, authRefusal: "connect" }, start: (spec) => hostOf(spec, "websocket", wsConnect) },
   {
     name: "the MCP face of a host",
-    lib,
     // An MCP tool call is one result: no subscription, no cancel of a stream, no deadline of the caller and no error metadata
     capabilities: { ...NETWORK, subscriptions: false, streams: "collected", deadline: false, errorMetadata: false },
     start: (spec) => hostOf(spec, "mcp", mcpConnect),
   },
 ];
 
-for (const face of faces) describeTransportContract(face);
+for (const face of faces) describeTransportContract(face, { describe, it, afterEach, expect });

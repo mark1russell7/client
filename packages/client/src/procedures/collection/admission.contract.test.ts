@@ -27,7 +27,7 @@ import { ProcedureServer } from "../../server/procedure-server.js";
 import { pathToMethod } from "../../server/method.js";
 import { PortTransport } from "../../adapters/port/transport.js";
 import { subscribeRemote } from "../../events/remote.js";
-import { LogStorage } from "../../../test/log-storage.js";
+import { LogStorage } from "../../testing/log-storage.js";
 
 const NAME = "contract.rows";
 const RESOURCE = `collection:${NAME}`;

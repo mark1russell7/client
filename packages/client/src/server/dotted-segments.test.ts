@@ -1,6 +1,6 @@
 /**
  * A collection whose name has a dot (roadmap CLI-75). The transport contract
- * (`test/contract/transport.contract.ts`, CLI-85) writes, reads and subscribes to such a collection
+ * (`src/testing/transport-contract.ts`, CLI-85) writes, reads and subscribes to such a collection
  * on each face. This file checks the URL of a call over HTTP and the change topic of the name.
  * Before CLI-75, the method `collections.e2e.tabs.set` came back as the four segments
  * `["collections", "e2e", "tabs", "set"]`, and the call got NOT_FOUND.
@@ -17,7 +17,7 @@ import { createCollectionProcedures } from "../procedures/collection/procedures.
 import { collectionChangeTopic } from "../procedures/collection/changes.js";
 import { collectionTopicRule } from "../procedures/collection/topic.js";
 import { createEventBus } from "../events/bus.js";
-import { LogStorage } from "../../test/log-storage.js";
+import { LogStorage } from "../testing/log-storage.js";
 
 const NAME = "e2e.tabs";
 

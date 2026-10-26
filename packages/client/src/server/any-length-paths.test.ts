@@ -1,7 +1,7 @@
 /**
  * Procedure paths of each length on each face (CLI-28). A path has one segment or more: a path of
  * one segment (jarvis has `["morning"]` and `["capture"]`) has the empty service. The transport
- * contract (`test/contract/transport.contract.ts`, CLI-85) calls paths of 1, 2 and 4 segments on
+ * contract (`src/testing/transport-contract.ts`, CLI-85) calls paths of 1, 2 and 4 segments on
  * each face. This file has the checks of `Server.handle`, of the URL and of the other parts that
  * name a path. The version of the URL keeps its old form on a path of two segments or more.
  */

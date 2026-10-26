@@ -15,7 +15,7 @@
  * The last cases send the calls with a `Client` and the retry middleware. A stream that fails before
  * its first item goes again, and the caller gets the items of the retry.
  *
- * The transport contract (`test/contract/transport.contract.ts`, CLI-85) has the same rules for a
+ * The transport contract (`src/testing/transport-contract.ts`, CLI-85) has the same rules for a
  * client of each face: the faces of this package, the MCP faces and the three faces of a host.
  */
 
