@@ -111,7 +111,7 @@ export const SEPARATOR = "\u001f";
 export const DOCUMENT_STORAGE_FIELDS: readonly string[] = Object.freeze([KEY, PART, SEQ, ORD, TOMB, JSON_FIELD, KEEP_ID]);
 
 /** The field that is `true` in a tombstone: the document of a deleted item. A reader of the raw documents leaves them out. */
-export const TOMBSTONE_FIELD = TOMB;
+export const TOMBSTONE_FIELD: "_tomb" = TOMB;
 
 /** The default stored `_id`: the id, or `<partition>` + U+001F + `<id>` with a partition. */
 export function defaultStoredId(partition: string | undefined, id: string): string {
