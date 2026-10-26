@@ -8,7 +8,7 @@ import { describe, it, expect } from "vitest";
 import { InMemoryStorage, VersionConflictError, type CollectionStorage, type StorageItemWriteOptions } from "@procedures/collections";
 import { Client, LocalTransport, createCollectionProcedures, invokeProcedure, ms, outputValue, type RepositoryProvider } from "@procedures/client";
 import { ApiStorage } from "./api.js";
-import { ConflictError, HybridStorage, type HybridStorageOptions } from "./hybrid.js";
+import { ConflictError, HybridStorage, PendingWriteError, type HybridStorageOptions } from "./hybrid.js";
 
 type Item = { id: string; n: number; rev: string };
 
@@ -183,6 +183,46 @@ describe("HybridStorage sends the base version of a queued write (CLI-16)", () =
     expect(hybrid.getPendingOpsCount()).toBe(1);
     await hybrid.syncToRemote();
     expect(hybrid.getPendingOpsCount()).toBe(0);
+    expect(await server.get("a")).toEqual(item("a", 2, "2"));
+    expect((await hybrid.getMetadata()).stats?.["conflicts"]).toBe(0);
+    await hybrid.close();
+  });
+
+  it("a write that the server applied before a TIMEOUT goes again with no conflict, and the resend changes nothing (O68)", async () => {
+    const server = new InMemoryStorage<Item>({ versionOf });
+    await server.set("a", item("a", 1, "1"));
+    // Each write that the server applied: the version before it, the value and the precondition
+    const applied: Array<{ before: string | undefined; value: Item; expected: string | null | undefined }> = [];
+    const serverSet = server.set.bind(server);
+    server.set = async (id, value, options) => {
+      const before = (await server.get(id))?.rev;
+      await serverSet(id, value, options);
+      applied.push({ before, value, expected: options?.expectedVersion });
+    };
+    // The first send reaches the server, and then the call times out
+    let timeOut = true;
+    const api = apiOver(server);
+    const remote: CollectionStorage<Item> = Object.assign(Object.create(api) as ApiStorage<Item>, {
+      set: async (id: string, value: Item, options?: StorageItemWriteOptions) => {
+        await api.set(id, value, options);
+        if (timeOut) {
+          timeOut = false;
+          throw Object.assign(new Error("the call timed out"), { code: "TIMEOUT", retryable: false });
+        }
+      },
+    });
+    const hybrid = new HybridStorage<Item>(remote, { mode: "write-through", syncOnInit: false, syncInterval: ms(0), versionOf, conflictResolution: "error" });
+    await hybrid.syncFromRemote();
+    await expect(hybrid.set("a", item("a", 2, "2"))).rejects.toBeInstanceOf(PendingWriteError);
+    expect(hybrid.getPendingOpsCount()).toBe(1);
+    // The resend with the old base gets VERSION_CONFLICT. The remote item is the echo of the write,
+    // so the base becomes "2", and the last send writes the same value over its own version.
+    await hybrid.syncToRemote();
+    expect(hybrid.getPendingOpsCount()).toBe(0);
+    expect(applied).toEqual([
+      { before: "1", value: item("a", 2, "2"), expected: undefined },
+      { before: "2", value: item("a", 2, "2"), expected: "2" },
+    ]);
     expect(await server.get("a")).toEqual(item("a", 2, "2"));
     expect((await hybrid.getMetadata()).stats?.["conflicts"]).toBe(0);
     await hybrid.close();
