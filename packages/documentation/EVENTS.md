@@ -345,7 +345,7 @@ Each write of the core collection procedures publishes a change event on the bus
 | `deleted` | The ids that were deleted. |
 | `values` | Only with the option `values`: the changed items, as `{ id, value }`, that the subscriber can read. |
 | `withheld` | Only with the option `values`: the changed ids whose values the output filter refused. |
-| `versions` | Optional: the version of each changed item, as `{ id, version }`, as `versionOf(id)` of the storage gives it. `watchStorageChanges()` of `@procedures/mongo` sets it (roadmap CLI-77). |
+| `versions` | Optional: the version of each changed item, as `{ id, version }`, as `versionOf(id)` of the storage gives it. `watchStorageChanges()` of `@procedures/mongo` sets it when it knows the new version (roadmap CLI-77). A raw write never carries its old version: the watcher gives it a new version first, or sends no version. |
 | `origin` | The origin of the writes, when one origin made all the changes. |
 
 - The changes come from the change log of the storage (`getChangesSince`). The events of one storage make a chain: the `since` of an event is the `version` of the event before it.
