@@ -667,36 +667,43 @@ server.usePartitions("notes", { storageOf: (partition) => notes.forPartition(par
 | `queryPolicy` | The query policy of `query()` without a policy of the call |
 | `counters` | The collection of the sequence counters (default `__storage_counters`) |
 | `writeLease` | The time after which a pending number of a write that stopped no longer holds the readers (default `seconds(60)`). A plain number is a `TypeError`. |
-| `client` | The client of the database, for the transactions. The default is the client of the default connection when `db` is absent. |
+| `client` | The client of the database, for the transactions. The default is the client of the default connection when `db` is absent. With `db` and no `client`, a write is not a transaction, also on a replica set: it uses the watermark. |
 | `transactions` | `auto` (the default): a transaction for each write on a replica set or a sharded cluster. `never`: the watermark only. |
 | `versionOf` | The version of an item, for the expected versions of `set`, `delete` and `setBatch` (roadmap CLI-16) |
-| `storedId`, `idOf` | The stored `_id` of an id in a partition, and its inverse (roadmap CLI-76). The defaults are `defaultStoredId` and `defaultIdOf`: `<partition>` + U+001F + `<id>`. Give the two together. |
-| `partitionFields` | The fields that name a partition (roadmap CLI-76). The default is `defaultPartitionFields`: `{ _part: partition }`. A field with the value `undefined` is absent. |
+| `form` | The stored form (roadmap CLI-76): a `StoredForm` with `storedId`, `idOf`, `partitionFields` and `partitionOf`. The default `DEFAULT_STORED_FORM` writes the documents of 0.34.0. `storage.form` gives it back. |
 
-- **The documents.** A plain object with safe keys is stored flat: its fields beside the fields of the storage (`_key`, `_part`, `_seq`, `_ord`, `_tomb`). Another item is stored as JSON text in `_json`. Both ways give the item back as it was. An item whose `_id` is its id keeps it.
+- **The documents.** A plain object is stored flat: its fields beside the fields of the storage (`_key`, `_part`, `_seq`, `_ord`, `_tomb`). Keys with `$` or dots below the top level, and a top-level key with a dot, stay as they are (MongoDB 5.0 or later). Another item is stored as JSON text in `_json`: null, a primitive, an array, an object with a top-level key of the storage or a top-level key with `$`, a key `__proto__`, or a class instance other than `Date`. Both ways give the item back as it was. An object with a text `$ref` and an `$id` is refused with a `TypeError`, because MongoDB gives it back as a `DBRef`. An item whose `_id` is its id keeps it.
+- **Write through the storage.** A raw write (for example `findOneAndReplace` or a cleanup script) takes no number of the sequence, so a delta of the change log does not give it. A raw replace also drops `_seq`. A raw writer must not hard-delete an item while the storage writes it: the write of a document without `_seq` is an upsert with `{ _seq: { $exists: false } }`, so it inserts the document again.
 - **The change log.** Each write gets the next number of the sequence of the collection, and a delete leaves a tombstone. `getChangesSince()` thus gives the exact changes and deletes. A version of another epoch, or a version before the oldest dropped tombstone, gives a full result.
 - **The versions.** `versionOf(id)` gives the number of the last write of an item.
 - **The queries.** `query()` sends the equality of a string, a number or a boolean, and `$in` of them, to MongoDB as a filter. `queryEntries()` of the core then gives the exact result, so a query gives the result of the reference.
 - **Several writers.** On a replica set, a write takes its numbers and writes in one transaction. On a single server, a watermark keeps the log exact. Each write keeps its numbers pending until it ends, and a version stops below the lowest pending number. A write that ends after its lease moves its documents to new numbers.
-- **The case that stays on a single server.** A process that stops between a late write and the move of its documents leaves that change below the watermark. A reader that passed those numbers does not get the change. On a replica set, this case does not occur.
+- **The cases that stay on a single server.** A process that stops between a late write and the move of its documents leaves that change below the watermark. A reader that passed those numbers does not get the change. And a precondition (`expectedVersion`) of a document without `_seq` has the guard `{ _seq: { $exists: false } }`: a writer outside the storage between the test and the write is not seen. On a replica set, the test and the write are one transaction, and these cases do not occur.
 - **The partitions.** An id cannot have the character U+001F, and each write filter has the partition. A write cannot change a document of another partition.
-- **The stored form** (roadmap CLI-76). An app that has its own form of documents keeps it, with no migration. The defaults write the documents of 0.34.0, byte for byte.
-  - `storedId(partition, id)` gives the stored `_id`, for example `tenant:key`. It can be a value that is not a text. `idOf(storedId, partition)` gives the id back.
+- **The stored form** (roadmap CLI-76). An app that has its own form of documents keeps it, with no migration: the option `form`, one `StoredForm` object. `DEFAULT_STORED_FORM` writes the documents of 0.34.0, byte for byte. Give the same object to `ViewMaterializer` (`storageSources`).
+  - `storedId(partition, id)` gives the stored `_id`, for example `tenant:key`. It can be a value that is not a text. `idOf(storedId, partition)` gives the id back. A read uses `idOf` first, then `_key`.
   - `partitionFields(partition)` gives the fields that name the partition, for example `{ tenant: "acme", scope: undefined }`. Each document of the partition has them, and they are the filter of the reads, the change log and the aggregations. A field with the value `undefined` is absent: the document does not have it, and the filter is `{ $exists: false }`.
-  - The storage adds its fields in each form: `_key`, `_seq`, `_ord`, `_tomb`, and `_kid` or `_json` when an item needs them. `DOCUMENT_STORAGE_FIELDS` names them, so a reader of the raw documents can leave them out. A delete leaves a tombstone (`TOMBSTONE_FIELD` is `true`): a reader of the raw documents must leave it out. `ViewMaterializer` does.
-  - A document without the fields of the storage (for example a document from before the app used the storage) is an item. Its id comes from `idOf`, its version is `0`, and it comes before the other items. A full result of the change log has it. Its first write through the storage gives it a version, keeps its place, and is in the next delta.
-  - An item with a field of a partition field name is stored as JSON text in `_json`, so it comes back as it was.
+  - `partitionOf(doc)` gives the partition of a stored document. `ViewMaterializer` gives it the document of a change event: `fullDocument`, else `fullDocumentBeforeChange`, else `documentKey`. A delete event has only `documentKey`, so with another `storedId`, the `_id` must tell the partition, or the collection needs `changeStreamPreAndPostImages`. The storage writes a delete as a tombstone (a replace event with the whole document), so the gap is only for a raw hard delete. The default reads `_part`, else the part of `_id` before U+001F.
+  - The storage adds its fields in each form: `_key`, `_seq`, `_ord`, `_tomb`, and `_kid`, `_kpf` or `_json` when an item needs them. `DOCUMENT_STORAGE_FIELDS` names them, so a reader of the raw documents can leave them out. A delete leaves a tombstone (`TOMBSTONE_FIELD` is `true`): a reader of the raw documents must leave it out. `ViewMaterializer` does.
+  - `decodeStoredDocument(doc, { form })` reads a raw document as the storage reads it: `undefined` for a tombstone or a document without an id, `_json` parsed, the fields of the storage left out, and the id as `_id`. It gives `{ id, partition, item }`.
+  - An item can have a partition field with the value of its partition (for example `scope: "board:1"` in the partition `acme/board:1`). The write leaves it out and notes it in `_kpf`, and the read gives it back. The same field with another value is refused with a `TypeError`.
+  - A document without the fields of the storage (for example a document from before the app used the storage) is an item. Its id comes from `idOf`, else `_key`. Its item gets the id as `_id` and keeps its partition fields, as its readers saw it. Its version is `0`, and it comes before the other items (then by `_id`). A full result of the change log has it. Its first write through the storage gives it a version, keeps its place, and is in the next delta.
+  - A document without `_key` whose id `idOf` does not tell (for example an old `ObjectId`) is not an item: the reads and `size()` leave it out.
 
 ```ts
 const notes = new MongoDocumentStorage<Note>({
   collection: "notes",
-  // The stored _id is `tenant:key`, and the field `tenant` names the partition
-  storedId: (partition, id) => `${partition ?? "main"}:${id}`,
-  idOf: (stored, partition) => {
-    const prefix = `${partition ?? "main"}:`;
-    return typeof stored === "string" && stored.startsWith(prefix) ? stored.slice(prefix.length) : undefined;
+  form: {
+    // The stored _id is `tenant:key`, and the field `tenant` names the partition
+    storedId: (partition, id) => `${partition ?? "main"}:${id}`,
+    idOf: (stored, partition) => {
+      const prefix = `${partition ?? "main"}:`;
+      return typeof stored === "string" && stored.startsWith(prefix) ? stored.slice(prefix.length) : undefined;
+    },
+    partitionFields: (partition) => ({ tenant: partition ?? "main" }),
+    // The field, else the part of the stored _id before ':' (a delete event has only the _id)
+    partitionOf: (doc) => (typeof doc.tenant === "string" ? doc.tenant : typeof doc._id === "string" ? doc._id.split(":")[0] : undefined),
   },
-  partitionFields: (partition) => ({ tenant: partition ?? "main" }),
 });
 ```
 - **The tests.** The storage passes the `CollectionStorage` contract on MongoDB 7 in CI. Set `MONGO_TEST_URL` to start them locally.
@@ -754,7 +761,7 @@ const totals = await db.collection("orderTotals").find(viewFilter(view)).toArray
 - Each pipeline goes through `scopePipeline` by default. It reads only the documents of the partition, in its sources, and only the current generation of the target of another view. The tombstones of a `MongoDocumentStorage` (`_tomb` is `true`) stay out (roadmap CLI-79). It cannot have `$merge` or `$out`. The option `scope` gives another guard, with the same filter.
 - A stream that ends opens again after `rewatch`, and a pass catches up. The times of the options are durations (`ms(100)`, `seconds(60)`) of `@procedures/client`.
 - A delete has no document in its change event. It reaches only the views of its partition when its pre-image tells the partition (a collection with `changeStreamPreAndPostImages`). Without a pre-image, a delete, a replace and an update of the partition field reach the views of each partition.
-- In a source of `storageSources`, the id of a `MongoDocumentStorage` document tells the storage partition of such a change. The function of that source gives the partition of the views (`identityPartition` when the two are the same). Else the delete reaches the views of each partition.
+- In a source of `storageSources` (a collection of a `MongoDocumentStorage`), `partitionOf` of its stored form reads the storage partition of such a change from its document (for a delete, only `documentKey`). The function of that source gives the partition of the views (`identityPartition` when the two are the same). A source is that function (the default form), or `{ form: storage.form, viewPartitionOf }` for another form. Else the change reaches the views of each partition.
 - With pre-images, an update that moves a document to another partition also reaches the views of its old partition.
 - `sourceFields` gives the fields of each source, as paths with dots. An update starts a pass when it changes one of them (at the field, under it or above it), or the partition field. The positions in arrays do not count: `lines.0.price` is `lines.price`. The partition field is a top-level field.
 - The stop has the parts of a transport of a service: `stopIntake()`, `drain(deadline, signal)`, `inFlight()` and `close()`. `stop()` does the four. A host composes them with no adapter.
