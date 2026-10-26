@@ -26,7 +26,9 @@ import { isKnownErrorCode } from "../client/errors/registry.js";
 import { errorCodeOf } from "../protocol.js";
 import { errorResponse, realErrorOf } from "./error-response.js";
 import { methodToPath } from "./method.js";
-import { ServerError, type RequestHandler, type ServerRequest, type ServerResponse } from "./types.js";
+import { rawErrorOf } from "./last-resort.js";
+export { lastResortError } from "./last-resort.js";
+import { ServerError, type ServerRequest, type ServerResponse } from "./types.js";
 
 /** The error that the caller gets: its code, its message and its retryable flag. A `ServerError` is one. */
 export interface ExposedError {
@@ -242,10 +244,6 @@ function exposedStream<T>(policy: ServerErrorPolicy, request: ServerRequest<unkn
   return closableUnread(exposed, items);
 }
 
-/** The error that a last-resort catch sends without a policy: `INTERNAL_ERROR` with the message of the error. */
-function rawErrorOf(error: unknown): ExposedError {
-  return { code: "INTERNAL_ERROR", message: error instanceof Error ? error.message || "Internal server error" : String(error), retryable: false };
-}
 
 /**
  * The error that a last-resort catch sends under a policy: when `handle()` throws, or when a face
@@ -263,11 +261,3 @@ export function exposeError(policy: ServerErrorPolicy | undefined, error: unknow
   return { code: "INTERNAL_ERROR", message: HIDDEN_ERROR_MESSAGE, retryable: raw.retryable === true };
 }
 
-/**
- * The error that the last-resort catch of a face sends: the error policy of the handler
- * (`RequestHandler.exposeError`, which `Server` has), or `raw` for a handler without one. `raw`
- * is the error that the face sends without a policy.
- */
-export function lastResortError(handler: RequestHandler, error: unknown, request: ServerRequest<unknown> | undefined, raw: ExposedError = rawErrorOf(error)): ExposedError {
-  return handler.exposeError ? handler.exposeError(error, request, raw) : raw;
-}

@@ -18,7 +18,7 @@ import { withoutInternalKeys } from "../../metadata.js";
 import { StreamSequence, gapOf, itemMetadata } from "../../sequence.js";
 import { DELIVERY_METADATA_KEY } from "../../../client/middleware/items.js";
 import { errorCodeOf, foldedErrorCode, retryableOf } from "../../../protocol.js";
-import { lastResortError } from "../../../server/error-policy.js";
+import { lastResortError } from "../../../server/last-resort.js";
 
 /**
  * A queue of response items that one reader takes in order: push, then end or fail. The reader

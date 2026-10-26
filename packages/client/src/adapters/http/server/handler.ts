@@ -19,7 +19,7 @@
 import type { IncomingHttpHeaders, IncomingMessage, ServerResponse as NodeResponse } from "node:http";
 import type { Metadata, Method } from "../../../client/types.js";
 import type { RequestHandler, ServerRequest, ServerResponse } from "../../../server/types.js";
-import { lastResortError } from "../../../server/error-policy.js";
+import { lastResortError } from "../../../server/last-resort.js";
 import { decodeMetadataHeader, METADATA_HEADER_LIMIT } from "../shared/index.js";
 import { ERROR_REGISTRY } from "../../../client/errors/index.js";
 import { assertNamedOrigins, checkBrowserRequest, needsNamedOrigin, type BrowserGuardOptions } from "../../../server/browser-guard.js";

@@ -252,7 +252,8 @@ export class Server {
     const real = error instanceof Error ? error : new Error(String(error));
     // A face that failed before it knew the call gives no request: onError gets a request of no call
     if (this.options.onError) this.options.onError(real, request ?? UNKNOWN_REQUEST);
-    else console.error(`[Server] hidden error of ${request?.id ?? "a request"}:`, real);
+    // A constant format: the request id comes from the caller (CodeQL js/tainted-format-string)
+    else console.error("[Server] hidden error of %s: %o", request?.id ?? "a request", real);
   };
 
   /** The response of a request, before the error policy. */
