@@ -7,7 +7,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { MongoClient, ObjectId, type Db, type Document } from "mongodb";
 import { ms, realClock, type Clock } from "@procedures/client";
-import { ViewMaterializer, identityPartition, viewFilter, type MaterializedView, type ViewPartitionOf } from "./materializer.js";
+import { ViewMaterializer, identityPartition, viewFilter, type MaterializedView, type ViewPartitionOf, type ViewStorageSource } from "./materializer.js";
+import { DEFAULT_STORED_FORM, type StoredForm } from "./document-storage.js";
 
 const url = process.env["MONGO_TEST_URL"];
 let client: MongoClient | undefined;
@@ -112,6 +113,27 @@ withMongo("ViewMaterializer on MongoDB", { timeout: TEST_TIMEOUT_MS }, () => {
     await views.stop();
     expect(views.openStreamCount()).toBe(0);
     expect(views.inFlight()).toBe(0);
+  });
+
+  it("leaves out the tombstones of a source: a deleted item of a MongoDocumentStorage is no row (CLI-79)", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const { db, views } = setup();
+    await db.collection("items").insertMany([
+      { _id: "1" as never, _part: "t1", kind: "a", n: 1 },
+      { _id: "2" as never, _part: "t1", kind: "a", n: 2 },
+      { _id: "3" as never, _part: "t1", kind: "b", n: 4, _tomb: true },
+    ]);
+    await db.collection("_aggregations").insertOne(sumsView() as never);
+    await views.start();
+    const target = () => db.collection("sums").find({}).toArray();
+    expect(sorted(await target())).toEqual([{ _id: "a", _part: "t1", total: 3 }]);
+    // A delete of the storage replaces the document with a tombstone: its row goes
+    await db.collection("items").replaceOne({ _id: "2" as never }, { _part: "t1", _key: "2", _seq: 9, _tomb: true });
+    await eventually(async () => expect(sorted(await target())).toEqual([{ _id: "a", _part: "t1", total: 1 }]));
+    // A document with _tomb other than true is an item
+    await db.collection("items").insertOne({ _id: "4" as never, _part: "t1", kind: "b", n: 5, _tomb: false });
+    await eventually(async () => expect(sorted(await target())).toEqual([{ _id: "a", _part: "t1", total: 1 }, { _id: "b", _part: "t1", total: 5 }]));
+    await views.stop();
   });
 
   it("runs a chain of views in one pass, marks a cycle, and resumes when the cycle ends", async (context) => {
@@ -445,7 +467,7 @@ withMongo("ViewMaterializer on MongoDB", { timeout: TEST_TIMEOUT_MS }, () => {
   });
 
   /** A materializer whose clock counts the change events of the sources: each event arms the debounce once. */
-  function counting(db: Db, options: { storageSources?: Record<string, ViewPartitionOf> } = {}) {
+  function counting(db: Db, options: { storageSources?: Record<string, ViewPartitionOf | ViewStorageSource> } = {}) {
     const counter = { events: 0 };
     const clock: Clock = { now: () => realClock.now(), after: (ms, run) => (ms === 20 && counter.events++, realClock.after(ms, run)) };
     const views = new ViewMaterializer({ db: () => db, debounce: ms(20), rewatch: ms(100), clock, log: () => undefined, ...options });
@@ -532,6 +554,42 @@ withMongo("ViewMaterializer on MongoDB", { timeout: TEST_TIMEOUT_MS }, () => {
     await scenario({ stored: () => { throw new Error("no"); } }, 3);
     // identityPartition is for a storage partition that is the partition of the views (acme, not acme:board1)
     await scenario({ stored: identityPartition }, 2, (tenant) => tenant);
+  }, 60_000);
+
+  it("reads the partition of a delete with the partitionOf of the stored form of its source, without pre-images (CLI-76)", async (context) => {
+    // A form of an app: the stored _id is `<scope>|<tenant>:<id>`, so the documentKey of a delete tells the partition `<tenant>/<scope>`
+    const form: Pick<StoredForm, "partitionOf"> = {
+      partitionOf: (doc) => {
+        const id: unknown = doc["_id"];
+        const match = typeof id === "string" ? /^([^|]+)\|([^:]+):/.exec(id) : null;
+        return match ? `${match[2]}/${match[1]}` : undefined;
+      },
+    };
+    const tenantOf: ViewPartitionOf = (storagePartition) => storagePartition.split("/")[0];
+    expect(() => new ViewMaterializer({ db: () => undefined as never, storageSources: { s: { form: {}, viewPartitionOf: tenantOf } as never } })).toThrow(TypeError);
+    expect(() => new ViewMaterializer({ db: () => undefined as never, storageSources: { s: { form: DEFAULT_STORED_FORM } as never } })).toThrow(TypeError);
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const scenario = async (storageSources: Record<string, ViewPartitionOf | ViewStorageSource> | undefined, expected: number) => {
+      const db = newDb();
+      const { views, counter } = counting(db, storageSources ? { storageSources } : {});
+      await db.collection("stored").insertMany([
+        { _id: "board:1|acme:x" as never, _part: "acme", kind: "x", n: 1 },
+        { _id: "board:1|beta:y" as never, _part: "beta", kind: "y", n: 1 },
+        { _id: 5 as never, _part: "beta", kind: "z", n: 1 },
+      ]);
+      await db.collection("_aggregations").insertOne(sumsView({ _part: "acme", collections: ["stored"] }) as never);
+      await views.start();
+      await db.collection("stored").deleteOne({ _id: "board:1|beta:y" as never }); // beta: dropped with the form
+      await db.collection("stored").deleteOne({ _id: 5 as never }); // the form does not tell it: passes
+      await db.collection("stored").deleteOne({ _id: "board:1|acme:x" as never }); // acme: passes
+      await settles(counter, expected);
+      await eventually(async () => expect(await db.collection("sums").countDocuments()).toBe(0));
+      await views.stop();
+    };
+    await scenario({ stored: { form, viewPartitionOf: tenantOf } }, 2);
+    // Without the form, the default form reads the part before U+001F: these ids do not tell it, and each delete passes
+    await scenario({ stored: tenantOf }, 3);
+    await scenario(undefined, 3);
   }, 60_000);
 
   it("with sourceFields, starts a pass for an update that sets or removes a field of the view or changes the partition", async (context) => {
