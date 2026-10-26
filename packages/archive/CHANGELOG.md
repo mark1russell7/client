@@ -1,5 +1,13 @@
 # @procedures/archive
 
+## 0.36.0
+
+### Patch Changes
+
+- Updated dependencies [f1fae86]
+  - @procedures/client@0.36.0
+  - @procedures/fs@0.36.0
+
 ## 0.35.1
 
 ### Patch Changes
