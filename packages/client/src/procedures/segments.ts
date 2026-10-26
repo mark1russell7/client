@@ -54,7 +54,9 @@ export function decodeSegment(segment: string): string {
  * ```
  */
 export function segmentsToTopic(segments: readonly string[]): string {
-  return segments.map(encodeSegment).join(".");
+  // A segment that is not a string becomes text as with join(): null and undefined give "" (a
+  // caller can check a path that is not valid, for example the compiler)
+  return segments.map((segment: unknown) => encodeSegment(segment === null || segment === undefined ? "" : String(segment))).join(".");
 }
 
 /**

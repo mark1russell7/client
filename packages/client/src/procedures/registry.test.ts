@@ -44,10 +44,11 @@ describe("ProcedureRegistry path segments (CORE-6)", () => {
     expect(() => registry.register(procedureAt(["a.b", "c"]))).toThrow(/already registered/);
   });
 
-  it("allows a dot in a segment (client-fs has fs.read.json)", () => {
+  it("allows a dot in a segment, and its key encodes the dot (CLI-75)", () => {
     const registry = new ProcedureRegistry();
     registry.register(procedureAt(["fs", "read.json"]));
     expect(registry.get(["fs", "read.json"])?.path).toEqual(["fs", "read.json"]);
+    expect(registry.get(["fs", "read", "json"])).toBeUndefined();
   });
 
   it("getTree does not write into Object.prototype", () => {

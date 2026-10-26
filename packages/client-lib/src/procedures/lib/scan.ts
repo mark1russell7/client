@@ -43,7 +43,7 @@ interface PackageJson {
 async function readPackageJson(dirPath: string, ctx: ProcedureContext): Promise<PackageJson | null> {
   try {
     const result = await ctx.client.call<{ path: string }, FsReadJsonOutput>(
-      ["fs", "read.json"],
+      ["fs", "read", "json"],
       { path: join(dirPath, "package.json") }
     );
     return result.data as PackageJson;

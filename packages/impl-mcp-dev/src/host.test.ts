@@ -122,14 +122,14 @@ describe("the dev-tools host with MCP_FS_ROOT (roadmap R33)", () => {
   });
 
   it("accepts a path in the root, and refuses a path outside it with FORBIDDEN (outside-root)", async () => {
-    const inside = await invokePath<{ data: unknown }>(["fs", "read.json"], { path: join(root, "packages", "inside-package", "package.json") }, { registry: rooted.registry });
-    expect((await outputValue(inside, ["fs", "read.json"])).data).toEqual({ name: "inside-package" });
+    const inside = await invokePath<{ data: unknown }>(["fs", "read", "json"], { path: join(root, "packages", "inside-package", "package.json") }, { registry: rooted.registry });
+    expect((await outputValue(inside, ["fs", "read", "json"])).data).toEqual({ name: "inside-package" });
     await expect(
-      invokePath(["fs", "read.json"], { path: join(outside, "packages", "outside-package", "package.json") }, { registry: rooted.registry }),
+      invokePath(["fs", "read", "json"], { path: join(outside, "packages", "outside-package", "package.json") }, { registry: rooted.registry }),
     ).rejects.toMatchObject({ code: "FORBIDDEN", reason: "outside-root" });
     // Without the root, the same path is accepted
-    const free = await invokePath(["fs", "read.json"], { path: join(outside, "packages", "outside-package", "package.json") }, { registry: host.registry });
-    expect(await outputValue(free, ["fs", "read.json"])).toMatchObject({ data: { name: "outside-package" } });
+    const free = await invokePath(["fs", "read", "json"], { path: join(outside, "packages", "outside-package", "package.json") }, { registry: host.registry });
+    expect(await outputValue(free, ["fs", "read", "json"])).toMatchObject({ data: { name: "outside-package" } });
   });
 
   it("confines the paths of a tool: lib.scan reads only the workspaces in the root", async () => {

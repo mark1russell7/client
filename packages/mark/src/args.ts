@@ -239,25 +239,33 @@ export function parseLeadingGlobals(argv: readonly string[]): { globals: Globals
  * The command path at the start of the tokens: the longest run of words that names a procedure
  * or a group of procedures. The first word is part of the path even when it names nothing (the
  * command is then unknown).
+ *
+ * A procedure can also be a group: `fs read` and `fs read json` are both procedures (roadmap
+ * CLI-75). The words go on while a longer path can match, and the path is the longest one that
+ * names a procedure. Thus `fs read json` names `fs.read.json`, and `fs read notes.txt` names
+ * `fs.read` with the argument `notes.txt`.
  */
 function readPath(tokens: readonly string[], procedures: readonly CommandLike[]): string[] {
   const path: string[] = [];
+  // The length of the longest path that names a procedure
+  let named = 0;
   for (const token of tokens) {
     if (isFlag(token) || token === "--") {
       break;
     }
     const testPath = [...path, token];
-    if (findProcedure(procedures, testPath)) {
-      path.push(token);
+    const procedure = findProcedure(procedures, testPath) !== undefined;
+    const group = findChildren(procedures, testPath).length > 0;
+    if (!procedure && !group && path.length > 0) {
       break;
     }
-    if (findChildren(procedures, testPath).length > 0 || path.length === 0) {
-      path.push(token);
-      continue;
+    path.push(token);
+    if (procedure) named = path.length;
+    if (!group) {
+      break;
     }
-    break;
   }
-  return path;
+  return named > 0 ? path.slice(0, named) : path;
 }
 
 /**

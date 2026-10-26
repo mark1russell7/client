@@ -118,9 +118,9 @@ function patternLeavesFolder(pattern: string): boolean {
 export function rootedHandlers(root: string): FsHandlers {
   const folder = resolve(root);
   /** The root of one call (its real path can change between two calls), and the check of its paths. */
-  const check = async (procedure: string): Promise<{ root: ResolvedRoot; inside: (path: string) => Promise<string> }> => {
+  const check = async (...procedure: string[]): Promise<{ root: ResolvedRoot; inside: (path: string) => Promise<string> }> => {
     const resolved = await resolveRoot(folder);
-    const at: ProcedurePath = ["fs", procedure];
+    const at: ProcedurePath = ["fs", ...procedure];
     return { root: resolved, inside: (path) => inRoot(resolved, path, at) };
   };
 
@@ -150,11 +150,11 @@ export function rootedHandlers(root: string): FsHandlers {
       return stat({ ...input, path: await inside(input.path) });
     },
     readJson: async (input) => {
-      const { inside } = await check("read.json");
+      const { inside } = await check("read", "json");
       return readJson({ ...input, path: await inside(input.path) });
     },
     writeJson: async (input) => {
-      const { inside } = await check("write.json");
+      const { inside } = await check("write", "json");
       return fsWriteJson({ ...input, path: await inside(input.path) });
     },
     hash: async (input) => {

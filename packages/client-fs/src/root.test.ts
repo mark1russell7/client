@@ -79,7 +79,7 @@ afterEach(() => {
 });
 
 async function call<T>(key: string, input: unknown, at: ProcedureRegistry = registry): Promise<T> {
-  const path = key === "fs.read.json" ? ["fs", "read.json"] : key.split(".");
+  const path = key.split(".");
   return outputValue(await invokePath<T>(path, input, { registry: at }), path);
 }
 
@@ -233,7 +233,7 @@ describe("paths outside the root", () => {
     for (const [key, input] of inputsWith("../outside/secret.txt")) {
       const error = await refusal(key, input);
       expect(error.message).toContain("is outside the root");
-      expect(error.path).toEqual(key === "fs.read.json" ? ["fs", "read.json"] : key.split("."));
+      expect(error.path).toEqual(key.split("."));
     }
     expect(readFileSync(join(outside, "secret.txt"), "utf8")).toBe("secret");
     expect(existsSync(join(root, "copy"))).toBe(false);

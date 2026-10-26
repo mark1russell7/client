@@ -3,6 +3,8 @@
 "@procedures/peer": minor
 "@procedures/store": minor
 "@procedures/mark": minor
+"@procedures/fs": minor
+"@procedures/lib": patch
 ---
 
 A path segment with a dot or a `%` comes back the same after a trip over the wire (roadmap CLI-75, decision D36).
@@ -21,9 +23,14 @@ Two collections thus do not have the same topic, and `ProcedureServer` accepts a
 
 MINOR (breaking, pre-1.0): a name with `.` or `%` gets a new method name, a new registry key and a new topic. The MCP tool names do not change.
 
+The procedures `fs.read.json` and `fs.write.json` have the paths `["fs", "read", "json"]` and `["fs", "write", "json"]`. Before, their paths were `["fs", "read.json"]` and `["fs", "write.json"]`. With the encoding, those paths get the key `fs.read%2Ejson`, so the key `fs.read.json` of the callers does not find them. With three segments, the method name, the key and the MCP tool name stay the same.
+
+The command line of `mark` reads the longest path that names a procedure. Thus `mark fs read json a.json` starts `fs.read.json`, and `mark fs read notes.txt` starts `fs.read`.
+
 Migration:
 
 - Upgrade the clients and the servers of a name with `.` or `%` together.
+- A caller that gives the path `["fs", "read.json"]` or `["fs", "write.json"]` as a list gives `["fs", "read", "json"]` or `["fs", "write", "json"]`. A caller that gives the text `fs.read.json` has no change.
 - A host whose `expose`, policy or limit pattern names such a path in text uses the encoded form, for example `collections.e2e%2Etabs.*`.
 - An `mcpExclude` entry, an `expose` deny entry or a limit entry in the old raw form, for example `collections.e2e.tabs.drop`, does not match. The check compares the encoded key, so the procedure becomes visible, or the limit does not apply. Write each such entry in the encoded form, for example `collections.e2e%2Etabs.drop`.
 - A subscriber of a dotted collection uses `collectionChangeTopic(name)`. The raw topic `collections.a.b` is the topic of the partition `b` of `a`.

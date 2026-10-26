@@ -6,6 +6,8 @@ import { describe, it, expect } from "vitest";
 import { parseCommandLine, parseLeadingGlobals } from "./args.js";
 import { convertValue } from "./parse.js";
 import { testProcedures } from "../test/procedures.js";
+import { z } from "zod";
+import { createProcedure, outputSchema, type AnyProcedure } from "@procedures/client";
 
 const procedures = testProcedures();
 const parse = (line: string[]) => parseCommandLine(line, procedures);
@@ -215,5 +217,28 @@ describe("booleans, negative numbers and -- (CLI-11)", () => {
   it("reports a flag that needs a value and has none", () => {
     expect(parse(["git", "commit", "--message"]).errors).toEqual(["--message needs a value"]);
     expect(parse(["git", "commit", "-m", "--amend"]).errors).toEqual(["-m needs a value"]);
+  });
+});
+
+describe("a procedure that is also a group (CLI-75)", () => {
+  const at = (path: string[]): AnyProcedure =>
+    createProcedure()
+      .path(path)
+      .input(z.object({ path: z.string().optional() }))
+      .output(outputSchema<unknown>())
+      .meta({ args: ["path"] })
+      .handler(async (input: unknown) => input)
+      .build() as unknown as AnyProcedure;
+  const fs = [at(["fs", "read"]), at(["fs", "read", "json"])];
+
+  it("names the longest path that names a procedure", () => {
+    const json = parseCommandLine(["fs", "read", "json", "a.json"], fs);
+    expect(json.path).toEqual(["fs", "read", "json"]);
+    expect(json.input).toEqual({ path: "a.json" });
+    const read = parseCommandLine(["fs", "read", "notes.txt"], fs);
+    expect(read.path).toEqual(["fs", "read"]);
+    expect(read.input).toEqual({ path: "notes.txt" });
+    expect(parseCommandLine(["fs", "read"], fs).path).toEqual(["fs", "read"]);
+    expect(parseCommandLine(["fs"], fs).path).toEqual(["fs"]);
   });
 });

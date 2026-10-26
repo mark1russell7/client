@@ -39,10 +39,10 @@ describe("the registry of mark with a root", () => {
   it("accepts a path in the root, refuses a path outside it, and confines the nested calls of lib.scan", async () => {
     const { registry, fsRoot } = await loadEcosystemRegistry(false, false, { fsRoot: root });
     expect(fsRoot).toBe(root);
-    const inside = await invokePath(["fs", "read.json"], { path: join(root, "packages", "inside-package", "package.json") }, { registry });
+    const inside = await invokePath(["fs", "read", "json"], { path: join(root, "packages", "inside-package", "package.json") }, { registry });
     expect(await outputValue(inside)).toMatchObject({ data: { name: "inside-package" } });
     await expect(
-      invokePath(["fs", "read.json"], { path: join(outside, "packages", "outside-package", "package.json") }, { registry }),
+      invokePath(["fs", "read", "json"], { path: join(outside, "packages", "outside-package", "package.json") }, { registry }),
     ).rejects.toMatchObject({ code: "FORBIDDEN", reason: "outside-root" });
 
     const scanned = await outputValue(await invokePath<{ packages: Record<string, unknown> }>(["lib", "scan"], { rootPath: root }, { registry }));

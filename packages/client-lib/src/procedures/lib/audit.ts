@@ -97,7 +97,7 @@ async function checkPnpmIssues(
   let pkgJson: PackageJson;
   try {
     const result = await ctx.client.call<{ path: string }, FsReadJsonOutput>(
-      ["fs", "read.json"],
+      ["fs", "read", "json"],
       { path: join(pkgPath, "package.json") }
     );
     pkgJson = result.data as PackageJson;
