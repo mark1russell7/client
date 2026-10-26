@@ -5,8 +5,7 @@
  * so a reader sees the old file or the whole new file, never a half-written one.
  */
 
-import { randomBytes } from "node:crypto";
-import { rename, rm, writeFile } from "node:fs/promises";
+import { writeFileAtomic } from "../../files/atomic.js";
 import type { FsWriteJsonInput, FsWriteJsonOutput } from "../../types.js";
 
 /**
@@ -16,17 +15,7 @@ export async function fsWriteJson(input: FsWriteJsonInput): Promise<FsWriteJsonO
   const text = JSON.stringify(input.value ?? null, null, input.indent ?? 2);
   if (text === undefined) throw new Error("fs.write.json: the value has no JSON form");
   const content = `${text}\n`;
-  const temporary = `${input.path}.${randomBytes(6).toString("hex")}.tmp`;
-  try {
-    await writeFile(temporary, content, "utf8");
-    await rename(temporary, input.path);
-  } catch (error) {
-    try {
-      await rm(temporary, { force: true });
-    } catch {
-      // The error of the write counts, not the error of the cleanup
-    }
-    throw error;
-  }
+  // writeFileAtomic flushes the file, tries the rename again on Windows and removes the temporary file after a failure
+  await writeFileAtomic(input.path, content, { encoding: "utf8" });
   return { path: input.path, bytesWritten: Buffer.byteLength(content, "utf8") };
 }

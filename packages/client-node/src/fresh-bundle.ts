@@ -25,6 +25,7 @@ import {
 } from "node:fs";
 import { basename, dirname, extname, join, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { writeFileAtomicSync } from "@procedures/fs/files";
 import type { Loader, OnLoadArgs, OnLoadResult, OnResolveArgs, OnResolveResult, Plugin } from "esbuild";
 
 /** The format of the builds. A build of another format is stale. */
@@ -192,30 +193,6 @@ const plugin = (sources: Map<string, string>): Plugin => ({
   },
 });
 
-/** This function waits for some milliseconds. It blocks the thread. */
-const sleepSync = (ms: number): void => {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
-};
-
-/** This function writes a file through a temporary file and a rename, so a reader does not see a part of the file. */
-const writeAtomic = (file: string, text: string): void => {
-  const tmp = `${file}.${String(process.pid)}.tmp`;
-  writeFileSync(tmp, text);
-  // On Windows, the rename fails while a reader has the file open. Thus the function tries again.
-  for (let attempt = 0; ; attempt += 1) {
-    try {
-      renameSync(tmp, file);
-      return;
-    } catch (error) {
-      if (attempt >= 20) {
-        rmSync(tmp, { force: true });
-        throw error;
-      }
-      sleepSync(25);
-    }
-  }
-};
-
 /** This function removes the builds that no launch used recently, and the remains of a build that crashed. */
 const prune = (outDir: string, keep: string): void => {
   for (const entry of readdirSync(outDir, { withFileTypes: true })) {
@@ -274,7 +251,8 @@ export async function build(spec: FreshBundleSpec): Promise<void> {
     }
     const main = join(id, basename(spec.entry).replace(/\.[cm]?tsx?$/, ".mjs"));
     const current: CurrentBuild = { version: FORMAT, entry: spec.entry, main, inputs };
-    writeAtomic(join(spec.outDir, "current.json"), JSON.stringify(current));
+    // A reader does not see a part of the record. On Windows, the rename fails while a reader has the file open, so writeFileAtomicSync tries again.
+    writeFileAtomicSync(join(spec.outDir, "current.json"), JSON.stringify(current));
     prune(spec.outDir, id);
   } finally {
     rmSync(tmp, { recursive: true, force: true });

@@ -62,7 +62,6 @@
     "@types/node": "^22.0.0",
     "@mark1russell7/cue": "^1.0.0",
     "vitest": "^5.0.3",
-    "@procedures/fs": "workspace:*",
     "@mark1russell7/service": "^0.5.8"
   },
   "engines": {
@@ -73,6 +72,7 @@
   },
   "dependencies": {
     "@procedures/client": "workspace:*",
+    "@procedures/fs": "workspace:*",
     "@procedures/store": "workspace:*",
     "zod": "^4.6.5"
   },

@@ -18,6 +18,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describeProcedureEntry, jsonSchemaOf, type AnyProcedure, type ProcedureEntry } from "@procedures/client";
+import { writeFileAtomicSync } from "@procedures/fs/files";
 import { discoverFromEcosystem, findWorkspaceRoot } from "./ecosystem.js";
 import { extractSchemaFields, resultFieldsOfSchema, type CLIMeta, type SchemaFieldInfo } from "./parse.js";
 
@@ -140,14 +141,8 @@ export async function writeManifest(procedures: readonly AnyProcedure[], file: s
     generatedAt: new Date().toISOString(),
     commands: await commandsOf(procedures),
   };
-  const temporary = `${file}.${process.pid}.tmp`;
-  fs.writeFileSync(temporary, toJson(manifest));
-  try {
-    fs.renameSync(temporary, file);
-  } catch (error) {
-    fs.rmSync(temporary, { force: true });
-    throw error;
-  }
+  // writeFileAtomicSync flushes the file, tries the rename again on Windows and removes the temporary file after a failure
+  writeFileAtomicSync(file, toJson(manifest));
   return manifest;
 }
 
