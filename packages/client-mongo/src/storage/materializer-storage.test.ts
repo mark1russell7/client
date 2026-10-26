@@ -424,11 +424,13 @@ withMongo("ViewMaterializer with a target in a stored form", { timeout: TEST_TIM
       expect(during.changed.map(([id]) => id)).toEqual([]);
       await eventually(async () => expect(await reader.get("c")).toEqual({ _id: "c", total: 3 }));
       await eventually(async () => expect(await reader.get("a")).toEqual({ _id: "a", total: 2 }));
-      // The run moved to new numbers after the version of the reader: the next delta has its rows
-      const after = await reader.getChangesSince(during.version);
-      const changed = new Map(after.changed);
-      expect(changed.get("a")).toEqual({ _id: "a", total: 2 });
-      expect(changed.get("c")).toEqual({ _id: "c", total: 3 });
+      // The run moved to new numbers after the version of the reader: the next delta has its rows.
+      // The watermark can stay below a committed row for one lease while other numbers are pending
+      await eventually(async () => {
+        const changed = new Map((await reader.getChangesSince(during.version)).changed);
+        expect(changed.get("a")).toEqual({ _id: "a", total: 2 });
+        expect(changed.get("c")).toEqual({ _id: "c", total: 3 });
+      });
       const a = (await db.collection("sums").findOne({ _id: "t1a" as never }))!;
       const c = (await db.collection("sums").findOne({ _id: "t1c" as never }))!;
       expect(a["_seq"]).toBeGreaterThan(pending!.to);
