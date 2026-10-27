@@ -6,6 +6,7 @@
  */
 
 import type { UrlStrategy, HttpMethodStrategy, HeaderConverter } from "../shared/index.js";
+import type { HttpBatchOptions } from "./batch.js";
 import type { Duration } from "../../../duration.js";
 
 /**
@@ -53,4 +54,13 @@ export interface HttpTransportOptions {
    * @default globalThis.fetch
    */
   fetch?: typeof fetch;
+
+  /**
+   * The batches of the calls (roadmap CLI-32). With it, the `POST` calls that start in the same turn
+   * of the event loop go to the server in one request, and the answer is one stream of frames that
+   * name their call. Each call still gets its own items, and its middleware sees one call. A server
+   * without batches gets each call alone. `true` uses the defaults.
+   * @default false: one request for each call
+   */
+  batch?: boolean | HttpBatchOptions;
 }

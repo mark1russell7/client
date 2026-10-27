@@ -24,7 +24,7 @@ export {
 
 // Transport Adapters
 export { HttpTransport, defaultUrlPattern, restfulHttpMethodStrategy, postOnlyStrategy } from "../adapters/http/client/index.js";
-export type { HttpTransportOptions, UrlStrategy, HttpMethodStrategy } from "../adapters/http/client/index.js";
+export type { HttpTransportOptions, HttpBatchOptions, UrlStrategy, HttpMethodStrategy } from "../adapters/http/client/index.js";
 
 export { LocalTransport } from "../adapters/local/client/index.js";
 export type { LocalTransportOptions, Handler } from "../adapters/local/client/index.js";

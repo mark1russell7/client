@@ -4,7 +4,7 @@
 # and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
 # To accept a change of the API, start the script with --update and review the diff.
 
-## . (dist/index.d.ts): 621 names
+## . (dist/index.d.ts): 622 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -133,6 +133,7 @@ type HintRowState: dist/procedures/collection/hint-filter.d.ts#HintRowState
 type HostPolicy: dist/server/host-policy.d.ts#HostPolicy
 type HostPolicyOptions: dist/server/host-policy.d.ts#HostPolicyOptions
 type HostSource: dist/server/host-procedures.d.ts#HostSource
+type HttpBatchOptions: dist/adapters/http/client/batch.d.ts#HttpBatchOptions
 type HttpMethodStrategy: dist/adapters/http/shared/strategies.d.ts#HttpMethodStrategy
 HttpTransport: dist/adapters/http/client/transport.d.ts#HttpTransport
 type HttpTransportOptions: dist/adapters/http/client/types.d.ts#HttpTransportOptions
@@ -628,7 +629,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 609 names
+## ./browser (dist/browser.d.ts): 610 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -753,6 +754,7 @@ type HintRowState: dist/procedures/collection/hint-filter.d.ts#HintRowState
 type HostPolicy: dist/server/host-policy.d.ts#HostPolicy
 type HostPolicyOptions: dist/server/host-policy.d.ts#HostPolicyOptions
 type HostSource: dist/server/host-procedures.d.ts#HostSource
+type HttpBatchOptions: dist/adapters/http/client/batch.d.ts#HttpBatchOptions
 type HttpMethodStrategy: dist/adapters/http/shared/strategies.d.ts#HttpMethodStrategy
 HttpTransport: dist/adapters/http/client/transport.d.ts#HttpTransport
 type HttpTransportOptions: dist/adapters/http/client/types.d.ts#HttpTransportOptions
@@ -1240,7 +1242,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./node (dist/node.d.ts): 39 names
+## ./node (dist/node.d.ts): 40 names
 
 type Addressing: dist/adapters/http/server/addressing.d.ts#Addressing
 BodyError: dist/adapters/http/server/body.d.ts#BodyError
@@ -1249,6 +1251,7 @@ type CallAddress: dist/adapters/http/server/addressing.d.ts#CallAddress
 type ConnectionEventHandler: dist/adapters/websocket/server/types.d.ts#ConnectionEventHandler
 type CorsOptions: dist/adapters/http/server/cors.d.ts#CorsOptions
 type CredentialedCorsOptions: dist/adapters/http/server/cors.d.ts#CredentialedCorsOptions
+type HandlerBatchOptions: dist/adapters/http/server/batch.d.ts#HandlerBatchOptions
 HttpServerTransport: dist/adapters/http/server/transport.d.ts#HttpServerTransport
 type HttpServerTransportOptions: dist/adapters/http/server/types.d.ts#HttpServerTransportOptions
 type HttpUrlStrategy: dist/adapters/http/server/types.d.ts#HttpUrlStrategy
@@ -1285,7 +1288,7 @@ writeNdjsonStream: dist/adapters/http/server/ndjson.d.ts#writeNdjsonStream
 ## ./register (dist/register.d.ts): 0 names
 
 
-## ./client (dist/client/index.d.ts): 125 names
+## ./client (dist/client/index.d.ts): 126 names
 
 type AuthOptions: dist/client/middleware/auth.d.ts#AuthOptions
 type BaseCaller: dist/client/typed.d.ts#BaseCaller
@@ -1315,6 +1318,7 @@ type ErrorMetadata: dist/client/errors/types.d.ts#ErrorMetadata
 type ErrorRegistry: dist/client/errors/types.d.ts#ErrorRegistry
 ErrorSeverity: dist/client/errors/types.d.ts#ErrorSeverity
 type Handler: dist/adapters/local/client/types.d.ts#Handler
+type HttpBatchOptions: dist/adapters/http/client/batch.d.ts#HttpBatchOptions
 type HttpMethodStrategy: dist/adapters/http/shared/strategies.d.ts#HttpMethodStrategy
 HttpTransport: dist/adapters/http/client/transport.d.ts#HttpTransport
 type HttpTransportOptions: dist/adapters/http/client/types.d.ts#HttpTransportOptions
@@ -1956,6 +1960,14 @@ mcpCaller: dist/testing/mcp-caller.d.ts#mcpCaller
 
 ## Declarations
 
+### dist/adapters/http/client/batch.d.ts#HttpBatchOptions
+export interface HttpBatchOptions {
+    readonly maxCalls?: number | undefined;
+    readonly window?: Duration | undefined;
+    readonly url?: string | undefined;
+    readonly secretHeaders?: readonly string[] | undefined;
+}
+
 ### dist/adapters/http/client/transport.d.ts#HttpTransport
 export declare class HttpTransport implements Transport {
     readonly name: typeof HTTP;
@@ -1975,6 +1987,7 @@ export interface HttpTransportOptions {
     credentials?: "include" | "same-origin" | "omit";
     requestInit?: Omit<RequestInit, "method" | "headers" | "body" | "signal">;
     fetch?: typeof fetch;
+    batch?: boolean | HttpBatchOptions;
 }
 
 ### dist/adapters/http/server/addressing.d.ts#Addressing
@@ -2006,6 +2019,12 @@ export declare function bodyPathAddressing(options?: BodyPathAddressingOptions):
 
 ### dist/adapters/http/server/addressing.d.ts#urlAddressing
 export declare function urlAddressing(options?: UrlAddressingOptions): Addressing;
+
+### dist/adapters/http/server/batch.d.ts#HandlerBatchOptions
+export interface HandlerBatchOptions {
+    readonly maxCalls?: number | undefined;
+    readonly concurrency?: number | undefined;
+}
 
 ### dist/adapters/http/server/body.d.ts#BodyError
 export declare class BodyError extends Error {
@@ -2060,6 +2079,7 @@ export interface ProcedureHandlerOptions extends BrowserGuardOptions {
     readonly clock?: Clock | undefined;
     readonly secretHeaders?: readonly string[] | undefined;
     readonly secretQuery?: readonly string[] | undefined;
+    readonly batch?: boolean | HandlerBatchOptions | undefined;
 }
 
 ### dist/adapters/http/server/handler.d.ts#UrlRequest
@@ -2132,6 +2152,7 @@ export interface HttpServerTransportOptions extends BrowserGuardOptions {
     host?: string;
     urlStrategy?: HttpUrlStrategy;
     addressing?: Addressing;
+    batch?: boolean | HandlerBatchOptions;
     basePath?: string;
     cors?: boolean;
     bodyLimit?: number;

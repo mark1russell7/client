@@ -17,6 +17,7 @@ import type { HttpServerTransportOptions } from "./types.js";
 import { createPatternServerUrlStrategy } from "./strategies.js";
 import { applyCors, corsOrigins, corsPolicy, type CorsPolicy } from "./cors.js";
 import { createProcedureHandler, type NodeProcedureHandler } from "./handler.js";
+import { isBatchRequest } from "./batch.js";
 
 /**
  * This function gives the route of the procedure handler: each path under the base path. With
@@ -54,7 +55,7 @@ export class HttpServerTransport implements ServerTransport {
 
   private app: Express;
   private httpServer: HttpServer | null = null;
-  private options: { port: number; host: string; basePath: string; cors: boolean; httpServer: HttpServer | undefined; takesBasePath: boolean };
+  private options: { port: number; host: string; basePath: string; cors: boolean; httpServer: HttpServer | undefined; takesBasePath: boolean; batch: boolean };
   /** The procedure handler that does the work of each request (CLI-3) */
   private readonly handler: NodeProcedureHandler;
   /** The CORS of the app, or undefined when it is off */
@@ -72,6 +73,8 @@ export class HttpServerTransport implements ServerTransport {
       httpServer: options.httpServer,
       // A single endpoint with the path in the body is the base path itself (CLI-31)
       takesBasePath: options.addressing?.takesBasePath === true,
+      // A batch of calls goes to the base path itself too (CLI-32)
+      batch: options.batch !== false,
     };
     // Route by URL path so the raw server matches the HTTP client's default URL format instead of
     // inferring the operation from the verb (BUGS-2026-07 C3, bug 16)
@@ -93,6 +96,7 @@ export class HttpServerTransport implements ServerTransport {
         secretHeaders: options.secretHeaders,
         secretQuery: options.secretQuery,
         addressing: options.addressing,
+        batch: options.batch,
       },
       {
         legacy: true,
@@ -133,10 +137,17 @@ export class HttpServerTransport implements ServerTransport {
     }
 
     // Catch-all route for RPC - use regex to match any path under basePath, and the base path
-    // itself for an addressing that takes it
+    // itself for an addressing that takes it. A batch also goes to the base path itself; another
+    // request there goes on to the app (CLI-32).
+    const { basePath, takesBasePath, batch } = this.options;
+    const bareBase = basePath.replace(/\/$/, "");
     this.app.all(
-      basePathRoute(this.options.basePath, this.options.takesBasePath),
-      async (req, res) => {
+      basePathRoute(basePath, takesBasePath || batch),
+      async (req, res, next) => {
+        if (!takesBasePath && req.path.replace(/\/$/, "") === bareBase && !isBatchRequest(req)) {
+          next();
+          return;
+        }
         await this.handler.handle(req, res);
       }
     );
