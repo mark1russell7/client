@@ -1,5 +1,21 @@
 # @procedures/lib
 
+## 0.41.1
+
+### Patch Changes
+
+- 69cee92: Two source comments record an exception to a rule of the repository (the deferred findings of the invariants audit of O70). The code does not change.
+  
+  - `@procedures/claude-cli`: `startTurn()` starts the turn with `spawn`, not with `runCommand()` of `@procedures/shell`. The turn must outlive its host.
+  - `@procedures/lib`: the pattern of the old npm scope stays. A workspace can still install the packages of the old scope.
+- Updated dependencies [69cee92]
+  - @procedures/client@0.41.1
+  - @procedures/dag@0.41.1
+  - @procedures/fs@0.41.1
+  - @procedures/git@0.41.1
+  - @procedures/pnpm@0.41.1
+  - @procedures/shell@0.41.1
+
 ## 0.41.0
 
 ### Patch Changes
