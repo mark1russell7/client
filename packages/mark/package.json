@@ -60,7 +60,7 @@
     "test:e2e:watch": "vitest --config vitest.e2e.config.ts"
   },
   "dependencies": {
-    "@mark1russell7/service": "^0.5.8",
+    "@mark1russell7/service": "^0.6.0",
     "@procedures/cli-kit": "workspace:*",
     "@procedures/cli-run": "workspace:*",
     "@procedures/client": "workspace:*",
