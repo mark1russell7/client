@@ -199,7 +199,7 @@ The CI names below are the jobs and the steps of `.github/workflows/ci.yml`.
   - `relative-import-out-of-<package>` (shared): a relative import stays in its package.
   - `deep-import-into-<package>` (shared): an import of another package goes to an entry of its `package.json`. Thus no import goes into the `src/` folder of another package.
   - `not-a-declared-export` (shared): an import of a package of this repository resolves through its exports map, with the conditions of an ESM import. The check reads `dist/`, so start it after `pnpm build`.
-  - `unknown-procedures-package` (this repository): an import of the scope `@procedures` names a package of this repository.
+  - `unknown-workspace-package` (shared): an import of a scope of the workspace (`@procedures`) names a package of this repository or a declared dependency.
   - `import-of-the-app-<package>` (shared): no package imports an app. An app is a private package (`"private": true`), for example `site`.
 
 ### I10. Bundle size
