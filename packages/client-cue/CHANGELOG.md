@@ -1,5 +1,16 @@
 # @procedures/cue
 
+## 0.42.0
+
+### Patch Changes
+
+- Updated dependencies [7ca9953]
+- Updated dependencies [226ae02]
+- Updated dependencies [e4cb0cf]
+  - @procedures/client@0.42.0
+  - @procedures/fs@0.42.0
+  - @procedures/shell@0.42.0
+
 ## 0.41.1
 
 ### Patch Changes

@@ -1,5 +1,27 @@
 # @procedures/server
 
+## 0.42.0
+
+### Minor Changes
+
+- e4cb0cf: The release train: the ranges of @mark1russell7/algebra, @mark1russell7/service change to a version outside the old range.
+
+### Patch Changes
+
+- 10d58a3: A procedures host can stop by itself after a time with no call (CLI-27).
+  
+  - `runProcedureHost()` has the new option `idle`: `{ after, poll? }`. Without it, the host has no idle stop, as before.
+  - The host stops through `life.shutdown()`, as an exit signal does. The runner keeps the stop in stages, and the exit code is 0.
+  - Each call starts the full time again. An open stream is a call until its end.
+  - The new export `spawnMarkServer()` starts `mark --server` as a detached, unref'd process. `server.start` uses it, with no change of its behavior.
+  - The new exports `HostIdle`, `IDLE_POLL_MS`, `MarkServerSpawn`, `ServerSpawner` and `SpawnedMarkServer` are the types and the default of these options.
+- Updated dependencies [7ca9953]
+- Updated dependencies [226ae02]
+- Updated dependencies [e4cb0cf]
+  - @procedures/client@0.42.0
+  - @procedures/peer@0.42.0
+  - @procedures/fs@0.42.0
+
 ## 0.41.1
 
 ### Patch Changes

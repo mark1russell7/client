@@ -1,5 +1,38 @@
 # @procedures/mark
 
+## 0.42.0
+
+### Minor Changes
+
+- e4cb0cf: The release train: the ranges of @mark1russell7/algebra, @mark1russell7/service change to a version outside the old range.
+
+### Patch Changes
+
+- 10d58a3: The optional auto-warm of `mark` (CLI-27): a cold command can start the background host, so the next command is warm.
+  
+  - The setting is `MARK_AUTO_WARM`, with the values `never` and `after-cold`. The default is `never`, so the behavior does not change.
+  - With `after-cold`, a cold command starts `mark --server --idle-timeout <ms>` before it exits. The command starts no host when a warm host runs, when another command starts one, or when the port is in use.
+  - `MARK_IDLE_TIMEOUT_MS` gives the idle time of that host (the default is 10 minutes). `MARK_AUTO_WARM_PORT` gives its port (the default is 3000).
+  - `mark --server` has the new option `--idle-timeout <ms>`. Without it, the server has no idle stop, as before.
+  - The auto-warm does not change the result or the exit code of a command.
+- Updated dependencies [10d58a3]
+- Updated dependencies [10d58a3]
+- Updated dependencies [7ca9953]
+- Updated dependencies [226ae02]
+- Updated dependencies [e4cb0cf]
+  - @procedures/lib@0.42.0
+  - @procedures/server@0.42.0
+  - @procedures/client@0.42.0
+  - @procedures/mcp-dev-tools@0.42.0
+  - @procedures/peer@0.42.0
+  - @procedures/cli-kit@0.42.0
+  - @procedures/cli-run@0.42.0
+  - @procedures/fs@0.42.0
+  - @procedures/pnpm@0.42.0
+  - @procedures/procedure@0.42.0
+  - @procedures/shell@0.42.0
+  - @procedures/vitest@0.42.0
+
 ## 0.41.1
 
 ### Patch Changes
