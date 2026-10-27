@@ -230,7 +230,7 @@ describe("HybridStorage sends the base version of a queued write (CLI-16)", () =
    * A HybridStorage in `write-back` mode that synced "a" and "b" at rev 1, with a queued batch of
    * both ids at rev 2. The first send of the batch reaches the server, and its answer is lost.
    */
-  async function lostBatch(conflictResolution: HybridStorageOptions["conflictResolution"]) {
+  async function lostBatch(conflictResolution: NonNullable<HybridStorageOptions["conflictResolution"]>) {
     const server = new InMemoryStorage<Item>({ versionOf });
     await server.setBatch([["a", item("a", 1, "1")], ["b", item("b", 1, "1")]]);
     // Each batch that the server applied
