@@ -1,0 +1,248 @@
+# The public API of @procedures/npm
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 43 names
+
+NpmCommandOutput: dist/types.d.ts#NpmCommandOutput
+NpmCommandOutputSchema: dist/types.d.ts#NpmCommandOutputSchema
+NpmDeprecateInput: dist/types.d.ts#NpmDeprecateInput
+NpmDeprecateInputSchema: dist/types.d.ts#NpmDeprecateInputSchema
+NpmDeprecateOutput: dist/types.d.ts#NpmDeprecateOutput
+NpmDeprecateOutputSchema: dist/types.d.ts#NpmDeprecateOutputSchema
+NpmDistTagsAddInput: dist/types.d.ts#NpmDistTagsAddInput
+NpmDistTagsAddInputSchema: dist/types.d.ts#NpmDistTagsAddInputSchema
+NpmDistTagsAddOutput: dist/types.d.ts#NpmDistTagsAddOutput
+NpmDistTagsAddOutputSchema: dist/types.d.ts#NpmDistTagsAddOutputSchema
+NpmDistTagsListInput: dist/types.d.ts#NpmDistTagsListInput
+NpmDistTagsListInputSchema: dist/types.d.ts#NpmDistTagsListInputSchema
+NpmDistTagsListOutput: dist/types.d.ts#NpmDistTagsListOutput
+NpmDistTagsListOutputSchema: dist/types.d.ts#NpmDistTagsListOutputSchema
+NpmDistTagsRemoveInput: dist/types.d.ts#NpmDistTagsRemoveInput
+NpmDistTagsRemoveInputSchema: dist/types.d.ts#NpmDistTagsRemoveInputSchema
+NpmDistTagsRemoveOutput: dist/types.d.ts#NpmDistTagsRemoveOutput
+NpmDistTagsRemoveOutputSchema: dist/types.d.ts#NpmDistTagsRemoveOutputSchema
+NpmJsonOutput: dist/types.d.ts#NpmJsonOutput
+NpmJsonOutputSchema: dist/types.d.ts#NpmJsonOutputSchema
+NpmPackInput: dist/types.d.ts#NpmPackInput
+NpmPackInputSchema: dist/types.d.ts#NpmPackInputSchema
+NpmPackOutput: dist/types.d.ts#NpmPackOutput
+NpmPackOutputSchema: dist/types.d.ts#NpmPackOutputSchema
+NpmViewInput: dist/types.d.ts#NpmViewInput
+NpmViewInputSchema: dist/types.d.ts#NpmViewInputSchema
+NpmViewOutput: dist/types.d.ts#NpmViewOutput
+NpmViewOutputSchema: dist/types.d.ts#NpmViewOutputSchema
+NpmWhoamiInput: dist/types.d.ts#NpmWhoamiInput
+NpmWhoamiInputSchema: dist/types.d.ts#NpmWhoamiInputSchema
+NpmWhoamiOutput: dist/types.d.ts#NpmWhoamiOutput
+NpmWhoamiOutputSchema: dist/types.d.ts#NpmWhoamiOutputSchema
+npmDeprecate: dist/procedures/npm/deprecate.d.ts#npmDeprecate
+npmDistTagsAdd: dist/procedures/npm/distTags/add.d.ts#npmDistTagsAdd
+npmDistTagsList: dist/procedures/npm/distTags/list.d.ts#npmDistTagsList
+npmDistTagsRemove: dist/procedures/npm/distTags/remove.d.ts#npmDistTagsRemove
+npmModule: dist/module.d.ts#npmModule
+npmPack: dist/procedures/npm/pack.d.ts#npmPack
+npmView: dist/procedures/npm/view.d.ts#npmView
+npmWhoami: dist/procedures/npm/whoami.d.ts#npmWhoami
+parseDistTags: dist/procedures/npm/distTags/list.d.ts#parseDistTags
+registerNpmProcedures: dist/module.d.ts#registerNpmProcedures
+resolveNpm: dist/procedures/npm/shared.d.ts#resolveNpm
+
+## ./module (dist/module.d.ts): 3 names
+
+default: dist/module.d.ts#npmModule
+npmModule: dist/module.d.ts#npmModule
+registerNpmProcedures: dist/module.d.ts#registerNpmProcedures
+
+## ./register (dist/register.d.ts): 2 names
+
+npmModule: dist/module.d.ts#npmModule
+registerNpmProcedures: dist/module.d.ts#registerNpmProcedures
+
+## Declarations
+
+### dist/module.d.ts#npmModule
+export declare const npmModule: ProcedureModule;
+
+### dist/module.d.ts#registerNpmProcedures
+export declare const registerNpmProcedures: PackageDefinition["register"];
+
+### dist/procedures/npm/deprecate.d.ts#npmDeprecate
+export declare function npmDeprecate(input: NpmDeprecateInput, ctx: ProcedureContext): Promise<NpmDeprecateOutput>;
+
+### dist/procedures/npm/distTags/add.d.ts#npmDistTagsAdd
+export declare function npmDistTagsAdd(input: NpmDistTagsAddInput, ctx: ProcedureContext): Promise<NpmDistTagsAddOutput>;
+
+### dist/procedures/npm/distTags/list.d.ts#npmDistTagsList
+export declare function npmDistTagsList(input: NpmDistTagsListInput, ctx: ProcedureContext): Promise<NpmDistTagsListOutput>;
+
+### dist/procedures/npm/distTags/list.d.ts#parseDistTags
+export declare function parseDistTags(stdout: string): Record<string, string>;
+
+### dist/procedures/npm/distTags/remove.d.ts#npmDistTagsRemove
+export declare function npmDistTagsRemove(input: NpmDistTagsRemoveInput, ctx: ProcedureContext): Promise<NpmDistTagsRemoveOutput>;
+
+### dist/procedures/npm/pack.d.ts#npmPack
+export declare function npmPack(input: NpmPackInput, ctx: ProcedureContext): Promise<NpmPackOutput>;
+
+### dist/procedures/npm/shared.d.ts#resolveNpm
+export declare function resolveNpm(): {
+    command: string;
+    prefix: string[];
+};
+
+### dist/procedures/npm/view.d.ts#npmView
+export declare function npmView(input: NpmViewInput, ctx: ProcedureContext): Promise<NpmViewOutput>;
+
+### dist/procedures/npm/whoami.d.ts#npmWhoami
+export declare function npmWhoami(input: NpmWhoamiInput, ctx: ProcedureContext): Promise<NpmWhoamiOutput>;
+
+### dist/types.d.ts#NpmCommandOutput
+export interface NpmCommandOutput extends CliToolOutput {
+}
+
+### dist/types.d.ts#NpmCommandOutputSchema
+export declare const NpmCommandOutputSchema: z.ZodType<NpmCommandOutput>;
+
+### dist/types.d.ts#NpmDeprecateInput
+export type NpmDeprecateInput = z.infer<typeof NpmDeprecateInputSchema>;
+
+### dist/types.d.ts#NpmDeprecateInputSchema
+export declare const NpmDeprecateInputSchema: z.ZodObject<{
+    package: z.ZodString;
+    message: z.ZodString;
+    confirm: z.ZodLiteral<true>;
+    otp: z.ZodOptional<z.ZodString>;
+    registry: z.ZodOptional<z.ZodString>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#NpmDeprecateOutput
+export type NpmDeprecateOutput = NpmCommandOutput;
+
+### dist/types.d.ts#NpmDeprecateOutputSchema
+export declare const NpmDeprecateOutputSchema: z.ZodType<NpmDeprecateOutput>;
+
+### dist/types.d.ts#NpmDistTagsAddInput
+export type NpmDistTagsAddInput = z.infer<typeof NpmDistTagsAddInputSchema>;
+
+### dist/types.d.ts#NpmDistTagsAddInputSchema
+export declare const NpmDistTagsAddInputSchema: z.ZodObject<{
+    package: z.ZodString;
+    version: z.ZodString;
+    tag: z.ZodString;
+    confirm: z.ZodLiteral<true>;
+    otp: z.ZodOptional<z.ZodString>;
+    registry: z.ZodOptional<z.ZodString>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#NpmDistTagsAddOutput
+export type NpmDistTagsAddOutput = NpmCommandOutput;
+
+### dist/types.d.ts#NpmDistTagsAddOutputSchema
+export declare const NpmDistTagsAddOutputSchema: z.ZodType<NpmDistTagsAddOutput>;
+
+### dist/types.d.ts#NpmDistTagsListInput
+export type NpmDistTagsListInput = z.infer<typeof NpmDistTagsListInputSchema>;
+
+### dist/types.d.ts#NpmDistTagsListInputSchema
+export declare const NpmDistTagsListInputSchema: z.ZodObject<{
+    package: z.ZodString;
+    registry: z.ZodOptional<z.ZodString>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#NpmDistTagsListOutput
+export interface NpmDistTagsListOutput extends NpmCommandOutput {
+    tags?: Record<string, string> | undefined;
+}
+
+### dist/types.d.ts#NpmDistTagsListOutputSchema
+export declare const NpmDistTagsListOutputSchema: z.ZodType<NpmDistTagsListOutput>;
+
+### dist/types.d.ts#NpmDistTagsRemoveInput
+export type NpmDistTagsRemoveInput = z.infer<typeof NpmDistTagsRemoveInputSchema>;
+
+### dist/types.d.ts#NpmDistTagsRemoveInputSchema
+export declare const NpmDistTagsRemoveInputSchema: z.ZodObject<{
+    package: z.ZodString;
+    tag: z.ZodString;
+    confirm: z.ZodLiteral<true>;
+    otp: z.ZodOptional<z.ZodString>;
+    registry: z.ZodOptional<z.ZodString>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#NpmDistTagsRemoveOutput
+export type NpmDistTagsRemoveOutput = NpmCommandOutput;
+
+### dist/types.d.ts#NpmDistTagsRemoveOutputSchema
+export declare const NpmDistTagsRemoveOutputSchema: z.ZodType<NpmDistTagsRemoveOutput>;
+
+### dist/types.d.ts#NpmJsonOutput
+export interface NpmJsonOutput extends NpmCommandOutput {
+    data?: unknown;
+}
+
+### dist/types.d.ts#NpmJsonOutputSchema
+export declare const NpmJsonOutputSchema: z.ZodType<NpmJsonOutput>;
+
+### dist/types.d.ts#NpmPackInput
+export type NpmPackInput = z.infer<typeof NpmPackInputSchema>;
+
+### dist/types.d.ts#NpmPackInputSchema
+export declare const NpmPackInputSchema: z.ZodObject<{
+    dryRun: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+    destination: z.ZodOptional<z.ZodString>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#NpmPackOutput
+export type NpmPackOutput = NpmJsonOutput;
+
+### dist/types.d.ts#NpmPackOutputSchema
+export declare const NpmPackOutputSchema: z.ZodType<NpmPackOutput>;
+
+### dist/types.d.ts#NpmViewInput
+export type NpmViewInput = z.infer<typeof NpmViewInputSchema>;
+
+### dist/types.d.ts#NpmViewInputSchema
+export declare const NpmViewInputSchema: z.ZodObject<{
+    package: z.ZodString;
+    fields: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    registry: z.ZodOptional<z.ZodString>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#NpmViewOutput
+export type NpmViewOutput = NpmJsonOutput;
+
+### dist/types.d.ts#NpmViewOutputSchema
+export declare const NpmViewOutputSchema: z.ZodType<NpmViewOutput>;
+
+### dist/types.d.ts#NpmWhoamiInput
+export type NpmWhoamiInput = z.infer<typeof NpmWhoamiInputSchema>;
+
+### dist/types.d.ts#NpmWhoamiInputSchema
+export declare const NpmWhoamiInputSchema: z.ZodObject<{
+    registry: z.ZodOptional<z.ZodString>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#NpmWhoamiOutput
+export interface NpmWhoamiOutput extends NpmCommandOutput {
+    username?: string | undefined;
+}
+
+### dist/types.d.ts#NpmWhoamiOutputSchema
+export declare const NpmWhoamiOutputSchema: z.ZodType<NpmWhoamiOutput>;

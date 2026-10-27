@@ -1,0 +1,2788 @@
+# The public API of @procedures/collections
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 424 names
+
+ArrayConvertible: dist/core/traits.d.ts#ArrayConvertible
+ArrayDeque: dist/impl/array-deque.d.ts#ArrayDeque
+ArrayDequeOptions: dist/impl/array-deque.d.ts#ArrayDequeOptions
+ArrayList: dist/impl/array-list.d.ts#ArrayList
+ArrayListOptions: dist/impl/array-list.d.ts#ArrayListOptions
+Async: dist/core/middleware.d.ts#Async
+AsyncEmitter: dist/core/events.d.ts#AsyncEmitter
+AsyncOption: dist/core/effects.d.ts#AsyncOption
+AsyncQueue: dist/async/async-queue.d.ts#AsyncQueue
+AsyncQueueOptions: dist/async/async-queue.d.ts#AsyncQueueOptions
+AsyncResult: dist/core/effects.d.ts#AsyncResult
+Asyncify: dist/core/middleware.d.ts#Asyncify
+BiMap: dist/interfaces/map.d.ts#BiMap
+type BlockingQueue: dist/interfaces/queue.d.ts#BlockingQueue
+Bounded: dist/core/traits.d.ts#Bounded
+BoundedCollection: dist/core/middleware.d.ts#BoundedCollection
+type BoundedOptions: dist/behaviors/bounded.d.ts#BoundedOptions
+Channel: dist/async/channels.d.ts#Channel
+CircularList: dist/interfaces/list.d.ts#CircularList
+Clearable: dist/core/traits.d.ts#Clearable
+Cloneable: dist/core/traits.d.ts#Cloneable
+Collection: dist/interfaces/collection.d.ts#Collection
+CollectionBuilder: dist/core/middleware.d.ts#CollectionBuilder
+CollectionEvents: dist/behaviors/evented.d.ts#CollectionEvents
+type CollectionStorage: dist/storage/interface.d.ts#CollectionStorage
+Collector: dist/fx/collectors.d.ts#Collector
+CompactionPolicy: dist/core/policies.d.ts#CompactionPolicy
+Compare: dist/core/traits.d.ts#Compare
+ComparisonProvider: dist/core/traits.d.ts#ComparisonProvider
+ConflictResolutionPolicy: dist/core/policies.d.ts#ConflictResolutionPolicy
+type CurrentItem: @procedures/client/query#CurrentItem (external)
+DEFAULT_CONFLICT_POLICY: dist/core/policies.d.ts#DEFAULT_CONFLICT_POLICY
+DEFAULT_EVICTION_POLICY: dist/core/policies.d.ts#DEFAULT_EVICTION_POLICY
+DEFAULT_FIND_LIMIT: @procedures/client/query#DEFAULT_FIND_LIMIT (external)
+DEFAULT_GROWTH_POLICY: dist/core/policies.d.ts#DEFAULT_GROWTH_POLICY
+DEFAULT_OVERFLOW_POLICY: dist/core/policies.d.ts#DEFAULT_OVERFLOW_POLICY
+DEFAULT_QUERY_OPERATORS: @procedures/client/query#DEFAULT_QUERY_OPERATORS (external)
+DEFAULT_QUERY_POLICY: @procedures/client/query#DEFAULT_QUERY_POLICY (external)
+DEFAULT_RETRY_POLICY: dist/core/policies.d.ts#DEFAULT_RETRY_POLICY
+DEFAULT_UNDERFLOW_POLICY: dist/core/policies.d.ts#DEFAULT_UNDERFLOW_POLICY
+DEFAULT_VALIDATION_POLICY: dist/core/policies.d.ts#DEFAULT_VALIDATION_POLICY
+DELETED_FIELD: dist/overlay/overlay.d.ts#DELETED_FIELD
+type DelayQueue: dist/interfaces/queue.d.ts#DelayQueue
+type Deque: dist/interfaces/queue.d.ts#Deque
+DequeEvents: dist/behaviors/evented.d.ts#DequeEvents
+Disposable: dist/core/traits.d.ts#Disposable
+ElementOf: dist/interfaces/collection.d.ts#ElementOf
+ElementType: dist/core/middleware.d.ts#ElementType
+Emitter: dist/core/events.d.ts#Emitter
+Emptiable: dist/core/traits.d.ts#Emptiable
+Entry: dist/interfaces/map.d.ts#Entry
+Eq: dist/core/traits.d.ts#Eq
+EqualityProvider: dist/core/traits.d.ts#EqualityProvider
+Err: dist/core/effects.d.ts#Err
+EventBatcher: dist/core/events.d.ts#EventBatcher
+EventMap: dist/core/events.d.ts#EventMap
+Evented: dist/core/middleware.d.ts#Evented
+EvictionCandidate: dist/core/policies.d.ts#EvictionCandidate
+EvictionMetadata: dist/core/policies.d.ts#EvictionMetadata
+EvictionPolicy: dist/core/policies.d.ts#EvictionPolicy
+EvictionSelector: dist/core/policies.d.ts#EvictionSelector
+Freezable: dist/core/traits.d.ts#Freezable
+GrowthPolicy: dist/core/policies.d.ts#GrowthPolicy
+Hash: dist/core/traits.d.ts#Hash
+HashMap: dist/impl/hash-map.d.ts#HashMap
+HashMapOptions: dist/impl/hash-map.d.ts#HashMapOptions
+HashProvider: dist/core/traits.d.ts#HashProvider
+HashSet: dist/impl/hash-set.d.ts#HashSet
+HashSetOptions: dist/impl/hash-set.d.ts#HashSetOptions
+type IAsyncQueue: dist/interfaces/queue.d.ts#AsyncQueue
+type IPriorityQueue: dist/interfaces/queue.d.ts#PriorityQueue
+InMemoryStorage: dist/storage/memory.d.ts#InMemoryStorage
+type InMemoryStorageOptions: dist/storage/memory.d.ts#InMemoryStorageOptions
+IsReadonly: dist/interfaces/collection.d.ts#IsReadonly
+KEY_DIGITS: dist/order/rank.d.ts#KEY_DIGITS
+type KeyCheckOptions: dist/order/rank.d.ts#KeyCheckOptions
+type KeyedItem: dist/order/rank.d.ts#KeyedItem
+LAYER_FIELD: dist/overlay/overlay.d.ts#LAYER_FIELD
+LRUCache: dist/behaviors/lru.d.ts#LRUCache
+LRUOptions: dist/behaviors/lru.d.ts#LRUOptions
+type LayerCopy: dist/overlay/overlay.d.ts#LayerCopy
+type LayerResolver: dist/overlay/stacks.d.ts#LayerResolver
+LinkedHashMap: dist/impl/linked-hash-map.d.ts#LinkedHashMap
+LinkedHashMapOptions: dist/impl/linked-hash-map.d.ts#LinkedHashMapOptions
+LinkedList: dist/impl/linked-list.d.ts#LinkedList
+LinkedListOptions: dist/impl/linked-list.d.ts#LinkedListOptions
+List: dist/interfaces/list.d.ts#List
+ListEvents: dist/behaviors/evented.d.ts#ListEvents
+Listener: dist/core/events.d.ts#Listener
+type ListenerErrorHandler: dist/storage/listeners.d.ts#ListenerErrorHandler
+MAX_EXPECTED_VERSION_LENGTH: @procedures/client/query#MAX_EXPECTED_VERSION_LENGTH (external)
+MapEvents: dist/behaviors/evented.d.ts#MapEvents
+MapLike: dist/interfaces/map.d.ts#MapLike
+MergeFunction: dist/core/policies.d.ts#MergeFunction
+type MergeMode: dist/overlay/overlay.d.ts#MergeMode
+Middleware: dist/core/middleware.d.ts#Middleware
+MultiMap: dist/interfaces/map.d.ts#MultiMap
+MutableCollectionBase: dist/core/traits.d.ts#MutableCollectionBase
+NavigableMap: dist/interfaces/map.d.ts#NavigableMap
+NavigableSet: dist/interfaces/set.d.ts#NavigableSet
+None: dist/core/effects.d.ts#None
+Ok: dist/core/effects.d.ts#Ok
+type Option: dist/core/effects.d.ts#Option
+OverflowContext: dist/core/policies.d.ts#OverflowContext
+OverflowHandler: dist/core/policies.d.ts#OverflowHandler
+OverflowPolicy: dist/core/policies.d.ts#OverflowPolicy
+type OverlayFields: dist/overlay/overlay.d.ts#OverlayFields
+PRECONDITION_NOT_SUPPORTED: @procedures/client/query#PRECONDITION_NOT_SUPPORTED (external)
+type Point: dist/order/rank.d.ts#Point
+PriorityQueue: dist/impl/priority-queue.d.ts#PriorityQueue
+PriorityQueueOptions: dist/impl/priority-queue.d.ts#PriorityQueueOptions
+QUERY_OPERATORS: @procedures/client/query#QUERY_OPERATORS (external)
+type Queue: dist/interfaces/queue.d.ts#Queue
+QueueEvents: dist/behaviors/evented.d.ts#QueueEvents
+RandomAccess: dist/interfaces/list.d.ts#RandomAccess
+Readonly: dist/interfaces/collection.d.ts#Readonly
+ReadonlyCollection: dist/interfaces/collection.d.ts#ReadonlyCollection
+ReadonlyCollectionBase: dist/core/traits.d.ts#ReadonlyCollectionBase
+ReadonlyList: dist/interfaces/list.d.ts#ReadonlyList
+ReadonlyMapLike: dist/interfaces/map.d.ts#ReadonlyMapLike
+ReadonlyOptions: dist/behaviors/readonly.d.ts#ReadonlyOptions
+type ReadonlyQueue: dist/interfaces/queue.d.ts#ReadonlyQueue
+ReadonlySet: dist/interfaces/set.d.ts#ReadonlySet
+type ResolvedStack: dist/overlay/stacks.d.ts#ResolvedStack
+type Result: dist/core/effects.d.ts#Result
+RetryContext: dist/core/policies.d.ts#RetryContext
+RetryPolicy: dist/core/policies.d.ts#RetryPolicy
+RetryPredicate: dist/core/policies.d.ts#RetryPredicate
+SafeCollection: dist/core/middleware.d.ts#SafeCollection
+SafeDequeOperations: dist/behaviors/safe.d.ts#SafeDequeOperations
+SafeListOperations: dist/behaviors/safe.d.ts#SafeListOperations
+SafeMapOperations: dist/behaviors/safe.d.ts#SafeMapOperations
+SafeQueueOperations: dist/behaviors/safe.d.ts#SafeQueueOperations
+SelectCase: dist/async/channels.d.ts#SelectCase
+Set: dist/interfaces/set.d.ts#Set
+type Settled: dist/async/settled.d.ts#Settled
+Sized: dist/core/traits.d.ts#Sized
+Some: dist/core/effects.d.ts#Some
+SortedMap: dist/interfaces/map.d.ts#SortedMap
+SortedSet: dist/interfaces/set.d.ts#SortedSet
+Stack: dist/interfaces/list.d.ts#Stack
+type StackRule: dist/overlay/stacks.d.ts#StackRule
+type StorageBatchWriteOptions: dist/storage/interface.d.ts#StorageBatchWriteOptions
+type StorageChangeBatch: dist/storage/interface.d.ts#StorageChangeBatch
+type StorageChangeEvent: dist/storage/interface.d.ts#StorageChangeEvent
+type StorageChanges: dist/storage/interface.d.ts#StorageChanges
+type StorageClearChange: dist/storage/interface.d.ts#StorageClearChange
+type StorageDeleteChange: dist/storage/interface.d.ts#StorageDeleteChange
+type StorageFieldOperators: @procedures/client/query#StorageFieldOperators (external)
+type StorageItemWriteOptions: dist/storage/interface.d.ts#StorageItemWriteOptions
+StorageListeners: dist/storage/listeners.d.ts#StorageListeners
+type StorageMetadata: dist/storage/interface.d.ts#StorageMetadata
+type StorageObserver: dist/storage/interface.d.ts#StorageObserver
+type StoragePatch: @procedures/client/query#StoragePatch (external)
+type StoragePatchOperations: @procedures/client/query#StoragePatchOperations (external)
+type StorageQueryOperator: @procedures/client/query#StorageQueryOperator (external)
+type StorageQueryOptions: @procedures/client/query#StorageQueryOptions (external)
+type StorageQueryPolicy: @procedures/client/query#StorageQueryPolicy (external)
+type StorageSelector: @procedures/client/query#StorageSelector (external)
+type StorageSetChange: dist/storage/interface.d.ts#StorageSetChange
+type StorageSort: @procedures/client/query#StorageSort (external)
+type StorageSortDirection: @procedures/client/query#StorageSortDirection (external)
+type StorageWriteOptions: dist/storage/interface.d.ts#StorageWriteOptions
+SummaryStatistics: dist/fx/collectors.d.ts#SummaryStatistics
+TTLCache: dist/behaviors/ttl.d.ts#TTLCache
+TTLOptions: dist/behaviors/ttl.d.ts#TTLOptions
+type TransferQueue: dist/interfaces/queue.d.ts#TransferQueue
+TreeMap: dist/impl/tree-map.d.ts#TreeMap
+TreeMapOptions: dist/impl/tree-map.d.ts#TreeMapOptions
+TreeSet: dist/impl/tree-set.d.ts#TreeSet
+TreeSetOptions: dist/impl/tree-set.d.ts#TreeSetOptions
+UNSET: dist/overlay/overlay.d.ts#UNSET
+UnderflowContext: dist/core/policies.d.ts#UnderflowContext
+UnderflowHandler: dist/core/policies.d.ts#UnderflowHandler
+UnderflowPolicy: dist/core/policies.d.ts#UnderflowPolicy
+type UndoChange: dist/undo/undo-log.d.ts#UndoChange
+UndoConflictError: dist/undo/undo-log.d.ts#UndoConflictError
+type UndoEntry: dist/undo/undo-log.d.ts#UndoEntry
+UndoLog: dist/undo/undo-log.d.ts#UndoLog
+type UndoLogOptions: dist/undo/undo-log.d.ts#UndoLogOptions
+Unsubscribe: dist/core/events.d.ts#Unsubscribe
+VERSION_CONFLICTS_METADATA_KEY: @procedures/client/query#VERSION_CONFLICTS_METADATA_KEY (external)
+ValidationContext: dist/core/policies.d.ts#ValidationContext
+ValidationHandler: dist/core/policies.d.ts#ValidationHandler
+ValidationPolicy: dist/core/policies.d.ts#ValidationPolicy
+Vector: dist/interfaces/list.d.ts#Vector
+type VersionConflict: @procedures/client/query#VersionConflict (external)
+VersionConflictError: @procedures/client/query#VersionConflictError (external)
+type VersionOf: @procedures/client/query#VersionOf (external)
+WeakMapLike: dist/interfaces/map.d.ts#WeakMapLike
+WithCapability: dist/core/middleware.d.ts#WithCapability
+applyPatch: @procedures/client/query#applyPatch (external)
+arrayContains: dist/utils/helpers.d.ts#arrayContains
+arrayDeque: dist/impl/array-deque.d.ts#arrayDeque
+arrayIterator: dist/utils/helpers.d.ts#arrayIterator
+arrayList: dist/impl/array-list.d.ts#arrayList
+arrayRemove: dist/utils/helpers.d.ts#arrayRemove
+arrayRemoveAll: dist/utils/helpers.d.ts#arrayRemoveAll
+asSettled: dist/async/settled.d.ts#asSettled
+asVersionConflictError: @procedures/client/query#asVersionConflictError (external)
+asyncQueue: dist/async/async-queue.d.ts#asyncQueue
+average: dist/fx/iter.d.ts#average
+averagingNumber: dist/fx/collectors.d.ts#averagingNumber
+blockMethods: dist/core/middleware.d.ts#blockMethods
+booleanCompare: dist/utils/defaults.d.ts#booleanCompare
+bounded: dist/behaviors/bounded.d.ts#bounded
+boundedDeque: dist/behaviors/bounded.d.ts#boundedDeque
+boundedList: dist/behaviors/bounded.d.ts#boundedList
+boundedMap: dist/behaviors/bounded.d.ts#boundedMap
+boundedQueue: dist/behaviors/bounded.d.ts#boundedQueue
+buffered: dist/async/channels.d.ts#buffered
+buildList: dist/utils/factories.d.ts#buildList
+buildMap: dist/utils/factories.d.ts#buildMap
+bundle: dist/core/middleware.d.ts#bundle
+channel: dist/async/channels.d.ts#channel
+checkBounds: dist/utils/helpers.d.ts#checkBounds
+checkInsertBounds: dist/utils/helpers.d.ts#checkInsertBounds
+checkRangeBounds: dist/utils/helpers.d.ts#checkRangeBounds
+chunk: dist/fx/iter.d.ts#chunk
+clamp: dist/utils/helpers.d.ts#clamp
+collect: dist/fx/collectors.d.ts#collect
+collectToArray: dist/fx/collectors.d.ts#toArray
+collectToList: dist/fx/collectors.d.ts#toList
+collectToMap: dist/fx/collectors.d.ts#toMap
+collectToSet: dist/fx/collectors.d.ts#toSet
+combineHashes: dist/utils/defaults.d.ts#combineHashes
+compareKeys: dist/order/rank.d.ts#compareKeys
+compareStorageValues: @procedures/client/query#compareStorageValues (external)
+comparing: dist/utils/defaults.d.ts#comparing
+comparingKey: dist/utils/defaults.d.ts#comparingKey
+compileSelector: @procedures/client/query#compileSelector (external)
+compose: dist/core/middleware.d.ts#compose
+concat: dist/fx/iter.d.ts#concat
+copyAsPatch: dist/overlay/overlay.d.ts#copyAsPatch
+count: dist/fx/iter.d.ts#count
+counting: dist/fx/collectors.d.ts#counting
+createEmitter: dist/core/events.d.ts#createEmitter
+dateCompare: dist/utils/defaults.d.ts#dateCompare
+deepEq: dist/utils/defaults.d.ts#deepEq
+defaultCompare: dist/utils/defaults.d.ts#defaultCompare
+defaultEq: dist/utils/defaults.d.ts#defaultEq
+defaultHash: dist/utils/defaults.d.ts#defaultHash
+delegate: dist/core/middleware.d.ts#delegate
+distinct: dist/fx/iter.d.ts#distinct
+distinctConsecutive: dist/fx/iter.d.ts#distinctConsecutive
+dropIndex: dist/order/rank.d.ts#dropIndex
+emptyList: dist/utils/factories.d.ts#emptyList
+emptyMap: dist/utils/factories.d.ts#emptyMap
+emptyQueue: dist/utils/factories.d.ts#emptyQueue
+enhanceMethod: dist/core/middleware.d.ts#enhanceMethod
+enumerate: dist/fx/iter.d.ts#enumerate
+eqBy: dist/utils/defaults.d.ts#eqBy
+evented: dist/behaviors/evented.d.ts#evented
+eventedDeque: dist/behaviors/evented.d.ts#eventedDeque
+eventedList: dist/behaviors/evented.d.ts#eventedList
+eventedMap: dist/behaviors/evented.d.ts#eventedMap
+eventedQueue: dist/behaviors/evented.d.ts#eventedQueue
+every: dist/fx/iter.d.ts#every
+fanIn: dist/async/channels.d.ts#fanIn
+fanOut: dist/async/channels.d.ts#fanOut
+filter: dist/fx/iter.d.ts#filter
+filtering: dist/fx/collectors.d.ts#filtering
+find: dist/fx/iter.d.ts#find
+findIndex: dist/utils/helpers.d.ts#findIndex
+findLastIndex: dist/utils/helpers.d.ts#findLastIndex
+fingerprintOf: dist/undo/undo-log.d.ts#fingerprintOf
+first: dist/fx/collectors.d.ts#first
+flatMap: dist/fx/iter.d.ts#flatMap
+flatMapOption: dist/core/effects.d.ts#flatMapOption
+flatMapResult: dist/core/effects.d.ts#flatMapResult
+flatMapping: dist/fx/collectors.d.ts#flatMapping
+flatten: dist/fx/iter.d.ts#flatten
+forwardEvent: dist/core/events.d.ts#forwardEvent
+fromNullable: dist/core/effects.d.ts#fromNullable
+getOrElse: dist/core/effects.d.ts#getOrElse
+getOrElseResult: dist/core/effects.d.ts#getOrElseResult
+groupBy: dist/utils/factories.d.ts#groupBy
+groupingBy: dist/fx/collectors.d.ts#groupingBy
+groupingByWith: dist/fx/collectors.d.ts#groupingByWith
+hasCapability: dist/core/middleware.d.ts#hasCapability
+hashBy: dist/utils/defaults.d.ts#hashBy
+hashMap: dist/impl/hash-map.d.ts#hashMap
+hashNumber: dist/utils/defaults.d.ts#hashNumber
+hashSet: dist/impl/hash-set.d.ts#hashSet
+hashString: dist/utils/defaults.d.ts#hashString
+immutableListOf: dist/utils/factories.d.ts#immutableListOf
+immutableMapOf: dist/utils/factories.d.ts#immutableMapOf
+interceptMethods: dist/core/middleware.d.ts#interceptMethods
+inversePatch: dist/undo/inverse.d.ts#inversePatch
+isErr: dist/core/effects.d.ts#isErr
+isExpectedVersion: @procedures/client/query#isExpectedVersion (external)
+isNone: dist/core/effects.d.ts#isNone
+isOk: dist/core/effects.d.ts#isOk
+isPatchOperations: @procedures/client/query#isPatchOperations (external)
+isSome: dist/core/effects.d.ts#isSome
+isUnset: dist/overlay/overlay.d.ts#isUnset
+isValidKey: dist/order/rank.d.ts#isValidKey
+iterToMap: dist/fx/iter.d.ts#toMap
+joining: dist/fx/collectors.d.ts#joining
+keyBetween: dist/order/rank.d.ts#keyBetween
+keysBetween: dist/order/rank.d.ts#keysBetween
+keysForDrop: dist/order/rank.d.ts#keysForDrop
+last: dist/fx/collectors.d.ts#last
+linkedHashMap: dist/impl/linked-hash-map.d.ts#linkedHashMap
+linkedList: dist/impl/linked-list.d.ts#linkedList
+listOf: dist/utils/factories.d.ts#listOf
+lruCache: dist/behaviors/lru.d.ts#lruCache
+lruMap: dist/behaviors/lru.d.ts#lruMap
+map: dist/fx/iter.d.ts#map
+mapAsyncOption: dist/core/effects.d.ts#mapAsyncOption
+mapAsyncResult: dist/core/effects.d.ts#mapAsyncResult
+mapError: dist/core/effects.d.ts#mapError
+mapOf: dist/utils/factories.d.ts#mapOf
+mapOption: dist/core/effects.d.ts#mapOption
+mapResult: dist/core/effects.d.ts#mapResult
+mapping: dist/fx/collectors.d.ts#mapping
+matchesSelector: @procedures/client/query#matchesSelector (external)
+max: dist/fx/iter.d.ts#max
+maxBy: dist/fx/collectors.d.ts#maxBy
+merge: dist/async/channels.d.ts#merge
+mergeCopies: dist/overlay/overlay.d.ts#mergeCopies
+mergePatch: @procedures/client/query#mergePatch (external)
+min: dist/fx/iter.d.ts#min
+minBy: dist/fx/collectors.d.ts#minBy
+mutableListOf: dist/utils/factories.d.ts#mutableListOf
+mutableMapOf: dist/utils/factories.d.ts#mutableMapOf
+nCopies: dist/utils/factories.d.ts#nCopies
+none: dist/fx/iter.d.ts#none
+normalizeStorageResult: dist/storage/interface.d.ts#normalizeStorageResult
+nullsFirst: dist/utils/defaults.d.ts#nullsFirst
+nullsLast: dist/utils/defaults.d.ts#nullsLast
+numberCompare: dist/utils/defaults.d.ts#numberCompare
+onWhen: dist/core/events.d.ts#onWhen
+optionToResult: dist/core/effects.d.ts#optionToResult
+partition: dist/fx/iter.d.ts#partition
+partitioningBy: dist/fx/collectors.d.ts#partitioningBy
+patchProblems: @procedures/client/query#patchProblems (external)
+pipe: dist/fx/iter.d.ts#pipe
+pipeline: dist/async/channels.d.ts#pipeline
+preconditionNotSupported: @procedures/client/query#preconditionNotSupported (external)
+priorityQueue: dist/impl/priority-queue.d.ts#priorityQueue
+queryEntries: @procedures/client/query#queryEntries (external)
+queryOptionsProblems: @procedures/client/query#queryOptionsProblems (external)
+queueOf: dist/utils/factories.d.ts#queueOf
+range: dist/utils/factories.d.ts#range
+rangeTo: dist/utils/factories.d.ts#rangeTo
+readWriteLock: dist/behaviors/synchronized.d.ts#readWriteLock
+readonly: dist/behaviors/readonly.d.ts#readonly
+readonlyCollection: dist/behaviors/readonly.d.ts#readonlyCollection
+readonlyList: dist/behaviors/readonly.d.ts#readonlyList
+readonlyMap: dist/behaviors/readonly.d.ts#readonlyMap
+readonlyQueue: dist/behaviors/readonly.d.ts#readonlyQueue
+reduce: dist/fx/iter.d.ts#reduce
+reducing: dist/fx/collectors.d.ts#reducing
+reducingWith: dist/fx/collectors.d.ts#reducingWith
+reentrantSynchronized: dist/behaviors/synchronized.d.ts#reentrantSynchronized
+reportListenerError: dist/storage/listeners.d.ts#reportListenerError
+requireNonEmpty: dist/utils/helpers.d.ts#requireNonEmpty
+requireNonNull: dist/utils/helpers.d.ts#requireNonNull
+resolveStacks: dist/overlay/stacks.d.ts#resolveStacks
+resultToOption: dist/core/effects.d.ts#resultToOption
+reverse: dist/fx/iter.d.ts#reverse
+reverseArrayIterator: dist/utils/helpers.d.ts#reverseArrayIterator
+reversed: dist/utils/defaults.d.ts#reversed
+safe: dist/behaviors/safe.d.ts#safe
+safeDeque: dist/behaviors/safe.d.ts#safeDeque
+safeList: dist/behaviors/safe.d.ts#safeList
+safeMap: dist/behaviors/safe.d.ts#safeMap
+safeQueue: dist/behaviors/safe.d.ts#safeQueue
+scan: dist/fx/iter.d.ts#scan
+select: dist/async/channels.d.ts#select
+selectorProblems: @procedures/client/query#selectorProblems (external)
+sequence: dist/core/effects.d.ts#sequence
+sequenceResults: dist/core/effects.d.ts#sequenceResults
+shallowEq: dist/utils/defaults.d.ts#shallowEq
+singletonList: dist/utils/factories.d.ts#singletonList
+singletonMap: dist/utils/factories.d.ts#singletonMap
+skip: dist/fx/iter.d.ts#skip
+skipWhile: dist/fx/iter.d.ts#skipWhile
+some: dist/fx/iter.d.ts#some
+sort: dist/fx/iter.d.ts#sort
+stackOf: dist/overlay/stacks.d.ts#stackOf
+stringCompare: dist/utils/defaults.d.ts#stringCompare
+stringCompareIgnoreCase: dist/utils/defaults.d.ts#stringCompareIgnoreCase
+stringHashCode: dist/utils/helpers.d.ts#stringHashCode
+sum: dist/fx/iter.d.ts#sum
+summarizingNumber: dist/fx/collectors.d.ts#summarizingNumber
+summingNumber: dist/fx/collectors.d.ts#summingNumber
+synchronized: dist/behaviors/synchronized.d.ts#synchronized
+synchronizedCollection: dist/behaviors/synchronized.d.ts#synchronizedCollection
+synchronizedList: dist/behaviors/synchronized.d.ts#synchronizedList
+synchronizedMap: dist/behaviors/synchronized.d.ts#synchronizedMap
+synchronizedSet: dist/behaviors/synchronized.d.ts#synchronizedSet
+take: dist/fx/iter.d.ts#take
+takeWhile: dist/fx/iter.d.ts#takeWhile
+tap: dist/fx/iter.d.ts#tap
+teeing: dist/fx/collectors.d.ts#teeing
+thenComparing: dist/utils/defaults.d.ts#thenComparing
+ticker: dist/async/channels.d.ts#ticker
+timeout: dist/async/channels.d.ts#timeout
+toArray: dist/fx/iter.d.ts#toArray
+toList: dist/utils/factories.d.ts#toList
+toMap: dist/utils/factories.d.ts#toMap
+toNullable: dist/core/effects.d.ts#toNullable
+toSet: dist/fx/iter.d.ts#toSet
+treeMap: dist/impl/tree-map.d.ts#treeMap
+treeSet: dist/impl/tree-set.d.ts#treeSet
+tryCatch: dist/core/effects.d.ts#tryCatch
+tryCatchAsync: dist/core/effects.d.ts#tryCatchAsync
+ttlCache: dist/behaviors/ttl.d.ts#ttlCache
+ttlCollection: dist/behaviors/ttl.d.ts#ttlCollection
+ttlMap: dist/behaviors/ttl.d.ts#ttlMap
+unbuffered: dist/async/channels.d.ts#unbuffered
+unmodifiableCollection: dist/behaviors/readonly.d.ts#unmodifiableCollection
+unmodifiableList: dist/behaviors/readonly.d.ts#unmodifiableList
+unmodifiableMap: dist/behaviors/readonly.d.ts#unmodifiableMap
+unwrap: dist/core/effects.d.ts#unwrap
+unwrapResult: dist/core/effects.d.ts#unwrapResult
+versionConflict: @procedures/client/query#versionConflict (external)
+versionConflicts: @procedures/client/query#versionConflicts (external)
+versionConflictsOf: @procedures/client/query#versionConflictsOf (external)
+window: dist/fx/iter.d.ts#window
+workerPool: dist/async/channels.d.ts#workerPool
+zip: dist/fx/iter.d.ts#zip
+ambient: dist/behaviors/safe.d.ts#declare module "../core/effects.js"
+
+## ./testing (dist/testing/index.d.ts): 11 names
+
+type CollectionStorageContractOptions: dist/testing/storage-contract.d.ts#CollectionStorageContractOptions
+type ContractCase: dist/testing/storage-contract.d.ts#ContractCase
+type ContractItem: dist/testing/storage-contract.d.ts#ContractItem
+type ContractStorage: dist/testing/storage-contract.d.ts#ContractStorage
+type ContractTestApi: dist/testing/storage-contract.d.ts#ContractTestApi
+type ContractTestContext: dist/testing/storage-contract.d.ts#ContractTestContext
+ContractViolation: dist/testing/check.d.ts#ContractViolation
+collectionStorageContract: dist/testing/storage-contract.d.ts#collectionStorageContract
+contractVersionOf: dist/testing/storage-contract.d.ts#contractVersionOf
+deepEqual: dist/testing/check.d.ts#deepEqual
+describeCollectionStorageContract: dist/testing/storage-contract.d.ts#describeCollectionStorageContract
+
+## Declarations
+
+### dist/async/async-queue.d.ts#AsyncQueue
+export declare class AsyncQueue<T> implements IAsyncQueue<T> {
+    constructor(options?: AsyncQueueOptions);
+    get size(): number;
+    get isEmpty(): boolean;
+    get isFull(): boolean;
+    get isClosed(): boolean;
+    get remainingCapacity(): number;
+    put(element: T, timeout?: number): Promise<void>;
+    take(timeout?: number): Promise<T>;
+    waitTake(onElement: (element: T) => void, onClosed: (error: Error) => void): () => boolean;
+    tryPut(element: T): boolean;
+    tryTake(): T | undefined;
+    peek(): Promise<T>;
+    tryPeek(): T | undefined;
+    close(): void;
+    drain(): T[];
+    [Symbol.asyncIterator](): AsyncIterator<T>;
+    getStats(): {
+        size: number;
+        capacity: number;
+        isEmpty: boolean;
+        isFull: boolean;
+        isClosed: boolean;
+        waitingPutters: number;
+        waitingTakers: number;
+        remainingCapacity: number;
+    };
+    toString(): string;
+}
+
+### dist/async/async-queue.d.ts#AsyncQueueOptions
+export interface AsyncQueueOptions {
+    capacity?: number;
+    timeout?: number;
+}
+
+### dist/async/async-queue.d.ts#asyncQueue
+export declare function asyncQueue<T>(options?: AsyncQueueOptions): AsyncQueue<T>;
+
+### dist/async/channels.d.ts#Channel
+export declare class Channel<T> {
+    constructor(bufferSize?: number);
+    send(value: T): Promise<void>;
+    receive(): Promise<T>;
+    waitReceive(onValue: (value: T) => void, onClosed: (error: Error) => void): () => boolean;
+    trySend(value: T): boolean;
+    tryReceive(): T | undefined;
+    close(): void;
+    get isClosed(): boolean;
+    get size(): number;
+    case<R>(handler: (value: T) => R): SelectCase<R>;
+    [Symbol.asyncIterator](): AsyncIterator<T>;
+}
+
+### dist/async/channels.d.ts#SelectCase
+export interface SelectCase<R> {
+    channel: Channel<any>;
+    handler: (value: any) => R;
+    tryReceive: () => any;
+    receive: () => Promise<any>;
+    wait?: (onValue: (value: any) => void, onClosed: (error: Error) => void) => () => boolean;
+}
+
+### dist/async/channels.d.ts#buffered
+export declare function buffered<T>(capacity: number): Channel<T>;
+
+### dist/async/channels.d.ts#channel
+export declare function channel<T>(bufferSize?: number): Channel<T>;
+
+### dist/async/channels.d.ts#fanIn
+export declare function fanIn<T>(...inputs: Channel<T>[]): Channel<T>;
+
+### dist/async/channels.d.ts#fanOut
+export declare function fanOut<T>(input: Channel<T>, count: number, bufferSize?: number): Channel<T>[];
+
+### dist/async/channels.d.ts#merge
+export declare function merge<T>(...inputs: Channel<T>[]): Channel<T>;
+
+### dist/async/channels.d.ts#pipeline
+export declare function pipeline<T, U>(input: Channel<T>, transform: (value: T) => U | Promise<U>, bufferSize?: number): Channel<U>;
+
+### dist/async/channels.d.ts#select
+export declare function select<R>(...cases: SelectCase<R>[]): Promise<R>;
+
+### dist/async/channels.d.ts#ticker
+export declare function ticker(ms: number): Channel<number> & {
+    stop: () => void;
+};
+
+### dist/async/channels.d.ts#timeout
+export declare function timeout(ms: number): Channel<void>;
+
+### dist/async/channels.d.ts#unbuffered
+export declare function unbuffered<T>(): Channel<T>;
+
+### dist/async/channels.d.ts#workerPool
+export declare function workerPool<T, R>(jobs: Channel<T>, worker: (job: T) => Promise<R>, options?: {
+    workers: number;
+    bufferSize?: number;
+}): Channel<R>;
+
+### dist/async/settled.d.ts#Settled
+export type Settled<T> = {
+    readonly index: number;
+} & PromiseSettledResult<T>;
+
+### dist/async/settled.d.ts#asSettled
+export declare function asSettled<T>(promises: Iterable<Promise<T>>): AsyncGenerator<Settled<T>, void, undefined>;
+
+### dist/behaviors/bounded.d.ts#BoundedOptions
+export interface BoundedOptions<T> {
+    capacity: number;
+    policy?: OverflowPolicy;
+    onOverflow?: OverflowHandler<T>;
+}
+
+### dist/behaviors/bounded.d.ts#bounded
+export declare function bounded<C extends Collection<any>>(options: BoundedOptions<any>): Middleware<C, C & BoundedCollection>;
+
+### dist/behaviors/bounded.d.ts#boundedDeque
+export declare function boundedDeque<T>(options: BoundedOptions<T>): Middleware<Deque<T>, Deque<T> & BoundedCollection>;
+
+### dist/behaviors/bounded.d.ts#boundedList
+export declare function boundedList<T>(options: BoundedOptions<T>): Middleware<List<T>, List<T> & BoundedCollection>;
+
+### dist/behaviors/bounded.d.ts#boundedMap
+export declare function boundedMap<K, V>(options: Omit<BoundedOptions<V>, "onOverflow"> & {
+    onOverflow?: (context: Omit<OverflowContext<V>, "newElement"> & {
+        key: K;
+        value: V;
+    }) => void;
+}): Middleware<MapLike<K, V>, MapLike<K, V> & BoundedCollection>;
+
+### dist/behaviors/bounded.d.ts#boundedQueue
+export declare function boundedQueue<T>(options: BoundedOptions<T>): Middleware<Queue<T>, Queue<T> & BoundedCollection>;
+
+### dist/behaviors/evented.d.ts#CollectionEvents
+export interface CollectionEvents<T> {
+    add: {
+        value: T;
+    };
+    remove: {
+        value: T;
+    };
+    clear: {};
+}
+
+### dist/behaviors/evented.d.ts#DequeEvents
+export interface DequeEvents<T> {
+    addFirst: {
+        value: T;
+    };
+    addLast: {
+        value: T;
+    };
+    removeFirst: {
+        value: T;
+    };
+    removeLast: {
+        value: T;
+    };
+    clear: {};
+}
+
+### dist/behaviors/evented.d.ts#ListEvents
+export interface ListEvents<T> {
+    add: {
+        value: T;
+        index?: number;
+    };
+    remove: {
+        value: T;
+        index?: number;
+    };
+    set: {
+        oldValue: T;
+        newValue: T;
+        index: number;
+    };
+    clear: {};
+    sort: {};
+    reverse: {};
+}
+
+### dist/behaviors/evented.d.ts#MapEvents
+export interface MapEvents<K, V> {
+    set: {
+        key: K;
+        value: V;
+        oldValue?: V;
+    };
+    delete: {
+        key: K;
+        value: V;
+    };
+    clear: {};
+}
+
+### dist/behaviors/evented.d.ts#QueueEvents
+export interface QueueEvents<T> {
+    enqueue: {
+        value: T;
+    };
+    dequeue: {
+        value: T;
+    };
+    clear: {};
+}
+
+### dist/behaviors/evented.d.ts#evented
+export declare function evented<T>(): Middleware<Collection<T>, Collection<T> & {
+    on<E extends keyof CollectionEvents<T>>(event: E, listener: (payload: CollectionEvents<T>[E]) => void): Unsubscribe;
+}>;
+
+### dist/behaviors/evented.d.ts#eventedDeque
+export declare function eventedDeque<T>(): Middleware<Deque<T>, Deque<T> & {
+    on<E extends keyof DequeEvents<T>>(event: E, listener: (payload: DequeEvents<T>[E]) => void): Unsubscribe;
+}>;
+
+### dist/behaviors/evented.d.ts#eventedList
+export declare function eventedList<T>(): Middleware<List<T>, List<T> & {
+    on<E extends keyof ListEvents<T>>(event: E, listener: (payload: ListEvents<T>[E]) => void): Unsubscribe;
+}>;
+
+### dist/behaviors/evented.d.ts#eventedMap
+export declare function eventedMap<K, V>(): Middleware<MapLike<K, V>, MapLike<K, V> & {
+    on<E extends keyof MapEvents<K, V>>(event: E, listener: (payload: MapEvents<K, V>[E]) => void): Unsubscribe;
+}>;
+
+### dist/behaviors/evented.d.ts#eventedQueue
+export declare function eventedQueue<T>(): Middleware<Queue<T>, Queue<T> & {
+    on<E extends keyof QueueEvents<T>>(event: E, listener: (payload: QueueEvents<T>[E]) => void): Unsubscribe;
+}>;
+
+### dist/behaviors/lru.d.ts#LRUCache
+export declare class LRUCache<K, V> {
+    constructor(capacity: number, onEvict?: ((key: K, value: V) => void) | undefined);
+    get size(): number;
+    get isFull(): boolean;
+    get(key: K): V | undefined;
+    set(key: K, value: V): void;
+    has(key: K): boolean;
+    delete(key: K): boolean;
+    clear(): void;
+    keys(): IterableIterator<K>;
+    entries(): IterableIterator<[K, V]>;
+}
+
+### dist/behaviors/lru.d.ts#LRUOptions
+export interface LRUOptions {
+    capacity: number;
+    onEvict?: (info: {
+        key: any;
+        value: any;
+        timestamp: number;
+    }) => void;
+}
+
+### dist/behaviors/lru.d.ts#lruCache
+export declare function lruCache<K, V>(capacity: number, onEvict?: (key: K, value: V) => void): LRUCache<K, V>;
+
+### dist/behaviors/lru.d.ts#lruMap
+export declare function lruMap<K, V>(options: LRUOptions): Middleware<MapLike<K, V>, MapLike<K, V> & {
+    readonly isFull: boolean;
+}>;
+
+### dist/behaviors/readonly.d.ts#ReadonlyOptions
+export interface ReadonlyOptions {
+    errorMessage?: string;
+}
+
+### dist/behaviors/readonly.d.ts#readonly
+export declare function readonly<C extends object>(options?: ReadonlyOptions): Middleware<C>;
+
+### dist/behaviors/readonly.d.ts#readonlyCollection
+export declare function readonlyCollection<T>(options?: ReadonlyOptions): Middleware<ReadonlyCollection<T>>;
+
+### dist/behaviors/readonly.d.ts#readonlyList
+export declare function readonlyList<T>(options?: ReadonlyOptions): Middleware<ReadonlyList<T>>;
+
+### dist/behaviors/readonly.d.ts#readonlyMap
+export declare function readonlyMap<K, V>(options?: ReadonlyOptions): Middleware<ReadonlyMapLike<K, V>>;
+
+### dist/behaviors/readonly.d.ts#readonlyQueue
+export declare function readonlyQueue<T>(options?: ReadonlyOptions): Middleware<ReadonlyQueue<T>>;
+
+### dist/behaviors/readonly.d.ts#unmodifiableCollection
+export declare const unmodifiableCollection: typeof readonlyCollection;
+
+### dist/behaviors/readonly.d.ts#unmodifiableList
+export declare const unmodifiableList: typeof readonlyList;
+
+### dist/behaviors/readonly.d.ts#unmodifiableMap
+export declare const unmodifiableMap: typeof readonlyMap;
+
+### dist/behaviors/safe.d.ts#SafeDequeOperations
+export interface SafeDequeOperations<T> extends SafeQueueOperations<T> {
+    peekFirst(): Option<T>;
+    peekLast(): Option<T>;
+    pollFirst(): Option<T>;
+    pollLast(): Option<T>;
+    pop(): Option<T>;
+}
+
+### dist/behaviors/safe.d.ts#SafeListOperations
+export interface SafeListOperations<T> {
+    get(index: number): Option<T>;
+    set(index: number, element: T): Result<T, string>;
+    removeAt(index: number): Result<T, string>;
+    first(): Option<T>;
+    last(): Option<T>;
+    pop(): Option<T>;
+    shift(): Option<T>;
+}
+
+### dist/behaviors/safe.d.ts#SafeMapOperations
+export interface SafeMapOperations<K, V> {
+    get(key: K): Option<V>;
+    set(key: K, value: V): Result<V | undefined, string>;
+    delete(key: K): Result<V | undefined, string>;
+}
+
+### dist/behaviors/safe.d.ts#SafeQueueOperations
+export interface SafeQueueOperations<T> {
+    peek(): Option<T>;
+    poll(): Option<T>;
+    dequeue(): Option<T>;
+}
+
+### dist/behaviors/safe.d.ts#declare module "../core/effects.js"
+declare module "../core/effects.js" {
+    interface Ok<T> {
+        match<U>(cases: {
+            Ok: (value: T) => U;
+            Err: (error: never) => U;
+        }): U;
+    }
+    interface Err<E> {
+        match<U>(cases: {
+            Ok: (value: never) => U;
+            Err: (error: E) => U;
+        }): U;
+    }
+}
+
+### dist/behaviors/safe.d.ts#safe
+export declare function safe<C extends object>(): Middleware<C>;
+
+### dist/behaviors/safe.d.ts#safeDeque
+export declare function safeDeque<T>(): Middleware<Deque<T>, Deque<T> & {
+    safe: SafeDequeOperations<T>;
+}>;
+
+### dist/behaviors/safe.d.ts#safeList
+export declare function safeList<T>(): Middleware<List<T>, List<T> & {
+    safe: SafeListOperations<T>;
+}>;
+
+### dist/behaviors/safe.d.ts#safeMap
+export declare function safeMap<K, V>(): Middleware<MapLike<K, V>, MapLike<K, V> & {
+    safe: SafeMapOperations<K, V>;
+}>;
+
+### dist/behaviors/safe.d.ts#safeQueue
+export declare function safeQueue<T>(): Middleware<Queue<T>, Queue<T> & {
+    safe: SafeQueueOperations<T>;
+}>;
+
+### dist/behaviors/synchronized.d.ts#readWriteLock
+export declare function readWriteLock<C extends object>(): Middleware<C>;
+
+### dist/behaviors/synchronized.d.ts#reentrantSynchronized
+export declare function reentrantSynchronized<C extends object>(): Middleware<C>;
+
+### dist/behaviors/synchronized.d.ts#synchronized
+export declare function synchronized<C extends object>(): Middleware<C>;
+
+### dist/behaviors/synchronized.d.ts#synchronizedCollection
+export declare const synchronizedCollection: typeof synchronized;
+
+### dist/behaviors/synchronized.d.ts#synchronizedList
+export declare const synchronizedList: typeof synchronized;
+
+### dist/behaviors/synchronized.d.ts#synchronizedMap
+export declare const synchronizedMap: typeof synchronized;
+
+### dist/behaviors/synchronized.d.ts#synchronizedSet
+export declare const synchronizedSet: typeof synchronized;
+
+### dist/behaviors/ttl.d.ts#TTLCache
+export declare class TTLCache<K, V> {
+    constructor(ttl: number, checkInterval?: number, onExpire?: ((key: K, value: V) => void) | undefined);
+    get size(): number;
+    get(key: K): V | undefined;
+    set(key: K, value: V, customTTL?: number): void;
+    has(key: K): boolean;
+    delete(key: K): boolean;
+    clear(): void;
+    cleanup(): void;
+    getTTL(key: K): number | undefined;
+    touch(key: K, customTTL?: number): boolean;
+    dispose(): void;
+    keys(): IterableIterator<K>;
+    values(): IterableIterator<V>;
+    entries(): IterableIterator<[K, V]>;
+}
+
+### dist/behaviors/ttl.d.ts#TTLOptions
+export interface TTLOptions {
+    ttl: number;
+    checkInterval?: number;
+    onExpire?: (info: {
+        key: any;
+        value: any;
+        createdAt: number;
+        expiredAt: number;
+    }) => void;
+}
+
+### dist/behaviors/ttl.d.ts#ttlCache
+export declare function ttlCache<K, V>(ttl: number, options?: {
+    checkInterval?: number;
+    onExpire?: (key: K, value: V) => void;
+}): TTLCache<K, V>;
+
+### dist/behaviors/ttl.d.ts#ttlCollection
+export declare function ttlCollection<T>(options: Omit<TTLOptions, "onExpire"> & {
+    onExpire?: (info: {
+        element: T;
+        createdAt: number;
+        expiredAt: number;
+    }) => void;
+}): Middleware<Collection<T>, Collection<T> & {
+    readonly dispose: () => void;
+}>;
+
+### dist/behaviors/ttl.d.ts#ttlMap
+export declare function ttlMap<K, V>(options: TTLOptions): Middleware<MapLike<K, V>, MapLike<K, V> & {
+    readonly dispose: () => void;
+}>;
+
+### dist/core/effects.d.ts#AsyncOption
+export type AsyncOption<T> = Promise<Option<T>>;
+
+### dist/core/effects.d.ts#AsyncResult
+export type AsyncResult<T, E> = Promise<Result<T, E>>;
+
+### dist/core/effects.d.ts#Err
+export interface Err<E> {
+    readonly _tag: "Err";
+    readonly error: E;
+}
+export declare const Err: <E>(error: E) => Err<E>;
+
+### dist/core/effects.d.ts#None
+export interface None {
+    readonly _tag: "None";
+}
+export declare const None: None;
+
+### dist/core/effects.d.ts#Ok
+export interface Ok<T> {
+    readonly _tag: "Ok";
+    readonly value: T;
+}
+export declare const Ok: <T>(value: T) => Ok<T>;
+
+### dist/core/effects.d.ts#Option
+export type Option<T> = None | Some<T>;
+
+### dist/core/effects.d.ts#Result
+export type Result<T, E> = Ok<T> | Err<E>;
+
+### dist/core/effects.d.ts#Some
+export interface Some<T> {
+    readonly _tag: "Some";
+    readonly value: T;
+}
+export declare const Some: <T>(value: T) => Some<T>;
+
+### dist/core/effects.d.ts#flatMapOption
+export declare const flatMapOption: <T, U>(opt: Option<T>, f: (value: T) => Option<U>) => Option<U>;
+
+### dist/core/effects.d.ts#flatMapResult
+export declare const flatMapResult: <T, U, E>(result: Result<T, E>, f: (value: T) => Result<U, E>) => Result<U, E>;
+
+### dist/core/effects.d.ts#fromNullable
+export declare const fromNullable: <T>(value: T | null | undefined) => Option<T>;
+
+### dist/core/effects.d.ts#getOrElse
+export declare const getOrElse: <T>(opt: Option<T>, defaultValue: T) => T;
+
+### dist/core/effects.d.ts#getOrElseResult
+export declare const getOrElseResult: <T, E>(result: Result<T, E>, defaultValue: T) => T;
+
+### dist/core/effects.d.ts#isErr
+export declare const isErr: <T, E>(result: Result<T, E>) => result is Err<E>;
+
+### dist/core/effects.d.ts#isNone
+export declare const isNone: <T>(opt: Option<T>) => opt is None;
+
+### dist/core/effects.d.ts#isOk
+export declare const isOk: <T, E>(result: Result<T, E>) => result is Ok<T>;
+
+### dist/core/effects.d.ts#isSome
+export declare const isSome: <T>(opt: Option<T>) => opt is Some<T>;
+
+### dist/core/effects.d.ts#mapAsyncOption
+export declare const mapAsyncOption: <T, U>(opt: AsyncOption<T>, f: (value: T) => U | Promise<U>) => AsyncOption<U>;
+
+### dist/core/effects.d.ts#mapAsyncResult
+export declare const mapAsyncResult: <T, U, E>(result: AsyncResult<T, E>, f: (value: T) => U | Promise<U>) => AsyncResult<U, E>;
+
+### dist/core/effects.d.ts#mapError
+export declare const mapError: <T, E, F>(result: Result<T, E>, f: (error: E) => F) => Result<T, F>;
+
+### dist/core/effects.d.ts#mapOption
+export declare const mapOption: <T, U>(opt: Option<T>, f: (value: T) => U) => Option<U>;
+
+### dist/core/effects.d.ts#mapResult
+export declare const mapResult: <T, U, E>(result: Result<T, E>, f: (value: T) => U) => Result<U, E>;
+
+### dist/core/effects.d.ts#optionToResult
+export declare const optionToResult: <T, E>(opt: Option<T>, error: E) => Result<T, E>;
+
+### dist/core/effects.d.ts#resultToOption
+export declare const resultToOption: <T, E>(result: Result<T, E>) => Option<T>;
+
+### dist/core/effects.d.ts#sequence
+export declare const sequence: <T>(opts: Option<T>[]) => Option<T[]>;
+
+### dist/core/effects.d.ts#sequenceResults
+export declare const sequenceResults: <T, E>(results: Result<T, E>[]) => Result<T[], E>;
+
+### dist/core/effects.d.ts#toNullable
+export declare const toNullable: <T>(opt: Option<T>) => T | undefined;
+
+### dist/core/effects.d.ts#tryCatch
+export declare const tryCatch: <T, E = unknown>(fn: () => T, onError?: (error: unknown) => E) => Result<T, E>;
+
+### dist/core/effects.d.ts#tryCatchAsync
+export declare const tryCatchAsync: <T, E = unknown>(fn: () => Promise<T>, onError?: (error: unknown) => E) => Promise<Result<T, E>>;
+
+### dist/core/effects.d.ts#unwrap
+export declare const unwrap: <T>(opt: Option<T>) => T;
+
+### dist/core/effects.d.ts#unwrapResult
+export declare const unwrapResult: <T, E>(result: Result<T, E>) => T;
+
+### dist/core/events.d.ts#AsyncEmitter
+export declare class AsyncEmitter<E extends EventMap> {
+    on<K extends keyof E>(event: K, listener: Listener<E[K]>): Unsubscribe;
+    emit<K extends keyof E>(event: K, payload: E[K]): Promise<void>;
+    off<K extends keyof E>(event?: K): void;
+    listenerCount<K extends keyof E>(event: K): number;
+    eventNames(): (keyof E)[];
+    dispose(): void;
+}
+
+### dist/core/events.d.ts#Emitter
+export declare class Emitter<E extends EventMap> {
+    on<K extends keyof E>(event: K, listener: Listener<E[K]>): Unsubscribe;
+    once<K extends keyof E>(event: K, listener: Listener<E[K]>): Unsubscribe;
+    emit<K extends keyof E>(event: K, payload: E[K]): void;
+    off<K extends keyof E>(event?: K): void;
+    listenerCount<K extends keyof E>(event: K): number;
+    eventNames(): (keyof E)[];
+    hasListeners<K extends keyof E>(event: K): boolean;
+    dispose(): void;
+}
+
+### dist/core/events.d.ts#EventBatcher
+export declare class EventBatcher<E extends EventMap, K extends keyof E> {
+    constructor(emitter: Emitter<E & {
+        [P in `batch-${K & string}`]: E[K][];
+    }>, event: K, delayMs: number);
+    queue(payload: E[K]): void;
+    flush(): void;
+    dispose(): void;
+}
+
+### dist/core/events.d.ts#EventMap
+export type EventMap = Record<string, any>;
+
+### dist/core/events.d.ts#Listener
+export type Listener<P> = (payload: P) => void;
+
+### dist/core/events.d.ts#Unsubscribe
+export type Unsubscribe = () => void;
+
+### dist/core/events.d.ts#createEmitter
+export declare const createEmitter: <E extends EventMap>() => Emitter<E>;
+
+### dist/core/events.d.ts#forwardEvent
+export declare const forwardEvent: <E1 extends EventMap, E2 extends EventMap, K1 extends keyof E1, K2 extends keyof E2>(source: Emitter<E1>, target: Emitter<E2>, sourceEvent: K1, targetEvent: K2, transform?: (payload: E1[K1]) => E2[K2]) => Unsubscribe;
+
+### dist/core/events.d.ts#onWhen
+export declare const onWhen: <E extends EventMap, K extends keyof E>(emitter: Emitter<E>, event: K, predicate: (payload: E[K]) => boolean, listener: Listener<E[K]>) => Unsubscribe;
+
+### dist/core/middleware.d.ts#Async
+export interface Async<T> {
+    [Symbol.asyncIterator](): AsyncIterator<T>;
+}
+
+### dist/core/middleware.d.ts#Asyncify
+export type Asyncify<C> = {
+    [K in keyof C]: C[K] extends (...args: infer Args) => infer R ? (...args: Args) => Promise<R> : C[K];
+};
+
+### dist/core/middleware.d.ts#BoundedCollection
+export interface BoundedCollection {
+    readonly capacity: number;
+    readonly isFull: boolean;
+    readonly remainingCapacity: number;
+}
+
+### dist/core/middleware.d.ts#CollectionBuilder
+export declare abstract class CollectionBuilder<C> {
+    protected middleware: Middleware<C>[];
+    use(middleware: Middleware<C>): this;
+    abstract build(): C;
+}
+
+### dist/core/middleware.d.ts#ElementType
+export type ElementType<C> = C extends {
+    [Symbol.iterator](): Iterator<infer T>;
+} ? T : C extends {
+    get(index: number): infer T;
+} ? T : C extends {
+    peek(): infer T;
+} ? T : never;
+
+### dist/core/middleware.d.ts#Evented
+export interface Evented<E extends Record<string, any>> {
+    on<K extends keyof E>(event: K, handler: (payload: E[K]) => void): () => void;
+}
+
+### dist/core/middleware.d.ts#Middleware
+export type Middleware<In = any, Out extends In = In> = (next: In) => Out;
+
+### dist/core/middleware.d.ts#SafeCollection
+export interface SafeCollection {
+    readonly safe: unknown;
+}
+
+### dist/core/middleware.d.ts#WithCapability
+export type WithCapability<C, Cap> = C & Cap;
+
+### dist/core/middleware.d.ts#blockMethods
+export declare const blockMethods: <C extends object>(target: C, mutatingMethods: Set<string | symbol>, errorMessage?: string) => C;
+
+### dist/core/middleware.d.ts#bundle
+export declare function bundle<C, R1 extends C>(m1: Middleware<C, R1>): Middleware<C, R1>;
+export declare function bundle<C, R1 extends C, R2 extends R1>(m1: Middleware<R1, R2>, m2: Middleware<C, R1>): Middleware<C, R2>;
+export declare function bundle<C, R1 extends C, R2 extends R1, R3 extends R2>(m1: Middleware<R2, R3>, m2: Middleware<R1, R2>, m3: Middleware<C, R1>): Middleware<C, R3>;
+export declare function bundle<C, R1 extends C, R2 extends R1, R3 extends R2, R4 extends R3>(m1: Middleware<R3, R4>, m2: Middleware<R2, R3>, m3: Middleware<R1, R2>, m4: Middleware<C, R1>): Middleware<C, R4>;
+export declare function bundle<C, R1 extends C, R2 extends R1, R3 extends R2, R4 extends R3, R5 extends R4>(m1: Middleware<R4, R5>, m2: Middleware<R3, R4>, m3: Middleware<R2, R3>, m4: Middleware<R1, R2>, m5: Middleware<C, R1>): Middleware<C, R5>;
+export declare function bundle<C>(...middleware: Middleware<any, any>[]): Middleware<C, any>;
+
+### dist/core/middleware.d.ts#compose
+export declare function compose<C, R1 extends C>(m1: Middleware<C, R1>): (base: C) => R1;
+export declare function compose<C, R1 extends C, R2 extends R1>(m1: Middleware<R1, R2>, m2: Middleware<C, R1>): (base: C) => R2;
+export declare function compose<C, R1 extends C, R2 extends R1, R3 extends R2>(m1: Middleware<R2, R3>, m2: Middleware<R1, R2>, m3: Middleware<C, R1>): (base: C) => R3;
+export declare function compose<C, R1 extends C, R2 extends R1, R3 extends R2, R4 extends R3>(m1: Middleware<R3, R4>, m2: Middleware<R2, R3>, m3: Middleware<R1, R2>, m4: Middleware<C, R1>): (base: C) => R4;
+export declare function compose<C, R1 extends C, R2 extends R1, R3 extends R2, R4 extends R3, R5 extends R4>(m1: Middleware<R4, R5>, m2: Middleware<R3, R4>, m3: Middleware<R2, R3>, m4: Middleware<R1, R2>, m5: Middleware<C, R1>): (base: C) => R5;
+export declare function compose<C>(...layers: Middleware<any, any>[]): (base: C) => any;
+
+### dist/core/middleware.d.ts#delegate
+export declare const delegate: <C extends object, T extends C>(target: T, wrapper: Partial<C>) => C;
+
+### dist/core/middleware.d.ts#enhanceMethod
+export declare const enhanceMethod: <C extends object, K extends keyof C & string>(methodName: K, enhancer: (original: C[K] extends (...args: infer Args) => infer R ? (...args: Args) => R : never, args: C[K] extends (...args: infer Args) => any ? Args : never) => C[K] extends (...args: any[]) => infer R ? R : never) => Middleware<C>;
+
+### dist/core/middleware.d.ts#hasCapability
+export declare const hasCapability: <C extends Collection<any>, K extends keyof any>(collection: C, capability: K) => collection is C & Record<K, unknown>;
+
+### dist/core/middleware.d.ts#interceptMethods
+export declare const interceptMethods: <C extends object>(target: C, interceptor: (target: C, method: keyof C, args: unknown[]) => unknown) => C;
+
+### dist/core/policies.d.ts#CompactionPolicy
+export interface CompactionPolicy {
+    readonly minLoadFactor?: number;
+    readonly maxWastedSpace?: number;
+    readonly autoCompact?: boolean;
+}
+
+### dist/core/policies.d.ts#ConflictResolutionPolicy
+export type ConflictResolutionPolicy = "last-write-wins" | "first-write-wins" | "merge" | "throw";
+
+### dist/core/policies.d.ts#DEFAULT_CONFLICT_POLICY
+export declare const DEFAULT_CONFLICT_POLICY: ConflictResolutionPolicy;
+
+### dist/core/policies.d.ts#DEFAULT_EVICTION_POLICY
+export declare const DEFAULT_EVICTION_POLICY: EvictionPolicy;
+
+### dist/core/policies.d.ts#DEFAULT_GROWTH_POLICY
+export declare const DEFAULT_GROWTH_POLICY: GrowthPolicy;
+
+### dist/core/policies.d.ts#DEFAULT_OVERFLOW_POLICY
+export declare const DEFAULT_OVERFLOW_POLICY: OverflowPolicy;
+
+### dist/core/policies.d.ts#DEFAULT_RETRY_POLICY
+export declare const DEFAULT_RETRY_POLICY: RetryPolicy;
+
+### dist/core/policies.d.ts#DEFAULT_UNDERFLOW_POLICY
+export declare const DEFAULT_UNDERFLOW_POLICY: UnderflowPolicy;
+
+### dist/core/policies.d.ts#DEFAULT_VALIDATION_POLICY
+export declare const DEFAULT_VALIDATION_POLICY: ValidationPolicy;
+
+### dist/core/policies.d.ts#EvictionCandidate
+export interface EvictionCandidate<T> {
+    readonly element: T;
+    readonly metadata: EvictionMetadata;
+}
+
+### dist/core/policies.d.ts#EvictionMetadata
+export interface EvictionMetadata {
+    readonly insertedAt: number;
+    lastAccessedAt: number;
+    accessCount: number;
+    readonly expiresAt?: number;
+    readonly priority?: number;
+}
+
+### dist/core/policies.d.ts#EvictionPolicy
+export type EvictionPolicy = "lru" | "lfu" | "fifo" | "lifo" | "random" | "ttl" | "priority" | "custom";
+
+### dist/core/policies.d.ts#EvictionSelector
+export type EvictionSelector<T> = (candidates: EvictionCandidate<T>[]) => T | undefined;
+
+### dist/core/policies.d.ts#GrowthPolicy
+export interface GrowthPolicy {
+    readonly strategy: "double" | "linear" | "golden-ratio" | "custom";
+    readonly linearIncrement?: number;
+    readonly customGrowth?: (currentCapacity: number) => number;
+    readonly maxCapacity?: number;
+}
+
+### dist/core/policies.d.ts#MergeFunction
+export type MergeFunction<T> = (current: T, incoming: T) => T;
+
+### dist/core/policies.d.ts#OverflowContext
+export interface OverflowContext<T> {
+    readonly newElement: T;
+    readonly currentSize: number;
+    readonly capacity: number;
+    readonly timestamp: number;
+}
+
+### dist/core/policies.d.ts#OverflowHandler
+export type OverflowHandler<T> = (context: OverflowContext<T>) => void;
+
+### dist/core/policies.d.ts#OverflowPolicy
+export type OverflowPolicy = "throw" | "drop-oldest" | "drop-newest" | "reject" | "grow" | "block";
+
+### dist/core/policies.d.ts#RetryContext
+export interface RetryContext {
+    readonly attempt: number;
+    readonly error: unknown;
+    readonly elapsedMs: number;
+}
+
+### dist/core/policies.d.ts#RetryPolicy
+export interface RetryPolicy {
+    readonly maxAttempts: number;
+    readonly initialDelay: number;
+    readonly backoff: "none" | "linear" | "exponential";
+    readonly maxDelay?: number;
+    readonly jitter?: boolean;
+}
+
+### dist/core/policies.d.ts#RetryPredicate
+export type RetryPredicate = (context: RetryContext) => boolean;
+
+### dist/core/policies.d.ts#UnderflowContext
+export interface UnderflowContext {
+    readonly operation: string;
+    readonly timestamp: number;
+}
+
+### dist/core/policies.d.ts#UnderflowHandler
+export type UnderflowHandler = (context: UnderflowContext) => void;
+
+### dist/core/policies.d.ts#UnderflowPolicy
+export type UnderflowPolicy = "throw" | "return-none" | "return-default" | "block";
+
+### dist/core/policies.d.ts#ValidationContext
+export interface ValidationContext<T> {
+    readonly element: T;
+    readonly error: unknown;
+    readonly operation: string;
+}
+
+### dist/core/policies.d.ts#ValidationHandler
+export type ValidationHandler<T> = (context: ValidationContext<T>) => void;
+
+### dist/core/policies.d.ts#ValidationPolicy
+export type ValidationPolicy = "throw" | "drop" | "coerce" | "log";
+
+### dist/core/traits.d.ts#ArrayConvertible
+export interface ArrayConvertible<T> {
+    toArray(): T[];
+}
+
+### dist/core/traits.d.ts#Bounded
+export interface Bounded {
+    readonly capacity: number;
+    readonly isFull: boolean;
+    readonly remainingCapacity: number;
+}
+
+### dist/core/traits.d.ts#Clearable
+export interface Clearable {
+    clear(): void;
+}
+
+### dist/core/traits.d.ts#Cloneable
+export interface Cloneable<T> {
+    clone(): T;
+}
+
+### dist/core/traits.d.ts#Compare
+export type Compare<T> = (a: T, b: T) => number;
+
+### dist/core/traits.d.ts#ComparisonProvider
+export interface ComparisonProvider<T> {
+    readonly compare: Compare<T>;
+}
+
+### dist/core/traits.d.ts#Disposable
+export interface Disposable {
+    dispose(): void;
+}
+
+### dist/core/traits.d.ts#Emptiable
+export interface Emptiable {
+    readonly isEmpty: boolean;
+}
+
+### dist/core/traits.d.ts#Eq
+export type Eq<T> = (a: T, b: T) => boolean;
+
+### dist/core/traits.d.ts#EqualityProvider
+export interface EqualityProvider<T> {
+    readonly eq: Eq<T>;
+}
+
+### dist/core/traits.d.ts#Freezable
+export interface Freezable<T> {
+    freeze(): T;
+    readonly isFrozen: boolean;
+}
+
+### dist/core/traits.d.ts#Hash
+export type Hash<T> = (value: T) => number;
+
+### dist/core/traits.d.ts#HashProvider
+export interface HashProvider<T> {
+    readonly hash: Hash<T>;
+}
+
+### dist/core/traits.d.ts#MutableCollectionBase
+export interface MutableCollectionBase<T> extends ReadonlyCollectionBase<T>, Clearable {
+}
+
+### dist/core/traits.d.ts#ReadonlyCollectionBase
+export interface ReadonlyCollectionBase<T> extends Sized, Emptiable, Iterable<T>, ArrayConvertible<T> {
+}
+
+### dist/core/traits.d.ts#Sized
+export interface Sized {
+    readonly size: number;
+}
+
+### dist/fx/collectors.d.ts#Collector
+export interface Collector<T, A, R> {
+    supplier: () => A;
+    accumulator: (acc: A, element: T) => A;
+    combiner?: (acc1: A, acc2: A) => A;
+    finisher: (acc: A) => R;
+}
+
+### dist/fx/collectors.d.ts#SummaryStatistics
+export interface SummaryStatistics {
+    count: number;
+    sum: number;
+    min: number;
+    max: number;
+    average: number;
+}
+
+### dist/fx/collectors.d.ts#averagingNumber
+export declare function averagingNumber<T>(mapper: (element: T) => number): Collector<T, {
+    sum: number;
+    count: number;
+}, number>;
+
+### dist/fx/collectors.d.ts#collect
+export declare function collect<T, A, R>(iterable: Iterable<T>, collector: Collector<T, A, R>): R;
+
+### dist/fx/collectors.d.ts#counting
+export declare function counting<T>(): Collector<T, number, number>;
+
+### dist/fx/collectors.d.ts#filtering
+export declare function filtering<T, A, R>(predicate: (element: T) => boolean, downstream: Collector<T, A, R>): Collector<T, A, R>;
+
+### dist/fx/collectors.d.ts#first
+export declare function first<T>(): Collector<T, T | undefined, T | undefined>;
+
+### dist/fx/collectors.d.ts#flatMapping
+export declare function flatMapping<T, U, A, R>(mapper: (element: T) => Iterable<U>, downstream: Collector<U, A, R>): Collector<T, A, R>;
+
+### dist/fx/collectors.d.ts#groupingBy
+export declare function groupingBy<T, K>(classifier: (element: T) => K): Collector<T, HashMap<K, ArrayList<T>>, HashMap<K, ArrayList<T>>>;
+
+### dist/fx/collectors.d.ts#groupingByWith
+export declare function groupingByWith<T, K, A, D>(classifier: (element: T) => K, downstream: Collector<T, A, D>): Collector<T, HashMap<K, A>, HashMap<K, D>>;
+
+### dist/fx/collectors.d.ts#joining
+export declare function joining<T>(delimiter?: string, prefix?: string, suffix?: string): Collector<T, string[], string>;
+
+### dist/fx/collectors.d.ts#last
+export declare function last<T>(): Collector<T, T | undefined, T | undefined>;
+
+### dist/fx/collectors.d.ts#mapping
+export declare function mapping<T, U, A, R>(mapper: (element: T) => U, downstream: Collector<U, A, R>): Collector<T, A, R>;
+
+### dist/fx/collectors.d.ts#maxBy
+export declare function maxBy<T>(comparator: (a: T, b: T) => number): Collector<T, T | undefined, T | undefined>;
+
+### dist/fx/collectors.d.ts#minBy
+export declare function minBy<T>(comparator: (a: T, b: T) => number): Collector<T, T | undefined, T | undefined>;
+
+### dist/fx/collectors.d.ts#partitioningBy
+export declare function partitioningBy<T>(predicate: (element: T) => boolean): Collector<T, HashMap<boolean, ArrayList<T>>, HashMap<boolean, ArrayList<T>>>;
+
+### dist/fx/collectors.d.ts#reducing
+export declare function reducing<T>(identity: T, reducer: (acc: T, element: T) => T): Collector<T, T, T>;
+
+### dist/fx/collectors.d.ts#reducingWith
+export declare function reducingWith<T, U>(identity: U, mapper: (element: T) => U, reducer: (acc: U, mapped: U) => U): Collector<T, U, U>;
+
+### dist/fx/collectors.d.ts#summarizingNumber
+export declare function summarizingNumber<T>(mapper: (element: T) => number): Collector<T, Partial<SummaryStatistics>, SummaryStatistics>;
+
+### dist/fx/collectors.d.ts#summingNumber
+export declare function summingNumber<T>(mapper: (element: T) => number): Collector<T, number, number>;
+
+### dist/fx/collectors.d.ts#teeing
+export declare function teeing<T, A1, A2, R1, R2, R>(collector1: Collector<T, A1, R1>, collector2: Collector<T, A2, R2>, combiner: (r1: R1, r2: R2) => R): Collector<T, [A1, A2], R>;
+
+### dist/fx/collectors.d.ts#toArray
+export declare function toArray<T>(): Collector<T, T[], T[]>;
+
+### dist/fx/collectors.d.ts#toList
+export declare function toList<T>(): Collector<T, ArrayList<T>, ArrayList<T>>;
+
+### dist/fx/collectors.d.ts#toMap
+export declare function toMap<T, K, V>(keyExtractor: (element: T) => K, valueExtractor: (element: T) => V): Collector<T, HashMap<K, V>, HashMap<K, V>>;
+
+### dist/fx/collectors.d.ts#toSet
+export declare function toSet<T>(): Collector<T, HashSet<T>, HashSet<T>>;
+
+### dist/fx/iter.d.ts#average
+export declare function average(iterable: Iterable<number>): number | undefined;
+
+### dist/fx/iter.d.ts#chunk
+export declare function chunk<T>(iterable: Iterable<T>, size: number): Generator<T[]>;
+
+### dist/fx/iter.d.ts#concat
+export declare function concat<T>(...iterables: Iterable<T>[]): Generator<T>;
+
+### dist/fx/iter.d.ts#count
+export declare function count<T>(iterable: Iterable<T>, predicate?: (value: T) => boolean): number;
+
+### dist/fx/iter.d.ts#distinct
+export declare function distinct<T, K = T>(iterable: Iterable<T>, keyFn?: (value: T) => K): Generator<T>;
+
+### dist/fx/iter.d.ts#distinctConsecutive
+export declare function distinctConsecutive<T, K = T>(iterable: Iterable<T>, keyFn?: (value: T) => K): Generator<T>;
+
+### dist/fx/iter.d.ts#enumerate
+export declare function enumerate<T>(iterable: Iterable<T>): Generator<[number, T]>;
+
+### dist/fx/iter.d.ts#every
+export declare function every<T>(iterable: Iterable<T>, predicate: (value: T) => boolean): boolean;
+
+### dist/fx/iter.d.ts#filter
+export declare function filter<T>(iterable: Iterable<T>, predicate: (value: T, index: number) => boolean): Generator<T>;
+
+### dist/fx/iter.d.ts#find
+export declare function find<T>(iterable: Iterable<T>, predicate: (value: T) => boolean): T | undefined;
+
+### dist/fx/iter.d.ts#flatMap
+export declare function flatMap<T, U>(iterable: Iterable<T>, fn: (value: T, index: number) => Iterable<U>): Generator<U>;
+
+### dist/fx/iter.d.ts#flatten
+export declare function flatten<T>(iterable: Iterable<Iterable<T>>): Generator<T>;
+
+### dist/fx/iter.d.ts#map
+export declare function map<T, U>(iterable: Iterable<T>, fn: (value: T, index: number) => U): Generator<U>;
+
+### dist/fx/iter.d.ts#max
+export declare function max<T>(iterable: Iterable<T>, compare?: (a: T, b: T) => number): T | undefined;
+
+### dist/fx/iter.d.ts#min
+export declare function min<T>(iterable: Iterable<T>, compare?: (a: T, b: T) => number): T | undefined;
+
+### dist/fx/iter.d.ts#none
+export declare function none<T>(iterable: Iterable<T>, predicate: (value: T) => boolean): boolean;
+
+### dist/fx/iter.d.ts#partition
+export declare function partition<T>(iterable: Iterable<T>, predicate: (value: T) => boolean): [T[], T[]];
+
+### dist/fx/iter.d.ts#pipe
+export declare function pipe<T>(value: T, ...fns: Array<(value: any) => any>): any;
+
+### dist/fx/iter.d.ts#reduce
+export declare function reduce<T, U>(iterable: Iterable<T>, fn: (acc: U, value: T, index: number) => U, initial: U): U;
+
+### dist/fx/iter.d.ts#reverse
+export declare function reverse<T>(iterable: Iterable<T>): Generator<T>;
+
+### dist/fx/iter.d.ts#scan
+export declare function scan<T, U>(iterable: Iterable<T>, fn: (acc: U, value: T) => U, initial: U): Generator<U>;
+
+### dist/fx/iter.d.ts#skip
+export declare function skip<T>(iterable: Iterable<T>, n: number): Generator<T>;
+
+### dist/fx/iter.d.ts#skipWhile
+export declare function skipWhile<T>(iterable: Iterable<T>, predicate: (value: T) => boolean): Generator<T>;
+
+### dist/fx/iter.d.ts#some
+export declare function some<T>(iterable: Iterable<T>, predicate: (value: T) => boolean): boolean;
+
+### dist/fx/iter.d.ts#sort
+export declare function sort<T>(iterable: Iterable<T>, compare?: (a: T, b: T) => number): Generator<T>;
+
+### dist/fx/iter.d.ts#sum
+export declare function sum(iterable: Iterable<number>): number;
+
+### dist/fx/iter.d.ts#take
+export declare function take<T>(iterable: Iterable<T>, n: number): Generator<T>;
+
+### dist/fx/iter.d.ts#takeWhile
+export declare function takeWhile<T>(iterable: Iterable<T>, predicate: (value: T) => boolean): Generator<T>;
+
+### dist/fx/iter.d.ts#tap
+export declare function tap<T>(iterable: Iterable<T>, fn: (value: T, index: number) => void): Generator<T>;
+
+### dist/fx/iter.d.ts#toArray
+export declare function toArray<T>(iterable: Iterable<T>): T[];
+
+### dist/fx/iter.d.ts#toMap
+export declare function toMap<T, K, V>(iterable: Iterable<T>, keyFn: (value: T) => K, valueFn: (value: T) => V): Map<K, V>;
+
+### dist/fx/iter.d.ts#toSet
+export declare function toSet<T>(iterable: Iterable<T>): Set<T>;
+
+### dist/fx/iter.d.ts#window
+export declare function window<T>(iterable: Iterable<T>, size: number): Generator<T[]>;
+
+### dist/fx/iter.d.ts#zip
+export declare function zip<T extends any[]>(...iterables: {
+    [K in keyof T]: Iterable<T[K]>;
+}): Generator<T>;
+
+### dist/impl/array-deque.d.ts#ArrayDeque
+export declare class ArrayDeque<T> implements Deque<T> {
+    constructor(options?: ArrayDequeOptions<T>);
+    get size(): number;
+    get isEmpty(): boolean;
+    get eq(): Eq<T>;
+    addFirst(element: T): void;
+    offerFirst(element: T): boolean;
+    removeFirst(): T;
+    pollFirst(): T | undefined;
+    peekFirst(): T;
+    peekFirstOrUndefined(): T | undefined;
+    addLast(element: T): void;
+    offerLast(element: T): boolean;
+    removeLast(): T;
+    pollLast(): T | undefined;
+    peekLast(): T;
+    peekLastOrUndefined(): T | undefined;
+    push(element: T): void;
+    pop(): T;
+    offer(element: T): boolean;
+    poll(): T;
+    peek(): T;
+    peekOrUndefined(): T | undefined;
+    pollOrUndefined(): T | undefined;
+    enqueue(element: T): boolean;
+    dequeue(): T;
+    add(element: T): boolean;
+    addAll(other: Iterable<T>): boolean;
+    contains(element: T): boolean;
+    containsAll(other: Iterable<T>): boolean;
+    remove(element: T): boolean;
+    removeAll(other: Iterable<T>): boolean;
+    retainAll(other: Iterable<T>): boolean;
+    clear(): void;
+    [Symbol.iterator](): Iterator<T>;
+    forEach(action: (element: T, index: number) => void): void;
+    toArray(): T[];
+    get capacity(): number;
+    toString(): string;
+}
+
+### dist/impl/array-deque.d.ts#ArrayDequeOptions
+export interface ArrayDequeOptions<T> {
+    initialCapacity?: number;
+    eq?: Eq<T>;
+}
+
+### dist/impl/array-deque.d.ts#arrayDeque
+export declare function arrayDeque<T>(optionsOrElements?: ArrayDequeOptions<T> | Iterable<T>): ArrayDeque<T>;
+
+### dist/impl/array-list.d.ts#ArrayList
+export declare class ArrayList<T> implements List<T>, RandomAccess {
+    readonly supportsRandomAccess: true;
+    constructor(options?: ArrayListOptions<T>);
+    get size(): number;
+    get isEmpty(): boolean;
+    get capacity(): number;
+    get eq(): Eq<T>;
+    get(index: number): T;
+    set(index: number, element: T): T;
+    contains(element: T): boolean;
+    indexOf(element: T, fromIndex?: number): number;
+    lastIndexOf(element: T, fromIndex?: number): number;
+    containsAll(other: Iterable<T>): boolean;
+    add(element: T): boolean;
+    push(element: T): void;
+    unshift(element: T): void;
+    insert(index: number, element: T): void;
+    insertAll(index: number, other: Iterable<T>): boolean;
+    addAll(other: Iterable<T>): boolean;
+    remove(element: T): boolean;
+    removeAt(index: number): T;
+    pop(): T;
+    shift(): T;
+    removeRange(fromIndex: number, toIndex: number): void;
+    removeAll(other: Iterable<T>): boolean;
+    retainAll(other: Iterable<T>): boolean;
+    clear(): void;
+    sort(compare?: Compare<T>): void;
+    reverse(): void;
+    first(): T;
+    last(): T;
+    subList(fromIndex: number, toIndex: number): List<T>;
+    [Symbol.iterator](): Iterator<T>;
+    forEach(action: (element: T, index: number) => void): void;
+    toArray(): T[];
+    ensureCapacity(minCapacity: number): void;
+    trimToSize(): void;
+}
+
+### dist/impl/array-list.d.ts#ArrayListOptions
+export interface ArrayListOptions<T> {
+    initialCapacity?: number;
+    eq?: Eq<T>;
+}
+
+### dist/impl/array-list.d.ts#arrayList
+export declare function arrayList<T>(optionsOrElements?: ArrayListOptions<T> | Iterable<T>): ArrayList<T>;
+
+### dist/impl/hash-map.d.ts#HashMap
+export declare class HashMap<K, V> implements MapLike<K, V> {
+    constructor(options?: HashMapOptions<K, V>);
+    get size(): number;
+    get isEmpty(): boolean;
+    get keyEq(): Eq<K>;
+    get valueEq(): Eq<V>;
+    has(key: K): boolean;
+    get(key: K): V;
+    getOrUndefined(key: K): V | undefined;
+    getOrDefault(key: K, defaultValue: V): V;
+    containsValue(value: V): boolean;
+    set(key: K, value: V): V | undefined;
+    setIfAbsent(key: K, value: V): V;
+    delete(key: K): V | undefined;
+    deleteEntry(key: K, value: V): boolean;
+    replace(key: K, value: V): V | undefined;
+    replaceEntry(key: K, oldValue: V, newValue: V): boolean;
+    computeIfAbsent(key: K, mappingFunction: (key: K) => V): V;
+    computeIfPresent(key: K, remappingFunction: (key: K, value: V) => V | undefined): V | undefined;
+    compute(key: K, remappingFunction: (key: K, value: V | undefined) => V | undefined): V | undefined;
+    merge(key: K, value: V, remappingFunction: (oldValue: V, newValue: V) => V | undefined): V | undefined;
+    putAll(other: MapLike<K, V> | Iterable<Entry<K, V>>): void;
+    clear(): void;
+    keys(): IterableIterator<K>;
+    values(): IterableIterator<V>;
+    entries(): IterableIterator<Entry<K, V>>;
+    [Symbol.iterator](): Iterator<Entry<K, V>>;
+    forEach(action: (value: V, key: K, map: this) => void): void;
+    get capacity(): number;
+    get loadFactor(): number;
+    getStats(): {
+        size: number;
+        capacity: number;
+        loadFactor: number;
+        avgChainLength: number;
+        maxChainLength: number;
+        emptyBuckets: number;
+    };
+}
+
+### dist/impl/hash-map.d.ts#HashMapOptions
+export interface HashMapOptions<K, V> {
+    initialCapacity?: number;
+    loadFactor?: number;
+    keyEq?: Eq<K>;
+    keyHash?: Hash<K>;
+    valueEq?: Eq<V>;
+}
+
+### dist/impl/hash-map.d.ts#hashMap
+export declare function hashMap<K, V>(optionsOrEntries?: HashMapOptions<K, V> | Iterable<readonly [K, V]>): HashMap<K, V>;
+
+### dist/impl/hash-set.d.ts#HashSet
+export declare class HashSet<T> implements Set<T> {
+    constructor(options?: HashSetOptions<T>);
+    get size(): number;
+    get isEmpty(): boolean;
+    get eq(): Eq<T>;
+    add(element: T): boolean;
+    remove(element: T): boolean;
+    contains(element: T): boolean;
+    addAll(other: Iterable<T>): boolean;
+    removeAll(other: Iterable<T>): boolean;
+    retainAll(other: Iterable<T>): boolean;
+    containsAll(other: Iterable<T>): boolean;
+    clear(): void;
+    union(other: Iterable<T>): HashSet<T>;
+    intersection(other: Iterable<T>): HashSet<T>;
+    difference(other: Iterable<T>): HashSet<T>;
+    symmetricDifference(other: Iterable<T>): HashSet<T>;
+    isSubsetOf(other: Iterable<T>): boolean;
+    isSupersetOf(other: Iterable<T>): boolean;
+    isDisjointFrom(other: Iterable<T>): boolean;
+    [Symbol.iterator](): Iterator<T>;
+    forEach(action: (element: T, index: number) => void): void;
+    toArray(): T[];
+    clone(): HashSet<T>;
+    getStats(): ReturnType<HashMap<T, symbol>["getStats"]>;
+    toString(): string;
+}
+
+### dist/impl/hash-set.d.ts#HashSetOptions
+export interface HashSetOptions<T> {
+    initialCapacity?: number;
+    loadFactor?: number;
+    eq?: Eq<T>;
+    hash?: Hash<T>;
+}
+
+### dist/impl/hash-set.d.ts#hashSet
+export declare function hashSet<T>(optionsOrElements?: HashSetOptions<T> | Iterable<T>): HashSet<T>;
+
+### dist/impl/linked-hash-map.d.ts#LinkedHashMap
+export declare class LinkedHashMap<K, V> implements MapLike<K, V> {
+    constructor(options?: LinkedHashMapOptions<K, V>);
+    get size(): number;
+    get isEmpty(): boolean;
+    get eq(): Eq<K>;
+    get keyEq(): Eq<K>;
+    get valueEq(): Eq<V>;
+    get hash(): Hash<K>;
+    has(key: K): boolean;
+    containsKey(key: K): boolean;
+    containsValue(value: V): boolean;
+    get(key: K): V;
+    getOrUndefined(key: K): V | undefined;
+    getOrDefault(key: K, defaultValue: V): V;
+    set(key: K, value: V): V | undefined;
+    setIfAbsent(key: K, value: V): V;
+    replace(key: K, value: V): V | undefined;
+    replaceEntry(key: K, oldValue: V, newValue: V): boolean;
+    delete(key: K): V | undefined;
+    deleteEntry(key: K, value: V): boolean;
+    clear(): void;
+    putAll(other: MapLike<K, V> | Iterable<Entry<K, V>>): void;
+    computeIfAbsent(key: K, mappingFunction: (key: K) => V): V;
+    computeIfPresent(key: K, remappingFunction: (key: K, value: V) => V | undefined): V | undefined;
+    compute(key: K, remappingFunction: (key: K, value: V | undefined) => V | undefined): V | undefined;
+    merge(key: K, value: V, remappingFunction: (oldValue: V, newValue: V) => V | undefined): V | undefined;
+    keys(): IterableIterator<K>;
+    values(): IterableIterator<V>;
+    entries(): IterableIterator<Entry<K, V>>;
+    [Symbol.iterator](): Iterator<Entry<K, V>>;
+    forEach(action: (value: V, key: K, map: this) => void): void;
+    toArray(): Entry<K, V>[];
+    toString(): string;
+}
+
+### dist/impl/linked-hash-map.d.ts#LinkedHashMapOptions
+export interface LinkedHashMapOptions<K, V> {
+    initialCapacity?: number;
+    loadFactor?: number;
+    eq?: Eq<K>;
+    hash?: Hash<K>;
+    valueEq?: Eq<V>;
+    accessOrder?: boolean;
+}
+
+### dist/impl/linked-hash-map.d.ts#linkedHashMap
+export declare function linkedHashMap<K, V>(optionsOrEntries?: LinkedHashMapOptions<K, V> | Iterable<[K, V]>): LinkedHashMap<K, V>;
+
+### dist/impl/linked-list.d.ts#LinkedList
+export declare class LinkedList<T> implements List<T>, Deque<T> {
+    constructor(options?: LinkedListOptions<T>);
+    get size(): number;
+    get isEmpty(): boolean;
+    get eq(): Eq<T>;
+    addFirst(element: T): void;
+    addLast(element: T): void;
+    removeFirst(): T;
+    removeLast(): T;
+    pollFirst(): T | undefined;
+    pollLast(): T | undefined;
+    peekFirst(): T;
+    peekLast(): T;
+    peekFirstOrUndefined(): T | undefined;
+    peekLastOrUndefined(): T | undefined;
+    offerFirst(element: T): boolean;
+    offerLast(element: T): boolean;
+    push(element: T): void;
+    pop(): T;
+    offer(element: T): boolean;
+    poll(): T;
+    peek(): T;
+    peekOrUndefined(): T | undefined;
+    pollOrUndefined(): T | undefined;
+    enqueue(element: T): boolean;
+    dequeue(): T;
+    get(index: number): T;
+    set(index: number, element: T): T;
+    insert(index: number, element: T): void;
+    insertAll(index: number, other: Iterable<T>): boolean;
+    removeAt(index: number): T;
+    removeRange(fromIndex: number, toIndex: number): void;
+    indexOf(element: T, fromIndex?: number): number;
+    lastIndexOf(element: T, fromIndex?: number): number;
+    first(): T;
+    last(): T;
+    shift(): T;
+    unshift(element: T): void;
+    add(element: T): boolean;
+    addAll(other: Iterable<T>): boolean;
+    contains(element: T): boolean;
+    containsAll(other: Iterable<T>): boolean;
+    remove(element: T): boolean;
+    removeAll(other: Iterable<T>): boolean;
+    retainAll(other: Iterable<T>): boolean;
+    clear(): void;
+    sort(compare?: Compare<T>): void;
+    reverse(): void;
+    subList(fromIndex: number, toIndex: number): List<T>;
+    [Symbol.iterator](): Iterator<T>;
+    forEach(action: (element: T, index: number) => void): void;
+    toArray(): T[];
+    toString(): string;
+}
+
+### dist/impl/linked-list.d.ts#LinkedListOptions
+export interface LinkedListOptions<T> {
+    eq?: Eq<T>;
+}
+
+### dist/impl/linked-list.d.ts#linkedList
+export declare function linkedList<T>(optionsOrElements?: LinkedListOptions<T> | Iterable<T>): LinkedList<T>;
+
+### dist/impl/priority-queue.d.ts#PriorityQueue
+export declare class PriorityQueue<T> implements IPriorityQueue<T> {
+    constructor(options?: PriorityQueueOptions<T>);
+    get size(): number;
+    get isEmpty(): boolean;
+    get eq(): Eq<T>;
+    get compare(): Compare<T>;
+    get comparator(): Compare<T>;
+    offer(element: T): boolean;
+    poll(): T;
+    pollOrUndefined(): T | undefined;
+    peek(): T;
+    peekOrUndefined(): T | undefined;
+    enqueue(element: T): boolean;
+    dequeue(): T;
+    add(element: T): boolean;
+    addAll(other: Iterable<T>): boolean;
+    contains(element: T): boolean;
+    containsAll(other: Iterable<T>): boolean;
+    remove(element: T): boolean;
+    removeAll(other: Iterable<T>): boolean;
+    retainAll(other: Iterable<T>): boolean;
+    clear(): void;
+    [Symbol.iterator](): Iterator<T>;
+    forEach(action: (element: T, index: number) => void): void;
+    toArray(): T[];
+    toSortedArray(): T[];
+    clone(): PriorityQueue<T>;
+    validate(): boolean;
+    toString(): string;
+}
+
+### dist/impl/priority-queue.d.ts#PriorityQueueOptions
+export interface PriorityQueueOptions<T> {
+    initialCapacity?: number;
+    compare?: Compare<T>;
+    eq?: Eq<T>;
+}
+
+### dist/impl/priority-queue.d.ts#priorityQueue
+export declare function priorityQueue<T>(optionsOrElementsOrComparator?: PriorityQueueOptions<T> | Iterable<T> | Compare<T>): PriorityQueue<T>;
+
+### dist/impl/tree-map.d.ts#TreeMap
+export declare class TreeMap<K, V> implements NavigableMap<K, V> {
+    constructor(options?: TreeMapOptions<K, V>);
+    get size(): number;
+    get isEmpty(): boolean;
+    get comparator(): Compare<K>;
+    get keyEq(): Eq<K>;
+    get valueEq(): Eq<V>;
+    has(key: K): boolean;
+    containsKey(key: K): boolean;
+    containsValue(value: V): boolean;
+    get(key: K): V;
+    getOrUndefined(key: K): V | undefined;
+    getOrDefault(key: K, defaultValue: V): V;
+    set(key: K, value: V): V | undefined;
+    setIfAbsent(key: K, value: V): V;
+    replace(key: K, value: V): V | undefined;
+    replaceEntry(key: K, oldValue: V, newValue: V): boolean;
+    delete(key: K): V | undefined;
+    deleteEntry(key: K, value: V): boolean;
+    clear(): void;
+    putAll(other: NavigableMap<K, V> | Iterable<Entry<K, V>>): void;
+    computeIfAbsent(key: K, mappingFunction: (key: K) => V): V;
+    computeIfPresent(key: K, remappingFunction: (key: K, value: V) => V | undefined): V | undefined;
+    compute(key: K, remappingFunction: (key: K, value: V | undefined) => V | undefined): V | undefined;
+    merge(key: K, value: V, remappingFunction: (oldValue: V, newValue: V) => V | undefined): V | undefined;
+    firstKey(): K;
+    lastKey(): K;
+    headMap(toKey: K): SortedMap<K, V>;
+    tailMap(fromKey: K): SortedMap<K, V>;
+    subMap(fromKey: K, toKey: K): SortedMap<K, V>;
+    floorKey(key: K): K | undefined;
+    ceilingKey(key: K): K | undefined;
+    lowerKey(key: K): K | undefined;
+    higherKey(key: K): K | undefined;
+    floorEntry(key: K): Entry<K, V> | undefined;
+    ceilingEntry(key: K): Entry<K, V> | undefined;
+    lowerEntry(key: K): Entry<K, V> | undefined;
+    higherEntry(key: K): Entry<K, V> | undefined;
+    firstEntry(): Entry<K, V> | undefined;
+    lastEntry(): Entry<K, V> | undefined;
+    pollFirstEntry(): Entry<K, V> | undefined;
+    pollLastEntry(): Entry<K, V> | undefined;
+    descendingMap(): NavigableMap<K, V>;
+    descendingKeys(): IterableIterator<K>;
+    keys(): IterableIterator<K>;
+    values(): IterableIterator<V>;
+    entries(): IterableIterator<Entry<K, V>>;
+    [Symbol.iterator](): Iterator<Entry<K, V>>;
+    forEach(action: (value: V, key: K, map: this) => void): void;
+    toArray(): Entry<K, V>[];
+    toString(): string;
+}
+
+### dist/impl/tree-map.d.ts#TreeMapOptions
+export interface TreeMapOptions<K, V> {
+    compare?: Compare<K>;
+    eq?: Eq<K>;
+    valueEq?: Eq<V>;
+}
+
+### dist/impl/tree-map.d.ts#treeMap
+export declare function treeMap<K, V>(optionsOrEntries?: TreeMapOptions<K, V> | Iterable<[K, V]>): TreeMap<K, V>;
+
+### dist/impl/tree-set.d.ts#TreeSet
+export declare class TreeSet<T> implements NavigableSet<T> {
+    constructor(options?: TreeSetOptions<T>);
+    get size(): number;
+    get isEmpty(): boolean;
+    get comparator(): Compare<T>;
+    get eq(): Eq<T>;
+    has(element: T): boolean;
+    contains(element: T): boolean;
+    containsAll(other: Iterable<T>): boolean;
+    add(element: T): boolean;
+    remove(element: T): boolean;
+    clear(): void;
+    addAll(elements: Iterable<T>): boolean;
+    removeAll(elements: Iterable<T>): boolean;
+    retainAll(elements: Iterable<T>): boolean;
+    union(other: Iterable<T>): TreeSet<T>;
+    intersection(other: Iterable<T>): TreeSet<T>;
+    difference(other: Iterable<T>): TreeSet<T>;
+    symmetricDifference(other: Iterable<T>): TreeSet<T>;
+    isSubsetOf(other: Iterable<T>): boolean;
+    isSupersetOf(other: Iterable<T>): boolean;
+    isDisjointFrom(other: Iterable<T>): boolean;
+    first(): T;
+    last(): T;
+    headSet(toElement: T): SortedSet<T>;
+    tailSet(fromElement: T): SortedSet<T>;
+    subSet(fromElement: T, toElement: T): SortedSet<T>;
+    floor(element: T): T | undefined;
+    ceiling(element: T): T | undefined;
+    lower(element: T): T | undefined;
+    higher(element: T): T | undefined;
+    pollFirst(): T | undefined;
+    pollLast(): T | undefined;
+    descendingSet(): NavigableSet<T>;
+    descendingIterator(): IterableIterator<T>;
+    [Symbol.iterator](): Iterator<T>;
+    forEach(action: (element: T, index: number) => void): void;
+    toArray(): T[];
+    toString(): string;
+}
+
+### dist/impl/tree-set.d.ts#TreeSetOptions
+export interface TreeSetOptions<T> {
+    compare?: Compare<T>;
+    eq?: Eq<T>;
+}
+
+### dist/impl/tree-set.d.ts#treeSet
+export declare function treeSet<T>(optionsOrElements?: TreeSetOptions<T> | Iterable<T>): TreeSet<T>;
+
+### dist/interfaces/collection.d.ts#Collection
+export interface Collection<T> extends ReadonlyCollection<T> {
+    add(element: T): boolean;
+    addAll(other: Iterable<T>): boolean;
+    remove(element: T): boolean;
+    removeAll(other: Iterable<T>): boolean;
+    retainAll(other: Iterable<T>): boolean;
+    clear(): void;
+}
+
+### dist/interfaces/collection.d.ts#ElementOf
+export type ElementOf<C> = C extends ReadonlyCollection<infer T> ? T : never;
+
+### dist/interfaces/collection.d.ts#IsReadonly
+export type IsReadonly<C> = C extends ReadonlyCollection<any> ? C extends Collection<any> ? false : true : false;
+
+### dist/interfaces/collection.d.ts#Readonly
+export type Readonly<C extends Collection<any>> = C extends Collection<infer T> ? ReadonlyCollection<T> : never;
+
+### dist/interfaces/collection.d.ts#ReadonlyCollection
+export interface ReadonlyCollection<T> extends Iterable<T> {
+    readonly size: number;
+    readonly isEmpty: boolean;
+    contains(element: T): boolean;
+    containsAll(other: Iterable<T>): boolean;
+    toArray(): T[];
+    forEach(action: (element: T, index: number) => void): void;
+    readonly eq: Eq<T>;
+}
+
+### dist/interfaces/list.d.ts#CircularList
+export interface CircularList<T> extends List<T> {
+    readonly capacity: number;
+    readonly isFull: boolean;
+    readonly overwriteCount: number;
+}
+
+### dist/interfaces/list.d.ts#List
+export interface List<T> extends ReadonlyList<T>, Collection<T> {
+    set(index: number, element: T): T;
+    insert(index: number, element: T): void;
+    insertAll(index: number, other: Iterable<T>): boolean;
+    removeAt(index: number): T;
+    removeRange(fromIndex: number, toIndex: number): void;
+    sort(compare?: Compare<T>): void;
+    reverse(): void;
+    subList(fromIndex: number, toIndex: number): List<T>;
+    push(element: T): void;
+    pop(): T;
+    shift(): T;
+    unshift(element: T): void;
+}
+
+### dist/interfaces/list.d.ts#RandomAccess
+export interface RandomAccess {
+    readonly supportsRandomAccess: true;
+}
+
+### dist/interfaces/list.d.ts#ReadonlyList
+export interface ReadonlyList<T> extends ReadonlyCollection<T> {
+    get(index: number): T;
+    indexOf(element: T, fromIndex?: number): number;
+    lastIndexOf(element: T, fromIndex?: number): number;
+    subList(fromIndex: number, toIndex: number): ReadonlyList<T>;
+    first(): T;
+    last(): T;
+}
+
+### dist/interfaces/list.d.ts#Stack
+export interface Stack<T> extends Iterable<T> {
+    readonly size: number;
+    readonly isEmpty: boolean;
+    push(element: T): void;
+    pop(): T;
+    peek(): T;
+    clear(): void;
+    search(element: T): number;
+}
+
+### dist/interfaces/list.d.ts#Vector
+export interface Vector<T> extends List<T> {
+    readonly capacity: number;
+    trimToSize(): void;
+    ensureCapacity(minCapacity: number): void;
+}
+
+### dist/interfaces/map.d.ts#BiMap
+export interface BiMap<K, V> extends MapLike<K, V> {
+    inverse(): BiMap<V, K>;
+    getKey(value: V): K | undefined;
+    forcePut(key: K, value: V): V | undefined;
+}
+
+### dist/interfaces/map.d.ts#Entry
+export interface Entry<K, V> {
+    readonly key: K;
+    readonly value: V;
+}
+
+### dist/interfaces/map.d.ts#MapLike
+export interface MapLike<K, V> extends ReadonlyMapLike<K, V> {
+    set(key: K, value: V): V | undefined;
+    setIfAbsent(key: K, value: V): V;
+    delete(key: K): V | undefined;
+    deleteEntry(key: K, value: V): boolean;
+    replace(key: K, value: V): V | undefined;
+    replaceEntry(key: K, oldValue: V, newValue: V): boolean;
+    computeIfAbsent(key: K, mappingFunction: (key: K) => V): V;
+    computeIfPresent(key: K, remappingFunction: (key: K, value: V) => V | undefined): V | undefined;
+    compute(key: K, remappingFunction: (key: K, value: V | undefined) => V | undefined): V | undefined;
+    merge(key: K, value: V, remappingFunction: (oldValue: V, newValue: V) => V | undefined): V | undefined;
+    putAll(other: ReadonlyMapLike<K, V> | Iterable<Entry<K, V>>): void;
+    clear(): void;
+}
+
+### dist/interfaces/map.d.ts#MultiMap
+export interface MultiMap<K, V> {
+    readonly size: number;
+    readonly isEmpty: boolean;
+    has(key: K): boolean;
+    get(key: K): ReadonlyCollection<V>;
+    put(key: K, value: V): boolean;
+    putAll(key: K, values: Iterable<V>): boolean;
+    remove(key: K, value: V): boolean;
+    removeAll(key: K): ReadonlyCollection<V>;
+    replaceAll(key: K, values: Iterable<V>): ReadonlyCollection<V>;
+    keys(): Iterable<K>;
+    entries(): Iterable<Entry<K, V>>;
+    clear(): void;
+}
+
+### dist/interfaces/map.d.ts#NavigableMap
+export interface NavigableMap<K, V> extends SortedMap<K, V> {
+    floorKey(key: K): K | undefined;
+    ceilingKey(key: K): K | undefined;
+    lowerKey(key: K): K | undefined;
+    higherKey(key: K): K | undefined;
+    floorEntry(key: K): Entry<K, V> | undefined;
+    ceilingEntry(key: K): Entry<K, V> | undefined;
+    lowerEntry(key: K): Entry<K, V> | undefined;
+    higherEntry(key: K): Entry<K, V> | undefined;
+    firstEntry(): Entry<K, V> | undefined;
+    lastEntry(): Entry<K, V> | undefined;
+    pollFirstEntry(): Entry<K, V> | undefined;
+    pollLastEntry(): Entry<K, V> | undefined;
+    descendingMap(): NavigableMap<K, V>;
+    descendingKeys(): Iterable<K>;
+}
+
+### dist/interfaces/map.d.ts#ReadonlyMapLike
+export interface ReadonlyMapLike<K, V> extends Iterable<Entry<K, V>> {
+    readonly size: number;
+    readonly isEmpty: boolean;
+    has(key: K): boolean;
+    get(key: K): V;
+    getOrUndefined(key: K): V | undefined;
+    getOrDefault(key: K, defaultValue: V): V;
+    containsValue(value: V): boolean;
+    keys(): Iterable<K>;
+    values(): Iterable<V>;
+    entries(): Iterable<Entry<K, V>>;
+    forEach(action: (value: V, key: K, map: this) => void): void;
+    readonly keyEq: Eq<K>;
+    readonly valueEq: Eq<V>;
+}
+
+### dist/interfaces/map.d.ts#SortedMap
+export interface SortedMap<K, V> extends MapLike<K, V> {
+    readonly comparator: Compare<K>;
+    firstKey(): K;
+    lastKey(): K;
+    headMap(toKey: K): SortedMap<K, V>;
+    tailMap(fromKey: K): SortedMap<K, V>;
+    subMap(fromKey: K, toKey: K): SortedMap<K, V>;
+}
+
+### dist/interfaces/map.d.ts#WeakMapLike
+export interface WeakMapLike<K extends object, V> {
+    has(key: K): boolean;
+    get(key: K): V | undefined;
+    set(key: K, value: V): this;
+    delete(key: K): boolean;
+}
+
+### dist/interfaces/queue.d.ts#AsyncQueue
+export interface AsyncQueue<T> extends AsyncIterable<T> {
+    readonly size: number;
+    readonly isEmpty: boolean;
+    put(element: T): Promise<void>;
+    take(): Promise<T>;
+    tryPut(element: T): boolean;
+    tryTake(): T | undefined;
+    peek(): Promise<T>;
+    close(): void;
+    readonly isClosed: boolean;
+}
+
+### dist/interfaces/queue.d.ts#BlockingQueue
+export interface BlockingQueue<T> extends Queue<T> {
+    put(element: T, timeoutMs?: number): Promise<void>;
+    take(timeoutMs?: number): Promise<T>;
+    readonly remainingCapacity: number;
+    drainTo(target: T[], maxElements?: number): number;
+}
+
+### dist/interfaces/queue.d.ts#DelayQueue
+export interface DelayQueue<T> extends BlockingQueue<T> {
+    offer(element: T, delayMs?: number): boolean;
+    readonly nextDelay: number;
+}
+
+### dist/interfaces/queue.d.ts#Deque
+export interface Deque<T> extends Queue<T> {
+    addFirst(element: T): void;
+    offerFirst(element: T): boolean;
+    removeFirst(): T;
+    pollFirst(): T | undefined;
+    peekFirst(): T;
+    peekFirstOrUndefined(): T | undefined;
+    addLast(element: T): void;
+    offerLast(element: T): boolean;
+    removeLast(): T;
+    pollLast(): T | undefined;
+    peekLast(): T;
+    peekLastOrUndefined(): T | undefined;
+    push(element: T): void;
+    pop(): T;
+}
+
+### dist/interfaces/queue.d.ts#PriorityQueue
+export interface PriorityQueue<T> extends Queue<T> {
+    readonly compare: Compare<T>;
+    readonly comparator: Compare<T> | undefined;
+}
+
+### dist/interfaces/queue.d.ts#Queue
+export interface Queue<T> extends ReadonlyQueue<T>, Collection<T> {
+    offer(element: T): boolean;
+    poll(): T;
+    pollOrUndefined(): T | undefined;
+    enqueue(element: T): boolean;
+    dequeue(): T;
+}
+
+### dist/interfaces/queue.d.ts#ReadonlyQueue
+export interface ReadonlyQueue<T> extends ReadonlyCollection<T> {
+    peek(): T;
+    peekOrUndefined(): T | undefined;
+}
+
+### dist/interfaces/queue.d.ts#TransferQueue
+export interface TransferQueue<T> extends BlockingQueue<T> {
+    transfer(element: T): Promise<void>;
+    tryTransfer(element: T, timeoutMs?: number): Promise<boolean>;
+    readonly hasWaitingConsumer: boolean;
+    readonly waitingConsumerCount: number;
+}
+
+### dist/interfaces/set.d.ts#NavigableSet
+export interface NavigableSet<T> extends SortedSet<T> {
+    floor(element: T): T | undefined;
+    ceiling(element: T): T | undefined;
+    lower(element: T): T | undefined;
+    higher(element: T): T | undefined;
+    pollFirst(): T | undefined;
+    pollLast(): T | undefined;
+    descendingSet(): NavigableSet<T>;
+    descendingIterator(): Iterator<T>;
+}
+
+### dist/interfaces/set.d.ts#ReadonlySet
+export interface ReadonlySet<T> extends ReadonlyCollection<T> {
+    contains(element: T): boolean;
+    containsAll(other: Iterable<T>): boolean;
+}
+
+### dist/interfaces/set.d.ts#Set
+export interface Set<T> extends ReadonlySet<T>, Collection<T> {
+    add(element: T): boolean;
+    remove(element: T): boolean;
+    addAll(other: Iterable<T>): boolean;
+    removeAll(other: Iterable<T>): boolean;
+    retainAll(other: Iterable<T>): boolean;
+}
+
+### dist/interfaces/set.d.ts#SortedSet
+export interface SortedSet<T> extends Set<T> {
+    readonly comparator: Compare<T>;
+    first(): T;
+    last(): T;
+    headSet(toElement: T): SortedSet<T>;
+    tailSet(fromElement: T): SortedSet<T>;
+    subSet(fromElement: T, toElement: T): SortedSet<T>;
+}
+
+### dist/order/rank.d.ts#KEY_DIGITS
+export declare const KEY_DIGITS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+
+### dist/order/rank.d.ts#KeyCheckOptions
+export interface KeyCheckOptions {
+    readonly maxLength?: number;
+}
+
+### dist/order/rank.d.ts#KeyedItem
+export interface KeyedItem {
+    readonly id: string;
+    readonly key: string;
+}
+
+### dist/order/rank.d.ts#Point
+export interface Point {
+    readonly x: number;
+    readonly y: number;
+}
+
+### dist/order/rank.d.ts#compareKeys
+export declare function compareKeys(a: string, b: string): number;
+
+### dist/order/rank.d.ts#dropIndex
+export declare function dropIndex(point: Point, centers: readonly Point[], rowTolerance?: number): number;
+
+### dist/order/rank.d.ts#isValidKey
+export declare function isValidKey(key: unknown, options?: KeyCheckOptions): key is string;
+
+### dist/order/rank.d.ts#keyBetween
+export declare function keyBetween(prev: string | null | undefined, next: string | null | undefined): string;
+
+### dist/order/rank.d.ts#keysBetween
+export declare function keysBetween(prev: string | null | undefined, next: string | null | undefined, count: number): string[];
+
+### dist/order/rank.d.ts#keysForDrop
+export declare function keysForDrop(items: readonly KeyedItem[], index: number, movingId: string): Array<{
+    id: string;
+    key: string;
+}>;
+
+### dist/overlay/overlay.d.ts#DELETED_FIELD
+export declare const DELETED_FIELD = "_deleted";
+
+### dist/overlay/overlay.d.ts#LAYER_FIELD
+export declare const LAYER_FIELD = "_scope";
+
+### dist/overlay/overlay.d.ts#LayerCopy
+export type LayerCopy = Readonly<Record<string, unknown>>;
+
+### dist/overlay/overlay.d.ts#MergeMode
+export type MergeMode = "field" | "doc";
+
+### dist/overlay/overlay.d.ts#OverlayFields
+export interface OverlayFields {
+    readonly deleted?: string | undefined;
+    readonly layer?: string | undefined;
+}
+
+### dist/overlay/overlay.d.ts#UNSET
+export declare const UNSET: Readonly<{
+    __unset: true;
+}>;
+
+### dist/overlay/overlay.d.ts#copyAsPatch
+export declare function copyAsPatch(copy: LayerCopy, fields?: OverlayFields): StoragePatchOperations;
+
+### dist/overlay/overlay.d.ts#isUnset
+export declare function isUnset(value: unknown): boolean;
+
+### dist/overlay/overlay.d.ts#mergeCopies
+export declare function mergeCopies(copies: ReadonlyArray<LayerCopy | undefined>, mode?: MergeMode, fields?: OverlayFields): Record<string, unknown> | undefined;
+
+### dist/overlay/stacks.d.ts#LayerResolver
+export type LayerResolver = (variable: string) => string | undefined;
+
+### dist/overlay/stacks.d.ts#ResolvedStack
+export interface ResolvedStack {
+    readonly docs?: readonly string[];
+    readonly layers: readonly string[];
+    readonly write: readonly string[];
+    readonly mode: MergeMode;
+}
+
+### dist/overlay/stacks.d.ts#StackRule
+export interface StackRule {
+    readonly collection: string | readonly string[];
+    readonly doc?: string | readonly string[] | undefined;
+    readonly read: readonly string[];
+    readonly write?: string | readonly string[] | undefined;
+    readonly mode?: MergeMode | undefined;
+}
+
+### dist/overlay/stacks.d.ts#resolveStacks
+export declare function resolveStacks(rules: readonly StackRule[] | undefined, resolve: LayerResolver): Map<string, ResolvedStack[]>;
+
+### dist/overlay/stacks.d.ts#stackOf
+export declare function stackOf(stacks: ReadonlyMap<string, readonly ResolvedStack[]>, collection: string, id?: string): ResolvedStack | undefined;
+
+### dist/storage/interface.d.ts#CollectionStorage
+export interface CollectionStorage<T> {
+    get(id: string): Promise<T | undefined>;
+    getAll(): Promise<T[]>;
+    getEntries?(): Promise<Array<[string, T]>>;
+    getIds?(): Promise<string[]>;
+    getChangesSince?(since?: string): Promise<StorageChanges<T>>;
+    find(predicate: (item: T) => boolean): Promise<T[]>;
+    query?(selector: StorageSelector, options?: StorageQueryOptions, policy?: StorageQueryPolicy): Promise<Array<[string, T]>>;
+    observe?(observer: StorageObserver<T>): () => void;
+    has(id: string): Promise<boolean>;
+    size(): Promise<number>;
+    set(id: string, value: T, options?: StorageItemWriteOptions): Promise<void>;
+    delete(id: string, options?: StorageItemWriteOptions): Promise<boolean>;
+    clear(options?: StorageWriteOptions): Promise<void>;
+    patch?(id: string, fields: StoragePatch, options?: StorageWriteOptions): Promise<T | undefined>;
+    setBatch(items: Array<[string, T]>, options?: StorageBatchWriteOptions): Promise<void>;
+    deleteBatch(ids: string[], options?: StorageWriteOptions): Promise<number>;
+    getBatch(ids: string[]): Promise<Map<string, T>>;
+    flush?(): Promise<void>;
+    close(): Promise<void>;
+    getMetadata?(): Promise<StorageMetadata>;
+}
+
+### dist/storage/interface.d.ts#StorageBatchWriteOptions
+export interface StorageBatchWriteOptions extends StorageWriteOptions {
+    readonly expectedVersions?: ReadonlyArray<readonly [string, string | null]> | undefined;
+}
+
+### dist/storage/interface.d.ts#StorageChangeBatch
+export type StorageChangeBatch<T> = readonly StorageChangeEvent<T>[];
+
+### dist/storage/interface.d.ts#StorageChangeEvent
+export type StorageChangeEvent<T> = StorageSetChange<T> | StorageDeleteChange | StorageClearChange;
+
+### dist/storage/interface.d.ts#StorageChanges
+export interface StorageChanges<T> {
+    version: string;
+    full: boolean;
+    changed: Array<[string, T]>;
+    deleted: string[];
+}
+
+### dist/storage/interface.d.ts#StorageClearChange
+export interface StorageClearChange {
+    readonly type: "clear";
+    readonly origin?: string | undefined;
+}
+
+### dist/storage/interface.d.ts#StorageDeleteChange
+export interface StorageDeleteChange {
+    readonly type: "delete";
+    readonly id: string;
+    readonly origin?: string | undefined;
+}
+
+### dist/storage/interface.d.ts#StorageItemWriteOptions
+export interface StorageItemWriteOptions extends StorageWriteOptions {
+    readonly expectedVersion?: string | null | undefined;
+}
+
+### dist/storage/interface.d.ts#StorageMetadata
+export interface StorageMetadata {
+    type: "memory" | "api" | "hybrid" | "synced" | "custom";
+    size: number;
+    stats?: {
+        hitRate?: number;
+        lastSync?: number;
+        pendingOps?: number;
+        memoryUsage?: number;
+        [key: string]: unknown;
+    };
+}
+
+### dist/storage/interface.d.ts#StorageObserver
+export type StorageObserver<T> = (changes: StorageChangeBatch<T>) => void;
+
+### dist/storage/interface.d.ts#StorageSetChange
+export interface StorageSetChange<T> {
+    readonly type: "set";
+    readonly id: string;
+    readonly value: T;
+    readonly origin?: string | undefined;
+}
+
+### dist/storage/interface.d.ts#StorageWriteOptions
+export interface StorageWriteOptions {
+    readonly origin?: string | undefined;
+}
+
+### dist/storage/interface.d.ts#normalizeStorageResult
+export declare function normalizeStorageResult<T>(value: Promise<T>): Promise<T>;
+
+### dist/storage/listeners.d.ts#ListenerErrorHandler
+export type ListenerErrorHandler = (error: unknown) => void;
+
+### dist/storage/listeners.d.ts#StorageListeners
+export declare class StorageListeners<E> {
+    constructor(onError?: ListenerErrorHandler);
+    get size(): number;
+    add(listener: (event: E) => void): () => void;
+    emit(event: E): void;
+    clear(): void;
+}
+
+### dist/storage/listeners.d.ts#reportListenerError
+export declare const reportListenerError: ListenerErrorHandler;
+
+### dist/storage/memory.d.ts#InMemoryStorage
+export declare class InMemoryStorage<T> implements CollectionStorage<T> {
+    constructor(options?: InMemoryStorageOptions<T>);
+    get(id: string): Promise<T | undefined>;
+    getAll(): Promise<T[]>;
+    getEntries(): Promise<Array<[string, T]>>;
+    getIds(): Promise<string[]>;
+    getChangesSince(since?: string): Promise<StorageChanges<T>>;
+    find(predicate: (item: T) => boolean): Promise<T[]>;
+    query(selector: StorageSelector, options?: StorageQueryOptions, policy?: StorageQueryPolicy): Promise<Array<[string, T]>>;
+    observe(observer: StorageObserver<T>): () => void;
+    has(id: string): Promise<boolean>;
+    size(): Promise<number>;
+    set(id: string, value: T, options?: StorageItemWriteOptions): Promise<void>;
+    delete(id: string, options?: StorageItemWriteOptions): Promise<boolean>;
+    clear(options?: StorageWriteOptions): Promise<void>;
+    patch(id: string, fields: StoragePatch, options?: StorageWriteOptions): Promise<T | undefined>;
+    setBatch(items: Array<[string, T]>, options?: StorageBatchWriteOptions): Promise<void>;
+    deleteBatch(ids: string[], options?: StorageWriteOptions): Promise<number>;
+    getBatch(ids: string[]): Promise<Map<string, T>>;
+    close(): Promise<void>;
+    getMetadata(): Promise<StorageMetadata>;
+    keys(): IterableIterator<string>;
+    values(): IterableIterator<T>;
+    entries(): IterableIterator<[string, T]>;
+    forEach(callback: (value: T, key: string, map: Map<string, T>) => void): void;
+    [Symbol.iterator](): IterableIterator<[string, T]>;
+}
+
+### dist/storage/memory.d.ts#InMemoryStorageOptions
+export interface InMemoryStorageOptions<T = unknown> {
+    onObserverError?: ListenerErrorHandler | undefined;
+    queryPolicy?: StorageQueryPolicy | undefined;
+    maxTombstones?: number;
+    copies?: boolean;
+    versionOf?: ((item: T) => string | undefined) | undefined;
+}
+
+### dist/testing/check.d.ts#ContractViolation
+export declare class ContractViolation extends Error {
+    readonly name = "ContractViolation";
+}
+
+### dist/testing/check.d.ts#deepEqual
+export declare function deepEqual(actual: unknown, expected: unknown): boolean;
+
+### dist/testing/storage-contract.d.ts#CollectionStorageContractOptions
+export interface CollectionStorageContractOptions {
+    create(): ContractStorage | Promise<ContractStorage>;
+    createWithMaxTombstones?: ((max: number) => ContractStorage | Promise<ContractStorage>) | undefined;
+    createWithQueryPolicy?: ((policy: StorageQueryPolicy) => ContractStorage | Promise<ContractStorage>) | undefined;
+    createWithVersions?: ((versionOf: (item: ContractItem) => string | undefined) => ContractStorage | Promise<ContractStorage>) | undefined;
+}
+
+### dist/testing/storage-contract.d.ts#ContractCase
+export interface ContractCase {
+    readonly name: string;
+    run(context?: ContractTestContext): Promise<void>;
+}
+
+### dist/testing/storage-contract.d.ts#ContractItem
+export interface ContractItem {
+    id: string;
+    n: number;
+    tags?: string[];
+}
+
+### dist/testing/storage-contract.d.ts#ContractStorage
+export type ContractStorage = CollectionStorage<ContractItem>;
+
+### dist/testing/storage-contract.d.ts#ContractTestApi
+export interface ContractTestApi {
+    describe(name: string, body: () => void): unknown;
+    it(name: string, body: (context: ContractTestContext) => Promise<void>): unknown;
+}
+
+### dist/testing/storage-contract.d.ts#ContractTestContext
+export interface ContractTestContext {
+    skip?(note?: string): void;
+}
+
+### dist/testing/storage-contract.d.ts#collectionStorageContract
+export declare function collectionStorageContract(options: CollectionStorageContractOptions): ContractCase[];
+
+### dist/testing/storage-contract.d.ts#contractVersionOf
+export declare function contractVersionOf(item: ContractItem): string | undefined;
+
+### dist/testing/storage-contract.d.ts#describeCollectionStorageContract
+export declare function describeCollectionStorageContract(name: string, options: CollectionStorageContractOptions, api: ContractTestApi): void;
+
+### dist/undo/inverse.d.ts#inversePatch
+export declare function inversePatch(before: unknown, patch: StoragePatch): StoragePatchOperations | undefined;
+
+### dist/undo/undo-log.d.ts#UndoChange
+export interface UndoChange {
+    readonly collection: string;
+    readonly id: string;
+    readonly before: unknown;
+    readonly patch?: StoragePatch;
+    readonly after?: unknown;
+    readonly group?: string;
+}
+
+### dist/undo/undo-log.d.ts#UndoConflictError
+export declare class UndoConflictError extends Error {
+    readonly entry: UndoEntry;
+    constructor(entry: UndoEntry);
+}
+
+### dist/undo/undo-log.d.ts#UndoEntry
+export interface UndoEntry {
+    readonly key: string;
+    readonly collection: string;
+    readonly id: string;
+    readonly inverse?: StoragePatchOperations;
+    readonly item?: unknown;
+    readonly after: string;
+    readonly group?: string;
+    readonly at: number;
+    readonly seq: number;
+}
+
+### dist/undo/undo-log.d.ts#UndoLog
+export declare class UndoLog {
+    constructor(entries: CollectionStorage<UndoEntry>, storageOf: (collection: string) => CollectionStorage<unknown> | undefined, options?: UndoLogOptions);
+    record(change: UndoChange): Promise<UndoEntry>;
+    entries(): Promise<UndoEntry[]>;
+    undo(): Promise<UndoEntry[]>;
+}
+
+### dist/undo/undo-log.d.ts#UndoLogOptions
+export interface UndoLogOptions {
+    readonly cap?: number;
+    readonly now?: () => number;
+}
+
+### dist/undo/undo-log.d.ts#fingerprintOf
+export declare function fingerprintOf(item: unknown): string;
+
+### dist/utils/defaults.d.ts#booleanCompare
+export declare const booleanCompare: Compare<boolean>;
+
+### dist/utils/defaults.d.ts#combineHashes
+export declare const combineHashes: (...hashes: number[]) => number;
+
+### dist/utils/defaults.d.ts#comparing
+export declare const comparing: <T, K extends keyof T = keyof T>(keyOrFn: K | ((value: T) => any), compare?: Compare<any>) => Compare<T>;
+
+### dist/utils/defaults.d.ts#comparingKey
+export declare const comparingKey: <T, K>(keyExtractor: (value: T) => K, keyCompare?: Compare<K>) => Compare<T>;
+
+### dist/utils/defaults.d.ts#dateCompare
+export declare const dateCompare: Compare<Date>;
+
+### dist/utils/defaults.d.ts#deepEq
+export declare const deepEq: Eq<any>;
+
+### dist/utils/defaults.d.ts#defaultCompare
+export declare const defaultCompare: Compare<any>;
+
+### dist/utils/defaults.d.ts#defaultEq
+export declare const defaultEq: Eq<any>;
+
+### dist/utils/defaults.d.ts#defaultHash
+export declare const defaultHash: Hash<any>;
+
+### dist/utils/defaults.d.ts#eqBy
+export declare const eqBy: <T, K extends keyof T = keyof T>(keyOrFn: K | ((value: T) => any)) => Eq<T>;
+
+### dist/utils/defaults.d.ts#hashBy
+export declare const hashBy: <T>(accessor: (value: T) => any) => Hash<T>;
+
+### dist/utils/defaults.d.ts#hashNumber
+export declare const hashNumber: (num: number) => number;
+
+### dist/utils/defaults.d.ts#hashString
+export declare const hashString: (str: string) => number;
+
+### dist/utils/defaults.d.ts#nullsFirst
+export declare const nullsFirst: <T>(compare: Compare<T>) => Compare<T | null | undefined>;
+
+### dist/utils/defaults.d.ts#nullsLast
+export declare const nullsLast: <T>(compare: Compare<T>) => Compare<T | null | undefined>;
+
+### dist/utils/defaults.d.ts#numberCompare
+export declare const numberCompare: Compare<number>;
+
+### dist/utils/defaults.d.ts#reversed
+export declare const reversed: <T>(compare: Compare<T>) => Compare<T>;
+
+### dist/utils/defaults.d.ts#shallowEq
+export declare const shallowEq: Eq<any>;
+
+### dist/utils/defaults.d.ts#stringCompare
+export declare const stringCompare: Compare<string>;
+
+### dist/utils/defaults.d.ts#stringCompareIgnoreCase
+export declare const stringCompareIgnoreCase: Compare<string>;
+
+### dist/utils/defaults.d.ts#thenComparing
+export declare const thenComparing: <T>(...comparators: Compare<T>[]) => Compare<T>;
+
+### dist/utils/factories.d.ts#buildList
+export declare function buildList<T>(builder: (list: ArrayList<T>) => void): ArrayList<T>;
+
+### dist/utils/factories.d.ts#buildMap
+export declare function buildMap<K, V>(builder: (map: HashMap<K, V>) => void): HashMap<K, V>;
+
+### dist/utils/factories.d.ts#emptyList
+export declare function emptyList<T>(): List<T>;
+
+### dist/utils/factories.d.ts#emptyMap
+export declare function emptyMap<K, V>(): MapLike<K, V>;
+
+### dist/utils/factories.d.ts#emptyQueue
+export declare function emptyQueue<T>(): Queue<T>;
+
+### dist/utils/factories.d.ts#groupBy
+export declare function groupBy<T, K>(iterable: Iterable<T>, keyExtractor: (value: T) => K): HashMap<K, ArrayList<T>>;
+
+### dist/utils/factories.d.ts#immutableListOf
+export declare function immutableListOf<T>(...elements: T[]): List<T>;
+
+### dist/utils/factories.d.ts#immutableMapOf
+export declare function immutableMapOf<K, V>(...entries: [K, V][]): MapLike<K, V>;
+
+### dist/utils/factories.d.ts#listOf
+export declare function listOf<T>(...elements: T[]): ArrayList<T>;
+
+### dist/utils/factories.d.ts#mapOf
+export declare function mapOf<K, V>(...entries: [K, V][]): HashMap<K, V>;
+
+### dist/utils/factories.d.ts#mutableListOf
+export declare function mutableListOf<T>(...elements: T[]): ArrayList<T>;
+
+### dist/utils/factories.d.ts#mutableMapOf
+export declare function mutableMapOf<K, V>(...entries: [K, V][]): HashMap<K, V>;
+
+### dist/utils/factories.d.ts#nCopies
+export declare function nCopies<T>(n: number, element: T): List<T>;
+
+### dist/utils/factories.d.ts#queueOf
+export declare function queueOf<T>(...elements: T[]): ArrayDeque<T>;
+
+### dist/utils/factories.d.ts#range
+export declare function range(start: number, end: number, step?: number): ArrayList<number>;
+
+### dist/utils/factories.d.ts#rangeTo
+export declare function rangeTo(n: number): ArrayList<number>;
+
+### dist/utils/factories.d.ts#singletonList
+export declare function singletonList<T>(element: T): List<T>;
+
+### dist/utils/factories.d.ts#singletonMap
+export declare function singletonMap<K, V>(key: K, value: V): MapLike<K, V>;
+
+### dist/utils/factories.d.ts#toList
+export declare function toList<T>(iterable: Iterable<T>): ArrayList<T>;
+
+### dist/utils/factories.d.ts#toMap
+export declare function toMap<T, K>(iterable: Iterable<T>, keyExtractor: (value: T) => K): HashMap<K, T>;
+export declare function toMap<T, K, V>(iterable: Iterable<T>, keyExtractor: (value: T) => K, valueExtractor: (value: T) => V): HashMap<K, V>;
+
+### dist/utils/helpers.d.ts#arrayContains
+export declare function arrayContains<T>(array: T[], element: T, eq: Eq<T>): boolean;
+
+### dist/utils/helpers.d.ts#arrayIterator
+export declare function arrayIterator<T>(array: T[]): Iterator<T>;
+
+### dist/utils/helpers.d.ts#arrayRemove
+export declare function arrayRemove<T>(array: T[], element: T, eq: Eq<T>): boolean;
+
+### dist/utils/helpers.d.ts#arrayRemoveAll
+export declare function arrayRemoveAll<T>(array: T[], element: T, eq: Eq<T>): number;
+
+### dist/utils/helpers.d.ts#checkBounds
+export declare function checkBounds(index: number, size: number, collectionName?: string): void;
+
+### dist/utils/helpers.d.ts#checkInsertBounds
+export declare function checkInsertBounds(index: number, size: number, collectionName?: string): void;
+
+### dist/utils/helpers.d.ts#checkRangeBounds
+export declare function checkRangeBounds(start: number, end: number, size: number, collectionName?: string): void;
+
+### dist/utils/helpers.d.ts#clamp
+export declare function clamp(value: number, min: number, max: number): number;
+
+### dist/utils/helpers.d.ts#findIndex
+export declare function findIndex<T>(array: T[], element: T, eq: Eq<T>): number;
+
+### dist/utils/helpers.d.ts#findLastIndex
+export declare function findLastIndex<T>(array: T[], element: T, eq: Eq<T>): number;
+
+### dist/utils/helpers.d.ts#requireNonEmpty
+export declare function requireNonEmpty(size: number, collectionName?: string): void;
+
+### dist/utils/helpers.d.ts#requireNonNull
+export declare function requireNonNull<T>(value: T | null | undefined, message?: string): T;
+
+### dist/utils/helpers.d.ts#reverseArrayIterator
+export declare function reverseArrayIterator<T>(array: T[]): Iterator<T>;
+
+### dist/utils/helpers.d.ts#stringHashCode
+export declare function stringHashCode(str: string): number;

@@ -1,0 +1,1076 @@
+# The public API of @procedures/store
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 101 names
+
+ApiStorage: dist/storage/api.d.ts#ApiStorage
+type ApiStorageOptions: dist/storage/api.d.ts#ApiStorageOptions
+type ChangeEventSource: dist/storage/feed.d.ts#ChangeEventSource
+CollectionProgramStore: dist/program-store/collection.d.ts#CollectionProgramStore
+ConflictError: dist/storage/hybrid.d.ts#ConflictError
+type ConflictResolution: dist/storage/types.d.ts#ConflictResolution
+type CreateSyncedRegistryConfig: dist/storage/factory.d.ts#CreateSyncedRegistryConfig
+type DeserializeOptions: dist/storage/serialization.d.ts#DeserializeOptions
+type EventSubscriber: dist/storage/feed.d.ts#EventSubscriber
+EventsChangeFeed: dist/storage/feed.d.ts#EventsChangeFeed
+type EventsChangeFeedOptions: dist/storage/feed.d.ts#EventsChangeFeedOptions
+FileProgramStore: dist/program-store/file.d.ts#FileProgramStore
+type HandlerLoader: dist/storage/types.d.ts#HandlerLoader
+type HandlerReference: dist/storage/types.d.ts#HandlerReference
+type HybridMode: dist/storage/hybrid.d.ts#HybridMode
+HybridStorage: dist/storage/hybrid.d.ts#HybridStorage
+type HybridStorageOptions: dist/storage/hybrid.d.ts#HybridStorageOptions
+type LocalCopyStorage: dist/storage/hybrid.d.ts#LocalCopyStorage
+MemoryProgramStore: dist/program-store/memory.d.ts#MemoryProgramStore
+MemoryQueueStore: dist/storage/queue.d.ts#MemoryQueueStore
+MemorySyncStateStore: dist/storage/sync-state.d.ts#MemorySyncStateStore
+MissingKeysError: dist/storage/hybrid.d.ts#MissingKeysError
+ModeSwitchError: dist/storage/hybrid.d.ts#ModeSwitchError
+PendingWriteError: dist/storage/hybrid.d.ts#PendingWriteError
+ProcedureStorageAdapter: dist/storage/adapter.d.ts#ProcedureStorageAdapter
+type ProcedureStorageAdapterOptions: dist/storage/adapter.d.ts#ProcedureStorageAdapterOptions
+type ProcedureStorageConfig: dist/storage/types.d.ts#ProcedureStorageConfig
+ProcedureStoreError: dist/errors.d.ts#ProcedureStoreError
+type ProcedureStoreErrorCode: dist/errors.d.ts#ProcedureStoreErrorCode
+type ProgramStore: dist/program-store/types.d.ts#ProgramStore
+QueueFullError: dist/storage/hybrid.d.ts#QueueFullError
+type QueueRefusal: dist/storage/hybrid.d.ts#QueueRefusal
+type QueueStore: dist/storage/queue.d.ts#QueueStore
+QueueStoreError: dist/storage/hybrid.d.ts#QueueStoreError
+type QueuedOperation: dist/storage/queue.d.ts#QueuedOperation
+type RemoteApplyCause: dist/storage/hybrid.d.ts#RemoteApplyCause
+type RemoteApplyContext: dist/storage/hybrid.d.ts#RemoteApplyContext
+type RemoteApplyHook: dist/storage/hybrid.d.ts#RemoteApplyHook
+RemoteApplyHookError: dist/storage/hybrid.d.ts#RemoteApplyHookError
+type RemoteChangeFeed: dist/storage/feed.d.ts#RemoteChangeFeed
+type RemoteChangeHint: dist/storage/feed.d.ts#RemoteChangeHint
+type RemoteChangeListener: dist/storage/feed.d.ts#RemoteChangeListener
+type RemoteChanges: dist/storage/feed.d.ts#RemoteChanges
+type SerializeOptions: dist/storage/serialization.d.ts#SerializeOptions
+type SerializedProcedure: dist/storage/types.d.ts#SerializedProcedure
+type StoredProgram: dist/program-store/types.d.ts#StoredProgram
+type SyncConflict: dist/storage/types.d.ts#SyncConflict
+type SyncDirection: dist/storage/types.d.ts#SyncDirection
+type SyncError: dist/storage/types.d.ts#SyncError
+type SyncResult: dist/storage/types.d.ts#SyncResult
+type SyncState: dist/storage/sync-state.d.ts#SyncState
+type SyncStateChange: dist/storage/sync-state.d.ts#SyncStateChange
+SyncStateError: dist/storage/hybrid.d.ts#SyncStateError
+type SyncStateStore: dist/storage/sync-state.d.ts#SyncStateStore
+type SyncStatus: dist/storage/types.d.ts#SyncStatus
+SyncedProcedureRegistry: dist/storage/synced-registry.d.ts#SyncedProcedureRegistry
+type SyncedRegistrationOptions: dist/storage/synced-registry.d.ts#SyncedRegistrationOptions
+type SyncedRegistryOptions: dist/storage/types.d.ts#SyncedRegistryOptions
+type TabAbortSignalLike: dist/storage/tab-coordinator.d.ts#TabAbortSignalLike
+type TabChannelFactory: dist/storage/tab-coordinator.d.ts#TabChannelFactory
+type TabChannelLike: dist/storage/tab-coordinator.d.ts#TabChannelLike
+type TabCollection: dist/storage/tab-coordinator.d.ts#TabCollection
+type TabCollectionOptions: dist/storage/tab-coordinator.d.ts#TabCollectionOptions
+TabCoordinator: dist/storage/tab-coordinator.d.ts#TabCoordinator
+type TabCoordinatorOptions: dist/storage/tab-coordinator.d.ts#TabCoordinatorOptions
+TabGroup: dist/storage/tab-coordinator.d.ts#TabGroup
+type TabGroupOptions: dist/storage/tab-coordinator.d.ts#TabGroupOptions
+type TabLockManagerLike: dist/storage/tab-coordinator.d.ts#TabLockManagerLike
+type TabRetryOptions: dist/storage/tab-coordinator.d.ts#TabRetryOptions
+type TabRole: dist/storage/tab-coordinator.d.ts#TabRole
+type TabSnapshotOptions: dist/storage/tab-coordinator.d.ts#TabSnapshotOptions
+type WriteStrategy: dist/storage/types.d.ts#WriteStrategy
+attachProgramStore: dist/program-store/attach.d.ts#attachProgramStore
+checkStoredProgram: dist/program-store/types.d.ts#checkStoredProgram
+createApiSyncedRegistry: dist/storage/factory.d.ts#createApiSyncedRegistry
+createCustomSyncedRegistry: dist/storage/factory.d.ts#createCustomSyncedRegistry
+createDynamicHandlerLoader: dist/storage/serialization.d.ts#createDynamicHandlerLoader
+createHybridSyncedRegistry: dist/storage/factory.d.ts#createHybridSyncedRegistry
+createMemorySyncedRegistry: dist/storage/factory.d.ts#createMemorySyncedRegistry
+createSyncedRegistry: dist/storage/factory.d.ts#createSyncedRegistry
+deserializeProcedure: dist/storage/serialization.d.ts#deserializeProcedure
+deserializeProcedureSync: dist/storage/serialization.d.ts#deserializeProcedureSync
+deserializeProcedures: dist/storage/serialization.d.ts#deserializeProcedures
+detachProgramStore: dist/program-store/attach.d.ts#detachProgramStore
+getProcedureKey: dist/storage/serialization.d.ts#getProcedureKey
+getProcedureStore: dist/storage/synced-registry.d.ts#getProcedureStore
+getProgramStore: dist/program-store/attach.d.ts#getProgramStore
+getSerializedKey: dist/storage/serialization.d.ts#getSerializedKey
+procedureLoadProcedure: dist/program-store/procedures.d.ts#procedureLoadProcedure
+procedureRegisterProcedure: dist/storage/procedures.d.ts#procedureRegisterProcedure
+procedureRemoteProcedure: dist/program-store/procedures.d.ts#procedureRemoteProcedure
+procedureStorageModule: dist/procedures.d.ts#procedureStorageModule
+procedureStorageProcedures: dist/procedures.d.ts#procedureStorageProcedures
+procedureStoreProcedure: dist/program-store/procedures.d.ts#procedureStoreProcedure
+procedureSyncProcedure: dist/program-store/procedures.d.ts#procedureSyncProcedure
+programStoreProcedures: dist/program-store/procedures.d.ts#programStoreProcedures
+register: dist/module.d.ts#register
+registerStoreProcedures: dist/module.d.ts#registerStoreProcedures
+serializeProcedure: dist/storage/serialization.d.ts#serializeProcedure
+serializeProcedures: dist/storage/serialization.d.ts#serializeProcedures
+storeModule: dist/module.d.ts#storeModule
+
+## ./module (dist/module.d.ts): 4 names
+
+default: dist/module.d.ts#storeModule
+register: dist/module.d.ts#register
+registerStoreProcedures: dist/module.d.ts#registerStoreProcedures
+storeModule: dist/module.d.ts#storeModule
+
+## ./register (dist/register.d.ts): 3 names
+
+register: dist/module.d.ts#register
+registerStoreProcedures: dist/module.d.ts#registerStoreProcedures
+storeModule: dist/module.d.ts#storeModule
+
+## ./file-queue (dist/storage/file-queue.d.ts): 3 names
+
+FileQueueStore: dist/storage/file-queue.d.ts#FileQueueStore
+type QueueStore: dist/storage/queue.d.ts#QueueStore
+type QueuedOperation: dist/storage/queue.d.ts#QueuedOperation
+
+## ./indexeddb (dist/indexeddb.d.ts): 19 names
+
+DEFAULT_PROGRAM_DATABASE: dist/indexeddb/program-store.d.ts#DEFAULT_PROGRAM_DATABASE
+type IdbFactoryLike: dist/indexeddb/idb.d.ts#IdbFactoryLike
+type IndexedDbOptions: dist/indexeddb/idb.d.ts#IndexedDbOptions
+IndexedDbProgramStore: dist/indexeddb/program-store.d.ts#IndexedDbProgramStore
+IndexedDbQueueStore: dist/indexeddb/queue-store.d.ts#IndexedDbQueueStore
+IndexedDbStorage: dist/indexeddb/document-storage.d.ts#IndexedDbStorage
+type IndexedDbStorageOptions: dist/indexeddb/document-storage.d.ts#IndexedDbStorageOptions
+IndexedDbSyncStateStore: dist/indexeddb/sync-state-store.d.ts#IndexedDbSyncStateStore
+MemoryProgramStore: dist/program-store/memory.d.ts#MemoryProgramStore
+MemoryQueueStore: dist/storage/queue.d.ts#MemoryQueueStore
+MemorySyncStateStore: dist/storage/sync-state.d.ts#MemorySyncStateStore
+type ProgramStore: dist/program-store/types.d.ts#ProgramStore
+type QueueStore: dist/storage/queue.d.ts#QueueStore
+type QueuedOperation: dist/storage/queue.d.ts#QueuedOperation
+type StoredProgram: dist/program-store/types.d.ts#StoredProgram
+type SyncState: dist/storage/sync-state.d.ts#SyncState
+type SyncStateChange: dist/storage/sync-state.d.ts#SyncStateChange
+type SyncStateStore: dist/storage/sync-state.d.ts#SyncStateStore
+hasIndexedDb: dist/indexeddb/idb.d.ts#hasIndexedDb
+
+## ./browser (dist/browser.d.ts): 61 names
+
+ApiStorage: dist/storage/api.d.ts#ApiStorage
+type ApiStorageOptions: dist/storage/api.d.ts#ApiStorageOptions
+type ChangeEventSource: dist/storage/feed.d.ts#ChangeEventSource
+ConflictError: dist/storage/hybrid.d.ts#ConflictError
+type ConflictResolution: dist/storage/types.d.ts#ConflictResolution
+DEFAULT_PROGRAM_DATABASE: dist/indexeddb/program-store.d.ts#DEFAULT_PROGRAM_DATABASE
+type EventSubscriber: dist/storage/feed.d.ts#EventSubscriber
+EventsChangeFeed: dist/storage/feed.d.ts#EventsChangeFeed
+type EventsChangeFeedOptions: dist/storage/feed.d.ts#EventsChangeFeedOptions
+type HybridMode: dist/storage/hybrid.d.ts#HybridMode
+HybridStorage: dist/storage/hybrid.d.ts#HybridStorage
+type HybridStorageOptions: dist/storage/hybrid.d.ts#HybridStorageOptions
+type IdbFactoryLike: dist/indexeddb/idb.d.ts#IdbFactoryLike
+type IndexedDbOptions: dist/indexeddb/idb.d.ts#IndexedDbOptions
+IndexedDbProgramStore: dist/indexeddb/program-store.d.ts#IndexedDbProgramStore
+IndexedDbQueueStore: dist/indexeddb/queue-store.d.ts#IndexedDbQueueStore
+IndexedDbStorage: dist/indexeddb/document-storage.d.ts#IndexedDbStorage
+type IndexedDbStorageOptions: dist/indexeddb/document-storage.d.ts#IndexedDbStorageOptions
+IndexedDbSyncStateStore: dist/indexeddb/sync-state-store.d.ts#IndexedDbSyncStateStore
+type LocalCopyStorage: dist/storage/hybrid.d.ts#LocalCopyStorage
+MemoryProgramStore: dist/program-store/memory.d.ts#MemoryProgramStore
+MemoryQueueStore: dist/storage/queue.d.ts#MemoryQueueStore
+MemorySyncStateStore: dist/storage/sync-state.d.ts#MemorySyncStateStore
+MissingKeysError: dist/storage/hybrid.d.ts#MissingKeysError
+ModeSwitchError: dist/storage/hybrid.d.ts#ModeSwitchError
+PendingWriteError: dist/storage/hybrid.d.ts#PendingWriteError
+type ProgramStore: dist/program-store/types.d.ts#ProgramStore
+QueueFullError: dist/storage/hybrid.d.ts#QueueFullError
+type QueueRefusal: dist/storage/hybrid.d.ts#QueueRefusal
+type QueueStore: dist/storage/queue.d.ts#QueueStore
+QueueStoreError: dist/storage/hybrid.d.ts#QueueStoreError
+type QueuedOperation: dist/storage/queue.d.ts#QueuedOperation
+type RemoteApplyCause: dist/storage/hybrid.d.ts#RemoteApplyCause
+type RemoteApplyContext: dist/storage/hybrid.d.ts#RemoteApplyContext
+type RemoteApplyHook: dist/storage/hybrid.d.ts#RemoteApplyHook
+RemoteApplyHookError: dist/storage/hybrid.d.ts#RemoteApplyHookError
+type RemoteChangeFeed: dist/storage/feed.d.ts#RemoteChangeFeed
+type RemoteChangeHint: dist/storage/feed.d.ts#RemoteChangeHint
+type RemoteChangeListener: dist/storage/feed.d.ts#RemoteChangeListener
+type RemoteChanges: dist/storage/feed.d.ts#RemoteChanges
+type StoredProgram: dist/program-store/types.d.ts#StoredProgram
+type SyncError: dist/storage/types.d.ts#SyncError
+type SyncState: dist/storage/sync-state.d.ts#SyncState
+type SyncStateChange: dist/storage/sync-state.d.ts#SyncStateChange
+SyncStateError: dist/storage/hybrid.d.ts#SyncStateError
+type SyncStateStore: dist/storage/sync-state.d.ts#SyncStateStore
+type SyncStatus: dist/storage/types.d.ts#SyncStatus
+type TabAbortSignalLike: dist/storage/tab-coordinator.d.ts#TabAbortSignalLike
+type TabChannelFactory: dist/storage/tab-coordinator.d.ts#TabChannelFactory
+type TabChannelLike: dist/storage/tab-coordinator.d.ts#TabChannelLike
+type TabCollection: dist/storage/tab-coordinator.d.ts#TabCollection
+type TabCollectionOptions: dist/storage/tab-coordinator.d.ts#TabCollectionOptions
+TabCoordinator: dist/storage/tab-coordinator.d.ts#TabCoordinator
+type TabCoordinatorOptions: dist/storage/tab-coordinator.d.ts#TabCoordinatorOptions
+TabGroup: dist/storage/tab-coordinator.d.ts#TabGroup
+type TabGroupOptions: dist/storage/tab-coordinator.d.ts#TabGroupOptions
+type TabLockManagerLike: dist/storage/tab-coordinator.d.ts#TabLockManagerLike
+type TabRetryOptions: dist/storage/tab-coordinator.d.ts#TabRetryOptions
+type TabRole: dist/storage/tab-coordinator.d.ts#TabRole
+type TabSnapshotOptions: dist/storage/tab-coordinator.d.ts#TabSnapshotOptions
+hasIndexedDb: dist/indexeddb/idb.d.ts#hasIndexedDb
+
+## Declarations
+
+### dist/errors.d.ts#ProcedureStoreError
+export declare class ProcedureStoreError extends Error {
+    readonly name = "ProcedureStoreError";
+    readonly code: ProcedureStoreErrorCode;
+    constructor(code: ProcedureStoreErrorCode, message: string);
+}
+
+### dist/errors.d.ts#ProcedureStoreErrorCode
+export type ProcedureStoreErrorCode = "NOT_CONFIGURED" | "NOT_IMPLEMENTED" | "NO_HANDLER" | "NOT_A_PROGRAM";
+
+### dist/indexeddb/document-storage.d.ts#IndexedDbStorage
+export declare class IndexedDbStorage<T> implements CollectionStorage<T> {
+    constructor(name: string, options?: IndexedDbStorageOptions<T>);
+    get name(): string;
+    get(id: string): Promise<T | undefined>;
+    getAll(): Promise<T[]>;
+    getEntries(): Promise<Array<[string, T]>>;
+    getIds(): Promise<string[]>;
+    getChangesSince(since?: string): Promise<StorageChanges<T>>;
+    find(predicate: (item: T) => boolean): Promise<T[]>;
+    query(selector: StorageSelector, options?: StorageQueryOptions, policy?: StorageQueryPolicy): Promise<Array<[string, T]>>;
+    observe(observer: StorageObserver<T>): () => void;
+    has(id: string): Promise<boolean>;
+    size(): Promise<number>;
+    set(id: string, value: T, options?: StorageItemWriteOptions): Promise<void>;
+    delete(id: string, options?: StorageItemWriteOptions): Promise<boolean>;
+    clear(options?: StorageWriteOptions): Promise<void>;
+    patch(id: string, fields: StoragePatch, options?: StorageWriteOptions): Promise<T | undefined>;
+    setBatch(items: Array<[string, T]>, options?: StorageBatchWriteOptions): Promise<void>;
+    deleteBatch(ids: string[], options?: StorageWriteOptions): Promise<number>;
+    getBatch(ids: string[]): Promise<Map<string, T>>;
+    close(): Promise<void>;
+    getMetadata(): Promise<StorageMetadata>;
+}
+
+### dist/indexeddb/document-storage.d.ts#IndexedDbStorageOptions
+export interface IndexedDbStorageOptions<T = unknown> extends IndexedDbOptions {
+    queryPolicy?: StorageQueryPolicy | undefined;
+    versionOf?: ((item: T) => string | undefined) | undefined;
+    maxTombstones?: number;
+    onObserverError?: ListenerErrorHandler | undefined;
+}
+
+### dist/indexeddb/idb.d.ts#IdbFactoryLike
+export interface IdbFactoryLike {
+    open(name: string, version?: number): IdbOpenRequestLike;
+}
+
+### dist/indexeddb/idb.d.ts#IndexedDbOptions
+export interface IndexedDbOptions {
+    indexedDB?: IdbFactoryLike;
+}
+
+### dist/indexeddb/idb.d.ts#hasIndexedDb
+export declare function hasIndexedDb(): boolean;
+
+### dist/indexeddb/program-store.d.ts#DEFAULT_PROGRAM_DATABASE
+export declare const DEFAULT_PROGRAM_DATABASE = "procedures-programs";
+
+### dist/indexeddb/program-store.d.ts#IndexedDbProgramStore
+export declare class IndexedDbProgramStore implements ProgramStore {
+    readonly kind = "indexeddb";
+    constructor(name?: string, options?: IndexedDbOptions);
+    get name(): string;
+    get(key: string): Promise<StoredProgram | undefined>;
+    list(prefix?: string): Promise<StoredProgram[]>;
+    put(program: StoredProgram): Promise<void>;
+    delete(key: string): Promise<boolean>;
+    close(): Promise<void>;
+}
+
+### dist/indexeddb/queue-store.d.ts#IndexedDbQueueStore
+export declare class IndexedDbQueueStore implements QueueStore {
+    constructor(name: string, options?: IndexedDbOptions);
+    get name(): string;
+    load(): Promise<QueuedOperation[]>;
+    append(operation: QueuedOperation): Promise<void>;
+    replace(operations: QueuedOperation[]): Promise<void>;
+    clear(): Promise<void>;
+    close(): Promise<void>;
+}
+
+### dist/indexeddb/sync-state-store.d.ts#IndexedDbSyncStateStore
+export declare class IndexedDbSyncStateStore implements SyncStateStore {
+    constructor(name: string, options?: IndexedDbOptions);
+    get name(): string;
+    load(): Promise<SyncState | undefined>;
+    write(change: SyncStateChange): Promise<void>;
+    clear(): Promise<void>;
+    close(): Promise<void>;
+}
+
+### dist/module.d.ts#register
+export declare const register: (registry?: ProcedureRegistry) => void;
+
+### dist/module.d.ts#registerStoreProcedures
+export declare function registerStoreProcedures(registry?: ProcedureRegistry): void;
+
+### dist/module.d.ts#storeModule
+export declare const storeModule: ProcedureModule;
+
+### dist/procedures.d.ts#procedureStorageModule
+export declare const procedureStorageModule: {
+    name: string;
+    procedures: AnyProcedure[];
+};
+
+### dist/procedures.d.ts#procedureStorageProcedures
+export declare const procedureStorageProcedures: AnyProcedure[];
+
+### dist/program-store/attach.d.ts#attachProgramStore
+export declare function attachProgramStore(registry: object, store: ProgramStore): void;
+
+### dist/program-store/attach.d.ts#detachProgramStore
+export declare function detachProgramStore(registry: object): void;
+
+### dist/program-store/attach.d.ts#getProgramStore
+export declare function getProgramStore(registry: object): ProgramStore | undefined;
+
+### dist/program-store/collection.d.ts#CollectionProgramStore
+export declare class CollectionProgramStore implements ProgramStore {
+    readonly kind = "collection";
+    constructor(storage: CollectionStorage<StoredProgram>);
+    get(key: string): Promise<StoredProgram | undefined>;
+    list(prefix?: string): Promise<StoredProgram[]>;
+    put(program: StoredProgram): Promise<void>;
+    delete(key: string): Promise<boolean>;
+    close(): Promise<void>;
+}
+
+### dist/program-store/file.d.ts#FileProgramStore
+export declare class FileProgramStore implements ProgramStore {
+    readonly path: string;
+    readonly kind = "file";
+    constructor(path: string);
+    get(key: string): Promise<StoredProgram | undefined>;
+    list(prefix?: string): Promise<StoredProgram[]>;
+    put(program: StoredProgram): Promise<void>;
+    delete(key: string): Promise<boolean>;
+}
+
+### dist/program-store/memory.d.ts#MemoryProgramStore
+export declare class MemoryProgramStore implements ProgramStore {
+    readonly kind = "memory";
+    get(key: string): Promise<StoredProgram | undefined>;
+    list(prefix?: string): Promise<StoredProgram[]>;
+    put(program: StoredProgram): Promise<void>;
+    delete(key: string): Promise<boolean>;
+}
+
+### dist/program-store/procedures.d.ts#procedureLoadProcedure
+export declare const procedureLoadProcedure: AnyProcedure;
+
+### dist/program-store/procedures.d.ts#procedureRemoteProcedure
+export declare const procedureRemoteProcedure: AnyProcedure;
+
+### dist/program-store/procedures.d.ts#procedureStoreProcedure
+export declare const procedureStoreProcedure: AnyProcedure;
+
+### dist/program-store/procedures.d.ts#procedureSyncProcedure
+export declare const procedureSyncProcedure: AnyProcedure;
+
+### dist/program-store/procedures.d.ts#programStoreProcedures
+export declare const programStoreProcedures: AnyProcedure[];
+
+### dist/program-store/types.d.ts#ProgramStore
+export interface ProgramStore {
+    readonly kind: string;
+    get(key: string): Promise<StoredProgram | undefined>;
+    list(prefix?: string): Promise<StoredProgram[]>;
+    put(program: StoredProgram): Promise<void>;
+    delete(key: string): Promise<boolean>;
+    close?(): Promise<void>;
+}
+
+### dist/program-store/types.d.ts#StoredProgram
+export interface StoredProgram {
+    key: string;
+    path: ProcedurePath;
+    program: AggregationDefinition;
+    metadata?: Record<string, unknown> | undefined;
+    storedAt: number;
+}
+
+### dist/program-store/types.d.ts#checkStoredProgram
+export declare function checkStoredProgram(value: unknown): StoredProgram;
+
+### dist/storage/adapter.d.ts#ProcedureStorageAdapter
+export declare class ProcedureStorageAdapter {
+    constructor(storage: CollectionStorage<SerializedProcedure>, options?: ProcedureStorageAdapterOptions);
+    store(procedure: AnyProcedure, options?: SerializeOptions): Promise<SerializedProcedure>;
+    load(path: ProcedurePath): Promise<AnyProcedure | undefined>;
+    has(path: ProcedurePath): Promise<boolean>;
+    remove(path: ProcedurePath): Promise<boolean>;
+    loadAll(): Promise<AnyProcedure[]>;
+    loadByPrefix(prefix: ProcedurePath): Promise<AnyProcedure[]>;
+    storeAll(procedures: AnyProcedure[], options?: SerializeOptions | ((procedure: AnyProcedure) => SerializeOptions | undefined)): Promise<SerializedProcedure[]>;
+    removeAll(paths: ProcedurePath[]): Promise<number>;
+    clear(): Promise<void>;
+    size(): Promise<number>;
+    listPaths(): Promise<ProcedurePath[]>;
+    getRaw(path: ProcedurePath): Promise<SerializedProcedure | undefined>;
+    getAllRaw(): Promise<SerializedProcedure[]>;
+    close(): Promise<void>;
+    getStorage(): CollectionStorage<SerializedProcedure>;
+}
+
+### dist/storage/adapter.d.ts#ProcedureStorageAdapterOptions
+export interface ProcedureStorageAdapterOptions {
+    handlerLoader?: HandlerLoader | undefined;
+    serializeOptions?: SerializeOptions | undefined;
+}
+
+### dist/storage/api.d.ts#ApiStorage
+export declare class ApiStorage<T> implements CollectionStorage<T> {
+    constructor(client: Client, options: ApiStorageOptions);
+    get(id: string): Promise<T | undefined>;
+    getAll(): Promise<T[]>;
+    getEntries(): Promise<Array<[string, T]>>;
+    getIds(): Promise<string[]>;
+    getChangesSince(since?: string): Promise<StorageChanges<T>>;
+    find(predicate: (item: T) => boolean): Promise<T[]>;
+    query(selector: StorageSelector, options?: StorageQueryOptions, policy?: StorageQueryPolicy): Promise<Array<[string, T]>>;
+    has(id: string): Promise<boolean>;
+    size(): Promise<number>;
+    set(id: string, value: T, options?: StorageItemWriteOptions): Promise<void>;
+    delete(id: string, options?: StorageItemWriteOptions): Promise<boolean>;
+    clear(options?: StorageWriteOptions): Promise<void>;
+    patch(id: string, fields: StoragePatch, options?: StorageWriteOptions): Promise<T | undefined>;
+    setBatch(items: Array<[string, T]>, options?: StorageBatchWriteOptions): Promise<void>;
+    deleteBatch(ids: string[], options?: StorageWriteOptions): Promise<number>;
+    getBatch(ids: string[]): Promise<Map<string, T>>;
+    close(): Promise<void>;
+    getMetadata(): Promise<StorageMetadata>;
+}
+
+### dist/storage/api.d.ts#ApiStorageOptions
+export interface ApiStorageOptions {
+    collection?: string;
+    service?: string;
+    version?: string;
+    operations?: {
+        get?: string;
+        getAll?: string;
+        entries?: string;
+        ids?: string;
+        changes?: string;
+        find?: string;
+        patch?: string;
+        has?: string;
+        size?: string;
+        set?: string;
+        delete?: string;
+        clear?: string;
+        setBatch?: string;
+        deleteBatch?: string;
+        getBatch?: string;
+    };
+    timeout?: Duration;
+    retry?: boolean | number;
+    retryDelay?: Duration;
+    retryFactor?: number;
+    maxRetryDelay?: Duration;
+    retryJitter?: number;
+    clock?: Clock;
+    random?: () => number;
+    queryPolicy?: StorageQueryPolicy;
+    signal?: AbortSignal;
+    closeClient?: boolean;
+}
+
+### dist/storage/factory.d.ts#CreateSyncedRegistryConfig
+export interface CreateSyncedRegistryConfig {
+    type: "memory" | "api" | "hybrid";
+    client?: Client | undefined;
+    collection?: string | undefined;
+    service?: string | undefined;
+    mode?: HybridMode | undefined;
+    hybridOptions?: Partial<HybridStorageOptions> | undefined;
+    registryOptions?: Partial<SyncedRegistryOptions> | undefined;
+    baseRegistry?: ProcedureRegistry | undefined;
+    handlerLoader?: HandlerLoader | undefined;
+}
+
+### dist/storage/factory.d.ts#createApiSyncedRegistry
+export declare function createApiSyncedRegistry(client: Client, collection?: string, baseRegistry?: ProcedureRegistry): SyncedProcedureRegistry;
+
+### dist/storage/factory.d.ts#createCustomSyncedRegistry
+export declare function createCustomSyncedRegistry(storage: CollectionStorage<SerializedProcedure>, options?: Partial<SyncedRegistryOptions>, baseRegistry?: ProcedureRegistry): SyncedProcedureRegistry;
+
+### dist/storage/factory.d.ts#createHybridSyncedRegistry
+export declare function createHybridSyncedRegistry(client: Client, collection?: string, options?: Partial<HybridStorageOptions>, baseRegistry?: ProcedureRegistry): SyncedProcedureRegistry;
+
+### dist/storage/factory.d.ts#createMemorySyncedRegistry
+export declare function createMemorySyncedRegistry(baseRegistry?: ProcedureRegistry): SyncedProcedureRegistry;
+
+### dist/storage/factory.d.ts#createSyncedRegistry
+export declare function createSyncedRegistry(config: CreateSyncedRegistryConfig): SyncedProcedureRegistry;
+
+### dist/storage/feed.d.ts#ChangeEventSource
+export type ChangeEventSource = EventSubscriber | EventTransport;
+
+### dist/storage/feed.d.ts#EventSubscriber
+export interface EventSubscriber {
+    subscribe<E = unknown>(topics: string | readonly string[], handler: (data: E, event: RemoteEvent<E>) => void | Promise<void>, options?: SubscribeOptions): Subscription;
+}
+
+### dist/storage/feed.d.ts#EventsChangeFeed
+export declare class EventsChangeFeed<T> implements RemoteChangeFeed<T> {
+    readonly topic: string;
+    constructor(source: ChangeEventSource, options: EventsChangeFeedOptions);
+    subscribe(listener: RemoteChangeListener<T>): () => void;
+}
+
+### dist/storage/feed.d.ts#EventsChangeFeedOptions
+export interface EventsChangeFeedOptions {
+    collection?: string | undefined;
+    topic?: string | undefined;
+    subscription?: Omit<SubscribeOptions, "onSubscribed" | "onError"> | undefined;
+    onError?: ((error: SubscriptionError) => void) | undefined;
+}
+
+### dist/storage/feed.d.ts#RemoteChangeFeed
+export interface RemoteChangeFeed<T> {
+    subscribe(listener: RemoteChangeListener<T>): () => void;
+}
+
+### dist/storage/feed.d.ts#RemoteChangeHint
+export interface RemoteChangeHint {
+    readonly since?: string | undefined;
+    readonly version?: string | undefined;
+    readonly changed: readonly string[];
+    readonly deleted: readonly string[];
+    readonly origin?: string | undefined;
+    readonly versions?: ReadonlyArray<{
+        readonly id: string;
+        readonly version: string;
+    }> | undefined;
+    readonly reset?: boolean | undefined;
+    readonly extra?: Readonly<Record<string, unknown>> | undefined;
+}
+
+### dist/storage/feed.d.ts#RemoteChangeListener
+export interface RemoteChangeListener<T> {
+    onChanges(changes: RemoteChanges<T>): void;
+    onHint?(hint: RemoteChangeHint): void;
+    onGap(): void;
+    onError?(error: unknown): void;
+}
+
+### dist/storage/feed.d.ts#RemoteChanges
+export interface RemoteChanges<T> extends StorageChanges<T> {
+    readonly since?: string | undefined;
+    readonly origin?: string | undefined;
+    readonly versions?: ReadonlyArray<{
+        readonly id: string;
+        readonly version: string;
+    }> | undefined;
+    readonly extra?: Readonly<Record<string, unknown>> | undefined;
+}
+
+### dist/storage/file-queue.d.ts#FileQueueStore
+export declare class FileQueueStore implements QueueStore {
+    readonly path: string;
+    constructor(path: string);
+    load(): Promise<QueuedOperation[]>;
+    append(operation: QueuedOperation): Promise<void>;
+    replace(operations: QueuedOperation[]): Promise<void>;
+    clear(): Promise<void>;
+}
+
+### dist/storage/hybrid.d.ts#ConflictError
+export declare class ConflictError extends Error {
+    readonly ids: string[];
+    readonly name = "ConflictError";
+    readonly code = "SYNC_CONFLICT";
+    constructor(ids: string[]);
+}
+
+### dist/storage/hybrid.d.ts#HybridMode
+export type HybridMode = "local-only" | "write-through" | "write-back" | "remote-only";
+
+### dist/storage/hybrid.d.ts#HybridStorage
+export declare class HybridStorage<T> implements CollectionStorage<T> {
+    constructor(remote: CollectionStorage<T>, options?: HybridStorageOptions);
+    getStatus(): SyncStatus;
+    onStatus(listener: (status: SyncStatus) => void): () => void;
+    observe(observer: StorageObserver<T>): () => void;
+    getMode(): HybridMode;
+    setMode(mode: HybridMode): Promise<void>;
+    get(id: string): Promise<T | undefined>;
+    getAll(): Promise<T[]>;
+    getEntries(): Promise<Array<[string, T]>>;
+    getIds(): Promise<string[]>;
+    find(predicate: (item: T) => boolean): Promise<T[]>;
+    query(selector: StorageSelector, options?: StorageQueryOptions, policy?: StorageQueryPolicy): Promise<Array<[string, T]>>;
+    has(id: string): Promise<boolean>;
+    size(): Promise<number>;
+    getBatch(ids: string[]): Promise<Map<string, T>>;
+    set(id: string, written: T, options?: StorageItemWriteOptions): Promise<void>;
+    delete(id: string, options?: StorageItemWriteOptions): Promise<boolean>;
+    clear(options?: StorageWriteOptions): Promise<void>;
+    setBatch(written: Array<[string, T]>, options?: StorageBatchWriteOptions): Promise<void>;
+    deleteBatch(ids: string[], options?: StorageWriteOptions): Promise<number>;
+    syncFromRemote(): Promise<void>;
+    syncToRemote(): Promise<void>;
+    flush(): Promise<void>;
+    whenQueued(): Promise<void>;
+    sync(): Promise<void>;
+    close(): Promise<void>;
+    getMetadata(): Promise<StorageMetadata>;
+    isRemoteOnline(): boolean;
+    getPendingOpsCount(): number;
+}
+
+### dist/storage/hybrid.d.ts#HybridStorageOptions
+export interface HybridStorageOptions {
+    mode?: HybridMode;
+    writeStrategy?: WriteStrategy;
+    conflictResolution?: ConflictResolution;
+    mergeFn?: <T>(local: T, remote: T) => T;
+    keyOf?: (item: any) => string | undefined;
+    versionOf?: (item: any) => string | undefined;
+    sendBaseVersions?: boolean;
+    syncInterval?: Duration;
+    pullInterval?: Duration;
+    syncOnInit?: boolean;
+    maxOfflineOps?: number;
+    offlineQueue?: boolean;
+    queueStore?: QueueStore;
+    isUnavailable?: (error: unknown) => boolean;
+    isRefusal?: (error: unknown) => boolean;
+    onRefused?: (refusal: QueueRefusal) => void | Promise<void>;
+    local?: LocalCopyStorage<any>;
+    capture?: "none" | "observe";
+    origin?: string;
+    syncOrigin?: string;
+    feed?: RemoteChangeFeed<any>;
+    aroundRemoteApply?: RemoteApplyHook | undefined;
+    syncState?: SyncStateStore;
+    echoWindow?: Duration;
+    clock?: Clock;
+    backoff?: {
+        factor?: number;
+        maxDelay?: Duration;
+        jitter?: number;
+    };
+    random?: () => number;
+    onListenerError?: ListenerErrorHandler;
+    queryPolicy?: StorageQueryPolicy;
+}
+
+### dist/storage/hybrid.d.ts#LocalCopyStorage
+export type LocalCopyStorage<T> = CollectionStorage<T> & {
+    getEntries(): Promise<Array<[string, T]>>;
+};
+
+### dist/storage/hybrid.d.ts#MissingKeysError
+export declare class MissingKeysError extends Error {
+    readonly name = "MissingKeysError";
+    readonly code = "MISSING_KEYS";
+    constructor(count: number);
+}
+
+### dist/storage/hybrid.d.ts#ModeSwitchError
+export declare class ModeSwitchError extends Error {
+    readonly from: HybridMode;
+    readonly to: HybridMode;
+    readonly name = "ModeSwitchError";
+    readonly code = "MODE_SWITCH_FAILED";
+    constructor(from: HybridMode, to: HybridMode, cause: unknown);
+}
+
+### dist/storage/hybrid.d.ts#PendingWriteError
+export declare class PendingWriteError extends Error {
+    readonly name = "PendingWriteError";
+    readonly code = "WRITE_PENDING";
+    readonly pending = true;
+    constructor(operation: string, cause: unknown);
+}
+
+### dist/storage/hybrid.d.ts#QueueFullError
+export declare class QueueFullError extends Error {
+    readonly name = "QueueFullError";
+    readonly code = "QUEUE_FULL";
+    constructor(max: number);
+}
+
+### dist/storage/hybrid.d.ts#QueueRefusal
+export interface QueueRefusal {
+    operation: QueuedOperation;
+    ids: string[] | "*";
+    error: unknown;
+    restored: boolean;
+}
+
+### dist/storage/hybrid.d.ts#QueueStoreError
+export declare class QueueStoreError extends Error {
+    readonly name = "QueueStoreError";
+    readonly code = "QUEUE_STORE";
+    constructor(action: "load" | "write", cause: unknown);
+}
+
+### dist/storage/hybrid.d.ts#RemoteApplyCause
+export type RemoteApplyCause = "delta" | "hint" | "gap" | "pull";
+
+### dist/storage/hybrid.d.ts#RemoteApplyContext
+export interface RemoteApplyContext {
+    readonly cause: RemoteApplyCause;
+    readonly hints: readonly RemoteChangeHint[];
+}
+
+### dist/storage/hybrid.d.ts#RemoteApplyHook
+export type RemoteApplyHook = (hint: RemoteChangeHint | undefined, apply: () => Promise<void>, context: RemoteApplyContext) => Promise<unknown>;
+
+### dist/storage/hybrid.d.ts#RemoteApplyHookError
+export declare class RemoteApplyHookError extends Error {
+    readonly calls: number;
+    readonly name = "RemoteApplyHookError";
+    readonly code = "REMOTE_APPLY_HOOK";
+    constructor(calls: number);
+}
+
+### dist/storage/hybrid.d.ts#SyncStateError
+export declare class SyncStateError extends Error {
+    readonly name = "SyncStateError";
+    readonly code = "SYNC_STATE";
+    constructor(action: "load" | "write", cause: unknown);
+}
+
+### dist/storage/procedures.d.ts#procedureRegisterProcedure
+export declare const procedureRegisterProcedure: AnyProcedure;
+
+### dist/storage/queue.d.ts#MemoryQueueStore
+export declare class MemoryQueueStore implements QueueStore {
+    load(): Promise<QueuedOperation[]>;
+    append(operation: QueuedOperation): Promise<void>;
+    replace(operations: QueuedOperation[]): Promise<void>;
+    clear(): Promise<void>;
+    get size(): number;
+}
+
+### dist/storage/queue.d.ts#QueueStore
+export interface QueueStore {
+    load(): Promise<QueuedOperation[]>;
+    append(operation: QueuedOperation): Promise<void>;
+    replace(operations: QueuedOperation[]): Promise<void>;
+    clear(): Promise<void>;
+}
+
+### dist/storage/queue.d.ts#QueuedOperation
+export interface QueuedOperation {
+    type: "set" | "delete" | "setBatch" | "deleteBatch" | "clear";
+    data: unknown;
+    timestamp: number;
+    base?: Array<[string, string | null]>;
+}
+
+### dist/storage/serialization.d.ts#DeserializeOptions
+export interface DeserializeOptions {
+    handlerLoader?: HandlerLoader | undefined;
+}
+
+### dist/storage/serialization.d.ts#SerializeOptions
+export interface SerializeOptions {
+    handlerRef?: HandlerReference | undefined;
+    includeVersion?: boolean | undefined;
+}
+
+### dist/storage/serialization.d.ts#createDynamicHandlerLoader
+export declare function createDynamicHandlerLoader(allowedModules: readonly string[]): HandlerLoader;
+
+### dist/storage/serialization.d.ts#deserializeProcedure
+export declare function deserializeProcedure(data: SerializedProcedure, options?: DeserializeOptions): Promise<AnyProcedure>;
+
+### dist/storage/serialization.d.ts#deserializeProcedureSync
+export declare function deserializeProcedureSync(data: SerializedProcedure): AnyProcedure;
+
+### dist/storage/serialization.d.ts#deserializeProcedures
+export declare function deserializeProcedures(items: SerializedProcedure[], options?: DeserializeOptions): Promise<AnyProcedure[]>;
+
+### dist/storage/serialization.d.ts#getProcedureKey
+export declare function getProcedureKey(pathOrProcedure: ProcedurePath | AnyProcedure): string;
+
+### dist/storage/serialization.d.ts#getSerializedKey
+export declare function getSerializedKey(data: SerializedProcedure): string;
+
+### dist/storage/serialization.d.ts#serializeProcedure
+export declare function serializeProcedure(procedure: AnyProcedure, options?: SerializeOptions): SerializedProcedure;
+
+### dist/storage/serialization.d.ts#serializeProcedures
+export declare function serializeProcedures(procedures: AnyProcedure[], options?: SerializeOptions): Array<[string, SerializedProcedure]>;
+
+### dist/storage/sync-state.d.ts#MemorySyncStateStore
+export declare class MemorySyncStateStore implements SyncStateStore {
+    load(): Promise<SyncState | undefined>;
+    write(change: SyncStateChange): Promise<void>;
+    clear(): Promise<void>;
+    get size(): number;
+}
+
+### dist/storage/sync-state.d.ts#SyncState
+export interface SyncState {
+    readonly cursor?: string | undefined;
+    readonly bases: ReadonlyArray<readonly [string, string | null]>;
+}
+
+### dist/storage/sync-state.d.ts#SyncStateChange
+export interface SyncStateChange extends SyncState {
+    readonly reset: boolean;
+    readonly forgotten: readonly string[];
+}
+
+### dist/storage/sync-state.d.ts#SyncStateStore
+export interface SyncStateStore {
+    load(): Promise<SyncState | undefined>;
+    write(change: SyncStateChange): Promise<void>;
+    clear(): Promise<void>;
+}
+
+### dist/storage/synced-registry.d.ts#SyncedProcedureRegistry
+export declare class SyncedProcedureRegistry {
+    constructor(baseRegistry: ProcedureRegistry, storage: CollectionStorage<SerializedProcedure>, options?: Partial<SyncedRegistryOptions>);
+    register(procedure: AnyProcedure, options?: SyncedRegistrationOptions): void;
+    unregister(path: ProcedurePath): boolean;
+    get(path: ProcedurePath): AnyProcedure | undefined;
+    has(path: ProcedurePath): boolean;
+    getAll(): AnyProcedure[];
+    getByPrefix(prefix: ProcedurePath): AnyProcedure[];
+    get size(): number;
+    syncFromStorage(filter?: (record: SerializedProcedure) => boolean): Promise<SyncResult>;
+    syncToStorage(): Promise<SyncResult>;
+    sync(direction?: SyncDirection): Promise<SyncResult>;
+    flushPending(): Promise<number>;
+    storeProcedure(path: ProcedurePath, options?: {
+        handlerRef?: HandlerReference | undefined;
+    }): Promise<SerializedProcedure | undefined>;
+    flushWrites(): Promise<void>;
+    connect(endpoint: string, options?: {
+        syncOnConnect?: boolean;
+    }): Promise<void>;
+    disconnect(): void;
+    getStatus(): SyncStatus;
+    onStatus(listener: (status: SyncStatus) => void): () => void;
+    getMode(): HybridMode | undefined;
+    setMode(mode: HybridMode): Promise<void>;
+    startAutoSync(interval: Duration | number): void;
+    stopAutoSync(): void;
+    getBaseRegistry(): ProcedureRegistry;
+    getAdapter(): ProcedureStorageAdapter;
+    getHandlerLoader(): HandlerLoader | undefined;
+    close(): Promise<void>;
+}
+
+### dist/storage/synced-registry.d.ts#SyncedRegistrationOptions
+export interface SyncedRegistrationOptions extends RegistrationOptions {
+    persist?: boolean | undefined;
+    handlerRef?: HandlerReference | undefined;
+}
+
+### dist/storage/synced-registry.d.ts#getProcedureStore
+export declare function getProcedureStore(registry: ProcedureRegistry): SyncedProcedureRegistry | undefined;
+
+### dist/storage/tab-coordinator.d.ts#TabAbortSignalLike
+export interface TabAbortSignalLike {
+    readonly aborted: boolean;
+}
+
+### dist/storage/tab-coordinator.d.ts#TabChannelFactory
+export type TabChannelFactory = (name: string) => TabChannelLike;
+
+### dist/storage/tab-coordinator.d.ts#TabChannelLike
+export interface TabChannelLike {
+    postMessage(message: unknown): void;
+    onmessage: ((event: any) => void) | null;
+    close(): void;
+}
+
+### dist/storage/tab-coordinator.d.ts#TabCollection
+export interface TabCollection<T> {
+    readonly name: string;
+    readonly role: TabRole;
+    readonly isLeader: boolean;
+    readonly syncStorage: HybridStorage<T> | undefined;
+    observe(observer: StorageObserver<T>): () => void;
+    onRole(listener: (role: TabRole) => void): () => void;
+    getStatus(): SyncStatus | undefined;
+    onStatus(listener: (status: SyncStatus) => void): () => void;
+}
+
+### dist/storage/tab-coordinator.d.ts#TabCollectionOptions
+export interface TabCollectionOptions<T> {
+    local: LocalCopyStorage<T>;
+    copy: "shared" | "tab";
+    remote: () => CollectionStorage<T>;
+    hybrid?: Omit<HybridStorageOptions, "local" | "capture">;
+    snapshot?: boolean | TabSnapshotOptions;
+}
+
+### dist/storage/tab-coordinator.d.ts#TabCoordinator
+export declare class TabCoordinator<T> {
+    readonly id: string;
+    readonly lockName: string;
+    constructor(options: TabCoordinatorOptions<T>);
+    get role(): TabRole;
+    get isLeader(): boolean;
+    get syncStorage(): HybridStorage<T> | undefined;
+    observe(observer: StorageObserver<T>): () => void;
+    onRole(listener: (role: TabRole) => void): () => void;
+    getStatus(): SyncStatus | undefined;
+    onStatus(listener: (status: SyncStatus) => void): () => void;
+    close(): Promise<void>;
+}
+
+### dist/storage/tab-coordinator.d.ts#TabCoordinatorOptions
+export interface TabCoordinatorOptions<T> {
+    name: string;
+    local: LocalCopyStorage<T>;
+    copy: "shared" | "tab";
+    remote: () => CollectionStorage<T>;
+    hybrid?: Omit<HybridStorageOptions, "local" | "capture">;
+    snapshot?: boolean | TabSnapshotOptions;
+    locks?: TabLockManagerLike | null;
+    channel?: TabChannelFactory | null;
+    retry?: TabRetryOptions;
+    clock?: Clock;
+    random?: () => number;
+    onError?: ListenerErrorHandler;
+}
+
+### dist/storage/tab-coordinator.d.ts#TabGroup
+export declare class TabGroup {
+    readonly id: string;
+    readonly lockName: string;
+    constructor(options: TabGroupOptions);
+    get role(): TabRole;
+    get isLeader(): boolean;
+    get collections(): string[];
+    collection<T>(name: string, options?: TabCollectionOptions<T>): TabCollection<T>;
+    onRole(listener: (role: TabRole) => void): () => void;
+    close(): Promise<void>;
+}
+
+### dist/storage/tab-coordinator.d.ts#TabGroupOptions
+export interface TabGroupOptions {
+    name: string;
+    open?: (collection: string) => TabCollectionOptions<any> | undefined;
+    locks?: TabLockManagerLike | null;
+    channel?: TabChannelFactory | null;
+    retry?: TabRetryOptions;
+    clock?: Clock;
+    random?: () => number;
+    onError?: ListenerErrorHandler;
+}
+
+### dist/storage/tab-coordinator.d.ts#TabLockManagerLike
+export interface TabLockManagerLike {
+    request(name: string, options: {
+        readonly signal?: TabAbortSignalLike;
+    }, callback: (lock: unknown) => Promise<void>): Promise<unknown>;
+}
+
+### dist/storage/tab-coordinator.d.ts#TabRetryOptions
+export interface TabRetryOptions {
+    delay?: Duration;
+    factor?: number;
+    maxDelay?: Duration;
+    jitter?: number;
+}
+
+### dist/storage/tab-coordinator.d.ts#TabRole
+export type TabRole = "follower" | "leader" | "single" | "closed";
+
+### dist/storage/tab-coordinator.d.ts#TabSnapshotOptions
+export interface TabSnapshotOptions {
+    chunk?: number;
+    timeout?: Duration;
+}
+
+### dist/storage/types.d.ts#ConflictResolution
+export type ConflictResolution = "local" | "remote" | "merge" | "error";
+
+### dist/storage/types.d.ts#HandlerLoader
+export interface HandlerLoader {
+    load(ref: HandlerReference): Promise<unknown | undefined>;
+}
+
+### dist/storage/types.d.ts#HandlerReference
+export interface HandlerReference {
+    module: string;
+    export: string;
+}
+
+### dist/storage/types.d.ts#ProcedureStorageConfig
+export interface ProcedureStorageConfig {
+    type: "memory" | "api" | "hybrid";
+    collection?: string | undefined;
+    service?: string | undefined;
+    options?: Partial<SyncedRegistryOptions> | undefined;
+}
+
+### dist/storage/types.d.ts#SerializedProcedure
+export interface SerializedProcedure {
+    path: ProcedurePath;
+    metadata: ProcedureMetadata;
+    streaming?: boolean | undefined;
+    handlerRef?: HandlerReference | undefined;
+    storedAt?: number | undefined;
+    version?: number | undefined;
+}
+
+### dist/storage/types.d.ts#SyncConflict
+export interface SyncConflict {
+    path: ProcedurePath;
+    resolution: ConflictResolution;
+    local?: SerializedProcedure;
+    remote?: SerializedProcedure;
+}
+
+### dist/storage/types.d.ts#SyncDirection
+export type SyncDirection = "push" | "pull" | "both";
+
+### dist/storage/types.d.ts#SyncError
+export interface SyncError {
+    readonly operation: "load" | "push" | "pull" | "sync" | "store";
+    readonly error: unknown;
+}
+
+### dist/storage/types.d.ts#SyncResult
+export interface SyncResult {
+    pushed: number;
+    pulled: number;
+    conflicts: SyncConflict[];
+    timestamp: number;
+}
+
+### dist/storage/types.d.ts#SyncStatus
+export interface SyncStatus {
+    connected: boolean;
+    endpoint?: string | undefined;
+    lastSync?: number | undefined;
+    pendingChanges: number;
+    syncing: boolean;
+    mode?: "local-only" | "write-through" | "write-back" | "remote-only" | undefined;
+    error?: SyncError | undefined;
+}
+
+### dist/storage/types.d.ts#SyncedRegistryOptions
+export interface SyncedRegistryOptions {
+    writeStrategy: WriteStrategy;
+    conflictResolution: ConflictResolution;
+    syncInterval?: Duration | undefined;
+    clock?: Clock | undefined;
+    handlerLoader?: HandlerLoader | undefined;
+    syncOnInit?: boolean | undefined;
+}
+
+### dist/storage/types.d.ts#WriteStrategy
+export type WriteStrategy = "write-through" | "write-back";

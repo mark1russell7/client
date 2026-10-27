@@ -1,0 +1,377 @@
+# The public API of @procedures/splay
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 66 names
+
+type AnyComponentDefinition: dist/components/types.d.ts#AnyComponentDefinition
+type AnyComponentFactory: dist/components/types.d.ts#AnyComponentFactory
+type AnyComponentOutput: dist/components/types.d.ts#AnyComponentOutput
+type ClientRegistryOptions: dist/types.d.ts#ClientRegistryOptions
+type ComponentBundle: dist/components/types.d.ts#ComponentBundle
+type ComponentContext: dist/components/types.d.ts#ComponentContext
+type ComponentDefinition: dist/components/types.d.ts#ComponentDefinition
+type ComponentFactory: dist/components/types.d.ts#ComponentFactory
+type ComponentInput: dist/components/define.d.ts#ComponentInput
+type ComponentMap: dist/types.d.ts#ComponentMap
+type ComponentMetadata: dist/components/types.d.ts#ComponentMetadata
+type ComponentOutput: dist/components/types.d.ts#ComponentOutput
+type ComponentRenderer: dist/types.d.ts#ComponentRenderer
+type CreateElement: dist/hydrate.d.ts#CreateElement
+type DualRegistry: dist/streaming.d.ts#DualRegistry
+type FragmentOutput: dist/components/types.d.ts#FragmentOutput
+type HydrateOptions: dist/types.d.ts#HydrateOptions
+type InferComponentInput: dist/components/types.d.ts#InferComponentInput
+type IsStreamingComponent: dist/components/types.d.ts#IsStreamingComponent
+type NullOutput: dist/components/types.d.ts#NullOutput
+type ProcedureCaller: dist/registry.d.ts#ProcedureCaller
+type ReactHydrateOptions: dist/hydrate.d.ts#ReactHydrateOptions
+type RegisteredComponent: dist/components/types.d.ts#RegisteredComponent
+type Registry: dist/types.d.ts#Registry
+type RenderContext: dist/types.d.ts#RenderContext
+type Size: dist/components/types.d.ts#Size
+type StreamingComponentFactory: dist/components/types.d.ts#StreamingComponentFactory
+type StreamingComponentRenderer: dist/types.d.ts#StreamingComponentRenderer
+type StreamingProcedureCaller: dist/streaming.d.ts#StreamingProcedureCaller
+type StreamingRegistry: dist/types.d.ts#StreamingRegistry
+type StreamingRegistryOptions: dist/types.d.ts#StreamingRegistryOptions
+compactDescriptor: dist/hydrate.d.ts#compactDescriptor
+componentInputSchema: dist/components/define.d.ts#componentInputSchema
+componentOutputSchema: dist/components/define.d.ts#componentOutputSchema
+componentToProcedure: dist/components/define.d.ts#componentToProcedure
+createBundle: dist/components/define.d.ts#createBundle
+createCheckedRegistry: dist/registry.d.ts#createCheckedRegistry
+createClientRegistry: dist/registry.d.ts#createClientRegistry
+createDualRegistry: dist/streaming.d.ts#createDualRegistry
+createHydrate: dist/hydrate.d.ts#createHydrate
+createReactHydrate: dist/hydrate.d.ts#createReactHydrate
+createRenderContext: dist/registry.d.ts#createRenderContext
+createStreamingRegistry: dist/streaming.d.ts#createStreamingRegistry
+debounceStream: dist/streaming.d.ts#debounceStream
+defineComponent: dist/components/define.d.ts#defineComponent
+findInDescriptor: dist/hydrate.d.ts#findInDescriptor
+fragment: dist/components/types.d.ts#fragment
+getUsedTypes: dist/hydrate.d.ts#getUsedTypes
+isFragment: dist/components/types.d.ts#isFragment
+isNullOutput: dist/components/types.d.ts#isNullOutput
+isStreamingFactory: dist/components/types.d.ts#isStreamingFactory
+mergeStreams: dist/streaming.d.ts#mergeStreams
+namespacedComponent: dist/components/define.d.ts#namespacedComponent
+nullOutput: dist/components/types.d.ts#nullOutput
+parseDescriptor: dist/hydrate.d.ts#parseDescriptor
+registerBridge: dist/module.d.ts#registerBridge
+registerBundle: dist/components/define.d.ts#registerBundle
+registerSplayProcedures: dist/module.d.ts#registerSplayProcedures
+serializeDescriptor: dist/hydrate.d.ts#serializeDescriptor
+simpleComponent: dist/components/define.d.ts#simpleComponent
+splayModule: dist/module.d.ts#splayModule
+streamingComponent: dist/components/define.d.ts#streamingComponent
+throttleStream: dist/streaming.d.ts#throttleStream
+transformDescriptor: dist/hydrate.d.ts#transformDescriptor
+validateDescriptor: dist/hydrate.d.ts#validateDescriptor
+walkDescriptor: dist/hydrate.d.ts#walkDescriptor
+
+## ./module (dist/module.d.ts): 4 names
+
+default: dist/module.d.ts#splayModule
+registerBridge: dist/module.d.ts#registerBridge
+registerSplayProcedures: dist/module.d.ts#registerSplayProcedures
+splayModule: dist/module.d.ts#splayModule
+
+## ./register (dist/register.d.ts): 3 names
+
+registerBridge: dist/module.d.ts#registerBridge
+registerSplayProcedures: dist/module.d.ts#registerSplayProcedures
+splayModule: dist/module.d.ts#splayModule
+
+## Declarations
+
+### dist/components/define.d.ts#ComponentInput
+export interface ComponentInput<TData = unknown> {
+    data: TData;
+    size: Size;
+    path: string;
+    depth?: number;
+}
+
+### dist/components/define.d.ts#componentInputSchema
+export declare const componentInputSchema: ZodLike<ComponentInput>;
+
+### dist/components/define.d.ts#componentOutputSchema
+export declare const componentOutputSchema: ZodLike<ComponentOutput>;
+
+### dist/components/define.d.ts#componentToProcedure
+export declare function componentToProcedure<TData>(definition: ComponentDefinition<TData>, path: ProcedurePath): Procedure<ComponentInput<TData>, ComponentOutput>;
+
+### dist/components/define.d.ts#createBundle
+export declare function createBundle(namespace: string, components: AnyComponentDefinition[], metadata?: ComponentBundle["metadata"]): ComponentBundle;
+
+### dist/components/define.d.ts#defineComponent
+export declare function defineComponent<TData = unknown>(definition: ComponentDefinition<TData>): ComponentDefinition<TData>;
+
+### dist/components/define.d.ts#namespacedComponent
+export declare function namespacedComponent<TData = unknown>(namespace: string, type: string, factory: (ctx: ComponentContext<TData>) => ComponentOutput): ComponentDefinition<TData>;
+
+### dist/components/define.d.ts#registerBundle
+export declare function registerBundle(bundle: ComponentBundle): AnyComponentDefinition[];
+
+### dist/components/define.d.ts#simpleComponent
+export declare function simpleComponent<TData = unknown>(type: string, factory: (ctx: ComponentContext<TData>) => ComponentOutput): ComponentDefinition<TData>;
+
+### dist/components/define.d.ts#streamingComponent
+export declare function streamingComponent<TData = unknown>(type: string, factory: (ctx: ComponentContext<TData>) => AsyncGenerator<ComponentOutput, void, unknown>): ComponentDefinition<TData>;
+
+### dist/components/types.d.ts#AnyComponentDefinition
+export type AnyComponentDefinition = ComponentDefinition<unknown>;
+
+### dist/components/types.d.ts#AnyComponentFactory
+export type AnyComponentFactory<TData = unknown> = ComponentFactory<TData> | StreamingComponentFactory<TData>;
+
+### dist/components/types.d.ts#AnyComponentOutput
+export type AnyComponentOutput = ComponentOutput | FragmentOutput | NullOutput;
+
+### dist/components/types.d.ts#ComponentBundle
+export interface ComponentBundle {
+    namespace: string;
+    components: AnyComponentDefinition[];
+    metadata?: {
+        name?: string;
+        description?: string;
+        version?: string;
+    };
+}
+
+### dist/components/types.d.ts#ComponentContext
+export interface ComponentContext<TData = unknown> {
+    data: TData;
+    size: Size;
+    path: string;
+    depth: number;
+    render: (data: unknown, size: Size, path: string) => ComponentOutput | Promise<ComponentOutput>;
+    bus?: EventBus;
+    metadata?: Record<string, unknown>;
+}
+
+### dist/components/types.d.ts#ComponentDefinition
+export interface ComponentDefinition<TData = unknown> {
+    type: string;
+    namespace?: string;
+    input?: ZodLike<TData>;
+    metadata?: ComponentMetadata;
+    streaming?: boolean;
+    factory: AnyComponentFactory<TData>;
+}
+
+### dist/components/types.d.ts#ComponentFactory
+export type ComponentFactory<TData = unknown> = (ctx: ComponentContext<TData>) => ComponentOutput | Promise<ComponentOutput>;
+
+### dist/components/types.d.ts#ComponentMetadata
+export interface ComponentMetadata extends ProcedureMetadata {
+    category?: string;
+    streaming?: boolean;
+    defaultSize?: Size;
+    minSize?: Size;
+    maxSize?: Size;
+}
+
+### dist/components/types.d.ts#ComponentOutput
+export interface ComponentOutput {
+    type: string;
+    props: Record<string, unknown>;
+    children?: ComponentOutput[];
+    key?: string;
+}
+
+### dist/components/types.d.ts#FragmentOutput
+export interface FragmentOutput {
+    type: "__fragment__";
+    children: ComponentOutput[];
+}
+
+### dist/components/types.d.ts#InferComponentInput
+export type InferComponentInput<T> = T extends ComponentDefinition<infer TData> ? TData : unknown;
+
+### dist/components/types.d.ts#IsStreamingComponent
+export type IsStreamingComponent<T> = T extends ComponentDefinition<unknown> ? T["streaming"] extends true ? true : false : false;
+
+### dist/components/types.d.ts#NullOutput
+export interface NullOutput {
+    type: "__null__";
+}
+
+### dist/components/types.d.ts#RegisteredComponent
+export interface RegisteredComponent<TData = unknown> {
+    path: ProcedurePath;
+    definition: ComponentDefinition<TData>;
+}
+
+### dist/components/types.d.ts#Size
+export interface Size {
+    width: number;
+    height: number;
+}
+
+### dist/components/types.d.ts#StreamingComponentFactory
+export type StreamingComponentFactory<TData = unknown> = (ctx: ComponentContext<TData>) => AsyncGenerator<ComponentOutput, void, unknown>;
+
+### dist/components/types.d.ts#fragment
+export declare function fragment(...children: ComponentOutput[]): FragmentOutput;
+
+### dist/components/types.d.ts#isFragment
+export declare function isFragment(output: AnyComponentOutput): output is FragmentOutput;
+
+### dist/components/types.d.ts#isNullOutput
+export declare function isNullOutput(output: AnyComponentOutput): output is NullOutput;
+
+### dist/components/types.d.ts#isStreamingFactory
+export declare function isStreamingFactory<TData>(factory: AnyComponentFactory<TData>): factory is StreamingComponentFactory<TData>;
+
+### dist/components/types.d.ts#nullOutput
+export declare function nullOutput(): NullOutput;
+
+### dist/hydrate.d.ts#CreateElement
+export type CreateElement<TComponent> = (type: TComponent, props: Record<string, unknown> | null, children?: (TComponent | null)[]) => TComponent;
+
+### dist/hydrate.d.ts#ReactHydrateOptions
+export interface ReactHydrateOptions {
+    components: ComponentMap<ReactLikeComponent>;
+    fallback?: ReactLikeComponent;
+}
+
+### dist/hydrate.d.ts#compactDescriptor
+export declare function compactDescriptor(descriptor: ComponentOutput): ComponentOutput;
+
+### dist/hydrate.d.ts#createHydrate
+export declare function createHydrate<TComponent>(options: HydrateOptions<TComponent>): (descriptor: ComponentOutput | null, createElement: CreateElement<TComponent>) => TComponent | null;
+
+### dist/hydrate.d.ts#createReactHydrate
+export declare function createReactHydrate(react: ReactLike, options: ReactHydrateOptions): (descriptor: ComponentOutput | null) => unknown;
+
+### dist/hydrate.d.ts#findInDescriptor
+export declare function findInDescriptor(descriptor: ComponentOutput, predicate: (node: ComponentOutput) => boolean): ComponentOutput[];
+
+### dist/hydrate.d.ts#getUsedTypes
+export declare function getUsedTypes(descriptor: ComponentOutput): Set<string>;
+
+### dist/hydrate.d.ts#parseDescriptor
+export declare function parseDescriptor(json: string): ComponentOutput;
+
+### dist/hydrate.d.ts#serializeDescriptor
+export declare function serializeDescriptor(descriptor: ComponentOutput): string;
+
+### dist/hydrate.d.ts#transformDescriptor
+export declare function transformDescriptor(descriptor: ComponentOutput, transform: (node: ComponentOutput) => ComponentOutput): ComponentOutput;
+
+### dist/hydrate.d.ts#validateDescriptor
+export declare function validateDescriptor(descriptor: ComponentOutput, knownTypes: Set<string> | string[]): {
+    valid: boolean;
+    unknownTypes: string[];
+};
+
+### dist/hydrate.d.ts#walkDescriptor
+export declare function walkDescriptor(descriptor: ComponentOutput, visitor: (node: ComponentOutput, path: string[]) => void, path?: string[]): void;
+
+### dist/module.d.ts#registerBridge
+export declare const registerBridge: (registry?: ProcedureRegistry) => void;
+
+### dist/module.d.ts#registerSplayProcedures
+export declare function registerSplayProcedures(registry?: ProcedureRegistry): void;
+
+### dist/module.d.ts#splayModule
+export declare const splayModule: ProcedureModule;
+
+### dist/registry.d.ts#ProcedureCaller
+export interface ProcedureCaller {
+    <TResult>(path: string[], input: unknown): Promise<TResult>;
+}
+
+### dist/registry.d.ts#createCheckedRegistry
+export declare function createCheckedRegistry(call: ProcedureCaller, hasProcedure: (path: string[]) => boolean, options?: ClientRegistryOptions): Registry;
+
+### dist/registry.d.ts#createClientRegistry
+export declare function createClientRegistry(call: ProcedureCaller, options?: ClientRegistryOptions): Registry;
+
+### dist/registry.d.ts#createRenderContext
+export declare function createRenderContext<TData>(registry: Registry, data: TData, size: Size, path?: string, depth?: number): RenderContext<TData>;
+
+### dist/streaming.d.ts#DualRegistry
+export interface DualRegistry {
+    sync: {
+        get(type: string): ((ctx: RenderContext) => Promise<ComponentOutput>) | undefined;
+        has(type: string): boolean;
+    };
+    streaming: StreamingRegistry;
+    render(type: string, ctx: RenderContext, preferStreaming?: boolean): AsyncIterable<ComponentOutput>;
+}
+
+### dist/streaming.d.ts#StreamingProcedureCaller
+export interface StreamingProcedureCaller {
+    <TResult>(path: string[], input: unknown): AsyncIterable<TResult>;
+}
+
+### dist/streaming.d.ts#createDualRegistry
+export declare function createDualRegistry(callSync: <T>(path: string[], input: unknown) => Promise<T>, callStreaming: StreamingProcedureCaller, isStreaming: (type: string) => boolean, options?: StreamingRegistryOptions): DualRegistry;
+
+### dist/streaming.d.ts#createStreamingRegistry
+export declare function createStreamingRegistry(callStreaming: StreamingProcedureCaller, options?: StreamingRegistryOptions): StreamingRegistry;
+
+### dist/streaming.d.ts#debounceStream
+export declare function debounceStream(stream: AsyncIterable<ComponentOutput>, waitMs: number): AsyncIterable<ComponentOutput>;
+
+### dist/streaming.d.ts#mergeStreams
+export declare function mergeStreams(...streams: AsyncIterable<ComponentOutput>[]): AsyncIterable<ComponentOutput>;
+
+### dist/streaming.d.ts#throttleStream
+export declare function throttleStream(stream: AsyncIterable<ComponentOutput>, intervalMs: number): AsyncIterable<ComponentOutput>;
+
+### dist/types.d.ts#ClientRegistryOptions
+export interface ClientRegistryOptions {
+    namespace?: string;
+    defaultSize?: Size;
+}
+
+### dist/types.d.ts#ComponentMap
+export type ComponentMap<TComponent = unknown> = Record<string, TComponent>;
+
+### dist/types.d.ts#ComponentRenderer
+export type ComponentRenderer<TOutput = ComponentOutput> = (ctx: RenderContext) => TOutput | Promise<TOutput>;
+
+### dist/types.d.ts#HydrateOptions
+export interface HydrateOptions<TComponent = unknown> {
+    components: ComponentMap<TComponent>;
+    fallback?: TComponent;
+    onNull?: () => TComponent | null;
+    onFragment?: (children: TComponent[]) => TComponent;
+}
+
+### dist/types.d.ts#Registry
+export interface Registry<TOutput = ComponentOutput> {
+    get(type: string): ComponentRenderer<TOutput> | undefined;
+    has(type: string): boolean;
+    register(type: string, renderer: ComponentRenderer<TOutput>): void;
+}
+
+### dist/types.d.ts#RenderContext
+export interface RenderContext<TData = unknown> {
+    data: TData;
+    size: Size;
+    path: string;
+    depth: number;
+    render: (data: unknown, size: Size, path: string) => ComponentOutput | Promise<ComponentOutput>;
+}
+
+### dist/types.d.ts#StreamingComponentRenderer
+export type StreamingComponentRenderer<TOutput = ComponentOutput> = (ctx: RenderContext) => AsyncIterable<TOutput>;
+
+### dist/types.d.ts#StreamingRegistry
+export interface StreamingRegistry<TOutput = ComponentOutput> {
+    get(type: string): StreamingComponentRenderer<TOutput> | undefined;
+    has(type: string): boolean;
+}
+
+### dist/types.d.ts#StreamingRegistryOptions
+export interface StreamingRegistryOptions extends ClientRegistryOptions {
+    bufferSize?: number;
+}

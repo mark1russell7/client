@@ -1,0 +1,235 @@
+# The public API of @procedures/git
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 50 names
+
+type GitContext: dist/procedures/git/run.d.ts#GitContext
+GitError: dist/procedures/git/run.d.ts#GitError
+type GitPorcelainEntry: dist/procedures/git/porcelain.d.ts#GitPorcelainEntry
+type GitRunOptions: dist/procedures/git/run.d.ts#GitRunOptions
+classifyStatus: dist/procedures/git/porcelain.d.ts#classifyStatus
+git: dist/procedures/git/run.d.ts#git
+gitAdd: dist/procedures/git/add.d.ts#gitAdd
+gitBlame: dist/procedures/git/blame.d.ts#gitBlame
+gitBranch: dist/procedures/git/branch.d.ts#gitBranch
+gitBranchAdd: dist/procedures/git/branch/add.d.ts#gitBranchAdd
+gitBranchDelete: dist/procedures/git/branch/delete.d.ts#gitBranchDelete
+gitBranchList: dist/procedures/git/branch/list.d.ts#gitBranchList
+gitCheckout: dist/procedures/git/checkout.d.ts#gitCheckout
+gitClone: dist/procedures/git/clone.d.ts#gitClone
+gitCommit: dist/procedures/git/commit.d.ts#gitCommit
+gitDiff: dist/procedures/git/diff.d.ts#gitDiff
+gitFetch: dist/procedures/git/fetch.d.ts#gitFetch
+gitInit: dist/procedures/git/init.d.ts#gitInit
+gitLog: dist/procedures/git/log.d.ts#gitLog
+gitMerge: dist/procedures/git/merge.d.ts#gitMerge
+gitMergeAbort: dist/procedures/git/merge/abort.d.ts#gitMergeAbort
+gitModule: dist/module.d.ts#gitModule
+gitPull: dist/procedures/git/pull.d.ts#gitPull
+gitPush: dist/procedures/git/push.d.ts#gitPush
+gitRebase: dist/procedures/git/rebase.d.ts#gitRebase
+gitRebaseAbort: dist/procedures/git/rebase/abort.d.ts#gitRebaseAbort
+gitRebaseContinue: dist/procedures/git/rebase/continue.d.ts#gitRebaseContinue
+gitRemote: dist/procedures/git/remote.d.ts#gitRemote
+gitRemoteSet: dist/procedures/git/remote.d.ts#gitRemoteSet
+gitReset: dist/procedures/git/reset.d.ts#gitReset
+gitRestore: dist/procedures/git/restore.d.ts#gitRestore
+gitRevParse: dist/procedures/git/revParse.d.ts#gitRevParse
+gitShow: dist/procedures/git/show.d.ts#gitShow
+gitStashApply: dist/procedures/git/stash.d.ts#gitStashApply
+gitStashDrop: dist/procedures/git/stash.d.ts#gitStashDrop
+gitStashExport: dist/procedures/git/stash.d.ts#gitStashExport
+gitStashImport: dist/procedures/git/stash.d.ts#gitStashImport
+gitStashList: dist/procedures/git/stash.d.ts#gitStashList
+gitStashPop: dist/procedures/git/stash.d.ts#gitStashPop
+gitStashPush: dist/procedures/git/stash.d.ts#gitStashPush
+gitStatus: dist/procedures/git/status.d.ts#gitStatus
+gitTagAdd: dist/procedures/git/tag/add.d.ts#gitTagAdd
+gitTagDelete: dist/procedures/git/tag/delete.d.ts#gitTagDelete
+gitTagList: dist/procedures/git/tag/list.d.ts#gitTagList
+gitWorktreeAdd: dist/procedures/git/worktree/add.d.ts#gitWorktreeAdd
+gitWorktreeList: dist/procedures/git/worktree/list.d.ts#gitWorktreeList
+gitWorktreeRemove: dist/procedures/git/worktree/remove.d.ts#gitWorktreeRemove
+parseNumstat: dist/procedures/git/diff.d.ts#parseNumstat
+parsePorcelainV1: dist/procedures/git/porcelain.d.ts#parsePorcelainV1
+registerGitProcedures: dist/module.d.ts#registerGitProcedures
+
+## ./module (dist/module.d.ts): 3 names
+
+default: dist/module.d.ts#gitModule
+gitModule: dist/module.d.ts#gitModule
+registerGitProcedures: dist/module.d.ts#registerGitProcedures
+
+## ./register (dist/register.d.ts): 2 names
+
+gitModule: dist/module.d.ts#gitModule
+registerGitProcedures: dist/module.d.ts#registerGitProcedures
+
+## Declarations
+
+### dist/module.d.ts#gitModule
+export declare const gitModule: ProcedureModule;
+
+### dist/module.d.ts#registerGitProcedures
+export declare const registerGitProcedures: PackageDefinition["register"];
+
+### dist/procedures/git/add.d.ts#gitAdd
+export declare function gitAdd(input: GitAddInput, ctx?: GitContext): Promise<GitAddOutput>;
+
+### dist/procedures/git/blame.d.ts#gitBlame
+export declare function gitBlame(input: GitBlameInput, ctx?: GitContext): Promise<GitBlameOutput>;
+
+### dist/procedures/git/branch.d.ts#gitBranch
+export declare function gitBranch(input: GitBranchInput, ctx?: GitContext): Promise<GitBranchOutput>;
+
+### dist/procedures/git/branch/add.d.ts#gitBranchAdd
+export declare function gitBranchAdd(input: GitBranchAddInput, ctx?: GitContext): Promise<GitBranchAddOutput>;
+
+### dist/procedures/git/branch/delete.d.ts#gitBranchDelete
+export declare function gitBranchDelete(input: GitBranchDeleteInput, ctx?: GitContext): Promise<GitBranchDeleteOutput>;
+
+### dist/procedures/git/branch/list.d.ts#gitBranchList
+export declare function gitBranchList(input: GitBranchListInput, ctx?: GitContext): Promise<GitBranchListOutput>;
+
+### dist/procedures/git/checkout.d.ts#gitCheckout
+export declare function gitCheckout(input: GitCheckoutInput, ctx?: GitContext): Promise<GitCheckoutOutput>;
+
+### dist/procedures/git/clone.d.ts#gitClone
+export declare function gitClone(input: GitCloneInput, ctx?: GitContext): Promise<GitCloneOutput>;
+
+### dist/procedures/git/commit.d.ts#gitCommit
+export declare function gitCommit(input: GitCommitInput, ctx?: GitContext): Promise<GitCommitOutput>;
+
+### dist/procedures/git/diff.d.ts#gitDiff
+export declare function gitDiff(input: GitDiffInput, ctx?: GitContext): Promise<GitDiffOutput>;
+
+### dist/procedures/git/diff.d.ts#parseNumstat
+export declare function parseNumstat(output: string): GitDiffFile[];
+
+### dist/procedures/git/fetch.d.ts#gitFetch
+export declare function gitFetch(input: GitFetchInput, ctx?: GitContext): Promise<GitFetchOutput>;
+
+### dist/procedures/git/init.d.ts#gitInit
+export declare function gitInit(input: GitInitInput, ctx?: GitContext): Promise<GitInitOutput>;
+
+### dist/procedures/git/log.d.ts#gitLog
+export declare function gitLog(input: GitLogInput, ctx?: GitContext): Promise<GitLogOutput>;
+
+### dist/procedures/git/merge.d.ts#gitMerge
+export declare function gitMerge(input: GitMergeInput, ctx?: GitContext): Promise<GitMergeOutput>;
+
+### dist/procedures/git/merge/abort.d.ts#gitMergeAbort
+export declare function gitMergeAbort(input: GitMergeAbortInput, ctx?: GitContext): Promise<GitMergeAbortOutput>;
+
+### dist/procedures/git/porcelain.d.ts#GitPorcelainEntry
+export interface GitPorcelainEntry extends GitStatusFile {
+    xy: string;
+}
+
+### dist/procedures/git/porcelain.d.ts#classifyStatus
+export declare function classifyStatus(xy: string): Pick<GitStatusFile, "status" | "staged">;
+
+### dist/procedures/git/porcelain.d.ts#parsePorcelainV1
+export declare function parsePorcelainV1(output: string): GitPorcelainEntry[];
+
+### dist/procedures/git/pull.d.ts#gitPull
+export declare function gitPull(input: GitPullInput, ctx?: GitContext): Promise<GitPullOutput>;
+
+### dist/procedures/git/push.d.ts#gitPush
+export declare function gitPush(input: GitPushInput, ctx?: GitContext): Promise<GitPushOutput>;
+
+### dist/procedures/git/rebase.d.ts#gitRebase
+export declare function gitRebase(input: GitRebaseInput, ctx?: GitContext): Promise<GitRebaseOutput>;
+
+### dist/procedures/git/rebase/abort.d.ts#gitRebaseAbort
+export declare function gitRebaseAbort(input: GitRebaseAbortInput, ctx?: GitContext): Promise<GitRebaseAbortOutput>;
+
+### dist/procedures/git/rebase/continue.d.ts#gitRebaseContinue
+export declare function gitRebaseContinue(input: GitRebaseContinueInput, ctx?: GitContext): Promise<GitRebaseContinueOutput>;
+
+### dist/procedures/git/remote.d.ts#gitRemote
+export declare function gitRemote(input: GitRemoteInput, ctx?: GitContext): Promise<GitRemoteOutput>;
+
+### dist/procedures/git/remote.d.ts#gitRemoteSet
+export declare function gitRemoteSet(input: GitRemoteSetInput, ctx?: GitContext): Promise<GitRemoteOutput>;
+
+### dist/procedures/git/reset.d.ts#gitReset
+export declare function gitReset(input: GitResetInput, ctx?: GitContext): Promise<GitResetOutput>;
+
+### dist/procedures/git/restore.d.ts#gitRestore
+export declare function gitRestore(input: GitRestoreInput, ctx?: GitContext): Promise<GitRestoreOutput>;
+
+### dist/procedures/git/revParse.d.ts#gitRevParse
+export declare function gitRevParse(input: GitRevParseInput, ctx?: GitContext): Promise<GitRevParseOutput>;
+
+### dist/procedures/git/run.d.ts#GitContext
+export interface GitContext {
+    signal?: AbortSignal | undefined;
+}
+
+### dist/procedures/git/run.d.ts#GitError
+export declare class GitError extends Error {
+    readonly args: readonly string[];
+    readonly exitCode: number;
+    readonly stdout: string;
+    readonly stderr: string;
+    constructor(args: readonly string[], exitCode: number, stdout: string, stderr: string);
+}
+
+### dist/procedures/git/run.d.ts#GitRunOptions
+export interface GitRunOptions extends GitContext {
+    cwd?: string | undefined;
+    input?: string | undefined;
+    env?: Record<string, string> | undefined;
+}
+
+### dist/procedures/git/run.d.ts#git
+export declare function git(args: string[], options?: GitRunOptions): Promise<string>;
+
+### dist/procedures/git/show.d.ts#gitShow
+export declare function gitShow(input: GitShowInput, ctx?: GitContext): Promise<GitShowOutput>;
+
+### dist/procedures/git/stash.d.ts#gitStashApply
+export declare function gitStashApply(input: GitStashApplyInput, ctx?: GitContext): Promise<GitStashApplyOutput>;
+
+### dist/procedures/git/stash.d.ts#gitStashDrop
+export declare function gitStashDrop(input: GitStashDropInput, ctx?: GitContext): Promise<GitStashDropOutput>;
+
+### dist/procedures/git/stash.d.ts#gitStashExport
+export declare function gitStashExport(input: GitStashExportInput, ctx?: GitContext): Promise<GitStashExportOutput>;
+
+### dist/procedures/git/stash.d.ts#gitStashImport
+export declare function gitStashImport(input: GitStashImportInput, ctx?: GitContext): Promise<GitStashImportOutput>;
+
+### dist/procedures/git/stash.d.ts#gitStashList
+export declare function gitStashList(input: GitStashListInput, ctx?: GitContext): Promise<GitStashListOutput>;
+
+### dist/procedures/git/stash.d.ts#gitStashPop
+export declare function gitStashPop(input: GitStashPopInput, ctx?: GitContext): Promise<GitStashPopOutput>;
+
+### dist/procedures/git/stash.d.ts#gitStashPush
+export declare function gitStashPush(input: GitStashPushInput, ctx?: GitContext): Promise<GitStashPushOutput>;
+
+### dist/procedures/git/status.d.ts#gitStatus
+export declare function gitStatus(input: GitStatusInput, ctx?: GitContext): Promise<GitStatusOutput>;
+
+### dist/procedures/git/tag/add.d.ts#gitTagAdd
+export declare function gitTagAdd(input: GitTagAddInput, ctx?: GitContext): Promise<GitTagAddOutput>;
+
+### dist/procedures/git/tag/delete.d.ts#gitTagDelete
+export declare function gitTagDelete(input: GitTagDeleteInput, ctx?: GitContext): Promise<GitTagDeleteOutput>;
+
+### dist/procedures/git/tag/list.d.ts#gitTagList
+export declare function gitTagList(input: GitTagListInput, ctx?: GitContext): Promise<GitTagListOutput>;
+
+### dist/procedures/git/worktree/add.d.ts#gitWorktreeAdd
+export declare function gitWorktreeAdd(input: GitWorktreeAddInput, ctx?: GitContext): Promise<GitWorktreeAddOutput>;
+
+### dist/procedures/git/worktree/list.d.ts#gitWorktreeList
+export declare function gitWorktreeList(input: GitWorktreeListInput, ctx?: GitContext): Promise<GitWorktreeListOutput>;
+
+### dist/procedures/git/worktree/remove.d.ts#gitWorktreeRemove
+export declare function gitWorktreeRemove(input: GitWorktreeRemoveInput, ctx?: GitContext): Promise<GitWorktreeRemoveOutput>;

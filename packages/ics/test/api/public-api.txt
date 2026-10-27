@@ -1,0 +1,275 @@
+# The public API of @procedures/ics
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 43 names
+
+DEFAULT_PRODID: dist/write.d.ts#DEFAULT_PRODID
+FetchText: dist/procedures.d.ts#FetchText
+IcsCalendarOptions: dist/write.d.ts#IcsCalendarOptions
+IcsEvent: dist/ics.d.ts#IcsEvent
+IcsProceduresOptions: dist/procedures.d.ts#IcsProceduresOptions
+IcsStatus: dist/write.d.ts#IcsStatus
+IcsWriteEvent: dist/write.d.ts#IcsWriteEvent
+IcsWriteInput: dist/types.d.ts#IcsWriteInput
+IcsWriteInputSchema: dist/types.d.ts#IcsWriteInputSchema
+IcsWriteOutput: dist/types.d.ts#IcsWriteOutput
+IcsWriteOutputSchema: dist/types.d.ts#IcsWriteOutputSchema
+MAX_LINE_OCTETS: dist/write.d.ts#MAX_LINE_OCTETS
+Occurrence: dist/ics.d.ts#Occurrence
+TimeWindow: dist/ics.d.ts#TimeWindow
+calendarOccurrences: dist/ics.d.ts#calendarOccurrences
+createIcsModule: dist/module.d.ts#createIcsModule
+createIcsProcedures: dist/procedures.d.ts#createIcsProcedures
+daysBetween: dist/days.d.ts#daysBetween
+escapeText: dist/write.d.ts#escapeText
+expandOccurrences: dist/ics.d.ts#expandOccurrences
+fetchCalendar: dist/procedures.d.ts#fetchCalendar
+foldLine: dist/write.d.ts#foldLine
+formatDate: dist/write.d.ts#formatDate
+formatUtc: dist/write.d.ts#formatUtc
+icsFetchProcedure: dist/procedures.d.ts#icsFetchProcedure
+icsModule: dist/module.d.ts#icsModule
+icsOccurrencesProcedure: dist/procedures.d.ts#icsOccurrencesProcedure
+icsParseProcedure: dist/procedures.d.ts#icsParseProcedure
+icsProcedures: dist/procedures.d.ts#icsProcedures
+icsWriteProcedure: dist/procedures.d.ts#icsWriteProcedure
+isCalendar: dist/ics.d.ts#isCalendar
+localDate: dist/zone.d.ts#localDate
+localTime: dist/zone.d.ts#localTime
+parseIcs: dist/ics.d.ts#parseIcs
+registerIcsProcedures: dist/module.d.ts#registerIcsProcedures
+shiftDay: dist/days.d.ts#shiftDay
+shiftMonth: dist/days.d.ts#shiftMonth
+unescapeText: dist/ics.d.ts#unescapeText
+weekdayName: dist/days.d.ts#weekdayName
+weekdayOf: dist/days.d.ts#weekdayOf
+writeIcs: dist/write.d.ts#writeIcs
+zonedOffset: dist/zone.d.ts#zonedOffset
+zonedToUtc: dist/ics.d.ts#zonedToUtc
+
+## ./module (dist/module.d.ts): 4 names
+
+createIcsModule: dist/module.d.ts#createIcsModule
+default: dist/module.d.ts#icsModule
+icsModule: dist/module.d.ts#icsModule
+registerIcsProcedures: dist/module.d.ts#registerIcsProcedures
+
+## ./register (dist/register.d.ts): 3 names
+
+createIcsModule: dist/module.d.ts#createIcsModule
+icsModule: dist/module.d.ts#icsModule
+registerIcsProcedures: dist/module.d.ts#registerIcsProcedures
+
+## Declarations
+
+### dist/days.d.ts#daysBetween
+export declare function daysBetween(from: string, to: string): number;
+
+### dist/days.d.ts#shiftDay
+export declare function shiftDay(date: string, days: number): string;
+
+### dist/days.d.ts#shiftMonth
+export declare function shiftMonth(date: string, months: number): string;
+
+### dist/days.d.ts#weekdayName
+export declare function weekdayName(date: string, options?: {
+    readonly locale?: string;
+    readonly style?: "long" | "short" | "narrow";
+}): string;
+
+### dist/days.d.ts#weekdayOf
+export declare function weekdayOf(date: string): number;
+
+### dist/ics.d.ts#IcsEvent
+export interface IcsEvent {
+    readonly uid: string;
+    readonly summary: string;
+    readonly start: string;
+    readonly end: string;
+    readonly allDay: boolean;
+    readonly rrule?: string | undefined;
+    readonly location?: string | undefined;
+    readonly exdates?: readonly string[] | undefined;
+    readonly tzid?: string | undefined;
+    readonly recurrenceId?: string | undefined;
+    readonly sequence?: number | undefined;
+    readonly lastModified?: string | undefined;
+}
+
+### dist/ics.d.ts#Occurrence
+export interface Occurrence {
+    readonly uid: string;
+    readonly summary: string;
+    readonly start: string;
+    readonly end: string;
+    readonly allDay: boolean;
+    readonly location?: string | undefined;
+}
+
+### dist/ics.d.ts#TimeWindow
+export interface TimeWindow {
+    readonly from: string;
+    readonly to: string;
+}
+
+### dist/ics.d.ts#calendarOccurrences
+export declare const calendarOccurrences: (events: readonly IcsEvent[], window: TimeWindow) => Occurrence[];
+
+### dist/ics.d.ts#expandOccurrences
+export declare const expandOccurrences: (event: IcsEvent, window: TimeWindow) => Occurrence[];
+
+### dist/ics.d.ts#isCalendar
+export declare const isCalendar: (text: string) => boolean;
+
+### dist/ics.d.ts#parseIcs
+export declare const parseIcs: (text: string) => IcsEvent[];
+
+### dist/ics.d.ts#unescapeText
+export declare const unescapeText: (value: string) => string;
+
+### dist/ics.d.ts#zonedToUtc
+export declare const zonedToUtc: (y: number, mo: number, d: number, h: number, mi: number, s: number, timeZone: string) => string;
+
+### dist/module.d.ts#createIcsModule
+export declare function createIcsModule(options?: IcsProceduresOptions): ProcedureModule;
+
+### dist/module.d.ts#icsModule
+export declare const icsModule: ProcedureModule;
+
+### dist/module.d.ts#registerIcsProcedures
+export declare const registerIcsProcedures: PackageDefinition["register"];
+
+### dist/procedures.d.ts#FetchText
+export type FetchText = (url: string, init: {
+    headers: Record<string, string>;
+    signal: AbortSignal;
+}) => Promise<{
+    ok: boolean;
+    status: number;
+    text(): Promise<string>;
+}>;
+
+### dist/procedures.d.ts#IcsProceduresOptions
+export interface IcsProceduresOptions {
+    readonly fetch?: FetchText | undefined;
+}
+
+### dist/procedures.d.ts#createIcsProcedures
+export declare function createIcsProcedures(options?: IcsProceduresOptions): AnyProcedure[];
+
+### dist/procedures.d.ts#fetchCalendar
+export declare function fetchCalendar(url: string, timeoutMs: number, signal?: AbortSignal, options?: {
+    readonly fetch?: FetchText | undefined;
+}): Promise<string>;
+
+### dist/procedures.d.ts#icsFetchProcedure
+export declare const icsFetchProcedure: AnyProcedure;
+
+### dist/procedures.d.ts#icsOccurrencesProcedure
+export declare const icsOccurrencesProcedure: AnyProcedure;
+
+### dist/procedures.d.ts#icsParseProcedure
+export declare const icsParseProcedure: AnyProcedure;
+
+### dist/procedures.d.ts#icsProcedures
+export declare const icsProcedures: AnyProcedure[];
+
+### dist/procedures.d.ts#icsWriteProcedure
+export declare const icsWriteProcedure: AnyProcedure;
+
+### dist/types.d.ts#IcsWriteInput
+export interface IcsWriteInput {
+    events: Array<{
+        uid: string;
+        start: string;
+        end?: string | undefined;
+        allDay?: boolean | undefined;
+        summary?: string | undefined;
+        location?: string | undefined;
+        description?: string | undefined;
+        url?: string | undefined;
+        sequence?: number | undefined;
+        status?: IcsStatus | undefined;
+        rrule?: string | undefined;
+        exdates?: string[] | undefined;
+        tzid?: string | undefined;
+    }>;
+    prodId?: string | undefined;
+    method?: string | undefined;
+    calscale?: string | undefined;
+    calendarName?: string | undefined;
+    stamp?: string | undefined;
+}
+
+### dist/types.d.ts#IcsWriteInputSchema
+export declare const IcsWriteInputSchema: z.ZodType<IcsWriteInput>;
+
+### dist/types.d.ts#IcsWriteOutput
+export interface IcsWriteOutput {
+    text: string;
+}
+
+### dist/types.d.ts#IcsWriteOutputSchema
+export declare const IcsWriteOutputSchema: z.ZodType<IcsWriteOutput>;
+
+### dist/write.d.ts#DEFAULT_PRODID
+export declare const DEFAULT_PRODID = "-//procedures//ics//EN";
+
+### dist/write.d.ts#IcsCalendarOptions
+export interface IcsCalendarOptions {
+    readonly prodId?: string | undefined;
+    readonly method?: string | undefined;
+    readonly calscale?: string | undefined;
+    readonly calendarName?: string | undefined;
+    readonly stamp?: string | undefined;
+}
+
+### dist/write.d.ts#IcsStatus
+export type IcsStatus = "TENTATIVE" | "CONFIRMED" | "CANCELLED";
+
+### dist/write.d.ts#IcsWriteEvent
+export interface IcsWriteEvent {
+    readonly uid: string;
+    readonly start: string;
+    readonly end?: string | undefined;
+    readonly allDay?: boolean | undefined;
+    readonly summary?: string | undefined;
+    readonly location?: string | undefined;
+    readonly description?: string | undefined;
+    readonly url?: string | undefined;
+    readonly sequence?: number | undefined;
+    readonly status?: IcsStatus | undefined;
+    readonly rrule?: string | undefined;
+    readonly exdates?: readonly string[] | undefined;
+    readonly tzid?: string | undefined;
+}
+
+### dist/write.d.ts#MAX_LINE_OCTETS
+export declare const MAX_LINE_OCTETS = 75;
+
+### dist/write.d.ts#escapeText
+export declare const escapeText: (value: string) => string;
+
+### dist/write.d.ts#foldLine
+export declare const foldLine: (line: string) => string;
+
+### dist/write.d.ts#formatDate
+export declare const formatDate: (value: string) => string;
+
+### dist/write.d.ts#formatUtc
+export declare const formatUtc: (iso: string) => string;
+
+### dist/write.d.ts#writeIcs
+export declare const writeIcs: (events: readonly IcsWriteEvent[], options?: IcsCalendarOptions) => string;
+
+### dist/zone.d.ts#localDate
+export declare function localDate(instant: Date | number | string, timeZone: string): string;
+
+### dist/zone.d.ts#localTime
+export declare function localTime(instant: Date | number | string, timeZone: string): string;
+
+### dist/zone.d.ts#zonedOffset
+export declare function zonedOffset(date: string, time: string, timeZone: string): string;

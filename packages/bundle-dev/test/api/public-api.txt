@@ -1,0 +1,41 @@
+# The public API of @procedures/bundle-dev
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 3 names
+
+bundleDevModule: dist/module.d.ts#bundleDevModule
+bundleDevModules: dist/module.d.ts#bundleDevModules
+registerBundleDevProcedures: dist/module.d.ts#registerBundleDevProcedures
+
+## ./module (dist/module.d.ts): 4 names
+
+bundleDevModule: dist/module.d.ts#bundleDevModule
+bundleDevModules: dist/module.d.ts#bundleDevModules
+default: dist/module.d.ts#bundleDevModule
+registerBundleDevProcedures: dist/module.d.ts#registerBundleDevProcedures
+
+## ./register (dist/register.d.ts): 3 names
+
+bundleDevModule: dist/module.d.ts#bundleDevModule
+bundleDevModules: dist/module.d.ts#bundleDevModules
+registerBundleDevProcedures: dist/module.d.ts#registerBundleDevProcedures
+
+## ./register.js (dist/register.d.ts): 3 names
+
+bundleDevModule: dist/module.d.ts#bundleDevModule
+bundleDevModules: dist/module.d.ts#bundleDevModules
+registerBundleDevProcedures: dist/module.d.ts#registerBundleDevProcedures
+
+## Declarations
+
+### dist/module.d.ts#bundleDevModule
+export declare const bundleDevModule: ProcedureModule;
+
+### dist/module.d.ts#bundleDevModules
+export declare const bundleDevModules: readonly ProcedureModule[];
+
+### dist/module.d.ts#registerBundleDevProcedures
+export declare const registerBundleDevProcedures: PackageDefinition["register"];

@@ -1,0 +1,370 @@
+# The public API of @procedures/sqlite
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 60 names
+
+type ConnectionCallback: @mark1russell7/docker-sqlite#ConnectionCallback (external)
+type ConnectionConfig: @mark1russell7/docker-sqlite#ConnectionConfig (external)
+DEFAULT_DB_PATH: dist/types.d.ts#DEFAULT_DB_PATH
+type Database: @mark1russell7/docker-sqlite#Database (external)
+type DbBackupInput: dist/types.d.ts#DbBackupInput
+type DbBackupOutput: dist/types.d.ts#DbBackupOutput
+type DbColumnInfo: dist/types.d.ts#DbColumnInfo
+type DbExecuteInput: dist/types.d.ts#DbExecuteInput
+type DbExecuteOutput: dist/types.d.ts#DbExecuteOutput
+type DbForeignKeyInfo: dist/types.d.ts#DbForeignKeyInfo
+type DbIndexInfo: dist/types.d.ts#DbIndexInfo
+type DbMigrateInput: dist/types.d.ts#DbMigrateInput
+type DbMigrateOutput: dist/types.d.ts#DbMigrateOutput
+type DbMigration: dist/types.d.ts#DbMigration
+type DbQueryInput: dist/types.d.ts#DbQueryInput
+type DbQueryOutput: dist/types.d.ts#DbQueryOutput
+type DbSchemaInput: dist/types.d.ts#DbSchemaInput
+type DbSchemaOutput: dist/types.d.ts#DbSchemaOutput
+type DbStatement: dist/types.d.ts#DbStatement
+type DbStatementResult: dist/types.d.ts#DbStatementResult
+type DbTableInfo: dist/types.d.ts#DbTableInfo
+type DbTablesInput: dist/types.d.ts#DbTablesInput
+type DbTablesOutput: dist/types.d.ts#DbTablesOutput
+type DbTransactionInput: dist/types.d.ts#DbTransactionInput
+type DbTransactionOutput: dist/types.d.ts#DbTransactionOutput
+type ExecuteResult: @mark1russell7/docker-sqlite#ExecuteResult (external)
+LOG_LEVELS: dist/types.d.ts#LOG_LEVELS
+type LogEntry: dist/types.d.ts#LogEntry
+type LogLevel: dist/types.d.ts#LogLevel
+type LogsQueryInput: dist/types.d.ts#LogsQueryInput
+type LogsQueryOutput: dist/types.d.ts#LogsQueryOutput
+type LogsStoreInput: dist/types.d.ts#LogsStoreInput
+type LogsStoreOutput: dist/types.d.ts#LogsStoreOutput
+MEMORY_PATH: dist/engines.d.ts#MEMORY_PATH
+type Migration: @mark1russell7/docker-sqlite#Migration (external)
+type MigrationStatus: @mark1russell7/docker-sqlite#MigrationStatus (external)
+type QueryResult: @mark1russell7/docker-sqlite#QueryResult (external)
+type SqliteEngine: dist/engines.d.ts#SqliteEngine
+type SqliteEngineName: dist/engines.d.ts#SqliteEngineName
+SqliteStorage: dist/storage.d.ts#SqliteStorage
+type SqliteStorageOptions: dist/storage.d.ts#SqliteStorageOptions
+checkTableName: dist/storage.d.ts#checkTableName
+createConnection: @mark1russell7/docker-sqlite#createConnection (external)
+createMigration: @mark1russell7/docker-sqlite#createMigration (external)
+dbBackup: dist/procedures/db/backup.d.ts#dbBackup
+dbMigrate: dist/procedures/db/migrate.d.ts#dbMigrate
+dbSchema: dist/procedures/db/schema.d.ts#dbSchema
+dbTables: dist/procedures/db/tables.d.ts#dbTables
+dbTransaction: dist/procedures/db/transaction.d.ts#dbTransaction
+execMultiple: @mark1russell7/docker-sqlite#execMultiple (external)
+execute: @mark1russell7/docker-sqlite#execute (external)
+getMigrationStatus: @mark1russell7/docker-sqlite#getMigrationStatus (external)
+isNodeSqliteAvailable: dist/engines.d.ts#isNodeSqliteAvailable
+lastInsertRowId: @mark1russell7/docker-sqlite#lastInsertRowId (external)
+query: @mark1russell7/docker-sqlite#query (external)
+registerSqliteProcedures: dist/module.d.ts#registerSqliteProcedures
+rollbackMigration: @mark1russell7/docker-sqlite#rollbackMigration (external)
+runMigrations: @mark1russell7/docker-sqlite#runMigrations (external)
+tableExists: @mark1russell7/docker-sqlite#tableExists (external)
+withConnection: @mark1russell7/docker-sqlite#withConnection (external)
+
+## ./module (dist/module.d.ts): 3 names
+
+default: dist/module.d.ts#sqliteModule
+registerSqliteProcedures: dist/module.d.ts#registerSqliteProcedures
+sqliteModule: dist/module.d.ts#sqliteModule
+
+## ./register (dist/register.d.ts): 2 names
+
+registerSqliteProcedures: dist/module.d.ts#registerSqliteProcedures
+sqliteModule: dist/module.d.ts#sqliteModule
+
+## ./storage (dist/storage.d.ts): 7 names
+
+MEMORY_PATH: dist/engines.d.ts#MEMORY_PATH
+type SqliteEngine: dist/engines.d.ts#SqliteEngine
+type SqliteEngineName: dist/engines.d.ts#SqliteEngineName
+SqliteStorage: dist/storage.d.ts#SqliteStorage
+SqliteStorageOptions: dist/storage.d.ts#SqliteStorageOptions
+checkTableName: dist/storage.d.ts#checkTableName
+isNodeSqliteAvailable: dist/engines.d.ts#isNodeSqliteAvailable
+
+## Declarations
+
+### dist/engines.d.ts#MEMORY_PATH
+export declare const MEMORY_PATH = ":memory:";
+
+### dist/engines.d.ts#SqliteEngine
+export type SqliteEngine = "auto" | SqliteEngineName;
+
+### dist/engines.d.ts#SqliteEngineName
+export type SqliteEngineName = "node" | "sqljs";
+
+### dist/engines.d.ts#isNodeSqliteAvailable
+export declare function isNodeSqliteAvailable(): Promise<boolean>;
+
+### dist/module.d.ts#registerSqliteProcedures
+export declare const registerSqliteProcedures: PackageDefinition["register"];
+
+### dist/module.d.ts#sqliteModule
+export declare const sqliteModule: ProcedureModule;
+
+### dist/procedures/db/backup.d.ts#dbBackup
+export declare function dbBackup(input: DbBackupInput): Promise<DbBackupOutput>;
+
+### dist/procedures/db/migrate.d.ts#dbMigrate
+export declare function dbMigrate(input: DbMigrateInput): Promise<DbMigrateOutput>;
+
+### dist/procedures/db/schema.d.ts#dbSchema
+export declare function dbSchema(input: DbSchemaInput): Promise<DbSchemaOutput>;
+
+### dist/procedures/db/tables.d.ts#dbTables
+export declare function dbTables(input: DbTablesInput): Promise<DbTablesOutput>;
+
+### dist/procedures/db/transaction.d.ts#dbTransaction
+export declare function dbTransaction(input: DbTransactionInput): Promise<DbTransactionOutput>;
+
+### dist/storage.d.ts#SqliteStorage
+export declare class SqliteStorage<T> implements CollectionStorage<T> {
+    readonly path: string;
+    readonly table: string;
+    readonly engine: SqliteEngine;
+    constructor(options: SqliteStorageOptions<T>);
+    get(id: string): Promise<T | undefined>;
+    getAll(): Promise<T[]>;
+    getEntries(): Promise<Array<[string, T]>>;
+    getIds(): Promise<string[]>;
+    getChangesSince(since?: string): Promise<StorageChanges<T>>;
+    find(predicate: (item: T) => boolean): Promise<T[]>;
+    query(selector: StorageSelector, options?: StorageQueryOptions, policy?: StorageQueryPolicy): Promise<Array<[string, T]>>;
+    has(id: string): Promise<boolean>;
+    size(): Promise<number>;
+    set(id: string, value: T, options?: StorageItemWriteOptions): Promise<void>;
+    patch(id: string, fields: StoragePatch): Promise<T | undefined>;
+    delete(id: string, options?: StorageItemWriteOptions): Promise<boolean>;
+    clear(): Promise<void>;
+    setBatch(items: Array<[string, T]>, options?: StorageBatchWriteOptions): Promise<void>;
+    deleteBatch(ids: string[]): Promise<number>;
+    getBatch(ids: string[]): Promise<Map<string, T>>;
+    getEngine(): Promise<SqliteEngineName>;
+    flush(): Promise<void>;
+    close(): Promise<void>;
+    getMetadata(): Promise<StorageMetadata>;
+}
+
+### dist/storage.d.ts#SqliteStorageOptions
+export interface SqliteStorageOptions<T = unknown> {
+    path: string;
+    table: string;
+    maxTombstones?: number;
+    engine?: SqliteEngine;
+    busyTimeout?: Duration;
+    queryPolicy?: StorageQueryPolicy | undefined;
+    versionOf?: ((item: T) => string | undefined) | undefined;
+}
+
+### dist/storage.d.ts#checkTableName
+export declare function checkTableName(name: unknown): string;
+
+### dist/types.d.ts#DEFAULT_DB_PATH
+export declare const DEFAULT_DB_PATH: string;
+
+### dist/types.d.ts#DbBackupInput
+export interface DbBackupInput {
+    to: string;
+    vacuum?: boolean | undefined;
+    dbPath?: string | undefined;
+}
+
+### dist/types.d.ts#DbBackupOutput
+export interface DbBackupOutput {
+    path: string;
+    bytes: number;
+}
+
+### dist/types.d.ts#DbColumnInfo
+export interface DbColumnInfo {
+    name: string;
+    type: string;
+    notNull: boolean;
+    defaultValue: string | null;
+    primaryKey: number;
+}
+
+### dist/types.d.ts#DbExecuteInput
+export interface DbExecuteInput {
+    sql: string;
+    params?: unknown[] | undefined;
+    dbPath?: string | undefined;
+}
+
+### dist/types.d.ts#DbExecuteOutput
+export interface DbExecuteOutput {
+    changes: number;
+}
+
+### dist/types.d.ts#DbForeignKeyInfo
+export interface DbForeignKeyInfo {
+    from: string;
+    table: string;
+    to: string | null;
+    onUpdate: string;
+    onDelete: string;
+}
+
+### dist/types.d.ts#DbIndexInfo
+export interface DbIndexInfo {
+    name: string;
+    unique: boolean;
+    origin: string;
+    partial: boolean;
+    columns: string[];
+}
+
+### dist/types.d.ts#DbMigrateInput
+export interface DbMigrateInput {
+    folder?: string | undefined;
+    migrations?: DbMigration[] | undefined;
+    table?: string | undefined;
+    dbPath?: string | undefined;
+}
+
+### dist/types.d.ts#DbMigrateOutput
+export interface DbMigrateOutput {
+    applied: Array<{
+        version: number;
+        name: string;
+    }>;
+    skipped: number;
+    version: number;
+}
+
+### dist/types.d.ts#DbMigration
+export interface DbMigration {
+    version: number;
+    name?: string | undefined;
+    sql: string;
+}
+
+### dist/types.d.ts#DbQueryInput
+export interface DbQueryInput {
+    sql: string;
+    params?: unknown[] | undefined;
+    dbPath?: string | undefined;
+}
+
+### dist/types.d.ts#DbQueryOutput
+export interface DbQueryOutput<T = Record<string, unknown>> {
+    columns: string[];
+    rows: T[];
+}
+
+### dist/types.d.ts#DbSchemaInput
+export interface DbSchemaInput {
+    table: string;
+    dbPath?: string | undefined;
+}
+
+### dist/types.d.ts#DbSchemaOutput
+export interface DbSchemaOutput {
+    table: string;
+    type: "table" | "view";
+    sql: string | null;
+    columns: DbColumnInfo[];
+    indexes: DbIndexInfo[];
+    foreignKeys: DbForeignKeyInfo[];
+}
+
+### dist/types.d.ts#DbStatement
+export interface DbStatement {
+    sql: string;
+    params?: unknown[] | undefined;
+}
+
+### dist/types.d.ts#DbStatementResult
+export interface DbStatementResult {
+    changes: number;
+    rows?: Record<string, unknown>[] | undefined;
+}
+
+### dist/types.d.ts#DbTableInfo
+export interface DbTableInfo {
+    name: string;
+    type: "table" | "view";
+    sql: string | null;
+}
+
+### dist/types.d.ts#DbTablesInput
+export interface DbTablesInput {
+    views?: boolean | undefined;
+    dbPath?: string | undefined;
+}
+
+### dist/types.d.ts#DbTablesOutput
+export interface DbTablesOutput {
+    tables: DbTableInfo[];
+}
+
+### dist/types.d.ts#DbTransactionInput
+export interface DbTransactionInput {
+    statements: DbStatement[];
+    dbPath?: string | undefined;
+}
+
+### dist/types.d.ts#DbTransactionOutput
+export interface DbTransactionOutput {
+    results: DbStatementResult[];
+    changes: number;
+}
+
+### dist/types.d.ts#LOG_LEVELS
+export declare const LOG_LEVELS: readonly LogLevel[];
+
+### dist/types.d.ts#LogEntry
+export interface LogEntry {
+    id: number;
+    timestamp: string;
+    level: LogLevel;
+    message: string;
+    data: Record<string, unknown> | null;
+    sessionId: string | null;
+    command: string | null;
+    context: string | null;
+    errorStack: string | null;
+}
+
+### dist/types.d.ts#LogLevel
+export type LogLevel = "trace" | "debug" | "info" | "warn" | "error";
+
+### dist/types.d.ts#LogsQueryInput
+export interface LogsQueryInput {
+    sessionId?: string | undefined;
+    command?: string | undefined;
+    level?: LogLevel | LogLevel[] | undefined;
+    limit?: number | undefined;
+    offset?: number | undefined;
+    orderBy?: "asc" | "desc" | undefined;
+    dbPath?: string | undefined;
+}
+
+### dist/types.d.ts#LogsQueryOutput
+export interface LogsQueryOutput {
+    logs: LogEntry[];
+    total?: number | undefined;
+}
+
+### dist/types.d.ts#LogsStoreInput
+export interface LogsStoreInput {
+    level: LogLevel;
+    message: string;
+    sessionId?: string | undefined;
+    command?: string | undefined;
+    context?: string | undefined;
+    data?: Record<string, unknown> | undefined;
+    errorStack?: string | undefined;
+    dbPath?: string | undefined;
+}
+
+### dist/types.d.ts#LogsStoreOutput
+export interface LogsStoreOutput {
+    id: number;
+}

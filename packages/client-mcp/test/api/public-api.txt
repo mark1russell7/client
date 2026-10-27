@@ -1,0 +1,545 @@
+# The public API of @procedures/mcp-server
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 75 names
+
+type BundleSurfaceModule: dist/surface.d.ts#BundleSurfaceModule
+DEFAULT_ELICIT_TIMEOUT_MS: dist/transport/mcp-transport.d.ts#DEFAULT_ELICIT_TIMEOUT_MS
+DEFAULT_SERVE_BUNDLE: dist/procedures/mcp/serve.d.ts#DEFAULT_SERVE_BUNDLE
+DEFAULT_UNTRUSTED_TAG: dist/untrusted.d.ts#DEFAULT_UNTRUSTED_TAG
+type HttpTransportOptions: dist/types.d.ts#HttpTransportOptions
+MCP_HTTP_LIMITS: dist/transport/guard.d.ts#MCP_HTTP_LIMITS
+MCP_TASK_LIMITS: dist/tasks.d.ts#MCP_TASK_LIMITS
+type McpFace: dist/face.d.ts#McpFace
+type McpFaceContext: dist/face.d.ts#McpFaceContext
+type McpFaceOptions: dist/face.d.ts#McpFaceOptions
+type McpGuardResult: dist/transport/guard.d.ts#McpGuardResult
+type McpHost: dist/host.d.ts#McpHost
+type McpHostFaces: dist/host.d.ts#McpHostFaces
+type McpHostOptions: dist/host.d.ts#McpHostOptions
+type McpHostParts: dist/host.d.ts#McpHostParts
+type McpHostServerOptions: dist/host.d.ts#McpHostServerOptions
+type McpHostState: dist/host.d.ts#McpHostState
+type McpRequestGuardOptions: dist/transport/guard.d.ts#McpRequestGuardOptions
+type McpRunnerDependency: dist/host.d.ts#McpRunnerDependency
+type McpRunnerPart: dist/host.d.ts#McpRunnerPart
+type McpServerInfo: @procedures/mcp#McpServerInfo (external)
+McpServerTransport: dist/transport/mcp-transport.d.ts#McpServerTransport
+type McpServerTransportOptions: dist/types.d.ts#McpServerTransportOptions
+type McpServerTransportState: dist/types.d.ts#McpServerTransportState
+type McpServiceBuilder: dist/host.d.ts#McpServiceBuilder
+type McpStdioFace: dist/host.d.ts#McpStdioFace
+type McpTaskCaller: dist/tasks.d.ts#McpTaskCaller
+type McpTaskInfo: dist/tasks.d.ts#McpTaskInfo
+type McpTaskShareContext: dist/tasks.d.ts#McpTaskShareContext
+McpTaskStore: dist/tasks.d.ts#McpTaskStore
+type McpTaskStoreOptions: dist/tasks.d.ts#McpTaskStoreOptions
+type McpTaskSupport: @procedures/mcp#McpTaskSupport (external)
+type McpTasksOptions: dist/tasks.d.ts#McpTasksOptions
+type McpTextBlock: dist/types.d.ts#McpTextBlock
+type McpTool: @procedures/mcp#McpTool (external)
+type McpToolContent: dist/types.d.ts#McpToolContent
+type McpToolContentHook: dist/types.d.ts#McpToolContentHook
+type McpToolContentInput: dist/types.d.ts#McpToolContentInput
+type McpToolDefinition: @procedures/mcp#McpToolDefinition (external)
+type McpToolExecution: @procedures/mcp#McpToolExecution (external)
+type McpToolFilter: @procedures/mcp#McpToolFilter (external)
+type McpTransportType: @procedures/mcp#McpTransportType (external)
+type ServeOptions: dist/procedures/mcp/serve.d.ts#ServeOptions
+type ServeSetup: dist/procedures/mcp/serve.d.ts#ServeSetup
+type SseTransportOptions: dist/types.d.ts#SseTransportOptions
+type StdioTransportOptions: dist/types.d.ts#StdioTransportOptions
+type ToolSurface: @procedures/client#ToolSurface (external)
+type UntrustedContentOptions: dist/untrusted.d.ts#UntrustedContentOptions
+type UntrustedEnvelopes: dist/untrusted.d.ts#UntrustedEnvelopes
+type UntrustedWrapContext: dist/untrusted.d.ts#UntrustedWrapContext
+assertLoopbackBind: dist/transport/guard.d.ts#assertLoopbackBind
+createMcpHost: dist/host.d.ts#createMcpHost
+createSseTransport: dist/transport/sse.d.ts#createSseTransport
+createStdioTransport: dist/transport/stdio.d.ts#createStdioTransport
+createUntrustedEnvelopes: dist/untrusted.d.ts#createUntrustedEnvelopes
+decodePath: @procedures/mcp#decodePath (external)
+defaultUntrustedNotice: dist/untrusted.d.ts#defaultUntrustedNotice
+encodePath: @procedures/mcp#encodePath (external)
+exposeRule: dist/surface.d.ts#exposeRule
+guardMcpRequest: dist/transport/guard.d.ts#guardMcpRequest
+importBundles: dist/surface.d.ts#importBundles
+mcpExposeRule: dist/host.d.ts#mcpExposeRule
+mcpFace: dist/face.d.ts#mcpFace
+mcpListToolsProcedure: dist/procedures/mcp/list-tools.d.ts#mcpListToolsProcedure
+mcpModule: dist/module.d.ts#mcpModule
+mcpServeProcedure: dist/procedures/mcp/serve.d.ts#mcpServeProcedure
+mcpTaskShareKey: dist/tasks.d.ts#mcpTaskShareKey
+mergeSurfaces: dist/surface.d.ts#mergeSurfaces
+prepareServe: dist/procedures/mcp/serve.d.ts#prepareServe
+procedureToMcpTool: @procedures/mcp#procedureToMcpTool (external)
+proceduresToMcpTools: @procedures/mcp#proceduresToMcpTools (external)
+redirectConsoleToStderr: dist/host.d.ts#redirectConsoleToStderr
+registerMcpProcedures: dist/module.d.ts#registerMcpProcedures
+resolveBundleRegister: dist/surface.d.ts#resolveBundleRegister
+taskSupportOf: @procedures/mcp#taskSupportOf (external)
+
+## ./module (dist/module.d.ts): 3 names
+
+default: dist/module.d.ts#mcpModule
+mcpModule: dist/module.d.ts#mcpModule
+registerMcpProcedures: dist/module.d.ts#registerMcpProcedures
+
+## ./register (dist/register.d.ts): 2 names
+
+mcpModule: dist/module.d.ts#mcpModule
+registerMcpProcedures: dist/module.d.ts#registerMcpProcedures
+
+## Declarations
+
+### dist/face.d.ts#McpFace
+export interface McpFace {
+    readonly handler: (req: IncomingMessage, res: ServerResponse) => boolean;
+    readonly parts: {
+        start(): Promise<void>;
+        stopIntake(): void;
+        drain(): Promise<void>;
+        inFlight(): number;
+        close(): Promise<void>;
+    };
+    readonly endpoint: {
+        readonly type: string;
+        readonly scheme: "http";
+        readonly path: string;
+    };
+    readonly transport: McpServerTransport;
+}
+
+### dist/face.d.ts#McpFaceContext
+export interface McpFaceContext {
+    readonly handler: RequestHandler;
+    readonly registry: ProcedureRegistry;
+    readonly policy: HostPolicy;
+}
+
+### dist/face.d.ts#McpFaceOptions
+export interface McpFaceOptions extends Omit<McpServerTransportOptions, "transport" | "httpOptions" | "sdkTransport" | "stdio" | "sseOptions" | "registry"> {
+    readonly path?: string | undefined;
+    readonly token?: string | undefined;
+    readonly allowedOrigins?: BrowserGuardOptions["allowedOrigins"];
+    readonly allowedHosts?: readonly string[] | "*" | undefined;
+    readonly maxSessions?: number | undefined;
+    readonly maxBodyBytes?: number | undefined;
+    readonly narrowing?: CapabilityRequest<unknown> | readonly CapabilityRequest<unknown>[] | undefined;
+}
+
+### dist/face.d.ts#mcpFace
+export declare function mcpFace(options?: McpFaceOptions): (context: McpFaceContext) => McpFace;
+
+### dist/host.d.ts#McpHost
+export interface McpHost {
+    readonly registry: ProcedureRegistry;
+    readonly policy: HostPolicy;
+    readonly server: ProcedureServer;
+    readonly expose: ((path: ProcedurePath) => boolean) | undefined;
+    readonly transports: readonly McpServerTransport[];
+    readonly tasks: McpTaskStore | undefined;
+    readonly closed: Promise<void>;
+    start(): Promise<void>;
+    stop(options?: {
+        grace?: Duration | undefined;
+    }): Promise<void>;
+    declare<S extends McpServiceBuilder>(svc: S): S;
+    handleHttp(req: IncomingMessage, res: ServerResponse): boolean;
+    tools(): McpTool[];
+    state(): McpHostState;
+}
+
+### dist/host.d.ts#McpHostFaces
+export interface McpHostFaces {
+    stdio?: boolean | McpStdioFace | undefined;
+    http?: HttpTransportOptions | undefined;
+    sdk?: SdkTransport | readonly SdkTransport[] | undefined;
+}
+
+### dist/host.d.ts#McpHostOptions
+export interface McpHostOptions {
+    registry?: ProcedureRegistry | undefined;
+    modules?: readonly ProcedureModule[] | undefined;
+    surface?: HostPolicyOptions["expose"];
+    exclude?: readonly string[] | undefined;
+    readOnly?: boolean | undefined;
+    policy?: Omit<HostPolicyOptions, "expose" | "exclude" | "readOnly"> | undefined;
+    interceptors?: readonly Interceptor[] | ((parts: McpHostParts) => readonly Interceptor[]) | undefined;
+    serverOptions?: McpHostServerOptions | undefined;
+    name?: string | undefined;
+    version?: string | undefined;
+    instructions?: string | undefined;
+    faces?: McpHostFaces | undefined;
+    elicitation?: ElicitationPolicy | undefined;
+    untrusted?: UntrustedContentOptions | undefined;
+    content?: McpToolContentHook | undefined;
+    json?: "pretty" | "compact" | undefined;
+    toolFilter?: Omit<McpToolFilter, "include"> | undefined;
+    toolName?: ((path: readonly string[]) => string) | undefined;
+    streamLimits?: {
+        items?: number;
+        time?: Duration;
+    } | undefined;
+    debug?: boolean | undefined;
+    tasks?: McpTasksOptions | undefined;
+}
+
+### dist/host.d.ts#McpHostParts
+export interface McpHostParts {
+    readonly registry: ProcedureRegistry;
+    readonly expose: ((path: ProcedurePath) => boolean) | undefined;
+}
+
+### dist/host.d.ts#McpHostServerOptions
+export type McpHostServerOptions = Omit<ProcedureServerOptions, "registry" | "expose" | "strictCalls" | "interceptors" | "capability" | "clearanceOrder" | "resources" | "admitItem" | "token" | "principalOf" | "events">;
+
+### dist/host.d.ts#McpHostState
+export interface McpHostState {
+    readonly running: boolean;
+    readonly faces: readonly McpServerTransportState[];
+}
+
+### dist/host.d.ts#McpRunnerDependency
+export type McpRunnerDependency = ReturnType<ProcedureServer["storageHandles"]>[number];
+
+### dist/host.d.ts#McpRunnerPart
+export interface McpRunnerPart {
+    start(signal: AbortSignal, life: unknown): Promise<void> | void;
+    stopIntake(): Promise<void> | void;
+    drain(deadline: number, signal: AbortSignal): Promise<void> | void;
+    inFlight(): number;
+    close(): Promise<void> | void;
+}
+
+### dist/host.d.ts#McpServiceBuilder
+export interface McpServiceBuilder {
+    server(name: string, knobs: Readonly<Record<string, never>>, impl: McpRunnerPart): unknown;
+    dependency(name: string, spec: {
+        system: null;
+        knobs: Readonly<Record<string, never>>;
+        operations: Readonly<Record<string, {
+            idempotent: boolean;
+        }>>;
+    }, handle: McpRunnerDependency): unknown;
+    trigger(trigger: "stdin-close"): unknown;
+}
+
+### dist/host.d.ts#McpStdioFace
+export interface McpStdioFace extends Omit<StdioTransportOptions, "onEnd"> {
+    stopOnEnd?: boolean | undefined;
+    redirectConsole?: boolean | undefined;
+}
+
+### dist/host.d.ts#createMcpHost
+export declare function createMcpHost(options?: McpHostOptions): McpHost;
+
+### dist/host.d.ts#mcpExposeRule
+export declare function mcpExposeRule(registry: ProcedureRegistry, options: Pick<McpHostOptions, "surface" | "exclude" | "readOnly">): ((path: ProcedurePath) => boolean) | undefined;
+
+### dist/host.d.ts#redirectConsoleToStderr
+export declare function redirectConsoleToStderr(): void;
+
+### dist/module.d.ts#mcpModule
+export declare const mcpModule: ProcedureModule;
+
+### dist/module.d.ts#registerMcpProcedures
+export declare const registerMcpProcedures: PackageDefinition["register"];
+
+### dist/procedures/mcp/list-tools.d.ts#mcpListToolsProcedure
+export declare const mcpListToolsProcedure: AnyProcedure;
+
+### dist/procedures/mcp/serve.d.ts#DEFAULT_SERVE_BUNDLE
+export declare const DEFAULT_SERVE_BUNDLE = "@procedures/bundle-mcp";
+
+### dist/procedures/mcp/serve.d.ts#ServeOptions
+export interface ServeOptions {
+    autoRegister?: boolean | undefined;
+    namespaces?: readonly string[] | undefined;
+    exclude?: readonly string[] | undefined;
+    bundles?: readonly string[] | undefined;
+    strictCalls?: boolean | undefined;
+    toolTimeoutMs?: number | undefined;
+    readOnly?: boolean | undefined;
+    name?: string | undefined;
+    version?: string | undefined;
+    instructions?: string | undefined;
+    debug?: boolean | undefined;
+    faces?: McpHostFaces | undefined;
+}
+
+### dist/procedures/mcp/serve.d.ts#ServeSetup
+export interface ServeSetup {
+    server: ProcedureServer;
+    expose: (path: ProcedurePath) => boolean;
+    host: McpHost;
+    warning?: string;
+}
+
+### dist/procedures/mcp/serve.d.ts#mcpServeProcedure
+export declare const mcpServeProcedure: AnyProcedure;
+
+### dist/procedures/mcp/serve.d.ts#prepareServe
+export declare function prepareServe(input: ServeOptions, from?: string, registry?: ProcedureRegistry): Promise<ServeSetup>;
+
+### dist/surface.d.ts#BundleSurfaceModule
+export interface BundleSurfaceModule {
+    mcpNamespaces?: readonly string[];
+    mcpExclude?: readonly string[];
+}
+
+### dist/surface.d.ts#exposeRule
+export declare function exposeRule(surface: ToolSurface): (path: ProcedurePath) => boolean;
+
+### dist/surface.d.ts#importBundles
+export declare function importBundles(bundles: readonly string[], from?: string): Promise<BundleSurfaceModule[]>;
+
+### dist/surface.d.ts#mergeSurfaces
+export declare function mergeSurfaces(modules: readonly BundleSurfaceModule[]): ToolSurface | undefined;
+
+### dist/surface.d.ts#resolveBundleRegister
+export declare function resolveBundleRegister(bundle: string, from: string): string;
+
+### dist/tasks.d.ts#MCP_TASK_LIMITS
+export declare const MCP_TASK_LIMITS: {
+    readonly ttlMs: 3600000;
+    readonly maxTtlMs: 86400000;
+    readonly minTtlMs: 1000;
+    readonly pollMs: 1000;
+    readonly maxRunning: 8;
+    readonly pageSize: 10;
+    readonly refusedTtlMs: 60000;
+    readonly maxStoredPerSession: 100;
+    readonly maxStored: 1000;
+    readonly reserveDivisor: 10;
+};
+
+### dist/tasks.d.ts#McpTaskCaller
+export interface McpTaskCaller {
+    readonly principal?: Principal | undefined;
+}
+
+### dist/tasks.d.ts#McpTaskInfo
+export interface McpTaskInfo {
+    readonly id: string;
+    readonly tool: string;
+    readonly status: string;
+    readonly message: string | null;
+    readonly createdAt: string;
+    readonly updatedAt: string;
+}
+
+### dist/tasks.d.ts#McpTaskShareContext
+export interface McpTaskShareContext {
+    readonly sessionId: string | undefined;
+    readonly principal: Principal | undefined;
+    readonly request: Request;
+}
+
+### dist/tasks.d.ts#McpTaskStore
+export declare class McpTaskStore implements TaskStore {
+    constructor(options?: McpTaskStoreOptions);
+    createTask(params: CreateTaskOptions, _requestId: RequestId, request: Request, sessionId?: string, caller?: McpTaskCaller): Promise<Task>;
+    getTask(taskId: string, sessionId?: string): Promise<Task | null>;
+    storeTaskResult(taskId: string, status: "completed" | "failed", result: Result, sessionId?: string): Promise<void>;
+    getTaskResult(taskId: string, sessionId?: string): Promise<Result>;
+    updateTaskStatus(taskId: string, status: Task["status"], statusMessage?: string, sessionId?: string): Promise<void>;
+    listTasks(cursor?: string, sessionId?: string): Promise<{
+        tasks: Task[];
+        nextCursor?: string;
+    }>;
+    settle(taskId: string): void;
+    signal(taskId: string): AbortSignal;
+    refusal(taskId: string): string | undefined;
+    running(): McpTaskInfo[];
+    busySessions(): Set<string>;
+    cancelSession(sessionId: string, message?: string): Promise<void>;
+    close(): Promise<void>;
+}
+
+### dist/tasks.d.ts#McpTaskStoreOptions
+export interface McpTaskStoreOptions {
+    readonly maxRunning?: number | undefined;
+    readonly maxStored?: number | undefined;
+    readonly reserve?: number | undefined;
+    readonly shareKey?: ((context: McpTaskShareContext) => string) | undefined;
+    readonly ttl?: Duration | undefined;
+    readonly clock?: Clock | undefined;
+    readonly onChange?: (() => void) | undefined;
+}
+
+### dist/tasks.d.ts#McpTasksOptions
+export interface McpTasksOptions extends McpTaskStoreOptions {
+    readonly store?: McpTaskStore | undefined;
+}
+
+### dist/tasks.d.ts#mcpTaskShareKey
+export declare function mcpTaskShareKey(context: McpTaskShareContext): string;
+
+### dist/transport/guard.d.ts#MCP_HTTP_LIMITS
+export declare const MCP_HTTP_LIMITS: {
+    readonly maxBodyBytes: 4_194_304;
+    readonly maxSessions: 256;
+    readonly retryAfterSeconds: 5;
+};
+
+### dist/transport/guard.d.ts#McpGuardResult
+export type McpGuardResult = {
+    readonly ok: true;
+} | {
+    readonly ok: false;
+    readonly status: 401 | 403 | 405 | 415 | 500;
+    readonly code: string;
+    readonly reason?: string | undefined;
+    readonly message: string;
+    readonly headers?: Readonly<Record<string, string>> | undefined;
+};
+
+### dist/transport/guard.d.ts#McpRequestGuardOptions
+export interface McpRequestGuardOptions {
+    readonly allowedOrigins?: BrowserGuardOptions["allowedOrigins"];
+    readonly allowedHosts?: BrowserGuardOptions["allowedHosts"];
+    readonly ambient?: boolean | undefined;
+}
+
+### dist/transport/guard.d.ts#assertLoopbackBind
+export declare function assertLoopbackBind(host: string, allowRemote?: boolean): void;
+
+### dist/transport/guard.d.ts#guardMcpRequest
+export declare function guardMcpRequest(req: Pick<IncomingMessage, "method" | "headers" | "socket">, options?: McpRequestGuardOptions): McpGuardResult;
+
+### dist/transport/mcp-transport.d.ts#DEFAULT_ELICIT_TIMEOUT_MS
+export declare const DEFAULT_ELICIT_TIMEOUT_MS = 300000;
+
+### dist/transport/mcp-transport.d.ts#McpServerTransport
+export declare class McpServerTransport implements ServerTransport {
+    readonly name = "mcp";
+    constructor(server: RequestHandler, options?: McpServerTransportOptions);
+    start(): Promise<void>;
+    stop(): Promise<void>;
+    handleHttp(req: IncomingMessage, res: ServerResponse): boolean;
+    isRunning(): boolean;
+    getState(): McpServerTransportState;
+    getTaskStore(): McpTaskStore | undefined;
+    getTools(): McpTool[];
+}
+
+### dist/transport/sse.d.ts#createSseTransport
+export declare function createSseTransport(_options?: SseTransportOptions): never;
+
+### dist/transport/stdio.d.ts#createStdioTransport
+export declare function createStdioTransport(stdin?: Readable, stdout?: Writable): StdioServerTransport;
+
+### dist/types.d.ts#HttpTransportOptions
+export interface HttpTransportOptions {
+    path?: string | undefined;
+    token?: string | undefined;
+    allowedOrigins?: BrowserGuardOptions["allowedOrigins"];
+    allowedHosts?: readonly string[] | "*" | undefined;
+    mount?: boolean | undefined;
+    ambientCredentials?: import("@procedures/client").AmbientCredentials | undefined;
+    maxSessions?: number | undefined;
+    maxBodyBytes?: number | undefined;
+}
+
+### dist/types.d.ts#McpServerTransportOptions
+export interface McpServerTransportOptions {
+    transport?: "stdio" | "sse" | "http";
+    httpOptions?: HttpTransportOptions | undefined;
+    registry?: ProcedureRegistry;
+    serverInfo?: McpServerInfo;
+    instructions?: string | undefined;
+    stdio?: StdioTransportOptions | undefined;
+    elicitation?: ElicitationPolicy | undefined;
+    untrusted?: UntrustedContentOptions | undefined;
+    content?: McpToolContentHook | undefined;
+    json?: "pretty" | "compact" | undefined;
+    toolFilter?: McpToolFilter;
+    toolName?: ((path: readonly string[]) => string) | undefined;
+    sseOptions?: SseTransportOptions;
+    sdkTransport?: SdkTransport;
+    debug?: boolean;
+    streamLimits?: {
+        items?: number;
+        time?: Duration;
+    } | undefined;
+    tasks?: McpTasksOptions | undefined;
+}
+
+### dist/types.d.ts#McpServerTransportState
+export interface McpServerTransportState {
+    running: boolean;
+    toolCount: number;
+    transport: "stdio" | "sse" | "http";
+    url?: string;
+    sessions?: number;
+}
+
+### dist/types.d.ts#McpTextBlock
+export interface McpTextBlock {
+    type: "text";
+    text: string;
+}
+
+### dist/types.d.ts#McpToolContent
+export interface McpToolContent {
+    content: McpTextBlock[];
+    structuredContent?: Record<string, unknown> | undefined;
+}
+
+### dist/types.d.ts#McpToolContentHook
+export type McpToolContentHook = (result: McpToolContentInput) => McpToolContent | undefined;
+
+### dist/types.d.ts#McpToolContentInput
+export interface McpToolContentInput extends McpToolContent {
+    readonly tool: McpTool;
+    readonly value: unknown;
+}
+
+### dist/types.d.ts#SseTransportOptions
+export interface SseTransportOptions {
+    port?: number;
+    host?: string;
+    path?: string;
+    cors?: boolean;
+}
+
+### dist/types.d.ts#StdioTransportOptions
+export interface StdioTransportOptions {
+    stdin?: Readable | undefined;
+    stdout?: Writable | undefined;
+    onEnd?: (() => void) | undefined;
+}
+
+### dist/untrusted.d.ts#DEFAULT_UNTRUSTED_TAG
+export declare const DEFAULT_UNTRUSTED_TAG = "untrusted-content";
+
+### dist/untrusted.d.ts#UntrustedContentOptions
+export interface UntrustedContentOptions {
+    tag?: string | undefined;
+    notice?: string | ((tag: string, id: string) => string) | undefined;
+    wrap?: ((texts: readonly UntrustedText[], context: UntrustedWrapContext) => string) | undefined;
+}
+
+### dist/untrusted.d.ts#UntrustedEnvelopes
+export interface UntrustedEnvelopes {
+    readonly id: string;
+    readonly tag: string;
+    envelope(text: UntrustedText): string;
+    text(texts: readonly UntrustedText[]): string;
+}
+
+### dist/untrusted.d.ts#UntrustedWrapContext
+export interface UntrustedWrapContext {
+    readonly tool: string;
+    readonly field: string;
+}
+
+### dist/untrusted.d.ts#createUntrustedEnvelopes
+export declare function createUntrustedEnvelopes(options?: UntrustedContentOptions, id?: string): UntrustedEnvelopes;
+
+### dist/untrusted.d.ts#defaultUntrustedNotice
+export declare function defaultUntrustedNotice(tag: string, id: string): string;

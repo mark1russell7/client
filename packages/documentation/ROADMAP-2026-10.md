@@ -272,6 +272,10 @@ The client middleware and the server interceptors make two traces today. The cli
 
 **Result.** The transports take a `RequestHandler`. A request has `credentials` and `principal`, and a request without credentials comes from the process itself. The suite found one more difference: a local call waited for its handler after an abort. `LocalTransport` answers `ABORTED` at once, as the network faces do.
 
+**Later (CLI-85).** The suite is one function, `describeTransportContract()` of the entry point `@procedures/client/testing`. The faces of `client`, `client-mcp` and `client-server` use it, so the copies of the cases are gone. A face that does not have a feature declares a capability flag.
+
+The suite found three faces without the code `PAYLOAD_TOO_LARGE` for a request above the limit: the HTTP handler, the WebSocket client and an MCP session. Each of the three gives the code after this change. An admission contract test reads the procedures of a collection from the registry, and it fails when a read or an event skips `admission.admit`.
+
 ### R19. Health and metrics as procedures
 
 `host.health`, `host.info` and `host.metrics` give what the peer gives today only as an Express route, and the snapshot of `metricsInterceptor`.
@@ -421,6 +425,8 @@ Open points:
 - The WebSocket of Node 22 gives no close event after a failed handshake, so each reconnect waited for the handshake limit.
 - `createErrorFromException` gave ABORTED for `AbortSignal.timeout()` and PARSE_ERROR for a circular structure.
 - `isAvailabilityFailure` did not count `CONNECTION_CLOSED`.
+
+**Later (CLI-86).** Each public package has a report of its public API in `test/api/public-api.txt`. The script `scripts/api-report.mjs` writes the reports from the built `.d.ts` files, and CI fails when a report differs. The script is plain JavaScript and uses no test runner. It replaces the Vitest snapshot test of `@procedures/client`.
 
 ### R31. Coverage
 

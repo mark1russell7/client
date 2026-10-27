@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/store",
-  "version": "0.38.0",
+  "version": "0.39.0",
   "description": "A program store for procedure-as-data: save the programs that procedure.define makes, load them back after a restart, in memory, a JSON file, IndexedDB or a remote collection storage.",
   "keywords": [
     "program-store",

@@ -20,7 +20,7 @@ jobs:
   # The check names are "CI / checks (ubuntu-latest, node <version>)".
   ci:
     name: CI
-    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@f91ce0164de724a6fe81c8f9868f92892dfd9a98 # main
+    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@cd676aaf0842375253fb8ab4c0049871dffb6938 # main
     with:
       # Build first: each package builds dist/ with `tsc -b`, and dependents read the types from
       # dist/. lint:ste examines the writing rules (ASD-STE100) of the README files and the doc comments.
@@ -58,7 +58,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: mark1russell7/template/.github/actions/changeset-check@ecdba7fc3752946f01a8bba4d772d773341ff0e6 # main
+      - uses: mark1russell7/template/.github/actions/changeset-check@cd676aaf0842375253fb8ab4c0049871dffb6938 # main
 
   # The checks of this repository, once, on Node 26. They need the build, but not each Node version.
   checks:
@@ -91,6 +91,32 @@ jobs:
           path: |
             packages/documentation/PROCEDURES.md
             packages/documentation/PACKAGES.md
+          retention-days: 7
+      # Each public package has a report of its public API in test/api/public-api.txt (roadmap R30,
+      # CLI-86). The reports come from the built .d.ts files. A changed or new report fails the run, and
+      # the reports are an artifact: review the diff, then commit them. First the tests of the tool,
+      # then the tool. A plain git diff does not show a new report, so the step reads git status. The
+      # pathspec names the files: git does not match a folder with a * against the files in it.
+      - name: The reports of the public API are current
+        if: ${{ !cancelled() }}
+        run: |
+          node --test scripts/api-report.test.mjs
+          status=0
+          node scripts/api-report.mjs --update || status=$?
+          changed="$(git status --porcelain --untracked-files=all -- 'packages/*/test/api/public-api.txt')"
+          if [ -n "$changed" ]; then
+            echo "These reports differ from the built .d.ts files, or are new:"
+            echo "$changed"
+            git --no-pager diff --stat -- 'packages/*/test/api/public-api.txt'
+            echo "::error title=Public API reports::Download the artifact public-api-reports, review the diff and commit the reports. Or start pnpm build, then node scripts/api-report.mjs --update."
+            status=1
+          fi
+          exit "$status"
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: public-api-reports
+          path: packages/*/test/api/public-api.txt
           retention-days: 7
       # No file names a package of this repository with the old scope @mark1russell7 (2026-10-12)
       - name: Check the package scope

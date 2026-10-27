@@ -1,0 +1,120 @@
+# The public API of @procedures/restic
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 19 names
+
+type ArgValue: @procedures/shell/cli#ArgValue (external)
+FLAG_NAME: @procedures/shell/cli#FLAG_NAME (external)
+FindResticOptions: dist/executable.d.ts#FindResticOptions
+ResticCommand: dist/procedures.d.ts#ResticCommand
+ResticProceduresOptions: dist/procedures.d.ts#ResticProceduresOptions
+ResticResult: dist/procedures.d.ts#ResticResult
+ResticRunOptions: dist/procedures.d.ts#ResticRunOptions
+ResticRunner: dist/procedures.d.ts#ResticRunner
+buildArgv: @procedures/shell/cli#buildArgv (external)
+createResticModule: dist/module.d.ts#createResticModule
+createResticProcedures: dist/procedures.d.ts#createResticProcedures
+findRestic: dist/executable.d.ts#findRestic
+parseJsonOutput: @procedures/shell/cli#parseJsonOutput (external)
+registerResticProcedures: dist/module.d.ts#registerResticProcedures
+resticArgv: dist/procedures.d.ts#resticArgv
+resticModule: dist/module.d.ts#resticModule
+resticProcedures: dist/procedures.d.ts#resticProcedures
+resticRunProcedure: dist/procedures.d.ts#resticRunProcedure
+runRestic: dist/procedures.d.ts#runRestic
+
+## ./module (dist/module.d.ts): 4 names
+
+createResticModule: dist/module.d.ts#createResticModule
+default: dist/module.d.ts#resticModule
+registerResticProcedures: dist/module.d.ts#registerResticProcedures
+resticModule: dist/module.d.ts#resticModule
+
+## ./register (dist/register.d.ts): 3 names
+
+createResticModule: dist/module.d.ts#createResticModule
+registerResticProcedures: dist/module.d.ts#registerResticProcedures
+resticModule: dist/module.d.ts#resticModule
+
+## Declarations
+
+### dist/executable.d.ts#FindResticOptions
+export interface FindResticOptions {
+    readonly env?: Readonly<Record<string, string | undefined>> | undefined;
+    readonly platform?: NodeJS.Platform | undefined;
+    readonly exists?: ((path: string) => boolean) | undefined;
+    readonly list?: ((folder: string) => Promise<string[]>) | undefined;
+}
+
+### dist/executable.d.ts#findRestic
+export declare function findRestic(options?: FindResticOptions): Promise<string>;
+
+### dist/module.d.ts#createResticModule
+export declare function createResticModule(options?: ResticProceduresOptions): ProcedureModule;
+
+### dist/module.d.ts#registerResticProcedures
+export declare function registerResticProcedures(registry?: ProcedureRegistry, options?: ResticProceduresOptions): void;
+
+### dist/module.d.ts#resticModule
+export declare const resticModule: ProcedureModule;
+
+### dist/procedures.d.ts#ResticCommand
+export interface ResticCommand {
+    readonly path: readonly string[];
+    readonly positional?: readonly string[] | undefined;
+    readonly args?: Readonly<Record<string, ArgValue>> | undefined;
+    readonly repository?: string | undefined;
+    readonly json?: boolean | undefined;
+}
+
+### dist/procedures.d.ts#ResticProceduresOptions
+export interface ResticProceduresOptions {
+    readonly executable?: string | undefined;
+    readonly env?: Readonly<Record<string, string | undefined>> | undefined;
+    readonly run?: ResticRunner | undefined;
+}
+
+### dist/procedures.d.ts#ResticResult
+export interface ResticResult {
+    exitCode: number;
+    success: boolean;
+    stdout: string;
+    stderr: string;
+    json?: unknown;
+    truncated?: {
+        stdout: boolean;
+        stderr: boolean;
+    } | undefined;
+}
+
+### dist/procedures.d.ts#ResticRunOptions
+export interface ResticRunOptions {
+    readonly executable?: string | undefined;
+    readonly env?: Readonly<Record<string, string | undefined>> | undefined;
+    readonly cwd?: string | undefined;
+    readonly timeout?: number | undefined;
+    readonly signal?: AbortSignal | undefined;
+    readonly maxOutputBytes?: number | undefined;
+    readonly run?: ResticRunner | undefined;
+}
+
+### dist/procedures.d.ts#ResticRunner
+export type ResticRunner = (command: string, options: CommandOptions) => Promise<CommandResult>;
+
+### dist/procedures.d.ts#createResticProcedures
+export declare function createResticProcedures(options?: ResticProceduresOptions): AnyProcedure[];
+
+### dist/procedures.d.ts#resticArgv
+export declare function resticArgv(input: ResticCommand): string[];
+
+### dist/procedures.d.ts#resticProcedures
+export declare const resticProcedures: AnyProcedure[];
+
+### dist/procedures.d.ts#resticRunProcedure
+export declare const resticRunProcedure: AnyProcedure;
+
+### dist/procedures.d.ts#runRestic
+export declare function runRestic(command: ResticCommand, options?: ResticRunOptions): Promise<ResticResult>;

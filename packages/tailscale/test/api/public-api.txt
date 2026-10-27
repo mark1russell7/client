@@ -1,0 +1,61 @@
+# The public API of @procedures/tailscale
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 12 names
+
+type ArgValue: @procedures/shell/cli#ArgValue (external)
+FLAG_NAME: @procedures/shell/cli#FLAG_NAME (external)
+TailscaleProceduresOptions: dist/procedures.d.ts#TailscaleProceduresOptions
+buildArgv: @procedures/shell/cli#buildArgv (external)
+createTailscaleModule: dist/module.d.ts#createTailscaleModule
+createTailscaleProcedures: dist/procedures.d.ts#createTailscaleProcedures
+parseJsonOutput: @procedures/shell/cli#parseJsonOutput (external)
+registerTailscaleProcedures: dist/module.d.ts#registerTailscaleProcedures
+tailscaleExecutable: dist/procedures.d.ts#tailscaleExecutable
+tailscaleModule: dist/module.d.ts#tailscaleModule
+tailscaleProcedures: dist/procedures.d.ts#tailscaleProcedures
+tailscaleRunProcedure: dist/procedures.d.ts#tailscaleRunProcedure
+
+## ./module (dist/module.d.ts): 4 names
+
+createTailscaleModule: dist/module.d.ts#createTailscaleModule
+default: dist/module.d.ts#tailscaleModule
+registerTailscaleProcedures: dist/module.d.ts#registerTailscaleProcedures
+tailscaleModule: dist/module.d.ts#tailscaleModule
+
+## ./register (dist/register.d.ts): 3 names
+
+createTailscaleModule: dist/module.d.ts#createTailscaleModule
+registerTailscaleProcedures: dist/module.d.ts#registerTailscaleProcedures
+tailscaleModule: dist/module.d.ts#tailscaleModule
+
+## Declarations
+
+### dist/module.d.ts#createTailscaleModule
+export declare function createTailscaleModule(options?: TailscaleProceduresOptions): ProcedureModule;
+
+### dist/module.d.ts#registerTailscaleProcedures
+export declare const registerTailscaleProcedures: PackageDefinition["register"];
+
+### dist/module.d.ts#tailscaleModule
+export declare const tailscaleModule: ProcedureModule;
+
+### dist/procedures.d.ts#TailscaleProceduresOptions
+export interface TailscaleProceduresOptions {
+    readonly executable?: string | undefined;
+}
+
+### dist/procedures.d.ts#createTailscaleProcedures
+export declare function createTailscaleProcedures(options?: TailscaleProceduresOptions): AnyProcedure[];
+
+### dist/procedures.d.ts#tailscaleExecutable
+export declare function tailscaleExecutable(explicit?: string): string;
+
+### dist/procedures.d.ts#tailscaleProcedures
+export declare const tailscaleProcedures: AnyProcedure[];
+
+### dist/procedures.d.ts#tailscaleRunProcedure
+export declare const tailscaleRunProcedure: AnyProcedure;

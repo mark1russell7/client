@@ -1,8 +1,8 @@
 # The public API of @procedures/client
 #
 # The names of each entry of the exports field, and the declaration of each name, without comments
-# and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
-# dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
 
 ## . (dist/index.d.ts): 621 names
 
@@ -1931,6 +1931,28 @@ selectorProblems: dist/procedures/collection/query.d.ts#selectorProblems
 versionConflict: dist/procedures/collection/precondition.d.ts#versionConflict
 versionConflicts: dist/procedures/collection/precondition.d.ts#versionConflicts
 versionConflictsOf: dist/procedures/collection/precondition.d.ts#versionConflictsOf
+
+## ./testing (dist/testing/index.d.ts): 19 names
+
+CONTRACT_COLLECTION: dist/testing/transport-contract.d.ts#CONTRACT_COLLECTION
+CONTRACT_PATHS: dist/testing/transport-contract.d.ts#CONTRACT_PATHS
+CONTRACT_PRINCIPAL: dist/testing/transport-contract.d.ts#CONTRACT_PRINCIPAL
+CONTRACT_TOKEN: dist/testing/transport-contract.d.ts#CONTRACT_TOKEN
+type ContractCallOptions: dist/testing/transport-contract.d.ts#ContractCallOptions
+type ContractCaller: dist/testing/transport-contract.d.ts#ContractCaller
+type ContractCapabilities: dist/testing/transport-contract.d.ts#ContractCapabilities
+type ContractCase: dist/testing/transport-contract.d.ts#ContractCase
+type ContractExpectation: dist/testing/transport-contract.d.ts#ContractExpectation
+type ContractFace: dist/testing/transport-contract.d.ts#ContractFace
+type ContractRunner: dist/testing/transport-contract.d.ts#ContractRunner
+type ContractServer: dist/testing/transport-contract.d.ts#ContractServer
+type ContractSpec: dist/testing/transport-contract.d.ts#ContractSpec
+LogStorage: dist/testing/log-storage.d.ts#LogStorage
+type McpClientLike: dist/testing/mcp-caller.d.ts#McpClientLike
+clientCaller: dist/testing/transport-contract.d.ts#clientCaller
+contractDescription: dist/testing/transport-contract.d.ts#contractDescription
+describeTransportContract: dist/testing/transport-contract.d.ts#describeTransportContract
+mcpCaller: dist/testing/mcp-caller.d.ts#mcpCaller
 
 ## Declarations
 
@@ -6228,6 +6250,146 @@ export interface ServerTransport {
     stop(): Promise<void>;
     isRunning(): boolean;
 }
+
+### dist/testing/log-storage.d.ts#LogStorage
+export declare class LogStorage implements CollectionStorage<unknown> {
+    readonly data: Map<string, unknown>;
+    constructor(items?: Record<string, unknown>);
+    get(id: string): Promise<unknown>;
+    getAll(): Promise<unknown[]>;
+    getEntries(): Promise<Array<[string, unknown]>>;
+    getChangesSince(since?: string): Promise<StorageChanges<unknown>>;
+    find(predicate: (item: unknown) => boolean): Promise<unknown[]>;
+    has(id: string): Promise<boolean>;
+    size(): Promise<number>;
+    set(id: string, value: unknown): Promise<void>;
+    delete(id: string): Promise<boolean>;
+    clear(): Promise<void>;
+    setBatch(items: Array<[string, unknown]>): Promise<void>;
+    deleteBatch(ids: string[]): Promise<number>;
+    getBatch(ids: string[]): Promise<Map<string, unknown>>;
+    close(): Promise<void>;
+}
+
+### dist/testing/mcp-caller.d.ts#McpClientLike
+export interface McpClientLike {
+    listTools(): Promise<{
+        tools: Array<{
+            name: string;
+            description?: string | undefined;
+        }>;
+    }>;
+    callTool(params: {
+        name: string;
+        arguments?: Record<string, unknown>;
+    }, resultSchema?: undefined, options?: {
+        signal?: AbortSignal;
+    }): Promise<unknown>;
+    close(): Promise<void>;
+}
+
+### dist/testing/mcp-caller.d.ts#mcpCaller
+export declare function mcpCaller(open: () => Promise<McpClientLike>): ContractCaller;
+
+### dist/testing/transport-contract.d.ts#CONTRACT_COLLECTION
+export declare const CONTRACT_COLLECTION = "contract.tabs%";
+
+### dist/testing/transport-contract.d.ts#CONTRACT_PATHS
+export declare const CONTRACT_PATHS: readonly (readonly string[])[];
+
+### dist/testing/transport-contract.d.ts#CONTRACT_PRINCIPAL
+export declare const CONTRACT_PRINCIPAL = "contract-user";
+
+### dist/testing/transport-contract.d.ts#CONTRACT_TOKEN
+export declare const CONTRACT_TOKEN = "contract-token-0123456789";
+
+### dist/testing/transport-contract.d.ts#ContractCallOptions
+export interface ContractCallOptions {
+    readonly signal?: AbortSignal | undefined;
+    readonly deadlineMs?: number | undefined;
+}
+
+### dist/testing/transport-contract.d.ts#ContractCaller
+export interface ContractCaller {
+    call(path: readonly string[], input: unknown, options?: ContractCallOptions): Promise<unknown>;
+    stream(path: readonly string[], input: unknown, options?: ContractCallOptions): AsyncIterable<unknown>;
+    readonly events?: EventTransport | undefined;
+    close?(): Promise<void>;
+}
+
+### dist/testing/transport-contract.d.ts#ContractCapabilities
+export interface ContractCapabilities {
+    readonly server: boolean;
+    readonly auth: boolean;
+    readonly authRefusal?: "call" | "connect" | undefined;
+    readonly subscriptions: boolean;
+    readonly streams: "items" | "collected";
+    readonly deadline: boolean;
+    readonly errorMetadata: boolean;
+    readonly retryable: boolean;
+    readonly sizeLimit?: {
+        readonly code: string;
+    } | undefined;
+}
+
+### dist/testing/transport-contract.d.ts#ContractCase
+export type ContractCase = (name: string, body: () => Promise<void>) => void;
+
+### dist/testing/transport-contract.d.ts#ContractExpectation
+export interface ContractExpectation {
+    toBe(expected: unknown): void;
+    toEqual(expected: unknown): void;
+    toMatchObject(expected: object): void;
+    toContain(expected: unknown): void;
+    toBeGreaterThan(expected: number): void;
+    toBeGreaterThanOrEqual(expected: number): void;
+    toBeLessThanOrEqual(expected: number): void;
+    readonly not: ContractExpectation;
+}
+
+### dist/testing/transport-contract.d.ts#ContractFace
+export interface ContractFace {
+    readonly name: string;
+    readonly capabilities: ContractCapabilities;
+    start(spec: ContractSpec): Promise<ContractServer>;
+}
+
+### dist/testing/transport-contract.d.ts#ContractRunner
+export interface ContractRunner {
+    describe(name: string, body: () => void): void;
+    readonly it: ContractCase & {
+        skipIf(condition: boolean): ContractCase;
+    };
+    afterEach(body: () => Promise<void>): void;
+    expect(actual: unknown, message?: string): ContractExpectation;
+}
+
+### dist/testing/transport-contract.d.ts#ContractServer
+export interface ContractServer {
+    connect(bearer?: string | undefined): Promise<ContractCaller>;
+    stop(): Promise<void>;
+}
+
+### dist/testing/transport-contract.d.ts#ContractSpec
+export interface ContractSpec {
+    readonly registry: ProcedureRegistry;
+    readonly collections: Readonly<Record<string, CollectionStorage<unknown>>>;
+    readonly events: EventPublisherOptions;
+    readonly token?: string | undefined;
+    readonly principalOf?: PrincipalOf | undefined;
+    readonly errors?: ServerErrorPolicy | undefined;
+    readonly onError?: ((error: Error) => void) | undefined;
+    readonly sizeLimit?: number | undefined;
+}
+
+### dist/testing/transport-contract.d.ts#clientCaller
+export declare function clientCaller(transport: Transport, close?: () => Promise<void>): ContractCaller;
+
+### dist/testing/transport-contract.d.ts#contractDescription
+export declare function contractDescription(path: readonly string[]): string;
+
+### dist/testing/transport-contract.d.ts#describeTransportContract
+export declare function describeTransportContract(face: ContractFace, runner: ContractRunner): void;
 
 ### dist/timers.d.ts#TIMER_DEFAULTS
 export declare const TIMER_DEFAULTS: TimerDefaults;

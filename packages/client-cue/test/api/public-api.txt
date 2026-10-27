@@ -1,0 +1,192 @@
+# The public API of @procedures/cue
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 29 names
+
+CueAddInput: dist/types.d.ts#CueAddInput
+CueAddInputSchema: dist/types.d.ts#CueAddInputSchema
+CueAddOutput: dist/types.d.ts#CueAddOutput
+CueAddOutputSchema: dist/types.d.ts#CueAddOutputSchema
+CueGenerateInput: dist/types.d.ts#CueGenerateInput
+CueGenerateInputSchema: dist/types.d.ts#CueGenerateInputSchema
+CueGenerateOutput: dist/types.d.ts#CueGenerateOutput
+CueGenerateOutputSchema: dist/types.d.ts#CueGenerateOutputSchema
+CueInitInput: dist/types.d.ts#CueInitInput
+CueInitInputSchema: dist/types.d.ts#CueInitInputSchema
+CueInitOutput: dist/types.d.ts#CueInitOutput
+CueInitOutputSchema: dist/types.d.ts#CueInitOutputSchema
+CueRemoveInput: dist/types.d.ts#CueRemoveInput
+CueRemoveInputSchema: dist/types.d.ts#CueRemoveInputSchema
+CueRemoveOutput: dist/types.d.ts#CueRemoveOutput
+CueRemoveOutputSchema: dist/types.d.ts#CueRemoveOutputSchema
+CueValidateInput: dist/types.d.ts#CueValidateInput
+CueValidateInputSchema: dist/types.d.ts#CueValidateInputSchema
+CueValidateOutput: dist/types.d.ts#CueValidateOutput
+CueValidateOutputSchema: dist/types.d.ts#CueValidateOutputSchema
+DependenciesJson: dist/types.d.ts#DependenciesJson
+Feature: dist/types.d.ts#Feature
+FeaturesManifest: dist/types.d.ts#FeaturesManifest
+cueAdd: dist/procedures/cue/add.d.ts#cueAdd
+cueGenerate: dist/procedures/cue/generate.d.ts#cueGenerate
+cueInit: dist/procedures/cue/init.d.ts#cueInit
+cueRemove: dist/procedures/cue/remove.d.ts#cueRemove
+cueValidate: dist/procedures/cue/validate.d.ts#cueValidate
+registerCueProcedures: dist/module.d.ts#registerCueProcedures
+
+## ./module (dist/module.d.ts): 3 names
+
+cueModule: dist/module.d.ts#cueModule
+default: dist/module.d.ts#cueModule
+registerCueProcedures: dist/module.d.ts#registerCueProcedures
+
+## ./register (dist/register.d.ts): 2 names
+
+cueModule: dist/module.d.ts#cueModule
+registerCueProcedures: dist/module.d.ts#registerCueProcedures
+
+## Declarations
+
+### dist/module.d.ts#cueModule
+export declare const cueModule: ProcedureModule;
+
+### dist/module.d.ts#registerCueProcedures
+export declare const registerCueProcedures: PackageDefinition["register"];
+
+### dist/procedures/cue/add.d.ts#cueAdd
+export declare function cueAdd(input: CueAddInput, ctx: ProcedureContext): Promise<CueAddOutput>;
+
+### dist/procedures/cue/generate.d.ts#cueGenerate
+export declare function cueGenerate(input: CueGenerateInput, ctx: ProcedureContext): Promise<CueGenerateOutput>;
+
+### dist/procedures/cue/init.d.ts#cueInit
+export declare function cueInit(input: CueInitInput, ctx: ProcedureContext): Promise<CueInitOutput>;
+
+### dist/procedures/cue/remove.d.ts#cueRemove
+export declare function cueRemove(input: CueRemoveInput, ctx: ProcedureContext): Promise<CueRemoveOutput>;
+
+### dist/procedures/cue/validate.d.ts#cueValidate
+export declare function cueValidate(input: CueValidateInput, ctx: ProcedureContext): Promise<CueValidateOutput>;
+
+### dist/types.d.ts#CueAddInput
+export type CueAddInput = z.infer<typeof CueAddInputSchema>;
+
+### dist/types.d.ts#CueAddInputSchema
+export declare const CueAddInputSchema: z.ZodObject<{
+    feature: z.ZodString;
+    cwd: z.ZodOptional<z.ZodString>;
+}>;
+
+### dist/types.d.ts#CueAddOutput
+export interface CueAddOutput {
+    success: boolean;
+    feature: string;
+    added: boolean;
+    message?: string | undefined;
+    error?: string | undefined;
+}
+
+### dist/types.d.ts#CueAddOutputSchema
+export declare const CueAddOutputSchema: z.ZodType<CueAddOutput>;
+
+### dist/types.d.ts#CueGenerateInput
+export type CueGenerateInput = z.infer<typeof CueGenerateInputSchema>;
+
+### dist/types.d.ts#CueGenerateInputSchema
+export declare const CueGenerateInputSchema: z.ZodObject<{
+    cwd: z.ZodOptional<z.ZodString>;
+}>;
+
+### dist/types.d.ts#CueGenerateOutput
+export interface CueGenerateOutput {
+    success: boolean;
+    resolvedFeatures: string[];
+    generated: string[];
+    message?: string | undefined;
+    error?: string | undefined;
+}
+
+### dist/types.d.ts#CueGenerateOutputSchema
+export declare const CueGenerateOutputSchema: z.ZodType<CueGenerateOutput>;
+
+### dist/types.d.ts#CueInitInput
+export type CueInitInput = z.infer<typeof CueInitInputSchema>;
+
+### dist/types.d.ts#CueInitInputSchema
+export declare const CueInitInputSchema: z.ZodObject<{
+    preset: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    force: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+    cwd: z.ZodOptional<z.ZodString>;
+}>;
+
+### dist/types.d.ts#CueInitOutput
+export interface CueInitOutput {
+    success: boolean;
+    preset: string;
+    created: string[];
+    message?: string | undefined;
+    error?: string | undefined;
+}
+
+### dist/types.d.ts#CueInitOutputSchema
+export declare const CueInitOutputSchema: z.ZodType<CueInitOutput>;
+
+### dist/types.d.ts#CueRemoveInput
+export type CueRemoveInput = z.infer<typeof CueRemoveInputSchema>;
+
+### dist/types.d.ts#CueRemoveInputSchema
+export declare const CueRemoveInputSchema: z.ZodObject<{
+    feature: z.ZodString;
+    cwd: z.ZodOptional<z.ZodString>;
+}>;
+
+### dist/types.d.ts#CueRemoveOutput
+export interface CueRemoveOutput {
+    success: boolean;
+    feature: string;
+    removed: boolean;
+    message?: string | undefined;
+    error?: string | undefined;
+}
+
+### dist/types.d.ts#CueRemoveOutputSchema
+export declare const CueRemoveOutputSchema: z.ZodType<CueRemoveOutput>;
+
+### dist/types.d.ts#CueValidateInput
+export type CueValidateInput = z.infer<typeof CueValidateInputSchema>;
+
+### dist/types.d.ts#CueValidateInputSchema
+export declare const CueValidateInputSchema: z.ZodObject<{
+    cwd: z.ZodOptional<z.ZodString>;
+}>;
+
+### dist/types.d.ts#CueValidateOutput
+export interface CueValidateOutput {
+    success: boolean;
+    valid: boolean;
+    features: string[];
+    errors: string[];
+    message?: string | undefined;
+}
+
+### dist/types.d.ts#CueValidateOutputSchema
+export declare const CueValidateOutputSchema: z.ZodType<CueValidateOutput>;
+
+### dist/types.d.ts#DependenciesJson
+export interface DependenciesJson {
+    $schema?: string;
+    dependencies: string[];
+}
+
+### dist/types.d.ts#Feature
+export interface Feature {
+    dependencies: string[];
+}
+
+### dist/types.d.ts#FeaturesManifest
+export interface FeaturesManifest {
+    features: Record<string, Feature>;
+    presets: Record<string, string[]>;
+}

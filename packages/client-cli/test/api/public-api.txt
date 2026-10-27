@@ -1,0 +1,56 @@
+# The public API of @procedures/cli-run
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 5 names
+
+type CliRunInput: dist/types.d.ts#CliRunInput
+CliRunInputSchema: dist/types.d.ts#CliRunInputSchema
+type CliRunOutput: dist/types.d.ts#CliRunOutput
+cliRun: dist/procedures/cli/run.d.ts#cliRun
+registerCliProcedures: dist/module.d.ts#registerCliProcedures
+
+## ./module (dist/module.d.ts): 3 names
+
+cliModule: dist/module.d.ts#cliModule
+default: dist/module.d.ts#cliModule
+registerCliProcedures: dist/module.d.ts#registerCliProcedures
+
+## ./register (dist/register.d.ts): 2 names
+
+cliModule: dist/module.d.ts#cliModule
+registerCliProcedures: dist/module.d.ts#registerCliProcedures
+
+## ./register.js (dist/register.d.ts): 2 names
+
+cliModule: dist/module.d.ts#cliModule
+registerCliProcedures: dist/module.d.ts#registerCliProcedures
+
+## Declarations
+
+### dist/module.d.ts#cliModule
+export declare const cliModule: ProcedureModule;
+
+### dist/module.d.ts#registerCliProcedures
+export declare const registerCliProcedures: PackageDefinition["register"];
+
+### dist/procedures/cli/run.d.ts#cliRun
+export declare function cliRun(input: CliRunInput, ctx: ProcedureContext): Promise<CliRunOutput>;
+
+### dist/types.d.ts#CliRunInput
+export type CliRunInput = z.infer<typeof CliRunInputSchema>;
+
+### dist/types.d.ts#CliRunInputSchema
+export declare const CliRunInputSchema: z.ZodObject<{
+    path: z.ZodArray<z.ZodString>;
+    args: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodBoolean]>>>;
+    positional: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    cwd: z.ZodOptional<z.ZodString>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#CliRunOutput
+export interface CliRunOutput extends CliToolOutput {
+}

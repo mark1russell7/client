@@ -1,0 +1,62 @@
+# The public API of @procedures/procedure
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 7 names
+
+ProcedureNewInput: dist/types.d.ts#ProcedureNewInput
+ProcedureNewInputSchema: dist/types.d.ts#ProcedureNewInputSchema
+ProcedureNewOutput: dist/types.d.ts#ProcedureNewOutput
+ProcedureNewOutputSchema: dist/types.d.ts#ProcedureNewOutputSchema
+procedureModule: dist/module.d.ts#procedureModule
+procedureNew: dist/procedures/procedure/new.d.ts#procedureNew
+registerProcedureProcedures: dist/module.d.ts#registerProcedureProcedures
+
+## ./module (dist/module.d.ts): 3 names
+
+default: dist/module.d.ts#procedureModule
+procedureModule: dist/module.d.ts#procedureModule
+registerProcedureProcedures: dist/module.d.ts#registerProcedureProcedures
+
+## ./register (dist/register.d.ts): 2 names
+
+procedureModule: dist/module.d.ts#procedureModule
+registerProcedureProcedures: dist/module.d.ts#registerProcedureProcedures
+
+## Declarations
+
+### dist/module.d.ts#procedureModule
+export declare const procedureModule: ProcedureModule;
+
+### dist/module.d.ts#registerProcedureProcedures
+export declare function registerProcedureProcedures(registry?: ProcedureRegistry): void;
+
+### dist/procedures/procedure/new.d.ts#procedureNew
+export declare function procedureNew(input: ProcedureNewInput, ctx: ProcedureContext): Promise<ProcedureNewOutput>;
+
+### dist/types.d.ts#ProcedureNewInput
+export type ProcedureNewInput = z.infer<typeof ProcedureNewInputSchema>;
+
+### dist/types.d.ts#ProcedureNewInputSchema
+export declare const ProcedureNewInputSchema: z.ZodObject<{
+    name: z.ZodString;
+    namespace: z.ZodOptional<z.ZodString>;
+    description: z.ZodOptional<z.ZodString>;
+    path: z.ZodOptional<z.ZodString>;
+    dryRun: z.ZodDefault<z.ZodBoolean>;
+}>;
+
+### dist/types.d.ts#ProcedureNewOutput
+export interface ProcedureNewOutput {
+    success: boolean;
+    procedurePath: string[];
+    created: string[];
+    modified: string[];
+    operations: string[];
+    errors: string[];
+}
+
+### dist/types.d.ts#ProcedureNewOutputSchema
+export declare const ProcedureNewOutputSchema: z.ZodType<ProcedureNewOutput>;

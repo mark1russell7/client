@@ -1,0 +1,251 @@
+# The public API of @procedures/server
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 33 names
+
+HOST_PROFILES: dist/host.d.ts#HOST_PROFILES
+type HostRunMode: dist/host.d.ts#HostRunMode
+type ProcedureHostRunConfig: dist/host.d.ts#ProcedureHostRunConfig
+type RunningHost: dist/host.d.ts#RunningHost
+type RunningServer: dist/run.d.ts#RunningServer
+type ServerConfig: dist/types.d.ts#ServerConfig
+type ServerCreateResult: dist/types.d.ts#ServerCreateResult
+type ServerRunOptions: dist/run.d.ts#ServerRunOptions
+type ServerStartInput: dist/types.d.ts#ServerStartInput
+type ServerStartOutput: dist/types.d.ts#ServerStartOutput
+ServerStartOutputSchema: dist/schemas.d.ts#ServerStartOutputSchema
+type ServerStatusInput: dist/types.d.ts#ServerStatusInput
+type ServerStatusOutput: dist/types.d.ts#ServerStatusOutput
+ServerStatusOutputSchema: dist/schemas.d.ts#ServerStatusOutputSchema
+type ServerStopInput: dist/types.d.ts#ServerStopInput
+type ServerStopOutput: dist/types.d.ts#ServerStopOutput
+ServerStopOutputSchema: dist/schemas.d.ts#ServerStopOutputSchema
+type TransportConfig: dist/types.d.ts#TransportConfig
+hostProcedures: dist/module.d.ts#hostProcedures
+loadProcedureModule: dist/run.d.ts#loadProcedureModule
+parseConfig: dist/config.d.ts#parseConfig
+parseTopicPatterns: dist/config.d.ts#parseTopicPatterns
+registerServerProcedures: dist/module.d.ts#registerServerProcedures
+runProcedureHost: dist/host.d.ts#runProcedureHost
+runServer: dist/run.d.ts#runServer
+serverModule: dist/module.d.ts#serverModule
+serverStartInputSchema: dist/schemas.d.ts#serverStartInputSchema
+serverStartProcedure: dist/procedures/server.start.d.ts#serverStartProcedure
+serverStatusInputSchema: dist/schemas.d.ts#serverStatusInputSchema
+serverStatusProcedure: dist/procedures/server.status.d.ts#serverStatusProcedure
+serverStopInputSchema: dist/schemas.d.ts#serverStopInputSchema
+serverStopProcedure: dist/procedures/server.stop.d.ts#serverStopProcedure
+startServer: dist/run.d.ts#startServer
+
+## ./module (dist/module.d.ts): 4 names
+
+default: dist/module.d.ts#serverModule
+hostProcedures: dist/module.d.ts#hostProcedures
+registerServerProcedures: dist/module.d.ts#registerServerProcedures
+serverModule: dist/module.d.ts#serverModule
+
+## ./register (dist/register.d.ts): 3 names
+
+hostProcedures: dist/module.d.ts#hostProcedures
+registerServerProcedures: dist/module.d.ts#registerServerProcedures
+serverModule: dist/module.d.ts#serverModule
+
+## Declarations
+
+### dist/config.d.ts#parseConfig
+export declare function parseConfig(argv: string[]): ServerConfig;
+
+### dist/config.d.ts#parseTopicPatterns
+export declare function parseTopicPatterns(value: string): string[];
+
+### dist/host.d.ts#HOST_PROFILES
+export declare const HOST_PROFILES: Readonly<Record<HostRunMode, Profile>>;
+
+### dist/host.d.ts#HostRunMode
+export type HostRunMode = "foreground" | "background";
+
+### dist/host.d.ts#ProcedureHostRunConfig
+export interface ProcedureHostRunConfig {
+    readonly name: string;
+    readonly host: ProcedureHostOptions;
+    readonly mode: HostRunMode;
+    readonly profile?: Profile | undefined;
+    readonly lockfile?: LockfileData | undefined;
+    readonly log?: ((line: string) => void) | undefined;
+    readonly run?: RunOptions | undefined;
+    readonly probes?: HostProbeServer | undefined;
+    readonly declare?: ((svc: ServiceBuilder, host: ProcedureHost) => void) | undefined;
+}
+
+### dist/host.d.ts#RunningHost
+export interface RunningHost {
+    readonly host: ProcedureHost;
+    readonly service: ServiceBuilder;
+    readonly life: Lifecycle;
+    probes(): string[];
+}
+
+### dist/host.d.ts#runProcedureHost
+export declare function runProcedureHost(config: ProcedureHostRunConfig): Promise<RunningHost>;
+
+### dist/module.d.ts#hostProcedures
+export declare const hostProcedures: readonly AnyProcedure[];
+
+### dist/module.d.ts#registerServerProcedures
+export declare const registerServerProcedures: PackageDefinition["register"];
+
+### dist/module.d.ts#serverModule
+export declare const serverModule: ProcedureModule;
+
+### dist/procedures/server.start.d.ts#serverStartProcedure
+export declare const serverStartProcedure: Procedure<ServerStartInput, ServerStartOutput, {
+    description: string;
+    effects: Effects;
+    args: string[];
+    shorts: Record<string, string>;
+    fsRoot: FsRootRules;
+}>;
+
+### dist/procedures/server.status.d.ts#serverStatusProcedure
+export declare const serverStatusProcedure: Procedure<ServerStatusInput, ServerStatusOutput, {
+    description: string;
+    effects: Effects;
+    output: string;
+    fsRoot: FsRootRules;
+}>;
+
+### dist/procedures/server.stop.d.ts#serverStopProcedure
+export declare const serverStopProcedure: Procedure<ServerStopInput, ServerStopOutput, {
+    description: string;
+    effects: Effects;
+    fsRoot: FsRootRules;
+}>;
+
+### dist/run.d.ts#RunningServer
+export interface RunningServer {
+    peer: Peer;
+    registry: ProcedureRegistry;
+    policy: HostPolicy;
+    endpoints: PeerEndpoint[];
+    token: string | undefined;
+    generatedToken: boolean;
+    fsRoot?: string | undefined;
+    refusedUnderRoot?: string[] | undefined;
+}
+
+### dist/run.d.ts#ServerRunOptions
+export interface ServerRunOptions {
+    resolveFrom?: readonly string[] | undefined;
+    run?: RunOptions | undefined;
+}
+
+### dist/run.d.ts#loadProcedureModule
+export declare function loadProcedureModule(spec: string, resolveFrom?: readonly string[]): Promise<ProcedureModule>;
+
+### dist/run.d.ts#runServer
+export declare function runServer(argv: string[], options?: ServerRunOptions): Promise<void>;
+
+### dist/run.d.ts#startServer
+export declare function startServer(config: ServerConfig, log?: (line: string) => void, options?: ServerRunOptions): Promise<RunningServer>;
+
+### dist/schemas.d.ts#ServerStartOutputSchema
+export declare const ServerStartOutputSchema: z.ZodType<ServerStartOutput>;
+
+### dist/schemas.d.ts#ServerStatusOutputSchema
+export declare const ServerStatusOutputSchema: z.ZodType<ServerStatusOutput>;
+
+### dist/schemas.d.ts#ServerStopOutputSchema
+export declare const ServerStopOutputSchema: z.ZodType<ServerStopOutput>;
+
+### dist/schemas.d.ts#serverStartInputSchema
+export declare const serverStartInputSchema: ZodLikeSchema<ServerStartInput>;
+
+### dist/schemas.d.ts#serverStatusInputSchema
+export declare const serverStatusInputSchema: ZodLikeSchema<ServerStatusInput>;
+
+### dist/schemas.d.ts#serverStopInputSchema
+export declare const serverStopInputSchema: ZodLikeSchema<ServerStopInput>;
+
+### dist/types.d.ts#ServerConfig
+export interface ServerConfig {
+    procedures: string[];
+    transports: TransportConfig[];
+    verbose: boolean;
+    token: string | null | undefined;
+    expose: string[];
+    events?: string[] | undefined;
+    fsRoot?: string | undefined;
+    probePort?: number | undefined;
+}
+
+### dist/types.d.ts#ServerCreateResult
+export interface ServerCreateResult {
+    serverId: string;
+    endpoints: Array<{
+        type: string;
+        address: string;
+    }>;
+    procedureCount: number;
+}
+
+### dist/types.d.ts#ServerStartInput
+export interface ServerStartInput {
+    port?: number | undefined;
+    host?: string | undefined;
+    transport?: "http" | "websocket" | "both" | undefined;
+    timeout?: number | undefined;
+}
+
+### dist/types.d.ts#ServerStartOutput
+export interface ServerStartOutput {
+    success: boolean;
+    pid?: number | undefined;
+    port?: number | undefined;
+    endpoint?: string | undefined;
+    logFile?: string | undefined;
+    message: string;
+}
+
+### dist/types.d.ts#ServerStatusInput
+export interface ServerStatusInput {
+    port?: number | undefined;
+}
+
+### dist/types.d.ts#ServerStatusOutput
+export interface ServerStatusOutput {
+    running: boolean;
+    pid?: number | undefined;
+    port?: number | undefined;
+    endpoint?: string | undefined;
+    transport?: string | undefined;
+    startedAt?: string | undefined;
+    uptime?: string | undefined;
+    logFile?: string | undefined;
+    message: string;
+}
+
+### dist/types.d.ts#ServerStopInput
+export interface ServerStopInput {
+    port?: number | undefined;
+    force?: boolean | undefined;
+}
+
+### dist/types.d.ts#ServerStopOutput
+export interface ServerStopOutput {
+    success: boolean;
+    message: string;
+}
+
+### dist/types.d.ts#TransportConfig
+export interface TransportConfig {
+    type: "http" | "websocket" | "local";
+    port?: number;
+    host?: string;
+    basePath?: string;
+    cors?: boolean;
+    corsOrigins?: string[];
+    path?: string;
+}

@@ -1,0 +1,425 @@
+# The public API of @procedures/json
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 64 names
+
+type CsvCell: dist/csv.d.ts#CsvCell
+CsvParseInput: dist/types.d.ts#CsvParseInput
+type CsvParseOptions: dist/csv.d.ts#CsvParseOptions
+CsvParseOutput: dist/types.d.ts#CsvParseOutput
+type CsvRecord: dist/csv.d.ts#CsvRecord
+CsvStringifyInput: dist/types.d.ts#CsvStringifyInput
+type CsvStringifyOptions: dist/csv.d.ts#CsvStringifyOptions
+CsvStringifyOutput: dist/types.d.ts#CsvStringifyOutput
+JsonDiffInput: dist/types.d.ts#JsonDiffInput
+JsonDiffOutput: dist/types.d.ts#JsonDiffOutput
+JsonError: dist/value.d.ts#JsonError
+type JsonErrorCode: dist/value.d.ts#JsonErrorCode
+JsonMergeInput: dist/types.d.ts#JsonMergeInput
+JsonMergeOutput: dist/types.d.ts#JsonMergeOutput
+JsonPatchInput: dist/types.d.ts#JsonPatchInput
+JsonPatchOutput: dist/types.d.ts#JsonPatchOutput
+JsonQueryInput: dist/types.d.ts#JsonQueryInput
+JsonQueryOutput: dist/types.d.ts#JsonQueryOutput
+JsonValidateInput: dist/types.d.ts#JsonValidateInput
+JsonValidateOutput: dist/types.d.ts#JsonValidateOutput
+type JsonValue: dist/value.d.ts#JsonValue
+type Lookup: dist/pointer.d.ts#Lookup
+NOT_EXAMINED: dist/schema.d.ts#NOT_EXAMINED
+PROTOTYPE_KEYS: dist/value.d.ts#PROTOTYPE_KEYS
+type PatchOperation: dist/patch.d.ts#PatchOperation
+type PathMatch: dist/path.d.ts#PathMatch
+type PathStep: dist/path.d.ts#PathStep
+type ValidationIssue: dist/schema.d.ts#ValidationIssue
+type ValidationResult: dist/schema.d.ts#ValidationResult
+YamlParseInput: dist/types.d.ts#YamlParseInput
+type YamlParseOptions: dist/yaml.d.ts#YamlParseOptions
+YamlParseOutput: dist/types.d.ts#YamlParseOutput
+YamlStringifyInput: dist/types.d.ts#YamlStringifyInput
+type YamlStringifyOptions: dist/yaml.d.ts#YamlStringifyOptions
+YamlStringifyOutput: dist/types.d.ts#YamlStringifyOutput
+applyPatch: dist/patch.d.ts#applyPatch
+arrayIndex: dist/pointer.d.ts#arrayIndex
+assertJson: dist/value.d.ts#assertJson
+cloneJson: dist/value.d.ts#cloneJson
+csvParse: dist/procedures/csv/parse.d.ts#csvParse
+csvStringify: dist/procedures/csv/stringify.d.ts#csvStringify
+diffJson: dist/diff.d.ts#diffJson
+escapeToken: dist/value.d.ts#escapeToken
+formatPointer: dist/value.d.ts#formatPointer
+jsonDiff: dist/procedures/json/diff.d.ts#jsonDiff
+jsonEqual: dist/value.d.ts#jsonEqual
+jsonMerge: dist/procedures/json/merge.d.ts#jsonMerge
+jsonModule: dist/module.d.ts#jsonModule
+jsonPatch: dist/procedures/json/patch.d.ts#jsonPatch
+jsonQuery: dist/procedures/json/query.d.ts#jsonQuery
+jsonValidate: dist/procedures/json/validate.d.ts#jsonValidate
+lookup: dist/pointer.d.ts#lookup
+mergePatch: dist/merge.d.ts#mergePatch
+parseCsv: dist/csv.d.ts#parseCsv
+parsePath: dist/path.d.ts#parsePath
+parsePointer: dist/pointer.d.ts#parsePointer
+parseYaml: dist/yaml.d.ts#parseYaml
+queryPath: dist/path.d.ts#queryPath
+registerJsonProcedures: dist/module.d.ts#registerJsonProcedures
+stringifyCsv: dist/csv.d.ts#stringifyCsv
+stringifyYaml: dist/yaml.d.ts#stringifyYaml
+validateJson: dist/schema.d.ts#validateJson
+yamlParse: dist/procedures/yaml/parse.d.ts#yamlParse
+yamlStringify: dist/procedures/yaml/stringify.d.ts#yamlStringify
+
+## ./module (dist/module.d.ts): 3 names
+
+default: dist/module.d.ts#jsonModule
+jsonModule: dist/module.d.ts#jsonModule
+registerJsonProcedures: dist/module.d.ts#registerJsonProcedures
+
+## ./register (dist/register.d.ts): 2 names
+
+jsonModule: dist/module.d.ts#jsonModule
+registerJsonProcedures: dist/module.d.ts#registerJsonProcedures
+
+## ./csv (dist/csv-entry.d.ts): 14 names
+
+type CsvCell: dist/csv.d.ts#CsvCell
+type CsvParseInput: dist/types.d.ts#CsvParseInput
+type CsvParseOptions: dist/csv.d.ts#CsvParseOptions
+type CsvParseOutput: dist/types.d.ts#CsvParseOutput
+type CsvRecord: dist/csv.d.ts#CsvRecord
+type CsvStringifyInput: dist/types.d.ts#CsvStringifyInput
+type CsvStringifyOptions: dist/csv.d.ts#CsvStringifyOptions
+type CsvStringifyOutput: dist/types.d.ts#CsvStringifyOutput
+JsonError: dist/value.d.ts#JsonError
+type JsonErrorCode: dist/value.d.ts#JsonErrorCode
+csvParse: dist/procedures/csv/parse.d.ts#csvParse
+csvStringify: dist/procedures/csv/stringify.d.ts#csvStringify
+parseCsv: dist/csv.d.ts#parseCsv
+stringifyCsv: dist/csv.d.ts#stringifyCsv
+
+## Declarations
+
+### dist/csv.d.ts#CsvCell
+export type CsvCell = string | number | boolean | null | undefined;
+
+### dist/csv.d.ts#CsvParseOptions
+export interface CsvParseOptions {
+    readonly delimiter?: string | undefined;
+    readonly header?: boolean | undefined;
+    readonly trim?: boolean | undefined;
+    readonly skipEmptyLines?: boolean | undefined;
+}
+
+### dist/csv.d.ts#CsvRecord
+export type CsvRecord = Record<string, string>;
+
+### dist/csv.d.ts#CsvStringifyOptions
+export interface CsvStringifyOptions {
+    readonly delimiter?: string | undefined;
+    readonly columns?: readonly string[] | undefined;
+    readonly header?: boolean | undefined;
+    readonly lineBreak?: "\r\n" | "\n" | undefined;
+}
+
+### dist/csv.d.ts#parseCsv
+export declare function parseCsv(text: string, options: CsvParseOptions & {
+    readonly header: true;
+}): CsvRecord[];
+export declare function parseCsv(text: string, options?: CsvParseOptions & {
+    readonly header?: false | undefined;
+}): string[][];
+export declare function parseCsv(text: string, options?: CsvParseOptions): string[][] | CsvRecord[];
+
+### dist/csv.d.ts#stringifyCsv
+export declare function stringifyCsv(rows: readonly (readonly CsvCell[])[] | readonly Readonly<Record<string, CsvCell>>[], options?: CsvStringifyOptions): string;
+
+### dist/diff.d.ts#diffJson
+export declare function diffJson(a: JsonValue, b: JsonValue): PatchOperation[];
+
+### dist/merge.d.ts#mergePatch
+export declare function mergePatch(target: JsonValue, patch: JsonValue): JsonValue;
+
+### dist/module.d.ts#jsonModule
+export declare const jsonModule: ProcedureModule;
+
+### dist/module.d.ts#registerJsonProcedures
+export declare const registerJsonProcedures: PackageDefinition["register"];
+
+### dist/patch.d.ts#PatchOperation
+export interface PatchOperation {
+    op: "add" | "remove" | "replace" | "move" | "copy" | "test";
+    path: string;
+    from?: string | undefined;
+    value?: unknown;
+}
+
+### dist/patch.d.ts#applyPatch
+export declare function applyPatch(value: JsonValue, operations: readonly PatchOperation[]): JsonValue;
+
+### dist/path.d.ts#PathMatch
+export interface PathMatch {
+    readonly tokens: readonly (string | number)[];
+    readonly value: JsonValue;
+}
+
+### dist/path.d.ts#PathStep
+export type PathStep = {
+    readonly kind: "key";
+    readonly key: string;
+    readonly deep: boolean;
+} | {
+    readonly kind: "index";
+    readonly index: number;
+    readonly deep: boolean;
+} | {
+    readonly kind: "wildcard";
+    readonly deep: boolean;
+};
+
+### dist/path.d.ts#parsePath
+export declare function parsePath(path: string): PathStep[];
+
+### dist/path.d.ts#queryPath
+export declare function queryPath(value: JsonValue, path: string): PathMatch[];
+
+### dist/pointer.d.ts#Lookup
+export type Lookup = {
+    readonly found: true;
+    readonly value: JsonValue;
+} | {
+    readonly found: false;
+};
+
+### dist/pointer.d.ts#arrayIndex
+export declare function arrayIndex(token: string): number | undefined;
+
+### dist/pointer.d.ts#lookup
+export declare function lookup(value: JsonValue, tokens: readonly string[]): Lookup;
+
+### dist/pointer.d.ts#parsePointer
+export declare function parsePointer(pointer: string, label?: string): string[];
+
+### dist/procedures/csv/parse.d.ts#csvParse
+export declare function csvParse(input: CsvParseInput): Promise<CsvParseOutput>;
+
+### dist/procedures/csv/stringify.d.ts#csvStringify
+export declare function csvStringify(input: CsvStringifyInput): Promise<CsvStringifyOutput>;
+
+### dist/procedures/json/diff.d.ts#jsonDiff
+export declare function jsonDiff(input: JsonDiffInput): Promise<JsonDiffOutput>;
+
+### dist/procedures/json/merge.d.ts#jsonMerge
+export declare function jsonMerge(input: JsonMergeInput): Promise<JsonMergeOutput>;
+
+### dist/procedures/json/patch.d.ts#jsonPatch
+export declare function jsonPatch(input: JsonPatchInput): Promise<JsonPatchOutput>;
+
+### dist/procedures/json/query.d.ts#jsonQuery
+export declare function jsonQuery(input: JsonQueryInput): Promise<JsonQueryOutput>;
+
+### dist/procedures/json/validate.d.ts#jsonValidate
+export declare function jsonValidate(input: JsonValidateInput): Promise<JsonValidateOutput>;
+
+### dist/procedures/yaml/parse.d.ts#yamlParse
+export declare function yamlParse(input: YamlParseInput): Promise<YamlParseOutput>;
+
+### dist/procedures/yaml/stringify.d.ts#yamlStringify
+export declare function yamlStringify(input: YamlStringifyInput): Promise<YamlStringifyOutput>;
+
+### dist/schema.d.ts#NOT_EXAMINED
+export declare const NOT_EXAMINED: readonly string[];
+
+### dist/schema.d.ts#ValidationIssue
+export interface ValidationIssue {
+    readonly pointer: string;
+    readonly message: string;
+}
+
+### dist/schema.d.ts#ValidationResult
+export interface ValidationResult {
+    readonly valid: boolean;
+    readonly errors: readonly ValidationIssue[];
+    readonly unchecked: readonly string[];
+}
+
+### dist/schema.d.ts#validateJson
+export declare function validateJson(value: JsonValue, schema: unknown): ValidationResult;
+
+### dist/types.d.ts#CsvParseInput
+export interface CsvParseInput {
+    text: string;
+    header?: boolean | undefined;
+    delimiter?: string | undefined;
+    trim?: boolean | undefined;
+    skipEmptyLines?: boolean | undefined;
+}
+
+### dist/types.d.ts#CsvParseOutput
+export interface CsvParseOutput {
+    rows: string[][] | Record<string, string>[];
+}
+
+### dist/types.d.ts#CsvStringifyInput
+export interface CsvStringifyInput {
+    rows: unknown[];
+    columns?: string[] | undefined;
+    header?: boolean | undefined;
+    delimiter?: string | undefined;
+    lineBreak?: "\r\n" | "\n" | undefined;
+}
+
+### dist/types.d.ts#CsvStringifyOutput
+export interface CsvStringifyOutput {
+    text: string;
+}
+
+### dist/types.d.ts#JsonDiffInput
+export interface JsonDiffInput {
+    from: unknown;
+    to: unknown;
+}
+
+### dist/types.d.ts#JsonDiffOutput
+export interface JsonDiffOutput {
+    patch: PatchOperation[];
+}
+
+### dist/types.d.ts#JsonMergeInput
+export interface JsonMergeInput {
+    target: unknown;
+    patch: unknown;
+}
+
+### dist/types.d.ts#JsonMergeOutput
+export interface JsonMergeOutput {
+    value?: unknown;
+}
+
+### dist/types.d.ts#JsonPatchInput
+export interface JsonPatchInput {
+    value: unknown;
+    patch: PatchOperation[];
+}
+
+### dist/types.d.ts#JsonPatchOutput
+export interface JsonPatchOutput {
+    value?: unknown;
+}
+
+### dist/types.d.ts#JsonQueryInput
+export interface JsonQueryInput {
+    value: unknown;
+    pointer?: string | undefined;
+    path?: string | undefined;
+}
+
+### dist/types.d.ts#JsonQueryOutput
+export interface JsonQueryOutput {
+    found: boolean;
+    value?: unknown;
+    matches: Array<{
+        pointer: string;
+        value?: unknown;
+    }>;
+}
+
+### dist/types.d.ts#JsonValidateInput
+export interface JsonValidateInput {
+    value: unknown;
+    schema: unknown;
+}
+
+### dist/types.d.ts#JsonValidateOutput
+export interface JsonValidateOutput {
+    valid: boolean;
+    errors: Array<{
+        pointer: string;
+        message: string;
+    }>;
+    unchecked: string[];
+}
+
+### dist/types.d.ts#YamlParseInput
+export interface YamlParseInput {
+    text: string;
+    all?: boolean | undefined;
+}
+
+### dist/types.d.ts#YamlParseOutput
+export interface YamlParseOutput {
+    value?: unknown;
+}
+
+### dist/types.d.ts#YamlStringifyInput
+export interface YamlStringifyInput {
+    value: unknown;
+    indent?: number | undefined;
+    lineWidth?: number | undefined;
+    sortKeys?: boolean | undefined;
+}
+
+### dist/types.d.ts#YamlStringifyOutput
+export interface YamlStringifyOutput {
+    text: string;
+}
+
+### dist/value.d.ts#JsonError
+export declare class JsonError extends Error {
+    readonly code: JsonErrorCode;
+    readonly name = "JsonError";
+    constructor(code: JsonErrorCode, message: string);
+}
+
+### dist/value.d.ts#JsonErrorCode
+export type JsonErrorCode =
+"NOT_JSON"
+ | "INVALID_POINTER"
+ | "PROTOTYPE_KEY"
+ | "INVALID_PATCH"
+ | "TEST_FAILED"
+ | "INVALID_YAML"
+ | "INVALID_SCHEMA"
+ | "INVALID_CSV";
+
+### dist/value.d.ts#JsonValue
+export type JsonValue = null | boolean | number | string | JsonValue[] | {
+    [key: string]: JsonValue;
+};
+
+### dist/value.d.ts#PROTOTYPE_KEYS
+export declare const PROTOTYPE_KEYS: ReadonlySet<string>;
+
+### dist/value.d.ts#assertJson
+export declare function assertJson(value: unknown, label: string): asserts value is JsonValue;
+
+### dist/value.d.ts#cloneJson
+export declare function cloneJson<T extends JsonValue>(value: T): T;
+
+### dist/value.d.ts#escapeToken
+export declare function escapeToken(token: string | number): string;
+
+### dist/value.d.ts#formatPointer
+export declare function formatPointer(tokens: readonly (string | number)[]): string;
+
+### dist/value.d.ts#jsonEqual
+export declare function jsonEqual(a: JsonValue, b: JsonValue): boolean;
+
+### dist/yaml.d.ts#YamlParseOptions
+export interface YamlParseOptions {
+    readonly all?: boolean | undefined;
+}
+
+### dist/yaml.d.ts#YamlStringifyOptions
+export interface YamlStringifyOptions {
+    readonly indent?: number | undefined;
+    readonly lineWidth?: number | undefined;
+    readonly sortKeys?: boolean | undefined;
+}
+
+### dist/yaml.d.ts#parseYaml
+export declare function parseYaml(text: string, options?: YamlParseOptions): JsonValue;
+
+### dist/yaml.d.ts#stringifyYaml
+export declare function stringifyYaml(value: JsonValue, options?: YamlStringifyOptions): string;

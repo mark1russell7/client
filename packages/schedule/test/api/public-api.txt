@@ -1,0 +1,347 @@
+# The public API of @procedures/schedule
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 47 names
+
+CRON_NAMES: dist/cron.d.ts#CRON_NAMES
+type CronExpression: dist/cron.d.ts#CronExpression
+DEFAULT_LOCK_STALE_MS: dist/store.d.ts#DEFAULT_LOCK_STALE_MS
+DEFAULT_RUN_TIMEOUT_MS: dist/scheduler.d.ts#DEFAULT_RUN_TIMEOUT_MS
+DEFAULT_SCHEDULE_SETTINGS: dist/programs.d.ts#DEFAULT_SCHEDULE_SETTINGS
+FileScheduleStore: dist/store.d.ts#FileScheduleStore
+type FileScheduleStoreOptions: dist/store.d.ts#FileScheduleStoreOptions
+MemoryScheduleStore: dist/store.d.ts#MemoryScheduleStore
+PROGRAM_KEY: dist/programs.d.ts#PROGRAM_KEY
+Schedule: dist/types.d.ts#Schedule
+ScheduleAddInput: dist/types.d.ts#ScheduleAddInput
+ScheduleAddOutput: dist/types.d.ts#ScheduleAddOutput
+ScheduleError: dist/errors.d.ts#ScheduleError
+type ScheduleErrorCode: dist/errors.d.ts#ScheduleErrorCode
+ScheduleListInput: dist/types.d.ts#ScheduleListInput
+ScheduleListOutput: dist/types.d.ts#ScheduleListOutput
+ScheduleModuleOptions: dist/module.d.ts#ScheduleModuleOptions
+ScheduleNextInput: dist/types.d.ts#ScheduleNextInput
+ScheduleNextOutput: dist/types.d.ts#ScheduleNextOutput
+ScheduleRemoveInput: dist/types.d.ts#ScheduleRemoveInput
+ScheduleRemoveOutput: dist/types.d.ts#ScheduleRemoveOutput
+ScheduleRun: dist/types.d.ts#ScheduleRun
+type ScheduleRunEvent: dist/scheduler.d.ts#ScheduleRunEvent
+type ScheduleSettings: dist/programs.d.ts#ScheduleSettings
+type ScheduleStore: dist/store.d.ts#ScheduleStore
+ScheduleTimeZone: dist/types.d.ts#ScheduleTimeZone
+ScheduleView: dist/types.d.ts#ScheduleView
+Scheduler: dist/scheduler.d.ts#Scheduler
+type SchedulerOptions: dist/scheduler.d.ts#SchedulerOptions
+checkSchedule: dist/store.d.ts#checkSchedule
+checkTimeZone: dist/cron.d.ts#checkTimeZone
+createScheduleModule: dist/module.d.ts#createScheduleModule
+defaultScheduleStore: dist/store.d.ts#defaultScheduleStore
+findProgram: dist/programs.d.ts#findProgram
+formatTime: dist/cron.d.ts#formatTime
+hostTimeZone: dist/cron.d.ts#hostTimeZone
+nextTime: dist/cron.d.ts#nextTime
+nextTimes: dist/cron.d.ts#nextTimes
+parseCron: dist/cron.d.ts#parseCron
+registerScheduleProcedures: dist/module.d.ts#registerScheduleProcedures
+scheduleAdd: dist/procedures/schedule/add.d.ts#scheduleAdd
+scheduleList: dist/procedures/schedule/list.d.ts#scheduleList
+scheduleModule: dist/module.d.ts#scheduleModule
+scheduleNext: dist/procedures/schedule/next.d.ts#scheduleNext
+scheduleRemove: dist/procedures/schedule/remove.d.ts#scheduleRemove
+viewOf: dist/procedures/schedule/add.d.ts#viewOf
+zoneFor: dist/cron.d.ts#zoneFor
+
+## ./module (dist/module.d.ts): 5 names
+
+ScheduleModuleOptions: dist/module.d.ts#ScheduleModuleOptions
+createScheduleModule: dist/module.d.ts#createScheduleModule
+default: dist/module.d.ts#scheduleModule
+registerScheduleProcedures: dist/module.d.ts#registerScheduleProcedures
+scheduleModule: dist/module.d.ts#scheduleModule
+
+## ./register (dist/register.d.ts): 4 names
+
+ScheduleModuleOptions: dist/module.d.ts#ScheduleModuleOptions
+createScheduleModule: dist/module.d.ts#createScheduleModule
+registerScheduleProcedures: dist/module.d.ts#registerScheduleProcedures
+scheduleModule: dist/module.d.ts#scheduleModule
+
+## Declarations
+
+### dist/cron.d.ts#CRON_NAMES
+export declare const CRON_NAMES: Readonly<Record<string, string>>;
+
+### dist/cron.d.ts#CronExpression
+export interface CronExpression {
+    readonly source: string;
+    readonly minutes: ReadonlySet<number>;
+    readonly hours: ReadonlySet<number>;
+    readonly days: ReadonlySet<number>;
+    readonly months: ReadonlySet<number>;
+    readonly weekdays: ReadonlySet<number>;
+    readonly dayLimited: boolean;
+    readonly weekdayLimited: boolean;
+    readonly fixedTime: boolean;
+}
+
+### dist/cron.d.ts#checkTimeZone
+export declare function checkTimeZone(timeZone: string): ScheduleTimeZone;
+
+### dist/cron.d.ts#formatTime
+export declare function formatTime(time: number, timeZone?: ScheduleTimeZone): string;
+
+### dist/cron.d.ts#hostTimeZone
+export declare function hostTimeZone(): string;
+
+### dist/cron.d.ts#nextTime
+export declare function nextTime(cron: CronExpression, after: number, timeZone?: ScheduleTimeZone): number | undefined;
+
+### dist/cron.d.ts#nextTimes
+export declare function nextTimes(cron: CronExpression, after: number, count: number, timeZone?: ScheduleTimeZone): number[];
+
+### dist/cron.d.ts#parseCron
+export declare function parseCron(text: string): CronExpression;
+
+### dist/cron.d.ts#zoneFor
+export declare function zoneFor(timeZone: ScheduleTimeZone, local: string | undefined): ScheduleTimeZone;
+
+### dist/errors.d.ts#ScheduleError
+export declare class ScheduleError extends Error {
+    readonly name = "ScheduleError";
+    readonly code: ScheduleErrorCode;
+    constructor(code: ScheduleErrorCode, message: string);
+}
+
+### dist/errors.d.ts#ScheduleErrorCode
+export type ScheduleErrorCode =
+"BAD_CRON"
+ | "BAD_TIME_ZONE"
+ | "LOCKED"
+ | "EXISTS"
+ | "NOT_FOUND"
+ | "NOT_A_PROGRAM"
+ | "BAD_STORE";
+
+### dist/module.d.ts#ScheduleModuleOptions
+export interface ScheduleModuleOptions {
+    readonly store?: ScheduleStore | undefined;
+    readonly now?: (() => number) | undefined;
+    readonly timeZone?: string | undefined;
+}
+
+### dist/module.d.ts#createScheduleModule
+export declare function createScheduleModule(options?: ScheduleModuleOptions): ProcedureModule;
+
+### dist/module.d.ts#registerScheduleProcedures
+export declare function registerScheduleProcedures(registry?: ProcedureRegistry, options?: ScheduleModuleOptions): void;
+
+### dist/module.d.ts#scheduleModule
+export declare const scheduleModule: ProcedureModule;
+
+### dist/procedures/schedule/add.d.ts#scheduleAdd
+export declare function scheduleAdd(input: ScheduleAddInput, ctx?: Pick<ProcedureContext, "capability" | "registry">, settings?: ScheduleSettings): Promise<ScheduleAddOutput>;
+
+### dist/procedures/schedule/add.d.ts#viewOf
+export declare function viewOf(schedule: Schedule, now: number, local?: string): ScheduleView;
+
+### dist/procedures/schedule/list.d.ts#scheduleList
+export declare function scheduleList(input: ScheduleListInput, settings?: ScheduleSettings): Promise<ScheduleListOutput>;
+
+### dist/procedures/schedule/next.d.ts#scheduleNext
+export declare function scheduleNext(input: ScheduleNextInput, settings?: Pick<ScheduleSettings, "now" | "timeZone">): Promise<ScheduleNextOutput>;
+
+### dist/procedures/schedule/remove.d.ts#scheduleRemove
+export declare function scheduleRemove(input: ScheduleRemoveInput, settings?: ScheduleSettings): Promise<ScheduleRemoveOutput>;
+
+### dist/programs.d.ts#DEFAULT_SCHEDULE_SETTINGS
+export declare const DEFAULT_SCHEDULE_SETTINGS: ScheduleSettings;
+
+### dist/programs.d.ts#PROGRAM_KEY
+export declare const PROGRAM_KEY: RegExp;
+
+### dist/programs.d.ts#ScheduleSettings
+export interface ScheduleSettings {
+    readonly store: ScheduleStore;
+    readonly now: () => number;
+    readonly timeZone?: string | undefined;
+}
+
+### dist/programs.d.ts#findProgram
+export declare function findProgram(registry: ProcedureRegistryLike, key: string): Promise<"registry" | "store">;
+
+### dist/scheduler.d.ts#DEFAULT_RUN_TIMEOUT_MS
+export declare const DEFAULT_RUN_TIMEOUT_MS = 600000;
+
+### dist/scheduler.d.ts#ScheduleRunEvent
+export interface ScheduleRunEvent {
+    readonly id: string;
+    readonly program: string;
+    readonly outcome: "success" | "failure" | "skipped";
+    readonly startedAt: number;
+    readonly durationMs: number;
+    readonly error?: {
+        readonly code?: string | undefined;
+        readonly message: string;
+    } | undefined;
+}
+
+### dist/scheduler.d.ts#Scheduler
+export declare class Scheduler {
+    constructor(options?: SchedulerOptions);
+    get started(): boolean;
+    get active(): string[];
+    start(): Promise<void>;
+    stop(): Promise<void>;
+    settled(): Promise<void>;
+    tick(): Promise<void>;
+    runNow(id: string): Promise<ScheduleRunEvent>;
+}
+
+### dist/scheduler.d.ts#SchedulerOptions
+export interface SchedulerOptions {
+    readonly registry?: ProcedureRegistry | undefined;
+    readonly store?: ScheduleStore | undefined;
+    readonly capability?: Capability | undefined;
+    readonly policy?: HostPolicy | undefined;
+    readonly clock?: Clock | undefined;
+    readonly now?: (() => number) | undefined;
+    readonly timeZone?: string | undefined;
+    readonly runTimeoutMs?: number | undefined;
+    readonly onRun?: ((event: ScheduleRunEvent) => void) | undefined;
+    readonly onError?: ((error: unknown) => void) | undefined;
+}
+
+### dist/store.d.ts#DEFAULT_LOCK_STALE_MS
+export declare const DEFAULT_LOCK_STALE_MS = 30000;
+
+### dist/store.d.ts#FileScheduleStore
+export declare class FileScheduleStore implements ScheduleStore {
+    readonly path: string;
+    readonly kind = "file";
+    readonly lockPath: string;
+    constructor(path: string, options?: FileScheduleStoreOptions);
+    get(id: string): Promise<Schedule | undefined>;
+    list(): Promise<Schedule[]>;
+    put(schedule: Schedule): Promise<void>;
+    delete(id: string): Promise<boolean>;
+    update(id: string, change: (schedule: Schedule) => Schedule | undefined): Promise<Schedule | undefined>;
+}
+
+### dist/store.d.ts#FileScheduleStoreOptions
+export interface FileScheduleStoreOptions {
+    readonly staleMs?: number | undefined;
+}
+
+### dist/store.d.ts#MemoryScheduleStore
+export declare class MemoryScheduleStore implements ScheduleStore {
+    readonly kind = "memory";
+    get(id: string): Promise<Schedule | undefined>;
+    list(): Promise<Schedule[]>;
+    put(schedule: Schedule): Promise<void>;
+    delete(id: string): Promise<boolean>;
+    update(id: string, change: (schedule: Schedule) => Schedule | undefined): Promise<Schedule | undefined>;
+}
+
+### dist/store.d.ts#ScheduleStore
+export interface ScheduleStore {
+    readonly kind: string;
+    get(id: string): Promise<Schedule | undefined>;
+    list(): Promise<Schedule[]>;
+    put(schedule: Schedule): Promise<void>;
+    delete(id: string): Promise<boolean>;
+    update(id: string, change: (schedule: Schedule) => Schedule | undefined): Promise<Schedule | undefined>;
+}
+
+### dist/store.d.ts#checkSchedule
+export declare function checkSchedule(value: unknown): Schedule;
+
+### dist/store.d.ts#defaultScheduleStore
+export declare const defaultScheduleStore: ScheduleStore;
+
+### dist/types.d.ts#Schedule
+export interface Schedule {
+    id: string;
+    cron: string;
+    program: string;
+    input?: unknown;
+    timeZone: ScheduleTimeZone;
+    createdAt: number;
+    capability?: {
+        clearance?: unknown;
+        effects?: PermittedEffects;
+    } | undefined;
+    lastRun?: ScheduleRun | undefined;
+    runs: number;
+    failures: number;
+    skipped: number;
+}
+
+### dist/types.d.ts#ScheduleAddInput
+export interface ScheduleAddInput {
+    id?: string | undefined;
+    cron: string;
+    program: string;
+    input?: unknown;
+    timeZone?: ScheduleTimeZone | undefined;
+    replace?: boolean | undefined;
+}
+
+### dist/types.d.ts#ScheduleAddOutput
+export interface ScheduleAddOutput {
+    schedule: ScheduleView;
+}
+
+### dist/types.d.ts#ScheduleListInput
+export interface ScheduleListInput {
+    program?: string | undefined;
+}
+
+### dist/types.d.ts#ScheduleListOutput
+export interface ScheduleListOutput {
+    schedules: ScheduleView[];
+}
+
+### dist/types.d.ts#ScheduleNextInput
+export interface ScheduleNextInput {
+    cron: string;
+    count?: number | undefined;
+    after?: string | undefined;
+    timeZone?: ScheduleTimeZone | undefined;
+}
+
+### dist/types.d.ts#ScheduleNextOutput
+export interface ScheduleNextOutput {
+    times: string[];
+}
+
+### dist/types.d.ts#ScheduleRemoveInput
+export interface ScheduleRemoveInput {
+    id: string;
+}
+
+### dist/types.d.ts#ScheduleRemoveOutput
+export interface ScheduleRemoveOutput {
+    removed: boolean;
+}
+
+### dist/types.d.ts#ScheduleRun
+export interface ScheduleRun {
+    startedAt: number;
+    durationMs: number;
+    outcome: "success" | "failure";
+    error?: {
+        code?: string | undefined;
+        message: string;
+    } | undefined;
+}
+
+### dist/types.d.ts#ScheduleTimeZone
+export type ScheduleTimeZone = "utc" | "local" | (string & {});
+
+### dist/types.d.ts#ScheduleView
+export interface ScheduleView extends Schedule {
+    nextRunAt: string | null;
+}

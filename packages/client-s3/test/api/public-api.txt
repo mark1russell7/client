@@ -1,0 +1,398 @@
+# The public API of @procedures/s3
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 57 names
+
+MAX_PRESIGN_SECONDS: dist/types.d.ts#MAX_PRESIGN_SECONDS
+type S3Config: dist/types.d.ts#S3Config
+type S3CopyInput: dist/types.d.ts#S3CopyInput
+S3CopyInputSchema: dist/types.d.ts#S3CopyInputSchema
+type S3CopyOutput: dist/types.d.ts#S3CopyOutput
+type S3DeleteInput: dist/types.d.ts#S3DeleteInput
+S3DeleteInputSchema: dist/types.d.ts#S3DeleteInputSchema
+type S3DeleteOutput: dist/types.d.ts#S3DeleteOutput
+type S3DownloadInput: dist/types.d.ts#S3DownloadInput
+S3DownloadInputSchema: dist/types.d.ts#S3DownloadInputSchema
+type S3DownloadOutput: dist/types.d.ts#S3DownloadOutput
+type S3HeadInput: dist/types.d.ts#S3HeadInput
+S3HeadInputSchema: dist/types.d.ts#S3HeadInputSchema
+type S3HeadOutput: dist/types.d.ts#S3HeadOutput
+type S3ListAllInput: dist/types.d.ts#S3ListAllInput
+S3ListAllInputSchema: dist/types.d.ts#S3ListAllInputSchema
+type S3ListAllOutput: dist/types.d.ts#S3ListAllOutput
+type S3ListInput: dist/types.d.ts#S3ListInput
+S3ListInputSchema: dist/types.d.ts#S3ListInputSchema
+type S3ListObject: dist/types.d.ts#S3ListObject
+type S3ListOutput: dist/types.d.ts#S3ListOutput
+type S3MultipartAbortInput: dist/types.d.ts#S3MultipartAbortInput
+S3MultipartAbortInputSchema: dist/types.d.ts#S3MultipartAbortInputSchema
+type S3MultipartAbortOutput: dist/types.d.ts#S3MultipartAbortOutput
+type S3MultipartCompleteInput: dist/types.d.ts#S3MultipartCompleteInput
+S3MultipartCompleteInputSchema: dist/types.d.ts#S3MultipartCompleteInputSchema
+type S3MultipartCompleteOutput: dist/types.d.ts#S3MultipartCompleteOutput
+type S3MultipartInitInput: dist/types.d.ts#S3MultipartInitInput
+S3MultipartInitInputSchema: dist/types.d.ts#S3MultipartInitInputSchema
+type S3MultipartInitOutput: dist/types.d.ts#S3MultipartInitOutput
+type S3MultipartUploadInput: dist/types.d.ts#S3MultipartUploadInput
+S3MultipartUploadInputSchema: dist/types.d.ts#S3MultipartUploadInputSchema
+type S3MultipartUploadOutput: dist/types.d.ts#S3MultipartUploadOutput
+type S3PresignInput: dist/types.d.ts#S3PresignInput
+S3PresignInputSchema: dist/types.d.ts#S3PresignInputSchema
+type S3PresignOutput: dist/types.d.ts#S3PresignOutput
+type S3UploadInput: dist/types.d.ts#S3UploadInput
+S3UploadInputSchema: dist/types.d.ts#S3UploadInputSchema
+type S3UploadOutput: dist/types.d.ts#S3UploadOutput
+createS3Client: dist/s3-client.d.ts#createS3Client
+getS3Client: dist/s3-client.d.ts#getS3Client
+getS3Config: dist/s3-client.d.ts#getS3Config
+registerS3Procedures: dist/module.d.ts#registerS3Procedures
+resetS3Client: dist/s3-client.d.ts#resetS3Client
+s3Copy: dist/procedures/s3/copy.d.ts#s3Copy
+s3Delete: dist/procedures/s3/delete.d.ts#s3Delete
+s3Download: dist/procedures/s3/download.d.ts#s3Download
+s3Head: dist/procedures/s3/head.d.ts#s3Head
+s3List: dist/procedures/s3/list.d.ts#s3List
+s3ListAll: dist/procedures/s3/list-all.d.ts#s3ListAll
+s3Module: dist/module.d.ts#s3Module
+s3MultipartAbort: dist/procedures/s3/multipart-abort.d.ts#s3MultipartAbort
+s3MultipartComplete: dist/procedures/s3/multipart-complete.d.ts#s3MultipartComplete
+s3MultipartInit: dist/procedures/s3/multipart-init.d.ts#s3MultipartInit
+s3MultipartUpload: dist/procedures/s3/multipart-upload.d.ts#s3MultipartUpload
+s3Presign: dist/procedures/s3/presign.d.ts#s3Presign
+s3Upload: dist/procedures/s3/upload.d.ts#s3Upload
+
+## ./module (dist/module.d.ts): 3 names
+
+default: dist/module.d.ts#s3Module
+registerS3Procedures: dist/module.d.ts#registerS3Procedures
+s3Module: dist/module.d.ts#s3Module
+
+## ./register (dist/register.d.ts): 2 names
+
+registerS3Procedures: dist/module.d.ts#registerS3Procedures
+s3Module: dist/module.d.ts#s3Module
+
+## ./register.js (dist/register.d.ts): 2 names
+
+registerS3Procedures: dist/module.d.ts#registerS3Procedures
+s3Module: dist/module.d.ts#s3Module
+
+## Declarations
+
+### dist/module.d.ts#registerS3Procedures
+export declare const registerS3Procedures: PackageDefinition["register"];
+
+### dist/module.d.ts#s3Module
+export declare const s3Module: ProcedureModule;
+
+### dist/procedures/s3/copy.d.ts#s3Copy
+export declare function s3Copy(input: S3CopyInput): Promise<S3CopyOutput>;
+
+### dist/procedures/s3/delete.d.ts#s3Delete
+export declare function s3Delete(input: S3DeleteInput): Promise<S3DeleteOutput>;
+
+### dist/procedures/s3/download.d.ts#s3Download
+export declare function s3Download(input: S3DownloadInput): Promise<S3DownloadOutput>;
+
+### dist/procedures/s3/head.d.ts#s3Head
+export declare function s3Head(input: S3HeadInput): Promise<S3HeadOutput>;
+
+### dist/procedures/s3/list-all.d.ts#s3ListAll
+export declare function s3ListAll(input: S3ListAllInput): Promise<S3ListAllOutput>;
+
+### dist/procedures/s3/list.d.ts#s3List
+export declare function s3List(input: S3ListInput): Promise<S3ListOutput>;
+
+### dist/procedures/s3/multipart-abort.d.ts#s3MultipartAbort
+export declare function s3MultipartAbort(input: S3MultipartAbortInput): Promise<S3MultipartAbortOutput>;
+
+### dist/procedures/s3/multipart-complete.d.ts#s3MultipartComplete
+export declare function s3MultipartComplete(input: S3MultipartCompleteInput): Promise<S3MultipartCompleteOutput>;
+
+### dist/procedures/s3/multipart-init.d.ts#s3MultipartInit
+export declare function s3MultipartInit(input: S3MultipartInitInput): Promise<S3MultipartInitOutput>;
+
+### dist/procedures/s3/multipart-upload.d.ts#s3MultipartUpload
+export declare function s3MultipartUpload(input: S3MultipartUploadInput): Promise<S3MultipartUploadOutput>;
+
+### dist/procedures/s3/presign.d.ts#s3Presign
+export declare function s3Presign(input: S3PresignInput, capability?: Capability): Promise<S3PresignOutput>;
+
+### dist/procedures/s3/upload.d.ts#s3Upload
+export declare function s3Upload(input: S3UploadInput): Promise<S3UploadOutput>;
+
+### dist/s3-client.d.ts#createS3Client
+export declare function createS3Client(): S3Client;
+
+### dist/s3-client.d.ts#getS3Client
+export declare function getS3Client(): S3Client;
+
+### dist/s3-client.d.ts#getS3Config
+export declare function getS3Config(): S3Config;
+
+### dist/s3-client.d.ts#resetS3Client
+export declare function resetS3Client(): void;
+
+### dist/types.d.ts#MAX_PRESIGN_SECONDS
+export declare const MAX_PRESIGN_SECONDS: number;
+
+### dist/types.d.ts#S3Config
+export interface S3Config {
+    region: string;
+    endpoint?: string | undefined;
+    accessKeyId?: string | undefined;
+    secretAccessKey?: string | undefined;
+    sessionToken?: string | undefined;
+}
+
+### dist/types.d.ts#S3CopyInput
+export interface S3CopyInput {
+    sourceBucket?: string | undefined;
+    sourceKey: string;
+    sourceVersionId?: string | undefined;
+    bucket: string;
+    key: string;
+    overwrite?: boolean | undefined;
+    contentType?: string | undefined;
+    metadata?: Record<string, string> | undefined;
+}
+
+### dist/types.d.ts#S3CopyInputSchema
+export declare const S3CopyInputSchema: z.ZodType<S3CopyInput>;
+
+### dist/types.d.ts#S3CopyOutput
+export interface S3CopyOutput {
+    etag: string;
+    lastModified?: string | undefined;
+    versionId?: string | undefined;
+    sourceVersionId?: string | undefined;
+    location: string;
+}
+
+### dist/types.d.ts#S3DeleteInput
+export type S3DeleteInput = z.infer<typeof S3DeleteInputSchema>;
+
+### dist/types.d.ts#S3DeleteInputSchema
+export declare const S3DeleteInputSchema: z.ZodObject<{
+    bucket: z.ZodString;
+    key: z.ZodString;
+    versionId: z.ZodOptional<z.ZodString>;
+}>;
+
+### dist/types.d.ts#S3DeleteOutput
+export interface S3DeleteOutput {
+    deleted: boolean;
+    deleteMarker?: boolean | undefined;
+    versionId?: string | undefined;
+}
+
+### dist/types.d.ts#S3DownloadInput
+export type S3DownloadInput = z.infer<typeof S3DownloadInputSchema>;
+
+### dist/types.d.ts#S3DownloadInputSchema
+export declare const S3DownloadInputSchema: z.ZodObject<{
+    bucket: z.ZodString;
+    key: z.ZodString;
+    encoding: z.ZodOptional<z.ZodString>;
+    versionId: z.ZodOptional<z.ZodString>;
+    destPath: z.ZodOptional<z.ZodString>;
+    maxBytes: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#S3DownloadOutput
+export interface S3DownloadOutput {
+    body: string;
+    path?: string | undefined;
+    contentLength: number;
+    contentType?: string | undefined;
+    etag?: string | undefined;
+    lastModified?: string | undefined;
+}
+
+### dist/types.d.ts#S3HeadInput
+export interface S3HeadInput {
+    bucket: string;
+    key: string;
+    versionId?: string | undefined;
+}
+
+### dist/types.d.ts#S3HeadInputSchema
+export declare const S3HeadInputSchema: z.ZodType<S3HeadInput>;
+
+### dist/types.d.ts#S3HeadOutput
+export interface S3HeadOutput {
+    exists: boolean;
+    contentLength?: number | undefined;
+    contentType?: string | undefined;
+    etag?: string | undefined;
+    lastModified?: string | undefined;
+    versionId?: string | undefined;
+    storageClass?: string | undefined;
+    metadata?: Record<string, string> | undefined;
+}
+
+### dist/types.d.ts#S3ListAllInput
+export type S3ListAllInput = z.infer<typeof S3ListAllInputSchema>;
+
+### dist/types.d.ts#S3ListAllInputSchema
+export declare const S3ListAllInputSchema: z.ZodObject<{
+    bucket: z.ZodString;
+    prefix: z.ZodOptional<z.ZodString>;
+    maxKeys: z.ZodOptional<z.ZodNumber>;
+    delimiter: z.ZodOptional<z.ZodString>;
+}>;
+
+### dist/types.d.ts#S3ListAllOutput
+export interface S3ListAllOutput {
+    contents: S3ListObject[];
+    commonPrefixes: string[];
+    keyCount: number;
+    pageCount: number;
+}
+
+### dist/types.d.ts#S3ListInput
+export type S3ListInput = z.infer<typeof S3ListInputSchema>;
+
+### dist/types.d.ts#S3ListInputSchema
+export declare const S3ListInputSchema: z.ZodObject<{
+    bucket: z.ZodString;
+    prefix: z.ZodOptional<z.ZodString>;
+    maxKeys: z.ZodOptional<z.ZodNumber>;
+    continuationToken: z.ZodOptional<z.ZodString>;
+    delimiter: z.ZodOptional<z.ZodString>;
+}>;
+
+### dist/types.d.ts#S3ListObject
+export interface S3ListObject {
+    key: string;
+    size: number;
+    lastModified: string;
+    etag: string;
+    storageClass?: string | undefined;
+}
+
+### dist/types.d.ts#S3ListOutput
+export interface S3ListOutput {
+    contents: S3ListObject[];
+    commonPrefixes: string[];
+    isTruncated: boolean;
+    nextContinuationToken?: string | undefined;
+    keyCount: number;
+}
+
+### dist/types.d.ts#S3MultipartAbortInput
+export type S3MultipartAbortInput = z.infer<typeof S3MultipartAbortInputSchema>;
+
+### dist/types.d.ts#S3MultipartAbortInputSchema
+export declare const S3MultipartAbortInputSchema: z.ZodObject<{
+    bucket: z.ZodString;
+    key: z.ZodString;
+    uploadId: z.ZodString;
+}>;
+
+### dist/types.d.ts#S3MultipartAbortOutput
+export interface S3MultipartAbortOutput {
+    aborted: boolean;
+}
+
+### dist/types.d.ts#S3MultipartCompleteInput
+export type S3MultipartCompleteInput = z.infer<typeof S3MultipartCompleteInputSchema>;
+
+### dist/types.d.ts#S3MultipartCompleteInputSchema
+export declare const S3MultipartCompleteInputSchema: z.ZodObject<{
+    bucket: z.ZodString;
+    key: z.ZodString;
+    uploadId: z.ZodString;
+    parts: z.ZodArray<z.ZodObject<{
+        etag: z.ZodString;
+        partNumber: z.ZodNumber;
+    }>>;
+}>;
+
+### dist/types.d.ts#S3MultipartCompleteOutput
+export interface S3MultipartCompleteOutput {
+    location: string;
+    bucket: string;
+    key: string;
+    etag: string;
+}
+
+### dist/types.d.ts#S3MultipartInitInput
+export type S3MultipartInitInput = z.infer<typeof S3MultipartInitInputSchema>;
+
+### dist/types.d.ts#S3MultipartInitInputSchema
+export declare const S3MultipartInitInputSchema: z.ZodObject<{
+    bucket: z.ZodString;
+    key: z.ZodString;
+    contentType: z.ZodOptional<z.ZodString>;
+    metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+}>;
+
+### dist/types.d.ts#S3MultipartInitOutput
+export interface S3MultipartInitOutput {
+    uploadId: string;
+    bucket: string;
+    key: string;
+}
+
+### dist/types.d.ts#S3MultipartUploadInput
+export type S3MultipartUploadInput = z.infer<typeof S3MultipartUploadInputSchema>;
+
+### dist/types.d.ts#S3MultipartUploadInputSchema
+export declare const S3MultipartUploadInputSchema: z.ZodObject<{
+    bucket: z.ZodString;
+    key: z.ZodString;
+    uploadId: z.ZodString;
+    partNumber: z.ZodNumber;
+    body: z.ZodString;
+}>;
+
+### dist/types.d.ts#S3MultipartUploadOutput
+export interface S3MultipartUploadOutput {
+    etag: string;
+    partNumber: number;
+}
+
+### dist/types.d.ts#S3PresignInput
+export interface S3PresignInput {
+    bucket: string;
+    key: string;
+    method?: "GET" | "PUT" | undefined;
+    expiresIn?: number | undefined;
+    contentType?: string | undefined;
+    versionId?: string | undefined;
+}
+
+### dist/types.d.ts#S3PresignInputSchema
+export declare const S3PresignInputSchema: z.ZodType<S3PresignInput>;
+
+### dist/types.d.ts#S3PresignOutput
+export interface S3PresignOutput {
+    url: string;
+    method: "GET" | "PUT";
+    expiresIn: number;
+    expiresAt: string;
+}
+
+### dist/types.d.ts#S3UploadInput
+export type S3UploadInput = z.infer<typeof S3UploadInputSchema>;
+
+### dist/types.d.ts#S3UploadInputSchema
+export declare const S3UploadInputSchema: z.ZodObject<{
+    bucket: z.ZodString;
+    key: z.ZodString;
+    body: z.ZodString;
+    contentType: z.ZodOptional<z.ZodString>;
+    base64: z.ZodOptional<z.ZodBoolean>;
+    metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+}>;
+
+### dist/types.d.ts#S3UploadOutput
+export interface S3UploadOutput {
+    etag: string;
+    versionId?: string | undefined;
+    location: string;
+}

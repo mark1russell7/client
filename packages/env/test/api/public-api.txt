@@ -1,0 +1,137 @@
+# The public API of @procedures/env
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 20 names
+
+DEFAULT_ENV_SETTINGS: dist/secrets.d.ts#DEFAULT_ENV_SETTINGS
+DEFAULT_SECRET_PATTERNS: dist/secrets.d.ts#DEFAULT_SECRET_PATTERNS
+EnvCheckInput: dist/types.d.ts#EnvCheckInput
+EnvCheckOutput: dist/types.d.ts#EnvCheckOutput
+EnvGetInput: dist/types.d.ts#EnvGetInput
+EnvGetOutput: dist/types.d.ts#EnvGetOutput
+EnvListEntry: dist/types.d.ts#EnvListEntry
+EnvListInput: dist/types.d.ts#EnvListInput
+EnvListOutput: dist/types.d.ts#EnvListOutput
+EnvModuleOptions: dist/module.d.ts#EnvModuleOptions
+type EnvSettings: dist/secrets.d.ts#EnvSettings
+EnvSource: dist/types.d.ts#EnvSource
+createEnvModule: dist/module.d.ts#createEnvModule
+envCheck: dist/procedures/env/check.d.ts#envCheck
+envGet: dist/procedures/env/get.d.ts#envGet
+envList: dist/procedures/env/list.d.ts#envList
+envModule: dist/module.d.ts#envModule
+isDefaultSecret: dist/secrets.d.ts#isDefaultSecret
+registerEnvProcedures: dist/module.d.ts#registerEnvProcedures
+secretMatcher: dist/secrets.d.ts#secretMatcher
+
+## ./module (dist/module.d.ts): 5 names
+
+EnvModuleOptions: dist/module.d.ts#EnvModuleOptions
+createEnvModule: dist/module.d.ts#createEnvModule
+default: dist/module.d.ts#envModule
+envModule: dist/module.d.ts#envModule
+registerEnvProcedures: dist/module.d.ts#registerEnvProcedures
+
+## ./register (dist/register.d.ts): 4 names
+
+EnvModuleOptions: dist/module.d.ts#EnvModuleOptions
+createEnvModule: dist/module.d.ts#createEnvModule
+envModule: dist/module.d.ts#envModule
+registerEnvProcedures: dist/module.d.ts#registerEnvProcedures
+
+## Declarations
+
+### dist/module.d.ts#EnvModuleOptions
+export interface EnvModuleOptions {
+    readonly secretPatterns?: readonly string[] | undefined;
+    readonly revealSecrets?: boolean | readonly string[] | undefined;
+    readonly env?: EnvSource | (() => EnvSource) | undefined;
+}
+
+### dist/module.d.ts#createEnvModule
+export declare function createEnvModule(options?: EnvModuleOptions): ProcedureModule;
+
+### dist/module.d.ts#envModule
+export declare const envModule: ProcedureModule;
+
+### dist/module.d.ts#registerEnvProcedures
+export declare function registerEnvProcedures(registry?: ProcedureRegistry, options?: EnvModuleOptions): void;
+
+### dist/procedures/env/check.d.ts#envCheck
+export declare function envCheck(input: EnvCheckInput, settings?: EnvSettings): Promise<EnvCheckOutput>;
+
+### dist/procedures/env/get.d.ts#envGet
+export declare function envGet(input: EnvGetInput, settings?: EnvSettings): Promise<EnvGetOutput>;
+
+### dist/procedures/env/list.d.ts#envList
+export declare function envList(input: EnvListInput, settings?: EnvSettings): Promise<EnvListOutput>;
+
+### dist/secrets.d.ts#DEFAULT_ENV_SETTINGS
+export declare const DEFAULT_ENV_SETTINGS: EnvSettings;
+
+### dist/secrets.d.ts#DEFAULT_SECRET_PATTERNS
+export declare const DEFAULT_SECRET_PATTERNS: readonly string[];
+
+### dist/secrets.d.ts#EnvSettings
+export interface EnvSettings {
+    readonly source: () => EnvSource;
+    readonly isSecret: (name: string) => boolean;
+    readonly reveals: (name: string) => boolean;
+}
+
+### dist/secrets.d.ts#isDefaultSecret
+export declare const isDefaultSecret: (name: string) => boolean;
+
+### dist/secrets.d.ts#secretMatcher
+export declare function secretMatcher(patterns: readonly string[]): (name: string) => boolean;
+
+### dist/types.d.ts#EnvCheckInput
+export interface EnvCheckInput {
+    required: string[];
+    allowEmpty?: boolean | undefined;
+}
+
+### dist/types.d.ts#EnvCheckOutput
+export interface EnvCheckOutput {
+    ok: boolean;
+    missing: string[];
+    present: string[];
+}
+
+### dist/types.d.ts#EnvGetInput
+export interface EnvGetInput {
+    name: string;
+}
+
+### dist/types.d.ts#EnvGetOutput
+export interface EnvGetOutput {
+    name: string;
+    set: boolean;
+    secret: boolean;
+    masked: boolean;
+    value?: string | undefined;
+}
+
+### dist/types.d.ts#EnvListEntry
+export interface EnvListEntry {
+    name: string;
+    secret: boolean;
+    value?: string | undefined;
+}
+
+### dist/types.d.ts#EnvListInput
+export interface EnvListInput {
+    prefix?: string | undefined;
+    values?: boolean | undefined;
+}
+
+### dist/types.d.ts#EnvListOutput
+export interface EnvListOutput {
+    variables: EnvListEntry[];
+}
+
+### dist/types.d.ts#EnvSource
+export type EnvSource = Readonly<Record<string, string | undefined>>;

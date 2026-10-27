@@ -1,0 +1,424 @@
+# The public API of @procedures/claude-cli
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 64 names
+
+CLAUDE_ENV: dist/executable.d.ts#CLAUDE_ENV
+CLAUDE_FLAGS: dist/turn.d.ts#CLAUDE_FLAGS
+CancelTurnOptions: dist/turn.d.ts#CancelTurnOptions
+CancelTurnResult: dist/turn.d.ts#CancelTurnResult
+ClaudeCancelInput: dist/types.d.ts#ClaudeCancelInput
+ClaudeCancelInputSchema: dist/types.d.ts#ClaudeCancelInputSchema
+ClaudeCancelOutput: dist/types.d.ts#ClaudeCancelOutput
+ClaudeCancelOutputSchema: dist/types.d.ts#ClaudeCancelOutputSchema
+ClaudeErrorEvent: dist/events.d.ts#ClaudeErrorEvent
+ClaudeEvent: dist/events.d.ts#ClaudeEvent
+ClaudeEventType: dist/events.d.ts#ClaudeEventType
+ClaudeFollowInput: dist/types.d.ts#ClaudeFollowInput
+ClaudeFollowInputSchema: dist/types.d.ts#ClaudeFollowInputSchema
+ClaudeFollowOutput: dist/types.d.ts#ClaudeFollowOutput
+ClaudeFollowOutputSchema: dist/types.d.ts#ClaudeFollowOutputSchema
+ClaudeLogEvent: dist/events.d.ts#ClaudeLogEvent
+ClaudeMetaEvent: dist/events.d.ts#ClaudeMetaEvent
+ClaudeReadInput: dist/types.d.ts#ClaudeReadInput
+ClaudeReadInputSchema: dist/types.d.ts#ClaudeReadInputSchema
+ClaudeReadOutput: dist/types.d.ts#ClaudeReadOutput
+ClaudeReadOutputSchema: dist/types.d.ts#ClaudeReadOutputSchema
+ClaudeResultEvent: dist/events.d.ts#ClaudeResultEvent
+ClaudeStartInput: dist/types.d.ts#ClaudeStartInput
+ClaudeStartInputSchema: dist/types.d.ts#ClaudeStartInputSchema
+ClaudeStartOutput: dist/types.d.ts#ClaudeStartOutput
+ClaudeStartOutputSchema: dist/types.d.ts#ClaudeStartOutputSchema
+ClaudeTextDeltaEvent: dist/events.d.ts#ClaudeTextDeltaEvent
+ClaudeTextEvent: dist/events.d.ts#ClaudeTextEvent
+ClaudeThinkingEvent: dist/events.d.ts#ClaudeThinkingEvent
+ClaudeToolResultEvent: dist/events.d.ts#ClaudeToolResultEvent
+ClaudeToolUseEvent: dist/events.d.ts#ClaudeToolUseEvent
+CommandRunner: dist/turn.d.ts#CommandRunner
+FindClaudeOptions: dist/executable.d.ts#FindClaudeOptions
+FollowTurnOptions: dist/turn.d.ts#FollowTurnOptions
+ReadTurnOptions: dist/turn.d.ts#ReadTurnOptions
+ReadTurnResult: dist/turn.d.ts#ReadTurnResult
+SpawnedProcess: dist/turn.d.ts#SpawnedProcess
+Spawner: dist/turn.d.ts#Spawner
+StartTurnOptions: dist/turn.d.ts#StartTurnOptions
+StartedTurn: dist/turn.d.ts#StartedTurn
+TurnEvent: dist/turn.d.ts#TurnEvent
+TurnEventSchema: dist/types.d.ts#TurnEventSchema
+cancelTurn: dist/turn.d.ts#cancelTurn
+claudeCancel: dist/procedures/claude/cancel.d.ts#claudeCancel
+claudeCancelProcedure: dist/module.d.ts#claudeCancelProcedure
+claudeCandidates: dist/executable.d.ts#claudeCandidates
+claudeCliModule: dist/module.d.ts#claudeCliModule
+claudeCliProcedures: dist/module.d.ts#claudeCliProcedures
+claudeFollow: dist/procedures/claude/follow.d.ts#claudeFollow
+claudeFollowProcedure: dist/module.d.ts#claudeFollowProcedure
+claudeRead: dist/procedures/claude/read.d.ts#claudeRead
+claudeReadProcedure: dist/module.d.ts#claudeReadProcedure
+claudeStart: dist/procedures/claude/start.d.ts#claudeStart
+claudeStartProcedure: dist/module.d.ts#claudeStartProcedure
+findClaude: dist/executable.d.ts#findClaude
+followTurn: dist/turn.d.ts#followTurn
+isProcessAlive: dist/turn.d.ts#isProcessAlive
+normalizeLine: dist/events.d.ts#normalizeLine
+normalizeText: dist/events.d.ts#normalizeText
+preview: dist/events.d.ts#preview
+readTurn: dist/turn.d.ts#readTurn
+registerClaudeCliProcedures: dist/module.d.ts#registerClaudeCliProcedures
+startTurn: dist/turn.d.ts#startTurn
+toolResultText: dist/events.d.ts#toolResultText
+
+## ./module (dist/module.d.ts): 8 names
+
+claudeCancelProcedure: dist/module.d.ts#claudeCancelProcedure
+claudeCliModule: dist/module.d.ts#claudeCliModule
+claudeCliProcedures: dist/module.d.ts#claudeCliProcedures
+claudeFollowProcedure: dist/module.d.ts#claudeFollowProcedure
+claudeReadProcedure: dist/module.d.ts#claudeReadProcedure
+claudeStartProcedure: dist/module.d.ts#claudeStartProcedure
+default: dist/module.d.ts#claudeCliModule
+registerClaudeCliProcedures: dist/module.d.ts#registerClaudeCliProcedures
+
+## ./register (dist/register.d.ts): 7 names
+
+claudeCancelProcedure: dist/module.d.ts#claudeCancelProcedure
+claudeCliModule: dist/module.d.ts#claudeCliModule
+claudeCliProcedures: dist/module.d.ts#claudeCliProcedures
+claudeFollowProcedure: dist/module.d.ts#claudeFollowProcedure
+claudeReadProcedure: dist/module.d.ts#claudeReadProcedure
+claudeStartProcedure: dist/module.d.ts#claudeStartProcedure
+registerClaudeCliProcedures: dist/module.d.ts#registerClaudeCliProcedures
+
+## Declarations
+
+### dist/events.d.ts#ClaudeErrorEvent
+export interface ClaudeErrorEvent {
+    readonly type: "error";
+    readonly message: string;
+}
+
+### dist/events.d.ts#ClaudeEvent
+export type ClaudeEvent = ClaudeMetaEvent | ClaudeTextEvent | ClaudeTextDeltaEvent | ClaudeThinkingEvent | ClaudeToolUseEvent | ClaudeToolResultEvent | ClaudeResultEvent | ClaudeLogEvent | ClaudeErrorEvent;
+
+### dist/events.d.ts#ClaudeEventType
+export type ClaudeEventType = ClaudeEvent["type"];
+
+### dist/events.d.ts#ClaudeLogEvent
+export interface ClaudeLogEvent {
+    readonly type: "log";
+    readonly text: string;
+}
+
+### dist/events.d.ts#ClaudeMetaEvent
+export interface ClaudeMetaEvent {
+    readonly type: "meta";
+    readonly subtype?: string;
+    readonly sessionId?: string;
+    readonly model?: string;
+    readonly cwd?: string;
+    readonly tools?: readonly string[];
+    readonly permissionMode?: string;
+}
+
+### dist/events.d.ts#ClaudeResultEvent
+export interface ClaudeResultEvent {
+    readonly type: "result";
+    readonly subtype?: string;
+    readonly isError: boolean;
+    readonly text?: string;
+    readonly sessionId?: string;
+    readonly costUsd?: number;
+    readonly durationMs?: number;
+    readonly turns?: number;
+    readonly usage?: Readonly<Record<string, unknown>>;
+    readonly errors?: readonly string[];
+}
+
+### dist/events.d.ts#ClaudeTextDeltaEvent
+export interface ClaudeTextDeltaEvent {
+    readonly type: "text-delta";
+    readonly text: string;
+}
+
+### dist/events.d.ts#ClaudeTextEvent
+export interface ClaudeTextEvent {
+    readonly type: "text";
+    readonly text: string;
+}
+
+### dist/events.d.ts#ClaudeThinkingEvent
+export interface ClaudeThinkingEvent {
+    readonly type: "thinking";
+    readonly text: string;
+}
+
+### dist/events.d.ts#ClaudeToolResultEvent
+export interface ClaudeToolResultEvent {
+    readonly type: "tool-result";
+    readonly toolUseId?: string;
+    readonly output: string;
+    readonly isError: boolean;
+}
+
+### dist/events.d.ts#ClaudeToolUseEvent
+export interface ClaudeToolUseEvent {
+    readonly type: "tool-use";
+    readonly id?: string;
+    readonly name: string;
+    readonly input: unknown;
+}
+
+### dist/events.d.ts#normalizeLine
+export declare function normalizeLine(line: string): ClaudeEvent[];
+
+### dist/events.d.ts#normalizeText
+export declare function normalizeText(text: string): ClaudeEvent[];
+
+### dist/events.d.ts#preview
+export declare function preview(value: unknown, max?: number): string;
+
+### dist/events.d.ts#toolResultText
+export declare function toolResultText(content: unknown): string;
+
+### dist/executable.d.ts#CLAUDE_ENV
+export declare const CLAUDE_ENV = "CLAUDE_BIN";
+
+### dist/executable.d.ts#FindClaudeOptions
+export interface FindClaudeOptions {
+    readonly executable?: string | undefined;
+    readonly env?: Readonly<Record<string, string | undefined>> | undefined;
+    readonly platform?: NodeJS.Platform | undefined;
+    readonly exists?: ((path: string) => boolean) | undefined;
+}
+
+### dist/executable.d.ts#claudeCandidates
+export declare function claudeCandidates(platform: NodeJS.Platform, env: Readonly<Record<string, string | undefined>>): string[];
+
+### dist/executable.d.ts#findClaude
+export declare function findClaude(options?: FindClaudeOptions): string | undefined;
+
+### dist/module.d.ts#claudeCancelProcedure
+export declare const claudeCancelProcedure: AnyProcedure;
+
+### dist/module.d.ts#claudeCliModule
+export declare const claudeCliModule: ProcedureModule;
+
+### dist/module.d.ts#claudeCliProcedures
+export declare const claudeCliProcedures: AnyProcedure[];
+
+### dist/module.d.ts#claudeFollowProcedure
+export declare const claudeFollowProcedure: AnyProcedure;
+
+### dist/module.d.ts#claudeReadProcedure
+export declare const claudeReadProcedure: AnyProcedure;
+
+### dist/module.d.ts#claudeStartProcedure
+export declare const claudeStartProcedure: AnyProcedure;
+
+### dist/module.d.ts#registerClaudeCliProcedures
+export declare const registerClaudeCliProcedures: PackageDefinition["register"];
+
+### dist/procedures/claude/cancel.d.ts#claudeCancel
+export declare function claudeCancel(input: ClaudeCancelInput): Promise<ClaudeCancelOutput>;
+
+### dist/procedures/claude/follow.d.ts#claudeFollow
+export declare function claudeFollow(input: ClaudeFollowInput, ctx?: {
+    signal?: AbortSignal | undefined;
+}): AsyncGenerator<ClaudeFollowOutput, void, undefined>;
+
+### dist/procedures/claude/read.d.ts#claudeRead
+export declare function claudeRead(input: ClaudeReadInput): Promise<ClaudeReadOutput>;
+
+### dist/procedures/claude/start.d.ts#claudeStart
+export declare function claudeStart(input: ClaudeStartInput, spawner?: Spawner): Promise<ClaudeStartOutput>;
+
+### dist/turn.d.ts#CLAUDE_FLAGS
+export declare const CLAUDE_FLAGS: readonly string[];
+
+### dist/turn.d.ts#CancelTurnOptions
+export interface CancelTurnOptions {
+    readonly platform?: NodeJS.Platform | undefined;
+    readonly runner?: CommandRunner | undefined;
+    readonly kill?: ((pid: number, signal: NodeJS.Signals) => void) | undefined;
+    readonly isAlive?: ((pid: number) => boolean) | undefined;
+    readonly signal?: NodeJS.Signals | undefined;
+}
+
+### dist/turn.d.ts#CancelTurnResult
+export interface CancelTurnResult {
+    readonly stopped: boolean;
+    readonly reason?: string;
+}
+
+### dist/turn.d.ts#CommandRunner
+export type CommandRunner = (command: string, options: CommandOptions) => Promise<CommandResult>;
+
+### dist/turn.d.ts#FollowTurnOptions
+export interface FollowTurnOptions extends ReadTurnOptions {
+    readonly pollMs?: number | undefined;
+    readonly quietReads?: number | undefined;
+    readonly signal?: AbortSignal | undefined;
+}
+
+### dist/turn.d.ts#ReadTurnOptions
+export interface ReadTurnOptions {
+    readonly outputFile: string;
+    readonly offset?: number | undefined;
+    readonly pid?: number | undefined;
+    readonly isAlive?: ((pid: number) => boolean) | undefined;
+}
+
+### dist/turn.d.ts#ReadTurnResult
+export interface ReadTurnResult {
+    readonly events: TurnEvent[];
+    readonly offset: number;
+    readonly finished: boolean;
+    readonly running?: boolean;
+    readonly newBytes: number;
+}
+
+### dist/turn.d.ts#SpawnedProcess
+export interface SpawnedProcess {
+    readonly pid?: number | undefined;
+    once(event: "spawn" | "error", listener: (error?: Error) => void): unknown;
+    unref(): void;
+}
+
+### dist/turn.d.ts#Spawner
+export type Spawner = (command: string, args: readonly string[], options: SpawnOptions) => SpawnedProcess;
+
+### dist/turn.d.ts#StartTurnOptions
+export interface StartTurnOptions {
+    readonly prompt: string;
+    readonly cwd?: string | undefined;
+    readonly args?: readonly string[] | undefined;
+    readonly outputFile?: string | undefined;
+    readonly promptFile?: string | undefined;
+    readonly executable?: string | undefined;
+    readonly executableArgs?: readonly string[] | undefined;
+    readonly env?: Readonly<Record<string, string | undefined>> | undefined;
+    readonly spawner?: Spawner | undefined;
+}
+
+### dist/turn.d.ts#StartedTurn
+export interface StartedTurn {
+    readonly pid: number;
+    readonly outputFile: string;
+    readonly promptFile: string;
+    readonly offset: number;
+    readonly command: string;
+    readonly args: readonly string[];
+    readonly startedAt: string;
+}
+
+### dist/turn.d.ts#TurnEvent
+export interface TurnEvent {
+    readonly offset: number;
+    readonly event: ClaudeEvent;
+}
+
+### dist/turn.d.ts#cancelTurn
+export declare function cancelTurn(pid: number, options?: CancelTurnOptions): Promise<CancelTurnResult>;
+
+### dist/turn.d.ts#followTurn
+export declare function followTurn(options: FollowTurnOptions): AsyncGenerator<TurnEvent, void, undefined>;
+
+### dist/turn.d.ts#isProcessAlive
+export declare function isProcessAlive(pid: number): boolean;
+
+### dist/turn.d.ts#readTurn
+export declare function readTurn(options: ReadTurnOptions): ReadTurnResult;
+
+### dist/turn.d.ts#startTurn
+export declare function startTurn(options: StartTurnOptions): Promise<StartedTurn>;
+
+### dist/types.d.ts#ClaudeCancelInput
+export interface ClaudeCancelInput {
+    pid: number;
+}
+
+### dist/types.d.ts#ClaudeCancelInputSchema
+export declare const ClaudeCancelInputSchema: z.ZodType<ClaudeCancelInput>;
+
+### dist/types.d.ts#ClaudeCancelOutput
+export interface ClaudeCancelOutput {
+    stopped: boolean;
+    reason?: string | undefined;
+}
+
+### dist/types.d.ts#ClaudeCancelOutputSchema
+export declare const ClaudeCancelOutputSchema: z.ZodType<ClaudeCancelOutput>;
+
+### dist/types.d.ts#ClaudeFollowInput
+export interface ClaudeFollowInput {
+    outputFile: string;
+    offset?: number | undefined;
+    pid?: number | undefined;
+    pollMs?: number | undefined;
+}
+
+### dist/types.d.ts#ClaudeFollowInputSchema
+export declare const ClaudeFollowInputSchema: z.ZodType<ClaudeFollowInput>;
+
+### dist/types.d.ts#ClaudeFollowOutput
+export type ClaudeFollowOutput = TurnEvent;
+
+### dist/types.d.ts#ClaudeFollowOutputSchema
+export declare const ClaudeFollowOutputSchema: z.ZodType<ClaudeFollowOutput>;
+
+### dist/types.d.ts#ClaudeReadInput
+export interface ClaudeReadInput {
+    outputFile: string;
+    offset?: number | undefined;
+    pid?: number | undefined;
+}
+
+### dist/types.d.ts#ClaudeReadInputSchema
+export declare const ClaudeReadInputSchema: z.ZodType<ClaudeReadInput>;
+
+### dist/types.d.ts#ClaudeReadOutput
+export interface ClaudeReadOutput {
+    events: TurnEvent[];
+    offset: number;
+    finished: boolean;
+    running?: boolean | undefined;
+    newBytes: number;
+}
+
+### dist/types.d.ts#ClaudeReadOutputSchema
+export declare const ClaudeReadOutputSchema: z.ZodType<ClaudeReadOutput>;
+
+### dist/types.d.ts#ClaudeStartInput
+export interface ClaudeStartInput {
+    prompt: string;
+    cwd?: string | undefined;
+    args?: string[] | undefined;
+    outputFile?: string | undefined;
+    promptFile?: string | undefined;
+    executable?: string | undefined;
+    executableArgs?: string[] | undefined;
+    env?: Record<string, string> | undefined;
+}
+
+### dist/types.d.ts#ClaudeStartInputSchema
+export declare const ClaudeStartInputSchema: z.ZodType<ClaudeStartInput>;
+
+### dist/types.d.ts#ClaudeStartOutput
+export interface ClaudeStartOutput {
+    pid: number;
+    outputFile: string;
+    promptFile: string;
+    offset: number;
+    command: string;
+    args: readonly string[];
+    startedAt: string;
+}
+
+### dist/types.d.ts#ClaudeStartOutputSchema
+export declare const ClaudeStartOutputSchema: z.ZodType<ClaudeStartOutput>;
+
+### dist/types.d.ts#TurnEventSchema
+export declare const TurnEventSchema: z.ZodType<TurnEvent>;

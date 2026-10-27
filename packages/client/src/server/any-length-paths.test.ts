@@ -1,15 +1,14 @@
 /**
  * Procedure paths of each length on each face (CLI-28). A path has one segment or more: a path of
- * one segment (jarvis has `["morning"]` and `["capture"]`) has the empty service. The calls go
- * through `LocalTransport`, `Server.handle`, HTTP (the handler without a framework and the Express
- * shim), WebSocket and a message port. The version of the URL keeps its old form on a path of two
- * segments or more.
+ * one segment (jarvis has `["morning"]` and `["capture"]`) has the empty service. The transport
+ * contract (`src/testing/transport-contract.ts`, CLI-85) calls paths of 1, 2 and 4 segments on
+ * each face. This file has the checks of `Server.handle`, of the URL and of the other parts that
+ * name a path. The version of the URL keeps its old form on a path of two segments or more.
  */
 
 import { describe, it, expect, afterEach } from "vitest";
 import { createServer, request, type IncomingMessage, type Server as HttpServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { MessageChannel } from "node:worker_threads";
 import express from "express";
 import { z } from "zod";
 import { Client } from "../client/client.js";
@@ -20,10 +19,7 @@ import { bodyPathAddressing } from "../adapters/http/server/addressing.js";
 import { rpcServerUrlStrategy } from "../adapters/http/server/strategies.js";
 import { defaultUrlPattern } from "../adapters/http/shared/strategies.js";
 import { HTTPMethod } from "../adapters/http/shared/constants.js";
-import { WebSocketTransport } from "../adapters/websocket/client/transport.js";
-import { upgradeHandler } from "../adapters/websocket/server/upgrade.js";
 import { LocalTransport } from "../adapters/local/client/transport.js";
-import { PortTransport } from "../adapters/port/transport.js";
 import { createProcedure } from "../procedures/define.js";
 import { createRegistry } from "../procedures/module.js";
 import type { ProcedureRegistry } from "../procedures/registry.js";
@@ -67,83 +63,6 @@ async function listen(http: HttpServer): Promise<number> {
   });
   return (http.address() as AddressInfo).port;
 }
-
-interface Face {
-  name: string;
-  client(): Promise<Client>;
-}
-
-const faces: Face[] = [
-  {
-    name: "LocalTransport",
-    async client() {
-      return new Client({ transport: new LocalTransport({ registry: registry() }), throwOnError: true });
-    },
-  },
-  {
-    name: "HTTP without a framework",
-    async client() {
-      const handler = procedureHandler(server());
-      const port = await listen(createServer((req, res) => {
-        if (!handler(req, res)) res.end("app");
-      }));
-      return new Client({ transport: new HttpTransport({ baseUrl: `http://127.0.0.1:${port}/api` }), throwOnError: true });
-    },
-  },
-  {
-    name: "HTTP with the Express shim",
-    async client() {
-      const app = express();
-      const http = createServer(app);
-      const transport = new HttpServerTransport(server(), { app, httpServer: http });
-      await transport.start();
-      const port = await listen(http);
-      cleanups.push(() => transport.stop());
-      return new Client({ transport: new HttpTransport({ baseUrl: `http://127.0.0.1:${port}/api` }), throwOnError: true });
-    },
-  },
-  {
-    name: "WebSocket",
-    async client() {
-      const upgrade = upgradeHandler(server(), { path: "/ws", heartbeat: false });
-      const http = createServer((_req, res) => res.end("app"));
-      http.on("upgrade", (req, socket, head) => {
-        if (!upgrade(req, socket, head)) socket.destroy();
-      });
-      const port = await listen(http);
-      const transport = new WebSocketTransport({ url: `ws://127.0.0.1:${port}/ws`, heartbeat: { enabled: false }, reconnect: { enabled: false } });
-      cleanups.push(async () => {
-        await transport.close();
-        await upgrade.close();
-      });
-      return new Client({ transport, throwOnError: true });
-    },
-  },
-  {
-    name: "a message port",
-    async client() {
-      const channel = new MessageChannel();
-      const worker = new PortTransport(channel.port1, { serve: server() });
-      const page = new PortTransport(channel.port2);
-      cleanups.push(async () => {
-        await page.close();
-        await worker.close();
-        channel.port1.close();
-        channel.port2.close();
-      });
-      return new Client({ transport: page, throwOnError: true });
-    },
-  },
-];
-
-describe.each(faces)("paths of each length on $name (CLI-28)", (face) => {
-  it("calls a path of 1, 2 and 4 segments", async () => {
-    const client = await face.client();
-    for (const path of PATHS) {
-      expect(await client.call(pathToMethod(path), { n: path.length })).toEqual({ path, input: { n: path.length } });
-    }
-  });
-});
 
 describe("paths of each length on Server.handle (CLI-28)", () => {
   it("serves a path of 1, 2 and 4 segments", async () => {
