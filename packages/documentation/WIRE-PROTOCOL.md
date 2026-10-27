@@ -177,6 +177,49 @@ A proxy or a client often closes a connection that sends no bytes for a time, fo
 
 The HTTP client gives each item of an NDJSON stream the metadata key `stream` with the value `true` (`STREAM_ITEM_METADATA_KEY`). The error item that ends the stream has it too. Thus the reader of an item knows that the item came from a stream, not from a JSON response. This key does not cross the wire, and the client removes a key with this name that the peer sent.
 
+### A batch of calls
+
+A client can send many calls in one request (CLI-32). The answer is one NDJSON stream. Each item of the stream is a frame that names its call. Only the HTTP face has batches. A WebSocket connection and a message port already send many calls at the same time, and each frame has the id of its call.
+
+The request:
+
+- `POST {base}`, with the header `Procedures-Batch: 1` and the other headers of "The request".
+- The body is `{"calls": [{"id": "1", "path": "notes.list", "input": {}, "headers": {...}, "metadata": {...}}]}`.
+- `id` is a text of 1 to 128 characters, unique in the batch. Each frame of the call names it.
+- `path` is a text with dots or a list of segments, as in `bodyPathAddressing()`. Without `input`, the input is `{}`.
+- `headers` are the headers of the call, for example `traceparent` or `Procedure-Narrowing`. They go over the headers of the request. A call cannot give a secret header (refer to "The credentials of a request"), a header of the request itself (`Host`, `Content-Type`, `Accept`, `Origin` and the others) or a `Sec-` header. The credentials of each call are the credentials of the request.
+- `metadata` is the custom metadata of the call, as the `X-Metadata` header gives it. It goes over the `X-Metadata` of the request.
+
+The answer:
+
+- A server that takes the batch answers with the header `Procedures-Batch: 1`, the status 200 and `Content-Type: application/x-ndjson`.
+- A body that is not a batch gets the status 400 and the code `INVALID_REQUEST`. A batch with more calls than `maxCalls` (default 64) gets the status 413 and the code `PAYLOAD_TOO_LARGE`. Then no call runs.
+- Each call goes through `handle()` as a call of its own. Thus the request hook, the token check, the limits and the error policy apply to each call. One call that fails does not stop the others.
+- At most `concurrency` calls (default 8) run at the same time. The next call starts when a call ends. A stream holds its place until it ends.
+- The frames come in the order of their arrival, so the frames of the calls mix. The order of the frames of one call does not change.
+
+| Frame (the `payload` of an `item` line) | Meaning |
+|---|---|
+| `{"call":"1","type":"response","payload":...}` | The value of the call. Without `payload`, the call has no value (as the status 204). |
+| `{"call":"1","type":"item","seq":1,"payload":...}` | One item of the stream of the call. |
+| `{"call":"1","type":"done","seq":...}` | The end of the stream of the call. |
+| `{"call":"1","type":"error","error":{"code":...,"message":...,"retryable":...}}` | The error of the call. It can also have `reason`, `retryAfterMs` and `conflicts`. |
+
+- The `seq` of a frame counts within its call, with the rules of "The sequence numbers of a stream". The `seq` of the outer lines counts the frames of the batch.
+- Each call ends with one `response`, `done` or `error` frame. The outer `done` line comes after the last frame of the last call.
+- An outer `error` line, or a stream that ends without an outer `done` line, ends each open call. `HttpTransport` gives such a call the error of the line or `STREAM_ENDED`, with the delivery `indeterminate`.
+- When the reader stops, the server stops each call that runs.
+
+The option `batch` of `procedureHandler` and of `HttpServerTransport` sets the limits: `{ maxCalls, concurrency }`. The default is on. `batch: false` turns batches off, and then the request goes to the procedures as one call.
+
+`HttpTransport` sends batches with its option `batch` (default off):
+
+- The `POST` calls that start in the same turn of the event loop go in one request. `batch: { window }` waits longer for more calls. `maxCalls` (default 32) sends a full batch at once.
+- The calls of one batch have the same secret headers. Calls with other secret headers go in another batch. A batch of one call goes as one call, with the format of "The request".
+- A server without batches answers without the header `Procedures-Batch` and with the status 400, 404, 405, 415 or 501. Then `HttpTransport` sends each call alone, and it does not send a batch to that server again.
+- The `timeout` covers the time to the first frame of each call.
+- An abort of a call that did not go out gives the delivery `not-sent`. An abort of a call in a batch gives `indeterminate`. When each call of a batch ended or stopped, the request stops.
+
 ## WebSocket
 
 Each message is one JSON object, a frame. Each frame has an `id` and a `type`. The two sides send the same frames: the client sends calls to the server, and the server sends calls to the client (roadmap R24).

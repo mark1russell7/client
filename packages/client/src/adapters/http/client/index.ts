@@ -8,6 +8,7 @@
 // Client Transport
 export { HttpTransport } from "./transport.js";
 export type { HttpTransportOptions } from "./types.js";
+export type { HttpBatchOptions } from "./batch.js";
 
 // Re-export shared utilities for convenience
 export {

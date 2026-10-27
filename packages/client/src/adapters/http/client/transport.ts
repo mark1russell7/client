@@ -14,6 +14,7 @@ import type {
 import type { HttpTransportOptions } from "./types.js";
 import { DELIVERY_METADATA_KEY, RETRY_AFTER_METADATA_KEY, isNotSentError } from "../../../client/middleware/items.js";
 import { StreamSequence, streamItemMetadata } from "../../sequence.js";
+import { HttpBatcher } from "./batch.js";
 
 /**
  * The wait that an error response asks for, in milliseconds: `retryAfterMs` of the body of the
@@ -102,15 +103,44 @@ export class HttpTransport implements Transport {
       ...(options.credentials !== undefined ? { credentials: options.credentials } : {}),
     };
     this.fetchFn = options.fetch;
+    const batch = options.batch === true ? {} : options.batch || undefined;
+    this.batcher = batch
+      ? new HttpBatcher(
+          {
+            url: batch.url ?? this.baseUrl,
+            timeoutMs: this.timeout,
+            fetch: (url, init) => (this.fetchFn ?? fetch)(url, init),
+            init: () => ({ headers: this.defaultHeaders, init: this.requestInit }),
+            headersOf: (metadata) => this.headerConverter.metadataToHeaders(metadata),
+            metadataOf: (headers) => this.headerConverter.headersToMetadata(headers),
+            statusOf: (status, body) => this.httpStatusToUniversal(status as HTTPStatus, body),
+            bodyOf: (response) => this.parseResponseBody(response),
+            sendOne: <TRes>(message: Message) => this.sendOne<unknown, TRes>(message),
+          },
+          batch
+        )
+      : undefined;
   }
+
+  /** The batches of the calls (CLI-32), or undefined without the option `batch` */
+  private readonly batcher: HttpBatcher | undefined;
 
   /**
    * Send HTTP request and yield its response: one item, or the items of an NDJSON stream.
    *
    * The `timeout` option covers the time to the first item. Before, it covered a whole NDJSON
    * stream, so a long stream always failed (deep dive TRN-7).
+   *
+   * With the option `batch`, the `POST` calls that start in the same turn of the event loop go in
+   * one request (CLI-32). Each call still gets its own items.
    */
-  async *send<TReq, TRes>(
+  send<TReq, TRes>(message: Message<TReq>): AsyncIterable<ResponseItem<TRes>> {
+    if (this.batcher && this.httpMethodStrategy(message.method) === HTTPMethod.POST) return this.batcher.send<TRes>(message);
+    return this.sendOne<TReq, TRes>(message);
+  }
+
+  /** The request of one call. */
+  private async *sendOne<TReq, TRes>(
     message: Message<TReq>
   ): AsyncIterable<ResponseItem<TRes>> {
     // Convert Method → URL

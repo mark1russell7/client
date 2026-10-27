@@ -32,6 +32,7 @@ import { NDJSON_MEDIA_TYPE as NDJSON, defaultNdjsonError as errorOf, keepAliveMs
 import { applyCors, corsOrigins, corsPolicy, type CorsOptions, type CorsPolicy } from "./cors.js";
 import { urlAddressing, type Addressing } from "./addressing.js";
 import { BodyError, readJsonBody } from "./body.js";
+import { BATCH_HEADER, batchFrames, batchOptionsOf, isBatchRequest, parseBatch, type HandlerBatchOptions, type BatchRun } from "./batch.js";
 import { NARROWING_METADATA_KEY, addNarrowing } from "../../../procedures/narrowing.js";
 import { retryAfterSeconds } from "@mark1russell7/service/limiter";
 
@@ -107,6 +108,13 @@ export interface ProcedureHandlerOptions extends BrowserGuardOptions {
    * @default ["token"]
    */
   readonly secretQuery?: readonly string[] | undefined;
+  /**
+   * The batches of calls (roadmap CLI-32): `POST {basePath}` with the header `Procedures-Batch: 1`
+   * carries several calls, and the answer is one NDJSON stream of frames that name their call.
+   * Each call runs as a call of its own. `false` takes no batch: such a request goes on as before.
+   * @default { maxCalls: 64, concurrency: 8 }
+   */
+  readonly batch?: boolean | HandlerBatchOptions | undefined;
 }
 
 /**
@@ -196,7 +204,26 @@ const STANDARD_HEADERS = new Set([
 ]);
 
 /** The known custom headers whose metadata key is not the header name (lower case to camel case). */
-const HEADER_MAPPINGS: Record<string, string> = { collectionname: "collectionName" };
+/**
+ * The headers that a call of a batch cannot give (CLI-32): the headers of the connection, of the
+ * body, of the browser and of the protocol stay the headers of the HTTP request.
+ */
+const REQUEST_ONLY_HEADERS = new Set([
+  "host",
+  "connection",
+  "content-length",
+  "content-type",
+  "transfer-encoding",
+  "accept",
+  "accept-encoding",
+  "origin",
+  "referer",
+  "x-metadata",
+  "procedures-protocol",
+  "procedures-batch",
+]);
+
+const HEADER_MAPPINGS: Record<string, string> ={ collectionname: "collectionName" };
 
 /** This function sets a key as an own property, also the key `__proto__` (the `put` of the query language). */
 function put(target: Record<string, unknown>, key: string, value: unknown): void {
@@ -291,6 +318,7 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
   assertNamedOrigins(compat.face?.name ?? "procedureHandler", ambientMode, guard.allowedOrigins, compat.face?.originOption ?? "cors.origin");
   const secretHeaders = headerNames(options.secretHeaders);
   const secretQuery = new Set(options.secretQuery ?? (legacy ? [] : ["token"]));
+  const batch = batchOptionsOf(options.batch);
   // The addressing of a request (CLI-31): the option, or the URL strategy of the shim, or the URL
   // format of HttpTransport
   const compatMethodOf = compat.methodOf;
@@ -317,7 +345,14 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
   const matches = (req: IncomingMessage): boolean => {
     if (compat.matchAll === true) return true;
     const path = pathOf(req);
-    return path.startsWith(prefix) || (addressing.takesBasePath === true && path === bareBase);
+    return path.startsWith(prefix) || (path === bareBase && (addressing.takesBasePath === true || (batch !== undefined && isBatchRequest(req))));
+  };
+
+  /** True when the request is a batch at the base path (CLI-32). */
+  const isBatch = (req: IncomingMessage): boolean => {
+    if (batch === undefined || !isBatchRequest(req)) return false;
+    const path = pathOf(req);
+    return compat.matchAll === true || path === bareBase || path === prefix;
   };
 
   /** The error body of wire v1: the message, the code, the retryable flag and the more fields. */
@@ -340,9 +375,45 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
     const view: UrlRequest = { method: (req.method ?? "GET").toUpperCase(), path, url: req.url ?? "/", headers: req.headers, query: queryRecord(urlQuery) };
     const address = addressing(view, body, req);
     if (!address) return null;
-    const method = address.method;
-
     const id = (req.headers["x-request-id"] as string | undefined) ?? `req-${Date.now()}-${Math.random()}`;
+    const narrowing = req.headersDistinct?.[NARROWING_METADATA_KEY] ?? req.headers[NARROWING_METADATA_KEY];
+    return requestOf(req, { id, method: address.method, payload: address.payload, headers: req.headers, narrowing: [narrowing].flat(), custom: customOf(req.headers) });
+  };
+
+  /**
+   * The custom metadata of the `X-Metadata` header (deep dive TRN-11): any JSON value, any key.
+   * A header above the limit or a header that is not URI-encoded JSON throws a `BodyError`.
+   */
+  const customOf = (headers: IncomingHttpHeaders): Record<string, unknown>[] => {
+    const encoded = headers["x-metadata"];
+    if (typeof encoded !== "string") return [];
+    if (encoded.length > METADATA_HEADER_LIMIT) {
+      throw new BodyError(`The X-Metadata header is longer than ${METADATA_HEADER_LIMIT} characters`, 431);
+    }
+    const custom = decodeMetadataHeader(encoded);
+    if (!custom) throw new BodyError("The X-Metadata header is not URI-encoded JSON of an object", 400);
+    return [custom];
+  };
+
+  /**
+   * The `ServerRequest` of one call. A request of one call gives the headers of the HTTP request.
+   * A call of a batch gives the headers of the HTTP request with the headers of the call over
+   * them (CLI-32). The credentials always come from the HTTP request.
+   */
+  const requestOf = (
+    req: IncomingMessage,
+    call: {
+      readonly id: string;
+      readonly method: Method;
+      readonly payload: unknown;
+      readonly headers: IncomingHttpHeaders;
+      /** Each value of the narrowing header: each one is a source (CLI-30) */
+      readonly narrowing: readonly unknown[];
+      /** The custom metadata, in order: a later object replaces a key of an earlier one */
+      readonly custom: readonly Record<string, unknown>[];
+    }
+  ): ServerRequest => {
+    const { id, method, headers } = call;
 
     // The query without its secret parameters: they go into the credentials (CLI-2a)
     // An own property for each key, also `__proto__`: a key of the request changes no prototype
@@ -354,7 +425,7 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
     // query or params. The secret headers go into the credentials, not into the metadata, so a
     // handler and a nested call do not see them (roadmap R18)
     const metadata: Metadata = {
-      headers: withoutSecretHeaders(req.headers as Record<string, unknown>, secretHeaders),
+      headers: withoutSecretHeaders(headers as Record<string, unknown>, secretHeaders),
       query,
       params,
     };
@@ -364,7 +435,7 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
 
     // The custom headers at the root of the metadata, as the client's metadataToHeaders() sends
     // them. A secret header (Cookie too) does not go there.
-    for (const [key, value] of Object.entries(req.headers)) {
+    for (const [key, value] of Object.entries(headers)) {
       const lower = key.toLowerCase();
       if (STANDARD_HEADERS.has(lower) || isSecretHeader(lower, secretHeaders) || typeof value !== "string" || lower === NARROWING_METADATA_KEY) continue;
       const normalizedKey = HEADER_MAPPINGS[lower] ?? key;
@@ -372,17 +443,10 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
     }
     // Each value of the narrowing header is one source, also each line of a repeated header. No
     // source replaces another: a gateway's header and the client's key of X-Metadata both apply (CLI-30)
-    const narrowingHeader = req.headersDistinct?.[NARROWING_METADATA_KEY] ?? req.headers[NARROWING_METADATA_KEY];
-    for (const value of [narrowingHeader].flat()) if (typeof value === "string") setMetadata(metadata, NARROWING_METADATA_KEY, value);
+    for (const value of call.narrowing) if (typeof value === "string") setMetadata(metadata, NARROWING_METADATA_KEY, value);
 
     // The custom metadata of the HTTP client: any JSON value, any key (deep dive TRN-11)
-    const encoded = req.headers["x-metadata"];
-    if (typeof encoded === "string") {
-      if (encoded.length > METADATA_HEADER_LIMIT) {
-        throw new BodyError(`The X-Metadata header is longer than ${METADATA_HEADER_LIMIT} characters`, 431);
-      }
-      const custom = decodeMetadataHeader(encoded);
-      if (!custom) throw new BodyError("The X-Metadata header is not URI-encoded JSON of an object", 400);
+    for (const custom of call.custom) {
       for (const [key, value] of Object.entries(custom)) {
         if (!RESERVED_METADATA.has(key) && key !== "auth" && !key.startsWith("__")) setMetadata(metadata, key, value);
       }
@@ -390,7 +454,7 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
 
     // The payload of the addressing (the body, or the id of a RESTful GET). Only an absent payload
     // becomes {}: 0, false, "" and null stay (deep dive TRN-10)
-    const payload: unknown = address.payload === undefined ? {} : address.payload;
+    const payload: unknown = call.payload === undefined ? {} : call.payload;
 
     return {
       id,
@@ -403,6 +467,32 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
       // The credentials have the connection of the socket of the request (CLI-71)
       credentials: requestCredentials({ headers: req.headers as Record<string, unknown>, url: req.url, socket: req.socket }),
     };
+  };
+
+  /**
+   * The runs of a batch (CLI-32). A bad body or a bad `X-Metadata` header throws a `BodyError`, and
+   * then no call runs. A header of a call cannot be a secret header, a header of the connection or
+   * a header of the body: the credentials and the body are the parts of the HTTP request.
+   */
+  const batchRuns = (req: IncomingMessage, body: unknown, signal: AbortSignal): BatchRun[] => {
+    const calls = parseBatch(body, batch!.maxCalls);
+    const outerCustom = customOf(req.headers);
+    const outerNarrowing = [req.headersDistinct?.[NARROWING_METADATA_KEY] ?? req.headers[NARROWING_METADATA_KEY]].flat();
+    const batchId = (req.headers["x-request-id"] as string | undefined) ?? `batch-${Date.now()}-${Math.random()}`;
+    return calls.map((call) => {
+      const headers: IncomingHttpHeaders = {};
+      for (const [key, value] of Object.entries(req.headers)) put(headers, key, value);
+      const narrowing = [...outerNarrowing];
+      for (const [key, value] of Object.entries(call.headers)) {
+        const lower = key.toLowerCase();
+        if (lower === NARROWING_METADATA_KEY) narrowing.push(value);
+        else if (!REQUEST_ONLY_HEADERS.has(lower) && !lower.startsWith("sec-") && !isSecretHeader(lower, secretHeaders)) put(headers, lower, value);
+      }
+      const custom = call.metadata ? [...outerCustom, call.metadata] : outerCustom;
+      const request = requestOf(req, { id: `${batchId}:${call.id}`, method: call.method, payload: call.input, headers, narrowing, custom });
+      request.signal = signal;
+      return { call: call.id, request };
+    });
   };
 
   /** This function converts a `ServerResponse` to the HTTP response. */
@@ -517,6 +607,9 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
     if (cors && applyCors(req, res, cors)) return;
     // The protocol version of this server, on each response (roadmap R25)
     res.setHeader(PROTOCOL_HEADER, String(PROTOCOL_VERSION));
+    // A server that takes batches says so on each answer to a batch, also on an error. A client
+    // sends the calls of a batch alone after an answer without it (CLI-32).
+    if (isBatch(req)) res.setHeader(BATCH_HEADER, "1");
     const version = protocolVersionOf(req.headers[PROTOCOL_HEADER.toLowerCase()]);
     if (version !== undefined && version > PROTOCOL_VERSION) {
       sendJson(res, 400, {
@@ -557,12 +650,21 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
     });
     let serverRequest: ServerRequest | null = null;
     try {
+      let runs: BatchRun[] | undefined;
       try {
-        serverRequest = toServerRequest(req, await readBody(req));
+        const body = await readBody(req);
+        if (isBatch(req)) runs = batchRuns(req, body, controller.signal);
+        else serverRequest = toServerRequest(req, body);
       } catch (error) {
         const status = error instanceof BodyError ? error.httpStatus : 400;
         // A body above the limit is PAYLOAD_TOO_LARGE, as on the MCP face and the WebSocket face (CLI-85)
         sendError(res, status, (error as Error).message, status === 413 ? "PAYLOAD_TOO_LARGE" : "INVALID_REQUEST");
+        return;
+      }
+      if (runs) {
+        // One NDJSON stream for the calls of the batch: the lines, the backpressure and the
+        // keep-alive of a stream of one call (CLI-32)
+        await writeNdjsonStream(res, batchFrames(server, runs, batch!.concurrency, errorOf), { signal: controller.signal, keepAlive, errorOf, clock });
         return;
       }
       if (!serverRequest) {

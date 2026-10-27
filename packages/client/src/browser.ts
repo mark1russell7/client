@@ -42,6 +42,7 @@ export type {
   ClientMiddleware,
   ClientOptions,
   HttpTransportOptions,
+  HttpBatchOptions,
   UrlStrategy,
   HttpMethodStrategy,
   LocalTransportOptions,

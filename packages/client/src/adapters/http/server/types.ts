@@ -11,6 +11,7 @@ import type { BrowserGuardOptions } from "../../../server/browser-guard.js";
 import type { Clock } from "../../../clock.js";
 import type { Duration } from "../../../duration.js";
 import type { Addressing } from "./addressing.js";
+import type { HandlerBatchOptions } from "./batch.js";
 import type { UrlStrategyRequest } from "./strategies.js";
 
 /**
@@ -61,6 +62,13 @@ export interface HttpServerTransportOptions extends BrowserGuardOptions {
    * the route takes the base path itself too.
    */
   addressing?: Addressing;
+
+  /**
+   * The batches of calls (CLI-32): `POST {base}` with the header `Procedures-Batch: 1` runs many
+   * calls and answers with one NDJSON stream. `false` turns batches off.
+   * @default true: `{ maxCalls: 64, concurrency: 8 }`
+   */
+  batch?: boolean | HandlerBatchOptions;
 
   /**
    * Base path for RPC endpoints.
