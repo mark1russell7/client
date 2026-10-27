@@ -137,9 +137,9 @@ describe("component rendering (regression: BUGS-2026-07 L3)", () => {
 
 describe("component rendering through the invocation path (deep dive core.md, low items)", () => {
   it("validates the input of a child component", async () => {
-    // componentModule() takes type-erased definitions: `unknown` keeps the data type out of the list
+    // A definition with a typed input schema goes into the list as it is
     const registry = registryOf(
-      defineComponent<unknown>({
+      defineComponent({
         type: "lo-strict-child",
         namespace: "lo1",
         input: {
@@ -149,7 +149,7 @@ describe("component rendering through the invocation path (deep dive core.md, lo
               ? { success: true as const, data: v as { n: number } }
               : { success: false as const, error: { message: "n must be a number", errors: [] } },
         },
-        factory: (ctx) => ({ type: "child", props: { n: (ctx.data as { n: number }).n } }),
+        factory: (ctx) => ({ type: "child", props: { n: ctx.data.n } }),
       }),
       defineComponent({
         type: "lo-parent",

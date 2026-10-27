@@ -241,8 +241,9 @@ export interface ComponentDefinition<TData = unknown> {
 
 /**
  * Any component definition (type-erased for storage).
+ * The type uses `any` for the data, as `AnyProcedure` does: a list of definitions then accepts a definition with a typed `input` schema.
  */
-export type AnyComponentDefinition = ComponentDefinition<unknown>;
+export type AnyComponentDefinition = ComponentDefinition<any>;
 
 // =============================================================================
 // Component Registry Types

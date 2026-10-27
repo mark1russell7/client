@@ -17,4 +17,4 @@ Migration:
 - An app that uses `registerBundle(bundle)` uses `registerModules(PROCEDURE_REGISTRY, [componentModule("my-app/ui", bundle)])`. The components of the bundle keep their paths.
 - The site: the site does not use these functions. No step is necessary.
 - MiniMongo, Graph and jarvis: find each call of `defineComponent`, `simpleComponent`, `namespacedComponent`, `streamingComponent` and `registerBundle`. Do the steps above for each one. An app without these calls has no step.
-- `componentModule()` takes definitions with the data type `unknown`. A definition with a typed `input` schema uses `defineComponent<unknown>({ ... })` in the list.
+- `componentModule()` and `createBundle()` accept a definition with a typed `input` schema. `AnyComponentDefinition` erases the data type with `any`, as `AnyProcedure` does.
