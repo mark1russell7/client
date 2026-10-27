@@ -9,7 +9,7 @@
  * peer package, because the peer of `mark --server` writes them.
  */
 
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn, type ChildProcess, type SpawnOptions } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
@@ -185,6 +185,116 @@ export function findCliPath(): string {
   return "mark";
 }
 
+/** The function that starts a process. The default is `spawn` of `node:child_process`. The tests give their own. */
+export type ServerSpawner = (command: string, args: readonly string[], options: SpawnOptions) => ChildProcess;
+
+const defaultSpawner: ServerSpawner = (command, args, options) => spawn(command, [...args], options);
+
+/** The options of `spawnMarkServer()`. */
+export interface MarkServerSpawn {
+  readonly port: number;
+  /** The address of the listener. */
+  readonly host: string;
+  /** The transport. The default is `http`. */
+  readonly transport?: "http" | "websocket" | "both" | undefined;
+  /** The idle stop of the server, in milliseconds (`--idle-timeout`, CLI-27). Without it, the server has no idle stop. */
+  readonly idleTimeoutMs?: number | undefined;
+  /** The root of the `fs.*` procedures of the server (`--fs-root`). Without it, the server has no root. */
+  readonly fsRoot?: string | undefined;
+  /** The function that starts the process. The default is `spawn`. */
+  readonly spawner?: ServerSpawner | undefined;
+}
+
+/** The process of a server that `spawnMarkServer()` started, and the command line of the process. */
+export interface SpawnedMarkServer {
+  readonly child: ChildProcess;
+  readonly command: string;
+  readonly args: readonly string[];
+  /** The log file of the server: its standard output and its standard error. */
+  readonly logFile: string;
+}
+
+/**
+ * This function starts `mark --server` as a detached background process in the current folder,
+ * and gives the process at once. It does not wait for the readiness. `server.start` and the
+ * auto-warm of `mark` (CLI-27) use it.
+ *
+ * - The command line is the command that a user runs: `mark --server --port <port> --host <host>`.
+ * - The output goes to `~/.mark/server.log`. The old log moves to `server.log.1`.
+ * - The process is detached and unref'd, so the caller can exit at once.
+ * - An error of the spawn goes to the event `error` of the process, and it does not throw.
+ *
+ * This function does not use `runCommand()` or `shell.run`. They wait for the end of the process,
+ * and this process must outlive its caller. `SERVER-LAYERS.md` records the exception.
+ */
+export function spawnMarkServer(options: MarkServerSpawn): SpawnedMarkServer {
+  const transport = options.transport ?? "http";
+
+  // Rotate log file
+  rotateLog();
+
+  // Ensure directories exist
+  fs.mkdirSync(SERVERS_DIR, { recursive: true });
+
+  // Open log file for writing
+  const logFd = fs.openSync(LOG_PATH, "a");
+
+  // Find CLI path
+  const cliPath = findCliPath();
+
+  // Build arguments: the root is a global flag, before --server
+  const args = [
+    ...(options.fsRoot !== undefined ? ["--fs-root", options.fsRoot] : []),
+    "--server",
+    "--port",
+    String(options.port),
+    "--host",
+    options.host,
+  ];
+  if (transport !== "http") {
+    args.push("--transport", transport);
+  }
+  if (options.idleTimeoutMs !== undefined) {
+    args.push("--idle-timeout", String(options.idleTimeoutMs));
+  }
+
+  // Determine how to spawn
+  let spawnCmd: string;
+  let spawnArgs: string[];
+
+  if (cliPath === "mark" || cliPath.endsWith(".bin/mark") || cliPath.endsWith(".bin\\mark")) {
+    // Use mark command directly
+    spawnCmd = cliPath;
+    spawnArgs = args;
+  } else {
+    // Use node to run the JS file
+    spawnCmd = process.execPath;
+    spawnArgs = [cliPath, ...args];
+  }
+
+  // Spawn daemon process
+  let child: ChildProcess;
+  try {
+    child = (options.spawner ?? defaultSpawner)(spawnCmd, spawnArgs, {
+      detached: true,
+      stdio: ["ignore", logFd, logFd],
+      env: { ...process.env },
+      cwd: process.cwd(),
+      // No console window on Windows (deep dive CLI-16)
+      windowsHide: true,
+    });
+  } finally {
+    fs.closeSync(logFd);
+  }
+  // A spawn that fails, for example without `mark` in PATH, emits "error". Without a listener,
+  // the event ends the process of the caller.
+  child.once("error", () => undefined);
+
+  // Unref so parent can exit
+  child.unref();
+  return { child, command: spawnCmd, args: spawnArgs, logFile: LOG_PATH };
+}
+
 /**
  * The rule under a root of the files (roadmap R33, tracker item O36): a root refuses it. It starts
  * a mark server without the root, and it writes the log and the lock files in `~/.mark`.
@@ -227,54 +337,11 @@ export const serverStartProcedure: Procedure<
       };
     }
 
-    // Rotate log file
-    rotateLog();
-
-    // Ensure directories exist
-    fs.mkdirSync(SERVERS_DIR, { recursive: true });
-
-    // Open log file for writing
-    const logFd = fs.openSync(LOG_PATH, "a");
-
-    // Find CLI path
-    const cliPath = findCliPath();
-
-    // Build arguments
-    const args = ["--server", "--port", String(port), "--host", host];
-    if (transport !== "http") {
-      args.push("--transport", transport);
-    }
-
-    // Determine how to spawn
-    let spawnCmd: string;
-    let spawnArgs: string[];
-
-    if (cliPath === "mark" || cliPath.endsWith(".bin/mark") || cliPath.endsWith(".bin\\mark")) {
-      // Use mark command directly
-      spawnCmd = cliPath;
-      spawnArgs = args;
-    } else {
-      // Use node to run the JS file
-      spawnCmd = process.execPath;
-      spawnArgs = [cliPath, ...args];
-    }
-
-    // Spawn daemon process
-    const child = spawn(spawnCmd, spawnArgs, {
-      detached: true,
-      stdio: ["ignore", logFd, logFd],
-      env: { ...process.env },
-      cwd: process.cwd(),
-      // No console window on Windows (deep dive CLI-16)
-      windowsHide: true,
-    });
+    // The detached process of the server, with its log (CLI-27 shares this start with the auto-warm of mark)
+    const { child } = spawnMarkServer({ port, host, transport });
     // The end of the process stops the wait. The listener of "error" also catches a spawn that
     // fails, for example without `mark` in PATH.
     const end = endOf(child);
-
-    // Unref so parent can exit
-    child.unref();
-    fs.closeSync(logFd);
 
     // The wait for the readiness (CLI-9): the readiness probe, and host.info for the identity of the server
     const result = await waitForServer({ url: readinessUrl(host, port), port, before: existing?.peerId, end, timeoutMs });

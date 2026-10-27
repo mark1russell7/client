@@ -132,7 +132,7 @@ The package provides a `mark` binary for command-line usage.
 mark [global options] <path...> [positional...] [--options]
 mark serve [--procedures pkgs] [--port N] [--token T | --no-token] [--expose patterns] [--events topics] [--fs-root folder] [--probe-port N]
 mark mcp [--bundles list] [--tool-timeout ms] [--read-only] [--http port] [--max-sessions n] [--fs-root folder] [--debug]
-mark --server [--port N] [--host H] [--transport http|websocket|both] [--events topics] [--probe-port N]
+mark --server [--port N] [--host H] [--transport http|websocket|both] [--events topics] [--probe-port N] [--idle-timeout ms]
 mark -i
 mark --fs-root <folder> <command | --server | -i | serve | mcp>
 ```
@@ -163,6 +163,12 @@ Each command that runs a procedure is a service of one request (CLI-26, decision
 - **A second Ctrl-C.** A second signal during the stop ends the process at once, with the exit code 1.
 - **The exit.** After the command, the runner ends the process with the exit code of the command. A timer or a socket that a procedure left open does not keep the process alive.
 - **The REPL.** `mark -i` starts each line in the cold mode, without the signals: the REPL keeps its process.
+- **The auto-warm (CLI-27).** With `MARK_AUTO_WARM=after-cold`, a cold command starts a background CLI server before it exits. The next command in this folder is then warm. The default is `never`.
+  - The server stops by itself after `MARK_IDLE_TIMEOUT_MS` with no call. The default is 600000 (10 minutes). An open stream is a call until its end.
+  - `mark --server --idle-timeout <ms>` gives the same idle stop to a server that you start. Without it, the server has no idle stop.
+  - `MARK_AUTO_WARM_PORT` gives the port of the server. The default is 3000.
+  - The command starts no server when a warm server operates, when another command starts one, or when another program holds the port.
+  - `--verbose` shows the decision. The auto-warm does not change the result or the exit code of the command at any time.
 
 ```mermaid
 graph LR

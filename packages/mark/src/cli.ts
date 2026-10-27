@@ -20,6 +20,7 @@ import { loadEcosystemRegistry } from "./ecosystem.js";
 import { startServerMode, parsePort, parseTransport } from "./server-mode.js";
 import { connectCliServer } from "./client-mode.js";
 import type { ColdCommand, CommandRun } from "./command.js";
+import { autoWarm, autoWarmConfig, autoWarmSteps, parseIdleTimeout, type AutoWarmConfig } from "./auto-warm.js";
 import { startRepl } from "./repl.js";
 import { findChildren, findProcedure, parseCommandLine, parseLeadingGlobals } from "./args.js";
 import { groupHelp, rootHelp, validationMessage } from "@procedures/cli-kit";
@@ -86,7 +87,7 @@ function showRootHelp(procedures: readonly CommandLike[]): void {
     footer: [
       "Hosts: 'mark serve [--procedures pkgs] [--port N] [--expose patterns] [--events topics]' (the procedure server),",
       "       'mark mcp' (the dev-tools MCP server over stdio).",
-      "Modes: 'mark --server [--port N] [--host H] [--transport http|websocket|both] [--events topics] [--probe-port N]' and 'mark -i' (the REPL).",
+      "Modes: 'mark --server [--port N] [--host H] [--transport http|websocket|both] [--events topics] [--probe-port N] [--idle-timeout ms]' and 'mark -i' (the REPL).",
       "Root:  'mark --fs-root <folder> <command>' keeps each path of each procedure in the folder, also in each mode and host.",
       "       It refuses the procedures that it cannot confine: git, pnpm, docker run, a program (FORBIDDEN, outside-root).",
     ],
@@ -95,7 +96,7 @@ function showRootHelp(procedures: readonly CommandLike[]): void {
 }
 
 /** The global flags that only `--server` takes. */
-const SERVER_OPTIONS = ["port", "host", "transport", "events", "probe-port"] as const;
+const SERVER_OPTIONS = ["port", "host", "transport", "events", "probe-port", "idle-timeout"] as const;
 
 /** True when the global flags give an option of `--server`. */
 function hasServerOption(globals: Readonly<Record<string, unknown>>): boolean {
@@ -157,6 +158,11 @@ export interface ExecuteOptions {
    * then installs no signal handler, does not end the process, and records its exit code in `process.exitCode`.
    */
   ownsProcess?: boolean | undefined;
+  /**
+   * The auto-warm (CLI-27). With the setting `after-cold`, a cold command starts the background
+   * host before it ends. Without it, no command starts a host. The bin reads it from `MARK_AUTO_WARM`.
+   */
+  autoWarm?: AutoWarmConfig | undefined;
 }
 
 /** The registry of the host of a context: its registry, or a registry of its procedures. */
@@ -252,7 +258,7 @@ export async function executeArgs(
     return;
   }
   if (hasServerOption(globals)) {
-    fail("--port, --host, --transport, --events and --probe-port are options of --server.");
+    fail("--port, --host, --transport, --events, --probe-port and --idle-timeout are options of --server.");
     return;
   }
   // The root applies to the whole run: the procedures load with it, and a warm server must have it
@@ -315,6 +321,7 @@ export async function executeArgs(
         fail(`Error: ${messageOf(error)}`);
       }
     });
+    await warmAfterCold(cold, options, path, globals.local === true, ctx);
     await endCommand(cold.command, end, failed);
     return;
   }
@@ -473,7 +480,50 @@ export async function executeArgs(
       failCommand(`Error: ${messageOf(error)}`);
     }
   });
+  await warmAfterCold(cold, options, path, globals.local === true, ctx);
   await endCommand(cold.command, end, failed);
+}
+
+/**
+ * This function does the auto-warm after a cold command (CLI-27), before the end of its service:
+ * with the process of Node, `endCommand()` ends the process. The auto-warm does not operate with
+ * `--local`, for a `server.*` command, or after a signal started the stop. An error of the
+ * auto-warm does not change the command: with `--verbose`, it prints a warning.
+ */
+async function warmAfterCold(
+  cold: ColdCommand,
+  options: ExecuteOptions,
+  path: readonly string[],
+  local: boolean,
+  ctx: CliContext | ManifestContext
+): Promise<void> {
+  const config = options.autoWarm;
+  if (config === undefined || config.setting === "never" || local || path[0] === "server") return;
+  if (cold.command.life.state !== "running") return;
+  try {
+    const { currentBuild } = await import("./lockfile.js");
+    const { spawnMarkServer } = await import("@procedures/server");
+    const steps = autoWarmSteps(config, { cwd: process.cwd(), build: currentBuild(), fsRoot: ctx.fsRoot }, (spawn) => spawnMarkServer(spawn).child);
+    const decision = await autoWarm(config.setting, steps);
+    if (ctx.verbose) {
+      print.muted(decision.spawn ? `mark: the background host starts on port ${config.port} (${config.setting})` : `mark: no background host: ${decision.reason}`);
+    }
+  } catch (error) {
+    if (ctx.verbose) print.warning(`mark: the auto-warm failed: ${messageOf(error)}`);
+  }
+}
+
+/**
+ * This function reads the auto-warm from the environment. An invalid value gives a message on the
+ * standard error and no auto-warm, because the auto-warm does not change the result of a command.
+ */
+function readAutoWarm(): AutoWarmConfig | undefined {
+  try {
+    return autoWarmConfig();
+  } catch (error) {
+    print.error(`mark: no auto-warm: ${messageOf(error)}`);
+    return undefined;
+  }
 }
 
 /**
@@ -605,7 +655,7 @@ async function startMcp(args: string[], fsRoot?: string): Promise<void> {
 }
 
 /** The options of `run()` and `main()`: the process of the service of each command (CLI-26). */
-export type RunCliOptions = Pick<ExecuteOptions, "run" | "ownsProcess">;
+export type RunCliOptions = Pick<ExecuteOptions, "run" | "ownsProcess" | "autoWarm">;
 
 /**
  * Run the CLI. By default, the caller owns the process: a command records its exit code in
@@ -647,6 +697,8 @@ async function run(argv: string[], options: RunCliOptions = {}): Promise<void> {
     const events = await eventPatterns(globals.events);
     // --probe-port: the probes answer on a port of their own (CLI-9, decision D5)
     const probePort = globals["probe-port"] === undefined ? undefined : parsePort(String(globals["probe-port"]));
+    // --idle-timeout: the server stops by itself after this time with no call (CLI-27)
+    const idleTimeoutMs = globals["idle-timeout"] === undefined ? undefined : parseIdleTimeout(String(globals["idle-timeout"]));
     await startServerMode({
       port,
       host,
@@ -654,13 +706,14 @@ async function run(argv: string[], options: RunCliOptions = {}): Promise<void> {
       verbose,
       events,
       ...(probePort !== undefined ? { probePort } : {}),
+      ...(idleTimeoutMs !== undefined ? { idleTimeoutMs } : {}),
       ...(fsRoot !== undefined ? { fsRoot } : {}),
     });
     return;
   }
   // Before, `mark --port 4000 serve` ignored --port without a word
   if (hasServerOption(globals)) {
-    fail("--port, --host, --transport, --events and --probe-port are options of --server.", "For mark serve, give them after serve.");
+    fail("--port, --host, --transport, --events, --probe-port and --idle-timeout are options of --server.", "For mark serve, give them after serve.");
     return;
   }
 
@@ -694,11 +747,15 @@ async function run(argv: string[], options: RunCliOptions = {}): Promise<void> {
     return;
   }
 
+  // The auto-warm (CLI-27): the bin reads MARK_AUTO_WARM. Another caller gives the option, or has none.
+  const warm = options.autoWarm ?? (options.ownsProcess === true ? readAutoWarm() : undefined);
+  const execute: ExecuteOptions = { ...options, ...(warm !== undefined ? { autoWarm: warm } : {}) };
+
   // The manifest gives the commands without the procedures: the help and a call to the CLI
   // server do not load them (roadmap 1.3)
   const manifest = readFreshManifest();
   if (manifest) {
-    await executeArgs(argv, { commands: manifest.commands, verbose, fsRoot, load: () => initCli(verbose, fsRoot) }, options);
+    await executeArgs(argv, { commands: manifest.commands, verbose, fsRoot, load: () => initCli(verbose, fsRoot) }, execute);
     return;
   }
 
@@ -712,7 +769,7 @@ async function run(argv: string[], options: RunCliOptions = {}): Promise<void> {
       print.warning(`mark: the manifest was not written: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
-  await executeArgs(argv, ctx, options);
+  await executeArgs(argv, ctx, execute);
 }
 
 /**

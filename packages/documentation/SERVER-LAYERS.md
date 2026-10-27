@@ -214,6 +214,31 @@ Decision D17 makes a one-shot command a service too: a `mark` command, and the k
   - Before, a second signal ended the process with the exit code 130.
   - Before, `mark server create` kept its peer after the command. The peer stops with the command. A server in the foreground uses `mark --server` or `procedure-server`.
 
+### The auto-warm and the idle stop (CLI-27)
+
+A cold command can start the background host, so the next command is warm.
+
+- The setting is the environment variable `MARK_AUTO_WARM`, with the values `never` and `after-cold`. The default is `never`.
+- With `after-cold`, a cold command starts `mark --server --idle-timeout <ms>` before it exits. The host is a detached process.
+- The command starts no host when a warm host of its folder runs, or when another command starts one. A claim file per port records each start.
+- The command also starts no host when another program holds the port.
+- The auto-warm does not change the result or the exit code of the command at any time.
+- `MARK_IDLE_TIMEOUT_MS` gives the idle time of the host. The default is 10 minutes. `MARK_AUTO_WARM_PORT` gives its port. The default is 3000.
+
+The idle stop is the option `idle` of `runProcedureHost()`. `--idle-timeout` of `mark --server` sets it.
+
+- `run()` has no idle trigger. The host uses the stop request of the lifecycle, `life.shutdown()`, as an exit signal does.
+- Thus the runner keeps the stop in stages and the exit. The idle stop adds no signal handler, no listener and no `process.exit`.
+- An interceptor of the host policy starts the full time again at the start and the end of each call.
+- An open stream is a call in flight until its last item (D4). While a call is in flight, the timer does not stop the host. It reads `life.inFlight()` again at each poll.
+- The timer uses the clock of the run, so a test gives a fake clock.
+
+The start of the host is `spawnMarkServer()` of `@procedures/server`. `server.start` and the auto-warm use it. It does not use `shell.run` or `runCommand`:
+
+- `shell.run` and `runCommand` wait for the end of the program. The host must outlive the command that starts it.
+- The cold command has no procedure call for the start. The start comes after its one request.
+- The start is detached and unref'd. A test gives a fake spawner, so no process starts in the tests.
+
 ## The run path of a CLI wrapper
 
 A procedure that wraps a CLI tool starts its program with one run path: a nested call of `shell.run`, through `ctx.client`. The dedupe review found two paths (F2, tracker item O60).
@@ -235,6 +260,7 @@ The reasons for the nested call:
 - `vitest.run` and `vite.build` keep the end of a long output (`keep: "tail"`). `shell.run` keeps the start.
 - `runRestic()` of `@procedures/restic` takes a runner from a test, and it has no procedure context.
 - A long-running process, for example `vite.dev`, starts through `processes` of `@procedures/shell/command`.
+- `spawnMarkServer()` of `@procedures/server` starts the background `mark --server` as a detached process. The section "The auto-warm and the idle stop (CLI-27)" gives the reasons.
 - These packages use the argument helpers of `@procedures/shell/cli`.
 
 One package uses neither path. `startTurn()` of `@procedures/claude-cli` starts `claude` with `spawn` of `node:child_process`.
