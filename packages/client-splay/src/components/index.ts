@@ -6,7 +6,8 @@
  *
  * @example
  * ```typescript
- * import { defineComponent, simpleComponent, registerBundle } from "@procedures/splay";
+ * import { defineComponent, simpleComponent, componentModule, createBundle } from "@procedures/splay";
+ * import { createRegistry } from "@procedures/client";
  *
  * // Define a component
  * const userCard = defineComponent({
@@ -25,11 +26,8 @@
  *   props: { label: ctx.data.label },
  * }));
  *
- * // Register a bundle
- * registerBundle({
- *   namespace: "ui",
- *   components: [buttonComponent, cardComponent],
- * });
+ * // The definitions register nothing: a module gives their procedures to a registry
+ * const registry = createRegistry(componentModule("my-app/ui", createBundle("ui", [userCard, badge])));
  * ```
  */
 
@@ -69,7 +67,6 @@ export {
   defineComponent,
   componentModule,
   componentToProcedure,
-  registerBundle,
   createBundle,
   simpleComponent,
   namespacedComponent,

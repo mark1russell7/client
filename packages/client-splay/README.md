@@ -378,7 +378,20 @@ import {
 } from "@procedures/splay";
 ```
 
-`componentModule(name, components)` gives the component procedures as a module for `createRegistry()`. It registers nothing. `defineComponent`, `simpleComponent`, `namespacedComponent`, `streamingComponent` and `registerBundle` register in the global registry. That registration is deprecated, and the next MINOR removes it.
+`defineComponent`, `simpleComponent`, `namespacedComponent` and `streamingComponent` give the definition of a component. They register nothing. `componentModule(name, components)` gives the procedures of the components as a module. The path of each procedure is `["components", namespace?, type]`. Give the module to `createRegistry()`, or to `registerModules()` for the global registry:
+
+```typescript
+import { createRegistry, registerModules, PROCEDURE_REGISTRY } from "@procedures/client";
+import { componentModule, createBundle, simpleComponent } from "@procedures/splay";
+
+const badge = simpleComponent("badge", (ctx) => ({ type: "badge", props: { label: ctx.data } }));
+const uiModule = componentModule("my-app/ui", createBundle("ui", [badge]));
+
+const registry = createRegistry(uiModule); // components.ui.badge in a new registry
+registerModules(PROCEDURE_REGISTRY, [uiModule]); // components.ui.badge in the global registry
+```
+
+Before 0.42.0, the four functions registered each component in the global registry, and `registerBundle()` registered a bundle. At this time, `componentModule()` replaces the two.
 
 ### Package Hierarchy
 

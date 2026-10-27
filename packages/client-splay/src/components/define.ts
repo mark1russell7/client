@@ -146,12 +146,13 @@ export const componentOutputSchema: ZodLike<ComponentOutput> = {
 // =============================================================================
 
 /**
- * Define a component and convert it to a procedure.
- *
- * Components are registered under ["components", namespace?, type].
+ * This function gives the definition of a component, with its type checked. It registers nothing.
+ * To start the procedure of the component by its path `["components", namespace?, type]`, give
+ * the definition to `componentModule()`. Then give the module to `createRegistry()` or
+ * `registerModules()`.
  *
  * @param definition - Component definition
- * @returns The component definition (for chaining)
+ * @returns The component definition
  *
  * @example
  * ```typescript
@@ -177,21 +178,15 @@ export const componentOutputSchema: ZodLike<ComponentOutput> = {
  *     }
  *   },
  * });
- * ```
  *
- * @deprecated The registration in the global registry. Give the definitions to
- * `componentModule()`, and give the module to `createRegistry()` or `registerModules()`. The next
- * MINOR of the client group removes the registration: `defineComponent` then only gives the definition.
+ * // The procedures of the components
+ * const registry = createRegistry(componentModule("my-app/ui", [userCard, liveDashboard]));
+ * ```
  */
 export function defineComponent<TData = unknown>(
   definition: ComponentDefinition<TData>
 ): ComponentDefinition<TData> {
-  // Create the procedure from the component
-  const procedure = componentToProcedure(definition, componentPath(definition));
-
-  // Register the procedure
-  PROCEDURE_REGISTRY.register(procedure);
-
+  // The definition is data: componentModule() makes its procedure (O75: no global registration)
   return definition;
 }
 
@@ -206,7 +201,7 @@ function componentPath(definition: Pick<AnyComponentDefinition, "type" | "namesp
  * This function gives a module with the procedure of each component, for `createRegistry()` or
  * `registerModules()`. It registers nothing (rule I2 of `ARCHITECTURE.md`). The path of each
  * procedure is `["components", namespace?, type]`. A component of a bundle without its own
- * namespace gets the namespace of the bundle, as `registerBundle()` does.
+ * namespace gets the namespace of the bundle.
  *
  * @param name - The name of the module, for example the name of the package
  * @param components - The component definitions, or a bundle
@@ -519,46 +514,11 @@ function isAsyncGenerator(value: unknown): value is AsyncGenerator {
 }
 
 // =============================================================================
-// Bundle Registration
+// Bundles
 // =============================================================================
 
 /**
- * Register a bundle of components.
- *
- * @param bundle - Component bundle
- * @returns The registered components
- *
- * @example
- * ```typescript
- * const registered = registerBundle({
- *   namespace: "ui",
- *   components: [buttonComponent, cardComponent],
- * });
- * ```
- *
- * @deprecated It registers in the global registry. Give the bundle to `componentModule()`, and
- * give the module to `createRegistry()` or `registerModules()`. The next MINOR of the client group
- * removes `registerBundle`.
- */
-export function registerBundle(bundle: ComponentBundle): AnyComponentDefinition[] {
-  const registered: AnyComponentDefinition[] = [];
-
-  for (const component of bundle.components) {
-    // Apply bundle namespace if component doesn't have one
-    const withNamespace: AnyComponentDefinition = {
-      ...component,
-      namespace: component.namespace ?? bundle.namespace,
-    };
-
-    defineComponent(withNamespace);
-    registered.push(withNamespace);
-  }
-
-  return registered;
-}
-
-/**
- * Create a component bundle.
+ * This function makes a component bundle. It registers nothing: give the bundle to `componentModule()`.
  *
  * @param namespace - Shared namespace
  * @param components - Component definitions
@@ -582,7 +542,8 @@ export function createBundle(
 // =============================================================================
 
 /**
- * Define a simple component with minimal boilerplate.
+ * This function defines a component with minimal boilerplate. It registers nothing. Give the
+ * definition to `componentModule()`.
  *
  * @param type - Component type
  * @param factory - Factory function
@@ -595,9 +556,6 @@ export function createBundle(
  *   props: { label: ctx.data.label },
  * }));
  * ```
- *
- * @deprecated The registration in the global registry, as of `defineComponent`. Give the
- * definition to `componentModule()`. The next MINOR of the client group removes the registration.
  */
 export function simpleComponent<TData = unknown>(
   type: string,
@@ -610,15 +568,13 @@ export function simpleComponent<TData = unknown>(
 }
 
 /**
- * Define a namespaced component with minimal boilerplate.
+ * This function defines a namespaced component with minimal boilerplate. It registers nothing. Give
+ * the definition to `componentModule()`.
  *
  * @param namespace - Component namespace
  * @param type - Component type
  * @param factory - Factory function
  * @returns ComponentDefinition
- *
- * @deprecated The registration in the global registry, as of `defineComponent`. Give the
- * definition to `componentModule()`. The next MINOR of the client group removes the registration.
  */
 export function namespacedComponent<TData = unknown>(
   namespace: string,
@@ -633,14 +589,12 @@ export function namespacedComponent<TData = unknown>(
 }
 
 /**
- * Define a streaming component.
+ * This function defines a streaming component. It registers nothing. Give the definition to
+ * `componentModule()`.
  *
  * @param type - Component type
  * @param factory - Generator factory function
  * @returns ComponentDefinition
- *
- * @deprecated The registration in the global registry, as of `defineComponent`. Give the
- * definition to `componentModule()`. The next MINOR of the client group removes the registration.
  */
 export function streamingComponent<TData = unknown>(
   type: string,
