@@ -648,10 +648,13 @@ The live tracker shows these items with the items R1 to R54: https://claude.ai/a
 | O66 | Storage | Gap hints reach each partition: a floor document at the first write | S | done | — | `client` | [client #221](https://github.com/mark1russell7/client/pull/221), [client #226](https://github.com/mark1russell7/client/pull/226) |
 | O67 | Storage | A queued write that the remote refuses leaves the queue | S | done | — | `client` | [client #245](https://github.com/mark1russell7/client/pull/245) |
 | O68 | Storage | TIMEOUT counts as unavailable by default in HybridStorage | XS | done | O67 | `client` | [client #245](https://github.com/mark1russell7/client/pull/245), [client #254](https://github.com/mark1russell7/client/pull/254) |
-| O69 | Storage | Drop a queued write on the echo of its own send | S | later | O68 | `client` | [client #254](https://github.com/mark1russell7/client/pull/254) |
+| O69 | Storage | Drop a queued write on the echo of its own send | S | done | O68 | `client` | [client #254](https://github.com/mark1russell7/client/pull/254), [client #269](https://github.com/mark1russell7/client/pull/269) |
 | O70 | Guardrails | Invariants audit (s38): fix 5 medium breaks, add the missing checks | M | done | O68 | `client` | [client #263](https://github.com/mark1russell7/client/pull/263) |
 | O71 | Guardrails | Replace the hand-made boundary rules with @mark1russell7/boundaries | S | done | O68 | `client` | [client #266](https://github.com/mark1russell7/client/pull/266) |
-| O72 | Guardrails | The deferred findings of the invariants audit (O70) | M | later | O70 | `client` | [client #263](https://github.com/mark1russell7/client/pull/263) |
+| O72 | Guardrails | The deferred findings of the invariants audit (O70) | M | done | O70 | `client` | [client #263](https://github.com/mark1russell7/client/pull/263), [client #271](https://github.com/mark1russell7/client/pull/271) |
+| O73 | Guardrails | Drop the boundaries overrides after @mark1russell7/boundaries 0.2.0 | S | in progress | O71 | `client` | [client #266](https://github.com/mark1russell7/client/pull/266), [client #274](https://github.com/mark1russell7/client/pull/274) |
+| O74 | Contracts | The HTTP fallback gives the codes of ERROR_REGISTRY (MINOR) | S | blocked | O72 | `client` | [client #271](https://github.com/mark1russell7/client/pull/271) |
+| O75 | Registration | splay components stop registering in the global registry (MINOR) | S | blocked | O72 | `client` | [client #271](https://github.com/mark1russell7/client/pull/271) |
 
 ### The server stack (R37)
 
