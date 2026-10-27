@@ -36,6 +36,11 @@ export interface ServerModeOptions {
    * listener answers the probes under `/_probes`.
    */
   probePort?: number | undefined;
+  /**
+   * The idle stop (`--idle-timeout`, CLI-27): the server stops by itself after this number of
+   * milliseconds with no call. Without it, the server stops only at a signal or at `mark server stop`.
+   */
+  idleTimeoutMs?: number | undefined;
 }
 
 /**
@@ -112,6 +117,7 @@ export async function startServerMode(options: ServerModeOptions, run?: Procedur
   // The options of the host: the same registry and policy as the cold mode of mark (CLI-26)
   const { markHostOptions } = await import("./command.js");
   const { runProcedureHost } = await import("@procedures/server");
+  const { ms } = await import("@procedures/client");
   const id = `peer-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   // The lockfile for client discovery. A client uses this server only from the same folder,
@@ -137,6 +143,8 @@ export async function startServerMode(options: ServerModeOptions, run?: Procedur
     log: (line) => print.info(line),
     // --probe-port: the probes answer on a port of their own, else on each listener under /_probes (CLI-9, D5)
     ...(options.probePort !== undefined ? { probes: { port: options.probePort, host } } : {}),
+    // --idle-timeout: the stop request of the lifecycle after a time with no call (CLI-27)
+    ...(options.idleTimeoutMs !== undefined ? { idle: { after: ms(options.idleTimeoutMs) } } : {}),
     ...(run ? { run } : {}),
   });
   if (running.life.state !== "running") {
@@ -163,6 +171,9 @@ export async function startServerMode(options: ServerModeOptions, run?: Procedur
   if (fsRoot !== undefined) {
     print.info(`File root: ${fsRoot} (each procedure refuses a path outside it)`);
     print.info(`  Refused under the root: ${refusedUnderRoot?.length ?? 0} procedures that the root cannot confine`);
+  }
+  if (options.idleTimeoutMs !== undefined) {
+    print.info(`\nIdle stop: after ${options.idleTimeoutMs} ms with no call`);
   }
   print.info("\nPress Ctrl+C to stop.");
 

@@ -119,8 +119,8 @@ describe("the import boundaries (I9, CLI-83)", () => {
     assert.ok(of("packages/client-mcp/src/transport/server-package.ts").includes("transport-imports-server: packages/client-mcp/src/transport/server-package.ts -> @procedures/server"));
   });
 
-  it("an import of the scope @procedures names a package of the workspace", () => {
-    assert.ok(of("packages/client-mcp/src/transport/server-package.ts").includes("unknown-procedures-package: packages/client-mcp/src/transport/server-package.ts -> @procedures/server"));
+  it("an import of the scope @procedures names a package of the workspace (the shared rule)", () => {
+    assert.ok(of("packages/client-mcp/src/transport/server-package.ts").includes("unknown-workspace-package: packages/client-mcp/src/transport/server-package.ts -> @procedures/server"));
   });
 
   it("a relative import does not leave its package, into src/ or into dist/", () => {

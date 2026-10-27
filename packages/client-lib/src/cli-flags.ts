@@ -61,6 +61,12 @@ export const CLI_GLOBAL_FLAGS: readonly CliGlobalFlag[] = [
     repeatable: true,
     description: "The topics that a peer can subscribe to: names, prefixes (orders.*) or * (with --server)",
   },
+  {
+    long: "idle-timeout",
+    takesValue: true,
+    serverOption: true,
+    description: "The CLI server stops after this number of milliseconds with no call (with --server)",
+  },
 ];
 
 /** The global flag with this long name or short letter */

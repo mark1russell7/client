@@ -10,6 +10,8 @@ export { parseConfig, parseTopicPatterns } from "./config.js";
 export { runServer, startServer, loadProcedureModule, type RunningServer, type ServerRunOptions } from "./run.js";
 // The runner entry of the procedures host (CLI-8): the only entry that starts run()
 export { runProcedureHost, HOST_PROFILES, type ProcedureHostRunConfig, type RunningHost, type HostRunMode } from "./host.js";
+// The idle stop of a host (CLI-27): the option `idle` of runProcedureHost()
+export { IDLE_POLL_MS, type HostIdle } from "./idle.js";
 export type {
   ServerConfig,
   TransportConfig,
@@ -25,7 +27,7 @@ export type {
 // server.start, server.stop and server.status (from @procedures/peer). The root registers
 // nothing: import "@procedures/server/register", or give the module to createRegistry().
 export * from "./module.js";
-export { serverStartProcedure } from "./procedures/server.start.js";
+export { serverStartProcedure, spawnMarkServer, type MarkServerSpawn, type ServerSpawner, type SpawnedMarkServer } from "./procedures/server.start.js";
 export { serverStopProcedure } from "./procedures/server.stop.js";
 export { serverStatusProcedure } from "./procedures/server.status.js";
 export {

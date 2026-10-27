@@ -21,9 +21,10 @@
 
 import { daemon, localDev, service, type Lifecycle, type Profile, type RunOptions, type ServiceBuilder } from "@mark1russell7/service";
 import { probeServer, type ProbeKind } from "@mark1russell7/service/http";
-import { seconds, type Duration } from "@procedures/client";
+import { hostPolicy, realClock, seconds, type Duration, type HostPolicy, type Interceptor } from "@procedures/client";
 import { LOCAL_LISTENER_KNOBS, createProcedureHost, type ProcedureHost, type ProcedureHostOptions } from "@procedures/peer";
 import { lockfileHandle, type LockfileData } from "@procedures/peer/lockfile";
+import { idleInterceptor, idleTimer, idleTimes, type HostIdle } from "./idle.js";
 
 /** The mode of a run: in the foreground of a terminal, or as the background host of `mark`. */
 export type HostRunMode = "foreground" | "background";
@@ -90,6 +91,16 @@ export interface ProcedureHostRunConfig {
    * The return value has no effect.
    */
   readonly declare?: ((svc: ServiceBuilder, host: ProcedureHost) => void) | undefined;
+  /**
+   * The idle stop (CLI-27): the host stops by itself after this time with no call. Without it, the
+   * host stops only at a signal or a stop request, as before.
+   *
+   * - Each call resets the timer at its start and at its end. An open stream or subscription is a
+   *   call in flight, and the host does not stop while it is open.
+   * - The stop is `life.shutdown()` with the exit code 0. Thus the stop in stages of `run()` applies,
+   *   and the lockfile goes at the end.
+   */
+  readonly idle?: HostIdle | undefined;
 }
 
 /** A host that runs under `run()`: the host, the service of the process and its lifecycle. */
@@ -114,8 +125,25 @@ export async function runProcedureHost(config: ProcedureHostRunConfig): Promise<
   const clock = config.run?.clock;
   // A probe server of its own: the listeners of the host then answer no probes, unless the host options say so (D5)
   const dedicated = config.probes;
+  // The idle stop (CLI-27): an interceptor of the policy tells the timer about each call. The timer
+  // starts after the startup, and it asks the lifecycle for the stop.
+  let life: Lifecycle | undefined;
+  const idle = config.idle
+    ? idleTimer({
+        ...idleTimes(config.idle),
+        clock: clock ?? realClock,
+        inFlight: () => life?.inFlight() ?? 0,
+        stop: (cause) => {
+          if (life?.state !== "running") return;
+          config.log?.(`\nIdle: ${cause}.`);
+          void life.shutdown(cause, { code: 0 });
+        },
+      })
+    : undefined;
+  const policy = idle ? withInterceptor(config.host.policy ?? hostPolicy(), idleInterceptor(idle)) : config.host.policy;
   const host = createProcedureHost({
     ...config.host,
+    ...(policy ? { policy } : {}),
     ...(clock ? { clock } : {}),
     ...(dedicated && config.host.probes === undefined ? { probes: false } : {}),
   });
@@ -145,7 +173,12 @@ export async function runProcedureHost(config: ProcedureHostRunConfig): Promise<
   if (config.lockfile) svc.dependency("lockfile", { system: null, knobs: {}, operations: {} }, lockfileHandle(config.lockfile));
   const log = config.log;
   if (log && profile.phases?.some((phase) => phase.name === "stop intake")) svc.onPhase("stop intake", () => log("\nShutting down..."));
-  const life = await svc.run(config.run);
+  life = await svc.run(config.run);
+  if (idle) {
+    // The timer stops with the lifecycle, also after a stop for another cause
+    void life.done.then(() => idle.cancel());
+    if (life.state === "running") idle.start();
+  }
   const probeBase = (): string[] => {
     const address = probes?.server.address();
     if (typeof address !== "object" || address === null) return [];
@@ -154,4 +187,9 @@ export async function runProcedureHost(config: ProcedureHostRunConfig): Promise<
     return [`http://${shown}:${address.port}${dedicated?.prefix ?? ""}`];
   };
   return { host, service: svc, life, probes: () => (probes ? probeBase() : host.info.probes()) };
+}
+
+/** This function gives a policy with one more interceptor, after the interceptors of the policy. */
+function withInterceptor(policy: HostPolicy, interceptor: Interceptor): HostPolicy {
+  return { ...policy, interceptors: [...policy.interceptors, interceptor] };
 }

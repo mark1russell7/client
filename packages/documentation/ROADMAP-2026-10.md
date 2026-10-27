@@ -648,10 +648,13 @@ The live tracker shows these items with the items R1 to R54: https://claude.ai/a
 | O66 | Storage | Gap hints reach each partition: a floor document at the first write | S | done | — | `client` | [client #221](https://github.com/mark1russell7/client/pull/221), [client #226](https://github.com/mark1russell7/client/pull/226) |
 | O67 | Storage | A queued write that the remote refuses leaves the queue | S | done | — | `client` | [client #245](https://github.com/mark1russell7/client/pull/245) |
 | O68 | Storage | TIMEOUT counts as unavailable by default in HybridStorage | XS | done | O67 | `client` | [client #245](https://github.com/mark1russell7/client/pull/245), [client #254](https://github.com/mark1russell7/client/pull/254) |
-| O69 | Storage | Drop a queued write on the echo of its own send | S | later | O68 | `client` | [client #254](https://github.com/mark1russell7/client/pull/254) |
+| O69 | Storage | Drop a queued write on the echo of its own send | S | done | O68 | `client` | [client #254](https://github.com/mark1russell7/client/pull/254), [client #269](https://github.com/mark1russell7/client/pull/269) |
 | O70 | Guardrails | Invariants audit (s38): fix 5 medium breaks, add the missing checks | M | done | O68 | `client` | [client #263](https://github.com/mark1russell7/client/pull/263) |
 | O71 | Guardrails | Replace the hand-made boundary rules with @mark1russell7/boundaries | S | done | O68 | `client` | [client #266](https://github.com/mark1russell7/client/pull/266) |
-| O72 | Guardrails | The deferred findings of the invariants audit (O70) | M | later | O70 | `client` | [client #263](https://github.com/mark1russell7/client/pull/263) |
+| O72 | Guardrails | The deferred findings of the invariants audit (O70) | M | done | O70 | `client` | [client #263](https://github.com/mark1russell7/client/pull/263), [client #271](https://github.com/mark1russell7/client/pull/271) |
+| O73 | Guardrails | Drop the boundaries overrides after @mark1russell7/boundaries 0.2.0 | S | in progress | O71 | `client` | [client #266](https://github.com/mark1russell7/client/pull/266), [client #274](https://github.com/mark1russell7/client/pull/274) |
+| O74 | Contracts | The HTTP fallback gives the codes of ERROR_REGISTRY (MINOR) | S | blocked | O72 | `client` | [client #271](https://github.com/mark1russell7/client/pull/271) |
+| O75 | Registration | splay components stop registering in the global registry (MINOR) | S | blocked | O72 | `client` | [client #271](https://github.com/mark1russell7/client/pull/271) |
 
 ### The server stack (R37)
 
@@ -694,7 +697,7 @@ The server stack does the rest of R37. Each Node host starts under `run()` and `
 | CLI-24 | Sync | MongoStorage: change log, server-assigned versions, query push-down, partitions | L | done | CLI-20, CLI-16, CLI-17 | graph | [client cecfbe0a](https://github.com/mark1russell7/client/commit/cecfbe0a), [client #31](https://github.com/mark1russell7/client/pull/31), [client ccf4c8f8](https://github.com/mark1russell7/client/commit/ccf4c8f8), in 0.9.1 |
 | CLI-25 | Sync | TabCoordinator: one leader tab runs sync, the others replicate | M | done | CLI-21 | client | [client #108](https://github.com/mark1russell7/client/pull/108), [client 1c7d0c44](https://github.com/mark1russell7/client/commit/1c7d0c44), in 0.17.4 |
 | CLI-26 | Runner | Cold mode of the mark CLI runs the same host in-process under run() | M | done | CLI-8, SYS-16, SYS-7, D24 | client | [client #125](https://github.com/mark1russell7/client/pull/125), [client #126 (deprecation PATCH)](https://github.com/mark1russell7/client/pull/126), [client 9cde8a29 (deprecations)](https://github.com/mark1russell7/client/commit/9cde8a29), in 0.24.0 |
-| CLI-27 | Runner | Optional auto-warm: start the background host after a cold command | M | later | CLI-26 | — | — |
+| CLI-27 | Runner | Optional auto-warm: start the background host after a cold command | M | in progress | CLI-26 | client | [client #276](https://github.com/mark1russell7/client/pull/276) |
 | CLI-28 | HTTP host | Procedure paths of any length on every face | M | done | — | server-stack | [client #30](https://github.com/mark1russell7/client/pull/30), [client 50c8ab8d](https://github.com/mark1russell7/client/commit/50c8ab8d), in 0.9.1 |
 | CLI-30 | Auth | A narrowing key on the wire: a call asks for less capability | S | done | CLI-2a | server-stack | [client #21](https://github.com/mark1russell7/client/pull/21), [client 381456b4](https://github.com/mark1russell7/client/commit/381456b4), in 0.9.1 |
 | CLI-31 | HTTP host | An addressing hook: (request, body) to method and payload | S | done | CLI-3 | server-stack | [client #21](https://github.com/mark1russell7/client/pull/21), in 0.9.1 |

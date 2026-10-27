@@ -4,16 +4,20 @@
 # and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
 # To accept a change of the API, start the script with --update and review the diff.
 
-## . (dist/index.d.ts): 33 names
+## . (dist/index.d.ts): 39 names
 
 HOST_PROFILES: dist/host.d.ts#HOST_PROFILES
+type HostIdle: dist/idle.d.ts#HostIdle
 type HostRunMode: dist/host.d.ts#HostRunMode
+IDLE_POLL_MS: dist/idle.d.ts#IDLE_POLL_MS
+type MarkServerSpawn: dist/procedures/server.start.d.ts#MarkServerSpawn
 type ProcedureHostRunConfig: dist/host.d.ts#ProcedureHostRunConfig
 type RunningHost: dist/host.d.ts#RunningHost
 type RunningServer: dist/run.d.ts#RunningServer
 type ServerConfig: dist/types.d.ts#ServerConfig
 type ServerCreateResult: dist/types.d.ts#ServerCreateResult
 type ServerRunOptions: dist/run.d.ts#ServerRunOptions
+type ServerSpawner: dist/procedures/server.start.d.ts#ServerSpawner
 type ServerStartInput: dist/types.d.ts#ServerStartInput
 type ServerStartOutput: dist/types.d.ts#ServerStartOutput
 ServerStartOutputSchema: dist/schemas.d.ts#ServerStartOutputSchema
@@ -23,6 +27,7 @@ ServerStatusOutputSchema: dist/schemas.d.ts#ServerStatusOutputSchema
 type ServerStopInput: dist/types.d.ts#ServerStopInput
 type ServerStopOutput: dist/types.d.ts#ServerStopOutput
 ServerStopOutputSchema: dist/schemas.d.ts#ServerStopOutputSchema
+type SpawnedMarkServer: dist/procedures/server.start.d.ts#SpawnedMarkServer
 type TransportConfig: dist/types.d.ts#TransportConfig
 hostProcedures: dist/module.d.ts#hostProcedures
 loadProcedureModule: dist/run.d.ts#loadProcedureModule
@@ -38,6 +43,7 @@ serverStatusInputSchema: dist/schemas.d.ts#serverStatusInputSchema
 serverStatusProcedure: dist/procedures/server.status.d.ts#serverStatusProcedure
 serverStopInputSchema: dist/schemas.d.ts#serverStopInputSchema
 serverStopProcedure: dist/procedures/server.stop.d.ts#serverStopProcedure
+spawnMarkServer: dist/procedures/server.start.d.ts#spawnMarkServer
 startServer: dist/run.d.ts#startServer
 
 ## ./module (dist/module.d.ts): 4 names
@@ -78,6 +84,7 @@ export interface ProcedureHostRunConfig {
     readonly run?: RunOptions | undefined;
     readonly probes?: HostProbeServer | undefined;
     readonly declare?: ((svc: ServiceBuilder, host: ProcedureHost) => void) | undefined;
+    readonly idle?: HostIdle | undefined;
 }
 
 ### dist/host.d.ts#RunningHost
@@ -91,6 +98,15 @@ export interface RunningHost {
 ### dist/host.d.ts#runProcedureHost
 export declare function runProcedureHost(config: ProcedureHostRunConfig): Promise<RunningHost>;
 
+### dist/idle.d.ts#HostIdle
+export interface HostIdle {
+    readonly after: Duration;
+    readonly poll?: Duration | undefined;
+}
+
+### dist/idle.d.ts#IDLE_POLL_MS
+export declare const IDLE_POLL_MS = 5000;
+
 ### dist/module.d.ts#hostProcedures
 export declare const hostProcedures: readonly AnyProcedure[];
 
@@ -100,6 +116,27 @@ export declare const registerServerProcedures: PackageDefinition["register"];
 ### dist/module.d.ts#serverModule
 export declare const serverModule: ProcedureModule;
 
+### dist/procedures/server.start.d.ts#MarkServerSpawn
+export interface MarkServerSpawn {
+    readonly port: number;
+    readonly host: string;
+    readonly transport?: "http" | "websocket" | "both" | undefined;
+    readonly idleTimeoutMs?: number | undefined;
+    readonly fsRoot?: string | undefined;
+    readonly spawner?: ServerSpawner | undefined;
+}
+
+### dist/procedures/server.start.d.ts#ServerSpawner
+export type ServerSpawner = (command: string, args: readonly string[], options: SpawnOptions) => ChildProcess;
+
+### dist/procedures/server.start.d.ts#SpawnedMarkServer
+export interface SpawnedMarkServer {
+    readonly child: ChildProcess;
+    readonly command: string;
+    readonly args: readonly string[];
+    readonly logFile: string;
+}
+
 ### dist/procedures/server.start.d.ts#serverStartProcedure
 export declare const serverStartProcedure: Procedure<ServerStartInput, ServerStartOutput, {
     description: string;
@@ -108,6 +145,9 @@ export declare const serverStartProcedure: Procedure<ServerStartInput, ServerSta
     shorts: Record<string, string>;
     fsRoot: FsRootRules;
 }>;
+
+### dist/procedures/server.start.d.ts#spawnMarkServer
+export declare function spawnMarkServer(options: MarkServerSpawn): SpawnedMarkServer;
 
 ### dist/procedures/server.status.d.ts#serverStatusProcedure
 export declare const serverStatusProcedure: Procedure<ServerStatusInput, ServerStatusOutput, {
