@@ -3,8 +3,10 @@ packages:
 
 # Packages allowed to run install scripts. Since pnpm 11 every other package that has one fails the install.
 # A git-hosted package is approved by its repository URL, so a new commit of cue needs no new approval.
+# @swc/core gets its native binary from an optional dependency, so its install script does not run.
 allowBuilds:
   esbuild: true
+  "@swc/core": false
 
 minimumReleaseAgeExclude:
   # Our own packages: the release train updates them, so the release age check of pnpm does not apply to them.
@@ -13,10 +15,3 @@ minimumReleaseAgeExclude:
 
 patchedDependencies:
   '@stryker-mutator/vitest-runner@10.0.0': patches/@stryker-mutator__vitest-runner@10.0.0.patch
-
-# dependency-cruiser (the check of the import boundaries, CLI-83) parses TypeScript with the compiler
-# API. TypeScript 7 has no JavaScript API, so dependency-cruiser gets its own TypeScript 6.
-packageExtensions:
-  dependency-cruiser:
-    dependencies:
-      typescript: 6.0.3

@@ -153,8 +153,9 @@ jobs:
           pnpm check:paths-and-writes
       # The import boundaries of invariant I9 (CLI-83), with dependency-cruiser: a transport does not
       # import the server, an import of another package goes through an entry of its exports map, and
-      # no package imports an app. The rules are in scripts/lib/boundaries.cjs. They read dist/, so
-      # they need the build. First the tests of the rules, then the check.
+      # no package imports an app. The shared rules are in the package @mark1russell7/boundaries, and
+      # .dependency-cruiser.cjs adds the rules of this repository. They read dist/, so they need the
+      # build. First the tests of the rules, then the check.
       - name: Check the import boundaries
         if: ${{ !cancelled() }}
         run: |
