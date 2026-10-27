@@ -1,5 +1,13 @@
 # @procedures/llm
 
+## 0.40.0
+
+### Patch Changes
+
+- @procedures/client@0.40.0
+  - @procedures/http@0.40.0
+  - @procedures/json@0.40.0
+
 ## 0.39.0
 
 ### Patch Changes
