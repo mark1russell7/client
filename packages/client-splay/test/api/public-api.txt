@@ -124,7 +124,7 @@ export declare function simpleComponent<TData = unknown>(type: string, factory: 
 export declare function streamingComponent<TData = unknown>(type: string, factory: (ctx: ComponentContext<TData>) => AsyncGenerator<ComponentOutput, void, unknown>): ComponentDefinition<TData>;
 
 ### dist/components/types.d.ts#AnyComponentDefinition
-export type AnyComponentDefinition = ComponentDefinition<unknown>;
+export type AnyComponentDefinition = ComponentDefinition<any>;
 
 ### dist/components/types.d.ts#AnyComponentFactory
 export type AnyComponentFactory<TData = unknown> = ComponentFactory<TData> | StreamingComponentFactory<TData>;
