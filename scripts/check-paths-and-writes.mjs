@@ -51,6 +51,7 @@ export const PATH_FILES = {
   "packages/client/src/procedures/core/object.ts": "The dotted property path of `client.get` and `client.set`: the fields of a value.",
   "packages/client-collections/src/undo/inverse.ts": "The field paths of a patch and of its inverse: the item fields, not a procedure path.",
   "packages/http/src/address.ts": "The four numbers of an IPv4 address.",
+  "packages/mcp/src/mapping/path-encoder.ts": "The MCP tool name: `sanitizePath()` changes each dot of a segment to `_` first, and a tool name cannot have the `%` of `encodeSegment()`.",
   "packages/site/src/lib/versions.ts": "The parts of a version number (`1.2.3`).",
 };
 

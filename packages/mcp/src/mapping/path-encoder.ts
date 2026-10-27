@@ -5,14 +5,13 @@
  * An MCP tool name is a valid identifier: letters, digits, dots and underscores.
  */
 
-import { keyToPath, pathToKey, type ProcedurePath } from "@procedures/client";
+import type { ProcedurePath } from "@procedures/client";
 
 /**
  * Encode a procedure path to an MCP tool name.
  *
- * The name is the key of the path (`pathToKey()`): the segments with dots between them.
- * A segment with a dot keeps its dot as `%2E`, so `decodePath()` gives the path again.
- * An MCP tool name cannot have `%`. Thus give a sanitized path (`sanitizePath()`): it has no dot in a segment.
+ * Strategy: Join path segments with dots.
+ * Most procedure paths are already MCP-compatible (lowercase, alphanumeric).
  *
  * @param path - Procedure path array
  * @returns MCP tool name string
@@ -22,13 +21,11 @@ import { keyToPath, pathToKey, type ProcedurePath } from "@procedures/client";
  * encodePath(["mongo", "collections", "list"]) // "mongo.collections.list"
  */
 export function encodePath(path: ProcedurePath): string {
-  return pathToKey(path);
+  return path.join(".");
 }
 
 /**
  * Decode an MCP tool name back to procedure path.
- *
- * The path is the path of the key (`keyToPath()`). For each path, `decodePath(encodePath(path))` gives the path.
  *
  * @param toolName - MCP tool name string
  * @returns Procedure path array
@@ -38,7 +35,7 @@ export function encodePath(path: ProcedurePath): string {
  * decodePath("mongo.collections.list") // ["mongo", "collections", "list"]
  */
 export function decodePath(toolName: string): ProcedurePath {
-  return keyToPath(toolName);
+  return toolName.split(".");
 }
 
 /**
