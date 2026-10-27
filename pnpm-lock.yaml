@@ -478,8 +478,8 @@ importers:
         specifier: ^0.7.1
         version: 0.7.4(zod@4.6.7)
       '@mark1russell7/coeval':
-        specifier: ^0.7.0
-        version: 0.7.1
+        specifier: ^0.8.0
+        version: 0.8.0
       '@mark1russell7/quantity':
         specifier: ^0.2.0
         version: 0.2.0(zod@4.6.7)
@@ -1195,8 +1195,8 @@ importers:
   packages/compiler:
     dependencies:
       '@mark1russell7/coeval':
-        specifier: ^0.7.0
-        version: 0.7.1
+        specifier: ^0.8.0
+        version: 0.8.0
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -3276,8 +3276,8 @@ packages:
       dependency-cruiser:
         optional: true
 
-  '@mark1russell7/coeval@0.7.1':
-    resolution: {integrity: sha512-PKseoj9kHD8sSq0ZDpKjUEu9NhtH5pF65ORsGCapeCyRXWGIjcQ7YBSY8ZyHF541xnoV+ZPVVWhF3wr0NIEeEA==}
+  '@mark1russell7/coeval@0.8.0':
+    resolution: {integrity: sha512-luTZVua8cwNkVpC6ERtL90ukaXLtmye/RvSf3WXmFSNvDaiLRDYE6YQwuJDkUjYWhRBJ+u7lVkr0JhDpiFErhw==}
 
   '@mark1russell7/cue@1.0.2':
     resolution: {integrity: sha512-ketUJQeJ4eLSmw0X3NpWrGHxXVg30MpMfw/wYdzlpwf7J94BQmmOM80VuGL4OPC4tXczmTj5LWxNdM7NoQKgeA==}
@@ -6640,7 +6640,7 @@ snapshots:
       '@swc/core': 1.16.20
       dependency-cruiser: 18.7.0
 
-  '@mark1russell7/coeval@0.7.1': {}
+  '@mark1russell7/coeval@0.8.0': {}
 
   '@mark1russell7/cue@1.0.2': {}
 

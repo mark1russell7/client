@@ -2,7 +2,7 @@
  * Math Procedures
  *
  * Arithmetic and mathematical operations for procedure aggregation.
- * All procedures are namespaced under "client" (e.g., client.add, client.multiply).
+ * The namespace of all these procedures is "client": for example client.add and client.multiply.
  */
 
 import { z } from "zod";

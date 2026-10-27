@@ -440,7 +440,7 @@ interface MapInput {
   fn?: unknown;
   /** The `$ref` name of the item in `fn`. The default is "item". */
   as?: string;
-  /** Results from mapping (items should be procedure refs that get hydrated) */
+  /** The results of the map. Each item is a procedure ref that the map hydrates. */
   results?: unknown[];
 }
 
@@ -603,7 +603,7 @@ const throwProcedure: ThrowProcedure = defineProcedure({
 // =============================================================================
 
 interface TryCatchInput {
-  /** Value to try (should be a procedure ref) */
+  /** The value to try: a procedure ref. */
   try: unknown;
   /** Value to use on error (a procedure ref or a value). It can read the message as `{ $ref: "error" }`. */
   catch: unknown;

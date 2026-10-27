@@ -192,6 +192,8 @@ describe("a tool call as a task", () => {
     const reason = await client.experimental.tasks.getTaskResult(refused.taskId, CallToolResultSchema);
     expect(reason.isError).toBe(true);
     expect(JSON.stringify(reason.content)).toMatch(/its limit/);
+    // The code and the retryable flag travel as on the other error results (I4)
+    expect(reason._meta).toMatchObject({ code: "RATE_LIMITED", retryable: true });
     // The refused task did not start its procedure
     await until(() => seen.started === 1);
     held.open();

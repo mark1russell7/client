@@ -575,7 +575,7 @@ export const deleteProcedureProcedure: Procedure<
     // A code procedure stays (deep dive CORE-3: before, delete only forgot the runtime record)
     if (!isRuntimeDefined(existing)) {
       throw new Error(
-        `procedure.delete removes only a procedure that procedure.define made: ${input.path.join(".")} is a code procedure.`
+        `procedure.delete removes only a procedure that procedure.define made: ${pathToKey(input.path)} is a code procedure.`
       );
     }
     return { deleted: registry.unregister(input.path) };
