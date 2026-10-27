@@ -1,5 +1,22 @@
 # @procedures/mcp-dev-tools
 
+## 0.42.0
+
+### Minor Changes
+
+- e4cb0cf: The release train: the ranges of @mark1russell7/algebra, @mark1russell7/service change to a version outside the old range.
+
+### Patch Changes
+
+- Updated dependencies [7ca9953]
+- Updated dependencies [226ae02]
+- Updated dependencies [e4cb0cf]
+  - @procedures/client@0.42.0
+  - @procedures/bundle-mcp@0.42.0
+  - @procedures/fs@0.42.0
+  - @procedures/mcp-server@0.42.0
+  - @procedures/compiler@0.42.0
+
 ## 0.41.1
 
 ### Patch Changes

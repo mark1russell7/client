@@ -1,5 +1,20 @@
 # @procedures/lib
 
+## 0.42.0
+
+### Patch Changes
+
+- 10d58a3: `CLI_GLOBAL_FLAGS` has the new server option `--idle-timeout` of `mark --server` (CLI-27).
+- Updated dependencies [7ca9953]
+- Updated dependencies [226ae02]
+- Updated dependencies [e4cb0cf]
+  - @procedures/client@0.42.0
+  - @procedures/dag@0.42.0
+  - @procedures/fs@0.42.0
+  - @procedures/git@0.42.0
+  - @procedures/pnpm@0.42.0
+  - @procedures/shell@0.42.0
+
 ## 0.41.1
 
 ### Patch Changes
