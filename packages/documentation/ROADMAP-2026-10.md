@@ -649,8 +649,9 @@ The live tracker shows these items with the items R1 to R54: https://claude.ai/a
 | O67 | Storage | A queued write that the remote refuses leaves the queue | S | done | — | `client` | [client #245](https://github.com/mark1russell7/client/pull/245) |
 | O68 | Storage | TIMEOUT counts as unavailable by default in HybridStorage | XS | done | O67 | `client` | [client #245](https://github.com/mark1russell7/client/pull/245), [client #254](https://github.com/mark1russell7/client/pull/254) |
 | O69 | Storage | Drop a queued write on the echo of its own send | S | later | O68 | `client` | [client #254](https://github.com/mark1russell7/client/pull/254) |
-| O70 | Guardrails | Invariants audit (s38): fix 5 medium breaks, add the missing checks | M | next | O68 | `client` | — |
-| O71 | Guardrails | Replace the hand-made boundary rules with @mark1russell7/boundaries | S | next | O68 | `client` | — |
+| O70 | Guardrails | Invariants audit (s38): fix 5 medium breaks, add the missing checks | M | done | O68 | `client` | [client #263](https://github.com/mark1russell7/client/pull/263) |
+| O71 | Guardrails | Replace the hand-made boundary rules with @mark1russell7/boundaries | S | done | O68 | `client` | [client #266](https://github.com/mark1russell7/client/pull/266) |
+| O72 | Guardrails | The deferred findings of the invariants audit (O70) | M | later | O70 | `client` | [client #263](https://github.com/mark1russell7/client/pull/263) |
 
 ### The server stack (R37)
 
