@@ -237,6 +237,12 @@ The reasons for the nested call:
 - A long-running process, for example `vite.dev`, starts through `processes` of `@procedures/shell/command`.
 - These packages use the argument helpers of `@procedures/shell/cli`.
 
+One package uses neither path. `startTurn()` of `@procedures/claude-cli` starts `claude` with `spawn` of `node:child_process`.
+
+- The turn is a detached process. Its standard input and output are files, so the turn continues after its host stops.
+- `runCommand`, `shell.run` and `processes` hold pipes to each process, and the end of the host stops the process.
+- The process starts with an argument list and no shell. This agrees with the rule "No shell strings" of `ARCHITECTURE.md`.
+
 The tailscale procedures and `pnpm.store.path` moved to `shell.run` in tracker item O64.
 
 ## The three decisions of the brief

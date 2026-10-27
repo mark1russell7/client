@@ -13,7 +13,7 @@ A program is JSON that names procedures and their inputs. [PROGRAM-FORMAT.md](./
 | Layer | Packages | Role |
 |---|---|---|
 | Core | `client` | Procedures, the registry, `invokeProcedure()`, the program interpreter, `Client`, the transports, the middleware, the event bus and the servers. The core depends on no other package of the repository: its cache has its own LRU map, and it declares the `CollectionStorage` interface itself. |
-| Support libraries | `client-collections`, `client-dag` | Data structures and graph algorithms. They register no procedures. |
+| Support libraries | `client-collections`, `client-dag` | Data structures and graph algorithms. `client-collections` registers no procedures. `client-dag` also registers `dag.traverse`, which came from `client-lib`. |
 | Program store | `client-store` | The program store (`procedure.store`, `load`, `sync`): programs of `procedure.define` in memory, in a JSON file or in a collection storage. Also the storage layer that left the core: `ApiStorage`, `HybridStorage`, the synced registry and the dynamic handler loader. |
 | Command wrappers | `client-shell`, `client-git`, `client-docker`, `client-pnpm`, `client-node`, `client-vite`, `client-vitest`, `client-cue`, `client-cli` | Each package wraps one tool. All of them start programs through `runCommand()` of `client-shell`. |
 | Data and services | `client-fs`, `client-s3`, `client-mongo`, `client-sqlite`, `client-snapshot` | Files, storage and databases as procedures |

@@ -374,8 +374,11 @@ import {
   // Helpers
   nullOutput, fragment, isFragment, isNullOutput,
   defineComponent, simpleComponent, streamingComponent,
+  componentModule, createBundle,
 } from "@procedures/splay";
 ```
+
+`componentModule(name, components)` gives the component procedures as a module for `createRegistry()`. It registers nothing. `defineComponent`, `simpleComponent`, `namespacedComponent`, `streamingComponent` and `registerBundle` register in the global registry. That registration is deprecated, and the next MINOR removes it.
 
 ### Package Hierarchy
 

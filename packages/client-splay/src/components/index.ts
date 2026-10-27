@@ -67,6 +67,7 @@ export type { ComponentInput } from "./define.js";
 
 export {
   defineComponent,
+  componentModule,
   componentToProcedure,
   registerBundle,
   createBundle,

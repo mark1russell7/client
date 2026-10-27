@@ -12,6 +12,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { Marked } from "marked";
+import { pathToKey } from "@procedures/client/browser";
 import hljs from "highlight.js/lib/core";
 import bash from "highlight.js/lib/languages/bash";
 import diff from "highlight.js/lib/languages/diff";
@@ -157,7 +158,7 @@ export function programKeys(value, keys = new Set()) {
   if (Array.isArray(value)) {
     for (const item of value) programKeys(item, keys);
   } else if (value !== null && typeof value === "object") {
-    if (Array.isArray(value.$proc) && value.$proc.every((part) => typeof part === "string")) keys.add(value.$proc.join("."));
+    if (Array.isArray(value.$proc) && value.$proc.every((part) => typeof part === "string")) keys.add(pathToKey(value.$proc));
     for (const item of Object.values(value)) programKeys(item, keys);
   }
   return keys;

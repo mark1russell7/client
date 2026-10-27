@@ -31,6 +31,9 @@ export interface SpawnedProcess {
 /** The function that starts a process. The default is `spawn` of `node:child_process`. */
 export type Spawner = (command: string, args: readonly string[], options: SpawnOptions) => SpawnedProcess;
 
+// An exception to the rule that a wrapper starts programs through runCommand() of
+// @procedures/shell: the turn must outlive its host, and runCommand pipes and stops each child
+// (SERVER-LAYERS.md, "The run path of a CLI wrapper")
 const defaultSpawner: Spawner = (command, args, options) => spawn(command, [...args], options);
 
 /** The options of `startTurn`. */

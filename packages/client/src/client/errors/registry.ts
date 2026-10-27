@@ -168,6 +168,19 @@ const DESCRIBED_ERRORS = {
     ],
   }),
 
+  // The end of an NDJSON stream of HttpTransport without its done line or its error line. The
+  // HTTP client gives this code, and no server sends it.
+  STREAM_ENDED: defineError(ErrorCode.STREAM_ENDED, {
+    summary: "The stream ended without its end line",
+    detail: "The NDJSON stream of the response ended without a done line and without an error line. The connection broke during the stream.",
+    category: ErrorCategory.NETWORK,
+    retryable: true,
+    severity: ErrorSeverity.WARNING,
+    userMessage: "The connection broke during the response. Try again.",
+    devMessage: "The body of an NDJSON response ended before its done line. The delivery is indeterminate: the call can have had its effect.",
+    suggestions: ["Retry only a call that is idempotent", "Find what closes the connection, for example a proxy"],
+  }),
+
   //
   // ═══ Timeout Errors ═══
   //
@@ -418,6 +431,19 @@ const DESCRIBED_ERRORS = {
       "Split request into multiple smaller requests",
       "Check server payload size limits",
     ],
+  }),
+
+  // The refusal of HttpTransport for metadata above the limit of the X-Metadata header. The
+  // request does not go, so the entry has no HTTP status.
+  METADATA_TOO_LARGE: defineError(ErrorCode.METADATA_TOO_LARGE, {
+    summary: "The metadata is too large for a header",
+    detail: "The metadata of the call is longer than the limit of the X-Metadata header, 8192 characters. The HTTP client did not send the request.",
+    category: ErrorCategory.CLIENT,
+    retryable: false,
+    severity: ErrorSeverity.ERROR,
+    userMessage: "The request has too much metadata.",
+    devMessage: "The URI-encoded JSON of the custom metadata keys is longer than METADATA_HEADER_LIMIT. Send the large values in the input.",
+    suggestions: ["Put the large values in the input of the call", "Remove the metadata keys that the server does not read"],
   }),
 
   UNPROCESSABLE_ENTITY: defineError(ErrorCode.UNPROCESSABLE_ENTITY, {

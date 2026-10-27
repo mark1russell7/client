@@ -6,8 +6,8 @@
  */
 
 import type { ZodLike } from "@procedures/client/client";
-import type { Procedure, ProcedurePath, ProcedureContext } from "@procedures/client/browser";
-import { PROCEDURE_REGISTRY, type ProcedureRegistry } from "@procedures/client/browser";
+import type { AnyProcedure, Procedure, ProcedureModule, ProcedurePath, ProcedureContext } from "@procedures/client/browser";
+import { PROCEDURE_REGISTRY, defineModule, type ProcedureRegistry } from "@procedures/client/browser";
 import { invokeProcedure, isAsyncIterable } from "@procedures/client/browser";
 import type {
   ComponentDefinition,
@@ -178,22 +178,61 @@ export const componentOutputSchema: ZodLike<ComponentOutput> = {
  *   },
  * });
  * ```
+ *
+ * @deprecated The registration in the global registry. Give the definitions to
+ * `componentModule()`, and give the module to `createRegistry()` or `registerModules()`. The next
+ * MINOR of the client group removes the registration: `defineComponent` then only gives the definition.
  */
 export function defineComponent<TData = unknown>(
   definition: ComponentDefinition<TData>
 ): ComponentDefinition<TData> {
-  // Build the procedure path
-  const path: ProcedurePath = definition.namespace
-    ? ["components", definition.namespace, definition.type]
-    : ["components", definition.type];
-
   // Create the procedure from the component
-  const procedure = componentToProcedure(definition, path);
+  const procedure = componentToProcedure(definition, componentPath(definition));
 
   // Register the procedure
   PROCEDURE_REGISTRY.register(procedure);
 
   return definition;
+}
+
+/** The procedure path of a component: `["components", namespace?, type]`. */
+function componentPath(definition: Pick<AnyComponentDefinition, "type" | "namespace">): ProcedurePath {
+  return definition.namespace
+    ? ["components", definition.namespace, definition.type]
+    : ["components", definition.type];
+}
+
+/**
+ * This function gives a module with the procedure of each component, for `createRegistry()` or
+ * `registerModules()`. It registers nothing (rule I2 of `ARCHITECTURE.md`). The path of each
+ * procedure is `["components", namespace?, type]`. A component of a bundle without its own
+ * namespace gets the namespace of the bundle, as `registerBundle()` does.
+ *
+ * @param name - The name of the module, for example the name of the package
+ * @param components - The component definitions, or a bundle
+ * @returns The module of the components
+ *
+ * @example
+ * ```typescript
+ * const uiModule = componentModule("my-app/ui", createBundle("ui", [userCard, badge]));
+ * const registry = createRegistry(uiModule);
+ * ```
+ */
+export function componentModule(
+  name: string,
+  components: ComponentBundle | readonly AnyComponentDefinition[]
+): ProcedureModule {
+  const definitions = isBundle(components)
+    ? components.components.map((component) => ({ ...component, namespace: component.namespace ?? components.namespace }))
+    : components;
+  return defineModule(
+    name,
+    definitions.map((definition) => componentToProcedure(definition, componentPath(definition)) as AnyProcedure)
+  );
+}
+
+function isBundle(value: ComponentBundle | readonly AnyComponentDefinition[]): value is ComponentBundle {
+  return !Array.isArray(value);
 }
 
 /**
@@ -496,6 +535,10 @@ function isAsyncGenerator(value: unknown): value is AsyncGenerator {
  *   components: [buttonComponent, cardComponent],
  * });
  * ```
+ *
+ * @deprecated It registers in the global registry. Give the bundle to `componentModule()`, and
+ * give the module to `createRegistry()` or `registerModules()`. The next MINOR of the client group
+ * removes `registerBundle`.
  */
 export function registerBundle(bundle: ComponentBundle): AnyComponentDefinition[] {
   const registered: AnyComponentDefinition[] = [];
@@ -552,6 +595,9 @@ export function createBundle(
  *   props: { label: ctx.data.label },
  * }));
  * ```
+ *
+ * @deprecated The registration in the global registry, as of `defineComponent`. Give the
+ * definition to `componentModule()`. The next MINOR of the client group removes the registration.
  */
 export function simpleComponent<TData = unknown>(
   type: string,
@@ -570,6 +616,9 @@ export function simpleComponent<TData = unknown>(
  * @param type - Component type
  * @param factory - Factory function
  * @returns ComponentDefinition
+ *
+ * @deprecated The registration in the global registry, as of `defineComponent`. Give the
+ * definition to `componentModule()`. The next MINOR of the client group removes the registration.
  */
 export function namespacedComponent<TData = unknown>(
   namespace: string,
@@ -589,6 +638,9 @@ export function namespacedComponent<TData = unknown>(
  * @param type - Component type
  * @param factory - Generator factory function
  * @returns ComponentDefinition
+ *
+ * @deprecated The registration in the global registry, as of `defineComponent`. Give the
+ * definition to `componentModule()`. The next MINOR of the client group removes the registration.
  */
 export function streamingComponent<TData = unknown>(
   type: string,

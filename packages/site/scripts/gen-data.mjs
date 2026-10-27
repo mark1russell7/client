@@ -145,8 +145,12 @@ const registry = client.PROCEDURE_REGISTRY;
 // An import registers nothing: the register entry of the client package adds its procedures
 await import(pathToFileURL(join(PACKAGES, "client", "dist", "register.js")).href);
 
+// The key of a procedure comes from the path codec of the client, as on the pages of the site
+// (rule I3): a segment with a dot stays one segment
+const keyOf = (proc) => client.pathToKey(proc.path);
+
 const owner = new Map();
-for (const proc of registry.getAll()) owner.set(proc.path.join("."), "client");
+for (const proc of registry.getAll()) owner.set(keyOf(proc), "client");
 
 const failed = [];
 const byLevel = (a, b) => a.level - b.level || a.dir.localeCompare(b.dir);
@@ -159,7 +163,7 @@ async function load(pkg, file) {
     return;
   }
   for (const proc of registry.getAll()) {
-    const key = proc.path.join(".");
+    const key = keyOf(proc);
     if (!owner.has(key)) owner.set(key, pkg.dir);
   }
 }
@@ -170,7 +174,7 @@ const cliPackages = registering.filter((pkg) => manifests.get(pkg.dir).client?.p
 for (const pkg of cliPackages) {
   await load(pkg, join(PACKAGES, pkg.dir, manifests.get(pkg.dir).client.procedures));
 }
-const cliKeys = new Set(registry.getAll().map((proc) => proc.path.join(".")));
+const cliKeys = new Set(registry.getAll().map((proc) => keyOf(proc)));
 
 // Phase 2: the other packages with a register.js
 for (const pkg of registering.filter((candidate) => !cliPackages.includes(candidate)).sort(byLevel)) {
@@ -196,10 +200,10 @@ function schemaOf(schema, io = "input") {
 
 const coreFields = readCoreFields(PACKAGES);
 // The Composer's runtime (src/lib/runtime.ts) has the core procedures and procedure.define/get/list/delete
-const browserKeys = new Set([...client.allCoreProcedures, ...client.metaProcedures].map((proc) => proc.path.join(".")));
+const browserKeys = new Set([...client.allCoreProcedures, ...client.metaProcedures].map((proc) => keyOf(proc)));
 const all = new Map();
 for (const proc of [...registry.getAll(), ...client.allCoreProcedures]) {
-  const key = proc.path.join(".");
+  const key = keyOf(proc);
   if (all.has(key)) continue;
   all.set(key, {
     key,
