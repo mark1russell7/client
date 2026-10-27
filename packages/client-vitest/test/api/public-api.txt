@@ -1,0 +1,189 @@
+# The public API of @procedures/vitest
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 26 names
+
+VitestCoverageInput: dist/types.d.ts#VitestCoverageInput
+VitestCoverageInputSchema: dist/types.d.ts#VitestCoverageInputSchema
+VitestListInput: dist/types.d.ts#VitestListInput
+VitestListInputSchema: dist/types.d.ts#VitestListInputSchema
+VitestListOutput: dist/types.d.ts#VitestListOutput
+VitestListOutputSchema: dist/types.d.ts#VitestListOutputSchema
+VitestProcessInfo: dist/types.d.ts#VitestProcessInfo
+VitestRunInput: dist/types.d.ts#VitestRunInput
+VitestRunInputSchema: dist/types.d.ts#VitestRunInputSchema
+VitestRunOutput: dist/types.d.ts#VitestRunOutput
+VitestRunOutputSchema: dist/types.d.ts#VitestRunOutputSchema
+VitestStopInput: dist/types.d.ts#VitestStopInput
+VitestStopInputSchema: dist/types.d.ts#VitestStopInputSchema
+VitestStopOutput: dist/types.d.ts#VitestStopOutput
+VitestStopOutputSchema: dist/types.d.ts#VitestStopOutputSchema
+VitestWatchInput: dist/types.d.ts#VitestWatchInput
+VitestWatchInputSchema: dist/types.d.ts#VitestWatchInputSchema
+VitestWatchOutput: dist/types.d.ts#VitestWatchOutput
+VitestWatchOutputSchema: dist/types.d.ts#VitestWatchOutputSchema
+registerVitestProcedures: dist/module.d.ts#registerVitestProcedures
+vitestCoverage: dist/procedures/vitest/run.d.ts#vitestCoverage
+vitestList: dist/procedures/vitest/list.d.ts#vitestList
+vitestModule: dist/module.d.ts#vitestModule
+vitestRun: dist/procedures/vitest/run.d.ts#vitestRun
+vitestStop: dist/procedures/vitest/stop.d.ts#vitestStop
+vitestWatch: dist/procedures/vitest/watch.d.ts#vitestWatch
+
+## ./module (dist/module.d.ts): 3 names
+
+default: dist/module.d.ts#vitestModule
+registerVitestProcedures: dist/module.d.ts#registerVitestProcedures
+vitestModule: dist/module.d.ts#vitestModule
+
+## ./register (dist/register.d.ts): 2 names
+
+registerVitestProcedures: dist/module.d.ts#registerVitestProcedures
+vitestModule: dist/module.d.ts#vitestModule
+
+## Declarations
+
+### dist/module.d.ts#registerVitestProcedures
+export declare const registerVitestProcedures: PackageDefinition["register"];
+
+### dist/module.d.ts#vitestModule
+export declare const vitestModule: ProcedureModule;
+
+### dist/procedures/vitest/list.d.ts#vitestList
+export declare function vitestList(input: VitestListInput, _ctx: {
+    metadata: Record<string, unknown>;
+}): Promise<VitestListOutput>;
+
+### dist/procedures/vitest/run.d.ts#vitestCoverage
+export declare function vitestCoverage(input: VitestCoverageInput, ctx: VitestContext): Promise<VitestRunOutput>;
+
+### dist/procedures/vitest/run.d.ts#vitestRun
+export declare function vitestRun(input: VitestRunInput, ctx: VitestContext): Promise<VitestRunOutput>;
+
+### dist/procedures/vitest/stop.d.ts#vitestStop
+export declare function vitestStop(input: VitestStopInput, _ctx: {
+    metadata: Record<string, unknown>;
+}): Promise<VitestStopOutput>;
+
+### dist/procedures/vitest/watch.d.ts#vitestWatch
+export declare function vitestWatch(input: VitestWatchInput, _ctx: {
+    metadata: Record<string, unknown>;
+}): Promise<VitestWatchOutput>;
+
+### dist/types.d.ts#VitestCoverageInput
+export type VitestCoverageInput = z.infer<typeof VitestCoverageInputSchema>;
+
+### dist/types.d.ts#VitestCoverageInputSchema
+export declare const VitestCoverageInputSchema: z.ZodObject<{
+    cwd: z.ZodOptional<z.ZodString>;
+    include: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    exclude: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    threshold: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#VitestListInput
+export type VitestListInput = z.infer<typeof VitestListInputSchema>;
+
+### dist/types.d.ts#VitestListInputSchema
+export declare const VitestListInputSchema: z.ZodObject<{
+    output: z.ZodOptional<z.ZodBoolean>;
+}>;
+
+### dist/types.d.ts#VitestListOutput
+export interface VitestListOutput {
+    processes: VitestProcessInfo[];
+}
+
+### dist/types.d.ts#VitestListOutputSchema
+export declare const VitestListOutputSchema: z.ZodType<VitestListOutput>;
+
+### dist/types.d.ts#VitestProcessInfo
+export interface VitestProcessInfo {
+    id: string;
+    pid: number;
+    cwd?: string | undefined;
+    status: "running" | "exited" | "error";
+    startedAt: string;
+    exitedAt?: string | undefined;
+    exitCode?: number | undefined;
+    output?: string | undefined;
+}
+
+### dist/types.d.ts#VitestRunInput
+export type VitestRunInput = z.infer<typeof VitestRunInputSchema>;
+
+### dist/types.d.ts#VitestRunInputSchema
+export declare const VitestRunInputSchema: z.ZodObject<{
+    cwd: z.ZodOptional<z.ZodString>;
+    include: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    exclude: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    watch: z.ZodOptional<z.ZodBoolean>;
+    coverage: z.ZodOptional<z.ZodBoolean>;
+    reporter: z.ZodOptional<z.ZodEnum<{
+        default: "default";
+        verbose: "verbose";
+        json: "json";
+        junit: "junit";
+    }>>;
+    passWithNoTests: z.ZodOptional<z.ZodBoolean>;
+}>;
+
+### dist/types.d.ts#VitestRunOutput
+export interface VitestRunOutput {
+    success: boolean;
+    passed: number;
+    failed: number;
+    skipped: number;
+    duration: number;
+    exitCode: number;
+    stdout: string;
+    stderr: string;
+    coverage?: {
+        lines: number;
+        branches: number;
+        functions: number;
+        statements: number;
+    } | undefined;
+}
+
+### dist/types.d.ts#VitestRunOutputSchema
+export declare const VitestRunOutputSchema: z.ZodType<VitestRunOutput>;
+
+### dist/types.d.ts#VitestStopInput
+export type VitestStopInput = z.infer<typeof VitestStopInputSchema>;
+
+### dist/types.d.ts#VitestStopInputSchema
+export declare const VitestStopInputSchema: z.ZodObject<{
+    id: z.ZodOptional<z.ZodString>;
+}>;
+
+### dist/types.d.ts#VitestStopOutput
+export interface VitestStopOutput {
+    success: boolean;
+    stopped: string[];
+}
+
+### dist/types.d.ts#VitestStopOutputSchema
+export declare const VitestStopOutputSchema: z.ZodType<VitestStopOutput>;
+
+### dist/types.d.ts#VitestWatchInput
+export type VitestWatchInput = z.infer<typeof VitestWatchInputSchema>;
+
+### dist/types.d.ts#VitestWatchInputSchema
+export declare const VitestWatchInputSchema: z.ZodObject<{
+    cwd: z.ZodOptional<z.ZodString>;
+    include: z.ZodOptional<z.ZodArray<z.ZodString>>;
+}>;
+
+### dist/types.d.ts#VitestWatchOutput
+export interface VitestWatchOutput {
+    id: string;
+    pid: number;
+    status: "started" | "stopped";
+}
+
+### dist/types.d.ts#VitestWatchOutputSchema
+export declare const VitestWatchOutputSchema: z.ZodType<VitestWatchOutput>;

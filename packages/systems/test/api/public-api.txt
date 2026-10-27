@@ -1,0 +1,131 @@
+# The public API of @procedures/systems
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 10 names
+
+CLIENT_RULES: dist/rules.d.ts#CLIENT_RULES
+SystemsTimersInput: dist/types.d.ts#SystemsTimersInput
+SystemsTimersOutput: dist/types.d.ts#SystemsTimersOutput
+type TimerFinding: dist/lint.d.ts#TimerFinding
+type TimerSettings: dist/lint.d.ts#TimerSettings
+bindingOf: dist/lint.d.ts#bindingOf
+lintTimers: dist/lint.d.ts#lintTimers
+registerSystemsProcedures: dist/module.d.ts#registerSystemsProcedures
+settingsOf: dist/procedures/systems/timers.d.ts#settingsOf
+systemsModule: dist/module.d.ts#systemsModule
+
+## ./module (dist/module.d.ts): 3 names
+
+default: dist/module.d.ts#systemsModule
+registerSystemsProcedures: dist/module.d.ts#registerSystemsProcedures
+systemsModule: dist/module.d.ts#systemsModule
+
+## ./register (dist/register.d.ts): 2 names
+
+registerSystemsProcedures: dist/module.d.ts#registerSystemsProcedures
+systemsModule: dist/module.d.ts#systemsModule
+
+## Declarations
+
+### dist/lint.d.ts#TimerFinding
+export interface TimerFinding {
+    readonly rule: string;
+    readonly verdict: Verdict;
+    readonly statement: string;
+    readonly window?: string | undefined;
+    readonly evaluated: readonly Evaluated[];
+    readonly unbound: readonly string[];
+}
+
+### dist/lint.d.ts#TimerSettings
+export interface TimerSettings {
+    readonly perAttempt?: Duration | undefined;
+    readonly overall?: Duration | undefined;
+    readonly retry?: {
+        readonly maxRetries?: number | undefined;
+        readonly retryDelay?: Duration | undefined;
+        readonly backoffMultiplier?: number | undefined;
+        readonly maxDelay?: Duration | undefined;
+    } | undefined;
+    readonly circuitBreaker?: {
+        readonly resetTimeout?: Duration | undefined;
+    } | undefined;
+    readonly webSocketClient?: {
+        readonly requestTimeout?: Duration | undefined;
+        readonly heartbeatInterval?: Duration | undefined;
+        readonly heartbeatTimeout?: Duration | undefined;
+        readonly heartbeatMisses?: number | undefined;
+    } | undefined;
+    readonly webSocketServer?: {
+        readonly heartbeatInterval?: Duration | undefined;
+        readonly heartbeatMisses?: number | undefined;
+        readonly reverseRequestTimeout?: Duration | undefined;
+    } | undefined;
+    readonly idempotencyTtl?: Duration | undefined;
+}
+
+### dist/lint.d.ts#bindingOf
+export declare function bindingOf(settings?: TimerSettings): Binding;
+
+### dist/lint.d.ts#lintTimers
+export declare function lintTimers(settings?: TimerSettings, rules?: readonly Rule[]): TimerFinding[];
+
+### dist/module.d.ts#registerSystemsProcedures
+export declare const registerSystemsProcedures: PackageDefinition["register"];
+
+### dist/module.d.ts#systemsModule
+export declare const systemsModule: ProcedureModule;
+
+### dist/procedures/systems/timers.d.ts#settingsOf
+export declare function settingsOf(input: SystemsTimersInput): TimerSettings;
+
+### dist/rules.d.ts#CLIENT_RULES
+export declare const CLIENT_RULES: readonly Rule[];
+
+### dist/types.d.ts#SystemsTimersInput
+export interface SystemsTimersInput {
+    perAttemptMs?: number | undefined;
+    overallMs?: number | undefined;
+    retry?: {
+        maxRetries?: number | undefined;
+        retryDelayMs?: number | undefined;
+        backoffMultiplier?: number | undefined;
+        maxDelayMs?: number | undefined;
+    } | undefined;
+    circuitBreaker?: {
+        resetTimeoutMs?: number | undefined;
+    } | undefined;
+    webSocketClient?: {
+        requestTimeoutMs?: number | undefined;
+        heartbeatIntervalMs?: number | undefined;
+        heartbeatTimeoutMs?: number | undefined;
+        heartbeatMisses?: number | undefined;
+    } | undefined;
+    webSocketServer?: {
+        heartbeatIntervalMs?: number | undefined;
+        heartbeatMisses?: number | undefined;
+        reverseRequestTimeoutMs?: number | undefined;
+    } | undefined;
+    idempotencyTtlMs?: number | undefined;
+}
+
+### dist/types.d.ts#SystemsTimersOutput
+export interface SystemsTimersOutput {
+    ok: boolean;
+    findings: Array<{
+        rule: string;
+        verdict: Verdict;
+        statement: string;
+        window?: string | undefined;
+        evaluated: Array<{
+            lhs: number | null;
+            rhs: number | null;
+            margin: number;
+            holds: boolean | null;
+        }>;
+        unbound: string[];
+    }>;
+}

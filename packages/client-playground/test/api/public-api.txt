@@ -1,0 +1,46 @@
+# The public API of @procedures/playground
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 8 names
+
+OutputRef: dist/index.d.ts#OutputRef
+ProcBuilder: dist/index.d.ts#ProcBuilder
+type ProcedurePath: @procedures/client#ProcedurePath (external)
+type ProcedureRefJson: @procedures/client#ProcedureRefJson (external)
+RunOptions: dist/index.d.ts#RunOptions
+proc: dist/index.d.ts#proc
+ref: dist/index.d.ts#ref
+run: dist/index.d.ts#run
+
+## Declarations
+
+### dist/index.d.ts#OutputRef
+export interface OutputRef {
+    readonly $ref: string;
+}
+
+### dist/index.d.ts#ProcBuilder
+export interface ProcBuilder<TInput = unknown> {
+    input<T>(input: T): ProcBuilder<T>;
+    name(name: string): ProcBuilder<TInput>;
+    when(when: string): ProcBuilder<TInput>;
+    readonly ref: ProcedureRefJson<TInput>;
+}
+
+### dist/index.d.ts#RunOptions
+export interface RunOptions {
+    print?: boolean;
+    format?: "json" | "text";
+}
+
+### dist/index.d.ts#proc
+export declare function proc(path: ProcedurePath): ProcBuilder<unknown>;
+
+### dist/index.d.ts#ref
+export declare function ref(path: string): OutputRef;
+
+### dist/index.d.ts#run
+export declare function run<T = unknown>(procedureRef: ProcedureRefJson, options?: RunOptions): Promise<T>;

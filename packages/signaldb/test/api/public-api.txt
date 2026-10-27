@@ -1,0 +1,69 @@
+# The public API of @procedures/signaldb
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 7 names
+
+type SignalDbCollection: dist/storage.d.ts#SignalDbCollection
+type SignalDbItem: dist/codec.d.ts#SignalDbItem
+type SignalDbItemCodec: dist/codec.d.ts#SignalDbItemCodec
+SignalDbStorage: dist/storage.d.ts#SignalDbStorage
+type SignalDbStorageOptions: dist/storage.d.ts#SignalDbStorageOptions
+VALUE_FIELD: dist/codec.d.ts#VALUE_FIELD
+documentCodec: dist/codec.d.ts#documentCodec
+
+## Declarations
+
+### dist/codec.d.ts#SignalDbItem
+export interface SignalDbItem {
+    readonly id: string;
+    readonly [field: string]: unknown;
+}
+
+### dist/codec.d.ts#SignalDbItemCodec
+export interface SignalDbItemCodec<T> {
+    toItem(id: string, value: T): SignalDbItem;
+    fromItem(item: SignalDbItem): T;
+}
+
+### dist/codec.d.ts#VALUE_FIELD
+export declare const VALUE_FIELD = "__value";
+
+### dist/codec.d.ts#documentCodec
+export declare function documentCodec<T>(valueField?: string): SignalDbItemCodec<T>;
+
+### dist/storage.d.ts#SignalDbCollection
+export type SignalDbCollection = Collection<any, any, any, any>;
+
+### dist/storage.d.ts#SignalDbStorage
+export declare class SignalDbStorage<T> implements CollectionStorage<T> {
+    constructor(collection: SignalDbCollection, options?: SignalDbStorageOptions<T>);
+    get name(): string;
+    get(id: string): Promise<T | undefined>;
+    getAll(): Promise<T[]>;
+    getEntries(): Promise<Array<[string, T]>>;
+    find(predicate: (item: T) => boolean): Promise<T[]>;
+    query(selector: StorageSelector, options?: StorageQueryOptions, policy?: StorageQueryPolicy): Promise<Array<[string, T]>>;
+    observe(observer: StorageObserver<T>): () => void;
+    has(id: string): Promise<boolean>;
+    size(): Promise<number>;
+    set(id: string, value: T, options?: StorageItemWriteOptions): Promise<void>;
+    delete(id: string, options?: StorageItemWriteOptions): Promise<boolean>;
+    clear(options?: StorageWriteOptions): Promise<void>;
+    patch(id: string, fields: StoragePatch, options?: StorageWriteOptions): Promise<T | undefined>;
+    setBatch(items: Array<[string, T]>, options?: StorageBatchWriteOptions): Promise<void>;
+    deleteBatch(ids: string[], options?: StorageWriteOptions): Promise<number>;
+    getBatch(ids: string[]): Promise<Map<string, T>>;
+    close(): Promise<void>;
+    getMetadata(): Promise<StorageMetadata>;
+}
+
+### dist/storage.d.ts#SignalDbStorageOptions
+export interface SignalDbStorageOptions<T = unknown> {
+    codec?: SignalDbItemCodec<T> | undefined;
+    queryPolicy?: StorageQueryPolicy | undefined;
+    versionOf?: ((item: T) => string | undefined) | undefined;
+    onObserverError?: ListenerErrorHandler | undefined;
+}

@@ -1,0 +1,576 @@
+# The public API of @procedures/shell
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 59 names
+
+type ArgValue: dist/cli/argv.d.ts#ArgValue
+type CliProgram: dist/cli/program.d.ts#CliProgram
+type CliRunOptions: dist/cli/tool.d.ts#CliRunOptions
+type CliShellInput: dist/cli/tool.d.ts#CliShellInput
+type CliTool: dist/cli/tool.d.ts#CliTool
+type CliToolContext: dist/cli/tool.d.ts#CliToolContext
+CliToolError: dist/cli/tool.d.ts#CliToolError
+type CliToolJsonOutput: dist/cli/output.d.ts#CliToolJsonOutput
+type CliToolOptions: dist/cli/tool.d.ts#CliToolOptions
+type CliToolOutput: dist/cli/output.d.ts#CliToolOutput
+type CliToolOutputFields: dist/cli/output.d.ts#CliToolOutputFields
+type CommandOptions: dist/command/run.d.ts#CommandOptions
+type CommandResult: dist/command/run.d.ts#CommandResult
+type CommandStreamItem: dist/command/stream.d.ts#CommandStreamItem
+DEFAULT_MAX_OUTPUT_BYTES: dist/command/output.d.ts#DEFAULT_MAX_OUTPUT_BYTES
+FLAG_NAME: dist/cli/argv.d.ts#FLAG_NAME
+FOLLOW_BUFFER_BYTES: dist/command/processes.d.ts#FOLLOW_BUFFER_BYTES
+type FollowOptions: dist/command/processes.d.ts#FollowOptions
+type ManagedProcessInfo: dist/command/processes.d.ts#ManagedProcessInfo
+type ProcessFollowItem: dist/command/processes.d.ts#ProcessFollowItem
+type ProcessOutputChunk: dist/command/processes.d.ts#ProcessOutputChunk
+type ProcessOutputListener: dist/command/processes.d.ts#ProcessOutputListener
+ProcessRegistry: dist/command/processes.d.ts#ProcessRegistry
+type ShellExecInput: dist/types.d.ts#ShellExecInput
+ShellExecInputSchema: dist/types.d.ts#ShellExecInputSchema
+type ShellExecOutput: dist/types.d.ts#ShellExecOutput
+type ShellRunInput: dist/types.d.ts#ShellRunInput
+ShellRunInputSchema: dist/types.d.ts#ShellRunInputSchema
+type ShellRunOutput: dist/types.d.ts#ShellRunOutput
+type ShellStreamInput: dist/types.d.ts#ShellStreamInput
+ShellStreamInputSchema: dist/types.d.ts#ShellStreamInputSchema
+type ShellStreamItem: dist/types.d.ts#ShellStreamItem
+type ShellWhichInput: dist/types.d.ts#ShellWhichInput
+ShellWhichInputSchema: dist/types.d.ts#ShellWhichInputSchema
+type ShellWhichOutput: dist/types.d.ts#ShellWhichOutput
+type SpawnOptions: dist/command/spawn.d.ts#SpawnOptions
+type StartProcessOptions: dist/command/processes.d.ts#StartProcessOptions
+type StopResult: dist/command/processes.d.ts#StopResult
+type StreamCommandOptions: dist/command/stream.d.ts#StreamCommandOptions
+buildArgv: dist/cli/argv.d.ts#buildArgv
+cliArg: dist/cli/argv.d.ts#cliArg
+cliToolJsonOutputSchema: dist/cli/output.d.ts#cliToolJsonOutputSchema
+cliToolOutputFields: dist/cli/output.d.ts#cliToolOutputFields
+cliToolOutputSchema: dist/cli/output.d.ts#cliToolOutputSchema
+defineCliTool: dist/cli/tool.d.ts#defineCliTool
+execPathProgram: dist/cli/program.d.ts#execPathProgram
+findInPath: dist/cli/program.d.ts#findInPath
+killTree: dist/command/tree-kill.d.ts#killTree
+nodeScript: dist/cli/program.d.ts#nodeScript
+parseJsonDocument: dist/cli/argv.d.ts#parseJsonDocument
+parseJsonOutput: dist/cli/argv.d.ts#parseJsonOutput
+processes: dist/command/processes.d.ts#processes
+registerShellProcedures: dist/module.d.ts#registerShellProcedures
+runCommand: dist/command/run.d.ts#runCommand
+shellExec: dist/procedures/shell/exec.d.ts#shellExec
+shellRun: dist/procedures/shell/run.d.ts#shellRun
+shellStream: dist/procedures/shell/stream.d.ts#shellStream
+shellWhich: dist/procedures/shell/which.d.ts#shellWhich
+streamCommand: dist/command/stream.d.ts#streamCommand
+
+## ./module (dist/module.d.ts): 3 names
+
+default: dist/module.d.ts#shellModule
+registerShellProcedures: dist/module.d.ts#registerShellProcedures
+shellModule: dist/module.d.ts#shellModule
+
+## ./register (dist/register.d.ts): 2 names
+
+registerShellProcedures: dist/module.d.ts#registerShellProcedures
+shellModule: dist/module.d.ts#shellModule
+
+## ./command (dist/command/index.d.ts): 19 names
+
+type CommandOptions: dist/command/run.d.ts#CommandOptions
+type CommandResult: dist/command/run.d.ts#CommandResult
+type CommandStreamItem: dist/command/stream.d.ts#CommandStreamItem
+DEFAULT_MAX_OUTPUT_BYTES: dist/command/output.d.ts#DEFAULT_MAX_OUTPUT_BYTES
+FOLLOW_BUFFER_BYTES: dist/command/processes.d.ts#FOLLOW_BUFFER_BYTES
+type FollowOptions: dist/command/processes.d.ts#FollowOptions
+type ManagedProcessInfo: dist/command/processes.d.ts#ManagedProcessInfo
+type ProcessFollowItem: dist/command/processes.d.ts#ProcessFollowItem
+type ProcessOutputChunk: dist/command/processes.d.ts#ProcessOutputChunk
+type ProcessOutputListener: dist/command/processes.d.ts#ProcessOutputListener
+ProcessRegistry: dist/command/processes.d.ts#ProcessRegistry
+type SpawnOptions: dist/command/spawn.d.ts#SpawnOptions
+type StartProcessOptions: dist/command/processes.d.ts#StartProcessOptions
+type StopResult: dist/command/processes.d.ts#StopResult
+type StreamCommandOptions: dist/command/stream.d.ts#StreamCommandOptions
+killTree: dist/command/tree-kill.d.ts#killTree
+processes: dist/command/processes.d.ts#processes
+runCommand: dist/command/run.d.ts#runCommand
+streamCommand: dist/command/stream.d.ts#streamCommand
+
+## ./cli (dist/cli/index.d.ts): 23 names
+
+type ArgValue: dist/cli/argv.d.ts#ArgValue
+type CliProgram: dist/cli/program.d.ts#CliProgram
+type CliRunOptions: dist/cli/tool.d.ts#CliRunOptions
+type CliShellInput: dist/cli/tool.d.ts#CliShellInput
+type CliTool: dist/cli/tool.d.ts#CliTool
+type CliToolContext: dist/cli/tool.d.ts#CliToolContext
+CliToolError: dist/cli/tool.d.ts#CliToolError
+type CliToolJsonOutput: dist/cli/output.d.ts#CliToolJsonOutput
+type CliToolOptions: dist/cli/tool.d.ts#CliToolOptions
+type CliToolOutput: dist/cli/output.d.ts#CliToolOutput
+type CliToolOutputFields: dist/cli/output.d.ts#CliToolOutputFields
+FLAG_NAME: dist/cli/argv.d.ts#FLAG_NAME
+buildArgv: dist/cli/argv.d.ts#buildArgv
+cliArg: dist/cli/argv.d.ts#cliArg
+cliToolJsonOutputSchema: dist/cli/output.d.ts#cliToolJsonOutputSchema
+cliToolOutputFields: dist/cli/output.d.ts#cliToolOutputFields
+cliToolOutputSchema: dist/cli/output.d.ts#cliToolOutputSchema
+defineCliTool: dist/cli/tool.d.ts#defineCliTool
+execPathProgram: dist/cli/program.d.ts#execPathProgram
+findInPath: dist/cli/program.d.ts#findInPath
+nodeScript: dist/cli/program.d.ts#nodeScript
+parseJsonDocument: dist/cli/argv.d.ts#parseJsonDocument
+parseJsonOutput: dist/cli/argv.d.ts#parseJsonOutput
+
+## ./testing (dist/testing.d.ts): 6 names
+
+FakeShell: dist/testing.d.ts#FakeShell
+FakeShellInput: dist/testing.d.ts#FakeShellInput
+FakeShellOptions: dist/testing.d.ts#FakeShellOptions
+FakeShellResult: dist/testing.d.ts#FakeShellResult
+FakeShellResults: dist/testing.d.ts#FakeShellResults
+fakeShell: dist/testing.d.ts#fakeShell
+
+## Declarations
+
+### dist/cli/argv.d.ts#ArgValue
+export type ArgValue = string | number | boolean | readonly string[];
+
+### dist/cli/argv.d.ts#FLAG_NAME
+export declare const FLAG_NAME: RegExp;
+
+### dist/cli/argv.d.ts#buildArgv
+export declare function buildArgv(input: {
+    readonly path: readonly string[];
+    readonly args?: Readonly<Record<string, ArgValue>> | undefined;
+    readonly positional?: readonly string[] | undefined;
+    readonly flags?: readonly string[] | undefined;
+}): string[];
+
+### dist/cli/argv.d.ts#cliArg
+export declare function cliArg(name: string, value: string): string;
+
+### dist/cli/argv.d.ts#parseJsonDocument
+export declare function parseJsonDocument(stdout: string): unknown;
+
+### dist/cli/argv.d.ts#parseJsonOutput
+export declare function parseJsonOutput(stdout: string): unknown;
+
+### dist/cli/output.d.ts#CliToolJsonOutput
+export interface CliToolJsonOutput extends CliToolOutput {
+    data?: unknown;
+}
+
+### dist/cli/output.d.ts#CliToolOutput
+export interface CliToolOutput {
+    exitCode: number;
+    stdout: string;
+    stderr: string;
+    success: boolean;
+    duration: number;
+}
+
+### dist/cli/output.d.ts#CliToolOutputFields
+export interface CliToolOutputFields {
+    exitCode: z.ZodNumber;
+    stdout: z.ZodString;
+    stderr: z.ZodString;
+    success: z.ZodBoolean;
+    duration: z.ZodNumber;
+}
+
+### dist/cli/output.d.ts#cliToolJsonOutputSchema
+export declare function cliToolJsonOutputSchema(program: string): z.ZodType<CliToolJsonOutput>;
+
+### dist/cli/output.d.ts#cliToolOutputFields
+export declare function cliToolOutputFields(program: string): CliToolOutputFields;
+
+### dist/cli/output.d.ts#cliToolOutputSchema
+export declare function cliToolOutputSchema(program: string): z.ZodType<CliToolOutput>;
+
+### dist/cli/program.d.ts#CliProgram
+export interface CliProgram {
+    command: string;
+    prefix: string[];
+}
+
+### dist/cli/program.d.ts#execPathProgram
+export declare function execPathProgram(match: {
+    script?: RegExp | undefined;
+    executable?: RegExp | undefined;
+}): CliProgram | undefined;
+
+### dist/cli/program.d.ts#findInPath
+export declare function findInPath(find: (dir: string) => CliProgram | undefined, path?: string): CliProgram | undefined;
+
+### dist/cli/program.d.ts#nodeScript
+export declare function nodeScript(script: string): CliProgram;
+
+### dist/cli/tool.d.ts#CliRunOptions
+export interface CliRunOptions {
+    cwd?: string | undefined;
+    timeout?: number | undefined;
+    env?: Record<string, string> | undefined;
+}
+
+### dist/cli/tool.d.ts#CliShellInput
+export interface CliShellInput {
+    command: string;
+    args: string[];
+    cwd?: string;
+    timeout?: number;
+    env?: Record<string, string>;
+}
+
+### dist/cli/tool.d.ts#CliTool
+export interface CliTool {
+    readonly name: string;
+    arg(name: string, value: string): string;
+    shellInput(args: readonly string[], options?: CliRunOptions): CliShellInput;
+    call(args: readonly string[], options: CliRunOptions, ctx: CliToolContext): Promise<CliToolOutput>;
+    run(args: readonly string[], options: CliRunOptions, ctx: CliToolContext): Promise<CliToolOutput>;
+    runJson(args: readonly string[], options: CliRunOptions, ctx: CliToolContext, parse?: (stdout: string) => unknown): Promise<CliToolJsonOutput>;
+    output(args: readonly string[], options: CliRunOptions, ctx: CliToolContext): Promise<string>;
+    json<T>(args: readonly string[], options: CliRunOptions, ctx: CliToolContext): Promise<T>;
+}
+
+### dist/cli/tool.d.ts#CliToolContext
+export type CliToolContext = Pick<ProcedureContext, "client">;
+
+### dist/cli/tool.d.ts#CliToolError
+export declare class CliToolError extends Error {
+    readonly exitCode: number;
+    readonly stderr: string;
+    readonly name: string;
+    constructor(message: string, exitCode: number, stderr: string);
+}
+
+### dist/cli/tool.d.ts#CliToolOptions
+export interface CliToolOptions {
+    readonly name: string;
+    readonly resolve?: (() => CliProgram | string) | undefined;
+    readonly error?: ((message: string, exitCode: number, stderr: string) => Error) | undefined;
+}
+
+### dist/cli/tool.d.ts#defineCliTool
+export declare function defineCliTool(options: CliToolOptions): CliTool;
+
+### dist/command/output.d.ts#DEFAULT_MAX_OUTPUT_BYTES
+export declare const DEFAULT_MAX_OUTPUT_BYTES: number;
+
+### dist/command/processes.d.ts#FOLLOW_BUFFER_BYTES
+export declare const FOLLOW_BUFFER_BYTES: number;
+
+### dist/command/processes.d.ts#FollowOptions
+export interface FollowOptions {
+    backlog?: boolean | undefined;
+    signal?: AbortSignal | undefined;
+    maxBufferedBytes?: number | undefined;
+}
+
+### dist/command/processes.d.ts#ManagedProcessInfo
+export interface ManagedProcessInfo {
+    id: string;
+    pid: number;
+    command: string;
+    args: string[];
+    cwd?: string;
+    group?: string;
+    label?: string;
+    status: "running" | "exited" | "error";
+    startedAt: string;
+    exitedAt?: string;
+    exitCode?: number;
+    signal?: string;
+    error?: string;
+}
+
+### dist/command/processes.d.ts#ProcessFollowItem
+export type ProcessFollowItem =
+{
+    type: "backlog";
+    text: string;
+}
+ | {
+    type: "output";
+    stream: "stdout" | "stderr";
+    text: string;
+}
+ | {
+    type: "dropped";
+    bytes: number;
+}
+ | {
+    type: "end";
+    info: ManagedProcessInfo;
+};
+
+### dist/command/processes.d.ts#ProcessOutputChunk
+export interface ProcessOutputChunk {
+    stream: "stdout" | "stderr";
+    data: Buffer;
+}
+
+### dist/command/processes.d.ts#ProcessOutputListener
+export interface ProcessOutputListener {
+    output?(chunk: ProcessOutputChunk): void;
+    end?(info: ManagedProcessInfo): void;
+}
+
+### dist/command/processes.d.ts#ProcessRegistry
+export declare class ProcessRegistry {
+    constructor(options?: {
+        keepExited?: number;
+    });
+    start(command: string, options?: StartProcessOptions): ManagedProcessInfo;
+    get(id: string): ManagedProcessInfo | undefined;
+    list(filter?: {
+        group?: string | undefined;
+    }): ManagedProcessInfo[];
+    output(id: string): string;
+    subscribe(id: string, listener: ProcessOutputListener): (() => void) | undefined;
+    follow(id: string, options?: FollowOptions): AsyncGenerator<ProcessFollowItem, void, undefined>;
+    exited(id: string): Promise<ManagedProcessInfo | undefined>;
+    waitFor(id: string, pattern: RegExp, timeout?: number): Promise<RegExpMatchArray>;
+    stop(id: string, signal?: NodeJS.Signals): Promise<StopResult>;
+    stopAll(filter?: {
+        group?: string | undefined;
+    }): Promise<number>;
+    forget(id: string): boolean;
+    reap(): number;
+}
+
+### dist/command/processes.d.ts#StartProcessOptions
+export interface StartProcessOptions extends SpawnOptions {
+    group?: string | undefined;
+    label?: string | undefined;
+}
+
+### dist/command/processes.d.ts#StopResult
+export interface StopResult {
+    stopped: boolean;
+    exitCode?: number;
+    signal?: string;
+}
+
+### dist/command/processes.d.ts#processes
+export declare const processes: ProcessRegistry;
+
+### dist/command/run.d.ts#CommandOptions
+export interface CommandOptions extends SpawnOptions {
+    input?: string | Buffer | undefined;
+    timeout?: number | undefined;
+    signal?: AbortSignal | undefined;
+    maxOutputBytes?: number | undefined;
+    keep?: "head" | "tail" | undefined;
+    encoding?: BufferEncoding | undefined;
+}
+
+### dist/command/run.d.ts#CommandResult
+export interface CommandResult {
+    exitCode: number;
+    stdout: string;
+    stderr: string;
+    success: boolean;
+    duration: number;
+    signal?: string;
+    timedOut?: boolean;
+    aborted?: boolean;
+    truncated?: {
+        stdout: boolean;
+        stderr: boolean;
+    };
+    error?: string;
+}
+
+### dist/command/run.d.ts#runCommand
+export declare function runCommand(command: string, options?: CommandOptions): Promise<CommandResult>;
+
+### dist/command/spawn.d.ts#SpawnOptions
+export interface SpawnOptions {
+    args?: readonly string[] | undefined;
+    cwd?: string | undefined;
+    env?: Record<string, string | undefined> | undefined;
+    windowsVerbatimArguments?: boolean | undefined;
+}
+
+### dist/command/stream.d.ts#CommandStreamItem
+export type CommandStreamItem = {
+    type: "stdout" | "stderr";
+    line: string;
+} | {
+    type: "exit";
+    exitCode: number;
+    duration: number;
+    signal?: string;
+    timedOut?: boolean;
+    aborted?: boolean;
+};
+
+### dist/command/stream.d.ts#StreamCommandOptions
+export interface StreamCommandOptions extends SpawnOptions {
+    input?: string | Buffer | undefined;
+    timeout?: number | undefined;
+    signal?: AbortSignal | undefined;
+    highWaterMark?: number | undefined;
+    maxLineLength?: number | undefined;
+    encoding?: BufferEncoding | undefined;
+}
+
+### dist/command/stream.d.ts#streamCommand
+export declare function streamCommand(command: string, options?: StreamCommandOptions): AsyncGenerator<CommandStreamItem, void, undefined>;
+
+### dist/command/tree-kill.d.ts#killTree
+export declare function killTree(child: ChildProcess, signal?: NodeJS.Signals): void;
+
+### dist/module.d.ts#registerShellProcedures
+export declare const registerShellProcedures: PackageDefinition["register"];
+
+### dist/module.d.ts#shellModule
+export declare const shellModule: ProcedureModule;
+
+### dist/procedures/shell/exec.d.ts#shellExec
+export declare function shellExec(input: ShellExecInput, ctx?: {
+    signal?: AbortSignal | undefined;
+}): Promise<ShellExecOutput>;
+
+### dist/procedures/shell/run.d.ts#shellRun
+export declare function shellRun(input: ShellRunInput, ctx?: {
+    signal?: AbortSignal | undefined;
+}): Promise<ShellRunOutput>;
+
+### dist/procedures/shell/stream.d.ts#shellStream
+export declare function shellStream(input: ShellStreamInput, ctx?: {
+    signal?: AbortSignal | undefined;
+}): AsyncGenerator<ShellStreamItem, void, undefined>;
+
+### dist/procedures/shell/which.d.ts#shellWhich
+export declare function shellWhich(input: ShellWhichInput, ctx?: {
+    signal?: AbortSignal | undefined;
+}): Promise<ShellWhichOutput>;
+
+### dist/testing.d.ts#FakeShell
+export interface FakeShell {
+    readonly calls: FakeShellInput[];
+    readonly streams: FakeShellInput[];
+    readonly procedures: AnyProcedure[];
+    readonly module: ProcedureModule;
+    readonly client: ProcedureContext["client"];
+    args(index?: number): string[];
+}
+
+### dist/testing.d.ts#FakeShellInput
+export interface FakeShellInput {
+    command: string;
+    args: string[];
+    cwd?: string | undefined;
+    timeout?: number | undefined;
+    env?: Record<string, string> | undefined;
+    [field: string]: unknown;
+}
+
+### dist/testing.d.ts#FakeShellOptions
+export interface FakeShellOptions {
+    fallback?: FakeShellResult | undefined;
+}
+
+### dist/testing.d.ts#FakeShellResult
+export interface FakeShellResult {
+    exitCode?: number | undefined;
+    stdout?: string | undefined;
+    stderr?: string | undefined;
+    signal?: string | undefined;
+}
+
+### dist/testing.d.ts#FakeShellResults
+export type FakeShellResults = FakeShellResult | readonly FakeShellResult[] | ((input: FakeShellInput, index: number) => FakeShellResult);
+
+### dist/testing.d.ts#fakeShell
+export declare function fakeShell(results?: FakeShellResults, options?: FakeShellOptions): FakeShell;
+
+### dist/types.d.ts#ShellExecInput
+export type ShellExecInput = z.infer<typeof ShellExecInputSchema>;
+
+### dist/types.d.ts#ShellExecInputSchema
+export declare const ShellExecInputSchema: z.ZodObject<{
+    command: z.ZodString;
+    cwd: z.ZodOptional<z.ZodString>;
+    env: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+    shell: z.ZodDefault<z.ZodUnion<readonly [z.ZodBoolean, z.ZodString]>>;
+    maxBuffer: z.ZodOptional<z.ZodNumber>;
+    stdin: z.ZodOptional<z.ZodString>;
+}>;
+
+### dist/types.d.ts#ShellExecOutput
+export interface ShellExecOutput {
+    exitCode: number;
+    stdout: string;
+    stderr: string;
+    success: boolean;
+    duration: number;
+    signal?: string | undefined;
+}
+
+### dist/types.d.ts#ShellRunInput
+export type ShellRunInput = z.infer<typeof ShellRunInputSchema>;
+
+### dist/types.d.ts#ShellRunInputSchema
+export declare const ShellRunInputSchema: z.ZodObject<{
+    command: z.ZodString;
+    args: z.ZodDefault<z.ZodArray<z.ZodString>>;
+    cwd: z.ZodOptional<z.ZodString>;
+    env: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+    encoding: z.ZodDefault<z.ZodString>;
+}>;
+
+### dist/types.d.ts#ShellRunOutput
+export interface ShellRunOutput {
+    exitCode: number;
+    stdout: string;
+    stderr: string;
+    success: boolean;
+    duration: number;
+    signal?: string | undefined;
+}
+
+### dist/types.d.ts#ShellStreamInput
+export type ShellStreamInput = z.infer<typeof ShellStreamInputSchema>;
+
+### dist/types.d.ts#ShellStreamInputSchema
+export declare const ShellStreamInputSchema: z.ZodObject<{
+    command: z.ZodString;
+    args: z.ZodDefault<z.ZodArray<z.ZodString>>;
+    cwd: z.ZodOptional<z.ZodString>;
+    env: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#ShellStreamItem
+export type ShellStreamItem = {
+    type: "stdout" | "stderr";
+    line: string;
+} | {
+    type: "exit";
+    exitCode: number;
+    duration: number;
+    signal?: string | undefined;
+};
+
+### dist/types.d.ts#ShellWhichInput
+export type ShellWhichInput = z.infer<typeof ShellWhichInputSchema>;
+
+### dist/types.d.ts#ShellWhichInputSchema
+export declare const ShellWhichInputSchema: z.ZodObject<{
+    command: z.ZodString;
+}>;
+
+### dist/types.d.ts#ShellWhichOutput
+export interface ShellWhichOutput {
+    path: string | null;
+    found: boolean;
+}

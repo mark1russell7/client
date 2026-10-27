@@ -92,13 +92,26 @@ jobs:
             packages/documentation/PROCEDURES.md
             packages/documentation/PACKAGES.md
           retention-days: 7
-      # The reports of the public API come from the built .d.ts files (roadmap R30, CLI-86). A
-      # difference fails the run, and the new reports are an artifact: review the diff, then commit them.
+      # Each public package has a report of its public API in test/api/public-api.txt (roadmap R30,
+      # CLI-86). The reports come from the built .d.ts files. A changed or new report fails the run, and
+      # the reports are an artifact: review the diff, then commit them. First the tests of the tool,
+      # then the tool. A plain git diff does not show a new report, so the step reads git status. The
+      # pathspec names the files: git does not match a folder with a * against the files in it.
       - name: The reports of the public API are current
         if: ${{ !cancelled() }}
         run: |
-          UPDATE_API_SNAPSHOT=1 pnpm --filter @procedures/client exec vitest run src/api.snapshot.test.ts
-          git diff --stat --exit-code -- 'packages/*/test/api/public-api.txt'
+          node --test scripts/api-report.test.mjs
+          status=0
+          node scripts/api-report.mjs --update || status=$?
+          changed="$(git status --porcelain --untracked-files=all -- 'packages/*/test/api/public-api.txt')"
+          if [ -n "$changed" ]; then
+            echo "These reports differ from the built .d.ts files, or are new:"
+            echo "$changed"
+            git --no-pager diff --stat -- 'packages/*/test/api/public-api.txt'
+            echo "::error title=Public API reports::Download the artifact public-api-reports, review the diff and commit the reports. Or start pnpm build, then node scripts/api-report.mjs --update."
+            status=1
+          fi
+          exit "$status"
       - if: failure()
         uses: actions/upload-artifact@v7
         with:

@@ -1,0 +1,142 @@
+# The public API of @procedures/vite
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 23 names
+
+ViteBuildInput: dist/types.d.ts#ViteBuildInput
+ViteBuildInputSchema: dist/types.d.ts#ViteBuildInputSchema
+ViteBuildOutput: dist/types.d.ts#ViteBuildOutput
+ViteBuildOutputSchema: dist/types.d.ts#ViteBuildOutputSchema
+ViteDevInput: dist/types.d.ts#ViteDevInput
+ViteDevInputSchema: dist/types.d.ts#ViteDevInputSchema
+ViteDevOutput: dist/types.d.ts#ViteDevOutput
+ViteDevOutputSchema: dist/types.d.ts#ViteDevOutputSchema
+VitePreviewInput: dist/types.d.ts#VitePreviewInput
+VitePreviewInputSchema: dist/types.d.ts#VitePreviewInputSchema
+VitePreviewOutput: dist/types.d.ts#VitePreviewOutput
+VitePreviewOutputSchema: dist/types.d.ts#VitePreviewOutputSchema
+ViteStopInput: dist/types.d.ts#ViteStopInput
+ViteStopInputSchema: dist/types.d.ts#ViteStopInputSchema
+ViteStopOutput: dist/types.d.ts#ViteStopOutput
+ViteStopOutputSchema: dist/types.d.ts#ViteStopOutputSchema
+registerViteProcedures: dist/module.d.ts#registerViteProcedures
+serverManager: dist/server-manager.d.ts#serverManager
+viteBuild: dist/procedures/vite/build.d.ts#viteBuild
+viteDev: dist/procedures/vite/dev.d.ts#viteDev
+viteModule: dist/module.d.ts#viteModule
+vitePreview: dist/procedures/vite/preview.d.ts#vitePreview
+viteStop: dist/procedures/vite/stop.d.ts#viteStop
+
+## ./module (dist/module.d.ts): 3 names
+
+default: dist/module.d.ts#viteModule
+registerViteProcedures: dist/module.d.ts#registerViteProcedures
+viteModule: dist/module.d.ts#viteModule
+
+## ./register (dist/register.d.ts): 2 names
+
+registerViteProcedures: dist/module.d.ts#registerViteProcedures
+viteModule: dist/module.d.ts#viteModule
+
+## Declarations
+
+### dist/module.d.ts#registerViteProcedures
+export declare const registerViteProcedures: PackageDefinition["register"];
+
+### dist/module.d.ts#viteModule
+export declare const viteModule: ProcedureModule;
+
+### dist/procedures/vite/build.d.ts#viteBuild
+export declare function viteBuild(input: ViteBuildInput, ctx?: {
+    signal?: AbortSignal | undefined;
+}): Promise<ViteBuildOutput>;
+
+### dist/procedures/vite/dev.d.ts#viteDev
+export declare function viteDev(input: ViteDevInput): Promise<ViteDevOutput>;
+
+### dist/procedures/vite/preview.d.ts#vitePreview
+export declare function vitePreview(input: VitePreviewInput): Promise<VitePreviewOutput>;
+
+### dist/procedures/vite/stop.d.ts#viteStop
+export declare function viteStop(input: ViteStopInput): Promise<ViteStopOutput>;
+
+### dist/server-manager.d.ts#serverManager
+export declare const serverManager: ServerManager;
+
+### dist/types.d.ts#ViteBuildInput
+export type ViteBuildInput = z.infer<typeof ViteBuildInputSchema>;
+
+### dist/types.d.ts#ViteBuildInputSchema
+export declare const ViteBuildInputSchema: z.ZodObject<{
+    cwd: z.ZodOptional<z.ZodString>;
+    outDir: z.ZodOptional<z.ZodString>;
+    mode: z.ZodOptional<z.ZodString>;
+}>;
+
+### dist/types.d.ts#ViteBuildOutput
+export interface ViteBuildOutput {
+    success: boolean;
+    outDir: string;
+}
+
+### dist/types.d.ts#ViteBuildOutputSchema
+export declare const ViteBuildOutputSchema: z.ZodType<ViteBuildOutput>;
+
+### dist/types.d.ts#ViteDevInput
+export type ViteDevInput = z.infer<typeof ViteDevInputSchema>;
+
+### dist/types.d.ts#ViteDevInputSchema
+export declare const ViteDevInputSchema: z.ZodObject<{
+    cwd: z.ZodOptional<z.ZodString>;
+    port: z.ZodOptional<z.ZodNumber>;
+    host: z.ZodOptional<z.ZodString>;
+    open: z.ZodOptional<z.ZodBoolean>;
+}>;
+
+### dist/types.d.ts#ViteDevOutput
+export interface ViteDevOutput {
+    serverId: string;
+    url: string;
+    pid: number;
+}
+
+### dist/types.d.ts#ViteDevOutputSchema
+export declare const ViteDevOutputSchema: z.ZodType<ViteDevOutput>;
+
+### dist/types.d.ts#VitePreviewInput
+export type VitePreviewInput = z.infer<typeof VitePreviewInputSchema>;
+
+### dist/types.d.ts#VitePreviewInputSchema
+export declare const VitePreviewInputSchema: z.ZodObject<{
+    cwd: z.ZodOptional<z.ZodString>;
+    port: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#VitePreviewOutput
+export interface VitePreviewOutput {
+    serverId: string;
+    url: string;
+    pid: number;
+}
+
+### dist/types.d.ts#VitePreviewOutputSchema
+export declare const VitePreviewOutputSchema: z.ZodType<VitePreviewOutput>;
+
+### dist/types.d.ts#ViteStopInput
+export type ViteStopInput = z.infer<typeof ViteStopInputSchema>;
+
+### dist/types.d.ts#ViteStopInputSchema
+export declare const ViteStopInputSchema: z.ZodObject<{
+    serverId: z.ZodString;
+}>;
+
+### dist/types.d.ts#ViteStopOutput
+export interface ViteStopOutput {
+    success: boolean;
+}
+
+### dist/types.d.ts#ViteStopOutputSchema
+export declare const ViteStopOutputSchema: z.ZodType<ViteStopOutput>;

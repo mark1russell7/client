@@ -1,0 +1,1046 @@
+# The public API of @procedures/compiler
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 140 names
+
+type ArrayNode: dist/ir.d.ts#ArrayNode
+type Binding: dist/ir.d.ts#Binding
+type BindingKind: dist/ir.d.ts#BindingKind
+type BodyEffects: dist/effects.d.ts#BodyEffects
+type CallExplanation: dist/explain.d.ts#CallExplanation
+CallExplanationOutput: dist/types.d.ts#CallExplanationOutput
+type CallKind: dist/explain.d.ts#CallKind
+type CallNode: dist/ir.d.ts#CallNode
+type CallPosition: dist/ir.d.ts#CallPosition
+CapabilityInput: dist/types.d.ts#CapabilityInput
+CapabilityInputSchema: dist/types.d.ts#CapabilityInputSchema
+type ChainNode: dist/ir.d.ts#ChainNode
+type ChainStep: dist/ir.d.ts#ChainStep
+type CheckOptions: dist/program.d.ts#CheckOptions
+type CheckResult: dist/program.d.ts#CheckResult
+type CompileOptions: dist/program.d.ts#CompileOptions
+type CompileResult: dist/program.d.ts#CompileResult
+type CompiledProgram: dist/runtime.d.ts#CompiledProgram
+type ConditionalNode: dist/ir.d.ts#ConditionalNode
+type ControlNode: dist/ir.d.ts#ControlNode
+type DeferredNode: dist/ir.d.ts#DeferredNode
+type Definition: dist/facts.d.ts#Definition
+type Diagnostic: dist/diagnostics.d.ts#Diagnostic
+type DiagnosticCode: dist/diagnostics.d.ts#DiagnosticCode
+type DiagramResult: dist/mermaid.d.ts#DiagramResult
+type DynamicNode: dist/ir.d.ts#DynamicNode
+type DynamicReason: dist/ir.d.ts#DynamicReason
+type EffectSummary: dist/effects.d.ts#EffectSummary
+type EffectsAnalysis: dist/effects.d.ts#EffectsAnalysis
+EffectsOutput: dist/types.d.ts#EffectsOutput
+type FactsOptions: dist/facts.d.ts#FactsOptions
+type FailNode: dist/ir.d.ts#FailNode
+type IRNode: dist/ir.d.ts#IRNode
+type ItemsSpec: dist/ir.d.ts#ItemsSpec
+type LiteralNode: dist/ir.d.ts#LiteralNode
+type LogicNode: dist/ir.d.ts#LogicNode
+MAX_REF_DEPTH: dist/normalize.d.ts#MAX_REF_DEPTH
+type MapNode: dist/ir.d.ts#MapNode
+type MayEffects: dist/effects.d.ts#MayEffects
+type MermaidOptions: dist/mermaid.d.ts#MermaidOptions
+type MustEffectSets: dist/effects.d.ts#MustEffects
+type MustEffects: dist/program.d.ts#MustEffects
+NO_EFFECTS: dist/effects.d.ts#NO_EFFECTS
+type NameOptions: dist/names.d.ts#NameOptions
+type NormalizeOptions: dist/normalize.d.ts#NormalizeOptions
+type NormalizeResult: dist/normalize.d.ts#NormalizeResult
+OPENRPC_VERSION: dist/openrpc.d.ts#OPENRPC_VERSION
+type ObjectNode: dist/ir.d.ts#ObjectNode
+type ObservableRegistry: dist/interceptor.d.ts#ObservableRegistry
+type OpenRpcContentDescriptor: dist/openrpc.d.ts#OpenRpcContentDescriptor
+type OpenRpcDocument: dist/openrpc.d.ts#OpenRpcDocument
+type OpenRpcMethod: dist/openrpc.d.ts#OpenRpcMethod
+type OpenRpcOptions: dist/openrpc.d.ts#OpenRpcOptions
+type ParallelNode: dist/ir.d.ts#ParallelNode
+type Pointer: dist/ir.d.ts#Pointer
+type ProcedureFacts: dist/facts.d.ts#ProcedureFacts
+ProgramCheckInput: dist/types.d.ts#ProgramCheckInput
+ProgramCheckInputSchema: dist/types.d.ts#ProgramCheckInputSchema
+type ProgramCheckOptions: dist/interceptor.d.ts#ProgramCheckOptions
+ProgramCheckOutput: dist/types.d.ts#ProgramCheckOutput
+ProgramCheckOutputSchema: dist/types.d.ts#ProgramCheckOutputSchema
+ProgramCompileInput: dist/types.d.ts#ProgramCompileInput
+ProgramCompileInputSchema: dist/types.d.ts#ProgramCompileInputSchema
+ProgramCompileOutput: dist/types.d.ts#ProgramCompileOutput
+ProgramCompileOutputSchema: dist/types.d.ts#ProgramCompileOutputSchema
+type ProgramContext: dist/runtime.d.ts#ProgramContext
+ProgramDiagramInput: dist/types.d.ts#ProgramDiagramInput
+ProgramDiagramInputSchema: dist/types.d.ts#ProgramDiagramInputSchema
+ProgramDiagramOutput: dist/types.d.ts#ProgramDiagramOutput
+ProgramDiagramOutputSchema: dist/types.d.ts#ProgramDiagramOutputSchema
+ProgramExplainInput: dist/types.d.ts#ProgramExplainInput
+ProgramExplainInputSchema: dist/types.d.ts#ProgramExplainInputSchema
+ProgramExplainOutput: dist/types.d.ts#ProgramExplainOutput
+ProgramExplainOutputSchema: dist/types.d.ts#ProgramExplainOutputSchema
+type ProgramExplanation: dist/explain.d.ts#ProgramExplanation
+type ProgramIR: dist/ir.d.ts#ProgramIR
+type ProgramText: dist/codegen-text.d.ts#ProgramText
+type ReduceNode: dist/ir.d.ts#ReduceNode
+type ReferenceNode: dist/ir.d.ts#ReferenceNode
+type RegistryLike: dist/facts.d.ts#RegistryLike
+type RuntimeFrame: dist/runtime.d.ts#RuntimeFrame
+type SchemaIssue: dist/schema.d.ts#SchemaIssue
+type ScopeFrame: dist/ir.d.ts#ScopeFrame
+type ScopeSnapshot: dist/ir.d.ts#ScopeSnapshot
+SdkInput: dist/types.d.ts#SdkInput
+SdkOpenrpcInput: dist/types.d.ts#SdkOpenrpcInput
+SdkOpenrpcInputSchema: dist/types.d.ts#SdkOpenrpcInputSchema
+SdkOpenrpcOutput: dist/types.d.ts#SdkOpenrpcOutput
+SdkOpenrpcOutputSchema: dist/types.d.ts#SdkOpenrpcOutputSchema
+SdkTypescriptInput: dist/types.d.ts#SdkTypescriptInput
+SdkTypescriptInputSchema: dist/types.d.ts#SdkTypescriptInputSchema
+SdkTypescriptOutput: dist/types.d.ts#SdkTypescriptOutput
+SdkTypescriptOutputSchema: dist/types.d.ts#SdkTypescriptOutputSchema
+type Severity: dist/diagnostics.d.ts#Severity
+type Shape: dist/schema.d.ts#Shape
+type SourceMapLine: dist/codegen-text.d.ts#SourceMapLine
+type TextOptions: dist/codegen-text.d.ts#TextOptions
+type TryNode: dist/ir.d.ts#TryNode
+type TypeScriptSdkOptions: dist/typescript-sdk.d.ts#TypeScriptSdkOptions
+UNKNOWN_EFFECTS: dist/effects.d.ts#UNKNOWN_EFFECTS
+bindScopes: dist/scopes.d.ts#bindScopes
+checkCalls: dist/checks.d.ts#checkCalls
+checkProgram: dist/program.d.ts#checkProgram
+checkShape: dist/schema.d.ts#checkShape
+childPointer: dist/ir.d.ts#childPointer
+childrenOf: dist/ir.d.ts#childrenOf
+compileClosure: dist/codegen-closure.d.ts#compileClosure
+compileProgram: dist/program.d.ts#compileProgram
+compilerModule: dist/module.d.ts#compilerModule
+coreProcedureOf: dist/facts.d.ts#coreProcedureOf
+diagramProgram: dist/mermaid.d.ts#diagramProgram
+emitText: dist/codegen-text.d.ts#emitText
+entryTakesRawInput: dist/facts.d.ts#entryTakesRawInput
+explainProgram: dist/explain.d.ts#explainProgram
+findDefinitions: dist/normalize.d.ts#findDefinitions
+foldProgram: dist/fold.d.ts#foldProgram
+hasErrors: dist/diagnostics.d.ts#hasErrors
+inferEffects: dist/effects.d.ts#inferEffects
+isCallLike: dist/ir.d.ts#isCallLike
+isControl: dist/ir.d.ts#isControl
+manifestFacts: dist/facts.d.ts#manifestFacts
+mermaidText: dist/mermaid.d.ts#mermaidText
+nameDiagnostics: dist/names.d.ts#nameDiagnostics
+normalize: dist/normalize.d.ts#normalize
+printIR: dist/print.d.ts#printIR
+programCheckInterceptor: dist/interceptor.d.ts#programCheckInterceptor
+programModule: dist/module.d.ts#programModule
+registerCompilerProcedures: dist/module.d.ts#registerCompilerProcedures
+registryFacts: dist/facts.d.ts#registryFacts
+resolveScopes: dist/scopes.d.ts#resolveScopes
+schemaToType: dist/typescript-sdk.d.ts#schemaToType
+shapeOf: dist/schema.d.ts#shapeOf
+sortDiagnostics: dist/diagnostics.d.ts#sortDiagnostics
+toCapability: dist/types.d.ts#toCapability
+toEffects: dist/effects.d.ts#toEffects
+toMermaid: dist/mermaid.d.ts#toMermaid
+toOpenRpc: dist/openrpc.d.ts#toOpenRpc
+toTypeScriptSdk: dist/typescript-sdk.d.ts#toTypeScriptSdk
+walk: dist/ir.d.ts#walk
+withDefinitions: dist/facts.d.ts#withDefinitions
+
+## ./module (dist/module.d.ts): 4 names
+
+compilerModule: dist/module.d.ts#compilerModule
+default: dist/module.d.ts#compilerModule
+programModule: dist/module.d.ts#programModule
+registerCompilerProcedures: dist/module.d.ts#registerCompilerProcedures
+
+## ./register (dist/register.d.ts): 3 names
+
+compilerModule: dist/module.d.ts#compilerModule
+programModule: dist/module.d.ts#programModule
+registerCompilerProcedures: dist/module.d.ts#registerCompilerProcedures
+
+## ./runtime (dist/runtime.d.ts): 18 names
+
+CompiledProgram: dist/runtime.d.ts#CompiledProgram
+ParallelResult: dist/runtime.d.ts#ParallelResult
+ProgramContext: dist/runtime.d.ts#ProgramContext
+RuntimeFrame: dist/runtime.d.ts#RuntimeFrame
+call: dist/runtime.d.ts#call
+callRaw: dist/runtime.d.ts#callRaw
+deferred: dist/runtime.d.ts#deferred
+execWithInput: dist/runtime.d.ts#execWithInput
+fail: dist/runtime.d.ts#fail
+get: dist/runtime.d.ts#get
+items: dist/runtime.d.ts#items
+merge: dist/runtime.d.ts#merge
+message: dist/runtime.d.ts#message
+object: dist/runtime.d.ts#object
+parallel: dist/runtime.d.ts#parallel
+scope: dist/runtime.d.ts#scope
+truthy: dist/runtime.d.ts#truthy
+unknownName: dist/runtime.d.ts#unknownName
+
+## Declarations
+
+### dist/checks.d.ts#checkCalls
+export declare function checkCalls(root: IRNode, facts: ProcedureFacts, effects: EffectsAnalysis, options?: CheckPassOptions): Diagnostic[];
+
+### dist/codegen-closure.d.ts#compileClosure
+export declare function compileClosure(ir: ProgramIR, options: ClosureOptions): CompiledProgram;
+
+### dist/codegen-text.d.ts#ProgramText
+export interface ProgramText {
+    readonly module: string;
+    readonly body: string;
+    readonly sourceMap: SourceMapLine[];
+    readonly diagnostics: Diagnostic[];
+}
+
+### dist/codegen-text.d.ts#SourceMapLine
+export interface SourceMapLine {
+    readonly line: number;
+    readonly pointer: Pointer;
+}
+
+### dist/codegen-text.d.ts#TextOptions
+export interface TextOptions {
+    readonly language?: "js" | "ts" | undefined;
+    readonly runtime?: string | undefined;
+    readonly registryHash: string;
+    readonly rawKeys: readonly string[];
+}
+
+### dist/codegen-text.d.ts#emitText
+export declare function emitText(ir: ProgramIR, options: TextOptions): ProgramText;
+
+### dist/diagnostics.d.ts#Diagnostic
+export interface Diagnostic {
+    readonly severity: Severity;
+    readonly code: DiagnosticCode;
+    readonly message: string;
+    readonly pointer: string;
+}
+
+### dist/diagnostics.d.ts#DiagnosticCode
+export type DiagnosticCode =
+"root-not-call"
+ | "invalid-path"
+ | "unknown-procedure"
+ | "not-exposed"
+ | "capability-refused"
+ | "effects-unknown"
+ | "unknown-name"
+ | "use-before-definition"
+ | "unscoped-ref"
+ | "input-schema"
+ | "invalid-control-flow"
+ | "fn-not-call"
+ | "depth-limit"
+ | "data-depth"
+ | "cyclic-input"
+ | "never-trap"
+ | "deferred-call"
+ | "name-not-bound"
+ | "duplicate-name"
+ | "input-replaced"
+ | "implicit-chain"
+ | "not-serializable"
+ | "text-depth";
+
+### dist/diagnostics.d.ts#Severity
+export type Severity = "error" | "warning" | "info";
+
+### dist/diagnostics.d.ts#hasErrors
+export declare function hasErrors(diagnostics: readonly Diagnostic[]): boolean;
+
+### dist/diagnostics.d.ts#sortDiagnostics
+export declare function sortDiagnostics(diagnostics: readonly Diagnostic[]): Diagnostic[];
+
+### dist/effects.d.ts#BodyEffects
+export type BodyEffects = (path: ProcedurePath) => EffectSummary | undefined;
+
+### dist/effects.d.ts#EffectSummary
+export interface EffectSummary {
+    readonly may: MayEffects;
+    readonly must: MustEffects;
+}
+
+### dist/effects.d.ts#EffectsAnalysis
+export interface EffectsAnalysis {
+    readonly program: EffectSummary;
+    readonly byNode: ReadonlyMap<IRNode, EffectSummary>;
+    readonly nested: ReadonlyMap<IRNode, EffectSummary>;
+    readonly unknownAt: readonly Pointer[];
+}
+
+### dist/effects.d.ts#MayEffects
+export interface MayEffects {
+    readonly reads: ReadonlySet<string> | undefined;
+    readonly writes: ReadonlySet<string> | undefined;
+    readonly destructive: boolean;
+    readonly idempotent: boolean;
+}
+
+### dist/effects.d.ts#MustEffects
+export interface MustEffects {
+    readonly reads: ReadonlySet<string>;
+    readonly writes: ReadonlySet<string>;
+}
+
+### dist/effects.d.ts#NO_EFFECTS
+export declare const NO_EFFECTS: EffectSummary;
+
+### dist/effects.d.ts#UNKNOWN_EFFECTS
+export declare const UNKNOWN_EFFECTS: EffectSummary;
+
+### dist/effects.d.ts#inferEffects
+export declare function inferEffects(root: IRNode, facts: ProcedureFacts, bodyEffects: BodyEffects): EffectsAnalysis;
+
+### dist/effects.d.ts#toEffects
+export declare function toEffects(may: MayEffects): Effects;
+
+### dist/explain.d.ts#CallExplanation
+export interface CallExplanation {
+    readonly key: string;
+    readonly path: ProcedurePath;
+    readonly pointer: Pointer;
+    readonly kind: CallKind;
+    readonly effects?: Effects | undefined;
+    readonly known: boolean;
+    readonly exposed: boolean;
+    readonly permitted: boolean;
+    readonly reason?: CapabilityRefusalReason | "not-found" | undefined;
+    readonly message: string;
+}
+
+### dist/explain.d.ts#CallKind
+export type CallKind = "call" | "control" | "dynamic";
+
+### dist/explain.d.ts#ProgramExplanation
+export interface ProgramExplanation {
+    readonly ok: boolean;
+    readonly effects: Effects;
+    readonly mustEffects: MustEffects;
+    readonly calls: CallExplanation[];
+    readonly diagnostics: Diagnostic[];
+    readonly registryHash: string;
+    readonly summary: string;
+}
+
+### dist/explain.d.ts#explainProgram
+export declare function explainProgram(program: unknown, options: CheckOptions): ProgramExplanation;
+
+### dist/facts.d.ts#Definition
+export interface Definition {
+    readonly entry: ProcedureEntry;
+    readonly body: unknown;
+    readonly pointer: string;
+}
+
+### dist/facts.d.ts#FactsOptions
+export interface FactsOptions {
+    readonly expose?: ((path: ProcedurePath) => boolean) | undefined;
+}
+
+### dist/facts.d.ts#ProcedureFacts
+export interface ProcedureFacts {
+    readonly hash: string;
+    readonly rawKeys: readonly string[];
+    entry(path: ProcedurePath): ProcedureEntry | undefined;
+    exposed(path: ProcedurePath): boolean;
+    rawInput(path: ProcedurePath): boolean;
+    body(path: ProcedurePath): unknown;
+    core(path: ProcedurePath): AnyProcedure | undefined;
+}
+
+### dist/facts.d.ts#RegistryLike
+export interface RegistryLike {
+    get(path: ProcedurePath): AnyProcedure | undefined;
+    getAll(): AnyProcedure[];
+}
+
+### dist/facts.d.ts#coreProcedureOf
+export declare function coreProcedureOf(entry: ProcedureEntry | undefined): AnyProcedure | undefined;
+
+### dist/facts.d.ts#entryTakesRawInput
+export declare function entryTakesRawInput(entry: ProcedureEntry): boolean;
+
+### dist/facts.d.ts#manifestFacts
+export declare function manifestFacts(manifest: ProcedureManifest, options?: FactsOptions): ProcedureFacts;
+
+### dist/facts.d.ts#registryFacts
+export declare function registryFacts(registry: RegistryLike, options?: FactsOptions): ProcedureFacts;
+
+### dist/facts.d.ts#withDefinitions
+export declare function withDefinitions(facts: ProcedureFacts, definitions: ReadonlyMap<string, Definition>): ProcedureFacts;
+
+### dist/fold.d.ts#foldProgram
+export declare function foldProgram(root: IRNode, facts: ProcedureFacts): Promise<FoldResult>;
+
+### dist/interceptor.d.ts#ObservableRegistry
+export interface ObservableRegistry extends RegistryLike {
+    on?(event: "register" | "unregister", listener: (procedure: AnyProcedure) => void): void;
+}
+
+### dist/interceptor.d.ts#ProgramCheckOptions
+export interface ProgramCheckOptions {
+    readonly registry: ObservableRegistry;
+    readonly expose?: ((path: ProcedurePath) => boolean) | undefined;
+    readonly refuses?: ((diagnostic: Diagnostic) => boolean) | undefined;
+    readonly onCheck?: ((invocation: Invocation, result: CheckResult) => void) | undefined;
+}
+
+### dist/interceptor.d.ts#programCheckInterceptor
+export declare function programCheckInterceptor(options: ProgramCheckOptions): Interceptor;
+
+### dist/ir.d.ts#ArrayNode
+export interface ArrayNode extends NodeBase {
+    readonly kind: "array";
+    readonly items: readonly IRNode[];
+}
+
+### dist/ir.d.ts#Binding
+export interface Binding {
+    readonly id: number;
+    readonly kind: BindingKind;
+    readonly name: string | undefined;
+    readonly pointer: Pointer;
+}
+
+### dist/ir.d.ts#BindingKind
+export type BindingKind = "step" | "initial" | "item" | "index" | "acc" | "error" | "input";
+
+### dist/ir.d.ts#CallNode
+export interface CallNode extends NodeBase {
+    readonly kind: "call";
+    readonly path: ProcedurePath;
+    readonly key: string;
+    readonly position: CallPosition;
+    readonly input: IRNode;
+    readonly extra: Readonly<Record<string, unknown>>;
+    readonly name: string | undefined;
+}
+
+### dist/ir.d.ts#CallPosition
+export type CallPosition = "root" | "operand" | "nested";
+
+### dist/ir.d.ts#ChainNode
+export interface ChainNode extends ControlBase {
+    readonly kind: "chain";
+    readonly implicit: boolean;
+    readonly steps: readonly ChainStep[];
+    readonly passThrough: boolean;
+    readonly initialInput: IRNode | undefined;
+    readonly initial: Binding | undefined;
+}
+
+### dist/ir.d.ts#ChainStep
+export interface ChainStep {
+    readonly pointer: Pointer;
+    readonly node: IRNode;
+    readonly result: Binding;
+}
+
+### dist/ir.d.ts#ConditionalNode
+export interface ConditionalNode extends ControlBase {
+    readonly kind: "conditional";
+    readonly condition: IRNode;
+    readonly then: IRNode | undefined;
+    readonly else: IRNode | undefined;
+}
+
+### dist/ir.d.ts#ControlNode
+export type ControlNode = ChainNode | ParallelNode | ConditionalNode | TryNode | LogicNode | MapNode | ReduceNode;
+
+### dist/ir.d.ts#DeferredNode
+export interface DeferredNode extends NodeBase {
+    readonly kind: "deferred";
+    readonly path: ProcedurePath;
+    readonly key: string;
+    readonly when: string;
+    readonly source: Readonly<Record<string, unknown>>;
+    readonly input: IRNode;
+}
+
+### dist/ir.d.ts#DynamicNode
+export interface DynamicNode extends NodeBase {
+    readonly kind: "dynamic";
+    readonly path: ProcedurePath;
+    readonly key: string;
+    readonly position: CallPosition;
+    readonly reason: DynamicReason;
+    readonly input: IRNode;
+    readonly extra: Readonly<Record<string, unknown>>;
+    readonly model: IRNode | undefined;
+    scope: ScopeSnapshot;
+}
+
+### dist/ir.d.ts#DynamicReason
+export type DynamicReason =
+"runs-refs"
+ | "raw-input"
+ | "invalid-control-flow"
+ | "not-core"
+ | "cyclic";
+
+### dist/ir.d.ts#FailNode
+export interface FailNode extends NodeBase {
+    readonly kind: "fail";
+    readonly message: string;
+}
+
+### dist/ir.d.ts#IRNode
+export type IRNode = LiteralNode | ObjectNode | ArrayNode | ReferenceNode | CallNode | DeferredNode | DynamicNode | FailNode | ControlNode;
+
+### dist/ir.d.ts#ItemsSpec
+export type ItemsSpec = {
+    readonly kind: "list";
+    readonly items: readonly IRNode[];
+} | {
+    readonly kind: "value";
+    readonly value: IRNode;
+};
+
+### dist/ir.d.ts#LiteralNode
+export interface LiteralNode extends NodeBase {
+    readonly kind: "literal";
+    readonly value: unknown;
+    readonly origin: "data" | "literal" | "never" | "deferred" | "unscoped-ref" | "fold";
+}
+
+### dist/ir.d.ts#LogicNode
+export interface LogicNode extends ControlBase {
+    readonly kind: "and" | "or";
+    readonly values: readonly IRNode[];
+}
+
+### dist/ir.d.ts#MapNode
+export interface MapNode extends ControlBase {
+    readonly kind: "map";
+    readonly items: ItemsSpec;
+    readonly fn: IRNode | undefined;
+    readonly item: Binding;
+    readonly index: Binding;
+}
+
+### dist/ir.d.ts#ObjectNode
+export interface ObjectNode extends NodeBase {
+    readonly kind: "object";
+    readonly entries: ReadonlyArray<{
+        readonly key: string;
+        readonly value: IRNode;
+    }>;
+}
+
+### dist/ir.d.ts#ParallelNode
+export interface ParallelNode extends ControlBase {
+    readonly kind: "parallel";
+    readonly tasks: readonly IRNode[];
+    readonly concurrency: number | undefined;
+    readonly failFast: boolean;
+}
+
+### dist/ir.d.ts#Pointer
+export type Pointer = string;
+
+### dist/ir.d.ts#ProgramIR
+export interface ProgramIR {
+    readonly mode: "exec" | "body";
+    readonly root: IRNode;
+    readonly input: Binding | undefined;
+    readonly bindingCount: number;
+    readonly program: unknown;
+    readonly base?: Pointer | undefined;
+}
+
+### dist/ir.d.ts#ReduceNode
+export interface ReduceNode extends ControlBase {
+    readonly kind: "reduce";
+    readonly items: ItemsSpec | undefined;
+    readonly initial: IRNode;
+    readonly fn: IRNode | undefined;
+    readonly acc: Binding;
+    readonly item: Binding;
+    readonly index: Binding;
+}
+
+### dist/ir.d.ts#ReferenceNode
+export interface ReferenceNode extends NodeBase {
+    readonly kind: "reference";
+    readonly text: string;
+    readonly name: string;
+    readonly fields: readonly string[];
+    readonly deferred: boolean;
+    readonly source: unknown;
+    readonly synthetic: boolean;
+    binding: Binding | undefined;
+}
+
+### dist/ir.d.ts#ScopeFrame
+export interface ScopeFrame {
+    readonly names: ReadonlyArray<readonly [string, Binding]>;
+    readonly last: Binding | undefined;
+}
+
+### dist/ir.d.ts#ScopeSnapshot
+export type ScopeSnapshot = readonly ScopeFrame[] | undefined;
+
+### dist/ir.d.ts#TryNode
+export interface TryNode extends ControlBase {
+    readonly kind: "try";
+    readonly try: IRNode;
+    readonly catch: IRNode;
+    readonly error: Binding;
+}
+
+### dist/ir.d.ts#childPointer
+export declare function childPointer(pointer: Pointer, key: string | number): Pointer;
+
+### dist/ir.d.ts#childrenOf
+export declare function childrenOf(node: IRNode): IRNode[];
+
+### dist/ir.d.ts#isCallLike
+export declare function isCallLike(node: IRNode): node is CallNode | DynamicNode | ControlNode;
+
+### dist/ir.d.ts#isControl
+export declare function isControl(node: IRNode): node is ControlNode;
+
+### dist/ir.d.ts#walk
+export declare function walk(node: IRNode, visit: (node: IRNode) => void): void;
+
+### dist/mermaid.d.ts#DiagramResult
+export interface DiagramResult {
+    readonly ok: boolean;
+    readonly mermaid: string;
+    readonly diagnostics: Diagnostic[];
+}
+
+### dist/mermaid.d.ts#MermaidOptions
+export interface MermaidOptions {
+    readonly direction?: "TD" | "LR" | undefined;
+    readonly diagnostics?: readonly Diagnostic[] | undefined;
+}
+
+### dist/mermaid.d.ts#diagramProgram
+export declare function diagramProgram(program: unknown, options: CheckOptions & Pick<MermaidOptions, "direction">): DiagramResult;
+
+### dist/mermaid.d.ts#mermaidText
+export declare function mermaidText(text: string, limit?: number): string;
+
+### dist/mermaid.d.ts#toMermaid
+export declare function toMermaid(ir: ProgramIR, options?: MermaidOptions): string;
+
+### dist/module.d.ts#compilerModule
+export declare const compilerModule: ProcedureModule;
+
+### dist/module.d.ts#programModule
+export declare const programModule: ProcedureModule;
+
+### dist/module.d.ts#registerCompilerProcedures
+export declare const registerCompilerProcedures: PackageDefinition["register"];
+
+### dist/names.d.ts#NameOptions
+export interface NameOptions {
+    readonly mode: "exec" | "body";
+    readonly base?: string | undefined;
+    readonly rawInput?: ((path: ProcedurePath) => boolean) | undefined;
+}
+
+### dist/names.d.ts#nameDiagnostics
+export declare function nameDiagnostics(program: unknown, options: NameOptions): Diagnostic[];
+
+### dist/normalize.d.ts#MAX_REF_DEPTH
+export declare const MAX_REF_DEPTH = 10;
+
+### dist/normalize.d.ts#NormalizeOptions
+export interface NormalizeOptions {
+    readonly mode: "exec" | "body";
+    readonly base?: Pointer | undefined;
+}
+
+### dist/normalize.d.ts#NormalizeResult
+export interface NormalizeResult {
+    readonly ir: ProgramIR;
+    readonly diagnostics: Diagnostic[];
+}
+
+### dist/normalize.d.ts#findDefinitions
+export declare function findDefinitions(program: unknown): Map<string, Definition>;
+
+### dist/normalize.d.ts#normalize
+export declare function normalize(program: unknown, facts: ProcedureFacts, options: NormalizeOptions): NormalizeResult;
+
+### dist/openrpc.d.ts#OPENRPC_VERSION
+export declare const OPENRPC_VERSION = "1.3.2";
+
+### dist/openrpc.d.ts#OpenRpcContentDescriptor
+export interface OpenRpcContentDescriptor {
+    readonly name: string;
+    readonly required?: boolean | undefined;
+    readonly schema: Record<string, unknown>;
+}
+
+### dist/openrpc.d.ts#OpenRpcDocument
+export interface OpenRpcDocument {
+    readonly openrpc: string;
+    readonly info: {
+        readonly title: string;
+        readonly version: string;
+        readonly description?: string | undefined;
+    };
+    readonly methods: OpenRpcMethod[];
+}
+
+### dist/openrpc.d.ts#OpenRpcMethod
+export interface OpenRpcMethod {
+    readonly name: string;
+    readonly description?: string | undefined;
+    readonly tags?: ReadonlyArray<{
+        readonly name: string;
+    }> | undefined;
+    readonly params: readonly [OpenRpcContentDescriptor];
+    readonly result: OpenRpcContentDescriptor;
+    readonly deprecated?: boolean | undefined;
+    readonly "x-path": ProcedurePath;
+    readonly "x-effects"?: Effects | undefined;
+    readonly "x-data-driven"?: boolean | undefined;
+}
+
+### dist/openrpc.d.ts#OpenRpcOptions
+export interface OpenRpcOptions {
+    readonly title?: string | undefined;
+    readonly version?: string | undefined;
+    readonly description?: string | undefined;
+}
+
+### dist/openrpc.d.ts#toOpenRpc
+export declare function toOpenRpc(manifest: ProcedureManifest, options?: OpenRpcOptions): OpenRpcDocument;
+
+### dist/print.d.ts#printIR
+export declare function printIR(ir: ProgramIR): string;
+
+### dist/program.d.ts#CheckOptions
+export interface CheckOptions {
+    readonly manifest?: ProcedureManifest | undefined;
+    readonly registry?: RegistryLike | undefined;
+    readonly facts?: ProcedureFacts | undefined;
+    readonly expose?: ((path: ProcedurePath) => boolean) | undefined;
+    readonly capability?: Capability<unknown> | undefined;
+    readonly mode?: "exec" | "body" | undefined;
+}
+
+### dist/program.d.ts#CheckResult
+export interface CheckResult {
+    readonly ok: boolean;
+    readonly effects: Effects;
+    readonly mustEffects: MustEffects;
+    readonly diagnostics: Diagnostic[];
+    readonly registryHash: string;
+    readonly ir: ProgramIR;
+}
+
+### dist/program.d.ts#CompileOptions
+export interface CompileOptions extends CheckOptions {
+    readonly fold?: boolean | undefined;
+    readonly language?: "js" | "ts" | undefined;
+    readonly runtime?: string | undefined;
+}
+
+### dist/program.d.ts#CompileResult
+export interface CompileResult extends CheckResult {
+    readonly run: CompiledProgram;
+    readonly code: string;
+    readonly body: string;
+    readonly sourceMap: SourceMapLine[];
+    readonly folded: readonly string[];
+}
+
+### dist/program.d.ts#MustEffects
+export interface MustEffects {
+    readonly reads: string[];
+    readonly writes: string[];
+}
+
+### dist/program.d.ts#checkProgram
+export declare function checkProgram(program: unknown, options: CheckOptions): CheckResult;
+
+### dist/program.d.ts#compileProgram
+export declare function compileProgram(program: unknown, options: CompileOptions): Promise<CompileResult>;
+
+### dist/runtime.d.ts#CompiledProgram
+export type CompiledProgram = (ctx: ProgramContext, input?: unknown) => Promise<unknown>;
+
+### dist/runtime.d.ts#ParallelResult
+export interface ParallelResult {
+    results: unknown[];
+    allSucceeded: boolean;
+    errors: Array<{
+        index: number;
+        error: string;
+    }>;
+}
+
+### dist/runtime.d.ts#ProgramContext
+export interface ProgramContext {
+    readonly client: Pick<ProcedureContext["client"], "call">;
+    readonly registry?: ProcedureContext["registry"] | undefined;
+    readonly onRef?: ((event: HydrationEvent) => void) | undefined;
+}
+
+### dist/runtime.d.ts#RuntimeFrame
+export interface RuntimeFrame {
+    readonly names: ReadonlyArray<readonly [string, unknown]>;
+    readonly last?: readonly [unknown] | undefined;
+}
+
+### dist/runtime.d.ts#call
+export declare function call(ctx: ProgramContext, path: ProcedurePath, input: unknown): Promise<unknown>;
+
+### dist/runtime.d.ts#callRaw
+export declare function callRaw(ctx: ProgramContext, path: ProcedurePath, input: unknown, frames: readonly RuntimeFrame[] | undefined): Promise<unknown>;
+
+### dist/runtime.d.ts#deferred
+export declare function deferred(source: Record<string, unknown>, input: unknown): unknown;
+
+### dist/runtime.d.ts#execWithInput
+export declare function execWithInput(ctx: ProgramContext, program: unknown, input: unknown, rawKeys: readonly string[]): Promise<unknown>;
+
+### dist/runtime.d.ts#fail
+export declare function fail(message: string): never;
+
+### dist/runtime.d.ts#get
+export declare function get(value: unknown, fields: readonly string[]): unknown;
+
+### dist/runtime.d.ts#items
+export declare function items(value: unknown): unknown[];
+
+### dist/runtime.d.ts#merge
+export declare function merge(input: unknown, extra: Readonly<Record<string, unknown>>): unknown;
+
+### dist/runtime.d.ts#message
+export declare function message(error: unknown): string;
+
+### dist/runtime.d.ts#object
+export declare function object(entries: ReadonlyArray<readonly [string, unknown]>): Record<string, unknown>;
+
+### dist/runtime.d.ts#parallel
+export declare function parallel(tasks: ReadonlyArray<() => Promise<unknown>>, concurrency: number | undefined, failFast: boolean): Promise<ParallelResult>;
+
+### dist/runtime.d.ts#scope
+export declare function scope(frames: readonly RuntimeFrame[]): RefScope | undefined;
+
+### dist/runtime.d.ts#truthy
+export declare function truthy(condition: unknown): boolean;
+
+### dist/runtime.d.ts#unknownName
+export declare function unknownName(text: string): never;
+
+### dist/schema.d.ts#SchemaIssue
+export interface SchemaIssue {
+    readonly pointer: Pointer;
+    readonly path: string;
+    readonly message: string;
+}
+
+### dist/schema.d.ts#Shape
+export type Shape = {
+    readonly kind: "known";
+    readonly value: unknown;
+    readonly pointer: Pointer;
+} | {
+    readonly kind: "unknown";
+    readonly pointer: Pointer;
+} | {
+    readonly kind: "object";
+    readonly entries: ReadonlyMap<string, Shape>;
+    readonly pointer: Pointer;
+} | {
+    readonly kind: "array";
+    readonly items: readonly Shape[];
+    readonly pointer: Pointer;
+};
+
+### dist/schema.d.ts#checkShape
+export declare function checkShape(shape: Shape, schema: unknown): SchemaIssue[];
+
+### dist/schema.d.ts#shapeOf
+export declare function shapeOf(node: IRNode): Shape;
+
+### dist/scopes.d.ts#bindScopes
+export declare function bindScopes(ir: ProgramIR): Diagnostic[];
+
+### dist/scopes.d.ts#resolveScopes
+export declare function resolveScopes(ir: ProgramIR, facts?: Pick<ProcedureFacts, "rawInput">): Diagnostic[];
+
+### dist/types.d.ts#CallExplanationOutput
+export interface CallExplanationOutput {
+    key: string;
+    path: string[];
+    pointer: string;
+    kind: "call" | "control" | "dynamic";
+    effects?: EffectsOutput | undefined;
+    known: boolean;
+    exposed: boolean;
+    permitted: boolean;
+    reason?: "effects-undeclared" | "effects-exceeded" | "clearance" | "deadline" | "not-found" | undefined;
+    message: string;
+}
+
+### dist/types.d.ts#CapabilityInput
+export interface CapabilityInput {
+    clearance?: unknown;
+    effects?: {
+        reads?: string[] | "any" | undefined;
+        writes?: string[] | "any" | undefined;
+        destructive?: boolean | undefined;
+    } | undefined;
+    deadline?: number | undefined;
+}
+
+### dist/types.d.ts#CapabilityInputSchema
+export declare const CapabilityInputSchema: z.ZodType<CapabilityInput>;
+
+### dist/types.d.ts#EffectsOutput
+export interface EffectsOutput {
+    reads?: string[] | undefined;
+    writes?: string[] | undefined;
+    destructive?: boolean | undefined;
+    idempotent?: boolean | undefined;
+}
+
+### dist/types.d.ts#ProgramCheckInput
+export interface ProgramCheckInput {
+    program: unknown;
+    capability?: CapabilityInput | undefined;
+    mode?: "exec" | "body" | undefined;
+}
+
+### dist/types.d.ts#ProgramCheckInputSchema
+export declare const ProgramCheckInputSchema: z.ZodType<ProgramCheckInput>;
+
+### dist/types.d.ts#ProgramCheckOutput
+export interface ProgramCheckOutput {
+    ok: boolean;
+    effects: EffectsOutput;
+    mustEffects: {
+        reads: string[];
+        writes: string[];
+    };
+    diagnostics: Diagnostic[];
+    registryHash: string;
+}
+
+### dist/types.d.ts#ProgramCheckOutputSchema
+export declare const ProgramCheckOutputSchema: z.ZodType<ProgramCheckOutput>;
+
+### dist/types.d.ts#ProgramCompileInput
+export interface ProgramCompileInput extends ProgramCheckInput {
+    fold?: boolean | undefined;
+    language?: "js" | "ts" | undefined;
+}
+
+### dist/types.d.ts#ProgramCompileInputSchema
+export declare const ProgramCompileInputSchema: z.ZodType<ProgramCompileInput>;
+
+### dist/types.d.ts#ProgramCompileOutput
+export interface ProgramCompileOutput extends ProgramCheckOutput {
+    code: string;
+    sourceMap: Array<{
+        line: number;
+        pointer: string;
+    }>;
+    folded: string[];
+}
+
+### dist/types.d.ts#ProgramCompileOutputSchema
+export declare const ProgramCompileOutputSchema: z.ZodType<ProgramCompileOutput>;
+
+### dist/types.d.ts#ProgramDiagramInput
+export interface ProgramDiagramInput {
+    program: unknown;
+    mode?: "exec" | "body" | undefined;
+    direction?: "TD" | "LR" | undefined;
+}
+
+### dist/types.d.ts#ProgramDiagramInputSchema
+export declare const ProgramDiagramInputSchema: z.ZodType<ProgramDiagramInput>;
+
+### dist/types.d.ts#ProgramDiagramOutput
+export interface ProgramDiagramOutput {
+    mermaid: string;
+    diagnostics: Diagnostic[];
+}
+
+### dist/types.d.ts#ProgramDiagramOutputSchema
+export declare const ProgramDiagramOutputSchema: z.ZodType<ProgramDiagramOutput>;
+
+### dist/types.d.ts#ProgramExplainInput
+export type ProgramExplainInput = ProgramCheckInput;
+
+### dist/types.d.ts#ProgramExplainInputSchema
+export declare const ProgramExplainInputSchema: z.ZodType<ProgramExplainInput>;
+
+### dist/types.d.ts#ProgramExplainOutput
+export interface ProgramExplainOutput extends ProgramCheckOutput {
+    calls: CallExplanationOutput[];
+    summary: string;
+}
+
+### dist/types.d.ts#ProgramExplainOutputSchema
+export declare const ProgramExplainOutputSchema: z.ZodType<ProgramExplainOutput>;
+
+### dist/types.d.ts#SdkInput
+export interface SdkInput {
+    namespace?: string | undefined;
+}
+
+### dist/types.d.ts#SdkOpenrpcInput
+export type SdkOpenrpcInput = SdkInput;
+
+### dist/types.d.ts#SdkOpenrpcInputSchema
+export declare const SdkOpenrpcInputSchema: z.ZodType<SdkOpenrpcInput>;
+
+### dist/types.d.ts#SdkOpenrpcOutput
+export interface SdkOpenrpcOutput {
+    openrpc: string;
+    info: {
+        title: string;
+        version: string;
+        description?: string | undefined;
+    };
+    methods: Array<Record<string, unknown>>;
+}
+
+### dist/types.d.ts#SdkOpenrpcOutputSchema
+export declare const SdkOpenrpcOutputSchema: z.ZodType<SdkOpenrpcOutput>;
+
+### dist/types.d.ts#SdkTypescriptInput
+export type SdkTypescriptInput = SdkInput;
+
+### dist/types.d.ts#SdkTypescriptInputSchema
+export declare const SdkTypescriptInputSchema: z.ZodType<SdkTypescriptInput>;
+
+### dist/types.d.ts#SdkTypescriptOutput
+export interface SdkTypescriptOutput {
+    code: string;
+    procedures: number;
+    registryHash: string;
+}
+
+### dist/types.d.ts#SdkTypescriptOutputSchema
+export declare const SdkTypescriptOutputSchema: z.ZodType<SdkTypescriptOutput>;
+
+### dist/types.d.ts#toCapability
+export declare function toCapability(input: CapabilityInput): Capability<unknown>;
+
+### dist/typescript-sdk.d.ts#TypeScriptSdkOptions
+export interface TypeScriptSdkOptions {
+    readonly header?: string | undefined;
+}
+
+### dist/typescript-sdk.d.ts#schemaToType
+export declare function schemaToType(schema: unknown, indent?: string): string;
+
+### dist/typescript-sdk.d.ts#toTypeScriptSdk
+export declare function toTypeScriptSdk(manifest: ProcedureManifest, options?: TypeScriptSdkOptions): string;

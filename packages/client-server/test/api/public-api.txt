@@ -1,0 +1,742 @@
+# The public API of @procedures/peer
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 83 names
+
+type CallDetail: dist/host/tracking.d.ts#CallDetail
+type CallOperation: dist/host/tracking.d.ts#CallOperation
+type ConnectOptions: dist/connection/index.d.ts#ConnectOptions
+type Connection: dist/connection/index.d.ts#Connection
+type FaceHandler: dist/host/tracking.d.ts#FaceHandler
+type FaceHandlerOptions: dist/host/tracking.d.ts#FaceHandlerOptions
+HOST_PROBE_PREFIX: dist/host/index.d.ts#HOST_PROBE_PREFIX
+type HostCheck: dist/host/index.d.ts#HostCheck
+type HostCollection: dist/host/index.d.ts#HostCollection
+type HostController: dist/host/index.d.ts#HostController
+type HostControllerOptions: dist/host/index.d.ts#HostControllerOptions
+type HostDependency: dist/host/index.d.ts#HostDependency
+type HostEndpoint: dist/host/index.d.ts#HostEndpoint
+type HostFace: dist/host/faces.d.ts#HostFace
+type HostFaceContext: dist/host/faces.d.ts#HostFaceContext
+type HostFaceEndpoint: dist/host/faces.d.ts#HostFaceEndpoint
+type HostFaceFactory: dist/host/faces.d.ts#HostFaceFactory
+type HostFaceUpgrade: dist/host/faces.d.ts#HostFaceUpgrade
+type HostInfo: dist/host/index.d.ts#HostInfo
+type HostKnobs: dist/host/index.d.ts#HostKnobs
+type HostListener: dist/host/index.d.ts#HostListener
+type HostPart: dist/host/index.d.ts#HostPart
+type HostPattern: dist/host/index.d.ts#HostPattern
+type HostProbes: dist/host/index.d.ts#HostProbes
+type HostServerOptions: dist/host/index.d.ts#HostServerOptions
+type HttpTracker: dist/host/tracking.d.ts#HttpTracker
+type HttpTrackerOptions: dist/host/tracking.d.ts#HttpTrackerOptions
+type HttpTransportConfig: dist/types.d.ts#HttpTransportConfig
+LOCAL_LISTENER_KNOBS: dist/host/index.d.ts#LOCAL_LISTENER_KNOBS
+type LocalFace: dist/host/local-face.d.ts#LocalFace
+type LocalTransportConfig: dist/types.d.ts#LocalTransportConfig
+type ManifestGenerateInput: dist/types.d.ts#ManifestGenerateInput
+type ManifestGenerateOutput: dist/types.d.ts#ManifestGenerateOutput
+PEER_PROFILE: dist/peer/index.d.ts#PEER_PROFILE
+type Peer: dist/peer/index.d.ts#Peer
+type PeerConnection: dist/types.d.ts#PeerConnection
+type PeerEndpoint: dist/peer/index.d.ts#PeerEndpoint
+type PeerOptions: dist/peer/index.d.ts#PeerOptions
+type ProcedureAnnounceMessage: dist/types.d.ts#ProcedureAnnounceMessage
+type ProcedureHost: dist/host/index.d.ts#ProcedureHost
+type ProcedureHostFaces: dist/host/index.d.ts#ProcedureHostFaces
+type ProcedureHostOptions: dist/host/index.d.ts#ProcedureHostOptions
+type ProcedureInfo: dist/types.d.ts#ProcedureInfo
+type ProcedureManifest: dist/manifest/json.d.ts#ProcedureManifest
+type ProcedureUpdateMessage: dist/types.d.ts#ProcedureUpdateMessage
+type ServerConnectInput: dist/types.d.ts#ServerConnectInput
+type ServerConnectOutput: dist/types.d.ts#ServerConnectOutput
+type ServerCreateInput: dist/types.d.ts#ServerCreateInput
+type ServerCreateOutput: dist/types.d.ts#ServerCreateOutput
+type ServerDisconnectInput: dist/types.d.ts#ServerDisconnectInput
+type ServerDisconnectOutput: dist/types.d.ts#ServerDisconnectOutput
+type TransportConfig: dist/types.d.ts#TransportConfig
+type TransportType: dist/types.d.ts#TransportType
+type WebSocketTransportConfig: dist/types.d.ts#WebSocketTransportConfig
+callOperations: dist/host/tracking.d.ts#callOperations
+connect: dist/connection/index.d.ts#connect
+createPeer: dist/peer/index.d.ts#createPeer
+createProcedureHost: dist/host/index.d.ts#createProcedureHost
+disconnect: dist/connection/index.d.ts#disconnect
+discoveryAnnounceProcedure: dist/discovery/index.d.ts#discoveryAnnounceProcedure
+exposeRule: dist/expose.d.ts#exposeRule
+faceHandler: dist/host/tracking.d.ts#faceHandler
+generateJson: dist/manifest/json.d.ts#generateJson
+generateJsonString: dist/manifest/json.d.ts#generateJsonString
+generateTypeScript: dist/manifest/typescript.d.ts#generateTypeScript
+getActivePeerIds: dist/procedures/server.create.d.ts#getActivePeerIds
+getConnection: dist/connection/index.d.ts#getConnection
+getConnectionIds: dist/connection/index.d.ts#getConnectionIds
+getPeer: dist/procedures/server.create.d.ts#getPeer
+getProcedureInfos: dist/discovery/index.d.ts#getProcedureInfos
+httpFace: dist/host/faces.d.ts#httpFace
+httpTracker: dist/host/tracking.d.ts#httpTracker
+localFace: dist/host/local-face.d.ts#localFace
+manifestGenerateProcedure: dist/procedures/manifest.generate.d.ts#manifestGenerateProcedure
+operationOfCall: dist/host/tracking.d.ts#operationOfCall
+peerHostOptions: dist/peer/index.d.ts#peerHostOptions
+procedures: dist/module.d.ts#procedures
+registerServerProcedures: dist/module.d.ts#registerServerProcedures
+serverConnectProcedure: dist/procedures/server.connect.d.ts#serverConnectProcedure
+serverCreateProcedure: dist/procedures/server.create.d.ts#serverCreateProcedure
+serverDisconnectProcedure: dist/procedures/server.disconnect.d.ts#serverDisconnectProcedure
+watchProcedures: dist/discovery/index.d.ts#watchProcedures
+wsFace: dist/host/faces.d.ts#wsFace
+
+## ./module (dist/module.d.ts): 4 names
+
+default: dist/module.d.ts#serverModule
+procedures: dist/module.d.ts#procedures
+registerServerProcedures: dist/module.d.ts#registerServerProcedures
+serverModule: dist/module.d.ts#serverModule
+
+## ./register (dist/register.d.ts): 3 names
+
+procedures: dist/module.d.ts#procedures
+registerServerProcedures: dist/module.d.ts#registerServerProcedures
+serverModule: dist/module.d.ts#serverModule
+
+## ./procedures (dist/procedures/index.d.ts): 20 names
+
+type ManifestGenerateInput: dist/types.d.ts#ManifestGenerateInput
+type ManifestGenerateOutput: dist/types.d.ts#ManifestGenerateOutput
+type ServerCallInput: dist/procedures/server.call.d.ts#ServerCallInput
+type ServerCallOutput: dist/procedures/server.call.d.ts#ServerCallOutput
+type ServerConnectInput: dist/types.d.ts#ServerConnectInput
+type ServerConnectOutput: dist/types.d.ts#ServerConnectOutput
+type ServerConnectionsInput: dist/procedures/server.connections.d.ts#ServerConnectionsInput
+type ServerConnectionsOutput: dist/procedures/server.connections.d.ts#ServerConnectionsOutput
+type ServerCreateInput: dist/types.d.ts#ServerCreateInput
+type ServerCreateOutput: dist/types.d.ts#ServerCreateOutput
+type ServerDisconnectInput: dist/types.d.ts#ServerDisconnectInput
+type ServerDisconnectOutput: dist/types.d.ts#ServerDisconnectOutput
+getActivePeerIds: dist/procedures/server.create.d.ts#getActivePeerIds
+getPeer: dist/procedures/server.create.d.ts#getPeer
+manifestGenerateProcedure: dist/procedures/manifest.generate.d.ts#manifestGenerateProcedure
+serverCallProcedure: dist/procedures/server.call.d.ts#serverCallProcedure
+serverConnectProcedure: dist/procedures/server.connect.d.ts#serverConnectProcedure
+serverConnectionsProcedure: dist/procedures/server.connections.d.ts#serverConnectionsProcedure
+serverCreateProcedure: dist/procedures/server.create.d.ts#serverCreateProcedure
+serverDisconnectProcedure: dist/procedures/server.disconnect.d.ts#serverDisconnectProcedure
+
+## ./lockfile (dist/lockfile.d.ts): 11 names
+
+LockfileData: dist/lockfile.d.ts#LockfileData
+LockfileHandle: dist/lockfile.d.ts#LockfileHandle
+checkServer: dist/lockfile.d.ts#checkServer
+findServer: dist/lockfile.d.ts#findServer
+getMarkDir: dist/lockfile.d.ts#getMarkDir
+getServersDir: dist/lockfile.d.ts#getServersDir
+lockfileHandle: dist/lockfile.d.ts#lockfileHandle
+readAllLockfiles: dist/lockfile.d.ts#readAllLockfiles
+readLockfileForPort: dist/lockfile.d.ts#readLockfileForPort
+removeLockfileForPort: dist/lockfile.d.ts#removeLockfileForPort
+writeLockfile: dist/lockfile.d.ts#writeLockfile
+
+## Declarations
+
+### dist/connection/index.d.ts#ConnectOptions
+export interface ConnectOptions {
+    address: string;
+    transport?: TransportType;
+    timeout?: Duration;
+    localPeerId?: string;
+}
+
+### dist/connection/index.d.ts#Connection
+export interface Connection {
+    id: string;
+    remote: PeerConnection;
+    client: Client;
+    disconnect(): Promise<void>;
+}
+
+### dist/connection/index.d.ts#connect
+export declare function connect(options: ConnectOptions): Promise<Connection>;
+
+### dist/connection/index.d.ts#disconnect
+export declare function disconnect(connectionId: string): Promise<boolean>;
+
+### dist/connection/index.d.ts#getConnection
+export declare function getConnection(connectionId: string): Connection | undefined;
+
+### dist/connection/index.d.ts#getConnectionIds
+export declare function getConnectionIds(): string[];
+
+### dist/discovery/index.d.ts#discoveryAnnounceProcedure
+export declare const discoveryAnnounceProcedure: Procedure<DiscoveryAnnounceInput, ProcedureAnnounceMessage, {
+    description: string;
+    internal: boolean;
+    effects: Effects;
+}>;
+
+### dist/discovery/index.d.ts#getProcedureInfos
+export declare function getProcedureInfos(registry?: ProcedureRegistryLike, expose?: (path: ProcedurePath) => boolean): ProcedureInfo[];
+
+### dist/discovery/index.d.ts#watchProcedures
+export declare function watchProcedures(callback: (event: "register" | "unregister", info: ProcedureInfo) => void, registry?: ProcedureRegistry): () => void;
+
+### dist/expose.d.ts#exposeRule
+export declare function exposeRule(patterns: readonly string[]): (path: ProcedurePath) => boolean;
+
+### dist/host/faces.d.ts#HostFace
+export interface HostFace {
+    readonly handler?: ((req: IncomingMessage, res: NodeResponse) => boolean) | undefined;
+    readonly upgrade?: HostFaceUpgrade | undefined;
+    readonly parts?: TransportImpl | undefined;
+    readonly endpoint?: HostFaceEndpoint | undefined;
+    readonly connections?: (() => string[]) | undefined;
+    readonly clientFor?: ((connectionId: string) => Client | undefined) | undefined;
+}
+
+### dist/host/faces.d.ts#HostFaceContext
+export interface HostFaceContext {
+    readonly name: string;
+    readonly handler: FaceHandler;
+    readonly server: ProcedureServer;
+    readonly registry: ProcedureRegistry;
+    readonly policy: HostPolicy;
+    readonly clock: Clock;
+    readonly track?: HttpTracker | undefined;
+}
+
+### dist/host/faces.d.ts#HostFaceEndpoint
+export interface HostFaceEndpoint {
+    readonly type: string;
+    readonly scheme: "http" | "ws";
+    readonly path: string;
+}
+
+### dist/host/faces.d.ts#HostFaceFactory
+export type HostFaceFactory = (context: HostFaceContext) => HostFace;
+
+### dist/host/faces.d.ts#HostFaceUpgrade
+export interface HostFaceUpgrade {
+    readonly match: string | ((req: IncomingMessage) => boolean);
+    readonly handler: (req: IncomingMessage, socket: Duplex, head: Buffer) => unknown;
+}
+
+### dist/host/faces.d.ts#httpFace
+export declare function httpFace(options?: ProcedureHandlerOptions): HostFaceFactory;
+
+### dist/host/faces.d.ts#wsFace
+export declare function wsFace(options?: UpgradeHandlerOptions): HostFaceFactory;
+
+### dist/host/index.d.ts#HOST_PROBE_PREFIX
+export declare const HOST_PROBE_PREFIX = "/_probes";
+
+### dist/host/index.d.ts#HostCheck
+export interface HostCheck {
+    readonly check: Check;
+    readonly run: CheckFn;
+}
+
+### dist/host/index.d.ts#HostCollection
+export interface HostCollection {
+    readonly storage: CollectionStorage<unknown>;
+    readonly procedures?: boolean | CollectionProceduresOptions | undefined;
+}
+
+### dist/host/index.d.ts#HostController
+export interface HostController {
+    readonly name: string;
+    readonly requires: readonly string[];
+    readonly patterns: readonly HostPattern[];
+}
+
+### dist/host/index.d.ts#HostControllerOptions
+export interface HostControllerOptions {
+    readonly requires?: readonly string[] | undefined;
+}
+
+### dist/host/index.d.ts#HostDependency
+export interface HostDependency {
+    readonly name: string;
+    readonly spec: Omit<Dependency, "name">;
+    readonly handle: DependencyHandle;
+}
+
+### dist/host/index.d.ts#HostEndpoint
+export interface HostEndpoint {
+    readonly type: string;
+    readonly address: string;
+}
+
+### dist/host/index.d.ts#HostInfo
+export interface HostInfo {
+    readonly id: string;
+    readonly startedAt: number;
+    endpoints(): HostEndpoint[];
+    probes(): string[];
+    procedureCount(): number;
+}
+
+### dist/host/index.d.ts#HostKnobs
+export type HostKnobs = Parameters<ServiceBuilder["server"]>[1];
+
+### dist/host/index.d.ts#HostListener
+export interface HostListener {
+    readonly name?: string | undefined;
+    readonly port: number;
+    readonly host?: string | undefined;
+    readonly faces?: readonly string[] | undefined;
+    readonly knobs: HttpKnobs;
+}
+
+### dist/host/index.d.ts#HostPart
+export interface HostPart {
+    readonly name: string;
+    readonly knobs: HostKnobs;
+    readonly impl: TransportImpl;
+}
+
+### dist/host/index.d.ts#HostPattern
+export interface HostPattern {
+    readonly pattern: string;
+    readonly operations: Readonly<Record<string, Operation>>;
+    readonly operationOf: OperationOf;
+}
+
+### dist/host/index.d.ts#HostProbes
+export interface HostProbes {
+    readonly prefix?: string | undefined;
+    readonly until?: MountStage | undefined;
+}
+
+### dist/host/index.d.ts#HostServerOptions
+export type HostServerOptions = Omit<ProcedureServerOptions, "registry" | "collections" | "clock" | "transports" | "expose" | "token" | "principalOf" | "events" | "interceptors" | "limits" | "limitStores">;
+
+### dist/host/index.d.ts#LOCAL_LISTENER_KNOBS
+export declare const LOCAL_LISTENER_KNOBS: HttpKnobs;
+
+### dist/host/index.d.ts#ProcedureHost
+export interface ProcedureHost {
+    readonly name: string;
+    readonly id: string;
+    readonly server: ProcedureServer;
+    readonly registry: ProcedureRegistry;
+    readonly policy: HostPolicy;
+    readonly handler: (req: IncomingMessage, res: NodeResponse) => boolean;
+    readonly upgrade: (req: IncomingMessage, socket: Duplex, head: Buffer) => boolean;
+    readonly parts: readonly HostPart[];
+    readonly dependencies: readonly HostDependency[];
+    readonly checks: readonly HostCheck[];
+    readonly controllers: readonly HostController[];
+    readonly limiters: readonly KeyedLimiter[];
+    readonly info: HostInfo;
+    declare(svc: ServiceBuilder): ServiceBuilder;
+    connections(): string[];
+    clientFor(connectionId: string): Client;
+}
+
+### dist/host/index.d.ts#ProcedureHostFaces
+export interface ProcedureHostFaces {
+    readonly http?: boolean | ProcedureHandlerOptions | HostFaceFactory | undefined;
+    readonly ws?: boolean | UpgradeHandlerOptions | HostFaceFactory | undefined;
+    readonly mcp?: HostFaceFactory | undefined;
+    readonly [face: string]: boolean | ProcedureHandlerOptions | UpgradeHandlerOptions | HostFaceFactory | undefined;
+}
+
+### dist/host/index.d.ts#ProcedureHostOptions
+export interface ProcedureHostOptions {
+    readonly name?: string | undefined;
+    readonly id?: string | undefined;
+    readonly registry?: ProcedureRegistry | undefined;
+    readonly policy?: HostPolicy | undefined;
+    readonly expose?: ((path: ProcedurePath) => boolean) | undefined;
+    readonly autoRegister?: boolean | undefined;
+    readonly metrics?: boolean | undefined;
+    readonly faces?: ProcedureHostFaces | undefined;
+    readonly controller?: HostControllerOptions | undefined;
+    readonly listen?: readonly HostListener[] | undefined;
+    readonly probes?: boolean | HostProbes | undefined;
+    readonly collections?: Readonly<Record<string, CollectionStorage<unknown> | HostCollection>> | undefined;
+    readonly clock?: Clock | undefined;
+    readonly serverOptions?: HostServerOptions | undefined;
+    readonly endpoints?: readonly HostEndpoint[] | undefined;
+}
+
+### dist/host/index.d.ts#createProcedureHost
+export declare function createProcedureHost(options?: ProcedureHostOptions): ProcedureHost;
+
+### dist/host/local-face.d.ts#LocalFace
+export interface LocalFace {
+    readonly face: HostFaceFactory;
+    readonly transport: Transport;
+}
+
+### dist/host/local-face.d.ts#localFace
+export declare function localFace(): LocalFace;
+
+### dist/host/tracking.d.ts#CallDetail
+export interface CallDetail {
+    readonly face: string;
+    readonly key: string;
+    readonly operation: CallOperation;
+}
+
+### dist/host/tracking.d.ts#CallOperation
+export type CallOperation = "repeatable" | "keyed" | "once";
+
+### dist/host/tracking.d.ts#FaceHandler
+export interface FaceHandler extends RequestHandler {
+    getRegistry(): ProcedureRegistry;
+}
+
+### dist/host/tracking.d.ts#FaceHandlerOptions
+export interface FaceHandlerOptions {
+    readonly server: ProcedureServer;
+    readonly controller: string;
+    readonly face: string;
+    readonly life: () => Lifecycle | null;
+    readonly keyed: boolean;
+}
+
+### dist/host/tracking.d.ts#HttpTracker
+export type HttpTracker = (req: IncomingMessage, res: NodeResponse, key: string, serve: (signal: AbortSignal) => Promise<void> | void, operation?: CallOperation) => Promise<void>;
+
+### dist/host/tracking.d.ts#HttpTrackerOptions
+export interface HttpTrackerOptions {
+    readonly controller: string;
+    readonly face: string;
+    readonly life: () => Lifecycle | null;
+}
+
+### dist/host/tracking.d.ts#callOperations
+export declare function callOperations(keyedWindowMs: number | undefined): Readonly<Record<string, Operation>>;
+
+### dist/host/tracking.d.ts#faceHandler
+export declare function faceHandler(options: FaceHandlerOptions): FaceHandler;
+
+### dist/host/tracking.d.ts#httpTracker
+export declare function httpTracker(options: HttpTrackerOptions): HttpTracker;
+
+### dist/host/tracking.d.ts#operationOfCall
+export declare const operationOfCall: OperationOf;
+
+### dist/lockfile.d.ts#LockfileData
+export interface LockfileData {
+    pid: number;
+    port: number;
+    transport: string;
+    endpoint: string;
+    startedAt: string;
+    token?: string;
+    cwd?: string;
+    build?: string;
+    peerId?: string;
+    fsRoot?: string;
+}
+
+### dist/lockfile.d.ts#LockfileHandle
+export interface LockfileHandle {
+    connect(): void;
+    close(): void;
+}
+
+### dist/lockfile.d.ts#checkServer
+export declare function checkServer(lockfile: LockfileData, timeoutMs?: number): Promise<"alive" | "dead" | "other">;
+
+### dist/lockfile.d.ts#findServer
+export declare function findServer(match: {
+    cwd: string;
+    build: string;
+    fsRoot?: string | undefined;
+}): Promise<LockfileData | null>;
+
+### dist/lockfile.d.ts#getMarkDir
+export declare function getMarkDir(): string;
+
+### dist/lockfile.d.ts#getServersDir
+export declare function getServersDir(): string;
+
+### dist/lockfile.d.ts#lockfileHandle
+export declare function lockfileHandle(data: LockfileData): LockfileHandle;
+
+### dist/lockfile.d.ts#readAllLockfiles
+export declare function readAllLockfiles(): LockfileData[];
+
+### dist/lockfile.d.ts#readLockfileForPort
+export declare function readLockfileForPort(port: number): LockfileData | null;
+
+### dist/lockfile.d.ts#removeLockfileForPort
+export declare function removeLockfileForPort(port: number): void;
+
+### dist/lockfile.d.ts#writeLockfile
+export declare function writeLockfile(data: LockfileData): void;
+
+### dist/manifest/json.d.ts#ProcedureManifest
+export interface ProcedureManifest {
+    version: string;
+    generatedAt: string;
+    procedures: ProcedureInfo[];
+}
+
+### dist/manifest/json.d.ts#generateJson
+export declare function generateJson(procedures: ProcedureInfo[]): ProcedureManifest;
+
+### dist/manifest/json.d.ts#generateJsonString
+export declare function generateJsonString(procedures: ProcedureInfo[]): string;
+
+### dist/manifest/typescript.d.ts#generateTypeScript
+export declare function generateTypeScript(procedures: ProcedureInfo[]): string;
+
+### dist/module.d.ts#procedures
+export declare const procedures: readonly AnyProcedure[];
+
+### dist/module.d.ts#registerServerProcedures
+export declare const registerServerProcedures: PackageDefinition["register"];
+
+### dist/module.d.ts#serverModule
+export declare const serverModule: ProcedureModule;
+
+### dist/peer/index.d.ts#PEER_PROFILE
+export declare const PEER_PROFILE: Profile;
+
+### dist/peer/index.d.ts#Peer
+export interface Peer {
+    id: string;
+    start(): Promise<void>;
+    stop(options?: StopOptions): Promise<void>;
+    getEndpoints(): PeerEndpoint[];
+    getServer(): ProcedureServer;
+    getHost(): ProcedureHost;
+    connections(): string[];
+    clientFor(connectionId: string): Client;
+}
+
+### dist/peer/index.d.ts#PeerEndpoint
+export interface PeerEndpoint {
+    type: TransportType;
+    address: string;
+}
+
+### dist/peer/index.d.ts#PeerOptions
+export interface PeerOptions {
+    id: string;
+    transports: TransportConfig[];
+    autoRegister?: boolean;
+    registry?: ProcedureRegistry;
+    expose?: ((path: ProcedurePath) => boolean) | undefined;
+    metrics?: boolean | undefined;
+    policy?: HostPolicy | undefined;
+    profile?: Profile | undefined;
+}
+
+### dist/peer/index.d.ts#createPeer
+export declare function createPeer(options: PeerOptions): Promise<Peer>;
+
+### dist/peer/index.d.ts#peerHostOptions
+export declare function peerHostOptions(options: PeerOptions, name?: string): ProcedureHostOptions;
+
+### dist/procedures/manifest.generate.d.ts#manifestGenerateProcedure
+export declare const manifestGenerateProcedure: Procedure<ManifestGenerateInput, ManifestGenerateOutput, {
+    description: string;
+    effects: Effects;
+    fsRoot: FsRootRules;
+}>;
+
+### dist/procedures/server.call.d.ts#ServerCallInput
+export interface ServerCallInput {
+    connectionId?: string | undefined;
+    address?: string | undefined;
+    path: string | string[];
+    input?: unknown;
+}
+
+### dist/procedures/server.call.d.ts#ServerCallOutput
+export interface ServerCallOutput {
+    result: unknown;
+    connectionId: string;
+    path: string[];
+}
+
+### dist/procedures/server.call.d.ts#serverCallProcedure
+export declare const serverCallProcedure: Procedure<ServerCallInput, ServerCallOutput, {
+    description: string;
+    effects: Effects;
+    args: string[];
+    shorts: Record<string, string>;
+    output: string;
+}>;
+
+### dist/procedures/server.connect.d.ts#serverConnectProcedure
+export declare const serverConnectProcedure: Procedure<ServerConnectInput, ServerConnectOutput, {
+    description: string;
+    effects: Effects;
+}>;
+
+### dist/procedures/server.connections.d.ts#ServerConnectionsInput
+export interface ServerConnectionsInput {
+}
+
+### dist/procedures/server.connections.d.ts#ServerConnectionsOutput
+export interface ServerConnectionsOutput {
+    connections: Array<{
+        connectionId: string;
+        remotePeerId: string;
+        transport: string;
+        state: string;
+        remoteProcedureCount: number;
+        connectedAt?: string | undefined;
+    }>;
+}
+
+### dist/procedures/server.connections.d.ts#serverConnectionsProcedure
+export declare const serverConnectionsProcedure: Procedure<ServerConnectionsInput, ServerConnectionsOutput, {
+    description: string;
+    effects: Effects;
+    output: string;
+}>;
+
+### dist/procedures/server.create.d.ts#getActivePeerIds
+export declare function getActivePeerIds(): string[];
+
+### dist/procedures/server.create.d.ts#getPeer
+export declare function getPeer(serverId: string): Peer | undefined;
+
+### dist/procedures/server.create.d.ts#serverCreateProcedure
+export declare const serverCreateProcedure: Procedure<ServerCreateInput, ServerCreateOutput, {
+    description: string;
+    effects: Effects;
+}>;
+
+### dist/procedures/server.disconnect.d.ts#serverDisconnectProcedure
+export declare const serverDisconnectProcedure: Procedure<ServerDisconnectInput, ServerDisconnectOutput, {
+    description: string;
+    effects: Effects;
+}>;
+
+### dist/types.d.ts#HttpTransportConfig
+export interface HttpTransportConfig {
+    type: "http";
+    port?: number | undefined;
+    host?: string | undefined;
+    basePath?: string | undefined;
+    cors?: boolean | undefined;
+    corsOrigins?: string[] | undefined;
+    urlStrategy?: "rest" | "rpc" | undefined;
+    token?: string | undefined;
+    bodyLimit?: number | undefined;
+}
+
+### dist/types.d.ts#LocalTransportConfig
+export interface LocalTransportConfig {
+    type: "local";
+}
+
+### dist/types.d.ts#ManifestGenerateInput
+export interface ManifestGenerateInput {
+    formats?: ManifestFormat[] | undefined;
+    namespace?: string[] | undefined;
+    outputDir?: string | undefined;
+}
+
+### dist/types.d.ts#ManifestGenerateOutput
+export interface ManifestGenerateOutput {
+    json?: {
+        procedures: ProcedureInfo[];
+        generatedAt: string;
+        version: string;
+    } | undefined;
+    typescript?: string | undefined;
+    filesWritten?: string[] | undefined;
+}
+
+### dist/types.d.ts#PeerConnection
+export interface PeerConnection {
+    id: string;
+    remotePeerId: string;
+    transport: TransportType;
+    state: "connecting" | "connected" | "disconnected" | "error";
+    remoteProcedures: ProcedureInfo[];
+    connectedAt?: Date;
+}
+
+### dist/types.d.ts#ProcedureAnnounceMessage
+export interface ProcedureAnnounceMessage {
+    type: "procedure-announce";
+    peerId: string;
+    procedures: ProcedureInfo[];
+}
+
+### dist/types.d.ts#ProcedureInfo
+export interface ProcedureInfo {
+    path: string[];
+    description?: string | undefined;
+    inputSchema?: Record<string, unknown> | undefined;
+    outputSchema?: Record<string, unknown> | undefined;
+}
+
+### dist/types.d.ts#ProcedureUpdateMessage
+export interface ProcedureUpdateMessage {
+    type: "procedure-update";
+    peerId: string;
+    added?: ProcedureInfo[];
+    removed?: string[];
+}
+
+### dist/types.d.ts#ServerConnectInput
+export interface ServerConnectInput {
+    address: string;
+    transport?: TransportType | undefined;
+    timeout?: number | undefined;
+}
+
+### dist/types.d.ts#ServerConnectOutput
+export interface ServerConnectOutput {
+    connectionId: string;
+    remotePeerId: string;
+    remoteProcedures: ProcedureInfo[];
+}
+
+### dist/types.d.ts#ServerCreateInput
+export interface ServerCreateInput {
+    transports?: TransportConfig[] | undefined;
+    autoRegister?: boolean | undefined;
+    token?: string | undefined;
+    expose?: string[] | undefined;
+}
+
+### dist/types.d.ts#ServerCreateOutput
+export interface ServerCreateOutput {
+    serverId: string;
+    endpoints: Array<{
+        type: TransportType;
+        address: string;
+    }>;
+    procedureCount: number;
+}
+
+### dist/types.d.ts#ServerDisconnectInput
+export interface ServerDisconnectInput {
+    connectionId: string;
+}
+
+### dist/types.d.ts#ServerDisconnectOutput
+export interface ServerDisconnectOutput {
+    success: boolean;
+}
+
+### dist/types.d.ts#TransportConfig
+export type TransportConfig = HttpTransportConfig | WebSocketTransportConfig | LocalTransportConfig;
+
+### dist/types.d.ts#TransportType
+export type TransportType = "http" | "websocket" | "local";
+
+### dist/types.d.ts#WebSocketTransportConfig
+export interface WebSocketTransportConfig {
+    type: "websocket";
+    port?: number | undefined;
+    host?: string | undefined;
+    path?: string | undefined;
+    origins?: string[] | undefined;
+    token?: string | undefined;
+}

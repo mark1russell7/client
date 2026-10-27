@@ -1,0 +1,74 @@
+# The public API of @procedures/mcp-dev-tools
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 8 names
+
+type DevToolsHost: dist/host.d.ts#DevToolsHost
+type LoadedBundles: dist/host.d.ts#LoadedBundles
+type McpServerConfig: dist/config.d.ts#McpServerConfig
+type RunningDevToolsServer: dist/host.d.ts#RunningDevToolsServer
+createDevToolsHost: dist/host.d.ts#createDevToolsHost
+loadBundles: dist/host.d.ts#loadBundles
+loadConfig: dist/config.d.ts#loadConfig
+runDevToolsServer: dist/host.d.ts#runDevToolsServer
+
+## Declarations
+
+### dist/config.d.ts#McpServerConfig
+export interface McpServerConfig {
+    bundles: string[];
+    serverName: string;
+    serverVersion: string;
+    debug: boolean;
+    toolTimeoutMs: number;
+    readOnly?: boolean;
+    http?: {
+        port: number;
+        host?: string | undefined;
+        token?: string | undefined;
+        maxSessions?: number | undefined;
+    } | undefined;
+    programCheck?: boolean | undefined;
+    fsRoot?: string | undefined;
+}
+
+### dist/config.d.ts#loadConfig
+export declare function loadConfig(): McpServerConfig;
+
+### dist/host.d.ts#DevToolsHost
+export interface DevToolsHost {
+    registry: ProcedureRegistry;
+    surface: ToolSurface | undefined;
+    policy: HostPolicy;
+    server: ProcedureServer;
+    fsRoot?: string | undefined;
+    refusedUnderRoot?: string[] | undefined;
+    mcp: McpHost;
+}
+
+### dist/host.d.ts#LoadedBundles
+export interface LoadedBundles {
+    modules: ProcedureModule[];
+    surfaces: BundleSurfaceModule[];
+    global: boolean;
+}
+
+### dist/host.d.ts#RunningDevToolsServer
+export interface RunningDevToolsServer {
+    readonly host: DevToolsHost;
+    readonly service: ServiceBuilder;
+    readonly life: Lifecycle;
+    readonly url?: string | undefined;
+}
+
+### dist/host.d.ts#createDevToolsHost
+export declare function createDevToolsHost(config?: McpServerConfig): Promise<DevToolsHost>;
+
+### dist/host.d.ts#loadBundles
+export declare function loadBundles(bundles: readonly string[]): Promise<LoadedBundles>;
+
+### dist/host.d.ts#runDevToolsServer
+export declare function runDevToolsServer(config?: McpServerConfig, run?: RunOptions): Promise<RunningDevToolsServer>;

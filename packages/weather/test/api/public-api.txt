@@ -1,0 +1,127 @@
+# The public API of @procedures/weather
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 17 names
+
+FetchForecast: dist/procedures.d.ts#FetchForecast
+Forecast: dist/weather.d.ts#Forecast
+ForecastDay: dist/weather.d.ts#ForecastDay
+ForecastHour: dist/weather.d.ts#ForecastHour
+OPEN_METEO_URL: dist/weather.d.ts#OPEN_METEO_URL
+Units: dist/weather.d.ts#Units
+WeatherCodeGroup: dist/weather.d.ts#WeatherCodeGroup
+WeatherProceduresOptions: dist/procedures.d.ts#WeatherProceduresOptions
+createWeatherModule: dist/module.d.ts#createWeatherModule
+createWeatherProcedures: dist/procedures.d.ts#createWeatherProcedures
+forecastUrl: dist/weather.d.ts#forecastUrl
+readForecast: dist/weather.d.ts#readForecast
+registerWeatherProcedures: dist/module.d.ts#registerWeatherProcedures
+weatherCodeGroup: dist/weather.d.ts#weatherCodeGroup
+weatherForecastProcedure: dist/procedures.d.ts#weatherForecastProcedure
+weatherModule: dist/module.d.ts#weatherModule
+weatherProcedures: dist/procedures.d.ts#weatherProcedures
+
+## ./module (dist/module.d.ts): 4 names
+
+createWeatherModule: dist/module.d.ts#createWeatherModule
+default: dist/module.d.ts#weatherModule
+registerWeatherProcedures: dist/module.d.ts#registerWeatherProcedures
+weatherModule: dist/module.d.ts#weatherModule
+
+## ./register (dist/register.d.ts): 3 names
+
+createWeatherModule: dist/module.d.ts#createWeatherModule
+registerWeatherProcedures: dist/module.d.ts#registerWeatherProcedures
+weatherModule: dist/module.d.ts#weatherModule
+
+## Declarations
+
+### dist/module.d.ts#createWeatherModule
+export declare function createWeatherModule(options?: WeatherProceduresOptions): ProcedureModule;
+
+### dist/module.d.ts#registerWeatherProcedures
+export declare const registerWeatherProcedures: PackageDefinition["register"];
+
+### dist/module.d.ts#weatherModule
+export declare const weatherModule: ProcedureModule;
+
+### dist/procedures.d.ts#FetchForecast
+export type FetchForecast = (url: string, init: {
+    headers: Record<string, string>;
+    signal: AbortSignal;
+}) => Promise<{
+    ok: boolean;
+    status: number;
+    json(): Promise<unknown>;
+}>;
+
+### dist/procedures.d.ts#WeatherProceduresOptions
+export interface WeatherProceduresOptions {
+    readonly fetch?: FetchForecast | undefined;
+}
+
+### dist/procedures.d.ts#createWeatherProcedures
+export declare function createWeatherProcedures(options?: WeatherProceduresOptions): AnyProcedure[];
+
+### dist/procedures.d.ts#weatherForecastProcedure
+export declare const weatherForecastProcedure: AnyProcedure;
+
+### dist/procedures.d.ts#weatherProcedures
+export declare const weatherProcedures: AnyProcedure[];
+
+### dist/weather.d.ts#Forecast
+export interface Forecast {
+    readonly timezone: string;
+    readonly units: {
+        readonly temperature: string;
+        readonly windSpeed: string;
+    };
+    readonly daily: ForecastDay[];
+    readonly hourly?: ForecastHour[] | undefined;
+}
+
+### dist/weather.d.ts#ForecastDay
+export interface ForecastDay {
+    readonly date: string;
+    readonly temperatureMax: number | null;
+    readonly temperatureMin: number | null;
+    readonly precipitationProbability: number | null;
+    readonly windSpeedMax: number | null;
+    readonly weatherCode: number | null;
+}
+
+### dist/weather.d.ts#ForecastHour
+export interface ForecastHour {
+    readonly time: string;
+    readonly temperature: number | null;
+    readonly precipitationProbability: number | null;
+    readonly weatherCode: number | null;
+}
+
+### dist/weather.d.ts#OPEN_METEO_URL
+export declare const OPEN_METEO_URL = "https://api.open-meteo.com";
+
+### dist/weather.d.ts#Units
+export type Units = "metric" | "imperial";
+
+### dist/weather.d.ts#WeatherCodeGroup
+export type WeatherCodeGroup = "clear" | "mainly-clear" | "partly-cloudy" | "overcast" | "fog" | "drizzle" | "freezing-drizzle" | "rain" | "freezing-rain" | "snow" | "snow-grains" | "rain-showers" | "snow-showers" | "thunderstorm" | "thunderstorm-hail";
+
+### dist/weather.d.ts#forecastUrl
+export declare function forecastUrl(options: {
+    lat: number;
+    lon: number;
+    days: number;
+    units: Units;
+    hourly: boolean;
+    baseUrl?: string | undefined;
+}): string;
+
+### dist/weather.d.ts#readForecast
+export declare function readForecast(body: unknown, hourly: boolean): Forecast;
+
+### dist/weather.d.ts#weatherCodeGroup
+export declare function weatherCodeGroup(code: number | null | undefined): WeatherCodeGroup | undefined;

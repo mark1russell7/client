@@ -1,0 +1,54 @@
+# The public API of @procedures/bundle-mcp
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 4 names
+
+bundleMcpModule: dist/module.d.ts#bundleMcpModule
+bundleMcpModules: dist/module.d.ts#bundleMcpModules
+mcpExclude: dist/module.d.ts#mcpExclude
+mcpNamespaces: dist/module.d.ts#mcpNamespaces
+
+## ./module (dist/module.d.ts): 6 names
+
+bundleMcpModule: dist/module.d.ts#bundleMcpModule
+bundleMcpModules: dist/module.d.ts#bundleMcpModules
+default: dist/module.d.ts#bundleMcpModule
+mcpExclude: dist/module.d.ts#mcpExclude
+mcpNamespaces: dist/module.d.ts#mcpNamespaces
+registerBundleMcpProcedures: dist/module.d.ts#registerBundleMcpProcedures
+
+## ./register (dist/register.d.ts): 5 names
+
+bundleMcpModule: dist/module.d.ts#bundleMcpModule
+bundleMcpModules: dist/module.d.ts#bundleMcpModules
+mcpExclude: dist/module.d.ts#mcpExclude
+mcpNamespaces: dist/module.d.ts#mcpNamespaces
+registerBundleMcpProcedures: dist/module.d.ts#registerBundleMcpProcedures
+
+## ./register.js (dist/register.d.ts): 5 names
+
+bundleMcpModule: dist/module.d.ts#bundleMcpModule
+bundleMcpModules: dist/module.d.ts#bundleMcpModules
+mcpExclude: dist/module.d.ts#mcpExclude
+mcpNamespaces: dist/module.d.ts#mcpNamespaces
+registerBundleMcpProcedures: dist/module.d.ts#registerBundleMcpProcedures
+
+## Declarations
+
+### dist/module.d.ts#bundleMcpModule
+export declare const bundleMcpModule: ProcedureModule;
+
+### dist/module.d.ts#bundleMcpModules
+export declare const bundleMcpModules: readonly ProcedureModule[];
+
+### dist/module.d.ts#mcpExclude
+export declare const mcpExclude: readonly string[];
+
+### dist/module.d.ts#mcpNamespaces
+export declare const mcpNamespaces: readonly string[];
+
+### dist/module.d.ts#registerBundleMcpProcedures
+export declare const registerBundleMcpProcedures: PackageDefinition["register"];

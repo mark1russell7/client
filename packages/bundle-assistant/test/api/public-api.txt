@@ -1,0 +1,53 @@
+# The public API of @procedures/bundle-assistant
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 6 names
+
+bundleAssistantModule: dist/module.d.ts#bundleAssistantModule
+bundleAssistantModules: dist/module.d.ts#bundleAssistantModules
+mcpExclude: dist/module.d.ts#mcpExclude
+mcpHostModules: dist/module.d.ts#mcpHostModules
+mcpNamespaces: dist/module.d.ts#mcpNamespaces
+registerBundleAssistantProcedures: dist/module.d.ts#registerBundleAssistantProcedures
+
+## ./module (dist/module.d.ts): 7 names
+
+bundleAssistantModule: dist/module.d.ts#bundleAssistantModule
+bundleAssistantModules: dist/module.d.ts#bundleAssistantModules
+default: dist/module.d.ts#bundleAssistantModule
+mcpExclude: dist/module.d.ts#mcpExclude
+mcpHostModules: dist/module.d.ts#mcpHostModules
+mcpNamespaces: dist/module.d.ts#mcpNamespaces
+registerBundleAssistantProcedures: dist/module.d.ts#registerBundleAssistantProcedures
+
+## ./register (dist/register.d.ts): 6 names
+
+bundleAssistantModule: dist/module.d.ts#bundleAssistantModule
+bundleAssistantModules: dist/module.d.ts#bundleAssistantModules
+mcpExclude: dist/module.d.ts#mcpExclude
+mcpHostModules: dist/module.d.ts#mcpHostModules
+mcpNamespaces: dist/module.d.ts#mcpNamespaces
+registerBundleAssistantProcedures: dist/module.d.ts#registerBundleAssistantProcedures
+
+## Declarations
+
+### dist/module.d.ts#bundleAssistantModule
+export declare const bundleAssistantModule: ProcedureModule;
+
+### dist/module.d.ts#bundleAssistantModules
+export declare const bundleAssistantModules: readonly ProcedureModule[];
+
+### dist/module.d.ts#mcpExclude
+export declare const mcpExclude: readonly string[];
+
+### dist/module.d.ts#mcpHostModules
+export declare const mcpHostModules: readonly ProcedureModule[];
+
+### dist/module.d.ts#mcpNamespaces
+export declare const mcpNamespaces: readonly string[];
+
+### dist/module.d.ts#registerBundleAssistantProcedures
+export declare const registerBundleAssistantProcedures: PackageDefinition["register"];

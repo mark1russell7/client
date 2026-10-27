@@ -1,0 +1,517 @@
+# The public API of @procedures/lib
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 81 names
+
+ANGULAR_DI_DECORATORS: dist/procedures/lib/import-cycles.d.ts#ANGULAR_DI_DECORATORS
+CLI_GLOBAL_FLAGS: dist/cli-flags.d.ts#CLI_GLOBAL_FLAGS
+type CliGlobalFlag: dist/cli-flags.d.ts#CliGlobalFlag
+DAGExecutionOptions: dist/types.d.ts#DAGExecutionOptions
+DAGNode: dist/types.d.ts#DAGNode
+DAGResult: dist/types.d.ts#DAGResult
+DEFAULT_IMPORT_CYCLE_LIMITS: dist/procedures/lib/import-cycles.d.ts#DEFAULT_IMPORT_CYCLE_LIMITS
+DEFAULT_IMPORT_EXCLUDE: dist/procedures/lib/import-cycles.d.ts#DEFAULT_IMPORT_EXCLUDE
+DependencyDAG: dist/types.d.ts#DependencyDAG
+DependencyKind: dist/types.d.ts#DependencyKind
+type EcosystemProceduresInput: dist/procedures/ecosystem/procedures.d.ts#EcosystemProceduresInput
+EcosystemProceduresInputSchema: dist/procedures/ecosystem/procedures.d.ts#EcosystemProceduresInputSchema
+type EcosystemProceduresOutput: dist/procedures/ecosystem/procedures.d.ts#EcosystemProceduresOutput
+FlagNotice: dist/types.d.ts#FlagNotice
+GitRef: dist/types.d.ts#GitRef
+GitStatus: dist/types.d.ts#GitStatus
+type ImportCycleLimits: dist/procedures/lib/import-cycles.d.ts#ImportCycleLimits
+type ImportCycles: dist/procedures/lib/import-cycles.d.ts#ImportCycles
+type ImportGraphOptions: dist/procedures/lib/import-cycles.d.ts#ImportGraphOptions
+ImportMode: dist/types.d.ts#ImportMode
+LibAuditInput: dist/types.d.ts#LibAuditInput
+LibAuditInputSchema: dist/types.d.ts#LibAuditInputSchema
+LibAuditOutput: dist/types.d.ts#LibAuditOutput
+LibAuditOutputSchema: dist/types.d.ts#LibAuditOutputSchema
+LibGraphEdge: dist/types.d.ts#LibGraphEdge
+LibGraphInput: dist/types.d.ts#LibGraphInput
+LibGraphInputSchema: dist/types.d.ts#LibGraphInputSchema
+LibGraphNode: dist/types.d.ts#LibGraphNode
+LibGraphOutput: dist/types.d.ts#LibGraphOutput
+LibGraphOutputSchema: dist/types.d.ts#LibGraphOutputSchema
+LibImportCyclesInput: dist/types.d.ts#LibImportCyclesInput
+LibImportCyclesInputSchema: dist/types.d.ts#LibImportCyclesInputSchema
+LibImportCyclesOutput: dist/types.d.ts#LibImportCyclesOutput
+LibImportCyclesOutputSchema: dist/types.d.ts#LibImportCyclesOutputSchema
+LibNewInput: dist/types.d.ts#LibNewInput
+LibNewInputSchema: dist/types.d.ts#LibNewInputSchema
+LibNewOutput: dist/types.d.ts#LibNewOutput
+LibNewOutputSchema: dist/types.d.ts#LibNewOutputSchema
+LibRenameInput: dist/types.d.ts#LibRenameInput
+LibRenameInputSchema: dist/types.d.ts#LibRenameInputSchema
+LibRenameOutput: dist/types.d.ts#LibRenameOutput
+LibRenameOutputSchema: dist/types.d.ts#LibRenameOutputSchema
+LibScanInput: dist/types.d.ts#LibScanInput
+LibScanInputSchema: dist/types.d.ts#LibScanInputSchema
+LibScanOutput: dist/types.d.ts#LibScanOutput
+LibScanOutputSchema: dist/types.d.ts#LibScanOutputSchema
+NodeResult: dist/types.d.ts#NodeResult
+PackageAuditResult: dist/types.d.ts#PackageAuditResult
+PackageInfo: dist/types.d.ts#PackageInfo
+type PackageProcedures: dist/procedures/ecosystem/procedures.d.ts#PackageProcedures
+PnpmIssue: dist/types.d.ts#PnpmIssue
+type ProcedureInfo: dist/procedures/ecosystem/procedures.d.ts#ProcedureInfo
+ProcedureIssue: dist/types.d.ts#ProcedureIssue
+RenameChange: dist/types.d.ts#RenameChange
+buildDAGNodes: dist/dag/builder.d.ts#buildDAGNodes
+buildLeveledDAG: @procedures/dag#buildLeveledDAG (external)
+createProcessor: @procedures/dag#createProcessor (external)
+ecosystemProcedures: dist/procedures/ecosystem/procedures.d.ts#ecosystemProcedures
+executeDAG: @procedures/dag#executeDAG (external)
+executeDAGSequential: @procedures/dag#executeDAGSequential (external)
+extractMark1Russell7Deps: dist/git/ref-parser.d.ts#extractMark1Russell7Deps
+filterDAGFromRoot: @procedures/dag#filterDAGFromRoot (external)
+findCycles: dist/procedures/lib/graph.d.ts#findCycles
+findGlobalFlag: dist/cli-flags.d.ts#findGlobalFlag
+getAncestors: @procedures/dag#getAncestors (external)
+getDescendants: @procedures/dag#getDescendants (external)
+getPackageNameFromRef: dist/git/ref-parser.d.ts#getPackageNameFromRef
+getTopologicalOrder: @procedures/dag#getTopologicalOrder (external)
+importCycles: dist/procedures/lib/import-cycles.d.ts#importCycles
+importGraph: dist/procedures/lib/import-cycles.d.ts#importGraph
+isGitRef: dist/git/ref-parser.d.ts#isGitRef
+isMark1Russell7Ref: dist/git/ref-parser.d.ts#isMark1Russell7Ref
+libAudit: dist/procedures/lib/audit.d.ts#libAudit
+libGraph: dist/procedures/lib/graph.d.ts#libGraph
+libModule: dist/module.d.ts#libModule
+libNew: dist/procedures/lib/new.d.ts#libNew
+libRename: dist/procedures/lib/rename.d.ts#libRename
+libScan: dist/procedures/lib/scan.d.ts#libScan
+parseGitRef: dist/git/ref-parser.d.ts#parseGitRef
+registerLibProcedures: dist/module.d.ts#registerLibProcedures
+visualizeDAG: @procedures/dag#visualizeDAG (external)
+
+## ./module (dist/module.d.ts): 3 names
+
+default: dist/module.d.ts#libModule
+libModule: dist/module.d.ts#libModule
+registerLibProcedures: dist/module.d.ts#registerLibProcedures
+
+## ./register (dist/register.d.ts): 2 names
+
+libModule: dist/module.d.ts#libModule
+registerLibProcedures: dist/module.d.ts#registerLibProcedures
+
+## ./cli-flags (dist/cli-flags.d.ts): 3 names
+
+CLI_GLOBAL_FLAGS: dist/cli-flags.d.ts#CLI_GLOBAL_FLAGS
+CliGlobalFlag: dist/cli-flags.d.ts#CliGlobalFlag
+findGlobalFlag: dist/cli-flags.d.ts#findGlobalFlag
+
+## Declarations
+
+### dist/cli-flags.d.ts#CLI_GLOBAL_FLAGS
+export declare const CLI_GLOBAL_FLAGS: readonly CliGlobalFlag[];
+
+### dist/cli-flags.d.ts#CliGlobalFlag
+export interface CliGlobalFlag {
+    readonly long: string;
+    readonly short?: string;
+    readonly takesValue: boolean;
+    readonly mode?: boolean;
+    readonly serverOption?: boolean;
+    readonly repeatable?: boolean;
+    readonly description: string;
+}
+
+### dist/cli-flags.d.ts#findGlobalFlag
+export declare function findGlobalFlag(name: string, short: boolean): CliGlobalFlag | undefined;
+
+### dist/dag/builder.d.ts#buildDAGNodes
+export declare function buildDAGNodes(packages: Record<string, PackageInfo>): Map<string, DAGNode>;
+
+### dist/git/ref-parser.d.ts#extractMark1Russell7Deps
+export declare function extractMark1Russell7Deps(dependencies: Record<string, string>): GitRef[];
+
+### dist/git/ref-parser.d.ts#getPackageNameFromRef
+export declare function getPackageNameFromRef(ref: GitRef): string;
+
+### dist/git/ref-parser.d.ts#isGitRef
+export declare function isGitRef(dep: string): boolean;
+
+### dist/git/ref-parser.d.ts#isMark1Russell7Ref
+export declare function isMark1Russell7Ref(dep: string): boolean;
+
+### dist/git/ref-parser.d.ts#parseGitRef
+export declare function parseGitRef(refString: string): GitRef | null;
+
+### dist/module.d.ts#libModule
+export declare const libModule: ProcedureModule;
+
+### dist/module.d.ts#registerLibProcedures
+export declare const registerLibProcedures: PackageDefinition["register"];
+
+### dist/procedures/ecosystem/procedures.d.ts#EcosystemProceduresInput
+export type EcosystemProceduresInput = z.infer<typeof EcosystemProceduresInputSchema>;
+
+### dist/procedures/ecosystem/procedures.d.ts#EcosystemProceduresInputSchema
+export declare const EcosystemProceduresInputSchema: z.ZodObject<{
+    rootPath: z.ZodOptional<z.ZodString>;
+    namespace: z.ZodOptional<z.ZodString>;
+    includeMetadata: z.ZodDefault<z.ZodBoolean>;
+}>;
+
+### dist/procedures/ecosystem/procedures.d.ts#EcosystemProceduresOutput
+export interface EcosystemProceduresOutput {
+    procedures: ProcedureInfo[];
+    byPackage: PackageProcedures[];
+    byNamespace: Record<string, ProcedureInfo[]>;
+    summary: {
+        totalPackages: number;
+        packagesWithProcedures: number;
+        totalProcedures: number;
+        namespaces: string[];
+    };
+}
+
+### dist/procedures/ecosystem/procedures.d.ts#PackageProcedures
+export interface PackageProcedures {
+    name: string;
+    path: string;
+    procedures: ProcedureInfo[];
+    success: boolean;
+    error?: string | undefined;
+}
+
+### dist/procedures/ecosystem/procedures.d.ts#ProcedureInfo
+export interface ProcedureInfo {
+    path: string[];
+    key: string;
+    package: string;
+    packagePath: string;
+    description?: string | undefined;
+    tags?: string[] | undefined;
+}
+
+### dist/procedures/ecosystem/procedures.d.ts#ecosystemProcedures
+export declare function ecosystemProcedures(input: EcosystemProceduresInput, ctx: ProcedureContext): Promise<EcosystemProceduresOutput>;
+
+### dist/procedures/lib/audit.d.ts#libAudit
+export declare function libAudit(input: LibAuditInput, ctx: ProcedureContext): Promise<LibAuditOutput>;
+
+### dist/procedures/lib/graph.d.ts#findCycles
+export declare function findCycles(names: readonly string[], edges: ReadonlyMap<string, readonly string[]>): string[][];
+
+### dist/procedures/lib/graph.d.ts#libGraph
+export declare function libGraph(input: LibGraphInput, ctx: ProcedureContext): Promise<LibGraphOutput>;
+
+### dist/procedures/lib/import-cycles.d.ts#ANGULAR_DI_DECORATORS
+export declare const ANGULAR_DI_DECORATORS: readonly string[];
+
+### dist/procedures/lib/import-cycles.d.ts#DEFAULT_IMPORT_CYCLE_LIMITS
+export declare const DEFAULT_IMPORT_CYCLE_LIMITS: ImportCycleLimits;
+
+### dist/procedures/lib/import-cycles.d.ts#DEFAULT_IMPORT_EXCLUDE
+export declare const DEFAULT_IMPORT_EXCLUDE: readonly string[];
+
+### dist/procedures/lib/import-cycles.d.ts#ImportCycleLimits
+export interface ImportCycleLimits {
+    readonly maxFiles: number;
+    readonly maxFileBytes: number;
+}
+
+### dist/procedures/lib/import-cycles.d.ts#ImportCycles
+export interface ImportCycles {
+    readonly files: number;
+    readonly edges: number;
+    readonly components: string[][];
+    readonly filesInCycles: number;
+}
+
+### dist/procedures/lib/import-cycles.d.ts#ImportGraphOptions
+export interface ImportGraphOptions {
+    readonly mode?: ImportMode | undefined;
+    readonly diDecorators?: readonly string[] | undefined;
+    readonly signal?: AbortSignal | undefined;
+}
+
+### dist/procedures/lib/import-cycles.d.ts#importCycles
+export declare function importCycles(sources: ReadonlyMap<string, string>, options?: ImportGraphOptions): ImportCycles;
+
+### dist/procedures/lib/import-cycles.d.ts#importGraph
+export declare function importGraph(sources: ReadonlyMap<string, string>, options?: ImportGraphOptions): Map<string, string[]>;
+
+### dist/procedures/lib/new.d.ts#libNew
+export declare function libNew(input: LibNewInput, ctx: ProcedureContext): Promise<LibNewOutput>;
+
+### dist/procedures/lib/rename.d.ts#libRename
+export declare function libRename(input: LibRenameInput, ctx: ProcedureContext): Promise<LibRenameOutput>;
+
+### dist/procedures/lib/scan.d.ts#libScan
+export declare function libScan(input: LibScanInput, ctx: ProcedureContext): Promise<LibScanOutput>;
+
+### dist/types.d.ts#DAGExecutionOptions
+export type DAGExecutionOptions = DagExecutionOptions<DAGNode>;
+
+### dist/types.d.ts#DAGNode
+export interface DAGNode extends DagBaseNode {
+    name: string;
+    repoPath: string;
+    gitRef: string;
+    requiredBranch: string;
+}
+
+### dist/types.d.ts#DAGResult
+export type DAGResult = DagResult<DAGNode>;
+
+### dist/types.d.ts#DependencyDAG
+export type DependencyDAG = DagDependencyDAG<DAGNode>;
+
+### dist/types.d.ts#DependencyKind
+export type DependencyKind = "dependencies" | "devDependencies" | "peerDependencies" | "optionalDependencies";
+
+### dist/types.d.ts#FlagNotice
+export interface FlagNotice {
+    procedure: string;
+    flag: string;
+    global: string;
+}
+
+### dist/types.d.ts#GitRef
+export interface GitRef {
+    raw: string;
+    host: string;
+    owner: string;
+    repo: string;
+    ref: string;
+}
+
+### dist/types.d.ts#GitStatus
+export interface GitStatus {
+    hasUncommittedChanges: boolean;
+    hasStagedChanges: boolean;
+    currentBranch: string;
+    isClean: boolean;
+}
+
+### dist/types.d.ts#ImportMode
+export type ImportMode = "runtime" | "declared" | "raw";
+
+### dist/types.d.ts#LibAuditInput
+export type LibAuditInput = z.infer<typeof LibAuditInputSchema>;
+
+### dist/types.d.ts#LibAuditInputSchema
+export declare const LibAuditInputSchema: z.ZodObject<{
+    rootPath: z.ZodOptional<z.ZodString>;
+    fix: z.ZodDefault<z.ZodBoolean>;
+}>;
+
+### dist/types.d.ts#LibAuditOutput
+export interface LibAuditOutput {
+    success: boolean;
+    flagNotices: FlagNotice[];
+    procedureIssues: ProcedureIssue[];
+    template: {
+        files: string[];
+        dirs: string[];
+    };
+    results: PackageAuditResult[];
+    summary: {
+        total: number;
+        valid: number;
+        invalid: number;
+    };
+}
+
+### dist/types.d.ts#LibAuditOutputSchema
+export declare const LibAuditOutputSchema: z.ZodType<LibAuditOutput>;
+
+### dist/types.d.ts#LibGraphEdge
+export interface LibGraphEdge {
+    from: string;
+    to: string;
+    kind: DependencyKind;
+    spec: string;
+}
+
+### dist/types.d.ts#LibGraphInput
+export interface LibGraphInput {
+    rootPath?: string | undefined;
+}
+
+### dist/types.d.ts#LibGraphInputSchema
+export declare const LibGraphInputSchema: z.ZodType<LibGraphInput>;
+
+### dist/types.d.ts#LibGraphNode
+export interface LibGraphNode {
+    name: string;
+    folder: string;
+    version?: string | undefined;
+    private?: boolean | undefined;
+}
+
+### dist/types.d.ts#LibGraphOutput
+export interface LibGraphOutput {
+    root: string;
+    nodes: LibGraphNode[];
+    edges: LibGraphEdge[];
+    acyclic: boolean;
+    cycles: string[][];
+    levels?: string[][] | undefined;
+    warnings: Array<{
+        path: string;
+        issue: string;
+    }>;
+}
+
+### dist/types.d.ts#LibGraphOutputSchema
+export declare const LibGraphOutputSchema: z.ZodType<LibGraphOutput>;
+
+### dist/types.d.ts#LibImportCyclesInput
+export interface LibImportCyclesInput {
+    path: string;
+    mode?: ImportMode | undefined;
+    diDecorators?: string[] | undefined;
+    exclude?: string[] | undefined;
+    limits?: {
+        maxFiles?: number | undefined;
+        maxFileBytes?: number | undefined;
+    } | undefined;
+}
+
+### dist/types.d.ts#LibImportCyclesInputSchema
+export declare const LibImportCyclesInputSchema: z.ZodType<LibImportCyclesInput>;
+
+### dist/types.d.ts#LibImportCyclesOutput
+export interface LibImportCyclesOutput {
+    path: string;
+    mode: ImportMode;
+    files: number;
+    edges: number;
+    acyclic: boolean;
+    components: string[][];
+    filesInCycles: number;
+    skipped: Array<{
+        path: string;
+        bytes: number;
+    }>;
+}
+
+### dist/types.d.ts#LibImportCyclesOutputSchema
+export declare const LibImportCyclesOutputSchema: z.ZodType<LibImportCyclesOutput>;
+
+### dist/types.d.ts#LibNewInput
+export type LibNewInput = z.infer<typeof LibNewInputSchema>;
+
+### dist/types.d.ts#LibNewInputSchema
+export declare const LibNewInputSchema: z.ZodObject<{
+    name: z.ZodString;
+    preset: z.ZodDefault<z.ZodString>;
+    rootPath: z.ZodOptional<z.ZodString>;
+    dryRun: z.ZodDefault<z.ZodBoolean>;
+}>;
+
+### dist/types.d.ts#LibNewOutput
+export interface LibNewOutput {
+    success: boolean;
+    packageName: string;
+    packagePath: string;
+    created: string[];
+    operations: string[];
+    errors: string[];
+}
+
+### dist/types.d.ts#LibNewOutputSchema
+export declare const LibNewOutputSchema: z.ZodType<LibNewOutput>;
+
+### dist/types.d.ts#LibRenameInput
+export type LibRenameInput = z.infer<typeof LibRenameInputSchema>;
+
+### dist/types.d.ts#LibRenameInputSchema
+export declare const LibRenameInputSchema: z.ZodObject<{
+    oldName: z.ZodString;
+    newName: z.ZodString;
+    rootPath: z.ZodOptional<z.ZodString>;
+    dryRun: z.ZodDefault<z.ZodBoolean>;
+}>;
+
+### dist/types.d.ts#LibRenameOutput
+export interface LibRenameOutput {
+    success: boolean;
+    changes: RenameChange[];
+    errors: string[];
+    summary: {
+        packageNames: number;
+        dependencies: number;
+        imports: number;
+        total: number;
+    };
+}
+
+### dist/types.d.ts#LibRenameOutputSchema
+export declare const LibRenameOutputSchema: z.ZodType<LibRenameOutput>;
+
+### dist/types.d.ts#LibScanInput
+export type LibScanInput = z.infer<typeof LibScanInputSchema>;
+
+### dist/types.d.ts#LibScanInputSchema
+export declare const LibScanInputSchema: z.ZodObject<{
+    rootPath: z.ZodOptional<z.ZodString>;
+}>;
+
+### dist/types.d.ts#LibScanOutput
+export interface LibScanOutput {
+    packages: Record<string, PackageInfo>;
+    warnings: Array<{
+        path: string;
+        issue: string;
+    }>;
+}
+
+### dist/types.d.ts#LibScanOutputSchema
+export declare const LibScanOutputSchema: z.ZodType<LibScanOutput>;
+
+### dist/types.d.ts#NodeResult
+export type NodeResult = DagNodeResult<DAGNode>;
+
+### dist/types.d.ts#PackageAuditResult
+export interface PackageAuditResult {
+    name: string;
+    path: string;
+    valid: boolean;
+    missingFiles: string[];
+    missingDirs: string[];
+    pnpmIssues: PnpmIssue[];
+    fixedFiles?: string[] | undefined;
+    fixedDirs?: string[] | undefined;
+}
+
+### dist/types.d.ts#PackageInfo
+export interface PackageInfo {
+    name: string;
+    repoPath: string;
+    gitRemote?: string | undefined;
+    currentBranch?: string | undefined;
+    mark1russell7Deps: string[];
+}
+
+### dist/types.d.ts#PnpmIssue
+export interface PnpmIssue {
+    type: "npm-lockfile" | "package-lockfile" | "ignored-pnpm-field" | "not-workspace-link";
+    message: string;
+    package?: string | undefined;
+}
+
+### dist/types.d.ts#ProcedureIssue
+export interface ProcedureIssue {
+    type: "missing-effects";
+    procedure: string;
+    message: string;
+}
+
+### dist/types.d.ts#RenameChange
+export interface RenameChange {
+    type: "package-name" | "dependency" | "import" | "dynamic-import";
+    file: string;
+    field?: string | undefined;
+    line?: number | undefined;
+    oldValue: string;
+    newValue: string;
+}

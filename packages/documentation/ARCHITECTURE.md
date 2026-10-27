@@ -178,7 +178,11 @@ The CI names below are the jobs and the steps of `.github/workflows/ci.yml`.
 
 - **Rule.** An API snapshot has each exported name and type of a public package.
 - **Reason.** A change of the API then fails a test, so each change of the API is a decision.
-- **Guard.** Only `@procedures/client` has a snapshot today: `packages/client/src/api.snapshot.test.ts` compares the API with `packages/client/test/api/public-api.txt` (through `packages/client/test/api/report.ts`). Planned: a snapshot for each public package (CLI-86).
+- **Guard.** The CI step "The reports of the public API are current" (CLI-86). Each public package has its report in `test/api/public-api.txt`.
+  - `scripts/api-report.mjs` reads the built `.d.ts` file of each entry of the `exports` field. It writes the exported names and their declarations, without comments and private members.
+  - The step starts the script with `--update`. A changed or new report fails the step. The artifact `public-api-reports` has the new reports.
+  - To accept a change of the API, start `pnpm build`, then `node scripts/api-report.mjs --update`. Review the diff, and commit the reports.
+  - The tests of the reader are in `scripts/api-report.test.mjs`.
 
 ### I8. Package shape
 

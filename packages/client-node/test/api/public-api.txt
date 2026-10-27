@@ -1,0 +1,243 @@
+# The public API of @procedures/node
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 31 names
+
+NodeKillInput: dist/types.d.ts#NodeKillInput
+NodeKillInputSchema: dist/types.d.ts#NodeKillInputSchema
+NodeKillOutput: dist/types.d.ts#NodeKillOutput
+NodeKillOutputSchema: dist/types.d.ts#NodeKillOutputSchema
+NodeLogItem: dist/types.d.ts#NodeLogItem
+NodeLogsInput: dist/types.d.ts#NodeLogsInput
+NodeLogsInputSchema: dist/types.d.ts#NodeLogsInputSchema
+NodeLogsOutput: dist/types.d.ts#NodeLogsOutput
+NodeLogsOutputSchema: dist/types.d.ts#NodeLogsOutputSchema
+NodeLogsValueSchema: dist/types.d.ts#NodeLogsValueSchema
+NodeRunInput: dist/types.d.ts#NodeRunInput
+NodeRunInputSchema: dist/types.d.ts#NodeRunInputSchema
+NodeRunOutput: dist/types.d.ts#NodeRunOutput
+NodeRunOutputSchema: dist/types.d.ts#NodeRunOutputSchema
+NodeSpawnInput: dist/types.d.ts#NodeSpawnInput
+NodeSpawnInputSchema: dist/types.d.ts#NodeSpawnInputSchema
+NodeSpawnOutput: dist/types.d.ts#NodeSpawnOutput
+NodeSpawnOutputSchema: dist/types.d.ts#NodeSpawnOutputSchema
+NodeStatusInput: dist/types.d.ts#NodeStatusInput
+NodeStatusInputSchema: dist/types.d.ts#NodeStatusInputSchema
+NodeStatusOutput: dist/types.d.ts#NodeStatusOutput
+NodeStatusOutputSchema: dist/types.d.ts#NodeStatusOutputSchema
+ProcessInfo: dist/types.d.ts#ProcessInfo
+nodeKill: dist/procedures/node/kill.d.ts#nodeKill
+nodeLogs: dist/procedures/node/logs.d.ts#nodeLogs
+nodeModule: dist/module.d.ts#nodeModule
+nodeRun: dist/procedures/node/run.d.ts#nodeRun
+nodeSpawn: dist/procedures/node/spawn.d.ts#nodeSpawn
+nodeStatus: dist/procedures/node/status.d.ts#nodeStatus
+processManager: dist/process-manager.d.ts#processManager
+registerNodeProcedures: dist/module.d.ts#registerNodeProcedures
+
+## ./module (dist/module.d.ts): 3 names
+
+default: dist/module.d.ts#nodeModule
+nodeModule: dist/module.d.ts#nodeModule
+registerNodeProcedures: dist/module.d.ts#registerNodeProcedures
+
+## ./register (dist/register.d.ts): 2 names
+
+nodeModule: dist/module.d.ts#nodeModule
+registerNodeProcedures: dist/module.d.ts#registerNodeProcedures
+
+## ./fresh-bundle (dist/fresh-bundle.d.ts): 4 names
+
+FreshBundleSpec: dist/fresh-bundle.d.ts#FreshBundleSpec
+build: dist/fresh-bundle.d.ts#build
+freshEntry: dist/fresh-bundle.d.ts#freshEntry
+launch: dist/fresh-bundle.d.ts#launch
+
+## Declarations
+
+### dist/fresh-bundle.d.ts#FreshBundleSpec
+export interface FreshBundleSpec {
+    readonly entry: string;
+    readonly outDir: string;
+    readonly inputs: readonly string[];
+    readonly esbuild?: string;
+}
+
+### dist/fresh-bundle.d.ts#build
+export declare function build(spec: FreshBundleSpec): Promise<void>;
+
+### dist/fresh-bundle.d.ts#freshEntry
+export declare function freshEntry(spec: FreshBundleSpec): string | undefined;
+
+### dist/fresh-bundle.d.ts#launch
+export declare function launch(spec: FreshBundleSpec): Promise<void>;
+
+### dist/module.d.ts#nodeModule
+export declare const nodeModule: ProcedureModule;
+
+### dist/module.d.ts#registerNodeProcedures
+export declare const registerNodeProcedures: PackageDefinition["register"];
+
+### dist/procedures/node/kill.d.ts#nodeKill
+export declare function nodeKill(input: NodeKillInput): Promise<NodeKillOutput>;
+
+### dist/procedures/node/logs.d.ts#nodeLogs
+export declare function nodeLogs(input: NodeLogsInput, ctx?: NodeLogsContext): Promise<NodeLogsOutput | AsyncGenerator<NodeLogItem, void, undefined>>;
+
+### dist/procedures/node/run.d.ts#nodeRun
+export declare function nodeRun(input: NodeRunInput, ctx?: {
+    signal?: AbortSignal | undefined;
+}): Promise<NodeRunOutput>;
+
+### dist/procedures/node/spawn.d.ts#nodeSpawn
+export declare function nodeSpawn(input: NodeSpawnInput): Promise<NodeSpawnOutput>;
+
+### dist/procedures/node/status.d.ts#nodeStatus
+export declare function nodeStatus(input: NodeStatusInput): Promise<NodeStatusOutput>;
+
+### dist/process-manager.d.ts#processManager
+export declare const processManager: ProcessManager;
+
+### dist/types.d.ts#NodeKillInput
+export type NodeKillInput = z.infer<typeof NodeKillInputSchema>;
+
+### dist/types.d.ts#NodeKillInputSchema
+export declare const NodeKillInputSchema: z.ZodObject<{
+    processId: z.ZodString;
+    signal: z.ZodOptional<z.ZodString>;
+}>;
+
+### dist/types.d.ts#NodeKillOutput
+export interface NodeKillOutput {
+    success: boolean;
+    exitCode?: number | undefined;
+}
+
+### dist/types.d.ts#NodeKillOutputSchema
+export declare const NodeKillOutputSchema: z.ZodType<NodeKillOutput>;
+
+### dist/types.d.ts#NodeLogItem
+export type NodeLogItem =
+{
+    type: "output";
+    line: string;
+}
+ | {
+    type: "stdout" | "stderr";
+    line: string;
+}
+ | {
+    type: "dropped";
+    bytes: number;
+}
+ | {
+    type: "exit";
+    status: "exited" | "error";
+    exitCode?: number | undefined;
+    signal?: string | undefined;
+};
+
+### dist/types.d.ts#NodeLogsInput
+export interface NodeLogsInput {
+    processId: string;
+    lines?: number | undefined;
+    stripAnsi?: boolean | undefined;
+    follow?: boolean | undefined;
+}
+
+### dist/types.d.ts#NodeLogsInputSchema
+export declare const NodeLogsInputSchema: z.ZodType<NodeLogsInput>;
+
+### dist/types.d.ts#NodeLogsOutput
+export interface NodeLogsOutput {
+    processId: string;
+    status: "running" | "exited" | "error";
+    exitCode?: number | undefined;
+    output: string;
+}
+
+### dist/types.d.ts#NodeLogsOutputSchema
+export declare const NodeLogsOutputSchema: z.ZodType<NodeLogsOutput | NodeLogItem>;
+
+### dist/types.d.ts#NodeLogsValueSchema
+export declare const NodeLogsValueSchema: z.ZodType<NodeLogsOutput>;
+
+### dist/types.d.ts#NodeRunInput
+export type NodeRunInput = z.infer<typeof NodeRunInputSchema>;
+
+### dist/types.d.ts#NodeRunInputSchema
+export declare const NodeRunInputSchema: z.ZodObject<{
+    script: z.ZodString;
+    args: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    cwd: z.ZodOptional<z.ZodString>;
+    env: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    timeout: z.ZodOptional<z.ZodNumber>;
+    maxOutputBytes: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#NodeRunOutput
+export interface NodeRunOutput {
+    exitCode: number;
+    stdout: string;
+    stderr: string;
+    truncated?: boolean | undefined;
+}
+
+### dist/types.d.ts#NodeRunOutputSchema
+export declare const NodeRunOutputSchema: z.ZodType<NodeRunOutput>;
+
+### dist/types.d.ts#NodeSpawnInput
+export type NodeSpawnInput = z.infer<typeof NodeSpawnInputSchema>;
+
+### dist/types.d.ts#NodeSpawnInputSchema
+export declare const NodeSpawnInputSchema: z.ZodObject<{
+    script: z.ZodString;
+    args: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    cwd: z.ZodOptional<z.ZodString>;
+    env: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    ready: z.ZodOptional<z.ZodObject<{
+        pattern: z.ZodString;
+        timeout: z.ZodOptional<z.ZodNumber>;
+    }>>;
+}>;
+
+### dist/types.d.ts#NodeSpawnOutput
+export interface NodeSpawnOutput {
+    processId: string;
+    pid: number;
+}
+
+### dist/types.d.ts#NodeSpawnOutputSchema
+export declare const NodeSpawnOutputSchema: z.ZodType<NodeSpawnOutput>;
+
+### dist/types.d.ts#NodeStatusInput
+export type NodeStatusInput = z.infer<typeof NodeStatusInputSchema>;
+
+### dist/types.d.ts#NodeStatusInputSchema
+export declare const NodeStatusInputSchema: z.ZodObject<{
+    processId: z.ZodOptional<z.ZodString>;
+    output: z.ZodOptional<z.ZodBoolean>;
+}>;
+
+### dist/types.d.ts#NodeStatusOutput
+export interface NodeStatusOutput {
+    processes: ProcessInfo[];
+}
+
+### dist/types.d.ts#NodeStatusOutputSchema
+export declare const NodeStatusOutputSchema: z.ZodType<NodeStatusOutput>;
+
+### dist/types.d.ts#ProcessInfo
+export interface ProcessInfo {
+    processId: string;
+    pid: number;
+    script: string;
+    status: "running" | "exited" | "error";
+    exitCode?: number | undefined;
+    startedAt: string;
+    exitedAt?: string | undefined;
+    output?: string | undefined;
+}
