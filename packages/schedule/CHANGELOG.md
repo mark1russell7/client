@@ -1,5 +1,15 @@
 # @procedures/schedule
 
+## 0.41.0
+
+### Patch Changes
+
+- Updated dependencies [37deb07]
+- Updated dependencies [fc52431]
+  - @procedures/client@0.41.0
+  - @procedures/fs@0.41.0
+  - @procedures/store@0.41.0
+
 ## 0.40.0
 
 ### Patch Changes

@@ -1,5 +1,23 @@
 # @procedures/bundle-dev
 
+## 0.41.0
+
+### Patch Changes
+
+- Updated dependencies [37deb07]
+- Updated dependencies [37deb07]
+- Updated dependencies [fc52431]
+  - @procedures/client@0.41.0
+  - @procedures/git@0.41.0
+  - @procedures/compiler@0.41.0
+  - @procedures/cli-run@0.41.0
+  - @procedures/dag@0.41.0
+  - @procedures/fs@0.41.0
+  - @procedures/lib@0.41.0
+  - @procedures/pnpm@0.41.0
+  - @procedures/procedure@0.41.0
+  - @procedures/shell@0.41.0
+
 ## 0.40.0
 
 ### Patch Changes

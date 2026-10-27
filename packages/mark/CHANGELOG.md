@@ -1,5 +1,26 @@
 # @procedures/mark
 
+## 0.41.0
+
+### Patch Changes
+
+- 37deb07: The doc comments and a schema description follow the writing rules of the repository (roadmap O70). The description of the input `units` of `weather.forecast` has no semicolon.
+- Updated dependencies [37deb07]
+- Updated dependencies [37deb07]
+- Updated dependencies [fc52431]
+  - @procedures/client@0.41.0
+  - @procedures/peer@0.41.0
+  - @procedures/server@0.41.0
+  - @procedures/cli-kit@0.41.0
+  - @procedures/cli-run@0.41.0
+  - @procedures/fs@0.41.0
+  - @procedures/lib@0.41.0
+  - @procedures/pnpm@0.41.0
+  - @procedures/procedure@0.41.0
+  - @procedures/shell@0.41.0
+  - @procedures/vitest@0.41.0
+  - @procedures/mcp-dev-tools@0.41.0
+
 ## 0.40.0
 
 ### Patch Changes
