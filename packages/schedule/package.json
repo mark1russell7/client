@@ -62,7 +62,7 @@
     "@types/node": "^22.0.0",
     "@mark1russell7/cue": "^1.0.0",
     "vitest": "^5.0.3",
-    "@mark1russell7/service": "^0.5.8"
+    "@mark1russell7/service": "^0.6.0"
   },
   "engines": {
     "node": ">=22"
