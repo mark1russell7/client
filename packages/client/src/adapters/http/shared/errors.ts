@@ -7,6 +7,8 @@
 
 import { HTTPStatus } from "./constants.js";
 import { formatHTTPError, getStatusCode, isRetryableStatus } from "./status-codes.js";
+import { ErrorCode } from "../../../client/errors/codes.js";
+import { httpStatusToErrorCode } from "../../../client/errors/http-errors.js";
 
 /**
  * HTTP Error Codes (Type-safe)
@@ -75,18 +77,17 @@ export interface HTTPErrorDetails {
 /**
  * Create HTTP error details from status code
  *
- * `HttpTransport` uses these details when the body of an error response has no string code. At
- * this time the code comes from `HTTPStatusToCode`, and three of its codes are not in
- * `ERROR_REGISTRY`: `REQUEST_TIMEOUT`, `INTERNAL_SERVER_ERROR` and
- * `HTTP_NETWORK_CONNECT_TIMEOUT_ERROR`. These three codes are deprecated.
- *
- * The next MINOR of the client group takes the code from `httpStatusToErrorCode()` of
- * `ERROR_REGISTRY`. Then 408 gives `TIMEOUT` (retryable), 500 gives `INTERNAL_ERROR` (not
- * retryable) and 599 gives `HTTP_NETWORK_CONNECT_TIMEOUT` (retryable). `HTTPStatusToCode` has the table.
+ * `HttpTransport` uses these details when the body of an error response has no string code. The
+ * code is the code of `ERROR_REGISTRY` that `httpStatusToErrorCode()` gives. Thus 408 gives
+ * `TIMEOUT` (retryable), 500 gives `INTERNAL_ERROR` (not retryable) and 599 gives
+ * `HTTP_NETWORK_CONNECT_TIMEOUT` (retryable). A status without a code of the registry gives its
+ * name from `HTTPStatusToCode`, for example `NOT_MODIFIED` for 304. `isRetryableStatus()` gives the
+ * retryable flag.
  */
 export function createHTTPStatusError(status: HTTPStatus): HTTPErrorDetails {
+  const registryCode = httpStatusToErrorCode(status);
   return {
-    code: getStatusCode(status),
+    code: registryCode === ErrorCode.UNKNOWN ? getStatusCode(status) : registryCode,
     message: formatHTTPError(status),
     retryable: isRetryableStatus(status),
     status,

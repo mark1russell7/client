@@ -326,6 +326,13 @@ The HTTP client also gives two codes of `ERROR_REGISTRY` that no server sends. T
 | `STREAM_ENDED` | yes | The NDJSON stream ended without its `done` line and without its `error` line. The delivery is indeterminate. |
 | `METADATA_TOO_LARGE` | no | The `X-Metadata` value is longer than 8192 characters. The request did not go. |
 
+An error response without a string code in its body gets a code from its HTTP status, for example the response of a proxy (O74). The HTTP client takes the code and the retryable flag from the entry of the status in `ERROR_REGISTRY`.
+
+- 408 gives `TIMEOUT`, and it is retryable. The server did not read the full request, so the call did not start. A server with its own code sends `TIMEOUT` with 504, and that `TIMEOUT` is not retryable.
+- 500 gives `INTERNAL_ERROR`, and it is not retryable. The call can have had its effect.
+- 599 gives `HTTP_NETWORK_CONNECT_TIMEOUT`, and it is retryable.
+- A status without an entry gives the name of the status, for example `NOT_MODIFIED` for 304. Such a server error (5xx) is retryable.
+
 ### The conflicts of VERSION_CONFLICT
 
 A collection write with an expected version (`expectedVersion` of `set` and `delete`, or of an item of `setBatch`) gives `VERSION_CONFLICT` when the current item has another version (roadmap CLI-16). The write changes nothing.
