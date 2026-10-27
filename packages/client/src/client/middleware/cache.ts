@@ -156,9 +156,9 @@ function keyMetadata(metadata: Metadata): Record<string, unknown> {
  * first page forever (deep dive TRN-5).
  */
 export function defaultKeyGenerator(method: Method, payload: unknown, metadata?: Metadata): string {
-  const methodKey = method.version
-    ? `${method.version}:${method.service}.${method.operation}`
-    : `${method.service}.${method.operation}`;
+  // The name of the codec: a path of one segment has the key of its operation, not ".operation" (CLI-28)
+  const name = methodName(method);
+  const methodKey = method.version ? `${method.version}:${name}` : name;
 
   const base = `${methodKey}:${stableStringify(payload)}`;
   return metadata ? `${base}|${stableStringify(keyMetadata(metadata))}` : base;

@@ -44,7 +44,7 @@ for (const rel of packages) {
 }
 
 // Pull the registry from the core client (also ensures core client.* procedures are registered).
-const { PROCEDURE_REGISTRY } = await import(pathToFileURL(join(ROOT, "client", "dist", "index.js")).href);
+const { PROCEDURE_REGISTRY, pathToKey } = await import(pathToFileURL(join(ROOT, "client", "dist", "index.js")).href);
 const all = PROCEDURE_REGISTRY.getAll();
 
 // Group by top-level namespace (first path segment).
@@ -80,11 +80,12 @@ for (const ns of names) {
 out += "\n---\n\n";
 
 for (const ns of names) {
-  const procs = groups.get(ns).sort((a, b) => a.path.join(".").localeCompare(b.path.join(".")));
+  const procs = groups.get(ns).sort((a, b) => pathToKey(a.path).localeCompare(pathToKey(b.path)));
   out += `## ${ns}\n\n`;
   out += "| Procedure | Description |\n|-----------|-------------|\n";
   for (const p of procs) {
-    const name = p.path.join(".");
+    // The key of the codec: a segment with a dot stays one segment (I3)
+    const name = pathToKey(p.path);
     const desc = esc(p.metadata?.description) || "_(no description)_";
     out += `| \`${name}\` | ${desc} |\n`;
   }

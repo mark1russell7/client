@@ -47,7 +47,8 @@ for (const pkg of [...packages].sort((a, b) => a.folder.localeCompare(b.folder))
 // The registry, with the core procedures already registered
 const core = await import(pathToFileURL(join(PACKAGES, "client", "dist", "index.js")).href);
 const registry = core.PROCEDURE_REGISTRY;
-const keyOf = (proc) => proc.path.join(".");
+// The key of the codec: a segment with a dot stays one segment (I3)
+const keyOf = (proc) => core.pathToKey(proc.path);
 const seen = new Set(registry.getAll().map(keyOf));
 const owned = new Map([["@procedures/client", [...seen]]]);
 
@@ -71,7 +72,7 @@ function procedureSummary(name) {
   if (procs.length === 0) return "—";
   const namespaces = new Map();
   for (const key of procs) {
-    const ns = key.split(".")[0];
+    const ns = core.keyToPath(key)[0];
     namespaces.set(ns, (namespaces.get(ns) ?? 0) + 1);
   }
   return [...namespaces].map(([ns, n]) => `\`${ns}.*\` (${n})`).join(", ");

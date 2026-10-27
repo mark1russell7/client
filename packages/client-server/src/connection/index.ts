@@ -21,7 +21,7 @@ import type {
   ProcedureInfo,
   ProcedureAnnounceMessage,
 } from "../types.js";
-import { ms, type Duration } from "@procedures/client";
+import { ms, pathToMethod, type Duration } from "@procedures/client";
 
 // =============================================================================
 // Types
@@ -202,7 +202,7 @@ async function discoverProcedures(
       { peerId?: string },
       ProcedureAnnounceMessage
     >(
-      { service: "_discovery", operation: "announce" },
+      pathToMethod(["_discovery", "announce"]),
       payload
     );
 

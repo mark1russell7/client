@@ -113,7 +113,7 @@ export async function cliServerConnection(
 /**
  * Try to execute command via running server. The input is the procedure input that the CLI
  * parsed and validated already. The signal stops the call on the server.
- * Returns null if no server available (should fall back to local)
+ * This function gives null when no server runs. Then the command runs in this process.
  */
 export async function tryClientMode(
   path: string[],

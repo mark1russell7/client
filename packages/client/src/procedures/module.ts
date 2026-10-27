@@ -21,7 +21,7 @@
 import { PROCEDURE_REGISTRY, ProcedureRegistry, RegistryError } from "./registry.js";
 import { coreProcedures } from "./core/index.js";
 import { metaProcedures as definitionProcedures } from "./define-procedure.js";
-import type { AnyProcedure, ProcedureModule, RegistrationOptions } from "./types.js";
+import { pathToKey, type AnyProcedure, type ProcedureModule, type RegistrationOptions } from "./types.js";
 
 /**
  * The procedures of `@procedures/client`: the control flow (`client.chain`, `client.map` and the
@@ -121,7 +121,7 @@ export function registerModules(
       if (existing && !options?.override) {
         if (existing.handler === procedure.handler) continue;
         throw new RegistryError(
-          `Two modules give the procedure ${path.join(".")}: the second one is ${module.name ?? "a module without a name"}`,
+          `Two modules give the procedure ${pathToKey(path)}: the second one is ${module.name ?? "a module without a name"}`,
           path
         );
       }

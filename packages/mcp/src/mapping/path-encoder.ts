@@ -2,7 +2,7 @@
  * Path Encoder
  *
  * Converts procedure paths to/from MCP tool names.
- * MCP tool names should be valid identifiers (alphanumeric with dots/underscores).
+ * An MCP tool name is a valid identifier: letters, digits, dots and underscores.
  */
 
 import type { ProcedurePath } from "@procedures/client";

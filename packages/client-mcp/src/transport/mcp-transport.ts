@@ -373,7 +373,8 @@ export class McpServerTransport implements ServerTransport {
     };
     const refused = store.refusal(id);
     if (refused !== undefined) {
-      await finish({ content: [{ type: "text", text: refused }], isError: true });
+      // The refusal of a limit is RATE_LIMITED and retryable, as on the other faces (CLI-40)
+      await finish({ content: [{ type: "text", text: refused }], isError: true, _meta: { code: "RATE_LIMITED", retryable: true } });
       return { task: await taskStore.getTask(id) };
     }
     const token = extra._meta?.progressToken;

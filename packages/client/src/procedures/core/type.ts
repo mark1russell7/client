@@ -2,7 +2,7 @@
  * Type Procedures
  *
  * Type checking and coercion operations for procedure aggregation.
- * All procedures are namespaced under "client" (e.g., client.typeof, client.isArray).
+ * The namespace of all these procedures is "client": for example client.typeof and client.isArray.
  */
 
 import { z } from "zod";

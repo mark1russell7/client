@@ -293,7 +293,7 @@ export interface RepositoryProvider {
  * Contains request metadata and service access.
  */
 export interface ProcedureContext {
-  /** Request metadata (auth, tracing, etc.) */
+  /** The request metadata, for example the authentication and the trace. */
   metadata: Record<string, unknown>;
 
   /** Abort signal for cancellation */
@@ -593,7 +593,7 @@ export interface Procedure<
 
   /**
    * Whether this procedure supports streaming (multi-yield).
-   * When true, the handler is expected to be a generator that may yield multiple times.
+   * When true, the handler is a generator that can yield more than one time.
    * When false or undefined, the procedure yields exactly once.
    *
    * This is a capability declaration - callers can still consume

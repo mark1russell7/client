@@ -2,7 +2,7 @@
  * Object Procedures
  *
  * Object manipulation operations for procedure aggregation.
- * All procedures are namespaced under "client" (e.g., client.get, client.set).
+ * The namespace of all these procedures is "client": for example client.get and client.set.
  */
 
 import { z } from "zod";
