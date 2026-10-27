@@ -16,6 +16,7 @@ interface Config {
   log: (line: string) => void;
   probes?: unknown;
   run?: unknown;
+  idle?: unknown;
 }
 
 interface HostOptions {
@@ -75,6 +76,7 @@ vi.mock("@procedures/server", () => ({
   },
 }));
 
+import { ms } from "@procedures/client";
 import { startServerMode } from "./server-mode.js";
 
 beforeEach(() => {
@@ -122,6 +124,15 @@ describe("startServerMode", () => {
     expect(text()).toContain("Event topics (events.subscribe): job.*");
     expect(text()).toContain("Refused under the root: 1");
     expect(text()).toContain("[probes]");
+  });
+
+  it("gives the idle stop of --idle-timeout to the host, and shows it (CLI-27)", async () => {
+    await startServerMode({ port: 3000 });
+    expect(fake.config).not.toHaveProperty("idle");
+    expect(text()).not.toContain("Idle stop");
+    await startServerMode({ port: 3000, idleTimeoutMs: 1500 });
+    expect(fake.config?.idle).toEqual({ after: ms(1500) });
+    expect(text()).toContain("Idle stop: after 1500 ms with no call");
   });
 
   it("warns that a WebSocket-only server takes no mark commands", async () => {

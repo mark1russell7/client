@@ -50,7 +50,7 @@ async function runOf(argv: string[]): Promise<{ exitCode: number; output: string
 
 describe("run: the options of the modes", () => {
   it("refuses an option of --server without --server, also before serve and mcp", async () => {
-    for (const argv of [["--port", "4000", "serve"], ["--events", "orders.*", "mcp"], ["--host", "::1", "fs", "read", "x"], ["--transport", "both", "-i"], ["--probe-port", "9090", "serve"]]) {
+    for (const argv of [["--port", "4000", "serve"], ["--events", "orders.*", "mcp"], ["--host", "::1", "fs", "read", "x"], ["--transport", "both", "-i"], ["--probe-port", "9090", "serve"], ["--idle-timeout", "1000", "fs", "read", "x"]]) {
       const { exitCode, output } = await runOf(argv);
       expect(exitCode, argv.join(" ")).toBe(1);
       expect(output).toContain("are options of --server");
@@ -62,6 +62,7 @@ describe("run: the options of the modes", () => {
     await expect(runOf(["--server", "--port", "0x10"])).rejects.toThrow("Invalid port");
     await expect(runOf(["--server", "--transport", "udp"])).rejects.toThrow("Invalid transport");
     await expect(runOf(["--server", "--probe-port", "probes"])).rejects.toThrow("Invalid port");
+    await expect(runOf(["--server", "--idle-timeout", "0"])).rejects.toThrow("Invalid --idle-timeout");
   });
 
   it("refuses a command after --server or -i, and an unknown leading flag", async () => {
