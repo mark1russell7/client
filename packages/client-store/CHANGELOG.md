@@ -1,5 +1,14 @@
 # @procedures/store
 
+## 0.39.0
+
+### Patch Changes
+
+- 92ae49c: The browser entry `@procedures/store/browser` exports the type `QueueRefusal`, the argument of the hook `onRefused` (roadmap O67). Before, only the package root exported it.
+- Updated dependencies [55d1e4d]
+  - @procedures/client@0.39.0
+  - @procedures/collections@0.39.0
+
 ## 0.38.0
 
 ### Patch Changes
