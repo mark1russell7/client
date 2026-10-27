@@ -122,6 +122,20 @@ describe("write-through failures (R2)", () => {
     expect(hybrid.getPendingOpsCount()).toBe(0);
   });
 
+  it("keeps a write that timed out in the queue, and a timer sends it (O68)", async () => {
+    const remote = new FlakyRemote();
+    const hybrid = new HybridStorage<Item>(remote, { syncOnInit: false, syncInterval: ms(10) });
+    const set = remote.set.bind(remote);
+    remote.set = () => Promise.reject(Object.assign(new Error("timed out"), { code: "TIMEOUT", retryable: false }));
+    await expect(hybrid.set("a", { n: 1 })).rejects.toBeInstanceOf(PendingWriteError);
+    expect(hybrid.getPendingOpsCount()).toBe(1);
+    expect(await hybrid.get("a")).toEqual({ n: 1 });
+    remote.set = set;
+    await vi.waitFor(() => expect(hybrid.getPendingOpsCount()).toBe(0));
+    expect(await remote.data.get("a")).toEqual({ n: 1 });
+    await hybrid.close();
+  });
+
   it("undoes a write without the queue, and undoes a clear", async () => {
     const remote = new FlakyRemote();
     const hybrid = new HybridStorage<Item>(remote, { syncOnInit: false, offlineQueue: false });

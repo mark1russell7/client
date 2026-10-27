@@ -181,6 +181,7 @@ await users.setMode("write-through"); // The switch sends the queue, then syncs 
 
 - In the modes `local-only` and `write-back`, each write goes in the queue.
 - In the mode `write-through`, a write that the remote cannot take goes in the queue, and the write throws `PendingWriteError`.
+- By default, a write that the remote cannot take is an error with `retryable: true`, an error without a `code`, or a `TIMEOUT`. The option `isUnavailable` changes it.
 - A full queue refuses the next write with `QueueFullError`. The limit is `maxOfflineOps`, 1000 by default.
 - A push keeps a write that the remote cannot take at this time (`isUnavailable` gives true). This write and the later writes stay in the queue.
 - A queued write that the remote refuses leaves the queue, and the push goes on with the next write.
