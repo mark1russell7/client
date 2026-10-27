@@ -105,7 +105,7 @@ The audience of jarvis is a value of its ladder `SCOPES`. A request can make the
 - `Content-Type: application/json`.
 - `Accept: application/x-ndjson, application/json`. A client without NDJSON gets the last item of a stream as JSON.
 - `Procedures-Protocol: 1`.
-- `X-Metadata`: the metadata of the call as URI-encoded JSON. The limit is 8 KiB.
+- `X-Metadata`: the metadata of the call as URI-encoded JSON. The limit is 8 KiB. `HttpTransport` refuses a longer value with the code `METADATA_TOO_LARGE`, and it does not send the request.
 - `Authorization: Bearer <token>`, when the server has a token.
 - `traceparent`, when the call has a trace.
 - `Procedure-Narrowing`, when the call asks for a narrower capability (refer to "The narrowing key").
@@ -158,7 +158,7 @@ Each line ends with LF. A frame line is one JSON object.
 | A blank line | none | A keep-alive line. It is not a frame, and it has no `seq`. |
 
 - The `seq` of the `item` and `done` lines follows the rules of the stream frames (refer to "The sequence numbers of a stream").
-- The `done` line or the `error` line is the last line. A stream that ends without one of them is a broken stream.
+- The `done` line or the `error` line is the last line. A stream that ends without one of them is a broken stream. `HttpTransport` ends a broken stream with the code `STREAM_ENDED` and `retryable: true`.
 - The flag `retryable` of the `error` line follows the rule of an in-band end (refer to "Error codes"). An error of a handler without a flag gets the flag of its code before the first `item` line (CLI-68). After an `item` line, it gets false (CLI-58).
 - `writeNdjsonStream` of `@procedures/client/node` writes these lines for a `ServerResponse` of `node:http`.
 - `procedureHandler` of `@procedures/client/node` serves the HTTP wire of this document on a `node:http` server, without a framework. It writes its streams with `writeNdjsonStream`.
@@ -318,6 +318,13 @@ An error of a handler with a code of its own keeps that code on each face, for a
 | `TOPIC_CLEARED` | 410 | no | `clear()` or `clearAll()` of the bus of the host removed a listener of the subscription (remote events). |
 | `VERSION_CONFLICT` | 409 | no | The current item does not have the version that the write expects. The metadata key `conflicts` has the current items (CLI-16). |
 | `RATE_LIMITED` | 429 | yes | A limit of the host refuses the call. The metadata key `retry-after` gives the wait, and `reason` gives the cause. |
+
+The HTTP client also gives two codes of `ERROR_REGISTRY` that no server sends. They have no HTTP status.
+
+| Code | Retryable | Meaning |
+|---|---|---|
+| `STREAM_ENDED` | yes | The NDJSON stream ended without its `done` line and without its `error` line. The delivery is indeterminate. |
+| `METADATA_TOO_LARGE` | no | The `X-Metadata` value is longer than 8192 characters. The request did not go. |
 
 ### The conflicts of VERSION_CONFLICT
 

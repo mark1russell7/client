@@ -74,6 +74,15 @@ export interface HTTPErrorDetails {
 
 /**
  * Create HTTP error details from status code
+ *
+ * `HttpTransport` uses these details when the body of an error response has no string code. At
+ * this time the code comes from `HTTPStatusToCode`, and three of its codes are not in
+ * `ERROR_REGISTRY`: `REQUEST_TIMEOUT`, `INTERNAL_SERVER_ERROR` and
+ * `HTTP_NETWORK_CONNECT_TIMEOUT_ERROR`. These three codes are deprecated.
+ *
+ * The next MINOR of the client group takes the code from `httpStatusToErrorCode()` of
+ * `ERROR_REGISTRY`. Then 408 gives `TIMEOUT` (retryable), 500 gives `INTERNAL_ERROR` (not
+ * retryable) and 599 gives `HTTP_NETWORK_CONNECT_TIMEOUT` (retryable). `HTTPStatusToCode` has the table.
  */
 export function createHTTPStatusError(status: HTTPStatus): HTTPErrorDetails {
   return {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { defineComponent, componentToProcedure } from "./define.js";
+import { defineComponent, componentModule, componentToProcedure, createBundle } from "./define.js";
 import { isStreamingFactory } from "./types.js";
-import { PROCEDURE_REGISTRY } from "@procedures/client";
+import { PROCEDURE_REGISTRY, createRegistry } from "@procedures/client";
 import type { ProcedureContext } from "@procedures/client";
 import type { ComponentOutput } from "./types.js";
 
@@ -110,6 +110,34 @@ describe("component rendering through the invocation path (deep dive core.md, lo
 
     await renderVia("lo2", "lo-path-parent", {});
     expect(seen).toEqual([["components", "lo2", "lo-path-probe"]]);
+  });
+});
+
+describe("componentModule (rule I2: a module, not the global registry)", () => {
+  it("gives the procedures of a bundle as a module, and registers nothing in the global registry", async () => {
+    const module = componentModule(
+      "cm-ui",
+      createBundle("cmns", [
+        { type: "cm-card", factory: () => ({ type: "card", props: {} }) },
+        { type: "cm-badge", namespace: "cmown", factory: () => ({ type: "badge", props: {} }) },
+      ])
+    );
+
+    expect(module.name).toBe("cm-ui");
+    expect(module.procedures.map((procedure) => procedure.path)).toEqual([
+      ["components", "cmns", "cm-card"],
+      ["components", "cmown", "cm-badge"],
+    ]);
+    expect(PROCEDURE_REGISTRY.has(["components", "cmns", "cm-card"])).toBe(false);
+    const registry = createRegistry(module);
+    expect(registry.has(["components", "cmns", "cm-card"])).toBe(true);
+    expect(registry.has(["components", "cmown", "cm-badge"])).toBe(true);
+  });
+
+  it("takes a list of definitions without a bundle", () => {
+    const module = componentModule("cm-list", [{ type: "cm-plain", factory: () => ({ type: "plain", props: {} }) }]);
+    expect(module.procedures.map((procedure) => procedure.path)).toEqual([["components", "cm-plain"]]);
+    expect(PROCEDURE_REGISTRY.has(["components", "cm-plain"])).toBe(false);
   });
 });
 

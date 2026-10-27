@@ -90,6 +90,14 @@ describe("the error codes and the registry (R30)", () => {
     expect(retryable.map((entry) => entry.code)).toEqual(expect.arrayContaining(["NETWORK_ERROR", "SERVICE_UNAVAILABLE", "TOO_MANY_REQUESTS"]));
     expect(retryable.map((entry) => entry.code)).not.toContain("ABORTED");
   });
+
+  it("knows the two codes of the HTTP client: a broken stream is retryable, too much metadata is not", () => {
+    expect(getErrorMetadata("STREAM_ENDED")).toMatchObject({ code: "STREAM_ENDED", category: ErrorCategory.NETWORK, retryable: true });
+    expect(getErrorMetadata("METADATA_TOO_LARGE")).toMatchObject({ code: "METADATA_TOO_LARGE", category: ErrorCategory.CLIENT, retryable: false });
+    // The request with too much metadata does not go, so the code has no status
+    expect(ERROR_REGISTRY["METADATA_TOO_LARGE"]!.httpStatus).toBeUndefined();
+    expect(ERROR_REGISTRY["STREAM_ENDED"]!.httpStatus).toBeUndefined();
+  });
 });
 
 describe("the HTTP statuses of the codes (R30)", () => {

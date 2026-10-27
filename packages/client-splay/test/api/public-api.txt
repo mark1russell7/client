@@ -4,7 +4,7 @@
 # and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
 # To accept a change of the API, start the script with --update and review the diff.
 
-## . (dist/index.d.ts): 66 names
+## . (dist/index.d.ts): 67 names
 
 type AnyComponentDefinition: dist/components/types.d.ts#AnyComponentDefinition
 type AnyComponentFactory: dist/components/types.d.ts#AnyComponentFactory
@@ -39,6 +39,7 @@ type StreamingRegistry: dist/types.d.ts#StreamingRegistry
 type StreamingRegistryOptions: dist/types.d.ts#StreamingRegistryOptions
 compactDescriptor: dist/hydrate.d.ts#compactDescriptor
 componentInputSchema: dist/components/define.d.ts#componentInputSchema
+componentModule: dist/components/define.d.ts#componentModule
 componentOutputSchema: dist/components/define.d.ts#componentOutputSchema
 componentToProcedure: dist/components/define.d.ts#componentToProcedure
 createBundle: dist/components/define.d.ts#createBundle
@@ -98,6 +99,9 @@ export interface ComponentInput<TData = unknown> {
 
 ### dist/components/define.d.ts#componentInputSchema
 export declare const componentInputSchema: ZodLike<ComponentInput>;
+
+### dist/components/define.d.ts#componentModule
+export declare function componentModule(name: string, components: ComponentBundle | readonly AnyComponentDefinition[]): ProcedureModule;
 
 ### dist/components/define.d.ts#componentOutputSchema
 export declare const componentOutputSchema: ZodLike<ComponentOutput>;
