@@ -1,0 +1,107 @@
+# The public API of @procedures/mark
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
+# To accept a change of the API, start the script with --update and review the diff.
+
+## . (dist/index.d.ts): 28 names
+
+type CLIMeta: @procedures/cli-kit#CLIMeta (external)
+type CliContext: dist/cli.d.ts#CliContext
+type FieldType: @procedures/cli-kit#FieldType (external)
+type Globals: dist/args.d.ts#Globals
+type LockfileData: @procedures/peer/lockfile#LockfileData (external)
+type OutputFormat: @procedures/cli-kit#OutputFormat (external)
+type ParsedCommandLine: dist/args.d.ts#ParsedCommandLine
+type SchemaFieldInfo: @procedures/cli-kit#SchemaFieldInfo (external)
+convertValue: @procedures/cli-kit#convertValue (external)
+executeArgs: dist/cli.d.ts#executeArgs
+extractSchemaFields: @procedures/cli-kit#extractSchemaFields (external)
+failureOf: @procedures/cli-kit#failureOf (external)
+formatOutput: @procedures/cli-kit#formatOutput (external)
+generateHelp: dist/parse.d.ts#generateHelp
+getLockfileDir: dist/lockfile.d.ts#getLockfileDir
+getLockfilePath: dist/lockfile.d.ts#getLockfilePath
+getLogPath: dist/lockfile.d.ts#getLogPath
+initCli: dist/cli.d.ts#initCli
+isServerAlive: dist/lockfile.d.ts#isServerAlive
+main: dist/cli.d.ts#main
+parseCommandLine: dist/args.d.ts#parseCommandLine
+parseFromSchema: dist/parse.d.ts#parseFromSchema
+parseLeadingGlobals: dist/args.d.ts#parseLeadingGlobals
+readLockfile: dist/lockfile.d.ts#readLockfile
+removeLockfile: dist/lockfile.d.ts#removeLockfile
+rotateLogFile: dist/lockfile.d.ts#rotateLogFile
+run: dist/cli.d.ts#run
+writeLockfile: dist/lockfile.d.ts#writeLockfile
+
+## Declarations
+
+### dist/args.d.ts#Globals
+export type Globals = Partial<Record<GlobalName, string | boolean>>;
+
+### dist/args.d.ts#ParsedCommandLine
+export interface ParsedCommandLine<T extends CommandLike = CommandLike> extends Omit<KitParsedCommandLine<T>, "globals"> {
+    globals: Globals;
+}
+
+### dist/args.d.ts#parseCommandLine
+export declare function parseCommandLine<T extends CommandLike>(argv: readonly string[], procedures: readonly T[]): ParsedCommandLine<T>;
+
+### dist/args.d.ts#parseLeadingGlobals
+export declare function parseLeadingGlobals(argv: readonly string[]): {
+    globals: Globals;
+    rest: string[];
+    errors: string[];
+};
+
+### dist/cli.d.ts#CliContext
+export interface CliContext {
+    client: InstanceType<typeof import("@procedures/client").Client>;
+    procedures: AnyProcedure[];
+    registry?: ProcedureRegistry | undefined;
+    verbose: boolean;
+    fsRoot?: string | undefined;
+}
+
+### dist/cli.d.ts#executeArgs
+export declare function executeArgs(argv: string[], ctx: CliContext | ManifestContext, options?: ExecuteOptions): Promise<void>;
+
+### dist/cli.d.ts#initCli
+export declare function initCli(verbose?: boolean, fsRoot?: string): Promise<CliContext>;
+
+### dist/cli.d.ts#main
+export declare function main(argv: readonly string[], options?: RunCliOptions): Promise<void>;
+
+### dist/cli.d.ts#run
+declare function run(argv: string[], options?: RunCliOptions): Promise<void>;
+
+### dist/lockfile.d.ts#getLockfileDir
+export declare function getLockfileDir(): string;
+
+### dist/lockfile.d.ts#getLockfilePath
+export declare function getLockfilePath(): string;
+
+### dist/lockfile.d.ts#getLogPath
+export declare function getLogPath(): string;
+
+### dist/lockfile.d.ts#isServerAlive
+export declare function isServerAlive(lockfile: LockfileData): Promise<boolean>;
+
+### dist/lockfile.d.ts#readLockfile
+export declare function readLockfile(): Promise<LockfileData | null>;
+
+### dist/lockfile.d.ts#removeLockfile
+export declare function removeLockfile(): Promise<void>;
+
+### dist/lockfile.d.ts#rotateLogFile
+export declare function rotateLogFile(): Promise<void>;
+
+### dist/lockfile.d.ts#writeLockfile
+export declare function writeLockfile(data: LockfileData): Promise<void>;
+
+### dist/parse.d.ts#generateHelp
+export declare function generateHelp(path: string[], meta: CLIMeta, schema?: unknown, result?: readonly SchemaFieldInfo[]): string;
+
+### dist/parse.d.ts#parseFromSchema
+export declare function parseFromSchema(params: Parameters, meta: CLIMeta, schema?: unknown): Record<string, unknown>;
