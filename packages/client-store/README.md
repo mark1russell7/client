@@ -241,7 +241,9 @@ With `versionOf`, the push of a queued write sends its base version as the expec
 - `merge`: `mergeFn` gives the item. A new queued write sends it, with the current version as its base.
 - `local`: the current version becomes the base, and the push sends the queued write again. It replaces the remote item.
 - `error`: the push throws `ConflictError` with the ids. The queue and the remote keep their items, and the next push tries again.
-- A remote item that is the value of the queued write is not a conflict. An earlier send reached the remote, and its answer was lost.
+- A remote item that is the value of the queued write is not a conflict. An earlier send reached the remote, and its answer was lost. A queued delete that finds no remote item is also not a conflict.
+- When each id of the queued write is such an echo, the write leaves the queue with no further send. Thus a subscriber of the remote gets no second change event (roadmap O69).
+- When only some ids of a batch are echoes, the batch does not leave the queue. The policy decides for the other ids, as before.
 - An id without a known base version gets no expected version. Its queued write wins, as before.
 - The remote must test the precondition: an `ApiStorage` of the collection procedures over a storage with the same `versionOf`. A remote that cannot test it refuses each push.
 - The option `sendBaseVersions: false` stops the expected versions. Then a queued write replaces the remote item, as before CLI-16.
