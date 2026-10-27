@@ -2,7 +2,7 @@
  * Comparison Procedures
  *
  * Equality and relational comparison operations for procedure aggregation.
- * All procedures are namespaced under "client" (e.g., client.eq, client.gt).
+ * The namespace of all these procedures is "client": for example client.eq and client.gt.
  */
 
 import { z } from "zod";

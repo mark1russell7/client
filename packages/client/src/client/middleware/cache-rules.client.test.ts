@@ -442,3 +442,15 @@ describe("the cache: an abort while a call in flight runs (audit pass 2)", () =>
     expect(t.calls()).toBe(1);
   });
 });
+
+describe("the cache is opt-in for each method (deep dive TRN-5)", () => {
+  it("needs methods: the types refuse options without them", () => {
+    // The type check of the tests (`typecheck-tests.mjs`) fails when this line compiles
+    // @ts-expect-error `methods` is required: the cache caches no method by default
+    const withoutMethods = () => createCacheMiddleware({});
+    expect(typeof withoutMethods).toBe("function");
+    // @ts-expect-error `methods` is required also with other options
+    const withTtlOnly = () => createCacheMiddleware({ ttl: ms(10) });
+    expect(typeof withTtlOnly).toBe("function");
+  });
+});

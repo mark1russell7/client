@@ -234,7 +234,7 @@ export function lookupOutputRef(refPath: string, scope: RefScope | undefined): {
 /**
  * Resolve an output reference within a scope.
  *
- * @param refPath - The reference path (e.g., "stageName.value" or "$last.value")
+ * @param refPath - The reference path (for example "stageName.value" or "$last.value")
  * @param scope - The current scope to resolve within
  * @returns The resolved value, or undefined if not found
  */
@@ -434,12 +434,12 @@ export function getRefName(ref: AnyProcedureRef): string | undefined {
 }
 
 /**
- * Check if a procedure reference should be executed in the given context.
+ * This function tells if a procedure reference runs at this time in the given context.
  *
  * @param ref - The procedure reference to check
  * @param contextStack - Stack of named contexts (innermost first)
  * @param isParentContext - Whether we're checking from a parent procedure
- * @returns true if the ref should be executed now
+ * @returns true if the ref runs at this time
  */
 export function shouldExecuteRef(
   ref: AnyProcedureRef,
@@ -503,7 +503,7 @@ export class ProcedureRefBuilder<TInput = unknown, TOutput = unknown> {
   }
 
   /**
-   * Set when this reference should be executed.
+   * This method sets when this reference runs.
    * @param when - "$immediate", "$never", "$parent", or a named context
    */
   when(when: ProcedureWhen): this {

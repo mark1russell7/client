@@ -80,6 +80,14 @@
     "typescript": "^7.0.2",
     "vitest": "^5.0.3"
   },
+  "peerDependencies": {
+    "@procedures/fs": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@procedures/fs": {
+      "optional": true
+    }
+  },
   "client": {
     "procedures": "./dist/register.js"
   }

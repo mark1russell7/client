@@ -2,7 +2,7 @@
  * String Procedures
  *
  * String manipulation operations for procedure aggregation.
- * All procedures are namespaced under "client" (e.g., client.concat, client.split).
+ * The namespace of all these procedures is "client": for example client.concat and client.split.
  */
 
 import { z } from "zod";

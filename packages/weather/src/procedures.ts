@@ -32,7 +32,7 @@ const ForecastInputSchema = z.object({
   lat: z.number().min(-90).max(90).describe("The latitude of the point, in degrees"),
   lon: z.number().min(-180).max(180).describe("The longitude of the point, in degrees"),
   days: z.number().int().min(1).max(16).default(7).describe("The number of days (default: 7, at most 16)"),
-  units: z.enum(["metric", "imperial"]).default("metric").describe("metric (°C, km/h) or imperial (°F, mph); default: metric"),
+  units: z.enum(["metric", "imperial"]).default("metric").describe("metric (°C, km/h) or imperial (°F, mph). The default is metric."),
   hourly: z.boolean().default(false).describe("Also give each hour (default: false)"),
   baseUrl: z
     .url()

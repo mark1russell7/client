@@ -2,7 +2,7 @@
  * Array Procedures
  *
  * Array manipulation operations for procedure aggregation.
- * All procedures are namespaced under "client" (e.g., client.first, client.filter).
+ * The namespace of all these procedures is "client": for example client.first and client.filter.
  */
 
 import { z } from "zod";

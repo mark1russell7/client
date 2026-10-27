@@ -3,7 +3,7 @@
  *
  * Procedures for working with procedure references, serialization, and evaluation.
  * Enables dynamic procedure composition and remote execution.
- * All procedures are namespaced under "client" (e.g., client.import, client.eval).
+ * The namespace of all these procedures is "client": for example client.import and client.eval.
  */
 
 import { z } from "zod";

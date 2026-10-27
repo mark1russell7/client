@@ -152,6 +152,9 @@ describe("the names and the lookup of tools", () => {
     expect(sanitizePathSegment("9")).toBe("_9");
     expect(sanitizePathSegment("")).toBe("_");
     expect(decodePath(encodePath(["a", "b"]))).toEqual(["a", "b"]);
+    // The codec of the paths: a segment with a dot comes back as one segment (I3)
+    expect(encodePath(["collections", "e2e.tabs", "find"])).toBe("collections.e2e%2Etabs.find");
+    expect(decodePath(encodePath(["collections", "e2e.tabs", "find"]))).toEqual(["collections", "e2e.tabs", "find"]);
   });
 
   it("finds a tool by its path in a list and in a map", () => {
