@@ -6,23 +6,23 @@
  */
 
 import { HTTPStatus, HTTP } from "./constants.js";
+import { ERROR_REGISTRY } from "../../../client/errors/registry.js";
+import { httpStatusToErrorCode } from "../../../client/errors/http-errors.js";
 
 /**
  * HTTP Status Code to String Code Mapping
  *
- * Maps numeric status codes to semantic string codes.
+ * This table maps numeric status codes to semantic string codes.
  *
- * `createHTTPStatusError()` takes the error code of a status from this table. Three error codes of
- * the table are not in `ERROR_REGISTRY`. They are deprecated as error codes. The next MINOR of the
- * client group gives the code of `ERROR_REGISTRY` in their place, as `httpStatusToErrorCode()` does:
+ * The table holds the names of the statuses. It does not hold the error codes.
+ * `createHTTPStatusError()` gives the code of `ERROR_REGISTRY` for a status. Three names are not
+ * error codes:
  *
- * | Status | The code at this time | The code of the next MINOR | Retryable in the next MINOR |
+ * | Status | Name | Error code | Retryable |
  * |---|---|---|---|
  * | 408 | `REQUEST_TIMEOUT` | `TIMEOUT` | true: the server did not read the full request, so the call did not start |
  * | 500 | `INTERNAL_SERVER_ERROR` | `INTERNAL_ERROR` | false, as `ERROR_CODES` gives: the call can have had its effect |
  * | 599 | `HTTP_NETWORK_CONNECT_TIMEOUT_ERROR` | `HTTP_NETWORK_CONNECT_TIMEOUT` | true, as `ERROR_REGISTRY` gives |
- *
- * The table stays as the names of the statuses.
  */
 export const HTTPStatusToCode: Record<HTTPStatus, string> = {
   [HTTPStatus.UNKNOWN]: "UNKNOWN",
@@ -56,7 +56,6 @@ export const HTTPStatusToCode: Record<HTTPStatus, string> = {
   [HTTPStatus.METHOD_NOT_ALLOWED]: "METHOD_NOT_ALLOWED",
   [HTTPStatus.NOT_ACCEPTABLE]: "NOT_ACCEPTABLE",
   [HTTPStatus.PROXY_AUTHENTICATION_REQUIRED]: "PROXY_AUTHENTICATION_REQUIRED",
-  /** @deprecated As an error code. The next MINOR gives `TIMEOUT` of `ERROR_REGISTRY`. */
   [HTTPStatus.REQUEST_TIMEOUT]: "REQUEST_TIMEOUT",
   [HTTPStatus.CONFLICT]: "CONFLICT",
   [HTTPStatus.GONE]: "GONE",
@@ -80,7 +79,6 @@ export const HTTPStatusToCode: Record<HTTPStatus, string> = {
     "REQUEST_HEADER_FIELDS_TOO_LARGE",
   [HTTPStatus.UNAVAILABLE_FOR_LEGAL_REASONS]: "UNAVAILABLE_FOR_LEGAL_REASONS",
   [HTTPStatus.CLIENT_CLOSED_REQUEST]: "CLIENT_CLOSED_REQUEST",
-  /** @deprecated As an error code. The next MINOR gives `INTERNAL_ERROR` of `ERROR_REGISTRY`. */
   [HTTPStatus.INTERNAL_SERVER_ERROR]: "INTERNAL_SERVER_ERROR",
   [HTTPStatus.NOT_IMPLEMENTED]: "NOT_IMPLEMENTED",
   [HTTPStatus.BAD_GATEWAY]: "BAD_GATEWAY",
@@ -93,7 +91,6 @@ export const HTTPStatusToCode: Record<HTTPStatus, string> = {
   [HTTPStatus.NOT_EXTENDED]: "NOT_EXTENDED",
   [HTTPStatus.NETWORK_AUTHENTICATION_REQUIRED]:
     "NETWORK_AUTHENTICATION_REQUIRED",
-  /** @deprecated As an error code. The next MINOR gives `HTTP_NETWORK_CONNECT_TIMEOUT` of `ERROR_REGISTRY`. */
   [HTTPStatus.HTTP_NETWORK_CONNECT_TIMEOUT_ERROR]:
     "HTTP_NETWORK_CONNECT_TIMEOUT_ERROR",
 } as const satisfies Record<HTTPStatus, string>;
@@ -158,24 +155,27 @@ export function isErrorStatus(status: HTTPStatus): boolean {
 /**
  * Check if status code is typically retryable
  *
- * Default policy: server errors and specific client errors (timeout, rate limit) are retryable.
- * Can be overridden via retry middleware configuration.
+ * The flag of a status is the retryable flag of its entry in `ERROR_REGISTRY`. That entry is the
+ * entry of the code from `httpStatusToErrorCode()`, when the entry has this status.
+ *
+ * - 408 is retryable: the server did not read the full request, so the call did not start. Its
+ *   code `TIMEOUT` has the status 504 in the registry.
+ * - A status without an entry is retryable when it is a server error (5xx).
+ *
+ * The configuration of the retry middleware can override this policy.
  */
 export function isRetryableStatus(status: HTTPStatus): boolean {
-  // Server errors are generally retryable
-  if (isServerErrorStatus(status)) {
+  // The deadline of a TIMEOUT (504) passed, but the call of a 408 did not start
+  if (status === HTTPStatus.REQUEST_TIMEOUT) {
     return true;
   }
 
-  // Specific client errors that are retryable
-  if (
-    status === HTTPStatus.REQUEST_TIMEOUT ||
-    status === HTTPStatus.TOO_MANY_REQUESTS
-  ) {
-    return true;
+  const entry = ERROR_REGISTRY[httpStatusToErrorCode(status)];
+  if (entry?.httpStatus === status) {
+    return entry.retryable;
   }
 
-  return false;
+  return isServerErrorStatus(status);
 }
 
 /**
