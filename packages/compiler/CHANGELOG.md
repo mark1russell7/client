@@ -1,5 +1,17 @@
 # @procedures/compiler
 
+## 0.41.0
+
+### Minor Changes
+
+- fc52431: The release train: the ranges of @mark1russell7/coeval change to a version outside the old range.
+
+### Patch Changes
+
+- Updated dependencies [37deb07]
+- Updated dependencies [fc52431]
+  - @procedures/client@0.41.0
+
 ## 0.40.0
 
 ### Patch Changes

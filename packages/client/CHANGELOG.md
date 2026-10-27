@@ -1,5 +1,19 @@
 # @procedures/client
 
+## 0.41.0
+
+### Minor Changes
+
+- fc52431: The release train: the ranges of @mark1russell7/coeval change to a version outside the old range.
+
+### Patch Changes
+
+- 37deb07: The client packages use the path codec in more places (roadmap O70).
+  
+  - `@procedures/client`: the key of `defaultKeyGenerator()` uses `methodName()`. A path of one segment has the key of its operation, not `.operation`. The errors of `registerModules()` and `procedure.delete` give the path with `pathToKey()`.
+  - `@procedures/peer`: the discovery call makes its method with `pathToMethod()`.
+  - A type test makes sure that `createCacheMiddleware()` needs `methods`.
+
 ## 0.40.0
 
 No changes in this release.

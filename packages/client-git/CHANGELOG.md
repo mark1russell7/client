@@ -1,5 +1,16 @@
 # @procedures/git
 
+## 0.41.0
+
+### Patch Changes
+
+- 37deb07: `git.push` examines the remote and the branch before the first git call (roadmap O70). Before, `git rev-list` got the range `<remote>/<branch>..HEAD` before the guard, so a remote, for example `--all`, was an option of `git rev-list`. At this time, a remote or a branch that starts with `-` gives the error `Invalid remote` or `Invalid branch`, and git does not start.
+- Updated dependencies [37deb07]
+- Updated dependencies [fc52431]
+  - @procedures/client@0.41.0
+  - @procedures/fs@0.41.0
+  - @procedures/shell@0.41.0
+
 ## 0.40.0
 
 ### Patch Changes
