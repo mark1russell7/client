@@ -1,6 +1,7 @@
-// The tests of the import boundaries (roadmap CLI-83): the rules of scripts/lib/boundaries.cjs on a
-// fixture repository in a temporary folder. Each bad import must fail its rule, and each good import
-// must pass. Start them with: node --test scripts/check-boundaries.test.mjs
+// The tests of the import boundaries (roadmap CLI-83): the rules of .dependency-cruiser.cjs (the
+// shared rules of @mark1russell7/boundaries and the rules of this repository) on a fixture repository
+// in a temporary folder. Each bad import must fail its rule, and each good import must pass. Start
+// them with: node --test scripts/check-boundaries.test.mjs
 
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -10,7 +11,7 @@ import { dirname, join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { cruise } from "dependency-cruiser";
 
-const { boundaries } = createRequire(import.meta.url)("./lib/boundaries.cjs");
+const { config } = createRequire(import.meta.url)("../.dependency-cruiser.cjs");
 
 const root = mkdtempSync(join(tmpdir(), "boundaries-"));
 after(() => rmSync(root, { recursive: true, force: true }));
@@ -34,10 +35,12 @@ let violations = [];
 
 before(async () => {
   write({
-    // The core: a server, a shared helper of the server folder, a barrel and the transports
+    "pnpm-workspace.yaml": `packages:\n  - "packages/*"\n`,
+    // The core: a server, a shared helper of the server folder, a barrel and the transports.
+    // The built root entry exports the server, as the real one does.
     "packages/client/package.json": { name: "@procedures/client", type: "module", exports: { ".": "./dist/index.js", "./server": "./dist/server/index.js" } },
-    "packages/client/dist/index.js": "export {};\n",
-    "packages/client/dist/server/index.js": "export {};\n",
+    "packages/client/dist/index.js": `export * from "./server/index.js";\n`,
+    "packages/client/dist/server/index.js": "export const server = 1;\n",
     "packages/client/src/index.ts": `export { ProcedureServer } from "./server/procedure-server.js";\n`,
     "packages/client/src/server/procedure-server.ts": `import { methodName } from "./method.js";\nexport class ProcedureServer { name = methodName; }\n`,
     "packages/client/src/server/method.ts": `export const methodName = "m";\n`,
@@ -63,19 +66,23 @@ before(async () => {
     "packages/lib-a/src/relative-dist.ts": `import { b } from "../../lib-b/dist/index.js";\nexport const value = b;\n`,
     "packages/lib-a/src/name-src.ts": `import { y } from "@procedures/lib-b/src/y.js";\nexport const value = y;\n`,
     "packages/lib-a/src/not-exported.ts": `import { y } from "@procedures/lib-b/internal";\nexport const value = y;\n`,
+    "packages/lib-a/src/require-only.ts": `import { c } from "@procedures/lib-b/cjs";\nexport const value = c;\n`,
     "packages/lib-a/src/app-by-name.ts": `import { page } from "@procedures/site";\nexport const value = page;\n`,
-    "packages/lib-b/package.json": { name: "@procedures/lib-b", type: "module", exports: { ".": "./dist/index.js" } },
+    "packages/lib-a/src/app-relative.ts": `import { page } from "../../site/src/page.js";\nexport const value = page;\n`,
+    "packages/lib-b/package.json": { name: "@procedures/lib-b", type: "module", exports: { ".": "./dist/index.js", "./cjs": { require: "./dist/cjs.cjs" } } },
     "packages/lib-b/dist/index.js": "export const b = 1;\n",
+    "packages/lib-b/dist/cjs.cjs": "exports.c = 1;\n",
     "packages/lib-b/src/y.ts": `export const y = 1;\n`,
     // An app: private, a leaf
-    "packages/site/package.json": { name: "@procedures/site", private: true, type: "module" },
+    "packages/site/package.json": { name: "@procedures/site", private: true, type: "module", exports: { ".": "./dist/index.js" } },
+    "packages/site/dist/index.js": "export const page = 1;\n",
     "packages/site/src/page.ts": `import { b } from "@procedures/lib-b";\nexport const page = b;\n`,
   });
   link("@procedures/client", "client");
   link("@procedures/lib-b", "lib-b");
   link("@procedures/site", "site");
 
-  const { forbidden, options } = boundaries(root);
+  const { forbidden, options } = config(root);
   const result = await cruise(["packages/client/src", "packages/client-mcp/src", "packages/lib-a/src", "packages/lib-b/src", "packages/site/src"], {
     ...options,
     baseDir: root,
@@ -112,24 +119,27 @@ describe("the import boundaries (I9, CLI-83)", () => {
     assert.ok(of("packages/client-mcp/src/transport/server-package.ts").includes("transport-imports-server: packages/client-mcp/src/transport/server-package.ts -> @procedures/server"));
   });
 
+  it("an import of the scope @procedures names a package of the workspace", () => {
+    assert.ok(of("packages/client-mcp/src/transport/server-package.ts").includes("unknown-procedures-package: packages/client-mcp/src/transport/server-package.ts -> @procedures/server"));
+  });
+
   it("a relative import does not leave its package, into src/ or into dist/", () => {
     assert.deepEqual(of("packages/lib-a/src/relative-src.ts"), [
-      "import-of-another-package-src: packages/lib-a/src/relative-src.ts -> packages/lib-b/src/y.ts",
-      "relative-import-into-another-package: packages/lib-a/src/relative-src.ts -> packages/lib-b/src/y.ts",
+      "deep-import-into-procedures-lib-b: packages/lib-a/src/relative-src.ts -> packages/lib-b/src/y.ts",
+      "relative-import-out-of-procedures-lib-a: packages/lib-a/src/relative-src.ts -> packages/lib-b/src/y.ts",
     ]);
-    assert.deepEqual(of("packages/lib-a/src/relative-dist.ts"), ["relative-import-into-another-package: packages/lib-a/src/relative-dist.ts -> packages/lib-b/dist/index.js"]);
+    assert.deepEqual(of("packages/lib-a/src/relative-dist.ts"), ["relative-import-out-of-procedures-lib-a: packages/lib-a/src/relative-dist.ts -> packages/lib-b/dist/index.js"]);
   });
 
-  it("an import by name reaches only an entry of the exports map", () => {
-    assert.deepEqual(of("packages/lib-a/src/name-src.ts"), [
-      "import-of-another-package-src: packages/lib-a/src/name-src.ts -> @procedures/lib-b/src/y.js",
-      "not-a-declared-export: packages/lib-a/src/name-src.ts -> @procedures/lib-b/src/y.js",
-    ]);
+  it("an import by name reaches only an entry of the exports map, with the conditions of an ESM import", () => {
+    assert.deepEqual(of("packages/lib-a/src/name-src.ts"), ["not-a-declared-export: packages/lib-a/src/name-src.ts -> @procedures/lib-b/src/y.js"]);
     assert.deepEqual(of("packages/lib-a/src/not-exported.ts"), ["not-a-declared-export: packages/lib-a/src/not-exported.ts -> @procedures/lib-b/internal"]);
+    assert.deepEqual(of("packages/lib-a/src/require-only.ts"), ["not-a-declared-export: packages/lib-a/src/require-only.ts -> @procedures/lib-b/cjs"]);
   });
 
-  it("no package imports an app", () => {
-    assert.ok(of("packages/lib-a/src/app-by-name.ts").includes("import-of-an-app: packages/lib-a/src/app-by-name.ts -> @procedures/site"));
+  it("no package imports an app, by name or by a relative path", () => {
+    assert.deepEqual(of("packages/lib-a/src/app-by-name.ts"), ["import-of-the-app-procedures-site: packages/lib-a/src/app-by-name.ts -> packages/site/dist/index.js"]);
+    assert.ok(of("packages/lib-a/src/app-relative.ts").includes("import-of-the-app-procedures-site: packages/lib-a/src/app-relative.ts -> packages/site/src/page.ts"));
   });
 
   it("the good imports pass: shared helpers, imports inside a package, entries of the exports map, an app that imports a library, and the tests", () => {
@@ -138,6 +148,7 @@ describe("the import boundaries (I9, CLI-83)", () => {
       "packages/client/src/adapters/websocket/server.test.ts",
       "packages/client/src/server/procedure-server.ts",
       "packages/client/src/index.ts",
+      // The root entry of the client exports the server in dist/. The check does not follow dist/.
       "packages/client-mcp/src/transport/good.ts",
       "packages/lib-a/src/inside.ts",
       "packages/lib-a/src/by-name.ts",
