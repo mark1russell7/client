@@ -4,7 +4,7 @@
 # and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
 # To accept a change of the API, start the script with --update and review the diff.
 
-## . (dist/index.d.ts): 67 names
+## . (dist/index.d.ts): 66 names
 
 type AnyComponentDefinition: dist/components/types.d.ts#AnyComponentDefinition
 type AnyComponentFactory: dist/components/types.d.ts#AnyComponentFactory
@@ -63,7 +63,6 @@ namespacedComponent: dist/components/define.d.ts#namespacedComponent
 nullOutput: dist/components/types.d.ts#nullOutput
 parseDescriptor: dist/hydrate.d.ts#parseDescriptor
 registerBridge: dist/module.d.ts#registerBridge
-registerBundle: dist/components/define.d.ts#registerBundle
 registerSplayProcedures: dist/module.d.ts#registerSplayProcedures
 serializeDescriptor: dist/hydrate.d.ts#serializeDescriptor
 simpleComponent: dist/components/define.d.ts#simpleComponent
@@ -118,9 +117,6 @@ export declare function defineComponent<TData = unknown>(definition: ComponentDe
 ### dist/components/define.d.ts#namespacedComponent
 export declare function namespacedComponent<TData = unknown>(namespace: string, type: string, factory: (ctx: ComponentContext<TData>) => ComponentOutput): ComponentDefinition<TData>;
 
-### dist/components/define.d.ts#registerBundle
-export declare function registerBundle(bundle: ComponentBundle): AnyComponentDefinition[];
-
 ### dist/components/define.d.ts#simpleComponent
 export declare function simpleComponent<TData = unknown>(type: string, factory: (ctx: ComponentContext<TData>) => ComponentOutput): ComponentDefinition<TData>;
 
@@ -128,7 +124,7 @@ export declare function simpleComponent<TData = unknown>(type: string, factory: 
 export declare function streamingComponent<TData = unknown>(type: string, factory: (ctx: ComponentContext<TData>) => AsyncGenerator<ComponentOutput, void, unknown>): ComponentDefinition<TData>;
 
 ### dist/components/types.d.ts#AnyComponentDefinition
-export type AnyComponentDefinition = ComponentDefinition<unknown>;
+export type AnyComponentDefinition = ComponentDefinition<any>;
 
 ### dist/components/types.d.ts#AnyComponentFactory
 export type AnyComponentFactory<TData = unknown> = ComponentFactory<TData> | StreamingComponentFactory<TData>;

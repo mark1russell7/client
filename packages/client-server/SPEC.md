@@ -146,8 +146,8 @@ export function createClientRegistry(call: ProcedureCaller, options?): Registry;
 // Hydration
 export function createReactHydrate(React, options): (descriptor: ComponentOutput) => ReactNode;
 
-// Component definition helpers (re-exported from client)
-export { defineComponent, simpleComponent, streamingComponent } from "@procedures/client";
+// Component definition helpers (since roadmap 3.4 in this package). They register nothing.
+export { defineComponent, simpleComponent, streamingComponent, componentModule } from "./components/index.js";
 ```
 
 **Status**: ✅ Exists (may need updates after splay-react refactor)
@@ -407,13 +407,12 @@ Data → dispatch() → ComponentOutput → hydrate() → ReactNode → DOM
 
 ### Create client-splay-react Package
 
-1. Register splay-react primitives as procedures:
+1. Give splay-react primitives as procedures. A component definition registers nothing: `componentModule()` gives the procedures as a module.
    ```typescript
-   defineComponent({
-     type: "string",
-     namespace: "splay",
-     factory: stringComponent,
-   });
+   export const splayReactModule = componentModule("@procedures/splay-react", [
+     defineComponent({ type: "string", namespace: "splay", factory: stringComponent }),
+   ]);
+   // src/register.ts: registerModules(PROCEDURE_REGISTRY, [splayReactModule]);
    ```
 
 2. Export typed interface:
