@@ -2893,7 +2893,14 @@ export class HybridStorage<T> implements CollectionStorage<T> {
           if (conflicts !== undefined && conflicts.length > 0 && !resolved.has(op)) {
             resolved.add(op);
             this.isOnline = true;
-            await this.resolvePushConflicts(op, conflicts);
+            if (await this.resolvePushConflicts(op, conflicts)) {
+              // Each id is the echo of an earlier send: the operation leaves the queue as sent (roadmap O69)
+              if (this.offlineOps[0] === op) {
+                this.offlineOps.shift();
+                sent++;
+                this.storeDirty = true;
+              }
+            }
             continue;
           }
           if (
@@ -3357,16 +3364,21 @@ export class HybridStorage<T> implements CollectionStorage<T> {
    * This method applies the conflicts of a push that the remote refused (`VERSION_CONFLICT`). Each
    * conflict goes to `conflictResolution`, as a conflict of a pull does:
    *
-   * - The remote item is the value of the operation itself: an earlier send of it reached the
-   *   remote, and its answer was lost. The base becomes the current version, and the push sends
-   *   the operation again.
+   * - The remote item is the value of the operation itself, or a delete finds no remote item. An
+   *   earlier send of it reached the remote, and its answer was lost. The base becomes the current
+   *   version. When each id of the operation is such an echo, the operation leaves the queue with
+   *   no further send (roadmap O69). Else the policy decides for the other ids.
    * - `remote`: the remote item replaces the local item, and the queued writes of the id go.
    * - `merge`: the merged item replaces the local item, and a new queued write sends it.
    * - `local`: the base becomes the current version, so the next send replaces the remote item.
    * - `error`: the queue keeps the operation, and the push throws `ConflictError` with the ids.
+   *
+   * The method gives true when each id of the operation is an echo. An id without a conflict is
+   * not an echo: the remote did not show its value.
    */
-  private async resolvePushConflicts(op: QueuedOperation, conflicts: readonly VersionConflict[]): Promise<void> {
+  private async resolvePushConflicts(op: QueuedOperation, conflicts: readonly VersionConflict[]): Promise<boolean> {
     const ids: string[] = [];
+    const echoes = new Set<string>();
     let queueChanged = false;
     for (const conflict of conflicts) {
       const { id } = conflict;
@@ -3376,9 +3388,11 @@ export class HybridStorage<T> implements CollectionStorage<T> {
         const remoteItem = conflict.value as T;
         const remoteVersion = conflict.version ?? this.versionOfItem(remoteItem);
         // The echo of this operation, or a remote item without a version: the queued write wins
-        if (remoteVersion === undefined || (written !== null && sameJson(written.value, remoteItem))) {
+        const echo = written !== null && sameJson(written.value, remoteItem);
+        if (remoteVersion === undefined || echo) {
           if (remoteVersion === undefined) this.bases.delete(id);
           else this.bases.set(id, remoteVersion);
+          if (echo) echoes.add(id);
           continue;
         }
         const localItem = await this.readLocal(id);
@@ -3388,6 +3402,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       // The remote has no item: the echo of a delete, or a delete of another writer
       if (written === null) {
         this.bases.set(id, null);
+        echoes.add(id);
         continue;
       }
       if (await this.resolveRemoteDelete(id, ids)) queueChanged = true;
@@ -3398,6 +3413,9 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       await this.persistAll().catch(() => undefined);
     }
     if (ids.length > 0) throw new ConflictError(ids);
+    // A clear and a delete of a batch write no value that a conflict shows: they are never echoes
+    const written = idsOf(op);
+    return !queueChanged && written.length > 0 && written.every((id) => echoes.has(id));
   }
 
   /**

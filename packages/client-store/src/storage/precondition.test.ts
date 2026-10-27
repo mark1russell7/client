@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { InMemoryStorage, VersionConflictError, type CollectionStorage, type StorageItemWriteOptions } from "@procedures/collections";
+import { InMemoryStorage, VersionConflictError, type CollectionStorage, type StorageBatchWriteOptions, type StorageItemWriteOptions } from "@procedures/collections";
 import { Client, LocalTransport, createCollectionProcedures, invokeProcedure, ms, outputValue, type RepositoryProvider } from "@procedures/client";
 import { ApiStorage } from "./api.js";
 import { ConflictError, HybridStorage, PendingWriteError, type HybridStorageOptions } from "./hybrid.js";
@@ -167,8 +167,10 @@ describe("HybridStorage sends the base version of a queued write (CLI-16)", () =
     // The first send reaches the server, and its answer is lost
     let lose = true;
     const api = apiOver(server);
+    let sends = 0;
     const remote: CollectionStorage<Item> = Object.assign(Object.create(api) as ApiStorage<Item>, {
       set: async (id: string, value: Item, options?: StorageItemWriteOptions) => {
+        sends++;
         await api.set(id, value, options);
         if (lose) {
           lose = false;
@@ -183,12 +185,117 @@ describe("HybridStorage sends the base version of a queued write (CLI-16)", () =
     expect(hybrid.getPendingOpsCount()).toBe(1);
     await hybrid.syncToRemote();
     expect(hybrid.getPendingOpsCount()).toBe(0);
+    // The lost send and the send that got the echo as its conflict: no third send (O69)
+    expect(sends).toBe(2);
     expect(await server.get("a")).toEqual(item("a", 2, "2"));
+    expect((await hybrid.getMetadata()).stats?.["conflicts"]).toBe(0);
+    // The base is the current version: the next queued write of the id goes with no conflict
+    await hybrid.set("a", item("a", 3, "3"));
+    await hybrid.syncToRemote();
+    expect(await server.get("a")).toEqual(item("a", 3, "3"));
+    expect(hybrid.getPendingOpsCount()).toBe(0);
+    await hybrid.close();
+  });
+
+  it("the echo of a delete whose answer was lost is not a conflict, and the delete does not go again (O69)", async () => {
+    const server = new InMemoryStorage<Item>({ versionOf });
+    await server.set("a", item("a", 1, "1"));
+    let lose = true;
+    const api = apiOver(server);
+    let sends = 0;
+    const remote: CollectionStorage<Item> = Object.assign(Object.create(api) as ApiStorage<Item>, {
+      delete: async (id: string, options?: StorageItemWriteOptions) => {
+        sends++;
+        const deleted = await api.delete(id, options);
+        if (lose) {
+          lose = false;
+          throw Object.assign(new Error("the answer was lost"), { retryable: true });
+        }
+        return deleted;
+      },
+    });
+    const hybrid = new HybridStorage<Item>(remote, { mode: "write-back", syncOnInit: false, syncInterval: ms(0), versionOf, conflictResolution: "error" });
+    await hybrid.syncFromRemote();
+    await hybrid.delete("a");
+    await expect(hybrid.syncToRemote()).rejects.toThrow(/lost/);
+    await hybrid.syncToRemote();
+    expect(hybrid.getPendingOpsCount()).toBe(0);
+    expect(sends).toBe(2);
+    expect(await server.get("a")).toBeUndefined();
     expect((await hybrid.getMetadata()).stats?.["conflicts"]).toBe(0);
     await hybrid.close();
   });
 
-  it("a write that the server applied before a TIMEOUT goes again with no conflict, and the resend changes nothing (O68)", async () => {
+  /**
+   * A HybridStorage in `write-back` mode that synced "a" and "b" at rev 1, with a queued batch of
+   * both ids at rev 2. The first send of the batch reaches the server, and its answer is lost.
+   */
+  async function lostBatch(conflictResolution: NonNullable<HybridStorageOptions["conflictResolution"]>) {
+    const server = new InMemoryStorage<Item>({ versionOf });
+    await server.setBatch([["a", item("a", 1, "1")], ["b", item("b", 1, "1")]]);
+    // Each batch that the server applied
+    const applied: Array<Array<[string, Item]>> = [];
+    const serverSetBatch = server.setBatch.bind(server);
+    server.setBatch = async (items, options) => {
+      await serverSetBatch(items, options);
+      applied.push(items);
+    };
+    let lose = true;
+    const api = apiOver(server);
+    const remote: CollectionStorage<Item> = Object.assign(Object.create(api) as ApiStorage<Item>, {
+      setBatch: async (items: Array<[string, Item]>, options?: StorageBatchWriteOptions) => {
+        await api.setBatch(items, options);
+        if (lose) {
+          lose = false;
+          throw Object.assign(new Error("the answer was lost"), { retryable: true });
+        }
+      },
+    });
+    const hybrid = new HybridStorage<Item>(remote, { mode: "write-back", syncOnInit: false, syncInterval: ms(0), versionOf, conflictResolution });
+    await hybrid.syncFromRemote();
+    applied.length = 0;
+    const batch: Array<[string, Item]> = [["a", item("a", 2, "2")], ["b", item("b", 2, "2")]];
+    await hybrid.setBatch(batch);
+    await expect(hybrid.syncToRemote()).rejects.toThrow(/lost/);
+    expect(hybrid.getPendingOpsCount()).toBe(1);
+    return { server, hybrid, applied, batch };
+  }
+
+  it("a batch whose ids are all echoes leaves the queue with no further send (O69)", async () => {
+    const { server, hybrid, applied, batch } = await lostBatch("error");
+    await hybrid.syncToRemote();
+    expect(hybrid.getPendingOpsCount()).toBe(0);
+    expect(applied).toEqual([batch]);
+    expect(await server.getBatch(["a", "b"])).toEqual(new Map(batch));
+    expect((await hybrid.getMetadata()).stats?.["conflicts"]).toBe(0);
+    await hybrid.close();
+  });
+
+  it("a batch with one echo and one id of another writer goes to the conflict policy, as before (O69)", async () => {
+    for (const conflictResolution of ["error", "local"] as const) {
+      const { server, hybrid, applied, batch } = await lostBatch(conflictResolution);
+      // Another writer changes "b" after the lost answer
+      await server.set("b", item("b", 9, "3"));
+      if (conflictResolution === "error") {
+        const error = await hybrid.syncToRemote().catch((thrown: unknown) => thrown);
+        expect(error).toBeInstanceOf(ConflictError);
+        expect((error as ConflictError).ids).toEqual(["b"]);
+        expect(hybrid.getPendingOpsCount()).toBe(1);
+        expect(applied).toEqual([batch]);
+        expect(await server.get("b")).toEqual(item("b", 9, "3"));
+      } else {
+        // The whole batch goes again, with the current versions as its bases
+        await hybrid.syncToRemote();
+        expect(hybrid.getPendingOpsCount()).toBe(0);
+        expect(applied).toEqual([batch, batch]);
+        expect(await server.getBatch(["a", "b"])).toEqual(new Map(batch));
+      }
+      expect((await hybrid.getMetadata()).stats?.["conflicts"]).toBe(1);
+      await hybrid.close().catch(() => undefined);
+    }
+  });
+
+  it("a write that the server applied before a TIMEOUT leaves the queue with no conflict and no second write (O68, O69)", async () => {
     const server = new InMemoryStorage<Item>({ versionOf });
     await server.set("a", item("a", 1, "1"));
     // Each write that the server applied: the version before it, the value and the precondition
@@ -216,13 +323,10 @@ describe("HybridStorage sends the base version of a queued write (CLI-16)", () =
     await expect(hybrid.set("a", item("a", 2, "2"))).rejects.toBeInstanceOf(PendingWriteError);
     expect(hybrid.getPendingOpsCount()).toBe(1);
     // The resend with the old base gets VERSION_CONFLICT. The remote item is the echo of the write,
-    // so the base becomes "2", and the last send writes the same value over its own version.
+    // so the base becomes "2", and the write leaves the queue with no further send.
     await hybrid.syncToRemote();
     expect(hybrid.getPendingOpsCount()).toBe(0);
-    expect(applied).toEqual([
-      { before: "1", value: item("a", 2, "2"), expected: undefined },
-      { before: "2", value: item("a", 2, "2"), expected: "2" },
-    ]);
+    expect(applied).toEqual([{ before: "1", value: item("a", 2, "2"), expected: undefined }]);
     expect(await server.get("a")).toEqual(item("a", 2, "2"));
     expect((await hybrid.getMetadata()).stats?.["conflicts"]).toBe(0);
     await hybrid.close();
