@@ -179,8 +179,8 @@ importers:
         specifier: ^3.0.3
         version: 3.0.3
       '@mark1russell7/boundaries':
-        specifier: ^0.1.0
-        version: 0.1.0(@swc/core@1.16.20)(dependency-cruiser@18.7.0)
+        specifier: ^0.2.0
+        version: 0.2.0(@swc/core@1.16.20)(dependency-cruiser@18.7.0)
       '@mark1russell7/cue':
         specifier: ^1.0.0
         version: 1.0.2
@@ -3264,8 +3264,8 @@ packages:
     peerDependencies:
       zod: ^4.1.0
 
-  '@mark1russell7/boundaries@0.1.0':
-    resolution: {integrity: sha512-Sd/wa/lIx1FneI6YwDXRTKyT5NfHUBPlPOMirSb2ReIZpK5zeC83uo6D/OukpTpJw1VVewkiJyfPgCIkhKd8DA==}
+  '@mark1russell7/boundaries@0.2.0':
+    resolution: {integrity: sha512-r3W3537Ev2IsSlA11hozfHmXq4JmBk0zZYv43y+OBqpIKmc3wzPLORWGUPrriLe+MmOL7gW0idrTz2E4kQZAuw==}
     engines: {node: '>=22'}
     peerDependencies:
       '@swc/core': ^1.10.0
@@ -6635,7 +6635,7 @@ snapshots:
       '@mark1russell7/quantity': 0.2.0(zod@4.6.7)
       zod: 4.6.7
 
-  '@mark1russell7/boundaries@0.1.0(@swc/core@1.16.20)(dependency-cruiser@18.7.0)':
+  '@mark1russell7/boundaries@0.2.0(@swc/core@1.16.20)(dependency-cruiser@18.7.0)':
     optionalDependencies:
       '@swc/core': 1.16.20
       dependency-cruiser: 18.7.0
