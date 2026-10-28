@@ -25,5 +25,5 @@ export { MemoryProgramStore } from "./program-store/memory.js";
 export { MemoryQueueStore } from "./storage/queue.js";
 export { MemorySyncStateStore } from "./storage/sync-state.js";
 export type { SyncState, SyncStateChange, SyncStateStore } from "./storage/sync-state.js";
-export type { ProgramStore, StoredProgram } from "./program-store/types.js";
+export type { ProgramStore, ProgramWriteOptions, StoredProgram } from "./program-store/types.js";
 export type { QueuedOperation, QueueStore } from "./storage/queue.js";

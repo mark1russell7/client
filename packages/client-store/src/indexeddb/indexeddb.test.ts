@@ -134,7 +134,7 @@ describe("IndexedDbProgramStore", () => {
     await store.close();
     await store.close();
     await expect(store.get("a.b")).rejects.toThrow("is closed");
-    expect(await new IndexedDbProgramStore("programs", { indexedDB: factory }).get("a.b")).toEqual(program("a.b"));
+    expect(await new IndexedDbProgramStore("programs", { indexedDB: factory }).get("a.b")).toEqual({ ...program("a.b"), version: expect.anything() });
   });
 
   it("closes its connection when another connection asks for a new version", async () => {

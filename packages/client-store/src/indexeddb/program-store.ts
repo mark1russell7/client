@@ -5,10 +5,23 @@
  * as the key of its record. IndexedDB keeps a structured clone of each record, so a caller that
  * changes a result does not change the store. The store checks each record that it reads: the
  * database of a browser can hold records of an older version or of another application.
+ *
+ * The version of a record is a counter. Each put gives one more than the highest version in the
+ * store, in the transaction of the write. The database has no field for a counter. Thus after a
+ * delete of the record with the highest version, a later put can give that version again.
  */
 
-import { byKey, checkStoredProgram, keyMatches, type ProgramStore, type StoredProgram } from "../program-store/types.js";
-import { IdbStoreConnection, type IndexedDbOptions } from "./idb.js";
+import {
+  byKey,
+  checkProgramVersion,
+  checkStoredProgram,
+  keyMatches,
+  nextCounterVersion,
+  type ProgramStore,
+  type ProgramWriteOptions,
+  type StoredProgram,
+} from "../program-store/types.js";
+import { IdbStoreConnection, onResult, type IndexedDbOptions } from "./idb.js";
 
 /** The default name of the database of the programs. */
 export const DEFAULT_PROGRAM_DATABASE = "procedures-programs";
@@ -56,15 +69,32 @@ export class IndexedDbProgramStore implements ProgramStore {
     });
   }
 
-  async put(program: StoredProgram): Promise<void> {
+  async put(program: StoredProgram, options?: ProgramWriteOptions): Promise<void> {
     const checked = checkStoredProgram(structuredClone(program));
-    await this.connection.run("readwrite", (store) => {
-      store.put(checked);
+    await this.connection.run("readwrite", (store, fail) => {
+      // The read, the test and the write are one transaction: another tab cannot write between them
+      onResult(store.getAll(), fail, (records) => {
+        const programs = records.map((record) => checkStoredProgram(record));
+        checkProgramVersion(checked.key, programs.find((current) => current.key === checked.key), options);
+        store.put({ ...checked, version: nextCounterVersion(0, programs) });
+      });
       return () => undefined;
     });
   }
 
-  delete(key: string): Promise<boolean> {
+  delete(key: string, options?: ProgramWriteOptions): Promise<boolean> {
+    if (options?.expectedVersion !== undefined) {
+      return this.connection.run("readwrite", (store, fail) => {
+        let existed = false;
+        onResult(store.get(key), fail, (record) => {
+          const current = record === undefined ? undefined : checkStoredProgram(record);
+          checkProgramVersion(key, current, options);
+          existed = current !== undefined;
+          if (existed) store.delete(key);
+        });
+        return () => existed;
+      });
+    }
     return this.connection.run("readwrite", (store) => {
       // The requests of one transaction run in order: the count sees the record before the delete
       const count = store.count(key);

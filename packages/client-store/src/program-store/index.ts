@@ -2,8 +2,8 @@
  * The program store (roadmap 3.2): programs of procedure.define that outlive the process.
  */
 
-export type { ProgramStore, StoredProgram } from "./types.js";
-export { checkStoredProgram } from "./types.js";
+export type { ProgramStore, ProgramWriteOptions, StoredProgram } from "./types.js";
+export { checkStoredProgram, storedProgramVersion } from "./types.js";
 export { MemoryProgramStore } from "./memory.js";
 export { FileProgramStore } from "./file.js";
 export { CollectionProgramStore } from "./collection.js";
@@ -15,3 +15,13 @@ export {
   procedureRemoteProcedure,
   programStoreProcedures,
 } from "./procedures.js";
+export { createProgramModule, createProgramProcedures } from "./programs.js";
+export type {
+  ProgramGetInput,
+  ProgramListInput,
+  ProgramProceduresOptions,
+  ProgramRemoveInput,
+  ProgramRemoveOutput,
+  ProgramSaveDefinition,
+  ProgramSaveInput,
+} from "./programs.js";

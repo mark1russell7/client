@@ -35,11 +35,13 @@ import type { ProgramStore, StoredProgram } from "./types.js";
 // Shared
 // =============================================================================
 
-const pathField = z
+/** The schema of a path: a list of segments, or a dotted key. `createProgramProcedures` uses it too. */
+export const pathField: z.ZodUnion<readonly [z.ZodArray<z.ZodString>, z.ZodString]> = z
   .union([z.array(z.string().min(1)).min(1), z.string().min(1)])
   .describe('The path of the procedure: a list of segments, or a dotted key such as "reports.weekly"');
 
-function toPath(path: ProcedurePath | string): ProcedurePath {
+/** This function gives the path of a path field: a dotted key becomes a list of segments. */
+export function toPath(path: ProcedurePath | string): ProcedurePath {
   return typeof path === "string" ? keyToPath(path) : path;
 }
 

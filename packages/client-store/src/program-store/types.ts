@@ -8,6 +8,7 @@
  */
 
 import type { AggregationDefinition, ProcedurePath } from "@procedures/client";
+import { versionConflict, VersionConflictError, type CurrentItem } from "@procedures/client/query";
 
 /** One stored program. */
 export interface StoredProgram {
@@ -21,11 +22,34 @@ export interface StoredProgram {
   metadata?: Record<string, unknown> | undefined;
   /** When the store got this version, in milliseconds since 1970. */
   storedAt: number;
+  /** The name of the program, for a view or a tool that lists the programs. */
+  name?: string | undefined;
+  /** The description of the program, in words. */
+  description?: string | undefined;
+  /**
+   * The version of the record. The store sets it on each put, and ignores the version of the
+   * input. The value is opaque: a caller compares it, and gives it back as `expectedVersion`.
+   */
+  version?: string | number | undefined;
+}
+
+/** The options of a write of a program store (decision D11). */
+export interface ProgramWriteOptions {
+  /**
+   * The version that the write expects for the current record. `null` expects no record. When the
+   * current record has another version, the write changes nothing and rejects with
+   * `VersionConflictError`. Absent: no precondition, and the last write wins.
+   */
+  readonly expectedVersion?: string | number | null | undefined;
 }
 
 /**
  * A store of programs. Each method gives a Promise: a caller cannot tell a local store from a
  * remote one.
+ *
+ * The four backends of this package set the `version` of each record and test `expectedVersion`.
+ * A store of another package that ignores the options of `put` and `delete` keeps working, but it
+ * gives no conflict check: its writes always win.
  */
 export interface ProgramStore {
   /** The kind of the backend: "memory", "file", "collection" or another name. */
@@ -34,12 +58,60 @@ export interface ProgramStore {
   get(key: string): Promise<StoredProgram | undefined>;
   /** The programs, sorted by key. With a prefix, only the key and the keys under it (`prefix.x`). */
   list(prefix?: string): Promise<StoredProgram[]>;
-  /** Write a program. A program of the same key is replaced. */
-  put(program: StoredProgram): Promise<void>;
-  /** Delete the program of a key. True when it existed. */
-  delete(key: string): Promise<boolean>;
+  /**
+   * Write a program. A program of the same key is replaced. The store sets a new `version`. With
+   * `expectedVersion`, a conflict rejects with `VersionConflictError` and changes nothing.
+   */
+  put(program: StoredProgram, options?: ProgramWriteOptions): Promise<void>;
+  /**
+   * Delete the program of a key. True when it existed. With `expectedVersion`, a conflict rejects
+   * with `VersionConflictError` and changes nothing.
+   */
+  delete(key: string, options?: ProgramWriteOptions): Promise<boolean>;
   /** Release the resources of the store. */
   close?(): Promise<void>;
+}
+
+/**
+ * This function gives the version of a record as a string, or undefined for a record without a
+ * version. Give it as the `versionOf` of the collection storage of a `CollectionProgramStore`.
+ */
+export function storedProgramVersion(program: StoredProgram): string | undefined {
+  return program.version === undefined ? undefined : String(program.version);
+}
+
+/**
+ * This function gives an expected version in the form of the collection storages: a string, or
+ * `null` for no record. A number becomes its string, so `3` and `"3"` are the same version.
+ */
+export function expectedVersionOf(options: ProgramWriteOptions | undefined): string | null | undefined {
+  const expected = options?.expectedVersion;
+  return expected === undefined || expected === null ? expected : String(expected);
+}
+
+/**
+ * This function tests the precondition of a write against the current record. It throws
+ * `VersionConflictError` with a copy of the current record when the version is not the expected
+ * version. Without `expectedVersion`, it does nothing.
+ */
+export function checkProgramVersion(key: string, current: StoredProgram | undefined, options: ProgramWriteOptions | undefined): void {
+  const expected = expectedVersionOf(options);
+  if (expected === undefined) return;
+  const state: CurrentItem<StoredProgram> = current === undefined ? { found: false } : { found: true, value: structuredClone(current) };
+  const conflict = versionConflict(key, expected, state, storedProgramVersion);
+  if (conflict) throw new VersionConflictError([conflict]);
+}
+
+/**
+ * This function gives the next version of a counter: one more than the counter and than each
+ * numeric version of the records. A record of an older release has no version: it counts as 0.
+ */
+export function nextCounterVersion(counter: number, programs: Iterable<StoredProgram>): number {
+  let highest = Number.isSafeInteger(counter) && counter > 0 ? counter : 0;
+  for (const program of programs) {
+    if (typeof program.version === "number" && Number.isSafeInteger(program.version) && program.version > highest) highest = program.version;
+  }
+  return highest + 1;
 }
 
 /** True when a key is the prefix or under it (`a.b` for the prefix `a`). */
@@ -74,6 +146,15 @@ export function checkStoredProgram(value: unknown): StoredProgram {
   }
   if (typeof record.storedAt !== "number" || !Number.isFinite(record.storedAt)) {
     throw new TypeError(`The program of ${record.key} needs storedAt, a time in milliseconds`);
+  }
+  for (const field of ["name", "description"] as const) {
+    if (record[field] !== undefined && typeof record[field] !== "string") {
+      throw new TypeError(`The ${field} of the program ${record.key} must be a string`);
+    }
+  }
+  const version = record.version;
+  if (version !== undefined && typeof version !== "string" && !(typeof version === "number" && Number.isFinite(version))) {
+    throw new TypeError(`The version of the program ${record.key} must be a string or a finite number`);
   }
   return record as StoredProgram;
 }

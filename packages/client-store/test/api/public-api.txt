@@ -4,7 +4,7 @@
 # and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
 # To accept a change of the API, start the script with --update and review the diff.
 
-## . (dist/index.d.ts): 101 names
+## . (dist/index.d.ts): 112 names
 
 ApiStorage: dist/storage/api.d.ts#ApiStorage
 type ApiStorageOptions: dist/storage/api.d.ts#ApiStorageOptions
@@ -35,7 +35,15 @@ type ProcedureStorageAdapterOptions: dist/storage/adapter.d.ts#ProcedureStorageA
 type ProcedureStorageConfig: dist/storage/types.d.ts#ProcedureStorageConfig
 ProcedureStoreError: dist/errors.d.ts#ProcedureStoreError
 type ProcedureStoreErrorCode: dist/errors.d.ts#ProcedureStoreErrorCode
+type ProgramGetInput: dist/program-store/programs.d.ts#ProgramGetInput
+type ProgramListInput: dist/program-store/programs.d.ts#ProgramListInput
+type ProgramProceduresOptions: dist/program-store/programs.d.ts#ProgramProceduresOptions
+type ProgramRemoveInput: dist/program-store/programs.d.ts#ProgramRemoveInput
+type ProgramRemoveOutput: dist/program-store/programs.d.ts#ProgramRemoveOutput
+type ProgramSaveDefinition: dist/program-store/programs.d.ts#ProgramSaveDefinition
+type ProgramSaveInput: dist/program-store/programs.d.ts#ProgramSaveInput
 type ProgramStore: dist/program-store/types.d.ts#ProgramStore
+type ProgramWriteOptions: dist/program-store/types.d.ts#ProgramWriteOptions
 QueueFullError: dist/storage/hybrid.d.ts#QueueFullError
 type QueueRefusal: dist/storage/hybrid.d.ts#QueueRefusal
 type QueueStore: dist/storage/queue.d.ts#QueueStore
@@ -85,6 +93,8 @@ createCustomSyncedRegistry: dist/storage/factory.d.ts#createCustomSyncedRegistry
 createDynamicHandlerLoader: dist/storage/serialization.d.ts#createDynamicHandlerLoader
 createHybridSyncedRegistry: dist/storage/factory.d.ts#createHybridSyncedRegistry
 createMemorySyncedRegistry: dist/storage/factory.d.ts#createMemorySyncedRegistry
+createProgramModule: dist/program-store/programs.d.ts#createProgramModule
+createProgramProcedures: dist/program-store/programs.d.ts#createProgramProcedures
 createSyncedRegistry: dist/storage/factory.d.ts#createSyncedRegistry
 deserializeProcedure: dist/storage/serialization.d.ts#deserializeProcedure
 deserializeProcedureSync: dist/storage/serialization.d.ts#deserializeProcedureSync
@@ -107,6 +117,7 @@ registerStoreProcedures: dist/module.d.ts#registerStoreProcedures
 serializeProcedure: dist/storage/serialization.d.ts#serializeProcedure
 serializeProcedures: dist/storage/serialization.d.ts#serializeProcedures
 storeModule: dist/module.d.ts#storeModule
+storedProgramVersion: dist/program-store/types.d.ts#storedProgramVersion
 
 ## ./module (dist/module.d.ts): 4 names
 
@@ -127,7 +138,7 @@ FileQueueStore: dist/storage/file-queue.d.ts#FileQueueStore
 type QueueStore: dist/storage/queue.d.ts#QueueStore
 type QueuedOperation: dist/storage/queue.d.ts#QueuedOperation
 
-## ./indexeddb (dist/indexeddb.d.ts): 19 names
+## ./indexeddb (dist/indexeddb.d.ts): 20 names
 
 DEFAULT_PROGRAM_DATABASE: dist/indexeddb/program-store.d.ts#DEFAULT_PROGRAM_DATABASE
 type IdbFactoryLike: dist/indexeddb/idb.d.ts#IdbFactoryLike
@@ -141,6 +152,7 @@ MemoryProgramStore: dist/program-store/memory.d.ts#MemoryProgramStore
 MemoryQueueStore: dist/storage/queue.d.ts#MemoryQueueStore
 MemorySyncStateStore: dist/storage/sync-state.d.ts#MemorySyncStateStore
 type ProgramStore: dist/program-store/types.d.ts#ProgramStore
+type ProgramWriteOptions: dist/program-store/types.d.ts#ProgramWriteOptions
 type QueueStore: dist/storage/queue.d.ts#QueueStore
 type QueuedOperation: dist/storage/queue.d.ts#QueuedOperation
 type StoredProgram: dist/program-store/types.d.ts#StoredProgram
@@ -149,7 +161,7 @@ type SyncStateChange: dist/storage/sync-state.d.ts#SyncStateChange
 type SyncStateStore: dist/storage/sync-state.d.ts#SyncStateStore
 hasIndexedDb: dist/indexeddb/idb.d.ts#hasIndexedDb
 
-## ./browser (dist/browser.d.ts): 61 names
+## ./browser (dist/browser.d.ts): 62 names
 
 ApiStorage: dist/storage/api.d.ts#ApiStorage
 type ApiStorageOptions: dist/storage/api.d.ts#ApiStorageOptions
@@ -178,6 +190,7 @@ MissingKeysError: dist/storage/hybrid.d.ts#MissingKeysError
 ModeSwitchError: dist/storage/hybrid.d.ts#ModeSwitchError
 PendingWriteError: dist/storage/hybrid.d.ts#PendingWriteError
 type ProgramStore: dist/program-store/types.d.ts#ProgramStore
+type ProgramWriteOptions: dist/program-store/types.d.ts#ProgramWriteOptions
 QueueFullError: dist/storage/hybrid.d.ts#QueueFullError
 type QueueRefusal: dist/storage/hybrid.d.ts#QueueRefusal
 type QueueStore: dist/storage/queue.d.ts#QueueStore
@@ -281,8 +294,8 @@ export declare class IndexedDbProgramStore implements ProgramStore {
     get name(): string;
     get(key: string): Promise<StoredProgram | undefined>;
     list(prefix?: string): Promise<StoredProgram[]>;
-    put(program: StoredProgram): Promise<void>;
-    delete(key: string): Promise<boolean>;
+    put(program: StoredProgram, options?: ProgramWriteOptions): Promise<void>;
+    delete(key: string, options?: ProgramWriteOptions): Promise<boolean>;
     close(): Promise<void>;
 }
 
@@ -340,8 +353,8 @@ export declare class CollectionProgramStore implements ProgramStore {
     constructor(storage: CollectionStorage<StoredProgram>);
     get(key: string): Promise<StoredProgram | undefined>;
     list(prefix?: string): Promise<StoredProgram[]>;
-    put(program: StoredProgram): Promise<void>;
-    delete(key: string): Promise<boolean>;
+    put(program: StoredProgram, options?: ProgramWriteOptions): Promise<void>;
+    delete(key: string, options?: ProgramWriteOptions): Promise<boolean>;
     close(): Promise<void>;
 }
 
@@ -352,8 +365,8 @@ export declare class FileProgramStore implements ProgramStore {
     constructor(path: string);
     get(key: string): Promise<StoredProgram | undefined>;
     list(prefix?: string): Promise<StoredProgram[]>;
-    put(program: StoredProgram): Promise<void>;
-    delete(key: string): Promise<boolean>;
+    put(program: StoredProgram, options?: ProgramWriteOptions): Promise<void>;
+    delete(key: string, options?: ProgramWriteOptions): Promise<boolean>;
 }
 
 ### dist/program-store/memory.d.ts#MemoryProgramStore
@@ -361,8 +374,8 @@ export declare class MemoryProgramStore implements ProgramStore {
     readonly kind = "memory";
     get(key: string): Promise<StoredProgram | undefined>;
     list(prefix?: string): Promise<StoredProgram[]>;
-    put(program: StoredProgram): Promise<void>;
-    delete(key: string): Promise<boolean>;
+    put(program: StoredProgram, options?: ProgramWriteOptions): Promise<void>;
+    delete(key: string, options?: ProgramWriteOptions): Promise<boolean>;
 }
 
 ### dist/program-store/procedures.d.ts#procedureLoadProcedure
@@ -380,14 +393,76 @@ export declare const procedureSyncProcedure: AnyProcedure;
 ### dist/program-store/procedures.d.ts#programStoreProcedures
 export declare const programStoreProcedures: AnyProcedure[];
 
+### dist/program-store/programs.d.ts#ProgramGetInput
+export interface ProgramGetInput {
+    path?: ProcedurePath | string | undefined;
+    key?: string | undefined;
+    partition?: string | undefined;
+}
+
+### dist/program-store/programs.d.ts#ProgramListInput
+export interface ProgramListInput {
+    prefix?: ProcedurePath | string | undefined;
+    partition?: string | undefined;
+}
+
+### dist/program-store/programs.d.ts#ProgramProceduresOptions
+export interface ProgramProceduresOptions {
+    readonly partition: PartitionResolver;
+    readonly storeFor: (partition: string | undefined) => ProgramStore | Promise<ProgramStore>;
+    readonly namespace?: ProcedurePath | undefined;
+}
+
+### dist/program-store/programs.d.ts#ProgramRemoveInput
+export interface ProgramRemoveInput {
+    path: ProcedurePath | string;
+    expectedVersion?: string | number | null | undefined;
+    partition?: string | undefined;
+}
+
+### dist/program-store/programs.d.ts#ProgramRemoveOutput
+export interface ProgramRemoveOutput {
+    removed: boolean;
+    key: string;
+}
+
+### dist/program-store/programs.d.ts#ProgramSaveDefinition
+export interface ProgramSaveDefinition {
+    [field: string]: unknown;
+    $proc: ProcedurePath;
+    input?: unknown;
+    $name?: string | undefined;
+}
+
+### dist/program-store/programs.d.ts#ProgramSaveInput
+export interface ProgramSaveInput {
+    path: ProcedurePath | string;
+    program: ProgramSaveDefinition;
+    name?: string | undefined;
+    description?: string | undefined;
+    expectedVersion?: string | number | null | undefined;
+    partition?: string | undefined;
+}
+
+### dist/program-store/programs.d.ts#createProgramModule
+export declare function createProgramModule(options: ProgramProceduresOptions): ProcedureModule;
+
+### dist/program-store/programs.d.ts#createProgramProcedures
+export declare function createProgramProcedures(options: ProgramProceduresOptions): AnyProcedure[];
+
 ### dist/program-store/types.d.ts#ProgramStore
 export interface ProgramStore {
     readonly kind: string;
     get(key: string): Promise<StoredProgram | undefined>;
     list(prefix?: string): Promise<StoredProgram[]>;
-    put(program: StoredProgram): Promise<void>;
-    delete(key: string): Promise<boolean>;
+    put(program: StoredProgram, options?: ProgramWriteOptions): Promise<void>;
+    delete(key: string, options?: ProgramWriteOptions): Promise<boolean>;
     close?(): Promise<void>;
+}
+
+### dist/program-store/types.d.ts#ProgramWriteOptions
+export interface ProgramWriteOptions {
+    readonly expectedVersion?: string | number | null | undefined;
 }
 
 ### dist/program-store/types.d.ts#StoredProgram
@@ -397,10 +472,16 @@ export interface StoredProgram {
     program: AggregationDefinition;
     metadata?: Record<string, unknown> | undefined;
     storedAt: number;
+    name?: string | undefined;
+    description?: string | undefined;
+    version?: string | number | undefined;
 }
 
 ### dist/program-store/types.d.ts#checkStoredProgram
 export declare function checkStoredProgram(value: unknown): StoredProgram;
+
+### dist/program-store/types.d.ts#storedProgramVersion
+export declare function storedProgramVersion(program: StoredProgram): string | undefined;
 
 ### dist/storage/adapter.d.ts#ProcedureStorageAdapter
 export declare class ProcedureStorageAdapter {
