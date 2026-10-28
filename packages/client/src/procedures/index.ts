@@ -323,6 +323,8 @@ export type {
   RunDocumentOptions,
   RunProgramOptions,
   RunOperandOptions,
+  RunControlOptions,
+  StepObserver,
 } from "./program.js";
 
 // The envelope form of a program (coeval D6, D9 and D10, roadmap item M7)
@@ -337,6 +339,9 @@ export {
   allCoreProcedures,
   allCoreModules,
   chainProcedure,
+  traceProcedure,
+  type TraceRow,
+  type TraceReason,
   parallelProcedure,
   conditionalProcedure,
   andProcedure,

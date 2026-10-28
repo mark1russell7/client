@@ -995,6 +995,8 @@ export function programMachine(host: ProgramHost): Machine {
       setOwn(names, LAST, result.value);
       passed = result.value;
       results.push(result.value);
+      // The observer of this run (`RunControlOptions.onStep`) gets the result of each step
+      STEP_OBSERVERS.get(input.doc)?.(index, result.value);
     }
     return ok({ results, final: results[results.length - 1] });
   }
@@ -1378,14 +1380,34 @@ export async function runOperand(value: unknown, options: RunOperandOptions): Pr
 }
 
 /**
+ * The observer of the steps of one `client.chain` run. It gets the index and the result of each
+ * step that ends without an error, in the order of the steps.
+ */
+export type StepObserver = (index: number, value: unknown) => void;
+
+/** The options of `runControl()`. */
+export interface RunControlOptions extends RunDocumentOptions {
+  /**
+   * The observer of the steps of `client.chain` (`client.trace` uses it). Only the steps of this
+   * chain go to it: a nested chain does not tell it. The other procedures ignore it.
+   */
+  readonly onStep?: StepObserver | undefined;
+}
+
+/** The step observers, by the document of their `client.chain` run (`runControl()`). */
+const STEP_OBSERVERS = new WeakMap<object, StepObserver>();
+
+/**
  * This function runs a control-flow procedure on the kernel: its input becomes a document of its
  * kind, and the runner of the kind runs the operands. The input is raw: its scope (`scopeOf()`)
  * gives the names of the caller.
  */
-export async function runControl(name: string, input: unknown, options: RunDocumentOptions): Promise<unknown> {
+export async function runControl(name: string, input: unknown, options: RunControlOptions): Promise<unknown> {
   const value = desugarControlValue(name, input, { rawInput: options.rawInput, scoped: options.scope !== undefined });
   if (value === undefined) throw new TypeError(`client.${name}: the input does not have the shape of the procedure`);
-  return runDocument(controlDocument(name, value, input, options.scope !== undefined), options);
+  const doc = controlDocument(name, value, input, options.scope !== undefined);
+  if (options.onStep) STEP_OBSERVERS.set(doc, options.onStep);
+  return runDocument(doc, options);
 }
 
 /** The document of the run of a control-flow procedure: its own entry names the runner of the procedure. */

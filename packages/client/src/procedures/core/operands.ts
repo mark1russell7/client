@@ -15,7 +15,7 @@ import {
   type AnyProcedureRef,
   type RefScope,
 } from "../ref.js";
-import { hydrateInput, runControl, runOperand } from "../program.js";
+import { hydrateInput, runControl, runOperand, type RunControlOptions } from "../program.js";
 
 /**
  * The operands of a control-flow procedure arrive raw: the procedure runs them itself. Its logic
@@ -37,10 +37,11 @@ function executorOf(ctx: ProcedureContext): <TIn, TOut>(path: ProcedurePath, inp
 
 /**
  * This function runs a control-flow procedure on the kernel: the runner of its kind runs the
- * operands of the input, in the scope of the caller.
+ * operands of the input, in the scope of the caller. The observer in `options` gets the result of
+ * each step of a chain (`client.trace`).
  */
-export function runControlFlow(name: string, input: unknown, ctx: ProcedureContext): Promise<unknown> {
-  return runControl(name, input, { executor: executorOf(ctx), rawInput: rawRule(ctx), onRef: ctx.onRef, scope: scopeOf(input) });
+export function runControlFlow(name: string, input: unknown, ctx: ProcedureContext, options: Pick<RunControlOptions, "onStep"> = {}): Promise<unknown> {
+  return runControl(name, input, { executor: executorOf(ctx), rawInput: rawRule(ctx), onRef: ctx.onRef, scope: scopeOf(input), onStep: options.onStep });
 }
 
 /**
