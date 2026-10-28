@@ -102,10 +102,10 @@ interface FaceNarrowing {
 }
 
 /**
- * This function reads the narrowing of a face with `faceRules()` of `@procedures/client`, the
- * helper of the HTTP and WebSocket faces too. It throws for a part that is not valid, because each
+ * This function reads the narrowing of a face with `faceRules()` of `@procedures/client`. The HTTP
+ * and WebSocket faces use the same helper. It throws for a part that is not valid, because each
  * call of the face then gets a refusal. The capability of the tool list is the meet of the policy
- * capability and the narrowing, without the time: the time limits each call, not the tools.
+ * capability and the narrowing, without the time. The time limits each call, not the tools.
  */
 function faceNarrowing(narrowing: NonNullable<McpFaceOptions["narrowing"]>, context: McpFaceContext): FaceNarrowing {
   const rules = faceRules({ narrowing }, context.policy, "MCP");

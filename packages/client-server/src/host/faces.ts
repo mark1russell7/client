@@ -99,8 +99,8 @@ export interface HostFace {
 export type HostFaceFactory = (context: HostFaceContext) => HostFace;
 
 /**
- * The rules of the calls of one face (AG1-B), for example a read-only face of a browser next to the
- * full face of the same host. Without them, the face serves what the host serves.
+ * The rules of the calls of one face (AG1-B) make a narrower face. An example is a read-only face of
+ * a browser next to the full face of the same host. Without them, the face serves what the host serves.
  */
 export interface FaceCallRules {
   /**
@@ -129,7 +129,7 @@ export interface HttpFaceOptions extends ProcedureHandlerOptions, FaceCallRules 
 export interface WsFaceOptions extends UpgradeHandlerOptions, FaceCallRules {}
 
 /**
- * This function gives the handler of a face with the rules of its calls: each request gets the
+ * This function gives the handler of a face with the rules of its calls. Each request gets the
  * narrowing and the expose rule of the face. Without rules, it gives the handler of the host.
  */
 function ruledHandler(context: HostFaceContext, rules: FaceCallRules, face: string): FaceHandler {
