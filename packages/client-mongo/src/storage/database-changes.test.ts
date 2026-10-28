@@ -533,7 +533,8 @@ describe.runIf(url)("watchDatabaseChanges against a real server (CLI-88)", () =>
       const [withImage, withoutImage] = changes.filter((change) => change["operationType"] === "update");
       expect(withImage).toMatchObject({ ns: { coll: images }, fullDocument: { _id: "a", title: "new" }, fullDocumentBeforeChange: { _id: "a", title: "old" } });
       expect(withoutImage).toMatchObject({ ns: { coll: plain }, fullDocument: { _id: "b", title: "new" } });
-      expect(withoutImage!["fullDocumentBeforeChange"]).toBeUndefined();
+      // With "whenAvailable", the server gives null when the collection keeps no image
+      expect(withoutImage!["fullDocumentBeforeChange"]).toBeNull();
       expect(watch.resumeToken).toBeDefined();
     } finally {
       await watch.stop();
