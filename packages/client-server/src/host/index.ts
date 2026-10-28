@@ -47,8 +47,7 @@ import {
   type ProcedureRegistry,
   type ProcedureServerOptions,
 } from "@procedures/client";
-import type { ProcedureHandlerOptions, UpgradeHandlerOptions } from "@procedures/client/node";
-import { httpFace, wsFace, type HostFace, type HostFaceFactory } from "./faces.js";
+import { httpFace, wsFace, type HostFace, type HostFaceFactory, type HttpFaceOptions, type WsFaceOptions } from "./faces.js";
 import { callOperations, faceHandler, httpTracker, operationOfCall } from "./tracking.js";
 
 /** The knobs of a transport of the service, by the names of the ordering law. */
@@ -104,10 +103,10 @@ export interface HostCollection {
  * name takes a face factory, for example `mcp: mcpFace()` of `@procedures/mcp-server`.
  */
 export interface ProcedureHostFaces {
-  readonly http?: boolean | ProcedureHandlerOptions | HostFaceFactory | undefined;
-  readonly ws?: boolean | UpgradeHandlerOptions | HostFaceFactory | undefined;
+  readonly http?: boolean | HttpFaceOptions | HostFaceFactory | undefined;
+  readonly ws?: boolean | WsFaceOptions | HostFaceFactory | undefined;
   readonly mcp?: HostFaceFactory | undefined;
-  readonly [face: string]: boolean | ProcedureHandlerOptions | UpgradeHandlerOptions | HostFaceFactory | undefined;
+  readonly [face: string]: boolean | HttpFaceOptions | WsFaceOptions | HostFaceFactory | undefined;
 }
 
 /** A listener that the host owns: an `httpTransport` of the service on one port. */
@@ -297,8 +296,8 @@ function factoryOf(name: string, value: ProcedureHostFaces[string]): HostFaceFac
   if (value === undefined || value === false) return undefined;
   if (typeof value === "function") return value;
   const options = value === true ? {} : value;
-  if (name === "http") return httpFace(options as ProcedureHandlerOptions);
-  if (name === "ws") return wsFace(options as UpgradeHandlerOptions);
+  if (name === "http") return httpFace(options as HttpFaceOptions);
+  if (name === "ws") return wsFace(options as WsFaceOptions);
   throw new Error(`The face "${name}" of the host needs a face factory, for example mcpFace() of @procedures/mcp-server`);
 }
 
@@ -668,6 +667,6 @@ function outgoingAnswers(): OutgoingAnswers {
 
 export { httpFace, wsFace } from "./faces.js";
 export { localFace, type LocalFace } from "./local-face.js";
-export type { HostFace, HostFaceContext, HostFaceEndpoint, HostFaceFactory, HostFaceUpgrade } from "./faces.js";
+export type { FaceCallRules, HostFace, HostFaceContext, HostFaceEndpoint, HostFaceFactory, HostFaceUpgrade, HttpFaceOptions, WsFaceOptions } from "./faces.js";
 export { callOperations, faceHandler, httpTracker, operationOfCall } from "./tracking.js";
 export type { CallDetail, CallOperation, FaceHandler, FaceHandlerOptions, HttpTracker, HttpTrackerOptions } from "./tracking.js";

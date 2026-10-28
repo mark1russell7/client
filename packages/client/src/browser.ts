@@ -544,6 +544,9 @@ export type {
 // The policy of a host (roadmap 2.3): one builder for the MCP server, the server CLI and mark
 export { hostPolicy, procedureServerOptions, exposePatterns, surfaceRule } from "./server/host-policy.js";
 export type { HostPolicy, HostPolicyOptions, ToolSurface } from "./server/host-policy.js";
+// The rules of one face (CLI-43, AG1-B): a narrowing and an expose rule for each call of the face
+export { faceRules } from "./server/face-rules.js";
+export type { FaceRules, FaceRulesOptions } from "./server/face-rules.js";
 
 // ============================================================================
 // Nested Route API - Batch calls with per-call middleware overrides

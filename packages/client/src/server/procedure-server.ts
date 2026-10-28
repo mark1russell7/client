@@ -40,6 +40,7 @@ import type { ServerDebugReport } from "./types.js";
 import type { KeyedLimiter, LimiterStore } from "@mark1russell7/service/limiter";
 import { callLimiter, limitedCall, rateLimitedResponse, type CallLimit, type CallLimiter } from "./limits.js";
 import { writeLog } from "../logger.js";
+import { meetExpose } from "./face-rules.js";
 
 // =============================================================================
 // Types
@@ -818,8 +819,16 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
   /**
    * The handlers that `register()` added come first (exact or pattern matches). Then the server
    * looks up the procedure of the method.
+   *
+   * The expose rule of the face of the request (`request.expose`, AG1-B) comes before both. A path
+   * outside it has no handler, also a handler of `register()` and an `alwaysOn` pin. A rule that is
+   * not a function admits no path, so a face that sets a wrong value does not open the server.
    */
-  protected override findHandler(method: Method): ServerHandler | null {
+  protected override findHandler(method: Method, request?: ServerRequest<unknown>): ServerHandler | null {
+    if (request?.expose !== undefined) {
+      const rule: unknown = request.expose;
+      if (typeof rule !== "function" || rule(methodToPath(method)) !== true) return null;
+    }
     const handler = super.findHandler(method);
     if (handler) return handler;
     const procedure = this.resolveProcedure(method);
@@ -1115,7 +1124,8 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
         ...(request.elicit ? { elicit: request.elicit } : {}),
         ...(request.progress ? { progress: request.progress } : {}),
         repository,
-        expose: this.expose,
+        // The rule of the face of the request meets the rule of the server, also for each nested call (AG1-B)
+        expose: request.expose !== undefined ? meetExpose(this.expose, request.expose) : this.expose,
         strictCalls: this.strictCalls,
         interceptors: this.interceptors,
         capability,
