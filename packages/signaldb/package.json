@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/signaldb",
-  "version": "0.46.0",
+  "version": "0.47.0",
   "description": "SignalDbStorage: a CollectionStorage over the SignalDB collection of an app, so the collection is the local copy of a HybridStorage and the app keeps its reactive queries.",
   "keywords": [
     "signaldb",
