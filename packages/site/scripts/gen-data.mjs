@@ -339,6 +339,12 @@ write("status-board", board);
 const { index: releaseIndex, changes: releaseChanges } = splitReleases(releases);
 write("releases", releaseIndex);
 write("release-changes", releaseChanges);
+// The data files of the template's site-pages, in its shapes. Tools that read the data of a site use them.
+// Vite copies public/ into the built site, so they are at <base>data/*.json.
+const PUBLIC_DATA = join(SITE, "public", "data");
+mkdirSync(PUBLIC_DATA, { recursive: true });
+writeFileSync(join(PUBLIC_DATA, "status.json"), JSON.stringify(board, null, 2) + "\n");
+writeFileSync(join(PUBLIC_DATA, "releases.json"), JSON.stringify(releases.releases, null, 2) + "\n");
 // The list of the docs pages goes with the routes; the content of each page and the headings for
 // the command palette load only with the page and the palette.
 write("docs-index", docs.index);

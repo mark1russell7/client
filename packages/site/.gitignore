@@ -10,3 +10,4 @@ package-lock.json.bak
 *.tsbuildinfo
 cue.mod/pkg/
 .vite/
+public/data/
