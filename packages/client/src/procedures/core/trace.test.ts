@@ -167,10 +167,10 @@ describe("client.trace: a step that can write does not run", () => {
     expect(log).toEqual([]);
   });
 
-  it("gives a refused read as an error, not as writes", async () => {
+  it("gives a refused read as an error, not as writes (the capability reads only the registry)", async () => {
     const log: string[] = [];
-    const noReads = narrowCapability(undefined, { effects: { reads: [], writes: [] } });
-    const rows = await trace(makeRegistry(log), { steps: [call("files.read", {}), call("client.add", { a: 1, b: 1 })] }, { capability: noReads });
+    const registryOnly = narrowCapability(undefined, { effects: { reads: ["registry"], writes: [] } });
+    const rows = await trace(makeRegistry(log), { steps: [call("files.read", {}), call("client.add", { a: 1, b: 1 })] }, { capability: registryOnly });
     expect(short(rows)).toEqual([["error", undefined], ["not-run", "earlier"]]);
     expect(rows[0]!.error).toMatchObject({ code: "FORBIDDEN" });
     expect(log).toEqual([]);

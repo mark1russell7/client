@@ -4,7 +4,7 @@
 # and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
 # To accept a change of the API, start the script with --update and review the diff.
 
-## . (dist/index.d.ts): 628 names
+## . (dist/index.d.ts): 633 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -283,6 +283,7 @@ type RouteResolutionError: dist/client/route-resolver.d.ts#RouteResolutionError
 type RouteResolutionResult: dist/client/route-resolver.d.ts#RouteResolutionResult
 RouteResolver: dist/client/route-resolver.d.ts#RouteResolver
 type RoutedRequest: dist/adapters/http/server/strategies.d.ts#RoutedRequest
+type RunControlOptions: dist/procedures/program.d.ts#RunControlOptions
 type RunDocumentOptions: dist/procedures/program.d.ts#RunDocumentOptions
 type RunProgramOptions: dist/procedures/program.d.ts#RunProgramOptions
 STANDARD_RESOURCES: dist/procedures/capability.d.ts#STANDARD_RESOURCES
@@ -308,6 +309,7 @@ type SingleCallRequest: dist/client/call-types.d.ts#SingleCallRequest
 type StandardJSONSchemaConverter: dist/procedures/schema.d.ts#StandardJSONSchemaConverter
 type StandardSchemaV1: dist/procedures/schema.d.ts#StandardSchemaV1
 type Status: dist/client/types.d.ts#Status
+type StepObserver: dist/procedures/program.d.ts#StepObserver
 type StepResultInfo: dist/procedures/ref.d.ts#StepResultInfo
 type StopOptions: dist/server/procedure-server.d.ts#StopOptions
 type StopParts: dist/server/procedure-server.d.ts#StopParts
@@ -352,6 +354,8 @@ type ToolSurface: dist/server/host-policy.d.ts#ToolSurface
 type TopicCall: dist/events/publisher.d.ts#TopicCall
 type TopicRule: dist/events/publisher.d.ts#TopicRule
 type TraceContext: dist/tracing/traceparent.d.ts#TraceContext
+type TraceReason: dist/procedures/core/index.d.ts#TraceReason
+type TraceRow: dist/procedures/core/index.d.ts#TraceRow
 type TracingInterceptorOptions: dist/procedures/interceptors.d.ts#TracingInterceptorOptions
 type Transport: dist/client/types.d.ts#Transport
 type TypedEventBus: dist/events/types.d.ts#TypedEventBus
@@ -613,6 +617,7 @@ toolHints: dist/procedures/capability.d.ts#toolHints
 toolHintsOf: dist/procedures/hints.d.ts#toolHintsOf
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 topicToSegments: dist/procedures/segments.d.ts#topicToSegments
+traceProcedure: dist/procedures/core/index.d.ts#traceProcedure
 tracingInterceptor: dist/procedures/interceptors.d.ts#tracingInterceptor
 tryCatchProcedure: dist/procedures/core/index.d.ts#tryCatchProcedure
 typed: dist/procedures/core/schemas.d.ts#typed
@@ -635,7 +640,7 @@ withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 writeLog: dist/logger.d.ts#writeLog
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 616 names
+## ./browser (dist/browser.d.ts): 621 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -909,6 +914,7 @@ type RouteNode: dist/client/call-types.d.ts#RouteNode
 type RouteResolutionError: dist/client/route-resolver.d.ts#RouteResolutionError
 type RouteResolutionResult: dist/client/route-resolver.d.ts#RouteResolutionResult
 RouteResolver: dist/client/route-resolver.d.ts#RouteResolver
+type RunControlOptions: dist/procedures/program.d.ts#RunControlOptions
 type RunDocumentOptions: dist/procedures/program.d.ts#RunDocumentOptions
 type RunProgramOptions: dist/procedures/program.d.ts#RunProgramOptions
 STANDARD_RESOURCES: dist/procedures/capability.d.ts#STANDARD_RESOURCES
@@ -934,6 +940,7 @@ type SingleCallRequest: dist/client/call-types.d.ts#SingleCallRequest
 type StandardJSONSchemaConverter: dist/procedures/schema.d.ts#StandardJSONSchemaConverter
 type StandardSchemaV1: dist/procedures/schema.d.ts#StandardSchemaV1
 type Status: dist/client/types.d.ts#Status
+type StepObserver: dist/procedures/program.d.ts#StepObserver
 type StepResultInfo: dist/procedures/ref.d.ts#StepResultInfo
 type StopOptions: dist/server/procedure-server.d.ts#StopOptions
 type StopParts: dist/server/procedure-server.d.ts#StopParts
@@ -978,6 +985,8 @@ type ToolSurface: dist/server/host-policy.d.ts#ToolSurface
 type TopicCall: dist/events/publisher.d.ts#TopicCall
 type TopicRule: dist/events/publisher.d.ts#TopicRule
 type TraceContext: dist/tracing/traceparent.d.ts#TraceContext
+type TraceReason: dist/procedures/core/index.d.ts#TraceReason
+type TraceRow: dist/procedures/core/index.d.ts#TraceRow
 type TracingInterceptorOptions: dist/procedures/interceptors.d.ts#TracingInterceptorOptions
 type Transport: dist/client/types.d.ts#Transport
 type TypedEventBus: dist/events/types.d.ts#TypedEventBus
@@ -1232,6 +1241,7 @@ toolHints: dist/procedures/capability.d.ts#toolHints
 toolHintsOf: dist/procedures/hints.d.ts#toolHintsOf
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 topicToSegments: dist/procedures/segments.d.ts#topicToSegments
+traceProcedure: dist/procedures/core/index.d.ts#traceProcedure
 tracingInterceptor: dist/procedures/interceptors.d.ts#tracingInterceptor
 tryCatchProcedure: dist/procedures/core/index.d.ts#tryCatchProcedure
 typed: dist/procedures/core/schemas.d.ts#typed
@@ -1483,7 +1493,7 @@ throttleChannel: dist/events/bus.d.ts#throttleChannel
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
-## ./procedures (dist/procedures/index.d.ts): 356 names
+## ./procedures (dist/procedures/index.d.ts): 361 names
 
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
@@ -1625,6 +1635,7 @@ type RegistryListener: dist/procedures/types.d.ts#RegistryListener
 type ReportProgress: dist/procedures/progress.d.ts#ReportProgress
 type RepositoryProvider: dist/procedures/types.d.ts#RepositoryProvider
 type ResourcesOf: dist/procedures/types.d.ts#ResourcesOf
+type RunControlOptions: dist/procedures/program.d.ts#RunControlOptions
 type RunDocumentOptions: dist/procedures/program.d.ts#RunDocumentOptions
 type RunOperandOptions: dist/procedures/program.d.ts#RunOperandOptions
 type RunProgramOptions: dist/procedures/program.d.ts#RunProgramOptions
@@ -1632,6 +1643,7 @@ STANDARD_RESOURCES: dist/procedures/capability.d.ts#STANDARD_RESOURCES
 type SchemaResult: dist/procedures/schema.d.ts#SchemaResult
 type StandardJSONSchemaConverter: dist/procedures/schema.d.ts#StandardJSONSchemaConverter
 type StandardSchemaV1: dist/procedures/schema.d.ts#StandardSchemaV1
+type StepObserver: dist/procedures/program.d.ts#StepObserver
 type StepResultInfo: dist/procedures/ref.d.ts#StepResultInfo
 type StorageBatchWriteOptions: dist/procedures/collection/storage.d.ts#StorageBatchWriteOptions
 type StorageChangeBatch: dist/procedures/collection/storage.d.ts#StorageChangeBatch
@@ -1655,6 +1667,8 @@ type StorageSortDirection: dist/procedures/collection/query.d.ts#StorageSortDire
 type StorageWriteOptions: dist/procedures/collection/storage.d.ts#StorageWriteOptions
 type ToolHintOverride: dist/procedures/hints.d.ts#ToolHintOverride
 type ToolHints: dist/procedures/capability.d.ts#ToolHints
+type TraceReason: dist/procedures/core/index.d.ts#TraceReason
+type TraceRow: dist/procedures/core/index.d.ts#TraceRow
 UNLIMITED_CAPABILITY: dist/procedures/capability.d.ts#UNLIMITED_CAPABILITY
 type UntrustedSource: dist/procedures/untrusted.d.ts#UntrustedSource
 type UntrustedText: dist/procedures/untrusted.d.ts#UntrustedText
@@ -1825,6 +1839,7 @@ toolHintOverrideRefusal: dist/procedures/hints.d.ts#toolHintOverrideRefusal
 toolHints: dist/procedures/capability.d.ts#toolHints
 toolHintsOf: dist/procedures/hints.d.ts#toolHintsOf
 topicToSegments: dist/procedures/segments.d.ts#topicToSegments
+traceProcedure: dist/procedures/core/index.d.ts#traceProcedure
 tryCatchProcedure: dist/procedures/core/index.d.ts#tryCatchProcedure
 typed: dist/procedures/core/schemas.d.ts#typed
 typedAnySchema: dist/procedures/core/schemas.d.ts#typedAnySchema
@@ -4279,6 +4294,24 @@ export declare function collectionTopicTarget(topic: string, repository: Reposit
     partition: string | undefined;
 } | undefined;
 
+### dist/procedures/core/index.d.ts#TraceReason
+export type TraceReason = "writes" | "upTo" | "when" | "earlier";
+
+### dist/procedures/core/index.d.ts#TraceRow
+export interface TraceRow {
+    index: number;
+    name?: string;
+    proc?: string[];
+    effects?: Effects;
+    status: "ok" | "not-run" | "error";
+    reason?: TraceReason;
+    output?: unknown;
+    error?: {
+        code?: string;
+        message: string;
+    };
+}
+
 ### dist/procedures/core/index.d.ts#allCoreModules
 export declare const allCoreModules: Array<{
     name: string;
@@ -4338,6 +4371,9 @@ declare const reduceProcedure: ReduceProcedure;
 
 ### dist/procedures/core/index.d.ts#throwProcedure
 declare const throwProcedure: ThrowProcedure;
+
+### dist/procedures/core/index.d.ts#traceProcedure
+declare const traceProcedure: TraceProcedure;
 
 ### dist/procedures/core/index.d.ts#tryCatchProcedure
 declare const tryCatchProcedure: TryCatchProcedure;
@@ -5116,6 +5152,11 @@ export interface ProgramHost {
     readonly parallel?: boolean | undefined;
 }
 
+### dist/procedures/program.d.ts#RunControlOptions
+export interface RunControlOptions extends RunDocumentOptions {
+    readonly onStep?: StepObserver | undefined;
+}
+
 ### dist/procedures/program.d.ts#RunDocumentOptions
 export interface RunDocumentOptions {
     readonly executor: RefExecutor;
@@ -5134,6 +5175,9 @@ export interface RunOperandOptions extends RunDocumentOptions {
 ### dist/procedures/program.d.ts#RunProgramOptions
 export interface RunProgramOptions extends RunDocumentOptions {
 }
+
+### dist/procedures/program.d.ts#StepObserver
+export type StepObserver = (index: number, value: unknown) => void;
 
 ### dist/procedures/program.d.ts#desugarControlValue
 export declare function desugarControlValue(name: string, input: unknown, options?: DesugarOptions): Record<string, unknown> | undefined;
@@ -5178,7 +5222,7 @@ export declare function prepareRootCall(ref: AnyProcedureRef, executor: RefExecu
 export declare function programMachine(host: ProgramHost): Machine;
 
 ### dist/procedures/program.d.ts#runControl
-export declare function runControl(name: string, input: unknown, options: RunDocumentOptions): Promise<unknown>;
+export declare function runControl(name: string, input: unknown, options: RunControlOptions): Promise<unknown>;
 
 ### dist/procedures/program.d.ts#runDocument
 export declare function runDocument(doc: ProgramDocument, options: RunDocumentOptions & {
