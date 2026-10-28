@@ -12,6 +12,7 @@ client.or: no hints (its operands decide)
 client.parallel: no hints (its operands decide)
 client.reduce: no hints (its operands decide)
 client.throw: read only
+client.trace: no hints (its operands decide)
 client.tryCatch: no hints (its operands decide)
 cue.add: destructive, idempotent
 cue.generate: destructive, idempotent
