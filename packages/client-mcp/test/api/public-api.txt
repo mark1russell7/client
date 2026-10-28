@@ -462,6 +462,7 @@ export interface McpServerTransportOptions {
     sseOptions?: SseTransportOptions;
     sdkTransport?: SdkTransport;
     debug?: boolean;
+    logger?: Logger | undefined;
     streamLimits?: {
         items?: number;
         time?: Duration;

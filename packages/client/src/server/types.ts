@@ -10,6 +10,7 @@ import type { ReportProgress } from "../procedures/progress.js";
 import type { Metadata, Status, Method } from "../client/types.js";
 import type { CapabilityRequest } from "../procedures/types.js";
 import type { ExposedError } from "./error-policy.js";
+import type { Logger } from "../logger.js";
 import { methodName } from "./method.js";
 
 // Re-export Method from client types
@@ -247,6 +248,11 @@ export interface RequestHandler {
    * it. Absent: the handler examines each call, and the face refuses no request before its calls.
    */
   admission?(credentials: Credentials): Promise<Admission>;
+  /**
+   * The logger of the handler (CLI-87). A face writes its log lines to it, unless the options of the
+   * face give a logger. `Server` has it. Absent: the face writes to the console.
+   */
+  readonly logger?: Logger | undefined;
 }
 
 /**

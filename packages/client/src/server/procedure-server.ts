@@ -10,7 +10,7 @@ import { errorResponse } from "./error-response.js";
 
 export { errorResponse };
 import type { Admission, AmbientCredentials, Credentials, Method, Principal, PrincipalOf, RequestIdentity, ServerHandler, ServerRequest, ServerResponse } from "./types.js";
-import { methodToPath, pathToMethod } from "./method.js";
+import { methodName, methodToPath, pathToMethod } from "./method.js";
 import { isLocalCredentials } from "./request-auth.js";
 import { STREAM_METADATA_KEY } from "./stream-metadata.js";
 import type {
@@ -39,6 +39,7 @@ import type { NarrowingNote } from "../procedures/narrowing.js";
 import type { ServerDebugReport } from "./types.js";
 import type { KeyedLimiter, LimiterStore } from "@mark1russell7/service/limiter";
 import { callLimiter, limitedCall, rateLimitedResponse, type CallLimit, type CallLimiter } from "./limits.js";
+import { writeLog } from "../logger.js";
 
 // =============================================================================
 // Types
@@ -195,9 +196,10 @@ export interface ProcedureServerOptions extends ServerOptions {
   events?: EventPublisherOptions | EventPublisher | undefined;
 
   /**
-   * The debug reports of the server. `true` writes each report with `console.debug`, and a
-   * function gets each report. The server reports each part of the narrowing of a call that has
-   * no effect (CLI-30). Such a part asks for more than the call holds, or it is not valid. The
+   * The debug reports of the server. `true` writes each report to the `logger` at the level `debug`,
+   * or with `console.debug` without a logger (CLI-87). A function gets each report.
+   *
+   * The server reports each part of the narrowing of a call that has no effect (CLI-30). Such a part asks for more than the call holds, or it is not valid. The
    * call goes on without that part. The server also reports a source that refuses the call.
    * @default false
    */
@@ -492,7 +494,15 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
       typeof options.debug === "function"
         ? options.debug
         : options.debug === true
-          ? (report) => console.debug(`[ProcedureServer] ${report.topic} of ${report.requestId}: ${report.message}`)
+          ? (report) =>
+              // The logger of the server gets the report at the level debug (CLI-87)
+              writeLog(
+                options.logger,
+                "debug",
+                report.message,
+                { topic: report.topic, requestId: report.requestId, procedure: methodName(report.method), ...(report.detail ? { detail: report.detail } : {}) },
+                `[ProcedureServer] ${report.topic} of ${report.requestId}: ${report.message}`,
+              )
           : undefined;
     // The limits of the calls: one keyed limiter for each limit, on the clock of the server (CLI-40)
     this.callLimits = options.limits && options.limits.length > 0 ? callLimiter(options.limits, { clock: this.clock, stores: options.limitStores }) : undefined;

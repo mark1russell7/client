@@ -236,6 +236,8 @@ export function faceHandler(options: FaceHandlerOptions): FaceHandler {
     admission: (credentials) => server.admission(credentials),
     // The error policy of the server for the last-resort catch of the face (CLI-80)
     exposeError: (error, request, raw) => server.exposeError(error, request, raw),
+    // The logger of the server: each face writes its lines to it (CLI-87)
+    logger: server.logger,
     handle: (request: ServerRequest): Promise<ServerResponse> => {
       const life = options.life();
       return life ? trackedCall(life, options, request) : server.handle(request);

@@ -10,6 +10,7 @@ import type { Method } from "../../../client/types.js";
 import type { BrowserGuardOptions } from "../../../server/browser-guard.js";
 import type { Clock } from "../../../clock.js";
 import type { Duration } from "../../../duration.js";
+import type { Logger } from "../../../logger.js";
 import type { Addressing } from "./addressing.js";
 import type { HandlerBatchOptions } from "./batch.js";
 import type { UrlStrategyRequest } from "./strategies.js";
@@ -131,4 +132,10 @@ export interface HttpServerTransportOptions extends BrowserGuardOptions {
     allowedHeaders?: string[];
     credentials?: boolean;
   };
+
+  /**
+   * The logger of the transport (CLI-87): the lines of its start and its stop go to it. The default
+   * is the logger of the server. Without both, each line goes to `console.log` as before.
+   */
+  logger?: Logger | undefined;
 }

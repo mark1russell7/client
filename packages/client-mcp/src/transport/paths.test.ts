@@ -78,4 +78,15 @@ describe("paths of each length on the MCP face (CLI-28)", () => {
     const one = (await client.callTool({ name: "morning", arguments: {} })) as ToolResult;
     expect(one.structuredContent).toEqual({ path: ["morning"] });
   });
+
+  it("gives the collision to the logger of the server, with its context in the fields (CLI-87)", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    cleanups.push(() => errors.mockRestore());
+    const lines: Array<{ level: string; message: string; fields: Readonly<Record<string, unknown>> }> = [];
+    const logger = { log: (level: string, message: string, fields: Readonly<Record<string, unknown>>) => void lines.push({ level, message, fields }) };
+    await start({ toolName: (path) => path.join("_"), serverOptions: { logger } });
+    const collision = lines.find((line) => line.fields["tool"] === "a_b_c");
+    expect(collision).toMatchObject({ level: "error", fields: { transport: "mcp", procedures: expect.arrayContaining(["a_b.c", "a.b_c"]) } });
+    expect(errors).not.toHaveBeenCalled();
+  });
 });

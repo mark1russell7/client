@@ -19,6 +19,8 @@ import { HandlerNotFoundError, ServerError } from "./types.js";
 import { compose } from "../middleware/index.js";
 import { callOf, exposeError, exposedResponse, markLogged, policyActs, type ExposedError, type HiddenErrorLog, type ServerErrorPolicy } from "./error-policy.js";
 import { withRealError } from "./error-response.js";
+import { CONSOLE_LOGGER, type LogFields, type Logger } from "../logger.js";
+import { methodName } from "./method.js";
 
 /**
  * Server configuration options.
@@ -34,9 +36,17 @@ export interface ServerOptions {
    * Global error handler.
    * Called when a handler throws an error. The error policy (`errors`) also gives it each hidden
    * error one time. A last-resort error of a face that failed before it knew the call comes with
-   * `UNKNOWN_REQUEST`: a request with the id `"unknown"`.
+   * `UNKNOWN_REQUEST`: a request with the id `"unknown"`. The third argument gives the logger of
+   * the server: the option `logger`, or `CONSOLE_LOGGER` without it (CLI-87).
    */
-  onError?: (error: Error, request: ServerRequest) => void;
+  onError?: (error: Error, request: ServerRequest, context: ServerErrorContext) => void;
+
+  /**
+   * The logger of the server and of its faces (CLI-87). The server writes its log lines and its
+   * errors to it, also when `onError` gets them. A face that has no logger of its own uses this
+   * logger. Without it, each line goes to the console as before.
+   */
+  logger?: Logger | undefined;
 
   /**
    * Request logger.
@@ -57,7 +67,7 @@ export interface ServerOptions {
    * - `expose: "coded"`: an error with a known code (`isKnownErrorCode`) goes to the caller as it
    *   is, and so does an error with a code of `codes`. Each other error goes as `INTERNAL_ERROR`
    *   with the message `"internal error"` and its real retryable flag. The server gives the real
-   *   error to `onError` one time, or to `console.error` without `onError`.
+   *   error one time to `onError` and to the `logger`, or to `console.error` without them.
    * - `map` runs first, with the real error of its own class. Its result goes to the caller as it
    *   is, with its `retryAfterMs`. `undefined` gives the error to `expose`.
    * - The last-resort catch of each face applies the same policy (`exposeError`).
@@ -74,6 +84,12 @@ export interface ServerOptions {
    * ```
    */
   errors?: ServerErrorPolicy | undefined;
+}
+
+/** The third argument of the hook `onError` of a server (CLI-87). */
+export interface ServerErrorContext {
+  /** The logger of the server: the option `logger`, or `CONSOLE_LOGGER` without it. */
+  readonly logger: Logger;
 }
 
 /**
@@ -96,6 +112,17 @@ interface HandlerEntry {
 
 /** The request that `onError` gets for an error of a face that failed before it knew the call (CLI-80). */
 const UNKNOWN_REQUEST: ServerRequest = { id: "unknown", method: { service: "", operation: "" }, payload: undefined, metadata: {} };
+
+/** The fields of the log line of an error: the request id, the procedure, the transport and the error (CLI-87). */
+function errorFields(request: ServerRequest | undefined, error: unknown): LogFields {
+  if (!request) return { error };
+  return {
+    requestId: request.id,
+    procedure: methodName(request.method),
+    ...(request.transport !== undefined ? { transport: request.transport } : {}),
+    error,
+  };
+}
 
 /**
  * Universal RPC server.
@@ -247,13 +274,28 @@ export class Server {
     return exposeError(this.options.errors, error, callOf(request), (real) => this.hiddenErrorLog(real, request), raw);
   }
 
-  /** The logger of the errors that the error policy hides: `onError`, or `console.error`. */
+  /**
+   * The logger of the server and of its faces: the option `logger`, or undefined without it. A face
+   * writes to the console when it is undefined (CLI-87).
+   */
+  get logger(): Logger | undefined {
+    return this.options.logger;
+  }
+
+  /** The third argument of `onError`: the logger of the server, or the console adapter without it. */
+  private errorContext(): ServerErrorContext {
+    return { logger: this.options.logger ?? CONSOLE_LOGGER };
+  }
+
+  /** The logger of the errors that the error policy hides: `onError` and the logger, or `console.error` without them. */
   private readonly hiddenErrorLog: HiddenErrorLog = (error, request) => {
     const real = error instanceof Error ? error : new Error(String(error));
+    const { onError, logger } = this.options;
     // A face that failed before it knew the call gives no request: onError gets a request of no call
-    if (this.options.onError) this.options.onError(real, request ?? UNKNOWN_REQUEST);
+    if (onError) onError(real, request ?? UNKNOWN_REQUEST, this.errorContext());
+    if (logger) logger.log("error", "The error policy hid an error", errorFields(request, real));
     // A constant format: the request id comes from the caller (CodeQL js/tainted-format-string)
-    else console.error("[Server] hidden error of %s: %o", request?.id ?? "a request", real);
+    else if (!onError) console.error("[Server] hidden error of %s: %o", request?.id ?? "a request", real);
   };
 
   /** The response of a request, before the error policy. */
@@ -295,12 +337,12 @@ export class Server {
 
       return response;
     } catch (error) {
-      // Log error
-      if (this.options.onError) {
-        this.options.onError(error as Error, request);
-        // The error policy does not log this error again (CLI-80)
-        markLogged(error);
-      }
+      // Log error: to onError and to the logger (CLI-87)
+      const { onError, logger } = this.options;
+      if (onError) onError(error as Error, request, this.errorContext());
+      if (logger) logger.log("error", "A handler failed", errorFields(request, error));
+      // The error policy does not log this error again (CLI-80)
+      if (onError || logger) markLogged(error);
 
       // Convert error to response
       return this.errorToResponse<TRes>(request, error as Error);

@@ -4,7 +4,7 @@
 # and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
 # To accept a change of the API, start the script with --update and review the diff.
 
-## . (dist/index.d.ts): 622 names
+## . (dist/index.d.ts): 628 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -19,6 +19,7 @@ type BatchItem: dist/client/batch-executor.d.ts#BatchItem
 type BatchStrategy: dist/client/call-types.d.ts#BatchStrategy
 type BrowserGuardOptions: dist/server/browser-guard.d.ts#BrowserGuardOptions
 CIRCUIT_BREAKER_MACHINE: dist/machines.d.ts#CIRCUIT_BREAKER_MACHINE
+CONSOLE_LOGGER: dist/logger.d.ts#CONSOLE_LOGGER
 type CacheOverride: dist/client/call-types.d.ts#CacheOverride
 type CallEffect: dist/procedures/program.d.ts#CallEffect
 type CallHistoryEntry: dist/adapters/mock/client/types.d.ts#CallHistoryEntry
@@ -166,6 +167,9 @@ LOCAL_MARKER: dist/server/types.d.ts#LOCAL_MARKER
 type LimitedCall: dist/server/limits.d.ts#LimitedCall
 LocalTransport: dist/adapters/local/client/transport.d.ts#LocalTransport
 type LocalTransportOptions: dist/adapters/local/client/types.d.ts#LocalTransportOptions
+type LogFields: dist/logger.d.ts#LogFields
+type LogLevel: dist/logger.d.ts#LogLevel
+type Logger: dist/logger.d.ts#Logger
 MANIFEST_FORMAT: dist/procedures/manifest.d.ts#MANIFEST_FORMAT
 MAX_DATA_DEPTH: dist/procedures/ref.d.ts#MAX_DATA_DEPTH
 MAX_EXPECTED_VERSION_LENGTH: dist/procedures/collection/precondition.d.ts#MAX_EXPECTED_VERSION_LENGTH
@@ -291,6 +295,7 @@ Server: dist/server/server.d.ts#Server
 type ServerContext: dist/server/types.d.ts#ServerContext
 type ServerDebugReport: dist/server/types.d.ts#ServerDebugReport
 ServerError: dist/server/types.d.ts#ServerError
+type ServerErrorContext: dist/server/server.d.ts#ServerErrorContext
 type ServerErrorPolicy: dist/server/error-policy.d.ts#ServerErrorPolicy
 type ServerHandler: dist/server/types.d.ts#ServerHandler
 type ServerMiddleware: dist/server/types.d.ts#ServerMiddleware
@@ -627,9 +632,10 @@ withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 withHintImages: dist/procedures/collection/hint-filter.d.ts#withHintImages
 withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
+writeLog: dist/logger.d.ts#writeLog
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 610 names
+## ./browser (dist/browser.d.ts): 616 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -643,6 +649,7 @@ BatchExecutor: dist/client/batch-executor.d.ts#BatchExecutor
 type BatchItem: dist/client/batch-executor.d.ts#BatchItem
 type BatchStrategy: dist/client/call-types.d.ts#BatchStrategy
 CIRCUIT_BREAKER_MACHINE: dist/machines.d.ts#CIRCUIT_BREAKER_MACHINE
+CONSOLE_LOGGER: dist/logger.d.ts#CONSOLE_LOGGER
 type CacheOverride: dist/client/call-types.d.ts#CacheOverride
 type CallEffect: dist/procedures/program.d.ts#CallEffect
 type CallHistoryEntry: dist/adapters/mock/client/types.d.ts#CallHistoryEntry
@@ -787,6 +794,9 @@ LOCAL_MARKER: dist/server/types.d.ts#LOCAL_MARKER
 type LimitedCall: dist/server/limits.d.ts#LimitedCall
 LocalTransport: dist/adapters/local/client/transport.d.ts#LocalTransport
 type LocalTransportOptions: dist/adapters/local/client/types.d.ts#LocalTransportOptions
+type LogFields: dist/logger.d.ts#LogFields
+type LogLevel: dist/logger.d.ts#LogLevel
+type Logger: dist/logger.d.ts#Logger
 MANIFEST_FORMAT: dist/procedures/manifest.d.ts#MANIFEST_FORMAT
 MAX_DATA_DEPTH: dist/procedures/ref.d.ts#MAX_DATA_DEPTH
 MAX_EXPECTED_VERSION_LENGTH: dist/procedures/collection/precondition.d.ts#MAX_EXPECTED_VERSION_LENGTH
@@ -911,6 +921,7 @@ Server: dist/server/server.d.ts#Server
 type ServerContext: dist/server/types.d.ts#ServerContext
 type ServerDebugReport: dist/server/types.d.ts#ServerDebugReport
 ServerError: dist/server/types.d.ts#ServerError
+type ServerErrorContext: dist/server/server.d.ts#ServerErrorContext
 type ServerErrorPolicy: dist/server/error-policy.d.ts#ServerErrorPolicy
 type ServerHandler: dist/server/types.d.ts#ServerHandler
 type ServerMiddleware: dist/server/types.d.ts#ServerMiddleware
@@ -1240,6 +1251,7 @@ withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 withHintImages: dist/procedures/collection/hint-filter.d.ts#withHintImages
 withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
+writeLog: dist/logger.d.ts#writeLog
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
 ## ./node (dist/node.d.ts): 40 names
@@ -2166,6 +2178,7 @@ export interface HttpServerTransportOptions extends BrowserGuardOptions {
         allowedHeaders?: string[];
         credentials?: boolean;
     };
+    logger?: Logger | undefined;
 }
 
 ### dist/adapters/http/server/types.d.ts#HttpUrlStrategy
@@ -2457,6 +2470,7 @@ export interface WebSocketServerTransportOptions extends Omit<BrowserGuardOption
     } | false;
     reverseRequestTimeout?: Duration;
     secretHeaders?: readonly string[] | undefined;
+    logger?: Logger | undefined;
 }
 
 ### dist/adapters/websocket/server/upgrade.d.ts#NodeUpgradeHandler
@@ -3648,6 +3662,23 @@ export interface TypedEventBus<TChannels extends ChannelMap> {
 
 ### dist/events/types.d.ts#Unsubscribe
 export type Unsubscribe = () => void;
+
+### dist/logger.d.ts#CONSOLE_LOGGER
+export declare const CONSOLE_LOGGER: Logger;
+
+### dist/logger.d.ts#LogFields
+export type LogFields = Readonly<Record<string, unknown>>;
+
+### dist/logger.d.ts#LogLevel
+export type LogLevel = "debug" | "info" | "warn" | "error";
+
+### dist/logger.d.ts#Logger
+export interface Logger {
+    log(level: LogLevel, message: string, fields: LogFields): void;
+}
+
+### dist/logger.d.ts#writeLog
+export declare function writeLog(logger: Logger | undefined, level: LogLevel, message: string, fields: LogFields, ...consoleArgs: unknown[]): void;
 
 ### dist/machines.d.ts#CIRCUIT_BREAKER_MACHINE
 export declare const CIRCUIT_BREAKER_MACHINE: MachineDocument;
@@ -6123,13 +6154,20 @@ export declare class Server {
     stop(): Promise<void>;
     handle<TReq, TRes>(request: ServerRequest<TReq>): Promise<ServerResponse<TRes>>;
     exposeError(error: unknown, request: ServerRequest | undefined, raw: ExposedError): ExposedError;
+    get logger(): Logger | undefined;
     protected findHandler(method: Method): ServerHandler | null;
+}
+
+### dist/server/server.d.ts#ServerErrorContext
+export interface ServerErrorContext {
+    readonly logger: Logger;
 }
 
 ### dist/server/server.d.ts#ServerOptions
 export interface ServerOptions {
     transports?: ServerTransport[];
-    onError?: (error: Error, request: ServerRequest) => void;
+    onError?: (error: Error, request: ServerRequest, context: ServerErrorContext) => void;
+    logger?: Logger | undefined;
     onRequest?: (request: ServerRequest) => void;
     onResponse?: (response: ServerResponse) => void;
     errors?: ServerErrorPolicy | undefined;
@@ -6200,6 +6238,7 @@ export interface RequestHandler {
     readonly ambientCredentials?: AmbientCredentials | undefined;
     identify?(credentials: Credentials): Promise<Principal | undefined>;
     admission?(credentials: Credentials): Promise<Admission>;
+    readonly logger?: Logger | undefined;
 }
 
 ### dist/server/types.d.ts#RequestIdentity

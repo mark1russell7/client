@@ -9,6 +9,7 @@ import type { Server as HttpServer } from "http";
 import type { WebSocket } from "ws";
 import type { BrowserGuardOptions } from "../../../server/browser-guard.js";
 import type { Duration } from "../../../duration.js";
+import type { Logger } from "../../../logger.js";
 
 /**
  * WebSocket authentication handler.
@@ -99,6 +100,11 @@ export interface WebSocketServerTransportOptions extends Omit<BrowserGuardOption
    * `Proxy-Authorization`, `Cookie` and `X-Api-Key` are always secret.
    */
   secretHeaders?: readonly string[] | undefined;
+  /**
+   * The logger of the transport (CLI-87): the lines of its start, its stop, its heartbeat and its
+   * errors go to it. The default is the logger of the server. Without both, each line goes to the console as before.
+   */
+  logger?: Logger | undefined;
 }
 
 /**

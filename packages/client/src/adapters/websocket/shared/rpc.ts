@@ -19,6 +19,7 @@ import { StreamSequence, gapOf, itemMetadata } from "../../sequence.js";
 import { DELIVERY_METADATA_KEY } from "../../../client/middleware/items.js";
 import { errorCodeOf, foldedErrorCode, retryableOf } from "../../../protocol.js";
 import { lastResortError } from "../../../server/last-resort.js";
+import type { Logger } from "../../../logger.js";
 
 /**
  * A queue of response items that one reader takes in order: push, then end or fail. The reader
@@ -168,6 +169,8 @@ export interface OutgoingCallsOptions {
   streamWindow: number;
   /** The start of the wire id of each call: the two sides use different ones. */
   idPrefix: string;
+  /** The logger of the warning of a stream gap (CLI-87). Without it, the warning goes to the console. */
+  logger?: Logger | undefined;
 }
 
 /** The calls that this side sends on one socket. */
@@ -201,7 +204,7 @@ export class OutgoingCalls {
     const wireId = `${this.options.idPrefix}${message.id}~${++this.seq}`;
     const window = this.options.streamWindow;
     const queue = new ItemQueue<ResponseItem<unknown>>();
-    const pending: PendingCall = { messageId: message.id, queue, order: new StreamSequence() };
+    const pending: PendingCall = { messageId: message.id, queue, order: new StreamSequence(this.options.logger) };
     const limited = Number.isFinite(this.options.requestTimeoutMs) && this.options.requestTimeoutMs > 0;
     if (limited) pending.timeout = setTimeout(() => {
       if (this.pending.get(wireId) !== pending) return;

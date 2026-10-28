@@ -18,6 +18,7 @@ import { createPatternServerUrlStrategy } from "./strategies.js";
 import { applyCors, corsOrigins, corsPolicy, type CorsPolicy } from "./cors.js";
 import { createProcedureHandler, type NodeProcedureHandler } from "./handler.js";
 import { isBatchRequest } from "./batch.js";
+import { writeLog, type Logger } from "../../../logger.js";
 
 /**
  * This function gives the route of the procedure handler: each path under the base path. With
@@ -61,9 +62,12 @@ export class HttpServerTransport implements ServerTransport {
   /** The CORS of the app, or undefined when it is off */
   private readonly cors: CorsPolicy | undefined;
   private stopped = false;
+  /** The logger of the start and the stop: the option, or the logger of the server (CLI-87) */
+  private readonly logger: Logger | undefined;
 
   constructor(server: RequestHandler, options: HttpServerTransportOptions = {}) {
     const basePath = options.basePath ?? "/api";
+    this.logger = options.logger ?? server.logger;
     this.options = {
       port: options.port ?? 3000,
       // Loopback by default (see BUGS-2026-07 H19)
@@ -159,7 +163,7 @@ export class HttpServerTransport implements ServerTransport {
     // If an HTTP server was provided, use it (don't create or listen)
     if (this.options.httpServer) {
       this.httpServer = this.options.httpServer;
-      console.log(`[${this.name}] Using existing HTTP server`);
+      writeLog(this.logger, "info", "Using existing HTTP server", { transport: this.name }, `[${this.name}] Using existing HTTP server`);
       return Promise.resolve();
     }
 
@@ -170,9 +174,8 @@ export class HttpServerTransport implements ServerTransport {
         this.httpServer = server;
 
         server.listen(this.options.port, this.options.host, () => {
-          console.log(
-            `[${this.name}] Server listening on http://${this.options.host}:${this.port() ?? this.options.port}`
-          );
+          const url = `http://${this.options.host}:${this.port() ?? this.options.port}`;
+          writeLog(this.logger, "info", "Server listening", { transport: this.name, url }, `[${this.name}] Server listening on ${url}`);
           resolve();
         });
 
@@ -203,7 +206,7 @@ export class HttpServerTransport implements ServerTransport {
         if (err) {
           reject(err);
         } else {
-          console.log(`[${this.name}] Server stopped`);
+          writeLog(this.logger, "info", "Server stopped", { transport: this.name }, `[${this.name}] Server stopped`);
           resolve();
         }
       });

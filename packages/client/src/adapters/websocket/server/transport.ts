@@ -33,6 +33,7 @@ import { attachUpgradeTarget, refuseUpgrade } from "./upgrade-router.js";
 import { realClock, type Cancel } from "../../../clock.js";
 import { PROTOCOL_VERSION, protocolVersionOf } from "../../../protocol.js";
 import { TIMER_DEFAULTS } from "../../../timers.js";
+import { writeLog, type Logger } from "../../../logger.js";
 import {
   remoteEvents,
   subscribeRemote,
@@ -75,7 +76,7 @@ export class WebSocketServerTransport implements ServerTransport {
   private options: Required<
     Omit<
       WebSocketServerTransportOptions,
-      "server" | "authenticate" | "onConnection" | "allowedOrigins" | "allowedHosts" | "heartbeat" | "reverseRequestTimeout" | "secretHeaders"
+      "server" | "authenticate" | "onConnection" | "allowedOrigins" | "allowedHosts" | "heartbeat" | "reverseRequestTimeout" | "secretHeaders" | "logger"
     >
   > & {
     server: WebSocketServerTransportOptions["server"];
@@ -93,6 +94,8 @@ export class WebSocketServerTransport implements ServerTransport {
   /** True: a cookie of an upgrade is trusted only from a named origin, with or without an auth path */
   private cookiesNamed = false;
   private server: RequestHandler;
+  /** The logger of the lines of the transport: the option, or the logger of the server (CLI-87) */
+  private readonly logger: Logger | undefined;
   private connections: Set<WebSocket> = new Set();
 
   /** The time until the first frame of a call to a client, in milliseconds (R24) */
@@ -128,6 +131,7 @@ export class WebSocketServerTransport implements ServerTransport {
 
   constructor(server: RequestHandler, options: WebSocketServerTransportOptions = {}) {
     this.server = server;
+    this.logger = options.logger ?? server.logger;
     this.options = {
       server: options.server,
       path: options.path ?? "/ws",
@@ -161,7 +165,7 @@ export class WebSocketServerTransport implements ServerTransport {
     for (const ws of this.connections) {
       const missed = this.missedPongs.get(ws) ?? 0;
       if (missed >= this.heartbeat.misses) {
-        console.error(`[${this.name}] A connection missed ${missed} pongs: closing it`);
+        writeLog(this.logger, "error", "A connection missed its pongs: closing it", { transport: this.name, missed }, `[${this.name}] A connection missed ${missed} pongs: closing it`);
         ws.terminate();
         continue;
       }
@@ -217,7 +221,7 @@ export class WebSocketServerTransport implements ServerTransport {
         try {
           callback(await this.options.authenticate(req));
         } catch (error) {
-          console.error("[WebSocket] Authentication error:", error);
+          writeLog(this.logger, "error", "Authentication error", { transport: this.name, path: this.options.path, error }, "[WebSocket] Authentication error:", error);
           callback(false);
         }
       },
@@ -235,7 +239,7 @@ export class WebSocketServerTransport implements ServerTransport {
       this.heartbeatTimer.unref?.();
     }
 
-    console.log(`[${this.name}] WebSocket server listening on ${this.options.path}`);
+    writeLog(this.logger, "info", "WebSocket server listening", { transport: this.name, path: this.options.path }, `[${this.name}] WebSocket server listening on ${this.options.path}`);
   }
 
   async stop(): Promise<void> {
@@ -267,7 +271,7 @@ export class WebSocketServerTransport implements ServerTransport {
           if (err) {
             reject(err);
           } else {
-            console.log(`[${this.name}] WebSocket server stopped`);
+            writeLog(this.logger, "info", "WebSocket server stopped", { transport: this.name, path: this.options.path }, `[${this.name}] WebSocket server stopped`);
             this.wss = null;
             resolve();
           }
@@ -409,6 +413,7 @@ export class WebSocketServerTransport implements ServerTransport {
         requestTimeoutMs: this.reverseRequestTimeoutMs,
         streamWindow: 64,
         idPrefix: "r:",
+        logger: this.logger,
       }),
     });
 
@@ -422,7 +427,7 @@ export class WebSocketServerTransport implements ServerTransport {
       try {
         handler(trackedConnection);
       } catch (error) {
-        console.error("[WebSocket] Connect handler error:", error);
+        writeLog(this.logger, "error", "Connect handler error", { transport: this.name, connectionId, error }, "[WebSocket] Connect handler error:", error);
       }
     }
 
@@ -434,7 +439,7 @@ export class WebSocketServerTransport implements ServerTransport {
       try {
         await this.handleMessage(ws, data, req, connectionId);
       } catch (error) {
-        console.error("[WebSocket] Message handling error:", error);
+        writeLog(this.logger, "error", "Message handling error", { transport: this.name, connectionId, error }, "[WebSocket] Message handling error:", error);
         this.sendError(ws, "unknown", "Internal server error");
       }
     });
@@ -457,7 +462,7 @@ export class WebSocketServerTransport implements ServerTransport {
           try {
             handler(conn);
           } catch (error) {
-            console.error("[WebSocket] Disconnect handler error:", error);
+            writeLog(this.logger, "error", "Disconnect handler error", { transport: this.name, connectionId, error }, "[WebSocket] Disconnect handler error:", error);
           }
         }
       }
@@ -467,7 +472,7 @@ export class WebSocketServerTransport implements ServerTransport {
     // cleanup and the disconnect event (deep dive TRN-16: before, this handler removed the
     // connection first, so the close handler found nothing and sent no disconnect event).
     ws.on("error", (error: Error) => {
-      console.error("[WebSocket] Connection error:", error);
+      writeLog(this.logger, "error", "Connection error", { transport: this.name, connectionId, error }, "[WebSocket] Connection error:", error);
     });
   }
 

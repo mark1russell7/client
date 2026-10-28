@@ -8,7 +8,7 @@ import type { Readable, Writable } from "node:stream";
 import type { Transport as SdkTransport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { BrowserGuardOptions, ElicitationPolicy, ProcedureRegistry } from "@procedures/client";
 import type { McpServerInfo, McpTool, McpToolFilter } from "@procedures/mcp";
-import type { Duration } from "@procedures/client";
+import type { Duration, Logger } from "@procedures/client";
 import type { UntrustedContentOptions } from "./untrusted.js";
 import type { McpTasksOptions } from "./tasks.js";
 
@@ -195,6 +195,13 @@ export interface McpServerTransportOptions {
 
   /** Enable debug logging */
   debug?: boolean;
+
+  /**
+   * The logger of the transport (CLI-87). The debug lines go to it at the level `debug`. The
+   * collisions of tool names go to it at the level `error`. The default is the logger of the server. Without
+   * both, each line goes to `console.error` as before, so stdout carries only the protocol.
+   */
+  logger?: Logger | undefined;
 
   /**
    * The limits of a stream that can run without an end (`stream: { unbounded: true }` of its

@@ -14,6 +14,8 @@
  *   so the reader skips it before the check.
  */
 
+import { writeLog, type Logger } from "../logger.js";
+
 /**
  * The metadata key of a stream item after a gap: the number of frames that did not arrive
  * immediately before this item. The receiver sets it. It does not cross the wire.
@@ -32,6 +34,9 @@ export const STREAM_ITEM_METADATA_KEY = "stream";
 export class StreamSequence {
   private last = 0;
 
+  /** The logger of the warning of a gap (CLI-87). Without it, the warning goes to `console.warn`. */
+  constructor(private readonly logger?: Logger | undefined) {}
+
   /**
    * This function examines the `seq` of a frame. It gives -1 for a frame to drop: its `seq` is
    * not above the last one. Else it gives the number of frames that did not arrive before this
@@ -42,7 +47,7 @@ export class StreamSequence {
     if (seq <= this.last) return -1;
     const gap = seq - this.last - 1;
     this.last = seq;
-    if (gap > 0) console.warn(`[stream] Frames lost before seq ${seq} of the call ${id}: ${gap}`);
+    if (gap > 0) writeLog(this.logger, "warn", "Frames lost", { requestId: id, seq, lost: gap }, `[stream] Frames lost before seq ${seq} of the call ${id}: ${gap}`);
     return gap;
   }
 }

@@ -77,11 +77,14 @@ export {
 // The server transports are Node only: the root entry point exports them.
 // ============================================================================
 export { Server } from "./server/server.js";
-export type { ServerOptions } from "./server/server.js";
+export type { ServerOptions, ServerErrorContext } from "./server/server.js";
 // The error policy of a server: what an error tells the caller (roadmap CLI-80)
 export type { ServerErrorPolicy, ExposedError, ErrorCall } from "./server/error-policy.js";
 export { exposeError, lastResortError, HIDDEN_ERROR_MESSAGE, DEFAULT_KEPT_METADATA } from "./server/error-policy.js";
 export { ProcedureServer, createProcedureServer, tokenMatches } from "./server/procedure-server.js";
+// The logger port of the server side, in the shape of the Logger of the runner (CLI-87)
+export { CONSOLE_LOGGER, writeLog } from "./logger.js";
+export type { Logger, LogLevel, LogFields } from "./logger.js";
 export { STREAM_METADATA_KEY, isUnboundedStream } from "./server/stream-metadata.js";
 // The credentials of a network request (roadmap R18), and the parts that a request hook reads (CLI-2a)
 export { credentialsOf, bearerOf, withoutSecretHeaders, cookiesOf, requestCredentials, LOCAL_CREDENTIALS, isLocalCredentials } from "./server/request-auth.js";

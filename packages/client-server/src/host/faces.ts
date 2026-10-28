@@ -21,7 +21,7 @@
 import type { IncomingMessage, ServerResponse as NodeResponse } from "node:http";
 import type { Duplex } from "node:stream";
 import type { TransportImpl } from "@mark1russell7/service";
-import { Client, realClock, requestCredentials, type BrowserGuardOptions, type Clock, type HostPolicy, type ProcedureRegistry, type ProcedureServer } from "@procedures/client";
+import { Client, realClock, requestCredentials, type BrowserGuardOptions, type Clock, type HostPolicy, type Logger, type ProcedureRegistry, type ProcedureServer } from "@procedures/client";
 import { procedureHandler, upgradeHandler, type ProcedureHandlerOptions, type UpgradeHandlerOptions } from "@procedures/client/node";
 import type { FaceHandler, HttpTracker } from "./tracking.js";
 
@@ -42,6 +42,11 @@ export interface HostFaceContext {
    * of the controller of the host. The host always gives it.
    */
   readonly track?: HttpTracker | undefined;
+  /**
+   * The logger of the host (CLI-87), also on `handler.logger`. A face writes its log lines to it,
+   * for example with `writeLog()` of `@procedures/client`. Absent: the face writes to the console as before.
+   */
+  readonly logger?: Logger | undefined;
 }
 
 /** The upgrade handler of a face, and the path or the function that tells which upgrades it takes. */
