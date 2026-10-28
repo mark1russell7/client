@@ -303,5 +303,5 @@ export function createProgramProcedures(options: ProgramProceduresOptions): AnyP
  */
 export function createProgramModule(options: ProgramProceduresOptions): ProcedureModule {
   const namespace = options.namespace ?? [PROGRAMS];
-  return defineModule(`@procedures/store/programs:${namespace.join(".")}`, createProgramProcedures(options));
+  return defineModule(`@procedures/store/programs:${pathToKey(namespace)}`, createProgramProcedures(options));
 }
