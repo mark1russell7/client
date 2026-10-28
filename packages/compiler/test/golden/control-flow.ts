@@ -7,7 +7,7 @@ export const registryHash: string = "<registry hash>";
 
 // The program, for client.exec(program, input): the input changes the program, so the interpreter runs it
 const PROGRAM: unknown = { $proc: ["client", "chain"], input: { steps: [{ $proc: ["t", "read"], input: { key: "k" }, $name: "old" }, { $proc: ["client", "conditional"], input: { condition: { $proc: ["t", "truth"], input: { value: { $ref: "old" } } }, then: { $proc: ["t", "write"], input: { key: "k", value: 1 } }, else: "same" } }, { $proc: ["client", "tryCatch"], input: { try: { $proc: ["t", "fail"], input: { message: "disk full" } }, catch: { message: { $ref: "error" } } } }, { $proc: ["client", "map"], input: { items: [1, 2, 3], as: "n", fn: { $proc: ["t", "add"], input: { a: { $ref: "n" }, b: { $ref: "index" } } } } }, { $proc: ["client", "reduce"], input: { items: [1, 2], initial: 0, fn: { $proc: ["t", "add"], input: { a: { $ref: "acc" }, b: { $ref: "item" } } } } }, { $proc: ["client", "parallel"], input: { tasks: [{ $proc: ["t", "num"], input: { value: 1 } }, { $proc: ["t", "num"], input: { value: 2 } }], concurrency: 1 } }, { $proc: ["client", "and"], input: { values: [true, { $proc: ["t", "truth"], input: { value: 0 } }] } }] } };
-const RAW_KEYS: string[] = ["client.eval", "client.export", "client.stringifyJson", "procedure.define"];
+const RAW_KEYS: string[] = ["client.eval", "client.export", "client.stringifyJson", "client.trace", "procedure.define"];
 
 export default async function program(ctx: ProgramContext, input?: unknown): Promise<unknown> {
   if (input !== undefined) return rt.execWithInput(ctx, PROGRAM, input, RAW_KEYS);
