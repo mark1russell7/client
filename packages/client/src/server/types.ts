@@ -8,7 +8,7 @@
 import type { Elicit } from "../procedures/elicit.js";
 import type { ReportProgress } from "../procedures/progress.js";
 import type { Metadata, Status, Method } from "../client/types.js";
-import type { CapabilityRequest } from "../procedures/types.js";
+import type { CapabilityRequest, ProcedurePath } from "../procedures/types.js";
 import type { ExposedError } from "./error-policy.js";
 import type { Logger } from "../logger.js";
 import { methodName } from "./method.js";
@@ -76,6 +76,14 @@ export interface ServerRequest<TReq = unknown> {
    * capability does not become wider.
    */
   narrowing?: CapabilityRequest | undefined;
+
+  /**
+   * The expose rule of the face that took the request (AG1-B), for example a read-only face of a
+   * browser. The face sets it, not the caller: it is a function, so JSON cannot carry it.
+   * `ProcedureServer` meets it with its own expose rule, for the call and for each nested call.
+   * Thus it can only narrow. A path outside it gets `NOT_FOUND`, as a path outside the rule of the server.
+   */
+  expose?: ((path: ProcedurePath) => boolean) | undefined;
 }
 
 /**

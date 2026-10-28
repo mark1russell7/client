@@ -4,7 +4,7 @@
 # and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
 # To accept a change of the API, start the script with --update and review the diff.
 
-## . (dist/index.d.ts): 628 names
+## . (dist/index.d.ts): 631 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -120,6 +120,8 @@ type EventPublisherOptions: dist/events/publisher.d.ts#EventPublisherOptions
 type EventWaitOptions: dist/events/types.d.ts#EventWaitOptions
 type ExecutionContext: dist/client/batch-executor.d.ts#ExecutionContext
 type ExposedError: dist/server/error-policy.d.ts#ExposedError
+type FaceRules: dist/server/face-rules.d.ts#FaceRules
+type FaceRulesOptions: dist/server/face-rules.d.ts#FaceRulesOptions
 type ForbiddenReason: dist/procedures/invoke.d.ts#ForbiddenReason
 type FsRootRules: dist/procedures/types.d.ts#FsRootRules
 type GuardResult: dist/server/browser-guard.d.ts#GuardResult
@@ -456,6 +458,7 @@ exposeError: dist/server/error-policy.d.ts#exposeError
 exposePatterns: dist/server/host-policy.d.ts#exposePatterns
 exposedProcedures: dist/procedures/manifest.d.ts#exposedProcedures
 extractTemplate: dist/procedures/ref.d.ts#extractTemplate
+faceRules: dist/server/face-rules.d.ts#faceRules
 flattenRoute: dist/client/call-types.d.ts#flattenRoute
 formatError: dist/client/errors/factory.d.ts#formatError
 formatTraceparent: dist/tracing/traceparent.d.ts#formatTraceparent
@@ -635,7 +638,7 @@ withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 writeLog: dist/logger.d.ts#writeLog
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 616 names
+## ./browser (dist/browser.d.ts): 619 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -750,6 +753,8 @@ type EventPublisherOptions: dist/events/publisher.d.ts#EventPublisherOptions
 type EventWaitOptions: dist/events/types.d.ts#EventWaitOptions
 type ExecutionContext: dist/client/batch-executor.d.ts#ExecutionContext
 type ExposedError: dist/server/error-policy.d.ts#ExposedError
+type FaceRules: dist/server/face-rules.d.ts#FaceRules
+type FaceRulesOptions: dist/server/face-rules.d.ts#FaceRulesOptions
 type ForbiddenReason: dist/procedures/invoke.d.ts#ForbiddenReason
 type FsRootRules: dist/procedures/types.d.ts#FsRootRules
 HIDDEN_ERROR_MESSAGE: dist/server/error-policy.d.ts#HIDDEN_ERROR_MESSAGE
@@ -1080,6 +1085,7 @@ exposeError: dist/server/error-policy.d.ts#exposeError
 exposePatterns: dist/server/host-policy.d.ts#exposePatterns
 exposedProcedures: dist/procedures/manifest.d.ts#exposedProcedures
 extractTemplate: dist/procedures/ref.d.ts#extractTemplate
+faceRules: dist/server/face-rules.d.ts#faceRules
 flattenRoute: dist/client/call-types.d.ts#flattenRoute
 formatError: dist/client/errors/factory.d.ts#formatError
 formatTraceparent: dist/tracing/traceparent.d.ts#formatTraceparent
@@ -5881,6 +5887,23 @@ export interface ServerErrorPolicy {
 ### dist/server/error-policy.d.ts#exposeError
 export declare function exposeError(policy: ServerErrorPolicy | undefined, error: unknown, call: ErrorCall, log: (error: unknown) => void, raw?: ExposedError): ExposedError;
 
+### dist/server/face-rules.d.ts#FaceRules
+export interface FaceRules {
+    readonly narrowings: readonly CapabilityRequest<unknown>[];
+    readonly expose: ((path: ProcedurePath) => boolean) | undefined;
+    readonly capability: Capability | undefined;
+    apply<T>(request: ServerRequest<T>): ServerRequest<T>;
+}
+
+### dist/server/face-rules.d.ts#FaceRulesOptions
+export interface FaceRulesOptions {
+    readonly narrowing?: CapabilityRequest<unknown> | readonly CapabilityRequest<unknown>[] | undefined;
+    readonly expose?: readonly string[] | ToolSurface | ((path: ProcedurePath) => boolean) | undefined;
+}
+
+### dist/server/face-rules.d.ts#faceRules
+export declare function faceRules(options: FaceRulesOptions, policy: Pick<HostPolicy, "capabilityOf" | "clearanceOrder">, face?: string): FaceRules;
+
 ### dist/server/host-policy.d.ts#HostPolicy
 export interface HostPolicy {
     readonly expose: ((path: ProcedurePath) => boolean) | undefined;
@@ -6017,7 +6040,7 @@ export declare class ProcedureServer extends Server implements RepositoryProvide
     registerProcedures(procedures: AnyProcedure[], options?: RegisterProcedureOptions): void;
     registerModule(module: ProcedureModule, options?: RegisterProcedureOptions): void;
     registerFromRegistry(): void;
-    protected findHandler(method: Method): ServerHandler | null;
+    protected findHandler(method: Method, request?: ServerRequest<unknown>): ServerHandler | null;
     get callsInFlight(): number;
     get stopping(): boolean;
     admits(credentials: Credentials): Promise<boolean>;
@@ -6155,7 +6178,7 @@ export declare class Server {
     handle<TReq, TRes>(request: ServerRequest<TReq>): Promise<ServerResponse<TRes>>;
     exposeError(error: unknown, request: ServerRequest | undefined, raw: ExposedError): ExposedError;
     get logger(): Logger | undefined;
-    protected findHandler(method: Method): ServerHandler | null;
+    protected findHandler(method: Method, _request?: ServerRequest<unknown>): ServerHandler | null;
 }
 
 ### dist/server/server.d.ts#ServerErrorContext
@@ -6289,6 +6312,7 @@ export interface ServerRequest<TReq = unknown> {
     credentials?: Credentials | undefined;
     principal?: Principal | undefined;
     narrowing?: CapabilityRequest | undefined;
+    expose?: ((path: ProcedurePath) => boolean) | undefined;
 }
 
 ### dist/server/types.d.ts#ServerResponse

@@ -165,6 +165,34 @@ const client = new Client({ transport: local.transport });
   - `probes: { prefix }` changes the prefix. `probes: false` turns the probes off, for example when the process has a probe server on a port of its own (`probeServer()`, or the option `probes` of `runProcedureHost()`).
   - `host.info.probes()` gives the base URL of the probes on each listener. Without `listen`, the app mounts `probeHandler()` on its own listener.
 
+### A read-only face for a browser
+
+`httpFace()` and `wsFace()` take two optional options for the calls of the face (AG1-B). With them, a host serves a second face pair next to its full faces. The server enforces the rules of each face, so a page cannot go around them.
+
+```typescript
+import { createProcedureHost, httpFace, wsFace, LOCAL_LISTENER_KNOBS } from "@procedures/peer";
+
+const read = {
+  narrowing: { effects: { writes: [] } },
+  expose: ["programs.list", "programs.get", "procedure.get", "client.trace", "graphapi.*"],
+};
+const host = createProcedureHost({
+  registry,
+  faces: {
+    http: { basePath: "/rpc" },
+    ws: { path: "/rpc/ws" },
+    readHttp: httpFace({ basePath: "/rpc/read", ...read }),
+    readWs: wsFace({ path: "/rpc/read/ws", ...read }),
+  },
+  listen: [{ port: 3000, knobs: LOCAL_LISTENER_KNOBS }],
+});
+// The page opens a second WebSocketTransport to /rpc/read/ws for its read calls
+```
+
+- **`narrowing`** (`CapabilityRequest` or a list of them): a narrower capability for each call of the face, as `mcpFace({ narrowing })` (CLI-43). The face adds it as one more source of the narrowing key (CLI-30). The server applies the meet of all the sources, so a `Procedure-Narrowing` header of the page cannot make the face wider. The nested calls of a call get the narrowed capability. Thus `client.chain` and a program of `procedure.define` cannot write through the face. A narrowing that is not valid stops the host with an error.
+- **`expose`** (a list of patterns, a tool surface or a function): the procedures that the callers of the face reach, as `hostPolicy({ expose })`. The server meets it with the expose rule of the host, for the call and for each nested call. A call outside it gets `NOT_FOUND`, and a nested call of a data-driven procedure outside it gets `NOT_EXPOSED`. The rule applies to each procedure, also to `host.health`, `host.info`, `host.metrics` and `events.subscribe`.
+- A face without these options serves the same calls as before. The option objects of `faces.http` and `faces.ws` take them too.
+
 ### Creating a Server Peer
 
 `createPeer()` is for a process that has no service of its own: a test, or a host that a procedure starts (`server.create`). The peer builds a host with `createProcedureHost()`, declares its parts in a service of its own, and starts `run()` of `@mark1russell7/service` on a process port that installs no signal handler and never ends the process. `stop()` asks that lifecycle for its shutdown. A process that has a service of its own uses `createProcedureHost()` and `host.declare(svc)` in place of a peer.

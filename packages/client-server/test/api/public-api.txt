@@ -4,12 +4,13 @@
 # and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
 # To accept a change of the API, start the script with --update and review the diff.
 
-## . (dist/index.d.ts): 83 names
+## . (dist/index.d.ts): 86 names
 
 type CallDetail: dist/host/tracking.d.ts#CallDetail
 type CallOperation: dist/host/tracking.d.ts#CallOperation
 type ConnectOptions: dist/connection/index.d.ts#ConnectOptions
 type Connection: dist/connection/index.d.ts#Connection
+type FaceCallRules: dist/host/faces.d.ts#FaceCallRules
 type FaceHandler: dist/host/tracking.d.ts#FaceHandler
 type FaceHandlerOptions: dist/host/tracking.d.ts#FaceHandlerOptions
 HOST_PROBE_PREFIX: dist/host/index.d.ts#HOST_PROBE_PREFIX
@@ -31,6 +32,7 @@ type HostPart: dist/host/index.d.ts#HostPart
 type HostPattern: dist/host/index.d.ts#HostPattern
 type HostProbes: dist/host/index.d.ts#HostProbes
 type HostServerOptions: dist/host/index.d.ts#HostServerOptions
+type HttpFaceOptions: dist/host/faces.d.ts#HttpFaceOptions
 type HttpTracker: dist/host/tracking.d.ts#HttpTracker
 type HttpTrackerOptions: dist/host/tracking.d.ts#HttpTrackerOptions
 type HttpTransportConfig: dist/types.d.ts#HttpTransportConfig
@@ -60,6 +62,7 @@ type ServerDisconnectOutput: dist/types.d.ts#ServerDisconnectOutput
 type TransportConfig: dist/types.d.ts#TransportConfig
 type TransportType: dist/types.d.ts#TransportType
 type WebSocketTransportConfig: dist/types.d.ts#WebSocketTransportConfig
+type WsFaceOptions: dist/host/faces.d.ts#WsFaceOptions
 callOperations: dist/host/tracking.d.ts#callOperations
 connect: dist/connection/index.d.ts#connect
 createPeer: dist/peer/index.d.ts#createPeer
@@ -186,6 +189,12 @@ export declare function watchProcedures(callback: (event: "register" | "unregist
 ### dist/expose.d.ts#exposeRule
 export declare function exposeRule(patterns: readonly string[]): (path: ProcedurePath) => boolean;
 
+### dist/host/faces.d.ts#FaceCallRules
+export interface FaceCallRules {
+    readonly narrowing?: FaceRulesOptions["narrowing"];
+    readonly expose?: FaceRulesOptions["expose"];
+}
+
 ### dist/host/faces.d.ts#HostFace
 export interface HostFace {
     readonly handler?: ((req: IncomingMessage, res: NodeResponse) => boolean) | undefined;
@@ -224,11 +233,19 @@ export interface HostFaceUpgrade {
     readonly handler: (req: IncomingMessage, socket: Duplex, head: Buffer) => unknown;
 }
 
+### dist/host/faces.d.ts#HttpFaceOptions
+export interface HttpFaceOptions extends ProcedureHandlerOptions, FaceCallRules {
+}
+
+### dist/host/faces.d.ts#WsFaceOptions
+export interface WsFaceOptions extends UpgradeHandlerOptions, FaceCallRules {
+}
+
 ### dist/host/faces.d.ts#httpFace
-export declare function httpFace(options?: ProcedureHandlerOptions): HostFaceFactory;
+export declare function httpFace(options?: HttpFaceOptions): HostFaceFactory;
 
 ### dist/host/faces.d.ts#wsFace
-export declare function wsFace(options?: UpgradeHandlerOptions): HostFaceFactory;
+export declare function wsFace(options?: WsFaceOptions): HostFaceFactory;
 
 ### dist/host/index.d.ts#HOST_PROBE_PREFIX
 export declare const HOST_PROBE_PREFIX = "/_probes";
@@ -339,10 +356,10 @@ export interface ProcedureHost {
 
 ### dist/host/index.d.ts#ProcedureHostFaces
 export interface ProcedureHostFaces {
-    readonly http?: boolean | ProcedureHandlerOptions | HostFaceFactory | undefined;
-    readonly ws?: boolean | UpgradeHandlerOptions | HostFaceFactory | undefined;
+    readonly http?: boolean | HttpFaceOptions | HostFaceFactory | undefined;
+    readonly ws?: boolean | WsFaceOptions | HostFaceFactory | undefined;
     readonly mcp?: HostFaceFactory | undefined;
-    readonly [face: string]: boolean | ProcedureHandlerOptions | UpgradeHandlerOptions | HostFaceFactory | undefined;
+    readonly [face: string]: boolean | HttpFaceOptions | WsFaceOptions | HostFaceFactory | undefined;
 }
 
 ### dist/host/index.d.ts#ProcedureHostOptions

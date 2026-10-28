@@ -23,11 +23,8 @@
 
 import type { IncomingMessage, ServerResponse } from "node:http";
 import {
-  NARROWING_METADATA_KEY,
-  addNarrowing,
   capabilityRefusal,
-  narrowWithin,
-  narrowingOf,
+  faceRules,
   type BrowserGuardOptions,
   type CapabilityRequest,
   type HostPolicy,
@@ -105,28 +102,18 @@ interface FaceNarrowing {
 }
 
 /**
- * This function reads the narrowing of a face with the decoder and the meet of the wire (CLI-30).
- * It throws for a part that is not valid, because each call of the face then gets a refusal. The
- * capability of the tool list is the meet of the policy capability and the narrowing, without the
- * time: the time limits each call, not the tools.
+ * This function reads the narrowing of a face with `faceRules()` of `@procedures/client`. The HTTP
+ * and WebSocket faces use the same helper. It throws for a part that is not valid, because each
+ * call of the face then gets a refusal. The capability of the tool list is the meet of the policy
+ * capability and the narrowing, without the time. The time limits each call, not the tools.
  */
 function faceNarrowing(narrowing: NonNullable<McpFaceOptions["narrowing"]>, context: McpFaceContext): FaceNarrowing {
-  const wire = narrowingOf(narrowing);
-  // The sources as the decoder read them, frozen: a change of the options or of the metadata of a call does not change them
-  const sources = Object.freeze(wire.narrowings.map((source) => Object.freeze({ ...source })));
-  const untimed = sources.map((source): CapabilityRequest<unknown> => ({
-    ...(source.clearance !== undefined ? { clearance: source.clearance } : {}),
-    ...(source.effects !== undefined ? { effects: source.effects } : {}),
-  }));
-  const listed = narrowWithin(context.policy.capabilityOf?.(), untimed, context.policy.clearanceOrder);
-  const refusal = [...wire.notes, ...listed.notes].find((note) => note.kind === "refused");
-  if (refusal) throw new Error(`The narrowing of the MCP face is not valid: ${refusal.message}`);
-  const { capability } = listed;
+  const rules = faceRules({ narrowing }, context.policy, "MCP");
+  const { capability } = rules;
   const { handler: inner, registry } = context;
   return {
     handler: {
-      handle: (request) =>
-        inner.handle({ ...request, metadata: { ...request.metadata, [NARROWING_METADATA_KEY]: addNarrowing(request.metadata[NARROWING_METADATA_KEY], sources) } }),
+      handle: (request) => inner.handle(rules.apply(request)),
       ...(inner.ambientCredentials ? { ambientCredentials: inner.ambientCredentials } : {}),
       // The principal before a call (CLI-69): the narrowing does not change it
       ...(inner.identify ? { identify: inner.identify.bind(inner) } : {}),
