@@ -128,6 +128,7 @@ This layer is the one procedures server in Node. `mark serve` and `mark --server
 - `runProcedureHost(config)`: the only entry that starts `run()` for `procedure-server`, `mark serve` and `mark --server`. The lockfile is a phase of it (CLI-8).
 - `host.info`, `host.health` and `host.metrics` as procedures, with the identity of the host: the peer ID and the count of the procedures.
 - One expose rule for the server and each face. It applies to each procedure that the host serves, also to the collection procedures. Only `host.*` and `events.subscribe` are always on (CLI-47).
+- The options `narrowing` and `expose` of `httpFace()` and `wsFace()` make one face narrower than the host (AG1-B). The face rule meets the host rule for each call and each nested call. It applies also to the procedures that are always on.
 - `server.create`, with the same factory and the same `HostPolicy`.
 
 The limits of the host:
