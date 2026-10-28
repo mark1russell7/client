@@ -309,7 +309,7 @@ export class Server {
 
     try {
       // Find handler
-      const handler = this.findHandler(request.method);
+      const handler = this.findHandler(request.method, request);
       if (!handler) {
         throw new HandlerNotFoundError(request.method);
       }
@@ -351,9 +351,10 @@ export class Server {
 
   /**
    * Find handler for a method. A subclass can add handlers that it finds at request time
-   * (`ProcedureServer` looks up its registry).
+   * (`ProcedureServer` looks up its registry). The request is absent for a lookup outside a call.
+   * `ProcedureServer` reads the expose rule of its face from it (AG1-B).
    */
-  protected findHandler(method: Method): ServerHandler | null {
+  protected findHandler(method: Method, _request?: ServerRequest<unknown>): ServerHandler | null {
     for (const entry of this.handlers) {
       if (this.matchesMethod(entry.matcher, method)) {
         return entry.handler;
