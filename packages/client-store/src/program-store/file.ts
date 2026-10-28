@@ -6,14 +6,29 @@
  * file (`<file>.lock`), reads, changes and writes the file through a temporary file and a rename,
  * so a reader never sees a part of a write and two writers do not lose each other's programs.
  * A file that is not valid JSON is an error: the store does not write over it.
+ *
+ * The version of a record is a counter of the file, in the optional field `counter`. Each put takes
+ * the next number under the lock, and tests `expectedVersion` under the same lock. A file of an
+ * older release has no counter: the highest version of its records starts the count.
  */
 
 import { mkdir, open, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import { byKey, checkStoredProgram, keyMatches, type ProgramStore, type StoredProgram } from "./types.js";
+import {
+  byKey,
+  checkProgramVersion,
+  checkStoredProgram,
+  keyMatches,
+  nextCounterVersion,
+  type ProgramStore,
+  type ProgramWriteOptions,
+  type StoredProgram,
+} from "./types.js";
 
 interface ProgramFile {
   schemaVersion: 1;
+  /** The last version that a put gave. A file of an older release does not have it. */
+  counter?: number;
   programs: Record<string, StoredProgram>;
 }
 
@@ -33,6 +48,11 @@ function isContention(error: unknown): boolean {
 }
 
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** The program of a key, or undefined. A key such as "constructor" is not a field of the prototype. */
+function ownProgram(file: ProgramFile, key: string): StoredProgram | undefined {
+  return Object.hasOwn(file.programs, key) ? file.programs[key] : undefined;
+}
 
 /**
  * This function runs a file operation again while Windows holds the file for a moment. `FileQueueStore` uses it
@@ -66,17 +86,21 @@ export class FileProgramStore implements ProgramStore {
     return byKey(Object.values((await this.read()).programs).filter((p) => keyMatches(p.key, prefix)));
   }
 
-  async put(program: StoredProgram): Promise<void> {
+  async put(program: StoredProgram, options?: ProgramWriteOptions): Promise<void> {
     const checked = checkStoredProgram(structuredClone(program));
     await this.change((file) => {
-      file.programs[checked.key] = checked;
+      checkProgramVersion(checked.key, ownProgram(file, checked.key), options);
+      const version = nextCounterVersion(file.counter ?? 0, Object.values(file.programs));
+      file.counter = version;
+      file.programs[checked.key] = { ...checked, version };
       return true;
     });
   }
 
-  async delete(key: string): Promise<boolean> {
+  async delete(key: string, options?: ProgramWriteOptions): Promise<boolean> {
     let deleted = false;
     await this.change((file) => {
+      checkProgramVersion(key, ownProgram(file, key), options);
       deleted = Object.hasOwn(file.programs, key);
       if (deleted) delete file.programs[key];
       return deleted;
@@ -106,7 +130,8 @@ export class FileProgramStore implements ProgramStore {
     // A null-prototype object: a key such as "__proto__" stays a plain key
     const programs: Record<string, StoredProgram> = Object.create(null);
     for (const [key, value] of Object.entries(file.programs)) programs[key] = checkStoredProgram(value);
-    return { schemaVersion: 1, programs };
+    const counter = typeof file.counter === "number" && Number.isSafeInteger(file.counter) && file.counter > 0 ? file.counter : undefined;
+    return counter === undefined ? { schemaVersion: 1, programs } : { schemaVersion: 1, counter, programs };
   }
 
   /** Read, change and write the file under the lock. `change` gives false when nothing changed. */

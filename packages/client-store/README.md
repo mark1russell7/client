@@ -72,6 +72,69 @@ Without a store, `procedure.store`, `load` and `sync` fail with the code `NOT_CO
 
 A loaded program is a runtime-defined procedure, so it is data-driven: a server with an expose rule lets it call only the exposed procedures. Load programs only from a store that you trust. A host with no expose rule does not limit the calls of a program.
 
+### The versions of a program
+
+A stored program has the optional fields `name`, `description` and `version`. The store sets `version` on each `put`. It ignores the version of the input. The value is opaque: compare it, and give it back as `expectedVersion`.
+
+`put(program, { expectedVersion })` and `delete(key, { expectedVersion })` are optimistic writes (decision D11):
+
+- When the current record has another version, the write changes nothing. It rejects with `VersionConflictError` of `@procedures/client`, with the code `VERSION_CONFLICT`.
+- An `expectedVersion` for a key without a record is a conflict.
+- `null` expects no record, as in the collection storages. A `put` with `null` writes only a new program.
+- Without `expectedVersion`, the last write wins, as before.
+
+| Backend | The version |
+|---|---|
+| `MemoryProgramStore` | A counter of the store, a number. A deleted program does not get an old version back. |
+| `FileProgramStore` | A counter in the field `counter` of the file, a number. The lock of the file holds the test and the write together. |
+| `IndexedDbProgramStore` | One more than the highest version in the database, a number. The test and the write are one transaction. After a delete of the record with the highest version, a later `put` can give that version again. |
+| `CollectionProgramStore` | A revision string, for example `"3-k2j9x0aq"`. The storage tests the version itself, with its own `versionOf`. |
+
+Give the storage of a `CollectionProgramStore` the option `versionOf: storedProgramVersion`. A storage without `versionOf` refuses a write with `expectedVersion` (the code `PRECONDITION_NOT_SUPPORTED`).
+
+A `ProgramStore` of another package can ignore the second argument of `put` and `delete`. It keeps working, but it gives no conflict check: its writes always win.
+
+### The programs of a tenant
+
+One program store has two scopes:
+
+- The scope "host" is the store of a registry (`attachProgramStore`). `procedure.store`, `load` and `sync` use it, and `procedure.load` defines its programs in the registry.
+- The scope "tenant" is a store of each partition. `createProgramProcedures` gives the procedures of this scope. They do not define a program in a registry. A view lists the programs, and a caller starts one with `client.chain` or `client.exec`.
+
+```ts
+import { createRegistry, type PartitionResolver } from "@procedures/client";
+import { createProgramModule, MemoryProgramStore, type ProgramStore } from "@procedures/store";
+
+// The tenant comes from the principal. The input only selects a scope under it.
+const partition: PartitionResolver = (ctx, requested) => {
+  const tenant = ctx.principal?.claims?.["tenant"];
+  if (typeof tenant !== "string") return null;
+  return requested === undefined ? tenant : `${tenant}/${requested}`;
+};
+const stores = new Map<string | undefined, ProgramStore>();
+const storeFor = (name: string | undefined): ProgramStore => {
+  if (!stores.has(name)) stores.set(name, new MemoryProgramStore());
+  return stores.get(name)!;
+};
+const registry = createRegistry(createProgramModule({ partition, storeFor }));
+```
+
+| Procedure | What it does | Effects |
+|---|---|---|
+| `programs.save` | Writes `{ path, program, name?, description?, expectedVersion? }`. It gives the stored record with its new version. | It reads and writes `programs`. |
+| `programs.get` | Reads `{ path }` or `{ key }`. A missing program is the error `NOT_FOUND`. | It reads `programs`, and writes nothing. |
+| `programs.list` | Reads the programs of `{ prefix? }`, sorted by key. | It reads `programs`, and writes nothing. |
+| `programs.remove` | Deletes `{ path, expectedVersion? }`. It gives `{ removed, key }`. | It writes `programs`, and it is destructive. |
+
+- Each procedure takes an optional `partition`, which only selects. The resolver gets the context and the requested partition, and it decides.
+- A `null` result of the resolver refuses the call with `FORBIDDEN`, reason `partition-not-allowed`, as `createCollectionProcedures` does.
+- The function `storeFor` gives the store of a partition. Give the same store for the same partition each time, and a store of its own to each tenant. Thus one tenant does not read the programs of another tenant.
+- `programs.save` checks the record with `checkStoredProgram`, and the program with the check of `procedure.define`. It takes the program as data (the tag `raw-input`), so the save runs nothing of it.
+- The option `namespace` changes the first segments of the paths. The default is `["programs"]`. `createProgramProcedures` gives the procedures as a list, and `createProgramModule` gives them as a module.
+- An import registers nothing. The entry is the package root only, because a host serves the programs. A browser uses the procedures of its server.
+
+Under a read-only capability (`{ effects: { writes: [] } }`, or `hostPolicy({ readOnly: true })`), `programs.get` and `programs.list` work. `programs.save` and `programs.remove` are refused with `FORBIDDEN`, reason `effects-exceeded`. A saved program that a read-only caller starts with `client.chain` gets the same refusal at each step that writes.
+
 ## The storage layer
 
 These parts moved here from `@procedures/client` (roadmap 3.2):

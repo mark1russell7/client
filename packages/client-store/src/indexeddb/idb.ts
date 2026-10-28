@@ -293,9 +293,10 @@ export class IdbStoreConnection {
    * This method runs work in one transaction. The work makes the requests, and it gives a function that reads
    * their results. The promise resolves after the transaction commits, so a write is durable when
    * the promise resolves. An error of a request aborts the transaction: each request is undone.
+   * The work gets `fail` too: a call of it aborts the transaction with its error.
    */
-  run<R>(mode: "readonly" | "readwrite", work: (store: IdbObjectStoreLike) => () => R): Promise<R> {
-    return this.connection.transaction(mode, [this.store], (transaction) => work(transaction.objectStore(this.store)));
+  run<R>(mode: "readonly" | "readwrite", work: (store: IdbObjectStoreLike, fail: (error: unknown) => void) => () => R): Promise<R> {
+    return this.connection.transaction(mode, [this.store], (transaction, fail) => work(transaction.objectStore(this.store), fail));
   }
 
   /** This method closes the connection. A later operation throws. */
