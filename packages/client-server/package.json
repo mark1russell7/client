@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/peer",
-  "version": "0.46.0",
+  "version": "0.47.0",
   "description": "Serve procedures: createProcedureHost() gives the parts of a service, with HTTP, WebSocket and MCP faces on one listener. Also peers, server.create, server.call and server.connections, and manifests.",
   "keywords": [
     "server",
