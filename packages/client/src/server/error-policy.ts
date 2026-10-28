@@ -64,8 +64,8 @@ export interface ServerErrorPolicy {
    *   `INTERNAL_ERROR` with the message `"internal error"` and its real retryable flag, with
    *   only the metadata keys of `keepMetadata`. The codes `INTERNAL_ERROR`, `HANDLER_ERROR`, `UNKNOWN`,
    *   `OUTPUT_VALIDATION_ERROR` and `NO_OUTPUT` tell of a failure of the server, not of a
-   *   refusal, so their message is hidden too. The server gives the real error to its `onError`
-   *   logger one time, or to `console.error` without a logger.
+   *   refusal, so their message is hidden too. The server gives the real error one time to its `onError`
+   *   and its `logger`, or to `console.error` without them.
    */
   readonly expose?: "all" | "coded" | undefined;
   /**
@@ -108,7 +108,7 @@ export function markLogged(error: unknown): void {
   if (typeof error === "object" && error !== null) LOGGED.add(error);
 }
 
-/** The logger of the hidden errors: the hook `onError` of the server, or `console.error`. */
+/** The logger of the hidden errors: the hook `onError` and the `logger` of the server, or `console.error`. */
 export type HiddenErrorLog = (error: unknown, request: ServerRequest<unknown> | undefined) => void;
 
 /** This function gives an error to the logger, when the logger did not get it before. */

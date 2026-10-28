@@ -42,6 +42,7 @@ import {
   type CollectionProceduresOptions,
   type CollectionStorage,
   type HostPolicy,
+  type Logger,
   type ProcedurePath,
   type ProcedureRegistry,
   type ProcedureServerOptions,
@@ -186,6 +187,13 @@ export interface ProcedureHostOptions {
   readonly collections?: Readonly<Record<string, CollectionStorage<unknown> | HostCollection>> | undefined;
   /** The clock of the host: give the clock of the lifecycle. The default is the clock of the platform. */
   readonly clock?: Clock | undefined;
+  /**
+   * The logger of the host (CLI-87). The server, each face and each transport write their log lines
+   * to it. The `onError` option of the server gets it. It has the shape of the `Logger` of
+   * `@mark1russell7/service`, so the same object also goes to `run({ logger })`. It wins over
+   * `serverOptions.logger`. Without both, each line goes to the console as before.
+   */
+  readonly logger?: Logger | undefined;
   /** More options of the server: `idempotency`, `authenticate`, `ambientCredentials`, the loggers. */
   readonly serverOptions?: HostServerOptions | undefined;
   /** More endpoints for `host.info`, after the endpoints of the listeners, for example `local://in-process`. */
@@ -368,6 +376,8 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
     ...base,
     ...options.serverOptions,
     ...(interceptors.length > 0 ? { interceptors } : {}),
+    // The logger of the host goes to the server, and each face gets it from the handler (CLI-87)
+    ...(options.logger ? { logger: options.logger } : {}),
     autoRegister: options.autoRegister ?? true,
     registry,
     clock,
@@ -394,7 +404,8 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
     const handler = faceHandler({ server, controller: name, face: faceName, life: () => life, keyed: keyedWindowMs !== undefined });
     // The tracking of the requests of the face that are not procedure calls, on the same route pattern (CLI-54)
     const track = httpTracker({ controller: name, face: faceName, life: () => life });
-    faces.set(faceName, factory({ name: faceName, handler, server, registry, policy, clock, track }));
+    const logger = server.logger;
+    faces.set(faceName, factory({ name: faceName, handler, server, registry, policy, clock, track, ...(logger ? { logger } : {}) }));
   }
 
   // The listeners that the host owns, each one with the faces of its mount list. The responses

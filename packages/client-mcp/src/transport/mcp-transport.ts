@@ -31,8 +31,9 @@ import type {
   ElicitOptions,
   Principal,
   ReportProgress,
+  Logger,
 } from "@procedures/client";
-import { LOCAL_CREDENTIALS, NARROWING_METADATA_KEY, PROCEDURE_REGISTRY, addNarrowing, pathToKey, pathToMethod, createElicit, elicitWithPolicy, lastResortError, requestCredentials, retryableOf, untrustedTextsOf } from "@procedures/client";
+import { LOCAL_CREDENTIALS, NARROWING_METADATA_KEY, PROCEDURE_REGISTRY, addNarrowing, pathToKey, pathToMethod, createElicit, elicitWithPolicy, lastResortError, requestCredentials, retryableOf, untrustedTextsOf, writeLog } from "@procedures/client";
 import {
   proceduresToMcpTools,
   toToolDefinition,
@@ -237,9 +238,12 @@ export class McpServerTransport implements ServerTransport {
   /** The store of the tasks (CLI-35), and true when this transport made it (then its stop closes it) */
   private readonly taskStore: McpTaskStore | undefined;
   private readonly ownsTaskStore: boolean;
+  /** The logger of the lines of the transport: the option, or the logger of the server (CLI-87) */
+  private readonly logger: Logger | undefined;
 
   constructor(server: RequestHandler, options: McpServerTransportOptions = {}) {
     this.server = server;
+    this.logger = options.logger ?? server.logger;
     this.options = {
       transport: options.transport ?? "stdio",
       serverInfo: options.serverInfo ?? {
@@ -723,7 +727,13 @@ export class McpServerTransport implements ServerTransport {
     // A tool name names one procedure: the transport leaves out each name of two procedures (CLI-28)
     const reportCollision = (name: string, paths: readonly (readonly string[])[]): void => {
       // MUST be stderr: stdout carries the protocol of stdio
-      console.error(`[mcp] The procedures ${paths.map(pathToKey).join(", ")} have the tool name "${name}": the transport leaves them out`);
+      writeLog(
+        this.logger,
+        "error",
+        "Procedures have the same tool name: the transport leaves them out",
+        { transport: this.name, tool: name, procedures: paths.map(pathToKey) },
+        `[mcp] The procedures ${paths.map(pathToKey).join(", ")} have the tool name "${name}": the transport leaves them out`,
+      );
     };
     for (const tool of distinctTools(namedTools(mcpTools, this.options.toolName), reportCollision)) {
       this.tools.set(tool.name, tool);
@@ -758,9 +768,11 @@ export class McpServerTransport implements ServerTransport {
    */
   private log(message: string): void {
     if (this.options.debug) {
+      // The logger gets the line at the level debug (CLI-87)
+      if (this.logger) this.logger.log("debug", message, { transport: this.name });
       // MUST be stderr: the stdio MCP transport uses stdout for JSON-RPC framing, so any
       // stdout write here corrupts the protocol stream. See documentation/BUGS-2026-07.md (M39/Bug4).
-      console.error(`[${this.name}] ${message}`);
+      else console.error(`[${this.name}] ${message}`);
     }
   }
 

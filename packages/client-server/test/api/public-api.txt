@@ -205,6 +205,7 @@ export interface HostFaceContext {
     readonly policy: HostPolicy;
     readonly clock: Clock;
     readonly track?: HttpTracker | undefined;
+    readonly logger?: Logger | undefined;
 }
 
 ### dist/host/faces.d.ts#HostFaceEndpoint
@@ -359,6 +360,7 @@ export interface ProcedureHostOptions {
     readonly probes?: boolean | HostProbes | undefined;
     readonly collections?: Readonly<Record<string, CollectionStorage<unknown> | HostCollection>> | undefined;
     readonly clock?: Clock | undefined;
+    readonly logger?: Logger | undefined;
     readonly serverOptions?: HostServerOptions | undefined;
     readonly endpoints?: readonly HostEndpoint[] | undefined;
 }

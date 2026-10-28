@@ -362,6 +362,24 @@ const { host, life } = await runProcedureHost({
 - The lockfile comes after the dependencies of the app. It connects last, and it closes first.
 - Without `declare`, the service has only the parts of the host.
 
+#### The logger
+
+`host.logger` gives a logger to the host (CLI-87). The server, each face and each transport write their log lines to it. The `onError` option of the server gets it as `context.logger`.
+
+- The logger has one method: `log(level, message, fields)`. The levels are `debug`, `info`, `warn` and `error`.
+- The `Logger` of `@mark1russell7/service` has this shape. Thus one logger can go to `svc.run()` and to the host.
+- The fields hold the context of the line: the transport, the procedure, the request ID and the error.
+- Without `host.logger`, the lines go to the console as before.
+
+```typescript
+const logger = { log: (level, message, fields) => pino[level](fields, message) };
+const { host, life } = await runProcedureHost({
+  name: "app-dev",
+  mode: "foreground",
+  host: { name: "app", registry, policy, listen, logger },
+});
+```
+
 ### Package Hierarchy
 
 ```mermaid
