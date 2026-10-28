@@ -69,6 +69,35 @@ await client.call(["client", "chain"], {
 // Result: 30
 ```
 
+#### `client.trace`
+Run the steps of a chain one at a time, and give one row for each step. A step that can write does not run.
+
+The steps have the same rules as `client.chain`: `$ref`, `$last`, `$name`, `$when`, `initialInput` and `passThrough`. The output of a row equals the result of its step in `client.chain`. The procedure runs the steps with the chain runner of the kernel, through its hook `onStep`.
+
+```typescript
+await client.call(["client", "trace"], {
+  steps: [
+    { $proc: ["client", "range"], input: { start: 0, end: 5 }, $name: "items" },
+    { $proc: ["client", "arrLength"], input: { items: { $ref: "items" } } },
+    { $proc: ["fs", "write"], input: { path: "out.txt", content: "x" } },
+  ],
+  sampleLimit: 2,
+});
+// Result (without the field `effects` of each call row): { steps: [
+//   { index: 0, name: "items", proc: ["client", "range"], status: "ok", output: [0, 1] },
+//   { index: 1, proc: ["client", "arrLength"], status: "ok", output: 5 },
+//   { index: 2, proc: ["fs", "write"], status: "not-run", reason: "writes" },
+// ] }
+```
+
+- `upTo`: the index of the last step to run. The rows of the later steps are `not-run` with the reason `upTo`.
+- `sampleLimit`: the most items of each array in the `output` of a row. The rule cuts a top-level array, or each array in the top-level fields of an object. The next step gets the full value.
+- A step whose procedure declares writes, or declares no effects, does not run. Its row is `not-run` with the reason `writes`. The rows after it are `not-run` with the reason `earlier`.
+- Each call of `client.trace` asks for a capability without writes. Thus the capability also refuses a write in a nested call, and the row of that step gets the reason `writes`.
+- A step with `$when` false is `not-run` with the reason `when`. A literal step is `ok` with its value.
+- A step that fails is `error`, with the `code` and the `message` of the error. The rows after it are `not-run` with the reason `earlier`.
+- The procedure runs under the capability of the caller, and it does not widen that capability at any time. A read-only face (`hostPolicy({ readOnly: true })`) admits it.
+
 #### `client.parallel`
 Execute procedures concurrently.
 
