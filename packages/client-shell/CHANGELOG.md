@@ -1,5 +1,14 @@
 # @procedures/shell
 
+## 0.45.0
+
+### Patch Changes
+
+- Updated dependencies [fbb50fa]
+- Updated dependencies [845902b]
+- Updated dependencies [70b2245]
+  - @procedures/client@0.45.0
+
 ## 0.44.0
 
 ### Patch Changes

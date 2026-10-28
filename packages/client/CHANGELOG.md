@@ -1,5 +1,24 @@
 # @procedures/client
 
+## 0.45.0
+
+### Minor Changes
+
+- 70b2245: The release train: the ranges of @mark1russell7/coeval change to a version outside the old range.
+
+### Patch Changes
+
+- fbb50fa: `httpFace()` and `wsFace()` of `@procedures/peer` take two optional options, `narrowing` and `expose` (AG1-B). With them, a host serves a read-only face for a browser next to its full faces. This change is additive. Thus it is a PATCH of the client group (decision D13).
+  
+  - `narrowing` is the narrowing of `mcpFace({ narrowing })` (CLI-43). The face adds it as one more source of the narrowing key. The server applies the meet of all the sources, so a header of the caller cannot make the face wider.
+  - `expose` is a list of patterns, a tool surface or a function, as `hostPolicy({ expose })`. The server meets it with the rule of the host, for the call and for each nested call. A path outside it gets `NOT_FOUND`.
+  - `@procedures/client` exports `faceRules()`, the one helper of these rules. `mcpFace()` of `@procedures/mcp-server` uses it too.
+  - `ServerRequest` has the optional field `expose`: the expose rule of the face that took the request. A face sets it, not the caller.
+  - A face without these options serves the same calls as before.
+- 845902b: The new procedure `client.trace` runs the steps of a `client.chain` program one at a time. It gives one row for each step, with the result of the step. The result of each step equals the result of the same step in `client.chain`. A step that can write does not start: its row is `not-run` with the reason `writes`.
+  
+  Each call of `client.trace` asks for a capability without writes, so the capability also refuses a nested write. Thus `client.trace` changes nothing, also through a face with no limits. The input field `upTo` stops the run after a step, and `sampleLimit` cuts the arrays of each row. The kernel hook `onStep` of `runControl()` gives the result of each step of a chain.
+
 ## 0.44.0
 
 ### Minor Changes

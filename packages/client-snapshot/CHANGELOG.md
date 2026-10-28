@@ -1,5 +1,19 @@
 # @procedures/snapshot
 
+## 0.45.0
+
+### Patch Changes
+
+- Updated dependencies [fbb50fa]
+- Updated dependencies [845902b]
+- Updated dependencies [70b2245]
+  - @procedures/client@0.45.0
+  - @procedures/fs@0.45.0
+  - @procedures/git@0.45.0
+  - @procedures/pnpm@0.45.0
+  - @procedures/s3@0.45.0
+  - @procedures/shell@0.45.0
+
 ## 0.44.0
 
 ### Patch Changes
