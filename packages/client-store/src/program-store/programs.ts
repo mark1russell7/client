@@ -61,10 +61,18 @@ export interface ProgramProceduresOptions {
   readonly namespace?: ProcedurePath | undefined;
 }
 
+/** The program of `programs.save`: a procedure ref, as `procedure.define` takes it. */
+export interface ProgramSaveDefinition {
+  [field: string]: unknown;
+  $proc: ProcedurePath;
+  input?: unknown;
+  $name?: string | undefined;
+}
+
 /** The input of `programs.save`. */
 export interface ProgramSaveInput {
   path: ProcedurePath | string;
-  program: AggregationDefinition;
+  program: ProgramSaveDefinition;
   name?: string | undefined;
   description?: string | undefined;
   expectedVersion?: string | number | null | undefined;
@@ -198,7 +206,7 @@ export function createProgramProcedures(options: ProgramProceduresOptions): AnyP
       const record = checkStoredProgram({
         key: pathToKey(path),
         path: [...path],
-        program: input.program,
+        program: input.program as AggregationDefinition,
         storedAt: Date.now(),
         ...(input.name !== undefined && { name: input.name }),
         ...(input.description !== undefined && { description: input.description }),

@@ -36,7 +36,7 @@ import type { ProgramStore, StoredProgram } from "./types.js";
 // =============================================================================
 
 /** The schema of a path: a list of segments, or a dotted key. `createProgramProcedures` uses it too. */
-export const pathField = z
+export const pathField: z.ZodUnion<readonly [z.ZodArray<z.ZodString>, z.ZodString]> = z
   .union([z.array(z.string().min(1)).min(1), z.string().min(1)])
   .describe('The path of the procedure: a list of segments, or a dotted key such as "reports.weekly"');
 

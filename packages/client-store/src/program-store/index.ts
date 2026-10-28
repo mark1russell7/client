@@ -22,5 +22,6 @@ export type {
   ProgramProceduresOptions,
   ProgramRemoveInput,
   ProgramRemoveOutput,
+  ProgramSaveDefinition,
   ProgramSaveInput,
 } from "./programs.js";
