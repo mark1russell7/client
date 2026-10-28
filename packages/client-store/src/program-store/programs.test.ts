@@ -202,7 +202,7 @@ describe("programs.* under a read-only capability", () => {
     const writer = new Client({ transport: stubTransport }).useRegistry(registry);
     const reader = new Client({ transport: stubTransport, capability: READ_ONLY }).useRegistry(registry);
 
-    const program = chain([add(1, 2), { $proc: ["notes", "write"], input: { id: "n1", text: "from the program" } }]);
+    const program = chain([{ $proc: ["client", "identity"], input: { value: 3 } }, { $proc: ["notes", "write"], input: { id: "n1", text: "from the program" } }]);
     await writer.exec(["programs", "save"], { path: "jobs.note", program, name: "Write a note" });
 
     // The read-only caller reads the saved program, and runs it as data with client.chain
