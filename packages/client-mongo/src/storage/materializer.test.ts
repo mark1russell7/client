@@ -1,10 +1,12 @@
 /**
  * The materialized views (Graph's split plan, part P4) on a real MongoDB. Change streams need a
  * replica set: set `MONGO_TEST_URL` to one (CI has a replica-set job). On a single server, the
- * tests skip, except in the replica-set job of CI.
+ * tests skip, except in the replica-set job of CI. The tests of the logger use a fake database, so
+ * they always run.
  */
 
-import { afterAll, beforeAll, describe, expect, it, type TestContext } from "vitest";
+import { EventEmitter } from "node:events";
+import { afterAll, beforeAll, describe, expect, it, vi, type TestContext } from "vitest";
 import { MongoClient, ObjectId, type Db, type Document } from "mongodb";
 import { ms, realClock, type Clock } from "@procedures/client";
 import { ViewMaterializer, identityPartition, viewFilter, type MaterializedView, type ViewPartitionOf, type ViewStorageSource } from "./materializer.js";
@@ -113,6 +115,57 @@ const sorted = (docs: Document[]) => docs.map(plain).sort((a, b) => JSON.stringi
 
 /** The row of a key in a target. */
 const rowOf = (db: Db, collection: string, id: string, partition = "t1") => db.collection(collection).findOne({ "_id.id": id, _part: partition });
+
+/** A fake database whose views collection has these views. Its stream of the views opens at once. */
+function fakeViewsDb(views: Document[]): Db {
+  const stream = new EventEmitter() as EventEmitter & { close(): Promise<void> };
+  stream.close = async () => undefined;
+  const collection = {
+    watch: () => {
+      setTimeout(() => stream.emit("resumeTokenChanged", { _data: "t0" }), 0);
+      return stream;
+    },
+    find: () => ({ toArray: async () => views }),
+  };
+  return { databaseName: "fake", collection: () => collection } as unknown as Db;
+}
+
+describe("the logger of ViewMaterializer (CLI-88)", () => {
+  it("writes to the logger with the context in the fields, and the logger wins over the old log", async () => {
+    const lines: Array<{ level: string; message: string; fields: Record<string, unknown> }> = [];
+    const logs: string[] = [];
+    const views = new ViewMaterializer({
+      db: () => fakeViewsDb([{ _id: "v1", collections: ["a"], pipeline: [], targetCollection: "out" }]),
+      logger: { log: (level, message, fields) => void lines.push({ level, message, fields }) },
+      log: (level, message) => void logs.push(`${level}: ${message}`),
+    });
+    await views.start();
+    await views.close();
+    expect(lines).toEqual([
+      { level: "warn", message: "The view has no partition: it does not run", fields: { component: "materializer", view: "v1", partitionField: "_part" } },
+      { level: "info", message: "Started", fields: { component: "materializer", views: 1 } },
+    ]);
+    expect(logs).toEqual([]);
+  });
+
+  it("keeps the old log and the old console line without a logger", async () => {
+    const logs: string[] = [];
+    const old = new ViewMaterializer({ db: () => fakeViewsDb([]), log: (level, message) => void logs.push(`${level}: ${message}`) });
+    await old.start();
+    await old.close();
+    expect(logs).toEqual(["info: started: 0 view(s)"]);
+
+    const info = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      const plain = new ViewMaterializer({ db: () => fakeViewsDb([]) });
+      await plain.start();
+      await plain.close();
+      expect(info).toHaveBeenCalledWith("[materializer] started: 0 view(s)");
+    } finally {
+      info.mockRestore();
+    }
+  });
+});
 
 const withMongo = url ? describe : describe.skip;
 

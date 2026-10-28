@@ -152,6 +152,9 @@ export type { MongoStorageOptions, MongoDocumentStorageOptions, SelectorPrefilte
 // The change hints of a storage collection from its change stream (roadmap CLI-77)
 export { watchStorageChanges, storageChangeOf } from "./storage/index.js";
 export type { StorageChange, StorageChangeHint, StorageChangesWatch, StorageHintPublisher, WatchStorageChangesOptions } from "./storage/index.js";
+// One change watcher for a whole database, with resume and backoff (roadmap CLI-88)
+export { watchDatabaseChanges } from "./storage/index.js";
+export type { DatabaseChangesWatch, WatchDatabaseChangesOptions } from "./storage/index.js";
 // The guard of an aggregation pipeline over shared collections, and its limits (Graph's split plan, P3)
 export {
   BLOCKED_PIPELINE_OPERATORS,

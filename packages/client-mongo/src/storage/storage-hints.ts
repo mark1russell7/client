@@ -77,7 +77,10 @@ import {
   type Cancel,
   type Clock,
   type CollectionChangeEvent,
+  type LogFields,
+  type Logger,
   type ResubscribeBackoff,
+  writeLog,
 } from "@procedures/client";
 import {
   DEFAULT_STORED_FORM,
@@ -196,7 +199,17 @@ export interface WatchStorageChangesOptions {
   backoff?: ResubscribeBackoff | undefined;
   /** The clock of the timers and of the time limit of the own writes (default the clock of the platform). The timers do not keep a process alive. */
   clock?: Clock | undefined;
-  /** The log (default `console`, with the prefix `[storage-hints]`). */
+  /**
+   * The logger of the watcher (CLI-88). The fields of each line hold its context: `collection`,
+   * `operationType`, `resumeToken` (true when the watcher has a token), `error`, `attempt` and
+   * `delayMs`. When both are set, `logger` wins over `log`.
+   * @default the console, with the prefix `[storage-hints]`
+   */
+  logger?: Logger | undefined;
+  /**
+   * The log function of each line, with the context in the text.
+   * @deprecated Use `logger`. Without a `logger`, the watcher still uses `log`.
+   */
   log?: ((level: "info" | "warn" | "error", message: string) => void) | undefined;
 }
 
@@ -227,7 +240,7 @@ const SEQ = "_seq";
 const KEY = "_key";
 
 /** The codes of the errors after which the server does not know the resume token: the watcher opens a new stream and publishes a gap. */
-const LOST_TOKEN_CODES: ReadonlySet<number> = new Set([260, 280, 286]);
+export const LOST_TOKEN_CODES: ReadonlySet<number> = new Set([260, 280, 286]);
 
 /** The codes of a refused access: Unauthorized, AuthenticationFailed, and the access error of Atlas. */
 const REFUSED_CODES: ReadonlySet<number> = new Set([13, 18, 8000]);
@@ -262,7 +275,7 @@ function resetHint(): StorageChangeHint {
 }
 
 /** The code of a command that the server does not know (an old server without `hello`). */
-const COMMAND_NOT_FOUND = 59;
+export const COMMAND_NOT_FOUND = 59;
 
 function asDocument(value: unknown): Document | undefined {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Document) : undefined;
@@ -354,7 +367,7 @@ export function storageChangeOf(change: Document, form: StoredForm = DEFAULT_STO
 }
 
 /** The delay before try `attempt` (0 for the first) of a backoff. */
-function backoffOf(options: ResubscribeBackoff | undefined): (attempt: number) => number {
+export function backoffOf(options: ResubscribeBackoff | undefined): (attempt: number) => number {
   const initial = optionalMs(options?.initialDelay, "backoff.initialDelay") ?? 250;
   const max = optionalMs(options?.maxDelay, "backoff.maxDelay") ?? 30_000;
   const factor = options?.backoffMultiplier ?? 2;
@@ -369,11 +382,11 @@ function backoffOf(options: ResubscribeBackoff | undefined): (attempt: number) =
 }
 
 /** The message of an error. */
-function messageOf(error: unknown): string {
+export function messageOf(error: unknown): string {
   return String((error as Error | undefined)?.message ?? error);
 }
 
-function codeOf(error: unknown): number | undefined {
+export function codeOf(error: unknown): number | undefined {
   const code = (error as { code?: unknown } | undefined)?.code;
   return typeof code === "number" ? code : undefined;
 }
@@ -385,7 +398,7 @@ function isRefused(error: unknown): boolean {
 }
 
 /** True for an error of a first open that does not go away: a single server, a refused access, a wrong option. */
-function isPermanent(error: unknown): boolean {
+export function isPermanent(error: unknown): boolean {
   const code = codeOf(error);
   if (code !== undefined && PERMANENT_CODES.has(code)) return true;
   return error instanceof MongoAPIError || error instanceof MongoParseError;
@@ -441,7 +454,12 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
   const name = options.collection ?? source.collection;
   const topicOf = options.topic ?? ((collection: string, partition: string | undefined): string | undefined => collectionChangeTopic(collection, partition));
   const clock = options.clock ?? realClock;
-  const log = options.log ?? ((level: "info" | "warn" | "error", message: string): void => console[level === "info" ? "log" : level](`[storage-hints] ${message}`));
+  const { logger, log: oldLog } = options;
+  /** One line: to `logger` with the fields, else to the old `log` with the text, else to the console with the text. */
+  const log = (level: "info" | "warn" | "error", message: string, fields: LogFields, text: string): void => {
+    if (!logger && oldLog) oldLog(level, text);
+    else writeLog(logger, level, message, { component: "storage-hints", ...fields }, `[storage-hints] ${text}`);
+  };
   const emit: (topic: string, event: StorageChangeHint) => void | Promise<void> = typeof publish === "function" ? publish : publish.emit.bind(publish);
   // The subscribed topics of the bus name the partitions of a gap. A custom topic rule cannot be read back.
   const channels = typeof publish === "object" && typeof publish.channels === "function" && options.topic === undefined ? publish.channels.bind(publish) : undefined;
@@ -510,9 +528,9 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
       topic = topicOf(name, partition);
       if (topic === undefined) return;
       const result: unknown = emit(topic, event);
-      if (result instanceof Promise) result.catch((error: unknown) => log("error", `the publish on ${topic} failed: ${messageOf(error)}`));
+      if (result instanceof Promise) result.catch((error: unknown) => log("error", "The publish of a hint failed", { collection: name, topic, partition, error }, `the publish on ${topic} failed: ${messageOf(error)}`));
     } catch (error) {
-      log("error", `the publish on ${topic ?? name} failed: ${messageOf(error)}`);
+      log("error", "The publish of a hint failed", { collection: name, topic, partition, error }, `the publish on ${topic ?? name} failed: ${messageOf(error)}`);
     }
   };
 
@@ -532,18 +550,18 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
         if (parsed?.collection === name) into.add(parsed.partition);
       }
     } catch (error) {
-      log("warn", `the bus does not tell its channels: ${messageOf(error)}`);
+      log("warn", "The bus does not tell its channels", { collection: name, error }, `the bus does not tell its channels: ${messageOf(error)}`);
     }
     try {
       for (const partition of options.gapPartitions?.() ?? []) into.add(partition);
     } catch (error) {
-      log("warn", `gapPartitions failed: ${messageOf(error)}`);
+      log("warn", "gapPartitions failed", { collection: name, error }, `gapPartitions failed: ${messageOf(error)}`);
     }
   };
 
   /** The reset hint of a gap: the subscribers read the collection in full. */
-  const gap = (reason: string): void => {
-    log("warn", `${reason}: the subscribers read the collection in full`);
+  const gap = (reason: string, fields: LogFields): void => {
+    log("warn", "A gap in the change stream: the subscribers read the collection in full", { collection: source.collection, reason, ...fields }, `${reason}: the subscribers read the collection in full`);
     // The raw writes of the gap have no event: the sweep adopts the documents without _seq
     if (sweepOn) {
       sweepWanted = true;
@@ -557,7 +575,7 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
         (known) => {
           for (const partition of known) topics.add(partition);
         },
-        (error: unknown) => log("warn", `the counters of ${source.collection} cannot be read (${messageOf(error)}): the gap goes to the partitions of the hints and of the subscribers only`)
+        (error: unknown) => log("warn", "The counters cannot be read: the gap goes to the partitions of the hints and of the subscribers only", { collection: source.collection, error }, `the counters of ${source.collection} cannot be read (${messageOf(error)}): the gap goes to the partitions of the hints and of the subscribers only`)
       )
       .then(() => {
         if (stopped) return;
@@ -592,7 +610,7 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
       redo.set(key, { item: job.item, raw: job.raw, tries: 0 });
       return true;
     }
-    if (!redoFull) log("warn", `more than ${redoLimit} raw writes of ${source.collection} wait to be adopted again: the partitions of the next ones get a reset hint, and a sweep runs`);
+    if (!redoFull) log("warn", "The set of the raw writes to adopt again is full: the next ones get a reset hint, and a sweep runs", { collection: source.collection, limit: redoLimit }, `more than ${redoLimit} raw writes of ${source.collection} wait to be adopted again: the partitions of the next ones get a reset hint, and a sweep runs`);
     redoFull = true;
     return false;
   };
@@ -614,7 +632,7 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
       if (result === "unknown") {
         if (job.kind === "sweep") leave(job.raw.storedId, "neither its id nor its partition");
         else {
-          log("warn", `the raw write of ${describeId(job.raw.storedId)} in ${source.collection} tells neither its id nor its partition: the storage leaves it`);
+          log("warn", "A raw write tells neither its id nor its partition: the storage leaves it", { collection: source.collection, storedId: describeId(job.raw.storedId) }, `the raw write of ${describeId(job.raw.storedId)} in ${source.collection} tells neither its id nor its partition: the storage leaves it`);
           publishItem(job.item);
         }
       }
@@ -622,7 +640,7 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
     }
     const error = result.error;
     if (isRefused(error)) {
-      if (!refused) log("error", `the adoption of a raw write of ${source.collection} was refused (${messageOf(error)}): the watcher needs write access, or set rawWrites: "ignore". The hints of raw writes go out without a version`);
+      if (!refused) log("error", "The adoption of a raw write was refused: the hints of raw writes go out without a version", { collection: source.collection, error }, `the adoption of a raw write of ${source.collection} was refused (${messageOf(error)}): the watcher needs write access, or set rawWrites: "ignore". The hints of raw writes go out without a version`);
       refused = true;
       publishItem(job.item);
       return job.done?.();
@@ -662,7 +680,7 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
         if (first) {
           // The last try failed: a reset hint for each partition. The redo tries once more; a second failure is for good.
           const names = [...new Set(failed.map(({ job }) => job.item.partition))].map((partition) => (partition === undefined ? "(none)" : JSON.stringify(partition)));
-          log("warn", `the adoption of ${failed.length} raw writes of ${source.collection} failed (${messageOf(first.error)}): the partitions ${names.join(", ")} get a reset hint`);
+          log("warn", "The adoption of raw writes failed: their partitions get a reset hint", { collection: source.collection, count: failed.length, partitions: names, error: first.error }, `the adoption of ${failed.length} raw writes of ${source.collection} failed (${messageOf(first.error)}): the partitions ${names.join(", ")} get a reset hint`);
           for (const { job } of failed) if (job.kind !== "redo" && !remember(job)) sweepWanted = true;
           resetPartitions(failed.map(({ job }) => job));
         }
@@ -679,7 +697,7 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
   const enqueue = (job: AdoptJob): void => {
     if (stopped) return job.done?.();
     if (queue.length >= queueLimit) {
-      if (!full) log("warn", `more than ${queueLimit} raw writes of ${source.collection} wait for an adoption: the next ones are adopted again when the queue is empty`);
+      if (!full) log("warn", "The queue of the adoptions is full: the next raw writes are adopted again when it is empty", { collection: source.collection, limit: queueLimit }, `more than ${queueLimit} raw writes of ${source.collection} wait for an adoption: the next ones are adopted again when the queue is empty`);
       full = true;
       if (remember(job)) {
         // The hint of a raw write of a change event goes out now, without a version. Its adoption gives the version.
@@ -744,10 +762,10 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
         if (page.length < sweepPage) break;
       }
       if (stopped) return;
-      if (count > 0) log("info", `the sweep of ${source.collection} sent ${count} documents without _seq to the adoption`);
-      if (leftCount > 0) log("warn", `the sweep of ${source.collection} cannot place ${leftCount} documents without _seq, for example ${leftFirst}: the next sweeps leave them`);
+      if (count > 0) log("info", "The sweep sent the documents without _seq to the adoption", { collection: source.collection, count }, `the sweep of ${source.collection} sent ${count} documents without _seq to the adoption`);
+      if (leftCount > 0) log("warn", "The sweep cannot place documents without _seq: the next sweeps leave them", { collection: source.collection, count: leftCount, first: leftFirst }, `the sweep of ${source.collection} cannot place ${leftCount} documents without _seq, for example ${leftFirst}: the next sweeps leave them`);
     } catch (error) {
-      if (!stopped) log("warn", `the sweep of the documents without _seq of ${source.collection} failed: ${messageOf(error)}`);
+      if (!stopped) log("warn", "The sweep of the documents without _seq failed", { collection: source.collection, error }, `the sweep of the documents without _seq of ${source.collection} failed: ${messageOf(error)}`);
     }
   };
 
@@ -764,7 +782,7 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
         docs = await source.storedDocuments(part.map((job) => job.raw.storedId));
       } catch (error) {
         if (stopped) return;
-        log("warn", `the documents of ${part.length} raw writes of ${source.collection} to adopt again cannot be read (${messageOf(error)}): their partitions get a reset hint`);
+        log("warn", "The documents of raw writes to adopt again cannot be read: their partitions get a reset hint", { collection: source.collection, count: part.length, error }, `the documents of ${part.length} raw writes of ${source.collection} to adopt again cannot be read (${messageOf(error)}): their partitions get a reset hint`);
         resetPartitions(part);
         continue;
       }
@@ -799,7 +817,7 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
     if (redo.size === 0) return;
     redoing = true;
     void adoptAgain()
-      .catch((error: unknown) => log("warn", `the redo of the raw writes of ${source.collection} failed: ${messageOf(error)}`))
+      .catch((error: unknown) => log("warn", "The redo of the raw writes failed", { collection: source.collection, error }, `the redo of the raw writes of ${source.collection} failed: ${messageOf(error)}`))
       .finally(() => {
         redoing = false;
         afterQueue();
@@ -810,14 +828,14 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
     token = change["_id"];
     attempt = 0;
     const type = change["operationType"];
-    if (type === "drop" || type === "rename" || type === "dropDatabase") return gap(`the collection ${source.collection} had a ${String(type)}`);
+    if (type === "drop" || type === "rename" || type === "dropDatabase") return gap(`the collection ${source.collection} had a ${String(type)}`, { operationType: type, resumeToken: true });
     const ns = asDocument(change["ns"]);
     if (ns?.["coll"] === source.counters) return;
     let item: StorageChange | undefined;
     try {
       item = storageChangeOf(change, source.form);
     } catch (error) {
-      log("warn", `a change of ${source.collection} has no item: ${messageOf(error)}`);
+      log("warn", "A change has no item", { collection: source.collection, operationType: type, error }, `a change of ${source.collection} has no item: ${messageOf(error)}`);
       return;
     }
     if (!item) return;
@@ -834,10 +852,11 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
     adopt(item, change, before);
   };
 
-  const schedule = (reason: string): void => {
+  const schedule = (reason: string, error?: unknown): void => {
     if (stopped) return;
-    const delay = delayOf(attempt++);
-    log("warn", `${reason}: the stream of ${source.collection} opens again in ${Math.round(delay)} ms`);
+    const delay = delayOf(attempt);
+    log("warn", "The change stream failed: it opens again after a backoff", { collection: source.collection, reason, ...(error !== undefined && { error }), attempt: attempt + 1, delayMs: Math.round(delay), resumeToken: token !== undefined }, `${reason}: the stream of ${source.collection} opens again in ${Math.round(delay)} ms`);
+    attempt++;
     timer = clock.after(delay, () => {
       timer = undefined;
       void open();
@@ -858,7 +877,7 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
 
   /** The end of a watcher whose first open failed with an error that does not go away. */
   const fail = (error: unknown): void => {
-    log("error", `the stream of ${source.collection} cannot open (${messageOf(error)}): the watcher stops`);
+    log("error", "The change stream cannot open: the watcher stops", { collection: source.collection, error }, `the stream of ${source.collection} cannot open (${messageOf(error)}): the watcher stops`);
     stopped = true;
     endAdoptions();
     own?.close();
@@ -873,7 +892,7 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
       db = await source.db();
     } catch (error) {
       if (!opened && isPermanent(error)) return fail(error);
-      return schedule(`the database is not available (${messageOf(error)})`);
+      return schedule(`the database is not available (${messageOf(error)})`, error);
     }
     if (stopped) return;
     if (!checked) {
@@ -885,7 +904,7 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
         // An old server without hello: the stream tells the error
         if (codeOf(error) !== COMMAND_NOT_FOUND) {
           if (!opened && isPermanent(error)) return fail(error);
-          return schedule(`the server does not answer hello (${messageOf(error)})`);
+          return schedule(`the server does not answer hello (${messageOf(error)})`, error);
         }
       }
       if (stopped) return;
@@ -895,7 +914,7 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
       checked = true;
     }
     own ??= trackOwnNumbers(db, source.collection, { numbers: skipOwn, clock });
-    if (token === undefined && opened) gap(`the stream of ${source.collection} opens again without a resume token`);
+    if (token === undefined && opened) gap(`the stream of ${source.collection} opens again without a resume token`, { resumeToken: false });
     let next: ChangeStream;
     try {
       next = db.collection(source.collection).watch([], {
@@ -905,7 +924,7 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
       });
     } catch (error) {
       if (!opened && isPermanent(error)) return fail(error);
-      return schedule(`the stream cannot open (${messageOf(error)})`);
+      return schedule(`the stream cannot open (${messageOf(error)})`, error);
     }
     stream = next;
     let ended = false;
@@ -920,10 +939,10 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
       const code = codeOf(error);
       if (code !== undefined && LOST_TOKEN_CODES.has(code) && token !== undefined) {
         // The next stream starts now, without the token: it publishes a gap
-        log("warn", `the server does not know the resume token of ${source.collection} (code ${code})`);
+        log("warn", "The server does not know the resume token", { collection: source.collection, code, resumeToken: true }, `the server does not know the resume token of ${source.collection} (code ${code})`);
         token = undefined;
       }
-      schedule(`the stream ${reason}`);
+      schedule(`the stream ${reason}`, error);
     };
     next.on("resumeTokenChanged", (resumeToken: unknown) => {
       if (resumeToken === undefined || resumeToken === null) return;
