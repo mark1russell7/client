@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/env",
-  "version": "0.45.0",
+  "version": "0.46.0",
   "description": "Environment variables as procedures: one variable, the names, and the check of the required ones, with the secrets masked.",
   "keywords": [
     "procedures",
