@@ -119,6 +119,49 @@ const CATALOG: Record<string, readonly Example[]> = {
       error: "step 1 failed",
     },
   ],
+  "client.trace": [
+    {
+      note: "gives one row for each step, with the result of the step in client.chain",
+      input: { steps: [{ ...call("add", { a: 1, b: 2 }), $name: "sum" }, call("multiply", { a: { $ref: "$last" }, b: 10 }), "plain"] },
+      output: {
+        steps: [
+          { index: 0, name: "sum", proc: ["client", "add"], effects: { reads: [], writes: [] }, status: "ok", output: 3 },
+          { index: 1, proc: ["client", "multiply"], effects: { reads: [], writes: [] }, status: "ok", output: 30 },
+          { index: 2, status: "ok", output: "plain" },
+        ],
+      },
+    },
+    {
+      note: "does not run the steps above upTo",
+      input: { upTo: 0, steps: [call("add", { a: 1, b: 1 }), call("add", { a: 2, b: 2 })] },
+      output: {
+        steps: [
+          { index: 0, proc: ["client", "add"], effects: { reads: [], writes: [] }, status: "ok", output: 2 },
+          { index: 1, proc: ["client", "add"], effects: { reads: [], writes: [] }, status: "not-run", reason: "upTo" },
+        ],
+      },
+    },
+    {
+      note: "sampleLimit cuts the arrays of a row, and the next step gets the full array",
+      input: { sampleLimit: 1, steps: [call("range", { start: 0, end: 3 }), call("arrLength", { items: { $ref: "$last" } })] },
+      output: {
+        steps: [
+          { index: 0, proc: ["client", "range"], effects: { reads: [], writes: [] }, status: "ok", output: [0] },
+          { index: 1, proc: ["client", "arrLength"], effects: { reads: [], writes: [] }, status: "ok", output: 3 },
+        ],
+      },
+    },
+    {
+      note: "the error of a step is in its row, and the later steps do not run",
+      input: { steps: [call("throw", { message: "step 0 failed" }), call("add", { a: 1, b: 1 })] },
+      output: {
+        steps: [
+          { index: 0, proc: ["client", "throw"], effects: { reads: [], writes: [] }, status: "error", error: { message: "step 0 failed" } },
+          { index: 1, proc: ["client", "add"], effects: { reads: [], writes: [] }, status: "not-run", reason: "earlier" },
+        ],
+      },
+    },
+  ],
   "client.parallel": [
     {
       note: "runs each task and gives the results in the order of the tasks",

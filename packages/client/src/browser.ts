@@ -262,6 +262,7 @@ export {
   allCoreProcedures,
   allCoreModules,
   chainProcedure,
+  traceProcedure,
   parallelProcedure,
   conditionalProcedure,
   andProcedure,
@@ -388,6 +389,11 @@ export type {
   CallPosition,
   RunDocumentOptions,
   RunProgramOptions,
+  RunControlOptions,
+  StepObserver,
+  // The steps of client.trace
+  TraceRow,
+  TraceReason,
   // The envelope form of a program (coeval M7)
   EnvelopeProgram,
   EnvelopeRef,

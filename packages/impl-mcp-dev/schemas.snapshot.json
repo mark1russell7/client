@@ -210,6 +210,39 @@
     ],
     "additionalProperties": {}
   },
+  "client.trace": {
+    "type": "object",
+    "properties": {
+      "steps": {
+        "type": "array",
+        "items": {},
+        "description": "The steps of a client.chain program, in order: calls or values"
+      },
+      "passThrough": {
+        "description": "Give each step that has no input the result of the step before",
+        "type": "boolean"
+      },
+      "initialInput": {
+        "description": "The input of the first step when passThrough is true"
+      },
+      "upTo": {
+        "description": "The index of the last step to run (default: all steps)",
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+      },
+      "sampleLimit": {
+        "description": "The most items of each array in the output of a row. The next step gets the full value.",
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+      }
+    },
+    "required": [
+      "steps"
+    ],
+    "additionalProperties": {}
+  },
   "client.tryCatch": {
     "type": "object",
     "properties": {

@@ -40,6 +40,8 @@ npm installs `zod` and `ws` with it. The HTTP server transport needs `express` 4
 
 `import "@procedures/client/register"` registers the control flow (`client.chain` and the others) and `procedure.define`, `get`, `list` and `delete` in the global registry. `createRegistry()` adds them to each new registry.
 
+`client.trace` runs the steps of a `client.chain` program one at a time, and gives one row for each step with its result. A step that can write does not run, and the procedure asks for a capability without writes. Thus a read-only face can serve it. [The procedure reference](docs/PROCEDURES.md#clienttrace) gives the rows and the input fields `upTo` and `sampleLimit`.
+
 ## Architecture
 
 ```mermaid

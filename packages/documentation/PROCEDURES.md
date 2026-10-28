@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.mjs`.
 
-**Total procedures:** 298 across 50 namespaces. Loaded 47 package register(s).
+**Total procedures:** 299 across 50 namespaces. Loaded 47 package register(s).
 
 ## Namespaces
 
@@ -12,7 +12,7 @@
 - [`archive.*`](#archive) — 3 procedure(s)
 - [`claude.*`](#claude) — 4 procedure(s)
 - [`cli.*`](#cli) — 1 procedure(s)
-- [`client.*`](#client) — 15 procedure(s)
+- [`client.*`](#client) — 16 procedure(s)
 - [`csv.*`](#csv) — 2 procedure(s)
 - [`cue.*`](#cue) — 5 procedure(s)
 - [`dag.*`](#dag) — 1 procedure(s)
@@ -108,6 +108,7 @@
 | `client.parallel` | Execute procedures in parallel |
 | `client.reduce` | Reduce an array: run fn for each item (acc and item are $refs) |
 | `client.throw` | Throw an error |
+| `client.trace` | Run the steps of a chain one at a time, and give one row for each step. A step that can write does not run. |
 | `client.tryCatch` | Try/catch wrapper for procedures |
 
 ## csv

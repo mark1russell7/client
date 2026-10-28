@@ -229,6 +229,7 @@ Details:
 - **A `fn` that is not one call.** `client.map` and `client.reduce` give an error.
 - **The parent context.** `chain`, `parallel`, `conditional`, `and` and `or` add the `cwd` and `node` fields of their input to the input of each operand call.
 - **A branch that is an array.** A branch of `conditional` or an operand of `tryCatch` that is an array of calls is a chain. The test is `analysis.test.ts` of the site.
+- **A trace of a chain.** `client.trace` takes the input of `client.chain` and gives one row for each step. The chain runner gives it the result of each step. A step that can write does not run, and each call asks for a capability without writes. The test is `trace.test.ts` of the client.
 
 ## 9. Procedures that take raw input
 

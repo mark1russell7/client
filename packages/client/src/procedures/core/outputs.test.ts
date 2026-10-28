@@ -31,6 +31,7 @@ const people = [
 const SAMPLES: Record<string, unknown> = {
   // Control flow
   chain: { steps: [call("add", { a: 1, b: 2 }), call("multiply", { a: 2, b: 3 })] },
+  trace: { steps: [call("add", { a: 1, b: 2 }), call("multiply", { a: { $ref: "$last" }, b: 3 })], sampleLimit: 1 },
   parallel: { tasks: [call("add", { a: 1, b: 2 }), call("constant", { value: "x" })] },
   conditional: { condition: true, then: "yes", else: "no" },
   and: { values: [1, "x", call("constant", { value: 0 })] },

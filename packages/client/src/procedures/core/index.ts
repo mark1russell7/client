@@ -45,11 +45,22 @@
  * ```
  */
 
-import { PURE_EFFECTS, withEffects } from "../effects.js";
+import { PURE_EFFECTS, REGISTRY_READ_EFFECTS, withEffects } from "../effects.js";
 import { z } from "zod";
 import { anyOutput, booleanOutput } from "./outputs.js";
 import { defineProcedure, namespace } from "../define.js";
-import type { AnyProcedure, Procedure, ProcedureContext } from "../types.js";
+import type {
+  AnyProcedure,
+  CapabilityRequest,
+  Effects,
+  Procedure,
+  ProcedureClient,
+  ProcedureContext,
+  ProcedurePath,
+  ProcedureRegistryLike,
+} from "../types.js";
+import { effectsOf, isReadOnly } from "../capability.js";
+import { PROCEDURE_REGISTRY } from "../registry.js";
 
 // Re-export for convenience
 export { anySchema } from "./schemas.js";
@@ -130,6 +141,8 @@ import {
   getRefWhen,
   WHEN_NEVER,
   RUNS_REFS_TAG,
+  isPlainObject,
+  withScope,
   type AnyProcedureRef,
 } from "../ref.js";
 import { substituteRefs, runControlFlow, controlFlowTags } from "./operands.js";
@@ -195,6 +208,200 @@ const chainProcedure: ChainProcedure = defineProcedure({
       results.push(result);
     }
     return { results, final: results[results.length - 1] };
+  },
+});
+
+// =============================================================================
+// Trace Procedure
+// =============================================================================
+
+/**
+ * The reason of a step of `client.trace` that did not run:
+ * - `writes`: the step can change data. Its procedure declares writes or no effects, or the
+ *   capability refused a write in it.
+ * - `upTo`: the index of the step is above `upTo`.
+ * - `when`: the step has `$when: "$never"`. Its output is the call as data, as `client.chain` gives it.
+ * - `earlier`: an earlier step stopped the run with `writes` or an error.
+ */
+export type TraceReason = "writes" | "upTo" | "when" | "earlier";
+
+/** One step of `client.trace`. */
+export interface TraceRow {
+  /** The index of the step. */
+  index: number;
+  /** The `$name` of a call step. */
+  name?: string;
+  /** The procedure path of a call step. */
+  proc?: string[];
+  /** The declared effects of the procedure of a call step. */
+  effects?: Effects;
+  status: "ok" | "not-run" | "error";
+  reason?: TraceReason;
+  /** The result of the step, with `sampleLimit` applied. It equals the result of the step in `client.chain`. */
+  output?: unknown;
+  /** The error of the step: its code and its message. */
+  error?: { code?: string; message: string };
+}
+
+interface TraceInput extends ChainInput {
+  /** The index of the last step to run. The rows of the later steps are `not-run` with reason `upTo`. */
+  upTo?: number;
+  /**
+   * The most items of each array in the output of a row: a top-level array, or each array in the
+   * top-level fields of an object. The next step gets the full value.
+   */
+  sampleLimit?: number;
+}
+
+interface TraceOutput {
+  /** One row for each step, in order */
+  steps: TraceRow[];
+}
+
+const TraceInputSchema = z.looseObject({
+  steps: z.array(z.unknown()).describe("The steps of a client.chain program, in order: calls or values"),
+  passThrough: z.boolean().optional().describe("Give each step that has no input the result of the step before"),
+  initialInput: operand("The input of the first step when passThrough is true"),
+  upTo: z.number().int().min(0).optional().describe("The index of the last step to run (default: all steps)"),
+  sampleLimit: z.number().int().min(0).optional().describe("The most items of each array in the output of a row. The next step gets the full value."),
+});
+
+const TraceOutputSchema = z.looseObject({
+  steps: z
+    .array(
+      z.looseObject({
+        index: z.number().describe("The index of the step"),
+        name: z.string().optional().describe("The $name of the step"),
+        proc: z.array(z.string()).optional().describe("The procedure path of a call step"),
+        effects: z.unknown().optional().describe("The declared effects of the procedure of a call step"),
+        status: z.enum(["ok", "not-run", "error"]).describe("ok: the step ran. not-run: the step did not start. error: the step failed."),
+        reason: z.enum(["writes", "upTo", "when", "earlier"]).optional().describe("Why a step did not run"),
+        output: z.unknown().optional().describe("The result of the step, with sampleLimit applied"),
+        error: z.looseObject({ code: z.string().optional(), message: z.string() }).optional().describe("The error of the step"),
+      })
+    )
+    .describe("One row for each step, in order"),
+}) as z.ZodType<TraceOutput>;
+
+/** The narrowing of each call of `client.trace`: the call changes nothing. */
+const TRACE_NARROWING: CapabilityRequest = Object.freeze({ effects: Object.freeze({ writes: Object.freeze([]) }) });
+
+/** This function gives a client whose calls ask for a capability that changes nothing (`TRACE_NARROWING`). */
+function readOnlyClient(client: ProcedureClient): ProcedureClient {
+  const narrowed: ProcedureClient = {
+    call: <TInput, TOutput>(path: ProcedurePath, input: TInput) => client.call<TInput, TOutput>(path, input, { narrow: TRACE_NARROWING }),
+  };
+  if (client.stream) {
+    const stream = client.stream.bind(client);
+    narrowed.stream = <TInput, TOutput>(path: ProcedurePath, input: TInput) => stream<TInput, TOutput>(path, input, { narrow: TRACE_NARROWING });
+  }
+  return narrowed;
+}
+
+/** True when the procedure can change data: it declares writes, or it does not declare them. */
+function canWrite(effects: Effects | undefined): boolean {
+  return !isReadOnly(effects);
+}
+
+/**
+ * True for a refusal of a write by the capability: `FORBIDDEN` with the reason `effects-exceeded`
+ * or `effects-undeclared`, for a procedure that can change data. A refused read is an error.
+ */
+function isWriteRefusal(error: unknown, registry: ProcedureRegistryLike): boolean {
+  const { code, reason, path } = (error ?? {}) as { code?: unknown; reason?: unknown; path?: unknown };
+  if (code !== "FORBIDDEN" || (reason !== "effects-exceeded" && reason !== "effects-undeclared")) return false;
+  const procedure = Array.isArray(path) ? registry.get(path as ProcedurePath) : undefined;
+  return procedure === undefined || canWrite(effectsOf(procedure));
+}
+
+/** The error of a row: the code and the message of the error. */
+function traceError(error: unknown): { code?: string; message: string } {
+  const code = (error as { code?: unknown } | null | undefined)?.code;
+  const message = error instanceof Error ? error.message : String(error);
+  return typeof code === "string" ? { code, message } : { message };
+}
+
+/** The output of a row: `sampleLimit` cuts a top-level array, or each array in the top-level fields of an object. */
+function sampleOf(value: unknown, limit: number | undefined): unknown {
+  if (limit === undefined) return value;
+  if (Array.isArray(value)) return value.slice(0, limit);
+  if (!isPlainObject(value)) return value;
+  return Object.fromEntries(Object.entries(value).map(([key, field]) => [key, Array.isArray(field) ? field.slice(0, limit) : field]));
+}
+
+type TraceProcedure = Procedure<TraceInput, TraceOutput, { description: string; tags: string[]; effects: Effects }>;
+
+const traceProcedure: TraceProcedure = defineProcedure({
+  path: ["trace"],
+  input: TraceInputSchema as any,
+  output: TraceOutputSchema,
+  metadata: {
+    description: "Run the steps of a chain one at a time, and give one row for each step. A step that can write does not run.",
+    tags: controlFlowTags("control-flow"),
+    // The procedure reads the declared effects of the steps in the registry
+    effects: REGISTRY_READ_EFFECTS,
+  },
+  handler: async (input: TraceInput, ctx?: ProcedureContext): Promise<TraceOutput> => {
+    const { steps, upTo, sampleLimit, ...chainFields } = input;
+    if (!Array.isArray(steps)) {
+      throw new Error(`client.trace: steps must be an array, got ${steps === null ? "null" : typeof steps}`);
+    }
+    if (!ctx?.client) throw new Error("client.trace: a run needs a client context");
+    const registry = ctx.registry ?? PROCEDURE_REGISTRY;
+    const limit = upTo ?? Number.POSITIVE_INFINITY;
+
+    // The facts of each step before the run: its name, its path and the declared effects of its procedure
+    const rows: TraceRow[] = steps.map((step, index) => {
+      if (!isAnyProcedureRef(step)) return { index, status: "ok" };
+      const call = normalizeRef(step);
+      const effects = effectsOf(registry.get(call.path) ?? {});
+      return {
+        index,
+        ...(typeof call.$name === "string" ? { name: call.$name } : {}),
+        proc: [...call.path],
+        ...(effects ? { effects } : {}),
+        status: "ok",
+      };
+    });
+    const never = (index: number): boolean => isAnyProcedureRef(steps[index]) && getRefWhen(steps[index] as AnyProcedureRef) === WHEN_NEVER;
+    // The run stops before the first step above upTo, and before the first call that can write. A $never step does not start.
+    let stop = 0;
+    while (stop < steps.length && stop <= limit && (rows[stop]!.proc === undefined || never(stop) || !canWrite(rows[stop]!.effects))) stop += 1;
+
+    // The chain runner runs the steps before the stop. Each call asks for a capability that
+    // changes nothing, so a nested write is refused too.
+    const outputs: unknown[] = [];
+    let failure: { error: unknown } | undefined;
+    if (stop > 0) {
+      const chainInput = withScope({ ...chainFields, steps: steps.slice(0, stop) }, scopeOf(input));
+      try {
+        await runControlFlow("chain", chainInput, { ...ctx, client: readOnlyClient(ctx.client) }, { onStep: (index, value) => { outputs[index] = value; } });
+      } catch (error) {
+        failure = { error };
+      }
+    }
+    // A failure after the last step has no row: the caller gets it
+    if (failure && outputs.length >= stop) throw failure.error;
+
+    let halted = false;
+    const notRun = (row: TraceRow, reason: TraceReason): TraceRow => ({ ...row, status: "not-run", reason });
+    return {
+      steps: rows.map((row, index) => {
+        if (halted) return notRun(row, "earlier");
+        if (index < outputs.length) {
+          const output = sampleOf(outputs[index], sampleLimit);
+          return never(index) ? { ...notRun(row, "when"), output } : { ...row, output };
+        }
+        if (failure) {
+          // The step that failed: a refused write marks it as writes, another error as error
+          halted = true;
+          return isWriteRefusal(failure.error, registry) ? notRun(row, "writes") : { ...row, status: "error", error: traceError(failure.error) };
+        }
+        if (index > limit) return notRun(row, "upTo");
+        halted = true;
+        return notRun(row, "writes");
+      }),
+    };
   },
 });
 
@@ -662,6 +869,7 @@ const tryCatchProcedure: TryCatchProcedure = defineProcedure({
 // call of a data-driven procedure (CAPABILITIES-2026-10).
 export const coreProcedures: AnyProcedure[] = namespace(["client"], withEffects(PURE_EFFECTS, [
   chainProcedure as AnyProcedure,
+  traceProcedure as AnyProcedure,
   parallelProcedure as AnyProcedure,
   conditionalProcedure as AnyProcedure,
   // Logic operators (unified with group theory)
@@ -692,6 +900,7 @@ export const coreModule: { name: string; procedures: AnyProcedure[] } = {
 // Re-export individual procedures for direct access
 export {
   chainProcedure,
+  traceProcedure,
   parallelProcedure,
   conditionalProcedure,
   // Logic operators

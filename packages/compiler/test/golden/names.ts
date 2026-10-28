@@ -7,7 +7,7 @@ export const registryHash: string = "<registry hash>";
 
 // The program, for client.exec(program, input): the input changes the program, so the interpreter runs it
 const PROGRAM: unknown = { $proc: ["client", "chain"], input: { steps: [{ $proc: ["client", "add"], input: { a: 1, b: 2 }, $name: "sum" }, { $proc: ["client", "multiply"], input: { a: { $ref: "sum" }, b: 10 } }, { $proc: ["client", "add"], input: { a: { $ref: "$last" }, b: { $ref: "sum" } } }] } };
-const RAW_KEYS: string[] = ["client.eval", "client.export", "client.stringifyJson", "procedure.define"];
+const RAW_KEYS: string[] = ["client.eval", "client.export", "client.stringifyJson", "client.trace", "procedure.define"];
 
 export default async function program(ctx: ProgramContext, input?: unknown): Promise<unknown> {
   if (input !== undefined) return rt.execWithInput(ctx, PROGRAM, input, RAW_KEYS);

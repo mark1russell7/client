@@ -12,6 +12,7 @@ client.or
 client.parallel
 client.reduce
 client.throw
+client.trace
 client.tryCatch
 cue.add
 cue.generate
