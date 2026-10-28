@@ -336,6 +336,45 @@ describe("watchStorageChanges without a server (CLI-77)", () => {
     await expect(watch.ready).resolves.toBeUndefined();
   });
 
+  it("writes to the logger with the context in the fields, and the logger wins over the old log (CLI-88)", async () => {
+    const { storage, stream, timers, clock, logs, log, publish } = fakeWatch();
+    const lines: Array<{ level: string; message: string; fields: Record<string, unknown> }> = [];
+    const logger = { log: (level: string, message: string, fields: Record<string, unknown>) => void lines.push({ level, message, fields }) };
+    const watch = watchStorageChanges(storage, publish, { clock, log, logger, backoff: { initialDelay: ms(10), jitter: 0 } });
+    const error = serverError(6, "host unreachable");
+    (await stream()).emit("error", error);
+    await vi.waitFor(() => expect(timers).toEqual([10]));
+    expect(lines).toEqual([
+      {
+        level: "warn",
+        message: "The change stream failed: it opens again after a backoff",
+        fields: { component: "storage-hints", collection: "fake_notes", reason: "the stream failed: host unreachable", error, attempt: 1, delayMs: 10, resumeToken: false },
+      },
+    ]);
+    // The old log gets nothing when a logger is set
+    expect(logs).toEqual([]);
+    await watch.stop();
+  });
+
+  it("keeps the old log and the old console line without a logger (CLI-88)", async () => {
+    const old = fakeWatch();
+    const watch = watchStorageChanges(old.storage, old.publish, { clock: old.clock, log: old.log, backoff: { initialDelay: ms(10), jitter: 0 } });
+    (await old.stream()).emit("error", serverError(6, "host unreachable"));
+    await vi.waitFor(() => expect(old.logs).toEqual(["warn: the stream failed: host unreachable: the stream of fake_notes opens again in 10 ms"]));
+    await watch.stop();
+
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      const plain = fakeWatch();
+      const quiet = watchStorageChanges(plain.storage, plain.publish, { clock: plain.clock, backoff: { initialDelay: ms(10), jitter: 0 } });
+      (await plain.stream()).emit("error", serverError(6, "host unreachable"));
+      await vi.waitFor(() => expect(warn).toHaveBeenCalledWith("[storage-hints] the stream failed: host unreachable: the stream of fake_notes opens again in 10 ms"));
+      await quiet.stop();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it("publishes a gap to the plain topic and to each partition of the counters, of forPartition, of the hints, of the bus and of gapPartitions", async () => {
     const floors = [{ _id: "floor\u001ffake_notes\u001ft9" }, { _id: "floor\u001ffake_notes\u001f" }];
     const { storage, stream, clock, log } = fakeWatch({ counters: { find: () => ({ limit: () => ({ toArray: async () => floors }) }) } });

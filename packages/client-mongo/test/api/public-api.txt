@@ -4,7 +4,7 @@
 # and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
 # To accept a change of the API, start the script with --update and review the diff.
 
-## . (dist/index.d.ts): 159 names
+## . (dist/index.d.ts): 162 names
 
 ALLOWED_PIPELINE_STAGES: dist/storage/pipeline-scope.d.ts#ALLOWED_PIPELINE_STAGES
 type AggregateInput: dist/procedures/documents.aggregate.d.ts#AggregateInput
@@ -37,6 +37,7 @@ type CreateIndexOutput: dist/procedures/indexes.create.d.ts#CreateIndexOutput
 DEFAULT_PIPELINE_LIMITS: dist/storage/pipeline-scope.d.ts#DEFAULT_PIPELINE_LIMITS
 DEFAULT_STORED_FORM: dist/storage/document-storage.d.ts#DEFAULT_STORED_FORM
 DOCUMENT_STORAGE_FIELDS: dist/storage/document-storage.d.ts#DOCUMENT_STORAGE_FIELDS
+type DatabaseChangesWatch: dist/storage/database-changes.d.ts#DatabaseChangesWatch
 type DatabaseInfo: dist/types.d.ts#DatabaseInfo
 type Db: mongodb#Db (external)
 type DecodeStoredDocumentOptions: dist/storage/document-storage.d.ts#DecodeStoredDocumentOptions
@@ -115,6 +116,7 @@ type ViewPipelineScope: dist/storage/materializer.d.ts#ViewPipelineScope
 type ViewStorageSource: dist/storage/materializer.d.ts#ViewStorageSource
 type ViewTargetId: dist/storage/materializer.d.ts#ViewTargetId
 type WatchChange: dist/procedures/watch.d.ts#WatchChange
+type WatchDatabaseChangesOptions: dist/storage/database-changes.d.ts#WatchDatabaseChangesOptions
 type WatchInput: dist/procedures/watch.d.ts#WatchInput
 type WatchStorageChangesOptions: dist/storage/storage-hints.d.ts#WatchStorageChangesOptions
 aggregateProcedure: dist/procedures/documents.aggregate.d.ts#aggregateProcedure
@@ -163,6 +165,7 @@ storageChangeOf: dist/storage/storage-hints.d.ts#storageChangeOf
 updateProcedure: dist/procedures/documents.update.d.ts#updateProcedure
 versionOfStored: dist/storage/document-storage.d.ts#versionOfStored
 viewFilter: dist/storage/materializer.d.ts#viewFilter
+watchDatabaseChanges: dist/storage/database-changes.d.ts#watchDatabaseChanges
 watchProcedure: dist/procedures/watch.d.ts#watchProcedure
 watchStorageChanges: dist/storage/storage-hints.d.ts#watchStorageChanges
 
@@ -713,6 +716,34 @@ export interface ScopeInput {
     database?: string | undefined;
 }
 
+### dist/storage/database-changes.d.ts#DatabaseChangesWatch
+export interface DatabaseChangesWatch {
+    readonly ready: Promise<void>;
+    readonly resumeToken: ResumeToken | undefined;
+    readonly stopped: boolean;
+    stop(): Promise<void>;
+}
+
+### dist/storage/database-changes.d.ts#WatchDatabaseChangesOptions
+export interface WatchDatabaseChangesOptions<TChange extends Document = ChangeStreamDocument> {
+    onChange: (change: TChange) => void | Promise<void>;
+    onError?: ((error: unknown) => void) | undefined;
+    resumeAfter?: ResumeToken | undefined;
+    startAfter?: ResumeToken | undefined;
+    startAtOperationTime?: Timestamp | undefined;
+    fullDocument?: "updateLookup" | "whenAvailable" | "required" | undefined;
+    fullDocumentBeforeChange?: "whenAvailable" | "required" | "off" | undefined;
+    pipeline?: Document[] | undefined;
+    streamOptions?: Omit<ChangeStreamOptions, "resumeAfter" | "startAfter" | "startAtOperationTime" | "fullDocument" | "fullDocumentBeforeChange"> | undefined;
+    backoff?: ResubscribeBackoff | undefined;
+    logger?: Logger | undefined;
+    signal?: AbortSignal | undefined;
+    clock?: Clock | undefined;
+}
+
+### dist/storage/database-changes.d.ts#watchDatabaseChanges
+export declare function watchDatabaseChanges<TChange extends Document = ChangeStreamDocument>(db: Db | (() => Db | Promise<Db>), options: WatchDatabaseChangesOptions<TChange>): DatabaseChangesWatch;
+
 ### dist/storage/document-storage.d.ts#DEFAULT_STORED_FORM
 export declare const DEFAULT_STORED_FORM: StoredForm;
 
@@ -865,6 +896,7 @@ export interface ViewMaterializerOptions {
     rewatch?: Duration | undefined;
     maxTime?: Duration | undefined;
     maxRows?: number | undefined;
+    logger?: Logger | undefined;
     log?: ((level: "info" | "warn" | "error", message: string) => void) | undefined;
     clock?: Clock | undefined;
     targetId?: ViewTargetId | undefined;
@@ -1012,6 +1044,7 @@ export interface WatchStorageChangesOptions {
     sweepAtOpen?: boolean | undefined;
     backoff?: ResubscribeBackoff | undefined;
     clock?: Clock | undefined;
+    logger?: Logger | undefined;
     log?: ((level: "info" | "warn" | "error", message: string) => void) | undefined;
 }
 

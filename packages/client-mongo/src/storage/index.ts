@@ -18,6 +18,9 @@ export type { MongoDocumentStorageOptions, SelectorPrefilterOptions, StoredForm,
 // The change hints of a storage collection from its change stream (roadmap CLI-77)
 export { watchStorageChanges, storageChangeOf } from "./storage-hints.js";
 export type { StorageChange, StorageChangeHint, StorageChangesWatch, StorageHintPublisher, WatchStorageChangesOptions } from "./storage-hints.js";
+// One change watcher for a whole database, with resume and backoff (roadmap CLI-88)
+export { watchDatabaseChanges } from "./database-changes.js";
+export type { DatabaseChangesWatch, WatchDatabaseChangesOptions } from "./database-changes.js";
 export {
   BLOCKED_PIPELINE_OPERATORS,
   ALLOWED_PIPELINE_STAGES,

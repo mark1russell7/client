@@ -735,6 +735,53 @@ await watch.stop();
 - **The storage of a partition** (`forPartition()`) publishes and adopts only the documents of its partition. Its stream reads the whole collection. The documents of the counters are in another collection, and they never make a hint.
 - **Your own stream.** `storageChangeOf(change, form)` reads the change of an item from a change event, for an app that watches the collection itself: `{ id, partition, deleted, raw, version, seq }`, or `undefined`.
 
+### One watcher for a whole database: `watchDatabaseChanges`
+
+`watchDatabaseChanges(db, options)` watches the change stream of a whole database (roadmap CLI-88). It gives each raw change event to `onChange`. After an error, it opens the stream again from its resume token. Change streams need a replica set.
+
+```ts
+import { watchDatabaseChanges } from "@procedures/mongo";
+
+const watch = watchDatabaseChanges(db, {
+  fullDocument: "updateLookup",
+  fullDocumentBeforeChange: "whenAvailable",
+  resumeAfter: savedToken, // or startAfter, or startAtOperationTime
+  onChange: async (change) => {
+    await apply(change); // the event of the driver, with no change
+    savedToken = change._id;
+  },
+  onError: (error) => console.error("the watcher stopped", error),
+  backoff: { initialDelay: ms(250), maxDelay: seconds(30) },
+  logger,
+  signal,
+});
+await watch.ready; // the stream is open
+// watch.resumeToken is the token of the last change that onChange took
+await watch.stop();
+```
+
+- **The raw event.** `onChange` gets the event of the driver with no change: `ns`, `documentKey`, `fullDocument`, `fullDocumentBeforeChange` and each other field. The options `pipeline` and `streamOptions` (for example `maxAwaitTimeMS`) go to the stream.
+- **The image before the change.** Set `fullDocumentBeforeChange: "whenAvailable"`. A collection gives the image only with `changeStreamPreAndPostImages: { enabled: true }` (MongoDB 6 or later).
+- **One event at a time.** The events go in the order of the stream. The watcher reads the next event after `onChange` resolves.
+- **The resume token** is the `_id` of the last event after its `onChange` resolved. A batch without events gives the token of the batch. The getter `resumeToken` of the handle gives the token at this time.
+- **No lost change.** After an error of the stream, the watcher waits for the backoff. Then it opens the stream again with `startAfter` and the token. Thus it loses no change and gives no change twice.
+- **An error of `onChange`** has the same backoff. The token stays at the change before, so the same change comes again.
+- **The backoff** starts at `initialDelay` and grows by `backoffMultiplier` to at most `maxDelay`, with `jitter`. A change or a batch without events sets it back to `initialDelay`. The defaults are `ms(250)`, 2, `seconds(30)` and the full jitter, as for `watchStorageChanges`.
+- **The errors that stop the watcher.** The watcher stops on these errors. The error goes to `onError` and to the logger, and `ready` rejects when the stream was not open:
+  - An `invalidate` event, for example after `dropDatabase`. The error has the event in its field `change`, and `resumeToken` is the token of that event. A new watcher with `startAfter` starts after it.
+  - A token that the server does not know any more: the codes 260, 280 and 286 (`ChangeStreamHistoryLost`).
+  - Before the first open: a refused access, a single server (code 40573), or a wrong option.
+- **The stop.** `stop()` or an abort of `signal` stops the watcher. It closes the stream and cancels the timer of the backoff. An `onChange` that runs finishes, and no change comes after it.
+- **The tests.** The rules of the resume, the backoff and the stop run against a fake stream in each test run. The tests against a real server run in CI, on a single-node replica set. One of these tests makes the stream fail with a failpoint, and examines the order of the changes.
+
+### The logger of the watchers and of the materializer
+
+`watchDatabaseChanges`, `watchStorageChanges` and `ViewMaterializer` take the option `logger` (roadmap CLI-88). The type `Logger` of `@procedures/client` has one method: `log(level, message, fields)`.
+
+- The message tells what occurred. The fields hold the context: `component`, the database or the collection, the operation type, `resumeToken` (true when the watcher has a token), the error, and `attempt` and `delayMs` of the backoff.
+- `watchStorageChanges` and `ViewMaterializer` keep the option `log(level, text)`, with the context in the text. It is deprecated: use `logger`. When you give both, `logger` wins.
+- Without `logger` and without `log`, each line goes to the console as before, with the prefix `[storage-hints]` or `[materializer]`. `watchDatabaseChanges` writes the message and the fields with the prefix `[database-changes]`.
+
 ### The guard of a pipeline: `scopePipeline`
 
 `scopePipeline(pipeline, scope)` gives a pipeline that reads only the documents of a filter, on each collection that it reads. `MongoDocumentStorage.aggregate()` uses it with the filter of its partition. An app can use it for its own aggregations over shared collections:

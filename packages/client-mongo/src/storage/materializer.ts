@@ -56,7 +56,7 @@
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { BSON, ObjectId, type AnyBulkWriteOperation, type ChangeStream, type ClientSession, type Collection, type Db, type Document } from "mongodb";
-import { collectionChangeTopic, ms, optionalMs, realClock, type Cancel, type Clock, type CollectionChangeEvent, type Duration } from "@procedures/client";
+import { collectionChangeTopic, ms, optionalMs, realClock, writeLog, type Cancel, type Clock, type CollectionChangeEvent, type Duration, type LogFields, type Logger } from "@procedures/client";
 import { DEFAULT_STORED_FORM, DOCUMENT_STORAGE_FIELDS, MongoDocumentStorage, TOMBSTONE_FIELD, storageWriteTarget, type StorageWriteTarget, type StoredForm } from "./document-storage.js";
 import { scopePipeline } from "./pipeline-scope.js";
 import type { StorageHintPublisher } from "./storage-hints.js";
@@ -126,7 +126,16 @@ export interface ViewMaterializerOptions {
   maxTime?: Duration | undefined;
   /** The most rows of the result of a view (default 100000). A larger result is an error of the view. */
   maxRows?: number | undefined;
-  /** The log (default `console`, with the prefix `[materializer]`). */
+  /**
+   * The logger of the materializer (CLI-88). The fields of each line hold its context: the view, the
+   * partition, the collection, the error and the delay. When both are set, `logger` wins over `log`.
+   * @default the console, with the prefix `[materializer]`
+   */
+  logger?: Logger | undefined;
+  /**
+   * The log function of each line, with the context in the text.
+   * @deprecated Use `logger`. Without a `logger`, the materializer still uses `log`.
+   */
   log?: ((level: "info" | "warn" | "error", message: string) => void) | undefined;
   /** The clock of the timers (default the clock of the platform). A test gives a fake clock. The timers do not keep a process alive. */
   clock?: Clock | undefined;
@@ -554,9 +563,11 @@ export class ViewMaterializer {
     return entry === undefined || entry === null ? undefined : this.storageTargetOf(collection, entry);
   }
 
-  private log(level: "info" | "warn" | "error", message: string): void {
-    if (this.options.log) this.options.log(level, message);
-    else console[level === "info" ? "log" : level](`[materializer] ${message}`);
+  /** This method writes one line: to `logger` with the fields, else to the old `log` with the text, else to the console with the text. */
+  private log(level: "info" | "warn" | "error", message: string, fields: LogFields, text: string): void {
+    const { logger, log } = this.options;
+    if (!logger && log) log(level, text);
+    else writeLog(logger, level, message, { component: "materializer", ...fields }, `[materializer] ${text}`);
   }
 
   /**
@@ -600,7 +611,7 @@ export class ViewMaterializer {
     // The stream of the views opens before the read of the views: a change between the two reaches both (roadmap O63)
     await this.watchViews();
     const count = await this.resync();
-    this.log("info", `started: ${count} view(s)`);
+    this.log("info", "Started", { views: count }, `started: ${count} view(s)`);
   }
 
   /** This method stops the passes of new changes: a change starts no pass, and a waiting pass does not start. */
@@ -713,7 +724,7 @@ export class ViewMaterializer {
     try {
       stream = this.db.collection(this.viewsName).watch([], { fullDocument: "updateLookup" });
     } catch (error) {
-      this.log("error", `cannot watch ${this.viewsName}: ${String((error as Error)?.message ?? error)}`);
+      this.log("error", "Cannot watch the views", { collection: this.viewsName, error }, `cannot watch ${this.viewsName}: ${String((error as Error)?.message ?? error)}`);
       this.later(() => void this.watchViews());
       return Promise.resolve();
     }
@@ -725,11 +736,11 @@ export class ViewMaterializer {
     const rewatch = (reason: string): void => {
       if (again || this.stopped || this.viewsStream !== stream) return;
       again = true;
-      this.log("warn", `the stream of ${this.viewsName} ${reason}: it opens again in ${this.rewatchMs} ms`);
+      this.log("warn", "The stream of the views ended: it opens again", { collection: this.viewsName, reason, delayMs: this.rewatchMs }, `the stream of ${this.viewsName} ${reason}: it opens again in ${this.rewatchMs} ms`);
       stream.close().catch(() => undefined);
       this.later(() => {
         // The changes while the stream was closed are lost: a resync catches up, after the new stream is open
-        void this.track(this.watchViews().then(() => this.resync())).catch((error: unknown) => this.log("error", `the resync failed: ${String((error as Error)?.message ?? error)}`));
+        void this.track(this.watchViews().then(() => this.resync())).catch((error: unknown) => this.log("error", "The resync failed", { collection: this.viewsName, error }, `the resync failed: ${String((error as Error)?.message ?? error)}`));
       });
     };
 
@@ -742,7 +753,7 @@ export class ViewMaterializer {
         // A write of the status only is ours: it does not open the view again
         if (touched.length > 0 && touched.every((path) => path === this.statusField || path.startsWith(`${this.statusField}.`))) return;
       }
-      void this.track(this.onViewChange(change)).catch((error: unknown) => this.log("error", `a change of a view failed: ${String((error as Error)?.message ?? error)}`));
+      void this.track(this.onViewChange(change)).catch((error: unknown) => this.log("error", "A change of a view failed", { collection: this.viewsName, operationType: change["operationType"], error }, `a change of a view failed: ${String((error as Error)?.message ?? error)}`));
     });
     stream.on("error", (error: Error) => rewatch(`failed: ${error.message}`));
     stream.on("close", () => rewatch("closed"));
@@ -781,11 +792,11 @@ export class ViewMaterializer {
   private register(view: MaterializedView): boolean {
     const partition = this.partitionOf(view);
     if (partition === undefined) {
-      this.log("warn", `the view ${String(view._id)} has no ${this.partitionField}: it does not run`);
+      this.log("warn", "The view has no partition: it does not run", { view: view._id, partitionField: this.partitionField }, `the view ${String(view._id)} has no ${this.partitionField}: it does not run`);
       return false;
     }
     if (!Array.isArray(view.collections) || view.collections.length === 0 || typeof view.targetCollection !== "string" || !Array.isArray(view.pipeline)) {
-      this.log("warn", `the view ${view._id} needs collections, a pipeline and a targetCollection: it does not run`);
+      this.log("warn", "The view needs collections, a pipeline and a targetCollection: it does not run", { view: view._id, partition }, `the view ${view._id} needs collections, a pipeline and a targetCollection: it does not run`);
       return false;
     }
     this.running.set(this.keyOf(partition, view._id), { view, partition, state: "active", streams: [] });
@@ -799,19 +810,19 @@ export class ViewMaterializer {
     await this.db!
       .collection(view.targetCollection)
       .createIndex({ [this.partitionField]: 1, [VIEW_GENERATION_FIELD]: 1 })
-      .catch((error: unknown) => this.log("error", `the index of ${view.targetCollection} failed: ${String((error as Error)?.message ?? error)}`));
+      .catch((error: unknown) => this.log("error", "The index of the target failed", { view: view._id, collection: view.targetCollection, error }, `the index of ${view.targetCollection} failed: ${String((error as Error)?.message ?? error)}`));
     // A target in a stored form also has the indexes of the storage: the change reads, the order and the tombstones
     let storageTarget: StorageTargetEntry | undefined;
     try {
       storageTarget = this.storageTargetFor(view.targetCollection);
     } catch (error) {
       // The run of the view gives the error to its status
-      this.log("error", `the storage target ${view.targetCollection}: ${String((error as Error)?.message ?? error)}`);
+      this.log("error", "The storage target is not valid", { view: view._id, collection: view.targetCollection, error }, `the storage target ${view.targetCollection}: ${String((error as Error)?.message ?? error)}`);
     }
     if (storageTarget) {
       await storageWriteTarget(storageTarget.storage)
         .ready()
-        .catch((error: unknown) => this.log("error", `the indexes of the storage ${view.targetCollection} failed: ${String((error as Error)?.message ?? error)}`));
+        .catch((error: unknown) => this.log("error", "The indexes of the storage target failed", { view: view._id, collection: view.targetCollection, error }, `the indexes of the storage ${view.targetCollection} failed: ${String((error as Error)?.message ?? error)}`));
     }
     await this.rebalance(partition);
   }
@@ -914,7 +925,7 @@ export class ViewMaterializer {
         .collection(source)
         .watch([this.sourceMatch(running.partition)], { fullDocument: "updateLookup", fullDocumentBeforeChange: "whenAvailable" });
     } catch (error) {
-      this.log("error", `cannot watch ${source} for the view ${running.view._id}: ${String((error as Error)?.message ?? error)}`);
+      this.log("error", "Cannot watch a source of the view", { view: running.view._id, partition: running.partition, collection: source, error }, `cannot watch ${source} for the view ${running.view._id}: ${String((error as Error)?.message ?? error)}`);
       this.later(() => {
         if (this.isCurrent(running) && running.state === "active") void this.watchSource(running, source);
       });
@@ -930,7 +941,7 @@ export class ViewMaterializer {
       // A close of a teardown also ends the stream: open again only a stream of a current active view
       if (index === -1 || !this.isCurrent(running) || running.state !== "active") return;
       running.streams.splice(index, 1);
-      this.log("warn", `the stream of ${source} for the view ${running.view._id} ${reason}: it opens again in ${this.rewatchMs} ms`);
+      this.log("warn", "The stream of a source ended: it opens again", { view: running.view._id, partition: running.partition, collection: source, reason, delayMs: this.rewatchMs }, `the stream of ${source} for the view ${running.view._id} ${reason}: it opens again in ${this.rewatchMs} ms`);
       this.later(() => {
         if (!this.isCurrent(running) || running.state !== "active") return;
         // The changes while the stream was closed are lost: a pass catches up, after the new stream is open
@@ -969,7 +980,7 @@ export class ViewMaterializer {
       this.timers.delete(partition);
       if (!this.intake) return;
       void this.serial(partition, () => this.pass(partition)).catch((error: unknown) =>
-        this.log("error", `the pass of ${partition} failed: ${String((error as Error)?.message ?? error)}`)
+        this.log("error", "The pass failed", { partition, error }, `the pass of ${partition} failed: ${String((error as Error)?.message ?? error)}`)
       );
     });
     cancel.unref?.();
@@ -1054,12 +1065,12 @@ export class ViewMaterializer {
     } catch (error) {
       if (error instanceof PassSuperseded) {
         // Not an error of the view: another process builds it now. A pass comes back after `rewatch`
-        this.log("info", `${view._id}: ${error.message}: the view runs again later`);
+        this.log("info", "The pass gave way: the view runs again later", { view: view._id, partition, reason: error.message }, `${view._id}: ${error.message}: the view runs again later`);
         this.later(() => this.schedule(partition, view.collections[0]!));
         return { changed: false };
       }
       const message = String((error as Error)?.message ?? error);
-      this.log("error", `${view._id}: ${message}`);
+      this.log("error", "The view failed", { view: view._id, partition, error }, `${view._id}: ${message}`);
       await this.writeStatus(view, partition, { state: "errored", lastError: message, at: Date.now() });
       return { changed: false };
     }
@@ -1101,7 +1112,7 @@ export class ViewMaterializer {
             }
             throw new PassSuperseded(`another process wrote the view at the same time (${String((error as Error)?.message ?? error)})`);
           }
-          this.log("warn", `${view._id}: the transaction failed (${String((error as Error)?.message ?? error)}): the pass writes ${storage ? "in groups" : "a new generation in groups"}`);
+          this.log("warn", "The transaction failed: the pass writes in groups", { view: view._id, partition, error }, `${view._id}: the transaction failed (${String((error as Error)?.message ?? error)}): the pass writes ${storage ? "in groups" : "a new generation in groups"}`);
           break;
         }
       }
@@ -1369,7 +1380,7 @@ export class ViewMaterializer {
   private publishHint(view: MaterializedView, partition: string, ids: { changed: readonly unknown[]; deleted: readonly unknown[] } | undefined): void {
     const publish = this.options.publish;
     if (!publish) return;
-    const fail = (error: unknown): void => this.log("error", `the hint of ${view._id} failed: ${String((error as Error)?.message ?? error)}`);
+    const fail = (error: unknown): void => this.log("error", "The hint of the view failed", { view: view._id, partition, error }, `the hint of ${view._id} failed: ${String((error as Error)?.message ?? error)}`);
     try {
       const topic = this.options.hintTopic ? this.options.hintTopic(view, partition) : collectionChangeTopic(view._id);
       if (topic === undefined) return;
@@ -1431,7 +1442,7 @@ export class ViewMaterializer {
       void this.serial(partition, async () => {
         const { status, now } = await this.statusOf(view, partition);
         await this.dropOldGenerations(target, partition, status, now);
-      }).catch((error: unknown) => this.log("error", `${view._id}: ${String((error as Error)?.message ?? error)}`));
+      }).catch((error: unknown) => this.log("error", "The drop of the old generations failed", { view: view._id, partition, error }, `${view._id}: ${String((error as Error)?.message ?? error)}`));
     });
     cancel.unref?.();
     this.retries.add(cancel);
@@ -1628,7 +1639,7 @@ export class ViewMaterializer {
       await this.releaseLease(view, partition, owner).catch(() => undefined);
       throw error;
     } finally {
-      if (removed) await storage.writer.prune(db).catch((error: unknown) => this.log("error", `${view._id}: the prune of the tombstones failed: ${String((error as Error)?.message ?? error)}`));
+      if (removed) await storage.writer.prune(db).catch((error: unknown) => this.log("error", "The prune of the tombstones failed", { view: view._id, partition, error }, `${view._id}: the prune of the tombstones failed: ${String((error as Error)?.message ?? error)}`));
     }
     return changed;
   }
@@ -1700,7 +1711,7 @@ export class ViewMaterializer {
     try {
       await this.db!.collection(this.viewsName).updateOne({ _id: view._id, [this.partitionField]: partition } as Document, update);
     } catch (error) {
-      this.log("error", `the status of ${view._id} failed: ${String((error as Error)?.message ?? error)}`);
+      this.log("error", "The status of the view failed", { view: view._id, partition, error }, `the status of ${view._id} failed: ${String((error as Error)?.message ?? error)}`);
     }
   }
 }
