@@ -485,7 +485,7 @@ importers:
         version: 0.2.0(zod@4.6.7)
       '@mark1russell7/service':
         specifier: ^0.6.0
-        version: 0.6.1(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@types/ws':
         specifier: ^8.18.1
         version: 8.18.2
@@ -759,7 +759,7 @@ importers:
         version: 1.0.2
       '@mark1russell7/service':
         specifier: ^0.6.0
-        version: 0.6.1(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -942,7 +942,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.6.0
-        version: 0.6.1(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1103,7 +1103,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.6.0
-        version: 0.6.1(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1374,7 +1374,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.6.0
-        version: 0.6.1(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/bundle-mcp':
         specifier: workspace:*
         version: link:../bundle-mcp
@@ -1464,7 +1464,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.6.0
-        version: 0.6.1(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1520,7 +1520,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.6.0
-        version: 0.6.1(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/cli-kit':
         specifier: workspace:*
         version: link:../cli-kit
@@ -1860,7 +1860,7 @@ importers:
         version: 1.0.2
       '@mark1russell7/service':
         specifier: ^0.6.0
-        version: 0.6.1(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1875,7 +1875,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.6.0
-        version: 0.6.1(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -2151,7 +2151,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.6.0
-        version: 0.6.1(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -3300,8 +3300,8 @@ packages:
       zod:
         optional: true
 
-  '@mark1russell7/service@0.6.1':
-    resolution: {integrity: sha512-vmh3SHgsWbXe6jFsV6pBFLTF05rhqIVtPBrYjYW7Eu+u/BZIwsXwuUXWewNJwimJx5a42ZpWkpZpX140WQYMMg==}
+  '@mark1russell7/service@0.6.3':
+    resolution: {integrity: sha512-PN8dNgqh6SyCyKN5r+x/ilr5GXyq8d0lxQJsTEDIGBSe42n3edmsK/5qcqAQ4iMI7iLBRv97aF4AIXJxTbnyLw==}
     engines: {node: '>=22.19'}
     peerDependencies:
       '@grpc/grpc-js': ^1.14.6
@@ -6657,7 +6657,7 @@ snapshots:
     optionalDependencies:
       zod: 4.6.7
 
-  '@mark1russell7/service@0.6.1(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)':
+  '@mark1russell7/service@0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)':
     dependencies:
       '@mark1russell7/algebra': 0.8.0(zod@4.6.7)
       '@mark1russell7/quantity': 0.2.0(zod@4.6.7)
