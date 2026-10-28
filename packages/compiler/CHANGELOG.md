@@ -1,5 +1,17 @@
 # @procedures/compiler
 
+## 0.44.0
+
+### Minor Changes
+
+- 19b7a25: The release train: the ranges of @mark1russell7/coeval change to a version outside the old range.
+
+### Patch Changes
+
+- Updated dependencies [4dada47]
+- Updated dependencies [19b7a25]
+  - @procedures/client@0.44.0
+
 ## 0.43.0
 
 ### Patch Changes
