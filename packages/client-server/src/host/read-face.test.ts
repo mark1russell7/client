@@ -11,7 +11,7 @@
  * - A nested chain with a write step is refused.
  * - A program of `procedure.define` whose body writes is refused through the face.
  * - A narrowing header or key of the caller that asks for writes does not make the face wider.
- * - A path outside the expose rule of the face gets `NOT_FOUND`, also as a nested step of a chain.
+ * - A path outside the expose rule of the face gets `NOT_FOUND`. As a nested step of a chain, it gets `NOT_EXPOSED`.
  * - The full faces of the same host still let the writes through: the face refuses, not the host.
  */
 
@@ -221,7 +221,7 @@ describe.each(["HTTP", "WebSocket"] as const)("a read-only face of the %s face (
       { $proc: WRITE, input: {} },
     ];
     const { outcome, ran } = await logged(() => read(CHAIN, { steps }));
-    expect(outcome).toMatchObject({ code: "FORBIDDEN" });
+    expect(outcome).toMatchObject({ code: "FORBIDDEN", reason: "effects-exceeded" });
     expect(ran).toEqual(["read"]);
   });
 
@@ -229,7 +229,7 @@ describe.each(["HTTP", "WebSocket"] as const)("a read-only face of the %s face (
     const { read } = faces[kind];
     const steps = [{ $proc: CHAIN, input: { steps: [{ $proc: WRITE, input: {} }] } }];
     const { outcome, ran } = await logged(() => read(CHAIN, { steps }));
-    expect(outcome).toMatchObject({ code: "FORBIDDEN" });
+    expect(outcome).toMatchObject({ code: "FORBIDDEN", reason: "effects-exceeded" });
     expect(ran).toEqual([]);
   });
 
@@ -238,12 +238,12 @@ describe.each(["HTTP", "WebSocket"] as const)("a read-only face of the %s face (
     const prefix = kind === "HTTP" ? "http" : "ws";
     // The read face cannot define a program: procedure.define changes the registry
     const define = (path: string[], aggregation: unknown) => ({ path, aggregation });
-    expect(await read(["procedure", "define"], define(["defined", `${prefix}Refused`], { $proc: READ, input: {} }))).toMatchObject({ code: "FORBIDDEN" });
+    expect(await read(["procedure", "define"], define(["defined", `${prefix}Refused`], { $proc: READ, input: {} }))).toMatchObject({ code: "FORBIDDEN", reason: "effects-exceeded" });
     // The full face defines a writer and a reader
     expect(await full(["procedure", "define"], define(["defined", `${prefix}Write`], { $proc: WRITE, input: {} }))).toHaveProperty("value");
     expect(await full(["procedure", "define"], define(["defined", `${prefix}Read`], { $proc: READ, input: {} }))).toHaveProperty("value");
     const written = await logged(() => read(["defined", `${prefix}Write`]));
-    expect(written.outcome).toMatchObject({ code: "FORBIDDEN" });
+    expect(written.outcome).toMatchObject({ code: "FORBIDDEN", reason: "effects-exceeded" });
     expect(written.ran).toEqual([]);
     expect(await logged(() => read(["defined", `${prefix}Read`]))).toEqual({ outcome: { value: "content" }, ran: ["read"] });
   });
@@ -255,7 +255,7 @@ describe.each(["HTTP", "WebSocket"] as const)("a read-only face of the %s face (
     expect(await logged(() => read(WRITE, {}, [wider, wider]))).toEqual({ outcome: { code: "FORBIDDEN", reason: "effects-exceeded" }, ran: [] });
     const steps = [{ $proc: WRITE, input: {} }];
     const chained = await logged(() => read(CHAIN, { steps }, wider));
-    expect(chained.outcome).toMatchObject({ code: "FORBIDDEN" });
+    expect(chained.outcome).toMatchObject({ code: "FORBIDDEN", reason: "effects-exceeded" });
     expect(chained.ran).toEqual([]);
   });
 
@@ -265,10 +265,10 @@ describe.each(["HTTP", "WebSocket"] as const)("a read-only face of the %s face (
     // The host procedures are outside the rule too: the rule of the face applies to each procedure
     expect(await read(["host", "info"])).toMatchObject({ code: "NOT_FOUND" });
     const nested = await logged(() => read(CHAIN, { steps: [{ $proc: HIDDEN, input: {} }] }));
-    expect(nested.outcome).not.toHaveProperty("value");
+    expect(nested.outcome).toMatchObject({ code: "NOT_EXPOSED" });
     expect(nested.ran).toEqual([]);
     // procedure.get does not describe a procedure outside the rule
-    expect(await read(["procedure", "get"], { path: HIDDEN })).not.toHaveProperty("value");
+    expect(await read(["procedure", "get"], { path: HIDDEN })).toEqual({ value: { found: false } });
     expect(await read(["procedure", "get"], { path: READ })).toMatchObject({ value: { key: "notes.read" } });
     // A chain of steps inside the rule runs
     expect(await logged(() => read(CHAIN, { steps: [{ $proc: READ, input: {} }] }))).toMatchObject({ ran: ["read"] });
