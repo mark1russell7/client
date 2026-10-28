@@ -1,5 +1,11 @@
 # @procedures/client
 
+## 0.46.0
+
+### Minor Changes
+
+- 10dcc3c: The release train: the ranges of @mark1russell7/coeval change to a version outside the old range.
+
 ## 0.45.0
 
 ### Minor Changes
