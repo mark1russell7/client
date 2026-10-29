@@ -24,3 +24,20 @@ jobs:
       contents: read
       security-events: write
       actions: read
+
+  # The check of the scans that the ruleset of main names (template CI.md, "The check of the
+  # ruleset"). The scans stay in this file, because they need security-events: write.
+  security-ok:
+    name: Security OK
+    if: always()
+    needs: [security]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: Each scan passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "results: $RESULTS"
+          case " $RESULTS " in *" failure "*|*" cancelled "*) exit 1 ;; esac
