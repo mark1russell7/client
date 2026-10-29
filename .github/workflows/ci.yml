@@ -368,3 +368,22 @@ jobs:
           name: playwright-results
           path: packages/site/node_modules/.cache/playwright/results
           retention-days: 7
+
+  # The one check that the ruleset of main names (template CI.md, "The check of the ruleset").
+  # It needs each job of the merge gate, starts also after a failure, and fails when one of them
+  # failed or was cancelled. A job that its own `if` skips (changesets on a push) does not fail it.
+  # Add each new job of the gate to `needs`.
+  ci-ok:
+    name: CI OK
+    if: always()
+    needs: [ci, changesets, checks, mongo, lifecycle, coverage, package, site]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: Each job passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "results: $RESULTS"
+          case " $RESULTS " in *" failure "*|*" cancelled "*) exit 1 ;; esac
