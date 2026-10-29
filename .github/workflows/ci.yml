@@ -20,7 +20,7 @@ jobs:
   # The check names are "CI / checks (ubuntu-latest, node <version>)".
   ci:
     name: CI
-    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@68e160e7cae2f00c2c8b401d514f4a1e2e6d1967 # main
+    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@ca498a7280d76d9b8788f0850cbd151bd06230a0 # main
     with:
       # Build first: each package builds dist/ with `tsc -b`, and dependents read the types from
       # dist/. lint:ste examines the writing rules (ASD-STE100) of the README files and the doc comments.
@@ -58,7 +58,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: mark1russell7/template/.github/actions/changeset-check@68e160e7cae2f00c2c8b401d514f4a1e2e6d1967 # main
+      - uses: mark1russell7/template/.github/actions/changeset-check@ca498a7280d76d9b8788f0850cbd151bd06230a0 # main
 
   # The checks of this repository, once, on Node 26. They need the build, but not each Node version.
   checks:
