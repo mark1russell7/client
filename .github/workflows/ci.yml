@@ -66,9 +66,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      # Depth 2 gets the parents of the merge commit of a pull request. The rule release-files of
+      # check:conventions reads them.
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+          fetch-depth: 2
       # The pnpm version comes from "packageManager" in package.json
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
@@ -118,6 +121,12 @@ jobs:
           name: public-api-reports
           path: packages/*/test/api/public-api.txt
           retention-days: 7
+      # The shared conventions of the fleet (@mark1russell7/conventions). The step needs the build:
+      # the rule typed-files lists the files of each tsconfig with tsc. The summary of the run has
+      # a table of the rules.
+      - name: Check the conventions
+        if: ${{ !cancelled() }}
+        run: pnpm check:conventions
       # No file names a package of this repository with the old scope @mark1russell7 (2026-10-12)
       - name: Check the package scope
         if: ${{ !cancelled() }}

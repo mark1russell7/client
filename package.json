@@ -16,6 +16,7 @@
     "check:packages": "node scripts/check-packages.mjs",
     "check:boundaries": "depcruise --config .dependency-cruiser.cjs \"packages/*/src\"",
     "check:paths-and-writes": "node scripts/check-paths-and-writes.mjs",
+    "check:conventions": "conventions check",
     "release:bootstrap": "node scripts/npm-bootstrap.mjs"
   },
   "devDependencies": {
@@ -23,6 +24,7 @@
     "@babel/parser": "^8.0.7",
     "@changesets/cli": "^3.0.3",
     "@mark1russell7/boundaries": "^0.2.0",
+    "@mark1russell7/conventions": "^0.6.0",
     "@mark1russell7/cue": "^1.0.0",
     "@mark1russell7/ste-lint": "github:mark1russell7/ste-lint",
     "@swc/core": "^1.16.20",
