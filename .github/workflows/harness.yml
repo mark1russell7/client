@@ -84,6 +84,8 @@ jobs:
     needs: plan
     strategy:
       fail-fast: false
+      # At most 3 runners at one time: the runner slots of the account are a budget (2026-10-30)
+      max-parallel: 3
       matrix:
         shard: ${{ fromJSON(needs.plan.outputs.shards) }}
     runs-on: ubuntu-24.04
