@@ -4,6 +4,7 @@
     "ts",
     "cue",
     "vitest",
-    "node"
+    "node",
+    "test"
   ]
 }

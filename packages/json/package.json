@@ -56,7 +56,7 @@
   ],
   "scripts": {
     "build": "tsc -b",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
     "clean": "rm -rf dist .tsbuildinfo",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -65,7 +65,7 @@
     "./dist/register.js"
   ],
   "devDependencies": {
-    "@mark1russell7/cue": "^1.0.0",
+    "@mark1russell7/cue": "^1.1.0",
     "esbuild": "^0.28.2",
     "fast-check": "^4.10.2",
     "typescript": "^7.0.2",

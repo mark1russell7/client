@@ -1,6 +1,6 @@
 /**
  * The golden outputs: the IR and the source text (TypeScript) of representative programs. The
- * files are in test/golden. The test of the test types (`.github/scripts/typecheck-tests.mjs`)
+ * files are in test/golden. The type check of the tests (`tsconfig.test.json`, in `pnpm typecheck`)
  * examines the TypeScript files with the strict configuration of the package.
  */
 
