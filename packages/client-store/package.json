@@ -71,7 +71,7 @@
   },
   "scripts": {
     "build": "tsc -b",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
     "clean": "rm -rf dist .tsbuildinfo",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -91,7 +91,7 @@
   },
   "devDependencies": {
     "@procedures/fs": "workspace:*",
-    "@mark1russell7/cue": "^1.0.0",
+    "@mark1russell7/cue": "^1.1.0",
     "@types/node": "^22.0.0",
     "fake-indexeddb": "^6.2.5",
     "fast-check": "^4.10.2",

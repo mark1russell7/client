@@ -3,6 +3,7 @@
   "dependencies": [
     "node-cjs",
     "cue",
-    "vitest"
+    "vitest",
+    "test"
   ]
 }

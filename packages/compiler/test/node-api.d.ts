@@ -1,6 +1,6 @@
 /**
  * The Node.js APIs that the tests of this package use. The package works in a browser, so it has
- * no `@types/node`. These declarations let `.github/scripts/typecheck-tests.mjs` examine the tests.
+ * no `@types/node`. These declarations let `tsconfig.test.json` (in `pnpm typecheck`) examine the tests.
  * The build of the package does not read this file.
  */
 

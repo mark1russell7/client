@@ -35,12 +35,11 @@ jobs:
         echo "aa282261245e9ab0d65b17ec3c7207f5231600106f7b26fc0c2e158b3937ca3f  $RUNNER_TEMP/cue.tar.gz" | sha256sum -c -
         tar -xzf "$RUNNER_TEMP/cue.tar.gz" -C "$RUNNER_TEMP" cue
         echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
-      # On each Node version, after the scripts:
-      # - The types of the test files. The presets of cue exclude the test files from `pnpm typecheck`.
-      # - The built mark CLI as a process: help, commands, lib new, mcp and serve. A missing build
-      #   fails the run (roadmap R8: before, CI did not start these tests).
+      # The script typecheck of each package also type-checks its tests with tsconfig.test.json
+      # (the test feature of cue 1.1.0), so `pnpm typecheck` above examines them.
+      # On each Node version, after the scripts: the built mark CLI as a process: help, commands,
+      # lib new, mcp and serve. A missing build fails the run (roadmap R8: before, CI did not start these tests).
       run: |
-        node .github/scripts/typecheck-tests.mjs
         pnpm --filter @procedures/mark test:e2e
 
   # The changesets of a pull request (strategy s38, decision D13): changeset-check of the template

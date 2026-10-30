@@ -61,7 +61,7 @@
   },
   "scripts": {
     "build": "tsc -b",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
     "clean": "rm -rf dist .tsbuildinfo",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -74,7 +74,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@mark1russell7/cue": "^1.0.0",
+    "@mark1russell7/cue": "^1.1.0",
     "@procedures/fs": "workspace:*",
     "@types/node": "^22.0.0",
     "typescript": "^7.0.2",

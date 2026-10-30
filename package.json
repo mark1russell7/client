@@ -25,7 +25,7 @@
     "@changesets/cli": "^3.0.3",
     "@mark1russell7/boundaries": "^0.2.0",
     "@mark1russell7/conventions": "^0.7.0",
-    "@mark1russell7/cue": "^1.0.0",
+    "@mark1russell7/cue": "^1.1.0",
     "@mark1russell7/ste-lint": "^0.1.1",
     "@swc/core": "^1.16.20",
     "@vitest/coverage-v8": "5.0.3",
@@ -55,24 +55,6 @@
       "source-main": {
         "main": "./dist/index.js",
         "reason": "the packages of client are built by design (D:/git/CLAUDE.md), so main is the build. The move to source packages is its own roadmap item"
-      },
-      "tsconfig-test": {
-        "ignore": [
-          "packages/*/tsconfig.test.json"
-        ],
-        "reason": "typecheck-tests.mjs (.github/scripts) type-checks these files in CI until cue 1.1.0 makes tsconfig.test.json (mark1russell7/cue#39). The globs are its include list, and all 59 packages are in its program"
-      },
-      "typed-files": {
-        "ignore": [
-          "packages/*/src/**/*",
-          "packages/*/test/**/*",
-          "packages/*/__tests__/**/*",
-          "packages/*/e2e/**/*",
-          "packages/*/bench/**/*",
-          "packages/*/*.config.ts",
-          "packages/*/*.config.mts"
-        ],
-        "reason": "typecheck-tests.mjs (.github/scripts) type-checks these files in CI until cue 1.1.0 makes tsconfig.test.json (mark1russell7/cue#39). The globs are its include list, and all 59 packages are in its program"
       },
       "typed-scripts": {
         "ignore": [

@@ -16,14 +16,13 @@ Do these steps in the root folder of the repository:
 1. Install the dependencies: `pnpm install`
 2. Build all packages in the sequence of their dependencies: `pnpm build`
 3. Start the tests: `pnpm test`
-4. Examine the types: `pnpm typecheck`
+4. Examine the types of the source and the test files: `pnpm typecheck`
 5. Examine the prose: `pnpm lint:ste`
 
 A package reads the types of its dependencies from their `dist/` folders. Thus, build again after a change, before you test a dependent package. Git ignores `dist/`.
 
 These checks run in CI too:
 
-- The types of the test files: `node .github/scripts/typecheck-tests.mjs`. The presets of `cue` exclude the test files from `pnpm typecheck`.
 - The package audit: `node packages/mark/dist/cli.js lib audit`.
 - The browser smoke test of the site: `pnpm --filter @procedures/site test:e2e`. It needs Playwright and Chromium.
 - The end-to-end tests of `mark`: `pnpm --filter @procedures/mark test:e2e`.
