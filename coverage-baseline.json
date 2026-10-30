@@ -1,9 +1,21 @@
 {
+  "@procedures/access": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 97
+  },
   "@procedures/archive": {
     "lines": 96.8,
     "statements": 92.7,
     "functions": 94.2,
     "branches": 87.7
+  },
+  "@procedures/better-auth": {
+    "lines": 96,
+    "statements": 91,
+    "functions": 88,
+    "branches": 86
   },
   "@procedures/bundle-assistant": {
     "lines": 44.4,
@@ -28,6 +40,12 @@
     "statements": 98.3,
     "functions": 95.3,
     "branches": 95.7
+  },
+  "@procedures/cli-kit": {
+    "lines": 66,
+    "statements": 64,
+    "functions": 66,
+    "branches": 51
   },
   "@procedures/cli-run": {
     "lines": 18.9,
@@ -268,6 +286,12 @@
     "statements": 86.7,
     "functions": 82.1,
     "branches": 76.2
+  },
+  "@procedures/signaldb": {
+    "lines": 100,
+    "statements": 99,
+    "functions": 100,
+    "branches": 98
   },
   "@procedures/site": {
     "lines": 33.5,
