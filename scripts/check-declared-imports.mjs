@@ -125,6 +125,11 @@ export async function undeclaredImportProblems(packages) {
   let entries = 0;
   for (const pkg of packages) {
     const files = entryFiles(pkg.manifest, pkg.path);
+    // A public package without an entry file publishes no code that the check can read
+    if (files.length === 0) {
+      problems.push(`${pkg.name}: no entry file. The check expected a JavaScript file in exports, main or bin (start pnpm build first when exports has a pattern)`);
+      continue;
+    }
     const missing = files.filter((file) => !existsSync(resolve(pkg.path, file)));
     for (const file of missing) problems.push(`${pkg.name}: the entry ${file} does not exist (start pnpm build first)`);
     const present = files.filter((file) => !missing.includes(file));
@@ -154,6 +159,8 @@ export async function undeclaredImportProblems(packages) {
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   const packages = publicPackages().map(({ name, path, manifest }) => ({ name, path, manifest }));
   const { problems, entries } = await undeclaredImportProblems(packages);
+  // With no entry, the check examined nothing
+  if (entries === 0) problems.push("no entry file: the check expected the entries of the public packages of packages/");
   if (problems.length > 0) {
     console.error(`${problems.length} problems:\n  ${problems.join("\n  ")}`);
     console.error("Add each package to dependencies, or to peerDependencies when its values cross the API of the package.");

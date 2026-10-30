@@ -8,9 +8,13 @@
 // The tests can also be in a __tests__ or an e2e folder next to src (roadmap R8: before, the
 // script did not read client-docker/__tests__ and mark/e2e).
 //
+// The config also includes the benchmarks in bench/ and the config files of the tools in the
+// package folder (`vitest.config.ts`, `vite.config.ts`, `playwright.config.ts`). No other check reads them.
+//
 // Usage: node .github/scripts/typecheck-tests.mjs [package-folder ...]
 // With no argument, it examines each folder in packages/ that has a test file.
-// Exit code: 1 when a package has a type error.
+// Exit code: 1 when a package has a type error, when the script finds no package, or when a named
+// folder has no tsconfig.json or no test file.
 
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -22,14 +26,14 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const PACKAGES = join(ROOT, "packages");
 const TEMP_NAME = "tsconfig.tests.tmp.json";
 /** The folders of a package that can hold tests */
-const TEST_FOLDERS = ["src", "__tests__", "e2e"];
+const TEST_FOLDERS = ["src", "test", "__tests__", "e2e", "bench"];
 
 function hasTests(dir) {
   if (!existsSync(dir)) return false;
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (entry.name === "node_modules" || entry.name === "dist") continue;
     const path = join(dir, entry.name);
-    if (entry.isDirectory() ? hasTests(path) : /\.(test|spec)\.tsx?$/.test(entry.name)) return true;
+    if (entry.isDirectory() ? hasTests(path) : /\.(test|spec|bench)\.tsx?$/.test(entry.name)) return true;
   }
   return false;
 }
@@ -44,9 +48,20 @@ function typescriptBin(dir) {
 }
 
 const requested = process.argv.slice(2);
-const folders = (requested.length > 0 ? requested : readdirSync(PACKAGES))
-  .map((name) => join(PACKAGES, name))
-  .filter((dir) => existsSync(join(dir, "tsconfig.json")) && TEST_FOLDERS.some((folder) => hasTests(join(dir, folder))));
+/** True when the folder has a tsconfig.json and a test file in one of the TEST_FOLDERS. */
+const testable = (dir) => existsSync(join(dir, "tsconfig.json")) && TEST_FOLDERS.some((folder) => hasTests(join(dir, folder)));
+const candidates = (requested.length > 0 ? requested : readdirSync(PACKAGES)).map((name) => join(PACKAGES, name));
+const folders = candidates.filter(testable);
+
+// A named folder without tests, or a run with no folder, examines nothing: that is a failure
+const dropped = requested.length > 0 ? candidates.filter((dir) => !testable(dir)) : [];
+for (const dir of dropped) {
+  console.log(`error ${relative(ROOT, dir).replace(/\\/g, "/")}: no tsconfig.json, or no test file in ${TEST_FOLDERS.join(", ")}`);
+}
+if (folders.length === 0) {
+  console.log(`error: no package to examine. The script expected a folder of packages/ with a tsconfig.json and a test file in ${TEST_FOLDERS.join(", ")}.`);
+  process.exit(1);
+}
 
 let failed = 0;
 for (const dir of folders) {
@@ -59,7 +74,15 @@ for (const dir of folders) {
         extends: "./tsconfig.json",
         // The helpers of the tests can be in a test/ folder next to src/, so the root is the package
         compilerOptions: { noEmit: true, composite: false, incremental: false, declaration: false, declarationMap: false, isolatedDeclarations: false, rootDir: "${configDir}" },
-        include: ["${configDir}/src/**/*", "${configDir}/test/**/*", "${configDir}/__tests__/**/*", "${configDir}/e2e/**/*"],
+        include: [
+          "${configDir}/src/**/*",
+          "${configDir}/test/**/*",
+          "${configDir}/__tests__/**/*",
+          "${configDir}/e2e/**/*",
+          "${configDir}/bench/**/*",
+          "${configDir}/*.config.ts",
+          "${configDir}/*.config.mts",
+        ],
         exclude: ["${configDir}/node_modules", "${configDir}/dist"],
       },
       null,
@@ -84,4 +107,4 @@ for (const dir of folders) {
 }
 
 console.log(`\n${folders.length - failed} of ${folders.length} packages: the test files type-check.`);
-process.exit(failed > 0 ? 1 : 0);
+process.exit(failed > 0 || dropped.length > 0 ? 1 : 0);

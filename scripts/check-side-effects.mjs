@@ -71,6 +71,9 @@ for (const pkg of publicPackages()) {
   }
 }
 
+// When no package is checked, the check examined nothing: that is a failure, not a pass
+if (checked === 0) failures.push("no public package of packages/ has an exports entry with a .js file. The check expected the exports of the public packages");
+
 if (failures.length > 0) {
   console.error(`${failures.length} problems:\n  ${failures.join("\n  ")}`);
   process.exit(1);

@@ -8,10 +8,14 @@
 // each package whose report differs or is missing. --update writes the reports. Without package
 // folders, the script reads each public package of the workspace (pnpm-workspace.yaml, the field
 // workspaces of package.json, or the root folder alone). A private package has no report.
+//
+// Without package folders, the script also exits with 1 when it finds no public package, and when a
+// folder of the workspace has a report that the run does not examine: a private, excluded or removed
+// package.
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
-import { packageFolders, packageReport, REPORT_FILE } from "./lib/api-report.mjs";
+import { packageFolders, packageReport, REPORT_FILE, workspaceFolders } from "./lib/api-report.mjs";
 
 const usage = "Usage: node scripts/api-report.mjs [--check | --update] [--root <folder>] [<package folder>...]";
 
@@ -40,6 +44,9 @@ const missing = [];
 const failed = [];
 const written = [];
 const skipped = [];
+const stale = [];
+// The folders that the run examines: each one gets a report, or an error
+const examined = new Set();
 let count = 0;
 
 for (const folder of folders) {
@@ -54,6 +61,7 @@ for (const folder of folders) {
     skipped.push(show(folder));
     continue;
   }
+  examined.add(folder);
   let report;
   try {
     report = packageReport(folder, { tool: "scripts/api-report.mjs" });
@@ -80,6 +88,16 @@ for (const folder of folders) {
   }
 }
 
+if (named.length === 0) {
+  // A run over no package examines nothing: that is a failure, not a pass
+  if (folders.length - skipped.length === 0) {
+    failed.push(`${show(root)}: no public package. The script expected the package folders of pnpm-workspace.yaml, of the field workspaces of package.json, or a package.json in the root`);
+  }
+  for (const folder of workspaceFolders(root)) {
+    if (!examined.has(folder) && existsSync(join(folder, REPORT_FILE))) stale.push(show(join(folder, REPORT_FILE)));
+  }
+}
+
 const list = (title, items) => {
   if (items.length === 0) return;
   console.log(`${title}:`);
@@ -90,7 +108,8 @@ list("Written", written);
 list("The report differs from the built .d.ts files", differ);
 list("No report", missing);
 list("Errors", failed);
+list("A report of a package that the run does not examine (remove the report, or make the package public)", stale);
 if (differ.length > 0 || missing.length > 0) {
   console.log("To accept a change of the API, start the build, then node scripts/api-report.mjs --update, and review the diff.");
 }
-process.exit(failed.length > 0 || differ.length > 0 || missing.length > 0 ? 1 : 0);
+process.exit(failed.length > 0 || differ.length > 0 || missing.length > 0 || stale.length > 0 ? 1 : 0);
