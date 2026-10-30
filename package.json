@@ -24,7 +24,7 @@
     "@babel/parser": "^8.0.7",
     "@changesets/cli": "^3.0.3",
     "@mark1russell7/boundaries": "^0.2.0",
-    "@mark1russell7/conventions": "^0.6.0",
+    "@mark1russell7/conventions": "^0.7.0",
     "@mark1russell7/cue": "^1.0.0",
     "@mark1russell7/ste-lint": "^0.1.1",
     "@swc/core": "^1.16.20",
@@ -34,5 +34,17 @@
     "publint": "^0.3.25",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
+  },
+  "conventions": {
+    "rules": {
+      "no-local-paths": {
+        "allow": ["newdev", "someone", "test", "your_username"],
+        "reason": "these names are placeholders of examples and tests (client-snapshot README, ONBOARDING-2026-07, the tests of ios-backup and restic), not people"
+      },
+      "roadmap-parses": {
+        "roadmaps": ["packages/documentation/ROADMAP-2026-10.md"],
+        "reason": "packages/site/scripts/gen-data.mjs gives it to readStatusBoard of site-pages"
+      }
+    }
   }
 }
