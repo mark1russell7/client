@@ -4,7 +4,9 @@ name: Nightly
 # hand. A push does not start them: the CI workflow has the fast checks.
 on:
   schedule:
-    - cron: "17 3 * * *"
+    # Its own minute: a scheduled heavy run of another repo uses none of the minutes near it
+    # (the runner budget of 2026-10-30).
+    - cron: "37 2 * * *"
   workflow_dispatch:
     inputs:
       only:
@@ -18,7 +20,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: nightly
+  group: nightly-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -146,7 +148,10 @@ jobs:
 
   soak:
     name: WebSocket and HTTP soak (10 minutes each)
-    if: ${{ !inputs.only || contains(inputs.only, 'soak') }}
+    # bench, soak and live run one after the other, so that the nightly holds at most 3 runners.
+    # A skipped or failed job before does not stop the next one.
+    needs: bench
+    if: ${{ !cancelled() && (!inputs.only || contains(inputs.only, 'soak')) }}
     runs-on: ubuntu-latest
     # Two soaks of 10 minutes, one after the other, and the install and the build
     timeout-minutes: 45
@@ -170,7 +175,8 @@ jobs:
 
   live:
     name: Real MongoDB and Docker
-    if: ${{ !inputs.only || contains(inputs.only, 'live') }}
+    needs: soak
+    if: ${{ !cancelled() && (!inputs.only || contains(inputs.only, 'live')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
