@@ -42,7 +42,7 @@ Clean interface design and organization, but: byte-duplicated 15k LOC, ~85% dead
 
 ## Bugs
 
-Paths cite the canonical copy `C:\Users\markt\git\client-collections\src\...`; every bug (except #6, #22) exists identically in `C:\Users\markt\git\client\src\collections\...` at the same lines.
+Paths cite the canonical copy `packages/client-collections/src/...`; every bug (except #6, #22) exists identically in `packages/client/src/collections/...` at the same lines.
 
 **1. ArrayDeque loses ALL elements on growth** — `impl/array-deque.ts:395,410-411` — critical, certain.
 ```ts

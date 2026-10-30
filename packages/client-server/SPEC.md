@@ -51,7 +51,7 @@ A bidirectional RPC system where peers can call each other's procedures with ful
 
 ### 1. `@mark1russell7/splay` (Core Rendering Logic)
 
-**Location**: `C:\Users\markt\git\splay`
+**Location**: `~/git/splay`
 
 **Purpose**: Framework-agnostic recursive rendering engine.
 
@@ -89,7 +89,7 @@ export function listLayout(size, count, rowHeight): LayoutItem[];
 
 ### 2. `@mark1russell7/splay-react` (React Rendering)
 
-**Location**: `C:\Users\markt\git\splay-react`
+**Location**: `~/git/splay-react`
 
 **Purpose**: React adapter for splay. Components return `ComponentOutput`, hydration converts to React.
 
@@ -134,7 +134,7 @@ export function render(data, size, path, registry?): ComponentOutput;
 
 ### 3. `@procedures/splay` (Procedure Bridge)
 
-**Location**: `C:\Users\markt\git\client-splay`
+**Location**: `packages/client-splay`
 
 **Purpose**: Bridge between splay rendering and client procedure system.
 
@@ -156,7 +156,7 @@ export { defineComponent, simpleComponent, streamingComponent, componentModule }
 
 ### 4. `@mark1russell7/client-splay-react` (PLANNED)
 
-**Location**: `C:\Users\markt\git\client-splay-react` (TO CREATE)
+**Location**: `~/git/client-splay-react` (TO CREATE)
 
 **Purpose**: Register splay-react primitives as callable procedures.
 
@@ -186,7 +186,7 @@ export interface SplayReactProcedures {
 
 ### 5. `@procedures/peer` (Peer System)
 
-**Location**: `C:\Users\markt\git\client-server`
+**Location**: `packages/client-server`
 
 **Purpose**: Transport-agnostic peer that exposes procedures and enables bidirectional RPC.
 
@@ -228,7 +228,7 @@ client-server/
 
 ### 6. `@procedures/mongo` (MongoDB Procedures)
 
-**Location**: `C:\Users\markt\git\client-mongo`
+**Location**: `packages/client-mongo`
 
 **Purpose**: MongoDB procedures with typed interface for autocomplete.
 
@@ -266,7 +266,7 @@ export type ProcedureOutput<P extends readonly string[]> = /* mapped type */;
 
 ### 7. `@procedures/client` (Core Client)
 
-**Location**: `C:\Users\markt\git\client`
+**Location**: `packages/client`
 
 **Key Addition** (this session):
 ```typescript
@@ -288,7 +288,7 @@ const result = await call(["mongo", "documents", "find"], { query: {} });
 
 ### 8. `minimongo` (UI Application)
 
-**Location**: `C:\Users\markt\git\minimongo`
+**Location**: `~/git/minimongo`
 
 **Bridge Registry** (`src/renderer/bridge/index.tsx`):
 ```typescript
