@@ -27,9 +27,16 @@ function meanOf(file) {
   return result.latency?.mean ?? result.mean;
 }
 
+// Without current results, the comparison examines nothing: the benchmarks did not write them
+const currentFiles = existsSync(currentDir) ? readdirSync(currentDir).filter((name) => name.endsWith(".json")).sort() : [];
+if (currentFiles.length === 0) {
+  console.error(`${currentDir}: ${existsSync(currentDir) ? "the folder has no .json file" : "the folder does not exist"}. The comparison expected one JSON file for each benchmark (bench(name, { writeResult }) of vitest).`);
+  process.exit(1);
+}
+
 const rows = [];
 const slower = [];
-for (const file of readdirSync(currentDir).filter((name) => name.endsWith(".json")).sort()) {
+for (const file of currentFiles) {
   const name = file.replace(/\.json$/, "");
   const current = meanOf(join(currentDir, file));
   const earlierFile = join(earlierDir, file);

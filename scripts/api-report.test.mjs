@@ -327,6 +327,35 @@ describe("the script", () => {
     assert.match(changed.stdout, /differs from the built \.d\.ts files:\n {2}packages\/a \(first difference at line \d+\)/);
   });
 
+  it("fails a run over all packages that finds no public package", () => {
+    const root = fixture({
+      "package.json": { name: "root", private: true },
+      "pnpm-workspace.yaml": 'packages:\n  - "packages/*"\n',
+      "packages/hidden/package.json": { name: "hidden", private: true },
+    });
+    for (const mode of ["--check", "--update"]) {
+      const result = run(root, mode);
+      assert.equal(result.status, 1, mode);
+      assert.match(result.stdout, /Errors:\n {2}\.: no public package/);
+    }
+  });
+
+  it("fails a run over all packages on a report that the run does not examine", () => {
+    const root = workspace();
+    assert.equal(run(root, "--update").status, 0);
+    for (const folder of ["hidden", "ignored", "removed"]) {
+      mkdirSync(join(root, "packages", folder, "test/api"), { recursive: true });
+      writeFileSync(join(root, "packages", folder, "test/api/public-api.txt"), "an old report\n");
+    }
+    for (const mode of ["--check", "--update"]) {
+      const result = run(root, mode);
+      assert.equal(result.status, 1, mode);
+      assert.match(result.stdout, /does not examine \(remove the report, or make the package public\):\n {2}packages\/hidden\/test\/api\/public-api\.txt\n {2}packages\/ignored\/test\/api\/public-api\.txt\n {2}packages\/removed\/test\/api\/public-api\.txt\n/);
+    }
+    // A run of named folders examines only those folders
+    assert.equal(run(root, "packages/a").status, 0);
+  });
+
   it("reports an error of one package, and still writes the others", () => {
     const root = workspace();
     writeFileSync(join(root, "packages/a/index.d.ts"), "something unknown;\n");

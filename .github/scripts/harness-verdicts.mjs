@@ -13,7 +13,7 @@
 //
 // Usage: node .github/scripts/harness-verdicts.mjs <root> [expected shards]
 // Exit code: 1 when a cell has a decision other than `holds` or `measured`, or when a shard has no
-// summary.
+// summary. A summary with no cell counts as no summary.
 
 import { appendFileSync, existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -24,15 +24,18 @@ if (root === undefined) {
   process.exit(2);
 }
 
-/** The folders of the shards: each folder under the root that has a summary.ndjson. */
+/** The folders of the shards: each folder under the root. */
 const folders = existsSync(root) ? readdirSync(root, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort() : [];
-const summaries = folders.filter((folder) => existsSync(join(root, folder, "summary.ndjson")));
-const cells = summaries.flatMap((folder) =>
-  readFileSync(join(root, folder, "summary.ndjson"), "utf8")
-    .split("\n")
-    .filter((text) => text.trim() !== "")
-    .map((text) => ({ shard: folder, ...JSON.parse(text) })),
-);
+/** The lines of the summary.ndjson of a folder that are not blank, or none when the folder has no summary. */
+const linesOf = (folder) => {
+  const file = join(root, folder, "summary.ndjson");
+  return existsSync(file) ? readFileSync(file, "utf8").split("\n").filter((text) => text.trim() !== "") : [];
+};
+/** The shards with a summary of at least one cell. An empty summary counts as a missing shard. */
+const shards = folders.map((folder) => ({ folder, lines: linesOf(folder) })).filter((shard) => shard.lines.length > 0);
+const summaries = shards.map((shard) => shard.folder);
+const empty = folders.filter((folder) => existsSync(join(root, folder, "summary.ndjson")) && !summaries.includes(folder));
+const cells = shards.flatMap((shard) => shard.lines.map((text) => ({ shard: shard.folder, ...JSON.parse(text) })));
 
 /** These decisions do not fail the run: a band that holds, and a record with no band. */
 const PASSING = new Set(["holds", "measured"]);
@@ -53,6 +56,7 @@ const lines = [
   "",
   `${cells.length} cells in ${summaries.length} shards: ${Object.entries(counts).map(([decision, count]) => `${count} ${decision}`).join(", ") || "none"}.`,
   ...(missing > 0 ? ["", `${missing} shards have no summary. Examine the log of each shard.`] : []),
+  ...(empty.length > 0 ? ["", `These shards wrote a summary.ndjson with no cell: ${empty.join(", ")}.`] : []),
   "",
   "| Cell | Decision | Median | Why |",
   "|---|---|---|---|",
@@ -66,5 +70,6 @@ if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMM
 
 for (const cell of failing) console.log(`::error title=${cellText(cell.name)}::${cell.decision}: ${cellText(cell.why)}`);
 if (cells.length === 0) console.log("::error title=No cells::no shard wrote a summary.ndjson");
-if (missing > 0) console.log(`::error title=Missing shards::${missing} shards wrote no summary.ndjson`);
-process.exit(failing.length > 0 || cells.length === 0 || missing > 0 ? 1 : 0);
+if (missing > 0) console.log(`::error title=Missing shards::${missing} shards wrote no summary.ndjson with a cell`);
+for (const folder of empty) console.log(`::error title=Empty summary::${folder}/summary.ndjson has no cell. The script expected one line for each cell of the shard.`);
+process.exit(failing.length > 0 || cells.length === 0 || missing > 0 || empty.length > 0 ? 1 : 0);

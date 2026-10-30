@@ -171,6 +171,10 @@ jobs:
           node -e '
             const result = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
             console.log(JSON.stringify(result.summary));
+            if (!result.summary?.total) {
+              console.log("::error title=lib audit::The audit examined 0 packages. It expected the packages of packages/ in the workspace.");
+              process.exit(1);
+            }
             const issues = result.procedureIssues ?? [];
             console.log(issues.length + " procedure issues (warnings)");
             for (const issue of issues) console.log("::warning title=lib audit " + issue.type + "::" + issue.message);
@@ -296,8 +300,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       # Each package against its floor in coverage-baseline.json (roadmap R31). The raised floors
-      # are an artifact: copy them to coverage-baseline.json to raise the floors.
-      - run: node scripts/coverage.mjs --allow-missing --out "$RUNNER_TEMP/coverage-floors.json"
+      # are an artifact: copy them to coverage-baseline.json to raise the floors. A package without
+      # a floor fails the step: a pull request that adds a package also adds its floor.
+      - run: node scripts/coverage.mjs --out "$RUNNER_TEMP/coverage-floors.json"
       - if: always()
         uses: actions/upload-artifact@v7
         with:

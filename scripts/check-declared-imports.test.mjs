@@ -140,4 +140,13 @@ describe("undeclaredImportProblems", () => {
     assert.equal(problems[0], "unbuilt: the entry ./dist/index.js does not exist (start pnpm build first)");
     assert.match(problems[1], /^broken: esbuild cannot read its entries: .*gone\.js/);
   });
+
+  it("reports a package without an entry file: a pattern with no file, or only a style sheet", async () => {
+    const pattern = fixture("pattern", { exports: { "./tools/*": "./lib/tools/*.js" } }, {});
+    const style = fixture("style", { exports: { "./style.css": "./style.css" } }, { "style.css": "" });
+    const { problems, entries } = await check(pattern, style);
+    assert.equal(entries, 0);
+    assert.deepEqual(problems.map((problem) => problem.split(":")[0]), ["pattern", "style"]);
+    assert.match(problems[0], /no entry file/);
+  });
 });

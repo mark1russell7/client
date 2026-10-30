@@ -146,6 +146,8 @@ export async function browserEntryProblems(packages, cwd = root) {
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   const packages = workspacePackages().map(({ path, manifest }) => ({ name: manifest.name, path, manifest }));
   const { problems, entries } = await browserEntryProblems(packages);
+  // With no browser entry, the check examined nothing
+  if (problems.length === 0 && entries === 0) problems.push("no browser entry: the check expected client.browser in the package.json of at least one package of packages/");
   if (problems.length > 0) {
     console.error(`${problems.length} problems:\n  ${problems.join("\n  ")}`);
     process.exit(1);

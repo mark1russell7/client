@@ -36,6 +36,10 @@ const literal = (text) => text.replace(/[\\^$.*+?()[\]{}|/-]/g, "\\$&");
 const pattern = new RegExp(`${literal(OLD_SCOPE)}(${names.map(literal).join("|")})(?![A-Za-z0-9_-])`, "g");
 
 const files = execFileSync("git", ["ls-files"], { cwd: root, encoding: "utf8" }).split("\n").filter(Boolean);
+if (files.length === 0) {
+  console.error(`git ls-files gives no tracked file in ${root}. The check expected the files of a Git checkout of this repository.`);
+  process.exit(1);
+}
 const findings = [];
 for (const file of files) {
   if (SKIP_FILES.has(file) || SKIP_PREFIXES.some((prefix) => file.startsWith(prefix))) continue;

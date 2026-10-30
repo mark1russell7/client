@@ -708,3 +708,16 @@ export function packageFolders(root) {
   for (const glob of globs.filter((glob) => glob.startsWith("!"))) for (const folder of foldersOf(root, glob.slice(1))) included.delete(folder);
   return [...included].filter((folder) => existsSync(join(folder, "package.json"))).sort(byCode);
 }
+
+/**
+ * The folders that the workspace globs of the repository at `root` name, with or without a
+ * package.json, and without the exclusions of the `!` globs. A report in one of these folders that
+ * the run does not examine is a stale report. The result is empty when the repository has no workspace.
+ */
+export function workspaceFolders(root) {
+  const globs = workspaceGlobs(root);
+  if (globs === undefined) return [];
+  const found = new Set();
+  for (const glob of globs.filter((glob) => !glob.startsWith("!"))) for (const folder of foldersOf(root, glob)) found.add(folder);
+  return [...found].sort(byCode);
+}

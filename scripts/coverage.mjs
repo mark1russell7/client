@@ -13,6 +13,9 @@
  *   node scripts/coverage.mjs --out <file>       also write the raised floors to this file
  *   node scripts/coverage.mjs --allow-missing    a package without a floor does not fail
  *
+ * The run fails when `coverage-baseline.json` is missing or empty, when it finds no package, when a
+ * package with a floor writes no coverage, and when a floor names no package of the run.
+ *
  * CI writes the raised floors with `--out` and uploads them. The floors come from the machines of
  * CI: copy the file of a green run to `coverage-baseline.json` to raise them.
  *
@@ -106,6 +109,7 @@ function measure(pkg, reports) {
         resolve({ pkg, error: `the tests failed (exit ${code})`, log });
         return;
       }
+      // A package with a floor and no summary is a problem (see below), not a pass
       if (!existsSync(summary)) {
         resolve({ pkg, skipped: "no tests" });
         return;
@@ -132,8 +136,21 @@ async function runAll(packages, reports) {
   return results.sort((a, b) => a.pkg.folder.localeCompare(b.pkg.folder));
 }
 
+/** This function writes the message to the standard error and stops the run with exit code 1. */
+function stop(message) {
+  console.error(message);
+  process.exit(1);
+}
+
+// Only --update can start a new file of floors. Without floors, the check examines nothing.
 const baseline = existsSync(BASELINE) ? JSON.parse(readFileSync(BASELINE, "utf8")) : {};
+if (!update && Object.keys(baseline).length === 0) {
+  stop(`${existsSync(BASELINE) ? "coverage-baseline.json has no floors" : "coverage-baseline.json does not exist"}: the check needs the floor of each package. Start node scripts/coverage.mjs --update to write them.`);
+}
 const packages = packagesWithTests();
+if (packages.length === 0) {
+  stop(`No package to examine: the check expected the folders of packages/ whose test script runs vitest${only ? ` (with --packages ${[...only].join(",")})` : ""}.`);
+}
 const reports = mkdtempSync(join(tmpdir(), "coverage-"));
 let results;
 try {
@@ -148,16 +165,33 @@ for (const result of results) {
     problems.push(`${result.pkg.folder}: ${result.error}\n${result.log.split("\n").slice(-30).join("\n")}`);
     continue;
   }
-  if (result.skipped) continue;
   const floor = baseline[result.pkg.name];
+  if (result.skipped) {
+    // A floor shows that the package had coverage. Now its tests write no coverage.
+    if (floor) problems.push(`${result.pkg.folder}: ${result.skipped}, but coverage-baseline.json has a floor for ${result.pkg.name}. Find the lost tests, or remove the floor.`);
+    continue;
+  }
   if (!floor) {
-    if (!update && !allowMissing) problems.push(`${result.pkg.folder}: no floor in coverage-baseline.json (start with --update)`);
+    if (!update && !allowMissing) {
+      problems.push(
+        `${result.pkg.folder}: no floor in coverage-baseline.json. Add the floor of ${result.pkg.name} to coverage-baseline.json in this change: ` +
+          `start node scripts/coverage.mjs --update --packages ${result.pkg.folder}, or copy it from the artifact coverage-floors of CI.`,
+      );
+    }
     continue;
   }
   for (const metric of METRICS) {
     if (result.totals[metric] < floor[metric] - TOLERANCE) {
       problems.push(`${result.pkg.folder}: ${metric} ${result.totals[metric]} is below the floor ${floor[metric]}`);
     }
+  }
+}
+
+// A floor of a renamed or removed package examines nothing. A run of only some packages does not check it.
+if (!only) {
+  const names = new Set(packages.map((pkg) => pkg.name));
+  for (const name of Object.keys(baseline).filter((key) => !names.has(key))) {
+    problems.push(`coverage-baseline.json: the floor ${name} names no package of the run. Remove the floor, or rename it to the new name of the package.`);
   }
 }
 
