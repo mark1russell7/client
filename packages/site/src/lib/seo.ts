@@ -1,7 +1,7 @@
 /**
  * The title and the description of each page. The app sets them after each navigation, and the
  * build writes them in the HTML file of each static page with the Open Graph tags, the
- * structured data and the sitemap (refer to `build/`). One module for both keeps them equal.
+ * structured data and the sitemap (refer to `build-time/`). One module for both keeps them equal.
  *
  * The titles put the words that people search for first, then the site name.
  */

@@ -4,7 +4,7 @@
  * A component that loads code or data, or runs a program, shows a placeholder with the
  * attribute `data-loading`. A page is ready when no element in the page has this attribute.
  *
- * - The build waits for a ready page before it saves the HTML of the page (`build/prerender.ts`).
+ * - The build waits for a ready page before it saves the HTML of the page (`build-time/prerender.ts`).
  * - In a page with saved HTML, the app renders into a hidden element. It shows that element
  *   when the page is ready (`prerender-handoff.ts`).
  *

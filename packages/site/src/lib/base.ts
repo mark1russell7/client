@@ -1,5 +1,5 @@
 /**
- * The base path of the site. The app and the build (refer to `build/`) use the same rule, so
+ * The base path of the site. The app and the build (refer to `build-time/`) use the same rule, so
  * this module reads no browser value.
  */
 

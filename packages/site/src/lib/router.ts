@@ -3,7 +3,7 @@
  * `/client/catalog/git.status`, `/client/composer?p=<program>`.
  *
  * Each page has its own URL, so a search engine and a link preview read each page. The build
- * writes an HTML file for each static page (refer to `build/spa-fallback-plugin.ts`), and
+ * writes an HTML file for each static page (refer to `build-time/spa-fallback-plugin.ts`), and
  * GitHub Pages serves `404.html` (the app) for any other path. The old hash links
  * (`#/catalog/git.status`) move to the path form when the site starts (refer to `legacyHashUrl`).
  */
