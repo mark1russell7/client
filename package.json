@@ -16,6 +16,7 @@
     "check:packages": "node scripts/check-packages.mjs",
     "check:boundaries": "depcruise --config .dependency-cruiser.cjs \"packages/*/src\"",
     "check:paths-and-writes": "node scripts/check-paths-and-writes.mjs",
+    "check:conventions": "conventions check",
     "release:bootstrap": "node scripts/npm-bootstrap.mjs"
   },
   "devDependencies": {
@@ -23,8 +24,9 @@
     "@babel/parser": "^8.0.7",
     "@changesets/cli": "^3.0.3",
     "@mark1russell7/boundaries": "^0.2.0",
+    "@mark1russell7/conventions": "^0.7.0",
     "@mark1russell7/cue": "^1.0.0",
-    "@mark1russell7/ste-lint": "github:mark1russell7/ste-lint",
+    "@mark1russell7/ste-lint": "^0.1.1",
     "@swc/core": "^1.16.20",
     "@vitest/coverage-v8": "5.0.3",
     "dependency-cruiser": "^18.7.0",
@@ -32,5 +34,67 @@
     "publint": "^0.3.25",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
+  },
+  "conventions": {
+    "rules": {
+      "no-local-paths": {
+        "allow": [
+          "newdev",
+          "someone",
+          "test",
+          "your_username"
+        ],
+        "reason": "these names are placeholders of examples and tests (client-snapshot README, ONBOARDING-2026-07, the tests of ios-backup and restic), not people"
+      },
+      "roadmap-parses": {
+        "roadmaps": [
+          "packages/documentation/ROADMAP-2026-10.md"
+        ],
+        "reason": "packages/site/scripts/gen-data.mjs gives it to readStatusBoard of site-pages"
+      },
+      "source-main": {
+        "main": "./dist/index.js",
+        "reason": "the packages of client are built by design (D:/git/CLAUDE.md), so main is the build. The move to source packages is its own roadmap item"
+      },
+      "tsconfig-test": {
+        "ignore": [
+          "packages/*/tsconfig.test.json"
+        ],
+        "reason": "typecheck-tests.mjs (.github/scripts) type-checks these files in CI until cue 1.1.0 makes tsconfig.test.json (mark1russell7/cue#39). The globs are its include list, and all 59 packages are in its program"
+      },
+      "typed-files": {
+        "ignore": [
+          "packages/*/src/**/*",
+          "packages/*/test/**/*",
+          "packages/*/__tests__/**/*",
+          "packages/*/e2e/**/*",
+          "packages/*/bench/**/*",
+          "packages/*/*.config.ts",
+          "packages/*/*.config.mts"
+        ],
+        "reason": "typecheck-tests.mjs (.github/scripts) type-checks these files in CI until cue 1.1.0 makes tsconfig.test.json (mark1russell7/cue#39). The globs are its include list, and all 59 packages are in its program"
+      },
+      "typed-scripts": {
+        "ignore": [
+          "packages/client-vitest/fixtures/**",
+          "packages/client-vite/fixtures/**",
+          ".dependency-cruiser.cjs",
+          "packages/client/stryker.config.mjs",
+          "packages/impl-mcp-dev/bin/mcp-server.js",
+          "scripts/publish-ci.mjs",
+          "scripts/npm-bootstrap.mjs",
+          "scripts/*.mjs",
+          "scripts/lib/**",
+          ".github/scripts/**",
+          "harness/procedures-subject/**",
+          "packages/site/scripts/**",
+          "packages/documentation/scripts/**",
+          "packages/server/test/**",
+          "packages/server/e2e/**",
+          "packages/mark/e2e/**"
+        ],
+        "reason": "Exceptions: the fixtures of client-vitest and client-vite are JavaScript inputs of their tests. .dependency-cruiser.cjs and stryker.config.mjs are configs that their tools read. impl-mcp-dev/bin/mcp-server.js is a published bin that the Node of a user starts, until it is TypeScript source with a built bin. publish-ci.mjs and npm-bootstrap.mjs are release files of the npm owner. Open work, converted to .ts and started with node in follow-up PRs, so the list only gets shorter: scripts/ and scripts/lib/, .github/scripts/, harness/procedures-subject/, the scripts of site and documentation, and the JavaScript helpers of the tests of server and mark"
+      }
+    }
   }
 }

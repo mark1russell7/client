@@ -3,8 +3,8 @@
 import react from "@vitejs/plugin-react";
 import type { UserConfig } from "vite";
 import { normalizeBase } from "./src/lib/base";
-import { fontPreloadPlugin } from "./src/build/font-preload-plugin";
-import { spaFallbackPlugin } from "./src/build/spa-fallback-plugin";
+import { fontPreloadPlugin } from "./src/build-time/font-preload-plugin";
+import { spaFallbackPlugin } from "./src/build-time/spa-fallback-plugin";
 
 // GitHub Pages serves the site at /client/. SITE_BASE sets another base, for example "/" for a local preview.
 const config: UserConfig = {

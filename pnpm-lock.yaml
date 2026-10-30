@@ -181,12 +181,15 @@ importers:
       '@mark1russell7/boundaries':
         specifier: ^0.2.0
         version: 0.2.0(@swc/core@1.16.20)(dependency-cruiser@18.7.0)
+      '@mark1russell7/conventions':
+        specifier: ^0.7.0
+        version: 0.7.0
       '@mark1russell7/cue':
         specifier: ^1.0.0
         version: 1.0.2
       '@mark1russell7/ste-lint':
-        specifier: github:mark1russell7/ste-lint
-        version: https://codeload.github.com/mark1russell7/ste-lint/tar.gz/f597d6c1e09bcfcb487bb575825d6d5f29e9e0c7
+        specifier: ^0.1.1
+        version: 0.1.1
       '@swc/core':
         specifier: ^1.16.20
         version: 1.16.20
@@ -1222,6 +1225,9 @@ importers:
       '@mark1russell7/cue':
         specifier: ^1.0.0
         version: 1.0.2
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -3282,6 +3288,11 @@ packages:
   '@mark1russell7/coeval@0.15.0':
     resolution: {integrity: sha512-+dYqBFAW6i/wETKGqujgiB7jb2vXHxsbxDJCHPpH5K/4D72sknuu4JO3Dr5/ULUuYdNccPJRN1+yKtYhGdcySw==}
 
+  '@mark1russell7/conventions@0.7.0':
+    resolution: {integrity: sha512-Wqd/PQ4/TghdmXl5h5RFcn6lXOYJCW98mpE8Um65Fv0o1QnglUjv+J54FMI846dxiZlmbyGDPWZNktB+rvvGmw==}
+    engines: {node: '>=22'}
+    hasBin: true
+
   '@mark1russell7/cue@1.0.2':
     resolution: {integrity: sha512-ketUJQeJ4eLSmw0X3NpWrGHxXVg30MpMfw/wYdzlpwf7J94BQmmOM80VuGL4OPC4tXczmTj5LWxNdM7NoQKgeA==}
     engines: {node: '>=22'}
@@ -3336,9 +3347,8 @@ packages:
     resolution: {integrity: sha512-iwTvpGKrAvjnKsNCJXT3nrKKbQDf7+OCi/cZkEk4gKSeFyumKVUDgcSUD3dDmLDBZrmb6xRcTtxEZGkMNaBIjw==}
     engines: {node: '>=22'}
 
-  '@mark1russell7/ste-lint@https://codeload.github.com/mark1russell7/ste-lint/tar.gz/f597d6c1e09bcfcb487bb575825d6d5f29e9e0c7':
-    resolution: {gitHosted: true, integrity: sha512-HDxumpWNUeciZKaXbAGFPyoOTrt0trj7L3/koNvWnTN/vEuF0gYzqVJdsgfTQ9bE/DhSxfNMRxtrh4KYnbbimA==, tarball: https://codeload.github.com/mark1russell7/ste-lint/tar.gz/f597d6c1e09bcfcb487bb575825d6d5f29e9e0c7}
-    version: 0.1.0
+  '@mark1russell7/ste-lint@0.1.1':
+    resolution: {integrity: sha512-NXRB3PimE1PfXT+SuGZAEXt35EdWAXQMd4Dyn6Ep+6Yzf7YBvpHN0+xo4vHpYhmg3CHNGuNvCmspLodXi8/JQg==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -6646,6 +6656,8 @@ snapshots:
 
   '@mark1russell7/coeval@0.15.0': {}
 
+  '@mark1russell7/conventions@0.7.0': {}
+
   '@mark1russell7/cue@1.0.2': {}
 
   '@mark1russell7/docker-sqlite@0.2.0':
@@ -6670,7 +6682,7 @@ snapshots:
 
   '@mark1russell7/splay@0.2.0': {}
 
-  '@mark1russell7/ste-lint@https://codeload.github.com/mark1russell7/ste-lint/tar.gz/f597d6c1e09bcfcb487bb575825d6d5f29e9e0c7':
+  '@mark1russell7/ste-lint@0.1.1':
     dependencies:
       typescript: 6.0.3
 
