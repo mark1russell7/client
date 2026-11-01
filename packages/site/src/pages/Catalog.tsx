@@ -6,6 +6,8 @@ import { docHref, href, writeUrl, type Route } from "../lib/router";
 import { hasDoc } from "../data/doc-routes";
 import { exampleInput, usageCode } from "../lib/usage";
 import { compactJson } from "../lib/json-text";
+import { matchesFilters, type CatalogFilters } from "../lib/catalog";
+import { PackageChart } from "../components/PackageChart";
 
 function typeText(schema: JsonSchema | undefined): string {
   if (!schema) return "";
@@ -251,16 +253,7 @@ function DetailBody({ procedure }: { procedure: ProcedureInfo }): ReactElement {
   );
 }
 
-interface Filters {
-  query: string;
-  pkg: string;
-  onlyMcp: boolean;
-  onlyCli: boolean;
-  onlyBrowser: boolean;
-  showUnregistered: boolean;
-}
-
-function filtersOf(route: Route): Filters {
+function filtersOf(route: Route): CatalogFilters {
   const q = route.query;
   return {
     query: q.get("q") ?? "",
@@ -273,7 +266,7 @@ function filtersOf(route: Route): Filters {
 }
 
 /** The filters as a query, so a link keeps them (site improvement idea 8). */
-function queryOf(filters: Filters): Record<string, string> {
+function queryOf(filters: CatalogFilters): Record<string, string> {
   return {
     q: filters.query,
     package: filters.pkg,
@@ -285,9 +278,9 @@ function queryOf(filters: Filters): Record<string, string> {
 }
 
 export function Catalog({ route }: { route: Route }): ReactElement {
-  const [filters, setFilters] = useState<Filters>(() => filtersOf(route));
+  const [filters, setFilters] = useState<CatalogFilters>(() => filtersOf(route));
   const { query, pkg, onlyMcp, onlyCli, onlyBrowser, showUnregistered } = filters;
-  const update = (change: Partial<Filters>): void => setFilters((previous) => ({ ...previous, ...change }));
+  const update = (change: Partial<CatalogFilters>): void => setFilters((previous) => ({ ...previous, ...change }));
 
   // A link or the Back button changes the filters
   useEffect(() => {
@@ -301,22 +294,16 @@ export function Catalog({ route }: { route: Route }): ReactElement {
   }, [filters, route.rest]);
 
   const groups = useMemo(() => {
-    const text = query.trim().toLowerCase();
     const map = new Map<string, ProcedureSummary[]>();
     for (const procedure of procedures) {
-      if (pkg && procedure.package !== pkg) continue;
-      if (onlyMcp && !procedure.mcp) continue;
-      if (onlyCli && !procedure.cli) continue;
-      if (onlyBrowser && !procedure.browser) continue;
-      if (!showUnregistered && !procedure.registered) continue;
-      if (text && !procedure.key.toLowerCase().includes(text) && !procedure.description.toLowerCase().includes(text)) continue;
+      if (!matchesFilters(procedure, filters)) continue;
       const namespace = procedure.path[0] ?? "";
       const list = map.get(namespace);
       if (list) list.push(procedure);
       else map.set(namespace, [procedure]);
     }
     return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
-  }, [query, pkg, onlyMcp, onlyCli, onlyBrowser, showUnregistered]);
+  }, [filters]);
 
   const selected = route.rest ? procedureByKey(route.rest) : undefined;
   // A new key gives a new Detail, so the page never shows the schemas of the previous procedure
@@ -373,6 +360,7 @@ export function Catalog({ route }: { route: Route }): ReactElement {
           </p>
         </aside>
         <div className="proc-list">
+          <PackageChart filters={filters} onSelect={(owner) => update({ pkg: owner })} />
           {groups.map(([namespace, list]) => (
             <section className="proc-group" key={namespace}>
               <h3>{namespace}.*</h3>
