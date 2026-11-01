@@ -8,7 +8,7 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: "23 5 * * 1"
+    - cron: "30 5 * * 1"
   workflow_dispatch:
 
 permissions: {}
@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   security:
-    uses: mark1russell7/template/.github/workflows/reusable-security.yml@093989d32f6b0e8b7ee94104f0edf2901421e655 # main
+    uses: mark1russell7/template/.github/workflows/reusable-security.yml@41a4f2085f6437681cd662d60c083027cfe44fae # main
     permissions:
       contents: read
       security-events: write
