@@ -1,7 +1,10 @@
 name: CI
 
+# A push to main and each pull request. A push to the branch of a pull request starts only the
+# pull_request run: before, each push started two runs of all jobs (the runner budget of 2026-11-01).
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions:
@@ -23,8 +26,9 @@ jobs:
     uses: mark1russell7/template/.github/workflows/reusable-ci.yml@41a4f2085f6437681cd662d60c083027cfe44fae # main
     with:
       # Build first: each package builds dist/ with `tsc -b`, and dependents read the types from
-      # dist/. lint:ste examines the writing rules (ASD-STE100) of the README files and the doc comments.
-      scripts: build typecheck test lint:ste
+      # dist/. The types and the writing rules do not change with the Node version, so the job
+      # checks (Node 26) runs typecheck and lint:ste once, not on each Node version.
+      scripts: build test
       node-versions: '["22", "24", "26"]'
       timeout-minutes: 25
       # `lib new` runs cue-config, which needs the CUE binary (the scaffold test of mark). The
@@ -36,7 +40,7 @@ jobs:
         tar -xzf "$RUNNER_TEMP/cue.tar.gz" -C "$RUNNER_TEMP" cue
         echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
       # The script typecheck of each package also type-checks its tests with tsconfig.test.json
-      # (the test feature of cue 1.1.0), so `pnpm typecheck` above examines them.
+      # (the test feature of cue 1.1.0), so `pnpm typecheck` of the job checks examines them.
       # On each Node version, after the scripts: the built mark CLI as a process: help, commands,
       # lib new, mcp and serve. A missing build fails the run (roadmap R8: before, CI did not start these tests).
       run: |
@@ -79,6 +83,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      # One time for all Node versions: the types, and the writing rules (ASD-STE100) of the README
+      # files and the doc comments.
+      - run: pnpm typecheck
+      - run: pnpm lint:ste
       # PROCEDURES.md and PACKAGES.md come from the built registry (roadmap R47: before, they
       # drifted). A difference fails the run, and the new files are an artifact: commit them.
       - name: The generated catalogs are current
@@ -202,6 +210,7 @@ jobs:
     timeout-minutes: 15
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
         topology: [single-server, replica-set]
     steps:
