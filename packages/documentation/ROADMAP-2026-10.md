@@ -441,7 +441,7 @@ Nightly mutation tests on the resolver, the capabilities, the policy and the mid
 **Result.** `.github/workflows/nightly.yml` has five jobs:
 
 - `mutation`: Stryker on the resolver, the capabilities, the expose rule and the middleware. The report is an artifact. A score below 79 % fails the run. The floor only goes up, as the floors of the coverage do.
-- `bench`: the benchmarks of the core with the `bench` fixture of vitest 5. The earlier results are the results of the last nightly run.
+- `bench`: the benchmarks of the core with the `bench` fixture of vitest 5. The earlier results are the results of the last nightly run. That comparison crosses runners, so its verdicts are void since 2026-10-16 (O82).
 - `soak`: 10 minutes of calls, streams, aborts, calls of the server and reconnects. The maps of the two sides must be empty, and the heap must stay flat.
 - `live`: the `mongo.*` procedures against MongoDB 7, and the `docker.*` procedures against the Docker of the runner.
 - `windows`: the build, the type checks, the tests and the end-to-end tests of `mark`.
@@ -655,6 +655,14 @@ The live tracker shows these items with the items R1 to R54: https://claude.ai/a
 | O73 | Guardrails | Drop the boundaries overrides after @mark1russell7/boundaries 0.2.0 | S | done | O71 | `client` | [client #266](https://github.com/mark1russell7/client/pull/266), [client #274](https://github.com/mark1russell7/client/pull/274) |
 | O74 | Contracts | The HTTP fallback gives the codes of ERROR_REGISTRY (MINOR) | S | done | O72 | `client` | [client #271](https://github.com/mark1russell7/client/pull/271), [client #279](https://github.com/mark1russell7/client/pull/279) |
 | O75 | Registration | splay components stop registering in the global registry (MINOR) | S | done | O72 | `client` | [client #271](https://github.com/mark1russell7/client/pull/271), [client #280](https://github.com/mark1russell7/client/pull/280) |
+| O76 | Guardrails | The summary checks CI OK and Security OK, and gates that fail on empty input | M | done | — | `client` | [client #310](https://github.com/mark1russell7/client/pull/310), [client #313](https://github.com/mark1russell7/client/pull/313) |
+| O77 | Guardrails | The runner budget: max-parallel 3, a concurrency group and an own cron minute for each heavy workflow | S | done | O76 | `client` | [client #316](https://github.com/mark1russell7/client/pull/316) |
+| O78 | Guardrails | Adopt @mark1russell7/conventions: 750 breaks to 0, with 628 ignores (518 typed-files, 59 tsconfig-test, 51 typed-scripts) | M | done | O76 | `client` | [client #317](https://github.com/mark1russell7/client/pull/317) |
+| O79 | Guardrails | cue 1.1.0 (opt-in `test` feature) in each package. It removes typecheck-tests.mjs and 577 ignores (518 typed-files, 59 tsconfig-test) | M | in progress | O78 | `client` | [cue #39](https://github.com/mark1russell7/cue/pull/39) |
+| O80 | Guardrails | The 44 JavaScript scripts become TypeScript that node starts, and the bin of impl-mcp-dev becomes a built bin. It removes 45 typed-scripts ignores | M | later | O78 | `client` | [client #317](https://github.com/mark1russell7/client/pull/317) |
+| O81 | Architecture | Source packages (`main` is `src/index.ts`), with the measured cost first. It removes the source-main option | L | later | O78 | `client` | [client #317](https://github.com/mark1russell7/client/pull/317) |
+| O82 | Testing | The nightly bench gives no verdict, and each record has the runner CPU and the mode. Its verdicts are void since R32 (2026-10-16) | S | next | — | `client` | [26aad49b](https://github.com/mark1russell7/client/commit/26aad49b) |
+| O83 | Testing | An A/B bench of the base and the head in one job with paired-time/1, and the A/A noise floor next to each ratio | M | later | O82 | `client` | — |
 
 ### The server stack (R37)
 
