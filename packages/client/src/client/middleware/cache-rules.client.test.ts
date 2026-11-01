@@ -445,7 +445,7 @@ describe("the cache: an abort while a call in flight runs (audit pass 2)", () =>
 
 describe("the cache is opt-in for each method (deep dive TRN-5)", () => {
   it("needs methods: the types refuse options without them", () => {
-    // The type check of the tests (`typecheck-tests.mjs`) fails when this line compiles
+    // The type check of the tests (`tsconfig.test.json`, in `pnpm typecheck`) fails when this line compiles
     // @ts-expect-error `methods` is required: the cache caches no method by default
     const withoutMethods = () => createCacheMiddleware({});
     expect(typeof withoutMethods).toBe("function");

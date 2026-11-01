@@ -233,7 +233,7 @@ jobs:
           echo "$RUNNER_TEMP/cue" >> "$GITHUB_PATH"
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      # The typecheck of each package also examines its tests (tsconfig.test.json)
       - run: pnpm typecheck
-      - run: node .github/scripts/typecheck-tests.mjs
       - run: pnpm test
       - run: pnpm --filter @procedures/mark test:e2e

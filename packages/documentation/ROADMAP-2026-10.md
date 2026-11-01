@@ -38,7 +38,7 @@ The wire protocol is the format of the bytes between a client and a server. It i
 ## Rules for the work
 
 - Each change brings its tests. A defect gets a test that fails before the fix.
-- Before a commit, start `pnpm build`, `pnpm typecheck`, `pnpm test` and `pnpm lint:ste`. Then start `node .github/scripts/typecheck-tests.mjs`, `node scripts/check-packages.mjs` and `node scripts/check-scope.mjs`.
+- Before a commit, start `pnpm build`, `pnpm typecheck`, `pnpm test` and `pnpm lint:ste`. Then start `node scripts/check-packages.mjs` and `node scripts/check-scope.mjs`.
 - A change that the user can see gets a changeset. A change that breaks the API gets a minor version while the packages are below 1.0.
 - R10, R11 and R12 change the same options. They go in one release, so the API breaks one time.
 - Do not delete framework code without a decision of the owner. The section "Items for a decision" lists the candidates.

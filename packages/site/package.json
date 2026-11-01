@@ -7,7 +7,7 @@
   "type": "module",
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
-    "@mark1russell7/cue": "^1.0.0",
+    "@mark1russell7/cue": "^1.1.0",
     "@mark1russell7/site-pages": "^0.1.3",
     "@playwright/test": "^1.64.0",
     "@procedures/access": "workspace:*",
@@ -74,7 +74,7 @@
   },
   "scripts": {
     "build": "node scripts/gen-data.mjs && vite build",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
     "clean": "rm -rf dist .tsbuildinfo",
     "dev": "node scripts/gen-data.mjs && vite",
     "preview": "vite preview",
