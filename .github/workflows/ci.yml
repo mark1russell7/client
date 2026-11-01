@@ -23,7 +23,7 @@ jobs:
   # The check names are "CI / checks (ubuntu-latest, node <version>)".
   ci:
     name: CI
-    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@41a4f2085f6437681cd662d60c083027cfe44fae # main
+    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@e95e1e0324c0570abe7a07ab9c2c1a7506ec66ca # main
     with:
       # Build first: each package builds dist/ with `tsc -b`, and dependents read the types from
       # dist/. The types and the writing rules do not change with the Node version, so the job
@@ -61,7 +61,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: mark1russell7/template/.github/actions/changeset-check@41a4f2085f6437681cd662d60c083027cfe44fae # main
+      - uses: mark1russell7/template/.github/actions/changeset-check@e95e1e0324c0570abe7a07ab9c2c1a7506ec66ca # main
 
   # The checks of this repository, once, on Node 26. They need the build, but not each Node version.
   checks:
