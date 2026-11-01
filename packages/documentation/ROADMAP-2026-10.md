@@ -666,7 +666,7 @@ The live tracker shows these items with the items R1 to R54: https://claude.ai/a
 | O84 | Testing | The nightly is red since 2026-10-18: the soak finds 5 publisher subscriptions (find the cause), the HTTP soak reads a removed field, and two Windows tests of archive fail. Failures reach the hub row | M | in progress | O79 | `client` | [nightly 40997362466](https://github.com/mark1russell7/client/actions/runs/40997362466) |
 | O85 | Testing | Derived gate limits from 5 CI runs: mutation at the worst run minus 3 times the A/A spread (87), coverage at the value rounded down to 0.1, the soak limits from the runs | M | later | O84 | `client` | — |
 | O86 | CI | Runner budget 2: a push to a pull request branch starts one CI run, not two. Typecheck and lint:ste run once. The cron minutes of conventions 0.8.0 | S | done 2026-11-01 | O77 | `client` | [#323](https://github.com/mark1russell7/client/pull/323), [#325](https://github.com/mark1russell7/client/pull/325) |
-| O87 | CI | Fold the jobs that repeat install and build (lifecycle, package, coverage), after the ruleset requires only CI OK. Mark changes the ruleset | S | waiting on Mark | O86 | `client` | — |
+| O87 | CI | Fold the jobs that repeat install and build (lifecycle, package, coverage), after the change of the ruleset to only CI OK. Mark changes the ruleset | S | waiting on Mark | O86 | `client` | — |
 
 ### The server stack (R37)
 

@@ -76,15 +76,37 @@ jobs:
       - run: pnpm --filter @procedures/sqlite exec vitest bench --run --dir bench
       # A full pull of HybridStorage with 1,000 items: the local ids with and without getIds()
       - run: pnpm --filter @procedures/store exec vitest bench --run --dir bench
-      # The results of the last successful nightly run are the earlier results. The first run has
-      # none: it only shows the times, with a notice. When the API lists a run and its download
-      # fails, the step fails. Without that rule, the comparison has no earlier results and passes.
-      - name: Compare with the last nightly run
+      # The earlier results come from the last successful nightly run with the four artifacts of
+      # benchmark results. A run without them is not a candidate: a dispatch with `only` and
+      # without bench, or an older run (O84). Before, such a run made the downloads fail. Without
+      # a candidate, the comparison only shows the times, with a notice. When the step finds a run
+      # and a download fails, the step fails. Without that rule, the comparison has no earlier
+      # results and passes.
+      - name: Find the last nightly run with benchmark results
+        id: earlier
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          run_id=""
+          for id in $(gh run list --repo "$GITHUB_REPOSITORY" --workflow nightly.yml --status success --limit 50 --json databaseId --jq '.[].databaseId'); do
+            names=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts" --jq '[.artifacts[] | select(.expired | not) | .name] | join(" ")')
+            missing=0
+            for name in bench-results bench-results-collections bench-results-sqlite bench-results-store; do
+              [[ " $names " == *" $name "* ]] || missing=1
+            done
+            if [ "$missing" = 0 ]; then
+              run_id=$id
+              break
+            fi
+          done
+          echo "Earlier run: ${run_id:-none}"
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+      - name: Compare with the last nightly run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          run_id: ${{ steps.earlier.outputs.run_id }}
+        run: |
           mkdir -p "$RUNNER_TEMP/earlier"
-          run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow nightly.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
           if [ -n "$run_id" ]; then
             gh run download "$run_id" --repo "$GITHUB_REPOSITORY" --name bench-results --dir "$RUNNER_TEMP/earlier" \
               || { echo "::error title=Earlier benchmarks::The download of bench-results of run $run_id failed"; exit 1; }
@@ -101,9 +123,9 @@ jobs:
       - name: Compare the storage benchmarks with the last nightly run
         env:
           GH_TOKEN: ${{ github.token }}
+          run_id: ${{ steps.earlier.outputs.run_id }}
         run: |
           mkdir -p "$RUNNER_TEMP/earlier-collections"
-          run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow nightly.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
           if [ -n "$run_id" ]; then
             gh run download "$run_id" --repo "$GITHUB_REPOSITORY" --name bench-results-collections --dir "$RUNNER_TEMP/earlier-collections" \
               || { echo "::error title=Earlier benchmarks::The download of bench-results-collections of run $run_id failed"; exit 1; }
@@ -120,8 +142,8 @@ jobs:
       - name: Compare the SQLite and HybridStorage benchmarks with the last nightly run
         env:
           GH_TOKEN: ${{ github.token }}
+          run_id: ${{ steps.earlier.outputs.run_id }}
         run: |
-          run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow nightly.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
           for name in sqlite store; do
             mkdir -p "$RUNNER_TEMP/earlier-$name"
             if [ -n "$run_id" ]; then

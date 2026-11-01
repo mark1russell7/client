@@ -16,7 +16,7 @@ import { Header } from "tar";
 import { createRegistry, invokePath, outputValue, type ProcedureModule } from "@procedures/client";
 import { archiveModule, createArchiveModule } from "./module.js";
 import { planExtract } from "./paths.js";
-import { writeZip, type ZipWriteEntry } from "./zip.js";
+import { readZipDirectory, writeZip, type ZipWriteEntry } from "./zip.js";
 import type { ArchiveExtractOutput, ArchiveListOutput } from "./types.js";
 
 const folders: string[] = [];
@@ -417,11 +417,39 @@ describe("a zip64 archive", () => {
     const archive = join(root, "many.zip");
     const entries: ZipWriteEntry[] = Array.from({ length: 0xffff }, (_, index) => ({ name: `d${index}`, kind: "directory" }));
     await hostileZip(archive, entries);
-    const { readZipDirectory } = await import("./zip.js");
     const listed = await readZipDirectory(archive, 0x10000);
     expect(listed).toHaveLength(0xffff);
     expect(listed[0xfffe]).toMatchObject({ kind: "directory" });
   }, 30_000);
+});
+
+describe("the writes of writeZip", () => {
+  it("are a few large writes in sequence, not one write for each entry (O84)", async () => {
+    const { root } = place();
+    const writes: Array<{ position: number; bytes: Buffer }> = [];
+    const handle = {
+      write: async (buffer: Buffer, offset: number, length: number, position: number) => {
+        writes.push({ position, bytes: Buffer.from(buffer.subarray(offset, offset + length)) });
+        return { bytesWritten: length, buffer };
+      },
+    };
+    const entries = Array.from({ length: 200 }, (_, index) => file(`f${index}.txt`, `text ${index}`));
+    const size = await writeZip(handle as never, entries);
+    // Before, each entry had two writes: its local header and its data
+    expect(writes.length).toBeLessThanOrEqual(2);
+    let at = 0;
+    for (const write of writes) {
+      expect(write.position).toBe(at);
+      at += write.bytes.length;
+    }
+    expect(at).toBe(size);
+    const archive = join(root, "few.zip");
+    writeFileSync(archive, Buffer.concat(writes.map((write) => write.bytes)));
+    const listed = await readZipDirectory(archive, 200);
+    expect(listed.map((entry) => entry.name)).toEqual(entries.map((entry) => entry.name));
+    await call("archive.extract", { archive, target: join(root, "few") });
+    expect(readFileSync(join(root, "few", "f199.txt"), "utf8")).toBe("text 199");
+  });
 });
 
 // =============================================================================
