@@ -6,7 +6,7 @@ on:
   schedule:
     # Its own minute: a scheduled heavy run of another repo uses none of the minutes near it
     # (the runner budget of 2026-10-30).
-    - cron: "37 2 * * *"
+    - cron: "28 2 * * *"
   workflow_dispatch:
     inputs:
       only:
