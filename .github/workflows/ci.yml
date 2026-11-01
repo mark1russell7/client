@@ -40,7 +40,7 @@ jobs:
         tar -xzf "$RUNNER_TEMP/cue.tar.gz" -C "$RUNNER_TEMP" cue
         echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
       # The script typecheck of each package also type-checks its tests with tsconfig.test.json
-      # (the test feature of cue 1.1.0), so `pnpm typecheck` above examines them.
+      # (the test feature of cue 1.1.0), so `pnpm typecheck` of the job checks examines them.
       # On each Node version, after the scripts: the built mark CLI as a process: help, commands,
       # lib new, mcp and serve. A missing build fails the run (roadmap R8: before, CI did not start these tests).
       run: |
