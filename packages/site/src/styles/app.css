@@ -1306,6 +1306,151 @@ button.collapsed {
   min-width: 0;
 }
 
+/* The chart of the procedures by package. Each bar is a button that selects its package. */
+
+.pkg-chart {
+  background: var(--color-surface);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  min-width: 0;
+}
+
+.pkg-chart-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 var(--space-3);
+}
+
+.pkg-chart-head p {
+  margin: 0;
+}
+
+.pkg-chart-title {
+  font-size: var(--text-base);
+  margin: 0 0 var(--space-2);
+}
+
+.pkg-bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+button.pkg-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 11em) minmax(0, 1fr) 5.5em;
+  gap: var(--space-3);
+  align-items: center;
+  width: 100%;
+  min-height: 32px;
+  padding: 2px var(--space-2);
+  border: 1px solid transparent;
+  background: transparent;
+  text-align: left;
+}
+
+button.pkg-bar:hover {
+  background: var(--color-accent-wash);
+}
+
+button.pkg-bar.selected {
+  border-color: var(--color-accent);
+  background: var(--color-accent-wash);
+}
+
+.pkg-bar-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+}
+
+.pkg-bar.selected .pkg-bar-name {
+  font-weight: 700;
+}
+
+/* The track is the length of all the procedures, the fill is the part that matches the filters */
+.pkg-bar-track {
+  display: block;
+  height: 12px;
+  width: calc(var(--total) * 100%);
+  min-width: 4px;
+  border-radius: 0 4px 4px 0;
+  background: var(--color-surface-sunken);
+  box-shadow: inset 0 0 0 1px var(--color-rule);
+  overflow: hidden;
+}
+
+.pkg-bar-fill {
+  display: block;
+  height: 100%;
+  width: calc(var(--part) * 100%);
+  border-radius: 0 4px 4px 0;
+  background: var(--color-accent);
+}
+
+.pkg-bar.empty .pkg-bar-name,
+.pkg-bar.empty .pkg-bar-count {
+  color: var(--color-ink-muted);
+}
+
+.pkg-bar-count {
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.pkg-chart-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.pkg-readout {
+  margin: 0;
+  flex: 1 1 16em;
+  min-height: 2.6em;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pkg-bar-track,
+  .pkg-bar-fill {
+    transition: width 200ms ease-out;
+  }
+}
+
+@media (forced-colors: active) {
+  .pkg-bar-fill {
+    background: Highlight;
+  }
+
+  .pkg-bar-track {
+    border: 1px solid CanvasText;
+  }
+}
+
+@media (max-width: 480px) {
+  .pkg-chart {
+    padding: var(--space-3);
+  }
+
+  button.pkg-bar {
+    grid-template-columns: minmax(0, 8em) minmax(0, 1fr) 5em;
+    gap: var(--space-2);
+  }
+
+  .pkg-bar-count {
+    font-size: var(--text-xs);
+  }
+}
+
 .proc-group h3 {
   margin: var(--space-4) 0 var(--space-1);
   font-family: var(--font-mono);
