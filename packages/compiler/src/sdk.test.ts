@@ -3,7 +3,7 @@
  *
  * The golden files are in test/golden: `openrpc.json` and `sdk.ts`, from the manifest of a small
  * registry of test procedures. To accept an intended change, start `npx vitest run -u` in this
- * package and review the diff. The test of the test types (`.github/scripts/typecheck-tests.mjs`)
+ * package and review the diff. The type check of the tests (`tsconfig.test.json`, in `pnpm typecheck`)
  * examines `sdk.ts` with the strict configuration of the package. A second test writes the SDK of
  * the core procedures to a temporary folder and type-checks it with the TypeScript of the package.
  */
@@ -181,7 +181,7 @@ describe("toTypeScriptSdk", () => {
     const code = toTypeScriptSdk(describeRegistry(registry));
     expect(code).toContain("readonly chain: (input: ClientChainInput) => Promise<ClientChainOutput>;");
 
-    // The TypeScript of the package, as .github/scripts/typecheck-tests.mjs finds it
+    // The TypeScript of the package: the tsc bin from the package.json of typescript (TypeScript 7 does not export "./bin/tsc")
     const manifestPath = createRequire(join(packageDir, "package.json")).resolve("typescript/package.json");
     const typescript = JSON.parse(readFileSync(manifestPath, "utf8")) as { bin: string | Record<string, string> };
     const tsc = join(dirname(manifestPath), typeof typescript.bin === "string" ? typescript.bin : typescript.bin["tsc"]!);
