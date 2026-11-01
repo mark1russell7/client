@@ -663,6 +663,8 @@ The live tracker shows these items with the items R1 to R54: https://claude.ai/a
 | O81 | Architecture | Source packages (`main` is `src/index.ts`), with the measured cost first. It removes the source-main option | L | later | O78 | `client` | [client #317](https://github.com/mark1russell7/client/pull/317) |
 | O82 | Testing | The nightly bench gives no verdict, and each record has the runner CPU and the mode. Its verdicts are void since R32 (2026-10-16) | S | next | — | `client` | [26aad49b](https://github.com/mark1russell7/client/commit/26aad49b) |
 | O83 | Testing | An A/B bench of the base and the head in one job with paired-time/1, and the A/A noise floor next to each ratio | M | later | O82 | `client` | — |
+| O84 | Testing | The nightly is red since 2026-10-18: the soak finds 5 publisher subscriptions (find the cause), the HTTP soak reads a removed field, and two Windows tests of archive fail. Failures reach the hub row | M | next | O79 | `client` | [nightly 40997362466](https://github.com/mark1russell7/client/actions/runs/40997362466) |
+| O85 | Testing | Derived gate limits from 5 CI runs: mutation at the worst run minus 3 times the A/A spread (87), coverage at the value rounded down to 0.1, the soak limits from the runs | M | later | O84 | `client` | — |
 
 ### The server stack (R37)
 
