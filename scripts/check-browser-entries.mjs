@@ -15,11 +15,11 @@
 // Start it after `pnpm build`: node scripts/check-browser-entries.mjs. Exit code 1 on a failure.
 // The tests of the check: node --test scripts/check-browser-entries.test.mjs.
 
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { builtinModules } from "node:module";
 import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { root, workspacePackages } from "./lib/workspace.mjs";
 
@@ -143,7 +143,7 @@ export async function browserEntryProblems(packages, cwd = root) {
   return { problems, entries };
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   const packages = workspacePackages().map(({ path, manifest }) => ({ name: manifest.name, path, manifest }));
   const { problems, entries } = await browserEntryProblems(packages);
   // With no browser entry, the check examined nothing

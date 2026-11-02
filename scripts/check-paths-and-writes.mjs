@@ -29,9 +29,9 @@
 // The tests of the check: node --test scripts/check-paths-and-writes.test.mjs.
 
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import { parse } from "@babel/parser";
 import { root } from "./lib/workspace.mjs";
 
@@ -316,7 +316,7 @@ export function trackedFiles() {
     .map((file) => ({ file, source: readFileSync(join(root, file), "utf8") }));
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   const files = trackedFiles();
   const { problems, counts } = problemsOf(files);
   if (problems.length > 0) {
