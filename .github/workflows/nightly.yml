@@ -81,7 +81,8 @@ jobs:
       # without bench, or an older run (O84). Before, such a run made the downloads fail. Without
       # a candidate, the comparison only shows the times, with a notice. When the step finds a run
       # and a download fails, the step fails. Without that rule, the comparison has no earlier
-      # results and passes.
+      # results and passes. The comparison only reports (--report-only): a slower benchmark gives a
+      # warning. Two different runners give no verdict (the strategist, item O82).
       - name: Find the last nightly run with benchmark results
         id: earlier
         env:
@@ -113,7 +114,7 @@ jobs:
           else
             echo "::notice title=Earlier benchmarks::No earlier successful nightly run: bench-results has no earlier results"
           fi
-          node scripts/bench-compare.mjs "$RUNNER_TEMP/earlier" packages/client/bench/results --factor 2
+          node scripts/bench-compare.mjs "$RUNNER_TEMP/earlier" packages/client/bench/results --factor 2 --report-only
       - if: always()
         uses: actions/upload-artifact@v7
         with:
@@ -132,7 +133,7 @@ jobs:
           else
             echo "::notice title=Earlier benchmarks::No earlier successful nightly run: bench-results-collections has no earlier results"
           fi
-          node scripts/bench-compare.mjs "$RUNNER_TEMP/earlier-collections" packages/client-collections/bench/results --factor 2
+          node scripts/bench-compare.mjs "$RUNNER_TEMP/earlier-collections" packages/client-collections/bench/results --factor 2 --report-only
       - if: always()
         uses: actions/upload-artifact@v7
         with:
@@ -153,8 +154,8 @@ jobs:
               echo "::notice title=Earlier benchmarks::No earlier successful nightly run: bench-results-$name has no earlier results"
             fi
           done
-          node scripts/bench-compare.mjs "$RUNNER_TEMP/earlier-sqlite" packages/client-sqlite/bench/results --factor 2
-          node scripts/bench-compare.mjs "$RUNNER_TEMP/earlier-store" packages/client-store/bench/results --factor 2
+          node scripts/bench-compare.mjs "$RUNNER_TEMP/earlier-sqlite" packages/client-sqlite/bench/results --factor 2 --report-only
+          node scripts/bench-compare.mjs "$RUNNER_TEMP/earlier-store" packages/client-store/bench/results --factor 2 --report-only
       - if: always()
         uses: actions/upload-artifact@v7
         with:

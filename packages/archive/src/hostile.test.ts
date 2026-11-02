@@ -16,7 +16,7 @@ import { Header } from "tar";
 import { createRegistry, invokePath, outputValue, type ProcedureModule } from "@procedures/client";
 import { archiveModule, createArchiveModule } from "./module.js";
 import { planExtract } from "./paths.js";
-import { readZipDirectory, writeZip, type ZipWriteEntry } from "./zip.js";
+import { extractZipFile, readZipDirectory, writeZip, type ZipWriteEntry } from "./zip.js";
 import type { ArchiveExtractOutput, ArchiveListOutput } from "./types.js";
 
 const folders: string[] = [];
@@ -447,8 +447,9 @@ describe("the writes of writeZip", () => {
     writeFileSync(archive, Buffer.concat(writes.map((write) => write.bytes)));
     const listed = await readZipDirectory(archive, 200);
     expect(listed.map((entry) => entry.name)).toEqual(entries.map((entry) => entry.name));
-    await call("archive.extract", { archive, target: join(root, "few") });
-    expect(readFileSync(join(root, "few", "f199.txt"), "utf8")).toBe("text 199");
+    // One entry is enough to check the offsets of the data. An extract of 200 files takes more than 5 s on Windows.
+    await extractZipFile(archive, listed[199]!, join(root, "f199.txt"));
+    expect(readFileSync(join(root, "f199.txt"), "utf8")).toBe("text 199");
   });
 });
 

@@ -8,6 +8,9 @@
  * vitest writes it. A benchmark whose mean time is more than `factor` times the earlier mean
  * fails the run. The machines of CI are not equal, thus the default factor is 2. A benchmark
  * without an earlier result only shows its time.
+ *
+ * With `--report-only`, a slower benchmark gives a warning, and the run passes. The nightly uses
+ * it: two runners of CI give no verdict (O84, O82). An empty current folder still fails the run.
  */
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";
@@ -16,8 +19,9 @@ import { join } from "node:path";
 const [earlierDir, currentDir] = process.argv.slice(2).filter((arg) => !arg.startsWith("--"));
 const factorIndex = process.argv.indexOf("--factor");
 const factor = factorIndex > 0 ? Number(process.argv[factorIndex + 1]) : 2;
+const reportOnly = process.argv.includes("--report-only");
 if (!earlierDir || !currentDir) {
-  console.error("Usage: node scripts/bench-compare.mjs <earlier folder> <current folder> [--factor 2]");
+  console.error("Usage: node scripts/bench-compare.mjs <earlier folder> <current folder> [--factor 2] [--report-only]");
   process.exit(2);
 }
 
@@ -51,6 +55,12 @@ for (const file of currentFiles) {
 }
 
 console.log(rows.join("\n"));
+if (slower.length > 0 && reportOnly) {
+  // A warning of GitHub Actions for each slower benchmark: the run passes
+  for (const line of slower) console.log(`::warning title=Slower benchmark::${line}`);
+  console.log("\nThe comparison only reports (--report-only): it gives no verdict.");
+  process.exit(0);
+}
 if (slower.length > 0) {
   console.error(`\n${slower.join("\n")}`);
   process.exit(1);
