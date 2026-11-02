@@ -209,18 +209,19 @@ export function markdownOf(record: {
 export const MARK_CALL = { id: "mark-one-call", args: ["--json", JSON.stringify({ $proc: ["client", "add"], input: { a: 1, b: 2 } })], output: "3" } as const;
 
 /** This function gives the environment of a child with no setting of the cache from this process. */
-const cleanEnv = (): Record<string, string | undefined> =>
+export const cleanEnv = (): Record<string, string | undefined> =>
   Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== "NODE_COMPILE_CACHE" && k !== "NODE_DISABLE_COMPILE_CACHE"));
 
 /**
  * This function starts one `mark` call and gives its time from the spawn to the exit. The first
  * item of the command is the cache: `none`, `fresh` (a new folder, removed after the time) or a folder.
+ * The variables of `extra` go into the environment of the child after `cleanEnv()` (`mark-call.ts`).
  */
-function startMark(command: readonly string[]): Promise<{ ms: number }> {
+export function startMark(command: readonly string[], extra: Readonly<Record<string, string>> = {}): Promise<{ ms: number }> {
   const [cache, ...argv] = command;
   const fresh = cache === "fresh" ? mkdtempSync(join(tmpdir(), "compile-cache-mark-")) : undefined;
   try {
-    const env = { ...cleanEnv(), ...(cache === "none" ? {} : { NODE_COMPILE_CACHE: fresh ?? cache }) };
+    const env = { ...cleanEnv(), ...extra, ...(cache === "none" ? {} : { NODE_COMPILE_CACHE: fresh ?? cache }) };
     const start = performance.now();
     const r = spawnSync(argv[0], argv.slice(1), { encoding: "utf8", env });
     const ms = performance.now() - start;
@@ -297,7 +298,8 @@ function phasesOnce(entry: string, args: readonly string[], marksFile: string): 
   return phasesOf({ spawn, closed, ...(JSON.parse(readFileSync(marksFile, "utf8")) as Omit<Marks, "spawn" | "closed">) });
 }
 
-const optionOf = (argv: readonly string[], name: string): string | undefined => {
+/** This function gives the value after the option `name` in `argv`, or `undefined`. */
+export const optionOf = (argv: readonly string[], name: string): string | undefined => {
   const at = argv.indexOf(name);
   return at === -1 ? undefined : argv[at + 1];
 };

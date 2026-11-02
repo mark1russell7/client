@@ -1,0 +1,95 @@
+name: Mark call
+
+# One `mark` call on the base and the head (roadmap O93: a call loads only the packages of its
+# path). One job builds the two trees on one runner, as the paired bench does. Then
+# scripts/mark-call.ts makes the manifest of each tree fresh, times the call in mode fresh with
+# the arms base and head and the A/A arm (paired-time/1), profiles the named costs, and records the
+# loaded packages. The verdict at the budget 0.1 is the interval rule of STRATEGY.
+#
+# The workflow only reports: only a dispatch starts it, and no ruleset needs its checks.
+
+on:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: "The base commit or ref (empty: the first parent of the head)"
+        required: false
+        default: ""
+      head:
+        description: "The head commit or ref (empty: the HEAD of main)"
+        required: false
+        default: ""
+      repeats:
+        description: "The timed rounds. Each round starts the base, the head and the A/A arm"
+        required: false
+        default: "20"
+      profile-repeats:
+        description: "The CPU-profiled calls of each tree (0: no profile)"
+        required: false
+        default: "10"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mark-call-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  measure:
+    name: Mark call
+    runs-on: ubuntu-latest
+    # Two installs and builds of 3 packages, 20 rounds x 3 calls, 20 profiled calls, 4 other calls
+    timeout-minutes: 40
+    steps:
+      # The scripts of the run come from the ref of the workflow. The trees under test are worktrees.
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+      - name: Resolve the base and the head, and check them out
+        env:
+          BASE_INPUT: ${{ inputs.base }}
+          HEAD_INPUT: ${{ inputs.head }}
+        run: |
+          head=$(git rev-parse --verify "${HEAD_INPUT:-origin/main}^{commit}")
+          base=$(git rev-parse --verify "${BASE_INPUT:-$head^1}^{commit}")
+          echo "BASE=$base" >> "$GITHUB_ENV"
+          echo "HEAD=$head" >> "$GITHUB_ENV"
+          echo "Base $base ($(git log -1 --format='%cs %s' "$base"))"
+          echo "Head $head ($(git log -1 --format='%cs %s' "$head"))"
+          git worktree add --detach "$RUNNER_TEMP/trees/base" "$base"
+          git worktree add --detach "$RUNNER_TEMP/trees/head" "$head"
+      # The packages of the paired bench (@procedures/client and @procedures/collections), and mark
+      - name: Install and build each tree
+        run: |
+          for tree in base head; do
+            echo "::group::$tree"
+            (cd "$RUNNER_TEMP/trees/$tree" \
+              && pnpm install --frozen-lockfile --filter "@procedures/client..." --filter "@procedures/collections..." --filter "@procedures/mark..." \
+              && pnpm --filter "@procedures/client..." --filter "@procedures/collections..." --filter "@procedures/mark..." run build)
+            echo "::endgroup::"
+          done
+      - name: The measure
+        env:
+          REPEATS: ${{ inputs.repeats || '20' }}
+          PROFILE_REPEATS: ${{ inputs.profile-repeats || '10' }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/mark-call"
+          status=0
+          node scripts/mark-call.ts --base "$RUNNER_TEMP/trees/base" --head "$RUNNER_TEMP/trees/head" \
+            --base-ref "$BASE" --head-ref "$HEAD" --repeats "$REPEATS" --profile-repeats "$PROFILE_REPEATS" \
+            --budget 0.1 --out "$RUNNER_TEMP/mark-call/mark-call.json" || status=$?
+          if [ -f "$RUNNER_TEMP/mark-call/mark-call.md" ]; then cat "$RUNNER_TEMP/mark-call/mark-call.md" >> "$GITHUB_STEP_SUMMARY"; fi
+          exit "$status"
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mark-call
+          path: ${{ runner.temp }}/mark-call
+          retention-days: 30
