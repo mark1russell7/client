@@ -1,0 +1,167 @@
+name: Paired bench
+
+# The paired A/B bench of the base and the head (roadmap O83, paired-time/1). Each job of the matrix
+# times the two trees in one job, on one runner: the arms base, head and the A/A arm (the base
+# against itself), a new process for each arm, input and round (scripts/bench-paired.mjs). The job
+# "Paired bench verdicts" reads the records of all jobs and gives a verdict for each benchmark.
+#
+# The workflow only reports: only a dispatch starts it, and no ruleset needs its checks. The rules
+# are the paired timing rules of the strategist (fleet docs/STRATEGY.md, 10-29 to 11-02).
+on:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: "The base commit or ref (empty: the first parent of the head, the previous merge of main)"
+        required: false
+        default: ""
+      head:
+        description: "The head commit or ref (empty: the HEAD of main)"
+        required: false
+        default: ""
+      runs:
+        description: "The paired runs, as a JSON list. A verdict needs 5 runs that count"
+        required: false
+        default: "[1,2,3,4,5]"
+      repeats:
+        description: "The rounds of each run. A multiple of 3 puts each of the 3 arms in each place equally"
+        required: false
+        default: "12"
+      budget:
+        description: "The budget: a change of the head/base time smaller than this share is no change"
+        required: false
+        default: "0.1"
+      with_runs:
+        description: "The ids of earlier runs of this workflow whose records join the verdicts (replacement runs), with spaces between them"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: paired-bench-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # One base and one head for all jobs of the matrix, also when main moves during the run
+  refs:
+    name: Resolve the base and the head
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      base: ${{ steps.resolve.outputs.base }}
+      head: ${{ steps.resolve.outputs.head }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: resolve
+        env:
+          BASE_INPUT: ${{ inputs.base }}
+          HEAD_INPUT: ${{ inputs.head }}
+        run: |
+          head=$(git rev-parse --verify "${HEAD_INPUT:-origin/main}^{commit}")
+          base=$(git rev-parse --verify "${BASE_INPUT:-$head^1}^{commit}")
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "head=$head" >> "$GITHUB_OUTPUT"
+          echo "Base $base ($(git log -1 --format='%cs %s' "$base"))"
+          echo "Head $head ($(git log -1 --format='%cs %s' "$head"))"
+
+  paired:
+    name: Paired bench run ${{ matrix.run }}
+    needs: refs
+    runs-on: ubuntu-latest
+    # Two installs and builds of 2 packages, then 14 inputs x 3 arms x 12 rounds of fresh processes
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        run: ${{ fromJSON(inputs.runs || '[1,2,3,4,5]') }}
+    env:
+      BASE: ${{ needs.refs.outputs.base }}
+      HEAD: ${{ needs.refs.outputs.head }}
+    steps:
+      # The scripts of the run come from the ref of the workflow. The trees under test are worktrees.
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+      - name: Check out the base and the head
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/trees/base" "$BASE"
+          git worktree add --detach "$RUNNER_TEMP/trees/head" "$HEAD"
+      # Only the packages under test and their dependencies: @procedures/client and @procedures/collections
+      - name: Install and build each tree
+        run: |
+          for tree in base head; do
+            echo "::group::$tree"
+            (cd "$RUNNER_TEMP/trees/$tree" && pnpm install --frozen-lockfile --filter "@procedures/collections..." && pnpm --filter "@procedures/collections..." run build)
+            echo "::endgroup::"
+          done
+      - name: The paired run
+        env:
+          REPEATS: ${{ inputs.repeats || '12' }}
+          BUDGET: ${{ inputs.budget || '0.1' }}
+          SAMPLE: ${{ matrix.run }}
+        run: >-
+          node scripts/bench-paired.mjs run
+          --base "$RUNNER_TEMP/trees/base" --head "$RUNNER_TEMP/trees/head"
+          --base-ref "$BASE" --head-ref "$HEAD"
+          --repeats "$REPEATS" --budget "$BUDGET" --sample "$SAMPLE"
+          --out "$RUNNER_TEMP/paired/run-$SAMPLE.json"
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: paired-run-${{ matrix.run }}
+          path: ${{ runner.temp }}/paired
+          retention-days: 30
+
+  verdicts:
+    name: Paired bench verdicts
+    needs: paired
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # actions: read for the records of earlier runs (the input with_runs)
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: paired-run-*
+          path: ${{ runner.temp }}/records/${{ github.run_id }}
+      - name: Download the records of earlier runs
+        if: ${{ inputs.with_runs != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WITH_RUNS: ${{ inputs.with_runs }}
+        run: |
+          for id in $WITH_RUNS; do
+            case "$id" in *[!0-9]*) echo "::error::The run id $id is not a number"; exit 1 ;; esac
+            gh run download "$id" -R "$GITHUB_REPOSITORY" -p 'paired-run-*' -D "$RUNNER_TEMP/records/$id"
+          done
+      # A verdict needs 5 runs that count. A run whose A/A band excludes 1.0 does not count
+      - name: The verdicts
+        env:
+          BUDGET: ${{ inputs.budget || '0.1' }}
+        run: node scripts/bench-paired.mjs aggregate "$RUNNER_TEMP/records" --runs 5 --budget "$BUDGET" --out "$RUNNER_TEMP/paired-verdicts.json"
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: paired-verdicts
+          path: ${{ runner.temp }}/paired-verdicts.json
+          retention-days: 30
