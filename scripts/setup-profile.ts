@@ -11,7 +11,9 @@
  * The self time of a file is the time of the CPU samples in the code of that file: its compile, its
  * evaluation and the calls of its functions. Samples with no file go to their name, for example
  * `(garbage collector)`. The bytes of a file are the bytes of its source. A file of a package of
- * `node_modules` counts as its package (`npm:<name>`).
+ * `node_modules` counts as its package (`npm:<name>`). The modules of a key are the count of the
+ * modules that the hook saw for it. The counts and the bytes do not depend on the time: they show
+ * the work of the module loader without noise.
  *
  * The profiler and the hook make the process slower, so the setup time of this script is not the
  * setup measure of the paired bench. Use the difference of the two trees, file by file, and the share
@@ -38,11 +40,12 @@ export interface CpuProfile {
   readonly timeDeltas: readonly number[];
 }
 
-/** One profiled process: its setup time, and the self time and the bytes of each key. */
+/** One profiled process: its setup time, and the self time, the bytes and the modules of each key. */
 export interface Repeat {
   readonly setupMs: number;
   readonly self: Readonly<Record<string, number>>;
   readonly bytes: Readonly<Record<string, number>>;
+  readonly modules: Readonly<Record<string, number>>;
 }
 
 /** The summary of the repeats of one tree. */
@@ -51,7 +54,8 @@ export interface Summary {
   readonly setupMs: number;
   readonly totalMs: number;
   readonly totalBytes: number;
-  readonly files: Readonly<Record<string, { ms: number; bytes: number }>>;
+  readonly totalModules: number;
+  readonly files: Readonly<Record<string, { ms: number; bytes: number; modules: number }>>;
 }
 
 /** A row of the difference of the two trees: one key or one group. */
@@ -61,8 +65,11 @@ export interface DiffRow {
   readonly headMs: number;
   readonly baseBytes: number;
   readonly headBytes: number;
+  readonly baseModules: number;
+  readonly headModules: number;
   readonly addedMs: number;
   readonly addedBytes: number;
+  readonly addedModules: number;
   /** The share of the row in the added self time of all keys. */
   readonly share: number;
 }
@@ -71,6 +78,7 @@ export interface DiffRow {
 export interface Diff {
   readonly addedMs: number;
   readonly addedBytes: number;
+  readonly addedModules: number;
   readonly files: readonly DiffRow[];
   readonly groups: readonly DiffRow[];
 }
@@ -135,6 +143,16 @@ export function bytesOf(modules: readonly { url: string; bytes: number }[], tree
   return bytes;
 }
 
+/** This function gives the count of the modules of each key, from the list of the hook. */
+export function modulesOf(modules: readonly { url: string }[], tree: string): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const m of modules) {
+    const key = keyOf(m.url, tree);
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+  return counts;
+}
+
 const median = (values: readonly number[]): number => {
   const s = [...values].sort((a, b) => a - b);
   const mid = Math.floor(s.length / 2);
@@ -143,17 +161,18 @@ const median = (values: readonly number[]): number => {
 
 /**
  * This function gives the summary of the repeats of one tree: the median setup time, and for each
- * key the mean self time and the bytes.
+ * key the mean self time, the bytes and the modules.
  */
 export function summaryOf(repeats: readonly Repeat[]): Summary {
-  const files: Record<string, { ms: number; bytes: number }> = {};
+  const files: Record<string, { ms: number; bytes: number; modules: number }> = {};
+  const fileOf = (key: string) => (files[key] ??= { ms: 0, bytes: 0, modules: 0 });
   for (const r of repeats) {
-    for (const [key, ms] of Object.entries(r.self)) (files[key] ??= { ms: 0, bytes: 0 }).ms += ms / repeats.length;
-    for (const [key, bytes] of Object.entries(r.bytes)) (files[key] ??= { ms: 0, bytes: 0 }).bytes = Math.max(files[key].bytes, bytes);
+    for (const [key, ms] of Object.entries(r.self)) fileOf(key).ms += ms / repeats.length;
+    for (const [key, bytes] of Object.entries(r.bytes)) fileOf(key).bytes = Math.max(fileOf(key).bytes, bytes);
+    for (const [key, count] of Object.entries(r.modules)) fileOf(key).modules = Math.max(fileOf(key).modules, count);
   }
-  const totalMs = Object.values(files).reduce((s, f) => s + f.ms, 0);
-  const totalBytes = Object.values(files).reduce((s, f) => s + f.bytes, 0);
-  return { repeats: repeats.length, setupMs: median(repeats.map((r) => r.setupMs)), totalMs, totalBytes, files };
+  const sum = (field: "ms" | "bytes" | "modules") => Object.values(files).reduce((s, f) => s + f[field], 0);
+  return { repeats: repeats.length, setupMs: median(repeats.map((r) => r.setupMs)), totalMs: sum("ms"), totalBytes: sum("bytes"), totalModules: sum("modules"), files };
 }
 
 /**
@@ -163,22 +182,22 @@ export function summaryOf(repeats: readonly Repeat[]): Summary {
 export function diffOf(base: Summary, head: Summary): Diff {
   const added = head.totalMs - base.totalMs;
   const rowsBy = (by: (key: string) => string): DiffRow[] => {
-    const rows = new Map<string, { key: string; baseMs: number; headMs: number; baseBytes: number; headBytes: number }>();
+    const rows = new Map<string, { key: string; baseMs: number; headMs: number; baseBytes: number; headBytes: number; baseModules: number; headModules: number }>();
     const add = (summary: Summary, side: "base" | "head") => {
       for (const [key, f] of Object.entries(summary.files)) {
-        const row = rows.get(by(key)) ?? { key: by(key), baseMs: 0, headMs: 0, baseBytes: 0, headBytes: 0 };
-        if (side === "base") (row.baseMs += f.ms), (row.baseBytes += f.bytes);
-        else (row.headMs += f.ms), (row.headBytes += f.bytes);
+        const row = rows.get(by(key)) ?? { key: by(key), baseMs: 0, headMs: 0, baseBytes: 0, headBytes: 0, baseModules: 0, headModules: 0 };
+        if (side === "base") (row.baseMs += f.ms), (row.baseBytes += f.bytes), (row.baseModules += f.modules);
+        else (row.headMs += f.ms), (row.headBytes += f.bytes), (row.headModules += f.modules);
         rows.set(row.key, row);
       }
     };
     add(base, "base");
     add(head, "head");
     return [...rows.values()]
-      .map((r) => ({ ...r, addedMs: r.headMs - r.baseMs, addedBytes: r.headBytes - r.baseBytes, share: (r.headMs - r.baseMs) / added }))
+      .map((r) => ({ ...r, addedMs: r.headMs - r.baseMs, addedBytes: r.headBytes - r.baseBytes, addedModules: r.headModules - r.baseModules, share: (r.headMs - r.baseMs) / added }))
       .sort((a, b) => b.addedMs - a.addedMs);
   };
-  return { addedMs: added, addedBytes: head.totalBytes - base.totalBytes, files: rowsBy((k) => k), groups: rowsBy(groupOf) };
+  return { addedMs: added, addedBytes: head.totalBytes - base.totalBytes, addedModules: head.totalModules - base.totalModules, files: rowsBy((k) => k), groups: rowsBy(groupOf) };
 }
 
 /**
@@ -190,16 +209,16 @@ export function markdownOf(record: { base: { ref: string }; head: { ref: string 
   const kb = (b: number) => (b / 1024).toFixed(1);
   const lines = [`# Setup profile`, "", `Base \`${record.base.ref}\`, head \`${record.head.ref}\`. Self time: the mean of the repeats, in ms, with the profiler on.`];
   const table = (rows: readonly DiffRow[]) => [
-    "| File | Base ms | Head ms | Added ms | Share | Base KB | Head KB | Added KB |",
-    "|---|---|---|---|---|---|---|---|",
-    ...rows.map((r) => `| \`${r.key}\` | ${f(r.baseMs)} | ${f(r.headMs)} | ${f(r.addedMs)} | ${f(r.share * 100, 1)} % | ${kb(r.baseBytes)} | ${kb(r.headBytes)} | ${kb(r.addedBytes)} |`),
+    "| File | Base ms | Head ms | Added ms | Share | Base KB | Head KB | Added KB | Base modules | Head modules | Added modules |",
+    "|---|---|---|---|---|---|---|---|---|---|---|",
+    ...rows.map((r) => `| \`${r.key}\` | ${f(r.baseMs)} | ${f(r.headMs)} | ${f(r.addedMs)} | ${f(r.share * 100, 1)} % | ${kb(r.baseBytes)} | ${kb(r.headBytes)} | ${kb(r.addedBytes)} | ${r.baseModules} | ${r.headModules} | ${r.addedModules} |`),
   ];
   for (const [id, x] of Object.entries(record.inputs)) {
     lines.push(
       "",
       `## \`${id}\``,
       "",
-      `Setup (median, profiler on): ${f(x.base.setupMs, 1)} ms to ${f(x.head.setupMs, 1)} ms. Self time of all samples: ${f(x.base.totalMs, 1)} ms to ${f(x.head.totalMs, 1)} ms (added ${f(x.diff.addedMs, 1)} ms). Loaded source: ${kb(x.base.totalBytes)} KB to ${kb(x.head.totalBytes)} KB. Repeats: ${x.head.repeats}.`,
+      `Setup (median, profiler on): ${f(x.base.setupMs, 1)} ms to ${f(x.head.setupMs, 1)} ms. Self time of all samples: ${f(x.base.totalMs, 1)} ms to ${f(x.head.totalMs, 1)} ms (added ${f(x.diff.addedMs, 1)} ms). Loaded source: ${kb(x.base.totalBytes)} KB to ${kb(x.head.totalBytes)} KB, in ${x.base.totalModules} to ${x.head.totalModules} modules. Repeats: ${x.head.repeats}.`,
       "",
       "### Groups",
       "",
@@ -215,7 +234,7 @@ export function markdownOf(record: { base: { ref: string }; head: { ref: string 
 
 /**
  * This function starts the setup child once in a tree, with the profiler and the hook, and gives
- * its setup time, the self time of each key and the bytes of each key.
+ * its setup time, and the self time, the bytes and the modules of each key.
  */
 function profileOnce(tree: string, input: string): Repeat {
   const dir = mkdtempSync(join(tmpdir(), "setup-profile-"));
@@ -230,10 +249,12 @@ function profileOnce(tree: string, input: string): Repeat {
     const last = r.stdout.trim().split("\n").at(-1) ?? "{}";
     const profileFile = readdirSync(dir).find((name) => name.endsWith(".cpuprofile"));
     if (profileFile === undefined) throw new Error(`${tree} ${input}: the child wrote no CPU profile`);
+    const loaded = JSON.parse(readFileSync(modulesFile, "utf8")) as { url: string; bytes: number }[];
     return {
       setupMs: JSON.parse(last).ms,
       self: selfTimesOf(JSON.parse(readFileSync(join(dir, profileFile), "utf8")), tree),
-      bytes: bytesOf(JSON.parse(readFileSync(modulesFile, "utf8")), tree),
+      bytes: bytesOf(loaded, tree),
+      modules: modulesOf(loaded, tree),
     };
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -268,7 +289,7 @@ if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathS
     console.log(`${input}: self time ${base.totalMs.toFixed(1)} ms to ${head.totalMs.toFixed(1)} ms`);
   }
   const record = {
-    format: "setup-profile/1",
+    format: "setup-profile/2",
     node: process.version,
     base: { ref: optionOf(argv, "--base-ref") ?? trees.base },
     head: { ref: optionOf(argv, "--head-ref") ?? trees.head },
