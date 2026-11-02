@@ -152,4 +152,15 @@ describe("writeIcs of an event with a TZID (audit O57)", () => {
     const text = writeIcs([{ uid: "u@example.com", start: "2026-11-04T04:00:00Z", rrule: "FREQ=WEEKLY;COUNT=2", exdates: ["2026-11-11"] }], { stamp: "2026-10-25T00:00:00Z" });
     expect(text).toContain("EXDATE:20261111T040000Z\r\n");
   });
+
+  it("writes the EXDATE in UTC for a TZID that Intl does not know (O88)", () => {
+    const text = writeIcs([{ uid: "u@example.com", start: "2026-11-04T04:00:00Z", rrule: "FREQ=WEEKLY;COUNT=2", exdates: ["2026-11-11"], tzid: "Nowhere/Unknown" }], { stamp: "2026-10-25T00:00:00Z" });
+    expect(text).toContain("EXDATE:20261111T040000Z\r\n");
+    expect(text).not.toContain("Nowhere/Unknown");
+  });
+
+  it("writes the EXDATE of an all-day event as a date, also with a TZID (O88)", () => {
+    const text = writeIcs([{ uid: "d@example.com", start: "2026-11-04", allDay: true, rrule: "FREQ=WEEKLY;COUNT=2", exdates: ["2026-11-11"], tzid: "America/Los_Angeles" }], { stamp: "2026-10-25T00:00:00Z" });
+    expect(text).toContain("EXDATE;VALUE=DATE:20261111\r\n");
+  });
 });
