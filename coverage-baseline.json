@@ -6,9 +6,9 @@
     "branches": 97.4
   },
   "@procedures/archive": {
-    "lines": 96.7,
+    "lines": 96.8,
     "statements": 92.8,
-    "functions": 93.8,
+    "functions": 94.2,
     "branches": 87.9
   },
   "@procedures/better-auth": {
@@ -38,7 +38,7 @@
   "@procedures/claude-cli": {
     "lines": 98.5,
     "statements": 98.3,
-    "functions": 95.2,
+    "functions": 95.3,
     "branches": 95.7
   },
   "@procedures/cli-kit": {
@@ -66,10 +66,10 @@
     "branches": 59.2
   },
   "@procedures/compiler": {
-    "lines": 95.4,
-    "statements": 93,
-    "functions": 96.3,
-    "branches": 84.8
+    "lines": 95.5,
+    "statements": 93.2,
+    "functions": 96.5,
+    "branches": 85
   },
   "@procedures/cue": {
     "lines": 87.2,
@@ -127,7 +127,7 @@
   },
   "@procedures/git": {
     "lines": 96.5,
-    "statements": 94.9,
+    "statements": 95.1,
     "functions": 100,
     "branches": 84.7
   },
@@ -139,14 +139,14 @@
   },
   "@procedures/ics": {
     "lines": 98.7,
-    "statements": 96.8,
+    "statements": 96.9,
     "functions": 100,
     "branches": 91
   },
   "@procedures/ios-backup": {
     "lines": 96.9,
     "statements": 96.2,
-    "functions": 96,
+    "functions": 96.1,
     "branches": 94.7
   },
   "@procedures/json": {
@@ -248,8 +248,8 @@
   "@procedures/privacy-scan": {
     "lines": 95,
     "statements": 95,
-    "functions": 94.7,
-    "branches": 94.6
+    "functions": 95,
+    "branches": 94.7
   },
   "@procedures/procedure": {
     "lines": 86.7,
@@ -272,7 +272,7 @@
   "@procedures/schedule": {
     "lines": 97,
     "statements": 95.6,
-    "functions": 96.5,
+    "functions": 96.6,
     "branches": 90.2
   },
   "@procedures/server": {
@@ -336,8 +336,8 @@
     "branches": 92
   },
   "@procedures/vite": {
-    "lines": 60,
-    "statements": 57.3,
+    "lines": 60.5,
+    "statements": 57.8,
     "functions": 69.2,
     "branches": 66.6
   },
