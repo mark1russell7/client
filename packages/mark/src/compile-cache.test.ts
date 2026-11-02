@@ -35,7 +35,7 @@ describe("enableCompileCache", () => {
 
   it("gives the folder of compileCacheDir() to Node.js", () => {
     const dirs: (string | undefined)[] = [];
-    enableCompileCache({ enableCompileCache: (dir) => (dirs.push(dir), { status: 1, directory: dir }) }, () => "/c/mark/compile-cache");
+    enableCompileCache({ enableCompileCache: (dir) => (dirs.push(dir), { status: 1 }) }, () => "/c/mark/compile-cache");
     expect(dirs).toEqual(["/c/mark/compile-cache"]);
   });
 
@@ -75,5 +75,10 @@ describe("bin.ts", () => {
     const enable = source.indexOf("enableCompileCache();");
     expect(enable).toBeGreaterThan(-1);
     expect(source.indexOf('await import("./cli.js")')).toBeGreaterThan(enable);
+  });
+
+  it("gives the process to the runner of the command (CLI-26)", () => {
+    const source = readFileSync(path.join(here, "bin.ts"), "utf8");
+    expect(source).toContain("await main(process.argv.slice(2), { ownsProcess: true });");
   });
 });

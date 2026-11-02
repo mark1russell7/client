@@ -325,6 +325,8 @@ describe("mark --server", () => {
       expect(free.stdout).toContain("outside");
     } finally {
       child.kill();
+      // The host writes the compile cache under HOME at its exit, so the folder goes after the exit
+      if (child.exitCode === null && child.signalCode === null) await new Promise((done) => child.once("exit", done));
       rmSync(home, { recursive: true, force: true, maxRetries: 3 });
     }
   }, 180000);
