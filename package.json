@@ -28,7 +28,7 @@
     "@mark1russell7/cue": "^1.1.0",
     "@mark1russell7/ste-lint": "^0.1.1",
     "@swc/core": "^1.16.20",
-    "@vitest/coverage-v8": "5.0.3",
+    "@vitest/coverage-v8": "5.0.5",
     "dependency-cruiser": "^18.7.0",
     "esbuild": "^0.28.2",
     "publint": "^0.3.25",
