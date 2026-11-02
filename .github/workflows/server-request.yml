@@ -1,0 +1,72 @@
+name: Server request
+
+# The time of one synthetic request of the procedures server at one commit, and the share of the
+# exec calls in it (roadmap O90). One job builds @procedures/server and its dependencies, then
+# starts scripts/server-request.ts: a host of runProcedureHost() in a child process, and calls over
+# loopback. No record of real traffic exists (O91), thus the requests are synthetic.
+#
+# The workflow only reports: only a dispatch starts it, and no ruleset needs its checks.
+
+on:
+  workflow_dispatch:
+    inputs:
+      head:
+        description: "The commit or ref to measure (empty: the HEAD of main)"
+        required: false
+        default: ""
+      repeats:
+        description: "The turns of request calls and exec calls of each request"
+        required: false
+        default: "5"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: server-request-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  measure:
+    name: Server request
+    runs-on: ubuntu-latest
+    # One install and build of @procedures/server and its dependencies, then about 1 minute of calls
+    timeout-minutes: 20
+    steps:
+      # The script of the run comes from the ref of the workflow. The tree under test is a worktree.
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+      - name: Resolve the head, and check it out
+        env:
+          HEAD_INPUT: ${{ inputs.head }}
+        run: |
+          head=$(git rev-parse --verify "${HEAD_INPUT:-origin/main}^{commit}")
+          echo "HEAD=$head" >> "$GITHUB_ENV"
+          echo "Head $head ($(git log -1 --format='%cs %s' "$head"))"
+          git worktree add --detach "$RUNNER_TEMP/trees/head" "$head"
+      - name: Install and build the tree
+        run: |
+          cd "$RUNNER_TEMP/trees/head"
+          pnpm install --frozen-lockfile --filter "@procedures/server..."
+          pnpm --filter "@procedures/server..." run build
+      - name: The requests
+        env:
+          REPEATS: ${{ inputs.repeats || '5' }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/record"
+          node scripts/server-request.ts --tree "$RUNNER_TEMP/trees/head" --ref "$HEAD" --repeats "$REPEATS" \
+            --out "$RUNNER_TEMP/record/server-request.json"
+          cat "$RUNNER_TEMP/record/server-request.md" >> "$GITHUB_STEP_SUMMARY"
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: server-request
+          path: ${{ runner.temp }}/record
+          retention-days: 30
