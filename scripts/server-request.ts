@@ -229,10 +229,14 @@ async function sample(tree: string, arm: ArmId, id: RequestId, passes: number): 
     const exec = id === "one-call" ? () => local.exec(add(1, 2)) : () => local.exec({ $proc: ["client", "chain"], input: { steps } });
     times = await timeCalls(exec, warmup * passes, calls);
   } else {
+    // `Client.call` takes a method, not a path: the HTTP face gave "No handler found for undefined.undefined" (run 41506770786)
+    const { pathToMethod } = await load(tree, "packages/client/dist/server/index.js");
     const host = await startHost(tree);
     try {
       const remote = new c.Client(new c.HttpTransport({ baseUrl: host.address }));
-      const request = id === "one-call" ? () => remote.call(["client", "add"], { a: 1, b: 2 }) : () => remote.call(["client", "chain"], { steps });
+      const addMethod = pathToMethod(["client", "add"]);
+      const chainMethod = pathToMethod(["client", "chain"]);
+      const request = id === "one-call" ? () => remote.call(addMethod, { a: 1, b: 2 }) : () => remote.call(chainMethod, { steps });
       times = await timeCalls(request, warmup * passes, calls);
     } finally {
       await stopHost(host.child);
