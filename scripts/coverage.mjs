@@ -11,6 +11,7 @@
  *   node scripts/coverage.mjs --update           raise the floors
  *   node scripts/coverage.mjs --packages a,b     only these folders of packages/
  *   node scripts/coverage.mjs --out <file>       also write the raised floors to this file
+ *   node scripts/coverage.mjs --totals <file>    also write the measured totals to this file
  *   node scripts/coverage.mjs --allow-missing    a package without a floor does not fail
  *
  * The run fails when `coverage-baseline.json` is missing or empty, when it finds no package, when a
@@ -40,6 +41,12 @@ const update = args.includes("--update");
 const allowMissing = args.includes("--allow-missing");
 const out = (() => {
   const index = args.indexOf("--out");
+  return index >= 0 ? args[index + 1] : undefined;
+})();
+// The measured totals of each package, not rounded: the coverage job of the nightly compares them
+// across runs (roadmap O85)
+const totalsOut = (() => {
+  const index = args.indexOf("--totals");
   return index >= 0 ? args[index + 1] : undefined;
 })();
 const only = (() => {
@@ -157,6 +164,11 @@ try {
   results = await runAll(packages, reports);
 } finally {
   rmSync(reports, { recursive: true, force: true });
+}
+
+if (totalsOut) {
+  const totals = Object.fromEntries(results.filter((result) => result.totals).map((result) => [result.pkg.name, result.totals]));
+  writeFileSync(totalsOut, JSON.stringify(totals, null, 2) + "\n");
 }
 
 const problems = [];

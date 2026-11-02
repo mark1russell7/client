@@ -34,8 +34,37 @@ import { ms } from "./duration.js";
 import { countingClock } from "../test/counting-clock.js";
 
 const minutes = Number(process.env["SOAK_MINUTES"] ?? 0);
-/** The growth of the heap that the test allows, in megabytes. */
-const HEAP_LIMIT_MB = Number(process.env["SOAK_HEAP_MB"] ?? 64);
+/**
+ * The limits of the soak come from 5 runs of 10 minutes, not from numbers set by feel (roadmap
+ * O85). The runs are the matrix of nightly run 41371616323 (2026-11-02, jobs 1 to 5). Each run
+ * wrote its values in the line `soak-measure`, and the artifacts soak-measure-1 to -5 keep them.
+ *
+ * The rules of the strategist:
+ * - A limit of growth (the heap, the failures) is the worst run times 1.5, rounded up.
+ * - A floor (the calls) is the worst run divided by 1.5, rounded down to a thousand. The floor
+ *   is for 10 minutes: the test scales it with `SOAK_MINUTES`.
+ *
+ * The checks of an exact count (the maps, the open subscriptions, the timers) and the checks that
+ * a value is above 0 do not have a measured limit.
+ */
+const LIMITS = {
+  ws: {
+    // The heap growth in MB: 3.10, 2.84, 2.96, 2.82, 2.91. The worst 3.10 x 1.5 = 4.64, so 5 (before: 64).
+    heapMb: 5,
+    // The calls: 966963, 1096935, 961695, 1092157, 968772. The worst 961695 / 1.5 = 641130, so 641000 (before: 10000).
+    calls: 641_000,
+    // The failures for each reconnect: 0.937, 0.927, 0.928, 0.922, 0.936. The worst 0.937 x 1.5 = 1.41, so 1.5 (before: 4).
+    failuresPerReconnect: 1.5,
+  },
+  http: {
+    // The heap growth in MB: 4.51, 4.51, 4.50, 4.54, 4.47. The worst 4.54 x 1.5 = 6.82, so 7 (before: 64).
+    heapMb: 7,
+    // The calls: 177093, 187858, 175583, 187641, 175003. The worst 175003 / 1.5 = 116669, so 116000 (before: 10000).
+    calls: 116_000,
+  },
+};
+/** `SOAK_HEAP_MB` sets the two limits of the heap growth, in megabytes, for a run by hand. */
+const heapOverride = process.env["SOAK_HEAP_MB"] ? Number(process.env["SOAK_HEAP_MB"]) : undefined;
 const CLIENTS = 4;
 const read = { reads: [], writes: [] };
 const sleep = (time: number) => new Promise((resolve) => setTimeout(resolve, time));
@@ -222,20 +251,21 @@ describe.runIf(minutes > 0)("the WebSocket transport under load (R32)", () => {
       channels: Map<string, { incoming: { size: number; credits: Map<string, unknown> }; outgoing: { size: number } }>;
     }).channels;
     const serverMaps = [...channels.values()].map((channel) => channel.incoming.size + channel.incoming.credits.size + channel.outgoing.size);
-    console.log(JSON.stringify({ ...counts, heapBeforeMb: heapBefore, heapAfterMb: heapAfter, pending, serverMaps, events }));
+    // One line that the nightly keeps in its artifact soak-measure-<run> (O85)
+    console.log(`soak-measure ws ${JSON.stringify({ ...counts, heapBeforeMb: heapBefore, heapAfterMb: heapAfter, pending, serverMaps, events })}`);
 
     for (const transport of transports) await transport.close();
     await host.stop();
     http.closeAllConnections();
     await new Promise<void>((resolve) => http.close(() => resolve()));
 
-    expect(counts.calls).toBeGreaterThan(minutes * 1000);
+    expect(counts.calls).toBeGreaterThanOrEqual((LIMITS.ws.calls * minutes) / 10);
     // Only a call that a reconnect cut can fail
-    expect(counts.failures).toBeLessThanOrEqual(counts.reconnects * 4);
+    expect(counts.failures).toBeLessThanOrEqual(counts.reconnects * LIMITS.ws.failuresPerReconnect);
     expect(pending).toEqual(transports.map(() => 0));
     expect(serverMaps.every((size) => size === 0)).toBe(true);
     expect(host.callsInFlight).toBe(0);
-    expect(heapAfter - heapBefore).toBeLessThan(HEAP_LIMIT_MB);
+    expect(heapAfter - heapBefore).toBeLessThan(heapOverride ?? LIMITS.ws.heapMb);
     // Each long subscription got events, and it resubscribed after each reconnect of its client
     for (let index = 0; index < transports.length; index++) {
       expect(ticks[index]).toBeGreaterThan(0);
@@ -308,20 +338,22 @@ describe.runIf(minutes > 0)("the HTTP transport under load (R32)", () => {
     // The requests in progress of the procedure handler of the transport (CLI-3 moved them there)
     const openRequests = transport.inFlight();
     const report = { ...counts, heapBeforeMb: heapBefore, heapAfterMb: heapAfter, openRequests, timersLive: timers.live, timersStarted: timers.started, callsInFlight: host.callsInFlight };
-    console.log(JSON.stringify(report));
+    console.log(`soak-measure http ${JSON.stringify(report)}`);
 
     await host.stop();
     http.closeAllConnections();
     await new Promise<void>((resolve) => http.close(() => resolve()));
 
-    expect(counts.calls).toBeGreaterThan(minutes * 1000);
-    // HTTP has no reconnect: a failure is a fault, but a rare closed keep-alive connection
+    expect(counts.calls).toBeGreaterThanOrEqual((LIMITS.http.calls * minutes) / 10);
+    // HTTP has no reconnect: a failure is a fault, but a rare closed keep-alive connection. The 5
+    // runs of O85 had 0 failures. The rule of 1.5 times the worst run gives 0, so this limit
+    // stays at one failure for each 1000 calls until the strategist decides.
     expect(counts.failures).toBeLessThanOrEqual(Math.ceil(counts.calls / 1000));
     expect(counts.quietItems).toBeGreaterThan(0);
     expect(report.openRequests).toBe(0);
     expect(report.timersLive).toBe(0);
     expect(report.timersStarted).toBeGreaterThan(0);
     expect(report.callsInFlight).toBe(0);
-    expect(heapAfter - heapBefore).toBeLessThan(HEAP_LIMIT_MB);
+    expect(heapAfter - heapBefore).toBeLessThan(heapOverride ?? LIMITS.http.heapMb);
   }, (minutes + 2) * 60_000);
 });

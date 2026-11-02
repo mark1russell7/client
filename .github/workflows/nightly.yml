@@ -10,9 +10,13 @@ on:
   workflow_dispatch:
     inputs:
       only:
-        description: "The jobs to run, for example mutation,windows (empty: all of them)"
+        description: "The jobs to run, for example mutation,windows (empty: all of them but coverage)"
         required: false
         default: ""
+      runs:
+        description: "The runs of the soak and of coverage, as a JSON list. [1,2,3,4,5] gives the spread (O85)"
+        required: false
+        default: "[1]"
 
 permissions:
   contents: read
@@ -178,6 +182,12 @@ jobs:
     runs-on: ubuntu-latest
     # Two soaks of 10 minutes, one after the other, and the install and the build
     timeout-minutes: 45
+    # The input `runs` gives more than one soak: the limits of soak.test.ts come from 5 runs (O85)
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        run: ${{ fromJSON(inputs.runs || '[1]') }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -191,10 +201,21 @@ jobs:
       - run: pnpm build
       # The WebSocket soak, then the HTTP soak with its keep-alive lines.
       # --expose-gc: the tests measure the heap after a collection.
-      - run: pnpm --filter @procedures/client exec vitest run src/soak.test.ts
+      # Each soak writes its measured values as one line `soak-measure <transport> {json}`. The
+      # artifact soak-measure-<run> keeps these lines.
+      - run: pnpm --filter @procedures/client exec vitest run src/soak.test.ts | tee "$RUNNER_TEMP/soak.log"
+        shell: bash
         env:
           SOAK_MINUTES: "10"
           NODE_OPTIONS: --expose-gc
+      - if: always()
+        run: grep -o 'soak-measure .*' "$RUNNER_TEMP/soak.log" > "$RUNNER_TEMP/soak-measure.txt" || true
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: soak-measure-${{ matrix.run }}
+          path: ${{ runner.temp }}/soak-measure.txt
+          retention-days: 30
 
   live:
     name: Real MongoDB and Docker
@@ -260,3 +281,91 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm --filter @procedures/mark test:e2e
+
+  # The coverage check of the CI workflow, once for each item of the input `runs` (roadmap O85).
+  # The runs show the spread of the coverage, and the floors of coverage-baseline.json come from
+  # them. Only a dispatch with `only` that names coverage starts it: the CI workflow has the check.
+  coverage:
+    name: Coverage run ${{ matrix.run }}
+    if: ${{ contains(inputs.only, 'coverage') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        run: ${{ fromJSON(inputs.runs || '[1]') }}
+    # The same MongoDB as the coverage job of ci.yml
+    env:
+      MONGO_TEST_URL: mongodb://localhost:27017/?directConnection=true
+      MONGO_TEST_TOPOLOGY: replica-set
+      MONGO_TEST_FAILPOINTS: "1"
+    steps:
+      - name: Start MongoDB 7 (a single-node replica set)
+        run: |
+          docker run -d --name mongo -p 27017:27017 mongo:7 --replSet rs0 --bind_ip_all --setParameter enableTestCommands=1
+          for i in $(seq 1 60); do
+            docker exec mongo mongosh --quiet --eval "db.adminCommand('ping').ok" >/dev/null 2>&1 && break
+            sleep 1
+          done
+          docker exec mongo mongosh --quiet --eval "rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] })"
+          for i in $(seq 1 60); do
+            [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ] && break
+            sleep 1
+          done
+          [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ]
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+      # The scaffold test of mark runs cue-config, which needs the CUE binary
+      - name: Install CUE
+        run: |
+          # The SHA-256 that GitHub records for the release asset (CUE publishes no checksums.txt for v0.15.1)
+          curl -fsSL -o "$RUNNER_TEMP/cue.tar.gz" https://github.com/cue-lang/cue/releases/download/v0.15.1/cue_v0.15.1_linux_amd64.tar.gz
+          echo "aa282261245e9ab0d65b17ec3c7207f5231600106f7b26fc0c2e158b3937ca3f  $RUNNER_TEMP/cue.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/cue.tar.gz" -C "$RUNNER_TEMP" cue
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: node scripts/coverage.mjs --totals "$RUNNER_TEMP/coverage-totals.json"
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-totals-${{ matrix.run }}
+          path: ${{ runner.temp }}/coverage-totals.json
+          retention-days: 30
+
+  # The lowest value, the highest value and the spread of each metric across the coverage runs,
+  # and the floors: the lowest value rounded down to 0.1 (scripts/coverage-spread.mjs)
+  coverage-spread:
+    name: The spread of the coverage runs
+    needs: coverage
+    if: ${{ !cancelled() && contains(inputs.only, 'coverage') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: coverage-totals-*
+          path: ${{ runner.temp }}/totals
+      - run: node scripts/coverage-spread.mjs "$RUNNER_TEMP/totals" --out "$RUNNER_TEMP/coverage-spread-floors.json" | tee "$RUNNER_TEMP/coverage-spread.txt"
+        shell: bash
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-spread
+          path: |
+            ${{ runner.temp }}/coverage-spread.txt
+            ${{ runner.temp }}/coverage-spread-floors.json
+          retention-days: 30
