@@ -219,7 +219,7 @@ importers:
         version: link:../client
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -247,7 +247,7 @@ importers:
         version: 7.5.22
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -266,7 +266,7 @@ importers:
     dependencies:
       '@better-auth/passkey':
         specifier: ^1.7.10
-        version: 1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-auth@1.7.10(mongodb@7.7.0(socks@2.8.10))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@5.0.3))(better-call@1.4.2(zod@4.6.7))(nanostores@1.5.5)
+        version: 1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-auth@1.7.10(mongodb@7.7.0(socks@2.8.10))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@5.0.3))(better-call@1.4.2(zod@4.6.5))(nanostores@1.5.5)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -278,7 +278,7 @@ importers:
         version: 1.7.10(mongodb@7.7.0(socks@2.8.10))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@5.0.3)
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -318,7 +318,7 @@ importers:
         version: link:../weather
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -432,7 +432,7 @@ importers:
         version: link:../client-shell
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -473,22 +473,22 @@ importers:
         version: 5.0.3(@types/node@22.20.5)(@vitest/coverage-v8@5.0.3)(vite@6.4.4(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
 
   packages/client:
     dependencies:
       '@mark1russell7/algebra':
         specifier: ^0.8.0
-        version: 0.8.0(zod@4.6.7)
+        version: 0.8.0(zod@4.6.5)
       '@mark1russell7/coeval':
         specifier: ^0.17.0
         version: 0.17.0
       '@mark1russell7/quantity':
         specifier: ^0.2.0
-        version: 0.2.0(zod@4.6.7)
+        version: 0.2.0(zod@4.6.5)
       '@mark1russell7/service':
         specifier: ^0.6.0
-        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.5)
       '@types/ws':
         specifier: ^8.18.1
         version: 8.18.2
@@ -500,7 +500,7 @@ importers:
         version: 8.22.0
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -540,7 +540,7 @@ importers:
         version: link:../client-shell
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -593,7 +593,7 @@ importers:
         version: link:../client-shell
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -612,7 +612,7 @@ importers:
         version: link:../client
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -637,7 +637,7 @@ importers:
         version: link:../client-shell
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -662,7 +662,7 @@ importers:
         version: link:../client
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -690,7 +690,7 @@ importers:
         version: link:../client-shell
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -730,7 +730,7 @@ importers:
         version: 24.0.0
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -749,20 +749,20 @@ importers:
     dependencies:
       '@modelcontextprotocol/sdk':
         specifier: ^1.32.1
-        version: 1.32.1(supports-color@7.2.0)(zod@4.6.7)
+        version: 1.32.1(supports-color@7.2.0)(zod@4.6.5)
       '@procedures/mcp':
         specifier: workspace:*
         version: link:../mcp
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
         version: 1.1.0
       '@mark1russell7/service':
         specifier: ^0.6.0
-        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.5)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -789,7 +789,7 @@ importers:
         version: 7.7.0(socks@2.8.10)
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -817,7 +817,7 @@ importers:
         version: link:../client-shell
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -867,7 +867,7 @@ importers:
         version: link:../client-shell
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -892,7 +892,7 @@ importers:
         version: link:../client
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -923,7 +923,7 @@ importers:
         version: link:../client
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -945,20 +945,20 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.6.0
-        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.5)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
         version: 1.1.0
       '@modelcontextprotocol/sdk':
         specifier: ^1.32.1
-        version: 1.32.1(supports-color@7.2.0)(zod@4.6.7)
+        version: 1.32.1(supports-color@7.2.0)(zod@4.6.5)
       '@procedures/better-auth':
         specifier: workspace:*
         version: link:../better-auth
@@ -985,7 +985,7 @@ importers:
         version: link:../client
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -1028,7 +1028,7 @@ importers:
         version: 7.5.22
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -1078,7 +1078,7 @@ importers:
         version: link:../client
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -1106,7 +1106,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.6.0
-        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.5)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1115,7 +1115,7 @@ importers:
         version: link:../client-collections
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -1149,7 +1149,7 @@ importers:
         version: link:../client-shell
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -1183,7 +1183,7 @@ importers:
         version: 5.0.3(@types/node@22.20.5)(@vitest/coverage-v8@5.0.3)(vite@6.4.4(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -1205,7 +1205,7 @@ importers:
         version: link:../client
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -1242,7 +1242,7 @@ importers:
         version: link:../client
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -1264,7 +1264,7 @@ importers:
         version: link:../client
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -1289,7 +1289,7 @@ importers:
         version: link:../client
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -1314,7 +1314,7 @@ importers:
         version: link:../client-shell
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -1339,7 +1339,7 @@ importers:
         version: link:../client
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -1361,7 +1361,7 @@ importers:
         version: link:../client
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -1380,7 +1380,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.6.0
-        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.5)
       '@procedures/bundle-mcp':
         specifier: workspace:*
         version: link:../bundle-mcp
@@ -1417,7 +1417,7 @@ importers:
         version: link:../client
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -1448,7 +1448,7 @@ importers:
         version: 2.9.1
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -1470,7 +1470,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.6.0
-        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.5)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1482,7 +1482,7 @@ importers:
         version: link:../json
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -1507,7 +1507,7 @@ importers:
         version: 2.2.11
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -1526,7 +1526,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.6.0
-        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.5)
       '@procedures/cli-kit':
         specifier: workspace:*
         version: link:../cli-kit
@@ -1577,7 +1577,7 @@ importers:
         version: 2.8.1
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -1731,7 +1731,7 @@ importers:
         version: link:../client
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -1756,7 +1756,7 @@ importers:
         version: link:../client-shell
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -1781,7 +1781,7 @@ importers:
         version: link:../client-shell
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -1803,7 +1803,7 @@ importers:
         version: link:../client
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -1831,7 +1831,7 @@ importers:
         version: link:../client-shell
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -1859,14 +1859,14 @@ importers:
         version: link:../client-store
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
         version: 1.1.0
       '@mark1russell7/service':
         specifier: ^0.6.0
-        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.5)
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1881,7 +1881,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.6.0
-        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.5)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1890,7 +1890,7 @@ importers:
         version: link:../client-server
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -2157,13 +2157,13 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.6.0
-        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        version: 0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.5)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -2185,7 +2185,7 @@ importers:
         version: link:../client-shell
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -2210,7 +2210,7 @@ importers:
         version: link:../http
       zod:
         specifier: ^4.6.5
-        version: 4.6.7
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.1.0
@@ -5567,8 +5567,8 @@ packages:
     peerDependencies:
       zod: ^3.25.28 || ^4
 
-  zod@4.6.7:
-    resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
+  zod@4.6.5:
+    resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
 
 snapshots:
 
@@ -6112,62 +6112,62 @@ snapshots:
 
   '@bcoe/v8-coverage@1.0.2': {}
 
-  '@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5)':
+  '@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5)':
     dependencies:
       '@better-auth/utils': 0.5.0
       '@better-fetch/fetch': 1.3.2
       '@opentelemetry/semantic-conventions': 1.43.0
       '@standard-schema/spec': 1.1.0
-      better-call: 1.4.2(zod@4.6.7)
+      better-call: 1.4.2(zod@4.6.5)
       jose: 6.2.12
       kysely: 0.29.6
       nanostores: 1.5.5
-      zod: 4.6.7
+      zod: 4.6.5
 
-  '@better-auth/drizzle-adapter@1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)':
+  '@better-auth/drizzle-adapter@1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)':
     dependencies:
-      '@better-auth/core': 1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5)
+      '@better-auth/core': 1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5)
       '@better-auth/utils': 0.5.0
 
-  '@better-auth/kysely-adapter@1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(kysely@0.29.6)':
+  '@better-auth/kysely-adapter@1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(kysely@0.29.6)':
     dependencies:
-      '@better-auth/core': 1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5)
+      '@better-auth/core': 1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5)
       '@better-auth/utils': 0.5.0
     optionalDependencies:
       kysely: 0.29.6
 
-  '@better-auth/memory-adapter@1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)':
+  '@better-auth/memory-adapter@1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)':
     dependencies:
-      '@better-auth/core': 1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5)
+      '@better-auth/core': 1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5)
       '@better-auth/utils': 0.5.0
 
-  '@better-auth/mongo-adapter@1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(mongodb@7.7.0(socks@2.8.10))':
+  '@better-auth/mongo-adapter@1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(mongodb@7.7.0(socks@2.8.10))':
     dependencies:
-      '@better-auth/core': 1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5)
+      '@better-auth/core': 1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5)
       '@better-auth/utils': 0.5.0
     optionalDependencies:
       mongodb: 7.7.0(socks@2.8.10)
 
-  '@better-auth/passkey@1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-auth@1.7.10(mongodb@7.7.0(socks@2.8.10))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@5.0.3))(better-call@1.4.2(zod@4.6.7))(nanostores@1.5.5)':
+  '@better-auth/passkey@1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-auth@1.7.10(mongodb@7.7.0(socks@2.8.10))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@5.0.3))(better-call@1.4.2(zod@4.6.5))(nanostores@1.5.5)':
     dependencies:
-      '@better-auth/core': 1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5)
+      '@better-auth/core': 1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5)
       '@better-auth/utils': 0.5.0
       '@better-fetch/fetch': 1.3.2
       '@simplewebauthn/browser': 13.3.0
       '@simplewebauthn/server': 13.3.3
       better-auth: 1.7.10(mongodb@7.7.0(socks@2.8.10))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@5.0.3)
-      better-call: 1.4.2(zod@4.6.7)
+      better-call: 1.4.2(zod@4.6.5)
       nanostores: 1.5.5
-      zod: 4.6.7
+      zod: 4.6.5
 
-  '@better-auth/prisma-adapter@1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)':
+  '@better-auth/prisma-adapter@1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)':
     dependencies:
-      '@better-auth/core': 1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5)
+      '@better-auth/core': 1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5)
       '@better-auth/utils': 0.5.0
 
-  '@better-auth/telemetry@1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)':
+  '@better-auth/telemetry@1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)':
     dependencies:
-      '@better-auth/core': 1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5)
+      '@better-auth/core': 1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5)
       '@better-auth/utils': 0.5.0
       '@better-fetch/fetch': 1.3.2
 
@@ -6643,11 +6643,11 @@ snapshots:
       tinyglobby: 0.2.17
       yaml: 2.9.1
 
-  '@mark1russell7/algebra@0.8.0(zod@4.6.7)':
+  '@mark1russell7/algebra@0.8.0(zod@4.6.5)':
     dependencies:
-      '@mark1russell7/quantity': 0.2.0(zod@4.6.7)
+      '@mark1russell7/quantity': 0.2.0(zod@4.6.5)
     optionalDependencies:
-      zod: 4.6.7
+      zod: 4.6.5
 
   '@mark1russell7/boundaries@0.2.0(@swc/core@1.16.20)(dependency-cruiser@18.7.0)':
     optionalDependencies:
@@ -6665,18 +6665,18 @@ snapshots:
       '@types/sql.js': 1.4.11
       sql.js: 1.14.2
 
-  '@mark1russell7/quantity@0.2.0(zod@4.6.7)':
+  '@mark1russell7/quantity@0.2.0(zod@4.6.5)':
     optionalDependencies:
-      zod: 4.6.7
+      zod: 4.6.5
 
-  '@mark1russell7/service@0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)':
+  '@mark1russell7/service@0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.5)':
     dependencies:
-      '@mark1russell7/algebra': 0.8.0(zod@4.6.7)
-      '@mark1russell7/quantity': 0.2.0(zod@4.6.7)
+      '@mark1russell7/algebra': 0.8.0(zod@4.6.5)
+      '@mark1russell7/quantity': 0.2.0(zod@4.6.5)
     optionalDependencies:
       mongodb: 7.7.0(socks@2.8.10)
       ws: 8.22.0
-      zod: 4.6.7
+      zod: 4.6.5
 
   '@mark1russell7/site-pages@0.1.6': {}
 
@@ -6686,7 +6686,7 @@ snapshots:
     dependencies:
       typescript: 6.0.3
 
-  '@modelcontextprotocol/sdk@1.32.1(supports-color@7.2.0)(zod@4.6.7)':
+  '@modelcontextprotocol/sdk@1.32.1(supports-color@7.2.0)(zod@4.6.5)':
     dependencies:
       '@hono/node-server': 2.1.3(hono@4.13.13)
       ajv: 8.20.0
@@ -6703,8 +6703,8 @@ snapshots:
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
       raw-body: 3.0.2
-      zod: 4.6.7
-      zod-to-json-schema: 3.25.2(zod@4.6.7)
+      zod: 4.6.5
+      zod-to-json-schema: 3.25.2(zod@4.6.5)
     transitivePeerDependencies:
       - supports-color
 
@@ -7387,23 +7387,23 @@ snapshots:
 
   better-auth@1.7.10(mongodb@7.7.0(socks@2.8.10))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@5.0.3):
     dependencies:
-      '@better-auth/core': 1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5)
-      '@better-auth/drizzle-adapter': 1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)
-      '@better-auth/kysely-adapter': 1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(kysely@0.29.6)
-      '@better-auth/memory-adapter': 1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)
-      '@better-auth/mongo-adapter': 1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(mongodb@7.7.0(socks@2.8.10))
-      '@better-auth/prisma-adapter': 1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)
-      '@better-auth/telemetry': 1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)
+      '@better-auth/core': 1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5)
+      '@better-auth/drizzle-adapter': 1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)
+      '@better-auth/kysely-adapter': 1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(kysely@0.29.6)
+      '@better-auth/memory-adapter': 1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)
+      '@better-auth/mongo-adapter': 1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(mongodb@7.7.0(socks@2.8.10))
+      '@better-auth/prisma-adapter': 1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)
+      '@better-auth/telemetry': 1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-call@1.4.2(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)
       '@better-auth/utils': 0.5.0
       '@better-fetch/fetch': 1.3.2
       '@noble/ciphers': 2.4.0
       '@noble/hashes': 2.4.0
-      better-call: 1.4.2(zod@4.6.7)
+      better-call: 1.4.2(zod@4.6.5)
       defu: 6.1.7
       jose: 6.2.12
       kysely: 0.29.6
       nanostores: 1.5.5
-      zod: 4.6.7
+      zod: 4.6.5
     optionalDependencies:
       mongodb: 7.7.0(socks@2.8.10)
       react: 19.3.0
@@ -7412,14 +7412,14 @@ snapshots:
     transitivePeerDependencies:
       - '@opentelemetry/api'
 
-  better-call@1.4.2(zod@4.6.7):
+  better-call@1.4.2(zod@4.6.5):
     dependencies:
       '@better-auth/utils': 0.5.0
       '@better-fetch/fetch': 1.3.2
       rou3: 0.9.2
       set-cookie-parser: 3.1.4
     optionalDependencies:
-      zod: 4.6.7
+      zod: 4.6.5
 
   body-parser@2.4.0(supports-color@7.2.0):
     dependencies:
@@ -8075,7 +8075,7 @@ snapshots:
 
   mutation-server-protocol@0.4.1:
     dependencies:
-      zod: 4.6.7
+      zod: 4.6.5
 
   mutation-testing-elements@3.8.4: {}
 
@@ -8738,8 +8738,8 @@ snapshots:
 
   yoctocolors@2.2.0: {}
 
-  zod-to-json-schema@3.25.2(zod@4.6.7):
+  zod-to-json-schema@3.25.2(zod@4.6.5):
     dependencies:
-      zod: 4.6.7
+      zod: 4.6.5
 
-  zod@4.6.7: {}
+  zod@4.6.5: {}
