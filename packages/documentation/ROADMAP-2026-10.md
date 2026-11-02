@@ -667,6 +667,7 @@ The live tracker shows these items with the items R1 to R54: https://claude.ai/a
 | O85 | Testing | Derived gate limits from 5 CI runs: mutation at the worst run minus 3 times the A/A spread (87), coverage at the value rounded down to 0.1, the soak limits from the runs | M | done 2026-11-02 | O84 | `client` | [client #331](https://github.com/mark1russell7/client/pull/331), [soak runs 41371616323](https://github.com/mark1russell7/client/actions/runs/41371616323), [coverage runs 41371676324](https://github.com/mark1russell7/client/actions/runs/41371676324) |
 | O86 | CI | Runner budget 2: a push to a pull request branch starts one CI run, not two. Typecheck and lint:ste run once. The cron minutes of conventions 0.8.0 | S | done 2026-11-01 | O77 | `client` | [#323](https://github.com/mark1russell7/client/pull/323), [#325](https://github.com/mark1russell7/client/pull/325) |
 | O87 | CI | Fold the jobs that repeat install and build (lifecycle, package, coverage), after the change of the ruleset to only CI OK. Mark changes the ruleset | S | waiting on Mark | O86 | `client` | — |
+| O88 | Testing | Coverage floors with no tolerance: the worst of 5 runs minus the spread. The cause commit of each of the 15 floors above the worst run, and a formula for the HTTP soak failures | M | done 2026-11-02 | O85 | `client` | [client #334](https://github.com/mark1russell7/client/pull/334), [coverage runs 41371676324](https://github.com/mark1russell7/client/actions/runs/41371676324) |
 
 ### The server stack (R37)
 
