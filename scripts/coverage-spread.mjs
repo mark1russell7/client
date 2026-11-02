@@ -60,8 +60,7 @@ for (const name of names) {
     const low = Math.min(...values);
     const spread = Math.round((Math.max(...values) - low) * 100) / 100;
     largest = Math.max(largest, spread);
-    // The values have two decimals: round to whole hundredths first, so that 70.3 does not become 70.2
-    floors[name][metric] = Math.floor(Math.round(low * 100) / 10) / 10;
+    floors[name][metric] = Math.floor(low * 10) / 10;
     parts.push(spread === 0 ? `${metric} ${low}` : `${metric} ${values.join("/")} (spread ${spread})`);
   }
   console.log(`${name}: ${parts.join(", ")}`);
