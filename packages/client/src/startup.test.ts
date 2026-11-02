@@ -62,7 +62,8 @@ describe("the start of @procedures/client (O50)", () => {
     expect(packages.has("express")).toBe(false);
   });
 
-  it("the check finds ws in ./node", async () => {
-    expect((await staticImports(sourceOf("./node"))).packages.has("ws")).toBe(true);
+  // ./node loads ws at its first use since roadmap O93, so the control is a package that ./node imports at its start
+  it("the check finds @mark1russell7/service in ./node", async () => {
+    expect((await staticImports(sourceOf("./node"))).packages.has("@mark1russell7/service")).toBe(true);
   });
 });

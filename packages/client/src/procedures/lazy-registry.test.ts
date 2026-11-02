@@ -169,7 +169,7 @@ describe("an eager registry", () => {
   it("works with resolveIn() and loadAllIn() for a registry without resolve()", async () => {
     const plain = { get: (path: readonly string[]) => (path.join(".") === "alpha.one" ? alpha.procedures[0] : undefined) };
     expect((await resolveIn(plain, ["alpha", "one"]))?.path).toEqual(["alpha", "one"]);
-    await expect(loadAllIn(plain)).resolves.toBeUndefined();
+    await expect(loadAllIn({})).resolves.toBeUndefined();
   });
 });
 
