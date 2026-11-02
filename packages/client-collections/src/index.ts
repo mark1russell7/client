@@ -106,6 +106,7 @@ export * from "./impl/tree-set.js";
 export * from "./impl/linked-list.js";
 export * from "./impl/hash-set.js";
 export * from "./impl/priority-queue.js";
+export { SummaryTree, summaryTree, type SummaryMonoid, type SummarySearch, type SummarySpec } from "./impl/summary-tree.js";
 
 // ============================================================================
 // Behaviors

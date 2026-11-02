@@ -408,6 +408,30 @@ const pq = new PriorityQueue<Task>((a, b) => a.priority - b.priority);
 const deque = new ArrayDeque<Message>(); // Double-ended queue
 ```
 
+### Sequences with a summary: `SummaryTree`
+
+`SummaryTree<Leaf, Summary>` is a persistent sequence of leaves. Each node keeps the summary of its part of the sequence. A summary is a value of a monoid that you give as data: `empty` and an associative `combine`.
+
+- `concat`, `splitAt`, `split`, `slice`, `splice`, `insert`, `remove`, `set` and `at` are O(log n).
+- `split(predicate)` splits before the first leaf whose prefix summary satisfies a monotone predicate. `search(predicate)` finds that leaf and changes nothing.
+- Each edit returns a new tree. The old tree does not change, and the two trees share the nodes that did not change.
+- The tree is an AVL tree, so its height is at most 1.45 log2(n + 2).
+
+```typescript
+import { summaryTree } from "@procedures/collections";
+
+const spec = {
+  monoid: { empty: 0, combine: (a: number, b: number) => a + b },
+  measure: (line: string) => line.length,
+};
+const lines = summaryTree(spec, ["first line", "second", "third"]);
+lines.summary; // 21
+const hit = lines.search((length) => length > 12); // { index: 1, leaf: "second", before: 10, through: 16 }
+const edited = lines.splice(1, 1, ["2nd"]); // lines does not change
+```
+
+Use the same `spec` object for each tree that `concat` or `splice` joins. A tree of a different spec causes a `TypeError`.
+
 ## Behavior Decorators
 
 ### Bounded Collections
