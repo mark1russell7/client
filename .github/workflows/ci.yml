@@ -167,6 +167,11 @@ jobs:
         run: |
           node --test scripts/check-paths-and-writes.test.mjs
           pnpm check:paths-and-writes
+      # The nightly adds the runner context to each benchmark result with scripts/bench-context.mjs
+      # (O82). The nightly does not run on a pull request, so the tests of the script run here.
+      - name: Test the benchmark context script
+        if: ${{ !cancelled() }}
+        run: node --test scripts/bench-context.test.mjs
       # The import boundaries of invariant I9 (CLI-83), with dependency-cruiser: a transport does not
       # import the server, an import of another package goes through an entry of its exports map, and
       # no package imports an app. The shared rules are in the package @mark1russell7/boundaries, and
