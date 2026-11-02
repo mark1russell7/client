@@ -21,8 +21,11 @@
  * CI: copy the file of a green run to `coverage-baseline.json` to raise them.
  *
  * `COVERAGE_CONCURRENCY` sets the number of packages that run at the same time (default 2).
- * A drop of less than `TOLERANCE` points does not fail: a test that depends on time can take
- * another path.
+ *
+ * The check has no tolerance: a value below its floor fails (roadmap O88). The floors obey one rule:
+ * the floor is the worst of 5 runs minus the spread of the package, rounded down to 0.1. For a
+ * spread of 0, the floor is the worst run, rounded down. The 5 runs are dispatch run 41371676324 of
+ * `nightly.yml` (2026-11-01). `scripts/coverage-spread.mjs` applies the rule to the totals of the runs.
  */
 
 import { spawn } from "node:child_process";
@@ -34,7 +37,6 @@ import { fileURLToPath } from "node:url";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const BASELINE = join(ROOT, "coverage-baseline.json");
 const METRICS = ["lines", "statements", "functions", "branches"];
-const TOLERANCE = 0.5;
 
 const args = process.argv.slice(2);
 const update = args.includes("--update");
@@ -193,7 +195,7 @@ for (const result of results) {
     continue;
   }
   for (const metric of METRICS) {
-    if (result.totals[metric] < floor[metric] - TOLERANCE) {
+    if (result.totals[metric] < floor[metric]) {
       problems.push(`${result.pkg.folder}: ${metric} ${result.totals[metric]} is below the floor ${floor[metric]}`);
     }
   }

@@ -55,15 +55,15 @@
   },
   "@procedures/client": {
     "lines": 89,
-    "statements": 88.1,
+    "statements": 88,
     "functions": 87,
     "branches": 82.7
   },
   "@procedures/collections": {
-    "lines": 67.3,
-    "statements": 67,
+    "lines": 67,
+    "statements": 66.8,
     "functions": 61.9,
-    "branches": 59.2
+    "branches": 59.1
   },
   "@procedures/compiler": {
     "lines": 95.5,
@@ -198,10 +198,10 @@
     "branches": 81.3
   },
   "@procedures/mongo": {
-    "lines": 92.8,
-    "statements": 89.1,
-    "functions": 87.8,
-    "branches": 83.6
+    "lines": 92.5,
+    "statements": 88.8,
+    "functions": 87.5,
+    "branches": 83.4
   },
   "@procedures/node": {
     "lines": 89.4,
