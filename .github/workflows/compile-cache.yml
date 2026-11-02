@@ -3,7 +3,8 @@ name: Compile cache
 # The V8 compile cache on the setup of the core workloads (roadmap O90). One job builds one tree as
 # the paired bench does. Then scripts/compile-cache.ts runs 3 arms in one paired run: no cache, a
 # cold cache (a new folder in each process) and a warm cache (one folder, filled first). Then
-# scripts/setup-profile.ts profiles the same tree with no cache against the warm cache.
+# scripts/setup-profile.ts profiles the same tree with no cache against the warm cache. The paired
+# run also times one `mark` call from the spawn to the exit with the same 3 arms.
 #
 # The workflow only reports: only a dispatch starts it, and no ruleset needs its checks.
 
@@ -34,7 +35,7 @@ jobs:
   measure:
     name: Compile cache
     runs-on: ubuntu-latest
-    # One install and build of 2 packages, then 4 inputs x 4 arms x 12 processes, and the profile
+    # One install and build of 3 packages, 4 inputs x 4 arms x 12 processes, 40 mark calls, the profile
     timeout-minutes: 30
     steps:
       # The scripts of the run come from the ref of the workflow. The tree under test is a worktree.
@@ -55,19 +56,19 @@ jobs:
           echo "TREE=$tree" >> "$GITHUB_ENV"
           echo "Tree $tree ($(git log -1 --format='%cs %s' "$tree"))"
           git worktree add --detach "$RUNNER_TEMP/trees/tree" "$tree"
-      # The same packages as the paired bench: @procedures/client and @procedures/collections.
+      # The packages of the paired bench (@procedures/client and @procedures/collections), and mark
       - name: Install and build the tree
         run: |
           cd "$RUNNER_TEMP/trees/tree"
-          pnpm install --frozen-lockfile --filter "@procedures/client..." --filter "@procedures/collections..."
-          pnpm --filter "@procedures/client..." --filter "@procedures/collections..." run build
+          pnpm install --frozen-lockfile --filter "@procedures/client..." --filter "@procedures/collections..." --filter "@procedures/mark..."
+          pnpm --filter "@procedures/client..." --filter "@procedures/collections..." --filter "@procedures/mark..." run build
       - name: The paired run
         env:
           REPEATS: ${{ inputs.repeats || '10' }}
         run: |
           mkdir -p "$RUNNER_TEMP/compile-cache"
           node scripts/compile-cache.ts --tree "$RUNNER_TEMP/trees/tree" --ref "$TREE" --repeats "$REPEATS" \
-            --out "$RUNNER_TEMP/compile-cache/compile-cache.json"
+            --mark "$RUNNER_TEMP/trees/tree/packages/mark/dist/bin.js" --out "$RUNNER_TEMP/compile-cache/compile-cache.json"
           cat "$RUNNER_TEMP/compile-cache/compile-cache.md" >> "$GITHUB_STEP_SUMMARY"
       - name: The profile with no cache against the warm cache
         if: inputs.profile-repeats != '0'

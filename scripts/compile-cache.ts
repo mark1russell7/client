@@ -2,7 +2,7 @@
  * This script measures the V8 compile cache on the setup of the core workloads (roadmap O90).
  *
  *   node scripts/compile-cache.ts --tree <folder> [--ref <sha>] [--inputs <id>,<id>] [--repeats <n>]
- *     [--warmup <n>] --out <file.json>
+ *     [--warmup <n>] [--mark <bin.js>] --out <file.json>
  *
  * One paired run of paired-time/1 in mode `fresh` has 3 arms on one tree, and the A/A arm of `main`:
  *
@@ -12,6 +12,14 @@
  *
  * The cache arms end the setup measure after `module.flushCompileCache()`, so the cold arm pays its
  * write. The script fails when the warm folder stays empty after it is filled.
+ *
+ * With `--mark`, a second paired run times the whole process of one `mark` call, from the spawn to
+ * the exit: the time until the shell prompt comes back. The arms set `NODE_COMPILE_CACHE`, so the
+ * cold arm writes the cache at exit, as a user sees it, with no forced flush.
+ *
+ * For each input, the break-even is the cost of the cold arm over the saving of the warm arm. The
+ * cold cost comes once for each installed version (a new Node.js or a changed file gives a new
+ * entry), and the saving comes on each later run. The cache pays from run `ceil(1 + break-even)`.
  *
  * The record also gives the behavior of the cache on this Node.js: the default folder, a folder that
  * cannot be written, and `NODE_DISABLE_COMPILE_CACHE`. The script writes the JSON record to `--out`,
@@ -51,7 +59,14 @@ export interface CacheRow {
   /** The verdicts of the claims: a ratio inside the A/A band is not a result */
   readonly coldWithinNoise: boolean;
   readonly warmFaster: boolean;
+  /** The cold cost over the warm saving: the median, and the interval from the round-paired differences (p10 and p90) */
+  readonly breakEven: { readonly median: number; readonly low: number; readonly high: number };
+  /** The first run after which the cache has saved more than its cold cost */
+  readonly paysFromRun: number;
 }
+
+/** This function gives the cost over the saving, with infinity when the saving is not positive. */
+const over = (cost: number, saving: number): number => (saving > 0 ? Math.max(0, cost) / saving : Number.POSITIVE_INFINITY);
 
 /** This function gives the result of the cache arms on each input of a report. */
 export function rowsOf(report: PairedReport): CacheRow[] {
@@ -63,6 +78,13 @@ export function rowsOf(report: PairedReport): CacheRow[] {
     const m = input.median;
     const coldRatio = m.cold / m.main;
     const warmRatio = m.warm / m.main;
+    const costs = (input.ms.cold ?? []).map((ms, r) => ms - main[r]);
+    const savings = (input.ms.warm ?? []).map((ms, r) => main[r] - ms);
+    const breakEven = {
+      median: over(m.cold - m.main, m.main - m.warm),
+      low: over(quantileOf(costs, 0.1), quantileOf(savings, 0.9)),
+      high: over(quantileOf(costs, 0.9), quantileOf(savings, 0.1)),
+    };
     return {
       id: input.id,
       medianMs: m,
@@ -73,6 +95,8 @@ export function rowsOf(report: PairedReport): CacheRow[] {
       aa: band,
       coldWithinNoise: coldRatio <= band.p90,
       warmFaster: warmRatio < band.p10,
+      breakEven,
+      paysFromRun: Number.isFinite(breakEven.median) ? Math.ceil(1 + breakEven.median) : Number.POSITIVE_INFINITY,
     };
   });
 }
@@ -111,17 +135,33 @@ function sizeOf(dir: string): { files: number; bytes: number; folders: string[] 
 }
 
 /** This function gives the Markdown of a record. */
-export function markdownOf(record: { ref: string; node: string; rows: readonly CacheRow[]; warmCache: { files: number; bytes: number }; behavior: Readonly<Record<string, Behavior>> }): string {
-  const f = (x: number, d = 1) => (Number.isFinite(x) ? x.toFixed(d) : "");
+export function markdownOf(record: {
+  ref: string;
+  node: string;
+  rows: readonly CacheRow[];
+  wall?: { readonly rows: readonly CacheRow[] };
+  warmCache: { files: number; bytes: number };
+  behavior: Readonly<Record<string, Behavior>>;
+}): string {
+  const f = (x: number, d = 1) => (Number.isFinite(x) ? x.toFixed(d) : "never");
+  const table = (rows: readonly CacheRow[]) => [
+    "| Input | Main ms | Cold ms | Warm ms | Warm saves ms | Cold adds ms | Cold / main | Warm / main | A/A p10 to p90 | Cold within noise | Warm faster | Break-even (p10 to p90) | Pays from run |",
+    "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+    ...rows.map(
+      (r) =>
+        `| \`${r.id}\` | ${f(r.medianMs.main)} | ${f(r.medianMs.cold)} | ${f(r.medianMs.warm)} | ${f(r.warmSavingMs)} | ${f(r.coldAddedMs)} | ${f(r.coldRatio, 3)} | ${f(r.warmRatio, 3)} | ${f(r.aa.p10, 3)} to ${f(r.aa.p90, 3)} | ${r.coldWithinNoise ? "yes" : "no"} | ${r.warmFaster ? "yes" : "no"} | ${f(r.breakEven.median, 2)} (${f(r.breakEven.low, 2)} to ${f(r.breakEven.high, 2)}) | ${f(r.paysFromRun, 0)} |`,
+    ),
+  ];
   const lines = [
     "# Compile cache",
     "",
     `Tree \`${record.ref}\`, Node.js ${record.node}. Setup: the median of the rounds, in ms, from the start of the process to the end of call 1. The warm cache has ${record.warmCache.files} files, ${f(record.warmCache.bytes / 1024)} KB.`,
     "",
-    "| Input | Main ms | Cold ms | Warm ms | Warm saves ms | Cold adds ms | Cold / main | Warm / main | A/A p10 to p90 | Cold within noise | Warm faster |",
-    "|---|---|---|---|---|---|---|---|---|---|---|",
-    ...record.rows.map((r) => `| \`${r.id}\` | ${f(r.medianMs.main)} | ${f(r.medianMs.cold)} | ${f(r.medianMs.warm)} | ${f(r.warmSavingMs)} | ${f(r.coldAddedMs)} | ${f(r.coldRatio, 3)} | ${f(r.warmRatio, 3)} | ${f(r.aa.p10, 3)} to ${f(r.aa.p90, 3)} | ${r.coldWithinNoise ? "yes" : "no"} | ${r.warmFaster ? "yes" : "no"} |`),
+    ...table(record.rows),
     "",
+    ...(record.wall === undefined
+      ? []
+      : ["## The whole process of one `mark` call", "", "The time from the spawn to the exit, in ms. The cold arm writes the cache at exit.", "", ...table(record.wall.rows), ""]),
     "## The behavior of the cache",
     "",
     "| Case | Status | Exit code | Folder or message |",
@@ -129,6 +169,32 @@ export function markdownOf(record: { ref: string; node: string; rows: readonly C
     ...Object.entries(record.behavior).map(([name, b]) => `| ${name} | ${b.status ?? ""} | ${b.exitCode ?? ""} | ${b.directory ?? b.message ?? ""} |`),
   ];
   return `${lines.join("\n")}\n`;
+}
+
+/** The input of the wall run: one call of `mark` with a procedure reference. */
+export const MARK_CALL = { id: "mark-one-call", args: ["--json", JSON.stringify({ $proc: ["client", "add"], input: { a: 1, b: 2 } })], output: "3" } as const;
+
+/** This function gives the environment of a child with no setting of the cache from this process. */
+const cleanEnv = (): Record<string, string | undefined> =>
+  Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== "NODE_COMPILE_CACHE" && k !== "NODE_DISABLE_COMPILE_CACHE"));
+
+/**
+ * This function starts one `mark` call and gives its time from the spawn to the exit. The first
+ * item of the command is the cache: `none`, `fresh` (a new folder, removed after the time) or a folder.
+ */
+function startMark(command: readonly string[]): Promise<{ ms: number }> {
+  const [cache, ...argv] = command;
+  const fresh = cache === "fresh" ? mkdtempSync(join(tmpdir(), "compile-cache-mark-")) : undefined;
+  try {
+    const env = { ...cleanEnv(), ...(cache === "none" ? {} : { NODE_COMPILE_CACHE: fresh ?? cache }) };
+    const start = performance.now();
+    const r = spawnSync(argv[0], argv.slice(1), { encoding: "utf8", env });
+    const ms = performance.now() - start;
+    if (r.status !== 0 || r.stdout.trim().split("\n").at(-1) !== MARK_CALL.output) throw new Error(`mark exited with ${r.status}: ${r.stdout}${r.stderr}`);
+    return Promise.resolve({ ms });
+  } finally {
+    if (fresh !== undefined) rmSync(fresh, { recursive: true, force: true });
+  }
 }
 
 const optionOf = (argv: readonly string[], name: string): string | undefined => {
@@ -140,7 +206,7 @@ if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathS
   const argv = process.argv.slice(2);
   const [treeArg, out] = [optionOf(argv, "--tree"), optionOf(argv, "--out")];
   if (treeArg === undefined || out === undefined) {
-    console.error("Usage: node scripts/compile-cache.ts --tree <folder> [--ref <sha>] [--inputs <ids>] [--repeats <n>] [--warmup <n>] --out <file.json>");
+    console.error("Usage: node scripts/compile-cache.ts --tree <folder> [--ref <sha>] [--inputs <ids>] [--repeats <n>] [--warmup <n>] [--mark <bin.js>] --out <file.json>");
     process.exit(2);
   }
   const tree = resolve(treeArg);
@@ -167,6 +233,28 @@ if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathS
         { id: "warm", command: command("--compile-cache", warmDir) },
       ],
     });
+    const markArg = optionOf(argv, "--mark");
+    let wall: { rows: CacheRow[]; report: PairedReport } | undefined;
+    if (markArg !== undefined) {
+      const mark = [process.execPath, resolve(markArg), ...MARK_CALL.args];
+      const markDir = join(warmDir, "mark");
+      // The first call writes the warm cache of mark at its exit
+      await startMark([markDir, ...mark]);
+      if (sizeOf(markDir).files === 0) throw new Error(`The warm cache of mark ${markDir} has no files after one call`);
+      const markReport = await measureIsolated({
+        mode: "fresh",
+        repeats,
+        warmup: 0,
+        inputs: [{ id: MARK_CALL.id }],
+        arms: [
+          { id: "main", command: ["none", ...mark] },
+          { id: "cold", command: ["fresh", ...mark] },
+          { id: "warm", command: [markDir, ...mark] },
+        ],
+        startChild: (command) => startMark(command),
+      });
+      wall = { rows: rowsOf(markReport), report: markReport };
+    }
     const blocked = join(warmDir, "not-a-folder");
     writeFileSync(blocked, "");
     const behavior = {
@@ -185,10 +273,11 @@ if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathS
       behavior,
       rows,
       report,
+      ...(wall === undefined ? {} : { wall }),
     };
     writeFileSync(out, `${JSON.stringify(record, null, 2)}\n`);
     writeFileSync(`${out.replace(/\.json$/, "")}.md`, `${markdownOf(record)}\n${pairedMarkdown(report, "The paired run")}`);
-    for (const r of rows) console.log(`${r.id}: main ${r.medianMs.main.toFixed(1)} ms, cold ${r.medianMs.cold.toFixed(1)} ms, warm ${r.medianMs.warm.toFixed(1)} ms`);
+    for (const r of [...rows, ...(wall?.rows ?? [])]) console.log(`${r.id}: main ${r.medianMs.main.toFixed(1)} ms, cold ${r.medianMs.cold.toFixed(1)} ms, warm ${r.medianMs.warm.toFixed(1)} ms, pays from run ${r.paysFromRun}`);
   } finally {
     rmSync(warmDir, { recursive: true, force: true });
   }

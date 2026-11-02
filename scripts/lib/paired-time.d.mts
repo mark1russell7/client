@@ -17,6 +17,12 @@ export interface Input {
   readonly value?: unknown;
 }
 
+/** The result of one child: its time in milliseconds and its peak resident memory in bytes. */
+export interface ChildResult {
+  readonly ms: number;
+  readonly peakRss?: number;
+}
+
 /** The computer of a paired time run. */
 export interface PairedEnv {
   readonly cpu: string;
@@ -36,6 +42,8 @@ export interface PairedOptions {
   readonly mode: Mode;
   readonly aa?: boolean;
   readonly clock?: () => number;
+  /** The start of a child for mode `fresh`. The default starts a process with the child protocol. */
+  readonly startChild?: (command: readonly string[], input: string, warmup: number) => Promise<ChildResult>;
   readonly env?: PairedEnv;
   readonly context?: string;
 }

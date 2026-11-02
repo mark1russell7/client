@@ -35,6 +35,19 @@ describe("compile-cache", () => {
     assert.ok(Math.abs(row.aa.p90 - 1.024) < 1e-9);
     assert.equal(row.coldWithinNoise, true);
     assert.equal(row.warmFaster, true);
+    assert.equal(row.breakEven.median, 0.1);
+    assert.equal(row.paysFromRun, 2);
+  });
+
+  it("gives the break-even with its interval, and no break-even when the warm arm saves nothing", () => {
+    const [row] = rowsOf(report({ main: [100, 100, 100], "main~aa": [100, 100, 100], cold: [170, 180, 190], warm: [60, 60, 60] }));
+    assert.equal(row.breakEven.median, 2);
+    assert.ok(Math.abs(row.breakEven.low - 1.8) < 1e-9);
+    assert.ok(Math.abs(row.breakEven.high - 2.2) < 1e-9);
+    assert.equal(row.paysFromRun, 3);
+    const [none] = rowsOf(report({ main: [100, 100, 100], "main~aa": [100, 100, 100], cold: [150, 150, 150], warm: [101, 101, 101] }));
+    assert.equal(none.breakEven.median, Number.POSITIVE_INFINITY);
+    assert.equal(none.paysFromRun, Number.POSITIVE_INFINITY);
   });
 
   it("finds a cold arm that is slower than the noise", () => {
@@ -52,7 +65,7 @@ describe("compile-cache", () => {
       warmCache: { files: 3, bytes: 2048 },
       behavior: { "A folder under a file": { status: "FAILED", message: "Cannot create cache directory: not a directory", exitCode: 0 } },
     });
-    assert.ok(md.includes("| `exec-one-call-setup` | 100.0 | 102.0 | 80.0 | 20.0 | 2.0 | 1.020 | 0.800 | 1.000 to 1.000 | no | yes |"));
+    assert.ok(md.includes("| `exec-one-call-setup` | 100.0 | 102.0 | 80.0 | 20.0 | 2.0 | 1.020 | 0.800 | 1.000 to 1.000 | no | yes | 0.10 (0.10 to 0.10) | 2 |"));
     assert.ok(md.includes("| A folder under a file | FAILED | 0 | Cannot create cache directory: not a directory |"));
     assert.ok(md.includes("The warm cache has 3 files, 2.0 KB."));
   });
