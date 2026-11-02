@@ -21,7 +21,7 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -245,7 +245,7 @@ const optionOf = (argv: readonly string[], name: string): string | undefined => 
   return at === -1 ? undefined : argv[at + 1];
 };
 
-if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   const argv = process.argv.slice(2);
   const [baseArg, headArg, out] = [optionOf(argv, "--base"), optionOf(argv, "--head"), optionOf(argv, "--out")];
   if (baseArg === undefined || headArg === undefined || out === undefined) {
