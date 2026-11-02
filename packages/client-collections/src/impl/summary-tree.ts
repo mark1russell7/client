@@ -213,6 +213,13 @@ function* walk<L, S>(tree: Tree<L, S>): Generator<L, void, undefined> {
   }
 }
 
+/** This function gives the index of a leaf, with a negative index counted from the end, or -1 when it is not in the tree. */
+function indexOf(index: number, size: number): number {
+  if (!Number.isInteger(index)) return -1;
+  const at = index < 0 ? size + index : index;
+  return at >= 0 && at < size ? at : -1;
+}
+
 function clamp(value: number, size: number): number {
   if (Number.isNaN(value)) return 0;
   const whole = Math.trunc(value);
@@ -273,9 +280,13 @@ export class SummaryTree<Leaf, Summary> implements Iterable<Leaf> {
     return heightOf(this.root);
   }
 
-  /** This function gives the leaf at an index, or `undefined` when the index is not in the tree. */
+  /**
+   * This function gives the leaf at an index, or `undefined` when the index is not in the tree. A negative index counts
+   * from the end, as `Array.prototype.at` does.
+   */
   at(index: number): Leaf | undefined {
-    if (!Number.isInteger(index) || index < 0 || index >= this.size) return undefined;
+    index = indexOf(index, this.size);
+    if (index === -1) return undefined;
     let node = this.root!;
     for (;;) {
       const before = sizeOf(node.left);
@@ -373,10 +384,13 @@ export class SummaryTree<Leaf, Summary> implements Iterable<Leaf> {
     return this.splice(from, Math.max(0, clamp(end, this.size) - from));
   }
 
-  /** This function replaces the leaf at an index. An index that is not in the tree changes nothing. */
+  /**
+   * This function replaces the leaf at an index. A negative index counts from the end, as `Array.prototype.with` does.
+   * An index that is not in the tree changes nothing.
+   */
   set(index: number, leaf: Leaf): SummaryTree<Leaf, Summary> {
-    if (!Number.isInteger(index) || index < 0 || index >= this.size) return this;
-    return this.splice(index, 1, [leaf]);
+    const at = indexOf(index, this.size);
+    return at === -1 ? this : this.splice(at, 1, [leaf]);
   }
 
   /** This function adds leaves after the last leaf. */

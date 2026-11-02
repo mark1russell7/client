@@ -33,7 +33,7 @@ type Edit =
 
 const edit: fc.Arbitrary<Edit> = fc.oneof(
   fc.record({ kind: fc.constant("splice" as const), start: fc.integer({ min: -5, max: 70 }), count: fc.integer({ min: 0, max: 20 }), items: fc.array(leaf, { maxLength: 20 }) }),
-  fc.record({ kind: fc.constant("set" as const), index: fc.integer({ min: -2, max: 70 }), item: leaf }),
+  fc.record({ kind: fc.constant("set" as const), index: fc.integer({ min: -70, max: 70 }), item: leaf }),
   fc.record({ kind: fc.constant("slice" as const), start: fc.integer({ min: -10, max: 70 }), end: fc.integer({ min: -10, max: 80 }) }),
   fc.record({ kind: fc.constant("concat" as const), items: fc.array(leaf, { maxLength: 40 }) }),
   fc.record({ kind: fc.constant("prepend" as const), items: fc.array(leaf, { maxLength: 10 }) }),
@@ -47,8 +47,8 @@ function applyToArray(items: string[], e: Edit): string[] {
       copy.splice(e.start, e.count, ...e.items);
       return copy;
     case "set":
-      if (Number.isInteger(e.index) && e.index >= 0 && e.index < copy.length) copy[e.index] = e.item;
-      return copy;
+      // Array.prototype.with throws on an index that is not in the array: the tree changes nothing
+      return e.index >= -copy.length && e.index < copy.length ? copy.with(e.index, e.item) : copy;
     case "slice":
       return copy.slice(e.start, e.end);
     case "concat":
@@ -98,7 +98,9 @@ describe("summaryTree", () => {
     expect([...tree]).toEqual(["ab", "c", "def"]);
     expect(tree.at(1)).toBe("c");
     expect(tree.at(3)).toBeUndefined();
-    expect(tree.at(-1)).toBeUndefined();
+    expect(tree.at(-1)).toBe("def");
+    expect(tree.at(-3)).toBe("ab");
+    expect(tree.at(-4)).toBeUndefined();
     expect(tree.at(0.5)).toBeUndefined();
     expect(tree.spec).toBe(text);
   });
@@ -115,6 +117,25 @@ describe("summaryTree", () => {
   it("refuses to join two trees of different specs", () => {
     const other: SummarySpec<string, string> = { ...text };
     expect(() => summaryTree(text, ["a"]).concat(summaryTree(other, ["b"]))).toThrow(TypeError);
+  });
+
+  it("reads and replaces a leaf at each index as Array.prototype.at and Array.prototype.with do", () => {
+    fc.assert(
+      fc.property(leaves, fc.integer({ min: 0, max: 1000 }), leaf, (items, pick, item) => {
+        const tree = summaryTree(text, items);
+        const n = items.length;
+        for (let i = -n - 2; i < n + 2; i++) {
+          expect(tree.at(i)).toBe(items.at(i));
+          const expected = i >= -n && i < n ? items.with(i, item) : items;
+          const edited = tree.set(i, item);
+          expect(edited.toArray()).toEqual(expected);
+          expect(edited.summary).toBe(expected.join(""));
+        }
+        expect(tree.at(pick + 0.5)).toBeUndefined();
+        expect(tree.toArray()).toEqual(items);
+      }),
+      runs(0x5e9d6, 100),
+    );
   });
 
   it("returns the same tree for an edit that changes nothing", () => {
