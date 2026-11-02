@@ -9,6 +9,7 @@ import {
   isAnyProcedureRef,
   isOutputRef,
   lookupOutputRef,
+  preloadRefPaths,
   rawInputRule,
   scopeOf,
   RUNS_REFS_TAG,
@@ -41,7 +42,11 @@ function executorOf(ctx: ProcedureContext): <TIn, TOut>(path: ProcedurePath, inp
  * each step of a chain (`client.trace`).
  */
 export function runControlFlow(name: string, input: unknown, ctx: ProcedureContext, options: Pick<RunControlOptions, "onStep"> = {}): Promise<unknown> {
-  return runControl(name, input, { executor: executorOf(ctx), rawInput: rawRule(ctx), onRef: ctx.onRef, scope: scopeOf(input), onStep: options.onStep });
+  // A lazy registry loads the paths of the operands before the raw-input rule reads them (roadmap O93)
+  const preload = preloadRefPaths(ctx.registry, input);
+  const run = (): Promise<unknown> =>
+    runControl(name, input, { executor: executorOf(ctx), rawInput: rawRule(ctx), onRef: ctx.onRef, scope: scopeOf(input), onStep: options.onStep });
+  return preload ? preload.then(run) : run();
 }
 
 /**
@@ -70,6 +75,7 @@ export function substituteRefs(value: unknown, scope: RefScope): unknown {
  * in `scope` and runs its nested refs, as `exec()` does for an input.
  */
 export async function hydrateOperand(value: unknown, ctx: ProcedureContext, scope?: RefScope): Promise<unknown> {
+  await preloadRefPaths(ctx.registry, value);
   return hydrateInput(value, executorOf(ctx), { scope, rawInput: rawRule(ctx), onRef: ctx.onRef });
 }
 
@@ -86,6 +92,7 @@ export async function callOperand(
   ctx: ProcedureContext,
   options: { scope?: RefScope | undefined; extra?: Record<string, unknown> | undefined } = {},
 ): Promise<unknown> {
+  await preloadRefPaths(ctx.registry, ref);
   return runOperand(ref, { executor: executorOf(ctx), rawInput: rawRule(ctx), onRef: ctx.onRef, scope: options.scope, extra: options.extra });
 }
 

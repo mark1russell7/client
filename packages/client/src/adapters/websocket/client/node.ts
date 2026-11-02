@@ -11,9 +11,18 @@
  * import `ws`.
  */
 
-import { WebSocket as NodeWebSocket } from "ws";
+import { createRequire } from "node:module";
+import type { WebSocket as NodeWebSocket } from "ws";
 import { WebSocketTransport as PortableWebSocketTransport } from "./transport.js";
 import type { WebSocketTransportOptions } from "./types.js";
+
+/**
+ * This function gives the `WebSocket` class of `ws`. The first transport loads the package, not
+ * the import of this file: a process without a socket does not load `ws` (roadmap O93).
+ */
+function nodeWebSocket(): typeof NodeWebSocket {
+  return createRequire(import.meta.url)("ws") as typeof NodeWebSocket;
+}
 
 /**
  * The WebSocket client transport with the `WebSocket` class of the `ws` package as the default
@@ -29,6 +38,6 @@ import type { WebSocketTransportOptions } from "./types.js";
  */
 export class WebSocketTransport extends PortableWebSocketTransport {
   constructor(options: WebSocketTransportOptions) {
-    super({ ...options, webSocket: options.webSocket ?? NodeWebSocket });
+    super({ ...options, webSocket: options.webSocket ?? nodeWebSocket() });
   }
 }

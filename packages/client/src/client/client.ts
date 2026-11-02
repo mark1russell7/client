@@ -52,7 +52,7 @@ import type {
   StreamingCallResponse,
   ProcedureCallResult,
 } from "./call-types.js";
-import { buildResponse, toMiddlewareContext } from "./call-types.js";
+import { buildResponse, flattenRoute, toMiddlewareContext } from "./call-types.js";
 import { RouteResolver, type ResolvedRoute, type RouteResolutionResult } from "./route-resolver.js";
 import { BatchExecutor, type ExecutionContext } from "./batch-executor.js";
 import type { ProcedureRegistry } from "../procedures/registry.js";
@@ -88,6 +88,7 @@ import {
   isAnyProcedureRef,
   isPlainObject,
   normalizeRef,
+  preloadRefPaths,
   rawInputRule,
   type ProcedureRef,
   type AnyProcedureRef,
@@ -566,6 +567,15 @@ export class Client<TContext = {}> {
    * `root` starts the root call.
    */
   private runRef(ref: ProcedureRef, caller: CallerContext, root: (path: ProcedurePath, input: unknown) => unknown): Promise<unknown> {
+    // A lazy registry loads the packages of the paths of the program first: the raw-input rule
+    // below reads only the procedures that have loaded (roadmap O93). An eager registry does not wait.
+    const preload = preloadRefPaths(this.procedureRegistry, ref);
+    if (preload) return preload.then(() => this.startProgram(ref, caller, root));
+    return this.startProgram(ref, caller, root);
+  }
+
+  /** This function starts a program on the kernel, after the paths of a lazy registry loaded. */
+  private startProgram(ref: ProcedureRef, caller: CallerContext, root: (path: ProcedurePath, input: unknown) => unknown): Promise<unknown> {
     // A procedure that takes its input raw (control flow, the `runs-refs` and `raw-input` tags,
     // `procedure.define`) gets its operand refs RAW: it runs them itself, with correct
     // ordering/laziness/error-scoping. Eagerly hydrating here would run the operands up-front
@@ -703,7 +713,8 @@ export class Client<TContext = {}> {
     input: unknown,
     caller: CallerContext = {}
   ): Promise<TOutput> {
-    const procedure = this.procedureRegistry.get(path);
+    // A miss of a lazy registry loads the packages of the path (roadmap O93). A hit does not wait.
+    const procedure = this.procedureRegistry.get(path) ?? (this.procedureRegistry.lazy ? await this.procedureRegistry.resolve(path) : undefined);
     if (procedure?.handler) {
       const options = this.invokeOptions(caller);
       return outputValue(await invokeProcedure<TOutput>(procedure, input, options), path);
@@ -726,7 +737,7 @@ export class Client<TContext = {}> {
   ): AsyncIterable<TOutput> {
     const self = this;
     return (async function* () {
-      const procedure = self.procedureRegistry.get(path);
+      const procedure = self.procedureRegistry.get(path) ?? (self.procedureRegistry.lazy ? await self.procedureRegistry.resolve(path) : undefined);
       if (procedure?.handler) {
         const options = self.invokeOptions(caller);
         yield* outputItems(await invokeProcedure<TOutput>(procedure, input, options));
@@ -1099,6 +1110,8 @@ export class Client<TContext = {}> {
   async route<TRoute extends Route>(
     request: CallRequest<TRoute>
   ): Promise<CallResponse<TRoute>> {
+    // A lazy registry loads the packages of the paths first: the resolver reads only what has loaded (roadmap O93)
+    if (this.procedureRegistry.lazy) await this.loadRoutePaths(request.route);
     const resolver = this.getRouteResolver();
     const executor = this.getBatchExecutor();
 
@@ -1135,6 +1148,35 @@ export class Client<TContext = {}> {
   routeStream<TRoute extends Route>(
     request: CallRequest<TRoute>
   ): StreamingCallResponse<TRoute> {
+    // A lazy registry without each path of the route: the stream starts after the packages loaded (roadmap O93)
+    const registry = this.procedureRegistry;
+    if (registry.lazy && flattenRoute(request.route).some((entry) => !registry.has(entry.path))) {
+      const started = this.loadRoutePaths(request.route).then(() => this.routeStreamLoaded(request));
+      const complete = started.then((response) => response.complete);
+      // A caller that reads only the results gets the load error there: the promise is not an unhandled rejection
+      complete.catch(() => undefined);
+      return {
+        results: (async function* () {
+          yield* (await started).results;
+        })(),
+        complete,
+      };
+    }
+    return this.routeStreamLoaded(request);
+  }
+
+  /**
+   * This function loads the packages of the paths of a route into a lazy registry. A package that
+   * did not load rejects the promise, with the load error as the `cause`.
+   */
+  private async loadRoutePaths(route: Route): Promise<void> {
+    for (const entry of flattenRoute(route)) {
+      if (!this.procedureRegistry.has(entry.path)) await this.procedureRegistry.resolve(entry.path);
+    }
+  }
+
+  /** This function starts the stream of a route whose procedures the registry has. */
+  private routeStreamLoaded<TRoute extends Route>(request: CallRequest<TRoute>): StreamingCallResponse<TRoute> {
     const resolver = this.getRouteResolver();
     const executor = this.getBatchExecutor();
 

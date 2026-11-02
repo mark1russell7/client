@@ -13,7 +13,8 @@
 
 import type { IncomingMessage } from "http";
 import type { Duplex } from "stream";
-import { WebSocketServer, WebSocket } from "ws";
+import { createRequire } from "node:module";
+import type { WebSocketServer, WebSocket } from "ws";
 import type { ServerTransport, ServerRequest } from "../../../server/types.js";
 import type { Message, ResponseItem, Transport } from "../../../client/types.js";
 import { pathToMethod } from "../../../server/method.js";
@@ -43,6 +44,17 @@ import {
   type SubscribeOptions,
   type Subscription,
 } from "../../../events/remote.js";
+
+/** The `readyState` of an open socket: `WebSocket.OPEN` of `ws`. */
+const OPEN = 1;
+
+/**
+ * This function gives the `WebSocketServer` class of `ws`. The start of the first server loads the
+ * package, not the import of this file: a process without a socket does not load `ws` (roadmap O93).
+ */
+function webSocketServerClass(): typeof WebSocketServer {
+  return (createRequire(import.meta.url)("ws") as { WebSocketServer: typeof WebSocketServer }).WebSocketServer;
+}
 
 /**
  * WebSocket server transport adapter.
@@ -192,7 +204,7 @@ export class WebSocketServerTransport implements ServerTransport {
     this.intakeStopped = false;
     if (this.wss) return;
     // The "no server" mode: upgrade() takes the upgrades of the path, and leaves the others alone
-    this.wss = new WebSocketServer({
+    this.wss = new (webSocketServerClass())({
       noServer: true,
       path: this.options.path,
       perMessageDeflate: this.options.perMessageDeflate,
@@ -396,7 +408,7 @@ export class WebSocketServerTransport implements ServerTransport {
     const credentials = requestCredentials({ headers: req.headers as Record<string, unknown>, url: req.url, socket: req.socket }, { tokenQuery: "token" });
 
     // The calls of this connection in the two directions (roadmap R24)
-    const isOpen = (): boolean => ws.readyState === WebSocket.OPEN;
+    const isOpen = (): boolean => ws.readyState === OPEN;
     const send = (frame: WebSocketMessage): void => this.send(ws, frame);
     this.channels.set(connectionId, {
       incoming: new IncomingCalls({
@@ -573,7 +585,7 @@ export class WebSocketServerTransport implements ServerTransport {
    * the socket has written this frame, or the signal aborts.
    */
   private sendWithBackpressure(ws: WebSocket, message: WebSocketMessage, signal: AbortSignal): Promise<void> {
-    if (ws.readyState !== WebSocket.OPEN) return Promise.resolve();
+    if (ws.readyState !== OPEN) return Promise.resolve();
     return new Promise<void>((resolve) => {
       let waiting = false;
       const onAbort = (): void => resolve();
@@ -618,7 +630,7 @@ export class WebSocketServerTransport implements ServerTransport {
    * Send message to client.
    */
   private send(ws: WebSocket, message: WebSocketMessage): void {
-    if (ws.readyState === WebSocket.OPEN) {
+    if (ws.readyState === OPEN) {
       ws.send(JSON.stringify(message));
     }
   }

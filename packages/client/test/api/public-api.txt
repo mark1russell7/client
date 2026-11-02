@@ -4,7 +4,7 @@
 # and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
 # To accept a change of the API, start the script with --update and review the diff.
 
-## . (dist/index.d.ts): 636 names
+## . (dist/index.d.ts): 644 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -166,6 +166,7 @@ type JsonSchemaTarget: dist/procedures/schema.d.ts#JsonSchemaTarget
 LITERAL_KEY: dist/procedures/ref.d.ts#LITERAL_KEY
 LOCAL_CREDENTIALS: dist/server/request-auth.d.ts#LOCAL_CREDENTIALS
 LOCAL_MARKER: dist/server/types.d.ts#LOCAL_MARKER
+type LazyRegistryOptions: dist/procedures/module.d.ts#LazyRegistryOptions
 type LimitedCall: dist/server/limits.d.ts#LimitedCall
 LocalTransport: dist/adapters/local/client/transport.d.ts#LocalTransport
 type LocalTransportOptions: dist/adapters/local/client/types.d.ts#LocalTransportOptions
@@ -237,6 +238,7 @@ ProcedureRefBuilder: dist/procedures/ref.d.ts#ProcedureRefBuilder
 type ProcedureRefJson: dist/procedures/ref.d.ts#ProcedureRefJson
 ProcedureRegistry: dist/procedures/registry.d.ts#ProcedureRegistry
 type ProcedureRegistryLike: dist/procedures/types.d.ts#ProcedureRegistryLike
+type ProcedureRegistryOptions: dist/procedures/registry.d.ts#ProcedureRegistryOptions
 type ProcedureResult: dist/procedures/types.d.ts#ProcedureResult
 type ProcedureSchema: dist/procedures/schema.d.ts#ProcedureSchema
 ProcedureServer: dist/server/procedure-server.d.ts#ProcedureServer
@@ -259,6 +261,7 @@ type RegistrationOptions: dist/procedures/types.d.ts#RegistrationOptions
 RegistryError: dist/procedures/registry.d.ts#RegistryError
 type RegistryEventType: dist/procedures/types.d.ts#RegistryEventType
 type RegistryListener: dist/procedures/types.d.ts#RegistryListener
+type RegistryResolver: dist/procedures/registry.d.ts#RegistryResolver
 type RemoteEvent: dist/events/remote.d.ts#RemoteEvent
 type RemoteEventHandler: dist/events/remote.d.ts#RemoteEventHandler
 type RemoteEventsOptions: dist/events/remote.d.ts#RemoteEventsOptions
@@ -269,6 +272,7 @@ type RequestCredentialsOptions: dist/server/request-auth.d.ts#RequestCredentials
 type RequestHandler: dist/server/types.d.ts#RequestHandler
 type RequestIdentity: dist/server/types.d.ts#RequestIdentity
 type ResolvedRoute: dist/client/route-resolver.d.ts#ResolvedRoute
+type ResolvingRegistry: dist/procedures/registry.d.ts#ResolvingRegistry
 type ResourcesOf: dist/procedures/types.d.ts#ResourcesOf
 type ResponseItem: dist/client/types.d.ts#ResponseItem
 type ResponseMatcher: dist/adapters/mock/client/types.d.ts#ResponseMatcher
@@ -422,6 +426,7 @@ createError: dist/client/errors/factory.d.ts#createError
 createErrorFromException: dist/client/errors/factory.d.ts#createErrorFromException
 createErrorFromHTTPStatus: dist/client/errors/factory.d.ts#createErrorFromHTTPStatus
 createEventBus: dist/events/bus.d.ts#createEventBus
+createLazyRegistry: dist/procedures/module.d.ts#createLazyRegistry
 createProcedure: dist/procedures/define.d.ts#createProcedure
 createProcedureServer: dist/server/procedure-server.d.ts#createProcedureServer
 createRefScope: dist/procedures/ref.d.ts#createRefScope
@@ -527,6 +532,7 @@ keyToPath: dist/procedures/types.d.ts#keyToPath
 ladder: dist/procedures/capability.d.ts#ladder
 lastResortError: dist/server/last-resort.d.ts#lastResortError
 listProceduresProcedure: dist/procedures/define-procedure.d.ts#listProceduresProcedure
+loadAllIn: dist/procedures/registry.d.ts#loadAllIn
 lookupOutputRef: dist/procedures/ref.d.ts#lookupOutputRef
 manifestProcedure: dist/procedures/define-procedure.d.ts#manifestProcedure
 mapProcedure: dist/procedures/core/index.d.ts#mapProcedure
@@ -573,6 +579,7 @@ pathToKey: dist/procedures/types.d.ts#pathToKey
 pathToMethod: dist/server/method.d.ts#pathToMethod
 postOnlyStrategy: dist/adapters/http/shared/strategies.d.ts#postOnlyStrategy
 preconditionNotSupported: dist/procedures/collection/precondition.d.ts#preconditionNotSupported
+preloadRefPaths: dist/procedures/ref.d.ts#preloadRefPaths
 prepareRootCall: dist/procedures/program.d.ts#prepareRootCall
 proc: dist/procedures/ref.d.ts#proc
 procedureServerOptions: dist/server/host-policy.d.ts#procedureServerOptions
@@ -590,6 +597,7 @@ registerProcedures: dist/procedures/discovery.d.ts#registerProcedures
 remoteEvents: dist/events/remote.d.ts#remoteEvents
 replayTransitions: dist/machines.d.ts#replayTransitions
 requestCredentials: dist/server/request-auth.d.ts#requestCredentials
+resolveIn: dist/procedures/registry.d.ts#resolveIn
 resolveOutputRef: dist/procedures/ref.d.ts#resolveOutputRef
 restfulHttpMethodStrategy: dist/adapters/http/shared/strategies.d.ts#restfulHttpMethodStrategy
 retryableOf: dist/protocol.d.ts#retryableOf
@@ -643,7 +651,7 @@ withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 writeLog: dist/logger.d.ts#writeLog
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 624 names
+## ./browser (dist/browser.d.ts): 632 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -801,6 +809,7 @@ type JsonSchemaTarget: dist/procedures/schema.d.ts#JsonSchemaTarget
 LITERAL_KEY: dist/procedures/ref.d.ts#LITERAL_KEY
 LOCAL_CREDENTIALS: dist/server/request-auth.d.ts#LOCAL_CREDENTIALS
 LOCAL_MARKER: dist/server/types.d.ts#LOCAL_MARKER
+type LazyRegistryOptions: dist/procedures/module.d.ts#LazyRegistryOptions
 type LimitedCall: dist/server/limits.d.ts#LimitedCall
 LocalTransport: dist/adapters/local/client/transport.d.ts#LocalTransport
 type LocalTransportOptions: dist/adapters/local/client/types.d.ts#LocalTransportOptions
@@ -872,6 +881,7 @@ ProcedureRefBuilder: dist/procedures/ref.d.ts#ProcedureRefBuilder
 type ProcedureRefJson: dist/procedures/ref.d.ts#ProcedureRefJson
 ProcedureRegistry: dist/procedures/registry.d.ts#ProcedureRegistry
 type ProcedureRegistryLike: dist/procedures/types.d.ts#ProcedureRegistryLike
+type ProcedureRegistryOptions: dist/procedures/registry.d.ts#ProcedureRegistryOptions
 type ProcedureResult: dist/procedures/types.d.ts#ProcedureResult
 type ProcedureSchema: dist/procedures/schema.d.ts#ProcedureSchema
 ProcedureServer: dist/server/procedure-server.d.ts#ProcedureServer
@@ -894,6 +904,7 @@ type RegistrationOptions: dist/procedures/types.d.ts#RegistrationOptions
 RegistryError: dist/procedures/registry.d.ts#RegistryError
 type RegistryEventType: dist/procedures/types.d.ts#RegistryEventType
 type RegistryListener: dist/procedures/types.d.ts#RegistryListener
+type RegistryResolver: dist/procedures/registry.d.ts#RegistryResolver
 type RemoteEvent: dist/events/remote.d.ts#RemoteEvent
 type RemoteEventHandler: dist/events/remote.d.ts#RemoteEventHandler
 type RemoteEventsOptions: dist/events/remote.d.ts#RemoteEventsOptions
@@ -904,6 +915,7 @@ type RequestCredentialsOptions: dist/server/request-auth.d.ts#RequestCredentials
 type RequestHandler: dist/server/types.d.ts#RequestHandler
 type RequestIdentity: dist/server/types.d.ts#RequestIdentity
 type ResolvedRoute: dist/client/route-resolver.d.ts#ResolvedRoute
+type ResolvingRegistry: dist/procedures/registry.d.ts#ResolvingRegistry
 type ResourcesOf: dist/procedures/types.d.ts#ResourcesOf
 type ResponseItem: dist/client/types.d.ts#ResponseItem
 type ResponseMatcher: dist/adapters/mock/client/types.d.ts#ResponseMatcher
@@ -1055,6 +1067,7 @@ createError: dist/client/errors/factory.d.ts#createError
 createErrorFromException: dist/client/errors/factory.d.ts#createErrorFromException
 createErrorFromHTTPStatus: dist/client/errors/factory.d.ts#createErrorFromHTTPStatus
 createEventBus: dist/events/bus.d.ts#createEventBus
+createLazyRegistry: dist/procedures/module.d.ts#createLazyRegistry
 createProcedure: dist/procedures/define.d.ts#createProcedure
 createProcedureServer: dist/server/procedure-server.d.ts#createProcedureServer
 createRefScope: dist/procedures/ref.d.ts#createRefScope
@@ -1155,6 +1168,7 @@ keyToPath: dist/procedures/types.d.ts#keyToPath
 ladder: dist/procedures/capability.d.ts#ladder
 lastResortError: dist/server/last-resort.d.ts#lastResortError
 listProceduresProcedure: dist/procedures/define-procedure.d.ts#listProceduresProcedure
+loadAllIn: dist/procedures/registry.d.ts#loadAllIn
 lookupOutputRef: dist/procedures/ref.d.ts#lookupOutputRef
 manifestProcedure: dist/procedures/define-procedure.d.ts#manifestProcedure
 mapProcedure: dist/procedures/core/index.d.ts#mapProcedure
@@ -1201,6 +1215,7 @@ pathToKey: dist/procedures/types.d.ts#pathToKey
 pathToMethod: dist/server/method.d.ts#pathToMethod
 postOnlyStrategy: dist/adapters/http/shared/strategies.d.ts#postOnlyStrategy
 preconditionNotSupported: dist/procedures/collection/precondition.d.ts#preconditionNotSupported
+preloadRefPaths: dist/procedures/ref.d.ts#preloadRefPaths
 prepareRootCall: dist/procedures/program.d.ts#prepareRootCall
 proc: dist/procedures/ref.d.ts#proc
 procedureServerOptions: dist/server/host-policy.d.ts#procedureServerOptions
@@ -1218,6 +1233,7 @@ registerProcedures: dist/procedures/discovery.d.ts#registerProcedures
 remoteEvents: dist/events/remote.d.ts#remoteEvents
 replayTransitions: dist/machines.d.ts#replayTransitions
 requestCredentials: dist/server/request-auth.d.ts#requestCredentials
+resolveIn: dist/procedures/registry.d.ts#resolveIn
 resolveOutputRef: dist/procedures/ref.d.ts#resolveOutputRef
 restfulHttpMethodStrategy: dist/adapters/http/shared/strategies.d.ts#restfulHttpMethodStrategy
 retryableOf: dist/protocol.d.ts#retryableOf
@@ -1499,7 +1515,7 @@ throttleChannel: dist/events/bus.d.ts#throttleChannel
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
-## ./procedures (dist/procedures/index.d.ts): 361 names
+## ./procedures (dist/procedures/index.d.ts): 369 names
 
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
@@ -1579,6 +1595,7 @@ type JsonSchema: dist/procedures/schema.d.ts#JsonSchema
 type JsonSchemaSource: dist/procedures/schema.d.ts#JsonSchemaSource
 type JsonSchemaTarget: dist/procedures/schema.d.ts#JsonSchemaTarget
 LITERAL_KEY: dist/procedures/ref.d.ts#LITERAL_KEY
+type LazyRegistryOptions: dist/procedures/module.d.ts#LazyRegistryOptions
 MANIFEST_FORMAT: dist/procedures/manifest.d.ts#MANIFEST_FORMAT
 MAX_DATA_DEPTH: dist/procedures/ref.d.ts#MAX_DATA_DEPTH
 MAX_EXPECTED_VERSION_LENGTH: dist/procedures/collection/precondition.d.ts#MAX_EXPECTED_VERSION_LENGTH
@@ -1620,6 +1637,7 @@ ProcedureRefBuilder: dist/procedures/ref.d.ts#ProcedureRefBuilder
 type ProcedureRefJson: dist/procedures/ref.d.ts#ProcedureRefJson
 ProcedureRegistry: dist/procedures/registry.d.ts#ProcedureRegistry
 type ProcedureRegistryLike: dist/procedures/types.d.ts#ProcedureRegistryLike
+type ProcedureRegistryOptions: dist/procedures/registry.d.ts#ProcedureRegistryOptions
 type ProcedureResult: dist/procedures/types.d.ts#ProcedureResult
 type ProcedureSchema: dist/procedures/schema.d.ts#ProcedureSchema
 type ProcedureStub: dist/procedures/define.d.ts#ProcedureStub
@@ -1638,8 +1656,10 @@ type RegistrationOptions: dist/procedures/types.d.ts#RegistrationOptions
 RegistryError: dist/procedures/registry.d.ts#RegistryError
 type RegistryEventType: dist/procedures/types.d.ts#RegistryEventType
 type RegistryListener: dist/procedures/types.d.ts#RegistryListener
+type RegistryResolver: dist/procedures/registry.d.ts#RegistryResolver
 type ReportProgress: dist/procedures/progress.d.ts#ReportProgress
 type RepositoryProvider: dist/procedures/types.d.ts#RepositoryProvider
+type ResolvingRegistry: dist/procedures/registry.d.ts#ResolvingRegistry
 type ResourcesOf: dist/procedures/types.d.ts#ResourcesOf
 type RunControlOptions: dist/procedures/program.d.ts#RunControlOptions
 type RunDocumentOptions: dist/procedures/program.d.ts#RunDocumentOptions
@@ -1720,6 +1740,7 @@ coreProcedures: dist/procedures/core/index.d.ts#coreProcedures
 createAndRegister: dist/procedures/discovery.d.ts#createAndRegister
 createCollectionProcedures: dist/procedures/collection/procedures.d.ts#createCollectionProcedures
 createElicit: dist/procedures/elicit.d.ts#createElicit
+createLazyRegistry: dist/procedures/module.d.ts#createLazyRegistry
 createProcedure: dist/procedures/define.d.ts#createProcedure
 createRefScope: dist/procedures/ref.d.ts#createRefScope
 createRegistry: dist/procedures/module.d.ts#createRegistry
@@ -1784,6 +1805,7 @@ jsonSchemaOf: dist/procedures/schema.d.ts#jsonSchemaOf
 keyToPath: dist/procedures/types.d.ts#keyToPath
 ladder: dist/procedures/capability.d.ts#ladder
 listProceduresProcedure: dist/procedures/define-procedure.d.ts#listProceduresProcedure
+loadAllIn: dist/procedures/registry.d.ts#loadAllIn
 lookupOutputRef: dist/procedures/ref.d.ts#lookupOutputRef
 manifestProcedure: dist/procedures/define-procedure.d.ts#manifestProcedure
 mapProcedure: dist/procedures/core/index.d.ts#mapProcedure
@@ -1813,6 +1835,7 @@ parseProcedureJson: dist/procedures/ref.d.ts#parseProcedureJson
 patchProblems: dist/procedures/collection/query.d.ts#patchProblems
 pathToKey: dist/procedures/types.d.ts#pathToKey
 preconditionNotSupported: dist/procedures/collection/precondition.d.ts#preconditionNotSupported
+preloadRefPaths: dist/procedures/ref.d.ts#preloadRefPaths
 prepareRootCall: dist/procedures/program.d.ts#prepareRootCall
 proc: dist/procedures/ref.d.ts#proc
 programMachine: dist/procedures/program.d.ts#programMachine
@@ -1824,6 +1847,7 @@ registerClientProcedures: dist/procedures/module.d.ts#registerClientProcedures
 registerModule: dist/procedures/discovery.d.ts#registerModule
 registerModules: dist/procedures/module.d.ts#registerModules
 registerProcedures: dist/procedures/discovery.d.ts#registerProcedures
+resolveIn: dist/procedures/registry.d.ts#resolveIn
 resolveOutputRef: dist/procedures/ref.d.ts#resolveOutputRef
 runControl: dist/procedures/program.d.ts#runControl
 runDocument: dist/procedures/program.d.ts#runDocument
@@ -5005,6 +5029,15 @@ export declare function exposedProcedures(registry: {
 ### dist/procedures/manifest.d.ts#hashOf
 export declare function hashOf(value: unknown): string;
 
+### dist/procedures/module.d.ts#LazyRegistryOptions
+export interface LazyRegistryOptions {
+    readonly modules?: readonly ModuleInput[] | undefined;
+    readonly index: Readonly<Record<string, readonly string[]>>;
+    readonly load: (name: string) => Promise<ProcedureModule | undefined>;
+    readonly packages?: readonly string[] | undefined;
+    readonly warn?: ((message: string) => void) | undefined;
+}
+
 ### dist/procedures/module.d.ts#ModuleInput
 export type ModuleInput = ProcedureModule | readonly ProcedureModule[];
 
@@ -5016,6 +5049,9 @@ export interface PackageDefinition {
 
 ### dist/procedures/module.d.ts#clientModule
 export declare const clientModule: ProcedureModule;
+
+### dist/procedures/module.d.ts#createLazyRegistry
+export declare function createLazyRegistry(options: LazyRegistryOptions): ProcedureRegistry;
 
 ### dist/procedures/module.d.ts#createRegistry
 export declare function createRegistry(...modules: ModuleInput[]): ProcedureRegistry;
@@ -5427,6 +5463,9 @@ export declare function normalizeRef<TInput, TOutput>(ref: AnyProcedureRef<TInpu
 ### dist/procedures/ref.d.ts#parseProcedureJson
 export declare function parseProcedureJson<T>(json: string): T;
 
+### dist/procedures/ref.d.ts#preloadRefPaths
+export declare function preloadRefPaths(registry: ResolvingRegistry | undefined, value: unknown): Promise<void> | undefined;
+
 ### dist/procedures/ref.d.ts#proc
 export declare function proc<TOutput = unknown>(path: ProcedurePath): ProcedureRefBuilder<unknown, TOutput>;
 
@@ -5461,6 +5500,7 @@ export declare const PROCEDURE_REGISTRY: ProcedureRegistry;
 
 ### dist/procedures/registry.d.ts#ProcedureRegistry
 export declare class ProcedureRegistry {
+    constructor(options?: ProcedureRegistryOptions);
     register(procedure: AnyProcedure, options?: RegistrationOptions): void;
     unregister(path: ProcedurePath): boolean;
     registerModule(module: ProcedureModule, options?: RegistrationOptions): void;
@@ -5470,6 +5510,9 @@ export declare class ProcedureRegistry {
     getByPrefix(prefix: ProcedurePath): AnyProcedure[];
     getAll(): AnyProcedure[];
     get size(): number;
+    get lazy(): boolean;
+    resolve(path: ProcedurePath): Promise<AnyProcedure | undefined>;
+    loadAll(): Promise<void>;
     getModules(): string[];
     getTree(): Record<string, unknown>;
     getNamespacesAtDepth(depth: number): string[];
@@ -5482,6 +5525,11 @@ export declare class ProcedureRegistry {
     };
 }
 
+### dist/procedures/registry.d.ts#ProcedureRegistryOptions
+export interface ProcedureRegistryOptions {
+    resolver?: RegistryResolver | undefined;
+}
+
 ### dist/procedures/registry.d.ts#RegistryError
 export declare class RegistryError extends Error {
     readonly name = "RegistryError";
@@ -5489,8 +5537,28 @@ export declare class RegistryError extends Error {
     constructor(message: string, path: ProcedurePath, cause?: Error);
 }
 
+### dist/procedures/registry.d.ts#RegistryResolver
+export interface RegistryResolver {
+    resolve(path: ProcedurePath): Promise<void>;
+    loadAll(): Promise<void>;
+}
+
+### dist/procedures/registry.d.ts#ResolvingRegistry
+export interface ResolvingRegistry {
+    get(path: ProcedurePath): AnyProcedure | undefined;
+    readonly lazy?: boolean;
+    resolve?(path: ProcedurePath): Promise<AnyProcedure | undefined>;
+    loadAll?(): Promise<void>;
+}
+
 ### dist/procedures/registry.d.ts#assertValidPath
 export declare function assertValidPath(path: ProcedurePath): void;
+
+### dist/procedures/registry.d.ts#loadAllIn
+export declare function loadAllIn(registry: Pick<ResolvingRegistry, "lazy" | "loadAll">): Promise<void>;
+
+### dist/procedures/registry.d.ts#resolveIn
+export declare function resolveIn(registry: ResolvingRegistry, path: ProcedurePath): Promise<AnyProcedure | undefined>;
 
 ### dist/procedures/runtime-programs.d.ts#isRuntimeDefined
 export declare function isRuntimeDefined(procedure: {
@@ -5746,6 +5814,9 @@ export interface ProcedureRegistryLike {
     getAll(): AnyProcedure[];
     register(procedure: AnyProcedure, options?: RegistrationOptions): void;
     unregister(path: ProcedurePath): boolean;
+    readonly lazy?: boolean;
+    resolve?(path: ProcedurePath): Promise<AnyProcedure | undefined>;
+    loadAll?(): Promise<void>;
 }
 
 ### dist/procedures/types.d.ts#ProcedureResult
@@ -6086,6 +6157,7 @@ export declare class ProcedureServer extends Server implements RepositoryProvide
     registerModule(module: ProcedureModule, options?: RegisterProcedureOptions): void;
     registerFromRegistry(): void;
     protected findHandler(method: Method, request?: ServerRequest<unknown>): ServerHandler | null;
+    protected findLateHandler(method: Method, request: ServerRequest<unknown>): Promise<ServerHandler | null> | null;
     get callsInFlight(): number;
     get stopping(): boolean;
     admits(credentials: Credentials): Promise<boolean>;
@@ -6093,6 +6165,7 @@ export declare class ProcedureServer extends Server implements RepositoryProvide
     admission(credentials: Credentials): Promise<Admission>;
     registerCollectionProcedures(collectionName: string, options?: CollectionProceduresOptions): void;
     get procedureCount(): number;
+    loadAll(): Promise<void>;
     getRegistry(): ProcedureRegistry;
     hasProcedure(path: ProcedurePath): boolean;
     procedureOf(method: Method): AnyProcedure | undefined;
@@ -6224,6 +6297,7 @@ export declare class Server {
     exposeError(error: unknown, request: ServerRequest | undefined, raw: ExposedError): ExposedError;
     get logger(): Logger | undefined;
     protected findHandler(method: Method, _request?: ServerRequest<unknown>): ServerHandler | null;
+    protected findLateHandler(_method: Method, _request: ServerRequest<unknown>): Promise<ServerHandler | null> | null;
 }
 
 ### dist/server/server.d.ts#ServerErrorContext

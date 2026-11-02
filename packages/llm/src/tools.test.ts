@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 import { defineModule, InvocationError, type Interceptor } from "@procedures/client";
 import { DEFAULT_LLM_SETTINGS, type LlmSettings } from "./anthropic.js";
 import { llmComplete } from "./procedures/llm/complete.js";
-import { MAX_TOOL_RESULT_CHARS, toolNameOf } from "./tools.js";
+import { loadToolProcedures, MAX_TOOL_RESULT_CHARS, toolNameOf, type ToolContext } from "./tools.js";
 import type { LlmCompleteOutput } from "./types.js";
 import { fakeFetch, KEY, message, procedure, setup, text, toolProcedures as fakes, toolUse } from "../test/fakes.js";
 
@@ -264,5 +264,41 @@ describe("tools of the caller", () => {
   it("names the tool of a procedure with _ in place of each dot", () => {
     expect(toolNameOf("weather.current")).toBe("weather_current");
     expect(toolNameOf("a.b.c")).toBe("a_b_c");
+  });
+});
+
+describe("the tool procedures of a lazy registry (O93)", () => {
+  /** This function gives a context with a fake registry that records each resolve. */
+  function contextOf(lazy: boolean, registered: readonly string[], expose?: (path: readonly string[]) => boolean) {
+    const resolved: string[] = [];
+    const registry = {
+      lazy,
+      get: (path: readonly string[]) => (registered.includes(path.join(".")) ? {} : undefined),
+      resolve: async (path: readonly string[]) => {
+        resolved.push(path.join("."));
+        return undefined;
+      },
+    };
+    const ctx = { registry, ...(expose ? { expose } : {}) } as unknown as ToolContext;
+    return { ctx, resolved };
+  }
+
+  it("loads each named procedure that has not loaded, one time for each key", async () => {
+    const { ctx, resolved } = contextOf(true, ["weather.current"]);
+    await loadToolProcedures(["weather.current", "git.status", "git.status"], ctx);
+    expect(resolved).toEqual(["git.status"]);
+  });
+
+  it("does not load a path that the expose rule refuses", async () => {
+    const { ctx, resolved } = contextOf(true, [], (path) => path[0] !== "shell");
+    await loadToolProcedures(["shell.run", "git.status"], ctx);
+    expect(resolved).toEqual(["git.status"]);
+  });
+
+  it("does nothing for an eager registry or with no context", async () => {
+    const { ctx, resolved } = contextOf(false, []);
+    await loadToolProcedures(["git.status"], ctx);
+    await loadToolProcedures(["git.status"], undefined);
+    expect(resolved).toEqual([]);
   });
 });

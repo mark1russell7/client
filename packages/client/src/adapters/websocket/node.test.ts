@@ -240,11 +240,10 @@ describe("the browser entries do not import ws", () => {
     return bare;
   }
 
-  it("the entries browser and client load no ws, and the node entry loads it", () => {
-    for (const entry of ["browser.ts", "client/index.ts"]) {
+  it("the entries browser, client and node load no ws at import: the first socket loads it (roadmap O93)", () => {
+    for (const entry of ["browser.ts", "client/index.ts", "node.ts"]) {
       expect([...runtimeImports(join(SRC, entry))], entry).not.toContain("ws");
     }
-    expect([...runtimeImports(join(SRC, "node.ts"))]).toContain("ws");
   });
 
   it("the browser entry and the procedure handler of HTTP load no Node module at run time (CLI-3)", async () => {

@@ -114,7 +114,8 @@ export { NARROWING_METADATA_KEY, NARROWING_HEADER, narrowingOf, narrowWithin, ad
 export type { NarrowingNote, WireNarrowing, NarrowedCapability } from "./narrowing.js";
 
 // Registry
-export { ProcedureRegistry, RegistryError, PROCEDURE_REGISTRY, assertValidPath } from "./registry.js";
+export { ProcedureRegistry, RegistryError, PROCEDURE_REGISTRY, assertValidPath, resolveIn, loadAllIn } from "./registry.js";
+export type { RegistryResolver, ProcedureRegistryOptions, ResolvingRegistry } from "./registry.js";
 
 // Definition helpers
 export {
@@ -223,9 +224,10 @@ export {
   moduleClosure,
   registerModules,
   createRegistry,
+  createLazyRegistry,
   registerClientProcedures,
 } from "./module.js";
-export type { ModuleInput, PackageDefinition } from "./module.js";
+export type { ModuleInput, PackageDefinition, LazyRegistryOptions } from "./module.js";
 // One call for a registry of some modules, `invokePath` and `outputValue`
 export { callerOf } from "./caller.js";
 export type { Caller, CallerOptions } from "./caller.js";
@@ -262,6 +264,7 @@ export {
   RAW_INPUT_TAG,
   takesRawInput,
   rawInputRule,
+  preloadRefPaths,
   MAX_DATA_DEPTH,
   LITERAL_KEY,
   isLiteral,

@@ -26,7 +26,7 @@
  */
 
 import { defineProcedure, validateProcedure } from "./define.js";
-import { PROCEDURE_REGISTRY, assertValidPath } from "./registry.js";
+import { PROCEDURE_REGISTRY, assertValidPath, loadAllIn, resolveIn } from "./registry.js";
 import type {
   Procedure,
   ProcedurePath,
@@ -43,6 +43,7 @@ import {
   createRefScope,
   isAnyProcedureRef,
   markDataDriven,
+  preloadRefPaths,
   rawInputRule,
   RUNS_REFS_TAG,
 } from "./ref.js";
@@ -211,7 +212,11 @@ function createAggregationHandler(
     const scope = createRefScope();
     scope.outputs.set("input", input);
     const executor = <TIn, TOut>(path: ProcedurePath, value: TIn): Promise<TOut> => ctx.client.call<TIn, TOut>(path, value);
-    const options = { scope, rawInput: rawInputRule(ctx.registry ?? PROCEDURE_REGISTRY), onRef: ctx.onRef };
+    const registry = ctx.registry ?? PROCEDURE_REGISTRY;
+    // A lazy registry loads the paths of the body before the raw-input rule reads them (roadmap O93)
+    const preload = preloadRefPaths(registry, aggregation);
+    if (preload) await preload;
+    const options = { scope, rawInput: rawInputRule(registry), onRef: ctx.onRef };
     if (isAnyProcedureRef(aggregation)) {
       return runProgram(aggregation, { ...options, executor });
     }
@@ -327,7 +332,8 @@ export const defineProcedureProcedure: Procedure<
     }
 
     const pathKey = pathToKey(path);
-    const existing = registry.get(path);
+    // A lazy registry loads the package of the path first: a procedure of a package is not new (roadmap O93)
+    const existing = await resolveIn(registry, path);
     // A procedure outside the expose rule of the host is not the caller's to replace (R17)
     if (existing && ctx?.expose && !ctx.expose(path)) {
       throw new InvocationError(
@@ -473,7 +479,8 @@ export const getProcedureProcedure: Procedure<
   },
   handler: async (input: ProcedureGetInput, ctx?: ProcedureContext) => {
     const path = typeof input.path === "string" ? keyToPath(input.path) : input.path;
-    const procedure = (ctx?.registry ?? PROCEDURE_REGISTRY).get(path);
+    // A lazy registry loads the package of the path first (roadmap O93)
+    const procedure = await resolveIn(ctx?.registry ?? PROCEDURE_REGISTRY, path);
     // A procedure outside the expose rule of the host is not found (R17)
     if (!procedure || (ctx?.expose && !ctx.expose(procedure.path))) {
       return { found: false as const };
@@ -513,7 +520,10 @@ export const listProceduresProcedure: Procedure<
     output: "json",
   },
   handler: async (input: ProcedureListInput, ctx?: ProcedureContext) => {
-    let all = (ctx?.registry ?? PROCEDURE_REGISTRY).getAll();
+    const registry = ctx?.registry ?? PROCEDURE_REGISTRY;
+    // A lazy registry loads each package first: the list has each procedure (roadmap O93)
+    await loadAllIn(registry);
+    let all = registry.getAll();
     // Only the procedures that the host exposes (R17)
     if (ctx?.expose) all = all.filter((procedure) => ctx.expose!(procedure.path));
     if (input.runtime) all = all.filter(isRuntimeDefined);
@@ -539,11 +549,15 @@ export const manifestProcedure: Procedure<{ namespace?: string | undefined }, Pr
     shorts: { namespace: "n" },
     output: "json",
   },
-  handler: async (input: { namespace?: string | undefined }, ctx?: ProcedureContext) =>
-    describeRegistry(ctx?.registry ?? PROCEDURE_REGISTRY, {
+  handler: async (input: { namespace?: string | undefined }, ctx?: ProcedureContext) => {
+    const registry = ctx?.registry ?? PROCEDURE_REGISTRY;
+    // A lazy registry loads each package first: the manifest has each procedure (roadmap O93)
+    await loadAllIn(registry);
+    return describeRegistry(registry, {
       ...(ctx?.expose ? { expose: ctx.expose } : {}),
       ...(input.namespace ? { include: (procedure: AnyProcedure) => procedure.path[0] === input.namespace } : {}),
-    }),
+    });
+  },
 });
 
 /**
@@ -568,7 +582,8 @@ export const deleteProcedureProcedure: Procedure<
     if (ctx?.expose && !ctx.expose(input.path)) {
       return { deleted: false };
     }
-    const existing = registry.get(input.path);
+    // A lazy registry loads the package of the path first (roadmap O93)
+    const existing = await resolveIn(registry, input.path);
     if (!existing) {
       return { deleted: false };
     }

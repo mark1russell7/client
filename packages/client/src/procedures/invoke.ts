@@ -440,6 +440,13 @@ export async function invokeProcedure<TOutput = unknown>(
   return dispatch(0, invocation, options) as Promise<ProcedureOutput<TOutput>>;
 }
 
+/** True when the declared effects of a procedure read or write the registry. */
+function usesRegistry(procedure: AnyProcedure): boolean {
+  const effects = (procedure.metadata as { effects?: { reads?: unknown; writes?: unknown } } | undefined)?.effects;
+  const names = (list: unknown): boolean => Array.isArray(list) && list.includes("registry");
+  return names(effects?.reads) || names(effects?.writes);
+}
+
 /** The end of the chain: the validation, the context, the handler and the output. */
 async function runInvocation<TOutput>(invocation: Invocation, options: InvokeOptions): Promise<ProcedureOutput<TOutput>> {
   const { procedure, path, input } = invocation;
@@ -471,6 +478,11 @@ async function runInvocation<TOutput>(invocation: Invocation, options: InvokeOpt
     // caller (docs review DOC-10: before, each runner needed its own workaround).
     data = parsed.value === input ? input : withScope(parsed.value, scopeOf(input));
   }
+
+  // A procedure that declares a read or a write of the registry sees each procedure of a lazy
+  // registry (roadmap O93). An eager registry does not wait here.
+  const registry = options.registry;
+  if (registry?.lazy && usesRegistry(procedure)) await registry.loadAll();
 
   // The handler starts here, before the first await (the site's trace depends on it)
   const result: unknown = await handler(data, createProcedureContext(procedure, { ...options, capability: invocation.capability }, invocation));
@@ -508,7 +520,9 @@ export async function invokePath<TOutput = unknown>(
   input: unknown,
   options: InvokeOptions = {},
 ): Promise<ProcedureOutput<TOutput>> {
-  const procedure = (options.registry ?? PROCEDURE_REGISTRY).get(path);
+  const registry = options.registry ?? PROCEDURE_REGISTRY;
+  // A miss of a lazy registry loads the packages of the path (roadmap O93). A hit does not wait.
+  const procedure = registry.get(path) ?? (registry.lazy ? await registry.resolve(path) : undefined);
   if (!procedure) {
     throw new InvocationError("NOT_FOUND", `Procedure not found: ${pathToKey(path)}`, path);
   }

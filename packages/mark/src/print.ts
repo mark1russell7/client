@@ -7,7 +7,16 @@
 
 import chalk from "chalk";
 import ora from "ora";
-import Table from "cli-table3";
+import { createRequire } from "node:module";
+import type TableClass from "cli-table3";
+
+/**
+ * This function gives the table class of `cli-table3`. The first table loads the package, not the
+ * start of `mark`: a call that prints no table does not load it (roadmap O93).
+ */
+function tableClass(): typeof TableClass {
+  return createRequire(import.meta.url)("cli-table3") as typeof TableClass;
+}
 
 /**
  * Spinner interface (compatible with existing code)
@@ -71,6 +80,7 @@ export const print = {
     const [headers, ...rows] = data;
     if (!headers) return;
 
+    const Table = tableClass();
     const table = new Table({
       head: headers.map((h) => chalk.bold(h)),
       style: {

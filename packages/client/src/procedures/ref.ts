@@ -57,7 +57,8 @@
  * ```
  */
 
-import type { ProcedurePath } from "./types.js";
+import { pathToKey, type ProcedurePath } from "./types.js";
+import type { ResolvingRegistry } from "./registry.js";
 
 // =============================================================================
 // Procedure Reference Constants
@@ -853,6 +854,62 @@ export function rawInputRule(
 }
 
 const RAW_INPUT_RULES = new WeakMap<object, (path: ProcedurePath) => boolean>();
+
+/** The `$proc` paths of a value that the registry does not have yet, by key. */
+function missingRefPaths(registry: ResolvingRegistry, value: unknown): ProcedurePath[] {
+  const missing = new Map<string, ProcedurePath>();
+  const seen = new Set<object>();
+  const visit = (node: unknown): void => {
+    if (node === null || typeof node !== "object" || seen.has(node)) return;
+    seen.add(node);
+    if (isLiteral(node)) return;
+    if (Array.isArray(node)) {
+      for (const item of node) visit(item);
+      return;
+    }
+    if (isAnyProcedureRef(node)) {
+      try {
+        const ref = normalizeRef(node);
+        const path: unknown = ref.path;
+        if (Array.isArray(path) && path.length > 0 && path.every((segment) => typeof segment === "string") && registry.get(path) === undefined) {
+          missing.set(pathToKey(path), path);
+        }
+        visit(ref.input);
+      } catch {
+        // The run reports a ref that is not correct
+      }
+      return;
+    }
+    if (!isPlainObject(node)) return;
+    for (const field of Object.values(node)) visit(field);
+  };
+  visit(value);
+  return [...missing.values()];
+}
+
+/**
+ * This function loads the procedures of the `$proc` paths of a value into a lazy registry (roadmap
+ * O93). A run starts it before it reads the raw-input rule, because the rule is sync and reads only
+ * the procedures that have loaded. The function gives undefined, with no wait, for an eager
+ * registry and for a value whose paths the registry has. A package that does not load does not
+ * stop the run: the call of its path reports the error.
+ */
+export function preloadRefPaths(registry: ResolvingRegistry | undefined, value: unknown): Promise<void> | undefined {
+  if (registry?.lazy !== true || registry.resolve === undefined) return undefined;
+  const missing = missingRefPaths(registry, value);
+  if (missing.length === 0) return undefined;
+  const resolve = registry.resolve.bind(registry);
+  return (async (): Promise<void> => {
+    // One path after the other: the order of the registrations does not depend on the time of each load
+    for (const path of missing) {
+      try {
+        await resolve(path);
+      } catch {
+        // The call of the path reports the load error
+      }
+    }
+  })();
+}
 
 // =============================================================================
 // Template Extraction

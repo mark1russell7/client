@@ -69,13 +69,17 @@ export function hostProcedures(source: HostSource): AnyProcedure[] {
     .input(z.object({}))
     .output(healthOutput)
     .meta({ description: "The health of the host: its state, its uptime and its calls in flight", effects: PURE_EFFECTS })
-    .handler(async () => ({
-      status: source.server.stopping ? ("stopping" as const) : ("ok" as const),
-      uptimeMs: Date.now() - source.startedAt,
-      procedures: source.server.procedureCount,
-      callsInFlight: source.server.inFlight(),
-      peerId: source.id,
-    }))
+    .handler(async () => {
+      // A lazy registry loads each package first: the count has each procedure (roadmap O93)
+      await source.server.loadAll();
+      return {
+        status: source.server.stopping ? ("stopping" as const) : ("ok" as const),
+        uptimeMs: Date.now() - source.startedAt,
+        procedures: source.server.procedureCount,
+        callsInFlight: source.server.inFlight(),
+        peerId: source.id,
+      };
+    })
     .build();
 
   const info = createProcedure()

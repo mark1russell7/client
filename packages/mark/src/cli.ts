@@ -16,7 +16,7 @@ import { fieldsOf, generateHelp, resultFieldsOf, type CLIMeta, type CommandLike 
 import { readFreshManifest, writeManifest, type ManifestCommand } from "./manifest.js";
 import { askMissing, canAsk, missingFields, processTerminal, terminalAsker, type Asker, type Terminal } from "./ask.js";
 import { formatOutput, type OutputFormat, type Print } from "./format.js";
-import { loadEcosystemRegistry } from "./ecosystem.js";
+import { createLazyEcosystemRegistry, indexOfCommands, loadEcosystemRegistry, packageIndexOf } from "./ecosystem.js";
 import { startServerMode, parsePort, parseTransport } from "./server-mode.js";
 import { connectCliServer } from "./client-mode.js";
 import type { ColdCommand, CommandRun } from "./command.js";
@@ -200,6 +200,37 @@ export async function initCli(verbose = false, fsRoot?: string): Promise<CliCont
   const procedures = registry.getAll();
 
   return { client, procedures, registry, verbose, ...(ecosystem.fsRoot !== undefined ? { fsRoot: ecosystem.fsRoot } : {}) };
+}
+
+/**
+ * This function makes the context of a run from a fresh manifest (roadmap O93). Its registry is
+ * lazy: it has the core procedures at once, and a call loads only the packages that the manifest
+ * names for its path. A list, the help of the registry and `procedure.list` load each package
+ * first (`loadAll()`). `procedures` gives the procedures that have loaded at the time of the read.
+ * A root of the files (`--fs-root`) needs each procedure, so `run()` then uses `initCli()`.
+ */
+export async function initLazyCli(verbose: boolean, commands: readonly ManifestCommand[]): Promise<CliContext> {
+  const { Client, LocalTransport } = await import("@procedures/client");
+  const registry = createLazyEcosystemRegistry(indexOfCommands(commands), verbose, true);
+  const transport = new LocalTransport({ registry });
+  const client = new Client({ transport }).useRegistry(registry);
+  return {
+    client,
+    get procedures(): AnyProcedure[] {
+      return registry.getAll();
+    },
+    registry,
+    verbose,
+  };
+}
+
+/**
+ * The procedure of a command in the context of a run. A lazy registry loads the packages of the
+ * path first (roadmap O93).
+ */
+async function procedureOfCommand(runtime: CliContext, path: readonly string[]): Promise<AnyProcedure | undefined> {
+  if (runtime.registry?.lazy) return runtime.registry.resolve([...path]);
+  return findProcedure(runtime.procedures, path);
 }
 
 /**
@@ -434,7 +465,14 @@ export async function executeArgs(
     fail(`Error: ${messageOf(error)}`);
     return;
   }
-  const target = findProcedure(runtime.procedures, path);
+  let target: AnyProcedure | undefined;
+  try {
+    target = await procedureOfCommand(runtime, path);
+  } catch (error) {
+    // A package of the path did not load: the error has the load error
+    fail(`Error: ${messageOf(error)}`);
+    return;
+  }
   if (!target) {
     fail(`Unknown command: mark ${path.join(" ")}`, "Run 'mark --help' for available commands.");
     return;
@@ -755,7 +793,9 @@ async function run(argv: string[], options: RunCliOptions = {}): Promise<void> {
   // server do not load them (roadmap 1.3)
   const manifest = readFreshManifest();
   if (manifest) {
-    await executeArgs(argv, { commands: manifest.commands, verbose, fsRoot, load: () => initCli(verbose, fsRoot) }, execute);
+    // A call loads only the packages of its path (roadmap O93). A root of the files needs each procedure.
+    const load = fsRoot === undefined ? () => initLazyCli(verbose, manifest.commands) : () => initCli(verbose, fsRoot);
+    await executeArgs(argv, { commands: manifest.commands, verbose, fsRoot, load }, execute);
     return;
   }
 
@@ -763,7 +803,7 @@ async function run(argv: string[], options: RunCliOptions = {}): Promise<void> {
   // write the manifest for the next run. A failure to write costs only time.
   const ctx = await initCli(verbose, fsRoot);
   try {
-    await writeManifest(ctx.procedures);
+    await writeManifest(ctx.procedures, packageIndexOf(ctx.registry));
   } catch (error) {
     if (verbose) {
       print.warning(`mark: the manifest was not written: ${error instanceof Error ? error.message : String(error)}`);

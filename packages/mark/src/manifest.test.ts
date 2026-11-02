@@ -19,12 +19,13 @@ afterEach(() => {
 });
 
 let registry: ProcedureRegistry;
+let index: Record<string, string[]>;
 
 describe("the manifest of mark", () => {
   beforeAll(async () => {
     // The registry of mark (roadmap 3.1) first: it imports the module entries, which register
     // nothing. Then the old global loading, for the comparison below.
-    registry = (await loadEcosystemRegistry(false, false)).registry;
+    ({ registry, index } = await loadEcosystemRegistry(false, false));
     await loadEcosystemProcedures(false, false);
   }, 120000);
 
@@ -46,7 +47,7 @@ describe("the manifest of mark", () => {
   it("is current after the build, and has the commands of the registry", async () => {
     const manifest = readFreshManifest();
     expect(manifest, "dist/manifest.json is missing or stale: build mark (pnpm --filter @procedures/mark build)").not.toBeNull();
-    const expected = JSON.parse(JSON.stringify(await commandsOf(registry.getAll())));
+    const expected = JSON.parse(JSON.stringify(await commandsOf(registry.getAll(), index)));
     expect(manifest!.commands).toEqual(expected);
   }, 120000);
 

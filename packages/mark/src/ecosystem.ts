@@ -19,6 +19,7 @@ import {
   PROCEDURE_REGISTRY,
   allCoreProcedures,
   clientModule,
+  createLazyRegistry,
   createRegistry,
   defineModule,
   pathToKey,
@@ -40,7 +41,8 @@ interface PackageJson {
   exports?: Record<string, unknown>;
 }
 
-interface DiscoveredPackage {
+/** A workspace package that declares `client.procedures`. */
+export interface DiscoveredPackage {
   name: string;
   path: string;
   proceduresPath: string;
@@ -205,10 +207,18 @@ export function listEcosystemProcedurePackages(): Array<{ name: string; path: st
 /** The core procedures that `mark` serves: all of them, also the ones that the core import does not register. */
 const allCoreModule: ProcedureModule = defineModule("@procedures/client (all core procedures)", allCoreProcedures);
 
+/**
+ * The index of the packages of a registry (roadmap O93): the key of each path and the names of
+ * the packages that give it, in the order of the eager load. A core procedure has no package.
+ */
+export type PackageIndex = Record<string, string[]>;
+
 /** The registry of `mark` and the names of the packages that it holds. */
 export interface EcosystemRegistry {
   registry: ProcedureRegistry;
   loaded: string[];
+  /** The packages of each path that a package gives. */
+  index: PackageIndex;
   /** The absolute path of the root of the files (`--fs-root`), or undefined. */
   fsRoot?: string | undefined;
   /** The keys of the procedures that the root refuses, or undefined without a root. */
@@ -249,6 +259,12 @@ async function confineRoot(
 }
 
 /**
+ * The end of the last diff of the global registry. The lazy registry can load two packages at
+ * the same time: the diffs of the packages of the old kind go one after the other.
+ */
+let globalDiffs: Promise<unknown> = Promise.resolve();
+
+/**
  * The module of a package: its `./module` entry (it registers nothing), or else the procedures
  * that importing its procedures file adds to the global registry (a package of the old kind).
  */
@@ -262,10 +278,90 @@ async function moduleOfPackage(pkg: DiscoveredPackage): Promise<ProcedureModule 
   }
   const proceduresFile = path.join(pkg.path, pkg.proceduresPath);
   if (!fs.existsSync(proceduresFile)) return undefined;
-  const before = new Set(PROCEDURE_REGISTRY.getAll().map((procedure) => pathToKey(procedure.path)));
-  await import(pathToFileURL(proceduresFile).href);
-  const added: AnyProcedure[] = PROCEDURE_REGISTRY.getAll().filter((procedure) => !before.has(pathToKey(procedure.path)));
-  return { name: pkg.name, procedures: added };
+  const diff = globalDiffs.then(async (): Promise<ProcedureModule> => {
+    const before = new Set(PROCEDURE_REGISTRY.getAll().map((procedure) => pathToKey(procedure.path)));
+    await import(pathToFileURL(proceduresFile).href);
+    const added: AnyProcedure[] = PROCEDURE_REGISTRY.getAll().filter((procedure) => !before.has(pathToKey(procedure.path)));
+    return { name: pkg.name, procedures: added };
+  });
+  globalDiffs = diff.catch(() => undefined);
+  return diff;
+}
+
+/** The keys of the procedures of a registry. */
+function keysOf(registry: ProcedureRegistry): Set<string> {
+  return new Set(registry.getAll().map((procedure) => pathToKey(procedure.path)));
+}
+
+/**
+ * This function adds the paths of a package to the index. The paths of its own procedures name it.
+ * A path that only a module that it requires gives names the first package that registered it.
+ */
+function indexPackage(index: PackageIndex, fallback: Map<string, string>, name: string, module: ProcedureModule, before: ReadonlySet<string>, after: ReadonlySet<string>): void {
+  for (const procedure of module.procedures) {
+    const key = pathToKey(procedure.path);
+    // A procedure that did not register (a conflict stopped the package) is not in the index
+    if (!after.has(key)) continue;
+    const names = (index[key] ??= []);
+    if (!names.includes(name)) names.push(name);
+  }
+  for (const key of after) if (!before.has(key) && !fallback.has(key)) fallback.set(key, name);
+}
+
+/** The index of a registry that `loadEcosystemRegistry()` made, by registry. */
+const INDEXES = new WeakMap<ProcedureRegistry, PackageIndex>();
+
+/** This function gives the index of the packages of an eager registry of `mark`, or undefined. */
+export function packageIndexOf(registry: ProcedureRegistry | undefined): PackageIndex | undefined {
+  return registry === undefined ? undefined : INDEXES.get(registry);
+}
+
+/**
+ * This function gives the index of the commands of a manifest: the key of each path that a
+ * package gives, and the names of the packages.
+ */
+export function indexOfCommands(commands: ReadonlyArray<{ path: readonly string[]; packages?: readonly string[] | undefined }>): PackageIndex {
+  const index: PackageIndex = {};
+  for (const command of commands) {
+    if (command.packages !== undefined && command.packages.length > 0) index[pathToKey(command.path)] = [...command.packages];
+  }
+  return index;
+}
+
+/**
+ * The lazy registry of `mark` (roadmap O93). It has all the core procedures at once. A call of a
+ * path loads only the packages that the index names for it. `loadAll()` loads each package in the
+ * order of `discoverFromEcosystem()`, as `loadEcosystemRegistry()` does. A package that fails to
+ * load gives the warning of the eager load.
+ */
+export function createLazyEcosystemRegistry(
+  index: Readonly<Record<string, readonly string[]>>,
+  verbose = false,
+  warn = true,
+  discovered: readonly DiscoveredPackage[] = discoverFromEcosystem(),
+): ProcedureRegistry {
+  const byName = new Map(discovered.map((pkg) => [pkg.name, pkg]));
+  return createLazyRegistry({
+    modules: [allCoreModule],
+    index,
+    packages: discovered.map((pkg) => pkg.name),
+    load: async (name) => {
+      const pkg = byName.get(name);
+      if (!pkg) return undefined;
+      try {
+        const module = await moduleOfPackage(pkg);
+        if (!module && verbose) console.warn(`Procedures file not found (build the package): ${path.join(pkg.path, pkg.proceduresPath)}`);
+        if (module && verbose) console.log(`Loaded procedures from: ${pkg.name}`);
+        return module;
+      } catch (error) {
+        if (verbose && error instanceof Error && error.stack) console.warn(error.stack);
+        throw error;
+      }
+    },
+    warn: (message) => {
+      if (warn) console.warn(`mark: ${message}`);
+    },
+  });
 }
 
 /**
@@ -278,6 +374,8 @@ async function moduleOfPackage(pkg: DiscoveredPackage): Promise<ProcedureModule 
 export async function loadEcosystemRegistry(verbose = false, warn = true, options: EcosystemOptions = {}): Promise<EcosystemRegistry> {
   const registry = createRegistry(allCoreModule);
   const loaded: string[] = [];
+  const index: PackageIndex = {};
+  const fallback = new Map<string, string>();
   const discovered = discoverFromEcosystem();
   for (const pkg of discovered) {
     try {
@@ -286,7 +384,13 @@ export async function loadEcosystemRegistry(verbose = false, warn = true, option
         if (verbose) console.warn(`Procedures file not found (build the package): ${path.join(pkg.path, pkg.proceduresPath)}`);
         continue;
       }
-      registerModules(registry, [module]);
+      const before = keysOf(registry);
+      try {
+        registerModules(registry, [module]);
+      } finally {
+        // The paths that the package registered before an error count too: the lazy load registers them
+        indexPackage(index, fallback, pkg.name, module, before, keysOf(registry));
+      }
       loaded.push(pkg.name);
       if (verbose) console.log(`Loaded procedures from: ${pkg.name}`);
     } catch (error) {
@@ -295,8 +399,11 @@ export async function loadEcosystemRegistry(verbose = false, warn = true, option
       if (verbose && error instanceof Error && error.stack) console.warn(error.stack);
     }
   }
-  if (options.fsRoot === undefined) return { registry, loaded };
+  // A path that only a required module gives names the first package that registered it
+  for (const [key, name] of fallback) index[key] ??= [name];
+  INDEXES.set(registry, index);
+  if (options.fsRoot === undefined) return { registry, loaded, index };
   // After the last package: each procedure of the registry gets the rules of the root
   const { root: fsRoot, refused } = await confineRoot(registry, options.fsRoot, discovered);
-  return { registry, loaded, fsRoot, refusedUnderRoot: refused };
+  return { registry, loaded, index, fsRoot, refusedUnderRoot: refused };
 }
