@@ -19,7 +19,8 @@
  *
  * The rounds are `measureIsolated()` of `lib/paired-time.mjs` in mode `fresh`: each round has one
  * sample of each case and arm, with the A/A arm `request~aa`. The order of the arms rotates each round.
- * The share of a case is `shareOf()` of the samples of its two arms.
+ * The share of a case is `shareOf()` of the samples of its two arms. Its 95 % interval is the percentile bootstrap
+ * `bootstrapMedianRatio()` of rigor-statistics, with `SHARE_BOOTSTRAP` (10 000 runs, seed 1).
  *
  * The script writes the JSON record (`server-request/2`) to `--out`, and the Markdown next to it (`.md`).
  */
@@ -29,6 +30,7 @@ import { mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { bootstrapMedianRatio, type Interval } from "@mark1russell7/rigor-statistics";
 import { runnerContext } from "./bench-context.mjs";
 import { bandOf, roundRatios, type Band } from "./bench-paired.mjs";
 import { aaId, measureIsolated, quantileOf, type PairedInput, type PairedReport } from "./lib/paired-time.mjs";
@@ -55,16 +57,21 @@ export const WARMUP_PASSES = 1;
 /** The fewest rounds, and the default. */
 export const MIN_ROUNDS = 20;
 
+/** The bootstrap of the share interval: each run draws the rounds of each arm with replacement. */
+export const SHARE_BOOTSTRAP = { runs: 10_000, seed: 1, level: 0.95 } as const;
+
 /** The share of the exec in one case, from the per-process medians of the rounds, in milliseconds. */
 export interface Share {
   /** The rounds with a sample of the two arms */
   readonly rounds: number;
   readonly request: Band;
   readonly exec: Band;
-  /** The per-process medians of each arm, one value for each round, for a bootstrap of the share later */
+  /** The per-process medians of each arm, one value for each round */
   readonly samples: { readonly request: readonly number[]; readonly exec: readonly number[] };
   /** The median exec time over the median request time */
   readonly share: number;
+  /** The 95 % bootstrap interval of the share, from `SHARE_BOOTSTRAP` */
+  readonly interval: Interval;
   /** The ratio exec / request of each round */
   readonly paired: readonly number[];
   readonly pairedBand: Band;
@@ -82,6 +89,7 @@ export function shareOf(request: readonly number[], exec: readonly number[]): Sh
     exec: bandOf(exec),
     samples: { request: [...request], exec: [...exec] },
     share: quantileOf(exec, 0.5) / quantileOf(request, 0.5),
+    interval: bootstrapMedianRatio(exec, request, SHARE_BOOTSTRAP),
     paired,
     pairedBand: bandOf(paired),
   };
@@ -134,7 +142,7 @@ export function markdownOf(record: Pick<ServerRequestRecord, "refs" | "node" | "
     "- The arm `request` calls a fresh host child over loopback HTTP. The arm `exec` does the same exec on `LocalTransport`.",
     "- Each round has one sample of each case and arm. The order of the arms rotates each round.",
     "- The share is median(exec) / median(request) over the rounds.",
-    "- The interval of the share comes from the bootstrap of rigor-statistics (a later change).",
+    `- The share interval is the 95 % percentile bootstrap of rigor-statistics: ${SHARE_BOOTSTRAP.runs} runs, seed ${SHARE_BOOTSTRAP.seed}. Each run draws the rounds of each arm with replacement.`,
     "- The round-paired ratio is exec / request in the same round.",
     "- The A/A ratio is a second `request` sample over the first, in the same round.",
     "",
@@ -146,9 +154,9 @@ export function markdownOf(record: Pick<ServerRequestRecord, "refs" | "node" | "
       "",
       spec === undefined ? "" : `${spec.label}. Each process: ${spec.warmup * record.warmupPasses} warm-up calls, then ${spec.calls} timed calls.`,
       "",
-      "| Request median µs | Exec median µs | Share | Round-paired p10 to p90 | A/A p10 to p90 |",
-      "|---|---|---|---|---|",
-      `| ${us(x.request.median)} | ${us(x.exec.median)} | ${pc(x.share)} | ${pc(x.pairedBand.p10)} to ${pc(x.pairedBand.p90)} | ${x.aa === null ? "none" : `${r3(x.aa.band.p10)} to ${r3(x.aa.band.p90)}`} |`,
+      "| Request median µs | Exec median µs | Share | Share 95 % interval | Round-paired p10 to p90 | A/A p10 to p90 |",
+      "|---|---|---|---|---|---|",
+      `| ${us(x.request.median)} | ${us(x.exec.median)} | ${pc(x.share)} | ${pc(x.interval.low)} to ${pc(x.interval.high)} | ${pc(x.pairedBand.p10)} to ${pc(x.pairedBand.p90)} | ${x.aa === null ? "none" : `${r3(x.aa.band.p10)} to ${r3(x.aa.band.p90)}`} |`,
       "",
     );
   }
@@ -317,7 +325,7 @@ if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathS
     mkdirSync(dirname(resolve(out)), { recursive: true });
     writeFileSync(out, `${JSON.stringify(record, null, 2)}\n`);
     writeFileSync(`${out.replace(/\.json$/, "")}.md`, markdownOf(record));
-    for (const [id, x] of Object.entries(cases)) console.log(`${id}: request ${(x.request.median * 1000).toFixed(1)} µs, exec ${(x.exec.median * 1000).toFixed(1)} µs, share ${(x.share * 100).toFixed(1)} %`);
+    for (const [id, x] of Object.entries(cases)) console.log(`${id}: request ${(x.request.median * 1000).toFixed(1)} µs, exec ${(x.exec.median * 1000).toFixed(1)} µs, share ${(x.share * 100).toFixed(1)} % [${(x.interval.low * 100).toFixed(1)}, ${(x.interval.high * 100).toFixed(1)}]`);
     // A probe that gives no number fails the run (the 10-30 rule: gates and probes fail closed)
     if (Object.values(cases).some((x) => !Number.isFinite(x.share))) {
       console.error("The measure is not valid: a case gave no share.");
