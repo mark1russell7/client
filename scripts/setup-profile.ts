@@ -4,7 +4,7 @@
  * the time from the start of the process to the end of call 1, and how many bytes each one loads.
  *
  *   node scripts/setup-profile.ts --base <folder> --head <folder> [--base-ref <sha>] [--head-ref <sha>]
- *     [--inputs <id>,<id>] [--repeats <n>] --out <file.json>
+ *     [--inputs <id>,<id>] [--repeats <n>] [--head-cache <folder>] --out <file.json>
  *
  * Each repeat starts the child `bench-paired-child.mjs` once in each tree, with `--input <id>`,
  * `--cpu-prof` and the hook `setup-profile-hook.ts`. The order of the trees changes at each repeat.
@@ -18,6 +18,10 @@
  * The profiler and the hook make the process slower, so the setup time of this script is not the
  * setup measure of the paired bench. Use the difference of the two trees, file by file, and the share
  * of each file in the added self time.
+ *
+ * With `--head-cache`, each child of the head uses the V8 compile cache in that folder (O90). Before
+ * the repeats, the script starts the head child once for each input to fill the cache. Thus the
+ * head shows a warm cache, and the base and the head can be the same tree.
  *
  * The script writes the JSON record to `--out`, and the same tables as Markdown next to it (`.md`).
  */
@@ -204,10 +208,10 @@ export function diffOf(base: Summary, head: Summary): Diff {
  * This function gives the Markdown of a record: for each input, the totals, the groups and the
  * files with the largest added self time.
  */
-export function markdownOf(record: { base: { ref: string }; head: { ref: string }; inputs: Record<string, InputRecord> }, top = 25): string {
+export function markdownOf(record: { base: { ref: string }; head: { ref: string; compileCache?: string }; inputs: Record<string, InputRecord> }, top = 25): string {
   const f = (x: number, d = 2) => x.toFixed(d);
   const kb = (b: number) => (b / 1024).toFixed(1);
-  const lines = [`# Setup profile`, "", `Base \`${record.base.ref}\`, head \`${record.head.ref}\`. Self time: the mean of the repeats, in ms, with the profiler on.`];
+  const lines = [`# Setup profile`, "", `Base \`${record.base.ref}\`, head \`${record.head.ref}\`. Self time: the mean of the repeats, in ms, with the profiler on.${record.head.compileCache === undefined ? "" : ` The head uses a ${record.head.compileCache} compile cache.`}`];
   const table = (rows: readonly DiffRow[]) => [
     "| File | Base ms | Head ms | Added ms | Share | Base KB | Head KB | Added KB | Base modules | Head modules | Added modules |",
     "|---|---|---|---|---|---|---|---|---|---|---|",
@@ -236,13 +240,13 @@ export function markdownOf(record: { base: { ref: string }; head: { ref: string 
  * This function starts the setup child once in a tree, with the profiler and the hook, and gives
  * its setup time, and the self time, the bytes and the modules of each key.
  */
-function profileOnce(tree: string, input: string): Repeat {
+function profileOnce(tree: string, input: string, cache?: string): Repeat {
   const dir = mkdtempSync(join(tmpdir(), "setup-profile-"));
   try {
     const modulesFile = join(dir, "modules.json");
     const r = spawnSync(
       process.execPath,
-      ["--cpu-prof", "--cpu-prof-dir", dir, "--cpu-prof-interval", "100", "--import", pathToFileURL(join(HERE, "setup-profile-hook.ts")).href, join(HERE, "bench-paired-child.mjs"), "--tree", tree, "--input", input, "--warmup", "0"],
+      ["--cpu-prof", "--cpu-prof-dir", dir, "--cpu-prof-interval", "100", "--import", pathToFileURL(join(HERE, "setup-profile-hook.ts")).href, join(HERE, "bench-paired-child.mjs"), "--tree", tree, "--input", input, "--warmup", "0", ...(cache === undefined ? [] : ["--compile-cache", cache])],
       { encoding: "utf8", env: { ...process.env, SETUP_PROFILE_MODULES: modulesFile } },
     );
     if (r.status !== 0) throw new Error(`${tree} ${input}: the child exited with ${r.status}: ${r.stderr}`);
@@ -270,18 +274,22 @@ if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathS
   const argv = process.argv.slice(2);
   const [baseArg, headArg, out] = [optionOf(argv, "--base"), optionOf(argv, "--head"), optionOf(argv, "--out")];
   if (baseArg === undefined || headArg === undefined || out === undefined) {
-    console.error("Usage: node scripts/setup-profile.ts --base <folder> --head <folder> [--inputs <ids>] [--repeats <n>] --out <file.json>");
+    console.error("Usage: node scripts/setup-profile.ts --base <folder> --head <folder> [--inputs <ids>] [--repeats <n>] [--head-cache <folder>] --out <file.json>");
     process.exit(2);
   }
   const trees = { base: resolve(baseArg), head: resolve(headArg) };
   const inputs = (optionOf(argv, "--inputs") ?? SETUP_INPUTS.join(",")).split(",").filter((s) => s !== "");
   const repeats = Number(optionOf(argv, "--repeats") ?? "10");
+  const headCacheArg = optionOf(argv, "--head-cache");
+  const cache = { base: undefined, head: headCacheArg === undefined ? undefined : resolve(headCacheArg) };
   const result: Record<string, InputRecord> = {};
   for (const input of inputs) {
+    // The first child of the head writes the cache, with the same flags as the profiled children
+    if (cache.head !== undefined) profileOnce(trees.head, input, cache.head);
     const runs: { base: Repeat[]; head: Repeat[] } = { base: [], head: [] };
     for (let r = 0; r < repeats; r++) {
       const order = r % 2 === 0 ? (["base", "head"] as const) : (["head", "base"] as const);
-      for (const side of order) runs[side].push(profileOnce(trees[side], input));
+      for (const side of order) runs[side].push(profileOnce(trees[side], input, cache[side]));
     }
     const base = summaryOf(runs.base);
     const head = summaryOf(runs.head);
@@ -292,7 +300,7 @@ if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathS
     format: "setup-profile/2",
     node: process.version,
     base: { ref: optionOf(argv, "--base-ref") ?? trees.base },
-    head: { ref: optionOf(argv, "--head-ref") ?? trees.head },
+    head: { ref: optionOf(argv, "--head-ref") ?? trees.head, ...(cache.head === undefined ? {} : { compileCache: "warm" }) },
     repeats,
     inputs: result,
   };

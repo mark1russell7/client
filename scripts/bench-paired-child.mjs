@@ -3,7 +3,7 @@
  * This script is the child of the paired A/B bench (O83): one arm, one input, one round, in a fresh process.
  *
  *   node scripts/bench-paired-child.mjs --tree <folder> --list
- *   node scripts/bench-paired-child.mjs --tree <folder> --input <id> --warmup <n>
+ *   node scripts/bench-paired-child.mjs --tree <folder> --input <id> --warmup <n> [--compile-cache <folder | fresh>]
  *
  * The folder is a checkout of this repository with a build of `@procedures/client` and
  * `@procedures/collections`. The script loads the built modules of that folder, and not of the
@@ -30,9 +30,16 @@
  *
  * With `--list`, the script writes the ids of the workloads that the folder can run, as JSON. A
  * workload whose module or export is missing in the folder is not in the list.
+ *
+ * With `--compile-cache`, the script enables the V8 compile cache in that folder before it loads
+ * the tree (O90). The value `fresh` gives a new empty folder, which the script removes at the end.
+ * The setup measure then ends after `module.flushCompileCache()`, so a cold cache pays its write.
+ * If the cache does not start, the script fails: a bench arm must not lose its cache silently.
  */
 
-import { existsSync, realpathSync } from "node:fs";
+import { existsSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
+import module from "node:module";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -239,10 +246,25 @@ export async function timeWarm(workload, call, clock = () => performance.now()) 
  * @param {Workload} workload
  * @param {() => unknown} call
  * @param {() => number} [clock] A clock whose origin is the start of the process
+ * @param {() => void} [end] The last step of the setup before the clock is read, for example the write of the compile cache
  */
-export async function timeSetup(workload, call, clock = () => performance.now()) {
+export async function timeSetup(workload, call, clock = () => performance.now(), end = () => {}) {
   await pass(call, 1, workload.sync === true);
+  end();
   return clock();
+}
+
+/**
+ * This function enables the compile cache in a folder, and gives the folder that Node.js uses.
+ * It throws when the cache does not start: a bench arm with no cache must not pass as a cache arm.
+ * @param {string} dir
+ */
+export function enableCompileCache(dir) {
+  if (typeof module.enableCompileCache !== "function") throw new Error(`Node.js ${process.version} has no module.enableCompileCache (22.1 or later)`);
+  const result = module.enableCompileCache(dir);
+  const { ENABLED, ALREADY_ENABLED } = module.constants.compileCacheStatus;
+  if (result.status !== ENABLED && result.status !== ALREADY_ENABLED) throw new Error(`The compile cache did not start in ${dir}: ${result.message ?? result.status}`);
+  return result.directory ?? dir;
 }
 
 /** This function gives the value of an option of the command line, or `undefined`. */
@@ -269,6 +291,11 @@ if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathS
       process.exit(2);
     }
     const warmup = Number(optionOf(argv, "--warmup") ?? "1");
+    const cacheArg = optionOf(argv, "--compile-cache");
+    const fresh = cacheArg === "fresh" ? mkdtempSync(join(tmpdir(), "bench-compile-cache-")) : undefined;
+    // The exit handler also removes the new folder when the child fails
+    if (fresh !== undefined) process.on("exit", () => rmSync(fresh, { recursive: true, force: true }));
+    const cache = cacheArg === undefined ? undefined : enableCompileCache(fresh ?? resolve(cacheArg));
     const m = await loadPackage(tree, workload.pkg);
     if (m === undefined) {
       console.error(`${tree}: the build of the package ${workload.pkg} is missing (${MODULES[workload.pkg].join(", ")}).`);
@@ -277,8 +304,8 @@ if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathS
     const call = await workload.make(m);
     // The value maxRSS of Node.js is in kilobytes
     if (workload.measure === "setup") {
-      const ms = await timeSetup(workload, call);
-      console.log(JSON.stringify({ ms, peakRss: process.resourceUsage().maxRSS * 1024, calls: 1 }));
+      const ms = await timeSetup(workload, call, undefined, cache === undefined ? undefined : () => module.flushCompileCache());
+      console.log(JSON.stringify({ ms, peakRss: process.resourceUsage().maxRSS * 1024, calls: 1, ...(cache === undefined ? {} : { cache }) }));
     } else if (workload.measure === "warm") {
       const warm = await timeWarm(workload, call);
       if (!warm.stable) console.error(`${workload.id}: the time per call is not stable after ${warm.chunks} chunks`);

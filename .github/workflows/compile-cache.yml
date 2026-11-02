@@ -1,0 +1,88 @@
+name: Compile cache
+
+# The V8 compile cache on the setup of the core workloads (roadmap O90). One job builds one tree as
+# the paired bench does. Then scripts/compile-cache.ts runs 3 arms in one paired run: no cache, a
+# cold cache (a new folder in each process) and a warm cache (one folder, filled first). Then
+# scripts/setup-profile.ts profiles the same tree with no cache against the warm cache. The paired
+# run also times one `mark` call from the spawn to the exit with the same 3 arms.
+#
+# The workflow only reports: only a dispatch starts it, and no ruleset needs its checks.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tree:
+        description: "The commit or ref under test (empty: the HEAD of main)"
+        required: false
+        default: ""
+      repeats:
+        description: "The timed rounds of each arm and input"
+        required: false
+        default: "10"
+      profile-repeats:
+        description: "The profiled processes of each side and input (0: no profile)"
+        required: false
+        default: "10"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compile-cache-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  measure:
+    name: Compile cache
+    runs-on: ubuntu-latest
+    # One install and build of 3 packages, 4 inputs x 4 arms x 12 processes, 40 mark calls, the profile
+    timeout-minutes: 30
+    steps:
+      # The scripts of the run come from the ref of the workflow. The tree under test is a worktree.
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+      - name: Resolve the tree and check it out
+        env:
+          TREE_INPUT: ${{ inputs.tree }}
+        run: |
+          tree=$(git rev-parse --verify "${TREE_INPUT:-origin/main}^{commit}")
+          echo "TREE=$tree" >> "$GITHUB_ENV"
+          echo "Tree $tree ($(git log -1 --format='%cs %s' "$tree"))"
+          git worktree add --detach "$RUNNER_TEMP/trees/tree" "$tree"
+      # The packages of the paired bench (@procedures/client and @procedures/collections), and mark
+      - name: Install and build the tree
+        run: |
+          cd "$RUNNER_TEMP/trees/tree"
+          pnpm install --frozen-lockfile --filter "@procedures/client..." --filter "@procedures/collections..." --filter "@procedures/mark..."
+          pnpm --filter "@procedures/client..." --filter "@procedures/collections..." --filter "@procedures/mark..." run build
+      - name: The paired run
+        env:
+          REPEATS: ${{ inputs.repeats || '10' }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/compile-cache"
+          node scripts/compile-cache.ts --tree "$RUNNER_TEMP/trees/tree" --ref "$TREE" --repeats "$REPEATS" \
+            --mark "$RUNNER_TEMP/trees/tree/packages/mark/dist/bin.js" --out "$RUNNER_TEMP/compile-cache/compile-cache.json"
+          cat "$RUNNER_TEMP/compile-cache/compile-cache.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: The profile with no cache against the warm cache
+        if: inputs.profile-repeats != '0'
+        env:
+          REPEATS: ${{ inputs.profile-repeats || '10' }}
+        run: |
+          cache=$(mktemp -d)
+          node scripts/setup-profile.ts --base "$RUNNER_TEMP/trees/tree" --head "$RUNNER_TEMP/trees/tree" \
+            --base-ref "$TREE" --head-ref "$TREE" --head-cache "$cache" --repeats "$REPEATS" \
+            --out "$RUNNER_TEMP/compile-cache/setup-profile.json"
+          cat "$RUNNER_TEMP/compile-cache/setup-profile.md" >> "$GITHUB_STEP_SUMMARY"
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: compile-cache
+          path: ${{ runner.temp }}/compile-cache
+          retention-days: 30
