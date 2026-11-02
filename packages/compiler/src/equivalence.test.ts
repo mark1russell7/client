@@ -27,6 +27,12 @@ const LONG_RUNS: ProgramOptions = { depth: 5, sequentialParallel: true, store: t
  */
 const PROPERTY_TIMEOUT_MS = 30_000;
 
+/** A program whose root call has a call in its input: `t.add` of `t.num` and 3. */
+const EXEC_NESTED_CALL: Record<string, unknown> = {
+  $proc: ["t", "add"],
+  input: { a: { $proc: ["t", "num"], input: { value: 2 } }, b: 3 },
+};
+
 describe("the compiled program operates as the interpreter", { timeout: PROPERTY_TIMEOUT_MS }, () => {
   it("gives the same result or error and the same calls in the same order, also for programs with errors", async () => {
     const harness = makeHarness();
@@ -98,7 +104,9 @@ describe("the compiled program operates as the interpreter", { timeout: PROPERTY
         expect(await harness.runCompiled(compiled.run, input)).toEqual(interpreted);
         expect(await harness.runText(compiled.body, input)).toEqual(interpreted);
       }),
-      { numRuns: 100 },
+      // The fixed example has a call in the input of the root call. Thus each run calls the executor of
+      // execWithInput() at least one time, and the coverage is the same in each run (roadmap O89).
+      { numRuns: 100, examples: [[EXEC_NESTED_CALL, { value: 1 }]] },
     );
   });
 });
