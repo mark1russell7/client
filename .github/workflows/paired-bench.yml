@@ -8,6 +8,9 @@ name: Paired bench
 # The workflow only reports: only a dispatch starts it, and no ruleset needs its checks. The rules
 # are the paired timing rules of the strategist (fleet docs/STRATEGY.md, 10-29 to 11-02).
 on:
+  # TEMPORARY: the push trigger registers the workflow, so a dispatch on this branch works. The jobs skip on a push.
+  push:
+    branches: [client/o83-paired]
   workflow_dispatch:
     inputs:
       base:
@@ -46,6 +49,7 @@ jobs:
   # One base and one head for all jobs of the matrix, also when main moves during the run
   refs:
     name: Resolve the base and the head
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -126,7 +130,7 @@ jobs:
   verdicts:
     name: Paired bench verdicts
     needs: paired
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     # actions: read for the records of earlier runs (the input with_runs)
