@@ -32,7 +32,7 @@ import { pathToMethod } from "./server/method.js";
 import { createEventBus } from "./events/bus.js";
 import { ms } from "./duration.js";
 import { countingClock } from "../test/counting-clock.js";
-import { failureLimit } from "../test/failure-limit.js";
+import { failureLimit, gateLimit } from "../test/failure-limit.js";
 
 const minutes = Number(process.env["SOAK_MINUTES"] ?? 0);
 /**
@@ -40,28 +40,30 @@ const minutes = Number(process.env["SOAK_MINUTES"] ?? 0);
  * O85). The runs are the matrix of nightly run 41371616323 (2026-11-02, jobs 1 to 5). Each run
  * wrote its values in the line `soak-measure`, and the artifacts soak-measure-1 to -5 keep them.
  *
- * The rules of the strategist:
- * - A limit of growth (the heap, the failures) is the worst run times 1.5, rounded up.
- * - A floor (the calls) is the worst run divided by 1.5, rounded down to a thousand. The floor
+ * The rule of the strategist (2026-11-02, roadmap O88), which `gateLimit` applies. The spread is
+ * the highest run minus the lowest run. The rule has no factor and no fixed margin.
+ * - A limit of growth (the heap, the failures) is the worst run plus the spread, rounded up.
+ * - A floor (the calls) is the worst run minus the spread, rounded down to a thousand. The floor
  *   is for 10 minutes: the test scales it with `SOAK_MINUTES`.
+ * - The HTTP failures (0 in the 5 runs) use the rule of three and a Poisson limit (`failureLimit`).
  *
  * The checks of an exact count (the maps, the open subscriptions, the timers) and the checks that
  * a value is above 0 do not have a measured limit.
  */
 const LIMITS = {
   ws: {
-    // The heap growth in MB: 3.10, 2.84, 2.96, 2.82, 2.91. The worst 3.10 x 1.5 = 4.64, so 5 (before: 64).
-    heapMb: 5,
-    // The calls: 966963, 1096935, 961695, 1092157, 968772. The worst 961695 / 1.5 = 641130, so 641000 (before: 10000).
-    calls: 641_000,
-    // The failures for each reconnect: 0.937, 0.927, 0.928, 0.922, 0.936. The worst 0.937 x 1.5 = 1.41, so 1.5 (before: 4).
-    failuresPerReconnect: 1.5,
+    // The heap growth in MB. 3.10 + (3.10 - 2.82) = 3.38, so 3.4 (O85: 5).
+    heapMb: gateLimit([3.1, 2.84, 2.96, 2.82, 2.91], "ceiling", 0.1),
+    // The calls. 961695 - (1096935 - 961695) = 826455, so 826000 (O85: 641000).
+    calls: gateLimit([966_963, 1_096_935, 961_695, 1_092_157, 968_772], "floor", 1000),
+    // The failures for each reconnect. 0.937 + (0.937 - 0.922) = 0.952, so 0.96 (O85: 1.5).
+    failuresPerReconnect: gateLimit([0.937, 0.927, 0.928, 0.922, 0.936], "ceiling", 0.01),
   },
   http: {
-    // The heap growth in MB: 4.51, 4.51, 4.50, 4.54, 4.47. The worst 4.54 x 1.5 = 6.82, so 7 (before: 64).
-    heapMb: 7,
-    // The calls: 177093, 187858, 175583, 187641, 175003. The worst 175003 / 1.5 = 116669, so 116000 (before: 10000).
-    calls: 116_000,
+    // The heap growth in MB. 4.54 + (4.54 - 4.47) = 4.61, so 4.7 (O85: 7).
+    heapMb: gateLimit([4.51, 4.51, 4.5, 4.54, 4.47], "ceiling", 0.1),
+    // The calls. 175003 - (187858 - 175003) = 162148, so 162000 (O85: 116000).
+    calls: gateLimit([177_093, 187_858, 175_583, 187_641, 175_003], "floor", 1000),
     // The sums of the 5 runs: their calls and their failures (0). `failureLimit` gives the limit of
     // the failures of a run from these sums and the calls of the run (roadmap O88, before: 1 for each 1000 calls).
     measured: { calls: 177_093 + 187_858 + 175_583 + 187_641 + 175_003, failures: 0 },

@@ -1,8 +1,9 @@
 /**
- * The limit of the failures of one soak run, from measured runs (roadmap O88). The HTTP soak test
- * (roadmap R32) uses it in place of a limit set by feel.
+ * The limits of the soak, from measured runs (roadmap O88). The soak test (roadmap R32) uses them
+ * in place of limits set by feel. `gateLimit` gives a limit from the values of 5 runs.
+ * `failureLimit` gives the limit of the failures of one run, from a count of 0 or more.
  *
- * The rule of the strategist:
+ * The rule of the strategist for `failureLimit`:
  * - The measured runs give an upper failure rate `p` with 95 % confidence. With 0 failures, the
  *   rule of three gives `p = 3 / C`, where `C` is the sum of the calls of the measured runs.
  * - With `k > 0` failures, `p` is the exact upper bound of a Poisson count: `P(Poisson(p * C) <= k) = 5 %`.
@@ -55,4 +56,23 @@ export function failureLimit(runs: MeasuredRuns, calls: number): number {
   let limit = 0;
   while (1 - poissonAtMost(limit, mean) >= 0.01) limit++;
   return limit;
+}
+
+/**
+ * This function gives the limit of a gate from the values of at least 5 measured runs (the rule of
+ * the strategist, 2026-11-02). The spread is the highest value minus the lowest value.
+ * - A ceiling (a growth, a rate) is the highest value plus the spread, rounded up to `step`.
+ * - A floor (a count) is the lowest value minus the spread, rounded down to `step`.
+ * The rule has no factor and no fixed margin.
+ */
+export function gateLimit(values: readonly number[], kind: "ceiling" | "floor", step: number): number {
+  if (values.length < 5) throw new Error(`A gate limit needs at least 5 runs, not ${values.length}`);
+  if (!(step > 0)) throw new Error(`The step must be above 0, not ${step}`);
+  const high = Math.max(...values);
+  const low = Math.min(...values);
+  const spread = high - low;
+  // toFixed removes the error of the binary fractions: 3.38 / 0.1 is 33.800000000000004
+  const units = Number(((kind === "ceiling" ? high + spread : low - spread) / step).toFixed(6));
+  const rounded = kind === "ceiling" ? Math.ceil(units) : Math.floor(units);
+  return Number((rounded * step).toPrecision(12));
 }

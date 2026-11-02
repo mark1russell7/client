@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { failureLimit, poissonAtMost, upperFailureRate } from "../test/failure-limit.js";
+import { failureLimit, gateLimit, poissonAtMost, upperFailureRate } from "../test/failure-limit.js";
 
 describe("the limit of the failures of a soak run (O88)", () => {
   it("gives 3 for 0 failures in 5 runs of 175000 calls and a run of 175000 calls (p * N = 0.6)", () => {
@@ -35,5 +35,32 @@ describe("the limit of the failures of a soak run (O88)", () => {
 
   it("refuses measured runs without calls", () => {
     expect(() => failureLimit({ calls: 0, failures: 0 }, 1000)).toThrow(/need calls/);
+  });
+});
+
+describe("the limit of a gate from 5 runs: the worst run and the spread (O88)", () => {
+  it("gives the soak ceilings of nightly run 41371616323", () => {
+    expect(gateLimit([3.1, 2.84, 2.96, 2.82, 2.91], "ceiling", 0.1)).toBe(3.4);
+    expect(gateLimit([4.51, 4.51, 4.5, 4.54, 4.47], "ceiling", 0.1)).toBe(4.7);
+    expect(gateLimit([0.937, 0.927, 0.928, 0.922, 0.936], "ceiling", 0.01)).toBe(0.96);
+  });
+
+  it("gives the soak floors of nightly run 41371616323", () => {
+    expect(gateLimit([966_963, 1_096_935, 961_695, 1_092_157, 968_772], "floor", 1000)).toBe(826_000);
+    expect(gateLimit([177_093, 187_858, 175_583, 187_641, 175_003], "floor", 1000)).toBe(162_000);
+  });
+
+  it("gives the mutation floor of the last 5 nightly runs (88.15 - 0.26 = 87.89)", () => {
+    expect(gateLimit([88.36, 88.36, 88.41, 88.15, 88.41], "floor", 0.1)).toBe(87.8);
+  });
+
+  it("keeps a value that is on a step, with a spread of 0", () => {
+    expect(gateLimit([4.6, 4.6, 4.6, 4.6, 4.6], "ceiling", 0.1)).toBe(4.6);
+    expect(gateLimit([87.8, 87.8, 87.8, 87.8, 87.8], "floor", 0.1)).toBe(87.8);
+  });
+
+  it("refuses fewer than 5 runs and a step of 0", () => {
+    expect(() => gateLimit([1, 2, 3, 4], "ceiling", 0.1)).toThrow(/at least 5 runs/);
+    expect(() => gateLimit([1, 2, 3, 4, 5], "floor", 0)).toThrow(/above 0/);
   });
 });
