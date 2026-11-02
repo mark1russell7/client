@@ -32,6 +32,7 @@ import { pathToMethod } from "./server/method.js";
 import { createEventBus } from "./events/bus.js";
 import { ms } from "./duration.js";
 import { countingClock } from "../test/counting-clock.js";
+import { failureLimit } from "../test/failure-limit.js";
 
 const minutes = Number(process.env["SOAK_MINUTES"] ?? 0);
 /**
@@ -61,6 +62,9 @@ const LIMITS = {
     heapMb: 7,
     // The calls: 177093, 187858, 175583, 187641, 175003. The worst 175003 / 1.5 = 116669, so 116000 (before: 10000).
     calls: 116_000,
+    // The sums of the 5 runs: their calls and their failures (0). `failureLimit` gives the limit of
+    // the failures of a run from these sums and the calls of the run (roadmap O88, before: 1 for each 1000 calls).
+    measured: { calls: 177_093 + 187_858 + 175_583 + 187_641 + 175_003, failures: 0 },
   },
 };
 /** `SOAK_HEAP_MB` sets the two limits of the heap growth, in megabytes, for a run by hand. */
@@ -346,9 +350,9 @@ describe.runIf(minutes > 0)("the HTTP transport under load (R32)", () => {
 
     expect(counts.calls).toBeGreaterThanOrEqual((LIMITS.http.calls * minutes) / 10);
     // HTTP has no reconnect: a failure is a fault, but a rare closed keep-alive connection. The 5
-    // runs of O85 had 0 failures. The rule of 1.5 times the worst run gives 0, so this limit
-    // stays at one failure for each 1000 calls until the strategist decides.
-    expect(counts.failures).toBeLessThanOrEqual(Math.ceil(counts.calls / 1000));
+    // runs of O85 had 0 failures. N is the calls of this run, its successes and its failures. For
+    // N = 175000, p * N = 0.6 and the limit is 3 (roadmap O88).
+    expect(counts.failures).toBeLessThanOrEqual(failureLimit(LIMITS.http.measured, counts.calls + counts.failures));
     expect(counts.quietItems).toBeGreaterThan(0);
     expect(report.openRequests).toBe(0);
     expect(report.timersLive).toBe(0);
