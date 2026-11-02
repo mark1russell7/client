@@ -25,10 +25,10 @@
 // Start it after `pnpm build`: node scripts/check-declared-imports.mjs. Exit code 1 on a failure.
 // The tests of the check: node --test scripts/check-declared-imports.test.mjs.
 
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readdirSync, statSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { isBuiltin } from "./check-browser-entries.mjs";
 import { publicPackages } from "./lib/workspace.mjs";
@@ -156,7 +156,7 @@ export async function undeclaredImportProblems(packages) {
   return { problems, entries };
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   const packages = publicPackages().map(({ name, path, manifest }) => ({ name, path, manifest }));
   const { problems, entries } = await undeclaredImportProblems(packages);
   // With no entry, the check examined nothing
