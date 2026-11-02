@@ -9,6 +9,12 @@ export interface Band {
   readonly p90: number;
 }
 
+/** The ratio of each round: the time of the arm over the time of the base in the same round. A base of 0 gives no ratio. */
+export function roundRatios(arm: readonly number[], base: readonly number[]): number[];
+
+/** The band of a list of values: p10, the median and p90. */
+export function bandOf(values: readonly number[]): Band;
+
 /** The analysis of one benchmark in one run. */
 export interface Analysis {
   readonly id: string;

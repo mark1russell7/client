@@ -1,30 +1,63 @@
 // Tests of the pure parts of the server request bench (O90). No test starts a process or times code.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { markdownOf, quantileOf, recordOf, timesOf } from "./server-request.ts";
+import { caseOf, markdownOf, REQUESTS, shareOf } from "./server-request.ts";
+
+const near = (a: number, b: number) => Math.abs(a - b) < 1e-12;
 
 describe("server-request", () => {
-  it("gives a quantile with a linear step between two values", () => {
-    assert.equal(quantileOf([1, 2, 3, 4, 5], 0.5), 3);
-    assert.equal(quantileOf([1, 2, 3, 4], 0.5), 2.5);
-    assert.ok(Math.abs(quantileOf([0, 10], 0.9) - 9) < 1e-12);
-    assert.ok(Number.isNaN(quantileOf([], 0.5)));
+  it("gives the share: the median of the exec samples over the median of the request samples", () => {
+    // The per-process medians of 5 rounds, in microseconds (the unit has no effect on the share)
+    const s = shareOf([100, 120, 80, 110, 90], [5, 6, 4, 7, 3]);
+    assert.equal(s.rounds, 5);
+    assert.ok(near(s.request.median, 100));
+    assert.ok(near(s.exec.median, 5));
+    assert.ok(near(s.share, 0.05));
+    assert.deepEqual(s.samples.request, [100, 120, 80, 110, 90]);
+    assert.deepEqual(s.samples.exec, [5, 6, 4, 7, 3]);
+    assert.equal("interval" in s, false);
   });
 
-  it("gives the quantiles and the mean of unsorted times", () => {
-    const t = timesOf([5, 1, 3, 2, 4]);
-    assert.equal(t.calls, 5);
-    assert.equal(t.median, 3);
-    assert.equal(t.mean, 3);
-    assert.ok(Math.abs(t.p10 - 1.4) < 1e-12);
-    assert.ok(Math.abs(t.p90 - 4.6) < 1e-12);
+  it("gives the round-paired ratios exec / request, and their p10 to p90", () => {
+    const s = shareOf([1, 2, 4, 5, 10], [0.1, 0.1, 0.2, 0.5, 0.5]);
+    assert.deepEqual(s.paired, [0.1, 0.05, 0.05, 0.1, 0.05]);
+    assert.ok(near(s.pairedBand.median, 0.05));
+    assert.ok(near(s.pairedBand.p10, 0.05));
+    assert.ok(near(s.pairedBand.p90, 0.1));
+    // The share of the medians is not the median of the round ratios
+    assert.ok(near(s.share, 0.2 / 4));
   });
 
-  it("gives the share of the exec: the median exec time over the median request time", () => {
-    const r = recordOf([0.1, 0.1, 0.1], [0.005, 0.005, 0.005]);
-    assert.ok(Math.abs(r.execShare - 0.05) < 1e-12);
-    const md = markdownOf("abc", { "one-call": r });
-    assert.ok(md.includes("Synthetic requests"));
-    assert.ok(md.includes("| `one-call` | 100.0 | 100.0 to 100.0 | 5.0 | 5.0 to 5.0 | 5.0 % |"));
+  it("pairs only the rounds that both arms have", () => {
+    const s = shareOf([1, 2, 3], [0.5, 1]);
+    assert.equal(s.rounds, 2);
+    assert.deepEqual(s.paired, [0.5, 0.5]);
+  });
+
+  it("gives the A/A band of the request arm from the input of a paired-time/1 report", () => {
+    const input = {
+      id: "one-call",
+      ms: { request: [1, 2, 4], exec: [0.1, 0.2, 0.4], "request~aa": [1.1, 1.8, 4] },
+      median: { request: 2, exec: 0.2, "request~aa": 1.8 },
+      ratio: { exec: 0.1, "request~aa": 0.9 },
+    };
+    const c = caseOf(input);
+    assert.ok(near(c.share, 0.1));
+    assert.ok(c.aa !== null);
+    assert.equal(c.aa.ratio, 0.9);
+    assert.ok(near(c.aa.band.median, 1));
+    assert.ok(caseOf({ ...input, ms: { request: [1], exec: [0.1] } }).aa === null);
+  });
+
+  it("gives a Markdown table for each case, and says that the requests are synthetic", () => {
+    const cases = { "one-call": caseOf({ id: "one-call", ms: { request: [0.1, 0.1, 0.1], exec: [0.005, 0.005, 0.005], "request~aa": [0.1, 0.1, 0.1] }, median: {}, ratio: { "request~aa": 1 } }) };
+    const md = markdownOf({ refs: { head: "abc" }, node: "v26.0.0", rounds: 20, warmupPasses: 1, requests: REQUESTS, cases });
+    assert.ok(md.includes("The requests are synthetic: no record of real traffic exists (O91)."));
+    assert.ok(md.includes("The interval of the share comes from the bootstrap of rigor-statistics (a later change)."));
+    assert.ok(md.includes("## `one-call`"));
+    assert.ok(md.includes(`Each process: ${REQUESTS["one-call"].warmup} warm-up calls, then ${REQUESTS["one-call"].calls} timed calls.`));
+    assert.ok(md.includes("| Request median µs | Exec median µs | Share | Round-paired p10 to p90 | A/A p10 to p90 |"));
+    assert.ok(md.includes("| 100.0 | 5.0 | 5.0 % | 5.0 % to 5.0 % | 1.000 to 1.000 |"));
+    assert.equal(md.includes("Share interval"), false);
   });
 });
