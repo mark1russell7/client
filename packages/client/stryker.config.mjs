@@ -39,16 +39,15 @@ export default {
   htmlReporter: { fileName: "reports/mutation/index.html" },
   jsonReporter: { fileName: "reports/mutation/mutation.json" },
   // The floor comes from measured runs, not from a number set by feel (roadmap O85). The rule of
-  // the strategist: the floor is the worst run minus a margin. The margin is at least 3 times the
-  // spread of the runs, and at least the regression that the floor must catch (1 point).
+  // the strategist (2026-11-02, roadmap O88): the floor is the worst of the last 5 runs minus their
+  // spread, rounded down to 0.1. The rule has no factor and no fixed margin.
   // The nightly runs on main (scheduled) and run 41366212710 (a full dispatch):
   //   40265089062 (2026-10-26) 88.07, 40444986317 (10-27) 88.36, 40626675823 (10-28) 88.36,
   //   40812134490 (10-29) failed, 40997362466 (10-30) 88.36, 41161112179 (10-31) 88.41,
   //   41266207445 (11-01) 88.15, 41366212710 (11-02) 88.41.
-  // The last 5 runs: worst 88.15, spread 0.26, margin max(3 x 0.26, 1) = 1, floor 87.15.
-  // All 7 runs: worst 88.07, spread 0.34, margin max(3 x 0.34, 1) = 1.02, floor 87.05.
-  // The two give 87 when rounded down to a whole point. Before O85, the floor was 88.
-  thresholds: { high: 80, low: 60, break: 87 },
+  // The last 5 runs (10-28 to 11-02): 88.36, 88.36, 88.41, 88.15, 88.41. The worst is 88.15, the
+  // spread is 88.41 - 88.15 = 0.26, and 88.15 - 0.26 = 87.89, so 87.8. Before: 87 (O85), 88.
+  thresholds: { high: 80, low: 60, break: 87.8 },
   timeoutMS: 30_000,
   concurrency: 4,
   tempDirName: ".stryker-tmp",

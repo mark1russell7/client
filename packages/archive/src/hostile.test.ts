@@ -412,6 +412,18 @@ describe("a zip64 archive", () => {
     expect(readFileSync(join(target, "z.txt"), "utf8")).toBe("zip64!");
   });
 
+  it("needs its locator when the size or the offset of the directory is 0xffffffff (O88)", async () => {
+    const { root } = place();
+    for (const [field, at] of [["size", 12], ["offset", 16]] as const) {
+      const archive = join(root, `no-locator-${field}.zip`);
+      const end = Buffer.alloc(22);
+      end.writeUInt32LE(0x06054b50, 0);
+      end.writeUInt32LE(0xffffffff, at);
+      writeFileSync(archive, end);
+      await expect(call("archive.list", { archive }), field).rejects.toMatchObject({ code: "BAD_ARCHIVE", message: expect.stringContaining("zip64 locator is missing") });
+    }
+  });
+
   it("is not needed for 65535 entries: a count of 0xffff without a locator is the true count (audit pass 2)", async () => {
     const { root } = place();
     const archive = join(root, "many.zip");

@@ -5,7 +5,8 @@
  * The coverage job of `nightly.yml` runs the coverage check several times. Each run writes the
  * measured totals with `node scripts/coverage.mjs --totals <file>`. This script reads the files
  * of all runs and writes, for each package and each metric, the lowest value, the highest value
- * and the spread. It also writes the floors: the lowest value of each metric, rounded down to 0.1.
+ * and the spread. It also writes the floors: the lowest value of each metric minus its spread,
+ * rounded down to 0.1 (roadmap O88). For a spread of 0, the floor is the lowest value, rounded down.
  *
  *   node scripts/coverage-spread.mjs <folder> [--out <file>]
  *
@@ -60,7 +61,8 @@ for (const name of names) {
     const low = Math.min(...values);
     const spread = Math.round((Math.max(...values) - low) * 100) / 100;
     largest = Math.max(largest, spread);
-    floors[name][metric] = Math.floor(low * 10) / 10;
+    // In hundredths, so that the subtraction gives no binary fraction below the true value
+    floors[name][metric] = Math.floor(Math.round((low - spread) * 100) / 10) / 10;
     parts.push(spread === 0 ? `${metric} ${low}` : `${metric} ${values.join("/")} (spread ${spread})`);
   }
   console.log(`${name}: ${parts.join(", ")}`);

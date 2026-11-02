@@ -183,6 +183,17 @@ describe("the git procedures under the root of a host", () => {
     expect(command.args.at(-1)).toBe("status");
   });
 
+  it("check out a new branch quietly, and fetch without the submodules (O88)", async () => {
+    const repo = join(root, "repo");
+    initRepo(repo);
+    git(repo, "commit", "-q", "--allow-empty", "-m", "first");
+    // The root adds --quiet to checkout and --no-recurse-submodules to fetch
+    expect(await call("git.checkout", { cwd: "repo", ref: "side", create: true })).toEqual({ ref: "side", created: true });
+    expect(git(repo, "branch", "--show-current").trim()).toBe("side");
+    // A repository without a remote: fetch --all has nothing to fetch, and passes
+    await expect(call("git.fetch", { cwd: "repo", all: true, prune: true })).resolves.toBeDefined();
+  });
+
   it("run no hook and no fsmonitor of the repository", async () => {
     const repo = join(root, "repo");
     initRepo(repo);

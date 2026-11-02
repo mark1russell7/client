@@ -341,7 +341,7 @@ jobs:
           retention-days: 30
 
   # The lowest value, the highest value and the spread of each metric across the coverage runs,
-  # and the floors: the lowest value rounded down to 0.1 (scripts/coverage-spread.mjs)
+  # and the floors: the lowest value minus the spread, rounded down to 0.1 (scripts/coverage-spread.mjs, O88)
   coverage-spread:
     name: The spread of the coverage runs
     needs: coverage
