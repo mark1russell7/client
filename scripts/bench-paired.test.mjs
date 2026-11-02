@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { aggregateVerdict, analyzeInput, bandOf, containsOne, effectOf, halfSpreadOf, roundRatios, runMarkdown, spreadOf, verdictMarkdown, verdictOf, verdictsOf } from "./bench-paired.mjs";
-import { WORKLOADS, pass, timeWorkload } from "./bench-paired-child.mjs";
+import { CORE, COLD_CALLS, WARM, WORKLOADS, isStable, pass, timeWarm, timeWorkload } from "./bench-paired-child.mjs";
 import { quantileOf } from "./lib/paired-time.mjs";
 
 /** This function makes one input of a paired-time/1 report from the times of each round. */
@@ -222,7 +222,64 @@ describe("the workloads of the child", () => {
       [...readFileSync(new URL(`../${file}`, import.meta.url), "utf8").matchAll(/result\("([^"]+)"\)/g)].map((m) => m[1]),
     );
     assert.ok(names.length >= 14);
-    assert.deepEqual(WORKLOADS.map((w) => w.id).sort(), [...names].sort());
+    assert.deepEqual(WORKLOADS.filter((w) => w.measure === undefined).map((w) => w.id).sort(), [...names].sort());
+  });
+
+  it("gives each core workload a cold and a warm measure", () => {
+    for (const id of CORE) {
+      const fixed = WORKLOADS.find((w) => w.id === id);
+      const cold = WORKLOADS.find((w) => w.id === `${id}-cold`);
+      const warm = WORKLOADS.find((w) => w.id === `${id}-warm`);
+      assert.ok(fixed !== undefined && cold !== undefined && warm !== undefined, id);
+      assert.equal(cold.measure, "cold");
+      assert.equal(cold.calls, COLD_CALLS);
+      assert.equal(warm.measure, "warm");
+      assert.equal(warm.calls, Math.max(1, Math.round(fixed.calls / 5)));
+      assert.equal(warm.file, fixed.file);
+    }
+  });
+
+  it("times the first calls of a cold measure, with no warm-up", async () => {
+    let calls = 0;
+    let now = 0;
+    const ms = await timeWorkload({ id: "w-cold", pkg: "client", file: "f", calls: 3, measure: "cold", make: async () => () => 0 }, () => ((calls += 1), (now += 2)), 5, () => now);
+    assert.equal(calls, 3);
+    assert.equal(ms, 2);
+  });
+
+  it("is stable when the last chunks agree within 5 %, after the fewest chunks", () => {
+    const flat = Array.from({ length: WARM.min }, () => 1);
+    assert.equal(isStable(flat), true);
+    assert.equal(isStable(flat.slice(1)), false);
+    assert.equal(isStable([...flat, 1, 1.04]), true);
+    assert.equal(isStable([...flat, 1, 1.06]), false);
+  });
+
+  it("times chunks until the time per call is stable, and gives the median of the last chunks", async () => {
+    // The time per call falls from 10 to 1 over the first 12 chunks, then stays at 1, 1.02, 0.99
+    const perCall = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1.5, 1.2, 1.1, 1, 1.02, 0.99, 1, 1];
+    let now = 0;
+    let chunk = 0;
+    let inChunk = 0;
+    const workload = { id: "w-warm", pkg: /** @type {const} */ ("client"), file: "f", calls: 2, measure: /** @type {const} */ ("warm"), make: async () => () => 0 };
+    const call = () => {
+      now += perCall[chunk];
+      inChunk += 1;
+      if (inChunk === workload.calls) (chunk += 1), (inChunk = 0);
+    };
+    const warm = await timeWarm(workload, call, () => now);
+    assert.equal(warm.stable, true);
+    assert.equal(warm.chunks, 15);
+    assert.equal(warm.ms, 1);
+    assert.equal(await timeWorkload({ ...workload }, () => (now += 1), 2, () => now), 1);
+  });
+
+  it("stops after the most chunks when the time is not stable", async () => {
+    let now = 0;
+    let n = 0;
+    const warm = await timeWarm({ id: "w-warm", pkg: "client", file: "f", calls: 1, measure: "warm", make: async () => () => 0 }, () => (now += (n += 1) % 2 === 0 ? 1 : 2), () => now);
+    assert.equal(warm.stable, false);
+    assert.equal(warm.chunks, WARM.max);
   });
 
   it("times one pass of a fixed count of calls after the warm-up passes, and gives the time of one call", async () => {
