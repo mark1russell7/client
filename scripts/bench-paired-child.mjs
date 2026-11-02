@@ -86,8 +86,8 @@ async function deltaSetup(/** @type {Record<string, any>} */ m, /** @type {boole
 
 /** @type {Workload[]} */
 export const WORKLOADS = [
-  { id: "exec-one-call", pkg: "client", file: "packages/client/bench/core.bench.ts", calls: 10_000, make: async (m) => { const s = await coreSetup(m); return () => s.client.exec(s.add(1, 2)); } },
-  { id: "exec-chain-50", pkg: "client", file: "packages/client/bench/core.bench.ts", calls: 150, make: async (m) => { const s = await coreSetup(m); return () => s.client.exec(s.chain); } },
+  { id: "exec-one-call", pkg: "client", file: "packages/client/bench/core.bench.ts", calls: 40_000, make: async (m) => { const s = await coreSetup(m); return () => s.client.exec(s.add(1, 2)); } },
+  { id: "exec-chain-50", pkg: "client", file: "packages/client/bench/core.bench.ts", calls: 450, make: async (m) => { const s = await coreSetup(m); return () => s.client.exec(s.chain); } },
   { id: "exec-map-100", pkg: "client", file: "packages/client/bench/core.bench.ts", calls: 200, make: async (m) => { const s = await coreSetup(m); return () => s.client.exec(s.map); } },
   { id: "hydrate-200-refs", pkg: "client", file: "packages/client/bench/core.bench.ts", calls: 100, make: async (m) => { const s = await coreSetup(m); return () => m.hydrateInput(s.data, async () => undefined, { scope: s.scope }); } },
   {

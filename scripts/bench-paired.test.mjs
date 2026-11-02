@@ -1,11 +1,11 @@
 // The tests of scripts/bench-paired.mjs and scripts/bench-paired-child.mjs (O83): the round ratios,
-// the A/A rule, the validity check and the verdicts, with times in memory. No test times code.
+// the A/A rule, the interval rule and the verdicts, with times in memory. No test times code.
 // Start them with: node --test scripts/bench-paired.test.mjs
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { aggregateVerdict, analyzeInput, bandOf, containsOne, resolves, roundRatios, runMarkdown, sideOf, spreadOf, verdictMarkdown, verdictsOf } from "./bench-paired.mjs";
+import { aggregateVerdict, analyzeInput, bandOf, containsOne, effectOf, halfSpreadOf, roundRatios, runMarkdown, spreadOf, verdictMarkdown, verdictOf, verdictsOf } from "./bench-paired.mjs";
 import { WORKLOADS, pass, timeWorkload } from "./bench-paired-child.mjs";
 import { quantileOf } from "./lib/paired-time.mjs";
 
@@ -23,7 +23,7 @@ const AA = [0.99, 1.01, 1, 0.995, 1.005, 1];
 /** This function makes the analysis of a benchmark in one run, for the aggregate. */
 const sample = (/** @type {string} */ run, /** @type {number} */ ratio, /** @type {Partial<{ counts: boolean, spread: number }>} */ options = {}) => ({
   run,
-  analysis: /** @type {any} */ ({ id: "x", ratio, baseMs: 1, headMs: ratio, counts: options.counts ?? true, aa: { spread: options.spread ?? 0.01, band: { p10: 0.99, median: 1, p90: 1.01 } } }),
+  analysis: /** @type {any} */ ({ id: "x", ratio, baseMs: 1, headMs: ratio, counts: options.counts ?? true, aa: { spread: options.spread ?? 0.01, band: { p10: 1 - (options.spread ?? 0.01), median: 1, p90: 1 + (options.spread ?? 0.01) } } }),
 });
 
 describe("roundRatios", () => {
@@ -33,7 +33,7 @@ describe("roundRatios", () => {
   });
 });
 
-describe("the A/A rule and the validity check", () => {
+describe("the A/A rule and the interval rule", () => {
   it("tells if a band contains 1.0", () => {
     assert.equal(containsOne({ p10: 0.98, p90: 1.02 }), true);
     assert.equal(containsOne({ p10: 1, p90: 1 }), true);
@@ -48,17 +48,33 @@ describe("the A/A rule and the validity check", () => {
     assert.ok(Math.abs(spreadOf({ p10: 1.01, p90: 1.02 }) - 0.02) < 1e-12);
   });
 
-  it("is valid only when the budget is more than 1.1 x the spread", () => {
-    assert.equal(resolves(0.1, 0.05), true);
-    assert.equal(resolves(0.1, 0.1 / 1.1), false);
-    assert.equal(resolves(0.1, 0.2), false);
+  it("gives the half-spread as half of the distance from p10 to p90", () => {
+    assert.ok(Math.abs(halfSpreadOf({ p10: 0.94, p90: 1.06 }) - 0.06) < 1e-12);
+    assert.ok(Math.abs(halfSpreadOf({ p10: 0.99, p90: 1.05 }) - 0.03) < 1e-12);
   });
 
-  it("gives the side of a ratio against the budget", () => {
-    assert.equal(sideOf(1.2, 0.1), "slower");
-    assert.equal(sideOf(1.1, 0.1), "no change");
-    assert.equal(sideOf(0.95, 0.1), "no change");
-    assert.equal(sideOf(0.9, 0.1), "faster");
+  it("gives the effect interval: the lowest and the highest ratio, widened by the half-spread", () => {
+    const e = effectOf([3.64, 3.7, 3.84], 0.06);
+    assert.ok(Math.abs(e.lo - 3.58) < 1e-12);
+    assert.ok(Math.abs(e.hi - 3.9) < 1e-12);
+    assert.ok(Number.isNaN(effectOf([], 0.06).lo));
+  });
+
+  it("gives slower or faster when the interval is outside 1 ± budget", () => {
+    assert.equal(verdictOf({ lo: 1.11, hi: 4 }, 0.1), "slower");
+    assert.equal(verdictOf({ lo: 0.5, hi: 0.89 }, 0.1), "faster");
+  });
+
+  it("gives no change only when the interval is inside 1 ± budget", () => {
+    assert.equal(verdictOf({ lo: 0.9, hi: 1.1 }, 0.1), "no change");
+    assert.equal(verdictOf({ lo: 0.95, hi: 1.02 }, 0.1), "no change");
+  });
+
+  it("cannot decide when the interval crosses a bound of 1 ± budget", () => {
+    assert.equal(verdictOf({ lo: 1.05, hi: 1.2 }, 0.1), "cannot decide");
+    assert.equal(verdictOf({ lo: 0.88, hi: 1.12 }, 0.1), "cannot decide");
+    assert.equal(verdictOf({ lo: 0.85, hi: 0.95 }, 0.1), "cannot decide");
+    assert.equal(verdictOf({ lo: Number.NaN, hi: Number.NaN }, 0.1), "cannot decide");
   });
 
   it("gives the band of a list: p10, the median and p90", () => {
@@ -73,7 +89,7 @@ describe("analyzeInput", () => {
     assert.equal(a.band.median, 1.5);
     assert.equal(a.aa.containsOne, true);
     assert.equal(a.counts, true);
-    assert.equal(a.valid, true);
+    assert.ok(a.effect.lo > 1.1);
     assert.equal(a.verdict, "slower");
     assert.equal(a.baseMs, 1);
     assert.equal(a.headMs, 1.5);
@@ -90,12 +106,17 @@ describe("analyzeInput", () => {
     assert.match(a.reason, /excludes 1\.0/);
   });
 
-  it("cannot decide when the A/A spread is too wide for the budget", () => {
+  it("gives slower for a large effect, also with a wide A/A band", () => {
     const a = analyzeInput(input("x", BASE, BASE.map((t) => t * 2), [0.8, 1.2, 1, 0.85, 1.15, 1]), 0.1);
     assert.equal(a.counts, true);
-    assert.equal(a.valid, false);
+    assert.equal(a.verdict, "slower");
+  });
+
+  it("cannot decide when a wide A/A band takes the interval across a bound", () => {
+    const a = analyzeInput(input("x", BASE, BASE.map((t) => t * 1.12), [0.8, 1.2, 1, 0.85, 1.15, 1]), 0.1);
+    assert.equal(a.counts, true);
     assert.equal(a.verdict, "cannot decide");
-    assert.match(a.reason, /not more than 1\.1 x the A\/A spread/);
+    assert.match(a.reason, /effect interval/);
   });
 
   it("cannot decide without paired times", () => {
@@ -134,14 +155,26 @@ describe("aggregateVerdict", () => {
     assert.match(v.reason, /4 of 5 runs count \(the A\/A band of r2 excludes 1\.0\)/);
   });
 
-  it("cannot decide when the worst A/A spread is too wide, or when the runs disagree", () => {
-    const wide = aggregateVerdict("x", ["a", "b", "c", "d", "e"].map((run, i) => sample(run, 1.3, { spread: i === 4 ? 0.095 : 0.01 })), 0.1, 5);
-    assert.equal(wide.verdict, "cannot decide");
-    assert.equal(wide.worstSpread, 0.095);
-    assert.match(wide.reason, /worst A\/A spread 0\.095/);
+  it("widens the ratios by the worst A/A half-spread of the counted runs", () => {
+    const v = aggregateVerdict("x", ["a", "b", "c", "d", "e"].map((run, i) => sample(run, 1.15, { spread: i === 4 ? 0.1 : 0.01 })), 0.1, 5);
+    assert.equal(v.worstSpread, 0.1);
+    assert.ok(Math.abs(v.halfSpread - 0.1) < 1e-12);
+    assert.ok(Math.abs(v.effect.lo - 1.05) < 1e-12);
+    assert.equal(v.verdict, "cannot decide");
+    assert.match(v.reason, /worst A\/A half-spread 0\.100/);
+  });
+
+  it("gives slower for a large effect with a wide A/A band (the 11-02 case of exec-chain-50)", () => {
+    const v = aggregateVerdict("x", [3.64, 3.68, 3.7, 3.75, 3.84].map((ratio, i) => sample(`r${i}`, ratio, { spread: 0.093 })), 0.1, 5);
+    assert.equal(v.verdict, "slower");
+  });
+
+  it("needs noise under the budget for no change, and cannot decide when the runs cross a bound", () => {
+    const noisy = aggregateVerdict("x", ["a", "b", "c", "d", "e"].map((run) => sample(run, 1, { spread: 0.12 })), 0.1, 5);
+    assert.equal(noisy.verdict, "cannot decide");
     const mixed = aggregateVerdict("x", [1.3, 1.3, 1.05, 1.3, 1.3].map((ratio, i) => sample(`r${i}`, ratio)), 0.1, 5);
     assert.equal(mixed.verdict, "cannot decide");
-    assert.match(mixed.reason, /disagree/);
+    assert.match(mixed.reason, /is not outside 1 ± 0\.1, and not inside it/);
   });
 });
 
@@ -157,7 +190,7 @@ describe("verdictsOf and the summaries", () => {
     warmup: 2,
     budget: 0.1,
     skipped: [],
-    analysis: [{ ...sample("", ratio, { counts }).analysis, id: "exec-chain-50", band: { p10: ratio, median: ratio, p90: ratio }, valid: true, verdict: counts ? sideOf(ratio, 0.1) : "cannot decide" }],
+    analysis: [{ ...sample("", ratio, { counts }).analysis, id: "exec-chain-50", band: { p10: ratio, median: ratio, p90: ratio }, effect: { lo: ratio, hi: ratio }, verdict: counts ? verdictOf({ lo: ratio, hi: ratio }, 0.1) : "cannot decide" }],
   });
 
   it("orders the records by the run id, then the sample, before it chooses the runs", () => {
@@ -168,7 +201,7 @@ describe("verdictsOf and the summaries", () => {
     assert.equal(v.benchmarks[0].verdict, "slower");
     const md = verdictMarkdown(v);
     assert.match(md, /head\/base time, lower is better/);
-    assert.match(md, /\| exec-chain-50 \| 1\.00000 \| 1\.30000 \| 1\.300 \| 1\.300 to 1\.300 \| 0\.010 \| yes \| slower \| 100\/1\/1 \|/);
+    assert.ok(md.includes("| exec-chain-50 | 1.00000 | 1.30000 | 1.300 | 1.300 to 1.300 | 0.010 | [1.290, 1.310] | slower | 100/1/1 |"));
   });
 
   it("refuses records of different refs", () => {

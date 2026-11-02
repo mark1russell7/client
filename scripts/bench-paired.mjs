@@ -16,6 +16,17 @@
  * `--runs` runs that count. A run of a benchmark counts only when its A/A band contains 1.0. Else
  * the run measured the runner: a new run replaces it, and the record keeps both run ids.
  *
+ * The verdict is the interval rule of the strategist (fleet STRATEGY 2026-11-02, the shape of an
+ * equivalence test). Over the counted runs of a benchmark:
+ *
+ *   h = max over the counted runs of (p90 - p10) / 2 of the A/A band (the worst A/A half-spread)
+ *   E = [min ratio - h, max ratio + h] (the effect interval)
+ *   slower: lo(E) > 1 + budget. faster: hi(E) < 1 - budget.
+ *   no change: 1 - budget <= lo(E) and hi(E) <= 1 + budget. Else: cannot decide, and the record gives E.
+ *
+ * Thus a verdict of "no change" needs noise smaller than the budget, and "slower" or "faster" needs
+ * only an effect larger than the budget plus the noise.
+ *
  * Each ratio is the time of the head over the time of the base: lower is better. The script gives
  * no gate and no required check. It only reports.
  */
@@ -42,8 +53,6 @@ export const DEFAULT_BUDGET = 0.1;
 /** The runs that a verdict needs (the limit rule of 11-02). */
 export const DEFAULT_RUNS = 5;
 
-/** The factor of the validity check: the budget is more than the worst A/A spread times 1.1 (11-01). */
-export const VALIDITY_FACTOR = 1.1;
 
 /**
  * This function gives the ratio of each round: the time of the arm over the time of the base in
@@ -76,24 +85,39 @@ export const containsOne = (/** @type {{ p10: number, p90: number }} */ band) =>
 export const spreadOf = (band) => Math.max(band.p90 - 1, 1 - band.p10, 0);
 
 /**
- * This function tells if the test can resolve the budget: the budget is more than the worst A/A
- * spread times 1.1.
- * @param {number} budget
- * @param {number} spread
+ * This function gives the A/A half-spread of a band: half of the distance from p10 to p90.
+ * @param {{ p10: number, p90: number }} band
  */
-export const resolves = (budget, spread) => budget > spread * VALIDITY_FACTOR;
+export const halfSpreadOf = (band) => (band.p90 - band.p10) / 2;
 
 /**
- * This function gives the verdict of one ratio against the budget, when the test is valid:
- * `slower` above 1 + budget, `faster` below 1 / (1 + budget), else `no change`.
- * @param {number} ratio
- * @param {number} budget
+ * This function gives the effect interval: the lowest and the highest ratio, each widened by the
+ * half-spread `h`.
+ * @param {readonly number[]} ratios
+ * @param {number} h
+ * @returns {{ lo: number, hi: number }}
  */
-export function sideOf(ratio, budget) {
-  if (ratio > 1 + budget) return "slower";
-  if (ratio < 1 / (1 + budget)) return "faster";
-  return "no change";
+export function effectOf(ratios, h) {
+  if (ratios.length === 0 || !Number.isFinite(h)) return { lo: Number.NaN, hi: Number.NaN };
+  return { lo: Math.min(...ratios) - h, hi: Math.max(...ratios) + h };
 }
+
+/**
+ * This function gives the verdict of an effect interval against the budget (the interval rule).
+ * @param {{ lo: number, hi: number }} effect
+ * @param {number} budget
+ * @returns {"faster" | "slower" | "no change" | "cannot decide"}
+ */
+export function verdictOf(effect, budget) {
+  if (!Number.isFinite(effect.lo) || !Number.isFinite(effect.hi)) return "cannot decide";
+  if (effect.lo > 1 + budget) return "slower";
+  if (effect.hi < 1 - budget) return "faster";
+  if (effect.lo >= 1 - budget && effect.hi <= 1 + budget) return "no change";
+  return "cannot decide";
+}
+
+/** This function gives an effect interval as text. */
+const effectText = (/** @type {{ lo: number, hi: number }} */ e) => `[${f3(e.lo)}, ${f3(e.hi)}]`;
 
 /**
  * @typedef {object} Analysis The analysis of one benchmark in one run.
@@ -104,7 +128,7 @@ export function sideOf(ratio, budget) {
  * @property {{ p10: number, median: number, p90: number }} band The band of the round ratios of the head
  * @property {{ ratio: number, band: { p10: number, median: number, p90: number }, containsOne: boolean, spread: number }} aa The A/A arm
  * @property {boolean} counts The run counts only when the A/A band contains 1.0
- * @property {boolean} valid The budget is more than the A/A spread times 1.1
+ * @property {{ lo: number, hi: number }} effect The ratio widened by the A/A half-spread of this run
  * @property {"faster" | "slower" | "no change" | "cannot decide"} verdict
  * @property {string} reason
  */
@@ -125,16 +149,15 @@ export function analyzeInput(input, budget, ids = {}) {
   const aaContains = containsOne(aaBand);
   const spread = spreadOf(aaBand);
   const ratio = input.ratio[head] ?? Number.NaN;
-  const valid = resolves(budget, spread);
+  const effect = Number.isFinite(ratio) ? effectOf([ratio], halfSpreadOf(aaBand)) : { lo: Number.NaN, hi: Number.NaN };
   /** @type {Analysis["verdict"]} */
   let verdict = "cannot decide";
   let reason;
   if (!Number.isFinite(ratio) || Number.isNaN(aaBand.p10)) reason = "the run has no paired times";
   else if (!aaContains) reason = `the A/A band [${aaBand.p10.toFixed(3)}, ${aaBand.p90.toFixed(3)}] excludes 1.0: the run measured the runner, and does not count. A new run replaces it`;
-  else if (!valid) reason = `the budget ${budget} is not more than ${VALIDITY_FACTOR} x the A/A spread ${spread.toFixed(3)}`;
   else {
-    verdict = sideOf(ratio, budget);
-    reason = `the ratio ${ratio.toFixed(3)} against the budget ${budget}`;
+    verdict = verdictOf(effect, budget);
+    reason = `the effect interval ${effectText(effect)} against the budget ${budget}`;
   }
   return {
     id: input.id,
@@ -144,7 +167,7 @@ export function analyzeInput(input, budget, ids = {}) {
     band,
     aa: { ratio: input.ratio[aa] ?? Number.NaN, band: aaBand, containsOne: aaContains, spread },
     counts: aaContains,
-    valid,
+    effect,
     verdict,
     reason,
   };
@@ -161,9 +184,7 @@ export function analyzeInput(input, budget, ids = {}) {
  * band contains 1.0 count, in the order of the runs. The samples that do not count stay in the record.
  *
  * - Fewer counted samples than `runs`: `cannot decide`, and new runs replace the others.
- * - The budget is not more than the worst A/A spread times 1.1: `cannot decide`.
- * - Each counted ratio is above 1 + budget: `slower`. Each is below 1 / (1 + budget): `faster`.
- * - Each is between: `no change`. Else the runs disagree: `cannot decide`.
+ * - Else the interval rule of the header of this file gives the verdict from the effect interval.
  * @param {string} id
  * @param {readonly Sample[]} samples
  * @param {number} budget
@@ -175,7 +196,8 @@ export function aggregateVerdict(id, samples, budget, runs) {
   const used = counted.slice(0, runs);
   const ratios = used.map((s) => s.analysis.ratio);
   const worstSpread = used.length === 0 ? Number.NaN : Math.max(...used.map((s) => s.analysis.aa.spread));
-  const valid = used.length > 0 && resolves(budget, worstSpread);
+  const halfSpread = used.length === 0 ? Number.NaN : Math.max(...used.map((s) => halfSpreadOf(s.analysis.aa.band)));
+  const effect = effectOf(ratios, halfSpread);
   const out = {
     id,
     runs: used.map((s) => s.run),
@@ -189,8 +211,9 @@ export function aggregateVerdict(id, samples, budget, runs) {
     headMs: quantileOf(used.map((s) => s.analysis.headMs), 0.5),
     aaBands: used.map((s) => s.analysis.aa.band),
     worstSpread,
+    halfSpread,
+    effect,
     budget,
-    valid,
     /** @type {"faster" | "slower" | "no change" | "cannot decide"} */
     verdict: "cannot decide",
     reason: "",
@@ -199,15 +222,8 @@ export function aggregateVerdict(id, samples, budget, runs) {
     out.reason = `${used.length} of ${runs} runs count${excluded.length > 0 ? ` (the A/A band of ${excluded.join(", ")} excludes 1.0)` : ""}: start new runs to replace them`;
     return out;
   }
-  if (!valid) {
-    out.reason = `the budget ${budget} is not more than ${VALIDITY_FACTOR} x the worst A/A spread ${worstSpread.toFixed(3)}`;
-    return out;
-  }
-  const sides = new Set(ratios.map((ratio) => sideOf(ratio, budget)));
-  if (sides.size === 1) {
-    out.verdict = /** @type {"faster" | "slower" | "no change"} */ ([...sides][0]);
-    out.reason = `each of the ${runs} runs is ${out.verdict === "no change" ? `within the budget ${budget}` : out.verdict}`;
-  } else out.reason = `the runs disagree (${[...sides].sort().join(", ")})`;
+  out.verdict = verdictOf(effect, budget);
+  out.reason = `the effect interval ${effectText(effect)} (the ratios ${f3(out.min)} to ${f3(out.max)}, widened by the worst A/A half-spread ${f3(halfSpread)})${out.verdict === "cannot decide" ? ` is not outside 1 ± ${budget}, and not inside it` : ` gives ${out.verdict} against 1 ± ${budget}`}`;
   return out;
 }
 
@@ -236,10 +252,10 @@ function contextLines(/** @type {Record<string, any>} */ record) {
  */
 export function runMarkdown(record) {
   const lines = [`## Paired bench, run ${record.run.label}`, "", ...contextLines(record), ""];
-  lines.push("| Benchmark | Base (ms/call) | Head (ms/call) | Head/base | Head/base p10 to p90 | A/A p10 to p90 | A/A has 1.0 | Valid | Verdict |");
+  lines.push("| Benchmark | Base (ms/call) | Head (ms/call) | Head/base | Head/base p10 to p90 | A/A p10 to p90 | A/A has 1.0 | Effect interval | Verdict |");
   lines.push("| --- | ---: | ---: | ---: | --- | --- | --- | --- | --- |");
   for (const a of record.analysis) {
-    lines.push(`| ${a.id} | ${f5(a.baseMs)} | ${f5(a.headMs)} | ${f3(a.ratio)} | ${bandText(a.band)} | ${bandText(a.aa.band)} | ${a.counts ? "yes" : "**no: does not count**"} | ${a.valid ? "yes" : "no"} | ${a.verdict} |`);
+    lines.push(`| ${a.id} | ${f5(a.baseMs)} | ${f5(a.headMs)} | ${f3(a.ratio)} | ${bandText(a.band)} | ${bandText(a.aa.band)} | ${a.counts ? "yes" : "**no: does not count**"} | ${effectText(a.effect)} | ${a.verdict} |`);
   }
   const notCounted = record.analysis.filter((/** @type {Analysis} */ a) => !a.counts).map((/** @type {Analysis} */ a) => a.id);
   lines.push("");
@@ -254,12 +270,12 @@ export function runMarkdown(record) {
 export function verdictMarkdown(verdicts) {
   const lines = [`## Paired bench verdicts (${verdicts.runs} runs)`, ""];
   lines.push(`- Base \`${verdicts.refs.base}\`, head \`${verdicts.refs.head}\`. Each ratio is ${DIRECTION}.`);
-  lines.push(`- A run of a benchmark counts only when its A/A band contains 1.0. The test is valid only when the budget ${verdicts.budget} is more than ${VALIDITY_FACTOR} x the worst A/A spread.`);
+  lines.push(`- A run of a benchmark counts only when its A/A band contains 1.0. The effect interval is [min ratio - h, max ratio + h], with h the worst A/A half-spread. slower: its low end is above 1 + ${verdicts.budget}. faster: its high end is below 1 - ${verdicts.budget}. no change: it is inside 1 ± ${verdicts.budget}. Else: cannot decide.`);
   lines.push(`- Records: ${verdicts.records.map((/** @type {{ label: string, cpu: string }} */ r) => `${r.label} (${r.cpu})`).join(", ")}.`, "");
-  lines.push("| Benchmark | Base (ms/call) | Head (ms/call) | Head/base median | Min to max | Worst A/A spread | Valid | Verdict | Runs that do not count |");
+  lines.push("| Benchmark | Base (ms/call) | Head (ms/call) | Head/base median | Min to max | Worst A/A spread | Effect interval | Verdict | Runs that do not count |");
   lines.push("| --- | ---: | ---: | ---: | --- | ---: | --- | --- | --- |");
   for (const v of verdicts.benchmarks) {
-    lines.push(`| ${v.id} | ${f5(v.baseMs)} | ${f5(v.headMs)} | ${f3(v.median)} | ${f3(v.min)} to ${f3(v.max)} | ${f3(v.worstSpread)} | ${v.valid ? "yes" : "no"} | ${v.verdict} | ${v.excluded.length > 0 ? v.excluded.join(", ") : "none"} |`);
+    lines.push(`| ${v.id} | ${f5(v.baseMs)} | ${f5(v.headMs)} | ${f3(v.median)} | ${f3(v.min)} to ${f3(v.max)} | ${f3(v.worstSpread)} | ${effectText(v.effect)} | ${v.verdict} | ${v.excluded.length > 0 ? v.excluded.join(", ") : "none"} |`);
   }
   lines.push("", ...verdicts.benchmarks.filter((/** @type {{ verdict: string }} */ v) => v.verdict === "cannot decide").map((/** @type {{ id: string, reason: string }} */ v) => `- ${v.id}: cannot decide, ${v.reason}.`), "");
   return `${lines.join("\n")}\n`;
