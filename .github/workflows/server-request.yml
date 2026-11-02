@@ -2,8 +2,10 @@ name: Server request
 
 # The time of one synthetic request of the procedures server at one commit, and the share of the
 # exec calls in it (roadmap O90). One job builds @procedures/server and its dependencies, then
-# starts scripts/server-request.ts: a host of runProcedureHost() in a child process, and calls over
-# loopback. No record of real traffic exists (O91), thus the requests are synthetic.
+# starts scripts/server-request.ts. Each sample is a fresh process for one case and one arm:
+# a request over loopback to its own fresh host of runProcedureHost(), or the same exec on
+# LocalTransport. measureIsolated() of scripts/lib/paired-time.mjs runs the rounds, in mode fresh.
+# No record of real traffic exists (O91), thus the requests are synthetic.
 #
 # The workflow only reports: only a dispatch starts it, and no ruleset needs its checks.
 
@@ -14,24 +16,24 @@ on:
         description: "The commit or ref to measure (empty: the HEAD of main)"
         required: false
         default: ""
-      repeats:
-        description: "The turns of request calls and exec calls of each request"
+      rounds:
+        description: "The rounds: one fresh process for each case and arm in each round (20 or more)"
         required: false
-        default: "5"
+        default: "20"
 
 permissions:
   contents: read
 
 concurrency:
-  group: server-request-${{ github.ref }}
+  group: server-request-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   measure:
     name: Server request
     runs-on: ubuntu-latest
-    # One install and build of @procedures/server and its dependencies, then about 1 minute of calls
-    timeout-minutes: 20
+    # One install and build of @procedures/server and its dependencies, then about 2 minutes of rounds at 20 rounds
+    timeout-minutes: 30
     steps:
       # The script of the run comes from the ref of the workflow. The tree under test is a worktree.
       - uses: actions/checkout@v7
@@ -58,10 +60,10 @@ jobs:
           pnpm --filter "@procedures/server..." run build
       - name: The requests
         env:
-          REPEATS: ${{ inputs.repeats || '5' }}
+          ROUNDS: ${{ inputs.rounds || '20' }}
         run: |
           mkdir -p "$RUNNER_TEMP/record"
-          node scripts/server-request.ts --tree "$RUNNER_TEMP/trees/head" --ref "$HEAD" --repeats "$REPEATS" \
+          node scripts/server-request.ts --tree "$RUNNER_TEMP/trees/head" --ref "$HEAD" --rounds "$ROUNDS" \
             --out "$RUNNER_TEMP/record/server-request.json"
           cat "$RUNNER_TEMP/record/server-request.md" >> "$GITHUB_STEP_SUMMARY"
       - if: always()
