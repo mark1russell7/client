@@ -20,6 +20,6 @@ registerHooks({
 });
 
 process.on("exit", () => {
-  const out = process.env.MARK_MODULE_RECORD;
+  const out = process.env["MARK_MODULE_RECORD"];
   if (out !== undefined && out !== "") writeFileSync(out, JSON.stringify([...loaded]));
 });

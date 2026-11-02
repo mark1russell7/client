@@ -75,7 +75,7 @@ describe("mark: one call loads only what it needs (roadmap O93)", () => {
     const record = join(home, "modules.json");
     const env: NodeJS.ProcessEnv = { ...process.env, HOME: home, USERPROFILE: home, FORCE_COLOR: "0", NO_COLOR: "1" };
     // No auto-warm: the run starts no background host
-    delete env.MARK_AUTO_WARM;
+    delete env["MARK_AUTO_WARM"];
     try {
       // A first run writes the manifest when it is stale: the gate measures the run with a fresh manifest
       const first = spawnSync(process.execPath, [BIN, "--version"], { encoding: "utf8", timeout: 120000, env });

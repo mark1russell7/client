@@ -11,7 +11,7 @@
 
 import { describe, it, expect, beforeAll, afterEach, vi } from "vitest";
 import { jsonSchemaOf, pathToKey, type AnyProcedure, type ProcedureRegistry } from "@procedures/client";
-import { createLazyEcosystemRegistry, indexOfCommands, loadEcosystemRegistry, type PackageIndex } from "./ecosystem.js";
+import { createLazyEcosystemRegistry, indexOfCommands, loadEcosystemRegistry, packageIndexOf, type PackageIndex } from "./ecosystem.js";
 import { readFreshManifest, type Manifest } from "./manifest.js";
 import { executeArgs, initCli, initLazyCli, type ManifestContext } from "./cli.js";
 
@@ -120,11 +120,30 @@ describe("the lists in the lazy mode", () => {
   it("loads only the packages of the path for one call", async () => {
     const ctx = await initLazyCli(false, manifest.commands);
     const registry = ctx.registry!;
-    const before = registry.getAll().length;
+    const before = ctx.procedures.length;
     await registry.resolve(["git", "status"]);
-    const after = registry.getAll().length;
+    // The procedures of the context are the procedures that have loaded at the time of the read
+    const after = ctx.procedures.length;
     expect(after).toBeGreaterThan(before);
+    expect(after).toBe(registry.getAll().length);
     expect(after).toBeLessThan(eager.getAll().length);
     expect(registry.has(["mongo", "collections", "drop"])).toBe(false);
+  });
+});
+
+describe("the index and the warnings of the lazy registry", () => {
+  it("gives the index of an eager registry of mark, and no index for another registry", () => {
+    expect(packageIndexOf(eager)).toEqual(index);
+    expect(packageIndexOf(undefined)).toBeUndefined();
+    expect(packageIndexOf(createLazyEcosystemRegistry({}, false, false, []))).toBeUndefined();
+  });
+
+  it("warns for a path that the index does not have, only when the warnings are on", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    await createLazyEcosystemRegistry({}, false, false, []).resolve(["no", "such", "path"]);
+    expect(warn).not.toHaveBeenCalled();
+    await createLazyEcosystemRegistry({}, false, true, []).resolve(["no", "such", "path"]);
+    expect(warn).toHaveBeenCalled();
+    expect(String(warn.mock.calls[0]?.[0])).toMatch(/^mark: /);
   });
 });
