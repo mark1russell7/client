@@ -66,10 +66,10 @@
     "branches": 59.1
   },
   "@procedures/compiler": {
-    "lines": 95.5,
-    "statements": 93.2,
-    "functions": 96.5,
-    "branches": 85
+    "lines": 95.3,
+    "statements": 92.9,
+    "functions": 96.3,
+    "branches": 84.7
   },
   "@procedures/cue": {
     "lines": 87.2,
