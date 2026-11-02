@@ -176,7 +176,7 @@ jobs:
       # its scripts and of the copy of paired-time/1 run here. They time no code.
       - name: Test the paired bench scripts
         if: ${{ !cancelled() }}
-        run: node --test scripts/paired-time.test.mjs scripts/bench-paired.test.mjs
+        run: node --test scripts/paired-time.test.mjs scripts/bench-paired.test.mjs scripts/setup-profile.test.mjs
       # The import boundaries of invariant I9 (CLI-83), with dependency-cruiser: a transport does not
       # import the server, an import of another package goes through an entry of its exports map, and
       # no package imports an app. The shared rules are in the package @mark1russell7/boundaries, and
