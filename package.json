@@ -24,7 +24,7 @@
     "@babel/parser": "^8.0.7",
     "@changesets/cli": "^3.0.3",
     "@mark1russell7/boundaries": "^0.2.0",
-    "@mark1russell7/conventions": "^0.14.0",
+    "@mark1russell7/conventions": "^0.15.0",
     "@mark1russell7/cue": "^1.1.0",
     "@mark1russell7/ste-lint": "^0.1.1",
     "@types/node": "^22.0.0",
