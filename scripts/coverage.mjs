@@ -28,6 +28,10 @@
  * `nightly.yml` (2026-11-01). `scripts/coverage-spread.mjs` applies the rule to the totals of the runs.
  * A second dispatch, 41382261642 (2026-11-02), gave a lower floor for the functions of
  * `@procedures/client` (86.9). Each floor is the lower value of the two dispatches.
+ * The functions of `@procedures/compiler` use more runs: the 168 CI runs on main from 2026-10-25
+ * to 2026-11-02 and the 5 runs of 41371676324. Their worst is 96.12 and their best is 96.37, so the
+ * floor is 96.12 - (96.37 - 96.12) = 95.87, rounded down to 95.8. The property tests of
+ * `src/equivalence.test.ts` sometimes do not call one function.
  */
 
 import { spawn } from "node:child_process";
