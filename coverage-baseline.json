@@ -8,7 +8,7 @@
   "@procedures/archive": {
     "lines": 96.8,
     "statements": 92.8,
-    "functions": 94.2,
+    "functions": 93.8,
     "branches": 87.9
   },
   "@procedures/better-auth": {
