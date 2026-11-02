@@ -1,0 +1,90 @@
+name: Setup profile
+
+# The setup profile of the base and the head (roadmap O90). One job builds the two trees as the
+# paired bench does, then starts the setup child of each core workload with the CPU profiler and a
+# load hook (scripts/setup-profile.ts). The record gives, for each file, the self time and the bytes
+# in each tree, and the share of each file in the added self time.
+#
+# The workflow only reports: only a dispatch starts it, and no ruleset needs its checks.
+
+on:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: "The base commit or ref (empty: the first parent of the head)"
+        required: false
+        default: ""
+      head:
+        description: "The head commit or ref (empty: the HEAD of main)"
+        required: false
+        default: ""
+      repeats:
+        description: "The profiled processes of each tree and input"
+        required: false
+        default: "10"
+      inputs:
+        description: "The setup measures to profile, with commas between them (empty: the 4 core workloads)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: setup-profile-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  profile:
+    name: Setup profile
+    runs-on: ubuntu-latest
+    # Two installs and builds of 2 packages, then 4 inputs x 2 trees x 10 profiled processes
+    timeout-minutes: 30
+    steps:
+      # The scripts of the run come from the ref of the workflow. The trees under test are worktrees.
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+      - name: Resolve the base and the head, and check them out
+        env:
+          BASE_INPUT: ${{ inputs.base }}
+          HEAD_INPUT: ${{ inputs.head }}
+        run: |
+          head=$(git rev-parse --verify "${HEAD_INPUT:-origin/main}^{commit}")
+          base=$(git rev-parse --verify "${BASE_INPUT:-$head^1}^{commit}")
+          echo "BASE=$base" >> "$GITHUB_ENV"
+          echo "HEAD=$head" >> "$GITHUB_ENV"
+          echo "Base $base ($(git log -1 --format='%cs %s' "$base"))"
+          echo "Head $head ($(git log -1 --format='%cs %s' "$head"))"
+          git worktree add --detach "$RUNNER_TEMP/trees/base" "$base"
+          git worktree add --detach "$RUNNER_TEMP/trees/head" "$head"
+      # The same packages as the paired bench: @procedures/client and @procedures/collections.
+      - name: Install and build each tree
+        run: |
+          for tree in base head; do
+            echo "::group::$tree"
+            (cd "$RUNNER_TEMP/trees/$tree" && pnpm install --frozen-lockfile --filter "@procedures/client..." --filter "@procedures/collections..." && pnpm --filter "@procedures/client..." --filter "@procedures/collections..." run build)
+            echo "::endgroup::"
+          done
+      - name: The profile
+        env:
+          REPEATS: ${{ inputs.repeats || '10' }}
+          INPUTS: ${{ inputs.inputs }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/profile"
+          node scripts/setup-profile.ts --base "$RUNNER_TEMP/trees/base" --head "$RUNNER_TEMP/trees/head" \
+            --base-ref "$BASE" --head-ref "$HEAD" --repeats "$REPEATS" ${INPUTS:+--inputs "$INPUTS"} \
+            --out "$RUNNER_TEMP/profile/setup-profile.json"
+          cat "$RUNNER_TEMP/profile/setup-profile.md" >> "$GITHUB_STEP_SUMMARY"
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: setup-profile
+          path: ${{ runner.temp }}/profile
+          retention-days: 30
