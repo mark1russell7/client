@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { markdownOf, rowsOf } from "./compile-cache.ts";
+import { markdownOf, PHASES, phaseEntryOf, phasesOf, rowsOf, splitOf } from "./compile-cache.ts";
 import type { PairedReport } from "./lib/paired-time.mjs";
 
 const report = (ms: Record<string, number[]>): PairedReport => {
@@ -54,6 +54,22 @@ describe("compile-cache", () => {
     const [row] = rowsOf(report({ main: [100, 100, 100], "main~aa": [99, 100, 101], cold: [110, 111, 109], warm: [100, 99, 101] }));
     assert.equal(row.coldWithinNoise, false);
     assert.equal(row.warmFaster, false);
+  });
+
+  it("splits one call into its phases, and the wall row is their sum", () => {
+    const phases = phasesOf({ spawn: 1000, origin: 1020, first: 1035, imported: 1185, called: 1735, closed: 1760 });
+    assert.deepEqual(phases, { spawn: 20, node: 15, import: 150, call: 550, exit: 25 });
+    const split = splitOf([phases, { spawn: 30, node: 25, import: 160, call: 560, exit: 35 }]);
+    assert.deepEqual(split.map((r) => r.phase), [...PHASES, "wall"]);
+    assert.equal(split.at(-1)?.median, 785);
+    assert.equal(split.find((r) => r.phase === "call")?.median, 555);
+  });
+
+  it("gives an entry that imports the CLI and marks each step", () => {
+    const entry = phaseEntryOf("file:///tree/packages/mark/dist/cli.js");
+    assert.ok(entry.includes('await import("file:///tree/packages/mark/dist/cli.js")'));
+    assert.ok(entry.indexOf("first: now()") < entry.indexOf("await import("));
+    assert.ok(entry.indexOf("marks.imported") < entry.indexOf("await main("));
   });
 
   it("gives a table row for each input and the behavior of the cache", () => {

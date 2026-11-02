@@ -17,6 +17,10 @@
  * the exit: the time until the shell prompt comes back. The arms set `NODE_COMPILE_CACHE`, so the
  * cold arm writes the cache at exit, as a user sees it, with no forced flush.
  *
+ * The run also splits the wall time of the arm `main` into its phases: the start of the process, the
+ * start of Node.js up to the first line of the entry, the import of `cli.js`, the call, and the exit.
+ * The entry is a copy of `bin.ts` with a mark after each step.
+ *
  * For each input, the break-even is the cost of the cold arm over the saving of the warm arm. The
  * cold cost comes once for each installed version (a new Node.js or a changed file gives a new
  * entry), and the saving comes on each later run. The cache pays from run `ceil(1 + break-even)`.
@@ -27,10 +31,10 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { aaId, measureIsolated, pairedMarkdown, quantileOf, type PairedReport } from "./lib/paired-time.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -139,7 +143,7 @@ export function markdownOf(record: {
   ref: string;
   node: string;
   rows: readonly CacheRow[];
-  wall?: { readonly rows: readonly CacheRow[] };
+  wall?: { readonly rows: readonly CacheRow[]; readonly split?: readonly PhaseRow[] };
   warmCache: { files: number; bytes: number };
   behavior: Readonly<Record<string, Behavior>>;
 }): string {
@@ -152,6 +156,28 @@ export function markdownOf(record: {
         `| \`${r.id}\` | ${f(r.medianMs.main)} | ${f(r.medianMs.cold)} | ${f(r.medianMs.warm)} | ${f(r.warmSavingMs)} | ${f(r.coldAddedMs)} | ${f(r.coldRatio, 3)} | ${f(r.warmRatio, 3)} | ${f(r.aa.p10, 3)} to ${f(r.aa.p90, 3)} | ${r.coldWithinNoise ? "yes" : "no"} | ${r.warmFaster ? "yes" : "no"} | ${f(r.breakEven.median, 2)} (${f(r.breakEven.low, 2)} to ${f(r.breakEven.high, 2)}) | ${f(r.paysFromRun, 0)} |`,
     ),
   ];
+  const phaseNames: Record<Phase | "wall", string> = {
+    spawn: "The start of the process, up to `performance.timeOrigin`",
+    node: "The start of Node.js, up to the first line of the entry",
+    import: "The import of `cli.js`",
+    call: "The call `main()`, with its output",
+    exit: "The exit, up to the end of the process",
+    wall: "The sum: from the spawn to the exit",
+  };
+  const splitTable = (split: readonly PhaseRow[] | undefined, setupMs: number | undefined) => {
+    if (split === undefined) return [];
+    const wall = split.find((r) => r.phase === "wall")?.median ?? Number.NaN;
+    return [
+      "### The phases of one `mark` call with no cache",
+      "",
+      `One process for each round, with an entry that does what \`bin.ts\` does. The share is of the median sum.${setupMs === undefined ? "" : ` The setup of \`exec-one-call-setup\` (arm \`main\`) is ${f(setupMs)} ms, ${f((100 * setupMs) / wall)} % of the sum.`}`,
+      "",
+      "| Phase | Median ms | p10 ms | p90 ms | Share |",
+      "|---|---|---|---|---|",
+      ...split.map((r) => `| ${phaseNames[r.phase]} | ${f(r.median)} | ${f(r.p10)} | ${f(r.p90)} | ${f((100 * r.median) / wall)} % |`),
+      "",
+    ];
+  };
   const lines = [
     "# Compile cache",
     "",
@@ -161,7 +187,15 @@ export function markdownOf(record: {
     "",
     ...(record.wall === undefined
       ? []
-      : ["## The whole process of one `mark` call", "", "The time from the spawn to the exit, in ms. The cold arm writes the cache at exit.", "", ...table(record.wall.rows), ""]),
+      : [
+          "## The whole process of one `mark` call",
+          "",
+          "The time from the spawn to the exit, in ms. The cold arm writes the cache at exit.",
+          "",
+          ...table(record.wall.rows),
+          "",
+          ...splitTable(record.wall.split, record.rows.find((r) => r.id === "exec-one-call-setup")?.medianMs.main),
+        ]),
     "## The behavior of the cache",
     "",
     "| Case | Status | Exit code | Folder or message |",
@@ -195,6 +229,72 @@ function startMark(command: readonly string[]): Promise<{ ms: number }> {
   } finally {
     if (fresh !== undefined) rmSync(fresh, { recursive: true, force: true });
   }
+}
+
+/** The phases of one `mark` call with no cache, in order. Their sum is the time from the spawn to the exit. */
+export const PHASES = ["spawn", "node", "import", "call", "exit"] as const;
+export type Phase = (typeof PHASES)[number];
+
+/** The marks of one call, in epoch milliseconds. The parent gives `spawn` and `closed`, and the child gives the others. */
+export interface Marks {
+  readonly spawn: number;
+  /** The start of the child process: `performance.timeOrigin` */
+  readonly origin: number;
+  /** The first line of the entry */
+  readonly first: number;
+  /** The end of the import of `cli.js` */
+  readonly imported: number;
+  /** The end of `main()`, with its output */
+  readonly called: number;
+  /** The exit of the child, as the parent sees it */
+  readonly closed: number;
+}
+
+/** This function gives the time of each phase of one call, in milliseconds. */
+export function phasesOf(m: Marks): Record<Phase, number> {
+  return { spawn: m.origin - m.spawn, node: m.first - m.origin, import: m.imported - m.first, call: m.called - m.imported, exit: m.closed - m.called };
+}
+
+/** The split of the wall time: the median, the 10th and the 90th percentile of each phase. */
+export interface PhaseRow {
+  readonly phase: Phase | "wall";
+  readonly median: number;
+  readonly p10: number;
+  readonly p90: number;
+}
+
+/** This function gives the split of the wall time over the rounds. The row `wall` is the sum of the phases. */
+export function splitOf(rounds: readonly Record<Phase, number>[]): PhaseRow[] {
+  const rowOf = (phase: Phase | "wall", values: number[]): PhaseRow => ({ phase, median: quantileOf(values, 0.5), p10: quantileOf(values, 0.1), p90: quantileOf(values, 0.9) });
+  return [
+    ...PHASES.map((phase) => rowOf(phase, rounds.map((r) => r[phase]))),
+    rowOf("wall", rounds.map((r) => PHASES.reduce((sum, phase) => sum + r[phase], 0))),
+  ];
+}
+
+/** This function gives the source of the entry that does what `bin.ts` does, with a mark after each step. */
+export function phaseEntryOf(cliUrl: string): string {
+  return [
+    'import { writeFileSync } from "node:fs";',
+    "const now = () => performance.timeOrigin + performance.now();",
+    "const marks = { origin: performance.timeOrigin, first: now() };",
+    'process.on("exit", () => writeFileSync(process.env.MARK_PHASES_OUT, JSON.stringify(marks)));',
+    `const { main } = await import(${JSON.stringify(cliUrl)});`,
+    "marks.imported = now();",
+    "await main(process.argv.slice(2));",
+    "marks.called = now();",
+    "",
+  ].join("\n");
+}
+
+/** This function starts one `mark` call with no cache through the entry with marks, and gives its phases. */
+function phasesOnce(entry: string, args: readonly string[], marksFile: string): Record<Phase, number> {
+  const epoch = () => performance.timeOrigin + performance.now();
+  const spawn = epoch();
+  const r = spawnSync(process.execPath, [entry, ...args], { encoding: "utf8", env: { ...cleanEnv(), MARK_PHASES_OUT: marksFile } });
+  const closed = epoch();
+  if (r.status !== 0 || r.stdout.trim().split("\n").at(-1) !== MARK_CALL.output) throw new Error(`mark exited with ${r.status}: ${r.stdout}${r.stderr}`);
+  return phasesOf({ spawn, closed, ...(JSON.parse(readFileSync(marksFile, "utf8")) as Omit<Marks, "spawn" | "closed">) });
 }
 
 const optionOf = (argv: readonly string[], name: string): string | undefined => {
@@ -234,7 +334,7 @@ if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathS
       ],
     });
     const markArg = optionOf(argv, "--mark");
-    let wall: { rows: CacheRow[]; report: PairedReport } | undefined;
+    let wall: { rows: CacheRow[]; report: PairedReport; split: PhaseRow[] } | undefined;
     if (markArg !== undefined) {
       const mark = [process.execPath, resolve(markArg), ...MARK_CALL.args];
       const markDir = join(warmDir, "mark");
@@ -253,7 +353,11 @@ if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathS
         ],
         startChild: (command) => startMark(command),
       });
-      wall = { rows: rowsOf(markReport), report: markReport };
+      // The split of the arm main: one process for each round, after the paired run
+      const entry = join(warmDir, "mark-phases.mjs");
+      writeFileSync(entry, phaseEntryOf(pathToFileURL(join(dirname(resolve(markArg)), "cli.js")).href));
+      const split = splitOf(Array.from({ length: repeats }, () => phasesOnce(entry, MARK_CALL.args, join(warmDir, "marks.json"))));
+      wall = { rows: rowsOf(markReport), report: markReport, split };
     }
     const blocked = join(warmDir, "not-a-folder");
     writeFileSync(blocked, "");
@@ -277,6 +381,7 @@ if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathS
     };
     writeFileSync(out, `${JSON.stringify(record, null, 2)}\n`);
     writeFileSync(`${out.replace(/\.json$/, "")}.md`, `${markdownOf(record)}\n${pairedMarkdown(report, "The paired run")}`);
+    for (const r of wall?.split ?? []) console.log(`phase ${r.phase}: ${r.median.toFixed(1)} ms`);
     for (const r of [...rows, ...(wall?.rows ?? [])]) console.log(`${r.id}: main ${r.medianMs.main.toFixed(1)} ms, cold ${r.medianMs.cold.toFixed(1)} ms, warm ${r.medianMs.warm.toFixed(1)} ms, pays from run ${r.paysFromRun}`);
   } finally {
     rmSync(warmDir, { recursive: true, force: true });
