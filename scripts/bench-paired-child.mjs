@@ -16,8 +16,11 @@
  * untimed, then one timed pass. The last line of stdout is the child protocol of paired-time/1:
  * `{"ms": <milliseconds for one call>, "peakRss": <bytes>, "calls": <count>}`.
  *
- * Each core workload also has 2 measures of its own, each in a fresh process (O90):
+ * Each core workload also has 3 measures of its own, each in a fresh process (O90):
  *
+ * - `<id>-setup`: the time from the start of the process to the end of the first call: the import
+ *   of the modules, the setup and call 1. A short `mark` command pays it each time. The clock is
+ *   `performance.now()`, whose origin is the start of the process.
  * - `<id>-cold`: the time per call of the first `COLD_CALLS` (20) calls after the setup, with no
  *   warm-up. One `mark` CLI command or a short MCP session makes one to a few tens of calls.
  * - `<id>-warm`: the time per call after it is stable. The script times chunks of 1/5 of a pass.
@@ -90,7 +93,7 @@ async function deltaSetup(/** @type {Record<string, any>} */ m, /** @type {boole
  * @property {string} file The bench file of the benchmark
  * @property {number} calls The calls of one pass: about 100 ms on the runners of the nightly of 2026-11-02
  * @property {boolean} [sync] The value `true` calls without `await`, as the bench file does
- * @property {"cold" | "warm"} [measure] The cold or the warm measure of a core workload (O90). Without it, the fixed pass
+ * @property {"setup" | "cold" | "warm"} [measure] The setup, the cold or the warm measure of a core workload (O90). Without it, the fixed pass
  * @property {(m: Record<string, any>) => Promise<() => unknown>} make The setup: it gives one call
  */
 
@@ -124,13 +127,14 @@ export const WARM = { agree: 3, ratio: 1.05, min: 10, max: 60 };
 export const CORE = ["exec-one-call", "exec-chain-50", "exec-map-100", "hydrate-200-refs"];
 
 /**
- * The workloads: the fixed passes, then the cold and the warm measure of each core workload. The
- * `calls` of a warm workload is the size of one chunk.
+ * The workloads: the fixed passes, then the setup, the cold and the warm measure of each core
+ * workload. The `calls` of a warm workload is the size of one chunk.
  * @type {Workload[]}
  */
 export const WORKLOADS = [
   ...FIXED,
   ...FIXED.filter((w) => CORE.includes(w.id)).flatMap((w) => [
+    { ...w, id: `${w.id}-setup`, measure: /** @type {const} */ ("setup"), calls: 1 },
     { ...w, id: `${w.id}-cold`, measure: /** @type {const} */ ("cold"), calls: COLD_CALLS },
     { ...w, id: `${w.id}-warm`, measure: /** @type {const} */ ("warm"), calls: Math.max(1, Math.round(w.calls / 5)) },
   ]),
@@ -229,6 +233,18 @@ export async function timeWarm(workload, call, clock = () => performance.now()) 
   return { ms: medianOf(times.slice(-WARM.agree)), chunks: times.length, stable: isStable(times) };
 }
 
+/**
+ * This function does the first call of a workload, and gives the time from the start of the process
+ * to its end, in milliseconds.
+ * @param {Workload} workload
+ * @param {() => unknown} call
+ * @param {() => number} [clock] A clock whose origin is the start of the process
+ */
+export async function timeSetup(workload, call, clock = () => performance.now()) {
+  await pass(call, 1, workload.sync === true);
+  return clock();
+}
+
 /** This function gives the value of an option of the command line, or `undefined`. */
 const optionOf = (/** @type {string[]} */ argv, /** @type {string} */ name) => {
   const at = argv.indexOf(name);
@@ -260,7 +276,10 @@ if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathS
     }
     const call = await workload.make(m);
     // The value maxRSS of Node.js is in kilobytes
-    if (workload.measure === "warm") {
+    if (workload.measure === "setup") {
+      const ms = await timeSetup(workload, call);
+      console.log(JSON.stringify({ ms, peakRss: process.resourceUsage().maxRSS * 1024, calls: 1 }));
+    } else if (workload.measure === "warm") {
       const warm = await timeWarm(workload, call);
       if (!warm.stable) console.error(`${workload.id}: the time per call is not stable after ${warm.chunks} chunks`);
       console.log(JSON.stringify({ ms: warm.ms, peakRss: process.resourceUsage().maxRSS * 1024, calls: workload.calls, chunks: warm.chunks, stable: warm.stable }));

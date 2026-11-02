@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { aggregateVerdict, analyzeInput, bandOf, containsOne, effectOf, halfSpreadOf, roundRatios, runMarkdown, spreadOf, verdictMarkdown, verdictOf, verdictsOf } from "./bench-paired.mjs";
-import { CORE, COLD_CALLS, WARM, WORKLOADS, isStable, pass, timeWarm, timeWorkload } from "./bench-paired-child.mjs";
+import { CORE, COLD_CALLS, WARM, WORKLOADS, isStable, pass, timeSetup, timeWarm, timeWorkload } from "./bench-paired-child.mjs";
 import { quantileOf } from "./lib/paired-time.mjs";
 
 /** This function makes one input of a paired-time/1 report from the times of each round. */
@@ -225,9 +225,12 @@ describe("the workloads of the child", () => {
     assert.deepEqual(WORKLOADS.filter((w) => w.measure === undefined).map((w) => w.id).sort(), [...names].sort());
   });
 
-  it("gives each core workload a cold and a warm measure", () => {
+  it("gives each core workload a setup, a cold and a warm measure", () => {
     for (const id of CORE) {
       const fixed = WORKLOADS.find((w) => w.id === id);
+      const setup = WORKLOADS.find((w) => w.id === `${id}-setup`);
+      assert.equal(setup?.measure, "setup");
+      assert.equal(setup?.calls, 1);
       const cold = WORKLOADS.find((w) => w.id === `${id}-cold`);
       const warm = WORKLOADS.find((w) => w.id === `${id}-warm`);
       assert.ok(fixed !== undefined && cold !== undefined && warm !== undefined, id);
@@ -237,6 +240,14 @@ describe("the workloads of the child", () => {
       assert.equal(warm.calls, Math.max(1, Math.round(fixed.calls / 5)));
       assert.equal(warm.file, fixed.file);
     }
+  });
+
+  it("gives the setup time: the clock from the start of the process at the end of the first call", async () => {
+    let now = 40;
+    let calls = 0;
+    const ms = await timeSetup({ id: "w-setup", pkg: "client", file: "f", calls: 1, measure: "setup", make: async () => () => 0 }, async () => ((calls += 1), (now += 3)), () => now);
+    assert.equal(calls, 1);
+    assert.equal(ms, 43);
   });
 
   it("times the first calls of a cold measure, with no warm-up", async () => {
