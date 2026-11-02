@@ -220,6 +220,14 @@ export class HttpServerTransport implements ServerTransport {
   }
 
   /**
+   * This method gives the number of requests in progress, open streams too. It is the count of
+   * `inFlight()` of the procedure handler of the transport.
+   */
+  inFlight(): number {
+    return this.handler.inFlight();
+  }
+
+  /**
    * The port that the server of the transport listens on. With the option `port` 0, the system
    * gives a free port, and this function returns that port. Before `start()` and after `stop()`,
    * the function returns undefined.

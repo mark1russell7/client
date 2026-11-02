@@ -61,7 +61,7 @@ async function startHost(feed: Feed, options: Partial<HttpServerTransportOptions
     await new Promise<void>((resolve) => http.close(() => resolve()));
   });
   const base = `http://127.0.0.1:${(http.address() as AddressInfo).port}/api`;
-  const openRequests = (): number => (transport as unknown as { handler: { inFlight(): number } }).handler.inFlight();
+  const openRequests = (): number => transport.inFlight();
   return { base, url: `${base}/ka/feed`, transport, openRequests };
 }
 
@@ -148,6 +148,19 @@ describe("the keep-alive lines of HttpServerTransport", () => {
     expect(clock.pending).toBe(0);
     await clock.advance(10_000);
     expect(clock.pending).toBe(0);
+  });
+
+  it("counts an open stream in inFlight() until its end (O84)", async () => {
+    const feed = feedOf();
+    const { url, openRequests } = await startHost(feed, { keepAlive: false });
+    expect(openRequests()).toBe(0);
+    const stream = openStream(url);
+    feed.push(1);
+    await stream.until((text) => text === itemLine(1, 1), "the item");
+    expect(openRequests()).toBe(1);
+    feed.end();
+    await stream.ended;
+    await vi.waitFor(() => expect(openRequests()).toBe(0));
   });
 
   it("sends no keep-alive line with keepAlive: false or a duration of zero", async () => {

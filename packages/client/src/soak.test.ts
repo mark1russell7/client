@@ -206,8 +206,12 @@ describe.runIf(minutes > 0)("the WebSocket transport under load (R32)", () => {
     };
     await Promise.all(clients.map((_, index) => loop(index)));
 
-    // The long subscriptions end: their calls leave the maps of the two sides
+    // The last step of a loop can be a short subscription. Its unsubscribe sends a cancel, and the
+    // server closes the subscription when the cancel arrives. Thus the count waits for the cancels
+    // in flight (O84). A subscription that stays open keeps the count above the number of clients.
     clearInterval(ticker);
+    await until(() => host.publisher!.subscriptions === transports.length, 5000);
+    // The long subscriptions end: their calls leave the maps of the two sides
     const publisherBefore = host.publisher!.subscriptions;
     for (const subscription of subscriptions) subscription();
     await sleep(1000);
@@ -301,7 +305,8 @@ describe.runIf(minutes > 0)("the HTTP transport under load (R32)", () => {
 
     await sleep(1000);
     const heapAfter = heapMb();
-    const openRequests = (transport as unknown as { openRequests: Set<unknown> }).openRequests.size;
+    // The requests in progress of the procedure handler of the transport (CLI-3 moved them there)
+    const openRequests = transport.inFlight();
     const report = { ...counts, heapBeforeMb: heapBefore, heapAfterMb: heapAfter, openRequests, timersLive: timers.live, timersStarted: timers.started, callsInFlight: host.callsInFlight };
     console.log(JSON.stringify(report));
 
