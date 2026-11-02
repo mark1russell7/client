@@ -101,12 +101,14 @@ jobs:
         run: |
           git worktree add --detach "$RUNNER_TEMP/trees/base" "$BASE"
           git worktree add --detach "$RUNNER_TEMP/trees/head" "$HEAD"
-      # Only the packages under test and their dependencies: @procedures/client and @procedures/collections
+      # Only the packages under test and their dependencies: @procedures/client and @procedures/collections.
+      # Each package has its own filter: before 2026-10-17, collections did not depend on client, so the filter
+      # "@procedures/collections..." alone did not build client in the base tree, and the run skipped the core benches.
       - name: Install and build each tree
         run: |
           for tree in base head; do
             echo "::group::$tree"
-            (cd "$RUNNER_TEMP/trees/$tree" && pnpm install --frozen-lockfile --filter "@procedures/collections..." && pnpm --filter "@procedures/collections..." run build)
+            (cd "$RUNNER_TEMP/trees/$tree" && pnpm install --frozen-lockfile --filter "@procedures/client..." --filter "@procedures/collections..." && pnpm --filter "@procedures/client..." --filter "@procedures/collections..." run build)
             echo "::endgroup::"
           done
       - name: The paired run

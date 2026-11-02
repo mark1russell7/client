@@ -341,6 +341,15 @@ async function runCommand(/** @type {string[]} */ argv) {
   const wanted = WORKLOADS.map((w) => w.id).filter((id) => only === undefined || only.includes(id));
   const ids = wanted.filter((id) => inBase.includes(id) && inHead.includes(id));
   const skipped = wanted.filter((id) => !ids.includes(id));
+  // A skip is correct only when a tree has no bench file of the workload. A bench file with no loadable build is a build fault.
+  const unbuilt = skipped.filter((id) => {
+    const file = WORKLOADS.find((w) => w.id === id)?.file;
+    return file !== undefined && existsSync(join(baseDir, file)) && existsSync(join(headDir, file));
+  });
+  if (unbuilt.length > 0) {
+    console.error(`Both trees have the bench file, but a tree has no build of its package: ${unbuilt.join(", ")}. Build @procedures/client and @procedures/collections in each tree.`);
+    process.exit(1);
+  }
   if (ids.length === 0) {
     console.error(`No workload runs in both trees (base: ${inBase.length}, head: ${inHead.length}). Each tree needs the build of @procedures/client and @procedures/collections.`);
     process.exit(1);
