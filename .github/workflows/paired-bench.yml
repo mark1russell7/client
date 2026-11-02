@@ -34,6 +34,10 @@ on:
         description: "The ids of earlier runs of this workflow whose records join the verdicts (replacement runs), with spaces between them"
         required: false
         default: ""
+      only:
+        description: "The workloads to run, with commas between them (empty: all). For example the cold and warm measures of O90"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -112,11 +116,13 @@ jobs:
           REPEATS: ${{ inputs.repeats || '12' }}
           BUDGET: ${{ inputs.budget || '0.1' }}
           SAMPLE: ${{ matrix.run }}
+          ONLY: ${{ inputs.only }}
         run: >-
           node scripts/bench-paired.mjs run
           --base "$RUNNER_TEMP/trees/base" --head "$RUNNER_TEMP/trees/head"
           --base-ref "$BASE" --head-ref "$HEAD"
           --repeats "$REPEATS" --budget "$BUDGET" --sample "$SAMPLE"
+          ${ONLY:+--only "$ONLY"}
           --out "$RUNNER_TEMP/paired/run-$SAMPLE.json"
       - if: always()
         uses: actions/upload-artifact@v7

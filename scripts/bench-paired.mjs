@@ -402,7 +402,16 @@ async function runCommand(/** @type {string[]} */ argv) {
     repeats,
     warmup,
     budget,
-    work: Object.fromEntries(ids.map((id) => [id, { callsPerPass: WORKLOADS.find((w) => w.id === id)?.calls, warmupPasses: warmup, timedPasses: 1 }])),
+    work: Object.fromEntries(
+      ids.map((id) => {
+        const w = WORKLOADS.find((x) => x.id === id);
+        // A cold measure times its first calls with no warm-up. A warm measure times chunks until the time is stable
+        if (w?.measure === "setup") return [id, { measure: "setup", rule: "the time from the start of the process to the end of call 1" }];
+        if (w?.measure === "cold") return [id, { measure: "cold", calls: w.calls, warmupPasses: 0 }];
+        if (w?.measure === "warm") return [id, { measure: "warm", callsPerChunk: w.calls, rule: "the median of the last 3 chunks within 5 %, after 10 to 60 chunks" }];
+        return [id, { callsPerPass: w?.calls, warmupPasses: warmup, timedPasses: 1 }];
+      }),
+    ),
     skipped,
     analysis,
     report,

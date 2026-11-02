@@ -16,6 +16,18 @@
  * untimed, then one timed pass. The last line of stdout is the child protocol of paired-time/1:
  * `{"ms": <milliseconds for one call>, "peakRss": <bytes>, "calls": <count>}`.
  *
+ * Each core workload also has 3 measures of its own, each in a fresh process (O90):
+ *
+ * - `<id>-setup`: the time from the start of the process to the end of the first call: the import
+ *   of the modules, the setup and call 1. A short `mark` command pays it each time. The clock is
+ *   `performance.now()`, whose origin is the start of the process.
+ * - `<id>-cold`: the time per call of the first `COLD_CALLS` (20) calls after the setup, with no
+ *   warm-up. One `mark` CLI command or a short MCP session makes one to a few tens of calls.
+ * - `<id>-warm`: the time per call after it is stable. The script times chunks of 1/5 of a pass.
+ *   The time is stable when 3 consecutive chunks are within 5 % (max / min <= 1.05), after at
+ *   least 10 chunks (the 2 warm-up passes of O83). The warm time is the median of those 3 chunks.
+ *   After 60 chunks the script stops and gives the median of the last 3, with `"stable": false`.
+ *
  * With `--list`, the script writes the ids of the workloads that the folder can run, as JSON. A
  * workload whose module or export is missing in the folder is not in the list.
  */
@@ -81,11 +93,12 @@ async function deltaSetup(/** @type {Record<string, any>} */ m, /** @type {boole
  * @property {string} file The bench file of the benchmark
  * @property {number} calls The calls of one pass: about 100 ms on the runners of the nightly of 2026-11-02
  * @property {boolean} [sync] The value `true` calls without `await`, as the bench file does
+ * @property {"setup" | "cold" | "warm"} [measure] The setup, the cold or the warm measure of a core workload (O90). Without it, the fixed pass
  * @property {(m: Record<string, any>) => Promise<() => unknown>} make The setup: it gives one call
  */
 
 /** @type {Workload[]} */
-export const WORKLOADS = [
+const FIXED = [
   { id: "exec-one-call", pkg: "client", file: "packages/client/bench/core.bench.ts", calls: 40_000, make: async (m) => { const s = await coreSetup(m); return () => s.client.exec(s.add(1, 2)); } },
   { id: "exec-chain-50", pkg: "client", file: "packages/client/bench/core.bench.ts", calls: 450, make: async (m) => { const s = await coreSetup(m); return () => s.client.exec(s.chain); } },
   { id: "exec-map-100", pkg: "client", file: "packages/client/bench/core.bench.ts", calls: 200, make: async (m) => { const s = await coreSetup(m); return () => s.client.exec(s.map); } },
@@ -103,6 +116,28 @@ export const WORKLOADS = [
   { id: "storage-memory-getall-1000-no-copies", pkg: "collections", file: "packages/client-collections/bench/storage.bench.ts", calls: 4_000, make: async (m) => { const s = await storageSetup(m, false); return () => s.getAll(); } },
   { id: "storage-memory-delta-10-copies", pkg: "collections", file: "packages/client-collections/bench/storage.bench.ts", calls: 2_500, make: async (m) => { const d = await deltaSetup(m, true); return () => d.storage.getChangesSince(d.version); } },
   { id: "storage-memory-delta-10-no-copies", pkg: "collections", file: "packages/client-collections/bench/storage.bench.ts", calls: 15_000, make: async (m) => { const d = await deltaSetup(m, false); return () => d.storage.getChangesSince(d.version); } },
+];
+
+/** The calls of the cold measure. */
+export const COLD_CALLS = 20;
+/** The warm measure: the chunks that agree, their largest max / min, the fewest and the most chunks. */
+export const WARM = { agree: 3, ratio: 1.05, min: 10, max: 60 };
+
+/** The core workloads, which also have a cold and a warm measure. */
+export const CORE = ["exec-one-call", "exec-chain-50", "exec-map-100", "hydrate-200-refs"];
+
+/**
+ * The workloads: the fixed passes, then the setup, the cold and the warm measure of each core
+ * workload. The `calls` of a warm workload is the size of one chunk.
+ * @type {Workload[]}
+ */
+export const WORKLOADS = [
+  ...FIXED,
+  ...FIXED.filter((w) => CORE.includes(w.id)).flatMap((w) => [
+    { ...w, id: `${w.id}-setup`, measure: /** @type {const} */ ("setup"), calls: 1 },
+    { ...w, id: `${w.id}-cold`, measure: /** @type {const} */ ("cold"), calls: COLD_CALLS },
+    { ...w, id: `${w.id}-warm`, measure: /** @type {const} */ ("warm"), calls: Math.max(1, Math.round(w.calls / 5)) },
+  ]),
 ];
 
 /**
@@ -151,10 +186,63 @@ export async function pass(call, calls, sync) {
  * @param {() => number} [clock]
  */
 export async function timeWorkload(workload, call, warmup, clock = () => performance.now()) {
-  for (let w = 0; w < warmup; w++) await pass(call, workload.calls, workload.sync === true);
+  if (workload.measure === "warm") return (await timeWarm(workload, call, clock)).ms;
+  if (workload.measure !== "cold") for (let w = 0; w < warmup; w++) await pass(call, workload.calls, workload.sync === true);
   const start = clock();
   await pass(call, workload.calls, workload.sync === true);
   return (clock() - start) / workload.calls;
+}
+
+/**
+ * This function gives the median of a list of numbers.
+ * @param {readonly number[]} values
+ */
+const medianOf = (values) => {
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+};
+
+/**
+ * This function tells if the last `WARM.agree` chunk times are stable: their max / min is at most
+ * `WARM.ratio`, after at least `WARM.min` chunks.
+ * @param {readonly number[]} times The time per call of each chunk, in order
+ */
+export function isStable(times) {
+  if (times.length < Math.max(WARM.min, WARM.agree)) return false;
+  const last = times.slice(-WARM.agree);
+  return Math.max(...last) <= Math.min(...last) * WARM.ratio;
+}
+
+/**
+ * This function times chunks of a workload until the time per call is stable, and gives the warm
+ * time: the median of the last `WARM.agree` chunks.
+ * @param {Workload} workload
+ * @param {() => unknown} call
+ * @param {() => number} [clock]
+ * @returns {Promise<{ ms: number, chunks: number, stable: boolean }>}
+ */
+export async function timeWarm(workload, call, clock = () => performance.now()) {
+  /** @type {number[]} */
+  const times = [];
+  while (times.length < WARM.max && !isStable(times)) {
+    const start = clock();
+    await pass(call, workload.calls, workload.sync === true);
+    times.push((clock() - start) / workload.calls);
+  }
+  return { ms: medianOf(times.slice(-WARM.agree)), chunks: times.length, stable: isStable(times) };
+}
+
+/**
+ * This function does the first call of a workload, and gives the time from the start of the process
+ * to its end, in milliseconds.
+ * @param {Workload} workload
+ * @param {() => unknown} call
+ * @param {() => number} [clock] A clock whose origin is the start of the process
+ */
+export async function timeSetup(workload, call, clock = () => performance.now()) {
+  await pass(call, 1, workload.sync === true);
+  return clock();
 }
 
 /** This function gives the value of an option of the command line, or `undefined`. */
@@ -187,8 +275,17 @@ if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathS
       process.exit(1);
     }
     const call = await workload.make(m);
-    const ms = await timeWorkload(workload, call, warmup);
     // The value maxRSS of Node.js is in kilobytes
-    console.log(JSON.stringify({ ms, peakRss: process.resourceUsage().maxRSS * 1024, calls: workload.calls }));
+    if (workload.measure === "setup") {
+      const ms = await timeSetup(workload, call);
+      console.log(JSON.stringify({ ms, peakRss: process.resourceUsage().maxRSS * 1024, calls: 1 }));
+    } else if (workload.measure === "warm") {
+      const warm = await timeWarm(workload, call);
+      if (!warm.stable) console.error(`${workload.id}: the time per call is not stable after ${warm.chunks} chunks`);
+      console.log(JSON.stringify({ ms: warm.ms, peakRss: process.resourceUsage().maxRSS * 1024, calls: workload.calls, chunks: warm.chunks, stable: warm.stable }));
+    } else {
+      const ms = await timeWorkload(workload, call, warmup);
+      console.log(JSON.stringify({ ms, peakRss: process.resourceUsage().maxRSS * 1024, calls: workload.calls }));
+    }
   }
 }
