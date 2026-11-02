@@ -77,6 +77,60 @@ function samePath(a: ProcedurePath, b: ProcedurePath): boolean {
 }
 
 // =============================================================================
+// Lazy Resolution (roadmap O93)
+// =============================================================================
+
+/**
+ * The resolver of a lazy registry: it loads procedures into the registry on demand.
+ * `createLazyRegistry()` gives one. An eager registry has no resolver.
+ */
+export interface RegistryResolver {
+  /**
+   * This method loads the packages that give the path. It rejects when a package did not load.
+   * A later call tries that package again.
+   */
+  resolve(path: ProcedurePath): Promise<void>;
+  /** This method loads each package. A package that did not load gives a warning, not a rejection. */
+  loadAll(): Promise<void>;
+}
+
+/** The options of `new ProcedureRegistry()`. */
+export interface ProcedureRegistryOptions {
+  /**
+   * The resolver of a lazy registry. Without it, the registry is eager: `resolve()` gives what
+   * `get()` gives, and `loadAll()` does nothing.
+   */
+  resolver?: RegistryResolver | undefined;
+}
+
+/** The reads of a registry that `resolveIn()` and `loadAllIn()` use. A lazy registry has all of them. */
+export interface ResolvingRegistry {
+  get(path: ProcedurePath): AnyProcedure | undefined;
+  readonly lazy?: boolean;
+  resolve?(path: ProcedurePath): Promise<AnyProcedure | undefined>;
+  loadAll?(): Promise<void>;
+}
+
+/**
+ * This function gives the procedure at a path of a registry. On a miss, a lazy registry loads the
+ * packages of the path. An eager registry gives what `get()` gives.
+ */
+export async function resolveIn(registry: ResolvingRegistry, path: ProcedurePath): Promise<AnyProcedure | undefined> {
+  const found = registry.get(path);
+  if (found !== undefined || registry.lazy !== true || registry.resolve === undefined) return found;
+  return registry.resolve(path);
+}
+
+/**
+ * This function loads each package of a lazy registry. A procedure that enumerates its registry
+ * (`procedure.list`, `procedure.manifest`, `mcp.listTools`) starts it first. On an eager
+ * registry, it does nothing.
+ */
+export async function loadAllIn(registry: Pick<ResolvingRegistry, "lazy" | "loadAll">): Promise<void> {
+  if (registry.lazy === true && registry.loadAll !== undefined) await registry.loadAll();
+}
+
+// =============================================================================
 // Procedure Registry
 // =============================================================================
 
@@ -112,6 +166,17 @@ export class ProcedureRegistry {
 
   /** Registered module names for debugging */
   private readonly registeredModules = new Set<string>();
+
+  /** The resolver of a lazy registry, or undefined for an eager registry (roadmap O93) */
+  private readonly resolver: RegistryResolver | undefined;
+
+  /**
+   * This constructor makes an eager registry. With `options.resolver`, the registry is lazy: a
+   * miss of `resolve()` loads the packages of the path.
+   */
+  constructor(options: ProcedureRegistryOptions = {}) {
+    this.resolver = options.resolver;
+  }
 
   // ---------------------------------------------------------------------------
   // Registration
@@ -276,6 +341,40 @@ export class ProcedureRegistry {
    */
   get size(): number {
     return this.procedures.size;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Lazy Resolution (roadmap O93)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * This property is true for a lazy registry. The sync reads (`get`, `has`, `getAll`,
+   * `getByPrefix`, `size`) of a lazy registry give only the procedures that have loaded.
+   */
+  get lazy(): boolean {
+    return this.resolver !== undefined;
+  }
+
+  /**
+   * This method gives the procedure at a path. A registered path gives its procedure at once. On
+   * a miss, a lazy registry loads the packages of the path first. An eager registry gives undefined.
+   *
+   * @throws RegistryError when the path is still missing and a package of the path did not load.
+   *   The load error is the `cause`.
+   */
+  async resolve(path: ProcedurePath): Promise<AnyProcedure | undefined> {
+    const found = this.get(path);
+    if (found || !this.resolver) return found;
+    await this.resolver.resolve(path);
+    return this.get(path);
+  }
+
+  /**
+   * This method loads each package of a lazy registry. After it, the sync reads give each
+   * procedure. On an eager registry, it does nothing.
+   */
+  async loadAll(): Promise<void> {
+    if (this.resolver) await this.resolver.loadAll();
   }
 
   /**

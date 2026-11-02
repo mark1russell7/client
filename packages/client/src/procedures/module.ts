@@ -18,10 +18,10 @@
  * rule of a server all use the registry of the invocation (`ctx.registry`).
  */
 
-import { PROCEDURE_REGISTRY, ProcedureRegistry, RegistryError } from "./registry.js";
+import { PROCEDURE_REGISTRY, ProcedureRegistry, RegistryError, type RegistryResolver } from "./registry.js";
 import { coreProcedures } from "./core/index.js";
 import { metaProcedures as definitionProcedures } from "./define-procedure.js";
-import { pathToKey, type AnyProcedure, type ProcedureModule, type RegistrationOptions } from "./types.js";
+import { pathToKey, type AnyProcedure, type ProcedureModule, type ProcedurePath, type RegistrationOptions } from "./types.js";
 
 /**
  * The procedures of `@procedures/client`: the control flow (`client.chain`, `client.map` and the
@@ -137,6 +137,117 @@ export function registerModules(
  */
 export function createRegistry(...modules: ModuleInput[]): ProcedureRegistry {
   return registerModules(new ProcedureRegistry(), [clientModule, ...modules]);
+}
+
+/** The options of `createLazyRegistry()` (roadmap O93). */
+export interface LazyRegistryOptions {
+  /** The modules that the registry registers at once, after `clientModule`: the core procedures. */
+  readonly modules?: readonly ModuleInput[] | undefined;
+  /**
+   * The index: the key of each path (`pathToKey()`) and the names of the packages that give it.
+   * Two packages can give one path.
+   */
+  readonly index: Readonly<Record<string, readonly string[]>>;
+  /** This function gives the module of a package, or undefined for a package without a build. */
+  readonly load: (name: string) => Promise<ProcedureModule | undefined>;
+  /**
+   * The names of all packages, in the order of the eager load. `loadAll()` loads them in this
+   * order. The default is the names of the index.
+   */
+  readonly packages?: readonly string[] | undefined;
+  /** This function gets each warning. The default is `console.warn`. */
+  readonly warn?: ((message: string) => void) | undefined;
+}
+
+/** The first line of the message of an error. */
+function firstLine(error: unknown): string {
+  return (error instanceof Error ? error.message : String(error)).split("\n")[0] ?? "";
+}
+
+/**
+ * This function makes a lazy registry (roadmap O93). The registry has the procedures of
+ * `clientModule` and of `options.modules` at once. A miss of `resolve()` loads only the packages
+ * that the index names for the path.
+ *
+ * - Concurrent resolves of one package start one load.
+ * - A path that is not in the index loads each package, with one warning for each path.
+ * - A package that did not load gives a warning. The resolve of a path that is still missing
+ *   then rejects with a `RegistryError`, with the load error as its `cause`. A later resolve tries
+ *   that package again.
+ * - The registration goes through `registerModules()`: the modules that a module requires come
+ *   with it, and the same handler from two modules registers one time.
+ * - `loadAll()` loads each package in the order of `options.packages`.
+ */
+export function createLazyRegistry(options: LazyRegistryOptions): ProcedureRegistry {
+  const warn = options.warn ?? ((message: string): void => console.warn(message));
+  const packages = options.packages ?? [...new Set(Object.values(options.index).flat())];
+  const loaded = new Set<string>();
+  const inFlight = new Map<string, Promise<void>>();
+  const warnedPaths = new Set<string>();
+
+  function loadPackage(name: string): Promise<void> {
+    if (loaded.has(name)) return Promise.resolve();
+    const current = inFlight.get(name);
+    if (current) return current;
+    const started = (async (): Promise<void> => {
+      const module = await options.load(name);
+      if (module) registerModules(registry, [module]);
+    })();
+    inFlight.set(name, started);
+    // A failure is not recorded as a load: the next resolve tries the package again
+    started.then(
+      () => {
+        loaded.add(name);
+        inFlight.delete(name);
+      },
+      (error: unknown) => {
+        inFlight.delete(name);
+        warn(`the procedures of ${name} did not load: ${firstLine(error)}`);
+      },
+    );
+    return started;
+  }
+
+  const resolver: RegistryResolver = {
+    async resolve(path: ProcedurePath): Promise<void> {
+      const key = pathToKey(path);
+      const named = Object.hasOwn(options.index, key) ? options.index[key] : undefined;
+      let targets: readonly string[];
+      if (named !== undefined && named.length > 0) {
+        targets = named;
+      } else {
+        if (!warnedPaths.has(key)) {
+          warnedPaths.add(key);
+          warn(`the index has no package for ${key}: each package loads`);
+        }
+        targets = packages;
+      }
+      let failure: { name: string; error: unknown } | undefined;
+      // One package after the other, in the order of the index: the order of the eager load
+      for (const name of targets) {
+        try {
+          await loadPackage(name);
+        } catch (error) {
+          failure ??= { name, error };
+        }
+      }
+      if (failure === undefined || registry.has(path)) return;
+      const cause = failure.error instanceof Error ? failure.error : new Error(String(failure.error));
+      throw new RegistryError(`The procedure ${key} did not load: the package ${failure.name} did not load: ${firstLine(cause)}`, path, cause);
+    },
+    async loadAll(): Promise<void> {
+      for (const name of packages) {
+        try {
+          await loadPackage(name);
+        } catch {
+          // loadPackage() gave the warning. The other packages still load, as in the eager load.
+        }
+      }
+    },
+  };
+
+  const registry = new ProcedureRegistry({ resolver });
+  return registerModules(registry, [clientModule, ...(options.modules ?? [])]);
 }
 
 /**

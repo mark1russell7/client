@@ -7,6 +7,7 @@
 import { loadEcosystemRegistry } from "./ecosystem.js";
 import { manifestPath, writeManifest } from "./manifest.js";
 
-const { registry, loaded } = await loadEcosystemRegistry(false, false);
-const manifest = await writeManifest(registry.getAll());
+const { registry, loaded, index } = await loadEcosystemRegistry(false, false);
+// Each command records the packages of its path: the lazy registry of a run loads only those (roadmap O93)
+const manifest = await writeManifest(registry.getAll(), index);
 console.log(`mark: ${manifestPath()} has ${manifest.commands.length} commands from ${loaded.length} packages`);

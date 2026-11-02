@@ -67,6 +67,22 @@ function inputSchemaOf(procedure: AnyProcedure, key: string): Record<string, unk
 }
 
 /**
+ * This function loads the packages of the procedures that the input names into a lazy registry
+ * (roadmap O93). Then `procedureTools()` finds them. A path that the expose rule refuses does not
+ * load: its refusal tells nothing about the procedure. A package that does not load rejects the
+ * promise with the load error as the `cause`.
+ */
+export async function loadToolProcedures(keys: readonly string[], ctx: ToolContext | undefined): Promise<void> {
+  const registry = ctx?.registry;
+  if (registry?.lazy !== true || registry.resolve === undefined) return;
+  for (const key of new Set(keys)) {
+    const path = keyToPath(key);
+    if (ctx?.expose !== undefined && !ctx.expose(path)) continue;
+    if (registry.get(path) === undefined) await registry.resolve(path);
+  }
+}
+
+/**
  * This function gives the tools of the procedures that the input names. It throws before a
  * request goes out. It throws for a refusal of the expose rule or of the capability. It also
  * throws for a procedure that is not in the registry, and for a stream without an end.

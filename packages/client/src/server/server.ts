@@ -309,7 +309,8 @@ export class Server {
 
     try {
       // Find handler
-      const handler = this.findHandler(request.method, request);
+      // A miss can load the procedure first (a lazy registry, roadmap O93). A hit does not wait.
+      const handler = this.findHandler(request.method, request) ?? (await this.findLateHandler(request.method, request));
       if (!handler) {
         throw new HandlerNotFoundError(request.method);
       }
@@ -360,6 +361,14 @@ export class Server {
         return entry.handler;
       }
     }
+    return null;
+  }
+
+  /**
+   * This method finds a handler after `findHandler()` found none. The default finds none at once.
+   * `ProcedureServer` loads the procedure of a lazy registry here (roadmap O93).
+   */
+  protected findLateHandler(_method: Method, _request: ServerRequest<unknown>): Promise<ServerHandler | null> | null {
     return null;
   }
 

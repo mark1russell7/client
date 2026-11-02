@@ -17,16 +17,16 @@ import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { describeProcedureEntry, jsonSchemaOf, type AnyProcedure, type ProcedureEntry } from "@procedures/client";
+import { describeProcedureEntry, jsonSchemaOf, pathToKey, type AnyProcedure, type ProcedureEntry } from "@procedures/client";
 import { writeFileAtomicSync } from "@procedures/fs/files";
 import { discoverFromEcosystem, findWorkspaceRoot } from "./ecosystem.js";
 import { extractSchemaFields, resultFieldsOfSchema, type CLIMeta, type SchemaFieldInfo } from "./parse.js";
 
 /**
  * The format of the manifest. A change of the format makes old manifests stale.
- * Version 2 adds `resultFields`.
+ * Version 2 adds `resultFields`. Version 3 adds `packages` (roadmap O93).
  */
-export const MANIFEST_VERSION = 2;
+export const MANIFEST_VERSION = 3;
 
 /** One command of the manifest */
 export interface ManifestCommand {
@@ -39,6 +39,11 @@ export interface ManifestCommand {
   inputSchema: unknown;
   /** The fields of the result, for the help (none when the result is not an object) */
   resultFields: SchemaFieldInfo[];
+  /**
+   * The packages that give the procedure, in the order of the eager load (roadmap O93). A core
+   * procedure has none. The lazy registry loads only these packages for a call of the path.
+   */
+  packages: string[];
 }
 
 export interface Manifest {
@@ -111,8 +116,14 @@ function cliMetadata(entry: ProcedureEntry): CLIMeta {
   return result;
 }
 
-/** The commands of the manifest, from the procedures of the registry */
-export async function commandsOf(procedures: readonly AnyProcedure[]): Promise<ManifestCommand[]> {
+/**
+ * The commands of the manifest, from the procedures of the registry. The index gives the packages
+ * of each path (`packageIndexOf()`). Without it, each command has no package.
+ */
+export async function commandsOf(
+  procedures: readonly AnyProcedure[],
+  index: Readonly<Record<string, readonly string[]>> = {},
+): Promise<ManifestCommand[]> {
   return procedures.map((procedure) => {
     // One JSON Schema for each command: the fields come from it too (roadmap 2.1). The schema and
     // the CLI metadata come from the one manifest type of the core (roadmap R17).
@@ -124,6 +135,7 @@ export async function commandsOf(procedures: readonly AnyProcedure[]): Promise<M
       fields: extractSchemaFields(inputSchema),
       inputSchema,
       resultFields: resultFieldsOfSchema(procedure.output),
+      packages: [...(index[pathToKey(procedure.path)] ?? [])],
     };
   });
 }
@@ -133,13 +145,20 @@ function toJson(manifest: Manifest): string {
   return JSON.stringify(manifest, (_key, value: unknown) => (typeof value === "bigint" ? value.toString() : value), 1);
 }
 
-/** Write the manifest of these procedures for the current fingerprint (a temporary file, then a rename) */
-export async function writeManifest(procedures: readonly AnyProcedure[], file: string = manifestPath()): Promise<Manifest> {
+/**
+ * Write the manifest of these procedures for the current fingerprint (a temporary file, then a
+ * rename). The index gives the packages of each path.
+ */
+export async function writeManifest(
+  procedures: readonly AnyProcedure[],
+  index: Readonly<Record<string, readonly string[]>> = {},
+  file: string = manifestPath(),
+): Promise<Manifest> {
   const manifest: Manifest = {
     version: MANIFEST_VERSION,
     fingerprint: computeFingerprint(),
     generatedAt: new Date().toISOString(),
-    commands: await commandsOf(procedures),
+    commands: await commandsOf(procedures, index),
   };
   // writeFileAtomicSync flushes the file, tries the rename again on Windows and removes the temporary file after a failure
   writeFileAtomicSync(file, toJson(manifest));

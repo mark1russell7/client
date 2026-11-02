@@ -158,7 +158,17 @@ export class LocalTransport implements Transport {
   async *send<TReq, TRes>(message: Message<TReq>): AsyncIterable<ResponseItem<TRes>> {
     const key = methodKey(message.method);
     const handler = this.handlers.get(key);
-    const procedure = handler ? undefined : this.procedureFor(message.method);
+    let procedure = handler ? undefined : this.procedureFor(message.method);
+    // A miss of a lazy registry loads the packages of the path (roadmap O93). A hit does not wait.
+    if (!handler && !procedure && this.registry?.lazy) {
+      try {
+        procedure = await this.registry.resolve(methodToPath(message.method));
+      } catch (error) {
+        // A package of the path did not load: the item has the load error, not NOT_FOUND
+        yield errorItem<TRes>(message.id, errorCodeOf(error), error instanceof Error ? error.message : String(error));
+        return;
+      }
+    }
 
     // Handler not found
     if (!handler && !procedure) {

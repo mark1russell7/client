@@ -11,7 +11,7 @@
 import type { ProcedurePath } from "@procedures/client";
 import { addUsage, NO_USAGE, type CallLimits, type ContentBlock, type LlmSettings, type MessagesRequest } from "./anthropic.js";
 import { addTools, baseRequest, retriesOf, timeoutOf, toolParam } from "./request.js";
-import { DEFAULT_MAX_ROUNDS, procedureTools, runToolUse, type ToolContext } from "./tools.js";
+import { DEFAULT_MAX_ROUNDS, loadToolProcedures, procedureTools, runToolUse, type ToolContext } from "./tools.js";
 import type { LlmRequestInput, LlmStreamToolCall, LlmStreamToolResult, LlmToolCall, LlmToolInput, LlmToolUse, LlmUsage } from "./types.js";
 
 /** One answer of the model, as the loop reads it. */
@@ -110,6 +110,7 @@ export async function* toolLoop<T>(
   send: SendTurn<T>,
 ): AsyncGenerator<T | ToolEvent, LoopEnd, undefined> {
   const request = baseRequest(input, settings, input.system);
+  await loadToolProcedures(input.procedures ?? [], ctx);
   const procedures = procedureTools(input.procedures ?? [], ctx, path);
   addTools(request, [...(input.tools ?? []).map(toolParam), ...procedures.map((tool) => tool.param)], input.toolChoice);
   const byName = new Map(procedures.map((tool) => [tool.param.name, tool]));

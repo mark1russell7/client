@@ -836,6 +836,16 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
   }
 
   /**
+   * A miss of a lazy registry loads the packages of the path, then the server looks up the
+   * handler again (roadmap O93). An eager registry, or a server that does not serve its registry,
+   * finds no handler here.
+   */
+  protected override findLateHandler(method: Method, request: ServerRequest<unknown>): Promise<ServerHandler | null> | null {
+    if (!this.servesRegistry || !this.procedureRegistry.lazy) return null;
+    return this.procedureRegistry.resolve(methodToPath(method)).then(() => this.findHandler(method, request));
+  }
+
+  /**
    * Run a procedure for a request. A keyed call to a procedure that is not repeatable runs one
    * time for its key (R1).
    */
@@ -1205,6 +1215,14 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    */
   get procedureCount(): number {
     return this.servedKeys().size;
+  }
+
+  /**
+   * This method loads each package of a lazy registry that the server serves (roadmap O93). Then
+   * `procedureCount` and the lists count each procedure. For an eager registry it does nothing.
+   */
+  async loadAll(): Promise<void> {
+    if (this.servesRegistry && this.procedureRegistry.lazy) await this.procedureRegistry.loadAll();
   }
 
   /**

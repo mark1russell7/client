@@ -442,6 +442,12 @@ export interface ProcedureRegistryLike {
   getAll(): AnyProcedure[];
   register(procedure: AnyProcedure, options?: RegistrationOptions): void;
   unregister(path: ProcedurePath): boolean;
+  /** This property is true for a lazy registry (roadmap O93). Its sync reads give only the procedures that have loaded. */
+  readonly lazy?: boolean;
+  /** This method gives the procedure at a path. A lazy registry loads the packages of the path on a miss. */
+  resolve?(path: ProcedurePath): Promise<AnyProcedure | undefined>;
+  /** This method loads each package of a lazy registry. A procedure that enumerates the registry starts it first. */
+  loadAll?(): Promise<void>;
 }
 
 /**

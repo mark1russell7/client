@@ -136,6 +136,7 @@ const TryCatchInputSchema = z.looseObject({
 import {
   isAnyProcedureRef,
   normalizeRef,
+  preloadRefPaths,
   createRefScope,
   scopeOf,
   getRefWhen,
@@ -349,6 +350,8 @@ const traceProcedure: TraceProcedure = defineProcedure({
     if (!ctx?.client) throw new Error("client.trace: a run needs a client context");
     const registry = ctx.registry ?? PROCEDURE_REGISTRY;
     const limit = upTo ?? Number.POSITIVE_INFINITY;
+    // A lazy registry loads the paths of the steps first: the facts below read their effects (roadmap O93)
+    await preloadRefPaths(registry, steps);
 
     // The facts of each step before the run: its name, its path and the declared effects of its procedure
     const rows: TraceRow[] = steps.map((step, index) => {
