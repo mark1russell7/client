@@ -1,8 +1,8 @@
 /**
  * Benchmarks of the core (roadmap R32): the paths that each call takes. The nightly workflow
  * runs them with `vitest bench`. Each benchmark writes its result to `bench/results/`, and
- * `scripts/bench-compare.mjs` compares the results with the results of the last nightly run on
- * the same kind of runner.
+ * `scripts/bench-context.mjs` adds the runner context. The nightly gives no verdict: two runs on
+ * different runners do not compare (O82).
  *
  * Vitest 5 gives the benchmarks as the `bench` fixture of a test.
  */

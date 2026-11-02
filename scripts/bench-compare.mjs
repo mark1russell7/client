@@ -9,8 +9,13 @@
  * fails the run. The machines of CI are not equal, thus the default factor is 2. A benchmark
  * without an earlier result only shows its time.
  *
- * With `--report-only`, a slower benchmark gives a warning, and the run passes. The nightly uses
- * it: two runners of CI give no verdict (O84, O82). An empty current folder still fails the run.
+ * With `--report-only`, a slower benchmark gives a warning, and the run passes. An empty current
+ * folder still fails the run.
+ *
+ * No workflow uses this script since O82: two runs on different runners give no verdict, so the
+ * nightly compares nothing. The script stays for O83, a paired A/B of the base and the head in one
+ * job, on one runner. The field `context` of a result file (`scripts/bench-context.mjs`) does not
+ * change the comparison.
  */
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";
