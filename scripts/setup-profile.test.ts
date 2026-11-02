@@ -3,10 +3,10 @@ import assert from "node:assert/strict";
 import { join, resolve } from "node:path";
 import { describe, it } from "node:test";
 import { pathToFileURL } from "node:url";
-import { bytesOf, diffOf, groupOf, keyOf, markdownOf, selfTimesOf, summaryOf } from "./setup-profile.mjs";
+import { bytesOf, diffOf, groupOf, keyOf, markdownOf, selfTimesOf, summaryOf } from "./setup-profile.ts";
 
 const tree = resolve("trees", "head");
-const url = (/** @type {string} */ ...parts) => pathToFileURL(join(tree, ...parts)).href;
+const url = (...parts: string[]) => pathToFileURL(join(tree, ...parts)).href;
 
 describe("setup-profile", () => {
   it("gives the key of a file of the tree, of a package of node_modules and of Node.js", () => {

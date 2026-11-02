@@ -1,6 +1,6 @@
 /**
  * This module records each module that a process loads, and the bytes of its source (O90). The
- * script `setup-profile.mjs` loads it with `--import` into the setup child. At the exit of the
+ * script `setup-profile.ts` loads it with `--import` into the setup child. At the exit of the
  * process, the module writes the list as JSON to the file that `SETUP_PROFILE_MODULES` names.
  *
  * The hook is synchronous and runs in the thread of the process (`registerHooks`). It records only
@@ -10,8 +10,7 @@
 import { writeFileSync } from "node:fs";
 import { registerHooks } from "node:module";
 
-/** @type {{ url: string, bytes: number }[]} */
-const loaded = [];
+const loaded: { url: string; bytes: number }[] = [];
 
 registerHooks({
   load(url, context, nextLoad) {

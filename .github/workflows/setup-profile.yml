@@ -2,7 +2,7 @@ name: Setup profile
 
 # The setup profile of the base and the head (roadmap O90). One job builds the two trees as the
 # paired bench does, then starts the setup child of each core workload with the CPU profiler and a
-# load hook (scripts/setup-profile.mjs). The record gives, for each file, the self time and the bytes
+# load hook (scripts/setup-profile.ts). The record gives, for each file, the self time and the bytes
 # in each tree, and the share of each file in the added self time.
 #
 # The workflow only reports: only a dispatch starts it, and no ruleset needs its checks.
@@ -78,7 +78,7 @@ jobs:
           INPUTS: ${{ inputs.inputs }}
         run: |
           mkdir -p "$RUNNER_TEMP/profile"
-          node scripts/setup-profile.mjs --base "$RUNNER_TEMP/trees/base" --head "$RUNNER_TEMP/trees/head" \
+          node scripts/setup-profile.ts --base "$RUNNER_TEMP/trees/base" --head "$RUNNER_TEMP/trees/head" \
             --base-ref "$BASE" --head-ref "$HEAD" --repeats "$REPEATS" ${INPUTS:+--inputs "$INPUTS"} \
             --out "$RUNNER_TEMP/profile/setup-profile.json"
           cat "$RUNNER_TEMP/profile/setup-profile.md" >> "$GITHUB_STEP_SUMMARY"
