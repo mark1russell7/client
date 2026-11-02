@@ -222,7 +222,8 @@ describe.runIf(minutes > 0)("the WebSocket transport under load (R32)", () => {
       channels: Map<string, { incoming: { size: number; credits: Map<string, unknown> }; outgoing: { size: number } }>;
     }).channels;
     const serverMaps = [...channels.values()].map((channel) => channel.incoming.size + channel.incoming.credits.size + channel.outgoing.size);
-    console.log(JSON.stringify({ ...counts, heapBeforeMb: heapBefore, heapAfterMb: heapAfter, pending, serverMaps, events }));
+    // One line that the nightly keeps in its artifact soak-measure-<run> (O85)
+    console.log(`soak-measure ws ${JSON.stringify({ ...counts, heapBeforeMb: heapBefore, heapAfterMb: heapAfter, pending, serverMaps, events })}`);
 
     for (const transport of transports) await transport.close();
     await host.stop();
@@ -308,7 +309,7 @@ describe.runIf(minutes > 0)("the HTTP transport under load (R32)", () => {
     // The requests in progress of the procedure handler of the transport (CLI-3 moved them there)
     const openRequests = transport.inFlight();
     const report = { ...counts, heapBeforeMb: heapBefore, heapAfterMb: heapAfter, openRequests, timersLive: timers.live, timersStarted: timers.started, callsInFlight: host.callsInFlight };
-    console.log(JSON.stringify(report));
+    console.log(`soak-measure http ${JSON.stringify(report)}`);
 
     await host.stop();
     http.closeAllConnections();
