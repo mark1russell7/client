@@ -56,7 +56,7 @@
   "@procedures/client": {
     "lines": 89,
     "statements": 88,
-    "functions": 87,
+    "functions": 86.9,
     "branches": 82.7
   },
   "@procedures/collections": {

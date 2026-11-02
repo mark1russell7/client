@@ -26,6 +26,8 @@
  * the floor is the worst of 5 runs minus the spread of the package, rounded down to 0.1. For a
  * spread of 0, the floor is the worst run, rounded down. The 5 runs are dispatch run 41371676324 of
  * `nightly.yml` (2026-11-01). `scripts/coverage-spread.mjs` applies the rule to the totals of the runs.
+ * A second dispatch, 41382261642 (2026-11-02), gave a lower floor for the functions of
+ * `@procedures/client` (86.9). Each floor is the lower value of the two dispatches.
  */
 
 import { spawn } from "node:child_process";
