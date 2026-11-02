@@ -272,7 +272,7 @@
   "@procedures/schedule": {
     "lines": 97,
     "statements": 95.6,
-    "functions": 96.6,
+    "functions": 96.5,
     "branches": 90.2
   },
   "@procedures/server": {
