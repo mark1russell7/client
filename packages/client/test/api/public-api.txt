@@ -2174,6 +2174,7 @@ export declare class HttpServerTransport implements ServerTransport {
     start(): Promise<void>;
     stop(): Promise<void>;
     isRunning(): boolean;
+    inFlight(): number;
     port(): number | undefined;
 }
 

@@ -6,7 +6,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRegistry, invokePath, outputValue, type ProcedureRegistry } from "@procedures/client";
@@ -55,14 +55,17 @@ describe("the archive procedures under the root of a host", () => {
   });
 
   it("make, list and extract an archive in the root, with relative paths that start at the root", async () => {
+    // The paths are compared after realpath: on Windows, the temporary folder can have the short
+    // 8.3 form (RUNNER~1), and a procedure can give the long form of the same folder (O84)
+    const real = (path: string): string => realpathSync.native(path);
     const made = await call<ArchiveCreateOutput>("archive.create", { output: "out.zip", source: "sub" });
-    expect(made.path).toBe(join(root, "out.zip"));
+    expect(real(made.path)).toBe(real(join(root, "out.zip")));
     const files = await call<ArchiveCreateOutput>("archive.create", { output: "files.tar.gz", cwd: "sub", files: ["a.txt"] });
     expect(files.entries).toBe(1);
     const listed = await call<ArchiveListOutput>("archive.list", { archive: "out.zip" });
     expect(listed.entries.map((entry) => entry.path)).toEqual(["a.txt"]);
     const extracted = await call<ArchiveExtractOutput>("archive.extract", { archive: "files.tar.gz", target: "x" });
-    expect(extracted.target).toBe(join(root, "x"));
+    expect(real(extracted.target)).toBe(real(join(root, "x")));
     expect(existsSync(join(root, "x", "a.txt"))).toBe(true);
   });
 

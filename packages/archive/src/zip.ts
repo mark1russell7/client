@@ -347,6 +347,9 @@ export interface ZipWriteEntry {
   readonly mtime?: Date | undefined;
 }
 
+/** The size of one write of `writeZip()`: the small parts of the entries go to the file together. */
+const WRITE_CHUNK = 1024 * 1024;
+
 /**
  * This function writes a zip to an open file. The names are not examined here: `archive.create`
  * gives only the relative paths of a walk, and a test gives hostile names on purpose.
@@ -355,10 +358,25 @@ export async function writeZip(handle: FileHandle, entries: readonly ZipWriteEnt
   if (entries.length > 0xffff) throw new ArchiveError("TOO_LARGE", "A zip without zip64 has at most 65535 entries");
   const central: Buffer[] = [];
   let offset = 0;
+  // The parts go to the file in chunks of about WRITE_CHUNK bytes. Before, each entry had its own
+  // write: 65535 small entries took more than 30 s on Windows (O84).
+  const held: Buffer[] = [];
+  let heldBytes = 0;
+  let written = 0;
+  const flush = async (): Promise<void> => {
+    if (heldBytes === 0) return;
+    const chunk = held.length === 1 ? held[0]! : Buffer.concat(held, heldBytes);
+    held.length = 0;
+    heldBytes = 0;
+    await handle.write(chunk, 0, chunk.length, written);
+    written += chunk.length;
+  };
   const write = async (buffer: Buffer): Promise<void> => {
     if (offset + buffer.length >= 0xffffffff) throw new ArchiveError("TOO_LARGE", "A zip without zip64 must be smaller than 4 GiB");
-    await handle.write(buffer, 0, buffer.length, offset);
+    held.push(buffer);
+    heldBytes += buffer.length;
     offset += buffer.length;
+    if (heldBytes >= WRITE_CHUNK) await flush();
   };
   for (const entry of entries) {
     const name = Buffer.from(entry.kind === "directory" && !entry.name.endsWith("/") ? `${entry.name}/` : entry.name, "utf8");
@@ -418,5 +436,6 @@ export async function writeZip(handle: FileHandle, entries: readonly ZipWriteEnt
   end.writeUInt32LE(directory.length, 12);
   end.writeUInt32LE(directoryOffset, 16);
   await write(end);
+  await flush();
   return offset;
 }
