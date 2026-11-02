@@ -187,6 +187,9 @@ importers:
       '@mark1russell7/cue':
         specifier: ^1.1.0
         version: 1.1.0
+      '@mark1russell7/rigor-statistics':
+        specifier: ^0.1.1
+        version: 0.1.1
       '@mark1russell7/ste-lint':
         specifier: ^0.1.1
         version: 0.1.1
@@ -3332,6 +3335,14 @@ packages:
     peerDependenciesMeta:
       zod:
         optional: true
+
+  '@mark1russell7/rigor-generators@0.1.0':
+    resolution: {integrity: sha512-xhXvLzZQlDH6ysAbqEjbha6fs1GbvO9RflSXwYbA3QMryxu4zEikbxahEDQCIxVSis+2pfX/18PHU3+X+jJmPw==}
+    engines: {node: '>=22'}
+
+  '@mark1russell7/rigor-statistics@0.1.1':
+    resolution: {integrity: sha512-ASU8b1v7x0NKKRl3AUJ908Ic0PxsKOtE6LrgSsKNaUOpYoGaUMYqntHBrPY+WPwrmnjIl1GULfyVMzWZfN+MkA==}
+    engines: {node: '>=22'}
 
   '@mark1russell7/service@0.6.3':
     resolution: {integrity: sha512-PN8dNgqh6SyCyKN5r+x/ilr5GXyq8d0lxQJsTEDIGBSe42n3edmsK/5qcqAQ4iMI7iLBRv97aF4AIXJxTbnyLw==}
@@ -6698,6 +6709,12 @@ snapshots:
   '@mark1russell7/quantity@0.2.0(zod@4.6.7)':
     optionalDependencies:
       zod: 4.6.7
+
+  '@mark1russell7/rigor-generators@0.1.0': {}
+
+  '@mark1russell7/rigor-statistics@0.1.1':
+    dependencies:
+      '@mark1russell7/rigor-generators': 0.1.0
 
   '@mark1russell7/service@0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)':
     dependencies:

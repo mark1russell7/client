@@ -1,7 +1,7 @@
 // Tests of the pure parts of the server request bench (O90). No test starts a process or times code.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { caseOf, markdownOf, REQUESTS, shareOf } from "./server-request.ts";
+import { caseOf, markdownOf, REQUESTS, SHARE_BOOTSTRAP, shareOf } from "./server-request.ts";
 
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-12;
 
@@ -15,7 +15,25 @@ describe("server-request", () => {
     assert.ok(near(s.share, 0.05));
     assert.deepEqual(s.samples.request, [100, 120, 80, 110, 90]);
     assert.deepEqual(s.samples.exec, [5, 6, 4, 7, 3]);
-    assert.equal("interval" in s, false);
+  });
+
+  it("gives the bootstrap interval of the share: 10 000 runs, seed 1, around the share", () => {
+    const s = shareOf([100, 120, 80, 110, 90], [5, 6, 4, 7, 3]);
+    assert.ok(near(s.interval.estimate, s.share));
+    assert.equal(s.interval.runs, SHARE_BOOTSTRAP.runs);
+    assert.equal(s.interval.seed, SHARE_BOOTSTRAP.seed);
+    assert.equal(s.interval.level, 0.95);
+    assert.equal(s.interval.finite, SHARE_BOOTSTRAP.runs);
+    assert.ok(s.interval.low <= s.share && s.share <= s.interval.high);
+    assert.ok(s.interval.low < s.interval.high);
+    // The same samples give the same interval: the seed fixes the draws
+    assert.deepEqual(shareOf([100, 120, 80, 110, 90], [5, 6, 4, 7, 3]).interval, s.interval);
+  });
+
+  it("gives an interval of one point when the samples do not vary", () => {
+    const s = shareOf([2, 2, 2, 2], [0.5, 0.5, 0.5, 0.5]);
+    assert.ok(near(s.interval.low, 0.25));
+    assert.ok(near(s.interval.high, 0.25));
   });
 
   it("gives the round-paired ratios exec / request, and their p10 to p90", () => {
@@ -53,11 +71,10 @@ describe("server-request", () => {
     const cases = { "one-call": caseOf({ id: "one-call", ms: { request: [0.1, 0.1, 0.1], exec: [0.005, 0.005, 0.005], "request~aa": [0.1, 0.1, 0.1] }, median: {}, ratio: { "request~aa": 1 } }) };
     const md = markdownOf({ refs: { head: "abc" }, node: "v26.0.0", rounds: 20, warmupPasses: 1, requests: REQUESTS, cases });
     assert.ok(md.includes("The requests are synthetic: no record of real traffic exists (O91)."));
-    assert.ok(md.includes("The interval of the share comes from the bootstrap of rigor-statistics (a later change)."));
+    assert.ok(md.includes("The share interval is the 95 % percentile bootstrap of rigor-statistics: 10000 runs, seed 1."));
     assert.ok(md.includes("## `one-call`"));
     assert.ok(md.includes(`Each process: ${REQUESTS["one-call"].warmup} warm-up calls, then ${REQUESTS["one-call"].calls} timed calls.`));
-    assert.ok(md.includes("| Request median µs | Exec median µs | Share | Round-paired p10 to p90 | A/A p10 to p90 |"));
-    assert.ok(md.includes("| 100.0 | 5.0 | 5.0 % | 5.0 % to 5.0 % | 1.000 to 1.000 |"));
-    assert.equal(md.includes("Share interval"), false);
+    assert.ok(md.includes("| Request median µs | Exec median µs | Share | Share 95 % interval | Round-paired p10 to p90 | A/A p10 to p90 |"));
+    assert.ok(md.includes("| 100.0 | 5.0 | 5.0 % | 5.0 % to 5.0 % | 5.0 % to 5.0 % | 1.000 to 1.000 |"));
   });
 });

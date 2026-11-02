@@ -53,6 +53,9 @@ jobs:
           echo "HEAD=$head" >> "$GITHUB_ENV"
           echo "Head $head ($(git log -1 --format='%cs %s' "$head"))"
           git worktree add --detach "$RUNNER_TEMP/trees/head" "$head"
+      # The script of the run imports rigor-statistics, a devDependency of the root
+      - name: Install the root of the checkout
+        run: pnpm install --frozen-lockfile --filter mark1russell7-monorepo
       - name: Install and build the tree
         run: |
           cd "$RUNNER_TEMP/trees/head"
