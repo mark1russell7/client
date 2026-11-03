@@ -84,9 +84,6 @@
           "packages/client-node/src/fresh-bundle.test.ts"
         ],
         "reason": "the fixture QUIET_ENTRY of the test records process.argv[1] and import.meta.url as data for the test. It compares nothing"
-      },
-      "pages-site": {
-        "off": "the site of client deploys with its own .github/workflows/pages.yml: it starts after CI on main, runs the e2e suite of packages/site before the deploy and sends IndexNow after it. The move to reusable-pages.yml of the template is its own roadmap item"
       }
     }
   }
