@@ -202,7 +202,7 @@ jobs:
     # The input `runs` gives more than one run: the per-test timeouts on Windows come from 5 runs
     strategy:
       fail-fast: false
-      max-parallel: 5
+      max-parallel: 3
       matrix:
         run: ${{ fromJSON(inputs.runs || '[1]') }}
     defaults:
