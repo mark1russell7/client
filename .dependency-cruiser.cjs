@@ -8,7 +8,7 @@
 // scope names a known package, and no package imports an app. The analysis does not follow
 // node_modules and the dist/ folders, and it resolves an import as Node resolves an ESM import. This
 // file adds the rules of this repository: a transport does not import the server.
-// scripts/check-boundaries.test.mjs tests all the rules on a fixture repository.
+// scripts/check-boundaries.test.ts tests all the rules on a fixture repository.
 //
 // The rule "a browser entry imports no Node built-in" is not here: scripts/check-browser-entries.ts
 // (CLI-39) examines it.

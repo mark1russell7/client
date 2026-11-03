@@ -1,20 +1,21 @@
-// The tests of scripts/check-paths-and-writes.mjs (roadmap CLI-84), with source samples in memory.
-// Start them with: node --test scripts/check-paths-and-writes.test.mjs
+// The tests of scripts/check-paths-and-writes.ts (roadmap CLI-84), with source samples in memory.
+// Start them with: node --test scripts/check-paths-and-writes.test.ts
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { findingsOf, isCheckedFile, problemsOf } from "./check-paths-and-writes.mjs";
+import { findingsOf, isCheckedFile, problemsOf, type AllowedFiles } from "./check-paths-and-writes.ts";
 
 const FILE = "packages/sample/src/sample.ts";
 
 /** The rule and the line of each finding of a sample, in the order of the file. */
-const found = (source, file = FILE) =>
+const found = (source: string, file = FILE): string[] =>
   findingsOf(file, source)
     .filter((finding) => finding.allowed === undefined)
     .map(({ rule, line }) => `${rule}:${line}`);
 
 /** The problems of one sample file, with empty lists of allowed files. */
-const problems = (source, allowed = {}) => problemsOf([{ file: FILE, source }], { codec: new Set(), pathFiles: {}, writeFiles: {}, ...allowed }).problems;
+const problems = (source: string, allowed: AllowedFiles = {}): string[] =>
+  problemsOf([{ file: FILE, source }], { codec: new Set<string>(), pathFiles: {}, writeFiles: {}, ...allowed }).problems;
 
 describe("isCheckedFile", () => {
   it("examines the source files of packages/*/src", () => {
