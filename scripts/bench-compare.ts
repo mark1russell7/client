@@ -2,7 +2,7 @@
 /**
  * This script compares the results of the benchmarks with earlier results (roadmap R32).
  *
- *   node scripts/bench-compare.mjs <earlier folder> <current folder> [--factor 2]
+ *   node scripts/bench-compare.ts <earlier folder> <current folder> [--factor 2]
  *
  * Each folder holds one JSON file for each benchmark, as `bench(name, { writeResult })` of
  * vitest writes it. A benchmark whose mean time is more than `factor` times the earlier mean
@@ -27,13 +27,13 @@ const factorIndex = process.argv.indexOf("--factor");
 const factor = factorIndex > 0 ? Number(process.argv[factorIndex + 1]) : 2;
 const reportOnly = process.argv.includes("--report-only");
 if (!earlierDir || !currentDir) {
-  console.error("Usage: node scripts/bench-compare.mjs <earlier folder> <current folder> [--factor 2] [--report-only]");
+  console.error("Usage: node scripts/bench-compare.ts <earlier folder> <current folder> [--factor 2] [--report-only]");
   process.exit(2);
 }
 
 /** The mean time of one call of a benchmark, in milliseconds. */
-function meanOf(file) {
-  const result = JSON.parse(readFileSync(file, "utf8"));
+function meanOf(file: string): number {
+  const result = JSON.parse(readFileSync(file, "utf8")) as { latency?: { mean?: number }; mean: number };
   return result.latency?.mean ?? result.mean;
 }
 
@@ -44,8 +44,8 @@ if (currentFiles.length === 0) {
   process.exit(1);
 }
 
-const rows = [];
-const slower = [];
+const rows: string[] = [];
+const slower: string[] = [];
 for (const file of currentFiles) {
   const name = file.replace(/\.json$/, "");
   const current = meanOf(join(currentDir, file));
