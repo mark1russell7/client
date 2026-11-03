@@ -62,7 +62,7 @@ jobs:
             harness/procedures-subject/**
             packages/client/src/adapters/websocket/**
             .github/workflows/harness.yml
-            .github/scripts/harness-verdicts.mjs
+            .github/scripts/harness-verdicts.ts
 
   plan:
     needs: changes
@@ -205,6 +205,10 @@ jobs:
         with:
           persist-credentials: false
           sparse-checkout: .github/scripts
+      # The script is TypeScript, and the Node of the runner can be too old to run it
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: cells-*
@@ -212,7 +216,7 @@ jobs:
       - name: The verdicts
         env:
           SHARDS: ${{ needs.plan.outputs.count }}
-        run: node .github/scripts/harness-verdicts.mjs "$RUNNER_TEMP/cells" "$SHARDS"
+        run: node .github/scripts/harness-verdicts.ts "$RUNNER_TEMP/cells" "$SHARDS"
 
   harness-ok:
     name: Harness OK

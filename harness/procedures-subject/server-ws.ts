@@ -25,11 +25,12 @@
 // clients and drops a silent one. Each line names the connection by its peer.
 
 import http from "node:http";
+import type { Socket } from "node:net";
 import { WebSocket } from "ws";
 import * as z from "zod";
 import { ProcedureServer, createProcedure, createRegistry } from "@procedures/client";
 import { WebSocketServerTransport } from "@procedures/client/node";
-import { bootId, commandLine, emit, subjectPackage } from "./lines.mjs";
+import { bootId, commandLine, emit, subjectPackage } from "./lines.ts";
 
 const line = commandLine("server-ws --port N --tcp-keepalive off|N --heartbeat off|on [--heartbeat-interval-ms N --heartbeat-misses N]");
 const port = line.number("--port");
@@ -40,16 +41,19 @@ const heartbeat = line.toggle("--heartbeat")
   ? { interval: line.number("--heartbeat-interval-ms"), misses: line.number("--heartbeat-misses") }
   : null;
 
-const peerOf = (socket) => `${socket?.remoteAddress}:${socket?.remotePort}`;
+const peerOf = (socket: Socket | undefined): string => `${socket?.remoteAddress}:${socket?.remotePort}`;
+
+/** A WebSocket of ws, with the socket that its types do not show. */
+type WithSocket = WebSocket & { _socket?: Socket };
 
 // the acts of a heartbeat of the server, in the package that the transport imports
 const ping = WebSocket.prototype.ping;
-WebSocket.prototype.ping = function (...args) {
+WebSocket.prototype.ping = function (this: WithSocket, ...args: Parameters<typeof ping>) {
   emit("ping", { peer: peerOf(this._socket) });
   return ping.apply(this, args);
 };
 const terminate = WebSocket.prototype.terminate;
-WebSocket.prototype.terminate = function (...args) {
+WebSocket.prototype.terminate = function (this: WithSocket, ...args: Parameters<typeof terminate>) {
   emit("drop", { peer: peerOf(this._socket) });
   return terminate.apply(this, args);
 };
@@ -76,7 +80,7 @@ const registry = createRegistry({
       .meta({ effects: NONE })
       .handler(async ({ ms }, ctx) => {
         emit("request", { method: "harness.hold", ms });
-        await new Promise((resolve) => {
+        await new Promise<void>((resolve) => {
           const timer = setTimeout(resolve, ms);
           ctx.signal?.addEventListener("abort", () => {
             clearTimeout(timer);
@@ -103,7 +107,7 @@ const transport = new WebSocketServerTransport(server, {
   onConnection: (ws, request) => {
     const peer = peerOf(request.socket);
     emit("accepted", { peer });
-    ws.on("close", (code) => emit("closed", { peer, code }));
+    ws.on("close", (code: number) => emit("closed", { peer, code }));
   },
 });
 server.addTransport(transport);

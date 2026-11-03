@@ -41,7 +41,7 @@ import { subscribe } from "node:diagnostics_channel";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { WebSocket as WsWebSocket } from "ws";
-import { bootId, commandLine, emit, now, subjectPackage, waitFor } from "./lines.mjs";
+import { bootId, commandLine, emit, now, subjectPackage, waitFor } from "./lines.ts";
 
 const USAGE =
   "client-ws HOST PORT --mode idle|inflight --websocket global|ws --heartbeat on|off --reconnect on|off --request-timeout-ms N --connection-timeout-ms N";
@@ -52,25 +52,25 @@ if (mode !== "idle" && mode !== "inflight") line.fail("--mode is idle or infligh
 const socketClass = line.required("--websocket");
 if (socketClass !== "global" && socketClass !== "ws") line.fail("--websocket is global or ws");
 /** This function gives a duration of milliseconds, as the transport takes each time. */
-const ms = (value) => ({ value, unit: "ms" });
+const ms = (value: number): { value: number; unit: string } => ({ value, unit: "ms" });
 const heartbeat = line.toggle("--heartbeat")
   ? {
-      enabled: true,
+      enabled: true as const,
       interval: line.number("--heartbeat-interval-ms"),
       timeout: line.number("--heartbeat-timeout-ms"),
       misses: line.number("--heartbeat-misses"),
     }
-  : { enabled: false };
+  : { enabled: false as const };
 const reconnect = line.toggle("--reconnect")
   ? {
-      enabled: true,
+      enabled: true as const,
       initialDelay: line.number("--reconnect-initial-ms"),
       backoffMultiplier: line.number("--reconnect-multiplier"),
       maxDelay: line.number("--reconnect-max-ms"),
       maxAttempts: line.number("--reconnect-attempts"),
       jitter: line.number("--reconnect-jitter"),
     }
-  : { enabled: false };
+  : { enabled: false as const };
 const requestTimeout = line.number("--request-timeout-ms");
 const connectionTimeout = line.number("--connection-timeout-ms");
 const hold = line.flag("--hold-ms") === undefined ? undefined : line.number("--hold-ms");
@@ -99,31 +99,54 @@ emit("start", {
   settings: { heartbeat, reconnect, requestTimeout, connectionTimeout, hold: hold ?? null },
 });
 
+/** One socket of the transport: its number, its local address, and whether the transport dropped it. */
+interface SocketRecord {
+  conn: number;
+  local: string | undefined;
+  dropped: boolean;
+}
+
+/** An error of a socket: a Node error, or an event or a value with the same fields. */
+type SocketError = { code?: unknown; name?: unknown; message?: string } | null | undefined;
+
+/** The acts of a WebSocket that the subclass uses: undici and ws share them. */
+interface SocketBase {
+  _socket?: { localAddress?: string; localPort?: number; on?: (event: string, listener: (error: SocketError) => void) => void };
+  addEventListener(type: string, listener: (event: never) => void): void;
+  send(...args: unknown[]): unknown;
+  close(...args: unknown[]): unknown;
+  terminate?(...args: unknown[]): unknown;
+}
+
+// A mixin class needs this form of constructor
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SocketClass = new (...args: any[]) => SocketBase;
+
 /** These are the sockets of the transport, by their WebSocket: the number of each, its local address, and whether the transport dropped it. */
-const sockets = new WeakMap();
+const sockets = new WeakMap<object, SocketRecord>();
 let tries = 0;
 /** This is the last socket error that undici published. The close event of its socket follows it. */
-let pending;
+let pending: { errno: unknown; at: bigint } | undefined;
 
 /** This function gives the type of a frame of the transport: its JSON `type`. */
-const typeOf = (data) => {
+const typeOf = (data: unknown): string => {
   if (typeof data !== "string") return "binary";
   try {
-    return JSON.parse(data).type ?? "unknown";
+    return (JSON.parse(data) as { type?: string }).type ?? "unknown";
   } catch {
     return "text";
   }
 };
 
 /** This function writes the local address of a socket that opened, once. */
-const opened = (socket, local) => {
+const opened = (socket: SocketRecord | undefined, local: string | null): void => {
   if (socket === undefined || socket.local !== undefined || local === null) return;
   socket.local = local;
   emit("connected", { conn: socket.conn, local });
 };
 
 /** This function writes the drop of a socket by the transport, before its close() or its terminate(). */
-const dropped = (websocket, how) => {
+const dropped = (websocket: object, how: string): void => {
   const socket = sockets.get(websocket);
   if (socket !== undefined) socket.dropped = true;
   emit("drop", { conn: socket?.conn ?? null, local: socket?.local ?? null, how });
@@ -133,13 +156,14 @@ const dropped = (websocket, how) => {
  * This function gives a subclass of a class of WebSockets that writes the acts of the transport.
  * It has terminate() only when its class has it: the transport calls terminate() when it exists.
  */
-const stamped = (Base) => {
+const stamped = (Base: SocketClass): SocketClass => {
   class Stamped extends Base {
-    constructor(...args) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    constructor(...args: any[]) {
       const conn = ++tries;
       emit("dial", { conn });
       super(...args);
-      const socket = { conn, local: undefined, dropped: false };
+      const socket: SocketRecord = { conn, local: undefined, dropped: false };
       sockets.set(this, socket);
       // a socket of ws gives its local address at its open, and undici gives it in a diagnostics
       // channel. ws keeps the error of its socket to itself, thus the client reads it there
@@ -150,11 +174,11 @@ const stamped = (Base) => {
           pending = { errno: error?.code ?? error?.name ?? "unknown", at: now() };
         });
       });
-      this.addEventListener("error", (event) => {
+      this.addEventListener("error", (event: { error?: SocketError } | undefined) => {
         const code = event?.error?.code;
         if (typeof code === "string") pending = { errno: code, at: now() };
       });
-      this.addEventListener("close", (event) => {
+      this.addEventListener("close", (event: { code: number; wasClean: boolean }) => {
         const error = pending;
         pending = undefined;
         emit("conn-end", { conn, local: socket.local ?? null, code: event.code, clean: event.wasClean, errno: error?.errno ?? null });
@@ -165,21 +189,21 @@ const stamped = (Base) => {
       });
     }
 
-    send(...args) {
+    override send(...args: unknown[]): unknown {
       const socket = sockets.get(this);
       const type = typeOf(args[0]);
       emit(type === "ping" ? "ping" : "write", { conn: socket?.conn ?? null, local: socket?.local ?? null, ...(type === "ping" ? {} : { type }) });
       return super.send(...args);
     }
 
-    close(...args) {
+    override close(...args: unknown[]): unknown {
       dropped(this, "close");
       return super.close(...args);
     }
   }
   const terminate = Base.prototype.terminate;
   if (typeof terminate === "function")
-    Stamped.prototype.terminate = function (...args) {
+    Stamped.prototype.terminate = function (this: SocketBase, ...args: unknown[]) {
       dropped(this, "terminate");
       return terminate.apply(this, args);
     };
@@ -187,10 +211,11 @@ const stamped = (Base) => {
 };
 
 subscribe("undici:websocket:open", (message) => {
-  const address = message.address;
-  opened(sockets.get(message.websocket), address === null || address === undefined ? null : `${address.address}:${address.port}`);
+  const { address, websocket } = message as { address?: { address: string; port: number } | null; websocket: object };
+  opened(sockets.get(websocket), address === null || address === undefined ? null : `${address.address}:${address.port}`);
 });
-subscribe("undici:websocket:socket_error", (error) => {
+subscribe("undici:websocket:socket_error", (message) => {
+  const error = message as SocketError;
   pending = { errno: error?.code ?? error?.name ?? "unknown", at: now() };
 });
 
@@ -202,14 +227,14 @@ setTimeout(() => {
 const { Client } = await import("@procedures/client");
 const { WebSocketTransport } = await import(ENTRY);
 
-let first;
-const firstOpen = new Promise((resolve) => {
+let first: (() => void) | undefined;
+const firstOpen = new Promise<void>((resolve) => {
   first = resolve;
 });
 const transport = new WebSocketTransport({
   url: `ws://${host}:${port}/ws`,
   // the global class has no terminate(): the subclass of it has none either
-  webSocket: socketClass === "ws" ? stamped(WsWebSocket) : stamped(globalThis.WebSocket),
+  webSocket: stamped((socketClass === "ws" ? WsWebSocket : globalThis.WebSocket) as unknown as SocketClass),
   heartbeat: heartbeat.enabled
     ? { enabled: true, interval: ms(heartbeat.interval), timeout: ms(heartbeat.timeout), misses: heartbeat.misses }
     : { enabled: false },
@@ -230,9 +255,9 @@ const transport = new WebSocketTransport({
     first?.();
     first = undefined;
   },
-  onDisconnect: (reason) => emit("status", { status: "disconnected", reason: reason ?? null }),
-  onReconnecting: (attempt) => emit("reconnecting", { attempt }),
-  onError: (error) => emit("status", { status: "error", message: error?.message ?? null }),
+  onDisconnect: (reason?: string) => emit("status", { status: "disconnected", reason: reason ?? null }),
+  onReconnecting: (attempt: number) => emit("reconnecting", { attempt }),
+  onError: (error?: Error) => emit("status", { status: "error", message: error?.message ?? null }),
 });
 const client = new Client({ transport });
 
@@ -245,7 +270,7 @@ try {
   const reply = await client.call(ECHO, {});
   emit("ready", { reply: JSON.stringify(reply ?? null) });
 } catch (error) {
-  emit("fail", { why: error?.message ?? String(error) });
+  emit("fail", { why: (error as SocketError)?.message ?? String(error) });
   process.exit(1);
 }
 
@@ -255,6 +280,6 @@ if (mode === "inflight") {
   emit("sent");
   client.call(hold === undefined ? ECHO : HOLD, hold === undefined ? {} : { ms: hold }).then(
     (reply) => emit("data", { n: JSON.stringify(reply ?? null).length }),
-    (error) => emit("call-error", { code: error?.code ?? error?.name ?? null, message: error?.message ?? String(error) }),
+    (error: SocketError) => emit("call-error", { code: error?.code ?? error?.name ?? null, message: error?.message ?? String(error) }),
   );
 }
