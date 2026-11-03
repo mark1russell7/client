@@ -14,7 +14,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { z } from "zod";
+import * as z from "zod";
 import { createProcedure, createRegistry, defineModule, invokePath, outputValue, type ProcedureModule, type ProcedureRegistry } from "@procedures/client";
 import { confineToRoot, rootDecisionOf } from "@procedures/fs/module";
 import { gitModule } from "@procedures/git/module";

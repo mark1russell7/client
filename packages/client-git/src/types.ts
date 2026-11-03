@@ -2,7 +2,7 @@
  * Type definitions for client-git procedures
  */
 
-import { z } from "zod";
+import * as z from "zod";
 
 // =============================================================================
 // git.status Types - Get git status

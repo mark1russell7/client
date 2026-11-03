@@ -10,7 +10,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { createServer, type Server as HttpServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { MessageChannel } from "node:worker_threads";
-import { z } from "zod";
+import * as z from "zod";
 import { Client } from "../client/client.js";
 import { createProcedure } from "../procedures/define.js";
 import { createRegistry } from "../procedures/module.js";

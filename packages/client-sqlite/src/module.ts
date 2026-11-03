@@ -10,7 +10,7 @@
  */
 
 import { definePackage, createProcedure, type AnyProcedure, type FsRootRules, type ProcedureModule, type PackageDefinition } from "@procedures/client";
-import { z } from "zod";
+import * as z from "zod";
 import {
   withConnection,
   query,

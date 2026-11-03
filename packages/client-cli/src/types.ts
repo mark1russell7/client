@@ -4,7 +4,7 @@
  * client-cli wraps the mark CLI as procedures using client-shell.
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import { cliToolOutputSchema, type CliToolOutput } from "@procedures/shell/cli";
 
 // =============================================================================

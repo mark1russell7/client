@@ -13,7 +13,7 @@ import { createServer as createTcpServer, type Server as TcpServer, type Socket 
 import type { AddressInfo } from "node:net";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { z } from "zod";
+import * as z from "zod";
 import { WebSocket as WsClient, WebSocketServer } from "ws";
 import { Client } from "../../client/client.js";
 import { createProcedure } from "../../procedures/define.js";

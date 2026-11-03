@@ -14,7 +14,7 @@
  * core, as for the dev-tools server. Before, `mcp.serve` built them by hand.
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import {
   defineProcedure,
   ProcedureServer,

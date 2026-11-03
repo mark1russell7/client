@@ -5,7 +5,7 @@
 
 import { describe, it, expect, afterEach } from "vitest";
 import { MessageChannel } from "node:worker_threads";
-import { z } from "zod";
+import * as z from "zod";
 import { Client } from "../../client/client.js";
 import { createProcedure } from "../../procedures/define.js";
 import { createRegistry } from "../../procedures/module.js";

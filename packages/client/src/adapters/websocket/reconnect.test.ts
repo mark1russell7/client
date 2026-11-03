@@ -15,7 +15,7 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { createServer, type Server as HttpServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { z } from "zod";
+import * as z from "zod";
 import { Client } from "../../client/client.js";
 import { createRetryMiddleware } from "../../client/middleware/retry.js";
 import { deliveryOf, isNetworkError, isNotSentError, thrownItem } from "../../client/middleware/items.js";

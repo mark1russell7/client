@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { z } from "zod";
+import * as z from "zod";
 import express from "express";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";

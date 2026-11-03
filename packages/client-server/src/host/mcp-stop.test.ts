@@ -21,7 +21,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { z } from "zod";
+import * as z from "zod";
 import { service, type Lifecycle, type ServiceBuilder } from "@mark1russell7/service";
 import { fakeClock, fakeProcess, seeded } from "@mark1russell7/service/testing";
 import { createProcedure, createRegistry, elicitInput, ms, seconds, type AnyProcedure, type ProcedureRegistry } from "@procedures/client";

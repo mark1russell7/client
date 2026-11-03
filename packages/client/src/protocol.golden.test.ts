@@ -13,7 +13,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import express from "express";
-import { z } from "zod";
+import * as z from "zod";
 import { WebSocket as WsClient, WebSocketServer } from "ws";
 import { fakeClock } from "@mark1russell7/service/testing";
 import { createProcedure } from "./procedures/define.js";

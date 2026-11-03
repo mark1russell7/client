@@ -23,7 +23,7 @@ import {
   type ProcedureRegistry,
   type Transport,
 } from "@procedures/client";
-import { z } from "zod";
+import * as z from "zod";
 import { MemoryProgramStore } from "./memory.js";
 import { createProgramModule, createProgramProcedures } from "./programs.js";
 import type { ProgramStore, StoredProgram } from "./types.js";

@@ -498,7 +498,7 @@ A package that does not load gives one warning line. A package that is not built
 **Example register.js:**
 ```typescript
 import { defineProcedure } from "@procedures/client";
-import { z } from "zod";
+import * as z from "zod";
 
 const libNew = defineProcedure({
   path: ["lib", "new"],

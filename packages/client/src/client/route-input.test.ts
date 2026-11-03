@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { z } from "zod";
+import * as z from "zod";
 import { Client } from "./client.js";
 import { defineProcedure } from "../procedures/define.js";
 import { outputSchema } from "../procedures/core/schemas.js";

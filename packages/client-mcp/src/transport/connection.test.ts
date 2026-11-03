@@ -12,7 +12,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { createServer, request, type IncomingHttpHeaders } from "node:http";
 import type { AddressInfo } from "node:net";
-import { z } from "zod";
+import * as z from "zod";
 import {
   ProcedureServer,
   createProcedure,

@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { z } from "zod";
+import * as z from "zod";
 import { Client } from "../client/client.js";
 import { createOverallTimeoutMiddleware } from "../client/middleware/timeout.js";
 import { ms } from "../duration.js";

@@ -167,7 +167,7 @@ for await (const event of client.stream({ service: "events", operation: "watch" 
 
 ```typescript
 import { defineProcedure, registerProcedures } from "client";
-import { z } from "zod";
+import * as z from "zod";
 
 const getUserProcedure = defineProcedure({
   path: ["users", "get"],

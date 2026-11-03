@@ -21,7 +21,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { randomBytes } from "node:crypto";
 import { request, type IncomingHttpHeaders } from "node:http";
-import { z } from "zod";
+import * as z from "zod";
 import { service, type ServiceBuilder } from "@mark1russell7/service";
 import { fakeClock, fakeProcess, seeded } from "@mark1russell7/service/testing";
 import {

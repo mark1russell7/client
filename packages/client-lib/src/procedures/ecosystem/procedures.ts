@@ -9,7 +9,7 @@
  * This is a composition of dag traversal + procedure discovery.
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import { pathToKey, type ProcedureContext } from "@procedures/client";
 import { libScan } from "../lib/scan.js";
 import { join } from "node:path";

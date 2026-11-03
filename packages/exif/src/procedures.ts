@@ -4,7 +4,7 @@
 
 import { open } from "node:fs/promises";
 import { createProcedure, type AnyProcedure, type FsRootRules } from "@procedures/client";
-import { z } from "zod";
+import * as z from "zod";
 import { readExif, type PhotoFacts } from "./exif.js";
 
 /** The EXIF block is in the first APP1 segment, at most 64 KiB after the start of the file. */

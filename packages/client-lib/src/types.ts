@@ -2,7 +2,7 @@
  * Type definitions for client-lib procedures
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import type {
   DAGNode as DagBaseNode,
   DependencyDAG as DagDependencyDAG,

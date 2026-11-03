@@ -192,7 +192,7 @@ export async function userCreate(_input: UserCreateInput): Promise<UserCreateOut
 }
 ```
 
-2. **Type Definitions** (appended to `src/types.ts`, which gets `import { z } from "zod"` if it has none, or is created):
+2. **Type Definitions** (appended to `src/types.ts`, which gets `import * as z from "zod"` if it has none, or is created):
 ```typescript
 // =============================================================================
 // user.create Types - Create a new user

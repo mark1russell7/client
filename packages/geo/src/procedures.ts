@@ -8,7 +8,7 @@
  */
 
 import { createProcedure, type AnyProcedure, type ProcedureContext } from "@procedures/client/browser";
-import { z } from "zod";
+import * as z from "zod";
 import { drivingRoute, geocode, type FetchJson, type GeocodeResult, type RouteResult } from "./geo.js";
 import { geoDistance } from "./procedures/geo/distance.js";
 import { geoGeohash } from "./procedures/geo/geohash.js";

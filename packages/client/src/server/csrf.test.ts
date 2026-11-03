@@ -9,7 +9,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { createServer, request, type IncomingMessage, type Server as HttpServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import express from "express";
-import { z } from "zod";
+import * as z from "zod";
 import { WebSocket as WsClient } from "ws";
 import { createProcedure } from "../procedures/define.js";
 import { createRegistry } from "../procedures/module.js";

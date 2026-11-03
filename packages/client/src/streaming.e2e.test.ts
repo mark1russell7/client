@@ -13,7 +13,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { createServer, type Server as HttpServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import express from "express";
-import { z } from "zod";
+import * as z from "zod";
 import { Client } from "./client/client.js";
 import { HttpTransport } from "./adapters/http/client/index.js";
 import { WebSocketTransport } from "./adapters/websocket/client/transport.js";

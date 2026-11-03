@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { z } from "zod";
+import * as z from "zod";
 import type { DependencyHandle, TransportImpl } from "@mark1russell7/service";
 import { fakeClock, transportConformance, type HeldWork, type TransportSubject } from "@mark1russell7/service/testing";
 import type { Clock } from "../clock.js";

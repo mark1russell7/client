@@ -7,7 +7,7 @@
  * gives the same procedures with another host policy or other size limits (roadmap R38).
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import {
   defineModule,
   registerModules,

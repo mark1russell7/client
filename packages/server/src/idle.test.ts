@@ -16,7 +16,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { z } from "zod";
+import * as z from "zod";
 import { fakeClock, fakeProcess } from "@mark1russell7/service/testing";
 import type { Lifecycle } from "@mark1russell7/service";
 import { Client, createProcedure, createRegistry, hostPolicy, ms, seconds, type ProcedureRegistry } from "@procedures/client";

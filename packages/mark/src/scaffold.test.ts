@@ -134,7 +134,7 @@ describe.skipIf(!cueInstalled && !process.env["CI"])("lib new + procedure new", 
     expect(module).toContain('defineModule("@procedures/demo", [demoHelloProcedure, demoApiV2CreateProcedure, demoReadJsonProcedure, soloProcedure])');
     expect(readFileSync(join(packageDir, "src", "register.ts"), "utf8")).toContain("registerDemoProcedures();");
     expect(readFileSync(join(packageDir, "src", "index.ts"), "utf8")).not.toContain("register.js");
-    expect(readFileSync(join(packageDir, "src", "types.ts"), "utf8")).toContain('import { z } from "zod";');
+    expect(readFileSync(join(packageDir, "src", "types.ts"), "utf8")).toContain('import * as z from "zod";');
 
     const result = compile(packageDir);
     expect(result.output).not.toContain("error");

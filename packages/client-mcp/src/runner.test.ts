@@ -11,7 +11,7 @@ import { describe, it, expect } from "vitest";
 import { PassThrough } from "node:stream";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { z } from "zod";
+import * as z from "zod";
 import { ephemeral, localDev, service, type ServiceBuilder } from "@mark1russell7/service";
 import { httpTransport } from "@mark1russell7/service/http";
 import { fakeClock, fakeProcess, seeded } from "@mark1russell7/service/testing";

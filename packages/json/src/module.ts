@@ -7,7 +7,7 @@
  * changes nothing else (roadmap R39).
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import { definePackage, PURE_EFFECTS, type ProcedureModule, createProcedure, type PackageDefinition } from "@procedures/client";
 import { jsonQuery } from "./procedures/json/query.js";
 import { jsonPatch } from "./procedures/json/patch.js";

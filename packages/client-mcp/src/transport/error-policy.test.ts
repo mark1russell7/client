@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, afterEach } from "vitest";
-import { z } from "zod";
+import * as z from "zod";
 import { Client as McpClient } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { ProcedureRegistry, ProcedureServer, ServerError, createProcedure, type ErrorCall, type ServerErrorPolicy } from "@procedures/client";

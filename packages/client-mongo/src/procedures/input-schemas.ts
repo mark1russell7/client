@@ -11,7 +11,7 @@
  * a zod object that names the same fields.
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import { jsonSchemaOf, typed, type ZodLikeSchema } from "@procedures/client";
 
 /** The fields that select the database and the collection. */

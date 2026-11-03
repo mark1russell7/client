@@ -6,7 +6,7 @@
 import { createProcedure, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { databaseFor, type ScopeInput } from "../scope.js";
 import { scopeFields, documentObject } from "./input-schemas.js";
-import { z } from "zod";
+import * as z from "zod";
 import type { CreateCollectionOptions } from "mongodb";
 import { type CollectionOptions } from "../types.js";
 

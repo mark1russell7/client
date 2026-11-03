@@ -8,7 +8,7 @@ import { describe, it, expect } from "vitest";
 import express from "express";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { z } from "zod";
+import * as z from "zod";
 import { Client } from "../client/client.js";
 import { createTracingMiddleware } from "../client/middleware/tracing.js";
 import { createProcedure } from "../procedures/define.js";

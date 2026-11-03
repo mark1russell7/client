@@ -23,7 +23,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createServer, type Server as HttpServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import express from "express";
-import { z } from "zod";
+import * as z from "zod";
 import { WebSocket as WsClient } from "ws";
 import { HttpServerTransport } from "../adapters/http/server/index.js";
 import { HttpTransport } from "../adapters/http/client/index.js";

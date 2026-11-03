@@ -8,7 +8,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { createServer, request, type IncomingMessage, type Server as HttpServer, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import express from "express";
-import { z } from "zod";
+import * as z from "zod";
 import { fakeClock } from "@mark1russell7/service/testing";
 import { createProcedure } from "../../../procedures/define.js";
 import { createRegistry } from "../../../procedures/module.js";

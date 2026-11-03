@@ -32,7 +32,7 @@
  * events (`dropped`). The bus never waits for a subscriber.
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import { createProcedure } from "../procedures/define.js";
 import { InvocationError, type Invocation } from "../procedures/invoke.js";
 import { capabilityRefusal } from "../procedures/capability.js";

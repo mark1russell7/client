@@ -6,7 +6,7 @@ import { describe, it, expect } from "vitest";
 import { parseCommandLine, parseLeadingGlobals } from "./args.js";
 import { convertValue } from "./parse.js";
 import { testProcedures } from "../test/procedures.js";
-import { z } from "zod";
+import * as z from "zod";
 import { createProcedure, outputSchema, type AnyProcedure } from "@procedures/client";
 
 const procedures = testProcedures();

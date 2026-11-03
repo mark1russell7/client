@@ -36,7 +36,7 @@ import type {
   ProcedureRegistryLike,
   Effects,
 } from "./types.js";
-import { z } from "zod";
+import * as z from "zod";
 import { anySchema } from "./core/schemas.js";
 import { keyToPath, pathToKey } from "./types.js";
 import {

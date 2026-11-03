@@ -4,7 +4,7 @@
  */
 
 import { createProcedure, type AnyProcedure, type FsRootRules } from "@procedures/client";
-import { z } from "zod";
+import * as z from "zod";
 import { FINDING_KINDS, readTermList, scanFiles, scanText, type Finding, type FileScan, type FindingKind } from "./scan.js";
 
 const kindSchema = z.enum(FINDING_KINDS as [FindingKind, ...FindingKind[]]);

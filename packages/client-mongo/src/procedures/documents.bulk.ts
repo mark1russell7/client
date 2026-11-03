@@ -12,7 +12,7 @@
 
 import { createProcedure, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import type { AnyBulkWriteOperation, Document } from "mongodb";
-import { z } from "zod";
+import * as z from "zod";
 import { collectionFor, copyScope, SCOPE_FIELDS, type ScopeInput } from "../scope.js";
 import { described, documentObject, scopeFields } from "./input-schemas.js";
 import type { BulkOperation, DocumentQuery, DocumentUpdate } from "../types.js";

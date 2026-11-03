@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { z } from "zod";
+import * as z from "zod";
 import { Client as McpClient } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createProcedure, defineModule } from "@procedures/client";

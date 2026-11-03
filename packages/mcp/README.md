@@ -171,7 +171,7 @@ function zodToJsonSchema(schema: ZodType): JsonSchema;
 
 **Example:**
 ```typescript
-import { z } from "zod";
+import * as z from "zod";
 import { zodToJsonSchema } from "@procedures/mcp";
 
 const schema = z.object({

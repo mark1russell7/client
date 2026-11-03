@@ -10,7 +10,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { MessageChannel } from "node:worker_threads";
 import { WebSocketServer } from "ws";
-import { z } from "zod";
+import * as z from "zod";
 import type { Message, Transport } from "../client/types.js";
 import { Client } from "../client/client.js";
 import { createProcedure } from "../procedures/define.js";

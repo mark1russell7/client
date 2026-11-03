@@ -4,7 +4,7 @@
  * Scaffold a procedure with: mark procedure new <name> --path packages/systems
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import { definePackage, PURE_EFFECTS, type ProcedureModule, createProcedure, type PackageDefinition } from "@procedures/client";
 import { systemsTimers } from "./procedures/systems/timers.js";
 import type { SystemsTimersInput, SystemsTimersOutput } from "./types.js";

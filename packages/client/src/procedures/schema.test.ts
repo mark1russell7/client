@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { z } from "zod";
+import * as z from "zod";
 import { defineProcedure } from "./define.js";
 import { invokeProcedure, outputValue } from "./invoke.js";
 import { anySchema, outputSchema, typed, typedAnySchema, zodAdapter } from "./core/schemas.js";

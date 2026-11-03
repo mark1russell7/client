@@ -2,7 +2,7 @@
  * Types and schemas for cue procedures
  */
 
-import { z } from "zod";
+import * as z from "zod";
 
 // =============================================================================
 // Shared Types

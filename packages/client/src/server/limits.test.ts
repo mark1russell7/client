@@ -14,7 +14,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { z } from "zod";
+import * as z from "zod";
 import { fakeClock, type FakeClock } from "@mark1russell7/service/testing";
 import type { LimiterStore } from "@mark1russell7/service/limiter";
 import { createProcedure } from "../procedures/define.js";

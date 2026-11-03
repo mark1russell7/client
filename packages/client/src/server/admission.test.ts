@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { z } from "zod";
+import * as z from "zod";
 import { createProcedure } from "../procedures/define.js";
 import { createRegistry } from "../procedures/module.js";
 import { ladder } from "../procedures/capability.js";

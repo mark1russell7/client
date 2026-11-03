@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { z } from "zod";
+import * as z from "zod";
 import { fakeClock } from "@mark1russell7/service/testing";
 import {
   createProcedure,

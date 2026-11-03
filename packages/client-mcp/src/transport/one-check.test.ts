@@ -15,7 +15,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { createServer, request, type IncomingHttpHeaders } from "node:http";
 import type { AddressInfo } from "node:net";
-import { z } from "zod";
+import * as z from "zod";
 import { localDev, service } from "@mark1russell7/service";
 import { httpTransport } from "@mark1russell7/service/http";
 import { fakeProcess } from "@mark1russell7/service/testing";

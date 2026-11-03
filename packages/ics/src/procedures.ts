@@ -8,7 +8,7 @@
  */
 
 import { InvocationError, createProcedure, type AnyProcedure, type ProcedureContext } from "@procedures/client/browser";
-import { z } from "zod";
+import * as z from "zod";
 import { calendarOccurrences, isCalendar, parseIcs, type IcsEvent, type Occurrence } from "./ics.js";
 import { icsWrite } from "./procedures/ics/write.js";
 import { IcsWriteInputSchema, IcsWriteOutputSchema, type IcsWriteInput, type IcsWriteOutput } from "./types.js";

@@ -961,7 +961,7 @@ export class Client<TContext = {}> {
    *
    * @example
    * ```typescript
-   * import { z } from "zod";
+   * import * as z from "zod";
    *
    * const client = new Client({ transport })
    *   .use(createZodMiddleware())

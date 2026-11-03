@@ -14,7 +14,7 @@ import { createServer, type Server as HttpServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { MessageChannel } from "node:worker_threads";
 import express from "express";
-import { z } from "zod";
+import * as z from "zod";
 import { HttpTransport } from "../adapters/http/client/index.js";
 import { HttpServerTransport } from "../adapters/http/server/index.js";
 import { procedureHandler } from "../adapters/http/server/handler.js";

@@ -2,7 +2,7 @@
  * Type definitions of the procedures of this package
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import type { Point } from "./geo.js";
 import type { GeohashCell } from "./geohash.js";
 

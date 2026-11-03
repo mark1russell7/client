@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from "vitest";
 import fc from "fast-check";
-import { z } from "zod";
+import * as z from "zod";
 import { createProcedure, outputSchema, type AnyProcedure } from "@procedures/client";
 import { parseCommandLine } from "./args.js";
 import { testProcedures } from "../test/procedures.js";

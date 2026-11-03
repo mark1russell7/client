@@ -1,0 +1,51 @@
+---
+"@procedures/archive": patch
+"@procedures/claude-cli": patch
+"@procedures/client": patch
+"@procedures/cli-kit": patch
+"@procedures/cli-run": patch
+"@procedures/compiler": patch
+"@procedures/cue": patch
+"@procedures/dag": patch
+"@procedures/docker": patch
+"@procedures/env": patch
+"@procedures/exif": patch
+"@procedures/fs": patch
+"@procedures/geo": patch
+"@procedures/gh": patch
+"@procedures/git": patch
+"@procedures/http": patch
+"@procedures/ics": patch
+"@procedures/ios-backup": patch
+"@procedures/json": patch
+"@procedures/lib": patch
+"@procedures/llm": patch
+"@procedures/mail": patch
+"@procedures/mark": patch
+"@procedures/mcp": patch
+"@procedures/mcp-server": patch
+"@procedures/mongo": patch
+"@procedures/node": patch
+"@procedures/notify": patch
+"@procedures/npm": patch
+"@procedures/pdf": patch
+"@procedures/peer": patch
+"@procedures/pnpm": patch
+"@procedures/privacy-scan": patch
+"@procedures/procedure": patch
+"@procedures/restic": patch
+"@procedures/s3": patch
+"@procedures/schedule": patch
+"@procedures/server": patch
+"@procedures/shell": patch
+"@procedures/snapshot": patch
+"@procedures/sqlite": patch
+"@procedures/store": patch
+"@procedures/systems": patch
+"@procedures/tailscale": patch
+"@procedures/vite": patch
+"@procedures/vitest": patch
+"@procedures/weather": patch
+---
+
+Each module imports zod with `import * as z from "zod"`, not `import { z } from "zod"`. With the old form, an esbuild bundle got each locale of zod: 264 kB of minified code (esbuild metafile of the journey worker of the site). The Vite build of the site gives the same worker files with both forms. The procedure scaffolder writes the new form in `types.ts`. The API and the behavior stay the same.

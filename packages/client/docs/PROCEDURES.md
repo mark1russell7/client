@@ -312,7 +312,7 @@ This creates:
 
 ```typescript
 import { createProcedure, registerProcedures, typed } from "@procedures/client";
-import { z } from "zod";
+import * as z from "zod";
 
 // Define input schema
 const MyInputSchema = z.object({

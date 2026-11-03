@@ -2,7 +2,7 @@
  * Type definitions for client-node procedures
  */
 
-import { z } from "zod";
+import * as z from "zod";
 
 // ============================================================================
 // node.run - Run script and wait for completion

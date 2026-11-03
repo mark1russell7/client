@@ -5,7 +5,7 @@
  * mark procedure new adds the types of each new procedure here.
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import type { Capability, PermittedEffects } from "@procedures/client/browser";
 import type { Diagnostic } from "./diagnostics.js";
 
