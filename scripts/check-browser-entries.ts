@@ -12,44 +12,52 @@
 // The root of @procedures/client is a browser entry since CLI-6 step 2. HttpServerTransport and
 // WebSocketServerTransport, which import `http` and `ws`, are only in ./node.
 //
-// Start it after `pnpm build`: node scripts/check-browser-entries.mjs. Exit code 1 on a failure.
-// The tests of the check: node --test scripts/check-browser-entries.test.mjs.
+// Start it after `pnpm build`: node scripts/check-browser-entries.ts. Exit code 1 on a failure.
+// The tests of the check: node --test scripts/check-browser-entries.test.ts.
 
 import { existsSync, realpathSync } from "node:fs";
 import { builtinModules } from "node:module";
 import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { build } from "esbuild";
-import { root, workspacePackages } from "./lib/workspace.mjs";
+import { build, type Metafile, type Plugin } from "esbuild";
+import { root, workspacePackages, type Manifest } from "./lib/workspace.mjs";
+
+/** One package for the check: its npm name, its folder and its manifest. */
+export interface CheckedPackage {
+  readonly name: string | undefined;
+  readonly path: string;
+  readonly manifest: Manifest;
+}
 
 const BUILTINS = new Set(builtinModules.map((name) => name.replace(/^node:/, "")));
 
 /** True when a module name is a Node built-in: `node:` and any name, or a name of `builtinModules`. */
-export function isBuiltin(specifier) {
+export function isBuiltin(specifier: string): boolean {
   return specifier.startsWith("node:") || BUILTINS.has(specifier);
 }
 
 /** The file of an exports entry for a browser bundler, or undefined for a pattern or a non-JS entry. */
-function fileOf(target) {
-  const file = typeof target === "string" ? target : target?.browser ?? target?.import ?? target?.default;
+function fileOf(target: unknown): string | undefined {
+  const conditions = typeof target === "object" && target !== null ? (target as { browser?: unknown; import?: unknown; default?: unknown }) : undefined;
+  const file = typeof target === "string" ? target : conditions?.browser ?? conditions?.import ?? conditions?.default;
   return typeof file === "string" && /\.[cm]?js$/.test(file) && !file.includes("*") ? file : undefined;
 }
 
 /** The keys of `client.browser`, or a problem when the field is not a list of texts. */
-function declaredEntries(manifest) {
-  const keys = manifest.client?.browser;
+function declaredEntries(manifest: Manifest): { keys: string[]; problem?: undefined } | { keys?: undefined; problem: string } {
+  const keys = (manifest["client"] as { browser?: unknown } | undefined)?.browser;
   if (keys === undefined) return { keys: [] };
   if (!Array.isArray(keys) || keys.some((key) => typeof key !== "string")) return { problem: "client.browser is not a list of exports keys" };
-  return { keys };
+  return { keys: keys as string[] };
 }
 
 /** The shortest chain of files of the metafile from the entry to the file that imports the built-in. */
-function chainTo(inputs, entry, importer) {
-  const parent = new Map([[entry, undefined]]);
+function chainTo(inputs: Metafile["inputs"], entry: string, importer: string): string[] {
+  const parent = new Map<string, string | undefined>([[entry, undefined]]);
   const queue = [entry];
   while (queue.length > 0) {
-    const file = queue.shift();
+    const file = queue.shift()!;
     if (file === importer) break;
     for (const imported of inputs[file]?.imports ?? []) {
       if (imported.external || parent.has(imported.path)) continue;
@@ -57,8 +65,8 @@ function chainTo(inputs, entry, importer) {
       queue.push(imported.path);
     }
   }
-  const chain = [];
-  for (let file = importer; file !== undefined; file = parent.get(file)) chain.unshift(file);
+  const chain: string[] = [];
+  for (let file: string | undefined = importer; file !== undefined; file = parent.get(file)) chain.unshift(file);
   return chain;
 }
 
@@ -66,9 +74,9 @@ function chainTo(inputs, entry, importer) {
  * This function bundles one file for the browser, and gives each Node built-in on its way: the
  * module name and the shortest chain of files from the entry to a file that imports it.
  */
-async function builtinsReachedFrom(file, cwd) {
-  const reached = [];
-  const plugin = {
+async function builtinsReachedFrom(file: string, cwd: string): Promise<{ specifier: string; chain: string[] }[]> {
+  const reached: { specifier: string; importer: string }[] = [];
+  const plugin: Plugin = {
     name: "node-builtins",
     setup(builder) {
       builder.onResolve({ filter: /.*/ }, (args) => {
@@ -90,11 +98,11 @@ async function builtinsReachedFrom(file, cwd) {
     outdir: join(tmpdir(), "check-browser-entries"),
     plugins: [plugin],
   });
-  const key = (path) => relative(cwd, path).split("\\").join("/");
-  const shortest = new Map();
+  const key = (path: string): string => relative(cwd, path).split("\\").join("/");
+  const shortest = new Map<string, string[]>();
   for (const { specifier, importer } of reached) {
     const chain = chainTo(result.metafile.inputs, key(file), key(importer));
-    if (!shortest.has(specifier) || chain.length < shortest.get(specifier).length) shortest.set(specifier, chain);
+    if (!shortest.has(specifier) || chain.length < shortest.get(specifier)!.length) shortest.set(specifier, chain);
   }
   return [...shortest].map(([specifier, chain]) => ({ specifier, chain }));
 }
@@ -103,8 +111,8 @@ async function builtinsReachedFrom(file, cwd) {
  * The problems of the browser entries of the packages. Each package is `{ name, path, manifest }`.
  * `cwd` is the folder that the chains of files are relative to. The result also counts the entries.
  */
-export async function browserEntryProblems(packages, cwd = root) {
-  const problems = [];
+export async function browserEntryProblems(packages: readonly CheckedPackage[], cwd: string = root): Promise<{ problems: string[]; entries: number }> {
+  const problems: string[] = [];
   let entries = 0;
   for (const pkg of packages) {
     const { keys, problem } = declaredEntries(pkg.manifest);
@@ -113,8 +121,8 @@ export async function browserEntryProblems(packages, cwd = root) {
       continue;
     }
     const exportsMap = pkg.manifest.exports ?? {};
-    const map = typeof exportsMap === "string" ? { ".": exportsMap } : exportsMap;
-    for (const key of keys) {
+    const map: Readonly<Record<string, unknown>> = typeof exportsMap === "string" ? { ".": exportsMap } : exportsMap;
+    for (const key of keys!) {
       if (!(key in map)) {
         problems.push(`${pkg.name}: client.browser names "${key}", but the exports map has no "${key}"`);
         continue;
@@ -135,7 +143,8 @@ export async function browserEntryProblems(packages, cwd = root) {
           problems.push(`${pkg.name} "${key}" reaches the Node built-in "${specifier}":\n      ${chain.join("\n    → ")}\n      imports "${specifier}"`);
         }
       } catch (error) {
-        const messages = (error.errors ?? [error]).map((e) => e.text ?? e.message ?? String(e)).join("; ");
+        const failure = error as { errors?: { text?: string }[]; message?: string };
+        const messages = (failure.errors ?? [failure]).map((e: { text?: string; message?: string }) => e.text ?? e.message ?? String(e)).join("; ");
         problems.push(`${pkg.name} "${key}": esbuild cannot bundle it for a browser: ${messages}`);
       }
     }
@@ -152,6 +161,6 @@ if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathS
     console.error(`${problems.length} problems:\n  ${problems.join("\n  ")}`);
     process.exit(1);
   }
-  const declaring = packages.filter((pkg) => (pkg.manifest.client?.browser ?? []).length > 0).length;
+  const declaring = packages.filter((pkg) => (((pkg.manifest["client"] as { browser?: unknown[] } | undefined)?.browser) ?? []).length > 0).length;
   console.log(`The ${entries} browser entries of ${declaring} packages reach no Node built-in.`);
 }

@@ -31,3 +31,13 @@ export const root: string;
 
 /** The public packages (not `private`), with the dependencies first. */
 export function publicPackages(): PublicPackage[];
+
+/** One folder of `packages/` with a `package.json`. */
+export interface WorkspacePackage {
+  readonly dir: string;
+  readonly path: string;
+  readonly manifest: Manifest;
+}
+
+/** Each folder of `packages/` with a `package.json`, and its manifest. */
+export function workspacePackages(): WorkspacePackage[];

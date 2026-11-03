@@ -10,7 +10,7 @@
 // file adds the rules of this repository: a transport does not import the server.
 // scripts/check-boundaries.test.mjs tests all the rules on a fixture repository.
 //
-// The rule "a browser entry imports no Node built-in" is not here: scripts/check-browser-entries.mjs
+// The rule "a browser entry imports no Node built-in" is not here: scripts/check-browser-entries.ts
 // (CLI-39) examines it.
 
 const { boundaries } = require("@mark1russell7/boundaries");
