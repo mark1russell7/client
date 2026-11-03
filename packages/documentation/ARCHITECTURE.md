@@ -127,7 +127,7 @@ The CI names below are the jobs and the steps of `.github/workflows/ci.yml`.
 
 - **Rule.** Each service starts under `run()` of `@mark1russell7/service` (repository `systems`). Each app talks to a `ProcedureServer` of this repository. An app keeps no server and no socket of its own.
 - **Reason.** One runner gives each host the same start, health checks and stop. One server gives each app the same rights, limits and wire format.
-- **Guard.** Review rule. The CI job "Host lifecycle (SIGTERM in a stream)" tests that the hosts of this repository stop under `run()`. Planned: a check of the app repositories, after GRAPH-7 and OTH-4.
+- **Guard.** Review rule. The CI step "Stop a host with SIGTERM in a stream" tests that the hosts of this repository stop under `run()`. Planned: a check of the app repositories, after GRAPH-7 and OTH-4.
 
 ### I2. One way to define procedures and collections
 
@@ -188,7 +188,7 @@ The CI names below are the jobs and the steps of `.github/workflows/ci.yml`.
 
 - **Rule.** Each public package installs and starts as npm gives it. Each package that an entry imports is a declared dependency. No file names a package of this repository with the old scope `@mark1russell7`. The generated catalogs agree with the built packages.
 - **Reason.** A consumer gets the package from npm, not from the monorepo. A strict install (pnpm) finds only the declared packages.
-- **Guard.** The CI job "Packages (pack, publint, attw, install)" (`scripts/check-packages.mjs`): it packs each package, examines it with publint `--strict` and attw (the ESM-only profile), installs all the tarballs and starts the bins. The step "Check the declared imports" (`scripts/check-declared-imports.mjs`). The step "Check the package scope" (`scripts/check-scope.mjs`). The step "The generated catalogs are current" ([PROCEDURES.md](./PROCEDURES.md) and [PACKAGES.md](./PACKAGES.md)).
+- **Guard.** The CI step "Check the packages (pack, publint, attw, install)" (`scripts/check-packages.mjs`): it packs each package, examines it with publint `--strict` and attw (the ESM-only profile), installs all the tarballs and starts the bins. The step "Check the declared imports" (`scripts/check-declared-imports.mjs`). The step "Check the package scope" (`scripts/check-scope.mjs`). The step "The generated catalogs are current" ([PROCEDURES.md](./PROCEDURES.md) and [PACKAGES.md](./PACKAGES.md)).
 
 ### I9. Import boundaries
 
