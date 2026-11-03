@@ -5,7 +5,7 @@ name: Server request
 # the record has a fit of the transport time per byte (O94). One job builds @procedures/server and its dependencies, then
 # starts scripts/server-request.ts. Each sample is a fresh process for one case and one arm:
 # a request over loopback to its own fresh host of runProcedureHost(), or the same exec on
-# LocalTransport. measureIsolated() of scripts/lib/paired-time.mjs runs the rounds, in mode fresh.
+# LocalTransport. measureIsolated() of scripts/lib/paired-time.ts runs the rounds, in mode fresh.
 # No record of real traffic exists (O91), thus the requests are synthetic.
 #
 # With the input profile (two cases, for example chain-200,chain-1), the job does no timed rounds.

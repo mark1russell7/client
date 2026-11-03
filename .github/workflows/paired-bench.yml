@@ -2,7 +2,7 @@ name: Paired bench
 
 # The paired A/B bench of the base and the head (roadmap O83, paired-time/1). Each job of the matrix
 # times the two trees in one job, on one runner: the arms base, head and the A/A arm (the base
-# against itself), a new process for each arm, input and round (scripts/bench-paired.mjs). The job
+# against itself), a new process for each arm, input and round (scripts/bench-paired.ts). The job
 # "Paired bench verdicts" reads the records of all jobs and gives a verdict for each benchmark.
 #
 # The workflow only reports: only a dispatch starts it, and no ruleset needs its checks. The rules
@@ -118,7 +118,7 @@ jobs:
           SAMPLE: ${{ matrix.run }}
           ONLY: ${{ inputs.only }}
         run: >-
-          node scripts/bench-paired.mjs run
+          node scripts/bench-paired.ts run
           --base "$RUNNER_TEMP/trees/base" --head "$RUNNER_TEMP/trees/head"
           --base-ref "$BASE" --head-ref "$HEAD"
           --repeats "$REPEATS" --budget "$BUDGET" --sample "$SAMPLE"
@@ -166,7 +166,7 @@ jobs:
       - name: The verdicts
         env:
           BUDGET: ${{ inputs.budget || '0.1' }}
-        run: node scripts/bench-paired.mjs aggregate "$RUNNER_TEMP/records" --runs 5 --budget "$BUDGET" --out "$RUNNER_TEMP/paired-verdicts.json"
+        run: node scripts/bench-paired.ts aggregate "$RUNNER_TEMP/records" --runs 5 --budget "$BUDGET" --out "$RUNNER_TEMP/paired-verdicts.json"
       - if: always()
         uses: actions/upload-artifact@v7
         with:
