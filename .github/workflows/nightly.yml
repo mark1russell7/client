@@ -14,7 +14,7 @@ on:
         required: false
         default: ""
       runs:
-        description: "The runs of the soak and of coverage, as a JSON list. [1,2,3,4,5] gives the spread (O85)"
+        description: "The runs of the soak, of Windows and of coverage, as a JSON list. [1,2,3,4,5] gives the spread (O85)"
         required: false
         default: "[1]"
 
@@ -195,10 +195,16 @@ jobs:
           LIVE_DOCKER: "1"
 
   windows:
-    name: Windows (Node 24)
+    name: Windows (Node 24) run ${{ matrix.run }}
     if: ${{ !inputs.only || contains(inputs.only, 'windows') }}
     runs-on: windows-latest
     timeout-minutes: 45
+    # The input `runs` gives more than one run: the per-test timeouts on Windows come from 5 runs
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        run: ${{ fromJSON(inputs.runs || '[1]') }}
     defaults:
       run:
         shell: bash
