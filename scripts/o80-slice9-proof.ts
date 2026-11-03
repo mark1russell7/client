@@ -114,6 +114,8 @@ const arrangeFailures = (): void => {
   const group = config.fixed[0] ?? [];
   config.fixed[0] = [...group.filter((name) => name !== "@procedures/dag"), "@procedures/not-a-package"];
   writeFileSync(changeset, JSON.stringify(config, null, 2) + "\n");
+  // pnpm pack copies the LICENSE of the workspace root into a package that has none.
+  rmSync(join(root, "LICENSE"));
   rmSync(join(root, "packages", "client-fs", "LICENSE"));
   rmSync(join(root, "packages", "client-fs", "README.md"));
   editManifest("packages/client-fs/package.json", (manifest) => {
@@ -189,7 +191,9 @@ try {
       "the tarball has no LICENSE",
       "the tarball has no README.md",
       "@procedures/dag: publint",
+      "but the file does not exist.",
       "@procedures/dag: attw",
+      "Used fallback condition",
       "The package check found",
     ],
     arrange: arrangeFailures,
