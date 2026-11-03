@@ -221,7 +221,14 @@ jobs:
       # (packages/documentation/RELEASE.md). The release workflow does not allow them.
       - name: Check the packages (pack, publint, attw, install)
         if: ${{ !cancelled() }}
-        run: node scripts/check-packages.mjs
+        run: node scripts/check-packages.ts
+
+      # TEMPORARY, roadmap O80 slice 9: the proof for the release owner. A later commit of the same
+      # pull request removes this step and scripts/o80-slice9-proof.ts. The pull request keeps the result.
+      - name: "TEMPORARY: the TypeScript scripts give the result of the JavaScript scripts"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 25
+        run: node scripts/o80-slice9-proof.ts
 
       # The real hosts stop under run() of @mark1russell7/service (roadmap CI-2). The test starts the
       # built procedure-server and mark --server, and sends SIGTERM in the middle of an NDJSON stream.
