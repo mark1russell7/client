@@ -26,7 +26,7 @@
     "@mark1russell7/boundaries": "^0.2.0",
     "@mark1russell7/conventions": "^0.16.0",
     "@mark1russell7/cue": "^1.1.0",
-    "@mark1russell7/rigor-statistics": "^0.1.1",
+    "@mark1russell7/rigor-statistics": "^0.1.2",
     "@mark1russell7/ste-lint": "^0.1.1",
     "@swc/core": "^1.16.20",
     "@types/node": "^22.0.0",
