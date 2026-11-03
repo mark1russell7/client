@@ -81,3 +81,39 @@ describe("segmentsToTopic and topicToSegments (CLI-75)", () => {
     );
   });
 });
+
+describe("the fast paths of the escape (roadmap O90)", () => {
+  // The forms before the fast paths: the fast paths must give the same text for each input
+  const encodeBefore = (segment: string) => segment.replace(/[%.]/g, (char) => (char === "%" ? "%25" : "%2E"));
+  const decodeBefore = (segment: string) => segment.replace(/%(25|2[Ee])/g, (_sequence, code: string) => (code === "25" ? "%" : "."));
+  const topicBefore = (segments: readonly unknown[]) =>
+    segments.map((segment) => encodeBefore(segment === null || segment === undefined ? "" : String(segment))).join(".");
+
+  it("give the same text as the replace for each segment", () => {
+    fc.assert(
+      fc.property(fc.oneof(tricky, fc.string()), (segment) => {
+        expect(encodeSegment(segment)).toBe(encodeBefore(segment));
+        expect(decodeSegment(segment)).toBe(decodeBefore(segment));
+      }),
+    );
+  });
+
+  it("give the same topic as map() and join(), also for values that are not strings and for holes", () => {
+    const value = fc.oneof(tricky, fc.string(), fc.integer(), fc.constant(null), fc.constant(undefined), fc.boolean());
+    fc.assert(
+      fc.property(fc.array(value, { maxLength: 6 }), (segments) => {
+        expect(segmentsToTopic(segments as string[])).toBe(topicBefore(segments));
+      }),
+    );
+    // eslint-disable-next-line no-sparse-arrays
+    const holes = [, "a", , "b.c"] as unknown as string[];
+    expect(segmentsToTopic(holes)).toBe(".a..b%2Ec");
+    expect(segmentsToTopic([])).toBe("");
+  });
+
+  it("give the same string back for a segment without . and %", () => {
+    expect(encodeSegment("notes")).toBe("notes");
+    expect(decodeSegment("notes")).toBe("notes");
+    expect(encodeSegment("")).toBe("");
+  });
+});

@@ -24,6 +24,8 @@
  * ```
  */
 export function encodeSegment(segment: string): string {
+  // Almost each segment has no `.` and no `%`. Two scans cost less than a replace with a callback (roadmap O90)
+  if (segment.indexOf(".") === -1 && segment.indexOf("%") === -1) return segment;
   return segment.replace(/[%.]/g, (char) => (char === "%" ? "%25" : "%2E"));
 }
 
@@ -39,6 +41,7 @@ export function encodeSegment(segment: string): string {
  * ```
  */
 export function decodeSegment(segment: string): string {
+  if (segment.indexOf("%") === -1) return segment;
   return segment.replace(/%(25|2[Ee])/g, (_sequence, code: string) => (code === "25" ? "%" : "."));
 }
 
@@ -56,7 +59,14 @@ export function decodeSegment(segment: string): string {
 export function segmentsToTopic(segments: readonly string[]): string {
   // A segment that is not a string becomes text as with join(): null and undefined give "" (a
   // caller can check a path that is not valid, for example the compiler)
-  return segments.map((segment: unknown) => encodeSegment(segment === null || segment === undefined ? "" : String(segment))).join(".");
+  // A loop, not map() and join(): a key of a path is made for each call (roadmap O90)
+  let topic = "";
+  for (let index = 0; index < segments.length; index++) {
+    const segment: unknown = segments[index];
+    if (index > 0) topic += ".";
+    topic += encodeSegment(typeof segment === "string" ? segment : segment === null || segment === undefined ? "" : String(segment));
+  }
+  return topic;
 }
 
 /**
