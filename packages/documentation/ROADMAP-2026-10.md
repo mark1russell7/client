@@ -426,13 +426,13 @@ Open points:
 - `createErrorFromException` gave ABORTED for `AbortSignal.timeout()` and PARSE_ERROR for a circular structure.
 - `isAvailabilityFailure` did not count `CONNECTION_CLOSED`.
 
-**Later (CLI-86).** Each public package has a report of its public API in `test/api/public-api.txt`. The script `scripts/api-report.mjs` writes the reports from the built `.d.ts` files, and CI fails when a report differs. The script is plain JavaScript and uses no test runner. It replaces the Vitest snapshot test of `@procedures/client`.
+**Later (CLI-86).** Each public package has a report of its public API in `test/api/public-api.txt`. The script `scripts/api-report.ts` writes the reports from the built `.d.ts` files, and CI fails when a report differs. The script is TypeScript that Node.js runs without a build, and it uses no test runner. It replaces the Vitest snapshot test of `@procedures/client`.
 
 ### R31. Coverage
 
 `@vitest/coverage-v8` at the root, with thresholds that only go up.
 
-**Result.** `scripts/coverage.mjs` runs the tests of each package with coverage and compares them with `coverage-baseline.json`. The floors only go up. The CI job `coverage` uploads the raised floors as an artifact. The first floors come from that artifact, because this computer is shared and does not run the full gate.
+**Result.** `scripts/coverage.ts` runs the tests of each package with coverage and compares them with `coverage-baseline.json`. The floors only go up. The CI job `coverage` uploads the raised floors as an artifact. The first floors come from that artifact, because this computer is shared and does not run the full gate.
 
 ### R32. Stage 3
 

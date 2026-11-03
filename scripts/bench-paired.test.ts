@@ -1,16 +1,16 @@
-// The tests of scripts/bench-paired.mjs and scripts/bench-paired-child.mjs (O83): the round ratios,
+// The tests of scripts/bench-paired.ts and scripts/bench-paired-child.ts (O83): the round ratios,
 // the A/A rule, the interval rule and the verdicts, with times in memory. No test times code.
-// Start them with: node --test scripts/bench-paired.test.mjs
+// Start them with: node --test scripts/bench-paired.test.ts
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { aggregateVerdict, analyzeInput, bandOf, containsOne, effectOf, halfSpreadOf, roundRatios, runMarkdown, spreadOf, verdictMarkdown, verdictOf, verdictsOf } from "./bench-paired.mjs";
-import { CORE, COLD_CALLS, WARM, WORKLOADS, isStable, pass, timeSetup, timeWarm, timeWorkload } from "./bench-paired-child.mjs";
-import { quantileOf } from "./lib/paired-time.mjs";
+import { aggregateVerdict, analyzeInput, bandOf, containsOne, effectOf, halfSpreadOf, roundRatios, runMarkdown, spreadOf, verdictMarkdown, verdictOf, verdictsOf, type Analysis, type Sample } from "./bench-paired.ts";
+import { CORE, COLD_CALLS, WARM, WORKLOADS, isStable, pass, timeSetup, timeWarm, timeWorkload, type Workload } from "./bench-paired-child.ts";
+import { quantileOf } from "./lib/paired-time.ts";
 
 /** This function makes one input of a paired-time/1 report from the times of each round. */
-function input(/** @type {string} */ id, /** @type {number[]} */ base, /** @type {number[]} */ head, /** @type {number[]} */ aa) {
+function input(id: string, base: number[], head: number[], aa: number[]) {
   const ms = { base, head, "base~aa": aa };
   const median = { base: quantileOf(base, 0.5), head: quantileOf(head, 0.5), "base~aa": quantileOf(aa, 0.5) };
   return { id, ms, median, ratio: { head: median.head / median.base, "base~aa": median["base~aa"] / median.base } };
@@ -21,9 +21,10 @@ const BASE = [1, 1, 1, 1, 1, 1];
 const AA = [0.99, 1.01, 1, 0.995, 1.005, 1];
 
 /** This function makes the analysis of a benchmark in one run, for the aggregate. */
-const sample = (/** @type {string} */ run, /** @type {number} */ ratio, /** @type {Partial<{ counts: boolean, spread: number }>} */ options = {}) => ({
+const sample = (run: string, ratio: number, options: Partial<{ counts: boolean; spread: number }> = {}): Sample => ({
   run,
-  analysis: /** @type {any} */ ({ id: "x", ratio, baseMs: 1, headMs: ratio, counts: options.counts ?? true, aa: { spread: options.spread ?? 0.01, band: { p10: 1 - (options.spread ?? 0.01), median: 1, p90: 1 + (options.spread ?? 0.01) } } }),
+  // Only the fields that the aggregate reads
+  analysis: { id: "x", ratio, baseMs: 1, headMs: ratio, counts: options.counts ?? true, aa: { spread: options.spread ?? 0.01, band: { p10: 1 - (options.spread ?? 0.01), median: 1, p90: 1 + (options.spread ?? 0.01) } } } as Analysis,
 });
 
 describe("roundRatios", () => {
@@ -180,7 +181,7 @@ describe("aggregateVerdict", () => {
 
 describe("verdictsOf and the summaries", () => {
   /** This function makes the record of one run with one benchmark. */
-  const record = (/** @type {string} */ id, /** @type {number} */ sampleNo, /** @type {number} */ ratio, /** @type {boolean} */ counts = true) => ({
+  const record = (id: string, sampleNo: number, ratio: number, counts = true) => ({
     schema: "client-bench-paired/1",
     refs: { base: "aaa", head: "bbb" },
     run: { id, attempt: "1", sample: String(sampleNo), label: `${id}/1/${sampleNo}` },
@@ -272,7 +273,7 @@ describe("the workloads of the child", () => {
     let now = 0;
     let chunk = 0;
     let inChunk = 0;
-    const workload = { id: "w-warm", pkg: /** @type {const} */ ("client"), file: "f", calls: 2, measure: /** @type {const} */ ("warm"), make: async () => () => 0 };
+    const workload: Workload = { id: "w-warm", pkg: "client", file: "f", calls: 2, measure: "warm", make: async () => () => 0 };
     const call = () => {
       now += perCall[chunk];
       inChunk += 1;
@@ -302,8 +303,7 @@ describe("the workloads of the child", () => {
   });
 
   it("awaits each call of an async workload, and not of a sync one", async () => {
-    /** @type {string[]} */
-    const order = [];
+    const order: string[] = [];
     await pass(async () => { order.push("start"); await null; order.push("end"); }, 2, false);
     assert.deepEqual(order, ["start", "end", "start", "end"]);
     let n = 0;

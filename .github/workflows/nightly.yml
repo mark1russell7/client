@@ -282,7 +282,7 @@ jobs:
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - run: node scripts/coverage.mjs --totals "$RUNNER_TEMP/coverage-totals.json"
+      - run: node scripts/coverage.ts --totals "$RUNNER_TEMP/coverage-totals.json"
       - if: always()
         uses: actions/upload-artifact@v7
         with:

@@ -5,21 +5,21 @@
  */
 
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { createServer } from "node:net";
 import * as z from "zod";
 import { ProcedureRegistry, createProcedure, type ProcedureContext } from "@procedures/client";
 import { createPeer, type Peer } from "../peer/index.js";
 import { connect, disconnect, getConnectionIds } from "../connection/index.js";
 import { serverCallProcedure, type ServerCallInput, type ServerCallOutput } from "./server.call.js";
 
-async function freePort(): Promise<number> {
-  return new Promise((resolve) => {
-    const server = createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      server.close(() => resolve(typeof address === "object" && address ? address.port : 0));
-    });
-  });
+/**
+ * The port of the first endpoint of a started peer. The peer listens on port 0, so no other test or
+ * process takes the port between a probe and the listen (EADDRINUSE on CI).
+ */
+function portOf(peer: Peer): number {
+  const [endpoint] = peer.getEndpoints();
+  const port = Number(new URL(endpoint!.address).port);
+  expect(port).toBeGreaterThan(0);
+  return port;
 }
 
 async function waitFor(check: () => boolean, what: string, limit = 3000): Promise<void> {
@@ -89,10 +89,10 @@ afterEach(async () => {
 async function startPeer(type: "http" | "websocket"): Promise<{ peer: Peer; address: string }> {
   // The peers of this test have no discovery procedure: connect() warns and goes on
   vi.spyOn(console, "warn").mockImplementation(() => undefined);
-  const port = await freePort();
-  const peer = await createPeer({ id: `peer-call-${type}`, registry: registry(), transports: [{ type, port, host: "127.0.0.1" }] });
+  const peer = await createPeer({ id: `peer-call-${type}`, registry: registry(), transports: [{ type, port: 0, host: "127.0.0.1" }] });
   peers.push(peer);
   await peer.start();
+  const port = portOf(peer);
   return { peer, address: type === "http" ? `http://127.0.0.1:${port}/api` : `ws://127.0.0.1:${port}/ws` };
 }
 

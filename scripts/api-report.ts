@@ -2,7 +2,7 @@
 // report in test/api/public-api.txt. The report comes from the built .d.ts files of the entries of
 // its exports field: start the build first.
 //
-//   node scripts/api-report.mjs [--check | --update] [--root <folder>] [<package folder>...]
+//   node scripts/api-report.ts [--check | --update] [--root <folder>] [<package folder>...]
 //
 // --check (the default) compares each report with the built .d.ts files. It exits with 1 and lists
 // each package whose report differs or is missing. --update writes the reports. Without package
@@ -15,13 +15,13 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
-import { packageFolders, packageReport, REPORT_FILE, workspaceFolders } from "./lib/api-report.mjs";
+import { packageFolders, packageReport, REPORT_FILE, workspaceFolders } from "./lib/api-report.ts";
 
-const usage = "Usage: node scripts/api-report.mjs [--check | --update] [--root <folder>] [<package folder>...]";
+const usage = "Usage: node scripts/api-report.ts [--check | --update] [--root <folder>] [<package folder>...]";
 
-let mode = "check";
+let mode: "check" | "update" = "check";
 let root = process.cwd();
-const named = [];
+const named: string[] = [];
 const args = process.argv.slice(2);
 for (let index = 0; index < args.length; index++) {
   const arg = args[index];
@@ -37,16 +37,16 @@ for (let index = 0; index < args.length; index++) {
   } else named.push(resolve(arg));
 }
 
-const show = (path) => relative(root, path).split(sep).join("/") || ".";
+const show = (path: string): string => relative(root, path).split(sep).join("/") || ".";
 const folders = named.length > 0 ? named : packageFolders(root);
-const differ = [];
-const missing = [];
-const failed = [];
-const written = [];
-const skipped = [];
-const stale = [];
+const differ: string[] = [];
+const missing: string[] = [];
+const failed: string[] = [];
+const written: string[] = [];
+const skipped: string[] = [];
+const stale: string[] = [];
 // The folders that the run examines: each one gets a report, or an error
-const examined = new Set();
+const examined = new Set<string>();
 let count = 0;
 
 for (const folder of folders) {
@@ -55,16 +55,16 @@ for (const folder of folders) {
     failed.push(`${show(folder)}: no package.json`);
     continue;
   }
-  const manifest = JSON.parse(readFileSync(manifestFile, "utf8"));
+  const manifest = JSON.parse(readFileSync(manifestFile, "utf8")) as { readonly private?: unknown };
   // A private package has no public API. A named folder gets a report all the same.
   if (manifest.private === true && named.length === 0) {
     skipped.push(show(folder));
     continue;
   }
   examined.add(folder);
-  let report;
+  let report: string;
   try {
-    report = packageReport(folder, { tool: "scripts/api-report.mjs" });
+    report = packageReport(folder, { tool: "scripts/api-report.ts" });
   } catch (error) {
     failed.push(`${show(folder)}: ${error instanceof Error ? error.message : String(error)}`);
     continue;
@@ -98,7 +98,7 @@ if (named.length === 0) {
   }
 }
 
-const list = (title, items) => {
+const list = (title: string, items: readonly string[]): void => {
   if (items.length === 0) return;
   console.log(`${title}:`);
   for (const item of items) console.log(`  ${item}`);
@@ -110,6 +110,6 @@ list("No report", missing);
 list("Errors", failed);
 list("A report of a package that the run does not examine (remove the report, or make the package public)", stale);
 if (differ.length > 0 || missing.length > 0) {
-  console.log("To accept a change of the API, start the build, then node scripts/api-report.mjs --update, and review the diff.");
+  console.log("To accept a change of the API, start the build, then node scripts/api-report.ts --update, and review the diff.");
 }
 process.exit(failed.length > 0 || differ.length > 0 || missing.length > 0 || stale.length > 0 ? 1 : 0);

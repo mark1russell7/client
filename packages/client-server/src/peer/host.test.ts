@@ -4,18 +4,18 @@
  */
 
 import { describe, it, expect, afterEach } from "vitest";
-import { createServer } from "node:net";
 import { Client, HttpTransport, ProcedureRegistry, defineProcedure, outputSchema } from "@procedures/client";
-import { createPeer, type Peer } from "./index.js";
+import { createPeer, peerHostOptions, type Peer, type PeerOptions } from "./index.js";
 
-async function freePort(): Promise<number> {
-  return new Promise((resolve) => {
-    const server = createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      server.close(() => resolve(typeof address === "object" && address ? address.port : 0));
-    });
-  });
+/**
+ * The port of the first endpoint of a started peer. The peer listens on port 0, so no other test or
+ * process takes the port between a probe and the listen (EADDRINUSE on CI).
+ */
+function portOf(peer: Peer): number {
+  const [endpoint] = peer.getEndpoints();
+  const port = Number(new URL(endpoint!.address).port);
+  expect(port).toBeGreaterThan(0);
+  return port;
 }
 
 let peers: Peer[] = [];
@@ -36,11 +36,10 @@ describe("host procedures of a peer (R19)", () => {
         handler: (input: { text: string }) => input.text,
       }),
     );
-    const port = await freePort();
-    const peer = await createPeer({ id: "peer-host", registry, transports: [{ type: "http", port, host: "127.0.0.1" }] });
+    const peer = await createPeer({ id: "peer-host", registry, transports: [{ type: "http", port: 0, host: "127.0.0.1" }] });
     peers.push(peer);
     await peer.start();
-    const client = new Client(new HttpTransport({ baseUrl: `http://127.0.0.1:${port}/api` }));
+    const client = new Client(new HttpTransport({ baseUrl: `http://127.0.0.1:${portOf(peer)}/api` }));
 
     expect(await client.call({ service: "test", operation: "echo" }, { text: "hi" })).toBe("hi");
 
@@ -59,5 +58,29 @@ describe("host procedures of a peer (R19)", () => {
     expect(metrics.procedures["test.echo"]?.calls).toBe(1);
     // The host procedures are pinned on the server: the registry of the caller does not change
     expect(registry.get(["host", "health"])).toBeUndefined();
+  });
+});
+
+describe("the listeners of a peer", () => {
+  const listeners = (transports: PeerOptions["transports"]): Array<{ port: number; faces: string[] }> =>
+    (peerHostOptions({ id: "listeners", transports }).listen ?? []).map(({ port, faces }) => ({ port: port as number, faces: faces as string[] }));
+
+  it("gives one listener to the transports of one port and one host", () => {
+    const shared = listeners([
+      { type: "http", port: 4100, host: "127.0.0.1" },
+      { type: "websocket", port: 4100, host: "127.0.0.1" },
+    ]);
+    expect(shared).toEqual([{ port: 4100, faces: ["http", "ws"] }]);
+  });
+
+  it("gives a listener to each transport with port 0", () => {
+    const apart = listeners([
+      { type: "http", port: 0, host: "127.0.0.1" },
+      { type: "websocket", port: 0, host: "127.0.0.1" },
+    ]);
+    expect(apart).toEqual([
+      { port: 0, faces: ["http"] },
+      { port: 0, faces: ["ws"] },
+    ]);
   });
 });

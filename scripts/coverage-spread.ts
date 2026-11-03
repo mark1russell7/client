@@ -3,7 +3,7 @@
  * The spread of the coverage across runs (roadmap O85).
  *
  * The coverage job of `nightly.yml` runs the coverage check several times. Each run writes the
- * measured totals with `node scripts/coverage.mjs --totals <file>`. This script reads the files
+ * measured totals with `node scripts/coverage.ts --totals <file>`. This script reads the files
  * of all runs and writes, for each package and each metric, the lowest value, the highest value
  * and the spread. It also writes the floors: the lowest value of each metric minus its spread,
  * rounded down to 0.1 (roadmap O88). For a spread of 0, the floor is the lowest value, rounded down.

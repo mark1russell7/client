@@ -9,8 +9,8 @@
 // does not use the locale.
 //
 // TypeScript 7 has no stable compiler API, so this module reads the declaration files as text. The
-// declaration emit of `tsc` is regular, and an unknown form of statement throws. The module is plain
-// JavaScript with no dependencies, so each repository can use it without a build or a test runner.
+// declaration emit of `tsc` is regular, and an unknown form of statement throws. The module is
+// TypeScript with no dependencies. Node.js runs it without a build step or a test runner.
 
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
@@ -21,20 +21,72 @@ export const REPORT_FILE = "test/api/public-api.txt";
 /** The conditions of the `exports` field that a TypeScript consumer can use, in no order. */
 const CONDITIONS = new Set(["types", "import", "node", "default", "require"]);
 
+/** The fields of a `package.json` that the report reads. */
+export interface Manifest {
+  readonly name?: string;
+  readonly exports?: unknown;
+  readonly types?: unknown;
+  readonly typings?: unknown;
+  readonly main?: unknown;
+  readonly imports?: Readonly<Record<string, unknown>>;
+}
+
+/** An entry of a package: its subpath, and its declaration file or a note. */
+export interface Entry {
+  readonly subpath: string;
+  /** The declaration file, relative to the package folder */
+  readonly types?: string;
+  /** The reason that the entry has no declaration file */
+  readonly note?: string;
+}
+
+/** A name of an export or import list. */
+interface Specifier {
+  readonly imported: string;
+  readonly exported: string;
+  readonly typeOnly: boolean;
+}
+
+/** The statements of one declaration file, sorted by their kind. */
+export interface Declarations {
+  /** The declarations of the module by name, exported or not */
+  readonly locals: Map<string, string[]>;
+  /** The names that the module exports from its own scope: the exported name and its local name */
+  readonly exported: Map<string, { readonly local: string; readonly typeOnly: boolean }>;
+  /** `export { a as b } from "x"` */
+  readonly reexports: (Specifier & { readonly from: string })[];
+  /** `export * from "x"` */
+  readonly stars: { readonly from: string; readonly typeOnly: boolean }[];
+  /** `export * as name from "x"` */
+  readonly namespaces: { readonly name: string; readonly from: string; readonly typeOnly: boolean }[];
+  /** The imports by local name: `imported` is a name, `default`, `export=` or `*` */
+  readonly imports: Map<string, { readonly from: string; readonly imported: string; readonly typeOnly: boolean }>;
+  /** The ambient declarations by label: `declare module "x"`, `declare global`, `export as namespace X` */
+  readonly ambient: Map<string, string[]>;
+  /** Each module specifier that the file names: the files that it reaches */
+  readonly references: Set<string>;
+}
+
+/** The binding of an exported name: a declaration, a namespace of a file, or a name of another package. */
+type Binding =
+  | { readonly kind: "declaration"; readonly file: string; readonly local: string; readonly typeOnly: boolean }
+  | { readonly kind: "namespace"; readonly file: string; readonly typeOnly: boolean }
+  | { readonly kind: "external"; readonly module: string; readonly name: string; readonly typeOnly: boolean };
+
 /** The order of the code units: the same on each machine. */
-export const byCode = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+export const byCode = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
 /** A path relative to `root`, with `/`. */
-const relativePath = (root, file) => relative(root, file).split(sep).join("/");
+const relativePath = (root: string, file: string): string => relative(root, file).split(sep).join("/");
 
 /**
  * This function splits the text of a declaration file into its top-level statements, without the
  * comments, the blank lines and the spaces at the ends of the lines.
  */
-export function statementsOf(source) {
+export function statementsOf(source: string): string[] {
   // The declarations of a bin file keep its `#!` line
   const text = source.replace(/\r\n?/g, "\n").replace(/^#![^\n]*\n?/, "");
-  const statements = [];
+  const statements: string[] = [];
   let current = "";
   let depth = 0;
   // The depth of the type arguments at the top level: `class A<T = {}> {` has a brace in them
@@ -42,7 +94,7 @@ export function statementsOf(source) {
   // True when the body of a class, an interface, an enum or a namespace is open
   let body = false;
   // The template literals and their `${ }` parts, from the outside in
-  const modes = [];
+  const modes: ({ readonly kind: "template" } | { readonly kind: "part"; readonly depth: number })[] = [];
   const blockHeader = /^(?:export\s+)?(?:default\s+)?(?:declare\s+)?(?:abstract\s+class|class|interface|const\s+enum|enum|namespace|module|global)\b/;
 
   const finish = () => {
@@ -59,7 +111,7 @@ export function statementsOf(source) {
   let index = 0;
   while (index < text.length) {
     const char = text[index];
-    const next = text[index + 1];
+    const next: string | undefined = text[index + 1];
     const mode = modes.at(-1);
     if (mode?.kind === "template") {
       if (char === "\\") {
@@ -128,8 +180,8 @@ export function statementsOf(source) {
 }
 
 /** This function splits `text` at each comma outside brackets, type arguments and strings. */
-function splitTopLevel(text) {
-  const parts = [];
+function splitTopLevel(text: string): string[] {
+  const parts: string[] = [];
   let depth = 0;
   let start = 0;
   for (let index = 0; index < text.length; index++) {
@@ -150,7 +202,7 @@ function splitTopLevel(text) {
 }
 
 /** The names of an export or import list: `a, type b, c as d`. */
-function specifiersOf(list, typeOnly) {
+function specifiersOf(list: string, typeOnly: boolean): Specifier[] {
   return list
     .split(",")
     .map((part) => part.trim())
@@ -163,7 +215,7 @@ function specifiersOf(list, typeOnly) {
 }
 
 /** A class without its private members: they are not part of the API. */
-function withoutPrivateMembers(statement) {
+function withoutPrivateMembers(statement: string): string {
   return statement
     .split("\n")
     .filter((line) => !/^\s+(?:private\s+(?:static\s+)?(?:readonly\s+)?[\w$]+\??;|#private;)$/.test(line))
@@ -174,31 +226,23 @@ function withoutPrivateMembers(statement) {
  * This function sorts the statements of the text of one declaration file by their kind. `file`
  * names the file in the errors. An unknown form of statement throws.
  */
-export function parseDeclarations(source, file = "<text>") {
-  const info = {
-    // The declarations of the module by name, exported or not
+export function parseDeclarations(source: string, file = "<text>"): Declarations {
+  const info: Declarations = {
     locals: new Map(),
-    // The names that the module exports from its own scope: the exported name and its local name
     exported: new Map(),
-    // `export { a as b } from "x"`
     reexports: [],
-    // `export * from "x"`
     stars: [],
-    // `export * as name from "x"`
     namespaces: [],
-    // The imports by local name: `imported` is a name, `default`, `export=` or `*`
     imports: new Map(),
-    // The ambient declarations by label: `declare module "x"`, `declare global`, `export as namespace X`
     ambient: new Map(),
-    // Each module specifier that the file names: the files that it reaches
     references: new Set(),
   };
-  const addLocal = (name, statement) => info.locals.set(name, [...(info.locals.get(name) ?? []), statement]);
-  const addAmbient = (label, statement) => info.ambient.set(label, [...(info.ambient.get(label) ?? []), statement]);
+  const addLocal = (name: string, statement: string) => info.locals.set(name, [...(info.locals.get(name) ?? []), statement]);
+  const addAmbient = (label: string, statement: string) => info.ambient.set(label, [...(info.ambient.get(label) ?? []), statement]);
   for (const statement of statementsOf(source)) {
     const flat = statement.replace(/\s+/g, " ");
     for (const found of flat.matchAll(/\bimport\(\s*["']([^"']+)["']\s*\)/g)) info.references.add(found[1]);
-    let match;
+    let match: RegExpExecArray | null;
     if ((match = /^import (type )?(.+?) from ["']([^"']+)["'];?$/.exec(flat))) {
       const typeOnly = match[1] !== undefined;
       const from = match[3];
@@ -243,8 +287,9 @@ export function parseDeclarations(source, file = "<text>") {
       continue;
     }
     if ((match = /^export (type )?\{(.*)\} from ["']([^"']+)["'];?$/.exec(flat))) {
-      info.references.add(match[3]);
-      for (const specifier of specifiersOf(match[2], match[1] !== undefined)) info.reexports.push({ ...specifier, from: match[3] });
+      const from = match[3];
+      info.references.add(from);
+      for (const specifier of specifiersOf(match[2], match[1] !== undefined)) info.reexports.push({ ...specifier, from });
       continue;
     }
     if ((match = /^export (type )?\{(.*)\};?$/.exec(flat))) {
@@ -317,7 +362,7 @@ export function parseDeclarations(source, file = "<text>") {
  * The declaration file of a JavaScript or declaration path: `a.js` gives `a.d.ts`, `a.mjs` gives
  * `a.d.mts`. The result is undefined for a TypeScript source file and for a file of another kind.
  */
-export function declarationPathOf(path) {
+export function declarationPathOf(path: string): string | undefined {
   if (/\.d\.[mc]?ts$/.test(path)) return path;
   const js = /\.([mc]?)js$/.exec(path);
   if (js) return `${path.slice(0, -js[0].length)}.d.${js[1]}ts`;
@@ -325,7 +370,7 @@ export function declarationPathOf(path) {
 }
 
 /** True when `subpath` matches the key `pattern` of an `exports` or `imports` field: one `*` or none. */
-function patternMatch(pattern, subpath) {
+function patternMatch(pattern: string, subpath: string): string | undefined {
   const star = pattern.indexOf("*");
   if (star < 0) return pattern === subpath ? "" : undefined;
   const prefix = pattern.slice(0, star);
@@ -339,18 +384,18 @@ function patternMatch(pattern, subpath) {
  * the object that the consumer knows. The result is `null` for an excluded subpath, and undefined
  * when no condition fits.
  */
-export function targetOf(value) {
+export function targetOf(value: unknown): string | null | undefined {
   if (value === null) return null;
   if (typeof value === "string") return value;
   if (Array.isArray(value)) {
-    for (const item of value) {
+    for (const item of value as readonly unknown[]) {
       const target = targetOf(item);
       if (typeof target === "string") return target;
     }
     return undefined;
   }
   if (typeof value === "object") {
-    for (const [condition, inner] of Object.entries(value)) {
+    for (const [condition, inner] of Object.entries(value as Readonly<Record<string, unknown>>)) {
       if (!CONDITIONS.has(condition)) continue;
       const target = targetOf(inner);
       if (target !== undefined) return target;
@@ -360,19 +405,20 @@ export function targetOf(value) {
 }
 
 /** The `exports` field as a map of subpaths. */
-function subpathMap(exportsField) {
+function subpathMap(exportsField: unknown): Readonly<Record<string, unknown>> {
   if (typeof exportsField === "string" || Array.isArray(exportsField) || exportsField === null) return { ".": exportsField };
-  const keys = Object.keys(exportsField);
-  if (keys.length > 0 && keys.every((key) => !key.startsWith("."))) return { ".": exportsField };
-  return exportsField;
+  const field = exportsField as Readonly<Record<string, unknown>>;
+  const keys = Object.keys(field);
+  if (keys.length > 0 && keys.every((key) => !key.startsWith("."))) return { ".": field };
+  return field;
 }
 
 /** Each file under `dir`, relative to `root` with `/`, without `node_modules`. */
-function filesUnder(root, dir) {
+function filesUnder(root: string, dir: string): string[] {
   const start = join(root, dir);
   if (!existsSync(start) || !statSync(start).isDirectory()) return [];
-  const found = [];
-  const walk = (folder) => {
+  const found: string[] = [];
+  const walk = (folder: string) => {
     for (const entry of readdirSync(folder, { withFileTypes: true })) {
       if (entry.name === "node_modules" || entry.name === ".git") continue;
       const path = join(folder, entry.name);
@@ -390,9 +436,9 @@ function filesUnder(root, dir) {
  * An entry without a declaration file has a `note`. The `./package.json` entry is not part of
  * the API. A subpath pattern (`./*`) gives one entry for each declaration file that it matches.
  */
-export function entriesOf(manifest, root) {
-  const entries = [];
-  const exists = (path) => existsSync(resolve(root, path));
+export function entriesOf(manifest: Manifest, root: string): Entry[] {
+  const entries: Entry[] = [];
+  const exists = (path: string) => existsSync(resolve(root, path));
   if (manifest.exports === undefined) {
     // No `exports` field: TypeScript reads `types`, `typings`, then the declaration of `main`
     const field = manifest.types ?? manifest.typings;
@@ -405,7 +451,7 @@ export function entriesOf(manifest, root) {
   }
   const map = subpathMap(manifest.exports);
   const excluded = Object.entries(map).filter(([, value]) => value === null).map(([key]) => key);
-  const isExcluded = (subpath) => excluded.some((pattern) => patternMatch(pattern, subpath) !== undefined);
+  const isExcluded = (subpath: string) => excluded.some((pattern) => patternMatch(pattern, subpath) !== undefined);
   for (const [subpath, value] of Object.entries(map)) {
     if (subpath === "./package.json" || value === null) continue;
     const target = targetOf(value);
@@ -429,7 +475,7 @@ export function entriesOf(manifest, root) {
     const pattern = declared.replace(/^\.\//, "");
     const star = pattern.indexOf("*");
     const folder = pattern.slice(0, star).replace(/[^/]*$/, "");
-    const matched = [];
+    const matched: Entry[] = [];
     for (const file of filesUnder(root, folder)) {
       const part = patternMatch(pattern, file);
       if (part === undefined) continue;
@@ -444,23 +490,25 @@ export function entriesOf(manifest, root) {
 
 /** The reader of the declaration files of one package. */
 class Reader {
-  #infos = new Map();
-  #bindings = new Map();
-  #visiting = new Set();
+  readonly root: string;
+  readonly manifest: Manifest;
+  #infos = new Map<string, Declarations>();
+  #bindings = new Map<string, Map<string, Binding>>();
+  #visiting = new Set<string>();
 
-  constructor(root, manifest) {
+  constructor(root: string, manifest: Manifest) {
     this.root = root;
     this.manifest = manifest;
   }
 
-  info(file) {
+  info(file: string): Declarations {
     let info = this.#infos.get(file);
     if (!info) this.#infos.set(file, (info = parseDeclarations(readFileSync(file, "utf8"), relativePath(this.root, file))));
     return info;
   }
 
   /** The candidate declaration files of a module path. */
-  #candidates(base) {
+  #candidates(base: string): string[] {
     const declared = declarationPathOf(base);
     if (declared) return [declared];
     const source = /\.([mc]?)ts$/.exec(base);
@@ -473,14 +521,14 @@ class Reader {
    * `imports` field of the package. The result is undefined for a module of another package. A
    * missing file throws, or gives `null` when `soft` is true.
    */
-  fileOf(from, specifier, soft = false) {
-    let base;
+  fileOf(from: string, specifier: string, soft = false): string | null | undefined {
+    let base: string | undefined;
     if (specifier.startsWith(".")) base = resolve(dirname(from), specifier);
     else if (specifier.startsWith("#") && this.manifest.imports) {
       for (const [pattern, value] of Object.entries(this.manifest.imports)) {
         const part = patternMatch(pattern, specifier);
         const target = part === undefined ? undefined : targetOf(value);
-        if (typeof target === "string" && target.startsWith(".")) {
+        if (part !== undefined && typeof target === "string" && target.startsWith(".")) {
           base = resolve(this.root, target.split("*").join(part));
           break;
         }
@@ -494,7 +542,7 @@ class Reader {
   }
 
   /** The binding of `imported` in the module `specifier` of `from`. */
-  #bindingIn(from, specifier, imported, typeOnly) {
+  #bindingIn(from: string, specifier: string, imported: string, typeOnly: boolean): Binding {
     const file = this.fileOf(from, specifier);
     if (!file) return { kind: "external", module: specifier, name: imported, typeOnly };
     if (imported === "*") return { kind: "namespace", file, typeOnly };
@@ -504,13 +552,13 @@ class Reader {
   }
 
   /** The names that a module exports, and their bindings. */
-  exportsOf(file) {
+  exportsOf(file: string): Map<string, Binding> {
     const known = this.#bindings.get(file);
     if (known) return known;
     if (this.#visiting.has(file)) return new Map();
     this.#visiting.add(file);
     const info = this.info(file);
-    const result = new Map();
+    const result = new Map<string, Binding>();
     for (const [name, { local, typeOnly }] of info.exported) {
       const imported = info.imports.get(local);
       if (info.locals.has(local)) result.set(name, { kind: "declaration", file, local, typeOnly });
@@ -543,11 +591,11 @@ class Reader {
    * Each declaration file of the package that `file` reaches through its module specifiers, `file`
    * too. A file outside the package folder or in `node_modules` is not part of the package.
    */
-  reached(file) {
-    const seen = new Set();
+  reached(file: string): string[] {
+    const seen = new Set<string>();
     const pending = [file];
     while (pending.length > 0) {
-      const next = pending.pop();
+      const next = pending.pop() as string;
       if (seen.has(next)) continue;
       seen.add(next);
       for (const specifier of this.info(next).references) {
@@ -563,7 +611,7 @@ class Reader {
 }
 
 /** The text of the header of a report. */
-function header(packageName, tool) {
+function header(packageName: string, tool: string): string[] {
   return [
     `# The public API of ${packageName}`,
     "#",
@@ -573,34 +621,43 @@ function header(packageName, tool) {
   ];
 }
 
+/** The options of a report. */
+export interface ReportOptions {
+  /** The `package.json` of the package: its `imports` field resolves the `#` names */
+  readonly manifest?: Manifest;
+  /** The command that the header names */
+  readonly tool?: string;
+}
+
 /**
  * This function gives the report of the public API of a package: for each entry (the subpath and
  * the declaration file, relative to `root`), the exported names, then the declaration of each name.
  * `tool` is the command that the header names.
  */
-export function apiReport(packageName, root, entries, { manifest = {}, tool = "scripts/api-report.mjs" } = {}) {
+export function apiReport(packageName: string, root: string, entries: readonly Entry[], { manifest = {}, tool = "scripts/api-report.ts" }: ReportOptions = {}): string {
   const reader = new Reader(root, manifest);
-  const path = (file) => relativePath(root, file);
-  const keyOf = (binding) =>
+  const path = (file: string) => relativePath(root, file);
+  const keyOf = (binding: Binding) =>
     binding.kind === "declaration"
       ? `${path(binding.file)}#${binding.local}`
       : binding.kind === "namespace"
         ? `${path(binding.file)}#*`
         : `${binding.module}#${binding.name}`;
-  const declarations = new Map();
+  const declarations = new Map<string, string>();
   const lines = header(packageName, tool);
   if (entries.every((entry) => entry.types === undefined)) {
     lines.push("", "This package has no type declarations: no entry of its package.json gives a .d.ts file.");
   }
 
   /** The lines of the names of a module, and the names of each namespace in it, with `prefix`. */
-  const names = (bindings, prefix, parents, typeOnly) => {
+  const names = (bindings: ReadonlyMap<string, Binding>, prefix: string, parents: ReadonlySet<string>, typeOnly: boolean) => {
     for (const [name, binding] of [...bindings].sort(([a], [b]) => byCode(a, b))) {
       const key = keyOf(binding);
       const isType = typeOnly || binding.typeOnly;
       lines.push(`${isType ? "type " : ""}${prefix}${name}: ${key}${binding.kind === "declaration" ? "" : ` (${binding.kind})`}`);
       if (binding.kind === "declaration" && !declarations.has(key)) {
-        declarations.set(key, reader.info(binding.file).locals.get(binding.local).join("\n"));
+        // A declaration binding exists only for a name of `locals`
+        declarations.set(key, (reader.info(binding.file).locals.get(binding.local) as string[]).join("\n"));
       }
       // The names of a namespace are part of the API: `ns.name`
       if (binding.kind === "namespace" && !parents.has(binding.file)) {
@@ -620,7 +677,7 @@ export function apiReport(packageName, root, entries, { manifest = {}, tool = "s
     lines.push("", `## ${entry.subpath} (${path(file)}): ${bindings.size} names`, "");
     names(bindings, "", new Set([file]), false);
     // The ambient declarations of each file that the entry reaches
-    const ambient = [];
+    const ambient: string[] = [];
     for (const reached of reader.reached(file)) {
       for (const [label, statements] of reader.info(reached).ambient) {
         const key = `${path(reached)}#${label}`;
@@ -632,29 +689,30 @@ export function apiReport(packageName, root, entries, { manifest = {}, tool = "s
   }
   if (declarations.size > 0 || entries.some((entry) => entry.types !== undefined)) {
     lines.push("", "## Declarations");
-    for (const key of [...declarations.keys()].sort(byCode)) lines.push("", `### ${key}`, declarations.get(key));
+    for (const [key, text] of [...declarations].sort(([a], [b]) => byCode(a, b))) lines.push("", `### ${key}`, text);
   }
   return `${lines.join("\n")}\n`;
 }
 
 /** The report of the package in the folder `dir`. */
-export function packageReport(dir, options = {}) {
-  const manifest = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
-  const name = manifest.name ?? dir.split(sep).at(-1);
+export function packageReport(dir: string, options: Omit<ReportOptions, "manifest"> = {}): string {
+  const manifest = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")) as Manifest;
+  // The last part of a split is always there
+  const name = manifest.name ?? (dir.split(sep).at(-1) as string);
   return apiReport(name, dir, entriesOf(manifest, dir), { ...options, manifest });
 }
 
 /** The globs of the workspace: `pnpm-workspace.yaml`, then `workspaces` of `package.json`. */
-function workspaceGlobs(root) {
+function workspaceGlobs(root: string): string[] | undefined {
   const yaml = join(root, "pnpm-workspace.yaml");
   if (existsSync(yaml)) {
     const lines = readFileSync(yaml, "utf8").split(/\r?\n/);
     const start = lines.findIndex((line) => /^packages\s*:/.test(line));
     if (start >= 0) {
-      const unquote = (text) => text.replace(/\s+#.*$/, "").trim().replace(/^["']|["']$/g, "");
+      const unquote = (text: string) => text.replace(/\s+#.*$/, "").trim().replace(/^["']|["']$/g, "");
       const inline = /^packages\s*:\s*\[(.*)\]/.exec(lines[start]);
       if (inline) return inline[1].split(",").map(unquote).filter(Boolean);
-      const globs = [];
+      const globs: string[] = [];
       for (const line of lines.slice(start + 1)) {
         if (/^\s*(#.*)?$/.test(line)) continue;
         const item = /^\s+-\s+(.+)$/.exec(line);
@@ -666,26 +724,27 @@ function workspaceGlobs(root) {
   }
   const manifestFile = join(root, "package.json");
   if (existsSync(manifestFile)) {
-    const { workspaces } = JSON.parse(readFileSync(manifestFile, "utf8"));
+    const { workspaces } = JSON.parse(readFileSync(manifestFile, "utf8")) as { readonly workspaces?: string[] | { readonly packages?: unknown } };
     if (Array.isArray(workspaces)) return workspaces;
-    if (Array.isArray(workspaces?.packages)) return workspaces.packages;
+    if (Array.isArray(workspaces?.packages)) return workspaces.packages as string[];
   }
   return undefined;
 }
 
 /** The folders that a glob of the workspace names: `a`, `a/*` or `a/**`. */
-function foldersOf(root, glob) {
+function foldersOf(root: string, glob: string): string[] {
   const clean = glob.replace(/^\.\//, "").replace(/\/$/, "");
   const recursive = /\/\*\*$/.exec(clean);
   const single = /\/\*$/.exec(clean);
-  if (!recursive && !single) {
+  const suffix = recursive ?? single;
+  if (!suffix) {
     if (clean.includes("*")) throw new Error(`A workspace glob that the report does not know: ${glob}`);
     return [join(root, clean)];
   }
-  const base = join(root, clean.slice(0, -(recursive ?? single)[0].length));
+  const base = join(root, clean.slice(0, -suffix[0].length));
   if (!existsSync(base)) return [];
-  const found = [];
-  const walk = (folder, deep) => {
+  const found: string[] = [];
+  const walk = (folder: string, deep: boolean) => {
     for (const entry of readdirSync(folder, { withFileTypes: true })) {
       if (!entry.isDirectory() || entry.name === "node_modules" || entry.name.startsWith(".")) continue;
       found.push(join(folder, entry.name));
@@ -700,10 +759,10 @@ function foldersOf(root, glob) {
  * The package folders of the repository at `root`: the folders of the workspace globs with a
  * package.json, or `root` itself when it has no workspace. The order is the order of the paths.
  */
-export function packageFolders(root) {
+export function packageFolders(root: string): string[] {
   const globs = workspaceGlobs(root);
   if (globs === undefined) return existsSync(join(root, "package.json")) ? [root] : [];
-  const included = new Set();
+  const included = new Set<string>();
   for (const glob of globs.filter((glob) => !glob.startsWith("!"))) for (const folder of foldersOf(root, glob)) included.add(folder);
   for (const glob of globs.filter((glob) => glob.startsWith("!"))) for (const folder of foldersOf(root, glob.slice(1))) included.delete(folder);
   return [...included].filter((folder) => existsSync(join(folder, "package.json"))).sort(byCode);
@@ -714,10 +773,10 @@ export function packageFolders(root) {
  * package.json, and without the exclusions of the `!` globs. A report in one of these folders that
  * the run does not examine is a stale report. The result is empty when the repository has no workspace.
  */
-export function workspaceFolders(root) {
+export function workspaceFolders(root: string): string[] {
   const globs = workspaceGlobs(root);
   if (globs === undefined) return [];
-  const found = new Set();
+  const found = new Set<string>();
   for (const glob of globs.filter((glob) => !glob.startsWith("!"))) for (const folder of foldersOf(root, glob)) found.add(folder);
   return [...found].sort(byCode);
 }

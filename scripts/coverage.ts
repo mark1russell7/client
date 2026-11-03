@@ -7,12 +7,12 @@
  * fails the run. The floors only go up: `--update` raises each floor to the current coverage, and
  * it never lowers one.
  *
- *   node scripts/coverage.mjs                    examine each package
- *   node scripts/coverage.mjs --update           raise the floors
- *   node scripts/coverage.mjs --packages a,b     only these folders of packages/
- *   node scripts/coverage.mjs --out <file>       also write the raised floors to this file
- *   node scripts/coverage.mjs --totals <file>    also write the measured totals to this file
- *   node scripts/coverage.mjs --allow-missing    a package without a floor does not fail
+ *   node scripts/coverage.ts                    examine each package
+ *   node scripts/coverage.ts --update           raise the floors
+ *   node scripts/coverage.ts --packages a,b     only these folders of packages/
+ *   node scripts/coverage.ts --out <file>       also write the raised floors to this file
+ *   node scripts/coverage.ts --totals <file>    also write the measured totals to this file
+ *   node scripts/coverage.ts --allow-missing    a package without a floor does not fail
  *
  * The run fails when `coverage-baseline.json` is missing or empty, when it finds no package, when a
  * package with a floor writes no coverage, and when a floor names no package of the run.
@@ -41,7 +41,30 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const BASELINE = join(ROOT, "coverage-baseline.json");
-const METRICS = ["lines", "statements", "functions", "branches"];
+const METRICS = ["lines", "statements", "functions", "branches"] as const;
+
+/** A metric of the coverage summary of vitest. */
+type Metric = (typeof METRICS)[number];
+
+/** The coverage of a package: the percent of each metric. */
+type Totals = Record<Metric, number>;
+
+/** A package whose test script runs vitest. */
+interface TestedPackage {
+  /** The folder name in `packages/` */
+  readonly folder: string;
+  readonly name: string;
+  /** The absolute path of the folder */
+  readonly dir: string;
+  /** The arguments of the test script after `vitest run` */
+  readonly args: readonly string[];
+}
+
+/** The result of the coverage run of one package: an error, a skip or the totals. */
+type Result =
+  | { readonly pkg: TestedPackage; readonly error: string; readonly log: string }
+  | { readonly pkg: TestedPackage; readonly skipped: string }
+  | { readonly pkg: TestedPackage; readonly totals: Totals };
 
 const args = process.argv.slice(2);
 const update = args.includes("--update");
@@ -67,33 +90,33 @@ const concurrency = Math.max(1, Number(process.env.COVERAGE_CONCURRENCY ?? 2));
  * an exclude of the integration tests. The coverage run uses them too: before, it ran the
  * integration tests that `pnpm test` leaves out.
  */
-function testArguments(script) {
+function testArguments(script: string): string[] {
   const match = /vitest\s+run\s*(.*)$/.exec(script);
   if (!match) return [];
-  const words = [];
+  const words: string[] = [];
   const pattern = /'([^']*)'|"([^"]*)"|(\S+)/g;
   for (let found = pattern.exec(match[1]); found; found = pattern.exec(match[1])) words.push(found[1] ?? found[2] ?? found[3]);
   return words;
 }
 
 /** The packages whose test script runs vitest. */
-function packagesWithTests() {
+function packagesWithTests(): TestedPackage[] {
   const dir = join(ROOT, "packages");
   return readdirSync(dir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && (!only || only.has(entry.name)))
-    .map((entry) => {
+    .map((entry): TestedPackage | undefined => {
       const file = join(dir, entry.name, "package.json");
       if (!existsSync(file)) return undefined;
-      const manifest = JSON.parse(readFileSync(file, "utf8"));
+      const manifest = JSON.parse(readFileSync(file, "utf8")) as { readonly name: string; readonly scripts?: Readonly<Record<string, string>> };
       const test = manifest.scripts?.test ?? "";
       return test.includes("vitest") ? { folder: entry.name, name: manifest.name, dir: join(dir, entry.name), args: testArguments(test) } : undefined;
     })
-    .filter(Boolean)
+    .filter((pkg): pkg is TestedPackage => Boolean(pkg))
     .sort((a, b) => a.folder.localeCompare(b.folder));
 }
 
 /** This function runs the tests of one package with coverage, and gives its totals. */
-function measure(pkg, reports) {
+function measure(pkg: TestedPackage, reports: string): Promise<Result> {
   const out = join(reports, pkg.folder);
   return new Promise((resolve) => {
     const child = spawn(
@@ -115,8 +138,8 @@ function measure(pkg, reports) {
       { cwd: pkg.dir, stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, FORCE_COLOR: "0" } },
     );
     let log = "";
-    child.stdout.on("data", (chunk) => (log += chunk));
-    child.stderr.on("data", (chunk) => (log += chunk));
+    child.stdout.on("data", (chunk: Buffer) => (log += chunk));
+    child.stderr.on("data", (chunk: Buffer) => (log += chunk));
     child.on("close", (code) => {
       const summary = join(out, "coverage-summary.json");
       if (code !== 0) {
@@ -128,21 +151,21 @@ function measure(pkg, reports) {
         resolve({ pkg, skipped: "no tests" });
         return;
       }
-      const total = JSON.parse(readFileSync(summary, "utf8")).total;
-      resolve({ pkg, totals: Object.fromEntries(METRICS.map((metric) => [metric, total[metric].pct])) });
+      const total = (JSON.parse(readFileSync(summary, "utf8")) as { readonly total: Readonly<Record<Metric, { readonly pct: number }>> }).total;
+      resolve({ pkg, totals: Object.fromEntries(METRICS.map((metric) => [metric, total[metric].pct])) as Totals });
     });
   });
 }
 
-async function runAll(packages, reports) {
-  const results = [];
+async function runAll(packages: readonly TestedPackage[], reports: string): Promise<Result[]> {
+  const results: Result[] = [];
   let next = 0;
   async function worker() {
     while (next < packages.length) {
       const pkg = packages[next++];
       const result = await measure(pkg, reports);
       results.push(result);
-      const text = result.error ?? result.skipped ?? METRICS.map((metric) => `${metric} ${result.totals[metric]}`).join(", ");
+      const text = "error" in result ? result.error : "skipped" in result ? result.skipped : METRICS.map((metric) => `${metric} ${result.totals[metric]}`).join(", ");
       console.log(`${pkg.folder}: ${text}`);
     }
   }
@@ -151,22 +174,22 @@ async function runAll(packages, reports) {
 }
 
 /** This function writes the message to the standard error and stops the run with exit code 1. */
-function stop(message) {
+function stop(message: string): never {
   console.error(message);
   process.exit(1);
 }
 
 // Only --update can start a new file of floors. Without floors, the check examines nothing.
-const baseline = existsSync(BASELINE) ? JSON.parse(readFileSync(BASELINE, "utf8")) : {};
+const baseline = (existsSync(BASELINE) ? JSON.parse(readFileSync(BASELINE, "utf8")) : {}) as Record<string, Totals>;
 if (!update && Object.keys(baseline).length === 0) {
-  stop(`${existsSync(BASELINE) ? "coverage-baseline.json has no floors" : "coverage-baseline.json does not exist"}: the check needs the floor of each package. Start node scripts/coverage.mjs --update to write them.`);
+  stop(`${existsSync(BASELINE) ? "coverage-baseline.json has no floors" : "coverage-baseline.json does not exist"}: the check needs the floor of each package. Start node scripts/coverage.ts --update to write them.`);
 }
 const packages = packagesWithTests();
 if (packages.length === 0) {
   stop(`No package to examine: the check expected the folders of packages/ whose test script runs vitest${only ? ` (with --packages ${[...only].join(",")})` : ""}.`);
 }
 const reports = mkdtempSync(join(tmpdir(), "coverage-"));
-let results;
+let results: Result[] = [];
 try {
   results = await runAll(packages, reports);
 } finally {
@@ -174,18 +197,18 @@ try {
 }
 
 if (totalsOut) {
-  const totals = Object.fromEntries(results.filter((result) => result.totals).map((result) => [result.pkg.name, result.totals]));
+  const totals = Object.fromEntries(results.flatMap((result) => ("totals" in result ? [[result.pkg.name, result.totals]] : [])));
   writeFileSync(totalsOut, JSON.stringify(totals, null, 2) + "\n");
 }
 
-const problems = [];
+const problems: string[] = [];
 for (const result of results) {
-  if (result.error) {
+  if ("error" in result) {
     problems.push(`${result.pkg.folder}: ${result.error}\n${result.log.split("\n").slice(-30).join("\n")}`);
     continue;
   }
   const floor = baseline[result.pkg.name];
-  if (result.skipped) {
+  if ("skipped" in result) {
     // A floor shows that the package had coverage. Now its tests write no coverage.
     if (floor) problems.push(`${result.pkg.folder}: ${result.skipped}, but coverage-baseline.json has a floor for ${result.pkg.name}. Find the lost tests, or remove the floor.`);
     continue;
@@ -194,7 +217,7 @@ for (const result of results) {
     if (!update && !allowMissing) {
       problems.push(
         `${result.pkg.folder}: no floor in coverage-baseline.json. Add the floor of ${result.pkg.name} to coverage-baseline.json in this change: ` +
-          `start node scripts/coverage.mjs --update --packages ${result.pkg.folder}, or copy it from the artifact coverage-floors of CI.`,
+          `start node scripts/coverage.ts --update --packages ${result.pkg.folder}, or copy it from the artifact coverage-floors of CI.`,
       );
     }
     continue;
@@ -215,14 +238,14 @@ if (!only) {
 }
 
 if (update || out) {
-  const next = { ...baseline };
+  const next: Record<string, Totals> = { ...baseline };
   for (const result of results) {
-    if (result.error || result.skipped) continue;
-    const old = baseline[result.pkg.name] ?? {};
+    if (!("totals" in result)) continue;
+    const old: Partial<Totals> = baseline[result.pkg.name] ?? {};
     // A floor goes up to the current value, rounded down to one decimal, and never goes down
     next[result.pkg.name] = Object.fromEntries(
       METRICS.map((metric) => [metric, Math.max(old[metric] ?? 0, Math.floor(result.totals[metric] * 10) / 10)]),
-    );
+    ) as Totals;
   }
   const sorted = Object.fromEntries(Object.keys(next).sort().map((key) => [key, next[key]]));
   const text = JSON.stringify(sorted, null, 2) + "\n";

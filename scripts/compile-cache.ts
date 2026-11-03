@@ -35,10 +35,10 @@ import { mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync,
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { aaId, measureIsolated, pairedMarkdown, quantileOf, type PairedReport } from "./lib/paired-time.mjs";
+import { aaId, measureIsolated, pairedMarkdown, quantileOf, type PairedReport } from "./lib/paired-time.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const CHILD = join(HERE, "bench-paired-child.mjs");
+const CHILD = join(HERE, "bench-paired-child.ts");
 
 /** The setup measures of the 4 core workloads. */
 export const SETUP_INPUTS = ["exec-one-call-setup", "exec-chain-50-setup", "exec-map-100-setup", "hydrate-200-refs-setup"] as const;

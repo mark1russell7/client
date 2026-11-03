@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { markdownOf, PHASES, phaseEntryOf, phasesOf, rowsOf, splitOf } from "./compile-cache.ts";
-import type { PairedReport } from "./lib/paired-time.mjs";
+import type { PairedReport } from "./lib/paired-time.ts";
 
 const report = (ms: Record<string, number[]>): PairedReport => {
   const median = (values: number[]) => values.toSorted((a, b) => a - b)[Math.floor(values.length / 2)];
