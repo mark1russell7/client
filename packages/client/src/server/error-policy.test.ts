@@ -26,7 +26,8 @@ import { WebSocketServerTransport } from "../adapters/websocket/server/transport
 import { WebSocketTransport } from "../adapters/websocket/client/transport.js";
 import { Client } from "../client/client.js";
 import type { Transport } from "../client/types.js";
-import { isKnownErrorCode } from "../client/errors/registry.js";
+import { ERROR_REGISTRY, isKnownErrorCode } from "../client/errors/registry.js";
+import { KNOWN_ERROR_CODES, isKnownCode } from "../client/errors/known-codes.js";
 import { createProcedure } from "../procedures/define.js";
 import { createRegistry } from "../procedures/module.js";
 import type { ProcedureContext } from "../procedures/types.js";
@@ -258,6 +259,18 @@ describe("isKnownErrorCode", () => {
   it("knows the codes of the protocol and of ERROR_REGISTRY, and no code of the platform or of MongoDB", () => {
     for (const code of ["NOT_FOUND", "FORBIDDEN", "VALIDATION_ERROR", "CONFLICT", "BAD_REQUEST", "PAYLOAD_TOO_LARGE", "TOO_MANY_REQUESTS"]) expect(isKnownErrorCode(code), code).toBe(true);
     for (const code of ["ECONNREFUSED", "ENOENT", 11000, "toString", "__proto__", undefined]) expect(isKnownErrorCode(code), String(code)).toBe(false);
+  });
+});
+
+describe("isKnownCode (the codes without the texts, roadmap O95)", () => {
+  it("knows the same codes as ERROR_REGISTRY", () => {
+    expect([...KNOWN_ERROR_CODES].sort()).toEqual(Object.keys(ERROR_REGISTRY).sort());
+  });
+
+  it("gives the same answer as isKnownErrorCode", () => {
+    for (const code of [...Object.keys(ERROR_REGISTRY), "ECONNREFUSED", "ENOENT", 11000, "toString", "__proto__", "", undefined, null]) {
+      expect(isKnownCode(code), String(code)).toBe(isKnownErrorCode(code));
+    }
   });
 });
 

@@ -22,7 +22,8 @@
 
 import type { ProcedurePath } from "../procedures/types.js";
 import { closableUnread } from "../procedures/invoke.js";
-import { isKnownErrorCode } from "../client/errors/registry.js";
+// The codes only: the texts of ERROR_REGISTRY stay out of a bundle of the server (roadmap O95)
+import { isKnownCode as isKnownErrorCode } from "../client/errors/known-codes.js";
 import { errorCodeOf } from "../protocol.js";
 import { errorResponse, realErrorOf } from "./error-response.js";
 import { methodToPath } from "./method.js";

@@ -4,7 +4,7 @@
 # and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
 # To accept a change of the API, start the script with --update and review the diff.
 
-## . (dist/index.d.ts): 644 names
+## . (dist/index.d.ts): 645 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -539,6 +539,7 @@ mapProcedure: dist/procedures/core/index.d.ts#mapProcedure
 markDataDriven: dist/procedures/ref.d.ts#markDataDriven
 matchPath: dist/client/route-resolver.d.ts#matchPath
 matchesSelector: dist/procedures/collection/query.d.ts#matchesSelector
+mathProcedures: dist/procedures/core/math.d.ts#mathProcedures
 mergePatch: dist/procedures/collection/query.d.ts#mergePatch
 mergeRoutes: dist/client/call-types.d.ts#mergeRoutes
 metaProcedures: dist/procedures/define-procedure.d.ts#metaProcedures
@@ -651,7 +652,7 @@ withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 writeLog: dist/logger.d.ts#writeLog
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 632 names
+## ./browser (dist/browser.d.ts): 633 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -1175,6 +1176,7 @@ mapProcedure: dist/procedures/core/index.d.ts#mapProcedure
 markDataDriven: dist/procedures/ref.d.ts#markDataDriven
 matchPath: dist/client/route-resolver.d.ts#matchPath
 matchesSelector: dist/procedures/collection/query.d.ts#matchesSelector
+mathProcedures: dist/procedures/core/math.d.ts#mathProcedures
 mergePatch: dist/procedures/collection/query.d.ts#mergePatch
 mergeRoutes: dist/client/call-types.d.ts#mergeRoutes
 metaProcedures: dist/procedures/define-procedure.d.ts#metaProcedures
@@ -1515,7 +1517,7 @@ throttleChannel: dist/events/bus.d.ts#throttleChannel
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
-## ./procedures (dist/procedures/index.d.ts): 369 names
+## ./procedures (dist/procedures/index.d.ts): 370 names
 
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
@@ -1811,6 +1813,7 @@ manifestProcedure: dist/procedures/define-procedure.d.ts#manifestProcedure
 mapProcedure: dist/procedures/core/index.d.ts#mapProcedure
 markDataDriven: dist/procedures/ref.d.ts#markDataDriven
 matchesSelector: dist/procedures/collection/query.d.ts#matchesSelector
+mathProcedures: dist/procedures/core/math.d.ts#mathProcedures
 mergePatch: dist/procedures/collection/query.d.ts#mergePatch
 metaProcedures: dist/procedures/define-procedure.d.ts#metaProcedures
 moduleClosure: dist/procedures/module.d.ts#moduleClosure
@@ -4408,6 +4411,9 @@ declare const traceProcedure: TraceProcedure;
 
 ### dist/procedures/core/index.d.ts#tryCatchProcedure
 declare const tryCatchProcedure: TryCatchProcedure;
+
+### dist/procedures/core/math.d.ts#mathProcedures
+export declare const mathProcedures: AnyProcedure[];
 
 ### dist/procedures/core/schemas.d.ts#ZodLikeSchema
 export interface ZodLikeSchema<T> extends ZodLike<T> {
