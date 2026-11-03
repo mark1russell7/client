@@ -18,6 +18,8 @@
  *   `node_modules/zod` have less than 20 % of the total excess.
  */
 
+import { median } from "@mark1russell7/rigor-statistics";
+
 /** The format of the record of the profile mode. */
 export const PROFILE_FORMAT = "server-request-profile/1";
 
@@ -247,22 +249,18 @@ export interface ProfileAnalysis {
   readonly outcomes: ProfileOutcomes;
 }
 
-const median = (values: readonly number[]): number => {
-  const s = [...values].sort((x, y) => x - y);
-  const mid = Math.floor(s.length / 2);
-  return s.length === 0 ? Number.NaN : s.length % 2 === 1 ? s[mid]! : (s[mid - 1]! + s[mid]!) / 2;
-};
-
-/** This function gives the totals of one profile from the self times of its functions. */
+/** This function gives the totals of one profile from the self times of its functions. A profile with fewer than 2 samples has no median interval (NaN). */
 function totalsOf(side: ProfileSide, selves: readonly FunctionSelf[]): ProfileTotals {
   const totalUs = selves.reduce((s, f) => s + f.selfUs, 0);
+  // The first delta is from startTime, not from a sample
+  const deltas = side.profile.timeDeltas.slice(1);
   return {
     id: side.id,
     calls: side.calls,
     samples: side.profile.samples.length,
     totalUs,
     perCallUs: totalUs / side.calls,
-    medianDeltaUs: median(side.profile.timeDeltas.slice(1)),
+    medianDeltaUs: deltas.length === 0 ? Number.NaN : median(deltas),
   };
 }
 
@@ -349,7 +347,8 @@ export function profileMarkdownOf(record: ProfileRecord, top = 25): string {
   const yes = (x: boolean | null) => (x === null ? "none" : x ? "yes" : "no");
   // The lines of V8 start from 0, and the Markdown gives them from 1
   const where = (r: ExcessRow) => `${r.location}${r.lineNumber >= 0 ? `:${r.lineNumber + 1}` : ""}`;
-  const cell = (s: string) => s.replace(/\|/g, "\\|");
+  // A backslash and a | of a name get a backslash: the | does not end the cell of the table
+  const cell = (s: string) => s.replace(/[\\|]/g, (c) => `\\${c}`);
   const lines = [
     `# Server request profile (O94): \`${a.id}\` against \`${b.id}\``,
     "",

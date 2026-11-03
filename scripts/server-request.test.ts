@@ -614,6 +614,14 @@ describe("server-request profile analysis", () => {
     assert.equal(row("writeGeneric (node):20").excessUs, -10);
   });
 
+  it("gives no median interval (NaN) for a profile with fewer than 2 samples", () => {
+    const one = profileAnalysisOf({ id: "a", profile: profileOf([[F.host, 50]]), calls: 1 }, { id: "b", profile: profileOf([]), calls: 1 }, TREE);
+    assert.ok(Number.isNaN(one.a.medianDeltaUs));
+    assert.ok(Number.isNaN(one.b.medianDeltaUs));
+    assert.equal(one.a.totalUs, 50);
+    assert.equal(one.b.samples, 0);
+  });
+
   it("gives a function of only one profile 0 in the other profile", () => {
     const peer = row("handle packages/client-server/dist/http.js:9");
     assert.deepEqual(peer.a, { selfUs: 0, perCallUs: 0, samples: 0 });
@@ -782,12 +790,13 @@ describe("server-request profile record", () => {
     assert.ok(md.indexOf("## The top 25 functions") < md.indexOf("## The groups"));
   });
 
-  it("gives only the top 25 functions, and escapes a | in a name", () => {
-    const frames = Array.from({ length: 30 }, (_, i) => ({ functionName: i === 0 ? "a|b" : `f${i}`, url: "file:///t/packages/server/dist/x.js", lineNumber: i }));
+  it("gives only the top 25 functions, and escapes a | and a backslash in a name", () => {
+    const frames = Array.from({ length: 30 }, (_, i) => ({ functionName: i === 0 ? "a|b" : i === 1 ? "c\\d" : `f${i}`, url: "file:///t/packages/server/dist/x.js", lineNumber: i }));
     const a = profileOf(frames.map((f, i) => [f, 100 * (30 - i)] as const));
     const analysis = profileAnalysisOf({ id: "x", profile: a, calls: 1 }, { id: "y", profile: profileOf([[F.gc, 0]]), calls: 1 }, TREE);
     const md = profileMarkdownOf({ ...RECORD, analysis });
     assert.ok(md.includes("| 1 | `a\\|b` | `packages/server/dist/x.js:1` |"));
+    assert.ok(md.includes("| 2 | `c\\\\d` | `packages/server/dist/x.js:2` |"));
     assert.ok(md.includes("| 25 | `f24` |"));
     assert.ok(!md.includes("| 26 |"));
     assert.ok(profileMarkdownOf({ ...RECORD, analysis }, 3).includes("## The top 3 functions"));
