@@ -1,5 +1,27 @@
 # @procedures/compiler
 
+## 0.47.0
+
+### Minor Changes
+
+- 2f0c7b0: The release train: the ranges of @mark1russell7/coeval change to a version outside the old range.
+- ad70c38: The release train: the ranges of @mark1russell7/coeval change to a version outside the old range.
+- 47819c6: The release train of 2026-11-02: the ranges of `@mark1russell7/coeval` change from `^0.15.0` to `^0.17.0`. In coeval 0.17.0, `conforms` has a new truth for `formula.if`, `formula.and` and `formula.or`.
+
+### Patch Changes
+
+- e913014: Each module imports zod with `import * as z from "zod"`, not `import { z } from "zod"`. With the old form, an esbuild bundle got each locale of zod: 264 kB of minified code (esbuild metafile of the journey worker of the site). The Vite build of the site gives the same worker files with both forms. The procedure scaffolder writes the new form in `types.ts`. The API and the behavior stay the same.
+- Updated dependencies [c9125a8]
+- Updated dependencies [335728b]
+- Updated dependencies [d987202]
+- Updated dependencies [45a737f]
+- Updated dependencies [d77e9e8]
+- Updated dependencies [e913014]
+- Updated dependencies [2f0c7b0]
+- Updated dependencies [ad70c38]
+- Updated dependencies [47819c6]
+  - @procedures/client@0.47.0
+
 ## 0.46.0
 
 ### Minor Changes
