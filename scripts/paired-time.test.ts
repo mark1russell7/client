@@ -1,17 +1,17 @@
-// The tests of scripts/lib/paired-time.mjs, the copy of paired-time/1 (O83). They are the tests of
+// The tests of scripts/lib/paired-time.ts, the copy of paired-time/1 (O83). They are the tests of
 // the source (packing d4bc44aa, packages/packing/bench/paired-time.test.ts), with node:test.
-// Start them with: node --test scripts/paired-time.test.mjs
+// Start them with: node --test scripts/paired-time.test.ts
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { aaId, armOrder, childResult, measureIsolated, pairedMarkdown, quantileOf, timeChild } from "./lib/paired-time.mjs";
+import { aaId, armOrder, childResult, measureIsolated, pairedMarkdown, quantileOf, timeChild } from "./lib/paired-time.ts";
 
 const ENV = { cpu: "Test CPU 9000", cores: 4, os: "test", arch: "x64", node: "v0.0.0" };
 
 /** This function makes a made-up clock: each run of an arm adds the cost of the arm on the input to the time. */
 function fakeClock() {
   let now = 0;
-  return { clock: () => now, spend: (/** @type {number} */ ms) => (now += ms) };
+  return { clock: () => now, spend: (ms: number) => (now += ms) };
 }
 
 describe("armOrder", () => {
@@ -50,24 +50,21 @@ describe("measureIsolated in mode process", () => {
     { id: "i3", group: "2", value: { base: 1, b: 3 } },
     { id: "i4", group: "2", value: { base: 1, b: 3 } },
   ];
-  /** @type {string[]} */
-  const calls = [];
+  const calls: string[] = [];
   const { clock, spend } = fakeClock();
-  const report = /** @type {import("./lib/paired-time.mjs").PairedReport} */ (
-    measureIsolated({
-      mode: "process",
-      inputs,
-      repeats: 2,
-      warmup: 1,
-      clock,
-      env: ENV,
-      context: "local",
-      arms: [
-        { id: "base", run: (v) => (calls.push("base"), spend(v.base)) },
-        { id: "b", run: (v) => (calls.push("b"), spend(v.b)) },
-      ],
-    })
-  );
+  const report = measureIsolated({
+    mode: "process",
+    inputs,
+    repeats: 2,
+    warmup: 1,
+    clock,
+    env: ENV,
+    context: "local",
+    arms: [
+      { id: "base", run: (v) => (calls.push("base"), spend(v.base)) },
+      { id: "b", run: (v) => (calls.push("b"), spend(v.b)) },
+    ],
+  });
 
   it("adds the A/A arm, and gives the arms in turn with the warm-up runs not timed", () => {
     assert.equal(report.schema, "paired-time/1");
@@ -107,9 +104,7 @@ describe("measureIsolated in mode process", () => {
 
   it("gives no A/A arm and no moved share with aa false", () => {
     const { clock: c2, spend: s2 } = fakeClock();
-    const plain = /** @type {import("./lib/paired-time.mjs").PairedReport} */ (
-      measureIsolated({ mode: "process", inputs, repeats: 1, clock: c2, env: ENV, aa: false, arms: [{ id: "base", run: (v) => s2(v.base) }, { id: "b", run: (v) => s2(v.b) }] })
-    );
+    const plain = measureIsolated({ mode: "process", inputs, repeats: 1, clock: c2, env: ENV, aa: false, arms: [{ id: "base", run: (v) => s2(v.base) }, { id: "b", run: (v) => s2(v.b) }] });
     assert.deepEqual(plain.arms, ["base", "b"]);
     assert.equal(plain.noiseFloor, null);
     assert.equal(plain.ratios["b"].moved, null);
@@ -119,8 +114,7 @@ describe("measureIsolated in mode process", () => {
 
 describe("measureIsolated in mode fresh", () => {
   it("starts a child for each arm, input and round, in the rotated order, and keeps the highest peak", async () => {
-    /** @type {string[]} */
-    const started = [];
+    const started: string[] = [];
     const report = await measureIsolated({
       mode: "fresh",
       repeats: 2,
@@ -180,7 +174,7 @@ describe("the options", () => {
     assert.throws(() => measureIsolated({ mode: "fresh", inputs: [], repeats: 1, arms }), /no command/);
     assert.throws(() => measureIsolated({ mode: "process", inputs: [{ id: "i" }, { id: "i" }], repeats: 1, arms }), /inputs are not unique/);
     assert.throws(() => measureIsolated({ mode: "process", inputs: [], repeats: 1, arms }), /1 input or more/);
-    assert.throws(() => measureIsolated({ mode: /** @type {"process"} */ ("other"), inputs: [{ id: "i" }], repeats: 1, arms }), /not "other"/);
+    assert.throws(() => measureIsolated({ mode: "other" as "process", inputs: [{ id: "i" }], repeats: 1, arms }), /not "other"/);
   });
 
   it("refuses a peakRss that an arm gives in mode process", () => {

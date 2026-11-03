@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { join, resolve } from "node:path";
 import { describe, it } from "node:test";
 import { pathToFileURL } from "node:url";
-import { analyzeInput } from "./bench-paired.mjs";
-import type { PairedReport } from "./lib/paired-time.mjs";
+import { analyzeInput } from "./bench-paired.ts";
+import type { PairedReport } from "./lib/paired-time.ts";
 import {
   differenceOf,
   loadedPackagesOf,
