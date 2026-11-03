@@ -1,6 +1,6 @@
 /**
  * The size report of the Web Workers of the site (roadmap O95): for each worker chunk, the bytes
- * of each folder of a package, as Rollup renders them before the minifier.
+ * of each folder of a package and of the largest files, as Rollup renders them before the minifier.
  */
 
 import type { Plugin } from "vite";
@@ -42,7 +42,29 @@ export function sizeByFolder(modules: readonly RenderedModule[]): FolderSize[] {
   return [...sizes].map(([folder, bytes]) => ({ folder, bytes })).sort((a, b) => b.bytes - a.bytes || a.folder.localeCompare(b.folder));
 }
 
-/** The number of folders that the report gives for each worker chunk. */
+/** One file line of the report: the folder and the name of a module, and its bytes in a chunk. */
+export interface FileSize {
+  readonly file: string;
+  readonly bytes: number;
+}
+
+/** This function gives the file of a module for the report: its folder (`folderOf`) and its file name. */
+export function fileOf(id: string): string {
+  const folder = folderOf(id);
+  if (folder === "virtual") return `virtual/${id.slice(1).split("?")[0]!}`;
+  const name = id.split("?")[0]!.split("\\").join("/").split("/").pop() ?? "";
+  return folder === "(root)" ? name : `${folder}/${name}`;
+}
+
+/** This function gives the modules largest first, a tie in the order of the files, at most `count`. */
+export function largestFiles(modules: readonly RenderedModule[], count: number): FileSize[] {
+  return modules
+    .map((module) => ({ file: fileOf(module.id), bytes: module.renderedLength }))
+    .sort((a, b) => b.bytes - a.bytes || a.file.localeCompare(b.file))
+    .slice(0, count);
+}
+
+/** The number of folders, and of files, that the report gives for each worker chunk. */
 const LINES = 15;
 
 /** This function gives the Vite plugin that logs the report of each worker chunk after its build. */
@@ -58,6 +80,8 @@ export function moduleSizePlugin(): Plugin {
         const total = sizes.reduce((sum, size) => sum + size.bytes, 0);
         console.log(`size report of the worker ${chunk.fileName}: ${total} bytes before the minifier, in ${modules.length} modules`);
         for (const size of sizes.slice(0, LINES)) console.log(`  ${String(size.bytes).padStart(8)} ${size.folder}`);
+        console.log(`  the ${LINES} largest files of ${chunk.fileName}:`);
+        for (const size of largestFiles(modules, LINES)) console.log(`  ${String(size.bytes).padStart(8)} ${size.file}`);
       }
     },
   };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { folderOf, sizeByFolder } from "./module-size-plugin";
+import { fileOf, folderOf, largestFiles, sizeByFolder } from "./module-size-plugin";
 
 describe("folderOf", () => {
   it("gives the folder after the last node_modules, with three segments", () => {
@@ -34,6 +34,32 @@ describe("sizeByFolder", () => {
       { folder: "zod/v4/core", bytes: 35 },
       { folder: "site/src/lib", bytes: 30 },
       { folder: "zod/v4/mini", bytes: 30 },
+    ]);
+  });
+});
+
+describe("fileOf", () => {
+  it("gives the folder and the file name of a module", () => {
+    expect(fileOf("/w/node_modules/zod/v4/core/schemas.js")).toBe("zod/v4/core/schemas.js");
+    expect(fileOf("C:\\w\\packages\\client\\dist\\procedures\\chain.js?x")).toBe("client/dist/procedures/chain.js");
+  });
+
+  it("gives a virtual module and a file at the root without a folder", () => {
+    expect(fileOf("\0vite/preload-helper.js")).toBe("virtual/vite/preload-helper.js");
+    expect(fileOf("/main.ts")).toBe("main.ts");
+  });
+});
+
+describe("largestFiles", () => {
+  it("gives the largest modules first, a tie in the order of the files, at most the count", () => {
+    const files = largestFiles([
+      { id: "/w/node_modules/zod/v4/core/a.js", renderedLength: 10 },
+      { id: "/w/packages/site/src/lib/b.ts", renderedLength: 30 },
+      { id: "/w/node_modules/zod/v4/mini/d.js", renderedLength: 30 },
+    ], 2);
+    expect(files).toEqual([
+      { file: "site/src/lib/b.ts", bytes: 30 },
+      { file: "zod/v4/mini/d.js", bytes: 30 },
     ]);
   });
 });
