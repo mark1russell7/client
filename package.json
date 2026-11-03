@@ -15,7 +15,7 @@
     "changeset": "changeset",
     "check:packages": "node scripts/check-packages.mjs",
     "check:boundaries": "depcruise --config .dependency-cruiser.cjs \"packages/*/src\"",
-    "check:paths-and-writes": "node scripts/check-paths-and-writes.mjs",
+    "check:paths-and-writes": "node scripts/check-paths-and-writes.ts",
     "check:conventions": "conventions check",
     "release:bootstrap": "node scripts/npm-bootstrap.mjs"
   },

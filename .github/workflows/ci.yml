@@ -165,7 +165,7 @@ jobs:
       - name: Check the paths, topics and storage writes
         if: ${{ !cancelled() }}
         run: |
-          node --test scripts/check-paths-and-writes.test.mjs
+          node --test scripts/check-paths-and-writes.test.ts
           pnpm check:paths-and-writes
       # The nightly adds the runner context to each benchmark result with scripts/bench-context.ts
       # (O82). The nightly does not run on a pull request, so the tests of the script run here.
@@ -185,7 +185,7 @@ jobs:
       - name: Check the import boundaries
         if: ${{ !cancelled() }}
         run: |
-          node --test scripts/check-boundaries.test.mjs
+          node --test scripts/check-boundaries.test.ts
           pnpm check:boundaries
       # Each package against the template of `lib new`. The step reads the JSON result, because
       # `mark` exits with 0 also for `success: false` (deep dive CLI-8). A procedure without

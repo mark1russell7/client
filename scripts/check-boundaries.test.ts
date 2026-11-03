@@ -1,7 +1,7 @@
 // The tests of the import boundaries (roadmap CLI-83): the rules of .dependency-cruiser.cjs (the
 // shared rules of @mark1russell7/boundaries and the rules of this repository) on a fixture repository
 // in a temporary folder. Each bad import must fail its rule, and each good import must pass. Start
-// them with: node --test scripts/check-boundaries.test.mjs
+// them with: node --test scripts/check-boundaries.test.ts
 
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -9,15 +9,24 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, before, describe, it } from "node:test";
-import { cruise } from "dependency-cruiser";
+import type { Config } from "@mark1russell7/boundaries";
+import { cruise, type ICruiseOptions } from "dependency-cruiser";
 
-const { config } = createRequire(import.meta.url)("../.dependency-cruiser.cjs");
+/** The part of `.dependency-cruiser.cjs` that the test reads: the configuration for a root folder. */
+interface CruiserConfigModule {
+  readonly config: (root: string) => Config;
+}
+
+const { config } = createRequire(import.meta.url)("../.dependency-cruiser.cjs") as CruiserConfigModule;
 
 const root = mkdtempSync(join(tmpdir(), "boundaries-"));
 after(() => rmSync(root, { recursive: true, force: true }));
 
+/** The files of the fixture repository: a text, or a JSON value that `write` writes as text. */
+type FixtureFiles = Readonly<Record<string, string | Readonly<Record<string, unknown>>>>;
+
 /** This function writes the files of the fixture repository, relative to its root. */
-function write(files) {
+function write(files: FixtureFiles): void {
   for (const [file, text] of Object.entries(files)) {
     mkdirSync(dirname(join(root, file)), { recursive: true });
     writeFileSync(join(root, file), typeof text === "string" ? text : JSON.stringify(text));
@@ -25,13 +34,13 @@ function write(files) {
 }
 
 /** This function links a fixture package into node_modules, as pnpm links a workspace package. */
-function link(name, folder) {
+function link(name: string, folder: string): void {
   const path = join(root, "node_modules", name);
   mkdirSync(dirname(path), { recursive: true });
   symlinkSync(join(root, "packages", folder), path, "junction");
 }
 
-let violations = [];
+let violations: string[] = [];
 
 before(async () => {
   write({
@@ -83,17 +92,21 @@ before(async () => {
   link("@procedures/site", "site");
 
   const { forbidden, options } = config(root);
-  const result = await cruise(["packages/client/src", "packages/client-mcp/src", "packages/lib-a/src", "packages/lib-b/src", "packages/site/src"], {
+  // The package @mark1russell7/boundaries does not depend on the types of dependency-cruiser, so its
+  // configuration has the plain types `Rule[]` and `Record<string, unknown>`.
+  const cruiseOptions = {
     ...options,
     baseDir: root,
     validate: true,
     ruleSet: { forbidden },
-  });
+  } as ICruiseOptions;
+  const result = await cruise(["packages/client/src", "packages/client-mcp/src", "packages/lib-a/src", "packages/lib-b/src", "packages/site/src"], cruiseOptions);
+  if (typeof result.output === "string") throw new Error("dependency-cruiser gave a text, not a cruise result");
   violations = result.output.summary.violations.map(({ rule, from, to }) => `${rule.name}: ${from} -> ${to}`);
 });
 
 /** The violations of one source file of the fixture. */
-const of = (from) => violations.filter((violation) => violation.includes(`: ${from} -> `)).sort();
+const of = (from: string): string[] => violations.filter((violation) => violation.includes(`: ${from} -> `)).sort();
 
 describe("the import boundaries (I9, CLI-83)", () => {
   it("a transport does not import the server, with a value or a type", () => {
