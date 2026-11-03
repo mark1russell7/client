@@ -43,7 +43,7 @@ Decision D13 sets these rules. The section "Releases of the server stack" of the
 - Each folder in `packages/` is one package. The folders keep the names of their old repositories.
 - The npm scope of the packages is `@procedures`. The npm name can differ from the folder: `packages/client-shell` holds `@procedures/shell`. The root README has the table of names.
 - The folder `packages/mark` holds `@procedures/mark`, the `mark` CLI.
-- `scripts/check-scope.mjs` fails when a file names a package of this repository with the old scope `@mark1russell7`.
+- `scripts/check-scope.ts` fails when a file names a package of this repository with the old scope `@mark1russell7`.
 - The old repositories are archived. Do not change them. Make all changes in this repository.
 - Git ignores `dist/`. Do not commit build output.
 

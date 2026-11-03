@@ -227,7 +227,7 @@ async function discoverPackageProcedures(
     const allProcs = PROCEDURE_REGISTRY.getAll();
 
     // Extract namespace from package name (e.g., @procedures/fs -> fs)
-    // An exception to the rule of scripts/check-scope.mjs: the packages of the old scope
+    // An exception to the rule of scripts/check-scope.ts: the packages of the old scope
     // @mark1russell7/client-* are still on npm, and a workspace can still install them
     const match = packageName.match(/^@procedures\/(\w+)/) ?? packageName.match(/@mark1russell7\/client-(\w+)/); // scope-check: allow
     const expectedNamespace = match ? match[1] : null;

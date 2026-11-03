@@ -3,7 +3,7 @@
 // The general packages (cue, splay, docker-sqlite and the others) keep the scope @mark1russell7:
 // they are not in this map.
 //
-// scripts/check-scope.mjs uses the map to find old names, and scripts/npm-bootstrap.mjs
+// scripts/check-scope.ts uses the map to find old names, and scripts/npm-bootstrap.mjs
 // --deprecate-old uses it to point the old npm packages to the new ones.
 
 export const OLD_SCOPE = "@mark1russell7/";
