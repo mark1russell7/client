@@ -24,7 +24,7 @@
     "@babel/parser": "^8.0.7",
     "@changesets/cli": "^3.0.3",
     "@mark1russell7/boundaries": "^0.2.0",
-    "@mark1russell7/conventions": "^0.16.0",
+    "@mark1russell7/conventions": "^0.22.0",
     "@mark1russell7/cue": "^1.1.0",
     "@mark1russell7/rigor-statistics": "^0.1.2",
     "@mark1russell7/ste-lint": "^0.1.1",
@@ -84,6 +84,9 @@
           "packages/client-node/src/fresh-bundle.test.ts"
         ],
         "reason": "the fixture QUIET_ENTRY of the test records process.argv[1] and import.meta.url as data for the test. It compares nothing"
+      },
+      "pages-site": {
+        "off": "the site of client deploys with its own .github/workflows/pages.yml: it starts after CI on main, runs the e2e suite of packages/site before the deploy and sends IndexNow after it. The move to reusable-pages.yml of the template is its own roadmap item"
       }
     }
   }
