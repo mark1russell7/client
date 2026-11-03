@@ -341,6 +341,8 @@ export {
   // Every core procedure (math, comparison, string, type, object, array, meta too). Not registered by default.
   allCoreProcedures,
   allCoreModules,
+  // Only the math procedures: a bundle that imports only these gets no other core procedure (roadmap O95)
+  mathProcedures,
   chainProcedure,
   traceProcedure,
   type TraceRow,

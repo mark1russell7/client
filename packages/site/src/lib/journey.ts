@@ -22,8 +22,8 @@ import {
   LocalTransport,
   ProcedureRegistry,
   ProcedureServer,
-  allCoreProcedures,
   defineProcedure,
+  mathProcedures,
   methodToPath,
   pathToMethod,
   timeoutInterceptor,
@@ -372,7 +372,8 @@ class LocalProbe implements Transport {
 
 function registryWith(record: Record_): ProcedureRegistry {
   const registry = new ProcedureRegistry();
-  for (const procedure of allCoreProcedures) registry.register(procedure);
+  // The handler calls only client.sum and client.multiply: the worker loads no other core procedure (roadmap O95)
+  for (const procedure of mathProcedures) registry.register(procedure);
   registry.register(receiptProcedure(record) as never);
   return registry;
 }
