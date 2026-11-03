@@ -26,7 +26,7 @@
 
 import http from "node:http";
 import { WebSocket } from "ws";
-import { z } from "zod";
+import * as z from "zod";
 import { ProcedureServer, createProcedure, createRegistry } from "@procedures/client";
 import { WebSocketServerTransport } from "@procedures/client/node";
 import { bootId, commandLine, emit, subjectPackage } from "./lines.mjs";
