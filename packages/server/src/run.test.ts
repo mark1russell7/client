@@ -5,7 +5,6 @@
 
 import { describe, it, expect, afterEach } from "vitest";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -18,14 +17,6 @@ const FIXTURE = pathToFileURL(fileURLToPath(new URL("../test/fixture-procedures.
 const PUBLISH_FIXTURE = pathToFileURL(fileURLToPath(new URL("../test/fixture-publish.mjs", import.meta.url))).href;
 const READ_FIXTURE = pathToFileURL(fileURLToPath(new URL("../test/fixture-read.mjs", import.meta.url))).href;
 
-async function freePort(): Promise<number> {
-  const server = createServer();
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
-  const address = server.address();
-  const port = typeof address === "object" && address ? address.port : 0;
-  await new Promise<void>((resolve) => server.close(() => resolve()));
-  return port;
-}
 
 /**
  * The port of the endpoint of a transport of a started server. The tests start each transport on
@@ -203,9 +194,8 @@ describe("the root of the file procedures (--fs-root, roadmap R33)", () => {
   });
 
   it("does not start with a root that does not exist", async () => {
-    const port = await freePort();
     const missing = join(tmpdir(), `server-fs-root-missing-${Date.now()}`);
-    const config = parseConfig(["--port", String(port), "--token", "t", "--procedures", "@procedures/fs", "--fs-root", missing]);
+    const config = parseConfig(["--port", "3000", "--token", "t", "--procedures", "@procedures/fs", "--fs-root", missing]);
     await expect(startServer(config, () => {})).rejects.toThrow("does not exist");
   });
 });

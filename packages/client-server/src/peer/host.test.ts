@@ -4,18 +4,18 @@
  */
 
 import { describe, it, expect, afterEach } from "vitest";
-import { createServer } from "node:net";
 import { Client, HttpTransport, ProcedureRegistry, defineProcedure, outputSchema } from "@procedures/client";
 import { createPeer, type Peer } from "./index.js";
 
-async function freePort(): Promise<number> {
-  return new Promise((resolve) => {
-    const server = createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      server.close(() => resolve(typeof address === "object" && address ? address.port : 0));
-    });
-  });
+/**
+ * The port of the first endpoint of a started peer. The peer listens on port 0, so no other test or
+ * process takes the port between a probe and the listen (EADDRINUSE on CI).
+ */
+function portOf(peer: Peer): number {
+  const [endpoint] = peer.getEndpoints();
+  const port = Number(new URL(endpoint!.address).port);
+  expect(port).toBeGreaterThan(0);
+  return port;
 }
 
 let peers: Peer[] = [];
@@ -36,11 +36,10 @@ describe("host procedures of a peer (R19)", () => {
         handler: (input: { text: string }) => input.text,
       }),
     );
-    const port = await freePort();
-    const peer = await createPeer({ id: "peer-host", registry, transports: [{ type: "http", port, host: "127.0.0.1" }] });
+    const peer = await createPeer({ id: "peer-host", registry, transports: [{ type: "http", port: 0, host: "127.0.0.1" }] });
     peers.push(peer);
     await peer.start();
-    const client = new Client(new HttpTransport({ baseUrl: `http://127.0.0.1:${port}/api` }));
+    const client = new Client(new HttpTransport({ baseUrl: `http://127.0.0.1:${portOf(peer)}/api` }));
 
     expect(await client.call({ service: "test", operation: "echo" }, { text: "hi" })).toBe("hi");
 

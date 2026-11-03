@@ -10,7 +10,6 @@
  */
 
 import { describe, it, expect, afterEach } from "vitest";
-import { createServer } from "node:net";
 import { randomBytes } from "node:crypto";
 import { request } from "node:http";
 import { ProcedureRegistry, defineProcedure, hostPolicy, outputSchema, type HostPolicy } from "@procedures/client";
@@ -18,14 +17,15 @@ import { createPeer, type Peer } from "./index.js";
 
 const TOKEN = "test-token-0123456789";
 
-async function freePort(): Promise<number> {
-  return new Promise((resolve) => {
-    const server = createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      server.close(() => resolve(typeof address === "object" && address ? address.port : 0));
-    });
-  });
+/**
+ * The port of the first endpoint of a started peer. The peer listens on port 0, so no other test or
+ * process takes the port between a probe and the listen (EADDRINUSE on CI).
+ */
+function portOf(peer: Peer): number {
+  const [endpoint] = peer.getEndpoints();
+  const port = Number(new URL(endpoint!.address).port);
+  expect(port).toBeGreaterThan(0);
+  return port;
 }
 
 /** A raw HTTP request, so the test controls the Host and Origin headers. */
@@ -81,20 +81,19 @@ async function startPeer(options: { policy?: HostPolicy; corsOrigins?: string[] 
       handler: (input: { text: string }) => input.text,
     }),
   );
-  const port = await freePort();
   const peer = await createPeer({
     id: "peer-test",
     registry,
     autoRegister: true,
     ...(options.policy ? { policy: options.policy } : {}),
     transports: [
-      { type: "http", port, host: "127.0.0.1", token: TOKEN, ...(options.corsOrigins ? { corsOrigins: options.corsOrigins } : {}) },
-      { type: "websocket", port, host: "127.0.0.1", token: TOKEN },
+      { type: "http", port: 0, host: "127.0.0.1", token: TOKEN, ...(options.corsOrigins ? { corsOrigins: options.corsOrigins } : {}) },
+      { type: "websocket", port: 0, host: "127.0.0.1", token: TOKEN },
     ],
   });
   await peer.start();
   peers.push(peer);
-  return port;
+  return portOf(peer);
 }
 
 const json = { "Content-Type": "application/json" };

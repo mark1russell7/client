@@ -3,19 +3,19 @@
  */
 
 import { describe, it, expect, afterEach } from "vitest";
-import { createServer } from "node:net";
 import * as z from "zod";
 import { ProcedureRegistry, ProcedureServer, WebSocketTransport, createProcedure, createRegistry } from "@procedures/client";
 import { createPeer, type Peer } from "./index.js";
 
-async function freePort(): Promise<number> {
-  return new Promise((resolve) => {
-    const server = createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      server.close(() => resolve(typeof address === "object" && address ? address.port : 0));
-    });
-  });
+/**
+ * The port of the first endpoint of a started peer. The peer listens on port 0, so no other test or
+ * process takes the port between a probe and the listen (EADDRINUSE on CI).
+ */
+function portOf(peer: Peer): number {
+  const [endpoint] = peer.getEndpoints();
+  const port = Number(new URL(endpoint!.address).port);
+  expect(port).toBeGreaterThan(0);
+  return port;
 }
 
 let cleanups: Array<() => Promise<void>> = [];
@@ -26,9 +26,9 @@ afterEach(async () => {
 
 describe("a peer calls its clients (R24)", () => {
   it("lists the connections, and calls a procedure that a client serves", async () => {
-    const port = await freePort();
-    const peer: Peer = await createPeer({ id: "peer-reverse", registry: new ProcedureRegistry(), transports: [{ type: "websocket", port, host: "127.0.0.1" }] });
+    const peer: Peer = await createPeer({ id: "peer-reverse", registry: new ProcedureRegistry(), transports: [{ type: "websocket", port: 0, host: "127.0.0.1" }] });
     await peer.start();
+    const port = portOf(peer);
     cleanups.push(() => peer.stop());
 
     const served = new ProcedureServer({
