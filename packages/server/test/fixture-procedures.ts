@@ -4,8 +4,8 @@ import { PROCEDURE_REGISTRY, createProcedure, outputSchema } from "@procedures/c
 
 const hello = createProcedure()
   .path(["fixture", "hello"])
-  .input(outputSchema())
-  .output(outputSchema())
+  .input(outputSchema<unknown>())
+  .output(outputSchema<string>())
   .handler(() => "hello")
   .build();
 

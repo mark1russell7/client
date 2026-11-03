@@ -35,7 +35,7 @@ const SERVER_BIN = fileURLToPath(new URL("../dist/cli.js", import.meta.url));
 /** The bin of `mark`, from the workspace. `@procedures/mark` depends on this package, not the reverse. */
 const MARK_BIN = fileURLToPath(new URL("../../mark/dist/bin.js", import.meta.url));
 /** The procedures `lifecycle.ticks`, `lifecycle.ticksOnce` and `lifecycle.count`, for `--procedures`. */
-const FIXTURE = new URL("./fixture-lifecycle.mjs", import.meta.url).href;
+const FIXTURE = new URL("./fixture-lifecycle.ts", import.meta.url).href;
 
 /** The margin over the sum of the caps of the stages: the signal, the exit of Node and a slow runner. */
 const MARGIN_MS = 5_000;

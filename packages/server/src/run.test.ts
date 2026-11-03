@@ -13,9 +13,9 @@ import { HttpTransport, WebSocketTransport, subscribeRemote, type RemoteEvent } 
 import { parseConfig } from "./config.js";
 import { startServer, type RunningServer } from "./run.js";
 
-const FIXTURE = pathToFileURL(fileURLToPath(new URL("../test/fixture-procedures.mjs", import.meta.url))).href;
-const PUBLISH_FIXTURE = pathToFileURL(fileURLToPath(new URL("../test/fixture-publish.mjs", import.meta.url))).href;
-const READ_FIXTURE = pathToFileURL(fileURLToPath(new URL("../test/fixture-read.mjs", import.meta.url))).href;
+const FIXTURE = pathToFileURL(fileURLToPath(new URL("../test/fixture-procedures.ts", import.meta.url))).href;
+const PUBLISH_FIXTURE = pathToFileURL(fileURLToPath(new URL("../test/fixture-publish.ts", import.meta.url))).href;
+const READ_FIXTURE = pathToFileURL(fileURLToPath(new URL("../test/fixture-read.ts", import.meta.url))).href;
 
 
 /**
