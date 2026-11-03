@@ -141,7 +141,7 @@ jobs:
       # Importing a package registers nothing: only its ./register entry does (2026-10-13, P9)
       - name: Check the side effects of the imports
         if: ${{ !cancelled() }}
-        run: node scripts/check-side-effects.mjs
+        run: node scripts/check-side-effects.ts
       # The browser entries (`client.browser` of each package.json) reach no Node built-in, with
       # or without the prefix node: (CLI-39). First the tests of the check, then the check.
       - name: Check the browser entries

@@ -77,11 +77,11 @@ try {
       if (!packed[field]) fail(`${pkg.name}: the packed package.json has no ${field}`);
     }
     // Since P9 (2026-10-13) a root registers nothing: only ./register does. This rule agrees with
-    // scripts/check-side-effects.mjs (roadmap R8: before, it asked a root that imports
+    // scripts/check-side-effects.ts (roadmap R8: before, it asked a root that imports
     // register.js to keep ./dist/index.js in sideEffects, the rule of the time before P9).
     const index = join(pkg.path, "src", "index.ts");
     if (existsSync(index) && /["']\.\/register\.js["']/.test(readFileSync(index, "utf8"))) {
-      fail(`${pkg.name}: src/index.ts imports ./register.js, so an import of the root registers procedures (scripts/check-side-effects.mjs)`);
+      fail(`${pkg.name}: src/index.ts imports ./register.js, so an import of the root registers procedures (scripts/check-side-effects.ts)`);
     }
     for (const required of ["package/LICENSE", "package/README.md"]) {
       try {

@@ -133,7 +133,7 @@ The CI names below are the jobs and the steps of `.github/workflows/ci.yml`.
 
 - **Rule.** A package defines its procedures through the module and registry API (`defineModule()`, `createRegistry()`). A collection gets its procedures from `createCollectionProcedures()`. An import of a package registers nothing. Only its `./register` entry registers procedures (P9).
 - **Reason.** A host then knows each procedure from data, and two registries in one process stay apart. A bundler can drop each module that a page does not use.
-- **Guard.** The step "Check the side effects of the imports" (`scripts/check-side-effects.mjs`). The step "Audit the packages" (`mark lib audit`) compares each package with the template of `lib new`. A procedure without `metadata.effects` is only a warning.
+- **Guard.** The step "Check the side effects of the imports" (`scripts/check-side-effects.ts`). The step "Audit the packages" (`mark lib audit`) compares each package with the template of `lib new`. A procedure without `metadata.effects` is only a warning.
 
 ### I3. Paths and topics
 
