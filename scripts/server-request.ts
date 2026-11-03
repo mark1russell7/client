@@ -23,7 +23,7 @@
  * warm-up calls of `REQUESTS`, then the timed calls, one after the other. It gives the median time
  * per call. A `request` sample starts its own fresh host child (`--serve`) and stops it at the end.
  *
- * The rounds are `measureIsolated()` of `lib/paired-time.mjs` in mode `fresh`: each round has one
+ * The rounds are `measureIsolated()` of `lib/paired-time.ts` in mode `fresh`: each round has one
  * sample of each case and arm, with the A/A arm `request~aa`. The order of the arms rotates each round.
  * The share of a case is `shareOf()` of the samples of its two arms. Its 95 % interval is the percentile bootstrap
  * `bootstrapMedianRatio()` of rigor-statistics, with `SHARE_BOOTSTRAP` (10 000 runs, seed 1).
@@ -59,8 +59,8 @@ import { createInterface } from "node:readline";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { bootstrapLeastSquares, bootstrapMedianRatio, leastSquares, type Interval } from "@mark1russell7/rigor-statistics";
 import { runnerContext } from "./bench-context.ts";
-import { bandOf, roundRatios, type Band } from "./bench-paired.mjs";
-import { aaId, measureIsolated, quantileOf, type PairedInput, type PairedReport } from "./lib/paired-time.mjs";
+import { bandOf, roundRatios, type Band } from "./bench-paired.ts";
+import { aaId, measureIsolated, quantileOf, type PairedInput, type PairedReport } from "./lib/paired-time.ts";
 import { PROFILE_FORMAT, profileAnalysisOf, profileMarkdownOf, type CpuProfile, type ProfileRecord } from "./server-request-profile.ts";
 
 /** The format of the record. The format 3 adds the bytes of each case and the fit (O94). */

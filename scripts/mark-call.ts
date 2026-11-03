@@ -13,8 +13,8 @@
  * 1. The manifest: one call of each tree writes `dist/manifest.json` when it is stale. Then the
  *    `readFreshManifest()` of the tree must find it fresh. A stale manifest makes the head load each
  *    package, so the script then fails. After all calls, the manifest must not have changed.
- * 2. The rounds: `measureIsolated()` of `lib/paired-time.mjs` in mode `fresh`, with the arms `base`
- *    and `head` and the A/A arm. `analyzeInput()` of `bench-paired.mjs` gives the verdict at the budget.
+ * 2. The rounds: `measureIsolated()` of `lib/paired-time.ts` in mode `fresh`, with the arms `base`
+ *    and `head` and the A/A arm. `analyzeInput()` of `bench-paired.ts` gives the verdict at the budget.
  * 3. The named costs: CPU profiles of calls of each tree, grouped by file (`selfTimesOf()` of
  *    `setup-profile.ts`) and by the rows of `NAMED_ROWS`.
  * 4. The loaded packages: one call of each tree with the hook `setup-profile-hook.ts`.
@@ -28,9 +28,9 @@ import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { runnerContext } from "./bench-context.ts";
-import { analyzeInput, runMarkdown, type Analysis } from "./bench-paired.mjs";
+import { analyzeInput, runMarkdown, type Analysis } from "./bench-paired.ts";
 import { MARK_CALL, optionOf, startMark } from "./compile-cache.ts";
-import { measureIsolated, quantileOf, type PairedReport } from "./lib/paired-time.mjs";
+import { measureIsolated, quantileOf, type PairedReport } from "./lib/paired-time.ts";
 import { groupOf, keyOf, selfTimesOf, type CpuProfile } from "./setup-profile.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -282,7 +282,7 @@ export function markdownOf(record: MarkCallRecord): string {
     "",
     "## The verdict",
     "",
-    `The verdict at the budget ${record.budget} is the gate. The interval rule of STRATEGY gives it (\`analyzeInput\` of \`scripts/bench-paired.mjs\`).`,
+    `The verdict at the budget ${record.budget} is the gate. The interval rule of STRATEGY gives it (\`analyzeInput\` of \`scripts/bench-paired.ts\`).`,
     "",
     "| Base median ms | Head median ms | Base - head (median) ms | Round differences p10 to p90 ms | Head/base | A/A p10 to p90 | Effect interval | Verdict |",
     "|---|---|---|---|---|---|---|---|",
@@ -339,7 +339,7 @@ export function markdownOf(record: MarkCallRecord): string {
   }
   lines.push("");
   for (const side of SIDES) lines.push(`- The packages of the ${side}: ${record.packages[side].packages.map((name) => `\`${name}\``).join(", ")}.`);
-  lines.push("", runMarkdown(record as unknown as Record<string, unknown>));
+  lines.push("", runMarkdown(record));
   return `${lines.join("\n")}\n`;
 }
 

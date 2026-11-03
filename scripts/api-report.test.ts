@@ -1,6 +1,6 @@
 // The tests of the reports of the public API (roadmap R30, CLI-86): the reader of the declaration
 // files, the entries of the exports field, and the script on fixture packages in a temporary folder.
-// Start them with: node --test scripts/api-report.test.mjs
+// Start them with: node --test scripts/api-report.test.ts
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -9,15 +9,15 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { apiReport, entriesOf, packageFolders, packageReport, parseDeclarations, statementsOf, targetOf } from "./lib/api-report.mjs";
+import { apiReport, entriesOf, packageFolders, packageReport, parseDeclarations, statementsOf, targetOf } from "./lib/api-report.ts";
 
-const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "api-report.mjs");
+const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "api-report.ts");
 const temp = mkdtempSync(join(tmpdir(), "api-report-"));
 after(() => rmSync(temp, { recursive: true, force: true }));
 let fixtures = 0;
 
 /** This function writes a fixture folder, and gives its path. */
-function fixture(files) {
+function fixture(files: Readonly<Record<string, unknown>>): string {
   const root = join(temp, String(fixtures++));
   for (const [file, text] of Object.entries(files)) {
     mkdirSync(dirname(join(root, file)), { recursive: true });
@@ -27,7 +27,7 @@ function fixture(files) {
 }
 
 /** The report of a fixture package, without its header of five lines. */
-function body(files) {
+function body(files: Readonly<Record<string, unknown>>): string {
   return packageReport(fixture(files)).split("\n").slice(5).join("\n");
 }
 
@@ -78,9 +78,9 @@ describe("the kinds of the statements", () => {
   });
 
   it("knows a default function or class without a name", () => {
-    assert.equal(parseDeclarations("export default function (a: string): void;").locals.get("default").length, 1);
-    assert.equal(parseDeclarations("export default class extends A {\n    b: 1;\n}").exported.get("default").local, "default");
-    assert.equal(parseDeclarations("export default class C {\n}").exported.get("default").local, "C");
+    assert.equal(parseDeclarations("export default function (a: string): void;").locals.get("default")?.length, 1);
+    assert.equal(parseDeclarations("export default class extends A {\n    b: 1;\n}").exported.get("default")?.local, "default");
+    assert.equal(parseDeclarations("export default class C {\n}").exported.get("default")?.local, "C");
   });
 
   it("gives each name of a declaration with two declarators", () => {
@@ -285,14 +285,14 @@ describe("the report of a package", () => {
   });
 
   it("gives the same text for CRLF line ends", () => {
-    const files = (end) => ({ "package.json": { name: "p", types: "./index.d.ts" }, "index.d.ts": ["export interface A {", "    b: 1;", "}", ""].join(end) });
+    const files = (end: string) => ({ "package.json": { name: "p", types: "./index.d.ts" }, "index.d.ts": ["export interface A {", "    b: 1;", "}", ""].join(end) });
     assert.equal(body(files("\r\n")), body(files("\n")));
     assert.equal(apiReport("p", fixture({}), []).includes("\r"), false);
   });
 });
 
 describe("the script", () => {
-  const run = (cwd, ...args) => spawnSync(process.execPath, [SCRIPT, ...args], { cwd, encoding: "utf8" });
+  const run = (cwd: string, ...args: string[]) => spawnSync(process.execPath, [SCRIPT, ...args], { cwd, encoding: "utf8" });
   const workspace = () =>
     fixture({
       "package.json": { name: "root", private: true },

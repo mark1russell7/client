@@ -2,8 +2,8 @@
 /**
  * This script is the child of the paired A/B bench (O83): one arm, one input, one round, in a fresh process.
  *
- *   node scripts/bench-paired-child.mjs --tree <folder> --list
- *   node scripts/bench-paired-child.mjs --tree <folder> --input <id> --warmup <n> [--compile-cache <folder | fresh>]
+ *   node scripts/bench-paired-child.ts --tree <folder> --list
+ *   node scripts/bench-paired-child.ts --tree <folder> --input <id> --warmup <n> [--compile-cache <folder | fresh>]
  *
  * The folder is a checkout of this repository with a build of `@procedures/client` and
  * `@procedures/collections`. The script loads the built modules of that folder, and not of the
@@ -43,20 +43,52 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+/** A package of the code under test. */
+export type Pkg = "client" | "collections";
+
 /** The modules of each package that the workloads use, relative to the root of a tree. */
-export const MODULES = {
+export const MODULES: Readonly<Record<Pkg, readonly string[]>> = {
   client: ["packages/client/dist/client/index.js", "packages/client/dist/adapters/local/client/index.js", "packages/client/dist/procedures/index.js"],
   collections: ["packages/client-collections/dist/storage/memory.js"],
 };
 
 /** The exports of each package that the workloads use. */
-export const EXPORTS = {
+export const EXPORTS: Readonly<Record<Pkg, readonly string[]>> = {
   client: ["Client", "LocalTransport", "allCoreProcedures", "ProcedureRegistry", "createRefScope", "hydrateInput", "narrowCapability"],
   collections: ["InMemoryStorage"],
 };
 
+/** A procedure registry of a tree: the part that the workloads use. */
+interface Registry {
+  register(procedure: unknown): unknown;
+}
+
+/** A storage of a tree: the part that the workloads use. */
+interface Storage {
+  setBatch(items: readonly (readonly [string, unknown])[]): unknown;
+  set(id: string, value: unknown): unknown;
+  get(id: string): unknown;
+  getAll(): unknown;
+  getChangesSince(since?: string): Promise<{ readonly version: string }>;
+}
+
+/**
+ * The exports of the modules of a tree that the workloads use (`EXPORTS`). The modules come from
+ * the build of another checkout, so this type names only the parts that the workloads call.
+ */
+export interface TreeModules {
+  readonly Client: new (transport: unknown) => { useRegistry(registry: Registry): { exec(proc: unknown): unknown } };
+  readonly LocalTransport: new (options: { readonly registry: Registry }) => unknown;
+  readonly allCoreProcedures: Iterable<unknown>;
+  readonly ProcedureRegistry: new () => Registry;
+  readonly createRefScope: () => { readonly outputs: Map<string, unknown> };
+  readonly hydrateInput: (data: unknown, call: () => Promise<unknown>, options: { readonly scope: unknown }) => unknown;
+  readonly narrowCapability: (...args: readonly unknown[]) => unknown;
+  readonly InMemoryStorage: new (options: { readonly copies: boolean }) => Storage;
+}
+
 /** An item of the size of a procedure record, as in `storage.bench.ts`. */
-const item = (/** @type {number} */ n) => ({
+const item = (n: number) => ({
   path: ["bench", "items", `item${n}`],
   metadata: { description: `The item number ${n}`, tags: ["bench", "storage", `n${n % 10}`], effects: { reads: ["collection:items"], writes: [] } },
   storedAt: 1_760_000_000_000 + n,
@@ -64,11 +96,11 @@ const item = (/** @type {number} */ n) => ({
 const COUNT = 1000;
 
 /** The core workloads of `core.bench.ts`. */
-async function coreSetup(/** @type {Record<string, any>} */ m) {
+async function coreSetup(m: TreeModules) {
   const registry = new m.ProcedureRegistry();
   for (const procedure of m.allCoreProcedures) registry.register(procedure);
   const client = new m.Client(new m.LocalTransport({ registry })).useRegistry(registry);
-  const add = (/** @type {unknown} */ a, /** @type {unknown} */ b) => ({ $proc: ["client", "add"], input: { a, b } });
+  const add = (a: unknown, b: unknown) => ({ $proc: ["client", "add"], input: { a, b } });
   const chain = { $proc: ["client", "chain"], input: { steps: [add(0, 1), ...Array.from({ length: 49 }, () => add({ $ref: "$last" }, 1))] } };
   const map = { $proc: ["client", "map"], input: { items: Array.from({ length: 100 }, (_, index) => index), fn: add({ $ref: "item" }, 1) } };
   const scope = m.createRefScope();
@@ -78,34 +110,40 @@ async function coreSetup(/** @type {Record<string, any>} */ m) {
 }
 
 /** The storages of `storage.bench.ts`, with or without copies. */
-async function storageSetup(/** @type {Record<string, any>} */ m, /** @type {boolean} */ copies) {
-  const items = Array.from({ length: COUNT }, (_, n) => [`item${n}`, item(n)]);
+async function storageSetup(m: TreeModules, copies: boolean): Promise<Storage> {
+  const items = Array.from({ length: COUNT }, (_, n) => [`item${n}`, item(n)] as const);
   const storage = new m.InMemoryStorage({ copies });
   await storage.setBatch(items);
   return storage;
 }
 
 /** A storage with ten changes after a version, for a small delta. */
-async function deltaSetup(/** @type {Record<string, any>} */ m, /** @type {boolean} */ copies) {
+async function deltaSetup(m: TreeModules, copies: boolean) {
   const storage = await storageSetup(m, copies);
   const { version } = await storage.getChangesSince();
   for (let index = 0; index < 10; index++) await storage.set(`item${index}`, item(index + COUNT));
   return { storage, version };
 }
 
-/**
- * @typedef {object} Workload One workload: a benchmark of a bench file.
- * @property {string} id The name of the benchmark in its bench file
- * @property {"client" | "collections"} pkg The package of the code under test
- * @property {string} file The bench file of the benchmark
- * @property {number} calls The calls of one pass: about 100 ms on the runners of the nightly of 2026-11-02
- * @property {boolean} [sync] The value `true` calls without `await`, as the bench file does
- * @property {"setup" | "cold" | "warm"} [measure] The setup, the cold or the warm measure of a core workload (O90). Without it, the fixed pass
- * @property {(m: Record<string, any>) => Promise<() => unknown>} make The setup: it gives one call
- */
+/** One workload: a benchmark of a bench file. */
+export interface Workload {
+  /** The name of the benchmark in its bench file */
+  readonly id: string;
+  /** The package of the code under test */
+  readonly pkg: Pkg;
+  /** The bench file of the benchmark */
+  readonly file: string;
+  /** The calls of one pass: about 100 ms on the runners of the nightly of 2026-11-02 */
+  readonly calls: number;
+  /** The value `true` calls without `await`, as the bench file does */
+  readonly sync?: boolean;
+  /** The setup, the cold or the warm measure of a core workload (O90). Without it, the fixed pass */
+  readonly measure?: "setup" | "cold" | "warm";
+  /** The setup: it gives one call */
+  readonly make: (m: TreeModules) => Promise<() => unknown>;
+}
 
-/** @type {Workload[]} */
-const FIXED = [
+const FIXED: readonly Workload[] = [
   { id: "exec-one-call", pkg: "client", file: "packages/client/bench/core.bench.ts", calls: 40_000, make: async (m) => { const s = await coreSetup(m); return () => s.client.exec(s.add(1, 2)); } },
   { id: "exec-chain-50", pkg: "client", file: "packages/client/bench/core.bench.ts", calls: 450, make: async (m) => { const s = await coreSetup(m); return () => s.client.exec(s.chain); } },
   { id: "exec-map-100", pkg: "client", file: "packages/client/bench/core.bench.ts", calls: 200, make: async (m) => { const s = await coreSetup(m); return () => s.client.exec(s.map); } },
@@ -131,41 +169,37 @@ export const COLD_CALLS = 20;
 export const WARM = { agree: 3, ratio: 1.05, min: 10, max: 60 };
 
 /** The core workloads, which also have a cold and a warm measure. */
-export const CORE = ["exec-one-call", "exec-chain-50", "exec-map-100", "hydrate-200-refs"];
+export const CORE: readonly string[] = ["exec-one-call", "exec-chain-50", "exec-map-100", "hydrate-200-refs"];
 
 /**
  * The workloads: the fixed passes, then the setup, the cold and the warm measure of each core
  * workload. The `calls` of a warm workload is the size of one chunk.
- * @type {Workload[]}
  */
-export const WORKLOADS = [
+export const WORKLOADS: readonly Workload[] = [
   ...FIXED,
-  ...FIXED.filter((w) => CORE.includes(w.id)).flatMap((w) => [
-    { ...w, id: `${w.id}-setup`, measure: /** @type {const} */ ("setup"), calls: 1 },
-    { ...w, id: `${w.id}-cold`, measure: /** @type {const} */ ("cold"), calls: COLD_CALLS },
-    { ...w, id: `${w.id}-warm`, measure: /** @type {const} */ ("warm"), calls: Math.max(1, Math.round(w.calls / 5)) },
+  ...FIXED.filter((w) => CORE.includes(w.id)).flatMap((w): Workload[] => [
+    { ...w, id: `${w.id}-setup`, measure: "setup", calls: 1 },
+    { ...w, id: `${w.id}-cold`, measure: "cold", calls: COLD_CALLS },
+    { ...w, id: `${w.id}-warm`, measure: "warm", calls: Math.max(1, Math.round(w.calls / 5)) },
   ]),
 ];
 
 /**
  * This function loads the modules of a package from a tree, and gives their exports in one object.
  * A missing module file gives `undefined`.
- * @param {string} tree
- * @param {"client" | "collections"} pkg
  */
-export async function loadPackage(tree, pkg) {
+export async function loadPackage(tree: string, pkg: Pkg): Promise<Record<string, unknown> | undefined> {
   const files = MODULES[pkg].map((file) => join(tree, file));
   if (!files.every((file) => existsSync(file))) return undefined;
-  /** @type {Record<string, any>} */
-  const merged = {};
+  const merged: Record<string, unknown> = {};
   for (const file of files) Object.assign(merged, await import(pathToFileURL(file).href));
   return merged;
 }
 
 /** This function gives the ids of the workloads whose package and exports the tree has. */
-export async function listOf(/** @type {string} */ tree) {
-  const ids = [];
-  for (const pkg of /** @type {const} */ (["client", "collections"])) {
+export async function listOf(tree: string): Promise<string[]> {
+  const ids: string[] = [];
+  for (const pkg of ["client", "collections"] as const) {
     const m = await loadPackage(tree, pkg);
     if (m === undefined || !EXPORTS[pkg].every((name) => m[name] !== undefined)) continue;
     ids.push(...WORKLOADS.filter((w) => w.pkg === pkg).map((w) => w.id));
@@ -173,13 +207,8 @@ export async function listOf(/** @type {string} */ tree) {
   return ids;
 }
 
-/**
- * This function does one pass of a workload: `calls` calls, one after the other.
- * @param {() => unknown} call
- * @param {number} calls
- * @param {boolean} sync
- */
-export async function pass(call, calls, sync) {
+/** This function does one pass of a workload: `calls` calls, one after the other. */
+export async function pass(call: () => unknown, calls: number, sync: boolean): Promise<void> {
   if (sync) for (let i = 0; i < calls; i++) call();
   else for (let i = 0; i < calls; i++) await call();
 }
@@ -187,12 +216,8 @@ export async function pass(call, calls, sync) {
 /**
  * This function does the warm-up passes untimed, then one timed pass, and gives the time of one
  * call in milliseconds.
- * @param {Workload} workload
- * @param {() => unknown} call
- * @param {number} warmup
- * @param {() => number} [clock]
  */
-export async function timeWorkload(workload, call, warmup, clock = () => performance.now()) {
+export async function timeWorkload(workload: Workload, call: () => unknown, warmup: number, clock: () => number = () => performance.now()): Promise<number> {
   if (workload.measure === "warm") return (await timeWarm(workload, call, clock)).ms;
   if (workload.measure !== "cold") for (let w = 0; w < warmup; w++) await pass(call, workload.calls, workload.sync === true);
   const start = clock();
@@ -200,11 +225,8 @@ export async function timeWorkload(workload, call, warmup, clock = () => perform
   return (clock() - start) / workload.calls;
 }
 
-/**
- * This function gives the median of a list of numbers.
- * @param {readonly number[]} values
- */
-const medianOf = (values) => {
+/** This function gives the median of a list of numbers. */
+const medianOf = (values: readonly number[]): number => {
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
@@ -212,10 +234,9 @@ const medianOf = (values) => {
 
 /**
  * This function tells if the last `WARM.agree` chunk times are stable: their max / min is at most
- * `WARM.ratio`, after at least `WARM.min` chunks.
- * @param {readonly number[]} times The time per call of each chunk, in order
+ * `WARM.ratio`, after at least `WARM.min` chunks. The `times` are the time per call of each chunk, in order.
  */
-export function isStable(times) {
+export function isStable(times: readonly number[]): boolean {
   if (times.length < Math.max(WARM.min, WARM.agree)) return false;
   const last = times.slice(-WARM.agree);
   return Math.max(...last) <= Math.min(...last) * WARM.ratio;
@@ -224,14 +245,9 @@ export function isStable(times) {
 /**
  * This function times chunks of a workload until the time per call is stable, and gives the warm
  * time: the median of the last `WARM.agree` chunks.
- * @param {Workload} workload
- * @param {() => unknown} call
- * @param {() => number} [clock]
- * @returns {Promise<{ ms: number, chunks: number, stable: boolean }>}
  */
-export async function timeWarm(workload, call, clock = () => performance.now()) {
-  /** @type {number[]} */
-  const times = [];
+export async function timeWarm(workload: Workload, call: () => unknown, clock: () => number = () => performance.now()): Promise<{ ms: number; chunks: number; stable: boolean }> {
+  const times: number[] = [];
   while (times.length < WARM.max && !isStable(times)) {
     const start = clock();
     await pass(call, workload.calls, workload.sync === true);
@@ -242,13 +258,10 @@ export async function timeWarm(workload, call, clock = () => performance.now()) 
 
 /**
  * This function does the first call of a workload, and gives the time from the start of the process
- * to its end, in milliseconds.
- * @param {Workload} workload
- * @param {() => unknown} call
- * @param {() => number} [clock] A clock whose origin is the start of the process
- * @param {() => void} [end] The last step of the setup before the clock is read, for example the write of the compile cache
+ * to its end, in milliseconds. The `clock` has its origin at the start of the process. The `end` is
+ * the last step of the setup before the clock is read, for example the write of the compile cache.
  */
-export async function timeSetup(workload, call, clock = () => performance.now(), end = () => {}) {
+export async function timeSetup(workload: Workload, call: () => unknown, clock: () => number = () => performance.now(), end: () => void = () => {}): Promise<number> {
   await pass(call, 1, workload.sync === true);
   end();
   return clock();
@@ -257,9 +270,8 @@ export async function timeSetup(workload, call, clock = () => performance.now(),
 /**
  * This function enables the compile cache in a folder, and gives the folder that Node.js uses.
  * It throws when the cache does not start: a bench arm with no cache must not pass as a cache arm.
- * @param {string} dir
  */
-export function enableCompileCache(dir) {
+export function enableCompileCache(dir: string): string {
   if (typeof module.enableCompileCache !== "function") throw new Error(`Node.js ${process.version} has no module.enableCompileCache (22.1 or later)`);
   const result = module.enableCompileCache(dir);
   const { ENABLED, ALREADY_ENABLED } = module.constants.compileCacheStatus;
@@ -268,7 +280,7 @@ export function enableCompileCache(dir) {
 }
 
 /** This function gives the value of an option of the command line, or `undefined`. */
-const optionOf = (/** @type {string[]} */ argv, /** @type {string} */ name) => {
+const optionOf = (argv: readonly string[], name: string): string | undefined => {
   const at = argv.indexOf(name);
   return at >= 0 ? argv[at + 1] : undefined;
 };
@@ -277,7 +289,7 @@ if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathS
   const argv = process.argv.slice(2);
   const treeArg = optionOf(argv, "--tree");
   if (treeArg === undefined) {
-    console.error("Usage: node scripts/bench-paired-child.mjs --tree <folder> (--list | --input <id> --warmup <n>)");
+    console.error("Usage: node scripts/bench-paired-child.ts --tree <folder> (--list | --input <id> --warmup <n>)");
     process.exit(2);
   }
   const tree = resolve(treeArg);
@@ -301,7 +313,7 @@ if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathS
       console.error(`${tree}: the build of the package ${workload.pkg} is missing (${MODULES[workload.pkg].join(", ")}).`);
       process.exit(1);
     }
-    const call = await workload.make(m);
+    const call = await workload.make(m as unknown as TreeModules);
     // The value maxRSS of Node.js is in kilobytes
     if (workload.measure === "setup") {
       const ms = await timeSetup(workload, call, undefined, cache === undefined ? undefined : () => module.flushCompileCache());

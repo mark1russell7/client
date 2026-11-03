@@ -6,7 +6,7 @@
  *   node scripts/setup-profile.ts --base <folder> --head <folder> [--base-ref <sha>] [--head-ref <sha>]
  *     [--inputs <id>,<id>] [--repeats <n>] [--head-cache <folder>] --out <file.json>
  *
- * Each repeat starts the child `bench-paired-child.mjs` once in each tree, with `--input <id>`,
+ * Each repeat starts the child `bench-paired-child.ts` once in each tree, with `--input <id>`,
  * `--cpu-prof` and the hook `setup-profile-hook.ts`. The order of the trees changes at each repeat.
  * The self time of a file is the time of the CPU samples in the code of that file: its compile, its
  * evaluation and the calls of its functions. Samples with no file go to their name, for example
@@ -246,7 +246,7 @@ function profileOnce(tree: string, input: string, cache?: string): Repeat {
     const modulesFile = join(dir, "modules.json");
     const r = spawnSync(
       process.execPath,
-      ["--cpu-prof", "--cpu-prof-dir", dir, "--cpu-prof-interval", "100", "--import", pathToFileURL(join(HERE, "setup-profile-hook.ts")).href, join(HERE, "bench-paired-child.mjs"), "--tree", tree, "--input", input, "--warmup", "0", ...(cache === undefined ? [] : ["--compile-cache", cache])],
+      ["--cpu-prof", "--cpu-prof-dir", dir, "--cpu-prof-interval", "100", "--import", pathToFileURL(join(HERE, "setup-profile-hook.ts")).href, join(HERE, "bench-paired-child.ts"), "--tree", tree, "--input", input, "--warmup", "0", ...(cache === undefined ? [] : ["--compile-cache", cache])],
       { encoding: "utf8", env: { ...process.env, SETUP_PROFILE_MODULES: modulesFile } },
     );
     if (r.status !== 0) throw new Error(`${tree} ${input}: the child exited with ${r.status}: ${r.stderr}`);
