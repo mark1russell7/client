@@ -225,13 +225,6 @@ export async function timeWorkload(workload: Workload, call: () => unknown, warm
   return (clock() - start) / workload.calls;
 }
 
-/** This function gives the median of a list of numbers. */
-const medianOf = (values: readonly number[]): number => {
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-};
-
 /**
  * This function tells if the last `WARM.agree` chunk times are stable: their max / min is at most
  * `WARM.ratio`, after at least `WARM.min` chunks. The `times` are the time per call of each chunk, in order.
@@ -253,7 +246,10 @@ export async function timeWarm(workload: Workload, call: () => unknown, clock: (
     await pass(call, workload.calls, workload.sync === true);
     times.push((clock() - start) / workload.calls);
   }
-  return { ms: medianOf(times.slice(-WARM.agree)), chunks: times.length, stable: isStable(times) };
+  // The import comes after the last chunk, thus no time of this process counts the load of the module.
+  // The module has no dependencies: the paired bench starts this file from a checkout with no install
+  const { quantileOf } = await import("./lib/paired-time.ts");
+  return { ms: quantileOf(times.slice(-WARM.agree), 0.5), chunks: times.length, stable: isStable(times) };
 }
 
 /**
