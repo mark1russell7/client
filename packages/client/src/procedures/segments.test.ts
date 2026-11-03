@@ -82,7 +82,7 @@ describe("segmentsToTopic and topicToSegments (CLI-75)", () => {
   });
 });
 
-describe("the fast paths of the escape (roadmap O90)", () => {
+describe("the fast path of the escape (roadmap O90): the same text as before", () => {
   // The forms before the fast paths: the fast paths must give the same text for each input
   const encodeBefore = (segment: string) => segment.replace(/[%.]/g, (char) => (char === "%" ? "%25" : "%2E"));
   const decodeBefore = (segment: string) => segment.replace(/%(25|2[Ee])/g, (_sequence, code: string) => (code === "25" ? "%" : "."));
