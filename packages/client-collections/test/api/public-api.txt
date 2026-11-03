@@ -4,7 +4,7 @@
 # and private members. The script scripts/api-report.mjs compares this file with the built .d.ts files.
 # To accept a change of the API, start the script with --update and review the diff.
 
-## . (dist/index.d.ts): 429 names
+## . (dist/index.d.ts): 430 names
 
 ArrayConvertible: dist/core/traits.d.ts#ArrayConvertible
 ArrayDeque: dist/impl/array-deque.d.ts#ArrayDeque
@@ -169,6 +169,7 @@ type StorageSetChange: dist/storage/interface.d.ts#StorageSetChange
 type StorageSort: @procedures/client/query#StorageSort (external)
 type StorageSortDirection: @procedures/client/query#StorageSortDirection (external)
 type StorageWriteOptions: dist/storage/interface.d.ts#StorageWriteOptions
+type SummaryLocation: dist/impl/summary-tree.d.ts#SummaryLocation
 type SummaryMonoid: dist/impl/summary-tree.d.ts#SummaryMonoid
 type SummarySearch: dist/impl/summary-tree.d.ts#SummarySearch
 type SummarySpec: dist/impl/summary-tree.d.ts#SummarySpec
@@ -1870,6 +1871,13 @@ export interface PriorityQueueOptions<T> {
 ### dist/impl/priority-queue.d.ts#priorityQueue
 export declare function priorityQueue<T>(optionsOrElementsOrComparator?: PriorityQueueOptions<T> | Iterable<T> | Compare<T>): PriorityQueue<T>;
 
+### dist/impl/summary-tree.d.ts#SummaryLocation
+export interface SummaryLocation<Leaf> {
+    readonly index: number;
+    readonly leaf: Leaf;
+    readonly offset: number;
+}
+
 ### dist/impl/summary-tree.d.ts#SummaryMonoid
 export interface SummaryMonoid<Summary> {
     readonly empty: Summary;
@@ -1888,6 +1896,7 @@ export interface SummarySearch<Leaf, Summary> {
 export interface SummarySpec<Leaf, Summary> {
     readonly monoid: SummaryMonoid<Summary>;
     readonly measure: (leaf: Leaf) => Summary;
+    readonly merge?: (left: Leaf, right: Leaf) => Leaf | undefined;
 }
 
 ### dist/impl/summary-tree.d.ts#SummaryTree
@@ -1905,6 +1914,7 @@ export declare class SummaryTree<Leaf, Summary> implements Iterable<Leaf> {
     splitAt(index: number): [SummaryTree<Leaf, Summary>, SummaryTree<Leaf, Summary>];
     split(predicate: (prefix: Summary) => boolean): [SummaryTree<Leaf, Summary>, SummaryTree<Leaf, Summary>];
     search(predicate: (prefix: Summary) => boolean): SummarySearch<Leaf, Summary> | undefined;
+    locate(key: (summary: Summary) => number, target: number): SummaryLocation<Leaf> | undefined;
     slice(start?: number, end?: number): SummaryTree<Leaf, Summary>;
     splice(start: number, deleteCount?: number, inserted?: SummaryTree<Leaf, Summary> | Iterable<Leaf>): SummaryTree<Leaf, Summary>;
     insert(index: number, inserted: SummaryTree<Leaf, Summary> | Iterable<Leaf>): SummaryTree<Leaf, Summary>;

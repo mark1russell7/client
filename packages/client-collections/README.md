@@ -414,6 +414,9 @@ const deque = new ArrayDeque<Message>(); // Double-ended queue
 
 - `concat`, `splitAt`, `split`, `slice`, `splice`, `insert`, `remove`, `set` and `at` are O(log n).
 - `split(predicate)` splits before the first leaf whose prefix summary satisfies a monotone predicate. `search(predicate)` finds that leaf and changes nothing.
+- `locate(key, target)` finds the leaf that holds a position of an additive key, and the offset in that leaf. It calls no `combine`, so it costs nothing when `combine` is slow.
+- `set` and a `splice` of 8 leaves or fewer copy only the paths to their leaves. Each level of each path calls `combine` 1 or 2 times. A leaf that becomes two leaves costs one descent.
+- The optional `spec.merge(left, right)` joins two neighbor leaves into one at each seam that an edit makes. A rope uses it to keep its chunks large.
 - Each edit returns a new tree. The old tree does not change, and the two trees share the nodes that did not change.
 - The tree is an AVL tree, so its height is at most 1.45 log2(n + 2).
 
@@ -428,6 +431,7 @@ const lines = summaryTree(spec, ["first line", "second", "third"]);
 lines.summary; // 21
 const hit = lines.search((length) => length > 12); // { index: 1, leaf: "second", before: 10, through: 16 }
 const edited = lines.splice(1, 1, ["2nd"]); // lines does not change
+const at = lines.locate((length) => length, 12); // { index: 1, leaf: "second", offset: 2 }
 ```
 
 Use the same `spec` object for each tree that `concat` or `splice` joins. A tree of a different spec causes a `TypeError`.

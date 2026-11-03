@@ -35,6 +35,12 @@ export interface SummarySpec<Leaf, Summary> {
   readonly monoid: SummaryMonoid<Summary>;
   /** This function gives the summary of one leaf. */
   readonly measure: (leaf: Leaf) => Summary;
+  /**
+   * This optional function joins two neighbor leaves at a seam into one leaf, or gives `undefined` to keep both. A seam
+   * is the place where `concat`, `append`, `prepend`, `splice`, `insert` or `remove` puts two leaves next to each other.
+   * The tree calls it once at each seam, and not between the leaves that one call inserts. `set` does not call it.
+   */
+  readonly merge?: (left: Leaf, right: Leaf) => Leaf | undefined;
 }
 
 /** The result of a summary search: the first leaf whose prefix summary satisfies the predicate. */
@@ -48,12 +54,23 @@ export interface SummarySearch<Leaf, Summary> {
   readonly through: Summary;
 }
 
+/** The result of `locate`: the leaf that holds a position of an additive key, and the position in that leaf. */
+export interface SummaryLocation<Leaf> {
+  /** The index of the leaf. */
+  readonly index: number;
+  readonly leaf: Leaf;
+  /** The position in the leaf: the target minus the key of the leaves before the leaf. */
+  readonly offset: number;
+}
+
 /** One node of the tree. The tree never changes a node after it makes it. */
 interface Node<Leaf, Summary> {
   readonly left: Node<Leaf, Summary> | null;
   readonly leaf: Leaf;
   /** The summary of the leaf of this node only. */
   readonly own: Summary;
+  /** The summary of the leaves of the left subtree and the leaf of this node. A copy with the same left subtree and leaf keeps it. */
+  readonly inner: Summary;
   readonly right: Node<Leaf, Summary> | null;
   readonly height: number;
   readonly size: number;
@@ -79,28 +96,34 @@ class Builder<L, S> {
     return tree === null ? this.spec.monoid.empty : tree.summary;
   }
 
-  node(left: Tree<L, S>, leaf: L, own: S, right: Tree<L, S>): Node<L, S> {
-    const { combine } = this.spec.monoid;
-    const inner = left === null ? own : combine(left.summary, own);
+  /** This function makes a node. Give `inner` only when it is the summary of `left` and `own`, to save one `combine`. */
+  node(left: Tree<L, S>, leaf: L, own: S, right: Tree<L, S>, inner?: S): Node<L, S> {
+    if (inner === undefined) inner = left === null ? own : this.spec.monoid.combine(left.summary, own);
     return {
       left,
       leaf,
       own,
+      inner,
       right,
       height: 1 + Math.max(heightOf(left), heightOf(right)),
       size: sizeOf(left) + 1 + sizeOf(right),
-      summary: right === null ? inner : combine(inner, right.summary),
+      summary: right === null ? inner : this.spec.monoid.combine(inner, right.summary),
     };
+  }
+
+  /** This function copies a node with a new right subtree. It keeps the summary `inner`, so it calls `combine` once at most. */
+  withRight(n: Node<L, S>, right: Tree<L, S>): Node<L, S> {
+    return this.node(n.left, n.leaf, n.own, right, n.inner);
   }
 
   rotateLeft(n: Node<L, S>): Node<L, S> {
     const r = n.right!;
-    return this.node(this.node(n.left, n.leaf, n.own, r.left), r.leaf, r.own, r.right);
+    return this.node(this.withRight(n, r.left), r.leaf, r.own, r.right);
   }
 
   rotateRight(n: Node<L, S>): Node<L, S> {
     const l = n.left!;
-    return this.node(l.left, l.leaf, l.own, this.node(l.right, n.leaf, n.own, n.right));
+    return this.withRight(l, this.node(l.right, n.leaf, n.own, n.right));
   }
 
   /** This function joins a tree that is higher by more than 1 with a leaf and a lower tree on its right. */
@@ -108,39 +131,42 @@ class Builder<L, S> {
     const c = left.right;
     if (heightOf(c) <= heightOf(right) + 1) {
       const t = this.node(c, leaf, own, right);
-      if (t.height <= heightOf(left.left) + 1) return this.node(left.left, left.leaf, left.own, t);
-      return this.rotateLeft(this.node(left.left, left.leaf, left.own, this.rotateRight(t)));
+      if (t.height <= heightOf(left.left) + 1) return this.withRight(left, t);
+      return this.rotateLeft(this.withRight(left, this.rotateRight(t)));
     }
     const t = this.joinRight(c!, leaf, own, right);
-    const joined = this.node(left.left, left.leaf, left.own, t);
+    const joined = this.withRight(left, t);
     return t.height <= heightOf(left.left) + 1 ? joined : this.rotateLeft(joined);
   }
 
   /** This function joins a lower tree on the left with a leaf and a tree that is higher by more than 1. */
-  joinLeft(left: Tree<L, S>, leaf: L, own: S, right: Node<L, S>): Node<L, S> {
+  joinLeft(left: Tree<L, S>, leaf: L, own: S, right: Node<L, S>, inner?: S): Node<L, S> {
     const c = right.left;
     if (heightOf(c) <= heightOf(left) + 1) {
-      const t = this.node(left, leaf, own, c);
+      const t = this.node(left, leaf, own, c, inner);
       if (t.height <= heightOf(right.right) + 1) return this.node(t, right.leaf, right.own, right.right);
       return this.rotateRight(this.node(this.rotateLeft(t), right.leaf, right.own, right.right));
     }
-    const t = this.joinLeft(left, leaf, own, c!);
+    const t = this.joinLeft(left, leaf, own, c!, inner);
     const joined = this.node(t, right.leaf, right.own, right.right);
     return t.height <= heightOf(right.right) + 1 ? joined : this.rotateRight(joined);
   }
 
-  /** This function gives the tree of the leaves of `left`, then `leaf`, then the leaves of `right`. */
-  join(left: Tree<L, S>, leaf: L, own: S, right: Tree<L, S>): Node<L, S> {
+  /**
+   * This function gives the tree of the leaves of `left`, then `leaf`, then the leaves of `right`. Give `inner` only
+   * when it is the summary of `left` and `own`.
+   */
+  join(left: Tree<L, S>, leaf: L, own: S, right: Tree<L, S>, inner?: S): Node<L, S> {
     if (heightOf(left) > heightOf(right) + 1) return this.joinRight(left!, leaf, own, right);
-    if (heightOf(right) > heightOf(left) + 1) return this.joinLeft(left, leaf, own, right!);
-    return this.node(left, leaf, own, right);
+    if (heightOf(right) > heightOf(left) + 1) return this.joinLeft(left, leaf, own, right!, inner);
+    return this.node(left, leaf, own, right, inner);
   }
 
   /** This function removes the last leaf of a tree, and gives the rest and the node of that leaf. */
   splitLast(tree: Node<L, S>): [Tree<L, S>, Node<L, S>] {
     if (tree.right === null) return [tree.left, tree];
     const [rest, last] = this.splitLast(tree.right);
-    return [this.join(tree.left, tree.leaf, tree.own, rest), last];
+    return [this.join(tree.left, tree.leaf, tree.own, rest, tree.inner), last];
   }
 
   concat(left: Tree<L, S>, right: Tree<L, S>): Tree<L, S> {
@@ -159,7 +185,7 @@ class Builder<L, S> {
       return [a, this.join(b, tree.leaf, tree.own, tree.right)];
     }
     const [a, b] = this.splitAt(tree.right, index - before - 1);
-    return [this.join(tree.left, tree.leaf, tree.own, a), b];
+    return [this.join(tree.left, tree.leaf, tree.own, a, tree.inner), b];
   }
 
   /** This function splits a tree before the first leaf whose prefix summary, after `acc`, satisfies the predicate. */
@@ -174,7 +200,67 @@ class Builder<L, S> {
     const throughLeaf = combine(throughLeft, tree.own);
     if (predicate(throughLeaf)) return [tree.left, this.join(null, tree.leaf, tree.own, tree.right)];
     const [a, b] = this.splitBy(tree.right, predicate, throughLeaf);
-    return [this.join(tree.left, tree.leaf, tree.own, a), b];
+    return [this.join(tree.left, tree.leaf, tree.own, a, tree.inner), b];
+  }
+
+  /** This function replaces the leaf at an index in the tree. It copies only the path to the leaf. */
+  replaceAt(tree: Node<L, S>, index: number, leaf: L, own: S): Node<L, S> {
+    const before = sizeOf(tree.left);
+    if (index === before) return this.node(tree.left, leaf, own, tree.right);
+    if (index < before) return this.node(this.replaceAt(tree.left!, index, leaf, own), tree.leaf, tree.own, tree.right);
+    return this.withRight(tree, this.replaceAt(tree.right!, index - before - 1, leaf, own));
+  }
+
+  /** This function puts one leaf before the leaf at an index. It copies only the path, and `join` keeps the balance. */
+  insertAt(tree: Tree<L, S>, index: number, leaf: L, own: S): Node<L, S> {
+    if (tree === null) return this.node(null, leaf, own, null);
+    const before = sizeOf(tree.left);
+    if (index <= before) return this.join(this.insertAt(tree.left, index, leaf, own), tree.leaf, tree.own, tree.right);
+    return this.join(tree.left, tree.leaf, tree.own, this.insertAt(tree.right, index - before - 1, leaf, own), tree.inner);
+  }
+
+  /**
+   * This function replaces the leaf at an index with one or more leaves. It descends once: at the node of the leaf, it
+   * puts the first new leaf in the node and the other new leaves at the start of its right subtree.
+   */
+  replaceSpan(tree: Node<L, S>, index: number, leaves: readonly L[]): Node<L, S> {
+    const before = sizeOf(tree.left);
+    if (index < before) return this.join(this.replaceSpan(tree.left!, index, leaves), tree.leaf, tree.own, tree.right);
+    if (index > before) return this.join(tree.left, tree.leaf, tree.own, this.replaceSpan(tree.right!, index - before - 1, leaves), tree.inner);
+    let right = tree.right;
+    for (let i = 1; i < leaves.length; i++) right = this.insertAt(right, i - 1, leaves[i]!, this.spec.measure(leaves[i]!));
+    return this.join(tree.left, leaves[0]!, this.spec.measure(leaves[0]!), right);
+  }
+
+  /** This function removes the leaf at an index. It copies only the path, and `join` keeps the balance. */
+  removeAt(tree: Node<L, S>, index: number): Tree<L, S> {
+    const before = sizeOf(tree.left);
+    if (index === before) return this.concat(tree.left, tree.right);
+    if (index < before) return this.join(this.removeAt(tree.left!, index), tree.leaf, tree.own, tree.right);
+    return this.join(tree.left, tree.leaf, tree.own, this.removeAt(tree.right!, index - before - 1), tree.inner);
+  }
+
+  /** This function gives the leaf at an index of the tree. The index must be in the tree. */
+  leafAt(tree: Node<L, S>, index: number): L {
+    let node = tree;
+    for (;;) {
+      const before = sizeOf(node.left);
+      if (index === before) return node.leaf;
+      if (index < before) node = node.left!;
+      else {
+        index -= before + 1;
+        node = node.right!;
+      }
+    }
+  }
+
+  /** This function joins the leaves at `index` and `index + 1` when `spec.merge` gives one leaf for them. */
+  seam(tree: Tree<L, S>, index: number): Tree<L, S> {
+    const { merge } = this.spec;
+    if (merge === undefined || tree === null || index < 0 || index + 1 >= tree.size) return tree;
+    const merged = merge(this.leafAt(tree, index), this.leafAt(tree, index + 1));
+    if (merged === undefined) return tree;
+    return this.removeAt(this.replaceAt(tree, index, merged, this.spec.measure(merged)), index + 1);
   }
 
   /** This function makes a balanced tree of the leaves `items[lo]` to `items[hi - 1]`. */
@@ -185,6 +271,9 @@ class Builder<L, S> {
     return this.node(this.build(items, lo, mid), leaf, this.spec.measure(leaf), this.build(items, mid + 1, hi));
   }
 }
+
+/** The largest number of removed and inserted leaves for which `splice` copies paths instead of splitting the tree. */
+const SMALL_EDIT = 8;
 
 /** The builders of each spec. Each spec has one builder, so that two trees of the same spec can be joined. */
 const builders = new WeakMap<object, Builder<unknown, unknown>>();
@@ -286,17 +375,7 @@ export class SummaryTree<Leaf, Summary> implements Iterable<Leaf> {
    */
   at(index: number): Leaf | undefined {
     index = indexOf(index, this.size);
-    if (index === -1) return undefined;
-    let node = this.root!;
-    for (;;) {
-      const before = sizeOf(node.left);
-      if (index === before) return node.leaf;
-      if (index < before) node = node.left!;
-      else {
-        index -= before + 1;
-        node = node.right!;
-      }
-    }
+    return index === -1 ? undefined : this.builder.leafAt(this.root!, index);
   }
 
   /** This function gives the summary of the leaves from `start` to `end`, with `end` not included. */
@@ -306,7 +385,8 @@ export class SummaryTree<Leaf, Summary> implements Iterable<Leaf> {
 
   /** This function gives the tree of the leaves of this tree, then the leaves of `other`. The two trees must have the same spec. */
   concat(other: SummaryTree<Leaf, Summary> | Iterable<Leaf>): SummaryTree<Leaf, Summary> {
-    return this.wrap(this.builder.concat(this.root, this.treeOf(other)));
+    const joined = this.builder.concat(this.root, this.treeOf(other));
+    return this.wrap(this.builder.seam(joined, this.size - 1));
   }
 
   /** This function splits the tree into its first `index` leaves and the other leaves. */
@@ -349,6 +429,40 @@ export class SummaryTree<Leaf, Summary> implements Iterable<Leaf> {
     return undefined;
   }
 
+  /**
+   * This function finds the leaf that holds a position of an additive key, and it calls no `combine`. The key must be
+   * additive and not negative: `key(combine(a, b))` is `key(a) + key(b)`. The function descends by the key of each left
+   * subtree and of each leaf, and subtracts it from the target. It gives the first leaf whose prefix key is more than
+   * the target, or `undefined` when the target is not in `[0, key(summary))`.
+   *
+   * @example
+   * // The leaf and the offset in it of the code unit at position 1000 of a rope
+   * const at = rope.locate((s) => s.length, 1000);
+   */
+  locate(key: (summary: Summary) => number, target: number): SummaryLocation<Leaf> | undefined {
+    if (!(target >= 0)) return undefined;
+    let node = this.root;
+    let index = 0;
+    let rest = target;
+    while (node !== null) {
+      if (node.left !== null) {
+        const left = key(node.left.summary);
+        if (rest < left) {
+          node = node.left;
+          continue;
+        }
+        rest -= left;
+        index += node.left.size;
+      }
+      const own = key(node.own);
+      if (rest < own) return { index, leaf: node.leaf, offset: rest };
+      rest -= own;
+      index += 1;
+      node = node.right;
+    }
+    return undefined;
+  }
+
   /** This function gives the tree of the leaves from `start` to `end`, with `end` not included. A negative index counts from the end. */
   slice(start = 0, end: number = this.size): SummaryTree<Leaf, Summary> {
     const from = clamp(start, this.size);
@@ -366,11 +480,33 @@ export class SummaryTree<Leaf, Summary> implements Iterable<Leaf> {
   splice(start: number, deleteCount: number = this.size, inserted: SummaryTree<Leaf, Summary> | Iterable<Leaf> = []): SummaryTree<Leaf, Summary> {
     const from = clamp(start, this.size);
     const count = Math.max(0, Math.min(Number.isNaN(deleteCount) ? 0 : Math.trunc(deleteCount), this.size - from));
-    const middle = this.treeOf(inserted);
-    if (count === 0 && middle === null) return this;
-    const [left, rest] = this.builder.splitAt(this.root, from);
-    const [, right] = this.builder.splitAt(rest, count);
-    return this.wrap(this.builder.concat(this.builder.concat(left, middle), right));
+    const builder = this.builder;
+    const leaves = inserted instanceof SummaryTree ? undefined : [...inserted];
+    const added = leaves === undefined ? (inserted as SummaryTree<Leaf, Summary>).size : leaves.length;
+    if (count === 0 && added === 0) return this;
+    let root = this.root;
+    if (leaves !== undefined && count + added <= SMALL_EDIT) {
+      // A small edit copies only the paths to its leaves: 1 or 2 combines for each level of each path
+      const replaced = Math.min(count, added);
+      if (count > 0 && added > count) {
+        // The last removed leaf takes all the extra leaves in one descent
+        for (let i = 0; i < count - 1; i++) root = builder.replaceAt(root!, from + i, leaves[i]!, builder.spec.measure(leaves[i]!));
+        root = builder.replaceSpan(root!, from + count - 1, leaves.slice(count - 1));
+      } else for (let i = 0; i < added; i++) {
+        const leaf = leaves[i]!;
+        const own = builder.spec.measure(leaf);
+        root = i < replaced ? builder.replaceAt(root!, from + i, leaf, own) : builder.insertAt(root, from + i, leaf, own);
+      }
+      for (let i = replaced; i < count; i++) root = builder.removeAt(root!, from + added);
+    } else {
+      const middle = leaves === undefined ? this.treeOf(inserted) : builder.build(leaves, 0, leaves.length);
+      const [left, rest] = builder.splitAt(root, from);
+      const [, right] = builder.splitAt(rest, count);
+      root = builder.concat(builder.concat(left, middle), right);
+    }
+    // The right seam first, so that a merge there does not move the index of the left seam
+    if (added > 0) root = builder.seam(root, from + added - 1);
+    return this.wrap(builder.seam(root, from - 1));
   }
 
   /** This function puts the leaves of `inserted` before the leaf at `index`. */
@@ -386,11 +522,12 @@ export class SummaryTree<Leaf, Summary> implements Iterable<Leaf> {
 
   /**
    * This function replaces the leaf at an index. A negative index counts from the end, as `Array.prototype.with` does.
-   * An index that is not in the tree changes nothing.
+   * An index that is not in the tree changes nothing. It copies only the path to the leaf, and it does not call
+   * `spec.merge`.
    */
   set(index: number, leaf: Leaf): SummaryTree<Leaf, Summary> {
     const at = indexOf(index, this.size);
-    return at === -1 ? this : this.splice(at, 1, [leaf]);
+    return at === -1 ? this : this.wrap(this.builder.replaceAt(this.root!, at, leaf, this.builder.spec.measure(leaf)));
   }
 
   /** This function adds leaves after the last leaf. */
@@ -400,7 +537,8 @@ export class SummaryTree<Leaf, Summary> implements Iterable<Leaf> {
 
   /** This function adds leaves before the first leaf. */
   prepend(...leaves: Leaf[]): SummaryTree<Leaf, Summary> {
-    return this.wrap(this.builder.concat(this.treeOf(leaves), this.root));
+    const joined = this.builder.concat(this.treeOf(leaves), this.root);
+    return this.wrap(this.builder.seam(joined, leaves.length - 1));
   }
 
   /** This function gives the leaves in their order. */
@@ -439,8 +577,9 @@ export function summaryTreeFaults<Leaf, Summary>(tree: SummaryTree<Leaf, Summary
     if (node.height !== 1 + Math.max(hl, hr)) faults.push(`${path}: height ${node.height}`);
     if (node.size !== sizeOf(node.left) + 1 + sizeOf(node.right)) faults.push(`${path}: size ${node.size}`);
     const { combine } = builder.spec.monoid;
-    const expected = combine(combine(builder.summaryOf(node.left), builder.spec.measure(node.leaf)), builder.summaryOf(node.right));
-    if (!equal(node.summary, expected)) faults.push(`${path}: summary`);
+    const inner = combine(builder.summaryOf(node.left), builder.spec.measure(node.leaf));
+    if (!equal(node.inner, inner)) faults.push(`${path}: inner`);
+    if (!equal(node.summary, combine(inner, builder.summaryOf(node.right)))) faults.push(`${path}: summary`);
   };
   visit(tree["root"], "^");
   return faults;
