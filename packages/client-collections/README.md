@@ -415,7 +415,7 @@ const deque = new ArrayDeque<Message>(); // Double-ended queue
 - `concat`, `splitAt`, `split`, `slice`, `splice`, `insert`, `remove`, `set` and `at` are O(log n).
 - `split(predicate)` splits before the first leaf whose prefix summary satisfies a monotone predicate. `search(predicate)` finds that leaf and changes nothing.
 - `locate(key, target)` finds the leaf that holds a position of an additive key, and the offset in that leaf. It calls no `combine`, so it costs nothing when `combine` is slow.
-- `set` and a `splice` of 8 leaves or fewer copy only the paths to their leaves. Each level of each path calls `combine` approximately 2 times.
+- `set` and a `splice` of 8 leaves or fewer copy only the paths to their leaves. Each level of each path calls `combine` 1 or 2 times. A leaf that becomes two leaves costs one descent.
 - The optional `spec.merge(left, right)` joins two neighbor leaves into one at each seam that an edit makes. A rope uses it to keep its chunks large.
 - Each edit returns a new tree. The old tree does not change, and the two trees share the nodes that did not change.
 - The tree is an AVL tree, so its height is at most 1.45 log2(n + 2).

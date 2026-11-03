@@ -314,8 +314,8 @@ describe("summaryTree small edits", () => {
       expect(calls() - start).toBeLessThanOrEqual(2 * h);
       start = calls();
       tree = tree.splice(index, 1, ["a", "b"]);
-      // A replace and one insert: two paths, and the rotations of the insert
-      expect(calls() - start).toBeLessThanOrEqual(4 * h + 12);
+      // One leaf replaced by two: one descent, the insert in the right subtree, and the rotations of the insert
+      expect(calls() - start).toBeLessThanOrEqual(2 * h + 8);
     }
     expectValid(tree);
   });
