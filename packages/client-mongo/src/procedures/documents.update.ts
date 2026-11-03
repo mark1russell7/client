@@ -6,7 +6,7 @@
 import { createProcedure, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { collectionFor } from "../scope.js";
 import { described, documentObject, scopeFields, targetFields } from "./input-schemas.js";
-import { z } from "zod";
+import * as z from "zod";
 import type { DocumentUpdate } from "../types.js";
 import { parseTarget, targetFilter, upsertFilter, type TargetInput } from "./target.js";
 

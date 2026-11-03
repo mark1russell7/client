@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { z } from "zod";
+import * as z from "zod";
 import { fakeProcess } from "@mark1russell7/service/testing";
 import { Client, LocalTransport, ProcedureRegistry, createProcedure, type AnyProcedure } from "@procedures/client";
 import { createProcedureHost, localFace } from "@procedures/peer";

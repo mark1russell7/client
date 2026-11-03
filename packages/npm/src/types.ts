@@ -4,7 +4,7 @@
  * mark procedure new adds the types of each new procedure here.
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import { cliToolJsonOutputSchema, cliToolOutputFields, cliToolOutputSchema, type CliToolOutput } from "@procedures/shell/cli";
 
 // =============================================================================

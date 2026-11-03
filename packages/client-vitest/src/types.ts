@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 
 export const VitestRunInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;

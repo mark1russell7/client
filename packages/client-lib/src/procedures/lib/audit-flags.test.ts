@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { z } from "zod";
+import * as z from "zod";
 import { createProcedure, outputSchema, type AnyProcedure } from "@procedures/client";
 import { findFlagNotices } from "./audit.js";
 

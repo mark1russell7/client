@@ -19,7 +19,7 @@ import { createServer, type Server as HttpServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { getEventListeners } from "node:events";
 import express from "express";
-import { z } from "zod";
+import * as z from "zod";
 import { Client } from "./client/client.js";
 import type { Transport } from "./client/types.js";
 import { HttpTransport } from "./adapters/http/client/transport.js";

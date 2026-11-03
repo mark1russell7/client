@@ -7,7 +7,7 @@
  *
  * The scaffolded code compiles with the strict options of the workspace (deep dive CLI-13):
  * - the handler names its unused input `_input` (noUnusedParameters);
- * - types.ts is created, or gets `import { z } from "zod"`, when it needs it;
+ * - types.ts is created, or gets `import * as z from "zod"`, when it needs it;
  * - the registration goes into the list that defineModule gets in src/module.ts: an array literal,
  *   or the array of a variable that module.ts declares. A package of the old kind, without
  *   module.ts, gets it in the registerProcedures([...]) array of src/register.ts.
@@ -168,7 +168,7 @@ const TYPES_HEADER = `/**
 
 `;
 
-const Z_IMPORT = `import { z } from "zod";\n`;
+const Z_IMPORT = `import * as z from "zod";\n`;
 
 /** True when the source imports z from "zod" */
 function importsZ(source: string): boolean {

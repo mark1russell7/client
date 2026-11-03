@@ -4,7 +4,7 @@
 
 import { describe, it, expect, afterEach } from "vitest";
 import { createServer } from "node:net";
-import { z } from "zod";
+import * as z from "zod";
 import { ProcedureRegistry, ProcedureServer, WebSocketTransport, createProcedure, createRegistry } from "@procedures/client";
 import { createPeer, type Peer } from "./index.js";
 

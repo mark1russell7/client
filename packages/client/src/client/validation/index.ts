@@ -6,7 +6,7 @@
  *
  * @example
  * ```typescript
- * import { z } from "zod";
+ * import * as z from "zod";
  * import { Client } from "client";
  * import { createZodMiddleware, ValidationError } from "client/client/validation";
  *

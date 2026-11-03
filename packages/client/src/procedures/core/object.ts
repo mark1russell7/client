@@ -5,7 +5,7 @@
  * The namespace of all these procedures is "client": for example client.get and client.set.
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import { anyOutput, arrayOutput, booleanOutput, recordOutput } from "./outputs.js";
 import { defineProcedure, namespace } from "../define.js";
 import type { AnyProcedure, Procedure } from "../types.js";

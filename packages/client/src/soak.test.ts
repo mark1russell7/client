@@ -19,7 +19,7 @@ import { describe, it, expect } from "vitest";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import express from "express";
-import { z } from "zod";
+import * as z from "zod";
 import { Client } from "./client/client.js";
 import { WebSocketTransport } from "./adapters/websocket/client/transport.js";
 import { WebSocketServerTransport } from "./adapters/websocket/server/transport.js";

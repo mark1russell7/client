@@ -2,7 +2,7 @@
  * The input and the output of the procedures of this package.
  */
 
-import { z } from "zod";
+import * as z from "zod";
 
 // =============================================================================
 // pdf.render: HTML to a PDF file with a headless Chromium browser

@@ -3,7 +3,7 @@
  */
 
 import { createProcedure, type AnyProcedure, type ProcedureContext } from "@procedures/client";
-import { z } from "zod";
+import * as z from "zod";
 import { sendNotification } from "./notify.js";
 
 /**

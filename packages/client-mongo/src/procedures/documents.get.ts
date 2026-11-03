@@ -11,7 +11,7 @@ import {
 } from "@procedures/client";
 import { collectionFor, copyScope, type ScopeInput } from "../scope.js";
 import { described, idTypeField, scopeFields } from "./input-schemas.js";
-import { z } from "zod";
+import * as z from "zod";
 import {
   buildIdFilter,
   type IdType,

@@ -4,7 +4,7 @@
  * procedures are the procedure tools of the tests.
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import {
   createProcedure,
   createRegistry,

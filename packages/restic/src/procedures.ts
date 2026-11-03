@@ -12,7 +12,7 @@
 
 import { createProcedure, type AnyProcedure, type ProcedureContext } from "@procedures/client";
 import { runCommand, type CommandOptions, type CommandResult } from "@procedures/shell/command";
-import { z } from "zod";
+import * as z from "zod";
 import { buildArgv, parseJsonOutput, type ArgValue } from "./argv.js";
 
 /**

@@ -6,7 +6,7 @@
 
 import { describe, it, expect, afterEach } from "vitest";
 import { PassThrough } from "node:stream";
-import { z } from "zod";
+import * as z from "zod";
 import { Client as McpClient } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createProcedure, createRegistry, defineModule, type AnyProcedure, type Interceptor, type ProcedurePath } from "@procedures/client";

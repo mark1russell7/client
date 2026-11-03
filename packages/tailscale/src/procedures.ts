@@ -14,7 +14,7 @@
 import { existsSync } from "node:fs";
 import { createProcedure, type AnyProcedure, type ProcedureContext } from "@procedures/client";
 import { defineCliTool } from "@procedures/shell/cli";
-import { z } from "zod";
+import * as z from "zod";
 import { buildArgv, parseJsonOutput, type ArgValue } from "./argv.js";
 
 /** The Windows installer does not put tailscale on the PATH. */

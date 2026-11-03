@@ -4,7 +4,7 @@
  * List available MCP tools from the procedure registry.
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import { defineProcedure, PROCEDURE_REGISTRY, REGISTRY_READ_EFFECTS, type AnyProcedure, type ProcedureContext } from "@procedures/client";
 import { proceduresToMcpTools, type McpToolFilter } from "@procedures/mcp";
 

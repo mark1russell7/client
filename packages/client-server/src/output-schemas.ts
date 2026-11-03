@@ -6,7 +6,7 @@
  * the compiler checks it against the type.
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import type {
   ManifestGenerateOutput,
   ServerConnectOutput,

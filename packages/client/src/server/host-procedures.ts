@@ -9,7 +9,7 @@
  * checks that have no token.
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import { createProcedure } from "../procedures/define.js";
 import { PURE_EFFECTS } from "../procedures/effects.js";
 import type { AnyProcedure } from "../procedures/types.js";

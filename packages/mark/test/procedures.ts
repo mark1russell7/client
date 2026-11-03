@@ -5,7 +5,7 @@
  * @internal
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import { createProcedure, outputSchema, type AnyProcedure } from "@procedures/client";
 import type { CLIMeta } from "../src/parse.js";
 

@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { z } from "zod";
+import * as z from "zod";
 import { generateHelp, parseFromSchema } from "./parse.js";
 
 const schema = z.object({

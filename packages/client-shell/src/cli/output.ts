@@ -3,7 +3,7 @@
  * time of the call. The schemas are loose, so a field that a schema does not name stays.
  */
 
-import { z } from "zod";
+import * as z from "zod";
 
 /** The result of one command of a CLI tool. */
 export interface CliToolOutput {

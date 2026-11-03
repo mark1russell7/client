@@ -8,7 +8,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import express from "express";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { z } from "zod";
+import * as z from "zod";
 import { Client } from "../client.js";
 import { createRetryMiddleware } from "./retry.js";
 import { createCircuitBreakerMiddleware, CircuitBreakerError } from "./circuit-breaker.js";

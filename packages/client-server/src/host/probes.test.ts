@@ -12,7 +12,7 @@
 
 import { afterEach, describe, expect, it } from "vitest";
 import { request } from "node:http";
-import { z } from "zod";
+import * as z from "zod";
 import { service, type Lifecycle, type ServiceBuilder, type TransportImpl } from "@mark1russell7/service";
 import { fakeClock, fakeProcess, type FakeClock } from "@mark1russell7/service/testing";
 import { createProcedure, createRegistry, hostPolicy, ms, seconds, type ProcedureRegistry } from "@procedures/client";

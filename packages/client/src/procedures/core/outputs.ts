@@ -6,7 +6,7 @@
  * helpers give each output a real zod 4 schema with a description.
  */
 
-import { z } from "zod";
+import * as z from "zod";
 
 /**
  * Any JavaScript number, also `NaN` and `Infinity`. zod 4's `z.number()` refuses both, but

@@ -9,7 +9,7 @@
 
 import { createProcedure, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import type { ChangeStream, ChangeStreamOptions, Document } from "mongodb";
-import { z } from "zod";
+import * as z from "zod";
 import { collectionFor, databaseFor, copyScope, SCOPE_FIELDS, type ScopeInput } from "../scope.js";
 import { described, documentObject } from "./input-schemas.js";
 

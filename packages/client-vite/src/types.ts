@@ -2,7 +2,7 @@
  * Type definitions for client-vite procedures
  */
 
-import { z } from "zod";
+import * as z from "zod";
 
 // ============================================================================
 // vite.dev - Start Vite dev server

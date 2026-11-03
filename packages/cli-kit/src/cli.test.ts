@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { z } from "zod";
+import * as z from "zod";
 import { createProcedure, outputSchema, ProcedureRegistry, type AnyProcedure } from "@procedures/client";
 import { createProcedureCli, type CliClient, type ProcedureCliOptions } from "./cli.js";
 import type { Print } from "./format.js";

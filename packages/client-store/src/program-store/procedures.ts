@@ -14,7 +14,7 @@
  * no expose rule runs whatever a program calls.
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import {
   createProcedure,
   getAllRuntimeProcedures,

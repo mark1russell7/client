@@ -8,7 +8,7 @@
  * host gives the same store to its `Scheduler` (roadmap R46).
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import {
   defineModule,
   registerModules,

@@ -12,7 +12,7 @@
 
 import { describe, it, expect, afterEach } from "vitest";
 import { createServer } from "node:http";
-import { z } from "zod";
+import * as z from "zod";
 import { service, type Lifecycle, type ServiceBuilder } from "@mark1russell7/service";
 import { httpTransport } from "@mark1russell7/service/http";
 import { fakeClock, fakeProcess, scriptedCheck, seeded } from "@mark1russell7/service/testing";

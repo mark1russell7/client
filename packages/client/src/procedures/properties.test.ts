@@ -8,7 +8,7 @@
 
 import { describe, it, expect } from "vitest";
 import fc from "fast-check";
-import { z } from "zod";
+import * as z from "zod";
 import { ProcedureRegistry } from "./registry.js";
 import { defineProcedure } from "./define.js";
 import { outputSchema } from "./core/schemas.js";

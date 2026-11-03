@@ -9,7 +9,7 @@
  * tries or another backoff (roadmap R46).
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import { backoffProblems, type Backoff } from "@mark1russell7/service/backoff";
 import {
   defineModule,

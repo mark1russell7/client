@@ -21,7 +21,7 @@
  * D11): a conflict rejects with `VersionConflictError` and changes nothing.
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import {
   createProcedure,
   defineModule,

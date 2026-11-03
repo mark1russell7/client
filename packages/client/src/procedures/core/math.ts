@@ -5,7 +5,7 @@
  * The namespace of all these procedures is "client": for example client.add and client.multiply.
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import { numberOutput } from "./outputs.js";
 import { defineProcedure, namespace } from "../define.js";
 import type { AnyProcedure, Procedure } from "../types.js";

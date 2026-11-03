@@ -5,7 +5,7 @@
  * Supports light/medium/heavy presets for different capture levels.
  */
 
-import { z } from "zod";
+import * as z from "zod";
 
 // =============================================================================
 // Snapshot Presets

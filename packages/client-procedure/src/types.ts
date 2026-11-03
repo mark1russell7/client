@@ -2,7 +2,7 @@
  * Type definitions for client-procedure
  */
 
-import { z } from "zod";
+import * as z from "zod";
 
 // =============================================================================
 // procedure.new Types

@@ -7,7 +7,7 @@
  * `server.status` are in `@procedures/server`.
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import { type ZodLikeSchema } from "@procedures/client";
 import type {
   ManifestGenerateInput,

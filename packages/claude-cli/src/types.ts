@@ -2,7 +2,7 @@
  * The input and the output of the procedures of this package.
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import type { TurnEvent } from "./turn.js";
 
 /** The schema of one event. It keeps each field of the event. */

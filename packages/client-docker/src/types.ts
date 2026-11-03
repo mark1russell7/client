@@ -4,7 +4,7 @@
  * client-docker wraps Docker CLI commands as procedures using client-shell.
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import { cliToolOutputFields, cliToolOutputSchema, type CliToolOutput } from "@procedures/shell/cli";
 
 // =============================================================================

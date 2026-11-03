@@ -7,7 +7,7 @@
 
 import { createProcedure, type AnyProcedure, type ProcedureContext } from "@procedures/client";
 import { createHostFetch, isHostNotAllowed } from "@procedures/http";
-import { z } from "zod";
+import * as z from "zod";
 import { forecastUrl, readForecast, type Forecast } from "./weather.js";
 
 /**

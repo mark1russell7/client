@@ -46,7 +46,7 @@
  */
 
 import { PURE_EFFECTS, REGISTRY_READ_EFFECTS, withEffects } from "../effects.js";
-import { z } from "zod";
+import * as z from "zod";
 import { anyOutput, booleanOutput } from "./outputs.js";
 import { defineProcedure, namespace } from "../define.js";
 import type {

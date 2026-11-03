@@ -44,7 +44,7 @@ const HOSTS: Array<{ name: string; how: string; detail: string }> = [
 ];
 
 const DEFINE = `import { defineProcedure } from "@procedures/client";
-import { z } from "zod";
+import * as z from "zod";
 
 export const add = defineProcedure({
   path: ["math", "add"],

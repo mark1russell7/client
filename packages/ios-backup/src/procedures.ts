@@ -4,7 +4,7 @@
  */
 
 import { createProcedure, type AnyProcedure, type FsRootRules } from "@procedures/client";
-import { z } from "zod";
+import * as z from "zod";
 import {
   IosBackupError,
   defaultBackupRoots,

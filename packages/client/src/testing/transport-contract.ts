@@ -25,7 +25,7 @@
  * (`ContractRunner`). Those of Vitest fit.
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import {
   Client,
   VersionConflictError,

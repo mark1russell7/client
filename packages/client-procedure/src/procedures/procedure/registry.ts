@@ -7,7 +7,7 @@
 
 import { defineProcedure, PROCEDURE_REGISTRY, REGISTRY_READ_EFFECTS, pathToKey, keyToPath } from "@procedures/client";
 import type { AnyProcedure, ProcedureContext, ProcedurePath } from "@procedures/client";
-import { z } from "zod";
+import * as z from "zod";
 
 // procedure.list and procedure.get are core procedures (`@procedures/client`, in
 // define-procedure.ts). This package gave its own versions for the whole registry and replaced

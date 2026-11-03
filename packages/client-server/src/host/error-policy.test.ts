@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, afterEach } from "vitest";
-import { z } from "zod";
+import * as z from "zod";
 import { service, type ServiceBuilder } from "@mark1russell7/service";
 import { fakeClock, fakeProcess, seeded } from "@mark1russell7/service/testing";
 import { createProcedure, createRegistry, hostPolicy, ms, seconds, type ErrorCall, type PrincipalOf, type ServerErrorPolicy } from "@procedures/client";

@@ -3,7 +3,7 @@
  */
 
 import type { Stats } from "node:fs";
-import { z } from "zod";
+import * as z from "zod";
 
 // =============================================================================
 // read Types - Read file contents

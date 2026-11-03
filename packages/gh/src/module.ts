@@ -9,7 +9,7 @@
  * Scaffold a procedure with: mark procedure new <name> --path packages/gh
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import { definePackage, pathToKey, type AnyProcedure, type Effects, type FsRootRules, type ProcedureModule, createProcedure, type PackageDefinition } from "@procedures/client";
 import shellModule from "@procedures/shell/module";
 import { ghPrList } from "./procedures/gh/pr/list.js";

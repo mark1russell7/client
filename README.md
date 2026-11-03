@@ -22,7 +22,7 @@ The packages need Node.js 22 or later. They are ES modules.
 ## Example
 
 ```ts
-import { z } from "zod";
+import * as z from "zod";
 import { Client, LocalTransport, PROCEDURE_REGISTRY, allCoreProcedures, createProcedure, zodAdapter } from "@procedures/client";
 import "@procedures/client/register"; // the control flow: client.chain and the others
 

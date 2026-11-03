@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { z } from "zod";
+import * as z from "zod";
 import {  } from "@procedures/client";
 import { generateHelp, resultFieldsOfSchema } from "./parse.js";
 

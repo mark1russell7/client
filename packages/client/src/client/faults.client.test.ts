@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { z } from "zod";
+import * as z from "zod";
 import { Client } from "./client.js";
 import type { Message, ResponseItem, Transport } from "./types.js";
 import { resilience } from "./middleware/resilience.js";

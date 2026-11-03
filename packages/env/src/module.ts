@@ -8,7 +8,7 @@
  * (roadmap R46). These procedures are not MCP tools: a value goes to the model and its provider.
  */
 
-import { z } from "zod";
+import * as z from "zod";
 import {
   defineModule,
   registerModules,
