@@ -182,8 +182,8 @@ importers:
         specifier: ^0.2.0
         version: 0.2.0(@swc/core@1.16.20)(dependency-cruiser@18.7.0)
       '@mark1russell7/conventions':
-        specifier: ^0.22.0
-        version: 0.22.0
+        specifier: ^0.25.0
+        version: 0.25.0
       '@mark1russell7/cue':
         specifier: ^1.1.0
         version: 1.1.0
@@ -3313,8 +3313,8 @@ packages:
   '@mark1russell7/coeval@0.18.0':
     resolution: {integrity: sha512-eOK4wHB/sPLk/TSqwe6Q1HcqGL5RuDBj624NWotQuA/zGH5Err2myHOpUveyg7GVBds2uht2gNOHbrtcF1w0xg==}
 
-  '@mark1russell7/conventions@0.22.0':
-    resolution: {integrity: sha512-MtNaOnUyG9trSTY0S9In5+JtGwNpYHRGYxvDgncGtn50VBE75fJ7aSFNOxZDcDY4F0+AoG2pOJbnQd+bSSX13Q==}
+  '@mark1russell7/conventions@0.25.0':
+    resolution: {integrity: sha512-p49TqkjzhugGqhKdWjKq5bXOd2ljkwEHdbkEUVzmHSz8b805t2NhGLvbq63oBHMHMv0lKfJDgU0LMIXmpEgqhA==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -6697,7 +6697,7 @@ snapshots:
 
   '@mark1russell7/coeval@0.18.0': {}
 
-  '@mark1russell7/conventions@0.22.0': {}
+  '@mark1russell7/conventions@0.25.0': {}
 
   '@mark1russell7/cue@1.1.0': {}
 
