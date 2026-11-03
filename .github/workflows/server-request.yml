@@ -1,7 +1,8 @@
 name: Server request
 
 # The time of one synthetic request of the procedures server at one commit, and the share of the
-# exec calls in it (roadmap O90). One job builds @procedures/server and its dependencies, then
+# exec calls in it (roadmap O90). The 9 cases change the bytes of the input and of the result, and
+# the record has a fit of the transport time per byte (O94). One job builds @procedures/server and its dependencies, then
 # starts scripts/server-request.ts. Each sample is a fresh process for one case and one arm:
 # a request over loopback to its own fresh host of runProcedureHost(), or the same exec on
 # LocalTransport. measureIsolated() of scripts/lib/paired-time.mjs runs the rounds, in mode fresh.
@@ -32,8 +33,9 @@ jobs:
   measure:
     name: Server request
     runs-on: ubuntu-latest
-    # One install and build of @procedures/server and its dependencies, then about 2 minutes of rounds at 20 rounds
-    timeout-minutes: 30
+    # One install and build of @procedures/server and its dependencies, then about 10 minutes of rounds
+    # at 20 rounds: 9 cases, each sample about as long as a sample of chain-50 (4.5 times the 2 cases of O90)
+    timeout-minutes: 60
     steps:
       # The script of the run comes from the ref of the workflow. The tree under test is a worktree.
       - uses: actions/checkout@v7
