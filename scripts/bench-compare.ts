@@ -16,7 +16,7 @@
  * nightly compares nothing. The paired A/B of O83 (`scripts/bench-paired.mjs`) does not use it
  * either: it times the base and the head in one job, on one runner. The script stays for a
  * comparison of two result folders of one runner. The field `context` of a result file
- * (`scripts/bench-context.mjs`) does not change the comparison.
+ * (`scripts/bench-context.ts`) does not change the comparison.
  */
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";

@@ -87,7 +87,7 @@ jobs:
       - name: Add the runner context to the results
         if: ${{ !cancelled() }}
         run: >-
-          node scripts/bench-context.mjs
+          node scripts/bench-context.ts
           packages/client/bench/results
           packages/client-collections/bench/results
           packages/client-sqlite/bench/results

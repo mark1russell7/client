@@ -58,7 +58,7 @@ import { dirname, join, relative, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { bootstrapLeastSquares, bootstrapMedianRatio, leastSquares, type Interval } from "@mark1russell7/rigor-statistics";
-import { runnerContext } from "./bench-context.mjs";
+import { runnerContext } from "./bench-context.ts";
 import { bandOf, roundRatios, type Band } from "./bench-paired.mjs";
 import { aaId, measureIsolated, quantileOf, type PairedInput, type PairedReport } from "./lib/paired-time.mjs";
 import { PROFILE_FORMAT, profileAnalysisOf, profileMarkdownOf, type CpuProfile, type ProfileRecord } from "./server-request-profile.ts";

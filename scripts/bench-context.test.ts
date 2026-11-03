@@ -1,9 +1,9 @@
-// The tests of scripts/bench-context.mjs (O82), with records and runners in memory.
-// Start them with: node --test scripts/bench-context.test.mjs
+// The tests of scripts/bench-context.ts (O82), with records and runners in memory.
+// Start them with: node --test scripts/bench-context.test.ts
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { DEFAULT_SETTINGS, NO_VERDICT, modeOf, runnerContext, summaryOf, withContext } from "./bench-context.mjs";
+import { DEFAULT_SETTINGS, NO_VERDICT, modeOf, runnerContext, summaryOf, withContext } from "./bench-context.ts";
 
 const system = { cpus: [{ model: " AMD EPYC 7763 64-Core Processor " }, { model: "AMD EPYC 7763 64-Core Processor" }], node: "v26.0.0", platform: "linux", arch: "x64" };
 const record = { latency: { mean: 0.5, p50: 0.4, samplesCount: 2000 }, throughput: { mean: 2000 }, period: 0.5, totalTime: 1000.25 };
@@ -45,7 +45,7 @@ describe("withContext", () => {
   it("keeps the fields of vitest and replaces an earlier context", () => {
     const result = withContext({ ...record, context: { old: true } }, { cpu: "x" });
     assert.deepEqual(result, { ...record, context: { cpu: "x" } });
-    assert.equal(result.latency.mean, 0.5);
+    assert.equal(result.latency?.mean, 0.5);
   });
 });
 

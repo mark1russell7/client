@@ -10,7 +10,7 @@
  * arm `base~aa` (the base against itself). Mode `fresh`: each arm, input and round is a new process
  * (`scripts/bench-paired-child.mjs`), and the order of the arms rotates each round. The record is
  * JSON: the paired-time/1 report, the analysis of each benchmark and the runner context of
- * `scripts/bench-context.mjs`. The script appends a table to `GITHUB_STEP_SUMMARY`.
+ * `scripts/bench-context.ts`. The script appends a table to `GITHUB_STEP_SUMMARY`.
  *
  * `aggregate` reads the records of the runs, and gives the verdict of each benchmark from the first
  * `--runs` runs that count. A run of a benchmark counts only when its A/A band contains 1.0. Else
@@ -34,7 +34,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runnerContext } from "./bench-context.mjs";
+import { runnerContext } from "./bench-context.ts";
 import { WORKLOADS } from "./bench-paired-child.mjs";
 import { aaId, measureIsolated, quantileOf } from "./lib/paired-time.mjs";
 

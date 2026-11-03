@@ -27,7 +27,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpath
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { runnerContext } from "./bench-context.mjs";
+import { runnerContext } from "./bench-context.ts";
 import { analyzeInput, runMarkdown, type Analysis } from "./bench-paired.mjs";
 import { MARK_CALL, optionOf, startMark } from "./compile-cache.ts";
 import { measureIsolated, quantileOf, type PairedReport } from "./lib/paired-time.mjs";

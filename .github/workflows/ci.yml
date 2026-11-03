@@ -167,11 +167,11 @@ jobs:
         run: |
           node --test scripts/check-paths-and-writes.test.mjs
           pnpm check:paths-and-writes
-      # The nightly adds the runner context to each benchmark result with scripts/bench-context.mjs
+      # The nightly adds the runner context to each benchmark result with scripts/bench-context.ts
       # (O82). The nightly does not run on a pull request, so the tests of the script run here.
       - name: Test the benchmark context script
         if: ${{ !cancelled() }}
-        run: node --test scripts/bench-context.test.mjs
+        run: node --test scripts/bench-context.test.ts
       # The paired bench (O83, .github/workflows/paired-bench.yml) runs only by hand, so the tests of
       # its scripts and of the copy of paired-time/1 run here. They time no code.
       - name: Test the paired bench scripts
