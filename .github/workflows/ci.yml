@@ -65,9 +65,9 @@ jobs:
 
   # The checks of this repository, once, on Node 26. They need the build, but not each Node version.
   checks:
-    name: Repository checks (catalogs, scope, imports, audit)
+    name: Repository checks (catalogs, imports, packages, lifecycle, coverage)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
     steps:
       # Depth 2 gets the parents of the merge commit of a pull request. The rule release-files of
       # check:conventions reads them.
@@ -210,6 +210,71 @@ jobs:
             }
           ' "$RUNNER_TEMP/audit.json"
 
+      # The jobs lifecycle, package and coverage were here before roadmap O87: each one repeated the
+      # checkout, the install and the build of this job. The ruleset requires only CI OK and
+      # Security OK, so these steps feed CI OK through this job. Each one runs also after a
+      # failure of an earlier step, so a run shows each failure.
+
+      # Each public package as npm gives it: the tarball, publint, attw, an install of all the
+      # tarballs into an empty project, imports, a program and the bins. Until the general packages
+      # (cue, splay, docker-sqlite) are on npm, three packages use github: dependencies
+      # (packages/documentation/RELEASE.md). The release workflow does not allow them.
+      - name: Check the packages (pack, publint, attw, install)
+        if: ${{ !cancelled() }}
+        run: node scripts/check-packages.mjs
+
+      # The real hosts stop under run() of @mark1russell7/service (roadmap CI-2). The test starts the
+      # built procedure-server and mark --server, and sends SIGTERM in the middle of an NDJSON stream.
+      # It examines the in-band end of the stream, the 503 and the refused connection of the drain,
+      # the exit code and the time to the exit. It measures times, so no other step runs with it.
+      - name: Stop a host with SIGTERM in a stream
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10
+        run: pnpm --filter @procedures/server exec vitest run --config vitest.e2e.config.ts
+
+      # The storage and view tests of @procedures/mongo run against this MongoDB, so their coverage
+      # counts. A single-node replica set: the materialized views need change streams.
+      - name: Start MongoDB 7 for the coverage (a single-node replica set)
+        if: ${{ !cancelled() }}
+        run: |
+          docker run -d --name mongo -p 27017:27017 mongo:7 --replSet rs0 --bind_ip_all --setParameter enableTestCommands=1
+          for i in $(seq 1 60); do
+            docker exec mongo mongosh --quiet --eval "db.adminCommand('ping').ok" >/dev/null 2>&1 && break
+            sleep 1
+          done
+          docker exec mongo mongosh --quiet --eval "rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] })"
+          for i in $(seq 1 60); do
+            [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ] && break
+            sleep 1
+          done
+          [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ]
+      # The scaffold test of mark runs cue-config, which needs the CUE binary
+      - name: Install CUE for the coverage
+        if: ${{ !cancelled() }}
+        run: |
+          # The SHA-256 that GitHub records for the release asset (CUE publishes no checksums.txt for v0.15.1)
+          curl -fsSL -o "$RUNNER_TEMP/cue.tar.gz" https://github.com/cue-lang/cue/releases/download/v0.15.1/cue_v0.15.1_linux_amd64.tar.gz
+          echo "aa282261245e9ab0d65b17ec3c7207f5231600106f7b26fc0c2e158b3937ca3f  $RUNNER_TEMP/cue.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/cue.tar.gz" -C "$RUNNER_TEMP" cue
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      # Each package against its floor in coverage-baseline.json (roadmap R31). The raised floors
+      # are an artifact: copy them to coverage-baseline.json to raise the floors. A package without
+      # a floor fails the step: a pull request that adds a package also adds its floor.
+      - name: Coverage (the floors only go up)
+        if: ${{ !cancelled() }}
+        timeout-minutes: 30
+        env:
+          MONGO_TEST_URL: mongodb://localhost:27017/?directConnection=true
+          MONGO_TEST_TOPOLOGY: replica-set
+          MONGO_TEST_FAILPOINTS: "1"
+        run: node scripts/coverage.mjs --out "$RUNNER_TEMP/coverage-floors.json"
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-floors
+          path: ${{ runner.temp }}/coverage-floors.json
+          retention-days: 30
+
   mongo:
     # MongoDocumentStorage against a real MongoDB (roadmap CLI-24): the CollectionStorage contract,
     # the partitions, the documents and the change log, on both topologies. On a replica set, each
@@ -261,103 +326,6 @@ jobs:
           MONGO_TEST_FAILPOINTS: ${{ matrix.topology == 'replica-set' && '1' || '' }}
         run: pnpm --filter @procedures/mongo exec vitest run src/storage
 
-  lifecycle:
-    # The real hosts stop under run() of @mark1russell7/service (roadmap CI-2). The test starts the
-    # built procedure-server and mark --server, and sends SIGTERM in the middle of an NDJSON stream.
-    # It examines the in-band end of the stream, the 503 and the refused connection of the drain,
-    # the exit code and the time to the exit. It measures times, so it runs only in this job.
-    name: Host lifecycle (SIGTERM in a stream)
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 26
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      # mark and its dependencies: @procedures/server, and the procedure packages of mark --server
-      - run: pnpm --filter "@procedures/mark..." build
-      - name: SIGTERM in the middle of a stream
-        run: pnpm --filter @procedures/server exec vitest run --config vitest.e2e.config.ts
-
-  coverage:
-    name: Coverage (the floors only go up)
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    # The storage and view tests of @procedures/mongo run against this MongoDB, so their coverage
-    # counts. A single-node replica set: the materialized views need change streams.
-    env:
-      MONGO_TEST_URL: mongodb://localhost:27017/?directConnection=true
-      MONGO_TEST_TOPOLOGY: replica-set
-      MONGO_TEST_FAILPOINTS: "1"
-    steps:
-      - name: Start MongoDB 7 (a single-node replica set)
-        run: |
-          docker run -d --name mongo -p 27017:27017 mongo:7 --replSet rs0 --bind_ip_all --setParameter enableTestCommands=1
-          for i in $(seq 1 60); do
-            docker exec mongo mongosh --quiet --eval "db.adminCommand('ping').ok" >/dev/null 2>&1 && break
-            sleep 1
-          done
-          docker exec mongo mongosh --quiet --eval "rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] })"
-          for i in $(seq 1 60); do
-            [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ] && break
-            sleep 1
-          done
-          [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ]
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 26
-          cache: pnpm
-      # The scaffold test of mark runs cue-config, which needs the CUE binary
-      - name: Install CUE
-        run: |
-          # The SHA-256 that GitHub records for the release asset (CUE publishes no checksums.txt for v0.15.1)
-          curl -fsSL -o "$RUNNER_TEMP/cue.tar.gz" https://github.com/cue-lang/cue/releases/download/v0.15.1/cue_v0.15.1_linux_amd64.tar.gz
-          echo "aa282261245e9ab0d65b17ec3c7207f5231600106f7b26fc0c2e158b3937ca3f  $RUNNER_TEMP/cue.tar.gz" | sha256sum -c -
-          tar -xzf "$RUNNER_TEMP/cue.tar.gz" -C "$RUNNER_TEMP" cue
-          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      # Each package against its floor in coverage-baseline.json (roadmap R31). The raised floors
-      # are an artifact: copy them to coverage-baseline.json to raise the floors. A package without
-      # a floor fails the step: a pull request that adds a package also adds its floor.
-      - run: node scripts/coverage.mjs --out "$RUNNER_TEMP/coverage-floors.json"
-      - if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: coverage-floors
-          path: ${{ runner.temp }}/coverage-floors.json
-          retention-days: 30
-
-  package:
-    name: Packages (pack, publint, attw, install)
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 26
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      # Each public package as npm gives it: the tarball, publint, attw, an install of all the
-      # tarballs into an empty project, imports, a program and the bins. Until the general packages
-      # (cue, splay, docker-sqlite) are on npm, three packages use github: dependencies
-      # (packages/documentation/RELEASE.md). The release workflow does not allow them.
-      - run: node scripts/check-packages.mjs
-
   site:
     name: Site (browser smoke test)
     runs-on: ubuntu-latest
@@ -408,7 +376,7 @@ jobs:
   ci-ok:
     name: CI OK
     if: always()
-    needs: [ci, changesets, checks, mongo, lifecycle, coverage, package, site]
+    needs: [ci, changesets, checks, mongo, site]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     permissions: {}
