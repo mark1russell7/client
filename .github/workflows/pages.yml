@@ -1,14 +1,20 @@
-# Builds packages/site and publishes it to GitHub Pages at https://mark1russell7.github.io/client/.
+# Builds packages/site and publishes it to GitHub Pages at https://mark1russell7.github.io/client/,
+# with the shared Pages workflow of the template (reusable-pages.yml, pinned to a commit).
 # The Pages source of the repository is "GitHub Actions" (Settings > Pages).
 #
-# The workflow starts when CI passes on main, so a commit that fails CI never reaches the
-# site (deep dive SITE-10). It builds the commit that CI tested, runs the browser smoke test
-# against the built site, then deploys. Only the deploy job can write to Pages: the build job
-# runs install scripts, so it gets read access only.
+# The workflow starts when CI passes on main, so a commit that fails CI never reaches the site
+# (deep dive SITE-10). The shared workflow builds the commit that CI tested, and it builds nothing
+# for a failed run, a pull request or a different branch. The build runs the browser smoke test of
+# packages/site against the built site before the upload, so a failed test stops the deploy. Only
+# the deploy job can write to Pages: the build job runs install scripts, so it gets read access only.
 #
-# It also starts every three hours. The status page reads the open pull requests and issues
-# from GitHub at build time, so the schedule keeps that page current without a push (fleet
-# issue #2). A scheduled run builds the newest commit of main that passed CI.
+# It also starts every three hours. The status page reads the open pull requests and issues from
+# GitHub at build time, so the schedule keeps that page current without a push (fleet issue #2).
+# A scheduled run builds the newest commit of main that passed CI (pending: green).
+#
+# The site has its own Releases page and Status page, so site-pages is off. After each deploy that
+# is not scheduled, the job indexnow of the shared workflow sends the URLs of sitemap.xml to the
+# IndexNow engines. The key is public by design: the site serves public/<key>.txt.
 name: Pages
 
 on:
@@ -29,124 +35,34 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
-    if: >-
-      github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ||
-      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    # Read access only. The status page reads the open pull requests and issues, with the state of
-    # their checks. A scheduled run reads the runs of CI to find the newest commit that passed.
+  pages:
+    # The build reads the open pull requests, the issues, their checks and the runs of CI (read
+    # access only). The deploy writes to Pages.
     permissions:
       contents: read
-      pull-requests: read
+      actions: read
       issues: read
+      pull-requests: read
       checks: read
       statuses: read
-      actions: read
-    steps:
-      # The commit that CI tested. A manual run builds the selected branch. A scheduled run builds
-      # the newest commit of main whose CI passed on a push.
-      #
-      # The commit is always one of this repository: never the head of a pull request. For a run
-      # after CI, the step reads that run of CI from the API, and it builds the commit only for a
-      # push to main of this repository that passed. So the code of a fork never runs here, and it
-      # cannot write to the cache of main (code scanning, roadmap O54).
-      - name: Select the commit
-        id: target
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EVENT: ${{ github.event_name }}
-          RUN_ID: ${{ github.event.workflow_run.id }}
-        run: |
-          case "$EVENT" in
-            schedule)
-              revision=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?branch=main&event=push&status=success&per_page=1" --jq '.workflow_runs[0].head_sha // empty')
-              ;;
-            workflow_run)
-              run=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '[.event, .head_branch, .conclusion, .head_repository.full_name] | join(" ")')
-              if [ "$run" != "push main success $GITHUB_REPOSITORY" ]; then
-                echo "::error::The run of CI is not a push to main of this repository that passed: $run"
-                exit 1
-              fi
-              revision=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.head_sha')
-              ;;
-            *)
-              revision="$GITHUB_SHA"
-              ;;
-          esac
-          if [ -z "$revision" ]; then echo "::error::No commit of main passed CI."; exit 1; fi
-          echo "Build $revision"
-          echo "revision=$revision" >> "$GITHUB_OUTPUT"
-          # The event of a schedule has no repository object, so the name comes from GITHUB_REPOSITORY
-          echo "name=${GITHUB_REPOSITORY#*/}" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ steps.target.outputs.revision }}
-          # The whole history: the status board of the site links each commit hash of the status
-          # documents to its repository, and git tells which hashes are commits of this one
-          fetch-depth: 0
-          persist-credentials: false
-      # The pnpm version comes from "packageManager" in package.json
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 26
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      # The build of the site renders each page in Chromium (an HTML file for each page, and its
-      # Open Graph image), and the smoke test uses it too
-      - name: Install Chromium for Playwright
-        run: pnpm --filter @procedures/site exec playwright install --with-deps chromium
-      # The data of the site comes from the dist/ of every package. The site depends on each
-      # package that registers procedures, so `pnpm build` builds the site last.
-      # SITE_PRERENDER=1: the deploy has the prerendered pages, or the build fails.
-      # GITHUB_TOKEN: the status page reads the open pull requests and issues (read access only).
-      - run: pnpm build
-        env:
-          SITE_BASE: /${{ steps.target.outputs.name }}/
-          SITE_URL: https://${{ github.repository_owner }}.github.io/${{ steps.target.outputs.name }}/
-          SITE_PRERENDER: "1"
-          GITHUB_TOKEN: ${{ github.token }}
-      - name: Browser smoke test of the built site
-        run: pnpm --filter @procedures/site test:e2e
-        env:
-          SITE_BASE: /${{ steps.target.outputs.name }}/
-      - uses: actions/upload-pages-artifact@v5
-        with:
-          path: packages/site/dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
       pages: write
       id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v5
-
-  # Tell the IndexNow search engines (Bing and others) about the pages of the new deploy. A
-  # failure here does not fail the deploy. A scheduled deploy changes only the status page, so it
-  # sends nothing.
-  indexnow:
-    needs: deploy
-    if: github.event_name != 'schedule'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    continue-on-error: true
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-          sparse-checkout: packages/site/scripts
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-      - run: node packages/site/scripts/indexnow.mjs "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+    uses: mark1russell7/template/.github/workflows/reusable-pages.yml@c8d2f57af6932442af82d2f2223931e47c11beb1
+    with:
+      # The data of the site comes from the dist/ of every package. The site depends on each package
+      # that registers procedures, so `pnpm build` builds the site last. The build renders each page
+      # in Chromium (an HTML file for each page, and its Open Graph image), and the smoke test uses it too.
+      build: |
+        pnpm --filter @procedures/site exec playwright install --with-deps chromium
+        pnpm build
+        pnpm --filter @procedures/site test:e2e
+      out: packages/site/dist
+      # SITE_PRERENDER=1: the deploy has the prerendered pages, or the build fails.
+      env: '{"SITE_BASE": "/client/", "SITE_URL": "https://mark1russell7.github.io/client/", "SITE_PRERENDER": "1"}'
+      # The status page reads the open pull requests and issues (read access only)
+      github-token: true
+      pending: green
+      site-pages: false
+      site-check: true
+      indexnow-key: 626da9a7ba19ca53f2437cb462de76e7
+      timeout-minutes: 25
