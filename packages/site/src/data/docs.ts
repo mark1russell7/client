@@ -1,5 +1,5 @@
 /**
- * The list of the docs pages (`scripts/docs-data.mjs` makes it from the Markdown of the
+ * The list of the docs pages (`scripts/docs-data.ts` makes it from the Markdown of the
  * repository). The routes, the head tags and the sidebar use it. The content of a page loads
  * with the page (refer to `docs-content.ts`).
  */

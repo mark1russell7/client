@@ -2,7 +2,7 @@
 // {"":0,"\"":0} gives the keys "" and \, not "" and " (one double quote). V8 takes the one known
 // next key of the hidden class when the raw source characters match it, and it ignores the escape.
 //
-// Run: node packages/site/scripts/v8-json-key-repro.mjs
+// Run: node packages/site/scripts/v8-json-key-repro.ts
 // Exit code 1: the bug shows. Exit code 0: it does not. The script uses no imports and no repo files.
 // In a new context with no earlier objects (d8, or node:vm), the keys \ and " alone are sufficient.
 // The key "" goes first here: it gives a hidden class that the startup code of Node does not use.

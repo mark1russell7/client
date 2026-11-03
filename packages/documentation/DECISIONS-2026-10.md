@@ -45,7 +45,7 @@ Reverse: `git revert` of the merge. The 0.2.0 versions stay on npm.
 
 Wave 2 (2026-10-11) merged the toolchain, the call policy, the documents, the site pages and the open items. The changes that a user can see:
 
-- **TypeScript 7 and vitest 5 in every package** (`35f7dbc`, `3166de5`). The site keeps TypeScript 5 under the alias `typescript-api`, only for `scripts/core-fields.mjs`: TypeScript 7 has no JavaScript compiler API.
+- **TypeScript 7 and vitest 5 in every package** (`35f7dbc`, `3166de5`). The site keeps TypeScript 5 under the alias `typescript-api`, only for `scripts/core-fields.ts`: TypeScript 7 has no JavaScript compiler API.
 - **The MCP server refuses undeclared nested calls** (`3e3827f`). A code procedure that calls a procedure that is not a tool must name it in `metadata.calls`. Each tool call has a time limit (`MCP_TOOL_TIMEOUT_MS`, default 10 minutes).
 - **`mcp.serve` exposes nothing without a list** (`ec24f70`). It takes `namespaces`/`exclude`, or reads the lists of `bundle-mcp`.
 - **The cache keeps a TTL for each entry** (`eff47a0`), and `CacheContext` has no `key` (the key holds the payload).
@@ -128,7 +128,7 @@ Found while building the site's Composer (commit `5ea4d5e`). These are new defec
 A Vite and React app, made with the `cue-config` `app` preset, published by `.github/workflows/pages.yml` at <https://mark1russell7.github.io/client/>. Commit `1857144`.
 
 - `lib new` makes procedure libraries, so the site is not made with it. The package files come from `cue-config init --preset app` and `generate`, and the package-owned fields (name, scripts, dependencies) are edited as the generator allows.
-- The data is generated at build time from the workspace (`scripts/gen-data.mjs`) and is not committed. The generated `tsconfig.json` does not include `.json` files, so the generator writes `.js` modules with `.d.ts` declarations.
+- The data is generated at build time from the workspace (`scripts/gen-data.ts`) and is not committed. The generated `tsconfig.json` does not include `.json` files, so the generator writes `.js` modules with `.d.ts` declarations.
 - The design tokens are the shared file of the Vex and lag sites.
 
 ### sideEffects describes what each package really does (BUGS-2026-07 H15), and an open question about the bundles
@@ -208,7 +208,7 @@ Step 2 (delete the modules nothing uses) is a separate commit. Reverse with `git
 The manifest (`ecosystem.manifest.json`) listed one repository per package. The workspace (`pnpm-workspace.yaml`) is that list now. All readers of the manifest in this repository moved to the workspace:
 
 - `mark` discovery;
-- `generate-procedures.mjs`;
+- `generate-procedures.ts`;
 - `lib.scan`, `lib.new` and `lib.audit`.
 
 The `ecosystem` package's own loader API had no consumers (AUDIT §3). Outside this repository, `cue`'s `validate structure` command still looks for `~/git/ecosystem/ecosystem.manifest.json`, and falls back to its defaults when the file is missing. Reverse with `git revert`.

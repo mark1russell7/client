@@ -1,8 +1,8 @@
 # Package Reference
 
-> **Generated file — do not hand-edit.** Produced by `packages/documentation/scripts/generate-packages.mjs`
+> **Generated file — do not hand-edit.** Produced by `packages/documentation/scripts/generate-packages.ts`
 > from the workspace's package.json files and the live procedure registry.
-> Regenerate with `node packages/documentation/scripts/generate-packages.mjs` after `pnpm build`.
+> Regenerate with `node packages/documentation/scripts/generate-packages.ts` after `pnpm build`.
 
 **Packages:** 59. **Procedures:** 299. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
 

@@ -52,7 +52,7 @@
         "roadmaps": [
           "packages/documentation/ROADMAP-2026-10.md"
         ],
-        "reason": "packages/site/scripts/gen-data.mjs gives it to readStatusBoard of site-pages"
+        "reason": "packages/site/scripts/gen-data.ts gives it to readStatusBoard of site-pages"
       },
       "source-main": {
         "main": "./dist/index.js",
@@ -71,18 +71,7 @@
           "packages/client-vitest/fixtures/project/math.js",
           "packages/client-vitest/fixtures/project/vitest.config.js",
           "packages/client/stryker.config.mjs",
-          "packages/documentation/scripts/generate-packages.mjs",
-          "packages/documentation/scripts/generate-procedures.mjs",
           "packages/impl-mcp-dev/bin/mcp-server.js",
-          "packages/site/scripts/core-fields.mjs",
-          "packages/site/scripts/docs-data.mjs",
-          "packages/site/scripts/gen-data.mjs",
-          "packages/site/scripts/icons.mjs",
-          "packages/site/scripts/readme-media.mjs",
-          "packages/site/scripts/releases-data.mjs",
-          "packages/site/scripts/site-metrics.mjs",
-          "packages/site/scripts/status-data.mjs",
-          "packages/site/scripts/v8-json-key-repro.mjs",
           "scripts/api-report.mjs",
           "scripts/api-report.test.mjs",
           "scripts/bench-paired-child.mjs",
@@ -100,7 +89,7 @@
           "scripts/release-tags.mjs",
           "scripts/use-npm-general-packages.mjs"
         ],
-        "reason": "No new JavaScript or shell scripts (the rule of 2026-10-29): this list names each file of today, one by one, and it only gets shorter. A converted file leaves the list in the same PR. Exceptions: the fixtures of client-vitest and client-vite are JavaScript inputs of their tests. .dependency-cruiser.cjs and stryker.config.mjs are configs that their tools read. impl-mcp-dev/bin/mcp-server.js is a published bin that the Node of a user starts, until it is TypeScript source with a built bin. publish-ci.mjs and npm-bootstrap.mjs are release files of the npm owner. Open work, converted to .ts and started with node in follow-up PRs, so the list only gets shorter: scripts/ and scripts/lib/, .github/scripts/, harness/procedures-subject/, the scripts of site and documentation, and the JavaScript helpers of the tests of server and mark"
+        "reason": "No new JavaScript or shell scripts (the rule of 2026-10-29): this list names each file of today, one by one, and it only gets shorter. A converted file leaves the list in the same PR. Exceptions: the fixtures of client-vitest and client-vite are JavaScript inputs of their tests. .dependency-cruiser.cjs and stryker.config.mjs are configs that their tools read. impl-mcp-dev/bin/mcp-server.js is a published bin that the Node of a user starts, until it is TypeScript source with a built bin. publish-ci.mjs and npm-bootstrap.mjs are release files of the npm owner. Open work, converted to .ts and started with node in follow-up PRs, so the list only gets shorter: scripts/ and scripts/lib/, .github/scripts/, harness/procedures-subject/, and the JavaScript helpers of the tests of server and mark"
       }
     }
   }

@@ -1,5 +1,5 @@
 /**
- * The data of the site. `scripts/gen-data.mjs` generates it from the workspace before each build.
+ * The data of the site. `scripts/gen-data.ts` generates it from the workspace before each build.
  *
  * Each page loads this module. Thus it has the procedures without their input and output
  * schemas. The page of a procedure loads the schemas of its package (refer to `schemas.ts`).
@@ -84,14 +84,14 @@ export interface BuildInfo {
   date: string | null;
 }
 
-/** The measured numbers of the home page (`scripts/site-metrics.mjs`). */
+/** The measured numbers of the home page (`scripts/site-metrics.ts`). */
 export interface SiteMetrics {
   /** The tests (`it`/`test` calls) in the test files of the packages. */
   tests: number;
   testFiles: number;
   /** The library on npm: the latest version, or null when it is not published. */
   npm: { name: string; version: string | null };
-  /** The newest version of the changelogs (`scripts/releases-data.mjs`), or null. The build can run before npm has it. */
+  /** The newest version of the changelogs (`scripts/releases-data.ts`), or null. The build can run before npm has it. */
   release?: { version: string; date: string } | null;
 }
 
@@ -121,7 +121,7 @@ export function procedureByKey(key: string): ProcedureSummary | undefined {
 }
 
 // ---------------------------------------------------------------------------
-// The status board (`scripts/status-data.mjs` reads the status documents)
+// The status board (`scripts/status-data.ts` reads the status documents)
 // ---------------------------------------------------------------------------
 
 export type FindingStatus = "open" | "decision" | "partly" | "fixed" | "done";
@@ -184,7 +184,7 @@ export interface StatusData {
 
 
 // ---------------------------------------------------------------------------
-// The releases (`scripts/releases-data.mjs` reads the changelogs)
+// The releases (`scripts/releases-data.ts` reads the changelogs)
 // ---------------------------------------------------------------------------
 
 /** "first" for the first release, "minor" when the PATCH number is 0, else "patch". */

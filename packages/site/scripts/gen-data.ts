@@ -15,7 +15,7 @@
 // SITE_ALLOW_LOAD_FAILURES=1 lets a local build continue: the footer of the site then lists
 // the packages that did not load.
 //
-// Usage: node scripts/gen-data.mjs (from packages/site). Build the workspace first (`pnpm build`).
+// Usage: node scripts/gen-data.ts (from packages/site). Build the workspace first (`pnpm build`).
 // Output: src/data/generated/*.js with .d.ts files. Git ignores that folder. catalog.js has the
 // procedures without their schemas, and schemas/<package>.js has the schemas of each package.
 
@@ -23,12 +23,30 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { readCoreFields } from "./core-fields.mjs";
-import { readStatusData } from "./status-data.mjs";
-import { readStatusBoard } from "@mark1russell7/site-pages";
-import { readReleases, splitReleases } from "./releases-data.mjs";
-import { docModuleName, readDocs } from "./docs-data.mjs";
-import { countTests, npmVersion } from "./site-metrics.mjs";
+import type * as Client from "@procedures/client";
+import { readCoreFields } from "./core-fields.ts";
+import { readStatusData } from "./status-data.ts";
+import { readStatusBoard, type StatusBoardData } from "@mark1russell7/site-pages";
+import { readReleases, splitReleases, type RepositoryReleases } from "./releases-data.ts";
+import { docModuleName, readDocs, type DocsData } from "./docs-data.ts";
+import { countTests, npmVersion } from "./site-metrics.ts";
+import type { JsonSchema, LoadFailure, PackageInfo, ProcedureInfo, StatusData } from "../src/data/index.ts";
+
+/** The fields of a `package.json` that this script reads. */
+interface Manifest {
+  name: string;
+  description?: string;
+  private?: boolean;
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+  client?: { procedures?: string };
+}
+
+/** A package of the catalog. The script deletes `rawDeps` when `deps` has the workspace packages. */
+interface PackageRecord extends PackageInfo {
+  rawDeps?: Record<string, string>;
+}
 
 const SITE = join(dirname(fileURLToPath(import.meta.url)), "..");
 const PACKAGES = join(SITE, "..");
@@ -37,10 +55,12 @@ const ALLOW_FAILURES = process.env["SITE_ALLOW_LOAD_FAILURES"] === "1";
 
 // Procedure handlers and dependencies write to the console when they load. The data goes to files.
 const log = console.log;
-const fail = (message) => {
+function fail(message: string): never {
   process.stderr.write(`gen-data: ${message}\n`);
   process.exit(1);
-};
+}
+/** The message of a thrown value, or the value itself. */
+const messageOf = (error: unknown): unknown => (error as Error | null | undefined)?.message ?? error;
 console.log = () => {};
 console.info = () => {};
 console.warn = () => {};
@@ -49,7 +69,7 @@ console.warn = () => {};
 // Packages
 // ---------------------------------------------------------------------------
 
-function countLines(dir) {
+function countLines(dir: string): number {
   if (!existsSync(dir)) return 0;
   let total = 0;
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -62,12 +82,12 @@ function countLines(dir) {
   return total;
 }
 
-const packages = [];
-const manifests = new Map();
+const packages: PackageRecord[] = [];
+const manifests = new Map<string, Manifest>();
 for (const entry of readdirSync(PACKAGES, { withFileTypes: true })) {
   const manifest = join(PACKAGES, entry.name, "package.json");
   if (!entry.isDirectory() || !existsSync(manifest)) continue;
-  const pkg = JSON.parse(readFileSync(manifest, "utf8"));
+  const pkg = JSON.parse(readFileSync(manifest, "utf8")) as Manifest;
   manifests.set(entry.name, pkg);
   // The devDependencies of the site only set the build order (see below): the map does not show them
   const devDependencies = entry.name === "site" ? {} : pkg.devDependencies;
@@ -86,9 +106,9 @@ for (const entry of readdirSync(PACKAGES, { withFileTypes: true })) {
 
 const byName = new Map(packages.map((pkg) => [pkg.name, pkg]));
 for (const pkg of packages) {
-  pkg.deps = Object.keys(pkg.rawDeps)
+  pkg.deps = Object.keys(pkg.rawDeps!)
     .filter((name) => byName.has(name) && name !== pkg.name)
-    .map((name) => byName.get(name).dir)
+    .map((name) => byName.get(name)!.dir)
     .sort();
   delete pkg.rawDeps;
 }
@@ -96,9 +116,9 @@ for (const pkg of packages) {
 // Level: 0 for a package without workspace dependencies, else 1 + the highest level of its dependencies.
 // The site is an app at the end of the graph: its build-order dependencies do not count.
 const byDir = new Map(packages.map((pkg) => [pkg.dir, pkg]));
-const levels = new Map();
-function levelOf(dir, stack = new Set()) {
-  if (levels.has(dir)) return levels.get(dir);
+const levels = new Map<string, number>();
+function levelOf(dir: string, stack = new Set<string>()): number {
+  if (levels.has(dir)) return levels.get(dir)!;
   if (stack.has(dir)) return 0; // a cycle: break it here
   stack.add(dir);
   const deps = byDir.get(dir)?.deps ?? [];
@@ -117,7 +137,7 @@ for (const pkg of packages) pkg.level = levelOf(pkg.dir);
 const SKIP = new Set(["impl-mcp-dev", "site"]);
 const registering = packages.filter((pkg) => !SKIP.has(pkg.dir) && existsSync(join(PACKAGES, pkg.dir, "src", "register.ts")));
 
-const site = manifests.get("site");
+const site = manifests.get("site")!;
 const siteDeps = { ...site.dependencies, ...site.devDependencies };
 const undeclared = registering.filter((pkg) => siteDeps[pkg.name] === undefined);
 if (undeclared.length > 0) {
@@ -140,26 +160,26 @@ if (unbuilt.length > 0) {
 // Procedures
 // ---------------------------------------------------------------------------
 
-const client = await import(pathToFileURL(clientDist).href);
+const client = (await import(pathToFileURL(clientDist).href)) as typeof Client;
 const registry = client.PROCEDURE_REGISTRY;
 // An import registers nothing: the register entry of the client package adds its procedures
 await import(pathToFileURL(join(PACKAGES, "client", "dist", "register.js")).href);
 
 // The key of a procedure comes from the path codec of the client, as on the pages of the site
 // (rule I3): a segment with a dot stays one segment
-const keyOf = (proc) => client.pathToKey(proc.path);
+const keyOf = (proc: Client.AnyProcedure): string => client.pathToKey(proc.path);
 
 const owner = new Map();
 for (const proc of registry.getAll()) owner.set(keyOf(proc), "client");
 
-const failed = [];
-const byLevel = (a, b) => a.level - b.level || a.dir.localeCompare(b.dir);
+const failed: LoadFailure[] = [];
+const byLevel = (a: PackageRecord, b: PackageRecord): number => a.level - b.level || a.dir.localeCompare(b.dir);
 
-async function load(pkg, file) {
+async function load(pkg: PackageRecord, file: string): Promise<void> {
   try {
     await import(pathToFileURL(file).href);
   } catch (error) {
-    failed.push({ package: pkg.dir, error: String(error?.message ?? error).split("\n")[0] });
+    failed.push({ package: pkg.dir, error: String(messageOf(error)).split("\n")[0]! });
     return;
   }
   for (const proc of registry.getAll()) {
@@ -170,9 +190,9 @@ async function load(pkg, file) {
 
 // Phase 1: the packages that `mark` loads (deep dive SITE-11: the catalog showed `mark mcp serve`,
 // but client-mcp does not declare client.procedures, so `mark` does not have it)
-const cliPackages = registering.filter((pkg) => manifests.get(pkg.dir).client?.procedures).sort(byLevel);
+const cliPackages = registering.filter((pkg) => manifests.get(pkg.dir)!.client?.procedures).sort(byLevel);
 for (const pkg of cliPackages) {
-  await load(pkg, join(PACKAGES, pkg.dir, manifests.get(pkg.dir).client.procedures));
+  await load(pkg, join(PACKAGES, pkg.dir, manifests.get(pkg.dir)!.client!.procedures!));
 }
 const cliKeys = new Set(registry.getAll().map((proc) => keyOf(proc)));
 
@@ -194,14 +214,14 @@ if (!existsSync(mcpSnapshot)) fail("packages/impl-mcp-dev/tools.snapshot.txt is 
 const mcpTools = new Set(readFileSync(mcpSnapshot, "utf8").split(/\r?\n/).filter(Boolean));
 
 /** The JSON Schema of a procedure's input or output, as the MCP tools and `mark` see it. */
-function schemaOf(schema, io = "input") {
+function schemaOf(schema: Parameters<typeof Client.jsonSchemaOf>[0], io: "input" | "output" = "input"): JsonSchema {
   return client.jsonSchemaOf(schema, { io }) ?? { type: "object" };
 }
 
 const coreFields = readCoreFields(PACKAGES);
 // The Composer's runtime (src/lib/runtime.ts) has the core procedures and procedure.define/get/list/delete
 const browserKeys = new Set([...client.allCoreProcedures, ...client.metaProcedures].map((proc) => keyOf(proc)));
-const all = new Map();
+const all = new Map<string, ProcedureInfo>();
 for (const proc of [...registry.getAll(), ...client.allCoreProcedures]) {
   const key = keyOf(proc);
   if (all.has(key)) continue;
@@ -234,7 +254,7 @@ for (const proc of procedures) {
 // The build: the commit and its date
 // ---------------------------------------------------------------------------
 
-function git(...args) {
+function git(...args: string[]): string | null {
   try {
     return execFileSync("git", args, { cwd: SITE, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim() || null;
   } catch {
@@ -253,27 +273,27 @@ const build = { commit, date: (commit && git("show", "-s", "--format=%cI", commi
 
 const STATUS_BOARD = { roadmap: "packages/documentation/ROADMAP-2026-10.md", owner: "mark1russell7", repo: "client" };
 
-let board;
+let board: StatusBoardData;
 try {
   board = await readStatusBoard({ repoDir: join(PACKAGES, ".."), ...STATUS_BOARD, token: process.env["GITHUB_TOKEN"], commit });
 } catch (error) {
-  fail(`the status board cannot read the roadmap. ${error?.message ?? error}`);
+  fail(`the status board cannot read the roadmap. ${messageOf(error)}`);
 }
 if (!board.github.available) process.stderr.write(`gen-data: the status board has no GitHub data: ${board.github.reason}.\n`);
 
-let status;
+let status: StatusData;
 try {
   status = readStatusData(PACKAGES, SITE);
 } catch (error) {
-  fail(`the status board cannot read a status document. ${error?.message ?? error}`);
+  fail(`the status board cannot read a status document. ${messageOf(error)}`);
 }
 
 // ---------------------------------------------------------------------------
 // The releases: the changelog of each package, and the dates from git, GitHub and npm
-// (scripts/releases-data.mjs, with @mark1russell7/site-pages)
+// (scripts/releases-data.ts, with @mark1russell7/site-pages)
 // ---------------------------------------------------------------------------
 
-let releases;
+let releases: RepositoryReleases;
 try {
   releases = await readReleases({
     repoDir: join(PACKAGES, ".."),
@@ -282,19 +302,19 @@ try {
     warn: (message) => process.stderr.write(`gen-data: ${message}\n`),
   });
 } catch (error) {
-  fail(`the releases cannot be read from the changelogs. ${error?.message ?? error}`);
+  fail(`the releases cannot be read from the changelogs. ${messageOf(error)}`);
 }
 
 // ---------------------------------------------------------------------------
-// The docs pages (scripts/docs-data.mjs): the guides, the documents of the client library and
+// The docs pages (scripts/docs-data.ts): the guides, the documents of the client library and
 // the README of each package, as HTML. A program block can run when the browser has its procedures.
 // ---------------------------------------------------------------------------
 
-let docs;
+let docs: DocsData;
 try {
   docs = readDocs(PACKAGES, packages, { canRun: (key) => browserKeys.has(key) });
 } catch (error) {
-  fail(`the docs pages cannot be made. ${error?.stack ?? error}`);
+  fail(`the docs pages cannot be made. ${(error as Error | null | undefined)?.stack ?? error}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -304,12 +324,12 @@ try {
 mkdirSync(OUT, { recursive: true });
 writeFileSync(join(OUT, ".gitignore"), "*\n");
 // A .js module with a .d.ts declaration: the generated tsconfig does not include .json files
-const write = (name, data) => {
+const write = (name: string, data: unknown): void => {
   writeFileSync(join(OUT, `${name}.js`), `export default ${JSON.stringify(data, null, 2)};\n`);
   writeFileSync(join(OUT, `${name}.d.ts`), "declare const data: unknown;\nexport default data;\n");
 };
 write("packages", packages.sort((a, b) => a.level - b.level || a.dir.localeCompare(b.dir)));
-// The measured numbers of the home page (scripts/site-metrics.mjs)
+// The measured numbers of the home page (scripts/site-metrics.ts)
 const tests = countTests(PACKAGES);
 const npm = { name: "@procedures/client", version: await npmVersion("@procedures/client") };
 // The newest version of the changelogs: the build can run before npm has it
@@ -321,7 +341,7 @@ const metrics = { tests: tests.tests, testFiles: tests.files, npm, release: newe
 // procedure loads only the module of its package (src/data/schemas.ts).
 const summaries = procedures.map(({ input: _input, output: _output, ...summary }) => summary);
 write("catalog", { procedures: summaries, failed, mcpTools: [...mcpTools].sort(), build, metrics });
-const schemasByPackage = new Map();
+const schemasByPackage = new Map<string, { key: string; input: JsonSchema; output: JsonSchema }[]>();
 for (const { key, package: dir, input, output } of procedures) {
   const entries = schemasByPackage.get(dir) ?? [];
   entries.push({ key, input, output });

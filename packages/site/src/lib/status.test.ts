@@ -18,7 +18,7 @@ import {
   severityOf,
   splitRow,
   type HashRecord,
-} from "../../scripts/status-data.mjs";
+} from "../../scripts/status-data.ts";
 import type { CommitLink } from "../data";
 
 const resolve = (record: HashRecord): CommitLink => ({ hash: record.hash, repo: repoOf(record, null), url: "" });

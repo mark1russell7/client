@@ -27,7 +27,7 @@ commit. Decisions made without a human are in [DECISIONS-2026-07.md](./DECISIONS
   `client-dag`, and `client` got new regression tests (incl. a Client↔transport round-trip suite);
   a **build-freshness checker** (`scripts/check-build-freshness.mjs`) — all 48 packages currently fresh.
 - **Phase 4 (partial)** — **PROCEDURES.md is now generated** from the live registry
-  (`scripts/generate-procedures.mjs`, 176 procedures); Node `>=20` engine policy documented;
+  (`scripts/generate-procedures.ts`, 176 procedures); Node `>=20` engine policy documented;
   PACKAGES.md filled in the 10 missing packages. Fixed a real duplicate-registration bug
   (`procedure.list` in both core and `client-procedure`) found via the generator.
 - Also (parallel workflow): **C4** — the `client-git` shell-injection class eliminated (argv
