@@ -249,3 +249,121 @@ describe("summaryTree", () => {
     expect(tree.summary).toEqual({ count: 8192, sum: 4095 * 4096 });
   });
 });
+
+/** The text spec with a merge at seams: two neighbor leaves join when their text has 4 characters or fewer. */
+const merged: SummarySpec<string, string> = { ...text, merge: (a, b) => (a.length + b.length <= 4 ? a + b : undefined) };
+
+/** A spec that counts its combine calls, for the cost of an edit. */
+function counted(): { spec: SummarySpec<string, Total>; calls: () => number } {
+  let calls = 0;
+  const spec: SummarySpec<string, Total> = {
+    monoid: {
+      empty: { count: 0, sum: 0 },
+      combine: (a, b) => {
+        calls++;
+        return { count: a.count + b.count, sum: a.sum + b.sum };
+      },
+    },
+    measure: (leaf) => ({ count: 1, sum: leaf.length }),
+  };
+  return { spec, calls: () => calls };
+}
+
+describe("summaryTree locate", () => {
+  it("finds the leaf and the offset of a position of an additive key, as a scan of the leaves does", () => {
+    fc.assert(
+      fc.property(fc.array(fc.string({ maxLength: 4 }), { maxLength: 60 }), fc.integer({ min: -3, max: 250 }), (items, target) => {
+        const tree = summaryTree(total, items.map((item) => item.length));
+        let index = -1;
+        let before = 0;
+        for (let i = 0; i < items.length; i++) {
+          if (target >= before && target < before + items[i]!.length) {
+            index = i;
+            break;
+          }
+          before += items[i]!.length;
+        }
+        const found = tree.locate((s) => s.sum, target);
+        if (index === -1) expect(found).toBeUndefined();
+        else expect(found).toEqual({ index, leaf: items[index]!.length, offset: target - before });
+      }),
+      runs(0x5e9d7),
+    );
+    expect(summaryTree(total, [2]).locate((s) => s.sum, Number.NaN)).toBeUndefined();
+  });
+
+  it("calls no combine", () => {
+    const { spec, calls } = counted();
+    const tree = summaryTree(spec, Array.from({ length: 500 }, (_, i) => "x".repeat(1 + (i % 7))));
+    const start = calls();
+    for (let target = 0; target < tree.summary.sum; target += 37) expect(tree.locate((s) => s.sum, target)).toBeDefined();
+    expect(calls()).toBe(start);
+  });
+});
+
+describe("summaryTree small edits", () => {
+  it("copies only the path for set and for a splice of a few leaves", () => {
+    const { spec, calls } = counted();
+    let tree = summaryTree(spec, Array.from({ length: 4000 }, () => "abcd"));
+    for (let k = 0; k < 200; k++) {
+      const index = (k * 7919) % tree.size;
+      const h = tree.height;
+      let start = calls();
+      tree = tree.set(index, "ab");
+      // Each node on the path to the leaf calls combine at most 2 times
+      expect(calls() - start).toBeLessThanOrEqual(2 * h);
+      start = calls();
+      tree = tree.splice(index, 1, ["a", "b"]);
+      // A replace and one insert: two paths, and the rotations of the insert
+      expect(calls() - start).toBeLessThanOrEqual(4 * h + 12);
+    }
+    expectValid(tree);
+  });
+
+  it("gives the same leaves for a small splice as an array, with each count of removed and inserted leaves", () => {
+    fc.assert(
+      fc.property(leaves, fc.integer({ min: -5, max: 70 }), fc.integer({ min: 0, max: 8 }), fc.array(leaf, { maxLength: 8 }), (items, start, count, inserted) => {
+        const tree = summaryTree(text, items).splice(start, count, inserted);
+        const expected = [...items];
+        expected.splice(start, count, ...inserted);
+        expect(tree.toArray()).toEqual(expected);
+        expectValid(tree);
+      }),
+      runs(0x5e9d8),
+    );
+  });
+});
+
+describe("summaryTree merge", () => {
+  it("joins the two leaves at each seam of concat, prepend, splice and remove", () => {
+    expect(summaryTree(merged, ["ab"]).concat(["cd", "ef"]).toArray()).toEqual(["abcd", "ef"]);
+    expect(summaryTree(merged, ["cd"]).prepend("x", "ab").toArray()).toEqual(["x", "abcd"]);
+    expect(summaryTree(merged, ["ab", "cd", "ef"]).remove(1, 2).toArray()).toEqual(["abef"]);
+    // The inserted leaves do not join each other: only the two seams of the splice join
+    expect(summaryTree(merged, ["a", "zzzzz", "b"]).splice(1, 1, ["c", "d", "e"]).toArray()).toEqual(["ac", "d", "eb"]);
+    expect(summaryTree(merged, ["abc", "zzzzz"]).splice(1, 1, ["dd"]).toArray()).toEqual(["abc", "dd"]);
+  });
+
+  it("does not join leaves for set, or when merge gives undefined", () => {
+    expect(summaryTree(merged, ["a", "zzzzz"]).set(1, "b").toArray()).toEqual(["a", "b"]);
+    expect(summaryTree(merged, ["abc"]).concat(["de"]).toArray()).toEqual(["abc", "de"]);
+  });
+
+  it("keeps the text and the invariants after each edit of a sequence", () => {
+    fc.assert(
+      fc.property(leaves, fc.array(edit, { maxLength: 25 }), (initial, edits) => {
+        let tree = summaryTree(merged, initial);
+        for (const e of edits) {
+          if (e.kind !== "splice" && e.kind !== "concat" && e.kind !== "prepend") continue;
+          // A merge makes the tree hold fewer leaves than an array model: the edit of its own leaves gives the text
+          const expected = applyToArray(tree.toArray(), e).join("");
+          tree = e.kind === "splice" ? tree.splice(e.start, e.count, e.items) : e.kind === "concat" ? tree.concat(e.items) : tree.prepend(...e.items);
+          expect(tree.toArray().join("")).toBe(expected);
+          expect(tree.summary).toBe(expected);
+          expectValid(tree);
+        }
+      }),
+      runs(0x5e9d9),
+    );
+  });
+});
