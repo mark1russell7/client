@@ -18,11 +18,12 @@ import { createPeer, type Peer } from "./index.js";
 const TOKEN = "test-token-0123456789";
 
 /**
- * The port of the first endpoint of a started peer. The peer listens on port 0, so no other test or
- * process takes the port between a probe and the listen (EADDRINUSE on CI).
+ * The port of a face of a started peer. Each transport of the peer listens on port 0, so no other
+ * test or process takes the port between a probe and the listen (EADDRINUSE on CI). Faces with port
+ * 0 do not share a listener, so the HTTP face and the WebSocket face have different ports.
  */
-function portOf(peer: Peer): number {
-  const [endpoint] = peer.getEndpoints();
+function portOf(peer: Peer, type: "http" | "websocket"): number {
+  const endpoint = peer.getEndpoints().find((candidate) => candidate.type === type);
   const port = Number(new URL(endpoint!.address).port);
   expect(port).toBeGreaterThan(0);
   return port;
@@ -70,8 +71,8 @@ afterEach(async () => {
   peers = [];
 });
 
-/** A peer with an HTTP transport and a WebSocket transport on one port, with the token. */
-async function startPeer(options: { policy?: HostPolicy; corsOrigins?: string[] } = {}): Promise<number> {
+/** A peer with an HTTP transport and a WebSocket transport, with the token. It gives the port of each. */
+async function startPeer(options: { policy?: HostPolicy; corsOrigins?: string[] } = {}): Promise<{ port: number; wsPort: number }> {
   const registry = new ProcedureRegistry();
   registry.register(
     defineProcedure({
@@ -93,7 +94,7 @@ async function startPeer(options: { policy?: HostPolicy; corsOrigins?: string[] 
   });
   await peer.start();
   peers.push(peer);
-  return portOf(peer);
+  return { port: portOf(peer, "http"), wsPort: portOf(peer, "websocket") };
 }
 
 const json = { "Content-Type": "application/json" };
@@ -101,30 +102,30 @@ const call = JSON.stringify({ text: "hi" });
 
 describe("peer request checks", () => {
   it("answers a call with the token", async () => {
-    const port = await startPeer();
+    const { port } = await startPeer();
     const response = await send(port, "/api/test/echo", { ...json, Host: `127.0.0.1:${port}`, Authorization: `Bearer ${TOKEN}` }, call);
     expect(response.status).toBe(200);
     expect(JSON.parse(response.body)).toBe("hi");
   });
 
   it("refuses a call without the token, or with a wrong one", async () => {
-    const port = await startPeer();
+    const { port, wsPort } = await startPeer();
     expect((await send(port, "/api/test/echo", { ...json, Host: `127.0.0.1:${port}` }, call)).status).toBe(401);
     expect((await send(port, "/api/test/echo", { ...json, Host: `127.0.0.1:${port}`, Authorization: "Bearer wrong" }, call)).status).toBe(401);
-    expect(await upgrade(port, "/ws", { Host: `127.0.0.1:${port}` })).toBe(401);
-    expect(await upgrade(port, "/ws?token=wrong", { Host: `127.0.0.1:${port}` })).toBe(401);
-    expect(await upgrade(port, `/ws?token=${TOKEN}`, { Host: `127.0.0.1:${port}` })).toBe(101);
+    expect(await upgrade(wsPort, "/ws", { Host: `127.0.0.1:${wsPort}` })).toBe(401);
+    expect(await upgrade(wsPort, "/ws?token=wrong", { Host: `127.0.0.1:${wsPort}` })).toBe(401);
+    expect(await upgrade(wsPort, `/ws?token=${TOKEN}`, { Host: `127.0.0.1:${wsPort}` })).toBe(101);
   });
 
   it("refuses a request addressed to another host name (DNS rebinding)", async () => {
-    const port = await startPeer();
+    const { port, wsPort } = await startPeer();
     const response = await send(port, "/api/test/echo", { ...json, Host: `attacker.example:${port}`, Authorization: `Bearer ${TOKEN}` }, call);
     expect(response.status).toBe(403);
-    expect(await upgrade(port, `/ws?token=${TOKEN}`, { Host: `attacker.example:${port}` })).toBe(403);
+    expect(await upgrade(wsPort, `/ws?token=${TOKEN}`, { Host: `attacker.example:${wsPort}` })).toBe(403);
   });
 
   it("refuses a request from a web page of another origin, and sends no CORS header", async () => {
-    const port = await startPeer();
+    const { port, wsPort } = await startPeer();
     const response = await send(
       port,
       "/api/test/echo",
@@ -133,11 +134,11 @@ describe("peer request checks", () => {
     );
     expect(response.status).toBe(403);
     expect(response.headers["access-control-allow-origin"]).toBeUndefined();
-    expect(await upgrade(port, `/ws?token=${TOKEN}`, { Host: `127.0.0.1:${port}`, Origin: "https://evil.example" })).toBe(403);
+    expect(await upgrade(wsPort, `/ws?token=${TOKEN}`, { Host: `127.0.0.1:${wsPort}`, Origin: "https://evil.example" })).toBe(403);
   });
 
   it("permits a web page of a loopback origin, and an origin of the list: the rule of the peer is data for the core check", async () => {
-    const port = await startPeer({ corsOrigins: ["https://mark1russell7.github.io"] });
+    const { port, wsPort } = await startPeer({ corsOrigins: ["https://mark1russell7.github.io"] });
     const headers = { ...json, Host: `127.0.0.1:${port}`, Authorization: `Bearer ${TOKEN}` };
     for (const origin of ["http://localhost:5173", "http://127.0.0.1:8080", "http://[::1]:3000", "https://mark1russell7.github.io"]) {
       expect((await send(port, "/api/test/echo", { ...headers, Origin: origin }, call)).status, origin).toBe(200);
@@ -145,7 +146,7 @@ describe("peer request checks", () => {
     expect((await send(port, "/api/test/echo", { ...headers, Origin: "https://mark1russell7.github.io.evil.example" }, call)).status).toBe(403);
     expect((await send(port, "/api/test/echo", { ...headers, Origin: "not a url" }, call)).status).toBe(403);
     // The WebSocket face has the same rule for loopback origins
-    expect(await upgrade(port, `/ws?token=${TOKEN}`, { Host: `127.0.0.1:${port}`, Origin: "http://localhost:5173" })).toBe(101);
+    expect(await upgrade(wsPort, `/ws?token=${TOKEN}`, { Host: `127.0.0.1:${wsPort}`, Origin: "http://localhost:5173" })).toBe(101);
   });
 
   it("checks each request one time: one admission and one browser check for each call and each upgrade (CLI-2b)", async () => {
@@ -163,15 +164,15 @@ describe("peer request checks", () => {
         },
       },
     });
-    const port = await startPeer({ policy });
+    const { port, wsPort } = await startPeer({ policy });
     const page = { Host: `127.0.0.1:${port}`, Origin: "http://app.test" };
     expect((await send(port, "/api/test/echo", { ...json, ...page, Authorization: `Bearer ${TOKEN}` }, call)).status).toBe(200);
     expect(counts).toEqual({ hook: 1, origins: 1 });
     expect((await send(port, "/api/test/echo", { ...json, ...page }, call)).status).toBe(401);
     expect(counts).toEqual({ hook: 2, origins: 2 });
-    expect(await upgrade(port, `/ws?token=${TOKEN}`, page)).toBe(101);
+    expect(await upgrade(wsPort, `/ws?token=${TOKEN}`, page)).toBe(101);
     expect(counts).toEqual({ hook: 3, origins: 3 });
-    expect(await upgrade(port, "/ws", page)).toBe(401);
+    expect(await upgrade(wsPort, "/ws", page)).toBe(401);
     expect(counts).toEqual({ hook: 4, origins: 4 });
     // A refusal of the browser check comes before the admission
     expect((await send(port, "/api/test/echo", { ...json, ...page, Origin: "https://evil.example", Authorization: `Bearer ${TOKEN}` }, call)).status).toBe(403);
@@ -179,7 +180,7 @@ describe("peer request checks", () => {
   });
 
   it("answers host.info with the token, and has no /health route (CLI-7)", async () => {
-    const port = await startPeer();
+    const { port } = await startPeer();
     // The probes come from the runner: the peer has no static /health route of its own
     expect((await send(port, "/health", { Host: `localhost:${port}` })).status).toBe(404);
     // A client checks a lockfile with host.info and the token of the lockfile
