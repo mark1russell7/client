@@ -120,7 +120,7 @@ describe("parseJson (O53)", () => {
     });
   });
 
-  // The sequence of `scripts/v8-json-key-repro.mjs`. The test examines parseJson, not V8: it passes
+  // The sequence of `scripts/v8-json-key-repro.ts`. The test examines parseJson, not V8: it passes
   // also when V8 reads the key correctly. It only logs the key that JSON.parse gives in a new context.
   it("reads the keys of the V8 repro script correctly", () => {
     const [first, second] = ['{"":0,"\\\\":0}', '{"":0,"\\"":0}'];

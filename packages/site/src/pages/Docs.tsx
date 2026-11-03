@@ -1,6 +1,6 @@
 /**
  * The docs pages: the guides, the documents of the client library and the README of each
- * package, from the Markdown of the repository (`scripts/docs-data.mjs` converts them at build
+ * package, from the Markdown of the repository (`scripts/docs-data.ts` converts them at build
  * time). A JSON program in a page opens in the Composer, and a small one runs on the page.
  */
 

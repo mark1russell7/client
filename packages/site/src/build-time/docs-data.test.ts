@@ -1,5 +1,5 @@
 /**
- * The docs pages: the conversion of the Markdown of the repository (`scripts/docs-data.mjs`), and
+ * The docs pages: the conversion of the Markdown of the repository (`scripts/docs-data.ts`), and
  * the real documents, so a broken link between two docs pages fails the tests.
  */
 
@@ -17,7 +17,7 @@ import {
   readDocs,
   REPOSITORY_URL,
   SITE_URL,
-} from "../../scripts/docs-data.mjs";
+} from "../../scripts/docs-data.ts";
 
 const PACKAGES = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
 const REPO = resolve(PACKAGES, "..");

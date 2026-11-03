@@ -91,8 +91,8 @@ jobs:
       # drifted). A difference fails the run, and the new files are an artifact: commit them.
       - name: The generated catalogs are current
         run: |
-          node packages/documentation/scripts/generate-procedures.mjs
-          node packages/documentation/scripts/generate-packages.mjs
+          node packages/documentation/scripts/generate-procedures.ts
+          node packages/documentation/scripts/generate-packages.ts
           git diff --stat --exit-code packages/documentation/PROCEDURES.md packages/documentation/PACKAGES.md
       - if: failure()
         uses: actions/upload-artifact@v7
