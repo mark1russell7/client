@@ -48,4 +48,4 @@
 "@procedures/weather": patch
 ---
 
-Each module imports zod with `import * as z from "zod"`, not `import { z } from "zod"`. With the old form, a browser bundle got each locale of zod: 264 kB of minified code (esbuild metafile of the journey worker of the site). The procedure scaffolder writes the new form in `types.ts`. The API and the behavior stay the same.
+Each module imports zod with `import * as z from "zod"`, not `import { z } from "zod"`. With the old form, an esbuild bundle got each locale of zod: 264 kB of minified code (esbuild metafile of the journey worker of the site). The Vite build of the site gives the same worker files with both forms. The procedure scaffolder writes the new form in `types.ts`. The API and the behavior stay the same.
