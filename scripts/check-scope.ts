@@ -6,7 +6,7 @@
 // A line that must name an old package says so with the text "scope-check: allow" (in Markdown,
 // in an HTML comment).
 //
-// Usage: node scripts/check-scope.mjs. Exit code 1 when a file names an old package.
+// Usage: node scripts/check-scope.ts. Exit code 1 when a file names an old package.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -28,11 +28,12 @@ const SKIP_FILES = new Set([
   "packages/documentation/DOCUMENTATION_AUDIT.md",
   "pnpm-lock.yaml",
   "scripts/lib/old-names.mjs",
+  "scripts/lib/old-names.d.mts",
 ]);
 const BINARY = /\.(png|gif|jpe?g|ico|woff2?|ttf|tgz|zip|pdf)$/i;
 
 const names = Object.keys(OLD_TO_NEW).sort((a, b) => b.length - a.length);
-const literal = (text) => text.replace(/[\\^$.*+?()[\]{}|/-]/g, "\\$&");
+const literal = (text: string): string => text.replace(/[\\^$.*+?()[\]{}|/-]/g, "\\$&");
 const pattern = new RegExp(`${literal(OLD_SCOPE)}(${names.map(literal).join("|")})(?![A-Za-z0-9_-])`, "g");
 
 const files = execFileSync("git", ["ls-files"], { cwd: root, encoding: "utf8" }).split("\n").filter(Boolean);
@@ -40,11 +41,11 @@ if (files.length === 0) {
   console.error(`git ls-files gives no tracked file in ${root}. The check expected the files of a Git checkout of this repository.`);
   process.exit(1);
 }
-const findings = [];
+const findings: string[] = [];
 for (const file of files) {
   if (SKIP_FILES.has(file) || SKIP_PREFIXES.some((prefix) => file.startsWith(prefix))) continue;
-  if (file.split("/").pop().includes("2026-07") || BINARY.test(file)) continue;
-  let text;
+  if (file.split("/").pop()!.includes("2026-07") || BINARY.test(file)) continue;
+  let text: string;
   try {
     text = readFileSync(join(root, file), "utf8");
   } catch {
@@ -53,7 +54,7 @@ for (const file of files) {
   text.split(/\r?\n/).forEach((line, index) => {
     if (line.includes("scope-check: allow")) return;
     for (const match of line.matchAll(pattern)) {
-      findings.push(`${file}:${index + 1}: ${match[0]} is now ${NEW_SCOPE}${OLD_TO_NEW[match[1]]}`);
+      findings.push(`${file}:${index + 1}: ${match[0]} is now ${NEW_SCOPE}${OLD_TO_NEW[match[1]!]}`);
     }
   });
 }

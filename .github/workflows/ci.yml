@@ -137,7 +137,7 @@ jobs:
       # No file names a package of this repository with the old scope @mark1russell7 (2026-10-12)
       - name: Check the package scope
         if: ${{ !cancelled() }}
-        run: node scripts/check-scope.mjs
+        run: node scripts/check-scope.ts
       # Importing a package registers nothing: only its ./register entry does (2026-10-13, P9)
       - name: Check the side effects of the imports
         if: ${{ !cancelled() }}
