@@ -206,7 +206,7 @@ test.describe("the procedure schemas", () => {
 
 test.describe("the budgets", () => {
   /** The bytes that a page loads: scripts, style sheets, fonts and the document, after gzip. */
-  async function measure(page: Page, route: string): Promise<{ total: number; script: number; worker: number; errors: string[] }> {
+  async function measure(page: Page, route: string): Promise<{ total: number; script: number; worker: number; workers: string[]; errors: string[] }> {
     const bodies: Array<Promise<{ type: string; url: string; size: number }>> = [];
     const errors: string[] = [];
     const workers = new Set<string>();
@@ -236,15 +236,17 @@ test.describe("the budgets", () => {
       total: sizes.reduce((sum, item) => sum + item.size, 0),
       script: sizes.filter((item) => item.type === "script").reduce((sum, item) => sum + item.size, 0),
       worker: all.filter((item) => workers.has(item.url)).reduce((sum, item) => sum + item.size, 0),
+      // The size of each worker script, so that the log shows which one grows (roadmap O95)
+      workers: all.filter((item) => workers.has(item.url)).map((item) => `${new URL(item.url).pathname} ${item.size}`),
       errors,
     };
   }
 
   for (const route of ROUTES) {
     test(`/${route} stays within its budget and logs no error`, async ({ page }) => {
-      const { total, script, worker, errors } = await measure(page, route);
+      const { total, script, worker, workers, errors } = await measure(page, route);
       // The log of CI shows the size of each page, also when it is within the budget
-      console.log(`/${route}: ${total} bytes of gzip, ${script} bytes of scripts`);
+      console.log(`/${route}: ${total} bytes of gzip, ${script} bytes of scripts, ${worker} bytes of workers (${WORKER_BUDGET - worker} under the budget: ${workers.join(", ") || "none"})`);
       expect(errors, "console errors").toEqual([]);
       expect(total, `the page loads ${Math.round(total / 1024)} kB of gzip`).toBeLessThanOrEqual(PAGE_BUDGET);
       expect(script, `the scripts are ${Math.round(script / 1024)} kB of gzip`).toBeLessThanOrEqual(SCRIPT_BUDGET);
