@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { splitReleases } from "../../scripts/releases-data.mjs";
+import { splitReleases } from "../../scripts/releases-data.ts";
 import type { Release } from "../data";
 import { dayRange, longDate, oldestFirst, releaseSummary, shortDate, timelineLayout } from "./releases";
 import { newerVersion } from "./versions";

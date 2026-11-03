@@ -3,7 +3,7 @@
 // - media/composer.png: the Composer with the "chain" example and its Graph tab;
 // - media/live-program.gif: the live panel as it replays the calls of the program (ffmpeg).
 //
-// Usage: start the site (`pnpm build && pnpm preview`), then `node scripts/readme-media.mjs [url]`.
+// Usage: start the site (`pnpm build && pnpm preview`), then `node scripts/readme-media.ts [url]`.
 // The URL is the base of the site, by default http://localhost:4173/client/.
 
 import { execFileSync } from "node:child_process";
@@ -11,14 +11,14 @@ import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { chromium } from "@playwright/test";
+import { chromium, type Page } from "@playwright/test";
 
 const base = process.argv[2] ?? "http://localhost:4173/client/";
 const out = fileURLToPath(new URL("../media/", import.meta.url));
 mkdirSync(out, { recursive: true });
 
 /** This function waits until the live app replaced the HTML of the build. */
-async function settle(page) {
+async function settle(page: Page): Promise<void> {
   await page.waitForFunction(() => document.querySelector("[data-prerendered]") === null, null, { timeout: 15_000 });
 }
 

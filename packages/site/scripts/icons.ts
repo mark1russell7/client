@@ -1,6 +1,6 @@
 // The PNG icons of the site, from public/favicon.svg: the icons of the web manifest, the Apple
 // touch icon and a 32 px icon for browsers without SVG icons. Run it after a change of the
-// favicon: `node scripts/icons.mjs`. The PNG files are in git, so the build needs no browser.
+// favicon: `node scripts/icons.ts`. The PNG files are in git, so the build needs no browser.
 
 import { mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
