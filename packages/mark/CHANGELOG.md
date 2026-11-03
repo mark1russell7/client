@@ -1,5 +1,34 @@
 # @procedures/mark
 
+## 0.47.0
+
+### Patch Changes
+
+- ff06c60: O90: the `mark` executable enables the compile cache of Node.js before it loads the CLI. The cache folder is `mark/compile-cache` in the cache folder of the user. In CI, one call took 1019 ms with no cache and 754 ms with a warm cache. `NODE_COMPILE_CACHE` and `NODE_DISABLE_COMPILE_CACHE` still control the cache.
+- d987202: A call of `mark` loads only the packages of its path (roadmap O93). `ProcedureRegistry` gets an optional resolver, `resolve(path)` and `loadAll()`. `createLazyRegistry()` makes a registry that loads a package at the first lookup of one of its paths. A procedure that reads or writes the registry gets each package first. The manifest of `mark` (version 3) has the packages of each command. The packages `ws` and `cli-table3` load at their first use. The sync methods of the registry and the eager registries do not change.
+- e913014: Each module imports zod with `import * as z from "zod"`, not `import { z } from "zod"`. With the old form, an esbuild bundle got each locale of zod: 264 kB of minified code (esbuild metafile of the journey worker of the site). The Vite build of the site gives the same worker files with both forms. The procedure scaffolder writes the new form in `types.ts`. The API and the behavior stay the same.
+- Updated dependencies [c9125a8]
+- Updated dependencies [335728b]
+- Updated dependencies [d987202]
+- Updated dependencies [45a737f]
+- Updated dependencies [d77e9e8]
+- Updated dependencies [e913014]
+- Updated dependencies [2f0c7b0]
+- Updated dependencies [ad70c38]
+- Updated dependencies [47819c6]
+  - @procedures/client@0.47.0
+  - @procedures/cli-kit@0.47.0
+  - @procedures/cli-run@0.47.0
+  - @procedures/fs@0.47.0
+  - @procedures/lib@0.47.0
+  - @procedures/peer@0.47.0
+  - @procedures/pnpm@0.47.0
+  - @procedures/procedure@0.47.0
+  - @procedures/server@0.47.0
+  - @procedures/shell@0.47.0
+  - @procedures/vitest@0.47.0
+  - @procedures/mcp-dev-tools@0.47.0
+
 ## 0.46.0
 
 ### Patch Changes

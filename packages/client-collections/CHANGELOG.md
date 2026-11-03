@@ -1,5 +1,22 @@
 # @procedures/collections
 
+## 0.47.0
+
+### Patch Changes
+
+- 397dd4b: Add `SummaryTree<Leaf, Summary>` and `summaryTree(spec, leaves)`: a persistent sequence of leaves with a monoid summary in each node. `concat`, `splitAt`, `split` (a monotone predicate over the prefix summary), `search`, `slice`, `splice`, `insert`, `remove`, `set` and `at` are O(log n). The tree is an AVL tree with the join algorithms.
+- e1ce6f4: `SummaryTree` gets `locate(key, target)`, which finds the leaf and the offset of a position of an additive key and calls no `combine`. The new optional `spec.merge(left, right)` joins two neighbor leaves at each seam of `concat`, `append`, `prepend`, `splice`, `insert` and `remove`. `set` and a `splice` of 8 leaves or fewer copy only the paths to their leaves. A rope edit of 100k characters in leaves of 256 calls `combine` and `measure` 21 times at most, and 135 times before. Each node keeps the summary of its left subtree and its leaf, so a copy that changes only the right subtree calls `combine` once. The new type `SummaryLocation` is the result of `locate`.
+- Updated dependencies [c9125a8]
+- Updated dependencies [335728b]
+- Updated dependencies [d987202]
+- Updated dependencies [45a737f]
+- Updated dependencies [d77e9e8]
+- Updated dependencies [e913014]
+- Updated dependencies [2f0c7b0]
+- Updated dependencies [ad70c38]
+- Updated dependencies [47819c6]
+  - @procedures/client@0.47.0
+
 ## 0.46.0
 
 ### Patch Changes
