@@ -1,18 +1,18 @@
-// The tests of scripts/check-browser-entries.mjs (roadmap CLI-39), with fixture packages in a
-// temporary folder. Start them with: node --test scripts/check-browser-entries.test.mjs
+// The tests of scripts/check-browser-entries.ts (roadmap CLI-39), with fixture packages in a
+// temporary folder. Start them with: node --test scripts/check-browser-entries.test.ts
 
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, describe, it } from "node:test";
-import { browserEntryProblems, isBuiltin } from "./check-browser-entries.mjs";
+import { browserEntryProblems, isBuiltin, type CheckedPackage } from "./check-browser-entries.ts";
 
 const fixtures = mkdtempSync(join(tmpdir(), "browser-entries-"));
 after(() => rmSync(fixtures, { recursive: true, force: true }));
 
 /** This function writes a fixture package (its files, relative to its folder) and gives it as the check reads it. */
-function fixture(name, manifest, files) {
+function fixture(name: string, manifest: Record<string, unknown>, files: Record<string, string>): CheckedPackage {
   const path = join(fixtures, name);
   for (const [file, text] of Object.entries({ ...files, "package.json": JSON.stringify({ name, type: "module", ...manifest }) })) {
     mkdirSync(dirname(join(path, file)), { recursive: true });
@@ -21,10 +21,10 @@ function fixture(name, manifest, files) {
   return { name, path, manifest: { name, type: "module", ...manifest } };
 }
 
-const check = (...packages) => browserEntryProblems(packages, fixtures);
+const check = (...packages: CheckedPackage[]): ReturnType<typeof browserEntryProblems> => browserEntryProblems(packages, fixtures);
 
 /** The built-in that a problem names. */
-const builtinOf = (problem) => /reaches the Node built-in "([^"]+)"/.exec(problem)?.[1];
+const builtinOf = (problem: string): string | undefined => /reaches the Node built-in "([^"]+)"/.exec(problem)?.[1];
 
 describe("isBuiltin", () => {
   it("knows the built-ins with and without the prefix node:", () => {

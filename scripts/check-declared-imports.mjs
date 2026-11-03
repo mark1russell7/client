@@ -30,7 +30,7 @@ import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
-import { isBuiltin } from "./check-browser-entries.mjs";
+import { isBuiltin } from "./check-browser-entries.ts";
 import { publicPackages } from "./lib/workspace.mjs";
 
 /** A valid npm package name, with an optional scope. Old packages can have capital letters. */
