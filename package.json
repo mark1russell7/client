@@ -61,10 +61,6 @@
       "typed-scripts": {
         "ignore": [
           ".dependency-cruiser.cjs",
-          ".github/scripts/harness-verdicts.mjs",
-          "harness/procedures-subject/client-ws.mjs",
-          "harness/procedures-subject/lines.mjs",
-          "harness/procedures-subject/server-ws.mjs",
           "packages/client-vite/fixtures/app/main.js",
           "packages/client-vitest/fixtures/project/checks/fail.js",
           "packages/client-vitest/fixtures/project/checks/sum.js",

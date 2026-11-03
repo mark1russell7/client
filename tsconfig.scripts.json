@@ -8,7 +8,27 @@
     "allowImportingTsExtensions": true,
     "erasableSyntaxOnly": true,
     "skipLibCheck": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ],
+    "paths": {
+      "@procedures/client": [
+        "./packages/client/dist/index.d.ts"
+      ],
+      "@procedures/client/node": [
+        "./packages/client/dist/node.d.ts"
+      ],
+      "ws": [
+        "./packages/client/node_modules/@types/ws/index.d.ts"
+      ],
+      "zod": [
+        "./packages/client/node_modules/zod/index.d.ts"
+      ]
+    }
   },
-  "include": ["scripts/**/*.ts"]
+  "include": [
+    "scripts/**/*.ts",
+    ".github/scripts/**/*.ts",
+    "harness/procedures-subject/**/*.ts"
+  ]
 }

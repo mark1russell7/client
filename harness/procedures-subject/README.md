@@ -7,9 +7,9 @@ This folder is the procedures subject of the harness of [`systems`](https://gith
 | File | Content |
 |---|---|
 | `Dockerfile` | The image of the subject. It builds `@procedures/client` from the lockfile of this repository. |
-| `client-ws.mjs` | The `client` program: the `WebSocketTransport` of the client, with the JSON lines of the harness. |
-| `server-ws.mjs` | The `server` program: `ProcedureServer` and `WebSocketServerTransport` on the `http.Server` of Node. |
-| `lines.mjs` | The JSON lines, the command line and the version of the package, for the two programs. |
+| `client-ws.ts` | The `client` program: the `WebSocketTransport` of the client, with the JSON lines of the harness. |
+| `server-ws.ts` | The `server` program: `ProcedureServer` and `WebSocketServerTransport` on the `http.Server` of Node. |
+| `lines.ts` | The JSON lines, the command line and the version of the package, for the two programs. |
 | `subject.json` | The subject as data: the `Subject` type of the harness, with a `build` image. |
 
 The programs are the programs of the subject that the harness shipped before (`harness/image/procedures` of `systems`). They write the same lines and take the same flags. Two parts are different:
@@ -59,8 +59,8 @@ With the input `systems`, the workflow uses another commit of `systems`, for exa
   "image": { "kind": "pinned", "image": "ghcr.io/mark1russell7/procedures-subject:<version>@sha256:<digest>" },
   "base": "node:24.21.0-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1",
   "programs": {
-    "client": ["node", "/opt/subject/client-ws.mjs"],
-    "server": ["node", "/opt/subject/server-ws.mjs"]
+    "client": ["node", "/opt/subject/client-ws.ts"],
+    "server": ["node", "/opt/subject/server-ws.ts"]
   }
 }
 ```

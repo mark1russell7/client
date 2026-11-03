@@ -11,7 +11,7 @@
 // says. An `inconclusive` cell shows that no run counted. The raw record of each cell is in the
 // artifact of its shard.
 //
-// Usage: node .github/scripts/harness-verdicts.mjs <root> [expected shards]
+// Usage: node .github/scripts/harness-verdicts.ts <root> [expected shards]
 // Exit code: 1 when a cell has a decision other than `holds` or `measured`, or when a shard has no
 // summary. A summary with no cell counts as no summary.
 
@@ -20,14 +20,23 @@ import { join } from "node:path";
 
 const [root, expected] = process.argv.slice(2);
 if (root === undefined) {
-  console.error("Usage: node .github/scripts/harness-verdicts.mjs <root> [expected shards]");
+  console.error("Usage: node .github/scripts/harness-verdicts.ts <root> [expected shards]");
   process.exit(2);
+}
+
+/** One line of a summary.ndjson, with the name of its shard. */
+interface Cell {
+  shard: string;
+  name?: string;
+  decision: string;
+  why?: string;
+  median?: { value: number; unit: string } | null;
 }
 
 /** The folders of the shards: each folder under the root. */
 const folders = existsSync(root) ? readdirSync(root, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort() : [];
 /** The lines of the summary.ndjson of a folder that are not blank, or none when the folder has no summary. */
-const linesOf = (folder) => {
+const linesOf = (folder: string): string[] => {
   const file = join(root, folder, "summary.ndjson");
   return existsSync(file) ? readFileSync(file, "utf8").split("\n").filter((text) => text.trim() !== "") : [];
 };
@@ -35,18 +44,18 @@ const linesOf = (folder) => {
 const shards = folders.map((folder) => ({ folder, lines: linesOf(folder) })).filter((shard) => shard.lines.length > 0);
 const summaries = shards.map((shard) => shard.folder);
 const empty = folders.filter((folder) => existsSync(join(root, folder, "summary.ndjson")) && !summaries.includes(folder));
-const cells = shards.flatMap((shard) => shard.lines.map((text) => ({ shard: shard.folder, ...JSON.parse(text) })));
+const cells: Cell[] = shards.flatMap((shard) => shard.lines.map((text) => ({ shard: shard.folder, ...(JSON.parse(text) as Omit<Cell, "shard">) })));
 
 /** These decisions do not fail the run: a band that holds, and a record with no band. */
 const PASSING = new Set(["holds", "measured"]);
 const failing = cells.filter((cell) => !PASSING.has(cell.decision));
-const counts = cells.reduce((all, cell) => ({ ...all, [cell.decision]: (all[cell.decision] ?? 0) + 1 }), {});
+const counts = cells.reduce<Record<string, number>>((all, cell) => ({ ...all, [cell.decision]: (all[cell.decision] ?? 0) + 1 }), {});
 const missing = expected === undefined ? 0 : Number(expected) - summaries.length;
 
 /** This function gives a text that a cell of a Markdown table can hold. */
-const cellText = (text) => String(text ?? "").replaceAll("|", "\\|").replaceAll("\n", " ");
+const cellText = (text: unknown): string => String(text ?? "").replaceAll("|", "\\|").replaceAll("\n", " ");
 /** This function gives the reason of a verdict, shortened for the table. */
-const short = (text) => {
+const short = (text: unknown): string => {
   const plain = cellText(text);
   return plain.length > 240 ? `${plain.slice(0, 237)}...` : plain;
 };
