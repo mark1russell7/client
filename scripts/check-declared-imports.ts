@@ -22,16 +22,22 @@
 // must be in dependencies, peerDependencies or optionalDependencies. devDependencies do not count:
 // npm does not install them for a consumer.
 //
-// Start it after `pnpm build`: node scripts/check-declared-imports.mjs. Exit code 1 on a failure.
-// The tests of the check: node --test scripts/check-declared-imports.test.mjs.
+// Start it after `pnpm build`: node scripts/check-declared-imports.ts. Exit code 1 on a failure.
+// The tests of the check: node --test scripts/check-declared-imports.test.ts.
 
 import { existsSync, readdirSync, statSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
-import { isBuiltin } from "./check-browser-entries.ts";
-import { publicPackages } from "./lib/workspace.mjs";
+import { isBuiltin, type CheckedPackage } from "./check-browser-entries.ts";
+import { publicPackages, type Manifest } from "./lib/workspace.mjs";
+
+/** One import of a package that an entry reaches: the file (relative to the package) and the import. */
+interface ExternalImport {
+  readonly file: string;
+  readonly specifier: string;
+}
 
 /** A valid npm package name, with an optional scope. Old packages can have capital letters. */
 const PACKAGE_NAME = /^(?:@[a-z0-9~-][a-z0-9._~-]*\/)?[a-z0-9~-][a-z0-9._~-]*$/i;
@@ -44,22 +50,22 @@ const CODE = /\.(?:[cm]?[jt]s|[jt]sx)$/;
  * absolute path, a subpath import (`#name`), a URL, a Node built-in, or a text that is not a
  * valid package name.
  */
-export function packageNameOf(specifier) {
+export function packageNameOf(specifier: unknown): string | undefined {
   if (typeof specifier !== "string" || specifier === "") return undefined;
   if (/^[./\\#]/.test(specifier) || /^[a-z][a-z0-9+.-]*:/i.test(specifier) || isBuiltin(specifier)) return undefined;
   const parts = specifier.split("/");
-  const name = specifier.startsWith("@") ? parts.slice(0, 2).join("/") : parts[0];
+  const name = specifier.startsWith("@") ? parts.slice(0, 2).join("/") : parts[0]!;
   return PACKAGE_NAME.test(name) && !isBuiltin(name) ? name : undefined;
 }
 
 /** The files of a target of the exports map: each condition except "types", and each file of a pattern. */
-function targetFiles(target, pkgPath, files = []) {
+function targetFiles(target: unknown, pkgPath: string, files: string[] = []): string[] {
   if (typeof target === "string") {
     if (!target.includes("*")) {
       if (CODE.test(target) && !/\.d\.[cm]?ts$/.test(target)) files.push(target);
       return files;
     }
-    const [prefix, suffix] = target.split("*", 2);
+    const [prefix = "", suffix = ""] = target.split("*", 2);
     const base = prefix.slice(0, prefix.lastIndexOf("/") + 1);
     for (const file of filesUnder(resolve(pkgPath, base))) {
       const path = `${base}${relative(resolve(pkgPath, base), file).split("\\").join("/")}`;
@@ -74,7 +80,7 @@ function targetFiles(target, pkgPath, files = []) {
 }
 
 /** Each file under a folder, or none when the folder does not exist. */
-function filesUnder(dir) {
+function filesUnder(dir: string): string[] {
   if (!existsSync(dir)) return [];
   return readdirSync(dir).flatMap((name) => {
     const path = join(dir, name);
@@ -83,8 +89,8 @@ function filesUnder(dir) {
 }
 
 /** The entry files of a package, relative to its folder: the exports map, the bins, or the main. */
-export function entryFiles(manifest, pkgPath) {
-  const files = [];
+export function entryFiles(manifest: Manifest, pkgPath: string): string[] {
+  const files: string[] = [];
   if (manifest.exports !== undefined) targetFiles(manifest.exports, pkgPath, files);
   else if (typeof manifest.main === "string") targetFiles(manifest.main, pkgPath, files);
   const bin = typeof manifest.bin === "string" ? [manifest.bin] : Object.values(manifest.bin ?? {});
@@ -93,7 +99,7 @@ export function entryFiles(manifest, pkgPath) {
 }
 
 /** Each import of a package that the entries reach: the file (relative to the package) and the import. */
-async function externalImports(entries, pkgPath) {
+async function externalImports(entries: readonly string[], pkgPath: string): Promise<ExternalImport[]> {
   const result = await build({
     entryPoints: entries.map((file) => resolve(pkgPath, file)),
     absWorkingDir: pkgPath,
@@ -106,7 +112,7 @@ async function externalImports(entries, pkgPath) {
     logLevel: "silent",
     outdir: join(tmpdir(), "check-declared-imports"),
   });
-  const found = [];
+  const found: ExternalImport[] = [];
   for (const [file, input] of Object.entries(result.metafile.inputs)) {
     for (const imported of input.imports) {
       if (imported.external) found.push({ file: file.split("\\").join("/"), specifier: imported.original ?? imported.path });
@@ -120,8 +126,8 @@ async function externalImports(entries, pkgPath) {
  * problem is one text: `<package>: <file> imports '<name>', which is not declared`, with the file
  * relative to the package. The result also counts the entries that the check read.
  */
-export async function undeclaredImportProblems(packages) {
-  const problems = [];
+export async function undeclaredImportProblems(packages: readonly CheckedPackage[]): Promise<{ problems: string[]; entries: number }> {
+  const problems: string[] = [];
   let entries = 0;
   for (const pkg of packages) {
     const files = entryFiles(pkg.manifest, pkg.path);
@@ -137,15 +143,16 @@ export async function undeclaredImportProblems(packages) {
     entries += present.length;
     const { dependencies, peerDependencies, optionalDependencies } = pkg.manifest;
     const declared = new Set([pkg.manifest.name, ...Object.keys({ ...dependencies, ...peerDependencies, ...optionalDependencies })]);
-    let imports;
+    let imports: ExternalImport[];
     try {
       imports = await externalImports(present, pkg.path);
     } catch (error) {
-      const messages = (error.errors ?? [error]).map((e) => e.text ?? e.message ?? String(e)).join("; ");
+      const failure = error as { errors?: { text?: string }[]; message?: string };
+      const messages = (failure.errors ?? [failure]).map((e: { text?: string; message?: string }) => e.text ?? e.message ?? String(e)).join("; ");
       problems.push(`${pkg.name}: esbuild cannot read its entries: ${messages}`);
       continue;
     }
-    const seen = new Set();
+    const seen = new Set<string>();
     for (const { file, specifier } of imports) {
       const name = packageNameOf(specifier);
       if (name === undefined || declared.has(name) || seen.has(`${file}\0${name}`)) continue;

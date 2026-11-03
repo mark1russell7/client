@@ -1,18 +1,19 @@
-// The tests of scripts/check-declared-imports.mjs (roadmap CLI-63), with fixture packages in a
-// temporary folder. Start them with: node --test scripts/check-declared-imports.test.mjs
+// The tests of scripts/check-declared-imports.ts (roadmap CLI-63), with fixture packages in a
+// temporary folder. Start them with: node --test scripts/check-declared-imports.test.ts
 
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, describe, it } from "node:test";
-import { entryFiles, packageNameOf, undeclaredImportProblems } from "./check-declared-imports.mjs";
+import type { CheckedPackage } from "./check-browser-entries.ts";
+import { entryFiles, packageNameOf, undeclaredImportProblems } from "./check-declared-imports.ts";
 
 const fixtures = mkdtempSync(join(tmpdir(), "declared-imports-"));
 after(() => rmSync(fixtures, { recursive: true, force: true }));
 
 /** This function writes a fixture package (its files, relative to its folder) and gives it as the check reads it. */
-function fixture(name, manifest, files) {
+function fixture(name: string, manifest: Record<string, unknown>, files: Record<string, string>): CheckedPackage {
   const path = join(fixtures, name.replace("/", "__"));
   const full = { name, type: "module", ...manifest };
   for (const [file, text] of Object.entries({ ...files, "package.json": JSON.stringify(full) })) {
@@ -22,7 +23,7 @@ function fixture(name, manifest, files) {
   return { name, path, manifest: full };
 }
 
-const check = (...packages) => undeclaredImportProblems(packages);
+const check = (...packages: CheckedPackage[]): ReturnType<typeof undeclaredImportProblems> => undeclaredImportProblems(packages);
 
 describe("packageNameOf", () => {
   it("reduces an import to its package name, and a scoped name keeps two segments", () => {

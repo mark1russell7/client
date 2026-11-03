@@ -156,8 +156,8 @@ jobs:
       - name: Check the declared imports
         if: ${{ !cancelled() }}
         run: |
-          node --test scripts/check-declared-imports.test.mjs
-          node scripts/check-declared-imports.mjs
+          node --test scripts/check-declared-imports.test.ts
+          node scripts/check-declared-imports.ts
       # The paths, the topics and the storage writes (invariants I3 and I5, CLI-84). A path, a key, a
       # method or a topic goes through the codec of @procedures/client, and not through a join or a
       # split on ".". Only the storage files write a MongoDB collection. The step parses the src/
