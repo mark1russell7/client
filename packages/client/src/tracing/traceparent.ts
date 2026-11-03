@@ -20,12 +20,35 @@ export interface TraceContext {
   readonly sampled: boolean;
 }
 
-function randomHex(bytes: number): string {
-  const values = new Uint8Array(bytes);
+/**
+ * The size of the pool of random bytes. One fill gives 256 trace ids or 512 span ids. Before
+ * (roadmap O94), each id called `getRandomValues` for 8 or 16 bytes: in a chain of 200 steps, the
+ * random ids took about 10 % of the per-step time of the host.
+ */
+export const RANDOM_POOL_BYTES = 4096;
+
+/** The two hex digits of each byte value. */
+const HEX = Array.from({ length: 256 }, (_, value) => value.toString(16).padStart(2, "0"));
+
+const pool = new Uint8Array(RANDOM_POOL_BYTES);
+// The pool starts empty: the first id fills it
+let next = RANDOM_POOL_BYTES;
+
+/** This function fills the pool with new random bytes. Each byte goes to one id only. */
+function refill(): void {
   const crypto = (globalThis as { crypto?: { getRandomValues?: (array: Uint8Array) => Uint8Array } }).crypto;
-  if (crypto?.getRandomValues) crypto.getRandomValues(values);
-  else for (let index = 0; index < bytes; index++) values[index] = Math.floor(Math.random() * 256);
-  return Array.from(values, (value) => value.toString(16).padStart(2, "0")).join("");
+  if (crypto?.getRandomValues) crypto.getRandomValues(pool);
+  else for (let index = 0; index < RANDOM_POOL_BYTES; index++) pool[index] = Math.floor(Math.random() * 256);
+  next = 0;
+}
+
+/** This function gives `bytes` random bytes of the pool as hex digits. `bytes` is 16 or less. */
+function randomHex(bytes: number): string {
+  if (next + bytes > RANDOM_POOL_BYTES) refill();
+  let hex = "";
+  for (let index = next; index < next + bytes; index++) hex += HEX[pool[index]!]!;
+  next += bytes;
+  return hex;
 }
 
 /** This function makes a new trace id: 32 random hex digits. */
