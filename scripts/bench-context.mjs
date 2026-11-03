@@ -6,7 +6,7 @@
  *
  * Each folder holds one JSON file for each benchmark, as `bench(name, { writeResult })` of vitest
  * writes it. The script adds the field `context` to each file: the CPU, the core count, Node, the
- * platform, the GitHub runner and the mode. Vitest (`bench.from()`) and `scripts/bench-compare.mjs`
+ * platform, the GitHub runner and the mode. Vitest (`bench.from()`) and `scripts/bench-compare.ts`
  * read only the other fields, so the files stay valid for them.
  *
  * A folder without a JSON file fails the run: the benchmarks did not write their results. When
