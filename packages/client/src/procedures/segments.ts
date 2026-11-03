@@ -24,9 +24,8 @@
  * ```
  */
 export function encodeSegment(segment: string): string {
-  // Almost each segment has no `.` and no `%`. Two scans cost less than a replace with a callback (roadmap O90)
-  if (segment.indexOf(".") < 0 && segment.indexOf("%") < 0) return segment;
-  return segment.replace(/[%.]/g, (char) => (char === "%" ? "%25" : "%2E"));
+  // Almost each segment has no `.` and no `%`: a test costs less than a replace with a callback (roadmap O90)
+  return /[%.]/.test(segment) ? segment.replace(/[%.]/g, (char) => (char === "%" ? "%25" : "%2E")) : segment;
 }
 
 /**
