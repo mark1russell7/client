@@ -4,7 +4,7 @@
 # and private members. The script scripts/api-report.ts compares this file with the built .d.ts files.
 # To accept a change of the API, start the script with --update and review the diff.
 
-## . (dist/index.d.ts): 32 names
+## . (dist/index.d.ts): 34 names
 
 type DAGExecutionOptions: dist/types.d.ts#DAGExecutionOptions
 type DAGNode: dist/types.d.ts#DAGNode
@@ -20,6 +20,7 @@ type PackageNode: dist/procedures/types.d.ts#PackageNode
 type ScanOutput: dist/procedures/types.d.ts#ScanOutput
 type ScannedPackage: dist/procedures/types.d.ts#ScannedPackage
 type TraverseNodeResult: dist/procedures/types.d.ts#TraverseNodeResult
+type WeightedEdge: dist/graph/hub-order.d.ts#WeightedEdge
 buildLeveledDAG: dist/dag/traversal.d.ts#buildLeveledDAG
 buildNodeMap: dist/dag/builder.d.ts#buildNodeMap
 callsGit: dist/procedures/traverse.d.ts#callsGit
@@ -33,11 +34,17 @@ filterDAGFromRoot: dist/dag/builder.d.ts#filterDAGFromRoot
 getAncestors: dist/dag/builder.d.ts#getAncestors
 getDescendants: dist/dag/builder.d.ts#getDescendants
 getTopologicalOrder: dist/dag/traversal.d.ts#getTopologicalOrder
+hubBreadthFirstOrder: dist/graph/hub-order.d.ts#hubBreadthFirstOrder
 keyedLock: dist/procedures/traverse.d.ts#keyedLock
 packageNodes: dist/procedures/traverse.d.ts#packageNodes
 registerDagProcedures: dist/module.d.ts#registerDagProcedures
 repositoryRoot: dist/procedures/traverse.d.ts#repositoryRoot
 visualizeDAG: dist/dag/traversal.d.ts#visualizeDAG
+
+## ./graph (dist/graph/index.d.ts): 2 names
+
+type WeightedEdge: dist/graph/hub-order.d.ts#WeightedEdge
+hubBreadthFirstOrder: dist/graph/hub-order.d.ts#hubBreadthFirstOrder
 
 ## ./module (dist/module.d.ts): 3 names
 
@@ -84,6 +91,16 @@ export declare function getTopologicalOrder<TNode extends DAGNode>(dag: Dependen
 
 ### dist/dag/traversal.d.ts#visualizeDAG
 export declare function visualizeDAG<TNode extends DAGNode>(dag: DependencyDAG<TNode>): string;
+
+### dist/graph/hub-order.d.ts#WeightedEdge
+export interface WeightedEdge {
+    readonly a: number;
+    readonly b: number;
+    readonly weight?: number | undefined;
+}
+
+### dist/graph/hub-order.d.ts#hubBreadthFirstOrder
+export declare function hubBreadthFirstOrder(n: number, edges?: readonly WeightedEdge[], compare?: (i: number, j: number) => number): number[];
 
 ### dist/module.d.ts#dagModule
 export declare const dagModule: ProcedureModule;
