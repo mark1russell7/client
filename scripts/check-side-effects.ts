@@ -5,18 +5,19 @@
 // in its own new process, must register at least one procedure. The `sideEffects` field of each
 // package must name only `./dist/register.js`, so that a bundler can drop the rest.
 //
-// Start it after `pnpm build`: node scripts/check-side-effects.mjs. Exit code 1 on a failure.
+// Start it after `pnpm build`: node scripts/check-side-effects.ts. Exit code 1 on a failure.
 
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { publicPackages } from "./lib/workspace.mjs";
+import { publicPackages, type PublicPackage } from "./lib/workspace.mjs";
 
 const REGISTER = new Set(["./register", "./register.js"]);
 
 /** The file of an exports entry (the "import" condition), or undefined for a pattern or a non-JS entry. */
-function fileOf(target) {
-  const file = typeof target === "string" ? target : target?.import ?? target?.default;
+function fileOf(target: unknown): string | undefined {
+  const conditions = typeof target === "object" && target !== null ? (target as { import?: unknown; default?: unknown }) : undefined;
+  const file = typeof target === "string" ? target : conditions?.import ?? conditions?.default;
   return typeof file === "string" && file.endsWith(".js") && !file.includes("*") ? file : undefined;
 }
 
@@ -24,7 +25,7 @@ function fileOf(target) {
  * This function imports the files in a new process from the folder of the package, and gives
  * the number of procedures in the global registry after the imports, or the error.
  */
-function proceduresAfter(pkg, files) {
+function proceduresAfter(pkg: PublicPackage, files: readonly string[]): number | string {
   const code = [
     `for (const file of ${JSON.stringify(files.map((file) => pathToFileURL(join(pkg.path, file)).href))}) await import(file);`,
     `const registry = globalThis[Symbol.for("@procedures/client/PROCEDURE_REGISTRY")];`,
@@ -33,19 +34,19 @@ function proceduresAfter(pkg, files) {
   const result = spawnSync(process.execPath, ["--input-type=module", "-e", code], { cwd: pkg.path, encoding: "utf8", timeout: 60_000 });
   const line = result.stdout.trim().split("\n").pop() ?? "";
   try {
-    return JSON.parse(line).count;
+    return (JSON.parse(line) as { count: number }).count;
   } catch {
     return `the import failed: ${(result.stderr || result.stdout).trim().split("\n").slice(-3).join(" ")}`;
   }
 }
 
-const failures = [];
+const failures: string[] = [];
 let checked = 0;
 for (const pkg of publicPackages()) {
   const exportsMap = pkg.manifest.exports ?? {};
   const entries = typeof exportsMap === "string" ? { ".": exportsMap } : exportsMap;
-  const plain = [];
-  const registers = [];
+  const plain: string[] = [];
+  const registers: string[] = [];
   for (const [key, target] of Object.entries(entries)) {
     const file = fileOf(target);
     if (!file) continue;

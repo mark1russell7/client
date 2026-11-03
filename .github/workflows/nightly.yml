@@ -285,7 +285,7 @@ jobs:
           retention-days: 30
 
   # The lowest value, the highest value and the spread of each metric across the coverage runs,
-  # and the floors: the lowest value minus the spread, rounded down to 0.1 (scripts/coverage-spread.mjs, O88)
+  # and the floors: the lowest value minus the spread, rounded down to 0.1 (scripts/coverage-spread.ts, O88)
   coverage-spread:
     name: The spread of the coverage runs
     needs: coverage
@@ -303,7 +303,7 @@ jobs:
         with:
           pattern: coverage-totals-*
           path: ${{ runner.temp }}/totals
-      - run: node scripts/coverage-spread.mjs "$RUNNER_TEMP/totals" --out "$RUNNER_TEMP/coverage-spread-floors.json" | tee "$RUNNER_TEMP/coverage-spread.txt"
+      - run: node scripts/coverage-spread.ts "$RUNNER_TEMP/totals" --out "$RUNNER_TEMP/coverage-spread-floors.json" | tee "$RUNNER_TEMP/coverage-spread.txt"
         shell: bash
       - if: always()
         uses: actions/upload-artifact@v7
