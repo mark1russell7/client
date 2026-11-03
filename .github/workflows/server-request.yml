@@ -8,6 +8,11 @@ name: Server request
 # LocalTransport. measureIsolated() of scripts/lib/paired-time.mjs runs the rounds, in mode fresh.
 # No record of real traffic exists (O91), thus the requests are synthetic.
 #
+# With the input profile (two cases, for example chain-200,chain-1), the job does no timed rounds.
+# It runs the profile mode of the script (O94): a CPU profile of a fresh host child for each case,
+# after the same warm-up and for the same count of calls, then the excess self time of each function.
+# The artifact server-request-profile has the profiles and the analysis.
+#
 # The workflow only reports: only a dispatch starts it, and no ruleset needs its checks.
 
 on:
@@ -21,6 +26,14 @@ on:
         description: "The rounds: one fresh process for each case and arm in each round (20 or more)"
         required: false
         default: "20"
+      profile:
+        description: "The profile mode: two cases, for example chain-200,chain-1 (empty: the timed rounds)"
+        required: false
+        default: ""
+      profile_calls:
+        description: "The calls in each profile, after 1000 untimed calls (the profile mode only)"
+        required: false
+        default: "1000"
 
 permissions:
   contents: read
@@ -64,6 +77,7 @@ jobs:
           pnpm install --frozen-lockfile --filter "@procedures/server..."
           pnpm --filter "@procedures/server..." run build
       - name: The requests
+        if: ${{ inputs.profile == '' }}
         env:
           ROUNDS: ${{ inputs.rounds || '20' }}
         run: |
@@ -71,9 +85,25 @@ jobs:
           node scripts/server-request.ts --tree "$RUNNER_TEMP/trees/head" --ref "$HEAD" --rounds "$ROUNDS" \
             --out "$RUNNER_TEMP/record/server-request.json"
           cat "$RUNNER_TEMP/record/server-request.md" >> "$GITHUB_STEP_SUMMARY"
-      - if: always()
+      - if: ${{ always() && inputs.profile == '' }}
         uses: actions/upload-artifact@v7
         with:
           name: server-request
           path: ${{ runner.temp }}/record
+          retention-days: 30
+      - name: The profile
+        if: ${{ inputs.profile != '' }}
+        env:
+          PROFILE: ${{ inputs.profile }}
+          PROFILE_CALLS: ${{ inputs.profile_calls || '1000' }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/profile"
+          node scripts/server-request.ts --tree "$RUNNER_TEMP/trees/head" --ref "$HEAD" \
+            --profile "$PROFILE" --profile-calls "$PROFILE_CALLS" --profile-out "$RUNNER_TEMP/profile"
+          cat "$RUNNER_TEMP/profile/server-request-profile.md" >> "$GITHUB_STEP_SUMMARY"
+      - if: ${{ always() && inputs.profile != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: server-request-profile
+          path: ${{ runner.temp }}/profile
           retention-days: 30

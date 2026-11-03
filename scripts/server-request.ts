@@ -36,17 +36,32 @@
  * with `FIT_BOOTSTRAP` (10 000 runs, seed 1).
  *
  * The script writes the JSON record (`server-request/3`) to `--out`, and the Markdown next to it (`.md`).
+ *
+ * The profile mode (O94) gives the functions of the host that spend the transport time of each step:
+ *
+ *   node scripts/server-request.ts --tree <folder> [--ref <sha>] --profile <case-a>,<case-b>
+ *     [--profile-calls <n>] [--profile-warmup <n>] --profile-out <folder>
+ *
+ * For each of the two cases, the script starts a fresh host child and does `--profile-warmup` untimed
+ * calls. Then the host child starts the CPU profiler of `node:inspector`, with a sampling interval of
+ * `PROFILE_INTERVAL_US`. After `--profile-calls` calls, the host child stops the profiler and writes the
+ * profile to `<folder>/<case>/host.cpuprofile`. Then the script stops the host with SIGTERM. The two
+ * cases have the same counts. `profileAnalysisOf()` of `server-request-profile.ts` compares the two
+ * profiles. The script writes the record (`server-request-profile/1`) and its Markdown to the folder.
+ * The profile mode does no timed rounds.
  */
 
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdirSync, realpathSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { Session } from "node:inspector/promises";
+import { dirname, join, relative, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { bootstrapLeastSquares, bootstrapMedianRatio, leastSquares, type Interval } from "@mark1russell7/rigor-statistics";
 import { runnerContext } from "./bench-context.mjs";
 import { bandOf, roundRatios, type Band } from "./bench-paired.mjs";
 import { aaId, measureIsolated, quantileOf, type PairedInput, type PairedReport } from "./lib/paired-time.mjs";
+import { PROFILE_FORMAT, profileAnalysisOf, profileMarkdownOf, type CpuProfile, type ProfileRecord } from "./server-request-profile.ts";
 
 /** The format of the record. The format 3 adds the bytes of each case and the fit (O94). */
 export const FORMAT = "server-request/3";
@@ -125,6 +140,37 @@ export const SHARE_BOOTSTRAP = { runs: 10_000, seed: 1, level: 0.95 } as const;
 
 /** The bootstrap of the fit: each run draws the rows of the fit with replacement. */
 export const FIT_BOOTSTRAP = { runs: 10_000, seed: 1, level: 0.95 } as const;
+
+/** The sampling interval of the CPU profiler of the profile mode, in microseconds, as `--cpu-prof-interval 100`. */
+export const PROFILE_INTERVAL_US = 100;
+
+/** The default counts of the profile mode: the untimed calls before the profiler starts, and the calls in each profile. */
+export const PROFILE_DEFAULTS = { warmup: 1000, calls: 1000 } as const;
+
+/** The options of the profile mode, from `profileOptionsOf()`. */
+export interface ProfileOptions {
+  readonly cases: readonly [RequestId, RequestId];
+  readonly warmup: number;
+  readonly calls: number;
+}
+
+/**
+ * This function gives the options of the profile mode from the values of `--profile`,
+ * `--profile-warmup` and `--profile-calls`. It throws for a value that is not valid. The option
+ * `--profile` names two different cases of `REQUESTS`. The warm-up is a whole number of 0 or more,
+ * and the calls are a whole number above 0.
+ */
+export function profileOptionsOf(profile: string, warmup: string | undefined, calls: string | undefined): ProfileOptions {
+  const cases = profile.split(",").map((id) => id.trim());
+  if (cases.length !== 2 || cases[0] === cases[1] || !cases.every((id) => id in REQUESTS)) {
+    throw new Error(`The option --profile names two different cases of ${Object.keys(REQUESTS).join(", ")}, not "${profile}".`);
+  }
+  const w = warmup === undefined ? PROFILE_DEFAULTS.warmup : Number(warmup);
+  const n = calls === undefined ? PROFILE_DEFAULTS.calls : Number(calls);
+  if (!Number.isInteger(w) || w < 0) throw new Error(`The option --profile-warmup is a whole number of 0 or more, not "${warmup}".`);
+  if (!Number.isInteger(n) || n <= 0) throw new Error(`The option --profile-calls is a whole number above 0, not "${calls}".`);
+  return { cases: cases as [RequestId, RequestId], warmup: w, calls: n };
+}
 
 /** The model of the fit. The times are in milliseconds for each call. */
 export const FIT_MODEL = "request - exec = fixedMs + msPerByteIn * bytesIn + msPerByteOut * bytesOut";
@@ -423,8 +469,11 @@ async function measureBytes(tree: string): Promise<Record<string, CaseBytes>> {
   return bytes;
 }
 
-/** The host child: it starts the host, writes its address as one line of JSON, and runs until a signal. */
-async function serve(tree: string): Promise<void> {
+/**
+ * The host child: it starts the host, writes its address as one line of JSON, and runs until a signal.
+ * With a profile file, the child also obeys the lines of `controlProfiler()` on its stdin.
+ */
+async function serve(tree: string, profileFile: string | undefined): Promise<void> {
   const c = await load(tree, "packages/client/dist/index.js");
   const peer = await load(tree, "packages/client-server/dist/index.js");
   const server = await load(tree, "packages/server/dist/index.js");
@@ -436,16 +485,63 @@ async function serve(tree: string): Promise<void> {
   });
   const endpoint = running.host.info.endpoints().find((e: { type: string }) => e.type === "http");
   console.log(JSON.stringify({ address: endpoint.address }));
+  if (profileFile !== undefined) controlProfiler(profileFile);
 }
 
-/** This function starts a fresh host child, and gives the child and its address. */
-async function startHost(tree: string): Promise<{ child: ChildProcess; address: string }> {
-  const child = spawn(process.execPath, [SELF, "--serve", "--tree", tree], { stdio: ["ignore", "pipe", "inherit"] });
-  const line = await new Promise<string>((done, fail) => {
-    createInterface({ input: child.stdout! }).once("line", done);
-    child.once("exit", (code) => fail(new Error(`The host exited with ${code} before it gave its address`)));
+/**
+ * The profiler control of the host child. The line `start` starts the CPU profiler of
+ * `node:inspector` in this process, with the interval `PROFILE_INTERVAL_US`. The line `stop` stops it
+ * and writes the profile to the file. The child answers each line with one line of JSON: `started`,
+ * `stopped` or `failed`. The profile has only the calls between the two lines, not the startup.
+ */
+function controlProfiler(file: string): void {
+  const session = new Session();
+  const answer = (profiler: string, more: Record<string, unknown> = {}) => console.log(JSON.stringify({ profiler, ...more }));
+  createInterface({ input: process.stdin }).on("line", (line) => {
+    const step = async () => {
+      if (line === "start") {
+        session.connect();
+        await session.post("Profiler.enable");
+        await session.post("Profiler.setSamplingInterval", { interval: PROFILE_INTERVAL_US });
+        await session.post("Profiler.start");
+        answer("started");
+      } else if (line === "stop") {
+        const { profile } = await session.post("Profiler.stop");
+        mkdirSync(dirname(file), { recursive: true });
+        writeFileSync(file, JSON.stringify(profile));
+        session.disconnect();
+        answer("stopped", { file });
+      } else {
+        answer("failed", { error: `The line "${line}" is not start or stop.` });
+      }
+    };
+    step().catch((error: unknown) => answer("failed", { error: String(error) }));
   });
-  return { child, address: (JSON.parse(line) as { address: string }).address };
+}
+
+/** A host child: the process, its address, and `ask()`, which writes a line to its stdin and gives its answer. */
+interface Host {
+  readonly child: ChildProcess;
+  readonly address: string;
+  readonly ask: (line: string) => Promise<Record<string, unknown>>;
+}
+
+/** This function starts a fresh host child, and gives the child and its address. With arguments, the stdin of the child is a pipe for `ask()`. */
+async function startHost(tree: string, args: readonly string[] = []): Promise<Host> {
+  const child = spawn(process.execPath, [SELF, "--serve", "--tree", tree, ...args], { stdio: [args.length > 0 ? "pipe" : "ignore", "pipe", "inherit"] });
+  const lines = createInterface({ input: child.stdout! })[Symbol.asyncIterator]();
+  const next = async (what: string): Promise<Record<string, unknown>> => {
+    const { value, done } = await lines.next();
+    if (done === true) throw new Error(`The host exited with ${child.exitCode ?? child.signalCode} before it gave ${what}`);
+    return JSON.parse(value as string) as Record<string, unknown>;
+  };
+  const { address } = (await next("its address")) as { address: string };
+  const ask = async (line: string) => {
+    if (child.stdin === null) throw new Error("The host has no stdin: start it with arguments.");
+    child.stdin.write(`${line}\n`);
+    return next(`an answer to "${line}"`);
+  };
+  return { child, address, ask };
 }
 
 /** This function stops a host child, and waits for its exit. After 10 s, it stops the child with SIGKILL. */
@@ -497,6 +593,71 @@ async function sample(tree: string, arm: ArmId, id: RequestId, passes: number): 
   process.stdout.write(`${line}\n`, () => process.exit(0));
 }
 
+/**
+ * This function profiles one case in a fresh host child. First it does the warm-up calls without the
+ * profiler, then the calls with the profiler. Then it stops the host with SIGTERM. It gives the
+ * profile file, and throws when the host gave no file.
+ */
+async function profileCase(tree: string, id: RequestId, options: ProfileOptions, out: string): Promise<string> {
+  const c = await load(tree, "packages/client/dist/index.js");
+  const { pathToMethod } = await load(tree, "packages/client/dist/server/index.js");
+  const { path, input }: RequestCase = REQUESTS[id];
+  const file = join(out, id, "host.cpuprofile");
+  const host = await startHost(tree, ["--profile-file", file]);
+  const expect = (reply: Record<string, unknown>, profiler: string) => {
+    if (reply.profiler !== profiler) throw new Error(`The host gave ${JSON.stringify(reply)}, not the profiler state ${profiler}.`);
+  };
+  try {
+    const remote = new c.Client(new c.HttpTransport({ baseUrl: host.address }));
+    const method = pathToMethod(path);
+    for (let i = 0; i < options.warmup; i++) await remote.call(method, input);
+    expect(await host.ask("start"), "started");
+    for (let i = 0; i < options.calls; i++) await remote.call(method, input);
+    expect(await host.ask("stop"), "stopped");
+  } finally {
+    await stopHost(host.child);
+  }
+  if (!existsSync(file)) throw new Error(`The host gave no profile: the file ${file} does not exist.`);
+  return file;
+}
+
+/** This function gives the run of a record: the run of GitHub Actions, or `local`. */
+function runOf(): ServerRequestRecord["run"] {
+  const runId = process.env.GITHUB_RUN_ID;
+  return {
+    label: runId ? `${runId}/${process.env.GITHUB_RUN_ATTEMPT ?? 1}` : "local",
+    ...(runId ? { id: runId } : {}),
+    ...(runId && process.env.GITHUB_SERVER_URL ? { url: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${runId}` } : {}),
+  };
+}
+
+/** The profile mode: one profile of each of the two cases, then the analysis. It writes the record and its Markdown to the folder. */
+async function profile(tree: string, options: ProfileOptions, outArg: string, head: string): Promise<ProfileRecord> {
+  const out = resolve(outArg);
+  mkdirSync(out, { recursive: true });
+  const files: Record<string, string> = {};
+  const sides = [];
+  for (const id of options.cases) {
+    const file = await profileCase(tree, id, options, out);
+    files[id] = relative(out, file).replace(/\\/g, "/");
+    sides.push({ id, profile: JSON.parse(readFileSync(file, "utf8")) as CpuProfile, calls: options.calls });
+  }
+  const record: ProfileRecord = {
+    format: PROFILE_FORMAT,
+    refs: { head },
+    node: process.version,
+    run: runOf(),
+    intervalUs: PROFILE_INTERVAL_US,
+    warmup: options.warmup,
+    calls: options.calls,
+    files,
+    analysis: profileAnalysisOf(sides[0]!, sides[1]!, realpathSync(tree)),
+  };
+  writeFileSync(join(out, "server-request-profile.json"), `${JSON.stringify(record, null, 2)}\n`);
+  writeFileSync(join(out, "server-request-profile.md"), profileMarkdownOf(record));
+  return record;
+}
+
 /** The parent: the rounds of `measureIsolated()` in mode `fresh`, with one sample process for each case and arm. */
 async function measure(tree: string, rounds: number): Promise<PairedReport> {
   const command = (arm: ArmId) => [process.execPath, SELF, "--sample", arm, "--tree", tree];
@@ -519,12 +680,34 @@ if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathS
   const treeArg = optionOf(argv, "--tree");
   if (treeArg === undefined) {
     console.error("Usage: node scripts/server-request.ts --tree <folder> [--ref <sha>] [--rounds <n>] --out <file.json>");
+    console.error("       node scripts/server-request.ts --tree <folder> [--ref <sha>] --profile <case-a>,<case-b> [--profile-calls <n>] [--profile-warmup <n>] --profile-out <folder>");
     process.exit(2);
   }
   const tree = resolve(treeArg);
   const sampleArm = optionOf(argv, "--sample");
+  const profileArg = optionOf(argv, "--profile");
   if (argv.includes("--serve")) {
-    await serve(tree);
+    await serve(tree, optionOf(argv, "--profile-file"));
+  } else if (profileArg !== undefined) {
+    const outArg = optionOf(argv, "--profile-out");
+    let options: ProfileOptions;
+    try {
+      if (outArg === undefined) throw new Error("The option --profile-out is missing.");
+      options = profileOptionsOf(profileArg, optionOf(argv, "--profile-warmup"), optionOf(argv, "--profile-calls"));
+    } catch (error) {
+      console.error((error as Error).message);
+      process.exit(2);
+    }
+    const record = await profile(tree, options, outArg!, optionOf(argv, "--ref") ?? tree);
+    const { a, b, totalExcessUs, outcomes } = record.analysis;
+    for (const t of [a, b]) console.log(`${t.id}: ${t.samples} samples, ${t.perCallUs.toFixed(1)} µs of self time per call, median interval ${t.medianDeltaUs} µs`);
+    console.log(`excess: ${totalExcessUs.toFixed(1)} µs per call; top ${outcomes.top} (${(outcomes.topShare * 100).toFixed(1)} %); zod ${(outcomes.zodShare * 100).toFixed(1)} %`);
+    console.log(`outcomes: (a) host side ${outcomes.topOnHostSide}, (b) top 25 % or more ${outcomes.topShareAtLeast25}, (c) zod under 20 % ${outcomes.zodUnder20}`);
+    // A probe that gives no number fails the run (the 10-30 rule: gates and probes fail closed)
+    if (outcomes.topOnHostSide === null) {
+      console.error("The profile is not valid: the total excess is not above 0.");
+      process.exitCode = 1;
+    }
   } else if (sampleArm !== undefined) {
     const id = optionOf(argv, "--input");
     if (!(ARMS as readonly string[]).includes(sampleArm) || id === undefined || !(id in REQUESTS)) {
@@ -546,15 +729,10 @@ if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathS
     const bytes = await measureBytes(tree);
     for (const [id, b] of Object.entries(bytes)) console.log(`${id}: input ${b.bytesIn} bytes, result ${b.bytesOut} bytes`);
     const report = await measure(tree, rounds);
-    const runId = process.env.GITHUB_RUN_ID;
     const record = recordOf(report, bytes, {
       refs: { head: optionOf(argv, "--ref") ?? tree },
       node: process.version,
-      run: {
-        label: runId ? `${runId}/${process.env.GITHUB_RUN_ATTEMPT ?? 1}` : "local",
-        ...(runId ? { id: runId } : {}),
-        ...(runId && process.env.GITHUB_SERVER_URL ? { url: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${runId}` } : {}),
-      },
+      run: runOf(),
       runner: runnerContext(),
       rounds,
     });

@@ -13,6 +13,9 @@ import {
   FORMAT,
   jsonBytes,
   markdownOf,
+  PROFILE_DEFAULTS,
+  PROFILE_INTERVAL_US,
+  profileOptionsOf,
   recordOf,
   REQUESTS,
   SHARE_BOOTSTRAP,
@@ -20,6 +23,24 @@ import {
   type CaseBytes,
   type FitRow,
 } from "./server-request.ts";
+import {
+  groupOf,
+  HOST_GROUP,
+  HOST_SIDE,
+  isHostSide,
+  keyOf,
+  locationOf,
+  OUTCOME_LIMITS,
+  outcomesOf,
+  PROFILE_FORMAT,
+  profileAnalysisOf,
+  profileMarkdownOf,
+  sampleTimesOf,
+  selfTimesOf,
+  type CpuProfile,
+  type ExcessRow,
+  type ProfileRecord,
+} from "./server-request-profile.ts";
 
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-12;
 
@@ -393,5 +414,411 @@ describe("server-request record", () => {
     // The fit is JSON: it parses back to the same value
     assert.deepEqual(JSON.parse(JSON.stringify(fit)), fit);
     assert.equal(fit.coefficients.fixedMs.runs, 10_000);
+  });
+});
+
+// The profile mode (O94). Each synthetic profile has samples with known times, thus known self times.
+type Frame = { functionName: string; url: string; lineNumber: number };
+
+/** This function gives a CPU profile of samples with known times: each entry is a frame and the time of its sample, in µs. */
+function profileOf(entries: readonly (readonly [Frame, number])[], startTime = 1000, firstDelta = 7): CpuProfile {
+  const ids = new Map<string, number>();
+  const nodes: { id: number; callFrame: Frame; hitCount: number }[] = [{ id: 1, callFrame: { functionName: "(root)", url: "", lineNumber: -1 }, hitCount: 0 }];
+  const idOf = (frame: Frame) => {
+    const key = JSON.stringify(frame);
+    let id = ids.get(key);
+    if (id === undefined) {
+      id = nodes.length + 1;
+      ids.set(key, id);
+      nodes.push({ id, callFrame: frame, hitCount: 0 });
+    }
+    return id;
+  };
+  const samples = entries.map(([frame]) => idOf(frame));
+  for (const id of samples) nodes[id - 1]!.hitCount += 1;
+  // The delta before sample i + 1 is the time of sample i, and the last sample ends at endTime
+  const timeDeltas = [firstDelta, ...entries.slice(0, -1).map(([, us]) => us)];
+  const endTime = startTime + timeDeltas.reduce((s, d) => s + d, 0) + (entries.at(-1)?.[1] ?? 0);
+  return { nodes, startTime, endTime, samples, timeDeltas };
+}
+
+/** This function gives `count` samples of a frame, each of `us` microseconds. */
+const repeat = (frame: Frame, count: number, us = 100): [Frame, number][] => Array.from({ length: count }, () => [frame, us]);
+
+const TREE = "/t";
+const F = {
+  host: { functionName: "dispatch", url: "file:///t/packages/server/dist/host.js", lineNumber: 41 },
+  peer: { functionName: "handle", url: "file:///t/packages/client-server/dist/http.js", lineNumber: 9 },
+  zod: { functionName: "_parse", url: "file:///t/node_modules/.pnpm/zod@3.25.0/node_modules/zod/lib/types.js", lineNumber: 100 },
+  chain: { functionName: "chain", url: "file:///t/packages/client/dist/procedures/chain.js", lineNumber: 5 },
+  gc: { functionName: "(garbage collector)", url: "", lineNumber: -1 },
+  node: { functionName: "writeGeneric", url: "node:internal/stream_base_commons", lineNumber: 20 },
+} satisfies Record<string, Frame>;
+
+// The profile a: 10 calls. Per call: host 300 µs, zod 70, chain 50, GC 20, node 10
+const PROFILE_A = profileOf([...repeat(F.host, 30), ...repeat(F.zod, 7), ...repeat(F.chain, 5), ...repeat(F.gc, 2), ...repeat(F.node, 1)]);
+// The profile b: 20 calls. Per call: node 20 µs, host 20, zod 10, chain 10, GC 10, peer 5
+const PROFILE_B = profileOf([...repeat(F.node, 2), ...repeat(F.host, 4), ...repeat(F.zod, 2), ...repeat(F.chain, 2), ...repeat(F.gc, 2), ...repeat(F.node, 2), ...repeat(F.peer, 1)]);
+const ANALYSIS = profileAnalysisOf({ id: "chain-200", profile: PROFILE_A, calls: 10 }, { id: "chain-1", profile: PROFILE_B, calls: 20 }, TREE);
+
+describe("server-request profile locations", () => {
+  it("gives the path in the tree for a file of the tree", () => {
+    assert.equal(locationOf(F.host, TREE), "packages/server/dist/host.js");
+    assert.equal(locationOf(F.host, "/t/"), "packages/server/dist/host.js");
+    assert.equal(locationOf({ functionName: "f", url: "file:///t/packages/a%20b/x.js" }, TREE), "packages/a b/x.js");
+  });
+
+  it("gives the path in the tree for a file URL of Windows and a tree with backslashes", () => {
+    assert.equal(locationOf({ functionName: "f", url: "file:///C:/work/tree/packages/client/dist/server/index.js" }, "C:\\work\\tree"), "packages/client/dist/server/index.js");
+  });
+
+  it("gives node_modules/<package> from the last node_modules of the path, also for a scoped package", () => {
+    assert.equal(locationOf(F.zod, TREE), "node_modules/zod");
+    assert.equal(
+      locationOf({ functionName: "f", url: "file:///t/node_modules/.pnpm/@mark1russell7+service@0.5.2/node_modules/@mark1russell7/service/dist/run.js" }, TREE),
+      "node_modules/@mark1russell7/service",
+    );
+    // A package outside the tree is also a package of node_modules
+    assert.equal(locationOf({ functionName: "f", url: "file:///elsewhere/node_modules/ws/lib/x.js" }, TREE), "node_modules/ws");
+  });
+
+  it("gives (node) for a module of Node.js and for a native frame without a URL", () => {
+    assert.equal(locationOf(F.node, TREE), "(node)");
+    assert.equal(locationOf({ functionName: "writeUtf8String", url: "" }, TREE), "(node)");
+    assert.equal(locationOf({ functionName: "", url: "" }, TREE), "(node)");
+  });
+
+  it("gives the name of a V8 entry as is", () => {
+    for (const name of ["(program)", "(garbage collector)", "(idle)", "(root)"]) assert.equal(locationOf({ functionName: name, url: "" }, TREE), name);
+  });
+
+  it("gives the URL for a file outside the tree and for a URL that is not a file", () => {
+    assert.equal(locationOf({ functionName: "serve", url: "file:///checkout/scripts/server-request.ts" }, TREE), "file:///checkout/scripts/server-request.ts");
+    assert.equal(locationOf({ functionName: "f", url: "wasm://wasm/abc" }, TREE), "wasm://wasm/abc");
+    // A folder whose name starts with the name of the tree is not in the tree
+    assert.equal(locationOf({ functionName: "f", url: "file:///tx/packages/a.js" }, TREE), "file:///tx/packages/a.js");
+  });
+
+  it("tells the host side: the server, the HTTP face of peer, and the server of the client in source and build", () => {
+    assert.deepEqual(HOST_SIDE, ["packages/server/", "packages/client-server/", "packages/client/src/server/", "packages/client/dist/server/"]);
+    for (const location of ["packages/server/dist/host.js", "packages/client-server/dist/http.js", "packages/client/src/server/index.ts", "packages/client/dist/server/index.js"]) {
+      assert.ok(isHostSide(location), location);
+      assert.equal(groupOf(location), HOST_GROUP);
+    }
+    for (const location of ["packages/client/dist/index.js", "packages/server-x/a.js", "packages/client-shell/a.js", "node_modules/zod", "(node)"]) assert.ok(!isHostSide(location), location);
+  });
+
+  it("gives the groups: the host side, each other package of the tree, each package of node_modules, (node), each V8 entry, and (other)", () => {
+    assert.equal(groupOf("packages/client/dist/procedures/chain.js"), "packages/client");
+    assert.equal(groupOf("packages/client-shell/dist/a.js"), "packages/client-shell");
+    assert.equal(groupOf("node_modules/zod"), "node_modules/zod");
+    assert.equal(groupOf("node_modules/@mark1russell7/service"), "node_modules/@mark1russell7/service");
+    assert.equal(groupOf("(node)"), "(node)");
+    assert.equal(groupOf("(garbage collector)"), "(garbage collector)");
+    assert.equal(groupOf("(program)"), "(program)");
+    assert.equal(groupOf("(idle)"), "(idle)");
+    assert.equal(groupOf("file:///checkout/scripts/server-request.ts"), "(other)");
+    assert.equal(groupOf("wasm://wasm/abc"), "(other)");
+  });
+
+  it("gives the key of a function from its name, location and line, with (anonymous) for a function without a name", () => {
+    assert.equal(keyOf("dispatch", "packages/server/dist/host.js", 41), "dispatch packages/server/dist/host.js:41");
+    assert.equal(keyOf("", "(node)", 3), "(anonymous) (node):3");
+    assert.equal(keyOf("(program)", "(program)", -1), "(program) (program):-1");
+  });
+});
+
+describe("server-request profile self times", () => {
+  it("gives each sample the time to the next sample, and the last sample the time to endTime", () => {
+    const p = profileOf([[F.host, 30], [F.zod, 50], [F.host, 20]]);
+    assert.deepEqual(p.timeDeltas, [7, 30, 50]);
+    assert.deepEqual(sampleTimesOf(p), [30, 50, 20]);
+  });
+
+  it("gives the last sample 0 without startTime or endTime, and counts a negative time as 0", () => {
+    const { startTime: _s, endTime: _e, ...open } = profileOf([[F.host, 30], [F.zod, 50]]);
+    assert.deepEqual(sampleTimesOf(open), [30, 0]);
+    assert.deepEqual(sampleTimesOf({ ...open, timeDeltas: [7, -4] }), [0, 0]);
+    assert.deepEqual(sampleTimesOf({ ...profileOf([[F.host, 30]]), endTime: 0 }), [0]);
+    assert.deepEqual(sampleTimesOf(profileOf([])), []);
+  });
+
+  it("gives the self time of each function from the times of its samples, not from hitCount", () => {
+    // One sample of each function: the same hitCount, and self times of 900 and 100 µs
+    const self = selfTimesOf(profileOf([[F.host, 900], [F.zod, 100]]), TREE);
+    assert.deepEqual(
+      self.map((f) => [f.key, f.selfUs, f.samples, f.hits]),
+      [
+        ["dispatch packages/server/dist/host.js:41", 900, 1, 1],
+        ["_parse node_modules/zod:100", 100, 1, 1],
+      ],
+    );
+    assert.equal(self[0]!.location, "packages/server/dist/host.js");
+    assert.equal(self[0]!.functionName, "dispatch");
+    assert.equal(self[0]!.lineNumber, 41);
+  });
+
+  it("adds the nodes of one function: two call stacks of one function are one row", () => {
+    const p = profileOf([[F.host, 10], [F.zod, 20]]);
+    // A second node with the frame of F.host, as for a second caller: two more samples of 6 and 4 µs
+    const twice: CpuProfile = { ...p, nodes: [...p.nodes, { id: 99, callFrame: F.host, hitCount: 2 }], samples: [...p.samples, 99, 99], timeDeltas: [...p.timeDeltas, 20, 6], endTime: p.endTime! + 6 + 4 };
+    const self = selfTimesOf(twice, TREE);
+    const host = self.find((f) => f.functionName === "dispatch")!;
+    assert.equal(self.length, 2);
+    assert.equal(host.samples, 3);
+    assert.equal(host.hits, 3);
+    assert.equal(host.selfUs, 10 + 6 + 4);
+    assert.equal(self.find((f) => f.functionName === "_parse")!.selfUs, 20);
+  });
+
+  it("throws for a sample of a node that the profile does not have", () => {
+    const p = profileOf([[F.host, 10]]);
+    assert.throws(() => selfTimesOf({ ...p, samples: [42] }, TREE), /names the node 42/);
+  });
+
+  it("gives the functions in the order of their first sample", () => {
+    const self = selfTimesOf(PROFILE_B, TREE);
+    assert.deepEqual(
+      self.map((f) => [f.location, f.selfUs]),
+      [
+        ["(node)", 400],
+        ["packages/server/dist/host.js", 400],
+        ["node_modules/zod", 200],
+        ["packages/client/dist/procedures/chain.js", 200],
+        ["(garbage collector)", 200],
+        ["packages/client-server/dist/http.js", 100],
+      ],
+    );
+  });
+});
+
+describe("server-request profile analysis", () => {
+  const row = (key: string) => ANALYSIS.functions.find((r) => r.key === key)!;
+  const close = (a: number, b: number) => Math.abs(a - b) < 1e-9;
+
+  it("gives the totals of each profile: calls, samples, self time per call and the median interval", () => {
+    assert.deepEqual(ANALYSIS.a, { id: "chain-200", calls: 10, samples: 45, totalUs: 4500, perCallUs: 450, medianDeltaUs: 100 });
+    assert.deepEqual(ANALYSIS.b, { id: "chain-1", calls: 20, samples: 15, totalUs: 1500, perCallUs: 75, medianDeltaUs: 100 });
+  });
+
+  it("gives the excess per call of each function for unequal counts of calls: a / 10 calls minus b / 20 calls", () => {
+    const host = row("dispatch packages/server/dist/host.js:41");
+    assert.deepEqual(host.a, { selfUs: 3000, perCallUs: 300, samples: 30 });
+    assert.deepEqual(host.b, { selfUs: 400, perCallUs: 20, samples: 4 });
+    assert.equal(host.excessUs, 280);
+    assert.equal(host.group, HOST_GROUP);
+    assert.equal(host.hostSide, true);
+    assert.equal(row("_parse node_modules/zod:100").excessUs, 60);
+    assert.equal(row("chain packages/client/dist/procedures/chain.js:5").excessUs, 40);
+    assert.equal(row("(garbage collector) (garbage collector):-1").excessUs, 10);
+    assert.equal(row("writeGeneric (node):20").excessUs, -10);
+  });
+
+  it("gives a function of only one profile 0 in the other profile", () => {
+    const peer = row("handle packages/client-server/dist/http.js:9");
+    assert.deepEqual(peer.a, { selfUs: 0, perCallUs: 0, samples: 0 });
+    assert.equal(peer.b.perCallUs, 5);
+    assert.equal(peer.excessUs, -5);
+  });
+
+  it("gives the total excess as the per-call time of a minus that of b, and the share of each function in it", () => {
+    assert.equal(ANALYSIS.totalExcessUs, 375);
+    assert.equal(ANALYSIS.totalExcessUs, ANALYSIS.a.perCallUs - ANALYSIS.b.perCallUs);
+    assert.ok(close(row("dispatch packages/server/dist/host.js:41").share, 280 / 375));
+    assert.ok(close(row("writeGeneric (node):20").share, -10 / 375));
+    assert.ok(close(ANALYSIS.functions.reduce((s, r) => s + r.share, 0), 1));
+  });
+
+  it("sorts the functions from the largest excess", () => {
+    assert.deepEqual(
+      ANALYSIS.functions.map((r) => r.excessUs),
+      [280, 60, 40, 10, -5, -10],
+    );
+  });
+
+  it("sorts rows with the same excess by key", () => {
+    const p = profileOf([[F.zod, 10], [F.host, 10]]);
+    const empty = profileOf([[F.gc, 0]]);
+    const keys = profileAnalysisOf({ id: "a", profile: p, calls: 1 }, { id: "b", profile: empty, calls: 1 }, TREE).functions.map((r) => r.key);
+    assert.deepEqual(keys, ["_parse node_modules/zod:100", "dispatch packages/server/dist/host.js:41", "(garbage collector) (garbage collector):-1"]);
+  });
+
+  it("gives the groups: the sums of their functions, from the largest excess", () => {
+    assert.deepEqual(
+      ANALYSIS.groups.map((g) => [g.group, g.functions, g.aPerCallUs, g.bPerCallUs, g.excessUs]),
+      [
+        [HOST_GROUP, 2, 300, 25, 275],
+        ["node_modules/zod", 1, 70, 10, 60],
+        ["packages/client", 1, 50, 10, 40],
+        ["(garbage collector)", 1, 20, 10, 10],
+        ["(node)", 1, 10, 20, -10],
+      ],
+    );
+    assert.ok(close(ANALYSIS.groups[0]!.share, 275 / 375));
+  });
+
+  it("gives the outcomes: the top function is on the host side, has 25 % or more, and zod has less than 20 %", () => {
+    assert.deepEqual(ANALYSIS.outcomes, {
+      top: "dispatch packages/server/dist/host.js:41",
+      topLocation: "packages/server/dist/host.js",
+      topShare: 280 / 375,
+      topOnHostSide: true,
+      topShareAtLeast25: true,
+      zodShare: 60 / 375,
+      zodUnder20: true,
+    });
+  });
+
+  it("throws for a count of calls that is not a whole number above 0", () => {
+    for (const calls of [0, -1, 1.5, Number.NaN]) {
+      assert.throws(() => profileAnalysisOf({ id: "a", profile: PROFILE_A, calls }, { id: "b", profile: PROFILE_B, calls: 1 }, TREE), /The profile a has/);
+      assert.throws(() => profileAnalysisOf({ id: "a", profile: PROFILE_A, calls: 1 }, { id: "b", profile: PROFILE_B, calls }, TREE), /The profile b has/);
+    }
+  });
+
+  it("gives NaN shares and no outcomes when the total excess is not above 0", () => {
+    const flat = profileAnalysisOf({ id: "a", profile: PROFILE_B, calls: 20 }, { id: "b", profile: PROFILE_B, calls: 20 }, TREE);
+    assert.equal(flat.totalExcessUs, 0);
+    assert.ok(flat.functions.every((r) => Number.isNaN(r.share)));
+    assert.equal(flat.outcomes.topOnHostSide, null);
+    assert.equal(flat.outcomes.topShareAtLeast25, null);
+    assert.equal(flat.outcomes.zodUnder20, null);
+    assert.ok(Number.isNaN(flat.outcomes.zodShare));
+  });
+
+  it("gives JSON that parses back to the same analysis", () => {
+    assert.deepEqual(JSON.parse(JSON.stringify(ANALYSIS)), ANALYSIS);
+  });
+});
+
+describe("server-request profile outcomes", () => {
+  /** This function gives an excess row of a location, for the outcomes. */
+  const rowOf = (location: string, excessUs: number, n = 0): ExcessRow => ({
+    key: keyOf(`f${n}`, location, n),
+    functionName: `f${n}`,
+    location,
+    lineNumber: n,
+    group: groupOf(location),
+    hostSide: isHostSide(location),
+    a: { selfUs: excessUs, perCallUs: excessUs, samples: 1 },
+    b: { selfUs: 0, perCallUs: 0, samples: 0 },
+    excessUs,
+    share: Number.NaN,
+  });
+
+  it("gives (a) no when the top function is not on the host side", () => {
+    const o = outcomesOf([rowOf("packages/client/dist/procedures/chain.js", 60), rowOf("packages/server/dist/host.js", 40, 1)], 100);
+    assert.equal(o.top, "f0 packages/client/dist/procedures/chain.js:0");
+    assert.equal(o.topLocation, "packages/client/dist/procedures/chain.js");
+    assert.equal(o.topOnHostSide, false);
+    assert.equal(o.topShareAtLeast25, true);
+  });
+
+  it("gives (b) yes at exactly 25 %, and no under it", () => {
+    assert.equal(OUTCOME_LIMITS.topShare, 0.25);
+    assert.equal(outcomesOf([rowOf("packages/server/a.js", 25), rowOf("(node)", 75)], 100).topShareAtLeast25, true);
+    assert.equal(outcomesOf([rowOf("packages/server/a.js", 24.9), rowOf("(node)", 75.1)], 100).topShareAtLeast25, false);
+  });
+
+  it("gives (c) from the sum of all zod frames: no at exactly 20 %, and yes under it", () => {
+    assert.equal(OUTCOME_LIMITS.zodShare, 0.2);
+    const zod = (x: number, y: number) => [rowOf("packages/server/a.js", 100 - x - y), rowOf("node_modules/zod", x, 1), rowOf("node_modules/zod", y, 2)];
+    const at = outcomesOf(zod(12, 8), 100);
+    assert.equal(at.zodShare, 0.2);
+    assert.equal(at.zodUnder20, false);
+    assert.equal(outcomesOf(zod(12, 7.9), 100).zodUnder20, true);
+    // A package with zod in its name is not zod
+    assert.equal(outcomesOf([rowOf("packages/server/a.js", 50), rowOf("node_modules/zod-to-json-schema", 50, 1)], 100).zodShare, 0);
+  });
+
+  it("gives no top without functions, and no outcomes for a total excess that is not above 0", () => {
+    const none = outcomesOf([], 0);
+    assert.equal(none.top, null);
+    assert.equal(none.topLocation, null);
+    assert.equal(none.topOnHostSide, null);
+    assert.ok(Number.isNaN(none.topShare));
+    const negative = outcomesOf([rowOf("packages/server/a.js", -5)], -5);
+    assert.equal(negative.top, "f0 packages/server/a.js:0");
+    assert.equal(negative.topShareAtLeast25, null);
+  });
+});
+
+describe("server-request profile record", () => {
+  const RECORD: ProfileRecord = {
+    format: PROFILE_FORMAT,
+    refs: { head: "abc" },
+    node: "v26.0.0",
+    run: { label: "local" },
+    intervalUs: PROFILE_INTERVAL_US,
+    warmup: 1000,
+    calls: 10,
+    files: { "chain-200": "chain-200/host.cpuprofile", "chain-1": "chain-1/host.cpuprofile" },
+    analysis: ANALYSIS,
+  };
+
+  it("has the format server-request-profile/1 and the interval of --cpu-prof-interval 100", () => {
+    assert.equal(PROFILE_FORMAT, "server-request-profile/1");
+    assert.equal(PROFILE_INTERVAL_US, 100);
+  });
+
+  it("gives the Markdown: the counts, the totals, the outcomes, the functions and the groups", () => {
+    const md = profileMarkdownOf(RECORD);
+    assert.ok(md.startsWith("# Server request profile (O94): `chain-200` against `chain-1`\n"));
+    assert.ok(md.includes("Head `abc`, Node.js v26.0.0. The host child of each case did 1000 untimed calls, then the profiler ran for 10 calls, with a sampling interval of 100 µs."));
+    assert.ok(md.includes("| `chain-200` | 10 | 45 | 100.0 | 450.0 |"));
+    assert.ok(md.includes("| `chain-1` | 20 | 15 | 100.0 | 75.0 |"));
+    assert.ok(md.includes("The total excess is 375.0 µs per call."));
+    assert.ok(md.includes("- The function with the largest excess: `dispatch packages/server/dist/host.js:41`, 74.7 % of the total excess."));
+    assert.ok(md.includes("- (a) It is on the host side (`packages/server/`, `packages/client-server/`, `packages/client/src/server/`, `packages/client/dist/server/`): yes."));
+    assert.ok(md.includes("- (b) It has 25 % or more of the total excess: yes."));
+    assert.ok(md.includes("- (c) The frames of `node_modules/zod` have less than 20 % of the total excess: yes (16.0 %)."));
+    assert.ok(md.includes("| # | Function | Location | `chain-200` µs per call | `chain-1` µs per call | Excess µs | Share |"));
+    // The line of V8 is from 0, and the Markdown gives it from 1
+    assert.ok(md.includes("| 1 | `dispatch` | `packages/server/dist/host.js:42` | 300.0 | 20.0 | 280.0 | 74.7 % |"));
+    assert.ok(md.includes("| 4 | `(garbage collector)` | `(garbage collector)` | 20.0 | 10.0 | 10.0 | 2.7 % |"));
+    assert.ok(md.includes("| `host side` | 2 | 300.0 | 25.0 | 275.0 | 73.3 % |"));
+    assert.ok(md.includes("| `(node)` | 1 | 10.0 | 20.0 | -10.0 | -2.7 % |"));
+    assert.ok(md.indexOf("## The outcomes") < md.indexOf("## The top 25 functions"));
+    assert.ok(md.indexOf("## The top 25 functions") < md.indexOf("## The groups"));
+  });
+
+  it("gives only the top 25 functions, and escapes a | in a name", () => {
+    const frames = Array.from({ length: 30 }, (_, i) => ({ functionName: i === 0 ? "a|b" : `f${i}`, url: "file:///t/packages/server/dist/x.js", lineNumber: i }));
+    const a = profileOf(frames.map((f, i) => [f, 100 * (30 - i)] as const));
+    const analysis = profileAnalysisOf({ id: "x", profile: a, calls: 1 }, { id: "y", profile: profileOf([[F.gc, 0]]), calls: 1 }, TREE);
+    const md = profileMarkdownOf({ ...RECORD, analysis });
+    assert.ok(md.includes("| 1 | `a\\|b` | `packages/server/dist/x.js:1` |"));
+    assert.ok(md.includes("| 25 | `f24` |"));
+    assert.ok(!md.includes("| 26 |"));
+    assert.ok(profileMarkdownOf({ ...RECORD, analysis }, 3).includes("## The top 3 functions"));
+  });
+
+  it("writes none for the outcomes of a total excess that is not above 0, and no line for a frame without a line", () => {
+    const flat = profileAnalysisOf({ id: "a", profile: PROFILE_B, calls: 20 }, { id: "b", profile: PROFILE_B, calls: 20 }, TREE);
+    const md = profileMarkdownOf({ ...RECORD, analysis: flat });
+    assert.ok(md.includes("`packages/client/dist/server/`): none."));
+    assert.ok(md.includes("- (b) It has 25 % or more of the total excess: none."));
+    assert.ok(md.includes("- (c) The frames of `node_modules/zod` have less than 20 % of the total excess: none (none)."));
+    assert.ok(md.includes("| `(garbage collector)` | `(garbage collector)` |"));
+  });
+});
+
+describe("server-request profile options", () => {
+  it("gives the two cases and the counts, with the defaults", () => {
+    assert.deepEqual(profileOptionsOf("chain-200,chain-1", "500", "800"), { cases: ["chain-200", "chain-1"], warmup: 500, calls: 800 });
+    assert.deepEqual(profileOptionsOf(" chain-200 , chain-1 ", undefined, undefined), { cases: ["chain-200", "chain-1"], ...PROFILE_DEFAULTS });
+    assert.deepEqual(PROFILE_DEFAULTS, { warmup: 1000, calls: 1000 });
+    assert.equal(profileOptionsOf("one-call,chain-1", "0", "1").warmup, 0);
+  });
+
+  it("throws unless --profile names two different cases of REQUESTS", () => {
+    for (const value of ["chain-200", "chain-200,chain-200", "chain-200,chain-1,chain-10", "chain-200,nope", ""]) {
+      assert.throws(() => profileOptionsOf(value, undefined, undefined), /names two different cases/, value);
+    }
+  });
+
+  it("throws for a warm-up that is not a whole number of 0 or more, and for calls that are not a whole number above 0", () => {
+    for (const value of ["-1", "1.5", "x"]) assert.throws(() => profileOptionsOf("chain-200,chain-1", value, undefined), /--profile-warmup/, value);
+    for (const value of ["0", "-1", "2.5", "x"]) assert.throws(() => profileOptionsOf("chain-200,chain-1", undefined, value), /--profile-calls/, value);
   });
 });
