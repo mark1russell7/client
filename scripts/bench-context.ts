@@ -2,7 +2,7 @@
 /**
  * This script adds the runner context to the results of the benchmarks, and writes a summary (O82).
  *
- *   node scripts/bench-context.mjs <results folder>...
+ *   node scripts/bench-context.ts <results folder>...
  *
  * Each folder holds one JSON file for each benchmark, as `bench(name, { writeResult })` of vitest
  * writes it. The script adds the field `context` to each file: the CPU, the core count, Node, the
@@ -27,54 +27,119 @@ export const NO_VERDICT =
 export const DEFAULT_SETTINGS =
   "the tinybench defaults (time 1000 ms, at least 64 iterations, warmup 250 ms and 16 iterations), unless the bench file sets its own options";
 
+/** The GitHub runner of a context: the fields that the environment sets. */
+export interface Runner {
+  name?: string;
+  image?: string;
+  imageVersion?: string;
+}
+
+/** The context of a runner: the CPU, the core count, Node.js, the platform and the GitHub runner. */
+export interface RunnerContext {
+  readonly cpu: string;
+  readonly cores: number;
+  readonly node: string;
+  readonly platform: string;
+  readonly arch: string;
+  readonly runner?: Readonly<Runner>;
+}
+
+/** The system that `runnerContext` reads: the CPUs, the Node.js version, the platform and the arch. */
+export interface RunnerSystem {
+  readonly cpus: readonly { readonly model?: string }[];
+  readonly node: string;
+  readonly platform: string;
+  readonly arch: string;
+}
+
+/** The fields of a vitest bench record that this script reads. The record keeps all its other fields. */
+export interface BenchRecord {
+  readonly latency?: { readonly mean?: number; readonly p50?: number; readonly samplesCount?: number };
+  readonly totalTime?: number;
+  readonly context?: unknown;
+  readonly [field: string]: unknown;
+}
+
+/** The options of `modeOf`: the vitest version, the bench files and CI or not. */
+export interface ModeOptions {
+  readonly vitest?: string;
+  readonly benchFiles?: readonly string[];
+  readonly ci?: boolean;
+}
+
+/** The mode of one record: the tool, its version, CI or not, the bench files, the samples, the time and the settings. */
+export interface Mode {
+  tool: string;
+  ci: boolean;
+  vitest?: string;
+  benchFiles: readonly string[];
+  samples?: number;
+  totalTimeMs?: number;
+  settings: string;
+}
+
+/** One row of the summary table: the name and the folder of a benchmark, its mean, median and samples. */
+export interface SummaryRow {
+  readonly name: string;
+  readonly folder: string;
+  readonly mean?: number | undefined;
+  readonly median?: number | undefined;
+  readonly samples?: number | undefined;
+}
+
 /**
  * This function returns the context of the runner: the CPU, the core count, Node, the platform and
  * the GitHub runner. The runner fields come from `RUNNER_NAME`, `ImageOS` and `ImageVersion`, when set.
  */
-export function runnerContext(env = process.env, system = { cpus: cpus(), node: process.version, platform: process.platform, arch: process.arch }) {
-  const context = {
+export function runnerContext(
+  env: NodeJS.ProcessEnv = process.env,
+  system: RunnerSystem = { cpus: cpus(), node: process.version, platform: process.platform, arch: process.arch },
+): RunnerContext {
+  const runner: Runner = {};
+  if (env.RUNNER_NAME) runner.name = env.RUNNER_NAME;
+  if (env.ImageOS) runner.image = env.ImageOS;
+  if (env.ImageVersion) runner.imageVersion = env.ImageVersion;
+  return {
     cpu: system.cpus[0]?.model?.trim() ?? "unknown",
     cores: system.cpus.length,
     node: system.node,
     platform: system.platform,
     arch: system.arch,
+    ...(Object.keys(runner).length > 0 ? { runner } : {}),
   };
-  const runner = {};
-  if (env.RUNNER_NAME) runner.name = env.RUNNER_NAME;
-  if (env.ImageOS) runner.image = env.ImageOS;
-  if (env.ImageVersion) runner.imageVersion = env.ImageVersion;
-  if (Object.keys(runner).length > 0) context.runner = runner;
-  return context;
 }
 
 /**
  * This function returns the mode of one record: the tool, its version, CI or not, the bench files,
  * the samples and the total time that the record measured, and the settings.
  */
-export function modeOf(record, { vitest, benchFiles = [], ci = false } = {}) {
-  const mode = { tool: "vitest bench --run", ci };
-  if (vitest) mode.vitest = vitest;
-  mode.benchFiles = benchFiles;
-  if (typeof record.latency?.samplesCount === "number") mode.samples = record.latency.samplesCount;
-  if (typeof record.totalTime === "number") mode.totalTimeMs = record.totalTime;
-  mode.settings = DEFAULT_SETTINGS;
-  return mode;
+export function modeOf(record: BenchRecord, { vitest, benchFiles = [], ci = false }: ModeOptions = {}): Mode {
+  const samples = record.latency?.samplesCount;
+  return {
+    tool: "vitest bench --run",
+    ci,
+    ...(vitest ? { vitest } : {}),
+    benchFiles,
+    ...(typeof samples === "number" ? { samples } : {}),
+    ...(typeof record.totalTime === "number" ? { totalTimeMs: record.totalTime } : {}),
+    settings: DEFAULT_SETTINGS,
+  };
 }
 
 /** This function returns a copy of the record with the field `context`. The other fields do not change. */
-export function withContext(record, context) {
+export function withContext<C>(record: BenchRecord, context: C): Omit<BenchRecord, "context"> & { context: C } {
   const { context: _old, ...rest } = record;
   return { ...rest, context };
 }
 
 /** This function returns the time of a value in milliseconds as text, or a dash without a value. */
-const ms = (value) => (typeof value === "number" ? value.toFixed(4) : "—");
+const ms = (value: number | undefined): string => (typeof value === "number" ? value.toFixed(4) : "—");
 
 /**
  * This function returns the summary in Markdown: the context lines, a table with the mean and the
  * median of each benchmark, and the line `NO_VERDICT`.
  */
-export function summaryOf(rows, context) {
+export function summaryOf(rows: readonly SummaryRow[], context: RunnerContext & { readonly ci?: boolean }): string {
   const lines = ["## Benchmarks", "", NO_VERDICT, ""];
   lines.push(`- CPU: ${context.cpu} (${context.cores} cores)`);
   lines.push(`- Node: ${context.node}, ${context.platform}/${context.arch}`);
@@ -89,13 +154,13 @@ export function summaryOf(rows, context) {
 }
 
 /** The version of vitest of the package that holds the results folder, or undefined. */
-function vitestOf(folder) {
+function vitestOf(folder: string): string | undefined {
   const file = join(folder, "..", "..", "node_modules", "vitest", "package.json");
-  return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")).version : undefined;
+  return existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as { version?: string }).version : undefined;
 }
 
 /** The bench files next to the results folder, relative to the current folder. */
-function benchFilesOf(folder) {
+function benchFilesOf(folder: string): string[] {
   const benchDir = join(folder, "..");
   return readdirSync(benchDir)
     .filter((name) => name.endsWith(".bench.ts"))
@@ -106,12 +171,12 @@ function benchFilesOf(folder) {
 if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   const folders = process.argv.slice(2);
   if (folders.length === 0) {
-    console.error("Usage: node scripts/bench-context.mjs <results folder>...");
+    console.error("Usage: node scripts/bench-context.ts <results folder>...");
     process.exit(2);
   }
   const ci = process.env.CI === "true";
   const runner = runnerContext();
-  const rows = [];
+  const rows: SummaryRow[] = [];
   let failed = false;
   for (const folder of folders) {
     const files = existsSync(folder) ? readdirSync(folder).filter((name) => name.endsWith(".json")).sort() : [];
@@ -121,10 +186,11 @@ if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathS
       failed = true;
       continue;
     }
-    const options = { vitest: vitestOf(folder), benchFiles: benchFilesOf(folder), ci };
+    const vitest = vitestOf(folder);
+    const options: ModeOptions = { ...(vitest ? { vitest } : {}), benchFiles: benchFilesOf(folder), ci };
     for (const file of files) {
       const path = join(folder, file);
-      const record = JSON.parse(readFileSync(path, "utf8"));
+      const record = JSON.parse(readFileSync(path, "utf8")) as BenchRecord;
       writeFileSync(path, `${JSON.stringify(withContext(record, { ...runner, mode: modeOf(record, options) }), null, 2)}\n`, "utf8");
       rows.push({ name: file.replace(/\.json$/, ""), folder: relative(process.cwd(), resolve(folder)).split(sep).join("/"), mean: record.latency?.mean, median: record.latency?.p50, samples: record.latency?.samplesCount });
     }
