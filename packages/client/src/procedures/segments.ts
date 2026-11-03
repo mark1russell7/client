@@ -40,7 +40,8 @@ export function encodeSegment(segment: string): string {
  * ```
  */
 export function decodeSegment(segment: string): string {
-  return segment.replace(/%(25|2[Ee])/g, (_sequence, code: string) => (code === "25" ? "%" : "."));
+  // Almost each segment has no `%`: a test costs less than a replace with a callback (roadmap O90)
+  return segment.includes("%") ? segment.replace(/%(25|2[Ee])/g, (_sequence, code: string) => (code === "25" ? "%" : ".")) : segment;
 }
 
 /**
@@ -57,7 +58,14 @@ export function decodeSegment(segment: string): string {
 export function segmentsToTopic(segments: readonly string[]): string {
   // A segment that is not a string becomes text as with join(): null and undefined give "" (a
   // caller can check a path that is not valid, for example the compiler)
-  return segments.map((segment: unknown) => encodeSegment(segment === null || segment === undefined ? "" : String(segment))).join(".");
+  // The loop makes no array for each key: a key is made for each step of a call (roadmap O90)
+  let topic = "";
+  for (let index = 0; index < segments.length; index++) {
+    const segment: unknown = segments[index];
+    if (index > 0) topic += ".";
+    topic += encodeSegment(segment === null || segment === undefined ? "" : String(segment));
+  }
+  return topic;
 }
 
 /**
