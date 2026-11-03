@@ -10,7 +10,7 @@ const TEST_FILE = /\.(test|spec)\.(ts|tsx|mts|js|mjs)$/;
 // A test, not a suite: `it("…"`, `test("…"`, `it.skip("…"`, `test.concurrent("…"`
 const TEST_CALL = /(?:^|[^\w.$])(?:it|test)(?:\.(?:skip|only|concurrent|fails|todo|sequential))?\s*\(\s*[`'"]/g;
 
-function testFiles(dir, found = []) {
+function testFiles(dir: string, found: string[] = []): string[] {
   if (!existsSync(dir)) return found;
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (entry.name === "node_modules" || entry.name === "dist" || entry.name.startsWith(".")) continue;
@@ -22,7 +22,7 @@ function testFiles(dir, found = []) {
 }
 
 /** The count of the tests and of the test files in the packages folder. */
-export function countTests(packagesDir) {
+export function countTests(packagesDir: string): { tests: number; files: number } {
   let tests = 0;
   let files = 0;
   for (const pkg of readdirSync(packagesDir, { withFileTypes: true })) {
@@ -39,14 +39,14 @@ export function countTests(packagesDir) {
  * The latest version of a package on npm, or null when it is not there or the registry does not
  * answer in time (an offline build).
  */
-export async function npmVersion(name, timeoutMs = 4000) {
+export async function npmVersion(name: string, timeoutMs = 4000): Promise<string | null> {
   try {
     const response = await fetch(`https://registry.npmjs.org/${name.replace(/\//g, "%2f")}`, {
       headers: { accept: "application/vnd.npm.install-v1+json" },
       signal: AbortSignal.timeout(timeoutMs),
     });
     if (!response.ok) return null;
-    const data = await response.json();
+    const data = (await response.json()) as { "dist-tags"?: { latest?: unknown } } | null;
     return typeof data?.["dist-tags"]?.latest === "string" ? data["dist-tags"].latest : null;
   } catch {
     return null;

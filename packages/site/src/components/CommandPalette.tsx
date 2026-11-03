@@ -50,7 +50,7 @@ const PAGES: Array<{ page: string; label: string; hint: string }> = [
   { page: "releases", label: "Releases", hint: "Each version on a timeline, with its changes" },
 ];
 
-/** The headings of each docs page, for the search (`scripts/docs-data.mjs`). */
+/** The headings of each docs page, for the search (`scripts/docs-data.ts`). */
 const docHeadings = docSearchJson as unknown as Array<{ slug: string; title: string; headings: Array<{ id: string; text: string }> }>;
 
 function go(url: string): void {

@@ -11,12 +11,28 @@
 // This module keeps what only this site needs: the name of the group, and the split of the data
 // into the index of the page and the changes of each version.
 
-import { readReleases as readRepositoryReleases } from "@mark1russell7/site-pages";
+import { readReleases as readRepositoryReleases, type Release } from "@mark1russell7/site-pages";
+import type { ReleaseChange, ReleaseEntry, ReleaseKind, ReleasesIndex } from "../src/data/index.ts";
 
 /** The package that names the group: each release of the group has a section in its changelog. */
 export const GROUP = "@procedures/client";
 /** The repository on GitHub, for the GitHub releases and the links. */
 export const REPOSITORY = "mark1russell7/client";
+
+/** The release data of the repository, as `readReleases` gives it. */
+export interface RepositoryReleases {
+  group: string;
+  releases: Release[];
+}
+
+/** A version for `splitReleases`. `@mark1russell7/site-pages` also knows the kind "major", and it adds the links. */
+export interface SplitRelease {
+  version: string;
+  date: string;
+  kind: ReleaseKind | "major";
+  changes: ReleaseChange[];
+  links?: unknown;
+}
 
 /**
  * The data of the page in two modules. The index has each version with its number of changes,
@@ -24,12 +40,12 @@ export const REPOSITORY = "mark1russell7/client";
  * load when the reader selects another version, so the first load of the page stays small. The
  * page makes its own links, so the index does not keep the links of a version.
  */
-export function splitReleases(data) {
+export function splitReleases(data: { group: string; releases: SplitRelease[] }): { index: ReleasesIndex; changes: Record<string, ReleaseChange[]> } {
   const newest = data.releases[0];
   return {
     index: {
       group: data.group,
-      releases: data.releases.map(({ changes, links: _links, ...release }) => ({ ...release, changeCount: changes.length })),
+      releases: data.releases.map(({ changes, links: _links, ...release }) => ({ ...release, changeCount: changes.length }) as ReleaseEntry),
       changes: newest ? { [newest.version]: newest.changes } : {},
     },
     changes: Object.fromEntries(data.releases.map((release) => [release.version, release.changes])),
@@ -43,7 +59,17 @@ export function splitReleases(data) {
  *
  * @throws ReleaseDataError of `@mark1russell7/site-pages` when the group has no changelog
  */
-export async function readReleases({ repoDir, token, ref, warn = () => {} }) {
+export async function readReleases({
+  repoDir,
+  token,
+  ref,
+  warn = () => {},
+}: {
+  repoDir: string;
+  token?: string | undefined;
+  ref?: string | undefined;
+  warn?: (message: string) => void;
+}): Promise<RepositoryReleases> {
   const releases = await readRepositoryReleases({ repoDir, repository: REPOSITORY, group: GROUP, packages: [GROUP], token, ref, warn });
   return { group: GROUP, releases };
 }

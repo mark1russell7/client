@@ -1,6 +1,6 @@
 /**
  * The releases page: a timeline of the versions of the `@procedures/*` packages, and the changes
- * of the selected version. `scripts/releases-data.mjs` reads the changelogs and the git tags at
+ * of the selected version. `scripts/releases-data.ts` reads the changelogs and the git tags at
  * build time.
  *
  * The page loads the changes of the newest version only. The changes of the other versions load

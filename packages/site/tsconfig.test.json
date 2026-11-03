@@ -3,5 +3,14 @@
   "extends": [
     "./tsconfig.json",
     "@mark1russell7/cue/ts/config/test.json"
+  ],
+  "compilerOptions": {
+    "allowImportingTsExtensions": true
+  },
+  "include": [
+    "src/**/*",
+    "e2e/**/*",
+    "scripts/**/*",
+    "*.config.ts"
   ]
 }

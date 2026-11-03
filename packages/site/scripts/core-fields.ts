@@ -8,31 +8,33 @@
 import { createRequire } from "node:module";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
+import type * as TS from "typescript-api";
+import type { Field } from "../src/data/index.ts";
 
-export function readCoreFields(packagesDir) {
+export function readCoreFields(packagesDir: string): Record<string, Field[]> {
   const coreDir = join(packagesDir, "client", "src", "procedures", "core");
   // The compiler API of TypeScript 5. The packages build with TypeScript 7, which has no
   // createProgram in JavaScript: the site keeps TypeScript 5 as "typescript-api" for this script.
   const require = createRequire(import.meta.url);
-  const ts = require("typescript-api");
+  const ts = require("typescript-api") as typeof TS;
 
   const files = readdirSync(coreDir)
     .filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts"))
     .map((name) => join(coreDir, name));
   const program = ts.createProgram(files, { strict: true, target: ts.ScriptTarget.ESNext, noEmit: true });
   const checker = program.getTypeChecker();
-  const fields = {};
+  const fields: Record<string, Field[]> = {};
 
-  const propertyOf = (object, name) =>
+  const propertyOf = (object: TS.ObjectLiteralExpression, name: string): TS.PropertyAssignment | undefined =>
     object.properties.find(
-      (property) => ts.isPropertyAssignment(property) && property.name.getText() === name,
+      (property): property is TS.PropertyAssignment => ts.isPropertyAssignment(property) && property.name.getText() === name,
     );
 
   // `const x: XProcedure = defineProcedure(...)` with `type XProcedure = Procedure<XInput, ...>`
-  function declaredInputTypeNode(call) {
+  function declaredInputTypeNode(call: TS.CallExpression): TS.TypeNode | undefined {
     const declaration = call.parent;
     if (!declaration || !ts.isVariableDeclaration(declaration) || !declaration.type) return undefined;
-    let typeNode = declaration.type;
+    let typeNode: TS.TypeNode = declaration.type;
     if (ts.isTypeReferenceNode(typeNode) && !typeNode.typeArguments) {
       const alias = checker.getSymbolAtLocation(typeNode.typeName)?.declarations?.[0];
       if (alias && ts.isTypeAliasDeclaration(alias)) typeNode = alias.type;
@@ -40,7 +42,7 @@ export function readCoreFields(packagesDir) {
     return ts.isTypeReferenceNode(typeNode) ? typeNode.typeArguments?.[0] : undefined;
   }
 
-  function visit(node) {
+  function visit(node: TS.Node): void {
     if (
       ts.isCallExpression(node) &&
       node.expression.getText() === "defineProcedure" &&
@@ -51,7 +53,7 @@ export function readCoreFields(packagesDir) {
       const path = propertyOf(definition, "path");
       const handler = propertyOf(definition, "handler");
       if (path && ts.isArrayLiteralExpression(path.initializer)) {
-        const key = ["client", ...path.initializer.elements.map((element) => element.text)].join(".");
+        const key = ["client", ...path.initializer.elements.map((element) => (element as TS.StringLiteral).text)].join(".");
         const fn = handler?.initializer;
         const parameter = fn && (ts.isArrowFunction(fn) || ts.isFunctionExpression(fn)) ? fn.parameters[0] : undefined;
         // The input type: the handler's annotation, else the first type argument of the declared

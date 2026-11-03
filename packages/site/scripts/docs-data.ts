@@ -11,7 +11,7 @@
 
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
-import { Marked } from "marked";
+import { Marked, type Tokens } from "marked";
 import { pathToKey } from "@procedures/client/browser";
 import hljs from "highlight.js/lib/core";
 import bash from "highlight.js/lib/languages/bash";
@@ -35,11 +35,86 @@ export const SITE_URL = "https://mark1russell7.github.io/client/";
 /** The text that starts each link of the site in the HTML. The page replaces it with its base path. */
 export const BASE_MARKER = "%SITE_BASE%";
 
+/** The target of a link: its address, and whether it leaves the site. */
+export interface LinkTarget {
+  href: string;
+  external: boolean;
+}
+
+/** A heading of the table of contents. */
+export interface ConvertedHeading {
+  id: string;
+  text: string;
+  depth: number;
+}
+
+/** A part of a docs page: HTML, or a JSON program. */
+export type ConvertedSegment =
+  | { type: "html"; html: string }
+  | { type: "program"; html: string; program: unknown; runnable: boolean; expected?: string };
+
+/** The result of `convertMarkdown`. */
+export interface ConvertedDoc {
+  title: string | null;
+  description: string;
+  toc: ConvertedHeading[];
+  segments: ConvertedSegment[];
+  programs: number;
+}
+
+/** The fields of a catalog package that the docs pages read. */
+export interface DocPackage {
+  dir: string;
+  name: string;
+  description?: string;
+}
+
+/** A document of the site. */
+export interface DocSource {
+  slug: string;
+  file: string;
+  path: string;
+  section: string;
+  seoTitle?: string;
+  package?: DocPackage;
+}
+
+/** A line of the list of the docs pages. */
+export interface DocsIndexEntry {
+  slug: string;
+  title: string;
+  description: string;
+  section: string;
+  source: string;
+  pageTitle: string;
+  package?: string;
+  packageName?: string;
+  packageDescription?: string;
+  programs: number;
+}
+
+/** The result of `readDocs`. */
+export interface DocsData {
+  index: DocsIndexEntry[];
+  routes: Array<{ slug: string; heading: string; title: string }>;
+  pages: Record<string, { slug: string; toc: ConvertedHeading[]; segments: ConvertedSegment[] }>;
+  search: Array<{ slug: string; title: string; headings: Array<{ id: string; text: string }> }>;
+}
+
+/** A JSON program of a document, before the segments of the page exist. */
+interface ProgramBlock {
+  program: Record<string, unknown>;
+  expected: string;
+  html: string;
+  runnable: boolean;
+  keys: string[];
+}
+
 for (const [name, language] of Object.entries({ bash, diff, dockerfile, ini, javascript, json, plaintext, powershell, shell, sql, typescript, xml, yaml })) {
   hljs.registerLanguage(name, language);
 }
 /** The names that the code blocks use for the languages above. */
-const LANGUAGE_ALIASES = {
+const LANGUAGE_ALIASES: Record<string, string> = {
   ts: "typescript",
   tsx: "typescript",
   js: "javascript",
@@ -64,15 +139,15 @@ const SAFE_TAGS = /^<\/?(details|summary|br|kbd|sub|sup|b|i|em|strong|code|hr)\s
 /** The ids of the page that a heading must not take. */
 const RESERVED_IDS = new Set(["main", "root", "app"]);
 
-export function escapeHtml(text) {
+export function escapeHtml(text: string): string {
   return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 /** The characters of the HTML entities that `plainText` decodes. */
-const ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'" };
+const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'" };
 
 /** The plain text of a line of inline Markdown: code spans, emphasis, links and images lose their marks. */
-export function plainText(markdown) {
+export function plainText(markdown: string): string {
   return String(markdown)
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, "")
     .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
@@ -82,13 +157,13 @@ export function plainText(markdown) {
     .replace(/<[^>]+>/g, "")
     .replace(/\\([\\`*_{}[\]()#+\-.!|<>])/g, "$1")
     // One pass for all the entities, so that "&amp;lt;" becomes "&lt;" and not "<"
-    .replace(/&(amp|lt|gt|quot|#39);/g, (_, name) => ENTITIES[name])
+    .replace(/&(amp|lt|gt|quot|#39);/g, (_, name: string) => ENTITIES[name]!)
     .replace(/\s+/g, " ")
     .trim();
 }
 
 /** The text of a description: one or two sentences, at most about `limit` characters. */
-export function clip(text, limit = 160) {
+export function clip(text: string, limit = 160): string {
   const clean = String(text).replace(/\s+/g, " ").trim();
   if (clean.length <= limit) return clean;
   const cut = clean.slice(0, limit - 1);
@@ -100,8 +175,8 @@ export function clip(text, limit = 160) {
  * hyphen for each space, and "-1", "-2" for a repeated heading. So a link to "#the-ref-key"
  * that works on GitHub works on the site too.
  */
-export function createSlugger() {
-  const seen = new Map();
+export function createSlugger(): (text: string) => string {
+  const seen = new Map<string, number>();
   return (text) => {
     let base = plainText(text)
       .toLowerCase()
@@ -117,7 +192,7 @@ export function createSlugger() {
 }
 
 /** The HTML of a code block: the colored code, or the escaped text for a language that the script does not know. */
-export function highlightCode(code, language) {
+export function highlightCode(code: string, language: string): string {
   const name = LANGUAGE_ALIASES[language] ?? language;
   if (name && hljs.getLanguage(name)) {
     try {
@@ -130,7 +205,7 @@ export function highlightCode(code, language) {
 }
 
 /** True for an image that is a badge (shields.io, a CI badge): the docs pages leave them out. */
-function isBadge(src) {
+function isBadge(src: string): boolean {
   return /img\.shields\.io|badge\.svg|badgen\.net|\/badge\b/i.test(src);
 }
 
@@ -139,26 +214,27 @@ function isBadge(src) {
  * null. The documents write the result as comment lines after the program (`// 3`): they are not
  * JSON, so they are read apart.
  */
-export function programOf(code) {
+export function programOf(code: string): { program: Record<string, unknown>; expected: string } | null {
   const lines = String(code).split(/\r?\n/);
   const comments = lines.filter((line) => line.trim().startsWith("//")).map((line) => line.trim().replace(/^\/\/\s?/, ""));
   const body = lines.filter((line) => !line.trim().startsWith("//")).join("\n");
-  let value;
+  let value: unknown;
   try {
     value = JSON.parse(body);
   } catch {
     return null;
   }
-  if (value === null || typeof value !== "object" || Array.isArray(value) || !Array.isArray(value.$proc)) return null;
-  return { program: value, expected: comments.join("\n") };
+  if (value === null || typeof value !== "object" || Array.isArray(value) || !Array.isArray((value as { $proc?: unknown }).$proc)) return null;
+  return { program: value as Record<string, unknown>, expected: comments.join("\n") };
 }
 
 /** The procedure keys ("client.add") of a program. */
-export function programKeys(value, keys = new Set()) {
+export function programKeys(value: unknown, keys: Set<string> = new Set()): Set<string> {
   if (Array.isArray(value)) {
     for (const item of value) programKeys(item, keys);
   } else if (value !== null && typeof value === "object") {
-    if (Array.isArray(value.$proc) && value.$proc.every((part) => typeof part === "string")) keys.add(pathToKey(value.$proc));
+    const path = (value as { $proc?: unknown }).$proc;
+    if (Array.isArray(path) && path.every((part) => typeof part === "string")) keys.add(pathToKey(path));
     for (const item of Object.values(value)) programKeys(item, keys);
   }
   return keys;
@@ -174,11 +250,17 @@ export const RUNNABLE_LIMIT = 4000;
  * The result: the title (the first H1), the description (the first paragraph with text), the
  * table of contents (H2 and H3), and the segments of the page: HTML, and the JSON programs.
  */
-export function convertMarkdown(markdown, { resolveLink = (href) => ({ href, external: /^[a-z]+:/i.test(href) }), canRun = () => false } = {}) {
+export function convertMarkdown(
+  markdown: string,
+  {
+    resolveLink = (href) => ({ href, external: /^[a-z]+:/i.test(href) }),
+    canRun = () => false,
+  }: { resolveLink?: (href: string) => LinkTarget; canRun?: (key: string) => boolean } = {},
+): ConvertedDoc {
   const slug = createSlugger();
-  const toc = [];
-  const programs = [];
-  let title = null;
+  const toc: ConvertedHeading[] = [];
+  const programs: ProgramBlock[] = [];
+  let title: string | null = null;
 
   const marked = new Marked({ gfm: true, async: false });
   const tokens = marked.lexer(markdown);
@@ -209,7 +291,7 @@ export function convertMarkdown(markdown, { resolveLink = (href) => ({ href, ext
         return `<h${depth} id="${id}">${html}<a class="heading-anchor" href="#${id}" aria-label="Link to the section ${escapeHtml(plain)}">#</a></h${depth}>\n`;
       },
       code({ text, lang }) {
-        const language = String(lang ?? "").trim().split(/\s+/)[0].toLowerCase();
+        const language = String(lang ?? "").trim().split(/\s+/)[0]!.toLowerCase();
         if (language === "mermaid") {
           return (
             `<figure class="doc-diagram"><figcaption>Diagram source (Mermaid). GitHub draws it on the page of the file.</figcaption>` +
@@ -254,7 +336,7 @@ export function convertMarkdown(markdown, { resolveLink = (href) => ({ href, ext
         return SAFE_TAGS.test(trimmed) ? trimmed : escapeHtml(text);
       },
       table(token) {
-        const cell = (item, tag) => {
+        const cell = (item: Tokens.TableCell, tag: string): string => {
           const align = item.align ? ` style="text-align: ${item.align}"` : "";
           return `<${tag}${align}>${this.parser.parseInline(item.tokens)}</${tag}>`;
         };
@@ -267,13 +349,14 @@ export function convertMarkdown(markdown, { resolveLink = (href) => ({ href, ext
   });
 
   const html = marked.parser(tokens);
-  const segments = [];
+  const segments: ConvertedSegment[] = [];
   const parts = html.split(/<!--doc-program:(\d+)-->\n?/);
   for (let index = 0; index < parts.length; index++) {
+    const part = parts[index]!;
     if (index % 2 === 0) {
-      if (parts[index].trim() !== "") segments.push({ type: "html", html: parts[index] });
+      if (part.trim() !== "") segments.push({ type: "html", html: part });
     } else {
-      const program = programs[Number(parts[index])];
+      const program = programs[Number(part)]!;
       segments.push({
         type: "program",
         html: program.html,
@@ -308,14 +391,14 @@ const FIXED_DOCS = [
  * The documents of the site: the fixed documents, then the README of each package (`client`
  * first, then by folder). `packages` are the packages of the catalog (`dir`, `name`, `description`).
  */
-export function docSources(packagesDir, packages) {
-  const sources = FIXED_DOCS.map((doc) => ({ ...doc, path: join(packagesDir, ...doc.file.split("/")) }));
+export function docSources(packagesDir: string, packages: DocPackage[]): DocSource[] {
+  const sources: DocSource[] = FIXED_DOCS.map((doc) => ({ ...doc, path: join(packagesDir, ...doc.file.split("/")) }));
   const dirs = packages
     .map((pkg) => pkg.dir)
     .filter((dir) => dir !== "site" && existsSync(join(packagesDir, dir, "README.md")))
     .sort((a, b) => (a === "client" ? -1 : b === "client" ? 1 : a.localeCompare(b)));
   for (const dir of dirs) {
-    const pkg = packages.find((candidate) => candidate.dir === dir);
+    const pkg = packages.find((candidate) => candidate.dir === dir)!;
     sources.push({ slug: `packages/${dir}`, file: `${dir}/README.md`, path: join(packagesDir, dir, "README.md"), section: "Packages", package: pkg });
   }
   return sources.filter((source) => existsSync(source.path));
@@ -325,7 +408,7 @@ export function docSources(packagesDir, packages) {
  * The link target function of one document. `docsByPath` maps the absolute path of each document
  * of the site (lower case) to its slug.
  */
-export function linkResolver({ file, repoRoot, docsByPath }) {
+export function linkResolver({ file, repoRoot, docsByPath }: { file: string; repoRoot: string; docsByPath: Map<string, string> }): (href: string) => LinkTarget {
   const fileDir = dirname(file);
   return (rawHref) => {
     const href = String(rawHref).trim();
@@ -338,7 +421,7 @@ export function linkResolver({ file, repoRoot, docsByPath }) {
     if (/^[a-z][a-z0-9+.-]*:/i.test(href)) return { href, external: true };
     const [pathPart, hash = ""] = href.split("#", 2);
     const anchor = hash ? `#${hash}` : "";
-    const target = resolve(fileDir, decodeURIComponent(pathPart));
+    const target = resolve(fileDir, decodeURIComponent(pathPart!));
     const key = target.toLowerCase();
     const doc = docsByPath.get(key) ?? docsByPath.get(join(target, "README.md").toLowerCase());
     if (doc !== undefined) return { href: `${BASE_MARKER}docs/${doc}/${anchor}`, external: false };
@@ -361,14 +444,14 @@ export function linkResolver({ file, repoRoot, docsByPath }) {
  * - `pages`: the content of each page (loaded with the page);
  * - `search`: the headings of each page, for the command palette.
  */
-export function readDocs(packagesDir, packages, { canRun = () => false } = {}) {
+export function readDocs(packagesDir: string, packages: DocPackage[], { canRun = () => false }: { canRun?: (key: string) => boolean } = {}): DocsData {
   const repoRoot = dirname(packagesDir);
   const sources = docSources(packagesDir, packages);
   const docsByPath = new Map(sources.map((source) => [source.path.toLowerCase(), source.slug]));
-  const index = [];
-  const routes = [];
-  const pages = {};
-  const search = [];
+  const index: DocsData["index"] = [];
+  const routes: DocsData["routes"] = [];
+  const pages: DocsData["pages"] = {};
+  const search: DocsData["search"] = [];
   for (const source of sources) {
     const markdown = readFileSync(source.path, "utf8");
     const resolveLink = linkResolver({ file: source.path, repoRoot, docsByPath });
@@ -398,6 +481,6 @@ export function readDocs(packagesDir, packages, { canRun = () => false } = {}) {
 }
 
 /** The file name of the module of one page: "packages/client-git" gives "packages--client-git". */
-export function docModuleName(slug) {
+export function docModuleName(slug: string): string {
   return slug.replace(/\//g, "--");
 }

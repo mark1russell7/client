@@ -1,5 +1,5 @@
 /**
- * The input and output schemas of the procedures. `scripts/gen-data.mjs` writes one module for
+ * The input and output schemas of the procedures. `scripts/gen-data.ts` writes one module for
  * each package, so the page of a procedure loads only the schemas of its package. No other page
  * loads a schema: the main bundle has the procedures without their schemas (`index.ts`).
  *
