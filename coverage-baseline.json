@@ -68,7 +68,7 @@
   "@procedures/compiler": {
     "lines": 95.3,
     "statements": 92.9,
-    "functions": 95.8,
+    "functions": 96.3,
     "branches": 84.7
   },
   "@procedures/cue": {
