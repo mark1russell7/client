@@ -4,10 +4,10 @@ import { PROCEDURE_REGISTRY, createProcedure, outputSchema } from "@procedures/c
 
 const publish = createProcedure()
   .path(["e2e", "publish"])
-  .input(outputSchema())
-  .output(outputSchema())
+  .input(outputSchema<{ topic: string; data: unknown }>())
+  .output(outputSchema<{ published: string }>())
   .handler((input, ctx) => {
-    ctx.bus.emit(input.topic, input.data);
+    ctx.bus!.emit(input.topic, input.data);
     return { published: input.topic };
   })
   .build();

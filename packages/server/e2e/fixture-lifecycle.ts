@@ -8,19 +8,19 @@
 //   had its effect, and the host runs it one time (the operation `once`).
 // - `lifecycle.count` gives `count` items, one each `every` ms, and then it ends. It is a stream
 //   that ends within the grace of the drain.
-import { PROCEDURE_REGISTRY, createProcedure, outputSchema } from "@procedures/client";
+import { PROCEDURE_REGISTRY, createProcedure, outputSchema, type ProcedureContext } from "@procedures/client";
 
 const NO_EFFECTS = { reads: [], writes: [] };
 const A_WRITE = { reads: [], writes: ["lifecycle"] };
 
 /** This function waits for a time, or until the signal aborts. */
-function pause(ms, signal) {
+function pause(ms: number, signal: AbortSignal | undefined): Promise<void> {
   return new Promise((resolve) => {
     if (signal?.aborted) {
       resolve();
       return;
     }
-    const done = () => {
+    const done = (): void => {
       clearTimeout(timer);
       signal?.removeEventListener("abort", done);
       resolve();
@@ -31,7 +31,7 @@ function pause(ms, signal) {
 }
 
 /** One item each 50 ms, until the signal of the call aborts. */
-async function* ticks(_input, ctx) {
+async function* ticks(_input: unknown, ctx: ProcedureContext): AsyncGenerator<number, void, unknown> {
   let tick = 0;
   while (!ctx.signal?.aborted) {
     yield ++tick;
@@ -41,24 +41,24 @@ async function* ticks(_input, ctx) {
 
 const ticksProcedure = createProcedure()
   .path(["lifecycle", "ticks"])
-  .input(outputSchema())
-  .output(outputSchema())
+  .input(outputSchema<unknown>())
+  .output(outputSchema<number>())
   .meta({ description: "One item each 50 ms, until the abort of the call", effects: NO_EFFECTS })
   .handler(ticks)
   .build();
 
 const ticksOnceProcedure = createProcedure()
   .path(["lifecycle", "ticksOnce"])
-  .input(outputSchema())
-  .output(outputSchema())
+  .input(outputSchema<unknown>())
+  .output(outputSchema<number>())
   .meta({ description: "One item each 50 ms, until the abort of the call. It declares a write", effects: A_WRITE })
   .handler(ticks)
   .build();
 
 const countProcedure = createProcedure()
   .path(["lifecycle", "count"])
-  .input(outputSchema())
-  .output(outputSchema())
+  .input(outputSchema<{ count?: number; every?: number } | undefined>())
+  .output(outputSchema<number>())
   .meta({ description: "The items 1 to count, one each `every` ms, and then the end", effects: NO_EFFECTS })
   .handler(async function* (input, ctx) {
     const total = input?.count ?? 8;

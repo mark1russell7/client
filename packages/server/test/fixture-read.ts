@@ -8,16 +8,16 @@ import { PROCEDURE_REGISTRY, createProcedure, outputSchema } from "@procedures/c
 
 const readFile = createProcedure()
   .path(["fixture", "readFile"])
-  .input(outputSchema())
-  .output(outputSchema())
+  .input(outputSchema<{ path: string }>())
+  .output(outputSchema<unknown>())
   .meta({ calls: ["fs.read"], effects: { reads: ["fs"], writes: [] }, fsRoot: {} })
   .handler((input, ctx) => ctx.client.call(["fs", "read"], { path: input.path }))
   .build();
 
 const readFileUndeclared = createProcedure()
   .path(["fixture", "readFileUndeclared"])
-  .input(outputSchema())
-  .output(outputSchema())
+  .input(outputSchema<{ path: string }>())
+  .output(outputSchema<unknown>())
   .meta({ calls: ["fs.read"] })
   .handler((input, ctx) => ctx.client.call(["fs", "read"], { path: input.path }))
   .build();
