@@ -6,6 +6,7 @@
  */
 
 import { describe, it, expect, afterEach, vi } from "vitest";
+import { WebSocketState } from "../../adapters/websocket/client/types.js";
 import {
   ERROR_REGISTRY,
   ErrorCategory,
@@ -119,7 +120,8 @@ describe("the HTTP statuses of the codes (R30)", () => {
   it("keeps each member of a public set of values usable as a type", () => {
     const severity: ErrorSeverity.WARNING = ErrorSeverity.WARNING;
     const category: ErrorCategory.TIMEOUT = ErrorCategory.TIMEOUT;
-    expect([severity, category]).toEqual(["warning", "timeout"]);
+    const state: WebSocketState.CONNECTED = WebSocketState.CONNECTED;
+    expect([severity, category, state]).toEqual(["warning", "timeout", "CONNECTED"]);
   });
 
   it("each status of the mapping goes to a code and back, or to the status of the protocol for a code of the protocol", () => {
