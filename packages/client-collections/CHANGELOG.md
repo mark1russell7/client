@@ -1,5 +1,15 @@
 # @procedures/collections
 
+## 0.47.2
+
+### Patch Changes
+
+- 2684531: The pure collection and graph code moved to `@mark1russell7/collections`. Both packages re-export the same names, and the signatures stay the same.
+- Updated dependencies [0650616]
+- Updated dependencies [ae1e3fd]
+- Updated dependencies [f1ece74]
+  - @procedures/client@0.47.2
+
 ## 0.47.1
 
 ### Patch Changes
