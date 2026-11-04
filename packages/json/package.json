@@ -65,7 +65,7 @@
     "./dist/register.js"
   ],
   "devDependencies": {
-    "@mark1russell7/cue": "^1.1.0",
+    "@mark1russell7/cue": "^2.1.1",
     "esbuild": "^0.28.2",
     "fast-check": "^4.10.2",
     "typescript": "^7.0.2",
