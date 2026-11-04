@@ -141,7 +141,7 @@
   
   Migration:
   
-  - The site, MiniMongo, Graph and jarvis: no change at this time. The deprecated names work until the next MINOR.
+  - Apps: no change at this time. The deprecated names work until the next MINOR.
   - Before the next MINOR, replace `zodAdapter<T>(schema)` with `schema`. To keep the check of a schema against a type, write `const schema: z.ZodType<T> = ...`.
   - Before the next MINOR, replace `typedAnySchema<T>()` and `outputSchema<T>()` with `typed<T>()`.
   - A parse-only object (`{ parse }`) in `zodAdapter` becomes a Standard Schema with a `~standard` property.
@@ -192,8 +192,8 @@
   - A host with a private Nominatim, OSRM or calendar server gives `createGeoModule({ fetch: createHostFetch({ allow: [...] }) })` or `createIcsModule({ fetch: createHostFetch({ allow: [...] }) })` to `createRegistry()` before the bundle.
   - A host that gave `warnOnRefusal` to `createHostFetch()` removes it, and puts the host in `allow`.
   - The site: no change. It does not call `weather.forecast`, `geo.*` or `ics.fetch` through a registry of Node.
-  - MiniMongo and Graph: no change. They do not use these procedures.
-  - jarvis: no change. `packages/pipeline` calls the function `geocode()` of `@procedures/geo`, not the procedure, so the host policy does not apply.
+  - Two apps: no change. They do not use these procedures.
+  - An app: no change. It calls the function `geocode()` of `@procedures/geo`, not the procedure, so the host policy does not apply.
 
 ### Patch Changes
 

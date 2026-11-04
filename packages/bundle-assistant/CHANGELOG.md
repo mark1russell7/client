@@ -308,8 +308,8 @@
   - A host with a private Nominatim, OSRM or calendar server gives `createGeoModule({ fetch: createHostFetch({ allow: [...] }) })` or `createIcsModule({ fetch: createHostFetch({ allow: [...] }) })` to `createRegistry()` before the bundle.
   - A host that gave `warnOnRefusal` to `createHostFetch()` removes it, and puts the host in `allow`.
   - The site: no change. It does not call `weather.forecast`, `geo.*` or `ics.fetch` through a registry of Node.
-  - MiniMongo and Graph: no change. They do not use these procedures.
-  - jarvis: no change. `packages/pipeline` calls the function `geocode()` of `@procedures/geo`, not the procedure, so the host policy does not apply.
+  - Two apps: no change. They do not use these procedures.
+  - An app: no change. It calls the function `geocode()` of `@procedures/geo`, not the procedure, so the host policy does not apply.
 
 ### Patch Changes
 

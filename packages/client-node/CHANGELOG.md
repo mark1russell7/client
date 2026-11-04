@@ -180,7 +180,7 @@
   
   Migration:
   
-  - The site, MiniMongo, Graph and jarvis: no change at this time. The deprecated names work until the next MINOR.
+  - Apps: no change at this time. The deprecated names work until the next MINOR.
   - Before the next MINOR, replace `zodAdapter<T>(schema)` with `schema`. To keep the check of a schema against a type, write `const schema: z.ZodType<T> = ...`.
   - Before the next MINOR, replace `typedAnySchema<T>()` and `outputSchema<T>()` with `typed<T>()`.
   - A parse-only object (`{ parse }`) in `zodAdapter` becomes a Standard Schema with a `~standard` property.
@@ -339,7 +339,7 @@
   - `freshEntry(spec)` gives the entry file of the fresh build, or `undefined`. `build(spec)` makes a build in this process.
   - `esbuild` and `tsx` are optional peer dependencies. The package root does not load the subpath, and an import of the root does not need them.
   
-  This release changes no behavior of the procedures. jarvis can import `launch` from `@procedures/node/fresh-bundle` and remove its copy of `fresh-bundle.mjs`.
+  This release changes no behavior of the procedures. An app can import `launch` from `@procedures/node/fresh-bundle` and remove its copy of `fresh-bundle.mjs`.
 - @procedures/client@0.26.1
   - @procedures/shell@0.26.1
 
