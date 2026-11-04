@@ -288,7 +288,7 @@ const blocked = packages.flatMap((pkg) => gitDependencies(pkg.manifest).map((dep
 if (blocked.length > 0) {
   console.error("These dependencies are git dependencies, which npm 12 does not install by default:");
   for (const line of blocked) console.error(`  ${line}`);
-  console.error("Publish the general packages (cue, splay, docker-sqlite), then start scripts/use-npm-general-packages.mjs.");
+  console.error("Publish the general packages (cue, splay, docker-sqlite), then start scripts/use-npm-general-packages.ts.");
   if (!dryRun) process.exit(1);
 }
 

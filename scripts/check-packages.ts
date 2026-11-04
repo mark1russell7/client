@@ -7,7 +7,7 @@
 // 4. installs all the tarballs together in an empty project, as from npm;
 // 5. imports each package root, runs a program with the client, and starts the bins.
 //
-// Usage: node scripts/check-packages.mjs [--allow-git-deps] [--no-install] [--keep]
+// Usage: node scripts/check-packages.ts [--allow-git-deps] [--no-install] [--keep]
 // --allow-git-deps: accept the github: dependencies of the general packages (cue, splay,
 //   docker-sqlite) until they are on npm. A release must not have them: npm 12 does not install
 //   git dependencies by default.
@@ -18,17 +18,28 @@
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { gitDependencies, publicPackages, readFromTarball, root, run } from "./lib/workspace.mjs";
+import { gitDependencies, publicPackages, readFromTarball, root, run, type Manifest } from "./lib/workspace.mjs";
 
 const args = new Set(process.argv.slice(2));
 const allowGitDeps = args.has("--allow-git-deps");
 const install = !args.has("--no-install");
 const keep = args.has("--keep");
 
-const problems = [];
-const fail = (message) => {
+/** The parts of `.changeset/config.json` that the check reads. */
+interface ChangesetConfig {
+  readonly fixed?: readonly (readonly string[])[];
+}
+
+const problems: string[] = [];
+const fail = (message: string): void => {
   problems.push(message);
   console.error(`  FAIL ${message}`);
+};
+
+/** The standard output and the standard error of a command that `run` started and that failed. */
+const outputOf = (error: unknown): string => {
+  const { stdout, stderr } = error as { stdout?: string; stderr?: string };
+  return `${stdout ?? ""}${stderr ?? ""}`;
 };
 
 const work = mkdtempSync(join(tmpdir(), "client-pack-"));
@@ -38,8 +49,8 @@ try {
   if (versions.size !== 1) fail(`the public packages have more than one version: ${[...versions].join(", ")}`);
 
   // Changesets gives the public packages one version: each one must be in the fixed group
-  const changesets = JSON.parse(readFileSync(join(root, ".changeset", "config.json"), "utf8"));
-  const fixed = new Set(changesets.fixed?.[0] ?? []);
+  const changesets = JSON.parse(readFileSync(join(root, ".changeset", "config.json"), "utf8")) as ChangesetConfig;
+  const fixed = new Set<string>(changesets.fixed?.[0] ?? []);
   for (const pkg of packages) {
     if (!fixed.has(pkg.name)) fail(`${pkg.name} is not in the "fixed" group of .changeset/config.json`);
   }
@@ -48,7 +59,7 @@ try {
   }
   console.log(`Packing ${packages.length} public packages (version ${[...versions].join(", ")})`);
 
-  const tarballs = [];
+  const tarballs: string[] = [];
   for (const pkg of packages) {
     const out = join(work, "tarballs", pkg.dir);
     mkdirSync(out, { recursive: true });
@@ -62,15 +73,15 @@ try {
     tarballs.push(tgz);
 
     // The packed manifest
-    const packed = JSON.parse(readFromTarball(tgz, "package/package.json"));
-    for (const field of ["dependencies", "peerDependencies", "optionalDependencies"]) {
+    const packed = JSON.parse(readFromTarball(tgz, "package/package.json")) as Manifest;
+    for (const field of ["dependencies", "peerDependencies", "optionalDependencies"] as const) {
       for (const [dep, spec] of Object.entries(packed[field] ?? {})) {
         if (String(spec).startsWith("workspace:")) fail(`${pkg.name}: ${field}.${dep} is still ${spec}`);
       }
     }
     if (!allowGitDeps) {
       for (const dep of gitDependencies(packed)) {
-        fail(`${pkg.name}: ${dep} is a git dependency. Publish the general package, then start scripts/use-npm-general-packages.mjs`);
+        fail(`${pkg.name}: ${dep} is a git dependency. Publish the general package, then start scripts/use-npm-general-packages.ts`);
       }
     }
     for (const field of ["license", "repository", "description", "homepage", "author"]) {
@@ -95,12 +106,12 @@ try {
     try {
       run("pnpm", ["exec", "publint", "run", tgz, "--strict"], root, true);
     } catch (error) {
-      fail(`${pkg.name}: publint\n${error.stdout ?? ""}${error.stderr ?? ""}`);
+      fail(`${pkg.name}: publint\n${outputOf(error)}`);
     }
     try {
       run("pnpm", ["exec", "attw", tgz, "--profile", "esm-only", "--format", "ascii"], root, true);
     } catch (error) {
-      fail(`${pkg.name}: attw\n${error.stdout ?? ""}${error.stderr ?? ""}`);
+      fail(`${pkg.name}: attw\n${outputOf(error)}`);
     }
     console.log(`  ok   ${pkg.name}`);
   }
@@ -127,7 +138,8 @@ try {
 
     // Each package root imports and registers nothing. Each register entry registers. The client
     // runs a program (ARCHITECTURE-PROPOSALS-2026-10, P9).
-    const registering = packages.filter((p) => p.manifest.exports?.["./register"]).map((p) => p.name);
+    // The cast keeps the result for an `exports` text: a text has no key "./register".
+    const registering = packages.filter((p) => (p.manifest.exports as Readonly<Record<string, unknown>> | undefined)?.["./register"]).map((p) => p.name);
     writeFileSync(
       join(app, "smoke.mjs"),
       `const names = ${JSON.stringify(packages.map((p) => p.name))};
@@ -184,7 +196,7 @@ console.log(names.length + " packages import and register nothing, " + ${JSON.st
           run("node", [file, "--help"], app, true);
           console.log(`  ok   ${bin} --help`);
         } catch (error) {
-          fail(`${pkg.name}: ${bin} --help\n${error.stdout ?? ""}${error.stderr ?? ""}`);
+          fail(`${pkg.name}: ${bin} --help\n${outputOf(error)}`);
         }
       }
     }

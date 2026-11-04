@@ -115,7 +115,7 @@ The fault cells of the harness of `systems` run in the workflow `harness.yml` on
 
 ## Release
 
-[RELEASE.md](packages/documentation/RELEASE.md) tells how the packages go to npm. `node scripts/check-packages.mjs` examines each package as npm gives it.
+[RELEASE.md](packages/documentation/RELEASE.md) tells how the packages go to npm. `node scripts/check-packages.ts` examines each package as npm gives it.
 
 ## Other repositories
 

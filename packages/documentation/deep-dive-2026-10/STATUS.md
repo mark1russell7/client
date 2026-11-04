@@ -180,7 +180,7 @@ The documentation fork checked each document against the code and ran each examp
 
 | ID | Severity | Status | Commit | Note |
 |---|---|---|---|---|
-| NPM-1 | | done | `8d4c3cd`, `542aca6`, `1e0365f`, `8b6ff5d` | 30 public packages at `0.1.0` with full metadata, a LICENSE and a change log. `scripts/check-packages.mjs` packs, lints (publint, attw), installs and runs every package. Changesets and an OIDC release workflow in the `npm` environment. `packages/documentation/RELEASE.md` gives the bootstrap. |
+| NPM-1 | | done | `8d4c3cd`, `542aca6`, `1e0365f`, `8b6ff5d` | 30 public packages at `0.1.0` with full metadata, a LICENSE and a change log. `scripts/check-packages.ts` packs, lints (publint, attw), installs and runs every package. Changesets and an OIDC release workflow in the `npm` environment. `packages/documentation/RELEASE.md` gives the bootstrap. |
 | NPM-2 | | done | `cue` `fb4b155` | `@mark1russell7/cue` 1.0.0, `splay` 0.1.0 and `docker-sqlite` 0.1.0 are on npm (2026-10-12). The monorepo uses them from npm, so no package has a git dependency, and the package check runs in strict mode. |
 | NPM-3 | low | fixed | | Owner decision (2026-10-12): the bins are `client-registry` (was `client`) and `procedure-server` (was `server`), so a global install does not take a generic command name. |
 | NPM-4 | low | fixed | | Owner decision (2026-10-12): the three generator scripts of `client-vitest` are deleted (git history keeps them). |

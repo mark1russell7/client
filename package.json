@@ -13,7 +13,7 @@
     "typecheck": "tsc -p tsconfig.scripts.json && pnpm -r run typecheck",
     "lint:ste": "ste-lint",
     "changeset": "changeset",
-    "check:packages": "node scripts/check-packages.mjs",
+    "check:packages": "node scripts/check-packages.ts",
     "check:boundaries": "depcruise --config .dependency-cruiser.cjs \"packages/*/src\"",
     "check:paths-and-writes": "node scripts/check-paths-and-writes.ts",
     "check:conventions": "conventions check",
@@ -68,13 +68,11 @@
           "packages/client-vitest/fixtures/project/vitest.config.js",
           "packages/client/stryker.config.mjs",
           "packages/impl-mcp-dev/bin/mcp-server.js",
-          "scripts/check-packages.mjs",
           "scripts/lib/old-names.mjs",
           "scripts/lib/workspace.mjs",
           "scripts/npm-bootstrap.mjs",
           "scripts/publish-ci.mjs",
-          "scripts/release-tags.mjs",
-          "scripts/use-npm-general-packages.mjs"
+          "scripts/release-tags.mjs"
         ],
         "reason": "No new JavaScript or shell scripts (the rule of 2026-10-29): this list names each file of today, one by one, and it only gets shorter. A converted file leaves the list in the same PR. Exceptions: the fixtures of client-vitest and client-vite are JavaScript inputs of their tests. .dependency-cruiser.cjs and stryker.config.mjs are configs that their tools read. impl-mcp-dev/bin/mcp-server.js is a published bin that the Node of a user starts, until it is TypeScript source with a built bin. publish-ci.mjs and npm-bootstrap.mjs are release files of the npm owner. Open work, converted to .ts and started with node in follow-up PRs, so the list only gets shorter: scripts/ and scripts/lib/, .github/scripts/, harness/procedures-subject/, and the JavaScript helpers of the tests of server and mark"
       }
