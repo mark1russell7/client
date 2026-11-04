@@ -20,7 +20,6 @@ import { monitorEventLoopDelay } from "node:perf_hooks";
 import { setTimeout as sleep } from "node:timers/promises";
 import { parseArgs } from "node:util";
 import { MongoClient, type Collection, type Document } from "mongodb";
-import { ms } from "@procedures/client";
 import { parseCase, type StreamCount } from "./stream-cases.js";
 
 /** The idle time of the acceptance. */
