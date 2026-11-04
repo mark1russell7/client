@@ -817,10 +817,10 @@ importers:
         version: 2.1.1
       '@mark1russell7/rigor-bench':
         specifier: ^0.2.7
-        version: 0.2.7
+        version: 0.2.10
       '@mark1russell7/rigor-statistics':
         specifier: ^0.1.9
-        version: 0.1.9
+        version: 0.1.10
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
