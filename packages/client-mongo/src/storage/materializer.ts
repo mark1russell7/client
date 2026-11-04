@@ -603,7 +603,7 @@ export class ViewMaterializer {
     return scopePipeline(pipeline, { match, collections: view.collections });
   }
 
-  /** The change streams that are open: the views stream and the source streams of the active views. */
+  /** The change streams that are open: the views stream and one stream for each source of the active views. */
   openStreamCount(): number {
     let count = this.viewsStream ? 1 : 0;
     for (const watch of this.sources.values()) if (watch.stream) count++;
