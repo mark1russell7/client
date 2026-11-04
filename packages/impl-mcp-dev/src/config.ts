@@ -74,11 +74,21 @@ export function parseMaxSessions(value: string | undefined): number | undefined 
   return Number(value.trim());
 }
 
+/**
+ * The token of the HTTP face. A variable that is set and empty is an error: without this check the
+ * server starts with no token, so a mistake in the environment opens it.
+ */
+export function parseHttpToken(value: string | undefined): string | undefined {
+  if (value === "") throw new Error("MCP_HTTP_TOKEN is set and empty: give it a token, or unset it");
+  return value;
+}
+
 export function loadConfig(): McpServerConfig {
   const bundlesEnv = process.env["MCP_BUNDLES"] ?? "@procedures/bundle-mcp";
   const bundles = bundlesEnv.split(",").map((b) => b.trim()).filter(Boolean);
   const fsRoot = process.env["MCP_FS_ROOT"]?.trim();
   const maxSessions = parseMaxSessions(process.env["MCP_HTTP_MAX_SESSIONS"]);
+  const httpToken = process.env["MCP_HTTP_PORT"] ? parseHttpToken(process.env["MCP_HTTP_TOKEN"]) : undefined;
 
   return {
     bundles,
@@ -94,7 +104,7 @@ export function loadConfig(): McpServerConfig {
           http: {
             port: Number(process.env["MCP_HTTP_PORT"]),
             ...(process.env["MCP_HTTP_HOST"] ? { host: process.env["MCP_HTTP_HOST"] } : {}),
-            ...(process.env["MCP_HTTP_TOKEN"] ? { token: process.env["MCP_HTTP_TOKEN"] } : {}),
+            ...(httpToken !== undefined ? { token: httpToken } : {}),
             ...(maxSessions !== undefined ? { maxSessions } : {}),
           },
         }

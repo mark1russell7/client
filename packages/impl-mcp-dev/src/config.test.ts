@@ -31,6 +31,26 @@ describe("MCP_HTTP_MAX_SESSIONS (CLI-51)", () => {
     expect(parseMaxSessions("  ")).toBeUndefined();
   });
 
+  it("refuses an empty MCP_HTTP_TOKEN on the HTTP face, and only there", () => {
+    const before = { port: process.env["MCP_HTTP_PORT"], token: process.env["MCP_HTTP_TOKEN"] };
+    try {
+      process.env["MCP_HTTP_TOKEN"] = "";
+      delete process.env["MCP_HTTP_PORT"];
+      expect(loadConfig().http).toBeUndefined();
+      process.env["MCP_HTTP_PORT"] = "3003";
+      expect(() => loadConfig()).toThrow(/MCP_HTTP_TOKEN is set and empty/);
+      delete process.env["MCP_HTTP_TOKEN"];
+      expect(loadConfig().http).not.toHaveProperty("token");
+      process.env["MCP_HTTP_TOKEN"] = "s3cret";
+      expect(loadConfig().http).toMatchObject({ token: "s3cret" });
+    } finally {
+      if (before.port === undefined) delete process.env["MCP_HTTP_PORT"];
+      else process.env["MCP_HTTP_PORT"] = before.port;
+      if (before.token === undefined) delete process.env["MCP_HTTP_TOKEN"];
+      else process.env["MCP_HTTP_TOKEN"] = before.token;
+    }
+  });
+
   it("goes to the HTTP options of the configuration", () => {
     const before = { port: process.env["MCP_HTTP_PORT"], max: process.env["MCP_HTTP_MAX_SESSIONS"] };
     try {

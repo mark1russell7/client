@@ -146,7 +146,8 @@ export interface ProcedureServerOptions extends ServerOptions {
    * the server answers `UNAUTHORIZED`. Only a local request (`LOCAL_CREDENTIALS`) skips it. The
    * server refuses a request without credentials (CLI-1). Before, only the Express middleware of
    * the peer examined the token, so a `ProcedureServer` with the HTTP or WebSocket transport of the
-   * core and the token of a host policy accepted each request.
+   * core and the token of a host policy accepted each request. An empty token means "refuse each
+   * network request": no presented token matches it, not even an empty one.
    */
   token?: string | undefined;
 
@@ -235,16 +236,18 @@ export interface RegisterProcedureOptions {
 }
 
 /**
- * True when the presented token is the expected one. The comparison reads each character of the
- * expected token for each presented token, so its time depends only on the expected token. The
- * time tells neither the token nor its length. The function runs in a browser too, so it uses
- * no `node:crypto`.
+ * True when the presented token is the expected one. An empty expected token matches nothing, not
+ * even an empty presented token, so a server with an empty token refuses each network request.
+ * The comparison reads each character of the presented token one time, so its time depends only
+ * on what the caller sent. The time tells neither the expected token nor its length. The function
+ * runs in a browser too, so it uses no `node:crypto`.
  */
 export function tokenMatches(expected: string, presented: string | undefined): boolean {
   if (presented === undefined) return false;
-  // A difference of the lengths makes the result false, after the same loop as an equal length
-  let difference = expected.length ^ presented.length;
-  for (let index = 0; index < expected.length; index++) difference |= expected.charCodeAt(index) ^ (presented.charCodeAt(index) | 0);
+  // An empty expected token and a difference of the lengths make the result false, after the same
+  // loop as an equal length. The modulo reuses the expected characters for a longer token.
+  let difference = (expected.length === 0 ? 1 : 0) | (expected.length ^ presented.length);
+  for (let index = 0; index < presented.length; index++) difference |= presented.charCodeAt(index) ^ expected.charCodeAt(index % expected.length);
   return difference === 0;
 }
 
