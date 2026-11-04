@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from "vitest";
 import { QUERY_OPERATORS } from "@procedures/client/query";
-import { StorageListeners, reportListenerError } from "./listeners.js";
+import { StorageListeners, reportListenerError } from "@mark1russell7/collections";
 import { InMemoryStorage } from "./memory.js";
 
 describe("StorageListeners", () => {

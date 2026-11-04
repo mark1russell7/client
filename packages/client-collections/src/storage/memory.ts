@@ -16,7 +16,7 @@ import type {
   StorageObserver,
   StorageWriteOptions,
 } from "./interface.js";
-import { StorageListeners, type ListenerErrorHandler } from "./listeners.js";
+import { StorageListeners, type ListenerErrorHandler } from "@mark1russell7/collections";
 import {
   VersionConflictError,
   applyPatch,

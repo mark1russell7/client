@@ -53,7 +53,7 @@ import {
   executeDAG,
   createProcessor,
   filterDAGFromRoot,
-} from "../dag/index.js";
+} from "@mark1russell7/collections/dag";
 
 /**
  * This function gives the nodes of the packages of a `lib.scan` output. A dependency on a

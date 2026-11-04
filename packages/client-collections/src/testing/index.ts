@@ -17,4 +17,4 @@ export {
   type ContractTestApi,
   type ContractTestContext,
 } from "./storage-contract.js";
-export { ContractViolation, deepEqual } from "./check.js";
+export { ContractViolation, deepEqual } from "@mark1russell7/collections/testing";

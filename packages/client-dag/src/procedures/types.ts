@@ -6,7 +6,7 @@
  */
 
 import * as z from "zod";
-import type { DAGNode } from "../types.js";
+import type { DAGNode } from "@mark1russell7/collections/dag";
 
 /**
  * Schema for $proc references with $when control.
