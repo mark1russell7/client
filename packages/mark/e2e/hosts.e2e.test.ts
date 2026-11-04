@@ -16,7 +16,7 @@ import { BIN, mark } from "./run.js";
 
 const TOOLS = fileURLToPath(new URL("../../impl-mcp-dev/tools.snapshot.txt", import.meta.url));
 /** A procedure package of the old kind with `e2e.publish`, which emits on `ctx.bus`. */
-const PUBLISH_FIXTURE = fileURLToPath(new URL("./fixture-publish.mjs", import.meta.url));
+const PUBLISH_FIXTURE = fileURLToPath(new URL("./fixture-publish.ts", import.meta.url));
 
 async function freePort(): Promise<number> {
   const server = createServer();

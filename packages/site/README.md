@@ -28,14 +28,14 @@ The website of the client ecosystem. GitHub Pages serves it at <https://mark1rus
 - The open pull requests and issues come from the GitHub GraphQL API in one request. The build gives the token in `GITHUB_TOKEN`.
 - Without a token, or when GitHub does not answer, the page shows the roadmap only. It tells that the build could not read GitHub, and the build does not fail.
 - The Pages workflow builds the site after each commit of `main` that passes CI, and every three hours. Thus the page follows GitHub without a push.
-- The history loads only when you open it. `scripts/status-data.mjs` reads its closed documents: the October deep dive and the July register.
+- The history loads only when you open it. `scripts/status-data.ts` reads its closed documents: the October deep dive and the July register.
 
 ## How it works
 
-- `scripts/gen-data.mjs` reads the workspace: each `package.json`, and the procedures of each built package. It writes `src/data/generated/`. Git ignores that folder.
+- `scripts/gen-data.ts` reads the workspace: each `package.json`, and the procedures of each built package. It writes `src/data/generated/`. Git ignores that folder.
 - Each page loads the procedures without their schemas. The page of a procedure loads the schemas of its package only (`src/data/schemas.ts`).
 - The site depends on each package that registers procedures, so `pnpm -r build` builds them first. The script stops with an error when a package is not built or does not load. `SITE_ALLOW_LOAD_FAILURES=1` lets a local build continue, and the footer then names the packages that did not load.
-- `scripts/core-fields.mjs` reads the input fields of the core procedures from their TypeScript source. Their runtime schemas do not list fields.
+- `scripts/core-fields.ts` reads the input fields of the core procedures from their TypeScript source. Their runtime schemas do not list fields.
 - The Composer imports `@procedures/client/browser`. That entry point has no Node server code.
 
 ## Commands

@@ -1,6 +1,6 @@
 /**
  * The history of the status page: the status of each finding of the October deep dive, of the
- * architecture roadmap and of the July register. `scripts/status-data.mjs` reads these closed
+ * architecture roadmap and of the July register. `scripts/status-data.ts` reads these closed
  * documents of packages/documentation at build time. The status page loads this module only when
  * the reader opens its history, so the first load of the page stays small.
  */

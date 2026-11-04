@@ -5,7 +5,7 @@ name: Server request
 # the record has a fit of the transport time per byte (O94). One job builds @procedures/server and its dependencies, then
 # starts scripts/server-request.ts. Each sample is a fresh process for one case and one arm:
 # a request over loopback to its own fresh host of runProcedureHost(), or the same exec on
-# LocalTransport. measureIsolated() of scripts/lib/paired-time.mjs runs the rounds, in mode fresh.
+# LocalTransport. measureIsolated() of scripts/lib/paired-time.ts runs the rounds, in mode fresh.
 # No record of real traffic exists (O91), thus the requests are synthetic.
 #
 # With the input profile (two cases, for example chain-200,chain-1), the job does no timed rounds.
@@ -51,12 +51,12 @@ jobs:
     timeout-minutes: 60
     steps:
       # The script of the run comes from the ref of the workflow. The tree under test is a worktree.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
           cache: pnpm
@@ -86,7 +86,7 @@ jobs:
             --out "$RUNNER_TEMP/record/server-request.json"
           cat "$RUNNER_TEMP/record/server-request.md" >> "$GITHUB_STEP_SUMMARY"
       - if: ${{ always() && inputs.profile == '' }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: server-request
           path: ${{ runner.temp }}/record
@@ -102,7 +102,7 @@ jobs:
             --profile "$PROFILE" --profile-calls "$PROFILE_CALLS" --profile-out "$RUNNER_TEMP/profile"
           cat "$RUNNER_TEMP/profile/server-request-profile.md" >> "$GITHUB_STEP_SUMMARY"
       - if: ${{ always() && inputs.profile != '' }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: server-request-profile
           path: ${{ runner.temp }}/profile

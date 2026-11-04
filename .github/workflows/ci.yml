@@ -71,13 +71,13 @@ jobs:
     steps:
       # Depth 2 gets the parents of the merge commit of a pull request. The rule release-files of
       # check:conventions reads them.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 2
       # The pnpm version comes from "packageManager" in package.json
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
           cache: pnpm
@@ -91,11 +91,11 @@ jobs:
       # drifted). A difference fails the run, and the new files are an artifact: commit them.
       - name: The generated catalogs are current
         run: |
-          node packages/documentation/scripts/generate-procedures.mjs
-          node packages/documentation/scripts/generate-packages.mjs
+          node packages/documentation/scripts/generate-procedures.ts
+          node packages/documentation/scripts/generate-packages.ts
           git diff --stat --exit-code packages/documentation/PROCEDURES.md packages/documentation/PACKAGES.md
       - if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: generated-catalogs
           path: |
@@ -110,20 +110,20 @@ jobs:
       - name: The reports of the public API are current
         if: ${{ !cancelled() }}
         run: |
-          node --test scripts/api-report.test.mjs
+          node --test scripts/api-report.test.ts
           status=0
-          node scripts/api-report.mjs --update || status=$?
+          node scripts/api-report.ts --update || status=$?
           changed="$(git status --porcelain --untracked-files=all -- 'packages/*/test/api/public-api.txt')"
           if [ -n "$changed" ]; then
             echo "These reports differ from the built .d.ts files, or are new:"
             echo "$changed"
             git --no-pager diff --stat -- 'packages/*/test/api/public-api.txt'
-            echo "::error title=Public API reports::Download the artifact public-api-reports, review the diff and commit the reports. Or start pnpm build, then node scripts/api-report.mjs --update."
+            echo "::error title=Public API reports::Download the artifact public-api-reports, review the diff and commit the reports. Or start pnpm build, then node scripts/api-report.ts --update."
             status=1
           fi
           exit "$status"
       - if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: public-api-reports
           path: packages/*/test/api/public-api.txt
@@ -176,7 +176,7 @@ jobs:
       # its scripts and of the copy of paired-time/1 run here. They time no code.
       - name: Test the paired bench scripts
         if: ${{ !cancelled() }}
-        run: node --test scripts/paired-time.test.mjs scripts/bench-paired.test.mjs scripts/setup-profile.test.ts scripts/server-request.test.ts scripts/compile-cache.test.ts scripts/mark-call.test.ts
+        run: node --test scripts/paired-time.test.ts scripts/bench-paired.test.ts scripts/setup-profile.test.ts scripts/server-request.test.ts scripts/compile-cache.test.ts scripts/mark-call.test.ts
       # The import boundaries of invariant I9 (CLI-83), with dependency-cruiser: a transport does not
       # import the server, an import of another package goes through an entry of its exports map, and
       # no package imports an app. The shared rules are in the package @mark1russell7/boundaries, and
@@ -267,9 +267,9 @@ jobs:
           MONGO_TEST_URL: mongodb://localhost:27017/?directConnection=true
           MONGO_TEST_TOPOLOGY: replica-set
           MONGO_TEST_FAILPOINTS: "1"
-        run: node scripts/coverage.mjs --out "$RUNNER_TEMP/coverage-floors.json"
+        run: node scripts/coverage.ts --out "$RUNNER_TEMP/coverage-floors.json"
       - if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage-floors
           path: ${{ runner.temp }}/coverage-floors.json
@@ -289,7 +289,7 @@ jobs:
       matrix:
         topology: [single-server, replica-set]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Start MongoDB 7
@@ -311,8 +311,8 @@ jobs:
             done
             [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ]
           fi
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: pnpm
@@ -338,14 +338,14 @@ jobs:
       checks: read
       statuses: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # The full history and the tags: the Releases section of the status page reads the date
           # of each version from git, as the Pages workflow does
           fetch-depth: 0
           persist-credentials: false
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
           cache: pnpm
@@ -363,7 +363,7 @@ jobs:
       # the keyboard, and the code of the TypeScript tab runs with Node
       - run: pnpm --filter @procedures/site test:e2e
       - if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: playwright-results
           path: packages/site/node_modules/.cache/playwright/results

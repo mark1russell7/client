@@ -23,6 +23,7 @@ npm install @procedures/dag
   - [Functions](#functions)
   - [buildDAG](#builddag)
   - [executeDAG](#executedag)
+  - [hubBreadthFirstOrder](#hubbreadthfirstorder)
 - [Use Cases](#use-cases)
 - [Integration](#integration)
 - [Requirements](#requirements)
@@ -377,6 +378,20 @@ graph LR
 ```
 
 ---
+
+### hubBreadthFirstOrder
+
+The entry `@procedures/dag/graph` holds pure graph functions. It imports no other package.
+
+```typescript
+import { hubBreadthFirstOrder } from "@procedures/dag/graph";
+
+const sizes = [4, 9, 1];
+const order = hubBreadthFirstOrder(3, [{ a: 0, b: 1, weight: 2 }, { a: 1, b: 2 }], (i, j) => sizes[j]! - sizes[i]!);
+// order: [1, 0, 2]
+```
+
+The function reads an undirected weighted graph with the nodes `0` to `n - 1`. It starts at the node with the largest sum of edge weights, and goes breadth-first. The comparator, then the lower index, breaks each tie. Each next component starts at its own hub.
 
 ## Use Cases
 

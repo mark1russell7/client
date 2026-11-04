@@ -1,5 +1,28 @@
 # @procedures/client
 
+## 0.47.1
+
+### Patch Changes
+
+- f845c6d: `segmentsToTopic()` builds its text in a loop and makes no array. `decodeSegment()` returns a segment without `%` at once. The keys of paths and topics stay the same.
+
+## 0.47.0
+
+### Minor Changes
+
+- 2f0c7b0: The release train: the ranges of @mark1russell7/coeval change to a version outside the old range.
+- ad70c38: The release train: the ranges of @mark1russell7/coeval change to a version outside the old range.
+- 47819c6: The release train of 2026-11-02: the ranges of `@mark1russell7/coeval` change from `^0.15.0` to `^0.17.0`. In coeval 0.17.0, `conforms` has a new truth for `formula.if`, `formula.and` and `formula.or`.
+
+### Patch Changes
+
+- c9125a8: `HttpServerTransport` has the new method `inFlight()`. It gives the number of requests in progress, open streams too, as `WebSocketServerTransport.inFlight()` does. The change is additive.
+- 335728b: `encodeSegment()` returns a segment without `.` and `%` at once, without a replace with a callback. The keys of paths and topics stay the same.
+- d987202: A call of `mark` loads only the packages of its path (roadmap O93). `ProcedureRegistry` gets an optional resolver, `resolve(path)` and `loadAll()`. `createLazyRegistry()` makes a registry that loads a package at the first lookup of one of its paths. A procedure that reads or writes the registry gets each package first. The manifest of `mark` (version 3) has the packages of each command. The packages `ws` and `cli-table3` load at their first use. The sync methods of the registry and the eager registries do not change.
+- 45a737f: `newTraceId()` and `newSpanId()` take their random bytes from one pool of 4096 bytes, and use a table for the hex digits. Before, each id called `getRandomValues` for 8 or 16 bytes. The ids keep their form. Each random byte goes to one id only.
+- d77e9e8: The entries `.`, `./browser` and `./procedures` export `mathProcedures`, the math procedures under `client` (roadmap O95). A bundle that registers only these gets no other core procedure. The error policy of a server reads the known codes from `ErrorCode` and `ERROR_CODES`, not from `ERROR_REGISTRY`, so a bundle of the server gets no copy of the error texts. A test makes sure that both sets of codes are equal. `isKnownErrorCode` does not change.
+- e913014: Each module imports zod with `import * as z from "zod"`, not `import { z } from "zod"`. With the old form, an esbuild bundle got each locale of zod: 264 kB of minified code (esbuild metafile of the journey worker of the site). The Vite build of the site gives the same worker files with both forms. The procedure scaffolder writes the new form in `types.ts`. The API and the behavior stay the same.
+
 ## 0.46.0
 
 ### Minor Changes

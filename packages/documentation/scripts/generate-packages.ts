@@ -1,0 +1,127 @@
+// Generate PACKAGES.md from the workspace: each package's name, folder, description,
+// dependencies, and the procedures it registers.
+//
+// Procedures are attributed by loading each package's built dist/register.js in dependency
+// order and recording which procedures appear in the shared registry after each import.
+//
+// Usage:  node packages/documentation/scripts/generate-packages.ts   (from the repo root)
+// Requires each package to be built (`pnpm build`).
+
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+/** The fields of a `package.json` that this script reads. */
+interface Manifest {
+  name: string;
+  description?: string;
+  dependencies?: Record<string, string>;
+}
+
+/** A package of the workspace. */
+interface WorkspacePackage {
+  folder: string;
+  json: Manifest;
+}
+
+/** The fields of a procedure that this script reads. */
+interface Procedure {
+  path: string[];
+}
+
+/** The exports of the built client package that this script uses. */
+interface ClientModule {
+  PROCEDURE_REGISTRY: { getAll(): Procedure[] };
+  pathToKey(path: readonly string[]): string;
+  keyToPath(key: string): string[];
+}
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const DOCS = join(HERE, "..");          // packages/documentation/
+const PACKAGES = join(DOCS, "..");      // packages/
+
+const packages = readdirSync(PACKAGES, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory() && existsSync(join(PACKAGES, entry.name, "package.json")))
+  .map((entry): WorkspacePackage => {
+    const json = JSON.parse(readFileSync(join(PACKAGES, entry.name, "package.json"), "utf8")) as Manifest;
+    return { folder: entry.name, json };
+  });
+const byName = new Map(packages.map((p) => [p.json.name, p]));
+
+function deps(json: Manifest, kind: "dependencies"): { name: string; workspace: boolean }[] {
+  return Object.entries(json[kind] ?? {})
+    .filter(([name]) => name.startsWith("@procedures/") || name.startsWith("@mark1russell7/"))
+    .map(([name, spec]) => ({ name, workspace: String(spec).startsWith("workspace:") }));
+}
+
+// Dependency order: a package after the workspace packages it depends on
+const order: WorkspacePackage[] = [];
+const visiting = new Set<WorkspacePackage>();
+function visit(pkg: WorkspacePackage): void {
+  if (order.includes(pkg) || visiting.has(pkg)) return;
+  visiting.add(pkg);
+  for (const dep of deps(pkg.json, "dependencies")) {
+    const target = byName.get(dep.name);
+    if (target) visit(target);
+  }
+  visiting.delete(pkg);
+  order.push(pkg);
+}
+for (const pkg of [...packages].sort((a, b) => a.folder.localeCompare(b.folder))) visit(pkg);
+
+// The registry, with the core procedures already registered
+const core = (await import(pathToFileURL(join(PACKAGES, "client", "dist", "index.js")).href)) as ClientModule;
+const registry = core.PROCEDURE_REGISTRY;
+// The key of the codec: a segment with a dot stays one segment (I3)
+const keyOf = (proc: Procedure): string => core.pathToKey(proc.path);
+const seen = new Set(registry.getAll().map(keyOf));
+const owned = new Map<string, string[]>([["@procedures/client", [...seen]]]);
+
+for (const pkg of order) {
+  if (pkg.json.name === "@procedures/client") continue;
+  const register = join(PACKAGES, pkg.folder, "dist", "register.js");
+  if (!existsSync(register)) continue;
+  try {
+    await import(pathToFileURL(register).href);
+  } catch (error) {
+    owned.set(pkg.json.name, [`(failed to load: ${(error as Error | null | undefined)?.message ?? error})`]);
+    continue;
+  }
+  const added = registry.getAll().map(keyOf).filter((key) => !seen.has(key));
+  for (const key of added) seen.add(key);
+  owned.set(pkg.json.name, added);
+}
+
+function procedureSummary(name: string): string {
+  const procs = owned.get(name) ?? [];
+  if (procs.length === 0) return "—";
+  const namespaces = new Map<string, number>();
+  for (const key of procs) {
+    const ns = core.keyToPath(key)[0]!;
+    namespaces.set(ns, (namespaces.get(ns) ?? 0) + 1);
+  }
+  return [...namespaces].map(([ns, n]) => `\`${ns}.*\` (${n})`).join(", ");
+}
+
+// The backslash first, so that a backslash before a pipe does not undo the escape of the pipe
+const esc = (s: string | undefined): string => String(s ?? "").replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\n/g, " ").trim();
+
+let out = "";
+out += "# Package Reference\n\n";
+out += "> **Generated file — do not hand-edit.** Produced by `packages/documentation/scripts/generate-packages.ts`\n";
+out += "> from the workspace's package.json files and the live procedure registry.\n";
+out += "> Regenerate with `node packages/documentation/scripts/generate-packages.ts` after `pnpm build`.\n\n";
+out += `**Packages:** ${packages.length}. **Procedures:** ${seen.size}. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).\n\n`;
+out += "Dependencies marked *(general)* are separate repositories, published on npm under `@mark1russell7`.\n\n";
+out += "| Package | Folder | Description | Procedures | Depends on |\n|---|---|---|---|---|\n";
+for (const pkg of [...packages].sort((a, b) => a.folder.localeCompare(b.folder))) {
+  const depList = deps(pkg.json, "dependencies")
+    .map((d) => (d.workspace ? `\`${d.name.replace(/^@[^/]+\//, "")}\`` : `\`${d.name}\` *(general)*`))
+    .join(", ") || "—";
+  out += `| \`${pkg.json.name}\` | \`packages/${pkg.folder}\` | ${esc(pkg.json.description) || "—"} | ${procedureSummary(pkg.json.name)} | ${depList} |\n`;
+}
+out += "\nProcedures are counted for the package whose `register.js` adds them first, in dependency order.\n";
+out += "A bundle (`bundle-dev`, `bundle-mcp`) adds none of its own.\n";
+
+writeFileSync(join(DOCS, "PACKAGES.md"), out, "utf8");
+console.error(`Wrote PACKAGES.md: ${packages.length} packages, ${seen.size} procedures.`);

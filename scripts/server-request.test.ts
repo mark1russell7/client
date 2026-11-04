@@ -1,7 +1,7 @@
 // Tests of the pure parts of the server request bench (O90, O94). No test starts a process or times code.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { PairedReport } from "./lib/paired-time.mjs";
+import type { PairedReport } from "./lib/paired-time.ts";
 import {
   bytesOf,
   caseOf,
