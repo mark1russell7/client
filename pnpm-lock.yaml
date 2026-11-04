@@ -517,6 +517,12 @@ importers:
       '@mark1russell7/cue':
         specifier: ^1.1.0
         version: 1.1.0
+      '@mark1russell7/rigor-bench':
+        specifier: ^0.2.7
+        version: 0.2.7
+      '@mark1russell7/rigor-statistics':
+        specifier: ^0.1.9
+        version: 0.1.9
       '@stryker-mutator/core':
         specifier: 10.0.0
         version: 10.0.0(@types/node@22.20.5)
@@ -3354,12 +3360,24 @@ packages:
       zod:
         optional: true
 
+  '@mark1russell7/rigor-bench@0.2.7':
+    resolution: {integrity: sha512-e4ZJxU3DaJvZtpPEbznTuQxPrx1VMSHXAX8Bt6g9GzYqCTUILC/u0vq+HIkdNtT99JTYfQDpVDe2p82VJE4UpA==}
+    engines: {node: '>=22'}
+
   '@mark1russell7/rigor-generators@0.1.0':
     resolution: {integrity: sha512-xhXvLzZQlDH6ysAbqEjbha6fs1GbvO9RflSXwYbA3QMryxu4zEikbxahEDQCIxVSis+2pfX/18PHU3+X+jJmPw==}
     engines: {node: '>=22'}
 
+  '@mark1russell7/rigor-generators@0.1.5':
+    resolution: {integrity: sha512-YkABrG6+AV4oZKWoSIayDGxKTqcTMbp/eGa+3u00X09Jv9TfpHFDeqHlEQARMBzJ/kvy/EMNIXQZMGa3Nobuzw==}
+    engines: {node: '>=22'}
+
   '@mark1russell7/rigor-statistics@0.1.2':
     resolution: {integrity: sha512-7bKs05nViGfA9vH8RoaYI0PUOgsohEt0lxhzEI6cAC/CXaLyCTMIvx0dYZ9T6lq6f429ofa47tGrEEWmRV482Q==}
+    engines: {node: '>=22'}
+
+  '@mark1russell7/rigor-statistics@0.1.9':
+    resolution: {integrity: sha512-J/hfIHyiVlguOZVfA6/B7L3ReAQAW1xUbT50e4KVxMCOHJfTVC1HIj0u+Qd+Vrn+J1JoDhAF/DJ7Elfpe12gjw==}
     engines: {node: '>=22'}
 
   '@mark1russell7/service@0.6.3':
@@ -6732,11 +6750,22 @@ snapshots:
     optionalDependencies:
       zod: 4.6.7
 
+  '@mark1russell7/rigor-bench@0.2.7':
+    dependencies:
+      '@mark1russell7/rigor-generators': 0.1.5
+      '@mark1russell7/rigor-statistics': 0.1.9
+
   '@mark1russell7/rigor-generators@0.1.0': {}
+
+  '@mark1russell7/rigor-generators@0.1.5': {}
 
   '@mark1russell7/rigor-statistics@0.1.2':
     dependencies:
       '@mark1russell7/rigor-generators': 0.1.0
+
+  '@mark1russell7/rigor-statistics@0.1.9':
+    dependencies:
+      '@mark1russell7/rigor-generators': 0.1.5
 
   '@mark1russell7/service@0.6.3(mongodb@7.7.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)':
     dependencies:

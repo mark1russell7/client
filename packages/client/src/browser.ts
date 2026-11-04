@@ -609,6 +609,7 @@ export type {
   TypedEventBus,
   EventHandler,
   EventBusOptions,
+  EventFanOutOptions,
   EventListenOptions,
   EventWaitOptions,
   ChannelMap,

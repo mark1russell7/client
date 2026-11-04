@@ -273,4 +273,38 @@ export interface EventBusOptions {
    * Default: false
    */
   debug?: boolean;
+
+  /**
+   * The bounded fan-out (roadmap CLI-90). Without it, `emit()` calls each handler before it
+   * returns, at each channel size.
+   */
+  fanOut?: EventFanOutOptions;
+}
+
+/**
+ * The options of the bounded fan-out of an event bus (roadmap CLI-90).
+ *
+ * A channel with more handlers than `sliceSize` delivers after `emit()` returns, in slices. The
+ * event loop runs between two slices, so one event does not hold it. A smaller channel stays
+ * synchronous, while no event of the channel waits.
+ *
+ * The limit is a count of handlers, not a time. The work of a stream reader runs in microtasks
+ * after its handler returns, so a clock in the slice does not see this work.
+ */
+export interface EventFanOutOptions {
+  /** The most handlers that one slice calls. A number from 1 up. */
+  sliceSize: number;
+
+  /**
+   * The most events that wait for their slices. The next event then finishes the oldest events
+   * in its `emit()`: the bus loses no event, and its memory stays bounded.
+   * Default: 1024
+   */
+  maxPending?: number;
+
+  /**
+   * The function that runs a slice in a later task of the event loop.
+   * Default: `setImmediate`, or `setTimeout` where `setImmediate` does not exist
+   */
+  schedule?: (slice: () => void) => void;
 }

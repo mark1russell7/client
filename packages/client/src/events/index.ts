@@ -40,6 +40,7 @@ export type {
   ProcedureChannels,
   DefaultChannels,
   EventBusOptions,
+  EventFanOutOptions,
   EventListenOptions,
   EventWaitOptions,
 } from "./types.js";
