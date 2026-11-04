@@ -136,7 +136,7 @@ jobs:
       - run: pnpm test
       - run: pnpm lint:ste
       # The tarballs as npm gives them. No git dependencies: npm 12 does not install them.
-      - run: node scripts/check-packages.mjs
+      - run: node scripts/check-packages.ts
       # Version 2 of the action: the inputs have the suffix -script, and the token is the default
       # github-token. With changesets, it opens or updates the version pull request. Without
       # changesets, it does nothing: it has no publish-script. The later steps pack the versions.

@@ -187,7 +187,7 @@ The CI names below are the jobs and the steps of `.github/workflows/ci.yml`.
 
 - **Rule.** Each public package installs and starts as npm gives it. Each package that an entry imports is a declared dependency. No file names a package of this repository with the old scope `@mark1russell7`. The generated catalogs agree with the built packages.
 - **Reason.** A consumer gets the package from npm, not from the monorepo. A strict install (pnpm) finds only the declared packages.
-- **Guard.** The CI step "Check the packages (pack, publint, attw, install)" (`scripts/check-packages.mjs`): it packs each package, examines it with publint `--strict` and attw (the ESM-only profile), installs all the tarballs and starts the bins. The step "Check the declared imports" (`scripts/check-declared-imports.ts`). The step "Check the package scope" (`scripts/check-scope.mjs`). The step "The generated catalogs are current" ([PROCEDURES.md](./PROCEDURES.md) and [PACKAGES.md](./PACKAGES.md)).
+- **Guard.** The CI step "Check the packages (pack, publint, attw, install)" (`scripts/check-packages.ts`): it packs each package, examines it with publint `--strict` and attw (the ESM-only profile), installs all the tarballs and starts the bins. The step "Check the declared imports" (`scripts/check-declared-imports.ts`). The step "Check the package scope" (`scripts/check-scope.mjs`). The step "The generated catalogs are current" ([PROCEDURES.md](./PROCEDURES.md) and [PACKAGES.md](./PACKAGES.md)).
 
 ### I9. Import boundaries
 

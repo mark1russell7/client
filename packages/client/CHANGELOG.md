@@ -1,5 +1,11 @@
 # @procedures/client
 
+## 0.47.1
+
+### Patch Changes
+
+- f845c6d: `segmentsToTopic()` builds its text in a loop and makes no array. `decodeSegment()` returns a segment without `%` at once. The keys of paths and topics stay the same.
+
 ## 0.47.0
 
 ### Minor Changes
