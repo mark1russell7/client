@@ -43,10 +43,10 @@ import { createRegistry } from "@procedures/client";
 import { createMcpHost } from "@procedures/mcp-server";
 
 const host = createMcpHost({
-  registry: createRegistry(graphModule),
-  surface: { namespaces: ["graph"] },
+  registry: createRegistry(appModule),
+  surface: { namespaces: ["app"] },
   readOnly: process.argv.includes("--read-only"),
-  name: "graph",
+  name: "app",
   version: "0.1.0",
 });
 await host.start();
@@ -375,9 +375,9 @@ import { mcpFace } from "@procedures/mcp-server";
 
 const faces = {
   http: true,
-  mcp: mcpFace({ serverInfo: { name: "graph", version: "0.1.0" } }),
+  mcp: mcpFace({ serverInfo: { name: "app", version: "0.1.0" } }),
   // A read-only MCP face of the same server
-  mcpRead: mcpFace({ path: "/mcp-read", serverInfo: { name: "graph", version: "0.1.0" }, narrowing: { effects: { writes: [] } } }),
+  mcpRead: mcpFace({ path: "/mcp-read", serverInfo: { name: "app", version: "0.1.0" }, narrowing: { effects: { writes: [] } } }),
 };
 ```
 

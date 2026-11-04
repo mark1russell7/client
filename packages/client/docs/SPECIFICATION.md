@@ -49,7 +49,7 @@ The Universal Client System is a comprehensive TypeScript library providing a **
 │                                                                         │
 │   ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────────────┐│
 │   │ InMemoryStorage │  │   ApiStorage    │  │    HybridStorage        ││
-│   │   (minimongo)   │  │ (remote mongo)  │  │ (local + remote sync)   ││
+│   │   (in-memory)   │  │ (remote mongo)  │  │ (local + remote sync)   ││
 │   └────────┬────────┘  └────────┬────────┘  └────────────┬────────────┘│
 │            │                    │                        │              │
 │       synchronous          uses Client              uses both          │
@@ -85,7 +85,7 @@ The Universal Client System is a comprehensive TypeScript library providing a **
 ### Core Benefits
 
 1. **Location Transparency**: Collections work identically whether backed by local memory or remote database
-2. **Seamless Migration**: Switch from local minimongo to remote MongoDB by changing storage backend
+2. **Seamless Migration**: Switch from local in-memory storage to remote MongoDB by changing storage backend
 3. **Offline Support**: HybridStorage provides local cache with background sync
 4. **Unified Middleware**: Retry, caching, auth, tracing apply to all collection operations
 5. **Protocol Agnostic**: Same code works over HTTP, WebSocket, or in-process
@@ -136,7 +136,7 @@ This means:
              │            │ │  (async)   │ │ Write-back         │
              │            │ │            │ │                    │
              │  Like      │ │  Like      │ │ Like Meteor's      │
-             │  minimongo │ │  MongoDB   │ │ minimongo + mongo  │
+             │  in-memory │ │  MongoDB   │ │ in-memory + mongo  │
              │            │ │            │ │                    │
              └────────────┘ └─────┬──────┘ └─────────┬──────────┘
                                   │                  │
@@ -427,7 +427,7 @@ const client = new Client({
 // Option 1: Remote storage (all operations go to server)
 const remoteUsers = new ApiStorage<User>(client, { collection: "users" });
 
-// Option 2: Local storage (in-memory, like minimongo)
+// Option 2: Local storage (in-memory)
 const localUsers = new InMemoryStorage<User>();
 
 // Option 3: Hybrid storage (local cache + remote sync)
@@ -514,7 +514,7 @@ class ApiStorage<T> implements CollectionStorage<T> {
 
 ### 7.4 HybridStorage - Local + Remote with Sync
 
-Like Meteor's minimongo + MongoDB:
+Like the client cache of Meteor + MongoDB:
 
 ```typescript
 const hybrid = new HybridStorage<User>(remoteStorage, {
@@ -743,7 +743,7 @@ await prodUsers.set("123", { id: "123", name: "John", email: "john@example.com" 
 const user = await prodUsers.get("123");
 
 // ============================================================
-// DEVELOPMENT: Local storage (like minimongo)
+// DEVELOPMENT: Local storage (in-memory)
 // ============================================================
 
 const devUsers = new InMemoryStorage<User>();
@@ -931,7 +931,7 @@ import {
 
 | Feature | Meteor | This System |
 |---------|--------|-------------|
-| Local Collections | Minimongo | InMemoryStorage |
+| Local Collections | Client cache | InMemoryStorage |
 | Remote Collections | MongoDB via DDP | ApiStorage via Client |
 | Sync | DDP protocol | HybridStorage (write-through/back) |
 | Offline Support | Limited | Full offline queue |

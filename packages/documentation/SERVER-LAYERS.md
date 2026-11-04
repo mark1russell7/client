@@ -203,7 +203,7 @@ Decision D9 gives the sync to the client. SignalDB is one strategy for the local
 
 ## One-shot commands also start under `run()`
 
-Decision D17 makes a one-shot command a service too: a `mark` command, and the kit and the CLI of jarvis.
+Decision D17 makes a one-shot command a service too: a `mark` command, and the kit and the CLI of an app.
 
 - In the warm mode, the background host operates under `runProcedureHost` with the daemon profile.
 - In the cold mode, the same host operates in the process under `run()`, with the ephemeral profile. It has no port and no lockfile.
@@ -304,7 +304,7 @@ The questions of the authentication:
   - A local request skips the token and the request hook. Only the local marker makes a request local.
   - A request without credentials gets `UNAUTHORIZED` when the host has a token or a request hook. The hook does not operate for it.
   - A request with credentials goes through the request hook and the token check. The hook can give the bearer token that the check compares.
-- The cookie and the header of jarvis are options of the request hook. Its guard of the loopback `Host` goes into the browser checks of `HostPolicy`.
+- The cookie and the header of an app are options of the request hook. Its guard of the loopback `Host` goes into the browser checks of `HostPolicy`.
 
 ## Facts that the brief had wrong
 
@@ -312,8 +312,8 @@ The audit of 2026-10-17 found these facts. The line numbers of the other reposit
 
 | The brief said | The fact | Evidence |
 |---|---|---|
-| jarvis uses `service()`, `start()` and `run()`. | jarvis declares `jarvisService()` and examines it with `lint()` only in a test. `serve.ts` imports nothing from `service` and stops only on `SIGINT`. | jarvis: `packages/instance/src/serve.ts:163-169`, `packages/instance/src/service.test.ts` |
-| Only jarvis uses the stop in stages of `service`. | The only runtime user of `run()` is the kind lab of `systems`. No package of the client starts `service()`, `run()` or `start()`. | systems: `packages/kind/image/app.mjs`. Client: `packages/systems/src/lint.ts:11` imports only the law. |
+| An app uses `service()`, `start()` and `run()`. | The app declares a service and examines it with `lint()` only in a test. `serve.ts` imports nothing from `service` and stops only on `SIGINT`. | The app: its `serve.ts` and its `service.test.ts`. |
+| Only an app uses the stop in stages of `service`. | The only runtime user of `run()` is the kind lab of `systems`. No package of the client starts `service()`, `run()` or `start()`. | systems: `packages/kind/image/app.mjs`. Client: `packages/systems/src/lint.ts:11` imports only the law. |
 | Four functions compare a token: two in the client and two in the apps. | The client has two, and they are constant-time. The apps have their own copies. | Client: `packages/client/src/server/procedure-server.ts:168-174`, `packages/client-server/src/peer/security.ts:47-55`. |
 | The root of `@procedures/client` is free of `node:` imports. | The root is not node-free at this time. It exports `HttpServerTransport`, which imports `http`, and `WebSocketServerTransport`, which imports `ws`. CLI-6 moves them to `./node`. | `packages/client/src/index.ts:18-33`, `packages/client/src/adapters/http/server/transport.ts:9-10` |
 
@@ -330,7 +330,7 @@ Mark decided each of these on 2026-10-17.
 | D5 | Where do the health probes answer? | A: on a dedicated port or on the port of the app, as each process chooses. | SYS-2, CLI-9, JAR-4 |
 | D6 | What does a second `SIGINT` do under `run()`? | A: a declared option `onRepeatSignal`, with the value `"ignore"` or `"exit"`. The `local-dev` profile sets `"exit"`. The sum of the stage limits replaces the hard-exit timer of the client. | SYS-9, CLI-8 |
 | D7 | Can `systems` ship named profiles, with its rule of no defaults? | A: yes. A profile (`local-dev`, `kubernetes`) is exported data that a caller spreads explicitly. | SYS-10, CLI-8 |
-| D8 | Does the rule of one procedures server apply to jarvis? | A: yes. jarvis mounts the procedure handler of the client and moves to the standard wire. The `{items}` body goes, and each reader reads the stream. | JAR-1, JAR-5, JAR-6, CLI-2a, CLI-28, CLI-30, CLI-31 |
+| D8 | Does the rule of one procedures server apply to an app? | A: yes. The app mounts the procedure handler of the client and moves to the standard wire. The `{items}` body goes, and each reader reads the stream. | JAR-1, JAR-5, JAR-6, CLI-2a, CLI-28, CLI-30, CLI-31 |
 | D9 | How does the sync of an app relate to the collections of the client? | D: SignalDB is one local-copy strategy under `HybridStorage`, and the client owns the sync. | CLI-14, CLI-15, CLI-17, CLI-20, CLI-21, GRAPH-9, GRAPH-11 |
 | D10 | How does the CommonJS server of an app load the ESM packages? | A: the server becomes ESM. OTel loads through `node --import`, and SSR through a dynamic import. A telemetry job in CI proves the load order. | GRAPH-5 |
 | D11 | Do the collection writes get a conflict check on the server? | A: an optional `expectedVersion` on `set`, `setBatch` and `delete`. An app keeps last-write-wins first, and it uses the version later. | CLI-16 |

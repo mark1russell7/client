@@ -36,7 +36,7 @@ A bidirectional RPC system where peers can call each other's procedures with ful
          │                          │                          │
          ▼                          ▼                          ▼
 ┌─────────────────────┐  ┌─────────────────────┐  ┌─────────────────────┐
-│ client-splay-react  │  │   client-mongo      │  │     minimongo       │
+│ client-splay-react  │  │   client-mongo      │  │    explorer app     │
 │     (PLANNED)       │  │                     │  │                     │
 │                     │  │ - MongoProcedures   │  │ - Bridge registry   │
 │ - Register splay-   │  │   typed interface   │  │ - Remote procedure  │
@@ -286,9 +286,9 @@ const result = await call(["mongo", "documents", "find"], { query: {} });
 
 ---
 
-### 8. `minimongo` (UI Application)
+### 8. The explorer app (UI Application)
 
-**Location**: `~/git/minimongo`
+**Location**: a separate repository
 
 **Bridge Registry** (`src/renderer/bridge/index.tsx`):
 ```typescript
@@ -427,7 +427,7 @@ Data → dispatch() → ComponentOutput → hydrate() → ReactNode → DOM
    }
    ```
 
-### Update minimongo
+### Update the explorer app
 
 1. Use new splay-react with ComponentOutput
 2. Configure bridge with actual procedure caller
@@ -446,7 +446,7 @@ Data → dispatch() → ComponentOutput → hydrate() → ReactNode → DOM
 | `client-mongo/src/procedures.types.ts` | MongoProcedures interface |
 | `client-server/src/discovery/index.ts` | _discovery.announce procedure |
 | `client-server/src/manifest/typescript.ts` | .d.ts generation |
-| `minimongo/src/renderer/bridge/index.tsx` | Bridge registry |
+| `explorer-app/src/renderer/bridge/index.tsx` | Bridge registry |
 
 ---
 
