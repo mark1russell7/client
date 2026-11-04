@@ -4,6 +4,8 @@
 
 A comprehensive, transport-agnostic collections framework for TypeScript. Provides unified abstractions for data structures with pluggable storage backends, enabling seamless switching between local and remote storage.
 
+The pure data structures and graphs are in the general package [`@mark1russell7/collections`](https://www.npmjs.com/package/@mark1russell7/collections), which has no runtime dependencies. This package re-exports them and adds storage, overlay and undo.
+
 ## Architecture Overview
 
 ```

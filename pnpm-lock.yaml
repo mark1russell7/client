@@ -569,6 +569,9 @@ importers:
 
   packages/client-collections:
     dependencies:
+      '@mark1russell7/collections':
+        specifier: ^0.1.0
+        version: 0.1.0
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -579,9 +582,6 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
-      fast-check:
-        specifier: ^4.10.2
-        version: 4.10.2
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -619,6 +619,9 @@ importers:
 
   packages/client-dag:
     dependencies:
+      '@mark1russell7/collections':
+        specifier: ^0.1.0
+        version: 0.1.0
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -3323,6 +3326,10 @@ packages:
 
   '@mark1russell7/coeval@0.18.0':
     resolution: {integrity: sha512-eOK4wHB/sPLk/TSqwe6Q1HcqGL5RuDBj624NWotQuA/zGH5Err2myHOpUveyg7GVBds2uht2gNOHbrtcF1w0xg==}
+
+  '@mark1russell7/collections@0.1.0':
+    resolution: {integrity: sha512-B2cS+i9eTjgW9XE4atBQfYlpbwxMaYqp9TJTQOXS9eKTIBUYTdRmpzuIhllXEh+PwNHh3UHEIs1u2A1aqbXrvg==}
+    engines: {node: '>=22.12'}
 
   '@mark1russell7/conventions@0.25.0':
     resolution: {integrity: sha512-p49TqkjzhugGqhKdWjKq5bXOd2ljkwEHdbkEUVzmHSz8b805t2NhGLvbq63oBHMHMv0lKfJDgU0LMIXmpEgqhA==}
@@ -6709,6 +6716,8 @@ snapshots:
       dependency-cruiser: 18.7.0
 
   '@mark1russell7/coeval@0.18.0': {}
+
+  '@mark1russell7/collections@0.1.0': {}
 
   '@mark1russell7/conventions@0.25.0': {}
 
