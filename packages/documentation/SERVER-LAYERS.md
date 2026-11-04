@@ -45,7 +45,7 @@ An app gets all of this when it registers its procedures and mounts one handler.
 | The host and the runner entry: the one procedures server in Node | client | `@procedures/peer` (`createProcedureHost`) and `@procedures/server` (`runProcedureHost`, the bin `procedure-server`) |
 | The MCP host | client | `@procedures/mcp-server`: `McpServerTransport` and an exported `createMcpHost` |
 | Collections and sync | client | `@procedures/collections`, `@procedures/store` with a new browser-safe entry, and the core procedures `collections.<name>.*` |
-| Apps | jarvis, Graph, MiniMongo. Later morsel, courier and money-machine. | The app packages |
+| Apps | Each app of the stack | The app packages |
 
 The dependencies go in one direction only. The apps use the client and `systems`. The client uses `systems`. `systems` uses no package of the client.
 
@@ -163,16 +163,16 @@ This layer owns:
 The limits of this layer:
 
 - It must not import code for Node only from the browser entry of `@procedures/store`.
-- It must not replace the reactive cache of an app. SignalDB stays the cache of Graph.
+- It must not replace the reactive cache of an app. An app keeps SignalDB as its cache.
 
 ### Apps
 
 An app owns:
 
 - One `service()` declaration for each process, with `run()` as the entry.
-- Its app routes. In jarvis: the UI, the CSP, the login and the cookies, blobs, tiles, ICS, briefs, chat and ingest. In Graph: `/auth/*`, SSR, the materializer and the workers of the change streams.
-- The authorization of the app inside its procedures: `can()` of Graph, the audience policy of jarvis, the job tokens of morsel.
-- Its own procedures (`graph.*`, the domain of jarvis) and its storage adapters.
+- Its app routes, for example the UI, the login and the cookies, SSR and the workers of the change streams.
+- The authorization of the app inside its procedures.
+- Its own procedures and its storage adapters.
 
 The limits of an app:
 
@@ -196,10 +196,10 @@ Decision D9 gives the sync to the client. SignalDB is one strategy for the local
 
 - `HybridStorage` owns the sync, and `ApiStorage` is its remote.
 - The new package `@procedures/signaldb` has `SignalDbStorage` (CLI-23). It implements `CollectionStorage` over a SignalDB `Collection`.
-- Graph keeps SignalDB as its reactive cache in the browser, and it keeps its `live()` cursors.
+- An app keeps SignalDB as its reactive cache in the browser, and it keeps its `live()` cursors.
 - `IndexedDbStorage` (CLI-22) gives a durable local copy to a browser app without SignalDB.
 - `TabCoordinator` (CLI-25) lets one leader tab do the sync, and the other tabs copy its changes.
-- The sync code of Graph goes: its `SyncManager`, the pull and the push with `fetch`, `LiveLog`, `EchoLedger`, its realtime WebSocket and its multi-tab service.
+- An app removes its own sync code: the pull and the push with `fetch`, its realtime WebSocket and its multi-tab service.
 
 ## One-shot commands also start under `run()`
 
@@ -314,7 +314,7 @@ The audit of 2026-10-17 found these facts. The line numbers of the other reposit
 |---|---|---|
 | jarvis uses `service()`, `start()` and `run()`. | jarvis declares `jarvisService()` and examines it with `lint()` only in a test. `serve.ts` imports nothing from `service` and stops only on `SIGINT`. | jarvis: `packages/instance/src/serve.ts:163-169`, `packages/instance/src/service.test.ts` |
 | Only jarvis uses the stop in stages of `service`. | The only runtime user of `run()` is the kind lab of `systems`. No package of the client starts `service()`, `run()` or `start()`. | systems: `packages/kind/image/app.mjs`. Client: `packages/systems/src/lint.ts:11` imports only the law. |
-| Four functions compare a token: two in the client and two in jarvis. | The client has two, and they are constant-time. jarvis has one constant-time copy. Graph has two: its tenant token uses `===`, and its agent token tells its length. | Client: `packages/client/src/server/procedure-server.ts:168-174`, `packages/client-server/src/peer/security.ts:47-55`. jarvis: `packages/http/src/token.ts:12-15`. Graph: `packages/server/server.ts:288-292`, `:478-483`. |
+| Four functions compare a token: two in the client and two in the apps. | The client has two, and they are constant-time. The apps have their own copies. | Client: `packages/client/src/server/procedure-server.ts:168-174`, `packages/client-server/src/peer/security.ts:47-55`. |
 | The root of `@procedures/client` is free of `node:` imports. | The root is not node-free at this time. It exports `HttpServerTransport`, which imports `http`, and `WebSocketServerTransport`, which imports `ws`. CLI-6 moves them to `./node`. | `packages/client/src/index.ts:18-33`, `packages/client/src/adapters/http/server/transport.ts:9-10` |
 
 ## The decisions D1 to D18
@@ -331,16 +331,16 @@ Mark decided each of these on 2026-10-17.
 | D6 | What does a second `SIGINT` do under `run()`? | A: a declared option `onRepeatSignal`, with the value `"ignore"` or `"exit"`. The `local-dev` profile sets `"exit"`. The sum of the stage limits replaces the hard-exit timer of the client. | SYS-9, CLI-8 |
 | D7 | Can `systems` ship named profiles, with its rule of no defaults? | A: yes. A profile (`local-dev`, `kubernetes`) is exported data that a caller spreads explicitly. | SYS-10, CLI-8 |
 | D8 | Does the rule of one procedures server apply to jarvis? | A: yes. jarvis mounts the procedure handler of the client and moves to the standard wire. The `{items}` body goes, and each reader reads the stream. | JAR-1, JAR-5, JAR-6, CLI-2a, CLI-28, CLI-30, CLI-31 |
-| D9 | How does the sync of Graph relate to the collections of the client? | D: SignalDB is one local-copy strategy under `HybridStorage`, and the client owns the sync. | CLI-14, CLI-15, CLI-17, CLI-20, CLI-21, GRAPH-9, GRAPH-11 |
-| D10 | How does the CommonJS server of Graph load the ESM packages? | A: `@graph/server` becomes ESM. OTel loads through `node --import`, and SSR through a dynamic import. A telemetry job in CI proves the load order. | GRAPH-5 |
-| D11 | Do the collection writes get a conflict check on the server? | A: an optional `expectedVersion` on `set`, `setBatch` and `delete`. Graph keeps last-write-wins first, and it uses the version later. | CLI-16 |
-| D12 | Can Vex and polite-crawler use `@procedures/mcp-server` for their MCP entries? | A: yes, for the MCP entry only. The step waits until the host factory works for `mark mcp`, Graph and jarvis. | OTH-2, OTH-3 |
+| D9 | How does the sync of an app relate to the collections of the client? | D: SignalDB is one local-copy strategy under `HybridStorage`, and the client owns the sync. | CLI-14, CLI-15, CLI-17, CLI-20, CLI-21, GRAPH-9, GRAPH-11 |
+| D10 | How does the CommonJS server of an app load the ESM packages? | A: the server becomes ESM. OTel loads through `node --import`, and SSR through a dynamic import. A telemetry job in CI proves the load order. | GRAPH-5 |
+| D11 | Do the collection writes get a conflict check on the server? | A: an optional `expectedVersion` on `set`, `setBatch` and `delete`. An app keeps last-write-wins first, and it uses the version later. | CLI-16 |
+| D12 | Can Vex and polite-crawler use `@procedures/mcp-server` for their MCP entries? | A: yes, for the MCP entry only. The step waits until the host factory works for `mark mcp` and the app hosts. | OTH-2, OTH-3 |
 | D13 | How do the breaking changes of the client group ship? | B: each break is its own MINOR of the client group. Refer to "Releases of the server stack". | CLI-1, CLI-2b, REL-2, DOC-4 |
 | D14 | What happens to the host ownership brief? | A: a layer contract replaces it and keeps its three decisions with a new scope. This document is that contract. | DOC-1 |
 | D15 | What happens to the stale copies of the repositories? | Nobody deletes or moves a folder without Mark. Mark and Claude examine the folders together, one at a time. | CLEAN-2 |
 | D16 | Can the published harness of `systems` ship an image that installs `@procedures/client`? | C: the harness takes its test subjects as data, and the client owns its procedures subject image. | SYS-17, CLI-33, SYS-18 |
 | D17 | Do one-shot commands start under `run()`? | B: yes, with the minimal profile. Refer to "One-shot commands also start under `run()`". | CLI-8, CLI-26, SYS-16 |
-| D18 | Does the REST data API of Graph move to procedures? | B: yes. All of the Graph server moves in this migration. | GRAPH-7 |
+| D18 | Does the REST data API of an app move to procedures? | B: yes. The whole server of the app moves in this migration. | GRAPH-7 |
 
 ## Releases of the server stack
 
@@ -350,7 +350,7 @@ The public packages of the client group have one version together. Decision D13 
 - Before 1.0.0, a breaking change raises the MINOR. Each break is its own MINOR of the client group.
 - A break merges alone. The next release of the group carries it, and the next break waits for that release.
 - One release before the break, a PATCH marks each export or behavior that the break moves or removes as `@deprecated`. The tag names the replacement.
-- The changeset of a break has the type `minor`. Its text gives the migration steps for each known consumer: the site, MiniMongo, the MCP host of Graph and jarvis.
+- The changeset of a break has the type `minor`. Its text gives the migration steps for each known consumer: the site and each app.
 - Thus the CHANGELOG entry of each MINOR carries its migration steps.
 - A release candidate goes under the dist-tag `next`, not under `latest`.
 - `RELEASE.md`, `scripts/publish-ci.mjs` and `.github/workflows/release.yml` stay as they are. Only Mark and the npm owner session publish.

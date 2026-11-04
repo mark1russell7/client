@@ -1,6 +1,6 @@
 /**
  * The host factory (CLI-10): one `createMcpHost()` call builds what the dev-tools server, the
- * Graph host and `mcp.serve` built by hand. The tests use the in-memory transport of the SDK, and
+ * app host and `mcp.serve` built by hand. The tests use the in-memory transport of the SDK, and
  * the stdio face on streams of the test.
  */
 
@@ -30,7 +30,7 @@ const write = (path: string[]): AnyProcedure =>
     .handler(async () => ({ ok: true }))
     .build();
 
-/** A module like the one of Graph: graph.* procedures, and one procedure of another namespace. */
+/** A module of an app: graph.* procedures, and one procedure of another namespace. */
 const graphModule = defineModule("graph-test", [
   read(["graph", "get"], "doc"),
   write(["graph", "set"]),
@@ -55,9 +55,9 @@ async function connect(host: McpHost, clientSide: InMemoryTransport): Promise<Mc
 }
 
 describe("createMcpHost", () => {
-  it("builds the Graph host in one call: a surface, read only, and the policy", async () => {
+  it("builds an app host in one call: a surface, read only, and the policy", async () => {
     const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
-    // The whole Graph host (packages/mcp/src/host.ts of Graph) after CLI-10:
+    // The whole app host after CLI-10:
     const host = createMcpHost({
       registry: createRegistry(graphModule),
       surface: { namespaces: ["graph"] },

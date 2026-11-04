@@ -1,6 +1,6 @@
 /**
  * The rules of the rows of a served collection (roadmap CLI-41). A right can depend on the
- * document: a `when` condition of Graph, or `accessAdmitItem()` of `@procedures/access`. The option
+ * document: a `when` condition of an app, or `accessAdmitItem()` of `@procedures/access`. The option
  * `admission` of `createCollectionProcedures()` gives the rules as data:
  *
  * - `admit` examines each row `{ id, value }` that a read gives. It has the shape of `AdmitItem`,

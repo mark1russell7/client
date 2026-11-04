@@ -671,7 +671,7 @@ describe("The rules of the store of Graph (CLI-21)", () => {
     await hybrid.close();
   });
 
-  it("a remote delta and a full sync never run at the same time: a fresh local insert survives both, locally and on the remote (Graph R18)", async () => {
+  it("a remote delta and a full sync never run at the same time: a fresh local insert survives both, locally and on the remote", async () => {
     const data = new InMemoryStorage<Item>();
     await data.set("a", { n: 1 });
     await data.set("r", { n: 1 });

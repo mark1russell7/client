@@ -1,5 +1,5 @@
 /**
- * The keys of an ordered list (Graph's split, wave 2, W1): fractional indexing with base-62 keys. A
+ * The keys of an ordered list: fractional indexing with base-62 keys. A
  * key is a string. Each item of the list keeps one, and the list sorts by it. An item that moves
  * between two others gets a key between theirs, so a move writes one item and no other.
  *
