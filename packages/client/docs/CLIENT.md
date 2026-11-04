@@ -170,7 +170,7 @@ client.use(createRetryMiddleware({
 
 ### Cache Middleware
 
-LRU + TTL caching using the collections framework.
+LRU + TTL caching with a small map of the core. This map does not use the collections package.
 
 ```typescript
 client.use(createCacheMiddleware({

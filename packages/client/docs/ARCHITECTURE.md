@@ -1,6 +1,6 @@
 # Architecture
 
-> **History.** The current architecture document is [`packages/documentation/ARCHITECTURE.md`](../../documentation/ARCHITECTURE.md). Its section [Invariants](../../documentation/ARCHITECTURE.md#invariants) gives the rules of the stack. This document describes the library before the monorepo.
+> **History.** The current architecture document is [`packages/documentation/ARCHITECTURE.md`](../../documentation/ARCHITECTURE.md). Its section [Invariants](../../documentation/ARCHITECTURE.md#invariants) gives the rules of the stack. This document describes the library before the monorepo. The collections code left `client` in October 2026: `@mark1russell7/collections` holds the data structures, and `@procedures/collections` holds the storage backends and re-exports the data structures.
 
 This document describes the architecture of the Universal RPC Library.
 
@@ -145,18 +145,9 @@ src/
 │   └── mock/
 │       └── client/             # MockTransport
 │
-├── middleware/                 # Universal Middleware System
-│   ├── types.ts                # Middleware<TOut, TIn, TReturn, TAsync>
-│   └── compose.ts              # compose(), bundle()
-│
-└── collections/                # Collections Framework
-    ├── interfaces/             # Collection, List, Map, Set, Queue
-    ├── impl/                   # ArrayList, HashMap, TreeMap, etc.
-    ├── behaviors/              # lru, ttl, bounded, evented, etc.
-    ├── async/                  # Channel, AsyncQueue
-    ├── fx/                     # Lazy operations, collectors
-    ├── core/                   # Traits, effects, middleware
-    └── storage/                # Storage backends
+└── middleware/                 # Middleware of client requests
+    ├── types.ts                # Middleware<TOut, TIn, TReturn, TAsync>
+    └── compose.ts              # compose(), bundle()
 ```
 
 ## Module Dependencies
@@ -165,11 +156,11 @@ src/
                     ┌────────────────┐
                     │    index.ts    │
                     └───────┬────────┘
-           ┌────────────────┼────────────────┐
-           ▼                ▼                ▼
-    ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-    │    client    │ │    server    │ │  collections │
-    └──────┬───────┘ └──────┬───────┘ └──────────────┘
+           ┌────────────────┤
+           ▼                ▼
+    ┌──────────────┐ ┌──────────────┐
+    │    client    │ │    server    │
+    └──────┬───────┘ └──────┬───────┘
            │                │
            ▼                ▼
     ┌──────────────┐ ┌──────────────┐
@@ -178,7 +169,7 @@ src/
            │
            ▼
     ┌──────────────┐
-    │  middleware  │  (universal composition)
+    │  middleware  │  (chain around a call)
     └──────────────┘
 ```
 

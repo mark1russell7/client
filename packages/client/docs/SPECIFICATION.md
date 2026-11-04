@@ -1,6 +1,6 @@
 # Universal Client System - Architectural Specification
 
-> **History.** This specification is from December 2024. The current documents are `packages/documentation/ARCHITECTURE.md`, `PROGRAM-FORMAT.md` and `docs/POLICY.md`. Some entry points that it names were removed in October 2026.
+> **History.** This specification is from December 2024. The current documents are `packages/documentation/ARCHITECTURE.md`, `PROGRAM-FORMAT.md` and `docs/POLICY.md`. Some entry points that it names were removed in October 2026. The collections code left `client` in October 2026: `@mark1russell7/collections` holds the data structures, and `@procedures/collections` holds the storage backends and re-exports the data structures. The `client/collections` imports below show the old paths.
 
 > **Version:** 1.0.0
 > **Last Updated:** December 2024
@@ -183,22 +183,9 @@ src/
 │   ├── local/                  # Local transport (in-process)
 │   └── mock/                   # Mock transport (testing)
 │
-├── middleware/                 # Universal Middleware System
-│   ├── types.ts                # Middleware type definitions
-│   └── compose.ts              # compose(), bundle()
-│
-└── collections/                # Collections Framework
-    ├── interfaces/             # Collection, List, Map, Set, Queue
-    ├── impl/                   # ArrayList, HashMap, TreeMap, etc.
-    ├── behaviors/              # lru, ttl, bounded, evented, etc.
-    ├── async/                  # Channel, AsyncQueue
-    ├── fx/                     # Functional operations, collectors
-    ├── core/                   # Traits, effects, middleware
-    └── storage/                # *** THE KEY UNIFICATION ***
-        ├── interface.ts        # CollectionStorage interface
-        ├── memory.ts           # InMemoryStorage (local, sync)
-        ├── api.ts              # ApiStorage (remote via Client)
-        └── hybrid.ts           # HybridStorage (local + remote)
+└── middleware/                 # Middleware of client requests
+    ├── types.ts                # Middleware type definitions
+    └── compose.ts              # compose(), bundle()
 ```
 
 ---
@@ -378,7 +365,7 @@ transport.mockSuccess(
 
 ## 6. Middleware System
 
-### 6.1 Unified Middleware Type
+### 6.1 Middleware Type
 
 ```typescript
 type Middleware<TContextOut, TContextIn, TReturn, TAsync extends boolean> = (
