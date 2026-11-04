@@ -1,5 +1,13 @@
 # @procedures/signaldb
 
+## 0.47.1
+
+### Patch Changes
+
+- Updated dependencies [f845c6d]
+  - @procedures/client@0.47.1
+  - @procedures/collections@0.47.1
+
 ## 0.47.0
 
 ### Patch Changes

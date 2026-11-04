@@ -1,5 +1,13 @@
 # @procedures/dag
 
+## 0.47.1
+
+### Patch Changes
+
+- 74f2f24: `@procedures/dag`: a new entry `./graph` with `hubBreadthFirstOrder`, a pure breadth-first order from the hub of each component of a weighted graph. The entry imports no other package.
+- Updated dependencies [f845c6d]
+  - @procedures/client@0.47.1
+
 ## 0.47.0
 
 ### Patch Changes
