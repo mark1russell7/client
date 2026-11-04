@@ -314,10 +314,10 @@ function hostToken(policyToken: string | undefined, faceToken: string | undefine
  * @example
  * ```typescript
  * const host = createMcpHost({
- *   registry: createRegistry(graphModule),
- *   surface: { namespaces: ["graph"] },
+ *   registry: createRegistry(appModule),
+ *   surface: { namespaces: ["app"] },
  *   readOnly: process.argv.includes("--read-only"),
- *   name: "graph",
+ *   name: "app",
  *   version: "0.1.0",
  * });
  * await host.start();

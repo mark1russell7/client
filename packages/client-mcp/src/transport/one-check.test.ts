@@ -214,16 +214,16 @@ describe("one check for each request on the standalone MCP face (CLI-2b)", () =>
     expect(since()).toEqual({ admissions: 0, origins: 1, hosts: 1 });
   });
 
-  it("gives a jarvis-style cookie its principal, with one run of the request hook for each HTTP request", async () => {
+  it("gives a cookie-style token its principal, with one run of the request hook for each HTTP request", async () => {
     let runs = 0;
-    // The token in a cookie, as jarvis does
+    // The token in a cookie, as an app does
     const principalOf: PrincipalOf = ({ cookies = {} }) => {
       runs++;
-      const token = cookies["jarvis_token"];
+      const token = cookies["app_token"];
       return token !== undefined ? { bearer: token } : undefined;
     };
     const { url } = await standalone({ policy: { token: TOKEN, principalOf, browser: { allowedOrigins: [APP] } }, faces: { http: {} } });
-    const cookie = `jarvis_token=${TOKEN}`;
+    const cookie = `app_token=${TOKEN}`;
     const opened = await post(url, INITIALIZE, { cookie, origin: APP });
     expect(opened.status).toBe(200);
     const session = { cookie, origin: APP, "mcp-session-id": opened.session! };
@@ -231,7 +231,7 @@ describe("one check for each request on the standalone MCP face (CLI-2b)", () =>
     expect(principalOfTool((await post(url, CALL, session)).message)).toEqual({ id: "token", via: "token" });
     // Three HTTP requests: three runs of the hook, and the tool call adds none
     expect(runs).toBe(3);
-    expect((await post(url, INITIALIZE, { cookie: "jarvis_token=wrong", origin: APP })).status).toBe(401);
+    expect((await post(url, INITIALIZE, { cookie: "app_token=wrong", origin: APP })).status).toBe(401);
     expect((await post(url, INITIALIZE, { origin: APP })).status).toBe(401);
     // A cookie needs a named origin (CSRF): a page of another origin is refused before the hook
     const before = runs;
@@ -239,12 +239,12 @@ describe("one check for each request on the standalone MCP face (CLI-2b)", () =>
     expect(runs).toBe(before);
   });
 
-  it("gives a Graph-style session its user and a request without a session the anonymous principal, and refuses at initialize when the accounts are not ready", async () => {
+  it("gives a session cookie its user and a request without a session the anonymous principal, and refuses at initialize when the accounts are not ready", async () => {
     let runs = 0;
     let ready = true;
     const anonymous = { id: "anonymous", via: "anonymous", claims: {} };
     const sessions = new Map([["session-of-alice", "alice"]]);
-    // The shape of the accounts mode of graphPrincipalOf of Graph
+    // The shape of the accounts mode of a session hook
     const principalOf: PrincipalOf = async ({ cookies = {} }) => {
       runs++;
       if (!ready) throw Object.assign(new Error("accounts are not ready"), { code: "UNAVAILABLE", retryable: true });

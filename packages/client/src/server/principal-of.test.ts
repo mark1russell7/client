@@ -111,28 +111,28 @@ function callWs(port: number, query = "", headers: Record<string, string> = {}):
   });
 }
 
-// The jarvis style: the token in a cookie (the /login page sets it), an application header or
+// The cookie style: the token in a cookie (the /login page sets it), an application header or
 // ?token=, and a guest switch in a cookie or a header that can only make the audience narrower
 const TOKEN = "s3cret-token";
-const jarvisPrincipalOf: PrincipalOf = ({ cookies = {}, headers = {}, query = {} }) => {
-  const bearer = cookies["jarvis_token"] ?? headers["x-jarvis-token"] ?? query["token"];
-  const audiences = [headers["x-jarvis-audience"], cookies["jarvis_audience"]].filter((value): value is Audience => AUDIENCES.includes(value as Audience));
+const cookiePrincipalOf: PrincipalOf = ({ cookies = {}, headers = {}, query = {} }) => {
+  const bearer = cookies["app_token"] ?? headers["x-app-token"] ?? query["token"];
+  const audiences = [headers["x-app-audience"], cookies["app_audience"]].filter((value): value is Audience => AUDIENCES.includes(value as Audience));
   const narrowest = audiences.reduce<Audience | undefined>((a, b) => (a === undefined || AUDIENCES.indexOf(b) < AUDIENCES.indexOf(a) ? b : a), undefined);
   return { ...(bearer !== undefined ? { bearer } : {}), ...(narrowest !== undefined ? { narrowing: { clearance: narrowest } } : {}) };
 };
-const jarvisOptions: ProcedureServerOptions = {
+const cookieOptions: ProcedureServerOptions = {
   token: TOKEN,
-  principalOf: jarvisPrincipalOf,
+  principalOf: cookiePrincipalOf,
   capability: { clearance: "intimate" },
   clearanceOrder: ladder(AUDIENCES),
 };
 
-describe("principalOf: a jarvis-style cookie (CLI-2a)", () => {
+describe("principalOf: a cookie-style token (CLI-2a)", () => {
   it("takes the token of the cookie, of the application header and of the query, and refuses without it", async () => {
-    const port = await start(jarvisOptions, ["X-Jarvis-Token"]);
+    const port = await start(cookieOptions, ["X-App-Token"]);
     for (const [path, headers] of [
-      ["/api/proc/who/am", { cookie: `theme=dark; jarvis_token=${TOKEN}` }],
-      ["/api/proc/who/am", { "x-jarvis-token": TOKEN }],
+      ["/api/proc/who/am", { cookie: `theme=dark; app_token=${TOKEN}` }],
+      ["/api/proc/who/am", { "x-app-token": TOKEN }],
       [`/api/proc/who/am?token=${TOKEN}`, {}],
     ] as const) {
       const res = await call(port, path, headers);
@@ -143,24 +143,24 @@ describe("principalOf: a jarvis-style cookie (CLI-2a)", () => {
       expect(JSON.stringify(res.body["metadata"])).not.toContain(TOKEN);
     }
     expect((await call(port)).status).toBe(401);
-    expect((await call(port, "/api/proc/who/am", { cookie: "jarvis_token=wrong" })).body["code"]).toBe("UNAUTHORIZED");
+    expect((await call(port, "/api/proc/who/am", { cookie: "app_token=wrong" })).body["code"]).toBe("UNAUTHORIZED");
   });
 
   it("narrows the capability with the guest switch of a cookie or a header, and never widens it", async () => {
-    const port = await start(jarvisOptions);
-    const guest = await call(port, "/api/proc/who/am", { cookie: `jarvis_token=${TOKEN}; jarvis_audience=guest` });
+    const port = await start(cookieOptions);
+    const guest = await call(port, "/api/proc/who/am", { cookie: `app_token=${TOKEN}; app_audience=guest` });
     expect(guest.body["clearance"]).toBe("guest");
-    const narrowest = await call(port, "/api/proc/who/am", { cookie: `jarvis_token=${TOKEN}; jarvis_audience=guest`, "x-jarvis-audience": "public" });
+    const narrowest = await call(port, "/api/proc/who/am", { cookie: `app_token=${TOKEN}; app_audience=guest`, "x-app-audience": "public" });
     expect(narrowest.body["clearance"]).toBe("public");
     // The capability of the server is "guest": a request for "intimate" gets "guest"
-    const capped = await start({ ...jarvisOptions, capability: { clearance: "guest" } });
-    const wider = await call(capped, "/api/proc/who/am", { cookie: `jarvis_token=${TOKEN}; jarvis_audience=intimate` });
+    const capped = await start({ ...cookieOptions, capability: { clearance: "guest" } });
+    const wider = await call(capped, "/api/proc/who/am", { cookie: `app_token=${TOKEN}; app_audience=intimate` });
     expect(wider.body["clearance"]).toBe("guest");
   });
 
   it("reads the cookie of a WebSocket upgrade, and the token query of a browser WebSocket", async () => {
-    const port = await start(jarvisOptions);
-    const cookie = await callWs(port, "", { cookie: `jarvis_token=${TOKEN}; jarvis_audience=guest` });
+    const port = await start(cookieOptions);
+    const cookie = await callWs(port, "", { cookie: `app_token=${TOKEN}; app_audience=guest` });
     expect(cookie.type).toBe("response");
     expect(cookie.payload).toMatchObject({ principal: { id: "token", via: "token" }, clearance: "guest" });
     const query = await callWs(port, `?token=${TOKEN}`);
@@ -170,23 +170,23 @@ describe("principalOf: a jarvis-style cookie (CLI-2a)", () => {
   });
 });
 
-// The Graph style: a session cookie of an auth library. The server looks the session up, and a
+// The session style: a session cookie of an auth library. The server looks the session up, and a
 // request without a session is a signed-out principal that can read only
 const SESSIONS: Record<string, { user: string; groups: string[] }> = { "sess-1": { user: "u_mark", groups: ["core"] } };
-const graphPrincipalOf: PrincipalOf = async ({ cookies = {} }) => {
+const sessionPrincipalOf: PrincipalOf = async ({ cookies = {} }) => {
   const session = SESSIONS[cookies["better-auth.session_token"] ?? ""];
   await Promise.resolve();
   if (!session) return {};
   return { principal: { id: `user:${session.user}`, via: "session", claims: { groups: session.groups } } };
 };
-const graphOptions: ProcedureServerOptions = {
-  principalOf: graphPrincipalOf,
+const sessionOptions: ProcedureServerOptions = {
+  principalOf: sessionPrincipalOf,
   capability: (request) => (request.principal ? undefined : { effects: { writes: [] } }),
 };
 
-describe("principalOf: a Graph-style session (CLI-2a)", () => {
+describe("principalOf: a session cookie (CLI-2a)", () => {
   it("gives the principal of the session to the procedure and to its nested calls", async () => {
-    const port = await start(graphOptions);
+    const port = await start(sessionOptions);
     const signedIn = await call(port, "/api/proc/who/nested", { cookie: "better-auth.session_token=sess-1" });
     expect(signedIn.status).toBe(200);
     expect(signedIn.body["principal"]).toEqual({ id: "user:u_mark", via: "session", claims: { groups: ["core"] } });
@@ -195,7 +195,7 @@ describe("principalOf: a Graph-style session (CLI-2a)", () => {
   });
 
   it("accepts a request without a session as signed out, with the capability of a reader", async () => {
-    const port = await start(graphOptions);
+    const port = await start(sessionOptions);
     const signedOut = await call(port);
     expect(signedOut.status).toBe(200);
     expect(signedOut.body["principal"]).toBeNull();
@@ -203,7 +203,7 @@ describe("principalOf: a Graph-style session (CLI-2a)", () => {
   });
 
   it("gives the principal of the session on a WebSocket connection", async () => {
-    const port = await start(graphOptions);
+    const port = await start(sessionOptions);
     const frame = await callWs(port, "", { cookie: "better-auth.session_token=sess-1" });
     expect(frame.payload).toMatchObject({ principal: { id: "user:u_mark", via: "session" } });
   });
@@ -343,9 +343,9 @@ describe("the credentials of a request (CLI-2a)", () => {
   });
 
   it("leaves the default and the named secret headers out of the metadata headers", () => {
-    const headers = { authorization: "a", cookie: "c", "x-api-key": "k", "proxy-authorization": "p", "X-Jarvis-Token": "j", accept: "*/*" };
-    expect(withoutSecretHeaders(headers)).toEqual({ "X-Jarvis-Token": "j", accept: "*/*" });
-    expect(withoutSecretHeaders(headers, ["x-jarvis-token"])).toEqual({ accept: "*/*" });
+    const headers = { authorization: "a", cookie: "c", "x-api-key": "k", "proxy-authorization": "p", "X-App-Token": "j", accept: "*/*" };
+    expect(withoutSecretHeaders(headers)).toEqual({ "X-App-Token": "j", accept: "*/*" });
+    expect(withoutSecretHeaders(headers, ["x-app-token"])).toEqual({ accept: "*/*" });
   });
 
   it("joins two narrowings: the meet of the clearances, the intersection of the effects, the shorter time", () => {

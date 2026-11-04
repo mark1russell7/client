@@ -241,9 +241,9 @@ describe("betterAuthPrincipalOf", () => {
 
   it("does not take another bearer token as the agent, and ignores the act-as header without the token", async () => {
     const { principals } = setup();
-    const hook = betterAuthPrincipalOf({ principals, agentToken: TOKEN, actAsHeader: "X-Graph-As", actAs: () => true, anonymous: READ_ONLY });
-    expect((await hook({ bearer: "wrong", headers: { "x-graph-as": "u1" } }, request))?.principal).toEqual({ id: ANONYMOUS_ID, via: VIA.anonymous });
-    expect((await hook({ bearer: TOKEN, headers: { "x-graph-as": "u1" } }, request))?.principal?.id).toBe("u1");
+    const hook = betterAuthPrincipalOf({ principals, agentToken: TOKEN, actAsHeader: "X-App-As", actAs: () => true, anonymous: READ_ONLY });
+    expect((await hook({ bearer: "wrong", headers: { "x-app-as": "u1" } }, request))?.principal).toEqual({ id: ANONYMOUS_ID, via: VIA.anonymous });
+    expect((await hook({ bearer: TOKEN, headers: { "x-app-as": "u1" } }, request))?.principal?.id).toBe("u1");
     expect(await betterAuthPrincipalOf({ principals })({ bearer: TOKEN }, request)).toBeUndefined(); // no agent token: no agent
   });
 });

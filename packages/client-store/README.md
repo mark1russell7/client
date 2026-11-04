@@ -393,7 +393,7 @@ const users = new HybridStorage(new ApiStorage(client, { collection: "users" }),
 
 ### The hook around a remote apply
 
-The option `aroundRemoteApply` puts each apply of the remote changes inside a hook (graph W8). For example, the hook starts a span of a trace with the `traceparent` of the server.
+The option `aroundRemoteApply` puts each apply of the remote changes inside a hook. For example, the hook starts a span of a trace with the `traceparent` of the server.
 
 - The hook gets `hint`, `apply` and `context`. It starts `apply` one time and gives back its promise.
 - `context.cause` is `"delta"`, `"hint"`, `"gap"` or `"pull"`. `context.hints` has the hints of the apply.
