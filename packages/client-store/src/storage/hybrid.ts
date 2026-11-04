@@ -2,7 +2,7 @@
  * Hybrid Storage Implementation
  *
  * A local copy (an `InMemoryStorage`, or the `local` storage that the application gives) in
- * front of a remote `CollectionStorage` (often an `ApiStorage`). The storage has four modes, and
+ * front of a remote `CollectionStorage` (often an `ApiStorage`). The storage has five modes, and
  * `setMode()` changes the mode while the storage operates (roadmap R28):
  *
  * | Mode | Reads | Writes | Remote calls |
@@ -11,6 +11,7 @@
  * | `write-through` | the local copy, the remote on a miss | the local copy, then the remote | yes |
  * | `write-back` | the local copy, the remote on a miss | the local copy and the queue, a timer sends it | yes |
  * | `remote-only` | the remote | the remote | yes, and no local copy |
+ * | `read-only` | the local copy, the remote on a miss | refused with `ReadOnlyError` | reads and pulls only |
  *
  * - The queue is durable through the `queueStore` that the application gives.
  * - A sync asks for the changes since a version when the remote has `getChangesSince`.
@@ -93,10 +94,19 @@ export type WriteStrategy = "write-through" | "write-back";
  * - `write-through`: each write goes to the local copy, then to the remote.
  * - `write-back`: each write goes to the local copy and to the queue. A timer sends the queue.
  * - `remote-only`: each read and each write goes to the remote. The storage keeps no local copy.
+ * - `read-only`: the storage refuses each write with `ReadOnlyError` at once, with no change of
+ *   the local copy, the queue or the remote. Reads, pulls and the feed work as in `write-through`
+ *   (roadmap CLI-89). This mode sends no write: a queue that it holds waits for a mode that writes.
  */
-export type HybridMode = "local-only" | "write-through" | "write-back" | "remote-only";
+export type HybridMode = "local-only" | "write-through" | "write-back" | "remote-only" | "read-only";
 
-const MODES: ReadonlySet<string> = new Set<HybridMode>(["local-only", "write-through", "write-back", "remote-only"]);
+const MODES: ReadonlySet<string> = new Set<HybridMode>(["local-only", "write-through", "write-back", "remote-only", "read-only"]);
+
+/** True for the modes that keep a local copy and read the remote changes into it. */
+const pullsRemote = (mode: HybridMode): boolean => mode === "write-through" || mode === "write-back" || mode === "read-only";
+
+/** True for the modes that send writes to the remote. */
+const pushesRemote = (mode: HybridMode): boolean => mode !== "local-only" && mode !== "read-only";
 
 /**
  * Hybrid storage configuration options.
@@ -179,14 +189,14 @@ export interface HybridStorageOptions {
 
   /**
    * The interval of the periodic pull, for example `minutes(1)` (roadmap R28). A pull reads the
-   * remote changes into the local copy in the modes `write-through` and `write-back`.
+   * remote changes into the local copy in the modes `write-through`, `write-back` and `read-only`.
    * @default no periodic pull
    */
   pullInterval?: Duration;
 
   /**
    * Initialize by syncing from remote on construction: send the loaded queue, then read the
-   * remote. The mode `local-only` makes no remote call.
+   * remote. The mode `local-only` makes no remote call. The mode `read-only` sends no queue.
    * @default true
    */
   syncOnInit?: boolean;
@@ -590,6 +600,18 @@ export class QueueFullError extends Error {
   }
 }
 
+/**
+ * The storage is in `read-only` mode, so it refuses the write (roadmap CLI-89). The local copy, the
+ * queue and the remote did not change. `operation` is the name of the refused operation.
+ */
+export class ReadOnlyError extends Error {
+  override readonly name = "ReadOnlyError";
+  readonly code = "READ_ONLY";
+  constructor(readonly operation: string) {
+    super(`The storage is in read-only mode: it refuses the operation ${operation}`);
+  }
+}
+
 /** The remote gave items without a key, so a sync cannot know which local items to keep. */
 export class MissingKeysError extends Error {
   override readonly name = "MissingKeysError";
@@ -688,7 +710,7 @@ const defaultKeyOf = (item: unknown): string | undefined => {
 
 function checkMode(mode: unknown): HybridMode {
   if (typeof mode !== "string" || !MODES.has(mode)) {
-    throw new TypeError(`Unknown mode ${JSON.stringify(mode)}: use local-only, write-through, write-back or remote-only`);
+    throw new TypeError(`Unknown mode ${JSON.stringify(mode)}: use local-only, write-through, write-back, remote-only or read-only`);
   }
   return mode as HybridMode;
 }
@@ -1360,7 +1382,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   private updateFeed(): void {
     const feed = this.feed;
     if (!feed) return;
-    const wanted = !this.closed && (this.mode === "write-through" || this.mode === "write-back");
+    const wanted = !this.closed && pullsRemote(this.mode);
     if (wanted === (this.feedStop !== undefined)) return;
     const token = ++this.feedToken;
     if (!wanted) {
@@ -1416,7 +1438,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
    */
   private async applyFeed(changes: RemoteChanges<T>, mark: number): Promise<void> {
     if (this.loadError) throw this.loadError;
-    if (this.closed || (this.mode !== "write-through" && this.mode !== "write-back")) return;
+    if (this.closed || !pullsRemote(this.mode)) return;
     if (changes.version === this.cursor) return;
     const follows = changes.since !== undefined && changes.since === this.cursor;
     const hook = this.aroundRemoteApply;
@@ -1450,7 +1472,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
    */
   private async applyHint(hint: RemoteChangeHint, mark: number): Promise<void> {
     if (this.loadError) throw this.loadError;
-    if (this.closed || (this.mode !== "write-through" && this.mode !== "write-back")) return;
+    if (this.closed || !pullsRemote(this.mode)) return;
     // The remote cannot tell what changed: a full pull
     if (hint.reset === true) return this.requestPull(hint, true);
     if (hint.version !== undefined && hint.version === this.cursor) return;
@@ -1491,7 +1513,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
           if (this.closed) return Promise.resolve();
           return this.track("pull", async () => {
             if (this.loadError) throw this.loadError;
-            if (this.mode === "write-through" || this.mode === "write-back") await this.pullThrough(hints.length > 0 ? "hint" : "gap", hints, full);
+            if (pullsRemote(this.mode)) await this.pullThrough(hints.length > 0 ? "hint" : "gap", hints, full);
           });
         }),
       )
@@ -1669,7 +1691,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
    * - The switch waits for the operations that run. The operations that start later wait for
    *   the switch. Switches and syncs run one at a time.
    * - A switch to a remote mode sends the queue first. A switch to `local-only` makes no remote
-   *   call: the queue stays until the next remote mode.
+   *   call: the queue stays until the next remote mode. A switch to `read-only` also sends the
+   *   queue first, so this mode starts with an empty queue, or the switch fails.
    * - A switch to `remote-only` drops the local copy, after the queue reached the remote.
    * - A switch from `local-only` or `remote-only` to a mode with a local copy syncs the local
    *   copy. The reads wait for the sync.
@@ -1732,7 +1755,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
 
   /**
    * This method starts and stops the timers for the mode. The push timer runs in `write-back`, the
-   * pull timer in `write-through` and `write-back`, and the send of the queue after a failure only
+   * pull timer in `write-through`, `write-back` and `read-only`, and the send of the queue after a failure only
    * in `write-through`. A failed run reports its error in the status, and the next delay grows.
    */
   private updateTimers(): void {
@@ -1740,7 +1763,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     if (this.mode === "write-back") this.pushTimer?.start();
     else this.pushTimer?.stop();
 
-    if (this.mode === "write-through" || this.mode === "write-back") this.pullTimer?.start();
+    if (pullsRemote(this.mode)) this.pullTimer?.start();
     else this.pullTimer?.stop();
 
     if (this.mode !== "write-through") this.drainTimer.stop();
@@ -1936,6 +1959,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
    * One write, in the mode of the storage. The result is the result of the local copy, or of the
    * remote in `remote-only` mode.
    *
+   * - `read-only`: the write throws `ReadOnlyError`, and nothing changes.
    * - `remote-only`: the remote only. Its error passes through.
    * - `write-back` and `local-only`: the local copy and the queue. A full queue refuses the write
    *   before the local change. The queue store keeps the operation before the write ends.
@@ -1958,6 +1982,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     applyRemote: () => Promise<R>,
   ): Promise<R> {
     return this.run(false, async () => {
+      if (this.mode === "read-only") throw new ReadOnlyError(type);
       const op: QueuedOperation = { type, data, timestamp: Date.now() };
 
       if (this.mode === "remote-only") {
@@ -2139,7 +2164,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       this.deferred.delete(id);
       const mark = this.writeSeq;
       let item = deferred.item;
-      if (this.mode === "write-through" || this.mode === "write-back") {
+      if (pullsRemote(this.mode)) {
         try {
           item = await this.remote.get(id);
           this.isOnline = true;
@@ -2208,8 +2233,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   /**
    * Sync all pending offline operations to remote.
    * Processes queued operations in order. When one fails, it and the later operations stay in
-   * the queue: the operations that reached the remote are not sent again. In `local-only` mode,
-   * the call does nothing.
+   * the queue: the operations that reached the remote are not sent again. In the modes `local-only`
+   * and `read-only`, the call does nothing.
    */
   syncToRemote(): Promise<void> {
     if (this.closed) return Promise.reject(this.closedError());
@@ -2218,7 +2243,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
 
   /**
    * This method sends the queue to the remote (roadmap R28). `ProcedureServer.useStorage` uses it. In
-   * `local-only` mode, it sends nothing: the queue waits for a remote mode.
+   * the modes `local-only` and `read-only`, it sends nothing: the queue waits for a mode that writes.
    */
   flush(): Promise<void> {
     return this.syncToRemote();
@@ -2252,7 +2277,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       this.track("pull", async () => {
         await this.loaded;
         if (this.loadError) throw this.loadError;
-        if (this.mode === "write-through" || this.mode === "write-back") await this.pullThrough("pull", NO_HINTS);
+        if (pullsRemote(this.mode)) await this.pullThrough("pull", NO_HINTS);
       }),
     );
   }
@@ -2263,7 +2288,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       this.track("push", async () => {
         await this.loaded;
         if (this.loadError) throw this.loadError;
-        if (this.mode !== "local-only") await this.pushQueue();
+        if (pushesRemote(this.mode)) await this.pushQueue();
       }),
     );
   }
@@ -2281,7 +2306,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
    * This method closes the storage.
    *
    * - It stops the timers, and waits for the operations, the mode switch and the syncs that run.
-   * - It sends the queue (not in `local-only` mode). The queue store keeps the operations that
+   * - It sends the queue (not in the modes `local-only` and `read-only`). The queue store keeps the operations that
    *   the remote did not take.
    * - It closes the remote and the local copy. A durable local copy keeps its items.
    * - After it, each operation rejects. A second `close()` does nothing: it gives the promise of
@@ -2310,7 +2335,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       // After the syncs that run: send the pending operations. The queue store keeps the ones that
       // the remote did not take, and the status gets the failure.
       await this.serialize(async () => {
-        if (this.loadError || this.offlineOps.length === 0 || this.mode === "local-only") return;
+        if (this.loadError || this.offlineOps.length === 0 || !pushesRemote(this.mode)) return;
         await this.track("push", () => this.pushQueue()).catch(() => undefined);
       });
       await this.storeChain;
@@ -2442,7 +2467,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     if (this.options.syncOnInit && this.mode !== "local-only") {
       // A failure goes to the status: the reads go on with the local copy
       if (this.offlineOps.length > 0) await this.push().catch(() => undefined);
-      if (!this.closed && (this.mode === "write-through" || this.mode === "write-back")) {
+      if (!this.closed && pullsRemote(this.mode)) {
         await this.pull().catch(() => undefined);
       }
     }

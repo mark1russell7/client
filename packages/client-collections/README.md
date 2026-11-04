@@ -360,7 +360,7 @@ const user = await storage.get("user-1");
 These two storages need a `Client`, so they are in [`@procedures/store`](../client-store/README.md), not in this package.
 
 - `ApiStorage` sends each operation to the collection procedures of a server: `collections.<collection>.<operation>`. The server registers them with `createCollectionProcedures(collection)`.
-- `HybridStorage` keeps a local copy of a remote storage. It has four modes: `local-only`, `write-through`, `write-back` and `remote-only`. `setMode()` changes the mode while the storage operates.
+- `HybridStorage` keeps a local copy of a remote storage. It has five modes: `local-only`, `write-through`, `write-back`, `remote-only` and `read-only`. `setMode()` changes the mode while the storage operates.
 
 ```typescript
 import { ApiStorage, HybridStorage } from "@procedures/store";

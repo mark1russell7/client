@@ -139,7 +139,7 @@ export interface SyncStatus {
   syncing: boolean;
 
   /** The mode of a hybrid storage (roadmap R28), or undefined for a storage without modes */
-  mode?: "local-only" | "write-through" | "write-back" | "remote-only" | undefined;
+  mode?: "local-only" | "write-through" | "write-back" | "remote-only" | "read-only" | undefined;
 
   /**
    * The newest failure of the sync that a later success of the same work did not clear (roadmap
