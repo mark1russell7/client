@@ -61,11 +61,6 @@
       "typed-scripts": {
         "ignore": [
           ".dependency-cruiser.cjs",
-          "packages/client-vite/fixtures/app/main.js",
-          "packages/client-vitest/fixtures/project/checks/fail.js",
-          "packages/client-vitest/fixtures/project/checks/sum.js",
-          "packages/client-vitest/fixtures/project/math.js",
-          "packages/client-vitest/fixtures/project/vitest.config.js",
           "packages/client/stryker.config.mjs",
           "packages/impl-mcp-dev/bin/mcp-server.js",
           "scripts/check-packages.mjs",
