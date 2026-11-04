@@ -84,11 +84,14 @@ const HIDDEN_RETRYABLE: Record<"raw" | "econnrefused" | "mongo" | "secret", bool
 
 /** An error class of the application, for the link to the real error. */
 class StoreError extends Error {
+  readonly table: string;
+
   constructor(
     message: string,
-    readonly table: string,
+    table: string,
   ) {
     super(message);
+    this.table = table;
   }
 }
 

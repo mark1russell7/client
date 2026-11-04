@@ -152,8 +152,12 @@ export function procedureFlags(procedure: CommandLike | undefined): ProcedureFla
 
 /** The state of one pass over the tokens */
 class TokenReader {
+  readonly tokens: readonly string[];
+
   index = 0;
-  constructor(readonly tokens: readonly string[]) {}
+  constructor(tokens: readonly string[]) {
+    this.tokens = tokens;
+  }
 
   get current(): string | undefined {
     return this.tokens[this.index];

@@ -15,28 +15,31 @@ import { httpStatusToErrorCode } from "../../../client/errors/http-errors.js";
  *
  * Categorizes errors into semantic codes instead of magic strings.
  */
-export enum HTTPErrorCode {
+export const HTTPErrorCode = {
   // Network errors
-  NETWORK_ERROR = "NETWORK_ERROR",
-  CONNECTION_REFUSED = "CONNECTION_REFUSED",
-  TIMEOUT = "TIMEOUT",
-  ABORTED = "ABORTED",
+  NETWORK_ERROR: "NETWORK_ERROR",
+  CONNECTION_REFUSED: "CONNECTION_REFUSED",
+  TIMEOUT: "TIMEOUT",
+  ABORTED: "ABORTED",
 
   // HTTP errors (mapped from status codes)
-  HTTP_ERROR = "HTTP_ERROR",
+  HTTP_ERROR: "HTTP_ERROR",
 
   // Parse/serialization errors
-  INVALID_RESPONSE = "INVALID_RESPONSE",
-  PARSE_ERROR = "PARSE_ERROR",
-  SERIALIZE_ERROR = "SERIALIZE_ERROR",
+  INVALID_RESPONSE: "INVALID_RESPONSE",
+  PARSE_ERROR: "PARSE_ERROR",
+  SERIALIZE_ERROR: "SERIALIZE_ERROR",
 
   // Configuration errors
-  INVALID_URL = "INVALID_URL",
-  INVALID_METHOD = "INVALID_METHOD",
+  INVALID_URL: "INVALID_URL",
+  INVALID_METHOD: "INVALID_METHOD",
 
   // Unknown
-  UNKNOWN = "UNKNOWN",
-}
+  UNKNOWN: "UNKNOWN",
+} as const;
+
+/** This type is the union of the values of `HTTPErrorCode`. */
+export type HTTPErrorCode = (typeof HTTPErrorCode)[keyof typeof HTTPErrorCode];
 
 export const HTTPErrorMessage : Record<HTTPErrorCode, string> = {
   [HTTPErrorCode.PARSE_ERROR] : "Failed to parse response",

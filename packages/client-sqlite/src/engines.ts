@@ -102,9 +102,13 @@ export async function isNodeSqliteAvailable(): Promise<boolean> {
 
 /** A database of `node:sqlite`. It keeps the prepared statements of the storage. */
 class NodeDatabase implements EngineDatabase {
+  private readonly handle: NodeHandle;
+
   private readonly statements = new Map<string, NodeStatement>();
 
-  constructor(private readonly handle: NodeHandle) {}
+  constructor(handle: NodeHandle) {
+    this.handle = handle;
+  }
 
   all<R>(sql: string, params: SqlValue[] = []): R[] {
     return this.statement(sql).all(...params) as R[];
@@ -173,7 +177,11 @@ function openNodeFile(Database: NodeDatabaseClass, path: string, busyTimeoutMs: 
 
 /** A database of sql.js. */
 class SqlJsDatabase implements EngineDatabase {
-  constructor(private readonly raw: Database) {}
+  private readonly raw: Database;
+
+  constructor(raw: Database) {
+    this.raw = raw;
+  }
 
   all<R>(sql: string, params: SqlValue[] = []): R[] {
     const statement = this.raw.prepare(sql);
@@ -249,15 +257,22 @@ export interface OpenDatabase {
  * an item: until then, the database is in memory.
  */
 class NodeOpenDatabase implements OpenDatabase {
+  private readonly Database: NodeDatabaseClass;
+  private readonly path: string;
+  private readonly busyTimeoutMs: number;
+
   readonly engine = "node";
   db: EngineDatabase;
   waiting: boolean;
 
   constructor(
-    private readonly Database: NodeDatabaseClass,
-    private readonly path: string,
-    private readonly busyTimeoutMs: number,
+    Database: NodeDatabaseClass,
+    path: string,
+    busyTimeoutMs: number,
   ) {
+    this.Database = Database;
+    this.path = path;
+    this.busyTimeoutMs = busyTimeoutMs;
     if (path === MEMORY_PATH) {
       this.db = new NodeDatabase(new Database(MEMORY_PATH));
       this.waiting = false;
@@ -300,13 +315,19 @@ class NodeOpenDatabase implements OpenDatabase {
 
 /** A database of sql.js: the database is in memory, and `saveFile()` writes the whole file. */
 class SqlJsOpenDatabase implements OpenDatabase {
+  readonly db: SqlJsDatabase;
+  private readonly save: () => Promise<void>;
+
   readonly engine = "sqljs";
   readonly waiting = false;
 
   constructor(
-    readonly db: SqlJsDatabase,
-    private readonly save: () => Promise<void>,
-  ) {}
+    db: SqlJsDatabase,
+    save: () => Promise<void>,
+  ) {
+    this.db = db;
+    this.save = save;
+  }
 
   makeFile(): void {}
 

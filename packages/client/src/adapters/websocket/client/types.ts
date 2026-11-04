@@ -190,12 +190,25 @@ export type WebSocketClass = new (url: string) => unknown;
 /**
  * WebSocket connection state.
  */
-export enum WebSocketState {
-  CONNECTING = "CONNECTING",
-  CONNECTED = "CONNECTED",
-  DISCONNECTING = "DISCONNECTING",
-  DISCONNECTED = "DISCONNECTED",
-  RECONNECTING = "RECONNECTING",
+export const WebSocketState = {
+  CONNECTING: "CONNECTING",
+  CONNECTED: "CONNECTED",
+  DISCONNECTING: "DISCONNECTING",
+  DISCONNECTED: "DISCONNECTED",
+  RECONNECTING: "RECONNECTING",
+} as const;
+
+/** This type is the union of the values of `WebSocketState`. */
+export type WebSocketState = (typeof WebSocketState)[keyof typeof WebSocketState];
+
+/** These types keep each member of `WebSocketState` usable as a type. */
+// eslint-disable-next-line @typescript-eslint/no-namespace
+export declare namespace WebSocketState {
+  export type CONNECTING = typeof WebSocketState.CONNECTING;
+  export type CONNECTED = typeof WebSocketState.CONNECTED;
+  export type DISCONNECTING = typeof WebSocketState.DISCONNECTING;
+  export type DISCONNECTED = typeof WebSocketState.DISCONNECTED;
+  export type RECONNECTING = typeof WebSocketState.RECONNECTING;
 }
 
 /**

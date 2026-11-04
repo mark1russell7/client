@@ -116,8 +116,14 @@ describe("the HTTP statuses of the codes (R30)", () => {
     expect(errorCodeToHTTPStatus(ErrorCode.NETWORK_ERROR)).toBe(HTTPStatus.INTERNAL_SERVER_ERROR);
   });
 
+  it("keeps each member of a public set of values usable as a type", () => {
+    const severity: ErrorSeverity.WARNING = ErrorSeverity.WARNING;
+    const category: ErrorCategory.TIMEOUT = ErrorCategory.TIMEOUT;
+    expect([severity, category]).toEqual(["warning", "timeout"]);
+  });
+
   it("each status of the mapping goes to a code and back, or to the status of the protocol for a code of the protocol", () => {
-    const statuses = Object.values(HTTPStatus).filter((value): value is number => typeof value === "number" && value >= 400);
+    const statuses = Object.values(HTTPStatus).filter((value) => value >= 400);
     for (const status of statuses) {
       const code = httpStatusToErrorCode(status);
       if (code === ErrorCode.UNKNOWN) continue;

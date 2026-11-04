@@ -4,8 +4,8 @@ Protocol-agnostic error handling with rich metadata and bidirectional HTTP statu
 
 ## Zero Magic Strings & Numbers
 
-- **ErrorCode enum** - All error codes use enum values (no string literals)
-- **HTTPStatus enum** - All HTTP status codes use enum values (no magic numbers)
+- **ErrorCode** - All error codes use the values of this object (no string literals)
+- **HTTPStatus** - All HTTP status codes use the values of this object (no magic numbers)
 - **Single source of truth** - `HTTP_STATUS_ERROR_MAP` defines bidirectional mapping
 
 ## Architecture
@@ -67,7 +67,7 @@ import { errorCodeToHTTPStatus, ErrorCode, HTTPStatus } from "@common/client/err
 // Map error code to HTTP status
 function handleError(code: ErrorCode): number {
   const status = errorCodeToHTTPStatus(code);
-  return status; // Returns HTTPStatus enum value (404, 500, etc.)
+  return status; // Returns a value of HTTPStatus (404, 500, etc.)
 }
 
 // Example
@@ -100,8 +100,8 @@ try {
 common/src/client/errors/
 ├── README.md              ← You are here
 ├── index.ts               ← Public API exports
-├── codes.ts               ← ErrorCode enum (70+ codes)
-├── http-status.ts         ← HTTPStatus enum (all HTTP status codes)
+├── codes.ts               ← ErrorCode (70+ codes)
+├── http-status.ts         ← HTTPStatus (all HTTP status codes)
 ├── types.ts               ← TypeScript interfaces
 ├── registry.ts            ← ERROR_REGISTRY with full metadata
 ├── http-errors.ts         ← HTTP-specific errors + bidirectional mapping
@@ -135,7 +135,7 @@ Works across all transports:
 
 Full TypeScript support:
 ```typescript
-// All enums are type-safe
+// All values are type-safe
 const code: ErrorCode = ErrorCode.TIMEOUT;
 const status: HTTPStatus = HTTPStatus.NOT_FOUND;
 
@@ -201,7 +201,7 @@ console.error(formatError(error, true)); // include stack trace
 
 ## Best Practices
 
-1. **Always use enum values** - Never use string literals or magic numbers
+1. **Always use the named values** - Never use string literals or magic numbers
 2. **Use the registry** - Don't create error metadata manually
 3. **Provide context** - Include requestId, transport, method when creating errors
 4. **Check retryable flag** - Respect the metadata when implementing retry logic
@@ -209,7 +209,7 @@ console.error(formatError(error, true)); // include stack trace
 
 ## Adding New Errors
 
-1. Add to `ErrorCode` enum in `codes.ts`
+1. Add to `ErrorCode` in `codes.ts`
 2. Add metadata to `ERROR_REGISTRY` in `registry.ts` or `HTTP_ERROR_REGISTRY` in `http-errors.ts`
 3. If HTTP-related, add to `HTTP_STATUS_ERROR_MAP` in `http-errors.ts`
 
@@ -217,11 +217,11 @@ console.error(formatError(error, true)); // include stack trace
 
 Example:
 ```typescript
-// 1. Add to ErrorCode enum
-export enum ErrorCode {
+// 1. Add to ErrorCode
+export const ErrorCode = {
   // ... existing codes
-  MY_NEW_ERROR = "MY_NEW_ERROR",
-}
+  MY_NEW_ERROR: "MY_NEW_ERROR",
+} as const;
 
 // 2. Add to registry
 export const ERROR_REGISTRY: ErrorRegistry = {

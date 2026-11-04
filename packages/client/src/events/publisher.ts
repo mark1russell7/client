@@ -226,6 +226,16 @@ function resetHint(): unknown {
  * gives the events of its queue, and then it ends with `TOPIC_CLEARED`.
  */
 class TopicSubscription implements AsyncIterableIterator<EventItem> {
+  private readonly buffer: number;
+  private readonly signal: AbortSignal | undefined;
+  private readonly onClose: (subscription: TopicSubscription) => void;
+  /** The output filter of the host for this subscriber: each row of a value passes it */
+  private readonly admit: ((item: unknown) => Promise<boolean>) | undefined;
+  /** The invocation of the subscription: the rule of the rows of a value gets it (roadmap CLI-41) */
+  private readonly invocation?: Invocation | undefined;
+  /** The row filter of each topic of a collection, by the topic of the subscriber (roadmap CLI-78) */
+  private readonly filters?: ReadonlyMap<string, RowHintFilter> | undefined;
+
   private confirmation: EventItem | undefined;
   private readonly queue: QueuedEvent[] = [];
   private seq = 0;
@@ -245,16 +255,19 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
     bus: EventBus,
     /** The topics of the subscriber, each with the topic of the bus that it listens to */
     routes: ReadonlyArray<Route>,
-    private readonly buffer: number,
-    private readonly signal: AbortSignal | undefined,
-    private readonly onClose: (subscription: TopicSubscription) => void,
-    /** The output filter of the host for this subscriber: each row of a value passes it */
-    private readonly admit: ((item: unknown) => Promise<boolean>) | undefined,
-    /** The invocation of the subscription: the rule of the rows of a value gets it (roadmap CLI-41) */
-    private readonly invocation?: Invocation | undefined,
-    /** The row filter of each topic of a collection, by the topic of the subscriber (roadmap CLI-78) */
-    private readonly filters?: ReadonlyMap<string, RowHintFilter> | undefined,
+    buffer: number,
+    signal: AbortSignal | undefined,
+    onClose: (subscription: TopicSubscription) => void,
+    admit: ((item: unknown) => Promise<boolean>) | undefined,
+    invocation?: Invocation | undefined,
+    filters?: ReadonlyMap<string, RowHintFilter> | undefined,
   ) {
+    this.buffer = buffer;
+    this.signal = signal;
+    this.onClose = onClose;
+    this.admit = admit;
+    this.invocation = invocation;
+    this.filters = filters;
     this.confirmation = { type: "subscribed", topics: routes.map(({ topic }) => topic) };
     // Before, clear() removed the listeners, and the subscriber saw no end (EVENTS.md)
     this.unsubscribes = routes.map(({ topic, busTopic }) =>

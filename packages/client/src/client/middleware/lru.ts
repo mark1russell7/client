@@ -8,6 +8,9 @@
  * `hashMap` of that package).
  */
 export class LruMap<K, V> {
+  private readonly capacity: number;
+  private readonly onEvict?: ((key: K, value: V) => void) | undefined;
+
   private readonly entries = new Map<K, V>();
 
   /**
@@ -15,9 +18,11 @@ export class LruMap<K, V> {
    * @param onEvict - Called for each key that a write removes to keep the capacity.
    */
   constructor(
-    private readonly capacity: number,
-    private readonly onEvict?: (key: K, value: V) => void
+    capacity: number,
+    onEvict?: (key: K, value: V) => void
   ) {
+    this.capacity = capacity;
+    this.onEvict = onEvict;
     if (!Number.isInteger(capacity) || capacity < 1) {
       throw new RangeError(`The capacity of an LRU map must be a positive whole number, not ${capacity}`);
     }

@@ -12,7 +12,10 @@ const destroyed: unknown[] = [];
 
 vi.mock("@aws-sdk/client-s3", () => ({
   S3Client: class {
-    constructor(readonly config: Record<string, unknown>) {
+    readonly config: Record<string, unknown>;
+
+    constructor(config: Record<string, unknown>) {
+      this.config = config;
       made.push(config);
     }
     destroy(): void {

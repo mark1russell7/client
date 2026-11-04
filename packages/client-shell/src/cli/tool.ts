@@ -36,13 +36,18 @@ export interface CliShellInput {
 
 /** A failed command of a CLI tool: its exit code and its standard error. */
 export class CliToolError extends Error {
+  readonly exitCode: number;
+  readonly stderr: string;
+
   override readonly name: string = "CliToolError";
   constructor(
     message: string,
-    readonly exitCode: number,
-    readonly stderr: string,
+    exitCode: number,
+    stderr: string,
   ) {
     super(message);
+    this.exitCode = exitCode;
+    this.stderr = stderr;
   }
 }
 

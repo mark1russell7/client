@@ -10,14 +10,20 @@
 export const DEFAULT_MAX_OUTPUT_BYTES: number = 64 * 1024 * 1024;
 
 export class OutputCollector {
+  private readonly limit: number;
+  private readonly keep: "head" | "tail";
+
   private chunks: Buffer[] = [];
   private bytes = 0;
   truncated = false;
 
   constructor(
-    private readonly limit: number = DEFAULT_MAX_OUTPUT_BYTES,
-    private readonly keep: "head" | "tail" = "head",
-  ) {}
+    limit: number = DEFAULT_MAX_OUTPUT_BYTES,
+    keep: "head" | "tail" = "head",
+  ) {
+    this.limit = limit;
+    this.keep = keep;
+  }
 
   add(chunk: Buffer): void {
     if (this.keep === "head") {
