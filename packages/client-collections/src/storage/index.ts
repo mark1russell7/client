@@ -74,8 +74,8 @@ export {
 export type { CurrentItem, VersionConflict, VersionOf } from "@procedures/client/query";
 
 // The listeners of the events of a storage
-export { StorageListeners, reportListenerError } from "./listeners.js";
-export type { ListenerErrorHandler } from "./listeners.js";
+export { StorageListeners, reportListenerError } from "@mark1russell7/collections";
+export type { ListenerErrorHandler } from "@mark1russell7/collections";
 
 export { InMemoryStorage } from "./memory.js";
 export type { InMemoryStorageOptions } from "./memory.js";

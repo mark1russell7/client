@@ -71,13 +71,13 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@mark1russell7/collections": "^0.1.0",
     "@procedures/client": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^7.0.2",
     "@types/node": "^22.0.0",
     "@mark1russell7/cue": "^1.1.0",
-    "vitest": "^5.0.3",
-    "fast-check": "^4.10.2"
+    "vitest": "^5.0.3"
   }
 }

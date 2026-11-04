@@ -12,6 +12,8 @@ npm install @procedures/dag
 
 > Generic DAG (Directed Acyclic Graph) utilities for dependency ordering and parallel execution. Powers the ecosystem's build system.
 
+The pure DAG code is in the general package [`@mark1russell7/collections`](https://www.npmjs.com/package/@mark1russell7/collections), which has no runtime dependencies. This package re-exports it.
+
 ## Table of Contents
 
 - [Overview](#overview)
