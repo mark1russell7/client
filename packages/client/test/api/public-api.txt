@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 645 names
+## . (dist/index.d.ts): 646 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -112,6 +112,7 @@ type ErrorRegistry: dist/client/errors/types.d.ts#ErrorRegistry
 ErrorSeverity: dist/client/errors/types.d.ts#ErrorSeverity
 EventBus: dist/events/bus.d.ts#DefaultEventBus
 type EventBusOptions: dist/events/types.d.ts#EventBusOptions
+type EventFanOutOptions: dist/events/types.d.ts#EventFanOutOptions
 type EventHandler: dist/events/types.d.ts#EventHandler
 type EventItem: dist/events/remote.d.ts#EventItem
 type EventListenOptions: dist/events/types.d.ts#EventListenOptions
@@ -652,7 +653,7 @@ withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 writeLog: dist/logger.d.ts#writeLog
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 633 names
+## ./browser (dist/browser.d.ts): 634 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -759,6 +760,7 @@ type ErrorRegistry: dist/client/errors/types.d.ts#ErrorRegistry
 ErrorSeverity: dist/client/errors/types.d.ts#ErrorSeverity
 EventBus: dist/events/bus.d.ts#DefaultEventBus
 type EventBusOptions: dist/events/types.d.ts#EventBusOptions
+type EventFanOutOptions: dist/events/types.d.ts#EventFanOutOptions
 type EventHandler: dist/events/types.d.ts#EventHandler
 type EventItem: dist/events/remote.d.ts#EventItem
 type EventListenOptions: dist/events/types.d.ts#EventListenOptions
@@ -1463,7 +1465,7 @@ seconds: dist/duration.d.ts#seconds
 toMs: dist/duration.d.ts#toMs
 writeRemainingTime: dist/client/deadline.d.ts#writeRemainingTime
 
-## ./events (dist/events/index.d.ts): 51 names
+## ./events (dist/events/index.d.ts): 52 names
 
 type ChannelMap: dist/events/types.d.ts#ChannelMap
 type ChannelTimingOptions: dist/events/bus.d.ts#ChannelTimingOptions
@@ -1473,6 +1475,7 @@ EVENTS_SUBSCRIBE_PATH: dist/events/remote.d.ts#EVENTS_SUBSCRIBE_PATH
 type Event: dist/events/types.d.ts#Event
 type EventBus: dist/events/types.d.ts#EventBus
 type EventBusOptions: dist/events/types.d.ts#EventBusOptions
+type EventFanOutOptions: dist/events/types.d.ts#EventFanOutOptions
 type EventHandler: dist/events/types.d.ts#EventHandler
 type EventItem: dist/events/remote.d.ts#EventItem
 type EventListenOptions: dist/events/types.d.ts#EventListenOptions
@@ -3403,6 +3406,7 @@ export interface ChannelTimingOptions {
 export declare class DefaultEventBus implements EventBus {
     constructor(options?: EventBusOptions);
     emit<T>(channel: string, data: T): void;
+    drained(): Promise<void>;
     on<T>(channel: string, handler: EventHandler<T>, options?: EventListenOptions): Unsubscribe;
     once<T>(channel: string, options?: EventWaitOptions): Promise<T>;
     stream<T>(channel: string, options?: EventWaitOptions): AsyncIterable<T>;
@@ -3643,6 +3647,14 @@ export interface EventBusOptions {
     bufferSize?: number;
     onError?: (error: Error, channel: string) => void;
     debug?: boolean;
+    fanOut?: EventFanOutOptions;
+}
+
+### dist/events/types.d.ts#EventFanOutOptions
+export interface EventFanOutOptions {
+    sliceSize: number;
+    maxPending?: number;
+    schedule?: (slice: () => void) => void;
 }
 
 ### dist/events/types.d.ts#EventHandler

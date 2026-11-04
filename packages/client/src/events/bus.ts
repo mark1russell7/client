@@ -11,6 +11,7 @@ import type {
   EventHandler,
   Unsubscribe,
   EventBusOptions,
+  EventFanOutOptions,
   EventListenOptions,
   EventWaitOptions,
 } from "./types.js";
@@ -34,6 +35,31 @@ function clearedError(channel: string): Error {
   return error;
 }
 
+/** The default of `fanOut.maxPending`. No bench chose it: a run of a slow channel can change it. */
+const DEFAULT_MAX_PENDING = 1024;
+
+/** The default of `fanOut.schedule`: a later task of the event loop. */
+function nextTask(slice: () => void): void {
+  if (typeof setImmediate === "function") setImmediate(slice);
+  else setTimeout(slice, 0);
+}
+
+/** The handlers of a channel, each with the number of its subscription, in the order of these numbers. */
+type ChannelHandlers = Map<EventHandler<unknown>, number>;
+
+/** One event that waits for its slices. */
+interface PendingEvent {
+  readonly channel: string;
+  readonly data: unknown;
+  /** The handlers of the channel at `emit()`. A new map of the channel gets no old event. */
+  readonly handlers: ChannelHandlers;
+  /** The live cursor: a removed handler gets no call, with no copy of the handlers per event. */
+  readonly cursor: Iterator<[EventHandler<unknown>, number]>;
+  /** The last subscription at `emit()`. A later handler does not get this event. */
+  readonly lastSubscription: number;
+  done: boolean;
+}
+
 // =============================================================================
 // Event Bus Implementation
 // =============================================================================
@@ -43,16 +69,34 @@ function clearedError(channel: string): Error {
  * Supports pub/sub messaging with async iteration.
  */
 export class DefaultEventBus implements EventBus {
-  private readonly subscribers = new Map<string, Set<EventHandler<unknown>>>();
+  private readonly subscribers = new Map<string, ChannelHandlers>();
+  /** The number of the last subscription of this bus. */
+  private lastSubscription = 0;
+  /** The events that wait for their slices, oldest first, from the index `pendingHead`. */
+  private pending: PendingEvent[] = [];
+  private pendingHead = 0;
+  /** For each channel, the number of its events in `pending`. */
+  private readonly pendingOn = new Map<string, number>();
+  private sliceScheduled = false;
+  private drainWaiters: Array<() => void> = [];
   private readonly buffer = new Map<string, unknown[]>();
   /**
    * For each channel, the functions that `clear()` runs: the `onClear` of each handler of `on()`
    * that has one. Each open stream has one too, so `clear()` ends it.
    */
   private readonly clearHandlers = new Map<string, Set<() => void>>();
-  private readonly options: Required<EventBusOptions>;
+  private readonly options: Required<Omit<EventBusOptions, "fanOut">>;
+  private readonly fanOut: Required<EventFanOutOptions> | undefined;
 
   constructor(options: EventBusOptions = {}) {
+    const { fanOut } = options;
+    if (fanOut && (!Number.isInteger(fanOut.sliceSize) || fanOut.sliceSize < 1)) {
+      throw new RangeError(`The option fanOut.sliceSize must be a whole number from 1 up, not ${fanOut.sliceSize}`);
+    }
+    if (fanOut?.maxPending !== undefined && (!Number.isInteger(fanOut.maxPending) || fanOut.maxPending < 1)) {
+      throw new RangeError(`The option fanOut.maxPending must be a whole number from 1 up, not ${fanOut.maxPending}`);
+    }
+    this.fanOut = fanOut && { maxPending: DEFAULT_MAX_PENDING, schedule: nextTask, ...fanOut };
     this.options = {
       bufferSize: options.bufferSize ?? 0,
       onError: options.onError ?? ((error, channel) => {
@@ -64,6 +108,12 @@ export class DefaultEventBus implements EventBus {
 
   /**
    * Emit an event on a channel.
+   *
+   * Without the option `fanOut`, each handler runs before this method returns. With it, a channel
+   * with more than `fanOut.sliceSize` handlers delivers later, in slices (roadmap CLI-90). One
+   * handler gets the events of a channel in the order of `emit()`. An unsubscribe stops the calls
+   * that wait for that handler. A handler that comes after `emit()` does not get the event. The
+   * events of two different channels can reach a handler in another order.
    */
   emit<T>(channel: string, data: T): void {
     if (this.options.debug) {
@@ -87,17 +137,102 @@ export class DefaultEventBus implements EventBus {
     const channelSubs = this.subscribers.get(channel);
     if (!channelSubs) return;
 
-    for (const handler of channelSubs) {
-      try {
-        const result = handler(data);
-        // Handle async handlers
-        if (result instanceof Promise) {
-          result.catch((error) => this.options.onError(error, channel));
-        }
-      } catch (error) {
-        this.options.onError(error instanceof Error ? error : new Error(String(error)), channel);
-      }
+    if (this.fanOut && (channelSubs.size > this.fanOut.sliceSize || this.pendingOn.has(channel))) {
+      this.enqueue(channel, data, channelSubs, this.fanOut);
+      return;
     }
+
+    for (const handler of channelSubs.keys()) this.call(handler, data, channel);
+  }
+
+  /** This function calls one handler. An error goes to `onError`, and it stops no other handler. */
+  private call(handler: EventHandler<unknown>, data: unknown, channel: string): void {
+    try {
+      const result = handler(data);
+      // Handle async handlers
+      if (result instanceof Promise) {
+        result.catch((error) => this.options.onError(error, channel));
+      }
+    } catch (error) {
+      this.options.onError(error instanceof Error ? error : new Error(String(error)), channel);
+    }
+  }
+
+  /** This function puts an event in the queue of the slices. A full queue finishes its oldest events. */
+  private enqueue(channel: string, data: unknown, handlers: ChannelHandlers, fanOut: Required<EventFanOutOptions>): void {
+    this.pending.push({ channel, data, handlers, cursor: handlers.entries(), lastSubscription: this.lastSubscription, done: false });
+    this.pendingOn.set(channel, (this.pendingOn.get(channel) ?? 0) + 1);
+    while (this.pending.length - this.pendingHead > fanOut.maxPending) {
+      const oldest = this.pending[this.pendingHead]!;
+      this.deliverPart(oldest, Number.POSITIVE_INFINITY);
+      this.retire(oldest);
+    }
+    this.scheduleSlice(fanOut);
+  }
+
+  private scheduleSlice(fanOut: Required<EventFanOutOptions>): void {
+    if (this.sliceScheduled || this.pendingHead === this.pending.length) return;
+    this.sliceScheduled = true;
+    fanOut.schedule(() => {
+      this.sliceScheduled = false;
+      this.deliver(fanOut.sliceSize);
+      this.scheduleSlice(fanOut);
+    });
+  }
+
+  /** This function calls at most `limit` handlers of the oldest events. */
+  private deliver(limit: number): void {
+    let left = limit;
+    while (left > 0 && this.pendingHead < this.pending.length) {
+      const event = this.pending[this.pendingHead]!;
+      left -= this.deliverPart(event, left);
+      if (event.done) this.retire(event);
+    }
+    if (this.pendingHead === this.pending.length) this.drainWaiters.splice(0).forEach((resolve) => resolve());
+  }
+
+  /** This function calls at most `limit` handlers of one event, and returns the count of calls. */
+  private deliverPart(event: PendingEvent, limit: number): number {
+    let calls = 0;
+    while (calls < limit && !event.done) {
+      // clear(), or the last unsubscribe: the map of this event is not the map of the channel now
+      const step = this.subscribers.get(event.channel) === event.handlers ? event.cursor.next() : undefined;
+      if (!step || step.done || step.value[1] > event.lastSubscription) {
+        event.done = true;
+        break;
+      }
+      this.call(step.value[0], event.data, event.channel);
+      calls++;
+    }
+    return calls;
+  }
+
+  /**
+   * This function takes a finished event from the queue. A handler in a slice can emit, and that
+   * emit can finish the event first, so this function examines the head.
+   */
+  private retire(event: PendingEvent): void {
+    if (this.pending[this.pendingHead] !== event) return;
+    this.pendingHead++;
+    const left = (this.pendingOn.get(event.channel) ?? 1) - 1;
+    if (left === 0) this.pendingOn.delete(event.channel);
+    else this.pendingOn.set(event.channel, left);
+    if (this.pendingHead === this.pending.length) {
+      this.pending = [];
+      this.pendingHead = 0;
+    } else if (this.pendingHead > 1024 && this.pendingHead * 2 > this.pending.length) {
+      this.pending = this.pending.slice(this.pendingHead);
+      this.pendingHead = 0;
+    }
+  }
+
+  /**
+   * This method resolves when no event waits for a slice. A host calls it before it stops. Without
+   * the option `fanOut`, it resolves at once.
+   */
+  drained(): Promise<void> {
+    if (this.pendingHead === this.pending.length) return Promise.resolve();
+    return new Promise((resolve) => this.drainWaiters.push(resolve));
   }
 
   /**
@@ -111,11 +246,14 @@ export class DefaultEventBus implements EventBus {
 
     let channelSubs = this.subscribers.get(channel);
     if (!channelSubs) {
-      channelSubs = new Set();
+      channelSubs = new Map();
       this.subscribers.set(channel, channelSubs);
     }
 
-    channelSubs.add(handler as EventHandler<unknown>);
+    // A handler that is already on the channel keeps its place and its number
+    if (!channelSubs.has(handler as EventHandler<unknown>)) {
+      channelSubs.set(handler as EventHandler<unknown>, ++this.lastSubscription);
+    }
 
     // The unsubscribe function works once, and removes only the set it added to. (Before, a
     // repeated call of an old unsubscribe removed the set of a newer subscriber: deep dive CORE-15.)
@@ -144,16 +282,7 @@ export class DefaultEventBus implements EventBus {
     // Replay buffered events if any
     const buffered = this.buffer.get(channel);
     if (buffered && buffered.length > 0) {
-      for (const data of buffered) {
-        try {
-          const result = handler(data as T);
-          if (result instanceof Promise) {
-            result.catch((error) => this.options.onError(error, channel));
-          }
-        } catch (error) {
-          this.options.onError(error instanceof Error ? error : new Error(String(error)), channel);
-        }
-      }
+      for (const data of buffered) this.call(handler as EventHandler<unknown>, data, channel);
     }
 
     return () => {
