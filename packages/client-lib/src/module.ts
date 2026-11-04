@@ -165,7 +165,7 @@ const libGraphProcedure = createProcedure()
   .handler(async (input: LibGraphInput, ctx: ProcedureContext): Promise<LibGraphOutput> => libGraph(input, ctx))
   .build();
 
-// lib.importCycles (Graph's split, wave 2, W7)
+// lib.importCycles
 const libImportCyclesProcedure = createProcedure()
   .path(["lib", "importCycles"])
   .input(LibImportCyclesInputSchema)

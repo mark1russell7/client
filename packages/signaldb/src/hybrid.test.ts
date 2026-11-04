@@ -77,7 +77,7 @@ describe("HybridStorage over SignalDbStorage: the collection of the app is the l
       origin: "tab-1",
     });
     await hybrid.getAll();
-    // The app writes to its collection directly, as Graph does
+    // The app writes to its collection directly
     collection.insert({ id: "a", title: "Write" });
     collection.insert({ id: "b", title: "Test" });
     collection.updateOne({ id: "a" }, { $set: { done: true } });

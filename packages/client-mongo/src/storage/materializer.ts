@@ -1,5 +1,5 @@
 /**
- * Materialized views driven by change streams (Graph's split plan, part P4). A view is a document
+ * Materialized views driven by change streams. A view is a document
  * of a views collection: an aggregation pipeline over source collections whose result goes into a
  * target collection, for one partition (for example one tenant). The materializer runs each view
  * when its sources change, and keeps the target equal to the result of the pipeline.

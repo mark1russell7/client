@@ -20,7 +20,7 @@
  * skips the cases of that feature. Each skip thus is data in the test file of the face.
  *
  * The suite is the entry point `@procedures/client/testing`, so a face in another package (and
- * a server of an app, for example Graph) runs the same cases with the client that it uses. The
+ * a server of an app) runs the same cases with the client that it uses. The
  * suite imports no test runner: the caller gives `describe`, `it`, `afterEach` and `expect`
  * (`ContractRunner`). Those of Vitest fit.
  */

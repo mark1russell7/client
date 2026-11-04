@@ -1,7 +1,7 @@
 /**
  * A caller of the procedures of some modules (`callerOf`). An app that calls the procedures of a
  * package in its own process repeats three steps: a registry of the module, `invokePath` and
- * `outputValue`. A caller does the three steps in one call. jarvis had four copies of them.
+ * `outputValue`. A caller does the three steps in one call.
  */
 
 import type { ProcedurePath } from "./types.js";

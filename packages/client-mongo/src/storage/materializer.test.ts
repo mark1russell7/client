@@ -1,5 +1,5 @@
 /**
- * The materialized views (Graph's split plan, part P4) on a real MongoDB. Change streams need a
+ * The materialized views on a real MongoDB. Change streams need a
  * replica set: set `MONGO_TEST_URL` to one (CI has a replica-set job). On a single server, the
  * tests skip, except in the replica-set job of CI. The tests of the logger use a fake database, so
  * they always run.

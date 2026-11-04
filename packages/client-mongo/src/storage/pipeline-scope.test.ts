@@ -1,5 +1,5 @@
 /**
- * The guard of an aggregation pipeline over shared collections (Graph's split plan, part P3). Each
+ * The guard of an aggregation pipeline over shared collections. Each
  * case is a property of the isolation (reads of another partition, `$out`, the JavaScript of the
  * server) or of the copies (the guard changes no part of the pipeline of the caller).
  */

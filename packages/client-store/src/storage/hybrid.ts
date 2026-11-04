@@ -40,7 +40,7 @@
  *   writes over a newer local write.
  * - The syncs of one storage run one at a time, in their order: the deltas and the hints of the
  *   feed, the pulls, the pushes, the reads after an own write, and the mode switches. Thus a
- *   remote delta and a full sync never run at the same time (Graph R18).
+ *   remote delta and a full sync never run at the same time.
  * - `aroundRemoteApply` runs each apply of the remote changes inside a hook, for example inside a
  *   span of a trace (graph W8).
  */

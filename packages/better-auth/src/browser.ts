@@ -1,5 +1,5 @@
 /**
- * The browser half of the sign-in (Graph's split, wave 2, W8): the calls of a page to the auth routes of a
+ * The browser half of the sign-in: the calls of a page to the auth routes of a
  * procedures server with Better Auth. This entry has no framework and no global state: each function gives data,
  * and the app decides what the page does (a redirect, a reload).
  *
