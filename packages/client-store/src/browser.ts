@@ -24,6 +24,7 @@ export {
   HybridStorage,
   PendingWriteError,
   QueueFullError,
+  ReadOnlyError,
   MissingKeysError,
   QueueStoreError,
   ConflictError,
