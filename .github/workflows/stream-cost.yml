@@ -1,0 +1,147 @@
+name: Stream cost
+
+# The connections, the idle getMore commands and the time to ready of the materialized views at 1,
+# 100 and 1,000 partitions, before and after a change of materializer.ts (roadmap CLI-92). The input
+# `base` is the commit of the arm before, and the checked-out ref is the arm after. Each sample is a
+# fresh process against a real MongoDB. The report pools the jobs.
+#
+# The workflow only reports: only a dispatch starts it, and no ruleset needs its checks.
+
+on:
+  workflow_dispatch:
+    inputs:
+      prediction:
+        description: The id of the prediction that this run scores.
+        required: true
+        type: string
+      base:
+        description: The commit of the arm before.
+        required: true
+        type: string
+      runs:
+        description: The jobs, from 1 to 9. Five or more for a limit.
+        type: string
+        default: "5"
+      rounds:
+        description: The rounds of each job.
+        type: string
+        default: "3"
+      cap_seconds:
+        description: The longest start and the longest burst of one child.
+        type: string
+        default: "90"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      runs: ${{ steps.plan.outputs.runs }}
+    steps:
+      - name: Plan the jobs
+        id: plan
+        env:
+          RUNS: ${{ inputs.runs }}
+          ROUNDS: ${{ inputs.rounds }}
+          CAP: ${{ inputs.cap_seconds }}
+          BASE: ${{ inputs.base }}
+        run: |
+          [[ "$RUNS" =~ ^[1-9]$ ]] || { echo "runs must be a number from 1 to 9, not $RUNS"; exit 1; }
+          [[ "$ROUNDS" =~ ^[1-9][0-9]?$ ]] || { echo "rounds must be a number from 1 to 99, not $ROUNDS"; exit 1; }
+          [[ "$CAP" =~ ^[1-9][0-9]{0,2}$ ]] || { echo "cap_seconds must be a number from 1 to 999, not $CAP"; exit 1; }
+          [[ "$BASE" =~ ^[0-9a-f]{7,40}$ ]] || { echo "base must be a commit, not $BASE"; exit 1; }
+          echo "runs=[$(seq -s, 1 "$RUNS")]" >> "$GITHUB_OUTPUT"
+
+  bench:
+    needs: plan
+    name: stream cost (job ${{ matrix.job }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      # The runners are shared by all repositories of the account (the rule runner-budget)
+      max-parallel: 3
+      matrix:
+        job: ${{ fromJSON(needs.plan.outputs.runs) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter mark1russell7-monorepo --filter "@procedures/mongo..."
+      - run: pnpm --filter "@procedures/mongo^..." run build
+      - name: Write the arm before
+        env:
+          BASE: ${{ inputs.base }}
+        run: git show "$BASE:packages/client-mongo/src/storage/materializer.ts" > packages/client-mongo/src/storage/materializer.base.ts
+      - name: Start MongoDB 7 (a single-node replica set)
+        run: |
+          docker run -d --name mongo -p 27017:27017 mongo:7 --replSet rs0 --bind_ip_all
+          for i in $(seq 1 60); do
+            docker exec mongo mongosh --quiet --eval "db.adminCommand('ping').ok" >/dev/null 2>&1 && break
+            sleep 1
+          done
+          docker exec mongo mongosh --quiet --eval "rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] })"
+          for i in $(seq 1 60); do
+            [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ] && break
+            sleep 1
+          done
+          [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ]
+      - name: Run the job
+        working-directory: packages/client-mongo
+        env:
+          JOB: ${{ matrix.job }}
+          ROUNDS: ${{ inputs.rounds }}
+          CAP: ${{ inputs.cap_seconds }}
+          MONGO_TEST_URL: mongodb://localhost:27017/?directConnection=true
+        run: node --import tsx bench/stream-run.ts --job "$JOB" --rounds "$ROUNDS" --cap "$CAP" --out "bench-out/job-$JOB.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: stream-cost-job-${{ matrix.job }}
+          path: packages/client-mongo/bench-out/
+          if-no-files-found: error
+
+  report:
+    needs: bench
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter mark1russell7-monorepo --filter "@procedures/mongo..."
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: stream-cost-job-*
+          merge-multiple: true
+          path: packages/client-mongo/bench-out
+      - name: Pool the jobs
+        working-directory: packages/client-mongo
+        env:
+          RUN: ${{ github.run_id }}
+          PREDICTION: ${{ inputs.prediction }}
+        run: |
+          node --import tsx bench/stream-report.ts --jobs bench-out --out stream-report.json --run "$RUN"
+          { echo "Prediction: $PREDICTION"; echo '```json'; cat stream-report.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: stream-cost-report
+          path: packages/client-mongo/stream-report.json
+          if-no-files-found: error
