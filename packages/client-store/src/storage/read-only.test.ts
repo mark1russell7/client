@@ -22,8 +22,10 @@ function remoteOf(): { data: InMemoryStorage<Item>; storage: CollectionStorage<I
   let down = false;
   const storage = new Proxy(data, {
     get(target, key) {
+      // A close of the hybrid storage closes its remote: the data of the test stays open
+      if (key === "close") return () => Promise.resolve();
       const value: unknown = Reflect.get(target, key);
-      if (typeof value !== "function" || key === "close") return typeof value === "function" ? value.bind(target) : value;
+      if (typeof value !== "function") return value;
       return (...args: unknown[]) => {
         calls.push(String(key));
         if (down) return Promise.reject(Object.assign(new Error("the remote is down"), { retryable: true }));

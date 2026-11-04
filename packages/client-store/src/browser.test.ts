@@ -35,6 +35,7 @@ const EXPORTS = [
   "PendingWriteError",
   "QueueFullError",
   "QueueStoreError",
+  "ReadOnlyError",
   "RemoteApplyHookError",
   "SyncStateError",
   "TabCoordinator",
