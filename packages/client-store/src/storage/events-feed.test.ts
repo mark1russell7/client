@@ -338,7 +338,7 @@ describe("EventsChangeFeed (CLI-15)", () => {
 const TRACE_1 = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
 const TRACE_2 = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01";
 
-describe("EventsChangeFeed: the other fields of an event (graph W8)", () => {
+describe("EventsChangeFeed: the other fields of an event", () => {
   it("gives the other fields, for example a traceparent, in extra of a delta and of a hint", () => {
     const source = new FakeSource();
     const listener = recorder();

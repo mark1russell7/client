@@ -8,8 +8,8 @@
  * request of its own, so it gets one admission. The test counts each run, and a request without a
  * token, or with a foreign Host or Origin, is still refused.
  *
- * A jarvis-style cookie (the token in a cookie) gives a principal on the faces. A Graph-style
- * request hook has the shape of `graphPrincipalOf` of Graph: in the accounts mode a session gives
+ * A cookie-style token (the token in a cookie) gives a principal on the faces. A session-style
+ * request hook has the shape of a session hook: in the accounts mode a session gives
  * its user and no session gives the anonymous principal, accounts that are not ready refuse the
  * request, and in the mode `on` a tenant token gives the tenant.
  *
@@ -92,32 +92,32 @@ function countedBrowser(counts: Counts): BrowserGuardOptions {
   };
 }
 
-/** A jarvis-style request hook: the token of the cookie `jarvis_token`, else the bearer token. It counts its runs. */
-function jarvisHook(counts: Counts): PrincipalOf {
+/** A cookie-style request hook: the token of the cookie `app_token`, else the bearer token. It counts its runs. */
+function cookieHook(counts: Counts): PrincipalOf {
   return ({ cookies = {}, bearer }) => {
     counts.hook++;
-    const presented = cookies["jarvis_token"] ?? bearer;
+    const presented = cookies["app_token"] ?? bearer;
     return presented !== undefined ? { bearer: presented } : {};
   };
 }
 
-/** The anonymous principal of Graph. */
+/** The anonymous principal of the hook. */
 const ANONYMOUS = { id: "anonymous", via: "anonymous", claims: {} };
 
-/** The modes of the Graph-style hook, as the AUTH_MODE of Graph. */
-type GraphDeps =
+/** The modes of the session-style hook. */
+type SessionDeps =
   | { readonly mode: "off" }
   | { readonly mode: "on"; readonly tenantTokens: Readonly<Record<string, string>> }
   | { readonly mode: "accounts"; readonly ready: () => boolean; readonly sessions: ReadonlyMap<string, string>; readonly agentToken?: string };
 
 /**
- * A Graph-style request hook, with the shape of `graphPrincipalOf` of Graph. It counts its runs.
+ * A session-style request hook, with the shape of a session hook. It counts its runs.
  * - `off`: each request is anonymous.
  * - `on`: a tenant token gives the tenant. Without it, the hook refuses the request.
  * - `accounts`: accounts that are not ready throw `UNAVAILABLE`. The agent token gives the agent.
  *   A session cookie gives its user, and a request without a session is anonymous.
  */
-function graphHook(counts: Counts, deps: GraphDeps): PrincipalOf {
+function sessionHook(counts: Counts, deps: SessionDeps): PrincipalOf {
   return async ({ bearer, cookies = {} }) => {
     counts.hook++;
     if (deps.mode === "off") return { principal: ANONYMOUS };
@@ -128,9 +128,9 @@ function graphHook(counts: Counts, deps: GraphDeps): PrincipalOf {
       return undefined;
     }
     if (!deps.ready()) throw Object.assign(new Error("accounts are not ready"), { code: "UNAVAILABLE", retryable: true });
-    if (deps.agentToken !== undefined && bearer === deps.agentToken) return { principal: { id: "agent", via: "agent-token", claims: { graph: { agent: true } } } };
+    if (deps.agentToken !== undefined && bearer === deps.agentToken) return { principal: { id: "agent", via: "agent-token", claims: { app: { agent: true } } } };
     const user = deps.sessions.get(cookies["better-auth.session_token"] ?? "");
-    return { principal: user !== undefined ? { id: user, via: "better-auth", claims: { graph: { user } } } : ANONYMOUS };
+    return { principal: user !== undefined ? { id: user, via: "better-auth", claims: { app: { user } } } : ANONYMOUS };
   };
 }
 
@@ -264,39 +264,39 @@ function principalOfTool(message: Record<string, unknown> | undefined): unknown 
 describe("one check for each request on each face of the host (CLI-2b)", () => {
   it("the HTTP face: one browser check and one admission for each request, and the refusals stay", async () => {
     const counts: Counts = { hook: 0, origins: 0, hosts: 0 };
-    const { address, port } = await runHost(hostPolicy({ token: TOKEN, principalOf: jarvisHook(counts), browser: countedBrowser(counts) }));
+    const { address, port } = await runHost(hostPolicy({ token: TOKEN, principalOf: cookieHook(counts), browser: countedBrowser(counts) }));
     const since = delta(counts);
     const page = browserHeaders(port);
 
-    const passed = await callHttp(address("http"), { ...page, cookie: `jarvis_token=${TOKEN}` });
+    const passed = await callHttp(address("http"), { ...page, cookie: `app_token=${TOKEN}` });
     expect(passed).toMatchObject({ status: 200, body: { principal: { id: "token", via: "token" } } });
     expect(since()).toEqual({ hook: 1, origins: 1, hosts: 1 });
 
     // Without the token, or with a wrong one: the one admission refuses the request
     expect((await callHttp(address("http"), page)).status).toBe(401);
     expect(since()).toEqual({ hook: 1, origins: 1, hosts: 1 });
-    expect((await callHttp(address("http"), { ...page, cookie: "jarvis_token=wrong" })).body).toMatchObject({ code: "UNAUTHORIZED" });
+    expect((await callHttp(address("http"), { ...page, cookie: "app_token=wrong" })).body).toMatchObject({ code: "UNAUTHORIZED" });
     expect(since()).toEqual({ hook: 1, origins: 1, hosts: 1 });
     // A foreign Host or Origin: the browser check refuses the request before the admission
-    expect((await callHttp(address("http"), { ...page, host: `attacker.example:${port}`, cookie: `jarvis_token=${TOKEN}` })).status).toBe(403);
+    expect((await callHttp(address("http"), { ...page, host: `attacker.example:${port}`, cookie: `app_token=${TOKEN}` })).status).toBe(403);
     expect(since()).toEqual({ hook: 0, origins: 0, hosts: 1 });
-    expect((await callHttp(address("http"), { ...page, origin: "https://evil.example", cookie: `jarvis_token=${TOKEN}` })).status).toBe(403);
+    expect((await callHttp(address("http"), { ...page, origin: "https://evil.example", cookie: `app_token=${TOKEN}` })).status).toBe(403);
     expect(since()).toEqual({ hook: 0, origins: 1, hosts: 1 });
   });
 
   it("the WebSocket face: one browser check and one admission for the upgrade, and one admission for each call", async () => {
     const counts: Counts = { hook: 0, origins: 0, hosts: 0 };
-    const { address, port } = await runHost(hostPolicy({ token: TOKEN, principalOf: jarvisHook(counts), browser: countedBrowser(counts) }));
+    const { address, port } = await runHost(hostPolicy({ token: TOKEN, principalOf: cookieHook(counts), browser: countedBrowser(counts) }));
     const since = delta(counts);
     const page = browserHeaders(port);
 
-    expect(await upgrade(port, { ...page, cookie: `jarvis_token=${TOKEN}` })).toBe(101);
+    expect(await upgrade(port, { ...page, cookie: `app_token=${TOKEN}` })).toBe(101);
     expect(since()).toEqual({ hook: 1, origins: 1, hosts: 1 });
     expect(await upgrade(port, page)).toBe(401);
     expect(since()).toEqual({ hook: 1, origins: 1, hosts: 1 });
-    expect(await upgrade(port, { ...page, host: `attacker.example:${port}`, cookie: `jarvis_token=${TOKEN}` })).toBe(403);
+    expect(await upgrade(port, { ...page, host: `attacker.example:${port}`, cookie: `app_token=${TOKEN}` })).toBe(403);
     expect(since()).toEqual({ hook: 0, origins: 0, hosts: 1 });
-    expect(await upgrade(port, { ...page, origin: "https://evil.example", cookie: `jarvis_token=${TOKEN}` })).toBe(403);
+    expect(await upgrade(port, { ...page, origin: "https://evil.example", cookie: `app_token=${TOKEN}` })).toBe(403);
     expect(since()).toEqual({ hook: 0, origins: 1, hosts: 1 });
 
     // A client that is not a browser: no Origin, a loopback host. Each call is a request with one admission.
@@ -316,9 +316,9 @@ describe("one check for each request on each face of the host (CLI-2b)", () => {
 
   it("the MCP face of the host: one browser check and one admission for each HTTP request, and a tool call does not run the hook again", async () => {
     const counts: Counts = { hook: 0, origins: 0, hosts: 0 };
-    const { address, port } = await runHost(hostPolicy({ token: TOKEN, principalOf: jarvisHook(counts), browser: countedBrowser(counts) }));
+    const { address, port } = await runHost(hostPolicy({ token: TOKEN, principalOf: cookieHook(counts), browser: countedBrowser(counts) }));
     const since = delta(counts);
-    const page = { ...browserHeaders(port), cookie: `jarvis_token=${TOKEN}` };
+    const page = { ...browserHeaders(port), cookie: `app_token=${TOKEN}` };
     const mcp = address("mcp");
 
     const opened = await postMcp(mcp, INITIALIZE, page);
@@ -341,7 +341,7 @@ describe("one check for each request on each face of the host (CLI-2b)", () => {
     expect(refused.status).toBe(401);
     expect(refused.message).toMatchObject({ error: { data: { code: "UNAUTHORIZED" } } });
     expect((await send(mcp, "GET", { ...withoutToken, accept: "text/event-stream" })).status).toBe(401);
-    expect((await postMcp(mcp, INITIALIZE, { ...browserHeaders(port), cookie: "jarvis_token=wrong" })).status).toBe(401);
+    expect((await postMcp(mcp, INITIALIZE, { ...browserHeaders(port), cookie: "app_token=wrong" })).status).toBe(401);
     since();
     // A foreign Host or Origin: the browser check refuses the request before the admission
     expect((await postMcp(mcp, INITIALIZE, { ...page, host: `attacker.example:${port}` })).status).toBe(403);
@@ -352,9 +352,9 @@ describe("one check for each request on each face of the host (CLI-2b)", () => {
 
   it("each request path of an MCP session has its check: a task, tasks/get, tasks/result, a tool call, OPTIONS and the DELETE of the session", async () => {
     const counts: Counts = { hook: 0, origins: 0, hosts: 0 };
-    const { address, port } = await runHost(hostPolicy({ token: TOKEN, principalOf: jarvisHook(counts), browser: countedBrowser(counts) }));
+    const { address, port } = await runHost(hostPolicy({ token: TOKEN, principalOf: cookieHook(counts), browser: countedBrowser(counts) }));
     const mcp = address("mcp");
-    const page = { ...browserHeaders(port), cookie: `jarvis_token=${TOKEN}` };
+    const page = { ...browserHeaders(port), cookie: `app_token=${TOKEN}` };
     const opened = await postMcp(mcp, INITIALIZE, page);
     expect(opened.status).toBe(200);
     const session = { ...page, "mcp-session-id": opened.session! };
@@ -375,7 +375,7 @@ describe("one check for each request on each face of the host (CLI-2b)", () => {
 
     // Each request path of the open session, without the token or with a wrong one: 401
     const { cookie: _cookie, ...withoutToken } = session;
-    const wrongToken = { ...session, cookie: "jarvis_token=wrong" };
+    const wrongToken = { ...session, cookie: "app_token=wrong" };
     for (const headers of [withoutToken, wrongToken]) {
       const call = await postMcp(mcp, { jsonrpc: "2.0", id: 5, method: "tools/call", params: { name: "who.am", arguments: {} } }, headers);
       expect(call.status).toBe(401);
@@ -422,17 +422,17 @@ describe("one check for each request on each face of the host (CLI-2b)", () => {
     }
   });
 
-  it("a Graph-style hook in the accounts mode: a session gives its user, no session is anonymous, and accounts that are not ready give 401 at initialize", async () => {
+  it("a session-style hook in the accounts mode: a session gives its user, no session is anonymous, and accounts that are not ready give 401 at initialize", async () => {
     const counts: Counts = { hook: 0, origins: 0, hosts: 0 };
     let ready = true;
-    const deps: GraphDeps = { mode: "accounts", ready: () => ready, sessions: new Map([["session-of-alice", "alice"]]), agentToken: "graph-agent-token" };
-    const { address, port } = await runHost(hostPolicy({ principalOf: graphHook(counts, deps), browser: countedBrowser(counts) }));
+    const deps: SessionDeps = { mode: "accounts", ready: () => ready, sessions: new Map([["session-of-alice", "alice"]]), agentToken: "app-agent-token" };
+    const { address, port } = await runHost(hostPolicy({ principalOf: sessionHook(counts, deps), browser: countedBrowser(counts) }));
     const since = delta(counts);
     const page = browserHeaders(port);
     const signedIn = { ...page, cookie: "better-auth.session_token=session-of-alice" };
-    const asAgent = { ...page, authorization: "Bearer graph-agent-token" };
-    const alice = { id: "alice", via: "better-auth", claims: { graph: { user: "alice" } } };
-    const agent = { id: "agent", via: "agent-token", claims: { graph: { agent: true } } };
+    const asAgent = { ...page, authorization: "Bearer app-agent-token" };
+    const alice = { id: "alice", via: "better-auth", claims: { app: { user: "alice" } } };
+    const agent = { id: "agent", via: "agent-token", claims: { app: { agent: true } } };
 
     // The HTTP and WebSocket faces: a request without a session is anonymous, not refused
     expect(await callHttp(address("http"), signedIn)).toMatchObject({ status: 200, body: { principal: alice } });
@@ -468,9 +468,9 @@ describe("one check for each request on each face of the host (CLI-2b)", () => {
     expect(notReady.headers["www-authenticate"]).toBe('Bearer realm="mcp"');
   });
 
-  it("a Graph-style hook in the mode on: a tenant token gives its tenant, and without it the MCP face answers 401 at initialize", async () => {
+  it("a session-style hook in the mode on: a tenant token gives its tenant, and without it the MCP face answers 401 at initialize", async () => {
     const counts: Counts = { hook: 0, origins: 0, hosts: 0 };
-    const { address } = await runHost(hostPolicy({ principalOf: graphHook(counts, { mode: "on", tenantTokens: { acme: "tok-acme" } }) }));
+    const { address } = await runHost(hostPolicy({ principalOf: sessionHook(counts, { mode: "on", tenantTokens: { acme: "tok-acme" } }) }));
     const mcp = address("mcp");
     const tenant = { authorization: "Bearer tok-acme" };
     const opened = await postMcp(mcp, INITIALIZE, tenant);

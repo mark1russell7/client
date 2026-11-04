@@ -78,7 +78,7 @@ function registry() {
 }
 
 /**
- * The gate of jarvis, as an interceptor: below "intimate", a call reads only the world. This is
+ * The gate of an app, as an interceptor: below "intimate", a call reads only the world. This is
  * the policy of the application, not of the framework. The narrowing key only lowers the clearance.
  */
 const audienceGate: Interceptor = (invocation, next) =>
@@ -410,11 +410,11 @@ describe("the debug reports of the narrowing key (CLI-30)", () => {
   });
 });
 
-describe("a jarvis-style mapping of the audience (CLI-30)", () => {
-  // The guest switch sets the cookie jarvis_audience: the request hook reads it. The header
-  // x-jarvis-audience of the API callers becomes the narrowing key. The narrower one wins.
+describe("a cookie-style mapping of the audience (CLI-30)", () => {
+  // The guest switch sets the cookie app_audience: the request hook reads it. The header
+  // x-app-audience of the API callers becomes the narrowing key. The narrower one wins.
   const principalOf: PrincipalOf = ({ cookies = {} }) => {
-    const audience = cookies["jarvis_audience"];
+    const audience = cookies["app_audience"];
     return AUDIENCES.includes(audience as Audience) ? { narrowing: { clearance: audience } } : {};
   };
 
@@ -429,10 +429,10 @@ describe("a jarvis-style mapping of the audience (CLI-30)", () => {
   it("applies the key after the narrowing of the cookie: the narrower of the two wins", async () => {
     const reports: ServerDebugReport[] = [];
     const port = await start(reports);
-    expect((await post(port, "/api/proc/notes/read", { cookie: "jarvis_audience=guest", ...key("public") })).body).toMatchObject({ clearance: "public" });
-    expect((await post(port, "/api/proc/notes/read", { cookie: "jarvis_audience=public", ...key("guest") })).body).toMatchObject({ clearance: "public" });
+    expect((await post(port, "/api/proc/notes/read", { cookie: "app_audience=guest", ...key("public") })).body).toMatchObject({ clearance: "public" });
+    expect((await post(port, "/api/proc/notes/read", { cookie: "app_audience=public", ...key("guest") })).body).toMatchObject({ clearance: "public" });
     expect(reports.map((report) => report.detail)).toEqual([{ field: "clearance", kind: "widens" }]);
-    expect((await post(port, "/api/proc/diary/read", { cookie: "jarvis_audience=guest" })).status).toBe(403);
+    expect((await post(port, "/api/proc/diary/read", { cookie: "app_audience=guest" })).status).toBe(403);
     expect((await post(port, "/api/proc/diary/read", key("guest"))).status).toBe(403);
     expect((await post(port, "/api/proc/diary/read")).body).toBe("secret");
   });

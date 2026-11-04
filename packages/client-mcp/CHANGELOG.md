@@ -129,7 +129,7 @@
   
   - A caller that reads the code of a 413 from the HTTP handler compares it with `PAYLOAD_TOO_LARGE`, not `INVALID_REQUEST`.
   - A caller of `WebSocketTransport` that retries each failed call stops at `retryable: false`. A call above the limit of the server fails the same way each time.
-  - The site, MiniMongo, Graph and jarvis: no step, unless one of them compares the code of a refused large request with `INVALID_REQUEST`.
+  - Apps: no step, unless one of them compares the code of a refused large request with `INVALID_REQUEST`.
 - Updated dependencies [55d1e4d]
   - @procedures/client@0.39.0
   - @procedures/mcp@0.39.0
@@ -158,7 +158,7 @@
   
   - A caller of `cli-kit` with a `format` hook for a path with a dotted segment writes the key in the encoded form, for example `a.b%2Ec`.
   - A reader of the ecosystem scan that splits a `key` on `.` uses `keyToPath(key)`.
-  - The site, MiniMongo, Graph and jarvis: no step, if their procedure paths have no segment with `.` or `%`.
+  - Apps: no step, if their procedure paths have no segment with `.` or `%`.
 - Updated dependencies [c6fba49]
   - @procedures/client@0.38.0
   - @procedures/mcp@0.38.0
@@ -230,7 +230,7 @@
   
   Migration:
   
-  - The site, MiniMongo, Graph and jarvis: no change at this time. The deprecated names work until the next MINOR.
+  - Apps: no change at this time. The deprecated names work until the next MINOR.
   - Before the next MINOR, replace `zodAdapter<T>(schema)` with `schema`. To keep the check of a schema against a type, write `const schema: z.ZodType<T> = ...`.
   - Before the next MINOR, replace `typedAnySchema<T>()` and `outputSchema<T>()` with `typed<T>()`.
   - A parse-only object (`{ parse }`) in `zodAdapter` becomes a Standard Schema with a `~standard` property.
@@ -462,13 +462,13 @@
   - A face of your own that gives `mcpFace()` a handler of its own: give the handler `admission: (credentials) => server.admission(credentials)`.
   - An MCP client that a request hook refuses gets 401 at `initialize`. Give it valid credentials for each HTTP request.
   - The site: no change. It has no MCP host, and it used no function of `peer/security.ts`.
-  - MiniMongo: no change. Its dev host has only the HTTP and WebSocket faces of `createProcedureHost()`. Each request of these faces had one check before.
-  - Graph: its `mcpFace()` on the procedures host uses `graphPrincipalOf` for each HTTP request. In the accounts mode, a request without a session gets `ANONYMOUS`. Thus an MCP client without a session gets no 401 at `initialize`.
-  - Graph: in the mode `on` (`AUTH_MODE=on`), a request without a tenant token gets 401 at `initialize`. Before, the client opened a session and listed the tools, and each tool call got `UNAUTHORIZED`.
-  - Graph: accounts that are not ready (the error `UNAVAILABLE` of the hook) give 401 at `initialize`, with `WWW-Authenticate: Bearer`. Before, `initialize` passed, and each tool call got `UNAUTHORIZED`. An MCP client can start its OAuth discovery on this 401.
-  - Graph: outside the accounts mode, the policy has `allowedOrigins: "*"`. The MCP face takes it, as the HTTP face does. A request with a cookie still needs a named origin. With the default `ambientCredentials: "always"` of its request hook, `"*"` permits no other origin.
-  - Graph: to keep only the own origin on the MCP face, give `mcpFace({ allowedOrigins: [] })`. Its MCP host over stdio has no change.
-  - jarvis: no change. Its procedures host has only the HTTP face, and its MCP host has only stdio and SDK faces.
+  - An app: no change. Its dev host has only the HTTP and WebSocket faces of `createProcedureHost()`. Each request of these faces had one check before.
+  - An app: its `mcpFace()` on the procedures host uses a session hook for each HTTP request. In the accounts mode, a request without a session gets `ANONYMOUS`. Thus an MCP client without a session gets no 401 at `initialize`.
+  - An app: in the mode `on` (`AUTH_MODE=on`), a request without a tenant token gets 401 at `initialize`. Before, the client opened a session and listed the tools, and each tool call got `UNAUTHORIZED`.
+  - An app: accounts that are not ready (the error `UNAVAILABLE` of the hook) give 401 at `initialize`, with `WWW-Authenticate: Bearer`. Before, `initialize` passed, and each tool call got `UNAUTHORIZED`. An MCP client can start its OAuth discovery on this 401.
+  - An app: outside the accounts mode, the policy has `allowedOrigins: "*"`. The MCP face takes it, as the HTTP face does. A request with a cookie still needs a named origin. With the default `ambientCredentials: "always"` of its request hook, `"*"` permits no other origin.
+  - An app: to keep only the own origin on the MCP face, give `mcpFace({ allowedOrigins: [] })`. Its MCP host over stdio has no change.
+  - An app: no change. Its procedures host has only the HTTP face, and its MCP host has only stdio and SDK faces.
   - `mark mcp --http --token` and `@procedures/mcp-dev-tools`: no change for a client. The token is the token of the server, and the server checks each HTTP request one time.
 
 ### Patch Changes
@@ -543,9 +543,9 @@
   - A test that expects `retryable: false` for such an end before the first item: expect the flag of the code.
   - A custom `errorOf` of `writeNdjsonStream`: read its second parameter to give the same rule.
   - The site: no change is necessary. The lab simulates its server with explicit flags. The streams of the journey do not fail.
-  - MiniMongo: no change is necessary. Its browser client has the retry middleware, but its procedures throw no `UNAVAILABLE`, `CONNECTION_CLOSED` or `RATE_LIMITED` without a flag.
-  - Graph: no change is necessary. Its handlers give `UNAVAILABLE` with an explicit flag, and it serves no stream procedure of its own.
-  - jarvis: no change is necessary. The cuts of its host have their own flag, and it uses no retry middleware.
+  - An app: no change is necessary. Its browser client has the retry middleware, but its procedures throw no `UNAVAILABLE`, `CONNECTION_CLOSED` or `RATE_LIMITED` without a flag.
+  - An app: no change is necessary. Its handlers give `UNAVAILABLE` with an explicit flag, and it serves no stream procedure of its own.
+  - An app: no change is necessary. The cuts of its host have their own flag, and it uses no retry middleware.
 
 ### Patch Changes
 
@@ -561,7 +561,7 @@
   
   The doc comments of these options, of `guardMcpRequest` and of `McpHostFaces.http` have the deprecation notes. The README of the package has the section "Deprecated token options".
   
-  `mark mcp --http --token` and `@procedures/mcp-dev-tools`: no change for a client. The site, MiniMongo, Graph and jarvis: no change in this release.
+  `mark mcp --http --token` and `@procedures/mcp-dev-tools`: no change for a client. Apps: no change in this release.
 - Updated dependencies [75bff3b]
 - Updated dependencies [16562ee]
   - @procedures/client@0.25.0
@@ -582,7 +582,7 @@
   
   `WIRE-PROTOCOL.md` (section "Error codes") and the doc comments of `errorResponse`, `defaultNdjsonError`, `errorStatus` and `streamErrorMeta` have the deprecation notes.
   
-  The site, MiniMongo, Graph and jarvis: no change in this release.
+  Apps: no change in this release.
 - Updated dependencies [2735505]
   - @procedures/client@0.24.1
   - @procedures/mcp@0.24.1
@@ -619,9 +619,9 @@
   
   Migration:
   
-  - The site and MiniMongo: no change. They have no MCP host.
-  - Graph: no change. Its MCP hosts have no task store.
-  - jarvis: no change. Its MCP host has no tasks.
+  - The site and an app: no change. They have no MCP host.
+  - An app: no change. Its MCP hosts have no task store.
+  - An app: no change. Its MCP host has no tasks.
   - polite-crawler-mcp: no change. Each request has the host token, so each session is one client. A session with 100 tasks gets fewer tasks only when ten or more sessions are near the limit. To keep the rule of CLI-51, give `new McpTaskStore({ reserve: 0 })`.
   - A host whose clients each have many sessions under one principal: each client keeps at most `maxStored - reserve` tasks. To keep the rule of CLI-51, give `reserve: 0` in `tasks` of the host or in `new McpTaskStore()`.
 
@@ -665,9 +665,9 @@
   
   - A host with more than 256 clients at one time: give a larger `maxSessions`, or `maxSessions: Infinity` for no limit. Give it in `faces.http` of `createMcpHost()`, in `mcpFace()`, or with `mark mcp --http <port> --max-sessions <n>`.
   - A host that keeps more than 1000 tasks: give a larger `maxStored`, or `maxStored: Infinity`, in `tasks` of the host or in `new McpTaskStore()`.
-  - The site and MiniMongo: no change. They have no MCP host.
-  - Graph: no change. Its `mcpFace()` on the procedures host gets the limit of 256 sessions, and its MCP host over stdio has no HTTP face. To keep no limit, give `mcpFace({ maxSessions: Infinity })`.
-  - jarvis: no change. Its MCP host has only stdio and SDK faces, and it has no tasks.
+  - The site and an app: no change. They have no MCP host.
+  - An app: no change. Its `mcpFace()` on the procedures host gets the limit of 256 sessions, and its MCP host over stdio has no HTTP face. To keep no limit, give `mcpFace({ maxSessions: Infinity })`.
+  - An app: no change. Its MCP host has only stdio and SDK faces, and it has no tasks.
   - polite-crawler-mcp: no change for the sessions, because it sets `maxSessions: 32`. Its `McpTaskStore` gets the limit of 1000 stored tasks. Before, 32 sessions of 100 tasks bounded the store at 3200 tasks. To keep that bound, give `new McpTaskStore({ maxStored: 3200 })`.
   - polite-crawler-mcp also gives the deprecated option `mount: true`, which has no effect. Remove it when it moves to the new range.
 
@@ -716,9 +716,9 @@
   - A custom transport or face that sends no credentials to a server with a token or a request hook now gets `UNAUTHORIZED`. Set the credentials of its request (`requestCredentials()`), or `LOCAL_CREDENTIALS` for a face in this process.
   - Code that calls `server.handle()` of a server with a token or a request hook gives `credentials: LOCAL_CREDENTIALS`.
   - The site: no change. Its servers have no token and no request hook, and its workers serve over `PortTransport`, which sets the marker.
-  - MiniMongo: no change. `scripts/dev.ts` starts a server without a token and without a request hook. Its HTTP and WebSocket faces set the credentials of each request.
-  - Graph: no change. The procedure host (`packages/server/graph-host.ts`) has a request hook (`graphPrincipalOf` of `packages/server/graph-procedures.ts`) and no token. All its faces send credentials: HTTP, WebSocket and MCP over Streamable HTTP (`mcpFace`). No code of Graph calls `handle()` directly. The MCP host (`packages/mcp/src/host.ts`) operates over stdio, which is local.
-  - jarvis: no change. The loopback server and the remote server of `packages/http/src/procedures.ts` have a request hook (`principalOf`), and the remote server has a token. `makeProcedureHandler` mounts `procedureHandler`, which sends the credentials of each request. A test that calls `handle()` of such a server gives `LOCAL_CREDENTIALS`, or credentials with the token.
+  - An app: no change. `scripts/dev.ts` starts a server without a token and without a request hook. Its HTTP and WebSocket faces set the credentials of each request.
+  - An app: no change. Its procedure host has a request hook and no token. All its faces send credentials: HTTP, WebSocket and MCP over Streamable HTTP (`mcpFace`). No code of the app calls `handle()` directly. Its MCP host operates over stdio, which is local.
+  - An app: no change. Its loopback server and its remote server have a request hook (`principalOf`), and the remote server has a token. `makeProcedureHandler` mounts `procedureHandler`, which sends the credentials of each request. A test that calls `handle()` of such a server gives `LOCAL_CREDENTIALS`, or credentials with the token.
 
 ### Patch Changes
 
@@ -800,7 +800,7 @@
   
   - A host with `faces.http: { port, host }`: give `faces.http: {}`. Mount `host.handleHttp` on a listener, for example an `httpTransport` of `@mark1russell7/service/http`, and declare the listener and the host on a service (`host.declare(svc)`). The README of `@procedures/mcp-server` has the example.
   - A caller of `startDevToolsServer()`: call `runDevToolsServer(config)`.
-  - The site, MiniMongo, Graph and jarvis: no change. Graph mounts `mcpFace()` on its procedures host, and its stdio MCP host and the host of jarvis use stdio and SDK faces.
+  - Apps: no change. One app mounts `mcpFace()` on its procedures host, and its stdio MCP host and the host of another app use stdio and SDK faces.
 
 ### Patch Changes
 
@@ -843,7 +843,7 @@
     principalOf,
     limits: [
       {
-        name: "graph.writes",
+        name: "app.writes",
         key: { claim: "tenant" },
         covers: { writes: true },
         policy: { type: "sliding-window", limit: { value: 120, unit: "count" }, window: { value: 1, unit: "min" } },
@@ -909,7 +909,7 @@
   - The listener of the Streamable HTTP face: the options `port`, `host` and `server` of `HttpTransportOptions`, and `McpHttpTransport.listen()`. Give `mount: true`, and mount `McpHost.handleHttp` on a listener of the service.
   - `startDevToolsServer()` of `@procedures/mcp-dev-tools`. Use `runDevToolsServer()`.
   
-  Migration for the next MINOR: the site uses none of them. MiniMongo uses none of them. Graph mounts `mcpFace()` on its host, and its stdio host keeps `createMcpHost()` with `stdio`: no change. jarvis uses `createMcpHost()` with stdio and SDK faces: no change. A host with `faces.http: { port }` moves to `faces.http: { mount: true }` and a listener of the service.
+  Migration for the next MINOR: the site uses none of them. One app uses none of them. Another app mounts `mcpFace()` on its host, and its stdio host keeps `createMcpHost()` with `stdio`: no change. A third app uses `createMcpHost()` with stdio and SDK faces: no change. A host with `faces.http: { port }` moves to `faces.http: { mount: true }` and a listener of the service.
 - Updated dependencies [85999c1]
 - Updated dependencies [fc968f6]
 - Updated dependencies [dc7a462]
@@ -949,9 +949,9 @@
   - A caller that finds a cut by the code `INTERNAL_ERROR`: look for `UNAVAILABLE` in its place. Do not retry the call when `retryable` is false.
   - A handler that throws `UNAVAILABLE` with `retryable: false`: its HTTP status is 500 in place of 503. Without the flag, the error is retryable and gets 503. A retry middleware then sends the call again, so give `retryable: false` when the call can have had its effect.
   - The site: no change is necessary. Its code does not read the code of a cut, or the HTTP status 503.
-  - MiniMongo: no change is necessary. Its code does not read `INTERNAL_ERROR`, `UNAVAILABLE` or the severity of an error.
-  - The procedures host of Graph (GRAPH-11): no change is necessary. Its code does not read `INTERNAL_ERROR`. Its error "the server has no AGENT_TOKEN" is `UNAVAILABLE` with `retryable: false`, so its HTTP status is 500 in place of 503. No code of Graph reads that status.
-  - jarvis: no change is necessary. Its drain test already expects `UNAVAILABLE` with `retryable: false` for a cut procedure call (S6 A12). Its code reads only `NOT_FOUND` and `FORBIDDEN`.
+  - An app: no change is necessary. Its code does not read `INTERNAL_ERROR`, `UNAVAILABLE` or the severity of an error.
+  - The procedures host of an app (APP-11): no change is necessary. Its code does not read `INTERNAL_ERROR`. Its error "the server has no AGENT_TOKEN" is `UNAVAILABLE` with `retryable: false`, so its HTTP status is 500 in place of 503. No code of the app reads that status.
+  - An app: no change is necessary. Its drain test already expects `UNAVAILABLE` with `retryable: false` for a cut procedure call (S6 A12). Its code reads only `NOT_FOUND` and `FORBIDDEN`.
   - The `mark` CLI and `procedure-server`: no change is necessary. The lifecycle test of CI-2 expects `UNAVAILABLE` for the cut of `lifecycle.ticksOnce`.
 - Updated dependencies [217a90f]
   - @procedures/client@0.14.0
@@ -1035,9 +1035,9 @@
   
   Migration steps:
   
-  - The site and MiniMongo: no change is necessary, unless they read `/health` of a peer. Then call `host.info` with the token.
-  - The MCP host of Graph: no change is necessary. To share the port of the Graph host, mount `mcpFace()` on its listener.
-  - jarvis and Graph under `run()`: build the procedures with `createProcedureHost()`, and call `host.declare(svc)` in the service of the process. Give `listen` for a port of the host, or mount `host.handler` and `host.upgrade` on the listener of the app.
+  - The site and an app: no change is necessary, unless they read `/health` of a peer. Then call `host.info` with the token.
+  - The MCP host of an app: no change is necessary. To share the port of its procedures host, mount `mcpFace()` on its listener.
+  - Apps under `run()`: build the procedures with `createProcedureHost()`, and call `host.declare(svc)` in the service of the process. Give `listen` for a port of the host, or mount `host.handler` and `host.upgrade` on the listener of the app.
   - A caller of `createPeer()` with a different token for each transport: give one token.
   - A Docker `HEALTHCHECK` or a probe of Kubernetes that read `/health` of a peer: use the probes of the service. Give the service `probeServer({ port, server_retry_after })` on a port of its own, or mount `probeHandler(health, { prefix: "/health" })` on the port of the app. Both come from `@mark1russell7/service/http`, and they answer `/health/startup`, `/health/readiness` and `/health/liveness`. The lockfile check of a client calls `host.info` with the token of the lockfile.
   - A test that read `/health` of a peer: call `host.info` with the token, or check the status 404.

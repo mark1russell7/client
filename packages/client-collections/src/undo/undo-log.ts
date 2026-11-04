@@ -110,7 +110,7 @@ function newestFirst(a: UndoEntry, b: UndoEntry): number {
 }
 
 /**
- * An undo log of the changes of items in collection storages (Graph's split, wave 2, W10). Each
+ * An undo log of the changes of items in collection storages. Each
  * entry keeps the patch that undoes one change (`inversePatch`), or the whole item before the
  * change when no patch can undo it, and the fingerprint of the item after the change.
  *

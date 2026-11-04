@@ -1,5 +1,5 @@
 /**
- * lib.importCycles procedure (Graph's split, wave 2, W7)
+ * lib.importCycles procedure
  *
  * The import cycles of a tree of TypeScript sources. The default mode counts the cycles that exist
  * at runtime: TypeScript's own import elision drops an import whose bindings are only types, as the

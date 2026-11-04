@@ -143,7 +143,7 @@
   Migration:
   
   - No step for a target that is not in `storageTargets`.
-  - The site, MiniMongo, Graph and jarvis need no step, unless one of them uses `ViewMaterializer` with a target in a stored form. Graph sets `storageTargets` at its step 8.
+  - Apps need no step, unless one of them uses `ViewMaterializer` with a target in a stored form. One app sets `storageTargets` at its step 8.
   - To move a target to a stored form, add it to `storageTargets` in each materializer of the views. The first pass writes each row as a document of the storage. A row of the older form with the partition of the storage becomes a tombstone. A reader then reads the target through a `MongoDocumentStorage` with the same form.
 
 ### Patch Changes
@@ -229,7 +229,7 @@
   
   Migration:
   
-  - MiniMongo, Graph and jarvis: an item with a dotted key or a `$` key below the top level needs MongoDB 5.0 or later. On a 4.x server, the write of such an item fails, because 0.34.0 stored it in `_json` and 0.35.0 stores it flat. An item that is already in `_json` reads as before.
+  - Apps: an item with a dotted key or a `$` key below the top level needs MongoDB 5.0 or later. On a 4.x server, the write of such an item fails, because 0.34.0 stored it in `_json` and 0.35.0 stores it flat. An item that is already in `_json` reads as before.
   - A view pipeline reads `"a.b"` as a nested path. A literal dotted key of an item is not reachable there without `$getField`.
 
 ### Patch Changes
@@ -254,7 +254,7 @@
   
   Migration:
   
-  - The site, MiniMongo, Graph and jarvis: no change at this time. The deprecated names work until the next MINOR.
+  - Apps: no change at this time. The deprecated names work until the next MINOR.
   - Before the next MINOR, replace `zodAdapter<T>(schema)` with `schema`. To keep the check of a schema against a type, write `const schema: z.ZodType<T> = ...`.
   - Before the next MINOR, replace `typedAnySchema<T>()` and `outputSchema<T>()` with `typed<T>()`.
   - A parse-only object (`{ parse }`) in `zodAdapter` becomes a Standard Schema with a `~standard` property.
@@ -588,9 +588,9 @@
   Migration:
   
   - **Site.** No change. The site does not write collections.
-  - **MiniMongo.** No change for a storage or a `HybridStorage` without `versionOf`. A `HybridStorage` with `versionOf` over `ApiStorage` needs a server storage with the same `versionOf` (for example `new InMemoryStorage({ versionOf })`), or the option `sendBaseVersions: false`.
-  - **Graph.** Graph keeps last-write-wins first (D11): it gives no expected version, so nothing changes. `GraphDocsStorage` must refuse a write with an expected version until it tests one. Add the guard to its `set`, `delete` and `setBatch`, and run the contract suite: its first case tests the refusal. To adopt the version later, stamp a version field on the server, give the storage a `versionOf` that tests it in the write, and give the same `versionOf` to the `HybridStorage` of the client. Then add `createWithVersions` to the contract run.
-  - **jarvis.** No change: jarvis gives no expected version. A storage of jarvis that implements `CollectionStorage` must refuse a write with an expected version, as for Graph.
+  - **An app with `HybridStorage`.** No change for a storage or a `HybridStorage` without `versionOf`. A `HybridStorage` with `versionOf` over `ApiStorage` needs a server storage with the same `versionOf` (for example `new InMemoryStorage({ versionOf })`), or the option `sendBaseVersions: false`.
+  - **An app with last-write-wins.** It gives no expected version, so nothing changes. Its own storage must refuse a write with an expected version until it tests one. Add the guard to its `set`, `delete` and `setBatch`, and run the contract suite: its first case tests the refusal. To adopt the version later, stamp a version field on the server, give the storage a `versionOf` that tests it in the write, and give the same `versionOf` to the `HybridStorage` of the client. Then add `createWithVersions` to the contract run.
+  - **An app without versions.** No change: it gives no expected version. A storage of the app that implements `CollectionStorage` must refuse a write with an expected version, as above.
   - **Other storages.** Each class that implements `CollectionStorage` reads the new options of `set`, `delete` and `setBatch`. It tests them in the write, or it rejects the write with `preconditionNotSupported()`. It never ignores them.
 
 ### Patch Changes
@@ -695,7 +695,7 @@
   - Targets from an older materializer, with the plain key as `_id`, need no migration step. The first pass of each view replaces the rows of its partition.
   - Each pipeline goes through `scopePipeline` by default. It reads only its partition, in its sources, and the current generation of a target.
   
-  The code comes from the server of Graph (its split plan, part P4). The jobs of CI with a replica set start MongoDB with the test commands, for the failpoint tests.
+  The jobs of CI with a replica set start MongoDB with the test commands, for the failpoint tests.
 - 054ba7d: `ViewMaterializer`: a change reaches only the views of its partition when the partition is known (roadmap CLI-37). The filter only removes work: a change whose partition is unknown reaches the views of each partition, as before.
   
   - A delete has no document in its change event. Its partition comes from the pre-image, when its collection has `changeStreamPreAndPostImages`.
@@ -721,7 +721,7 @@
   These APIs are new in this release, so no released code changes. The procedure `mongo.documents.aggregate` keeps its input `maxTimeMS` in milliseconds: the wire keeps milliseconds.
 - 3b2ddcd: New `scopePipeline()`: the guard of an aggregation pipeline over shared collections. The filter of the scope goes on each read of the pipeline and of its sub-pipelines. The pipeline reads and writes only the collections of the scope. Only the document stages of `ALLOWED_PIPELINE_STAGES` pass. `$out` and the JavaScript operators of the server are refused, and `$merge` needs a stamp. New `boundPipeline()`, `cutResults()` and `isTimeLimitError()` give the limits of time and size.
   
-  New `MongoDocumentStorage.aggregate()`: a read-only pipeline on the items of the partition, with these limits. The code comes from the server of Graph (its split plan, part P3).
+  New `MongoDocumentStorage.aggregate()`: a read-only pipeline on the items of the partition, with these limits.
 - Updated dependencies [61d60c6]
 - Updated dependencies [79f750a]
 - Updated dependencies [d0c9856]

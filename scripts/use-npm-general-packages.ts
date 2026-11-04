@@ -9,11 +9,17 @@
 //    registry runs no "prepare" script);
 // 4. starts `pnpm install`, which writes the lockfile, unless --no-install.
 //
-// Usage: node scripts/use-npm-general-packages.mjs [--dry-run] [--force] [--no-install]
+// Usage: node scripts/use-npm-general-packages.ts [--dry-run] [--force] [--no-install]
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { GENERAL_PACKAGES, root, run, workspacePackages } from "./lib/workspace.mjs";
+
+/** The fields of a `package.json` that the script changes. */
+const DEPENDENCY_FIELDS = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"] as const;
+
+/** A `package.json` as the script reads it. The other fields stay as they are. */
+type DependencyManifest = Partial<Record<(typeof DEPENDENCY_FIELDS)[number], Record<string, string>>>;
 
 const args = new Set(process.argv.slice(2));
 const dryRun = args.has("--dry-run");
@@ -40,13 +46,15 @@ const manifests = [join(root, "package.json"), ...workspacePackages().map((p) =>
 let changed = 0;
 for (const file of manifests) {
   const text = readFileSync(file, "utf8");
-  const manifest = JSON.parse(text);
+  const manifest = JSON.parse(text) as DependencyManifest;
   let dirty = false;
-  for (const field of ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"]) {
+  for (const field of DEPENDENCY_FIELDS) {
+    const dependencies = manifest[field];
+    if (!dependencies) continue;
     for (const [name, range] of Object.entries(GENERAL_PACKAGES)) {
-      const spec = manifest[field]?.[name];
+      const spec = dependencies[name];
       if (spec !== undefined && /^(github:|git\+|git:)/.test(spec)) {
-        manifest[field][name] = range;
+        dependencies[name] = range;
         dirty = true;
         console.log(`${file.slice(root.length + 1)}: ${field}.${name} ${spec} -> ${range}`);
       }
@@ -61,7 +69,7 @@ for (const file of manifests) {
 // 3. The build approvals of the git URLs, with the comment lines above them
 const workspaceFile = join(root, "pnpm-workspace.yaml");
 const lines = readFileSync(workspaceFile, "utf8").split("\n");
-const kept = [];
+const kept: string[] = [];
 for (const line of lines) {
   const isGitApproval = Object.keys(GENERAL_PACKAGES).some((name) => line.trimStart().startsWith(`"${name}@git+`));
   if (isGitApproval) {
@@ -78,5 +86,5 @@ console.log(`${changed} package.json files ${dryRun ? "would change" : "changed"
 // 4. The lockfile
 if (!dryRun && !args.has("--no-install") && changed > 0) {
   run("pnpm", ["install"], root);
-  console.log("pnpm install wrote the lockfile. Start pnpm build and node scripts/check-packages.mjs.");
+  console.log("pnpm install wrote the lockfile. Start pnpm build and node scripts/check-packages.ts.");
 }

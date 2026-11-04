@@ -141,7 +141,7 @@
   
   - A caller of `cli-kit` with a `format` hook for a path with a dotted segment writes the key in the encoded form, for example `a.b%2Ec`.
   - A reader of the ecosystem scan that splits a `key` on `.` uses `keyToPath(key)`.
-  - The site, MiniMongo, Graph and jarvis: no step, if their procedure paths have no segment with `.` or `%`.
+  - Apps: no step, if their procedure paths have no segment with `.` or `%`.
 - Updated dependencies [c6fba49]
   - @procedures/client@0.38.0
   - @procedures/http@0.38.0
@@ -200,7 +200,7 @@
   
   Migration:
   
-  - The site, MiniMongo, Graph and jarvis: no change at this time. The deprecated names work until the next MINOR.
+  - Apps: no change at this time. The deprecated names work until the next MINOR.
   - Before the next MINOR, replace `zodAdapter<T>(schema)` with `schema`. To keep the check of a schema against a type, write `const schema: z.ZodType<T> = ...`.
   - Before the next MINOR, replace `typedAnySchema<T>()` and `outputSchema<T>()` with `typed<T>()`.
   - A parse-only object (`{ parse }`) in `zodAdapter` becomes a Standard Schema with a `~standard` property.

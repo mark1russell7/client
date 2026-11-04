@@ -113,9 +113,9 @@ No changes in this release.
   - Each app: examine each retry rule that reads the `retryable` flag of an error. Such a rule sees the new flags of the tables. To retry a 500 of a proxy, give the retry middleware a `shouldRetry` function that matches the code `INTERNAL_ERROR`.
   - Each app with `HybridStorage` over HTTP: to make a 500 of a proxy offline again, give an `isUnavailable` option that also matches the code `INTERNAL_ERROR`.
   - The site (`packages/site`): no step. It does not match on the three old codes, and it has no retry rule for a status.
-  - MiniMongo: do the steps of each app in its dev host and in its client code. Then examine the retry rules of its HTTP requests to the procedures server.
-  - Graph: do the steps of each app.
-  - jarvis: do the steps of each app in each client of `@procedures/client` that it has.
+  - An app: do the steps of each app in its dev host and in its client code. Then examine the retry rules of its HTTP requests to the procedures server.
+  - An app: do the steps of each app.
+  - An app: do the steps of each app in each client of `@procedures/client` that it has.
 - e4cb0cf: The release train: the ranges of @mark1russell7/algebra, @mark1russell7/service change to a version outside the old range.
 
 ### Patch Changes
@@ -173,7 +173,7 @@ No changes in this release.
   
   - A caller that reads the code of a 413 from the HTTP handler compares it with `PAYLOAD_TOO_LARGE`, not `INVALID_REQUEST`.
   - A caller of `WebSocketTransport` that retries each failed call stops at `retryable: false`. A call above the limit of the server fails the same way each time.
-  - The site, MiniMongo, Graph and jarvis: no step, unless one of them compares the code of a refused large request with `INVALID_REQUEST`.
+  - Apps: no step, unless one of them compares the code of a refused large request with `INVALID_REQUEST`.
 
 ## 0.38.0
 
@@ -199,7 +199,7 @@ No changes in this release.
   
   - A caller of `cli-kit` with a `format` hook for a path with a dotted segment writes the key in the encoded form, for example `a.b%2Ec`.
   - A reader of the ecosystem scan that splits a `key` on `.` uses `keyToPath(key)`.
-  - The site, MiniMongo, Graph and jarvis: no step, if their procedure paths have no segment with `.` or `%`.
+  - Apps: no step, if their procedure paths have no segment with `.` or `%`.
 
 ## 0.37.0
 
@@ -235,8 +235,8 @@ No changes in this release.
   - A reader of `changes` with a rule of the rows: apply a full answer as a replacement of the copy. The sync of `@procedures/client-store` does this. A full answer comes after each delete, so give `admitsAll` to the principals with full rights.
   - A host whose `allow` of `events.subscribe` refused a principal with a rule of the rows can admit it.
   - A host with full rights for some principals: give `admission.admitsAll`. Without it, the publisher examines each row of each event for each subscriber. Also, each write reads its rows before the change while such a subscriber is open.
-  - Graph: give `admitsAll` for the principals that read a whole partition. Then admit the principals with a `when` condition in `allow`.
-  - The site, MiniMongo and jarvis: no change, if their collections have no `admission.admit`. Then their events do not change.
+  - An app: give `admitsAll` for the principals that read a whole partition. Then admit the principals with a `when` condition in `allow`.
+  - Other apps: no change, if their collections have no `admission.admit`. Then their events do not change.
 
 ## 0.35.1
 
@@ -308,8 +308,8 @@ No changes in this release.
   - A host whose `expose`, policy or limit pattern names such a path in text uses the encoded form, for example `collections.e2e%2Etabs.*`.
   - An `mcpExclude` entry, an `expose` deny entry or a limit entry in the old raw form, for example `collections.e2e.tabs.drop`, does not match. The check compares the encoded key, so the procedure becomes visible, or the limit does not apply. Write each such entry in the encoded form, for example `collections.e2e%2Etabs.drop`.
   - A subscriber of a dotted collection uses `collectionChangeTopic(name)`. The raw topic `collections.a.b` is the topic of the partition `b` of `a`.
-  - Graph: read the collection of a topic with `collectionTopicPartition(topic)`, not with a pattern, for example `/^collections\.([^.]+)\./`.
-  - The site, MiniMongo and jarvis: no change, if their collection names have no `.` and no `%`.
+  - An app: read the collection of a topic with `collectionTopicPartition(topic)`, not with a pattern, for example `/^collections\.([^.]+)\./`.
+  - Other apps: no change, if their collection names have no `.` and no `%`.
 
 ### Patch Changes
 
@@ -326,7 +326,7 @@ No changes in this release.
   
   Migration:
   
-  - The site, MiniMongo, Graph and jarvis: no change at this time. The deprecated names work until the next MINOR.
+  - Apps: no change at this time. The deprecated names work until the next MINOR.
   - Before the next MINOR, replace `zodAdapter<T>(schema)` with `schema`. To keep the check of a schema against a type, write `const schema: z.ZodType<T> = ...`.
   - Before the next MINOR, replace `typedAnySchema<T>()` and `outputSchema<T>()` with `typed<T>()`.
   - A parse-only object (`{ parse }`) in `zodAdapter` becomes a Standard Schema with a `~standard` property.
@@ -367,7 +367,7 @@ No changes in this release.
   
   Now each repetition multiplies the ways of the part inside it. The guard refuses `((a|a){9}){9}` and `((a?){9}){9}`. A pattern with few ways still passes, for example `((?:a|b){3}){3}` and `(\d{1,3}\.){3}\d{1,3}`.
   
-  Migration: the site, MiniMongo, Graph and jarvis do not turn `$regex` on, so they need no change.
+  Migration: the apps do not turn `$regex` on, so they need no change.
 - 21dc858: Fixes for the security findings of the second code audit (roadmap O55).
   
   PATCH: bug fixes and additive options. Each fix refuses only an input that the documentation does not give. A caller that uses the documented behavior sees no change. A request to a loopback, private or link-local host still works, with a deprecation notice. Version 0.29.0 refuses it (decision D35).
@@ -399,7 +399,7 @@ No changes in this release.
   
   A bounded repetition with at most 1000 ways to match passes, for example `(\d{1,3}\.){3}`. Alternatives that start with different characters pass, for example `(?:foo|bar)+` and `(?:[a-z]|-)+`.
   
-  Migration: the site, MiniMongo, Graph and jarvis do not turn `$regex` on, so they need no change. A host that turns it on and gets the new `VALIDATION_ERROR` writes the pattern without the ambiguity. For example, write `(?:a|b)+` for `(a|ab|b)+`, and write the repetitions out, `\w+\s\w+\s` for `(\w+\s){2}`.
+  Migration: the apps do not turn `$regex` on, so they need no change. A host that turns it on and gets the new `VALIDATION_ERROR` writes the pattern without the ambiguity. For example, write `(?:a|b)+` for `(a|ab|b)+`, and write the repetitions out, `\w+\s\w+\s` for `(\w+\s){2}`.
 
 ## 0.27.8
 
@@ -549,13 +549,13 @@ No changes in this release.
   - A face of your own that gives `mcpFace()` a handler of its own: give the handler `admission: (credentials) => server.admission(credentials)`.
   - An MCP client that a request hook refuses gets 401 at `initialize`. Give it valid credentials for each HTTP request.
   - The site: no change. It has no MCP host, and it used no function of `peer/security.ts`.
-  - MiniMongo: no change. Its dev host has only the HTTP and WebSocket faces of `createProcedureHost()`. Each request of these faces had one check before.
-  - Graph: its `mcpFace()` on the procedures host uses `graphPrincipalOf` for each HTTP request. In the accounts mode, a request without a session gets `ANONYMOUS`. Thus an MCP client without a session gets no 401 at `initialize`.
-  - Graph: in the mode `on` (`AUTH_MODE=on`), a request without a tenant token gets 401 at `initialize`. Before, the client opened a session and listed the tools, and each tool call got `UNAUTHORIZED`.
-  - Graph: accounts that are not ready (the error `UNAVAILABLE` of the hook) give 401 at `initialize`, with `WWW-Authenticate: Bearer`. Before, `initialize` passed, and each tool call got `UNAUTHORIZED`. An MCP client can start its OAuth discovery on this 401.
-  - Graph: outside the accounts mode, the policy has `allowedOrigins: "*"`. The MCP face takes it, as the HTTP face does. A request with a cookie still needs a named origin. With the default `ambientCredentials: "always"` of its request hook, `"*"` permits no other origin.
-  - Graph: to keep only the own origin on the MCP face, give `mcpFace({ allowedOrigins: [] })`. Its MCP host over stdio has no change.
-  - jarvis: no change. Its procedures host has only the HTTP face, and its MCP host has only stdio and SDK faces.
+  - An app: no change. Its dev host has only the HTTP and WebSocket faces of `createProcedureHost()`. Each request of these faces had one check before.
+  - An app: its `mcpFace()` on the procedures host uses a session hook for each HTTP request. In the accounts mode, a request without a session gets `ANONYMOUS`. Thus an MCP client without a session gets no 401 at `initialize`.
+  - An app: in the mode `on` (`AUTH_MODE=on`), a request without a tenant token gets 401 at `initialize`. Before, the client opened a session and listed the tools, and each tool call got `UNAUTHORIZED`.
+  - An app: accounts that are not ready (the error `UNAVAILABLE` of the hook) give 401 at `initialize`, with `WWW-Authenticate: Bearer`. Before, `initialize` passed, and each tool call got `UNAUTHORIZED`. An MCP client can start its OAuth discovery on this 401.
+  - An app: outside the accounts mode, the policy has `allowedOrigins: "*"`. The MCP face takes it, as the HTTP face does. A request with a cookie still needs a named origin. With the default `ambientCredentials: "always"` of its request hook, `"*"` permits no other origin.
+  - An app: to keep only the own origin on the MCP face, give `mcpFace({ allowedOrigins: [] })`. Its MCP host over stdio has no change.
+  - An app: no change. Its procedures host has only the HTTP face, and its MCP host has only stdio and SDK faces.
   - `mark mcp --http --token` and `@procedures/mcp-dev-tools`: no change for a client. The token is the token of the server, and the server checks each HTTP request one time.
 
 ## 0.26.2
@@ -643,9 +643,9 @@ No changes in this release.
   - A test that expects `retryable: false` for such an end before the first item: expect the flag of the code.
   - A custom `errorOf` of `writeNdjsonStream`: read its second parameter to give the same rule.
   - The site: no change is necessary. The lab simulates its server with explicit flags. The streams of the journey do not fail.
-  - MiniMongo: no change is necessary. Its browser client has the retry middleware, but its procedures throw no `UNAVAILABLE`, `CONNECTION_CLOSED` or `RATE_LIMITED` without a flag.
-  - Graph: no change is necessary. Its handlers give `UNAVAILABLE` with an explicit flag, and it serves no stream procedure of its own.
-  - jarvis: no change is necessary. The cuts of its host have their own flag, and it uses no retry middleware.
+  - An app: no change is necessary. Its browser client has the retry middleware, but its procedures throw no `UNAVAILABLE`, `CONNECTION_CLOSED` or `RATE_LIMITED` without a flag.
+  - An app: no change is necessary. Its handlers give `UNAVAILABLE` with an explicit flag, and it serves no stream procedure of its own.
+  - An app: no change is necessary. The cuts of its host have their own flag, and it uses no retry middleware.
 
 ### Patch Changes
 
@@ -674,7 +674,7 @@ No changes in this release.
   
   `WIRE-PROTOCOL.md` (section "Error codes") and the doc comments of `errorResponse`, `defaultNdjsonError`, `errorStatus` and `streamErrorMeta` have the deprecation notes.
   
-  The site, MiniMongo, Graph and jarvis: no change in this release.
+  Apps: no change in this release.
 
 ## 0.24.0
 
@@ -705,9 +705,9 @@ No changes in this release.
   
   Migration:
   
-  - The site and MiniMongo: no change. They have no MCP host.
-  - Graph: no change. Its MCP hosts have no task store.
-  - jarvis: no change. Its MCP host has no tasks.
+  - The site and an app: no change. They have no MCP host.
+  - An app: no change. Its MCP hosts have no task store.
+  - An app: no change. Its MCP host has no tasks.
   - polite-crawler-mcp: no change. Each request has the host token, so each session is one client. A session with 100 tasks gets fewer tasks only when ten or more sessions are near the limit. To keep the rule of CLI-51, give `new McpTaskStore({ reserve: 0 })`.
   - A host whose clients each have many sessions under one principal: each client keeps at most `maxStored - reserve` tasks. To keep the rule of CLI-51, give `reserve: 0` in `tasks` of the host or in `new McpTaskStore()`.
 - 71091a5: Added: the envelope form of a program (coeval, decisions D6, D9 and D10, roadmap item M7). A call is `{ "type": ["client", "add"], "value": input }`, and a reference is `{ "type": "ref", "value": ["names", "sum"] }`. The `$proc` form does not change.
@@ -737,9 +737,9 @@ No changes in this release.
   
   - Does a subscriber of `a.b` get `FORBIDDEN` with the reason `partition-not-allowed`? Then make the resolver of `a.b` give a partition. Or rename `a.b` to a name without a dot, for example `a_b`.
   - The site: no change is necessary. It serves no collection.
-  - MiniMongo: no change is necessary. Its server serves no collection.
-  - Graph: no change is necessary. Its one served collection, `examples`, has no dot in its name.
-  - jarvis: no change is necessary. Its host serves no collection.
+  - An app: no change is necessary. Its server serves no collection.
+  - An app: no change is necessary. Its one served collection, `examples`, has no dot in its name.
+  - An app: no change is necessary. Its host serves no collection.
 
 ## 0.22.0
 
@@ -774,9 +774,9 @@ No changes in this release.
   The migration steps of the known consumers:
   
   - The site: no change. It imports none of these names. It names `HttpServerTransport` and `WebSocketServerTransport` only in the text of its journey.
-  - MiniMongo: no change. It imports none of these names, and its host uses `runProcedureHost`. Its `vite.config.ts` maps the root to `@procedures/client/browser`. The map can stay, because the root is also a browser entry.
-  - Graph: no change. It imports none of these names.
-  - jarvis: no change. It imports none of these names.
+  - An app: no change. It imports none of these names, and its host uses `runProcedureHost`. Its `vite.config.ts` maps the root to `@procedures/client/browser`. The map can stay, because the root is also a browser entry.
+  - An app: no change. It imports none of these names.
+  - An app: no change. It imports none of these names.
   - The procedures image of the harness of `systems` (`packages/harness/image/procedures/server-ws.mjs`) imports `WebSocketServerTransport` from the root. It pins `@procedures/client` 0.7.0. When it moves to this MINOR or a later version, import `WebSocketServerTransport` from `@procedures/client/node`.
   - `headroom` (`packages/daemon/src/gateway.ts`) gives `checkBrowserRequest` of the root a request of `node:http`: no change.
 
@@ -805,9 +805,9 @@ No changes in this release.
   - A custom transport or face that sends no credentials to a server with a token or a request hook now gets `UNAUTHORIZED`. Set the credentials of its request (`requestCredentials()`), or `LOCAL_CREDENTIALS` for a face in this process.
   - Code that calls `server.handle()` of a server with a token or a request hook gives `credentials: LOCAL_CREDENTIALS`.
   - The site: no change. Its servers have no token and no request hook, and its workers serve over `PortTransport`, which sets the marker.
-  - MiniMongo: no change. `scripts/dev.ts` starts a server without a token and without a request hook. Its HTTP and WebSocket faces set the credentials of each request.
-  - Graph: no change. The procedure host (`packages/server/graph-host.ts`) has a request hook (`graphPrincipalOf` of `packages/server/graph-procedures.ts`) and no token. All its faces send credentials: HTTP, WebSocket and MCP over Streamable HTTP (`mcpFace`). No code of Graph calls `handle()` directly. The MCP host (`packages/mcp/src/host.ts`) operates over stdio, which is local.
-  - jarvis: no change. The loopback server and the remote server of `packages/http/src/procedures.ts` have a request hook (`principalOf`), and the remote server has a token. `makeProcedureHandler` mounts `procedureHandler`, which sends the credentials of each request. A test that calls `handle()` of such a server gives `LOCAL_CREDENTIALS`, or credentials with the token.
+  - An app: no change. `scripts/dev.ts` starts a server without a token and without a request hook. Its HTTP and WebSocket faces set the credentials of each request.
+  - An app: no change. Its procedure host has a request hook and no token. All its faces send credentials: HTTP, WebSocket and MCP over Streamable HTTP (`mcpFace`). No code of the app calls `handle()` directly. Its MCP host operates over stdio, which is local.
+  - An app: no change. Its loopback server and its remote server have a request hook (`principalOf`), and the remote server has a token. `makeProcedureHandler` mounts `procedureHandler`, which sends the credentials of each request. A test that calls `handle()` of such a server gives `LOCAL_CREDENTIALS`, or credentials with the token.
 
 ## 0.18.1
 
@@ -827,9 +827,9 @@ No changes in this release.
   
   - When a host fails with `CollectionTopicCollisionError`, rename the plain collection, for example `a.b` to `a_b`. A name without a dot has no topic of a partition.
   - The site: no change is necessary. It serves no collection.
-  - MiniMongo: no change is necessary. Its server serves no collection.
-  - Graph: no change is necessary. Its host gives partitions to each served collection (`examples`), and no collection has a plain storage.
-  - jarvis: no change is necessary. Its host serves no collection.
+  - An app: no change is necessary. Its server serves no collection.
+  - An app: no change is necessary. Its host gives partitions to each served collection (`examples`), and no collection has a plain storage.
+  - An app: no change is necessary. Its host serves no collection.
 - 0379278: Docs and tests: the rule of the retryable flag of an in-band end (CLI-58). The behavior does not change, thus this change is a PATCH of the client group (decision D13).
   
   - Before the stream starts, an error of a handler without a retryable flag gets the flag of its code in `ERROR_CODES` (CLI-48). Thus `UNAVAILABLE` without a flag is retryable, and the HTTP face answers 503.
@@ -840,7 +840,7 @@ No changes in this release.
   - This rule agrees with the rule of a cut (CLI-48): the flag is false when the call can have had its effect.
   - `WIRE-PROTOCOL.md` gives the rule in the section "Error codes". Tests pin it on the wire of HTTP and WebSocket, and on the HTTP, WebSocket and MCP faces of the procedures host.
   
-  The site, MiniMongo, Graph and jarvis: no change.
+  Apps: no change.
 
 ## 0.18.0
 
@@ -882,9 +882,9 @@ No changes in this release.
   - Code that matches the status 405 or 415 of a procedure server: match the status 403 and the reasons `method-not-allowed` and `media-type-not-allowed`.
   - Code that reads `GuardResult.code` of `checkBrowserRequest()`: read `reason`.
   - Code that matches the code `"500"` or the default code of `ServerError`: match `INTERNAL_ERROR`.
-  - The site, MiniMongo, Graph and jarvis: no code of theirs matches a former code, so no change is necessary.
-  - MiniMongo: its dev server uses `HttpServerTransport`, and its answers change only as the table says.
-  - jarvis: its host uses `procedureHandler`, which gave the codes of wire v1 already.
+  - Apps: no code of theirs matches a former code, so no change is necessary.
+  - An app: its dev server uses `HttpServerTransport`, and its answers change only as the table says.
+  - An app: its host uses `procedureHandler`, which gave the codes of wire v1 already.
 
 ## 0.17.4
 
@@ -945,9 +945,9 @@ No changes in this release.
   - For each collection with partitions whose name has `%` or `.`, upgrade the publishers and the subscribers together.
   - Build each topic rule of a collection with `collectionTopicRule()`. Do not join the parts yourself.
   - The site: no change is necessary. It has no collection with partitions.
-  - MiniMongo: no change is necessary. It has no collection with partitions.
-  - Graph: no change is necessary. Graph has dotted names of collections, but no dotted name has partitions yet. When a dotted name gets partitions, build the rule of `graph-host.ts` with `collectionTopicRule()`, not `collections.${c}.*`.
-  - jarvis: no change is necessary. It has no collection with partitions.
+  - An app: no change is necessary. It has no collection with partitions.
+  - An app: no change is necessary. The app has dotted names of collections, but no dotted name has partitions yet. When a dotted name gets partitions, build the rule of its host with `collectionTopicRule()`, not `collections.${c}.*`.
+  - An app: no change is necessary. It has no collection with partitions.
 
 ## 0.15.1
 
@@ -977,7 +977,7 @@ No changes in this release.
     principalOf,
     limits: [
       {
-        name: "graph.writes",
+        name: "app.writes",
         key: { claim: "tenant" },
         covers: { writes: true },
         policy: { type: "sliding-window", limit: { value: 120, unit: "count" }, window: { value: 1, unit: "min" } },
@@ -1037,9 +1037,9 @@ No changes in this release.
   Migration:
   
   - **Site.** No change. The site does not write collections.
-  - **MiniMongo.** No change for a storage or a `HybridStorage` without `versionOf`. A `HybridStorage` with `versionOf` over `ApiStorage` needs a server storage with the same `versionOf` (for example `new InMemoryStorage({ versionOf })`), or the option `sendBaseVersions: false`.
-  - **Graph.** Graph keeps last-write-wins first (D11): it gives no expected version, so nothing changes. `GraphDocsStorage` must refuse a write with an expected version until it tests one. Add the guard to its `set`, `delete` and `setBatch`, and run the contract suite: its first case tests the refusal. To adopt the version later, stamp a version field on the server, give the storage a `versionOf` that tests it in the write, and give the same `versionOf` to the `HybridStorage` of the client. Then add `createWithVersions` to the contract run.
-  - **jarvis.** No change: jarvis gives no expected version. A storage of jarvis that implements `CollectionStorage` must refuse a write with an expected version, as for Graph.
+  - **An app with `HybridStorage`.** No change for a storage or a `HybridStorage` without `versionOf`. A `HybridStorage` with `versionOf` over `ApiStorage` needs a server storage with the same `versionOf` (for example `new InMemoryStorage({ versionOf })`), or the option `sendBaseVersions: false`.
+  - **An app with last-write-wins.** It gives no expected version, so nothing changes. Its own storage must refuse a write with an expected version until it tests one. Add the guard to its `set`, `delete` and `setBatch`, and run the contract suite: its first case tests the refusal. To adopt the version later, stamp a version field on the server, give the storage a `versionOf` that tests it in the write, and give the same `versionOf` to the `HybridStorage` of the client. Then add `createWithVersions` to the contract run.
+  - **An app without versions.** No change: it gives no expected version. A storage of the app that implements `CollectionStorage` must refuse a write with an expected version, as above.
   - **Other storages.** Each class that implements `CollectionStorage` reads the new options of `set`, `delete` and `setBatch`. It tests them in the write, or it rejects the write with `preconditionNotSupported()`. It never ignores them.
 
 ## 0.14.1
@@ -1073,9 +1073,9 @@ No changes in this release.
   The migration steps of the known consumers:
   
   - The site: no change. It imports none of these names.
-  - MiniMongo: no change. It imports none of these names. The server stub in `vite.config.ts` names `HttpServerTransport` and `WebSocketServerTransport`, and it can stay.
-  - Graph: no change. It imports none of these names.
-  - jarvis: no change. It imports none of these names.
+  - An app: no change. It imports none of these names. The server stub in `vite.config.ts` names `HttpServerTransport` and `WebSocketServerTransport`, and it can stay.
+  - An app: no change. It imports none of these names.
+  - An app: no change. It imports none of these names.
   - The procedures image of the harness of `systems` (`packages/harness/image/procedures/server-ws.mjs`) imports `WebSocketServerTransport` from the root. It pins `@procedures/client` 0.7.0. When it moves to a version after the next MINOR, import `WebSocketServerTransport` from `@procedures/client/node`.
 
 ## 0.14.0
@@ -1108,16 +1108,16 @@ No changes in this release.
   - A caller that finds a cut by the code `INTERNAL_ERROR`: look for `UNAVAILABLE` in its place. Do not retry the call when `retryable` is false.
   - A handler that throws `UNAVAILABLE` with `retryable: false`: its HTTP status is 500 in place of 503. Without the flag, the error is retryable and gets 503. A retry middleware then sends the call again, so give `retryable: false` when the call can have had its effect.
   - The site: no change is necessary. Its code does not read the code of a cut, or the HTTP status 503.
-  - MiniMongo: no change is necessary. Its code does not read `INTERNAL_ERROR`, `UNAVAILABLE` or the severity of an error.
-  - The procedures host of Graph (GRAPH-11): no change is necessary. Its code does not read `INTERNAL_ERROR`. Its error "the server has no AGENT_TOKEN" is `UNAVAILABLE` with `retryable: false`, so its HTTP status is 500 in place of 503. No code of Graph reads that status.
-  - jarvis: no change is necessary. Its drain test already expects `UNAVAILABLE` with `retryable: false` for a cut procedure call (S6 A12). Its code reads only `NOT_FOUND` and `FORBIDDEN`.
+  - An app: no change is necessary. Its code does not read `INTERNAL_ERROR`, `UNAVAILABLE` or the severity of an error.
+  - The procedures host of an app (APP-11): no change is necessary. Its code does not read `INTERNAL_ERROR`. Its error "the server has no AGENT_TOKEN" is `UNAVAILABLE` with `retryable: false`, so its HTTP status is 500 in place of 503. No code of the app reads that status.
+  - An app: no change is necessary. Its drain test already expects `UNAVAILABLE` with `retryable: false` for a cut procedure call (S6 A12). Its code reads only `NOT_FOUND` and `FORBIDDEN`.
   - The `mark` CLI and `procedure-server`: no change is necessary. The lifecycle test of CI-2 expects `UNAVAILABLE` for the cut of `lifecycle.ticksOnce`.
 
 ## 0.13.2
 
 ### Patch Changes
 
-- 3a235b9: New: the patch operations `$remove` and `$insert` (Graph's split, wave 2, W5). `$remove` takes an element out of an array, and the next elements move down by one, as the operation `remove` of JSON Patch (RFC 6902). For a field of an object, it is the same as `$unset`. `$insert` adds an element to an array at an index, as the operation `add` of JSON Patch. Each index of one patch refers to the item before the patch. A patch that removes and inserts elements of the same array is refused, and so is an `$insert` past the end of an array. `$unset` keeps the rule of MongoDB: an element of an array becomes `null`. The storage contract has a case for the two operations, so each storage gets them through `applyPatch`.
+- 3a235b9: New: the patch operations `$remove` and `$insert`. `$remove` takes an element out of an array, and the next elements move down by one, as the operation `remove` of JSON Patch (RFC 6902). For a field of an object, it is the same as `$unset`. `$insert` adds an element to an array at an index, as the operation `add` of JSON Patch. Each index of one patch refers to the item before the patch. A patch that removes and inserts elements of the same array is refused, and so is an `$insert` past the end of an array. `$unset` keeps the rule of MongoDB: an element of an array becomes `null`. The storage contract has a case for the two operations, so each storage gets them through `applyPatch`.
 
 ## 0.13.1
 
@@ -1148,10 +1148,10 @@ No changes in this release.
   - A host with an `expose` rule must list the collection procedures that it serves, for example `collections.notes.*`. `host.*` and `events.subscribe` stay always on.
   - An app that pins its own procedures with `registerProcedures()` on a server with an expose rule: list them in the rule. Give `{ alwaysOn: true }` only to a procedure of the host itself.
   - The site: no change is necessary. Its servers have no expose rule.
-  - MiniMongo: no change is necessary. Its server has an expose rule, but it pins no procedure and serves no collection.
+  - An app: no change is necessary. Its server has an expose rule, but it pins no procedure and serves no collection.
   - The `mark` CLI and `procedure-server`: no change is necessary. They serve no collection, and `--expose` keeps `host.*` and `events.subscribe` on.
-  - jarvis: no change is necessary. Its host has no expose rule.
-  - The procedures host of Graph (GRAPH-11): no change is necessary. Its rule `["collections.*", "graph.*"]` lists the collection procedures. To hide `clear`, an `exclude` of the policy now has an effect.
+  - An app: no change is necessary. Its host has no expose rule.
+  - The procedures host of an app (APP-11): no change is necessary. Its rule `["collections.*", "app.*"]` lists the collection procedures. To hide `clear`, an `exclude` of the policy now has an effect.
 
 ## 0.12.2
 
@@ -1200,9 +1200,9 @@ No changes in this release.
   
   Migration steps:
   
-  - The site and MiniMongo: no change is necessary, unless they read `/health` of a peer. Then call `host.info` with the token.
-  - The MCP host of Graph: no change is necessary. To share the port of the Graph host, mount `mcpFace()` on its listener.
-  - jarvis and Graph under `run()`: build the procedures with `createProcedureHost()`, and call `host.declare(svc)` in the service of the process. Give `listen` for a port of the host, or mount `host.handler` and `host.upgrade` on the listener of the app.
+  - The site and an app: no change is necessary, unless they read `/health` of a peer. Then call `host.info` with the token.
+  - The MCP host of an app: no change is necessary. To share the port of its procedures host, mount `mcpFace()` on its listener.
+  - Apps under `run()`: build the procedures with `createProcedureHost()`, and call `host.declare(svc)` in the service of the process. Give `listen` for a port of the host, or mount `host.handler` and `host.upgrade` on the listener of the app.
   - A caller of `createPeer()` with a different token for each transport: give one token.
   - A Docker `HEALTHCHECK` or a probe of Kubernetes that read `/health` of a peer: use the probes of the service. Give the service `probeServer({ port, server_retry_after })` on a port of its own, or mount `probeHandler(health, { prefix: "/health" })` on the port of the app. Both come from `@mark1russell7/service/http`, and they answer `/health/startup`, `/health/readiness` and `/health/liveness`. The lockfile check of a client calls `host.info` with the token of the lockfile.
   - A test that read `/health` of a peer: call `host.info` with the token, or check the status 404.
@@ -1230,8 +1230,8 @@ No changes in this release.
   
   Migration steps:
   
-  - The site, MiniMongo and the MCP host of Graph: no change is necessary. `stop({ grace })` keeps its result. Change `server.callsInFlight` to `server.inFlight()`.
-  - jarvis and Graph under `run()`: declare the parts in the service of the process. Do not call `stop()`. Declare `svc.server("procedures", {}, server)`, and declare each handle of `server.storageHandles()` with `svc.dependency(handle.name, spec, handle)`. Give the server and `run()` the same clock, with the option `clock` of each.
+  - The site, an app and the MCP host of another app: no change is necessary. `stop({ grace })` keeps its result. Change `server.callsInFlight` to `server.inFlight()`.
+  - Apps under `run()`: declare the parts in the service of the process. Do not call `stop()`. Declare `svc.server("procedures", {}, server)`, and declare each handle of `server.storageHandles()` with `svc.dependency(handle.name, spec, handle)`. Give the server and `run()` the same clock, with the option `clock` of each.
   - A test with a fake clock that calls `stop({ grace })` with calls in flight: advance the clock by the grace, or stop without a grace.
 
 ## 0.9.2
@@ -1344,14 +1344,14 @@ No changes in this release.
   - The option `origin` of `HybridStorage` is the tag of the storage (a random `hybrid-…` tag by default). Each write of the storage to the local copy and to the remote has it. The write methods of `HybridStorage` and `ApiStorage` take `{ origin }`.
   - `capture: "observe"`: the storage observes the local copy and queues each change with another origin. Thus an application can write to the local copy directly, for example with the synchronous writes of a SignalDB collection. In `write-through` and `remote-only` mode, the storage sends a captured change at once.
   - The option `syncState` takes a `SyncStateStore`: `MemorySyncStateStore`, or `IndexedDbSyncStateStore` of `@procedures/store/indexeddb`. The store keeps the cursor and the base versions. A new storage with the same store and a durable local copy asks only for the changes since the cursor, and it finds the conflicts of the base versions. A failure of the store goes to the status (`operation: "store"`, `SyncStateError`), and the storage goes on.
-  - The option `feed` takes a `RemoteChangeFeed`. A delta whose `since` is the cursor applies without a read of the remote. A gap, a lost event, a new subscription or another delta makes one pull. A delta that comes during a pull applies after the pull, so the pull does not erase it (the LiveLog rule of Graph).
+  - The option `feed` takes a `RemoteChangeFeed`. A delta whose `since` is the cursor applies without a read of the remote. A gap, a lost event, a new subscription or another delta makes one pull. A delta that comes during a pull applies after the pull, so the pull does not erase it.
   - In `write-through` mode, a pull or a delta does not write over an own write that waits for the remote, a set or a delete. The storage keeps the remote value of the id, and after the write it reads the id again: then the rules of a pull decide. A read of a missing id does not bring back an item whose own delete waits.
-  - With `versionOf`, the storage keeps the versions of its own writes until their echoes come (option `echoWindow`, 30 seconds by default). The echo of an older own write does not write over a newer local write (the EchoLedger rule of Graph).
+  - With `versionOf`, the storage keeps the versions of its own writes until their echoes come (option `echoWindow`, 30 seconds by default). The echo of an older own write does not write over a newer local write.
   - `EventsChangeFeed` of `@procedures/store` is the feed of the change events. Its source is a `Client`, a `WebSocketTransport` or another transport. It treats the events as hints: a gap of the numbers, a lost event, a hint and each confirmation of the subscription call `onGap()`.
   - The core collection procedures publish `CollectionChangeEvent` `{ since, version, changed, deleted, origin }` on `ctx.bus`, under the topic `collections.<name>` (`collectionChangeTopic()`), while a subscriber listens. The changes come from `getChangesSince()` of the storage, and the events of one storage make a chain of versions. The option `changeEvents` of `createCollectionProcedures()` turns them off, or gives the topic of each call: the partition of CLI-17 goes there.
   - A value reaches a subscriber only through the checks of a read. By default, an event has the ids and the versions only, and `EventsChangeFeed` gives it to `onHint()`: `HybridStorage` reads the values with `changes`, and a hint with only deletes applies without a read. With `changeEvents: { values: true }`, an event also has `values`: each row `{ id, value }` passes the output filter of the host (`admitItem`) for each subscriber, and a refused id goes in `withheld`, so the storage pulls it.
   - `EventPublisher` refuses a topic whose reads the capability of the call does not permit (`FORBIDDEN`, `effects-exceeded`). Its new option `reads` gives the reads of a topic. The default, `collectionTopicReads()`, gives `collection:<name>` for `collections.<name>` and `collections.<name>.<partition>`. `ctx.admit` gives a procedure the output filter of its host for the data that it sends later.
-  - The syncs of one `HybridStorage` run one at a time: the deltas and the hints of the feed, the pulls, the pushes, the reads after an own write and the mode switches. A remote delta and a full sync never run at the same time (Graph R18).
+  - The syncs of one `HybridStorage` run one at a time: the deltas and the hints of the feed, the pulls, the pushes, the reads after an own write and the mode switches. A remote delta and a full sync never run at the same time.
   - The write inputs of the collection procedures take an optional `origin` (1 to 256 characters). The procedure gives it to the storage and to the event. A server before this change ignores the field.
   - `Client.subscribe()` and `Client.events()` subscribe to the topics of the bus of the server through the middleware and the context of the client. A subscription has no deadline: the timeouts of the client do not apply to it, and only `metadata: { timeout }` in its options gives one.
   - New exports: `collectionChangeTopic`, `CollectionChangeEvent` and `CollectionChangeEventsOptions` from `@procedures/client`, `./browser` and `./procedures`. `EventsChangeFeed`, `MemorySyncStateStore`, `SyncStateError` and the types `RemoteChangeFeed`, `RemoteChangeListener`, `RemoteChanges`, `EventSubscriber`, `ChangeEventSource`, `EventsChangeFeedOptions`, `SyncState`, `SyncStateChange` and `SyncStateStore` from `@procedures/store`. `IndexedDbSyncStateStore` and `MemorySyncStateStore` from `@procedures/store/indexeddb`.
@@ -1420,7 +1420,7 @@ No changes in this release.
 
 ### Patch Changes
 
-- 389b054: A token check no longer tells the length of the token through its time. The peer compares the SHA-256 digests of the two tokens with `timingSafeEqual`. The `tokenMatches` of the client, which runs in a browser too, compares each character of the expected token for each presented token. Before, a token of another length returned at once. The re-audit of jarvis found it.
+- 389b054: A token check no longer tells the length of the token through its time. The peer compares the SHA-256 digests of the two tokens with `timingSafeEqual`. The `tokenMatches` of the client, which runs in a browser too, compares each character of the expected token for each presented token. Before, a token of another length returned at once. A re-audit found it.
 
 ## 0.6.0
 

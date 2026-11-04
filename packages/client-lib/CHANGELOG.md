@@ -176,7 +176,7 @@
   
   - A caller of `cli-kit` with a `format` hook for a path with a dotted segment writes the key in the encoded form, for example `a.b%2Ec`.
   - A reader of the ecosystem scan that splits a `key` on `.` uses `keyToPath(key)`.
-  - The site, MiniMongo, Graph and jarvis: no step, if their procedure paths have no segment with `.` or `%`.
+  - Apps: no step, if their procedure paths have no segment with `.` or `%`.
 
 ### Patch Changes
 
@@ -275,8 +275,8 @@
   - A host whose `expose`, policy or limit pattern names such a path in text uses the encoded form, for example `collections.e2e%2Etabs.*`.
   - An `mcpExclude` entry, an `expose` deny entry or a limit entry in the old raw form, for example `collections.e2e.tabs.drop`, does not match. The check compares the encoded key, so the procedure becomes visible, or the limit does not apply. Write each such entry in the encoded form, for example `collections.e2e%2Etabs.drop`.
   - A subscriber of a dotted collection uses `collectionChangeTopic(name)`. The raw topic `collections.a.b` is the topic of the partition `b` of `a`.
-  - Graph: read the collection of a topic with `collectionTopicPartition(topic)`, not with a pattern, for example `/^collections\.([^.]+)\./`.
-  - The site, MiniMongo and jarvis: no change, if their collection names have no `.` and no `%`.
+  - An app: read the collection of a topic with `collectionTopicPartition(topic)`, not with a pattern, for example `/^collections\.([^.]+)\./`.
+  - Other apps: no change, if their collection names have no `.` and no `%`.
 - fa1a61a: Less boilerplate in each procedure definition (dedupe review F1, tracker item O58).
   
   PATCH (pre-1.0): this change adds exports and deprecates names. It removes no export and changes no behavior.
@@ -290,7 +290,7 @@
   
   Migration:
   
-  - The site, MiniMongo, Graph and jarvis: no change at this time. The deprecated names work until the next MINOR.
+  - Apps: no change at this time. The deprecated names work until the next MINOR.
   - Before the next MINOR, replace `zodAdapter<T>(schema)` with `schema`. To keep the check of a schema against a type, write `const schema: z.ZodType<T> = ...`.
   - Before the next MINOR, replace `typedAnySchema<T>()` and `outputSchema<T>()` with `typed<T>()`.
   - A parse-only object (`{ parse }`) in `zodAdapter` becomes a Standard Schema with a `~standard` property.
@@ -685,7 +685,7 @@
   
   Deprecated: at the timeout of 15 s, `server.start` gives `success: true` with the message "still loading" while the process still starts. From the next MINOR of the client group, a start that is not ready at the timeout gives `success: false`, with the PID of the process that still starts. Read the readiness probe or `mark server status` for the state.
   
-  The site, MiniMongo, Graph and jarvis: no change. A host with a listener now also answers the paths under `/_probes`. Before, these paths got 404.
+  Apps: no change. A host with a listener now also answers the paths under `/_probes`. Before, these paths got 404.
 - @procedures/client@0.17.3
   - @procedures/dag@0.17.3
   - @procedures/fs@0.17.3
@@ -813,7 +813,7 @@
 
 ### Patch Changes
 
-- 992b801: New: the procedure `lib.importCycles` and the functions `importCycles` and `importGraph` (Graph's split, wave 2, W7). They give the import cycles of a tree of TypeScript sources: the cycles at runtime (after the import elision of TypeScript, with the injection tokens of Angular as an option), the cycles of the declared imports, or the cycles of each import. `findCycles` keeps its own stack, so a long chain does not overflow the call stack.
+- 992b801: New: the procedure `lib.importCycles` and the functions `importCycles` and `importGraph`. They give the import cycles of a tree of TypeScript sources: the cycles at runtime (after the import elision of TypeScript, with the injection tokens of Angular as an option), the cycles of the declared imports, or the cycles of each import. `findCycles` keeps its own stack, so a long chain does not overflow the call stack.
 - @procedures/client@0.13.1
   - @procedures/dag@0.13.1
   - @procedures/fs@0.13.1

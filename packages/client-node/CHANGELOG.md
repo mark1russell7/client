@@ -180,7 +180,7 @@
   
   Migration:
   
-  - The site, MiniMongo, Graph and jarvis: no change at this time. The deprecated names work until the next MINOR.
+  - Apps: no change at this time. The deprecated names work until the next MINOR.
   - Before the next MINOR, replace `zodAdapter<T>(schema)` with `schema`. To keep the check of a schema against a type, write `const schema: z.ZodType<T> = ...`.
   - Before the next MINOR, replace `typedAnySchema<T>()` and `outputSchema<T>()` with `typed<T>()`.
   - A parse-only object (`{ parse }`) in `zodAdapter` becomes a Standard Schema with a `~standard` property.
@@ -333,13 +333,13 @@
 
 ### Patch Changes
 
-- de95e59: New subpath `@procedures/node/fresh-bundle` (roadmap O49): a launcher that starts a TypeScript entry from an esbuild bundle in a cache folder. It comes from jarvis (jarvis#80).
+- de95e59: New subpath `@procedures/node/fresh-bundle` (roadmap O49): a launcher that starts a TypeScript entry from an esbuild bundle in a cache folder.
   
   - `launch(spec)` starts the last build only when each source and each file of `spec.inputs` has the content hash of the build. Otherwise it makes a new build in a child process. When the build fails, it starts the source through `tsx`.
   - `freshEntry(spec)` gives the entry file of the fresh build, or `undefined`. `build(spec)` makes a build in this process.
   - `esbuild` and `tsx` are optional peer dependencies. The package root does not load the subpath, and an import of the root does not need them.
   
-  This release changes no behavior of the procedures. jarvis can import `launch` from `@procedures/node/fresh-bundle` and remove its copy of `fresh-bundle.mjs`.
+  This release changes no behavior of the procedures. An app can import `launch` from `@procedures/node/fresh-bundle` and remove its copy of `fresh-bundle.mjs`.
 - @procedures/client@0.26.1
   - @procedures/shell@0.26.1
 

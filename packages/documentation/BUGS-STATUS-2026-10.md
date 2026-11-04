@@ -45,7 +45,7 @@
 | H26 | `docker-sqlite`: one call at a time per file, atomic save (50 concurrent inserts kept 1 row) | `352adc9` (`docker-sqlite`), `3e509e5` (lockfile) |
 | H15 | real `sideEffects` values | `50ba8b8` |
 | M38 | Docker ports bound to `127.0.0.1` | `220bfa8` (`docker-mongo`), `1247930` (`docker-sqlite`) |
-| M26 | MiniMongo reads the pagination fields the server sends | `1473adb` (`MiniMongo`) |
+| M26 | The explorer app reads the pagination fields the server sends | `1473adb` (the explorer app) |
 | H9 | a generator handler is a stream: `invokeProcedure()` detects an async iterable, validates each item, and ends the generator when the reader stops | `e6dfd67` |
 | H8 | `route()` honors the `out` config of a leaf: sponge (with `accumulate`), stream, handlers | `e6dfd67` |
 | H5 | WebSocket stream frames, a `cancel` message, and a client that yields frames as they arrive | `b6a5527` |

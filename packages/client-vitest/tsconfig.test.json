@@ -3,5 +3,9 @@
   "extends": [
     "./tsconfig.json",
     "@mark1russell7/cue/ts/config/test.json"
+  ],
+  "include": [
+    "src/**/*",
+    "fixtures/**/*"
   ]
 }

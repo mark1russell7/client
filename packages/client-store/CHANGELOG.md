@@ -111,9 +111,9 @@
   Migration steps:
   
   - The site: no step. It does not catch a `TIMEOUT` of a `HybridStorage` write.
-  - MiniMongo: no step, unless code catches a `TIMEOUT` of a `write-through` write to show an undo. That code gets `PendingWriteError`, with the `TIMEOUT` as its `cause`.
-  - Graph: the own `isUnavailable` that keeps `TIMEOUT` in the queue is not necessary at this time. Remove it, or keep it: the result is the same.
-  - jarvis: no step. To keep the old behavior, pass `isUnavailable: (error) => error?.retryable === true || error?.code === undefined`.
+  - An app: no step, unless code catches a `TIMEOUT` of a `write-through` write to show an undo. That code gets `PendingWriteError`, with the `TIMEOUT` as its `cause`.
+  - An app: the own `isUnavailable` that keeps `TIMEOUT` in the queue is not necessary at this time. Remove it, or keep it: the result is the same.
+  - An app: no step. To keep the old behavior, pass `isUnavailable: (error) => error?.retryable === true || error?.code === undefined`.
 
 ### Patch Changes
 
@@ -216,8 +216,8 @@
   - A host whose `expose`, policy or limit pattern names such a path in text uses the encoded form, for example `collections.e2e%2Etabs.*`.
   - An `mcpExclude` entry, an `expose` deny entry or a limit entry in the old raw form, for example `collections.e2e.tabs.drop`, does not match. The check compares the encoded key, so the procedure becomes visible, or the limit does not apply. Write each such entry in the encoded form, for example `collections.e2e%2Etabs.drop`.
   - A subscriber of a dotted collection uses `collectionChangeTopic(name)`. The raw topic `collections.a.b` is the topic of the partition `b` of `a`.
-  - Graph: read the collection of a topic with `collectionTopicPartition(topic)`, not with a pattern, for example `/^collections\.([^.]+)\./`.
-  - The site, MiniMongo and jarvis: no change, if their collection names have no `.` and no `%`.
+  - An app: read the collection of a topic with `collectionTopicPartition(topic)`, not with a pattern, for example `/^collections\.([^.]+)\./`.
+  - Other apps: no change, if their collection names have no `.` and no `%`.
 
 ### Patch Changes
 
@@ -234,7 +234,7 @@
   
   Migration:
   
-  - The site, MiniMongo, Graph and jarvis: no change at this time. The deprecated names work until the next MINOR.
+  - Apps: no change at this time. The deprecated names work until the next MINOR.
   - Before the next MINOR, replace `zodAdapter<T>(schema)` with `schema`. To keep the check of a schema against a type, write `const schema: z.ZodType<T> = ...`.
   - Before the next MINOR, replace `typedAnySchema<T>()` and `outputSchema<T>()` with `typed<T>()`.
   - A parse-only object (`{ parse }`) in `zodAdapter` becomes a Standard Schema with a `~standard` property.
@@ -371,7 +371,7 @@
 
 ### Patch Changes
 
-- b7a5167: Added: the option `aroundRemoteApply` of `HybridStorage` puts each apply of the remote changes inside a hook (graph W8). Graph uses it to start a span of a trace with the `traceparent` that the server sends with a change.
+- b7a5167: Added: the option `aroundRemoteApply` of `HybridStorage` puts each apply of the remote changes inside a hook. An app uses it to start a span of a trace with the `traceparent` that the server sends with a change.
   
   - `aroundRemoteApply(hint, apply, context)` starts `apply` one time and gives back its promise. `context.cause` is `"delta"`, `"hint"`, `"gap"` or `"pull"`. `context.hints` has the hints of the apply.
   - A delta and a hint of the feed give their hint. A gap and a pull of the storage (the timer of `pullInterval`, `syncFromRemote()`, `sync()` and the first sync) give the hint `undefined`.
@@ -626,9 +626,9 @@
   Migration:
   
   - **Site.** No change. The site does not write collections.
-  - **MiniMongo.** No change for a storage or a `HybridStorage` without `versionOf`. A `HybridStorage` with `versionOf` over `ApiStorage` needs a server storage with the same `versionOf` (for example `new InMemoryStorage({ versionOf })`), or the option `sendBaseVersions: false`.
-  - **Graph.** Graph keeps last-write-wins first (D11): it gives no expected version, so nothing changes. `GraphDocsStorage` must refuse a write with an expected version until it tests one. Add the guard to its `set`, `delete` and `setBatch`, and run the contract suite: its first case tests the refusal. To adopt the version later, stamp a version field on the server, give the storage a `versionOf` that tests it in the write, and give the same `versionOf` to the `HybridStorage` of the client. Then add `createWithVersions` to the contract run.
-  - **jarvis.** No change: jarvis gives no expected version. A storage of jarvis that implements `CollectionStorage` must refuse a write with an expected version, as for Graph.
+  - **An app with `HybridStorage`.** No change for a storage or a `HybridStorage` without `versionOf`. A `HybridStorage` with `versionOf` over `ApiStorage` needs a server storage with the same `versionOf` (for example `new InMemoryStorage({ versionOf })`), or the option `sendBaseVersions: false`.
+  - **An app with last-write-wins.** It gives no expected version, so nothing changes. Its own storage must refuse a write with an expected version until it tests one. Add the guard to its `set`, `delete` and `setBatch`, and run the contract suite: its first case tests the refusal. To adopt the version later, stamp a version field on the server, give the storage a `versionOf` that tests it in the write, and give the same `versionOf` to the `HybridStorage` of the client. Then add `createWithVersions` to the contract run.
+  - **An app without versions.** No change: it gives no expected version. A storage of the app that implements `CollectionStorage` must refuse a write with an expected version, as above.
   - **Other storages.** Each class that implements `CollectionStorage` reads the new options of `set`, `delete` and `setBatch`. It tests them in the write, or it rejects the write with `preconditionNotSupported()`. It never ignores them.
 
 ### Patch Changes
@@ -795,14 +795,14 @@
   - The option `origin` of `HybridStorage` is the tag of the storage (a random `hybrid-…` tag by default). Each write of the storage to the local copy and to the remote has it. The write methods of `HybridStorage` and `ApiStorage` take `{ origin }`.
   - `capture: "observe"`: the storage observes the local copy and queues each change with another origin. Thus an application can write to the local copy directly, for example with the synchronous writes of a SignalDB collection. In `write-through` and `remote-only` mode, the storage sends a captured change at once.
   - The option `syncState` takes a `SyncStateStore`: `MemorySyncStateStore`, or `IndexedDbSyncStateStore` of `@procedures/store/indexeddb`. The store keeps the cursor and the base versions. A new storage with the same store and a durable local copy asks only for the changes since the cursor, and it finds the conflicts of the base versions. A failure of the store goes to the status (`operation: "store"`, `SyncStateError`), and the storage goes on.
-  - The option `feed` takes a `RemoteChangeFeed`. A delta whose `since` is the cursor applies without a read of the remote. A gap, a lost event, a new subscription or another delta makes one pull. A delta that comes during a pull applies after the pull, so the pull does not erase it (the LiveLog rule of Graph).
+  - The option `feed` takes a `RemoteChangeFeed`. A delta whose `since` is the cursor applies without a read of the remote. A gap, a lost event, a new subscription or another delta makes one pull. A delta that comes during a pull applies after the pull, so the pull does not erase it.
   - In `write-through` mode, a pull or a delta does not write over an own write that waits for the remote, a set or a delete. The storage keeps the remote value of the id, and after the write it reads the id again: then the rules of a pull decide. A read of a missing id does not bring back an item whose own delete waits.
-  - With `versionOf`, the storage keeps the versions of its own writes until their echoes come (option `echoWindow`, 30 seconds by default). The echo of an older own write does not write over a newer local write (the EchoLedger rule of Graph).
+  - With `versionOf`, the storage keeps the versions of its own writes until their echoes come (option `echoWindow`, 30 seconds by default). The echo of an older own write does not write over a newer local write.
   - `EventsChangeFeed` of `@procedures/store` is the feed of the change events. Its source is a `Client`, a `WebSocketTransport` or another transport. It treats the events as hints: a gap of the numbers, a lost event, a hint and each confirmation of the subscription call `onGap()`.
   - The core collection procedures publish `CollectionChangeEvent` `{ since, version, changed, deleted, origin }` on `ctx.bus`, under the topic `collections.<name>` (`collectionChangeTopic()`), while a subscriber listens. The changes come from `getChangesSince()` of the storage, and the events of one storage make a chain of versions. The option `changeEvents` of `createCollectionProcedures()` turns them off, or gives the topic of each call: the partition of CLI-17 goes there.
   - A value reaches a subscriber only through the checks of a read. By default, an event has the ids and the versions only, and `EventsChangeFeed` gives it to `onHint()`: `HybridStorage` reads the values with `changes`, and a hint with only deletes applies without a read. With `changeEvents: { values: true }`, an event also has `values`: each row `{ id, value }` passes the output filter of the host (`admitItem`) for each subscriber, and a refused id goes in `withheld`, so the storage pulls it.
   - `EventPublisher` refuses a topic whose reads the capability of the call does not permit (`FORBIDDEN`, `effects-exceeded`). Its new option `reads` gives the reads of a topic. The default, `collectionTopicReads()`, gives `collection:<name>` for `collections.<name>` and `collections.<name>.<partition>`. `ctx.admit` gives a procedure the output filter of its host for the data that it sends later.
-  - The syncs of one `HybridStorage` run one at a time: the deltas and the hints of the feed, the pulls, the pushes, the reads after an own write and the mode switches. A remote delta and a full sync never run at the same time (Graph R18).
+  - The syncs of one `HybridStorage` run one at a time: the deltas and the hints of the feed, the pulls, the pushes, the reads after an own write and the mode switches. A remote delta and a full sync never run at the same time.
   - The write inputs of the collection procedures take an optional `origin` (1 to 256 characters). The procedure gives it to the storage and to the event. A server before this change ignores the field.
   - `Client.subscribe()` and `Client.events()` subscribe to the topics of the bus of the server through the middleware and the context of the client. A subscription has no deadline: the timeouts of the client do not apply to it, and only `metadata: { timeout }` in its options gives one.
   - New exports: `collectionChangeTopic`, `CollectionChangeEvent` and `CollectionChangeEventsOptions` from `@procedures/client`, `./browser` and `./procedures`. `EventsChangeFeed`, `MemorySyncStateStore`, `SyncStateError` and the types `RemoteChangeFeed`, `RemoteChangeListener`, `RemoteChanges`, `EventSubscriber`, `ChangeEventSource`, `EventsChangeFeedOptions`, `SyncState`, `SyncStateChange` and `SyncStateStore` from `@procedures/store`. `IndexedDbSyncStateStore` and `MemorySyncStateStore` from `@procedures/store/indexeddb`.

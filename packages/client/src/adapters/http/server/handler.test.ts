@@ -337,12 +337,12 @@ describe("procedureHandler: CORS (CLI-3, CLI-18)", () => {
 
 describe("procedureHandler: the secrets stay out of the metadata (CLI-2a)", () => {
   it("keeps the secret headers, the cookies and the token query out of the metadata", async () => {
-    const { port } = await startApp({ secretHeaders: ["X-Jarvis-Token"] });
+    const { port } = await startApp({ secretHeaders: ["X-App-Token"] });
     const res = await send(
       port,
       "POST",
       "/api/proc/proc/meta?token=t-1&page=2",
-      { ...JSON_HEADERS, cookie: "jarvis_token=c-1", authorization: "Bearer b-1", "x-jarvis-token": "h-1", "x-api-key": "k-1", "x-tenant": "a" },
+      { ...JSON_HEADERS, cookie: "app_token=c-1", authorization: "Bearer b-1", "x-app-token": "h-1", "x-api-key": "k-1", "x-tenant": "a" },
       "{}"
     );
     const metadata = JSON.parse(res.body) as Record<string, unknown>;

@@ -3,7 +3,7 @@
  *
  * Before, each MCP server built the same parts by hand. The parts are the redirect of
  * `console.log`, the tool surface, the read-only narrowing and the host policy. The options of
- * `ProcedureServer` and the `McpServerTransport` are parts too. The dev-tools server (`mark mcp`), `mcp.serve` and the Graph host each had a
+ * `ProcedureServer` and the `McpServerTransport` are parts too. The dev-tools server (`mark mcp`), `mcp.serve` and an app host each had a
  * copy. `createMcpHost()` builds them from one set of options:
  *
  * - The procedures: a registry, modules, or both.
@@ -314,10 +314,10 @@ function hostToken(policyToken: string | undefined, faceToken: string | undefine
  * @example
  * ```typescript
  * const host = createMcpHost({
- *   registry: createRegistry(graphModule),
- *   surface: { namespaces: ["graph"] },
+ *   registry: createRegistry(appModule),
+ *   surface: { namespaces: ["app"] },
  *   readOnly: process.argv.includes("--read-only"),
- *   name: "graph",
+ *   name: "app",
  *   version: "0.1.0",
  * });
  * await host.start();

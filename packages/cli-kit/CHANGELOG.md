@@ -114,7 +114,7 @@
   
   - A caller of `cli-kit` with a `format` hook for a path with a dotted segment writes the key in the encoded form, for example `a.b%2Ec`.
   - A reader of the ecosystem scan that splits a `key` on `.` uses `keyToPath(key)`.
-  - The site, MiniMongo, Graph and jarvis: no step, if their procedure paths have no segment with `.` or `%`.
+  - Apps: no step, if their procedure paths have no segment with `.` or `%`.
 
 ### Patch Changes
 
