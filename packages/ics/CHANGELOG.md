@@ -1,5 +1,14 @@
 # @procedures/ics
 
+## 0.47.2
+
+### Patch Changes
+
+- Updated dependencies [0650616]
+- Updated dependencies [ae1e3fd]
+- Updated dependencies [f1ece74]
+  - @procedures/client@0.47.2
+
 ## 0.47.1
 
 ### Patch Changes
