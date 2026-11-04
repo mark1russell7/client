@@ -93,7 +93,6 @@
           "scripts/bench-paired-child.mjs",
           "scripts/bench-paired.mjs",
           "scripts/bench-paired.test.mjs",
-          "scripts/check-packages.mjs",
           "scripts/coverage.mjs",
           "scripts/lib/api-report.mjs",
           "scripts/lib/old-names.mjs",
