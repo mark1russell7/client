@@ -127,7 +127,7 @@ The CI names below are the jobs and the steps of `.github/workflows/ci.yml`.
 
 - **Rule.** Each service starts under `run()` of `@mark1russell7/service` (repository `systems`). Each app talks to a `ProcedureServer` of this repository. An app keeps no server and no socket of its own.
 - **Reason.** One runner gives each host the same start, health checks and stop. One server gives each app the same rights, limits and wire format.
-- **Guard.** Review rule. The CI step "Stop a host with SIGTERM in a stream" tests that the hosts of this repository stop under `run()`. Planned: a check of the app repositories, after GRAPH-7 and OTH-4.
+- **Guard.** Review rule. The CI step "Stop a host with SIGTERM in a stream" tests that the hosts of this repository stop under `run()`. Planned: a check of the app repositories, after APP-7 and OTH-4.
 
 ### I2. One way to define procedures and collections
 

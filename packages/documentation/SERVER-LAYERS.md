@@ -324,15 +324,15 @@ Mark decided each of these on 2026-10-17.
 | ID | Question | The answer of Mark | Items |
 |---|---|---|---|
 | D1 | Where does the general `node:http` listener adapter go? | A: in `systems`, as the new entry `@mark1russell7/service/http`. It is small and has no framework: `httpTransport`, a mount list, `probeServer`, `probeHandler` and `writeOutcome`. | SYS-1 |
-| D2 | Is the procedures server a process or a component? | A: a component. `createProcedureHost` gives parts, and the service of the process declares them. Only that entry starts `run()`. `systems` documents the pattern, with no embedded mode. | SYS-8, CLI-7, JAR-4, GRAPH-6, SYS-15 |
+| D2 | Is the procedures server a process or a component? | A: a component. `createProcedureHost` gives parts, and the service of the process declares them. Only that entry starts `run()`. `systems` documents the pattern, with no embedded mode. | SYS-8, CLI-7, APP-104, APP-6, SYS-15 |
 | D3 | How does the request tracking follow a dynamic registry? | B: dynamic routes. A controller can match a path pattern, and a function gives the idempotency of each request. | SYS-5, CLI-7 |
-| D4 | Does `systems` get a stream request kind? | C: each request is a stream, and a unary call is a stream of one. | SYS-6, JAR-7 |
-| D5 | Where do the health probes answer? | A: on a dedicated port or on the port of the app, as each process chooses. | SYS-2, CLI-9, JAR-4 |
+| D4 | Does `systems` get a stream request kind? | C: each request is a stream, and a unary call is a stream of one. | SYS-6, APP-107 |
+| D5 | Where do the health probes answer? | A: on a dedicated port or on the port of the app, as each process chooses. | SYS-2, CLI-9, APP-104 |
 | D6 | What does a second `SIGINT` do under `run()`? | A: a declared option `onRepeatSignal`, with the value `"ignore"` or `"exit"`. The `local-dev` profile sets `"exit"`. The sum of the stage limits replaces the hard-exit timer of the client. | SYS-9, CLI-8 |
 | D7 | Can `systems` ship named profiles, with its rule of no defaults? | A: yes. A profile (`local-dev`, `kubernetes`) is exported data that a caller spreads explicitly. | SYS-10, CLI-8 |
-| D8 | Does the rule of one procedures server apply to an app? | A: yes. The app mounts the procedure handler of the client and moves to the standard wire. The `{items}` body goes, and each reader reads the stream. | JAR-1, JAR-5, JAR-6, CLI-2a, CLI-28, CLI-30, CLI-31 |
-| D9 | How does the sync of an app relate to the collections of the client? | D: SignalDB is one local-copy strategy under `HybridStorage`, and the client owns the sync. | CLI-14, CLI-15, CLI-17, CLI-20, CLI-21, GRAPH-9, GRAPH-11 |
-| D10 | How does the CommonJS server of an app load the ESM packages? | A: the server becomes ESM. OTel loads through `node --import`, and SSR through a dynamic import. A telemetry job in CI proves the load order. | GRAPH-5 |
+| D8 | Does the rule of one procedures server apply to an app? | A: yes. The app mounts the procedure handler of the client and moves to the standard wire. The `{items}` body goes, and each reader reads the stream. | APP-101, APP-105, APP-106, CLI-2a, CLI-28, CLI-30, CLI-31 |
+| D9 | How does the sync of an app relate to the collections of the client? | D: SignalDB is one local-copy strategy under `HybridStorage`, and the client owns the sync. | CLI-14, CLI-15, CLI-17, CLI-20, CLI-21, APP-9, APP-11 |
+| D10 | How does the CommonJS server of an app load the ESM packages? | A: the server becomes ESM. OTel loads through `node --import`, and SSR through a dynamic import. A telemetry job in CI proves the load order. | APP-5 |
 | D11 | Do the collection writes get a conflict check on the server? | A: an optional `expectedVersion` on `set`, `setBatch` and `delete`. An app keeps last-write-wins first, and it uses the version later. | CLI-16 |
 | D12 | Can Vex and polite-crawler use `@procedures/mcp-server` for their MCP entries? | A: yes, for the MCP entry only. The step waits until the host factory works for `mark mcp` and the app hosts. | OTH-2, OTH-3 |
 | D13 | How do the breaking changes of the client group ship? | B: each break is its own MINOR of the client group. Refer to "Releases of the server stack". | CLI-1, CLI-2b, REL-2, DOC-4 |
@@ -340,7 +340,7 @@ Mark decided each of these on 2026-10-17.
 | D15 | What happens to the stale copies of the repositories? | Nobody deletes or moves a folder without Mark. Mark and Claude examine the folders together, one at a time. | CLEAN-2 |
 | D16 | Can the published harness of `systems` ship an image that installs `@procedures/client`? | C: the harness takes its test subjects as data, and the client owns its procedures subject image. | SYS-17, CLI-33, SYS-18 |
 | D17 | Do one-shot commands start under `run()`? | B: yes, with the minimal profile. Refer to "One-shot commands also start under `run()`". | CLI-8, CLI-26, SYS-16 |
-| D18 | Does the REST data API of an app move to procedures? | B: yes. The whole server of the app moves in this migration. | GRAPH-7 |
+| D18 | Does the REST data API of an app move to procedures? | B: yes. The whole server of the app moves in this migration. | APP-7 |
 
 ## Releases of the server stack
 
