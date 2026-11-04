@@ -1,5 +1,14 @@
 # @procedures/git
 
+## 0.47.1
+
+### Patch Changes
+
+- Updated dependencies [f845c6d]
+  - @procedures/client@0.47.1
+  - @procedures/fs@0.47.1
+  - @procedures/shell@0.47.1
+
 ## 0.47.0
 
 ### Patch Changes
