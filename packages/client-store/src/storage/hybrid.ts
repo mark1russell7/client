@@ -42,7 +42,7 @@
  *   feed, the pulls, the pushes, the reads after an own write, and the mode switches. Thus a
  *   remote delta and a full sync never run at the same time.
  * - `aroundRemoteApply` runs each apply of the remote changes inside a hook, for example inside a
- *   span of a trace (graph W8).
+ *   span of a trace.
  */
 
 import type {
@@ -299,7 +299,7 @@ export interface HybridStorageOptions {
   feed?: RemoteChangeFeed<any>;
 
   /**
-   * The hook around each apply of the remote changes (graph W8), for example a span of a trace.
+   * The hook around each apply of the remote changes, for example a span of a trace.
    * `RemoteApplyHook` gives the arguments.
    *
    * - The hook wraps the apply of each delta of the feed, each hint of the feed that applies, and
@@ -383,7 +383,7 @@ export interface HybridStorageOptions {
 }
 
 /**
- * The cause of an apply of the remote changes (graph W8).
+ * The cause of an apply of the remote changes.
  *
  * - `"delta"`: a delta of the feed.
  * - `"hint"`: one or more hints of the feed.
@@ -392,7 +392,7 @@ export interface HybridStorageOptions {
  */
 export type RemoteApplyCause = "delta" | "hint" | "gap" | "pull";
 
-/** The context of an apply of the remote changes, the third argument of `aroundRemoteApply` (graph W8). */
+/** The context of an apply of the remote changes, the third argument of `aroundRemoteApply`. */
 export interface RemoteApplyContext {
   /** The cause of the apply. A pull that hints and gaps asked for has the cause `"hint"`. */
   readonly cause: RemoteApplyCause;
@@ -404,7 +404,7 @@ export interface RemoteApplyContext {
 }
 
 /**
- * The hook around an apply of the remote changes (graph W8). The hook calls `apply` one time and
+ * The hook around an apply of the remote changes. The hook calls `apply` one time and
  * gives its promise back, for example from inside a span of a trace.
  *
  * - The storage waits for the hook and for the apply. A hook that does not settle stops the syncs.
@@ -436,7 +436,7 @@ const NO_HINTS: readonly RemoteChangeHint[] = Object.freeze([]);
 /** The most hints that a pull keeps for the hook. A pull drops the older ones. */
 const MAX_JOINED_HINTS = 128;
 
-/** The hint of a delta of the feed: its versions, its ids, its origin and its other fields, without the values (graph W8). */
+/** The hint of a delta of the feed: its versions, its ids, its origin and its other fields, without the values. */
 function hintOfDelta<T>(changes: RemoteChanges<T>): RemoteChangeHint {
   return {
     ...(changes.since !== undefined && { since: changes.since }),
@@ -648,7 +648,7 @@ export class SyncStateError extends Error {
 }
 
 /**
- * The hook `aroundRemoteApply` did not call `apply` one time (graph W8). The storage applied the
+ * The hook `aroundRemoteApply` did not call `apply` one time. The storage applied the
  * changes one time all the same, and the apply succeeded. `calls` is the number of calls of
  * `apply` before the hook settled.
  */
@@ -781,7 +781,7 @@ interface EchoEntry {
 
 /**
  * The versions of the own writes of a `HybridStorage` that no remote change echoed yet (roadmap
- * CLI-21, after the EchoLedger of Graph).
+ * CLI-21).
  *
  * - The ledger keeps the versions of each id in the order of the writes. It records a write when
  *   the local copy takes it, because a stale echo can come before the push.
@@ -1015,7 +1015,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   private readonly feed: RemoteChangeFeed<T> | undefined;
   private feedStop: (() => void) | undefined;
   private feedToken = 0;
-  /** The hook around each apply of the remote changes (graph W8) */
+  /** The hook around each apply of the remote changes */
   private readonly aroundRemoteApply: RemoteApplyHook | undefined;
   /** With the hook: the hints that asked for the pull that waits */
   private readonly joinedHints: RemoteChangeHint[] = [];
@@ -1500,7 +1500,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
 
   /**
    * This method pulls the changes since the cursor, through the hook `aroundRemoteApply` when the
-   * options give it (graph W8). Without the hook, it is `pullRemote(false)`, with no other step.
+   * options give it. Without the hook, it is `pullRemote(false)`, with no other step.
    */
   private pullThrough(cause: RemoteApplyCause, hints: readonly RemoteChangeHint[], full = false): Promise<void> {
     const hook = this.aroundRemoteApply;
@@ -1508,7 +1508,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   }
 
   /**
-   * This method runs an apply of the remote changes through the hook (graph W8).
+   * This method runs an apply of the remote changes through the hook.
    *
    * - The apply runs one time. A second call of `apply` gets the promise of the first call.
    * - When the hook does not call `apply`, the apply runs after the hook. Thus no change is lost.

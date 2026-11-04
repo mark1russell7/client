@@ -1,12 +1,12 @@
 /**
  * The sync engine of `HybridStorage` (roadmap CLI-21, decision D9): the batches of `observe()`,
  * the capture of the writes of the application to the local copy, the sync state after a reload,
- * the push feed, and the two rules of the store of Graph:
+ * the push feed, and the two rules of the store:
  *
- * - A pull never erases a live change that arrived during the pull (the LiveLog replay of Graph).
- * - The echo of an older own write never writes over a newer local write (the EchoLedger of Graph).
+ * - A pull never erases a live change that arrived during the pull.
+ * - The echo of an older own write never writes over a newer local write.
  *
- * The last tests cover the hook `aroundRemoteApply` around each apply of the remote changes (graph W8).
+ * The last tests cover the hook `aroundRemoteApply` around each apply of the remote changes.
  */
 
 import { describe, it, expect, vi } from "vitest";
@@ -600,7 +600,7 @@ describe("HybridStorage feed (CLI-21)", () => {
   });
 });
 
-describe("The rules of the store of Graph (CLI-21)", () => {
+describe("The rules of the store (CLI-21)", () => {
   it("a pull never erases a live change that arrived during the pull: the delta applies after it", async () => {
     const remote = remoteOf();
     const feed = new TestFeed();
@@ -940,7 +940,7 @@ function recordingHook(): { readonly calls: HookCall[]; readonly hook: RemoteApp
 /** The error of a promise, or undefined when it resolves. */
 const errorOf = (promise: Promise<unknown>): Promise<unknown> => promise.then(() => undefined, (error: unknown) => error);
 
-describe("HybridStorage aroundRemoteApply (graph W8)", () => {
+describe("HybridStorage aroundRemoteApply", () => {
   it("wraps each apply: a delta and a hint give their hint with extra, and a gap and a pull of the storage give no hint", async () => {
     const remote = remoteOf();
     const feed = new TestFeed();

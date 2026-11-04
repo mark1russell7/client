@@ -39,7 +39,7 @@ export interface RemoteChanges<T> extends StorageChanges<T> {
   /** The version of each changed item, when the publisher knows it (roadmap CLI-77). */
   readonly versions?: ReadonlyArray<{ readonly id: string; readonly version: string }> | undefined;
   /**
-   * The other fields of the change event of the delta, for example a `traceparent` (graph W8).
+   * The other fields of the change event of the delta, for example a `traceparent`.
    * `RemoteChangeHint.extra` gives the rules.
    */
   readonly extra?: Readonly<Record<string, unknown>> | undefined;
@@ -68,7 +68,7 @@ export interface RemoteChangeHint {
    */
   readonly reset?: boolean | undefined;
   /**
-   * The other fields of the change event, for example the `traceparent` of a trace (graph W8).
+   * The other fields of the change event, for example the `traceparent` of a trace.
    *
    * - It has each field that the feed does not read, with its value from the wire.
    * - The fields that the feed reads stay out: `since`, `version`, `changed`, `deleted`, `values`,
@@ -232,7 +232,7 @@ function eventOf<T>(data: unknown): { readonly changes: RemoteChanges<T> } | { r
  *   each confirmation of the subscription (the first one and each resubscribe) call `onGap()`.
  * - The error that ends the subscription goes to `onError` of the options and of the listener.
  * - The other fields of an event, for example a `traceparent`, go to `extra` of the hint or of the
- *   delta (graph W8). `versions` goes to the field of the hint or of the delta.
+ *   delta. `versions` goes to the field of the hint or of the delta.
  * - An event with `reset: true` is a hint with `reset`: `HybridStorage` does a full pull.
  *
  * @example

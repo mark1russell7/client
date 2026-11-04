@@ -52,7 +52,7 @@ Wave 2 (2026-10-11) merged the toolchain, the call policy, the documents, the si
 - **The standalone `server` needs a token** (`d0430e4`): a random token that it prints, `--token`, or `SERVER_TOKEN`. `--no-token` serves without one.
 - **`docker.logs` with `follow` is a stream** (`b462119`). Without `follow`, it gives one value, as before.
 - **`mark` asks for a missing required argument in a terminal** (`978175a`). `--no-input`, `CI` or a pipe turn the question off.
-- **MiniMongo uses the monorepo packages** (`link:` dependencies, MiniMongo `bd245b5`..`87de84a`), and its dev server serves only the three read procedures of the page.
+- **The explorer app uses the monorepo packages** (`link:` dependencies, commits `bd245b5`..`87de84a`), and its dev server serves only the three read procedures of the page.
 - To reverse one change: revert its commit.
 
 ### The deep dive, wave 1: changes of behavior and judgment calls
@@ -80,7 +80,7 @@ The owner approved both on 2026-10-08. The judgment calls:
 
 - **`call()` gives the last item.** `procedures/types.ts` documented "stream, sponge: the last value" twice, and `call()` took the first item. The documented contract wins. For every request/response transport (one item) nothing changes. For a stream that does not end, use `stream()`.
 - **An empty stream is an error** (`NO_OUTPUT`) in the sponge mode, as an empty response was before.
-- **HTTP streams only for a client that asks.** A client that sends `Accept: application/x-ndjson` gets NDJSON. Other clients get the last item as JSON, so curl, MiniMongo and older clients see no change. `HttpTransport` asks.
+- **HTTP streams only for a client that asks.** A client that sends `Accept: application/x-ndjson` gets NDJSON. Other clients get the last item as JSON, so curl, the explorer app and older clients see no change. `HttpTransport` asks.
 - **The WebSocket request timeout ends at the first frame.** A stream can stay open longer: an overall deadline is the timeout middleware's job (it aborts the signal, and the transport sends `cancel`).
 - **MCP results are one message.** A streaming tool reads the whole stream: one text block per item (the last 100), plus a progress notification per item when Claude Code sends a progress token.
 - **Retry stops at the first item.** After an item reached the reader, a retry would repeat items, so an error passes through.
@@ -196,7 +196,7 @@ The July session deferred this because it touched the core package across reposi
 - `ApiStorage` and `HybridStorage` moved into `client/src/procedures/storage/`, next to the storage factory that uses them, with `git mv` so their history follows. They need a `Client`, so in the package they made a cycle: `client-collections` had `client` as a peer and dev dependency. That dependency is gone. July's plan, step 2.
 - `client`'s root barrel no longer re-exports the approximately 200 collection symbols. Its own comment admitted a name conflict with the client middleware. A new subpath export, `@mark1russell7/client/collections`, re-exports the package plus `ApiStorage` and `HybridStorage`.
   - Before this change, nothing in the ecosystem imported collection symbols through the `client` root. I checked every import of `@mark1russell7/client` and `@mark1russell7/client-collections`. The only users are `client-mongo` (`CollectionStorage`, `StorageMetadata`, from the package) and `client` itself.
-  - MiniMongo installs the archived `client-legacy`, so it is not affected.
+  - The explorer app installs the archived `client-legacy`, so it is not affected.
 - Verified: the procedure catalog lost exactly the procedures of the packages deleted earlier (176 → 162), and the MCP tool list is unchanged (65).
 
 Step 2 (delete the modules nothing uses) is a separate commit. Reverse with `git revert`.
@@ -266,7 +266,7 @@ The July audit marked all three as dead, and the migration plan scheduled their 
 
 - `scaffold`: an abandoned third code generator (AUDIT §2.3). Nothing used it.
 - `client-connection`: 100% dead. `addConnection()` is never called, and it reimplements the core WebSocket transport (AUDIT §3). Its `connection.*` procedures leave the `mark` listing.
-- `client-server-mongo`: its `stop` and `status` procedures never worked (`register()` is never called). The roadmap (2.3) retires the Mongo server tier. MiniMongo still installs the archived repository, so MiniMongo is not affected.
+- `client-server-mongo`: its `stop` and `status` procedures never worked (`register()` is never called). The roadmap (2.3) retires the Mongo server tier. The explorer app still installs the archived repository, so the explorer app is not affected.
 
 Reverse with `git revert` of the deletion commit.
 

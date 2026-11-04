@@ -146,7 +146,7 @@
   
   Migration:
   
-  - The site, MiniMongo, Graph and jarvis: no change at this time. The deprecated names work until the next MINOR.
+  - Apps: no change at this time. The deprecated names work until the next MINOR.
   - Before the next MINOR, replace `zodAdapter<T>(schema)` with `schema`. To keep the check of a schema against a type, write `const schema: z.ZodType<T> = ...`.
   - Before the next MINOR, replace `typedAnySchema<T>()` and `outputSchema<T>()` with `typed<T>()`.
   - A parse-only object (`{ parse }`) in `zodAdapter` becomes a Standard Schema with a `~standard` property.
@@ -575,7 +575,7 @@
 
 ### Minor Changes
 
-- 01dce14: `localTime(instant, timeZone)` gives the time (`HH:MM`, 24 hours) that a clock in a zone shows at an instant. `weekdayOf(date)` gives the day of the week (0 for Sunday), and `weekdayName(date)` its name. jarvis had seven copies of these.
+- 01dce14: `localTime(instant, timeZone)` gives the time (`HH:MM`, 24 hours) that a clock in a zone shows at an instant. `weekdayOf(date)` gives the day of the week (0 for Sunday), and `weekdayName(date)` its name. An app had seven copies of these.
 
 ### Patch Changes
 

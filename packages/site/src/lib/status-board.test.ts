@@ -52,7 +52,7 @@ Text with a table that is not an item table:
 |---|---|---|---|---|---|---|
 | O1 | Docs | The guide \\| the index | waiting for Mark | O2 | \`client\` | [client PR #7](https://github.com/acme/widgets/pull/7), [the contract](./CONTRACT.md#rules) |
 | O2 | Systems | A cell | blocked | R3 | — | — |
-| O3 | Apps | A later thing | deferred | — | \`apps\` | jarvis PRs #28, #29 and #30 |
+| O3 | Apps | A later thing | deferred | — | \`apps\` | app PRs #28, #29 and #30 |
 | O4 | Apps | The next thing | next | — | — | — |
 | O5 | Apps | Not done yet | not started | — | — | — |
 | — | Apps | A row without an ID | open | — | — | — |

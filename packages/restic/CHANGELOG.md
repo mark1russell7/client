@@ -171,7 +171,7 @@
   
   Migration:
   
-  - The site, MiniMongo, Graph and jarvis: no change at this time. The deprecated names work until the next MINOR.
+  - Apps: no change at this time. The deprecated names work until the next MINOR.
   - Before the next MINOR, replace `zodAdapter<T>(schema)` with `schema`. To keep the check of a schema against a type, write `const schema: z.ZodType<T> = ...`.
   - Before the next MINOR, replace `typedAnySchema<T>()` and `outputSchema<T>()` with `typed<T>()`.
   - A parse-only object (`{ parse }`) in `zodAdapter` becomes a Standard Schema with a `~standard` property.
@@ -207,8 +207,8 @@
   
   Migration:
   
-  - jarvis: no change. It calls `runRestic()` with the result of `findRestic()`, not `restic.run`.
-  - The site, MiniMongo and Graph: no change. They do not call `restic.run`.
+  - An app: no change. It calls `runRestic()` with the result of `findRestic()`, not `restic.run`.
+  - The site and two apps: no change. They do not call `restic.run`.
   - A host that sent `executable` in the input of `restic.run` gives it to `createResticModule({ executable })`, or sets `RESTIC_EXE`.
 
 ### Patch Changes
@@ -246,21 +246,21 @@
   The breaks that come next. Each break is its own MINOR, and the group is released after each one.
   
   1. 0.29.0, the host fetch policy: `weather.forecast` and the `mcpHostModules` of `geo` and `ics` refuse a loopback, private or link-local host with `FORBIDDEN`. The option `warnOnRefusal` of `createHostFetch()` goes away.
-     - The site, MiniMongo and Graph: no change. They do not call these procedures through a registry of Node.
-     - jarvis: no change. `packages/pipeline` calls the function `geocode()` of `@procedures/geo`, not the procedure.
+     - The site and two apps: no change. They do not call these procedures through a registry of Node.
+     - An app: no change. It calls the function `geocode()` of `@procedures/geo`, not the procedure.
      - Another host with a private server gives `createWeatherModule({ fetch: createHostFetch({ allow: [...] }) })`, or the same for `createGeoModule()` and `createIcsModule()`, before the bundle.
   2. 0.30.0, `tailscale.run` (#182): the input `executable` gets a validation error.
-     - jarvis: `packages/instance/src/remote.ts` sends `executable: bin`. Make the caller from `createTailscaleModule({ executable: bin })` in place of `tailscaleModule`, and remove `executable` from the input. Or set `TAILSCALE_EXE` from `JARVIS_TAILSCALE_BIN`.
-     - The site, MiniMongo and Graph: no change. They do not call `tailscale.run`.
+     - An app sends `executable: bin`: make the caller from `createTailscaleModule({ executable: bin })` in place of `tailscaleModule`, and remove `executable` from the input. Or set `TAILSCALE_EXE` from its own setting.
+     - The site and two apps: no change. They do not call `tailscale.run`.
   3. 0.31.0, `restic.run` (#183): the input `executable` gets a validation error.
-     - jarvis: no change. It calls `runRestic()` with the result of `findRestic()`, not `restic.run`.
-     - The site, MiniMongo and Graph: no change. They do not call `restic.run`.
+     - An app: no change. It calls `runRestic()` with the result of `findRestic()`, not `restic.run`.
+     - The site and two apps: no change. They do not call `restic.run`.
      - Another host gives the program to `createResticModule({ executable })`, or sets `RESTIC_EXE`.
   4. 0.32.0, `mail.headers` (#184): a `passwordEnv` without the prefix `IMAP_` or `MAIL_` gets a validation error.
-     - The site, MiniMongo, Graph and jarvis: no change. They do not call `mail.headers`.
+     - Apps: no change. They do not call `mail.headers`.
      - Another host renames the variable, for example `GMAIL_APP_PASSWORD` to `IMAP_GMAIL_PASSWORD`, and gives the new name in `passwordEnv`.
   5. 0.33.0, `notify.send` (#185): a `tokenEnv` without the prefix `NTFY_` or `NOTIFY_` gets a validation error.
-     - The site, MiniMongo, Graph and jarvis: no change. They do not give `tokenEnv`.
+     - Apps: no change. They do not give `tokenEnv`.
      - Another host renames the variable, for example `PHONE_TOKEN` to `NTFY_TOKEN`, and gives the new name in `tokenEnv`.
   
   Migration now: a host that gets a notice changes to the new path that the notice names. The notice then stops, and the next break does not change the host.

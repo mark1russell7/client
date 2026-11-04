@@ -5,7 +5,7 @@
  * the remote, the batches in the other tabs, the echoes, the single mode and `close()`. They also
  * cover the new try after a failed setup (CLI-67) and the status of the leader in each tab (CLI-65).
  * The last tests cover `TabGroup`, many collections with one lock and one channel (CLI-64), the
- * snapshot for a new tab (CLI-66), and the hook `aroundRemoteApply` that only the leader runs (graph W8).
+ * snapshot for a new tab (CLI-66), and the hook `aroundRemoteApply` that only the leader runs.
  */
 
 import { describe, it, expect, vi } from "vitest";
@@ -281,7 +281,7 @@ interface TabOptions {
   readonly clock?: Clock;
   readonly retry?: TabRetryOptions;
   readonly snapshot?: boolean | TabSnapshotOptions;
-  /** The hook of the `HybridStorage` of the tab when it leads (graph W8) */
+  /** The hook of the `HybridStorage` of the tab when it leads */
   readonly aroundRemoteApply?: RemoteApplyHook;
 }
 
@@ -1061,7 +1061,7 @@ interface GroupTabOptions {
   readonly retry?: TabRetryOptions;
   /** The queue store of a collection. For `undefined`, the shared `IndexedDbQueueStore` of the collection. */
   readonly queueStore?: (collection: string) => QueueStore | undefined;
-  /** The hook of the `HybridStorage` of a collection when the tab leads (graph W8) */
+  /** The hook of the `HybridStorage` of a collection when the tab leads */
   readonly aroundRemoteApply?: (collection: string) => RemoteApplyHook;
 }
 
@@ -1775,7 +1775,7 @@ describe("TabCoordinator: the snapshot for a new tab (CLI-66)", () => {
   });
 });
 
-describe("TabCoordinator and TabGroup: the hook aroundRemoteApply (graph W8)", () => {
+describe("TabCoordinator and TabGroup: the hook aroundRemoteApply", () => {
   it("only the leader of a TabCoordinator runs the hook, and after a change of the leader only the new leader runs it", async () => {
     const browser = new FakeBrowser();
     const remote = remoteOf();

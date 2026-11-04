@@ -174,7 +174,7 @@ import { createProcedureHost, httpFace, wsFace, LOCAL_LISTENER_KNOBS } from "@pr
 
 const read = {
   narrowing: { effects: { writes: [] } },
-  expose: ["programs.list", "programs.get", "procedure.get", "client.trace", "graphapi.*"],
+  expose: ["programs.list", "programs.get", "procedure.get", "client.trace", "api.*"],
 };
 const host = createProcedureHost({
   registry,
