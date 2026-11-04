@@ -178,6 +178,9 @@ importers:
       '@changesets/cli':
         specifier: ^3.0.3
         version: 3.0.3
+      '@mark1russell7/api-report':
+        specifier: ^0.3.0
+        version: 0.3.0
       '@mark1russell7/boundaries':
         specifier: ^0.2.0
         version: 0.2.0(@swc/core@1.16.20)(dependency-cruiser@18.7.0)
@@ -508,6 +511,9 @@ importers:
         specifier: ^4.6.5
         version: 4.6.7
     devDependencies:
+      '@mark1russell7/api-report':
+        specifier: ^0.3.0
+        version: 0.3.0
       '@mark1russell7/cue':
         specifier: ^1.1.0
         version: 1.1.0
@@ -3297,6 +3303,11 @@ packages:
     peerDependenciesMeta:
       zod:
         optional: true
+
+  '@mark1russell7/api-report@0.3.0':
+    resolution: {integrity: sha512-EBn8ee0SbButi59hEHyYVAcQ7TOM1st9vvmfjrj3kIneT1iY2Taw35yCyUiwvZLH+W8/8BSsQdcfUDYoRJtPVQ==}
+    engines: {node: '>=22'}
+    hasBin: true
 
   '@mark1russell7/boundaries@0.2.0':
     resolution: {integrity: sha512-r3W3537Ev2IsSlA11hozfHmXq4JmBk0zZYv43y+OBqpIKmc3wzPLORWGUPrriLe+MmOL7gW0idrTz2E4kQZAuw==}
@@ -6689,6 +6700,8 @@ snapshots:
       '@mark1russell7/quantity': 0.2.0(zod@4.6.7)
     optionalDependencies:
       zod: 4.6.7
+
+  '@mark1russell7/api-report@0.3.0': {}
 
   '@mark1russell7/boundaries@0.2.0(@swc/core@1.16.20)(dependency-cruiser@18.7.0)':
     optionalDependencies:
