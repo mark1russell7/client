@@ -128,6 +128,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@mark1russell7/api-report": "^0.2.2",
     "@mark1russell7/cue": "^1.1.0",
     "@stryker-mutator/core": "10.0.0",
     "@stryker-mutator/vitest-runner": "10.0.0",
