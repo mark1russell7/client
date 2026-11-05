@@ -6,9 +6,14 @@
  * These tests hold the commit of each write, on seeded schedules. Some subscribers read a cursor, and
  * some subscribers follow the change events.
  *
- * The pass line: no subscriber loses a write, and no subscriber sees a write twice. Each row prints
- * its counts. Each fault row has the same schedules and a reader or a writer with no rule, and it
- * must lose a write. So a green row is not green because the schedules miss the gap.
+ * The contract: no subscriber loses a write. A subscriber sees a write at least one time, and it can
+ * see a write two times in two cases. A full answer takes its mark before it lists the items, so it
+ * can hold a write above its mark. A write that ends after its lease moves to a new number. A second
+ * time has the same value or a later value, so a subscriber applies a change by its id.
+ *
+ * A cursor that starts from a version and has only writes inside their lease sees each write one time.
+ * Each row prints its counts. Each fault row has the same schedules and a reader or a writer with no
+ * rule, and it must lose a write. So a green row is not green because the schedules miss the gap.
  *
  * The rows on memory always start. The rows on a real store need `MONGO_TEST_URL` and a replica set.
  */
@@ -69,6 +74,8 @@ interface RowCount {
   fulls: number;
   lost: string[];
   twice: string[];
+  /** The writes of one id and one value that a subscriber got with a different value. */
+  changedValue: string[];
 }
 
 const NAME = "race";
@@ -103,17 +110,21 @@ class Host {
   }
 }
 
-/** What one subscriber saw: a count per write, and its last value per id. */
+/** What one subscriber saw: a count per write, its last value per id, and each value per id. */
 class Seen {
   readonly counts = new Map<string, number>();
   readonly last = new Map<string, string>();
+  readonly values = new Map<string, Set<string>>();
   fulls = 0;
 
   /** This method notes one change. A key is the id for new ids, and the id with the value for rewrites. */
   note(family: IdFamily, id: string, value?: Item): void {
     const key = family === "new" ? id : `${id}=${value?.v ?? ""}`;
     this.counts.set(key, (this.counts.get(key) ?? 0) + 1);
-    if (value !== undefined) this.last.set(id, value.v);
+    if (value === undefined) return;
+    this.last.set(id, value.v);
+    const values = this.values.get(id) ?? new Set<string>();
+    this.values.set(id, values.add(value.v));
   }
 }
 
@@ -272,6 +283,7 @@ async function race(schedule: Schedule, row: RowCount): Promise<void> {
     for (const [key, times] of seen.counts) if (times > 1) row.twice.push(`${seed}/s${index}/${key}`);
     if (family === "new") {
       for (const key of keys) if (!seen.counts.has(key)) row.lost.push(`${seed}/s${index}/${key}`);
+      for (const [id, values] of seen.values) if (values.size > 1) row.changedValue.push(`${seed}/s${index}/${id}`);
     }
   }
   if (family === "rewrite") {
@@ -287,19 +299,20 @@ async function race(schedule: Schedule, row: RowCount): Promise<void> {
 
 /** This function makes an empty row. */
 function newRow(): RowCount {
-  return { schedules: 0, writes: 0, subscribers: 0, reads: 0, readsDuringHold: 0, fulls: 0, lost: [], twice: [] };
+  return { schedules: 0, writes: 0, subscribers: 0, reads: 0, readsDuringHold: 0, fulls: 0, lost: [], twice: [], changedValue: [] };
 }
 
 /** This function prints the counts of a row, for the job log and the record of the item. */
 function printRow(name: string, row: RowCount): void {
-  const { lost, twice, ...counts } = row;
-  console.log(`race ${JSON.stringify({ name, ...counts, lost: lost.length, twice: twice.length, lostExamples: lost.slice(0, 3), twiceExamples: twice.slice(0, 3) })}`);
+  const { lost, twice, changedValue, ...counts } = row;
+  console.log(`race ${JSON.stringify({ name, ...counts, lost: lost.length, twice: twice.length, changedValue: changedValue.length, lostExamples: lost.slice(0, 3), twiceExamples: twice.slice(0, 3) })}`);
 }
 
-/** This function states the pass line of a row with no fault. Its text has the seed of a failure. */
+/** This function states the pass line of a cursor inside the leases. Its text has the seed of a failure. */
 function expectClean(row: RowCount, schedules: number, writes: number): void {
   expect(row.lost).toEqual([]);
   expect(row.twice).toEqual([]);
+  expect(row.changedValue).toEqual([]);
   expect(row.fulls).toBe(0);
   expect({ schedules: row.schedules, writes: row.writes }).toEqual({ schedules, writes });
   expect(row.readsDuringHold).toBeGreaterThan(0);
@@ -659,15 +672,19 @@ withMongo("the race of a change cursor and a write in flight, on a real store (C
     expect(after.changed.map(([id]) => id)).toEqual(["a"]);
   });
 
-  it.for(["transaction", "pending"] as const)("a first read beside a first write has no error, and loses nothing: %s path", async (path, context) => {
+  it.for(["transaction", "pending"] as const)("a first read beside a first write has no error and loses nothing, and a second time has one value: %s path", async (path, context) => {
     if (path === "transaction" && !replicaSet) return context.skip?.("the path needs a replica set");
+    let twice = 0;
     for (let round = 0; round < FIRST_READ_ROUNDS; round += 1) {
       const collection = `race${++next}`;
       const [store] = storesOf(path, collection, [FREE, FREE, FREE]) as [MongoDocumentStorage<Item>];
       const [first] = await Promise.all([store.getChangesSince(), store.set("a", { v: "a" })]);
       const after = await store.getChangesSince(first.version);
-      expect([...first.changed, ...after.changed].map(([id]) => id)).toEqual(["a"]);
+      const given = [...first.changed, ...after.changed];
+      expect(new Set(given.map(([id, item]) => `${id}=${item.v}`))).toEqual(new Set(["a=a"]));
+      if (given.length > 1) twice += 1;
     }
+    console.log(`race ${JSON.stringify({ name: `${path}-first-read`, rounds: FIRST_READ_ROUNDS, twice })}`);
   });
 
   it("a write past its lease loses nothing: a reader can see it twice, with one value", async () => {
@@ -680,6 +697,9 @@ withMongo("the race of a change cursor and a write in flight, on a real store (C
       lease: LATE_LEASE_MS,
     });
     expect(row.lost).toEqual([]);
+    expect(row.changedValue).toEqual([]);
     expect(row.schedules).toBe(FAULT_SCHEDULES);
+    // A row with no second time does not test the contract of a second time
+    expect(row.twice.length).toBeGreaterThan(0);
   });
 });

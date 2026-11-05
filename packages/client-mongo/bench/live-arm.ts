@@ -46,8 +46,8 @@ interface BenchValue {
 
 const { values } = parseArgs({ options: { arm: { type: "string" }, case: { type: "string" }, job: { type: "string" }, counts: { type: "string" } } });
 const { arm, case: caseName, job, counts } = values;
-if ((arm !== "store" && arm !== "live" && arm !== "storequiet") || caseName === undefined || job === undefined || counts === undefined) {
-  throw new RangeError("this child needs --arm store|live|storequiet, --case, --job and --counts");
+if ((arm !== "store" && arm !== "live" && arm !== "storequiet" && arm !== "storefilter") || caseName === undefined || job === undefined || counts === undefined) {
+  throw new RangeError("this child needs --arm store|live|storequiet|storefilter, --case, --job and --counts");
 }
 const url = process.env["MONGO_TEST_URL"];
 if (url === undefined) throw new RangeError("this child needs MONGO_TEST_URL");
@@ -61,7 +61,7 @@ const admin = mongo.db("admin");
 const storage = new MongoDocumentStorage<BenchValue>({ collection: NAME, db: () => db, client: () => mongo });
 
 const registry = createRegistry();
-registry.registerAll(createCollectionProcedures(NAME));
+registry.registerAll(createCollectionProcedures(NAME, arm === "storefilter" ? { admission: { admit: () => true } } : {}));
 const server = new ProcedureServer({
   registry,
   autoRegister: true,
@@ -116,6 +116,8 @@ function failed(error: unknown): void {
   else errors[kind] = { count: 1, text: text.slice(0, 300) };
 }
 
+let chainBreaks = 0;
+
 function heardValue(value: BenchValue): void {
   readerValues += 1;
   readerTimes.push(performance.now() - value.sentAt);
@@ -159,9 +161,12 @@ if (arm === "live") {
     } while (again);
     reading = false;
   };
-  if (arm === "store") {
-    const subscription = reader.subscribe<unknown>([collectionChangeTopic(NAME)], () => {
+  if (arm === "store" || arm === "storefilter") {
+    let lastVersion: string | undefined;
+    const subscription = reader.subscribe<{ readonly since?: string; readonly version?: string }>([collectionChangeTopic(NAME)], (event) => {
       readerEvents += 1;
+      if (lastVersion !== undefined && event.since !== lastVersion) chainBreaks += 1;
+      lastVersion = event.version ?? lastVersion;
       void read();
     }, { onError: failed });
     await subscription.ready;
@@ -231,6 +236,7 @@ const line: LiveCount = {
   readerEvents,
   readerReads,
   readerBytes,
+  chainBreaks,
   cpuMs: (cpu.user + cpu.system) / 1000,
   loopP99Ms: loop.percentile(99) / 1e6,
   errors,

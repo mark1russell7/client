@@ -743,7 +743,20 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
     }
   });
 
-  it("a write that has not ended is in this read or in the next, one time (CLI-102)", async () => {
+  it("a burst of change reads on the default pool uses at most 4 connections at one time (CLI-91)", async () => {
+    const { storage, most, reset, end } = await counted({});
+    try {
+      await storage.set("a", { n: 1 });
+      reset();
+      await Promise.all(Array.from({ length: 200 }, () => storage.getChangesSince()));
+      expect(most()).toBeGreaterThan(1);
+      expect(most()).toBeLessThanOrEqual(4);
+    } finally {
+      await end();
+    }
+  });
+
+  it("a write that has not ended is in this read or in the next (CLI-102)", async () => {
     const storage = fresh<{ n: number }>();
     await storage.set("a", { n: 1 });
     const { version } = await storage.getChangesSince();

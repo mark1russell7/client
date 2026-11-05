@@ -16,6 +16,8 @@ interface JobFile {
   readonly env: unknown;
   readonly candidate: readonly PairedTime[];
   readonly aa: readonly PairedTime[];
+  /** The other arms of the suite `read-bound`, by arm. */
+  readonly shares?: Readonly<Record<string, readonly PairedTime[]>>;
 }
 
 const { values } = parseArgs({ options: { jobs: { type: "string" }, out: { type: "string" }, run: { type: "string" } } });
@@ -31,7 +33,7 @@ const counts = names
 
 const round = (value: number, digits: number): number => Number(value.toFixed(digits));
 
-const MEASURES = ["burstMs", "readsPerSecond", "commands", "writes", "probeMs", "connections"] as const;
+const MEASURES = ["burstMs", "readsPerSecond", "commands", "writes", "probeMs", "probeP50Ms", "probeP95Ms", "otherMs", "otherP50Ms", "otherP95Ms", "loopMaxMs", "connections"] as const;
 
 const groups = new Map<string, ReadCount[]>();
 for (const row of counts) {
@@ -68,6 +70,18 @@ const report = {
     bound: round(entry.high * band.high, 4),
     rounds: entry.rounds,
   })),
+  shares: Object.fromEntries(
+    [...new Set(jobs.flatMap((job) => Object.keys(job.shares ?? {})))].map((share) => [
+      share,
+      caseIntervals(poolRecords(jobs.map(({ job, shares, aa }) => ({ job, candidate: shares?.[share] ?? [], aa }))).candidate).map((entry) => ({
+        case: entry.case,
+        ratio: round(entry.ratio, 4),
+        low: round(entry.low, 4),
+        high: round(entry.high, 4),
+        rounds: entry.rounds,
+      })),
+    ]),
+  ),
   cells,
   env: jobs.map(({ job, env }) => ({ job, env })),
 };

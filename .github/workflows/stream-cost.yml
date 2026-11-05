@@ -27,6 +27,7 @@ on:
         options:
           - stream
           - read
+          - read-bound
         default: stream
       runs:
         description: The jobs, from 1 to 9. Five or more for a limit.

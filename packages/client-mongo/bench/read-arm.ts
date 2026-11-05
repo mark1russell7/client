@@ -1,14 +1,16 @@
 /**
  * One arm of the change read bench, in its own process:
- * `--arm before|after --case <case> --job <n> --counts <file>`.
+ * `--arm before|after|share<n> --case <case> --job <n> --counts <file>`.
  *
  * The child writes the documents of the case, and it reads one time alone with a count of its commands.
  * Then it sends a burst of reads at the same time. A second client reads the counters of the server. The
  * arm `after` is the source of this tree. The arm `before` is the same file at the base commit, which
- * the workflow writes next to it. The child prints the JSON line of `freshRun`, and adds one line to
- * the file of the counts.
+ * the workflow writes next to it. An arm `share<n>` is a copy of the source with its own limit of reads.
+ * The child prints the JSON line of `freshRun`, and adds one line to the file of the counts.
  */
 
+import { monitorEventLoopDelay } from "node:perf_hooks";
+import { quantile } from "@mark1russell7/rigor-statistics";
 import { appendFileSync } from "node:fs";
 import { setTimeout as sleep } from "node:timers/promises";
 import { parseArgs } from "node:util";
@@ -23,13 +25,13 @@ const PROBE_EVERY_MS = 50;
 
 const { values } = parseArgs({ options: { arm: { type: "string" }, case: { type: "string" }, job: { type: "string" }, counts: { type: "string" } } });
 const { arm, case: caseName, job, counts } = values;
-if ((arm !== "before" && arm !== "after") || caseName === undefined || job === undefined || counts === undefined) throw new RangeError("this child needs --arm before|after, --case, --job and --counts");
+if ((arm !== "before" && arm !== "after" && !arm?.startsWith("share")) || caseName === undefined || job === undefined || counts === undefined) throw new RangeError("this child needs --arm before|after, --case, --job and --counts");
 const { kind, documents } = parseReadCase(caseName);
 
 const url = process.env["MONGO_TEST_URL"];
 if (url === undefined) throw new RangeError("this child needs MONGO_TEST_URL");
 
-const source = arm === "before" ? "../src/storage/document-storage.base.ts" : "../src/storage/document-storage.ts";
+const source = arm === "before" ? "../src/storage/document-storage.base.ts" : arm.startsWith("share") ? `../src/storage/document-storage.${arm}.ts` : "../src/storage/document-storage.ts";
 const { MongoDocumentStorage } = (await import(source)) as typeof import("../src/storage/document-storage.js");
 
 const name = `read_bench_${process.pid}`;
@@ -61,23 +63,29 @@ const connections = async (): Promise<number> => Number((await observer.db("admi
 const connectionsBefore = await connections();
 
 let running = true;
-let probeMs = 0;
-const probe = (async () => {
-  const docs = app.db(name).collection("docs");
+const probeTimes: number[] = [];
+const otherTimes: number[] = [];
+const probeOf = async (client: MongoClient, times: number[]): Promise<void> => {
+  const docs = client.db(name).collection("docs");
   while (running) {
     const began = performance.now();
     await docs.findOne({}, { projection: { _id: 1 } });
-    probeMs = Math.max(probeMs, performance.now() - began);
+    times.push(performance.now() - began);
     await sleep(PROBE_EVERY_MS);
   }
-})();
+};
+const probe = probeOf(app, probeTimes);
+const otherProbe = probeOf(observer, otherTimes);
+const loop = monitorEventLoopDelay({ resolution: 1 });
+loop.enable();
 
 const began = performance.now();
 // The burst keeps no result: the bench measures the reads, not the memory of a list of results
 await Promise.all(Array.from({ length: BURST_READS }, () => storage.getChangesSince(version).then(() => undefined)));
 const burstMs = performance.now() - began;
 running = false;
-await probe;
+loop.disable();
+await Promise.all([probe, otherProbe]);
 const connectionsAfter = await connections();
 
 const line: ReadCount = {
@@ -88,7 +96,13 @@ const line: ReadCount = {
   readsPerSecond: (BURST_READS / burstMs) * 1000,
   commands: commands.length,
   writes: commands.filter((command) => WRITE_COMMANDS.has(command)).length,
-  probeMs,
+  probeMs: Math.max(...probeTimes),
+  probeP50Ms: quantile(probeTimes, 0.5),
+  probeP95Ms: quantile(probeTimes, 0.95),
+  otherMs: Math.max(...otherTimes),
+  otherP50Ms: quantile(otherTimes, 0.5),
+  otherP95Ms: quantile(otherTimes, 0.95),
+  loopMaxMs: loop.max / 1e6,
   connections: connectionsAfter - connectionsBefore,
 };
 appendFileSync(counts, `${JSON.stringify(line)}\n`);
