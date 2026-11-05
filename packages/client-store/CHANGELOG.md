@@ -1,5 +1,16 @@
 # @procedures/store
 
+## 0.48.2
+
+### Patch Changes
+
+- bc7359f: `HybridStorage` gets the optional hook `onDropped`. The hook gets each queued write that leaves the queue with no send that the remote took. The causes are a conflict that the policy `remote` decides, a delete of the remote, and a refusal. Before this change, a conflict gave only a count, and a refusal with no `onRefused` gave nothing. The hook gets the id, the value, the reason and the sync, once for each id. `getMetadata()` gives the count as `stats.dropped`. The default policy does not change.
+- Updated dependencies [08beec5]
+- Updated dependencies [48b7127]
+- Updated dependencies [9541575]
+  - @procedures/client@0.48.2
+  - @procedures/collections@0.48.2
+
 ## 0.48.1
 
 ### Patch Changes

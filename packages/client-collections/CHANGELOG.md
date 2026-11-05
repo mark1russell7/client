@@ -1,5 +1,15 @@
 # @procedures/collections
 
+## 0.48.2
+
+### Patch Changes
+
+- 08beec5: A write that a write in flight holds back reaches its subscribers with no later write. `StorageChanges` has a new optional field `held`. The docs state that a result gives each write at least one time. They name the two cases of a second time. A read of the log with no change does not move the `since` of the next event, so the events keep their chain.
+- 9541575: Add the option `keepAfter` of `UndoLog`. Each entry then keeps the values after its change at the touched paths in `afterValues`, so a caller can merge a later write with the undo. The default stays as before.
+- Updated dependencies [08beec5]
+- Updated dependencies [48b7127]
+  - @procedures/client@0.48.2
+
 ## 0.48.1
 
 ### Patch Changes
