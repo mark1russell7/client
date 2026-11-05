@@ -4524,6 +4524,7 @@ export interface StorageChanges<T> {
     full: boolean;
     changed: Array<[string, T]>;
     deleted: string[];
+    held?: boolean;
 }
 
 ### dist/procedures/collection/storage.d.ts#StorageClearChange

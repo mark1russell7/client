@@ -265,9 +265,10 @@ export function admittedStorage<T>(storage: CollectionStorage<T>, admission: Col
   /** The full answer of `changes`: each admitted row, at a version that the rows include. */
   const fullAnswer = async (): Promise<StorageChanges<T>> => {
     const all = await storage.getChangesSince!(undefined);
-    if (all.full) return { version: all.version, full: true, changed: await admitted(all.changed), deleted: [] };
+    const held = all.held ? { held: true } : {};
+    if (all.full) return { version: all.version, full: true, changed: await admitted(all.changed), deleted: [], ...held };
     // A log that does not give all rows: the rows, read after the version, include that version
-    return { version: all.version, full: true, changed: await entries(), deleted: [] };
+    return { version: all.version, full: true, changed: await entries(), deleted: [], ...held };
   };
 
   const view: CollectionStorage<T> = {
