@@ -61,6 +61,35 @@ export {
 export { EventPublisher, topicMatcher, MAX_SUBSCRIPTION_TOPICS, MAX_TOPIC_LENGTH } from "./publisher.js";
 export type { EventPublisherOptions, TopicRule, TopicCall } from "./publisher.js";
 export type { RightsChange, RightsScope, RightsScopes, SubscriptionRecheck } from "./recheck.js";
+// The live state: keyed values in memory on a topic, with a snapshot and a time limit (LIVE-STATE-2026-11.md)
+export {
+  DEFAULT_LIVE_KEYS,
+  DEFAULT_LIVE_TOPICS,
+  DEFAULT_LIVE_VALUE_BYTES,
+  LIVE_SET_PATH,
+  LIVE_SNAPSHOT_PATH,
+  LIVE_LEAVE_PATH,
+  LiveState,
+  MAX_LIVE_KEY_LENGTH,
+  liveTopic,
+  liveTopicTarget,
+} from "./live-state.js";
+export type {
+  AdmitLiveSet,
+  AdmitLiveLeave,
+  LiveLeaveCall,
+  LiveAdmission,
+  LiveEntry,
+  LiveEvent,
+  LiveGone,
+  LiveGoneReason,
+  LiveSetCall,
+  LiveSetOptions,
+  LiveStateHost,
+  LiveStateOptions,
+} from "./live-state.js";
+export { liveView } from "./live-view.js";
+export type { LiveClient, LiveView, LiveViewOptions } from "./live-view.js";
 export { EVENTS_SUBSCRIBE_PATH, SubscriptionError, remoteEvents, subscribeRemote } from "./remote.js";
 export type {
   EventItem,

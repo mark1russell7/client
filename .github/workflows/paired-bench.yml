@@ -6,7 +6,7 @@ name: Paired bench
 # "Paired bench verdicts" reads the records of all jobs and gives a verdict for each benchmark.
 #
 # The workflow only reports: only a dispatch starts it, and no ruleset needs its checks. The rules
-# are the paired timing rules of the strategist (fleet docs/STRATEGY.md, 10-29 to 11-02).
+# are in scripts/lib/paired-time.ts.
 on:
   workflow_dispatch:
     inputs:

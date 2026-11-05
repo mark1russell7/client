@@ -4,10 +4,12 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 646 names
+## . (dist/index.d.ts): 672 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
+type AdmitLiveLeave: dist/events/live-state.d.ts#AdmitLiveLeave
+type AdmitLiveSet: dist/events/live-state.d.ts#AdmitLiveSet
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AmbientCredentials: dist/server/types.d.ts#AmbientCredentials
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
@@ -68,6 +70,9 @@ type CurrentItem: dist/procedures/collection/precondition.d.ts#CurrentItem
 DEADLINE_METADATA_KEY: dist/client/deadline.d.ts#DEADLINE_METADATA_KEY
 DEFAULT_FIND_LIMIT: dist/procedures/collection/query.d.ts#DEFAULT_FIND_LIMIT
 DEFAULT_KEPT_METADATA: dist/server/error-policy.d.ts#DEFAULT_KEPT_METADATA
+DEFAULT_LIVE_KEYS: dist/events/live-state.d.ts#DEFAULT_LIVE_KEYS
+DEFAULT_LIVE_TOPICS: dist/events/live-state.d.ts#DEFAULT_LIVE_TOPICS
+DEFAULT_LIVE_VALUE_BYTES: dist/events/live-state.d.ts#DEFAULT_LIVE_VALUE_BYTES
 DEFAULT_QUERY_OPERATORS: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_OPERATORS
 DEFAULT_QUERY_POLICY: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_POLICY
 type DefineProcedureInput: dist/procedures/define-procedure.d.ts#DefineProcedureInput
@@ -165,10 +170,27 @@ type JsonSchema: dist/procedures/schema.d.ts#JsonSchema
 type JsonSchemaSource: dist/procedures/schema.d.ts#JsonSchemaSource
 type JsonSchemaTarget: dist/procedures/schema.d.ts#JsonSchemaTarget
 LITERAL_KEY: dist/procedures/ref.d.ts#LITERAL_KEY
+LIVE_LEAVE_PATH: dist/events/live-state.d.ts#LIVE_LEAVE_PATH
+LIVE_SET_PATH: dist/events/live-state.d.ts#LIVE_SET_PATH
+LIVE_SNAPSHOT_PATH: dist/events/live-state.d.ts#LIVE_SNAPSHOT_PATH
 LOCAL_CREDENTIALS: dist/server/request-auth.d.ts#LOCAL_CREDENTIALS
 LOCAL_MARKER: dist/server/types.d.ts#LOCAL_MARKER
 type LazyRegistryOptions: dist/procedures/module.d.ts#LazyRegistryOptions
 type LimitedCall: dist/server/limits.d.ts#LimitedCall
+type LiveAdmission: dist/events/live-state.d.ts#LiveAdmission
+type LiveClient: dist/events/live-view.d.ts#LiveClient
+type LiveEntry: dist/events/live-state.d.ts#LiveEntry
+type LiveEvent: dist/events/live-state.d.ts#LiveEvent
+type LiveGone: dist/events/live-state.d.ts#LiveGone
+type LiveGoneReason: dist/events/live-state.d.ts#LiveGoneReason
+type LiveLeaveCall: dist/events/live-state.d.ts#LiveLeaveCall
+type LiveSetCall: dist/events/live-state.d.ts#LiveSetCall
+type LiveSetOptions: dist/events/live-state.d.ts#LiveSetOptions
+LiveState: dist/events/live-state.d.ts#LiveState
+type LiveStateHost: dist/events/live-state.d.ts#LiveStateHost
+type LiveStateOptions: dist/events/live-state.d.ts#LiveStateOptions
+type LiveView: dist/events/live-view.d.ts#LiveView
+type LiveViewOptions: dist/events/live-view.d.ts#LiveViewOptions
 LocalTransport: dist/adapters/local/client/transport.d.ts#LocalTransport
 type LocalTransportOptions: dist/adapters/local/client/types.d.ts#LocalTransportOptions
 type LogFields: dist/logger.d.ts#LogFields
@@ -178,6 +200,7 @@ MANIFEST_FORMAT: dist/procedures/manifest.d.ts#MANIFEST_FORMAT
 MAX_DATA_DEPTH: dist/procedures/ref.d.ts#MAX_DATA_DEPTH
 MAX_EXPECTED_VERSION_LENGTH: dist/procedures/collection/precondition.d.ts#MAX_EXPECTED_VERSION_LENGTH
 MAX_IDEMPOTENCY_KEY_LENGTH: dist/procedures/idempotency.d.ts#MAX_IDEMPOTENCY_KEY_LENGTH
+MAX_LIVE_KEY_LENGTH: dist/events/live-state.d.ts#MAX_LIVE_KEY_LENGTH
 type MachineDocument: dist/machines.d.ts#MachineDocument
 type MachineDuration: dist/machines.d.ts#MachineDuration
 type MachineTimer: dist/machines.d.ts#MachineTimer
@@ -533,6 +556,9 @@ keyToPath: dist/procedures/types.d.ts#keyToPath
 ladder: dist/procedures/capability.d.ts#ladder
 lastResortError: dist/server/last-resort.d.ts#lastResortError
 listProceduresProcedure: dist/procedures/define-procedure.d.ts#listProceduresProcedure
+liveTopic: dist/events/live-state.d.ts#liveTopic
+liveTopicTarget: dist/events/live-state.d.ts#liveTopicTarget
+liveView: dist/events/live-view.d.ts#liveView
 loadAllIn: dist/procedures/registry.d.ts#loadAllIn
 lookupOutputRef: dist/procedures/ref.d.ts#lookupOutputRef
 manifestProcedure: dist/procedures/define-procedure.d.ts#manifestProcedure
@@ -653,10 +679,12 @@ withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 writeLog: dist/logger.d.ts#writeLog
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 634 names
+## ./browser (dist/browser.d.ts): 660 names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
+type AdmitLiveLeave: dist/events/live-state.d.ts#AdmitLiveLeave
+type AdmitLiveSet: dist/events/live-state.d.ts#AdmitLiveSet
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AmbientCredentials: dist/server/types.d.ts#AmbientCredentials
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
@@ -716,6 +744,9 @@ type CurrentItem: dist/procedures/collection/precondition.d.ts#CurrentItem
 DEADLINE_METADATA_KEY: dist/client/deadline.d.ts#DEADLINE_METADATA_KEY
 DEFAULT_FIND_LIMIT: dist/procedures/collection/query.d.ts#DEFAULT_FIND_LIMIT
 DEFAULT_KEPT_METADATA: dist/server/error-policy.d.ts#DEFAULT_KEPT_METADATA
+DEFAULT_LIVE_KEYS: dist/events/live-state.d.ts#DEFAULT_LIVE_KEYS
+DEFAULT_LIVE_TOPICS: dist/events/live-state.d.ts#DEFAULT_LIVE_TOPICS
+DEFAULT_LIVE_VALUE_BYTES: dist/events/live-state.d.ts#DEFAULT_LIVE_VALUE_BYTES
 DEFAULT_QUERY_OPERATORS: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_OPERATORS
 DEFAULT_QUERY_POLICY: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_POLICY
 type DefineProcedureInput: dist/procedures/define-procedure.d.ts#DefineProcedureInput
@@ -810,10 +841,27 @@ type JsonSchema: dist/procedures/schema.d.ts#JsonSchema
 type JsonSchemaSource: dist/procedures/schema.d.ts#JsonSchemaSource
 type JsonSchemaTarget: dist/procedures/schema.d.ts#JsonSchemaTarget
 LITERAL_KEY: dist/procedures/ref.d.ts#LITERAL_KEY
+LIVE_LEAVE_PATH: dist/events/live-state.d.ts#LIVE_LEAVE_PATH
+LIVE_SET_PATH: dist/events/live-state.d.ts#LIVE_SET_PATH
+LIVE_SNAPSHOT_PATH: dist/events/live-state.d.ts#LIVE_SNAPSHOT_PATH
 LOCAL_CREDENTIALS: dist/server/request-auth.d.ts#LOCAL_CREDENTIALS
 LOCAL_MARKER: dist/server/types.d.ts#LOCAL_MARKER
 type LazyRegistryOptions: dist/procedures/module.d.ts#LazyRegistryOptions
 type LimitedCall: dist/server/limits.d.ts#LimitedCall
+type LiveAdmission: dist/events/live-state.d.ts#LiveAdmission
+type LiveClient: dist/events/live-view.d.ts#LiveClient
+type LiveEntry: dist/events/live-state.d.ts#LiveEntry
+type LiveEvent: dist/events/live-state.d.ts#LiveEvent
+type LiveGone: dist/events/live-state.d.ts#LiveGone
+type LiveGoneReason: dist/events/live-state.d.ts#LiveGoneReason
+type LiveLeaveCall: dist/events/live-state.d.ts#LiveLeaveCall
+type LiveSetCall: dist/events/live-state.d.ts#LiveSetCall
+type LiveSetOptions: dist/events/live-state.d.ts#LiveSetOptions
+LiveState: dist/events/live-state.d.ts#LiveState
+type LiveStateHost: dist/events/live-state.d.ts#LiveStateHost
+type LiveStateOptions: dist/events/live-state.d.ts#LiveStateOptions
+type LiveView: dist/events/live-view.d.ts#LiveView
+type LiveViewOptions: dist/events/live-view.d.ts#LiveViewOptions
 LocalTransport: dist/adapters/local/client/transport.d.ts#LocalTransport
 type LocalTransportOptions: dist/adapters/local/client/types.d.ts#LocalTransportOptions
 type LogFields: dist/logger.d.ts#LogFields
@@ -823,6 +871,7 @@ MANIFEST_FORMAT: dist/procedures/manifest.d.ts#MANIFEST_FORMAT
 MAX_DATA_DEPTH: dist/procedures/ref.d.ts#MAX_DATA_DEPTH
 MAX_EXPECTED_VERSION_LENGTH: dist/procedures/collection/precondition.d.ts#MAX_EXPECTED_VERSION_LENGTH
 MAX_IDEMPOTENCY_KEY_LENGTH: dist/procedures/idempotency.d.ts#MAX_IDEMPOTENCY_KEY_LENGTH
+MAX_LIVE_KEY_LENGTH: dist/events/live-state.d.ts#MAX_LIVE_KEY_LENGTH
 type MachineDocument: dist/machines.d.ts#MachineDocument
 type MachineDuration: dist/machines.d.ts#MachineDuration
 type MachineTimer: dist/machines.d.ts#MachineTimer
@@ -1171,6 +1220,9 @@ keyToPath: dist/procedures/types.d.ts#keyToPath
 ladder: dist/procedures/capability.d.ts#ladder
 lastResortError: dist/server/last-resort.d.ts#lastResortError
 listProceduresProcedure: dist/procedures/define-procedure.d.ts#listProceduresProcedure
+liveTopic: dist/events/live-state.d.ts#liveTopic
+liveTopicTarget: dist/events/live-state.d.ts#liveTopicTarget
+liveView: dist/events/live-view.d.ts#liveView
 loadAllIn: dist/procedures/registry.d.ts#loadAllIn
 lookupOutputRef: dist/procedures/ref.d.ts#lookupOutputRef
 manifestProcedure: dist/procedures/define-procedure.d.ts#manifestProcedure
@@ -1465,10 +1517,15 @@ seconds: dist/duration.d.ts#seconds
 toMs: dist/duration.d.ts#toMs
 writeRemainingTime: dist/client/deadline.d.ts#writeRemainingTime
 
-## ./events (dist/events/index.d.ts): 52 names
+## ./events (dist/events/index.d.ts): 78 names
 
+type AdmitLiveLeave: dist/events/live-state.d.ts#AdmitLiveLeave
+type AdmitLiveSet: dist/events/live-state.d.ts#AdmitLiveSet
 type ChannelMap: dist/events/types.d.ts#ChannelMap
 type ChannelTimingOptions: dist/events/bus.d.ts#ChannelTimingOptions
+DEFAULT_LIVE_KEYS: dist/events/live-state.d.ts#DEFAULT_LIVE_KEYS
+DEFAULT_LIVE_TOPICS: dist/events/live-state.d.ts#DEFAULT_LIVE_TOPICS
+DEFAULT_LIVE_VALUE_BYTES: dist/events/live-state.d.ts#DEFAULT_LIVE_VALUE_BYTES
 type DefaultChannels: dist/events/types.d.ts#DefaultChannels
 DefaultEventBus: dist/events/bus.d.ts#DefaultEventBus
 EVENTS_SUBSCRIBE_PATH: dist/events/remote.d.ts#EVENTS_SUBSCRIBE_PATH
@@ -1483,6 +1540,24 @@ EventPublisher: dist/events/publisher.d.ts#EventPublisher
 type EventPublisherOptions: dist/events/publisher.d.ts#EventPublisherOptions
 type EventTransport: dist/events/remote.d.ts#EventTransport
 type EventWaitOptions: dist/events/types.d.ts#EventWaitOptions
+LIVE_LEAVE_PATH: dist/events/live-state.d.ts#LIVE_LEAVE_PATH
+LIVE_SET_PATH: dist/events/live-state.d.ts#LIVE_SET_PATH
+LIVE_SNAPSHOT_PATH: dist/events/live-state.d.ts#LIVE_SNAPSHOT_PATH
+type LiveAdmission: dist/events/live-state.d.ts#LiveAdmission
+type LiveClient: dist/events/live-view.d.ts#LiveClient
+type LiveEntry: dist/events/live-state.d.ts#LiveEntry
+type LiveEvent: dist/events/live-state.d.ts#LiveEvent
+type LiveGone: dist/events/live-state.d.ts#LiveGone
+type LiveGoneReason: dist/events/live-state.d.ts#LiveGoneReason
+type LiveLeaveCall: dist/events/live-state.d.ts#LiveLeaveCall
+type LiveSetCall: dist/events/live-state.d.ts#LiveSetCall
+type LiveSetOptions: dist/events/live-state.d.ts#LiveSetOptions
+LiveState: dist/events/live-state.d.ts#LiveState
+type LiveStateHost: dist/events/live-state.d.ts#LiveStateHost
+type LiveStateOptions: dist/events/live-state.d.ts#LiveStateOptions
+type LiveView: dist/events/live-view.d.ts#LiveView
+type LiveViewOptions: dist/events/live-view.d.ts#LiveViewOptions
+MAX_LIVE_KEY_LENGTH: dist/events/live-state.d.ts#MAX_LIVE_KEY_LENGTH
 MAX_SUBSCRIPTION_TOPICS: dist/events/publisher.d.ts#MAX_SUBSCRIPTION_TOPICS
 MAX_TOPIC_LENGTH: dist/events/publisher.d.ts#MAX_TOPIC_LENGTH
 type ProcedureChannels: dist/events/types.d.ts#ProcedureChannels
@@ -1511,6 +1586,9 @@ debounceChannel: dist/events/bus.d.ts#debounceChannel
 filterChannel: dist/events/bus.d.ts#filterChannel
 forwardChannel: dist/events/bus.d.ts#forwardChannel
 getGlobalEventBus: dist/events/bus.d.ts#getGlobalEventBus
+liveTopic: dist/events/live-state.d.ts#liveTopic
+liveTopicTarget: dist/events/live-state.d.ts#liveTopicTarget
+liveView: dist/events/live-view.d.ts#liveView
 mapChannel: dist/events/bus.d.ts#mapChannel
 mergeChannels: dist/events/bus.d.ts#mergeChannels
 remoteEvents: dist/events/remote.d.ts#remoteEvents
@@ -3482,15 +3560,166 @@ export declare function throttleChannel<T>(bus: EventBus, source: string, target
 ### dist/events/bus.d.ts#withEventBusSignal
 export declare function withEventBusSignal(bus: EventBus, signal: AbortSignal): EventBus;
 
+### dist/events/live-state.d.ts#AdmitLiveLeave
+export type AdmitLiveLeave = (call: LiveLeaveCall) => boolean | Promise<boolean>;
+
+### dist/events/live-state.d.ts#AdmitLiveSet
+export type AdmitLiveSet = (call: LiveSetCall) => LiveAdmission | null | Promise<LiveAdmission | null>;
+
+### dist/events/live-state.d.ts#DEFAULT_LIVE_KEYS
+export declare const DEFAULT_LIVE_KEYS = 1024;
+
+### dist/events/live-state.d.ts#DEFAULT_LIVE_TOPICS
+export declare const DEFAULT_LIVE_TOPICS = 4096;
+
+### dist/events/live-state.d.ts#DEFAULT_LIVE_VALUE_BYTES
+export declare const DEFAULT_LIVE_VALUE_BYTES = 16384;
+
+### dist/events/live-state.d.ts#LIVE_LEAVE_PATH
+export declare const LIVE_LEAVE_PATH: readonly string[];
+
+### dist/events/live-state.d.ts#LIVE_SET_PATH
+export declare const LIVE_SET_PATH: readonly string[];
+
+### dist/events/live-state.d.ts#LIVE_SNAPSHOT_PATH
+export declare const LIVE_SNAPSHOT_PATH: readonly string[];
+
+### dist/events/live-state.d.ts#LiveAdmission
+export interface LiveAdmission {
+    readonly by?: string | undefined;
+    readonly value?: unknown;
+}
+
+### dist/events/live-state.d.ts#LiveEntry
+export interface LiveEntry<T = unknown> {
+    readonly key: string;
+    readonly value: T;
+    readonly by?: string | undefined;
+    readonly at: number;
+}
+
+### dist/events/live-state.d.ts#LiveEvent
+export interface LiveEvent<T = unknown> {
+    readonly origin: string;
+    readonly set: ReadonlyArray<LiveEntry<T>>;
+    readonly gone: readonly LiveGone[];
+}
+
+### dist/events/live-state.d.ts#LiveGone
+export interface LiveGone {
+    readonly key: string;
+    readonly reason: LiveGoneReason;
+}
+
+### dist/events/live-state.d.ts#LiveGoneReason
+export type LiveGoneReason = "expired" | "closed" | "left";
+
+### dist/events/live-state.d.ts#LiveLeaveCall
+export interface LiveLeaveCall {
+    readonly topic: string;
+    readonly key: string;
+    readonly by?: string | undefined;
+    readonly owner?: string | undefined;
+    readonly capability: Capability;
+    readonly metadata: Readonly<Record<string, unknown>>;
+    readonly principal?: Principal | undefined;
+}
+
+### dist/events/live-state.d.ts#LiveSetCall
+export interface LiveSetCall {
+    readonly topic: string;
+    readonly key: string;
+    readonly value: unknown;
+    readonly capability: Capability;
+    readonly metadata: Readonly<Record<string, unknown>>;
+    readonly principal?: Principal | undefined;
+}
+
+### dist/events/live-state.d.ts#LiveSetOptions
+export interface LiveSetOptions {
+    readonly by?: string | undefined;
+    readonly owner?: string | undefined;
+}
+
+### dist/events/live-state.d.ts#LiveState
+export declare class LiveState {
+    readonly procedures: readonly AnyProcedure[];
+    constructor(options: LiveStateOptions, host: LiveStateHost);
+    get size(): number;
+    route(topic: string, ctx: ProcedureContext): Promise<string | undefined>;
+    set(topic: string, key: string, value: unknown, options?: LiveSetOptions): number;
+    snapshot(topic: string): LiveEntry[];
+    leave(topic: string, key: string): boolean;
+    connectionClosed(connection: string): void;
+    close(): void;
+}
+
+### dist/events/live-state.d.ts#LiveStateHost
+export interface LiveStateHost {
+    readonly bus: EventBus;
+    readonly clock?: Clock | undefined;
+    readonly topicSchema: z.ZodString;
+    admit(topic: string, ctx: ProcedureContext): Promise<string>;
+}
+
+### dist/events/live-state.d.ts#LiveStateOptions
+export interface LiveStateOptions {
+    expiresAfter: Duration;
+    admitSet: AdmitLiveSet;
+    admitLeave?: AdmitLiveLeave | undefined;
+    window?: Duration | ((topic: string) => Duration) | undefined;
+    partition?: PartitionResolver | undefined;
+    maxKeysPerTopic?: number | undefined;
+    maxValueBytes?: number | undefined;
+    maxTopics?: number | undefined;
+    clock?: Clock | undefined;
+}
+
+### dist/events/live-state.d.ts#MAX_LIVE_KEY_LENGTH
+export declare const MAX_LIVE_KEY_LENGTH = 256;
+
+### dist/events/live-state.d.ts#liveTopic
+export declare function liveTopic(name: string, partition?: string): string;
+
+### dist/events/live-state.d.ts#liveTopicTarget
+export declare function liveTopicTarget(topic: string): {
+    readonly name: string;
+    readonly partition?: string;
+} | undefined;
+
+### dist/events/live-view.d.ts#LiveClient
+export interface LiveClient {
+    subscribe<T = unknown>(topics: string | readonly string[], handler: RemoteEventHandler<T>, options?: SubscribeOptions): Subscription;
+    call<TReq, TRes>(method: Method, payload: TReq): Promise<TRes>;
+}
+
+### dist/events/live-view.d.ts#LiveView
+export interface LiveView<T = unknown> {
+    readonly values: ReadonlyMap<string, LiveEntry<T>>;
+    readonly ready: Promise<void>;
+    close(): void;
+}
+
+### dist/events/live-view.d.ts#LiveViewOptions
+export interface LiveViewOptions<T = unknown> extends SubscribeOptions {
+    onChange?: ((values: ReadonlyMap<string, LiveEntry<T>>) => void) | undefined;
+    onReadError?: ((error: unknown) => void) | undefined;
+}
+
+### dist/events/live-view.d.ts#liveView
+export declare function liveView<T = unknown>(client: LiveClient, topic: string, options?: LiveViewOptions<T>): LiveView<T>;
+
 ### dist/events/publisher.d.ts#EventPublisher
 export declare class EventPublisher {
     readonly bus: EventBus;
     readonly procedure: AnyProcedure;
+    readonly live: LiveState | undefined;
     constructor(options: EventPublisherOptions);
     publish<T>(topic: string, data: T): void;
     get subscriptions(): number;
     end(): void;
     rightsChanged(change?: RightsChange, scope?: RightsScopes): Promise<void>;
+    admitTopic(topic: string, ctx: ProcedureContext): Promise<string>;
 }
 
 ### dist/events/publisher.d.ts#EventPublisherOptions
@@ -3502,6 +3731,7 @@ export interface EventPublisherOptions {
     reads?: ((topic: string) => readonly string[]) | undefined;
     clock?: Clock | undefined;
     recheck?: SubscriptionRecheck | undefined;
+    live?: LiveStateOptions | undefined;
 }
 
 ### dist/events/publisher.d.ts#MAX_SUBSCRIPTION_TOPICS
@@ -4294,6 +4524,7 @@ export interface StorageChanges<T> {
     full: boolean;
     changed: Array<[string, T]>;
     deleted: string[];
+    held?: boolean;
 }
 
 ### dist/procedures/collection/storage.d.ts#StorageClearChange
