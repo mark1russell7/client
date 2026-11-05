@@ -6,6 +6,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # A person starts a run on a branch with no pull request: gh workflow run ci.yml --ref <branch>
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -13,7 +15,7 @@ permissions:
 # A newer push to a branch cancels its older run. Each commit of main keeps its run, so each
 # commit of main gets a result, and the Pages workflow can start after it (deep dive SITE-10).
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
