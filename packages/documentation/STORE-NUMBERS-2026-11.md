@@ -21,7 +21,7 @@ The disk does not set this limit. The journal had 417 syncs a second at 0.198 ms
 
 The mechanism has two serial points, and each holds one transaction at a time for a collection:
 
-1. In one process, the queue of the collection. A write takes about 2.4 ms.
+1. In one process, the queue of the collection. A write takes approximately 2.4 ms.
 2. Across processes, the counter document. A transaction holds it until its commit.
 
 ## The rule
@@ -32,7 +32,7 @@ Each form below has a test of this rule. The test has two writer processes and o
 
 ## What the queue protects
 
-A form that removes the queue has to replace two things:
+A form that removes the queue must replace two things:
 
 1. **No conflict inside one process.** With the queue off and one counter, 99 % of the transactions conflict, and the rate falls to 25.9 w/s.
 2. **The place of a change read in the process.** A change read goes behind the writes that the process started before it.
@@ -53,11 +53,11 @@ A form that removes the queue has to replace two things:
 
 The counter moves from the collection to the partition. The queue moves with it. Two writes of different partitions then share no document, so they do not conflict. The arm with many counters had a conflict share under 0.01 at 682 w/s. Its 1,000 counters came at random, so two writes sometimes took one counter.
 
-No store reads across partitions, because a store with no partition reads only documents with no partition. So a number needs to be in order only inside its partition.
+No store reads across partitions, because a store with no partition reads only documents with no partition. So a number must be in order only inside its partition.
 
 The watcher of the writes of a process notes each number by collection. Under form A two partitions can use the same number, so the note takes the partition too.
 
-A partition with many writes stays limited. Its counter is one document, as the counter of a collection is today. So one partition has the limit of one collection today, about 412 w/s, and two processes conflict on it. The cases `200-p2-hot` and `400-p2-hot` measure this.
+A partition with many writes stays limited. Its counter is one document, as the counter of a collection is today. So one partition has the limit of one collection today, approximately 412 w/s, and two processes conflict on it. The cases `200-p2-hot` and `400-p2-hot` measure this.
 
 ### Form B
 
@@ -97,7 +97,7 @@ The test of the rule ran 2 jobs of 3 rounds for each case with two writers. Each
 
 The control lost writes, so the test can find a loss. A count of 0 is a result for these rounds and this hold of up to 20 ms. It is not a proof for each order of steps.
 
-The guard of form A has no case yet, so this table does not cover the release of form A with its guard.
+The guard of form A has two new cases: `forma-guard-quiet` and `release-forma-guard`. Their run is not read yet, so this table does not cover them. `release-forma-new-reader` is the same release with no guard, so it is the flip of the guard.
 
 ## The release plan of form A
 
@@ -110,8 +110,8 @@ A rolling release runs old and new processes on one collection. Old processes wr
 
 A guard covers an old process that lives past step 2. A change read also reads the counter of the collection, in the same query as the counter of the partition. A number above the frozen number means that an old writer is alive. The read then gives a full result and a warning. Recovery sets a new epoch, so each reader takes a full read.
 
-The guard has its own case in the test of the rule before this form ships.
+The guard has its own case in the test of the rule before this form ships. The guard is in the reader, so it does not help an old reader. An old reader reads only the counter of the collection, and new writers do not change that counter. `release-forma-old-reader` gives this loss. So form A depends on step 2 for each reader, and a breach of step 2 loses reads with no sign.
 
 ## SemVer
 
-Not decided. The version text stays `<epoch>.<number>`, and the results inside a partition stay the same. The numbers of two partitions can now be equal, and that is visible to a caller that compares versions across partitions. The plan with its choice goes to the release owner with the readings above.
+Not decided. The version text stays `<epoch>.<number>`, and the results inside a partition stay the same. The numbers of two partitions can be equal, and that is visible to a caller that compares versions across partitions. The plan with its choice goes to the release owner with the readings above.

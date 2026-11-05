@@ -4,6 +4,7 @@
  *
  * - `today`: the store, with a hold in the write.
  * - `forma`: a counter for each partition, and a queue for each partition.
+ * - `formaguard`: `forma`, and a change read gives a full result when the counter of the collection is above the frozen number 0. So an old writer shows up.
  * - `formb`: a counter outside the transaction, with a watermark for readers, and no queue. A write of one document needs no transaction here.
  * - `outside`: a counter outside the transaction with no watermark. This form loses writes, so it proves that the test of the rule finds a miss.
  */
@@ -11,7 +12,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 
 /** The copies of the store. */
-export const FORM_COPIES = ["today", "forma", "formb", "outside"] as const;
+export const FORM_COPIES = ["today", "forma", "formaguard", "formb", "outside"] as const;
 
 /** One copy of the store. */
 export type FormCopy = (typeof FORM_COPIES)[number];
@@ -43,11 +44,18 @@ const forma = (text: string): string => {
   return swap(named, "  private async watermark(db: Db): Promise<Counter> {\n", '  private formCounter(): string {\n    return `seq\\u001f${this.collectionName}\\u001f${this.partition ?? ""}`;\n  }\n\n  private async watermark(db: Db): Promise<Counter> {\n');
 };
 
+const formaguard = (text: string): string =>
+  swap(
+    forma(text),
+    "      const match = since === undefined ? null : /^([^.]+)\\.(\\d+)$/.exec(since);\n",
+    "      const oldWriter = await db.collection<CounterDoc>(this.countersName).findOne({ _id: this.collectionName });\n      if ((oldWriter?.seq ?? 0) > 0) return full();\n      const match = since === undefined ? null : /^([^.]+)\\.(\\d+)$/.exec(since);\n",
+  );
+
 const formb = (text: string): string => swap(swap(text, ENQUEUE, `${ENQUEUE}  if (db) return task();\n`), "if (client) {\n      const session = client.startSession();", "if (client && !db) {\n      const session = client.startSession();");
 
 const outside = (text: string): string => swap(text, '{ upsert: true, returnDocument: "after", session }', '{ upsert: true, returnDocument: "after" }');
 
-const CHANGES: Record<FormCopy, (text: string) => string> = { today: (text) => text, forma, formb, outside };
+const CHANGES: Record<FormCopy, (text: string) => string> = { today: (text) => text, forma, formaguard, formb, outside };
 
 /** This function writes each copy of the store next to the source. */
 export function writeFormCopies(): void {

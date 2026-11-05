@@ -28,6 +28,8 @@ export interface RuleCase {
   readonly writers: readonly [FormCopy, FormCopy];
   readonly reader: FormCopy;
   readonly miss: "none" | "some";
+  /** The later full results that the case expects from the guard. A case with no value does not read them. */
+  readonly laterFulls?: "none" | "some";
 }
 
 /** The cases. The case `control-outside` proves that the test finds a miss. */
@@ -38,6 +40,8 @@ export const RULE_CASES: readonly RuleCase[] = [
   { id: "formb", writers: ["formb", "formb"], reader: "formb", miss: "none" },
   { id: "release-forma-new-reader", writers: ["today", "forma"], reader: "forma", miss: "some" },
   { id: "release-forma-old-reader", writers: ["today", "forma"], reader: "today", miss: "some" },
+  { id: "forma-guard-quiet", writers: ["forma", "forma"], reader: "formaguard", miss: "none", laterFulls: "none" },
+  { id: "release-forma-guard", writers: ["today", "forma"], reader: "formaguard", miss: "none", laterFulls: "some" },
   { id: "release-formb-new-reader", writers: ["today", "formb"], reader: "formb", miss: "none" },
   { id: "release-formb-old-reader", writers: ["today", "formb"], reader: "today", miss: "none" },
 ];

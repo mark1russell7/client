@@ -17,13 +17,17 @@ const jobs = readdirSync(folder)
   .map((name) => JSON.parse(readFileSync(join(folder, name), "utf8")) as { job: string; env: unknown; results: RuleRound[] });
 const rounds = jobs.flatMap((job) => job.results);
 
+const expectedFulls = new Map(RULE_CASES.map((kase) => [kase.id, kase.laterFulls]));
 const expected = new Map<string, "none" | "some">([...RULE_CASES.map((kase) => [kase.id, kase.miss] as const), ["formc-stamp", "some"], ["formc-stream", "none"]]);
 const cases = [...expected].map(([id, miss]) => {
   const own = rounds.filter((round) => round.case === id);
   const missed = own.reduce((sum, round) => sum + round.missed, 0);
   const errors: Record<string, number> = {};
   for (const round of own) for (const [kind, count] of Object.entries(round.errors)) errors[kind] = (errors[kind] ?? 0) + count;
-  const asExpected = own.length > 0 && (miss === "none" ? missed === 0 : missed > 0);
+  const laterFulls = own.reduce((sum, round) => sum + round.laterFulls, 0);
+  const fulls = expectedFulls.get(id);
+  const fullsAsExpected = fulls === undefined || (fulls === "none" ? laterFulls === 0 : laterFulls > 0);
+  const asExpected = own.length > 0 && fullsAsExpected && (miss === "none" ? missed === 0 : missed > 0);
   return {
     case: id,
     expected: miss,
@@ -33,7 +37,7 @@ const cases = [...expected].map(([id, miss]) => {
     missed,
     examples: own.flatMap((round) => round.examples).slice(0, 5),
     deltas: own.reduce((sum, round) => sum + round.deltas, 0),
-    laterFulls: own.reduce((sum, round) => sum + round.laterFulls, 0),
+    laterFulls,
     errors,
   };
 });
