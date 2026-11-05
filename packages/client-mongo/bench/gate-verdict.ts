@@ -5,6 +5,7 @@
  */
 
 import { notSlowerVerdict, type GateOutcome, type JobRecords, type NotSlowerVerdict } from "@mark1russell7/rigor-bench";
+import { wilson } from "@mark1russell7/rigor-statistics";
 
 /** The read cases of the gate. A read is on one `Db` object, with no transaction. */
 export const READ_CASES: readonly string[] = ["first-1", "none-1", "one-1"];
@@ -66,6 +67,63 @@ export interface GateLimit {
   readonly reportOnly: readonly string[];
   readonly formula: string;
   readonly runs: readonly string[];
+  /** The flip runs read so far: for each case, the slowdown of the flip and its outcome. */
+  readonly flips?: readonly FlipRecord[];
+}
+
+/** One case of one flip run: a head slower by `factor` against the limits of the gate. */
+export interface FlipRecord {
+  readonly run: string;
+  readonly case: string;
+  readonly factor: number;
+  /** True when the gate held the slower head: a block, or for a case that only reports, a read beyond the limit. */
+  readonly blocked: boolean;
+  /** The look of the block, in rounds of each job. */
+  readonly look?: number;
+}
+
+/** The fewest flip runs that a claim needs. */
+export const LEAST_FLIP_RUNS = 2;
+
+/** The claim of one case, from its flip runs. */
+export interface CaseClaim {
+  readonly case: string;
+  /** The smallest slowdown that each counted run held, or `null` when no slowdown has the runs. */
+  readonly claim: number | null;
+  /** The runs that held the claim, and the runs that count at the claim. */
+  readonly k: number;
+  readonly n: number;
+  /** The 95 % Wilson lower bound of the block rate. It is reported, not gated: n of n gives n/(n+3.84). */
+  readonly wilsonLow: number;
+  /** The record of each counted run: its slowdown, and the look of its block or "miss". */
+  readonly record: string;
+}
+
+/**
+ * This function gives the claim of a case from its flip runs. A run counts at a slowdown `x` when its flip was `x`,
+ * when it held a smaller flip, or when it missed a larger flip. A larger slowdown is easier to hold. So a block below
+ * `x` tells a block at `x`, and a miss above `x` tells a miss at `x`. The claim is the smallest slowdown whose counted
+ * runs all held, with `LEAST_FLIP_RUNS` or more runs. A later miss moves the claim to the next slowdown that holds.
+ */
+export function caseClaim(flips: readonly FlipRecord[], name: string): CaseClaim {
+  const own = flips.filter((flip) => flip.case === name);
+  const counted = (x: number): FlipRecord[] => own.filter((flip) => flip.factor === x || (flip.blocked && flip.factor < x) || (!flip.blocked && flip.factor > x));
+  const factors = [...new Set(own.map((flip) => flip.factor))].sort((a, b) => a - b);
+  const claim = factors.find((x) => {
+    const runs = counted(x);
+    return runs.length >= LEAST_FLIP_RUNS && runs.every((flip) => flip.blocked);
+  });
+  const shown = claim ?? factors.at(-1);
+  const runs = shown === undefined ? [] : counted(shown);
+  const k = runs.filter((flip) => flip.blocked).length;
+  return {
+    case: name,
+    claim: claim ?? null,
+    k,
+    n: runs.length,
+    wilsonLow: Number(wilson(k, runs.length).low.toFixed(3)),
+    record: runs.map((flip) => `${flip.run} at ${String(flip.factor)}: ${flip.blocked ? `look ${String(flip.look ?? "-")}` : "miss"}`).join(", "),
+  };
 }
 
 /** This function gives the margin of a case. A case with no limit stops the read, because no limit is not a pass. */

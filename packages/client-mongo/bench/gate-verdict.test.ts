@@ -2,7 +2,8 @@
 
 import { describe, expect, it } from "vitest";
 import type { JobRecords, PairedTime } from "@mark1russell7/rigor-bench";
-import { BLOCK_EXIT, NO_READ_EXIT, READ_CASES, WRITE_CASES, caseLimits, heldSlowdown, joinJobs, outcomeAtCaseLimits, overStated, passingLimit, rerunCounts, shortOfLastLook, storeGate } from "./gate-verdict.js";
+import { readFileSync } from "node:fs";
+import { BLOCK_EXIT, NO_READ_EXIT, READ_CASES, WRITE_CASES, caseClaim, caseLimits, heldSlowdown, joinJobs, outcomeAtCaseLimits, overStated, passingLimit, rerunCounts, shortOfLastLook, storeGate, type GateLimit } from "./gate-verdict.js";
 
 const CASES = [...READ_CASES, ...WRITE_CASES];
 const LIMIT = 1.1;
@@ -232,5 +233,28 @@ describe("rerunCounts", () => {
       { pr: "1", noReads: 2, rerunsAfterNoRead: 2, passesAfterNoRead: 1 },
       { pr: "2", noReads: 0, rerunsAfterNoRead: 0, passesAfterNoRead: 0 },
     ]);
+  });
+});
+
+describe("caseClaim", () => {
+  const flips = (JSON.parse(readFileSync(new URL("./gate-limit.json", import.meta.url), "utf8")) as GateLimit).flips ?? [];
+
+  it("gives each case the smallest slowdown that each counted flip run held, from the three flip runs", () => {
+    const claims = Object.fromEntries([...READ_CASES, ...WRITE_CASES].map((name) => [name, caseClaim(flips, name)]));
+    expect(claims["first-1"]).toMatchObject({ claim: 1.25, k: 2, n: 2, wilsonLow: 0.342 });
+    expect(claims["one-1"]?.record).toBe("42091466867 at 1.25: look 12, 42110947754 at 1.25: look 24");
+    // one-10 held 1.25 once, so 1.30 counts that block and its own
+    expect(claims["one-10"]).toMatchObject({ claim: 1.3, k: 2, n: 2 });
+    // part-1 held 1.25 in 1 of 3 runs, and many-1 held no flip
+    expect(claims["part-1"]).toMatchObject({ claim: null, k: 1, n: 3 });
+    expect(claims["many-1"]).toMatchObject({ claim: null, k: 0, n: 1 });
+  });
+
+  it("moves the claim to the next slowdown that holds after a miss, and counts a miss at a larger slowdown", () => {
+    const run = (id: string, factor: number, blocked: boolean) => ({ run: id, case: "x", factor, blocked, look: 12 });
+    expect(caseClaim([run("a", 1.25, true), run("b", 1.25, true)], "x").claim).toBe(1.25);
+    expect(caseClaim([run("a", 1.25, true), run("b", 1.25, true), run("c", 1.25, false), run("d", 1.4, true)], "x")).toMatchObject({ claim: 1.4, k: 3, n: 3 });
+    expect(caseClaim([run("a", 1.25, true), run("b", 1.4, false)], "x")).toMatchObject({ claim: null, k: 1, n: 2 });
+    expect(caseClaim([], "x")).toMatchObject({ claim: null, k: 0, n: 0, record: "" });
   });
 });

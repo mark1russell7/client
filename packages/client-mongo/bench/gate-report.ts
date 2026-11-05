@@ -8,7 +8,7 @@ import { appendFileSync, readdirSync, readFileSync, writeFileSync } from "node:f
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import type { PairedTime } from "@mark1russell7/rigor-bench";
-import { joinJobs, overStated, passingLimit, storeGate, type GateLimit } from "./gate-verdict.js";
+import { caseClaim, joinJobs, overStated, passingLimit, READ_CASES, storeGate, WRITE_CASES, type GateLimit } from "./gate-verdict.js";
 import { poolErrors, type KeptError } from "./write-cases.js";
 
 /** The CI runs that a limit needs. */
@@ -72,6 +72,7 @@ const report = {
   more: result.more,
   passingLimit: round(passingLimit(joined)),
   cases: verdict.cases.map(caseRead),
+  claims: [...READ_CASES, ...WRITE_CASES].map((name) => caseClaim(gate.flips ?? [], name)),
   reportOnly: result.reported.map(caseRead),
   failedWritesOfHead: failures,
   errorsOfHead: poolErrors(counts.filter((row) => row.arm === "after")),
@@ -80,5 +81,9 @@ const report = {
 writeFileSync(values.out, `${JSON.stringify(report, null, 2)}\n`);
 
 console.log(result.text);
+for (const claim of report.claims) {
+  const head = claim.claim === null ? `${claim.case}: no claim yet` : `${claim.case}: claim ${String(claim.claim)}`;
+  console.log(`${head}, held in ${String(claim.k)} of ${String(claim.n)} flip runs, Wilson low ${String(claim.wilsonLow)} (${claim.record || "no flip run"})`);
+}
 if (values.more !== undefined && result.more.length > 0) appendFileSync(values.more, `more=${result.more.join(",")}\n`);
 if (values.enforce === true) process.exitCode = result.exitCode;
