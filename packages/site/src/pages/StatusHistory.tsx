@@ -149,13 +149,14 @@ function AreaChart({ area, onArea }: { area: string; onArea: (slug: string) => v
     <div className="area-chart" ref={box} onPointerLeave={() => setTip(null)}>
       {rows.map(({ area: row, counts, total }) => {
         const selected = area === row.slug;
+        const left = counts.open + counts.decision + counts.partly;
         return (
           <button
             key={row.slug}
             type="button"
             className={`area-row${selected ? " selected" : ""}${area && !selected ? " dim" : ""}`}
             aria-pressed={selected}
-            aria-label={`${row.label}: ${total} findings, ${summaryOf(counts)}. ${selected ? "Show all areas" : "Show only this area"}`}
+            aria-label={`${row.label} ${total}${left > 0 ? `, ${left} left` : ""}: ${summaryOf(counts)}. ${selected ? "Show all areas" : "Show only this area"}`}
             onClick={() => onArea(selected ? "" : row.slug)}
             onFocus={(event) => {
               const rect = event.currentTarget.getBoundingClientRect();
@@ -163,7 +164,7 @@ function AreaChart({ area, onArea }: { area: string; onArea: (slug: string) => v
             }}
             onBlur={() => setTip(null)}
           >
-            <span className="area-label">{row.label}</span>
+            <span className="area-label">{row.label}</span>{" "}
             <span className="area-track">
               <span className="area-bar" style={{ width: `${(total / max) * 100}%` }}>
                 {BAR_ORDER.filter((key) => counts[key] > 0).map((key) => (
@@ -178,9 +179,7 @@ function AreaChart({ area, onArea }: { area: string; onArea: (slug: string) => v
             </span>
             <span className="area-total">
               {total}
-              {counts.open + counts.decision + counts.partly > 0 ? (
-                <span className="area-left"> · {counts.open + counts.decision + counts.partly} left</span>
-              ) : null}
+              {left > 0 ? <span className="area-left"> · {left} left</span> : null}
             </span>
           </button>
         );
