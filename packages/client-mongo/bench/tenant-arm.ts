@@ -20,7 +20,7 @@ import { parseArgs } from "node:util";
 import { latencyQuantile, measureLoad, scheduleHeld, type Completion } from "@mark1russell7/rigor-chaos";
 import { median, quantile } from "@mark1russell7/rigor-statistics";
 import { MongoClient } from "mongodb";
-import { ALL_CORES, BURST_AT_MS, BURST_TENANT, DRIVER_LIMIT_MS, GRACE_MS, MONGO_CORES, TENANT_ARMS, WINDOW_MS, WRITER_CORES, firstLoadOf, parseTenantCase, tenantOf, type CoreShare, type DiskRead, type JournalRead, type TenantArm, type TenantCount } from "./tenant-cases.js";
+import { ALL_CORES, BURST_AT_MS, BURST_TENANT, DRIVER_LIMIT_MS, GRACE_MS, MONGO_CORES, TENANT_ARMS, WINDOW_MS, WRITER_CORES, firstLoadOf, parseTenantCase, tenantOf, type CoreShare, type DiskRead, type JournalRead, type SecondRead, type TenantArm, type TenantCount } from "./tenant-cases.js";
 import { planOf } from "./tenant-plan.js";
 
 const { values } = parseArgs({ options: { arm: { type: "string" }, case: { type: "string" }, job: { type: "string" }, counts: { type: "string" } } });
@@ -41,6 +41,8 @@ interface WriterResult {
   readonly writeConflicts: number;
   readonly errors: Readonly<Record<string, number>>;
   readonly writerBusy: number;
+  readonly secondBefore: SecondRead;
+  readonly burstSecond: SecondRead;
 }
 
 const container = process.env["MONGO_CONTAINER"];
@@ -225,6 +227,15 @@ const othersValues = plan.times.flatMap((planned, index) => {
   return [done === null ? Math.max(0, end - planned) : done - planned];
 });
 const othersP99 = quantile(othersValues, 0.99, "nearest-rank");
+// The same writes from their send, so the wait before the send and the wait after it read apart.
+const sentByIndex = new Map(completions.map((entry) => [entry.index, entry.sent]));
+const othersFromSent = plan.times.flatMap((planned, index) => {
+  if (firstLoadOf(kase, index, planned)) return [];
+  if (kase.burst && tenantOf(kase, index, planned) === BURST_TENANT) return [];
+  const done = doneByIndex.get(index) ?? null;
+  const sent = sentByIndex.get(index);
+  return done === null || sent === undefined ? [] : [done - sent];
+});
 
 // The first loads: the time of a write counts from its plan, and the time of a load counts from the start of the burst.
 const loadWrites = plan.times.flatMap((planned, index) => {
@@ -255,6 +266,7 @@ const line: TenantCount = {
   p95Ms: latencyQuantile(measure, 0.95),
   p99Ms,
   othersP99Ms: othersP99,
+  othersFromSentP99Ms: othersFromSent.length === 0 ? 0 : quantile(othersFromSent, 0.99, "nearest-rank"),
   drift,
   driverHeld: driver.held,
   driverWorstMs: driver.worst,
@@ -268,6 +280,13 @@ const line: TenantCount = {
   disk,
   journal,
   writerBusy: results.map((result) => Number(result.writerBusy.toFixed(3))),
+  beforeBusy: results.map((result) => Number(result.secondBefore.busy.toFixed(3))),
+  beforeLoopP99Ms: results.map((result) => Number(result.secondBefore.loopP99Ms.toFixed(1))),
+  burstBusy: results.map((result) => Number(result.burstSecond.busy.toFixed(3))),
+  burstLoopP99Ms: results.map((result) => Number(result.burstSecond.loopP99Ms.toFixed(1))),
+  burstLoopMaxMs: results.map((result) => Number(result.burstSecond.loopMaxMs.toFixed(1))),
+  connectionsMade: results.map((result) => result.burstSecond.connectionsMade),
+  checkoutWaitingPeak: results.map((result) => result.burstSecond.checkoutWaitingPeak),
   errors: Object.fromEntries(
     results.flatMap((result) => Object.entries(result.errors)).reduce((all, [kind, count]) => all.set(kind, (all.get(kind) ?? 0) + count), new Map<string, number>())
   ),

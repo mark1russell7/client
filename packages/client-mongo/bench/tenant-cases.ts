@@ -54,6 +54,18 @@ export const BOUND_ARMS = ["formbbound", "formbbound8", "formbbound32"] as const
 /** The cases of the suite `tenant-bound`: the rates where form B collapses, the hot tenant where it holds, and the burst of first loads. */
 export const BOUND_CASES = ["800-p2", "1200-p4", "200-p2-hot", "400-p2-hot", "200-p2-first10"] as const;
 
+/** The cases of the suite `tenant-burst`: the burst of first loads, on two writer processes and on four. */
+export const BURST_PROBE_CASES = ["200-p2-first10", "200-p4-first10"] as const;
+
+/** The processor, the event loop and the pool of one writer in one second of the load. */
+export interface SecondRead {
+  readonly busy: number;
+  readonly loopP99Ms: number;
+  readonly loopMaxMs: number;
+  readonly connectionsMade: number;
+  readonly checkoutWaitingPeak: number;
+}
+
 /** The cases of the suite `tenant-bound-size`. A small bound can hold writes back at the first rate. The second rate is over the limit of the machine. The third case is the hot tenant. */
 export const BOUND_SIZE_CASES = ["800-p2", "1200-p4", "400-p2-hot"] as const;
 
@@ -246,6 +258,22 @@ export interface TenantCount {
   readonly disk?: DiskRead | null;
   /** The journal in the load. The value is null where the server does not give it. A record from before this field has none. */
   readonly journal?: JournalRead | null;
+  /** The p99 of the same writes as `othersP99Ms`, from their send and not from their plan. A record from before this field has no value. */
+  readonly othersFromSentP99Ms?: number;
+  /** The share of one processor that each writer used in the second before the burst. */
+  readonly beforeBusy?: readonly number[];
+  /** The p99 of the delay of the event loop of each writer in the second before the burst. */
+  readonly beforeLoopP99Ms?: readonly number[];
+  /** The share of one processor that each writer used in the second of the burst. */
+  readonly burstBusy?: readonly number[];
+  /** The p99 of the delay of the event loop of each writer in the second of the burst. */
+  readonly burstLoopP99Ms?: readonly number[];
+  /** The longest delay of the event loop of each writer in the second of the burst. */
+  readonly burstLoopMaxMs?: readonly number[];
+  /** The connections that each writer made in the second of the burst. */
+  readonly connectionsMade?: readonly number[];
+  /** The most calls of each writer that waited for a connection in the second of the burst. */
+  readonly checkoutWaitingPeak?: readonly number[];
   /** The share of one processor that each writer used in the load. A value near 1 means that the writer is the limit. */
   readonly writerBusy?: readonly number[];
   /** One message of each kind of failure, with its count. */

@@ -7,11 +7,12 @@
  * for a reply, so a slow store cannot slow its load. At the end of the grace it prints its completions.
  */
 
+import { monitorEventLoopDelay } from "node:perf_hooks";
 import { createInterface } from "node:readline";
 import { parseArgs } from "node:util";
 import { MongoClient } from "mongodb";
 import type { MongoDocumentStorage } from "../src/storage/document-storage.js";
-import { CONTROL_COLLECTIONS, COPY_ARMS, FIRST_LOAD_SPLIT, GRACE_MS, TENANT_ARMS, TENANT_BYTES, WINDOW_MS, WRITE_CONFLICT, firstLoadCollection, firstLoadOf, parseTenantCase, tenantOf, type FirstLoadWrite, type TenantArm } from "./tenant-cases.js";
+import { BURST_AT_MS, BURST_MS, CONTROL_COLLECTIONS, COPY_ARMS, FIRST_LOAD_SPLIT, GRACE_MS, TENANT_ARMS, TENANT_BYTES, WINDOW_MS, WRITE_CONFLICT, firstLoadCollection, firstLoadOf, parseTenantCase, tenantOf, type FirstLoadWrite, type TenantArm } from "./tenant-cases.js";
 import { planOf } from "./tenant-plan.js";
 
 const { values } = parseArgs({
@@ -39,6 +40,17 @@ let writeConflicts = 0;
 client.on("commandFailed", (event) => {
   if ((event.failure as { code?: number }).code === WRITE_CONFLICT) writeConflicts++;
 });
+// The pool of the client: the connections that it makes and the calls that wait for a connection.
+let connectionsMade = 0;
+let checkoutWaiting = 0;
+let checkoutWaitingPeak = 0;
+client.on("connectionCreated", () => connectionsMade++);
+client.on("connectionCheckOutStarted", () => {
+  checkoutWaiting++;
+  checkoutWaitingPeak = Math.max(checkoutWaitingPeak, checkoutWaiting);
+});
+client.on("connectionCheckedOut", () => checkoutWaiting--);
+client.on("connectionCheckOutFailed", () => checkoutWaiting--);
 const db = client.db(database);
 
 type Store = MongoDocumentStorage<{ text: string }>;
@@ -95,6 +107,41 @@ const busyTimer = setTimeout(() => {
   writerBusy = (used.user + used.system) / 1000 / WINDOW_MS;
 }, WINDOW_MS);
 
+/** The processor and the event loop of this process in one second of the load. */
+interface SecondRead {
+  busy: number;
+  loopP99Ms: number;
+  loopMaxMs: number;
+  connectionsMade: number;
+  checkoutWaitingPeak: number;
+}
+const loop = monitorEventLoopDelay({ resolution: 5 });
+/** This function reads one second of the load. A late timer makes the second longer, so the share divides by the true time. */
+const readSecond = (from: number): SecondRead => {
+  const read: SecondRead = { busy: 0, loopP99Ms: 0, loopMaxMs: 0, connectionsMade: 0, checkoutWaitingPeak: 0 };
+  setTimeout(() => {
+    const startedAt = now();
+    const cpu = process.cpuUsage();
+    const connections = connectionsMade;
+    checkoutWaitingPeak = checkoutWaiting;
+    loop.reset();
+    loop.enable();
+    setTimeout(() => {
+      loop.disable();
+      const used = process.cpuUsage(cpu);
+      read.busy = (used.user + used.system) / 1000 / (now() - startedAt);
+      read.loopP99Ms = loop.percentile(99) / 1e6;
+      read.loopMaxMs = loop.max / 1e6;
+      read.connectionsMade = connectionsMade - connections;
+      read.checkoutWaitingPeak = checkoutWaitingPeak;
+    }, BURST_MS);
+  }, from);
+  return read;
+};
+// One second lies between the two reads, because a late timer makes a read longer and the two share one monitor.
+const secondBefore = readSecond(BURST_AT_MS - 2 * BURST_MS);
+const burstSecond = readSecond(BURST_AT_MS);
+
 for (let index = me; index < plan.times.length; index += kase.processes) {
   const planned = plan.times[index]!;
   const wait = planned - now();
@@ -123,5 +170,5 @@ while (now() < end && completions.filter((entry) => entry.done === null).length 
 
 // A write to a pipe can still be in progress when the process ends, so the exit waits for its callback. The line of a high rate is long.
 clearTimeout(busyTimer);
-process.stdout.write(`${JSON.stringify({ completions, failures, writeConflicts, errors, writerBusy })}
+process.stdout.write(`${JSON.stringify({ completions, failures, writeConflicts, errors, writerBusy, secondBefore, burstSecond })}
 `, () => process.exit(0));
