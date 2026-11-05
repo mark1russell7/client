@@ -37,6 +37,8 @@ const ERROR_TEXT_CHARACTERS = 300;
 const FAST_BACKOFF = { initialDelay: ms(20), maxDelay: ms(200), jitter: 0 };
 
 const SMALL_ID = "small";
+/** The count of stream ends that a row prints. */
+const ENDS_SHOWN = 8;
 const LARGE_ID = "large";
 
 type Line = { level: LogLevel; message: string; fields: LogFields };
@@ -88,6 +90,23 @@ function failuresOf(lines: readonly Line[]): Document {
 function warningsOf(lines: readonly Line[]): Document {
   const warnings = lines.filter((line) => line.level === "warn");
   return { warnings: warnings.length, firstWarning: warnings[0]?.message.slice(0, ERROR_TEXT_CHARACTERS) };
+}
+
+/** The first ends of a stream that a logger tells: the attempt, the code, the labels and the reason of each. */
+function endsOf(lines: readonly Line[]): Document[] {
+  return lines
+    .filter((line) => line.level === "warn")
+    .slice(0, ENDS_SHOWN)
+    .map(({ message, fields }) => {
+      const error = fields["error"] as { code?: unknown; codeName?: unknown; errorLabels?: unknown; name?: unknown } | undefined;
+      return {
+        message: message.slice(0, ERROR_TEXT_CHARACTERS),
+        attempt: fields["attempt"],
+        resumeToken: fields["resumeToken"],
+        reason: typeof fields["reason"] === "string" ? fields["reason"].slice(0, ERROR_TEXT_CHARACTERS) : undefined,
+        error: error === undefined ? undefined : { name: error.name, code: error.code, codeName: error.codeName, labels: error.errorLabels },
+      };
+    });
 }
 
 function printRow(row: Document): void {
@@ -234,7 +253,7 @@ describe.runIf(url)("a change event over the BSON limit", () => {
       await twoImages(db, collection);
       await db.collection(collection).insertOne({ _id: SMALL_ID as never });
       const { reached, waitMs } = await reach(() => hints.some((hint) => hint.includes('"reset":true')));
-      printRow({ name: "hints-images-no-split", reached, waitMs, hints: hints.length, ...failuresOf(logger.lines), ...warningsOf(logger.lines) });
+      printRow({ name: "hints-images-no-split", reached, waitMs, hints: hints.length, ...failuresOf(logger.lines), ...warningsOf(logger.lines), ends: endsOf(logger.lines) });
       expect(reached).toBe(true);
     } finally {
       await watch.stop();
