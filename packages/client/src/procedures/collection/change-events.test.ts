@@ -316,6 +316,82 @@ describe("the change events of the collection procedures (CLI-15)", () => {
   });
 });
 
+/** A log storage whose reads of the log wait until the test ends them. */
+class HeldLogStorage extends LogStorage {
+  held = false;
+  /** The end of each read of the log that waits. */
+  readonly reads: Array<() => void> = [];
+  override async getChangesSince(since?: string): Promise<StorageChanges<unknown>> {
+    if (this.held) await new Promise<void>((resolve) => this.reads.push(resolve));
+    return super.getChangesSince(since);
+  }
+}
+
+/** This function lets the event loop turn until the condition is true, at most 200 turns. It counts turns, not time. */
+async function turnsUntil(condition: () => boolean): Promise<void> {
+  for (let turn = 0; turn < 200 && !condition(); turn++) await new Promise<void>((resolve) => setImmediate(resolve));
+}
+
+describe("the replies of the writes while the writes do not stop (CLI-102)", () => {
+  /**
+   * This function runs the load: while each read of the log runs, a batch of writes ends. Thus each
+   * publish finds new writes, as under a rate over the rate of the storage.
+   */
+  async function sustained(storage: HeldLogStorage, subscribed: boolean, rounds: number, batch: number) {
+    const { run, events, listen } = host(storage);
+    if (subscribed) listen();
+    await run("changes", {});
+    storage.held = true;
+    const replied: string[] = [];
+    const lateEvent: string[] = [];
+    const write = (id: string): Promise<void> =>
+      run("set", { id, value: 1 }).then(() => {
+        // A write resolves after its event is on the bus
+        if (subscribed && !events.some((event) => event.changed.includes(id))) lateEvent.push(id);
+        replied.push(id);
+      });
+    const written: Array<Promise<void>> = [write("first")];
+    const repliedAfterRead: number[] = [];
+    let mostReads = 0;
+    for (let round = 0; round < rounds; round++) {
+      await turnsUntil(() => storage.reads.length === 1 || !subscribed);
+      mostReads = Math.max(mostReads, storage.reads.length);
+      const size = storage.data.size;
+      for (let at = 0; at < batch; at++) written.push(write(`r${round}-${at}`));
+      await turnsUntil(() => storage.data.size === size + batch);
+      await turnsUntil(() => false);
+      storage.reads.shift()?.();
+      await turnsUntil(() => storage.reads.length === 1 || !subscribed);
+      repliedAfterRead.push(replied.length);
+    }
+    storage.held = false;
+    for (const read of storage.reads.splice(0)) read();
+    await Promise.all(written);
+    return { replied, lateEvent, events, repliedAfterRead, mostReads };
+  }
+
+  it("the writes that end while a read runs share the next read, so each read replies to a whole batch", async () => {
+    const { replied, lateEvent, events, repliedAfterRead, mostReads } = await sustained(new HeldLogStorage(), true, 5, 10);
+    // Read 1 replies to the first write. Each later read replies to the batch of the read before it
+    expect(repliedAfterRead).toEqual([1, 11, 21, 31, 41]);
+    expect(mostReads).toBe(1);
+    expect(replied).toHaveLength(51);
+    expect(lateEvent).toEqual([]);
+    // The events still make a chain of versions
+    for (let at = 1; at < events.length; at++) expect(events[at]!.since).toBe(events[at - 1]!.version);
+    expect(new Set(events.flatMap((event) => event.changed)).size).toBe(51);
+  });
+
+  it("with no subscriber, the same load reads the log at no time and each write gets its reply", async () => {
+    const storage = new HeldLogStorage();
+    const { replied, events, repliedAfterRead, mostReads } = await sustained(storage, false, 5, 10);
+    expect(mostReads).toBe(0);
+    expect(events).toEqual([]);
+    expect(repliedAfterRead).toEqual([11, 21, 31, 41, 51]);
+    expect(replied).toHaveLength(51);
+  });
+});
+
 describe("the values of the change events and the subscribers that can read them (CLI-15)", () => {
   it("the topics of a collection read collection:<name>, also with a partition", () => {
     expect(collectionTopicReads("collections.users")).toEqual(["collection:users"]);
