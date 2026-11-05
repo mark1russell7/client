@@ -708,6 +708,17 @@ const notes = new MongoDocumentStorage<Note>({
 });
 ```
 - **The tests.** The storage passes the `CollectionStorage` contract on MongoDB 7 in CI. Set `MONGO_TEST_URL` to start them locally.
+- **The stated write limit.** Plan for at most 200 writes a second on one collection, over all its processes. The limit is provisional: it comes from one 4-core CI runner and from a guess of the load of a tenant.
+
+| Writes a second on one collection | Processes | p99 of a write | Reading |
+|---|---|---|---|
+| 200 | 1 | 12 ms | clean |
+| 200 | 2 | 27.8 ms | clean |
+| 200 | 4 | 39.5 ms | clean |
+| 400 | 2 | 414.8 ms | no margin |
+| 800 and 1,200 | 2 | over 1,000 ms | the rate stops near 412 |
+
+  The same runner writes 799 a second over 100 collections with a p99 of 37.5 ms, so the limit comes from the one collection. Runs: [the rungs](https://github.com/mark1russell7/client/actions/runs/41956238365), [the ceiling](https://github.com/mark1russell7/client/actions/runs/41966001438).
 
 ### Change hints from the change stream: `watchStorageChanges`
 
