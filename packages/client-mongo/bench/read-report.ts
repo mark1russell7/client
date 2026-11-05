@@ -33,7 +33,7 @@ const counts = names
 
 const round = (value: number, digits: number): number => Number(value.toFixed(digits));
 
-const MEASURES = ["burstMs", "readsPerSecond", "commands", "writes", "probeMs", "probeP50Ms", "probeP95Ms", "otherMs", "otherP50Ms", "otherP95Ms", "loopMaxMs", "connections"] as const;
+const MEASURES = ["burstMs", "readsPerSecond", "commands", "writes", "probeMs", "probeP50Ms", "probeP95Ms", "otherMs", "otherP50Ms", "otherP95Ms", "loopMaxMs", "connections", "roundTripMs"] as const;
 
 const groups = new Map<string, ReadCount[]>();
 for (const row of counts) {

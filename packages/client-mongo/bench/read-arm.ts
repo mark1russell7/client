@@ -23,6 +23,9 @@ const WRITE_COMMANDS = new Set(["insert", "update", "delete", "findAndModify", "
 /** The time between two queries of the probe. */
 const PROBE_EVERY_MS = 50;
 
+/** The `ping` commands that give the round trip of a child. */
+const PINGS = 21;
+
 const { values } = parseArgs({ options: { arm: { type: "string" }, case: { type: "string" }, job: { type: "string" }, counts: { type: "string" } } });
 const { arm, case: caseName, job, counts } = values;
 if ((arm !== "before" && arm !== "after" && !arm?.startsWith("share")) || caseName === undefined || job === undefined || counts === undefined) throw new RangeError("this child needs --arm before|after, --case, --job and --counts");
@@ -61,6 +64,13 @@ app.off("commandStarted", count);
 
 const connections = async (): Promise<number> => Number((await observer.db("admin").command({ serverStatus: 1 }))["connections"].current);
 const connectionsBefore = await connections();
+
+const pings: number[] = [];
+for (let index = 0; index < PINGS; index += 1) {
+  const sent = performance.now();
+  await observer.db("admin").command({ ping: 1 });
+  pings.push(performance.now() - sent);
+}
 
 let running = true;
 const probeTimes: number[] = [];
@@ -104,6 +114,7 @@ const line: ReadCount = {
   otherP95Ms: quantile(otherTimes, 0.95),
   loopMaxMs: loop.max / 1e6,
   connections: connectionsAfter - connectionsBefore,
+  roundTripMs: quantile(pings, 0.5),
 };
 appendFileSync(counts, `${JSON.stringify(line)}\n`);
 await observer.db(name).dropDatabase().catch(() => undefined);

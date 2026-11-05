@@ -18,8 +18,8 @@ export type ReadKind = (typeof READ_KINDS)[number];
 /** The cases of the bench. The A/A band needs five cases. */
 export const READ_CASES = ["first-1", "first-100", "none-1", "none-100", "one-1", "fresh-1"] as const;
 
-/** The arms of the suite `read-bound`: the change reads of one client at one time. The source has 32, and the arm `after` has this value. */
-export const SHARE_SIZES = [8, 16, 32] as const;
+/** The arms of the suite `read-bound`: the change reads of one client at one time. The arm `after` has the limit of the source. The size 100 is the default pool, so it is the arm with no limit. */
+export const SHARE_SIZES = [8, 16, 32, 100] as const;
 
 /** The reads of a burst. */
 export const BURST_READS = 1_000;
@@ -67,4 +67,6 @@ export interface ReadCount {
   readonly loopMaxMs: number;
   /** The connections that the server has at the end of the burst, over the count before the burst. */
   readonly connections: number;
+  /** The median time of a `ping` before the burst. The input `mongo_delay_ms` of the workflow adds to it. */
+  readonly roundTripMs: number;
 }
