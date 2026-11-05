@@ -151,10 +151,10 @@ describe("limits per case", () => {
 });
 
 describe("overStated", () => {
-  const slowdowns = { "first-1": 1.15, "none-1": 1.15, "one-1": 1.15, "many-1": 1.25, "part-1": 1.25 };
+  const slowdowns = { "first-1": 1.25, "none-1": 1.25, "one-1": 1.25, "many-1": 1.25, "part-1": 1.25 };
 
   it("names a gate case with a limit at or over its slowdown, and a gate case with no slowdown", () => {
-    expect(overStated({ limits: { ...everyCase(1.1), "first-1": 1.15 }, slowdowns, reportOnly: ["one-10"] })).toEqual(["first-1"]);
+    expect(overStated({ limits: { ...everyCase(1.1), "first-1": 1.25 }, slowdowns, reportOnly: ["one-10"] })).toEqual(["first-1"]);
     expect(overStated({ limits: everyCase(1.1), slowdowns, reportOnly: [] })).toEqual(["one-10"]);
   });
 
