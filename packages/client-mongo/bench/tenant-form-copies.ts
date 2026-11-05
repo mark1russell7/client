@@ -75,7 +75,7 @@ async function formGated<R>(task: () => Promise<R>): Promise<R> {
 const boundOf = (bound: number) => (text: string): string =>
   swap(swap(text, ENQUEUE, `${formGate(bound)}${ENQUEUE}  if (db) return formGated(task);\n`), "if (client) {\n      const session = client.startSession();", "if (client && !db) {\n      const session = client.startSession();");
 
-/** The text of the rule of `formbboundid`. A write of an id starts after the end of the earlier write of this id in this process, and the entry of an id goes when its last write ends. */
+/** The text of the rule of `formbboundid`. A write of an id starts after the end of the earlier write of this id in this process. The entry of an id goes when its last write ends. */
 const FORM_ID_CHAIN = `const formIds = new Map<string, Promise<unknown>>();
 function formOfId<R>(key: string, task: () => Promise<R>): Promise<R> {
   const run = (formIds.get(key) ?? Promise.resolve()).then(task);

@@ -1,5 +1,5 @@
 /**
- * The values of the suite `tenant-order` (roadmap CLI-96). The queue of the store runs the writes of one process in arrival order. A form with no queue can lose that order.
+ * The values of the suite `tenant-order` (roadmap CLI-96). The queue of the store starts the writes of one process in arrival order. A form with no queue can lose that order.
  */
 
 /** The ids of one pass. */

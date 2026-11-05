@@ -43,6 +43,9 @@ interface WriterResult {
   readonly writerBusy: number;
   readonly secondBefore: SecondRead;
   readonly burstSecond: SecondRead;
+  readonly secondAfter: SecondRead;
+  readonly worstLateMs: number;
+  readonly worstLateAtMs: number;
 }
 
 const container = process.env["MONGO_CONTAINER"];
@@ -287,6 +290,13 @@ const line: TenantCount = {
   burstLoopMaxMs: results.map((result) => Number(result.burstSecond.loopMaxMs.toFixed(1))),
   connectionsMade: results.map((result) => result.burstSecond.connectionsMade),
   checkoutWaitingPeak: results.map((result) => result.burstSecond.checkoutWaitingPeak),
+  burstSends: results.map((result) => result.burstSecond.sends),
+  burstCommands: results.map((result) => result.burstSecond.commands),
+  burstCommandP50Ms: results.map((result) => Number(result.burstSecond.commandP50Ms.toFixed(1))),
+  burstCommandP99Ms: results.map((result) => Number(result.burstSecond.commandP99Ms.toFixed(1))),
+  afterLoopP99Ms: results.map((result) => Number(result.secondAfter.loopP99Ms.toFixed(1))),
+  worstLateMs: results.map((result) => Number(result.worstLateMs.toFixed(1))),
+  worstLateAtMs: results.map((result) => Math.round(result.worstLateAtMs)),
   errors: Object.fromEntries(
     results.flatMap((result) => Object.entries(result.errors)).reduce((all, [kind, count]) => all.set(kind, (all.get(kind) ?? 0) + count), new Map<string, number>())
   ),

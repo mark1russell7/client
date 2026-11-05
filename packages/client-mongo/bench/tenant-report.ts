@@ -1,7 +1,7 @@
 /**
- * The report of the tenant load bench: `--jobs <folder> --out <file> [--run <id>]`. For each case and arm this script
- * gives the median and the worst of each measure over the children, and a reading against the first guess of the
- * ladder. A rate that is a first guess gives only a provisional pass. A driver that lost its schedule gives no reading.
+ * The report of the tenant load bench: `--jobs <folder> --out <file> [--run <id>]`.
+ * For each case and arm this script gives the median and the worst of each measure over the children.
+ * It also gives a reading against the first guess of the ladder. A rate that is a first guess gives only a provisional pass. A driver that lost its schedule gives no reading.
  */
 
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -99,6 +99,13 @@ const cases = caseNames.map((name) => {
         burstLoopMaxMs: row.burstLoopMaxMs ?? null,
         connectionsMade: row.connectionsMade ?? null,
         checkoutWaitingPeak: row.checkoutWaitingPeak ?? null,
+        burstSends: row.burstSends ?? null,
+        burstCommands: row.burstCommands ?? null,
+        burstCommandP50Ms: row.burstCommandP50Ms ?? null,
+        burstCommandP99Ms: row.burstCommandP99Ms ?? null,
+        afterLoopP99Ms: row.afterLoopP99Ms ?? null,
+        worstLateMs: row.worstLateMs ?? null,
+        worstLateAtMs: row.worstLateAtMs ?? null,
       })),
       reading: readingOf(rows),
       writesPerSecond: summary(rows, (row) => row.writesPerSecond),

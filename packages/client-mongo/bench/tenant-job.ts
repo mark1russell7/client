@@ -1,7 +1,7 @@
 /**
- * One job of the tenant load bench, for a list of cases: `--job <n> --rounds <n> --cap <seconds> --out <file>`. Each
- * arm of each case and round runs in a fresh process, one at a time, because the load and the counters of the server
- * are global. The time of a child is its p99, so the pairs give the ratio of the one collection to the control, with an A/A.
+ * One job of the tenant load bench, for a list of cases: `--job <n> --rounds <n> --cap <seconds> --out <file>`.
+ * Each arm of each case and round has a fresh process. These processes operate one at a time, because the load and
+ * the counters of the server are global. The time of a child is its p99, so the pairs give the ratio of the one collection to the control, with an A/A.
  */
 
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -9,7 +9,7 @@ import { dirname } from "node:path";
 import { parseArgs } from "node:util";
 import { benchEnv, freshRun } from "@mark1russell7/rigor-bench/fresh";
 
-/** This function runs one job over these cases. The first arm is the base of the pairs. */
+/** This function starts one job over these cases. The first arm is the base of the pairs. */
 export async function runTenantJob(cases: readonly string[], base = "control", candidates: readonly string[] = ["store"]): Promise<void> {
   const { values } = parseArgs({ options: { job: { type: "string" }, rounds: { type: "string" }, cap: { type: "string" }, out: { type: "string" } } });
   const job = Number(values.job);

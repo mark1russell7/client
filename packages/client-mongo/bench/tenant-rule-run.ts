@@ -1,7 +1,7 @@
 /**
  * One job of the test of the rule (roadmap CLI-96): `--job <n> --rounds <n> --cap <seconds> --out <file>`.
- * A round of a case runs two writer processes and one reader process on a new database. Then it compares the ids of the replies with the ids that the reader saw.
- * The job also runs the two orders from the cluster time, with two clients in fixed steps, because the order of the steps is the test.
+ * A round of a case starts two writer processes and one reader process on a new database. Then it compares the ids of the replies with the ids that the reader saw.
+ * The job also starts the two orders from the cluster time, with two clients in fixed steps. The order of the steps is the test.
  */
 
 import { spawn } from "node:child_process";
@@ -64,7 +64,7 @@ interface Stamped {
   readonly stamp: Timestamp;
 }
 
-/** This function gives the time of the cluster now. */
+/** This function gives the current time of the cluster. */
 async function clusterTime(client: MongoClient): Promise<Timestamp> {
   const reply = await client.db("admin").command({ ping: 1 });
   return reply["operationTime"] as Timestamp;
@@ -72,7 +72,7 @@ async function clusterTime(client: MongoClient): Promise<Timestamp> {
 
 /**
  * The order from a stamp of the cluster time, in fixed steps. A write takes its stamp and stays open. A later write ends.
- * A reader reads up to the time now. Then the first write ends. Its stamp is below the version of the reader, so the reader misses it.
+ * A reader reads up to the current time. Then the first write ends. Its stamp is below the version of the reader, so the reader misses it.
  */
 async function stampOrder(): Promise<RuleRound> {
   const first = await MongoClient.connect(url!);
@@ -99,7 +99,7 @@ async function stampOrder(): Promise<RuleRound> {
   }
 }
 
-/** The order from the commits, in the same steps: a change stream gives the events in the order of the commits, and its token is the version. */
+/** The order from the commits, in the same steps. A change stream gives the events in the order of the commits, and its token is the version. */
 async function streamOrder(): Promise<RuleRound> {
   const first = await MongoClient.connect(url!);
   const second = await MongoClient.connect(url!);

@@ -1,6 +1,6 @@
 /**
  * The report of the suite `tenant-order` (roadmap CLI-96): `--jobs <folder> --out <file> [--run <id>]`.
- * The exit code is 1 when the copy `today` or the copy with the rule of each id does not hold the order, or when the held row reads no fault on a copy with no rule. In the last case the row cannot fail.
+ * The exit code is 1 when the copy `today` or the copy with the rule of each id does not hold the order. The exit code is also 1 when the held row reads no fault on a copy with no rule, because then the row cannot fail.
  */
 
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";

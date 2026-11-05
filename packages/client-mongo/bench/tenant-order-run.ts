@@ -1,6 +1,6 @@
 /**
  * One job of the suite `tenant-order` (roadmap CLI-96): `--job <n> --rounds <n> --cap <seconds> --out <file>`.
- * Each round of each copy of the store runs one child on a new database.
+ * Each round of each copy of the store starts one child on a new database.
  */
 
 import { spawn } from "node:child_process";
@@ -19,7 +19,7 @@ if (!Number.isInteger(job) || !Number.isInteger(rounds) || !(cap > 0) || values.
 
 writeFormCopies();
 
-/** This function runs one child and gives its last line of stdout. */
+/** This function starts one child and gives its last line of stdout. */
 function runChild(copy: string, database: string): Promise<string> {
   const child = spawn(process.execPath, ["--import", "tsx", "bench/tenant-order-child.ts", "--copy", copy, "--database", database], { stdio: ["ignore", "pipe", "inherit"], env: { ...process.env, FORM_HOLD_MS: String(ORDER_HOLD_MS) } });
   let output = "";

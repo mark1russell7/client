@@ -1,6 +1,6 @@
 /**
  * The report of the test of the rule (roadmap CLI-96): `--jobs <folder> --out <file> [--run <id>]`.
- * The exit code is 1 when a case does not give its expected result: a miss where the rule holds, or no miss where the case expects one.
+ * The exit code is 1 when a case does not give its expected result. That is a miss where the rule holds, or no miss where the case expects one.
  */
 
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";

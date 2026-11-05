@@ -12,7 +12,7 @@ import { createInterface } from "node:readline";
 import { parseArgs } from "node:util";
 import { MongoClient } from "mongodb";
 import type { MongoDocumentStorage } from "../src/storage/document-storage.js";
-import { BURST_AT_MS, BURST_MS, CONTROL_COLLECTIONS, COPY_ARMS, FIRST_LOAD_SPLIT, GRACE_MS, TENANT_ARMS, TENANT_BYTES, WINDOW_MS, WRITE_CONFLICT, firstLoadCollection, firstLoadOf, parseTenantCase, tenantOf, type FirstLoadWrite, type TenantArm } from "./tenant-cases.js";
+import { BURST_AT_MS, BURST_MS, CONTROL_COLLECTIONS, COPY_ARMS, FIRST_LOAD_SPLIT, GRACE_MS, TENANT_ARMS, TENANT_BYTES, WARM_POOL, WINDOW_MS, WRITE_CONFLICT, firstLoadCollection, firstLoadOf, parseTenantCase, tenantOf, type FirstLoadWrite, type TenantArm } from "./tenant-cases.js";
 import { planOf } from "./tenant-plan.js";
 
 const { values } = parseArgs({
@@ -32,10 +32,11 @@ const me = Number(meText);
 const source = COPY_ARMS.includes(arm as string) ? `../src/storage/document-storage.${arm}.ts` : "../src/storage/document-storage.ts";
 const { MongoDocumentStorage: Storage } = (await import(source)) as typeof import("../src/storage/document-storage.js");
 const kase = parseTenantCase(caseName);
+const WARM_LIMIT_MS = 30_000;
 const plan = planOf(caseName, seed);
 
 // The server counter of write conflicts leaves out a conflict in a transaction, so the writer counts the replies.
-const client = await MongoClient.connect(url, { monitorCommands: true });
+const client = new MongoClient(url, { monitorCommands: true, ...(kase.warm ? { minPoolSize: WARM_POOL } : {}) });
 let writeConflicts = 0;
 client.on("commandFailed", (event) => {
   if ((event.failure as { code?: number }).code === WRITE_CONFLICT) writeConflicts++;
@@ -51,7 +52,24 @@ client.on("connectionCheckOutStarted", () => {
 });
 client.on("connectionCheckedOut", () => checkoutWaiting--);
 client.on("connectionCheckOutFailed", () => checkoutWaiting--);
+// The times of the commands in the second that a read holds open. The driver gives each time, from the send to the reply.
+let commandTimes: number[] | null = null;
+client.on("commandSucceeded", (event) => commandTimes?.push(event.duration));
+await client.connect();
 const db = client.db(database);
+// The pool of a case `-warm` makes its connections in the background, so this process waits for them, with a limit.
+if (kase.warm) {
+  const limit = Date.now() + WARM_LIMIT_MS;
+  while (connectionsMade < WARM_POOL) {
+    if (Date.now() > limit) throw new RangeError(`the pool has ${String(connectionsMade)} of ${String(WARM_POOL)} connections`);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+}
+
+const percentileOf = (values: readonly number[], share: number): number => {
+  const sorted = [...values].sort((one, other) => one - other);
+  return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * share))] ?? 0;
+};
 
 type Store = MongoDocumentStorage<{ text: string }>;
 const stores: Store[] = Array.from({ length: kase.active }, (_, tenant) => {
@@ -114,15 +132,24 @@ interface SecondRead {
   loopMaxMs: number;
   connectionsMade: number;
   checkoutWaitingPeak: number;
+  sends: number;
+  commands: number;
+  commandP50Ms: number;
+  commandP99Ms: number;
 }
 const loop = monitorEventLoopDelay({ resolution: 5 });
+let sends = 0;
+let worstLateMs = 0;
+let worstLateAtMs = 0;
 /** This function reads one second of the load. A late timer makes the second longer, so the share divides by the true time. */
 const readSecond = (from: number): SecondRead => {
-  const read: SecondRead = { busy: 0, loopP99Ms: 0, loopMaxMs: 0, connectionsMade: 0, checkoutWaitingPeak: 0 };
+  const read: SecondRead = { busy: 0, loopP99Ms: 0, loopMaxMs: 0, connectionsMade: 0, checkoutWaitingPeak: 0, sends: 0, commands: 0, commandP50Ms: 0, commandP99Ms: 0 };
   setTimeout(() => {
     const startedAt = now();
     const cpu = process.cpuUsage();
     const connections = connectionsMade;
+    const sendsBefore = sends;
+    commandTimes = [];
     checkoutWaitingPeak = checkoutWaiting;
     loop.reset();
     loop.enable();
@@ -134,6 +161,11 @@ const readSecond = (from: number): SecondRead => {
       read.loopMaxMs = loop.max / 1e6;
       read.connectionsMade = connectionsMade - connections;
       read.checkoutWaitingPeak = checkoutWaitingPeak;
+      read.sends = sends - sendsBefore;
+      read.commands = commandTimes?.length ?? 0;
+      read.commandP50Ms = percentileOf(commandTimes ?? [], 0.5);
+      read.commandP99Ms = percentileOf(commandTimes ?? [], 0.99);
+      commandTimes = null;
     }, BURST_MS);
   }, from);
   return read;
@@ -141,6 +173,7 @@ const readSecond = (from: number): SecondRead => {
 // One second lies between the two reads, because a late timer makes a read longer and the two share one monitor.
 const secondBefore = readSecond(BURST_AT_MS - 2 * BURST_MS);
 const burstSecond = readSecond(BURST_AT_MS);
+const secondAfter = readSecond(BURST_AT_MS + 2 * BURST_MS);
 
 for (let index = me; index < plan.times.length; index += kase.processes) {
   const planned = plan.times[index]!;
@@ -149,6 +182,11 @@ for (let index = me; index < plan.times.length; index += kase.processes) {
   await new Promise((resolve) => (wait > 1 ? setTimeout(resolve, wait) : setImmediate(resolve)));
   const sent = now();
   if (sent > end) break;
+  sends++;
+  if (sent - planned > worstLateMs) {
+    worstLateMs = sent - planned;
+    worstLateAtMs = planned;
+  }
   const completion: { index: number; sent: number; done: number | null } = { index, sent, done: null };
   completions.push(completion);
   const loadWrite = firstLoadOf(kase, index, planned);
@@ -170,5 +208,5 @@ while (now() < end && completions.filter((entry) => entry.done === null).length 
 
 // A write to a pipe can still be in progress when the process ends, so the exit waits for its callback. The line of a high rate is long.
 clearTimeout(busyTimer);
-process.stdout.write(`${JSON.stringify({ completions, failures, writeConflicts, errors, writerBusy, secondBefore, burstSecond })}
+process.stdout.write(`${JSON.stringify({ completions, failures, writeConflicts, errors, writerBusy, secondBefore, burstSecond, secondAfter, worstLateMs, worstLateAtMs })}
 `, () => process.exit(0));

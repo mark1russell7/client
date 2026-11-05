@@ -1,7 +1,8 @@
 /**
  * One child of the suite `tenant-order` (roadmap CLI-96): `--copy <copy> --database <name>`.
  * It starts several writes of one id with no wait between them, for many ids, once on new ids and once on existing ids. The last write started must give the value that stays.
- * A held pass then starts two writes of one id, and holds the first write before its write of the items until the second write ends or the time `ORDER_HELD_MS` ends.
+ *
+ * A held pass then starts two writes of one id. It holds the first write before its write of the items. The hold stays until the second write ends or the time `ORDER_HELD_MS` ends.
  * It prints the count of ids whose stored value is not the last value, and one error of each kind.
  */
 

@@ -1,6 +1,6 @@
 /**
- * One job of the suite `tenant-separate`. It writes three copies of the store next to the source: one with the queue of a
- * process off, one with many counters, and one with both. A copy comes from the source of this tree, so the arms
+ * One job of the suite `tenant-separate`. It writes three copies of the store next to the source. One has the queue of a
+ * process off, one has many counters, and one has both. A copy comes from the source of this tree, so the arms
  * follow the code. A text that this script does not find stops the job. The copies are only for this bench.
  */
 

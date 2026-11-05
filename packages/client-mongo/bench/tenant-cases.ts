@@ -58,6 +58,12 @@ export const BOUND_CASES = ["800-p2", "1200-p4", "200-p2-hot", "400-p2-hot", "20
 /** The cases of the suite `tenant-burst`: the burst of first loads, on two writer processes and on four. */
 export const BURST_PROBE_CASES = ["200-p2-first10", "200-p4-first10"] as const;
 
+/** The cases of the suite `tenant-burst-warm`: the same bursts on two pools. One pool has its connections before the load, and the other has none. */
+export const BURST_WARM_CASES = ["200-p2-first10", "200-p2-first10-warm", "200-p4-first10", "200-p4-first10-warm"] as const;
+
+/** The connections that a writer of a case `-warm` has before its load. The bound of the store is 16, and the bound of the arm read 22 connections at most. */
+export const WARM_POOL = 30;
+
 /** The processor, the event loop and the pool of one writer in one second of the load. */
 export interface SecondRead {
   readonly busy: number;
@@ -65,12 +71,18 @@ export interface SecondRead {
   readonly loopMaxMs: number;
   readonly connectionsMade: number;
   readonly checkoutWaitingPeak: number;
+  /** The writes that the writer sent in this second. */
+  readonly sends: number;
+  /** The commands that ended in this second, and their times in the driver. */
+  readonly commands: number;
+  readonly commandP50Ms: number;
+  readonly commandP99Ms: number;
 }
 
 /** The cases of the suite `tenant-bound-size`. A small bound can hold writes back at the first rate. The second rate is over the limit of the machine. The third case is the hot tenant. */
 export const BOUND_SIZE_CASES = ["800-p2", "1200-p4", "400-p2-hot"] as const;
 
-/** The cases of the suite `tenant-bound-id`: the cost of a rule of each id on writes of different ids, and what the rule does to a burst on one id. */
+/** The cases of the suite `tenant-bound-id`. They read the cost of a rule of each id on different ids. They also read its effect on a burst on one id. */
 export const BOUND_ID_CASES = ["800-p2", "400-p2-hot", "200-p2-oneid", "400-p2-oneid", "800-p2-oneid"] as const;
 
 /** The arms that use a copy of the store. */
@@ -153,14 +165,16 @@ export interface TenantCase {
   readonly hot: boolean;
   /** All writes go to one id of one tenant. */
   readonly oneId: boolean;
+  /** The pool of each writer has its connections before the load. */
+  readonly warm: boolean;
 }
 
 /** This function reads a case from its id. */
 export function parseTenantCase(id: string): TenantCase {
-  const match = /^(\d+)-p(\d+)(-burst)?(?:-first(\d+))?(-apart)?(-tmpfs)?(-hot)?(-oneid)?$/.exec(id);
-  if (!match) throw new RangeError(`the case ${id} is not <rate>-p<processes>[-burst][-first<n>][-apart][-tmpfs][-hot][-oneid]`);
+  const match = /^(\d+)-p(\d+)(-burst)?(?:-first(\d+))?(-apart)?(-tmpfs)?(-hot)?(-oneid)?(-warm)?$/.exec(id);
+  if (!match) throw new RangeError(`the case ${id} is not <rate>-p<processes>[-burst][-first<n>][-apart][-tmpfs][-hot][-oneid][-warm]`);
   const rate = Number(match[1]);
-  return { rate, processes: Number(match[2]), burst: match[3] !== undefined, firstLoads: Number(match[4] ?? 0), apart: match[5] !== undefined, tmpfs: match[6] !== undefined, hot: match[7] !== undefined, oneId: match[8] !== undefined, active: match[7] !== undefined || match[8] !== undefined ? 1 : Math.round(rate / WRITES_PER_TENANT) };
+  return { rate, processes: Number(match[2]), burst: match[3] !== undefined, firstLoads: Number(match[4] ?? 0), apart: match[5] !== undefined, tmpfs: match[6] !== undefined, hot: match[7] !== undefined, oneId: match[8] !== undefined, warm: match[9] !== undefined, active: match[7] !== undefined || match[8] !== undefined ? 1 : Math.round(rate / WRITES_PER_TENANT) };
 }
 
 /**
@@ -280,6 +294,20 @@ export interface TenantCount {
   readonly connectionsMade?: readonly number[];
   /** The most calls of each writer that waited for a connection in the second of the burst. */
   readonly checkoutWaitingPeak?: readonly number[];
+  /** The writes that each writer sent in the second of the burst. */
+  readonly burstSends?: readonly number[];
+  /** The commands that ended on each writer in the second of the burst. */
+  readonly burstCommands?: readonly number[];
+  /** The median time of a command of each writer in the second of the burst, from the driver. This is the part after the send to Mongo. */
+  readonly burstCommandP50Ms?: readonly number[];
+  /** The p99 of the time of a command of each writer in the second of the burst, from the driver. */
+  readonly burstCommandP99Ms?: readonly number[];
+  /** The p99 of the delay of the event loop of each writer in the second that starts one second after the burst. */
+  readonly afterLoopP99Ms?: readonly number[];
+  /** The latest send of each writer against its plan. */
+  readonly worstLateMs?: readonly number[];
+  /** The planned time of that send, from the start of the load. */
+  readonly worstLateAtMs?: readonly number[];
   /** The share of one processor that each writer used in the load. A value near 1 means that the writer is the limit. */
   readonly writerBusy?: readonly number[];
   /** One message of each kind of failure, with its count. */
