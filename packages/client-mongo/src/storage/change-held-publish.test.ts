@@ -45,6 +45,12 @@ const HOLD_MS = 2_000;
 const SHORT_LEASE_MS = 300;
 /** The most reads in a hold of `HOLD_MS`, from waits that start at 100 ms and double. */
 const MOST_REREADS = 6;
+/** The default lease of a store. The row with this lease waits for it in real time. */
+const DEFAULT_LEASE_MS = 60_000;
+/** The longest wait between two reads, with one read and its margin on a loaded runner. */
+const DEFAULT_LEASE_LIMIT_MS = DEFAULT_LEASE_MS + 5_000 + 5_000;
+/** The most reads in the default lease: six waits that double to 3,200 ms, then waits of 5,000 ms. */
+const MOST_REREADS_DEFAULT_LEASE = 18;
 /** The time after a reply in which the row with no fault looks for a read. */
 const QUIET_MS = 500;
 const POLL_MS = 20;
@@ -57,9 +63,9 @@ function printRow(name: string, record: Record<string, unknown>): void {
 }
 
 /** This function gives the time until the condition is true, or undefined at the limit. */
-async function waited(condition: () => boolean): Promise<number | undefined> {
+async function waited(condition: () => boolean, limit = LIMIT_MS): Promise<number | undefined> {
   const start = Date.now();
-  while (Date.now() - start < LIMIT_MS) {
+  while (Date.now() - start < limit) {
     if (condition()) return Date.now() - start;
     await sleep(POLL_MS);
   }
@@ -201,6 +207,26 @@ withMongo("the wait of a subscriber for a write held back by a write in flight (
     await writeB;
     expect(wait).toBeDefined();
   });
+
+  it(
+    "a write held back by a write that does not end reaches its subscriber after the default lease",
+    { timeout: DEFAULT_LEASE_LIMIT_MS + ROW_TIMEOUT_MS },
+    async () => {
+      const { a, storeB, stopped } = pair();
+      await a.changes();
+      const writeB = storeB.set("b", { v: "b" });
+      await stopped.reached;
+      await a.write("a");
+      const before = a.reads;
+      const wait = await waited(() => a.told("a"), DEFAULT_LEASE_LIMIT_MS);
+      const rereads = a.reads - before;
+      printRow("held-default-lease", { leaseMs: DEFAULT_LEASE_MS, waitMs: wait ?? null, limitMs: DEFAULT_LEASE_LIMIT_MS, rereads });
+      stopped.open();
+      await writeB;
+      expect(wait).toBeDefined();
+      expect(rereads).toBeLessThanOrEqual(MOST_REREADS_DEFAULT_LEASE);
+    },
+  );
 
   it("a read of a subscriber in a hold makes the next event, for a write outside the procedures", async () => {
     const { a, storeB, stopped } = pair();
