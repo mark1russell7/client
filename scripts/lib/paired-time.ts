@@ -12,8 +12,12 @@
 // The rule: a comparison runs its arms in one
 // job, interleaved per input, and an A/A arm (the base against itself) gives the noise floor.
 //
-// - Mode `process`: one process. In each round, the arms run in turn on each input. Odd rounds reverse the order (ABBA).
-// - Mode `fresh`: a fresh process for each arm, each input and each round. Each input takes the arms in turn. The order rotates each round.
+// - Mode `process`: one process. In each round, the arms run in turn on each input.
+// - Mode `fresh`: a fresh process for each arm, each input and each round. Each input takes the arms in turn.
+//
+// In each mode, `armOrder` of @mark1russell7/rigor-bench gives the order of a round. So each pair of arms has each order
+// within 1 after each count of rounds, at each count of arms. A measure loads that package when it starts, because
+// the paired bench loads this module in a checkout with no install, for `quantileOf`.
 
 import { spawn } from "node:child_process";
 import { arch, cpus, platform } from "node:os";
@@ -27,6 +31,9 @@ export interface Arm<I = unknown> {
   readonly run?: (input: I) => unknown;
   readonly command?: readonly string[];
 }
+
+/** The order of the arms in one round. */
+type OrderOf = <T>(arms: readonly T[], round: number) => readonly T[];
 
 /** One input. The `group` is a fold of the inputs, for example a seed. */
 export interface Input<I = unknown> {
@@ -136,19 +143,6 @@ export function pairedEnv(): PairedEnv {
 export function pairedContext(): string {
   const where = process.env["BENCH_MODE"] || (process.env["CI"] ? "ci" : "local");
   return [where, ...process.execArgv].join(" ");
-}
-
-/**
- * This function gives the order of the arms in one round.
- *
- * - Mode `process`: the order of the arms, reversed in each odd round.
- * - Mode `fresh`: the order of the arms, rotated by the index of the round.
- */
-export function armOrder(arms: number, round: number, mode: Mode): number[] {
-  const at = Array.from({ length: arms }, (_, i) => i);
-  if (mode === "process") return round % 2 === 1 ? at.toReversed() : at;
-  const shift = arms === 0 ? 0 : round % arms;
-  return [...at.slice(shift), ...at.slice(0, shift)];
 }
 
 /** This function gives the quantile `q` of a list, with a linear interpolation between the two nearest values. An empty list gives NaN. */
@@ -301,15 +295,14 @@ export function childResult(stdout: string): ChildResult {
   return typeof value.peakRss === "number" ? { ms: value.ms, peakRss: value.peakRss } : { ms: value.ms };
 }
 
-/** This function times the arms in one process: in each round, the arms in turn on each input, with the order reversed in odd rounds. */
-function measureProcess<I>(o: PairedOptions<I>, arms: readonly Arm<I>[]): PairedReport {
+/** This function times the arms in one process: in each round, the arms in turn on each input, in the order that `orderOf` gives. */
+function measureProcess<I>(o: PairedOptions<I>, arms: readonly Arm<I>[], orderOf: OrderOf): PairedReport {
   const clock = o.clock ?? (() => performance.now());
   const warmup = o.warmup ?? 1;
   const raw = rawOf(o.inputs, arms);
   for (let round = 0; round < o.repeats; round++) {
     for (const input of o.inputs) {
-      for (const at of armOrder(arms.length, round, "process")) {
-        const arm = arms[at];
+      for (const arm of orderOf(arms, round)) {
         const run = arm.run as (input: I) => unknown;
         const value = input.value as I;
         for (let w = 0; w < warmup; w++) run(value);
@@ -325,14 +318,13 @@ function measureProcess<I>(o: PairedOptions<I>, arms: readonly Arm<I>[]): Paired
 }
 
 /** This function times the arms with a fresh process for each arm, each input and each round. Each input takes the arms in turn, in an order that rotates each round. */
-async function measureFresh<I>(o: PairedOptions<I>, arms: readonly Arm<I>[]): Promise<PairedReport> {
+async function measureFresh<I>(o: PairedOptions<I>, arms: readonly Arm<I>[], orderOf: OrderOf): Promise<PairedReport> {
   const start = o.startChild ?? startProcess;
   const warmup = o.warmup ?? 1;
   const raw = rawOf(o.inputs, arms);
   for (let round = 0; round < o.repeats; round++) {
     for (const input of o.inputs) {
-      for (const at of armOrder(arms.length, round, "fresh")) {
-        const arm = arms[at];
+      for (const arm of orderOf(arms, round)) {
         const result = await start(arm.command as readonly string[], input.id, warmup);
         raw.ms.get(input.id)?.get(arm.id)?.push(result.ms);
         const peak = raw.peak.get(input.id);
@@ -350,12 +342,10 @@ async function measureFresh<I>(o: PairedOptions<I>, arms: readonly Arm<I>[]): Pr
  * - With `aa` (the default), the report has an A/A arm and the noise floor.
  * - A bad option throws a `RangeError`.
  */
-export function measureIsolated<I>(options: PairedOptions<I> & { readonly mode: "fresh" }): Promise<PairedReport>;
-export function measureIsolated<I>(options: PairedOptions<I> & { readonly mode: "process" }): PairedReport;
-export function measureIsolated<I>(options: PairedOptions<I>): PairedReport | Promise<PairedReport>;
-export function measureIsolated<I>(options: PairedOptions<I>): PairedReport | Promise<PairedReport> {
+export async function measureIsolated<I>(options: PairedOptions<I>): Promise<PairedReport> {
   const arms = armsOf(options);
-  return options.mode === "process" ? measureProcess(options, arms) : measureFresh(options, arms);
+  const { armOrder } = await import("@mark1russell7/rigor-bench");
+  return options.mode === "process" ? measureProcess(options, arms, armOrder) : measureFresh(options, arms, armOrder);
 }
 
 /** This function gives a number with 3 decimals for a table. */
