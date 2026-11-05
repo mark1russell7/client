@@ -4,6 +4,11 @@
  * `mongo:7` service). The filter of the queries is pure, so its tests always run.
  */
 
+import { execFile, spawn } from "node:child_process";
+import { once } from "node:events";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ms } from "@procedures/client";
 import { BSON, MongoClient, type Db, type Document } from "mongodb";
@@ -307,7 +312,10 @@ const url = process.env["MONGO_TEST_URL"];
 const withMongo = url ? describe : describe.skip;
 
 let client: MongoClient | undefined;
+/** A second client: the queue of writes belongs to a client, so a store on this client writes as another process does. */
+let secondClient: MongoClient | undefined;
 let db: Db;
+let secondDb: Db;
 let next = 0;
 
 beforeAll(async () => {
@@ -315,12 +323,16 @@ beforeAll(async () => {
   client = new MongoClient(url);
   await client.connect();
   db = client.db(`client_mongo_test_${process.pid}_${Date.now()}`);
+  secondClient = new MongoClient(url);
+  await secondClient.connect();
+  secondDb = secondClient.db(db.databaseName);
 });
 
 afterAll(async () => {
   if (!client) return;
   await db.dropDatabase();
   await client.close();
+  await secondClient?.close();
 });
 
 /**
@@ -711,7 +723,8 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
       await storage.set("b", { n: 2 });
       reset();
       expect(await storage.getChangesSince(full.version)).toMatchObject({ full: false, changed: [["b", { n: 2 }]], deleted: [] });
-      expect(commands).toEqual(["aggregate", "find"]);
+      // The last command reads the floor again, because a prune can pass the query (roadmap CLI-93)
+      expect(commands).toEqual(["aggregate", "find", "findOne"]);
     } finally {
       await end();
     }
@@ -768,6 +781,150 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
       }
     })();
     await Promise.all([...writes, reads]);
+  });
+
+  /**
+   * This database runs `hold` once, between the read of the watermark and the query of a delta read:
+   * the moment where another process can prune. Only the query of the items of `collection` waits.
+   */
+  function holdingDb(collection: string, hold: () => (() => Promise<unknown>) | undefined): Db {
+    const collectionOf = (name: string): unknown => {
+      const items = db.collection(name);
+      if (name !== collection) return items;
+      const find = items.find.bind(items) as (...args: unknown[]) => { toArray: () => Promise<unknown[]> };
+      return Object.assign(items, {
+        find: (...args: unknown[]) => {
+          const cursor = find(...args);
+          const toArray = cursor.toArray.bind(cursor);
+          cursor.toArray = async () => {
+            await hold()?.();
+            return toArray();
+          };
+          return cursor;
+        },
+      });
+    };
+    return new Proxy(db, {
+      get(target, key) {
+        if (key === "collection") return collectionOf;
+        const value: unknown = Reflect.get(target, key);
+        return typeof value === "function" ? (value as (...args: unknown[]) => unknown).bind(target) : value;
+      },
+    });
+  }
+
+  it("a delta read that a prune of another process passes gives a full result, never a short delta (CLI-93)", { timeout: 60_000 }, async () => {
+    const collection = `c${++next}`;
+    let prune: (() => Promise<unknown>) | undefined;
+    const held = holdingDb(collection, () => {
+      const once = prune;
+      prune = undefined;
+      return once;
+    });
+    const reader = new MongoDocumentStorage<{ n: number }>({ collection, db: () => held, transactions: "never" });
+    await reader.setBatch([["a", { n: 1 }], ["b", { n: 2 }], ["c", { n: 3 }]]);
+    const { version } = await reader.getChangesSince();
+    await reader.delete("a");
+
+    const writer = fileURLToPath(new URL("../../test/prune-writer.ts", import.meta.url));
+    prune = () => promisify(execFile)(process.execPath, ["--import", "tsx", writer, url!, db.databaseName, collection, "b"], { cwd: dirname(writer) });
+    const changes = await reader.getChangesSince(version);
+
+    // The prune of the other process removed the tombstone of "a": only the tombstone of "b" stays
+    expect(await db.collection(collection).countDocuments({ [TOMBSTONE_FIELD]: true })).toBe(1);
+    expect(prune).toBeUndefined();
+    expect({ full: changes.full, ids: changes.changed.map(([id]) => id) }).toEqual({ full: true, ids: ["c"] });
+  });
+
+  it("a delta read between the two steps of a prune of another process gives a full result (CLI-93)", { timeout: 60_000 }, async () => {
+    const collection = `c${++next}`;
+    const reader = new MongoDocumentStorage<{ n: number }>({ collection, db: () => db, transactions: "never" });
+    await reader.setBatch([["a", { n: 1 }], ["b", { n: 2 }], ["c", { n: 3 }]]);
+    const { version } = await reader.getChangesSince();
+    await reader.delete("a");
+
+    const writer = fileURLToPath(new URL("../../test/prune-writer.ts", import.meta.url));
+    const child = spawn(process.execPath, ["--import", "tsx", writer, url!, db.databaseName, collection, "b", "hold"], { cwd: dirname(writer), stdio: ["pipe", "pipe", "inherit"] });
+    const exited = once(child, "exit");
+    const [first] = (await once(child.stdout, "data")) as [Buffer];
+    const during = await reader.getChangesSince(version);
+    child.stdin.write("go\n");
+    const [code] = (await exited) as [number];
+
+    // Whichever step comes first, a read between the steps must not be a delta that lost the delete of "a"
+    expect({ full: during.full, ids: during.changed.map(([id]) => id) }).toEqual({ full: true, ids: ["c"] });
+    expect(first.toString().trim()).toBe("floor");
+    expect(code).toBe(0);
+    expect(await db.collection(collection).countDocuments({ [TOMBSTONE_FIELD]: true })).toBe(1);
+  });
+
+  it("a prune that stops between its two steps leaves a full result, and the next prune finishes (CLI-93)", { timeout: 60_000 }, async () => {
+    const collection = `c${++next}`;
+    const reader = new MongoDocumentStorage<{ n: number }>({ collection, db: () => db, transactions: "never" });
+    await reader.setBatch([["a", { n: 1 }], ["b", { n: 2 }], ["c", { n: 3 }]]);
+    const { version } = await reader.getChangesSince();
+    await reader.delete("a");
+
+    const writer = fileURLToPath(new URL("../../test/prune-writer.ts", import.meta.url));
+    const child = spawn(process.execPath, ["--import", "tsx", writer, url!, db.databaseName, collection, "b", "crash"], { cwd: dirname(writer), stdio: "ignore" });
+    const [code] = (await once(child, "exit")) as [number];
+    const tombstones = () => db.collection(collection).countDocuments({ [TOMBSTONE_FIELD]: true });
+
+    // The floor went up and the tombstones stay: a reader below the floor gets a full result
+    expect(code).toBe(7);
+    expect(await tombstones()).toBe(2);
+    const stopped = await reader.getChangesSince(version);
+    expect({ full: stopped.full, ids: stopped.changed.map(([id]) => id) }).toEqual({ full: true, ids: ["c"] });
+
+    // The next prune removes the tombstones that the stopped prune left, and delta reads work again
+    const nextPrune = new MongoDocumentStorage<{ n: number }>({ collection, db: () => db, transactions: "never", maxTombstones: 1 });
+    await nextPrune.delete("c");
+    expect(await tombstones()).toBe(1);
+    const { version: current } = await reader.getChangesSince();
+    await nextPrune.set("d", { n: 4 });
+    const delta = await reader.getChangesSince(current);
+    expect({ full: delta.full, ids: delta.changed.map(([id]) => id) }).toEqual({ full: false, ids: ["d"] });
+  });
+
+  it("a db option that makes a new Db at each call keeps one queue of the writes and the change reads (CLI-93)", async () => {
+    const collection = `c${++next}`;
+    let during: (() => Promise<unknown>) | undefined;
+    const take = () => {
+      const once = during;
+      during = undefined;
+      return once;
+    };
+    const objects = new Set<Db>();
+    const reader = new MongoDocumentStorage<{ n: number }>({
+      collection,
+      db: () => {
+        const held = holdingDb(collection, take);
+        objects.add(held);
+        return held;
+      },
+      transactions: "never",
+    });
+    await reader.setBatch([["a", { n: 1 }]]);
+    const { version } = await reader.getChangesSince();
+
+    let written = false;
+    let finishedInsideRead = true;
+    let write: Promise<void> | undefined;
+    during = async () => {
+      write = reader.set("b", { n: 2 }).then(() => {
+        written = true;
+      });
+      // A wrong queue finishes the write in this time. The right queue never does, on any machine.
+      await sleep(200);
+      finishedInsideRead = written;
+    };
+    const changes = await reader.getChangesSince(version);
+    await write;
+
+    expect(objects.size).toBeGreaterThan(1);
+    expect(finishedInsideRead).toBe(false);
+    expect(changes.changed).toEqual([]);
+    expect(written).toBe(true);
   });
 
   it("keeps the order of the numbers under writes at the same time", async () => {
@@ -848,15 +1005,15 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
   it("on a single server, a write that ends after its lease moves its documents to new numbers, so a reader that passed them gets it", async () => {
     const name = `c${++next}`;
     const lease = 50;
-    // The writes of this storage stall past the lease, as a slow process does (another database
-    // object: another queue of writes, as in another process). The stall is a gate that the test
+    // The writes of this storage stall past the lease, as a slow process does (another client:
+    // another queue of writes, as in another process). The stall is a gate that the test
     // opens, not a time: the order of the steps is the same on a slow machine (CLI-53). The lease
     // is the time of the server ($$NOW), so the test still waits past it, from a known start.
     let reached!: () => void;
     const atWrite = new Promise<void>((resolve) => (reached = resolve));
     let open!: () => void;
     const gate = new Promise<void>((resolve) => (open = resolve));
-    const slowDb = new Proxy(db, {
+    const slowDb = new Proxy(secondDb, {
       get(target, prop) {
         if (prop === "collection") {
           return (collectionName: string) => {
@@ -903,9 +1060,9 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
   it("with the watermark, a writer between the test of a version and the write makes a conflict (CLI-16)", async () => {
     const name = `c${++next}`;
     // The next bulk write of this storage first lets another writer change the collection, as
-    // another process can between the test and the write (another database object: another queue)
+    // another process can between the test and the write (another client: another queue)
     let before: (() => Promise<void>) | undefined;
-    const racingDb = new Proxy(db, {
+    const racingDb = new Proxy(secondDb, {
       get(target, prop) {
         if (prop === "collection") {
           return (collectionName: string) => {

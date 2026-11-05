@@ -89,11 +89,14 @@ export const ExistsInputSchema: z.ZodObject<{
 });
 
 export type ExistsInput = z.infer<typeof ExistsInputSchema>;
-export enum FileType {
-  File = "file",
-  Directory = "directory",
-  Other = "other",
-}
+export const FileType = {
+  File: "file",
+  Directory: "directory",
+  Other: "other",
+} as const;
+
+/** This type is the union of the values of `FileType`. */
+export type FileType = (typeof FileType)[keyof typeof FileType];
 
 export type ExistsOutput = {exists : false} | {exists : true, stats : StatOutput};
 

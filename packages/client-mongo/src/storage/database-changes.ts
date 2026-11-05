@@ -95,11 +95,16 @@ export interface DatabaseChangesWatch {
 
 /** An error of `onChange`: the watcher waits, and gives the same change again. */
 class HandlerError extends Error {
+  readonly error: unknown;
+  readonly change: Document;
+
   constructor(
-    readonly error: unknown,
-    readonly change: Document
+    error: unknown,
+    change: Document
   ) {
     super(`onChange failed: ${messageOf(error)}`);
+    this.error = error;
+    this.change = change;
   }
 }
 

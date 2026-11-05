@@ -153,6 +153,8 @@ function pathOf(message: Message): string {
 
 /** The batcher of one transport. */
 export class HttpBatcher {
+  private readonly host: BatchHost;
+
   private readonly maxCalls: number;
   private readonly windowMs: number;
   private readonly secret: ReadonlySet<string>;
@@ -162,9 +164,10 @@ export class HttpBatcher {
   private unsupported = false;
 
   constructor(
-    private readonly host: BatchHost,
+    host: BatchHost,
     options: HttpBatchOptions,
   ) {
+    this.host = host;
     const maxCalls = options.maxCalls ?? HTTP_BATCH_DEFAULTS.maxCalls;
     if (!Number.isInteger(maxCalls) || maxCalls < 1) throw new TypeError(`batch.maxCalls must be a positive integer, not ${String(maxCalls)}`);
     this.maxCalls = maxCalls;

@@ -115,7 +115,7 @@ import {
 } from "@procedures/collections";
 import { optionalMs, Semaphore, toMs, type Duration } from "@procedures/client";
 import { ensureConnection } from "../connection.js";
-import { noteOwnNumbers, notePrunedIds } from "./own-writes.js";
+import { noteOwnNumbers, notePrunedIds, ownerOf } from "./own-writes.js";
 import { boundPipeline, cutResults, DEFAULT_PIPELINE_LIMITS, scopePipeline, type PipelineLimits } from "./pipeline-scope.js";
 import { poolShare } from "./pool-share.js";
 
@@ -208,7 +208,11 @@ export const DEFAULT_STORED_FORM: StoredForm = Object.freeze({
 export interface MongoDocumentStorageOptions<T = unknown> {
   /** The MongoDB collection. */
   collection: string;
-  /** The database. The default is the database of the default connection, for each operation. */
+  /**
+   * The database. The default is the database of the default connection, for each operation.
+   * The writes and the change reads of a collection run one at a time for each client, so this function can make a new `Db` of that client at each call.
+   * Two clients do not share this order, as with two processes. A change read of each client stays correct.
+   */
   db?: (() => Db | Promise<Db>) | undefined;
   /** The partition of the storage. Without it, the storage reads and writes the documents without a partition. */
   partition?: string | undefined;
@@ -276,18 +280,19 @@ interface CounterDoc {
   pending?: PendingRange[];
 }
 
-/** True when a database is on a replica set or a sharded cluster: it has transactions. */
-const TRANSACTIONAL = new WeakMap<Db, Promise<boolean>>();
+/** True when a client is on a replica set or a sharded cluster: it has transactions. */
+const TRANSACTIONAL = new WeakMap<object, Promise<boolean>>();
 
 function hasTransactions(db: Db): Promise<boolean> {
-  let known = TRANSACTIONAL.get(db);
+  const owner = ownerOf(db);
+  let known = TRANSACTIONAL.get(owner);
   if (!known) {
     known = db
       .admin()
       .command({ hello: 1 })
       .then((hello) => typeof hello["setName"] === "string" || hello["msg"] === "isdbgrid")
       .catch(() => false);
-    TRANSACTIONAL.set(db, known);
+    TRANSACTIONAL.set(owner, known);
   }
   return known;
 }
@@ -304,21 +309,24 @@ interface WorkQueue {
 }
 
 /**
- * The writes and the change reads of each collection of each database. A write runs alone, in the
- * order of the calls. A change read runs after each earlier write, next to the other change reads.
- * So a read and a write keep the order of their calls, and a read does not wait for a read.
+ * The writes and the change reads of each collection: by the client, then by the names of the database and the
+ * collection. A new `Db` object of the same client has the same queue (roadmap CLI-93). A write runs alone, in the
+ * order of the calls. A change read runs after each earlier write, next to the other change reads. So a read and a
+ * write keep the order of their calls, and a read does not wait for a read (roadmap CLI-91).
  */
-const QUEUES = new WeakMap<Db, Map<string, WorkQueue>>();
+const QUEUES = new WeakMap<object, Map<string, WorkQueue>>();
 
 /** The change reads of each client that run at one time. A burst of reads leaves the pool to the other operations. */
 const READS = new WeakMap<object, Semaphore>();
 
-function queueOf(db: Db, collection: string): { queues: Map<string, WorkQueue>; queue: WorkQueue } {
-  let queues = QUEUES.get(db);
-  if (!queues) QUEUES.set(db, (queues = new Map()));
+function queueOf(db: Db, name: string): { queues: Map<string, WorkQueue>; collection: string; queue: WorkQueue } {
+  const owner = ownerOf(db);
+  let queues = QUEUES.get(owner);
+  if (!queues) QUEUES.set(owner, (queues = new Map()));
+  const collection = `${db.databaseName}\u0000${name}`;
   let queue = queues.get(collection);
   if (!queue) queues.set(collection, (queue = { all: Promise.resolve(), writes: Promise.resolve() }));
-  return { queues, queue };
+  return { queues, collection, queue };
 }
 
 /** This function drops the queue of a collection when this end is the last of its work. */
@@ -335,8 +343,8 @@ const settledOf = (run: Promise<unknown>): Promise<unknown> =>
   );
 
 /** This function runs a write after each earlier write and change read of the collection. */
-function enqueueWrite<R>(db: Db, collection: string, task: () => Promise<R>): Promise<R> {
-  const { queues, queue } = queueOf(db, collection);
+function enqueueWrite<R>(db: Db, name: string, task: () => Promise<R>): Promise<R> {
+  const { queues, collection, queue } = queueOf(db, name);
   const run = queue.all.then(task);
   const settled = settledOf(run);
   queue.all = settled;
@@ -346,12 +354,11 @@ function enqueueWrite<R>(db: Db, collection: string, task: () => Promise<R>): Pr
 }
 
 /** This function runs a change read after each earlier write of the collection, next to the other change reads. */
-function enqueueRead<R>(db: Db, collection: string, task: () => Promise<R>): Promise<R> {
-  const { queues, queue } = queueOf(db, collection);
-  // A fake database of a test has no client
-  const pool: object = (db.client as Db["client"] | undefined) ?? db;
-  let reads = READS.get(pool);
-  if (!reads) READS.set(pool, (reads = new Semaphore(poolShare(db))));
+function enqueueRead<R>(db: Db, name: string, task: () => Promise<R>): Promise<R> {
+  const { queues, collection, queue } = queueOf(db, name);
+  const owner = ownerOf(db);
+  let reads = READS.get(owner);
+  if (!reads) READS.set(owner, (reads = new Semaphore(poolShare(db))));
   const permits = reads;
   const run = queue.writes.then(() => permits.withPermit(task));
   const end = Promise.all([queue.all, settledOf(run)]);
@@ -1188,6 +1195,11 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
   }
 
   /** The id of the document of the oldest kept change of the partition. */
+  private async floorOf(db: Db): Promise<number> {
+    const doc = await db.collection<CounterDoc>(this.countersName).findOne({ _id: this.floorId() });
+    return typeof doc?.["floor"] === "number" ? doc["floor"] : 0;
+  }
+
   private floorId(): string {
     return `floor${SEPARATOR}${this.collectionName}${SEPARATOR}${this.partition ?? ""}`;
   }
@@ -1385,6 +1397,8 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
         .find({ ...this.partitionFilter(), [SEQ]: { $gt: from, $lte: counter.seq } } as Filter<Stored>)
         .sort({ [SEQ]: 1 })
         .toArray();
+      // A prune raises the floor before its delete, so a query that missed a tombstone sees the new floor here (roadmap CLI-93)
+      if (from < (await this.floorOf(db))) return full();
       const changed: Array<[string, T]> = [];
       const deleted: string[] = [];
       for (const doc of docs) {

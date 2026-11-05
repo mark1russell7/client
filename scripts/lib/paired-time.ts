@@ -9,7 +9,7 @@
 // The copy is TypeScript since O80, as the source is. The logic and the report are the same as the
 // source.
 //
-// The rule is STRATEGY.md 49537337 and 211125cd of the fleet: a comparison runs its arms in one
+// The rule: a comparison runs its arms in one
 // job, interleaved per input, and an A/A arm (the base against itself) gives the noise floor.
 //
 // - Mode `process`: one process. In each round, the arms run in turn on each input. Odd rounds reverse the order (ABBA).

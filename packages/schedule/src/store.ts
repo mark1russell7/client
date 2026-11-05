@@ -153,6 +153,8 @@ export interface FileScheduleStoreOptions {
  * - The store removes only its own lock: the lock file holds a token of the store.
  */
 export class FileScheduleStore implements ScheduleStore {
+  readonly path: string;
+
   readonly kind = "file";
   /** The lock file: the path of the store with `.lock`. */
   readonly lockPath: string;
@@ -164,9 +166,10 @@ export class FileScheduleStore implements ScheduleStore {
    * @param options - The age of a stale lock file.
    */
   constructor(
-    readonly path: string,
+    path: string,
     options: FileScheduleStoreOptions = {},
   ) {
+    this.path = path;
     this.lockPath = `${path}.lock`;
     this.staleMs = options.staleMs ?? DEFAULT_LOCK_STALE_MS;
     if (!(this.staleMs > 0) || !Number.isFinite(this.staleMs)) throw new TypeError("FileScheduleStore: staleMs must be a number above 0");

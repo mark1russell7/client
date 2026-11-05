@@ -42,6 +42,7 @@ import type { AnyProcedure, Capability, ProcedureContext } from "../procedures/t
 import type { Principal } from "../server/types.js";
 import type { EventBus, Unsubscribe } from "./types.js";
 import { getGlobalEventBus } from "./bus.js";
+import { LiveState, type LiveStateOptions } from "./live-state.js";
 import { EVENTS_SUBSCRIBE_PATH, type EventItem, type SubscribeInput } from "./remote.js";
 import { admittedValue, rowsOf } from "./rows.js";
 import { realClock, type Clock } from "../clock.js";
@@ -117,6 +118,13 @@ export interface EventPublisherOptions {
    * @default no check after the start, other than at a call of `rightsChanged()`
    */
   recheck?: SubscriptionRecheck | undefined;
+  /**
+   * The live state of the host (LIVE-STATE-2026-11.md): keyed values in memory on the topics
+   * `live.<name>` and `live.<name>.<partition>`. The topic rule must name these topics. A server
+   * registers `live.set` and `live.snapshot`, and its expose rule applies to them.
+   * @default no live state
+   */
+  live?: LiveStateOptions | undefined;
 }
 
 /** A procedure that reads resources, for the admission of a topic under a capability. */
@@ -226,6 +234,16 @@ function resetHint(): unknown {
  * gives the events of its queue, and then it ends with `TOPIC_CLEARED`.
  */
 class TopicSubscription implements AsyncIterableIterator<EventItem> {
+  private readonly buffer: number;
+  private readonly signal: AbortSignal | undefined;
+  private readonly onClose: (subscription: TopicSubscription) => void;
+  /** The output filter of the host for this subscriber: each row of a value passes it */
+  private readonly admit: ((item: unknown) => Promise<boolean>) | undefined;
+  /** The invocation of the subscription: the rule of the rows of a value gets it (roadmap CLI-41) */
+  private readonly invocation?: Invocation | undefined;
+  /** The row filter of each topic of a collection, by the topic of the subscriber (roadmap CLI-78) */
+  private readonly filters?: ReadonlyMap<string, RowHintFilter> | undefined;
+
   private confirmation: EventItem | undefined;
   private readonly queue: QueuedEvent[] = [];
   private seq = 0;
@@ -245,16 +263,19 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
     bus: EventBus,
     /** The topics of the subscriber, each with the topic of the bus that it listens to */
     routes: ReadonlyArray<Route>,
-    private readonly buffer: number,
-    private readonly signal: AbortSignal | undefined,
-    private readonly onClose: (subscription: TopicSubscription) => void,
-    /** The output filter of the host for this subscriber: each row of a value passes it */
-    private readonly admit: ((item: unknown) => Promise<boolean>) | undefined,
-    /** The invocation of the subscription: the rule of the rows of a value gets it (roadmap CLI-41) */
-    private readonly invocation?: Invocation | undefined,
-    /** The row filter of each topic of a collection, by the topic of the subscriber (roadmap CLI-78) */
-    private readonly filters?: ReadonlyMap<string, RowHintFilter> | undefined,
+    buffer: number,
+    signal: AbortSignal | undefined,
+    onClose: (subscription: TopicSubscription) => void,
+    admit: ((item: unknown) => Promise<boolean>) | undefined,
+    invocation?: Invocation | undefined,
+    filters?: ReadonlyMap<string, RowHintFilter> | undefined,
   ) {
+    this.buffer = buffer;
+    this.signal = signal;
+    this.onClose = onClose;
+    this.admit = admit;
+    this.invocation = invocation;
+    this.filters = filters;
     this.confirmation = { type: "subscribed", topics: routes.map(({ topic }) => topic) };
     // Before, clear() removed the listeners, and the subscriber saw no end (EVENTS.md)
     this.unsubscribes = routes.map(({ topic, busTopic }) =>
@@ -455,6 +476,8 @@ export class EventPublisher {
   readonly bus: EventBus;
   /** The procedure `events.subscribe` of this publisher. A host pins it, outside its registry. */
   readonly procedure: AnyProcedure;
+  /** The live state, from the option `live`, or undefined. */
+  readonly live: LiveState | undefined;
   private readonly known: (topic: string) => boolean;
   private readonly allow: EventPublisherOptions["allow"];
   private readonly reads: (topic: string) => readonly string[];
@@ -484,6 +507,14 @@ export class EventPublisher {
       })
       .handler((async (input: SubscribeInput, ctx: ProcedureContext) => this.subscribe(input.topics, ctx)) as never)
       .build();
+    this.live = options.live
+      ? new LiveState(options.live, {
+          bus: this.bus,
+          clock: options.clock,
+          topicSchema,
+          admit: (topic, ctx) => this.admitTopic(topic, ctx),
+        })
+      : undefined;
   }
 
   /** This function publishes an event on the bus: each subscription of the topic gets it. */
@@ -502,6 +533,7 @@ export class EventPublisher {
    */
   end(): void {
     for (const subscription of [...this.open]) subscription.fail(stoppedError());
+    this.live?.close();
   }
 
   /**
@@ -533,9 +565,20 @@ export class EventPublisher {
    */
   private async route(topic: string, ctx: ProcedureContext): Promise<Route> {
     const target = collectionTopicTarget(topic, ctx.repository);
-    if (!target) return { topic, busTopic: topic };
+    if (!target) return { topic, busTopic: (await this.live?.route(topic, ctx)) ?? topic };
     const partition = await partitionOfCall(ctx, target.collection, target.partition);
     return { topic, busTopic: collectionChangeTopic(target.collection, partition), collection: target.collection, partition, requested: target.partition };
+  }
+
+  /**
+   * This method runs the checks of a subscription on one topic: the topic rule, the reads, `allow`
+   * and the partition. A live set and a snapshot pass the same checks as a subscriber.
+   *
+   * @returns The topic of the bus
+   */
+  async admitTopic(topic: string, ctx: ProcedureContext): Promise<string> {
+    this.admitTopics([topic], ctx);
+    return (await this.route(topic, ctx)).busTopic;
   }
 
   /**

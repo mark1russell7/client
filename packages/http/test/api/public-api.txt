@@ -90,8 +90,7 @@ export declare class HttpError extends Error {
     readonly code: HttpErrorCode;
     readonly status?: number | undefined;
     readonly name = "HttpError";
-    constructor(code: HttpErrorCode, message: string,
-    status?: number | undefined, options?: ErrorOptions);
+    constructor(code: HttpErrorCode, message: string, status?: number, options?: ErrorOptions);
 }
 
 ### dist/errors.d.ts#HttpErrorCode

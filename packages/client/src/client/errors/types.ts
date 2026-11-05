@@ -8,39 +8,68 @@
 /**
  * Error severity levels.
  */
-export enum ErrorSeverity {
+export const ErrorSeverity = {
   /** Informational - not an actual error */
-  INFO = "info",
+  INFO: "info",
   /** Warning - degraded but functional */
-  WARNING = "warning",
+  WARNING: "warning",
   /** Error - operation failed */
-  ERROR = "error",
+  ERROR: "error",
   /** Critical - system-level failure */
-  CRITICAL = "critical",
+  CRITICAL: "critical",
+} as const;
+
+/** This type is the union of the values of `ErrorSeverity`. */
+export type ErrorSeverity = (typeof ErrorSeverity)[keyof typeof ErrorSeverity];
+
+/** These types keep each member of `ErrorSeverity` usable as a type. */
+// eslint-disable-next-line @typescript-eslint/no-namespace
+export declare namespace ErrorSeverity {
+  export type INFO = typeof ErrorSeverity.INFO;
+  export type WARNING = typeof ErrorSeverity.WARNING;
+  export type ERROR = typeof ErrorSeverity.ERROR;
+  export type CRITICAL = typeof ErrorSeverity.CRITICAL;
 }
 
 /**
  * Error categories for classification.
  */
-export enum ErrorCategory {
+export const ErrorCategory = {
   /** Network-level errors (connectivity, DNS, etc.) */
-  NETWORK = "network",
+  NETWORK: "network",
   /** Client-side errors (validation, configuration) */
-  CLIENT = "client",
+  CLIENT: "client",
   /** Server-side errors (5xx, internal errors) */
-  SERVER = "server",
+  SERVER: "server",
   /** Protocol-level errors (parsing, encoding) */
-  PROTOCOL = "protocol",
+  PROTOCOL: "protocol",
   /** Authentication/authorization errors */
-  AUTH = "auth",
+  AUTH: "auth",
   /** Rate limiting and throttling */
-  RATE_LIMIT = "rate_limit",
+  RATE_LIMIT: "rate_limit",
   /** Timeout errors */
-  TIMEOUT = "timeout",
+  TIMEOUT: "timeout",
   /** Cancellation errors */
-  CANCELLED = "cancelled",
+  CANCELLED: "cancelled",
   /** Unknown/uncategorized errors */
-  UNKNOWN = "unknown",
+  UNKNOWN: "unknown",
+} as const;
+
+/** This type is the union of the values of `ErrorCategory`. */
+export type ErrorCategory = (typeof ErrorCategory)[keyof typeof ErrorCategory];
+
+/** These types keep each member of `ErrorCategory` usable as a type. */
+// eslint-disable-next-line @typescript-eslint/no-namespace
+export declare namespace ErrorCategory {
+  export type NETWORK = typeof ErrorCategory.NETWORK;
+  export type CLIENT = typeof ErrorCategory.CLIENT;
+  export type SERVER = typeof ErrorCategory.SERVER;
+  export type PROTOCOL = typeof ErrorCategory.PROTOCOL;
+  export type AUTH = typeof ErrorCategory.AUTH;
+  export type RATE_LIMIT = typeof ErrorCategory.RATE_LIMIT;
+  export type TIMEOUT = typeof ErrorCategory.TIMEOUT;
+  export type CANCELLED = typeof ErrorCategory.CANCELLED;
+  export type UNKNOWN = typeof ErrorCategory.UNKNOWN;
 }
 
 /**

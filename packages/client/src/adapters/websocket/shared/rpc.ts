@@ -72,9 +72,13 @@ export class ItemQueue<T> {
  * The stream takes one for each item that it sends, and waits when it has none.
  */
 export class StreamCredit {
+  private credit: number;
+
   private wake: (() => void) | undefined;
 
-  constructor(private credit: number) {}
+  constructor(credit: number) {
+    this.credit = credit;
+  }
 
   grant(n: number): void {
     this.credit += n;
@@ -175,10 +179,14 @@ export interface OutgoingCallsOptions {
 
 /** The calls that this side sends on one socket. */
 export class OutgoingCalls {
+  private readonly options: OutgoingCallsOptions;
+
   private readonly pending = new Map<string, PendingCall>();
   private seq = 0;
 
-  constructor(private readonly options: OutgoingCallsOptions) {}
+  constructor(options: OutgoingCallsOptions) {
+    this.options = options;
+  }
 
   /** The number of calls that wait for their frames. */
   get size(): number {
@@ -332,12 +340,16 @@ export interface IncomingCallsOptions {
 
 /** The calls that the other side sends on one socket, served by a handler. */
 export class IncomingCalls {
+  private readonly options: IncomingCallsOptions;
+
   /** The calls that run, by wire id: a cancel frame or a closed socket aborts them */
   private readonly inflight = new Map<string, AbortController>();
   /** The flow control of the streams that run, by wire id */
   private readonly credits = new Map<string, StreamCredit>();
 
-  constructor(private readonly options: IncomingCallsOptions) {}
+  constructor(options: IncomingCallsOptions) {
+    this.options = options;
+  }
 
   /** The number of calls that run. */
   get size(): number {

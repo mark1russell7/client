@@ -616,6 +616,25 @@ export type {
 } from "./events/index.js";
 // The remote events: a peer subscribes to the topics of the bus of another peer (EVENTS.md)
 export { EventPublisher, topicMatcher, EVENTS_SUBSCRIBE_PATH, SubscriptionError, remoteEvents, subscribeRemote } from "./events/index.js";
+// The live state: keyed values in memory on a topic (LIVE-STATE-2026-11.md)
+export { LiveState, liveTopic, liveTopicTarget, liveView, LIVE_SET_PATH, LIVE_SNAPSHOT_PATH, LIVE_LEAVE_PATH, MAX_LIVE_KEY_LENGTH, DEFAULT_LIVE_KEYS, DEFAULT_LIVE_TOPICS, DEFAULT_LIVE_VALUE_BYTES } from "./events/index.js";
+export type {
+  AdmitLiveSet,
+  AdmitLiveLeave,
+  LiveLeaveCall,
+  LiveAdmission,
+  LiveClient,
+  LiveEntry,
+  LiveEvent,
+  LiveGone,
+  LiveGoneReason,
+  LiveSetCall,
+  LiveSetOptions,
+  LiveStateHost,
+  LiveStateOptions,
+  LiveView,
+  LiveViewOptions,
+} from "./events/index.js";
 export type {
   EventPublisherOptions,
   TopicRule,

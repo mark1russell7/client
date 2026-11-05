@@ -4,7 +4,7 @@ name: Mark call
 # path). One job builds the two trees on one runner, as the paired bench does. Then
 # scripts/mark-call.ts makes the manifest of each tree fresh, times the call in mode fresh with
 # the arms base and head and the A/A arm (paired-time/1), profiles the named costs, and records the
-# loaded packages. The verdict at the budget 0.1 is the interval rule of STRATEGY.
+# loaded packages. The interval rule of scripts/bench-paired.ts gives the verdict at the budget 0.1.
 #
 # The workflow only reports: only a dispatch starts it, and no ruleset needs its checks.
 

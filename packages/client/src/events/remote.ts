@@ -168,18 +168,25 @@ export interface Subscription {
 
 /** The error that ends a subscription. */
 export class SubscriptionError extends Error {
+  /** The code: a code of the protocol, for example `TOPIC_NOT_FOUND`. */
+  readonly code: string;
+  /** True when a resubscribe can repair the failure. */
+  readonly retryable: boolean;
+  /** The reason of a `FORBIDDEN` error, for example `topic-not-allowed`. */
+  readonly reason?: string | undefined;
+
   override readonly name = "SubscriptionError";
 
   constructor(
-    /** The code: a code of the protocol, for example `TOPIC_NOT_FOUND`. */
-    readonly code: string,
+    code: string,
     message: string,
-    /** True when a resubscribe can repair the failure. */
-    readonly retryable: boolean,
-    /** The reason of a `FORBIDDEN` error, for example `topic-not-allowed`. */
-    readonly reason?: string | undefined,
+    retryable: boolean,
+    reason?: string | undefined,
   ) {
     super(message);
+    this.code = code;
+    this.retryable = retryable;
+    this.reason = reason;
   }
 }
 
@@ -462,6 +469,8 @@ type Entry =
  * last event that the shared subscription got before the subscriber joined.
  */
 class Subscriber {
+  readonly id: string;
+
   /** The `seq` of the wire subscription before the first event of this subscriber. */
   base = 0;
   /** The error that ends this subscriber, after the entries of its queue. */
@@ -473,7 +482,9 @@ class Subscriber {
   private waiter: ((entry: Entry | undefined) => void) | undefined;
   private ended = false;
 
-  constructor(readonly id: string) {}
+  constructor(id: string) {
+    this.id = id;
+  }
 
   /** True when the subscriber waits for an entry. */
   get waiting(): boolean {
@@ -546,6 +557,11 @@ class Subscriber {
  * when its last subscriber leaves, or with the end of the wire subscription for each subscriber.
  */
 class SharedSubscription {
+  private readonly shares: Map<string, SharedSubscription> | undefined;
+  private readonly key: string;
+  private readonly transport: EventTransport;
+  private readonly call: Omit<WireCall, "onSubscribed" | "onRetry">;
+
   private readonly members = new Set<Subscriber>();
   private readonly stop = new AbortController();
   /** The topics of the current confirmation, or undefined before it and during a resubscribe. */
@@ -557,11 +573,16 @@ class SharedSubscription {
   private finished = false;
 
   constructor(
-    private readonly shares: Map<string, SharedSubscription> | undefined,
-    private readonly key: string,
-    private readonly transport: EventTransport,
-    private readonly call: Omit<WireCall, "onSubscribed" | "onRetry">,
-  ) {}
+    shares: Map<string, SharedSubscription> | undefined,
+    key: string,
+    transport: EventTransport,
+    call: Omit<WireCall, "onSubscribed" | "onRetry">,
+  ) {
+    this.shares = shares;
+    this.key = key;
+    this.transport = transport;
+    this.call = call;
+  }
 
   /** True while a new subscriber can join. */
   get open(): boolean {

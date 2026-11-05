@@ -479,6 +479,8 @@ interface TimerOptions {
  * process alive.
  */
 class SyncTimer {
+  private readonly options: TimerOptions;
+
   private cancel: Cancel | undefined;
   private active = false;
   /** True while `work` runs */
@@ -487,7 +489,9 @@ class SyncTimer {
   private again = false;
   private failures = 0;
 
-  constructor(private readonly options: TimerOptions) {}
+  constructor(options: TimerOptions) {
+    this.options = options;
+  }
 
   /**
    * This method starts the timer. A timer that waits does not start again. A start during a run
@@ -605,10 +609,13 @@ export class QueueFullError extends Error {
  * queue and the remote did not change. `operation` is the name of the refused operation.
  */
 export class ReadOnlyError extends Error {
+  readonly operation: string;
+
   override readonly name = "ReadOnlyError";
   readonly code = "READ_ONLY";
-  constructor(readonly operation: string) {
+  constructor(operation: string) {
     super(`The storage is in read-only mode: it refuses the operation ${operation}`);
+    this.operation = operation;
   }
 }
 
@@ -638,10 +645,13 @@ export class QueueStoreError extends Error {
  * their queued writes stay. `ids` are the ids of the conflicts.
  */
 export class ConflictError extends Error {
+  readonly ids: string[];
+
   override readonly name = "ConflictError";
   readonly code = "SYNC_CONFLICT";
-  constructor(readonly ids: string[]) {
+  constructor(ids: string[]) {
     super(`Conflict detected between local and remote versions of ${ids.length} items: ${ids.slice(0, 10).join(", ")}`);
+    this.ids = ids;
   }
 }
 
@@ -650,10 +660,15 @@ export class ConflictError extends Error {
  * error of the flush or of the sync.
  */
 export class ModeSwitchError extends Error {
+  readonly from: HybridMode;
+  readonly to: HybridMode;
+
   override readonly name = "ModeSwitchError";
   readonly code = "MODE_SWITCH_FAILED";
-  constructor(readonly from: HybridMode, readonly to: HybridMode, cause: unknown) {
+  constructor(from: HybridMode, to: HybridMode, cause: unknown) {
     super(`The storage could not change from ${from} to ${to}: the mode is still ${from}`, { cause });
+    this.from = from;
+    this.to = to;
   }
 }
 
@@ -675,10 +690,13 @@ export class SyncStateError extends Error {
  * `apply` before the hook settled.
  */
 export class RemoteApplyHookError extends Error {
+  readonly calls: number;
+
   override readonly name = "RemoteApplyHookError";
   readonly code = "REMOTE_APPLY_HOOK";
-  constructor(readonly calls: number) {
+  constructor(calls: number) {
     super(`The hook aroundRemoteApply called apply ${calls} times, not 1 time: the storage applied the changes 1 time`);
+    this.calls = calls;
   }
 }
 
@@ -814,15 +832,25 @@ interface EchoEntry {
  *   a write whose echo never comes does not hold an id long.
  */
 class EchoLedger {
+  private readonly window: number;
+  private readonly now: () => number;
+  private readonly maxPerId: number;
+  private readonly maxIds: number;
+
   /** The versions of each id, the oldest first. The ids are in the order of their last write. */
   private readonly entries = new Map<string, EchoEntry[]>();
 
   constructor(
-    private readonly window: number,
-    private readonly now: () => number,
-    private readonly maxPerId = 20,
-    private readonly maxIds = 10_000,
-  ) {}
+    window: number,
+    now: () => number,
+    maxPerId = 20,
+    maxIds = 10_000,
+  ) {
+    this.window = window;
+    this.now = now;
+    this.maxPerId = maxPerId;
+    this.maxIds = maxIds;
+  }
 
   /** This method records the version that an own write of an id gives. `null`: a delete. */
   wrote(id: string, version: string | null): void {

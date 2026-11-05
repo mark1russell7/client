@@ -33,13 +33,17 @@ function nextRevision(version: string | number | null | undefined): string {
 }
 
 export class CollectionProgramStore implements ProgramStore {
+  private readonly storage: CollectionStorage<StoredProgram>;
+
   readonly kind = "collection";
 
   /**
    * @param storage - The storage of the records. The store closes it in `close()`. Give it the
    *   option `versionOf: storedProgramVersion`, so that it can test `expectedVersion`.
    */
-  constructor(private readonly storage: CollectionStorage<StoredProgram>) {}
+  constructor(storage: CollectionStorage<StoredProgram>) {
+    this.storage = storage;
+  }
 
   async get(key: string): Promise<StoredProgram | undefined> {
     const record = await this.storage.get(key);

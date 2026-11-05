@@ -708,6 +708,17 @@ const notes = new MongoDocumentStorage<Note>({
 });
 ```
 - **The tests.** The storage passes the `CollectionStorage` contract on MongoDB 7 in CI. Set `MONGO_TEST_URL` to start them locally.
+- **The stated write limit.** Plan for at most 200 writes a second on one collection, over all its processes. The limit is provisional: it comes from one 4-core CI runner and from a guess of the load of a tenant.
+
+| Writes a second on one collection | Processes | p99 of a write | Reading |
+|---|---|---|---|
+| 200 | 1 | 12 ms | clean |
+| 200 | 2 | 27.8 ms | clean |
+| 200 | 4 | 39.5 ms | clean |
+| 400 | 2 | 414.8 ms | no margin |
+| 800 and 1,200 | 2 | over 1,000 ms | the rate stops near 412 |
+
+  The same runner writes 799 a second over 100 collections with a p99 of 37.5 ms, so the limit comes from the one collection. Runs: [the rungs](https://github.com/mark1russell7/client/actions/runs/41956238365), [the ceiling](https://github.com/mark1russell7/client/actions/runs/41966001438).
 
 ### Change hints from the change stream: `watchStorageChanges`
 
@@ -833,7 +844,8 @@ const totals = await db.collection("orderTotals").find(viewFilter(view)).toArray
 - A view in a cycle of views stays idle. Its status is `cycle` until the cycle ends.
 - The status of each view (`ok`, `errored` with `lastError`, `cycle`) goes into the field `_materializerStatus` of its document.
 - Each pipeline goes through `scopePipeline` by default. It reads only the documents of the partition, in its sources, and only the current generation of the target of another view. The tombstones of a `MongoDocumentStorage` (`_tomb` is `true`) stay out (roadmap CLI-79). It cannot have `$merge` or `$out`. The option `scope` gives another guard, with the same filter.
-- A stream that ends opens again after `rewatch`, and a pass catches up. The times of the options are durations (`ms(100)`, `seconds(60)`) of `@procedures/client`.
+- Each source has one change stream, for all views of all partitions (roadmap CLI-92). The handler of the stream gives a change to the views of its partition. So the connections and the idle `getMore` commands do not grow with the partitions.
+- A stream that ends opens again after `rewatch`, and a pass of each partition of that source catches up. The times of the options are durations (`ms(100)`, `seconds(60)`) of `@procedures/client`.
 - A delete has no document in its change event. It reaches only the views of its partition when its pre-image tells the partition (a collection with `changeStreamPreAndPostImages`). Without a pre-image, a delete, a replace and an update of the partition field reach the views of each partition.
 - In a source of `storageSources` (a collection of a `MongoDocumentStorage`), `partitionOf` of its stored form reads the storage partition of such a change from its document (for a delete, only `documentKey`). The function of that source gives the partition of the views (`identityPartition` when the two are the same). A source is that function (the default form), or `{ form: storage.form, viewPartitionOf }` for another form. Else the change reaches the views of each partition.
 - With pre-images, an update that moves a document to another partition also reaches the views of its old partition.

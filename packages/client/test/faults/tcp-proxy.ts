@@ -38,6 +38,9 @@ function resetSocket(socket: Socket): void {
 
 /** An in-process TCP proxy with faults (see the file comment). */
 export class TcpProxy {
+  private readonly server: Server;
+  private readonly target: { host: string; port: number };
+
   private mode: ProxyMode = "pass";
   private readonly pairs = new Set<Pair>();
   /** When true, each new connection gets a reset at once. */
@@ -48,9 +51,11 @@ export class TcpProxy {
   dropped = 0;
 
   private constructor(
-    private readonly server: Server,
-    private readonly target: { host: string; port: number },
+    server: Server,
+    target: { host: string; port: number },
   ) {
+    this.server = server;
+    this.target = target;
     server.on("connection", (client) => this.accept(client));
   }
 

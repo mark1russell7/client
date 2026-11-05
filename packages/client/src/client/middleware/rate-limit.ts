@@ -89,11 +89,14 @@ export interface RateLimitStats {
  * Rate limit error thrown when limit exceeded.
  */
 export class RateLimitError extends Error {
+  public readonly stats: RateLimitStats;
+
   constructor(
     message: string,
-    public readonly stats: RateLimitStats
+    stats: RateLimitStats
   ) {
     super(message);
+    this.stats = stats;
     this.name = "RateLimitError";
   }
 }
