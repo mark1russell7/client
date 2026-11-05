@@ -201,7 +201,7 @@ The store does not own the connections, so `minPoolSize` belongs to the client t
 
 **The read of the bound depends on the CPU model.** The second run gives the bound 12 of 12 on EPYC 9V45, 6 of 12 on EPYC 9V74 and 1 of 12 on EPYC 7763. There, form A misses only on EPYC 7763, 2 of 6 cold and 0 of 6 warm. Today also misses only on that model, 4 of 12 on the row of 4 processes, cold. So one model of runner is the slowest for each form, and most for the bound.
 
-The server counts 1,439 write conflicts in the median child of the bound at 2 processes warm. Form A has 0 there. The median command of the bound takes 7 milliseconds, and the median command of form A takes 2 milliseconds. Conflicts are a lead, and no run names them as the cause. The split of 12 of 12 on EPYC 9V45 against 1 of 12 on EPYC 7763 also stays a lead. A run that sets the CPU model against the conflicts changes no choice on this page, because form A holds on each model and the bound is out. So that run is not worth its cost, and this page does not plan it.
+The server counts 1,439 write conflicts in the median child of the bound at 2 processes warm. Form A has 0 there. The median command of the bound takes 7 milliseconds, and the median command of form A takes 2 milliseconds. Conflicts are a lead, and no run names them as the cause. The split of 12 of 12 on EPYC 9V45 against 1 of 12 on EPYC 7763 also stays a lead. A run that sets the CPU model against the conflicts changes no choice on this page. Form A holds on each model, and the bound is out. So that run is not worth its cost, and this page does not plan it.
 
 **Where each form pays, at 2 processes on a warm pool:**
 
