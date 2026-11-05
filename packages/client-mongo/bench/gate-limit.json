@@ -1,6 +1,6 @@
 {
   "limits": { "first-1": 1.1831, "none-1": 1.1831, "one-1": 1.1831, "one-10": 1.1831, "many-1": 1.1831, "part-1": 1.1831 },
-  "slowdowns": { "first-1": 1.25, "none-1": 1.25, "one-1": 1.25, "one-10": 1.4, "many-1": 1.25, "part-1": 1.25 },
+  "slowdowns": { "first-1": 1.25, "none-1": 1.25, "one-1": 1.25, "one-10": 1.3, "many-1": 1.4, "part-1": 1.25 },
   "reportOnly": ["one-10"],
   "formula": "Each limit is the limit of the old measure until 5 runs are read. Then each limit is the worst plus the spread over the runs of the smallest limit that passes that case alone, from gate-margin.ts, with 5 or more runs of 2 jobs of 24 rounds, so that each run shows both looks. The slowdowns are one more command in a read or a write, stated before the runs. A case with no slowdown it can hold is report only, and a case whose flip reads no read is report only.",
   "runs": []
