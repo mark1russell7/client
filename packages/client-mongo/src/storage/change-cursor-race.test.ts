@@ -11,6 +11,10 @@
  * can hold a write above its mark. A write that ends after its lease moves to a new number. A second
  * time has the same value or a later value, so a subscriber applies a change by its id.
  *
+ * A second time does not go back. Per id, the values of a subscriber keep the commit order of the
+ * store, and its last value equals the store. Those rows hold the list of a full answer, so an event
+ * with values can land between the mark and the list. The rows cover changes of a value, not deletes.
+ *
  * A cursor that starts from a version and has only writes inside their lease sees each write one time.
  * Each row prints its counts. Each fault row has the same schedules and a reader or a writer with no
  * rule, and it must lose a write. So a green row is not green because the schedules miss the gap.
@@ -48,9 +52,9 @@ interface RaceStorage {
 /** A delay of a size that a schedule draws: turns of the event loop on memory, milliseconds on a store. */
 type Wait = (size: number) => Promise<void>;
 
-/** The holds of one process around the commit of each write. */
+/** The holds of one process around the commit of each write. A hold gets the operations of the write. */
 interface Holds {
-  before(): Promise<void>;
+  before(operations?: unknown): Promise<void>;
   after(): Promise<void>;
 }
 
@@ -81,6 +85,8 @@ const NAME = "race";
 const TOPIC = collectionChangeTopic(NAME);
 const PATH = ["collections", NAME] as const;
 const call = callerOf({ procedures: createCollectionProcedures(NAME) });
+/** The same procedures with values in their events. */
+const callWithValues = callerOf({ procedures: createCollectionProcedures(NAME, { changeEvents: { values: true } }) });
 
 /** The sizes of a hold. A half of the holds are 0, so a later write can end first. */
 const HOLD_SIZES = [0, 0, 1, 4] as const;
@@ -92,20 +98,22 @@ const REWRITE_IDS = 4;
 class Host {
   readonly bus = createEventBus();
   private readonly options: CallerOptions;
+  private readonly caller: typeof call;
 
-  constructor(storage: RaceStorage) {
+  constructor(storage: RaceStorage, caller: typeof call = call) {
+    this.caller = caller;
     const repository = { getStorage: () => storage, hasCollection: () => true };
     this.options = { repository, bus: this.bus } as unknown as CallerOptions;
   }
 
   /** This method writes through the procedure `set`, which publishes the change events. */
   write(id: string, value: Item): Promise<unknown> {
-    return call([...PATH, "set"], { id, value }, this.options);
+    return this.caller([...PATH, "set"], { id, value }, this.options);
   }
 
   /** This method reads through the procedure `changes`, which starts the chain of the change events. */
   changes(since?: string): Promise<{ version: string; full: boolean; changed: Array<{ id: string; value: Item }> }> {
-    return call([...PATH, "changes"], since === undefined ? {} : { since }, this.options);
+    return this.caller([...PATH, "changes"], since === undefined ? {} : { since }, this.options);
   }
 }
 
@@ -449,8 +457,27 @@ interface StoreInternals {
   withNumbers<R>(db: Db, collection: Collection<never>, count: number, write: (first: number) => Promise<R>): Promise<R>;
 }
 
-/** This function gives a `Db` that holds each bulk write of a collection around its commit. */
-function heldDb(db: Db, collection: string, holds: Holds): Db {
+/** This function gives a cursor that waits for the hold before it gives its rows. */
+function heldList(cursor: object, listHold: () => Promise<void>): object {
+  return new Proxy(cursor, {
+    get(target, key) {
+      const value = Reflect.get(target, key, target) as unknown;
+      if (typeof value !== "function") return value;
+      const method = value as (...given: unknown[]) => unknown;
+      if (key === "sort") return (...args: unknown[]) => heldList(method.apply(target, args) as object, listHold);
+      if (key === "toArray") {
+        return async () => {
+          await listHold();
+          return method.apply(target, []);
+        };
+      }
+      return method.bind(target);
+    },
+  });
+}
+
+/** This function gives a `Db` that holds each bulk write of a collection around its commit, and each list of a full answer. */
+function heldDb(db: Db, collection: string, holds: Holds, listHold?: () => Promise<void>): Db {
   return new Proxy(db, {
     get(target, prop) {
       if (prop === "collection") {
@@ -462,10 +489,19 @@ function heldDb(db: Db, collection: string, holds: Holds): Db {
               const value = Reflect.get(items, key, items) as unknown;
               if (key === "bulkWrite") {
                 return async (...args: unknown[]) => {
-                  await holds.before();
-                  const result: unknown = await (value as (...given: unknown[]) => Promise<unknown>).apply(items, args);
-                  await holds.after();
-                  return result;
+                  await holds.before(args[0]);
+                  try {
+                    return (await (value as (...given: unknown[]) => Promise<unknown>).apply(items, args)) as unknown;
+                  } finally {
+                    await holds.after();
+                  }
+                };
+              }
+              if (key === "find" && listHold !== undefined) {
+                return (...args: unknown[]) => {
+                  const cursor: unknown = (value as (...given: unknown[]) => unknown).apply(items, args);
+                  // A read of a delta has a range of numbers, and a read of places has a list of ids. A list of a full answer has neither.
+                  return /"\$(gt|in)"/.test(JSON.stringify(args[0])) ? cursor : heldList(cursor as object, listHold);
                 };
               }
               return typeof value === "function" ? (value as (...given: unknown[]) => unknown).bind(items) : value;
@@ -479,6 +515,155 @@ function heldDb(db: Db, collection: string, holds: Holds): Db {
   });
 }
 
+/** The order of the commits of a store: one write at a time goes to the store, and each value notes its turn. */
+class CommitOrder {
+  private readonly turns = new Map<string, number>();
+  private next = 0;
+  private tail: Promise<void> = Promise.resolve();
+  private free: () => void = () => undefined;
+
+  /** This method gives the holds of one process, with the commits in one line. A retry of a value notes its later turn. */
+  holds(inner: Holds): Holds {
+    return {
+      before: async (operations) => {
+        await inner.before();
+        const before = this.tail;
+        let free: () => void = () => undefined;
+        this.tail = new Promise<void>((resolve) => (free = resolve));
+        await before;
+        this.free = free;
+        for (const [, value] of JSON.stringify(operations).matchAll(/\\?"v\\?":\\?"([^"\\]+)/g)) this.turns.set(value!, ++this.next);
+      },
+      after: async () => {
+        this.free();
+        await inner.after();
+      },
+    };
+  }
+
+  /** This method gives the turn of a value, or undefined when the store has no write with that value. */
+  turnOf(value: string): number | undefined {
+    return this.turns.get(value);
+  }
+}
+
+/** What one subscriber got for each id, in order. */
+class History {
+  readonly values = new Map<string, string[]>();
+
+  note(id: string, value: string): void {
+    const values = this.values.get(id) ?? [];
+    values.push(value);
+    this.values.set(id, values);
+  }
+
+  /** This method gives the last value of each id. */
+  last(): Map<string, string> {
+    return new Map([...this.values].map(([id, values]) => [id, values.at(-1)!]));
+  }
+}
+
+/**
+ * A subscriber as the docs state. Events wait behind its read. An event at its cursor gives its values
+ * with no read, and each other event makes a read since the cursor.
+ */
+class ValueFollower {
+  readonly history = new History();
+  private cursor: string | undefined;
+  private line: Promise<void> = Promise.resolve();
+  private readonly host: Host;
+
+  constructor(host: Host) {
+    this.host = host;
+    host.bus.on<CollectionChangeEvent>(TOPIC, (event) => {
+      this.line = this.line.then(() => this.apply(event));
+    });
+  }
+
+  /** This method reads a full answer in the line of the events, and the cursor starts at its version. */
+  join(): Promise<void> {
+    this.line = this.line.then(() => this.read());
+    return this.line;
+  }
+
+  /** This method waits for each event so far and reads one more time. */
+  drain(): Promise<void> {
+    this.line = this.line.then(() => this.read());
+    return this.line;
+  }
+
+  private async read(): Promise<void> {
+    const changes = await this.host.changes(this.cursor);
+    for (const { id, value } of changes.changed) this.history.note(id, value.v);
+    this.cursor = changes.version;
+  }
+
+  private async apply(event: CollectionChangeEvent): Promise<void> {
+    if (this.cursor === undefined || event.version === this.cursor) return;
+    if (event.since === this.cursor && event.version !== undefined && event.values !== undefined) {
+      for (const { id, value } of event.values) this.history.note(id, (value as Item).v);
+      this.cursor = event.version;
+      return;
+    }
+    await this.read();
+  }
+}
+
+/** This function makes a reader of a cursor with no events: its first read is a full answer. */
+async function cursorReader(host: Host, history: History, wait: Wait, draw: Random, isDone: () => boolean): Promise<void> {
+  let cursor: string | undefined;
+  for (;;) {
+    const lastRead = isDone();
+    const changes = await host.changes(cursor);
+    for (const { id, value } of changes.changed) history.note(id, value.v);
+    cursor = changes.version;
+    if (lastRead) return;
+    await wait(draw.pick(POLL_SIZES));
+  }
+}
+
+/** The counts of a row of the order of values. */
+interface OrderRow {
+  schedules: number;
+  writes: number;
+  subscribers: number;
+  fullsHeld: number;
+  /** Each pair of values of one id, at one subscriber, whose second value is older than its first value. */
+  back: string[];
+  /** Each last value of a subscriber that is not the value of the store. */
+  finalDiffers: string[];
+  /** Each value that a subscriber got and the store has no write of. */
+  unknown: string[];
+}
+
+/** This function adds what the subscribers of one schedule got to the row. */
+function readOrder(row: OrderRow, seed: string, order: CommitOrder, histories: readonly (readonly [string, History])[], store: ReadonlyMap<string, string>): void {
+  for (const [name, history] of histories) {
+    row.subscribers += 1;
+    for (const [id, values] of history.values) {
+      let latest = -1;
+      for (const value of values) {
+        const turn = order.turnOf(value);
+        if (turn === undefined) {
+          row.unknown.push(`${seed}/${name}/${id}=${value}`);
+          continue;
+        }
+        if (turn < latest) row.back.push(`${seed}/${name}/${id}=${value}`);
+        else latest = turn;
+      }
+    }
+    for (const [id, value] of store) {
+      if (history.last().get(id) !== value) row.finalDiffers.push(`${seed}/${name}/${id}=${value}`);
+    }
+  }
+}
+
+/** This function prints the counts of a row of the order of values. */
+function printOrder(name: string, row: OrderRow): void {
+  const { back, finalDiffers, unknown, ...counts } = row;
+  console.log(`race ${JSON.stringify({ name, ...counts, back: back.length, finalDiffers: finalDiffers.length, unknown: unknown.length, backExamples: back.slice(0, 3), finalExamples: finalDiffers.slice(0, 3) })}`);
+}
+
 /** This function makes a reader with no rule: its mark is the counter, past each write in flight. */
 function readPastFlight(store: MongoDocumentStorage<Item>, db: Db, collection: string): void {
   const inner = store as unknown as StoreInternals;
@@ -487,6 +672,25 @@ function readPastFlight(store: MongoDocumentStorage<Item>, db: Db, collection: s
     const mark = await rule(given);
     const raw = await db.collection<{ _id: string; seq: number }>(COUNTERS).findOne({ _id: collection });
     return { ...mark, seq: raw?.seq ?? mark.seq };
+  };
+}
+
+/** This function gives a store whose delta also gives the first value that it gave for an id. */
+function replayingOld(store: RaceStorage): RaceStorage {
+  const firstOf = new Map<string, Item>();
+  return {
+    set: (id, value) => store.set(id, value),
+    getChangesSince: async (since) => {
+      const changes = await store.getChangesSince(since);
+      if (changes.full) return changes;
+      const old: Array<[string, Item]> = [];
+      for (const [id, value] of changes.changed) {
+        const first = firstOf.get(id);
+        if (first === undefined) firstOf.set(id, value);
+        else if (first.v !== value.v) old.push([id, first]);
+      }
+      return { ...changes, changed: [...changes.changed, ...old] };
+    },
   };
 }
 
@@ -527,9 +731,9 @@ withMongo("the race of a change cursor and a write in flight, on a real store (C
   };
 
   /** This function makes one store per process, each a client of its own, with its holds. */
-  function storesOf(path: StorePath, collection: string, holds: readonly Holds[], lease?: number): Array<MongoDocumentStorage<Item>> {
+  function storesOf(path: StorePath, collection: string, holds: readonly Holds[], lease?: number, listHold?: () => Promise<void>): Array<MongoDocumentStorage<Item>> {
     return clients.map((client, index) => {
-      const held = heldDb(client.db(database), collection, holds[index]!);
+      const held = heldDb(client.db(database), collection, holds[index]!, listHold);
       return new MongoDocumentStorage<Item>({
         collection,
         db: () => held,
@@ -684,6 +888,163 @@ withMongo("the race of a change cursor and a write in flight, on a real store (C
       if (given.length > 1) twice += 1;
     }
     console.log(`race ${JSON.stringify({ name: `${path}-first-read`, rounds: FIRST_READ_ROUNDS, twice })}`);
+  });
+
+  /** The ids of a schedule of the order of values, and the value of the first write of each. */
+  const ORDER_IDS = ["r0", "r1", "r2", "r3"] as const;
+  const FIRST_VALUE = "first";
+  const LIST_HOLD_SIZES = [0, 1, 4, 8] as const;
+
+  /** The values of the store, from a read of its current rows. */
+  const valuesOf = async (store: MongoDocumentStorage<Item>): Promise<Map<string, string>> =>
+    new Map((await store.getChangesSince()).changed.map(([id, item]) => [id, item.v]));
+
+  /** This function makes a new row of the order of values. */
+  const newOrderRow = (): OrderRow => ({ schedules: 0, writes: 0, subscribers: 0, fullsHeld: 0, back: [], finalDiffers: [], unknown: [] });
+
+  /** This function starts seeded schedules. The subscribers read during the writes, and a list of a full answer waits. */
+  async function orderRow(options: {
+    label: string;
+    path: StorePath;
+    schedules: number;
+    sizes?: readonly number[];
+    lease?: number;
+    wrap?: (store: RaceStorage, draw: Random) => RaceStorage;
+  }): Promise<OrderRow> {
+    const { label, path, schedules, sizes, lease, wrap } = options;
+    const row = newOrderRow();
+    for (let n = 0; n < schedules; n += 1) {
+      const seed = `order-${label}-${n}`;
+      const draw = random(seed);
+      const count: HoldCount = { held: 0, readsDuringHold: 0 };
+      const collection = `race${++next}`;
+      const order = new CommitOrder();
+      const holds = clients.map((_, index) => order.holds(holdsOf(draw.fork(`holds${index}`), millis, count, sizes)));
+      const listDraw = draw.fork("lists");
+      const listHold = async (): Promise<void> => {
+        row.fullsHeld += 1;
+        await millis(listDraw.pick(LIST_HOLD_SIZES));
+      };
+      const stores = storesOf(path, collection, holds, lease, listHold);
+      const hosts = stores.map((store, index) => {
+        const given = store as unknown as RaceStorage;
+        return new Host(wrap ? wrap(given, draw.fork(`wrap${index}`)) : given, callWithValues);
+      });
+      for (const id of ORDER_IDS) await hosts[0]!.write(id, { v: `${id}.${FIRST_VALUE}` });
+
+      let done = false;
+      const histories: Array<readonly [string, History]> = [];
+      const readers: Array<Promise<void>> = [];
+      const followers: ValueFollower[] = [];
+      for (const [index, host] of hosts.entries()) {
+        const subscriber = new ValueFollower(host);
+        followers.push(subscriber);
+        histories.push([`follower${index}`, subscriber.history]);
+        const history = new History();
+        histories.push([`reader${index}`, history]);
+        readers.push(cursorReader(host, history, millis, draw.fork(`read${index}`), () => done));
+      }
+      // The chain of the events starts before a follower joins
+      await Promise.all(hosts.map((host) => host.changes()));
+      const writes = hosts.map(async (host, index) => {
+        const writing = draw.fork(`write${index}`);
+        const running: Array<Promise<unknown>> = [];
+        for (let w = 0; w < STORE_WRITES; w += 1) {
+          const write = host.write(writing.pick(ORDER_IDS), { v: `${index}.${w}` });
+          running.push(write);
+          if (writing.chance(0.5)) await write;
+          await millis(writing.pick(PAUSE_SIZES));
+        }
+        await Promise.all(running);
+      });
+      // A follower joins in the middle of the writes, and a second reader of a cursor joins with it
+      const joining = draw.fork("join");
+      const joins = followers.map(async (subscriber) => {
+        await millis(joining.pick(PAUSE_SIZES));
+        await subscriber.join();
+      });
+      for (const [index, host] of hosts.entries()) {
+        const history = new History();
+        histories.push([`joiner${index}`, history]);
+        const pause = joining.pick(PAUSE_SIZES);
+        const read = draw.fork(`join${index}`);
+        readers.push(millis(pause).then(() => cursorReader(host, history, millis, read, () => done)));
+      }
+      await Promise.all(writes);
+      await Promise.all(joins);
+      done = true;
+      await Promise.all(readers);
+      for (const subscriber of followers) await subscriber.drain();
+      row.schedules += 1;
+      row.writes += hosts.length * STORE_WRITES;
+      readOrder(row, seed, order, histories, await valuesOf(stores[0]!));
+    }
+    printOrder(label, row);
+    return row;
+  }
+
+  describe.each(["transaction", "pending"] as const)("the order of values, %s path", (path) => {
+    it("a full answer beside two events with values: the values of a subscriber do not go back", async (context) => {
+      if (path === "transaction" && !replicaSet) return context.skip?.("the path needs a replica set");
+      const collection = `race${++next}`;
+      const order = new CommitOrder();
+      const list = gate();
+      let armed = false;
+      const listHold = async (): Promise<void> => {
+        if (armed) await list.holds.before();
+      };
+      const [store] = storesOf(path, collection, [order.holds(FREE), FREE, FREE], undefined, listHold) as [MongoDocumentStorage<Item>];
+      const host = new Host(store as unknown as RaceStorage, callWithValues);
+      const subscriber = new ValueFollower(host);
+      await host.write("x", { v: "v1" });
+      // An earlier subscriber has started the chain of the events
+      await host.changes();
+      armed = true;
+      const joining = subscriber.join();
+      await list.reached;
+      armed = false;
+      await host.write("x", { v: "v2" });
+      await host.write("x", { v: "v3" });
+      list.open();
+      await joining;
+      await subscriber.drain();
+      const row = newOrderRow();
+      row.schedules = 1;
+      row.writes = 3;
+      row.fullsHeld = 1;
+      readOrder(row, "held-list", order, [["follower", subscriber.history]], await valuesOf(store));
+      console.log(`race ${JSON.stringify({ name: `${path}-held-list`, history: subscriber.history.values.get("x"), back: row.back.length, finalDiffers: row.finalDiffers.length })}`);
+      expect(subscriber.history.values.get("x")?.at(0)).toBe("v3");
+      expect(row.back).toEqual([]);
+      expect(row.finalDiffers).toEqual([]);
+    });
+
+    it("seeded schedules with a held list: no value goes back, and the last value equals the store", async (context) => {
+      if (path === "transaction" && !replicaSet) return context.skip?.("the path needs a replica set");
+      const row = await orderRow({ label: `${path}-order`, path, schedules: STORE_SCHEDULES });
+      expect(row.unknown).toEqual([]);
+      expect(row.back).toEqual([]);
+      expect(row.finalDiffers).toEqual([]);
+      expect(row.fullsHeld).toBeGreaterThan(0);
+    });
+
+    it("the flip: a store that gives an old value again fails the row of the order of values", async (context) => {
+      if (path === "transaction" && !replicaSet) return context.skip?.("the path needs a replica set");
+      const row = await orderRow({
+        label: `${path}-order-flip`,
+        path,
+        schedules: FAULT_SCHEDULES,
+        wrap: (store) => replayingOld(store),
+      });
+      expect(row.back.length).toBeGreaterThan(0);
+    });
+  });
+
+  it("the order of values, a write past its lease: no value goes back", async () => {
+    const row = await orderRow({ label: "pending-late-order", path: "pending", schedules: FAULT_SCHEDULES, sizes: LATE_HOLD_SIZES, lease: LATE_LEASE_MS });
+    expect(row.unknown).toEqual([]);
+    expect(row.back).toEqual([]);
+    expect(row.finalDiffers).toEqual([]);
   });
 
   it("a write past its lease loses nothing: a reader can see it twice, with one value", async () => {
