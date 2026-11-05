@@ -146,7 +146,7 @@ async function finish(rest: Omit<StreamCount, keyof typeof counted>): Promise<ne
   process.exit(0);
 }
 
-if (!ready) await finish({ connections: started.connections - before.connections, idleGetMore: 0, deliverMs: 0, burstEnded: false, burstMs: 0, burstProbeMs: 0, burstBlockMs: 0 });
+if (!ready) await finish({ connections: started.connections - before.connections, idleGetMore: 0, deliverMs: 0, burstEnded: false, burstMs: 0, burstProbeMs: 0, burstConnections: 0, burstBlockMs: 0 });
 
 const idleStart = await server();
 await sleep(IDLE_MS);
@@ -166,8 +166,11 @@ async function deliver(): Promise<number> {
   }
 }
 
-/** A delete in each partition, until the last pass ends. */
-async function burst(): Promise<{ burstEnded: boolean; burstMs: number; burstProbeMs: number; burstBlockMs: number }> {
+/**
+ * A delete in each partition, until the last pass ends. The quiet time starts at the first pass,
+ * because a change takes seconds to reach the passes when each view has a stream.
+ */
+async function burst(): Promise<{ burstEnded: boolean; burstMs: number; burstProbeMs: number; burstConnections: number; burstBlockMs: number }> {
   const delay = monitorEventLoopDelay({ resolution: 1 });
   delay.enable();
   const endProbe = probe(items);
@@ -175,13 +178,19 @@ async function burst(): Promise<{ burstEnded: boolean; burstMs: number; burstPro
   await observer.db(name).collection("items").deleteMany({ kind: "b" });
   let lastWork = sent;
   let now = sent;
-  while (now - lastWork < QUIET_MS && now - sent < capMs) {
+  let seen = false;
+  while ((!seen || now - lastWork < QUIET_MS) && now - sent < capMs) {
     await sleep(POLL_MS);
     now = performance.now();
-    if (views.inFlight() > 0) lastWork = now;
+    if (views.inFlight() > 0) {
+      lastWork = now;
+      seen = true;
+    }
   }
   delay.disable();
-  return { burstEnded: now - lastWork >= QUIET_MS, burstMs: lastWork - sent, burstProbeMs: endProbe(), burstBlockMs: delay.max / 1e6 };
+  const burstProbeMs = endProbe();
+  const after = await server();
+  return { burstEnded: seen && now - lastWork >= QUIET_MS, burstMs: lastWork - sent, burstProbeMs, burstConnections: after.connections - before.connections, burstBlockMs: delay.max / 1e6 };
 }
 
 const deliverMs = await deliver();

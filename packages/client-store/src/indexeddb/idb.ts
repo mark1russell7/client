@@ -142,18 +142,28 @@ export type IdbWork<R> = (transaction: IdbTransactionLike, fail: (error: unknown
  * and a failed open tries again at the next operation.
  */
 export class IdbConnection {
+  /** The name of the database. */
+  readonly database: string;
+  /** The object stores of the database. */
+  private readonly stores: readonly IdbStoreSchema[];
+  private readonly factory: IdbFactoryLike | undefined;
+  /** The function that writes the first records when the open makes the object stores. */
+  private readonly onCreate?: ((store: (name: string) => IdbObjectStoreLike) => void) | undefined;
+
   private connection: Promise<IdbDatabaseLike> | undefined;
   private closed = false;
 
   constructor(
-    /** The name of the database. */
-    readonly database: string,
-    /** The object stores of the database. */
-    private readonly stores: readonly IdbStoreSchema[],
-    private readonly factory: IdbFactoryLike | undefined,
-    /** The function that writes the first records when the open makes the object stores. */
-    private readonly onCreate?: (store: (name: string) => IdbObjectStoreLike) => void,
-  ) {}
+    database: string,
+    stores: readonly IdbStoreSchema[],
+    factory: IdbFactoryLike | undefined,
+    onCreate?: (store: (name: string) => IdbObjectStoreLike) => void,
+  ) {
+    this.database = database;
+    this.stores = stores;
+    this.factory = factory;
+    this.onCreate = onCreate;
+  }
 
   /**
    * This method runs work in one transaction over the object stores of `names`. The promise resolves
@@ -276,16 +286,21 @@ export class IdbConnection {
 
 /** One object store in its own database, version 1. The stores of programs, queues and sync states use it. */
 export class IdbStoreConnection {
+  /** The name of the database. */
+  readonly database: string;
+  /** The name of the object store. */
+  readonly store: string;
+
   private readonly connection: IdbConnection;
 
   constructor(
-    /** The name of the database. */
-    readonly database: string,
-    /** The name of the object store. */
-    readonly store: string,
+    database: string,
+    store: string,
     storeOptions: { keyPath?: string; autoIncrement?: boolean },
     factory: IdbFactoryLike | undefined,
   ) {
+    this.database = database;
+    this.store = store;
     this.connection = new IdbConnection(database, [{ name: store, options: storeOptions }], factory);
   }
 

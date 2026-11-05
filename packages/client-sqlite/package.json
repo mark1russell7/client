@@ -77,7 +77,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@mark1russell7/cue": "^1.1.0",
+    "@mark1russell7/cue": "^2.1.1",
     "@procedures/collections": "workspace:*",
     "@procedures/fs": "workspace:*",
     "@procedures/store": "workspace:*",

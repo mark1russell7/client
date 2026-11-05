@@ -16,6 +16,7 @@
  * call goes to the server as `procedure-timeout` with each try (`client/deadline.ts`).
  */
 
+import { compose } from "@mark1russell7/collections/layers";
 import type { ClientMiddleware, ClientRunner, TypedClientMiddleware } from "../types.js";
 import type { CacheContext, CircuitBreakerContext, RateLimitContext, RetryContext, TimeoutContext } from "./contexts.js";
 import { createCacheMiddleware, type CacheOptions } from "./cache.js";
@@ -76,6 +77,6 @@ export function resilience(options: ResilienceOptions): TypedClientMiddleware<Re
     layers.push(createTimeoutMiddleware({ perAttempt: options.perAttempt, ...(message ? { message: `${message} (per-attempt)` } : {}) }) as ClientMiddleware);
   }
   const composed = <TReq, TRes>(next: ClientRunner<TReq, TRes>): ClientRunner<TReq, TRes> =>
-    layers.reduceRight<ClientRunner<TReq, TRes>>((inner, layer) => (layer as ClientMiddleware<TReq, TRes>)(inner), next);
+    compose(...(layers as ClientMiddleware<TReq, TRes>[]))(next);
   return composed as TypedClientMiddleware<ResilienceContext, {}>;
 }

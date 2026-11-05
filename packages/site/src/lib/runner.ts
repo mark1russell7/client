@@ -23,11 +23,15 @@ function stoppedResult(reason: string, started: number, calls: number): RunResul
 }
 
 export class ProgramRunner {
+  private readonly onProgress: (calls: number) => void;
+
   private worker: { worker: Worker; transport: PortTransport } | null = null;
   private nextId = 0;
   private pending: { id: number; finish: (result: RunResult) => void; timer: ReturnType<typeof setTimeout>; calls: number; started: number } | null = null;
 
-  constructor(private readonly onProgress: (calls: number) => void = () => {}) {}
+  constructor(onProgress: (calls: number) => void = () => {}) {
+    this.onProgress = onProgress;
+  }
 
   /** True while a run has no result. */
   get running(): boolean {

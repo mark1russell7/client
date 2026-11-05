@@ -114,18 +114,25 @@ export type ValidationPhase = "input" | "output";
  * Error thrown when validation fails.
  */
 export class ValidationError extends Error {
+  /** Which phase of validation failed */
+  public readonly phase: ValidationPhase;
+  /** The underlying Zod error */
+  public readonly zodError: ZodErrorLike;
+  /** The method being called */
+  public readonly method: Method;
+
   override readonly name = "ValidationError";
 
   constructor(
     message: string,
-    /** Which phase of validation failed */
-    public readonly phase: ValidationPhase,
-    /** The underlying Zod error */
-    public readonly zodError: ZodErrorLike,
-    /** The method being called */
-    public readonly method: Method,
+    phase: ValidationPhase,
+    zodError: ZodErrorLike,
+    method: Method,
   ) {
     super(message);
+    this.phase = phase;
+    this.zodError = zodError;
+    this.method = method;
 
     // Maintain proper stack trace in V8 environments
     if (Error.captureStackTrace) {

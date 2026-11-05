@@ -388,12 +388,17 @@ export class HandlerNotFoundError extends Error {
  * before, the default was the string `"500"`).
  */
 export class ServerError extends Error {
+  public readonly code: string;
+  public readonly retryable: boolean;
+
   constructor(
     message: string,
-    public readonly code: string = "INTERNAL_ERROR",
-    public readonly retryable: boolean = false
+    code: string = "INTERNAL_ERROR",
+    retryable: boolean = false
   ) {
     super(message);
+    this.code = code;
+    this.retryable = retryable;
     this.name = "ServerError";
   }
 }

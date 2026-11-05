@@ -132,15 +132,25 @@ function fakeExplain(namespace: string, verbosity: unknown, parsed: Document, re
 }
 
 class FakeCursor {
+  private readonly docs: Docs;
+  private readonly namespace: string;
+  private readonly filter: Document;
+  private readonly examined: number;
+
   private skipped = 0;
   private limited = Infinity;
 
   constructor(
-    private readonly docs: Docs,
-    private readonly namespace = "test.fake",
-    private readonly filter: Document = {},
-    private readonly examined = docs.length,
-  ) {}
+    docs: Docs,
+    namespace = "test.fake",
+    filter: Document = {},
+    examined = docs.length,
+  ) {
+    this.docs = docs;
+    this.namespace = namespace;
+    this.filter = filter;
+    this.examined = examined;
+  }
 
   /** The plan of the find: a collection scan. */
   async explain(verbosity?: unknown): Promise<Document> {
@@ -180,17 +190,26 @@ function changeStreamClosed(): Error {
  * a close rejects a waiting `next()`, and the end of a `for await` closes the stream.
  */
 export class FakeChangeStream {
+  private readonly server: FakeServer;
+  private readonly scope: { db: string; coll?: string };
+  private readonly pipeline: Document[];
+  private readonly options: { fullDocument?: string; resumeAfter?: { _data?: string } };
+
   private readonly queue: Document[] = [];
   private waiting: { resolve: (event: Document) => void; reject: (error: Error) => void } | undefined;
   private isClosed = false;
   private readonly listener: (event: Document, lookup: Document | undefined) => void;
 
   constructor(
-    private readonly server: FakeServer,
-    private readonly scope: { db: string; coll?: string },
-    private readonly pipeline: Document[],
-    private readonly options: { fullDocument?: string; resumeAfter?: { _data?: string } } = {},
+    server: FakeServer,
+    scope: { db: string; coll?: string },
+    pipeline: Document[],
+    options: { fullDocument?: string; resumeAfter?: { _data?: string } } = {},
   ) {
+    this.server = server;
+    this.scope = scope;
+    this.pipeline = pipeline;
+    this.options = options;
     this.listener = (event, lookup) => this.offer(event, lookup);
     const after = options.resumeAfter?._data;
     if (after !== undefined) {
@@ -268,15 +287,25 @@ interface FakeBulkResult {
 }
 
 export class FakeCollection {
+  private readonly server: FakeServer;
+  private readonly database: string;
+  readonly collectionName: string;
+  private readonly isOpen: () => boolean;
+
   /** Each call that reached the collection: the method and its first argument. */
   readonly calls: Array<{ method: string; filter: unknown }> = [];
 
   constructor(
-    private readonly server: FakeServer,
-    private readonly database: string,
-    readonly collectionName: string,
-    private readonly isOpen: () => boolean,
-  ) {}
+    server: FakeServer,
+    database: string,
+    collectionName: string,
+    isOpen: () => boolean,
+  ) {
+    this.server = server;
+    this.database = database;
+    this.collectionName = collectionName;
+    this.isOpen = isOpen;
+  }
 
   private get docs(): Docs {
     if (!this.isOpen()) throw new Error("MongoNotConnectedError: Client must be connected");

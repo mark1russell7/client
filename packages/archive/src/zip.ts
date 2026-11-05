@@ -261,11 +261,14 @@ function assertReadable(entry: ZipEntry): void {
 
 /** A stream step that counts the bytes and the CRC-32, and stops at more bytes than the entry declares. */
 class EntryCheck extends Transform {
+  private readonly entry: ZipEntry;
+
   private bytes = 0;
   private crc = 0;
 
-  constructor(private readonly entry: ZipEntry) {
+  constructor(entry: ZipEntry) {
     super();
+    this.entry = entry;
   }
 
   override _transform(chunk: Buffer, _encoding: BufferEncoding, done: TransformCallback): void {

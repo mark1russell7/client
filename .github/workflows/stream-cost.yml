@@ -1,7 +1,7 @@
 name: Stream cost
 
-# The connections, the idle getMore commands and the time to ready of the materialized views at 1,
-# 100 and 1,000 partitions, before and after a change of materializer.ts (roadmap CLI-92). The input
+# The connections, the idle getMore commands and the time to ready of the materialized views at the
+# rungs of bench/stream-cases.ts, before and after a change of materializer.ts (roadmap CLI-92). The input
 # `base` is the commit of the arm before, and the checked-out ref is the arm after. Each sample is a
 # fresh process against a real MongoDB. The report pools the jobs.
 #

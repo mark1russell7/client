@@ -111,8 +111,13 @@ describe("defineCliTool", () => {
 
   it("throws the error of the tool for a failed command and for output that is not JSON", async () => {
     class ToolError extends Error {
-      constructor(message: string, readonly exitCode: number, readonly stderr: string) {
+      readonly exitCode: number;
+      readonly stderr: string;
+
+      constructor(message: string, exitCode: number, stderr: string) {
         super(message);
+        this.exitCode = exitCode;
+        this.stderr = stderr;
       }
     }
     const tool = defineCliTool({ name: "tool", error: (message, exitCode, stderr) => new ToolError(message, exitCode, stderr) });

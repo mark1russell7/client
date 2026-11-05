@@ -30,15 +30,20 @@ export type HttpErrorCode =
 
 /** An error of an HTTP procedure. */
 export class HttpError extends Error {
+  readonly code: HttpErrorCode;
+  /** The status of the response, when the server answered. */
+  readonly status?: number | undefined;
+
   override readonly name = "HttpError";
 
   constructor(
-    readonly code: HttpErrorCode,
+    code: HttpErrorCode,
     message: string,
-    /** The status of the response, when the server answered. */
-    readonly status?: number,
+    status?: number,
     options?: ErrorOptions,
   ) {
     super(message, options);
+    this.code = code;
+    this.status = status;
   }
 }

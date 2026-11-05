@@ -187,6 +187,8 @@ function isLimit(value: number): boolean {
  * (`maxStored`) and the limit of 100 tasks of a session stay as they are.
  */
 export class McpTaskStore implements TaskStore {
+  private readonly options: McpTaskStoreOptions;
+
   private readonly entries = new Map<string, Entry>();
   private readonly maxRunning: number;
   private readonly maxStored: number;
@@ -196,7 +198,8 @@ export class McpTaskStore implements TaskStore {
   private readonly shareKey: (context: McpTaskShareContext) => string;
   private closed = false;
 
-  constructor(private readonly options: McpTaskStoreOptions = {}) {
+  constructor(options: McpTaskStoreOptions = {}) {
+    this.options = options;
     const maxRunning = options.maxRunning ?? MCP_TASK_LIMITS.maxRunning;
     if (!Number.isInteger(maxRunning) || maxRunning < 1) throw new RangeError(`maxRunning must be an integer of 1 or more, not ${String(maxRunning)}`);
     this.maxRunning = maxRunning;

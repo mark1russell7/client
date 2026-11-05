@@ -25,13 +25,22 @@ export interface GitRunOptions extends GitContext {
 
 /** A git command that ended with an exit code other than 0. */
 export class GitError extends Error {
+  readonly args: readonly string[];
+  readonly exitCode: number;
+  readonly stdout: string;
+  readonly stderr: string;
+
   constructor(
-    readonly args: readonly string[],
-    readonly exitCode: number,
-    readonly stdout: string,
-    readonly stderr: string,
+    args: readonly string[],
+    exitCode: number,
+    stdout: string,
+    stderr: string,
   ) {
     super(`git ${args.join(" ")} failed (exit ${exitCode}): ${(stderr || stdout).trim()}`);
+    this.args = args;
+    this.exitCode = exitCode;
+    this.stdout = stdout;
+    this.stderr = stderr;
     this.name = "GitError";
   }
 }
