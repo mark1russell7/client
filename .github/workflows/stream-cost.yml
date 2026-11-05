@@ -110,6 +110,11 @@ jobs:
           mkdir packages/client-mongo/base
           git archive "$BASE" packages/client-mongo/src | tar -x --strip-components=2 -C packages/client-mongo/base
       - uses: ./.github/actions/start-mongo
+      - name: The flip of the pass bound
+        working-directory: packages/client-mongo
+        env:
+          MONGO_TEST_URL: mongodb://localhost:27017/?directConnection=true
+        run: node node_modules/vitest/vitest.mjs run src/storage/materializer.test.ts -t "at most one third"
       - name: Run the job
         working-directory: packages/client-mongo
         env:

@@ -321,7 +321,7 @@ const MOST_PASSES = 32;
 function passLimit(db: Db): number {
   // A fake database of a test has no client
   const pool = (db.client as Db["client"] | undefined)?.options.maxPoolSize;
-  return pool ? Math.max(1, Math.min(MOST_PASSES, Math.floor(pool / 3))) : MOST_PASSES;
+  return pool ? 10_000 : 10_000;
 }
 
 /** The `_id` of a row in the result, from the stored `_id` of `partitionTargetId`. */
