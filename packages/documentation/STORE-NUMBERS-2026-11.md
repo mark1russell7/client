@@ -1,6 +1,6 @@
 # The numbers of the document store (CLI-96)
 
-Status: a design with one open reading, the arm of a burst on a warm pool. The stated limit stays 200 writes a second on one collection until a gate holds a higher rate.
+Status: a design. A second run of the arm of a burst on a warm pool is open. The stated limit stays 200 writes a second on one collection until a gate holds a higher rate.
 
 Each rate on this page comes from a runner with 4 cores, with MongoDB on the same runner. No rate is a limit of a larger machine.
 
@@ -78,7 +78,7 @@ A bound of 16 writes in flight in each process stops the fall. The value 16 come
 
 The bound alone does not fix the order. With a hold in flight, it also has 180 wrong of 180. Its 0 with no hold is the result of a short queue, and it is not a proof. So a rule for each id does this work. A write of an id waits for the write before it of that id, in its process. This rule reads 0 in each of the four rows of the order run. The bound without the rule proves nothing there.
 
-The rule costs one step on a map for each write. The rule has no cost that this bench can read:
+The rule costs one step on a map for each write. This run does not separate a further cost from the noise:
 
 | Case | Job | p50 with no rule, ms | p50 with the rule, ms | Children that held the schedule, no rule and rule |
 | --- | --- | ---:| ---:| --- |
@@ -88,7 +88,7 @@ The rule costs one step on a map for each write. The rule has no cost that this 
 | `400-p2-hot` | 3 | 4.6 | 4.6 | 9 of 9, 3 of 3 |
 | `400-p2-hot` | 1 | 5.7 | 5.7 | 9 of 9, 3 of 3 |
 
-The pooled p50 of `800-p2` is 33.2 ms against 58.4 ms. That is not the cost of the rule. Inside job 2, the children of one arm go from 6.6 ms to 2,526 ms.
+The pooled p50 of `800-p2` is 33.2 ms against 58.4 ms. This run does not separate that difference from the noise, because inside job 2 the children of one arm go from 6.6 ms to 2,526 ms. So the order read decides this rule, and its cost does not.
 
 The rule sets the rate of one id. Writes of one id go one at a time in a process, so one id gets the limit that a whole collection has today:
 
@@ -98,14 +98,14 @@ The rule sets the rate of one id. Writes of one id go one at a time in a process
 | 400 | 5 of 9 | 8 ms to 7.2 s | Job 3 has a p50 of 8 ms to 10 ms. The other jobs have 178 ms to 7.2 s |
 | 800 | 0 of 9 | 7.4 s to 15.8 s | 297 to 462 w/s. One child has 2,287 writes with no reply at the end |
 
-The chain of an id has no limit. So a burst on one id waits in the memory of the process, and this form needs the refusal below.
+The chain of an id has no limit. So a burst on one id waits in the memory of the process. A p50 of 7.4 s to 15.8 s is not a result to ship as a default, so the refusal below is a condition of this queue.
 
 This form also has these faults:
 
 - A batch is not one transaction, and today it is one on a replica set. A caller can see this change.
 - A stalled writer holds back all tenants of the collection, up to the lease of 60 s.
 - A write past its lease can come two times. Today only a store with no transactions has this case.
-- The first write of one new id from two processes can fail with a duplicate key. Run [42028465046](https://github.com/mark1russell7/client/actions/runs/42028465046) has 4 such failures. A store with no transactions has this fault today, and it needs a fix in any case.
+- The first write of one new id from two processes can fail with a duplicate key. Run [42028465046](https://github.com/mark1russell7/client/actions/runs/42028465046) has 4 such failures. A store with no transactions has this fault today, and CLI-103 fixes it.
 - The one document stays a serial point. At 1,200 writes a second on 4 processes, the bound gave 813.7 w/s, with a p50 of 4.5 s.
 
 ### Form C
@@ -128,7 +128,42 @@ Form A at 1,200 writes a second did not hold its schedule, and the control did n
 
 The other callers of a first load tell the same story. On `200-p2-first10`, the p99 of the writes of other tenants is 359 ms today. It is 26 ms on form A, 210 ms on form B and 121 ms on the bound. The control has 16 ms.
 
-Form A does not close the first load as it stands, because 2 of 9 children miss the schedule, with 107 ms and 148 ms. Form A and the bound both make connections in the burst, and the control starts with a warm pool. The arm `tenant-burst-warm` reads this cause. It is not read yet.
+Form A does not close the first load on a cold pool, because 2 of 9 children miss the schedule, with 107 ms and 148 ms. Form A and the bound both make connections in the burst, and the control starts with a warm pool.
+
+### A burst of first loads on a warm pool
+
+Run [42031147834](https://github.com/mark1russell7/client/actions/runs/42031147834) reads each form on a cold pool and on a warm pool. A warm pool has 30 connections before the load, with `minPoolSize`. Each cell gives the median child of 3 jobs. The driver column also gives the least and the worst child. Each case has a rate of 200 writes a second, on 4 cores with MongoDB on the runner.
+
+| Case | Form | Children that held the schedule | Driver worst, ms | Loop p99, ms | Command p50 and p99, ms | Connections made | Others p99, ms | Others p99 after the send, ms | First load, ms |
+| --- | --- | ---:| ---:| ---:| ---:| ---:| ---:| ---:| ---:|
+| 2 processes, cold | Today | 36 of 36 | 12.6 (1.9 to 59.7) | 8.0 | 2, 7 | 9 | 386.0 | 384.8 | 1,298 |
+| 2 processes, cold | A | 8 of 9 | 39.8 (2.8 to 130.9) | 9.5 | 2, 9 | 11 | 30.7 | 14.2 | 1,008 |
+| 2 processes, cold | Bound | 5 of 9 | 97.9 (8.4 to 172.3) | 12.1 | 7, 21 | 18 | 145.2 | 95.9 | 1,166 |
+| 2 processes, warm | Today | 36 of 36 | 20.5 (2.0 to 58.4) | 8.6 | 2, 8.5 | 0 | 426.4 | 426.6 | 1,333 |
+| 2 processes, warm | A | 9 of 9 | 23.6 (2.0 to 74.0) | 8.8 | 2, 9 | 0 | 18.4 | 14.4 | 1,004 |
+| 2 processes, warm | Bound | 4 of 9 | 115.7 (5.6 to 169.5) | 14.2 | 7, 21 | 0 | 148.8 | 111.9 | 1,186 |
+| 4 processes, cold | Today | 32 of 36 | 55.1 (3.1 to 122.1) | 16.4 | 4, 17 | 10 | 757.9 | 753.2 | 1,669 |
+| 4 processes, cold | A | 5 of 9 | 63.0 (5.2 to 203.0) | 14.8 | 3, 16 | 10 | 28.6 | 25.5 | 1,010 |
+| 4 processes, cold | Bound | 3 of 9 | 263.4 (18.5 to 407.0) | 26.8 | 10, 43 | 18 | 198.0 | 71.1 | 1,200 |
+| 4 processes, warm | Today | 33 of 36 | 35.5 (1.9 to 126.3) | 12.9 | 3, 14 | 0 | 675.6 | 674.2 | 1,616 |
+| 4 processes, warm | A | 9 of 9 | 13.4 (2.2 to 84.7) | 9.7 | 1, 11 | 0 | 20.7 | 20.0 | 1,005 |
+| 4 processes, warm | Bound | 3 of 9 | 157.8 (3.6 to 328.9) | 21.3 | 8, 30 | 0 | 113.0 | 41.7 | 1,076 |
+
+The plan of a first load is 1,000 ms.
+
+**On a warm pool, form A has no miss.** It holds 18 of 18 children on a warm pool, and 13 of 18 on a cold pool in this run. So form A answers the first load on a warm pool, and it does not answer it on a cold pool. The 18 of 18 comes from one run, and at 95 percent it holds the share of children that miss only under 16 percent. A second run repeats the arm.
+
+**The warm pool is a setting of the host.** The store does not own the connections, so `minPoolSize` belongs to the client that the host gives the store. This run reads a pool of 30, and no smaller pool. The cost is small in the second before the burst: the busy share of a writer changes by at most 0.01 between cold and warm.
+
+**A warm pool does not close the miss of the bound.** The bound holds 7 of 18 children with 0 connections made. At 2 processes, its driver worst is 115.7 ms warm against 97.9 ms cold. So connections do not cause this lateness. The run does not name the full cause.
+
+The server counts 1,439 write conflicts in the median child of the bound at 2 processes warm. Form A has 0 there. The median command of the bound takes 7 milliseconds, and the median command of form A takes 2 milliseconds. Of the 7 children that held, 6 are on one CPU model of the 3 in this run. So the read of the bound depends on the runner.
+
+**Where each form pays, at 2 processes on a warm pool:**
+
+- **Today pays in the writer.** The others p99 is 426.4 ms, and all of it comes after the send. A command p99 is 8.5 ms. So the wait is in the queue of the process.
+- **Form A pays little in either place.** The others p99 is 18.4 ms, with 14.4 ms after the send. A command p99 is 9 ms and the loop p99 is 8.8 ms. A command time includes the wait of the loop for the reply, so this run cannot split a time under 9 ms.
+- **The bound pays after the send.** The others p99 is 148.8 ms, with 111.9 ms after the send and 36.9 ms before it. The run does not split the wait for the bound from the time in MongoDB.
 
 ### The rule, for each form and each release case
 
@@ -159,7 +194,7 @@ The control lost writes, so the test can find a loss. A count of 0 is a result f
 **Form A, with an option of the store, on by choice for each collection.** The default stays one counter for each collection.
 
 - A collection that has no writes starts with a counter for each partition. It has no old reader, so its release has no step that can lose a read.
-- A store with the option refuses a collection with numbers on its counter of the collection. It gives a clear error. A move of a live collection is a stated step with all processes stopped.
+- A store with the option refuses a collection with numbers on its counter of the collection. It gives a clear error. A move of a live collection is a stated step with all processes stopped. That step has its own item (CLI-104), with its own test and the date 2026-11-19.
 - The plan below for a rolling move is not in this proposal. Its guard cannot protect an old reader: the run lost 21,421 writes in 30,135 replies with no sign.
 
 The reasons:
@@ -173,7 +208,8 @@ What it does not give:
 
 - One partition keeps the limit of one collection today, approximately 412 w/s. The case `400-p2-hot` gave a p99 of 2 s. So the stated limit of a partition is 200 writes a second.
 - A collection with no partitions gains nothing, so it keeps the stated limit of 200.
-- A live collection gains nothing until a stopped move.
+- A live collection gains nothing. The page and the changeset of form A say this in these words. The stopped move of CLI-104 is the only way out of this limit.
+- A cold pool keeps the miss of a first load. A host gets the result above only with `minPoolSize`, and the changeset of form A says this too.
 - No form holds 2,000 writes a second on these runners, the rate of the rung of 100,000 tenants.
 
 **Overload.** All forms need a stated limit. A queue of a partition with no limit waits in memory, and a caller sees a long wait with no error. A write past a limit of waiting writes gets a clear error at once. The limit comes from an arm with a prediction first. A new error is a change that a caller can see, so it ships as its own MINOR. This part joins the design of the overload of change events (CLI-102).
