@@ -516,6 +516,8 @@ export class ViewMaterializer {
   /** The changes of the set of views (a resync, a change of a view document), one at a time, in the order of the views stream. */
   private viewChain: Promise<unknown> = Promise.resolve();
   private stopped = true;
+  /** True after the first read of the views. A later view can give a source its second partition. */
+  private started = false;
 
   constructor(options: ViewMaterializerOptions) {
     this.options = options;
@@ -642,12 +644,15 @@ export class ViewMaterializer {
   /** This method starts the materializer: it reads each view, runs it, and watches the views and their sources. */
   async start(): Promise<void> {
     this.stopped = false;
+    this.started = false;
     this.intake = true;
     this.db = await this.options.db();
     this.passes = new Semaphore(passLimit(this.db));
     // The stream of the views opens before the read of the views: a change between the two reaches both (roadmap O63)
     await this.watchViews();
     const count = await this.resync();
+    this.started = true;
+    await Promise.all([...this.sources.values()].map((watch) => this.warnOfBroadcast(watch)));
     this.log("info", "Started", { views: count }, `started: ${count} view(s)`);
   }
 
@@ -970,10 +975,7 @@ export class ViewMaterializer {
       let views = watch.partitions.get(running.partition);
       if (!views) watch.partitions.set(running.partition, (views = new Set()));
       views.add(running);
-      if (watch.partitions.size > 1 && !watch.routeChecked) {
-        watch.routeChecked = true;
-        void this.warnOfBroadcast(watch);
-      }
+      if (this.started) void this.warnOfBroadcast(watch);
       running.watched.push(source);
       opened.push(watch.opened);
     }
@@ -984,9 +986,12 @@ export class ViewMaterializer {
    * This method warns once about a source of many partitions with no pre-image and no entry in
    * `storageSources` (roadmap CLI-98), because a delete in that source runs a pass in each partition.
    * A read of the options that fails writes no line, because the routes of the changes do not change.
+   * The first check comes after the start, so that its line gives the partitions of all views.
    */
   private async warnOfBroadcast(watch: SourceWatch): Promise<void> {
     const { source } = watch;
+    if (watch.routeChecked || watch.partitions.size < 2) return;
+    watch.routeChecked = true;
     if (this.storageSources.has(source) || !this.db) return;
     try {
       const [info] = await this.db.listCollections({ name: source }).toArray();
