@@ -975,4 +975,61 @@ withMongo("ViewMaterializer on MongoDB", { timeout: TEST_TIMEOUT_MS }, () => {
     expect(many).toMatchObject({ streams: 2, cursors: 2 });
     expect(many.connections).toBeLessThanOrEqual(one.connections * 2);
   }, POOL_USE_TIMEOUT_MS);
+
+  it("runs at most one third of the pool as passes at one time, and each pass ends (CLI-92)", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const name = newDb().databaseName;
+    const partitions = Array.from({ length: 20 }, (_, index) => `t${index}`);
+    await partitionedViews(client!.db(name), partitions);
+    const own = new MongoClient(url!, { monitorCommands: true, maxPoolSize: 6 });
+    const reads = new Set<number>();
+    let most = 0;
+    own.on("commandStarted", (event) => {
+      if (event.commandName !== "aggregate" || event.command["aggregate"] !== "items") return;
+      reads.add(event.requestId);
+      most = Math.max(most, reads.size);
+    });
+    own.on("commandSucceeded", (event) => reads.delete(event.requestId));
+    own.on("commandFailed", (event) => reads.delete(event.requestId));
+    await own.connect();
+    const views = new ViewMaterializer({ db: () => own.db(name), debounce: ms(20), log: () => undefined });
+    try {
+      await views.start();
+      most = 0;
+      await client!.db(name).collection("items").insertMany(partitions.map((partition) => ({ _part: partition, kind: "a", n: 10 })));
+      await eventually(async () => {
+        for (const partition of partitions) expect(await totalOf(client!.db(name), partition)).toBe(11);
+      });
+      expect(most).toBeGreaterThan(0);
+      expect(most).toBeLessThanOrEqual(2);
+    } finally {
+      await views.stop();
+      await own.close();
+    }
+  }, POOL_USE_TIMEOUT_MS);
+
+  it("moves the wait of a pass with each change, and makes no timer for each change (CLI-92)", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const CHANGES = 200;
+    const db = newDb();
+    await partitionedViews(db, ["t1"]);
+    let timers = 0;
+    const clock: Clock = {
+      now: () => realClock.now(),
+      after: (delay, work) => {
+        timers++;
+        return realClock.after(delay, work);
+      },
+    };
+    const views = new ViewMaterializer({ db: () => db, debounce: ms(1000), clock, log: () => undefined });
+    try {
+      await views.start();
+      timers = 0;
+      await db.collection("items").insertMany(Array.from({ length: CHANGES }, () => ({ _part: "t1", kind: "a", n: 1 })));
+      await eventually(async () => expect(await totalOf(db, "t1")).toBe(CHANGES + 1));
+      expect(timers).toBeLessThan(CHANGES / 2);
+    } finally {
+      await views.stop();
+    }
+  }, POOL_USE_TIMEOUT_MS);
 });

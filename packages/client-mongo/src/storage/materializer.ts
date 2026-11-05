@@ -59,7 +59,7 @@
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { BSON, ObjectId, type AnyBulkWriteOperation, type ChangeStream, type ClientSession, type Collection, type Db, type Document } from "mongodb";
-import { collectionChangeTopic, ms, optionalMs, realClock, writeLog, type Cancel, type Clock, type CollectionChangeEvent, type Duration, type LogFields, type Logger } from "@procedures/client";
+import { collectionChangeTopic, ms, optionalMs, realClock, Semaphore, writeLog, type Cancel, type Clock, type CollectionChangeEvent, type Duration, type LogFields, type Logger } from "@procedures/client";
 import { DEFAULT_STORED_FORM, DOCUMENT_STORAGE_FIELDS, MongoDocumentStorage, TOMBSTONE_FIELD, storageWriteTarget, type StorageWriteTarget, type StoredForm } from "./document-storage.js";
 import { scopePipeline } from "./pipeline-scope.js";
 import type { StorageHintPublisher } from "./storage-hints.js";
@@ -311,6 +311,19 @@ const CONFLICT_RETRIES = 3;
 /** The most ids of a hint of a target not in a stored form. More ids give a reset hint. */
 const MAX_HINT_IDS = 10_000;
 
+/** The most passes that run at one time: about one third of the default pool of the driver (100). */
+const MOST_PASSES = 32;
+
+/**
+ * This function gives the most passes that run at one time on a pool. A pass uses one connection at
+ * a time, so two thirds of the pool stay free for the other operations of the process.
+ */
+function passLimit(db: Db): number {
+  // A fake database of a test has no client
+  const pool = (db.client as Db["client"] | undefined)?.options.maxPoolSize;
+  return pool ? Math.max(1, Math.min(MOST_PASSES, Math.floor(pool / 3))) : MOST_PASSES;
+}
+
 /** The `_id` of a row in the result, from the stored `_id` of `partitionTargetId`. */
 export function defaultRowId(storedId: unknown): unknown {
   return typeof storedId === "object" && storedId !== null && "id" in storedId ? (storedId as { id: unknown }).id : storedId;
@@ -475,6 +488,10 @@ export class ViewMaterializer {
   /** The collections that changed since the last pass, for each partition. */
   private readonly dirty = new Map<string, Set<string>>();
   private readonly timers = new Map<string, Cancel>();
+  /** The time of the last change of each partition with a timer: the end of the wait of the pass. */
+  private readonly lastChange = new Map<string, number>();
+  /** The passes that run at one time. A burst that reaches each partition does not fill the pool. */
+  private passes = new Semaphore(MOST_PASSES);
   /** The timers of the streams that open again, and of the ends of the grace times. */
   private readonly retries = new Set<Cancel>();
   private readonly clock: Clock;
@@ -625,6 +642,7 @@ export class ViewMaterializer {
     this.stopped = false;
     this.intake = true;
     this.db = await this.options.db();
+    this.passes = new Semaphore(passLimit(this.db));
     // The stream of the views opens before the read of the views: a change between the two reaches both (roadmap O63)
     await this.watchViews();
     const count = await this.resync();
@@ -636,6 +654,7 @@ export class ViewMaterializer {
     this.intake = false;
     for (const cancel of this.timers.values()) cancel();
     this.timers.clear();
+    this.lastChange.clear();
     this.dirty.clear();
   }
 
@@ -1054,11 +1073,26 @@ export class ViewMaterializer {
     let dirty = this.dirty.get(partition);
     if (!dirty) this.dirty.set(partition, (dirty = new Set()));
     dirty.add(collection);
-    this.timers.get(partition)?.();
-    const cancel = this.clock.after(this.debounceMs, () => {
+    this.lastChange.set(partition, this.clock.now());
+    if (!this.timers.has(partition)) this.waitForPass(partition, this.debounceMs);
+  }
+
+  /**
+   * This method starts the timer of the pass of a partition. A change during the wait moves the end
+   * of the wait and makes no new timer: 1,000 deletes with no pre-image at 1,000 partitions are a
+   * million changes. A pass waits for its place in `passes` after the work of its partition before it.
+   */
+  private waitForPass(partition: string, delay: number): void {
+    const cancel = this.clock.after(delay, () => {
+      const left = this.lastChange.get(partition)! + this.debounceMs - this.clock.now();
+      if (left > 0) {
+        this.waitForPass(partition, left);
+        return;
+      }
       this.timers.delete(partition);
+      this.lastChange.delete(partition);
       if (!this.intake) return;
-      void this.serial(partition, () => this.pass(partition)).catch((error: unknown) =>
+      void this.serial(partition, () => this.passes.withPermit(() => this.pass(partition))).catch((error: unknown) =>
         this.log("error", "The pass failed", { partition, error }, `the pass of ${partition} failed: ${String((error as Error)?.message ?? error)}`)
       );
     });
