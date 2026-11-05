@@ -8,6 +8,7 @@ import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { pooledLimitVerdict, type PairedTime } from "@mark1russell7/rigor-bench";
+import { poolErrors, type KeptError } from "./write-cases.js";
 
 /** The CI runs that a limit needs. */
 const LEAST_RUNS = 5;
@@ -23,6 +24,7 @@ interface Count {
   readonly arm: string;
   readonly case: string;
   readonly failures?: number;
+  readonly errors?: Readonly<Record<string, KeptError>>;
 }
 
 interface GateLimit {
@@ -60,6 +62,7 @@ const report = {
   cases: cases.map((entry) => ({ case: entry.case, ratio: round(entry.ratio), low: round(entry.low), high: round(entry.high), bound: round(entry.bound), floor: round(entry.floor), rounds: entry.rounds, outcome: entry.outcome })),
   worstBound: round(Math.max(...cases.map((entry) => entry.bound))),
   failedWritesOfHead: failures,
+  errorsOfHead: poolErrors(counts.filter((row) => row.arm === "after")),
   dropped: verdict.dropped,
   env: jobs.map(({ job, env }) => ({ job, env })),
 };

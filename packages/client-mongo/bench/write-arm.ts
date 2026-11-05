@@ -10,7 +10,7 @@
 import { appendFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { quantile } from "@mark1russell7/rigor-statistics";
-import { STORES, WRITE_BYTES, burstsOf, parseWriteCase, type WriteCount } from "./write-cases.js";
+import { STORES, WRITE_BYTES, burstsOf, keepError, parseWriteCase, type KeptError, type WriteCount } from "./write-cases.js";
 
 const { values } = parseArgs({ options: { arm: { type: "string" }, case: { type: "string" }, job: { type: "string" }, counts: { type: "string" } } });
 const { arm, case: caseName, job, counts } = values;
@@ -42,13 +42,15 @@ for (const store of stores) await store.set("first", { text });
 const bursts = burstsOf(stores.length * writes);
 const times: number[] = [];
 let failures = 0;
+const errors: Record<string, KeptError> = {};
 const write = async (store: Store, id: string): Promise<void> => {
   const began = performance.now();
   try {
     await store.set(id, { text });
     times.push(performance.now() - began);
-  } catch {
+  } catch (error) {
     failures++;
+    keepError(errors, error);
   }
 };
 
@@ -66,6 +68,7 @@ const line: WriteCount = {
   writesPerSecond: (times.length / burstMs) * 1000,
   p95Ms: times.length === 0 ? 0 : quantile(times, 0.95),
   failures,
+  errors,
 };
 appendFileSync(counts, `${JSON.stringify(line)}\n`);
 await (await ensureConnection()).getDb().dropDatabase().catch(() => undefined);

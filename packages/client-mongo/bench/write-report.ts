@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { aaBand, caseIntervals, poolRecords, type PairedTime } from "@mark1russell7/rigor-bench";
 import { median } from "@mark1russell7/rigor-statistics";
-import type { WriteCount } from "./write-cases.js";
+import { poolErrors, type WriteCount } from "./write-cases.js";
 
 interface JobFile {
   readonly job: string;
@@ -57,6 +57,7 @@ const cases = caseIntervals(pool.candidate).map((entry) => {
     p95: { before: round(middle(before, (row) => row.p95Ms), 1), after: round(middle(after, (row) => row.p95Ms), 1), ratio: round(middle(after, (row) => row.p95Ms) / middle(before, (row) => row.p95Ms), 4), aa: round(aaOfP95(before), 4) },
     writesPerSecond: { before: round(middle(before, (row) => row.writesPerSecond), 1), after: round(middle(after, (row) => row.writesPerSecond), 1) },
     failures: { before: before.reduce((sum, row) => sum + row.failures, 0), after: after.reduce((sum, row) => sum + row.failures, 0) },
+    errors: { before: poolErrors(before), after: poolErrors(after) },
     children: { before: before.length, after: after.length },
   };
 });

@@ -47,4 +47,30 @@ export interface WriteCount {
   readonly p95Ms: number;
   /** The writes that ended in an error. */
   readonly failures: number;
+  /** The count and the first message of each kind of failure, because a count alone cannot tell the cause. */
+  readonly errors: Readonly<Record<string, KeptError>>;
+}
+
+/** One kind of failure of a bench. */
+export interface KeptError {
+  readonly count: number;
+  readonly message: string;
+}
+
+/** This function adds a failure to its kind: the name of the error and its code. It keeps the first message of the kind. */
+export function keepError(errors: Record<string, KeptError>, error: unknown): void {
+  const { name, code, message } = error as { name?: unknown; code?: unknown; message?: unknown };
+  const kind = `${String(name)}:${String(code)}`;
+  errors[kind] = { count: (errors[kind]?.count ?? 0) + 1, message: errors[kind]?.message ?? String(message).slice(0, 300) };
+}
+
+/** This function pools the kept failures of many lines. */
+export function poolErrors(lines: readonly { readonly errors?: Readonly<Record<string, KeptError>> | undefined }[]): Record<string, KeptError> {
+  const pooled: Record<string, KeptError> = {};
+  for (const line of lines) {
+    for (const [kind, kept] of Object.entries(line.errors ?? {})) {
+      pooled[kind] = { count: (pooled[kind]?.count ?? 0) + kept.count, message: pooled[kind]?.message ?? kept.message };
+    }
+  }
+  return pooled;
 }
