@@ -44,7 +44,9 @@ async function timed(command: () => Promise<unknown>): Promise<{ p50Ms: number; 
 const rungs: PoolCostRung[] = [];
 for (const connections of POOL_COST_LADDER) {
   const more = connections - held;
+  let fillSeconds = 0;
   if (more > 0) {
+    const start = Date.now();
     const pool = new MongoClient(url, { minPoolSize: more, maxPoolSize: more, maxConnecting: 16 });
     let made = 0;
     pool.on("connectionCreated", () => made++);
@@ -54,6 +56,7 @@ for (const connections of POOL_COST_LADDER) {
       if (Date.now() > limit) throw new RangeError(`the pool has ${String(made)} of ${String(more)} connections after ${String(cap)} seconds`);
       await sleep(50);
     }
+    fillSeconds = (Date.now() - start) / 1000;
     pools.push(pool);
     held = connections;
   }
@@ -63,6 +66,7 @@ for (const connections of POOL_COST_LADDER) {
   const insert = await timed(() => scratch.insertOne({ at: Date.now() }));
   rungs.push({
     connections,
+    fillSeconds,
     serverConnections: Number(status["connections"]?.["current"] ?? 0),
     serverResidentMb: Number(status["mem"]?.["resident"] ?? 0),
     serverAllocatedMb: Number(status["tcmalloc"]?.["generic"]?.["current_allocated_bytes"] ?? 0) / 1024 / 1024,

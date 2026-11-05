@@ -41,6 +41,7 @@ const rungs = jobs[0]!.rungs.map((rung, index) => {
   const of = (pick: (one: PoolCostRung) => number): { median: number; low: number; high: number } => spread(jobs.map((job) => pick(job.rungs[index]!)));
   return {
     connections: rung.connections,
+    fillSeconds: of((one) => one.fillSeconds),
     serverConnections: of((one) => one.serverConnections),
     serverResidentMb: of((one) => one.serverResidentMb),
     serverAllocatedMb: of((one) => one.serverAllocatedMb),

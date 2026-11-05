@@ -71,6 +71,8 @@ export const POOL_COST_LADDER = [0, 100, 300, 1000, 3000] as const;
 export interface PoolCostRung {
   /** The idle connections that this rung holds open. */
   readonly connections: number;
+  /** The time to open the new connections of this rung, in seconds. The driver opens one idle connection in each check of its pool. */
+  readonly fillSeconds: number;
   /** The connections that the server counts, with the connections of the bench itself. */
   readonly serverConnections: number;
   readonly serverResidentMb: number;
