@@ -88,5 +88,6 @@ for (let index = me; index < plan.times.length; index += kase.processes) {
 // The grace: stop early when each write has its reply or its failure.
 while (now() < end && completions.filter((entry) => entry.done === null).length > failures) await new Promise((resolve) => setTimeout(resolve, 100));
 
-console.log(JSON.stringify({ completions, failures, writeConflicts }));
-process.exit(0);
+// A write to a pipe can still be in progress when the process ends, so the exit waits for its callback. The line of a high rate is long.
+process.stdout.write(`${JSON.stringify({ completions, failures, writeConflicts })}
+`, () => process.exit(0));
