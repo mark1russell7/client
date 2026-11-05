@@ -58,7 +58,7 @@ import {
 } from "./schemas.js";
 import { DEFAULT_FIND_LIMIT, queryEntries, type StorageQueryOptions, type StorageQueryPolicy } from "./query.js";
 import type { CollectionStorage, StorageBatchWriteOptions, StorageItemWriteOptions, StorageWriteOptions } from "./storage.js";
-import { collectionChangeTopic, startChangeChain, writeWithChangeEvent } from "./changes.js";
+import { collectionChangeTopic, rereadWhileHeld, startChangeChain, writeWithChangeEvent } from "./changes.js";
 import { partitionOfCall, storageOfCall, withPartition, type PartitionInput } from "./partition.js";
 import { admitsRow, admittedStorage, checkAdmission, type CollectionAdmission } from "./admission.js";
 import { patchItem } from "./patch-in-parts.js";
@@ -339,7 +339,12 @@ export function createCollectionProcedures(collectionName: string, options: Coll
           const changes = await view.getChangesSince(input.since);
           // The chain of the change events starts at this version: the caller then applies the
           // next event without a read (roadmap CLI-15)
-          if (topicRule) startChangeChain(ctx.bus, storage, topicOf(ctx, partition), changes.version);
+          if (topicRule) {
+            const topic = topicOf(ctx, partition);
+            startChangeChain(ctx.bus, storage, topic, changes.version);
+            // A write in flight holds this read back, so the chain reads again until the write ends (roadmap CLI-102)
+            if (changes.held) rereadWhileHeld(ctx.bus, storage, topic, withValues, admission);
+          }
           return {
             version: changes.version,
             full: changes.full,

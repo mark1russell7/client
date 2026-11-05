@@ -33,7 +33,7 @@ import { GRACE_MS, LOAD_MS, SETS_PER_SECOND, plannedSets, writersOf, type LiveAr
 /** The name of the collection and of the live topic. */
 const NAME = "bench_presence";
 
-/** The filler of a value, so a value has about 200 bytes, as a value with a cursor and a name has. */
+/** The filler of a value, so a value has approximately 200 bytes, as a value with a cursor and a name has. */
 const FILLER = "x".repeat(140);
 
 interface BenchValue {
@@ -46,8 +46,8 @@ interface BenchValue {
 
 const { values } = parseArgs({ options: { arm: { type: "string" }, case: { type: "string" }, job: { type: "string" }, counts: { type: "string" } } });
 const { arm, case: caseName, job, counts } = values;
-if ((arm !== "store" && arm !== "live") || caseName === undefined || job === undefined || counts === undefined) {
-  throw new RangeError("this child needs --arm store|live, --case, --job and --counts");
+if ((arm !== "store" && arm !== "live" && arm !== "storequiet") || caseName === undefined || job === undefined || counts === undefined) {
+  throw new RangeError("this child needs --arm store|live|storequiet, --case, --job and --counts");
 }
 const url = process.env["MONGO_TEST_URL"];
 if (url === undefined) throw new RangeError("this child needs MONGO_TEST_URL");
@@ -159,12 +159,14 @@ if (arm === "live") {
     } while (again);
     reading = false;
   };
-  const subscription = reader.subscribe<unknown>([collectionChangeTopic(NAME)], () => {
-    readerEvents += 1;
-    void read();
-  }, { onError: failed });
-  await subscription.ready;
-  stopReader = () => subscription();
+  if (arm === "store") {
+    const subscription = reader.subscribe<unknown>([collectionChangeTopic(NAME)], () => {
+      readerEvents += 1;
+      void read();
+    }, { onError: failed });
+    await subscription.ready;
+    stopReader = () => subscription();
+  }
 }
 
 const clients = Array.from({ length: writers }, connect);

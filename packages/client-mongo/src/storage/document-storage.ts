@@ -68,6 +68,12 @@
  *   its lease moves its documents to new numbers, so a reader that passed the old numbers gets
  *   it. One case stays on a single server: a process that stops between such a late write and the
  *   move of its documents. Then a reader that passed the old numbers does not get that change.
+ * - A reader can get a write two times, with the same value or a later value. A full answer takes
+ *   its mark before it lists the items, so it can hold a write above its mark, and the next delta
+ *   gives the write again. A reader can also read a late write at its old numbers, and then the move
+ *   gives the write new numbers and a new version. The second case occurs only for a write that ends
+ *   after `writeLease`.
+ * - A version that stops below a pending number has `held`, so a reader knows to read again.
  * - The storage uses a transaction only with a client: the option `client`, or the default
  *   connection when `db` is absent. With `db` and no `client`, each write uses the watermark, also
  *   on a replica set.
@@ -1109,7 +1115,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
    * The watermark of the collection: the highest number below each pending number of a write whose
    * lease has not ended, and the epoch. Each number up to it is written or abandoned.
    */
-  private async watermark(db: Db): Promise<Counter> {
+  private async watermark(db: Db): Promise<Counter & { readonly held: boolean }> {
     const counters = db.collection<CounterDoc>(this.countersName);
     await counters.updateOne({ _id: this.collectionName }, { $setOnInsert: { seq: 0, epoch: randomUUID() } }, { upsert: true });
     const [mark] = await counters
@@ -1135,7 +1141,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
       .toArray();
     if (!mark) throw new Error(`The sequence of ${this.collectionName} is not available`);
     const seq = typeof mark.low === "number" ? Math.min(mark.seq, mark.low - 1) : mark.seq;
-    return { seq, epoch: mark.epoch };
+    return { seq, epoch: mark.epoch, held: seq < mark.seq };
   }
 
   /** The id of the document of the oldest kept change of the partition. */
@@ -1324,11 +1330,13 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     return enqueue(db, this.collectionName, async () => {
       const counter = await this.watermark(db);
       const version = `${counter.epoch}.${counter.seq}`;
+      const held = counter.held ? { held: true } : {};
       const full = async (): Promise<StorageChanges<T>> => ({
         version,
         full: true,
         changed: this.decodeAll(await items.find(this.liveFilter()).sort({ [ORD]: 1, _id: 1 }).toArray()),
         deleted: [],
+        ...held,
       });
       const match = since === undefined ? null : /^([^.]+)\.(\d+)$/.exec(since);
       if (!match || match[1] !== counter.epoch) return full();
@@ -1349,7 +1357,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
         if (doc[TOMB] === true) deleted.push(id);
         else changed.push(this.decode(doc, id)!);
       }
-      return { version, full: false, changed, deleted };
+      return { version, full: false, changed, deleted, ...held };
     });
   }
 

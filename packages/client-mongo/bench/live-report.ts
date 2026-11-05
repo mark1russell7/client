@@ -21,10 +21,11 @@ const rows = readdirSync(folder)
   .map((line) => JSON.parse(line) as LiveCount);
 
 const round = (value: number, digits = 2): number => Number(value.toFixed(digits));
-const summary = (own: readonly LiveCount[], pick: (row: LiveCount) => number): { median: number; worst: number } => ({
-  median: round(median(own.map(pick))),
-  worst: round(Math.max(...own.map(pick))),
-});
+/** This function gives the median and the worst of a value. An arm with no reader has no reader times, and its JSON records hold null for them. */
+const summary = (own: readonly LiveCount[], pick: (row: LiveCount) => number | null): { median: number; worst: number } | null => {
+  const found = own.map(pick).filter((value): value is number => value !== null);
+  return found.length === 0 ? null : { median: round(median(found)), worst: round(Math.max(...found)) };
+};
 
 const cases = LIVE_CASES.map((name) => ({
   case: name,
