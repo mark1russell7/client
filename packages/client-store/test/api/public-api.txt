@@ -1,10 +1,10 @@
 # The public API of @procedures/store
 #
 # The names of each entry of the exports field, and the declaration of each name, without comments
-# and private members. The script scripts/api-report.ts compares this file with the built .d.ts files.
-# To accept a change of the API, start the script with --update and review the diff.
+# and private members. The command `api-report check` compares this file with the built .d.ts files.
+# To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 112 names
+## . (dist/index.d.ts): 114 names
 
 ApiStorage: dist/storage/api.d.ts#ApiStorage
 type ApiStorageOptions: dist/storage/api.d.ts#ApiStorageOptions
@@ -14,6 +14,7 @@ ConflictError: dist/storage/hybrid.d.ts#ConflictError
 type ConflictResolution: dist/storage/types.d.ts#ConflictResolution
 type CreateSyncedRegistryConfig: dist/storage/factory.d.ts#CreateSyncedRegistryConfig
 type DeserializeOptions: dist/storage/serialization.d.ts#DeserializeOptions
+type DroppedWrite: dist/storage/hybrid.d.ts#DroppedWrite
 type EventSubscriber: dist/storage/feed.d.ts#EventSubscriber
 EventsChangeFeed: dist/storage/feed.d.ts#EventsChangeFeed
 type EventsChangeFeedOptions: dist/storage/feed.d.ts#EventsChangeFeedOptions
@@ -49,6 +50,7 @@ type QueueRefusal: dist/storage/hybrid.d.ts#QueueRefusal
 type QueueStore: dist/storage/queue.d.ts#QueueStore
 QueueStoreError: dist/storage/hybrid.d.ts#QueueStoreError
 type QueuedOperation: dist/storage/queue.d.ts#QueuedOperation
+ReadOnlyError: dist/storage/hybrid.d.ts#ReadOnlyError
 type RemoteApplyCause: dist/storage/hybrid.d.ts#RemoteApplyCause
 type RemoteApplyContext: dist/storage/hybrid.d.ts#RemoteApplyContext
 type RemoteApplyHook: dist/storage/hybrid.d.ts#RemoteApplyHook
@@ -161,7 +163,7 @@ type SyncStateChange: dist/storage/sync-state.d.ts#SyncStateChange
 type SyncStateStore: dist/storage/sync-state.d.ts#SyncStateStore
 hasIndexedDb: dist/indexeddb/idb.d.ts#hasIndexedDb
 
-## ./browser (dist/browser.d.ts): 62 names
+## ./browser (dist/browser.d.ts): 63 names
 
 ApiStorage: dist/storage/api.d.ts#ApiStorage
 type ApiStorageOptions: dist/storage/api.d.ts#ApiStorageOptions
@@ -196,6 +198,7 @@ type QueueRefusal: dist/storage/hybrid.d.ts#QueueRefusal
 type QueueStore: dist/storage/queue.d.ts#QueueStore
 QueueStoreError: dist/storage/hybrid.d.ts#QueueStoreError
 type QueuedOperation: dist/storage/queue.d.ts#QueuedOperation
+ReadOnlyError: dist/storage/hybrid.d.ts#ReadOnlyError
 type RemoteApplyCause: dist/storage/hybrid.d.ts#RemoteApplyCause
 type RemoteApplyContext: dist/storage/hybrid.d.ts#RemoteApplyContext
 type RemoteApplyHook: dist/storage/hybrid.d.ts#RemoteApplyHook
@@ -675,8 +678,18 @@ export declare class ConflictError extends Error {
     constructor(ids: string[]);
 }
 
+### dist/storage/hybrid.d.ts#DroppedWrite
+export interface DroppedWrite {
+    id: string;
+    value: unknown;
+    reason: "conflict" | "remote-delete" | "refused";
+    during: "pull" | "push";
+    remote?: unknown;
+    error?: unknown;
+}
+
 ### dist/storage/hybrid.d.ts#HybridMode
-export type HybridMode = "local-only" | "write-through" | "write-back" | "remote-only";
+export type HybridMode = "local-only" | "write-through" | "write-back" | "remote-only" | "read-only";
 
 ### dist/storage/hybrid.d.ts#HybridStorage
 export declare class HybridStorage<T> implements CollectionStorage<T> {
@@ -729,6 +742,7 @@ export interface HybridStorageOptions {
     isUnavailable?: (error: unknown) => boolean;
     isRefusal?: (error: unknown) => boolean;
     onRefused?: (refusal: QueueRefusal) => void | Promise<void>;
+    onDropped?: (drop: DroppedWrite) => void | Promise<void>;
     local?: LocalCopyStorage<any>;
     capture?: "none" | "observe";
     origin?: string;
@@ -797,6 +811,14 @@ export declare class QueueStoreError extends Error {
     readonly name = "QueueStoreError";
     readonly code = "QUEUE_STORE";
     constructor(action: "load" | "write", cause: unknown);
+}
+
+### dist/storage/hybrid.d.ts#ReadOnlyError
+export declare class ReadOnlyError extends Error {
+    readonly operation: string;
+    readonly name = "ReadOnlyError";
+    readonly code = "READ_ONLY";
+    constructor(operation: string);
 }
 
 ### dist/storage/hybrid.d.ts#RemoteApplyCause
@@ -1139,7 +1161,7 @@ export interface SyncStatus {
     lastSync?: number | undefined;
     pendingChanges: number;
     syncing: boolean;
-    mode?: "local-only" | "write-through" | "write-back" | "remote-only" | undefined;
+    mode?: "local-only" | "write-through" | "write-back" | "remote-only" | "read-only" | undefined;
     error?: SyncError | undefined;
 }
 

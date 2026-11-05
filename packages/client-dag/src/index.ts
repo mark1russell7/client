@@ -46,7 +46,7 @@ export type {
   NodeResult,
   DAGResult,
   NodeProcessor,
-} from "./types.js";
+} from "@mark1russell7/collections/dag";
 
 // DAG utilities
 export {
@@ -61,10 +61,10 @@ export {
   getDescendants,
   createNode,
   buildNodeMap,
-} from "./dag/index.js";
+} from "@mark1russell7/collections/dag";
 
 // Pure graph functions. The entry "@procedures/dag/graph" gives them without @procedures/client and zod.
-export { hubBreadthFirstOrder, type WeightedEdge } from "./graph/index.js";
+export { hubBreadthFirstOrder, type WeightedEdge } from "@mark1russell7/collections/graph";
 
 // The procedure dag.traverse. The root registers nothing: import "@procedures/dag/register", or
 // give the module to createRegistry() with the module of @procedures/lib.

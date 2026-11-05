@@ -1,50 +1,50 @@
 # The public API of @procedures/dag
 #
 # The names of each entry of the exports field, and the declaration of each name, without comments
-# and private members. The script scripts/api-report.ts compares this file with the built .d.ts files.
-# To accept a change of the API, start the script with --update and review the diff.
+# and private members. The command `api-report check` compares this file with the built .d.ts files.
+# To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
 ## . (dist/index.d.ts): 34 names
 
-type DAGExecutionOptions: dist/types.d.ts#DAGExecutionOptions
-type DAGNode: dist/types.d.ts#DAGNode
-type DAGResult: dist/types.d.ts#DAGResult
+type DAGExecutionOptions: @mark1russell7/collections/dag#DAGExecutionOptions (external)
+type DAGNode: @mark1russell7/collections/dag#DAGNode (external)
+type DAGResult: @mark1russell7/collections/dag#DAGResult (external)
 type DagTraverseInput: dist/procedures/types.d.ts#DagTraverseInput
 DagTraverseInputSchema: dist/procedures/types.d.ts#DagTraverseInputSchema
 type DagTraverseOutput: dist/procedures/types.d.ts#DagTraverseOutput
 DagTraverseOutputSchema: dist/procedures/types.d.ts#DagTraverseOutputSchema
-type DependencyDAG: dist/types.d.ts#DependencyDAG
-type NodeProcessor: dist/types.d.ts#NodeProcessor
-type NodeResult: dist/types.d.ts#NodeResult
+type DependencyDAG: @mark1russell7/collections/dag#DependencyDAG (external)
+type NodeProcessor: @mark1russell7/collections/dag#NodeProcessor (external)
+type NodeResult: @mark1russell7/collections/dag#NodeResult (external)
 type PackageNode: dist/procedures/types.d.ts#PackageNode
 type ScanOutput: dist/procedures/types.d.ts#ScanOutput
 type ScannedPackage: dist/procedures/types.d.ts#ScannedPackage
 type TraverseNodeResult: dist/procedures/types.d.ts#TraverseNodeResult
-type WeightedEdge: dist/graph/hub-order.d.ts#WeightedEdge
-buildLeveledDAG: dist/dag/traversal.d.ts#buildLeveledDAG
-buildNodeMap: dist/dag/builder.d.ts#buildNodeMap
+type WeightedEdge: @mark1russell7/collections/graph#WeightedEdge (external)
+buildLeveledDAG: @mark1russell7/collections/dag#buildLeveledDAG (external)
+buildNodeMap: @mark1russell7/collections/dag#buildNodeMap (external)
 callsGit: dist/procedures/traverse.d.ts#callsGit
-createNode: dist/dag/builder.d.ts#createNode
-createProcessor: dist/dag/executor.d.ts#createProcessor
+createNode: @mark1russell7/collections/dag#createNode (external)
+createProcessor: @mark1russell7/collections/dag#createProcessor (external)
 dagModule: dist/module.d.ts#dagModule
 dagTraverse: dist/procedures/traverse.d.ts#dagTraverse
-executeDAG: dist/dag/executor.d.ts#executeDAG
-executeDAGSequential: dist/dag/executor.d.ts#executeDAGSequential
-filterDAGFromRoot: dist/dag/builder.d.ts#filterDAGFromRoot
-getAncestors: dist/dag/builder.d.ts#getAncestors
-getDescendants: dist/dag/builder.d.ts#getDescendants
-getTopologicalOrder: dist/dag/traversal.d.ts#getTopologicalOrder
-hubBreadthFirstOrder: dist/graph/hub-order.d.ts#hubBreadthFirstOrder
+executeDAG: @mark1russell7/collections/dag#executeDAG (external)
+executeDAGSequential: @mark1russell7/collections/dag#executeDAGSequential (external)
+filterDAGFromRoot: @mark1russell7/collections/dag#filterDAGFromRoot (external)
+getAncestors: @mark1russell7/collections/dag#getAncestors (external)
+getDescendants: @mark1russell7/collections/dag#getDescendants (external)
+getTopologicalOrder: @mark1russell7/collections/dag#getTopologicalOrder (external)
+hubBreadthFirstOrder: @mark1russell7/collections/graph#hubBreadthFirstOrder (external)
 keyedLock: dist/procedures/traverse.d.ts#keyedLock
 packageNodes: dist/procedures/traverse.d.ts#packageNodes
 registerDagProcedures: dist/module.d.ts#registerDagProcedures
 repositoryRoot: dist/procedures/traverse.d.ts#repositoryRoot
-visualizeDAG: dist/dag/traversal.d.ts#visualizeDAG
+visualizeDAG: @mark1russell7/collections/dag#visualizeDAG (external)
 
 ## ./graph (dist/graph/index.d.ts): 2 names
 
-type WeightedEdge: dist/graph/hub-order.d.ts#WeightedEdge
-hubBreadthFirstOrder: dist/graph/hub-order.d.ts#hubBreadthFirstOrder
+type WeightedEdge: @mark1russell7/collections/graph#WeightedEdge (external)
+hubBreadthFirstOrder: @mark1russell7/collections/graph#hubBreadthFirstOrder (external)
 
 ## ./module (dist/module.d.ts): 3 names
 
@@ -58,49 +58,6 @@ dagModule: dist/module.d.ts#dagModule
 registerDagProcedures: dist/module.d.ts#registerDagProcedures
 
 ## Declarations
-
-### dist/dag/builder.d.ts#buildNodeMap
-export declare function buildNodeMap<TNode extends DAGNode>(nodes: TNode[]): Map<string, TNode>;
-
-### dist/dag/builder.d.ts#createNode
-export declare function createNode<TData = unknown>(id: string, dependencies?: string[], data?: TData | undefined): DAGNode<TData>;
-
-### dist/dag/builder.d.ts#filterDAGFromRoot
-export declare function filterDAGFromRoot<TNode extends DAGNode>(nodes: Map<string, TNode>, rootId: string): Map<string, TNode>;
-
-### dist/dag/builder.d.ts#getAncestors
-export declare function getAncestors<TNode extends DAGNode>(nodes: Map<string, TNode>, id: string): Set<string>;
-
-### dist/dag/builder.d.ts#getDescendants
-export declare function getDescendants<TNode extends DAGNode>(nodes: Map<string, TNode>, id: string): Set<string>;
-
-### dist/dag/executor.d.ts#createProcessor
-export declare function createProcessor<TNode extends DAGNode>(fn: (node: TNode) => Promise<void>): (node: TNode) => Promise<NodeResult<TNode>>;
-
-### dist/dag/executor.d.ts#executeDAG
-export declare function executeDAG<TNode extends DAGNode>(dag: DependencyDAG<TNode>, processor: (node: TNode) => Promise<NodeResult<TNode>>, options?: DAGExecutionOptions<TNode>): Promise<DAGResult<TNode>>;
-
-### dist/dag/executor.d.ts#executeDAGSequential
-export declare function executeDAGSequential<TNode extends DAGNode>(dag: DependencyDAG<TNode>, processor: (node: TNode) => Promise<NodeResult<TNode>>, options?: Omit<DAGExecutionOptions<TNode>, "concurrency">): Promise<DAGResult<TNode>>;
-
-### dist/dag/traversal.d.ts#buildLeveledDAG
-export declare function buildLeveledDAG<TNode extends DAGNode>(nodes: Map<string, TNode>): DependencyDAG<TNode>;
-
-### dist/dag/traversal.d.ts#getTopologicalOrder
-export declare function getTopologicalOrder<TNode extends DAGNode>(dag: DependencyDAG<TNode>): TNode[];
-
-### dist/dag/traversal.d.ts#visualizeDAG
-export declare function visualizeDAG<TNode extends DAGNode>(dag: DependencyDAG<TNode>): string;
-
-### dist/graph/hub-order.d.ts#WeightedEdge
-export interface WeightedEdge {
-    readonly a: number;
-    readonly b: number;
-    readonly weight?: number | undefined;
-}
-
-### dist/graph/hub-order.d.ts#hubBreadthFirstOrder
-export declare function hubBreadthFirstOrder(n: number, edges?: readonly WeightedEdge[], compare?: (i: number, j: number) => number): number[];
 
 ### dist/module.d.ts#dagModule
 export declare const dagModule: ProcedureModule;
@@ -183,49 +140,4 @@ export interface TraverseNodeResult {
     output?: unknown | undefined;
     skipped?: boolean | undefined;
     reason?: string | undefined;
-}
-
-### dist/types.d.ts#DAGExecutionOptions
-export interface DAGExecutionOptions<TNode extends DAGNode = DAGNode> {
-    concurrency?: number;
-    failFast?: boolean;
-    onNodeStart?: (node: TNode) => void;
-    onNodeComplete?: (result: NodeResult<TNode>) => void;
-}
-
-### dist/types.d.ts#DAGNode
-export interface DAGNode<TData = unknown> {
-    id: string;
-    dependencies: string[];
-    level?: number;
-    data?: TData | undefined;
-}
-
-### dist/types.d.ts#DAGResult
-export interface DAGResult<TNode extends DAGNode = DAGNode> {
-    success: boolean;
-    results: Map<string, NodeResult<TNode>>;
-    failedNodes: string[];
-    totalDuration: number;
-}
-
-### dist/types.d.ts#DependencyDAG
-export interface DependencyDAG<TNode extends DAGNode = DAGNode> {
-    nodes: Map<string, TNode>;
-    levels: TNode[][];
-    roots: string[];
-    leaves: string[];
-}
-
-### dist/types.d.ts#NodeProcessor
-export type NodeProcessor<TNode extends DAGNode = DAGNode> = (node: TNode) => Promise<NodeResult<TNode>>;
-
-### dist/types.d.ts#NodeResult
-export interface NodeResult<TNode extends DAGNode = DAGNode> {
-    node: TNode;
-    success: boolean;
-    error?: Error | undefined;
-    duration: number;
-    logs: string[];
-    output?: unknown | undefined;
 }

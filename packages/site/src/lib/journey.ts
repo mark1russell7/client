@@ -264,13 +264,21 @@ function httpRequest(path: string[], payload: unknown): string {
  * gives it to the real `ProcedureServer`, and encodes each item of the answer.
  */
 class WireTransport implements Transport {
+  private readonly host: "http" | "websocket";
+  private readonly server: ProcedureServer;
+  private readonly record: Record_;
+
   readonly name = "wire";
 
   constructor(
-    private readonly host: "http" | "websocket",
-    private readonly server: ProcedureServer,
-    private readonly record: Record_,
-  ) {}
+    host: "http" | "websocket",
+    server: ProcedureServer,
+    record: Record_,
+  ) {
+    this.host = host;
+    this.server = server;
+    this.record = record;
+  }
 
   async *send<TReq, TRes>(message: Message<TReq>): AsyncIterable<ResponseItem<TRes>> {
     const id = `${message.id}~${++wireId}`;
@@ -341,12 +349,18 @@ class WireTransport implements Transport {
 
 /** A probe around LocalTransport (the in-process host). */
 class LocalProbe implements Transport {
+  private readonly inner: LocalTransport;
+  private readonly record: Record_;
+
   readonly name = "local-probe";
 
   constructor(
-    private readonly inner: LocalTransport,
-    private readonly record: Record_,
-  ) {}
+    inner: LocalTransport,
+    record: Record_,
+  ) {
+    this.inner = inner;
+    this.record = record;
+  }
 
   async *send<TReq, TRes>(message: Message<TReq>): AsyncIterable<ResponseItem<TRes>> {
     this.record({

@@ -25,7 +25,7 @@ Verified by grepping `.path([...])` registrations in every client-* package's `s
 12. **HIGH** — L342 bundle-dev "Includes everything: fs, git, shell, pnpm, docker, mongo, sqlite, lib, etc." — **false**. `bundle-dev/src/register.ts` imports only shell, fs, cli, pnpm, lib, git, dag, procedure. No docker/mongo/sqlite/s3/vitest/test/snapshot.
 13. **HIGH** — L119 `mark procedure new pkg fs.x` — wrong signature. `procedure.new` takes one positional `name` (regex `^[a-z][a-z0-9]*(\.[a-z]...)*$`) plus `--path` for the project dir; a package positional is rejected.
 14. **MED** — Procedure counts wrong: L134 client-fs 15→11, L146 client-git 14→26, L172 client-pnpm 8→6, L185 client-docker 12→10, L224 client-s3 7→8, L237 client-lib 8→10(+16 agg), L263 client-procedure 9→4, L325 client-snapshot 4→5.
-15. **MED** — L568-581 stats: "Total 47" vs 48 in manifest; "Other 5" never itemized. Ten manifest packages have **no entry anywhere in the file**: client-logger, client-collections, client-node, client-vite, client-server-mongo, server-mongo, minimongo, client-playground, scaffold, documentation.
+15. **MED** — L568-581 stats: "Total 47" vs 48 in manifest; "Other 5" never itemized. Ten manifest packages have **no entry anywhere in the file**: client-logger, client-collections, client-node, client-vite, client-server-mongo, server-mongo, the explorer app, client-playground, scaffold, documentation.
 16. **LOW** — L64 `cue-config add typescript vitest` — no `typescript` feature; valid features are `git,npm,ts,react,node,node-cjs,vite,vite-react,cue,vitest` (cue/features.json). Should be `ts`.
 
 ### README.md
@@ -60,7 +60,7 @@ Verified by grepping `.path([...])` registrations in every client-* package's `s
 33. **LOW** — L6/L19 "47" packages / "47/47 READMEs" — 48 packages, all 48 have READMEs. Tier assessments are subjective and were not falsified.
 
 ### IDEAS.md
-34. **LOW** — Stale backlog: several items are now built but not checked off — "Procedures in Database" (procedure.store/load/sync/remote exist in client core), "MiniMongo client-server bridge" (server-mongo + client-server-mongo now exist), `lib pull` exists. Section 7's "ACTION" items are unverifiable as done/not-done.
+34. **LOW** — Stale backlog: several items are now built but not checked off — "Procedures in Database" (procedure.store/load/sync/remote exist in client core), "explorer app client-server bridge" (server-mongo + client-server-mongo now exist), `lib pull` exists. Section 7's "ACTION" items are unverifiable as done/not-done.
 
 ## Repo health table
 
@@ -83,7 +83,7 @@ Sweep: `git status --porcelain` count, commits ahead of upstream, dist mtime vs 
 | logger | 0 | 0 | fresh | 3 | yes |
 | splay | 0 | 0 | fresh | 5 | yes |
 | splay-react | 0 | 0 | fresh | 0 | yes |
-| MiniMongo | 0 | 0 | fresh | 0 | yes |
+| The explorer app | 0 | 0 | fresh | 0 | yes |
 | client-fs | 1 | 0 | **STALE** | 0 | yes |
 | client-git | 1 | 0 | fresh | 0 | yes |
 | client-connection | 1 | 0 | **STALE** | 0 | yes |
@@ -133,12 +133,12 @@ Key observations:
   `"@mark1russell7/client-mongo": "github:mark1russell7/client#main"` — the second (wrong) entry wins on parse, so `@mark1russell7/client-mongo` resolves to the **client** repo. Line 35 was almost certainly meant to be `"@mark1russell7/client": ...`. As-is, server-mongo installs the wrong package under client-mongo's name and lacks a direct `client` dep.
 - **Version field drift** (harmless but incoherent): `1.0.0` ×24, `0.0.0` ×14, `0.0.1` ×8 (the newer server/mcp generation), `0.1.0` ×2 (docker/*). splay is `0.0.0` while splay-react is `1.0.0`.
 - **Peer-dependency pattern inconsistency**: client-collections, mcp, client-mcp declare `"@mark1russell7/client": "*"` as a peerDependency (+ dev github ref), while every other client-* package puts client in `dependencies`. Two conventions coexist undocumented.
-- **Identity mismatches vs manifest**: manifest key `@mark1russell7/minimongo` but `MiniMongo/package.json` name is **`minimongo`** (unscoped); manifest key `@mark1russell7/documentation` but `documentation/package.json` name is **`"unnamed"`** (version 0.0.0 — its git history even says "Refreshed package unnamed"). Both break name-based resolution/tooling that trusts the manifest.
-- **Engines drift**: `node >=25 + npm >=11` (cue, splay, client-splay) vs `node >=20` (client, docker/*, MiniMongo, client-mongo, client-server, server-mongo) vs **no engines at all** (the other 38). No `packageManager` field anywhere, despite pnpm-lock.yaml files and docs prescribing pnpm >= 8.
+- **Identity mismatches vs manifest**: the manifest key of the explorer app has a scope, but the name in its `package.json` has no scope; manifest key `@mark1russell7/documentation` but `documentation/package.json` name is **`"unnamed"`** (version 0.0.0 — its git history even says "Refreshed package unnamed"). Both break name-based resolution/tooling that trusts the manifest.
+- **Engines drift**: `node >=25 + npm >=11` (cue, splay, client-splay) vs `node >=20` (client, docker/*, the explorer app, client-mongo, client-server, server-mongo) vs **no engines at all** (the other 38). No `packageManager` field anywhere, despite pnpm-lock.yaml files and docs prescribing pnpm >= 8.
 
 ## Config consistency
 
-- **tsconfig**: fully centralized via cue — every package is a one-line `extends`. Effective compiler options are identical everywhere (base.json: `strict: true` + max-strictness flags, `target: esnext`, module `nodenext` via esm.json, `composite: true`). The only cosmetic split: 22 packages extend `.../node.json` and 22 extend `.../ts.json` — semantically identical since `node.json` just re-extends `ts.json`. True outliers: splay-react and MiniMongo (react.json; MiniMongo disables declaration/composite), ecosystem (adds redundant `outDir`), cue (local relative path — necessarily).
+- **tsconfig**: fully centralized via cue — every package is a one-line `extends`. Effective compiler options are identical everywhere (base.json: `strict: true` + max-strictness flags, `target: esnext`, module `nodenext` via esm.json, `composite: true`). The only cosmetic split: 22 packages extend `.../node.json` and 22 extend `.../ts.json` — semantically identical since `node.json` just re-extends `ts.json`. True outliers: splay-react and the explorer app (react.json; the explorer app disables declaration/composite), ecosystem (adds redundant `outDir`), cue (local relative path — necessarily).
 - **dependencies.json** (cue feature manifests): present and schema-referenced in all 48 (ecosystem lacks the `$schema` key; cue self-references a local path). But they've drifted from reality in both directions:
   - **cli** declares feature `node-cjs`, yet its tsconfig extends `node.json` (ESM) and package.json is `type: module` — the declared feature no longer matches generated config.
   - The **17 packages declaring the `vitest` feature have no vitest devDependency, no test script, and no tests**, while the 5 packages that actually run vitest (client, logger, splay, client-dag, client-lib) do **not** declare the feature and hand-maintain vitest ^3/^4 devDeps. The feature system and reality are inverted.
@@ -153,8 +153,8 @@ Key observations:
 4. **Correct the bundle-dev story everywhere** (README.md L89/L149/L211-216, ARCHITECTURE.md L57-62/L100-102/L563-586, PACKAGES.md L342): either update docs to say bundle-dev = shell/fs/cli/pnpm/lib/git/dag/procedure, or actually add docker/mongo/etc. to bundle-dev if that was the intent.
 5. **Fix the `procedure new` signature in ONBOARDING.md (L271, L295, L438) and PACKAGES.md (L119)** — currently teaches a command that errors. Align with CLAUDE.md's correct one-positional form.
 6. **Reconcile Node engine policy**: pick >=20 or >=25, apply via cue to all 48 `engines` fields, and update README badges, ONBOARDING prerequisites, and ecosystem/README. Add a `packageManager` field while at it.
-7. **Fix package identities**: `documentation` name `"unnamed"` → `@mark1russell7/documentation`; decide `minimongo` vs `@mark1russell7/minimongo` and align manifest or package.json. Make ecosystem installable (track dist or add `prepare`) or drop its npm-install instructions from its README.
-8. **Refresh PACKAGES.md**: add the 10 missing packages (client-logger, client-collections, client-node, client-vite, client-server-mongo, server-mongo, minimongo, client-playground, scaffold, documentation), fix counts, fix the 47→48 stats table.
+7. **Fix package identities**: `documentation` name `"unnamed"` → `@mark1russell7/documentation`; decide the scope of the explorer app and align manifest or package.json. Make ecosystem installable (track dist or add `prepare`) or drop its npm-install instructions from its README.
+8. **Refresh PACKAGES.md**: add the 10 missing packages (client-logger, client-collections, client-node, client-vite, client-server-mongo, server-mongo, the explorer app, client-playground, scaffold, documentation), fix counts, fix the 47→48 stats table.
 9. **Update SYSTEM_ARCHITECTURE.md Appendix A** (+11 packages, entire MCP layer) and Appendix E (presets now `[ts|react|vite-react, cue, vitest]`), or mark the doc as a dated snapshot.
 10. **Re-sync dependencies.json with reality** (the vitest-feature inversion, cli's node-cjs): either make `cue-config generate` enforce features → package.json, or run it across the fleet and commit. Then fix CLAUDE.md L72 (`client-dev` → `bundle-dev`; client-git isn't a bundle).
 11. **Test coverage breadth**: 42/48 packages have zero tests — client-shell (the foundation of every CLI wrapper), client-fs, client-git, and the mcp/server packages are the riskiest gaps given everything routes through them.

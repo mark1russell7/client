@@ -41,6 +41,7 @@ export {
   HybridStorage,
   PendingWriteError,
   QueueFullError,
+  ReadOnlyError,
   MissingKeysError,
   QueueStoreError,
   ConflictError,
@@ -49,6 +50,7 @@ export {
   RemoteApplyHookError,
 } from "./hybrid.js";
 export type {
+  DroppedWrite,
   HybridStorageOptions,
   HybridMode,
   LocalCopyStorage,

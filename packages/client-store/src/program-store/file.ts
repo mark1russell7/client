@@ -71,12 +71,16 @@ export async function retryOnContention<T>(operation: () => Promise<T>): Promise
 }
 
 export class FileProgramStore implements ProgramStore {
+  readonly path: string;
+
   readonly kind = "file";
   /** The writes of this process, one at a time (the lock file orders the processes). */
   private queue: Promise<unknown> = Promise.resolve();
 
   /** @param path - The JSON file. The store makes it, and its folder, at the first write. */
-  constructor(readonly path: string) {}
+  constructor(path: string) {
+    this.path = path;
+  }
 
   async get(key: string): Promise<StoredProgram | undefined> {
     return (await this.read()).programs[key];

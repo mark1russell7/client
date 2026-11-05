@@ -1,5 +1,47 @@
 # @procedures/json
 
+## 0.48.1
+
+### Patch Changes
+
+- Updated dependencies [2d7edae]
+  - @procedures/client@0.48.1
+  - @procedures/compiler@0.48.1
+
+## 0.48.0
+
+### Patch Changes
+
+- 17a18ec: The source now uses only syntax that a type stripper erases, so the setting `erasableSyntaxOnly` of `@mark1russell7/cue` 2.1.1 stays on. Each enum is now a constant object with a type of the same name. Each parameter property is now a field and an assignment in the constructor.
+  
+  **Breaking.** MINOR before 1.0.0: `ErrorCategory`, `ErrorSeverity` and `WebSocketState` are now constant objects. Their names and values stay the same, and each member stays usable as a type. A member is no longer a constant expression: `enum E { A = ErrorSeverity.WARNING }` gives TS18033, and a `const enum` gives TS2474. Also, a string with the value of a member now fits the type of the set.
+  
+  **Migration.** In an enum initializer, write the value in place of the member, for example `"warning"`, or use a constant object. Other uses need no change. The site and the known apps need no change.
+- Updated dependencies [17a18ec]
+- Updated dependencies [06088f9]
+- Updated dependencies [71f9c6e]
+- Updated dependencies [c839add]
+  - @procedures/client@0.48.0
+  - @procedures/compiler@0.48.0
+
+## 0.47.2
+
+### Patch Changes
+
+- Updated dependencies [0650616]
+- Updated dependencies [ae1e3fd]
+- Updated dependencies [f1ece74]
+  - @procedures/client@0.47.2
+  - @procedures/compiler@0.47.2
+
+## 0.47.1
+
+### Patch Changes
+
+- Updated dependencies [f845c6d]
+  - @procedures/client@0.47.1
+  - @procedures/compiler@0.47.1
+
 ## 0.47.0
 
 ### Patch Changes
@@ -155,7 +197,7 @@
   
   Migration:
   
-  - The site, MiniMongo, Graph and jarvis: no change at this time. The deprecated names work until the next MINOR.
+  - Apps: no change at this time. The deprecated names work until the next MINOR.
   - Before the next MINOR, replace `zodAdapter<T>(schema)` with `schema`. To keep the check of a schema against a type, write `const schema: z.ZodType<T> = ...`.
   - Before the next MINOR, replace `typedAnySchema<T>()` and `outputSchema<T>()` with `typed<T>()`.
   - A parse-only object (`{ parse }`) in `zodAdapter` becomes a Standard Schema with a `~standard` property.

@@ -156,7 +156,7 @@ A subscriber that joins a call after its confirmation gets the same events as a 
 
 ### The order
 
-- The events of one subscription arrive in the order of `emit()` on the bus of the publisher. This order includes the events of each topic of the subscription.
+- The events of one subscription arrive in the order of `emit()` on the bus of the publisher. This order includes the events of each topic of the subscription. Refer to "The fan-out of a large channel" for the one exception.
 - Two subscriptions of one topic on one bus get the events in the same order.
 - There is no order between two buses, or between two connections.
 - `seq` increases by one for each event that the subscription accepts. A dropped event uses its number too.
@@ -174,6 +174,18 @@ A subscriber that joins a call after its confirmation gets the same events as a 
 - The queue of a subscription holds at most `buffer` events. The default is 1024.
 - When the queue is full, the publisher drops the oldest event of the queue. The next event that the subscriber gets has `dropped` with the number of events that it lost.
 - The memory of a subscription thus stays below `buffer` events plus the credit window. The publisher does not block, and a slow subscriber does not slow the others.
+
+### The fan-out of a large channel
+
+- Without the option `fanOut`, `emit()` calls each handler of the channel before it returns. Callers can rely on this.
+- With `createEventBus({ fanOut: { sliceSize: 256 } })`, a channel with more than `sliceSize` handlers delivers after `emit()` returns. Each task of the event loop calls at most `sliceSize` handlers.
+- A channel with `sliceSize` handlers or fewer stays synchronous, unless an earlier event of that channel still waits.
+- The handler of a subscription only puts the event in a queue. The frames start in the microtasks of the slice. The limit of a slice is thus a count of handlers, and a time check in the slice does not see that work.
+- One handler gets the events of a channel in the order of `emit()`. The events of two channels can arrive in another order. A subscription of two topics thus loses their order when one topic has slices.
+- An unsubscribe stops the calls that wait for that handler. A handler that comes after `emit()` does not get that event. `clear()` ends the waiting events of its channel.
+- An error goes to `onError`, and it stops no other handler.
+- The queue of the slices holds at most `fanOut.maxPending` events. The default is 1024. An `emit()` over this limit finishes the oldest event before it returns, so the bus loses no event.
+- `DefaultEventBus.drained()` resolves when no event waits. A host calls it before it stops.
 
 ## The resubscribe after a reconnect
 
@@ -553,6 +565,31 @@ server.publish("orders.created", { order: 1 }); // the same as bus.emit()
 - The bus of these hosts is the global bus. It is also the `ctx.bus` of their procedures, so a procedure of the host publishes with `ctx.bus.emit()`.
 - These hosts have no capability limits. A read-only host (`readOnly` of `hostPolicy()`) permits a subscription too, because `events.subscribe` writes nothing.
 - The MCP server serves no events. Its transport carries only MCP, and `events.subscribe` is not a tool.
+
+### Live state
+
+Live state keeps the latest value of each key of a topic, in memory, and publishes each change on the bus. It makes no store write and no numbered change. A host turns it on with the option `live` of `events`. The design is `LIVE-STATE-2026-11.md`.
+
+```ts
+import { ProcedureServer, createEventBus, liveTopic, seconds } from "@procedures/client";
+
+const server = new ProcedureServer({
+  registry,
+  autoRegister: true,
+  events: {
+    bus: createEventBus(),
+    topics: ["live.*"],
+    live: { expiresAfter: seconds(15), admitSet: ({ principal }) => (principal ? { by: principal.id } : null) },
+  },
+});
+```
+
+- `live.set` keeps a value. `live.snapshot` gives the live values. `live.leave` ends a key at once. `liveView(client, topic)` subscribes, reads the snapshot and keeps the values current.
+- `liveTopic(name, partition)` gives the topic. The topic rule of the host names it.
+- A key ends after `expiresAfter` with no set, at the close of the WebSocket connection of its last set, and at a call of `live.leave`.
+- `admitLeave` states who can end a key. Without this option, only the connection of the last set can end it.
+- The first change on an idle topic goes at once and opens a window. The changes in the window go as one event at its end.
+- The procedures follow the expose rule of the host. Only `events.subscribe` stays on without the rule.
 
 ## The tests
 

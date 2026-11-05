@@ -4,6 +4,8 @@
 
 A comprehensive, transport-agnostic collections framework for TypeScript. Provides unified abstractions for data structures with pluggable storage backends, enabling seamless switching between local and remote storage.
 
+The pure data structures and graphs are in the general package [`@mark1russell7/collections`](https://www.npmjs.com/package/@mark1russell7/collections), which has no runtime dependencies. This package re-exports them and adds storage, overlay and undo.
+
 ## Architecture Overview
 
 ```
@@ -287,6 +289,8 @@ await log.record({ collection: "notes", id: "n1", before, patch, after });
 await log.undo(); // one write to "notes", or an UndoConflictError
 ```
 
+The option `keepAfter` keeps the values after each change at the paths it touched (`afterValues`). A caller can then merge a later write with the undo: the base is `afterValues`, and the other side is `applyPatch(afterValues, inverse)`. An entry without `inverse` keeps the whole item.
+
 - The inverse of a removal of an element is an insertion of the element, and the inverse of an insertion is a removal. The undo does not keep the whole array.
 - The inverse uses the indices of the item after the patch. The function applies the inverse to check it.
 - When no patch can undo a change exactly, `inversePatch` gives `undefined`. Then the log keeps the whole item before the change. An example is the removal of two adjacent elements.
@@ -358,7 +362,7 @@ const user = await storage.get("user-1");
 These two storages need a `Client`, so they are in [`@procedures/store`](../client-store/README.md), not in this package.
 
 - `ApiStorage` sends each operation to the collection procedures of a server: `collections.<collection>.<operation>`. The server registers them with `createCollectionProcedures(collection)`.
-- `HybridStorage` keeps a local copy of a remote storage. It has four modes: `local-only`, `write-through`, `write-back` and `remote-only`. `setMode()` changes the mode while the storage operates.
+- `HybridStorage` keeps a local copy of a remote storage. It has five modes: `local-only`, `write-through`, `write-back`, `remote-only` and `read-only`. `setMode()` changes the mode while the storage operates.
 
 ```typescript
 import { ApiStorage, HybridStorage } from "@procedures/store";

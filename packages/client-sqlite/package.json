@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/sqlite",
-  "version": "0.47.0",
+  "version": "0.48.1",
   "description": "SQLite procedures with sql.js and no native build: queries, tables and schemas, transactions, migrations, backups and structured logs, safe for concurrent writes, and SqliteStorage, a durable collection storage with a change log on node:sqlite or sql.js.",
   "keywords": [
     "sqlite",
@@ -77,7 +77,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@mark1russell7/cue": "^1.1.0",
+    "@mark1russell7/cue": "^2.1.1",
     "@procedures/collections": "workspace:*",
     "@procedures/fs": "workspace:*",
     "@procedures/store": "workspace:*",

@@ -201,6 +201,13 @@ function ignore(): void {}
  * of the topic to `apply()`, one at a time, in the order of the bus.
  */
 export class RowHintFilter {
+  /** The rules of the collection from the registry of the call. */
+  private readonly lookup: () => CollectionAdmission | null | undefined;
+  /** The invocation of the topic (`collectionInvocation()`): the rules get it. */
+  readonly invocation: Invocation | undefined;
+  /** The partition of the topic: `admitsAll` gets it. */
+  private readonly partition: string | undefined;
+
   /** The rules from the registry: undefined when the registry does not know the collection. */
   private rules: CollectionAdmission | null | undefined;
   /** The result of `admitsAll` for one set of rules. */
@@ -213,13 +220,13 @@ export class RowHintFilter {
   private tail: Promise<unknown> = Promise.resolve();
 
   constructor(
-    /** The rules of the collection from the registry of the call. */
-    private readonly lookup: () => CollectionAdmission | null | undefined,
-    /** The invocation of the topic (`collectionInvocation()`): the rules get it. */
-    readonly invocation: Invocation | undefined,
-    /** The partition of the topic: `admitsAll` gets it. */
-    private readonly partition: string | undefined,
+    lookup: () => CollectionAdmission | null | undefined,
+    invocation: Invocation | undefined,
+    partition: string | undefined,
   ) {
+    this.lookup = lookup;
+    this.invocation = invocation;
+    this.partition = partition;
     this.rules = lookup();
   }
 

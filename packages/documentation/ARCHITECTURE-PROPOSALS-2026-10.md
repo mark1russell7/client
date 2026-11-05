@@ -123,12 +123,12 @@ The template's rule says all prose follows ASD-STE100, checked by `ste-lint`. At
 
 ## P7. Smaller decisions
 
-- **MiniMongo** installs the archived `client-legacy` and its archived `client-*` dependencies. To pick up the fixes:
+- **The explorer app** installs the archived `client-legacy` and its archived `client-*` dependencies. To pick up the fixes:
   - `link:` dependencies to `~/git/client/packages/*` for local development;
   - or publish the packages (GitHub Packages);
   - or keep the frozen versions.
   
-  Recommendation: `link:` while MiniMongo is local-only.
+  Recommendation: `link:` while the explorer app is local-only.
 - **`cue` generator** (M27, M28):
   - it still writes a per-package `pnpm.onlyBuiltDependencies`, which pnpm ignores in a workspace;
   - the `vitest` feature has no CUE file.

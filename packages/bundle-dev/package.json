@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/bundle-dev",
-  "version": "0.47.0",
+  "version": "0.48.1",
   "description": "One import that registers the development procedures of the client ecosystem: shell, file system, git, pnpm, workspace, DAG and procedure scaffolding.",
   "keywords": [
     "bundle",
@@ -81,7 +81,7 @@
     "@procedures/shell": "workspace:*"
   },
   "devDependencies": {
-    "@mark1russell7/cue": "^1.1.0",
+    "@mark1russell7/cue": "^2.1.1",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3"
   },

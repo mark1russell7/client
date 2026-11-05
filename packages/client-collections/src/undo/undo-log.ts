@@ -1,6 +1,6 @@
 import { applyPatch, type StoragePatch, type StoragePatchOperations } from "@procedures/client/query";
 import type { CollectionStorage } from "../storage/interface.js";
-import { inversePatch } from "./inverse.js";
+import { inversePatch, touchedValues } from "./inverse.js";
 
 /** One change of one item, as the caller gives it to `UndoLog.record`. */
 export interface UndoChange {
@@ -39,6 +39,12 @@ export interface UndoEntry {
   readonly item?: unknown;
   /** The fingerprint of the item after the change. The undo refuses an item that changed since. */
   readonly after: string;
+  /**
+   * The values after the change at the paths that the change touched, with the option `keepAfter`.
+   * A path through an array keeps the whole array. An entry without `inverse` keeps the whole item.
+   * `null`: the item does not exist after the change. A caller can merge a later write with this value.
+   */
+  readonly afterValues?: unknown;
   /** The group of the change. */
   readonly group?: string;
   /** The time of the change, in milliseconds. */
@@ -53,6 +59,8 @@ export interface UndoLogOptions {
   readonly cap?: number;
   /** The clock, in milliseconds. The default is `Date.now`. */
   readonly now?: () => number;
+  /** True keeps the values after each change at the paths it touched (`afterValues`). The default is false. */
+  readonly keepAfter?: boolean;
 }
 
 /**
@@ -110,7 +118,7 @@ function newestFirst(a: UndoEntry, b: UndoEntry): number {
 }
 
 /**
- * An undo log of the changes of items in collection storages (Graph's split, wave 2, W10). Each
+ * An undo log of the changes of items in collection storages. Each
  * entry keeps the patch that undoes one change (`inversePatch`), or the whole item before the
  * change when no patch can undo it, and the fingerprint of the item after the change.
  *
@@ -133,12 +141,13 @@ export class UndoLog {
   readonly #storageOf: (collection: string) => CollectionStorage<unknown> | undefined;
   readonly #cap: number;
   readonly #now: () => number;
+  readonly #keepAfter: boolean;
   #seq = 0;
 
   /**
    * @param entries - The storage of the entries of the log
    * @param storageOf - The storage of each collection that the log can undo
-   * @param options - The cap and the clock
+   * @param options - The cap, the clock and the option `keepAfter`
    */
   constructor(
     entries: CollectionStorage<UndoEntry>,
@@ -149,6 +158,7 @@ export class UndoLog {
     this.#storageOf = storageOf;
     this.#cap = Math.max(1, Math.floor(options.cap ?? 50));
     this.#now = options.now ?? Date.now;
+    this.#keepAfter = options.keepAfter ?? false;
   }
 
   /**
@@ -169,6 +179,7 @@ export class UndoLog {
       id: change.id,
       ...(inverse === undefined ? { item: change.before ?? null } : { inverse }),
       after: fingerprintOf(after),
+      ...(this.#keepAfter ? { afterValues: inverse === undefined || !isObject(after) ? (after ?? null) : touchedValues(after, change.patch!) } : {}),
       ...(change.group === undefined ? {} : { group: change.group }),
       at,
       seq,

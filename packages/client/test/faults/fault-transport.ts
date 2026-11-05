@@ -75,6 +75,9 @@ function wait(ms: number, signal: AbortSignal | undefined): Promise<void> {
 
 /** A transport that gives faults to the calls of another transport. */
 export class FaultTransport implements Transport {
+  private readonly inner: Transport;
+  private readonly options: FaultTransportOptions;
+
   readonly name: string;
   /** The calls and their faults, in the order of the calls. */
   readonly log: FaultRecord[] = [];
@@ -84,9 +87,11 @@ export class FaultTransport implements Transport {
   hanging = 0;
 
   constructor(
-    private readonly inner: Transport,
-    private readonly options: FaultTransportOptions = {},
+    inner: Transport,
+    options: FaultTransportOptions = {},
   ) {
+    this.inner = inner;
+    this.options = options;
     this.name = `faults(${inner.name})`;
     this.random = seededRandom(options.seed ?? 1);
   }

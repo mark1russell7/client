@@ -7,11 +7,14 @@ import type { IncomingMessage } from "node:http";
 
 /** The error of a request body or of a header that a handler cannot read: too large (413), not JSON (400), a header too long (431). */
 export class BodyError extends Error {
+  readonly httpStatus: number;
+
   constructor(
     message: string,
-    readonly httpStatus: number
+    httpStatus: number
   ) {
     super(message);
+    this.httpStatus = httpStatus;
     this.name = "BodyError";
   }
 }

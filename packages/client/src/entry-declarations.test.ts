@@ -9,16 +9,12 @@
  * packages. Start `pnpm build` first, as CI does.
  */
 
+import { statementsOf } from "@mark1russell7/api-report";
 import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import { builtinModules } from "node:module";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-
-// The specifier is a value, so this package does not type-check the script under its stricter options.
-// tsconfig.scripts.json type-checks the script.
-const API_REPORT = new URL("../../../scripts/lib/api-report.ts", import.meta.url).href;
-const { statementsOf } = (await import(/* @vite-ignore */ API_REPORT)) as { readonly statementsOf: (source: string) => string[] };
 
 const PACKAGE = join(dirname(fileURLToPath(import.meta.url)), "..");
 

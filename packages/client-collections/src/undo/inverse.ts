@@ -44,6 +44,46 @@ function equal(a: unknown, b: unknown): boolean {
   return keys.length === definedKeys(b).length && keys.every((key) => b[key] !== undefined && equal(a[key], b[key]));
 }
 
+/** The paths that a patch touches. */
+function touchedPaths(patch: StoragePatch): string[][] {
+  if (!isPatchOperations(patch)) return definedKeys(patch).map((key) => [key]);
+  const keys = [...definedKeys(patch.$set), ...(patch.$unset ?? []), ...(patch.$remove ?? []), ...definedKeys(patch.$insert)];
+  return keys.map((key) => key.split("."));
+}
+
+/**
+ * This function gives the part of an item that a patch touched: the value after the patch at each
+ * path of the patch. The part has the same shape as the item.
+ *
+ * - A path through an array keeps the whole array, because an index has no meaning after a move.
+ * - The objects on a path stay, also when the path itself no longer has a value. Thus the part
+ *   tells a parent that exists from a parent that does not exist.
+ *
+ * @example
+ * ```ts
+ * touchedValues({ id: "n1", title: "b", tags: ["y"] }, { $remove: ["tags.0"] }); // { tags: ["y"] }
+ * ```
+ */
+export function touchedValues(after: unknown, patch: StoragePatch): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const path of touchedPaths(patch)) {
+    let source = after;
+    let target = result;
+    for (const [n, key] of path.entries()) {
+      const child = childOf(source, key);
+      if (!child.found) break;
+      if (n === path.length - 1 || !isObject(child.value)) {
+        define(target, key, child.value);
+        break;
+      }
+      if (!Object.hasOwn(target, key)) define(target, key, {});
+      target = target[key] as Record<string, unknown>;
+      source = child.value;
+    }
+  }
+  return result;
+}
+
 /** The moves of one array: the indices, in the item before the patch, of its removals or of its insertions. */
 interface Moves {
   readonly kind: "remove" | "insert";

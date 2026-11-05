@@ -35,6 +35,9 @@ export interface ScopeLimits {
 
 /** The stop of one call: one abort signal for the request, and the error of the stop. */
 export class CallScope {
+  readonly path: ProcedurePath;
+  readonly limits: ScopeLimits;
+
   readonly #controller = new AbortController();
   readonly #timers: ReturnType<typeof setTimeout>[] = [];
   readonly #parent: AbortSignal | undefined;
@@ -43,10 +46,12 @@ export class CallScope {
   #reason: StopReason | undefined;
 
   constructor(
-    readonly path: ProcedurePath,
+    path: ProcedurePath,
     context: ScopeContext,
-    readonly limits: ScopeLimits = {},
+    limits: ScopeLimits = {},
   ) {
+    this.path = path;
+    this.limits = limits;
     this.#parent = context.signal;
     if (this.#parent?.aborted) {
       this.stop("aborted");

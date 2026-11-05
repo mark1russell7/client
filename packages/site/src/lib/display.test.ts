@@ -61,7 +61,11 @@ describe("snapshot", () => {
 
   it("turns functions and class instances into text", () => {
     class Point {
-      constructor(public x: number) {}
+      public x: number;
+
+      constructor(x: number) {
+        this.x = x;
+      }
     }
     expect(snapshot({ f: () => 1, p: new Point(1) })).toEqual({ f: "[function f]", p: '{ "x": 1 }' });
   });

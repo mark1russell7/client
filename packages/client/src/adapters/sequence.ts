@@ -32,10 +32,14 @@ export const STREAM_ITEM_METADATA_KEY = "stream";
 
 /** The order of the stream frames of one call, at the side that receives them. */
 export class StreamSequence {
+  private readonly logger?: Logger | undefined;
+
   private last = 0;
 
   /** The logger of the warning of a gap (CLI-87). Without it, the warning goes to `console.warn`. */
-  constructor(private readonly logger?: Logger | undefined) {}
+  constructor(logger?: Logger | undefined) {
+    this.logger = logger;
+  }
 
   /**
    * This function examines the `seq` of a frame. It gives -1 for a frame to drop: its `seq` is

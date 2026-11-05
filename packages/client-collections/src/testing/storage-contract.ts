@@ -42,7 +42,7 @@ import {
   type StorageSelector,
   type VersionConflict,
 } from "@procedures/client/query";
-import { holds, rejects, same, show } from "./check.js";
+import { holds, rejects, same, show } from "@mark1russell7/collections/testing";
 
 /** The item of the suite. Its `id` is its key, so a `HybridStorage` can sync it. */
 export interface ContractItem {

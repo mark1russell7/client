@@ -1,5 +1,51 @@
 # @procedures/server
 
+## 0.48.1
+
+### Patch Changes
+
+- Updated dependencies [2d7edae]
+  - @procedures/client@0.48.1
+  - @procedures/peer@0.48.1
+  - @procedures/fs@0.48.1
+
+## 0.48.0
+
+### Patch Changes
+
+- 17a18ec: The source now uses only syntax that a type stripper erases, so the setting `erasableSyntaxOnly` of `@mark1russell7/cue` 2.1.1 stays on. Each enum is now a constant object with a type of the same name. Each parameter property is now a field and an assignment in the constructor.
+  
+  **Breaking.** MINOR before 1.0.0: `ErrorCategory`, `ErrorSeverity` and `WebSocketState` are now constant objects. Their names and values stay the same, and each member stays usable as a type. A member is no longer a constant expression: `enum E { A = ErrorSeverity.WARNING }` gives TS18033, and a `const enum` gives TS2474. Also, a string with the value of a member now fits the type of the set.
+  
+  **Migration.** In an enum initializer, write the value in place of the member, for example `"warning"`, or use a constant object. Other uses need no change. The site and the known apps need no change.
+- Updated dependencies [17a18ec]
+- Updated dependencies [06088f9]
+- Updated dependencies [71f9c6e]
+- Updated dependencies [c839add]
+  - @procedures/client@0.48.0
+  - @procedures/fs@0.48.0
+  - @procedures/peer@0.48.0
+
+## 0.47.2
+
+### Patch Changes
+
+- Updated dependencies [0650616]
+- Updated dependencies [ae1e3fd]
+- Updated dependencies [f1ece74]
+  - @procedures/client@0.47.2
+  - @procedures/fs@0.47.2
+  - @procedures/peer@0.47.2
+
+## 0.47.1
+
+### Patch Changes
+
+- Updated dependencies [f845c6d]
+  - @procedures/client@0.47.1
+  - @procedures/fs@0.47.1
+  - @procedures/peer@0.47.1
+
 ## 0.47.0
 
 ### Patch Changes
@@ -175,7 +221,7 @@
   
   Migration:
   
-  - The site, MiniMongo, Graph and jarvis: no change at this time. The deprecated names work until the next MINOR.
+  - Apps: no change at this time. The deprecated names work until the next MINOR.
   - Before the next MINOR, replace `zodAdapter<T>(schema)` with `schema`. To keep the check of a schema against a type, write `const schema: z.ZodType<T> = ...`.
   - Before the next MINOR, replace `typedAnySchema<T>()` and `outputSchema<T>()` with `typed<T>()`.
   - A parse-only object (`{ parse }`) in `zodAdapter` becomes a Standard Schema with a `~standard` property.
@@ -391,9 +437,9 @@
   - A script that starts `mark server create` as a server in the foreground: start `mark --server` or `procedure-server` in its place.
   - A program that calls `run()`, `main()` or `executeArgs()` of `@procedures/mark`: no change. It keeps its process. Give `ownsProcess: true` to give the process to the runner, as the bin does.
   - The site: no change. It does not start `mark`.
-  - MiniMongo: no change. Its dev host starts through `runProcedureHost()`, not through `mark`.
-  - Graph: no change. It does not start `mark`.
-  - jarvis: no change, unless a script of jarvis reads the exit code of an interrupted `mark` command. Then apply the first step.
+  - An app: no change. Its dev host starts through `runProcedureHost()`, not through `mark`.
+  - An app: no change. It does not start `mark`.
+  - An app: no change, unless one of its scripts reads the exit code of an interrupted `mark` command. Then apply the first step.
 - Updated dependencies [4261f65]
   - @procedures/peer@0.24.0
   - @procedures/client@0.24.0
@@ -442,9 +488,9 @@
   
   - A script that runs `mark server start` and reads `success` now gets `false` when the server is not ready at the timeout. Give a longer `timeout` (`mark server start --timeout 60000`), or read `mark server status` later. The `pid` of the result is the process that still starts.
   - The site: no change. It does not start `server.start`.
-  - MiniMongo: no change. Its dev host starts through `runProcedureHost()`, not through `server.start`.
-  - Graph: no change. Its hosts do not start `server.start`.
-  - jarvis: no change. It does not start `server.start`.
+  - An app: no change. Its dev host starts through `runProcedureHost()`, not through `server.start`.
+  - An app: no change. Its hosts do not start `server.start`.
+  - An app: no change. It does not start `server.start`.
 
 ### Patch Changes
 
@@ -513,7 +559,7 @@
   
   Deprecated: at the timeout of 15 s, `server.start` gives `success: true` with the message "still loading" while the process still starts. From the next MINOR of the client group, a start that is not ready at the timeout gives `success: false`, with the PID of the process that still starts. Read the readiness probe or `mark server status` for the state.
   
-  The site, MiniMongo, Graph and jarvis: no change. A host with a listener now also answers the paths under `/_probes`. Before, these paths got 404.
+  Apps: no change. A host with a listener now also answers the paths under `/_probes`. Before, these paths got 404.
 - Updated dependencies [636f098]
   - @procedures/peer@0.17.3
   - @procedures/client@0.17.3
@@ -530,7 +576,7 @@
 
 ### Patch Changes
 
-- b805a48: New: the option `declare` of `runProcedureHost()` adds the parts and the dependencies of an app to the service of the process (CLI-62). Before, an app had no hook to declare its own parts. MiniMongo gave its Vite dev server to the host as a face with stop parts only, and its Mongo connection had no part.
+- b805a48: New: the option `declare` of `runProcedureHost()` adds the parts and the dependencies of an app to the service of the process (CLI-62). Before, an app had no hook to declare its own parts. One app gave its Vite dev server to the host as a face with stop parts only, and its Mongo connection had no part.
   
   - `declare(svc, host)` gets the builder of the service and the host before `run()`. The app uses the methods of the builder: `svc.server()`, `svc.dependency()` with its handle, `svc.check()` and `svc.onPhase()`.
   - `describe()` shows each part of the app. The runner starts each part with the host, and stops it in its stage of the shutdown.
@@ -663,7 +709,7 @@
   
   Migration steps:
   
-  - The site, MiniMongo, Graph and jarvis: no change is necessary. They do not start these entries.
+  - Apps: no change is necessary. They do not start these entries.
   - A script that starts `procedure-server` or `mark serve` and stops it with a signal: no change is necessary. Wait for the exit, in 10 s at most.
   - A program that embeds the server outside a service: use `startServer()`, which starts it as a peer, and `peer.stop()`.
 

@@ -13,7 +13,8 @@
     "typecheck": "tsc -p tsconfig.scripts.json && pnpm -r run typecheck",
     "lint:ste": "ste-lint",
     "changeset": "changeset",
-    "check:packages": "node scripts/check-packages.mjs",
+    "check:api": "api-report check",
+    "check:packages": "node scripts/check-packages.ts",
     "check:boundaries": "depcruise --config .dependency-cruiser.ts \"packages/*/src\"",
     "check:paths-and-writes": "node scripts/check-paths-and-writes.ts",
     "check:conventions": "conventions check",
@@ -23,9 +24,10 @@
     "@arethetypeswrong/cli": "^0.18.5",
     "@babel/parser": "^8.0.7",
     "@changesets/cli": "^3.0.3",
+    "@mark1russell7/api-report": "^0.3.0",
     "@mark1russell7/boundaries": "^0.2.0",
-    "@mark1russell7/conventions": "^0.25.0",
-    "@mark1russell7/cue": "^1.1.0",
+    "@mark1russell7/conventions": "^0.29.3",
+    "@mark1russell7/cue": "^2.1.1",
     "@mark1russell7/rigor-statistics": "^0.1.2",
     "@mark1russell7/ste-lint": "^0.1.1",
     "@swc/core": "^1.16.20",
@@ -60,20 +62,13 @@
       },
       "typed-scripts": {
         "ignore": [
-          "packages/client-vite/fixtures/app/main.js",
-          "packages/client-vitest/fixtures/project/checks/fail.js",
-          "packages/client-vitest/fixtures/project/checks/sum.js",
-          "packages/client-vitest/fixtures/project/math.js",
-          "packages/client-vitest/fixtures/project/vitest.config.js",
-          "scripts/check-packages.mjs",
           "scripts/lib/old-names.mjs",
           "scripts/lib/workspace.mjs",
           "scripts/npm-bootstrap.mjs",
           "scripts/publish-ci.mjs",
-          "scripts/release-tags.mjs",
-          "scripts/use-npm-general-packages.mjs"
+          "scripts/release-tags.mjs"
         ],
-        "reason": "No new JavaScript or shell scripts (the rule of 2026-10-29): this list names each file of today, one by one, and it only gets shorter. A converted file leaves the list in the same PR. Exceptions: the fixtures of client-vitest and client-vite are JavaScript inputs of their tests. publish-ci.mjs and npm-bootstrap.mjs are release files of the npm owner. Open work, converted to .ts and started with node in follow-up PRs, so the list only gets shorter: scripts/ and scripts/lib/, .github/scripts/, harness/procedures-subject/, and the JavaScript helpers of the tests of server and mark"
+        "reason": "No new JavaScript or shell scripts (the rule of 2026-10-29): this list names each file of today, one by one, and it only gets shorter. A converted file leaves the list in the same PR. Exceptions: publish-ci.mjs and npm-bootstrap.mjs are release files of the npm owner. Open work, converted to .ts and started with node in follow-up PRs, so the list only gets shorter: scripts/ and scripts/lib/, .github/scripts/, harness/procedures-subject/, and the JavaScript helpers of the tests of server and mark"
       }
     }
   }

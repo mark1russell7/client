@@ -1,10 +1,10 @@
 # The public API of @procedures/json
 #
 # The names of each entry of the exports field, and the declaration of each name, without comments
-# and private members. The script scripts/api-report.ts compares this file with the built .d.ts files.
-# To accept a change of the API, start the script with --update and review the diff.
+# and private members. The command `api-report check` compares this file with the built .d.ts files.
+# To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 64 names
+## . (dist/index.d.ts): 67 names
 
 type CsvCell: dist/csv.d.ts#CsvCell
 CsvParseInput: dist/types.d.ts#CsvParseInput
@@ -33,6 +33,8 @@ PROTOTYPE_KEYS: dist/value.d.ts#PROTOTYPE_KEYS
 type PatchOperation: dist/patch.d.ts#PatchOperation
 type PathMatch: dist/path.d.ts#PathMatch
 type PathStep: dist/path.d.ts#PathStep
+type ThreeWayConflict: dist/three-way.d.ts#ThreeWayConflict
+type ThreeWayResult: dist/three-way.d.ts#ThreeWayResult
 type ValidationIssue: dist/schema.d.ts#ValidationIssue
 type ValidationResult: dist/schema.d.ts#ValidationResult
 YamlParseInput: dist/types.d.ts#YamlParseInput
@@ -59,6 +61,7 @@ jsonQuery: dist/procedures/json/query.d.ts#jsonQuery
 jsonValidate: dist/procedures/json/validate.d.ts#jsonValidate
 lookup: dist/pointer.d.ts#lookup
 mergePatch: dist/merge.d.ts#mergePatch
+mergeThreeWay: dist/three-way.d.ts#mergeThreeWay
 parseCsv: dist/csv.d.ts#parseCsv
 parsePath: dist/path.d.ts#parsePath
 parsePointer: dist/pointer.d.ts#parsePointer
@@ -246,6 +249,23 @@ export interface ValidationResult {
 
 ### dist/schema.d.ts#validateJson
 export declare function validateJson(value: JsonValue, schema: unknown): ValidationResult;
+
+### dist/three-way.d.ts#ThreeWayConflict
+export interface ThreeWayConflict {
+    readonly path: string;
+    readonly base: JsonValue | undefined;
+    readonly ours: JsonValue | undefined;
+    readonly theirs: JsonValue | undefined;
+}
+
+### dist/three-way.d.ts#ThreeWayResult
+export interface ThreeWayResult {
+    readonly merged: JsonValue | undefined;
+    readonly conflicts: readonly ThreeWayConflict[];
+}
+
+### dist/three-way.d.ts#mergeThreeWay
+export declare function mergeThreeWay(base: JsonValue | undefined, ours: JsonValue | undefined, theirs: JsonValue | undefined): ThreeWayResult;
 
 ### dist/types.d.ts#CsvParseInput
 export interface CsvParseInput {

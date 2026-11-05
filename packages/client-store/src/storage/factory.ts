@@ -51,7 +51,7 @@ export interface CreateSyncedRegistryConfig {
 
   /**
    * The first mode of the hybrid storage (roadmap R28): `local-only`, `write-through`,
-   * `write-back` or `remote-only`. `setMode()` of the registry changes it later. Only the type
+   * `write-back`, `remote-only` or `read-only`. `setMode()` of the registry changes it later. Only the type
    * "hybrid" has modes.
    * @default "write-through"
    */

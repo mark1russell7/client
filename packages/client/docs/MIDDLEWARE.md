@@ -1,6 +1,6 @@
 # Middleware System
 
-The library provides a unified middleware system that works for both client requests and collection operations.
+The library provides a middleware system for client requests. Each middleware wraps a call.
 
 ## Core Concepts
 
@@ -371,7 +371,7 @@ const stateMiddleware: ClientMiddleware = (next) => async function* (context) {
 
 ## Middleware for Collections
 
-The collections framework uses the same middleware pattern:
+The package `@procedures/collections` has its own `compose`, with the same name and a different type. Each layer takes a collection and returns a collection with more behavior. A layer does not wrap a call. The two systems share no code:
 
 ```typescript
 import { compose, lruMap, ttlMap, boundedList, eventedList, hashMap, arrayList } from "@procedures/collections";

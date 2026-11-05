@@ -1,6 +1,6 @@
 /**
  * The host factory (CLI-10): one `createMcpHost()` call builds what the dev-tools server, the
- * Graph host and `mcp.serve` built by hand. The tests use the in-memory transport of the SDK, and
+ * app host and `mcp.serve` built by hand. The tests use the in-memory transport of the SDK, and
  * the stdio face on streams of the test.
  */
 
@@ -30,10 +30,10 @@ const write = (path: string[]): AnyProcedure =>
     .handler(async () => ({ ok: true }))
     .build();
 
-/** A module like the one of Graph: graph.* procedures, and one procedure of another namespace. */
-const graphModule = defineModule("graph-test", [
-  read(["graph", "get"], "doc"),
-  write(["graph", "set"]),
+/** A module of an app: app.* procedures, and one procedure of another namespace. */
+const appModule = defineModule("app-test", [
+  read(["app", "get"], "doc"),
+  write(["app", "set"]),
   read(["admin", "dump"], "secret"),
 ]);
 
@@ -55,59 +55,59 @@ async function connect(host: McpHost, clientSide: InMemoryTransport): Promise<Mc
 }
 
 describe("createMcpHost", () => {
-  it("builds the Graph host in one call: a surface, read only, and the policy", async () => {
+  it("builds an app host in one call: a surface, read only, and the policy", async () => {
     const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
-    // The whole Graph host (packages/mcp/src/host.ts of Graph) after CLI-10:
+    // The whole app host after CLI-10:
     const host = createMcpHost({
-      registry: createRegistry(graphModule),
-      surface: { namespaces: ["graph"] },
+      registry: createRegistry(appModule),
+      surface: { namespaces: ["app"] },
       readOnly: true,
-      name: "graph",
+      name: "app",
       version: "0.1.0",
       faces: { sdk: serverSide },
     });
     const client = await connect(host, clientSide);
 
-    expect(client.getServerVersion()).toMatchObject({ name: "graph", version: "0.1.0" });
+    expect(client.getServerVersion()).toMatchObject({ name: "app", version: "0.1.0" });
     const { tools } = await client.listTools();
-    expect(tools.map((tool) => tool.name)).toEqual(["graph.get"]);
-    expect(host.tools().map((tool) => tool.name)).toEqual(["graph.get"]);
+    expect(tools.map((tool) => tool.name)).toEqual(["app.get"]);
+    expect(host.tools().map((tool) => tool.name)).toEqual(["app.get"]);
     expect(host.policy.strictCalls).toBe(true);
-    const result = (await client.callTool({ name: "graph.get", arguments: {} })) as { content: Array<{ text: string }>; structuredContent?: unknown };
+    const result = (await client.callTool({ name: "app.get", arguments: {} })) as { content: Array<{ text: string }>; structuredContent?: unknown };
     expect(result.structuredContent).toEqual({ text: "doc" });
     // A tool outside the list does not answer, and the server refuses a write in read-only mode
-    const refused = (await client.callTool({ name: "graph.set", arguments: {} })) as { isError?: boolean };
+    const refused = (await client.callTool({ name: "app.set", arguments: {} })) as { isError?: boolean };
     expect(refused.isError).toBe(true);
-    const direct = await host.server.handle({ id: "w", method: { service: "graph", operation: "set" }, payload: {}, metadata: {} });
+    const direct = await host.server.handle({ id: "w", method: { service: "app", operation: "set" }, payload: {}, metadata: {} });
     expect(direct.status.type).toBe("error");
   });
 
   it("serves a subset of tools by key, and the instructions of the server", async () => {
     const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
     const host = createMcpHost({
-      modules: [graphModule],
-      surface: ["graph.set", "admin.*"],
+      modules: [appModule],
+      surface: ["app.set", "admin.*"],
       exclude: ["admin.dump"],
-      instructions: "Use graph.set to change a document.",
+      instructions: "Use app.set to change a document.",
       faces: { sdk: serverSide },
     });
     const client = await connect(host, clientSide);
-    expect((await client.listTools()).tools.map((tool) => tool.name)).toEqual(["graph.set"]);
-    expect(client.getInstructions()).toBe("Use graph.set to change a document.");
+    expect((await client.listTools()).tools.map((tool) => tool.name)).toEqual(["app.set"]);
+    expect(client.getInstructions()).toBe("Use app.set to change a document.");
   });
 
   it("keeps the tool names of a server that moves to the host", async () => {
     const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
     const host = createMcpHost({
-      modules: [graphModule],
-      surface: { namespaces: ["graph"] },
+      modules: [appModule],
+      surface: { namespaces: ["app"] },
       toolName: (path) => path.join("_"),
       faces: { sdk: serverSide },
     });
     const client = await connect(host, clientSide);
-    expect((await client.listTools()).tools.map((tool) => tool.name).sort()).toEqual(["graph_get", "graph_set"]);
-    expect(host.tools().map((tool) => tool.name).sort()).toEqual(["graph_get", "graph_set"]);
-    const result = (await client.callTool({ name: "graph_get", arguments: {} })) as { structuredContent?: unknown };
+    expect((await client.listTools()).tools.map((tool) => tool.name).sort()).toEqual(["app_get", "app_set"]);
+    expect(host.tools().map((tool) => tool.name).sort()).toEqual(["app_get", "app_set"]);
+    const result = (await client.callTool({ name: "app_get", arguments: {} })) as { structuredContent?: unknown };
     expect(result.structuredContent).toEqual({ text: "doc" });
   });
 
@@ -119,8 +119,8 @@ describe("createMcpHost", () => {
     };
     const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
     const host = createMcpHost({
-      modules: [graphModule],
-      surface: { namespaces: ["graph"] },
+      modules: [appModule],
+      surface: { namespaces: ["app"] },
       interceptors: ({ expose }) => {
         seen = { expose, calls: 0 };
         return [counter];
@@ -128,9 +128,9 @@ describe("createMcpHost", () => {
       faces: { sdk: serverSide },
     });
     const client = await connect(host, clientSide);
-    expect(seen.expose?.(["graph", "get"])).toBe(true);
+    expect(seen.expose?.(["app", "get"])).toBe(true);
     expect(seen.expose?.(["admin", "dump"])).toBe(false);
-    await client.callTool({ name: "graph.get", arguments: {} });
+    await client.callTool({ name: "app.get", arguments: {} });
     expect(seen.calls).toBe(1);
   });
 
@@ -140,8 +140,8 @@ describe("createMcpHost", () => {
     const lines: string[] = [];
     stdout.on("data", (chunk: Buffer) => lines.push(...chunk.toString("utf8").split("\n").filter(Boolean)));
     const host = createMcpHost({
-      modules: [graphModule],
-      surface: { namespaces: ["graph"] },
+      modules: [appModule],
+      surface: { namespaces: ["app"] },
       faces: { stdio: { stdin, stdout, redirectConsole: false } },
     });
     await host.start();
@@ -166,8 +166,8 @@ describe("createMcpHost", () => {
     const lines: string[] = [];
     stdout.on("data", (chunk: Buffer) => lines.push(...chunk.toString("utf8").split("\n").filter(Boolean)));
     const host = createMcpHost({
-      modules: [graphModule],
-      surface: { namespaces: ["graph"] },
+      modules: [appModule],
+      surface: { namespaces: ["app"] },
       policy: { token: "stdio-host-token-0123456789" },
       faces: { stdio: { stdin, stdout, stopOnEnd: false, redirectConsole: false } },
     });
@@ -186,7 +186,7 @@ describe("createMcpHost", () => {
     send({ id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "t", version: "0" } } });
     await answerTo(1);
     send({ method: "notifications/initialized" });
-    send({ id: 2, method: "tools/call", params: { name: "graph.get", arguments: {} } });
+    send({ id: 2, method: "tools/call", params: { name: "app.get", arguments: {} } });
     const result = (await answerTo(2))["result"] as { isError?: boolean; structuredContent?: unknown };
     expect(result.isError).not.toBe(true);
     expect(result.structuredContent).toEqual({ text: "doc" });
@@ -194,7 +194,7 @@ describe("createMcpHost", () => {
 
   it("keeps running at the end of stdio without stopOnEnd", async () => {
     const stdin = new PassThrough();
-    const host = createMcpHost({ modules: [graphModule], faces: { stdio: { stdin, stdout: new PassThrough(), stopOnEnd: false, redirectConsole: false } } });
+    const host = createMcpHost({ modules: [appModule], faces: { stdio: { stdin, stdout: new PassThrough(), stopOnEnd: false, redirectConsole: false } } });
     cleanups.push(() => host.stop());
     await host.start();
     stdin.end();

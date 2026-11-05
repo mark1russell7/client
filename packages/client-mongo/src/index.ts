@@ -155,7 +155,7 @@ export type { StorageChange, StorageChangeHint, StorageChangesWatch, StorageHint
 // One change watcher for a whole database, with resume and backoff (roadmap CLI-88)
 export { watchDatabaseChanges } from "./storage/index.js";
 export type { DatabaseChangesWatch, WatchDatabaseChangesOptions } from "./storage/index.js";
-// The guard of an aggregation pipeline over shared collections, and its limits (Graph's split plan, P3)
+// The guard of an aggregation pipeline over shared collections, and its limits
 export {
   BLOCKED_PIPELINE_OPERATORS,
   ALLOWED_PIPELINE_STAGES,
@@ -194,7 +194,7 @@ export type {
   FindOptions,
   AggregateOptions,
 } from "mongodb";
-// Materialized views driven by change streams (Graph's split plan, P4)
+// Materialized views driven by change streams
 export { ViewMaterializer, identityPartition, partitionTargetId, viewFilter, VIEW_GENERATION_FIELD, VIEW_HASH_FIELD } from "./storage/index.js";
 export type { MaterializedView, MaterializedViewStatus, ViewMaterializerOptions, ViewPartitionOf, ViewPipelineScope, ViewStorageSource, ViewTargetId } from "./storage/index.js";
 // A read-only storage of a view for the collection procedures: one generation for each read (roadmap CLI-38)

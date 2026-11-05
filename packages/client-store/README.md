@@ -205,7 +205,7 @@ const users = new HybridStorage(new ApiStorage(client, { collection: "users" }),
 
 ## The modes of `HybridStorage`
 
-`HybridStorage` keeps a local copy of a remote collection storage. It has four modes, and `setMode()` changes the mode while the storage operates.
+`HybridStorage` keeps a local copy of a remote collection storage. It has five modes, and `setMode()` changes the mode while the storage operates.
 
 | Mode | Reads | Writes | Remote calls |
 |---|---|---|---|
@@ -213,6 +213,7 @@ const users = new HybridStorage(new ApiStorage(client, { collection: "users" }),
 | `write-through` | The local copy, and the remote on a miss | The local copy, then the remote | Yes |
 | `write-back` | The local copy, and the remote on a miss | The local copy and the queue. A timer sends the queue. | Yes |
 | `remote-only` | The remote | The remote | Yes. The storage keeps no local copy. |
+| `read-only` | The local copy, and the remote on a miss | Refused with `ReadOnlyError` | Reads and pulls only |
 
 ```ts
 import { minutes } from "@procedures/client";
@@ -245,6 +246,8 @@ await users.setMode("write-through"); // The switch sends the queue, then syncs 
 - In the modes `local-only` and `write-back`, each write goes in the queue.
 - In the mode `write-through`, a write that the remote cannot take goes in the queue, and the write throws `PendingWriteError`.
 - By default, a write that the remote cannot take is an error with `retryable: true`, an error without a `code`, or a `TIMEOUT`. The option `isUnavailable` changes it.
+- The mode `read-only` refuses each write with `ReadOnlyError` at once. The local copy, the queue and the remote do not change.
+- A switch to `read-only` sends the queue first, and a failed send keeps the old mode. A queue that a store loads or that `capture` adds in this mode waits for a mode that writes.
 - A full queue refuses the next write with `QueueFullError`. The limit is `maxOfflineOps`, 1000 by default.
 - A push keeps a write that the remote cannot take at this time (`isUnavailable` gives true). This write and the later writes stay in the queue.
 - A queued write that the remote refuses leaves the queue, and the push goes on with the next write.
@@ -252,6 +255,8 @@ await users.setMode("write-through"); // The switch sends the queue, then syncs 
 - Another error, for example `TIMEOUT` or `UNAUTHORIZED`, keeps the write at the head of the queue. The next push sends it again.
 - After a refusal, the local copy gets the remote values of its ids again. An id that a later queued write changes keeps its local value.
 - The option `onRefused` gets each refusal: the write, its ids, the error, and `restored`. An error of the hook does not stop the push.
+- The option `onDropped` gets each queued write that leaves the queue with no send that the remote took. The causes are a conflict that the policy `remote` decides, a delete of the remote, and a refusal. It gets one call for each id, with the value, the reason and the sync. `getMetadata()` gives the count as `stats.dropped`.
+- The hook can write the value again. The sync waits for the hook, and an error of the hook does not stop the sync. After a crash, the hook can get a write again.
 - The option `queueStore` keeps the queue. The storage writes each change to the store before the write ends.
 - A new storage with the same store loads the queue, shows its writes, and sends them.
 - `MemoryQueueStore` is the default. `FileQueueStore` keeps the queue in a JSON Lines file, for Node.
@@ -293,7 +298,7 @@ const users = new HybridStorage(new ApiStorage(client, { collection: "users" }),
 - A pull reads a local item only when the result depends on it. A pull does not read the item of a queued write that wins.
 - With versions, the storage knows the version of each local item that it wrote or read. Then a pull reads a local item only for a conflict, or when the version is not known.
 - Without versions, a pull reads each local item without a queued write. It compares the JSON of the local item and the remote item.
-- The option `pullInterval` starts a periodic pull in the modes `write-through` and `write-back`. `close()` stops it.
+- The option `pullInterval` starts a periodic pull in the modes `write-through`, `write-back` and `read-only`. `close()` stops it.
 
 ### The base versions on the server
 
@@ -356,7 +361,7 @@ const stop = users.onStatus((status) => {
 - The option `syncState` keeps the cursor and the base versions. A new storage with the same store asks only for the changes since the cursor.
 - `MemorySyncStateStore` keeps the state in memory. `IndexedDbSyncStateStore` of `@procedures/store/indexeddb` keeps it in a browser.
 - The storage uses a loaded cursor only with the option `local` and a local copy that has items. Give the state store with a durable local copy.
-- The option `feed` takes a push feed of the remote changes, for example `EventsChangeFeed`. The storage subscribes in the modes `write-through` and `write-back`.
+- The option `feed` takes a push feed of the remote changes, for example `EventsChangeFeed`. The storage subscribes in the modes `write-through`, `read-only` and `write-back`.
 - A delta whose `since` is the cursor of the storage applies without a read of the remote.
 - A gap, a lost event, a new subscription or another delta makes the storage pull the changes since its cursor.
 - A delta that comes during a pull applies after the pull. Thus a pull does not erase a change that came during it.
@@ -393,7 +398,7 @@ const users = new HybridStorage(new ApiStorage(client, { collection: "users" }),
 
 ### The hook around a remote apply
 
-The option `aroundRemoteApply` puts each apply of the remote changes inside a hook (graph W8). For example, the hook starts a span of a trace with the `traceparent` of the server.
+The option `aroundRemoteApply` puts each apply of the remote changes inside a hook. For example, the hook starts a span of a trace with the `traceparent` of the server.
 
 - The hook gets `hint`, `apply` and `context`. It starts `apply` one time and gives back its promise.
 - `context.cause` is `"delta"`, `"hint"`, `"gap"` or `"pull"`. `context.hints` has the hints of the apply.

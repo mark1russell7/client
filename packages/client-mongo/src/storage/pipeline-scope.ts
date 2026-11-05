@@ -1,5 +1,5 @@
 /**
- * The guard of an aggregation pipeline over shared collections (Graph's split plan, part P3). A
+ * The guard of an aggregation pipeline over shared collections. A
  * pipeline of a caller reads only the documents of a filter (for example of one tenant or one
  * partition), on each collection that it reads, and a write stamps its fields.
  *

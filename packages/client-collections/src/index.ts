@@ -48,242 +48,366 @@
  * )
  */
 
-// ============================================================================
-// Core types and utilities
-// ============================================================================
-
-export * from "./core/traits.js";
-export * from "./core/effects.js";
-export * from "./core/policies.js";
-export * from "./core/middleware.js";
-export * from "./core/events.js";
-// ============================================================================
-// Interfaces
-// ============================================================================
-
-export * from "./interfaces/collection.js";
-export * from "./interfaces/list.js";
-export * from "./interfaces/map.js";
-export * from "./interfaces/set.js";
-
-// ============================================================================
-// Storage
-// ============================================================================
-
+// The storage, the overlay and the undo log stay in this package.
 export * from "./storage/index.js";
-
-// The overlay: a logical document through a stack of layers, and the stacks from rules
 export * from "./overlay/index.js";
-
-// The order of a list as data: a rank between two neighbors, and the index of a drop
-export * from "./order/index.js";
-
-// The undo of the changes of items: the inverse of a patch, and an undo log
 export * from "./undo/index.js";
 
-// Export queue interfaces with disambiguation for PriorityQueue
-export type {
-  ReadonlyQueue,
-  Queue,
-  Deque,
-  BlockingQueue,
-  PriorityQueue as IPriorityQueue,
-  AsyncQueue as IAsyncQueue,
-  TransferQueue,
-  DelayQueue,
-} from "./interfaces/queue.js";
-
-// ============================================================================
-// Implementations
-// ============================================================================
-
-export * from "./impl/array-list.js";
-export * from "./impl/array-deque.js";
-export * from "./impl/hash-map.js";
-export * from "./impl/linked-hash-map.js";
-export * from "./impl/tree-map.js";
-export * from "./impl/tree-set.js";
-export * from "./impl/linked-list.js";
-export * from "./impl/hash-set.js";
-export * from "./impl/priority-queue.js";
-export { SummaryTree, summaryTree, type SummaryLocation, type SummaryMonoid, type SummarySearch, type SummarySpec } from "./impl/summary-tree.js";
-
-// ============================================================================
-// Behaviors
-// ============================================================================
-
-// Export bounded behaviors (excluding duplicate BoundedCollection interface)
+// The lists, sets, maps, queues, behaviors, channels and lazy operations are in the general package.
 export {
+  type ArrayConvertible,
+  ArrayDeque,
+  type ArrayDequeOptions,
+  ArrayList,
+  type ArrayListOptions,
+  type Async,
+  AsyncEmitter,
+  type AsyncOption,
+  AsyncQueue,
+  type AsyncQueueOptions,
+  type AsyncResult,
+  type Asyncify,
+  type BiMap,
+  type BlockingQueue,
+  type Bounded,
+  type BoundedCollection,
   type BoundedOptions,
-  boundedList,
-  boundedQueue,
-  boundedDeque,
-  boundedMap,
-  bounded,
-} from "./behaviors/bounded.js";
-
-export * from "./behaviors/readonly.js";
-export * from "./behaviors/safe.js";
-export * from "./behaviors/evented.js";
-export * from "./behaviors/synchronized.js";
-export * from "./behaviors/lru.js";
-export * from "./behaviors/ttl.js";
-
-// ============================================================================
-// Async/Concurrent
-// ============================================================================
-
-export * from "./async/async-queue.js";
-export * from "./async/channels.js";
-export * from "./async/settled.js";
-
-// ============================================================================
-// Functional Operations
-// ============================================================================
-
-export * from "./fx/iter.js";
-export * from "./fx/collectors.js";
-
-// ============================================================================
-// Utilities
-// ============================================================================
-
-export * from "./utils/defaults.js";
-export * from "./utils/factories.js";
-export * from "./utils/helpers.js";
-
-// ============================================================================
-// Re-exports for convenience
-// ============================================================================
-
-// Most commonly used exports
-export { compose, bundle } from "./core/middleware.js";
-export { arrayList } from "./impl/array-list.js";
-export { arrayDeque } from "./impl/array-deque.js";
-export { hashMap } from "./impl/hash-map.js";
-export { linkedHashMap } from "./impl/linked-hash-map.js";
-export { treeMap } from "./impl/tree-map.js";
-export { treeSet } from "./impl/tree-set.js";
-export { linkedList } from "./impl/linked-list.js";
-export { hashSet } from "./impl/hash-set.js";
-export { priorityQueue } from "./impl/priority-queue.js";
-// Common behaviors
-export { readonly, readonlyList, readonlyMap } from "./behaviors/readonly.js";
-export { safeList, safeQueue, safeMap } from "./behaviors/safe.js";
-export { eventedList, eventedQueue, eventedMap } from "./behaviors/evented.js";
-export { synchronized } from "./behaviors/synchronized.js";
-export { lruMap, lruCache, LRUCache } from "./behaviors/lru.js";
-export { ttlMap, ttlCache, TTLCache, ttlCollection } from "./behaviors/ttl.js";
-
-// Async/Concurrent
-export { asyncQueue, AsyncQueue } from "./async/async-queue.js";
-export { asSettled, type Settled } from "./async/settled.js";
-export {
-  channel,
   Channel,
-  select,
-  timeout,
-  ticker,
-  pipeline,
-  fanOut,
-  fanIn,
-  merge,
-  workerPool,
-} from "./async/channels.js";
-
-// Functional operations
-export {
-  map,
-  filter,
-  flatMap,
-  flatten,
-  take,
-  skip,
-  takeWhile,
-  skipWhile,
-  concat,
-  zip,
-  enumerate,
+  type CircularList,
+  type Clearable,
+  type Cloneable,
+  type Collection,
+  CollectionBuilder,
+  type CollectionEvents,
+  type Collector,
+  type CompactionPolicy,
+  type Compare,
+  type ComparisonProvider,
+  type ConflictResolutionPolicy,
+  DEFAULT_CONFLICT_POLICY,
+  DEFAULT_EVICTION_POLICY,
+  DEFAULT_GROWTH_POLICY,
+  DEFAULT_OVERFLOW_POLICY,
+  DEFAULT_RETRY_POLICY,
+  DEFAULT_UNDERFLOW_POLICY,
+  DEFAULT_VALIDATION_POLICY,
+  type DelayQueue,
+  type Deque,
+  type DequeEvents,
+  type Disposable,
+  type ElementOf,
+  type ElementType,
+  Emitter,
+  type Emptiable,
+  type Entry,
+  type Eq,
+  type EqualityProvider,
+  Err,
+  EventBatcher,
+  type EventMap,
+  type Evented,
+  type EvictionCandidate,
+  type EvictionMetadata,
+  type EvictionPolicy,
+  type EvictionSelector,
+  type Freezable,
+  type GrowthPolicy,
+  type Hash,
+  HashMap,
+  type HashMapOptions,
+  type HashProvider,
+  HashSet,
+  type HashSetOptions,
+  type IAsyncQueue,
+  type IPriorityQueue,
+  type IsReadonly,
+  KEY_DIGITS,
+  type KeyCheckOptions,
+  type KeyedItem,
+  LRUCache,
+  type LRUOptions,
+  LinkedHashMap,
+  type LinkedHashMapOptions,
+  LinkedList,
+  type LinkedListOptions,
+  type List,
+  type ListEvents,
+  type Listener,
+  type MapEvents,
+  type MapLike,
+  type MergeFunction,
+  type Middleware,
+  type MultiMap,
+  type MutableCollectionBase,
+  type NavigableMap,
+  type NavigableSet,
+  None,
+  Ok,
+  type Option,
+  type OverflowContext,
+  type OverflowHandler,
+  type OverflowPolicy,
+  type Point,
+  PriorityQueue,
+  type PriorityQueueOptions,
+  type Queue,
+  type QueueEvents,
+  type RandomAccess,
+  type Readonly,
+  type ReadonlyCollection,
+  type ReadonlyCollectionBase,
+  type ReadonlyList,
+  type ReadonlyMapLike,
+  type ReadonlyOptions,
+  type ReadonlyQueue,
+  type ReadonlySet,
+  type Result,
+  type RetryContext,
+  type RetryPolicy,
+  type RetryPredicate,
+  type SafeCollection,
+  type SafeDequeOperations,
+  type SafeListOperations,
+  type SafeMapOperations,
+  type SafeQueueOperations,
+  type SelectCase,
+  type Set,
+  type Settled,
+  type Sized,
+  Some,
+  type SortedMap,
+  type SortedSet,
+  type Stack,
+  type SummaryLocation,
+  type SummaryMonoid,
+  type SummarySearch,
+  type SummarySpec,
+  type SummaryStatistics,
+  SummaryTree,
+  TTLCache,
+  type TTLOptions,
+  type TransferQueue,
+  TreeMap,
+  type TreeMapOptions,
+  TreeSet,
+  type TreeSetOptions,
+  type UnderflowContext,
+  type UnderflowHandler,
+  type UnderflowPolicy,
+  type Unsubscribe,
+  type ValidationContext,
+  type ValidationHandler,
+  type ValidationPolicy,
+  type Vector,
+  type WeakMapLike,
+  type WithCapability,
+  arrayContains,
+  arrayDeque,
+  arrayIterator,
+  arrayList,
+  arrayRemove,
+  arrayRemoveAll,
+  asSettled,
+  asyncQueue,
+  average,
+  averagingNumber,
+  blockMethods,
+  booleanCompare,
+  bounded,
+  boundedDeque,
+  boundedList,
+  boundedMap,
+  boundedQueue,
+  buffered,
+  buildList,
+  buildMap,
+  bundle,
+  channel,
+  checkBounds,
+  checkInsertBounds,
+  checkRangeBounds,
   chunk,
-  window,
-  partition,
-  reduce,
-  scan,
-  sort,
-  reverse,
+  clamp,
+  collect,
+  collectToArray,
+  collectToList,
+  collectToMap,
+  collectToSet,
+  combineHashes,
+  compareKeys,
+  comparing,
+  comparingKey,
+  compose,
+  concat,
+  count,
+  counting,
+  createEmitter,
+  dateCompare,
+  deepEq,
+  defaultCompare,
+  defaultEq,
+  defaultHash,
+  delegate,
   distinct,
   distinctConsecutive,
-  tap,
-  some,
-  every,
-  none,
-  find,
-  count,
-  min,
-  max,
-  sum,
-  average,
-  toArray,
-  toSet,
-  toMap as iterToMap,
-  pipe,
-} from "./fx/iter.js";
-
-export {
-  collect,
-  toList as collectToList,
-  toArray as collectToArray,
-  toSet as collectToSet,
-  toMap as collectToMap,
-  groupingBy,
-  groupingByWith,
-  partitioningBy,
-  counting,
-  summingNumber,
-  averagingNumber,
-  minBy,
-  maxBy,
-  joining,
-  mapping,
-  filtering,
-  flatMapping,
-  reducing,
-  reducingWith,
-  teeing,
-  first,
-  last,
-  summarizingNumber,
-} from "./fx/collectors.js";
-
-// Common factories
-export {
+  dropIndex,
   emptyList,
   emptyMap,
   emptyQueue,
-  singletonList,
-  singletonMap,
-  nCopies,
-  listOf,
-  mapOf,
-  range,
-  rangeTo,
-  toList,
-  toMap,
+  enhanceMethod,
+  enumerate,
+  eqBy,
+  evented,
+  eventedDeque,
+  eventedList,
+  eventedMap,
+  eventedQueue,
+  every,
+  fanIn,
+  fanOut,
+  filter,
+  filtering,
+  find,
+  findIndex,
+  findLastIndex,
+  first,
+  flatMap,
+  flatMapOption,
+  flatMapResult,
+  flatMapping,
+  flatten,
+  forwardEvent,
+  fromNullable,
+  getOrElse,
+  getOrElseResult,
   groupBy,
-} from "./utils/factories.js";
-
-// Effects
-export {
-  None,
-  Some,
-  type Option,
-  Ok,
-  Err,
-  type Result,
-  isSome,
+  groupingBy,
+  groupingByWith,
+  hasCapability,
+  hashBy,
+  hashMap,
+  hashNumber,
+  hashSet,
+  hashString,
+  immutableListOf,
+  immutableMapOf,
+  interceptMethods,
+  isErr,
   isNone,
   isOk,
-  isErr,
-  getOrElse,
+  isSome,
+  isValidKey,
+  iterToMap,
+  joining,
+  keyBetween,
+  keysBetween,
+  keysForDrop,
+  last,
+  linkedHashMap,
+  linkedList,
+  listOf,
+  lruCache,
+  lruMap,
+  map,
+  mapAsyncOption,
+  mapAsyncResult,
+  mapError,
+  mapOf,
+  mapOption,
+  mapResult,
+  mapping,
+  max,
+  maxBy,
+  merge,
+  min,
+  minBy,
+  mutableListOf,
+  mutableMapOf,
+  nCopies,
+  none,
+  nullsFirst,
+  nullsLast,
+  numberCompare,
+  onWhen,
+  optionToResult,
+  partition,
+  partitioningBy,
+  pipe,
+  pipeline,
+  priorityQueue,
+  queueOf,
+  range,
+  rangeTo,
+  readWriteLock,
+  readonly,
+  readonlyCollection,
+  readonlyList,
+  readonlyMap,
+  readonlyQueue,
+  reduce,
+  reducing,
+  reducingWith,
+  reentrantSynchronized,
+  requireNonEmpty,
+  requireNonNull,
+  resultToOption,
+  reverse,
+  reverseArrayIterator,
+  reversed,
+  safe,
+  safeDeque,
+  safeList,
+  safeMap,
+  safeQueue,
+  scan,
+  select,
+  sequence,
+  sequenceResults,
+  shallowEq,
+  singletonList,
+  singletonMap,
+  skip,
+  skipWhile,
+  some,
+  sort,
+  stringCompare,
+  stringCompareIgnoreCase,
+  stringHashCode,
+  sum,
+  summarizingNumber,
+  summaryTree,
+  summingNumber,
+  synchronized,
+  synchronizedCollection,
+  synchronizedList,
+  synchronizedMap,
+  synchronizedSet,
+  take,
+  takeWhile,
+  tap,
+  teeing,
+  thenComparing,
+  ticker,
+  timeout,
+  toArray,
+  toList,
+  toMap,
+  toNullable,
+  toSet,
+  treeMap,
+  treeSet,
+  tryCatch,
+  tryCatchAsync,
+  ttlCache,
+  ttlCollection,
+  ttlMap,
+  unbuffered,
+  unmodifiableCollection,
+  unmodifiableList,
+  unmodifiableMap,
   unwrap,
-} from "./core/effects.js";
+  unwrapResult,
+  window,
+  workerPool,
+  zip,
+} from "@mark1russell7/collections";

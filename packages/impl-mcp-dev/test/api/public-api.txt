@@ -1,8 +1,8 @@
 # The public API of @procedures/mcp-dev-tools
 #
 # The names of each entry of the exports field, and the declaration of each name, without comments
-# and private members. The script scripts/api-report.ts compares this file with the built .d.ts files.
-# To accept a change of the API, start the script with --update and review the diff.
+# and private members. The command `api-report check` compares this file with the built .d.ts files.
+# To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
 ## . (dist/index.d.ts): 8 names
 
@@ -14,6 +14,10 @@ createDevToolsHost: dist/host.d.ts#createDevToolsHost
 loadBundles: dist/host.d.ts#loadBundles
 loadConfig: dist/config.d.ts#loadConfig
 runDevToolsServer: dist/host.d.ts#runDevToolsServer
+
+## bin: 1 commands
+
+mcp-dev-tools: ./dist/bin.js
 
 ## Declarations
 

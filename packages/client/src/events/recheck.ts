@@ -109,6 +109,8 @@ type RecheckCheck = (cause: RecheckCause, scope?: RightsScopes) => Promise<void>
  * each new subscription to `watch()`, with the check of its admission.
  */
 export class SubscriptionRechecks {
+  private readonly clock: Clock;
+
   private readonly watches = new Set<Watch>();
   private readonly maxAgeMs: number | undefined;
   private readonly source: SubscriptionRecheck["rightsChanges"];
@@ -117,8 +119,9 @@ export class SubscriptionRechecks {
 
   constructor(
     options: SubscriptionRecheck,
-    private readonly clock: Clock,
+    clock: Clock,
   ) {
+    this.clock = clock;
     const maxAgeMs = options.maxAge === undefined ? undefined : toMs(options.maxAge, "recheck.maxAge");
     if (maxAgeMs !== undefined && !(maxAgeMs > 0)) {
       throw new TypeError(`recheck.maxAge must be more than 0 ms, got ${maxAgeMs} ms`);

@@ -1,5 +1,43 @@
 # @procedures/collections
 
+## 0.48.1
+
+### Patch Changes
+
+- Updated dependencies [2d7edae]
+  - @procedures/client@0.48.1
+
+## 0.48.0
+
+### Minor Changes
+
+- c839add: The release train: the ranges of @mark1russell7/coeval, @mark1russell7/quantity, @mark1russell7/collections, @mark1russell7/cue change to a version outside the old range.
+
+### Patch Changes
+
+- Updated dependencies [17a18ec]
+- Updated dependencies [06088f9]
+- Updated dependencies [71f9c6e]
+- Updated dependencies [c839add]
+  - @procedures/client@0.48.0
+
+## 0.47.2
+
+### Patch Changes
+
+- 2684531: The pure collection and graph code moved to `@mark1russell7/collections`. Both packages re-export the same names, and the signatures stay the same.
+- Updated dependencies [0650616]
+- Updated dependencies [ae1e3fd]
+- Updated dependencies [f1ece74]
+  - @procedures/client@0.47.2
+
+## 0.47.1
+
+### Patch Changes
+
+- Updated dependencies [f845c6d]
+  - @procedures/client@0.47.1
+
 ## 0.47.0
 
 ### Patch Changes
@@ -423,9 +461,9 @@
   Migration:
   
   - **Site.** No change. The site does not write collections.
-  - **MiniMongo.** No change for a storage or a `HybridStorage` without `versionOf`. A `HybridStorage` with `versionOf` over `ApiStorage` needs a server storage with the same `versionOf` (for example `new InMemoryStorage({ versionOf })`), or the option `sendBaseVersions: false`.
-  - **Graph.** Graph keeps last-write-wins first (D11): it gives no expected version, so nothing changes. `GraphDocsStorage` must refuse a write with an expected version until it tests one. Add the guard to its `set`, `delete` and `setBatch`, and run the contract suite: its first case tests the refusal. To adopt the version later, stamp a version field on the server, give the storage a `versionOf` that tests it in the write, and give the same `versionOf` to the `HybridStorage` of the client. Then add `createWithVersions` to the contract run.
-  - **jarvis.** No change: jarvis gives no expected version. A storage of jarvis that implements `CollectionStorage` must refuse a write with an expected version, as for Graph.
+  - **An app with `HybridStorage`.** No change for a storage or a `HybridStorage` without `versionOf`. A `HybridStorage` with `versionOf` over `ApiStorage` needs a server storage with the same `versionOf` (for example `new InMemoryStorage({ versionOf })`), or the option `sendBaseVersions: false`.
+  - **An app with last-write-wins.** It gives no expected version, so nothing changes. Its own storage must refuse a write with an expected version until it tests one. Add the guard to its `set`, `delete` and `setBatch`, and run the contract suite: its first case tests the refusal. To adopt the version later, stamp a version field on the server, give the storage a `versionOf` that tests it in the write, and give the same `versionOf` to the `HybridStorage` of the client. Then add `createWithVersions` to the contract run.
+  - **An app without versions.** No change: it gives no expected version. A storage of the app that implements `CollectionStorage` must refuse a write with an expected version, as above.
   - **Other storages.** Each class that implements `CollectionStorage` reads the new options of `set`, `delete` and `setBatch`. It tests them in the write, or it rejects the write with `preconditionNotSupported()`. It never ignores them.
 
 ### Patch Changes
@@ -459,8 +497,8 @@
 
 ### Patch Changes
 
-- 3a235b9: New: the patch operations `$remove` and `$insert` (Graph's split, wave 2, W5). `$remove` takes an element out of an array, and the next elements move down by one, as the operation `remove` of JSON Patch (RFC 6902). For a field of an object, it is the same as `$unset`. `$insert` adds an element to an array at an index, as the operation `add` of JSON Patch. Each index of one patch refers to the item before the patch. A patch that removes and inserts elements of the same array is refused, and so is an `$insert` past the end of an array. `$unset` keeps the rule of MongoDB: an element of an array becomes `null`. The storage contract has a case for the two operations, so each storage gets them through `applyPatch`.
-- 50d4818: New: `inversePatch` and `UndoLog` (Graph's split, wave 2, W10). `inversePatch(before, patch)` gives the patch that undoes a patch. The inverse of a removal of an element is an insertion, and the inverse of an insertion is a removal, so an undo does not keep the whole array. The function applies the inverse to check it, and gives `undefined` when no patch undoes the change exactly. `UndoLog` keeps the undo of each change in a collection storage, with a cap, and the fingerprint of the item after the change (`fingerprintOf`). `undo()` undoes the newest change and the other changes of its group. It reads each item first, and refuses the whole group with an `UndoConflictError` when another writer changed an item. Then each item gets one write.
+- 3a235b9: New: the patch operations `$remove` and `$insert`. `$remove` takes an element out of an array, and the next elements move down by one, as the operation `remove` of JSON Patch (RFC 6902). For a field of an object, it is the same as `$unset`. `$insert` adds an element to an array at an index, as the operation `add` of JSON Patch. Each index of one patch refers to the item before the patch. A patch that removes and inserts elements of the same array is refused, and so is an `$insert` past the end of an array. `$unset` keeps the rule of MongoDB: an element of an array becomes `null`. The storage contract has a case for the two operations, so each storage gets them through `applyPatch`.
+- 50d4818: New: `inversePatch` and `UndoLog`. `inversePatch(before, patch)` gives the patch that undoes a patch. The inverse of a removal of an element is an insertion, and the inverse of an insertion is a removal, so an undo does not keep the whole array. The function applies the inverse to check it, and gives `undefined` when no patch undoes the change exactly. `UndoLog` keeps the undo of each change in a collection storage, with a cap, and the fingerprint of the item after the change (`fingerprintOf`). `undo()` undoes the newest change and the other changes of its group. It reads each item first, and refuses the whole group with an `UndoConflictError` when another writer changed an item. Then each item gets one write.
 - Updated dependencies [3a235b9]
   - @procedures/client@0.13.2
 
@@ -481,7 +519,7 @@
 
 ### Patch Changes
 
-- b6782c0: New: the order of a list as data (Graph's split, wave 2, W1). `keyBetween(prev, next)` gives a string key between two neighbors, so a move writes one item and no other. The keys use fractional indexing with 62 digits: they do not run out, and the list needs no rebalance. `keysForDrop` gives all the writes of a move, also when two writers gave two items the same key. `keysBetween` gives several keys, `compareKeys` sorts them, `isValidKey` examines a key that a client writes, and `dropIndex(point, centers)` gives the index of a point among the items on the screen, in reading order.
+- b6782c0: New: the order of a list as data. `keyBetween(prev, next)` gives a string key between two neighbors, so a move writes one item and no other. The keys use fractional indexing with 62 digits: they do not run out, and the list needs no rebalance. `keysForDrop` gives all the writes of a move, also when two writers gave two items the same key. `keysBetween` gives several keys, `compareKeys` sorts them, `isValidKey` examines a key that a client writes, and `dropIndex(point, centers)` gives the index of a point among the items on the screen, in reading order.
 - @procedures/client@0.12.2
 
 ## 0.12.1
@@ -533,7 +571,7 @@
 
 - 0dd1c86: The overlay: one logical document read through a stack of layers. `mergeCopies` merges the copies field by field (`UNSET` hides a field, `_deleted` hides the document) or takes the top copy whole. `copyAsPatch` gives a copy as the patch operations of `applyPatch`.
   
-  `resolveStacks` and `stackOf` give the read stack, the write targets and the merge mode of each collection and document. The rules name the layers with variables, and the app resolves them. Each change is additive. The code comes from Graph (its split plan, part P2).
+  `resolveStacks` and `stackOf` give the read stack, the write targets and the merge mode of each collection and document. The rules name the layers with variables, and the app resolves them. Each change is additive.
 - Updated dependencies [8bb469c]
 - Updated dependencies [dc03903]
 - Updated dependencies [dca28c1]
@@ -583,7 +621,7 @@
 
 ### Minor Changes
 
-- 5837c2d: `asSettled(promises)` gives the result of each promise when it settles, in settle order, with the index of its promise. A rejection is a result, not an error. jarvis used the same `Promise.race` loop in two places.
+- 5837c2d: `asSettled(promises)` gives the result of each promise when it settles, in settle order, with the index of its promise. A rejection is a result, not an error. An app used the same `Promise.race` loop in two places.
 
 ## 0.6.0
 

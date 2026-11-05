@@ -114,7 +114,7 @@ export interface FaceCallRules {
   readonly narrowing?: FaceRulesOptions["narrowing"];
   /**
    * The procedures that the callers of the face reach: the patterns of `hostPolicy({ expose })`
-   * (`programs.get`, `graphapi.*`), a tool surface or a function. The server meets this rule with
+   * (`programs.get`, `api.*`), a tool surface or a function. The server meets this rule with
    * the expose rule of the host, for the call of the face and for each nested call. A path outside
    * it gets `NOT_FOUND`. The rule applies to each procedure of the host, also to `host.health`,
    * `host.info`, `host.metrics` and `events.subscribe`.
@@ -160,7 +160,7 @@ function browserOptions(browser: BrowserGuardOptions, http: boolean): BrowserGua
  * @example
  * ```typescript
  * // A read-only face of a browser next to the full face of the same host
- * const read = httpFace({ basePath: "/rpc/read", narrowing: { effects: { writes: [] } }, expose: ["programs.*", "graphapi.*"] });
+ * const read = httpFace({ basePath: "/rpc/read", narrowing: { effects: { writes: [] } }, expose: ["programs.*", "api.*"] });
  * ```
  */
 export function httpFace(options: HttpFaceOptions = {}): HostFaceFactory {
@@ -204,6 +204,10 @@ export function wsFace(options: WsFaceOptions = {}): HostFaceFactory {
       server.admits(requestCredentials({ headers: req.headers as Record<string, unknown>, url: req.url, socket: req.socket }, { tokenQuery: "token" }));
     const upgrade = upgradeHandler(handler, { ...browserOptions(context.policy.browser, false), authenticate: admits, ...upgradeOptions });
     const transport = upgrade.transport;
+    // A live key ends when the connection of its owner closes (LIVE-STATE-2026-11.md)
+    transport.onDisconnect((connection) => {
+      server.publisher?.live?.connectionClosed(connection.id);
+    });
     return {
       upgrade: { match: upgrade.path, handler: upgrade },
       parts: {

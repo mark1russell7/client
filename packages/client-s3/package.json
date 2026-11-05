@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/s3",
-  "version": "0.47.0",
+  "version": "0.48.1",
   "description": "AWS S3 as typed procedures: upload, download with safe part files, list, head, copy, presigned URLs, delete and multipart uploads.",
   "keywords": [
     "s3",
@@ -76,7 +76,7 @@
     "@procedures/fs": "workspace:*",
     "typescript": "^7.0.2",
     "@types/node": "^22.0.0",
-    "@mark1russell7/cue": "^1.1.0",
+    "@mark1russell7/cue": "^2.1.1",
     "vitest": "^5.0.3"
   },
   "client": {

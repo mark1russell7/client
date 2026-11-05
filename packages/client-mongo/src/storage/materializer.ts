@@ -1,5 +1,5 @@
 /**
- * Materialized views driven by change streams (Graph's split plan, part P4). A view is a document
+ * Materialized views driven by change streams. A view is a document
  * of a views collection: an aggregation pipeline over source collections whose result goes into a
  * target collection, for one partition (for example one tenant). The materializer runs each view
  * when its sources change, and keeps the target equal to the result of the pipeline.
@@ -31,8 +31,11 @@
  *   of another view. The materializer writes the rows.
  * - A pass keeps in memory the key of each row of the result (at most `maxRows`) and one group of
  *   1000 rows. It keeps nothing between passes.
+ * - Each source has one change stream, for all views of all partitions (roadmap CLI-92). A stream at
+ *   rest holds one connection of the pool for its `getMore`, so the count of streams must not grow
+ *   with the partitions. The handler of the stream gives a change to the views of its partition.
  * - A change stream that ends (for example after `dropDatabase`) opens again after `rewatch`,
- *   and a pass catches up on the changes that the stream missed.
+ *   and a pass of each partition of that source catches up on the changes that the stream missed.
  * - Each stream is open on the server before the materializer reads what it watches: the views
  *   before the read of the views, the sources before a run. A change between the two reaches both.
  * - The status of each view (`ok`, `errored`, `cycle`) goes into the field `statusField` of its
@@ -56,7 +59,7 @@
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { BSON, ObjectId, type AnyBulkWriteOperation, type ChangeStream, type ClientSession, type Collection, type Db, type Document } from "mongodb";
-import { collectionChangeTopic, ms, optionalMs, realClock, writeLog, type Cancel, type Clock, type CollectionChangeEvent, type Duration, type LogFields, type Logger } from "@procedures/client";
+import { collectionChangeTopic, ms, optionalMs, realClock, Semaphore, writeLog, type Cancel, type Clock, type CollectionChangeEvent, type Duration, type LogFields, type Logger } from "@procedures/client";
 import { DEFAULT_STORED_FORM, DOCUMENT_STORAGE_FIELDS, MongoDocumentStorage, TOMBSTONE_FIELD, storageWriteTarget, type StorageWriteTarget, type StoredForm } from "./document-storage.js";
 import { scopePipeline } from "./pipeline-scope.js";
 import type { StorageHintPublisher } from "./storage-hints.js";
@@ -308,6 +311,19 @@ const CONFLICT_RETRIES = 3;
 /** The most ids of a hint of a target not in a stored form. More ids give a reset hint. */
 const MAX_HINT_IDS = 10_000;
 
+/** The most passes that run at one time: about one third of the default pool of the driver (100). */
+const MOST_PASSES = 32;
+
+/**
+ * This function gives the most passes that run at one time on a pool. A pass uses one connection at
+ * a time, so two thirds of the pool stay free for the other operations of the process.
+ */
+function passLimit(db: Db): number {
+  // A fake database of a test has no client
+  const pool = (db.client as Db["client"] | undefined)?.options.maxPoolSize;
+  return pool ? Math.max(1, Math.min(MOST_PASSES, Math.floor(pool / 3))) : MOST_PASSES;
+}
+
 /** The `_id` of a row in the result, from the stored `_id` of `partitionTargetId`. */
 export function defaultRowId(storedId: unknown): unknown {
   return typeof storedId === "object" && storedId !== null && "id" in storedId ? (storedId as { id: unknown }).id : storedId;
@@ -403,9 +419,21 @@ function openOnServer(stream: ChangeStream): Promise<void> {
 interface RunningView {
   view: MaterializedView;
   partition: string;
-  /** `active`: its streams are open, and it runs in the passes. `cyclic`: it is in a cycle, and it waits. */
+  /** `active`: its sources are watched, and it runs in the passes. `cyclic`: it is in a cycle, and it waits. */
   state: "active" | "cyclic";
-  streams: ChangeStream[];
+  /** The sources that this view watches. Empty until its first rebalance, and for a view in a cycle. */
+  watched: string[];
+}
+
+/** The one change stream of a source, and the views that it serves. */
+interface SourceWatch {
+  source: string;
+  /** The stream. Undefined from the end of a stream until the next one opens. */
+  stream: ChangeStream | undefined;
+  /** The views of the source, for each partition. */
+  partitions: Map<string, Set<RunningView>>;
+  /** The promise that resolves when the first stream is open on the server. After an end, the pass of the next stream catches up. */
+  opened: Promise<void>;
 }
 
 /** A path without its positions in arrays (the segments of digits only): `lines.0.price` gives `lines.price`. */
@@ -455,9 +483,15 @@ export class ViewMaterializer {
   private db: Db | undefined;
   private viewsStream: ChangeStream | undefined;
   private readonly running = new Map<string, RunningView>();
+  /** The one change stream of each source that an active view reads (roadmap CLI-92). */
+  private readonly sources = new Map<string, SourceWatch>();
   /** The collections that changed since the last pass, for each partition. */
   private readonly dirty = new Map<string, Set<string>>();
   private readonly timers = new Map<string, Cancel>();
+  /** The time of the last change of each partition with a timer: the end of the wait of the pass. */
+  private readonly lastChange = new Map<string, number>();
+  /** The passes that run at one time. A burst that reaches each partition does not fill the pool. */
+  private passes = new Semaphore(MOST_PASSES);
   /** The timers of the streams that open again, and of the ends of the grace times. */
   private readonly retries = new Set<Cancel>();
   private readonly clock: Clock;
@@ -586,10 +620,10 @@ export class ViewMaterializer {
     return scopePipeline(pipeline, { match, collections: view.collections });
   }
 
-  /** The change streams that are open: the views stream and the source streams of the active views. */
+  /** The change streams that are open: the views stream and one stream for each source of the active views. */
   openStreamCount(): number {
     let count = this.viewsStream ? 1 : 0;
-    for (const view of this.running.values()) count += view.streams.length;
+    for (const watch of this.sources.values()) if (watch.stream) count++;
     return count;
   }
 
@@ -608,6 +642,7 @@ export class ViewMaterializer {
     this.stopped = false;
     this.intake = true;
     this.db = await this.options.db();
+    this.passes = new Semaphore(passLimit(this.db));
     // The stream of the views opens before the read of the views: a change between the two reaches both (roadmap O63)
     await this.watchViews();
     const count = await this.resync();
@@ -619,6 +654,7 @@ export class ViewMaterializer {
     this.intake = false;
     for (const cancel of this.timers.values()) cancel();
     this.timers.clear();
+    this.lastChange.clear();
     this.dirty.clear();
   }
 
@@ -799,7 +835,7 @@ export class ViewMaterializer {
       this.log("warn", "The view needs collections, a pipeline and a targetCollection: it does not run", { view: view._id, partition }, `the view ${view._id} needs collections, a pipeline and a targetCollection: it does not run`);
       return false;
     }
-    this.running.set(this.keyOf(partition, view._id), { view, partition, state: "active", streams: [] });
+    this.running.set(this.keyOf(partition, view._id), { view, partition, state: "active", watched: [] });
     return true;
   }
 
@@ -830,37 +866,36 @@ export class ViewMaterializer {
   private tearDown(key: string): void {
     const view = this.running.get(key);
     if (!view) return;
-    for (const stream of view.streams) stream.close().catch(() => undefined);
+    this.unwatch(view);
     this.running.delete(key);
     this.storageClaims.delete(key);
   }
 
   /**
-   * The filter of the change stream of a source for a partition. It only removes the events that
-   * cannot change a view of the partition: an event whose partition is unknown passes, and the
-   * pass of the partition reads its own documents only.
+   * The partitions that a change of a source can reach (roadmap CLI-92). This list only removes the
+   * partitions that the change cannot touch: the pass of a partition reads its own documents only.
    *
    * - An insert, a replace or an update has the document after the change (`fullDocument`).
    * - With a pre-image (a collection with `changeStreamPreAndPostImages`), each change also has the
    *   document before it: a delete, and an update that moves a document out of the partition.
    * - Without a pre-image, a delete, a replace and an update of the partition field (a top-level
-   *   field) can leave any partition: they pass. In a source of `storageSources`, the handler then
-   *   reads the partition from the id (`isOtherPartition`).
-   * - The handler checks the fields of an update against `sourceFields` (`touchesFields`).
+   *   field) can leave any partition: the change reaches each partition of the source. In a source
+   *   of `storageSources`, the handler then reads the partition from the id (`isOtherPartition`).
+   * - The handler checks the fields of an update against `sourceFields` (`touchesNoField`).
    */
-  private sourceMatch(partition: string): Document {
+  private partitionsOfChange(change: Document, watch: SourceWatch): Iterable<string> {
     const field = this.partitionField;
-    const noPreImage = { fullDocumentBeforeChange: null };
-    return {
-      $match: {
-        $or: [
-          { [`fullDocument.${field}`]: partition },
-          { [`fullDocumentBeforeChange.${field}`]: partition },
-          { operationType: { $in: ["delete", "replace"] }, ...noPreImage },
-          { operationType: "update", ...noPreImage, $or: [{ [`updateDescription.updatedFields.${field}`]: { $exists: true } }, { "updateDescription.removedFields": field }] },
-        ],
-      },
-    };
+    const type = change["operationType"];
+    const before = change["fullDocumentBeforeChange"] as Document | null | undefined;
+    if (before === null || before === undefined) {
+      const description = (change["updateDescription"] ?? {}) as { updatedFields?: Document; removedFields?: string[] };
+      const movable = type === "delete" || type === "replace" || (type === "update" && (Object.hasOwn(description.updatedFields ?? {}, field) || (description.removedFields ?? []).includes(field)));
+      if (movable) return watch.partitions.keys();
+    }
+    const after = change["fullDocument"] as Document | null | undefined;
+    const named = new Set<string>();
+    for (const value of [after?.[field], before?.[field]].flat()) if (typeof value === "string") named.add(value);
+    return named;
   }
 
   /**
@@ -916,47 +951,110 @@ export class ViewMaterializer {
     return this.running.get(this.keyOf(running.partition, running.view._id)) === running;
   }
 
-  /** This method opens the stream of a source for a view. The promise resolves when the stream is open on the server. */
-  private watchSource(running: RunningView, source: string): Promise<void> {
+  /**
+   * This method adds a view to the stream of each of its sources, and opens a stream that does not
+   * exist. The promise resolves when each stream is open on the server, so a change after that
+   * reaches the view.
+   */
+  private watchSources(running: RunningView): Promise<void> {
+    const opened: Promise<void>[] = [];
+    for (const source of new Set(running.view.collections)) {
+      let watch = this.sources.get(source);
+      if (!watch) {
+        watch = { source, stream: undefined, partitions: new Map(), opened: Promise.resolve() };
+        this.sources.set(source, watch);
+        watch.opened = this.openSource(watch);
+      }
+      let views = watch.partitions.get(running.partition);
+      if (!views) watch.partitions.set(running.partition, (views = new Set()));
+      views.add(running);
+      running.watched.push(source);
+      opened.push(watch.opened);
+    }
+    return Promise.all(opened).then(() => undefined);
+  }
+
+  /** This method removes a view from its streams. The stream of a source with no view left closes. */
+  private unwatch(running: RunningView): void {
+    for (const source of running.watched) {
+      const watch = this.sources.get(source);
+      const views = watch?.partitions.get(running.partition);
+      if (!watch || !views) continue;
+      views.delete(running);
+      if (views.size === 0) watch.partitions.delete(running.partition);
+      if (watch.partitions.size === 0) this.dropWatch(watch);
+    }
+    running.watched = [];
+  }
+
+  /** This method closes the stream of a source and forgets it. */
+  private dropWatch(watch: SourceWatch): void {
+    if (this.sources.get(watch.source) === watch) this.sources.delete(watch.source);
+    const stream = watch.stream;
+    watch.stream = undefined;
+    stream?.close().catch(() => undefined);
+  }
+
+  /** This method opens the stream of a source. The promise resolves when the stream is open on the server. */
+  private openSource(watch: SourceWatch): Promise<void> {
     if (this.stopped || !this.db) return Promise.resolve();
+    const { source } = watch;
     let stream: ChangeStream;
     try {
-      stream = this.db
-        .collection(source)
-        .watch([this.sourceMatch(running.partition)], { fullDocument: "updateLookup", fullDocumentBeforeChange: "whenAvailable" });
+      stream = this.db.collection(source).watch([], { fullDocument: "updateLookup", fullDocumentBeforeChange: "whenAvailable" });
     } catch (error) {
-      this.log("error", "Cannot watch a source of the view", { view: running.view._id, partition: running.partition, collection: source, error }, `cannot watch ${source} for the view ${running.view._id}: ${String((error as Error)?.message ?? error)}`);
-      this.later(() => {
-        if (this.isCurrent(running) && running.state === "active") void this.watchSource(running, source);
-      });
+      this.log("error", "Cannot watch a source", { collection: source, error }, `cannot watch ${source}: ${String((error as Error)?.message ?? error)}`);
+      this.afterStreamEnd(watch);
       return Promise.resolve();
     }
-    running.streams.push(stream);
+    watch.stream = stream;
     let again = false;
     const rewatch = (reason: string): void => {
       if (again) return;
       again = true;
       stream.close().catch(() => undefined);
-      const index = running.streams.indexOf(stream);
-      // A close of a teardown also ends the stream: open again only a stream of a current active view
-      if (index === -1 || !this.isCurrent(running) || running.state !== "active") return;
-      running.streams.splice(index, 1);
-      this.log("warn", "The stream of a source ended: it opens again", { view: running.view._id, partition: running.partition, collection: source, reason, delayMs: this.rewatchMs }, `the stream of ${source} for the view ${running.view._id} ${reason}: it opens again in ${this.rewatchMs} ms`);
-      this.later(() => {
-        if (!this.isCurrent(running) || running.state !== "active") return;
-        // The changes while the stream was closed are lost: a pass catches up, after the new stream is open
-        void this.watchSource(running, source).then(() => this.schedule(running.partition, source));
-      });
+      // A close of a teardown also ends the stream: open again only the stream of a source with views
+      if (watch.stream !== stream || this.sources.get(source) !== watch) return;
+      watch.stream = undefined;
+      this.log("warn", "The stream of a source ended: it opens again", { collection: source, reason, delayMs: this.rewatchMs }, `the stream of ${source} ${reason}: it opens again in ${this.rewatchMs} ms`);
+      this.afterStreamEnd(watch);
     };
     stream.on("change", (change: Document) => {
       if (change["operationType"] === "invalidate") return rewatch("ended (invalidate)");
-      if (this.isOtherPartition(change, source, running.partition)) return;
-      if (this.touchesNoField(change, running.view.sourceFields?.[source])) return;
-      this.schedule(running.partition, source);
+      if (watch.stream === stream) this.route(change, watch);
     });
     stream.on("error", (error: Error) => rewatch(`failed: ${error.message}`));
     stream.on("close", () => rewatch("closed"));
     return openOnServer(stream);
+  }
+
+  /**
+   * This method opens the stream of a source again after `rewatch`. The changes while no stream was
+   * open are lost, so a pass of each partition of the source catches up, after the new stream is
+   * open. A view that joins before then is in that pass.
+   */
+  private afterStreamEnd(watch: SourceWatch): void {
+    this.later(() => {
+      if (this.sources.get(watch.source) !== watch) return;
+      void this.openSource(watch).then(() => {
+        if (this.sources.get(watch.source) !== watch) return;
+        for (const partition of watch.partitions.keys()) this.schedule(partition, watch.source);
+      });
+    });
+  }
+
+  /** This method gives a change of a source to the views of its partitions. */
+  private route(change: Document, watch: SourceWatch): void {
+    const { source } = watch;
+    for (const partition of this.partitionsOfChange(change, watch)) {
+      const views = watch.partitions.get(partition);
+      if (!views || this.isOtherPartition(change, source, partition)) continue;
+      for (const running of views) {
+        if (this.touchesNoField(change, running.view.sourceFields?.[source])) continue;
+        this.schedule(partition, source);
+        break;
+      }
+    }
   }
 
   /** This method runs a function after `rewatch`, unless the materializer stops. The timer does not keep the process alive. */
@@ -975,11 +1073,26 @@ export class ViewMaterializer {
     let dirty = this.dirty.get(partition);
     if (!dirty) this.dirty.set(partition, (dirty = new Set()));
     dirty.add(collection);
-    this.timers.get(partition)?.();
-    const cancel = this.clock.after(this.debounceMs, () => {
+    this.lastChange.set(partition, this.clock.now());
+    if (!this.timers.has(partition)) this.waitForPass(partition, this.debounceMs);
+  }
+
+  /**
+   * This method starts the timer of the pass of a partition. A change during the wait moves the end
+   * of the wait and makes no new timer: 1,000 deletes with no pre-image at 1,000 partitions are a
+   * million changes. A pass waits for its place in `passes` after the work of its partition before it.
+   */
+  private waitForPass(partition: string, delay: number): void {
+    const cancel = this.clock.after(delay, () => {
+      const left = this.lastChange.get(partition)! + this.debounceMs - this.clock.now();
+      if (left > 0) {
+        this.waitForPass(partition, left);
+        return;
+      }
       this.timers.delete(partition);
+      this.lastChange.delete(partition);
       if (!this.intake) return;
-      void this.serial(partition, () => this.pass(partition)).catch((error: unknown) =>
+      void this.serial(partition, () => this.passes.withPermit(() => this.pass(partition))).catch((error: unknown) =>
         this.log("error", "The pass failed", { partition, error }, `the pass of ${partition} failed: ${String((error as Error)?.message ?? error)}`)
       );
     });
@@ -1024,15 +1137,14 @@ export class ViewMaterializer {
         if (!running) continue;
         if (cyclic.has(view._id)) {
           if (running.state === "active") {
-            for (const stream of running.streams) stream.close().catch(() => undefined);
-            running.streams = [];
+            this.unwatch(running);
             running.state = "cyclic";
             await this.writeStatus(view, partition, { state: "cycle", at: Date.now() });
           }
-        } else if (running.state === "cyclic" || running.streams.length === 0) {
+        } else if (running.state === "cyclic" || running.watched.length === 0) {
           running.state = "active";
           // The streams open before the run reads the sources: a change between the two reaches both (roadmap O63)
-          await Promise.all(view.collections.map((source) => this.watchSource(running, source)));
+          await this.watchSources(running);
           // A change of the view document during the wait replaced this view: the rebalance of the new one runs it
           if (!this.isCurrent(running)) continue;
           await this.runAndWriteStatus(view, partition);

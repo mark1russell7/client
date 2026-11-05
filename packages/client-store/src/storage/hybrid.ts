@@ -2,7 +2,7 @@
  * Hybrid Storage Implementation
  *
  * A local copy (an `InMemoryStorage`, or the `local` storage that the application gives) in
- * front of a remote `CollectionStorage` (often an `ApiStorage`). The storage has four modes, and
+ * front of a remote `CollectionStorage` (often an `ApiStorage`). The storage has five modes, and
  * `setMode()` changes the mode while the storage operates (roadmap R28):
  *
  * | Mode | Reads | Writes | Remote calls |
@@ -11,6 +11,7 @@
  * | `write-through` | the local copy, the remote on a miss | the local copy, then the remote | yes |
  * | `write-back` | the local copy, the remote on a miss | the local copy and the queue, a timer sends it | yes |
  * | `remote-only` | the remote | the remote | yes, and no local copy |
+ * | `read-only` | the local copy, the remote on a miss | refused with `ReadOnlyError` | reads and pulls only |
  *
  * - The queue is durable through the `queueStore` that the application gives.
  * - A sync asks for the changes since a version when the remote has `getChangesSince`.
@@ -40,9 +41,9 @@
  *   writes over a newer local write.
  * - The syncs of one storage run one at a time, in their order: the deltas and the hints of the
  *   feed, the pulls, the pushes, the reads after an own write, and the mode switches. Thus a
- *   remote delta and a full sync never run at the same time (Graph R18).
+ *   remote delta and a full sync never run at the same time.
  * - `aroundRemoteApply` runs each apply of the remote changes inside a hook, for example inside a
- *   span of a trace (graph W8).
+ *   span of a trace.
  */
 
 import type {
@@ -93,10 +94,19 @@ export type WriteStrategy = "write-through" | "write-back";
  * - `write-through`: each write goes to the local copy, then to the remote.
  * - `write-back`: each write goes to the local copy and to the queue. A timer sends the queue.
  * - `remote-only`: each read and each write goes to the remote. The storage keeps no local copy.
+ * - `read-only`: the storage refuses each write with `ReadOnlyError` at once, with no change of
+ *   the local copy, the queue or the remote. Reads, pulls and the feed work as in `write-through`
+ *   (roadmap CLI-89). This mode sends no write: a queue that it holds waits for a mode that writes.
  */
-export type HybridMode = "local-only" | "write-through" | "write-back" | "remote-only";
+export type HybridMode = "local-only" | "write-through" | "write-back" | "remote-only" | "read-only";
 
-const MODES: ReadonlySet<string> = new Set<HybridMode>(["local-only", "write-through", "write-back", "remote-only"]);
+const MODES: ReadonlySet<string> = new Set<HybridMode>(["local-only", "write-through", "write-back", "remote-only", "read-only"]);
+
+/** True for the modes that keep a local copy and read the remote changes into it. */
+const pullsRemote = (mode: HybridMode): boolean => mode === "write-through" || mode === "write-back" || mode === "read-only";
+
+/** True for the modes that send writes to the remote. */
+const pushesRemote = (mode: HybridMode): boolean => mode !== "local-only" && mode !== "read-only";
 
 /**
  * Hybrid storage configuration options.
@@ -179,14 +189,14 @@ export interface HybridStorageOptions {
 
   /**
    * The interval of the periodic pull, for example `minutes(1)` (roadmap R28). A pull reads the
-   * remote changes into the local copy in the modes `write-through` and `write-back`.
+   * remote changes into the local copy in the modes `write-through`, `write-back` and `read-only`.
    * @default no periodic pull
    */
   pullInterval?: Duration;
 
   /**
    * Initialize by syncing from remote on construction: send the loaded queue, then read the
-   * remote. The mode `local-only` makes no remote call.
+   * remote. The mode `local-only` makes no remote call. The mode `read-only` sends no queue.
    * @default true
    */
   syncOnInit?: boolean;
@@ -241,6 +251,15 @@ export interface HybridStorageOptions {
    * error of the hook does not stop the queue.
    */
   onRefused?: (refusal: QueueRefusal) => void | Promise<void>;
+
+  /**
+   * This hook gets each queued write that leaves the queue with no send that the remote took
+   * (roadmap CLI-106). The storage gives one call for each id, on a conflict that the policy
+   * `remote` decides, on a delete of the remote and on a refusal. The call comes after the local
+   * copy changed, so the hook can write the value again. An error of the hook does not stop the
+   * sync. The sync waits for the hook.
+   */
+  onDropped?: (drop: DroppedWrite) => void | Promise<void>;
 
   /**
    * The storage of the local copy (roadmap R45). A durable storage, for example `SqliteStorage`
@@ -299,7 +318,7 @@ export interface HybridStorageOptions {
   feed?: RemoteChangeFeed<any>;
 
   /**
-   * The hook around each apply of the remote changes (graph W8), for example a span of a trace.
+   * The hook around each apply of the remote changes, for example a span of a trace.
    * `RemoteApplyHook` gives the arguments.
    *
    * - The hook wraps the apply of each delta of the feed, each hint of the feed that applies, and
@@ -383,7 +402,7 @@ export interface HybridStorageOptions {
 }
 
 /**
- * The cause of an apply of the remote changes (graph W8).
+ * The cause of an apply of the remote changes.
  *
  * - `"delta"`: a delta of the feed.
  * - `"hint"`: one or more hints of the feed.
@@ -392,7 +411,7 @@ export interface HybridStorageOptions {
  */
 export type RemoteApplyCause = "delta" | "hint" | "gap" | "pull";
 
-/** The context of an apply of the remote changes, the third argument of `aroundRemoteApply` (graph W8). */
+/** The context of an apply of the remote changes, the third argument of `aroundRemoteApply`. */
 export interface RemoteApplyContext {
   /** The cause of the apply. A pull that hints and gaps asked for has the cause `"hint"`. */
   readonly cause: RemoteApplyCause;
@@ -404,7 +423,7 @@ export interface RemoteApplyContext {
 }
 
 /**
- * The hook around an apply of the remote changes (graph W8). The hook calls `apply` one time and
+ * The hook around an apply of the remote changes. The hook calls `apply` one time and
  * gives its promise back, for example from inside a span of a trace.
  *
  * - The storage waits for the hook and for the apply. A hook that does not settle stops the syncs.
@@ -436,7 +455,7 @@ const NO_HINTS: readonly RemoteChangeHint[] = Object.freeze([]);
 /** The most hints that a pull keeps for the hook. A pull drops the older ones. */
 const MAX_JOINED_HINTS = 128;
 
-/** The hint of a delta of the feed: its versions, its ids, its origin and its other fields, without the values (graph W8). */
+/** The hint of a delta of the feed: its versions, its ids, its origin and its other fields, without the values. */
 function hintOfDelta<T>(changes: RemoteChanges<T>): RemoteChangeHint {
   return {
     ...(changes.since !== undefined && { since: changes.since }),
@@ -469,6 +488,8 @@ interface TimerOptions {
  * process alive.
  */
 class SyncTimer {
+  private readonly options: TimerOptions;
+
   private cancel: Cancel | undefined;
   private active = false;
   /** True while `work` runs */
@@ -477,7 +498,9 @@ class SyncTimer {
   private again = false;
   private failures = 0;
 
-  constructor(private readonly options: TimerOptions) {}
+  constructor(options: TimerOptions) {
+    this.options = options;
+  }
 
   /**
    * This method starts the timer. A timer that waits does not start again. A start during a run
@@ -569,6 +592,29 @@ export interface QueueRefusal {
 }
 
 /**
+ * A queued write that left the queue with no send that the remote took: the argument of the hook
+ * `onDropped` (roadmap CLI-106). The hook can get a write again after a crash, because the store
+ * of the queue gets the change after the hook.
+ */
+export interface DroppedWrite {
+  /** The id of the write, or `"*"` for a refused clear. */
+  id: string;
+  /**
+   * The value of the write when it left the queue. Undefined for a queued delete and for a clear.
+   * The last queued write gives the value when an id has more than one.
+   */
+  value: unknown;
+  /** The cause: the policy took the remote value, the remote deleted the item, or the remote refused the write. */
+  reason: "conflict" | "remote-delete" | "refused";
+  /** The sync that dropped the write. */
+  during: "pull" | "push";
+  /** The remote value that replaced the write, for the reason `conflict`. */
+  remote?: unknown;
+  /** The error of the remote, for the reason `refused`. */
+  error?: unknown;
+}
+
+/**
  * The remote did not take a write of the write-through mode. The write is in the local cache and
  * in the queue, and the storage sends it later (roadmap R2). `cause` is the error of the remote.
  */
@@ -587,6 +633,21 @@ export class QueueFullError extends Error {
   readonly code = "QUEUE_FULL";
   constructor(max: number) {
     super(`The queue of operations is full (${max} operations): the storage refuses the write`);
+  }
+}
+
+/**
+ * The storage is in `read-only` mode, so it refuses the write (roadmap CLI-89). The local copy, the
+ * queue and the remote did not change. `operation` is the name of the refused operation.
+ */
+export class ReadOnlyError extends Error {
+  readonly operation: string;
+
+  override readonly name = "ReadOnlyError";
+  readonly code = "READ_ONLY";
+  constructor(operation: string) {
+    super(`The storage is in read-only mode: it refuses the operation ${operation}`);
+    this.operation = operation;
   }
 }
 
@@ -616,10 +677,13 @@ export class QueueStoreError extends Error {
  * their queued writes stay. `ids` are the ids of the conflicts.
  */
 export class ConflictError extends Error {
+  readonly ids: string[];
+
   override readonly name = "ConflictError";
   readonly code = "SYNC_CONFLICT";
-  constructor(readonly ids: string[]) {
+  constructor(ids: string[]) {
     super(`Conflict detected between local and remote versions of ${ids.length} items: ${ids.slice(0, 10).join(", ")}`);
+    this.ids = ids;
   }
 }
 
@@ -628,10 +692,15 @@ export class ConflictError extends Error {
  * error of the flush or of the sync.
  */
 export class ModeSwitchError extends Error {
+  readonly from: HybridMode;
+  readonly to: HybridMode;
+
   override readonly name = "ModeSwitchError";
   readonly code = "MODE_SWITCH_FAILED";
-  constructor(readonly from: HybridMode, readonly to: HybridMode, cause: unknown) {
+  constructor(from: HybridMode, to: HybridMode, cause: unknown) {
     super(`The storage could not change from ${from} to ${to}: the mode is still ${from}`, { cause });
+    this.from = from;
+    this.to = to;
   }
 }
 
@@ -648,15 +717,18 @@ export class SyncStateError extends Error {
 }
 
 /**
- * The hook `aroundRemoteApply` did not call `apply` one time (graph W8). The storage applied the
+ * The hook `aroundRemoteApply` did not call `apply` one time. The storage applied the
  * changes one time all the same, and the apply succeeded. `calls` is the number of calls of
  * `apply` before the hook settled.
  */
 export class RemoteApplyHookError extends Error {
+  readonly calls: number;
+
   override readonly name = "RemoteApplyHookError";
   readonly code = "REMOTE_APPLY_HOOK";
-  constructor(readonly calls: number) {
+  constructor(calls: number) {
     super(`The hook aroundRemoteApply called apply ${calls} times, not 1 time: the storage applied the changes 1 time`);
+    this.calls = calls;
   }
 }
 
@@ -688,7 +760,7 @@ const defaultKeyOf = (item: unknown): string | undefined => {
 
 function checkMode(mode: unknown): HybridMode {
   if (typeof mode !== "string" || !MODES.has(mode)) {
-    throw new TypeError(`Unknown mode ${JSON.stringify(mode)}: use local-only, write-through, write-back or remote-only`);
+    throw new TypeError(`Unknown mode ${JSON.stringify(mode)}: use local-only, write-through, write-back, remote-only or read-only`);
   }
   return mode as HybridMode;
 }
@@ -781,7 +853,7 @@ interface EchoEntry {
 
 /**
  * The versions of the own writes of a `HybridStorage` that no remote change echoed yet (roadmap
- * CLI-21, after the EchoLedger of Graph).
+ * CLI-21).
  *
  * - The ledger keeps the versions of each id in the order of the writes. It records a write when
  *   the local copy takes it, because a stale echo can come before the push.
@@ -792,15 +864,25 @@ interface EchoEntry {
  *   a write whose echo never comes does not hold an id long.
  */
 class EchoLedger {
+  private readonly window: number;
+  private readonly now: () => number;
+  private readonly maxPerId: number;
+  private readonly maxIds: number;
+
   /** The versions of each id, the oldest first. The ids are in the order of their last write. */
   private readonly entries = new Map<string, EchoEntry[]>();
 
   constructor(
-    private readonly window: number,
-    private readonly now: () => number,
-    private readonly maxPerId = 20,
-    private readonly maxIds = 10_000,
-  ) {}
+    window: number,
+    now: () => number,
+    maxPerId = 20,
+    maxIds = 10_000,
+  ) {
+    this.window = window;
+    this.now = now;
+    this.maxPerId = maxPerId;
+    this.maxIds = maxIds;
+  }
 
   /** This method records the version that an own write of an id gives. `null`: a delete. */
   wrote(id: string, version: string | null): void {
@@ -939,6 +1021,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     isUnavailable: (error: unknown) => boolean;
     isRefusal: (error: unknown) => boolean;
     onRefused?: (refusal: QueueRefusal) => void | Promise<void>;
+    onDropped?: (drop: DroppedWrite) => void | Promise<void>;
   };
   private mode: HybridMode;
   private offlineOps: QueuedOperation[] = [];
@@ -1015,7 +1098,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   private readonly feed: RemoteChangeFeed<T> | undefined;
   private feedStop: (() => void) | undefined;
   private feedToken = 0;
-  /** The hook around each apply of the remote changes (graph W8) */
+  /** The hook around each apply of the remote changes */
   private readonly aroundRemoteApply: RemoteApplyHook | undefined;
   /** With the hook: the hints that asked for the pull that waits */
   private readonly joinedHints: RemoteChangeHint[] = [];
@@ -1055,6 +1138,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     cacheMisses: 0,
     syncCount: 0,
     conflicts: 0,
+    dropped: 0,
   };
 
   constructor(
@@ -1082,6 +1166,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       isUnavailable: options.isUnavailable ?? defaultIsUnavailable,
       isRefusal: options.isRefusal ?? defaultIsRefusal,
       ...(options.onRefused !== undefined && { onRefused: options.onRefused }),
+      ...(options.onDropped !== undefined && { onDropped: options.onDropped }),
     };
     this.statusListeners = new StorageListeners<SyncStatus>(options.onListenerError);
     this.queryPolicy = options.queryPolicy;
@@ -1360,7 +1445,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   private updateFeed(): void {
     const feed = this.feed;
     if (!feed) return;
-    const wanted = !this.closed && (this.mode === "write-through" || this.mode === "write-back");
+    const wanted = !this.closed && pullsRemote(this.mode);
     if (wanted === (this.feedStop !== undefined)) return;
     const token = ++this.feedToken;
     if (!wanted) {
@@ -1416,7 +1501,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
    */
   private async applyFeed(changes: RemoteChanges<T>, mark: number): Promise<void> {
     if (this.loadError) throw this.loadError;
-    if (this.closed || (this.mode !== "write-through" && this.mode !== "write-back")) return;
+    if (this.closed || !pullsRemote(this.mode)) return;
     if (changes.version === this.cursor) return;
     const follows = changes.since !== undefined && changes.since === this.cursor;
     const hook = this.aroundRemoteApply;
@@ -1450,7 +1535,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
    */
   private async applyHint(hint: RemoteChangeHint, mark: number): Promise<void> {
     if (this.loadError) throw this.loadError;
-    if (this.closed || (this.mode !== "write-through" && this.mode !== "write-back")) return;
+    if (this.closed || !pullsRemote(this.mode)) return;
     // The remote cannot tell what changed: a full pull
     if (hint.reset === true) return this.requestPull(hint, true);
     if (hint.version !== undefined && hint.version === this.cursor) return;
@@ -1491,7 +1576,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
           if (this.closed) return Promise.resolve();
           return this.track("pull", async () => {
             if (this.loadError) throw this.loadError;
-            if (this.mode === "write-through" || this.mode === "write-back") await this.pullThrough(hints.length > 0 ? "hint" : "gap", hints, full);
+            if (pullsRemote(this.mode)) await this.pullThrough(hints.length > 0 ? "hint" : "gap", hints, full);
           });
         }),
       )
@@ -1500,7 +1585,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
 
   /**
    * This method pulls the changes since the cursor, through the hook `aroundRemoteApply` when the
-   * options give it (graph W8). Without the hook, it is `pullRemote(false)`, with no other step.
+   * options give it. Without the hook, it is `pullRemote(false)`, with no other step.
    */
   private pullThrough(cause: RemoteApplyCause, hints: readonly RemoteChangeHint[], full = false): Promise<void> {
     const hook = this.aroundRemoteApply;
@@ -1508,7 +1593,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   }
 
   /**
-   * This method runs an apply of the remote changes through the hook (graph W8).
+   * This method runs an apply of the remote changes through the hook.
    *
    * - The apply runs one time. A second call of `apply` gets the promise of the first call.
    * - When the hook does not call `apply`, the apply runs after the hook. Thus no change is lost.
@@ -1669,7 +1754,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
    * - The switch waits for the operations that run. The operations that start later wait for
    *   the switch. Switches and syncs run one at a time.
    * - A switch to a remote mode sends the queue first. A switch to `local-only` makes no remote
-   *   call: the queue stays until the next remote mode.
+   *   call: the queue stays until the next remote mode. A switch to `read-only` also sends the
+   *   queue first, so this mode starts with an empty queue, or the switch fails.
    * - A switch to `remote-only` drops the local copy, after the queue reached the remote.
    * - A switch from `local-only` or `remote-only` to a mode with a local copy syncs the local
    *   copy. The reads wait for the sync.
@@ -1732,7 +1818,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
 
   /**
    * This method starts and stops the timers for the mode. The push timer runs in `write-back`, the
-   * pull timer in `write-through` and `write-back`, and the send of the queue after a failure only
+   * pull timer in `write-through`, `write-back` and `read-only`, and the send of the queue after a failure only
    * in `write-through`. A failed run reports its error in the status, and the next delay grows.
    */
   private updateTimers(): void {
@@ -1740,7 +1826,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     if (this.mode === "write-back") this.pushTimer?.start();
     else this.pushTimer?.stop();
 
-    if (this.mode === "write-through" || this.mode === "write-back") this.pullTimer?.start();
+    if (pullsRemote(this.mode)) this.pullTimer?.start();
     else this.pullTimer?.stop();
 
     if (this.mode !== "write-through") this.drainTimer.stop();
@@ -1936,6 +2022,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
    * One write, in the mode of the storage. The result is the result of the local copy, or of the
    * remote in `remote-only` mode.
    *
+   * - `read-only`: the write throws `ReadOnlyError`, and nothing changes.
    * - `remote-only`: the remote only. Its error passes through.
    * - `write-back` and `local-only`: the local copy and the queue. A full queue refuses the write
    *   before the local change. The queue store keeps the operation before the write ends.
@@ -1958,6 +2045,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     applyRemote: () => Promise<R>,
   ): Promise<R> {
     return this.run(false, async () => {
+      if (this.mode === "read-only") throw new ReadOnlyError(type);
       const op: QueuedOperation = { type, data, timestamp: Date.now() };
 
       if (this.mode === "remote-only") {
@@ -2139,7 +2227,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       this.deferred.delete(id);
       const mark = this.writeSeq;
       let item = deferred.item;
-      if (this.mode === "write-through" || this.mode === "write-back") {
+      if (pullsRemote(this.mode)) {
         try {
           item = await this.remote.get(id);
           this.isOnline = true;
@@ -2208,8 +2296,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   /**
    * Sync all pending offline operations to remote.
    * Processes queued operations in order. When one fails, it and the later operations stay in
-   * the queue: the operations that reached the remote are not sent again. In `local-only` mode,
-   * the call does nothing.
+   * the queue: the operations that reached the remote are not sent again. In the modes `local-only`
+   * and `read-only`, the call does nothing.
    */
   syncToRemote(): Promise<void> {
     if (this.closed) return Promise.reject(this.closedError());
@@ -2218,7 +2306,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
 
   /**
    * This method sends the queue to the remote (roadmap R28). `ProcedureServer.useStorage` uses it. In
-   * `local-only` mode, it sends nothing: the queue waits for a remote mode.
+   * the modes `local-only` and `read-only`, it sends nothing: the queue waits for a mode that writes.
    */
   flush(): Promise<void> {
     return this.syncToRemote();
@@ -2252,7 +2340,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       this.track("pull", async () => {
         await this.loaded;
         if (this.loadError) throw this.loadError;
-        if (this.mode === "write-through" || this.mode === "write-back") await this.pullThrough("pull", NO_HINTS);
+        if (pullsRemote(this.mode)) await this.pullThrough("pull", NO_HINTS);
       }),
     );
   }
@@ -2263,7 +2351,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       this.track("push", async () => {
         await this.loaded;
         if (this.loadError) throw this.loadError;
-        if (this.mode !== "local-only") await this.pushQueue();
+        if (pushesRemote(this.mode)) await this.pushQueue();
       }),
     );
   }
@@ -2281,7 +2369,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
    * This method closes the storage.
    *
    * - It stops the timers, and waits for the operations, the mode switch and the syncs that run.
-   * - It sends the queue (not in `local-only` mode). The queue store keeps the operations that
+   * - It sends the queue (not in the modes `local-only` and `read-only`). The queue store keeps the operations that
    *   the remote did not take.
    * - It closes the remote and the local copy. A durable local copy keeps its items.
    * - After it, each operation rejects. A second `close()` does nothing: it gives the promise of
@@ -2310,7 +2398,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       // After the syncs that run: send the pending operations. The queue store keeps the ones that
       // the remote did not take, and the status gets the failure.
       await this.serialize(async () => {
-        if (this.loadError || this.offlineOps.length === 0 || this.mode === "local-only") return;
+        if (this.loadError || this.offlineOps.length === 0 || !pushesRemote(this.mode)) return;
         await this.track("push", () => this.pushQueue()).catch(() => undefined);
       });
       await this.storeChain;
@@ -2352,6 +2440,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
         cacheMisses: this.stats.cacheMisses,
         syncCount: this.stats.syncCount,
         conflicts: this.stats.conflicts,
+        dropped: this.stats.dropped,
         pendingOps: this.offlineOps.length,
         isOnline: this.isOnline,
         mode: this.mode,
@@ -2442,7 +2531,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     if (this.options.syncOnInit && this.mode !== "local-only") {
       // A failure goes to the status: the reads go on with the local copy
       if (this.offlineOps.length > 0) await this.push().catch(() => undefined);
-      if (!this.closed && (this.mode === "write-through" || this.mode === "write-back")) {
+      if (!this.closed && pullsRemote(this.mode)) {
         await this.pull().catch(() => undefined);
       }
     }
@@ -2707,7 +2796,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
         this.bases.set(id, remoteVersion);
         return false;
       }
-      return this.resolvePending(id, localItem, item, remoteVersion, conflicts);
+      return this.resolvePending(id, localItem, item, remoteVersion, conflicts, "pull");
     }
 
     if (knownVersion !== undefined) {
@@ -2769,6 +2858,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
         if (!this.dropQueued(id)) break;
         await this.localDelete(id, this.syncOrigin);
         this.bases.set(id, null);
+        await this.reportDropped({ id, value: localItem, reason: "remote-delete", during: "pull" });
         return true;
       case "error":
         conflicts.push(id);
@@ -2791,6 +2881,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     remoteItem: T,
     remoteVersion: string,
     conflicts: string[],
+    during: DroppedWrite["during"],
   ): Promise<boolean> {
     this.stats.conflicts++;
     switch (this.options.conflictResolution) {
@@ -2799,6 +2890,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
         if (!this.dropQueued(id)) break;
         await this.localSet(id, remoteItem, this.syncOrigin);
         this.bases.set(id, remoteVersion);
+        await this.reportDropped({ id, value: localItem, reason: "conflict", during, remote: remoteItem });
         return true;
       case "merge": {
         if (localItem === undefined) break;
@@ -2818,6 +2910,16 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     // "local": the queued write wins, and it replaces this remote version
     this.bases.set(id, remoteVersion);
     return false;
+  }
+
+  /** This method counts a dropped write and gives it to the hook `onDropped`. An error of the hook does not stop the sync. */
+  private async reportDropped(drop: DroppedWrite): Promise<void> {
+    this.stats.dropped++;
+    try {
+      await this.options.onDropped?.(drop);
+    } catch {
+      // An error of the hook does not stop the sync
+    }
   }
 
   /**
@@ -2960,6 +3062,10 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       await this.options.onRefused?.({ operation: op, ids: all ? "*" : ids, error, restored });
     } catch {
       // An error of the hook does not stop the queue
+    }
+    for (const id of all ? ["*"] : ids) {
+      const written = this.writtenValue(op, id);
+      await this.reportDropped({ id, value: written ? written.value : undefined, reason: "refused", during: "push", error });
     }
   }
 
@@ -3396,7 +3502,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
           continue;
         }
         const localItem = await this.readLocal(id);
-        if (await this.resolvePending(id, localItem, remoteItem, remoteVersion, ids)) queueChanged = true;
+        if (await this.resolvePending(id, localItem, remoteItem, remoteVersion, ids, "push")) queueChanged = true;
         continue;
       }
       // The remote has no item: the echo of a delete, or a delete of another writer
@@ -3425,11 +3531,14 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   private async resolveRemoteDelete(id: string, conflicts: string[]): Promise<boolean> {
     this.stats.conflicts++;
     switch (this.options.conflictResolution) {
-      case "remote":
+      case "remote": {
+        const value = await this.readLocal(id);
         if (!this.dropQueued(id)) break;
         await this.localDelete(id, this.syncOrigin);
         this.bases.set(id, null);
+        await this.reportDropped({ id, value, reason: "remote-delete", during: "push" });
         return true;
+      }
       case "error":
         conflicts.push(id);
         return false;

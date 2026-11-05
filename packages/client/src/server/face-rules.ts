@@ -73,7 +73,7 @@ function exposeRule(expose: NonNullable<FaceRulesOptions["expose"]>): (path: Pro
  *
  * @example
  * ```typescript
- * const rules = faceRules({ narrowing: { effects: { writes: [] } }, expose: ["graphapi.*"] }, policy, "read");
+ * const rules = faceRules({ narrowing: { effects: { writes: [] } }, expose: ["api.*"] }, policy, "read");
  * const handler = { ...inner, handle: (request) => inner.handle(rules.apply(request)) };
  * ```
  */

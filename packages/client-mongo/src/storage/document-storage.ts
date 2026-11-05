@@ -68,6 +68,12 @@
  *   its lease moves its documents to new numbers, so a reader that passed the old numbers gets
  *   it. One case stays on a single server: a process that stops between such a late write and the
  *   move of its documents. Then a reader that passed the old numbers does not get that change.
+ * - A reader can get a write two times, with the same value or a later value. A full answer takes
+ *   its mark before it lists the items, so it can hold a write above its mark, and the next delta
+ *   gives the write again. A reader can also read a late write at its old numbers, and then the move
+ *   gives the write new numbers and a new version. The second case occurs only for a write that ends
+ *   after `writeLease`.
+ * - A version that stops below a pending number has `held`, so a reader knows to read again.
  * - The storage uses a transaction only with a client: the option `client`, or the default
  *   connection when `db` is absent. With `db` and no `client`, each write uses the watermark, also
  *   on a replica set.
@@ -115,7 +121,7 @@ import {
 } from "@procedures/collections";
 import { optionalMs, toMs, type Duration } from "@procedures/client";
 import { ensureConnection } from "../connection.js";
-import { noteOwnNumbers, notePrunedIds } from "./own-writes.js";
+import { noteOwnNumbers, notePrunedIds, ownerOf } from "./own-writes.js";
 import { boundPipeline, cutResults, DEFAULT_PIPELINE_LIMITS, scopePipeline, type PipelineLimits } from "./pipeline-scope.js";
 
 /** The fields of the storage in a stored document. */
@@ -207,7 +213,11 @@ export const DEFAULT_STORED_FORM: StoredForm = Object.freeze({
 export interface MongoDocumentStorageOptions<T = unknown> {
   /** The MongoDB collection. */
   collection: string;
-  /** The database. The default is the database of the default connection, for each operation. */
+  /**
+   * The database. The default is the database of the default connection, for each operation.
+   * The writes and the change reads of a collection run one at a time for each client, so this function can make a new `Db` of that client at each call.
+   * Two clients do not share this order, as with two processes. A change read of each client stays correct.
+   */
   db?: (() => Db | Promise<Db>) | undefined;
   /** The partition of the storage. Without it, the storage reads and writes the documents without a partition. */
   partition?: string | undefined;
@@ -255,6 +265,13 @@ function isDuplicateKey(error: unknown): boolean {
   return code === 11000 || [writeErrors].flat().some((entry) => (entry as { code?: unknown } | null)?.code === 11000);
 }
 
+/** The place in an ordered bulk write of the write that a duplicate key stopped, or `undefined` when the error does not give one. */
+function duplicateIndex(error: unknown): number | undefined {
+  const { writeErrors } = (error ?? {}) as { writeErrors?: unknown };
+  const stopped = [writeErrors].flat().find((entry) => (entry as { code?: unknown } | null)?.code === 11000) as { index?: unknown } | undefined;
+  return typeof stopped?.index === "number" ? stopped.index : undefined;
+}
+
 /** A stored document. Its `_id` comes from `storedId`: a text by default, any value but `undefined` and `null` in another form. */
 type Stored = Document;
 
@@ -275,18 +292,19 @@ interface CounterDoc {
   pending?: PendingRange[];
 }
 
-/** True when a database is on a replica set or a sharded cluster: it has transactions. */
-const TRANSACTIONAL = new WeakMap<Db, Promise<boolean>>();
+/** True when a client is on a replica set or a sharded cluster: it has transactions. */
+const TRANSACTIONAL = new WeakMap<object, Promise<boolean>>();
 
 function hasTransactions(db: Db): Promise<boolean> {
-  let known = TRANSACTIONAL.get(db);
+  const owner = ownerOf(db);
+  let known = TRANSACTIONAL.get(owner);
   if (!known) {
     known = db
       .admin()
       .command({ hello: 1 })
       .then((hello) => typeof hello["setName"] === "string" || hello["msg"] === "isdbgrid")
       .catch(() => false);
-    TRANSACTIONAL.set(db, known);
+    TRANSACTIONAL.set(owner, known);
   }
   return known;
 }
@@ -294,12 +312,17 @@ function hasTransactions(db: Db): Promise<boolean> {
 /** The most moves of a late write to new numbers. */
 const MAX_MOVES = 10;
 
-/** The writes and the change reads of each collection of each database, one at a time. */
-const QUEUES = new WeakMap<Db, Map<string, Promise<unknown>>>();
+/**
+ * The writes and the change reads of each collection, one at a time: by the client, then by the names of the
+ * database and the collection. A new `Db` object of the same client has the same queue (roadmap CLI-93).
+ */
+const QUEUES = new WeakMap<object, Map<string, Promise<unknown>>>();
 
-function enqueue<R>(db: Db, collection: string, task: () => Promise<R>): Promise<R> {
-  let queues = QUEUES.get(db);
-  if (!queues) QUEUES.set(db, (queues = new Map()));
+function enqueue<R>(db: Db, name: string, task: () => Promise<R>): Promise<R> {
+  const owner = ownerOf(db);
+  let queues = QUEUES.get(owner);
+  if (!queues) QUEUES.set(owner, (queues = new Map()));
+  const collection = `${db.databaseName}\u0000${name}`;
   const before = queues.get(collection) ?? Promise.resolve();
   const run = before.then(task, task);
   const settled = run.then(
@@ -1092,7 +1115,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
    * The watermark of the collection: the highest number below each pending number of a write whose
    * lease has not ended, and the epoch. Each number up to it is written or abandoned.
    */
-  private async watermark(db: Db): Promise<Counter> {
+  private async watermark(db: Db): Promise<Counter & { readonly held: boolean }> {
     const counters = db.collection<CounterDoc>(this.countersName);
     await counters.updateOne({ _id: this.collectionName }, { $setOnInsert: { seq: 0, epoch: randomUUID() } }, { upsert: true });
     const [mark] = await counters
@@ -1118,10 +1141,15 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
       .toArray();
     if (!mark) throw new Error(`The sequence of ${this.collectionName} is not available`);
     const seq = typeof mark.low === "number" ? Math.min(mark.seq, mark.low - 1) : mark.seq;
-    return { seq, epoch: mark.epoch };
+    return { seq, epoch: mark.epoch, held: seq < mark.seq };
   }
 
   /** The id of the document of the oldest kept change of the partition. */
+  private async floorOf(db: Db): Promise<number> {
+    const doc = await db.collection<CounterDoc>(this.countersName).findOne({ _id: this.floorId() });
+    return typeof doc?.["floor"] === "number" ? doc["floor"] : 0;
+  }
+
   private floorId(): string {
     return `floor${SEPARATOR}${this.collectionName}${SEPARATOR}${this.partition ?? ""}`;
   }
@@ -1302,23 +1330,25 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     return enqueue(db, this.collectionName, async () => {
       const counter = await this.watermark(db);
       const version = `${counter.epoch}.${counter.seq}`;
+      const held = counter.held ? { held: true } : {};
       const full = async (): Promise<StorageChanges<T>> => ({
         version,
         full: true,
         changed: this.decodeAll(await items.find(this.liveFilter()).sort({ [ORD]: 1, _id: 1 }).toArray()),
         deleted: [],
+        ...held,
       });
       const match = since === undefined ? null : /^([^.]+)\.(\d+)$/.exec(since);
       if (!match || match[1] !== counter.epoch) return full();
       const from = Number(match[2]);
-      const floorDoc = await db.collection<CounterDoc>(this.countersName).findOne({ _id: this.floorId() });
-      const floor = typeof floorDoc?.["floor"] === "number" ? floorDoc["floor"] : 0;
-      if (from < floor || from > counter.seq) return full();
+      if (from < (await this.floorOf(db)) || from > counter.seq) return full();
       // A number above the watermark can belong to a write that is not visible yet: the next read gives it
       const docs = await items
         .find({ ...this.partitionFilter(), [SEQ]: { $gt: from, $lte: counter.seq } } as Filter<Stored>)
         .sort({ [SEQ]: 1 })
         .toArray();
+      // A prune raises the floor before its delete, so a query that missed a tombstone sees the new floor here (roadmap CLI-93)
+      if (from < (await this.floorOf(db))) return full();
       const changed: Array<[string, T]> = [];
       const deleted: string[] = [];
       for (const doc of docs) {
@@ -1327,7 +1357,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
         if (doc[TOMB] === true) deleted.push(id);
         else changed.push(this.decode(doc, id)!);
       }
-      return { version, full: false, changed, deleted };
+      return { version, full: false, changed, deleted, ...held };
     });
   }
 
@@ -1365,24 +1395,38 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
       JSON.stringify(value);
     }
     await this.write(async (db, collection) => {
-      const places = await this.placesOf(collection, items.map(([id]) => id));
+      const ids = items.map(([id]) => id);
+      const places = await this.placesOf(collection, ids);
       await this.withNumbers(db, collection, items.length, async (first, session) => {
         const guards = await this.checkVersions(collection, expected, session);
-        const placed = new Map(places);
-        const operations: AnyBulkWriteOperation<Stored>[] = items.map(([id, value], index) => {
-          const seq = first + index;
-          // A new id takes its place at its first write; a later write of the batch keeps it
-          if (!placed.has(id)) placed.set(id, seq);
-          // The guard of an id with a precondition: the write fails when another writer came first
-          const guard = guards.get(id);
-          guards.delete(id);
-          return { replaceOne: { filter: { ...this.writeFilter(id), ...guard }, replacement: this.encode(id, value, seq, placed.get(id)!), upsert: true } };
-        });
-        try {
-          await collection.bulkWrite(operations, { ordered: true, ...(session ? { session } : {}) });
-        } catch (error) {
-          if (expected.length > 0 && !session && isDuplicateKey(error)) throw await this.lateConflict(collection, expected);
-          throw error;
+        const operationsAt = (known: ReadonlyMap<string, number>): AnyBulkWriteOperation<Stored>[] => {
+          const placed = new Map(known);
+          return items.map(([id, value], index) => {
+            const seq = first + index;
+            // A new id takes its place at its first write; a later write of the batch keeps it
+            if (!placed.has(id)) placed.set(id, seq);
+            // The guard of an id with a precondition: the write fails when another writer came first
+            const guard = guards.get(id);
+            guards.delete(id);
+            return { replaceOne: { filter: { ...this.writeFilter(id), ...guard }, replacement: this.encode(id, value, seq, placed.get(id)!), upsert: true } };
+          });
+        };
+        // The race of a new id: another process made it after the query of this upsert, so a new try from the
+        // stopped write is a rewrite, with the same number. These numbers stay pending, so no reader passes them.
+        // A real duplicate stops one write two times, and it reaches the caller. So a batch has at most one try more than it has writes.
+        let known = places;
+        for (let from = 0, tries = 0; ; tries++) {
+          try {
+            await collection.bulkWrite(operationsAt(known).slice(from), { ordered: true, ...(session ? { session } : {}) });
+            return;
+          } catch (error) {
+            if (session || !isDuplicateKey(error)) throw error;
+            if (expected.length > 0) throw await this.lateConflict(collection, expected);
+            const at = duplicateIndex(error);
+            if (at === undefined || (tries > 0 && at === 0)) throw error;
+            from += at;
+            known = await this.placesOf(collection, ids);
+          }
         }
       });
     });
@@ -1395,9 +1439,17 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
       const next = applyPatch(this.decode(doc, id)![1], fields) as T;
       // The encoding is checked before a number of the sequence goes
       this.flatOf(id, next);
-      await this.withNumbers(db, collection, 1, (first, session) =>
-        collection.replaceOne(this.writeFilter(id), this.encode(id, next, first, this.placeOf(doc)), { upsert: true, ...(session ? { session } : {}) })
-      );
+      await this.withNumbers(db, collection, 1, async (first, session) => {
+        const write = (): Promise<unknown> =>
+          collection.replaceOne(this.writeFilter(id), this.encode(id, next, first, this.placeOf(doc)), { upsert: true, ...(session ? { session } : {}) });
+        try {
+          await write();
+        } catch (error) {
+          // The document went after the read, and another process made it again: one new try is a rewrite
+          if (session || !isDuplicateKey(error)) throw error;
+          await write();
+        }
+      });
       return next;
     });
   }

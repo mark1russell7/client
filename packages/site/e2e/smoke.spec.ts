@@ -197,7 +197,7 @@ test.describe("the new pages", () => {
   test("the trace shows a call that ran for an input under the call that got its result", async ({ page }) => {
     await open(page, "composer/?example=nested");
     await expect(page.locator(".status-ok")).toBeVisible();
-    const inner = page.getByRole("treeitem", { name: /^multiply, an input/ });
+    const inner = page.getByRole("treeitem", { name: /^multiply input/ });
     await expect(inner).toHaveAttribute("aria-level", "2");
   });
 

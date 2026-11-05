@@ -49,14 +49,14 @@ merge **too risky to do autonomously** and deferred it with the plan below. Reas
    `../../collections/...` imports in `cache.ts` and `procedures/storage/*` / `server/procedure-server.ts`.
 4. Stop re-exporting the full collections API from `client`'s root barrel (the admitted naming-conflict
    wart in `client/src/index.ts`) — expose it via the `./collections` subpath export instead; check
-   MiniMongo's imports first.
+   The explorer app's imports first.
 5. Cut the standalone package down to its load-bearing ~15% (quarantine/delete the never-run modules).
 Reverse: none needed — nothing was changed; this is a deferral with a plan.
 
 ### Node engine policy set to `node >=20` (documented only; 48 package.jsons left to cue)
 Phase 4 reconciliation of the engines drift flagged in the audit (README #18, ONBOARDING #21,
 ecosystem/README #30, audit/08 roadmap #6). The fleet is inconsistent: core `client` + `docker/*`
-+ `minimongo` + `client-mongo` + `client-server` + `server-mongo` declare `node >=20`; `cue`,
++ the explorer app + `client-mongo` + `client-server` + `server-mongo` declare `node >=20`; `cue`,
 `splay`, and `client-splay` declare `node >=25` / `npm >=11`; the remaining ~38 packages declare
 no `engines` at all. I picked **`node >=20`** as the single policy because it is what the core
 `client` runtime — a transitive dependency of every package — already targets, and lowering the

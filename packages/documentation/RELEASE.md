@@ -12,7 +12,7 @@ This document tells how the packages of the monorepo go to npm. The first releas
 
 ## The package check
 
-`node scripts/check-packages.mjs` examines the packages as a user gets them from npm. Start `pnpm build` first. For each public package, the script does these steps:
+`node scripts/check-packages.ts` examines the packages as a user gets them from npm. Start `pnpm build` first. For each public package, the script does these steps:
 
 1. It packs the package with pnpm. pnpm writes the versions of the `workspace:*` dependencies.
 2. It reads the packed `package.json`. A `workspace:` or git specifier is an error. The metadata, `LICENSE` and `README.md` must be in the tarball.
@@ -37,9 +37,9 @@ Each general repository has the file `docs/release.md`. Publish them in this ord
 Then switch the monorepo to the npm versions, and examine the packages:
 
 ```sh
-node scripts/use-npm-general-packages.mjs
+node scripts/use-npm-general-packages.ts
 pnpm build
-node scripts/check-packages.mjs
+node scripts/check-packages.ts
 ```
 
 The script examines that each version is on npm. Then it changes the specifiers, removes the git build approvals of `pnpm-workspace.yaml`, and starts `pnpm install`. Commit the result.

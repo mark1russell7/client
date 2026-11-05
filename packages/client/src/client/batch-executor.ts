@@ -110,7 +110,11 @@ function cancelledResult(path: ProcedurePath, message: string): ProcedureCallRes
  * ```
  */
 export class BatchExecutor {
-  constructor(private readonly execute: ProcedureExecutor) {}
+  private readonly execute: ProcedureExecutor;
+
+  constructor(execute: ProcedureExecutor) {
+    this.execute = execute;
+  }
 
   /**
    * Execute resolved routes with the specified strategy.

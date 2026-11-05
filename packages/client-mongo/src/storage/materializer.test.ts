@@ -1,5 +1,5 @@
 /**
- * The materialized views (Graph's split plan, part P4) on a real MongoDB. Change streams need a
+ * The materialized views on a real MongoDB. Change streams need a
  * replica set: set `MONGO_TEST_URL` to one (CI has a replica-set job). On a single server, the
  * tests skip, except in the replica-set job of CI. The tests of the logger use a fake database, so
  * they always run.
@@ -618,11 +618,16 @@ withMongo("ViewMaterializer on MongoDB", { timeout: TEST_TIMEOUT_MS }, () => {
     expect(views.openStreamCount()).toBe(0);
   });
 
-  /** A materializer whose clock counts the change events of the sources: each event arms the debounce once. */
+  /** A materializer that counts the change events of the sources: each event that passes sets the time of the last change of its partition. */
   function counting(db: Db, options: { storageSources?: Record<string, ViewPartitionOf | ViewStorageSource> } = {}) {
     const counter = { events: 0 };
-    const clock: Clock = { now: () => realClock.now(), after: (ms, run) => (ms === 20 && counter.events++, realClock.after(ms, run)) };
-    const views = new ViewMaterializer({ db: () => db, debounce: ms(20), rewatch: ms(100), clock, log: () => undefined, ...options });
+    const views = new ViewMaterializer({ db: () => db, debounce: ms(20), rewatch: ms(100), log: () => undefined, ...options });
+    const lastChange = views["lastChange"];
+    const set = lastChange.set.bind(lastChange);
+    lastChange.set = (partition, time) => {
+      counter.events++;
+      return set(partition, time);
+    };
     return { views, counter };
   }
 
@@ -828,4 +833,208 @@ withMongo("ViewMaterializer on MongoDB", { timeout: TEST_TIMEOUT_MS }, () => {
     await eventually(async () => expect(await db.collection("sums").countDocuments({ _part: "t1", _viewGen: { $exists: true } })).toBe(0));
     await views.stop();
   });
+
+  /** One view for each of these partitions on the source `items`, with one document for each view. */
+  async function partitionedViews(db: Db, partitions: readonly string[]): Promise<void> {
+    await db.collection("items").insertMany(partitions.map((partition) => ({ _id: `doc-${partition}` as never, _part: partition, kind: "a", n: 1 })));
+    await db.collection("_aggregations").insertMany(partitions.map((partition) => sumsView({ _id: `view-${partition}`, _part: partition })) as never[]);
+  }
+
+  const totalOf = async (db: Db, partition: string): Promise<unknown> => (await rowOf(db, "sums", "a", partition))?.["total"];
+
+  it("has one stream for a source at many partitions, gives a change only to its partition, and closes the stream with the last view (CLI-92)", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const db = newDb();
+    const { views, counter } = counting(db);
+    await partitionedViews(db, ["t1", "t2", "t3"]);
+    await db.collection("_aggregations").insertOne(sumsView({ _id: "second-of-t1", targetCollection: "sums2" }) as never);
+    await views.start();
+    expect(views.views().size).toBe(4);
+    expect(views.openStreamCount()).toBe(2);
+
+    await db.collection("items").insertOne({ _part: "t2", kind: "a", n: 10 });
+    await settles(counter, 1);
+    await eventually(async () => expect(await totalOf(db, "t2")).toBe(11));
+    expect(await totalOf(db, "t1")).toBe(1);
+
+    // Two views of one partition start one pass
+    await db.collection("items").insertOne({ _part: "t1", kind: "a", n: 10 });
+    await settles(counter, 2);
+
+    // A delete without a pre-image can be in each partition, so it reaches the three of them
+    await db.collection("items").deleteOne({ _id: "doc-t3" as never });
+    await settles(counter, 5);
+    await eventually(async () => expect(await db.collection("sums").countDocuments({ _part: "t3" })).toBe(0));
+
+    // The stream stays with the views that use it, and closes with the last of them
+    await db.collection("_aggregations").deleteMany({ _part: { $in: ["t2", "t3"] } });
+    await eventually(async () => expect(views.views().size).toBe(2));
+    expect(views.openStreamCount()).toBe(2);
+    await db.collection("_aggregations").deleteMany({ _part: "t1" });
+    await eventually(async () => expect(views.openStreamCount()).toBe(1));
+    await views.stop();
+  });
+
+  it("opens the stream of a source again after its end, and a pass of each partition catches up (CLI-92)", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const { db, views } = setup();
+    await partitionedViews(db, ["t1", "t2"]);
+    await views.start();
+
+    // The drop ends the stream, and these changes can come before the next stream opens
+    await db.collection("items").drop();
+    await db.collection("items").insertMany([
+      { _part: "t1", kind: "a", n: 5 },
+      { _part: "t2", kind: "a", n: 7 },
+    ]);
+    await eventually(async () => {
+      expect(await totalOf(db, "t1")).toBe(5);
+      expect(await totalOf(db, "t2")).toBe(7);
+      expect(views.openStreamCount()).toBe(2);
+    });
+
+    await db.collection("items").insertOne({ _part: "t2", kind: "a", n: 1 });
+    await eventually(async () => expect(await totalOf(db, "t2")).toBe(8));
+    await views.stop();
+  });
+
+  it("misses no change after a stop in the middle of a run: the next process catches up each partition (CLI-92)", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const db = newDb();
+    await partitionedViews(db, ["t1", "t2"]);
+    let armed = false;
+    let stopping: Promise<void> | undefined;
+    const first: ViewMaterializer = new ViewMaterializer({
+      db: () => db,
+      debounce: ms(20),
+      log: () => undefined,
+      // The guard runs inside the run of a view: a stop here is a stop in the middle of a run
+      scope: (pipeline, _partition, _view, match) => {
+        if (armed && stopping === undefined) stopping = first.close();
+        return [{ $match: match }, ...pipeline];
+      },
+    });
+    await first.start();
+    armed = true;
+    await db.collection("items").insertOne({ _part: "t1", kind: "a", n: 10 });
+    await eventually(async () => expect(stopping).toBeDefined());
+    await stopping;
+    expect(first.openStreamCount()).toBe(0);
+    await eventually(async () => expect(first.inFlight()).toBe(0));
+
+    // No process watches these changes
+    await db.collection("items").insertMany([
+      { _part: "t1", kind: "a", n: 100 },
+      { _part: "t2", kind: "a", n: 1000 },
+    ]);
+
+    const second = new ViewMaterializer({ db: () => db, debounce: ms(20), rewatch: ms(100), log: () => undefined });
+    await second.start();
+    expect(await totalOf(db, "t1")).toBe(111);
+    expect(await totalOf(db, "t2")).toBe(1001);
+    await db.collection("items").insertOne({ _part: "t2", kind: "a", n: 1 });
+    await eventually(async () => expect(await totalOf(db, "t2")).toBe(1002));
+    await second.stop();
+  });
+
+  /** The streams, the cursors of the idle `getMore` commands and the most connections of a start, from the events of one client. */
+  async function poolUse(partitions: number): Promise<{ streams: number; cursors: number; connections: number }> {
+    const name = newDb().databaseName;
+    const own = new MongoClient(url!, { monitorCommands: true });
+    let open = 0;
+    let connections = 0;
+    const cursors = new Set<string>();
+    own.on("connectionCreated", () => (connections = Math.max(connections, ++open)));
+    own.on("connectionClosed", () => open--);
+    own.on("commandStarted", (event) => {
+      if (event.commandName === "getMore") cursors.add(String(event.command["getMore"]));
+    });
+    await own.connect();
+    try {
+      await partitionedViews(client!.db(name), Array.from({ length: partitions }, (_, index) => `t${index}`));
+      const views = new ViewMaterializer({ db: () => own.db(name), log: () => undefined });
+      await views.start();
+      const streams = views.openStreamCount();
+      // The read of many views has its own getMore: only the idle cursors count
+      cursors.clear();
+      await new Promise((resolve) => setTimeout(resolve, IDLE_MS));
+      const count = cursors.size;
+      await views.stop();
+      return { streams, cursors: count, connections };
+    } finally {
+      await own.close();
+    }
+  }
+
+  /** The idle time of `poolUse`: more than the wait of a `getMore` of a stream on the server (1 s). */
+  const IDLE_MS = 2_500;
+
+  /** The time limit of the start at 1,000 partitions. */
+  const POOL_USE_TIMEOUT_MS = 180_000;
+
+  it("keeps the streams, the idle cursors and the connections flat from 1 to 1,000 partitions (CLI-92)", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const one = await poolUse(1);
+    const many = await poolUse(1_000);
+    expect(one).toMatchObject({ streams: 2, cursors: 2 });
+    expect(many).toMatchObject({ streams: 2, cursors: 2 });
+    expect(many.connections).toBeLessThanOrEqual(one.connections * 2);
+  }, POOL_USE_TIMEOUT_MS);
+
+  it("runs at most one third of the pool as passes at one time, and each pass ends (CLI-92)", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const name = newDb().databaseName;
+    const partitions = Array.from({ length: 20 }, (_, index) => `t${index}`);
+    await partitionedViews(client!.db(name), partitions);
+    const own = new MongoClient(url!, { monitorCommands: true, maxPoolSize: 6 });
+    const reads = new Set<number>();
+    let most = 0;
+    own.on("commandStarted", (event) => {
+      if (event.commandName !== "aggregate" || event.command["aggregate"] !== "items") return;
+      reads.add(event.requestId);
+      most = Math.max(most, reads.size);
+    });
+    own.on("commandSucceeded", (event) => reads.delete(event.requestId));
+    own.on("commandFailed", (event) => reads.delete(event.requestId));
+    await own.connect();
+    const views = new ViewMaterializer({ db: () => own.db(name), debounce: ms(20), log: () => undefined });
+    try {
+      await views.start();
+      most = 0;
+      await client!.db(name).collection("items").insertMany(partitions.map((partition) => ({ _part: partition, kind: "a", n: 10 })));
+      await eventually(async () => {
+        for (const partition of partitions) expect(await totalOf(client!.db(name), partition)).toBe(11);
+      });
+      expect(most).toBeGreaterThan(0);
+      expect(most).toBeLessThanOrEqual(2);
+    } finally {
+      await views.stop();
+      await own.close();
+    }
+  }, POOL_USE_TIMEOUT_MS);
+
+  it("moves the wait of a pass with each change, and makes no timer for each change (CLI-92)", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const CHANGES = 200;
+    const db = newDb();
+    await partitionedViews(db, ["t1"]);
+    let timers = 0;
+    const clock: Clock = {
+      now: () => realClock.now(),
+      after: (delay, work) => {
+        timers++;
+        return realClock.after(delay, work);
+      },
+    };
+    const views = new ViewMaterializer({ db: () => db, debounce: ms(1000), clock, log: () => undefined });
+    try {
+      await views.start();
+      timers = 0;
+      await db.collection("items").insertMany(Array.from({ length: CHANGES }, () => ({ _part: "t1", kind: "a", n: 1 })));
+      await eventually(async () => expect(await totalOf(db, "t1")).toBe(CHANGES + 1));
+      expect(timers).toBeLessThan(CHANGES / 2);
+    } finally {
+      await views.stop();
+    }
+  }, POOL_USE_TIMEOUT_MS);
 });

@@ -1,5 +1,41 @@
 # @procedures/peer
 
+## 0.48.1
+
+### Patch Changes
+
+- 2d7edae: Add live state. The option `live` of `events` gives a host the procedures `live.set`, `live.snapshot` and `live.leave`. They keep keyed values in memory on a topic. A key ends at its expiry, at the close of its connection or at a leave call. A window joins the changes of a topic. `liveView()` is the reader. PATCH: new exports and new procedures that a host turns on, and no existing result changes.
+  
+  An overload fault stays open in this release: CLI-102, https://github.com/mark1russell7/client/pull/444. It applies to a collection store with change events on and a subscriber. Change events are on by default. When writes arrive faster than the store serves them, the replies of the writes fall far behind. Live state does not use this path.
+- Updated dependencies [2d7edae]
+  - @procedures/client@0.48.1
+
+## 0.48.0
+
+### Patch Changes
+
+- Updated dependencies [17a18ec]
+- Updated dependencies [06088f9]
+- Updated dependencies [71f9c6e]
+- Updated dependencies [c839add]
+  - @procedures/client@0.48.0
+
+## 0.47.2
+
+### Patch Changes
+
+- Updated dependencies [0650616]
+- Updated dependencies [ae1e3fd]
+- Updated dependencies [f1ece74]
+  - @procedures/client@0.47.2
+
+## 0.47.1
+
+### Patch Changes
+
+- Updated dependencies [f845c6d]
+  - @procedures/client@0.47.1
+
 ## 0.47.0
 
 ### Patch Changes
@@ -193,8 +229,8 @@
   - A host whose `expose`, policy or limit pattern names such a path in text uses the encoded form, for example `collections.e2e%2Etabs.*`.
   - An `mcpExclude` entry, an `expose` deny entry or a limit entry in the old raw form, for example `collections.e2e.tabs.drop`, does not match. The check compares the encoded key, so the procedure becomes visible, or the limit does not apply. Write each such entry in the encoded form, for example `collections.e2e%2Etabs.drop`.
   - A subscriber of a dotted collection uses `collectionChangeTopic(name)`. The raw topic `collections.a.b` is the topic of the partition `b` of `a`.
-  - Graph: read the collection of a topic with `collectionTopicPartition(topic)`, not with a pattern, for example `/^collections\.([^.]+)\./`.
-  - The site, MiniMongo and jarvis: no change, if their collection names have no `.` and no `%`.
+  - An app: read the collection of a topic with `collectionTopicPartition(topic)`, not with a pattern, for example `/^collections\.([^.]+)\./`.
+  - Other apps: no change, if their collection names have no `.` and no `%`.
 
 ### Patch Changes
 
@@ -211,7 +247,7 @@
   
   Migration:
   
-  - The site, MiniMongo, Graph and jarvis: no change at this time. The deprecated names work until the next MINOR.
+  - Apps: no change at this time. The deprecated names work until the next MINOR.
   - Before the next MINOR, replace `zodAdapter<T>(schema)` with `schema`. To keep the check of a schema against a type, write `const schema: z.ZodType<T> = ...`.
   - Before the next MINOR, replace `typedAnySchema<T>()` and `outputSchema<T>()` with `typed<T>()`.
   - A parse-only object (`{ parse }`) in `zodAdapter` becomes a Standard Schema with a `~standard` property.
@@ -416,13 +452,13 @@
   - A face of your own that gives `mcpFace()` a handler of its own: give the handler `admission: (credentials) => server.admission(credentials)`.
   - An MCP client that a request hook refuses gets 401 at `initialize`. Give it valid credentials for each HTTP request.
   - The site: no change. It has no MCP host, and it used no function of `peer/security.ts`.
-  - MiniMongo: no change. Its dev host has only the HTTP and WebSocket faces of `createProcedureHost()`. Each request of these faces had one check before.
-  - Graph: its `mcpFace()` on the procedures host uses `graphPrincipalOf` for each HTTP request. In the accounts mode, a request without a session gets `ANONYMOUS`. Thus an MCP client without a session gets no 401 at `initialize`.
-  - Graph: in the mode `on` (`AUTH_MODE=on`), a request without a tenant token gets 401 at `initialize`. Before, the client opened a session and listed the tools, and each tool call got `UNAUTHORIZED`.
-  - Graph: accounts that are not ready (the error `UNAVAILABLE` of the hook) give 401 at `initialize`, with `WWW-Authenticate: Bearer`. Before, `initialize` passed, and each tool call got `UNAUTHORIZED`. An MCP client can start its OAuth discovery on this 401.
-  - Graph: outside the accounts mode, the policy has `allowedOrigins: "*"`. The MCP face takes it, as the HTTP face does. A request with a cookie still needs a named origin. With the default `ambientCredentials: "always"` of its request hook, `"*"` permits no other origin.
-  - Graph: to keep only the own origin on the MCP face, give `mcpFace({ allowedOrigins: [] })`. Its MCP host over stdio has no change.
-  - jarvis: no change. Its procedures host has only the HTTP face, and its MCP host has only stdio and SDK faces.
+  - An app: no change. Its dev host has only the HTTP and WebSocket faces of `createProcedureHost()`. Each request of these faces had one check before.
+  - An app: its `mcpFace()` on the procedures host uses a session hook for each HTTP request. In the accounts mode, a request without a session gets `ANONYMOUS`. Thus an MCP client without a session gets no 401 at `initialize`.
+  - An app: in the mode `on` (`AUTH_MODE=on`), a request without a tenant token gets 401 at `initialize`. Before, the client opened a session and listed the tools, and each tool call got `UNAUTHORIZED`.
+  - An app: accounts that are not ready (the error `UNAVAILABLE` of the hook) give 401 at `initialize`, with `WWW-Authenticate: Bearer`. Before, `initialize` passed, and each tool call got `UNAUTHORIZED`. An MCP client can start its OAuth discovery on this 401.
+  - An app: outside the accounts mode, the policy has `allowedOrigins: "*"`. The MCP face takes it, as the HTTP face does. A request with a cookie still needs a named origin. With the default `ambientCredentials: "always"` of its request hook, `"*"` permits no other origin.
+  - An app: to keep only the own origin on the MCP face, give `mcpFace({ allowedOrigins: [] })`. Its MCP host over stdio has no change.
+  - An app: no change. Its procedures host has only the HTTP face, and its MCP host has only stdio and SDK faces.
   - `mark mcp --http --token` and `@procedures/mcp-dev-tools`: no change for a client. The token is the token of the server, and the server checks each HTTP request one time.
 
 ### Patch Changes
@@ -501,9 +537,9 @@
   - A script that starts `mark server create` as a server in the foreground: start `mark --server` or `procedure-server` in its place.
   - A program that calls `run()`, `main()` or `executeArgs()` of `@procedures/mark`: no change. It keeps its process. Give `ownsProcess: true` to give the process to the runner, as the bin does.
   - The site: no change. It does not start `mark`.
-  - MiniMongo: no change. Its dev host starts through `runProcedureHost()`, not through `mark`.
-  - Graph: no change. It does not start `mark`.
-  - jarvis: no change, unless a script of jarvis reads the exit code of an interrupted `mark` command. Then apply the first step.
+  - An app: no change. Its dev host starts through `runProcedureHost()`, not through `mark`.
+  - An app: no change. It does not start `mark`.
+  - An app: no change, unless one of its scripts reads the exit code of an interrupted `mark` command. Then apply the first step.
 - @procedures/client@0.24.0
 
 ## 0.23.0
@@ -531,9 +567,9 @@
   
   Migration:
   
-  - The site and MiniMongo: no change. They have no MCP host.
-  - Graph: no change. Its MCP hosts have no task store.
-  - jarvis: no change. Its MCP host has no tasks.
+  - The site and an app: no change. They have no MCP host.
+  - An app: no change. Its MCP hosts have no task store.
+  - An app: no change. Its MCP host has no tasks.
   - polite-crawler-mcp: no change. Each request has the host token, so each session is one client. A session with 100 tasks gets fewer tasks only when ten or more sessions are near the limit. To keep the rule of CLI-51, give `new McpTaskStore({ reserve: 0 })`.
   - A host whose clients each have many sessions under one principal: each client keeps at most `maxStored - reserve` tasks. To keep the rule of CLI-51, give `reserve: 0` in `tasks` of the host or in `new McpTaskStore()`.
 - Updated dependencies [f20beb1]
@@ -615,7 +651,7 @@
   
   Deprecated: at the timeout of 15 s, `server.start` gives `success: true` with the message "still loading" while the process still starts. From the next MINOR of the client group, a start that is not ready at the timeout gives `success: false`, with the PID of the process that still starts. Read the readiness probe or `mark server status` for the state.
   
-  The site, MiniMongo, Graph and jarvis: no change. A host with a listener now also answers the paths under `/_probes`. Before, these paths got 404.
+  Apps: no change. A host with a listener now also answers the paths under `/_probes`. Before, these paths got 404.
 - @procedures/client@0.17.3
 
 ## 0.17.2
@@ -673,7 +709,7 @@
     principalOf,
     limits: [
       {
-        name: "graph.writes",
+        name: "app.writes",
         key: { claim: "tenant" },
         covers: { writes: true },
         policy: { type: "sliding-window", limit: { value: 120, unit: "count" }, window: { value: 1, unit: "min" } },
@@ -750,9 +786,9 @@
   - A caller that finds a cut by the code `INTERNAL_ERROR`: look for `UNAVAILABLE` in its place. Do not retry the call when `retryable` is false.
   - A handler that throws `UNAVAILABLE` with `retryable: false`: its HTTP status is 500 in place of 503. Without the flag, the error is retryable and gets 503. A retry middleware then sends the call again, so give `retryable: false` when the call can have had its effect.
   - The site: no change is necessary. Its code does not read the code of a cut, or the HTTP status 503.
-  - MiniMongo: no change is necessary. Its code does not read `INTERNAL_ERROR`, `UNAVAILABLE` or the severity of an error.
-  - The procedures host of Graph (GRAPH-11): no change is necessary. Its code does not read `INTERNAL_ERROR`. Its error "the server has no AGENT_TOKEN" is `UNAVAILABLE` with `retryable: false`, so its HTTP status is 500 in place of 503. No code of Graph reads that status.
-  - jarvis: no change is necessary. Its drain test already expects `UNAVAILABLE` with `retryable: false` for a cut procedure call (S6 A12). Its code reads only `NOT_FOUND` and `FORBIDDEN`.
+  - An app: no change is necessary. Its code does not read `INTERNAL_ERROR`, `UNAVAILABLE` or the severity of an error.
+  - The procedures host of an app (APP-11): no change is necessary. Its code does not read `INTERNAL_ERROR`. Its error "the server has no AGENT_TOKEN" is `UNAVAILABLE` with `retryable: false`, so its HTTP status is 500 in place of 503. No code of the app reads that status.
+  - An app: no change is necessary. Its drain test already expects `UNAVAILABLE` with `retryable: false` for a cut procedure call (S6 A12). Its code reads only `NOT_FOUND` and `FORBIDDEN`.
   - The `mark` CLI and `procedure-server`: no change is necessary. The lifecycle test of CI-2 expects `UNAVAILABLE` for the cut of `lifecycle.ticksOnce`.
 
 ### Patch Changes
@@ -798,10 +834,10 @@
   - A host with an `expose` rule must list the collection procedures that it serves, for example `collections.notes.*`. `host.*` and `events.subscribe` stay always on.
   - An app that pins its own procedures with `registerProcedures()` on a server with an expose rule: list them in the rule. Give `{ alwaysOn: true }` only to a procedure of the host itself.
   - The site: no change is necessary. Its servers have no expose rule.
-  - MiniMongo: no change is necessary. Its server has an expose rule, but it pins no procedure and serves no collection.
+  - An app: no change is necessary. Its server has an expose rule, but it pins no procedure and serves no collection.
   - The `mark` CLI and `procedure-server`: no change is necessary. They serve no collection, and `--expose` keeps `host.*` and `events.subscribe` on.
-  - jarvis: no change is necessary. Its host has no expose rule.
-  - The procedures host of Graph (GRAPH-11): no change is necessary. Its rule `["collections.*", "graph.*"]` lists the collection procedures. To hide `clear`, an `exclude` of the policy now has an effect.
+  - An app: no change is necessary. Its host has no expose rule.
+  - The procedures host of an app (APP-11): no change is necessary. Its rule `["collections.*", "app.*"]` lists the collection procedures. To hide `clear`, an `exclude` of the policy now has an effect.
 
 ### Patch Changes
 
@@ -820,7 +856,7 @@
 
 - 9fccd90: `createProcedureHost()` has the new option `controller` (server stack CLI-45). `controller.requires` names the dependencies of the service that each call of the host needs. `host.controllers` gives them, and `host.declare(svc)` declares them on the controller of the host. While a check of one of them fails readiness, the service refuses each call with `UNAVAILABLE`, which a caller can send again. Without the option, the controller needs no dependency, as before.
   
-  jarvis needs this option: its procedure calls need its world store.
+  An app needs this option: its procedure calls need its world store.
 - Updated dependencies [b89e3fe]
   - @procedures/client@0.12.1
 
@@ -849,7 +885,7 @@
   
   Migration steps:
   
-  - The site, MiniMongo, Graph and jarvis: no change is necessary. They do not start these entries.
+  - Apps: no change is necessary. They do not start these entries.
   - A script that starts `procedure-server` or `mark serve` and stops it with a signal: no change is necessary. Wait for the exit, in 10 s at most.
   - A program that embeds the server outside a service: use `startServer()`, which starts it as a peer, and `peer.stop()`.
 
@@ -890,9 +926,9 @@
   
   Migration steps:
   
-  - The site and MiniMongo: no change is necessary, unless they read `/health` of a peer. Then call `host.info` with the token.
-  - The MCP host of Graph: no change is necessary. To share the port of the Graph host, mount `mcpFace()` on its listener.
-  - jarvis and Graph under `run()`: build the procedures with `createProcedureHost()`, and call `host.declare(svc)` in the service of the process. Give `listen` for a port of the host, or mount `host.handler` and `host.upgrade` on the listener of the app.
+  - The site and an app: no change is necessary, unless they read `/health` of a peer. Then call `host.info` with the token.
+  - The MCP host of an app: no change is necessary. To share the port of its procedures host, mount `mcpFace()` on its listener.
+  - Apps under `run()`: build the procedures with `createProcedureHost()`, and call `host.declare(svc)` in the service of the process. Give `listen` for a port of the host, or mount `host.handler` and `host.upgrade` on the listener of the app.
   - A caller of `createPeer()` with a different token for each transport: give one token.
   - A Docker `HEALTHCHECK` or a probe of Kubernetes that read `/health` of a peer: use the probes of the service. Give the service `probeServer({ port, server_retry_after })` on a port of its own, or mount `probeHandler(health, { prefix: "/health" })` on the port of the app. Both come from `@mark1russell7/service/http`, and they answer `/health/startup`, `/health/readiness` and `/health/liveness`. The lockfile check of a client calls `host.info` with the token of the lockfile.
   - A test that read `/health` of a peer: call `host.info` with the token, or check the status 404.
@@ -975,7 +1011,7 @@
 
 ### Patch Changes
 
-- 389b054: A token check no longer tells the length of the token through its time. The peer compares the SHA-256 digests of the two tokens with `timingSafeEqual`. The `tokenMatches` of the client, which runs in a browser too, compares each character of the expected token for each presented token. Before, a token of another length returned at once. The re-audit of jarvis found it.
+- 389b054: A token check no longer tells the length of the token through its time. The peer compares the SHA-256 digests of the two tokens with `timingSafeEqual`. The `tokenMatches` of the client, which runs in a browser too, compares each character of the expected token for each presented token. Before, a token of another length returned at once. A re-audit found it.
 - Updated dependencies [841d083]
 - Updated dependencies [389b054]
   - @procedures/client@0.7.0

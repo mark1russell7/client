@@ -255,6 +255,9 @@ const copySchema: CopySchema = (from, to) => {
 
 /** One open database and its file writes. */
 class SharedDatabase {
+  readonly path: string;
+  readonly open: OpenDatabase;
+
   /** The storages that use the database. */
   users = 0;
   closed = false;
@@ -270,9 +273,12 @@ class SharedDatabase {
   private next: Promise<void> | undefined;
 
   constructor(
-    readonly path: string,
-    readonly open: OpenDatabase,
-  ) {}
+    path: string,
+    open: OpenDatabase,
+  ) {
+    this.path = path;
+    this.open = open;
+  }
 
   get engine(): SqliteEngineName {
     return this.open.engine;

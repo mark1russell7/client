@@ -1,5 +1,62 @@
 # @procedures/bundle-assistant
 
+## 0.48.1
+
+### Patch Changes
+
+- Updated dependencies [2d7edae]
+  - @procedures/client@0.48.1
+  - @procedures/exif@0.48.1
+  - @procedures/geo@0.48.1
+  - @procedures/http@0.48.1
+  - @procedures/ics@0.48.1
+  - @procedures/mail@0.48.1
+  - @procedures/weather@0.48.1
+
+## 0.48.0
+
+### Patch Changes
+
+- Updated dependencies [17a18ec]
+- Updated dependencies [06088f9]
+- Updated dependencies [71f9c6e]
+- Updated dependencies [c839add]
+  - @procedures/client@0.48.0
+  - @procedures/http@0.48.0
+  - @procedures/exif@0.48.0
+  - @procedures/geo@0.48.0
+  - @procedures/ics@0.48.0
+  - @procedures/mail@0.48.0
+  - @procedures/weather@0.48.0
+
+## 0.47.2
+
+### Patch Changes
+
+- Updated dependencies [0650616]
+- Updated dependencies [ae1e3fd]
+- Updated dependencies [f1ece74]
+  - @procedures/client@0.47.2
+  - @procedures/exif@0.47.2
+  - @procedures/geo@0.47.2
+  - @procedures/http@0.47.2
+  - @procedures/ics@0.47.2
+  - @procedures/mail@0.47.2
+  - @procedures/weather@0.47.2
+
+## 0.47.1
+
+### Patch Changes
+
+- Updated dependencies [f845c6d]
+  - @procedures/client@0.47.1
+  - @procedures/exif@0.47.1
+  - @procedures/geo@0.47.1
+  - @procedures/http@0.47.1
+  - @procedures/ics@0.47.1
+  - @procedures/mail@0.47.1
+  - @procedures/weather@0.47.1
+
 ## 0.47.0
 
 ### Patch Changes
@@ -295,8 +352,8 @@
   - A host with a private Nominatim, OSRM or calendar server gives `createGeoModule({ fetch: createHostFetch({ allow: [...] }) })` or `createIcsModule({ fetch: createHostFetch({ allow: [...] }) })` to `createRegistry()` before the bundle.
   - A host that gave `warnOnRefusal` to `createHostFetch()` removes it, and puts the host in `allow`.
   - The site: no change. It does not call `weather.forecast`, `geo.*` or `ics.fetch` through a registry of Node.
-  - MiniMongo and Graph: no change. They do not use these procedures.
-  - jarvis: no change. `packages/pipeline` calls the function `geocode()` of `@procedures/geo`, not the procedure, so the host policy does not apply.
+  - Two apps: no change. They do not use these procedures.
+  - An app: no change. It calls the function `geocode()` of `@procedures/geo`, not the procedure, so the host policy does not apply.
 
 ### Patch Changes
 

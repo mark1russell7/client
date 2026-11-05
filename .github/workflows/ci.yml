@@ -6,6 +6,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # A person starts a run on a branch with no pull request: gh workflow run ci.yml --ref <branch>
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -13,7 +15,7 @@ permissions:
 # A newer push to a branch cancels its older run. Each commit of main keeps its run, so each
 # commit of main gets a result, and the Pages workflow can start after it (deep dive SITE-10).
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
@@ -23,7 +25,7 @@ jobs:
   # The check names are "CI / checks (ubuntu-latest, node <version>)".
   ci:
     name: CI
-    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@c8d2f57af6932442af82d2f2223931e47c11beb1 # main
+    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@f48f29fe5b00772951e0910a90fbbe312343338c # main
     with:
       # Build first: each package builds dist/ with `tsc -b`, and dependents read the types from
       # dist/. The types and the writing rules do not change with the Node version, so the job
@@ -46,7 +48,7 @@ jobs:
       run: |
         pnpm --filter @procedures/mark test:e2e
 
-  # The changesets of a pull request (strategy s38, decision D13): changeset-check of the template
+  # The changesets of a pull request (decision D13): changeset-check of the template
   # fails a change of a published package without a changeset, a changeset of an unknown package,
   # and a "major" of a 0.x package. The version PR, an empty changeset and the label no-changeset pass.
   changesets:
@@ -61,7 +63,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: mark1russell7/template/.github/actions/changeset-check@c8d2f57af6932442af82d2f2223931e47c11beb1 # main
+      - uses: mark1russell7/template/.github/actions/changeset-check@f48f29fe5b00772951e0910a90fbbe312343338c # main
 
   # The checks of this repository, once, on Node 26. They need the build, but not each Node version.
   checks:
@@ -71,13 +73,13 @@ jobs:
     steps:
       # Depth 2 gets the parents of the merge commit of a pull request. The rule release-files of
       # check:conventions reads them.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 2
       # The pnpm version comes from "packageManager" in package.json
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
           cache: pnpm
@@ -95,7 +97,7 @@ jobs:
           node packages/documentation/scripts/generate-packages.ts
           git diff --stat --exit-code packages/documentation/PROCEDURES.md packages/documentation/PACKAGES.md
       - if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: generated-catalogs
           path: |
@@ -104,31 +106,31 @@ jobs:
           retention-days: 7
       # Each public package has a report of its public API in test/api/public-api.txt (roadmap R30,
       # CLI-86). The reports come from the built .d.ts files. A changed or new report fails the run, and
-      # the reports are an artifact: review the diff, then commit them. First the tests of the tool,
-      # then the tool. A plain git diff does not show a new report, so the step reads git status. The
-      # pathspec names the files: git does not match a folder with a * against the files in it.
+      # the reports are an artifact: review the diff, then commit them. The tool is the package
+      # @mark1russell7/api-report. A plain git diff does not show a new report, so the step reads git
+      # status, which also shows a report that the tool removed. The pathspec names the files: git does
+      # not match a folder with a * against the files in it.
       - name: The reports of the public API are current
         if: ${{ !cancelled() }}
         run: |
-          node --test scripts/api-report.test.ts
           status=0
-          node scripts/api-report.ts --update || status=$?
+          pnpm exec api-report update || status=$?
           changed="$(git status --porcelain --untracked-files=all -- 'packages/*/test/api/public-api.txt')"
           if [ -n "$changed" ]; then
             echo "These reports differ from the built .d.ts files, or are new:"
             echo "$changed"
             git --no-pager diff --stat -- 'packages/*/test/api/public-api.txt'
-            echo "::error title=Public API reports::Download the artifact public-api-reports, review the diff and commit the reports. Or start pnpm build, then node scripts/api-report.ts --update."
+            echo "::error title=Public API reports::Download the artifact public-api-reports, review the diff and commit the reports. Or start pnpm build, then pnpm exec api-report update."
             status=1
           fi
           exit "$status"
       - if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: public-api-reports
           path: packages/*/test/api/public-api.txt
           retention-days: 7
-      # The shared conventions of the fleet (@mark1russell7/conventions). The step needs the build:
+      # The shared conventions (@mark1russell7/conventions). The step needs the build:
       # the rule typed-files lists the files of each tsconfig with tsc. The summary of the run has
       # a table of the rules.
       - name: Check the conventions
@@ -177,6 +179,11 @@ jobs:
       - name: Test the paired bench scripts
         if: ${{ !cancelled() }}
         run: node --test scripts/paired-time.test.ts scripts/bench-paired.test.ts scripts/setup-profile.test.ts scripts/server-request.test.ts scripts/compile-cache.test.ts scripts/mark-call.test.ts
+      # The flips of the measure checks (CLI-100) run only by dispatch and each week, so the tests
+      # of their script run here.
+      - name: Test the flip script
+        if: ${{ !cancelled() }}
+        run: node --test scripts/check-flips.test.ts
       # The import boundaries of invariant I9 (CLI-83), with dependency-cruiser: a transport does not
       # import the server, an import of another package goes through an entry of its exports map, and
       # no package imports an app. The shared rules are in the package @mark1russell7/boundaries, and
@@ -221,7 +228,7 @@ jobs:
       # (packages/documentation/RELEASE.md). The release workflow does not allow them.
       - name: Check the packages (pack, publint, attw, install)
         if: ${{ !cancelled() }}
-        run: node scripts/check-packages.mjs
+        run: node scripts/check-packages.ts
 
       # The real hosts stop under run() of @mark1russell7/service (roadmap CI-2). The test starts the
       # built procedure-server and mark --server, and sends SIGTERM in the middle of an NDJSON stream.
@@ -248,6 +255,17 @@ jobs:
             sleep 1
           done
           [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ]
+      # The test of s3.upload against a service with a custom endpoint (roadmap CLI-99)
+      - name: Start the S3 gateway
+        if: ${{ !cancelled() }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/s3-data"
+          docker run -d --name s3-gateway --user "$(id -u):$(id -g)" -p 9000:9000 -v "$RUNNER_TEMP/s3-data:/data" versity/versitygw:v1.10.0 --access test-access --secret test-secret-key --port :9000 posix /data
+          for i in $(seq 1 30); do
+            curl -s -o /dev/null http://localhost:9000/ && break
+            sleep 1
+          done
+          curl -s -o /dev/null http://localhost:9000/ || { docker logs s3-gateway; exit 1; }
       # The scaffold test of mark runs cue-config, which needs the CUE binary
       - name: Install CUE for the coverage
         if: ${{ !cancelled() }}
@@ -267,9 +285,12 @@ jobs:
           MONGO_TEST_URL: mongodb://localhost:27017/?directConnection=true
           MONGO_TEST_TOPOLOGY: replica-set
           MONGO_TEST_FAILPOINTS: "1"
+          S3_TEST_ENDPOINT: http://localhost:9000
+          S3_TEST_ACCESS_KEY: test-access
+          S3_TEST_SECRET_KEY: test-secret-key
         run: node scripts/coverage.ts --out "$RUNNER_TEMP/coverage-floors.json"
       - if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage-floors
           path: ${{ runner.temp }}/coverage-floors.json
@@ -289,7 +310,7 @@ jobs:
       matrix:
         topology: [single-server, replica-set]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Start MongoDB 7
@@ -311,8 +332,8 @@ jobs:
             done
             [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ]
           fi
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: pnpm
@@ -338,14 +359,14 @@ jobs:
       checks: read
       statuses: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # The full history and the tags: the Releases section of the status page reads the date
           # of each version from git, as the Pages workflow does
           fetch-depth: 0
           persist-credentials: false
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
           cache: pnpm
@@ -363,7 +384,7 @@ jobs:
       # the keyboard, and the code of the TypeScript tab runs with Node
       - run: pnpm --filter @procedures/site test:e2e
       - if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: playwright-results
           path: packages/site/node_modules/.cache/playwright/results

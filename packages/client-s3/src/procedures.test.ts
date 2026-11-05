@@ -525,7 +525,7 @@ describe("s3.multipart.*", () => {
 
 /** The declaration of each procedure, as `metadata.effects` gives it. */
 const DECLARED: Record<string, Effects> = {
-  "s3.upload": { reads: ["s3", "network"], writes: ["s3", "network"] },
+  "s3.upload": { reads: ["s3", "network", "fs"], writes: ["s3", "network"] },
   "s3.download": { reads: ["s3", "network"], writes: ["fs"], idempotent: true },
   "s3.list": { reads: ["s3", "network"], writes: [] },
   "s3.listAll": { reads: ["s3", "network"], writes: [] },

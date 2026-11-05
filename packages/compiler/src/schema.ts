@@ -135,10 +135,14 @@ function typeMatches(actual: string, expected: unknown, value: unknown): boolean
 }
 
 class Validator {
+  private readonly root: Schema;
+
   readonly issues: SchemaIssue[] = [];
   private depth = 0;
 
-  constructor(private readonly root: Schema) {}
+  constructor(root: Schema) {
+    this.root = root;
+  }
 
   private issue(shape: Shape, path: readonly (string | number)[], message: string): void {
     this.issues.push({ pointer: shape.pointer, path: pathText(path), message });

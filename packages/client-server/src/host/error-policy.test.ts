@@ -20,11 +20,14 @@ const READS = { reads: ["notes"], writes: [] };
 
 /** An error class of the application: the policy must give `map` this class, not a copy. */
 class StoreError extends Error {
+  readonly table: string;
+
   constructor(
     message: string,
-    readonly table: string,
+    table: string,
   ) {
     super(message);
+    this.table = table;
   }
 }
 

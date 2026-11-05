@@ -1,5 +1,55 @@
 # @procedures/mongo
 
+## 0.48.1
+
+### Patch Changes
+
+- 1625af2: The guide of `MongoDocumentStorage` states a write limit: 200 writes a second on one collection, with a p99 of 12 ms for 1 process and 39.5 ms for 4. The limit is provisional. At 400 writes a second the p99 is 414.8 ms, so that rate has no margin, and the rate stops near 412 writes a second.
+- Updated dependencies [2d7edae]
+  - @procedures/client@0.48.1
+  - @procedures/collections@0.48.1
+
+## 0.48.0
+
+### Patch Changes
+
+- 5377b3a: `MongoDocumentStorage.getChangesSince()` checks the floor of the change log again after its query. A prune of another process can no longer give a delta that misses a delete: that reader gets a full result. A delta read sends one more command.
+  
+  The queue of the writes and the change reads of a collection now belongs to the client, not to the `Db` object. A store with no `db` option, or with a `db` option that makes a new `Db` at each call, had no queue. These stores now run their writes and change reads one at a time, as a store on one `Db` object does. The results do not change.
+  
+  Throughput of these stores: a burst of writes on one collection now runs in order, and on a real MongoDB in CI this is faster, because the writes no longer conflict with each other. 100 writes at one time on one collection go from 93 to 317 writes a second, and 100 writes at one time on each of 100 collections go from 24 to 1,183 writes a second. In that last burst, 62 % of the writes ended in an error before this change, and none do now. A burst of change reads on these stores now also runs one read at a time, and goes from 896 to 442 reads a second. A store on one `Db` object keeps its write speed, and its delta reads take about 1.2 times as long.
+- 17a18ec: The source now uses only syntax that a type stripper erases, so the setting `erasableSyntaxOnly` of `@mark1russell7/cue` 2.1.1 stays on. Each enum is now a constant object with a type of the same name. Each parameter property is now a field and an assignment in the constructor.
+  
+  **Breaking.** MINOR before 1.0.0: `ErrorCategory`, `ErrorSeverity` and `WebSocketState` are now constant objects. Their names and values stay the same, and each member stays usable as a type. A member is no longer a constant expression: `enum E { A = ErrorSeverity.WARNING }` gives TS18033, and a `const enum` gives TS2474. Also, a string with the value of a member now fits the type of the set.
+  
+  **Migration.** In an enum initializer, write the value in place of the member, for example `"warning"`, or use a constant object. Other uses need no change. The site and the known apps need no change.
+- 1732e31: `ViewMaterializer` keeps one change stream for each source, for all views of all partitions. The handler of the stream gives a change to the views of its partition. So the connections and the idle `getMore` commands do not grow with the partitions, and a start at 1,000 partitions on the default pool ends. At most one third of the pool (and at most 32) runs as passes at one time, so a burst that reaches each partition leaves connections for the other operations. A change during the wait of a pass moves the end of the wait and makes no new timer.
+- Updated dependencies [17a18ec]
+- Updated dependencies [06088f9]
+- Updated dependencies [71f9c6e]
+- Updated dependencies [c839add]
+  - @procedures/client@0.48.0
+  - @procedures/collections@0.48.0
+
+## 0.47.2
+
+### Patch Changes
+
+- Updated dependencies [0650616]
+- Updated dependencies [2684531]
+- Updated dependencies [ae1e3fd]
+- Updated dependencies [f1ece74]
+  - @procedures/client@0.47.2
+  - @procedures/collections@0.47.2
+
+## 0.47.1
+
+### Patch Changes
+
+- Updated dependencies [f845c6d]
+  - @procedures/client@0.47.1
+  - @procedures/collections@0.47.1
+
 ## 0.47.0
 
 ### Patch Changes
@@ -135,7 +185,7 @@
   Migration:
   
   - No step for a target that is not in `storageTargets`.
-  - The site, MiniMongo, Graph and jarvis need no step, unless one of them uses `ViewMaterializer` with a target in a stored form. Graph sets `storageTargets` at its step 8.
+  - Apps need no step, unless one of them uses `ViewMaterializer` with a target in a stored form. One app sets `storageTargets` at its step 8.
   - To move a target to a stored form, add it to `storageTargets` in each materializer of the views. The first pass writes each row as a document of the storage. A row of the older form with the partition of the storage becomes a tombstone. A reader then reads the target through a `MongoDocumentStorage` with the same form.
 
 ### Patch Changes
@@ -221,7 +271,7 @@
   
   Migration:
   
-  - MiniMongo, Graph and jarvis: an item with a dotted key or a `$` key below the top level needs MongoDB 5.0 or later. On a 4.x server, the write of such an item fails, because 0.34.0 stored it in `_json` and 0.35.0 stores it flat. An item that is already in `_json` reads as before.
+  - Apps: an item with a dotted key or a `$` key below the top level needs MongoDB 5.0 or later. On a 4.x server, the write of such an item fails, because 0.34.0 stored it in `_json` and 0.35.0 stores it flat. An item that is already in `_json` reads as before.
   - A view pipeline reads `"a.b"` as a nested path. A literal dotted key of an item is not reachable there without `$getField`.
 
 ### Patch Changes
@@ -246,7 +296,7 @@
   
   Migration:
   
-  - The site, MiniMongo, Graph and jarvis: no change at this time. The deprecated names work until the next MINOR.
+  - Apps: no change at this time. The deprecated names work until the next MINOR.
   - Before the next MINOR, replace `zodAdapter<T>(schema)` with `schema`. To keep the check of a schema against a type, write `const schema: z.ZodType<T> = ...`.
   - Before the next MINOR, replace `typedAnySchema<T>()` and `outputSchema<T>()` with `typed<T>()`.
   - A parse-only object (`{ parse }`) in `zodAdapter` becomes a Standard Schema with a `~standard` property.
@@ -580,9 +630,9 @@
   Migration:
   
   - **Site.** No change. The site does not write collections.
-  - **MiniMongo.** No change for a storage or a `HybridStorage` without `versionOf`. A `HybridStorage` with `versionOf` over `ApiStorage` needs a server storage with the same `versionOf` (for example `new InMemoryStorage({ versionOf })`), or the option `sendBaseVersions: false`.
-  - **Graph.** Graph keeps last-write-wins first (D11): it gives no expected version, so nothing changes. `GraphDocsStorage` must refuse a write with an expected version until it tests one. Add the guard to its `set`, `delete` and `setBatch`, and run the contract suite: its first case tests the refusal. To adopt the version later, stamp a version field on the server, give the storage a `versionOf` that tests it in the write, and give the same `versionOf` to the `HybridStorage` of the client. Then add `createWithVersions` to the contract run.
-  - **jarvis.** No change: jarvis gives no expected version. A storage of jarvis that implements `CollectionStorage` must refuse a write with an expected version, as for Graph.
+  - **An app with `HybridStorage`.** No change for a storage or a `HybridStorage` without `versionOf`. A `HybridStorage` with `versionOf` over `ApiStorage` needs a server storage with the same `versionOf` (for example `new InMemoryStorage({ versionOf })`), or the option `sendBaseVersions: false`.
+  - **An app with last-write-wins.** It gives no expected version, so nothing changes. Its own storage must refuse a write with an expected version until it tests one. Add the guard to its `set`, `delete` and `setBatch`, and run the contract suite: its first case tests the refusal. To adopt the version later, stamp a version field on the server, give the storage a `versionOf` that tests it in the write, and give the same `versionOf` to the `HybridStorage` of the client. Then add `createWithVersions` to the contract run.
+  - **An app without versions.** No change: it gives no expected version. A storage of the app that implements `CollectionStorage` must refuse a write with an expected version, as above.
   - **Other storages.** Each class that implements `CollectionStorage` reads the new options of `set`, `delete` and `setBatch`. It tests them in the write, or it rejects the write with `preconditionNotSupported()`. It never ignores them.
 
 ### Patch Changes
@@ -687,7 +737,7 @@
   - Targets from an older materializer, with the plain key as `_id`, need no migration step. The first pass of each view replaces the rows of its partition.
   - Each pipeline goes through `scopePipeline` by default. It reads only its partition, in its sources, and the current generation of a target.
   
-  The code comes from the server of Graph (its split plan, part P4). The jobs of CI with a replica set start MongoDB with the test commands, for the failpoint tests.
+  The jobs of CI with a replica set start MongoDB with the test commands, for the failpoint tests.
 - 054ba7d: `ViewMaterializer`: a change reaches only the views of its partition when the partition is known (roadmap CLI-37). The filter only removes work: a change whose partition is unknown reaches the views of each partition, as before.
   
   - A delete has no document in its change event. Its partition comes from the pre-image, when its collection has `changeStreamPreAndPostImages`.
@@ -713,7 +763,7 @@
   These APIs are new in this release, so no released code changes. The procedure `mongo.documents.aggregate` keeps its input `maxTimeMS` in milliseconds: the wire keeps milliseconds.
 - 3b2ddcd: New `scopePipeline()`: the guard of an aggregation pipeline over shared collections. The filter of the scope goes on each read of the pipeline and of its sub-pipelines. The pipeline reads and writes only the collections of the scope. Only the document stages of `ALLOWED_PIPELINE_STAGES` pass. `$out` and the JavaScript operators of the server are refused, and `$merge` needs a stamp. New `boundPipeline()`, `cutResults()` and `isTimeLimitError()` give the limits of time and size.
   
-  New `MongoDocumentStorage.aggregate()`: a read-only pipeline on the items of the partition, with these limits. The code comes from the server of Graph (its split plan, part P3).
+  New `MongoDocumentStorage.aggregate()`: a read-only pipeline on the items of the partition, with these limits.
 - Updated dependencies [61d60c6]
 - Updated dependencies [79f750a]
 - Updated dependencies [d0c9856]

@@ -196,16 +196,28 @@ function withOrigin<T>(change: StorageChangeEvent<T>, origin: string | undefined
  * of an id in the same batch sees the first one. Each change takes the next number of the counter.
  */
 class Writer<T> {
+  private readonly items: IdbObjectStoreLike;
+  private readonly counter: Counter;
+  private readonly records: Map<string, StoredRecord | undefined>;
+  private readonly live: readonly ItemRecord[];
+  private readonly origin: string | undefined;
+
   /** The changes for the observers, in the order of the writes. */
   readonly changes: Array<StorageChangeEvent<T>> = [];
 
   constructor(
-    private readonly items: IdbObjectStoreLike,
-    private readonly counter: Counter,
-    private readonly records: Map<string, StoredRecord | undefined>,
-    private readonly live: readonly ItemRecord[],
-    private readonly origin: string | undefined,
-  ) {}
+    items: IdbObjectStoreLike,
+    counter: Counter,
+    records: Map<string, StoredRecord | undefined>,
+    live: readonly ItemRecord[],
+    origin: string | undefined,
+  ) {
+    this.items = items;
+    this.counter = counter;
+    this.records = records;
+    this.live = live;
+    this.origin = origin;
+  }
 
   /** The current item of an id that the transaction read. */
   current(id: string): CurrentItem<T> {

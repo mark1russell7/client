@@ -1,5 +1,43 @@
 # @procedures/fs
 
+## 0.48.1
+
+### Patch Changes
+
+- Updated dependencies [2d7edae]
+  - @procedures/client@0.48.1
+
+## 0.48.0
+
+### Patch Changes
+
+- 17a18ec: The source now uses only syntax that a type stripper erases, so the setting `erasableSyntaxOnly` of `@mark1russell7/cue` 2.1.1 stays on. Each enum is now a constant object with a type of the same name. Each parameter property is now a field and an assignment in the constructor.
+  
+  **Breaking.** MINOR before 1.0.0: `ErrorCategory`, `ErrorSeverity` and `WebSocketState` are now constant objects. Their names and values stay the same, and each member stays usable as a type. A member is no longer a constant expression: `enum E { A = ErrorSeverity.WARNING }` gives TS18033, and a `const enum` gives TS2474. Also, a string with the value of a member now fits the type of the set.
+  
+  **Migration.** In an enum initializer, write the value in place of the member, for example `"warning"`, or use a constant object. Other uses need no change. The site and the known apps need no change.
+- Updated dependencies [17a18ec]
+- Updated dependencies [06088f9]
+- Updated dependencies [71f9c6e]
+- Updated dependencies [c839add]
+  - @procedures/client@0.48.0
+
+## 0.47.2
+
+### Patch Changes
+
+- Updated dependencies [0650616]
+- Updated dependencies [ae1e3fd]
+- Updated dependencies [f1ece74]
+  - @procedures/client@0.47.2
+
+## 0.47.1
+
+### Patch Changes
+
+- Updated dependencies [f845c6d]
+  - @procedures/client@0.47.1
+
 ## 0.47.0
 
 ### Patch Changes
@@ -149,8 +187,8 @@
   - A host whose `expose`, policy or limit pattern names such a path in text uses the encoded form, for example `collections.e2e%2Etabs.*`.
   - An `mcpExclude` entry, an `expose` deny entry or a limit entry in the old raw form, for example `collections.e2e.tabs.drop`, does not match. The check compares the encoded key, so the procedure becomes visible, or the limit does not apply. Write each such entry in the encoded form, for example `collections.e2e%2Etabs.drop`.
   - A subscriber of a dotted collection uses `collectionChangeTopic(name)`. The raw topic `collections.a.b` is the topic of the partition `b` of `a`.
-  - Graph: read the collection of a topic with `collectionTopicPartition(topic)`, not with a pattern, for example `/^collections\.([^.]+)\./`.
-  - The site, MiniMongo and jarvis: no change, if their collection names have no `.` and no `%`.
+  - An app: read the collection of a topic with `collectionTopicPartition(topic)`, not with a pattern, for example `/^collections\.([^.]+)\./`.
+  - Other apps: no change, if their collection names have no `.` and no `%`.
 
 ### Patch Changes
 
@@ -167,7 +205,7 @@
   
   Migration:
   
-  - The site, MiniMongo, Graph and jarvis: no change at this time. The deprecated names work until the next MINOR.
+  - Apps: no change at this time. The deprecated names work until the next MINOR.
   - Before the next MINOR, replace `zodAdapter<T>(schema)` with `schema`. To keep the check of a schema against a type, write `const schema: z.ZodType<T> = ...`.
   - Before the next MINOR, replace `typedAnySchema<T>()` and `outputSchema<T>()` with `typed<T>()`.
   - A parse-only object (`{ parse }`) in `zodAdapter` becomes a Standard Schema with a `~standard` property.
@@ -254,7 +292,7 @@
 
 ### Patch Changes
 
-- 2daba21: Sync forms, the last line, the name of the temporary file and a clearer error for a long line in `@procedures/fs/files` (roadmap O52, the feedback of jarvis PR #86).
+- 2daba21: Sync forms, the last line, the name of the temporary file and a clearer error for a long line in `@procedures/fs/files` (roadmap O52, the feedback of an app).
   
   PATCH: new functions, new options and a new optional field of a result before 1.0.0. No default changes.
   
@@ -287,7 +325,7 @@
   - `KeyedLock` and `withLock(key, fn, options?)` let one caller at a time hold a key in the process. The waiters get the key in the order of their calls. With `ifHeld: "skip"`, the call gives `{ ran: false }` when the key has a holder. A `signal` stops a wait. A key without a holder uses no memory.
   - `editFile(path, transform, options?)` reads a file, waits for `transform` and writes the result with `writeFileAtomic()`, one edit at a time for each path. A missing file gives `initial` or `undefined`. The same text or `undefined` writes nothing.
   
-  jarvis has copies of these helpers since jarvis PR #85 (`TODO(@procedures)`). It can use the package after the release.
+  An app has copies of these helpers (`TODO(@procedures)`). It can use the package after the release.
 - @procedures/client@0.27.3
 
 ## 0.27.2

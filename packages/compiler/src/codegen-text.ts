@@ -72,6 +72,8 @@ function pointerComment(pointer: Pointer): string {
 }
 
 class Emitter {
+  private readonly ts: boolean;
+
   readonly diagnostics: Diagnostic[] = [];
   private temps = 0;
   /** The bindings that a reference or a scope reads: only these get a variable. */
@@ -79,7 +81,9 @@ class Emitter {
   usesContext = false;
   usesRuntime = false;
 
-  constructor(private readonly ts: boolean) {}
+  constructor(ts: boolean) {
+    this.ts = ts;
+  }
 
   temp(): string {
     return `t${this.temps++}`;

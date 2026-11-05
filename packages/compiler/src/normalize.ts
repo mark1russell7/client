@@ -120,12 +120,16 @@ interface OperandOptions {
 }
 
 class Normalizer {
+  private readonly facts: ProcedureFacts;
+
   readonly diagnostics: Diagnostic[] = [];
   private bindingCount = 0;
   /** The control-flow calls on the path (a call object that contains itself through its operands). */
   private readonly flowStack = new Set<object>();
 
-  constructor(private readonly facts: ProcedureFacts) {}
+  constructor(facts: ProcedureFacts) {
+    this.facts = facts;
+  }
 
   program(program: unknown, mode: "exec" | "body", base: Pointer): ProgramIR {
     if (mode === "body") {

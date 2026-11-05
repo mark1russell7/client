@@ -1,5 +1,43 @@
 # @procedures/signaldb
 
+## 0.48.1
+
+### Patch Changes
+
+- Updated dependencies [2d7edae]
+  - @procedures/client@0.48.1
+  - @procedures/collections@0.48.1
+
+## 0.48.0
+
+### Patch Changes
+
+- Updated dependencies [17a18ec]
+- Updated dependencies [06088f9]
+- Updated dependencies [71f9c6e]
+- Updated dependencies [c839add]
+  - @procedures/client@0.48.0
+  - @procedures/collections@0.48.0
+
+## 0.47.2
+
+### Patch Changes
+
+- Updated dependencies [0650616]
+- Updated dependencies [2684531]
+- Updated dependencies [ae1e3fd]
+- Updated dependencies [f1ece74]
+  - @procedures/client@0.47.2
+  - @procedures/collections@0.47.2
+
+## 0.47.1
+
+### Patch Changes
+
+- Updated dependencies [f845c6d]
+  - @procedures/client@0.47.1
+  - @procedures/collections@0.47.1
+
 ## 0.47.0
 
 ### Patch Changes
@@ -300,7 +338,7 @@
 
 ### Patch Changes
 
-- 8bea42d: The first npm release of `@procedures/signaldb`. It has `SignalDbStorage`, a collection storage over a SignalDB `Collection` (CLI-23). Graph uses it for GRAPH-9.
+- 8bea42d: The first npm release of `@procedures/signaldb`. It has `SignalDbStorage`, a collection storage over a SignalDB `Collection` (CLI-23). An app uses it for APP-9.
 - Updated dependencies [2735505]
   - @procedures/client@0.24.1
   - @procedures/collections@0.24.1
