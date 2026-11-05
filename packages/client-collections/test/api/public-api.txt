@@ -713,6 +713,7 @@ export interface UndoEntry {
     readonly inverse?: StoragePatchOperations;
     readonly item?: unknown;
     readonly after: string;
+    readonly afterValues?: unknown;
     readonly group?: string;
     readonly at: number;
     readonly seq: number;
@@ -730,6 +731,7 @@ export declare class UndoLog {
 export interface UndoLogOptions {
     readonly cap?: number;
     readonly now?: () => number;
+    readonly keepAfter?: boolean;
 }
 
 ### dist/undo/undo-log.d.ts#fingerprintOf
