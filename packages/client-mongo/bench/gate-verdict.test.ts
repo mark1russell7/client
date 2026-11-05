@@ -2,11 +2,12 @@
 
 import { describe, expect, it } from "vitest";
 import type { JobRecords, PairedTime } from "@mark1russell7/rigor-bench";
-import { BLOCK_EXIT, NO_READ_EXIT, READ_CASES, WRITE_CASES, caseLimits, joinJobs, outcomeAtCaseLimits, passingLimit, rerunCounts, shortOfLastLook, storeGate } from "./gate-verdict.js";
+import { BLOCK_EXIT, NO_READ_EXIT, READ_CASES, WRITE_CASES, caseLimits, heldSlowdown, joinJobs, outcomeAtCaseLimits, overStated, passingLimit, rerunCounts, shortOfLastLook, storeGate } from "./gate-verdict.js";
 
 const CASES = [...READ_CASES, ...WRITE_CASES];
 const LIMIT = 1.1;
-const INPUT = { limit: LIMIT, failures: 0, attempt: 1 };
+const everyCase = (limit: number): Record<string, number> => Object.fromEntries(CASES.map((name) => [name, limit]));
+const INPUT = { limits: everyCase(LIMIT), reportOnly: [], failures: 0, attempt: 1 };
 
 /** This function makes the records of a case, with the ratio that `ratioOf` gives for each round. The order turns each round. */
 function rounds(name: string, from: number, count: number, ratioOf: (round: number) => number): PairedTime[] {
@@ -102,8 +103,8 @@ describe("passingLimit", () => {
     const limit = passingLimit(jobs);
     expect(limit).toBeGreaterThan(1.05);
     expect(limit).toBeLessThan(1.052);
-    expect(storeGate(jobs, { ...INPUT, limit }).outcome).toBe("pass");
-    expect(storeGate(jobs, { ...INPUT, limit: 1.04 }).outcome).toBe("block");
+    expect(storeGate(jobs, { ...INPUT, limits: everyCase(limit) }).outcome).toBe("pass");
+    expect(storeGate(jobs, { ...INPUT, limits: everyCase(1.04) }).outcome).toBe("block");
   });
 
   it("gives no finite limit when a job misses a case", () => {
@@ -117,6 +118,64 @@ describe("passingLimit", () => {
     const both = [jobOf("1", stalls, 24), jobOf("2", same, 24)];
     expect(passingLimit(first)).toBeGreaterThan(1.5);
     expect(passingLimit(both)).toBeLessThan(1.1);
+  });
+});
+
+describe("limits per case", () => {
+  it("does not block on a report-only case, and prints its read", () => {
+    const slower = (name: string): number => (name === "one-10" ? 1.5 : 1);
+    const gate = storeGate([jobOf("1", slower), jobOf("2", slower)], { ...INPUT, reportOnly: ["one-10"] });
+    expect(gate.outcome).toBe("pass");
+    expect(gate.verdict.cases.map((entry) => entry.case)).not.toContain("one-10");
+    expect(gate.reported.map((entry) => entry.case)).toEqual(["one-10"]);
+  });
+
+  it("does not need the records of a report-only case", () => {
+    const names = CASES.filter((name) => name !== "one-10");
+    const gate = storeGate([jobOf("1", same, 12, 0, names), jobOf("2", same, 12, 0, names)], { ...INPUT, reportOnly: ["one-10"] });
+    expect(gate.outcome).toBe("pass");
+    expect(gate.reported).toEqual([]);
+  });
+
+  it("stops at a gate case with no limit, because no limit is not a pass", () => {
+    const { "part-1": _gone, ...limits } = everyCase(LIMIT);
+    expect(() => storeGate([jobOf("1", same), jobOf("2", same)], { ...INPUT, limits })).toThrow("the case part-1 has no limit");
+  });
+
+  it("reads each case at its own limit", () => {
+    const ratio = (name: string): number => (name === "part-1" ? 1.2 : 1.02);
+    const jobs = [jobOf("1", ratio), jobOf("2", ratio)];
+    expect(storeGate(jobs, INPUT).verdict.blocks).toEqual(["part-1"]);
+    expect(storeGate(jobs, { ...INPUT, limits: { ...everyCase(LIMIT), "part-1": 1.25 } }).outcome).toBe("pass");
+  });
+});
+
+describe("overStated", () => {
+  const slowdowns = { "first-1": 1.15, "none-1": 1.15, "one-1": 1.15, "many-1": 1.25, "part-1": 1.25 };
+
+  it("names a gate case with a limit at or over its slowdown, and a gate case with no slowdown", () => {
+    expect(overStated({ limits: { ...everyCase(1.1), "first-1": 1.15 }, slowdowns, reportOnly: ["one-10"] })).toEqual(["first-1"]);
+    expect(overStated({ limits: everyCase(1.1), slowdowns, reportOnly: [] })).toEqual(["one-10"]);
+  });
+
+  it("names nothing when each gate case holds its slowdown", () => {
+    expect(overStated({ limits: everyCase(1.1), slowdowns, reportOnly: ["one-10"] })).toEqual([]);
+  });
+});
+
+describe("heldSlowdown", () => {
+  const steady = (): number => 1.02;
+
+  it("gives the ratio over the limit for a steady case", () => {
+    const held = heldSlowdown([jobOf("1", steady, 24), jobOf("2", steady, 24)], "part-1", everyCase(1.1));
+    expect(held).toBeGreaterThan(1.07);
+    expect(held).toBeLessThan(1.09);
+  });
+
+  it("gives a larger slowdown when the rounds of the case spread", () => {
+    const spread = (name: string, round: number): number => (name === "part-1" && round % 3 === 0 ? 0.8 : 1.02);
+    const held = heldSlowdown([jobOf("1", spread, 24), jobOf("2", spread, 24)], "part-1", everyCase(1.1));
+    expect(held).toBeGreaterThan(1.2);
   });
 });
 
