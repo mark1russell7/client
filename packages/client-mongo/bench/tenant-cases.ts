@@ -43,7 +43,7 @@ export const WRITER_CORES = "2,3";
 export const ALL_CORES = "0-3";
 
 /** The cases of the suite `tenant-forms`: rates over the ceiling of the store, and one tenant through two processes. */
-export const FORM_CASES = ["800-p2", "1600-p4", "3200-p4", "200-p2-hot", "400-p2-hot"] as const;
+export const FORM_CASES = ["800-p2", "1200-p4", "1600-p4", "200-p2-hot", "400-p2-hot"] as const;
 
 /** The arms of the suite `tenant-forms` that use a copy of the store. */
 export const FORM_ARMS = ["forma", "formb"] as const;
