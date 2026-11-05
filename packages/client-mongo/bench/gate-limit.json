@@ -1,5 +1,11 @@
 {
-  "limit": 2,
-  "formula": "No limit yet: this is a first value for the runs that give the limit. A gate refuses this file until the runs have five or more ids.",
-  "runs": []
+  "limit": 1.1831,
+  "formula": "The worst worstBound of the runs plus their spread: 1.1103 + (1.1103 - 1.0375) = 1.1831. Base and head are the same commit in each run. Zero false blocks in 5 runs bound the rate of false blocks only near 45 percent (rule of three).",
+  "runs": [
+    "41960647750",
+    "41964029455",
+    "41964068723",
+    "41967428043",
+    "41970088217"
+  ]
 }
