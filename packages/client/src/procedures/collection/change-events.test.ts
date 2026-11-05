@@ -4,7 +4,7 @@
  * subscriber listens. The events of one storage make a chain of versions from the change log.
  */
 
-import { describe, it, expect } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { createCollectionProcedures, type CollectionProceduresOptions } from "./procedures.js";
 import { collectionChangeTopic, collectionTopicReads, type CollectionChangeEvent } from "./changes.js";
 import type { CollectionStorage, StorageChanges, StorageWriteOptions } from "./storage.js";
@@ -483,5 +483,169 @@ describe("the values of the change events and the subscribers that can read them
     // A call of the host reaches the pinned procedure, and the registry of the nested calls does not have it
     expect(server.hasProcedure(["events", "subscribe"])).toBe(true);
     expect(server.getRegistry().get(["events", "subscribe"])).toBeUndefined();
+  });
+});
+
+/** A log whose reads stop below a write in flight, while the test holds its writes back. */
+class HeldLog extends LogStorage {
+  /** True while a write in flight holds the reads back. */
+  holding = false;
+  reads = 0;
+  /** The deletes that a read in a hold gives. */
+  heldDeleted: string[] = [];
+
+  override async getChangesSince(since?: string): Promise<StorageChanges<unknown>> {
+    this.reads++;
+    if (this.holding) return { version: since ?? "log:0", full: false, changed: [], deleted: this.heldDeleted, held: true };
+    return super.getChangesSince(since);
+  }
+}
+
+describe("a read again of a log that a write in flight holds back (CLI-102)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** This function starts the chain of a host with a subscriber, and writes one id while the log holds it back. */
+  async function heldWrite(storage: HeldLog, options: CollectionProceduresOptions = {}, id = "a") {
+    const { run, events, listen } = host(storage, options);
+    listen();
+    const { version } = (await run("changes", {})) as { version: string };
+    storage.holding = true;
+    await run("set", { id, value: 1 });
+    expect(events).toEqual([]);
+    return { run, events, version };
+  }
+
+  it("the event comes after the hold ends, with no later write", async () => {
+    const storage = new HeldLog();
+    const { events, version } = await heldWrite(storage);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(events).toEqual([]);
+    storage.holding = false;
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ since: version, changed: ["a"], deleted: [] });
+    expect(events[0]).not.toHaveProperty("origin");
+  });
+
+  it("the waits double up to 5 s, so a hold of a minute costs at most 17 reads", async () => {
+    const storage = new HeldLog();
+    await heldWrite(storage);
+    const before = storage.reads;
+    const seen: number[] = [];
+    for (const step of [100, 200, 400, 800, 1600, 3200, 5000, 5000]) {
+      await vi.advanceTimersByTimeAsync(step);
+      seen.push(storage.reads - before);
+    }
+    expect(seen).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    await vi.advanceTimersByTimeAsync(60_000 - 16_300);
+    expect(storage.reads - before).toBeLessThanOrEqual(17);
+  });
+
+  it("no read follows the end of the hold", async () => {
+    const storage = new HeldLog();
+    await heldWrite(storage);
+    storage.holding = false;
+    await vi.advanceTimersByTimeAsync(100);
+    const reads = storage.reads;
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(storage.reads).toBe(reads);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("the reads stop when no one listens", async () => {
+    const storage = new HeldLog();
+    const { run, listen } = host(storage);
+    const stop = listen();
+    await run("changes", {});
+    storage.holding = true;
+    await run("set", { id: "a", value: 1 });
+    stop();
+    await vi.advanceTimersByTimeAsync(100);
+    const reads = storage.reads;
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(storage.reads).toBe(reads);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("one timer serves many writes, and a write in the wait gets the same event", async () => {
+    const storage = new HeldLog();
+    const { run, events } = await heldWrite(storage);
+    await run("set", { id: "b", value: 2 });
+    await run("set", { id: "c", value: 3 });
+    expect(vi.getTimerCount()).toBe(1);
+    storage.holding = false;
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(events).toHaveLength(1);
+    expect(events[0]?.changed).toEqual(["a", "b", "c"]);
+  });
+
+  it("a read again that fails stays owed, and the next read gives the event", async () => {
+    const storage = new HeldLog();
+    const { events } = await heldWrite(storage);
+    storage.holding = false;
+    storage.failChanges = true;
+    await vi.advanceTimersByTimeAsync(100);
+    expect(events).toEqual([]);
+    storage.failChanges = false;
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(events).toHaveLength(1);
+    expect(events[0]?.changed).toEqual(["a"]);
+  });
+
+  it("a pull in a hold arms the read again, for a write outside the procedures", async () => {
+    const storage = new HeldLog();
+    const { run, events, listen } = host(storage);
+    listen();
+    const { version } = (await run("changes", {})) as { version: string };
+    storage.holding = true;
+    storage.writeDirectly("a", 1);
+    await run("changes", { since: version });
+    storage.holding = false;
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(events).toHaveLength(1);
+    expect(events[0]?.changed).toEqual(["a"]);
+  });
+
+  it("a pull in a hold with no subscriber starts no read", async () => {
+    const storage = new HeldLog();
+    const { run } = host(storage);
+    storage.holding = true;
+    await run("changes", {});
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("with a row rule, the event of a read again keeps its ids for a subscriber with no filter", async () => {
+    const storage = new HeldLog();
+    const { events } = await heldWrite(storage, { admission: { admit: () => true } });
+    storage.holding = false;
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(events).toHaveLength(1);
+    expect(events[0]?.changed).toEqual(["a"]);
+  });
+
+  it("the answer of a row rule keeps its held mark", async () => {
+    const storage = new HeldLog();
+    const { run, listen } = host(storage, { admission: { admit: () => true } });
+    listen();
+    storage.holding = true;
+    await run("changes", {});
+    expect(vi.getTimerCount()).toBe(1);
+  });
+
+  it("a full answer of a row rule keeps its held mark", async () => {
+    const storage = new HeldLog();
+    const { run, listen } = host(storage, { admission: { admit: () => true } });
+    listen();
+    const { version } = (await run("changes", {})) as { version: string };
+    storage.holding = true;
+    storage.heldDeleted = ["gone"];
+    const answer = (await run("changes", { since: version })) as { full: boolean };
+    expect(answer.full).toBe(true);
+    expect(vi.getTimerCount()).toBe(1);
   });
 });

@@ -20,7 +20,6 @@ import {
   ms,
   type CallerOptions,
   type CollectionChangeEvent,
-  type EventBus,
   type StorageChanges,
 } from "@procedures/client";
 import { MongoDocumentStorage } from "./document-storage.js";
@@ -113,7 +112,7 @@ function heldDb(db: Db, collection: string, hold: () => Promise<void>): Db {
 
 /** One process of a row: a store behind the procedures, a bus, its events and a count of its reads. */
 class Host {
-  readonly bus: EventBus = createEventBus();
+  readonly bus = createEventBus();
   readonly events: CollectionChangeEvent[] = [];
   reads = 0;
   readonly store: MongoDocumentStorage<Item>;
