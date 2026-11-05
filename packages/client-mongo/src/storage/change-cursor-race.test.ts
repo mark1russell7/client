@@ -1,8 +1,10 @@
 /**
- * The race of a change cursor and a write in flight (roadmap CLI-102). Write A holds a number and does
- * not end. Write B holds the next number and ends. A reader that moves its cursor past B does not see
- * A at any time, if no rule stops the cursor below A. These tests hold the commit of each write, on
- * seeded schedules, with subscribers that read a cursor and subscribers that follow the change events.
+ * The race of a change cursor and a write in flight (roadmap CLI-102). One write holds a number and
+ * does not end. A second write holds the next number and ends. A reader moves its cursor past the
+ * second write. With no rule that stops the cursor below it, the reader loses the first write.
+ *
+ * These tests hold the commit of each write, on seeded schedules. Some subscribers read a cursor, and
+ * some subscribers follow the change events.
  *
  * The pass line: no subscriber loses a write, and no subscriber sees a write twice. Each row prints
  * its counts. Each fault row has the same schedules and a reader or a writer with no rule, and it
