@@ -255,7 +255,10 @@ describe.runIf(url)("the offline queue on a real host", () => {
     const afterRestart = await flushes(again.hybrid, 2);
     const reachedAfterRestart = await arrived(store, SMALL_IDS);
     printRow({ name: "too-large-http", reached, drops: drops.length, ...read, ...seen, restartPending: again.hybrid.getPendingOpsCount(), restartCodes: afterRestart.codes, reachedAfterRestart });
-    redToday(() => expect(reached).toEqual(SMALL_IDS));
+    expect(reached).toEqual(SMALL_IDS);
+    expect(drops.map(({ id, reason }) => ({ id, reason }))).toEqual([{ id: "big", reason: "too-large" }]);
+    expect(seen["pending"]).toBe(0);
+    expect(again.hybrid.getPendingOpsCount()).toBe(0);
   });
 
   it("too-large-ws: a write over the limit names itself, and another call of the connection does not get its code", { timeout: ROW_TIMEOUT_MS }, async () => {
@@ -280,8 +283,9 @@ describe.runIf(url)("the offline queue on a real host", () => {
     const read = await flushes(hybrid, 5);
     const reached = await arrived(store, SMALL_IDS);
     printRow({ name: "too-large-ws", firstCode, otherFailed: otherCodes.length, otherCodes: [...new Set(otherCodes)], otherOk: reads.length - otherCodes.length, reached, drops: drops.length, ...read, ...(await screen(hybrid, queue)) });
-    redToday(() => expect(otherCodes).toEqual([]));
-    redToday(() => expect(reached).toEqual(SMALL_IDS));
+    expect(otherCodes).toEqual([]);
+    expect(reached).toEqual(SMALL_IDS);
+    expect(drops.map(({ id, reason }) => ({ id, reason }))).toEqual([{ id: "big", reason: "too-large" }]);
   });
 
   it("too-large-batch: one write over the limit in a batch leaves its small siblings free to go", { timeout: ROW_TIMEOUT_MS }, async () => {
@@ -291,7 +295,8 @@ describe.runIf(url)("the offline queue on a real host", () => {
     const read = await flushes(hybrid);
     const reached = await arrived(store, SMALL_IDS);
     printRow({ name: "too-large-batch", reached, drops: drops.length, ...read, ...(await screen(hybrid, queue)) });
-    redToday(() => expect(reached).toEqual(SMALL_IDS));
+    expect(reached).toEqual(SMALL_IDS);
+    expect(drops.map(({ id, reason }) => ({ id, reason }))).toEqual([{ id: "big", reason: "too-large" }]);
   });
 
   it("too-large-sum: a batch of small writes over the limit reaches the remote", { timeout: ROW_TIMEOUT_MS }, async () => {
@@ -302,7 +307,8 @@ describe.runIf(url)("the offline queue on a real host", () => {
     const read = await flushes(hybrid);
     const reached = await arrived(store, ids);
     printRow({ name: "too-large-sum", reached: reached.length, of: ids.length, drops: drops.length, ...read, ...(await screen(hybrid, queue)) });
-    redToday(() => expect(reached).toEqual(ids));
+    expect(reached).toEqual(ids);
+    expect(drops).toEqual([]);
   });
 
   it("refused-batch: a refusal of one id leaves its small siblings free to go", { timeout: ROW_TIMEOUT_MS }, async () => {
@@ -313,7 +319,7 @@ describe.runIf(url)("the offline queue on a real host", () => {
     const reached = await arrived(store, SMALL_IDS);
     const local = await hybrid.getBatch(SMALL_IDS);
     printRow({ name: "refused-batch", reached, localLeft: [...local.keys()], drops: drops.map(({ id, reason }) => ({ id, reason })), ...read, ...(await screen(hybrid, queue)) });
-    expect(drops.map((drop) => drop.id).sort()).toEqual(["bad", ...SMALL_IDS].sort());
-    redToday(() => expect(reached).toEqual(SMALL_IDS));
+    expect(drops.map(({ id, reason }) => ({ id, reason }))).toEqual([{ id: "bad", reason: "refused" }]);
+    expect(reached).toEqual(SMALL_IDS);
   });
 });

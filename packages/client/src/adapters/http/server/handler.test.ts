@@ -248,6 +248,16 @@ describe("procedureHandler: the error codes of wire v1 (CLI-3)", () => {
     expect((await send(port, "POST", "/api/proc/proc/echo", JSON_HEADERS, '{"text":"a"}')).status).toBe(200);
   });
 
+  it("answers 413 to a body far over the limit, and the client gets the answer, not a reset of the connection (CLI-108)", async () => {
+    const { port } = await startApp({ bodyLimit: 1024 });
+    const body = JSON.stringify({ text: "x".repeat(4 * 1024 * 1024) });
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const large = await send(port, "POST", "/api/proc/proc/echo", JSON_HEADERS, body);
+      expect([large.status, JSON.parse(large.body).code]).toEqual([413, "PAYLOAD_TOO_LARGE"]);
+    }
+    expect((await send(port, "POST", "/api/proc/proc/echo", JSON_HEADERS, '{"text":"a"}')).status).toBe(200);
+  });
+
   it("answers INVALID_REQUEST for a bad body, a bad X-Metadata header and a URL without a method, and PAYLOAD_TOO_LARGE for a large body", async () => {
     const { port } = await startApp({ bodyLimit: 16 });
     const bad = await send(port, "POST", "/api/proc/proc/echo", JSON_HEADERS, "{nope");
