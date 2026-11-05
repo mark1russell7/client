@@ -353,6 +353,7 @@ function contentHash(doc: Document): string {
 interface StorageTargetValues {
   readonly form: StoredForm;
   readonly counters: string | undefined;
+  readonly sequence: "collection" | "partition" | undefined;
   readonly writeLeaseMs: number | undefined;
   readonly maxTombstones: number | undefined;
 }
@@ -550,7 +551,7 @@ export class ViewMaterializer {
   /**
    * A target of `storageTargets` as a storage on the database of the materializer, so its writes
    * and the transaction of a run use one client. A given storage gives its form, its counters,
-   * `writeLease` and `maxTombstones`.
+   * its sequence, `writeLease` and `maxTombstones`.
    */
   private storageTargetOf(collection: string, entry: ViewStorageTargetEntry): StorageTargetEntry {
     const wrapped = typeof entry === "object" && entry !== null && "target" in entry ? entry : { target: entry };
@@ -561,15 +562,15 @@ export class ViewMaterializer {
     if (target instanceof MongoDocumentStorage) {
       const parts = storageWriteTarget(target);
       if (parts.collection !== collection) throw new TypeError(`The storage target ${collection} has a storage of the collection ${parts.collection}`);
-      values = { form: parts.form, counters: parts.counters, writeLeaseMs: parts.writeLeaseMs, maxTombstones: parts.maxTombstones };
+      values = { form: parts.form, counters: parts.counters, sequence: parts.sequence, writeLeaseMs: parts.writeLeaseMs, maxTombstones: parts.maxTombstones };
     } else if (typeof target === "object" && target !== null && typeof (target as Partial<StoredForm>).storedId === "function") {
-      values = { form: target as StoredForm, counters: undefined, writeLeaseMs: undefined, maxTombstones: undefined };
+      values = { form: target as StoredForm, counters: undefined, sequence: undefined, writeLeaseMs: undefined, maxTombstones: undefined };
     } else {
       throw new TypeError(`The storage target ${collection} needs a MongoDocumentStorage, a stored form or a ViewStorageTarget`);
     }
     // The same values give the storage of the last run: its partitions keep their state (the floor document of O66)
     const cached = this.storageTargetCache.get(collection);
-    if (cached && cached.form === values.form && cached.counters === values.counters && cached.writeLeaseMs === values.writeLeaseMs && cached.maxTombstones === values.maxTombstones) {
+    if (cached && cached.form === values.form && cached.counters === values.counters && cached.sequence === values.sequence && cached.writeLeaseMs === values.writeLeaseMs && cached.maxTombstones === values.maxTombstones) {
       return { storage: cached.storage, storagePartitionOf };
     }
     const db = (): Db => {
@@ -582,6 +583,7 @@ export class ViewMaterializer {
       form: values.form,
       transactions: "never",
       ...(values.counters !== undefined ? { counters: values.counters } : {}),
+      ...(values.sequence !== undefined ? { sequence: values.sequence } : {}),
       ...(values.writeLeaseMs !== undefined ? { writeLease: ms(values.writeLeaseMs) } : {}),
       ...(values.maxTombstones !== undefined ? { maxTombstones: values.maxTombstones } : {}),
     });

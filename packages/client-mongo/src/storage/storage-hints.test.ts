@@ -206,6 +206,21 @@ describe("the writes of this process (CLI-77)", () => {
     expect(own.take(20)).toBe(false);
   });
 
+  it("keys a number of a counter of a partition by its partition (CLI-96)", () => {
+    const own = trackOwnNumbers(db, "scoped");
+    noteOwnNumbers(db, "scoped", 5, 2, "acme");
+    noteOwnNumbers(db, "scoped", 9, 1, "");
+    expect(own.take(5)).toBe(false);
+    expect(own.take(5, "beta")).toBe(false);
+    expect(own.take(5, "acme")).toBe(true);
+    expect(own.take(5, "acme")).toBe(false);
+    expect(own.take(6, "acme")).toBe(true);
+    // A store without a partition notes the empty text: an event without a partition takes it
+    expect(own.take(9, "acme")).toBe(false);
+    expect(own.take(9)).toBe(true);
+    own.close();
+  });
+
   it("gives each tracker its own numbers, and two Db objects of one client and one database share them", () => {
     const first = trackOwnNumbers(db, "shared");
     const second = trackOwnNumbers(dbOf("own_numbers_test"), "shared");
@@ -1039,6 +1054,32 @@ withMongo("watchStorageChanges on MongoDB (CLI-77)", { timeout: TEST_TIMEOUT_MS 
       expect(published[1]!.event).toEqual({ changed: [], deleted: ["a"] });
     } finally {
       await watch.stop();
+    }
+  });
+
+  it("skips the own write of its partition with a counter for each partition, and publishes the same number of another partition (CLI-96)", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const { collection, storage, log } = setup<{ title: string }>({ sequence: "partition" });
+    const otherClient = new MongoClient(url!);
+    await otherClient.connect();
+    const other = new MongoDocumentStorage<{ title: string }>({ collection, db: () => otherClient.db(db.databaseName), client: () => otherClient, sequence: "partition" });
+    const published: Array<{ topic: string; event: StorageChangeHint }> = [];
+    const watch = watchStorageChanges(storage, (topic, event) => void published.push({ topic, event }), { log });
+    try {
+      await watch.ready;
+      await storage.forPartition("acme").set("a", { title: "a" });
+      // A note of acme that no event took yet: the write of beta in another process has the same number
+      noteOwnNumbers(db, collection, 2, 1, "acme");
+      await other.forPartition("beta").set("b", { title: "b" });
+      await other.forPartition("beta").set("c", { title: "c" });
+      expect(await other.forPartition("beta").versionOf("c")).toBe("2");
+      await eventually(() => expect(eventsOf(published, "c")).toHaveLength(1));
+      await settle(collection, published, "sentinel");
+      expect(eventsOf(published, "a")).toEqual([]);
+      expect(eventsOf(published, "b")).toHaveLength(1);
+    } finally {
+      await watch.stop();
+      await otherClient.close();
     }
   });
 
