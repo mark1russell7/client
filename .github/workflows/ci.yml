@@ -335,8 +335,9 @@ jobs:
   # The speed gate of the store (roadmap CLI-94). A pull request that changes the source of the store
   # compares the reads and the writes of its merge with its base on a real MongoDB, with an A/A beside
   # them. Two jobs take 12 rounds. A case with no outcome takes 12 more rounds in each job, and then the
-  # gate is final. "No read" is red with its own text: it is not a block and not a pass. The limit, its
-  # CI runs and its formula are in bench/gate-limit.json.
+  # gate is final. "No read" is red with its own text: it is not a block and not a pass. The gate holds
+  # a slowdown of 25 percent or more in each gated case, and a smaller slowdown can pass. The limit,
+  # its CI runs and its formula are in bench/gate-limit.json.
   mongo-speed-plan:
     name: MongoDB (a change of the store)
     if: github.event_name == 'pull_request'

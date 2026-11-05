@@ -61,7 +61,7 @@ export function joinJobs(files: readonly JobRecords[]): JobRecords[] {
 /** The file of the limits of the gate. */
 export interface GateLimit {
   readonly limits: Readonly<Record<string, number>>;
-  /** The slowdown that the gate must catch on each case, stated before the runs. */
+  /** The slowdown that the gate holds on each case, stated before the runs. A smaller slowdown can pass. */
   readonly slowdowns: Readonly<Record<string, number>>;
   readonly reportOnly: readonly string[];
   readonly formula: string;
