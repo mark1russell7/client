@@ -32,7 +32,8 @@ const OVER_THE_LIMIT = 2 * MEBIBYTE;
 const UNDER_THE_LIMIT = 100 * 1024;
 const FLUSH_TRIES = 10;
 const FLUSH_GAP_MS = 200;
-const ROW_TIMEOUT_MS = 30_000;
+/** The limit of one row. On CI, 10 refused flushes of a batch over the limit took 26 s (run 42096946434), and too-large-http flushes twice. */
+const ROW_TIMEOUT_MS = 90_000;
 const SMALL_IDS = ["s1", "s2", "s3"];
 
 const large = (id: string, size = OVER_THE_LIMIT): Item => ({ id, n: 1, rev: "L", body: "x".repeat(size) });
