@@ -42,6 +42,10 @@ export interface WriteCount {
   readonly case: string;
   /** The time of all bursts of the child, with no first writes. */
   readonly burstMs: number;
+  /** The median time of one burst. */
+  readonly medianBurstMs: number;
+  /** The time of each burst, in order. */
+  readonly burstTimesMs: readonly number[];
   readonly writesPerSecond: number;
   /** The 95th percentile of the time of one write. */
   readonly p95Ms: number;
