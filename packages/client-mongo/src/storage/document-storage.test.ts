@@ -674,7 +674,8 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
     });
     own.on("commandSucceeded", (event) => running.delete(event.requestId));
     own.on("commandFailed", (event) => running.delete(event.requestId));
-    const storage = new MongoDocumentStorage<{ n: number }>({ collection: `c${++next}`, db: () => own.db(db.databaseName), transactions: "never" });
+    const ownDb = own.db(db.databaseName);
+    const storage = new MongoDocumentStorage<{ n: number }>({ collection: `c${++next}`, db: () => ownDb, transactions: "never" });
     return {
       storage,
       commands,

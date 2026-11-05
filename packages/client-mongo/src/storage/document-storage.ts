@@ -310,8 +310,8 @@ interface WorkQueue {
  */
 const QUEUES = new WeakMap<Db, Map<string, WorkQueue>>();
 
-/** The change reads of each database that run at one time. A burst of reads leaves the pool to the other operations. */
-const READS = new WeakMap<Db, Semaphore>();
+/** The change reads of each client that run at one time. A burst of reads leaves the pool to the other operations. */
+const READS = new WeakMap<object, Semaphore>();
 
 function queueOf(db: Db, collection: string): { queues: Map<string, WorkQueue>; queue: WorkQueue } {
   let queues = QUEUES.get(db);
@@ -348,8 +348,10 @@ function enqueueWrite<R>(db: Db, collection: string, task: () => Promise<R>): Pr
 /** This function runs a change read after each earlier write of the collection, next to the other change reads. */
 function enqueueRead<R>(db: Db, collection: string, task: () => Promise<R>): Promise<R> {
   const { queues, queue } = queueOf(db, collection);
-  let reads = READS.get(db);
-  if (!reads) READS.set(db, (reads = new Semaphore(poolShare(db))));
+  // A fake database of a test has no client
+  const pool: object = (db.client as Db["client"] | undefined) ?? db;
+  let reads = READS.get(pool);
+  if (!reads) READS.set(pool, (reads = new Semaphore(poolShare(db))));
   const permits = reads;
   const run = queue.writes.then(() => permits.withPermit(task));
   const end = Promise.all([queue.all, settledOf(run)]);
