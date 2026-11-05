@@ -18,7 +18,7 @@ import { getS3Client } from "../../s3-client.js";
 import type { S3UploadInput, S3UploadOutput } from "../../types.js";
 
 /** The size of one part of a file, in bytes. A file of this size or less goes in one put. */
-export const PART_BYTES = 8 * 1024 * 1024;
+export const PART_BYTES: number = 8 * 1024 * 1024;
 
 /** The largest number of parts that S3 takes in one multipart upload. */
 export const MOST_PARTS = 10_000;
