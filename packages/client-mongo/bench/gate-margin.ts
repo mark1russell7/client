@@ -4,12 +4,13 @@
  * It refuses a run with records that stop before the last look, because that run gives only an upper bound.
  * It also prints the same formula for each case alone, and reads all cases together at these limits in each run.
  * For each case, `held` is the worst over the runs of the smallest slowdown that blocks at these limits, beside the stated slowdown of `gate-limit.json`.
+ * A limit fitted on a run passes that run by construction. So `leaveOneOut` sets the limits from the other runs and reads the gate on the run left out.
  */
 
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { JobRecords } from "@mark1russell7/rigor-bench";
-import { caseLimits, heldSlowdown, joinJobs, outcomeAtCaseLimits, passingLimit, shortOfLastLook, type GateLimit } from "./gate-verdict.js";
+import { caseLimits, heldSlowdown, joinJobs, outcomeAtCaseLimits, passingLimit, shortOfLastLook, storeGate, type GateLimit } from "./gate-verdict.js";
 
 const gate = JSON.parse(readFileSync(new URL("./gate-limit.json", import.meta.url), "utf8")) as GateLimit;
 const runs = process.argv.slice(2);
@@ -32,6 +33,12 @@ const perCase = Object.fromEntries(Object.keys(read[0]?.cases ?? {}).map((name) 
 const caseLimit = Object.fromEntries(Object.entries(perCase).map(([name, value]) => [name, value.limit]));
 const gated = (jobs: readonly JobRecords[], name: string): readonly JobRecords[] => (gate.reportOnly.includes(name) ? jobs : jobs.map((job) => ({ job: job.job, candidate: job.candidate.filter((row) => !gate.reportOnly.includes(row.case)), aa: job.aa.filter((row) => !gate.reportOnly.includes(row.case)) })));
 const held = Object.fromEntries(Object.keys(perCase).map((name) => [name, { stated: gate.slowdowns[name] ?? null, held: Math.max(...read.map((run) => heldSlowdown(gated(run.jobs, name), name, caseLimit))) }]));
+const leaveOneOut = read.map((run) => {
+  const others = read.filter((other) => other !== run);
+  const limits = Object.fromEntries(Object.keys(perCase).map((name) => [name, formula(others.map((other) => other.cases[name] ?? Number.POSITIVE_INFINITY)).limit]));
+  const { outcome, verdict } = storeGate(run.jobs, { limits, reportOnly: gate.reportOnly, failures: 0, attempt: 1 });
+  return { left: run.folder, outcome, blocks: verdict.blocks, noRead: verdict.noRead, limits };
+});
 console.log(
   JSON.stringify(
     {
@@ -39,6 +46,7 @@ console.log(
       ...formula(read.map((run) => run.limit)),
       perCase,
       held,
+      leaveOneOut,
       togetherAtCaseLimits: Object.fromEntries(read.map((run) => [run.folder, outcomeAtCaseLimits(run.jobs, caseLimit, gate.reportOnly)])),
     },
     null,
