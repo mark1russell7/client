@@ -2,8 +2,8 @@
  * One arm of the change read bench, in its own process:
  * `--arm before|after --case <case> --job <n> --counts <file>`.
  *
- * The child writes the documents of the case, reads one time alone with a count of its commands, and
- * then sends a burst of reads at the same time. A second client reads the counters of the server. The
+ * The child writes the documents of the case, and it reads one time alone with a count of its commands.
+ * Then it sends a burst of reads at the same time. A second client reads the counters of the server. The
  * arm `after` is the source of this tree. The arm `before` is the same file at the base commit, which
  * the workflow writes next to it. The child prints the JSON line of `freshRun`, and adds one line to
  * the file of the counts.

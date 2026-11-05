@@ -310,13 +310,13 @@ interface WorkQueue {
 
 /**
  * The writes and the change reads of each collection: by the client, then by the names of the database and the
- * collection. A new `Db` object of the same client has the same queue (roadmap CLI-93). A write runs alone, in the
- * order of the calls. A change read runs after each earlier write, next to the other change reads. So a read and a
+ * collection. A new `Db` object of the same client has the same queue (roadmap CLI-93). A write goes alone, in the
+ * order of the calls. A change read goes after each earlier write, next to the other change reads. So a read and a
  * write keep the order of their calls, and a read does not wait for a read (roadmap CLI-91).
  */
 const QUEUES = new WeakMap<object, Map<string, WorkQueue>>();
 
-/** The change reads of each client that run at one time. A burst of reads leaves the pool to the other operations. */
+/** The change reads of each client at one time. A burst of reads leaves the pool to the other operations. */
 const READS = new WeakMap<object, Semaphore>();
 
 function queueOf(db: Db, name: string): { queues: Map<string, WorkQueue>; collection: string; queue: WorkQueue } {
@@ -342,7 +342,7 @@ const settledOf = (run: Promise<unknown>): Promise<unknown> =>
     () => undefined
   );
 
-/** This function runs a write after each earlier write and change read of the collection. */
+/** This function starts a write after each earlier write and change read of the collection. */
 function enqueueWrite<R>(db: Db, name: string, task: () => Promise<R>): Promise<R> {
   const { queues, collection, queue } = queueOf(db, name);
   const run = queue.all.then(task);
@@ -353,7 +353,7 @@ function enqueueWrite<R>(db: Db, name: string, task: () => Promise<R>): Promise<
   return run;
 }
 
-/** This function runs a change read after each earlier write of the collection, next to the other change reads. */
+/** This function starts a change read after each earlier write of the collection, next to the other change reads. */
 function enqueueRead<R>(db: Db, name: string, task: () => Promise<R>): Promise<R> {
   const { queues, collection, queue } = queueOf(db, name);
   const owner = ownerOf(db);
