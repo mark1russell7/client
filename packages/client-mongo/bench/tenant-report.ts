@@ -9,7 +9,8 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { aaBand, caseIntervals, poolRecords, type PairedTime } from "@mark1russell7/rigor-bench";
 import { median } from "@mark1russell7/rigor-statistics";
-import { KEEP_UP_P99_MS, KEEP_UP_SHARE, WINDOW_MS, parseTenantCase, type TenantCount } from "./tenant-cases.js";
+import { parseTenantCase, type TenantCount } from "./tenant-cases.js";
+import { READING_RULE, READING_RULE_CHANGE, readingOf } from "./tenant-reading.js";
 
 interface JobFile {
   readonly job: string;
@@ -35,16 +36,16 @@ const summary = (rows: readonly TenantCount[], pick: (row: TenantCount) => numbe
   worst: round(Math.max(...rows.map(pick))),
 });
 
-/** This function gives the reading of the children of one arm of one case. */
-function readingOf(rows: readonly TenantCount[]): { outcome: string; reasons: string[] } {
-  if (rows.some((row) => !row.driverHeld)) return { outcome: "no reading", reasons: ["a driver did not keep its schedule"] };
-  const reasons: string[] = [];
-  if (rows.some((row) => row.failures > 0)) reasons.push("a write failed");
-  if (rows.some((row) => row.unfinished + row.unsent > 0)) reasons.push("a write had no reply in the grace");
-  // The share counts against the plan of the child: a Poisson plan of 400 writes has a spread of 5 %, so the rate of the case fails a child that kept up
-  if (rows.some((row) => row.writesPerSecond * (WINDOW_MS / 1000) < KEEP_UP_SHARE * row.planned)) reasons.push(`a child ended under ${KEEP_UP_SHARE} of its plan in the load`);
-  if (rows.some((row) => row.p99Ms > KEEP_UP_P99_MS)) reasons.push(`a child had a p99 over ${KEEP_UP_P99_MS} ms`);
-  return { outcome: reasons.length === 0 ? "provisional pass" : "fail", reasons };
+/** This function gives the share of the transactions that met a write conflict, as the median over the children. */
+const conflictShare = (rows: readonly TenantCount[]): number => round(median(rows.map((row) => row.writeConflicts / Math.max(row.transactionsStarted, 1))), 3);
+
+/** This function gives the median share of each processor. A record from before this field has no processors. */
+function coresOf(rows: readonly TenantCount[]): { core: number; busy: number; iowait: number }[] {
+  const shares = rows.flatMap((row) => row.cores ?? []);
+  return [...new Set(shares.map((share) => share.core))].sort((a, b) => a - b).map((core) => {
+    const own = shares.filter((share) => share.core === core);
+    return { core, busy: round(median(own.map((share) => share.busy)), 3), iowait: round(median(own.map((share) => share.iowait)), 3) };
+  });
 }
 
 const pool = poolRecords(jobs.map(({ job, candidate, aa }) => ({ job, candidate, aa })));
@@ -54,7 +55,7 @@ const aaRatios = new Map(caseIntervals(pool.aa).map((entry) => [entry.case, entr
 
 const caseNames = [...new Set(counts.map((row) => row.case))];
 const cases = caseNames.map((name) => {
-  const { rate, processes, burst, active } = parseTenantCase(name);
+  const { rate, processes, burst, apart, active } = parseTenantCase(name);
   const arms = (["store", "control"] as const).map((arm) => {
     const rows = counts.filter((row) => row.case === name && row.arm === arm);
     return {
@@ -74,6 +75,8 @@ const cases = caseNames.map((name) => {
       writeConflicts: summary(rows, (row) => row.writeConflicts),
       transactionsStarted: summary(rows, (row) => row.transactionsStarted),
       transactionsAborted: summary(rows, (row) => row.transactionsAborted),
+      conflictShare: conflictShare(rows),
+      cores: coresOf(rows),
     };
   });
   const ratio = ratios.get(name);
@@ -83,6 +86,7 @@ const cases = caseNames.map((name) => {
     rate,
     processes,
     burst,
+    apart,
     activeTenants: active,
     tenantsOfRung: active * 10,
     arms,
@@ -91,11 +95,19 @@ const cases = caseNames.map((name) => {
   };
 });
 
+// The cost of the conflicts is in the tail, so each row sets the p99 beside the conflict share of its process count
+const tail = cases
+  .filter((entry) => !entry.burst)
+  .flatMap((entry) => entry.arms.map((arm) => ({ rate: entry.rate, processes: entry.processes, apart: entry.apart, arm: arm.arm, conflictShare: arm.conflictShare, p50Ms: arm.p50Ms.median, p99Ms: arm.p99Ms.median, reading: arm.reading.outcome })))
+  .sort((a, b) => a.arm.localeCompare(b.arm) || Number(a.apart) - Number(b.apart) || a.rate - b.rate || a.processes - b.processes);
+
 const report = {
   schema: "tenant-bench/1",
   run: values.run ?? "",
-  rule: `A provisional pass has no failure, a reply to each write, at least ${KEEP_UP_SHARE} of the plan of the child and a p99 of at most ${KEEP_UP_P99_MS} ms. The rate is a first guess, and this limit is a first reading. One arrival is one write of one document, so an action of an app with more writes takes the rate of its writes.`,
+  rule: READING_RULE,
+  ruleChange: READING_RULE_CHANGE,
   aa: { noise: round(band.noise, 4), high: round(band.high, 3), median: round(band.median, 3), cases: band.cases },
+  tail,
   cases,
   env: jobs.map(({ job, env }) => ({ job, env })),
 };

@@ -8,7 +8,9 @@ name: Stream cost
 # The input `suite` selects the bench. The suite `read` gives the reads per second of a burst of
 # change reads, first read and delta read, of document-storage.ts (roadmap CLI-91). The suite `write`
 # gives the cost of the queue of a burst of writes. The suite `tenant` gives an open-loop load of
-# tenants in one collection against the first guess of the ladder (roadmap CLI-95).
+# tenants in one collection against the first guess of the ladder (roadmap CLI-95). The suite
+# `tenant-ceiling` tells a limit of that collection from a limit of the runner, at rates between the
+# rungs, with MongoDB and the writers on all processors and apart.
 #
 # The workflow only reports: only a dispatch starts it, and no ruleset needs its checks.
 
@@ -31,6 +33,7 @@ on:
           - read
           - write
           - tenant
+          - tenant-ceiling
         default: stream
       runs:
         description: The jobs, from 1 to 9. Five or more for a limit.
@@ -77,7 +80,7 @@ jobs:
     needs: plan
     name: stream cost (job ${{ matrix.job }})
     runs-on: ubuntu-latest
-    timeout-minutes: ${{ inputs.suite == 'tenant' && 90 || 60 }}
+    timeout-minutes: ${{ startsWith(inputs.suite, 'tenant') && 90 || 60 }}
     strategy:
       fail-fast: false
       # The runners are shared by all repositories of the account (the rule runner-budget)
@@ -98,7 +101,7 @@ jobs:
       - run: pnpm --filter "@procedures/mongo^..." run build
       # rigor-chaos 0.1.0 is not on npm yet, so this suite takes it from a commit of its home.
       - name: Take the load package from its commit
-        if: inputs.suite == 'tenant'
+        if: startsWith(inputs.suite, 'tenant')
         env:
           RIGOR_COMMIT: 76ecba2149b6388d66823e51c2c41501b4588215
         run: |
@@ -106,6 +109,10 @@ jobs:
           git -C "$RUNNER_TEMP/rigor" checkout --detach "$RIGOR_COMMIT"
           (cd "$RUNNER_TEMP/rigor" && pnpm install --frozen-lockfile --filter "@mark1russell7/rigor-chaos...")
           ln -s "$RUNNER_TEMP/rigor/packages/chaos" packages/client-mongo/node_modules/@mark1russell7/rigor-chaos
+      - name: Test the rule of the reading
+        if: startsWith(inputs.suite, 'tenant')
+        working-directory: packages/client-mongo
+        run: node node_modules/vitest/vitest.mjs run bench/tenant-reading.test.ts
       - name: Write the arm before
         env:
           BASE: ${{ inputs.base }}
@@ -134,6 +141,7 @@ jobs:
           CAP: ${{ inputs.cap_seconds }}
           SUITE: ${{ inputs.suite }}
           MONGO_TEST_URL: mongodb://localhost:27017/?directConnection=true
+          MONGO_CONTAINER: ${{ inputs.suite == 'tenant-ceiling' && 'mongo' || '' }}
         run: node --import tsx "bench/$SUITE-run.ts" --job "$JOB" --rounds "$ROUNDS" --cap "$CAP" --out "bench-out/job-$JOB.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

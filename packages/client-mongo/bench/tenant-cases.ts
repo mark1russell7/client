@@ -6,9 +6,24 @@
  *
  * The arm `store` keeps all active tenants in one collection. The arm `control` puts the same tenants in
  * `CONTROL_COLLECTIONS` collections. A fail of both arms is a limit of the runner, not of the one collection.
+ *
+ * The suite `tenant-ceiling` asks which of the two limits the ceiling of the one collection is. Its rates are
+ * between the rungs. A case with `-apart` at its end keeps MongoDB and the writers on their own processors.
  */
 
 export const TENANT_CASES = ["20-p1", "20-p2", "20-p4", "200-p1", "200-p2", "200-p4", "2000-p1", "2000-p2", "20-p2-burst", "200-p2-burst"] as const;
+
+/** The cases of the suite `tenant-ceiling`: each rate with MongoDB and the writers on all processors, and apart. */
+export const CEILING_CASES = ["400-p2", "800-p2", "1200-p2", "400-p2-apart", "800-p2-apart", "1200-p2-apart"] as const;
+
+/** The processors of MongoDB in a case with `-apart`. */
+export const MONGO_CORES = "0,1";
+
+/** The processors of the writers in a case with `-apart`. */
+export const WRITER_CORES = "2,3";
+
+/** The processors of MongoDB in a case without `-apart`. */
+export const ALL_CORES = "0-3";
 
 /** The arms of the bench. */
 export type TenantArm = "store" | "control";
@@ -51,15 +66,16 @@ export interface TenantCase {
   readonly rate: number;
   readonly processes: number;
   readonly burst: boolean;
+  readonly apart: boolean;
   readonly active: number;
 }
 
 /** This function reads a case from its id. */
 export function parseTenantCase(id: string): TenantCase {
-  const match = /^(\d+)-p(\d+)(-burst)?$/.exec(id);
-  if (!match) throw new RangeError(`the case ${id} is not <rate>-p<processes>[-burst]`);
+  const match = /^(\d+)-p(\d+)(-burst)?(-apart)?$/.exec(id);
+  if (!match) throw new RangeError(`the case ${id} is not <rate>-p<processes>[-burst][-apart]`);
   const rate = Number(match[1]);
-  return { rate, processes: Number(match[2]), burst: match[3] !== undefined, active: Math.round(rate / WRITES_PER_TENANT) };
+  return { rate, processes: Number(match[2]), burst: match[3] !== undefined, apart: match[4] !== undefined, active: Math.round(rate / WRITES_PER_TENANT) };
 }
 
 /**
@@ -73,6 +89,15 @@ export function tenantOf(kase: TenantCase, index: number, plannedMs: number): nu
     if (index % every === 0) return BURST_TENANT;
   }
   return Math.floor(index / kase.processes) % kase.active;
+}
+
+/** The share of the time of one processor in the load. */
+export interface CoreShare {
+  readonly core: number;
+  /** The share of the time with work, without the wait for the disk. */
+  readonly busy: number;
+  /** The share of the time in a wait for the disk. */
+  readonly iowait: number;
 }
 
 /** One line of the counts of a child. A time is in milliseconds, from the planned time of the write. */
@@ -100,4 +125,6 @@ export interface TenantCount {
   /** The transactions of the server in the load and the grace. An abort that the driver retries is one more start. */
   readonly transactionsStarted: number;
   readonly transactionsAborted: number;
+  /** The processors of the machine in the load. The value is null where the machine has no `/proc/stat`. */
+  readonly cores: readonly CoreShare[] | null;
 }
