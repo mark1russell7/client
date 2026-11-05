@@ -55,7 +55,7 @@ describe("storeGate", () => {
   });
 
   it("decides a case with no outcome at the second look, from the files of both looks", () => {
-    const stalls = (name: string, round: number): number => (name === "part-1" && (round === 0 || round === 6) ? 1.3 : 1);
+    const stalls = (name: string, round: number): number => (name === "part-1" && [0, 4, 8].includes(round) ? 1.3 : 1);
     const first = [jobOf("1", stalls), jobOf("2", stalls)];
     expect(storeGate(first, INPUT).more).toEqual(["part-1"]);
     const second = [jobOf("1", stalls, 12, 12, ["part-1"]), jobOf("2", stalls, 12, 12, ["part-1"])];
