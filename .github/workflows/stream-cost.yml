@@ -42,6 +42,8 @@ on:
           - tenant-bound-id
           - tenant-burst
           - tenant-burst-warm
+          - tenant-burst-pool
+          - tenant-pool-cost
           - tenant-order
           - tenant-rule
         default: stream

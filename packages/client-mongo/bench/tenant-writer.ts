@@ -12,7 +12,7 @@ import { createInterface } from "node:readline";
 import { parseArgs } from "node:util";
 import { MongoClient } from "mongodb";
 import type { MongoDocumentStorage } from "../src/storage/document-storage.js";
-import { BURST_AT_MS, BURST_MS, CONTROL_COLLECTIONS, COPY_ARMS, FIRST_LOAD_SPLIT, GRACE_MS, TENANT_ARMS, TENANT_BYTES, WARM_POOL, WINDOW_MS, WRITE_CONFLICT, firstLoadCollection, firstLoadOf, parseTenantCase, tenantOf, type FirstLoadWrite, type TenantArm } from "./tenant-cases.js";
+import { BURST_AT_MS, BURST_MS, CONTROL_COLLECTIONS, COPY_ARMS, FIRST_LOAD_SPLIT, GRACE_MS, TENANT_ARMS, TENANT_BYTES, WINDOW_MS, WRITE_CONFLICT, firstLoadCollection, firstLoadOf, parseTenantCase, tenantOf, type FirstLoadWrite, type TenantArm } from "./tenant-cases.js";
 import { planOf } from "./tenant-plan.js";
 
 const { values } = parseArgs({
@@ -36,7 +36,7 @@ const WARM_LIMIT_MS = 30_000;
 const plan = planOf(caseName, seed);
 
 // The server counter of write conflicts leaves out a conflict in a transaction, so the writer counts the replies.
-const client = new MongoClient(url, { monitorCommands: true, ...(kase.warm ? { minPoolSize: WARM_POOL } : {}) });
+const client = new MongoClient(url, { monitorCommands: true, ...(kase.warmPool > 0 ? { minPoolSize: kase.warmPool } : {}) });
 let writeConflicts = 0;
 client.on("commandFailed", (event) => {
   if ((event.failure as { code?: number }).code === WRITE_CONFLICT) writeConflicts++;
@@ -58,10 +58,10 @@ client.on("commandSucceeded", (event) => commandTimes?.push(event.duration));
 await client.connect();
 const db = client.db(database);
 // The pool of a case `-warm` makes its connections in the background, so this process waits for them, with a limit.
-if (kase.warm) {
+if (kase.warmPool > 0) {
   const limit = Date.now() + WARM_LIMIT_MS;
-  while (connectionsMade < WARM_POOL) {
-    if (Date.now() > limit) throw new RangeError(`the pool has ${String(connectionsMade)} of ${String(WARM_POOL)} connections`);
+  while (connectionsMade < kase.warmPool) {
+    if (Date.now() > limit) throw new RangeError(`the pool has ${String(connectionsMade)} of ${String(kase.warmPool)} connections`);
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
 }

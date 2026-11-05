@@ -61,7 +61,29 @@ export const BURST_PROBE_CASES = ["200-p2-first10", "200-p4-first10"] as const;
 /** The cases of the suite `tenant-burst-warm`: the same bursts on two pools. One pool has its connections before the load, and the other has none. */
 export const BURST_WARM_CASES = ["200-p2-first10", "200-p2-first10-warm", "200-p4-first10", "200-p4-first10-warm"] as const;
 
-/** The connections that a writer of a case `-warm` has before its load. The bound of the store is 16, and the bound of the arm read 22 connections at most. */
+/** The cases of the suite `tenant-burst-pool`: the same bursts on warm pools of 5, 10 and 30 connections. */
+export const BURST_POOL_CASES = ["200-p2-first10-warm5", "200-p2-first10-warm10", "200-p2-first10-warm30", "200-p4-first10-warm5", "200-p4-first10-warm10", "200-p4-first10-warm30"] as const;
+
+/** The idle connections of the rungs of the suite `tenant-pool-cost`. 3,000 is a pool of 30 on each of 100 processes. */
+export const POOL_COST_LADDER = [0, 100, 300, 1000, 3000] as const;
+
+/** The reading of one rung of the suite `tenant-pool-cost`. */
+export interface PoolCostRung {
+  /** The idle connections that this rung holds open. */
+  readonly connections: number;
+  /** The connections that the server counts, with the connections of the bench itself. */
+  readonly serverConnections: number;
+  readonly serverResidentMb: number;
+  readonly serverAllocatedMb: number;
+  /** The resident memory of the one client process that holds all the connections. */
+  readonly clientResidentMb: number;
+  readonly pingP50Ms: number;
+  readonly pingP99Ms: number;
+  readonly insertP50Ms: number;
+  readonly insertP99Ms: number;
+}
+
+/** The connections that a writer of a case `-warm` with no size has before its load. The bound of the store is 16, and the bound of the arm read 22 connections at most. */
 export const WARM_POOL = 30;
 
 /** The processor, the event loop and the pool of one writer in one second of the load. */
@@ -165,16 +187,16 @@ export interface TenantCase {
   readonly hot: boolean;
   /** All writes go to one id of one tenant. */
   readonly oneId: boolean;
-  /** The pool of each writer has its connections before the load. */
-  readonly warm: boolean;
+  /** The connections that the pool of each writer has before the load. A value of 0 is a cold pool. */
+  readonly warmPool: number;
 }
 
 /** This function reads a case from its id. */
 export function parseTenantCase(id: string): TenantCase {
-  const match = /^(\d+)-p(\d+)(-burst)?(?:-first(\d+))?(-apart)?(-tmpfs)?(-hot)?(-oneid)?(-warm)?$/.exec(id);
-  if (!match) throw new RangeError(`the case ${id} is not <rate>-p<processes>[-burst][-first<n>][-apart][-tmpfs][-hot][-oneid][-warm]`);
+  const match = /^(\d+)-p(\d+)(-burst)?(?:-first(\d+))?(-apart)?(-tmpfs)?(-hot)?(-oneid)?(-warm(\d+)?)?$/.exec(id);
+  if (!match) throw new RangeError(`the case ${id} is not <rate>-p<processes>[-burst][-first<n>][-apart][-tmpfs][-hot][-oneid][-warm[<connections>]]`);
   const rate = Number(match[1]);
-  return { rate, processes: Number(match[2]), burst: match[3] !== undefined, firstLoads: Number(match[4] ?? 0), apart: match[5] !== undefined, tmpfs: match[6] !== undefined, hot: match[7] !== undefined, oneId: match[8] !== undefined, warm: match[9] !== undefined, active: match[7] !== undefined || match[8] !== undefined ? 1 : Math.round(rate / WRITES_PER_TENANT) };
+  return { rate, processes: Number(match[2]), burst: match[3] !== undefined, firstLoads: Number(match[4] ?? 0), apart: match[5] !== undefined, tmpfs: match[6] !== undefined, hot: match[7] !== undefined, oneId: match[8] !== undefined, warmPool: match[9] === undefined ? 0 : Number(match[10] ?? WARM_POOL), active: match[7] !== undefined || match[8] !== undefined ? 1 : Math.round(rate / WRITES_PER_TENANT) };
 }
 
 /**

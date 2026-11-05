@@ -18,6 +18,9 @@ describe("the first loads of the tenant bench", () => {
     expect(parseTenantCase("200-p2").firstLoads).toBe(0);
     expect(parseTenantCase("400-p2-hot")).toMatchObject({ rate: 400, processes: 2, hot: true, active: 1 });
     expect(parseTenantCase("400-p2").hot).toBe(false);
+    expect(parseTenantCase("200-p2-first10").warmPool).toBe(0);
+    expect(parseTenantCase("200-p2-first10-warm").warmPool).toBe(30);
+    expect(parseTenantCase("200-p2-first10-warm5")).toMatchObject({ firstLoads: 10, warmPool: 5 });
     expect(firstLoadOf(parseTenantCase("200-p2"), 1_000, BURST_AT_MS)).toBeNull();
   });
 
