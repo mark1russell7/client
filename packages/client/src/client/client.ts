@@ -38,7 +38,7 @@ import type {
   TypedClientMiddleware,
 } from "./types.js";
 import { ClientError } from "./types.js";
-import { compose } from "../middleware/compose.js";
+import { compose } from "@mark1russell7/collections/layers";
 import { pathToMethod } from "../server/method.js";
 import type { CallOptions, ClientContextInput } from "./context.js";
 import { mergeContext, normalizeCallOptions } from "./context.js";
@@ -920,9 +920,8 @@ export class Client<TContext = {}> {
       yield* self.transport.send<TReq, TRes>(context.message);
     };
 
-    // Use universal middleware composition
-    // compose(...middleware, finalRunner) applies middleware in order (onion model)
-    return compose<false>(...(this.middleware as any[]), transportRunner) as ClientRunner<TReq, TRes>;
+    // The first middleware is the outermost one (onion model)
+    return compose(...(this.middleware as ClientMiddleware<TReq, TRes>[]))(transportRunner);
   }
 
   /**

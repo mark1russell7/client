@@ -492,6 +492,9 @@ importers:
       '@mark1russell7/coeval':
         specifier: ^0.18.0
         version: 0.18.0
+      '@mark1russell7/collections':
+        specifier: ^0.4.0
+        version: 0.4.0
       '@mark1russell7/quantity':
         specifier: ^0.2.0
         version: 0.2.0(zod@4.6.7)
@@ -3341,6 +3344,10 @@ packages:
 
   '@mark1russell7/collections@0.1.0':
     resolution: {integrity: sha512-B2cS+i9eTjgW9XE4atBQfYlpbwxMaYqp9TJTQOXS9eKTIBUYTdRmpzuIhllXEh+PwNHh3UHEIs1u2A1aqbXrvg==}
+    engines: {node: '>=22.12'}
+
+  '@mark1russell7/collections@0.4.0':
+    resolution: {integrity: sha512-lWton8eiYfL4G24ANbOqyC6LxD1Lkp4DPO+GnCsxGGnCNFJuWLFJ9b1iTcLmbQ4osnYXaGkORTawtMoccXCJiA==}
     engines: {node: '>=22.12'}
 
   '@mark1russell7/conventions@0.25.0':
@@ -6742,6 +6749,8 @@ snapshots:
   '@mark1russell7/coeval@0.18.0': {}
 
   '@mark1russell7/collections@0.1.0': {}
+
+  '@mark1russell7/collections@0.4.0': {}
 
   '@mark1russell7/conventions@0.25.0': {}
 
