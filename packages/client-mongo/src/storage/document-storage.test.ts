@@ -713,7 +713,8 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
       reset();
       const full = await storage.getChangesSince();
       expect(full).toMatchObject({ full: true, changed: [["a", { n: 1 }]] });
-      expect(commands).toEqual(["aggregate", "find"]);
+      // The last command is the second mark of a full result (roadmap CLI-102)
+      expect(commands).toEqual(["aggregate", "find", "aggregate"]);
       expect(first.version).not.toBe(full.version);
 
       reset();

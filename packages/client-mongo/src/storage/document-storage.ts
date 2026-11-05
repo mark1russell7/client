@@ -299,6 +299,8 @@ function hasTransactions(db: Db): Promise<boolean> {
 
 /** The most moves of a late write to new numbers. */
 const MAX_MOVES = 10;
+/** The most lists of one full result, when a prune or a new epoch passes its marks. */
+const MOST_FULL_TRIES = 3;
 
 /**
  * The end of the last write of each collection: by the client, then by the names of the database and the collection.
@@ -1346,17 +1348,55 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     return doc ? seqVersion(doc) : undefined;
   }
 
+  /**
+   * This method gives a full result. An event with values can land between the first mark and the
+   * list, so the first mark is not a version that this list can have. The method takes a second mark
+   * after the list and reads the rows between the two marks. The second mark is the version.
+   *
+   * That read stops at the second mark. A row past the mark keeps the value of the list, and its later
+   * value comes after this result, in order. So the value of an id does not go back at a subscriber.
+   * The cost is one more aggregate for each full result, and two more finds when the mark moved.
+   */
+  private async fullResult(db: Db, items: Collection<Stored>, first: Watermark): Promise<StorageChanges<T>> {
+    const result = (mark: Watermark, docs: readonly Document[]): StorageChanges<T> => ({
+      version: `${mark.epoch}.${mark.seq}`,
+      full: true,
+      changed: this.decodeAll(docs),
+      deleted: [],
+    });
+    let mark = first;
+    for (let tries = 1; ; tries += 1) {
+      const listed = await items.find(this.liveFilter()).sort({ [ORD]: 1, _id: 1 }).toArray();
+      const after = await this.watermark(db);
+      if (after.epoch === mark.epoch) {
+        if (after.seq <= mark.seq) return result(mark, listed);
+        const docs = await items.find({ ...this.partitionFilter(), [SEQ]: { $gt: mark.seq, $lte: after.seq } } as Filter<Stored>).toArray();
+        // A prune raises the floor before its delete, so a query that missed a tombstone sees the new floor here (roadmap CLI-93)
+        if (mark.seq >= (await this.floorOf(db))) return result(after, this.withLaterDocs(listed, docs));
+      }
+      // The log does not tell the changes since this mark. Each later read from this version, an event too, gets a full result
+      if (tries === MOST_FULL_TRIES) return result(mark, listed);
+      mark = after;
+    }
+  }
+
+  /** The listed documents with later documents over them, in the order of the entries. A tombstone removes its document. */
+  private withLaterDocs(listed: readonly Document[], later: readonly Document[]): Document[] {
+    const docs = new Map(listed.map((doc) => [String(doc._id), doc]));
+    for (const doc of later) {
+      if (doc[TOMB] === true) docs.delete(String(doc._id));
+      else docs.set(String(doc._id), doc);
+    }
+    const idOf = (doc: Document): string => String(doc._id);
+    return [...docs.values()].sort((a, b) => this.placeOf(a) - this.placeOf(b) || (idOf(a) < idOf(b) ? -1 : idOf(a) > idOf(b) ? 1 : 0));
+  }
+
   async getChangesSince(since?: string): Promise<StorageChanges<T>> {
     const { db, items } = await this.collection();
     return withReadPermit(db, async () => {
       const counter = await this.watermark(db);
       const version = `${counter.epoch}.${counter.seq}`;
-      const full = async (): Promise<StorageChanges<T>> => ({
-        version,
-        full: true,
-        changed: this.decodeAll(await items.find(this.liveFilter()).sort({ [ORD]: 1, _id: 1 }).toArray()),
-        deleted: [],
-      });
+      const full = (): Promise<StorageChanges<T>> => this.fullResult(db, items, counter);
       const match = since === undefined ? null : /^([^.]+)\.(\d+)$/.exec(since);
       if (!match || match[1] !== counter.epoch) return full();
       const from = Number(match[2]);

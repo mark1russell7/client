@@ -7,13 +7,13 @@
  * some subscribers follow the change events.
  *
  * The contract: no subscriber loses a write. A subscriber sees a write at least one time, and it can
- * see a write two times in two cases. A full answer takes its mark before it lists the items, so it
- * can hold a write above its mark. A write that ends after its lease moves to a new number. A second
+ * see a write two times in two cases. A full answer takes its version after it lists the items, so it
+ * can hold a write above its version. A write that ends after its lease moves to a new number. A second
  * time has the same value or a later value, so a subscriber applies a change by its id.
  *
  * A second time does not go back. Per id, the values of a subscriber keep the commit order of the
- * store, and its last value equals the store. Those rows hold the list of a full answer, so an event
- * with values can land between the mark and the list. The rows cover changes of a value, not deletes.
+ * store, and its last value equals the store. Those rows hold each read of a full answer, so an event
+ * with values can land in each gap. A delete up to the version of a full answer removes the row.
  *
  * A cursor that starts from a version and has only writes inside their lease sees each write one time.
  * Each row prints its counts. Each fault row has the same schedules and a reader or a writer with no
@@ -112,8 +112,13 @@ class Host {
   }
 
   /** This method reads through the procedure `changes`, which starts the chain of the change events. */
-  changes(since?: string): Promise<{ version: string; full: boolean; changed: Array<{ id: string; value: Item }> }> {
+  changes(since?: string): Promise<{ version: string; full: boolean; changed: Array<{ id: string; value: Item }>; deleted: string[] }> {
     return this.caller([...PATH, "changes"], since === undefined ? {} : { since }, this.options);
+  }
+
+  /** This method deletes through the procedure `delete`, which publishes the change events. */
+  remove(id: string): Promise<unknown> {
+    return this.caller([...PATH, "delete"], { id }, this.options);
   }
 }
 
@@ -457,18 +462,38 @@ interface StoreInternals {
   withNumbers<R>(db: Db, collection: Collection<never>, count: number, write: (first: number) => Promise<R>): Promise<R>;
 }
 
-/** This function gives a cursor that waits for the hold before it gives its rows. */
-function heldList(cursor: object, listHold: () => Promise<void>): object {
+/** The holds of the reads of a store. */
+interface ReadHolds {
+  /** This hold waits before the list of a full answer. */
+  list?: () => Promise<void>;
+  /** This hold waits after the list of a full answer, before its second mark. */
+  afterList?: () => Promise<void>;
+  /** This hold waits before a read of the rows between two numbers. It gets true for the read of a full answer, which has no sort. */
+  delta?: (ofFull: boolean) => Promise<void>;
+  /** This function tells when the read of a full answer has no upper bound. It is the flip of the bound. */
+  unbounded?: () => boolean;
+}
+
+/** This function gives the filter of a read of the rows, with no upper bound on the numbers. */
+function withNoBound(filter: unknown): unknown {
+  const given = filter as { _seq: { $gt: number } };
+  return { ...given, _seq: { $gt: given._seq.$gt } };
+}
+
+/** This function gives a cursor that waits for a hold before its query, and for a second hold after its query. */
+function heldCursor(cursor: object, before: (sorted: boolean, real: object) => Promise<void>, after: () => Promise<void>, sorted = false): object {
   return new Proxy(cursor, {
     get(target, key) {
       const value = Reflect.get(target, key, target) as unknown;
       if (typeof value !== "function") return value;
       const method = value as (...given: unknown[]) => unknown;
-      if (key === "sort") return (...args: unknown[]) => heldList(method.apply(target, args) as object, listHold);
+      if (key === "sort") return (...args: unknown[]) => heldCursor(method.apply(target, args) as object, before, after, true);
       if (key === "toArray") {
         return async () => {
-          await listHold();
-          return method.apply(target, []);
+          await before(sorted, target);
+          const rows = await method.apply(target, []);
+          await after();
+          return rows;
         };
       }
       return method.bind(target);
@@ -476,8 +501,8 @@ function heldList(cursor: object, listHold: () => Promise<void>): object {
   });
 }
 
-/** This function gives a `Db` that holds each bulk write of a collection around its commit, and each list of a full answer. */
-function heldDb(db: Db, collection: string, holds: Holds, listHold?: () => Promise<void>): Db {
+/** This function gives a `Db` that holds each bulk write of a collection around its commit, and the reads of `reads`. */
+function heldDb(db: Db, collection: string, holds: Holds, reads?: ReadHolds): Db {
   return new Proxy(db, {
     get(target, prop) {
       if (prop === "collection") {
@@ -497,11 +522,31 @@ function heldDb(db: Db, collection: string, holds: Holds, listHold?: () => Promi
                   }
                 };
               }
-              if (key === "find" && listHold !== undefined) {
+              if (key === "find" && reads !== undefined) {
                 return (...args: unknown[]) => {
-                  const cursor: unknown = (value as (...given: unknown[]) => unknown).apply(items, args);
-                  // A read of a delta has a range of numbers, and a read of places has a list of ids. A list of a full answer has neither.
-                  return /"\$(gt|in)"/.test(JSON.stringify(args[0])) ? cursor : heldList(cursor as object, listHold);
+                  const cursor = (value as (...given: unknown[]) => unknown).apply(items, args) as object;
+                  const filter = JSON.stringify(args[0]);
+                  if (filter.includes('"$lte"')) {
+                    return heldCursor(
+                      cursor,
+                      async (sorted, real) => {
+                        if (!sorted && reads.unbounded?.() === true) (real as { filter(given: unknown): unknown }).filter(withNoBound(args[0]));
+                        await reads.delta?.(!sorted);
+                      },
+                      async () => undefined,
+                    );
+                  }
+                  // A read of places has a list of ids. A list of a full answer has no range and no list of ids.
+                  if (/"\$(gt|in)"/.test(filter)) return cursor;
+                  return heldCursor(
+                    cursor,
+                    async () => {
+                      await reads.list?.();
+                    },
+                    async () => {
+                      await reads.afterList?.();
+                    },
+                  );
                 };
               }
               return typeof value === "function" ? (value as (...given: unknown[]) => unknown).bind(items) : value;
@@ -569,6 +614,10 @@ class History {
  */
 class ValueFollower {
   readonly history = new History();
+  /** The items of the subscriber: each id with its last value. */
+  readonly current = new Map<string, string>();
+  /** Each full answer that the subscriber read. */
+  readonly fulls: Array<{ version: string; changed: ReadonlyArray<{ id: string; value: Item }> }> = [];
   private cursor: string | undefined;
   private line: Promise<void> = Promise.resolve();
   private readonly host: Host;
@@ -594,14 +643,26 @@ class ValueFollower {
 
   private async read(): Promise<void> {
     const changes = await this.host.changes(this.cursor);
-    for (const { id, value } of changes.changed) this.history.note(id, value.v);
+    if (changes.full) {
+      this.current.clear();
+      this.fulls.push(changes);
+    }
+    for (const { id, value } of changes.changed) {
+      this.history.note(id, value.v);
+      this.current.set(id, value.v);
+    }
+    for (const id of changes.deleted) this.current.delete(id);
     this.cursor = changes.version;
   }
 
   private async apply(event: CollectionChangeEvent): Promise<void> {
     if (this.cursor === undefined || event.version === this.cursor) return;
     if (event.since === this.cursor && event.version !== undefined && event.values !== undefined) {
-      for (const { id, value } of event.values) this.history.note(id, (value as Item).v);
+      for (const { id, value } of event.values) {
+        this.history.note(id, (value as Item).v);
+        this.current.set(id, (value as Item).v);
+      }
+      for (const id of event.deleted) this.current.delete(id);
       this.cursor = event.version;
       return;
     }
@@ -628,6 +689,8 @@ interface OrderRow {
   writes: number;
   subscribers: number;
   fullsHeld: number;
+  /** The full answers whose mark moved during their list. */
+  marksMoved: number;
   /** Each pair of values of one id, at one subscriber, whose second value is older than its first value. */
   back: string[];
   /** Each last value of a subscriber that is not the value of the store. */
@@ -731,9 +794,9 @@ withMongo("the race of a change cursor and a write in flight, on a real store (C
   };
 
   /** This function makes one store per process, each a client of its own, with its holds. */
-  function storesOf(path: StorePath, collection: string, holds: readonly Holds[], lease?: number, listHold?: () => Promise<void>): Array<MongoDocumentStorage<Item>> {
+  function storesOf(path: StorePath, collection: string, holds: readonly Holds[], lease?: number, reads?: ReadHolds): Array<MongoDocumentStorage<Item>> {
     return clients.map((client, index) => {
-      const held = heldDb(client.db(database), collection, holds[index]!, listHold);
+      const held = heldDb(client.db(database), collection, holds[index]!, reads);
       return new MongoDocumentStorage<Item>({
         collection,
         db: () => held,
@@ -894,15 +957,17 @@ withMongo("the race of a change cursor and a write in flight, on a real store (C
   const ORDER_IDS = ["r0", "r1", "r2", "r3"] as const;
   const FIRST_VALUE = "first";
   const LIST_HOLD_SIZES = [0, 1, 4, 8] as const;
+  /** The longest wait for the event of one write, with no other write in flight. */
+  const TOLD_LIMIT_MS = 30_000;
 
   /** The values of the store, from a read of its current rows. */
   const valuesOf = async (store: MongoDocumentStorage<Item>): Promise<Map<string, string>> =>
     new Map((await store.getChangesSince()).changed.map(([id, item]) => [id, item.v]));
 
   /** This function makes a new row of the order of values. */
-  const newOrderRow = (): OrderRow => ({ schedules: 0, writes: 0, subscribers: 0, fullsHeld: 0, back: [], finalDiffers: [], unknown: [] });
+  const newOrderRow = (): OrderRow => ({ schedules: 0, writes: 0, subscribers: 0, fullsHeld: 0, marksMoved: 0, back: [], finalDiffers: [], unknown: [] });
 
-  /** This function starts seeded schedules. The subscribers read during the writes, and a list of a full answer waits. */
+  /** This function starts seeded schedules. The subscribers read during the writes, and each read of a full answer waits. */
   async function orderRow(options: {
     label: string;
     path: StorePath;
@@ -910,8 +975,9 @@ withMongo("the race of a change cursor and a write in flight, on a real store (C
     sizes?: readonly number[];
     lease?: number;
     wrap?: (store: RaceStorage, draw: Random) => RaceStorage;
+    unbounded?: boolean;
   }): Promise<OrderRow> {
-    const { label, path, schedules, sizes, lease, wrap } = options;
+    const { label, path, schedules, sizes, lease, wrap, unbounded } = options;
     const row = newOrderRow();
     for (let n = 0; n < schedules; n += 1) {
       const seed = `order-${label}-${n}`;
@@ -921,11 +987,19 @@ withMongo("the race of a change cursor and a write in flight, on a real store (C
       const order = new CommitOrder();
       const holds = clients.map((_, index) => order.holds(holdsOf(draw.fork(`holds${index}`), millis, count, sizes)));
       const listDraw = draw.fork("lists");
-      const listHold = async (): Promise<void> => {
-        row.fullsHeld += 1;
-        await millis(listDraw.pick(LIST_HOLD_SIZES));
+      const reads: ReadHolds = {
+        list: async () => {
+          row.fullsHeld += 1;
+          await millis(listDraw.pick(LIST_HOLD_SIZES));
+        },
+        afterList: () => millis(listDraw.pick(LIST_HOLD_SIZES)),
+        delta: async (ofFull) => {
+          if (ofFull) row.marksMoved += 1;
+          await millis(listDraw.pick(LIST_HOLD_SIZES));
+        },
+        ...(unbounded === true ? { unbounded: () => true } : {}),
       };
-      const stores = storesOf(path, collection, holds, lease, listHold);
+      const stores = storesOf(path, collection, holds, lease, reads);
       const hosts = stores.map((store, index) => {
         const given = store as unknown as RaceStorage;
         return new Host(wrap ? wrap(given, draw.fork(`wrap${index}`)) : given, callWithValues);
@@ -983,6 +1057,249 @@ withMongo("the race of a change cursor and a write in flight, on a real store (C
     return row;
   }
 
+  /** One store with gates on the reads of its next full answer, and a subscriber that joins with that answer. */
+  function gatedStore(path: StorePath, options: { unbounded?: boolean; maxTombstones?: number; onList?: () => Promise<void> } = {}) {
+    const collection = `race${++next}`;
+    const order = new CommitOrder();
+    const afterList = gate();
+    const delta = gate();
+    const armed = { list: false, delta: false, onList: false };
+    const client = clients[0]!;
+    const reads: ReadHolds = {
+      afterList: async () => {
+        if (armed.onList) await options.onList?.();
+        if (!armed.list) return;
+        armed.list = false;
+        await afterList.holds.before();
+      },
+      delta: async (ofFull) => {
+        if (!armed.delta || !ofFull) return;
+        armed.delta = false;
+        await delta.holds.before();
+      },
+      ...(options.unbounded === true ? { unbounded: () => true } : {}),
+    };
+    const held = heldDb(client.db(database), collection, order.holds(FREE), reads);
+    const store = new MongoDocumentStorage<Item>({
+      collection,
+      db: () => held,
+      client: () => client,
+      ...(path === "pending" ? { transactions: "never" as const } : {}),
+      ...(options.maxTombstones === undefined ? {} : { maxTombstones: options.maxTombstones }),
+    });
+    const host = new Host(store as unknown as RaceStorage, callWithValues);
+    const subscriber = new ValueFollower(host);
+    const told = new Set<string>();
+    host.bus.on<CollectionChangeEvent>(TOPIC, (event) => {
+      for (const { value } of event.values ?? []) told.add((value as Item).v);
+      for (const id of event.deleted) told.add(`deleted ${id}`);
+    });
+    const untilTold = async (what: string): Promise<void> => {
+      const start = Date.now();
+      while (!told.has(what)) {
+        if (Date.now() - start > TOLD_LIMIT_MS) throw new Error(`no event told ${what}`);
+        await millis(1);
+      }
+    };
+    return {
+      collection,
+      order,
+      store,
+      host,
+      subscriber,
+      afterList,
+      delta,
+      armed,
+      /** This method writes a value and waits for its event, so the chain of the events has its version. */
+      write: async (id: string, v: string): Promise<void> => {
+        await host.write(id, { v });
+        await untilTold(v);
+      },
+      /** This method deletes an id and waits for its event. */
+      remove: async (id: string): Promise<void> => {
+        await host.remove(id);
+        await untilTold(`deleted ${id}`);
+      },
+    };
+  }
+
+  /** This function starts the row of a write that lands between the second mark of a full answer and the read of its rows. */
+  async function deltaGapRow(path: StorePath, unbounded: boolean): Promise<OrderRow> {
+    const gated = gatedStore(path, { unbounded });
+    const { host, subscriber, armed } = gated;
+    await host.write("x", { v: "v1" });
+    await host.changes();
+    armed.list = true;
+    armed.delta = true;
+    const joining = subscriber.join();
+    await gated.afterList.reached;
+    await gated.write("x", "v2");
+    gated.afterList.open();
+    await gated.delta.reached;
+    await gated.write("x", "v3");
+    await gated.write("x", "v4");
+    gated.delta.open();
+    await joining;
+    await subscriber.drain();
+    const row = newOrderRow();
+    row.schedules = 1;
+    row.writes = 4;
+    row.fullsHeld = 1;
+    row.marksMoved = 1;
+    readOrder(row, "delta-gap", gated.order, [["follower", subscriber.history]], await valuesOf(gated.store));
+    console.log(`race ${JSON.stringify({ name: `${path}-delta-gap${unbounded ? "-flip" : ""}`, history: subscriber.history.values.get("x"), back: row.back.length, finalDiffers: row.finalDiffers.length })}`);
+    return row;
+  }
+
+  describe.each(["transaction", "pending"] as const)("the reads of a full answer, %s path", (path) => {
+    it("a change between the list and the second mark is in the answer, and the entries keep their order", async (context) => {
+      if (path === "transaction" && !replicaSet) return context.skip?.("the path needs a replica set");
+      const gated = gatedStore(path);
+      const { host, subscriber, armed } = gated;
+      await host.write("x", { v: "v1" });
+      await host.write("y", { v: "u1" });
+      await host.changes();
+      armed.list = true;
+      const joining = subscriber.join();
+      await gated.afterList.reached;
+      await gated.write("x", "v2");
+      await gated.write("z", "n1");
+      gated.afterList.open();
+      await joining;
+      const answer = subscriber.fulls[0]!;
+      console.log(`race ${JSON.stringify({ name: `${path}-second-mark`, version: answer.version, changed: answer.changed })}`);
+      expect(answer.changed).toEqual([
+        { id: "x", value: { v: "v2" } },
+        { id: "y", value: { v: "u1" } },
+        { id: "z", value: { v: "n1" } },
+      ]);
+    });
+
+    it("a write between the second mark and the read of its rows stays out of the answer, and no value goes back", async (context) => {
+      if (path === "transaction" && !replicaSet) return context.skip?.("the path needs a replica set");
+      const row = await deltaGapRow(path, false);
+      expect(row.back).toEqual([]);
+      expect(row.finalDiffers).toEqual([]);
+    });
+
+    it("the flip: a read of the rows with no upper bound gives a value that goes back", async (context) => {
+      if (path === "transaction" && !replicaSet) return context.skip?.("the path needs a replica set");
+      const row = await deltaGapRow(path, true);
+      expect(row.back.length).toBeGreaterThan(0);
+    });
+
+    it("a delete up to the version of the answer removes the row from the answer", async (context) => {
+      if (path === "transaction" && !replicaSet) return context.skip?.("the path needs a replica set");
+      const gated = gatedStore(path);
+      const { host, subscriber, armed } = gated;
+      await host.write("x", { v: "v1" });
+      await host.write("y", { v: "u1" });
+      await host.changes();
+      armed.list = true;
+      const joining = subscriber.join();
+      await gated.afterList.reached;
+      await gated.write("y", "u2");
+      await gated.remove("y");
+      gated.afterList.open();
+      await joining;
+      await subscriber.drain();
+      const answer = subscriber.fulls[0]!;
+      console.log(`race ${JSON.stringify({ name: `${path}-delete-in-range`, changed: answer.changed, history: subscriber.history.values.get("y") ?? null })}`);
+      expect(answer.changed).toEqual([{ id: "x", value: { v: "v1" } }]);
+      expect(subscriber.history.values.get("y")).toBeUndefined();
+      expect([...subscriber.current.keys()]).toEqual(["x"]);
+    });
+
+    it("a delete past the version of the answer does not remove the row: its event removes it", async (context) => {
+      if (path === "transaction" && !replicaSet) return context.skip?.("the path needs a replica set");
+      const gated = gatedStore(path);
+      const { host, subscriber, armed } = gated;
+      await host.write("x", { v: "v1" });
+      await host.write("y", { v: "u1" });
+      await host.changes();
+      armed.list = true;
+      armed.delta = true;
+      const joining = subscriber.join();
+      await gated.afterList.reached;
+      await gated.write("y", "u2");
+      gated.afterList.open();
+      await gated.delta.reached;
+      await gated.remove("x");
+      await gated.write("y", "u3");
+      gated.delta.open();
+      await joining;
+      await subscriber.drain();
+      const answer = subscriber.fulls[0]!;
+      console.log(`race ${JSON.stringify({ name: `${path}-delete-past`, changed: answer.changed, current: [...subscriber.current] })}`);
+      // The row of y moved past the version too, so the value of the list stands
+      expect(answer.changed).toEqual([
+        { id: "x", value: { v: "v1" } },
+        { id: "y", value: { v: "u1" } },
+      ]);
+      expect([...subscriber.current]).toEqual([["y", "u3"]]);
+    });
+
+    it("a prune between the marks: the answer lists again, and it has no deleted row", async (context) => {
+      if (path === "transaction" && !replicaSet) return context.skip?.("the path needs a replica set");
+      const gated = gatedStore(path, { maxTombstones: 1 });
+      const { host, subscriber, armed } = gated;
+      for (const id of ["a", "b", "c", "d"]) await host.write(id, { v: id });
+      await host.changes();
+      armed.list = true;
+      const joining = subscriber.join();
+      await gated.afterList.reached;
+      for (const id of ["a", "b", "c"]) await host.remove(id);
+      gated.afterList.open();
+      await joining;
+      expect(subscriber.fulls[0]!.changed).toEqual([{ id: "d", value: { v: "d" } }]);
+    });
+
+    it("a new epoch between the marks: the answer lists again, and its version has the new epoch", async (context) => {
+      if (path === "transaction" && !replicaSet) return context.skip?.("the path needs a replica set");
+      const gated = gatedStore(path);
+      const { host, subscriber, armed, store, collection } = gated;
+      await host.write("x", { v: "v1" });
+      const before = (await store.getChangesSince()).version;
+      await host.changes();
+      armed.list = true;
+      const joining = subscriber.join();
+      await gated.afterList.reached;
+      await clients[0]!.db(database).collection<{ _id: string }>(COUNTERS).deleteOne({ _id: collection });
+      gated.afterList.open();
+      await joining;
+      const answer = subscriber.fulls[0]!;
+      expect(answer.version.split(".")[0]).not.toBe(before.split(".")[0]);
+      expect(answer.changed).toEqual([{ id: "x", value: { v: "v1" } }]);
+    });
+
+    it("a prune beside each list: the answer stops at its most lists, and the next read from it is a full answer", async (context) => {
+      if (path === "transaction" && !replicaSet) return context.skip?.("the path needs a replica set");
+      const ids = ["p0", "p1", "p2", "p3", "p4", "p5", "p6"];
+      let lists = 0;
+      let removing = false;
+      const gated = gatedStore(path, {
+        maxTombstones: 1,
+        onList: async () => {
+          if (removing) return;
+          removing = true;
+          lists += 1;
+          await gated.host.remove(ids[2 * lists - 2]!);
+          await gated.host.remove(ids[2 * lists - 1]!);
+          removing = false;
+        },
+      });
+      const { host, store, armed } = gated;
+      for (const id of ids) await host.write(id, { v: id });
+      armed.onList = true;
+      const answer = await store.getChangesSince();
+      armed.onList = false;
+      console.log(`race ${JSON.stringify({ name: `${path}-most-lists`, lists, version: answer.version })}`);
+      expect(lists).toBe(3);
+      expect(answer.full).toBe(true);
+      expect((await store.getChangesSince(answer.version)).full).toBe(true);
+    });
+  });
+
   describe.each(["transaction", "pending"] as const)("the order of values, %s path", (path) => {
     it("a full answer beside two events with values: the values of a subscriber do not go back", async (context) => {
       if (path === "transaction" && !replicaSet) return context.skip?.("the path needs a replica set");
@@ -990,10 +1307,12 @@ withMongo("the race of a change cursor and a write in flight, on a real store (C
       const order = new CommitOrder();
       const list = gate();
       let armed = false;
-      const listHold = async (): Promise<void> => {
-        if (armed) await list.holds.before();
+      const reads: ReadHolds = {
+        list: async () => {
+          if (armed) await list.holds.before();
+        },
       };
-      const [store] = storesOf(path, collection, [order.holds(FREE), FREE, FREE], undefined, listHold) as [MongoDocumentStorage<Item>];
+      const [store] = storesOf(path, collection, [order.holds(FREE), FREE, FREE], undefined, reads) as [MongoDocumentStorage<Item>];
       const host = new Host(store as unknown as RaceStorage, callWithValues);
       const subscriber = new ValueFollower(host);
       await host.write("x", { v: "v1" });
@@ -1026,6 +1345,7 @@ withMongo("the race of a change cursor and a write in flight, on a real store (C
       expect(row.back).toEqual([]);
       expect(row.finalDiffers).toEqual([]);
       expect(row.fullsHeld).toBeGreaterThan(0);
+      expect(row.marksMoved).toBeGreaterThan(0);
     });
 
     it("the flip: a store that gives an old value again fails the row of the order of values", async (context) => {
@@ -1036,6 +1356,13 @@ withMongo("the race of a change cursor and a write in flight, on a real store (C
         schedules: FAULT_SCHEDULES,
         wrap: (store) => replayingOld(store),
       });
+      expect(row.back.length).toBeGreaterThan(0);
+    });
+
+    it("the flip: seeded schedules with a read of the rows with no upper bound give a value that goes back", async (context) => {
+      if (path === "transaction" && !replicaSet) return context.skip?.("the path needs a replica set");
+      const row = await orderRow({ label: `${path}-order-unbounded`, path, schedules: STORE_SCHEDULES, unbounded: true });
+      expect(row.marksMoved).toBeGreaterThan(0);
       expect(row.back.length).toBeGreaterThan(0);
     });
   });
