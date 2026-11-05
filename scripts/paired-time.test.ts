@@ -4,7 +4,7 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { aaId, armOrder, childResult, measureIsolated, pairedMarkdown, quantileOf, timeChild } from "./lib/paired-time.ts";
+import { aaId, childResult, measureIsolated, pairedMarkdown, quantileOf, timeChild } from "./lib/paired-time.ts";
 
 const ENV = { cpu: "Test CPU 9000", cores: 4, os: "test", arch: "x64", node: "v0.0.0" };
 
@@ -14,26 +14,6 @@ function fakeClock() {
   return { clock: () => now, spend: (ms: number) => (now += ms) };
 }
 
-describe("armOrder", () => {
-  it("reverses the order in odd rounds of mode process", () => {
-    assert.deepEqual([0, 1, 2, 3].map((round) => armOrder(3, round, "process")), [
-      [0, 1, 2],
-      [2, 1, 0],
-      [0, 1, 2],
-      [2, 1, 0],
-    ]);
-  });
-
-  it("rotates the order each round of mode fresh", () => {
-    assert.deepEqual([0, 1, 2, 3].map((round) => armOrder(3, round, "fresh")), [
-      [0, 1, 2],
-      [1, 2, 0],
-      [2, 0, 1],
-      [0, 1, 2],
-    ]);
-  });
-});
-
 describe("quantileOf", () => {
   it("interpolates between the two nearest values", () => {
     assert.equal(quantileOf([4, 1, 3, 2], 0.5), 2.5);
@@ -42,7 +22,7 @@ describe("quantileOf", () => {
   });
 });
 
-describe("measureIsolated in mode process", () => {
+describe("measureIsolated in mode process", async () => {
   // 2 inputs of the group 1 and 2 inputs of the group 2. The value of an input gives the cost of each arm
   const inputs = [
     { id: "i1", group: "1", value: { base: 1, b: 2 } },
@@ -52,7 +32,7 @@ describe("measureIsolated in mode process", () => {
   ];
   const calls: string[] = [];
   const { clock, spend } = fakeClock();
-  const report = measureIsolated({
+  const report = await measureIsolated({
     mode: "process",
     inputs,
     repeats: 2,
@@ -102,9 +82,9 @@ describe("measureIsolated in mode process", () => {
     assert.ok(md.includes("| `b` | 4 | 2.500 | 2.000 | 3.000 | 1.000 | 2.000 | 3.000 | 2.500 | 0.707 |"));
   });
 
-  it("gives no A/A arm and no moved share with aa false", () => {
+  it("gives no A/A arm and no moved share with aa false", async () => {
     const { clock: c2, spend: s2 } = fakeClock();
-    const plain = measureIsolated({ mode: "process", inputs, repeats: 1, clock: c2, env: ENV, aa: false, arms: [{ id: "base", run: (v) => s2(v.base) }, { id: "b", run: (v) => s2(v.b) }] });
+    const plain = await measureIsolated({ mode: "process", inputs, repeats: 1, clock: c2, env: ENV, aa: false, arms: [{ id: "base", run: (v) => s2(v.base) }, { id: "b", run: (v) => s2(v.b) }] });
     assert.deepEqual(plain.arms, ["base", "b"]);
     assert.equal(plain.noiseFloor, null);
     assert.equal(plain.ratios["b"].moved, null);
@@ -113,7 +93,7 @@ describe("measureIsolated in mode process", () => {
 });
 
 describe("measureIsolated in mode fresh", () => {
-  it("starts a child for each arm, input and round, in the rotated order, and keeps the highest peak", async () => {
+  it("starts a child for each arm, input and round, in the order of the home, and keeps the highest peak", async () => {
     const started: string[] = [];
     const report = await measureIsolated({
       mode: "fresh",
@@ -133,10 +113,11 @@ describe("measureIsolated in mode fresh", () => {
         return { ms: arm === "b" ? 4 : 2, peakRss: 1000 * round };
       },
     });
-    // Round 0: x takes base, b and base (the A/A arm) in turn, then y. Round 1 starts with b
+    // Round 0: x takes base, b and base (the A/A arm) in turn, then y. Round 1 is the reverse, so it starts with the A/A arm, which has the command of the base
     assert.deepEqual(started.slice(0, 3), ["child --arm base --input x --warmup 3", "child --arm b --input x --warmup 3", "child --arm base --input x --warmup 3"]);
     assert.equal(started[3], "child --arm base --input y --warmup 3");
-    assert.equal(started[6], "child --arm b --input x --warmup 3");
+    assert.equal(started[6], "child --arm base --input x --warmup 3");
+    assert.equal(started[7], "child --arm b --input x --warmup 3");
     assert.equal(started.length, 12);
     const x = report.inputs.find((i) => i.id === "x");
     assert.deepEqual(x?.ratio, { b: 2, "base~aa": 1 });
@@ -166,19 +147,19 @@ describe("the child protocol", () => {
 });
 
 describe("the options", () => {
-  it("throws a RangeError for a bad option", () => {
+  it("throws a RangeError for a bad option", async () => {
     const arms = [{ id: "a", run: () => 0 }];
-    assert.throws(() => measureIsolated({ mode: "process", inputs: [], repeats: 0, arms }), RangeError);
-    assert.throws(() => measureIsolated({ mode: "process", inputs: [], repeats: 1, arms: [] }), RangeError);
-    assert.throws(() => measureIsolated({ mode: "process", inputs: [], repeats: 1, arms, aa: false }), RangeError);
-    assert.throws(() => measureIsolated({ mode: "fresh", inputs: [], repeats: 1, arms }), /no command/);
-    assert.throws(() => measureIsolated({ mode: "process", inputs: [{ id: "i" }, { id: "i" }], repeats: 1, arms }), /inputs are not unique/);
-    assert.throws(() => measureIsolated({ mode: "process", inputs: [], repeats: 1, arms }), /1 input or more/);
-    assert.throws(() => measureIsolated({ mode: "other" as "process", inputs: [{ id: "i" }], repeats: 1, arms }), /not "other"/);
+    await assert.rejects(() => measureIsolated({ mode: "process", inputs: [], repeats: 0, arms }), RangeError);
+    await assert.rejects(() => measureIsolated({ mode: "process", inputs: [], repeats: 1, arms: [] }), RangeError);
+    await assert.rejects(() => measureIsolated({ mode: "process", inputs: [], repeats: 1, arms, aa: false }), RangeError);
+    await assert.rejects(() => measureIsolated({ mode: "fresh", inputs: [], repeats: 1, arms }), /no command/);
+    await assert.rejects(() => measureIsolated({ mode: "process", inputs: [{ id: "i" }, { id: "i" }], repeats: 1, arms }), /inputs are not unique/);
+    await assert.rejects(() => measureIsolated({ mode: "process", inputs: [], repeats: 1, arms }), /1 input or more/);
+    await assert.rejects(() => measureIsolated({ mode: "other" as "process", inputs: [{ id: "i" }], repeats: 1, arms }), /not "other"/);
   });
 
-  it("refuses a peakRss that an arm gives in mode process", () => {
+  it("refuses a peakRss that an arm gives in mode process", async () => {
     const arms = [{ id: "a", run: () => ({ peakRss: 1 }) }];
-    assert.throws(() => measureIsolated({ mode: "process", inputs: [{ id: "i" }], repeats: 1, arms, env: ENV }), /peakRss in mode process/);
+    await assert.rejects(() => measureIsolated({ mode: "process", inputs: [{ id: "i" }], repeats: 1, arms, env: ENV }), /peakRss in mode process/);
   });
 });

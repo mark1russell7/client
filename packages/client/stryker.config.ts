@@ -1,6 +1,9 @@
+import type { Stryker } from "@stryker-mutator/core";
+
 /**
- * Mutation tests of the core rules (roadmap R32). The nightly workflow starts them:
- * `pnpm --filter @procedures/client exec stryker run`.
+ * This file holds the options of the mutation tests of the core rules (roadmap R32). The nightly
+ * workflow starts them: `pnpm --filter @procedures/client exec stryker run stryker.config.ts`.
+ * Stryker finds only JavaScript and JSON names by itself, so the command names this file.
  *
  * Stryker changes the code of the files of `mutate` one change at a time (a mutant), and runs the
  * tests that cover the change. A mutant that no test kills is a gap in the tests. The files are
@@ -15,9 +18,10 @@
  * sandbox copy rewrites `tsconfig.json` with the JavaScript API of TypeScript, and TypeScript 7
  * does not have that API. Run it only in CI, because a stopped run can leave a mutant in a file.
  *
- * @type {import("@stryker-mutator/api/core").PartialStrykerOptions}
+ * The first parameter of `Stryker` gives the type. The package `@stryker-mutator/core` does not
+ * export the type by name.
  */
-export default {
+const options: ConstructorParameters<typeof Stryker>[0] = {
   testRunner: "vitest",
   plugins: ["@stryker-mutator/vitest-runner"],
   vitest: { configFile: "vitest.config.ts" },
@@ -53,3 +57,5 @@ export default {
   tempDirName: ".stryker-tmp",
   inPlace: true,
 };
+
+export default options;

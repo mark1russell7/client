@@ -190,6 +190,9 @@ importers:
       '@mark1russell7/cue':
         specifier: ^2.1.1
         version: 2.1.1
+      '@mark1russell7/rigor-bench':
+        specifier: ^0.2.17
+        version: 0.2.21
       '@mark1russell7/rigor-statistics':
         specifier: ^0.1.2
         version: 0.1.11
@@ -521,8 +524,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       '@mark1russell7/rigor-bench':
-        specifier: ^0.2.7
-        version: 0.2.13
+        specifier: ^0.2.17
+        version: 0.2.21
       '@mark1russell7/rigor-statistics':
         specifier: ^0.1.9
         version: 0.1.11
@@ -819,8 +822,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       '@mark1russell7/rigor-bench':
-        specifier: ^0.2.7
-        version: 0.2.13
+        specifier: ^0.2.17
+        version: 0.2.21
       '@mark1russell7/rigor-statistics':
         specifier: ^0.1.9
         version: 0.1.11
@@ -3381,8 +3384,8 @@ packages:
     resolution: {integrity: sha512-hn2C5jjOFCGKJqFQPHt57C/Cn1l9Lb9MltVNtL71KSu+nRrfPOmg8ujYB5n3oDFFWNdNA4bE/8LLT4tG3lmrGA==}
     engines: {node: '>=22'}
 
-  '@mark1russell7/rigor-bench@0.2.13':
-    resolution: {integrity: sha512-Y0A8z6ftZlwP8LEhWqQpUKAuPzEEzme0HyselyE4WtgVZr0EhkjIy+a03gyvEf2QA2cHJiMvAUfJj2enOmgCbw==}
+  '@mark1russell7/rigor-bench@0.2.21':
+    resolution: {integrity: sha512-RKrJIGoUoozWpRsvHRYQFhrN20Aj4m79YXf73Qavp1ee5YQiNatJ9g2FsQmBi3J4NFGoMeDWUv2S+LiTvjTSBg==}
     engines: {node: '>=22'}
 
   '@mark1russell7/rigor-generators@0.1.5':
@@ -3391,6 +3394,10 @@ packages:
 
   '@mark1russell7/rigor-statistics@0.1.11':
     resolution: {integrity: sha512-5tD7QqLE7Y6wWsoImXuszH3JA5VHwGDHjVzobn/JGtYgo24AFTzXlngEPxfW9A5kHD9GFXgWbkgUCNa0RlLToA==}
+    engines: {node: '>=22'}
+
+  '@mark1russell7/rigor-statistics@0.1.13':
+    resolution: {integrity: sha512-3QBuJnQ+GyYW+SboDNPeSCZW793Jh+46/u/NXV+7345nzCvW28uDG7iiAUwTSksXdqsGkXcfxTo5JMG7Wzekdg==}
     engines: {node: '>=22'}
 
   '@mark1russell7/service@0.6.5':
@@ -6766,14 +6773,18 @@ snapshots:
 
   '@mark1russell7/rational@0.1.2': {}
 
-  '@mark1russell7/rigor-bench@0.2.13':
+  '@mark1russell7/rigor-bench@0.2.21':
     dependencies:
       '@mark1russell7/rigor-generators': 0.1.5
-      '@mark1russell7/rigor-statistics': 0.1.11
+      '@mark1russell7/rigor-statistics': 0.1.13
 
   '@mark1russell7/rigor-generators@0.1.5': {}
 
   '@mark1russell7/rigor-statistics@0.1.11':
+    dependencies:
+      '@mark1russell7/rigor-generators': 0.1.5
+
+  '@mark1russell7/rigor-statistics@0.1.13':
     dependencies:
       '@mark1russell7/rigor-generators': 0.1.5
 
