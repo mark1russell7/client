@@ -247,7 +247,7 @@ export async function timeWarm(workload: Workload, call: () => unknown, clock: (
     times.push((clock() - start) / workload.calls);
   }
   // The import comes after the last chunk, thus no time of this process counts the load of the module.
-  // The module has no dependencies: the paired bench starts this file from a checkout with no install
+  // The load of the module loads no dependency: the paired bench starts this file from a checkout with no install
   const { quantileOf } = await import("./lib/paired-time.ts");
   return { ms: quantileOf(times.slice(-WARM.agree), 0.5), chunks: times.length, stable: isStable(times) };
 }

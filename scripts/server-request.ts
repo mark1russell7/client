@@ -24,7 +24,7 @@
  * per call. A `request` sample starts its own fresh host child (`--serve`) and stops it at the end.
  *
  * The rounds are `measureIsolated()` of `lib/paired-time.ts` in mode `fresh`: each round has one
- * sample of each case and arm, with the A/A arm `request~aa`. The order of the arms rotates each round.
+ * sample of each case and arm, with the A/A arm `request~aa`. The order of the arms changes each round.
  * The share of a case is `shareOf()` of the samples of its two arms. Its 95 % interval is the percentile bootstrap
  * `bootstrapMedianRatio()` of rigor-statistics, with `SHARE_BOOTSTRAP` (10 000 runs, seed 1).
  *
@@ -403,7 +403,7 @@ export function markdownOf(record: Pick<ServerRequestRecord, "refs" | "node" | "
     "",
     "- A sample is one fresh process for one case and one arm. It gives the median time per call after its warm-up.",
     "- The arm `request` calls a fresh host child over loopback HTTP. The arm `exec` does the same exec on `LocalTransport`.",
-    "- Each round has one sample of each case and arm. The order of the arms rotates each round.",
+    "- Each round has one sample of each case and arm. The order of the arms changes each round, with `armOrder` of rigor-bench.",
     "- The share is median(exec) / median(request) over the rounds.",
     `- The share interval is the 95 % percentile bootstrap of rigor-statistics: ${SHARE_BOOTSTRAP.runs} runs, seed ${SHARE_BOOTSTRAP.seed}. Each run draws the rounds of each arm with replacement.`,
     "- The round-paired ratio is exec / request in the same round.",
