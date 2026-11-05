@@ -25,7 +25,7 @@ import { planOf } from "./tenant-plan.js";
 
 const { values } = parseArgs({ options: { arm: { type: "string" }, case: { type: "string" }, job: { type: "string" }, counts: { type: "string" } } });
 const { arm, case: caseName, job, counts } = values;
-if (!TENANT_ARMS.includes(arm as TenantArm) || !caseName || !job || !counts) throw new RangeError("this child needs --arm, --case, --job and --counts");
+if (!arm || !TENANT_ARMS.includes(arm as TenantArm) || !caseName || !job || !counts) throw new RangeError("this child needs --arm, --case, --job and --counts");
 
 const kase = parseTenantCase(caseName);
 const url = process.env[kase.tmpfs ? "MONGO_TMPFS_URL" : "MONGO_TEST_URL"];
