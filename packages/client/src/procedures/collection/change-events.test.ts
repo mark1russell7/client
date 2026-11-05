@@ -501,6 +501,49 @@ class HeldLog extends LogStorage {
   }
 }
 
+describe("the chain of versions when a read gives no change (CLI-102)", () => {
+  /** A log whose version moves with no change: a rewrite in another process took each row of the range to a later number. */
+  class MovedLog extends LogStorage {
+    moved = 0;
+    empty = false;
+    override async getChangesSince(since?: string): Promise<StorageChanges<unknown>> {
+      if (!this.empty) return super.getChangesSince(since);
+      this.moved += 1;
+      return { version: `log:${String(1000 + this.moved)}`, full: false, changed: [], deleted: [] };
+    }
+  }
+
+  it("a read with no change does not move the since of the next event", async () => {
+    const storage = new MovedLog();
+    const { run, events, listen } = host(storage);
+    listen();
+    await run("changes", {});
+    await run("set", { id: "a", value: 1 });
+    const last = events[0]!.version;
+    storage.empty = true;
+    await run("set", { id: "b", value: 2 });
+    // No event goes out for the read with no change
+    expect(events).toHaveLength(1);
+    storage.empty = false;
+    await run("set", { id: "c", value: 3 });
+    expect(events).toHaveLength(2);
+    expect(events[1]).toMatchObject({ since: last, changed: ["b", "c"] });
+  });
+
+  it("the versions of the events make a chain over each read with no change", async () => {
+    const storage = new MovedLog();
+    const { run, events, listen } = host(storage);
+    listen();
+    await run("changes", {});
+    for (let index = 0; index < 12; index++) {
+      storage.empty = index % 3 === 1;
+      await run("set", { id: `w${String(index % 2)}`, value: index });
+    }
+    expect(events.length).toBeGreaterThan(1);
+    for (let index = 1; index < events.length; index++) expect(events[index]!.since).toBe(events[index - 1]!.version);
+  });
+});
+
 describe("a read again of a log that a write in flight holds back (CLI-102)", () => {
   beforeEach(() => {
     vi.useFakeTimers();

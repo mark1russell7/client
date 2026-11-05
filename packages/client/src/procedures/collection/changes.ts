@@ -27,9 +27,11 @@
  * - A version can stop below a write in flight (`StorageChanges.held`, roadmap CLI-102). The chain
  *   then reads the log again, after a wait that starts at 100 ms and doubles up to 5 s. It stops when
  *   no write holds the version or no one listens. Thus a write that a write in flight holds back
- *   reaches the subscribers with no later write. The event of such a read has no origin, and it has
+ *   reaches the subscribers with no later write. The event of such a read has no origin. It has
  *   no rows before the changes, so a row filter makes a hint without ids.
  * - The log can give a write two times (`StorageChanges`), so a subscriber applies a change by its id.
+ * - A read with no change sends no event, and the chain keeps its version. The version of a log can
+ *   move with no change, when another process writes a row again at a later number.
  * - With the rule `admission.admit`, the publisher filters the ids of each event for each
  *   subscriber (roadmap CLI-78, `hint-filter.ts`). The event carries the rows after the changes,
  *   from the change log. While a subscriber has a filter, each write first reads the rows before
@@ -269,14 +271,16 @@ async function publish(chain: ChangeChain, storage: ChangeLog, bus: EventBus, to
     else whileHeld(chain, true, readAgain);
     return;
   }
-  chain.anchor = changes.version;
   whileHeld(chain, changes.held === true, readAgain);
   // A full result: the log does not know the version of the chain any more
   if (changes.full || writes.some((write) => !write.anchored)) {
+    chain.anchor = changes.version;
     bus.emit(topic, hint(changes.version, originOf(writes, undefined)));
     return;
   }
+  // No event tells this version, so the chain stays at the version of the last event. The next read from it gets each change.
   if (changes.changed.length === 0 && changes.deleted.length === 0) return;
+  chain.anchor = changes.version;
   const origin = originOf(writes, changes);
   const event: CollectionChangeEvent = {
     since,
