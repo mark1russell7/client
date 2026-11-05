@@ -1122,6 +1122,11 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
   }
 
   /** The id of the document of the oldest kept change of the partition. */
+  private async floorOf(db: Db): Promise<number> {
+    const doc = await db.collection<CounterDoc>(this.countersName).findOne({ _id: this.floorId() });
+    return typeof doc?.["floor"] === "number" ? doc["floor"] : 0;
+  }
+
   private floorId(): string {
     return `floor${SEPARATOR}${this.collectionName}${SEPARATOR}${this.partition ?? ""}`;
   }
@@ -1311,14 +1316,14 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
       const match = since === undefined ? null : /^([^.]+)\.(\d+)$/.exec(since);
       if (!match || match[1] !== counter.epoch) return full();
       const from = Number(match[2]);
-      const floorDoc = await db.collection<CounterDoc>(this.countersName).findOne({ _id: this.floorId() });
-      const floor = typeof floorDoc?.["floor"] === "number" ? floorDoc["floor"] : 0;
-      if (from < floor || from > counter.seq) return full();
+      if (from < (await this.floorOf(db)) || from > counter.seq) return full();
       // A number above the watermark can belong to a write that is not visible yet: the next read gives it
       const docs = await items
         .find({ ...this.partitionFilter(), [SEQ]: { $gt: from, $lte: counter.seq } } as Filter<Stored>)
         .sort({ [SEQ]: 1 })
         .toArray();
+      // A prune raises the floor before its delete, so a query that missed a tombstone sees the new floor here (roadmap CLI-93)
+      if (from < (await this.floorOf(db))) return full();
       const changed: Array<[string, T]> = [];
       const deleted: string[] = [];
       for (const doc of docs) {
