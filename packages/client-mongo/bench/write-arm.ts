@@ -12,13 +12,15 @@
  */
 
 import { appendFileSync } from "node:fs";
+import { setTimeout as sleep } from "node:timers/promises";
 import { parseArgs } from "node:util";
 import { median, quantile } from "@mark1russell7/rigor-statistics";
+import { flipFactor } from "./gate-flip-factor.js";
 import { STORES, WRITE_BYTES, burstsOf, keepError, parseWriteCase, type KeptError, type WriteCount } from "./write-cases.js";
 
 const { values } = parseArgs({ options: { arm: { type: "string" }, case: { type: "string" }, job: { type: "string" }, counts: { type: "string" }, bursts: { type: "string" } } });
 const { arm, case: caseName, job, counts } = values;
-if ((arm !== "before" && arm !== "after") || caseName === undefined || job === undefined || counts === undefined) throw new RangeError("this child needs --arm, --case, --job and --counts");
+if ((arm !== "before" && arm !== "after" && arm !== "flip") || caseName === undefined || job === undefined || counts === undefined) throw new RangeError("this child needs --arm, --case, --job and --counts");
 const { shape, writes } = parseWriteCase(caseName);
 
 const url = process.env["MONGO_TEST_URL"];
@@ -64,6 +66,8 @@ const began = performance.now();
 for (let burst = 0; burst < bursts; burst++) {
   const burstBegan = performance.now();
   await Promise.all(stores.flatMap((store) => Array.from({ length: writes }, (_, index) => write(store, `d${burst}-${index}`))));
+  // The arm `flip` is the source of this tree with a real wait inside the timed part of each burst
+  if (arm === "flip") await sleep((performance.now() - burstBegan) * (flipFactor(caseName) - 1));
   burstTimesMs.push(performance.now() - burstBegan);
 }
 const burstMs = performance.now() - began;

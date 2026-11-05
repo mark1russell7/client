@@ -13,6 +13,7 @@ import { appendFileSync } from "node:fs";
 import { setTimeout as sleep } from "node:timers/promises";
 import { parseArgs } from "node:util";
 import { MongoClient } from "mongodb";
+import { flipFactor } from "./gate-flip-factor.js";
 import { BURST_READS, LARGE_BYTES, SMALL_BYTES, parseReadCase, type ReadCount } from "./read-cases.js";
 
 /** The commands of the driver that write. */
@@ -23,7 +24,7 @@ const PROBE_EVERY_MS = 50;
 
 const { values } = parseArgs({ options: { arm: { type: "string" }, case: { type: "string" }, job: { type: "string" }, counts: { type: "string" } } });
 const { arm, case: caseName, job, counts } = values;
-if ((arm !== "before" && arm !== "after") || caseName === undefined || job === undefined || counts === undefined) throw new RangeError("this child needs --arm before|after, --case, --job and --counts");
+if ((arm !== "before" && arm !== "after" && arm !== "flip") || caseName === undefined || job === undefined || counts === undefined) throw new RangeError("this child needs --arm before|after, --case, --job and --counts");
 const { kind, documents } = parseReadCase(caseName);
 
 const url = process.env["MONGO_TEST_URL"];
@@ -75,6 +76,8 @@ const probe = (async () => {
 const began = performance.now();
 // The burst keeps no result: the bench measures the reads, not the memory of a list of results
 await Promise.all(Array.from({ length: BURST_READS }, () => storage.getChangesSince(version).then(() => undefined)));
+// The arm `flip` is the source of this tree with a real wait inside the timed part, so the gate reads the stated slowdown through its whole path
+if (arm === "flip") await sleep((performance.now() - began) * (flipFactor(caseName) - 1));
 const burstMs = performance.now() - began;
 running = false;
 await probe;
