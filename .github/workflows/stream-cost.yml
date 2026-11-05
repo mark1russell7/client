@@ -10,7 +10,8 @@ name: Stream cost
 # gives the cost of the queue of a burst of writes. The suite `tenant` gives an open-loop load of
 # tenants in one collection against the first guess of the ladder (roadmap CLI-95). The suite
 # `tenant-ceiling` tells a limit of that collection from a limit of the runner, at rates between the
-# rungs, with MongoDB and the writers on all processors and apart.
+# rungs, with MongoDB and the writers on all processors and apart. The suite `tenant-separate` tells the
+# queue of a process from the counter document and from the disk, with copies of the store and a server in memory.
 #
 # The workflow only reports: only a dispatch starts it, and no ruleset needs its checks.
 
@@ -34,6 +35,7 @@ on:
           - write
           - tenant
           - tenant-ceiling
+          - tenant-separate
         default: stream
       runs:
         description: The jobs, from 1 to 9. Five or more for a limit.
@@ -133,6 +135,20 @@ jobs:
             sleep 1
           done
           [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ]
+      - name: Start a second MongoDB 7 with its files in memory
+        if: inputs.suite == 'tenant-separate'
+        run: |
+          docker run -d --name mongo-tmpfs -p 27018:27017 --tmpfs /data/db:rw,size=4g mongo:7 --replSet rs0 --bind_ip_all
+          for i in $(seq 1 60); do
+            docker exec mongo-tmpfs mongosh --quiet --eval "db.adminCommand('ping').ok" >/dev/null 2>&1 && break
+            sleep 1
+          done
+          docker exec mongo-tmpfs mongosh --quiet --eval "rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] })"
+          for i in $(seq 1 60); do
+            [ "$(docker exec mongo-tmpfs mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ] && break
+            sleep 1
+          done
+          [ "$(docker exec mongo-tmpfs mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ]
       - name: Run the job
         working-directory: packages/client-mongo
         env:
@@ -142,6 +158,7 @@ jobs:
           SUITE: ${{ inputs.suite }}
           MONGO_TEST_URL: mongodb://localhost:27017/?directConnection=true
           MONGO_CONTAINER: ${{ inputs.suite == 'tenant-ceiling' && 'mongo' || '' }}
+          MONGO_TMPFS_URL: mongodb://localhost:27018/?directConnection=true
         run: node --import tsx "bench/$SUITE-run.ts" --job "$JOB" --rounds "$ROUNDS" --cap "$CAP" --out "bench-out/job-$JOB.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

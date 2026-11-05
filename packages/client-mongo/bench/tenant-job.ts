@@ -9,8 +9,8 @@ import { dirname } from "node:path";
 import { parseArgs } from "node:util";
 import { benchEnv, freshRun } from "@mark1russell7/rigor-bench/fresh";
 
-/** This function runs one job over these cases. */
-export async function runTenantJob(cases: readonly string[]): Promise<void> {
+/** This function runs one job over these cases. The first arm is the base of the pairs. */
+export async function runTenantJob(cases: readonly string[], base = "control", candidates: readonly string[] = ["store"]): Promise<void> {
   const { values } = parseArgs({ options: { job: { type: "string" }, rounds: { type: "string" }, cap: { type: "string" }, out: { type: "string" } } });
   const job = Number(values.job);
   const rounds = Number(values.rounds);
@@ -26,8 +26,8 @@ export async function runTenantJob(cases: readonly string[]): Promise<void> {
   });
 
   const run = await freshRun({
-    base: arm("control"),
-    candidates: [arm("store")],
+    base: arm(base),
+    candidates: candidates.map(arm),
     cases: [...cases],
     rounds,
     roundOffset: (job - 1) * rounds,
@@ -35,5 +35,5 @@ export async function runTenantJob(cases: readonly string[]): Promise<void> {
     timeoutMs: cap * 1000,
   });
 
-  writeFileSync(values.out, `${JSON.stringify({ job: String(job), env: benchEnv(), candidate: run.pairs["store"], aa: run.pairs["control~aa"] })}\n`);
+  writeFileSync(values.out, `${JSON.stringify({ job: String(job), env: benchEnv(), candidate: run.pairs[candidates[0]!], aa: run.pairs[`${base}~aa`], base, pairs: run.pairs })}\n`);
 }

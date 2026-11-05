@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { aaBand, caseIntervals, poolRecords, type PairedTime } from "@mark1russell7/rigor-bench";
 import { median } from "@mark1russell7/rigor-statistics";
-import { parseTenantCase, type TenantCount } from "./tenant-cases.js";
+import { TENANT_ARMS, parseTenantCase, type TenantCount } from "./tenant-cases.js";
 import { READING_RULE, READING_RULE_CHANGE, readingOf } from "./tenant-reading.js";
 
 interface JobFile {
@@ -17,6 +17,8 @@ interface JobFile {
   readonly env: unknown;
   readonly candidate: readonly PairedTime[];
   readonly aa: readonly PairedTime[];
+  readonly base?: string;
+  readonly pairs?: Readonly<Record<string, readonly PairedTime[]>>;
 }
 
 const { values } = parseArgs({ options: { jobs: { type: "string" }, out: { type: "string" }, run: { type: "string" } } });
@@ -48,15 +50,37 @@ function coresOf(rows: readonly TenantCount[]): { core: number; busy: number; io
   });
 }
 
+/** This function gives the median of a number of each child, or null when no child has it. */
+const medianOf = (rows: readonly TenantCount[], pick: (row: TenantCount) => number | undefined): number | null => {
+  const values = rows.map(pick).filter((value): value is number => value !== undefined);
+  return values.length === 0 ? null : round(median(values), 3);
+};
+
+/** This function gives the count of each kind of failure over the children. */
+function errorsOf(rows: readonly TenantCount[]): Record<string, number> {
+  const all: Record<string, number> = {};
+  for (const row of rows) for (const [kind, count] of Object.entries(row.errors ?? {})) all[kind] = (all[kind] ?? 0) + count;
+  return all;
+}
+
 const pool = poolRecords(jobs.map(({ job, candidate, aa }) => ({ job, candidate, aa })));
-const band = aaBand(pool.aa);
 const ratios = new Map(caseIntervals(pool.candidate).map((entry) => [entry.case, entry]));
 const aaRatios = new Map(caseIntervals(pool.aa).map((entry) => [entry.case, entry]));
+// A band needs five cases, and the suite `tenant-separate` has four: its A/A stays beside each case
+const band = aaRatios.size >= 5 ? aaBand(pool.aa) : null;
+const baseOf = jobs[0]?.base ?? "control";
+/** This function gives the ratio of the p99 of an arm to the p99 of the base in a case. */
+const overBase = (arm: string, name: string): object | undefined => {
+  if (arm === baseOf || jobs.some((job) => job.pairs?.[arm] === undefined)) return undefined;
+  const own = poolRecords(jobs.map(({ job, aa, pairs }) => ({ job, candidate: pairs![arm]!, aa })));
+  const entry = caseIntervals(own.candidate).find((interval) => interval.case === name);
+  return entry ? { ratio: round(entry.ratio, 3), low: round(entry.low, 3), high: round(entry.high, 3) } : undefined;
+};
 
 const caseNames = [...new Set(counts.map((row) => row.case))];
 const cases = caseNames.map((name) => {
-  const { rate, processes, burst, apart, active } = parseTenantCase(name);
-  const arms = (["store", "control"] as const).map((arm) => {
+  const { rate, processes, burst, apart, tmpfs, active } = parseTenantCase(name);
+  const arms = TENANT_ARMS.filter((arm) => counts.some((row) => row.case === name && row.arm === arm)).map((arm) => {
     const rows = counts.filter((row) => row.case === name && row.arm === arm);
     return {
       arm,
@@ -77,6 +101,17 @@ const cases = caseNames.map((name) => {
       transactionsAborted: summary(rows, (row) => row.transactionsAborted),
       conflictShare: conflictShare(rows),
       cores: coresOf(rows),
+      p99OverBase: overBase(arm, name),
+      disk: {
+        device: rows.find((row) => row.disk)?.disk?.device ?? null,
+        writesPerSecond: medianOf(rows, (row) => row.disk?.writesPerSecond),
+        mbPerSecond: medianOf(rows, (row) => row.disk?.mbPerSecond),
+        msPerWrite: medianOf(rows, (row) => row.disk?.msPerWrite),
+        busy: medianOf(rows, (row) => row.disk?.busy),
+      },
+      journal: { syncsPerSecond: medianOf(rows, (row) => row.journal?.syncsPerSecond), msPerSync: medianOf(rows, (row) => row.journal?.msPerSync) },
+      writerBusy: medianOf(rows.flatMap((row) => (row.writerBusy ?? []).map((value) => ({ ...row, writerBusy: [value] }))), (row) => row.writerBusy?.[0]),
+      errors: errorsOf(rows),
     };
   });
   const ratio = ratios.get(name);
@@ -87,6 +122,7 @@ const cases = caseNames.map((name) => {
     processes,
     burst,
     apart,
+    tmpfs,
     activeTenants: active,
     tenantsOfRung: active * 10,
     arms,
@@ -98,15 +134,15 @@ const cases = caseNames.map((name) => {
 // The cost of the conflicts is in the tail, so each row sets the p99 beside the conflict share of its process count
 const tail = cases
   .filter((entry) => !entry.burst)
-  .flatMap((entry) => entry.arms.map((arm) => ({ rate: entry.rate, processes: entry.processes, apart: entry.apart, arm: arm.arm, conflictShare: arm.conflictShare, p50Ms: arm.p50Ms.median, p99Ms: arm.p99Ms.median, reading: arm.reading.outcome })))
-  .sort((a, b) => a.arm.localeCompare(b.arm) || Number(a.apart) - Number(b.apart) || a.rate - b.rate || a.processes - b.processes);
+  .flatMap((entry) => entry.arms.map((arm) => ({ rate: entry.rate, processes: entry.processes, apart: entry.apart, tmpfs: entry.tmpfs, arm: arm.arm, conflictShare: arm.conflictShare, p50Ms: arm.p50Ms.median, p99Ms: arm.p99Ms.median, reading: arm.reading.outcome })))
+  .sort((a, b) => a.arm.localeCompare(b.arm) || Number(a.apart) - Number(b.apart) || Number(a.tmpfs) - Number(b.tmpfs) || a.rate - b.rate || a.processes - b.processes);
 
 const report = {
   schema: "tenant-bench/1",
   run: values.run ?? "",
   rule: READING_RULE,
   ruleChange: READING_RULE_CHANGE,
-  aa: { noise: round(band.noise, 4), high: round(band.high, 3), median: round(band.median, 3), cases: band.cases },
+  aa: band ? { noise: round(band.noise, 4), high: round(band.high, 3), median: round(band.median, 3), cases: band.cases } : null,
   tail,
   cases,
   env: jobs.map(({ job, env }) => ({ job, env })),

@@ -9,12 +9,21 @@
  *
  * The suite `tenant-ceiling` asks which of the two limits the ceiling of the one collection is. Its rates are
  * between the rungs. A case with `-apart` at its end keeps MongoDB and the writers on their own processors.
+ *
+ * The suite `tenant-separate` asks which part of the one collection stops it. Its arms are the store with its queue off,
+ * with many counters, and with both. A case with `-tmpfs` at its end uses a MongoDB with its files in memory, so no disk is in the path.
  */
 
 export const TENANT_CASES = ["20-p1", "20-p2", "20-p4", "200-p1", "200-p2", "200-p4", "2000-p1", "2000-p2", "20-p2-burst", "200-p2-burst"] as const;
 
 /** The cases of the suite `tenant-ceiling`: each rate with MongoDB and the writers on all processors, and apart. */
 export const CEILING_CASES = ["400-p2", "800-p2", "1200-p2", "400-p2-apart", "800-p2-apart", "1200-p2-apart"] as const;
+
+/** The cases of the suite `tenant-separate`. The rate is over the ceiling of the store, and the control of the suite `tenant-ceiling` holds it. */
+export const SEPARATE_CASES = ["800-p1", "800-p2", "800-p1-tmpfs", "800-p2-tmpfs"] as const;
+
+/** The arms of the suite `tenant-separate` that change a copy of the store. */
+export const SEPARATE_ARMS = ["noqueue", "many", "neither"] as const;
 
 /** The processors of MongoDB in a case with `-apart`. */
 export const MONGO_CORES = "0,1";
@@ -26,7 +35,10 @@ export const WRITER_CORES = "2,3";
 export const ALL_CORES = "0-3";
 
 /** The arms of the bench. */
-export type TenantArm = "store" | "control";
+export type TenantArm = "store" | "control" | (typeof SEPARATE_ARMS)[number];
+
+/** The arms of the bench, in the order of a report. */
+export const TENANT_ARMS: readonly TenantArm[] = ["store", "control", ...SEPARATE_ARMS];
 
 /** The writes of an active tenant in one second: the first guess of the scale ladder. */
 export const WRITES_PER_TENANT = 0.2;
@@ -67,15 +79,16 @@ export interface TenantCase {
   readonly processes: number;
   readonly burst: boolean;
   readonly apart: boolean;
+  readonly tmpfs: boolean;
   readonly active: number;
 }
 
 /** This function reads a case from its id. */
 export function parseTenantCase(id: string): TenantCase {
-  const match = /^(\d+)-p(\d+)(-burst)?(-apart)?$/.exec(id);
-  if (!match) throw new RangeError(`the case ${id} is not <rate>-p<processes>[-burst][-apart]`);
+  const match = /^(\d+)-p(\d+)(-burst)?(-apart)?(-tmpfs)?$/.exec(id);
+  if (!match) throw new RangeError(`the case ${id} is not <rate>-p<processes>[-burst][-apart][-tmpfs]`);
   const rate = Number(match[1]);
-  return { rate, processes: Number(match[2]), burst: match[3] !== undefined, apart: match[4] !== undefined, active: Math.round(rate / WRITES_PER_TENANT) };
+  return { rate, processes: Number(match[2]), burst: match[3] !== undefined, apart: match[4] !== undefined, tmpfs: match[5] !== undefined, active: Math.round(rate / WRITES_PER_TENANT) };
 }
 
 /**
@@ -98,6 +111,23 @@ export interface CoreShare {
   readonly busy: number;
   /** The share of the time in a wait for the disk. */
   readonly iowait: number;
+}
+
+/** The disk with the most writes in the load. */
+export interface DiskRead {
+  readonly device: string;
+  readonly writesPerSecond: number;
+  readonly mbPerSecond: number;
+  /** The mean time of a write of the device. */
+  readonly msPerWrite: number;
+  /** The share of the load in which the device had work. */
+  readonly busy: number;
+}
+
+/** The journal of MongoDB in the load. */
+export interface JournalRead {
+  readonly syncsPerSecond: number;
+  readonly msPerSync: number;
 }
 
 /** One line of the counts of a child. A time is in milliseconds, from the planned time of the write. */
@@ -127,4 +157,12 @@ export interface TenantCount {
   readonly transactionsAborted: number;
   /** The processors of the machine in the load. The value is null where the machine has no `/proc/stat`. */
   readonly cores: readonly CoreShare[] | null;
+  /** The disk in the load. The value is null where the machine has no `/proc/diskstats`. A record from before this field has none. */
+  readonly disk?: DiskRead | null;
+  /** The journal in the load. The value is null where the server does not give it. A record from before this field has none. */
+  readonly journal?: JournalRead | null;
+  /** The share of one processor that each writer used in the load. A value near 1 means that the writer is the limit. */
+  readonly writerBusy?: readonly number[];
+  /** One message of each kind of failure, with its count. */
+  readonly errors?: Readonly<Record<string, number>>;
 }

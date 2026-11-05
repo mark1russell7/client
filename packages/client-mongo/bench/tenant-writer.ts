@@ -10,8 +10,8 @@
 import { createInterface } from "node:readline";
 import { parseArgs } from "node:util";
 import { MongoClient } from "mongodb";
-import { MongoDocumentStorage } from "../src/storage/document-storage.js";
-import { CONTROL_COLLECTIONS, GRACE_MS, TENANT_BYTES, WINDOW_MS, WRITE_CONFLICT, parseTenantCase, tenantOf } from "./tenant-cases.js";
+import type { MongoDocumentStorage } from "../src/storage/document-storage.js";
+import { CONTROL_COLLECTIONS, GRACE_MS, SEPARATE_ARMS, TENANT_ARMS, TENANT_BYTES, WINDOW_MS, WRITE_CONFLICT, parseTenantCase, tenantOf, type TenantArm } from "./tenant-cases.js";
 import { planOf } from "./tenant-plan.js";
 
 const { values } = parseArgs({
@@ -25,8 +25,11 @@ const { values } = parseArgs({
 });
 const { arm, case: caseName, seed, me: meText, database } = values;
 const url = process.env["MONGO_TEST_URL"];
-if ((arm !== "store" && arm !== "control") || !caseName || !seed || !meText || !database || !url) throw new RangeError("this writer needs --arm, --case, --seed, --me, --database and MONGO_TEST_URL");
+if (!TENANT_ARMS.includes(arm as TenantArm) || !caseName || !seed || !meText || !database || !url) throw new RangeError("this writer needs --arm, --case, --seed, --me, --database and MONGO_TEST_URL");
 const me = Number(meText);
+// An arm of the suite `tenant-separate` uses a copy of the store, which its run writes next to the source
+const source = (SEPARATE_ARMS as readonly (string | undefined)[]).includes(arm) ? `../src/storage/document-storage.${arm}.ts` : "../src/storage/document-storage.ts";
+const { MongoDocumentStorage: Storage } = (await import(source)) as typeof import("../src/storage/document-storage.js");
 const kase = parseTenantCase(caseName);
 const plan = planOf(caseName, seed);
 
@@ -40,13 +43,15 @@ const db = client.db(database);
 
 type Store = MongoDocumentStorage<{ text: string }>;
 const stores: Store[] = Array.from({ length: kase.active }, (_, tenant) => {
-  const collection = arm === "store" ? "docs" : `docs${tenant % CONTROL_COLLECTIONS}`;
-  return new MongoDocumentStorage<{ text: string }>({ collection, partition: `t${tenant}`, db: () => db, client: () => client });
+  const collection = arm === "control" ? `docs${tenant % CONTROL_COLLECTIONS}` : "docs";
+  return new Storage<{ text: string }>({ collection, partition: `t${tenant}`, db: () => db, client: () => client });
 });
 const text = "x".repeat(TENANT_BYTES);
 
 // The first write of a store in a process notes its floor and makes its indexes. The bench measures the writes after it.
-await Promise.all(stores.map((store) => store.set(`first${me}`, { text })));
+// One collection takes them one at a time, because an arm with no queue has nothing else that holds them back.
+if (arm === "control") await Promise.all(stores.map((store) => store.set(`first${me}`, { text })));
+else for (const store of stores) await store.set(`first${me}`, { text });
 
 const lines = createInterface({ input: process.stdin });
 const startAt = await new Promise<number>((resolve) => {
@@ -64,6 +69,13 @@ const now = (): number => performance.now() - zero;
 const end = WINDOW_MS + GRACE_MS;
 const completions: { index: number; sent: number; done: number | null }[] = [];
 let failures = 0;
+const errors: Record<string, number> = {};
+const cpuAtStart = process.cpuUsage();
+let writerBusy = 0;
+const busyTimer = setTimeout(() => {
+  const used = process.cpuUsage(cpuAtStart);
+  writerBusy = (used.user + used.system) / 1000 / WINDOW_MS;
+}, WINDOW_MS);
 
 for (let index = me; index < plan.times.length; index += kase.processes) {
   const planned = plan.times[index]!;
@@ -79,8 +91,10 @@ for (let index = me; index < plan.times.length; index += kase.processes) {
       const done = now();
       if (done <= end) completion.done = done;
     },
-    () => {
+    (error: unknown) => {
       failures++;
+      const kind = (error instanceof Error ? error.message : String(error)).slice(0, 200);
+      errors[kind] = (errors[kind] ?? 0) + 1;
     }
   );
 }
@@ -89,5 +103,6 @@ for (let index = me; index < plan.times.length; index += kase.processes) {
 while (now() < end && completions.filter((entry) => entry.done === null).length > failures) await new Promise((resolve) => setTimeout(resolve, 100));
 
 // A write to a pipe can still be in progress when the process ends, so the exit waits for its callback. The line of a high rate is long.
-process.stdout.write(`${JSON.stringify({ completions, failures, writeConflicts })}
+clearTimeout(busyTimer);
+process.stdout.write(`${JSON.stringify({ completions, failures, writeConflicts, errors, writerBusy })}
 `, () => process.exit(0));

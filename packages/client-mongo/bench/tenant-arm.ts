@@ -1,5 +1,5 @@
 /**
- * One child of `freshRun` for the tenant load bench: `--arm store|control --case <case> --job <n> --counts <file>`.
+ * One child of `freshRun` for the tenant load bench: `--arm <arm> --case <case> --job <n> --counts <file>`.
  *
  * The child starts the writers of the case in their own processes, gives them one start time and joins their
  * completions into the measure of one open-loop run. It reads the counters of the server over the load and the
@@ -7,6 +7,7 @@
  *
  * With `MONGO_CONTAINER`, the child puts that container on its processors for the case. A case with `-apart` needs it.
  * MongoDB keeps the sizes of its thread pools from its start, because the change comes after that start.
+ * A case with `-tmpfs` uses the server of `MONGO_TMPFS_URL`.
  */
 
 import { execFileSync, spawn } from "node:child_process";
@@ -19,15 +20,16 @@ import { parseArgs } from "node:util";
 import { latencyQuantile, measureLoad, scheduleHeld, type Completion } from "@mark1russell7/rigor-chaos";
 import { median, quantile } from "@mark1russell7/rigor-statistics";
 import { MongoClient } from "mongodb";
-import { ALL_CORES, BURST_TENANT, DRIVER_LIMIT_MS, GRACE_MS, MONGO_CORES, WINDOW_MS, WRITER_CORES, parseTenantCase, tenantOf, type CoreShare, type TenantCount } from "./tenant-cases.js";
+import { ALL_CORES, BURST_TENANT, DRIVER_LIMIT_MS, GRACE_MS, MONGO_CORES, TENANT_ARMS, WINDOW_MS, WRITER_CORES, parseTenantCase, tenantOf, type CoreShare, type DiskRead, type JournalRead, type TenantArm, type TenantCount } from "./tenant-cases.js";
 import { planOf } from "./tenant-plan.js";
 
 const { values } = parseArgs({ options: { arm: { type: "string" }, case: { type: "string" }, job: { type: "string" }, counts: { type: "string" } } });
 const { arm, case: caseName, job, counts } = values;
-const url = process.env["MONGO_TEST_URL"];
-if ((arm !== "store" && arm !== "control") || !caseName || !job || !counts || !url) throw new RangeError("this child needs --arm, --case, --job, --counts and MONGO_TEST_URL");
+if (!TENANT_ARMS.includes(arm as TenantArm) || !caseName || !job || !counts) throw new RangeError("this child needs --arm, --case, --job and --counts");
 
 const kase = parseTenantCase(caseName);
+const url = process.env[kase.tmpfs ? "MONGO_TMPFS_URL" : "MONGO_TEST_URL"];
+if (!url) throw new RangeError(`the case ${caseName} needs the address of its server`);
 const seed = `${job}/${process.pid}`;
 const database = `tenant_bench_${process.pid}`;
 const plan = planOf(caseName, seed);
@@ -37,6 +39,8 @@ interface WriterResult {
   readonly completions: Completion[];
   readonly failures: number;
   readonly writeConflicts: number;
+  readonly errors: Readonly<Record<string, number>>;
+  readonly writerBusy: number;
 }
 
 const container = process.env["MONGO_CONTAINER"];
@@ -48,6 +52,7 @@ const writers = Array.from({ length: kase.processes }, (_, me) => {
   const command = [...(kase.apart ? ["taskset", "-c", WRITER_CORES] : []), ...writerCommand, "--me", String(me), "--database", database];
   const child = spawn(command[0]!, command.slice(1), {
     stdio: ["pipe", "pipe", "inherit"],
+    env: { ...process.env, MONGO_TEST_URL: url },
   });
   const out = createInterface({ input: child.stdout });
   const ready = new Promise<void>((resolve, reject) => {
@@ -101,20 +106,82 @@ function coreShares(from: CoreTimes | null, to: CoreTimes | null): CoreShare[] |
   });
 }
 
+interface DiskTimes {
+  readonly writes: number;
+  readonly sectors: number;
+  readonly writeMs: number;
+  readonly busyMs: number;
+}
+
+/** This function reads the counters of each whole disk. The value is null where the machine has no `/proc/diskstats`. */
+function readDisks(): Map<string, DiskTimes> | null {
+  let text: string;
+  try {
+    text = readFileSync("/proc/diskstats", "utf8");
+  } catch {
+    return null;
+  }
+  const disks = new Map<string, DiskTimes>();
+  for (const line of text.split("\n")) {
+    const fields = line.trim().split(/\s+/);
+    if (!/^(sd[a-z]+|vd[a-z]+|nvme\d+n\d+)$/.test(fields[2] ?? "")) continue;
+    disks.set(fields[2]!, { writes: Number(fields[7]), sectors: Number(fields[9]), writeMs: Number(fields[10]), busyMs: Number(fields[12]) });
+  }
+  return disks;
+}
+
+/** This function gives the disk with the most writes between two reads. */
+function diskRead(from: Map<string, DiskTimes> | null, to: Map<string, DiskTimes> | null): DiskRead | null {
+  if (!from || !to) return null;
+  const seconds = WINDOW_MS / 1000;
+  const reads = [...to].map(([device, end]) => {
+    const start = from.get(device)!;
+    const writes = end.writes - start.writes;
+    return { device, writes, sectors: end.sectors - start.sectors, writeMs: end.writeMs - start.writeMs, busyMs: end.busyMs - start.busyMs };
+  });
+  const top = reads.sort((a, b) => b.writes - a.writes)[0];
+  if (!top) return null;
+  return {
+    device: top.device,
+    writesPerSecond: Number((top.writes / seconds).toFixed(1)),
+    mbPerSecond: Number(((top.sectors * 512) / 1e6 / seconds).toFixed(2)),
+    msPerWrite: Number((top.writes === 0 ? 0 : top.writeMs / top.writes).toFixed(3)),
+    busy: Number((top.busyMs / WINDOW_MS).toFixed(3)),
+  };
+}
+
+/** This function reads the syncs of the journal. The value is null where the server does not give them. */
+async function readJournal(): Promise<{ syncs: number; micros: number } | null> {
+  const status = await admin.db("admin").command({ serverStatus: 1 });
+  const log = status["wiredTiger"]?.["log"];
+  const syncs = log?.["log sync operations"];
+  const micros = log?.["log sync time duration (usecs)"];
+  return syncs === undefined || micros === undefined ? null : { syncs: Number(syncs), micros: Number(micros) };
+}
+
 await Promise.all(writers.map((writer) => writer.ready));
 const before = await serverCounts();
 const startAt = Date.now() + 1_000;
 for (const writer of writers) writer.child.stdin.write(`${startAt}\n`);
 
-const inLoad = (async (): Promise<CoreShare[] | null> => {
+const inLoad = (async (): Promise<{ cores: CoreShare[] | null; disk: DiskRead | null; journal: JournalRead | null }> => {
   await sleep(Math.max(startAt - Date.now(), 0));
   const from = readCores();
+  const disksFrom = readDisks();
+  const journalFrom = await readJournal();
   await sleep(WINDOW_MS);
-  return coreShares(from, readCores());
+  const cores = coreShares(from, readCores());
+  const disk = diskRead(disksFrom, readDisks());
+  const journalTo = await readJournal();
+  const syncs = journalFrom && journalTo ? journalTo.syncs - journalFrom.syncs : 0;
+  const journal = journalFrom && journalTo
+    ? { syncsPerSecond: Number((syncs / (WINDOW_MS / 1000)).toFixed(1)), msPerSync: Number((syncs === 0 ? 0 : (journalTo.micros - journalFrom.micros) / 1000 / syncs).toFixed(3)) }
+    : null;
+  return { cores, disk, journal };
 })();
 
 const results = await Promise.all(writers.map((writer) => writer.result));
-const cores = await inLoad;
+const { cores, disk, journal } = await inLoad;
 const after = await serverCounts();
 
 const end = WINDOW_MS + GRACE_MS;
@@ -143,7 +210,7 @@ const othersP99 = quantile(othersValues, 0.99, "nearest-rank");
 const p99Ms = latencyQuantile(measure, 0.99);
 const line: TenantCount = {
   job,
-  arm,
+  arm: arm as TenantArm,
   case: caseName,
   planned: measure.planned,
   unsent: measure.unsent,
@@ -161,6 +228,12 @@ const line: TenantCount = {
   transactionsStarted: after.started - before.started,
   transactionsAborted: after.aborted - before.aborted,
   cores,
+  disk,
+  journal,
+  writerBusy: results.map((result) => Number(result.writerBusy.toFixed(3))),
+  errors: Object.fromEntries(
+    results.flatMap((result) => Object.entries(result.errors)).reduce((all, [kind, count]) => all.set(kind, (all.get(kind) ?? 0) + count), new Map<string, number>())
+  ),
 };
 appendFileSync(counts, `${JSON.stringify(line)}\n`);
 await admin.db(database).dropDatabase().catch(() => undefined);
