@@ -1364,7 +1364,8 @@ withMongo("the race of a change cursor and a write in flight, on a real store (C
     /**
      * This row measures how often seeded schedules reach the gap between the second mark and the read of the rows.
      * It prints the count and asserts no count. The gated row of the delta gap is the flip of the bound: it reaches
-     * the gap on each run. On the first CI run, the seeded row went back 0 times on the transaction path.
+     * the gap on each run, and it is the only flip of that gap. On the first CI run, the seeded schedules reached
+     * the gap in 0 of 20 schedules on the transaction path. So a green seeded row is no evidence for the gap on any path.
      */
     it("seeded schedules with a read of the rows with no upper bound: the count of values that go back", async (context) => {
       if (path === "transaction" && !replicaSet) return context.skip?.("the path needs a replica set");
