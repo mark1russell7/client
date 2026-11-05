@@ -6,7 +6,9 @@ name: Stream cost
 # fresh process against a real MongoDB. The report pools the jobs.
 #
 # The input `suite` selects the bench. The suite `read` gives the reads per second of a burst of
-# change reads, first read and delta read, of document-storage.ts (roadmap CLI-91).
+# change reads, first read and delta read, of document-storage.ts (roadmap CLI-91). The suite `write`
+# gives the cost of the queue of a burst of writes. The suite `tenant` gives an open-loop load of
+# tenants in one collection against the first guess of the ladder (roadmap CLI-95).
 #
 # The workflow only reports: only a dispatch starts it, and no ruleset needs its checks.
 
@@ -28,6 +30,7 @@ on:
           - stream
           - read
           - write
+          - tenant
         default: stream
       runs:
         description: The jobs, from 1 to 9. Five or more for a limit.
@@ -74,7 +77,7 @@ jobs:
     needs: plan
     name: stream cost (job ${{ matrix.job }})
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: ${{ inputs.suite == 'tenant' && 90 || 60 }}
     strategy:
       fail-fast: false
       # The runners are shared by all repositories of the account (the rule runner-budget)
@@ -93,6 +96,16 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --filter mark1russell7-monorepo --filter "@procedures/mongo..."
       - run: pnpm --filter "@procedures/mongo^..." run build
+      # rigor-chaos 0.1.0 is not on npm yet, so this suite takes it from a commit of its home.
+      - name: Take the load package from its commit
+        if: inputs.suite == 'tenant'
+        env:
+          RIGOR_COMMIT: 76ecba2149b6388d66823e51c2c41501b4588215
+        run: |
+          git clone --filter=blob:none https://github.com/mark1russell7/rigor.git "$RUNNER_TEMP/rigor"
+          git -C "$RUNNER_TEMP/rigor" checkout --detach "$RIGOR_COMMIT"
+          (cd "$RUNNER_TEMP/rigor" && pnpm install --frozen-lockfile --filter "@mark1russell7/rigor-chaos...")
+          ln -s "$RUNNER_TEMP/rigor/packages/chaos" packages/client-mongo/node_modules/@mark1russell7/rigor-chaos
       - name: Write the arm before
         env:
           BASE: ${{ inputs.base }}
