@@ -115,7 +115,7 @@ import {
 } from "@procedures/collections";
 import { optionalMs, toMs, type Duration } from "@procedures/client";
 import { ensureConnection } from "../connection.js";
-import { noteOwnNumbers, notePrunedIds } from "./own-writes.js";
+import { noteOwnNumbers, notePrunedIds, ownerOf } from "./own-writes.js";
 import { boundPipeline, cutResults, DEFAULT_PIPELINE_LIMITS, scopePipeline, type PipelineLimits } from "./pipeline-scope.js";
 
 /** The fields of the storage in a stored document. */
@@ -207,7 +207,11 @@ export const DEFAULT_STORED_FORM: StoredForm = Object.freeze({
 export interface MongoDocumentStorageOptions<T = unknown> {
   /** The MongoDB collection. */
   collection: string;
-  /** The database. The default is the database of the default connection, for each operation. */
+  /**
+   * The database. The default is the database of the default connection, for each operation.
+   * The writes and the change reads of a collection run one at a time for each client, so this function can make a new `Db` of that client at each call.
+   * Two clients do not share this order, as with two processes. A change read of each client stays correct.
+   */
   db?: (() => Db | Promise<Db>) | undefined;
   /** The partition of the storage. Without it, the storage reads and writes the documents without a partition. */
   partition?: string | undefined;
@@ -275,18 +279,19 @@ interface CounterDoc {
   pending?: PendingRange[];
 }
 
-/** True when a database is on a replica set or a sharded cluster: it has transactions. */
-const TRANSACTIONAL = new WeakMap<Db, Promise<boolean>>();
+/** True when a client is on a replica set or a sharded cluster: it has transactions. */
+const TRANSACTIONAL = new WeakMap<object, Promise<boolean>>();
 
 function hasTransactions(db: Db): Promise<boolean> {
-  let known = TRANSACTIONAL.get(db);
+  const owner = ownerOf(db);
+  let known = TRANSACTIONAL.get(owner);
   if (!known) {
     known = db
       .admin()
       .command({ hello: 1 })
       .then((hello) => typeof hello["setName"] === "string" || hello["msg"] === "isdbgrid")
       .catch(() => false);
-    TRANSACTIONAL.set(db, known);
+    TRANSACTIONAL.set(owner, known);
   }
   return known;
 }
@@ -294,12 +299,17 @@ function hasTransactions(db: Db): Promise<boolean> {
 /** The most moves of a late write to new numbers. */
 const MAX_MOVES = 10;
 
-/** The writes and the change reads of each collection of each database, one at a time. */
-const QUEUES = new WeakMap<Db, Map<string, Promise<unknown>>>();
+/**
+ * The writes and the change reads of each collection, one at a time: by the client, then by the names of the
+ * database and the collection. A new `Db` object of the same client has the same queue (roadmap CLI-93).
+ */
+const QUEUES = new WeakMap<object, Map<string, Promise<unknown>>>();
 
-function enqueue<R>(db: Db, collection: string, task: () => Promise<R>): Promise<R> {
-  let queues = QUEUES.get(db);
-  if (!queues) QUEUES.set(db, (queues = new Map()));
+function enqueue<R>(db: Db, name: string, task: () => Promise<R>): Promise<R> {
+  const owner = ownerOf(db);
+  let queues = QUEUES.get(owner);
+  if (!queues) QUEUES.set(owner, (queues = new Map()));
+  const collection = `${db.databaseName}\u0000${name}`;
   const before = queues.get(collection) ?? Promise.resolve();
   const run = before.then(task, task);
   const settled = run.then(
@@ -1122,6 +1132,11 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
   }
 
   /** The id of the document of the oldest kept change of the partition. */
+  private async floorOf(db: Db): Promise<number> {
+    const doc = await db.collection<CounterDoc>(this.countersName).findOne({ _id: this.floorId() });
+    return typeof doc?.["floor"] === "number" ? doc["floor"] : 0;
+  }
+
   private floorId(): string {
     return `floor${SEPARATOR}${this.collectionName}${SEPARATOR}${this.partition ?? ""}`;
   }
@@ -1311,14 +1326,14 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
       const match = since === undefined ? null : /^([^.]+)\.(\d+)$/.exec(since);
       if (!match || match[1] !== counter.epoch) return full();
       const from = Number(match[2]);
-      const floorDoc = await db.collection<CounterDoc>(this.countersName).findOne({ _id: this.floorId() });
-      const floor = typeof floorDoc?.["floor"] === "number" ? floorDoc["floor"] : 0;
-      if (from < floor || from > counter.seq) return full();
+      if (from < (await this.floorOf(db)) || from > counter.seq) return full();
       // A number above the watermark can belong to a write that is not visible yet: the next read gives it
       const docs = await items
         .find({ ...this.partitionFilter(), [SEQ]: { $gt: from, $lte: counter.seq } } as Filter<Stored>)
         .sort({ [SEQ]: 1 })
         .toArray();
+      // A prune raises the floor before its delete, so a query that missed a tombstone sees the new floor here (roadmap CLI-93)
+      if (from < (await this.floorOf(db))) return full();
       const changed: Array<[string, T]> = [];
       const deleted: string[] = [];
       for (const doc of docs) {
