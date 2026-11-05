@@ -33,12 +33,11 @@
     }
   },
   "bin": {
-    "mcp-dev-tools": "./bin/mcp-server.js"
+    "mcp-dev-tools": "./dist/bin.js"
   },
   "files": [
     "dist",
     "src",
-    "bin",
     "!src/**/*.test.ts",
     "!src/**/*.test.tsx",
     "!src/**/__tests__",

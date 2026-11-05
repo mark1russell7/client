@@ -15,7 +15,7 @@
     "changeset": "changeset",
     "check:api": "api-report check",
     "check:packages": "node scripts/check-packages.ts",
-    "check:boundaries": "depcruise --config .dependency-cruiser.cjs \"packages/*/src\"",
+    "check:boundaries": "depcruise --config .dependency-cruiser.ts \"packages/*/src\"",
     "check:paths-and-writes": "node scripts/check-paths-and-writes.ts",
     "check:conventions": "conventions check",
     "release:bootstrap": "node scripts/npm-bootstrap.mjs"
@@ -63,16 +63,13 @@
       },
       "typed-scripts": {
         "ignore": [
-          ".dependency-cruiser.cjs",
-          "packages/client/stryker.config.mjs",
-          "packages/impl-mcp-dev/bin/mcp-server.js",
           "scripts/lib/old-names.mjs",
           "scripts/lib/workspace.mjs",
           "scripts/npm-bootstrap.mjs",
           "scripts/publish-ci.mjs",
           "scripts/release-tags.mjs"
         ],
-        "reason": "No new JavaScript or shell scripts (the rule of 2026-10-29): this list names each file of today, one by one, and it only gets shorter. A converted file leaves the list in the same PR. Exceptions: .dependency-cruiser.cjs and stryker.config.mjs are configs that their tools read. impl-mcp-dev/bin/mcp-server.js is a published bin that the Node of a user starts, until it is TypeScript source with a built bin. publish-ci.mjs and npm-bootstrap.mjs are release files of the npm owner. Open work, converted to .ts and started with node in follow-up PRs, so the list only gets shorter: scripts/ and scripts/lib/, .github/scripts/, harness/procedures-subject/, and the JavaScript helpers of the tests of server and mark"
+        "reason": "No new JavaScript or shell scripts (the rule of 2026-10-29): this list names each file of today, one by one, and it only gets shorter. A converted file leaves the list in the same PR. Exceptions: publish-ci.mjs and npm-bootstrap.mjs are release files of the npm owner. Open work, converted to .ts and started with node in follow-up PRs, so the list only gets shorter: scripts/ and scripts/lib/, .github/scripts/, harness/procedures-subject/, and the JavaScript helpers of the tests of server and mark"
       }
     }
   }
