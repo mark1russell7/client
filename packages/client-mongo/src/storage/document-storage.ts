@@ -300,71 +300,42 @@ function hasTransactions(db: Db): Promise<boolean> {
 /** The most moves of a late write to new numbers. */
 const MAX_MOVES = 10;
 
-/** The ends of the work of one collection. These promises do not reject. */
-interface WorkQueue {
-  /** The end of each earlier write and change read. */
-  all: Promise<unknown>;
-  /** The end of the last write. */
-  writes: Promise<unknown>;
-}
-
 /**
- * The writes and the change reads of each collection: by the client, then by the names of the database and the
- * collection. A new `Db` object of the same client has the same queue (roadmap CLI-93). A write goes alone, in the
- * order of the calls. A change read goes after each earlier write, next to the other change reads. So a read and a
- * write keep the order of their calls, and a read does not wait for a read (roadmap CLI-91).
+ * The end of the last write of each collection: by the client, then by the names of the database and the collection.
+ * These promises do not reject. A new `Db` object of the same client has the same queue (roadmap CLI-93). A write goes
+ * alone, in the order of the calls. A change read is not in this queue (roadmap CLI-102). The mark of a read stops
+ * below each write in flight, so a read does not need the end of a write of this process.
  */
-const QUEUES = new WeakMap<object, Map<string, WorkQueue>>();
+const QUEUES = new WeakMap<object, Map<string, Promise<unknown>>>();
 
 /** The change reads of each client at one time. A burst of reads leaves the pool to the other operations. */
 const READS = new WeakMap<object, Semaphore>();
 
-function queueOf(db: Db, name: string): { queues: Map<string, WorkQueue>; collection: string; queue: WorkQueue } {
+/** This function starts a write after each earlier write of the collection. */
+function enqueueWrite<R>(db: Db, name: string, task: () => Promise<R>): Promise<R> {
   const owner = ownerOf(db);
   let queues = QUEUES.get(owner);
   if (!queues) QUEUES.set(owner, (queues = new Map()));
   const collection = `${db.databaseName}\u0000${name}`;
-  let queue = queues.get(collection);
-  if (!queue) queues.set(collection, (queue = { all: Promise.resolve(), writes: Promise.resolve() }));
-  return { queues, collection, queue };
-}
-
-/** This function drops the queue of a collection when this end is the last of its work. */
-function dropWhenLast(queues: Map<string, WorkQueue>, collection: string, queue: WorkQueue, end: Promise<unknown>): void {
-  void end.then(() => {
-    if (queue.all === end && queues.get(collection) === queue) queues.delete(collection);
-  });
-}
-
-const settledOf = (run: Promise<unknown>): Promise<unknown> =>
-  run.then(
+  const run = (queues.get(collection) ?? Promise.resolve()).then(task);
+  const settled = run.then(
     () => undefined,
     () => undefined
   );
-
-/** This function starts a write after each earlier write and change read of the collection. */
-function enqueueWrite<R>(db: Db, name: string, task: () => Promise<R>): Promise<R> {
-  const { queues, collection, queue } = queueOf(db, name);
-  const run = queue.all.then(task);
-  const settled = settledOf(run);
-  queue.all = settled;
-  queue.writes = settled;
-  dropWhenLast(queues, collection, queue, settled);
+  const known = queues;
+  known.set(collection, settled);
+  void settled.then(() => {
+    if (known.get(collection) === settled) known.delete(collection);
+  });
   return run;
 }
 
-/** This function starts a change read after each earlier write of the collection, next to the other change reads. */
-function enqueueRead<R>(db: Db, name: string, task: () => Promise<R>): Promise<R> {
-  const { queues, collection, queue } = queueOf(db, name);
+/** This function starts a change read within the share of the client. The read waits for no write. */
+function withReadPermit<R>(db: Db, task: () => Promise<R>): Promise<R> {
   const owner = ownerOf(db);
   let reads = READS.get(owner);
   if (!reads) READS.set(owner, (reads = new Semaphore(poolShare(db))));
-  const permits = reads;
-  const run = queue.writes.then(() => permits.withPermit(task));
-  const end = Promise.all([queue.all, settledOf(run)]);
-  queue.all = end;
-  dropWhenLast(queues, collection, queue, end);
-  return run;
+  return reads.withPermit(task);
 }
 
 /**
@@ -1377,7 +1348,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
 
   async getChangesSince(since?: string): Promise<StorageChanges<T>> {
     const { db, items } = await this.collection();
-    return enqueueRead(db, this.collectionName, async () => {
+    return withReadPermit(db, async () => {
       const counter = await this.watermark(db);
       const version = `${counter.epoch}.${counter.seq}`;
       const full = async (): Promise<StorageChanges<T>> => ({

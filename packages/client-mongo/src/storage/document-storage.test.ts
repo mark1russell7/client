@@ -743,22 +743,16 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
     }
   });
 
-  it("a read and a write keep the order of their calls (CLI-91)", async () => {
+  it("a write that has not ended is in this read or in the next, one time (CLI-102)", async () => {
     const storage = fresh<{ n: number }>();
     await storage.set("a", { n: 1 });
     const { version } = await storage.getChangesSince();
 
     const write = storage.set("b", { n: 2 });
-    const afterWrite = storage.getChangesSince(version);
-    const nextWrite = storage.set("c", { n: 3 });
-    const beforeNext = await afterWrite;
-    await Promise.all([write, nextWrite]);
-    expect(beforeNext.changed.map(([id]) => id)).toEqual(["b"]);
-
-    const read = storage.getChangesSince(beforeNext.version);
-    const late = storage.set("d", { n: 4 });
-    expect((await read).changed.map(([id]) => id)).toEqual(["c"]);
-    await late;
+    const first = await storage.getChangesSince(version);
+    await write;
+    const second = await storage.getChangesSince(first.version);
+    expect([...first.changed, ...second.changed].map(([id]) => id)).toEqual(["b"]);
   });
 
   it("a read racing writes sees each write that ended before the read started (CLI-91)", async () => {
@@ -886,7 +880,7 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
     expect({ full: delta.full, ids: delta.changed.map(([id]) => id) }).toEqual({ full: false, ids: ["d"] });
   });
 
-  it("a db option that makes a new Db at each call keeps one queue of the writes and the change reads (CLI-93)", async () => {
+  it("a db option that makes a new Db at each call keeps one queue of the writes (CLI-93)", async () => {
     const collection = `c${++next}`;
     let during: (() => Promise<unknown>) | undefined;
     const take = () => {
@@ -894,36 +888,54 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
       during = undefined;
       return once;
     };
+    /** This database runs `take` before each bulk write of the collection. */
+    const holdingWrites = (): Db => {
+      const collectionOf = (name: string): unknown => {
+        const items = db.collection(name);
+        if (name !== collection) return items;
+        const bulkWrite = items.bulkWrite.bind(items) as (...args: unknown[]) => Promise<unknown>;
+        return Object.assign(items, {
+          bulkWrite: async (...args: unknown[]) => {
+            await take()?.();
+            return bulkWrite(...args);
+          },
+        });
+      };
+      return new Proxy(db, {
+        get(target, key) {
+          if (key === "collection") return collectionOf;
+          const value: unknown = Reflect.get(target, key);
+          return typeof value === "function" ? (value as (...args: unknown[]) => unknown).bind(target) : value;
+        },
+      });
+    };
     const objects = new Set<Db>();
-    const reader = new MongoDocumentStorage<{ n: number }>({
+    const storage = new MongoDocumentStorage<{ n: number }>({
       collection,
       db: () => {
-        const held = holdingDb(collection, take);
+        const held = holdingWrites();
         objects.add(held);
         return held;
       },
       transactions: "never",
     });
-    await reader.setBatch([["a", { n: 1 }]]);
-    const { version } = await reader.getChangesSince();
 
     let written = false;
-    let finishedInsideRead = true;
-    let write: Promise<void> | undefined;
+    let finishedInsideWrite = true;
+    let second: Promise<void> | undefined;
     during = async () => {
-      write = reader.set("b", { n: 2 }).then(() => {
+      second = storage.set("b", { n: 2 }).then(() => {
         written = true;
       });
-      // A wrong queue finishes the write in this time. The right queue never does, on any machine.
+      // A wrong queue finishes the second write in this time. The right queue never does, on any machine.
       await sleep(200);
-      finishedInsideRead = written;
+      finishedInsideWrite = written;
     };
-    const changes = await reader.getChangesSince(version);
-    await write;
+    await storage.set("a", { n: 1 });
+    await second;
 
     expect(objects.size).toBeGreaterThan(1);
-    expect(finishedInsideRead).toBe(false);
-    expect(changes.changed).toEqual([]);
+    expect(finishedInsideWrite).toBe(false);
     expect(written).toBe(true);
   });
 

@@ -425,6 +425,7 @@ const STORE_MS_PER_SIZE = 5;
 const COUNTERS = "__storage_counters";
 const ROW_TIMEOUT_MS = 240_000;
 const LATE_LEASE_MS = 50;
+const FIRST_READ_ROUNDS = 10;
 const LATE_HOLD_SIZES = [0, 0, 0, 30] as const;
 
 /** The two ways of a store to take numbers: a transaction, or pending numbers. */
@@ -640,6 +641,33 @@ withMongo("the race of a change cursor and a write in flight, on a real store (C
       const row = await storeRow({ label: `${path}-no-rule`, path, family: "new", schedules: FAULT_SCHEDULES, fault: faultOf(path, db) });
       expect(row.lost.length).toBeGreaterThan(0);
     });
+  });
+
+  it.for(["transaction", "pending"] as const)("a read on the client of a held commit does not wait for it, and stays below it: %s path", async (path, context) => {
+    if (path === "transaction" && !replicaSet) return context.skip?.("the path needs a replica set");
+    const collection = `race${++next}`;
+    const stopped = gate();
+    const [store] = storesOf(path, collection, [stopped.holds, FREE, FREE]) as [MongoDocumentStorage<Item>];
+    const start = await store.getChangesSince();
+    const write = store.set("a", { v: "a" });
+    await stopped.reached;
+    const during = await store.getChangesSince(start.version);
+    stopped.open();
+    await write;
+    const after = await store.getChangesSince(during.version);
+    expect(during.changed).toEqual([]);
+    expect(after.changed.map(([id]) => id)).toEqual(["a"]);
+  });
+
+  it.for(["transaction", "pending"] as const)("a first read beside a first write has no error, and loses nothing: %s path", async (path, context) => {
+    if (path === "transaction" && !replicaSet) return context.skip?.("the path needs a replica set");
+    for (let round = 0; round < FIRST_READ_ROUNDS; round += 1) {
+      const collection = `race${++next}`;
+      const [store] = storesOf(path, collection, [FREE, FREE, FREE]) as [MongoDocumentStorage<Item>];
+      const [first] = await Promise.all([store.getChangesSince(), store.set("a", { v: "a" })]);
+      const after = await store.getChangesSince(first.version);
+      expect([...first.changed, ...after.changed].map(([id]) => id)).toEqual(["a"]);
+    }
   });
 
   it("a write past its lease loses nothing: a reader can see it twice, with one value", async () => {
