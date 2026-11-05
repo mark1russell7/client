@@ -60,7 +60,8 @@ interface Tracker {
 /** The trackers of each collection: by the client (else the `Db` object), then by the names of the database and the collection. */
 const TRACKERS = new WeakMap<object, Map<string, Set<Tracker>>>();
 
-function ownerOf(db: Db): object {
+/** This function gives the client of a database, else the `Db` object: a key that stays the same when `client.db(name)` makes a new `Db` at each call. */
+export function ownerOf(db: Db): object {
   const client = (db as { client?: unknown }).client;
   return typeof client === "object" && client !== null ? client : db;
 }
