@@ -29,7 +29,6 @@ import {
   ms,
   type CallerOptions,
   type CollectionChangeEvent,
-  type EventBus,
   type StorageChanges,
 } from "@procedures/client";
 import { InMemoryStorage } from "@procedures/collections";
@@ -91,7 +90,7 @@ const REWRITE_IDS = 4;
 
 /** One process of a race: a storage behind the procedures, and a bus for its subscribers. */
 class Host {
-  readonly bus: EventBus = createEventBus();
+  readonly bus = createEventBus();
   private readonly options: CallerOptions;
 
   constructor(storage: RaceStorage) {
