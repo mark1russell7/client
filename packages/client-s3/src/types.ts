@@ -38,24 +38,30 @@ export interface S3Config {
 export const S3UploadInputSchema: z.ZodObject<{
   bucket: z.ZodString;
   key: z.ZodString;
-  body: z.ZodString;
+  body: z.ZodOptional<z.ZodString>;
+  sourcePath: z.ZodOptional<z.ZodString>;
   contentType: z.ZodOptional<z.ZodString>;
   base64: z.ZodOptional<z.ZodBoolean>;
   metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
-}> = z.object({
-  /** S3 bucket name */
-  bucket: z.string().describe("S3 bucket name"),
-  /** Object key (path in bucket) */
-  key: z.string().describe("Object key (path in bucket)"),
-  /** Content to upload - string or base64 encoded binary */
-  body: z.string().describe("Content to upload - string or base64 encoded binary"),
-  /** Content type (e.g., "application/json", "text/plain") */
-  contentType: z.string().optional().describe("Content type (e.g., \"application/json\", \"text/plain\")"),
-  /** If true, body is base64 encoded binary data */
-  base64: z.boolean().optional().describe("If true, body is base64 encoded binary data"),
-  /** Optional metadata key-value pairs */
-  metadata: z.record(z.string(), z.string()).optional().describe("Optional metadata key-value pairs"),
-});
+}> = z
+  .object({
+    /** S3 bucket name */
+    bucket: z.string().describe("S3 bucket name"),
+    /** Object key (path in bucket) */
+    key: z.string().describe("Object key (path in bucket)"),
+    /** Content to upload - string or base64 encoded binary. Give body or sourcePath, and not the two. */
+    body: z.string().optional().describe("Content to upload - string or base64 encoded binary. Give body or sourcePath, and not the two."),
+    /** The path of a file to upload. The upload reads one part at a time, and the object is whole or absent. */
+    sourcePath: z.string().min(1).optional().describe("The path of a file to upload. The upload reads one part at a time, and the object is whole or absent."),
+    /** Content type (e.g., "application/json", "text/plain") */
+    contentType: z.string().optional().describe("Content type (e.g., \"application/json\", \"text/plain\")"),
+    /** If true, body is base64 encoded binary data */
+    base64: z.boolean().optional().describe("If true, body is base64 encoded binary data"),
+    /** Optional metadata key-value pairs */
+    metadata: z.record(z.string(), z.string()).optional().describe("Optional metadata key-value pairs"),
+  })
+  .refine((input) => (input.body !== undefined) !== (input.sourcePath !== undefined), { message: "Give body or sourcePath, and not the two" })
+  .refine((input) => input.base64 !== true || input.body !== undefined, { message: "base64 applies only to body" });
 
 export type S3UploadInput = z.infer<typeof S3UploadInputSchema>;
 

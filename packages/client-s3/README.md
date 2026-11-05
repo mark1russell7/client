@@ -175,12 +175,29 @@ console.log(result.etag);
 console.log(result.location);  // s3://my-bucket/files/document.pdf
 ```
 
+To send a large file, give `sourcePath` in place of `body`:
+
+```typescript
+await client.exec(["s3", "upload"], {
+  bucket: "my-bucket",
+  key: "backups/archive.tar.gz",
+  sourcePath: "/var/backups/archive.tar.gz",
+});
+```
+
+- The memory that the upload holds is one part: 8 MiB. For a file above 80,000 MiB, a part is the size of the file divided by 10,000.
+- A file of one part or less goes in one put. A larger file goes in a multipart upload, one part at a time.
+- The object is whole or absent. On a failure, the upload aborts and the call gives the first error.
+- When the abort also fails, S3 keeps the parts. A lifecycle rule of the bucket removes them.
+- The call fails when the size or the modification time of the file changes during the upload.
+
 **Input:**
 ```typescript
 interface S3UploadInput {
   bucket: string;                    // S3 bucket name
   key: string;                       // Object key (path in bucket)
-  body: string;                      // Content (string or base64)
+  body?: string;                     // Content (string or base64). Give body or sourcePath, and not the two.
+  sourcePath?: string;               // The path of a file to upload
   contentType?: string;              // MIME type
   base64?: boolean;                  // If true, body is base64 encoded
   metadata?: Record<string, string>; // Custom metadata
@@ -922,7 +939,7 @@ npm run clean
 
 ## The root of the files
 
-Under the root of a host (`mark --fs-root`, `procedure-server --fs-root`, `MCP_FS_ROOT`), `s3.download` writes its `destPath` only in the root. A relative `destPath` starts at the root. `s3.presign` has no path input, and the other procedures reach no file. The AWS SDK reads the credentials of the host, also under a root.
+Under the root of a host (`mark --fs-root`, `procedure-server --fs-root`, `MCP_FS_ROOT`), `s3.download` writes its `destPath` only in the root, and `s3.upload` reads its `sourcePath` only in the root. A relative `destPath` or `sourcePath` starts at the root. `s3.presign` has no path input, and the other procedures reach no file. The AWS SDK reads the credentials of the host, also under a root.
 
 The rules and the table of the procedures are in [CAPABILITIES-2026-10.md](../documentation/CAPABILITIES-2026-10.md#the-root-of-the-files-roadmap-r33).
 

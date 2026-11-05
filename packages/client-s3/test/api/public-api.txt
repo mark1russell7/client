@@ -384,7 +384,8 @@ export type S3UploadInput = z.infer<typeof S3UploadInputSchema>;
 export declare const S3UploadInputSchema: z.ZodObject<{
     bucket: z.ZodString;
     key: z.ZodString;
-    body: z.ZodString;
+    body: z.ZodOptional<z.ZodString>;
+    sourcePath: z.ZodOptional<z.ZodString>;
     contentType: z.ZodOptional<z.ZodString>;
     base64: z.ZodOptional<z.ZodBoolean>;
     metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;

@@ -77,6 +77,13 @@ import {
 } from "./types.js";
 
 // =============================================================================
+// The rules under a root of the files (roadmap R33, tracker item O36)
+// =============================================================================
+
+/** `s3.upload`: under a root, the file of `sourcePath` is in the root. A `body` names no file. */
+const UPLOAD_IN_A_ROOT: FsRootRules = { paths: ["sourcePath"] };
+
+// =============================================================================
 // Procedures
 // =============================================================================
 
@@ -86,19 +93,16 @@ const s3UploadProcedure = createProcedure()
   .output(S3UploadOutputSchema)
   .meta({
     description: "Upload content to S3 bucket",
-    // A put replaces the object of an existing key
-    effects: { reads: ["s3", "network"], writes: ["s3", "network"] },
+    // A put replaces the object of an existing key. With sourcePath, it reads that file.
+    effects: { reads: ["s3", "network", "fs"], writes: ["s3", "network"] },
     shorts: { bucket: "b", key: "k" },
     output: "json",
+    fsRoot: UPLOAD_IN_A_ROOT,
   })
   .handler(async (input: S3UploadInput): Promise<S3UploadOutput> => {
     return s3Upload(input);
   })
   .build();
-
-// =============================================================================
-// The rules under a root of the files (roadmap R33, tracker item O36)
-// =============================================================================
 
 /** `s3.download`: under a root, the file of `destPath` is in the root. Without it, the object stays in memory. */
 const DOWNLOAD_IN_A_ROOT: FsRootRules = { paths: ["destPath"] };
