@@ -92,6 +92,7 @@ import {
   type RawStorageWrite,
   type StoredForm,
 } from "./document-storage.js";
+import { SAME_TOKEN_LIMIT, SPLIT_LARGE_EVENT_STAGE, UNKNOWN_STAGE_CODE, eventJoiner, sameTokenFaults } from "./split-events.js";
 import { trackOwnNumbers, type OwnNumbers } from "./own-writes.js";
 
 /** The change of one item of a change event of a `MongoDocumentStorage` collection, from `storageChangeOf()`. */
@@ -197,6 +198,13 @@ export interface WatchStorageChangesOptions {
    * @default { initialDelay: ms(250), maxDelay: seconds(30), backoffMultiplier: 2, jitter: 1 }
    */
   backoff?: ResubscribeBackoff | undefined;
+  /**
+   * True to end the pipeline of the stream with the stage `$changeStreamSplitLargeEvent`. The watcher
+   * then joins the fragments of an event over 16 MiB. With false, such an event fails at each open,
+   * and after 5 failures at its token the subscribers get a gap.
+   * @default true
+   */
+  splitLargeEvents?: boolean | undefined;
   /** The clock of the timers and of the time limit of the own writes (default the clock of the platform). The timers do not keep a process alive. */
   clock?: Clock | undefined;
   /**
@@ -513,6 +521,9 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
   const unplaced = new Set<string>();
   /** The partitions that got a hint: the topics of a gap. */
   const partitions = new Set<string | undefined>();
+  /** True while the pipeline ends with the split stage. A server that does not know the stage sets it to false. */
+  let split = options.splitLargeEvents !== false;
+  const faults = sameTokenFaults();
   let markReady: () => void = () => undefined;
   let failReady: (error: unknown) => void = () => undefined;
   const ready = new Promise<void>((resolve, reject) => {
@@ -827,6 +838,7 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
   const onChange = (change: Document): void => {
     token = change["_id"];
     attempt = 0;
+    faults.reset();
     const type = change["operationType"];
     if (type === "drop" || type === "rename" || type === "dropDatabase") return gap(`the collection ${source.collection} had a ${String(type)}`, { operationType: type, resumeToken: true });
     const ns = asDocument(change["ns"]);
@@ -917,7 +929,7 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
     if (token === undefined && opened) gap(`the stream of ${source.collection} opens again without a resume token`, { resumeToken: false });
     let next: ChangeStream;
     try {
-      next = db.collection(source.collection).watch([], {
+      next = db.collection(source.collection).watch(split ? [SPLIT_LARGE_EVENT_STAGE] : [], {
         fullDocument: "updateLookup",
         fullDocumentBeforeChange: "whenAvailable",
         ...(token !== undefined && { startAfter: token }),
@@ -927,6 +939,9 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
       return schedule(`the stream cannot open (${messageOf(error)})`, error);
     }
     stream = next;
+    const joiner = eventJoiner();
+    /** The token at the open: a reopen at the same token is no success, so the backoff does not start again. */
+    const openToken = JSON.stringify(token ?? null);
     let ended = false;
     const end = (reason: string, error?: unknown): void => {
       if (ended) return;
@@ -942,13 +957,27 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
         log("warn", "The server does not know the resume token", { collection: source.collection, code, resumeToken: true }, `the server does not know the resume token of ${source.collection} (code ${code})`);
         token = undefined;
       }
+      if (code === UNKNOWN_STAGE_CODE && split) {
+        // A server before 6.0.9: the stream opens again without the split stage
+        split = false;
+        log("warn", "The server does not know the stage $changeStreamSplitLargeEvent", { collection: source.collection, code }, `the server does not know the stage $changeStreamSplitLargeEvent: an event of ${source.collection} over 16 MiB gives a gap`);
+      } else if (error !== undefined) {
+        const repeats = faults.count(error, token);
+        if (repeats >= SAME_TOKEN_LIMIT) {
+          // The fault stays at one event: the next stream starts now without the token, and its open gives the gap
+          faults.reset();
+          token = undefined;
+          log("warn", "The stream fails at one token: it opens again without the token", { collection: source.collection, code, repeats }, `the stream of ${source.collection} failed ${repeats} times at one token with the code ${String(code)}: it opens again without the token`);
+        }
+      }
       schedule(`the stream ${reason}`, error);
     };
     next.on("resumeTokenChanged", (resumeToken: unknown) => {
       if (resumeToken === undefined || resumeToken === null) return;
-      token = resumeToken;
+      // In the middle of a split event, the token stays before the event: a stream that opens again gets all its fragments
+      if (!joiner.partial) token = resumeToken;
       opened = true;
-      attempt = 0;
+      if (JSON.stringify(resumeToken) !== openToken) attempt = 0;
       markReady();
       live = true;
       afterQueue();
@@ -958,12 +987,19 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
       markReady();
       live = true;
       afterQueue();
-      if (change["operationType"] === "invalidate") {
+      const result = joiner.push(change);
+      if (result.kind === "part") return;
+      if (result.kind === "missing") {
+        // The stream started after a fragment: the event cannot be read, so the subscribers read the collection in full
+        token = result.change["_id"];
+        return gap(`a split event of ${source.collection} came without its first ${result.missing} fragments`, { missing: result.missing, resumeToken: true });
+      }
+      if (result.change["operationType"] === "invalidate") {
         // The collection was dropped or renamed: the stream starts after the invalidate event
-        token = change["_id"];
+        token = result.change["_id"];
         return end("ended (invalidate)");
       }
-      onChange(change);
+      onChange(result.change);
     });
     next.on("error", (error: Error) => end(`failed: ${error.message}`, error));
     next.on("close", () => end("closed"));

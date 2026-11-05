@@ -8,6 +8,10 @@
  * the text of the first error. The rows with no large event hold the other side: a row that cannot
  * pass proves nothing.
  *
+ * The rows `-no-split` are the flip rows: the same write with `splitLargeEvents: false`. Without the
+ * split stage, the watcher must stop with one call of `onError` and the code 10334, and the hints
+ * stream must give a gap. A fix that hides the fault turns these rows red.
+ *
  * These rows need `MONGO_TEST_URL` with a replica set. On a single server, they skip.
  */
 
@@ -78,6 +82,12 @@ function failuresOf(lines: readonly Line[]): Document {
     code: first?.["code"],
     text: String(error?.message ?? error ?? "").slice(0, ERROR_TEXT_CHARACTERS),
   };
+}
+
+/** The warn lines of a logger: the count, and the message of the first. A stream that ends with no error logs no field `error`. */
+function warningsOf(lines: readonly Line[]): Document {
+  const warnings = lines.filter((line) => line.level === "warn");
+  return { warnings: warnings.length, firstWarning: warnings[0]?.message.slice(0, ERROR_TEXT_CHARACTERS) };
 }
 
 function printRow(row: Document): void {
@@ -172,7 +182,59 @@ describe.runIf(url)("a change event over the BSON limit", () => {
       await write(db, collection);
       await db.collection(collection).insertOne({ _id: SMALL_ID as never });
       const { reached, waitMs } = await reach(() => hints.some((hint) => hint.includes(SMALL_ID)));
-      printRow({ name, reached, waitMs, hints: hints.length, ...failuresOf(logger.lines) });
+      printRow({ name, reached, waitMs, hints: hints.length, ...failuresOf(logger.lines), ...warningsOf(logger.lines) });
+      expect(reached).toBe(true);
+    } finally {
+      await watch.stop();
+    }
+  });
+
+  it("watchDatabaseChanges stops once with no split stage: watcher-images-no-split", { timeout: ROW_TIMEOUT_MS }, async () => {
+    if (!replicaSet) return;
+    const db = newDb();
+    const collection = "items";
+    const logger = recordingLogger();
+    const changes: Document[] = [];
+    const errors: unknown[] = [];
+    const watch = watchDatabaseChanges(db, {
+      fullDocument: "updateLookup",
+      fullDocumentBeforeChange: "whenAvailable",
+      splitLargeEvents: false,
+      onChange: (change) => void changes.push(change),
+      onError: (error) => void errors.push(error),
+      backoff: FAST_BACKOFF,
+      logger,
+    });
+    try {
+      await watch.ready;
+      await twoImages(db, collection);
+      await db.collection(collection).insertOne({ _id: SMALL_ID as never });
+      const { reached, waitMs } = await reach(() => watch.stopped);
+      const error = errors[0] as { code?: unknown; resumeToken?: unknown } | undefined;
+      printRow({ name: "watcher-images-no-split", reached, waitMs, onError: errors.length, stopped: watch.stopped, errorCode: error?.code, ...failuresOf(logger.lines) });
+      expect(errors).toHaveLength(1);
+      expect(error?.code).toBe(10334);
+      expect(error?.resumeToken).toBeDefined();
+      expect(watch.stopped).toBe(true);
+    } finally {
+      await watch.stop();
+    }
+  });
+
+  it("watchStorageChanges gives a gap with no split stage: hints-images-no-split", { timeout: ROW_TIMEOUT_MS }, async () => {
+    if (!replicaSet) return;
+    const db = newDb();
+    const collection = "items";
+    const logger = recordingLogger();
+    const hints: string[] = [];
+    const storage = new MongoDocumentStorage<Document>({ collection, db: async () => db });
+    const watch = watchStorageChanges(storage, (_topic, hint) => void hints.push(JSON.stringify(hint)), { rawWrites: "ignore", backoff: FAST_BACKOFF, logger, splitLargeEvents: false });
+    try {
+      await watch.ready;
+      await twoImages(db, collection);
+      await db.collection(collection).insertOne({ _id: SMALL_ID as never });
+      const { reached, waitMs } = await reach(() => hints.some((hint) => hint.includes('"reset":true')));
+      printRow({ name: "hints-images-no-split", reached, waitMs, hints: hints.length, ...failuresOf(logger.lines), ...warningsOf(logger.lines) });
       expect(reached).toBe(true);
     } finally {
       await watch.stop();

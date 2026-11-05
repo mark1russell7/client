@@ -734,6 +734,7 @@ export interface WatchDatabaseChangesOptions<TChange extends Document = ChangeSt
     fullDocument?: "updateLookup" | "whenAvailable" | "required" | undefined;
     fullDocumentBeforeChange?: "whenAvailable" | "required" | "off" | undefined;
     pipeline?: Document[] | undefined;
+    splitLargeEvents?: boolean | undefined;
     streamOptions?: Omit<ChangeStreamOptions, "resumeAfter" | "startAfter" | "startAtOperationTime" | "fullDocument" | "fullDocumentBeforeChange"> | undefined;
     backoff?: ResubscribeBackoff | undefined;
     logger?: Logger | undefined;
@@ -1043,6 +1044,7 @@ export interface WatchStorageChangesOptions {
     sweep?: boolean | undefined;
     sweepAtOpen?: boolean | undefined;
     backoff?: ResubscribeBackoff | undefined;
+    splitLargeEvents?: boolean | undefined;
     clock?: Clock | undefined;
     logger?: Logger | undefined;
     log?: ((level: "info" | "warn" | "error", message: string) => void) | undefined;
