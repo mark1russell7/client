@@ -3,8 +3,11 @@
  * for each partition on one source. The rungs are the acceptance of the roadmap item.
  */
 
-/** The rungs that a start before the change finishes, so that both arms have a time. */
-export const PAIRED_RUNGS = [1, 100] as const;
+/**
+ * These rungs have a start before the change that finishes, so both arms have a time. A stream for
+ * each view fills the default pool over about 100 partitions. The A/A band needs five cases.
+ */
+export const PAIRED_RUNGS = [1, 3, 10, 30, 100] as const;
 
 /** The top rung. A start before the change does not finish on the default pool. */
 export const TOP_RUNG = 1_000;
@@ -51,6 +54,8 @@ export interface StreamCount {
   readonly burstMs: number;
   /** The worst time of a query of the same pool during the burst. */
   readonly burstProbeMs: number;
+  /** The connections that the server has at the end of the burst, over the count before the start. */
+  readonly burstConnections: number;
   /** The longest block of the event loop during the burst. */
   readonly burstBlockMs: number;
   /** The resident memory of the child at the end of the start, in MB. */
