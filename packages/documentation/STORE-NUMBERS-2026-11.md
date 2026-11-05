@@ -78,11 +78,30 @@ Form A, if its arm reads as predicted. The numbers of the arms decide this, and 
 | Reading | Run | Value |
 | --- | --- | --- |
 | Rates of each form, offered until it stops keeping up | [41983359376](https://github.com/mark1russell7/client/actions/runs/41983359376) | Not read yet |
-| The rule, for each form and each release case | [41983282157](https://github.com/mark1russell7/client/actions/runs/41983282157) | Not read yet |
+| The rule, for each form and each release case | [41983282157](https://github.com/mark1russell7/client/actions/runs/41983282157) | Each of the 10 cases gave its expected result. The table below has the counts |
+
+The test of the rule ran 2 jobs of 3 rounds for each case with two writers. Each round had 15 s of writes:
+
+| Case | Replies | Writes lost | Expected |
+| --- | ---:| ---:| --- |
+| `today` | 6,928 | 0 | None |
+| `control-outside` | 13,018 | 10,116 | Some |
+| `forma` | 24,731 | 0 | None |
+| `formb` | 62,551 | 0 | None |
+| `release-forma-new-reader` | 32,335 | 1,156 | Some |
+| `release-forma-old-reader` | 32,244 | 18,908 | Some |
+| `release-formb-new-reader` | 21,392 | 0 | None |
+| `release-formb-old-reader` | 21,783 | 0 | None |
+| `formc-stamp` | 4 | 2 | Some |
+| `formc-stream` | 4 | 0 | None |
+
+The control lost writes, so the test can find a loss. A count of 0 is a result for these rounds and this hold of up to 20 ms. It is not a proof for each order of steps.
+
+The guard of form A has no case yet, so this table does not cover the release of form A with its guard.
 
 ## The release plan of form A
 
-A rolling release runs old and new processes on one collection. Old processes write to the counter of the collection. New readers read the counter of the partition. So a release with no guard loses reads, and the case `release-forma-new-reader` shows it. The plan has four steps:
+A rolling release runs old and new processes on one collection. Old processes write to the counter of the collection. New readers read the counter of the partition. So a release with no guard loses reads. Run 41983282157 shows this in two cases: `release-forma-new-reader` lost 1,156 writes in 32,335 replies, and `release-forma-old-reader` lost 18,908 in 32,244. The same run gives no loss for form B with an old or a new reader, so form B needs no flag for its release. The plan of form A has four steps:
 
 1. **Release N reads a flag and does not use it.** The counter document of the collection gets a flag. The `$inc` of a write returns it, so the flag costs no round trip.
 2. **All processes run N or later.** The operator confirms this. The store cannot see the versions of the other processes.
