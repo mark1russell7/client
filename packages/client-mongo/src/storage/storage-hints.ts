@@ -1002,7 +1002,8 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
       onChange(result.change);
     });
     next.on("error", (error: Error) => end(`failed: ${error.message}`, error));
-    next.on("close", () => end("closed"));
+    // The cursor of the driver tells its close before the error of a failed read. The end waits one turn, so the error comes first and counts
+    next.on("close", () => setImmediate(() => end("closed")));
   };
 
   void open();
