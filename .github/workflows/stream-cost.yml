@@ -6,13 +6,32 @@ name: Stream cost
 # fresh process against a real MongoDB. The report pools the jobs.
 #
 # The input `suite` selects the bench. The suite `read` gives the reads per second of a burst of
-# change reads, first read and delta read, of document-storage.ts (roadmap CLI-91).
+# change reads, first read and delta read, of document-storage.ts (roadmap CLI-91). The suite `write`
+# gives the cost of the queue of a burst of writes. The suite `gate` is the speed gate of the store
+# (roadmap CLI-94): CI runs it on each change of the store, and a dispatch gives the runs of its limit.
+# The suite `views` starts 1,000 views with a pipeline text for each partition.
 #
-# The workflow only reports: only a dispatch starts it, and no ruleset needs its checks.
+# The workflow only reports, except with `enforce`: only a dispatch starts it, and no ruleset needs its checks.
 
 on:
   workflow_dispatch:
     inputs:
+      suite:
+        description: The bench that this run starts.
+        type: choice
+        options:
+          - stream
+          - read
+          - write
+          - gate
+          - views
+          - live
+          - live-stall
+        default: stream
+      enforce:
+        description: The suite gate fails the run when a case is not within its limit.
+        type: boolean
+        default: false
       prediction:
         description: The id of the prediction that this run scores.
         required: true
@@ -21,14 +40,6 @@ on:
         description: The commit of the arm before.
         required: true
         type: string
-      suite:
-        description: The bench that this run starts.
-        type: choice
-        options:
-          - stream
-          - read
-          - read-bound
-        default: stream
       runs:
         description: The jobs, from 1 to 9. Five or more for a limit.
         type: string
@@ -46,7 +57,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.suite }}
   cancel-in-progress: false
 
 jobs:
@@ -97,22 +108,10 @@ jobs:
         env:
           BASE: ${{ inputs.base }}
         run: |
-          for file in materializer document-storage; do
-            git show "$BASE:packages/client-mongo/src/storage/$file.ts" > "packages/client-mongo/src/storage/$file.base.ts"
-          done
-      - name: Start MongoDB 7 (a single-node replica set)
-        run: |
-          docker run -d --name mongo -p 27017:27017 mongo:7 --replSet rs0 --bind_ip_all
-          for i in $(seq 1 60); do
-            docker exec mongo mongosh --quiet --eval "db.adminCommand('ping').ok" >/dev/null 2>&1 && break
-            sleep 1
-          done
-          docker exec mongo mongosh --quiet --eval "rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] })"
-          for i in $(seq 1 60); do
-            [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ] && break
-            sleep 1
-          done
-          [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ]
+          git show "$BASE:packages/client-mongo/src/storage/materializer.ts" > packages/client-mongo/src/storage/materializer.base.ts
+          mkdir packages/client-mongo/base
+          git archive "$BASE" packages/client-mongo/src | tar -x --strip-components=2 -C packages/client-mongo/base
+      - uses: ./.github/actions/start-mongo
       - name: Run the job
         working-directory: packages/client-mongo
         env:
@@ -148,16 +147,25 @@ jobs:
           merge-multiple: true
           path: packages/client-mongo/bench-out
       - name: Pool the jobs
+        id: pool
         working-directory: packages/client-mongo
         env:
           RUN: ${{ github.run_id }}
           PREDICTION: ${{ inputs.prediction }}
           SUITE: ${{ inputs.suite }}
+          ENFORCE: ${{ inputs.suite == 'gate' && inputs.enforce && '--enforce' || '' }}
         run: |
-          node --import tsx "bench/$SUITE-report.ts" --jobs bench-out --out "$SUITE-report.json" --run "$RUN"
-          { echo "Prediction: $PREDICTION"; echo '```json'; cat "$SUITE-report.json"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          # The upload below keeps the report of a failed verdict
+          status=0
+          node --import tsx "bench/$SUITE-report.ts" --jobs bench-out --out "$SUITE-report.json" --run "$RUN" $ENFORCE || status=$?
+          { echo "Prediction: $PREDICTION"; echo '```json'; cat "$SUITE-report.json" || true; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ inputs.suite }}-cost-report
           path: packages/client-mongo/${{ inputs.suite }}-report.json
-          if-no-files-found: error
+          if-no-files-found: warn
+      - name: The verdict
+        env:
+          STATUS: ${{ steps.pool.outputs.status }}
+        run: exit "$STATUS"
