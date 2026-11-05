@@ -1,15 +1,16 @@
 /**
- * A second process for a test of the change log (roadmap CLI-93): `<url> <database> <collection> <id> [hold]`.
+ * A second process for a test of the change log (roadmap CLI-93): `<url> <database> <collection> <id> [hold|crash]`.
  * This process deletes one item with a limit of one tombstone, so its write prunes the older tombstones.
  * With `hold`, the prune stops before the second of its two steps. The process then prints the name of
  * the first step, and it continues when a line arrives on its input.
+ * With `crash`, the process exits with code 7 before the second step.
  */
 
 import { once } from "node:events";
 import { MongoClient, type Db, type Document } from "mongodb";
 import { MongoDocumentStorage } from "../src/storage/document-storage.js";
 
-const [url, database, collection, id, hold] = process.argv.slice(2);
+const [url, database, collection, id, mode] = process.argv.slice(2);
 if (url === undefined || database === undefined || collection === undefined || id === undefined) throw new RangeError("this process needs <url> <database> <collection> <id>");
 
 const client = new MongoClient(url);
@@ -24,6 +25,7 @@ async function step(name: string): Promise<void> {
     first = name;
     return;
   }
+  if (mode === "crash") process.exit(7);
   process.stdout.write(`${first}\n`);
   await once(process.stdin, "data");
 }
@@ -53,7 +55,7 @@ const holding = new Proxy(db, {
   },
 }) as Db;
 
-const storage = new MongoDocumentStorage<{ n: number }>({ collection, db: () => (hold === "hold" ? holding : db), transactions: "never", maxTombstones: 1 });
+const storage = new MongoDocumentStorage<{ n: number }>({ collection, db: () => (mode === undefined ? db : holding), transactions: "never", maxTombstones: 1 });
 await storage.delete(id);
 await client.close();
 process.exit(0);
