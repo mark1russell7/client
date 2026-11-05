@@ -724,7 +724,7 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
       reset();
       expect(await storage.getChangesSince(full.version)).toMatchObject({ full: false, changed: [["b", { n: 2 }]], deleted: [] });
       // The last command reads the floor again, because a prune can pass the query (roadmap CLI-93)
-      expect(commands).toEqual(["aggregate", "find", "findOne"]);
+      expect(commands).toEqual(["aggregate", "find", "find"]);
     } finally {
       await end();
     }
@@ -906,6 +906,8 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
     });
     await reader.setBatch([["a", { n: 1 }]]);
     const { version } = await reader.getChangesSince();
+    // A delta with no change does not read the items. This write makes the read reach the hold.
+    await reader.set("c", { n: 3 });
 
     let written = false;
     let finishedInsideRead = true;
@@ -923,7 +925,7 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
 
     expect(objects.size).toBeGreaterThan(1);
     expect(finishedInsideRead).toBe(false);
-    expect(changes.changed).toEqual([]);
+    expect(changes.changed.map(([id]) => id)).toEqual(["c"]);
     expect(written).toBe(true);
   });
 
