@@ -84,6 +84,7 @@ console.log(result.text);
 for (const claim of report.claims) {
   const head = claim.claim === null ? `${claim.case}: no claim yet` : `${claim.case}: claim ${String(claim.claim)}`;
   console.log(`${head}, held in ${String(claim.k)} of ${String(claim.n)} flip runs, Wilson low ${String(claim.wilsonLow)} (${claim.record || "no flip run"})`);
+  for (const line of claim.breaks) console.log(`${claim.case}: detection does not rise with the slowdown: ${line}`);
 }
 if (values.more !== undefined && result.more.length > 0) appendFileSync(values.more, `more=${result.more.join(",")}\n`);
 if (values.enforce === true) process.exitCode = result.exitCode;

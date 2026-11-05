@@ -97,12 +97,15 @@ export interface CaseClaim {
   readonly wilsonLow: number;
   /** The record of each counted run: its slowdown, and the look of its block or "miss". */
   readonly record: string;
+  /** Each miss at a slowdown larger than a block of another run. Such a miss breaks the assumption of the counting. */
+  readonly breaks: readonly string[];
 }
 
 /**
  * This function gives the claim of a case from its flip runs. A run counts at a slowdown `x` when its flip was `x`,
  * when it held a smaller flip, or when it missed a larger flip. A larger slowdown is easier to hold. So a block below
- * `x` tells a block at `x`, and a miss above `x` tells a miss at `x`. The claim is the smallest slowdown whose counted
+ * `x` tells a block at `x`, and a miss above `x` tells a miss at `x`. This counting assumes that the detection rises
+ * with the slowdown. The field `breaks` shows each run that does not agree. The claim is the smallest slowdown whose counted
  * runs all held, with `LEAST_FLIP_RUNS` or more runs. A later miss moves the claim to the next slowdown that holds.
  */
 export function caseClaim(flips: readonly FlipRecord[], name: string): CaseClaim {
@@ -123,6 +126,7 @@ export function caseClaim(flips: readonly FlipRecord[], name: string): CaseClaim
     n: runs.length,
     wilsonLow: Number(wilson(k, runs.length).low.toFixed(3)),
     record: runs.map((flip) => `${flip.run} at ${String(flip.factor)}: ${flip.blocked ? `look ${String(flip.look ?? "-")}` : "miss"}`).join(", "),
+    breaks: own.flatMap((miss) => (miss.blocked ? [] : own.filter((held) => held.blocked && held.factor < miss.factor).map((held) => `${miss.run} missed ${String(miss.factor)}, ${held.run} held ${String(held.factor)}`))),
   };
 }
 

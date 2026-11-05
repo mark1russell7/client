@@ -248,13 +248,15 @@ describe("caseClaim", () => {
     // part-1 held 1.25 in 1 of 3 runs, and many-1 held no flip
     expect(claims["part-1"]).toMatchObject({ claim: null, k: 1, n: 3 });
     expect(claims["many-1"]).toMatchObject({ claim: null, k: 0, n: 1 });
+    expect(Object.values(claims).flatMap((claim) => claim?.breaks ?? [])).toEqual([]);
   });
 
   it("moves the claim to the next slowdown that holds after a miss, and counts a miss at a larger slowdown", () => {
     const run = (id: string, factor: number, blocked: boolean) => ({ run: id, case: "x", factor, blocked, look: 12 });
     expect(caseClaim([run("a", 1.25, true), run("b", 1.25, true)], "x").claim).toBe(1.25);
     expect(caseClaim([run("a", 1.25, true), run("b", 1.25, true), run("c", 1.25, false), run("d", 1.4, true)], "x")).toMatchObject({ claim: 1.4, k: 3, n: 3 });
-    expect(caseClaim([run("a", 1.25, true), run("b", 1.4, false)], "x")).toMatchObject({ claim: null, k: 1, n: 2 });
+    expect(caseClaim([run("a", 1.25, true), run("b", 1.4, false)], "x")).toMatchObject({ claim: null, k: 1, n: 2, breaks: ["b missed 1.4, a held 1.25"] });
+    expect(caseClaim([run("a", 1.25, false), run("b", 1.4, true)], "x").breaks).toEqual([]);
     expect(caseClaim([], "x")).toMatchObject({ claim: null, k: 0, n: 0, record: "" });
   });
 });
