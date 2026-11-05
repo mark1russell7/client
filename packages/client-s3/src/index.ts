@@ -16,6 +16,8 @@ export * from "./module.js";
 // Re-export types
 export type {
   S3Config,
+  S3UploadCall,
+  S3UploadFileInput,
   S3UploadInput,
   S3UploadOutput,
   S3DownloadInput,
@@ -45,6 +47,8 @@ export type {
 
 // Re-export schemas for external use
 export {
+  S3UploadCallSchema,
+  S3UploadFileInputSchema,
   S3UploadInputSchema,
   S3DownloadInputSchema,
   S3ListInputSchema,
