@@ -1,5 +1,19 @@
 # @procedures/dag
 
+## 0.48.0
+
+### Minor Changes
+
+- c839add: The release train: the ranges of @mark1russell7/coeval, @mark1russell7/quantity, @mark1russell7/collections, @mark1russell7/cue change to a version outside the old range.
+
+### Patch Changes
+
+- Updated dependencies [17a18ec]
+- Updated dependencies [06088f9]
+- Updated dependencies [71f9c6e]
+- Updated dependencies [c839add]
+  - @procedures/client@0.48.0
+
 ## 0.47.2
 
 ### Patch Changes
