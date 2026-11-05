@@ -1,5 +1,5 @@
 ---
-"@procedures/mongo": patch
+"@procedures/mongo": minor
 ---
 
 A change event over the BSON limit of 16 MiB no longer stops the change watchers in a loop (CLI-107).
@@ -10,3 +10,5 @@ A change event over the BSON limit of 16 MiB no longer stops the change watchers
 - `watchStorageChanges()` no longer starts its backoff again when a stream opens again at the same token.
 - The hints stream of `watchStorageChanges()` no longer loses the error of a failed read behind the close of the stream. So the bound of 5 errors counts it.
 - The streams of `ViewMaterializer` log the error of a failed read, not the close that comes before it.
+
+Breaking change: `watchDatabaseChanges()` no longer opens the stream again after each error. After 5 errors with one code at one resume token, it stops and gives the error to `onError`. To migrate, start a new watcher from `onError` when the watcher must go on. Do not give it the `resumeToken` of the error, because the same fault comes again at that token. Start it without a token, and read the changes of the gap again, as `watchStorageChanges()` does.
