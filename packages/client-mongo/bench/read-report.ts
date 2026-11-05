@@ -1,7 +1,8 @@
 /**
  * The report of the change read bench: `--jobs <folder> --out <file> [--run <id>]`. This script pools
  * the jobs, and writes for each arm and case the median and the worst of each measure. It also writes
- * the interval of the ratio after/before of the time of a burst, and the A/A band of the same run.
+ * the interval of the ratio candidate/base of the time of a burst, and the A/A band of the same run. The field
+ * `base` gives the arm of each pair: with `before`, the candidate is `after`, and with `after`, the candidate is `before`.
  */
 
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -14,6 +15,8 @@ import type { ReadCount } from "./read-cases.js";
 interface JobFile {
   readonly job: string;
   readonly env: unknown;
+  /** The arm of each pair. A job of the suite `read` has no field, and its base is `before`. */
+  readonly base?: string;
   readonly candidate: readonly PairedTime[];
   readonly aa: readonly PairedTime[];
   /** The other arms of the suite `read-bound`, by arm. */
@@ -61,6 +64,7 @@ const band = aaBand(pool.aa);
 const report = {
   schema: "read-bench/1",
   run: values.run ?? "",
+  base: [...new Set(jobs.map((job) => job.base ?? "before"))].join(" "),
   aa: { noise: round(band.noise, 4), high: round(band.high, 3), median: round(band.median, 3), cases: band.cases },
   burst: caseIntervals(pool.candidate).map((entry) => ({
     case: entry.case,

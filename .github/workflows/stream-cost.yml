@@ -41,6 +41,13 @@ on:
         description: The longest start and the longest burst of one child.
         type: string
         default: "90"
+      base_arm:
+        description: The arm of each pair of the suite read-bound. With after, the arm before starts one time for each case and round.
+        type: choice
+        options:
+          - before
+          - after
+        default: before
       mongo_delay_ms:
         description: The time that each request to MongoDB waits, for a read of a remote server. The value 0 adds no wait.
         type: string
@@ -131,11 +138,12 @@ jobs:
         working-directory: packages/client-mongo
         env:
           JOB: ${{ matrix.job }}
+          BASE_ARM: ${{ inputs.suite == 'read-bound' && inputs.base_arm || '' }}
           ROUNDS: ${{ inputs.rounds }}
           CAP: ${{ inputs.cap_seconds }}
           SUITE: ${{ inputs.suite }}
           MONGO_TEST_URL: mongodb://localhost:27017/?directConnection=true
-        run: node --import tsx "bench/$SUITE-run.ts" --job "$JOB" --rounds "$ROUNDS" --cap "$CAP" --out "bench-out/job-$JOB.json"
+        run: node --import tsx "bench/$SUITE-run.ts" --job "$JOB" --rounds "$ROUNDS" --cap "$CAP" --out "bench-out/job-$JOB.json" ${BASE_ARM:+--base "$BASE_ARM"}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: stream-cost-job-${{ matrix.job }}
