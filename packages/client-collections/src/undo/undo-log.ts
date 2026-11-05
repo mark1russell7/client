@@ -1,6 +1,6 @@
 import { applyPatch, type StoragePatch, type StoragePatchOperations } from "@procedures/client/query";
 import type { CollectionStorage } from "../storage/interface.js";
-import { inversePatch } from "./inverse.js";
+import { inversePatch, touchedValues } from "./inverse.js";
 
 /** One change of one item, as the caller gives it to `UndoLog.record`. */
 export interface UndoChange {
@@ -40,10 +40,11 @@ export interface UndoEntry {
   /** The fingerprint of the item after the change. The undo refuses an item that changed since. */
   readonly after: string;
   /**
-   * The whole item after the change, with the option `keepAfter`. `null`: the item does not exist
-   * after the change. With this value, a caller can merge a later write with the undo.
+   * The values after the change at the paths that the change touched, with the option `keepAfter`.
+   * A path through an array keeps the whole array. An entry without `inverse` keeps the whole item.
+   * `null`: the item does not exist after the change. A caller can merge a later write with this value.
    */
-  readonly afterItem?: unknown;
+  readonly afterValues?: unknown;
   /** The group of the change. */
   readonly group?: string;
   /** The time of the change, in milliseconds. */
@@ -58,7 +59,7 @@ export interface UndoLogOptions {
   readonly cap?: number;
   /** The clock, in milliseconds. The default is `Date.now`. */
   readonly now?: () => number;
-  /** True keeps the whole item after each change in its entry (`afterItem`). The default is false. */
+  /** True keeps the values after each change at the paths it touched (`afterValues`). The default is false. */
   readonly keepAfter?: boolean;
 }
 
@@ -178,7 +179,7 @@ export class UndoLog {
       id: change.id,
       ...(inverse === undefined ? { item: change.before ?? null } : { inverse }),
       after: fingerprintOf(after),
-      ...(this.#keepAfter ? { afterItem: after ?? null } : {}),
+      ...(this.#keepAfter ? { afterValues: inverse === undefined || !isObject(after) ? (after ?? null) : touchedValues(after, change.patch!) } : {}),
       ...(change.group === undefined ? {} : { group: change.group }),
       at,
       seq,
