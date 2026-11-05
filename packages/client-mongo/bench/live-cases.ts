@@ -2,16 +2,20 @@
  * The cases of the live state bench: one connection for each writer, at 8 sets a second each, and one reader. The arm
  * `store` sets a document in a collection on a real MongoDB, and its reader reads the changes after each hint. The arm
  * `live` calls `live.set`, and its reader takes the values from the events. Both arms serve the same collection, so a
- * store write of the arm `live` shows in the same counters.
+ * store write of the arm `live` shows in the same counters. The arm `storequiet` is the arm `store` with no subscriber,
+ * so a publish of a change makes no read.
  */
 
 /** The arms. The first arm is the base of the pairs. */
-export const LIVE_ARMS = ["store", "live"] as const;
+export const LIVE_ARMS = ["store", "live", "storequiet"] as const;
 /** An arm of the bench. */
 export type LiveArm = (typeof LIVE_ARMS)[number];
 
 /** The cases: the number of writers. */
 export const LIVE_CASES = ["w1", "w10", "w100"] as const;
+
+/** The cases of the suite `live-stall`: a rate that the queue of the collection serves, and a rate over its service rate. */
+export const STALL_CASES = ["w10", "w100"] as const;
 
 /** The sets of one writer in a second. */
 export const SETS_PER_SECOND = 8;
@@ -67,7 +71,7 @@ export interface LiveCount {
   readonly errors: Readonly<Record<string, { readonly count: number; readonly text: string }>>;
 }
 
-/** This function tells if the arm kept up: 95 % of the plan had a reply, with no failure, and the reader p99 is at most 1,000 ms. */
+/** This function tells if the arm kept up. The test is a reply for 95 % of the plan, no failure and a reader p99 of at most 1,000 ms. */
 export function keptUp(count: Pick<LiveCount, "planned" | "replied" | "failures" | "readerP99Ms">): boolean {
   return count.replied >= 0.95 * count.planned && count.failures === 0 && count.readerP99Ms <= 1000;
 }

@@ -739,3 +739,39 @@ describe("HybridStorage: a full pull reads only the local items that it needs", 
     await hybrid.close();
   });
 });
+
+describe("a delta that gives a write two times (CLI-102)", () => {
+  /** A remote whose log gives each row of the script, in order, one delta at a time. */
+  function scripted(deltas: ReadonlyArray<ReadonlyArray<[string, Item]>>): FlakyRemote {
+    const remote = new FlakyRemote(true, true);
+    let turn = 0;
+    remote.getChangesSince = async (since?: string): Promise<StorageChanges<Item>> => {
+      const changed = deltas[turn] ?? [];
+      if (since !== undefined) turn++;
+      return { version: `v${String(turn)}`, full: since === undefined, changed: since === undefined ? [] : [...changed], deleted: [] };
+    };
+    return remote;
+  }
+
+  it("applies a second delivery with one value and raises no conflict, with an item version", async () => {
+    const hybrid = new HybridStorage<Item>(scripted([[["k", { n: 1, v: "a" }]], [["k", { n: 1, v: "a" }]]]), {
+      syncOnInit: false,
+      versionOf: (item) => item.v,
+      conflictResolution: "error",
+    });
+    await hybrid.sync();
+    await hybrid.sync();
+    await hybrid.sync();
+    expect(await hybrid.get("k")).toEqual({ n: 1, v: "a" });
+    await hybrid.close();
+  });
+
+  it("applies a second delivery with one value and raises no conflict, with no item version", async () => {
+    const hybrid = new HybridStorage<Item>(scripted([[["k", { n: 1 }]], [["k", { n: 1 }]]]), { syncOnInit: false, conflictResolution: "error" });
+    await hybrid.sync();
+    await hybrid.sync();
+    await hybrid.sync();
+    expect(await hybrid.get("k")).toEqual({ n: 1 });
+    await hybrid.close();
+  });
+});

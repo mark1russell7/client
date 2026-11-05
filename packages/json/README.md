@@ -61,6 +61,26 @@ A pointer, a path, a JSON Patch and a merge patch cannot name `__proto__`, `cons
 - `json.patch` of the output of `json.diff` on the first value gives the second value. A property test with random JSON values examines this rule.
 - `json.merge` removes a key whose patch value is null. A patch that is not an object replaces the value.
 
+## The three-way merge
+
+`mergeThreeWay(base, ours, theirs)` joins two changes of one base value. It is a function, not a procedure. It has no policy: it gives the merged value and the list of its conflicts as data.
+
+```ts
+import { mergeThreeWay } from "@procedures/json";
+
+mergeThreeWay({ a: 1, b: 1 }, { a: 2, b: 1 }, { a: 1, b: 2 });
+// { merged: { a: 2, b: 2 }, conflicts: [] }
+
+mergeThreeWay({ a: 1 }, { a: 2 }, { a: 3 });
+// { merged: { a: 2 }, conflicts: [{ path: "/a", base: 1, ours: 2, theirs: 3 }] }
+```
+
+- Two objects merge key by key.
+- An array is one value. It merges whole, with no merge of its items.
+- `undefined` means no value, and `null` is a value.
+- A removal on one side and a change on the other side is a conflict.
+- At a conflict, the merged value holds the value of `ours`.
+
 ## The schema check
 
 `json.validate` uses the validator of [`@procedures/compiler`](../compiler), the validator that `program.check` uses. It examines a subset of JSON Schema:
