@@ -3,6 +3,8 @@
  * for each partition on one source. The rungs are the acceptance of the roadmap item.
  */
 
+import { random } from "@mark1russell7/rigor-generators";
+
 /**
  * These rungs have a start before the change that finishes, so both arms have a time. A stream for
  * each view fills the default pool over about 100 partitions. The A/A band needs five cases.
@@ -24,6 +26,30 @@ export function parseCase(id: string): number {
   const partitions = Number(size);
   if (measure !== "ready" || !Number.isInteger(partitions) || partitions < 1) throw new RangeError(`no case ${id}`);
   return partitions;
+}
+
+/** The documents of each partition: `DOCS` for the view, and one that the burst deletes. */
+export const DOCS = 5;
+
+/** The kinds of a family of views: one pipeline text for all partitions, or a text for each partition. */
+export type ViewFamily = "equal" | "varied";
+
+/** The pipeline of the family `equal`. */
+const EQUAL_PIPELINE = [{ $group: { _id: "$kind", total: { $sum: "$n" } } }];
+
+/**
+ * This function gives the pipeline of the view of a partition. A varied pipeline has a seeded match, project and length, and its own field name.
+ * The partition 0 keeps the equal text, because the bench reads its total after an insert.
+ */
+export function viewPipeline(family: ViewFamily, index: number): object[] {
+  if (family === "equal" || index === 0) return EQUAL_PIPELINE;
+  const draw = random(`stream-views-${index}`);
+  const stages: object[] = [{ $match: draw.chance(0.5) ? { n: { $lte: draw.int(1, DOCS) } } : { kind: { $in: ["a", "b"] }, n: { $gte: draw.int(0, 1) } } }];
+  for (let extra = draw.int(0, 2); extra > 0; extra--) {
+    stages.push(draw.chance(0.5) ? { $project: { kind: 1, n: 1, [`tag${draw.int(0, 999)}`]: { $literal: draw.int(0, 999) } } } : { $match: { n: { $gte: 0, $lt: draw.int(DOCS + 1, 1000) } } });
+  }
+  stages.push({ $group: { _id: "$kind", total: { $sum: "$n" }, [`most${index}`]: { $max: "$n" } } });
+  return stages;
 }
 
 /** One line of the counts of a child. A time is in milliseconds. */
@@ -62,4 +88,6 @@ export interface StreamCount {
   readonly clientMb: number;
   /** The resident memory of the server at the end of the start, in MB. */
   readonly serverMb: number;
+  /** The different pipeline texts of the views of the child. */
+  readonly distinctPipelines: number;
 }

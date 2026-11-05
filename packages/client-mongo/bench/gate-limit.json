@@ -1,0 +1,5 @@
+{
+  "limit": 1.1831,
+  "formula": "The limit of the old measure. It takes the worst of gate-margin.ts plus the spread when 5 runs of 2 jobs of 12 rounds are read.",
+  "runs": []
+}
