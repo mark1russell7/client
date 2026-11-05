@@ -282,7 +282,7 @@ export function markdownOf(record: MarkCallRecord): string {
     "",
     "## The verdict",
     "",
-    `The verdict at the budget ${record.budget} is the gate. The interval rule of STRATEGY gives it (\`analyzeInput\` of \`scripts/bench-paired.ts\`).`,
+    `The interval rule gives the verdict at the budget ${record.budget} (\`analyzeInput\` of \`scripts/bench-paired.ts\`). This run only reports: a slower verdict does not fail it, and no ruleset needs its checks.`,
     "",
     "| Base median ms | Head median ms | Base - head (median) ms | Round differences p10 to p90 ms | Head/base | A/A p10 to p90 | Effect interval | Verdict |",
     "|---|---|---|---|---|---|---|---|",
