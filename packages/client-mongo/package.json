@@ -65,6 +65,7 @@
   "devDependencies": {
     "@mark1russell7/cue": "^2.1.1",
     "@mark1russell7/rigor-bench": "^0.2.7",
+    "@mark1russell7/rigor-generators": "^0.1.5",
     "@mark1russell7/rigor-statistics": "^0.1.9",
     "@types/node": "^22.0.0",
     "typescript": "^7.0.2",
