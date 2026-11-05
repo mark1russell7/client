@@ -34,6 +34,9 @@ export const BURST_MS = 1_000;
 export const BURST_WRITES = 10;
 export const BURST_TENANT = 0;
 
+/** The server code of a write conflict. */
+export const WRITE_CONFLICT = 112;
+
 /** The most time between the plan and the send. A later send means that the run measured its driver. */
 export const DRIVER_LIMIT_MS = 100;
 
@@ -92,9 +95,9 @@ export interface TenantCount {
   readonly drift: number;
   readonly driverHeld: boolean;
   readonly driverWorstMs: number | null;
-  /** The write conflicts of the server in the load and the grace. */
+  /** The replies with a write conflict that the writers got in the load and the grace. A conflict in a transaction starts a retry. */
   readonly writeConflicts: number;
-  /** The transactions of the server in the load and the grace. An abort with a retry is a retry of the driver. */
+  /** The transactions of the server in the load and the grace. An abort that the driver retries is one more start. */
   readonly transactionsStarted: number;
   readonly transactionsAborted: number;
 }

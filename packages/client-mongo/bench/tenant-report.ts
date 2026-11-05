@@ -93,7 +93,7 @@ const cases = caseNames.map((name) => {
 const report = {
   schema: "tenant-bench/1",
   run: values.run ?? "",
-  rule: `A provisional pass has no failure, a reply to each write, at least ${KEEP_UP_SHARE} of the rate and a p99 of at most ${KEEP_UP_P99_MS} ms. The rate is a first guess, and this limit is a first reading.`,
+  rule: `A provisional pass has no failure, a reply to each write, at least ${KEEP_UP_SHARE} of the rate and a p99 of at most ${KEEP_UP_P99_MS} ms. The rate is a first guess, and this limit is a first reading. One arrival is one write of one document, so an action of an app with more writes takes the rate of its writes.`,
   aa: { noise: round(band.noise, 4), high: round(band.high, 3), median: round(band.median, 3), cases: band.cases },
   cases,
   env: jobs.map(({ job, env }) => ({ job, env })),

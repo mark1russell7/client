@@ -29,6 +29,12 @@ const database = `tenant_bench_${process.pid}`;
 const plan = planOf(caseName, seed);
 const writerFile = join(dirname(fileURLToPath(import.meta.url)), "tenant-writer.ts");
 
+interface WriterResult {
+  readonly completions: Completion[];
+  readonly failures: number;
+  readonly writeConflicts: number;
+}
+
 const writers = Array.from({ length: kase.processes }, (_, me) => {
   const child = spawn(process.execPath, ["--import", "tsx", writerFile, "--arm", arm, "--case", caseName, "--seed", seed, "--me", String(me), "--database", database], {
     stdio: ["pipe", "pipe", "inherit"],
@@ -38,17 +44,16 @@ const writers = Array.from({ length: kase.processes }, (_, me) => {
     out.once("line", () => resolve());
     child.once("exit", (code) => reject(new Error(`a writer ended with the code ${code} before it was ready`)));
   });
-  const result = new Promise<{ completions: Completion[]; failures: number }>((resolve) => {
-    void ready.then(() => out.once("line", (line) => resolve(JSON.parse(line) as { completions: Completion[]; failures: number })));
+  const result = new Promise<WriterResult>((resolve) => {
+    void ready.then(() => out.once("line", (line) => resolve(JSON.parse(line) as WriterResult)));
   });
   return { child, ready, result };
 });
 
 const admin = await MongoClient.connect(url);
-const serverCounts = async (): Promise<{ conflicts: number; started: number; aborted: number }> => {
+const serverCounts = async (): Promise<{ started: number; aborted: number }> => {
   const status = await admin.db("admin").command({ serverStatus: 1 });
   return {
-    conflicts: Number(status["metrics"]?.["operation"]?.["writeConflicts"] ?? 0),
     started: Number(status["transactions"]?.["totalStarted"] ?? 0),
     aborted: Number(status["transactions"]?.["totalAborted"] ?? 0),
   };
@@ -102,7 +107,7 @@ const line: TenantCount = {
   drift,
   driverHeld: driver.held,
   driverWorstMs: driver.worst,
-  writeConflicts: after.conflicts - before.conflicts,
+  writeConflicts: results.reduce((sum, result) => sum + result.writeConflicts, 0),
   transactionsStarted: after.started - before.started,
   transactionsAborted: after.aborted - before.aborted,
 };

@@ -11,7 +11,7 @@ import { createInterface } from "node:readline";
 import { parseArgs } from "node:util";
 import { MongoClient } from "mongodb";
 import { MongoDocumentStorage } from "../src/storage/document-storage.js";
-import { CONTROL_COLLECTIONS, GRACE_MS, TENANT_BYTES, WINDOW_MS, parseTenantCase, tenantOf } from "./tenant-cases.js";
+import { CONTROL_COLLECTIONS, GRACE_MS, TENANT_BYTES, WINDOW_MS, WRITE_CONFLICT, parseTenantCase, tenantOf } from "./tenant-cases.js";
 import { planOf } from "./tenant-plan.js";
 
 const { values } = parseArgs({
@@ -30,7 +30,12 @@ const me = Number(meText);
 const kase = parseTenantCase(caseName);
 const plan = planOf(caseName, seed);
 
-const client = await MongoClient.connect(url);
+// The server counter of write conflicts leaves out a conflict in a transaction, so the writer counts the replies.
+const client = await MongoClient.connect(url, { monitorCommands: true });
+let writeConflicts = 0;
+client.on("commandFailed", (event) => {
+  if ((event.failure as { code?: number }).code === WRITE_CONFLICT) writeConflicts++;
+});
 const db = client.db(database);
 
 type Store = MongoDocumentStorage<{ text: string }>;
@@ -50,6 +55,7 @@ const startAt = await new Promise<number>((resolve) => {
 });
 lines.close();
 
+writeConflicts = 0;
 const toStart = startAt - Date.now();
 if (toStart > 0) await new Promise((resolve) => setTimeout(resolve, toStart));
 const zero = performance.now();
@@ -82,5 +88,5 @@ for (let index = me; index < plan.times.length; index += kase.processes) {
 // The grace: stop early when each write has its reply or its failure.
 while (now() < end && completions.filter((entry) => entry.done === null).length > failures) await new Promise((resolve) => setTimeout(resolve, 100));
 
-console.log(JSON.stringify({ completions, failures }));
+console.log(JSON.stringify({ completions, failures, writeConflicts }));
 process.exit(0);
