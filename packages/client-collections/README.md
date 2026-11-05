@@ -289,6 +289,8 @@ await log.record({ collection: "notes", id: "n1", before, patch, after });
 await log.undo(); // one write to "notes", or an UndoConflictError
 ```
 
+The option `keepAfter` keeps the whole item after each change in the entry (`afterItem`). A caller can then merge a later write with the undo: the base is `afterItem`, and the value before comes from the inverse.
+
 - The inverse of a removal of an element is an insertion of the element, and the inverse of an insertion is a removal. The undo does not keep the whole array.
 - The inverse uses the indices of the item after the patch. The function applies the inverse to check it.
 - When no patch can undo a change exactly, `inversePatch` gives `undefined`. Then the log keeps the whole item before the change. An example is the removal of two adjacent elements.

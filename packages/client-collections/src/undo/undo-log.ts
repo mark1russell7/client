@@ -39,6 +39,11 @@ export interface UndoEntry {
   readonly item?: unknown;
   /** The fingerprint of the item after the change. The undo refuses an item that changed since. */
   readonly after: string;
+  /**
+   * The whole item after the change, with the option `keepAfter`. `null`: the item does not exist
+   * after the change. With this value, a caller can merge a later write with the undo.
+   */
+  readonly afterItem?: unknown;
   /** The group of the change. */
   readonly group?: string;
   /** The time of the change, in milliseconds. */
@@ -53,6 +58,8 @@ export interface UndoLogOptions {
   readonly cap?: number;
   /** The clock, in milliseconds. The default is `Date.now`. */
   readonly now?: () => number;
+  /** True keeps the whole item after each change in its entry (`afterItem`). The default is false. */
+  readonly keepAfter?: boolean;
 }
 
 /**
@@ -133,12 +140,13 @@ export class UndoLog {
   readonly #storageOf: (collection: string) => CollectionStorage<unknown> | undefined;
   readonly #cap: number;
   readonly #now: () => number;
+  readonly #keepAfter: boolean;
   #seq = 0;
 
   /**
    * @param entries - The storage of the entries of the log
    * @param storageOf - The storage of each collection that the log can undo
-   * @param options - The cap and the clock
+   * @param options - The cap, the clock and the option `keepAfter`
    */
   constructor(
     entries: CollectionStorage<UndoEntry>,
@@ -149,6 +157,7 @@ export class UndoLog {
     this.#storageOf = storageOf;
     this.#cap = Math.max(1, Math.floor(options.cap ?? 50));
     this.#now = options.now ?? Date.now;
+    this.#keepAfter = options.keepAfter ?? false;
   }
 
   /**
@@ -169,6 +178,7 @@ export class UndoLog {
       id: change.id,
       ...(inverse === undefined ? { item: change.before ?? null } : { inverse }),
       after: fingerprintOf(after),
+      ...(this.#keepAfter ? { afterItem: after ?? null } : {}),
       ...(change.group === undefined ? {} : { group: change.group }),
       at,
       seq,
