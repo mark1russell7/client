@@ -134,7 +134,7 @@ export function LiveHero(): ReactElement {
         <h2 id="live-hero-title" className="live-hero-title">
           A live program, run by the real client in your browser
         </h2>
-        <button type="button" className="ghost small-button" onClick={() => void run()} disabled={!done} aria-label="Run the program again">
+        <button type="button" className="ghost small-button" onClick={() => void run()} disabled={!done} aria-label="Run again: the live program">
           ↻ Run again
         </button>
       </div>

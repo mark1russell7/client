@@ -344,10 +344,11 @@ function countCallsIn(value: Json): number {
 function Collapsed({ value, onExpand, label }: { value: Json; onExpand: () => void; label: string }): ReactElement {
   const text = JSON.stringify(value);
   const size = Array.isArray(value) ? `${value.length} items` : `${Object.keys(value ?? {}).length} keys`;
+  const shown = text.length > 70 ? `${text.slice(0, 69)}…` : text;
   return (
     <div className="literal">
-      <button type="button" className="collapsed" onClick={onExpand} aria-label={`Edit ${label} (${size})`}>
-        <code>{text.length > 70 ? `${text.slice(0, 69)}…` : text}</code>
+      <button type="button" className="collapsed" onClick={onExpand} aria-label={`${shown} ${size}, edit ${label}`}>
+        <code>{shown}</code>
         <span className="muted"> {size} · edit</span>
       </button>
     </div>
