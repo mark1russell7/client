@@ -253,6 +253,15 @@ export interface HybridStorageOptions {
   onRefused?: (refusal: QueueRefusal) => void | Promise<void>;
 
   /**
+   * This hook gets each queued write that leaves the queue with no send that the remote took
+   * (roadmap CLI-106). The storage gives one call for each id, on a conflict that the policy
+   * `remote` decides, on a delete of the remote and on a refusal. The call comes after the local
+   * copy changed, so the hook can write the value again. An error of the hook does not stop the
+   * sync. The sync waits for the hook.
+   */
+  onDropped?: (drop: DroppedWrite) => void | Promise<void>;
+
+  /**
    * The storage of the local copy (roadmap R45). A durable storage, for example `SqliteStorage`
    * of `@procedures/sqlite`, keeps the local copy after a restart. Then a new storage in
    * `local-only` mode reads the items of the last run. Give it with a durable `queueStore`.
@@ -580,6 +589,29 @@ export interface QueueRefusal {
    * gives false. A failed read of the remote also gives false.
    */
   restored: boolean;
+}
+
+/**
+ * A queued write that left the queue with no send that the remote took: the argument of the hook
+ * `onDropped` (roadmap CLI-106). The hook can get a write again after a crash, because the store
+ * of the queue gets the change after the hook.
+ */
+export interface DroppedWrite {
+  /** The id of the write, or `"*"` for a refused clear. */
+  id: string;
+  /**
+   * The value of the write when it left the queue. Undefined for a queued delete and for a clear.
+   * The last queued write gives the value when an id has more than one.
+   */
+  value: unknown;
+  /** The cause: the policy took the remote value, the remote deleted the item, or the remote refused the write. */
+  reason: "conflict" | "remote-delete" | "refused";
+  /** The sync that dropped the write. */
+  during: "pull" | "push";
+  /** The remote value that replaced the write, for the reason `conflict`. */
+  remote?: unknown;
+  /** The error of the remote, for the reason `refused`. */
+  error?: unknown;
 }
 
 /**
@@ -989,6 +1021,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     isUnavailable: (error: unknown) => boolean;
     isRefusal: (error: unknown) => boolean;
     onRefused?: (refusal: QueueRefusal) => void | Promise<void>;
+    onDropped?: (drop: DroppedWrite) => void | Promise<void>;
   };
   private mode: HybridMode;
   private offlineOps: QueuedOperation[] = [];
@@ -1105,6 +1138,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     cacheMisses: 0,
     syncCount: 0,
     conflicts: 0,
+    dropped: 0,
   };
 
   constructor(
@@ -1132,6 +1166,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       isUnavailable: options.isUnavailable ?? defaultIsUnavailable,
       isRefusal: options.isRefusal ?? defaultIsRefusal,
       ...(options.onRefused !== undefined && { onRefused: options.onRefused }),
+      ...(options.onDropped !== undefined && { onDropped: options.onDropped }),
     };
     this.statusListeners = new StorageListeners<SyncStatus>(options.onListenerError);
     this.queryPolicy = options.queryPolicy;
@@ -2405,6 +2440,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
         cacheMisses: this.stats.cacheMisses,
         syncCount: this.stats.syncCount,
         conflicts: this.stats.conflicts,
+        dropped: this.stats.dropped,
         pendingOps: this.offlineOps.length,
         isOnline: this.isOnline,
         mode: this.mode,
@@ -2760,7 +2796,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
         this.bases.set(id, remoteVersion);
         return false;
       }
-      return this.resolvePending(id, localItem, item, remoteVersion, conflicts);
+      return this.resolvePending(id, localItem, item, remoteVersion, conflicts, "pull");
     }
 
     if (knownVersion !== undefined) {
@@ -2822,6 +2858,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
         if (!this.dropQueued(id)) break;
         await this.localDelete(id, this.syncOrigin);
         this.bases.set(id, null);
+        await this.reportDropped({ id, value: localItem, reason: "remote-delete", during: "pull" });
         return true;
       case "error":
         conflicts.push(id);
@@ -2844,6 +2881,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     remoteItem: T,
     remoteVersion: string,
     conflicts: string[],
+    during: DroppedWrite["during"],
   ): Promise<boolean> {
     this.stats.conflicts++;
     switch (this.options.conflictResolution) {
@@ -2852,6 +2890,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
         if (!this.dropQueued(id)) break;
         await this.localSet(id, remoteItem, this.syncOrigin);
         this.bases.set(id, remoteVersion);
+        await this.reportDropped({ id, value: localItem, reason: "conflict", during, remote: remoteItem });
         return true;
       case "merge": {
         if (localItem === undefined) break;
@@ -2871,6 +2910,16 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     // "local": the queued write wins, and it replaces this remote version
     this.bases.set(id, remoteVersion);
     return false;
+  }
+
+  /** This method counts a dropped write and gives it to the hook `onDropped`. An error of the hook does not stop the sync. */
+  private async reportDropped(drop: DroppedWrite): Promise<void> {
+    this.stats.dropped++;
+    try {
+      await this.options.onDropped?.(drop);
+    } catch {
+      // An error of the hook does not stop the sync
+    }
   }
 
   /**
@@ -3013,6 +3062,10 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       await this.options.onRefused?.({ operation: op, ids: all ? "*" : ids, error, restored });
     } catch {
       // An error of the hook does not stop the queue
+    }
+    for (const id of all ? ["*"] : ids) {
+      const written = this.writtenValue(op, id);
+      await this.reportDropped({ id, value: written ? written.value : undefined, reason: "refused", during: "push", error });
     }
   }
 
@@ -3449,7 +3502,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
           continue;
         }
         const localItem = await this.readLocal(id);
-        if (await this.resolvePending(id, localItem, remoteItem, remoteVersion, ids)) queueChanged = true;
+        if (await this.resolvePending(id, localItem, remoteItem, remoteVersion, ids, "push")) queueChanged = true;
         continue;
       }
       // The remote has no item: the echo of a delete, or a delete of another writer
@@ -3478,11 +3531,14 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   private async resolveRemoteDelete(id: string, conflicts: string[]): Promise<boolean> {
     this.stats.conflicts++;
     switch (this.options.conflictResolution) {
-      case "remote":
+      case "remote": {
+        const value = await this.readLocal(id);
         if (!this.dropQueued(id)) break;
         await this.localDelete(id, this.syncOrigin);
         this.bases.set(id, null);
+        await this.reportDropped({ id, value, reason: "remote-delete", during: "push" });
         return true;
+      }
       case "error":
         conflicts.push(id);
         return false;
