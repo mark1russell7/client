@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { aaBand, caseIntervals, poolRecords, type PairedTime } from "@mark1russell7/rigor-bench";
 import { median } from "@mark1russell7/rigor-statistics";
-import { KEEP_UP_P99_MS, KEEP_UP_SHARE, parseTenantCase, type TenantCount } from "./tenant-cases.js";
+import { KEEP_UP_P99_MS, KEEP_UP_SHARE, WINDOW_MS, parseTenantCase, type TenantCount } from "./tenant-cases.js";
 
 interface JobFile {
   readonly job: string;
@@ -36,12 +36,13 @@ const summary = (rows: readonly TenantCount[], pick: (row: TenantCount) => numbe
 });
 
 /** This function gives the reading of the children of one arm of one case. */
-function readingOf(rows: readonly TenantCount[], rate: number): { outcome: string; reasons: string[] } {
+function readingOf(rows: readonly TenantCount[]): { outcome: string; reasons: string[] } {
   if (rows.some((row) => !row.driverHeld)) return { outcome: "no reading", reasons: ["a driver did not keep its schedule"] };
   const reasons: string[] = [];
   if (rows.some((row) => row.failures > 0)) reasons.push("a write failed");
   if (rows.some((row) => row.unfinished + row.unsent > 0)) reasons.push("a write had no reply in the grace");
-  if (rows.some((row) => row.writesPerSecond < KEEP_UP_SHARE * rate)) reasons.push(`a child ended under ${KEEP_UP_SHARE} of the rate in the load`);
+  // The share counts against the plan of the child: a Poisson plan of 400 writes has a spread of 5 %, so the rate of the case fails a child that kept up
+  if (rows.some((row) => row.writesPerSecond * (WINDOW_MS / 1000) < KEEP_UP_SHARE * row.planned)) reasons.push(`a child ended under ${KEEP_UP_SHARE} of its plan in the load`);
   if (rows.some((row) => row.p99Ms > KEEP_UP_P99_MS)) reasons.push(`a child had a p99 over ${KEEP_UP_P99_MS} ms`);
   return { outcome: reasons.length === 0 ? "provisional pass" : "fail", reasons };
 }
@@ -59,7 +60,7 @@ const cases = caseNames.map((name) => {
     return {
       arm,
       children: rows.length,
-      reading: readingOf(rows, rate),
+      reading: readingOf(rows),
       writesPerSecond: summary(rows, (row) => row.writesPerSecond),
       p50Ms: summary(rows, (row) => row.p50Ms),
       p95Ms: summary(rows, (row) => row.p95Ms),
@@ -93,7 +94,7 @@ const cases = caseNames.map((name) => {
 const report = {
   schema: "tenant-bench/1",
   run: values.run ?? "",
-  rule: `A provisional pass has no failure, a reply to each write, at least ${KEEP_UP_SHARE} of the rate and a p99 of at most ${KEEP_UP_P99_MS} ms. The rate is a first guess, and this limit is a first reading. One arrival is one write of one document, so an action of an app with more writes takes the rate of its writes.`,
+  rule: `A provisional pass has no failure, a reply to each write, at least ${KEEP_UP_SHARE} of the plan of the child and a p99 of at most ${KEEP_UP_P99_MS} ms. The rate is a first guess, and this limit is a first reading. One arrival is one write of one document, so an action of an app with more writes takes the rate of its writes.`,
   aa: { noise: round(band.noise, 4), high: round(band.high, 3), median: round(band.median, 3), cases: band.cases },
   cases,
   env: jobs.map(({ job, env }) => ({ job, env })),
