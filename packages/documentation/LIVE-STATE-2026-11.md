@@ -72,6 +72,25 @@ Each host runs the deadlines on its own clock. The `gone` of a closed connection
 
 A limit comes from a measure, with its run ids and its formula, as for each limit of this repository.
 
+## The cost, read
+
+This read is CI run 41997833072 of the suite `live`, with 3 jobs of 3 rounds. The load is 8 sets a second per connection for 20 s, with one reader and values of approximately 200 bytes. The server, the writers and the reader share one process, so a CPU figure covers all three. The store arm has no window at its reader.
+
+| Writers | Arm | Store writes per set | Kept up (children) | Reply p50 | Reader p50 | Reader p95 | CPU per set |
+|---|---|---|---|---|---|---|---|
+| 1 | store | 3.01 | 27 of 27 | 8.48 ms | 11.28 ms | 14.95 ms | 8.49 ms |
+| 1 | live | 0 | 9 of 9 | 0.91 ms | 0.82 ms | 1.24 ms | 2.27 ms |
+| 10 | store | 2.99 | 27 of 27 | 6.49 ms | 8.92 ms | 11.77 ms | 4.58 ms |
+| 10 | live | 0 | 9 of 9 | 0.30 ms | 61.22 ms | 115.32 ms | 0.60 ms |
+| 100 | store | Not useful: the arm falls behind | 0 of 27 | 1,364 ms | 3,252 ms | 9,996 ms | Not useful |
+| 100 | live | 0 | 9 of 9 | 0.18 ms | 61.32 ms | 115.20 ms | 0.25 ms |
+
+- The window has a cost. With 10 or more writers, the reader p50 is 61 ms on the live arm and 9 ms on the store arm at 10 writers. The window of 120 ms joins the sets, so the reader gets 168 events in place of 1,600 values.
+- One writer at a rate under the window stays on the leading edge. Its reader p50 is 0.82 ms.
+- The store arm at 100 writers replied to 2 to 5 of 16,000 sets in 23 s. In that time the store took approximately 4,000 writes and the CPU had idle time. The mechanism has no name yet, so this figure shows only that the arm falls behind.
+- The bench reads 100 keys of approximately 200 bytes. So the defaults of 1,024 keys, 16,384 bytes and 4,096 topics do not come from a measure yet.
+- The field `transactions` of this bench reads 0 on the store arm, and a write of the store uses a transaction. This field has no read until that difference has a cause.
+
 ## What is not in this design
 
 - No store write of any kind, at any time. A value that must outlive the host belongs in a collection.
@@ -81,7 +100,7 @@ A limit comes from a measure, with its run ids and its formula, as for each limi
 ## Open questions
 
 1. `wsFace()` of `packages/client-server` calls `connectionClosed(id)` from `WebSocketServerTransport.onDisconnect`, and `metadata.connectionId` of a set names the owner. A host that uses `upgradeHandler()` itself calls it from `upgrade.transport.onDisconnect`.
-2. A cost to measure: each set goes through the whole invocation path. The bench reads a set at 8 a second per connection, with its prediction first.
+2. A cost to measure: the three limits above at their edges, with a prediction first.
 
 ## SemVer
 
