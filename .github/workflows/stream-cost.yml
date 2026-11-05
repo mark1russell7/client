@@ -25,6 +25,7 @@ on:
           - write
           - gate
           - gate-flip
+          - gate-many
           - views
         default: stream
       enforce:
