@@ -39,6 +39,7 @@ on:
           - tenant-forms-first
           - tenant-bound
           - tenant-bound-size
+          - tenant-bound-id
           - tenant-burst
           - tenant-order
           - tenant-rule

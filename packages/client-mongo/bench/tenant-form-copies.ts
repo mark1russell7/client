@@ -7,13 +7,14 @@
  * - `formaguard`: `forma`, and a change read gives a full result when the counter of the collection is above the frozen number 0. So an old writer shows up.
  * - `formb`: a counter outside the transaction, with a watermark for readers, and no queue. A write of one document needs no transaction here.
  * - `formbbound`: form B with a bound on the calls in progress in each process, in place of the queue.
+ * - `formbboundid`: `formbbound` with a chain for each id, so the writes of one id of one process keep their order. Only `set` has the chain in this copy.
  * - `outside`: a counter outside the transaction with no watermark. This form loses writes, so it proves that the test of the rule finds a miss.
  */
 
 import { readFileSync, writeFileSync } from "node:fs";
 
 /** The copies of the store. */
-export const FORM_COPIES = ["today", "forma", "formaguard", "formb", "formbbound", "formbbound8", "formbbound32", "outside"] as const;
+export const FORM_COPIES = ["today", "forma", "formaguard", "formb", "formbbound", "formbbound8", "formbbound32", "formbboundid", "outside"] as const;
 
 /** One copy of the store. */
 export type FormCopy = (typeof FORM_COPIES)[number];
@@ -74,9 +75,33 @@ async function formGated<R>(task: () => Promise<R>): Promise<R> {
 const boundOf = (bound: number) => (text: string): string =>
   swap(swap(text, ENQUEUE, `${formGate(bound)}${ENQUEUE}  if (db) return formGated(task);\n`), "if (client) {\n      const session = client.startSession();", "if (client && !db) {\n      const session = client.startSession();");
 
+/** The text of the rule of `formbboundid`. A write of an id starts after the end of the earlier write of this id in this process, and the entry of an id goes when its last write ends. */
+const FORM_ID_CHAIN = `const formIds = new Map<string, Promise<unknown>>();
+function formOfId<R>(key: string, task: () => Promise<R>): Promise<R> {
+  const run = (formIds.get(key) ?? Promise.resolve()).then(task);
+  const settled = run.then(() => undefined, () => undefined);
+  formIds.set(key, settled);
+  void settled.then(() => {
+    if (formIds.get(key) === settled) formIds.delete(key);
+  });
+  return run;
+}
+
+`;
+
+const SET = "  async set(id: string, value: T, options?: StorageItemWriteOptions): Promise<void> {\n";
+
+/** This function adds the rule of each id to the bound. A write that waits for its id does not hold a place of the bound, because the chain is outside the bound. */
+const boundWithIdRule = (text: string): string =>
+  swap(
+    swap(boundOf(16)(text), ENQUEUE, `${FORM_ID_CHAIN}${ENQUEUE}`),
+    SET,
+    `  async set(id: string, value: T, options?: StorageItemWriteOptions): Promise<void> {\n    return formOfId(\`\${this.collectionName}\\u001f\${this.partition ?? ""}\\u001f\${id}\`, () => this.formSet(id, value, options));\n  }\n\n  private async formSet(id: string, value: T, options?: StorageItemWriteOptions): Promise<void> {\n`,
+  );
+
 const outside = (text: string): string => swap(text, '{ upsert: true, returnDocument: "after", session }', '{ upsert: true, returnDocument: "after" }');
 
-const CHANGES: Record<FormCopy, (text: string) => string> = { today: (text) => text, forma, formaguard, formb, formbbound: boundOf(16), formbbound8: boundOf(8), formbbound32: boundOf(32), outside };
+const CHANGES: Record<FormCopy, (text: string) => string> = { today: (text) => text, forma, formaguard, formb, formbbound: boundOf(16), formbbound8: boundOf(8), formbbound32: boundOf(32), formbboundid: boundWithIdRule, outside };
 
 /** This function writes each copy of the store next to the source. */
 export function writeFormCopies(): void {

@@ -17,6 +17,7 @@
  *
  * The suite `tenant-forms` offers more until a form of the numbers stops keeping up. Its arm `control` tells a limit of the runner.
  * A case with `-hot` at its end sends all writes to one tenant, through each process. So the queue of that tenant and its counter stay in the path.
+ * A case with `-oneid` at its end sends all writes to one id of one tenant, through each process. So a rule of each id stays in the path.
  */
 
 export const TENANT_CASES = ["20-p1", "20-p2", "20-p4", "200-p1", "200-p2", "200-p4", "2000-p1", "2000-p2", "20-p2-burst", "200-p2-burst"] as const;
@@ -49,7 +50,7 @@ export const FORM_CASES = ["800-p2", "1200-p4", "1600-p4", "200-p2-hot", "400-p2
 export const FORM_ARMS = ["forma", "formb"] as const;
 
 /** The arm of the suite `tenant-bound` that the suite `tenant-forms` does not have: form B with a bound on the calls in progress. */
-export const BOUND_ARMS = ["formbbound", "formbbound8", "formbbound32"] as const;
+export const BOUND_ARMS = ["formbbound", "formbbound8", "formbbound32", "formbboundid"] as const;
 
 /** The cases of the suite `tenant-bound`: the rates where form B collapses, the hot tenant where it holds, and the burst of first loads. */
 export const BOUND_CASES = ["800-p2", "1200-p4", "200-p2-hot", "400-p2-hot", "200-p2-first10"] as const;
@@ -68,6 +69,9 @@ export interface SecondRead {
 
 /** The cases of the suite `tenant-bound-size`. A small bound can hold writes back at the first rate. The second rate is over the limit of the machine. The third case is the hot tenant. */
 export const BOUND_SIZE_CASES = ["800-p2", "1200-p4", "400-p2-hot"] as const;
+
+/** The cases of the suite `tenant-bound-id`: the cost of a rule of each id on writes of different ids, and what the rule does to a burst on one id. */
+export const BOUND_ID_CASES = ["800-p2", "400-p2-hot", "200-p2-oneid", "400-p2-oneid", "800-p2-oneid"] as const;
 
 /** The arms that use a copy of the store. */
 export const COPY_ARMS: readonly string[] = [...SEPARATE_ARMS, ...FORM_ARMS, ...BOUND_ARMS];
@@ -147,14 +151,16 @@ export interface TenantCase {
   readonly firstLoads: number;
   /** All writes go to one tenant. */
   readonly hot: boolean;
+  /** All writes go to one id of one tenant. */
+  readonly oneId: boolean;
 }
 
 /** This function reads a case from its id. */
 export function parseTenantCase(id: string): TenantCase {
-  const match = /^(\d+)-p(\d+)(-burst)?(?:-first(\d+))?(-apart)?(-tmpfs)?(-hot)?$/.exec(id);
-  if (!match) throw new RangeError(`the case ${id} is not <rate>-p<processes>[-burst][-first<n>][-apart][-tmpfs][-hot]`);
+  const match = /^(\d+)-p(\d+)(-burst)?(?:-first(\d+))?(-apart)?(-tmpfs)?(-hot)?(-oneid)?$/.exec(id);
+  if (!match) throw new RangeError(`the case ${id} is not <rate>-p<processes>[-burst][-first<n>][-apart][-tmpfs][-hot][-oneid]`);
   const rate = Number(match[1]);
-  return { rate, processes: Number(match[2]), burst: match[3] !== undefined, firstLoads: Number(match[4] ?? 0), apart: match[5] !== undefined, tmpfs: match[6] !== undefined, hot: match[7] !== undefined, active: match[7] !== undefined ? 1 : Math.round(rate / WRITES_PER_TENANT) };
+  return { rate, processes: Number(match[2]), burst: match[3] !== undefined, firstLoads: Number(match[4] ?? 0), apart: match[5] !== undefined, tmpfs: match[6] !== undefined, hot: match[7] !== undefined, oneId: match[8] !== undefined, active: match[7] !== undefined || match[8] !== undefined ? 1 : Math.round(rate / WRITES_PER_TENANT) };
 }
 
 /**

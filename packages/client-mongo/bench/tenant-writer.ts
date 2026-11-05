@@ -152,7 +152,7 @@ for (let index = me; index < plan.times.length; index += kase.processes) {
   const completion: { index: number; sent: number; done: number | null } = { index, sent, done: null };
   completions.push(completion);
   const loadWrite = firstLoadOf(kase, index, planned);
-  (loadWrite ? loadStore(loadWrite) : stores[tenantOf(kase, index, planned)]!).set(`d${index}`, { text }).then(
+  (loadWrite ? loadStore(loadWrite) : stores[tenantOf(kase, index, planned)]!).set(kase.oneId ? "d0" : `d${index}`, { text }).then(
     () => {
       const done = now();
       if (done <= end) completion.done = done;
