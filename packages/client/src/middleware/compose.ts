@@ -6,6 +6,7 @@
  * for any chain length - no manual overloads needed!
  */
 
+import { compose as foldLayers, type Layer } from "@mark1russell7/collections/layers";
 import type {
   Middleware,
   MiddlewareRunner,
@@ -47,12 +48,7 @@ export function wrapWithAsyncMiddlewares<
     true
   >
 ): MiddlewareRunner<TBaseContext, TReturn, true> {
-  const combinedRunner = middlewares.reduceRight(
-    (currentRunner, currentMiddleware) => {
-      return currentMiddleware(currentRunner);
-    },
-    fn
-  ) as MiddlewareRunner<TBaseContext, TReturn, true>;
+  const combinedRunner = foldLayers(...(middlewares as readonly Layer[]))(fn) as MiddlewareRunner<TBaseContext, TReturn, true>;
 
   // Wrap in async to ensure synchronous throws become rejected promises
   return async (context) => {
@@ -85,9 +81,7 @@ export function wrapWithSyncMiddlewares<
     false
   >
 ): MiddlewareRunner<TBaseContext, TReturn, false> {
-  return middlewares.reduceRight((currentRunner, currentMiddleware) => {
-    return currentMiddleware(currentRunner);
-  }, fn) as MiddlewareRunner<TBaseContext, TReturn, false>;
+  return foldLayers(...(middlewares as readonly Layer[]))(fn) as MiddlewareRunner<TBaseContext, TReturn, false>;
 }
 
 /**
@@ -115,13 +109,8 @@ export function compose<TAsync extends boolean = false>(
   const fn = args[args.length - 1];
   const middleware = args.slice(0, -1) as Middleware<any, any, any, TAsync>[];
 
-  // Compose middleware from right to left (onion model)
-  const combined = middleware.reduceRight(
-    (next, mw) => mw(next),
-    fn
-  ) as MiddlewareRunner<any, any, TAsync>;
-
-  return combined;
+  // The first middleware is the outermost one (onion model)
+  return foldLayers(...(middleware as readonly Layer[]))(fn) as MiddlewareRunner<any, any, TAsync>;
 }
 
 /**
@@ -150,10 +139,5 @@ export function compose<TAsync extends boolean = false>(
 export function bundle<TAsync extends boolean = false>(
   ...middleware: Middleware<any, any, any, TAsync>[]
 ): Middleware<any, any, any, TAsync> {
-  return (next) =>
-    middleware.reduceRight((acc, mw) => mw(acc), next) as MiddlewareRunner<
-      any,
-      any,
-      TAsync
-    >;
+  return foldLayers(...(middleware as readonly Layer[])) as Middleware<any, any, any, TAsync>;
 }
