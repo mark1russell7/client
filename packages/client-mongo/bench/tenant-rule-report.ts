@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { RULE_CASES, type RuleRound } from "./tenant-rule-cases.js";
 
-const { values } = parseArgs({ options: { jobs: { type: "string" }, out: { type: "string" }, run: { type: "string" }, enforce: { type: "boolean" } } });
+const { values } = parseArgs({ options: { jobs: { type: "string" }, out: { type: "string" }, run: { type: "string" } } });
 if (values.jobs === undefined || values.out === undefined) throw new RangeError("this report needs --jobs and --out");
 const folder = values.jobs;
 

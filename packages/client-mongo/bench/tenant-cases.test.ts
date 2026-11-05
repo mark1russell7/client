@@ -16,6 +16,8 @@ describe("the first loads of the tenant bench", () => {
   it("reads a case with first loads, and a case without has none", () => {
     expect(parseTenantCase("200-p2-first10")).toMatchObject({ rate: 200, processes: 2, firstLoads: 10, burst: false, apart: false, tmpfs: false });
     expect(parseTenantCase("200-p2").firstLoads).toBe(0);
+    expect(parseTenantCase("400-p2-hot")).toMatchObject({ rate: 400, processes: 2, hot: true, active: 1 });
+    expect(parseTenantCase("400-p2").hot).toBe(false);
     expect(firstLoadOf(parseTenantCase("200-p2"), 1_000, BURST_AT_MS)).toBeNull();
   });
 

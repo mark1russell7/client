@@ -79,7 +79,7 @@ async function stampOrder(): Promise<RuleRound> {
   const second = await MongoClient.connect(url!);
   try {
     const name = `rule_${job}_stamp`;
-    const docs = first.db(name).collection<Stamped>("docs");
+    const docs = await first.db(name).createCollection<Stamped>("docs");
     const session = first.startSession();
     session.startTransaction();
     await docs.insertOne({ _id: "open", stamp: await clusterTime(first) }, { session });
@@ -108,8 +108,7 @@ async function streamOrder(): Promise<RuleRound> {
     const docs = first.db(name).collection<Stamped>("docs");
     await docs.insertOne({ _id: "made", stamp: await clusterTime(first) });
     const stream = docs.watch();
-    const started = stream.tryNext();
-    await started;
+    await stream.tryNext();
     const session = first.startSession();
     session.startTransaction();
     await docs.insertOne({ _id: "open", stamp: await clusterTime(first) }, { session });

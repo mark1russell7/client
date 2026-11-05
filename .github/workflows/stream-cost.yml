@@ -14,6 +14,8 @@ name: Stream cost
 # CLI-95). The suite `tenant-ceiling` tells a limit of that collection from a limit of the runner, with
 # MongoDB and the writers on all processors and apart. The suite `tenant-separate` tells the queue of a
 # process from the counter document and from the disk. The suite `tenant-first` adds first loads of new tenants.
+# The suite `tenant-forms` offers more until a form of the numbers stops keeping up. The suite `tenant-rule`
+# tests with two writer processes and one reader that a reader misses no write, for each form and in a rolling release.
 #
 # The workflow only reports, except with `enforce`: only a dispatch starts it, and no ruleset needs its checks.
 

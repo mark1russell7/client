@@ -14,6 +14,9 @@
  * with many counters, and with both. A case with `-tmpfs` at its end uses a MongoDB with its files in memory, so no disk is in the path.
  *
  * The suite `tenant-first` adds the first loads of new tenants to the steady load. A case with `-first<n>` has n first loads in one second.
+ *
+ * The suite `tenant-forms` offers more until a form of the numbers stops keeping up. Its arm `control` tells a limit of the runner.
+ * A case with `-hot` at its end sends all writes to one tenant, through each process. So the queue of that tenant and its counter stay in the path.
  */
 
 export const TENANT_CASES = ["20-p1", "20-p2", "20-p4", "200-p1", "200-p2", "200-p4", "2000-p1", "2000-p2", "20-p2-burst", "200-p2-burst"] as const;
@@ -39,8 +42,8 @@ export const WRITER_CORES = "2,3";
 /** The processors of MongoDB in a case without `-apart`. */
 export const ALL_CORES = "0-3";
 
-/** The cases of the suite `tenant-forms`. */
-export const FORM_CASES = ["800-p1", "800-p2", "1200-p2"] as const;
+/** The cases of the suite `tenant-forms`: rates over the ceiling of the store, and one tenant through two processes. */
+export const FORM_CASES = ["800-p2", "1600-p4", "3200-p4", "200-p2-hot", "400-p2-hot"] as const;
 
 /** The arms of the suite `tenant-forms` that use a copy of the store. */
 export const FORM_ARMS = ["forma", "formb"] as const;
@@ -121,14 +124,16 @@ export interface TenantCase {
   readonly active: number;
   /** The first loads in the second of the burst. */
   readonly firstLoads: number;
+  /** All writes go to one tenant. */
+  readonly hot: boolean;
 }
 
 /** This function reads a case from its id. */
 export function parseTenantCase(id: string): TenantCase {
-  const match = /^(\d+)-p(\d+)(-burst)?(?:-first(\d+))?(-apart)?(-tmpfs)?$/.exec(id);
-  if (!match) throw new RangeError(`the case ${id} is not <rate>-p<processes>[-burst][-first<n>][-apart][-tmpfs]`);
+  const match = /^(\d+)-p(\d+)(-burst)?(?:-first(\d+))?(-apart)?(-tmpfs)?(-hot)?$/.exec(id);
+  if (!match) throw new RangeError(`the case ${id} is not <rate>-p<processes>[-burst][-first<n>][-apart][-tmpfs][-hot]`);
   const rate = Number(match[1]);
-  return { rate, processes: Number(match[2]), burst: match[3] !== undefined, firstLoads: Number(match[4] ?? 0), apart: match[5] !== undefined, tmpfs: match[6] !== undefined, active: Math.round(rate / WRITES_PER_TENANT) };
+  return { rate, processes: Number(match[2]), burst: match[3] !== undefined, firstLoads: Number(match[4] ?? 0), apart: match[5] !== undefined, tmpfs: match[6] !== undefined, hot: match[7] !== undefined, active: match[7] !== undefined ? 1 : Math.round(rate / WRITES_PER_TENANT) };
 }
 
 /**
