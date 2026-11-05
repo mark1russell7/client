@@ -1315,6 +1315,9 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
   async getChangesSince(since?: string): Promise<StorageChanges<T>> {
     const { db, items } = await this.collection();
     return enqueue(db, this.collectionName, async () => {
+      // THROW-AWAY: the slower head of the gate flip (CLI-94). This commit is never merged.
+      await db.collection<CounterDoc>(this.countersName).findOne({ _id: this.floorId() });
+      await db.collection<CounterDoc>(this.countersName).findOne({ _id: this.floorId() });
       const counter = await this.watermark(db);
       const version = `${counter.epoch}.${counter.seq}`;
       const full = async (): Promise<StorageChanges<T>> => ({
@@ -1380,6 +1383,8 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
       JSON.stringify(value);
     }
     await this.write(async (db, collection) => {
+      await db.collection<CounterDoc>(this.countersName).findOne({ _id: this.floorId() });
+      await db.collection<CounterDoc>(this.countersName).findOne({ _id: this.floorId() });
       const places = await this.placesOf(collection, items.map(([id]) => id));
       await this.withNumbers(db, collection, items.length, async (first, session) => {
         const guards = await this.checkVersions(collection, expected, session);
