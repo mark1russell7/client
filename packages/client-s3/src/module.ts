@@ -21,7 +21,7 @@ import {
   s3MultipartAbort,
 } from "./procedures/s3/index.js";
 import {
-  S3UploadInputSchema,
+  S3UploadCallSchema,
   S3DownloadInputSchema,
   S3ListInputSchema,
   S3ListAllInputSchema,
@@ -30,7 +30,7 @@ import {
   S3MultipartUploadInputSchema,
   S3MultipartCompleteInputSchema,
   S3MultipartAbortInputSchema,
-  type S3UploadInput,
+  type S3UploadCall,
   type S3DownloadInput,
   type S3ListInput,
   type S3ListAllInput,
@@ -89,7 +89,7 @@ const UPLOAD_IN_A_ROOT: FsRootRules = { paths: ["sourcePath"] };
 
 const s3UploadProcedure = createProcedure()
   .path(["s3", "upload"])
-  .input(S3UploadInputSchema)
+  .input(S3UploadCallSchema)
   .output(S3UploadOutputSchema)
   .meta({
     description: "Upload content to S3 bucket",
@@ -99,8 +99,9 @@ const s3UploadProcedure = createProcedure()
     output: "json",
     fsRoot: UPLOAD_IN_A_ROOT,
   })
-  .handler(async (input: S3UploadInput): Promise<S3UploadOutput> => {
-    return s3Upload(input);
+  .handler(async (input): Promise<S3UploadOutput> => {
+    // The two refinements of the schema give this type: a body or a sourcePath, and not the two
+    return s3Upload(input as S3UploadCall);
   })
   .build();
 

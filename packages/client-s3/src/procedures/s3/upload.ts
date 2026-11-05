@@ -15,7 +15,10 @@ import {
   type CompletedPart,
 } from "@aws-sdk/client-s3";
 import { getS3Client } from "../../s3-client.js";
-import type { S3UploadInput, S3UploadOutput } from "../../types.js";
+import type { S3UploadCall, S3UploadInput, S3UploadOutput } from "../../types.js";
+
+/** The fields of an upload that do not depend on where its content comes from. */
+type UploadTarget = Pick<S3UploadInput, "bucket" | "key" | "contentType" | "metadata">;
 
 /** The size of one part of a file, in bytes. A file of this size or less goes in one put. */
 export const PART_BYTES: number = 8 * 1024 * 1024;
@@ -57,7 +60,7 @@ async function assertSame(file: FileHandle, start: Stats, sourcePath: string): P
  * aborts the upload, so S3 keeps no object and no parts. The first error stays the error of the
  * call, also when the abort fails.
  */
-async function uploadParts(file: FileHandle, start: Stats, partBytes: number, input: S3UploadInput, sourcePath: string): Promise<S3UploadOutput> {
+async function uploadParts(file: FileHandle, start: Stats, partBytes: number, input: UploadTarget, sourcePath: string): Promise<S3UploadOutput> {
   const client = getS3Client();
   const target = { Bucket: input.bucket, Key: input.key };
   const created = await client.send(
@@ -85,7 +88,7 @@ async function uploadParts(file: FileHandle, start: Stats, partBytes: number, in
 }
 
 /** This function uploads a file: in one put up to the size of one part, and in parts above it. */
-async function uploadFile(input: S3UploadInput, sourcePath: string): Promise<S3UploadOutput> {
+async function uploadFile(input: UploadTarget, sourcePath: string): Promise<S3UploadOutput> {
   const file = await open(sourcePath, "r");
   try {
     const start = await file.stat();
@@ -102,7 +105,7 @@ async function uploadFile(input: S3UploadInput, sourcePath: string): Promise<S3U
 }
 
 /** This function sends one put. */
-async function put(input: S3UploadInput, body: Buffer | string): Promise<S3UploadOutput> {
+async function put(input: UploadTarget, body: Buffer | string): Promise<S3UploadOutput> {
   const response = await getS3Client().send(
     new PutObjectCommand({
       Bucket: input.bucket,
@@ -149,7 +152,7 @@ async function put(input: S3UploadInput, body: Buffer | string): Promise<S3Uploa
  *   sourcePath: "/tmp/archive.tar.gz",
  * });
  */
-export async function s3Upload(input: S3UploadInput): Promise<S3UploadOutput> {
+export async function s3Upload(input: S3UploadCall): Promise<S3UploadOutput> {
   if (input.sourcePath !== undefined) {
     if (input.body !== undefined) throw new Error("Give body or sourcePath, and not the two");
     return uploadFile(input, input.sourcePath);

@@ -193,13 +193,21 @@ await client.exec(["s3", "upload"], {
 
 **Input:**
 ```typescript
+// A call gives one of these two forms. A call with body and sourcePath, or with neither, fails.
 interface S3UploadInput {
   bucket: string;                    // S3 bucket name
   key: string;                       // Object key (path in bucket)
-  body?: string;                     // Content (string or base64). Give body or sourcePath, and not the two.
-  sourcePath?: string;               // The path of a file to upload
+  body: string;                      // Content (string or base64)
   contentType?: string;              // MIME type
   base64?: boolean;                  // If true, body is base64 encoded
+  metadata?: Record<string, string>; // Custom metadata
+}
+
+interface S3UploadFileInput {
+  bucket: string;                    // S3 bucket name
+  key: string;                       // Object key (path in bucket)
+  sourcePath: string;                // The path of a file to upload
+  contentType?: string;              // MIME type
   metadata?: Record<string, string>; // Custom metadata
 }
 ```

@@ -17,6 +17,7 @@ import {
   UploadPartCommand,
 } from "@aws-sdk/client-s3";
 import { createRegistry, invokePath, outputValue } from "@procedures/client";
+import type { S3UploadFileInput, S3UploadInput } from "./types.js";
 
 /** A record of the commands, with the hash of the parts. A hook runs before each command. */
 class FakeClient {
@@ -66,6 +67,7 @@ let fake = new FakeClient();
 vi.mock("./s3-client.js", () => ({ getS3Client: () => fake }));
 
 const { s3Module } = await import("./module.js");
+const { S3UploadFileInputSchema, S3UploadInputSchema } = await import("./types.js");
 const { MOST_PARTS, PART_BYTES, partBytesOf, s3Upload } = await import("./procedures/s3/upload.js");
 
 let dir: string;
@@ -233,6 +235,22 @@ describe("the input of s3.upload", () => {
     expect(fake.sent).toEqual([]);
   });
 
+  it("keeps S3UploadInput: a value of this type is a call, and it needs a body", async () => {
+    const old: S3UploadInput = { bucket: "b", key: "k", body: "in memory" };
+    await s3Upload(old);
+    expect(fake.sent.length).toBe(1);
+    expect(S3UploadInputSchema.safeParse({ bucket: "b", key: "k" }).success).toBe(false);
+    expect(Object.keys(S3UploadInputSchema.parse({ ...old, sourcePath: "a.txt" }))).toEqual(["bucket", "key", "body"]);
+  });
+
+  it("gives a schema of a file input that refuses a body and base64", () => {
+    const file: S3UploadFileInput = { bucket: "b", key: "k", sourcePath: "a.txt" };
+    expect(S3UploadFileInputSchema.parse(file)).toEqual(file);
+    expect(S3UploadFileInputSchema.safeParse({ ...file, body: "x" }).success).toBe(false);
+    expect(S3UploadFileInputSchema.safeParse({ ...file, base64: true }).success).toBe(false);
+    expect(S3UploadFileInputSchema.safeParse({ ...file, sourcePath: "" }).success).toBe(false);
+  });
+
   it("refuses base64 with a sourcePath", async () => {
     const path = join(dir, "a.txt");
     writeFileSync(path, "x");
@@ -243,7 +261,9 @@ describe("the input of s3.upload", () => {
   it("keeps the rule for a direct call of the function", async () => {
     const path = join(dir, "a.txt");
     writeFileSync(path, "x");
+    // @ts-expect-error A call gives body or sourcePath, and not the two
     await expect(s3Upload({ bucket: "b", key: "k", body: "x", sourcePath: path })).rejects.toThrow(/body or sourcePath/);
+    // @ts-expect-error A call gives body or sourcePath
     await expect(s3Upload({ bucket: "b", key: "k" })).rejects.toThrow(/body or sourcePath/);
     expect(readFileSync(path, "utf8")).toBe("x");
   });
