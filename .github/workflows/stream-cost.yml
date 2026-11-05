@@ -10,6 +10,7 @@ name: Stream cost
 # gives the cost of the queue of a burst of writes. The suite `gate` is the speed gate of the store
 # (roadmap CLI-94): CI runs it on each change of the store, and a dispatch gives the runs of its limit.
 # The suite `views` starts 1,000 views with a pipeline text for each partition.
+# The suite `delete` gives the cost of a delete with no pre-image, with a pre-image and with a rule (roadmap CLI-98).
 #
 # The workflow only reports, except with `enforce`: only a dispatch starts it, and no ruleset needs its checks.
 
@@ -25,6 +26,7 @@ on:
           - write
           - gate
           - views
+          - delete
         default: stream
       enforce:
         description: The suite gate fails the run when a case is not within its limit.

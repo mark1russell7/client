@@ -434,6 +434,8 @@ interface SourceWatch {
   partitions: Map<string, Set<RunningView>>;
   /** The promise that resolves when the first stream is open on the server. After an end, the pass of the next stream catches up. */
   opened: Promise<void>;
+  /** True after the check of the way that a delete of this source finds its partition (roadmap CLI-98). */
+  routeChecked: boolean;
 }
 
 /** A path without its positions in arrays (the segments of digits only): `lines.0.price` gives `lines.price`. */
@@ -961,17 +963,46 @@ export class ViewMaterializer {
     for (const source of new Set(running.view.collections)) {
       let watch = this.sources.get(source);
       if (!watch) {
-        watch = { source, stream: undefined, partitions: new Map(), opened: Promise.resolve() };
+        watch = { source, stream: undefined, partitions: new Map(), opened: Promise.resolve(), routeChecked: false };
         this.sources.set(source, watch);
         watch.opened = this.openSource(watch);
       }
       let views = watch.partitions.get(running.partition);
       if (!views) watch.partitions.set(running.partition, (views = new Set()));
       views.add(running);
+      if (watch.partitions.size > 1 && !watch.routeChecked) {
+        watch.routeChecked = true;
+        void this.warnOfBroadcast(watch);
+      }
       running.watched.push(source);
       opened.push(watch.opened);
     }
     return Promise.all(opened).then(() => undefined);
+  }
+
+  /**
+   * This method warns once about a source of many partitions with no pre-image and no entry in
+   * `storageSources` (roadmap CLI-98), because a delete in that source runs a pass in each partition.
+   * A read of the options that fails writes no line, because the routes of the changes do not change.
+   */
+  private async warnOfBroadcast(watch: SourceWatch): Promise<void> {
+    const { source } = watch;
+    if (this.storageSources.has(source) || !this.db) return;
+    try {
+      const [info] = await this.db.listCollections({ name: source }).toArray();
+      const images = (info as { options?: { changeStreamPreAndPostImages?: { enabled?: boolean } } } | undefined)?.options?.changeStreamPreAndPostImages;
+      if (images?.enabled === true) return;
+    } catch {
+      return;
+    }
+    if (this.stopped) return;
+    const partitions = watch.partitions.size;
+    this.log(
+      "warn",
+      "A delete in this source runs a pass in each partition: turn on pre-images, or give storageSources",
+      { collection: source, partitions },
+      `a delete in ${source} runs a pass in each of its partitions (${String(partitions)} at this check): turn on changeStreamPreAndPostImages, or give storageSources`
+    );
   }
 
   /** This method removes a view from its streams. The stream of a source with no view left closes. */
