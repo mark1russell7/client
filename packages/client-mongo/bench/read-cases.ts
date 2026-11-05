@@ -19,7 +19,7 @@ export type ReadKind = (typeof READ_KINDS)[number];
 export const READ_CASES = ["first-1", "first-100", "none-1", "none-100", "one-1", "fresh-1"] as const;
 
 /** The arms of the suite `read-bound`: the change reads of one client at one time. The arm `after` has the limit of the source. The size 100 is the default pool, so it is the arm with no limit. */
-export const SHARE_SIZES = [8, 16, 32, 100] as const;
+export const SHARE_SIZES = [4, 16, 32, 100] as const;
 
 /** The reads of a burst. */
 export const BURST_READS = 1_000;

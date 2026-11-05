@@ -58,6 +58,26 @@ const cells = [...groups.values()]
     ),
   }));
 
+/** The objective of the limit of change reads (roadmap CLI-91): the p95 of other queries of the pool in a burst, in round trips. */
+const OBJECTIVE_ROUND_TRIPS = 1.5;
+
+/**
+ * The objective row gives, for each arm and case, the p95 of the probe of the same pool over the round trip.
+ * It gives the median and the worst job.
+ * The row `holds` is true when the median stays within `OBJECTIVE_ROUND_TRIPS`. A later change of the share is read against this row.
+ */
+const objective = {
+  roundTrips: OBJECTIVE_ROUND_TRIPS,
+  rows: cells
+    .filter((cell) => cell.arm !== "before")
+    .map((cell) => {
+      const trip = cell.measures["roundTripMs"]!.median;
+      const p95 = cell.measures["probeP95Ms"]!;
+      const ratio = round(p95.median / trip, 2);
+      return { arm: cell.arm, case: cell.case, roundTripMs: trip, p95Ms: p95.median, ratio, worst: round(p95.high / trip, 2), holds: ratio <= OBJECTIVE_ROUND_TRIPS };
+    }),
+};
+
 const pool = poolRecords(jobs.map(({ job, candidate, aa }) => ({ job, candidate, aa })));
 const band = aaBand(pool.aa);
 
@@ -86,6 +106,7 @@ const report = {
       })),
     ]),
   ),
+  objective,
   cells,
   env: jobs.map(({ job, env }) => ({ job, env })),
 };

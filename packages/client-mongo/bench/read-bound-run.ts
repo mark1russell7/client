@@ -20,7 +20,7 @@ const base = values.base ?? "before";
 if (base !== "before" && base !== "after") throw new RangeError(`--base must be before or after, not ${base}`);
 const other = base === "before" ? "after" : "before";
 
-const SHARE = "new Semaphore(poolShare(db))";
+const SHARE = "new Semaphore(poolShare(db, CHANGE_READ_DIVISOR))";
 const source = readFileSync(new URL("../src/storage/document-storage.ts", import.meta.url), "utf8");
 if (source.split(SHARE).length !== 2) throw new RangeError(`the source does not have this text one time: ${SHARE}`);
 for (const size of SHARE_SIZES) writeFileSync(new URL(`../src/storage/document-storage.share${String(size)}.ts`, import.meta.url), source.replace(SHARE, `new Semaphore(${String(size)})`));
