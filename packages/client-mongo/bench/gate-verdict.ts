@@ -27,7 +27,7 @@ export interface StoreGateInput {
   readonly limit: number;
   /** The failed writes of the head. */
   readonly failures: number;
-  /** The attempt of the CI run. A rerun is a further look that the level does not count, so the text states it. */
+  /** The try number of the CI run. A rerun is a further look that the level does not count, so the text states it. */
   readonly attempt: number;
 }
 
@@ -75,14 +75,81 @@ export function storeGate(jobs: readonly JobRecords[], input: StoreGateInput): S
   return { outcome: "pass", exitCode: 0, text: `PASS: ${verdict.reason} ${attempt}`, verdict, more: [] };
 }
 
-/** This function gives the smallest limit that passes the jobs, to a thousandth of a log. A limit comes from the worst of this value over the runs of one source. */
+/**
+ * This function gives the jobs and cases that do not reach the last look. Records that stop before the last look cannot show what that look reads.
+ * So `passingLimit` over these records gives an upper bound, and not a limit for the gate.
+ */
+export function shortOfLastLook(jobs: readonly JobRecords[]): string[] {
+  const last = STORE_LOOKS[STORE_LOOKS.length - 1] ?? 0;
+  return jobs.flatMap((job) => {
+    const pairs = new Map<string, number>();
+    for (const row of job.candidate) pairs.set(row.case, (pairs.get(row.case) ?? 0) + 1);
+    return [...READ_CASES, ...WRITE_CASES].filter((name) => (pairs.get(name) ?? 0) < last).map((name) => `job ${job.job}, ${name}: ${pairs.get(name) ?? 0} of ${last} rounds`);
+  });
+}
+
+/** One try of the gate on a pull request, from its report. */
+export interface GateAttempt {
+  readonly pr: string;
+  readonly run: string;
+  readonly attempt: number;
+  readonly outcome: GateOutcome;
+}
+
+/** The count of the reruns of one pull request. A pass after a no read is a pass that a rerun can buy, so the count keeps it apart. */
+export interface RerunCount {
+  readonly pr: string;
+  readonly noReads: number;
+  readonly rerunsAfterNoRead: number;
+  readonly passesAfterNoRead: number;
+}
+
+/** This function counts the no reads and the reruns that follow them, for each pull request. A rerun is a further look that the level does not count. */
+export function rerunCounts(attempts: readonly GateAttempt[]): RerunCount[] {
+  const byPr = new Map<string, GateAttempt[]>();
+  for (const row of attempts) byPr.set(row.pr, [...(byPr.get(row.pr) ?? []), row]);
+  return [...byPr].map(([pr, rows]) => {
+    const later = rows.filter((row) => rows.some((other) => other.run === row.run && other.attempt === row.attempt - 1 && other.outcome === "no read"));
+    return {
+      pr,
+      noReads: rows.filter((row) => row.outcome === "no read").length,
+      rerunsAfterNoRead: later.length,
+      passesAfterNoRead: later.filter((row) => row.outcome === "pass").length,
+    };
+  });
+}
+
+/** This function gives the records of the jobs for one case. */
+function onlyCase(jobs: readonly JobRecords[], name: string): JobRecords[] {
+  return jobs.map((job) => ({ job: job.job, candidate: job.candidate.filter((row) => row.case === name), aa: job.aa.filter((row) => row.case === name) }));
+}
+
+/**
+ * This function gives the smallest limit that passes one case alone, for each case of the gate. A case alone has the level of the whole family.
+ * So a limit from these values needs a read of all cases together, with the correction over all cases.
+ */
+export function caseLimits(jobs: readonly JobRecords[]): Record<string, number> {
+  return Object.fromEntries([...READ_CASES, ...WRITE_CASES].map((name) => [name, searchLimit((limit) => notSlowerVerdict(onlyCase(jobs, name), { margin: Math.log(limit), looks: STORE_LOOKS }).outcome)]));
+}
+
+/** This function gives the outcome of all cases together, with a limit for each case. */
+export function outcomeAtCaseLimits(jobs: readonly JobRecords[], limits: Readonly<Record<string, number>>): GateOutcome {
+  return notSlowerVerdict(jobs, { margin: (name) => Math.log(limits[name] ?? Number.POSITIVE_INFINITY), looks: STORE_LOOKS }).outcome;
+}
+
+/** This function gives the smallest limit that passes the jobs, to a thousandth of a log. A limit comes from the worst of this value over the runs of one source, each with records of the last look. */
 export function passingLimit(jobs: readonly JobRecords[]): number {
+  return searchLimit((limit) => verdictAt(jobs, limit).outcome);
+}
+
+/** This function gives the smallest limit with the outcome "pass", to a thousandth of a log, or infinity when no limit up to 16 passes. */
+function searchLimit(outcomeAt: (limit: number) => GateOutcome): number {
   let low = 0;
   let high = Math.log(16);
-  if (verdictAt(jobs, Math.exp(high)).outcome !== "pass") return Number.POSITIVE_INFINITY;
+  if (outcomeAt(Math.exp(high)) !== "pass") return Number.POSITIVE_INFINITY;
   while (high - low > 0.001) {
     const middle = (low + high) / 2;
-    if (verdictAt(jobs, Math.exp(middle)).outcome === "pass") high = middle;
+    if (outcomeAt(Math.exp(middle)) === "pass") high = middle;
     else low = middle;
   }
   return Math.exp(high);

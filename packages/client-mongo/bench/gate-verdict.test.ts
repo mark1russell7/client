@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import type { JobRecords, PairedTime } from "@mark1russell7/rigor-bench";
-import { BLOCK_EXIT, NO_READ_EXIT, READ_CASES, WRITE_CASES, joinJobs, passingLimit, storeGate } from "./gate-verdict.js";
+import { BLOCK_EXIT, NO_READ_EXIT, READ_CASES, WRITE_CASES, caseLimits, joinJobs, outcomeAtCaseLimits, passingLimit, rerunCounts, shortOfLastLook, storeGate } from "./gate-verdict.js";
 
 const CASES = [...READ_CASES, ...WRITE_CASES];
 const LIMIT = 1.1;
@@ -108,5 +108,60 @@ describe("passingLimit", () => {
 
   it("gives no finite limit when a job misses a case", () => {
     expect(passingLimit([jobOf("1", same)])).toBe(Number.POSITIVE_INFINITY);
+  });
+
+  it("reads a lower limit with the second look than with the first look alone", () => {
+    // Three of the first 12 rounds stall, so the first look needs the height of a stall. The next 12 rounds are steady.
+    const stalls = (name: string, round: number): number => (name === "part-1" && round % 4 === 0 && round < 12 ? 1.5 : 1.02);
+    const first = [jobOf("1", stalls), jobOf("2", same)];
+    const both = [jobOf("1", stalls, 24), jobOf("2", same, 24)];
+    expect(passingLimit(first)).toBeGreaterThan(1.5);
+    expect(passingLimit(both)).toBeLessThan(1.1);
+  });
+});
+
+describe("caseLimits", () => {
+  it("gives each case the limit of its own noise, and all cases pass together at these limits", () => {
+    const noisy = (name: string): number => (name === "part-1" ? 1.2 : 1.02);
+    const jobs = [jobOf("1", noisy, 24), jobOf("2", noisy, 24)];
+    const limits = caseLimits(jobs);
+    expect(limits["part-1"]).toBeGreaterThan(1.2);
+    expect(limits["part-1"]).toBeLessThan(1.21);
+    expect(limits["first-1"]).toBeLessThan(1.03);
+    expect(outcomeAtCaseLimits(jobs, limits)).toBe("pass");
+  });
+
+  it("reads a slower case as a block at a limit below its ratio", () => {
+    const noisy = (name: string): number => (name === "part-1" ? 1.2 : 1.02);
+    const jobs = [jobOf("1", noisy, 24), jobOf("2", noisy, 24)];
+    expect(outcomeAtCaseLimits(jobs, { ...caseLimits(jobs), "part-1": 1.1 })).toBe("block");
+  });
+});
+
+describe("shortOfLastLook", () => {
+  it("names each case of a job that stops at the first look", () => {
+    const short = shortOfLastLook([jobOf("1", same, 12), jobOf("2", same, 24)]);
+    expect(short).toHaveLength(CASES.length);
+    expect(short[0]).toBe(`job 1, ${CASES[0]}: 12 of 24 rounds`);
+  });
+
+  it("names nothing when each job reaches the last look", () => {
+    expect(shortOfLastLook([jobOf("1", same, 24), jobOf("2", same, 24)])).toEqual([]);
+  });
+});
+
+describe("rerunCounts", () => {
+  it("counts a rerun after a no read, and keeps a pass that follows it apart", () => {
+    const counts = rerunCounts([
+      { pr: "1", run: "a", attempt: 1, outcome: "no read" },
+      { pr: "1", run: "a", attempt: 2, outcome: "no read" },
+      { pr: "1", run: "a", attempt: 3, outcome: "pass" },
+      { pr: "2", run: "b", attempt: 1, outcome: "pass" },
+      { pr: "2", run: "b", attempt: 2, outcome: "pass" },
+    ]);
+    expect(counts).toEqual([
+      { pr: "1", noReads: 2, rerunsAfterNoRead: 2, passesAfterNoRead: 1 },
+      { pr: "2", noReads: 0, rerunsAfterNoRead: 0, passesAfterNoRead: 0 },
+    ]);
   });
 });

@@ -440,9 +440,10 @@ jobs:
         working-directory: packages/client-mongo
         env:
           RUN: ${{ github.run_id }}
+          PR: ${{ github.event.pull_request.number }}
         run: |
           status=0
-          node --import tsx bench/gate-report.ts --jobs bench-out --out gate-report.json --run "$RUN" --enforce || status=$?
+          node --import tsx bench/gate-report.ts --jobs bench-out --out gate-report.json --run "$RUN" --pr "$PR" --enforce || status=$?
           { echo '```json'; cat gate-report.json || true; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           if [ "$status" = 2 ]; then echo "::error title=The speed gate has no read::$(jq -r .text gate-report.json)"; fi
           if [ "$status" = 1 ]; then echo "::error title=The speed gate blocks this change::$(jq -r .text gate-report.json)"; fi

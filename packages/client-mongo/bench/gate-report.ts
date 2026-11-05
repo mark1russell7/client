@@ -1,5 +1,5 @@
 /**
- * The verdict of the speed gate of the store (roadmap CLI-94): `--jobs <folder> --out <file> [--run <id>] [--enforce] [--more <file>]`.
+ * The verdict of the speed gate of the store (roadmap CLI-94): `--jobs <folder> --out <file> [--run <id>] [--pr <number>] [--enforce] [--more <file>]`.
  * This script reads the claim "not slower by more than the limit" of `gate-limit.json` over the job files of the folder.
  * With `--enforce`, the exit code is 1 for a block and 2 for no read. With `--more`, the file takes the line `more=<cases>` for the next look.
  */
@@ -34,7 +34,7 @@ interface GateLimit {
   readonly runs: readonly string[];
 }
 
-const { values } = parseArgs({ options: { jobs: { type: "string" }, out: { type: "string" }, run: { type: "string" }, enforce: { type: "boolean" }, more: { type: "string" } } });
+const { values } = parseArgs({ options: { jobs: { type: "string" }, out: { type: "string" }, run: { type: "string" }, pr: { type: "string" }, enforce: { type: "boolean" }, more: { type: "string" } } });
 if (values.jobs === undefined || values.out === undefined) throw new RangeError("this report needs --jobs and --out");
 
 const gate = JSON.parse(readFileSync(new URL("./gate-limit.json", import.meta.url), "utf8")) as GateLimit;
@@ -58,6 +58,7 @@ const { verdict } = result;
 const report = {
   schema: "store-gate/2",
   run: values.run ?? "",
+  pr: values.pr ?? "",
   attempt,
   outcome: result.outcome,
   text: result.text,
