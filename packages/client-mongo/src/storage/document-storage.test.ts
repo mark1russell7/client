@@ -4,6 +4,10 @@
  * `mongo:7` service). The filter of the queries is pure, so its tests always run.
  */
 
+import { execFile } from "node:child_process";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ms } from "@procedures/client";
 import { BSON, MongoClient, type Db, type Document } from "mongodb";
@@ -650,6 +654,59 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
     expect(await storage.getChangesSince(version)).toMatchObject({ full: false, changed: [["b", { n: 2 }]], deleted: ["a"] });
     expect((await storage.getChangesSince("other-epoch.1")).full).toBe(true);
     expect((await storage.getChangesSince("not a version")).full).toBe(true);
+  });
+
+  /**
+   * This database runs `hold` once, between the read of the watermark and the query of a delta read:
+   * the moment where another process can prune. Only the query of the items of `collection` waits.
+   */
+  function holdingDb(collection: string, hold: () => (() => Promise<unknown>) | undefined): Db {
+    const collectionOf = (name: string): unknown => {
+      const items = db.collection(name);
+      if (name !== collection) return items;
+      const find = items.find.bind(items) as (...args: unknown[]) => { toArray: () => Promise<unknown[]> };
+      return Object.assign(items, {
+        find: (...args: unknown[]) => {
+          const cursor = find(...args);
+          const toArray = cursor.toArray.bind(cursor);
+          cursor.toArray = async () => {
+            await hold()?.();
+            return toArray();
+          };
+          return cursor;
+        },
+      });
+    };
+    return new Proxy(db, {
+      get(target, key) {
+        if (key === "collection") return collectionOf;
+        const value: unknown = Reflect.get(target, key);
+        return typeof value === "function" ? (value as (...args: unknown[]) => unknown).bind(target) : value;
+      },
+    });
+  }
+
+  it("a delta read that a prune of another process passes gives a full result, never a short delta (CLI-93)", { timeout: 60_000 }, async () => {
+    const collection = `c${++next}`;
+    let prune: (() => Promise<unknown>) | undefined;
+    const held = holdingDb(collection, () => {
+      const once = prune;
+      prune = undefined;
+      return once;
+    });
+    const reader = new MongoDocumentStorage<{ n: number }>({ collection, db: () => held, transactions: "never" });
+    await reader.setBatch([["a", { n: 1 }], ["b", { n: 2 }], ["c", { n: 3 }]]);
+    const { version } = await reader.getChangesSince();
+    await reader.delete("a");
+
+    const writer = fileURLToPath(new URL("../../test/prune-writer.ts", import.meta.url));
+    prune = () => promisify(execFile)(process.execPath, ["--import", "tsx", writer, url!, db.databaseName, collection, "b"], { cwd: dirname(writer) });
+    const changes = await reader.getChangesSince(version);
+
+    // The prune of the other process removed the tombstone of "a": only the tombstone of "b" stays
+    expect(await db.collection(collection).countDocuments({ [TOMBSTONE_FIELD]: true })).toBe(1);
+    expect(prune).toBeUndefined();
+    expect({ full: changes.full, ids: changes.changed.map(([id]) => id) }).toEqual({ full: true, ids: ["c"] });
   });
 
   it("keeps the order of the numbers under writes at the same time", async () => {
