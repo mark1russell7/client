@@ -819,8 +819,11 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       '@mark1russell7/rigor-bench':
-        specifier: ^0.2.7
+        specifier: ^0.2.12
         version: 0.2.13
+      '@mark1russell7/rigor-generators':
+        specifier: ^0.1.5
+        version: 0.1.5
       '@mark1russell7/rigor-statistics':
         specifier: ^0.1.9
         version: 0.1.11

@@ -294,25 +294,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Start MongoDB 7
-        run: |
-          if [ "${{ matrix.topology }}" = "replica-set" ]; then
-            docker run -d --name mongo -p 27017:27017 mongo:7 --replSet rs0 --bind_ip_all --setParameter enableTestCommands=1
-          else
-            docker run -d --name mongo -p 27017:27017 mongo:7
-          fi
-          for i in $(seq 1 60); do
-            docker exec mongo mongosh --quiet --eval "db.adminCommand('ping').ok" >/dev/null 2>&1 && break
-            sleep 1
-          done
-          if [ "${{ matrix.topology }}" = "replica-set" ]; then
-            docker exec mongo mongosh --quiet --eval "rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] })"
-            for i in $(seq 1 60); do
-              [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ] && break
-              sleep 1
-            done
-            [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ]
-          fi
+      - uses: ./.github/actions/start-mongo
+        with:
+          topology: ${{ matrix.topology }}
+          test-commands: "1"
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -327,6 +312,68 @@ jobs:
           # The failpoint tests (for example a transaction over its lifetime limit) need the test commands of the replica set
           MONGO_TEST_FAILPOINTS: ${{ matrix.topology == 'replica-set' && '1' || '' }}
         run: pnpm --filter @procedures/mongo exec vitest run src/storage
+
+  mongo-speed:
+    # The speed gate of the store (roadmap CLI-94). A pull request that changes the source of the
+    # store compares the reads and the writes of its merge with its base on a real MongoDB, with an A/A
+    # beside them. The limit, its CI runs and its formula are in bench/gate-limit.json.
+    name: MongoDB (the speed gate of the store)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      # HEAD is the merge of the pull request, and its first parent is the base of that merge
+      - name: Find a change of the store
+        id: store
+        run: |
+          changed=$(git diff --name-only HEAD^1 HEAD | grep -E '^packages/client-mongo/(src/|bench/(gate|read-|write-))' | grep -vE '\.test\.tsx?$' || true)
+          if [ -n "$changed" ]; then echo "changed=true" >> "$GITHUB_OUTPUT"; else echo "No file of the store changed, so this gate has nothing to compare."; fi
+      - uses: ./.github/actions/start-mongo
+        if: steps.store.outputs.changed == 'true'
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        if: steps.store.outputs.changed == 'true'
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.store.outputs.changed == 'true'
+        with:
+          node-version: 24
+          cache: pnpm
+      - if: steps.store.outputs.changed == 'true'
+        run: pnpm install --frozen-lockfile --filter mark1russell7-monorepo --filter "@procedures/mongo..."
+      - if: steps.store.outputs.changed == 'true'
+        run: pnpm --filter "@procedures/mongo^..." run build
+      - name: Write the arm before
+        if: steps.store.outputs.changed == 'true'
+        run: |
+          mkdir packages/client-mongo/base
+          git archive HEAD^1 packages/client-mongo/src | tar -x --strip-components=2 -C packages/client-mongo/base
+      - name: Compare the store with its base
+        if: steps.store.outputs.changed == 'true'
+        working-directory: packages/client-mongo
+        env:
+          MONGO_TEST_URL: mongodb://localhost:27017/?directConnection=true
+        run: node --import tsx bench/gate-run.ts --job 1 --rounds 9 --cap 120 --out bench-out/job-1.json
+      - name: The verdict
+        if: steps.store.outputs.changed == 'true'
+        working-directory: packages/client-mongo
+        env:
+          RUN: ${{ github.run_id }}
+        run: |
+          status=0
+          node --import tsx bench/gate-report.ts --jobs bench-out --out gate-report.txt --run "$RUN" --enforce || status=$?
+          { echo '```json'; cat gate-report.txt || true; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always() && steps.store.outputs.changed == 'true'
+        with:
+          name: store-gate-report
+          path: |
+            packages/client-mongo/bench-out/
+            packages/client-mongo/gate-report.txt
+          if-no-files-found: warn
 
   site:
     name: Site (browser smoke test)
@@ -378,7 +425,7 @@ jobs:
   ci-ok:
     name: CI OK
     if: always()
-    needs: [ci, changesets, checks, mongo, site]
+    needs: [ci, changesets, checks, mongo, mongo-speed, site]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     permissions: {}
@@ -387,7 +434,7 @@ jobs:
         env:
           NEEDS: ${{ toJSON(needs) }}
           # The jobs that their own if may skip, separated by spaces. Each other job must pass.
-          ALLOW_SKIP: "changesets"
+          ALLOW_SKIP: "changesets mongo-speed"
         run: |
           echo "$NEEDS" | jq -r 'to_entries[] | "\(.key) \(.value.result)"' > results
           cat results
