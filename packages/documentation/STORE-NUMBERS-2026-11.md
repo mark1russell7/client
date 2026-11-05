@@ -1,6 +1,6 @@
 # The numbers of the document store (CLI-96)
 
-Status: a design. A second run of the arm of a burst on a warm pool is open. The stated limit stays 200 writes a second on one collection until a gate holds a higher rate.
+Status: a design, with three runs of the arm of a burst on a warm pool. The stated limit stays 200 writes a second on one collection until a gate holds a higher rate.
 
 Each rate on this page comes from a runner with 4 cores, with MongoDB on the same runner. No rate is a limit of a larger machine.
 
@@ -151,13 +151,57 @@ Run [42031147834](https://github.com/mark1russell7/client/actions/runs/420311478
 
 The plan of a first load is 1,000 ms.
 
-**On a warm pool, form A has no miss.** It holds 18 of 18 children on a warm pool, and 13 of 18 on a cold pool in this run. So form A answers the first load on a warm pool, and it does not answer it on a cold pool. The 18 of 18 comes from one run, and at 95 percent it holds the share of children that miss only under 16 percent. A second run repeats the arm.
+Form A held 18 of 18 children on a warm pool in this run, and that figure did not last. The three runs below read 85 of 90.
 
-**The warm pool is a setting of the host.** The store does not own the connections, so `minPoolSize` belongs to the client that the host gives the store. This run reads a pool of 30, and no smaller pool. The cost is small in the second before the burst: the busy share of a writer changes by at most 0.01 between cold and warm.
+### Three runs of the burst
 
-**A warm pool does not close the miss of the bound.** The bound holds 7 of 18 children with 0 connections made. At 2 processes, its driver worst is 115.7 ms warm against 97.9 ms cold. So connections do not cause this lateness. The run does not name the full cause.
+Each row gives a share of children that held the schedule, at 200 writes a second, on 4 cores with MongoDB on the runner. The total of a form is over 2 processes and 4 processes.
 
-The server counts 1,439 write conflicts in the median child of the bound at 2 processes warm. Form A has 0 there. The median command of the bound takes 7 milliseconds, and the median command of form A takes 2 milliseconds. Of the 7 children that held, 6 are on one CPU model of the 3 in this run. So the read of the bound depends on the runner.
+| Run | Pool | Today | A | Bound |
+| --- | --- | ---:| ---:| ---:|
+| [42031147834](https://github.com/mark1russell7/client/actions/runs/42031147834) | Cold | 68 of 72 | 13 of 18 | 8 of 18 |
+| [42031147834](https://github.com/mark1russell7/client/actions/runs/42031147834) | Warm, 30 | 69 of 72 | 18 of 18 | 7 of 18 |
+| [42048341386](https://github.com/mark1russell7/client/actions/runs/42048341386) | Cold | 68 of 72 | 16 of 18 | 9 of 18 |
+| [42048341386](https://github.com/mark1russell7/client/actions/runs/42048341386) | Warm, 30 | 72 of 72 | 18 of 18 | 10 of 18 |
+| [42050349240](https://github.com/mark1russell7/client/actions/runs/42050349240) | Warm, 30 | 18 of 18 | 49 of 54 | Not in the run |
+| [42050349240](https://github.com/mark1russell7/client/actions/runs/42050349240) | Warm, 10 | 18 of 18 | 50 of 54 | Not in the run |
+| [42050349240](https://github.com/mark1russell7/client/actions/runs/42050349240) | Warm, 5 | 17 of 18 | 51 of 54 | Not in the run |
+
+**Form A cuts the tail of other callers and holds most children.** The others p99 is 316 to 758 ms today and 12 to 51 ms on form A, in each run. On a warm pool of 30, form A holds 85 of 90 children. On a cold pool, it holds 29 of 36.
+
+**What a cold pool sees.** A first load on form A makes 8 to 14 connections in the burst. Its driver worst is 40 to 63 ms, against 8 to 24 ms on a warm pool. The others p99 stays at 24 to 31 ms.
+
+**The missed children have no single cause yet.** On a warm pool of 30, 5 children missed. Of these, 3 made 0 connections in the burst, and 2 made 9 to 27 for each process. The 5 misses are on two CPU models. So a warm pool helps, and it is not the whole of the hold.
+
+**A first load on a warm pool is not closed.** Form A does not give a host each child on the schedule. The host gets most children, and much less wait for other callers.
+
+**The pool size does not separate the forms.** Pools of 5, 10 and 30 read 51, 50 and 49 of 54. So this read gives no reason to take a larger pool for the hold.
+
+### The cost of a warm pool
+
+The store does not own the connections, so `minPoolSize` belongs to the client that the host gives the store. Run [42059415448](https://github.com/mark1russell7/client/actions/runs/42059415448) holds idle connections on one client, on 3 jobs. Each cell is the median of the jobs. A rung adds connections to the rung before it, so the time column gives the time for that added part.
+
+| Idle connections | Time to add them, s | Server resident, MB | Server, kB each | Client, kB each | Insert p50, ms | Insert p99, ms |
+| ---:| ---:| ---:| ---:| ---:| ---:| ---:|
+| 0 | 0 | 167 | 0 | 0 | 0.91 | 2.03 |
+| 100 | 10.0 | 175 | 81.9 | 14.3 | 0.89 | 1.78 |
+| 300 | 20.2 | 198 | 105.8 | 9.9 | 0.83 | 1.79 |
+| 1,000 | 71.1 | 281 | 116.7 | 14.7 | 0.83 | 1.71 |
+| 3,000 | 203.6 | 517 | 119.5 | 25.6 | 0.73 | 1.69 |
+
+- **The server cost is memory.** An idle connection costs the server approximately 120 kB. So 100 processes with pools of 30 hold 3,000 connections and approximately 350 MB more. No rung shows a slower insert.
+- **The fill takes time.** The driver makes idle connections at 10 each second, whatever `maxConnecting` says. A pool of 30 is warm approximately 3 s after its start. A burst before that sees a cold pool.
+- **This read has limits.** One client holds all connections, so the monitors of 100 real clients are not in it. A rung has no burst. A managed server can also have its own limit of connections, and this run does not read that.
+
+**What a small host sets.** Set `minPoolSize` to 5. A pool of 5 costs the server approximately 600 kB for each process, and it fills in under 1 s. It held 51 of 54 children, and a larger pool read no better. A host with more processes multiplies the cost by its number of processes, and it reads that against the limit of its server.
+
+### The bound
+
+**A warm pool does not close the miss of the bound.** The bound holds 7 of 18 children with 0 connections made in the first run, and 10 of 18 in the second. At 2 processes, its driver worst is 115.7 ms warm against 97.9 ms cold in the first run. So connections do not cause this lateness.
+
+**The read of the bound depends on the CPU model.** The second run gives the bound 12 of 12 on EPYC 9V45, 6 of 12 on EPYC 9V74 and 1 of 12 on EPYC 7763. There, form A misses only on EPYC 7763, 2 of 6 cold and 0 of 6 warm. Today also misses only on that model, 4 of 12 on the row of 4 processes, cold. So one model of runner is the slowest for each form, and most for the bound.
+
+The server counts 1,439 write conflicts in the median child of the bound at 2 processes warm. Form A has 0 there. The median command of the bound takes 7 milliseconds, and the median command of form A takes 2 milliseconds. Conflicts are a lead, and no run names them as the cause.
 
 **Where each form pays, at 2 processes on a warm pool:**
 
@@ -209,7 +253,7 @@ What it does not give:
 - One partition keeps the limit of one collection today, approximately 412 w/s. The case `400-p2-hot` gave a p99 of 2 s. So the stated limit of a partition is 200 writes a second.
 - A collection with no partitions gains nothing, so it keeps the stated limit of 200.
 - A live collection gains nothing. The page and the changeset of form A say this in these words. The stopped move of CLI-104 is the only way out of this limit.
-- A cold pool keeps the miss of a first load. A host gets the result above only with `minPoolSize`, and the changeset of form A says this too.
+- A first load does not hold on each child. Form A holds 85 of 90 children on a warm pool and 29 of 36 on a cold pool. The missed children have no single cause yet. A host gets the warm figure only with `minPoolSize`, and the changeset of form A says this too.
 - No form holds 2,000 writes a second on these runners, the rate of the rung of 100,000 tenants.
 
 **Overload.** All forms need a stated limit. A queue of a partition with no limit waits in memory, and a caller sees a long wait with no error. A write past a limit of waiting writes gets a clear error at once. The limit comes from an arm with a prediction first. A new error is a change that a caller can see, so it ships as its own MINOR. This part joins the design of the overload of change events (CLI-102).
