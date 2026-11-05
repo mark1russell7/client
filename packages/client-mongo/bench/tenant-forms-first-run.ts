@@ -1,5 +1,5 @@
 /**
- * One job of the suite `tenant-forms-first`: the first loads of the suite `tenant-first` on the store, on its control and on two forms of its numbers (roadmap CLI-96).
+ * One job of the suite `tenant-forms-first` (roadmap CLI-96). It gives the first loads of the suite `tenant-first` to the store, to its control and to two forms of its numbers.
  * A form that holds a steady load and not the burst is not the answer for a first load.
  */
 

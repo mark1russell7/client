@@ -48,14 +48,20 @@ export const FORM_CASES = ["800-p2", "1200-p4", "1600-p4", "200-p2-hot", "400-p2
 /** The arms of the suite `tenant-forms` that use a copy of the store. */
 export const FORM_ARMS = ["forma", "formb"] as const;
 
+/** The arm of the suite `tenant-bound` that the suite `tenant-forms` does not have: form B with a bound on the calls in progress. */
+export const BOUND_ARMS = ["formbbound"] as const;
+
+/** The cases of the suite `tenant-bound`: the rates where form B collapses, the hot tenant where it holds, and the burst of first loads. */
+export const BOUND_CASES = ["800-p2", "1200-p4", "200-p2-hot", "400-p2-hot", "200-p2-first10"] as const;
+
 /** The arms that use a copy of the store. */
-export const COPY_ARMS: readonly string[] = [...SEPARATE_ARMS, ...FORM_ARMS];
+export const COPY_ARMS: readonly string[] = [...SEPARATE_ARMS, ...FORM_ARMS, ...BOUND_ARMS];
 
 /** The arms of the bench. */
-export type TenantArm = "store" | "control" | (typeof SEPARATE_ARMS)[number] | (typeof FORM_ARMS)[number];
+export type TenantArm = "store" | "control" | (typeof SEPARATE_ARMS)[number] | (typeof FORM_ARMS)[number] | (typeof BOUND_ARMS)[number];
 
 /** The arms of the bench, in the order of a report. */
-export const TENANT_ARMS: readonly TenantArm[] = ["store", "control", ...SEPARATE_ARMS, ...FORM_ARMS];
+export const TENANT_ARMS: readonly TenantArm[] = ["store", "control", ...SEPARATE_ARMS, ...FORM_ARMS, ...BOUND_ARMS];
 
 /** The writes of an active tenant in one second: the first guess of the scale ladder. */
 export const WRITES_PER_TENANT = 0.2;
@@ -79,8 +85,8 @@ export const BURST_WRITES = 10;
 export const BURST_TENANT = 0;
 
 /**
- * The writes of one first load in its peak second. One measured first load of an app has 82 writes in 28 s, with a
- * peak second of 60 at a cache of 512 MiB and of 72 at a cache of 2,048 MiB. This bench takes the larger peak.
+ * The writes of one first load in its peak second. One measured first load of an app has 82 writes in 28 s.
+ * Its peak second has 60 writes at a cache of 512 MiB and 72 at a cache of 2,048 MiB. This bench takes the larger peak.
  */
 export const FIRST_LOAD_WRITES = 72;
 
@@ -138,7 +144,7 @@ export function parseTenantCase(id: string): TenantCase {
 
 /**
  * This function gives the tenant of an arrival. In the burst, one arrival in `(rate + 10) / 10` goes to the tenant
- * `BURST_TENANT`, so that tenant gets about 10 writes in that second. Each other arrival goes to the tenants in turn,
+ * `BURST_TENANT`, so that tenant gets approximately 10 writes in that second. Each other arrival goes to the tenants in turn,
  * and each process gets a turn at each tenant, so a tenant writes through each process.
  */
 export function tenantOf(kase: TenantCase, index: number, plannedMs: number): number {
@@ -157,7 +163,7 @@ export interface FirstLoadWrite {
 
 /**
  * This function gives the first load of an arrival, or null for a write of the steady load. In the second of the
- * burst, `FIRST_LOAD_WRITES` writes of each first load join the steady rate, so the same share of the arrivals goes to the first loads.
+ * burst, `FIRST_LOAD_WRITES` writes of each first load join the steady rate. So the same share of the arrivals goes to the first loads.
  */
 export function firstLoadOf(kase: TenantCase, index: number, plannedMs: number): FirstLoadWrite | null {
   if (kase.firstLoads === 0 || plannedMs < BURST_AT_MS || plannedMs >= BURST_AT_MS + BURST_MS) return null;
@@ -202,6 +208,12 @@ export interface JournalRead {
 
 /** One line of the counts of a child. A time is in milliseconds, from the planned time of the write. */
 export interface TenantCount {
+  /** The largest list of numbers in progress that one sample of the counter documents reads. */
+  readonly pendingPeak?: number;
+  /** The size in bytes of the largest counter document that one sample reads. */
+  readonly counterBytesPeak?: number;
+  /** The write conflicts that the server retries by itself, from its own counter. A conflict in a transaction is not in this count. */
+  readonly serverWriteConflicts?: number;
   readonly job: string;
   readonly arm: TenantArm;
   readonly case: string;

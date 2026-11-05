@@ -6,13 +6,14 @@
  * - `forma`: a counter for each partition, and a queue for each partition.
  * - `formaguard`: `forma`, and a change read gives a full result when the counter of the collection is above the frozen number 0. So an old writer shows up.
  * - `formb`: a counter outside the transaction, with a watermark for readers, and no queue. A write of one document needs no transaction here.
+ * - `formbbound`: form B with a bound on the calls in progress in each process, in place of the queue.
  * - `outside`: a counter outside the transaction with no watermark. This form loses writes, so it proves that the test of the rule finds a miss.
  */
 
 import { readFileSync, writeFileSync } from "node:fs";
 
 /** The copies of the store. */
-export const FORM_COPIES = ["today", "forma", "formaguard", "formb", "outside"] as const;
+export const FORM_COPIES = ["today", "forma", "formaguard", "formb", "formbbound", "outside"] as const;
 
 /** One copy of the store. */
 export type FormCopy = (typeof FORM_COPIES)[number];
@@ -53,9 +54,29 @@ const formaguard = (text: string): string =>
 
 const formb = (text: string): string => swap(swap(text, ENQUEUE, `${ENQUEUE}  if (db) return task();\n`), "if (client) {\n      const session = client.startSession();", "if (client && !db) {\n      const session = client.startSession();");
 
+/** The text of the bound of `formbbound`. One process has at most this count of calls in progress. The next call in arrival order takes the place of a call that ends. */
+const FORM_GATE = `const FORM_BOUND = 16;
+let formIn = 0;
+const formWaiting: Array<() => void> = [];
+async function formGated<R>(task: () => Promise<R>): Promise<R> {
+  if (formIn >= FORM_BOUND) await new Promise<void>((resolve) => formWaiting.push(resolve));
+  else formIn++;
+  try {
+    return await task();
+  } finally {
+    const next = formWaiting.shift();
+    if (next) next();
+    else formIn--;
+  }
+}
+`;
+
+const formbbound = (text: string): string =>
+  swap(swap(text, ENQUEUE, `${FORM_GATE}${ENQUEUE}  if (db) return formGated(task);\n`), "if (client) {\n      const session = client.startSession();", "if (client && !db) {\n      const session = client.startSession();");
+
 const outside = (text: string): string => swap(text, '{ upsert: true, returnDocument: "after", session }', '{ upsert: true, returnDocument: "after" }');
 
-const CHANGES: Record<FormCopy, (text: string) => string> = { today: (text) => text, forma, formaguard, formb, outside };
+const CHANGES: Record<FormCopy, (text: string) => string> = { today: (text) => text, forma, formaguard, formb, formbbound, outside };
 
 /** This function writes each copy of the store next to the source. */
 export function writeFormCopies(): void {

@@ -1,9 +1,9 @@
 /**
  * One child of `freshRun` for the tenant load bench: `--arm <arm> --case <case> --job <n> --counts <file>`.
  *
- * The child starts the writers of the case in their own processes, gives them one start time and joins their
+ * The child starts the writers of the case in their own processes and gives them one start time. It joins their
  * completions into the measure of one open-loop run. It reads the counters of the server over the load and the
- * grace, adds one line to the file of the counts, and prints the p99 as the time of `freshRun`.
+ * grace, and adds one line to the file of the counts. It prints the p99 as the time of `freshRun`.
  *
  * With `MONGO_CONTAINER`, the child puts that container on its processors for the case. A case with `-apart` needs it.
  * MongoDB keeps the sizes of its thread pools from its start, because the change comes after that start.
@@ -66,11 +66,12 @@ const writers = Array.from({ length: kase.processes }, (_, me) => {
 });
 
 const admin = await MongoClient.connect(url);
-const serverCounts = async (): Promise<{ started: number; aborted: number }> => {
+const serverCounts = async (): Promise<{ started: number; aborted: number; conflicts: number }> => {
   const status = await admin.db("admin").command({ serverStatus: 1 });
   return {
     started: Number(status["transactions"]?.["totalStarted"] ?? 0),
     aborted: Number(status["transactions"]?.["totalAborted"] ?? 0),
+    conflicts: Number(status["metrics"]?.["operation"]?.["writeConflicts"] ?? 0),
   };
 };
 
@@ -180,7 +181,24 @@ const inLoad = (async (): Promise<{ cores: CoreShare[] | null; disk: DiskRead | 
   return { cores, disk, journal };
 })();
 
+// One sample each second of the largest list of numbers in progress in a counter document. A form with no queue has a cost for each number in this list.
+let pendingPeak = 0;
+let counterBytesPeak = 0;
+const sampler = setInterval(() => {
+  admin
+    .db(database)
+    .collection("__storage_counters")
+    .aggregate<{ pending: number; bytes: number }>([{ $project: { pending: { $size: { $ifNull: ["$pending", []] } }, bytes: { $bsonSize: "$$ROOT" } } }, { $group: { _id: null, pending: { $max: "$pending" }, bytes: { $max: "$bytes" } } }])
+    .next()
+    .then((sample) => {
+      pendingPeak = Math.max(pendingPeak, sample?.pending ?? 0);
+      counterBytesPeak = Math.max(counterBytesPeak, sample?.bytes ?? 0);
+    })
+    .catch(() => undefined);
+}, 1000);
+
 const results = await Promise.all(writers.map((writer) => writer.result));
+clearInterval(sampler);
 const { cores, disk, journal } = await inLoad;
 const after = await serverCounts();
 
@@ -243,6 +261,9 @@ const line: TenantCount = {
   writeConflicts: results.reduce((sum, result) => sum + result.writeConflicts, 0),
   transactionsStarted: after.started - before.started,
   transactionsAborted: after.aborted - before.aborted,
+  serverWriteConflicts: after.conflicts - before.conflicts,
+  pendingPeak,
+  counterBytesPeak,
   cores,
   disk,
   journal,

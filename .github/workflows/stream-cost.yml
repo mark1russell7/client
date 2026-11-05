@@ -37,6 +37,7 @@ on:
           - tenant-first
           - tenant-forms
           - tenant-forms-first
+          - tenant-bound
           - tenant-rule
         default: stream
       enforce:
