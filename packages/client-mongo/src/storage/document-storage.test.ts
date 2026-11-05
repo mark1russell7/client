@@ -724,7 +724,7 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
       reset();
       expect(await storage.getChangesSince(full.version)).toMatchObject({ full: false, changed: [["b", { n: 2 }]], deleted: [] });
       // The last command reads the floor again, because a prune can pass the query (roadmap CLI-93)
-      expect(commands).toEqual(["aggregate", "find", "findOne"]);
+      expect(commands).toEqual(["aggregate", "find", "find"]);
     } finally {
       await end();
     }

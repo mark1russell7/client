@@ -6,4 +6,4 @@
 
 A write that has ended is in each later read, as before. A write that has not ended is in this read or in the next read, one time. The mark of a read stops below each write in flight.
 
-To migrate: a caller that sends `set()` with no `await` and then calls `getChangesSince()` in the same tick must `await` the write before the read, if the read must have the write. A caller that follows a cursor changes nothing.
+To migrate: find each `set()` with no `await` before `getChangesSince()` in the same tick. If the read must have the write, `await` the write before the read. A caller that follows a cursor changes nothing.

@@ -258,7 +258,7 @@ export function Trace({ result }: { result: RunResult }): ReactElement {
                 aria-setsize={row.siblings}
                 aria-expanded={row.hasChildren ? !closed.has(call.id) : undefined}
                 aria-selected={open === call.id}
-                aria-label={`${name}${isInput ? ", an input" : ""}, ${failed ? `error: ${call.error}` : `result ${previewValue(call.output, 80)}`}, ${(end - call.start).toFixed(2)} ms`}
+                aria-label={`${name}${isInput ? " input" : ""} ${failed ? `${call.error}, an error` : previewValue(call.output)}, ${(end - call.start).toFixed(2)} ms`}
                 tabIndex={index === activeIndex ? 0 : -1}
                 className={`trace-row cat-${category}${open === call.id ? " open" : ""}`}
                 style={{ top: index * ROW_HEIGHT, height: ROW_HEIGHT }}
@@ -284,7 +284,7 @@ export function Trace({ result }: { result: RunResult }): ReactElement {
                   ) : (
                     <span className="twisty" aria-hidden="true" />
                   )}
-                  {name}
+                  {name}{" "}
                   {isInput ? (
                     <span className="trace-via" title="Hydration ran this call for the input of the call above it">
                       input

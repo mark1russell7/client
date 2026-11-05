@@ -154,6 +154,8 @@ export function ProgramGraph({
             const unknown = unknownCalls.has(node.id);
             const warning = warnings.has(node.id);
             const place = node.label ? `, in ${node.label}` : "";
+            // path-check: the namespace as display text.
+            const meta = node.stepName ? node.stepName : node.flow ? "control flow" : node.key.split(".").slice(0, -1).join(".");
             return (
               <button
                 key={node.id}
@@ -164,7 +166,7 @@ export function ProgramGraph({
                 aria-posinset={position}
                 aria-setsize={siblings}
                 aria-selected={selected === node.id}
-                aria-label={`${node.key}${node.stepName ? `, named ${node.stepName}` : ""}${place}${unknown ? ", not in the catalog" : ""}${warning ? ", reads a $ref that is not in scope" : ""}`}
+                aria-label={`${node.name} ${meta}${node.stepName || node.flow ? `, ${node.key}` : ""}${place}${unknown ? ", not in the catalog" : ""}${warning ? ", reads a $ref that is not in scope" : ""}`}
                 tabIndex={node.id === current ? 0 : -1}
                 className={`graph-node cat-${category}${selected === node.id ? " selected" : ""}${unknown ? " unknown" : ""}${warning ? " warning" : ""}`}
                 style={{ left: node.x, top: node.y, width: NODE_WIDTH, height: NODE_HEIGHT }}
@@ -179,16 +181,9 @@ export function ProgramGraph({
                 <span className="graph-node-name">
                   {warning ? <span aria-hidden="true">⚠ </span> : null}
                   {node.name}
-                </span>
+                </span>{" "}
                 <span className="graph-node-meta">
-                  {node.stepName ? (
-                    <span className="graph-step-name">{node.stepName}</span>
-                  ) : node.flow ? (
-                    "control flow"
-                  ) : (
-                    // path-check: the namespace as display text.
-                    node.key.split(".").slice(0, -1).join(".")
-                  )}
+                  {node.stepName ? <span className="graph-step-name">{node.stepName}</span> : meta}
                 </span>
               </button>
             );
