@@ -39,7 +39,7 @@ test.describe("the docs pages", () => {
     await first.getByRole("button", { name: "Run program 1 on this page" }).click();
     await expect(first.locator(".doc-program-result")).toContainText("Result");
     await expect(first.locator(".doc-program-result code")).toHaveText("3");
-    const composer = first.getByRole("link", { name: "Open program 1 in the Composer" });
+    const composer = first.getByRole("link", { name: "Open in the Composer: program 1" });
     expect(await composer.getAttribute("href")).toMatch(/\/composer\/\?p=/);
     await composer.click();
     await expect(page).toHaveURL(/\/composer\/\?p=/);
