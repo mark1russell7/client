@@ -144,12 +144,12 @@ function ProgramBlock({ segment, number }: { segment: Extract<DocSegment, { type
               className="primary small-button"
               onClick={() => void run()}
               disabled={running}
-              aria-label={`Run program ${number} on this page`}
+              aria-label={`${running ? "Running" : "Run"} program ${number} on this page`}
             >
               {running ? "Running…" : "▶ Run"}
             </button>
           ) : null}
-          <a className="ghost small-button" href={composer} aria-label={`Open program ${number} in the Composer`}>
+          <a className="ghost small-button" href={composer} aria-label={`Open in the Composer: program ${number}`}>
             Open in the Composer
           </a>
         </span>
