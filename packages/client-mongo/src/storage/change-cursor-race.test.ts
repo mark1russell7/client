@@ -1277,18 +1277,20 @@ withMongo("the race of a change cursor and a write in flight, on a real store (C
       const ids = ["p0", "p1", "p2", "p3", "p4", "p5", "p6"];
       let lists = 0;
       let removing = false;
+      let target: Host | undefined;
       const gated = gatedStore(path, {
         maxTombstones: 1,
         onList: async () => {
           if (removing) return;
           removing = true;
           lists += 1;
-          await gated.host.remove(ids[2 * lists - 2]!);
-          await gated.host.remove(ids[2 * lists - 1]!);
+          await target!.remove(ids[2 * lists - 2]!);
+          await target!.remove(ids[2 * lists - 1]!);
           removing = false;
         },
       });
       const { host, store, armed } = gated;
+      target = host;
       for (const id of ids) await host.write(id, { v: id });
       armed.onList = true;
       const answer = await store.getChangesSince();
