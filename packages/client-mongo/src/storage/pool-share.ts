@@ -7,11 +7,14 @@ export const DEFAULT_POOL_SIZE = 100;
  * The part of the pool for the change reads of one client: one twelfth, so 8 reads at the default pool.
  * A burst of change reads waits on round trips over a network. So a share of the pool, not a fixed count, sets the limit.
  *
- * The objective: other queries of the pool keep their time in a burst. The suite `read-bound` of `stream-cost.yml` examines it.
- * At a round trip of 20 ms, 8 reads at one time gave a p95 of 21 to 30 ms to the other queries (run 42105731536).
- * 4 reads gave 21 ms and a burst twice as long. 32 reads gave 60 to 106 ms.
- * At a round trip of 5 ms, 8 reads gave up to 17 ms, or 3 round trips, and 4 reads gave up to 12.5 ms (run 42041953313).
- * At that delay, the processors set the time, not the connections.
+ * The objective: in a burst, the p95 of other queries of the pool stays within 1.5 round trips.
+ * The share of the pool controls that p95 only when the connections wait on the network.
+ * So the suite `read-bound` of `stream-cost.yml` gates the objective at a delay of 20 ms.
+ * There, 8 reads at one time gave 1.01 to 1.44 round trips (run 42105731536). 16 reads gave up to 1.86, and 4 reads gave a burst twice as long.
+ *
+ * At a short round trip, the work of the server sets the p95 of each client of the server.
+ * A limit for one pool only spreads that work. At 5 ms, 8 reads gave up to 3 round trips, and 4 reads gave 2.2 (run 42041953313).
+ * There the suite only reports, with the p95 over the quiet p95 of the same probe.
  */
 export const CHANGE_READ_DIVISOR = 12;
 

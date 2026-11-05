@@ -175,10 +175,15 @@ jobs:
           RUN: ${{ github.run_id }}
           PREDICTION: ${{ inputs.prediction }}
           SUITE: ${{ inputs.suite }}
+          # The suite read-bound gates its objective at one delay (roadmap CLI-91). The report writes its file before a block
+          DELAY: ${{ inputs.suite == 'read-bound' && inputs.mongo_delay_ms || '' }}
         run: |
-          node --import tsx "bench/$SUITE-report.ts" --jobs bench-out --out "$SUITE-report.json" --run "$RUN"
+          status=0
+          node --import tsx "bench/$SUITE-report.ts" --jobs bench-out --out "$SUITE-report.json" --run "$RUN" ${DELAY:+--delay "$DELAY"} || status=$?
           { echo "Prediction: $PREDICTION"; echo '```json'; cat "$SUITE-report.json"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
         with:
           name: ${{ inputs.suite }}-cost-report
           path: packages/client-mongo/${{ inputs.suite }}-report.json
