@@ -739,6 +739,34 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
     expect(await db.collection(collection).countDocuments({ [TOMBSTONE_FIELD]: true })).toBe(1);
   });
 
+  it("a prune that stops between its two steps leaves a full result, and the next prune finishes (CLI-93)", { timeout: 60_000 }, async () => {
+    const collection = `c${++next}`;
+    const reader = new MongoDocumentStorage<{ n: number }>({ collection, db: () => db, transactions: "never" });
+    await reader.setBatch([["a", { n: 1 }], ["b", { n: 2 }], ["c", { n: 3 }]]);
+    const { version } = await reader.getChangesSince();
+    await reader.delete("a");
+
+    const writer = fileURLToPath(new URL("../../test/prune-writer.ts", import.meta.url));
+    const child = spawn(process.execPath, ["--import", "tsx", writer, url!, db.databaseName, collection, "b", "crash"], { cwd: dirname(writer), stdio: "ignore" });
+    const [code] = (await once(child, "exit")) as [number];
+    const tombstones = () => db.collection(collection).countDocuments({ [TOMBSTONE_FIELD]: true });
+
+    // The floor went up and the tombstones stay: a reader below the floor gets a full result
+    expect(code).toBe(7);
+    expect(await tombstones()).toBe(2);
+    const stopped = await reader.getChangesSince(version);
+    expect({ full: stopped.full, ids: stopped.changed.map(([id]) => id) }).toEqual({ full: true, ids: ["c"] });
+
+    // The next prune removes the tombstones that the stopped prune left, and delta reads work again
+    const nextPrune = new MongoDocumentStorage<{ n: number }>({ collection, db: () => db, transactions: "never", maxTombstones: 1 });
+    await nextPrune.delete("c");
+    expect(await tombstones()).toBe(1);
+    const { version: current } = await reader.getChangesSince();
+    await nextPrune.set("d", { n: 4 });
+    const delta = await reader.getChangesSince(current);
+    expect({ full: delta.full, ids: delta.changed.map(([id]) => id) }).toEqual({ full: false, ids: ["d"] });
+  });
+
   it("a db option that makes a new Db at each call keeps one queue of the writes and the change reads (CLI-93)", async () => {
     const collection = `c${++next}`;
     let during: (() => Promise<unknown>) | undefined;
