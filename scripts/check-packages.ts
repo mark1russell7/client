@@ -126,7 +126,7 @@ try {
     // before its dependencies) does not fail the check. On 2026-10-26, better-auth 1.7.14 came 4
     // minutes before its telemetry 1.7.14, and an install in the gap got ETARGET. npm cannot
     // exempt a scope from `--before`, so a dependency that only a younger version satisfies (a
-    // fresh fleet package) fails that install. Then one install without the cutoff decides.
+    // fresh package of ours) fails that install. Then one install without the cutoff decides.
     const npmInstall = ["install", "--no-audit", "--no-fund", "--loglevel=error"];
     const before = new Date(Date.now() - 15 * 60 * 1000).toISOString();
     try {
