@@ -57,6 +57,9 @@ jobs:
           echo "Tree $tree ($(git log -1 --format='%cs %s' "$tree"))"
           git worktree add --detach "$RUNNER_TEMP/trees/tree" "$tree"
       # The packages of the paired bench (@procedures/client and @procedures/collections), and mark
+      # The measure loads rigor-bench, a devDependency of the root
+      - name: Install the root of the checkout
+        run: pnpm install --frozen-lockfile --filter mark1russell7-monorepo
       - name: Install and build the tree
         run: |
           cd "$RUNNER_TEMP/trees/tree"

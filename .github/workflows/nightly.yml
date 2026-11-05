@@ -82,7 +82,7 @@ jobs:
       # file: the CPU, the core count, Node, the platform, the GitHub runner and the mode. It writes a
       # table of the times and the context to the summary of the job. A results folder without a
       # JSON file fails the job. The job gives no verdict: two runs on different runners do not
-      # compare (the strategist, O82). Thus the job downloads no earlier results. The paired A/B of
+      # compare (O82). Thus the job downloads no earlier results. The paired A/B of
       # the base and the head in one job is the workflow paired-bench.yml (O83).
       - name: Add the runner context to the results
         if: ${{ !cancelled() }}

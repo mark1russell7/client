@@ -516,6 +516,8 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
     const events = options.events;
     this.publisher = events instanceof EventPublisher ? events : events ? new EventPublisher({ ...events, clock: events.clock ?? this.clock }) : undefined;
     if (this.publisher) this.registerProcedure(this.publisher.procedure, { alwaysOn: true });
+    // The live state is a choice of the host, so its expose rule applies to these procedures
+    for (const procedure of this.publisher?.live?.procedures ?? []) this.registerProcedure(procedure);
 
     // Configure collections
     if (options.collections) {

@@ -48,7 +48,7 @@ jobs:
       run: |
         pnpm --filter @procedures/mark test:e2e
 
-  # The changesets of a pull request (strategy s38, decision D13): changeset-check of the template
+  # The changesets of a pull request (decision D13): changeset-check of the template
   # fails a change of a published package without a changeset, a changeset of an unknown package,
   # and a "major" of a 0.x package. The version PR, an empty changeset and the label no-changeset pass.
   changesets:
@@ -130,7 +130,7 @@ jobs:
           name: public-api-reports
           path: packages/*/test/api/public-api.txt
           retention-days: 7
-      # The shared conventions of the fleet (@mark1russell7/conventions). The step needs the build:
+      # The shared conventions (@mark1russell7/conventions). The step needs the build:
       # the rule typed-files lists the files of each tsconfig with tsc. The summary of the run has
       # a table of the rules.
       - name: Check the conventions
@@ -179,6 +179,11 @@ jobs:
       - name: Test the paired bench scripts
         if: ${{ !cancelled() }}
         run: node --test scripts/paired-time.test.ts scripts/bench-paired.test.ts scripts/setup-profile.test.ts scripts/server-request.test.ts scripts/compile-cache.test.ts scripts/mark-call.test.ts
+      # The flips of the measure checks (CLI-100) run only by dispatch and each week, so the tests
+      # of their script run here.
+      - name: Test the flip script
+        if: ${{ !cancelled() }}
+        run: node --test scripts/check-flips.test.ts
       # The import boundaries of invariant I9 (CLI-83), with dependency-cruiser: a transport does not
       # import the server, an import of another package goes through an entry of its exports map, and
       # no package imports an app. The shared rules are in the package @mark1russell7/boundaries, and
@@ -250,6 +255,17 @@ jobs:
             sleep 1
           done
           [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ]
+      # The test of s3.upload against a service with a custom endpoint (roadmap CLI-99)
+      - name: Start the S3 gateway
+        if: ${{ !cancelled() }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/s3-data"
+          docker run -d --name s3-gateway --user "$(id -u):$(id -g)" -p 9000:9000 -v "$RUNNER_TEMP/s3-data:/data" versity/versitygw:v1.10.0 --access test-access --secret test-secret-key --port :9000 posix /data
+          for i in $(seq 1 30); do
+            curl -s -o /dev/null http://localhost:9000/ && break
+            sleep 1
+          done
+          curl -s -o /dev/null http://localhost:9000/ || { docker logs s3-gateway; exit 1; }
       # The scaffold test of mark runs cue-config, which needs the CUE binary
       - name: Install CUE for the coverage
         if: ${{ !cancelled() }}
@@ -269,6 +285,9 @@ jobs:
           MONGO_TEST_URL: mongodb://localhost:27017/?directConnection=true
           MONGO_TEST_TOPOLOGY: replica-set
           MONGO_TEST_FAILPOINTS: "1"
+          S3_TEST_ENDPOINT: http://localhost:9000
+          S3_TEST_ACCESS_KEY: test-access
+          S3_TEST_SECRET_KEY: test-secret-key
         run: node scripts/coverage.ts --out "$RUNNER_TEMP/coverage-floors.json"
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -316,8 +335,9 @@ jobs:
   # The speed gate of the store (roadmap CLI-94). A pull request that changes the source of the store
   # compares the reads and the writes of its merge with its base on a real MongoDB, with an A/A beside
   # them. Two jobs take 12 rounds. A case with no outcome takes 12 more rounds in each job, and then the
-  # gate is final. "No read" is red with its own text: it is not a block and not a pass. The limit, its
-  # CI runs and its formula are in bench/gate-limit.json.
+  # gate is final. "No read" is red with its own text: it is not a block and not a pass. The gate holds
+  # a slowdown of 25 percent or more in each gated case, and a smaller slowdown can pass. The limit,
+  # its CI runs and its formula are in bench/gate-limit.json.
   mongo-speed-plan:
     name: MongoDB (a change of the store)
     if: github.event_name == 'pull_request'
@@ -440,9 +460,10 @@ jobs:
         working-directory: packages/client-mongo
         env:
           RUN: ${{ github.run_id }}
+          PR: ${{ github.event.pull_request.number }}
         run: |
           status=0
-          node --import tsx bench/gate-report.ts --jobs bench-out --out gate-report.json --run "$RUN" --enforce || status=$?
+          node --import tsx bench/gate-report.ts --jobs bench-out --out gate-report.json --run "$RUN" --pr "$PR" --enforce || status=$?
           { echo '```json'; cat gate-report.json || true; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           if [ "$status" = 2 ]; then echo "::error title=The speed gate has no read::$(jq -r .text gate-report.json)"; fi
           if [ "$status" = 1 ]; then echo "::error title=The speed gate blocks this change::$(jq -r .text gate-report.json)"; fi

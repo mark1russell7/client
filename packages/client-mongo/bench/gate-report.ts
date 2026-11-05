@@ -1,6 +1,6 @@
 /**
- * The verdict of the speed gate of the store (roadmap CLI-94): `--jobs <folder> --out <file> [--run <id>] [--enforce] [--more <file>]`.
- * This script reads the claim "not slower by more than the limit" of `gate-limit.json` over the job files of the folder.
+ * The verdict of the speed gate of the store (roadmap CLI-94): `--jobs <folder> --out <file> [--run <id>] [--pr <number>] [--enforce] [--more <file>]`.
+ * This script reads the claim "not slower by more than the limit of the case" of `gate-limit.json` over the job files of the folder.
  * With `--enforce`, the exit code is 1 for a block and 2 for no read. With `--more`, the file takes the line `more=<cases>` for the next look.
  */
 
@@ -8,7 +8,7 @@ import { appendFileSync, readdirSync, readFileSync, writeFileSync } from "node:f
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import type { PairedTime } from "@mark1russell7/rigor-bench";
-import { joinJobs, passingLimit, storeGate } from "./gate-verdict.js";
+import { joinJobs, overStated, passingLimit, storeGate, type GateLimit } from "./gate-verdict.js";
 import { poolErrors, type KeptError } from "./write-cases.js";
 
 /** The CI runs that a limit needs. */
@@ -28,17 +28,13 @@ interface Count {
   readonly errors?: Readonly<Record<string, KeptError>>;
 }
 
-interface GateLimit {
-  readonly limit: number;
-  readonly formula: string;
-  readonly runs: readonly string[];
-}
-
-const { values } = parseArgs({ options: { jobs: { type: "string" }, out: { type: "string" }, run: { type: "string" }, enforce: { type: "boolean" }, more: { type: "string" } } });
+const { values } = parseArgs({ options: { jobs: { type: "string" }, out: { type: "string" }, run: { type: "string" }, pr: { type: "string" }, enforce: { type: "boolean" }, more: { type: "string" } } });
 if (values.jobs === undefined || values.out === undefined) throw new RangeError("this report needs --jobs and --out");
 
 const gate = JSON.parse(readFileSync(new URL("./gate-limit.json", import.meta.url), "utf8")) as GateLimit;
 if (values.enforce === true && gate.runs.length < LEAST_RUNS) throw new RangeError(`the limit has ${gate.runs.length} CI runs beside it, and a gate needs ${LEAST_RUNS} or more`);
+const over = overStated(gate);
+if (values.enforce === true && over.length > 0) throw new RangeError(`the limits of ${over.join(", ")} do not hold their stated slowdowns`);
 
 const folder = values.jobs;
 const names = readdirSync(folder);
@@ -52,12 +48,20 @@ const round = (value: number): number => Number(value.toFixed(4));
 const joined = joinJobs(jobs.map(({ job, candidate, aa }) => ({ job, candidate, aa })));
 const failures = counts.filter((row) => row.arm === "after").reduce((sum, row) => sum + (row.failures ?? 0), 0);
 const attempt = Number(process.env["GITHUB_RUN_ATTEMPT"] ?? 1);
-const result = storeGate(joined, { limit: gate.limit, failures, attempt });
+const result = storeGate(joined, { limits: gate.limits, reportOnly: gate.reportOnly, failures, attempt });
 const { verdict } = result;
+const caseRead = (entry: (typeof verdict.cases)[number]) => ({
+  case: entry.case,
+  read: entry.read,
+  outcome: entry.outcome,
+  look: entry.look,
+  jobs: entry.jobs.map((job) => ({ job: job.job, rounds: job.rounds, below: job.below, above: job.above, centre: job.centre === undefined ? undefined : round(job.centre) })),
+});
 
 const report = {
-  schema: "store-gate/2",
+  schema: "store-gate/3",
   run: values.run ?? "",
+  pr: values.pr ?? "",
   attempt,
   outcome: result.outcome,
   text: result.text,
@@ -67,13 +71,8 @@ const report = {
   need: verdict.need,
   more: result.more,
   passingLimit: round(passingLimit(joined)),
-  cases: verdict.cases.map((entry) => ({
-    case: entry.case,
-    read: entry.read,
-    outcome: entry.outcome,
-    look: entry.look,
-    jobs: entry.jobs.map((job) => ({ job: job.job, rounds: job.rounds, below: job.below, above: job.above, centre: job.centre === undefined ? undefined : round(job.centre) })),
-  })),
+  cases: verdict.cases.map(caseRead),
+  reportOnly: result.reported.map(caseRead),
   failedWritesOfHead: failures,
   errorsOfHead: poolErrors(counts.filter((row) => row.arm === "after")),
   env: jobs.map(({ job, env }) => ({ job, env })),
