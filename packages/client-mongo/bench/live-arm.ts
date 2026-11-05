@@ -58,7 +58,7 @@ const mongo = new MongoClient(url);
 await mongo.connect();
 const db = mongo.db(database);
 const admin = mongo.db("admin");
-const storage = new MongoDocumentStorage<BenchValue>({ collection: NAME, db: () => db });
+const storage = new MongoDocumentStorage<BenchValue>({ collection: NAME, db: () => db, client: () => mongo });
 
 const registry = createRegistry();
 registry.registerAll(createCollectionProcedures(NAME));

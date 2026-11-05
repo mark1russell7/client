@@ -85,11 +85,15 @@ This read is CI run 41997833072 of the suite `live`, with 3 jobs of 3 rounds. Th
 | 100 | store | Not useful: the arm falls behind | 0 of 27 | 1,364 ms | 3,252 ms | 9,996 ms | Not useful |
 | 100 | live | 0 | 9 of 9 | 0.18 ms | 61.32 ms | 115.20 ms | 0.25 ms |
 
-- The window has a cost. With 10 or more writers, the reader p50 is 61 ms on the live arm and 9 ms on the store arm at 10 writers. The window of 120 ms joins the sets, so the reader gets 168 events in place of 1,600 values.
+This table does not compare live against the store at 100 writers or on store writes. The store arm at 100 writers carries the fault of the chain of change events below. Approximately 3 store writes per set holds only for the path with no transaction. A comparison of these two figures waits for a read after the fix of that fault.
+
+- The window has a cost, and a caller sets it. With 10 or more writers, a set arrives in an open window and waits until that window ends. For arrivals that are uniform over 120 ms, the wait is 60 ms at the median and 114 ms at p95. The read is 61 ms and 115 ms.
+- The option `window` sets this time, as one value or for each topic. A smaller window gives less delay and more events. A window of 0 sends each set at once, so n writers at 8 sets a second give 8n events a second to each reader. A window of 120 ms gives at most approximately 8.3 events a second to each reader, at each n. The read at 10 writers is 168 events in 20 s, in place of 1,600 values.
 - One writer at a rate under the window stays on the leading edge. Its reader p50 is 0.82 ms.
-- The store arm at 100 writers replied to 2 to 5 of 16,000 sets in 23 s. In that time the store took approximately 4,000 writes and the CPU had idle time. The mechanism has no name yet, so this figure shows only that the arm falls behind.
-- The bench reads 100 keys of approximately 200 bytes. So the defaults of 1,024 keys, 16,384 bytes and 4,096 topics do not come from a measure yet.
-- The field `transactions` of this bench reads 0 on the store arm, and a write of the store uses a transaction. This field has no read until that difference has a cause.
+- The store arm at 100 writers replied to 2 to 5 of 16,000 sets in 23 s, with one event for each reply. In that time the store took approximately 4,000 writes and the CPU had idle time.
+- The cause of that row is the chain of change events of the collection procedures (`writeWithChangeEvent`), not this bench. A reply waits for a publish. A publish reads the changes through the queue of the collection, behind the writes in that queue. When sets arrive faster than the queue serves them, each read waits behind a longer queue than the read before it. So the row shows that the arm falls behind, and its reply figures read that chain. Roadmap item CLI-102 holds this fault.
+- The bench reads 100 keys of approximately 200 bytes. So the defaults of 1,024 keys, 16,384 bytes and 4,096 topics do not come from a measure yet. Unit tests read the refusal or the removal at each limit, one under and one over. They do not read a cost.
+- The store arm of this run has `db` and no `client`, so each write of the store takes the path with no transaction. That path takes a number, writes the document and releases the number. This is the cause of approximately 3 store writes per set, and of the value 0 in the field `transactions`. A store with `client` on a replica set writes the counter and the document in one transaction, and this run does not read that path.
 
 ## What is not in this design
 
@@ -100,7 +104,7 @@ This read is CI run 41997833072 of the suite `live`, with 3 jobs of 3 rounds. Th
 ## Open questions
 
 1. `wsFace()` of `packages/client-server` calls `connectionClosed(id)` from `WebSocketServerTransport.onDisconnect`, and `metadata.connectionId` of a set names the owner. A host that uses `upgradeHandler()` itself calls it from `upgrade.transport.onDisconnect`.
-2. A cost to measure: the three limits above at their edges, with a prediction first.
+2. A cost to measure: the three limits above at their edges, with a prediction first. The date of this bench is 2026-11-14.
 
 ## SemVer
 

@@ -384,6 +384,51 @@ describe("the limits", () => {
   });
 });
 
+describe("the default limits, one under and one over", () => {
+  const refused = expect.objectContaining({ code: "FORBIDDEN", reason: "write-not-allowed" });
+
+  it("takes 1,024 keys on a topic and refuses a new key after them, and the existing values stay", () => {
+    const { live } = rig();
+    for (let key = 0; key < 1024; key++) live.set("live.room", `k${key}`, key);
+    expect(live.size).toBe(1024);
+    expect(() => live.set("live.room", "k1024", 1)).toThrow(refused);
+    expect(() => live.set("live.room", "k1024", 1)).toThrow(/limit of 1024 keys/);
+    live.set("live.room", "k0", "new");
+    expect(live.size).toBe(1024);
+    expect(valuesOf(live.snapshot("live.room"))["k0"]).toBe("new");
+  });
+
+  it("takes a value of 16,384 bytes as JSON and refuses a value of 16,385 bytes", () => {
+    const { live } = rig();
+    // The two quotes of the JSON text add 2 bytes
+    live.set("live.room", "fits", "x".repeat(16382));
+    expect(() => live.set("live.room", "over", "x".repeat(16383))).toThrow(refused);
+    expect(() => live.set("live.room", "over", "x".repeat(16383))).toThrow(/more than 16384 bytes/);
+    expect(live.size).toBe(1);
+  });
+
+  it("takes 4,096 topics and refuses a new topic while each has a key or an open window", async () => {
+    const bus = createEventBus();
+    const { live, clock } = rig({}, {}, "live.heard", bus);
+    for (let topic = 0; topic < 4096; topic++) live.set(`live.t${topic}`, "k", 1);
+    expect(live.size).toBe(4096);
+    expect(() => live.set("live.over", "k", 1)).toThrow(refused);
+    expect(() => live.set("live.over", "k", 1)).toThrow(/limit of 4096 topics/);
+
+    // The end of the key leaves its window open, so the topic stays
+    await clock.advance(120);
+    expect(live.leave("live.t0", "k")).toBe(true);
+    expect(() => live.set("live.over", "k", 1)).toThrow(refused);
+
+    // The window ended, so the topic with no key goes for the new topic
+    const before = bus.subscriberCount("live.t0");
+    await clock.advance(120);
+    live.set("live.over", "k", 1);
+    expect(live.size).toBe(4096);
+    expect(bus.subscriberCount("live.t0")).toBeLessThan(before);
+  });
+});
+
 describe("the rights of a set and a snapshot", () => {
   it("stamps who set the value, and the value of the caller cannot replace the name", async () => {
     const { live } = rig({ admitSet: ({ principal }) => ({ by: principal?.id }) });
