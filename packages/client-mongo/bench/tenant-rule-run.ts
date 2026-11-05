@@ -45,7 +45,7 @@ function start(file: string, args: readonly string[]): Child {
 
 async function runRound(kase: RuleCase, round: number): Promise<RuleRound> {
   const database = `rule_${job}_${round}_${kase.id.replaceAll("-", "_")}`;
-  const writer = (copy: FormCopy, me: number): Child => start("bench/tenant-rule-writer.ts", ["--copy", copy, "--me", String(me), "--database", database]);
+  const writer = (copy: FormCopy, me: number): Child => start("bench/tenant-rule-writer.ts", ["--copy", copy, "--me", String(me), "--database", database, ...(kase.writesAtOneTime === undefined ? [] : ["--at-one-time", String(kase.writesAtOneTime)])]);
   const reader = start("bench/tenant-rule-reader.ts", ["--copy", kase.reader, "--database", database]);
   const writers = kase.writers.map(writer);
   const written = (await Promise.all(writers.map((child) => child.result))).map((line) => JSON.parse(line) as { replied: string[]; errors: Record<string, number> });

@@ -14,6 +14,9 @@ export const RULE_PARTITIONS = 4;
 /** The writes in progress at one time in one writer process. */
 export const RULE_WRITES_AT_ONE_TIME = 8;
 
+/** The writes in progress at one time in one writer process, over the bound of the copy `formbbound`, so calls wait at its gate. */
+const RULE_WRITES_OVER_THE_BOUND = 64;
+
 /** The most time of a hold in a write. It is above the time of a write, so a writer and a reader pass a write in progress. */
 export const RULE_HOLD_MS = 20;
 
@@ -22,12 +25,14 @@ export function partitionName(index: number): string {
   return `p${index}`;
 }
 
-/** One case of the test: its writers, its reader, and whether a miss is the expected result. */
+/** One case of the test: its writers, its reader, and its expected result for a miss. */
 export interface RuleCase {
   readonly id: string;
   readonly writers: readonly [FormCopy, FormCopy];
   readonly reader: FormCopy;
   readonly miss: "none" | "some";
+  /** The writes in progress at one time in one writer process, when the case differs from `RULE_WRITES_AT_ONE_TIME`. */
+  readonly writesAtOneTime?: number;
   /** The later full results that the case expects from the guard. A case with no value does not read them. */
   readonly laterFulls?: "none" | "some";
 }
@@ -44,6 +49,9 @@ export const RULE_CASES: readonly RuleCase[] = [
   { id: "release-forma-guard", writers: ["today", "forma"], reader: "formaguard", miss: "none", laterFulls: "some" },
   { id: "release-formb-new-reader", writers: ["today", "formb"], reader: "formb", miss: "none" },
   { id: "release-formb-old-reader", writers: ["today", "formb"], reader: "today", miss: "none" },
+  { id: "formbbound", writers: ["formbbound", "formbbound"], reader: "formbbound", miss: "none", writesAtOneTime: RULE_WRITES_OVER_THE_BOUND },
+  { id: "release-formbbound-new-reader", writers: ["today", "formbbound"], reader: "formbbound", miss: "none", writesAtOneTime: RULE_WRITES_OVER_THE_BOUND },
+  { id: "release-formbbound-old-reader", writers: ["today", "formbbound"], reader: "today", miss: "none", writesAtOneTime: RULE_WRITES_OVER_THE_BOUND },
 ];
 
 /** The result of one round of one case. */

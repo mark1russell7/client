@@ -7,8 +7,9 @@ import { parseArgs } from "node:util";
 import { MongoClient } from "mongodb";
 import { RULE_MS, RULE_PARTITIONS, RULE_WRITES_AT_ONE_TIME, partitionName } from "./tenant-rule-cases.js";
 
-const { values } = parseArgs({ options: { copy: { type: "string" }, me: { type: "string" }, database: { type: "string" } } });
+const { values } = parseArgs({ options: { copy: { type: "string" }, me: { type: "string" }, database: { type: "string" }, "at-one-time": { type: "string" } } });
 const { copy, me, database } = values;
+const atOneTime = Number(values["at-one-time"] ?? RULE_WRITES_AT_ONE_TIME);
 const url = process.env["MONGO_TEST_URL"];
 if (!copy || !me || !database || !url) throw new RangeError("this writer needs --copy, --me, --database and MONGO_TEST_URL");
 
@@ -35,6 +36,6 @@ const loop = async (): Promise<void> => {
     }
   }
 };
-await Promise.all(Array.from({ length: RULE_WRITES_AT_ONE_TIME }, loop));
+await Promise.all(Array.from({ length: atOneTime }, loop));
 await client.close();
 process.stdout.write(`${JSON.stringify({ replied, errors })}\n`, () => process.exit(0));

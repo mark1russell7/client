@@ -49,10 +49,13 @@ export const FORM_CASES = ["800-p2", "1200-p4", "1600-p4", "200-p2-hot", "400-p2
 export const FORM_ARMS = ["forma", "formb"] as const;
 
 /** The arm of the suite `tenant-bound` that the suite `tenant-forms` does not have: form B with a bound on the calls in progress. */
-export const BOUND_ARMS = ["formbbound"] as const;
+export const BOUND_ARMS = ["formbbound", "formbbound8", "formbbound32"] as const;
 
 /** The cases of the suite `tenant-bound`: the rates where form B collapses, the hot tenant where it holds, and the burst of first loads. */
 export const BOUND_CASES = ["800-p2", "1200-p4", "200-p2-hot", "400-p2-hot", "200-p2-first10"] as const;
+
+/** The cases of the suite `tenant-bound-size`. A small bound can hold writes back at the first rate. The second rate is over the limit of the machine. The third case is the hot tenant. */
+export const BOUND_SIZE_CASES = ["800-p2", "1200-p4", "400-p2-hot"] as const;
 
 /** The arms that use a copy of the store. */
 export const COPY_ARMS: readonly string[] = [...SEPARATE_ARMS, ...FORM_ARMS, ...BOUND_ARMS];

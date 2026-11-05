@@ -38,6 +38,8 @@ on:
           - tenant-forms
           - tenant-forms-first
           - tenant-bound
+          - tenant-bound-size
+          - tenant-order
           - tenant-rule
         default: stream
       enforce:
