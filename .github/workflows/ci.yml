@@ -251,15 +251,16 @@ jobs:
           done
           [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ]
       # The test of s3.upload against a service with a custom endpoint (roadmap CLI-99)
-      - name: Start MinIO
+      - name: Start the S3 gateway
         if: ${{ !cancelled() }}
         run: |
-          docker run -d --name minio -p 9000:9000 -e MINIO_ROOT_USER=test-access -e MINIO_ROOT_PASSWORD=test-secret-key minio/minio:RELEASE.2025-04-22T22-12-26Z server /data
+          mkdir -p "$RUNNER_TEMP/s3-data"
+          docker run -d --name s3-gateway --user "$(id -u):$(id -g)" -p 9000:9000 -v "$RUNNER_TEMP/s3-data:/data" versity/versitygw:v1.10.0 --access test-access --secret test-secret-key --port :9000 posix /data
           for i in $(seq 1 30); do
-            curl -fsS http://localhost:9000/minio/health/live >/dev/null 2>&1 && break
+            curl -s -o /dev/null http://localhost:9000/ && break
             sleep 1
           done
-          curl -fsS http://localhost:9000/minio/health/live
+          curl -s -o /dev/null http://localhost:9000/ || { docker logs s3-gateway; exit 1; }
       # The scaffold test of mark runs cue-config, which needs the CUE binary
       - name: Install CUE for the coverage
         if: ${{ !cancelled() }}

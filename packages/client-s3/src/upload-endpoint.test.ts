@@ -1,9 +1,9 @@
 /**
  * The tests of `s3.upload` with `sourcePath` through the real S3 client and a custom endpoint, as
  * `S3_ENDPOINT` sets it. This file has two services. A small HTTP server in the test runs in each
- * job and answers S3 requests, so the tests read the bytes and the headers on the wire. MinIO runs
+ * job and answers S3 requests, so the tests read the bytes and the headers on the wire. An S3 gateway runs
  * in the job `checks` of `ci.yml`, as `S3_TEST_ENDPOINT` says, and shows that a real service takes
- * these requests. Without `S3_TEST_ENDPOINT`, the MinIO tests do not run.
+ * these requests. Without `S3_TEST_ENDPOINT`, the gateway tests do not run.
  */
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -154,7 +154,7 @@ describe("s3.upload against an HTTP server in the test", () => {
 
 const endpoint = process.env["S3_TEST_ENDPOINT"];
 
-describe.skipIf(endpoint === undefined)("s3.upload against MinIO", () => {
+describe.skipIf(endpoint === undefined)("s3.upload against an S3 gateway", () => {
   const bucket = `s3-upload-${process.pid}`;
 
   beforeEach(async () => {
