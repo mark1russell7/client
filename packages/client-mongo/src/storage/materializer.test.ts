@@ -618,11 +618,16 @@ withMongo("ViewMaterializer on MongoDB", { timeout: TEST_TIMEOUT_MS }, () => {
     expect(views.openStreamCount()).toBe(0);
   });
 
-  /** A materializer whose clock counts the change events of the sources: each event arms the debounce once. */
+  /** A materializer that counts the change events of the sources: each event that passes sets the time of the last change of its partition. */
   function counting(db: Db, options: { storageSources?: Record<string, ViewPartitionOf | ViewStorageSource> } = {}) {
     const counter = { events: 0 };
-    const clock: Clock = { now: () => realClock.now(), after: (ms, run) => (ms === 20 && counter.events++, realClock.after(ms, run)) };
-    const views = new ViewMaterializer({ db: () => db, debounce: ms(20), rewatch: ms(100), clock, log: () => undefined, ...options });
+    const views = new ViewMaterializer({ db: () => db, debounce: ms(20), rewatch: ms(100), log: () => undefined, ...options });
+    const lastChange = views["lastChange"];
+    const set = lastChange.set.bind(lastChange);
+    lastChange.set = (partition, time) => {
+      counter.events++;
+      return set(partition, time);
+    };
     return { views, counter };
   }
 
