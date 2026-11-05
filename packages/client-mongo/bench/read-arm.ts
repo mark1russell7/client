@@ -37,13 +37,14 @@ const observer = new MongoClient(url);
 const app = new MongoClient(url, { monitorCommands: true });
 await Promise.all([observer.connect(), app.connect()]);
 
-const storage = new MongoDocumentStorage<{ text: string }>({ collection: "docs", db: () => app.db(name), transactions: "never" });
+const shared = app.db(name);
+const storage = new MongoDocumentStorage<{ text: string }>({ collection: "docs", db: () => (kind === "fresh" ? app.db(name) : shared), transactions: "never" });
 const text = "x".repeat(documents === 1 ? LARGE_BYTES : SMALL_BYTES);
 await storage.setBatch(Array.from({ length: documents }, (_, index): [string, { text: string }] => [`d${index}`, { text }]));
 
 const current = await storage.getChangesSince();
 let since = current.version;
-if (kind === "one") {
+if (kind === "one" || kind === "fresh") {
   await storage.set("d0", { text: "y".repeat(SMALL_BYTES) });
 } else if (kind === "first") {
   since = "";

@@ -4,16 +4,19 @@
  * - `first`: a read with no version, the full result.
  * - `none`: a delta read of the current version, with no change.
  * - `one`: a delta read with one changed document.
+ * - `fresh`: the same read as `one`, on a `db` option that makes a new `Db` at each call, as the default connection does.
+ *
+ * All other kinds use one `Db` object.
  */
 
 /** The kinds of a read. */
-export const READ_KINDS = ["first", "none", "one"] as const;
+export const READ_KINDS = ["first", "none", "one", "fresh"] as const;
 
 /** One kind of a read. */
 export type ReadKind = (typeof READ_KINDS)[number];
 
 /** The cases of the bench. The A/A band needs five cases. */
-export const READ_CASES = ["first-1", "first-100", "none-1", "none-100", "one-1"] as const;
+export const READ_CASES = ["first-1", "first-100", "none-1", "none-100", "one-1", "fresh-1"] as const;
 
 /** The reads of a burst. */
 export const BURST_READS = 1_000;
