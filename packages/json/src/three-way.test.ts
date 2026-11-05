@@ -24,6 +24,12 @@ const side: fc.Arbitrary<JsonValue | undefined> = fc.option(value, { nil: undefi
 const equal = (a: JsonValue | undefined, b: JsonValue | undefined): boolean =>
   a === undefined || b === undefined ? a === b : jsonEqual(a, b);
 
+/** Each object and array in a value, at each depth. */
+function objectsOf(value: unknown): object[] {
+  if (value === null || typeof value !== "object") return [];
+  return [value, ...Object.values(value).flatMap(objectsOf)];
+}
+
 describe("mergeThreeWay: the laws", () => {
   it("the base equal to ours gives theirs, with no conflict", () => {
     fc.assert(fc.property(side, side, (base, theirs) => {
@@ -71,10 +77,10 @@ describe("mergeThreeWay: the laws", () => {
   it("the inputs do not change, and the result shares no object with them", () => {
     fc.assert(fc.property(value, value, value, (base, ours, theirs) => {
       const texts = [base, ours, theirs].map((input) => JSON.stringify(input));
-      const { merged } = mergeThreeWay(base, ours, theirs);
-      if (merged !== null && typeof merged === "object") {
-        for (const input of [base, ours, theirs]) expect(merged).not.toBe(input);
-      }
+      const { merged, conflicts } = mergeThreeWay(base, ours, theirs);
+      const inputs = new Set([base, ours, theirs].flatMap(objectsOf));
+      const outputs = [merged, ...conflicts.flatMap((c) => [c.base, c.ours, c.theirs])].flatMap(objectsOf);
+      expect(outputs.filter((object) => inputs.has(object))).toEqual([]);
       expect([base, ours, theirs].map((input) => JSON.stringify(input))).toEqual(texts);
     }));
   });
