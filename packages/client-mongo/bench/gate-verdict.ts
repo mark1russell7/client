@@ -15,6 +15,9 @@ export const WRITE_CASES: readonly string[] = ["one-10", "many-1", "part-1"];
 /** The looks of the gate, in rounds of each job. The level of the family has an equal share at each look. The second look is the budget of a job. */
 export const STORE_LOOKS: readonly number[] = [12, 24];
 
+/** The level of the family of the cases of the gate, the default of `notSlowerVerdict`. */
+const STORE_LEVEL = 0.05;
+
 /** The exit code of a gate that reads "no read". It differs from a block, so nobody reads a loud run as a slower head. */
 export const NO_READ_EXIT = 2;
 
@@ -160,16 +163,19 @@ export function rerunCounts(attempts: readonly GateAttempt[]): RerunCount[] {
 }
 
 /**
- * This function gives the smallest limit that passes one case alone, for each case of the gate. A case alone has the level of the whole family.
- * So a limit from these values needs a read of all cases together, with the correction over all cases.
+ * This function gives the smallest limit that passes one case alone, for each case of the gate. Each read uses the level of the family over the cases that the gate reads, which is the strictest level of the correction.
+ * So all cases pass together at these limits in the same records. With the level of the whole family on a case alone, a run can read "no read" at its own limits.
  */
-export function caseLimits(jobs: readonly JobRecords[]): Record<string, number> {
-  return Object.fromEntries([...READ_CASES, ...WRITE_CASES].map((name) => [name, searchLeast((limit) => notSlowerVerdict(ofCases(jobs, [name]), { margin: Math.log(limit), looks: STORE_LOOKS }).outcome === "pass")]));
+export function caseLimits(jobs: readonly JobRecords[], reportOnly: readonly string[] = []): Record<string, number> {
+  const all = [...READ_CASES, ...WRITE_CASES];
+  const level = STORE_LEVEL / all.filter((name) => !reportOnly.includes(name)).length;
+  return Object.fromEntries(all.map((name) => [name, searchLeast((limit) => notSlowerVerdict(ofCases(jobs, [name]), { margin: Math.log(limit), looks: STORE_LOOKS, level }).outcome === "pass")]));
 }
 
-/** This function gives the outcome of all cases together, with a limit for each case. */
-export function outcomeAtCaseLimits(jobs: readonly JobRecords[], limits: Readonly<Record<string, number>>): GateOutcome {
-  return notSlowerVerdict(jobs, { margin: marginOf(limits), looks: STORE_LOOKS }).outcome;
+/** This function gives the outcome of the cases that the gate reads, together, with a limit for each case. */
+export function outcomeAtCaseLimits(jobs: readonly JobRecords[], limits: Readonly<Record<string, number>>, reportOnly: readonly string[] = []): GateOutcome {
+  const gated = [...READ_CASES, ...WRITE_CASES].filter((name) => !reportOnly.includes(name));
+  return notSlowerVerdict(ofCases(jobs, gated), { margin: marginOf(limits), looks: STORE_LOOKS }).outcome;
 }
 
 /**

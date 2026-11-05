@@ -190,6 +190,16 @@ describe("caseLimits", () => {
     expect(outcomeAtCaseLimits(jobs, limits)).toBe("pass");
   });
 
+  it("gives limits that pass together when a case passes the first look alone only at the level of the whole family", () => {
+    // 10 of 12 below 1.02 at the first look, 18 of 24 at the second: alone at the level of the family this passes at 1.02, and together this has no outcome at 1.02
+    const late = (_name: string, round: number): number => (round < 12 ? (round % 6 === 0 ? 1.15 : 1.02) : round % 3 === 0 ? 1.15 : 1.02);
+    const jobs = [jobOf("1", late, 24), jobOf("2", late, 24)];
+    expect(outcomeAtCaseLimits(jobs, everyCase(1.03), ["one-10"])).toBe("no read");
+    const limits = caseLimits(jobs, ["one-10"]);
+    expect(limits["first-1"]).toBeGreaterThan(1.15);
+    expect(outcomeAtCaseLimits(jobs, limits, ["one-10"])).toBe("pass");
+  });
+
   it("reads a slower case as a block at a limit below its ratio", () => {
     const noisy = (name: string): number => (name === "part-1" ? 1.2 : 1.02);
     const jobs = [jobOf("1", noisy, 24), jobOf("2", noisy, 24)];
