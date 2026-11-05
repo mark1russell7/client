@@ -16,7 +16,7 @@ interface ManyFile extends JobRecords {
 }
 
 /** The numbers of rounds that the report reads. */
-const LOOKS = [36, 48, 72, 96] as const;
+const LOOKS = [24, 36, 48, 72, 96] as const;
 
 const { values } = parseArgs({ options: { jobs: { type: "string" }, out: { type: "string" }, run: { type: "string" } } });
 if (values.jobs === undefined || values.out === undefined) throw new RangeError("this report needs --jobs and --out");
@@ -47,4 +47,4 @@ const jobs = files.map((file) => ({
 }));
 
 writeFileSync(values.out, `${JSON.stringify({ schema: "store-gate-many/1", run: values.run, jobs }, null, 2)}\n`);
-console.log(`The many-1 arm of the store gate: ${jobs.length} jobs.`);
+console.log(`The arm of one case of the store gate: ${jobs.length} jobs.`);
