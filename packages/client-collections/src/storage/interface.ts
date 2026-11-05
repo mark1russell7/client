@@ -332,6 +332,11 @@ export type StorageObserver<T> = (changes: StorageChangeBatch<T>) => void;
  *   has the ids that were deleted after it.
  * - The order of a full result is the order of the entries. The order of a delta is the order of
  *   the last change of each id: an id that changed again comes after the ids that changed before.
+ * - A result gives each write at least one time. A write can come again in two cases, with the same
+ *   value or a later value. A full result takes its version after it lists the items, and it can
+ *   hold a write above that version, so the next delta gives the write again. A write that ends
+ *   after its lease can come again in a later delta, with a new version. A consumer applies a change
+ *   by its id, and does not count changes.
  */
 export interface StorageChanges<T> {
   /** The version of the storage that includes these changes. */
@@ -342,6 +347,11 @@ export interface StorageChanges<T> {
   changed: Array<[string, T]>;
   /** The ids that were deleted. Empty when `full` is true. */
   deleted: string[];
+  /**
+   * True when this version stops below a write in flight. A later read can give more changes, with no
+   * new write.
+   */
+  held?: boolean;
 }
 
 /**

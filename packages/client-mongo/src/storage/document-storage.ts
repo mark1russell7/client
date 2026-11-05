@@ -68,6 +68,12 @@
  *   its lease moves its documents to new numbers, so a reader that passed the old numbers gets
  *   it. One case stays on a single server: a process that stops between such a late write and the
  *   move of its documents. Then a reader that passed the old numbers does not get that change.
+ * - A reader can get a write two times, with the same value or a later value. A full answer takes
+ *   its mark after it lists the items, and it can hold a write above its mark, so the next delta
+ *   gives the write again. A reader can also read a late write at its old numbers, and then the move
+ *   gives the write new numbers and a new version. The second case occurs only for a write that ends
+ *   after `writeLease`.
+ * - A version that stops below a pending number has `held`, so a reader knows to read again.
  * - The storage uses a transaction only with a client: the option `client`, or the default
  *   connection when `db` is absent. With `db` and no `client`, each write uses the watermark, also
  *   on a replica set.
@@ -741,6 +747,8 @@ interface Counter {
 interface Watermark extends Counter {
   /** The floor of the log of the partition: 0 when the partition has no floor document. */
   floor: number;
+  /** True when the version stops below a pending number. */
+  held: boolean;
 }
 
 /**
@@ -1164,7 +1172,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     if (!mark) throw new Error(`The sequence of ${this.collectionName} is not available`);
     const seq = typeof mark.low === "number" ? Math.min(mark.seq, mark.low - 1) : mark.seq;
     const floor = docs.find((doc) => doc._id === floorId)?.floor;
-    return { seq, epoch: mark.epoch, floor: typeof floor === "number" ? floor : 0 };
+    return { seq, epoch: mark.epoch, floor: typeof floor === "number" ? floor : 0, held: seq < mark.seq };
   }
 
   /** The id of the document of the oldest kept change of the partition. */
@@ -1363,6 +1371,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
       full: true,
       changed: this.decodeAll(docs),
       deleted: [],
+      ...(mark.held ? { held: true } : {}),
     });
     let mark = first;
     for (let tries = 1; ; tries += 1) {
@@ -1396,13 +1405,14 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     return withReadPermit(db, async () => {
       const counter = await this.watermark(db);
       const version = `${counter.epoch}.${counter.seq}`;
+      const held = counter.held ? { held: true } : {};
       const full = (): Promise<StorageChanges<T>> => this.fullResult(db, items, counter);
       const match = since === undefined ? null : /^([^.]+)\.(\d+)$/.exec(since);
       if (!match || match[1] !== counter.epoch) return full();
       const from = Number(match[2]);
       if (from < counter.floor || from > counter.seq) return full();
       // No number is above this version: the read needs no query of the items
-      if (from === counter.seq) return { version, full: false, changed: [], deleted: [] };
+      if (from === counter.seq) return { version, full: false, changed: [], deleted: [], ...held };
       // A number above the watermark can belong to a write that is not visible yet: the next read gives it
       const docs = await items
         .find({ ...this.partitionFilter(), [SEQ]: { $gt: from, $lte: counter.seq } } as Filter<Stored>)
@@ -1418,7 +1428,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
         if (doc[TOMB] === true) deleted.push(id);
         else changed.push(this.decode(doc, id)!);
       }
-      return { version, full: false, changed, deleted };
+      return { version, full: false, changed, deleted, ...held };
     });
   }
 
