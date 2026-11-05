@@ -8,6 +8,7 @@
  *
  *   node scripts/check-flips.ts coverage [--out <file>]   the floors of `scripts/coverage.ts`
  *   node scripts/check-flips.ts size [--out <file>]       the three budgets of `seo.spec.ts`
+ *   node scripts/check-flips.ts live-close [--out <file>] the end of a live key when its connection closes
  *
  * Each size fault goes just over its own budget, by `MARGIN` bytes. So a flip shows the bound of
  * that budget, not only that a very large page fails. The run reads the sizes from the clean copy.
@@ -156,6 +157,19 @@ function coverageFlips(): Flip[] {
   return [flipOf("the coverage floor", clean, faulty, /access: functions [\d.]+ is below the floor/)];
 }
 
+/** This function gives the flip of the end of a live key at a close, with the call of the WebSocket face removed. */
+function liveCloseFlips(): Flip[] {
+  const name = "the end of a live key at a close";
+  const source = join("packages", "client-server", "src", "host", "faces.ts");
+  const wiring = "server.publisher?.live?.connectionClosed(connection.id);";
+  const check = (): Run => run("pnpm", ["--filter", "@procedures/peer", "exec", "vitest", "run", "src/host/live-state.test.ts"]);
+  const clean = check();
+  const text = readFileSync(source, "utf8");
+  if (text.split(wiring).length !== 2) return [{ name, held: false, reason: "faces.ts does not have the wiring one time" }];
+  const faulty = withFault(new Map([[source, text.replace(wiring, "")]]), check);
+  return [flipOf(name, clean, faulty, /ends the keys of a connection at its close/)];
+}
+
 /** This function gives the flip of each size budget. */
 function sizeFlips(): Flip[] {
   const dist = join("packages", "site", "dist");
@@ -202,13 +216,13 @@ if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathS
   const [kind, ...rest] = process.argv.slice(2);
   const outAt = rest.indexOf("--out");
   const out = outAt >= 0 ? rest[outAt + 1] : undefined;
-  if (kind !== "coverage" && kind !== "size") {
-    console.error("Usage: node scripts/check-flips.ts (coverage | size) [--out <file>]");
+  if (kind !== "coverage" && kind !== "size" && kind !== "live-close") {
+    console.error("Usage: node scripts/check-flips.ts (coverage | size | live-close) [--out <file>]");
     process.exit(2);
   }
   const workflow = readFileSync(join(".github", "workflows", "ci.yml"), "utf8");
-  const blocked = kind === "coverage" ? cannotFail(workflow, "checks", "node scripts/coverage.ts") : cannotFail(workflow, "site", "@procedures/site test:e2e");
-  const flips = blocked ? [{ name: kind, held: false, reason: blocked }] : kind === "coverage" ? coverageFlips() : sizeFlips();
+  const blocked = kind !== "size" ? cannotFail(workflow, "checks", "node scripts/coverage.ts") : cannotFail(workflow, "site", "@procedures/site test:e2e");
+  const flips = blocked ? [{ name: kind, held: false, reason: blocked }] : kind === "coverage" ? coverageFlips() : kind === "live-close" ? liveCloseFlips() : sizeFlips();
   for (const flip of flips) console.log(`${flip.held ? "HELD" : "NOT HELD"}: ${flip.name}: ${flip.reason}`);
   if (out) writeFileSync(out, `${JSON.stringify({ schema: "check-flips/1", kind, flips }, null, 2)}\n`);
   if (!flips.every((flip) => flip.held)) process.exit(1);
