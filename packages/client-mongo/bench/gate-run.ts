@@ -15,7 +15,13 @@ import { benchEnv, freshRun } from "@mark1russell7/rigor-bench/fresh";
 const READ_CASES = ["first-1", "none-1", "one-1"];
 
 /** The write cases of the gate, on the default connection and in transactions. No id is also a read case, because one verdict holds all six. */
-const WRITE_CASES = ["one-10", "many-10", "part-10"];
+const WRITE_CASES = ["one-10", "many-1", "part-1"];
+
+/**
+ * The bursts of each write child. The time of a child is its median burst, so that a stall of the runner does not
+ * block a change: on run 41977092527, with one burst of 1,000 writes, a child of the same source took 2.7 times the median.
+ */
+const WRITE_BURSTS = 15;
 
 const { values } = parseArgs({ options: { job: { type: "string" }, rounds: { type: "string" }, cap: { type: "string" }, out: { type: "string" } } });
 const job = Number(values.job);
@@ -25,13 +31,13 @@ if (!Number.isInteger(job) || !Number.isInteger(rounds) || !(cap > 0) || values.
 const out = values.out;
 mkdirSync(dirname(out), { recursive: true });
 
-const runOf = (suite: "read" | "write", cases: readonly string[]) => {
-  const arm = (id: string): { id: string; command: string[] } => ({ id, command: [process.execPath, "--import", "tsx", `bench/${suite}-arm.ts`, "--arm", id, "--job", String(job), "--counts", `${out}.${suite}.jsonl`] });
+const runOf = (suite: "read" | "write", cases: readonly string[], extra: readonly string[] = []) => {
+  const arm = (id: string): { id: string; command: string[] } => ({ id, command: [process.execPath, "--import", "tsx", `bench/${suite}-arm.ts`, "--arm", id, "--job", String(job), "--counts", `${out}.${suite}.jsonl`, ...extra] });
   return freshRun({ base: arm("before"), candidates: [arm("after")], cases: [...cases], rounds, roundOffset: (job - 1) * rounds, job: String(job), timeoutMs: cap * 1000 });
 };
 
 const reads = await runOf("read", READ_CASES);
-const writes = await runOf("write", WRITE_CASES);
+const writes = await runOf("write", WRITE_CASES, ["--bursts", String(WRITE_BURSTS)]);
 const candidate = [...reads.pairs["after"]!, ...writes.pairs["after"]!];
 const aa = [...reads.pairs["before~aa"]!, ...writes.pairs["before~aa"]!];
 writeFileSync(out, `${JSON.stringify({ job: String(job), env: benchEnv(), candidate, aa })}\n`);
