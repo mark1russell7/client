@@ -51,7 +51,7 @@ function coresOf(rows: readonly TenantCount[]): { core: number; busy: number; io
 }
 
 /** This function gives the middle reading of a field over the children, or null when no child has this reading. */
-const readingOf = (rows: readonly TenantCount[], pick: (row: TenantCount) => number | undefined): number | null => {
+const fieldMedian = (rows: readonly TenantCount[], pick: (row: TenantCount) => number | undefined): number | null => {
   const values = rows.map(pick).filter((value): value is number => value !== undefined);
   return values.length === 0 ? null : round(median(values), 3);
 };
@@ -104,16 +104,16 @@ const cases = caseNames.map((name) => {
       p99OverBase: overBase(arm, name),
       disk: {
         device: rows.find((row) => row.disk)?.disk?.device ?? null,
-        writesPerSecond: readingOf(rows, (row) => row.disk?.writesPerSecond),
-        mbPerSecond: readingOf(rows, (row) => row.disk?.mbPerSecond),
-        msPerWrite: readingOf(rows, (row) => row.disk?.msPerWrite),
-        busy: readingOf(rows, (row) => row.disk?.busy),
+        writesPerSecond: fieldMedian(rows, (row) => row.disk?.writesPerSecond),
+        mbPerSecond: fieldMedian(rows, (row) => row.disk?.mbPerSecond),
+        msPerWrite: fieldMedian(rows, (row) => row.disk?.msPerWrite),
+        busy: fieldMedian(rows, (row) => row.disk?.busy),
       },
-      journal: { syncsPerSecond: readingOf(rows, (row) => row.journal?.syncsPerSecond), msPerSync: readingOf(rows, (row) => row.journal?.msPerSync) },
-      writerBusy: readingOf(rows.flatMap((row) => (row.writerBusy ?? []).map((value) => ({ ...row, writerBusy: [value] }))), (row) => row.writerBusy?.[0]),
+      journal: { syncsPerSecond: fieldMedian(rows, (row) => row.journal?.syncsPerSecond), msPerSync: fieldMedian(rows, (row) => row.journal?.msPerSync) },
+      writerBusy: fieldMedian(rows.flatMap((row) => (row.writerBusy ?? []).map((value) => ({ ...row, writerBusy: [value] }))), (row) => row.writerBusy?.[0]),
       errors: errorsOf(rows),
       firstLoad: firstLoads === 0 ? undefined : {
-        writes: readingOf(rows, (row) => row.firstLoadWrites),
+        writes: fieldMedian(rows, (row) => row.firstLoadWrites),
         slowestLoadMs: summary(rows, (row) => row.firstLoadMs ?? 0),
         p99Ms: summary(rows, (row) => row.firstLoadP99Ms ?? 0),
       },
