@@ -1398,12 +1398,12 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
 
   /** The listed documents with later documents over them, in the order of the entries. A tombstone removes its document. */
   private withLaterDocs(listed: readonly Document[], later: readonly Document[]): Document[] {
-    const docs = new Map(listed.map((doc) => [String(doc._id), doc]));
+    const idOf = (doc: Document): string => String(doc["_id"]);
+    const docs = new Map(listed.map((doc) => [idOf(doc), doc]));
     for (const doc of later) {
-      if (doc[TOMB] === true) docs.delete(String(doc._id));
-      else docs.set(String(doc._id), doc);
+      if (doc[TOMB] === true) docs.delete(idOf(doc));
+      else docs.set(idOf(doc), doc);
     }
-    const idOf = (doc: Document): string => String(doc._id);
     return [...docs.values()].sort((a, b) => this.placeOf(a) - this.placeOf(b) || (idOf(a) < idOf(b) ? -1 : idOf(a) > idOf(b) ? 1 : 0));
   }
 
