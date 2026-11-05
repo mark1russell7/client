@@ -22,6 +22,8 @@
  *   listens to the topic, the procedures publish nothing, and the chain stops.
  * - The publishes of one storage and one topic run one at a time, in the order of the writes. A
  *   write resolves after its event is on the bus. A failed publish never fails the write.
+ * - The writes that end while a publish runs share the next publish, so one read of the change
+ *   log replies to all of them. At most one publish runs, and at most one publish waits.
  * - With the rule `admission.admit`, the publisher filters the ids of each event for each
  *   subscriber (roadmap CLI-78, `hint-filter.ts`). The event carries the rows after the changes,
  *   from the change log. While a subscriber has a filter, each write first reads the rows before
@@ -120,8 +122,24 @@ interface ChangeChain {
   anchor: string | undefined;
   /** The publishes, one at a time. */
   tail: Promise<void>;
+  /** The publish that did not start. A write that ends joins it, because it reads the writes that ended before its start. */
+  next: Promise<void> | undefined;
   /** The writes that ended since the last publish. */
   readonly ended: EndedWrite[];
+}
+
+/** This function gives the publish that did not start, and it makes one when none waits. A failed publish rejects nothing here. */
+function nextPublish(chain: ChangeChain, start: () => Promise<void>): Promise<void> {
+  if (chain.next) return chain.next;
+  const next = chain.tail
+    .then(() => {
+      chain.next = undefined;
+      return start();
+    })
+    .catch(() => undefined);
+  chain.next = next;
+  chain.tail = next;
+  return next;
 }
 
 /** The chains of each storage, by topic. A storage that goes away takes its chains with it. */
@@ -135,7 +153,7 @@ function chainOf(storage: object, topic: string): ChangeChain {
   }
   let chain = topics.get(topic);
   if (!chain) {
-    chain = { anchor: undefined, tail: Promise.resolve(), ended: [] };
+    chain = { anchor: undefined, tail: Promise.resolve(), next: undefined, ended: [] };
     topics.set(topic, chain);
   }
   return chain;
@@ -295,9 +313,7 @@ export async function writeWithChangeEvent<R>(
     return await write();
   } finally {
     chain.ended.push(started);
-    const run = chain.tail.then(() => publish(chain, storage, bus, topic, values, admission));
-    chain.tail = run.catch(() => undefined);
-    await chain.tail;
+    await nextPublish(chain, () => publish(chain, storage, bus, topic, values, admission));
   }
 }
 
