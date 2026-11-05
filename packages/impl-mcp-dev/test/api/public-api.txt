@@ -17,7 +17,7 @@ runDevToolsServer: dist/host.d.ts#runDevToolsServer
 
 ## bin: 1 commands
 
-mcp-dev-tools: ./bin/mcp-server.js
+mcp-dev-tools: ./dist/bin.js
 
 ## Declarations
 

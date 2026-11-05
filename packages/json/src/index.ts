@@ -11,6 +11,7 @@ export { parsePath, queryPath, type PathMatch, type PathStep } from "./path.js";
 export { applyPatch } from "./patch.js";
 export { diffJson } from "./diff.js";
 export { mergePatch } from "./merge.js";
+export { mergeThreeWay, type ThreeWayConflict, type ThreeWayResult } from "./three-way.js";
 export { validateJson, NOT_EXAMINED, type ValidationIssue, type ValidationResult } from "./schema.js";
 export { parseYaml, stringifyYaml, type YamlParseOptions, type YamlStringifyOptions } from "./yaml.js";
 export { parseCsv, stringifyCsv, type CsvCell, type CsvParseOptions, type CsvRecord, type CsvStringifyOptions } from "./csv.js";
