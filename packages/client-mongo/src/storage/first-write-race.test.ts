@@ -142,6 +142,7 @@ withMongo("the first write of one new id from two processes", () => {
     { name: "partition", partition: "t1" },
   ])(
     "two held plain writes both end, $name",
+    { timeout: ROW_TIMEOUT_MS },
     async ({ name, partition }, context) => {
       if (!failPoints) return context.skip();
       const [rootA, rootB] = pair();
@@ -159,8 +160,7 @@ withMongo("the first write of one new id from two processes", () => {
       printRow(`held-${name}`, { rounds: HELD_ROUNDS, errors: errors.length, duplicates, updates, error: errors[0] });
       expect(errors).toEqual([]);
       expect(duplicates).toBeGreaterThan(0);
-    },
-    ROW_TIMEOUT_MS
+    }
   );
 
   it(
@@ -251,7 +251,7 @@ withMongo("the first write of one new id from two processes", () => {
     async (context) => {
       if (!failPoints) return context.skip();
       const collection = `first_${++next}`;
-      const held: { hold?: () => Promise<void> } = {};
+      const held: { hold?: (() => Promise<void>) | undefined } = {};
       // This Db runs the hold before each replace of the items, on the store that the row patches
       const heldDb = new Proxy(firstDb, {
         get(target, prop) {
