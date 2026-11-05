@@ -39,11 +39,20 @@ export const WRITER_CORES = "2,3";
 /** The processors of MongoDB in a case without `-apart`. */
 export const ALL_CORES = "0-3";
 
+/** The cases of the suite `tenant-forms`. */
+export const FORM_CASES = ["800-p1", "800-p2", "1200-p2"] as const;
+
+/** The arms of the suite `tenant-forms` that use a copy of the store. */
+export const FORM_ARMS = ["forma", "formb"] as const;
+
+/** The arms that use a copy of the store. */
+export const COPY_ARMS: readonly string[] = [...SEPARATE_ARMS, ...FORM_ARMS];
+
 /** The arms of the bench. */
-export type TenantArm = "store" | "control" | (typeof SEPARATE_ARMS)[number];
+export type TenantArm = "store" | "control" | (typeof SEPARATE_ARMS)[number] | (typeof FORM_ARMS)[number];
 
 /** The arms of the bench, in the order of a report. */
-export const TENANT_ARMS: readonly TenantArm[] = ["store", "control", ...SEPARATE_ARMS];
+export const TENANT_ARMS: readonly TenantArm[] = ["store", "control", ...SEPARATE_ARMS, ...FORM_ARMS];
 
 /** The writes of an active tenant in one second: the first guess of the scale ladder. */
 export const WRITES_PER_TENANT = 0.2;

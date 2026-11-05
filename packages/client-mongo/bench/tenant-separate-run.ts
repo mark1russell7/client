@@ -6,15 +6,10 @@
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { SEPARATE_ARMS, SEPARATE_CASES } from "./tenant-cases.js";
+import { swap } from "./tenant-form-copies.js";
 import { runTenantJob } from "./tenant-job.js";
 
 const source = new URL("../src/storage/document-storage.ts", import.meta.url);
-
-/** This function changes one text of the source, and stops when the source does not have this text one time. */
-function swap(text: string, from: string, to: string): string {
-  if (text.split(from).length !== 2) throw new RangeError(`the source does not have this text one time: ${from}`);
-  return text.replace(from, () => to);
-}
 
 const noQueue = (text: string): string =>
   swap(text, "function enqueue<R>(db: Db, name: string, task: () => Promise<R>): Promise<R> {\n", "function enqueue<R>(db: Db, name: string, task: () => Promise<R>): Promise<R> {\n  if (db) return task();\n");

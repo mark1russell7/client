@@ -33,6 +33,8 @@ on:
           - tenant-ceiling
           - tenant-separate
           - tenant-first
+          - tenant-forms
+          - tenant-rule
         default: stream
       enforce:
         description: The suite gate fails the run when a case is not within its limit.

@@ -11,7 +11,7 @@ import { createInterface } from "node:readline";
 import { parseArgs } from "node:util";
 import { MongoClient } from "mongodb";
 import type { MongoDocumentStorage } from "../src/storage/document-storage.js";
-import { CONTROL_COLLECTIONS, FIRST_LOAD_SPLIT, GRACE_MS, SEPARATE_ARMS, TENANT_ARMS, TENANT_BYTES, WINDOW_MS, WRITE_CONFLICT, firstLoadCollection, firstLoadOf, parseTenantCase, tenantOf, type FirstLoadWrite, type TenantArm } from "./tenant-cases.js";
+import { CONTROL_COLLECTIONS, COPY_ARMS, FIRST_LOAD_SPLIT, GRACE_MS, TENANT_ARMS, TENANT_BYTES, WINDOW_MS, WRITE_CONFLICT, firstLoadCollection, firstLoadOf, parseTenantCase, tenantOf, type FirstLoadWrite, type TenantArm } from "./tenant-cases.js";
 import { planOf } from "./tenant-plan.js";
 
 const { values } = parseArgs({
@@ -27,8 +27,8 @@ const { arm, case: caseName, seed, me: meText, database } = values;
 const url = process.env["MONGO_TEST_URL"];
 if (!TENANT_ARMS.includes(arm as TenantArm) || !caseName || !seed || !meText || !database || !url) throw new RangeError("this writer needs --arm, --case, --seed, --me, --database and MONGO_TEST_URL");
 const me = Number(meText);
-// An arm of the suite `tenant-separate` uses a copy of the store, which its run writes next to the source
-const source = (SEPARATE_ARMS as readonly (string | undefined)[]).includes(arm) ? `../src/storage/document-storage.${arm}.ts` : "../src/storage/document-storage.ts";
+// An arm of the suite `tenant-separate` or `tenant-forms` uses a copy of the store, which its run writes next to the source
+const source = COPY_ARMS.includes(arm as string) ? `../src/storage/document-storage.${arm}.ts` : "../src/storage/document-storage.ts";
 const { MongoDocumentStorage: Storage } = (await import(source)) as typeof import("../src/storage/document-storage.js");
 const kase = parseTenantCase(caseName);
 const plan = planOf(caseName, seed);
