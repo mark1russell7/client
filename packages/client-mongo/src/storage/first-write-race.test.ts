@@ -74,12 +74,13 @@ async function raced<R>(writes: ReadonlyArray<() => Promise<R>>): Promise<Array<
   const admin = first.db("admin");
   const on = await admin.command({ configureFailPoint: FAIL_POINT, mode: "alwaysOn" });
   try {
-    const started = writes.map((write) => write());
+    // The list of results goes on the writes at their start, so a write that rejects in the hold is not an unhandled rejection
+    const settled = Promise.allSettled(writes.map((write) => write()));
     await admin
       .command({ waitForFailPoint: FAIL_POINT, timesEntered: (on["count"] as number) + writes.length, maxTimeMS: REACH_MS })
       .catch(() => undefined);
     await admin.command({ configureFailPoint: FAIL_POINT, mode: "off" });
-    return await Promise.allSettled(started);
+    return await settled;
   } finally {
     await admin.command({ configureFailPoint: FAIL_POINT, mode: "off" });
   }

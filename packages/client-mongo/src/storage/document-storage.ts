@@ -259,6 +259,13 @@ function isDuplicateKey(error: unknown): boolean {
   return code === 11000 || [writeErrors].flat().some((entry) => (entry as { code?: unknown } | null)?.code === 11000);
 }
 
+/** The place in an ordered bulk write of the write that a duplicate key stopped, or `undefined` when the error does not give one. */
+function duplicateIndex(error: unknown): number | undefined {
+  const { writeErrors } = (error ?? {}) as { writeErrors?: unknown };
+  const stopped = [writeErrors].flat().find((entry) => (entry as { code?: unknown } | null)?.code === 11000) as { index?: unknown } | undefined;
+  return typeof stopped?.index === "number" ? stopped.index : undefined;
+}
+
 /** A stored document. Its `_id` comes from `storedId`: a text by default, any value but `undefined` and `null` in another form. */
 type Stored = Document;
 
@@ -1380,24 +1387,38 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
       JSON.stringify(value);
     }
     await this.write(async (db, collection) => {
-      const places = await this.placesOf(collection, items.map(([id]) => id));
+      const ids = items.map(([id]) => id);
+      const places = await this.placesOf(collection, ids);
       await this.withNumbers(db, collection, items.length, async (first, session) => {
         const guards = await this.checkVersions(collection, expected, session);
-        const placed = new Map(places);
-        const operations: AnyBulkWriteOperation<Stored>[] = items.map(([id, value], index) => {
-          const seq = first + index;
-          // A new id takes its place at its first write; a later write of the batch keeps it
-          if (!placed.has(id)) placed.set(id, seq);
-          // The guard of an id with a precondition: the write fails when another writer came first
-          const guard = guards.get(id);
-          guards.delete(id);
-          return { replaceOne: { filter: { ...this.writeFilter(id), ...guard }, replacement: this.encode(id, value, seq, placed.get(id)!), upsert: true } };
-        });
-        try {
-          await collection.bulkWrite(operations, { ordered: true, ...(session ? { session } : {}) });
-        } catch (error) {
-          if (expected.length > 0 && !session && isDuplicateKey(error)) throw await this.lateConflict(collection, expected);
-          throw error;
+        const operationsAt = (known: ReadonlyMap<string, number>): AnyBulkWriteOperation<Stored>[] => {
+          const placed = new Map(known);
+          return items.map(([id, value], index) => {
+            const seq = first + index;
+            // A new id takes its place at its first write; a later write of the batch keeps it
+            if (!placed.has(id)) placed.set(id, seq);
+            // The guard of an id with a precondition: the write fails when another writer came first
+            const guard = guards.get(id);
+            guards.delete(id);
+            return { replaceOne: { filter: { ...this.writeFilter(id), ...guard }, replacement: this.encode(id, value, seq, placed.get(id)!), upsert: true } };
+          });
+        };
+        // The race of a new id: another process made it after the query of this upsert, so a new try from the
+        // stopped write is a rewrite, with the same number. These numbers stay pending, so no reader passes them.
+        // A real duplicate stops one write two times, and it reaches the caller. So a batch has at most one try more than it has writes.
+        let known = places;
+        for (let from = 0, tries = 0; ; tries++) {
+          try {
+            await collection.bulkWrite(operationsAt(known).slice(from), { ordered: true, ...(session ? { session } : {}) });
+            return;
+          } catch (error) {
+            if (session || !isDuplicateKey(error)) throw error;
+            if (expected.length > 0) throw await this.lateConflict(collection, expected);
+            const at = duplicateIndex(error);
+            if (at === undefined || (tries > 0 && at === 0)) throw error;
+            from += at;
+            known = await this.placesOf(collection, ids);
+          }
         }
       });
     });
@@ -1410,9 +1431,17 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
       const next = applyPatch(this.decode(doc, id)![1], fields) as T;
       // The encoding is checked before a number of the sequence goes
       this.flatOf(id, next);
-      await this.withNumbers(db, collection, 1, (first, session) =>
-        collection.replaceOne(this.writeFilter(id), this.encode(id, next, first, this.placeOf(doc)), { upsert: true, ...(session ? { session } : {}) })
-      );
+      await this.withNumbers(db, collection, 1, async (first, session) => {
+        const write = (): Promise<unknown> =>
+          collection.replaceOne(this.writeFilter(id), this.encode(id, next, first, this.placeOf(doc)), { upsert: true, ...(session ? { session } : {}) });
+        try {
+          await write();
+        } catch (error) {
+          // The document went after the read, and another process made it again: one new try is a rewrite
+          if (session || !isDuplicateKey(error)) throw error;
+          await write();
+        }
+      });
       return next;
     });
   }
