@@ -23,18 +23,27 @@ const batchToken = (length: number): Document => ({ _data: `b${length}` });
  * `tryNext()` is the open: it fails with `openError` of the server, else it emits `resumeTokenChanged`.
  */
 class FakeStream extends EventEmitter {
+  private readonly server: FakeChangeServer;
+  private position: number;
+  readonly pipeline: Document[];
+  readonly options: Document;
+
   closed = false;
   private started = false;
   resumeToken: unknown;
   private waiter: { resolve: (change: Document | null) => void; reject: (error: unknown) => void } | undefined;
 
   constructor(
-    private readonly server: FakeChangeServer,
-    private position: number,
-    readonly pipeline: Document[],
-    readonly options: Document
+    server: FakeChangeServer,
+    position: number,
+    pipeline: Document[],
+    options: Document
   ) {
     super();
+    this.server = server;
+    this.position = position;
+    this.pipeline = pipeline;
+    this.options = options;
   }
 
   async tryNext(): Promise<Document | null> {

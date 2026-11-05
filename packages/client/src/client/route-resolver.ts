@@ -99,7 +99,11 @@ export interface RouteResolutionResult {
  * ```
  */
 export class RouteResolver {
-  constructor(private readonly registry: ProcedureRegistry) {}
+  private readonly registry: ProcedureRegistry;
+
+  constructor(registry: ProcedureRegistry) {
+    this.registry = registry;
+  }
 
   /**
    * Resolve a route structure to procedures.

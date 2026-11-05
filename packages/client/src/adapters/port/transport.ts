@@ -69,6 +69,8 @@ function isFrame(value: unknown): value is WebSocketMessage {
 
 /** The transport over a message port, in the two directions. */
 export class PortTransport implements Transport {
+  private readonly port: PortLike;
+
   readonly name = "port";
   private readonly outgoing: OutgoingCalls;
   private readonly incoming: IncomingCalls | undefined;
@@ -77,9 +79,10 @@ export class PortTransport implements Transport {
   private readonly onNodeMessage = (data: unknown): void => this.receive(data);
 
   constructor(
-    private readonly port: PortLike,
+    port: PortLike,
     options: PortTransportOptions = {},
   ) {
+    this.port = port;
     const send = (frame: WebSocketMessage): void => this.port.postMessage(frame);
     const isOpen = (): boolean => this.open;
     this.outgoing = new OutgoingCalls({

@@ -209,6 +209,8 @@ describe("a reset (R30)", () => {
  * event, and the socket stays in CONNECTING.
  */
 class ErrorOnlyWebSocket {
+  readonly url: string;
+
   static readonly CONNECTING = 0;
   static readonly OPEN = 1;
   static created = 0;
@@ -217,7 +219,8 @@ class ErrorOnlyWebSocket {
   onmessage: ((event: unknown) => void) | null = null;
   onclose: ((event: unknown) => void) | null = null;
   onerror: ((event: unknown) => void) | null = null;
-  constructor(readonly url: string) {
+  constructor(url: string) {
+    this.url = url;
     ErrorOnlyWebSocket.created++;
     setTimeout(() => this.onerror?.({ type: "error" }), 5);
   }

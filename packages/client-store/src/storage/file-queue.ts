@@ -21,11 +21,15 @@ export type { QueuedOperation, QueueStore } from "./queue.js";
 
 /** A queue store in a JSON Lines file. */
 export class FileQueueStore implements QueueStore {
+  readonly path: string;
+
   /** The calls of this instance, one at a time */
   private chain: Promise<unknown> = Promise.resolve();
 
   /** @param path - The file. The store makes it, and its folder, at the first write. */
-  constructor(readonly path: string) {}
+  constructor(path: string) {
+    this.path = path;
+  }
 
   load(): Promise<QueuedOperation[]> {
     return this.serial(async () => {

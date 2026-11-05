@@ -33,13 +33,16 @@ export type JsonErrorCode =
 
 /** An error of a procedure of this package. A server sends it with its own code, for example `NOT_JSON`. */
 export class JsonError extends Error {
+  readonly code: JsonErrorCode;
+
   override readonly name = "JsonError";
 
   constructor(
-    readonly code: JsonErrorCode,
+    code: JsonErrorCode,
     message: string,
   ) {
     super(message);
+    this.code = code;
   }
 }
 

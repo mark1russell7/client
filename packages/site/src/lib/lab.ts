@@ -77,14 +77,22 @@ export function codeOf(error: unknown): string {
 // ---------------------------------------------------------------------------
 
 class LabServer implements Transport {
+  private readonly faults: () => Faults;
+  private readonly emit: (event: LabEvent) => void;
+  private readonly serverLayer: () => number;
+
   readonly name = "lab";
   private readonly attempts = new Map<number, number>();
 
   constructor(
-    private readonly faults: () => Faults,
-    private readonly emit: (event: LabEvent) => void,
-    private readonly serverLayer: () => number,
-  ) {}
+    faults: () => Faults,
+    emit: (event: LabEvent) => void,
+    serverLayer: () => number,
+  ) {
+    this.faults = faults;
+    this.emit = emit;
+    this.serverLayer = serverLayer;
+  }
 
   async *send<TReq, TRes>(message: Message<TReq>): AsyncIterable<ResponseItem<TRes>> {
     const request = requestOf(message as Message<unknown>);
@@ -202,6 +210,8 @@ function middlewareOf(id: LayerId, settings: LabSettings, onBreaker: (state: Bre
 // ---------------------------------------------------------------------------
 
 export class Lab {
+  private readonly emit: (event: LabEvent) => void;
+
   /** The enabled layers, from the outside in. */
   readonly layers: LayerId[];
   private readonly client: Client;
@@ -212,8 +222,9 @@ export class Lab {
   constructor(
     settings: LabSettings,
     faults: () => Faults,
-    private readonly emit: (event: LabEvent) => void,
+    emit: (event: LabEvent) => void,
   ) {
+    this.emit = emit;
     this.layers = layersOf(settings);
     const server = new LabServer(faults, (event) => this.report(event), () => this.layers.length);
     let client = new Client({ transport: server, throwOnError: true }) as Client<object>;

@@ -116,13 +116,18 @@ export interface CircuitBreakerStats {
  * Circuit breaker error thrown when circuit is open.
  */
 export class CircuitBreakerError extends Error {
+  public readonly state: CircuitState;
+  public readonly lastError: Error | null;
+
   constructor(
-    public readonly state: CircuitState,
-    public readonly lastError: Error | null
+    state: CircuitState,
+    lastError: Error | null
   ) {
     super(
       `Circuit breaker is ${state}${lastError ? `: ${lastError.message}` : ""}`
     );
+    this.state = state;
+    this.lastError = lastError;
     this.name = "CircuitBreakerError";
   }
 }

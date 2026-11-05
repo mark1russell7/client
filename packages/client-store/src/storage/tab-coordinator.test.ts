@@ -154,6 +154,8 @@ class FakeBrowser {
 
 /** A tab of the browser: its lock manager and its channel factory. */
 class FakeTab {
+  readonly browser: FakeBrowser;
+
   dead = false;
   /** The number of the lock requests of the tab */
   requests = 0;
@@ -161,7 +163,8 @@ class FakeTab {
   readonly locks: TabLockManagerLike;
   readonly channel: TabChannelFactory;
 
-  constructor(readonly browser: FakeBrowser) {
+  constructor(browser: FakeBrowser) {
+    this.browser = browser;
     this.locks = {
       request: (name, options, callback) => {
         this.requests++;
@@ -182,13 +185,18 @@ class FakeTab {
 }
 
 class FakeChannel implements TabChannelLike {
+  readonly name: string;
+  readonly tab: FakeTab;
+
   onmessage: ((event: { data: unknown }) => void) | null = null;
   closed = false;
 
   constructor(
-    readonly name: string,
-    readonly tab: FakeTab,
+    name: string,
+    tab: FakeTab,
   ) {
+    this.name = name;
+    this.tab = tab;
     tab.browser.join(this);
   }
 
@@ -256,8 +264,11 @@ class GatedQueueStore extends MemoryQueueStore {
 
 /** A queue store in memory whose first loads fail. */
 class FlakyQueueStore extends MemoryQueueStore {
-  constructor(private failures: number) {
+  private failures: number;
+
+  constructor(failures: number) {
     super();
+    this.failures = failures;
   }
 
   override load(): Promise<QueuedOperation[]> {

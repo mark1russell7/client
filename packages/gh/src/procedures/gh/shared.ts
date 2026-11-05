@@ -12,13 +12,18 @@ import type { GhCommonInput } from "../../types.js";
 
 /** A failed gh command: its exit code and its error text. */
 export class GhError extends Error {
+  readonly exitCode: number;
+  readonly stderr: string;
+
   override readonly name = "GhError";
   constructor(
     message: string,
-    readonly exitCode: number,
-    readonly stderr: string,
+    exitCode: number,
+    stderr: string,
   ) {
     super(message);
+    this.exitCode = exitCode;
+    this.stderr = stderr;
   }
 }
 

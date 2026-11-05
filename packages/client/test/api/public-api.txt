@@ -2382,12 +2382,20 @@ export declare class WebSocketTransport implements Transport {
 export type WebSocketClass = new (url: string) => unknown;
 
 ### dist/adapters/websocket/client/types.d.ts#WebSocketState
-export declare enum WebSocketState {
-    CONNECTING = "CONNECTING",
-    CONNECTED = "CONNECTED",
-    DISCONNECTING = "DISCONNECTING",
-    DISCONNECTED = "DISCONNECTED",
-    RECONNECTING = "RECONNECTING"
+export declare const WebSocketState: {
+    readonly CONNECTING: "CONNECTING";
+    readonly CONNECTED: "CONNECTED";
+    readonly DISCONNECTING: "DISCONNECTING";
+    readonly DISCONNECTED: "DISCONNECTED";
+    readonly RECONNECTING: "RECONNECTING";
+};
+export type WebSocketState = (typeof WebSocketState)[keyof typeof WebSocketState];
+export declare namespace WebSocketState {
+    type CONNECTING = typeof WebSocketState.CONNECTING;
+    type CONNECTED = typeof WebSocketState.CONNECTED;
+    type DISCONNECTING = typeof WebSocketState.DISCONNECTING;
+    type DISCONNECTED = typeof WebSocketState.DISCONNECTED;
+    type RECONNECTING = typeof WebSocketState.RECONNECTING;
 }
 
 ### dist/adapters/websocket/client/types.d.ts#WebSocketTransportOptions
@@ -2807,16 +2815,28 @@ export declare function isKnownError(code: string): boolean;
 export declare function isKnownErrorCode(code: unknown): code is string;
 
 ### dist/client/errors/types.d.ts#ErrorCategory
-export declare enum ErrorCategory {
-    NETWORK = "network",
-    CLIENT = "client",
-    SERVER = "server",
-    PROTOCOL = "protocol",
-    AUTH = "auth",
-    RATE_LIMIT = "rate_limit",
-    TIMEOUT = "timeout",
-    CANCELLED = "cancelled",
-    UNKNOWN = "unknown"
+export declare const ErrorCategory: {
+    readonly NETWORK: "network";
+    readonly CLIENT: "client";
+    readonly SERVER: "server";
+    readonly PROTOCOL: "protocol";
+    readonly AUTH: "auth";
+    readonly RATE_LIMIT: "rate_limit";
+    readonly TIMEOUT: "timeout";
+    readonly CANCELLED: "cancelled";
+    readonly UNKNOWN: "unknown";
+};
+export type ErrorCategory = (typeof ErrorCategory)[keyof typeof ErrorCategory];
+export declare namespace ErrorCategory {
+    type NETWORK = typeof ErrorCategory.NETWORK;
+    type CLIENT = typeof ErrorCategory.CLIENT;
+    type SERVER = typeof ErrorCategory.SERVER;
+    type PROTOCOL = typeof ErrorCategory.PROTOCOL;
+    type AUTH = typeof ErrorCategory.AUTH;
+    type RATE_LIMIT = typeof ErrorCategory.RATE_LIMIT;
+    type TIMEOUT = typeof ErrorCategory.TIMEOUT;
+    type CANCELLED = typeof ErrorCategory.CANCELLED;
+    type UNKNOWN = typeof ErrorCategory.UNKNOWN;
 }
 
 ### dist/client/errors/types.d.ts#ErrorContext
@@ -2851,11 +2871,18 @@ export interface ErrorMetadata {
 export type ErrorRegistry = Record<string, ErrorMetadata>;
 
 ### dist/client/errors/types.d.ts#ErrorSeverity
-export declare enum ErrorSeverity {
-    INFO = "info",
-    WARNING = "warning",
-    ERROR = "error",
-    CRITICAL = "critical"
+export declare const ErrorSeverity: {
+    readonly INFO: "info";
+    readonly WARNING: "warning";
+    readonly ERROR: "error";
+    readonly CRITICAL: "critical";
+};
+export type ErrorSeverity = (typeof ErrorSeverity)[keyof typeof ErrorSeverity];
+export declare namespace ErrorSeverity {
+    type INFO = typeof ErrorSeverity.INFO;
+    type WARNING = typeof ErrorSeverity.WARNING;
+    type ERROR = typeof ErrorSeverity.ERROR;
+    type CRITICAL = typeof ErrorSeverity.CRITICAL;
 }
 
 ### dist/client/errors/types.d.ts#RichError
@@ -3315,10 +3342,7 @@ export declare class ValidationError extends Error {
     readonly zodError: ZodErrorLike;
     readonly method: Method;
     readonly name = "ValidationError";
-    constructor(message: string,
-    phase: ValidationPhase,
-    zodError: ZodErrorLike,
-    method: Method);
+    constructor(message: string, phase: ValidationPhase, zodError: ZodErrorLike, method: Method);
     get details(): string;
 }
 
@@ -3589,10 +3613,7 @@ export declare class SubscriptionError extends Error {
     readonly retryable: boolean;
     readonly reason?: string | undefined;
     readonly name = "SubscriptionError";
-    constructor(
-    code: string, message: string,
-    retryable: boolean,
-    reason?: string | undefined);
+    constructor(code: string, message: string, retryable: boolean, reason?: string | undefined);
 }
 
 ### dist/events/remote.d.ts#SubscriptionHooks
