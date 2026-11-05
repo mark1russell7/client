@@ -9,3 +9,5 @@ A write that has ended is in each later read, as before. A write that has not en
 A full answer beside a write can hold that write above its version, and the next delta gives it again. A second time has the same value or a later value, so apply a change by its id. A full answer has one more `aggregate`, and two more `find` commands when the mark moved.
 
 Before this change, a `getChangesSince()` in the same tick as a `set()` with no `await` waited for that write and had it. At this time, that read can leave the write to the next read. To migrate: find each `set()` with no `await` before `getChangesSince()` in the same tick. If the read must have the write, `await` the write before the read. A caller that follows a cursor changes nothing.
+
+The contract of `StorageChanges` stays as it was: "A result gives each write at least one time." The contract states nothing about a write that has not resolved. This change moves no export. It changes when a write in flight comes in a read, so decision D13 counts it as a break.
