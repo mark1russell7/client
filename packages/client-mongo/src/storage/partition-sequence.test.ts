@@ -45,11 +45,11 @@ function fresh<T = ContractItem>(options: Partial<MongoDocumentStorageOptions<T>
   return new MongoDocumentStorage<T>({ collection: `s${++next}`, db: () => db, client: () => client!, sequence: "partition", ...options });
 }
 
-/** The counter document of an `_id`, without its random epoch. */
+/** The counter document of an `_id`, without its write state: the random epoch, the pending numbers and the last release. */
 async function counterOf(id: string): Promise<Record<string, unknown> | null> {
   const doc = await db.collection<{ _id: string }>(COUNTERS).findOne({ _id: id });
   if (!doc) return null;
-  const { epoch: _epoch, pending: _pending, ...rest } = doc as Record<string, unknown>;
+  const { epoch: _epoch, pending: _pending, lastRelease: _lastRelease, ...rest } = doc as Record<string, unknown>;
   return rest;
 }
 
