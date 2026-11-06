@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 20 names
+## . (dist/index.d.ts): names
 
 ImapClientFactory: dist/imap.d.ts#ImapClientFactory
 ImapClientLike: dist/imap.d.ts#ImapClientLike
@@ -27,13 +27,13 @@ readHeaders: dist/imap.d.ts#readHeaders
 registerMailProcedures: dist/module.d.ts#registerMailProcedures
 setImapClientFactory: dist/procedures.d.ts#setImapClientFactory
 
-## ./module (dist/module.d.ts): 3 names
+## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#mailModule
 mailModule: dist/module.d.ts#mailModule
 registerMailProcedures: dist/module.d.ts#registerMailProcedures
 
-## ./register (dist/register.d.ts): 2 names
+## ./register (dist/register.d.ts): names
 
 mailModule: dist/module.d.ts#mailModule
 registerMailProcedures: dist/module.d.ts#registerMailProcedures

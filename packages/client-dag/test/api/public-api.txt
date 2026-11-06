@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 34 names
+## . (dist/index.d.ts): names
 
 type DAGExecutionOptions: @mark1russell7/collections/dag#DAGExecutionOptions (external)
 type DAGNode: @mark1russell7/collections/dag#DAGNode (external)
@@ -41,18 +41,18 @@ registerDagProcedures: dist/module.d.ts#registerDagProcedures
 repositoryRoot: dist/procedures/traverse.d.ts#repositoryRoot
 visualizeDAG: @mark1russell7/collections/dag#visualizeDAG (external)
 
-## ./graph (dist/graph/index.d.ts): 2 names
+## ./graph (dist/graph/index.d.ts): names
 
 type WeightedEdge: @mark1russell7/collections/graph#WeightedEdge (external)
 hubBreadthFirstOrder: @mark1russell7/collections/graph#hubBreadthFirstOrder (external)
 
-## ./module (dist/module.d.ts): 3 names
+## ./module (dist/module.d.ts): names
 
 dagModule: dist/module.d.ts#dagModule
 default: dist/module.d.ts#dagModule
 registerDagProcedures: dist/module.d.ts#registerDagProcedures
 
-## ./register (dist/register.d.ts): 2 names
+## ./register (dist/register.d.ts): names
 
 dagModule: dist/module.d.ts#dagModule
 registerDagProcedures: dist/module.d.ts#registerDagProcedures

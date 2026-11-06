@@ -18,6 +18,10 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   # The shared CI of mark1russell7 (reusable-ci.yml of the template, its CI.md), on Node 22, 24
   # and 26: the lowest Node version that the root package.json allows, the active LTS and the
@@ -396,7 +400,7 @@ jobs:
   # Add each new job of the gate to `needs`, and to ALLOW_SKIP when its own `if` can skip it.
   ci-ok:
     name: CI OK
-    if: always()
+    if: ${{ !cancelled() }}
     needs: [ci, changesets, checks, mongo, site]
     runs-on: ubuntu-latest
     timeout-minutes: 2

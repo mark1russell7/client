@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 39 names
+## . (dist/index.d.ts): names
 
 HOST_PROFILES: dist/host.d.ts#HOST_PROFILES
 type HostIdle: dist/idle.d.ts#HostIdle
@@ -46,14 +46,14 @@ serverStopProcedure: dist/procedures/server.stop.d.ts#serverStopProcedure
 spawnMarkServer: dist/procedures/server.start.d.ts#spawnMarkServer
 startServer: dist/run.d.ts#startServer
 
-## ./module (dist/module.d.ts): 4 names
+## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#serverModule
 hostProcedures: dist/module.d.ts#hostProcedures
 registerServerProcedures: dist/module.d.ts#registerServerProcedures
 serverModule: dist/module.d.ts#serverModule
 
-## ./register (dist/register.d.ts): 3 names
+## ./register (dist/register.d.ts): names
 
 hostProcedures: dist/module.d.ts#hostProcedures
 registerServerProcedures: dist/module.d.ts#registerServerProcedures

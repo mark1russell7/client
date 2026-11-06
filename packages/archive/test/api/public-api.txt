@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 39 names
+## . (dist/index.d.ts): names
 
 ArchiveCreateInput: dist/types.d.ts#ArchiveCreateInput
 ArchiveCreateOutput: dist/types.d.ts#ArchiveCreateOutput
@@ -46,7 +46,7 @@ registerArchiveProcedures: dist/module.d.ts#registerArchiveProcedures
 sniffFormat: dist/format.d.ts#sniffFormat
 writeZip: dist/zip.d.ts#writeZip
 
-## ./module (dist/module.d.ts): 5 names
+## ./module (dist/module.d.ts): names
 
 ArchiveModuleOptions: dist/module.d.ts#ArchiveModuleOptions
 archiveModule: dist/module.d.ts#archiveModule
@@ -54,7 +54,7 @@ createArchiveModule: dist/module.d.ts#createArchiveModule
 default: dist/module.d.ts#archiveModule
 registerArchiveProcedures: dist/module.d.ts#registerArchiveProcedures
 
-## ./register (dist/register.d.ts): 4 names
+## ./register (dist/register.d.ts): names
 
 ArchiveModuleOptions: dist/module.d.ts#ArchiveModuleOptions
 archiveModule: dist/module.d.ts#archiveModule

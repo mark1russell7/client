@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 66 names
+## . (dist/index.d.ts): names
 
 type AnyComponentDefinition: dist/components/types.d.ts#AnyComponentDefinition
 type AnyComponentFactory: dist/components/types.d.ts#AnyComponentFactory
@@ -73,14 +73,14 @@ transformDescriptor: dist/hydrate.d.ts#transformDescriptor
 validateDescriptor: dist/hydrate.d.ts#validateDescriptor
 walkDescriptor: dist/hydrate.d.ts#walkDescriptor
 
-## ./module (dist/module.d.ts): 4 names
+## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#splayModule
 registerBridge: dist/module.d.ts#registerBridge
 registerSplayProcedures: dist/module.d.ts#registerSplayProcedures
 splayModule: dist/module.d.ts#splayModule
 
-## ./register (dist/register.d.ts): 3 names
+## ./register (dist/register.d.ts): names
 
 registerBridge: dist/module.d.ts#registerBridge
 registerSplayProcedures: dist/module.d.ts#registerSplayProcedures

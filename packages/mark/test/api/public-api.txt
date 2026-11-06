@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 28 names
+## . (dist/index.d.ts): names
 
 type CLIMeta: @procedures/cli-kit#CLIMeta (external)
 type CliContext: dist/cli.d.ts#CliContext
