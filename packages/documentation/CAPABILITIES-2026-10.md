@@ -248,6 +248,7 @@ Refusal is the safe default. A procedure of another package that reaches files w
 | `shell.exec`, `shell.which` | refused | | A command line in a shell, and the folders of `PATH` |
 | `vitest.run`, `vitest.coverage`, `vitest.watch`, `vite.dev`, `vite.build`, `vite.preview`, `node.run`, `node.spawn`, `restic.run`, `tailscale.run`, `pdf.render`, `claude.start`, `cli.run`, `npm.pack`, `ecosystem.procedures` | refused (the default) | | They write `process` |
 | `s3.download` | confined | `destPath` | Without `destPath`, the object stays in memory |
+| `s3.upload` | confined | `sourcePath` | A `body` names no file |
 | `s3.presign` | confined | | No input names a file. The AWS SDK reads the credentials of the host, as for each `s3.*` procedure. |
 | `snapshot.create` | confined | `paths` (the default is the root) | Git goes through `git.*`, so the rules of git under a root apply. Pnpm does not start, and the snapshot records the pnpm version as `unknown`. Tar stores a symlink as a link. |
 | `snapshot.restore` | refused | | It downloads the archive into the temporary folder of the host through `s3.download`. The names of the folders come from the data of the snapshot. |

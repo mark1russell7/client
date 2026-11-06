@@ -566,6 +566,31 @@ server.publish("orders.created", { order: 1 }); // the same as bus.emit()
 - These hosts have no capability limits. A read-only host (`readOnly` of `hostPolicy()`) permits a subscription too, because `events.subscribe` writes nothing.
 - The MCP server serves no events. Its transport carries only MCP, and `events.subscribe` is not a tool.
 
+### Live state
+
+Live state keeps the latest value of each key of a topic, in memory, and publishes each change on the bus. It makes no store write and no numbered change. A host turns it on with the option `live` of `events`. The design is `LIVE-STATE-2026-11.md`.
+
+```ts
+import { ProcedureServer, createEventBus, liveTopic, seconds } from "@procedures/client";
+
+const server = new ProcedureServer({
+  registry,
+  autoRegister: true,
+  events: {
+    bus: createEventBus(),
+    topics: ["live.*"],
+    live: { expiresAfter: seconds(15), admitSet: ({ principal }) => (principal ? { by: principal.id } : null) },
+  },
+});
+```
+
+- `live.set` keeps a value. `live.snapshot` gives the live values. `live.leave` ends a key at once. `liveView(client, topic)` subscribes, reads the snapshot and keeps the values current.
+- `liveTopic(name, partition)` gives the topic. The topic rule of the host names it.
+- A key ends after `expiresAfter` with no set, at the close of the WebSocket connection of its last set, and at a call of `live.leave`.
+- `admitLeave` states who can end a key. Without this option, only the connection of the last set can end it.
+- The first change on an idle topic goes at once and opens a window. The changes in the window go as one event at its end.
+- The procedures follow the expose rule of the host. Only `events.subscribe` stays on without the rule.
+
 ## The tests
 
 - `src/events/remote.test.ts`: subscribe, publish, receive and unsubscribe on the local transport, HTTP and WebSocket. The unknown and the refused topic on each face. The shared call, a late subscriber and the end at `clear()` on each face.

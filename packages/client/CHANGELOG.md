@@ -1,5 +1,29 @@
 # @procedures/client
 
+## 0.48.1
+
+### Patch Changes
+
+- 2d7edae: Add live state. The option `live` of `events` gives a host the procedures `live.set`, `live.snapshot` and `live.leave`. They keep keyed values in memory on a topic. A key ends at its expiry, at the close of its connection or at a leave call. A window joins the changes of a topic. `liveView()` is the reader. PATCH: new exports and new procedures that a host turns on, and no existing result changes.
+  
+  An overload fault stays open in this release: CLI-102, https://github.com/mark1russell7/client/pull/444. It applies to a collection store with change events on and a subscriber. Change events are on by default. When writes arrive faster than the store serves them, the replies of the writes fall far behind. Live state does not use this path.
+
+## 0.48.0
+
+### Minor Changes
+
+- 17a18ec: The source now uses only syntax that a type stripper erases, so the setting `erasableSyntaxOnly` of `@mark1russell7/cue` 2.1.1 stays on. Each enum is now a constant object with a type of the same name. Each parameter property is now a field and an assignment in the constructor.
+  
+  **Breaking.** MINOR before 1.0.0: `ErrorCategory`, `ErrorSeverity` and `WebSocketState` are now constant objects. Their names and values stay the same, and each member stays usable as a type. A member is no longer a constant expression: `enum E { A = ErrorSeverity.WARNING }` gives TS18033, and a `const enum` gives TS2474. Also, a string with the value of a member now fits the type of the set.
+  
+  **Migration.** In an enum initializer, write the value in place of the member, for example `"warning"`, or use a constant object. Other uses need no change. The site and the known apps need no change.
+- c839add: The release train: the ranges of @mark1russell7/coeval, @mark1russell7/quantity, @mark1russell7/collections, @mark1russell7/cue change to a version outside the old range.
+
+### Patch Changes
+
+- 06088f9: `EventBusOptions` has a new option `fanOut`. With it, a channel with more handlers than `fanOut.sliceSize` delivers after `emit()` returns, in slices, so one event does not hold the event loop. Without it, nothing changes. `DefaultEventBus` has a new method `drained()`.
+- 71f9c6e: The middleware folds use `compose` of `@mark1russell7/collections/layers`. The order of the middleware does not change, and the public API does not change. `@procedures/client` has a new dependency on `@mark1russell7/collections`.
+
 ## 0.47.2
 
 ### Patch Changes

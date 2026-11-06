@@ -48,7 +48,7 @@ jobs:
       run: |
         pnpm --filter @procedures/mark test:e2e
 
-  # The changesets of a pull request (strategy s38, decision D13): changeset-check of the template
+  # The changesets of a pull request (decision D13): changeset-check of the template
   # fails a change of a published package without a changeset, a changeset of an unknown package,
   # and a "major" of a 0.x package. The version PR, an empty changeset and the label no-changeset pass.
   changesets:
@@ -130,7 +130,7 @@ jobs:
           name: public-api-reports
           path: packages/*/test/api/public-api.txt
           retention-days: 7
-      # The shared conventions of the fleet (@mark1russell7/conventions). The step needs the build:
+      # The shared conventions (@mark1russell7/conventions). The step needs the build:
       # the rule typed-files lists the files of each tsconfig with tsc. The summary of the run has
       # a table of the rules.
       - name: Check the conventions
@@ -179,6 +179,11 @@ jobs:
       - name: Test the paired bench scripts
         if: ${{ !cancelled() }}
         run: node --test scripts/paired-time.test.ts scripts/bench-paired.test.ts scripts/setup-profile.test.ts scripts/server-request.test.ts scripts/compile-cache.test.ts scripts/mark-call.test.ts
+      # The flips of the measure checks (CLI-100) run only by dispatch and each week, so the tests
+      # of their script run here.
+      - name: Test the flip script
+        if: ${{ !cancelled() }}
+        run: node --test scripts/check-flips.test.ts
       # The import boundaries of invariant I9 (CLI-83), with dependency-cruiser: a transport does not
       # import the server, an import of another package goes through an entry of its exports map, and
       # no package imports an app. The shared rules are in the package @mark1russell7/boundaries, and
@@ -250,6 +255,17 @@ jobs:
             sleep 1
           done
           [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ]
+      # The test of s3.upload against a service with a custom endpoint (roadmap CLI-99)
+      - name: Start the S3 gateway
+        if: ${{ !cancelled() }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/s3-data"
+          docker run -d --name s3-gateway --user "$(id -u):$(id -g)" -p 9000:9000 -v "$RUNNER_TEMP/s3-data:/data" versity/versitygw:v1.10.0 --access test-access --secret test-secret-key --port :9000 posix /data
+          for i in $(seq 1 30); do
+            curl -s -o /dev/null http://localhost:9000/ && break
+            sleep 1
+          done
+          curl -s -o /dev/null http://localhost:9000/ || { docker logs s3-gateway; exit 1; }
       # The scaffold test of mark runs cue-config, which needs the CUE binary
       - name: Install CUE for the coverage
         if: ${{ !cancelled() }}
@@ -269,6 +285,9 @@ jobs:
           MONGO_TEST_URL: mongodb://localhost:27017/?directConnection=true
           MONGO_TEST_TOPOLOGY: replica-set
           MONGO_TEST_FAILPOINTS: "1"
+          S3_TEST_ENDPOINT: http://localhost:9000
+          S3_TEST_ACCESS_KEY: test-access
+          S3_TEST_SECRET_KEY: test-secret-key
         run: node scripts/coverage.ts --out "$RUNNER_TEMP/coverage-floors.json"
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -313,14 +332,19 @@ jobs:
           MONGO_TEST_FAILPOINTS: ${{ matrix.topology == 'replica-set' && '1' || '' }}
         run: pnpm --filter @procedures/mongo exec vitest run src/storage
 
-  mongo-speed:
-    # The speed gate of the store (roadmap CLI-94). A pull request that changes the source of the
-    # store compares the reads and the writes of its merge with its base on a real MongoDB, with an A/A
-    # beside them. The limit, its CI runs and its formula are in bench/gate-limit.json.
-    name: MongoDB (the speed gate of the store)
+  # The speed gate of the store (roadmap CLI-94). A pull request that changes the source of the store
+  # compares the reads and the writes of its merge with its base on a real MongoDB, with an A/A beside
+  # them. Two jobs take 12 rounds. A case with no outcome takes 12 more rounds in each job, and then the
+  # gate is final. "No read" is red with its own text: it is not a block and not a pass. The gate holds
+  # a slowdown of 25 percent or more in each gated case, and a smaller slowdown can pass. The limit,
+  # its CI runs and its formula are in bench/gate-limit.json.
+  mongo-speed-plan:
+    name: MongoDB (a change of the store)
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
+    outputs:
+      changed: ${{ steps.store.outputs.changed }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -332,47 +356,125 @@ jobs:
         run: |
           changed=$(git diff --name-only HEAD^1 HEAD | grep -E '^packages/client-mongo/(src/|bench/(gate|read-|write-))' | grep -vE '\.test\.tsx?$' || true)
           if [ -n "$changed" ]; then echo "changed=true" >> "$GITHUB_OUTPUT"; else echo "No file of the store changed, so this gate has nothing to compare."; fi
-      - uses: ./.github/actions/start-mongo
+      # The tests of the verdict come first, because a fault in them makes the 34 minutes of the jobs worth nothing
+      - uses: ./.github/actions/store-gate-tools
         if: steps.store.outputs.changed == 'true'
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - name: Test the verdict
         if: steps.store.outputs.changed == 'true'
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        if: steps.store.outputs.changed == 'true'
+        run: pnpm --filter @procedures/mongo exec vitest run bench/gate-verdict.test.ts
+
+  mongo-speed:
+    name: MongoDB (the speed gate of the store, job ${{ matrix.job }})
+    needs: mongo-speed-plan
+    if: needs.mongo-speed-plan.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        job: [1, 2]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version: 24
-          cache: pnpm
-      - if: steps.store.outputs.changed == 'true'
-        run: pnpm install --frozen-lockfile --filter mark1russell7-monorepo --filter "@procedures/mongo..."
-      - if: steps.store.outputs.changed == 'true'
-        run: pnpm --filter "@procedures/mongo^..." run build
-      - name: Write the arm before
-        if: steps.store.outputs.changed == 'true'
-        run: |
-          mkdir packages/client-mongo/base
-          git archive HEAD^1 packages/client-mongo/src | tar -x --strip-components=2 -C packages/client-mongo/base
-      - name: Compare the store with its base
-        if: steps.store.outputs.changed == 'true'
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: ./.github/actions/store-gate-job
+        with:
+          job: ${{ matrix.job }}
+          artifact: store-gate-job-${{ matrix.job }}
+          out: job-${{ matrix.job }}.json
+
+  mongo-speed-look:
+    name: MongoDB (the first look of the speed gate)
+    needs: [mongo-speed-plan, mongo-speed]
+    if: always() && needs.mongo-speed-plan.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      more: ${{ steps.look.outputs.more }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/store-gate-tools
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: store-gate-job-*
+          merge-multiple: true
+          path: packages/client-mongo/bench-out
+      # This step does not end the gate. The job after the second look gives the verdict.
+      - name: Find the cases of the next look
+        id: look
         working-directory: packages/client-mongo
-        env:
-          MONGO_TEST_URL: mongodb://localhost:27017/?directConnection=true
-        run: node --import tsx bench/gate-run.ts --job 1 --rounds 9 --cap 120 --out bench-out/job-1.json
+        run: node --import tsx bench/gate-report.ts --jobs bench-out --out look-report.json --more "$GITHUB_OUTPUT"
+
+  mongo-speed-more:
+    name: MongoDB (the second look of the speed gate, job ${{ matrix.job }})
+    needs: mongo-speed-look
+    if: always() && needs.mongo-speed-look.result == 'success' && needs.mongo-speed-look.outputs.more != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        job: [1, 2]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: ./.github/actions/store-gate-job
+        with:
+          job: ${{ matrix.job }}
+          artifact: store-gate-more-${{ matrix.job }}
+          out: job-${{ matrix.job }}-more.json
+          from: "12"
+          cases: ${{ needs.mongo-speed-look.outputs.more }}
+
+  mongo-speed-verdict:
+    name: MongoDB (the verdict of the speed gate)
+    needs: [mongo-speed-plan, mongo-speed, mongo-speed-look, mongo-speed-more]
+    if: always() && needs.mongo-speed-plan.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/store-gate-tools
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: store-gate-job-*
+          merge-multiple: true
+          path: packages/client-mongo/bench-out
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: store-gate-more-*
+          merge-multiple: true
+          path: packages/client-mongo/bench-out
+      # A rerun is a further look that the level does not count. So the text states the attempt, and the
+      # name of the artifact keeps it, for the count of the reruns of each pull request.
       - name: The verdict
-        if: steps.store.outputs.changed == 'true'
         working-directory: packages/client-mongo
         env:
           RUN: ${{ github.run_id }}
+          PR: ${{ github.event.pull_request.number }}
         run: |
           status=0
-          node --import tsx bench/gate-report.ts --jobs bench-out --out gate-report.txt --run "$RUN" --enforce || status=$?
-          { echo '```json'; cat gate-report.txt || true; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          node --import tsx bench/gate-report.ts --jobs bench-out --out gate-report.json --run "$RUN" --pr "$PR" --enforce || status=$?
+          { echo '```json'; cat gate-report.json || true; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$status" = 2 ]; then echo "::error title=The speed gate has no read::$(jq -r .text gate-report.json)"; fi
+          if [ "$status" = 1 ]; then echo "::error title=The speed gate blocks this change::$(jq -r .text gate-report.json)"; fi
           exit "$status"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: always() && steps.store.outputs.changed == 'true'
+        if: always()
         with:
-          name: store-gate-report
+          name: store-gate-report-attempt-${{ github.run_attempt }}
           path: |
             packages/client-mongo/bench-out/
-            packages/client-mongo/gate-report.txt
+            packages/client-mongo/gate-report.json
           if-no-files-found: warn
 
   site:
@@ -425,7 +527,7 @@ jobs:
   ci-ok:
     name: CI OK
     if: always()
-    needs: [ci, changesets, checks, mongo, mongo-speed, site]
+    needs: [ci, changesets, checks, mongo, mongo-speed-plan, mongo-speed, mongo-speed-look, mongo-speed-more, mongo-speed-verdict, site]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     permissions: {}
@@ -434,7 +536,7 @@ jobs:
         env:
           NEEDS: ${{ toJSON(needs) }}
           # The jobs that their own if may skip, separated by spaces. Each other job must pass.
-          ALLOW_SKIP: "changesets mongo-speed"
+          ALLOW_SKIP: "changesets mongo-speed-plan mongo-speed mongo-speed-look mongo-speed-more mongo-speed-verdict"
         run: |
           echo "$NEEDS" | jq -r 'to_entries[] | "\(.key) \(.value.result)"' > results
           cat results

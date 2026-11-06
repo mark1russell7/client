@@ -59,7 +59,7 @@ export function PackageChart({ filters, onSelect }: PackageChartProps): ReactEle
                 type="button"
                 className={`pkg-bar${selected ? " selected" : ""}${filtered && bar.matching === 0 ? " empty" : ""}`}
                 aria-pressed={selected}
-                aria-label={`${bar.pkg}: ${filtered ? `${bar.matching} of ${plural(bar.total, "procedure")} match the filters` : readout(bar)} ${
+                aria-label={`${bar.pkg} ${count}: ${filtered ? `${bar.matching} of ${plural(bar.total, "procedure")} match the filters` : readout(bar)} ${
                   selected ? "Show all packages." : "Show only this package."
                 }`}
                 onClick={() => onSelect(selected ? "" : bar.pkg)}
@@ -69,7 +69,7 @@ export function PackageChart({ filters, onSelect }: PackageChartProps): ReactEle
               >
                 <code className="pkg-bar-name" title={bar.pkg}>
                   {bar.pkg}
-                </code>
+                </code>{" "}
                 <span className="pkg-bar-track" aria-hidden="true" style={{ ["--total" as string]: bar.total / largest }}>
                   <span className="pkg-bar-fill" style={{ ["--part" as string]: bar.total === 0 ? 0 : bar.matching / bar.total }} />
                 </span>

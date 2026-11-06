@@ -204,6 +204,10 @@ export function wsFace(options: WsFaceOptions = {}): HostFaceFactory {
       server.admits(requestCredentials({ headers: req.headers as Record<string, unknown>, url: req.url, socket: req.socket }, { tokenQuery: "token" }));
     const upgrade = upgradeHandler(handler, { ...browserOptions(context.policy.browser, false), authenticate: admits, ...upgradeOptions });
     const transport = upgrade.transport;
+    // A live key ends when the connection of its owner closes (LIVE-STATE-2026-11.md)
+    transport.onDisconnect((connection) => {
+      server.publisher?.live?.connectionClosed(connection.id);
+    });
     return {
       upgrade: { match: upgrade.path, handler: upgrade },
       parts: {

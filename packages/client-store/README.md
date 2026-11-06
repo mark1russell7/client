@@ -255,6 +255,8 @@ await users.setMode("write-through"); // The switch sends the queue, then syncs 
 - Another error, for example `TIMEOUT` or `UNAUTHORIZED`, keeps the write at the head of the queue. The next push sends it again.
 - After a refusal, the local copy gets the remote values of its ids again. An id that a later queued write changes keeps its local value.
 - The option `onRefused` gets each refusal: the write, its ids, the error, and `restored`. An error of the hook does not stop the push.
+- The option `onDropped` gets each queued write that leaves the queue with no send that the remote took. The causes are a conflict that the policy `remote` decides, a delete of the remote, and a refusal. It gets one call for each id, with the value, the reason and the sync. `getMetadata()` gives the count as `stats.dropped`.
+- The hook can write the value again. The sync waits for the hook, and an error of the hook does not stop the sync. After a crash, the hook can get a write again.
 - The option `queueStore` keeps the queue. The storage writes each change to the store before the write ends.
 - A new storage with the same store loads the queue, shows its writes, and sends them.
 - `MemoryQueueStore` is the default. `FileQueueStore` keeps the queue in a JSON Lines file, for Node.

@@ -22,6 +22,16 @@
  *   listens to the topic, the procedures publish nothing, and the chain stops.
  * - The publishes of one storage and one topic run one at a time, in the order of the writes. A
  *   write resolves after its event is on the bus. A failed publish never fails the write.
+ * - The writes that end while a publish runs share the next publish, so one read of the change
+ *   log replies to all of them. At most one publish runs, and at most one publish waits.
+ * - A version can stop below a write in flight (`StorageChanges.held`, roadmap CLI-102). The chain
+ *   then reads the log again, after a wait that starts at 100 ms and doubles up to 5 s. It stops when
+ *   no write holds the version or no one listens. Thus a write that a write in flight holds back
+ *   reaches the subscribers with no later write. The event of such a read has no origin. It has
+ *   no rows before the changes, so a row filter makes a hint without ids.
+ * - The log can give a write two times (`StorageChanges`), so a subscriber applies a change by its id.
+ * - A read with no change sends no event, and the chain keeps its version. The version of a log can
+ *   move with no change, when another process writes a row again at a later number.
  * - With the rule `admission.admit`, the publisher filters the ids of each event for each
  *   subscriber (roadmap CLI-78, `hint-filter.ts`). The event carries the rows after the changes,
  *   from the change log. While a subscriber has a filter, each write first reads the rows before
@@ -103,6 +113,11 @@ interface ChangeLog {
   getBatch?(ids: string[]): Promise<Map<string, unknown>>;
 }
 
+/** The first wait before a read again of a log that a write in flight holds back. */
+const HELD_FIRST_MS = 100;
+/** The longest wait before a read again. */
+const HELD_MOST_MS = 5000;
+
 /** A write that ended, and that no event told yet. */
 interface EndedWrite {
   /** The ids of the write, or "*" for a clear. */
@@ -120,8 +135,30 @@ interface ChangeChain {
   anchor: string | undefined;
   /** The publishes, one at a time. */
   tail: Promise<void>;
+  /** The publish that did not start. A write that ends joins it, because it reads the writes that ended before its start. */
+  next: Promise<void> | undefined;
   /** The writes that ended since the last publish. */
   readonly ended: EndedWrite[];
+  /** True when the next publish reads the log with no write that ended. */
+  owed: boolean;
+  /** The last wait before a read again, or 0 when no write in flight holds the log back. */
+  heldWaitMs: number;
+  /** The timer of the next read again. */
+  heldTimer: ReturnType<typeof setTimeout> | undefined;
+}
+
+/** This function gives the publish that did not start, and it makes one when none waits. A failed publish rejects nothing here. */
+function nextPublish(chain: ChangeChain, start: () => Promise<void>): Promise<void> {
+  if (chain.next) return chain.next;
+  const next = chain.tail
+    .then(() => {
+      chain.next = undefined;
+      return start();
+    })
+    .catch(() => undefined);
+  chain.next = next;
+  chain.tail = next;
+  return next;
 }
 
 /** The chains of each storage, by topic. A storage that goes away takes its chains with it. */
@@ -135,7 +172,7 @@ function chainOf(storage: object, topic: string): ChangeChain {
   }
   let chain = topics.get(topic);
   if (!chain) {
-    chain = { anchor: undefined, tail: Promise.resolve(), ended: [] };
+    chain = { anchor: undefined, tail: Promise.resolve(), next: undefined, ended: [], owed: false, heldWaitMs: 0, heldTimer: undefined };
     topics.set(topic, chain);
   }
   return chain;
@@ -187,20 +224,41 @@ function withValues(event: CollectionChangeEvent, entries: ReadonlyArray<{ reado
   );
 }
 
-/** One publish: the event of the writes that ended since the last publish. */
+/** This function starts the timer of the next read again while a write holds the log back, and it stops the timer otherwise. */
+function whileHeld(chain: ChangeChain, held: boolean, read: () => void): void {
+  if (!held) {
+    chain.heldWaitMs = 0;
+    if (chain.heldTimer !== undefined) clearTimeout(chain.heldTimer);
+    chain.heldTimer = undefined;
+    return;
+  }
+  if (chain.heldTimer !== undefined) return;
+  chain.heldWaitMs = Math.min(HELD_MOST_MS, chain.heldWaitMs * 2 || HELD_FIRST_MS);
+  chain.heldTimer = setTimeout(() => {
+    chain.heldTimer = undefined;
+    read();
+  }, chain.heldWaitMs);
+  chain.heldTimer.unref?.();
+}
+
+/** One publish: the event of the writes that ended since the last publish, and of a read again. */
 async function publish(chain: ChangeChain, storage: ChangeLog, bus: EventBus, topic: string, values: boolean, admission: CollectionAdmission | undefined): Promise<void> {
   const admit = admission?.admit;
   const writes = chain.ended.splice(0);
+  const owed = chain.owed;
+  chain.owed = false;
   // An earlier publish told these writes
-  if (writes.length === 0) return;
+  if (writes.length === 0 && !owed) return;
+  const readAgain = (): void => rereadChain(chain, storage, bus, topic, values, admission);
   if (!bus.hasSubscribers(topic)) {
     // No one listens: the procedures do not read the log. The next call of `changes` starts the chain again.
     chain.anchor = undefined;
+    whileHeld(chain, false, readAgain);
     return;
   }
   const since = chain.anchor;
   if (!storage.getChangesSince || since === undefined) {
-    bus.emit(topic, hint(undefined, originOf(writes, undefined)));
+    if (writes.length > 0) bus.emit(topic, hint(undefined, originOf(writes, undefined)));
     return;
   }
   let changes: StorageChanges<unknown>;
@@ -208,16 +266,21 @@ async function publish(chain: ChangeChain, storage: ChangeLog, bus: EventBus, to
     changes = await storage.getChangesSince(since);
   } catch {
     // The subscribers read the changes themselves. The chain keeps its version.
-    bus.emit(topic, hint(undefined, originOf(writes, undefined)));
+    if (writes.length > 0) bus.emit(topic, hint(undefined, originOf(writes, undefined)));
+    // A read again that failed told no subscriber, so it stays owed
+    else whileHeld(chain, true, readAgain);
     return;
   }
-  chain.anchor = changes.version;
+  whileHeld(chain, changes.held === true, readAgain);
   // A full result: the log does not know the version of the chain any more
   if (changes.full || writes.some((write) => !write.anchored)) {
+    chain.anchor = changes.version;
     bus.emit(topic, hint(changes.version, originOf(writes, undefined)));
     return;
   }
+  // No event tells this version, so the chain stays at the version of the last event. The next read from it gets each change.
   if (changes.changed.length === 0 && changes.deleted.length === 0) return;
+  chain.anchor = changes.version;
   const origin = originOf(writes, changes);
   const event: CollectionChangeEvent = {
     since,
@@ -229,6 +292,12 @@ async function publish(chain: ChangeChain, storage: ChangeLog, bus: EventBus, to
   const out = values ? withValues(event, changes.changed.map(([id, value]) => ({ id, value })), admit) : event;
   // The rows of the event for the row filter of each subscriber (roadmap CLI-78)
   bus.emit(topic, admit ? withHintImages(out, { after: afterOf(changes), before: beforeOf(writes), admission: admission! }) : out);
+}
+
+/** This function reads the log of a chain again. A publish that did not start does this read. */
+function rereadChain(chain: ChangeChain, storage: ChangeLog, bus: EventBus, topic: string, values: boolean, admission: CollectionAdmission | undefined): void {
+  chain.owed = true;
+  void nextPublish(chain, () => publish(chain, storage, bus, topic, values, admission));
 }
 
 /** The rows after the changes, from the change log: a changed id has its item, a deleted id has none. */
@@ -295,9 +364,7 @@ export async function writeWithChangeEvent<R>(
     return await write();
   } finally {
     chain.ended.push(started);
-    const run = chain.tail.then(() => publish(chain, storage, bus, topic, values, admission));
-    chain.tail = run.catch(() => undefined);
-    await chain.tail;
+    await nextPublish(chain, () => publish(chain, storage, bus, topic, values, admission));
   }
 }
 
@@ -310,4 +377,15 @@ export function startChangeChain(bus: EventBus | undefined, storage: object, top
   if (bus === undefined || topic === undefined) return;
   const chain = chainOf(storage, topic);
   if (chain.anchor === undefined) chain.anchor = version;
+}
+
+/**
+ * This function makes the chain read the log again when a call of `changes` gets a version that a
+ * write in flight holds back. A write outside the procedures then reaches the subscribers too.
+ * With no bus, no topic or no subscriber, it does nothing.
+ */
+export function rereadWhileHeld(bus: EventBus | undefined, storage: object & ChangeLog, topic: string | undefined, values = false, admission?: CollectionAdmission): void {
+  if (bus === undefined || topic === undefined || !bus.hasSubscribers(topic)) return;
+  const chain = chainOf(storage, topic);
+  whileHeld(chain, true, () => rereadChain(chain, storage, bus, topic, values, admission));
 }
