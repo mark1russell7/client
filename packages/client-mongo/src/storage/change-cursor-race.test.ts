@@ -79,6 +79,10 @@ interface RowCount {
   twice: string[];
   /** The writes of one id and one value that a subscriber got with a different value. */
   changedValue: string[];
+  /** The moves of late writes to new numbers. A row inside the leases has none. */
+  moves: number;
+  /** The reads and events of each subscriber that saw a write twice, for the log of a failure. */
+  traces: string[];
 }
 
 const NAME = "race";
@@ -127,6 +131,8 @@ class Seen {
   readonly counts = new Map<string, number>();
   readonly last = new Map<string, string>();
   readonly values = new Map<string, Set<string>>();
+  /** Each read and each applied event, as `since>version:ids`. */
+  readonly trace: string[] = [];
   fulls = 0;
 
   /** This method notes one change. A key is the id for new ids, and the id with the value for rewrites. */
@@ -180,16 +186,19 @@ async function follower(host: Host, seen: Seen, family: IdFamily, row: RowCount,
   const read = async (): Promise<void> => {
     noteRead(row, count);
     const changes = await host.changes(cursor);
+    seen.trace.push(`read ${cursor}>${changes.version}${changes.full ? " full" : ""}:${changes.changed.map(({ id }) => id).join(",")}`);
     applyRead(seen, family, changes);
     cursor = changes.version;
   };
   host.bus.on<CollectionChangeEvent>(TOPIC, (event) => {
     line = line.then(async () => {
       if (event.since === cursor && event.version !== undefined) {
+        seen.trace.push(`event ${event.since}>${event.version}:${event.changed.join(",")}`);
         for (const id of event.changed) seen.note(family, id);
         cursor = event.version;
         return;
       }
+      seen.trace.push(`event ${event.since ?? "-"}>${event.version ?? "-"} read`);
       await read();
     });
   });
@@ -217,6 +226,7 @@ async function poller(
     const lastRead = isDone();
     noteRead(row, count);
     const changes = await host.changes(cursor);
+    seen.trace.push(`read ${cursor}>${changes.version}${changes.full ? " full" : ""}:${changes.changed.map(({ id }) => id).join(",")}`);
     applyRead(seen, family, changes);
     cursor = changes.version;
     if (lastRead) return;
@@ -292,7 +302,9 @@ async function race(schedule: Schedule, row: RowCount): Promise<void> {
   row.subscribers += seens.length;
   for (const [index, seen] of seens.entries()) {
     row.fulls += seen.fulls;
-    for (const [key, times] of seen.counts) if (times > 1) row.twice.push(`${seed}/s${index}/${key}`);
+    const twice = [...seen.counts].filter(([, times]) => times > 1);
+    for (const [key] of twice) row.twice.push(`${seed}/s${index}/${key}`);
+    if (twice.length > 0 && row.traces.length < 4) row.traces.push(`${seed}/s${index}: ${seen.trace.join(" | ")}`);
     if (family === "new") {
       for (const key of keys) if (!seen.counts.has(key)) row.lost.push(`${seed}/s${index}/${key}`);
       for (const [id, values] of seen.values) if (values.size > 1) row.changedValue.push(`${seed}/s${index}/${id}`);
@@ -311,13 +323,14 @@ async function race(schedule: Schedule, row: RowCount): Promise<void> {
 
 /** This function makes an empty row. */
 function newRow(): RowCount {
-  return { schedules: 0, writes: 0, subscribers: 0, reads: 0, readsDuringHold: 0, fulls: 0, lost: [], twice: [], changedValue: [] };
+  return { schedules: 0, writes: 0, subscribers: 0, reads: 0, readsDuringHold: 0, fulls: 0, lost: [], twice: [], changedValue: [], moves: 0, traces: [] };
 }
 
 /** This function prints the counts of a row, for the job log and the record of the item. */
 function printRow(name: string, row: RowCount): void {
-  const { lost, twice, changedValue, ...counts } = row;
+  const { lost, twice, changedValue, traces, ...counts } = row;
   console.log(`race ${JSON.stringify({ name, ...counts, lost: lost.length, twice: twice.length, changedValue: changedValue.length, lostExamples: lost.slice(0, 3), twiceExamples: twice.slice(0, 3) })}`);
+  for (const trace of traces) console.log(`race trace ${name} ${trace}`);
 }
 
 /** This function states the pass line of a cursor inside the leases. Its text has the seed of a failure. */
@@ -325,6 +338,8 @@ function expectClean(row: RowCount, schedules: number, writes: number): void {
   expect(row.lost).toEqual([]);
   expect(row.twice).toEqual([]);
   expect(row.changedValue).toEqual([]);
+  // A write inside its lease never moves to new numbers
+  expect(row.moves).toBe(0);
   expect(row.fulls).toBe(0);
   expect({ schedules: row.schedules, writes: row.writes }).toEqual({ schedules, writes });
   expect(row.readsDuringHold).toBeGreaterThan(0);
@@ -459,6 +474,7 @@ type StorePath = "transaction" | "pending";
 /** The private parts of a store that a fault copy changes. */
 interface StoreInternals {
   watermark(db: Db): Promise<{ seq: number; epoch: string; floor: number }>;
+  move(collection: Collection<never>, first: number, count: number, next: number): Promise<void>;
   withNumbers<R>(db: Db, collection: Collection<never>, count: number, write: (first: number) => Promise<R>): Promise<R>;
 }
 
@@ -757,6 +773,16 @@ function replayingOld(store: RaceStorage): RaceStorage {
   };
 }
 
+/** This function counts the moves of the late writes of a store in a row. */
+function countMoves(store: MongoDocumentStorage<Item>, row: RowCount): void {
+  const inner = store as unknown as StoreInternals;
+  const move = inner.move.bind(store);
+  inner.move = async (...args) => {
+    row.moves += 1;
+    return move(...args);
+  };
+}
+
 /** This function makes a writer with no rule: it takes its number outside its transaction. */
 function numberOutside(store: MongoDocumentStorage<Item>, collection: string): void {
   (store as unknown as StoreInternals).withNumbers = async (db, _items, count, write) => {
@@ -827,6 +853,7 @@ withMongo("the race of a change cursor and a write in flight, on a real store (C
       const holds = clients.map((_, index) => holdsOf(draw.fork(`holds${index}`), millis, count, sizes));
       const stores = storesOf(path, collection, holds, lease);
       fault?.(stores, collection);
+      for (const store of stores) countMoves(store, row);
       const hosts = stores.map((store) => new Host(store as unknown as RaceStorage));
       await race({ seed, hosts, wait: millis, family, writes: STORE_WRITES, count }, row);
     }
