@@ -775,6 +775,7 @@ await watch.stop();
 - **The image before the change.** Set `fullDocumentBeforeChange: "whenAvailable"`. A collection gives the image only with `changeStreamPreAndPostImages: { enabled: true }` (MongoDB 6 or later).
 - **One event at a time.** The events go in the order of the stream. The watcher reads the next event after `onChange` resolves.
 - **The resume token** is the `_id` of the last event after its `onChange` resolved. A batch without events gives the token of the batch. The getter `resumeToken` of the handle gives the token at this time.
+- **The age of the token.** The getter `tokenAgeMs` gives the milliseconds of `clock` since the token last moved to a later cluster time. Before the first move, it counts from the start. The same cluster time again does not move it. A large value on an open watcher tells a stalled feed. The handle of `watchStorageChanges` has the same getter.
 - **No lost change.** After an error of the stream, the watcher waits for the backoff. Then it opens the stream again with `startAfter` and the token. Thus it loses no change and gives no change twice.
 - **An error of `onChange`** has the same backoff. The token stays at the change before, so the same change comes again.
 - **The backoff** starts at `initialDelay` and grows by `backoffMultiplier` to at most `maxDelay`, with `jitter`. A change or a batch without events sets it back to `initialDelay`. The defaults are `ms(250)`, 2, `seconds(30)` and the full jitter, as for `watchStorageChanges`.

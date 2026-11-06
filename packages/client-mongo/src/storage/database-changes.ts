@@ -38,6 +38,7 @@
  */
 import type { ChangeStream, ChangeStreamDocument, ChangeStreamOptions, Db, Document, ResumeToken, Timestamp } from "mongodb";
 import { realClock, writeLog, type Cancel, type Clock, type LogFields, type Logger, type ResubscribeBackoff } from "@procedures/client";
+import { tokenAge } from "./token-age.js";
 import { COMMAND_NOT_FOUND, LOST_TOKEN_CODES, backoffOf, codeOf, isPermanent, messageOf } from "./storage-hints.js";
 import { SAME_TOKEN_LIMIT, SPLIT_LARGE_EVENT_STAGE, UNKNOWN_STAGE_CODE, eventJoiner, sameTokenFaults } from "./split-events.js";
 
@@ -103,6 +104,11 @@ export interface DatabaseChangesWatch {
   readonly resumeToken: ResumeToken | undefined;
   /** True after `stop()`, an abort of `signal`, or an error that stops the watcher. */
   readonly stopped: boolean;
+  /**
+   * The milliseconds of `clock` since `resumeToken` last moved to a later cluster time, or since the start before the first move.
+   * The same cluster time again does not move it. A large value on an open watcher tells a stalled feed (roadmap CLI-110).
+   */
+  readonly tokenAgeMs: number;
   /** This method stops the watcher: it closes the stream and cancels the timer of a backoff. */
   stop(): Promise<void>;
 }
@@ -135,7 +141,7 @@ function collectionOf(change: Document): unknown {
  *
  * @param db - The database, or a function that gives it
  * @param options - The handlers, the start of the stream, its options, the backoff, the logger and the signal
- * @returns The handle: `ready`, `resumeToken`, `stopped` and `stop()`
+ * @returns The handle: `ready`, `resumeToken`, `stopped`, `tokenAgeMs` and `stop()`
  *
  * @example
  * ```typescript
@@ -170,6 +176,7 @@ export function watchDatabaseChanges<TChange extends Document = ChangeStreamDocu
   let stopped = false;
   /** The token of the last change that `onChange` took, or of the last batch without events. */
   let token: ResumeToken | undefined = options.startAfter ?? options.resumeAfter;
+  const age = tokenAge(clock, token);
   /** True after a stream was open. */
   let opened = false;
   /** True after the server said that it has change streams. */
@@ -257,7 +264,10 @@ export function watchDatabaseChanges<TChange extends Document = ChangeStreamDocu
       if (raw === null) {
         // A batch without events: its token is after each event that `onChange` took. In the middle of a split event, the token stays before it
         const batchToken = next.resumeToken;
-        if (!joiner.partial && batchToken !== undefined && batchToken !== null) token = batchToken;
+        if (!joiner.partial && batchToken !== undefined && batchToken !== null) {
+          token = batchToken;
+          age.note(token);
+        }
         succeeded();
         continue;
       }
@@ -269,6 +279,7 @@ export function watchDatabaseChanges<TChange extends Document = ChangeStreamDocu
       const change = result.change as TChange;
       if (change["operationType"] === "invalidate") {
         token = change["_id"];
+        age.note(token);
         return fail(Object.assign(new Error(`the change stream of the database ${database ?? ""} was invalidated`), { change }), { operationType: "invalidate" });
       }
       try {
@@ -277,6 +288,7 @@ export function watchDatabaseChanges<TChange extends Document = ChangeStreamDocu
         throw new HandlerError(error, change);
       }
       token = change["_id"];
+      age.note(token);
       faults.reset();
       succeeded();
     }
@@ -393,6 +405,9 @@ export function watchDatabaseChanges<TChange extends Document = ChangeStreamDocu
     },
     get stopped(): boolean {
       return stopped;
+    },
+    get tokenAgeMs(): number {
+      return age.ageMs();
     },
     stop,
   };
