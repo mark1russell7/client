@@ -90,7 +90,7 @@ switch (spec.kind) {
     break;
   }
   case "snapshot": {
-    fill(1, KEYS, VALUE_BYTES);
+    fill(1, spec.keys, VALUE_BYTES);
     const snapshot = procedureOf("snapshot");
     const calls: number[] = [];
     const texts: number[] = [];
@@ -142,7 +142,8 @@ switch (spec.kind) {
         eventKeys = event.set!.length;
       }
     });
-    const pools = [0, 1].map((round) => Array.from({ length: KEYS }, (_, k) => JSON.parse(valueText(VALUE_BYTES, round * KEYS + k)) as unknown));
+    const keys = spec.keys;
+    const pools = [0, 1].map((round) => Array.from({ length: keys }, (_, k) => JSON.parse(valueText(VALUE_BYTES, round * keys + k)) as unknown));
     const blocks: number[] = [];
     const totals: number[] = [];
     for (let round = 0; round < 5; round++) {
@@ -157,7 +158,7 @@ switch (spec.kind) {
       frames = 0;
       target = spec.subscribers;
       first = new Promise<void>((resolve) => (delivered = resolve));
-      for (let k = 1; k < KEYS; k++) live.set(TOPIC, `k${k}`, pool[k]);
+      for (let k = 1; k < keys; k++) live.set(TOPIC, `k${k}`, pool[k]);
       await nextTask();
       let longest = 0;
       let probing = true;

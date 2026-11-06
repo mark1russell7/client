@@ -10,6 +10,8 @@
  *   up to the byte limit.
  * - `snapshot-full`: the call of `live.snapshot` on a full topic, and the JSON of its output.
  * - `window-s<n>`: one window event of a full topic, delivered to n subscribers with a JSON frame for each.
+ * - `snapshot-k64` and `window-s<n>-k64`: the same at 64 keys of 16,384 bytes. That is 1 MiB, the default limit of
+ *   the bytes of a topic in the fix of the roadmap item.
  */
 
 /** The ids of the cases. */
@@ -24,20 +26,26 @@ export const LIMITS_CASES: readonly string[] = [
   "snapshot-full",
   "window-s1",
   "window-s10",
+  "snapshot-k64",
+  "window-s10-k64",
+  "window-s100-k64",
 ];
 
 /** The default limits of the live state, as the bench reads them. */
 export const KEYS = 1024;
 export const VALUE_BYTES = 16384;
 export const TOPICS = 4096;
+/** The limits of the bytes of a topic and of a state in the fix, as the report reads them. */
+export const TOPIC_BYTES = 1_048_576;
+export const STATE_BYTES = 67_108_864;
 
 /** A case of the bench. */
 export type LimitsCase =
   | { readonly kind: "heap"; readonly topics: number; readonly bytes: number }
   | { readonly kind: "topics"; readonly topics: number }
   | { readonly kind: "set"; readonly bytes: number; readonly wide: boolean }
-  | { readonly kind: "snapshot" }
-  | { readonly kind: "window"; readonly subscribers: number };
+  | { readonly kind: "snapshot"; readonly keys: number }
+  | { readonly kind: "window"; readonly subscribers: number; readonly keys: number };
 
 /** This function reads a case from its id. */
 export function parseCase(id: string): LimitsCase {
@@ -48,9 +56,11 @@ export function parseCase(id: string): LimitsCase {
   if (id === "set-wide") return { kind: "set", bytes: VALUE_BYTES, wide: true };
   const set = /^set-(\d+)$/.exec(id);
   if (set) return { kind: "set", bytes: Number(set[1]), wide: false };
-  if (id === "snapshot-full") return { kind: "snapshot" };
-  const window = /^window-s(\d+)$/.exec(id);
-  if (window) return { kind: "window", subscribers: Number(window[1]) };
+  if (id === "snapshot-full") return { kind: "snapshot", keys: KEYS };
+  const snapshot = /^snapshot-k(\d+)$/.exec(id);
+  if (snapshot) return { kind: "snapshot", keys: Number(snapshot[1]) };
+  const window = /^window-s(\d+)(?:-k(\d+))?$/.exec(id);
+  if (window) return { kind: "window", subscribers: Number(window[1]), keys: Number(window[2] ?? KEYS) };
   throw new RangeError(`no case ${id}`);
 }
 

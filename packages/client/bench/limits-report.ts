@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { aaBand, type PairedTime } from "@mark1russell7/rigor-bench";
 import { median } from "@mark1russell7/rigor-statistics";
-import { KEYS, LIMITS_CASES, TOPICS } from "./limits-cases.js";
+import { KEYS, LIMITS_CASES, STATE_BYTES, TOPICS, TOPIC_BYTES, VALUE_BYTES } from "./limits-cases.js";
 
 const { values } = parseArgs({ options: { jobs: { type: "string" }, out: { type: "string" }, run: { type: "string" } } });
 if (values.jobs === undefined || values.out === undefined) throw new RangeError("this report needs --jobs and --out");
@@ -54,6 +54,10 @@ const report = {
   fullTopicBytes: fullTopic === undefined ? null : Math.round(fullTopic),
   fullTopicsFit: fullTopic === undefined ? null : Math.floor(heapLimit / fullTopic),
   fullStateBytes: fullTopic === undefined ? null : Math.round(fullTopic * TOPICS),
+  // The heap of a state at the limits of bytes of the fix: the heap of a key at the byte edge, for each value of that size
+  topicLimitHeap: perKey === undefined ? null : Math.round((perKey * TOPIC_BYTES) / VALUE_BYTES),
+  stateLimitHeap: perKey === undefined ? null : Math.round((perKey * STATE_BYTES) / VALUE_BYTES),
+  stateLimitShareOfHeap: perKey === undefined || heapLimit === 0 ? null : round((perKey * STATE_BYTES) / VALUE_BYTES / heapLimit, 4),
   aa: { noise: round(band.noise, 4), high: round(band.high), median: round(band.median), cases: band.cases },
   cases,
   env: jobs.map(({ job, env }) => ({ job, env })),
