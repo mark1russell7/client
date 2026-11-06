@@ -75,7 +75,7 @@ class PickyRemote extends InMemoryStorage<Item> {
   }
 }
 
-function pickyHybrid(remote: PickyRemote, options: HybridStorageOptions = {}): { hybrid: HybridStorage<Item>; drops: DroppedWrite[] } {
+function pickyHybrid(remote: CollectionStorage<Item>, options: HybridStorageOptions = {}): { hybrid: HybridStorage<Item>; drops: DroppedWrite[] } {
   const drops: DroppedWrite[] = [];
   const hybrid = new HybridStorage<Item>(remote, {
     syncOnInit: false,
@@ -167,7 +167,7 @@ describe("onDropped gets each queued write that the remote refuses", () => {
     await hybrid.close();
   });
 
-  it("gets each id of a refused batch with its own value, beside onRefused", async () => {
+  it("gets only the refused id of a refused batch, and the good id reaches the remote (CLI-108)", async () => {
     const remote = new PickyRemote();
     const refusals: string[][] = [];
     const { hybrid, drops } = pickyHybrid(remote, {
@@ -178,15 +178,14 @@ describe("onDropped gets each queued write that the remote refuses", () => {
     remote.refused.add("bad");
     await hybrid.setBatch([["bad", item("bad", 9, "L")], ["small", item("small", 1, "L")]]);
     await hybrid.flush();
-    expect(refusals).toEqual([["bad", "small"]]);
-    expect(drops.map(({ id, value, reason }) => ({ id, value, reason }))).toEqual([
-      { id: "bad", value: item("bad", 9, "L"), reason: "refused" },
-      { id: "small", value: item("small", 1, "L"), reason: "refused" },
-    ]);
+    expect(refusals).toEqual([["bad"]]);
+    expect(drops.map(({ id, value, reason }) => ({ id, value, reason }))).toEqual([{ id: "bad", value: item("bad", 9, "L"), reason: "refused" }]);
+    expect(await remote.get("small")).toEqual(item("small", 1, "L"));
+    expect(hybrid.getPendingOpsCount()).toBe(0);
     await hybrid.close();
   });
 
-  it("gets no value for a refused delete, and each id of a refused delete batch", async () => {
+  it("gets no value for a refused delete, and only the refused id of a delete batch (CLI-108)", async () => {
     const remote = new PickyRemote();
     await remote.setBatch([["a", item("a", 1, "1")], ["b", item("b", 1, "1")], ["c", item("c", 1, "1")]]);
     const { hybrid, drops } = pickyHybrid(remote);
@@ -199,8 +198,8 @@ describe("onDropped gets each queued write that the remote refuses", () => {
     expect(drops.map(({ id, value }) => ({ id, value }))).toEqual([
       { id: "a", value: undefined },
       { id: "b", value: undefined },
-      { id: "c", value: undefined },
     ]);
+    expect(await remote.get("c")).toBeUndefined();
     await hybrid.close();
   });
 
@@ -212,6 +211,72 @@ describe("onDropped gets each queued write that the remote refuses", () => {
     await hybrid.flush();
     expect(drops).toHaveLength(1);
     expect(drops[0]).toMatchObject({ id: "*", value: undefined, reason: "refused", during: "push" });
+    await hybrid.close();
+  });
+});
+
+/** A remote with a limit of bytes on the JSON of each write, as a server with a body limit (roadmap CLI-108). */
+class LimitedRemote extends InMemoryStorage<Item> {
+  readonly sends: string[][] = [];
+  private readonly limit: number;
+  constructor(limit: number) {
+    super();
+    this.limit = limit;
+  }
+  private guard(ids: readonly string[], payload: unknown): void {
+    this.sends.push([...ids]);
+    if (JSON.stringify(payload).length > this.limit) throw Object.assign(new Error("too large"), { code: "PAYLOAD_TOO_LARGE", retryable: false });
+  }
+  override async set(id: string, value: Item) {
+    this.guard([id], value);
+    return super.set(id, value);
+  }
+  override async setBatch(items: Array<[string, Item]>) {
+    this.guard(items.map(([id]) => id), items);
+    return super.setBatch(items);
+  }
+}
+
+const sized = (id: string, bytes: number): Item => ({ id, n: 1, rev: "x".repeat(bytes) });
+
+describe("a write over the limit of the remote leaves the queue alone (CLI-108)", () => {
+  it("drops one write over the limit with the reason too-large, and the writes behind it reach the remote", async () => {
+    const remote = new LimitedRemote(1_000);
+    const { hybrid, drops } = pickyHybrid(remote);
+    await hybrid.set("big", sized("big", 5_000));
+    await hybrid.set("a", sized("a", 10));
+    await hybrid.set("b", sized("b", 10));
+    await hybrid.flush();
+    expect(drops.map(({ id, reason, during }) => ({ id, reason, during }))).toEqual([{ id: "big", reason: "too-large", during: "push" }]);
+    expect((drops[0]!.error as { code?: unknown }).code).toBe("PAYLOAD_TOO_LARGE");
+    expect(drops[0]!.value).toEqual(sized("big", 5_000));
+    expect(await remote.get("a")).toEqual(sized("a", 10));
+    expect(await remote.get("b")).toEqual(sized("b", 10));
+    expect(hybrid.getPendingOpsCount()).toBe(0);
+    await hybrid.close();
+  });
+
+  it("sends a batch over the limit as one write for each id, so only the large id drops", async () => {
+    const remote = new LimitedRemote(1_000);
+    const { hybrid, drops } = pickyHybrid(remote);
+    await hybrid.setBatch([["s1", sized("s1", 10)], ["big", sized("big", 5_000)], ["s2", sized("s2", 10)]]);
+    await hybrid.flush();
+    expect(drops.map(({ id, reason }) => ({ id, reason }))).toEqual([{ id: "big", reason: "too-large" }]);
+    expect(remote.sends).toEqual([["s1", "big", "s2"], ["s1"], ["big"], ["s2"]]);
+    expect(await remote.getIds()).toEqual(expect.arrayContaining(["s1", "s2"]));
+    expect(hybrid.getPendingOpsCount()).toBe(0);
+    await hybrid.close();
+  });
+
+  it("sends a batch of small writes whose sum is over the limit, and drops none", async () => {
+    const remote = new LimitedRemote(1_000);
+    const { hybrid, drops } = pickyHybrid(remote);
+    const ids = Array.from({ length: 12 }, (_, index) => `s${index}`);
+    await hybrid.setBatch(ids.map((id): [string, Item] => [id, sized(id, 200)]));
+    await hybrid.flush();
+    expect(drops).toEqual([]);
+    expect((await remote.getIds()).sort()).toEqual([...ids].sort());
+    expect(hybrid.getPendingOpsCount()).toBe(0);
     await hybrid.close();
   });
 });

@@ -340,6 +340,22 @@ describe("WebSocket server disconnect events (TRN-16)", () => {
   }, 10_000);
 });
 
+describe("a call over the limit of the WebSocket server (CLI-108)", () => {
+  it("fails alone with PAYLOAD_TOO_LARGE, and the other calls of the connection go on", async () => {
+    const { client } = await startWs({ maxPayload: 70_000 });
+    const { client: c } = client();
+    // The large call is the first call: it waits for the hello of the server, which tells the limit
+    const large = c.call(echo, "x".repeat(100_000)).then(
+      () => "ok",
+      (error: unknown) => (error as { code?: unknown }).code,
+    );
+    const small = Promise.all(Array.from({ length: 5 }, (_, index) => c.call(echo, `small ${index}`)));
+    expect(await large).toBe("PAYLOAD_TOO_LARGE");
+    expect(await small).toEqual(Array.from({ length: 5 }, (_, index) => `small ${index}`));
+    expect(await c.call(echo, "after")).toBe("after");
+  }, 10_000);
+});
+
 describe("CORS with a list of origins", () => {
   it("answers with the one matching origin and Vary: Origin", async () => {
     const { url } = await startHttp({ origin: ["https://a.example", "https://b.example"] });

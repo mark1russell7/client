@@ -133,6 +133,8 @@ jobs:
         working-directory: systems
         run: pnpm install --frozen-lockfile
       - name: The runner, beside the records
+        # bash in place of the default gives pipefail, so a failed command before tee fails the step
+        shell: bash
         env:
           CLIENT_SHA: ${{ github.sha }}
           SYSTEMS_SHA: ${{ needs.plan.outputs.systems }}

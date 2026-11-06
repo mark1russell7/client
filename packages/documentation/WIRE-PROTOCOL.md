@@ -228,7 +228,7 @@ Each message is one JSON object, a frame. Each frame has an `id` and a `type`. T
 
 1. The client opens the connection. A browser gives the token in the query: `?token=<token>`.
 2. The client sends `{"id":"hello","type":"hello","protocol":1}`.
-3. The server answers `{"id":"hello","type":"hello","protocol":1}`.
+3. The server answers `{"id":"hello","type":"hello","protocol":1,"maxPayload":1048576}`. The field `maxPayload` is the largest frame that the server reads, in bytes. The client refuses a larger call before it sends it, so the connection stays open.
 4. A server that does not speak the version of the client sends an `error` frame with the code `PROTOCOL_VERSION`. Then it closes the connection with the code 1002.
 
 ### The frames of a call
