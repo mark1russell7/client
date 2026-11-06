@@ -4,26 +4,26 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 3 names
+## . (dist/index.d.ts): names
 
 bundleDevModule: dist/module.d.ts#bundleDevModule
 bundleDevModules: dist/module.d.ts#bundleDevModules
 registerBundleDevProcedures: dist/module.d.ts#registerBundleDevProcedures
 
-## ./module (dist/module.d.ts): 4 names
+## ./module (dist/module.d.ts): names
 
 bundleDevModule: dist/module.d.ts#bundleDevModule
 bundleDevModules: dist/module.d.ts#bundleDevModules
 default: dist/module.d.ts#bundleDevModule
 registerBundleDevProcedures: dist/module.d.ts#registerBundleDevProcedures
 
-## ./register (dist/register.d.ts): 3 names
+## ./register (dist/register.d.ts): names
 
 bundleDevModule: dist/module.d.ts#bundleDevModule
 bundleDevModules: dist/module.d.ts#bundleDevModules
 registerBundleDevProcedures: dist/module.d.ts#registerBundleDevProcedures
 
-## ./register.js (dist/register.d.ts): 3 names
+## ./register.js (dist/register.d.ts): names
 
 bundleDevModule: dist/module.d.ts#bundleDevModule
 bundleDevModules: dist/module.d.ts#bundleDevModules

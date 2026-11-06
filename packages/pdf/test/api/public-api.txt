@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 23 names
+## . (dist/index.d.ts): names
 
 BROWSER_ENV: dist/browser.d.ts#BROWSER_ENV
 BROWSER_NAMES: dist/browser.d.ts#BROWSER_NAMES
@@ -30,7 +30,7 @@ pdfRenderProcedure: dist/module.d.ts#pdfRenderProcedure
 registerPdfProcedures: dist/module.d.ts#registerPdfProcedures
 renderPdf: dist/render.d.ts#renderPdf
 
-## ./module (dist/module.d.ts): 5 names
+## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#pdfModule
 pdfModule: dist/module.d.ts#pdfModule
@@ -38,7 +38,7 @@ pdfProcedures: dist/module.d.ts#pdfProcedures
 pdfRenderProcedure: dist/module.d.ts#pdfRenderProcedure
 registerPdfProcedures: dist/module.d.ts#registerPdfProcedures
 
-## ./register (dist/register.d.ts): 4 names
+## ./register (dist/register.d.ts): names
 
 pdfModule: dist/module.d.ts#pdfModule
 pdfProcedures: dist/module.d.ts#pdfProcedures
