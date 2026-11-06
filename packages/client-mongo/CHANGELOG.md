@@ -1,5 +1,17 @@
 # @procedures/mongo
 
+## 0.48.2
+
+### Patch Changes
+
+- aa4ce41: `MongoDocumentStorage`: a plain write of a new id does not fail when another process writes that id at the same time. Before this fix, `set`, `setBatch` or `patch` could reject with a duplicate key, and the store kept the value of the other process. A batch also did not make the writes after the stopped write. The write tries again with the same number, so a reader does not pass it. A write with a guard keeps its conflict error. A real duplicate reaches the caller after one more try.
+- 08beec5: A write that a write in flight holds back reaches its subscribers with no later write. `StorageChanges` has a new optional field `held`. The docs state that a result gives each write at least one time. They name the two cases of a second time. A read of the log with no change does not move the `since` of the next event, so the events keep their chain.
+- Updated dependencies [08beec5]
+- Updated dependencies [48b7127]
+- Updated dependencies [9541575]
+  - @procedures/client@0.48.2
+  - @procedures/collections@0.48.2
+
 ## 0.48.1
 
 ### Patch Changes

@@ -2561,6 +2561,7 @@ export interface WebSocketMessage<TReq = unknown> {
     id: string;
     type: "hello" | "request" | "response" | "error" | "stream" | "cancel" | "credit" | "ping" | "pong" | "server-request" | "server-response" | "event";
     protocol?: number;
+    maxPayload?: number;
     method?: {
         service: string;
         operation: string;

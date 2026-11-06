@@ -1,5 +1,14 @@
 # @procedures/client
 
+## 0.48.2
+
+### Patch Changes
+
+- 08beec5: A write that a write in flight holds back reaches its subscribers with no later write. `StorageChanges` has a new optional field `held`. The docs state that a result gives each write at least one time. They name the two cases of a second time. A read of the log with no change does not move the `since` of the next event, so the events keep their chain.
+- 48b7127: The writes of a collection that end while a change read runs share the next read. A write still resolves after its event is on the bus. Before this change, each write under sustained load had its own read, so the replies fell to one for each read.
+  
+  This change does not close the fault of a store under overload with a subscriber (CLI-102). On one run at 100 writers, the replies were 38.2 percent of a copy with no subscriber, and the pass line is 70 percent. So the change read must leave the queue of the writes.
+
 ## 0.48.1
 
 ### Patch Changes

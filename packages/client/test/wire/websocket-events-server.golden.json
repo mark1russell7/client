@@ -65,7 +65,8 @@
     {
       "id": "hello",
       "type": "hello",
-      "protocol": 1
+      "protocol": 1,
+      "maxPayload": 1048576
     },
     {
       "id": "<id 1>",

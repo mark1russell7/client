@@ -116,6 +116,26 @@ export function withoutId(op: QueuedOperation, id: string): QueuedOperation | un
   }
 }
 
+/**
+ * The operations of one id each that a batch holds, in its order, with the base version of each id (roadmap CLI-108).
+ * A set, a delete and a clear give an array of the operation itself.
+ */
+export function singlesOf(op: QueuedOperation): QueuedOperation[] {
+  const data = op.data as { ids?: string[]; items?: Array<[string, unknown]> };
+  const baseOf = (id: string): Pick<QueuedOperation, "base"> => {
+    const base = op.base?.find(([baseId]) => baseId === id);
+    return base === undefined ? {} : { base: [base] };
+  };
+  switch (op.type) {
+    case "setBatch":
+      return (data.items ?? []).map(([id, value]) => ({ type: "set", data: { id, value }, timestamp: op.timestamp, ...baseOf(id) }));
+    case "deleteBatch":
+      return (data.ids ?? []).map((id) => ({ type: "delete", data: { id }, timestamp: op.timestamp, ...baseOf(id) }));
+    default:
+      return [op];
+  }
+}
+
 /** True when a value has the shape of a queued operation. A loaded file can hold anything. */
 export function isQueuedOperation(value: unknown): value is QueuedOperation {
   if (typeof value !== "object" || value === null) return false;
