@@ -50,7 +50,8 @@ class FakeStream extends EventEmitter {
     if (this.closed) throw new Error("the change stream is closed");
     if (!this.started) {
       this.started = true;
-      if (this.server.openError !== undefined) throw this.server.openError;
+      const openError = typeof this.server.openError === "function" ? (this.server.openError as (pipeline: Document[]) => unknown)(this.pipeline) : this.server.openError;
+      if (openError !== undefined) throw openError;
       this.emit("resumeTokenChanged", batchToken(this.position));
     }
     const change = this.server.log[this.position];
@@ -95,7 +96,7 @@ class FakeChangeServer {
   readonly log: Document[] = [];
   readonly streams: FakeStream[] = [];
   hello: Document = { setName: "rs" };
-  /** The error of the open of each stream (the aggregate), or undefined. */
+  /** The error of the open of each stream (the aggregate), or undefined. A function gives it from the pipeline of the stream. */
   openError: unknown;
 
   readonly db = {
@@ -185,7 +186,7 @@ describe("watchDatabaseChanges without a server (CLI-88)", () => {
     });
     await watch.ready;
     const stream = await server.waiting();
-    expect(stream.pipeline).toEqual([{ $match: { "ns.coll": "notes" } }]);
+    expect(stream.pipeline).toEqual([{ $match: { "ns.coll": "notes" } }, { $changeStreamSplitLargeEvent: {} }]);
     expect(stream.options).toEqual({ maxAwaitTimeMS: 500, fullDocument: "updateLookup", fullDocumentBeforeChange: "whenAvailable" });
     const update = server.push({
       operationType: "update",
@@ -472,6 +473,113 @@ afterAll(async () => {
   if (!client) return;
   await db.dropDatabase().catch(() => undefined);
   await client.close();
+});
+
+describe("watchDatabaseChanges and an event over the BSON limit (CLI-107)", () => {
+  /** The fragment of an update event: its fields and its place in the split event. */
+  const fragment = (n: number, of: number, fields: Document): Document => ({ ...fields, splitEvent: { fragment: n, of } });
+
+  it("joins the fragments of a split event into one event with the token of the last fragment", async () => {
+    const { server, watch, changes } = fakeWatch();
+    await watch.ready;
+    server.push(insert("a"));
+    await vi.waitFor(() => expect(changes).toHaveLength(1));
+    server.push(fragment(1, 3, { operationType: "update", ns: { db: "fake", coll: "notes" }, documentKey: { _id: "big" } }));
+    // A batch without events in the middle of the split event: the token stays before the event
+    (await server.waiting()).wake();
+    await server.waiting();
+    expect(watch.resumeToken).toEqual(eventToken(0));
+    server.push(fragment(2, 3, { fullDocumentBeforeChange: { _id: "big", n: 1 } }));
+    const last = server.push(fragment(3, 3, { fullDocument: { _id: "big", n: 2 } }));
+    await vi.waitFor(() => expect(changes).toHaveLength(2));
+    expect(changes[1]).toEqual({
+      _id: last["_id"],
+      operationType: "update",
+      ns: { db: "fake", coll: "notes" },
+      documentKey: { _id: "big" },
+      fullDocumentBeforeChange: { _id: "big", n: 1 },
+      fullDocument: { _id: "big", n: 2 },
+    });
+    expect(watch.resumeToken).toEqual(last["_id"]);
+    await watch.stop();
+  });
+
+  it("gives the fragments that came, with splitEvent.missing, when the stream starts after the first fragment", async () => {
+    const server = new FakeChangeServer();
+    server.push(fragment(1, 2, { operationType: "update", documentKey: { _id: "big" } }));
+    const changes: Document[] = [];
+    const logger = recordingLogger();
+    const watch = watchDatabaseChanges(server.db, { onChange: (change) => void changes.push(change), startAfter: eventToken(0), logger, clock: recordingClock().clock });
+    await watch.ready;
+    const last = server.push(fragment(2, 2, { fullDocument: { _id: "big" } }));
+    await vi.waitFor(() => expect(changes).toHaveLength(1));
+    expect(changes[0]).toEqual({ _id: last["_id"], fullDocument: { _id: "big" }, splitEvent: { missing: 1, of: 2 } });
+    expect(logger.lines.find((line) => line.level === "warn")).toMatchObject({ fields: { missing: 1 } });
+    await watch.stop();
+  });
+
+  it("opens the stream with no split stage after a server that does not know the stage, with no backoff and no onError", async () => {
+    const { server, watch, changes, errors, delays, logger } = fakeWatch({ pipeline: [{ $match: { "ns.coll": "notes" } }] });
+    server.openError = (pipeline: Document[]) => (pipeline.some((stage) => "$changeStreamSplitLargeEvent" in stage) ? serverError(40324, "Unrecognized pipeline stage name") : undefined);
+    await watch.ready;
+    expect(server.streams.map((stream) => stream.pipeline)).toEqual([
+      [{ $match: { "ns.coll": "notes" } }, { $changeStreamSplitLargeEvent: {} }],
+      [{ $match: { "ns.coll": "notes" } }],
+    ]);
+    server.push(insert("a"));
+    await vi.waitFor(() => expect(changes).toHaveLength(1));
+    expect(errors).toEqual([]);
+    expect(delays).toEqual([]);
+    expect(logger.lines.find((line) => line.level === "warn")).toMatchObject({ fields: { code: 40324 } });
+    await watch.stop();
+  });
+
+  it("opens no split stage with splitLargeEvents false", async () => {
+    const { server, watch } = fakeWatch({ splitLargeEvents: false });
+    await watch.ready;
+    expect(server.streams[0]!.pipeline).toEqual([]);
+    await watch.stop();
+  });
+
+  it("stops after 5 errors with one code at one token: onError gets the code, the token and the cause", async () => {
+    const { server, watch, changes, errors, delays } = fakeWatch();
+    await watch.ready;
+    const a = server.push(insert("a"));
+    await vi.waitFor(() => expect(changes).toHaveLength(1));
+    const tooLarge = serverError(10334, "BSONObj size: 18874982 (0x1200266) is invalid");
+    for (let index = 0; index < 5; index++) (await server.waiting(index)).wake(tooLarge);
+    await vi.waitFor(() => expect(errors).toHaveLength(1));
+    expect(errors[0]).toMatchObject({ code: 10334, resumeToken: a["_id"], cause: tooLarge });
+    expect(watch.stopped).toBe(true);
+    expect(server.streams).toHaveLength(5);
+    expect(delays).toEqual([10, 20, 40, 40]);
+  });
+
+  it("counts again after a change: 4 errors, a change, then 4 errors keep the watcher", async () => {
+    const { server, watch, changes, errors } = fakeWatch();
+    await watch.ready;
+    const tooLarge = serverError(10334, "BSONObj size is invalid");
+    for (let index = 0; index < 4; index++) (await server.waiting(index)).wake(tooLarge);
+    await server.waiting(4);
+    server.push(insert("a"));
+    await vi.waitFor(() => expect(changes).toHaveLength(1));
+    for (let index = 4; index < 8; index++) (await server.waiting(index)).wake(tooLarge);
+    await server.waiting(8);
+    expect(errors).toEqual([]);
+    expect(watch.stopped).toBe(false);
+    await watch.stop();
+  });
+
+  it("does not count an error that the driver resumes, or a network error", async () => {
+    const { server, watch, errors } = fakeWatch();
+    await watch.ready;
+    const labeled = Object.assign(serverError(10334, "a labeled error"), { errorLabels: ["ResumableChangeStreamError"] });
+    const network = new Error("connection reset");
+    for (let index = 0; index < 6; index++) (await server.waiting(index)).wake(index % 2 === 0 ? labeled : network);
+    await server.waiting(6);
+    expect(errors).toEqual([]);
+    await watch.stop();
+  });
 });
 
 /** The longest wait of `eventually`. */
