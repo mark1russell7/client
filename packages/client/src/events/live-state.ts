@@ -40,6 +40,13 @@ export const DEFAULT_LIVE_KEYS = 1024;
 export const DEFAULT_LIVE_VALUE_BYTES = 16384;
 /** The default limit of the topics of one live state. */
 export const DEFAULT_LIVE_TOPICS = 4096;
+/**
+ * The default limit of the bytes of the values of one topic, as JSON. This limit bounds a snapshot and a window event.
+ * The bench of the live limits reads their cost.
+ */
+export const DEFAULT_LIVE_TOPIC_BYTES = 1_048_576;
+/** The default limit of the bytes of all values of one live state, as JSON. */
+export const DEFAULT_LIVE_BYTES = 67_108_864;
 
 /** The prefix of each live topic. */
 const PREFIX = "live.";
@@ -170,6 +177,18 @@ export interface LiveStateOptions {
    */
   maxTopics?: number | undefined;
   /**
+   * The limit of the bytes of the values of one topic, as JSON. A set that takes a topic above the limit gets
+   * `FORBIDDEN`. A set that makes a value smaller always goes. This limit bounds a snapshot and a window event.
+   * @default DEFAULT_LIVE_TOPIC_BYTES
+   */
+  maxTopicBytes?: number | undefined;
+  /**
+   * The limit of the bytes of all values of this live state, as JSON. A set that takes the state above the limit gets
+   * `FORBIDDEN`. This limit bounds the memory of the state, because the product of the other limits does not.
+   * @default DEFAULT_LIVE_BYTES
+   */
+  maxBytes?: number | undefined;
+  /**
    * The clock of the deadlines and of the window. A test gives the `fakeClock` of
    * `@mark1russell7/service/testing`.
    * @default the clock of the publisher
@@ -233,6 +252,8 @@ interface Slot {
   readonly state: TopicState;
   readonly key: string;
   entry: LiveEntry;
+  /** The bytes of the value, as JSON. */
+  bytes: number;
   deadline: number;
   owner: string | undefined;
 }
@@ -249,6 +270,8 @@ interface TopicState {
   readonly keys: Map<string, Slot>;
   readonly stop: Unsubscribe;
   readonly windowMs: number;
+  /** The bytes of the values of the keys, as JSON. */
+  bytes: number;
   waiting: Waiting | undefined;
   /** This field holds the timer of the open window. It is undefined when the topic is idle. */
   window: Cancel | undefined;
@@ -259,6 +282,17 @@ function isLiveEvent(value: unknown): value is LiveEvent {
   if (typeof value !== "object" || value === null) return false;
   const event = value as Partial<LiveEvent>;
   return typeof event.origin === "string" && Array.isArray(event.set) && Array.isArray(event.gone);
+}
+
+/** True when a text has a character outside ASCII. */
+const NOT_ASCII = /[^\u0000-\u007f]/;
+let encoder: InstanceType<typeof TextEncoder> | undefined;
+
+/** This function gives the UTF-8 bytes of a text. An ASCII text has one byte for each character, and needs no encode. */
+function utf8Bytes(text: string): number {
+  if (!NOT_ASCII.test(text)) return text.length;
+  encoder ??= new TextEncoder();
+  return encoder.encode(text).length;
 }
 
 /** This function gives a refusal of a set. */
@@ -298,6 +332,10 @@ export class LiveState {
   private readonly maxKeys: number;
   private readonly maxValueBytes: number;
   private readonly maxTopics: number;
+  private readonly maxTopicBytes: number;
+  private readonly maxBytes: number;
+  /** The bytes of all values, as JSON. */
+  private totalBytes = 0;
   private readonly origin = newOrigin();
   private readonly topics = new Map<string, TopicState>();
   /** Each key in the order of its last set. All keys have the same time, so this is the order of the deadlines. */
@@ -321,12 +359,19 @@ export class LiveState {
     this.maxKeys = options.maxKeysPerTopic ?? DEFAULT_LIVE_KEYS;
     this.maxValueBytes = options.maxValueBytes ?? DEFAULT_LIVE_VALUE_BYTES;
     this.maxTopics = options.maxTopics ?? DEFAULT_LIVE_TOPICS;
+    this.maxTopicBytes = options.maxTopicBytes ?? DEFAULT_LIVE_TOPIC_BYTES;
+    this.maxBytes = options.maxBytes ?? DEFAULT_LIVE_BYTES;
     this.procedures = [this.setProcedure(host.topicSchema), this.snapshotProcedure(host.topicSchema), this.leaveProcedure(host.topicSchema)];
   }
 
   /** The number of live keys of this state. */
   get size(): number {
     return this.deadlines.size;
+  }
+
+  /** The bytes of the values of this state, as JSON. */
+  get bytes(): number {
+    return this.totalBytes;
   }
 
   /**
@@ -355,19 +400,23 @@ export class LiveState {
    */
   set(topic: string, key: string, value: unknown, options: LiveSetOptions = {}): number {
     if (this.closed) throw refused("The live state is closed", "write-not-allowed");
-    this.checkValue(value);
+    const bytes = this.checkValue(value);
     const state = this.stateOf(topic);
     if (!state) throw refused(`The live state has its limit of ${this.maxTopics} topics`, "write-not-allowed");
+    let slot = state.keys.get(key);
+    if (!slot && state.keys.size >= this.maxKeys) throw refused(`The live topic "${topic}" has its limit of ${this.maxKeys} keys`, "write-not-allowed");
+    const more = bytes - (slot?.bytes ?? 0);
+    if (more > 0 && state.bytes + more > this.maxTopicBytes) throw refused(`The live topic "${topic}" has its limit of ${this.maxTopicBytes} bytes`, "write-not-allowed");
+    if (more > 0 && this.totalBytes + more > this.maxBytes) throw refused(`The live state has its limit of ${this.maxBytes} bytes`, "write-not-allowed");
     const at = this.clock.now();
     const entry: LiveEntry = options.by === undefined ? { key, value, at } : { key, value, by: options.by, at };
-    let slot = state.keys.get(key);
     if (slot) {
       slot.entry = entry;
     } else {
-      if (state.keys.size >= this.maxKeys) throw refused(`The live topic "${topic}" has its limit of ${this.maxKeys} keys`, "write-not-allowed");
-      slot = { state, key, entry, deadline: 0, owner: undefined };
+      slot = { state, key, entry, bytes: 0, deadline: 0, owner: undefined };
       state.keys.set(key, slot);
     }
+    this.resize(slot, bytes);
     this.renew(slot, at);
     this.own(slot, options.owner);
     this.queue(state, (waiting) => {
@@ -421,15 +470,26 @@ export class LiveState {
     this.topics.clear();
     this.deadlines.clear();
     this.owned.clear();
+    this.totalBytes = 0;
   }
 
-  /** This method refuses a value above the limit. A text has at most 3 bytes for each UTF-16 unit. */
-  private checkValue(value: unknown): void {
+  /**
+   * This method refuses a value above the limit, and gives the bytes of a value that fits. A text has at least one
+   * byte for each UTF-16 unit, so a longer text needs no encode.
+   */
+  private checkValue(value: unknown): number {
     const text = JSON.stringify(value);
     if (text === undefined) throw refused("A live value must have a JSON form", "write-not-allowed");
-    const fits = text.length * 3 <= this.maxValueBytes
-      || (text.length <= this.maxValueBytes && new TextEncoder().encode(text).length <= this.maxValueBytes);
-    if (!fits) throw refused(`A live value has more than ${this.maxValueBytes} bytes`, "write-not-allowed");
+    const bytes = text.length > this.maxValueBytes ? Infinity : utf8Bytes(text);
+    if (bytes > this.maxValueBytes) throw refused(`A live value has more than ${this.maxValueBytes} bytes`, "write-not-allowed");
+    return bytes;
+  }
+
+  /** This method gives a key the bytes of its new value, and changes the sums of its topic and of the state. */
+  private resize(slot: Slot, bytes: number): void {
+    slot.state.bytes += bytes - slot.bytes;
+    this.totalBytes += bytes - slot.bytes;
+    slot.bytes = bytes;
   }
 
   /**
@@ -449,7 +509,7 @@ export class LiveState {
       if (this.topics.size >= this.maxTopics) return undefined;
     }
     const stop = this.bus.on<unknown>(topic, (event) => this.heard(topic, event));
-    const state: TopicState = { topic, keys: new Map(), stop, windowMs: toMs(this.windowOf(topic), "window"), waiting: undefined, window: undefined };
+    const state: TopicState = { topic, keys: new Map(), stop, windowMs: toMs(this.windowOf(topic), "window"), bytes: 0, waiting: undefined, window: undefined };
     this.topics.set(topic, state);
     return state;
   }
@@ -462,13 +522,21 @@ export class LiveState {
     const now = this.clock.now();
     for (const entry of event.set) {
       let slot = state.keys.get(entry.key);
+      const bytes = this.bytesOf(entry.value);
+      const more = bytes - (slot?.bytes ?? 0);
+      if (bytes > this.maxValueBytes || (more > 0 && (state.bytes + more > this.maxTopicBytes || this.totalBytes + more > this.maxBytes))) {
+        // A value that does not fit here leaves no old value of the key: the subscribers got the new one from the bus
+        if (slot) this.end(slot, "expired", false);
+        continue;
+      }
       if (slot) {
         slot.entry = entry;
       } else {
         if (state.keys.size >= this.maxKeys) continue;
-        slot = { state, key: entry.key, entry, deadline: 0, owner: undefined };
+        slot = { state, key: entry.key, entry, bytes: 0, deadline: 0, owner: undefined };
         state.keys.set(entry.key, slot);
       }
+      this.resize(slot, bytes);
       // The connection of this key is on the other host: its deadline ends the key if that host dies
       this.own(slot, undefined);
       this.renew(slot, now);
@@ -477,6 +545,12 @@ export class LiveState {
       const slot = state.keys.get(key);
       if (slot) this.end(slot, reason, false);
     }
+  }
+
+  /** The bytes of a value of another host, as JSON. A value with no JSON form has no place. */
+  private bytesOf(value: unknown): number {
+    const text = JSON.stringify(value);
+    return text === undefined ? Infinity : utf8Bytes(text);
   }
 
   /** This method moves a key to the end of the deadlines. */
@@ -507,6 +581,7 @@ export class LiveState {
     this.own(slot, undefined);
     this.deadlines.delete(slot);
     slot.state.keys.delete(slot.key);
+    this.resize(slot, 0);
     if (!publish) return;
     this.queue(slot.state, (waiting) => {
       waiting.set.delete(slot.key);

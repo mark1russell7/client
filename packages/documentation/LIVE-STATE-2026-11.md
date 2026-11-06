@@ -68,9 +68,18 @@ Each host runs the deadlines on its own clock. The `gone` of a closed connection
 | Keys on a topic | 1,024, until the bench reads its cost | A set of a new key is refused, and the existing values stay. |
 | Bytes of a value, as JSON | 16,384, until the bench reads its cost | The set is refused. |
 | Topics of a state | 4,096, until the bench reads its cost | A topic with no key and no open window goes. If none exists, a set on a new topic is refused. |
+| Bytes of the values of a topic, as JSON (`maxTopicBytes`) | 1 MiB, until the bench reads its cost | A set that adds bytes is refused. A set that makes a value smaller goes. |
+| Bytes of all values of a state, as JSON (`maxBytes`) | 64 MiB, until the bench reads its cost | A set that adds bytes is refused. A set that makes a value smaller goes. |
 | A set over HTTP | Each set is one request, and it has no owner connection | Only its time ends it. |
 
 A limit comes from a measure, with its run ids and its formula, as for each limit of this repository.
+
+The product of the keys, the bytes of a value and the topics is more than 64 GiB. So these three limits do not bound the memory of a host. The two limits of bytes bound it.
+
+- The limit of a topic bounds a snapshot and a window event. A window event carries each changed key of its topic to each subscriber.
+- The limit of a state bounds the memory of all topics.
+- A value from another host has the same limits. A value that does not fit is not kept, and the old value of its key ends with the reason `expired`. The subscribers of this host got the new value from the bus.
+- The getter `bytes` gives the bytes of the values of a state, as JSON.
 
 ## The cost, read
 
