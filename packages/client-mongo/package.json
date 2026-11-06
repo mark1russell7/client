@@ -66,6 +66,9 @@
     "@mark1russell7/cue": "^2.1.1",
     "@mark1russell7/rigor-bench": "^0.2.17",
     "@mark1russell7/rigor-statistics": "^0.1.9",
+    "@mark1russell7/service": "^0.6.0",
+    "@procedures/peer": "workspace:*",
+    "@procedures/store": "workspace:*",
     "@types/node": "^22.0.0",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3"

@@ -682,7 +682,7 @@ export declare class ConflictError extends Error {
 export interface DroppedWrite {
     id: string;
     value: unknown;
-    reason: "conflict" | "remote-delete" | "refused";
+    reason: "conflict" | "remote-delete" | "refused" | "too-large";
     during: "pull" | "push";
     remote?: unknown;
     error?: unknown;
@@ -741,6 +741,7 @@ export interface HybridStorageOptions {
     queueStore?: QueueStore;
     isUnavailable?: (error: unknown) => boolean;
     isRefusal?: (error: unknown) => boolean;
+    isTooLarge?: (error: unknown) => boolean;
     onRefused?: (refusal: QueueRefusal) => void | Promise<void>;
     onDropped?: (drop: DroppedWrite) => void | Promise<void>;
     local?: LocalCopyStorage<any>;
