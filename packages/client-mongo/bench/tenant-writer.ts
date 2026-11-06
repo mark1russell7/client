@@ -11,7 +11,7 @@ import { createInterface } from "node:readline";
 import { parseArgs } from "node:util";
 import { MongoClient } from "mongodb";
 import type { MongoDocumentStorage } from "../src/storage/document-storage.js";
-import { CONTROL_COLLECTIONS, FIRST_LOAD_SPLIT, GRACE_MS, SEPARATE_ARMS, TENANT_ARMS, TENANT_BYTES, WINDOW_MS, WRITE_CONFLICT, firstLoadCollection, firstLoadOf, parseTenantCase, tenantOf, type FirstLoadWrite, type TenantArm } from "./tenant-cases.js";
+import { CONTROL_COLLECTIONS, FIRST_LOAD_SPLIT, GRACE_MS, SEPARATE_ARMS, TENANT_ARMS, TENANT_BYTES, WARM_GROUP, WINDOW_MS, WRITE_CONFLICT, firstLoadCollection, firstLoadOf, parseTenantCase, tenantOf, type FirstLoadWrite, type TenantArm } from "./tenant-cases.js";
 import { planOf } from "./tenant-plan.js";
 
 const { values } = parseArgs({
@@ -44,13 +44,16 @@ const db = client.db(database);
 type Store = MongoDocumentStorage<{ text: string }>;
 const stores: Store[] = Array.from({ length: kase.active }, (_, tenant) => {
   const collection = arm === "control" ? `docs${tenant % CONTROL_COLLECTIONS}` : "docs";
-  return new Storage<{ text: string }>({ collection, partition: `t${tenant}`, db: () => db, client: () => client });
+  // The arm `partition` gives each partition its own counter and its own write queue (roadmap CLI-96)
+  return new Storage<{ text: string }>({ collection, partition: `t${tenant}`, db: () => db, client: () => client, ...(arm === "partition" ? { sequence: "partition" as const } : {}) });
 });
 const text = "x".repeat(TENANT_BYTES);
 
 // The first write of a store in a process notes its floor and makes its indexes. The bench measures the writes after it.
 // One collection takes them one at a time, because an arm with no queue has nothing else that holds them back.
+// The arm `partition` has a queue and a counter for each store, so it takes them in groups of `WARM_GROUP`.
 if (arm === "control") await Promise.all(stores.map((store) => store.set(`first${me}`, { text })));
+else if (arm === "partition") for (let at = 0; at < stores.length; at += WARM_GROUP) await Promise.all(stores.slice(at, at + WARM_GROUP).map((store) => store.set(`first${me}`, { text })));
 else for (const store of stores) await store.set(`first${me}`, { text });
 
 // A first load is the first write of its stores in this process, so its stores start in the load. Its collections exist, as they do in a live app.

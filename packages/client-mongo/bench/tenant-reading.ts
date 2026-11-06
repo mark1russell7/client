@@ -2,7 +2,7 @@
  * The rule of the tenant load bench. A test reaches this rule, and the report uses it.
  */
 
-import { KEEP_UP_P99_MS, KEEP_UP_SHARE, WINDOW_MS, type TenantCount } from "./tenant-cases.js";
+import { ABORT_LIMIT, KEEP_UP_P99_MS, KEEP_UP_SHARE, WINDOW_MS, type TenantCount } from "./tenant-cases.js";
 
 /** The rule in words, for the report. */
 export const READING_RULE = `A provisional pass has no failure, a reply to each write, at least ${KEEP_UP_SHARE} of the plan of the child and a p99 of at most ${KEEP_UP_P99_MS} ms. The rate is a first guess, and this limit is a first reading. One arrival is one write of one document, so an action of an app with more writes takes the rate of its writes.`;
@@ -22,4 +22,20 @@ export function readingOf(rows: readonly ReadingRow[]): { outcome: string; reaso
   if (rows.some((row) => row.writesPerSecond * (WINDOW_MS / 1000) < KEEP_UP_SHARE * row.planned)) reasons.push(`a child ended under ${KEEP_UP_SHARE} of its plan in the load`);
   if (rows.some((row) => row.p99Ms > KEEP_UP_P99_MS)) reasons.push(`a child had a p99 over ${KEEP_UP_P99_MS} ms`);
   return { outcome: reasons.length === 0 ? "provisional pass" : "fail", reasons };
+}
+
+/** The abort rule in words, for the report (roadmap CLI-96). */
+export const ABORT_RULE = `With two processes or more, at most ${ABORT_LIMIT} of the transactions of each child abort. The server counts the transactions of the whole load, and a retry of the driver after an abort is one more start.`;
+
+/** The fields of a child that the abort rule reads. */
+export type AbortRow = Pick<TenantCount, "transactionsStarted" | "transactionsAborted">;
+
+/** This function gives the share of the transactions of a child that aborted. A child with no transaction aborts none. */
+export const abortShareOf = (row: AbortRow): number => (row.transactionsStarted === 0 ? 0 : row.transactionsAborted / row.transactionsStarted);
+
+/** This function gives the abort rule of the children of one arm of one case, or null for a case of one process. */
+export function abortReadingOf(rows: readonly AbortRow[], processes: number): { limit: number; worst: number; holds: boolean } | null {
+  if (processes < 2 || rows.length === 0) return null;
+  const worst = Math.max(...rows.map(abortShareOf));
+  return { limit: ABORT_LIMIT, worst: Number(worst.toFixed(4)), holds: worst <= ABORT_LIMIT };
 }
