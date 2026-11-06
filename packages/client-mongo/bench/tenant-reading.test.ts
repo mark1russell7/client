@@ -1,7 +1,7 @@
 import { constant, schedule } from "@mark1russell7/rigor-chaos";
 import { describe, expect, it } from "vitest";
-import { ABORT_LIMIT, KEEP_UP_SHARE, PARTITION_CASES, WINDOW_MS, parseTenantCase } from "./tenant-cases.js";
-import { abortReadingOf, abortShareOf, readingOf, type ReadingRow } from "./tenant-reading.js";
+import { ABORT_LIMIT, KEEP_UP_SHARE, PARTITION_CASES, WINDOW_MS, parseTenantCase, type CoreShare } from "./tenant-cases.js";
+import { RUNNER_FULL, abortReadingOf, abortShareOf, cpuOf, limitOf, readingOf, type ReadingRow } from "./tenant-reading.js";
 
 const RATE = 20;
 const SECONDS = WINDOW_MS / 1000;
@@ -56,5 +56,43 @@ describe("the abort rule of the tenant bench (roadmap CLI-96)", () => {
     const kases = PARTITION_CASES.map(parseTenantCase);
     for (const rate of new Set(kases.map((kase) => kase.rate))) expect(kases.some((kase) => kase.rate === rate && kase.processes >= 2)).toBe(true);
     expect(new Set(kases.map((kase) => kase.rate))).toEqual(new Set([800, 8000]));
+  });
+});
+
+/** This function gives four processors with the same share of work and of a wait for the disk. */
+const fourCores = (busy: number, iowait = 0): CoreShare[] => [0, 1, 2, 3].map((core) => ({ core, busy, iowait }));
+
+describe("the processor time and the limit of a rung (roadmap CLI-96)", () => {
+  it("gives the processor time of each write, of the writers and of the whole runner", () => {
+    const reading = cpuOf({ writesPerSecond: 4000, writerBusy: [0.5, 0.3], cores: fourCores(0.5, 0.1) });
+    // 0.8 of a processor is 800 ms each second, over 4,000 writes; 2 processors of work are 2,000 ms each second
+    expect(reading).toEqual({ writerMsPerWrite: 0.2, runnerMsPerWrite: 0.5, runnerFull: 0.6, writerWorst: 0.5 });
+  });
+
+  it("gives null for a reading that the child does not have", () => {
+    expect(cpuOf({ writesPerSecond: 0, writerBusy: [0.4], cores: null })).toEqual({ writerMsPerWrite: null, runnerMsPerWrite: null, runnerFull: null, writerWorst: 0.4 });
+    expect(cpuOf({ writesPerSecond: 100, cores: [] })).toEqual({ writerMsPerWrite: null, runnerMsPerWrite: null, runnerFull: null, writerWorst: null });
+  });
+
+  it("names no limit for a pass", () => {
+    expect(limitOf({ outcome: "provisional pass", abortsHold: true, runnerFull: 0.99, writerWorst: 0.99 })).toEqual({ limit: null, reasons: [] });
+    expect(limitOf({ outcome: "provisional pass", abortsHold: null, runnerFull: 0.2, writerWorst: 0.1 }).limit).toBeNull();
+  });
+
+  it("names the runner for a full runner, a full writer or a late driver, at the limit and not under it", () => {
+    expect(limitOf({ outcome: "fail", abortsHold: true, runnerFull: RUNNER_FULL, writerWorst: 0.2 }).limit).toBe("runner");
+    expect(limitOf({ outcome: "fail", abortsHold: true, runnerFull: 0.5, writerWorst: RUNNER_FULL }).limit).toBe("runner");
+    expect(limitOf({ outcome: "no reading", abortsHold: true, runnerFull: 0.5, writerWorst: 0.2 })).toEqual({ limit: "runner", reasons: ["a driver did not keep its schedule"] });
+    expect(limitOf({ outcome: "fail", abortsHold: true, runnerFull: RUNNER_FULL - 0.001, writerWorst: RUNNER_FULL - 0.001 }).limit).toBe("design");
+  });
+
+  it("names the design for aborts over the limit or a failure with free processors, and both when the runner is also full", () => {
+    expect(limitOf({ outcome: "provisional pass", abortsHold: false, runnerFull: 0.4, writerWorst: 0.2 })).toEqual({ limit: "design", reasons: ["the abort rule failed"] });
+    expect(limitOf({ outcome: "fail", abortsHold: null, runnerFull: 0.4, writerWorst: 0.2 })).toEqual({ limit: "design", reasons: ["the rung failed with free processors, at 0.4 of the runner"] });
+    expect(limitOf({ outcome: "fail", abortsHold: false, runnerFull: 0.95, writerWorst: 0.2 }).limit).toBe("runner and design");
+  });
+
+  it("names no limit that it cannot read", () => {
+    expect(limitOf({ outcome: "fail", abortsHold: true, runnerFull: null, writerWorst: null })).toEqual({ limit: "unknown", reasons: ["the runner gave no processor times"] });
   });
 });
