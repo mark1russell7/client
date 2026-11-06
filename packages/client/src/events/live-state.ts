@@ -42,10 +42,13 @@ export const DEFAULT_LIVE_VALUE_BYTES = 16384;
 export const DEFAULT_LIVE_TOPICS = 4096;
 /**
  * The default limit of the bytes of the values of one topic, as JSON. This limit bounds a snapshot and a window event.
- * The bench of the live limits reads their cost.
+ * In the bench `live-limits` (run 42152574477), a full topic at this limit kept 1,075,659 bytes of heap.
  */
 export const DEFAULT_LIVE_TOPIC_BYTES = 1_048_576;
-/** The default limit of the bytes of all values of one live state, as JSON. */
+/**
+ * The default limit of the bytes of all values of one live state, as JSON. In the bench `live-limits` (run 42152574477),
+ * a full state kept 68,842,177 bytes: 1.53 percent of a heap limit of 4,496,293,888 bytes.
+ */
 export const DEFAULT_LIVE_BYTES = 67_108_864;
 
 /** The prefix of each live topic. */
