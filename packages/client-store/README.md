@@ -294,6 +294,33 @@ const users = new HybridStorage(new ApiStorage(client, { collection: "users" }),
 - The option `versionOf` gives the version of an item, for example its ETag.
 - With versions, a conflict is a queued local write of an id whose remote version changed. The option `conflictResolution` gives the result.
 - The values of `conflictResolution` are `local`, `remote`, `merge` with `mergeFn`, and `error`. With `error`, the sync throws `ConflictError`.
+
+#### The conflict policies
+
+The default policy is `remote`. A change of the default changes the behavior of each caller, so the default stays `remote` (roadmap CLI-109).
+
+Each example below starts from the same conflict. The remote holds `{ n: 1, rev: "1" }`. The storage queues the local write `{ n: 5 }` with the base version `"1"`. Before the push, another writer writes `{ n: 9, rev: "2" }`.
+
+| Policy | Result | Example |
+| --- | --- | --- |
+| `remote` (the default) | The remote item replaces the local item. `onDropped` gets the local value and the remote value. | The local copy and the remote hold `{ n: 9 }`. The hook gets `{ value: { n: 5 }, remote: { n: 9 }, reason: "conflict" }`. |
+| `local` | The queued write replaces the remote item. The write of the other writer goes. | The remote holds `{ n: 5 }`. |
+| `merge` | `mergeFn(local, remote, base)` gives the item, and a new queued write sends it. | A merge that adds the changes of both sides gives `{ n: 13 }`: 1 + (5 - 1) + (9 - 1). |
+| `error` | The sync throws `ConflictError` with the ids. The queue and the remote keep their items. | The application reads `error.ids`, which is `["a"]`, and decides. |
+
+```ts
+type Counter = { n: number; rev: string };
+const mergeCounters = (local: Counter, remote: Counter, base: Counter | null | undefined): Counter => ({
+  ...remote,
+  n: local.n + remote.n - (base?.n ?? 0),
+});
+const storage = new HybridStorage<Counter>(remote, {
+  versionOf: (item) => item.rev,
+  conflictResolution: "merge",
+  // The option type is generic over the item: a merge of one item type needs the cast
+  mergeFn: mergeCounters as NonNullable<HybridStorageOptions["mergeFn"]>,
+});
+```
 - Without versions, a queued write always wins. A local value that differs from the remote value is a conflict.
 - A pull reads a local item only when the result depends on it. A pull does not read the item of a queued write that wins.
 - With versions, the storage knows the version of each local item that it wrote or read. Then a pull reads a local item only for a conflict, or when the version is not known.
