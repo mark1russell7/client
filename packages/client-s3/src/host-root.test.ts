@@ -1,19 +1,26 @@
 /**
  * The s3 procedures under the root of a host (roadmap R33, tracker item O36). `s3.download` writes
- * its `destPath` in the root, and `s3.presign` has no path input. The other procedures reach no
- * file. Without a root, they run as before. A fake S3 client answers.
+ * its `destPath` in the root, `s3.upload` reads its `sourcePath` in the root, and `s3.presign` has
+ * no path input. The other procedures reach no file. Without a root, they run as before. A fake S3
+ * client answers.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable } from "node:stream";
 import { createRegistry, invokePath, outputValue, type ProcedureRegistry } from "@procedures/client";
 import { confineToRoot, rootDecisionOf } from "@procedures/fs/module";
 
+const bodies = vi.hoisted(() => [] as unknown[]);
 vi.mock("./s3-client.js", () => ({
-  getS3Client: () => ({ send: async () => ({ Body: Readable.from([Buffer.from("object bytes")]), ContentLength: 12, ETag: '"e"' }) }),
+  getS3Client: () => ({
+    send: async (command: { input: { Body?: unknown } }) => {
+      bodies.push(command.input.Body);
+      return { Body: Readable.from([Buffer.from("object bytes")]), ContentLength: 12, ETag: '"e"' };
+    },
+  }),
 }));
 
 const { s3Module } = await import("./module.js");
@@ -27,6 +34,7 @@ async function call<T>(key: string, input: unknown, at: ProcedureRegistry = root
 }
 
 beforeEach(() => {
+  bodies.length = 0;
   base = mkdtempSync(join(tmpdir(), "s3-host-root-"));
   root = join(base, "root");
   mkdirSync(root);
@@ -39,12 +47,34 @@ afterEach(() => {
 });
 
 describe("the s3 procedures under the root of a host", () => {
-  it("confine s3.download and s3.presign, and leave the others as they are", () => {
+  it("confine s3.upload, s3.download and s3.presign, and leave the others as they are", () => {
     const kinds = Object.fromEntries(s3Module.procedures.map((procedure) => [procedure.path.join("."), rootDecisionOf(procedure).kind]));
-    expect(kinds["s3.download"]).toBe("confined");
-    expect(kinds["s3.presign"]).toBe("confined");
-    const others = Object.entries(kinds).filter(([key]) => key !== "s3.download" && key !== "s3.presign");
+    const confined = new Set(["s3.upload", "s3.download", "s3.presign"]);
+    for (const key of confined) expect(kinds[key]).toBe("confined");
+    const others = Object.entries(kinds).filter(([key]) => !confined.has(key));
     expect(new Set(others.map(([, kind]) => kind))).toEqual(new Set(["unchanged"]));
+  });
+
+  it("upload a file of the root, and refuse a file outside it", async () => {
+    mkdirSync(join(root, "objects"));
+    writeFileSync(join(root, "objects", "a.bin"), "file bytes");
+    writeFileSync(join(base, "secret.bin"), "secret bytes");
+    await call("s3.upload", { bucket: "b", key: "k", sourcePath: "objects/a.bin" });
+    expect(bodies.map(String)).toEqual(["file bytes"]);
+    bodies.length = 0;
+    for (const sourcePath of [join(base, "secret.bin"), "../secret.bin"]) {
+      await expect(call("s3.upload", { bucket: "b", key: "k", sourcePath })).rejects.toMatchObject({ code: "FORBIDDEN", reason: "outside-root" });
+    }
+    expect(bodies).toEqual([]);
+    // Without sourcePath, the body names no file
+    await call("s3.upload", { bucket: "b", key: "k", body: "in memory" });
+    expect(bodies).toEqual(["in memory"]);
+  });
+
+  it("upload a file of each folder without a root", async () => {
+    writeFileSync(join(base, "a.bin"), "file bytes");
+    await call("s3.upload", { bucket: "b", key: "k", sourcePath: join(base, "a.bin") }, createRegistry(s3Module));
+    expect(bodies.map(String)).toEqual(["file bytes"]);
   });
 
   it("download to a file in the root, and refuse a file outside it", async () => {

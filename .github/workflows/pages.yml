@@ -9,7 +9,7 @@
 # the deploy job can write to Pages: the build job runs install scripts, so it gets read access only.
 #
 # It also starts every three hours. The status page reads the open pull requests and issues from
-# GitHub at build time, so the schedule keeps that page current without a push (fleet issue #2).
+# GitHub at build time, so the schedule keeps that page current without a push.
 # A scheduled run builds the newest commit of main that passed CI (pending: green).
 #
 # The site has its own Releases page and Status page, so site-pages is off. After each deploy that

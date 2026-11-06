@@ -1,5 +1,36 @@
 # @procedures/mongo
 
+## 0.48.1
+
+### Patch Changes
+
+- 1625af2: The guide of `MongoDocumentStorage` states a write limit: 200 writes a second on one collection, with a p99 of 12 ms for 1 process and 39.5 ms for 4. The limit is provisional. At 400 writes a second the p99 is 414.8 ms, so that rate has no margin, and the rate stops near 412 writes a second.
+- Updated dependencies [2d7edae]
+  - @procedures/client@0.48.1
+  - @procedures/collections@0.48.1
+
+## 0.48.0
+
+### Patch Changes
+
+- 5377b3a: `MongoDocumentStorage.getChangesSince()` checks the floor of the change log again after its query. A prune of another process can no longer give a delta that misses a delete: that reader gets a full result. A delta read sends one more command.
+  
+  The queue of the writes and the change reads of a collection now belongs to the client, not to the `Db` object. A store with no `db` option, or with a `db` option that makes a new `Db` at each call, had no queue. These stores now run their writes and change reads one at a time, as a store on one `Db` object does. The results do not change.
+  
+  Throughput of these stores: a burst of writes on one collection now runs in order, and on a real MongoDB in CI this is faster, because the writes no longer conflict with each other. 100 writes at one time on one collection go from 93 to 317 writes a second, and 100 writes at one time on each of 100 collections go from 24 to 1,183 writes a second. In that last burst, 62 % of the writes ended in an error before this change, and none do now. A burst of change reads on these stores now also runs one read at a time, and goes from 896 to 442 reads a second. A store on one `Db` object keeps its write speed, and its delta reads take about 1.2 times as long.
+- 17a18ec: The source now uses only syntax that a type stripper erases, so the setting `erasableSyntaxOnly` of `@mark1russell7/cue` 2.1.1 stays on. Each enum is now a constant object with a type of the same name. Each parameter property is now a field and an assignment in the constructor.
+  
+  **Breaking.** MINOR before 1.0.0: `ErrorCategory`, `ErrorSeverity` and `WebSocketState` are now constant objects. Their names and values stay the same, and each member stays usable as a type. A member is no longer a constant expression: `enum E { A = ErrorSeverity.WARNING }` gives TS18033, and a `const enum` gives TS2474. Also, a string with the value of a member now fits the type of the set.
+  
+  **Migration.** In an enum initializer, write the value in place of the member, for example `"warning"`, or use a constant object. Other uses need no change. The site and the known apps need no change.
+- 1732e31: `ViewMaterializer` keeps one change stream for each source, for all views of all partitions. The handler of the stream gives a change to the views of its partition. So the connections and the idle `getMore` commands do not grow with the partitions, and a start at 1,000 partitions on the default pool ends. At most one third of the pool (and at most 32) runs as passes at one time, so a burst that reaches each partition leaves connections for the other operations. A change during the wait of a pass moves the end of the wait and makes no new timer.
+- Updated dependencies [17a18ec]
+- Updated dependencies [06088f9]
+- Updated dependencies [71f9c6e]
+- Updated dependencies [c839add]
+  - @procedures/client@0.48.0
+  - @procedures/collections@0.48.0
+
 ## 0.47.2
 
 ### Patch Changes
