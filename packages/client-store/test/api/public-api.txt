@@ -729,7 +729,7 @@ export interface HybridStorageOptions {
     mode?: HybridMode;
     writeStrategy?: WriteStrategy;
     conflictResolution?: ConflictResolution;
-    mergeFn?: <T>(local: T, remote: T) => T;
+    mergeFn?: <T>(local: T, remote: T, base: T | null | undefined) => T;
     keyOf?: (item: any) => string | undefined;
     versionOf?: (item: any) => string | undefined;
     sendBaseVersions?: boolean;
@@ -875,6 +875,7 @@ export interface QueuedOperation {
     data: unknown;
     timestamp: number;
     base?: Array<[string, string | null]>;
+    baseValues?: Array<[string, unknown]>;
 }
 
 ### dist/storage/serialization.d.ts#DeserializeOptions

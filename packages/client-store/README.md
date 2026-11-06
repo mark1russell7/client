@@ -314,6 +314,20 @@ With `versionOf`, the push of a queued write sends its base version as the expec
 - When only some ids of a batch are echoes, the batch does not leave the queue. The policy decides for the other ids, as before.
 - An id without a known base version gets no expected version. Its queued write wins, as before.
 - The remote must test the precondition: an `ApiStorage` of the collection procedures over a storage with the same `versionOf`. A remote that cannot test it refuses each push.
+
+### The base value of a three-way merge
+
+With `versionOf` and the policy `merge`, a queued write also keeps its base value (roadmap CLI-109). The base value is the remote item at the base version.
+
+- `mergeFn(local, remote, base)` gets the base value as its third argument. Thus a merge can keep the changes of both sides.
+- `base` is `null` when the remote had no item at the base version.
+- `base` is undefined when the storage does not know the item at the base version. An example is a write after a restart, before a sync reads the item.
+- The queue store keeps the base values with the queued writes. A restart does not lose them.
+- An operation that an older version queued has no base value. It loads, and its merge gets undefined.
+- A merge function with two parameters works as before.
+- The other policies keep no base value.
+- A write of the storage reads its base value from the local copy before the write.
+- A captured change of `capture: "observe"` has no value before it. Thus with capture, the storage keeps in memory the remote value of each id that a sync reads.
 - The option `sendBaseVersions: false` stops the expected versions. Then a queued write replaces the remote item, as before CLI-16.
 - A write of the mode `write-through` goes to the remote directly. It sends only the expected version of its caller.
 
