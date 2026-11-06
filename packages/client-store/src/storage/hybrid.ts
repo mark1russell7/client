@@ -70,7 +70,7 @@ import {
 } from "@procedures/client/query";
 import { optionalMs, realClock, type Cancel, type Clock, type Duration } from "@procedures/client/browser";
 import { backoffDelay } from "@mark1russell7/service/backoff";
-import { MemoryQueueStore, idsOf, withoutId, type QueuedOperation, type QueueStore } from "./queue.js";
+import { MemoryQueueStore, idsOf, singlesOf, withoutId, type QueuedOperation, type QueueStore } from "./queue.js";
 import type { SyncError, SyncStatus } from "./types.js";
 import type { RemoteChangeFeed, RemoteChangeHint, RemoteChanges } from "./feed.js";
 import { isSyncState, type SyncStateStore } from "./sync-state.js";
@@ -246,11 +246,28 @@ export interface HybridStorageOptions {
   isRefusal?: (error: unknown) => boolean;
 
   /**
+   * True when an error of the remote tells that a write is larger than its limit (roadmap CLI-108). A batch with this
+   * error, or with a refusal, goes again as one write for each id. So only the bad write leaves the queue. A write of one
+   * id with this error leaves the queue with the reason `too-large`, and the writes behind it go on. The default: the
+   * code `PAYLOAD_TOO_LARGE`.
+   */
+  isTooLarge?: (error: unknown) => boolean;
+
+  /**
    * This hook gets each queued write that the remote refused (roadmap O67). The local copy of its
    * ids gets the remote values again, except for an id that a later queued write changes. An
    * error of the hook does not stop the queue.
    */
   onRefused?: (refusal: QueueRefusal) => void | Promise<void>;
+
+  /**
+   * This hook gets each queued write that leaves the queue with no send that the remote took
+   * (roadmap CLI-106). The storage gives one call for each id, on a conflict that the policy
+   * `remote` decides, on a delete of the remote and on a refusal. The call comes after the local
+   * copy changed, so the hook can write the value again. An error of the hook does not stop the
+   * sync. The sync waits for the hook.
+   */
+  onDropped?: (drop: DroppedWrite) => void | Promise<void>;
 
   /**
    * The storage of the local copy (roadmap R45). A durable storage, for example `SqliteStorage`
@@ -583,6 +600,32 @@ export interface QueueRefusal {
 }
 
 /**
+ * A queued write that left the queue with no send that the remote took: the argument of the hook
+ * `onDropped` (roadmap CLI-106). The hook can get a write again after a crash, because the store
+ * of the queue gets the change after the hook.
+ */
+export interface DroppedWrite {
+  /** The id of the write, or `"*"` for a refused clear. */
+  id: string;
+  /**
+   * The value of the write when it left the queue. Undefined for a queued delete and for a clear.
+   * The last queued write gives the value when an id has more than one.
+   */
+  value: unknown;
+  /**
+   * The cause: the policy took the remote value, the remote deleted the item, or the remote refused the write. The
+   * cause `too-large` tells that the write was larger than the limit of the remote (roadmap CLI-108).
+   */
+  reason: "conflict" | "remote-delete" | "refused" | "too-large";
+  /** The sync that dropped the write. */
+  during: "pull" | "push";
+  /** The remote value that replaced the write, for the reason `conflict`. */
+  remote?: unknown;
+  /** The error of the remote, for the reasons `refused` and `too-large`. */
+  error?: unknown;
+}
+
+/**
  * The remote did not take a write of the write-through mode. The write is in the local cache and
  * in the queue, and the storage sends it later (roadmap R2). `cause` is the error of the remote.
  */
@@ -716,6 +759,9 @@ const defaultIsRefusal = (error: unknown): boolean => {
   const code = (error as { code?: unknown } | null | undefined)?.code;
   return typeof code === "string" && REFUSAL_CODES.has(code);
 };
+
+/** The default of `isTooLarge`: an error with the code `PAYLOAD_TOO_LARGE` (roadmap CLI-108). */
+const defaultIsTooLarge = (error: unknown): boolean => (error as { code?: unknown } | null | undefined)?.code === "PAYLOAD_TOO_LARGE";
 
 /** True when a remote does not know a procedure: an older server without `changes`. */
 const isNotFound = (error: unknown): boolean =>
@@ -988,7 +1034,9 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     offlineQueue: boolean;
     isUnavailable: (error: unknown) => boolean;
     isRefusal: (error: unknown) => boolean;
+    isTooLarge: (error: unknown) => boolean;
     onRefused?: (refusal: QueueRefusal) => void | Promise<void>;
+    onDropped?: (drop: DroppedWrite) => void | Promise<void>;
   };
   private mode: HybridMode;
   private offlineOps: QueuedOperation[] = [];
@@ -1105,6 +1153,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     cacheMisses: 0,
     syncCount: 0,
     conflicts: 0,
+    dropped: 0,
   };
 
   constructor(
@@ -1131,7 +1180,9 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       offlineQueue: options.offlineQueue ?? true,
       isUnavailable: options.isUnavailable ?? defaultIsUnavailable,
       isRefusal: options.isRefusal ?? defaultIsRefusal,
+      isTooLarge: options.isTooLarge ?? defaultIsTooLarge,
       ...(options.onRefused !== undefined && { onRefused: options.onRefused }),
+      ...(options.onDropped !== undefined && { onDropped: options.onDropped }),
     };
     this.statusListeners = new StorageListeners<SyncStatus>(options.onListenerError);
     this.queryPolicy = options.queryPolicy;
@@ -2405,6 +2456,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
         cacheMisses: this.stats.cacheMisses,
         syncCount: this.stats.syncCount,
         conflicts: this.stats.conflicts,
+        dropped: this.stats.dropped,
         pendingOps: this.offlineOps.length,
         isOnline: this.isOnline,
         mode: this.mode,
@@ -2760,7 +2812,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
         this.bases.set(id, remoteVersion);
         return false;
       }
-      return this.resolvePending(id, localItem, item, remoteVersion, conflicts);
+      return this.resolvePending(id, localItem, item, remoteVersion, conflicts, "pull");
     }
 
     if (knownVersion !== undefined) {
@@ -2822,6 +2874,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
         if (!this.dropQueued(id)) break;
         await this.localDelete(id, this.syncOrigin);
         this.bases.set(id, null);
+        await this.reportDropped({ id, value: localItem, reason: "remote-delete", during: "pull" });
         return true;
       case "error":
         conflicts.push(id);
@@ -2844,6 +2897,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     remoteItem: T,
     remoteVersion: string,
     conflicts: string[],
+    during: DroppedWrite["during"],
   ): Promise<boolean> {
     this.stats.conflicts++;
     switch (this.options.conflictResolution) {
@@ -2852,6 +2906,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
         if (!this.dropQueued(id)) break;
         await this.localSet(id, remoteItem, this.syncOrigin);
         this.bases.set(id, remoteVersion);
+        await this.reportDropped({ id, value: localItem, reason: "conflict", during, remote: remoteItem });
         return true;
       case "merge": {
         if (localItem === undefined) break;
@@ -2871,6 +2926,16 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     // "local": the queued write wins, and it replaces this remote version
     this.bases.set(id, remoteVersion);
     return false;
+  }
+
+  /** This method counts a dropped write and gives it to the hook `onDropped`. An error of the hook does not stop the sync. */
+  private async reportDropped(drop: DroppedWrite): Promise<void> {
+    this.stats.dropped++;
+    try {
+      await this.options.onDropped?.(drop);
+    } catch {
+      // An error of the hook does not stop the sync
+    }
   }
 
   /**
@@ -2927,6 +2992,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   private async pushQueue(): Promise<void> {
     this.pushing = true;
     let sent = 0;
+    // True when a batch went again as one write for each id: the queue store gets the new operations
+    let split = false;
     // The operations whose conflicts this push resolved once (roadmap CLI-16)
     const resolved = new Set<QueuedOperation>();
     try {
@@ -2956,20 +3023,25 @@ export class HybridStorage<T> implements CollectionStorage<T> {
             }
             continue;
           }
-          if (
-            conflicts === undefined &&
-            !(error instanceof QueueStoreError) &&
-            !this.options.isUnavailable(error) &&
-            this.options.isRefusal(error)
-          ) {
-            // The remote refused the write: it leaves the queue, and the push goes on (roadmap O67)
+          const tooLarge = conflicts === undefined && !(error instanceof QueueStoreError) && this.options.isTooLarge(error);
+          const refused = tooLarge || (conflicts === undefined && !(error instanceof QueueStoreError) && !this.options.isUnavailable(error) && this.options.isRefusal(error));
+          if (refused) {
             this.isOnline = true;
+            const singles = singlesOf(op);
+            if (singles.length > 1 && this.offlineOps[0] === op) {
+              // A batch goes again as one write for each id, so only the bad write leaves the queue (roadmap CLI-108)
+              this.offlineOps.splice(0, 1, ...singles);
+              split = true;
+              this.storeDirty = true;
+              continue;
+            }
+            // The remote refused the write: it leaves the queue, and the push goes on (roadmap O67)
             if (this.offlineOps[0] === op) {
               this.offlineOps.shift();
               sent++;
               this.storeDirty = true;
             }
-            await this.refuseQueued(op, error);
+            await this.refuseQueued(op, error, tooLarge ? "too-large" : "refused");
             continue;
           }
           // This operation and the later ones stay queued
@@ -2987,7 +3059,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       this.isOnline = true;
     } finally {
       this.pushing = false;
-      if (sent > 0) {
+      if (sent > 0 || split) {
         // The store keeps sent operations, and the status gets the failure. A later direct write
         // repairs the store first.
         await this.persistAll().catch(() => undefined);
@@ -3000,7 +3072,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
    * gets the remote values, and the hook `onRefused` gets the refusal. A refused clear asks for a
    * full pull.
    */
-  private async refuseQueued(op: QueuedOperation, error: unknown): Promise<void> {
+  private async refuseQueued(op: QueuedOperation, error: unknown, reason: "refused" | "too-large"): Promise<void> {
     const ids = idsOf(op);
     const all = ids.includes("*");
     let restored = false;
@@ -3013,6 +3085,10 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       await this.options.onRefused?.({ operation: op, ids: all ? "*" : ids, error, restored });
     } catch {
       // An error of the hook does not stop the queue
+    }
+    for (const id of all ? ["*"] : ids) {
+      const written = this.writtenValue(op, id);
+      await this.reportDropped({ id, value: written ? written.value : undefined, reason, during: "push", error });
     }
   }
 
@@ -3449,7 +3525,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
           continue;
         }
         const localItem = await this.readLocal(id);
-        if (await this.resolvePending(id, localItem, remoteItem, remoteVersion, ids)) queueChanged = true;
+        if (await this.resolvePending(id, localItem, remoteItem, remoteVersion, ids, "push")) queueChanged = true;
         continue;
       }
       // The remote has no item: the echo of a delete, or a delete of another writer
@@ -3478,11 +3554,14 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   private async resolveRemoteDelete(id: string, conflicts: string[]): Promise<boolean> {
     this.stats.conflicts++;
     switch (this.options.conflictResolution) {
-      case "remote":
+      case "remote": {
+        const value = await this.readLocal(id);
         if (!this.dropQueued(id)) break;
         await this.localDelete(id, this.syncOrigin);
         this.bases.set(id, null);
+        await this.reportDropped({ id, value, reason: "remote-delete", during: "push" });
         return true;
+      }
       case "error":
         conflicts.push(id);
         return false;

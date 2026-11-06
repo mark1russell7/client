@@ -26,6 +26,7 @@ import {
   type MongoDocumentStorageOptions,
   type StoredForm,
 } from "./document-storage.js";
+import { CHANGE_READ_DIVISOR, DEFAULT_POOL_SIZE } from "./pool-share.js";
 
 /**
  * A stored form of an app (roadmap CLI-76), a generic example. A partition is `<tenant>` or
@@ -731,8 +732,9 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
     }
   });
 
-  it("change reads run next to each other, within one third of the pool (CLI-91)", async () => {
-    const { storage, most, reset, end } = await counted({ maxPoolSize: 6 });
+  it("change reads run next to each other, within one twelfth of the pool (CLI-91)", async () => {
+    // A pool of 24 gives a limit of 2 reads at one time
+    const { storage, most, reset, end } = await counted({ maxPoolSize: 2 * CHANGE_READ_DIVISOR });
     try {
       await storage.set("a", { n: 1 });
       reset();
@@ -744,14 +746,14 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
     }
   });
 
-  it("a burst of change reads on the default pool uses at most 4 connections at one time (CLI-91)", async () => {
+  it("a burst of change reads on the default pool uses at most one twelfth of the pool at one time (CLI-91)", async () => {
     const { storage, most, reset, end } = await counted({});
     try {
       await storage.set("a", { n: 1 });
       reset();
       await Promise.all(Array.from({ length: 200 }, () => storage.getChangesSince()));
       expect(most()).toBeGreaterThan(1);
-      expect(most()).toBeLessThanOrEqual(4);
+      expect(most()).toBeLessThanOrEqual(Math.floor(DEFAULT_POOL_SIZE / CHANGE_READ_DIVISOR));
     } finally {
       await end();
     }

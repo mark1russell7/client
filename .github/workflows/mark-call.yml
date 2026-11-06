@@ -66,6 +66,9 @@ jobs:
           git worktree add --detach "$RUNNER_TEMP/trees/base" "$base"
           git worktree add --detach "$RUNNER_TEMP/trees/head" "$head"
       # The packages of the paired bench (@procedures/client and @procedures/collections), and mark
+      # The measure loads rigor-bench, a devDependency of the root
+      - name: Install the root of the checkout
+        run: pnpm install --frozen-lockfile --filter mark1russell7-monorepo
       - name: Install and build each tree
         run: |
           for tree in base head; do

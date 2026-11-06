@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 113 names
+## . (dist/index.d.ts): 114 names
 
 ApiStorage: dist/storage/api.d.ts#ApiStorage
 type ApiStorageOptions: dist/storage/api.d.ts#ApiStorageOptions
@@ -14,6 +14,7 @@ ConflictError: dist/storage/hybrid.d.ts#ConflictError
 type ConflictResolution: dist/storage/types.d.ts#ConflictResolution
 type CreateSyncedRegistryConfig: dist/storage/factory.d.ts#CreateSyncedRegistryConfig
 type DeserializeOptions: dist/storage/serialization.d.ts#DeserializeOptions
+type DroppedWrite: dist/storage/hybrid.d.ts#DroppedWrite
 type EventSubscriber: dist/storage/feed.d.ts#EventSubscriber
 EventsChangeFeed: dist/storage/feed.d.ts#EventsChangeFeed
 type EventsChangeFeedOptions: dist/storage/feed.d.ts#EventsChangeFeedOptions
@@ -677,6 +678,16 @@ export declare class ConflictError extends Error {
     constructor(ids: string[]);
 }
 
+### dist/storage/hybrid.d.ts#DroppedWrite
+export interface DroppedWrite {
+    id: string;
+    value: unknown;
+    reason: "conflict" | "remote-delete" | "refused" | "too-large";
+    during: "pull" | "push";
+    remote?: unknown;
+    error?: unknown;
+}
+
 ### dist/storage/hybrid.d.ts#HybridMode
 export type HybridMode = "local-only" | "write-through" | "write-back" | "remote-only" | "read-only";
 
@@ -730,7 +741,9 @@ export interface HybridStorageOptions {
     queueStore?: QueueStore;
     isUnavailable?: (error: unknown) => boolean;
     isRefusal?: (error: unknown) => boolean;
+    isTooLarge?: (error: unknown) => boolean;
     onRefused?: (refusal: QueueRefusal) => void | Promise<void>;
+    onDropped?: (drop: DroppedWrite) => void | Promise<void>;
     local?: LocalCopyStorage<any>;
     capture?: "none" | "observe";
     origin?: string;
