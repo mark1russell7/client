@@ -1,5 +1,22 @@
 # @procedures/bundle-dev
 
+## 0.48.2
+
+### Patch Changes
+
+- Updated dependencies [08beec5]
+- Updated dependencies [48b7127]
+  - @procedures/client@0.48.2
+  - @procedures/cli-run@0.48.2
+  - @procedures/dag@0.48.2
+  - @procedures/fs@0.48.2
+  - @procedures/git@0.48.2
+  - @procedures/lib@0.48.2
+  - @procedures/pnpm@0.48.2
+  - @procedures/procedure@0.48.2
+  - @procedures/shell@0.48.2
+  - @procedures/compiler@0.48.2
+
 ## 0.48.1
 
 ### Patch Changes
