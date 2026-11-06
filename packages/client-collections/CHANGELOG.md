@@ -2,6 +2,10 @@
 
 ## 0.49.0
 
+### Breaking changes
+
+- This package uses `@mark1russell7/collections` 0.5 from this release. So `LRUCache`, `lruCache`, `lruMap`, `boundedList`, `boundedQueue`, `boundedDeque` and `boundedMap` throw `RangeError` when the capacity is not a positive whole number. Before, they took such a capacity. To migrate, give each of these a whole-number capacity of 1 or more.
+
 ### Minor Changes
 
 - a1aedc5: The release train: the ranges of @mark1russell7/collections change to a version outside the old range.

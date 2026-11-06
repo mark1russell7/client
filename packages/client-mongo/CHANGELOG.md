@@ -2,6 +2,10 @@
 
 ## 0.49.0
 
+### Breaking changes
+
+- `watchDatabaseChanges()` (CLI-107) stops after 5 errors with one code at one resume token. It gives `onError` an error with `code`, `resumeToken` and `cause`. Before, it opened the stream again with no limit. To migrate, start a new watcher from `onError` when the watcher must go on. Start it without the `resumeToken` of the error, and read the changes of the gap again.
+
 ### Minor Changes
 
 - 7e9d55d: A change event over the BSON limit of 16 MiB no longer stops the change watchers in a loop (CLI-107).

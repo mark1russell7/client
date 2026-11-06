@@ -2,6 +2,10 @@
 
 ## 0.49.0
 
+### Breaking changes
+
+- `onDropped` of `HybridStorage` (CLI-108) gets the new reason `too-large`. The type `DroppedWrite["reason"]` has the new member `"too-large"`. To migrate, add a case for `"too-large"` to each exhaustive `switch` over `reason`.
+
 ### Minor Changes
 
 - bf0aa79: A write over the size limit of the remote no longer stops the offline queue of `HybridStorage` (CLI-108).
