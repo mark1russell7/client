@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 43 names
+## . (dist/index.d.ts): names
 
 DEFAULT_PRODID: dist/write.d.ts#DEFAULT_PRODID
 FetchText: dist/procedures.d.ts#FetchText
@@ -50,14 +50,14 @@ writeIcs: dist/write.d.ts#writeIcs
 zonedOffset: dist/zone.d.ts#zonedOffset
 zonedToUtc: dist/ics.d.ts#zonedToUtc
 
-## ./module (dist/module.d.ts): 4 names
+## ./module (dist/module.d.ts): names
 
 createIcsModule: dist/module.d.ts#createIcsModule
 default: dist/module.d.ts#icsModule
 icsModule: dist/module.d.ts#icsModule
 registerIcsProcedures: dist/module.d.ts#registerIcsProcedures
 
-## ./register (dist/register.d.ts): 3 names
+## ./register (dist/register.d.ts): names
 
 createIcsModule: dist/module.d.ts#createIcsModule
 icsModule: dist/module.d.ts#icsModule

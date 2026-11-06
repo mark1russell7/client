@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 27 names
+## . (dist/index.d.ts): names
 
 AGENT_ID: dist/principal-of.d.ts#AGENT_ID
 ANONYMOUS_ID: dist/principal-of.d.ts#ANONYMOUS_ID
@@ -34,7 +34,7 @@ betterAuthPrincipalOf: dist/principal-of.d.ts#betterAuthPrincipalOf
 createBetterAuth: dist/auth.d.ts#createBetterAuth
 headersOf: dist/principal-of.d.ts#headersOf
 
-## ./browser (dist/browser.d.ts): 6 names
+## ./browser (dist/browser.d.ts): names
 
 BrowserAuth: dist/browser.d.ts#BrowserAuth
 BrowserAuthError: dist/browser.d.ts#BrowserAuthError

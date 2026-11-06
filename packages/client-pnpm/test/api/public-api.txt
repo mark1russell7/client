@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 37 names
+## . (dist/index.d.ts): names
 
 type PnpmAddInput: dist/types.d.ts#PnpmAddInput
 PnpmAddInputSchema: dist/types.d.ts#PnpmAddInputSchema
@@ -44,18 +44,18 @@ pnpmWhy: dist/procedures/pnpm/why.d.ts#pnpmWhy
 registerPnpmProcedures: dist/module.d.ts#registerPnpmProcedures
 resolvePnpm: dist/procedures/pnpm/shared.d.ts#resolvePnpm
 
-## ./module (dist/module.d.ts): 3 names
+## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#pnpmModule
 pnpmModule: dist/module.d.ts#pnpmModule
 registerPnpmProcedures: dist/module.d.ts#registerPnpmProcedures
 
-## ./register (dist/register.d.ts): 2 names
+## ./register (dist/register.d.ts): names
 
 pnpmModule: dist/module.d.ts#pnpmModule
 registerPnpmProcedures: dist/module.d.ts#registerPnpmProcedures
 
-## ./register.js (dist/register.d.ts): 2 names
+## ./register.js (dist/register.d.ts): names
 
 pnpmModule: dist/module.d.ts#pnpmModule
 registerPnpmProcedures: dist/module.d.ts#registerPnpmProcedures
