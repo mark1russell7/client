@@ -1,11 +1,11 @@
 /**
  * A change event over the BSON limit (roadmap CLI-107). A write of a small field can make an event
- * of more than 16 MiB: the event holds the images of the document before and after the write. The
+ * of more than 16 MiB. The event holds the images of the document before and after the write. The
  * server fails the read of that event, so a stream that opens again at the same token fails again.
  *
  * Each row writes such an event, then a small write, and reads when the watcher reaches the small
  * write. Each row prints a line `large-event {json}`: the wait, the count of failures, the code and
- * the text of the first error. The rows with no large event hold the other side: a row that cannot
+ * the text of the first error. A flip row also prints the trace of its watcher: each log line with its time. The rows with no large event hold the other side: a row that cannot
  * pass proves nothing.
  *
  * The rows `-no-split` are the flip rows: the same write with `splitLargeEvents: false`. Without the
@@ -39,9 +39,12 @@ const FAST_BACKOFF = { initialDelay: ms(20), maxDelay: ms(200), jitter: 0 };
 const SMALL_ID = "small";
 /** The count of stream ends that a row prints. */
 const ENDS_SHOWN = 8;
+/** The count of log lines in the trace of a flip row. */
+const TRACE_SHOWN = 16;
 const LARGE_ID = "large";
 
-type Line = { level: LogLevel; message: string; fields: LogFields };
+/** One log line of a watcher. `atMs` is the time since the start of the logger. */
+type Line = { level: LogLevel; message: string; fields: LogFields; atMs: number };
 
 let client: MongoClient;
 let replicaSet = false;
@@ -61,7 +64,13 @@ function newDb(): Db {
 
 function recordingLogger(): Logger & { lines: Line[] } {
   const lines: Line[] = [];
-  return { lines, log: (level, message, fields) => void lines.push({ level, message, fields }) };
+  const from = Date.now();
+  return { lines, log: (level, message, fields) => void lines.push({ level, message, fields, atMs: Date.now() - from }) };
+}
+
+/** The trace of a watcher: the level, the message, the time and the code of each of its first log lines. A gap in the times shows a wait. */
+function traceOf(lines: readonly Line[]): Document[] {
+  return lines.slice(0, TRACE_SHOWN).map(({ level, message, fields, atMs }) => ({ atMs, level, message: message.slice(0, ERROR_TEXT_CHARACTERS), code: fields["code"], attempt: fields["attempt"], resumeToken: fields["resumeToken"] }));
 }
 
 /** This function waits for the check, up to `REACH_MS`, and gives the result and the wait. */
@@ -92,7 +101,7 @@ function warningsOf(lines: readonly Line[]): Document {
   return { warnings: warnings.length, firstWarning: warnings[0]?.message.slice(0, ERROR_TEXT_CHARACTERS) };
 }
 
-/** The first ends of a stream that a logger tells: the attempt, the code, the labels and the reason of each. */
+/** The first ends of a stream that a logger tells: the try, the code, the labels and the reason of each. */
 function endsOf(lines: readonly Line[]): Document[] {
   return lines
     .filter((line) => line.level === "warn")
@@ -230,7 +239,7 @@ describe.runIf(url)("a change event over the BSON limit", () => {
       await db.collection(collection).insertOne({ _id: SMALL_ID as never });
       const { reached, waitMs } = await reach(() => watch.stopped);
       const error = errors[0] as { code?: unknown; resumeToken?: unknown } | undefined;
-      printRow({ name: "watcher-images-no-split", reached, waitMs, onError: errors.length, stopped: watch.stopped, errorCode: error?.code, ...failuresOf(logger.lines) });
+      printRow({ name: "watcher-images-no-split", reached, waitMs, onError: errors.length, stopped: watch.stopped, errorCode: error?.code, ...failuresOf(logger.lines), trace: traceOf(logger.lines) });
       expect(errors).toHaveLength(1);
       expect(error?.code).toBe(10334);
       expect(error?.resumeToken).toBeDefined();
@@ -253,7 +262,7 @@ describe.runIf(url)("a change event over the BSON limit", () => {
       await twoImages(db, collection);
       await db.collection(collection).insertOne({ _id: SMALL_ID as never });
       const { reached, waitMs } = await reach(() => hints.some((hint) => hint.includes('"reset":true')));
-      printRow({ name: "hints-images-no-split", reached, waitMs, hints: hints.length, ...failuresOf(logger.lines), ...warningsOf(logger.lines), ends: endsOf(logger.lines) });
+      printRow({ name: "hints-images-no-split", reached, waitMs, hints: hints.length, ...failuresOf(logger.lines), ...warningsOf(logger.lines), ends: endsOf(logger.lines), trace: traceOf(logger.lines) });
       expect(reached).toBe(true);
     } finally {
       await watch.stop();
