@@ -14,6 +14,9 @@
  * with many counters, and with both. A case with `-tmpfs` at its end uses a MongoDB with its files in memory, so no disk is in the path.
  *
  * The suite `tenant-first` adds the first loads of new tenants to the steady load. A case with `-first<n>` has n first loads in one second.
+ *
+ * The suite `tenant-partition` is the gate of roadmap CLI-96. Its arm `partition` is the store with the option
+ * `sequence: "partition"`, so each partition has its own counter and its own write queue.
  */
 
 export const TENANT_CASES = ["20-p1", "20-p2", "20-p4", "200-p1", "200-p2", "200-p4", "2000-p1", "2000-p2", "20-p2-burst", "200-p2-burst"] as const;
@@ -30,6 +33,9 @@ export const SEPARATE_ARMS = ["noqueue", "many", "neither"] as const;
 /** The cases of the suite `tenant-first`: the steady load of two rungs, with 1, 5 and 10 first loads in one second. */
 export const FIRST_LOAD_CASES = ["20-p2-first1", "20-p2-first10", "200-p2-first1", "200-p2-first5", "200-p2-first10"] as const;
 
+/** The cases of the suite `tenant-partition`: the rungs of 4,000 and 40,000 active tenants, with two processes and more. */
+export const PARTITION_CASES = ["800-p1", "800-p2", "8000-p2", "8000-p4"] as const;
+
 /** The processors of MongoDB in a case with `-apart`. */
 export const MONGO_CORES = "0,1";
 
@@ -40,13 +46,16 @@ export const WRITER_CORES = "2,3";
 export const ALL_CORES = "0-3";
 
 /** The arms of the bench. */
-export type TenantArm = "store" | "control" | (typeof SEPARATE_ARMS)[number];
+export type TenantArm = "store" | "control" | "partition" | (typeof SEPARATE_ARMS)[number];
 
 /** The arms of the bench, in the order of a report. */
-export const TENANT_ARMS: readonly TenantArm[] = ["store", "control", ...SEPARATE_ARMS];
+export const TENANT_ARMS: readonly TenantArm[] = ["store", "control", "partition", ...SEPARATE_ARMS];
 
 /** The writes of an active tenant in one second: the first guess of the scale ladder. */
 export const WRITES_PER_TENANT = 0.2;
+
+/** The first writes of the arm `partition` that a writer sends at one time, before the load. */
+export const WARM_GROUP = 100;
 
 /** The time of the load of a child. */
 export const WINDOW_MS = 20_000;
@@ -98,6 +107,9 @@ export const DRIVER_LIMIT_MS = 100;
 
 /** The largest p99 of a write, from its planned time, of a provisional pass. It is a first reading, not a limit from runs. */
 export const KEEP_UP_P99_MS = 1_000;
+
+/** The largest share of the transactions that abort in a case of two processes or more (roadmap CLI-96). */
+export const ABORT_LIMIT = 0.01;
 
 /** The smallest share of the planned rate that a provisional pass needs. */
 export const KEEP_UP_SHARE = 0.95;

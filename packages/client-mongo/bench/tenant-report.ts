@@ -10,7 +10,7 @@ import { parseArgs } from "node:util";
 import { aaBand, caseIntervals, poolRecords, type PairedTime } from "@mark1russell7/rigor-bench";
 import { median } from "@mark1russell7/rigor-statistics";
 import { TENANT_ARMS, parseTenantCase, type TenantCount } from "./tenant-cases.js";
-import { READING_RULE, READING_RULE_CHANGE, readingOf } from "./tenant-reading.js";
+import { ABORT_RULE, READING_RULE, READING_RULE_CHANGE, abortReadingOf, abortShareOf, readingOf } from "./tenant-reading.js";
 
 interface JobFile {
   readonly job: string;
@@ -100,6 +100,8 @@ const cases = caseNames.map((name) => {
       transactionsStarted: summary(rows, (row) => row.transactionsStarted),
       transactionsAborted: summary(rows, (row) => row.transactionsAborted),
       conflictShare: conflictShare(rows),
+      abortShare: { median: round(median(rows.map(abortShareOf)), 4), worst: round(Math.max(...rows.map(abortShareOf)), 4) },
+      aborts: abortReadingOf(rows, processes),
       cores: coresOf(rows),
       p99OverBase: overBase(arm, name),
       disk: {
@@ -143,13 +145,33 @@ const tail = cases
   .flatMap((entry) => entry.arms.map((arm) => ({ rate: entry.rate, processes: entry.processes, apart: entry.apart, tmpfs: entry.tmpfs, arm: arm.arm, conflictShare: arm.conflictShare, p50Ms: arm.p50Ms.median, p99Ms: arm.p99Ms.median, reading: arm.reading.outcome })))
   .sort((a, b) => a.arm.localeCompare(b.arm) || Number(a.apart) - Number(b.apart) || Number(a.tmpfs) - Number(b.tmpfs) || a.rate - b.rate || a.processes - b.processes);
 
+// The rungs of the arm `partition` (roadmap CLI-96). A rung passes with a provisional pass and, with two processes or more, the abort rule.
+const ladder = cases.flatMap((entry) =>
+  entry.arms
+    .filter((arm) => arm.arm === "partition")
+    .map((arm) => ({
+      case: entry.case,
+      rate: entry.rate,
+      processes: entry.processes,
+      activeTenants: entry.activeTenants,
+      reading: arm.reading.outcome,
+      reasons: [...arm.reading.reasons, ...(arm.aborts && !arm.aborts.holds ? [`a child aborted ${arm.aborts.worst} of its transactions, over ${arm.aborts.limit}`] : [])],
+      p99Ms: arm.p99Ms,
+      writesPerSecond: arm.writesPerSecond,
+      abortShare: arm.abortShare,
+      outcome: arm.reading.outcome === "provisional pass" && (arm.aborts?.holds ?? true) ? "provisional pass" : arm.reading.outcome === "no reading" ? "no reading" : "fail",
+    }))
+);
+
 const report = {
   schema: "tenant-bench/1",
   run: values.run ?? "",
   rule: READING_RULE,
+  abortRule: ABORT_RULE,
   ruleChange: READING_RULE_CHANGE,
   aa: band ? { noise: round(band.noise, 4), high: round(band.high, 3), median: round(band.median, 3), cases: band.cases } : null,
   tail,
+  ladder,
   cases,
   env: jobs.map(({ job, env }) => ({ job, env })),
 };

@@ -15,6 +15,7 @@ name: Stream cost
 # CLI-95). The suite `tenant-ceiling` tells a limit of that collection from a limit of the runner, with
 # MongoDB and the writers on all processors and apart. The suite `tenant-separate` tells the queue of a
 # process from the counter document and from the disk. The suite `tenant-first` adds first loads of new tenants.
+# The suite `tenant-partition` is the gate of a counter and a write queue for each partition (roadmap CLI-96).
 #
 # Only a dispatch starts the workflow, and no ruleset needs its checks. It only reports, except for the
 # objective of the suite `read-bound` and the suite `gate` with `enforce`.
@@ -36,6 +37,7 @@ on:
           - tenant-ceiling
           - tenant-separate
           - tenant-first
+          - tenant-partition
         default: stream
       enforce:
         description: The suite gate fails the run when a case is not within its limit.
