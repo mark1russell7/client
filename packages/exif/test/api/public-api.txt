@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 7 names
+## . (dist/index.d.ts): names
 
 PhotoFacts: dist/exif.d.ts#PhotoFacts
 exifModule: dist/module.d.ts#exifModule
@@ -14,13 +14,13 @@ readExif: dist/exif.d.ts#readExif
 readHead: dist/procedures.d.ts#readHead
 registerExifProcedures: dist/module.d.ts#registerExifProcedures
 
-## ./module (dist/module.d.ts): 3 names
+## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#exifModule
 exifModule: dist/module.d.ts#exifModule
 registerExifProcedures: dist/module.d.ts#registerExifProcedures
 
-## ./register (dist/register.d.ts): 2 names
+## ./register (dist/register.d.ts): names
 
 exifModule: dist/module.d.ts#exifModule
 registerExifProcedures: dist/module.d.ts#registerExifProcedures
