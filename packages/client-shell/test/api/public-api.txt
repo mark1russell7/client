@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 59 names
+## . (dist/index.d.ts): names
 
 type ArgValue: dist/cli/argv.d.ts#ArgValue
 type CliProgram: dist/cli/program.d.ts#CliProgram
@@ -66,18 +66,18 @@ shellStream: dist/procedures/shell/stream.d.ts#shellStream
 shellWhich: dist/procedures/shell/which.d.ts#shellWhich
 streamCommand: dist/command/stream.d.ts#streamCommand
 
-## ./module (dist/module.d.ts): 3 names
+## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#shellModule
 registerShellProcedures: dist/module.d.ts#registerShellProcedures
 shellModule: dist/module.d.ts#shellModule
 
-## ./register (dist/register.d.ts): 2 names
+## ./register (dist/register.d.ts): names
 
 registerShellProcedures: dist/module.d.ts#registerShellProcedures
 shellModule: dist/module.d.ts#shellModule
 
-## ./command (dist/command/index.d.ts): 19 names
+## ./command (dist/command/index.d.ts): names
 
 type CommandOptions: dist/command/run.d.ts#CommandOptions
 type CommandResult: dist/command/run.d.ts#CommandResult
@@ -99,7 +99,7 @@ processes: dist/command/processes.d.ts#processes
 runCommand: dist/command/run.d.ts#runCommand
 streamCommand: dist/command/stream.d.ts#streamCommand
 
-## ./cli (dist/cli/index.d.ts): 23 names
+## ./cli (dist/cli/index.d.ts): names
 
 type ArgValue: dist/cli/argv.d.ts#ArgValue
 type CliProgram: dist/cli/program.d.ts#CliProgram
@@ -125,7 +125,7 @@ nodeScript: dist/cli/program.d.ts#nodeScript
 parseJsonDocument: dist/cli/argv.d.ts#parseJsonDocument
 parseJsonOutput: dist/cli/argv.d.ts#parseJsonOutput
 
-## ./testing (dist/testing.d.ts): 6 names
+## ./testing (dist/testing.d.ts): names
 
 FakeShell: dist/testing.d.ts#FakeShell
 FakeShellInput: dist/testing.d.ts#FakeShellInput

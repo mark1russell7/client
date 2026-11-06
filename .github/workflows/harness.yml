@@ -45,6 +45,10 @@ env:
   # newer harness: the cells run from the source of the repository, not from npm.
   SYSTEMS_REF: 00ff1eadee6d6892d3b3f48ea282d3c7a75b037a
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   changes:
     runs-on: ubuntu-latest
@@ -133,6 +137,8 @@ jobs:
         working-directory: systems
         run: pnpm install --frozen-lockfile
       - name: The runner, beside the records
+        # bash in place of the default gives pipefail, so a failed command before tee fails the step
+        shell: bash
         env:
           CLIENT_SHA: ${{ github.sha }}
           SYSTEMS_SHA: ${{ needs.plan.outputs.systems }}
@@ -220,7 +226,7 @@ jobs:
 
   harness-ok:
     name: Harness OK
-    if: always()
+    if: ${{ !cancelled() }}
     needs: [changes, plan, cells, verdicts]
     runs-on: ubuntu-latest
     timeout-minutes: 2

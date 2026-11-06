@@ -21,9 +21,25 @@ async function freePort(): Promise<number> {
   return port;
 }
 
-/** Start the CLI and wait for "Server started!". The output is what it printed until then. */
+/** The number of starts before a port taken by another process fails the test. */
+const STARTS = 3;
+
+/**
+ * Start the CLI and wait for "Server started!". The output is what it printed until then.
+ * The CLI refuses `--port 0`, so the helper finds a free port and closes it before the start.
+ * Another process can take that port in the gap. Then the CLI exits with EADDRINUSE, and the helper starts it again on a new port.
+ */
 async function startServer(args: string[], env: NodeJS.ProcessEnv = {}): Promise<{ port: number; child: ChildProcess; output: () => string }> {
-  const port = await freePort();
+  for (let start = 1; ; start++) {
+    try {
+      return await startOnce(await freePort(), args, env);
+    } catch (error) {
+      if (start === STARTS || !String(error).includes("EADDRINUSE")) throw error;
+    }
+  }
+}
+
+async function startOnce(port: number, args: string[], env: NodeJS.ProcessEnv): Promise<{ port: number; child: ChildProcess; output: () => string }> {
   const child = spawn(process.execPath, [CLI, "--port", String(port), ...args], {
     windowsHide: true,
     env: { ...process.env, SERVER_TOKEN: "", ...env },

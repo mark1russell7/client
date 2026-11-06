@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 23 names
+## . (dist/index.d.ts): names
 
 ViteBuildInput: dist/types.d.ts#ViteBuildInput
 ViteBuildInputSchema: dist/types.d.ts#ViteBuildInputSchema
@@ -30,13 +30,13 @@ viteModule: dist/module.d.ts#viteModule
 vitePreview: dist/procedures/vite/preview.d.ts#vitePreview
 viteStop: dist/procedures/vite/stop.d.ts#viteStop
 
-## ./module (dist/module.d.ts): 3 names
+## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#viteModule
 registerViteProcedures: dist/module.d.ts#registerViteProcedures
 viteModule: dist/module.d.ts#viteModule
 
-## ./register (dist/register.d.ts): 2 names
+## ./register (dist/register.d.ts): names
 
 registerViteProcedures: dist/module.d.ts#registerViteProcedures
 viteModule: dist/module.d.ts#viteModule

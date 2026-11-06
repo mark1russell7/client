@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 50 names
+## . (dist/index.d.ts): names
 
 type GitContext: dist/procedures/git/run.d.ts#GitContext
 GitError: dist/procedures/git/run.d.ts#GitError
@@ -57,13 +57,13 @@ parseNumstat: dist/procedures/git/diff.d.ts#parseNumstat
 parsePorcelainV1: dist/procedures/git/porcelain.d.ts#parsePorcelainV1
 registerGitProcedures: dist/module.d.ts#registerGitProcedures
 
-## ./module (dist/module.d.ts): 3 names
+## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#gitModule
 gitModule: dist/module.d.ts#gitModule
 registerGitProcedures: dist/module.d.ts#registerGitProcedures
 
-## ./register (dist/register.d.ts): 2 names
+## ./register (dist/register.d.ts): names
 
 gitModule: dist/module.d.ts#gitModule
 registerGitProcedures: dist/module.d.ts#registerGitProcedures
