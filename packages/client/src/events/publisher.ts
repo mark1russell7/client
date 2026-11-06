@@ -329,7 +329,7 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
   private deliver(event: QueuedEvent): Promise<IteratorResult<EventItem>> {
     const filtered = this.filters?.get(event.topic)?.apply(event.data);
     // Each subscriber of the topic gets this same data, so a transport encodes it once (roadmap CLI-112)
-    if (!filtered) return this.item(event.topic, shareEncoding(event.data));
+    if (!filtered) return this.item(event.topic, shareEncoding(event.data, this));
     return filtered.then(
       (data) => (data === DROPPED ? this.next() : this.item(event.topic, data)),
       // A filter that fails: the subscriber reads the changes itself

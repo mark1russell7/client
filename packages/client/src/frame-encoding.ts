@@ -3,17 +3,22 @@
  * subscriber. Each connection puts it in its own frame, with its own id and number. Without this module, each
  * connection encodes the whole event again, so one event costs subscribers x event bytes.
  *
- * The publisher marks an event as shared. `encodeFrame` encodes a marked value once, at its first frame, and puts that
- * text in each later frame. The text of a frame is byte-equal to `JSON.stringify` of the frame.
+ * The publisher marks the data of an event as shared, once for each receiver of the event. `encodeFrame` encodes a
+ * marked value once, at its first frame, and puts that text in each later frame of the same event. The text of a frame
+ * is byte-equal to `JSON.stringify` of the frame at that first encode.
  *
- * A marked value must not change after its first frame. The publisher marks only the event of the bus, which no
- * subscriber changes.
+ * A source can publish the same object again after a change. A receiver that gets the object a second time starts a
+ * new event, so the next frame encodes the object again. The text of one event is the value at its first encode.
  */
 
-/** The values that the frames of more than one connection carry. */
-const shared = new WeakSet<object>();
-/** The JSON text of each shared value, after its first frame. */
-const texts = new WeakMap<object, string>();
+/** One event of a shared value: the receivers that got it, and its text after the first frame. */
+interface Share {
+  readonly receivers: WeakSet<object>;
+  text?: string;
+}
+
+/** The current event of each shared value. */
+const shares = new WeakMap<object, Share>();
 /** The count of the encodes of shared values, for the tests. */
 let encodes = 0;
 
@@ -23,9 +28,15 @@ let encodes = 0;
  */
 const DEPTH = 3;
 
-/** This function marks a value as shared by the frames of more than one connection, and gives the value back. */
-export function shareEncoding<T>(value: T): T {
-  if (typeof value === "object" && value !== null) shared.add(value);
+/**
+ * This function marks a value as shared by the frames of the receivers of one event, and gives the value back. When the
+ * receiver got the value before, the value starts a new event, and its first frame encodes the value again.
+ */
+export function shareEncoding<T>(value: T, receiver: object): T {
+  if (typeof value !== "object" || value === null) return value;
+  const share = shares.get(value);
+  if (share === undefined || share.receivers.has(receiver)) shares.set(value, { receivers: new WeakSet([receiver]) });
+  else share.receivers.add(receiver);
   return value;
 }
 
@@ -46,13 +57,12 @@ export function encodeFrame(frame: unknown): string {
   return text;
 }
 
-/** The text of a shared value, from its first encode. */
-function sharedText(value: object): string | undefined {
-  const known = texts.get(value);
-  if (known !== undefined) return known;
+/** The text of a shared value, from the first encode of its current event. */
+function sharedText(value: object, share: Share): string | undefined {
+  if (share.text !== undefined) return share.text;
   encodes++;
   const text = JSON.stringify(value);
-  if (text !== undefined) texts.set(value, text);
+  if (text !== undefined) share.text = text;
   return text;
 }
 
@@ -79,7 +89,8 @@ function encode(value: unknown, depth: number, key = ""): string | undefined {
   if (typeof value === "bigint") return asProperty(key, value);
   if (typeof value !== "object" || value === null) return JSON.stringify(value);
   if (!isPlain(value)) return asProperty(key, value);
-  if (shared.has(value)) return sharedText(value);
+  const share = shares.get(value);
+  if (share !== undefined) return sharedText(value, share);
   if (depth === 0) return JSON.stringify(value);
   const parts: string[] = [];
   for (const name of Object.keys(value)) {
