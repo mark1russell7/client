@@ -1,5 +1,14 @@
 # @procedures/weather
 
+## 0.48.2
+
+### Patch Changes
+
+- Updated dependencies [08beec5]
+- Updated dependencies [48b7127]
+  - @procedures/client@0.48.2
+  - @procedures/http@0.48.2
+
 ## 0.48.1
 
 ### Patch Changes
