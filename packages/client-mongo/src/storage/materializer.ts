@@ -62,6 +62,7 @@ import { BSON, ObjectId, type AnyBulkWriteOperation, type ChangeStream, type Cli
 import { collectionChangeTopic, ms, optionalMs, realClock, Semaphore, writeLog, type Cancel, type Clock, type CollectionChangeEvent, type Duration, type LogFields, type Logger } from "@procedures/client";
 import { DEFAULT_STORED_FORM, DOCUMENT_STORAGE_FIELDS, MongoDocumentStorage, TOMBSTONE_FIELD, storageWriteTarget, type StorageWriteTarget, type StoredForm } from "./document-storage.js";
 import { scopePipeline } from "./pipeline-scope.js";
+import { poolShare } from "./pool-share.js";
 import type { StorageHintPublisher } from "./storage-hints.js";
 
 /** The fields of a storage that a row never keeps: its sequence number and its tombstone flag (roadmap CLI-77). */
@@ -319,9 +320,7 @@ const MOST_PASSES = 32;
  * a time, so two thirds of the pool stay free for the other operations of the process.
  */
 function passLimit(db: Db): number {
-  // A fake database of a test has no client
-  const pool = (db.client as Db["client"] | undefined)?.options.maxPoolSize;
-  return pool ? Math.max(1, Math.min(MOST_PASSES, Math.floor(pool / 3))) : MOST_PASSES;
+  return poolShare(db, 3, MOST_PASSES);
 }
 
 /** The `_id` of a row in the result, from the stored `_id` of `partitionTargetId`. */
