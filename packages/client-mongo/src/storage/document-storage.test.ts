@@ -26,6 +26,7 @@ import {
   type MongoDocumentStorageOptions,
   type StoredForm,
 } from "./document-storage.js";
+import { CHANGE_READ_DIVISOR, DEFAULT_POOL_SIZE } from "./pool-share.js";
 
 /**
  * A stored form of an app (roadmap CLI-76), a generic example. A partition is `<tenant>` or
@@ -664,6 +665,139 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
     expect((await storage.getChangesSince("not a version")).full).toBe(true);
   });
 
+  /** A storage on a client that counts its commands. The function ends the client. */
+  async function counted(options: { maxPoolSize?: number } = {}): Promise<{
+    storage: MongoDocumentStorage<{ n: number }>;
+    commands: string[];
+    most: () => number;
+    reset: () => void;
+    end: () => Promise<void>;
+  }> {
+    const own = new MongoClient(url!, { monitorCommands: true, ...options });
+    await own.connect();
+    const commands: string[] = [];
+    const running = new Set<number>();
+    let most = 0;
+    own.on("commandStarted", (event) => {
+      commands.push(event.commandName);
+      if (event.commandName === "aggregate") {
+        running.add(event.requestId);
+        most = Math.max(most, running.size);
+      }
+    });
+    own.on("commandSucceeded", (event) => running.delete(event.requestId));
+    own.on("commandFailed", (event) => running.delete(event.requestId));
+    const ownDb = own.db(db.databaseName);
+    const storage = new MongoDocumentStorage<{ n: number }>({ collection: `c${++next}`, db: () => ownDb, transactions: "never" });
+    return {
+      storage,
+      commands,
+      most: () => most,
+      reset: () => {
+        commands.length = 0;
+        most = 0;
+      },
+      end: () => own.close(),
+    };
+  }
+
+  /** The commands that write, from the names of the driver. */
+  const WRITE_COMMANDS = new Set(["insert", "update", "delete", "findAndModify", "bulkWrite"]);
+
+  it("a change read writes only the first counter, and a delta with no change sends fewer commands than a full read (CLI-91)", async () => {
+    const { storage, commands, reset, end } = await counted();
+    try {
+      const first = await storage.getChangesSince();
+      expect(commands.filter((name) => WRITE_COMMANDS.has(name))).toEqual(["update"]);
+
+      await storage.set("a", { n: 1 });
+      reset();
+      const full = await storage.getChangesSince();
+      expect(full).toMatchObject({ full: true, changed: [["a", { n: 1 }]] });
+      expect(commands).toEqual(["aggregate", "find"]);
+      expect(first.version).not.toBe(full.version);
+
+      reset();
+      expect(await storage.getChangesSince(full.version)).toEqual({ version: full.version, full: false, changed: [], deleted: [] });
+      expect(commands).toEqual(["aggregate"]);
+
+      await storage.set("b", { n: 2 });
+      reset();
+      expect(await storage.getChangesSince(full.version)).toMatchObject({ full: false, changed: [["b", { n: 2 }]], deleted: [] });
+      // The last command reads the floor again, because a prune can pass the query (roadmap CLI-93)
+      expect(commands).toEqual(["aggregate", "find", "find"]);
+    } finally {
+      await end();
+    }
+  });
+
+  it("change reads run next to each other, within one twelfth of the pool (CLI-91)", async () => {
+    // A pool of 24 gives a limit of 2 reads at one time
+    const { storage, most, reset, end } = await counted({ maxPoolSize: 2 * CHANGE_READ_DIVISOR });
+    try {
+      await storage.set("a", { n: 1 });
+      reset();
+      await Promise.all(Array.from({ length: 200 }, () => storage.getChangesSince()));
+      expect(most()).toBeGreaterThan(1);
+      expect(most()).toBeLessThanOrEqual(2);
+    } finally {
+      await end();
+    }
+  });
+
+  it("a burst of change reads on the default pool uses at most one twelfth of the pool at one time (CLI-91)", async () => {
+    const { storage, most, reset, end } = await counted({});
+    try {
+      await storage.set("a", { n: 1 });
+      reset();
+      await Promise.all(Array.from({ length: 200 }, () => storage.getChangesSince()));
+      expect(most()).toBeGreaterThan(1);
+      expect(most()).toBeLessThanOrEqual(Math.floor(DEFAULT_POOL_SIZE / CHANGE_READ_DIVISOR));
+    } finally {
+      await end();
+    }
+  });
+
+  it("a read and a write keep the order of their calls (CLI-91)", async () => {
+    const storage = fresh<{ n: number }>();
+    await storage.set("a", { n: 1 });
+    const { version } = await storage.getChangesSince();
+
+    const write = storage.set("b", { n: 2 });
+    const afterWrite = storage.getChangesSince(version);
+    const nextWrite = storage.set("c", { n: 3 });
+    const beforeNext = await afterWrite;
+    await Promise.all([write, nextWrite]);
+    expect(beforeNext.changed.map(([id]) => id)).toEqual(["b"]);
+
+    const read = storage.getChangesSince(beforeNext.version);
+    const late = storage.set("d", { n: 4 });
+    expect((await read).changed.map(([id]) => id)).toEqual(["c"]);
+    await late;
+  });
+
+  it("a read racing writes sees each write that ended before the read started (CLI-91)", async () => {
+    const storage = fresh<{ n: number }>();
+    const ended = new Set<string>();
+    const writes = Array.from({ length: 40 }, async (_, index) => {
+      const id = `k${index}`;
+      await storage.set(id, { n: index });
+      ended.add(id);
+    });
+    const reads = (async () => {
+      let version: string | undefined;
+      const seen = new Set<string>();
+      for (let round = 0; round < 40; round++) {
+        const must = [...ended];
+        const changes = await storage.getChangesSince(version);
+        version = changes.version;
+        for (const [id] of changes.changed) seen.add(id);
+        for (const id of must) expect(seen.has(id), id).toBe(true);
+      }
+    })();
+    await Promise.all([...writes, reads]);
+  });
+
   /**
    * This database runs `hold` once, between the read of the watermark and the query of a delta read:
    * the moment where another process can prune. Only the query of the items of `collection` waits.
@@ -787,6 +921,8 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
     });
     await reader.setBatch([["a", { n: 1 }]]);
     const { version } = await reader.getChangesSince();
+    // A delta with no change does not read the items. This write makes the read reach the hold.
+    await reader.set("c", { n: 3 });
 
     let written = false;
     let finishedInsideRead = true;
@@ -804,7 +940,7 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
 
     expect(objects.size).toBeGreaterThan(1);
     expect(finishedInsideRead).toBe(false);
-    expect(changes.changed).toEqual([]);
+    expect(changes.changed.map(([id]) => id)).toEqual(["c"]);
     expect(written).toBe(true);
   });
 

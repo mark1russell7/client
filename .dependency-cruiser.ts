@@ -13,7 +13,7 @@
 // The rule "a browser entry imports no Node built-in" is not here: scripts/check-browser-entries.ts
 // (CLI-39) examines it.
 
-const { boundaries } = require("@mark1russell7/boundaries");
+import { boundaries, type Config, type Rule } from "@mark1russell7/boundaries";
 
 const I9 = "Invariant I9 (Import boundaries) of packages/documentation/ARCHITECTURE.md.";
 
@@ -35,7 +35,7 @@ const SERVER = [
 ];
 
 /** The rules of this repository. `boundaries()` puts the reference I9 before each comment. */
-const CLIENT_RULES = [
+const CLIENT_RULES: Rule[] = [
   {
     name: "transport-imports-server",
     severity: "error",
@@ -53,7 +53,7 @@ const CLIENT_RULES = [
 ];
 
 /** The configuration for the repository in the folder `root`. The test gives it a fixture repository. */
-function config(root) {
+export function config(root: string): Config {
   return boundaries(root, {
     apps: "private",
     reference: I9,
@@ -62,6 +62,4 @@ function config(root) {
   });
 }
 
-module.exports = config(__dirname);
-// The test reads the function. It is not enumerable, so dependency-cruiser does not see it.
-Object.defineProperty(module.exports, "config", { value: config, enumerable: false });
+export default config(import.meta.dirname);

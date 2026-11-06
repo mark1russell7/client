@@ -70,7 +70,7 @@ import {
 } from "@procedures/client/query";
 import { optionalMs, realClock, type Cancel, type Clock, type Duration } from "@procedures/client/browser";
 import { backoffDelay } from "@mark1russell7/service/backoff";
-import { MemoryQueueStore, idsOf, withoutId, type QueuedOperation, type QueueStore } from "./queue.js";
+import { MemoryQueueStore, idsOf, singlesOf, withoutId, type QueuedOperation, type QueueStore } from "./queue.js";
 import type { SyncError, SyncStatus } from "./types.js";
 import type { RemoteChangeFeed, RemoteChangeHint, RemoteChanges } from "./feed.js";
 import { isSyncState, type SyncStateStore } from "./sync-state.js";
@@ -244,6 +244,14 @@ export interface HybridStorageOptions {
    * `UNAUTHORIZED` is not a refusal by default, because a new token can let the write through.
    */
   isRefusal?: (error: unknown) => boolean;
+
+  /**
+   * True when an error of the remote tells that a write is larger than its limit (roadmap CLI-108). A batch with this
+   * error, or with a refusal, goes again as one write for each id. So only the bad write leaves the queue. A write of one
+   * id with this error leaves the queue with the reason `too-large`, and the writes behind it go on. The default: the
+   * code `PAYLOAD_TOO_LARGE`.
+   */
+  isTooLarge?: (error: unknown) => boolean;
 
   /**
    * This hook gets each queued write that the remote refused (roadmap O67). The local copy of its
@@ -604,13 +612,16 @@ export interface DroppedWrite {
    * The last queued write gives the value when an id has more than one.
    */
   value: unknown;
-  /** The cause: the policy took the remote value, the remote deleted the item, or the remote refused the write. */
-  reason: "conflict" | "remote-delete" | "refused";
+  /**
+   * The cause: the policy took the remote value, the remote deleted the item, or the remote refused the write. The
+   * cause `too-large` tells that the write was larger than the limit of the remote (roadmap CLI-108).
+   */
+  reason: "conflict" | "remote-delete" | "refused" | "too-large";
   /** The sync that dropped the write. */
   during: "pull" | "push";
   /** The remote value that replaced the write, for the reason `conflict`. */
   remote?: unknown;
-  /** The error of the remote, for the reason `refused`. */
+  /** The error of the remote, for the reasons `refused` and `too-large`. */
   error?: unknown;
 }
 
@@ -748,6 +759,9 @@ const defaultIsRefusal = (error: unknown): boolean => {
   const code = (error as { code?: unknown } | null | undefined)?.code;
   return typeof code === "string" && REFUSAL_CODES.has(code);
 };
+
+/** The default of `isTooLarge`: an error with the code `PAYLOAD_TOO_LARGE` (roadmap CLI-108). */
+const defaultIsTooLarge = (error: unknown): boolean => (error as { code?: unknown } | null | undefined)?.code === "PAYLOAD_TOO_LARGE";
 
 /** True when a remote does not know a procedure: an older server without `changes`. */
 const isNotFound = (error: unknown): boolean =>
@@ -1020,6 +1034,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     offlineQueue: boolean;
     isUnavailable: (error: unknown) => boolean;
     isRefusal: (error: unknown) => boolean;
+    isTooLarge: (error: unknown) => boolean;
     onRefused?: (refusal: QueueRefusal) => void | Promise<void>;
     onDropped?: (drop: DroppedWrite) => void | Promise<void>;
   };
@@ -1165,6 +1180,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       offlineQueue: options.offlineQueue ?? true,
       isUnavailable: options.isUnavailable ?? defaultIsUnavailable,
       isRefusal: options.isRefusal ?? defaultIsRefusal,
+      isTooLarge: options.isTooLarge ?? defaultIsTooLarge,
       ...(options.onRefused !== undefined && { onRefused: options.onRefused }),
       ...(options.onDropped !== undefined && { onDropped: options.onDropped }),
     };
@@ -2976,6 +2992,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   private async pushQueue(): Promise<void> {
     this.pushing = true;
     let sent = 0;
+    // True when a batch went again as one write for each id: the queue store gets the new operations
+    let split = false;
     // The operations whose conflicts this push resolved once (roadmap CLI-16)
     const resolved = new Set<QueuedOperation>();
     try {
@@ -3005,20 +3023,25 @@ export class HybridStorage<T> implements CollectionStorage<T> {
             }
             continue;
           }
-          if (
-            conflicts === undefined &&
-            !(error instanceof QueueStoreError) &&
-            !this.options.isUnavailable(error) &&
-            this.options.isRefusal(error)
-          ) {
-            // The remote refused the write: it leaves the queue, and the push goes on (roadmap O67)
+          const tooLarge = conflicts === undefined && !(error instanceof QueueStoreError) && this.options.isTooLarge(error);
+          const refused = tooLarge || (conflicts === undefined && !(error instanceof QueueStoreError) && !this.options.isUnavailable(error) && this.options.isRefusal(error));
+          if (refused) {
             this.isOnline = true;
+            const singles = singlesOf(op);
+            if (singles.length > 1 && this.offlineOps[0] === op) {
+              // A batch goes again as one write for each id, so only the bad write leaves the queue (roadmap CLI-108)
+              this.offlineOps.splice(0, 1, ...singles);
+              split = true;
+              this.storeDirty = true;
+              continue;
+            }
+            // The remote refused the write: it leaves the queue, and the push goes on (roadmap O67)
             if (this.offlineOps[0] === op) {
               this.offlineOps.shift();
               sent++;
               this.storeDirty = true;
             }
-            await this.refuseQueued(op, error);
+            await this.refuseQueued(op, error, tooLarge ? "too-large" : "refused");
             continue;
           }
           // This operation and the later ones stay queued
@@ -3036,7 +3059,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       this.isOnline = true;
     } finally {
       this.pushing = false;
-      if (sent > 0) {
+      if (sent > 0 || split) {
         // The store keeps sent operations, and the status gets the failure. A later direct write
         // repairs the store first.
         await this.persistAll().catch(() => undefined);
@@ -3049,7 +3072,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
    * gets the remote values, and the hook `onRefused` gets the refusal. A refused clear asks for a
    * full pull.
    */
-  private async refuseQueued(op: QueuedOperation, error: unknown): Promise<void> {
+  private async refuseQueued(op: QueuedOperation, error: unknown, reason: "refused" | "too-large"): Promise<void> {
     const ids = idsOf(op);
     const all = ids.includes("*");
     let restored = false;
@@ -3065,7 +3088,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     }
     for (const id of all ? ["*"] : ids) {
       const written = this.writtenValue(op, id);
-      await this.reportDropped({ id, value: written ? written.value : undefined, reason: "refused", during: "push", error });
+      await this.reportDropped({ id, value: written ? written.value : undefined, reason, during: "push", error });
     }
   }
 
