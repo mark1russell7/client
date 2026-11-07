@@ -244,6 +244,13 @@ export interface TenantCount {
   /** The transactions of the server in the load and the grace. An abort that the driver retries is one more start. */
   readonly transactionsStarted: number;
   readonly transactionsAborted: number;
+  /**
+   * The commits of the server in the load and the grace. A start minus an abort is not a commit: a transaction that
+   * is open at the last reading is neither. A record from before this field has none.
+   */
+  readonly transactionsCommitted?: number;
+  /** The transactions that are open at the reading after the writers exit. A record from before this field has none. */
+  readonly transactionsOpen?: number;
   /** The processors of the machine in the load. The value is null where the machine has no `/proc/stat`. */
   readonly cores: readonly CoreShare[] | null;
   /** The disk in the load. The value is null where the machine has no `/proc/diskstats`. A record from before this field has none. */

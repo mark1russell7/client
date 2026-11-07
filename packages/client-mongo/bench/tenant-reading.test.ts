@@ -1,7 +1,7 @@
 import { constant, schedule } from "@mark1russell7/rigor-chaos";
 import { describe, expect, it } from "vitest";
 import { ABORT_LIMIT, KEEP_UP_SHARE, PARTITION_CASES, WINDOW_MS, parseTenantCase, type CoreShare } from "./tenant-cases.js";
-import { RUNNER_FULL, abortReadingOf, abortShareOf, cpuOf, limitOf, readingOf, type ReadingRow } from "./tenant-reading.js";
+import { RUNNER_FULL, abortReadingOf, abortShareOf, commitsPerWriteOf, cpuOf, limitOf, readingOf, type ReadingRow } from "./tenant-reading.js";
 
 const RATE = 20;
 const SECONDS = WINDOW_MS / 1000;
@@ -94,5 +94,18 @@ describe("the processor time and the limit of a rung (roadmap CLI-96)", () => {
 
   it("names no limit that it cannot read", () => {
     expect(limitOf({ outcome: "fail", abortsHold: true, runnerFull: null, writerWorst: null })).toEqual({ limit: "unknown", reasons: ["the runner gave no processor times"] });
+  });
+});
+
+describe("the commits of each finished write (CLI-96)", () => {
+  it("divides the commits by the finished writes, not by the starts", () => {
+    // 4000-p2, partition, round 1 (run 42418013417): starts minus aborts gave 30,926, the finished writes 11,589
+    expect(commitsPerWriteOf({ planned: 79_873, unfinished: 68_284, transactionsCommitted: 11_589 })).toBe(1);
+    expect(commitsPerWriteOf({ planned: 100, unfinished: 0, transactionsCommitted: 150 })).toBe(1.5);
+  });
+
+  it("gives null for a record with no commits or no finished write", () => {
+    expect(commitsPerWriteOf({ planned: 100, unfinished: 0 })).toBeNull();
+    expect(commitsPerWriteOf({ planned: 100, unfinished: 100, transactionsCommitted: 0 })).toBeNull();
   });
 });

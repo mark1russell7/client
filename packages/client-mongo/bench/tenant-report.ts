@@ -11,7 +11,7 @@ import { aaBand, caseIntervals, poolRecords } from "@mark1russell7/rigor-bench";
 import { median } from "@mark1russell7/rigor-statistics";
 import { TENANT_ARMS, parseTenantCase, type TenantCount } from "./tenant-cases.js";
 import { mergeJobFiles, type JobFile } from "./tenant-jobs.js";
-import { ABORT_RULE, LIMIT_RULE, READING_RULE, READING_RULE_CHANGE, abortReadingOf, abortShareOf, cpuOf, limitOf, readingOf } from "./tenant-reading.js";
+import { ABORT_RULE, LIMIT_RULE, READING_RULE, READING_RULE_CHANGE, abortReadingOf, abortShareOf, commitsPerWriteOf, cpuOf, limitOf, readingOf } from "./tenant-reading.js";
 
 const { values } = parseArgs({ options: { jobs: { type: "string" }, out: { type: "string" }, run: { type: "string" } } });
 if (values.jobs === undefined || values.out === undefined) throw new RangeError("this report needs --jobs and --out");
@@ -117,6 +117,8 @@ const cases = caseNames.map((name) => {
       writeConflicts: summary(rows, (row) => row.writeConflicts),
       transactionsStarted: summary(rows, (row) => row.transactionsStarted),
       transactionsAborted: summary(rows, (row) => row.transactionsAborted),
+      commitsPerWrite: rows.map(commitsPerWriteOf),
+      transactionsOpen: rows.map((row) => row.transactionsOpen ?? null),
       conflictShare: conflictShare(rows),
       abortShare: { median: round(median(rows.map(abortShareOf)), 4), worst: round(Math.max(...rows.map(abortShareOf)), 4) },
       aborts: abortReadingOf(rows, processes),

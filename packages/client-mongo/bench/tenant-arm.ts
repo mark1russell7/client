@@ -76,11 +76,13 @@ const writers = Array.from({ length: kase.processes }, (_, me) => {
 });
 
 const admin = await MongoClient.connect(url);
-const serverCounts = async (): Promise<{ started: number; aborted: number }> => {
+const serverCounts = async (): Promise<{ started: number; aborted: number; committed: number; open: number }> => {
   const status = await admin.db("admin").command({ serverStatus: 1 });
   return {
     started: Number(status["transactions"]?.["totalStarted"] ?? 0),
     aborted: Number(status["transactions"]?.["totalAborted"] ?? 0),
+    committed: Number(status["transactions"]?.["totalCommitted"] ?? 0),
+    open: Number(status["transactions"]?.["currentOpen"] ?? 0),
   };
 };
 
@@ -279,6 +281,8 @@ const line: TenantCount = {
   writeConflicts: results.reduce((sum, result) => sum + result.writeConflicts, 0),
   transactionsStarted: after.started - before.started,
   transactionsAborted: after.aborted - before.aborted,
+  transactionsCommitted: after.committed - before.committed,
+  transactionsOpen: after.open,
   cores,
   disk,
   journal,

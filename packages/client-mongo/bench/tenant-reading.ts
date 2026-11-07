@@ -33,6 +33,19 @@ export type AbortRow = Pick<TenantCount, "transactionsStarted" | "transactionsAb
 /** This function gives the share of the transactions of a child that aborted. A child with no transaction aborts none. */
 export const abortShareOf = (row: AbortRow): number => (row.transactionsStarted === 0 ? 0 : row.transactionsAborted / row.transactionsStarted);
 
+/** The fields of a child that the commits of each finished write read. */
+export type CommitRow = Pick<TenantCount, "planned" | "unfinished" | "transactionsCommitted">;
+
+/**
+ * This function gives the commits of the server for each finished write of a child (roadmap CLI-96). A set on a replica
+ * set is one commit, so a value over 1 is extra work. The value is null for a record with no commits or no finished write.
+ */
+export function commitsPerWriteOf(row: CommitRow): number | null {
+  const finished = row.planned - row.unfinished;
+  if (row.transactionsCommitted === undefined || finished <= 0) return null;
+  return Number((row.transactionsCommitted / finished).toFixed(3));
+}
+
 /** This function gives the abort rule of the children of one arm of one case, or null for a case of one process. */
 export function abortReadingOf(rows: readonly AbortRow[], processes: number): { limit: number; worst: number; holds: boolean } | null {
   if (processes < 2 || rows.length === 0) return null;
