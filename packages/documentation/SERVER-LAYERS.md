@@ -350,6 +350,7 @@ The public packages of the client group have one version together. Decision D13 
 - Before 1.0.0, a breaking change raises the MINOR. Each break is its own MINOR of the client group.
 - A break merges alone. The next release of the group carries it, and the next break waits for that release.
 - One release before the break, a PATCH marks each export or behavior that the break moves or removes as `@deprecated`. The tag names the replacement.
+- A re-export that leaves with its dependency needs no deprecation release before 1.0.0, if no known caller uses it. The changeset then gives the new import of each name (CLI-113).
 - The changeset of a break has the type `minor`. Its text gives the migration steps for each known consumer: the site and each app.
 - Thus the CHANGELOG entry of each MINOR carries its migration steps.
 - A release candidate goes under the dist-tag `next`, not under `latest`.

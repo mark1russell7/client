@@ -6,20 +6,41 @@
 
 The packages use `@mark1russell7/collections` 0.7.0 in place of 0.5.0 (roadmap CLI-113). MINOR: before 1.0.0 a breaking change raises MINOR.
 
-`@procedures/collections` removes 31 re-exports, because `@mark1russell7/collections` 0.7.0 removes them. Import their replacements from `@mark1russell7/optional` 1.2.0:
+`@procedures/collections` removes 31 re-exports, because `@mark1russell7/collections` 0.7.0 removes them. The table gives the import that replaces each name:
 
-| Removed | Replacement |
+| Removed name | Its replacement |
 | --- | --- |
-| `Option`, `Some(v)`, `None` | `Optional`, `some(v)`, `none` |
-| `Ok(v)`, `Err(e)`, `Result` | `ok(v)`, `err(e)`, `Result` |
-| `isSome`, `isNone`, `isOk`, `isErr` | the same names |
-| `getOrElse`, `getOrElseResult` | `getOr`, `getOkOr` |
-| `mapOption`, `flatMapOption`, `mapError` | `map`, `flatMap`, `mapErr` |
-| `mapResult`, `flatMapResult`, `tryCatch`, `tryCatchAsync` | the same names |
-| `optionToResult`, `resultToOption` | `fromOptional`, `toOptional` |
-| `toNullable`, `fromNullable` | `unwrap`, `fromNullable` |
-| `unwrap`, `unwrapResult` | no replacement. The `unwrap` of `@mark1russell7/optional` gives `undefined` for `none`, and it does not throw. |
-| `sequence`, `sequenceResults`, `AsyncOption`, `AsyncResult`, `mapAsyncOption`, `mapAsyncResult` | no replacement |
+| `AsyncOption` | no replacement |
+| `AsyncResult` | no replacement |
+| `Err` | `err` from `@mark1russell7/optional` |
+| `None` | `none` from `@mark1russell7/optional` |
+| `Ok` | `ok` from `@mark1russell7/optional` |
+| `Option` | the type `Optional` from `@mark1russell7/optional` |
+| `Result` | the type `Result` from `@mark1russell7/optional` |
+| `Some` | `some` from `@mark1russell7/optional` |
+| `flatMapOption` | `flatMap` from `@mark1russell7/optional` |
+| `flatMapResult` | `flatMapResult` from `@mark1russell7/optional` |
+| `fromNullable` | `fromNullable` from `@mark1russell7/optional` |
+| `getOrElse` | `getOr` from `@mark1russell7/optional` |
+| `getOrElseResult` | `getOkOr` from `@mark1russell7/optional` |
+| `isErr` | `isErr` from `@mark1russell7/optional` |
+| `isNone` | `isNone` from `@mark1russell7/optional` |
+| `isOk` | `isOk` from `@mark1russell7/optional` |
+| `isSome` | `isSome` from `@mark1russell7/optional` |
+| `mapAsyncOption` | no replacement |
+| `mapAsyncResult` | no replacement |
+| `mapError` | `mapErr` from `@mark1russell7/optional` |
+| `mapOption` | `map` from `@mark1russell7/optional` |
+| `mapResult` | `mapResult` from `@mark1russell7/optional` |
+| `optionToResult` | `fromOptional` from `@mark1russell7/optional` |
+| `resultToOption` | `toOptional` from `@mark1russell7/optional` |
+| `sequence` | no replacement |
+| `sequenceResults` | no replacement |
+| `toNullable` | `unwrap` from `@mark1russell7/optional` |
+| `tryCatch` | `tryCatch` from `@mark1russell7/optional` |
+| `tryCatchAsync` | `tryCatchAsync` from `@mark1russell7/optional` |
+| `unwrap` | no replacement. The `unwrap` of `@mark1russell7/optional` gives `undefined` for `none`, and it does not throw. |
+| `unwrapResult` | no replacement |
 
 The values of the safe middleware change shape. A present value is `{ tag: "some", value }`, and an absent value is `{ tag: "none" }`. The field `_tag` is gone.
 
