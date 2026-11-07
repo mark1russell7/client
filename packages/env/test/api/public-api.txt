@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 20 names
+## . (dist/index.d.ts): names
 
 DEFAULT_ENV_SETTINGS: dist/secrets.d.ts#DEFAULT_ENV_SETTINGS
 DEFAULT_SECRET_PATTERNS: dist/secrets.d.ts#DEFAULT_SECRET_PATTERNS
@@ -27,7 +27,7 @@ isDefaultSecret: dist/secrets.d.ts#isDefaultSecret
 registerEnvProcedures: dist/module.d.ts#registerEnvProcedures
 secretMatcher: dist/secrets.d.ts#secretMatcher
 
-## ./module (dist/module.d.ts): 5 names
+## ./module (dist/module.d.ts): names
 
 EnvModuleOptions: dist/module.d.ts#EnvModuleOptions
 createEnvModule: dist/module.d.ts#createEnvModule
@@ -35,7 +35,7 @@ default: dist/module.d.ts#envModule
 envModule: dist/module.d.ts#envModule
 registerEnvProcedures: dist/module.d.ts#registerEnvProcedures
 
-## ./register (dist/register.d.ts): 4 names
+## ./register (dist/register.d.ts): names
 
 EnvModuleOptions: dist/module.d.ts#EnvModuleOptions
 createEnvModule: dist/module.d.ts#createEnvModule

@@ -1,5 +1,38 @@
 # @procedures/collections
 
+## 0.49.0
+
+### Breaking changes
+
+- This package uses `@mark1russell7/collections` 0.5 from this release. So `LRUCache`, `lruCache`, `lruMap`, `boundedList`, `boundedQueue`, `boundedDeque` and `boundedMap` throw `RangeError` when the capacity is not a positive whole number. Before, they took such a capacity. To migrate, give each of these a whole-number capacity of 1 or more.
+
+### Minor Changes
+
+- a1aedc5: The release train: the ranges of @mark1russell7/collections change to a version outside the old range.
+
+### Patch Changes
+
+- Updated dependencies [bf0aa79]
+- Updated dependencies [a1aedc5]
+  - @procedures/client@0.49.0
+
+## 0.48.2
+
+### Patch Changes
+
+- 08beec5: A write that a write in flight holds back reaches its subscribers with no later write. `StorageChanges` has a new optional field `held`. The docs state that a result gives each write at least one time. They name the two cases of a second time. A read of the log with no change does not move the `since` of the next event, so the events keep their chain.
+- 9541575: Add the option `keepAfter` of `UndoLog`. Each entry then keeps the values after its change at the touched paths in `afterValues`, so a caller can merge a later write with the undo. The default stays as before.
+- Updated dependencies [08beec5]
+- Updated dependencies [48b7127]
+  - @procedures/client@0.48.2
+
+## 0.48.1
+
+### Patch Changes
+
+- Updated dependencies [2d7edae]
+  - @procedures/client@0.48.1
+
 ## 0.48.0
 
 ### Minor Changes

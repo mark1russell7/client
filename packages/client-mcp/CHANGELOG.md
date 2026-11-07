@@ -1,5 +1,31 @@
 # @procedures/mcp-server
 
+## 0.49.0
+
+### Patch Changes
+
+- Updated dependencies [bf0aa79]
+- Updated dependencies [a1aedc5]
+  - @procedures/client@0.49.0
+  - @procedures/mcp@0.49.0
+
+## 0.48.2
+
+### Patch Changes
+
+- Updated dependencies [08beec5]
+- Updated dependencies [48b7127]
+  - @procedures/client@0.48.2
+  - @procedures/mcp@0.48.2
+
+## 0.48.1
+
+### Patch Changes
+
+- Updated dependencies [2d7edae]
+  - @procedures/client@0.48.1
+  - @procedures/mcp@0.48.1
+
 ## 0.48.0
 
 ### Patch Changes

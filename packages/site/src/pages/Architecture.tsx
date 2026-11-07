@@ -219,7 +219,7 @@ export function Architecture({ route }: { route: Route }): ReactElement {
                   key={pkg.dir}
                   className="arch-link"
                   href={href("architecture", pkg.dir)}
-                  aria-label={`${pkg.dir}: ${KIND_LABEL[kindOf(pkg)]}, level ${pkg.level}, ${pkg.procedures} procedures`}
+                  aria-label={`${pkg.dir} ${pkg.procedures > 0 ? `${pkg.procedures} proc, ` : ""}${shortLines(pkg.lines)} lines: ${KIND_LABEL[kindOf(pkg)]}, level ${pkg.level}`}
                   onFocus={() => setHover(pkg.dir)}
                   onBlur={() => setHover(null)}
                 >
@@ -232,7 +232,7 @@ export function Architecture({ route }: { route: Route }): ReactElement {
                     <rect width={NODE_WIDTH} height={NODE_HEIGHT} rx={6} />
                     <text x={10} y={18}>
                       {pkg.dir}
-                    </text>
+                    </text>{" "}
                     <text className="meta" x={10} y={34}>
                       {pkg.procedures > 0 ? `${pkg.procedures} proc · ` : ""}
                       {shortLines(pkg.lines)} lines

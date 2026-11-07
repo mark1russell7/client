@@ -6,7 +6,7 @@ name: Paired bench
 # "Paired bench verdicts" reads the records of all jobs and gives a verdict for each benchmark.
 #
 # The workflow only reports: only a dispatch starts it, and no ruleset needs its checks. The rules
-# are the paired timing rules of the strategist (fleet docs/STRATEGY.md, 10-29 to 11-02).
+# are in scripts/lib/paired-time.ts.
 on:
   workflow_dispatch:
     inputs:
@@ -104,6 +104,9 @@ jobs:
       # Only the packages under test and their dependencies: @procedures/client and @procedures/collections.
       # Each package has its own filter: before 2026-10-17, collections did not depend on client, so the filter
       # "@procedures/collections..." alone did not build client in the base tree, and the run skipped the core benches.
+      # The measure loads rigor-bench, a devDependency of the root
+      - name: Install the root of the checkout
+        run: pnpm install --frozen-lockfile --filter mark1russell7-monorepo
       - name: Install and build each tree
         run: |
           for tree in base head; do

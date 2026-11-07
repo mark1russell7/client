@@ -120,6 +120,9 @@ export interface WebSocketMessage<TReq = unknown> {
   /** The protocol version of a `hello` frame (roadmap R25). */
   protocol?: number;
 
+  /** The largest message in bytes that the server takes, in the `hello` frame of the server (roadmap CLI-108). */
+  maxPayload?: number;
+
   /** RPC method (for requests) */
   method?: {
     service: string;

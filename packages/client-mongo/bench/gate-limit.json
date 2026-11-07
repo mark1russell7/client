@@ -1,7 +1,27 @@
 {
   "limits": { "first-1": 1.1831, "none-1": 1.1831, "one-1": 1.1831, "one-10": 1.1831, "many-1": 1.1831, "part-1": 1.1831 },
-  "slowdowns": { "first-1": 1.15, "none-1": 1.15, "one-1": 1.15, "many-1": 1.25, "part-1": 1.25 },
+  "slowdowns": { "first-1": 1.25, "none-1": 1.25, "one-1": 1.25, "one-10": 1.4, "many-1": 1.25, "part-1": 1.25 },
   "reportOnly": ["one-10"],
-  "formula": "Each limit is the limit of the old measure until 5 runs are read. Then each limit is the worst plus the spread over the runs of the smallest limit that passes that case alone, from gate-margin.ts, with 5 or more runs of 2 jobs of 24 rounds, so that each run shows both looks. The slowdowns are one more command in a read or a write, stated before the runs. A case with no slowdown it can hold is report only, and a case whose flip reads no read is report only.",
-  "runs": []
+  "formula": "Each limit is the limit of the old measure until 5 runs are read. Then each limit is the worst plus the spread over the runs of the smallest limit that passes that case alone at the level of the family over the cases of the gate, from gate-margin.ts, with 5 or more runs of 2 jobs of 24 rounds, so that each run shows both looks. The slowdowns are stated before the runs. The gate holds a slowdown of 25 percent or more in each gated case, and a slowdown under 25 percent can pass. The case one-10 states 1.40 and stays report only. A case with no slowdown it can hold is report only, and a case whose flip reads no read is report only.",
+  "runs": [],
+  "flips": [
+    {"run": "42012551392", "case": "first-1", "factor": 1.15, "blocked": false},
+    {"run": "42012551392", "case": "none-1", "factor": 1.15, "blocked": false},
+    {"run": "42012551392", "case": "one-1", "factor": 1.15, "blocked": false},
+    {"run": "42012551392", "case": "one-10", "factor": 1.25, "blocked": true, "look": 24},
+    {"run": "42012551392", "case": "many-1", "factor": 1.25, "blocked": false},
+    {"run": "42012551392", "case": "part-1", "factor": 1.25, "blocked": false},
+    {"run": "42091466867", "case": "first-1", "factor": 1.25, "blocked": true, "look": 12},
+    {"run": "42091466867", "case": "none-1", "factor": 1.25, "blocked": true, "look": 12},
+    {"run": "42091466867", "case": "one-1", "factor": 1.25, "blocked": true, "look": 12},
+    {"run": "42091466867", "case": "one-10", "factor": 1.4, "blocked": true, "look": 12},
+    {"run": "42091466867", "case": "many-1", "factor": 1.25, "blocked": false},
+    {"run": "42091466867", "case": "part-1", "factor": 1.25, "blocked": true, "look": 24},
+    {"run": "42110947754", "case": "first-1", "factor": 1.25, "blocked": true, "look": 12},
+    {"run": "42110947754", "case": "none-1", "factor": 1.25, "blocked": true, "look": 12},
+    {"run": "42110947754", "case": "one-1", "factor": 1.25, "blocked": true, "look": 24},
+    {"run": "42110947754", "case": "one-10", "factor": 1.3, "blocked": true, "look": 12},
+    {"run": "42110947754", "case": "many-1", "factor": 1.4, "blocked": false},
+    {"run": "42110947754", "case": "part-1", "factor": 1.25, "blocked": false}
+  ]
 }

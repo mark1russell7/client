@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 28 names
+## . (dist/index.d.ts): names
 
 type RepositoryInfo: dist/types.d.ts#RepositoryInfo
 type SnapshotCreateInput: dist/types.d.ts#SnapshotCreateInput
@@ -35,18 +35,18 @@ snapshotList: dist/procedures/snapshot/list.d.ts#snapshotList
 snapshotModule: dist/module.d.ts#snapshotModule
 snapshotRestore: dist/procedures/snapshot/restore.d.ts#snapshotRestore
 
-## ./module (dist/module.d.ts): 3 names
+## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#snapshotModule
 registerSnapshotProcedures: dist/module.d.ts#registerSnapshotProcedures
 snapshotModule: dist/module.d.ts#snapshotModule
 
-## ./register (dist/register.d.ts): 2 names
+## ./register (dist/register.d.ts): names
 
 registerSnapshotProcedures: dist/module.d.ts#registerSnapshotProcedures
 snapshotModule: dist/module.d.ts#snapshotModule
 
-## ./register.js (dist/register.d.ts): 2 names
+## ./register.js (dist/register.d.ts): names
 
 registerSnapshotProcedures: dist/module.d.ts#registerSnapshotProcedures
 snapshotModule: dist/module.d.ts#snapshotModule

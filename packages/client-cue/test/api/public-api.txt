@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 29 names
+## . (dist/index.d.ts): names
 
 CueAddInput: dist/types.d.ts#CueAddInput
 CueAddInputSchema: dist/types.d.ts#CueAddInputSchema
@@ -36,13 +36,13 @@ cueRemove: dist/procedures/cue/remove.d.ts#cueRemove
 cueValidate: dist/procedures/cue/validate.d.ts#cueValidate
 registerCueProcedures: dist/module.d.ts#registerCueProcedures
 
-## ./module (dist/module.d.ts): 3 names
+## ./module (dist/module.d.ts): names
 
 cueModule: dist/module.d.ts#cueModule
 default: dist/module.d.ts#cueModule
 registerCueProcedures: dist/module.d.ts#registerCueProcedures
 
-## ./register (dist/register.d.ts): 2 names
+## ./register (dist/register.d.ts): names
 
 cueModule: dist/module.d.ts#cueModule
 registerCueProcedures: dist/module.d.ts#registerCueProcedures

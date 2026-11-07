@@ -1,5 +1,53 @@
 # @procedures/mongo
 
+## 0.49.0
+
+### Breaking changes
+
+- `watchDatabaseChanges()` (CLI-107) stops after 5 errors with one code at one resume token. It gives `onError` an error with `code`, `resumeToken` and `cause`. Before, it opened the stream again with no limit. To migrate, start a new watcher from `onError` when the watcher must go on. Start it without the `resumeToken` of the error, and read the changes of the gap again.
+
+### Minor Changes
+
+- 7e9d55d: A change event over the BSON limit of 16 MiB no longer stops the change watchers in a loop (CLI-107).
+  
+  - `watchDatabaseChanges()` and `watchStorageChanges()` end the pipeline of each stream with the stage `$changeStreamSplitLargeEvent`, and join the fragments of a large event into one event. The new option `splitLargeEvents` (default `true`) turns the stage off.
+  - A server before 6.0.9 does not know the stage (code 40324). The watchers then open the stream again without it.
+  - An error with one code at one resume token, 5 times in a row, does not go away. `watchDatabaseChanges()` then stops and gives `onError` an error that has the fields `code`, `resumeToken` and `cause`. `watchStorageChanges()` opens the stream again without the token, and the subscribers get a gap. A network error and an error that the driver resumes do not count.
+  - `watchStorageChanges()` no longer starts its backoff again when a stream opens again at the same token.
+  - The hints stream of `watchStorageChanges()` no longer loses the error of a failed read behind the close of the stream. So the bound of 5 errors counts it.
+  - The streams of `ViewMaterializer` log the error of a failed read, not the close that comes before it.
+  
+  Breaking change: `watchDatabaseChanges()` no longer opens the stream again after each error. After 5 errors with one code at one resume token, it stops and gives the error to `onError`. To migrate, start a new watcher from `onError` when the watcher must go on. Do not give it the `resumeToken` of the error, because the same fault comes again at that token. Start it without a token, and read the changes of the gap again, as `watchStorageChanges()` does.
+
+### Patch Changes
+
+- cad93ac: `MongoDocumentStorage.getChangesSince()` writes only the first counter of a collection, and one command reads the counter and the floor. A delta read with no change sends one command. Change reads of a collection go next to each other, within one twelfth of the pool (8 reads at the default pool of 100). A larger pool gives more reads at one time. A read and a write keep the order of their calls.
+- Updated dependencies [bf0aa79]
+- Updated dependencies [a1aedc5]
+  - @procedures/client@0.49.0
+  - @procedures/collections@0.49.0
+
+## 0.48.2
+
+### Patch Changes
+
+- aa4ce41: `MongoDocumentStorage`: a plain write of a new id does not fail when another process writes that id at the same time. Before this fix, `set`, `setBatch` or `patch` could reject with a duplicate key, and the store kept the value of the other process. A batch also did not make the writes after the stopped write. The write tries again with the same number, so a reader does not pass it. A write with a guard keeps its conflict error. A real duplicate reaches the caller after one more try.
+- 08beec5: A write that a write in flight holds back reaches its subscribers with no later write. `StorageChanges` has a new optional field `held`. The docs state that a result gives each write at least one time. They name the two cases of a second time. A read of the log with no change does not move the `since` of the next event, so the events keep their chain.
+- Updated dependencies [08beec5]
+- Updated dependencies [48b7127]
+- Updated dependencies [9541575]
+  - @procedures/client@0.48.2
+  - @procedures/collections@0.48.2
+
+## 0.48.1
+
+### Patch Changes
+
+- 1625af2: The guide of `MongoDocumentStorage` states a write limit: 200 writes a second on one collection, with a p99 of 12 ms for 1 process and 39.5 ms for 4. The limit is provisional. At 400 writes a second the p99 is 414.8 ms, so that rate has no margin, and the rate stops near 412 writes a second.
+- Updated dependencies [2d7edae]
+  - @procedures/client@0.48.1
+  - @procedures/collections@0.48.1
+
 ## 0.48.0
 
 ### Patch Changes

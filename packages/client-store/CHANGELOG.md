@@ -1,5 +1,50 @@
 # @procedures/store
 
+## 0.49.0
+
+### Breaking changes
+
+- `onDropped` of `HybridStorage` (CLI-108) gets the new reason `too-large`. The type `DroppedWrite["reason"]` has the new member `"too-large"`. To migrate, add a case for `"too-large"` to each exhaustive `switch` over `reason`.
+
+### Minor Changes
+
+- bf0aa79: A write over the size limit of the remote no longer stops the offline queue of `HybridStorage` (CLI-108).
+  
+  - A batch that the remote refuses, or that is too large, goes again as one write for each id. Only the bad write leaves the queue, and its siblings reach the remote.
+  - A write of one id that is too large leaves the queue at once, and the writes behind it go on. The hook `onDropped` gets its id and value with the new reason `too-large`.
+  - The new option `isTooLarge` tells which error is too large. The default is the code `PAYLOAD_TOO_LARGE`.
+  - The `hello` of the WebSocket server tells its limit `maxPayload`. The client refuses a larger call alone with `PAYLOAD_TOO_LARGE`, and the other calls of the connection go on. Before, the server closed the connection, and each pending call failed.
+  - The HTTP server reads and drops up to 64 MiB of a body over the limit. So the client gets the answer 413, not a reset of the connection.
+  
+  Breaking change: the type `DroppedWrite["reason"]` has the new member `"too-large"`. To migrate, add a case for `"too-large"` to each `switch` over the reason. A refused batch no longer drops its good siblings.
+
+### Patch Changes
+
+- 5da1994: With `versionOf` and `conflictResolution: "merge"`, `HybridStorage` keeps the remote value that each queued write changed (roadmap CLI-109). `mergeFn(local, remote, base)` gets it as its third argument, for a three-way merge. `base` is `null` when the remote had no item, and undefined when the storage does not know it. The queue store keeps the value, so a restart does not lose it. Old queued operations load with no base value. A merge function with two parameters works as before.
+- Updated dependencies [bf0aa79]
+- Updated dependencies [a1aedc5]
+  - @procedures/client@0.49.0
+  - @procedures/collections@0.49.0
+
+## 0.48.2
+
+### Patch Changes
+
+- bc7359f: `HybridStorage` gets the optional hook `onDropped`. The hook gets each queued write that leaves the queue with no send that the remote took. The causes are a conflict that the policy `remote` decides, a delete of the remote, and a refusal. Before this change, a conflict gave only a count, and a refusal with no `onRefused` gave nothing. The hook gets the id, the value, the reason and the sync, once for each id. `getMetadata()` gives the count as `stats.dropped`. The default policy does not change.
+- Updated dependencies [08beec5]
+- Updated dependencies [48b7127]
+- Updated dependencies [9541575]
+  - @procedures/client@0.48.2
+  - @procedures/collections@0.48.2
+
+## 0.48.1
+
+### Patch Changes
+
+- Updated dependencies [2d7edae]
+  - @procedures/client@0.48.1
+  - @procedures/collections@0.48.1
+
 ## 0.48.0
 
 ### Patch Changes

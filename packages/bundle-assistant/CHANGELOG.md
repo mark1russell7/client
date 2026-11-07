@@ -1,5 +1,46 @@
 # @procedures/bundle-assistant
 
+## 0.49.0
+
+### Patch Changes
+
+- Updated dependencies [bf0aa79]
+- Updated dependencies [a1aedc5]
+  - @procedures/client@0.49.0
+  - @procedures/exif@0.49.0
+  - @procedures/geo@0.49.0
+  - @procedures/http@0.49.0
+  - @procedures/ics@0.49.0
+  - @procedures/mail@0.49.0
+  - @procedures/weather@0.49.0
+
+## 0.48.2
+
+### Patch Changes
+
+- Updated dependencies [08beec5]
+- Updated dependencies [48b7127]
+  - @procedures/client@0.48.2
+  - @procedures/exif@0.48.2
+  - @procedures/geo@0.48.2
+  - @procedures/http@0.48.2
+  - @procedures/ics@0.48.2
+  - @procedures/mail@0.48.2
+  - @procedures/weather@0.48.2
+
+## 0.48.1
+
+### Patch Changes
+
+- Updated dependencies [2d7edae]
+  - @procedures/client@0.48.1
+  - @procedures/exif@0.48.1
+  - @procedures/geo@0.48.1
+  - @procedures/http@0.48.1
+  - @procedures/ics@0.48.1
+  - @procedures/mail@0.48.1
+  - @procedures/weather@0.48.1
+
 ## 0.48.0
 
 ### Patch Changes

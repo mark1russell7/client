@@ -8,7 +8,7 @@
  *
  * `run` times the two trees in one job, on one runner. The arms are `base`, `head` and the A/A
  * arm `base~aa` (the base against itself). Mode `fresh`: each arm, input and round is a new process
- * (`scripts/bench-paired-child.ts`), and the order of the arms rotates each round. The record is
+ * (`scripts/bench-paired-child.ts`), and the order of the arms changes each round. The record is
  * JSON: the paired-time/1 report, the analysis of each benchmark and the runner context of
  * `scripts/bench-context.ts`. The script appends a table to `GITHUB_STEP_SUMMARY`.
  *
@@ -16,7 +16,7 @@
  * `--runs` runs that count. A run of a benchmark counts only when its A/A band contains 1.0. Else
  * the run measured the runner: a new run replaces it, and the record keeps both run ids.
  *
- * The verdict is the interval rule of the strategist (fleet STRATEGY 2026-11-02, the shape of an
+ * The verdict is an interval rule (2026-11-02, the shape of an
  * equivalence test). Over the counted runs of a benchmark:
  *
  *   h = max over the counted runs of (p90 - p10) / 2 of the A/A band (the worst A/A half-spread)

@@ -133,6 +133,12 @@ function detach(ws: WebSocket): void {
   ws.onerror = ignoreError;
 }
 
+/** A call longer than this length waits for the `hello` of the server. The `hello` tells the limit of the server (roadmap CLI-108). */
+const HELLO_WAIT_FROM_CHARS = 64 * 1024;
+
+/** The longest wait for the `hello` of the server. An older server answers the `hello` with an error, which also ends the wait. */
+const HELLO_WAIT_MS = 2_000;
+
 /** The close code of a message above the limit of the other side (RFC 6455, 1009). */
 const MESSAGE_TOO_BIG = 1009;
 
@@ -144,6 +150,13 @@ const MESSAGE_TOO_BIG = 1009;
 function tooLarge(id: string): ClientError {
   const message = "The server closed the connection: a message was larger than its limit (1009)";
   return new ClientError({ type: "error", code: "PAYLOAD_TOO_LARGE", message, retryable: false }, id);
+}
+
+/** This function tells if the UTF-8 form of a text has more bytes than a limit. It encodes the text only when its length does not decide. */
+function byteLengthAbove(text: string, limit: number): boolean {
+  if (text.length > limit) return true;
+  if (text.length * 3 <= limit) return false;
+  return new TextEncoder().encode(text).length > limit;
 }
 
 function errorItem<TRes>(id: string, code: string, message: string, retryable: boolean): ResponseItem<TRes> {
@@ -263,6 +276,12 @@ export class WebSocketTransport implements Transport {
   private readonly transitionHandler: ((transition: MachineTransition) => void) | undefined;
   /** The protocol version of the server, from its hello, or undefined (an older server) (R25) */
   private serverProtocol: number | undefined;
+  /** The largest message in bytes that the server takes, from its `hello` (roadmap CLI-108). */
+  private serverMaxPayload: number | undefined;
+  /** The wait for the `hello` of the server on this connection. It ends at the answer, or after `HELLO_WAIT_MS`. */
+  private helloWait: Promise<void> = Promise.resolve();
+  /** The end of `helloWait`. */
+  private helloSettle: () => void = () => undefined;
   /** The calls that the server sends on the current socket, served by `serve` (roadmap R24) */
   private incoming: IncomingCalls | undefined;
   /** The time limit of the handshake of the socket that opens now */
@@ -359,6 +378,16 @@ export class WebSocketTransport implements Transport {
         // The protocol version of this client (roadmap R25). An older server answers with an
         // error frame, which the client ignores.
         this.serverProtocol = undefined;
+        this.serverMaxPayload = undefined;
+        this.helloSettle();
+        let cancelWait: () => void = () => undefined;
+        this.helloWait = new Promise<void>((resolve) => {
+          this.helloSettle = () => {
+            cancelWait();
+            resolve();
+          };
+        });
+        cancelWait = this.clock.after(HELLO_WAIT_MS, () => this.helloSettle());
         ws.send(JSON.stringify({ id: "hello", type: "hello", protocol: PROTOCOL_VERSION }));
         this.setState(WebSocketState.CONNECTED, "open");
         console.error(`[${this.name}] Connected to ${this.options.url}`);
@@ -566,8 +595,11 @@ export class WebSocketTransport implements Transport {
   private handleMessage(message: WebSocketMessage): void {
     // The hello of the server, or the error of an older server that does not know it (R25)
     if (message.id === "hello" && (message.type === "hello" || message.type === "error")) {
-      if (message.type === "hello") this.serverProtocol = protocolVersionOf(message.protocol);
-      else if (message.error?.code === "PROTOCOL_VERSION") this.options.onError?.(new Error(message.error.message));
+      if (message.type === "hello") {
+        this.serverProtocol = protocolVersionOf(message.protocol);
+        this.serverMaxPayload = typeof message.maxPayload === "number" && message.maxPayload > 0 ? message.maxPayload : undefined;
+      } else if (message.error?.code === "PROTOCOL_VERSION") this.options.onError?.(new Error(message.error.message));
+      this.helloSettle();
       return;
     }
     // A call of the server, its cancel or its credit (roadmap R24)
@@ -757,11 +789,24 @@ export class WebSocketTransport implements Transport {
     message.signal?.addEventListener("abort", onAbort, { once: true });
 
     try {
-      try {
-        this.ws!.send(JSON.stringify(wsMessage));
-      } catch (error) {
-        console.error(`[${this.name}] Send error:`, error);
-        throw error;
+      const text = JSON.stringify(wsMessage);
+      // A large call waits for the hello of the server, which tells its limit (roadmap CLI-108)
+      if (text.length > HELLO_WAIT_FROM_CHARS) await this.helloWait;
+      if (this.pendingRequests.get(wireId) !== pending) {
+        // The connection closed, the call timed out or the reader aborted in the wait: the queue has the end of the call
+      } else if (this.serverMaxPayload !== undefined && byteLengthAbove(text, this.serverMaxPayload)) {
+        // The server closes the connection on a larger message, and each pending call fails with it.
+        // So this call fails alone, before the send (roadmap CLI-108)
+        this.pendingRequests.delete(wireId);
+        queue.push(errorItem(message.id, "PAYLOAD_TOO_LARGE", `The call is larger than the limit of the server (${this.serverMaxPayload} bytes)`, false));
+        queue.end();
+      } else {
+        try {
+          this.ws!.send(text);
+        } catch (error) {
+          console.error(`[${this.name}] Send error:`, error);
+          throw error;
+        }
       }
       let taken = 0;
       for await (const item of queue) {

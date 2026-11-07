@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 64 names
+## . (dist/index.d.ts): names
 
 CLAUDE_ENV: dist/executable.d.ts#CLAUDE_ENV
 CLAUDE_FLAGS: dist/turn.d.ts#CLAUDE_FLAGS
@@ -71,7 +71,7 @@ registerClaudeCliProcedures: dist/module.d.ts#registerClaudeCliProcedures
 startTurn: dist/turn.d.ts#startTurn
 toolResultText: dist/events.d.ts#toolResultText
 
-## ./module (dist/module.d.ts): 8 names
+## ./module (dist/module.d.ts): names
 
 claudeCancelProcedure: dist/module.d.ts#claudeCancelProcedure
 claudeCliModule: dist/module.d.ts#claudeCliModule
@@ -82,7 +82,7 @@ claudeStartProcedure: dist/module.d.ts#claudeStartProcedure
 default: dist/module.d.ts#claudeCliModule
 registerClaudeCliProcedures: dist/module.d.ts#registerClaudeCliProcedures
 
-## ./register (dist/register.d.ts): 7 names
+## ./register (dist/register.d.ts): names
 
 claudeCancelProcedure: dist/module.d.ts#claudeCancelProcedure
 claudeCliModule: dist/module.d.ts#claudeCliModule

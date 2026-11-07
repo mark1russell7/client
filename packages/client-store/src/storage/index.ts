@@ -50,6 +50,7 @@ export {
   RemoteApplyHookError,
 } from "./hybrid.js";
 export type {
+  DroppedWrite,
   HybridStorageOptions,
   HybridMode,
   LocalCopyStorage,

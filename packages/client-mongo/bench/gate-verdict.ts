@@ -5,6 +5,7 @@
  */
 
 import { notSlowerVerdict, type GateOutcome, type JobRecords, type NotSlowerVerdict } from "@mark1russell7/rigor-bench";
+import { wilson } from "@mark1russell7/rigor-statistics";
 
 /** The read cases of the gate. A read is on one `Db` object, with no transaction. */
 export const READ_CASES: readonly string[] = ["first-1", "none-1", "one-1"];
@@ -14,6 +15,9 @@ export const WRITE_CASES: readonly string[] = ["one-10", "many-1", "part-1"];
 
 /** The looks of the gate, in rounds of each job. The level of the family has an equal share at each look. The second look is the budget of a job. */
 export const STORE_LOOKS: readonly number[] = [12, 24];
+
+/** The level of the family of the cases of the gate, the default of `notSlowerVerdict`. */
+const STORE_LEVEL = 0.05;
 
 /** The exit code of a gate that reads "no read". It differs from a block, so nobody reads a loud run as a slower head. */
 export const NO_READ_EXIT = 2;
@@ -58,11 +62,72 @@ export function joinJobs(files: readonly JobRecords[]): JobRecords[] {
 /** The file of the limits of the gate. */
 export interface GateLimit {
   readonly limits: Readonly<Record<string, number>>;
-  /** The slowdown that the gate must catch on each case, stated before the runs. */
+  /** The slowdown that the gate holds on each case, stated before the runs. A smaller slowdown can pass. */
   readonly slowdowns: Readonly<Record<string, number>>;
   readonly reportOnly: readonly string[];
   readonly formula: string;
   readonly runs: readonly string[];
+  /** The flip runs read so far: for each case, the slowdown of the flip and its outcome. */
+  readonly flips?: readonly FlipRecord[];
+}
+
+/** One case of one flip run: a head slower by `factor` against the limits of the gate. */
+export interface FlipRecord {
+  readonly run: string;
+  readonly case: string;
+  readonly factor: number;
+  /** True when the gate held the slower head: a block, or for a case that only reports, a read beyond the limit. */
+  readonly blocked: boolean;
+  /** The look of the block, in rounds of each job. */
+  readonly look?: number;
+}
+
+/** The fewest flip runs that a claim needs. */
+export const LEAST_FLIP_RUNS = 2;
+
+/** The claim of one case, from its flip runs. */
+export interface CaseClaim {
+  readonly case: string;
+  /** The smallest slowdown that each counted run held, or `null` when no slowdown has the runs. */
+  readonly claim: number | null;
+  /** The runs that held the claim, and the runs that count at the claim. */
+  readonly k: number;
+  readonly n: number;
+  /** The 95 % Wilson lower bound of the block rate. It is reported, not gated: n of n gives n/(n+3.84). */
+  readonly wilsonLow: number;
+  /** The record of each counted run: its slowdown, and the look of its block or "miss". */
+  readonly record: string;
+  /** Each miss at a slowdown larger than a block of another run. Such a miss breaks the assumption of the counting. */
+  readonly breaks: readonly string[];
+}
+
+/**
+ * This function gives the claim of a case from its flip runs. A run counts at a slowdown `x` when its flip was `x`,
+ * when it held a smaller flip, or when it missed a larger flip. A larger slowdown is easier to hold. So a block below
+ * `x` tells a block at `x`, and a miss above `x` tells a miss at `x`. This counting assumes that the detection rises
+ * with the slowdown. The field `breaks` shows each run that does not agree. The claim is the smallest slowdown whose counted
+ * runs all held, with `LEAST_FLIP_RUNS` or more runs. A later miss moves the claim to the next slowdown that holds.
+ */
+export function caseClaim(flips: readonly FlipRecord[], name: string): CaseClaim {
+  const own = flips.filter((flip) => flip.case === name);
+  const counted = (x: number): FlipRecord[] => own.filter((flip) => flip.factor === x || (flip.blocked && flip.factor < x) || (!flip.blocked && flip.factor > x));
+  const factors = [...new Set(own.map((flip) => flip.factor))].sort((a, b) => a - b);
+  const claim = factors.find((x) => {
+    const runs = counted(x);
+    return runs.length >= LEAST_FLIP_RUNS && runs.every((flip) => flip.blocked);
+  });
+  const shown = claim ?? factors.at(-1);
+  const runs = shown === undefined ? [] : counted(shown);
+  const k = runs.filter((flip) => flip.blocked).length;
+  return {
+    case: name,
+    claim: claim ?? null,
+    k,
+    n: runs.length,
+    wilsonLow: Number(wilson(k, runs.length).low.toFixed(3)),
+    record: runs.map((flip) => `${flip.run} at ${String(flip.factor)}: ${flip.blocked ? `look ${String(flip.look ?? "-")}` : "miss"}`).join(", "),
+    breaks: own.flatMap((miss) => (miss.blocked ? [] : own.filter((held) => held.blocked && held.factor < miss.factor).map((held) => `${miss.run} missed ${String(miss.factor)}, ${held.run} held ${String(held.factor)}`))),
+  };
 }
 
 /** This function gives the margin of a case. A case with no limit stops the read, because no limit is not a pass. */
@@ -160,16 +225,19 @@ export function rerunCounts(attempts: readonly GateAttempt[]): RerunCount[] {
 }
 
 /**
- * This function gives the smallest limit that passes one case alone, for each case of the gate. A case alone has the level of the whole family.
- * So a limit from these values needs a read of all cases together, with the correction over all cases.
+ * This function gives the smallest limit that passes one case alone, for each case of the gate. Each read uses the level of the family over the cases that the gate reads, which is the strictest level of the correction.
+ * So all cases pass together at these limits in the same records. With the level of the whole family on a case alone, a run can read "no read" at its own limits.
  */
-export function caseLimits(jobs: readonly JobRecords[]): Record<string, number> {
-  return Object.fromEntries([...READ_CASES, ...WRITE_CASES].map((name) => [name, searchLeast((limit) => notSlowerVerdict(ofCases(jobs, [name]), { margin: Math.log(limit), looks: STORE_LOOKS }).outcome === "pass")]));
+export function caseLimits(jobs: readonly JobRecords[], reportOnly: readonly string[] = []): Record<string, number> {
+  const all = [...READ_CASES, ...WRITE_CASES];
+  const level = STORE_LEVEL / all.filter((name) => !reportOnly.includes(name)).length;
+  return Object.fromEntries(all.map((name) => [name, searchLeast((limit) => notSlowerVerdict(ofCases(jobs, [name]), { margin: Math.log(limit), looks: STORE_LOOKS, level }).outcome === "pass")]));
 }
 
-/** This function gives the outcome of all cases together, with a limit for each case. */
-export function outcomeAtCaseLimits(jobs: readonly JobRecords[], limits: Readonly<Record<string, number>>): GateOutcome {
-  return notSlowerVerdict(jobs, { margin: marginOf(limits), looks: STORE_LOOKS }).outcome;
+/** This function gives the outcome of the cases that the gate reads, together, with a limit for each case. */
+export function outcomeAtCaseLimits(jobs: readonly JobRecords[], limits: Readonly<Record<string, number>>, reportOnly: readonly string[] = []): GateOutcome {
+  const gated = [...READ_CASES, ...WRITE_CASES].filter((name) => !reportOnly.includes(name));
+  return notSlowerVerdict(ofCases(jobs, gated), { margin: marginOf(limits), looks: STORE_LOOKS }).outcome;
 }
 
 /**

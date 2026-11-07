@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 57 names
+## . (dist/index.d.ts): names
 
 MAX_PRESIGN_SECONDS: dist/types.d.ts#MAX_PRESIGN_SECONDS
 type S3Config: dist/types.d.ts#S3Config
@@ -42,6 +42,10 @@ type S3MultipartUploadOutput: dist/types.d.ts#S3MultipartUploadOutput
 type S3PresignInput: dist/types.d.ts#S3PresignInput
 S3PresignInputSchema: dist/types.d.ts#S3PresignInputSchema
 type S3PresignOutput: dist/types.d.ts#S3PresignOutput
+type S3UploadCall: dist/types.d.ts#S3UploadCall
+S3UploadCallSchema: dist/types.d.ts#S3UploadCallSchema
+type S3UploadFileInput: dist/types.d.ts#S3UploadFileInput
+S3UploadFileInputSchema: dist/types.d.ts#S3UploadFileInputSchema
 type S3UploadInput: dist/types.d.ts#S3UploadInput
 S3UploadInputSchema: dist/types.d.ts#S3UploadInputSchema
 type S3UploadOutput: dist/types.d.ts#S3UploadOutput
@@ -64,18 +68,18 @@ s3MultipartUpload: dist/procedures/s3/multipart-upload.d.ts#s3MultipartUpload
 s3Presign: dist/procedures/s3/presign.d.ts#s3Presign
 s3Upload: dist/procedures/s3/upload.d.ts#s3Upload
 
-## ./module (dist/module.d.ts): 3 names
+## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#s3Module
 registerS3Procedures: dist/module.d.ts#registerS3Procedures
 s3Module: dist/module.d.ts#s3Module
 
-## ./register (dist/register.d.ts): 2 names
+## ./register (dist/register.d.ts): names
 
 registerS3Procedures: dist/module.d.ts#registerS3Procedures
 s3Module: dist/module.d.ts#s3Module
 
-## ./register.js (dist/register.d.ts): 2 names
+## ./register.js (dist/register.d.ts): names
 
 registerS3Procedures: dist/module.d.ts#registerS3Procedures
 s3Module: dist/module.d.ts#s3Module
@@ -122,7 +126,7 @@ export declare function s3MultipartUpload(input: S3MultipartUploadInput): Promis
 export declare function s3Presign(input: S3PresignInput, capability?: Capability): Promise<S3PresignOutput>;
 
 ### dist/procedures/s3/upload.d.ts#s3Upload
-export declare function s3Upload(input: S3UploadInput): Promise<S3UploadOutput>;
+export declare function s3Upload(input: S3UploadCall): Promise<S3UploadOutput>;
 
 ### dist/s3-client.d.ts#createS3Client
 export declare function createS3Client(): S3Client;
@@ -376,6 +380,36 @@ export interface S3PresignOutput {
     expiresIn: number;
     expiresAt: string;
 }
+
+### dist/types.d.ts#S3UploadCall
+export type S3UploadCall = (S3UploadInput & {
+    sourcePath?: undefined;
+}) | S3UploadFileInput;
+
+### dist/types.d.ts#S3UploadCallSchema
+export declare const S3UploadCallSchema: z.ZodObject<{
+    bucket: z.ZodString;
+    key: z.ZodString;
+    body: z.ZodOptional<z.ZodString>;
+    sourcePath: z.ZodOptional<z.ZodString>;
+    contentType: z.ZodOptional<z.ZodString>;
+    base64: z.ZodOptional<z.ZodBoolean>;
+    metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+}>;
+
+### dist/types.d.ts#S3UploadFileInput
+export type S3UploadFileInput = z.infer<typeof S3UploadFileInputSchema>;
+
+### dist/types.d.ts#S3UploadFileInputSchema
+export declare const S3UploadFileInputSchema: z.ZodObject<{
+    bucket: z.ZodString;
+    key: z.ZodString;
+    sourcePath: z.ZodString;
+    contentType: z.ZodOptional<z.ZodString>;
+    metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    body: z.ZodOptional<z.ZodUndefined>;
+    base64: z.ZodOptional<z.ZodUndefined>;
+}>;
 
 ### dist/types.d.ts#S3UploadInput
 export type S3UploadInput = z.infer<typeof S3UploadInputSchema>;

@@ -255,6 +255,8 @@ await users.setMode("write-through"); // The switch sends the queue, then syncs 
 - Another error, for example `TIMEOUT` or `UNAUTHORIZED`, keeps the write at the head of the queue. The next push sends it again.
 - After a refusal, the local copy gets the remote values of its ids again. An id that a later queued write changes keeps its local value.
 - The option `onRefused` gets each refusal: the write, its ids, the error, and `restored`. An error of the hook does not stop the push.
+- The option `onDropped` gets each queued write that leaves the queue with no send that the remote took. The causes are a conflict that the policy `remote` decides, a delete of the remote, and a refusal. It gets one call for each id, with the value, the reason and the sync. `getMetadata()` gives the count as `stats.dropped`.
+- The hook can write the value again. The sync waits for the hook, and an error of the hook does not stop the sync. After a crash, the hook can get a write again.
 - The option `queueStore` keeps the queue. The storage writes each change to the store before the write ends.
 - A new storage with the same store loads the queue, shows its writes, and sends them.
 - `MemoryQueueStore` is the default. `FileQueueStore` keeps the queue in a JSON Lines file, for Node.
@@ -292,6 +294,33 @@ const users = new HybridStorage(new ApiStorage(client, { collection: "users" }),
 - The option `versionOf` gives the version of an item, for example its ETag.
 - With versions, a conflict is a queued local write of an id whose remote version changed. The option `conflictResolution` gives the result.
 - The values of `conflictResolution` are `local`, `remote`, `merge` with `mergeFn`, and `error`. With `error`, the sync throws `ConflictError`.
+
+#### The conflict policies
+
+The default policy is `remote`. A change of the default changes the behavior of each caller, so the default stays `remote` (roadmap CLI-109).
+
+Each example below starts from the same conflict. The remote holds `{ n: 1, rev: "1" }`. The storage queues the local write `{ n: 5 }` with the base version `"1"`. Before the push, another writer writes `{ n: 9, rev: "2" }`.
+
+| Policy | Result | Example |
+| --- | --- | --- |
+| `remote` (the default) | The remote item replaces the local item. `onDropped` gets the local value and the remote value. | The local copy and the remote hold `{ n: 9 }`. The hook gets `{ value: { n: 5 }, remote: { n: 9 }, reason: "conflict" }`. |
+| `local` | The queued write replaces the remote item. The write of the other writer goes. | The remote holds `{ n: 5 }`. |
+| `merge` | `mergeFn(local, remote, base)` gives the item, and a new queued write sends it. | A merge that adds the changes of both sides gives `{ n: 13 }`: 1 + (5 - 1) + (9 - 1). |
+| `error` | The sync throws `ConflictError` with the ids. The queue and the remote keep their items. | The application reads `error.ids`, which is `["a"]`, and decides. |
+
+```ts
+type Counter = { n: number; rev: string };
+const mergeCounters = (local: Counter, remote: Counter, base: Counter | null | undefined): Counter => ({
+  ...remote,
+  n: local.n + remote.n - (base?.n ?? 0),
+});
+const storage = new HybridStorage<Counter>(remote, {
+  versionOf: (item) => item.rev,
+  conflictResolution: "merge",
+  // The option type is generic over the item: a merge of one item type needs the cast
+  mergeFn: mergeCounters as NonNullable<HybridStorageOptions["mergeFn"]>,
+});
+```
 - Without versions, a queued write always wins. A local value that differs from the remote value is a conflict.
 - A pull reads a local item only when the result depends on it. A pull does not read the item of a queued write that wins.
 - With versions, the storage knows the version of each local item that it wrote or read. Then a pull reads a local item only for a conflict, or when the version is not known.
@@ -312,6 +341,20 @@ With `versionOf`, the push of a queued write sends its base version as the expec
 - When only some ids of a batch are echoes, the batch does not leave the queue. The policy decides for the other ids, as before.
 - An id without a known base version gets no expected version. Its queued write wins, as before.
 - The remote must test the precondition: an `ApiStorage` of the collection procedures over a storage with the same `versionOf`. A remote that cannot test it refuses each push.
+
+### The base value of a three-way merge
+
+With `versionOf` and the policy `merge`, a queued write also keeps its base value (roadmap CLI-109). The base value is the remote item at the base version.
+
+- `mergeFn(local, remote, base)` gets the base value as its third argument. Thus a merge can keep the changes of both sides.
+- `base` is `null` when the remote had no item at the base version.
+- `base` is undefined when the storage does not know the item at the base version. An example is a write after a restart, before a sync reads the item.
+- The queue store keeps the base values with the queued writes. A restart does not lose them.
+- An operation that an older version queued has no base value. It loads, and its merge gets undefined.
+- A merge function with two parameters works as before.
+- The other policies keep no base value.
+- A write of the storage reads its base value from the local copy before the write.
+- A captured change of `capture: "observe"` has no value before it. Thus with capture, the storage keeps in memory the remote value of each id that a sync reads.
 - The option `sendBaseVersions: false` stops the expected versions. Then a queued write replaces the remote item, as before CLI-16.
 - A write of the mode `write-through` goes to the remote directly. It sends only the expected version of its caller.
 
