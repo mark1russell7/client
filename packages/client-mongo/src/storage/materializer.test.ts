@@ -730,6 +730,52 @@ withMongo("ViewMaterializer on MongoDB", { timeout: TEST_TIMEOUT_MS }, () => {
     await scenario({ stored: identityPartition }, 2, (tenant) => tenant);
   }, 60_000);
 
+  it("warns once about a source of many partitions with no pre-image and no rule (CLI-98)", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const scenario = async (route: "none" | "image" | "rule", tenants: readonly string[], expected: number): Promise<void> => {
+      const db = newDb();
+      if (route === "image") await db.createCollection("items", { changeStreamPreAndPostImages: { enabled: true } });
+      const logs: string[] = [];
+      const views = new ViewMaterializer({
+        db: () => db,
+        debounce: ms(20),
+        rewatch: ms(100),
+        log: (level, message) => void logs.push(`${level}: ${message}`),
+        ...(route === "rule" ? { storageSources: { items: identityPartition } } : {}),
+      });
+      await db.collection("_aggregations").insertMany(tenants.map((tenant) => sumsView({ _id: `v-${tenant}`, _part: tenant }) as never));
+      await views.start();
+      const warnings = (): number => logs.filter((line) => line.startsWith("warn: a delete in items runs a pass in each of its partitions")).length;
+      // The start ends after the check of each source
+      expect(warnings()).toBe(expected);
+      await views.stop();
+    };
+    await scenario("none", ["t1", "t2", "t3"], 1);
+    await scenario("none", ["t1"], 0);
+    await scenario("image", ["t1", "t2", "t3"], 0);
+    await scenario("rule", ["t1", "t2", "t3"], 0);
+
+    // A later view can give a source its second partition. The line gives the partitions of that moment
+    const db = newDb();
+    const lines: Array<{ message: string; partitions: unknown }> = [];
+    const views = new ViewMaterializer({
+      db: () => db,
+      debounce: ms(20),
+      rewatch: ms(100),
+      logger: {
+        log: (level, message, fields) => {
+          if (level === "warn") lines.push({ message, partitions: fields?.["partitions"] });
+        },
+      },
+    });
+    await db.collection("_aggregations").insertOne(sumsView({ _id: "v-t1", _part: "t1" }) as never);
+    await views.start();
+    expect(lines).toEqual([]);
+    await db.collection("_aggregations").insertOne(sumsView({ _id: "v-t2", _part: "t2" }) as never);
+    await eventually(async () => expect(lines).toEqual([{ message: "A delete in this source runs a pass in each partition: turn on pre-images, or give storageSources", partitions: 2 }]));
+    await views.stop();
+  }, 60_000);
+
   it("reads the partition of a delete with the partitionOf of the stored form of its source, without pre-images (CLI-76)", async (context) => {
     // A form of an app: the stored _id is `<scope>|<tenant>:<id>`, so the documentKey of a delete tells the partition `<tenant>/<scope>`
     const form: Pick<StoredForm, "partitionOf"> = {
