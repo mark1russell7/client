@@ -33,3 +33,4 @@ Steps for the site and each app:
 2. Import each replacement from `@mark1russell7/optional`, and add `"@mark1russell7/optional": "^1.2.0"` to `dependencies`.
 3. Replace each read of `_tag` with a read of `tag`.
 4. If a `dag.traverse` caller with `continueOnError` reads `visited` or `skipped`, expect the dependents of a failed package in `skipped`.
+5. A caller of `executeDAG` from `@procedures/dag` that needs the old behavior gives `skipDependents: false`.
