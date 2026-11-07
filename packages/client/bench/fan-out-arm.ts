@@ -7,6 +7,9 @@
  * - `block`: the worst gap between two tasks of the event loop during one publish. Microtasks count.
  * - `total`: the median time from the publish to the last frame.
  *
+ * All subscriptions share one signal, as callers in one process with one stop signal do. Each server face gives each
+ * call its own signal.
+ *
  * The frame stops at `JSON.stringify`: no socket is in this bench. The time of a real socket write
  * is not measured. The `hash` is the sum of the frame bytes, so both arms must deliver the same data.
  */

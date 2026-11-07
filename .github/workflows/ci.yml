@@ -29,7 +29,7 @@ jobs:
   # The check names are "CI / checks (ubuntu-latest, node <version>)".
   ci:
     name: CI
-    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@f48f29fe5b00772951e0910a90fbbe312343338c # main
+    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@e077054e0f2ebb8441e4bc525b56cf2acc2afb6f # main
     with:
       # Build first: each package builds dist/ with `tsc -b`, and dependents read the types from
       # dist/. The types and the writing rules do not change with the Node version, so the job
@@ -67,7 +67,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: mark1russell7/template/.github/actions/changeset-check@f48f29fe5b00772951e0910a90fbbe312343338c # main
+      - uses: mark1russell7/template/.github/actions/changeset-check@e077054e0f2ebb8441e4bc525b56cf2acc2afb6f # main
 
   # The checks of this repository, once, on Node 26. They need the build, but not each Node version.
   checks:
@@ -349,7 +349,8 @@ jobs:
           MONGO_TEST_TOPOLOGY: ${{ matrix.topology }}
           # The failpoint tests (for example a transaction over its lifetime limit) need the test commands of the replica set
           MONGO_TEST_FAILPOINTS: ${{ matrix.topology == 'replica-set' && '1' || '' }}
-        run: pnpm --filter @procedures/mongo exec vitest run src/storage
+        # A failpoint is global to the server, so the files that set one run after the others, one at a time.
+        run: pnpm --filter @procedures/mongo exec node --import tsx test/storage-tests.ts src/storage
 
   site:
     name: Site (browser smoke test)
