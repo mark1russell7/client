@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 18 names
+## . (dist/index.d.ts): names
 
 COORDINATE_PATTERN: dist/scan.d.ts#COORDINATE_PATTERN
 EMAIL_PATTERN: dist/scan.d.ts#EMAIL_PATTERN
@@ -25,13 +25,13 @@ registerPrivacyScanProcedures: dist/module.d.ts#registerPrivacyScanProcedures
 scanFiles: dist/scan.d.ts#scanFiles
 scanText: dist/scan.d.ts#scanText
 
-## ./module (dist/module.d.ts): 3 names
+## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#privacyScanModule
 privacyScanModule: dist/module.d.ts#privacyScanModule
 registerPrivacyScanProcedures: dist/module.d.ts#registerPrivacyScanProcedures
 
-## ./register (dist/register.d.ts): 2 names
+## ./register (dist/register.d.ts): names
 
 privacyScanModule: dist/module.d.ts#privacyScanModule
 registerPrivacyScanProcedures: dist/module.d.ts#registerPrivacyScanProcedures

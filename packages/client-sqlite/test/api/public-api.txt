@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 60 names
+## . (dist/index.d.ts): names
 
 type ConnectionCallback: @mark1russell7/docker-sqlite#ConnectionCallback (external)
 type ConnectionConfig: @mark1russell7/docker-sqlite#ConnectionConfig (external)
@@ -67,18 +67,18 @@ runMigrations: @mark1russell7/docker-sqlite#runMigrations (external)
 tableExists: @mark1russell7/docker-sqlite#tableExists (external)
 withConnection: @mark1russell7/docker-sqlite#withConnection (external)
 
-## ./module (dist/module.d.ts): 3 names
+## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#sqliteModule
 registerSqliteProcedures: dist/module.d.ts#registerSqliteProcedures
 sqliteModule: dist/module.d.ts#sqliteModule
 
-## ./register (dist/register.d.ts): 2 names
+## ./register (dist/register.d.ts): names
 
 registerSqliteProcedures: dist/module.d.ts#registerSqliteProcedures
 sqliteModule: dist/module.d.ts#sqliteModule
 
-## ./storage (dist/storage.d.ts): 7 names
+## ./storage (dist/storage.d.ts): names
 
 MEMORY_PATH: dist/engines.d.ts#MEMORY_PATH
 type SqliteEngine: dist/engines.d.ts#SqliteEngine

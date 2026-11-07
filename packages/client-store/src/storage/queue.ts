@@ -31,6 +31,12 @@ export interface QueuedOperation {
    * reads it.
    */
   base?: Array<[string, string | null]>;
+  /**
+   * The remote value at the version of `base`, for each id with a known value (roadmap CLI-109). `null`: the remote had
+   * no item. Only a storage with `versionOf` and the policy `merge` writes it, and `mergeFn` gets it as the base of a
+   * three-way merge. An operation from before this field loads, and its merge gets no base.
+   */
+  baseValues?: Array<[string, unknown]>;
 }
 
 /**
@@ -113,6 +119,27 @@ export function withoutId(op: QueuedOperation, id: string): QueuedOperation | un
     }
     case "clear":
       return op;
+  }
+}
+
+/**
+ * The operations of one id each that a batch holds, in its order, with the base version of each id (roadmap CLI-108).
+ * A set, a delete and a clear give an array of the operation itself.
+ */
+export function singlesOf(op: QueuedOperation): QueuedOperation[] {
+  const data = op.data as { ids?: string[]; items?: Array<[string, unknown]> };
+  const baseOf = (id: string): Pick<QueuedOperation, "base" | "baseValues"> => {
+    const base = op.base?.find(([baseId]) => baseId === id);
+    const value = op.baseValues?.find(([valueId]) => valueId === id);
+    return { ...(base !== undefined && { base: [base] }), ...(value !== undefined && { baseValues: [value] }) };
+  };
+  switch (op.type) {
+    case "setBatch":
+      return (data.items ?? []).map(([id, value]) => ({ type: "set", data: { id, value }, timestamp: op.timestamp, ...baseOf(id) }));
+    case "deleteBatch":
+      return (data.ids ?? []).map((id) => ({ type: "delete", data: { id }, timestamp: op.timestamp, ...baseOf(id) }));
+    default:
+      return [op];
   }
 }
 

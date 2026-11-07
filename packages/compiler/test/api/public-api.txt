@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 140 names
+## . (dist/index.d.ts): names
 
 type ArrayNode: dist/ir.d.ts#ArrayNode
 type Binding: dist/ir.d.ts#Binding
@@ -147,20 +147,20 @@ toTypeScriptSdk: dist/typescript-sdk.d.ts#toTypeScriptSdk
 walk: dist/ir.d.ts#walk
 withDefinitions: dist/facts.d.ts#withDefinitions
 
-## ./module (dist/module.d.ts): 4 names
+## ./module (dist/module.d.ts): names
 
 compilerModule: dist/module.d.ts#compilerModule
 default: dist/module.d.ts#compilerModule
 programModule: dist/module.d.ts#programModule
 registerCompilerProcedures: dist/module.d.ts#registerCompilerProcedures
 
-## ./register (dist/register.d.ts): 3 names
+## ./register (dist/register.d.ts): names
 
 compilerModule: dist/module.d.ts#compilerModule
 programModule: dist/module.d.ts#programModule
 registerCompilerProcedures: dist/module.d.ts#registerCompilerProcedures
 
-## ./runtime (dist/runtime.d.ts): 18 names
+## ./runtime (dist/runtime.d.ts): names
 
 CompiledProgram: dist/runtime.d.ts#CompiledProgram
 ParallelResult: dist/runtime.d.ts#ParallelResult

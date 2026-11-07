@@ -1,23 +1,15 @@
-// The tests of the import boundaries (roadmap CLI-83): the rules of .dependency-cruiser.cjs (the
+// The tests of the import boundaries (roadmap CLI-83): the rules of .dependency-cruiser.ts (the
 // shared rules of @mark1russell7/boundaries and the rules of this repository) on a fixture repository
 // in a temporary folder. Each bad import must fail its rule, and each good import must pass. Start
 // them with: node --test scripts/check-boundaries.test.ts
 
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, before, describe, it } from "node:test";
-import type { Config } from "@mark1russell7/boundaries";
 import { cruise, type ICruiseOptions } from "dependency-cruiser";
-
-/** The part of `.dependency-cruiser.cjs` that the test reads: the configuration for a root folder. */
-interface CruiserConfigModule {
-  readonly config: (root: string) => Config;
-}
-
-const { config } = createRequire(import.meta.url)("../.dependency-cruiser.cjs") as CruiserConfigModule;
+import { config } from "../.dependency-cruiser.ts";
 
 const root = mkdtempSync(join(tmpdir(), "boundaries-"));
 after(() => rmSync(root, { recursive: true, force: true }));

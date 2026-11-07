@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 8 names
+## . (dist/index.d.ts): names
 
 type DevToolsHost: dist/host.d.ts#DevToolsHost
 type LoadedBundles: dist/host.d.ts#LoadedBundles
@@ -17,7 +17,7 @@ runDevToolsServer: dist/host.d.ts#runDevToolsServer
 
 ## bin: 1 commands
 
-mcp-dev-tools: ./bin/mcp-server.js
+mcp-dev-tools: ./dist/bin.js
 
 ## Declarations
 

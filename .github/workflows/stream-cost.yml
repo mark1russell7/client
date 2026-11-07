@@ -6,13 +6,15 @@ name: Stream cost
 # fresh process against a real MongoDB. The report pools the jobs.
 #
 # The input `suite` selects the bench. The suite `read` gives the reads per second of a burst of
-# change reads, first read and delta read, of document-storage.ts (roadmap CLI-91). The suite `write`
-# gives the cost of the queue of a burst of writes. The suite `gate` is the speed gate of the store
+# change reads, first read and delta read, of document-storage.ts (roadmap CLI-91). The suite `read-bound`
+# pairs the change reads of the arms at a stated delay, and gates its objective at that delay. The suite
+# `write` gives the cost of the queue of a burst of writes. The suite `gate` is the speed gate of the store
 # (roadmap CLI-94): CI runs it on each change of the store, and a dispatch gives the runs of its limit.
 # The suite `views` starts 1,000 views with a pipeline text for each partition.
 # The suite `slow` gives the time of a change in a normal partition beside slow partitions (roadmap CLI-97).
 #
-# The workflow only reports, except with `enforce`: only a dispatch starts it, and no ruleset needs its checks.
+# Only a dispatch starts the workflow, and no ruleset needs its checks. It only reports, except for the
+# objective of the suite `read-bound` and the suite `gate` with `enforce`.
 
 on:
   workflow_dispatch:
@@ -23,6 +25,7 @@ on:
         options:
           - stream
           - read
+          - read-bound
           - write
           - gate
           - views
@@ -52,6 +55,17 @@ on:
         description: The longest start and the longest burst of one child.
         type: string
         default: "90"
+      base_arm:
+        description: The arm of each pair of the suite read-bound. With after, the arm before starts one time for each case and round.
+        type: choice
+        options:
+          - before
+          - after
+        default: before
+      mongo_delay_ms:
+        description: The time that each request to MongoDB waits, for a read of a remote server. The value 0 adds no wait.
+        type: string
+        default: "0"
 
 permissions:
   contents: read
@@ -74,7 +88,9 @@ jobs:
           ROUNDS: ${{ inputs.rounds }}
           CAP: ${{ inputs.cap_seconds }}
           BASE: ${{ inputs.base }}
+          DELAY: ${{ inputs.mongo_delay_ms }}
         run: |
+          [[ "$DELAY" =~ ^[0-9]{1,3}$ ]] || { echo "mongo_delay_ms must be a number from 0 to 999, not $DELAY"; exit 1; }
           [[ "$RUNS" =~ ^[1-9]$ ]] || { echo "runs must be a number from 1 to 9, not $RUNS"; exit 1; }
           [[ "$ROUNDS" =~ ^[1-9][0-9]?$ ]] || { echo "rounds must be a number from 1 to 99, not $ROUNDS"; exit 1; }
           [[ "$CAP" =~ ^[1-9][0-9]{0,2}$ ]] || { echo "cap_seconds must be a number from 1 to 999, not $CAP"; exit 1; }
@@ -112,15 +128,24 @@ jobs:
           mkdir packages/client-mongo/base
           git archive "$BASE" packages/client-mongo/src | tar -x --strip-components=2 -C packages/client-mongo/base
       - uses: ./.github/actions/start-mongo
+      - name: Hold the stated delay on the connection to MongoDB
+        if: ${{ inputs.mongo_delay_ms != '0' }}
+        env:
+          DELAY: ${{ inputs.mongo_delay_ms }}
+        run: |
+          sudo modprobe sch_netem || { sudo apt-get update -q; sudo apt-get install -y -q "linux-modules-extra-$(uname -r)"; sudo modprobe sch_netem; }
+          sudo tc qdisc add dev docker0 root netem delay "${DELAY}ms"
+          tc qdisc show dev docker0
       - name: Run the job
         working-directory: packages/client-mongo
         env:
           JOB: ${{ matrix.job }}
+          BASE_ARM: ${{ inputs.suite == 'read-bound' && inputs.base_arm || '' }}
           ROUNDS: ${{ inputs.rounds }}
           CAP: ${{ inputs.cap_seconds }}
           SUITE: ${{ inputs.suite }}
           MONGO_TEST_URL: mongodb://localhost:27017/?directConnection=true
-        run: node --import tsx "bench/$SUITE-run.ts" --job "$JOB" --rounds "$ROUNDS" --cap "$CAP" --out "bench-out/job-$JOB.json"
+        run: node --import tsx "bench/$SUITE-run.ts" --job "$JOB" --rounds "$ROUNDS" --cap "$CAP" --out "bench-out/job-$JOB.json" ${BASE_ARM:+--base "$BASE_ARM"}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: stream-cost-job-${{ matrix.job }}
@@ -154,13 +179,16 @@ jobs:
           PREDICTION: ${{ inputs.prediction }}
           SUITE: ${{ inputs.suite }}
           ENFORCE: ${{ inputs.suite == 'gate' && inputs.enforce && '--enforce' || '' }}
+          # The suite read-bound gates its objective at one delay (roadmap CLI-91)
+          DELAY: ${{ inputs.suite == 'read-bound' && inputs.mongo_delay_ms || '' }}
         run: |
           # The upload below keeps the report of a failed verdict
           status=0
-          node --import tsx "bench/$SUITE-report.ts" --jobs bench-out --out "$SUITE-report.json" --run "$RUN" $ENFORCE || status=$?
+          node --import tsx "bench/$SUITE-report.ts" --jobs bench-out --out "$SUITE-report.json" --run "$RUN" $ENFORCE ${DELAY:+--delay "$DELAY"} || status=$?
           { echo "Prediction: $PREDICTION"; echo '```json'; cat "$SUITE-report.json" || true; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           echo "status=$status" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
         with:
           name: ${{ inputs.suite }}-cost-report
           path: packages/client-mongo/${{ inputs.suite }}-report.json

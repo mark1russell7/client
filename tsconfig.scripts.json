@@ -27,6 +27,8 @@
     }
   },
   "include": [
+    ".dependency-cruiser.ts",
+    "packages/client/stryker.config.ts",
     "scripts/**/*.ts",
     ".github/scripts/**/*.ts",
     "harness/procedures-subject/**/*.ts"

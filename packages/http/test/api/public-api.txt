@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 50 names
+## . (dist/index.d.ts): names
 
 type AllowedTarget: dist/policy.d.ts#AllowedTarget
 DEFAULT_HOST_POLICY: dist/policy.d.ts#DEFAULT_HOST_POLICY
@@ -57,7 +57,7 @@ specialClass: dist/address.d.ts#specialClass
 sseEvents: dist/parsers.d.ts#sseEvents
 systemResolver: dist/policy.d.ts#systemResolver
 
-## ./module (dist/module.d.ts): 6 names
+## ./module (dist/module.d.ts): names
 
 HttpModuleOptions: dist/module.d.ts#HttpModuleOptions
 createHttpModule: dist/module.d.ts#createHttpModule
@@ -66,7 +66,7 @@ httpModule: dist/module.d.ts#httpModule
 httpSettings: dist/module.d.ts#httpSettings
 registerHttpProcedures: dist/module.d.ts#registerHttpProcedures
 
-## ./register (dist/register.d.ts): 5 names
+## ./register (dist/register.d.ts): names
 
 HttpModuleOptions: dist/module.d.ts#HttpModuleOptions
 createHttpModule: dist/module.d.ts#createHttpModule
