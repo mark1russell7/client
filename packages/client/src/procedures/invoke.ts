@@ -267,6 +267,16 @@ async function validateOutput(procedure: AnyProcedure, output: unknown): Promise
   return result.value;
 }
 
+/**
+ * This function gives a stream its own signal, which aborts with the signal of the call. Many streams can share one signal.
+ * Each add of a listener examines each listener that the signal holds. The signal of a stream holds one listener at
+ * most. So an item costs the same at any count of streams (roadmap CLI-90).
+ */
+function streamSignal(signal: AbortSignal): AbortSignal {
+  const any = (AbortSignal as { any?: (signals: AbortSignal[]) => AbortSignal }).any;
+  return any ? any([signal]) : signal;
+}
+
 /** The next item, or an abort error when the signal aborts first. */
 function nextOrAbort<T>(iterator: AsyncIterator<T>, signal: AbortSignal, path: ProcedurePath): Promise<IteratorResult<T>> {
   if (signal.aborted) return Promise.reject(abortError(path));
@@ -325,13 +335,14 @@ async function* validatedItems(
   signal: AbortSignal | undefined,
 ): AsyncGenerator<unknown, void, undefined> {
   const iterator = source[Symbol.asyncIterator]();
+  const own = signal && streamSignal(signal);
   let done = false;
   let aborted = false;
   try {
     for (;;) {
       let step: IteratorResult<unknown>;
       try {
-        step = signal ? await nextOrAbort(iterator, signal, procedure.path) : await iterator.next();
+        step = own ? await nextOrAbort(iterator, own, procedure.path) : await iterator.next();
       } catch (error) {
         // The handler threw (its generator is done), or the signal aborted (it is not)
         if (error instanceof InvocationError && error.code === "ABORTED") aborted = true;
