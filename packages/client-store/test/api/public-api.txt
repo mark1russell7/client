@@ -28,6 +28,7 @@ type LocalCopyStorage: dist/storage/hybrid.d.ts#LocalCopyStorage
 MemoryProgramStore: dist/program-store/memory.d.ts#MemoryProgramStore
 MemoryQueueStore: dist/storage/queue.d.ts#MemoryQueueStore
 MemorySyncStateStore: dist/storage/sync-state.d.ts#MemorySyncStateStore
+type MergeContext: dist/storage/hybrid.d.ts#MergeContext
 MissingKeysError: dist/storage/hybrid.d.ts#MissingKeysError
 ModeSwitchError: dist/storage/hybrid.d.ts#ModeSwitchError
 PendingWriteError: dist/storage/hybrid.d.ts#PendingWriteError
@@ -682,9 +683,12 @@ export declare class ConflictError extends Error {
 export interface DroppedWrite {
     id: string;
     value: unknown;
-    reason: "conflict" | "remote-delete" | "refused" | "too-large";
+    reason: "conflict" | "remote-delete" | "refused" | "too-large" | "overlap";
     during: "pull" | "push";
     remote?: unknown;
+    base?: unknown;
+    merged?: unknown;
+    paths?: string[];
     error?: unknown;
 }
 
@@ -729,7 +733,7 @@ export interface HybridStorageOptions {
     mode?: HybridMode;
     writeStrategy?: WriteStrategy;
     conflictResolution?: ConflictResolution;
-    mergeFn?: <T>(local: T, remote: T, base: T | null | undefined) => T;
+    mergeFn?: <T>(local: T, remote: T, base: T | null | undefined, context: MergeContext) => T;
     keyOf?: (item: any) => string | undefined;
     versionOf?: (item: any) => string | undefined;
     sendBaseVersions?: boolean;
@@ -767,6 +771,11 @@ export interface HybridStorageOptions {
 export type LocalCopyStorage<T> = CollectionStorage<T> & {
     getEntries(): Promise<Array<[string, T]>>;
 };
+
+### dist/storage/hybrid.d.ts#MergeContext
+export interface MergeContext {
+    overlap(paths: readonly string[]): void;
+}
 
 ### dist/storage/hybrid.d.ts#MissingKeysError
 export declare class MissingKeysError extends Error {
