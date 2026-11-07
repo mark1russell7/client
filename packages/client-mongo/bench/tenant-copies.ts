@@ -18,15 +18,15 @@ const WRITE_QUEUE = "function enqueueWrite<R>(db: Db, name: string, task: () => 
 /** This function gives a copy of the store with no write queue in a process. */
 export const noQueue = (text: string): string => swap(text, WRITE_QUEUE, `${WRITE_QUEUE}  if (db) return task();\n`);
 
-/** The update of the counter of the numbers in the source. */
-const COUNTER = '{ _id: this.counterId },\n            { $inc: { seq: count }, $setOnInsert: { epoch: randomUUID() } },\n            { upsert: true, returnDocument: "after", session }';
+/** The update of the counter of the collection in the source. */
+const COUNTER = '{ _id: this.collectionName },\n            { $inc: { seq: count }, $setOnInsert: { epoch: randomUUID() } },\n            { upsert: true, returnDocument: "after", session }';
 
 /**
  * This function gives a copy of the store with 1,000 counter documents and a random pick for each write. A number is
  * unique only inside its counter here. A write does not read the numbers, and no index is unique on them.
  */
 export const manyCounters = (text: string): string =>
-  swap(text, COUNTER, COUNTER.replace("{ _id: this.counterId }", "{ _id: `${this.counterId}:${Math.floor(Math.random() * 1000)}` }"));
+  swap(text, COUNTER, COUNTER.replace("{ _id: this.collectionName }", "{ _id: `${this.collectionName}:${Math.floor(Math.random() * 1000)}` }"));
 
 /** This function gives the text of each copy of the store. */
 export function copiesOf(text: string): Record<(typeof SEPARATE_ARMS)[number], string> {

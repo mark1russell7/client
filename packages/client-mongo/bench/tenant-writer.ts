@@ -11,6 +11,7 @@ import { createInterface } from "node:readline";
 import { parseArgs } from "node:util";
 import { MongoClient } from "mongodb";
 import type { MongoDocumentStorage } from "../src/storage/document-storage.js";
+import { SEPARATOR } from "../src/storage/document-storage.js";
 import { CONTROL_COLLECTIONS, FIRST_LOAD_SPLIT, GRACE_MS, SEPARATE_ARMS, TENANT_ARMS, TENANT_BYTES, WARM_GROUP, WINDOW_MS, WRITE_CONFLICT, firstLoadCollection, firstLoadOf, parseTenantCase, tenantOf, type FirstLoadWrite, type TenantArm } from "./tenant-cases.js";
 import { planOf } from "./tenant-plan.js";
 
@@ -64,6 +65,11 @@ if (kase.firstLoads > 0) {
     const name = firstLoadCollection(arm as TenantArm, { load: 0, collection });
     await new Storage<{ text: string }>({ collection: name, partition: "warm", db: () => db, client: () => client }).set(`first${me}`, { text });
   }
+}
+// The arm `partition` measures the counter of each partition (roadmap CLI-96). A store without the option `sequence` ignores
+// the option and writes the counter of the collection, so the arm stops here and does not give the numbers of the wrong store.
+if (arm === "partition" && !(await db.collection("__storage_counters").findOne({ _id: `seq${SEPARATOR}docs${SEPARATOR}t0` as never }))) {
+  throw new Error("the arm partition found no counter for the partition t0: the store of this tree has no option sequence (CLI-96)");
 }
 const warmMs = performance.now() - warmFrom;
 console.error(`writer ${me}: the first writes of ${stores.length} stores took ${Math.round(warmMs)} ms`);
