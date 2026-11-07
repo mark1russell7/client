@@ -8,9 +8,9 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, realpathSync } from "node:fs";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 /** The text that marks a file that sets a failpoint of the server. */
 export const FAILPOINT_MARK = "configureFailPoint";
@@ -29,7 +29,8 @@ function testFiles(folder: string): string[] {
     .map((name) => join(folder, name).replaceAll("\\", "/"));
 }
 
-if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+// The real paths, so that the script also starts through a link
+if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   const { together, alone } = failpointSplit(testFiles(process.argv[2] ?? "src/storage"), (file) => readFileSync(file, "utf8"));
   const vitest = (args: string[]): number => spawnSync(process.execPath, ["node_modules/vitest/vitest.mjs", "run", ...args], { stdio: "inherit" }).status ?? 1;
   console.log(`These files set a failpoint, so they run after the others, one at a time: ${alone.join(", ") || "(none)"}`);
