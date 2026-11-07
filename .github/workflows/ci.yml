@@ -18,6 +18,10 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   # The shared CI of mark1russell7 (reusable-ci.yml of the template, its CI.md), on Node 22, 24
   # and 26: the lowest Node version that the root package.json allows, the active LTS and the
@@ -25,7 +29,7 @@ jobs:
   # The check names are "CI / checks (ubuntu-latest, node <version>)".
   ci:
     name: CI
-    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@f48f29fe5b00772951e0910a90fbbe312343338c # main
+    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@e077054e0f2ebb8441e4bc525b56cf2acc2afb6f # main
     with:
       # Build first: each package builds dist/ with `tsc -b`, and dependents read the types from
       # dist/. The types and the writing rules do not change with the Node version, so the job
@@ -63,7 +67,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: mark1russell7/template/.github/actions/changeset-check@f48f29fe5b00772951e0910a90fbbe312343338c # main
+      - uses: mark1russell7/template/.github/actions/changeset-check@e077054e0f2ebb8441e4bc525b56cf2acc2afb6f # main
 
   # The checks of this repository, once, on Node 26. They need the build, but not each Node version.
   checks:
@@ -388,7 +392,7 @@ jobs:
   mongo-speed-look:
     name: MongoDB (the first look of the speed gate)
     needs: [mongo-speed-plan, mongo-speed]
-    if: always() && needs.mongo-speed-plan.outputs.changed == 'true'
+    if: ${{ !cancelled() && needs.mongo-speed-plan.outputs.changed == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -412,7 +416,7 @@ jobs:
   mongo-speed-more:
     name: MongoDB (the second look of the speed gate, job ${{ matrix.job }})
     needs: mongo-speed-look
-    if: always() && needs.mongo-speed-look.result == 'success' && needs.mongo-speed-look.outputs.more != ''
+    if: ${{ !cancelled() && needs.mongo-speed-look.result == 'success' && needs.mongo-speed-look.outputs.more != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -436,7 +440,7 @@ jobs:
   mongo-speed-verdict:
     name: MongoDB (the verdict of the speed gate)
     needs: [mongo-speed-plan, mongo-speed, mongo-speed-look, mongo-speed-more]
-    if: always() && needs.mongo-speed-plan.outputs.changed == 'true'
+    if: ${{ !cancelled() && needs.mongo-speed-plan.outputs.changed == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -526,7 +530,7 @@ jobs:
   # Add each new job of the gate to `needs`, and to ALLOW_SKIP when its own `if` can skip it.
   ci-ok:
     name: CI OK
-    if: always()
+    if: ${{ !cancelled() }}
     needs: [ci, changesets, checks, mongo, mongo-speed-plan, mongo-speed, mongo-speed-look, mongo-speed-more, mongo-speed-verdict, site]
     runs-on: ubuntu-latest
     timeout-minutes: 2

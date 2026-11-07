@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 67 names
+## . (dist/index.d.ts): names
 
 type CsvCell: dist/csv.d.ts#CsvCell
 CsvParseInput: dist/types.d.ts#CsvParseInput
@@ -74,18 +74,18 @@ validateJson: dist/schema.d.ts#validateJson
 yamlParse: dist/procedures/yaml/parse.d.ts#yamlParse
 yamlStringify: dist/procedures/yaml/stringify.d.ts#yamlStringify
 
-## ./module (dist/module.d.ts): 3 names
+## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#jsonModule
 jsonModule: dist/module.d.ts#jsonModule
 registerJsonProcedures: dist/module.d.ts#registerJsonProcedures
 
-## ./register (dist/register.d.ts): 2 names
+## ./register (dist/register.d.ts): names
 
 jsonModule: dist/module.d.ts#jsonModule
 registerJsonProcedures: dist/module.d.ts#registerJsonProcedures
 
-## ./csv (dist/csv-entry.d.ts): 14 names
+## ./csv (dist/csv-entry.d.ts): names
 
 type CsvCell: dist/csv.d.ts#CsvCell
 type CsvParseInput: dist/types.d.ts#CsvParseInput

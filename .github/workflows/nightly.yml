@@ -25,6 +25,10 @@ concurrency:
   group: nightly-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: false
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   mutation:
     name: Mutation tests (Stryker)

@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 42 names
+## . (dist/index.d.ts): names
 
 DEFAULT_GEOHASH_PRECISION: dist/geohash.d.ts#DEFAULT_GEOHASH_PRECISION
 EARTH_RADIUS_KM: dist/distance.d.ts#EARTH_RADIUS_KM
@@ -49,20 +49,20 @@ project: dist/mercator.d.ts#project
 registerGeoProcedures: dist/module.d.ts#registerGeoProcedures
 tilesFor: dist/mercator.d.ts#tilesFor
 
-## ./module (dist/module.d.ts): 4 names
+## ./module (dist/module.d.ts): names
 
 createGeoModule: dist/module.d.ts#createGeoModule
 default: dist/module.d.ts#geoModule
 geoModule: dist/module.d.ts#geoModule
 registerGeoProcedures: dist/module.d.ts#registerGeoProcedures
 
-## ./register (dist/register.d.ts): 3 names
+## ./register (dist/register.d.ts): names
 
 createGeoModule: dist/module.d.ts#createGeoModule
 geoModule: dist/module.d.ts#geoModule
 registerGeoProcedures: dist/module.d.ts#registerGeoProcedures
 
-## ./tiles (dist/tiles.d.ts): 7 names
+## ./tiles (dist/tiles.d.ts): names
 
 CachedTileOptions: dist/tiles.d.ts#CachedTileOptions
 FetchBytes: dist/tiles.d.ts#FetchBytes
