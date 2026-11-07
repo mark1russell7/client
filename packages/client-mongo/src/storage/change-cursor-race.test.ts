@@ -185,8 +185,9 @@ async function follower(host: Host, seen: Seen, family: IdFamily, row: RowCount,
   let line: Promise<void> = Promise.resolve();
   const read = async (): Promise<void> => {
     noteRead(row, count);
-    const changes = await host.changes(cursor);
-    seen.trace.push(`read ${cursor}>${changes.version}${changes.full ? " full" : ""}:${changes.changed.map(({ id }) => id).join(",")}`);
+    const from = cursor;
+    const changes = await host.changes(from);
+    seen.trace.push(`read ${from}>${changes.version}${changes.full ? " full" : ""}:${changes.changed.map(({ id }) => id).join(",")}`);
     applyRead(seen, family, changes);
     cursor = changes.version;
   };
@@ -202,9 +203,10 @@ async function follower(host: Host, seen: Seen, family: IdFamily, row: RowCount,
       await read();
     });
   });
+  // The last read goes in the line too: an event that lands while the read runs waits for it, and then makes a read of its own
   return async () => {
+    line = line.then(read);
     await line;
-    await read();
   };
 }
 
