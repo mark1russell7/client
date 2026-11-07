@@ -23,6 +23,7 @@ import { MongoClient } from "mongodb";
 import { ALL_CORES, BURST_AT_MS, BURST_TENANT, DRIVER_LIMIT_MS, GRACE_MS, MONGO_CORES, TENANT_ARMS, WINDOW_MS, WRITER_CORES, firstLoadOf, parseTenantCase, tenantOf, type CoreShare, type DiskRead, type JournalRead, type TenantArm, type TenantCount } from "./tenant-cases.js";
 import { planOf } from "./tenant-plan.js";
 import { sampleOf, serverRead, totalsOf, type ServerRead, type ServerSample } from "./tenant-server.js";
+import { spreadOf } from "./tenant-spread.js";
 
 const { values } = parseArgs({ options: { arm: { type: "string" }, case: { type: "string" }, job: { type: "string" }, counts: { type: "string" } } });
 const { arm, case: caseName, job, counts } = values;
@@ -231,6 +232,18 @@ const othersValues = plan.times.flatMap((planned, index) => {
 });
 const othersP99 = quantile(othersValues, 0.99, "nearest-rank");
 
+// The spread over the keys and the processes (roadmap CLI-96): a first load and the tenant of the burst are not keys of the plan.
+const spread = spreadOf(
+  plan.times.flatMap((planned, index) => {
+    if (firstLoadOf(kase, index, planned)) return [];
+    const key = tenantOf(kase, index, planned);
+    if (kase.burst && key === BURST_TENANT) return [];
+    const done = doneByIndex.get(index) ?? null;
+    return [{ key, process: index % kase.processes, ms: done === null ? Math.max(0, end - planned) : done - planned, replied: done !== null }];
+  }),
+  kase.processes
+);
+
 // The first loads: the time of a write counts from its plan, and the time of a load counts from the start of the burst.
 const loadWrites = plan.times.flatMap((planned, index) => {
   const write = firstLoadOf(kase, index, planned);
@@ -276,6 +289,7 @@ const line: TenantCount = {
   ),
   ...firstLoad,
   server,
+  spread,
 };
 appendFileSync(counts, `${JSON.stringify(line)}\n`);
 await admin.db(database).dropDatabase().catch(() => undefined);

@@ -20,6 +20,7 @@
  */
 
 import type { ServerRead } from "./tenant-server.js";
+import type { TenantSpread } from "./tenant-spread.js";
 
 export const TENANT_CASES = ["20-p1", "20-p2", "20-p4", "200-p1", "200-p2", "200-p4", "2000-p1", "2000-p2", "20-p2-burst", "200-p2-burst"] as const;
 
@@ -263,4 +264,6 @@ export interface TenantCount {
   readonly firstLoadP99Ms?: number;
   /** The server in the load. A record from before this field has none. */
   readonly server?: ServerRead;
+  /** The spread of the run over its keys and its processes (roadmap CLI-96). A record from before this field has none. */
+  readonly spread?: TenantSpread;
 }
