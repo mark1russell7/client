@@ -334,7 +334,8 @@ jobs:
           MONGO_TEST_TOPOLOGY: ${{ matrix.topology }}
           # The failpoint tests (for example a transaction over its lifetime limit) need the test commands of the replica set
           MONGO_TEST_FAILPOINTS: ${{ matrix.topology == 'replica-set' && '1' || '' }}
-        run: pnpm --filter @procedures/mongo exec vitest run src/storage
+        # A failpoint is global to the server, so the files that set one run after the others, one at a time.
+        run: pnpm --filter @procedures/mongo exec node --import tsx test/storage-tests.ts src/storage
 
   # The speed gate of the store (roadmap CLI-94). A pull request that changes the source of the store
   # compares the reads and the writes of its merge with its base on a real MongoDB, with an A/A beside

@@ -67,6 +67,11 @@ jobs:
         run: |
           head=$(git rev-parse --verify "${HEAD_INPUT:-origin/main}^{commit}")
           base=$(git rev-parse --verify "${BASE_INPUT:-$head^1}^{commit}")
+          # Two arms of one tree time the same bytes, so a change cannot show: the run is a no read, not a pass.
+          if [ "$(git rev-parse "$base^{tree}")" = "$(git rev-parse "$head^{tree}")" ]; then
+            echo "::error::The base $base and the head $head have the same tree, so the two arms are one build. Give a base and a head with different trees."
+            exit 1
+          fi
           echo "base=$base" >> "$GITHUB_OUTPUT"
           echo "head=$head" >> "$GITHUB_OUTPUT"
           echo "Base $base ($(git log -1 --format='%cs %s' "$base"))"
