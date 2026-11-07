@@ -354,7 +354,6 @@ export function watchDatabaseChanges<TChange extends Document = ChangeStreamDocu
           continue;
         }
         // A fault before the first event of a stream with no token: the next stream starts at the first token of this stream (CLI-107)
-        if (token === undefined && !gaveEvent && openToken !== undefined) token = openToken;
         const code = codeOf(error);
         if (code !== undefined && LOST_TOKEN_CODES.has(code)) return fail(error, { code });
         if (code === UNKNOWN_STAGE_CODE && split) {
