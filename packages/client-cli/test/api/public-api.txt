@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 5 names
+## . (dist/index.d.ts): names
 
 type CliRunInput: dist/types.d.ts#CliRunInput
 CliRunInputSchema: dist/types.d.ts#CliRunInputSchema
@@ -12,18 +12,18 @@ type CliRunOutput: dist/types.d.ts#CliRunOutput
 cliRun: dist/procedures/cli/run.d.ts#cliRun
 registerCliProcedures: dist/module.d.ts#registerCliProcedures
 
-## ./module (dist/module.d.ts): 3 names
+## ./module (dist/module.d.ts): names
 
 cliModule: dist/module.d.ts#cliModule
 default: dist/module.d.ts#cliModule
 registerCliProcedures: dist/module.d.ts#registerCliProcedures
 
-## ./register (dist/register.d.ts): 2 names
+## ./register (dist/register.d.ts): names
 
 cliModule: dist/module.d.ts#cliModule
 registerCliProcedures: dist/module.d.ts#registerCliProcedures
 
-## ./register.js (dist/register.d.ts): 2 names
+## ./register.js (dist/register.d.ts): names
 
 cliModule: dist/module.d.ts#cliModule
 registerCliProcedures: dist/module.d.ts#registerCliProcedures

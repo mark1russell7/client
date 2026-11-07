@@ -1,5 +1,15 @@
 # @procedures/server
 
+## 0.49.0
+
+### Patch Changes
+
+- Updated dependencies [bf0aa79]
+- Updated dependencies [a1aedc5]
+  - @procedures/client@0.49.0
+  - @procedures/fs@0.49.0
+  - @procedures/peer@0.49.0
+
 ## 0.48.2
 
 ### Patch Changes

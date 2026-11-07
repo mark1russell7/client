@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 6 names
+## . (dist/index.d.ts): names
 
 bundleAssistantModule: dist/module.d.ts#bundleAssistantModule
 bundleAssistantModules: dist/module.d.ts#bundleAssistantModules
@@ -13,7 +13,7 @@ mcpHostModules: dist/module.d.ts#mcpHostModules
 mcpNamespaces: dist/module.d.ts#mcpNamespaces
 registerBundleAssistantProcedures: dist/module.d.ts#registerBundleAssistantProcedures
 
-## ./module (dist/module.d.ts): 7 names
+## ./module (dist/module.d.ts): names
 
 bundleAssistantModule: dist/module.d.ts#bundleAssistantModule
 bundleAssistantModules: dist/module.d.ts#bundleAssistantModules
@@ -23,7 +23,7 @@ mcpHostModules: dist/module.d.ts#mcpHostModules
 mcpNamespaces: dist/module.d.ts#mcpNamespaces
 registerBundleAssistantProcedures: dist/module.d.ts#registerBundleAssistantProcedures
 
-## ./register (dist/register.d.ts): 6 names
+## ./register (dist/register.d.ts): names
 
 bundleAssistantModule: dist/module.d.ts#bundleAssistantModule
 bundleAssistantModules: dist/module.d.ts#bundleAssistantModules

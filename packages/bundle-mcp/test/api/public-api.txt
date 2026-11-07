@@ -4,14 +4,14 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 4 names
+## . (dist/index.d.ts): names
 
 bundleMcpModule: dist/module.d.ts#bundleMcpModule
 bundleMcpModules: dist/module.d.ts#bundleMcpModules
 mcpExclude: dist/module.d.ts#mcpExclude
 mcpNamespaces: dist/module.d.ts#mcpNamespaces
 
-## ./module (dist/module.d.ts): 6 names
+## ./module (dist/module.d.ts): names
 
 bundleMcpModule: dist/module.d.ts#bundleMcpModule
 bundleMcpModules: dist/module.d.ts#bundleMcpModules
@@ -20,7 +20,7 @@ mcpExclude: dist/module.d.ts#mcpExclude
 mcpNamespaces: dist/module.d.ts#mcpNamespaces
 registerBundleMcpProcedures: dist/module.d.ts#registerBundleMcpProcedures
 
-## ./register (dist/register.d.ts): 5 names
+## ./register (dist/register.d.ts): names
 
 bundleMcpModule: dist/module.d.ts#bundleMcpModule
 bundleMcpModules: dist/module.d.ts#bundleMcpModules
@@ -28,7 +28,7 @@ mcpExclude: dist/module.d.ts#mcpExclude
 mcpNamespaces: dist/module.d.ts#mcpNamespaces
 registerBundleMcpProcedures: dist/module.d.ts#registerBundleMcpProcedures
 
-## ./register.js (dist/register.d.ts): 5 names
+## ./register.js (dist/register.d.ts): names
 
 bundleMcpModule: dist/module.d.ts#bundleMcpModule
 bundleMcpModules: dist/module.d.ts#bundleMcpModules

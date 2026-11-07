@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 7 names
+## . (dist/index.d.ts): names
 
 ProcedureNewInput: dist/types.d.ts#ProcedureNewInput
 ProcedureNewInputSchema: dist/types.d.ts#ProcedureNewInputSchema
@@ -14,13 +14,13 @@ procedureModule: dist/module.d.ts#procedureModule
 procedureNew: dist/procedures/procedure/new.d.ts#procedureNew
 registerProcedureProcedures: dist/module.d.ts#registerProcedureProcedures
 
-## ./module (dist/module.d.ts): 3 names
+## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#procedureModule
 procedureModule: dist/module.d.ts#procedureModule
 registerProcedureProcedures: dist/module.d.ts#registerProcedureProcedures
 
-## ./register (dist/register.d.ts): 2 names
+## ./register (dist/register.d.ts): names
 
 procedureModule: dist/module.d.ts#procedureModule
 registerProcedureProcedures: dist/module.d.ts#registerProcedureProcedures

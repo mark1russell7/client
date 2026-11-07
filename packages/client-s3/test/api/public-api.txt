@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 61 names
+## . (dist/index.d.ts): names
 
 MAX_PRESIGN_SECONDS: dist/types.d.ts#MAX_PRESIGN_SECONDS
 type S3Config: dist/types.d.ts#S3Config
@@ -68,18 +68,18 @@ s3MultipartUpload: dist/procedures/s3/multipart-upload.d.ts#s3MultipartUpload
 s3Presign: dist/procedures/s3/presign.d.ts#s3Presign
 s3Upload: dist/procedures/s3/upload.d.ts#s3Upload
 
-## ./module (dist/module.d.ts): 3 names
+## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#s3Module
 registerS3Procedures: dist/module.d.ts#registerS3Procedures
 s3Module: dist/module.d.ts#s3Module
 
-## ./register (dist/register.d.ts): 2 names
+## ./register (dist/register.d.ts): names
 
 registerS3Procedures: dist/module.d.ts#registerS3Procedures
 s3Module: dist/module.d.ts#s3Module
 
-## ./register.js (dist/register.d.ts): 2 names
+## ./register.js (dist/register.d.ts): names
 
 registerS3Procedures: dist/module.d.ts#registerS3Procedures
 s3Module: dist/module.d.ts#s3Module
