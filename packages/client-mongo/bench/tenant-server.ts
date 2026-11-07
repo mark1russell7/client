@@ -66,9 +66,16 @@ export function statusNumber(status: unknown, path: readonly string[]): number |
 const sum = (values: readonly (number | null)[]): number | null => (values.every((value) => value === null) ? null : values.reduce<number>((all, value) => all + (value ?? 0), 0));
 const round = (value: number | null, digits = 3): number | null => (value === null ? null : Number(value.toFixed(digits)));
 
-/** This function gives the time that writes waited for a lock of one kind: the exclusive and the intent modes. */
-const lockWait = (status: unknown, kind: string): number | null =>
-  sum([statusNumber(status, ["locks", kind, "timeAcquiringMicros", "w"]), statusNumber(status, ["locks", kind, "timeAcquiringMicros", "W"])]);
+/**
+ * This function gives the time that writes waited for a lock of one kind: the exclusive and the intent modes.
+ * MongoDB adds `timeAcquiringMicros` to a lock only after its first wait. So a lock with no such field gives 0, and only a missing lock gives `null`.
+ */
+const lockWait = (status: unknown, kind: string): number | null => {
+  const waits = sum([statusNumber(status, ["locks", kind, "timeAcquiringMicros", "w"]), statusNumber(status, ["locks", kind, "timeAcquiringMicros", "W"])]);
+  if (waits !== null) return waits;
+  const locks = (status as { locks?: Record<string, unknown> } | null)?.locks;
+  return typeof locks?.[kind] === "object" && locks[kind] !== null ? 0 : null;
+};
 
 /** This function gives one sample from a `serverStatus` document. MongoDB 7 gives the tickets in `queues.execution`. */
 export function sampleOf(status: unknown, at: number): ServerSample {
