@@ -50,6 +50,8 @@ const stores: Store[] = Array.from({ length: kase.active }, (_, tenant) => {
 const text = "x".repeat(TENANT_BYTES);
 
 // The first write of a store in a process notes its floor and makes its indexes. The bench measures the writes after it.
+// The writer gives the time of these first writes, because at 40,000 stores they take most of the time of a child.
+const warmFrom = performance.now();
 // One collection takes them one at a time, because an arm with no queue has nothing else that holds them back.
 // The arm `partition` has a queue and a counter for each store, so it takes them in groups of `WARM_GROUP`.
 if (arm === "control") await Promise.all(stores.map((store) => store.set(`first${me}`, { text })));
@@ -63,6 +65,8 @@ if (kase.firstLoads > 0) {
     await new Storage<{ text: string }>({ collection: name, partition: "warm", db: () => db, client: () => client }).set(`first${me}`, { text });
   }
 }
+const warmMs = performance.now() - warmFrom;
+console.error(`writer ${me}: the first writes of ${stores.length} stores took ${Math.round(warmMs)} ms`);
 const loadStores = new Map<string, Store>();
 /** This function gives the store of a first load in one collection, and starts it at its first write. */
 const loadStore = (write: FirstLoadWrite): Store => {
@@ -126,5 +130,5 @@ while (now() < end && completions.filter((entry) => entry.done === null).length 
 
 // A write to a pipe can still be in progress when the process ends, so the exit waits for its callback. The line of a high rate is long.
 clearTimeout(busyTimer);
-process.stdout.write(`${JSON.stringify({ completions, failures, writeConflicts, errors, writerBusy })}
+process.stdout.write(`${JSON.stringify({ completions, failures, writeConflicts, errors, writerBusy, warmMs })}
 `, () => process.exit(0));

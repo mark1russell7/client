@@ -231,6 +231,8 @@ export interface TenantCount {
   readonly journal?: JournalRead | null;
   /** The share of one processor that each writer used in the load. A value near 1 means that the writer is the limit. */
   readonly writerBusy?: readonly number[];
+  /** The time of the first writes of each writer, before the load. A record from before this field has none. */
+  readonly warmMs?: readonly number[];
   /** One message of each kind of failure, with its count. */
   readonly errors?: Readonly<Record<string, number>>;
   /** The writes of the first loads in the case. */

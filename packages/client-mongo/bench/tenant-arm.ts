@@ -41,6 +41,7 @@ interface WriterResult {
   readonly writeConflicts: number;
   readonly errors: Readonly<Record<string, number>>;
   readonly writerBusy: number;
+  readonly warmMs: number;
 }
 
 const container = process.env["MONGO_CONTAINER"];
@@ -59,9 +60,16 @@ const writers = Array.from({ length: kase.processes }, (_, me) => {
     out.once("line", () => resolve());
     child.once("exit", (code) => reject(new Error(`a writer ended with the code ${code} before it was ready`)));
   });
-  const result = new Promise<WriterResult>((resolve) => {
-    void ready.then(() => out.once("line", (line) => resolve(JSON.parse(line) as WriterResult)));
+  // A writer that ends with no result line fails the arm at once, with its code and signal. Otherwise the arm waits until the cap kills it, and the job does not tell which writer stopped.
+  const result = new Promise<WriterResult>((resolve, reject) => {
+    void ready.then(
+      () => out.once("line", (line) => resolve(JSON.parse(line) as WriterResult)),
+      () => undefined
+    );
+    child.once("close", (code, signal) => reject(new Error(`the writer ${me} of the case ${caseName} ended with the code ${code} and the signal ${signal} before it gave its result`)));
   });
+  // The arm reads this rejection through Promise.all. This handler only stops a second report when the writer was not ready.
+  result.catch(() => undefined);
   return { child, ready, result };
 });
 
@@ -247,6 +255,7 @@ const line: TenantCount = {
   disk,
   journal,
   writerBusy: results.map((result) => Number(result.writerBusy.toFixed(3))),
+  warmMs: results.map((result) => Math.round(result.warmMs)),
   errors: Object.fromEntries(
     results.flatMap((result) => Object.entries(result.errors)).reduce((all, [kind, count]) => all.set(kind, (all.get(kind) ?? 0) + count), new Map<string, number>())
   ),
