@@ -36,8 +36,8 @@ export const SEPARATE_ARMS = ["noqueue", "many", "neither"] as const;
 /** The cases of the suite `tenant-first`: the steady load of two rungs, with 1, 5 and 10 first loads in one second. */
 export const FIRST_LOAD_CASES = ["20-p2-first1", "20-p2-first10", "200-p2-first1", "200-p2-first5", "200-p2-first10"] as const;
 
-/** The cases of the suite `tenant-partition`: the rungs of 4,000 and 40,000 active tenants, with two processes and more. */
-export const PARTITION_CASES = ["800-p1", "800-p2", "8000-p2", "8000-p4"] as const;
+/** The cases of the suite `tenant-partition`: the rungs of 4,000, 10,000, 20,000 and 40,000 active tenants, with two processes and more. */
+export const PARTITION_CASES = ["800-p1", "800-p2", "2000-p2", "4000-p2", "8000-p2", "8000-p4"] as const;
 
 /**
  * The cases of each tenant suite. The plan of `stream-cost.yml` reads this map, so each CI job holds one case.
