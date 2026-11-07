@@ -82,7 +82,7 @@ describe("the tenants of the steady load", () => {
     return { writes: new Set(writes.values()), processes: new Set([...processes.values()].map((set) => set.size)), closest };
   }
 
-  it.each(["800-p1", "800-p2", "8000-p2", "8000-p4"])("%s: each tenant writes through each process, and its arrivals are at least active - processes apart", (id) => {
+  it.each(["800-p1", "800-p2", "2000-p2", "4000-p2", "8000-p2", "8000-p4"])("%s: each tenant writes through each process, and its arrivals are at least active - processes apart", (id) => {
     const kase = parseTenantCase(id);
     const { writes, processes, closest } = spread(id);
     expect([...writes]).toEqual([2 * kase.processes]);

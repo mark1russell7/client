@@ -27,6 +27,14 @@ describe("the server readings of the tenant bench", () => {
     expect("samples" in read).toBe(false);
   });
 
+  it("gives 0 for a lock with no wait yet, and null only for a lock that the server does not give (CLI-96)", () => {
+    const noWait = { locks: { Collection: { acquireCount: { w: 5 } }, Global: { timeAcquiringMicros: { w: 10 } } } };
+    expect(totalsOf(noWait).collectionLockWaitUs).toBe(0);
+    expect(totalsOf(noWait).databaseLockWaitUs).toBeNull();
+    expect(serverRead(totalsOf(noWait), totalsOf(noWait)).lockWaitMs).toEqual({ global: 0, database: null, collection: 0 });
+    expect(totalsOf({}).globalLockWaitUs).toBeNull();
+  });
+
   it("gives the worst of the samples: the most writers in the queue and the fewest free tickets", () => {
     const totals = totalsOf({});
     const samples = [

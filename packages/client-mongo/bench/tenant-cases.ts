@@ -20,6 +20,7 @@
  */
 
 import type { ServerRead } from "./tenant-server.js";
+import type { TenantSpread } from "./tenant-spread.js";
 
 export const TENANT_CASES = ["20-p1", "20-p2", "20-p4", "200-p1", "200-p2", "200-p4", "2000-p1", "2000-p2", "20-p2-burst", "200-p2-burst"] as const;
 
@@ -35,8 +36,8 @@ export const SEPARATE_ARMS = ["noqueue", "many", "neither"] as const;
 /** The cases of the suite `tenant-first`: the steady load of two rungs, with 1, 5 and 10 first loads in one second. */
 export const FIRST_LOAD_CASES = ["20-p2-first1", "20-p2-first10", "200-p2-first1", "200-p2-first5", "200-p2-first10"] as const;
 
-/** The cases of the suite `tenant-partition`: the rungs of 4,000 and 40,000 active tenants, with two processes and more. */
-export const PARTITION_CASES = ["800-p1", "800-p2", "8000-p2", "8000-p4"] as const;
+/** The cases of the suite `tenant-partition`: the rungs of 4,000, 10,000, 20,000 and 40,000 active tenants, with two processes and more. */
+export const PARTITION_CASES = ["800-p1", "800-p2", "2000-p2", "4000-p2", "8000-p2", "8000-p4"] as const;
 
 /**
  * The cases of each tenant suite. The plan of `stream-cost.yml` reads this map, so each CI job holds one case.
@@ -263,4 +264,6 @@ export interface TenantCount {
   readonly firstLoadP99Ms?: number;
   /** The server in the load. A record from before this field has none. */
   readonly server?: ServerRead;
+  /** The spread of the run over its keys and its processes (roadmap CLI-96). A record from before this field has none. */
+  readonly spread?: TenantSpread;
 }

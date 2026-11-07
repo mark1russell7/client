@@ -186,7 +186,7 @@ jobs:
       - name: Test the rules of the tenant bench
         if: startsWith(inputs.suite, 'tenant')
         working-directory: packages/client-mongo
-        run: node node_modules/vitest/vitest.mjs run bench/tenant-reading.test.ts bench/tenant-cases.test.ts bench/tenant-copies.test.ts bench/tenant-jobs.test.ts bench/tenant-server.test.ts
+        run: node node_modules/vitest/vitest.mjs run bench/tenant-reading.test.ts bench/tenant-cases.test.ts bench/tenant-copies.test.ts bench/tenant-jobs.test.ts bench/tenant-server.test.ts bench/tenant-spread.test.ts
       - name: Hold the stated delay on the connection to MongoDB
         if: ${{ inputs.mongo_delay_ms != '0' }}
         env:
