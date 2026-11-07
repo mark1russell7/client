@@ -41,15 +41,21 @@ export interface FanOutGrowth {
   readonly outcome: GrowthGateOutcome;
   /** The text that tells why the gate does not pass, or undefined for a pass. */
   readonly reason: string | undefined;
-  readonly gate: Readonly<Record<FanOutArm, GrowthVerdict>>;
-  readonly report: Readonly<Record<FanOutArm, GrowthVerdict>>;
+  /** The verdicts of the case `total`, or undefined when the jobs have no case `total`. */
+  readonly gate: Readonly<Record<FanOutArm, GrowthVerdict>> | undefined;
+  /** The verdicts of the case `block`, or undefined when the jobs have no case `block` (the run of a pull request). */
+  readonly report: Readonly<Record<FanOutArm, GrowthVerdict>> | undefined;
 }
 
 /** This function gives the growth gate of the case `total` in each arm, and the growth of the case `block` as a report. */
 export function fanOutGrowth(jobs: readonly GrowthJob[]): FanOutGrowth {
   const verdict = (measure: "block" | "total", arm: FanOutArm): GrowthVerdict => growthVerdict(growthRounds(jobs, measure, arm), { maxGrowth: MAX_GROWTH });
-  const gate = { plain: verdict("total", "plain"), sliced: verdict("total", "sliced") };
-  const report = { plain: verdict("block", "plain"), sliced: verdict("block", "sliced") };
+  // A growth needs two sizes. A measure that the jobs time at fewer sizes has no verdict.
+  const sizes = (measure: "block" | "total"): number => new Set(growthRounds(jobs, measure, "plain").map((round) => round.size)).size;
+  const both = (measure: "block" | "total") => (sizes(measure) < 2 ? undefined : { plain: verdict(measure, "plain"), sliced: verdict(measure, "sliced") });
+  const gate = both("total");
+  const report = both("block");
+  if (gate === undefined) return { outcome: "no read", reason: "the jobs time the case total at fewer than 2 sizes", gate, report };
   const steps = (Object.keys(gate) as FanOutArm[]).flatMap((arm) => gate[arm].steps.map((step) => ({ arm, step })));
   const text = (outcome: string): string =>
     steps

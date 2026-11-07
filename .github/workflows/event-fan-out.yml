@@ -6,8 +6,15 @@ name: Event fan-out
 #
 # The times are a report. The growth of the time of a publish is a gate (bench/fan-out-growth.ts): less than 15 times
 # for each 10 times more subscribers.
+#
+# A pull request that changes the event bus or the procedures runs the gate: 3 jobs of 6 rounds, only the case total.
+# Each set of 3 of the 5 jobs of run 42386486346 passes it, with an upper bound of 13.6x at most (CLI-90).
+# A dispatch runs all the cases, the report with its A/A band, and the gate.
 
 on:
+  # Each pull request starts this workflow, so its summary check is always there. The job changes skips the
+  # work when the pull request changes no file of the gate (CI.md of the template, "A gate with paths").
+  pull_request:
   workflow_dispatch:
     inputs:
       prediction:
@@ -27,11 +34,31 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      match: ${{ steps.changes.outputs.match }}
+    steps:
+      - id: changes
+        uses: mark1russell7/template/.github/actions/changes@e077054e0f2ebb8441e4bc525b56cf2acc2afb6f # main
+        with:
+          paths: |
+            packages/client/src/events/**
+            packages/client/src/procedures/**
+            packages/client/bench/fan-out-*
+            .github/workflows/event-fan-out.yml
+
   plan:
+    needs: changes
+    if: needs.changes.outputs.match == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -40,8 +67,8 @@ jobs:
       - name: Plan the jobs
         id: plan
         env:
-          RUNS: ${{ inputs.runs }}
-          ROUNDS: ${{ inputs.rounds }}
+          RUNS: ${{ inputs.runs || '3' }}
+          ROUNDS: ${{ inputs.rounds || '6' }}
         run: |
           [[ "$RUNS" =~ ^[1-9]$ ]] || { echo "runs must be a number from 1 to 9, not $RUNS"; exit 1; }
           [[ "$ROUNDS" =~ ^[0-9]+$ ]] && (( ROUNDS >= 6 )) || { echo "rounds must be 6 or more, not $ROUNDS"; exit 1; }
@@ -72,8 +99,9 @@ jobs:
         working-directory: packages/client
         env:
           JOB: ${{ matrix.job }}
-          ROUNDS: ${{ inputs.rounds }}
-        run: node --import tsx bench/fan-out-run.ts --job "$JOB" --rounds "$ROUNDS" --out "bench-out/job-$JOB.json"
+          ROUNDS: ${{ inputs.rounds || '6' }}
+          MEASURE: ${{ github.event_name == 'pull_request' && 'total' || 'all' }}
+        run: node --import tsx bench/fan-out-run.ts --job "$JOB" --rounds "$ROUNDS" --measure "$MEASURE" --out "bench-out/job-$JOB.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: event-fan-out-job-${{ matrix.job }}
@@ -99,7 +127,9 @@ jobs:
           pattern: event-fan-out-job-*
           merge-multiple: true
           path: packages/client/bench-out
+      # The report needs the A/A band of five cases or more, so only a dispatch, with all the cases, makes it.
       - name: Pool the jobs
+        if: github.event_name == 'workflow_dispatch'
         working-directory: packages/client
         env:
           RUN: ${{ github.run_id }}
@@ -108,6 +138,7 @@ jobs:
           node --import tsx bench/fan-out-report.ts --jobs bench-out --out fan-out-report.json --run "$RUN"
           { echo "Prediction: $PREDICTION"; echo '```json'; cat fan-out-report.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: github.event_name == 'workflow_dispatch'
         with:
           name: event-fan-out-report
           path: packages/client/fan-out-report.json
@@ -115,4 +146,16 @@ jobs:
       # The growth gate: less than 15 times for each 10 times more subscribers. A no read is not a pass.
       - name: The growth gate
         working-directory: packages/client
-        run: node --import tsx bench/fan-out-gate.ts --report fan-out-report.json
+        run: node --import tsx bench/fan-out-gate.ts --jobs bench-out
+
+  fan-out-ok:
+    name: Fan-out OK
+    if: ${{ !cancelled() }}
+    needs: [changes, plan, bench, report]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - uses: mark1russell7/template/.github/actions/gate-summary@e077054e0f2ebb8441e4bc525b56cf2acc2afb6f # main
+        with:
+          needs: ${{ toJSON(needs) }}

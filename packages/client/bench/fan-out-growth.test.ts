@@ -1,0 +1,63 @@
+import type { PairedTime } from "@mark1russell7/rigor-bench";
+import { describe, expect, it } from "vitest";
+import { MAX_GROWTH, fanOutGrowth, growthRounds, type GrowthJob } from "./fan-out-growth.js";
+
+const SIZES = [1_000, 10_000, 100_000] as const;
+
+/** This function gives one job whose times grow `plain` and `sliced` times for each 10 times more subscribers. */
+function job(name: string, growth: { plain: number; sliced: number }, measures: readonly ("block" | "total")[] = ["block", "total"]): GrowthJob {
+  const candidate: PairedTime[] = measures.flatMap((measure) =>
+    SIZES.flatMap((size, step) =>
+      Array.from({ length: 6 }, (_, round) => ({
+        case: `${measure}-${size}`,
+        round,
+        first: round % 2 === 0 ? ("a" as const) : ("b" as const),
+        a: 4 * growth.plain ** step * (1 + round / 100),
+        b: 4 * growth.sliced ** step * (1 + round / 100),
+      })),
+    ),
+  );
+  return { job: name, candidate };
+}
+
+describe("the growth gate of the fan-out bench", () => {
+  it("passes a growth of 13 times for each 10 times more subscribers", () => {
+    const growth = fanOutGrowth(["1", "2", "3"].map((name) => job(name, { plain: 13, sliced: 11.5 })));
+    expect(growth.outcome).toBe("pass");
+    expect(growth.reason).toBeUndefined();
+    expect(growth.gate?.plain.steps.map((step) => Math.round(step.median))).toEqual([13, 13]);
+  });
+
+  it("blocks the cost of n x n: 100 times for each 10 times more subscribers", () => {
+    const growth = fanOutGrowth(["1", "2", "3"].map((name) => job(name, { plain: 100, sliced: 11.5 })));
+    expect(growth.outcome).toBe("block");
+    expect(growth.reason).toContain("the time of a publish grows too fast: plain 1000 to 10000: 100.0x");
+    expect(growth.reason).toContain(`limit ${MAX_GROWTH}x`);
+  });
+
+  it("gives no read when the jobs fall on both sides of the limit", () => {
+    const growth = fanOutGrowth([job("1", { plain: 12, sliced: 11 }), job("2", { plain: 19, sliced: 11 }), job("3", { plain: 13, sliced: 11 })]);
+    expect(growth.outcome).toBe("no read");
+    expect(growth.reason).toContain("the interval crosses the limit");
+  });
+
+  it("gates the run of a pull request, which times only the case total", () => {
+    const growth = fanOutGrowth(["1", "2", "3"].map((name) => job(name, { plain: 13, sliced: 11.5 }, ["total"])));
+    expect(growth.outcome).toBe("pass");
+    expect(growth.report).toBeUndefined();
+  });
+
+  it("gives no read, and does not pass, when the jobs have no case total", () => {
+    const growth = fanOutGrowth(["1", "2"].map((name) => job(name, { plain: 13, sliced: 11.5 }, ["block"])));
+    expect(growth.outcome).toBe("no read");
+    expect(growth.reason).toBe("the jobs time the case total at fewer than 2 sizes");
+    expect(growth.report?.plain.outcome).toBe("within");
+  });
+
+  it("reads the arm plain from the side a and the arm sliced from the side b", () => {
+    const one = job("1", { plain: 13, sliced: 2 }, ["total"]);
+    expect(growthRounds([one], "total", "plain").filter((round) => round.size === 10_000)[0]?.value).toBeCloseTo(52);
+    expect(growthRounds([one], "total", "sliced").filter((round) => round.size === 10_000)[0]?.value).toBeCloseTo(8);
+    expect(growthRounds([one], "block", "plain")).toEqual([]);
+  });
+});

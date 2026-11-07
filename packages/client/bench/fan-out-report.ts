@@ -1,6 +1,6 @@
 /**
  * The report of the fan-out bench: `--jobs <folder> --out <file> [--run <id>]`. This script pools the
- * records of the jobs, and writes the times of each case in both arms, with the A/A band of the same
+ * records of the jobs. It writes the times of each case in both arms, with the A/A band of the same
  * run. The field `bound` is the high end of the 95 % interval of the ratio sliced/plain, times the
  * high end of the A/A band.
  *
@@ -12,7 +12,7 @@
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { aaBand, caseIntervals, poolRecords, pooledVerdict, type PairedTime } from "@mark1russell7/rigor-bench";
+import { type GrowthVerdict, aaBand, caseIntervals, poolRecords, pooledVerdict, type PairedTime } from "@mark1russell7/rigor-bench";
 import { median } from "@mark1russell7/rigor-statistics";
 import { fanOutGrowth } from "./fan-out-growth.js";
 
@@ -53,7 +53,7 @@ const cases = caseIntervals(pool.candidate).map((entry) => ({
 }));
 
 const growth = fanOutGrowth(jobs);
-const steps = (verdict: (typeof growth.gate)["plain"]) =>
+const steps = (verdict: GrowthVerdict) =>
   verdict.steps.map((step) => ({ from: step.from, to: step.to, median: round(step.median, 2), low: round(step.low, 2), high: round(step.high, 2), exponent: round(step.exponent, 3), outcome: step.outcome, growths: step.growths.map((g) => round(g, 2)) }));
 
 const report = {
@@ -65,8 +65,8 @@ const report = {
   growth: {
     outcome: growth.outcome,
     reason: growth.reason ?? "",
-    gate: { plain: steps(growth.gate.plain), sliced: steps(growth.gate.sliced) },
-    report: { plain: steps(growth.report.plain), sliced: steps(growth.report.sliced) },
+    gate: growth.gate && { plain: steps(growth.gate.plain), sliced: steps(growth.gate.sliced) },
+    report: growth.report && { plain: steps(growth.report.plain), sliced: steps(growth.report.sliced) },
   },
   env: jobs.map(({ job, env }) => ({ job, env })),
 };
