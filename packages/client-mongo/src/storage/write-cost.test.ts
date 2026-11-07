@@ -11,8 +11,8 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { MongoClient, type CommandStartedEvent, type Db } from "mongodb";
-import { MongoDocumentStorage } from "./document-storage.js";
+import { MongoClient, type CommandFailedEvent, type CommandStartedEvent, type CommandSucceededEvent, type Db } from "mongodb";
+import { DEFAULT_WRITES_IN_FLIGHT, MongoDocumentStorage } from "./document-storage.js";
 
 const url = process.env["MONGO_TEST_URL"];
 const withMongo = url ? describe : describe.skip;
@@ -25,11 +25,27 @@ let db: Db;
 let replicaSet = false;
 let next = 0;
 const started: CommandStartedEvent[] = [];
+/** The transactions that are open at this time, and the most at one time since the last clear. */
+const open = { now: 0, most: 0 };
+
+const noteStart = (event: CommandStartedEvent): void => {
+  if ((event.command as { startTransaction?: boolean }).startTransaction !== true) return;
+  open.now += 1;
+  open.most = Math.max(open.most, open.now);
+};
+const noteEnd = (event: CommandSucceededEvent | CommandFailedEvent): void => {
+  if (event.commandName === "commitTransaction" || event.commandName === "abortTransaction") open.now -= 1;
+};
 
 beforeAll(async () => {
   if (!url) return;
   client = new MongoClient(url, { monitorCommands: true });
-  client.on("commandStarted", (event) => started.push(event));
+  client.on("commandStarted", (event) => {
+    started.push(event);
+    noteStart(event);
+  });
+  client.on("commandSucceeded", noteEnd);
+  client.on("commandFailed", noteEnd);
   await client.connect();
   db = client.db(`client_mongo_write_cost_${process.pid}_${Date.now()}`);
   replicaSet = typeof (await client.db("admin").command({ hello: 1 }))["setName"] === "string";
@@ -74,5 +90,41 @@ withMongo("the commands and the transactions of one write (CLI-96)", () => {
     const expected = replicaSet ? TRANSACTION_COST : PENDING_COST;
     expect(newIds).toEqual(expected);
     expect(rewrites).toEqual(expected);
+  });
+});
+
+describe("the option writesInFlight (CLI-96)", () => {
+  it("refuses a bound that is not a whole number of 1 or more, or Infinity", () => {
+    for (const bad of [0, -1, 2.5, Number.NaN]) {
+      expect(() => new MongoDocumentStorage({ collection: "c", writesInFlight: bad })).toThrow(RangeError);
+    }
+    expect(() => new MongoDocumentStorage({ collection: "c", writesInFlight: Infinity })).not.toThrow();
+    expect(DEFAULT_WRITES_IN_FLIGHT).toBe(8);
+  });
+});
+
+withMongo("the bound of the writes in flight of a client (CLI-96)", () => {
+  /** This function writes one set in each of 24 partitions at once, and gives the most transactions open at one time. */
+  async function mostOpen(writesInFlight: number): Promise<number> {
+    const collection = `b${++next}`;
+    const stores = Array.from({ length: 24 }, (_, index) =>
+      new MongoDocumentStorage<{ v: string }>({ collection, db: () => db, client: () => client!, partition: `t${index}`, sequence: "partition", writesInFlight })
+    );
+    // The first set of each partition makes its counter and its floor, before the count
+    await Promise.all(stores.map((store) => store.set("first", { v: "0" })));
+    open.now = 0;
+    open.most = 0;
+    await Promise.all(stores.flatMap((store) => [0, 1, 2].map((index) => store.set(`n${index}`, { v: `${index}` }))));
+    expect(open.now).toBe(0);
+    return open.most;
+  }
+
+  it("keeps the open transactions of the partitions of one client at most at the bound", async () => {
+    // A single server has no transactions: these rows read only a replica set, which CI starts
+    if (!replicaSet) return;
+    expect(await mostOpen(3)).toBeLessThanOrEqual(3);
+    expect(await mostOpen(1)).toBe(1);
+    // Without a bound, the partitions open more transactions at once than the bound of 3: so the count sees the bound
+    expect(await mostOpen(Infinity)).toBeGreaterThan(3);
   });
 });

@@ -238,6 +238,15 @@ export interface MongoDocumentStorageOptions<T = unknown> {
    */
   sequence?: "collection" | "partition" | undefined;
   /**
+   * The most writes of each client at one time, over the stores with the same value (roadmap CLI-96). The default is 8.
+   * A write waits for a permit after its turn in the write queue of its counter.
+   *
+   * - With `sequence: "partition"`, each partition has its own queue. Without this bound, each partition of a process has a transaction open at once.
+   * - A whole number of 1 or more, or `Infinity` for no bound. Another value is a `RangeError`.
+   * - The default of 8 is provisional. A sweep of 1, 2, 4, 8 and 16 at the bench case `400-p2` sets it.
+   */
+  writesInFlight?: number | undefined;
+  /**
    * The time after which a pending number of a write no longer holds the watermark (default 60 s):
    * a writer that stopped does not stop the change reads. A plain number is a `TypeError`.
    */
@@ -358,6 +367,22 @@ const QUEUES = new WeakMap<object, Map<string, WorkQueue>>();
 
 /** The change reads of each client at one time. A burst of reads leaves the pool to the other operations. */
 const READS = new WeakMap<object, Semaphore>();
+
+/** The default of the option `writesInFlight`: the most writes of each client at one time (roadmap CLI-96). */
+export const DEFAULT_WRITES_IN_FLIGHT = 8;
+
+/** The permits of the writes of each client, by the value of `writesInFlight`: the stores with one value share the permits. */
+const WRITES = new WeakMap<object, Map<number, Semaphore>>();
+
+/** This function gives the permits of the writes of a client for a bound. */
+function writePermitsOf(db: Db, bound: number): Semaphore {
+  const owner = ownerOf(db);
+  let byBound = WRITES.get(owner);
+  if (!byBound) WRITES.set(owner, (byBound = new Map()));
+  let permits = byBound.get(bound);
+  if (!permits) byBound.set(bound, (permits = new Semaphore(bound)));
+  return permits;
+}
 
 function queueOf(db: Db, name: string): { queues: Map<string, WorkQueue>; collection: string; queue: WorkQueue } {
   const owner = ownerOf(db);
@@ -832,6 +857,8 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
   private readonly maxTombstones: number;
   private readonly countersName: string;
   private readonly writeLeaseMs: number;
+  /** The most writes of each client at one time, over the stores with this value. `Infinity` is no bound. */
+  private readonly writesInFlight: number;
   /** The storages of the partitions, for `forPartition`: the same storage for the same partition. */
   private readonly partitions: Map<string, MongoDocumentStorage<T>>;
   /** The stored form of the documents (roadmap CLI-76). A `ViewMaterializer` of the collection takes the same form. */
@@ -921,6 +948,10 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     this.ownScope = sequence === "partition" ? (this.partition ?? "") : undefined;
     this.writeLeaseMs = Math.round(optionalMs(options.writeLease, "writeLease") ?? 60_000);
     if (!Number.isSafeInteger(this.writeLeaseMs) || this.writeLeaseMs < 1) throw new Error("writeLease must be 1 ms or more");
+    this.writesInFlight = options.writesInFlight ?? DEFAULT_WRITES_IN_FLIGHT;
+    if (!(this.writesInFlight === Infinity || (Number.isSafeInteger(this.writesInFlight) && this.writesInFlight >= 1))) {
+      throw new RangeError(`writesInFlight must be a whole number of 1 or more, or Infinity, not ${String(options.writesInFlight)}`);
+    }
     this.partitions = partitions ?? new Map();
   }
 
@@ -1522,11 +1553,15 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
 
   private async write<R>(task: (db: Db, items: Collection<Stored>) => Promise<R>): Promise<R> {
     const { db, items } = await this.collection();
-    return enqueueWrite(db, this.counterId, async () => {
+    const run = async (): Promise<R> => {
       // The floor document of the partition, outside each transaction of the task (roadmap O66)
       await this.noteFloor(db);
       return task(db, items);
-    });
+    };
+    // The permit comes after the turn in the queue, so a write that waits for an earlier write of its counter holds no permit
+    if (this.writesInFlight === Infinity) return enqueueWrite(db, this.counterId, run);
+    const permits = writePermitsOf(db, this.writesInFlight);
+    return enqueueWrite(db, this.counterId, () => permits.withPermit(run));
   }
 
   async set(id: string, value: T, options?: StorageItemWriteOptions): Promise<void> {
