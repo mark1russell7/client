@@ -712,6 +712,47 @@ describe.runIf(url)("watchDatabaseChanges against a real server (CLI-88)", () =>
     }
   });
 
+  it("opens again at the first token after a fault of the first read: a change after ready is not lost (CLI-107)", { timeout: LOCK_WAIT_MS + TEST_TIMEOUT_MS }, async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    await lockFailpoints(context);
+    const admin = client!.db("admin");
+    const failpoints = await admin.command({ configureFailPoint: "failCommand", mode: "off" }).then(
+      () => true,
+      () => false
+    );
+    if (!failpoints) {
+      if (process.env["MONGO_TEST_FAILPOINTS"] === "1") throw new Error("MONGO_TEST_FAILPOINTS is 1, but the server has no test commands (enableTestCommands)");
+      return context.skip?.("the failpoints need a server with enableTestCommands");
+    }
+    const appName = "database-changes-first-read";
+    const own = new MongoClient(url!, { appName });
+    await own.connect();
+    const collection = `first${++next}`;
+    const changes: Document[] = [];
+    const logger = recordingLogger();
+    // The failpoint is set before the open: the first getMore of the stream fails, before any event or batch without events
+    await admin.command({ configureFailPoint: "failCommand", mode: { times: 1 }, data: { failCommands: ["getMore"], appName, errorCode: 2, errorLabels: [] } });
+    // A long backoff, so the writes come after the fault and before the next stream opens
+    const watch = watchDatabaseChanges(own.db(db.databaseName), { onChange: (change) => void changes.push(change), backoff: { initialDelay: ms(1_000), jitter: 0 }, logger });
+    try {
+      await watch.ready;
+      await eventually(() => expect(logger.lines.some((line) => line.message === "The change stream failed: it opens again after a backoff")).toBe(true));
+      await db.collection(collection).insertMany([{ _id: "f1" as never }, { _id: "f2" as never }]);
+      await eventually(() => expect(insertedIds(changes, collection)).toEqual(["f1", "f2"]));
+      await db.collection(collection).insertOne({ _id: "f3" as never });
+      await eventually(() => expect(insertedIds(changes, collection)).toContain("f3"));
+      expect(insertedIds(changes, collection)).toEqual(["f1", "f2", "f3"]);
+      // The watcher had the first token of the stream at the fault, so it gives no warning of a lost change
+      expect(logger.lines.find((line) => line.level === "warn")).toMatchObject({ fields: { database: db.databaseName, resumeToken: true, attempt: 1, code: 2 } });
+      expect(logger.lines.some((line) => line.message.includes("without a resume token"))).toBe(false);
+      expect(watch.stopped).toBe(false);
+    } finally {
+      await admin.command({ configureFailPoint: "failCommand", mode: "off" });
+      await watch.stop();
+      await own.close();
+    }
+  });
+
   it("starts at a saved token: a new watcher gets the changes after it", { timeout: TEST_TIMEOUT_MS }, async (context) => {
     if (!replicaSet) return context.skip?.("change streams need a replica set");
     const collection = `saved${++next}`;
