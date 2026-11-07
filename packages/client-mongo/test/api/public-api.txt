@@ -796,6 +796,8 @@ export interface MongoDocumentStorageOptions<T = unknown> {
     maxTombstones?: number | undefined;
     queryPolicy?: StorageQueryPolicy | undefined;
     counters?: string | undefined;
+    sequence?: "collection" | "partition" | undefined;
+    writesInFlight?: number | undefined;
     writeLease?: Duration | undefined;
     client?: (() => MongoClient | Promise<MongoClient>) | undefined;
     transactions?: "auto" | "never" | undefined;
