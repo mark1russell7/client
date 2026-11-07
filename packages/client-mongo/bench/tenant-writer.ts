@@ -12,7 +12,7 @@ import { parseArgs } from "node:util";
 import { MongoClient } from "mongodb";
 import type { MongoDocumentStorage } from "../src/storage/document-storage.js";
 import { SEPARATOR } from "../src/storage/document-storage.js";
-import { CONTROL_COLLECTIONS, FIRST_LOAD_SPLIT, GRACE_MS, SEPARATE_ARMS, TENANT_ARMS, TENANT_BYTES, WARM_GROUP, WINDOW_MS, WRITE_CONFLICT, firstLoadCollection, firstLoadOf, parseTenantCase, tenantOf, type FirstLoadWrite, type TenantArm } from "./tenant-cases.js";
+import { CONTROL_COLLECTIONS, FIRST_LOAD_SPLIT, GRACE_MS, SEPARATE_ARMS, TENANT_ARMS, TENANT_BYTES, WARM_GROUP, WINDOW_MS, WRITE_CONFLICT, firstLoadCollection, writesInFlightOf, firstLoadOf, parseTenantCase, tenantOf, type FirstLoadWrite, type TenantArm } from "./tenant-cases.js";
 import { planOf } from "./tenant-plan.js";
 
 const { values } = parseArgs({
@@ -32,6 +32,12 @@ const me = Number(meText);
 const source = (SEPARATE_ARMS as readonly (string | undefined)[]).includes(arm) ? `../src/storage/document-storage.${arm}.ts` : "../src/storage/document-storage.ts";
 const { MongoDocumentStorage: Storage } = (await import(source)) as typeof import("../src/storage/document-storage.js");
 const kase = parseTenantCase(caseName);
+// A sweep of the bound of the writes in flight (CLI-96). A store without the option ignores it, so the writer stops here.
+const writesInFlight = writesInFlightOf(process.env["TENANT_WRITES_IN_FLIGHT"]);
+if (writesInFlight !== undefined && !("DEFAULT_WRITES_IN_FLIGHT" in (await import(source)))) {
+  throw new Error("TENANT_WRITES_IN_FLIGHT is set, but the store of this tree has no option writesInFlight (CLI-96)");
+}
+const bound = writesInFlight === undefined ? {} : { writesInFlight };
 const plan = planOf(caseName, seed);
 
 // The server counter of write conflicts leaves out a conflict in a transaction, so the writer counts the replies.
@@ -46,7 +52,7 @@ type Store = MongoDocumentStorage<{ text: string }>;
 const stores: Store[] = Array.from({ length: kase.active }, (_, tenant) => {
   const collection = arm === "control" ? `docs${tenant % CONTROL_COLLECTIONS}` : "docs";
   // The arm `partition` gives each partition its own counter and its own write queue (roadmap CLI-96)
-  return new Storage<{ text: string }>({ collection, partition: `t${tenant}`, db: () => db, client: () => client, ...(arm === "partition" ? { sequence: "partition" as const } : {}) });
+  return new Storage<{ text: string }>({ collection, partition: `t${tenant}`, db: () => db, client: () => client, ...bound, ...(arm === "partition" ? { sequence: "partition" as const } : {}) });
 });
 const text = "x".repeat(TENANT_BYTES);
 
@@ -63,7 +69,7 @@ else for (const store of stores) await store.set(`first${me}`, { text });
 if (kase.firstLoads > 0) {
   for (const collection of FIRST_LOAD_SPLIT.keys()) {
     const name = firstLoadCollection(arm as TenantArm, { load: 0, collection });
-    await new Storage<{ text: string }>({ collection: name, partition: "warm", db: () => db, client: () => client }).set(`first${me}`, { text });
+    await new Storage<{ text: string }>({ collection: name, partition: "warm", db: () => db, client: () => client, ...bound }).set(`first${me}`, { text });
   }
 }
 // The arm `partition` measures the counter of each partition (roadmap CLI-96). A store without the option `sequence` ignores

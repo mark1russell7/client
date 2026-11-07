@@ -119,6 +119,7 @@ const cases = caseNames.map((name) => {
       transactionsAborted: summary(rows, (row) => row.transactionsAborted),
       commitsPerWrite: rows.map(commitsPerWriteOf),
       transactionsOpen: rows.map((row) => row.transactionsOpen ?? null),
+      writesInFlight: rows.map((row) => row.writesInFlight ?? null),
       conflictShare: conflictShare(rows),
       abortShare: { median: round(median(rows.map(abortShareOf)), 4), worst: round(Math.max(...rows.map(abortShareOf)), 4) },
       aborts: abortReadingOf(rows, processes),

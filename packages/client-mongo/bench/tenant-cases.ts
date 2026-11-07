@@ -251,6 +251,11 @@ export interface TenantCount {
   readonly transactionsCommitted?: number;
   /** The transactions that are open at the reading after the writers exit. A record from before this field has none. */
   readonly transactionsOpen?: number;
+  /**
+   * The option `writesInFlight` of the stores of the writers (CLI-96). An absent value is the default of the store.
+   * JSON has no `Infinity`, so the record keeps the text `"Infinity"`.
+   */
+  readonly writesInFlight?: number | "Infinity";
   /** The processors of the machine in the load. The value is null where the machine has no `/proc/stat`. */
   readonly cores: readonly CoreShare[] | null;
   /** The disk in the load. The value is null where the machine has no `/proc/diskstats`. A record from before this field has none. */
@@ -273,4 +278,16 @@ export interface TenantCount {
   readonly server?: ServerRead;
   /** The spread of the run over its keys and its processes (roadmap CLI-96). A record from before this field has none. */
   readonly spread?: TenantSpread;
+}
+
+/**
+ * This function reads the bound of the writes in flight of a sweep (CLI-96) from the variable `TENANT_WRITES_IN_FLIGHT`.
+ * An empty or absent text gives `undefined`: the store keeps its default. The other texts are a whole number from 1
+ * to 9999, or `Infinity`. Another text is a `RangeError`.
+ */
+export function writesInFlightOf(text: string | undefined): number | undefined {
+  if (text === undefined || text === "") return undefined;
+  if (text === "Infinity") return Infinity;
+  if (!/^[1-9][0-9]{0,3}$/.test(text)) throw new RangeError(`TENANT_WRITES_IN_FLIGHT must be a whole number from 1 to 9999, or Infinity, not ${JSON.stringify(text)}`);
+  return Number(text);
 }

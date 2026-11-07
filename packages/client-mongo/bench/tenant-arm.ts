@@ -20,7 +20,7 @@ import { parseArgs } from "node:util";
 import { latencyQuantile, measureLoad, scheduleHeld, type Completion } from "@mark1russell7/rigor-chaos";
 import { median, quantile } from "@mark1russell7/rigor-statistics";
 import { MongoClient } from "mongodb";
-import { ALL_CORES, BURST_AT_MS, BURST_TENANT, DRIVER_LIMIT_MS, GRACE_MS, MONGO_CORES, TENANT_ARMS, WINDOW_MS, WRITER_CORES, firstLoadOf, parseTenantCase, tenantOf, type CoreShare, type DiskRead, type JournalRead, type TenantArm, type TenantCount } from "./tenant-cases.js";
+import { ALL_CORES, BURST_AT_MS, BURST_TENANT, DRIVER_LIMIT_MS, GRACE_MS, MONGO_CORES, TENANT_ARMS, WINDOW_MS, WRITER_CORES, firstLoadOf, parseTenantCase, tenantOf, writesInFlightOf, type CoreShare, type DiskRead, type JournalRead, type TenantArm, type TenantCount } from "./tenant-cases.js";
 import { planOf } from "./tenant-plan.js";
 import { sampleOf, serverRead, totalsOf, type ServerRead, type ServerSample } from "./tenant-server.js";
 import { spreadOf } from "./tenant-spread.js";
@@ -89,6 +89,8 @@ const serverCounts = async (): Promise<{ started: number; aborted: number; commi
 const serverStatus = (): Promise<unknown> => admin.db("admin").command({ serverStatus: 1 });
 // A probe (CLI-96) reads the server each second. The readings add a little load, so a run takes them only on request.
 const SAMPLE_SERVER = process.env["TENANT_SERVER_SAMPLES"] === "1";
+/** The bound of the writes in flight of a sweep (CLI-96), for the record. The writers read the same variable. */
+const WRITES_IN_FLIGHT = writesInFlightOf(process.env["TENANT_WRITES_IN_FLIGHT"]);
 
 type CoreTimes = Map<number, { idle: number; iowait: number; total: number }>;
 
@@ -283,6 +285,7 @@ const line: TenantCount = {
   transactionsAborted: after.aborted - before.aborted,
   transactionsCommitted: after.committed - before.committed,
   transactionsOpen: after.open,
+  ...(WRITES_IN_FLIGHT === undefined ? {} : { writesInFlight: Number.isFinite(WRITES_IN_FLIGHT) ? WRITES_IN_FLIGHT : ("Infinity" as const) }),
   cores,
   disk,
   journal,

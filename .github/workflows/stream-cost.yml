@@ -82,6 +82,10 @@ on:
         description: Each tenant arm reads the server each second, for a probe (CLI-96). The readings add a little load.
         type: boolean
         default: false
+      writes_in_flight:
+        description: The option writesInFlight of the tenant stores, for a sweep (CLI-96). Empty keeps the default of the store.
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -120,7 +124,9 @@ jobs:
           CAP: ${{ inputs.cap_seconds }}
           BASE: ${{ inputs.base }}
           DELAY: ${{ inputs.mongo_delay_ms }}
+          WRITES_IN_FLIGHT: ${{ inputs.writes_in_flight }}
         run: |
+          [[ -z "$WRITES_IN_FLIGHT" || "$WRITES_IN_FLIGHT" =~ ^([1-9][0-9]{0,3}|Infinity)$ ]] || { echo "writes_in_flight must be empty, a number from 1 to 9999, or Infinity, not $WRITES_IN_FLIGHT"; exit 1; }
           [[ "$DELAY" =~ ^[0-9]{1,3}$ ]] || { echo "mongo_delay_ms must be a number from 0 to 999, not $DELAY"; exit 1; }
           [[ "$RUNS" =~ ^[1-9]$ ]] || { echo "runs must be a number from 1 to 9, not $RUNS"; exit 1; }
           [[ "$ROUNDS" =~ ^[1-9][0-9]?$ ]] || { echo "rounds must be a number from 1 to 99, not $ROUNDS"; exit 1; }
@@ -201,6 +207,7 @@ jobs:
           JOB: ${{ matrix.job }}
           CASE: ${{ matrix.case }}
           TENANT_SERVER_SAMPLES: ${{ inputs.server_samples && '1' || '' }}
+          TENANT_WRITES_IN_FLIGHT: ${{ inputs.writes_in_flight }}
           BASE_ARM: ${{ inputs.suite == 'read-bound' && inputs.base_arm || '' }}
           ROUNDS: ${{ inputs.rounds }}
           CAP: ${{ inputs.cap_seconds }}

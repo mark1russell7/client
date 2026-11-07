@@ -1,6 +1,6 @@
 import { schedule, spike } from "@mark1russell7/rigor-chaos";
 import { describe, expect, it } from "vitest";
-import { BURST_AT_MS, BURST_MS, FIRST_LOAD_ORDER, FIRST_LOAD_SPLIT, FIRST_LOAD_WRITES, WINDOW_MS, firstLoadCollection, firstLoadOf, parseTenantCase, tenantOf } from "./tenant-cases.js";
+import { BURST_AT_MS, BURST_MS, FIRST_LOAD_ORDER, FIRST_LOAD_SPLIT, FIRST_LOAD_WRITES, WINDOW_MS, firstLoadCollection, firstLoadOf, parseTenantCase, tenantOf, writesInFlightOf } from "./tenant-cases.js";
 import { planOf } from "./tenant-plan.js";
 
 /** This function gives the writes of the first loads in one plan of a case. */
@@ -88,5 +88,19 @@ describe("the tenants of the steady load", () => {
     expect([...writes]).toEqual([2 * kase.processes]);
     expect([...processes]).toEqual([kase.processes]);
     expect(closest).toBeGreaterThanOrEqual(kase.active - kase.processes);
+  });
+});
+
+describe("the bound of the writes in flight of a sweep (CLI-96)", () => {
+  it("reads a whole number, Infinity, or nothing for the default of the store", () => {
+    expect(writesInFlightOf(undefined)).toBeUndefined();
+    expect(writesInFlightOf("")).toBeUndefined();
+    expect(writesInFlightOf("1")).toBe(1);
+    expect(writesInFlightOf("16")).toBe(16);
+    expect(writesInFlightOf("Infinity")).toBe(Infinity);
+  });
+
+  it("refuses another text", () => {
+    for (const bad of ["0", "-1", "2.5", "08", "10000", "inf", " 4"]) expect(() => writesInFlightOf(bad)).toThrow(RangeError);
   });
 });
