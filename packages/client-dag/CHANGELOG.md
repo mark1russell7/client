@@ -1,5 +1,12 @@
 # @procedures/dag
 
+## 0.49.1
+
+### Patch Changes
+
+- Updated dependencies [a11008a]
+  - @procedures/client@0.49.1
+
 ## 0.49.0
 
 ### Minor Changes
