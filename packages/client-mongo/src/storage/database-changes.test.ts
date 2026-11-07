@@ -252,6 +252,20 @@ describe("watchDatabaseChanges without a server (CLI-88)", () => {
     await watch.stop();
   });
 
+  it("opens again at the first token of a stream that fails before its first event: no change after ready is lost (CLI-107)", async () => {
+    const { server, watch, changes, logger } = fakeWatch();
+    await watch.ready;
+    const first = await server.waiting(0);
+    // Two writes reach the log after ready, and the first read of them fails: the stream gave no event and no batch
+    server.log.push({ _id: eventToken(0), ...insert("a") }, { _id: eventToken(1), ...insert("b") });
+    first.wake(serverError(10334, "BSONObj size: 18874982 (0x1200266) is invalid"));
+    await vi.waitFor(() => expect(changes).toHaveLength(2));
+    expect(server.streams[1]!.options["startAfter"]).toEqual(batchToken(0));
+    expect(changes.map((change) => change["documentKey"]._id)).toEqual(["a", "b"]);
+    expect(logger.lines.some((line) => line.message.includes("without a resume token"))).toBe(false);
+    await watch.stop();
+  });
+
   it("bounds the backoff by maxDelay, and starts again at initialDelay after a success", async () => {
     const { server, watch, changes, delays } = fakeWatch();
     await watch.ready;
