@@ -7,26 +7,19 @@
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { aaBand, caseIntervals, poolRecords, type PairedTime } from "@mark1russell7/rigor-bench";
+import { aaBand, caseIntervals, poolRecords } from "@mark1russell7/rigor-bench";
 import { median } from "@mark1russell7/rigor-statistics";
 import { TENANT_ARMS, parseTenantCase, type TenantCount } from "./tenant-cases.js";
+import { mergeJobFiles, type JobFile } from "./tenant-jobs.js";
 import { ABORT_RULE, LIMIT_RULE, READING_RULE, READING_RULE_CHANGE, abortReadingOf, abortShareOf, cpuOf, limitOf, readingOf } from "./tenant-reading.js";
-
-interface JobFile {
-  readonly job: string;
-  readonly env: unknown;
-  readonly candidate: readonly PairedTime[];
-  readonly aa: readonly PairedTime[];
-  readonly base?: string;
-  readonly pairs?: Readonly<Record<string, readonly PairedTime[]>>;
-}
 
 const { values } = parseArgs({ options: { jobs: { type: "string" }, out: { type: "string" }, run: { type: "string" } } });
 if (values.jobs === undefined || values.out === undefined) throw new RangeError("this report needs --jobs and --out");
 
 const folder = values.jobs;
 const names = readdirSync(folder);
-const jobs = names.filter((name) => name.endsWith(".json")).map((name) => JSON.parse(readFileSync(join(folder, name), "utf8")) as JobFile);
+// A CI job of one case gives one file for each case of a job, so the files of a job join first.
+const jobs = mergeJobFiles(names.filter((name) => name.endsWith(".json")).map((name) => JSON.parse(readFileSync(join(folder, name), "utf8")) as JobFile));
 const counts = names
   .filter((name) => name.endsWith(".jsonl"))
   .flatMap((name) => readFileSync(join(folder, name), "utf8").trim().split("\n"))
@@ -141,6 +134,18 @@ const cases = caseNames.map((name) => {
       journal: { syncsPerSecond: fieldMedian(rows, (row) => row.journal?.syncsPerSecond), msPerSync: fieldMedian(rows, (row) => row.journal?.msPerSync) },
       writerBusy: fieldMedian(rows.flatMap((row) => (row.writerBusy ?? []).map((value) => ({ ...row, writerBusy: [value] }))), (row) => row.writerBusy?.[0]),
       errors: errorsOf(rows),
+      server: rows.some((row) => row.server)
+        ? {
+            serverWriteMs: fieldMedian(rows, (row) => row.server?.serverWriteMs ?? undefined),
+            serverWrites: fieldMedian(rows, (row) => row.server?.serverWrites ?? undefined),
+            collectionLockWaitMs: fieldMedian(rows, (row) => row.server?.lockWaitMs.collection ?? undefined),
+            globalLockWaitMs: fieldMedian(rows, (row) => row.server?.lockWaitMs.global ?? undefined),
+            appEvictionMs: fieldMedian(rows, (row) => row.server?.appEvictionMs ?? undefined),
+            queuedWritersMax: fieldMedian(rows, (row) => row.server?.queuedWritersMax ?? undefined),
+            ticketsAvailableMin: fieldMedian(rows, (row) => row.server?.ticketsAvailableMin ?? undefined),
+            dirtyMbMax: fieldMedian(rows, (row) => row.server?.dirtyMbMax ?? undefined),
+          }
+        : null,
       firstLoad: firstLoads === 0 ? undefined : {
         writes: fieldMedian(rows, (row) => row.firstLoadWrites),
         slowestLoadMs: summary(rows, (row) => row.firstLoadMs ?? 0),
