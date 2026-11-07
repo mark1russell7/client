@@ -382,6 +382,66 @@ describe("the limits", () => {
     expect(live.size).toBe(1);
     expect(bus.subscriberCount("live.b")).toBeLessThan(before);
   });
+
+  it("refuses a set that takes a topic above its bytes, and a set that makes a value smaller goes", () => {
+    const { live, heard } = rig({ maxTopicBytes: 20 });
+    // The JSON text of 8 characters x has 10 bytes
+    live.set("live.room", "a", "x".repeat(8));
+    live.set("live.room", "b", "x".repeat(8));
+    expect(() => live.set("live.room", "c", 1)).toThrow(/topic "live.room" has its limit of 20 bytes/);
+    expect(() => live.set("live.room", "a", "x".repeat(9))).toThrow(/limit of 20 bytes/);
+    // The refused sets change nothing
+    expect(valuesOf(live.snapshot("live.room"))).toEqual({ a: "x".repeat(8), b: "x".repeat(8) });
+    expect(live.bytes).toBe(20);
+    live.set("live.room", "a", 1);
+    expect(live.bytes).toBe(11);
+    live.set("live.room", "c", "x".repeat(7));
+    expect(live.bytes).toBe(20);
+    // Another topic has its own bytes
+    live.set("live.other", "a", "x".repeat(18));
+    expect(live.bytes).toBe(40);
+    expect(heard.length).toBe(1);
+  });
+
+  it("refuses a set that takes the state above its bytes, and the end of a key gives its bytes back", async () => {
+    const { live, clock } = rig({ maxBytes: 20, expiresAfter: seconds(30) });
+    live.set("live.a", "k", "x".repeat(8));
+    live.set("live.b", "k", "x".repeat(8));
+    expect(() => live.set("live.c", "k", 1)).toThrow(/live state has its limit of 20 bytes/);
+    expect(() => live.set("live.c", "k", 1)).toThrow(expect.objectContaining({ code: "FORBIDDEN", reason: "write-not-allowed" }));
+    expect(live.leave("live.a", "k")).toBe(true);
+    expect(live.bytes).toBe(10);
+    live.set("live.c", "k", 1);
+    expect(live.bytes).toBe(11);
+    await clock.advance(30_240);
+    expect(live.size).toBe(0);
+    expect(live.bytes).toBe(0);
+  });
+
+  it("gives back all bytes at close", () => {
+    const { live } = rig();
+    live.set("live.room", "a", "x".repeat(100));
+    expect(live.bytes).toBe(102);
+    live.close();
+    expect(live.bytes).toBe(0);
+  });
+
+  it("keeps no value of another host that does not fit, and no old value of its key", () => {
+    const bus = createEventBus();
+    const one = rig({}, {}, "live.room", bus);
+    const two = rig({ maxTopicBytes: 20 }, {}, "live.room", bus);
+    two.live.snapshot("live.room");
+    one.live.set("live.room", "a", 1);
+    expect(two.live.bytes).toBe(1);
+    one.live.set("live.room", "b", "x".repeat(100));
+    one.live.set("live.room", "a", "x".repeat(100));
+    // The window of the first host joins its second and third set: one event carries both
+    return one.clock.advance(120).then(() => {
+      expect(one.live.size).toBe(2);
+      expect(two.live.size).toBe(0);
+      expect(two.live.bytes).toBe(0);
+    });
+  });
 });
 
 describe("the default limits, one under and one over", () => {
@@ -426,6 +486,26 @@ describe("the default limits, one under and one over", () => {
     live.set("live.over", "k", 1);
     expect(live.size).toBe(4096);
     expect(bus.subscriberCount("live.t0")).toBeLessThan(before);
+  });
+
+  it("takes 1 MiB of values on a topic and refuses one more byte", () => {
+    const { live } = rig();
+    const value = "x".repeat(16382);
+    for (let key = 0; key < 64; key++) live.set("live.room", `k${key}`, value);
+    expect(live.bytes).toBe(1_048_576);
+    expect(() => live.set("live.room", "over", 1)).toThrow(refused);
+    expect(() => live.set("live.room", "over", 1)).toThrow(/limit of 1048576 bytes/);
+    expect(live.size).toBe(64);
+  });
+
+  it("takes 64 MiB of values on a state and refuses one more byte", () => {
+    const { live } = rig();
+    const value = "x".repeat(16382);
+    for (let topic = 0; topic < 64; topic++) for (let key = 0; key < 64; key++) live.set(`live.t${topic}`, `k${key}`, value);
+    expect(live.bytes).toBe(67_108_864);
+    expect(() => live.set("live.over", "k", 1)).toThrow(refused);
+    expect(() => live.set("live.over", "k", 1)).toThrow(/live state has its limit of 67108864 bytes/);
+    expect(live.size).toBe(4096);
   });
 });
 
