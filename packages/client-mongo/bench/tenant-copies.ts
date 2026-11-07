@@ -1,6 +1,6 @@
 /**
- * The copies of the store for the suite `tenant-separate`: one with the write queue of a process off, one with many
- * counters, and one with both. A copy comes from the source of this tree, so the arms follow the code. A text that
+ * The suite `tenant-separate` has three copies of the store. One has no write queue in a process, one has many
+ * counters, and one has both. A copy comes from the source of this tree, so the arms follow the code. A text that
  * a copy does not find stops the job, and `tenant-copies.test.ts` finds it before a run. The copies are only for this bench.
  */
 
@@ -18,15 +18,23 @@ const WRITE_QUEUE = "function enqueueWrite<R>(db: Db, name: string, task: () => 
 /** This function gives a copy of the store with no write queue in a process. */
 export const noQueue = (text: string): string => swap(text, WRITE_QUEUE, `${WRITE_QUEUE}  if (db) return task();\n`);
 
-/** The update of the counter of the collection in the source. */
-const COUNTER = '{ _id: this.collectionName },\n            { $inc: { seq: count }, $setOnInsert: { epoch: randomUUID() } },\n            { upsert: true, returnDocument: "after", session }';
+/** The id of the counter in the source: the collection name on main, and the counter id with a counter for each partition (CLI-96). */
+const COUNTER_IDS = ["this.collectionName", "this.counterId"] as const;
+
+/** This function gives the update of the counter in the source, with one id of `COUNTER_IDS`. */
+const counterUpdate = (id: string): string =>
+  `{ _id: ${id} },\n            { $inc: { seq: count }, $setOnInsert: { epoch: randomUUID() } },\n            { upsert: true, returnDocument: "after", session }`;
 
 /**
  * This function gives a copy of the store with 1,000 counter documents and a random pick for each write. A number is
  * unique only inside its counter here. A write does not read the numbers, and no index is unique on them.
  */
-export const manyCounters = (text: string): string =>
-  swap(text, COUNTER, COUNTER.replace("{ _id: this.collectionName }", "{ _id: `${this.collectionName}:${Math.floor(Math.random() * 1000)}` }"));
+export function manyCounters(text: string): string {
+  const id = COUNTER_IDS.find((name) => text.includes(counterUpdate(name))) ?? COUNTER_IDS[0];
+  const counter = counterUpdate(id);
+  const spread = "{ _id: `${" + id + "}:${Math.floor(Math.random() * 1000)}` }";
+  return swap(text, counter, counter.replace(`{ _id: ${id} }`, () => spread));
+}
 
 /** This function gives the text of each copy of the store. */
 export function copiesOf(text: string): Record<(typeof SEPARATE_ARMS)[number], string> {
