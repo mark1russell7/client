@@ -5,6 +5,8 @@
  * high end of the A/A band.
  *
  * The field `worstMs` of a `block` case is the budget candidate: the worst sliced time of all rounds.
+ *
+ * The field `growth` is the growth gate (`fan-out-growth.ts`). The script `fan-out-gate.ts` fails the job when it does not pass.
  */
 
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -12,6 +14,7 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { aaBand, caseIntervals, poolRecords, pooledVerdict, type PairedTime } from "@mark1russell7/rigor-bench";
 import { median } from "@mark1russell7/rigor-statistics";
+import { fanOutGrowth } from "./fan-out-growth.js";
 
 interface JobFile {
   readonly job: string;
@@ -49,12 +52,22 @@ const cases = caseIntervals(pool.candidate).map((entry) => ({
   rounds: entry.rounds,
 }));
 
+const growth = fanOutGrowth(jobs);
+const steps = (verdict: (typeof growth.gate)["plain"]) =>
+  verdict.steps.map((step) => ({ from: step.from, to: step.to, median: round(step.median, 2), low: round(step.low, 2), high: round(step.high, 2), exponent: round(step.exponent, 3), outcome: step.outcome, growths: step.growths.map((g) => round(g, 2)) }));
+
 const report = {
   schema: "fan-out-bench/1",
   run: values.run ?? "",
   aa: { noise: round(band.noise, 4), high: round(band.high, 3), median: round(band.median, 3), cases: band.cases },
   verdict: { outcome: verdict.outcome, reason: verdict.reason },
   cases,
+  growth: {
+    outcome: growth.outcome,
+    reason: growth.reason ?? "",
+    gate: { plain: steps(growth.gate.plain), sliced: steps(growth.gate.sliced) },
+    report: { plain: steps(growth.report.plain), sliced: steps(growth.report.sliced) },
+  },
   env: jobs.map(({ job, env }) => ({ job, env })),
 };
 writeFileSync(values.out, `${JSON.stringify(report, null, 2)}\n`);

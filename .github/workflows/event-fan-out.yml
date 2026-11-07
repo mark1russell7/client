@@ -4,7 +4,8 @@ name: Event fan-out
 # 100,000 subscribers, with and without the slices of the event bus (roadmap CLI-90). Each sample is
 # a fresh process. Each job has an A/A pair. The report pools the jobs.
 #
-# The workflow only reports: only a dispatch starts it, and no ruleset needs its checks.
+# The times are a report. The growth of the time of a publish is a gate (bench/fan-out-growth.ts): less than 15 times
+# for each 10 times more subscribers.
 
 on:
   workflow_dispatch:
@@ -111,3 +112,7 @@ jobs:
           name: event-fan-out-report
           path: packages/client/fan-out-report.json
           if-no-files-found: error
+      # The growth gate: less than 15 times for each 10 times more subscribers. A no read is not a pass.
+      - name: The growth gate
+        working-directory: packages/client
+        run: node --import tsx bench/fan-out-gate.ts --report fan-out-report.json
