@@ -1,6 +1,6 @@
 import { schedule, spike } from "@mark1russell7/rigor-chaos";
 import { describe, expect, it } from "vitest";
-import { BURST_AT_MS, BURST_MS, FIRST_LOAD_ORDER, FIRST_LOAD_SPLIT, FIRST_LOAD_WRITES, WINDOW_MS, firstLoadCollection, firstLoadOf, parseTenantCase } from "./tenant-cases.js";
+import { BURST_AT_MS, BURST_MS, FIRST_LOAD_ORDER, FIRST_LOAD_SPLIT, FIRST_LOAD_WRITES, WINDOW_MS, firstLoadCollection, firstLoadOf, parseTenantCase, tenantOf } from "./tenant-cases.js";
 import { planOf } from "./tenant-plan.js";
 
 /** This function gives the writes of the first loads in one plan of a case. */
@@ -59,5 +59,34 @@ describe("the first loads of the tenant bench", () => {
     const steady = schedule(spike(20, 20, { before: BURST_AT_MS, width: BURST_MS, after: WINDOW_MS - BURST_AT_MS - BURST_MS }), { arrivals: "poisson", seed: "0" }).times.length;
     expect(inBurst).toBeGreaterThan(600);
     expect(times.length - inBurst).toBeLessThan(steady * 1.2);
+  });
+});
+
+describe("the tenants of the steady load", () => {
+  /** This function gives the writes of each tenant, its processes and the smallest distance between two arrivals of one tenant. */
+  function spread(id: string): { writes: Set<number>; processes: Set<number>; closest: number } {
+    const kase = parseTenantCase(id);
+    const last = new Map<number, number>();
+    const writes = new Map<number, number>();
+    const processes = new Map<number, Set<number>>();
+    let closest = Number.POSITIVE_INFINITY;
+    for (let index = 0; index < 2 * kase.active * kase.processes; index++) {
+      const tenant = tenantOf(kase, index, 0);
+      const before = last.get(tenant);
+      if (before !== undefined) closest = Math.min(closest, index - before);
+      last.set(tenant, index);
+      writes.set(tenant, (writes.get(tenant) ?? 0) + 1);
+      processes.set(tenant, (processes.get(tenant) ?? new Set()).add(index % kase.processes));
+    }
+    expect(writes.size).toBe(kase.active);
+    return { writes: new Set(writes.values()), processes: new Set([...processes.values()].map((set) => set.size)), closest };
+  }
+
+  it.each(["800-p1", "800-p2", "8000-p2", "8000-p4"])("%s: each tenant writes through each process, and its arrivals are at least active - processes apart", (id) => {
+    const kase = parseTenantCase(id);
+    const { writes, processes, closest } = spread(id);
+    expect([...writes]).toEqual([2 * kase.processes]);
+    expect([...processes]).toEqual([kase.processes]);
+    expect(closest).toBeGreaterThanOrEqual(kase.active - kase.processes);
   });
 });
