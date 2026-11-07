@@ -138,13 +138,19 @@ export function parseTenantCase(id: string): TenantCase {
  * This function gives the tenant of an arrival. In the burst, one arrival in `(rate + 10) / 10` goes to the tenant
  * `BURST_TENANT`, so that tenant gets about 10 writes in that second. Each other arrival goes to the tenants in turn,
  * and each process gets a turn at each tenant, so a tenant writes through each process.
+ *
+ * The turn of each process starts `active / processes` tenants after the turn of the process before it. So two writes of
+ * one tenant are about `active` arrivals apart, and a tenant writes once in `1 / WRITES_PER_TENANT` seconds, as on the ladder.
+ * Before this change, the arrivals `2k` and `2k + 1` went to one tenant from two processes, about 1 ms apart (CLI-96 ladder run 2).
  */
 export function tenantOf(kase: TenantCase, index: number, plannedMs: number): number {
   if (kase.burst && plannedMs >= BURST_AT_MS && plannedMs < BURST_AT_MS + BURST_MS) {
     const every = Math.max(1, Math.round((kase.rate + BURST_WRITES) / BURST_WRITES));
     if (index % every === 0) return BURST_TENANT;
   }
-  return Math.floor(index / kase.processes) % kase.active;
+  // Each process starts its turn at another tenant, so two writes of one tenant are `active` arrivals apart, not one.
+  const process = index % kase.processes;
+  return (Math.floor(index / kase.processes) + process * Math.floor(kase.active / kase.processes)) % kase.active;
 }
 
 /** One write of a first load: its load and its entry of `FIRST_LOAD_SPLIT`. */
