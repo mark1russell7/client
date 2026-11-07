@@ -167,7 +167,9 @@ jobs:
           MONGO_CONTAINER: ${{ inputs.suite == 'tenant-ceiling' && 'mongo' || '' }}
           MONGO_TMPFS_URL: mongodb://localhost:27018/?directConnection=true
         run: node --import tsx "bench/$SUITE-run.ts" --job "$JOB" --rounds "$ROUNDS" --cap "$CAP" --out "bench-out/job-$JOB.json" ${BASE_ARM:+--base "$BASE_ARM"}
+      # A failed job also keeps its records: the rounds that ended before the failure are a reading too.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
         with:
           name: stream-cost-job-${{ matrix.job }}
           path: packages/client-mongo/bench-out/

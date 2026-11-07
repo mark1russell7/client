@@ -56,6 +56,12 @@ const fieldMedian = (rows: readonly TenantCount[], pick: (row: TenantCount) => n
   return values.length === 0 ? null : round(median(values), 3);
 };
 
+/** This function gives the time of the first writes of the writers, before the load: the median and the worst. The value is null for old records. */
+function warmSummary(rows: readonly TenantCount[]): { median: number; worst: number } | null {
+  const values = rows.flatMap((row) => row.warmMs ?? []);
+  return values.length === 0 ? null : { median: Math.round(median(values)), worst: Math.max(...values) };
+}
+
 /** This function gives the processor time of the children: the median for each write, and the worst share of the runner and of one writer. */
 function cpuSummary(rows: readonly TenantCount[]): { writerMsPerWrite: number | null; runnerMsPerWrite: number | null; runnerFull: { median: number | null; worst: number | null }; writerWorst: number | null } {
   const readings = rows.map(cpuOf);
@@ -123,6 +129,7 @@ const cases = caseNames.map((name) => {
       aborts: abortReadingOf(rows, processes),
       cores: coresOf(rows),
       cpu: cpuSummary(rows),
+      warmMs: warmSummary(rows),
       p99OverBase: overBase(arm, name),
       disk: {
         device: rows.find((row) => row.disk)?.disk?.device ?? null,
