@@ -13,6 +13,12 @@ import { parseCase } from "./fan-out-cases.js";
 /** The largest growth of the time of a publish for each 10 times more subscribers. */
 export const MAX_GROWTH = 15;
 
+/**
+ * The least jobs of a gate. With 3 jobs, the interval of a step is the range of the jobs, so one job decides it.
+ * The run 42399340081 of 3 jobs gave an upper bound of 14.68x, near the limit. A read of fewer jobs is a no read.
+ */
+export const MIN_JOBS = 5;
+
 /** The records of one job. */
 export interface GrowthJob {
   readonly job: string;
@@ -56,6 +62,8 @@ export function fanOutGrowth(jobs: readonly GrowthJob[]): FanOutGrowth {
   const gate = both("total");
   const report = both("block");
   if (gate === undefined) return { outcome: "no read", reason: "the jobs time the case total at fewer than 2 sizes", gate, report };
+  const count = new Set(jobs.map(({ job }) => job)).size;
+  if (count < MIN_JOBS) return { outcome: "no read", reason: `the gate needs ${MIN_JOBS} jobs or more, and the run has ${count}`, gate, report };
   const steps = (Object.keys(gate) as FanOutArm[]).flatMap((arm) => gate[arm].steps.map((step) => ({ arm, step })));
   const text = (outcome: string): string =>
     steps

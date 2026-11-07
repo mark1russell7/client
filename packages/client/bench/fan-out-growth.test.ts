@@ -1,8 +1,9 @@
 import type { PairedTime } from "@mark1russell7/rigor-bench";
 import { describe, expect, it } from "vitest";
-import { MAX_GROWTH, fanOutGrowth, growthRounds, type GrowthJob } from "./fan-out-growth.js";
+import { MAX_GROWTH, MIN_JOBS, fanOutGrowth, growthRounds, type GrowthJob } from "./fan-out-growth.js";
 
 const SIZES = [1_000, 10_000, 100_000] as const;
+const FIVE = ["1", "2", "3", "4", "5"];
 
 /** This function gives one job whose times grow `plain` and `sliced` times for each 10 times more subscribers. */
 function job(name: string, growth: { plain: number; sliced: number }, measures: readonly ("block" | "total")[] = ["block", "total"]): GrowthJob {
@@ -22,33 +23,40 @@ function job(name: string, growth: { plain: number; sliced: number }, measures: 
 
 describe("the growth gate of the fan-out bench", () => {
   it("passes a growth of 13 times for each 10 times more subscribers", () => {
-    const growth = fanOutGrowth(["1", "2", "3"].map((name) => job(name, { plain: 13, sliced: 11.5 })));
+    const growth = fanOutGrowth(FIVE.map((name) => job(name, { plain: 13, sliced: 11.5 })));
     expect(growth.outcome).toBe("pass");
     expect(growth.reason).toBeUndefined();
     expect(growth.gate?.plain.steps.map((step) => Math.round(step.median))).toEqual([13, 13]);
   });
 
   it("blocks the cost of n x n: 100 times for each 10 times more subscribers", () => {
-    const growth = fanOutGrowth(["1", "2", "3"].map((name) => job(name, { plain: 100, sliced: 11.5 })));
+    const growth = fanOutGrowth(FIVE.map((name) => job(name, { plain: 100, sliced: 11.5 })));
     expect(growth.outcome).toBe("block");
     expect(growth.reason).toContain("the time of a publish grows too fast: plain 1000 to 10000: 100.0x");
     expect(growth.reason).toContain(`limit ${MAX_GROWTH}x`);
   });
 
   it("gives no read when the jobs fall on both sides of the limit", () => {
-    const growth = fanOutGrowth([job("1", { plain: 12, sliced: 11 }), job("2", { plain: 19, sliced: 11 }), job("3", { plain: 13, sliced: 11 })]);
+    const growth = fanOutGrowth([job("1", { plain: 12, sliced: 11 }), job("2", { plain: 19, sliced: 11 }), job("3", { plain: 13, sliced: 11 }), job("4", { plain: 13, sliced: 11 }), job("5", { plain: 12, sliced: 11 })]);
     expect(growth.outcome).toBe("no read");
     expect(growth.reason).toContain("the interval crosses the limit");
   });
 
-  it("gates the run of a pull request, which times only the case total", () => {
+  it("gives no read for fewer than 5 jobs, also when each job is within the limit", () => {
     const growth = fanOutGrowth(["1", "2", "3"].map((name) => job(name, { plain: 13, sliced: 11.5 }, ["total"])));
+    expect(MIN_JOBS).toBe(5);
+    expect(growth.outcome).toBe("no read");
+    expect(growth.reason).toBe("the gate needs 5 jobs or more, and the run has 3");
+  });
+
+  it("gates the run of a pull request, which times only the case total", () => {
+    const growth = fanOutGrowth(FIVE.map((name) => job(name, { plain: 13, sliced: 11.5 }, ["total"])));
     expect(growth.outcome).toBe("pass");
     expect(growth.report).toBeUndefined();
   });
 
   it("gives no read, and does not pass, when the jobs have no case total", () => {
-    const growth = fanOutGrowth(["1", "2"].map((name) => job(name, { plain: 13, sliced: 11.5 }, ["block"])));
+    const growth = fanOutGrowth(FIVE.map((name) => job(name, { plain: 13, sliced: 11.5 }, ["block"])));
     expect(growth.outcome).toBe("no read");
     expect(growth.reason).toBe("the jobs time the case total at fewer than 2 sizes");
     expect(growth.report?.plain.outcome).toBe("within");

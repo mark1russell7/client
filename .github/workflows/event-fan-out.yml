@@ -7,14 +7,16 @@ name: Event fan-out
 # The times are a report. The growth of the time of a publish is a gate (bench/fan-out-growth.ts): less than 15 times
 # for each 10 times more subscribers.
 #
-# A pull request that changes the event bus or the procedures runs the gate: 3 jobs of 6 rounds, only the case total.
-# Each set of 3 of the 5 jobs of run 42386486346 passes it, with an upper bound of 13.6x at most (CLI-90).
-# A dispatch runs all the cases, the report with its A/A band, and the gate.
+# A pull request that changes the event bus or the procedures runs the gate: 5 jobs of 6 rounds, only the case total.
+# The gate needs 5 jobs. A run of 3 jobs (42399340081) gave an upper bound of 14.68x, so one job decided it (CLI-90).
+# Each night, main runs all the cases, the report with its A/A band, and the gate. A dispatch does the same.
 
 on:
   # Each pull request starts this workflow, so its summary check is always there. The job changes skips the
   # work when the pull request changes no file of the gate (CI.md of the template, "A gate with paths").
   pull_request:
+  schedule:
+    - cron: "47 3 * * *"
   workflow_dispatch:
     inputs:
       prediction:
@@ -67,7 +69,7 @@ jobs:
       - name: Plan the jobs
         id: plan
         env:
-          RUNS: ${{ inputs.runs || '3' }}
+          RUNS: ${{ inputs.runs || '5' }}
           ROUNDS: ${{ inputs.rounds || '6' }}
         run: |
           [[ "$RUNS" =~ ^[1-9]$ ]] || { echo "runs must be a number from 1 to 9, not $RUNS"; exit 1; }
@@ -127,18 +129,18 @@ jobs:
           pattern: event-fan-out-job-*
           merge-multiple: true
           path: packages/client/bench-out
-      # The report needs the A/A band of five cases or more, so only a dispatch, with all the cases, makes it.
+      # The report needs the A/A band of five cases or more, so only a run with all the cases makes it.
       - name: Pool the jobs
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name != 'pull_request'
         working-directory: packages/client
         env:
           RUN: ${{ github.run_id }}
-          PREDICTION: ${{ inputs.prediction }}
+          PREDICTION: ${{ inputs.prediction || 'none (nightly)' }}
         run: |
           node --import tsx bench/fan-out-report.ts --jobs bench-out --out fan-out-report.json --run "$RUN"
           { echo "Prediction: $PREDICTION"; echo '```json'; cat fan-out-report.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name != 'pull_request'
         with:
           name: event-fan-out-report
           path: packages/client/fan-out-report.json
