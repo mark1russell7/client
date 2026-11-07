@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 81 names
+## . (dist/index.d.ts): names
 
 ANGULAR_DI_DECORATORS: dist/procedures/lib/import-cycles.d.ts#ANGULAR_DI_DECORATORS
 CLI_GLOBAL_FLAGS: dist/cli-flags.d.ts#CLI_GLOBAL_FLAGS
@@ -88,18 +88,18 @@ parseGitRef: dist/git/ref-parser.d.ts#parseGitRef
 registerLibProcedures: dist/module.d.ts#registerLibProcedures
 visualizeDAG: @procedures/dag#visualizeDAG (external)
 
-## ./module (dist/module.d.ts): 3 names
+## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#libModule
 libModule: dist/module.d.ts#libModule
 registerLibProcedures: dist/module.d.ts#registerLibProcedures
 
-## ./register (dist/register.d.ts): 2 names
+## ./register (dist/register.d.ts): names
 
 libModule: dist/module.d.ts#libModule
 registerLibProcedures: dist/module.d.ts#registerLibProcedures
 
-## ./cli-flags (dist/cli-flags.d.ts): 3 names
+## ./cli-flags (dist/cli-flags.d.ts): names
 
 CLI_GLOBAL_FLAGS: dist/cli-flags.d.ts#CLI_GLOBAL_FLAGS
 CliGlobalFlag: dist/cli-flags.d.ts#CliGlobalFlag

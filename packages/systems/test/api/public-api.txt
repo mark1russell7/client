@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 10 names
+## . (dist/index.d.ts): names
 
 CLIENT_RULES: dist/rules.d.ts#CLIENT_RULES
 SystemsTimersInput: dist/types.d.ts#SystemsTimersInput
@@ -17,13 +17,13 @@ registerSystemsProcedures: dist/module.d.ts#registerSystemsProcedures
 settingsOf: dist/procedures/systems/timers.d.ts#settingsOf
 systemsModule: dist/module.d.ts#systemsModule
 
-## ./module (dist/module.d.ts): 3 names
+## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#systemsModule
 registerSystemsProcedures: dist/module.d.ts#registerSystemsProcedures
 systemsModule: dist/module.d.ts#systemsModule
 
-## ./register (dist/register.d.ts): 2 names
+## ./register (dist/register.d.ts): names
 
 registerSystemsProcedures: dist/module.d.ts#registerSystemsProcedures
 systemsModule: dist/module.d.ts#systemsModule

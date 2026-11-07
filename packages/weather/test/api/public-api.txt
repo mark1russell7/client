@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 17 names
+## . (dist/index.d.ts): names
 
 FetchForecast: dist/procedures.d.ts#FetchForecast
 Forecast: dist/weather.d.ts#Forecast
@@ -24,14 +24,14 @@ weatherForecastProcedure: dist/procedures.d.ts#weatherForecastProcedure
 weatherModule: dist/module.d.ts#weatherModule
 weatherProcedures: dist/procedures.d.ts#weatherProcedures
 
-## ./module (dist/module.d.ts): 4 names
+## ./module (dist/module.d.ts): names
 
 createWeatherModule: dist/module.d.ts#createWeatherModule
 default: dist/module.d.ts#weatherModule
 registerWeatherProcedures: dist/module.d.ts#registerWeatherProcedures
 weatherModule: dist/module.d.ts#weatherModule
 
-## ./register (dist/register.d.ts): 3 names
+## ./register (dist/register.d.ts): names
 
 createWeatherModule: dist/module.d.ts#createWeatherModule
 registerWeatherProcedures: dist/module.d.ts#registerWeatherProcedures

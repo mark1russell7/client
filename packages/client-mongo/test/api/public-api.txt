@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 162 names
+## . (dist/index.d.ts): names
 
 ALLOWED_PIPELINE_STAGES: dist/storage/pipeline-scope.d.ts#ALLOWED_PIPELINE_STAGES
 type AggregateInput: dist/procedures/documents.aggregate.d.ts#AggregateInput
@@ -169,14 +169,14 @@ watchDatabaseChanges: dist/storage/database-changes.d.ts#watchDatabaseChanges
 watchProcedure: dist/procedures/watch.d.ts#watchProcedure
 watchStorageChanges: dist/storage/storage-hints.d.ts#watchStorageChanges
 
-## ./module (dist/module.d.ts): 4 names
+## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#mongoModule
 mongoModule: dist/module.d.ts#mongoModule
 procedures: dist/module.d.ts#procedures
 registerMongoProcedures: dist/module.d.ts#registerMongoProcedures
 
-## ./procedures (dist/procedures/index.d.ts): 21 names
+## ./procedures (dist/procedures/index.d.ts): names
 
 aggregateProcedure: dist/procedures/documents.aggregate.d.ts#aggregateProcedure
 bulkProcedure: dist/procedures/documents.bulk.d.ts#bulkProcedure
@@ -200,7 +200,7 @@ statsProcedure: dist/procedures/collections.stats.d.ts#statsProcedure
 updateProcedure: dist/procedures/documents.update.d.ts#updateProcedure
 watchProcedure: dist/procedures/watch.d.ts#watchProcedure
 
-## ./register (dist/register.d.ts): 3 names
+## ./register (dist/register.d.ts): names
 
 mongoModule: dist/module.d.ts#mongoModule
 procedures: dist/module.d.ts#procedures
@@ -734,6 +734,7 @@ export interface WatchDatabaseChangesOptions<TChange extends Document = ChangeSt
     fullDocument?: "updateLookup" | "whenAvailable" | "required" | undefined;
     fullDocumentBeforeChange?: "whenAvailable" | "required" | "off" | undefined;
     pipeline?: Document[] | undefined;
+    splitLargeEvents?: boolean | undefined;
     streamOptions?: Omit<ChangeStreamOptions, "resumeAfter" | "startAfter" | "startAtOperationTime" | "fullDocument" | "fullDocumentBeforeChange"> | undefined;
     backoff?: ResubscribeBackoff | undefined;
     logger?: Logger | undefined;
@@ -1044,6 +1045,7 @@ export interface WatchStorageChangesOptions {
     sweep?: boolean | undefined;
     sweepAtOpen?: boolean | undefined;
     backoff?: ResubscribeBackoff | undefined;
+    splitLargeEvents?: boolean | undefined;
     clock?: Clock | undefined;
     logger?: Logger | undefined;
     log?: ((level: "info" | "warn" | "error", message: string) => void) | undefined;

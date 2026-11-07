@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 86 names
+## . (dist/index.d.ts): names
 
 type CallDetail: dist/host/tracking.d.ts#CallDetail
 type CallOperation: dist/host/tracking.d.ts#CallOperation
@@ -93,20 +93,20 @@ serverDisconnectProcedure: dist/procedures/server.disconnect.d.ts#serverDisconne
 watchProcedures: dist/discovery/index.d.ts#watchProcedures
 wsFace: dist/host/faces.d.ts#wsFace
 
-## ./module (dist/module.d.ts): 4 names
+## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#serverModule
 procedures: dist/module.d.ts#procedures
 registerServerProcedures: dist/module.d.ts#registerServerProcedures
 serverModule: dist/module.d.ts#serverModule
 
-## ./register (dist/register.d.ts): 3 names
+## ./register (dist/register.d.ts): names
 
 procedures: dist/module.d.ts#procedures
 registerServerProcedures: dist/module.d.ts#registerServerProcedures
 serverModule: dist/module.d.ts#serverModule
 
-## ./procedures (dist/procedures/index.d.ts): 20 names
+## ./procedures (dist/procedures/index.d.ts): names
 
 type ManifestGenerateInput: dist/types.d.ts#ManifestGenerateInput
 type ManifestGenerateOutput: dist/types.d.ts#ManifestGenerateOutput
@@ -129,7 +129,7 @@ serverConnectionsProcedure: dist/procedures/server.connections.d.ts#serverConnec
 serverCreateProcedure: dist/procedures/server.create.d.ts#serverCreateProcedure
 serverDisconnectProcedure: dist/procedures/server.disconnect.d.ts#serverDisconnectProcedure
 
-## ./lockfile (dist/lockfile.d.ts): 11 names
+## ./lockfile (dist/lockfile.d.ts): names
 
 LockfileData: dist/lockfile.d.ts#LockfileData
 LockfileHandle: dist/lockfile.d.ts#LockfileHandle

@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 114 names
+## . (dist/index.d.ts): names
 
 ApiStorage: dist/storage/api.d.ts#ApiStorage
 type ApiStorageOptions: dist/storage/api.d.ts#ApiStorageOptions
@@ -121,26 +121,26 @@ serializeProcedures: dist/storage/serialization.d.ts#serializeProcedures
 storeModule: dist/module.d.ts#storeModule
 storedProgramVersion: dist/program-store/types.d.ts#storedProgramVersion
 
-## ./module (dist/module.d.ts): 4 names
+## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#storeModule
 register: dist/module.d.ts#register
 registerStoreProcedures: dist/module.d.ts#registerStoreProcedures
 storeModule: dist/module.d.ts#storeModule
 
-## ./register (dist/register.d.ts): 3 names
+## ./register (dist/register.d.ts): names
 
 register: dist/module.d.ts#register
 registerStoreProcedures: dist/module.d.ts#registerStoreProcedures
 storeModule: dist/module.d.ts#storeModule
 
-## ./file-queue (dist/storage/file-queue.d.ts): 3 names
+## ./file-queue (dist/storage/file-queue.d.ts): names
 
 FileQueueStore: dist/storage/file-queue.d.ts#FileQueueStore
 type QueueStore: dist/storage/queue.d.ts#QueueStore
 type QueuedOperation: dist/storage/queue.d.ts#QueuedOperation
 
-## ./indexeddb (dist/indexeddb.d.ts): 20 names
+## ./indexeddb (dist/indexeddb.d.ts): names
 
 DEFAULT_PROGRAM_DATABASE: dist/indexeddb/program-store.d.ts#DEFAULT_PROGRAM_DATABASE
 type IdbFactoryLike: dist/indexeddb/idb.d.ts#IdbFactoryLike
@@ -163,7 +163,7 @@ type SyncStateChange: dist/storage/sync-state.d.ts#SyncStateChange
 type SyncStateStore: dist/storage/sync-state.d.ts#SyncStateStore
 hasIndexedDb: dist/indexeddb/idb.d.ts#hasIndexedDb
 
-## ./browser (dist/browser.d.ts): 63 names
+## ./browser (dist/browser.d.ts): names
 
 ApiStorage: dist/storage/api.d.ts#ApiStorage
 type ApiStorageOptions: dist/storage/api.d.ts#ApiStorageOptions
@@ -729,7 +729,7 @@ export interface HybridStorageOptions {
     mode?: HybridMode;
     writeStrategy?: WriteStrategy;
     conflictResolution?: ConflictResolution;
-    mergeFn?: <T>(local: T, remote: T) => T;
+    mergeFn?: <T>(local: T, remote: T, base: T | null | undefined) => T;
     keyOf?: (item: any) => string | undefined;
     versionOf?: (item: any) => string | undefined;
     sendBaseVersions?: boolean;
@@ -875,6 +875,7 @@ export interface QueuedOperation {
     data: unknown;
     timestamp: number;
     base?: Array<[string, string | null]>;
+    baseValues?: Array<[string, unknown]>;
 }
 
 ### dist/storage/serialization.d.ts#DeserializeOptions

@@ -793,7 +793,8 @@ export class ViewMaterializer {
       void this.track(this.onViewChange(change)).catch((error: unknown) => this.log("error", "A change of a view failed", { collection: this.viewsName, operationType: change["operationType"], error }, `a change of a view failed: ${String((error as Error)?.message ?? error)}`));
     });
     stream.on("error", (error: Error) => rewatch(`failed: ${error.message}`));
-    stream.on("close", () => rewatch("closed"));
+    // The cursor of the driver tells its close before the error of a failed read. The close waits one turn, so the log gives the error (roadmap CLI-107)
+    stream.on("close", () => setImmediate(() => rewatch("closed")));
     return openOnServer(stream);
   }
 
@@ -1025,7 +1026,8 @@ export class ViewMaterializer {
       if (watch.stream === stream) this.route(change, watch);
     });
     stream.on("error", (error: Error) => rewatch(`failed: ${error.message}`));
-    stream.on("close", () => rewatch("closed"));
+    // The cursor of the driver tells its close before the error of a failed read. The close waits one turn, so the log gives the error (roadmap CLI-107)
+    stream.on("close", () => setImmediate(() => rewatch("closed")));
     return openOnServer(stream);
   }
 
