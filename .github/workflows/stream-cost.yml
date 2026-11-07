@@ -93,6 +93,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.suite }}
   cancel-in-progress: false
 
+# Each step runs in bash with pipefail, so a failure on the left of a pipe fails the step.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   plan:
     runs-on: ubuntu-latest
