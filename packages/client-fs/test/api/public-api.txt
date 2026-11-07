@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 49 names
+## . (dist/index.d.ts): names
 
 ConfinedFs: dist/module.d.ts#ConfinedFs
 type ConfinedRegistry: dist/confine.d.ts#ConfinedRegistry
@@ -56,7 +56,7 @@ write: dist/procedures/fs/write.d.ts#write
 writeFileAtomic: dist/files/atomic.d.ts#writeFileAtomic
 writeFileAtomicSync: dist/files/atomic.d.ts#writeFileAtomicSync
 
-## ./module (dist/module.d.ts): 13 names
+## ./module (dist/module.d.ts): names
 
 ConfinedFs: dist/module.d.ts#ConfinedFs
 type ConfinedRegistry: dist/confine.d.ts#ConfinedRegistry
@@ -72,7 +72,7 @@ registerFsProcedures: dist/module.d.ts#registerFsProcedures
 rootDecisionOf: dist/confine.d.ts#rootDecisionOf
 rootRulesOf: dist/confine.d.ts#rootRulesOf
 
-## ./register (dist/register.d.ts): 12 names
+## ./register (dist/register.d.ts): names
 
 ConfinedFs: dist/module.d.ts#ConfinedFs
 type ConfinedRegistry: dist/confine.d.ts#ConfinedRegistry
@@ -87,7 +87,7 @@ registerFsProcedures: dist/module.d.ts#registerFsProcedures
 rootDecisionOf: dist/confine.d.ts#rootDecisionOf
 rootRulesOf: dist/confine.d.ts#rootRulesOf
 
-## ./root (dist/root.d.ts): 9 names
+## ./root (dist/root.d.ts): names
 
 OUTSIDE_ROOT: dist/root.d.ts#OUTSIDE_ROOT
 ResolvedRoot: dist/root.d.ts#ResolvedRoot
@@ -99,7 +99,7 @@ realPathIsInside: dist/root.d.ts#realPathIsInside
 realPathOf: dist/root.d.ts#realPathOf
 resolveRoot: dist/root.d.ts#resolveRoot
 
-## ./files (dist/files/index.d.ts): 19 names
+## ./files (dist/files/index.d.ts): names
 
 type EditFileOptions: dist/files/edit.d.ts#EditFileOptions
 type EditFileResult: dist/files/edit.d.ts#EditFileResult

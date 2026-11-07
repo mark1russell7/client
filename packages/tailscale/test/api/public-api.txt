@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 12 names
+## . (dist/index.d.ts): names
 
 type ArgValue: @procedures/shell/cli#ArgValue (external)
 FLAG_NAME: @procedures/shell/cli#FLAG_NAME (external)
@@ -19,14 +19,14 @@ tailscaleModule: dist/module.d.ts#tailscaleModule
 tailscaleProcedures: dist/procedures.d.ts#tailscaleProcedures
 tailscaleRunProcedure: dist/procedures.d.ts#tailscaleRunProcedure
 
-## ./module (dist/module.d.ts): 4 names
+## ./module (dist/module.d.ts): names
 
 createTailscaleModule: dist/module.d.ts#createTailscaleModule
 default: dist/module.d.ts#tailscaleModule
 registerTailscaleProcedures: dist/module.d.ts#registerTailscaleProcedures
 tailscaleModule: dist/module.d.ts#tailscaleModule
 
-## ./register (dist/register.d.ts): 3 names
+## ./register (dist/register.d.ts): names
 
 createTailscaleModule: dist/module.d.ts#createTailscaleModule
 registerTailscaleProcedures: dist/module.d.ts#registerTailscaleProcedures

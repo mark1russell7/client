@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 10 names
+## . (dist/index.d.ts): names
 
 FetchPost: dist/notify.d.ts#FetchPost
 NOTIFY_TOKEN_ENV: dist/procedures.d.ts#NOTIFY_TOKEN_ENV
@@ -17,13 +17,13 @@ notifySendProcedure: dist/procedures.d.ts#notifySendProcedure
 registerNotifyProcedures: dist/module.d.ts#registerNotifyProcedures
 sendNotification: dist/notify.d.ts#sendNotification
 
-## ./module (dist/module.d.ts): 3 names
+## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#notifyModule
 notifyModule: dist/module.d.ts#notifyModule
 registerNotifyProcedures: dist/module.d.ts#registerNotifyProcedures
 
-## ./register (dist/register.d.ts): 2 names
+## ./register (dist/register.d.ts): names
 
 notifyModule: dist/module.d.ts#notifyModule
 registerNotifyProcedures: dist/module.d.ts#registerNotifyProcedures
