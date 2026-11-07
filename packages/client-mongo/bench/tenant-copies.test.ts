@@ -21,6 +21,12 @@ describe("the copies of the store of the suite tenant-separate", () => {
     expect(copies.neither).toContain("Math.floor(Math.random() * 1000)");
   });
 
+  it("spreads the counter of a store with a counter for each partition (CLI-96)", () => {
+    const partition = source.replace("{ _id: this.collectionName },\n            { $inc: { seq: count }", "{ _id: this.counterId },\n            { $inc: { seq: count }");
+    expect(partition).not.toBe(source);
+    expect(copiesOf(partition).many).toContain("{ _id: `${this.counterId}:${Math.floor(Math.random() * 1000)}` }");
+  });
+
   it("stops when the source does not have the text one time", () => {
     expect(() => swap("a", "b", "c")).toThrow(RangeError);
     expect(() => swap("bb", "b", "c")).toThrow(RangeError);
