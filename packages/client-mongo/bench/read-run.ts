@@ -1,6 +1,6 @@
 /**
  * One job of the change read bench: `--job <n> --rounds <n> --cap <seconds> --out <file>`. Each arm of
- * each case and round runs in a fresh process, one at a time, because the counters of the server are global.
+ * each case and round has a fresh process, one at a time, because the counters of the server are global.
  */
 
 import { mkdirSync, writeFileSync } from "node:fs";

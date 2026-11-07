@@ -20,6 +20,12 @@ export class BodyError extends Error {
 }
 
 /**
+ * The most bytes that the server reads and drops past the limit. Before, the server stopped the read at the limit, and
+ * the client often got a reset of the connection in place of the answer 413. A larger body still gets the reset.
+ */
+const DRAIN_BYTES = 64 * 1024 * 1024;
+
+/**
  * This function reads the JSON body of a request to a limit of bytes. A body parser of a framework
  * (`express.json({ strict: false })`) gives `req.body`: then the function gives it as it is. A GET,
  * a HEAD, a body that was read before, and an empty body give undefined.
@@ -33,9 +39,12 @@ export async function readJsonBody(req: IncomingMessage, limit: number): Promise
   for await (const chunk of req as AsyncIterable<Buffer | string>) {
     const buffer = typeof chunk === "string" ? Buffer.from(chunk) : chunk;
     size += buffer.length;
-    if (size > limit) throw new BodyError(`The request body is larger than ${limit} bytes`, 413);
-    chunks.push(buffer);
+    // The rest of a large body is read and dropped, so the client gets the answer 413 and no reset of the connection (roadmap CLI-108)
+    if (size > limit + DRAIN_BYTES) break;
+    if (size > limit) chunks.length = 0;
+    else chunks.push(buffer);
   }
+  if (size > limit) throw new BodyError(`The request body is larger than ${limit} bytes`, 413);
   const text = Buffer.concat(chunks).toString("utf8");
   if (text.trim() === "") return undefined;
   try {

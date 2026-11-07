@@ -117,8 +117,7 @@ const sorted = (docs: Document[]) => docs.map(plain).sort((a, b) => JSON.stringi
 const rowOf = (db: Db, collection: string, id: string, partition = "t1") => db.collection(collection).findOne({ "_id.id": id, _part: partition });
 
 /** A fake database whose views collection has these views. Its stream of the views opens at once. */
-function fakeViewsDb(views: Document[]): Db {
-  const stream = new EventEmitter() as EventEmitter & { close(): Promise<void> };
+function fakeViewsDb(views: Document[], stream = new EventEmitter() as EventEmitter & { close(): Promise<void> }): Db {
   stream.close = async () => undefined;
   const collection = {
     watch: () => {
@@ -146,6 +145,24 @@ describe("the logger of ViewMaterializer (CLI-88)", () => {
       { level: "info", message: "Started", fields: { component: "materializer", views: 1 } },
     ]);
     expect(logs).toEqual([]);
+  });
+
+  it("logs the error of a failed read of the views stream, not the close that the driver tells first (CLI-107)", async () => {
+    const lines: Array<{ message: string; fields: Record<string, unknown> }> = [];
+    const stream = new EventEmitter() as EventEmitter & { close(): Promise<void> };
+    stream.close = async () => undefined;
+    const views = new ViewMaterializer({
+      db: () => fakeViewsDb([], stream),
+      logger: { log: (_level, message, fields) => void lines.push({ message, fields }) },
+      rewatch: ms(60_000),
+    });
+    await views.start();
+    // The cursor of the driver emits close before the error of a failed getMore, in one turn
+    stream.emit("close");
+    stream.emit("error", new Error("getMore failed"));
+    await new Promise((resolve) => setImmediate(resolve));
+    await views.close();
+    expect(lines.filter((line) => line.message.startsWith("The stream of the views ended")).map((line) => line.fields["reason"])).toEqual(["failed: getMore failed"]);
   });
 
   it("keeps the old log and the old console line without a logger", async () => {

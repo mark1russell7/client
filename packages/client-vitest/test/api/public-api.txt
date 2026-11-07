@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 26 names
+## . (dist/index.d.ts): names
 
 VitestCoverageInput: dist/types.d.ts#VitestCoverageInput
 VitestCoverageInputSchema: dist/types.d.ts#VitestCoverageInputSchema
@@ -33,13 +33,13 @@ vitestRun: dist/procedures/vitest/run.d.ts#vitestRun
 vitestStop: dist/procedures/vitest/stop.d.ts#vitestStop
 vitestWatch: dist/procedures/vitest/watch.d.ts#vitestWatch
 
-## ./module (dist/module.d.ts): 3 names
+## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#vitestModule
 registerVitestProcedures: dist/module.d.ts#registerVitestProcedures
 vitestModule: dist/module.d.ts#vitestModule
 
-## ./register (dist/register.d.ts): 2 names
+## ./register (dist/register.d.ts): names
 
 registerVitestProcedures: dist/module.d.ts#registerVitestProcedures
 vitestModule: dist/module.d.ts#vitestModule

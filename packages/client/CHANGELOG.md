@@ -1,5 +1,32 @@
 # @procedures/client
 
+## 0.49.0
+
+### Minor Changes
+
+- a1aedc5: The release train: the ranges of @mark1russell7/collections change to a version outside the old range.
+
+### Patch Changes
+
+- bf0aa79: A write over the size limit of the remote no longer stops the offline queue of `HybridStorage` (CLI-108).
+  
+  - A batch that the remote refuses, or that is too large, goes again as one write for each id. Only the bad write leaves the queue, and its siblings reach the remote.
+  - A write of one id that is too large leaves the queue at once, and the writes behind it go on. The hook `onDropped` gets its id and value with the new reason `too-large`.
+  - The new option `isTooLarge` tells which error is too large. The default is the code `PAYLOAD_TOO_LARGE`.
+  - The `hello` of the WebSocket server tells its limit `maxPayload`. The client refuses a larger call alone with `PAYLOAD_TOO_LARGE`, and the other calls of the connection go on. Before, the server closed the connection, and each pending call failed.
+  - The HTTP server reads and drops up to 64 MiB of a body over the limit. So the client gets the answer 413, not a reset of the connection.
+  
+  Breaking change: the type `DroppedWrite["reason"]` has the new member `"too-large"`. To migrate, add a case for `"too-large"` to each `switch` over the reason. A refused batch no longer drops its good siblings.
+
+## 0.48.2
+
+### Patch Changes
+
+- 08beec5: A write that a write in flight holds back reaches its subscribers with no later write. `StorageChanges` has a new optional field `held`. The docs state that a result gives each write at least one time. They name the two cases of a second time. A read of the log with no change does not move the `since` of the next event, so the events keep their chain.
+- 48b7127: The writes of a collection that end while a change read runs share the next read. A write still resolves after its event is on the bus. Before this change, each write under sustained load had its own read, so the replies fell to one for each read.
+  
+  This change does not close the fault of a store under overload with a subscriber (CLI-102). On one run at 100 writers, the replies were 38.2 percent of a copy with no subscriber, and the pass line is 70 percent. So the change read must leave the queue of the writes.
+
 ## 0.48.1
 
 ### Patch Changes

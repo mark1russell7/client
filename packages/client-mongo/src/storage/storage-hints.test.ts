@@ -251,6 +251,8 @@ describe("the writes of this process (CLI-77)", () => {
 /** A stream of a fake database: the test emits its events. */
 class FakeStream extends EventEmitter {
   closed = false;
+  /** The pipeline of the open of the stream. */
+  pipeline: Document[] = [];
   async close(): Promise<void> {
     this.closed = true;
   }
@@ -260,8 +262,9 @@ class FakeStream extends EventEmitter {
 function fakeWatch(collections: { counters?: Document; items?: Document; hello?: Document } = {}) {
   const streams: FakeStream[] = [];
   const items = {
-    watch: () => {
+    watch: (pipeline: Document[]) => {
       const stream = new FakeStream();
+      stream.pipeline = pipeline;
       streams.push(stream);
       return stream;
     },
@@ -1130,5 +1133,87 @@ withMongo("watchStorageChanges on MongoDB (CLI-77)", { timeout: TEST_TIMEOUT_MS 
       await watch.stop();
       await own.close();
     }
+  });
+});
+
+describe("watchStorageChanges and an event over the BSON limit (CLI-107)", () => {
+  const isGap = ({ event }: { event: StorageChangeHint }): boolean => event.reset === true && event.changed.length === 0 && event.deleted.length === 0;
+
+  it("ends the pipeline with the split stage, and joins the fragments of an event into one hint", async () => {
+    const { storage, stream, streams, clock, log, published, publish } = fakeWatch();
+    const watch = watchStorageChanges(storage, publish, { clock, log });
+    const changes = await stream();
+    expect(streams[0]!.pipeline).toEqual([{ $changeStreamSplitLargeEvent: {} }]);
+    changes.emit("change", { _id: { t: 1 }, operationType: "insert", documentKey: { _id: "t5\u001fa" }, splitEvent: { fragment: 1, of: 2 } });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(published).toEqual([]);
+    changes.emit("change", { _id: { t: 2 }, fullDocument: { _id: "t5\u001fa", _key: "a", _part: "t5", _seq: 3 }, splitEvent: { fragment: 2, of: 2 } });
+    await vi.waitFor(() => expect(published).toHaveLength(1));
+    expect(published[0]!.topic).toBe(collectionChangeTopic("fake_notes", "t5"));
+    expect(isGap(published[0]!)).toBe(false);
+    await watch.stop();
+  });
+
+  it("opens no split stage with splitLargeEvents false", async () => {
+    const { storage, stream, clock, log, publish } = fakeWatch();
+    const watch = watchStorageChanges(storage, publish, { clock, log, splitLargeEvents: false });
+    expect((await stream()).pipeline).toEqual([]);
+    await watch.stop();
+  });
+
+  it("publishes a gap for a split event without its first fragments", async () => {
+    const { storage, stream, clock, logs, log, published, publish } = fakeWatch();
+    const watch = watchStorageChanges(storage, publish, { clock, log });
+    (await stream()).emit("change", { _id: { t: 2 }, fullDocument: { _id: "t5\u001fa", _key: "a", _part: "t5", _seq: 3 }, splitEvent: { fragment: 2, of: 2 } });
+    await vi.waitFor(() => expect(published.some(isGap)).toBe(true));
+    expect(published.every(isGap)).toBe(true);
+    expect(logs.some((line) => line.includes("without its first 1 fragments"))).toBe(true);
+    await watch.stop();
+  });
+
+  it("opens the stream with no split stage after a server that does not know the stage", async () => {
+    const { storage, stream, runs, clock, logs, log, publish } = fakeWatch();
+    const watch = watchStorageChanges(storage, publish, { clock, log, backoff: { initialDelay: ms(10), jitter: 0 } });
+    (await stream()).emit("error", serverError(40324, "Unrecognized pipeline stage name"));
+    await vi.waitFor(() => expect(runs).toHaveLength(1));
+    runs[0]!();
+    expect((await stream(1)).pipeline).toEqual([]);
+    expect(logs.some((line) => line.startsWith("warn") && line.includes("does not know the stage"))).toBe(true);
+    await watch.stop();
+  });
+
+  it("keeps the backoff on a reopen at the same token, and after 5 errors at one token opens without it and publishes a gap", async () => {
+    const { storage, stream, timers, runs, clock, logs, log, published, publish } = fakeWatch();
+    const watch = watchStorageChanges(storage, publish, { clock, log, backoff: { initialDelay: ms(10), jitter: 0 } });
+    const tooLarge = serverError(10334, "BSONObj size is invalid");
+    for (let index = 0; index < 5; index++) {
+      const changes = await stream(index);
+      changes.emit("resumeTokenChanged", { t: 1 });
+      changes.emit("error", tooLarge);
+      await vi.waitFor(() => expect(timers).toHaveLength(index + 1));
+      expect(published).toEqual([]);
+      runs[index]!();
+    }
+    expect(timers).toEqual([10, 20, 40, 80, 160]);
+    expect(logs.some((line) => line.includes("failed 5 times at one token with the code 10334"))).toBe(true);
+    await vi.waitFor(() => expect(published.some(isGap)).toBe(true));
+    await stream(5);
+    await watch.stop();
+  });
+
+  it("does not count an error that the driver resumes", async () => {
+    const { storage, stream, runs, clock, logs, log, published, publish } = fakeWatch();
+    const watch = watchStorageChanges(storage, publish, { clock, log, backoff: { initialDelay: ms(10), jitter: 0 } });
+    for (let index = 0; index < 6; index++) {
+      const changes = await stream(index);
+      changes.emit("resumeTokenChanged", { t: 1 });
+      changes.emit("error", serverError(6, "host unreachable"));
+      await vi.waitFor(() => expect(runs).toHaveLength(index + 1));
+      runs[index]!();
+    }
+    await stream(6);
+    expect(published).toEqual([]);
+    expect(logs.some((line) => line.includes("at one token"))).toBe(false);
+    await watch.stop();
   });
 });

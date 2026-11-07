@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 47 names
+## . (dist/index.d.ts): names
 
 CRON_NAMES: dist/cron.d.ts#CRON_NAMES
 type CronExpression: dist/cron.d.ts#CronExpression
@@ -54,7 +54,7 @@ scheduleRemove: dist/procedures/schedule/remove.d.ts#scheduleRemove
 viewOf: dist/procedures/schedule/add.d.ts#viewOf
 zoneFor: dist/cron.d.ts#zoneFor
 
-## ./module (dist/module.d.ts): 5 names
+## ./module (dist/module.d.ts): names
 
 ScheduleModuleOptions: dist/module.d.ts#ScheduleModuleOptions
 createScheduleModule: dist/module.d.ts#createScheduleModule
@@ -62,7 +62,7 @@ default: dist/module.d.ts#scheduleModule
 registerScheduleProcedures: dist/module.d.ts#registerScheduleProcedures
 scheduleModule: dist/module.d.ts#scheduleModule
 
-## ./register (dist/register.d.ts): 4 names
+## ./register (dist/register.d.ts): names
 
 ScheduleModuleOptions: dist/module.d.ts#ScheduleModuleOptions
 createScheduleModule: dist/module.d.ts#createScheduleModule

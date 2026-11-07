@@ -18,6 +18,10 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   # The shared CI of mark1russell7 (reusable-ci.yml of the template, its CI.md), on Node 22, 24
   # and 26: the lowest Node version that the root package.json allows, the active LTS and the
@@ -25,7 +29,7 @@ jobs:
   # The check names are "CI / checks (ubuntu-latest, node <version>)".
   ci:
     name: CI
-    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@f48f29fe5b00772951e0910a90fbbe312343338c # main
+    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@e077054e0f2ebb8441e4bc525b56cf2acc2afb6f # main
     with:
       # Build first: each package builds dist/ with `tsc -b`, and dependents read the types from
       # dist/. The types and the writing rules do not change with the Node version, so the job
@@ -63,7 +67,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: mark1russell7/template/.github/actions/changeset-check@f48f29fe5b00772951e0910a90fbbe312343338c # main
+      - uses: mark1russell7/template/.github/actions/changeset-check@e077054e0f2ebb8441e4bc525b56cf2acc2afb6f # main
 
   # The checks of this repository, once, on Node 26. They need the build, but not each Node version.
   checks:
@@ -187,7 +191,7 @@ jobs:
       # The import boundaries of invariant I9 (CLI-83), with dependency-cruiser: a transport does not
       # import the server, an import of another package goes through an entry of its exports map, and
       # no package imports an app. The shared rules are in the package @mark1russell7/boundaries, and
-      # .dependency-cruiser.cjs adds the rules of this repository. They read dist/, so they need the
+      # .dependency-cruiser.ts adds the rules of this repository. They read dist/, so they need the
       # build. First the tests of the rules, then the check.
       - name: Check the import boundaries
         if: ${{ !cancelled() }}
@@ -526,7 +530,7 @@ jobs:
   # Add each new job of the gate to `needs`, and to ALLOW_SKIP when its own `if` can skip it.
   ci-ok:
     name: CI OK
-    if: always()
+    if: ${{ !cancelled() }}
     needs: [ci, changesets, checks, mongo, mongo-speed-plan, mongo-speed, mongo-speed-look, mongo-speed-more, mongo-speed-verdict, site]
     runs-on: ubuntu-latest
     timeout-minutes: 2
