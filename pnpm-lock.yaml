@@ -496,8 +496,8 @@ importers:
         specifier: ^0.22.0
         version: 0.22.0
       '@mark1russell7/collections':
-        specifier: ^0.5.0
-        version: 0.5.0
+        specifier: ^0.7.0
+        version: 0.7.0
       '@mark1russell7/quantity':
         specifier: ^0.3.0
         version: 0.3.0(zod@4.6.7)
@@ -582,8 +582,8 @@ importers:
   packages/client-collections:
     dependencies:
       '@mark1russell7/collections':
-        specifier: ^0.5.0
-        version: 0.5.0
+        specifier: ^0.7.0
+        version: 0.7.0
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -632,8 +632,8 @@ importers:
   packages/client-dag:
     dependencies:
       '@mark1russell7/collections':
-        specifier: ^0.5.0
-        version: 0.5.0
+        specifier: ^0.7.0
+        version: 0.7.0
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -3353,8 +3353,8 @@ packages:
   '@mark1russell7/coeval@0.22.0':
     resolution: {integrity: sha512-woojpBeRerVqxfFBx0yiR6ibSpm2f9mcfsUPDdvIyT9GKZ2uCtM0S/108Ur765C0rjNKxopwlSH4xXyhf906iA==}
 
-  '@mark1russell7/collections@0.5.0':
-    resolution: {integrity: sha512-/SBxY5LOLjIYuBiSf0hdxA6OeGPJUIAHSQSepVDZVnCLEvY1Jte0E3ec0ahN3oyO7oE677FY9d3LuuN18nyv3g==}
+  '@mark1russell7/collections@0.7.0':
+    resolution: {integrity: sha512-tOTCmZcxKtWDW5Q/iuHUqycXgFs0mZjv+yMvRtqIkj7+Gk0qKx0DXW8AIKiZ0lqCLG9RQZdFvB5ayWJxpzI2KA==}
     engines: {node: '>=22.12'}
 
   '@mark1russell7/conventions@0.33.0':
@@ -3370,6 +3370,10 @@ packages:
   '@mark1russell7/docker-sqlite@0.2.1':
     resolution: {integrity: sha512-hPpTZGcf5JZXogDTJMx4o/bfWZSIdK/3aguJc2xcKRksYwG3K0FXYt+j96JT4VCX7BRu/HQb3kWy4q1tkPTIjQ==}
     engines: {node: '>=22'}
+
+  '@mark1russell7/optional@1.2.0':
+    resolution: {integrity: sha512-vS5jF21WC/VApRv4p8afRZahcMl9cuNp03LxbVngY9nYkzq+S7Oit6ksySt2baML+tp46UF60sxnHxn1jlwtTg==}
+    engines: {node: '>=22.12'}
 
   '@mark1russell7/quantity@0.3.0':
     resolution: {integrity: sha512-psfyKmVrOz5ynHgr2ED7WM5Pa/XVy6DR28jCaSGY42gvV0CJEq7HJRpV6sgkvWx8s3Et7evJWR56aG5tjCHZIw==}
@@ -6763,7 +6767,9 @@ snapshots:
 
   '@mark1russell7/coeval@0.22.0': {}
 
-  '@mark1russell7/collections@0.5.0': {}
+  '@mark1russell7/collections@0.7.0':
+    dependencies:
+      '@mark1russell7/optional': 1.2.0
 
   '@mark1russell7/conventions@0.33.0': {}
 
@@ -6773,6 +6779,8 @@ snapshots:
     dependencies:
       '@types/sql.js': 1.4.11
       sql.js: 1.14.2
+
+  '@mark1russell7/optional@1.2.0': {}
 
   '@mark1russell7/quantity@0.3.0(zod@4.6.7)':
     dependencies:
