@@ -16,7 +16,7 @@ on:
   # work when the pull request changes no file of the gate (CI.md of the template, "A gate with paths").
   pull_request:
   schedule:
-    - cron: "47 3 * * *"
+    - cron: "30 3 * * *"
   workflow_dispatch:
     inputs:
       prediction:
