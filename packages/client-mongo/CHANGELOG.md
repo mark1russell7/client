@@ -1,5 +1,24 @@
 # @procedures/mongo
 
+## 0.50.0
+
+### Patch Changes
+
+- 25d9f97: `watchDatabaseChanges` keeps the first token of a stream until the stream gives its first event.
+  
+  Before, a fault of the first read after `ready` opened the next stream without a token, at the present time. The changes between `ready` and that fault were lost. With this fix, the watcher opens the next stream at the first token. An event over the BSON limit with no split stage stops the watcher, as the documentation states.
+- Updated dependencies [54cdb34]
+  - @procedures/client@0.50.0
+  - @procedures/collections@0.50.0
+
+## 0.49.1
+
+### Patch Changes
+
+- Updated dependencies [a11008a]
+  - @procedures/client@0.49.1
+  - @procedures/collections@0.49.1
+
 ## 0.49.0
 
 ### Breaking changes
