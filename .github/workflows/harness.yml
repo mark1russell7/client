@@ -203,7 +203,7 @@ jobs:
 
   verdicts:
     needs: [changes, plan, cells]
-    if: ${{ needs.changes.outputs.match == 'true' && (always() && needs.plan.result == 'success') }}
+    if: ${{ needs.changes.outputs.match == 'true' && (!cancelled() && needs.plan.result == 'success') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
