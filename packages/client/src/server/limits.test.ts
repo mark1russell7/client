@@ -23,7 +23,7 @@ import { seconds } from "../duration.js";
 import { ProcedureServer } from "./procedure-server.js";
 import { hostPolicy, procedureServerOptions } from "./host-policy.js";
 import { pathToMethod } from "./method.js";
-import type { CallLimit } from "./limits.js";
+import type { CallLimit, LimitedCall } from "./limits.js";
 import type { PrincipalOf, ServerResponse } from "./types.js";
 import { LOCAL_CREDENTIALS } from "./request-auth.js";
 
@@ -85,11 +85,11 @@ function serverOf(limits: readonly CallLimit[], clock: FakeClock = fakeClock(), 
 
 let sent = 0;
 /** A call of a procedure: with the token of a tenant (a network call), or with the local marker (a call of this process, CLI-1). */
-function call(server: ProcedureServer, tenant: string | undefined, procedure: string): Promise<ServerResponse<unknown>> {
+function call(server: ProcedureServer, tenant: string | undefined, procedure: string, payload: unknown = {}): Promise<ServerResponse<unknown>> {
   return server.handle({
     id: `call-${++sent}`,
     method: pathToMethod(["notes", procedure]),
-    payload: {},
+    payload,
     metadata: {},
     credentials: tenant !== undefined ? { bearer: `tok-${tenant}` } : LOCAL_CREDENTIALS,
   });
@@ -290,5 +290,52 @@ describe("the limits of the calls of a server (CLI-40)", () => {
     const without = procedureServerOptions(hostPolicy({}));
     expect("limits" in without || "limitStores" in without).toBe(false);
     expect("limits" in hostPolicy({ limits: [] })).toBe(false);
+  });
+});
+
+describe("the cost of a call (CLI-122)", () => {
+  /** The count of the list `items` of the payload of a call. */
+  const itemsOf = (call: LimitedCall): number => {
+    const items = (call.request.payload as { items?: unknown } | undefined)?.items;
+    return Array.isArray(items) ? items.length : 0;
+  };
+  /** A payload with `n` items. */
+  const items = (n: number): { items: string[] } => ({ items: Array.from({ length: n }, (_, index) => `s${String(index)}`) });
+  /** A burst of 12 units for each tenant, and a cost of 1 + ceil(items / 50) for each write. */
+  const BY_ITEMS: CallLimit = {
+    ...WRITES_PER_TENANT,
+    name: "notes.items",
+    policy: { type: "token-bucket", rate: { value: 1, unit: "count/s" }, burst: count(12) },
+    cost: (call) => 1 + Math.ceil(itemsOf(call) / 50),
+  };
+
+  it("refuses a call over the capacity with PAYLOAD_TOO_LARGE, the units and the capacity, and takes nothing", async () => {
+    const server = serverOf([BY_ITEMS]);
+    // 600 items cost 13 units, over the burst of 12
+    const refused = await call(server, "acme", "write", items(600));
+    expect(refused.status).toMatchObject({ type: "error", code: "PAYLOAD_TOO_LARGE", retryable: false });
+    expect(refused.metadata).toEqual({ reason: "capacity", units: 13, capacity: 12 });
+    expect(refused.status.type === "error" ? refused.status.message : "").toContain("notes.items");
+    expect(runs["write"]).toBeUndefined();
+    // The refusal took nothing: 500 items cost 11 of the 12 units
+    expect(outcome(await call(server, "acme", "write", items(500)))).toBe("ok");
+    // One unit is left: 1 item costs 2 units, thus the call waits for one unit
+    expect((await call(server, "acme", "write", items(1))).metadata).toEqual({ "retry-after": 1000, reason: "limit" });
+    // A call with no items costs 1 unit
+    expect(outcome(await call(server, "acme", "write"))).toBe("ok");
+    expect(runs["write"]).toBe(2);
+  });
+
+  it("takes one unit for a limit with no cost, a fixed cost for each call, and refuses a fixed cost that is not a whole number of 1 or more", async () => {
+    const server = serverOf([{ ...BY_ITEMS, cost: 5 }]);
+    expect(outcome(await call(server, "acme", "write", items(600)))).toBe("ok");
+    expect(outcome(await call(server, "acme", "write"))).toBe("ok");
+    // 10 of the 12 units are used: a third call of 5 units waits
+    expect((await call(server, "acme", "write")).metadata).toMatchObject({ reason: "limit" });
+    const { cost: _cost, ...noCost } = BY_ITEMS;
+    const one = serverOf([noCost]);
+    for (let index = 0; index < 12; index++) expect(outcome(await call(one, "acme", "write", items(600)))).toBe("ok");
+    expect((await call(one, "acme", "write")).metadata).toMatchObject({ reason: "limit" });
+    for (const cost of [0, 1.5, -1, Number.NaN]) expect(() => serverOf([{ ...BY_ITEMS, cost }])).toThrow(/The cost of the limit notes.items is a whole number of 1 or more/);
   });
 });

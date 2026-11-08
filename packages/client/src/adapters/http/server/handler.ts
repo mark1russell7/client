@@ -22,6 +22,7 @@ import type { RequestHandler, ServerRequest, ServerResponse } from "../../../ser
 import { lastResortError } from "../../../server/last-resort.js";
 import { decodeMetadataHeader, METADATA_HEADER_LIMIT } from "../shared/index.js";
 import { ERROR_REGISTRY } from "../../../client/errors/index.js";
+import { capacityFieldsOf } from "../../../client/middleware/items.js";
 import { assertNamedOrigins, checkBrowserRequest, needsNamedOrigin, type BrowserGuardOptions } from "../../../server/browser-guard.js";
 import { isUnboundedStream } from "../../../server/stream-metadata.js";
 import { headerNames, isSecretHeader, queryRecord, requestCredentials, urlParts, withoutSecretHeaders } from "../../../server/request-auth.js";
@@ -539,6 +540,8 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
     const reason = typeof metadata["reason"] === "string" ? metadata["reason"] : undefined;
     // The current items of a VERSION_CONFLICT error (roadmap CLI-16)
     const conflicts = Array.isArray(metadata["conflicts"]) ? metadata["conflicts"] : undefined;
+    // The units and the capacity of a refusal for its size (roadmap CLI-122)
+    const capacity = capacityFieldsOf(metadata);
     sendJson(res, httpStatusCode, {
       error: status.message,
       code: status.code,
@@ -546,6 +549,7 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
       ...(hasRetryAfter ? { retryAfterMs } : {}),
       ...(reason !== undefined ? { reason } : {}),
       ...(conflicts !== undefined ? { conflicts } : {}),
+      ...capacity,
     });
   };
 
