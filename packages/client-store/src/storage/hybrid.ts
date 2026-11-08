@@ -268,7 +268,7 @@ export interface HybridStorageOptions {
    *   waits for the queue store, and at the caps of `PushBatch`. So the order of the writes of each id stays.
    * - A delete of one id with a base version does not join a run, because `deleteBatch` sends no base versions.
    * - A queued batch over the caps goes as batches within the caps. Set the caps within the capacity of a remote limit
-   *   for each call, for example a limit with a cost for each item. Then no send of a flush is larger than that capacity.
+   *   for each call. Then no send of a flush is larger than that capacity. A limit with a cost for each item is an example.
    * - The writes leave the queue only after the remote took the batch.
    * - When the remote refuses a merged batch or finds a conflict in it, the push sends each write of the run again
    *   alone. Thus `onRefused`, `onDropped`, `isTooLarge` and the conflict policy get the same writes as without the merge.
