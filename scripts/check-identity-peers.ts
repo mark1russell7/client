@@ -27,12 +27,18 @@ import { publicPackages, type Manifest } from "./lib/workspace.mjs";
 export const SERVICE = "@mark1russell7/service";
 
 /**
- * The types of service whose values have state for each copy, or reach such a value. A lifecycle
- * keys the drains (`drains.ts`) and owns the marks of the answers (`http/answers.ts`). A mount
- * context gives each handler the lifecycle. This list is a copy of service 0.6 until service
- * exports its own list (CLI-117, a request to systems). Then this script reads that export.
+ * The types of service whose values have state for each copy, or reach such a value. The roots are
+ * `Lifecycle` and `RequestStream` (the WeakMap keys), and `TransportImpl` and `RequestHandler` (they
+ * write to the maps of their copy). Each other name is an exported type whose declaration names a
+ * root or a listed type. This list is a copy of `IDENTITY_TYPES` of service 0.6.7 (systems #401).
+ * When that version is on npm, this script imports the export, and this copy goes away.
  */
-export const IDENTITY_TYPES: readonly string[] = ["Lifecycle", "ServiceBuilder", "TransportImpl", "HttpTransport", "MountContext", "RequestHandler", "UpgradeHandler"];
+export const IDENTITY_TYPES: readonly string[] = [
+  "Client", "GrpcClient", "HttpClient", "HttpTransport", "IterationContext", "JobContext", "Lifecycle",
+  "MongoClient", "MountContext", "PgClient", "QueueDrain", "QueueDrainOptions", "RabbitClient", "RedisClient",
+  "RedisSender", "RequestHandler", "RequestStream", "ServiceBuilder", "SubjectFactory", "TransportImpl",
+  "TransportSubject", "UpgradeHandler", "WorkerLoop", "WorkerLoopOptions", "WsClient",
+];
 
 /** One import of a name from service: the name in service, and the name in the importing file. */
 export interface ServiceName {
