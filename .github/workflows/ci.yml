@@ -41,4 +41,6 @@ jobs:
           MONGO_TEST_TOPOLOGY: replica-set
           RACE_LATE_SCHEDULES: "96"
           RACE_SEED_OFFSET: ${{ matrix.offset }}
-        run: pnpm --filter @procedures/mongo exec node node_modules/vitest/vitest.mjs run src/storage/change-cursor-race.test.ts -t "a write past its lease: no value goes back"
+          ROW: "a write past its lease: no value goes back"
+        run: |
+          pnpm --filter @procedures/mongo exec node node_modules/vitest/vitest.mjs run src/storage/change-cursor-race.test.ts -t "$ROW"
