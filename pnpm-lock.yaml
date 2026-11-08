@@ -502,8 +502,8 @@ importers:
         specifier: ^0.3.0
         version: 0.3.0(zod@4.6.7)
       '@mark1russell7/service':
-        specifier: ^0.6.0
-        version: 0.6.5(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        specifier: ^0.7.0
+        version: 0.7.0(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@types/ws':
         specifier: ^8.18.1
         version: 8.18.2
@@ -788,8 +788,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       '@mark1russell7/service':
-        specifier: ^0.6.0
-        version: 0.6.5(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        specifier: ^0.7.0
+        version: 0.7.0(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -831,8 +831,8 @@ importers:
         specifier: ^0.1.9
         version: 0.1.15
       '@mark1russell7/service':
-        specifier: ^0.6.0
-        version: 0.6.5(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        specifier: ^0.7.0
+        version: 0.7.0(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/peer':
         specifier: workspace:*
         version: link:../client-server
@@ -989,8 +989,8 @@ importers:
   packages/client-server:
     dependencies:
       '@mark1russell7/service':
-        specifier: ^0.6.0
-        version: 0.6.5(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        specifier: ^0.7.0
+        version: 0.7.0(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1150,8 +1150,8 @@ importers:
   packages/client-store:
     dependencies:
       '@mark1russell7/service':
-        specifier: ^0.6.0
-        version: 0.6.5(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        specifier: ^0.7.0
+        version: 0.7.0(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1424,8 +1424,8 @@ importers:
   packages/impl-mcp-dev:
     dependencies:
       '@mark1russell7/service':
-        specifier: ^0.6.0
-        version: 0.6.5(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        specifier: ^0.7.0
+        version: 0.7.0(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/bundle-mcp':
         specifier: workspace:*
         version: link:../bundle-mcp
@@ -1514,8 +1514,8 @@ importers:
   packages/llm:
     dependencies:
       '@mark1russell7/service':
-        specifier: ^0.6.0
-        version: 0.6.5(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        specifier: ^0.7.0
+        version: 0.7.0(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1570,8 +1570,8 @@ importers:
   packages/mark:
     dependencies:
       '@mark1russell7/service':
-        specifier: ^0.6.0
-        version: 0.6.5(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        specifier: ^0.7.0
+        version: 0.7.0(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/cli-kit':
         specifier: workspace:*
         version: link:../cli-kit
@@ -1910,8 +1910,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       '@mark1russell7/service':
-        specifier: ^0.6.0
-        version: 0.6.5(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        specifier: ^0.7.0
+        version: 0.7.0(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1925,8 +1925,8 @@ importers:
   packages/server:
     dependencies:
       '@mark1russell7/service':
-        specifier: ^0.6.0
-        version: 0.6.5(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        specifier: ^0.7.0
+        version: 0.7.0(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -2201,8 +2201,8 @@ importers:
   packages/systems:
     dependencies:
       '@mark1russell7/service':
-        specifier: ^0.6.0
-        version: 0.6.5(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        specifier: ^0.7.0
+        version: 0.7.0(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -3336,6 +3336,15 @@ packages:
       zod:
         optional: true
 
+  '@mark1russell7/algebra@0.8.2':
+    resolution: {integrity: sha512-eqG1qpLrxSnG4CZaqnGZ9dt05oxX0RO/5Wj08ZNWJwyBeu0CTOm8Z62NLToGqYUL1Kzf/7ZLfhGzjd03ROLniw==}
+    engines: {node: '>=22.19'}
+    peerDependencies:
+      zod: ^4.1.0
+    peerDependenciesMeta:
+      zod:
+        optional: true
+
   '@mark1russell7/api-report@0.4.1':
     resolution: {integrity: sha512-kx3vmIdzwGJf+aZ66qoYWm65IlrEzrbSXckAQed0I+fxs6+wFygVoum6ZVBeKdz05rHHLD9kiarwQQcI5LhsDQ==}
     engines: {node: '>=22'}
@@ -3360,6 +3369,10 @@ packages:
     resolution: {integrity: sha512-/SBxY5LOLjIYuBiSf0hdxA6OeGPJUIAHSQSepVDZVnCLEvY1Jte0E3ec0ahN3oyO7oE677FY9d3LuuN18nyv3g==}
     engines: {node: '>=22.12'}
 
+  '@mark1russell7/collections@0.7.2':
+    resolution: {integrity: sha512-C5lHeQXAHtwgsdjK1rktRwaGvssMoEiBK5Wx2XBJkejhrjvaK7qATjumlp8EGNNVjkHNfIBw15UevBO7wyKj5g==}
+    engines: {node: '>=22.12'}
+
   '@mark1russell7/conventions@0.36.1':
     resolution: {integrity: sha512-Fb9YVVIYWTYX/+2yvtubLB4a0ognZrCs2Gy+U7RARQ9GP9jF1h4oqH5pDZiao1MUOYH070xOerUBqL4PsqnBGQ==}
     engines: {node: '>=22'}
@@ -3373,6 +3386,10 @@ packages:
   '@mark1russell7/docker-sqlite@0.2.1':
     resolution: {integrity: sha512-hPpTZGcf5JZXogDTJMx4o/bfWZSIdK/3aguJc2xcKRksYwG3K0FXYt+j96JT4VCX7BRu/HQb3kWy4q1tkPTIjQ==}
     engines: {node: '>=22'}
+
+  '@mark1russell7/optional@1.2.0':
+    resolution: {integrity: sha512-vS5jF21WC/VApRv4p8afRZahcMl9cuNp03LxbVngY9nYkzq+S7Oit6ksySt2baML+tp46UF60sxnHxn1jlwtTg==}
+    engines: {node: '>=22.12'}
 
   '@mark1russell7/quantity@0.3.0':
     resolution: {integrity: sha512-psfyKmVrOz5ynHgr2ED7WM5Pa/XVy6DR28jCaSGY42gvV0CJEq7HJRpV6sgkvWx8s3Et7evJWR56aG5tjCHZIw==}
@@ -3414,10 +3431,6 @@ packages:
       esbuild:
         optional: true
 
-  '@mark1russell7/rigor-generators@0.1.5':
-    resolution: {integrity: sha512-YkABrG6+AV4oZKWoSIayDGxKTqcTMbp/eGa+3u00X09Jv9TfpHFDeqHlEQARMBzJ/kvy/EMNIXQZMGa3Nobuzw==}
-    engines: {node: '>=22'}
-
   '@mark1russell7/rigor-generators@0.1.6':
     resolution: {integrity: sha512-eSuVS6nNd2H63dMrfleop+ffBtNd8Ua0/JrcUWUMxf2jHWw432fSwJ+aSa4ecAYq1Pa2ReCfwpqFUP4MII5+GA==}
     engines: {node: '>=22'}
@@ -3430,8 +3443,8 @@ packages:
     resolution: {integrity: sha512-9MQpKdW3hluyP4zV1oerpApWcKsiKR2s4PpQ8LcGzep0oJSpE2lYAUWzyo2MaLdkSAnNsh6pxnSbr5KaR7OYIQ==}
     engines: {node: '>=22'}
 
-  '@mark1russell7/service@0.6.5':
-    resolution: {integrity: sha512-USBAaZX8lQ3nmBzaTycF+6xQJyIQ51ZTWIxw9rZnZ5bhaqZe5FydTgVPYr92/gb8VWcOG4jxWsPnLPBBEaxzSA==}
+  '@mark1russell7/service@0.7.0':
+    resolution: {integrity: sha512-xUwbc5wfk4/gCyIiHRUNsULf0LqDZXk2REogpqveAs1u1ojUpt1NWueN9VWWU2EuZaYYe9ue3Dg8ICirDLCrig==}
     engines: {node: '>=22.19'}
     peerDependencies:
       '@grpc/grpc-js': ^1.14.6
@@ -6775,6 +6788,12 @@ snapshots:
     optionalDependencies:
       zod: 4.6.7
 
+  '@mark1russell7/algebra@0.8.2(zod@4.6.7)':
+    dependencies:
+      '@mark1russell7/quantity': 0.3.0(zod@4.6.7)
+    optionalDependencies:
+      zod: 4.6.7
+
   '@mark1russell7/api-report@0.4.1': {}
 
   '@mark1russell7/boundaries@0.2.0(@swc/core@1.16.20)(dependency-cruiser@18.7.0)':
@@ -6786,6 +6805,10 @@ snapshots:
 
   '@mark1russell7/collections@0.5.0': {}
 
+  '@mark1russell7/collections@0.7.2':
+    dependencies:
+      '@mark1russell7/optional': 1.2.0
+
   '@mark1russell7/conventions@0.36.1':
     dependencies:
       yaml: 2.9.1
@@ -6796,6 +6819,8 @@ snapshots:
     dependencies:
       '@types/sql.js': 1.4.11
       sql.js: 1.14.2
+
+  '@mark1russell7/optional@1.2.0': {}
 
   '@mark1russell7/quantity@0.3.0(zod@4.6.7)':
     dependencies:
@@ -6826,8 +6851,6 @@ snapshots:
     optionalDependencies:
       esbuild: 0.28.2
 
-  '@mark1russell7/rigor-generators@0.1.5': {}
-
   '@mark1russell7/rigor-generators@0.1.6': {}
 
   '@mark1russell7/rigor-statistics@0.1.15':
@@ -6838,11 +6861,12 @@ snapshots:
     dependencies:
       '@mark1russell7/rigor-generators': 0.1.6
 
-  '@mark1russell7/service@0.6.5(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)':
+  '@mark1russell7/service@0.7.0(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)':
     dependencies:
-      '@mark1russell7/algebra': 0.8.1(zod@4.6.7)
+      '@mark1russell7/algebra': 0.8.2(zod@4.6.7)
+      '@mark1russell7/collections': 0.7.2
       '@mark1russell7/quantity': 0.3.0(zod@4.6.7)
-      '@mark1russell7/rigor-generators': 0.1.5
+      '@mark1russell7/rigor-generators': 0.1.6
     optionalDependencies:
       mongodb: 7.8.0(socks@2.8.10)
       ws: 8.22.0
