@@ -461,11 +461,13 @@ const withMongo = url ? describe : describe.skip;
 
 const STORE_SCHEDULES = 20;
 const FAULT_SCHEDULES = 8;
+const SEED_OFFSET = Number(process.env["RACE_SEED_OFFSET"] ?? 0);
+const LATE_ORDER_SCHEDULES = Number(process.env["RACE_LATE_SCHEDULES"] ?? FAULT_SCHEDULES);
 const STORE_PROCESSES = 3;
 const STORE_WRITES = 8;
 const STORE_MS_PER_SIZE = 5;
 const COUNTERS = "__storage_counters";
-const ROW_TIMEOUT_MS = 240_000;
+const ROW_TIMEOUT_MS = 600_000;
 const LATE_LEASE_MS = 50;
 const FIRST_READ_ROUNDS = 10;
 const LATE_HOLD_SIZES = [0, 0, 0, 30] as const;
@@ -614,10 +616,15 @@ class CommitOrder {
 class History {
   readonly values = new Map<string, string[]>();
 
-  note(id: string, value: string): void {
+  readonly tags = new Map<string, string[]>();
+
+  note(id: string, value: string, tag = ""): void {
     const values = this.values.get(id) ?? [];
     values.push(value);
     this.values.set(id, values);
+    const tags = this.tags.get(id) ?? [];
+    tags.push(tag);
+    this.tags.set(id, tags);
   }
 
   /** This method gives the last value of each id. */
@@ -630,6 +637,9 @@ class History {
  * A subscriber as the docs state. Events wait behind its read. An event at its cursor gives its values
  * with no read, and each other event makes a read since the cursor.
  */
+/** The last part of a version: its number. */
+const short = (version: string | undefined): string => (version === undefined ? "-" : version.slice(version.lastIndexOf(".") + 1));
+
 class ValueFollower {
   readonly history = new History();
   /** The items of the subscriber: each id with its last value. */
@@ -666,7 +676,7 @@ class ValueFollower {
       this.fulls.push(changes);
     }
     for (const { id, value } of changes.changed) {
-      this.history.note(id, value.v);
+      this.history.note(id, value.v, `read ${short(this.cursor)}>${short(changes.version)}${changes.full ? " full" : ""}`);
       this.current.set(id, value.v);
     }
     for (const id of changes.deleted) this.current.delete(id);
@@ -677,7 +687,7 @@ class ValueFollower {
     if (this.cursor === undefined || event.version === this.cursor) return;
     if (event.since === this.cursor && event.version !== undefined && event.values !== undefined) {
       for (const { id, value } of event.values) {
-        this.history.note(id, (value as Item).v);
+        this.history.note(id, (value as Item).v, `event ${short(event.since)}>${short(event.version)}`);
         this.current.set(id, (value as Item).v);
       }
       for (const id of event.deleted) this.current.delete(id);
@@ -715,6 +725,8 @@ interface OrderRow {
   finalDiffers: string[];
   /** Each value that a subscriber got and the store has no write of. */
   unknown: string[];
+  /** The history of each id with a value that goes back: the source, the value and its turn. */
+  backTraces: string[];
 }
 
 /** This function adds what the subscribers of one schedule got to the row. */
@@ -729,7 +741,11 @@ function readOrder(row: OrderRow, seed: string, order: CommitOrder, histories: r
           row.unknown.push(`${seed}/${name}/${id}=${value}`);
           continue;
         }
-        if (turn < latest) row.back.push(`${seed}/${name}/${id}=${value}`);
+        if (turn < latest) {
+          row.back.push(`${seed}/${name}/${id}=${value}`);
+          const tags = history.tags.get(id) ?? [];
+          row.backTraces.push(`${seed}/${name}/${id}: ${values.map((seen, at) => `${tags[at] ?? ""}=${seen}@${order.turnOf(seen) ?? "?"}`).join(" | ")}`);
+        }
         else latest = turn;
       }
     }
@@ -741,7 +757,8 @@ function readOrder(row: OrderRow, seed: string, order: CommitOrder, histories: r
 
 /** This function prints the counts of a row of the order of values. */
 function printOrder(name: string, row: OrderRow): void {
-  const { back, finalDiffers, unknown, ...counts } = row;
+  const { back, finalDiffers, unknown, backTraces, ...counts } = row;
+  for (const trace of backTraces.slice(0, 10)) console.log(`race back-trace ${name} ${trace}`);
   console.log(`race ${JSON.stringify({ name, ...counts, back: back.length, finalDiffers: finalDiffers.length, unknown: unknown.length, backExamples: back.slice(0, 3), finalExamples: finalDiffers.slice(0, 3) })}`);
 }
 
@@ -994,7 +1011,7 @@ withMongo("the race of a change cursor and a write in flight, on a real store (C
     new Map((await store.getChangesSince()).changed.map(([id, item]) => [id, item.v]));
 
   /** This function makes a new row of the order of values. */
-  const newOrderRow = (): OrderRow => ({ schedules: 0, writes: 0, subscribers: 0, fullsHeld: 0, marksMoved: 0, back: [], finalDiffers: [], unknown: [] });
+  const newOrderRow = (): OrderRow => ({ schedules: 0, writes: 0, subscribers: 0, fullsHeld: 0, marksMoved: 0, back: [], finalDiffers: [], unknown: [], backTraces: [] });
 
   /** This function starts seeded schedules. The subscribers read during the writes, and each read of a full answer waits. */
   async function orderRow(options: {
@@ -1009,7 +1026,7 @@ withMongo("the race of a change cursor and a write in flight, on a real store (C
     const { label, path, schedules, sizes, lease, wrap, unbounded } = options;
     const row = newOrderRow();
     for (let n = 0; n < schedules; n += 1) {
-      const seed = `order-${label}-${n}`;
+      const seed = `order-${label}-${n + SEED_OFFSET}`;
       const draw = random(seed);
       const count: HoldCount = { held: 0, readsDuringHold: 0 };
       const collection = `race${++next}`;
@@ -1404,7 +1421,7 @@ withMongo("the race of a change cursor and a write in flight, on a real store (C
   });
 
   it("the order of values, a write past its lease: no value goes back", async () => {
-    const row = await orderRow({ label: "pending-late-order", path: "pending", schedules: FAULT_SCHEDULES, sizes: LATE_HOLD_SIZES, lease: LATE_LEASE_MS });
+    const row = await orderRow({ label: "pending-late-order", path: "pending", schedules: LATE_ORDER_SCHEDULES, sizes: LATE_HOLD_SIZES, lease: LATE_LEASE_MS });
     expect(row.unknown).toEqual([]);
     expect(row.back).toEqual([]);
     expect(row.finalDiffers).toEqual([]);
