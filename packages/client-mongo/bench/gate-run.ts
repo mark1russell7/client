@@ -13,10 +13,9 @@ import { spawnSync } from "node:child_process";
 import { cpSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { parseArgs } from "node:util";
-import type { PairedTime } from "@mark1russell7/rigor-bench";
+import type { ChildRecords, PairedTime } from "@mark1russell7/rigor-bench";
 import { benchEnv, freshRun } from "@mark1russell7/rigor-bench/fresh";
 import { READ_CASES, WRITE_CASES } from "./gate-verdict.js";
-import type { PairedRecords } from "./write-paired.js";
 
 /**
  * The bursts of each fresh write child. The time of a child is its median burst, so a stall of the runner does not
@@ -67,7 +66,7 @@ const pairedWrites = (cases: readonly string[]): { candidate: PairedTime[]; aa: 
       const child = spawnSync(process.execPath, args, { encoding: "utf8", timeout: cap * 1000 * PAIRED_CAP_FACTOR, stdio: ["ignore", "pipe", "inherit"], maxBuffer: 16 * 1024 * 1024 });
       const last = child.stdout.trim().split("\n").at(-1);
       if (child.status !== 0 || last === undefined || last === "") throw new Error(`the paired child of ${name} in round ${round} ended with ${child.status ?? child.signal}`);
-      const records = JSON.parse(last) as PairedRecords;
+      const records = JSON.parse(last) as ChildRecords;
       candidate.push(records.candidate);
       aa.push(records.aa);
     }
