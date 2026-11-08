@@ -748,6 +748,10 @@ export interface HybridStorageOptions {
     isUnavailable?: (error: unknown) => boolean;
     isRefusal?: (error: unknown) => boolean;
     isTooLarge?: (error: unknown) => boolean;
+    capacityOf?: (error: unknown) => {
+        readonly units: number;
+        readonly capacity: number;
+    } | undefined;
     pushBatch?: PushBatch | undefined;
     onRefused?: (refusal: QueueRefusal) => void | Promise<void>;
     onDropped?: (drop: DroppedWrite) => void | Promise<void>;
