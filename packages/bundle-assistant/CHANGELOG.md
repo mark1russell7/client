@@ -1,5 +1,17 @@
 # @procedures/bundle-assistant
 
+## 0.52.0
+
+### Patch Changes
+
+- @procedures/client@0.52.0
+  - @procedures/exif@0.52.0
+  - @procedures/geo@0.52.0
+  - @procedures/http@0.52.0
+  - @procedures/ics@0.52.0
+  - @procedures/mail@0.52.0
+  - @procedures/weather@0.52.0
+
 ## 0.51.0
 
 ### Patch Changes
