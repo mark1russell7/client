@@ -1,5 +1,12 @@
 # @procedures/mongo
 
+## 0.52.2
+
+### Patch Changes
+
+- @procedures/client@0.52.2
+  - @procedures/collections@0.52.2
+
 ## 0.52.1
 
 ### Patch Changes
