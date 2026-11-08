@@ -304,11 +304,11 @@ function ResultPanel({
             </p>
           ) : null}
           {result.ok ? (
-            <pre className="code result-value" tabIndex={0} aria-label="The result value">
+            <pre className="code scroll-cue result-value" tabIndex={0} aria-label="The result value">
               {formatValue(result.value)}
             </pre>
           ) : (
-            <pre className="code result-value error-text" tabIndex={0} aria-label="The error">
+            <pre className="code scroll-cue result-value error-text" tabIndex={0} aria-label="The error">
               {result.error}
             </pre>
           )}
@@ -787,7 +787,7 @@ export function Composer({ route }: { route: Route }): ReactElement {
                 <span className="spacer" />
                 <CopyButton text={() => toTypeScript(program, packageOf)} label="Copy code" />
               </div>
-              <pre className="code" tabIndex={0} aria-label="The program as TypeScript">
+              <pre className="code scroll-cue" tabIndex={0} aria-label="The program as TypeScript">
                 {toTypeScript(program, packageOf)}
               </pre>
             </>
