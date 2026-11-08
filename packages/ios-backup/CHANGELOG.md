@@ -1,5 +1,11 @@
 # @procedures/ios-backup
 
+## 0.52.1
+
+### Patch Changes
+
+- @procedures/client@0.52.1
+
 ## 0.52.0
 
 ### Patch Changes

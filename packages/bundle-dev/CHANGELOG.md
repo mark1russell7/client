@@ -1,5 +1,21 @@
 # @procedures/bundle-dev
 
+## 0.52.1
+
+### Patch Changes
+
+- Updated dependencies [d0f3362]
+  - @procedures/git@0.52.1
+  - @procedures/lib@0.52.1
+  - @procedures/client@0.52.1
+  - @procedures/cli-run@0.52.1
+  - @procedures/dag@0.52.1
+  - @procedures/fs@0.52.1
+  - @procedures/pnpm@0.52.1
+  - @procedures/procedure@0.52.1
+  - @procedures/shell@0.52.1
+  - @procedures/compiler@0.52.1
+
 ## 0.52.0
 
 ### Patch Changes
