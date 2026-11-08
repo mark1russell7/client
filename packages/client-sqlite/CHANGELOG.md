@@ -1,5 +1,12 @@
 # @procedures/sqlite
 
+## 0.52.1
+
+### Patch Changes
+
+- c5a444c: The README tells the date, the commit and the version of each measured number. These numbers are the compile cache of `mark`, the write limit of `MongoDocumentStorage` and the benchmarks of `SqliteStorage`.
+- @procedures/client@0.52.1
+
 ## 0.52.0
 
 ### Patch Changes
