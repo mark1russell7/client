@@ -66,6 +66,7 @@ export function exposePatterns(patterns: readonly string[]): (path: ProcedurePat
  * hides its procedure (audit 2026-11-08). The plain form can hide one more path, but not one less.
  */
 function isExcluded(excluded: ReadonlySet<string>, path: ProcedurePath): boolean {
+  // path-check: the raw form of an exclude entry before CLI-75, compared as text, not decoded.
   return excluded.has(pathToKey(path)) || excluded.has(path.join("."));
 }
 
