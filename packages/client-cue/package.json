@@ -72,13 +72,13 @@
     "@procedures/client": "workspace:*",
     "@procedures/fs": "workspace:*",
     "@procedures/shell": "workspace:*",
-    "@mark1russell7/cue": "^2.1.1",
+    "@mark1russell7/cue": "^2.1.2",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "typescript": "^7.0.2",
     "@types/node": "^22.0.0",
-    "@mark1russell7/cue": "^2.1.1",
+    "@mark1russell7/cue": "^2.1.2",
     "vitest": "^5.0.3"
   }
 }
