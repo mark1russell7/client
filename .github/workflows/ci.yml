@@ -29,7 +29,7 @@ jobs:
   # The check names are "CI / checks (ubuntu-latest, node <version>)".
   ci:
     name: CI
-    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@e077054e0f2ebb8441e4bc525b56cf2acc2afb6f # main
+    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@fc41ae3906e671ae746e9597ccc351a4e7ce8a3b # main
     with:
       # Build first: each package builds dist/ with `tsc -b`, and dependents read the types from
       # dist/. The types and the writing rules do not change with the Node version, so the job
@@ -38,13 +38,8 @@ jobs:
       node-versions: '["22", "24", "26"]'
       timeout-minutes: 25
       # `lib new` runs cue-config, which needs the CUE binary (the scaffold test of mark). The
-      # SHA-256 is the one that GitHub records for the release asset (CUE publishes no
-      # checksums.txt for v0.15.1).
-      setup: |
-        curl -fsSL -o "$RUNNER_TEMP/cue.tar.gz" https://github.com/cue-lang/cue/releases/download/v0.15.1/cue_v0.15.1_linux_amd64.tar.gz
-        echo "aa282261245e9ab0d65b17ec3c7207f5231600106f7b26fc0c2e158b3937ca3f  $RUNNER_TEMP/cue.tar.gz" | sha256sum -c -
-        tar -xzf "$RUNNER_TEMP/cue.tar.gz" -C "$RUNNER_TEMP" cue
-        echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      # shared action setup-cue installs it from a cache, or from the release with retries.
+      cue-version: "0.15.1"
       # The script typecheck of each package also type-checks its tests with tsconfig.test.json
       # (the test feature of cue 1.1.0), so `pnpm typecheck` of the job checks examines them.
       # On each Node version, after the scripts: the built mark CLI as a process: help, commands,
@@ -67,7 +62,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: mark1russell7/template/.github/actions/changeset-check@e077054e0f2ebb8441e4bc525b56cf2acc2afb6f # main
+      - uses: mark1russell7/template/.github/actions/changeset-check@fc41ae3906e671ae746e9597ccc351a4e7ce8a3b # main
 
   # The checks of this repository, once, on Node 26. They need the build, but not each Node version.
   checks:
@@ -271,14 +266,13 @@ jobs:
           done
           curl -s -o /dev/null http://localhost:9000/ || { docker logs s3-gateway; exit 1; }
       # The scaffold test of mark runs cue-config, which needs the CUE binary
+      # The SHA-256 that GitHub records for the release asset (CUE publishes no checksums.txt for v0.15.1)
       - name: Install CUE for the coverage
         if: ${{ !cancelled() }}
-        run: |
-          # The SHA-256 that GitHub records for the release asset (CUE publishes no checksums.txt for v0.15.1)
-          curl -fsSL -o "$RUNNER_TEMP/cue.tar.gz" https://github.com/cue-lang/cue/releases/download/v0.15.1/cue_v0.15.1_linux_amd64.tar.gz
-          echo "aa282261245e9ab0d65b17ec3c7207f5231600106f7b26fc0c2e158b3937ca3f  $RUNNER_TEMP/cue.tar.gz" | sha256sum -c -
-          tar -xzf "$RUNNER_TEMP/cue.tar.gz" -C "$RUNNER_TEMP" cue
-          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+        uses: mark1russell7/template/.github/actions/setup-cue@fc41ae3906e671ae746e9597ccc351a4e7ce8a3b # main
+        with:
+          version: "0.15.1"
+          sha256: aa282261245e9ab0d65b17ec3c7207f5231600106f7b26fc0c2e158b3937ca3f
       # Each package against its floor in coverage-baseline.json (roadmap R31). The raised floors
       # are an artifact: copy them to coverage-baseline.json to raise the floors. A package without
       # a floor fails the step: a pull request that adds a package also adds its floor.
