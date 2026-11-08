@@ -70,6 +70,7 @@
     "procedures": "./dist/register.js"
   },
   "dependencies": {
+    "@mark1russell7/files": "^0.0.1",
     "@procedures/client": "workspace:*",
     "@procedures/fs": "workspace:*",
     "tar": "^7.5.0",

@@ -18,7 +18,8 @@
  */
 
 import { readlink, realpath } from "node:fs/promises";
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
+import { isInside } from "@mark1russell7/files";
 import { InvocationError, type ProcedurePath } from "@procedures/client";
 
 /** The reason of the `FORBIDDEN` error for a path outside the root. */
@@ -29,12 +30,9 @@ const MAX_LINKS = 40;
 
 /**
  * This function tells if `path` is `folder` or a path in `folder`. The two paths are absolute.
- * On Windows, the case of the letters is not significant.
+ * On Windows, the case of the letters is not significant. Its home is `@mark1russell7/files`.
  */
-export function isInside(folder: string, path: string): boolean {
-  const rel = relative(folder, path);
-  return rel === "" || (!isAbsolute(rel) && rel !== ".." && !rel.startsWith(`..${sep}`));
-}
+export { isInside };
 
 /** True for the error of a path that does not exist. */
 function isMissing(error: unknown): boolean {

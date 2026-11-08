@@ -12,50 +12,35 @@
 
 import { glob as nodeGlob, readdir } from "node:fs/promises";
 import { posix, resolve } from "node:path";
+import { matchesGlob, toPosix } from "@mark1russell7/files";
 import type { GlobInput, GlobOutput } from "../../types.js";
 
-// A character that a file name cannot hold. It takes the place of a leading "." of a name, so
-// that "*" and "**" match dot entries when `dot` is true.
-const DOT = "\u0001";
-
-/** "a\\b" (Windows) becomes "a/b". */
-function toPosix(path: string): string {
-  return path.split("\\").join("/");
-}
-
-/** Each name of the path that starts with "." starts with DOT instead. */
-function hideDots(path: string): string {
-  return path
-    .split("/")
-    .map((name) => (name.startsWith(".") && name !== "." && name !== ".." ? DOT + name.slice(1) : name))
-    .join("/");
-}
-
+/** This function tells if an ignore pattern matches `path`, with the rules of `node:fs` glob. */
 function ignored(path: string, ignore: readonly string[]): boolean {
   return ignore.some((pattern) => posix.matchesGlob(path, pattern));
 }
 
-/** A folder is not entered when each path inside it is ignored. */
-function folderIgnored(path: string, ignore: readonly string[]): boolean {
-  return ignored(`${path}/${DOT}`, ignore) || ignored(path, ignore);
-}
-
-/** All the matches of `pattern` under `root`, dot entries included. */
+/**
+ * This function gives all the matches of `pattern` under `root`, dot entries included. The match of
+ * a path is `matchesGlob` of `@mark1russell7/files` with `dot: true`. Thus `a/**` also matches the
+ * folder `a`, as the `node:fs` glob does when `dot` is false.
+ */
 async function walkWithDots(root: string, pattern: string, ignore: readonly string[]): Promise<string[]> {
-  const hiddenPattern = hideDots(pattern);
-  const hiddenIgnore = ignore.map(hideDots);
+  const match = (path: string, glob: string): boolean => matchesGlob(path, glob, { dot: true });
+  const isIgnored = (path: string): boolean => ignore.some((glob) => match(path, glob));
+  // The walk does not enter a folder when each path inside it is ignored: "a/" matches "a/**" and "a/*".
+  const folderIgnored = (path: string): boolean => isIgnored(path) || isIgnored(`${path}/`);
   const matches: string[] = [];
 
   async function visit(relative: string): Promise<void> {
     const entries = await readdir(relative ? resolve(root, relative) : root, { withFileTypes: true });
     for (const entry of entries) {
       const path = relative ? `${relative}/${entry.name}` : entry.name;
-      const hidden = hideDots(path);
       if (entry.isDirectory()) {
-        if (folderIgnored(hidden, hiddenIgnore)) continue;
-        if (posix.matchesGlob(hidden, hiddenPattern)) matches.push(path);
+        if (folderIgnored(path)) continue;
+        if (match(path, pattern)) matches.push(path);
         await visit(path);
-      } else if (posix.matchesGlob(hidden, hiddenPattern) && !ignored(hidden, hiddenIgnore)) {
+      } else if (match(path, pattern) && !isIgnored(path)) {
         matches.push(path);
       }
     }
