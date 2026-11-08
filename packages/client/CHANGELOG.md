@@ -1,5 +1,9 @@
 # @procedures/client
 
+## 0.52.2
+
+No changes in this release.
+
 ## 0.52.1
 
 No changes in this release.

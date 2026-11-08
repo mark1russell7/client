@@ -1,5 +1,13 @@
 # @procedures/server
 
+## 0.52.2
+
+### Patch Changes
+
+- @procedures/client@0.52.2
+  - @procedures/fs@0.52.2
+  - @procedures/peer@0.52.2
+
 ## 0.52.1
 
 ### Patch Changes
