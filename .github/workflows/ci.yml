@@ -164,6 +164,14 @@ jobs:
         run: |
           node --test scripts/check-declared-imports.test.ts
           node scripts/check-declared-imports.ts
+      # A package whose public API (its API report) takes or gives a value that service keys by
+      # identity has @mark1russell7/service as a peer, not as a plain dependency (CLI-117). Two
+      # copies of service do not share that state. First the tests of the check, then the check.
+      - name: Check the identity peers of service
+        if: ${{ !cancelled() }}
+        run: |
+          node --test scripts/check-identity-peers.test.ts
+          node scripts/check-identity-peers.ts
       # The paths, the topics and the storage writes (invariants I3 and I5, CLI-84). A path, a key, a
       # method or a topic goes through the codec of @procedures/client, and not through a join or a
       # split on ".". Only the storage files write a MongoDB collection. The step parses the src/

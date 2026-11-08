@@ -74,6 +74,7 @@
     "typescript": "^7.0.2",
     "@types/node": "^22.0.0",
     "@mark1russell7/cue": "^2.1.1",
+    "@mark1russell7/service": "^0.6.0",
     "vitest": "^5.0.3"
   },
   "scripts": {
@@ -87,8 +88,10 @@
     "procedures": "./dist/register.js"
   },
   "dependencies": {
-    "@mark1russell7/service": "^0.6.0",
     "@procedures/client": "workspace:*",
     "zod": "^4.6.5"
+  },
+  "peerDependencies": {
+    "@mark1russell7/service": "^0.6.0"
   }
 }
