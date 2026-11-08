@@ -4,7 +4,9 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { aaId, childResult, measureIsolated, pairedMarkdown, quantileOf, timeChild } from "./lib/paired-time.ts";
+import { random } from "@mark1russell7/rigor-generators";
+import { mean, quantile, sd } from "@mark1russell7/rigor-statistics";
+import { aaId, childResult, meanOf, measureIsolated, pairedMarkdown, quantileOf, sampleSD, timeChild } from "./lib/paired-time.ts";
 
 const ENV = { cpu: "Test CPU 9000", cores: 4, os: "test", arch: "x64", node: "v0.0.0" };
 
@@ -13,6 +15,49 @@ function fakeClock() {
   let now = 0;
   return { clock: () => now, spend: (ms: number) => (now += ms) };
 }
+
+describe("the copies of rigor-statistics in paired-time (CA14)", () => {
+  /** Seeded random lists of 1 to 40 values, with ties, negative values and a wide range. */
+  function lists(): number[][] {
+    const r = random("paired-time-statistics");
+    const rng = () => r.next();
+    const out: number[][] = [[5], [2, 2], [1, 2], [0, -0], [3, 3, 3]];
+    for (let i = 0; i < 300; i++) {
+      const length = 1 + Math.floor(rng() * 40);
+      const scale = 10 ** Math.floor(rng() * 7 - 3);
+      out.push(Array.from({ length }, () => (rng() < 0.2 ? Math.round(rng() * 4) : (rng() - 0.3) * scale)));
+    }
+    return out;
+  }
+  const close = (a: number, b: number) => Math.abs(a - b) <= 1e-12 * Math.max(1, Math.abs(a), Math.abs(b));
+
+  it("quantileOf gives the linear quantile of rigor-statistics on each list", () => {
+    for (const values of lists()) {
+      for (const q of [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]) {
+        const ours = quantileOf(values, q);
+        const home = quantile(values, q, "linear");
+        assert.ok(close(ours, home), `${JSON.stringify(values)} q=${q}: ${ours} != ${home}`);
+      }
+    }
+  });
+
+  it("meanOf and sampleSD give mean and sd of rigor-statistics on each list of 2 values or more", () => {
+    for (const values of lists()) {
+      assert.ok(close(meanOf(values), mean(values)), `mean of ${JSON.stringify(values)}`);
+      if (values.length >= 2) assert.ok(close(sampleSD(values), sd(values)), `sd of ${JSON.stringify(values)}`);
+    }
+  });
+
+  it("pins the differences: NaN for an empty list and an SD of 0 below 2 values, where rigor-statistics throws", () => {
+    assert.ok(Number.isNaN(quantileOf([], 0.5)));
+    assert.throws(() => quantile([], 0.5), RangeError);
+    assert.ok(Number.isNaN(meanOf([])));
+    assert.throws(() => mean([]), RangeError);
+    assert.equal(sampleSD([7]), 0);
+    assert.equal(sampleSD([]), 0);
+    assert.throws(() => sd([7]), RangeError);
+  });
+});
 
 describe("quantileOf", () => {
   it("interpolates between the two nearest values", () => {

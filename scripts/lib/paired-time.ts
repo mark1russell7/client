@@ -145,6 +145,11 @@ export function pairedContext(): string {
   return [where, ...process.execArgv].join(" ");
 }
 
+// The home of these 3 functions is `@mark1russell7/rigor-statistics`. They stay copies here, because the child of the
+// paired bench imports this module in a checkout with no install. So this module has no static package import. The
+// copies go with this module when the shared bench harness replaces it. `scripts/paired-time.test.ts` pins them
+// against `quantile`, `mean` and `sd` of rigor-statistics. An empty list gives NaN here, but a RangeError there.
+// Fewer than 2 values give an SD of 0 here, but a RangeError there.
 /** This function gives the quantile `q` of a list, with a linear interpolation between the two nearest values. An empty list gives NaN. */
 export function quantileOf(values: readonly number[], q: number): number {
   if (values.length === 0) return Number.NaN;
@@ -156,10 +161,10 @@ export function quantileOf(values: readonly number[], q: number): number {
 }
 
 /** This function gives the mean of a list. An empty list gives NaN. */
-const meanOf = (values: readonly number[]): number => (values.length === 0 ? Number.NaN : values.reduce((a, b) => a + b, 0) / values.length);
+export const meanOf = (values: readonly number[]): number => (values.length === 0 ? Number.NaN : values.reduce((a, b) => a + b, 0) / values.length);
 
 /** This function gives the sample SD of a list. Fewer than 2 values give 0. */
-function sampleSD(values: readonly number[]): number {
+export function sampleSD(values: readonly number[]): number {
   if (values.length < 2) return 0;
   const m = meanOf(values);
   return Math.sqrt(values.reduce((a, b) => a + (b - m) ** 2, 0) / (values.length - 1));
