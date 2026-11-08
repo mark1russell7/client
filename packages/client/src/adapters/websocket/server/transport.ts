@@ -28,6 +28,7 @@ import type {
 } from "./types.js";
 import { withoutInternalKeys } from "../../metadata.js";
 import { assertNamedOrigins, checkBrowserRequest, needsNamedOrigin, type BrowserGuardOptions } from "../../../server/browser-guard.js";
+import { encodeFrame } from "../../../frame-encoding.js";
 import { optionalMs } from "../../../duration.js";
 import { headerNames, requestCredentials, urlParts, withoutSecretHeaders } from "../../../server/request-auth.js";
 import { attachUpgradeTarget, refuseUpgrade } from "./upgrade-router.js";
@@ -590,7 +591,7 @@ export class WebSocketServerTransport implements ServerTransport {
     return new Promise<void>((resolve) => {
       let waiting = false;
       const onAbort = (): void => resolve();
-      ws.send(JSON.stringify(message), () => {
+      ws.send(encodeFrame(message), () => {
         if (!waiting) return;
         signal.removeEventListener("abort", onAbort);
         resolve();
@@ -632,7 +633,7 @@ export class WebSocketServerTransport implements ServerTransport {
    */
   private send(ws: WebSocket, message: WebSocketMessage): void {
     if (ws.readyState === OPEN) {
-      ws.send(JSON.stringify(message));
+      ws.send(encodeFrame(message));
     }
   }
 
