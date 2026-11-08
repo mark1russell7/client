@@ -3,11 +3,12 @@
  * `store` sets a document in a collection on a real MongoDB, and its reader reads the changes after each hint. The arm
  * `live` calls `live.set`, and its reader takes the values from the events. Both arms serve the same collection, so a
  * store write of the arm `live` shows in the same counters. The arm `storequiet` is the arm `store` with no subscriber,
- * so a publish of a change makes no read.
+ * so a publish of a change makes no read. The arm `storefilter` is the arm `store` with a rule of the rows, so each
+ * write reads its rows before it.
  */
 
 /** The arms. The first arm is the base of the pairs. */
-export const LIVE_ARMS = ["store", "live", "storequiet"] as const;
+export const LIVE_ARMS = ["store", "live", "storequiet", "storefilter"] as const;
 /** An arm of the bench. */
 export type LiveArm = (typeof LIVE_ARMS)[number];
 
@@ -63,6 +64,8 @@ export interface LiveCount {
   readonly readerReads: number;
   /** The bytes of the events and the reads of the reader, as JSON. */
   readonly readerBytes: number;
+  /** The events whose `since` is not the `version` of the event before it. */
+  readonly chainBreaks: number;
   /** The processor time of the one process, for the server, the writers and the reader together, in milliseconds. */
   readonly cpuMs: number;
   /** The p99 of the delay of the event loop of the process, in milliseconds. */
