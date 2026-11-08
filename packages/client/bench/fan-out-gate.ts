@@ -10,7 +10,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { type JobModel, noReadLine, writeNoRead } from "@mark1russell7/rigor-bench";
+import { gateLine, jobModels, writeGateLine } from "@mark1russell7/rigor-bench";
 import { parseCase } from "./fan-out-cases.js";
 import { type GrowthJob, fanOutGrowth } from "./fan-out-growth.js";
 
@@ -28,16 +28,14 @@ for (const arm of ["plain", "sliced"] as const) {
 }
 console.log(`fan-out growth gate over ${jobs.length} jobs: ${growth.outcome}${growth.reason === undefined ? "" : `: ${growth.reason}`}`);
 // The check line names an outcome that is not a pass, so a no read is not only in the log
-const counts = new Map<string, number>();
-for (const { env } of jobs) if (env !== undefined) counts.set(env.cpu, (counts.get(env.cpu) ?? 0) + 1);
-const models: JobModel[] = [...counts].sort(([a], [b]) => a.localeCompare(b)).map(([model, count]) => ({ model, jobs: count }));
+const models = jobModels(jobs.flatMap(({ env }) => (env === undefined ? [] : [env])));
 const named = jobs.flatMap(({ candidate, skipped }) => [...candidate.map((record) => record.case), ...(skipped ?? []).map((skip) => skip.case)]);
 const gated = [...new Set([...named.filter((id) => parseCase(id).measure === "total"), ...growth.cases])].sort();
-if (growth.outcome === "no read") {
-  const reads = gated.map((id) => ({ case: id, outcome: growth.cases.includes(id) ? "no read" : "within" }));
-  writeNoRead(noReadLine(reads, { title: "The fan-out growth gate", reason: growth.reason, models }), { level: "error" });
-} else if (growth.outcome === "block") {
-  const data = `${growth.reason ?? "a step grows beyond the limit"}. Cases: ${growth.cases.join(", ")}.`.replaceAll("%", "%25").replaceAll("\n", "%0A");
-  console.log(`::error title=The fan-out growth gate blocks::${data}`);
+if (growth.outcome !== "pass") {
+  // One line for a block and a no read: the cases of the outcome, the reason and the CPU models
+  const word = growth.outcome === "block" ? "beyond" : "no read";
+  const reads = gated.map((id) => ({ case: id, outcome: growth.cases.includes(id) ? word : "within" }));
+  const reason = growth.reason ?? (growth.outcome === "block" ? "a step grows beyond the limit" : undefined);
+  writeGateLine(gateLine(reads, { title: "The fan-out growth gate", enforced: true, models, ...(reason !== undefined && { reason }) }));
 }
 if (growth.outcome !== "pass") process.exitCode = 1;

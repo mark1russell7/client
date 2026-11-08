@@ -11,7 +11,7 @@
 import { appendFileSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { gateOf, type JobModel, noReadLine, type PairedTime, writeNoRead } from "@mark1russell7/rigor-bench";
+import { gateLine, jobModels, type PairedTime, writeGateLine } from "@mark1russell7/rigor-bench";
 import { caseClaim, joinJobs, overStated, passingLimit, READ_CASES, storeGate, WRITE_CASES, type GateLimit } from "./gate-verdict.js";
 import { poolErrors, type KeptError } from "./write-cases.js";
 
@@ -93,15 +93,11 @@ for (const claim of report.claims) {
 // A look with --more is not the last look, so its outcome is not final
 const last = values.enforce === true || values.more === undefined;
 if (last) {
-  const counts = new Map<string, number>();
-  for (const { env } of jobs) if (env !== undefined) counts.set(env.cpu, (counts.get(env.cpu) ?? 0) + 1);
-  const models: JobModel[] = [...counts].sort(([a], [b]) => a.localeCompare(b)).map(([model, count]) => ({ model, jobs: count }));
-  const level = values.enforce === true ? "error" : "warning";
-  writeNoRead(noReadLine(verdict.cases, { title: "The speed gate of the store", models }), { level });
-  // The report-only cases never decide the check, so their no read is a warning
-  if (result.reported.length > 0) writeNoRead(noReadLine(result.reported, { title: "The report-only cases of the store gate", models }), { level: "warning" });
-  const blocks = gateOf(verdict.cases).blocks;
-  if (blocks.length > 0) console.log(`::${level} title=The speed gate of the store blocks${level === "error" ? "" : " (report only)"}::Cases: ${blocks.join(", ")}.`);
+  const models = jobModels(jobs.flatMap(({ env }) => (env === undefined ? [] : [env])));
+  // One line names the blocks and the no reads of the gate: an error with --enforce, else a warning
+  writeGateLine(gateLine(verdict.cases, { title: "The speed gate of the store", enforced: values.enforce === true, models }));
+  // The report-only cases never decide the check, so their line is a warning
+  if (result.reported.length > 0) writeGateLine(gateLine(result.reported, { title: "The report-only cases of the store gate", models }));
 }
 if (values.more !== undefined && result.more.length > 0) appendFileSync(values.more, `more=${result.more.join(",")}\n`);
 if (values.enforce === true) process.exitCode = result.exitCode;

@@ -10,7 +10,7 @@
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { aaBand, caseIntervals, type JobModel, noReadLine, poolRecords, type PairedTime, writeNoRead } from "@mark1russell7/rigor-bench";
+import { aaBand, caseIntervals, gateLine, jobModels, poolRecords, type PairedTime, writeGateLine } from "@mark1russell7/rigor-bench";
 import { median } from "@mark1russell7/rigor-statistics";
 import type { ReadCount } from "./read-cases.js";
 
@@ -146,18 +146,18 @@ writeFileSync(values.out, `${JSON.stringify(report, null, 2)}\n`);
 
 for (const row of objective.rows) console.log(`${row.arm} ${row.case}: p95 ${String(row.p95Ms)} ms, ${String(row.ratio)} round trips (worst job ${String(row.worst)}), ${String(row.quiet)} x quiet${row.holds ? "" : ", over the objective"}`);
 const misses = objective.rows.filter((row) => row.arm === "after" && !row.holds);
-const counts = new Map<string, number>();
-for (const { env } of jobs) if (env !== undefined) counts.set(env.cpu, (counts.get(env.cpu) ?? 0) + 1);
-const models: JobModel[] = [...counts].sort(([a], [b]) => a.localeCompare(b)).map(([model, count]) => ({ model, jobs: count }));
+const models = jobModels(jobs.flatMap(({ env }) => (env === undefined ? [] : [env])));
 // An objective with no row of the arm after has no read. It is not a pass
 if (objective.gate && !objective.rows.some((row) => row.arm === "after")) {
   const reason = `at ${String(delay)} ms the arm after has no case with records`;
   console.error(`NO READ: ${reason}. This is not a block and not a pass.`);
-  writeNoRead(noReadLine([], { title: "The read-bound objective", reason, models }), { level: "error" });
+  writeGateLine(gateLine([], { title: "The read-bound objective", enforced: true, reason, models }));
   process.exitCode = 2;
 } else if (objective.gate && misses.length > 0) {
-  const reason = `BLOCK: at ${String(delay)} ms the arm after is over ${String(OBJECTIVE_ROUND_TRIPS)} round trips in ${misses.map((row) => row.case).join(", ")}.`;
-  console.error(reason);
-  console.log(`::error title=The read-bound objective blocks::${reason}`);
+  const reason = `at ${String(delay)} ms the arm after is over ${String(OBJECTIVE_ROUND_TRIPS)} round trips`;
+  console.error(`BLOCK: ${reason} in ${misses.map((row) => row.case).join(", ")}.`);
+  // Each case of the arm after is a read: a miss is a block, and a case within the objective is a pass
+  const reads = objective.rows.filter((row) => row.arm === "after").map((row) => ({ case: row.case, outcome: row.holds ? "within" : "beyond" }));
+  writeGateLine(gateLine(reads, { title: "The read-bound objective", enforced: true, reason, models }));
   process.exitCode = 1;
 } else console.log(objective.gate ? `PASS: at ${String(delay)} ms the arm after is within ${String(OBJECTIVE_ROUND_TRIPS)} round trips in each case.` : `REPORT ONLY: the gate reads only a delay of ${String(GATE_DELAY_MS)} ms.`);
