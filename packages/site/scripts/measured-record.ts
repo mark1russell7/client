@@ -13,7 +13,7 @@
  * The site reads only this record for its measured numbers, so no number of a page is typed text.
  */
 
-import { readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -160,7 +160,7 @@ export function main(argv: readonly string[], env: NodeJS.ProcessEnv = process.e
   return record;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   try {
     const record = main(process.argv.slice(2));
     console.log(`measured-record: ${Object.keys(record.numbers).length} numbers of the run ${record.run.id}`);
