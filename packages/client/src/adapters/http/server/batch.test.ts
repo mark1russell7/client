@@ -59,6 +59,16 @@ function registry() {
         .handler(async () => undefined)
         .build(),
       createProcedure()
+        .path(["proc", "wait"])
+        .input(z.object({ ms: z.number() }))
+        .output(z.string())
+        .meta({ effects: read })
+        .handler(async (input) => {
+          await new Promise((resolve) => setTimeout(resolve, input.ms));
+          return "waited";
+        })
+        .build(),
+      createProcedure()
         .path(["proc", "slow"])
         .input(z.object({}))
         .output(z.string())
@@ -311,6 +321,37 @@ describe("HttpTransport: batches (CLI-32)", () => {
     setTimeout(() => controller.abort(), 20);
     await expect(slow).rejects.toMatchObject({ code: "ABORTED" });
     expect(await echo).toEqual({ text: "z" });
+  });
+
+  it("aborts a stream whose buffer is full, and the reader of the batch goes on for the other call (audit 2026-11-08)", async () => {
+    const { base } = await startApp();
+    const client = clientOf(base);
+    const controller = new AbortController();
+    // The caller of the stream reads one item only: the other items fill its buffer, and the
+    // reader of the batch waits for room. Before, the last item of the abort took the place of that
+    // wait, so the reader stopped and the other call of the batch got no answer.
+    const stream = client.stream(pathToMethod(["proc", "count"]), { to: 300 }, { signal: controller.signal })[Symbol.asyncIterator]();
+    const first = stream.next();
+    const other = client.call(pathToMethod(["proc", "wait"]), { ms: 300 });
+    expect(await first).toEqual({ done: false, value: 1 });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    controller.abort();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const late = new Promise<string>((resolve) => (timer = setTimeout(() => resolve("no answer after 3 s"), 3_000)));
+    expect(await Promise.race([other, late])).toBe("waited");
+    clearTimeout(timer);
+    // The stream gives its buffered items, and then the error of the abort
+    const values: unknown[] = [];
+    const error = await (async () => {
+      for (;;) {
+        const step = await stream.next();
+        if (step.done) return undefined;
+        values.push(step.value);
+      }
+    })().catch((caught: unknown) => caught);
+    expect(error).toMatchObject({ code: "ABORTED" });
+    expect(values.length).toBeLessThan(299);
+    expect(values).toEqual(values.map((_value, index) => index + 2));
   });
 });
 

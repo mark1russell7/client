@@ -261,6 +261,7 @@
 /* ---- Code ---- */
 
 .doc-code {
+  --scroll-cue-bg: var(--color-surface-sunken);
   position: relative;
   margin: var(--space-4) 0;
   padding: var(--space-4);

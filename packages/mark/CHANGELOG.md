@@ -1,5 +1,40 @@
 # @procedures/mark
 
+## 0.52.3
+
+### Patch Changes
+
+- Updated dependencies [db1bcaa]
+  - @procedures/client@0.52.3
+  - @procedures/cli-run@0.52.3
+  - @procedures/cli-kit@0.52.3
+  - @procedures/fs@0.52.3
+  - @procedures/lib@0.52.3
+  - @procedures/pnpm@0.52.3
+  - @procedures/procedure@0.52.3
+  - @procedures/peer@0.52.3
+  - @procedures/shell@0.52.3
+  - @procedures/vitest@0.52.3
+  - @procedures/mcp-dev-tools@0.52.3
+  - @procedures/server@0.52.3
+
+## 0.52.2
+
+### Patch Changes
+
+- @procedures/cli-kit@0.52.2
+  - @procedures/client@0.52.2
+  - @procedures/cli-run@0.52.2
+  - @procedures/fs@0.52.2
+  - @procedures/lib@0.52.2
+  - @procedures/pnpm@0.52.2
+  - @procedures/procedure@0.52.2
+  - @procedures/peer@0.52.2
+  - @procedures/shell@0.52.2
+  - @procedures/vitest@0.52.2
+  - @procedures/mcp-dev-tools@0.52.2
+  - @procedures/server@0.52.2
+
 ## 0.52.1
 
 ### Patch Changes

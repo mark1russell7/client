@@ -59,11 +59,22 @@ export function exposePatterns(patterns: readonly string[]): (path: ProcedurePat
   };
 }
 
+/**
+ * This function tells if a list of excluded keys names a path. An entry can be the key of the path
+ * (`collections.e2e%2Etabs.delete`) or its segments joined with plain dots
+ * (`collections.e2e.tabs.delete`), the form before CLI-75. So an exclusion of the old form still
+ * hides its procedure (audit 2026-11-08). The plain form can hide one more path, but not one less.
+ */
+function isExcluded(excluded: ReadonlySet<string>, path: ProcedurePath): boolean {
+  // path-check: the raw form of an exclude entry before CLI-75, compared as text, not decoded.
+  return excluded.has(pathToKey(path)) || excluded.has(path.join("."));
+}
+
 /** The rule of a tool surface: the namespaces, less the excluded keys. */
 export function surfaceRule(surface: ToolSurface): (path: ProcedurePath) => boolean {
   const namespaces = new Set(surface.namespaces);
   const excluded = new Set(surface.exclude ?? []);
-  return (path) => namespaces.has(path[0] ?? "") && !excluded.has(pathToKey(path));
+  return (path) => namespaces.has(path[0] ?? "") && !isExcluded(excluded, path);
 }
 
 /** The options of `hostPolicy()`. */
@@ -163,7 +174,7 @@ function exposeOf(options: HostPolicyOptions): ((path: ProcedurePath) => boolean
           : surfaceRule(expose as ToolSurface);
   const excluded = new Set(options.exclude ?? []);
   if (excluded.size === 0) return rule;
-  return (path) => !excluded.has(pathToKey(path)) && (rule ? rule(path) : true);
+  return (path) => !isExcluded(excluded, path) && (rule ? rule(path) : true);
 }
 
 /** This function builds the policy of a host from its options. */

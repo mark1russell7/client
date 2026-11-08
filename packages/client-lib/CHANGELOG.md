@@ -1,5 +1,28 @@
 # @procedures/lib
 
+## 0.52.3
+
+### Patch Changes
+
+- Updated dependencies [db1bcaa]
+  - @procedures/client@0.52.3
+  - @procedures/dag@0.52.3
+  - @procedures/fs@0.52.3
+  - @procedures/git@0.52.3
+  - @procedures/pnpm@0.52.3
+  - @procedures/shell@0.52.3
+
+## 0.52.2
+
+### Patch Changes
+
+- @procedures/client@0.52.2
+  - @procedures/dag@0.52.2
+  - @procedures/fs@0.52.2
+  - @procedures/git@0.52.2
+  - @procedures/pnpm@0.52.2
+  - @procedures/shell@0.52.2
+
 ## 0.52.1
 
 ### Patch Changes

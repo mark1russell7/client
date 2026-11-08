@@ -1,5 +1,23 @@
 # @procedures/schedule
 
+## 0.52.3
+
+### Patch Changes
+
+- Updated dependencies [db1bcaa]
+  - @procedures/client@0.52.3
+  - @procedures/fs@0.52.3
+  - @procedures/store@0.52.3
+
+## 0.52.2
+
+### Patch Changes
+
+- Updated dependencies [913fb0e]
+  - @procedures/store@0.52.2
+  - @procedures/client@0.52.2
+  - @procedures/fs@0.52.2
+
 ## 0.52.1
 
 ### Patch Changes
