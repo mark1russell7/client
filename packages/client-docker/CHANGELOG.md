@@ -1,5 +1,13 @@
 # @procedures/docker
 
+## 0.52.3
+
+### Patch Changes
+
+- Updated dependencies [db1bcaa]
+  - @procedures/client@0.52.3
+  - @procedures/shell@0.52.3
+
 ## 0.52.2
 
 ### Patch Changes
