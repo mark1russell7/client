@@ -448,15 +448,35 @@ function idKey(id: unknown): string {
   return BSON.EJSON.stringify({ id }, { relaxed: false });
 }
 
-/** A text of a value with sorted keys: two objects with the same fields give the same text. */
-function canonical(value: unknown): string {
+/**
+ * A text of a value with sorted keys: two objects with the same fields give the same text. A Date, a
+ * RegExp, a Map, a Set, a MinKey and a MaxKey get a tag with their value (CLI-126). These values have
+ * no own keys, so the text of each one was `{}`. A tag is not JSON, so it is not the text of an object.
+ */
+export function canonical(value: unknown): string {
   if (value === null || value === undefined || typeof value !== "object") return JSON.stringify(value) ?? "undefined";
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  const tag = taggedText(value, canonical);
+  if (tag !== undefined) return tag;
   const record = value as Record<string, unknown>;
   return `{${Object.keys(record)
     .sort()
     .map((key) => `${JSON.stringify(key)}:${canonical(record[key])}`)
     .join(",")}}`;
+}
+
+/**
+ * The tagged text of a value that has no own keys, or `undefined` for each other value. `text` gives
+ * the text of the items of a Map or a Set. The items are in the order of their text.
+ */
+function taggedText(value: object, text: (item: unknown) => string): string | undefined {
+  if (value instanceof Date) return `Date(${value.getTime()})`;
+  if (value instanceof RegExp) return `RegExp(${JSON.stringify(String(value))})`;
+  if (value instanceof Map) return `Map(${[...value].map(([key, item]) => `[${text(key)},${text(item)}]`).sort().join(",")})`;
+  if (value instanceof Set) return `Set(${[...value].map(text).sort().join(",")})`;
+  const type = (value as { _bsontype?: unknown })._bsontype;
+  if (type === "MinKey" || type === "MaxKey") return `${type}()`;
+  return undefined;
 }
 
 /**
