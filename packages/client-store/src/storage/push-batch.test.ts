@@ -235,6 +235,58 @@ describe("the merged send of the queue (CLI-121)", () => {
     await hybrid.close();
   });
 
+  it("sends a queued batch over the cap of items as batches within the cap", async () => {
+    const remote = new RecordingRemote();
+    const { hybrid } = hybridOver(remote, { pushBatch: { maxItems: 2 } });
+    await hybrid.setBatch(Array.from({ length: 5 }, (_, index): [string, Item] => [`s${index}`, item(`s${index}`, index)]));
+    await hybrid.deleteBatch(["s0", "s1", "s2"]);
+    await hybrid.flush();
+    expect(shape(remote.calls)).toEqual(["setBatch s0,s1", "setBatch s2,s3", "setBatch s4", "deleteBatch s0,s1", "deleteBatch s2"]);
+    expect((await remote.getIds()).sort()).toEqual(["s3", "s4"]);
+    expect(hybrid.getPendingOpsCount()).toBe(0);
+    await hybrid.close();
+  });
+
+  it("keeps the base version of each id in the batches of a cut batch", async () => {
+    const remote = new RecordingRemote({ versionOf });
+    await remote.setBatch([["a", item("a", 1, "1")], ["b", item("b", 1, "1")], ["c", item("c", 1, "1")]]);
+    const { hybrid } = hybridOver(remote, { versionOf, pushBatch: { maxItems: 2 } });
+    await hybrid.syncFromRemote();
+    remote.calls.length = 0;
+    await hybrid.setBatch([["a", item("a", 2, "La")], ["b", item("b", 2, "Lb")], ["c", item("c", 2, "Lc")]]);
+    await hybrid.flush();
+    expect(remote.calls).toEqual([
+      { method: "setBatch", ids: ["a", "b"], expected: [["a", "1"], ["b", "1"]] },
+      { method: "setBatch", ids: ["c"], expected: [["c", "1"]] },
+    ]);
+    await hybrid.close();
+  });
+
+  it("sends a flush larger than the burst of a limit with a cost for each item, with no refusal", async () => {
+    // A remote limit of a burst of 12 units, at a cost of 1 + ceil(items / 50) for each call: a call over the burst is refused for its size
+    const burst = 12;
+    const cost = (items: number): number => 1 + Math.ceil(items / 50);
+    class LimitedRemote extends RecordingRemote {
+      override async setBatch(items: Array<[string, Item]>, options?: StorageBatchWriteOptions) {
+        if (cost(items.length) > burst) {
+          this.calls.push({ method: "refused", ids: [] });
+          throw Object.assign(new Error("over the capacity of the limit"), { code: "PAYLOAD_TOO_LARGE" });
+        }
+        return super.setBatch(items, options);
+      }
+    }
+    const remote = new LimitedRemote();
+    // 500 items cost 11 units in one call, 1000 cost 21: the cap of 500 items keeps each call within the burst
+    const { hybrid } = hybridOver(remote, { pushBatch: { maxItems: 500 } });
+    await hybrid.setBatch(Array.from({ length: 1200 }, (_, index): [string, Item] => [`s${index}`, item(`s${index}`, index)]));
+    await hybrid.flush();
+    expect(remote.calls.map(({ method, ids }) => `${method} ${String(ids.length)}`)).toEqual(["setBatch 500", "setBatch 500", "setBatch 200"]);
+    expect(remote.calls.every(({ ids }) => cost(ids.length) <= burst)).toBe(true);
+    expect((await remote.getIds()).length).toBe(1200);
+    expect(hybrid.getPendingOpsCount()).toBe(0);
+    await hybrid.close();
+  });
+
   it("refuses a cap that is not a whole number of 1 or more", () => {
     const remote = new RecordingRemote();
     expect(() => hybridOver(remote, { pushBatch: { maxItems: 0 } })).toThrow(RangeError);

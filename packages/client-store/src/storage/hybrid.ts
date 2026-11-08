@@ -70,7 +70,7 @@ import {
 } from "@procedures/client/query";
 import { optionalMs, realClock, type Cancel, type Clock, type Duration } from "@procedures/client/browser";
 import { backoffDelay } from "@mark1russell7/service/backoff";
-import { MemoryQueueStore, idsOf, singlesOf, withoutId, type QueuedOperation, type QueueStore } from "./queue.js";
+import { MemoryQueueStore, chunksOf, idsOf, singlesOf, withoutId, type QueuedOperation, type QueueStore } from "./queue.js";
 import type { SyncError, SyncStatus } from "./types.js";
 import type { RemoteChangeFeed, RemoteChangeHint, RemoteChanges } from "./feed.js";
 import { isSyncState, type SyncStateStore } from "./sync-state.js";
@@ -267,6 +267,8 @@ export interface HybridStorageOptions {
    * - A run stops at a write of another kind and at an id that the run already has. It also stops at a write that
    *   waits for the queue store, and at the caps of `PushBatch`. So the order of the writes of each id stays.
    * - A delete of one id with a base version does not join a run, because `deleteBatch` sends no base versions.
+   * - A queued batch over the caps goes as batches within the caps. Set the caps within the capacity of a remote limit
+   *   for each call, for example a limit with a cost for each item. Then no send of a flush is larger than that capacity.
    * - The writes leave the queue only after the remote took the batch.
    * - When the remote refuses a merged batch or finds a conflict in it, the push sends each write of the run again
    *   alone. Thus `onRefused`, `onDropped`, `isTooLarge` and the conflict policy get the same writes as without the merge.
@@ -3160,6 +3162,15 @@ export class HybridStorage<T> implements CollectionStorage<T> {
           await this.storeChain;
           continue;
         }
+        const chunks = this.chunksOfHead(op);
+        if (chunks.length > 1) {
+          // A batch over the caps goes as batches within the caps (roadmap CLI-121)
+          if (alone.has(op)) for (const chunk of chunks) alone.add(chunk);
+          this.offlineOps.splice(0, 1, ...chunks);
+          split = true;
+          this.storeDirty = true;
+          continue;
+        }
         const run = this.pushRun(alone);
         if (run.length > 1) {
           this.inFlight = run.length;
@@ -3289,6 +3300,14 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       bytes += size;
     }
     return run;
+  }
+
+  /** This method gives the batches within the caps of `pushBatch` of the head operation, or the head alone. */
+  private chunksOfHead(op: QueuedOperation): QueuedOperation[] {
+    const caps = this.options.pushBatch;
+    if (caps === undefined || mergeKind(op) === undefined) return [op];
+    if (idsOf(op).length <= caps.maxItems && this.sizeOf(op) <= caps.maxBytes) return [op];
+    return chunksOf(op, caps.maxItems, caps.maxBytes);
   }
 
   /** True when an operation can join a merged send. A delete of one id with a base version cannot: `deleteBatch` sends no base versions. */
