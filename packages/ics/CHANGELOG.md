@@ -1,5 +1,11 @@
 # @procedures/ics
 
+## 0.52.0
+
+### Patch Changes
+
+- @procedures/client@0.52.0
+
 ## 0.51.0
 
 ### Patch Changes
