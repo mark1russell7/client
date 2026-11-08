@@ -3,15 +3,15 @@
  * This script reads the claim "not slower by more than the limit of the case" of `gate-limit.json` over the job files of the folder.
  * With `--enforce`, the exit code is 1 for a block and 2 for no read. With `--more`, the file takes the line `more=<cases>` for the next look.
  *
- * An annotation on the check line names each outcome that is not a pass. A run with no `--enforce` and no `--more` only reports, so
- * its outcome is a warning. The cases that only report give a warning at the last look. With `--enforce`, the step of `ci.yml`
- * gives the error of the gate.
+ * At the last look, an annotation on the check line names each no read and each block, with the cases and the CPU models.
+ * With `--enforce`, the annotation is an error. A run with no `--enforce` and no `--more` only reports, so its annotation is a warning.
+ * The cases that only report give a warning.
  */
 
 import { appendFileSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { gateAnnotation, gateOf, type PairedTime } from "@mark1russell7/rigor-bench";
+import { gateOf, type JobModel, noReadLine, type PairedTime, writeNoRead } from "@mark1russell7/rigor-bench";
 import { caseClaim, joinJobs, overStated, passingLimit, READ_CASES, storeGate, WRITE_CASES, type GateLimit } from "./gate-verdict.js";
 import { poolErrors, type KeptError } from "./write-cases.js";
 
@@ -91,12 +91,17 @@ for (const claim of report.claims) {
   for (const line of claim.breaks) console.log(`${claim.case}: detection does not rise with the slowdown: ${line}`);
 }
 // A look with --more is not the last look, so its outcome is not final
-const envs = jobs.flatMap(({ env }) => (env === undefined ? [] : [env]));
 const last = values.enforce === true || values.more === undefined;
-const cases = gateOf(verdict.cases);
-const gateLine = values.enforce === true || !last ? undefined : gateAnnotation({ gate: "The speed gate of the store", outcome: result.outcome, reason: result.text, cases: result.outcome === "block" ? cases.blocks : cases.noRead, envs, enforced: false });
-const reported = gateOf(result.reported);
-const reportedLine = !last || result.reported.length === 0 ? undefined : gateAnnotation({ gate: "The report-only cases of the store gate", outcome: reported.outcome, reason: reported.reason, cases: reported.outcome === "block" ? reported.blocks : reported.noRead, envs, enforced: false });
-for (const line of [gateLine, reportedLine]) if (line !== undefined) console.log(line);
+if (last) {
+  const counts = new Map<string, number>();
+  for (const { env } of jobs) if (env !== undefined) counts.set(env.cpu, (counts.get(env.cpu) ?? 0) + 1);
+  const models: JobModel[] = [...counts].sort(([a], [b]) => a.localeCompare(b)).map(([model, count]) => ({ model, jobs: count }));
+  const level = values.enforce === true ? "error" : "warning";
+  writeNoRead(noReadLine(verdict.cases, { title: "The speed gate of the store", models }), { level });
+  // The report-only cases never decide the check, so their no read is a warning
+  if (result.reported.length > 0) writeNoRead(noReadLine(result.reported, { title: "The report-only cases of the store gate", models }), { level: "warning" });
+  const blocks = gateOf(verdict.cases).blocks;
+  if (blocks.length > 0) console.log(`::${level} title=The speed gate of the store blocks${level === "error" ? "" : " (report only)"}::Cases: ${blocks.join(", ")}.`);
+}
 if (values.more !== undefined && result.more.length > 0) appendFileSync(values.more, `more=${result.more.join(",")}\n`);
 if (values.enforce === true) process.exitCode = result.exitCode;
