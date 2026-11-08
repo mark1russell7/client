@@ -393,7 +393,7 @@ jobs:
   mongo-speed-look:
     name: MongoDB (the first look of the speed gate)
     needs: [mongo-speed-plan, mongo-speed]
-    if: always() && needs.mongo-speed-plan.outputs.changed == 'true'
+    if: ${{ !cancelled() && needs.mongo-speed-plan.outputs.changed == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -417,7 +417,7 @@ jobs:
   mongo-speed-more:
     name: MongoDB (the second look of the speed gate, job ${{ matrix.job }})
     needs: mongo-speed-look
-    if: always() && needs.mongo-speed-look.result == 'success' && needs.mongo-speed-look.outputs.more != ''
+    if: ${{ !cancelled() && needs.mongo-speed-look.result == 'success' && needs.mongo-speed-look.outputs.more != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -441,7 +441,7 @@ jobs:
   mongo-speed-verdict:
     name: MongoDB (the verdict of the speed gate)
     needs: [mongo-speed-plan, mongo-speed, mongo-speed-look, mongo-speed-more]
-    if: always() && needs.mongo-speed-plan.outputs.changed == 'true'
+    if: ${{ !cancelled() && needs.mongo-speed-plan.outputs.changed == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

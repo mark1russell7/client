@@ -358,6 +358,25 @@ With `versionOf` and the policy `merge`, a queued write also keeps its base valu
 - The option `sendBaseVersions: false` stops the expected versions. Then a queued write replaces the remote item, as before CLI-16.
 - A write of the mode `write-through` goes to the remote directly. It sends only the expected version of its caller.
 
+### The overlaps of a merge
+
+A merge can keep only one side of a path. `mergeFn` reports these paths with its fourth argument, `context` (roadmap CLI-109).
+
+- `context.overlap(paths)` reports the paths where the merge kept only one side, for example `["title"]`.
+- Each call during the merge gives one call of `onDropped` with the reason `overlap`.
+- The report holds the local value, `remote`, `base`, `merged` and `paths`, and the sync of the conflict.
+- `base` is undefined when the storage does not know the base value, for example for an operation from an older version.
+- The merged write of an overlap stays in the queue, and the push sends it. `getMetadata()` counts the reports as `stats.overlaps`, not as `stats.dropped`.
+- A call of `context.overlap` after the end of the merge changes nothing.
+- A merge function with two or three parameters works as before, and gives no report.
+
+```ts
+const mergeTitle = (local: Note, remote: Note, base: Note | null | undefined, context: MergeContext): Note => {
+  if (base && local.title !== base.title && remote.title !== base.title) context.overlap(["title"]);
+  return { ...remote, body: local.body };
+};
+```
+
 ### The clock, the backoff and the status
 
 The timers and the retries run on a clock: `Clock` of `@mark1russell7/service/clock`. A test gives `fakeClock` of `@mark1russell7/service/testing`, and the times are then exact.
