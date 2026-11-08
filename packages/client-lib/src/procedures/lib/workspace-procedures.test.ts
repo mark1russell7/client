@@ -1,8 +1,8 @@
 /**
  * Tests of lib.scan, lib.audit and lib.new against a temporary workspace.
  *
- * The procedures reach the file system and git only through ctx.client.call(),
- * so a fake client serves fs.* from the real (temporary) disk and git.* from fixed values.
+ * The procedures reach the file system, git and the shell only through `ctx.client.call()`.
+ * A fake client serves `fs.*` from a temporary folder, and `git.*` and `shell.run` from fixed values.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
@@ -16,7 +16,7 @@ import { libNew } from "./new.js";
 
 type Handler = (input: Record<string, unknown>) => unknown;
 
-function fakeContext(calls: string[] = []): ProcedureContext {
+function fakeContext(calls: string[] = [], extra: Record<string, Handler> = {}): ProcedureContext {
   const handlers: Record<string, Handler> = {
     "fs.readdir": ({ path }) => ({
       path,
@@ -30,6 +30,7 @@ function fakeContext(calls: string[] = []): ProcedureContext {
     "fs.exists": ({ path }) => ({ path, exists: existsSync(path as string) }),
     "git.status": () => ({ branch: "main" }),
     "git.remote": () => ({ name: "origin", url: "git@github.com:mark1russell7/client.git" }),
+    ...extra,
   };
   return {
     client: {
@@ -113,6 +114,18 @@ describe("workspace lib procedures", () => {
       ]);
     });
 
+    it("warns when the root is not a workspace", async () => {
+      const folder = mkdtempSync(join(tmpdir(), "client-lib-plain-"));
+      try {
+        const result = await libScan({ rootPath: folder }, fakeContext());
+
+        expect(result.packages).toEqual({});
+        expect(result.warnings).toEqual([{ path: folder, issue: expect.stringContaining("Not a workspace root") }]);
+      } finally {
+        rmSync(folder, { recursive: true, force: true });
+      }
+    });
+
     it("warns when the workspace has no packages folder", async () => {
       rmSync(join(root, "packages"), { recursive: true });
 
@@ -175,6 +188,65 @@ describe("workspace lib procedures", () => {
       expect(result.packagePath).toBe(join(root, "packages", "demo"));
       expect(result.created).toContain(join(root, "packages", "demo", "src", "register.ts"));
       expect(existsSync(join(root, "packages", "demo"))).toBe(false);
+    });
+
+    /** This context writes the files to the disk, and a fake `shell.run` stands for `cue-config`. */
+    function writingContext(runs: Array<{ command: string; args: string[]; cwd: string }>, fail = false): ProcedureContext {
+      return fakeContext([], {
+        "fs.mkdir": ({ path }) => ({ path, created: mkdirSync(path as string, { recursive: true }) !== undefined }),
+        "fs.write": ({ path, content }) => {
+          writeFileSync(path as string, content as string);
+          return { path, bytesWritten: (content as string).length };
+        },
+        "shell.run": (input) => {
+          const run = input as { command: string; args: string[]; cwd: string };
+          runs.push(run);
+          if (fail) return { success: false, exitCode: 2, stdout: "", stderr: "bad preset" };
+          if (run.args[1] === "generate") writeJson(join(run.cwd, "package.json"), { name: "unnamed", dependencies: { tslib: "^2.8.1" } });
+          return { success: true, exitCode: 0, stdout: "", stderr: "" };
+        },
+      });
+    }
+
+    it("writes the source files, runs cue-config and sets the package fields", async () => {
+      const runs: Array<{ command: string; args: string[]; cwd: string }> = [];
+      const result = await libNew({ name: "my-demo", preset: "lib", rootPath: root, dryRun: false }, writingContext(runs));
+
+      const dir = join(root, "packages", "my-demo");
+      expect(result.errors).toEqual([]);
+      expect(result.success).toBe(true);
+      expect(readFileSync(join(dir, "src", "module.ts"), "utf8")).toContain('export const myDemoModule: ProcedureModule = defineModule("@procedures/my-demo", []);');
+      expect(readFileSync(join(dir, "src", "register.ts"), "utf8")).toContain("registerMyDemoProcedures();");
+      const cueCli = join(root, "node_modules", "@mark1russell7", "cue", "dist", "cli.js");
+      expect(runs).toEqual([
+        { command: process.execPath, args: [cueCli, "init", "--preset", "lib", "--force"], cwd: dir },
+        { command: process.execPath, args: [cueCli, "generate"], cwd: dir },
+      ]);
+      const pkg = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")) as Record<string, unknown>;
+      expect(pkg["name"]).toBe("@procedures/my-demo");
+      expect(pkg["client"]).toEqual({ procedures: "./dist/register.js" });
+      expect(pkg["dependencies"]).toEqual({ tslib: "^2.8.1", "@procedures/client": "workspace:*", zod: "^4.6.5" });
+    });
+
+    it("gives the error of a cue-config run that fails", async () => {
+      const runs: Array<{ command: string; args: string[]; cwd: string }> = [];
+      const result = await libNew({ name: "demo", preset: "lib", rootPath: root, dryRun: false }, writingContext(runs, true));
+
+      expect(result.success).toBe(false);
+      expect(result.errors).toEqual(["cue-config init --preset lib --force failed (exit 2): bad preset"]);
+      expect(runs).toHaveLength(1);
+    });
+
+    it("refuses a root that is not a workspace", async () => {
+      const folder = mkdtempSync(join(tmpdir(), "client-lib-plain-"));
+      try {
+        const result = await libNew({ name: "demo", preset: "lib", rootPath: folder, dryRun: true }, fakeContext());
+
+        expect(result.success).toBe(false);
+        expect(result.errors[0]).toContain("Not a workspace root");
+      } finally {
+        rmSync(folder, { recursive: true, force: true });
+      }
     });
 
     it("refuses a package folder that exists", async () => {

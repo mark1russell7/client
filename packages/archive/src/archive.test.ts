@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { createRegistry, effectsOf, invokePath, outputValue, type ProcedureModule } from "@procedures/client";
 import { archiveModule, createArchiveModule, registerArchiveProcedures } from "./module.js";
 import { crc32 } from "./zip.js";
-import { portableLinkTarget } from "./walk.js";
+import { portableLinkTarget, walk } from "./walk.js";
 import type { ArchiveCreateOutput, ArchiveExtractOutput, ArchiveListOutput } from "./types.js";
 
 const folders: string[] = [];
@@ -175,6 +175,23 @@ describe("the link targets of the walk", () => {
   });
 });
 
+describe("the walk on @mark1russell7/files (CA14)", () => {
+  const limits = { maxEntries: 100, maxBytes: 1_000_000, exclude: new Set<string>() };
+
+  it("gives UNSAFE_PATH with the name as the entry for a missing name, at the top and in a folder", async () => {
+    const source = sampleFolder();
+    for (const name of ["missing.txt", "sub/missing.txt"]) {
+      await expect(walk(source, [name], limits), name).rejects.toMatchObject({ code: "UNSAFE_PATH", entry: name });
+    }
+  });
+
+  it("gives TOO_LARGE at the limit of entries and of bytes", async () => {
+    const source = sampleFolder();
+    await expect(walk(source, ["."], { ...limits, maxEntries: 1 })).rejects.toMatchObject({ code: "TOO_LARGE" });
+    await expect(walk(source, ["sub"], { ...limits, maxBytes: 10 })).rejects.toMatchObject({ code: "TOO_LARGE" });
+  });
+});
+
 describe("archive.create", () => {
   it("refuses an existing archive without overwrite, and replaces it with overwrite", async () => {
     const source = sampleFolder();
@@ -204,7 +221,8 @@ describe("archive.create", () => {
     for (const name of ["../a.txt", "sub/../../a.txt", "/etc/passwd", "C:\\Windows", "."]) {
       await expect(call("archive.create", { output, cwd: source, files: [name] }), name).rejects.toMatchObject({ code: "UNSAFE_PATH" });
     }
-    await expect(call("archive.create", { output, cwd: source, files: ["missing.txt"] })).rejects.toMatchObject({ code: "UNSAFE_PATH" });
+    // The walk of @mark1russell7/files throws the error of lstat. The entry of the error stays the name (CA14).
+    await expect(call("archive.create", { output, cwd: source, files: ["missing.txt"] })).rejects.toMatchObject({ code: "UNSAFE_PATH", message: expect.stringMatching(/missing\.txt does not exist$/) });
     expect(existsSync(output)).toBe(false);
   });
 

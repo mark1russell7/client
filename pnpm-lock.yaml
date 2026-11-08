@@ -248,6 +248,9 @@ importers:
 
   packages/archive:
     dependencies:
+      '@mark1russell7/files':
+        specifier: ^0.0.2
+        version: 0.0.2
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -684,6 +687,9 @@ importers:
 
   packages/client-fs:
     dependencies:
+      '@mark1russell7/files':
+        specifier: ^0.0.2
+        version: 0.0.2
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -734,6 +740,9 @@ importers:
 
   packages/client-lib:
     dependencies:
+      '@mark1russell7/files':
+        specifier: ^0.0.2
+        version: 0.0.2
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -3372,6 +3381,10 @@ packages:
 
   '@mark1russell7/docker-sqlite@0.2.1':
     resolution: {integrity: sha512-hPpTZGcf5JZXogDTJMx4o/bfWZSIdK/3aguJc2xcKRksYwG3K0FXYt+j96JT4VCX7BRu/HQb3kWy4q1tkPTIjQ==}
+    engines: {node: '>=22'}
+
+  '@mark1russell7/files@0.0.2':
+    resolution: {integrity: sha512-3oKnBCxZi5ChjRmxP3lMFsWTRZuhHvt8I7ZHIr2UmgPQR5VrY/qJDKF6k9m8IqFq4958m0Z1+8BDa0SqXe/Ymw==}
     engines: {node: '>=22'}
 
   '@mark1russell7/quantity@0.3.0':
@@ -6796,6 +6809,8 @@ snapshots:
     dependencies:
       '@types/sql.js': 1.4.11
       sql.js: 1.14.2
+
+  '@mark1russell7/files@0.0.2': {}
 
   '@mark1russell7/quantity@0.3.0(zod@4.6.7)':
     dependencies:
