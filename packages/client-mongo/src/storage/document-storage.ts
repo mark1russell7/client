@@ -69,7 +69,7 @@
  *   it. One case stays on a single server: a process that stops between such a late write and the
  *   move of its documents. Then a reader that passed the old numbers does not get that change.
  * - A reader can get a write two times, with the same value or a later value. A full answer takes
- *   its mark before it lists the items, so it can hold a write above its mark, and the next delta
+ *   its mark after it lists the items, and it can hold a write above its mark, so the next delta
  *   gives the write again. A reader can also read a late write at its old numbers, and then the move
  *   gives the write new numbers and a new version. The second case occurs only for a write that ends
  *   after `writeLease`.
@@ -348,22 +348,16 @@ function hasTransactions(db: Db): Promise<boolean> {
 
 /** The most moves of a late write to new numbers. */
 const MAX_MOVES = 10;
-
-/** The ends of the work of one collection. These promises do not reject. */
-interface WorkQueue {
-  /** The end of each earlier write and change read. */
-  all: Promise<unknown>;
-  /** The end of the last write. */
-  writes: Promise<unknown>;
-}
+/** The most lists of one full result, when a prune or a new epoch passes its marks. */
+const MOST_FULL_TRIES = 3;
 
 /**
- * The writes and the change reads of each collection: by the client, then by the names of the database and the
- * collection. A new `Db` object of the same client has the same queue (roadmap CLI-93). A write goes alone, in the
- * order of the calls. A change read goes after each earlier write, next to the other change reads. So a read and a
- * write keep the order of their calls, and a read does not wait for a read (roadmap CLI-91).
+ * The end of the last write of each collection: by the client, then by the names of the database and the collection.
+ * These promises do not reject. A new `Db` object of the same client has the same queue (roadmap CLI-93). A write goes
+ * alone, in the order of the calls. A change read is not in this queue (roadmap CLI-102). The mark of a read stops
+ * below each write in flight, so a read does not need the end of a write of this process.
  */
-const QUEUES = new WeakMap<object, Map<string, WorkQueue>>();
+const QUEUES = new WeakMap<object, Map<string, Promise<unknown>>>();
 
 /** The change reads of each client at one time. A burst of reads leaves the pool to the other operations. */
 const READS = new WeakMap<object, Semaphore>();
@@ -384,52 +378,31 @@ function writePermitsOf(db: Db, bound: number): Semaphore {
   return permits;
 }
 
-function queueOf(db: Db, name: string): { queues: Map<string, WorkQueue>; collection: string; queue: WorkQueue } {
+/** This function starts a write after each earlier write of the collection. */
+function enqueueWrite<R>(db: Db, name: string, task: () => Promise<R>): Promise<R> {
   const owner = ownerOf(db);
   let queues = QUEUES.get(owner);
   if (!queues) QUEUES.set(owner, (queues = new Map()));
   const collection = `${db.databaseName}\u0000${name}`;
-  let queue = queues.get(collection);
-  if (!queue) queues.set(collection, (queue = { all: Promise.resolve(), writes: Promise.resolve() }));
-  return { queues, collection, queue };
-}
-
-/** This function drops the queue of a collection when this end is the last of its work. */
-function dropWhenLast(queues: Map<string, WorkQueue>, collection: string, queue: WorkQueue, end: Promise<unknown>): void {
-  void end.then(() => {
-    if (queue.all === end && queues.get(collection) === queue) queues.delete(collection);
-  });
-}
-
-const settledOf = (run: Promise<unknown>): Promise<unknown> =>
-  run.then(
+  const run = (queues.get(collection) ?? Promise.resolve()).then(task);
+  const settled = run.then(
     () => undefined,
     () => undefined
   );
-
-/** This function starts a write after each earlier write and change read of the collection. */
-function enqueueWrite<R>(db: Db, name: string, task: () => Promise<R>): Promise<R> {
-  const { queues, collection, queue } = queueOf(db, name);
-  const run = queue.all.then(task);
-  const settled = settledOf(run);
-  queue.all = settled;
-  queue.writes = settled;
-  dropWhenLast(queues, collection, queue, settled);
+  const known = queues;
+  known.set(collection, settled);
+  void settled.then(() => {
+    if (known.get(collection) === settled) known.delete(collection);
+  });
   return run;
 }
 
-/** This function starts a change read after each earlier write of the collection, next to the other change reads. */
-function enqueueRead<R>(db: Db, name: string, task: () => Promise<R>): Promise<R> {
-  const { queues, collection, queue } = queueOf(db, name);
+/** This function starts a change read within the share of the client. The read waits for no write. */
+function withReadPermit<R>(db: Db, task: () => Promise<R>): Promise<R> {
   const owner = ownerOf(db);
   let reads = READS.get(owner);
   if (!reads) READS.set(owner, (reads = new Semaphore(poolShare(db, CHANGE_READ_DIVISOR))));
-  const permits = reads;
-  const run = queue.writes.then(() => permits.withPermit(task));
-  const end = Promise.all([queue.all, settledOf(run)]);
-  queue.all = end;
-  dropWhenLast(queues, collection, queue, end);
-  return run;
+  return reads.withPermit(task);
 }
 
 /**
@@ -836,7 +809,7 @@ interface Counter {
 interface Watermark extends Counter {
   /** The floor of the log of the partition: 0 when the partition has no floor document. */
   floor: number;
-  /** True when a pending write holds the watermark below the counter. */
+  /** True when the version stops below a pending number. */
   readonly held: boolean;
 }
 
@@ -1509,19 +1482,57 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     return doc ? seqVersion(doc) : undefined;
   }
 
+  /**
+   * This method gives a full result. An event with values can land between the first mark and the
+   * list, so the first mark is not a version that this list can have. The method takes a second mark
+   * after the list and reads the rows between the two marks. The second mark is the version.
+   *
+   * That read stops at the second mark. A row past the mark keeps the value of the list, and its later
+   * value comes after this result, in order. So the value of an id does not go back at a subscriber.
+   * The cost is one more aggregate for each full result, and two more finds when the mark moved.
+   */
+  private async fullResult(db: Db, items: Collection<Stored>, first: Watermark): Promise<StorageChanges<T>> {
+    const result = (mark: Watermark, docs: readonly Document[]): StorageChanges<T> => ({
+      version: `${mark.epoch}.${mark.seq}`,
+      full: true,
+      changed: this.decodeAll(docs),
+      deleted: [],
+      ...(mark.held ? { held: true } : {}),
+    });
+    let mark = first;
+    for (let tries = 1; ; tries += 1) {
+      const listed = await items.find(this.liveFilter()).sort({ [ORD]: 1, _id: 1 }).toArray();
+      const after = await this.watermark(db);
+      if (after.epoch === mark.epoch) {
+        if (after.seq <= mark.seq) return result(mark, listed);
+        const docs = await items.find({ ...this.partitionFilter(), [SEQ]: { $gt: mark.seq, $lte: after.seq } } as Filter<Stored>).toArray();
+        // A prune raises the floor before its delete, so a query that missed a tombstone sees the new floor here (roadmap CLI-93)
+        if (mark.seq >= (await this.floorOf(db))) return result(after, this.withLaterDocs(listed, docs));
+      }
+      // The log does not tell the changes since this mark. Each later read from this version, an event too, gets a full result
+      if (tries === MOST_FULL_TRIES) return result(mark, listed);
+      mark = after;
+    }
+  }
+
+  /** The listed documents with later documents over them, in the order of the entries. A tombstone removes its document. */
+  private withLaterDocs(listed: readonly Document[], later: readonly Document[]): Document[] {
+    const idOf = (doc: Document): string => String(doc["_id"]);
+    const docs = new Map(listed.map((doc) => [idOf(doc), doc]));
+    for (const doc of later) {
+      if (doc[TOMB] === true) docs.delete(idOf(doc));
+      else docs.set(idOf(doc), doc);
+    }
+    return [...docs.values()].sort((a, b) => this.placeOf(a) - this.placeOf(b) || (idOf(a) < idOf(b) ? -1 : idOf(a) > idOf(b) ? 1 : 0));
+  }
+
   async getChangesSince(since?: string): Promise<StorageChanges<T>> {
     const { db, items } = await this.collection();
-    return enqueueRead(db, this.counterId, async () => {
+    return withReadPermit(db, async () => {
       const counter = await this.watermark(db);
       const version = `${counter.epoch}.${counter.seq}`;
       const held = counter.held ? { held: true } : {};
-      const full = async (): Promise<StorageChanges<T>> => ({
-        version,
-        full: true,
-        changed: this.decodeAll(await items.find(this.liveFilter()).sort({ [ORD]: 1, _id: 1 }).toArray()),
-        deleted: [],
-        ...held,
-      });
+      const full = (): Promise<StorageChanges<T>> => this.fullResult(db, items, counter);
       const match = since === undefined ? null : /^([^.]+)\.(\d+)$/.exec(since);
       if (!match || match[1] !== counter.epoch) return full();
       const from = Number(match[2]);

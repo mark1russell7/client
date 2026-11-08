@@ -1,6 +1,6 @@
 /**
  * One arm of the stream bench, in its own process:
- * `--arm before|after --case ready-<partitions> --job <n> --counts <file> --cap <seconds> [--pool <size>]`.
+ * `--arm before|after --case ready-<partitions> --job <n> --counts <file> --cap <seconds> [--pool <size>] [--family equal|varied]`.
  *
  * The child makes one view for each partition on one source of a real MongoDB, starts the
  * materializer on a client of its own, and measures from a second client:
@@ -20,13 +20,10 @@ import { monitorEventLoopDelay } from "node:perf_hooks";
 import { setTimeout as sleep } from "node:timers/promises";
 import { parseArgs } from "node:util";
 import { MongoClient, type Collection, type Document } from "mongodb";
-import { parseCase, type StreamCount } from "./stream-cases.js";
+import { DOCS, parseCase, viewPipeline, type StreamCount, type ViewFamily } from "./stream-cases.js";
 
 /** The idle time of the acceptance. */
 const IDLE_MS = 10_000;
-
-/** The documents of each partition: `DOCS` for the view, and one that the burst deletes. */
-const DOCS = 5;
 
 /** The time between two queries of the probe. */
 const PROBE_EVERY_MS = 50;
@@ -38,13 +35,15 @@ const QUIET_MS = 2_000;
 const POLL_MS = 10;
 
 const { values } = parseArgs({
-  options: { arm: { type: "string" }, case: { type: "string" }, job: { type: "string" }, counts: { type: "string" }, cap: { type: "string" }, pool: { type: "string" } },
+  options: { arm: { type: "string" }, case: { type: "string" }, job: { type: "string" }, counts: { type: "string" }, cap: { type: "string" }, pool: { type: "string" }, family: { type: "string" } },
 });
 const { arm, case: caseName, job, counts } = values;
 if ((arm !== "before" && arm !== "after") || caseName === undefined || job === undefined || counts === undefined) throw new RangeError("this child needs --arm before|after, --case, --job and --counts");
 const capMs = Number(values.cap) * 1000;
 if (!(capMs > 0)) throw new RangeError("this child needs --cap, in seconds");
 const pool = Number(values.pool ?? 0);
+const family = (values.family ?? "equal") as ViewFamily;
+if (family !== "equal" && family !== "varied") throw new RangeError("the family is equal or varied");
 const partitions = parseCase(caseName);
 
 const url = process.env["MONGO_TEST_URL"];
@@ -60,12 +59,13 @@ await Promise.all([observer.connect(), app.connect()]);
 
 const seed = observer.db(name);
 const partitionOf = (index: number): string => `t${index}`;
+const pipelines = Array.from({ length: partitions }, (_, index) => viewPipeline(family, index));
 await seed.collection("_aggregations").insertMany(
   Array.from({ length: partitions }, (_, index) => ({
     _id: `v${index}` as never,
     _part: partitionOf(index),
     collections: ["items"],
-    pipeline: [{ $group: { _id: "$kind", total: { $sum: "$n" } } }],
+    pipeline: pipelines[index]!,
     targetCollection: "sums",
   }))
 );
@@ -136,6 +136,7 @@ const counted = {
   updates: started.updates - before.updates,
   clientMb: process.memoryUsage().rss / 1024 / 1024,
   serverMb: started.residentMb,
+  distinctPipelines: new Set(pipelines.map((pipeline) => JSON.stringify(pipeline))).size,
 };
 
 /** This function writes the line of the counts and the line of `freshRun`, and ends the child. */

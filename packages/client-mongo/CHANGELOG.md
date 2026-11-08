@@ -1,5 +1,36 @@
 # @procedures/mongo
 
+## 0.51.0
+
+### Minor Changes
+
+- 63e607a: **Breaking.** `MongoDocumentStorage.getChangesSince()` does not wait for a write of the same process. A change read goes next to the writes of a collection. So a burst of writes with a subscriber keeps its replies.
+  
+  A write that has ended is in each later read, as before. A write that has not ended is in this read or in the next read. The mark of a read stops below each write in flight. A full answer takes its version after it lists the items, so the value of an id does not go back at a subscriber.
+  
+  A full answer beside a write can hold that write above its version, and the next delta gives it again. A second time has the same value or a later value, so apply a change by its id. A full answer has one more `aggregate`, and two more `find` commands when the mark moved.
+  
+  Before this change, a `getChangesSince()` in the same tick as a `set()` with no `await` waited for that write and had it. At this time, that read can leave the write to the next read. To migrate: find each `set()` with no `await` before `getChangesSince()` in the same tick. If the read must have the write, `await` the write before the read. A caller that follows a cursor changes nothing.
+  
+  The contract of `StorageChanges` stays as it was: "A result gives each write at least one time." The contract states nothing about a write that has not resolved. This change moves no export. It changes when a write in flight comes in a read, so decision D13 counts it as a break.
+
+### Patch Changes
+
+- Updated dependencies [0c3bfa3]
+  - @procedures/client@0.51.0
+  - @procedures/collections@0.51.0
+
+## 0.50.0
+
+### Patch Changes
+
+- 25d9f97: `watchDatabaseChanges` keeps the first token of a stream until the stream gives its first event.
+  
+  Before, a fault of the first read after `ready` opened the next stream without a token, at the present time. The changes between `ready` and that fault were lost. With this fix, the watcher opens the next stream at the first token. An event over the BSON limit with no split stage stops the watcher, as the documentation states.
+- Updated dependencies [54cdb34]
+  - @procedures/client@0.50.0
+  - @procedures/collections@0.50.0
+
 ## 0.49.1
 
 ### Patch Changes

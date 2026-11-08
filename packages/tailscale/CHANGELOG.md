@@ -1,5 +1,21 @@
 # @procedures/tailscale
 
+## 0.51.0
+
+### Patch Changes
+
+- Updated dependencies [0c3bfa3]
+  - @procedures/client@0.51.0
+  - @procedures/shell@0.51.0
+
+## 0.50.0
+
+### Patch Changes
+
+- Updated dependencies [54cdb34]
+  - @procedures/client@0.50.0
+  - @procedures/shell@0.50.0
+
 ## 0.49.1
 
 ### Patch Changes
