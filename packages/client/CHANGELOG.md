@@ -1,5 +1,35 @@
 # @procedures/client
 
+## 0.51.0
+
+### Patch Changes
+
+- 0c3bfa3: A server encodes an event once for each topic, not once for each subscriber. The WebSocket and the NDJSON transports put the same text in the frame of each connection.
+  
+  Before this change, one event cost subscribers x event bytes of encode work. The text of each frame stays byte-equal to the text before this change.
+  
+  A source can publish the same object again after a change. That publish is a new event, and its frames encode the new value.
+
+## 0.50.0
+
+### Minor Changes
+
+- 54cdb34: The live state has two limits of bytes: `maxTopicBytes` for each topic, and `maxBytes` for all topics.
+  
+  The product of the earlier limits is more than 64 GiB, so they did not bound the memory of a host. The defaults are 1 MiB for a topic and 64 MiB for a state.
+  
+  The bench `live-limits` set the defaults in run 42152574477, on hosts with a heap limit of 4,496,293,888 bytes (4.19 GiB). A full topic at 1 MiB kept 1,075,659 bytes of heap. A full state at 64 MiB kept 68,842,177 bytes, 1.53 percent of that heap. With the earlier limits, 261 full topics filled the heap. A set that adds bytes above a limit gets `FORBIDDEN` with the reason `write-not-allowed`. A set that makes a value smaller goes. The getter `bytes` gives the bytes of the values, as JSON.
+  
+  A value from another host has the same limits. A value that does not fit is not kept, and the old value of its key ends with the reason `expired`.
+  
+  Migration: find the hosts that keep more than 1 MiB of values on one topic, or more than 64 MiB in all. Each of them sets `maxTopicBytes` or `maxBytes` in the option `live` of `EventPublisher`.
+
+## 0.49.1
+
+### Patch Changes
+
+- a11008a: A stream of `invokeProcedure` reads its items in the same time at any count of streams that share one signal. Before, each read of an item added a listener to the signal of the call and removed it again. Node examines each listener of a signal at each add, so a publish to n subscriptions with one signal cost n x n. With this change, each stream derives its own signal one time with `AbortSignal.any`. The server faces give each call its own signal, so the change helps the callers in one process that share a signal. An abort of the shared signal still ends each stream.
+
 ## 0.49.0
 
 ### Minor Changes
