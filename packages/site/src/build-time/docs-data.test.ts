@@ -55,7 +55,7 @@ describe("convertMarkdown", () => {
 
   it("colors code at build time and keeps the code of an unknown language as text", () => {
     const out = html("```ts\nconst a = 1;\n```\n\n```cue\nx: <1>\n```\n");
-    expect(out).toContain('<pre class="doc-code" data-lang="ts" tabindex="0"><code class="hljs"><span class="hljs-keyword">const</span>');
+    expect(out).toContain('<pre class="doc-code scroll-cue" data-lang="ts" tabindex="0"><code class="hljs"><span class="hljs-keyword">const</span>');
     expect(out).toContain("x: &lt;1&gt;");
   });
 

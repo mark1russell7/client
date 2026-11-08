@@ -65,18 +65,20 @@ function decoded(text: string): string {
  * that starts with `-` becomes an option of that program, and an option of `ssh` can start a program.
  */
 function repositoryRefusal(location: string): string | undefined {
-  let target: string | undefined;
+  let targets: readonly string[] = [];
   if (location.startsWith("sftp://")) {
     // restic reads this form as a URL: the host comes without its brackets and with its escapes decoded
     const authority = location.slice("sftp://".length).split("/")[0] ?? "";
-    target = decoded(authority.slice(authority.lastIndexOf("@") + 1)).replace(/^\[/, "");
+    targets = [decoded(authority.slice(authority.lastIndexOf("@") + 1)).replace(/^\[/, "")];
   } else if (location.startsWith("sftp:")) {
+    // Each part between the "@" signs can be the host: the check does not depend on the split of
+    // restic for a user with an "@" (audit 2026-11-08). A user that starts with "-" is refused too.
     const head = location.slice("sftp:".length).split(":")[0] ?? "";
-    target = head.split("@").slice(-1)[0];
+    targets = head.split("@");
   } else if (location.startsWith("rclone:")) {
-    target = location.slice("rclone:".length);
+    targets = [location.slice("rclone:".length)];
   }
-  return target?.startsWith("-") ? "the host or the remote of the repository starts with -, so ssh or rclone reads it as an option" : undefined;
+  return targets.some((target) => target.startsWith("-")) ? "the host or the remote of the repository starts with -, so ssh or rclone reads it as an option" : undefined;
 }
 
 const RunInputSchema = z.object({

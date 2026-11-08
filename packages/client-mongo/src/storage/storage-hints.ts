@@ -940,6 +940,8 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
     }
     stream = next;
     const joiner = eventJoiner();
+    /** The token before the document of the last token: the token before the event at fragment 1. */
+    let tokenBefore: unknown = token;
     /** The token at the open: a reopen at the same token is no success, so the backoff does not start again. */
     const openToken = JSON.stringify(token ?? null);
     let ended = false;
@@ -975,7 +977,11 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
     next.on("resumeTokenChanged", (resumeToken: unknown) => {
       if (resumeToken === undefined || resumeToken === null) return;
       // In the middle of a split event, the token stays before the event: a stream that opens again gets all its fragments
-      if (!joiner.partial) token = resumeToken;
+      if (!joiner.partial) {
+        // The driver gives the token of a document before its change: fragment 1 puts the token back (audit 2026-11-08)
+        tokenBefore = token;
+        token = resumeToken;
+      }
       opened = true;
       if (JSON.stringify(resumeToken) !== openToken) attempt = 0;
       markReady();
@@ -988,7 +994,11 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
       live = true;
       afterQueue();
       const result = joiner.push(change);
-      if (result.kind === "part") return;
+      if (result.kind === "part") {
+        // The first fragment of a split event: the token goes back to the token before the event
+        if ((change["splitEvent"] as { fragment?: unknown } | undefined)?.fragment === 1) token = tokenBefore;
+        return;
+      }
       if (result.kind === "missing") {
         // The stream started after a fragment: the event cannot be read, so the subscribers read the collection in full
         token = result.change["_id"];

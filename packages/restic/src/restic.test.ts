@@ -71,6 +71,8 @@ describe("restic.run", () => {
 
   it("refuses an sftp or rclone repository whose host or remote starts with -", () => {
     const locations = ["sftp:-oProxyCommand=sh:/repo", "sftp:user@-oProxyCommand=sh:/repo", "sftp://-oProxyCommand=sh/repo", "sftp://u@%2DoProxyCommand=sh/repo", "sftp://[-oX]/repo", "rclone:--config=x"];
+    // A user with an "@": restic can take the part after the second "@" as the host (audit 2026-11-08)
+    locations.push("sftp:a@b@-oProxyCommand=sh@h:/repo", "sftp:-u@host:/repo");
     for (const location of locations) {
       expect(() => resticArgv({ path: ["snapshots"], repository: location })).toThrow(/refuses the repository/);
       for (const flag of ["repo", "from-repo", "repo2"]) {

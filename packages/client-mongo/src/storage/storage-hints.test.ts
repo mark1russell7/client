@@ -253,6 +253,8 @@ class FakeStream extends EventEmitter {
   closed = false;
   /** The pipeline of the open of the stream. */
   pipeline: Document[] = [];
+  /** The options of the open of the stream. */
+  options: Document = {};
   async close(): Promise<void> {
     this.closed = true;
   }
@@ -262,9 +264,10 @@ class FakeStream extends EventEmitter {
 function fakeWatch(collections: { counters?: Document; items?: Document; hello?: Document } = {}) {
   const streams: FakeStream[] = [];
   const items = {
-    watch: (pipeline: Document[]) => {
+    watch: (pipeline: Document[], options: Document = {}) => {
       const stream = new FakeStream();
       stream.pipeline = pipeline;
+      stream.options = options;
       streams.push(stream);
       return stream;
     },
@@ -1150,6 +1153,27 @@ describe("watchStorageChanges and an event over the BSON limit (CLI-107)", () =>
     changes.emit("change", { _id: { t: 2 }, fullDocument: { _id: "t5\u001fa", _key: "a", _part: "t5", _seq: 3 }, splitEvent: { fragment: 2, of: 2 } });
     await vi.waitFor(() => expect(published).toHaveLength(1));
     expect(published[0]!.topic).toBe(collectionChangeTopic("fake_notes", "t5"));
+    expect(isGap(published[0]!)).toBe(false);
+    await watch.stop();
+  });
+
+  it("opens the stream again before a split event that it read in part, and joins all its fragments (audit 2026-11-08)", async () => {
+    const { storage, stream, runs, clock, log, published, publish } = fakeWatch();
+    const watch = watchStorageChanges(storage, publish, { clock, log, backoff: { initialDelay: ms(10), jitter: 0 } });
+    const first = await stream();
+    // The token of a batch, then the token and the change of fragment 1, in the order of the driver
+    first.emit("resumeTokenChanged", { t: 0 });
+    first.emit("resumeTokenChanged", { t: 1 });
+    first.emit("change", { _id: { t: 1 }, operationType: "insert", documentKey: { _id: "t5\u001fa" }, splitEvent: { fragment: 1, of: 2 } });
+    first.emit("error", serverError(6, "host unreachable"));
+    await vi.waitFor(() => expect(runs).toHaveLength(1));
+    runs[0]!();
+    const second = await stream(1);
+    // Before, the stream opened after fragment 1, and fragment 2 alone gave a gap
+    expect(second.options["startAfter"]).toEqual({ t: 0 });
+    second.emit("change", { _id: { t: 1 }, operationType: "insert", documentKey: { _id: "t5\u001fa" }, splitEvent: { fragment: 1, of: 2 } });
+    second.emit("change", { _id: { t: 2 }, fullDocument: { _id: "t5\u001fa", _key: "a", _part: "t5", _seq: 3 }, splitEvent: { fragment: 2, of: 2 } });
+    await vi.waitFor(() => expect(published).toHaveLength(1));
     expect(isGap(published[0]!)).toBe(false);
     await watch.stop();
   });

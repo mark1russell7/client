@@ -7,13 +7,15 @@
  * marked value once, at its first frame, and puts that text in each later frame of the same event. The text of a frame
  * is byte-equal to `JSON.stringify` of the frame at that first encode.
  *
- * A source can publish the same object again after a change. A receiver that gets the object a second time starts a
- * new event, so the next frame encodes the object again. The text of one event is the value at its first encode.
+ * A source can publish the same object again after a change. The publisher gives the mark of each emit of the bus.
+ * Another mark starts a new event, so the next frame encodes the object again. Without a mark, a receiver that gets
+ * the object a second time starts a new event. The text of one event is the value at its first encode.
  */
 
-/** One event of a shared value: the receivers that got it, and its text after the first frame. */
+/** One event of a shared value: the receivers that got it, the mark of its emit, and its text after the first frame. */
 interface Share {
   readonly receivers: WeakSet<object>;
+  readonly emission: object | undefined;
   text?: string;
 }
 
@@ -29,14 +31,19 @@ let encodes = 0;
 const DEPTH = 3;
 
 /**
- * This function marks a value as shared by the frames of the receivers of one event, and gives the value back. When the
- * receiver got the value before, the value starts a new event, and its first frame encodes the value again.
+ * This function marks a value as shared by the frames of the receivers of one event, and gives the value back. The
+ * value starts a new event when the mark of its emit is another mark, or when the receiver got the value before. The
+ * first frame of a new event encodes the value again. Before the mark, a receiver that joined after an emit got the
+ * text of that emit for a later emit of the changed object (audit 2026-11-08).
  */
-export function shareEncoding<T>(value: T, receiver: object): T {
+export function shareEncoding<T>(value: T, receiver: object, emission?: object): T {
   if (typeof value !== "object" || value === null) return value;
   const share = shares.get(value);
-  if (share === undefined || share.receivers.has(receiver)) shares.set(value, { receivers: new WeakSet([receiver]) });
-  else share.receivers.add(receiver);
+  if (share === undefined || share.receivers.has(receiver) || share.emission !== emission) {
+    shares.set(value, { receivers: new WeakSet([receiver]), emission });
+  } else {
+    share.receivers.add(receiver);
+  }
   return value;
 }
 
