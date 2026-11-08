@@ -47,6 +47,17 @@ describe("the cache (R13)", () => {
     expect(b).toBe(1);
   });
 
+  it("gives two calls that differ only in a Date two responses (CLI-128)", async () => {
+    const { transport, calls } = counting();
+    const client = new Client(transport).use(createCacheMiddleware({ methods: ["users.get"] }));
+    const first = await client.call(read, { since: new Date(0) });
+    const second = await client.call(read, { since: new Date(1_000) });
+    expect(calls()).toBe(2);
+    expect(second).not.toBe(first);
+    expect(await client.call(read, { since: new Date(1_000) })).toBe(second);
+    expect(calls()).toBe(2);
+  });
+
   it("a write deletes the entries of the methods that read its resources", async () => {
     const { transport, calls } = counting();
     const client = new Client(transport).use(createCacheMiddleware({ methods: ["users.get", "orders.list"], effects: effectsOf }));
