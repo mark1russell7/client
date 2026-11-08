@@ -5,8 +5,9 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, posix } from "node:path";
+import { join, posix, resolve } from "node:path";
 import { matchesGlob } from "@mark1russell7/files";
 import { glob } from "./glob.js";
 import { GlobInputSchema } from "../../types.js";
@@ -79,5 +80,63 @@ describe("fs.glob with dot: true, after the move", () => {
   it("enters the folders when the ignore pattern is a dot name or one character", async () => {
     expect((await run({ pattern: "**/*.ts", cwd: root, dot: true, ignore: ["**/.*"] })).matches).toEqual(["a/b/r.ts", "a/q.ts"]);
     expect((await run({ pattern: "**/*.ts", cwd: root, dot: true, ignore: ["a/?"] })).matches).toEqual(["a/.e.ts", "a/q.ts"]);
+  });
+});
+
+/** The old walk of `fs.glob` with `dot: true`, before its move to `findEntries`, kept as a fixture. */
+async function oldWalkWithDots(root: string, pattern: string, ignore: readonly string[]): Promise<string[]> {
+  const isIgnored = (path: string): boolean => ignore.some((glob) => newMatch(path, glob));
+  const folderIgnored = (path: string): boolean => isIgnored(path) || isIgnored(`${path}/`);
+  const matches: string[] = [];
+  async function visit(relative: string): Promise<void> {
+    for (const entry of await readdir(relative ? resolve(root, relative) : root, { withFileTypes: true })) {
+      const path = relative ? `${relative}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        if (folderIgnored(path)) continue;
+        if (newMatch(path, pattern)) matches.push(path);
+        await visit(path);
+      } else if (newMatch(path, pattern) && !isIgnored(path)) {
+        matches.push(path);
+      }
+    }
+  }
+  await visit("");
+  return matches.sort();
+}
+
+describe("the dot walk of fs.glob moves to findEntries of @mark1russell7/files (CA14)", () => {
+  let root: string;
+  const files = ["a/q.ts", "a/b/r.ts", "a/.e.ts", "a/.c/s.ts", ".git/config", "node_modules/m/i.js", "b/c", "b/.d/t", "x.ts", ".x.ts"];
+
+  beforeAll(() => {
+    root = mkdtempSync(join(tmpdir(), "fs-glob-walk-"));
+    for (const file of files) {
+      mkdirSync(join(root, file, ".."), { recursive: true });
+      writeFileSync(join(root, file), "");
+    }
+  });
+
+  afterAll(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("gives the old matches for each pattern and ignore list", async () => {
+    const ignores: string[][] = [[], ["**/.*"], ["a/**"], ["a/*"], ["**/node_modules/**"], [".git/**", "b/?"], ["a/b", "**/*.js"], ["a/[!b]"], ["a/q.ts"]];
+    const literals = [".", "a", "a/q.ts", "a/b", ".git", "node_modules/m", "b/.d/t", "missing"];
+    const differences: string[] = [];
+    for (const pattern of [...patterns, ...literals]) {
+      for (const ignore of ignores) {
+        const before = await oldWalkWithDots(root, pattern, ignore);
+        const after = (await glob(GlobInputSchema.parse({ pattern, cwd: root, dot: true, ignore }))).matches;
+        if (JSON.stringify(before) !== JSON.stringify(after)) differences.push(`${pattern} [${ignore.join(",")}] ${JSON.stringify(before)} ${JSON.stringify(after)}`);
+      }
+    }
+    expect(differences).toEqual([]);
+  });
+
+  it("matches a pattern that starts with ./ or that is absolute", async () => {
+    // Before, these patterns matched nothing, because the walk compared them with relative paths.
+    expect((await glob(GlobInputSchema.parse({ pattern: "./a/*.ts", cwd: root, dot: true }))).matches).toEqual(["a/.e.ts", "a/q.ts"]);
+    expect((await glob(GlobInputSchema.parse({ pattern: `${root}/a/*.ts`, cwd: root, dot: true }))).matches).toEqual(["a/.e.ts", "a/q.ts"]);
   });
 });

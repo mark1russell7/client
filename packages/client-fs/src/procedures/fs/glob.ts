@@ -10,9 +10,9 @@
  * `node:fs` glob has no such options (deep dive DATA-7).
  */
 
-import { glob as nodeGlob, readdir } from "node:fs/promises";
-import { posix, resolve } from "node:path";
-import { matchesGlob, toPosix } from "@mark1russell7/files";
+import { glob as nodeGlob } from "node:fs/promises";
+import { posix, relative as relativePath, resolve } from "node:path";
+import { findEntries, matchesGlob, toPosix } from "@mark1russell7/files";
 import type { GlobInput, GlobOutput } from "../../types.js";
 
 /** This function tells if an ignore pattern matches `path`, with the rules of `node:fs` glob. */
@@ -21,33 +21,23 @@ function ignored(path: string, ignore: readonly string[]): boolean {
 }
 
 /**
- * This function gives all the matches of `pattern` under `root`, dot entries included. The match of
- * a path is `matchesGlob` of `@mark1russell7/files` with `dot: true`. Thus `a/**` also matches the
- * folder `a`, as the `node:fs` glob does when `dot` is false.
+ * This function gives all the matches of `pattern` under `root`, dot entries included. The walk is
+ * `findEntries` of `@mark1russell7/files` with `dot: true`. It enters `node_modules` and `.git`, and it
+ * does not enter an ignored folder. Thus `a/**` also matches the folder `a`, as the `node:fs` glob does.
+ * `findEntries` does not apply the ignore patterns to a pattern with no glob character, so this
+ * function applies them to each match again.
  */
-async function walkWithDots(root: string, pattern: string, ignore: readonly string[]): Promise<string[]> {
-  const match = (path: string, glob: string): boolean => matchesGlob(path, glob, { dot: true });
-  const isIgnored = (path: string): boolean => ignore.some((glob) => match(path, glob));
-  // The walk does not enter a folder when each path inside it is ignored: "a/" matches "a/**" and "a/*".
+function walkWithDots(root: string, pattern: string, ignore: readonly string[]): string[] {
+  const isIgnored = (path: string): boolean => ignore.some((glob) => matchesGlob(path, glob, { dot: true }));
+  // A folder is ignored when each path inside it is ignored: "a/" matches "a/**" and "a/*".
   const folderIgnored = (path: string): boolean => isIgnored(path) || isIgnored(`${path}/`);
-  const matches: string[] = [];
-
-  async function visit(relative: string): Promise<void> {
-    const entries = await readdir(relative ? resolve(root, relative) : root, { withFileTypes: true });
-    for (const entry of entries) {
-      const path = relative ? `${relative}/${entry.name}` : entry.name;
-      if (entry.isDirectory()) {
-        if (folderIgnored(path)) continue;
-        if (match(path, pattern)) matches.push(path);
-        await visit(path);
-      } else if (match(path, pattern) && !isIgnored(path)) {
-        matches.push(path);
-      }
-    }
-  }
-
-  await visit("");
-  return matches;
+  const insideIgnored = (names: readonly string[]): boolean =>
+    names.slice(0, -1).some((_, index) => folderIgnored(names.slice(0, index + 1).join("/")));
+  return findEntries({ root, include: [pattern], ignore, skip: [], dot: true }).flatMap((entry) => {
+    const path = toPosix(relativePath(root, entry.path));
+    const ownIgnored = entry.kind === "directory" ? folderIgnored(path) : isIgnored(path);
+    return path === "" || ownIgnored || insideIgnored(path.split("/")) ? [] : [path];
+  });
 }
 
 /**
@@ -60,7 +50,7 @@ export async function glob(input: GlobInput): Promise<GlobOutput> {
 
   let relative: string[];
   if (dot) {
-    relative = await walkWithDots(root, toPosix(pattern), ignore);
+    relative = walkWithDots(root, toPosix(pattern), ignore);
   } else {
     relative = [];
     for await (const match of nodeGlob(pattern, { cwd: root, exclude: [...ignore] })) {
