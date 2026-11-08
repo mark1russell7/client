@@ -287,6 +287,62 @@ describe("the merged send of the queue (CLI-121)", () => {
     await hybrid.close();
   });
 
+  /** A remote with a limit of a capacity for each call: a setBatch over it gets PAYLOAD_TOO_LARGE, with the units and the capacity when `tells` is true. */
+  function capacityRemote(cost: (items: number) => number, capacity: number, tells: boolean): RecordingRemote {
+    class CapacityRemote extends RecordingRemote {
+      override async setBatch(items: Array<[string, Item]>, options?: StorageBatchWriteOptions) {
+        const units = cost(items.length);
+        if (units > capacity) {
+          this.calls.push({ method: "413", ids: items.map(([id]) => id) });
+          throw Object.assign(new Error("over the capacity of the limit"), { code: "PAYLOAD_TOO_LARGE", ...(tells && { metadata: { reason: "capacity", units, capacity } }) });
+        }
+        return super.setBatch(items, options);
+      }
+    }
+    return new CapacityRemote();
+  }
+
+  const sizes = (calls: readonly Call[]): string[] => calls.map(({ method, ids }) => `${method} ${String(ids.length)}`);
+
+  it("splits a flush to the capacity of a 413, with no 413 after the first and nothing dropped", async () => {
+    const remote = capacityRemote((items) => items, 120, true);
+    const { hybrid, drops } = hybridOver(remote, { pushBatch: { maxItems: 500 } });
+    await hybrid.setBatch(Array.from({ length: 1000 }, (_, index): [string, Item] => [`s${index}`, item(`s${index}`, index)]));
+    await hybrid.flush();
+    const chunks = ["setBatch 120", "setBatch 120", "setBatch 120", "setBatch 120", "setBatch 20"];
+    expect(sizes(remote.calls)).toEqual(["413 500", ...chunks, ...chunks]);
+    expect((await remote.getIds()).length).toBe(1000);
+    expect(drops).toEqual([]);
+    expect(hybrid.getPendingOpsCount()).toBe(0);
+    await hybrid.close();
+  });
+
+  it("splits a flush to a capacity of 12 units at a cost of 1 + ceil(items / 50) for each call", async () => {
+    const cost = (items: number): number => 1 + Math.ceil(items / 50);
+    const remote = capacityRemote(cost, 12, true);
+    const { hybrid, drops } = hybridOver(remote, { pushBatch: { maxItems: 1000 } });
+    await hybrid.setBatch(Array.from({ length: 1200 }, (_, index): [string, Item] => [`s${index}`, item(`s${index}`, index)]));
+    await hybrid.flush();
+    // 1000 items cost 21 units: the cap is 1000 × 12 / 21 = 571. 571 items cost 13: the cap is 571 × 12 / 13 = 527
+    expect(sizes(remote.calls)).toEqual(["413 1000", "413 571", "setBatch 527", "setBatch 473", "setBatch 200"]);
+    expect(remote.calls.filter(({ method }) => method === "setBatch").every(({ ids }) => cost(ids.length) <= 12)).toBe(true);
+    expect((await remote.getIds()).length).toBe(1200);
+    expect(drops).toEqual([]);
+    await hybrid.close();
+  });
+
+  it("halves a send after a 413 with no capacity, down to the size that the remote takes", async () => {
+    const remote = capacityRemote((items) => items, 3, false);
+    const { hybrid, drops } = hybridOver(remote);
+    await hybrid.setBatch(Array.from({ length: 10 }, (_, index): [string, Item] => [`s${index}`, item(`s${index}`, index)]));
+    await hybrid.flush();
+    const chunks = ["setBatch 2", "setBatch 2", "setBatch 1"];
+    expect(sizes(remote.calls)).toEqual(["413 10", "413 5", ...chunks, ...chunks]);
+    expect((await remote.getIds()).length).toBe(10);
+    expect(drops).toEqual([]);
+    await hybrid.close();
+  });
+
   it("refuses a cap that is not a whole number of 1 or more", () => {
     const remote = new RecordingRemote();
     expect(() => hybridOver(remote, { pushBatch: { maxItems: 0 } })).toThrow(RangeError);
