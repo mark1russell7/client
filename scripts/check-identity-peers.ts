@@ -21,7 +21,7 @@
 // Start it after `pnpm build`: node scripts/check-identity-peers.ts. Exit code 1 on a failure.
 // The tests of the check: node --test scripts/check-identity-peers.test.ts.
 
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { IDENTITY_TYPES } from "@mark1russell7/service";
@@ -121,4 +121,4 @@ function main(): void {
   console.log(`identity peers: ${packages.length} packages, no problem`);
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) main();
+if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) main();
