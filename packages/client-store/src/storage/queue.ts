@@ -143,6 +143,44 @@ export function singlesOf(op: QueuedOperation): QueuedOperation[] {
   }
 }
 
+/**
+ * This function cuts a batch into batches of consecutive ids within the caps, in its order, with the base version of
+ * each id (roadmap CLI-121). The size of an entry is the length of its JSON text. An entry over `maxBytes` goes in a
+ * chunk alone. A set, a delete and a clear give an array of the operation itself.
+ */
+export function chunksOf(op: QueuedOperation, maxItems: number, maxBytes: number): QueuedOperation[] {
+  if (op.type !== "setBatch" && op.type !== "deleteBatch") return [op];
+  const data = op.data as { ids?: string[]; items?: Array<[string, unknown]> };
+  const entries: Array<string | [string, unknown]> = op.type === "setBatch" ? (data.items ?? []) : (data.ids ?? []);
+  const groups: Array<Array<string | [string, unknown]>> = [];
+  let group: Array<string | [string, unknown]> = [];
+  let bytes = 0;
+  for (const entry of entries) {
+    const size = JSON.stringify(entry)?.length ?? 0;
+    if (group.length > 0 && (group.length + 1 > maxItems || bytes + size > maxBytes)) {
+      groups.push(group);
+      group = [];
+      bytes = 0;
+    }
+    group.push(entry);
+    bytes += size;
+  }
+  if (group.length > 0) groups.push(group);
+  if (groups.length <= 1) return [op];
+  return groups.map((chunk) => {
+    const ids = new Set(chunk.map((entry) => (typeof entry === "string" ? entry : entry[0])));
+    const base = op.base?.filter(([id]) => ids.has(id));
+    const baseValues = op.baseValues?.filter(([id]) => ids.has(id));
+    return {
+      type: op.type,
+      data: op.type === "setBatch" ? { items: chunk as Array<[string, unknown]> } : { ids: chunk as string[] },
+      timestamp: op.timestamp,
+      ...(base !== undefined && base.length > 0 && { base }),
+      ...(baseValues !== undefined && baseValues.length > 0 && { baseValues }),
+    };
+  });
+}
+
 /** True when a value has the shape of a queued operation. A loaded file can hold anything. */
 export function isQueuedOperation(value: unknown): value is QueuedOperation {
   if (typeof value !== "object" || value === null) return false;

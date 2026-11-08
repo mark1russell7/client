@@ -1,5 +1,91 @@
 # @procedures/store
 
+## 0.52.2
+
+### Patch Changes
+
+- 913fb0e: The option `pushBatch` of `HybridStorage` merges queued writes into one batch for each send (roadmap CLI-121). The push sends the run of queued sets at the head of the queue as one `setBatch`. It sends the run of deletes as one `deleteBatch`. A first sync of many writes thus makes few remote calls.
+  
+  The caps `maxItems` (default 100) and `maxBytes` (default 1 MiB of JSON) limit each send. A queued batch over the caps goes as batches within the caps. Thus a flush stays within the capacity of a remote limit, when the caps are within it. A send with a too-large error lowers the cap of ids of each later send. The new cap is n × capacity / units with the capacity of the error (option `capacityOf`), else half of n. Thus a flush is not sent again as single writes.
+  
+  A refused or conflicting merged batch goes again as its separate writes. Thus `onRefused`, `onDropped` and the conflict policy get the same writes as without the merge. Without the option, the push sends each queued write alone, as before.
+- @procedures/client@0.52.2
+  - @procedures/collections@0.52.2
+
+## 0.52.1
+
+### Patch Changes
+
+- @procedures/client@0.52.1
+  - @procedures/collections@0.52.1
+
+## 0.52.0
+
+### Minor Changes
+
+- 01a1410: `mergeFn` gets a fourth argument, `context` (roadmap CLI-109). `context.overlap(paths)` reports the paths where the merge kept only one side. The hook `onDropped` gets one call with the reason `overlap` for each report. The report holds `remote`, `base`, `merged` and `paths`. The merged write stays in the queue. `getMetadata()` counts the reports as `stats.overlaps`.
+  
+  Migration steps for the site and each app:
+  
+  - The type `DroppedWrite["reason"]` gets the value `"overlap"`. Add a case for it to each exhaustive `switch` over `reason`. Otherwise the check of `never` does not compile.
+  - An `onDropped` hook that writes the value again must skip the reason `overlap`. The merged write of an overlap is still in the queue.
+  - Code that calls a `mergeFn` itself must give a fourth argument, for example `{ overlap: () => {} }`. A merge function with two or three parameters needs no change.
+
+### Patch Changes
+
+- @procedures/client@0.52.0
+  - @procedures/collections@0.52.0
+
+## 0.51.0
+
+### Patch Changes
+
+- Updated dependencies [0c3bfa3]
+  - @procedures/client@0.51.0
+  - @procedures/collections@0.51.0
+
+## 0.50.0
+
+### Patch Changes
+
+- Updated dependencies [54cdb34]
+  - @procedures/client@0.50.0
+  - @procedures/collections@0.50.0
+
+## 0.49.1
+
+### Patch Changes
+
+- Updated dependencies [a11008a]
+  - @procedures/client@0.49.1
+  - @procedures/collections@0.49.1
+
+## 0.49.0
+
+### Breaking changes
+
+- `onDropped` of `HybridStorage` (CLI-108) gets the new reason `too-large`. The type `DroppedWrite["reason"]` has the new member `"too-large"`. To migrate, add a case for `"too-large"` to each exhaustive `switch` over `reason`.
+
+### Minor Changes
+
+- bf0aa79: A write over the size limit of the remote no longer stops the offline queue of `HybridStorage` (CLI-108).
+  
+  - A batch that the remote refuses, or that is too large, goes again as one write for each id. Only the bad write leaves the queue, and its siblings reach the remote.
+  - A write of one id that is too large leaves the queue at once, and the writes behind it go on. The hook `onDropped` gets its id and value with the new reason `too-large`.
+  - The new option `isTooLarge` tells which error is too large. The default is the code `PAYLOAD_TOO_LARGE`.
+  - The `hello` of the WebSocket server tells its limit `maxPayload`. The client refuses a larger call alone with `PAYLOAD_TOO_LARGE`, and the other calls of the connection go on. Before, the server closed the connection, and each pending call failed.
+  - The HTTP server reads and drops up to 64 MiB of a body over the limit. So the client gets the answer 413, not a reset of the connection.
+  
+  Breaking change: the type `DroppedWrite["reason"]` has the new member `"too-large"`. To migrate, add a case for `"too-large"` to each `switch` over the reason. A refused batch no longer drops its good siblings.
+
+### Patch Changes
+
+- 5da1994: With `versionOf` and `conflictResolution: "merge"`, `HybridStorage` keeps the remote value that each queued write changed (roadmap CLI-109). `mergeFn(local, remote, base)` gets it as its third argument, for a three-way merge. `base` is `null` when the remote had no item, and undefined when the storage does not know it. The queue store keeps the value, so a restart does not lose it. Old queued operations load with no base value. A merge function with two parameters works as before.
+- Updated dependencies [bf0aa79]
+- Updated dependencies [a1aedc5]
+  - @procedures/client@0.49.0
+  - @procedures/collections@0.49.0
+
 ## 0.48.2
 
 ### Patch Changes

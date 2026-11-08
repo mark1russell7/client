@@ -720,6 +720,8 @@ const notes = new MongoDocumentStorage<Note>({
 
   The same runner writes 799 a second over 100 collections with a p99 of 37.5 ms, so the limit comes from the one collection. Runs: [the rungs](https://github.com/mark1russell7/client/actions/runs/41956238365), [the ceiling](https://github.com/mark1russell7/client/actions/runs/41966001438).
 
+  The study of 2026-11-05 measured the code of the commits `5c55c327` and `ca514219` (`@procedures/mongo` 0.47.2). The numbers and the limit are of that code. A later version can give different numbers.
+
 ### Change hints from the change stream: `watchStorageChanges`
 
 The collection procedures publish an event for each of their writes. A write that does not go through them (a raw write, a script, a view, another process) has no event. `watchStorageChanges(storage, publish, options)` watches the change stream of the collection of a storage and publishes a hint of each change (roadmap CLI-77). Change streams need a replica set.

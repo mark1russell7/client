@@ -63,7 +63,9 @@ export type { EventPublisherOptions, TopicRule, TopicCall } from "./publisher.js
 export type { RightsChange, RightsScope, RightsScopes, SubscriptionRecheck } from "./recheck.js";
 // The live state: keyed values in memory on a topic, with a snapshot and a time limit (LIVE-STATE-2026-11.md)
 export {
+  DEFAULT_LIVE_BYTES,
   DEFAULT_LIVE_KEYS,
+  DEFAULT_LIVE_TOPIC_BYTES,
   DEFAULT_LIVE_TOPICS,
   DEFAULT_LIVE_VALUE_BYTES,
   LIVE_SET_PATH,

@@ -5,6 +5,7 @@
  * the generator object as the output) and H8 (the `out` config of a route leaf did nothing).
  */
 
+import { getEventListeners } from "node:events";
 import { describe, it, expect } from "vitest";
 import * as z from "zod";
 import { Client } from "../client/client.js";
@@ -177,6 +178,41 @@ describe("invokeProcedure", () => {
     await expect(
       invokeProcedure(chain, { steps: [{ $proc: ["test", "count"], input: { to: 1 } }] }, { registry, expose }),
     ).rejects.toBeInstanceOf(InvocationError);
+  });
+});
+
+describe("streams that share one signal (roadmap CLI-90)", () => {
+  it("a read of an item adds no listener to the shared signal, and an abort of it ends each stream", async () => {
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => (release = resolve));
+    const registry = new ProcedureRegistry();
+    registry.register(
+      defineProcedure({
+        path: ["test", "waiting"],
+        input: outputSchema<Record<string, never>>(),
+        output: outputSchema<number>(),
+        handler: async function* () {
+          await released;
+          yield 1;
+          await new Promise<never>(() => undefined);
+        },
+      }),
+    );
+    const controller = new AbortController();
+    const listeners = (): number => getEventListeners(controller.signal, "abort").length;
+    const streams = await Promise.all(
+      Array.from({ length: 5 }, async () => outputItems(await invokePath<number>(["test", "waiting"], {}, { registry, signal: controller.signal }))[Symbol.asyncIterator]()),
+    );
+    const before = listeners();
+    const reads = streams.map((stream) => stream.next());
+    // Before this fix, each read added a listener here, so one publish to n streams cost n x n
+    expect(listeners()).toBe(before);
+    release();
+    expect((await Promise.all(reads)).map((read) => read.value)).toEqual([1, 1, 1, 1, 1]);
+    const waits = streams.map((stream) => stream.next());
+    expect(listeners()).toBe(before);
+    controller.abort();
+    for (const wait of waits) await expect(wait).rejects.toMatchObject({ code: "ABORTED" });
   });
 });
 

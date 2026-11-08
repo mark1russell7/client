@@ -111,19 +111,19 @@ function Usage({ procedure, packageName }: { procedure: ProcedureInfo; packageNa
     <section aria-labelledby="usage-title">
       <h2 id="usage-title">Use it</h2>
       <h3 className="usage-label">In TypeScript</h3>
-      <pre className="code" tabIndex={0} aria-label={`Call ${procedure.key} from TypeScript`}>
+      <pre className="code scroll-cue" tabIndex={0} aria-label={`Call ${procedure.key} from TypeScript`}>
         {code}
       </pre>
       {procedure.cli ? (
         <>
           <h3 className="usage-label">From the command line</h3>
-          <pre className="code" tabIndex={0} aria-label={`Call ${procedure.key} with the mark CLI`}>
+          <pre className="code scroll-cue" tabIndex={0} aria-label={`Call ${procedure.key} with the mark CLI`}>
             {`$ ${cliCommand(procedure)}`}
           </pre>
         </>
       ) : null}
       <h3 className="usage-label">As data, in a program</h3>
-      <pre className="code" tabIndex={0} aria-label={`${procedure.key} as a procedure call in JSON`}>
+      <pre className="code scroll-cue" tabIndex={0} aria-label={`${procedure.key} as a procedure call in JSON`}>
         {compactJson({ $proc: procedure.path, input }, 72)}
       </pre>
     </section>
@@ -245,7 +245,7 @@ function DetailBody({ procedure }: { procedure: ProcedureInfo }): ReactElement {
       <SchemaTable schema={procedure.output} fields={null} />
       <details style={{ marginTop: "var(--space-4)" }}>
         <summary className="small">JSON Schemas</summary>
-        <pre className="code" tabIndex={0} aria-label="The JSON Schemas">
+        <pre className="code scroll-cue" tabIndex={0} aria-label="The JSON Schemas">
           {JSON.stringify({ input: procedure.input, output: procedure.output }, null, 2)}
         </pre>
       </details>

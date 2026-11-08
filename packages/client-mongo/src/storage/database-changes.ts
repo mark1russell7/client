@@ -12,6 +12,8 @@
  * - The resume token is the `_id` of the last event, after its `onChange` resolved. A batch without
  *   events gives the token of the batch (the post-batch resume token). `resumeToken` of the handle
  *   gives the token at this time.
+ * - A stream that fails before its first event keeps the first token of its open. The next stream
+ *   starts at that token, so a change after `ready` is not lost.
  * - After an error of the stream, the watcher waits for the backoff. Then it opens the stream again
  *   with `startAfter` and the token. Thus it loses no change and gives no change twice.
  * - An error of `onChange` has the same backoff. The token stays at the change before, so the same
@@ -185,6 +187,12 @@ export function watchDatabaseChanges<TChange extends Document = ChangeStreamDocu
   let attempt = 0;
   let database: string | undefined;
   let stream: ChangeStream<Document, TChange> | undefined;
+  /**
+   * The first token of the open stream, and true after the stream gives its first event. A fault before
+   * the first event, with no other token, opens the next stream at this token, so no change is lost.
+   */
+  let openToken: ResumeToken | undefined;
+  let gaveEvent = false;
   /** True while the pipeline ends with the split stage. A server that does not know the stage sets it to false. */
   let split = options.splitLargeEvents !== false;
   const faults = sameTokenFaults();
@@ -261,6 +269,7 @@ export function watchDatabaseChanges<TChange extends Document = ChangeStreamDocu
       const raw = await next.tryNext();
       if (stopped) return;
       markOpen();
+      if (raw !== null) gaveEvent = true;
       if (raw === null) {
         // A batch without events: its token is after each event that `onChange` took. In the middle of a split event, the token stays before it
         const batchToken = next.resumeToken;
@@ -332,8 +341,14 @@ export function watchDatabaseChanges<TChange extends Document = ChangeStreamDocu
           ...start(),
         });
         stream = next;
+        openToken = undefined;
+        gaveEvent = false;
         // The first token of the stream comes with the answer of the server: the stream is open, before the first getMore
         next.on("resumeTokenChanged", markOpen);
+        // The driver also gives the token of each event before onChange takes it, so only a token before the first event is kept
+        next.once("resumeTokenChanged", (first: ResumeToken | null | undefined) => {
+          if (!gaveEvent && first !== null && first !== undefined) openToken = first;
+        });
         try {
           await read(next);
         } finally {
@@ -349,6 +364,12 @@ export function watchDatabaseChanges<TChange extends Document = ChangeStreamDocu
             operationType: error.change["operationType"],
           });
           continue;
+        }
+        // A fault before the first event of a stream with no token: the next stream starts at the first token of this stream (CLI-107)
+        if (token === undefined && !gaveEvent && openToken !== undefined) {
+          token = openToken;
+          // The server gave this token, so it moves the age as each other token of the watcher does (CLI-110)
+          age.note(token);
         }
         const code = codeOf(error);
         if (code !== undefined && LOST_TOKEN_CODES.has(code)) return fail(error, { code });

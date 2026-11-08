@@ -158,7 +158,7 @@ export function Home(): ReactElement {
             <div className="step-body">
               <h3>Define a procedure</h3>
               <p className="small">A path, an input schema, an output schema and a handler. Importing the package registers it.</p>
-              <pre className="code" tabIndex={0} aria-label="Define a procedure">
+              <pre className="code scroll-cue" tabIndex={0} aria-label="Define a procedure">
                 {DEFINE}
               </pre>
             </div>
@@ -170,7 +170,7 @@ export function Home(): ReactElement {
             <div className="step-body">
               <h3>Call it from any host</h3>
               <p className="small">In process, from the CLI, over HTTP or WebSocket, or as a tool of Claude Code. One invocation path validates each call.</p>
-              <pre className="code" tabIndex={0} aria-label="Call the procedure">
+              <pre className="code scroll-cue" tabIndex={0} aria-label="Call the procedure">
                 {CALL}
               </pre>
             </div>
@@ -185,7 +185,7 @@ export function Home(): ReactElement {
                 A call can be the input of another call. <code>chain</code>, <code>map</code>, <code>conditional</code> and{" "}
                 <code>$ref</code> make programs that you can store and send.
               </p>
-              <pre className="code" tabIndex={0} aria-label="A program as JSON">
+              <pre className="code scroll-cue" tabIndex={0} aria-label="A program as JSON">
                 {COMPOSE}
               </pre>
             </div>
