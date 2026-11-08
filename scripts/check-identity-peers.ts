@@ -15,30 +15,20 @@
 // (test/api/public-api.txt) holds it as a word. Each such package must have service in
 // peerDependencies and not in dependencies.
 //
+// The identity types are `IDENTITY_TYPES` of service (0.6.7 and later). A test in service computes
+// that list from its declarations, so a new identity type of service reaches this check by itself.
+//
 // Start it after `pnpm build`: node scripts/check-identity-peers.ts. Exit code 1 on a failure.
 // The tests of the check: node --test scripts/check-identity-peers.test.ts.
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { IDENTITY_TYPES } from "@mark1russell7/service";
 import { publicPackages, type Manifest } from "./lib/workspace.mjs";
 
 /** The name of the service package. */
 export const SERVICE = "@mark1russell7/service";
-
-/**
- * The types of service whose values have state for each copy, or reach such a value. The roots are
- * `Lifecycle` and `RequestStream` (the WeakMap keys), and `TransportImpl` and `RequestHandler` (they
- * write to the maps of their copy). Each other name is an exported type whose declaration names a
- * root or a listed type. This list is a copy of `IDENTITY_TYPES` of service 0.6.7 (systems #401).
- * When that version is on npm, this script imports the export, and this copy goes away.
- */
-export const IDENTITY_TYPES: readonly string[] = [
-  "Client", "GrpcClient", "HttpClient", "HttpTransport", "IterationContext", "JobContext", "Lifecycle",
-  "MongoClient", "MountContext", "PgClient", "QueueDrain", "QueueDrainOptions", "RabbitClient", "RedisClient",
-  "RedisSender", "RequestHandler", "RequestStream", "ServiceBuilder", "SubjectFactory", "TransportImpl",
-  "TransportSubject", "UpgradeHandler", "WorkerLoop", "WorkerLoopOptions", "WsClient",
-];
 
 /** One import of a name from service: the name in service, and the name in the importing file. */
 export interface ServiceName {
