@@ -1,5 +1,18 @@
 # @procedures/bundle-assistant
 
+## 0.52.3
+
+### Patch Changes
+
+- Updated dependencies [db1bcaa]
+  - @procedures/client@0.52.3
+  - @procedures/exif@0.52.3
+  - @procedures/geo@0.52.3
+  - @procedures/http@0.52.3
+  - @procedures/ics@0.52.3
+  - @procedures/mail@0.52.3
+  - @procedures/weather@0.52.3
+
 ## 0.52.2
 
 ### Patch Changes
