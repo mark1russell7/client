@@ -295,11 +295,11 @@ export function convertMarkdown(
         if (language === "mermaid") {
           return (
             `<figure class="doc-diagram"><figcaption>Diagram source (Mermaid). GitHub draws it on the page of the file.</figcaption>` +
-            `<pre class="doc-code" tabindex="0"><code>${escapeHtml(text)}</code></pre></figure>\n`
+            `<pre class="doc-code scroll-cue" tabindex="0"><code>${escapeHtml(text)}</code></pre></figure>\n`
           );
         }
         const label = language ? ` data-lang="${escapeHtml(language)}"` : "";
-        const pre = `<pre class="doc-code"${label} tabindex="0"><code class="hljs">${highlightCode(text, language)}</code></pre>`;
+        const pre = `<pre class="doc-code scroll-cue"${label} tabindex="0"><code class="hljs">${highlightCode(text, language)}</code></pre>`;
         if (language === "json" || language === "jsonc") {
           const found = programOf(text);
           if (found !== null) {
