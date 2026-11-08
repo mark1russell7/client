@@ -64,5 +64,7 @@ jobs:
       pending: green
       site-pages: false
       site-check: true
+      # The data stamps of the measured package pages: dated studies of one commit each (site-pages freshness)
+      data-stamps: packages/site/data-stamps.json
       indexnow-key: 626da9a7ba19ca53f2437cb462de76e7
       timeout-minutes: 25

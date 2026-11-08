@@ -97,7 +97,9 @@ node packages/mark/dist/cli.js --help
 
 ### The compile cache
 
-The `mark` executable enables the compile cache of Node.js (22.1 and later) before it loads the CLI. The second and later runs read the compiled code from the cache. In CI, one `mark` call took 1019 ms with no cache and 754 ms with a warm cache. The first run after an install, or after a change of a file, writes the cache and takes approximately 170 ms more.
+The `mark` executable enables the compile cache of Node.js (22.1 and later) before it loads the CLI. The second and later runs read the compiled code from the cache.
+
+A study in CI on 2026-11-02 measured the code of commit `74a2801a` (`@procedures/mark` 0.46.0, Node.js 26.13, Linux), in [the record of the study](https://github.com/mark1russell7/client/actions/runs/41420191261). One `mark` call took 1019 ms with no cache and 754 ms with a warm cache. The first call after an install, or after a change of a file, wrote the cache and took approximately 170 ms more. The numbers are of that commit. A later version can give different numbers.
 
 The cache folder is `mark/compile-cache` in the cache folder of the user: `$XDG_CACHE_HOME` or `~/.cache` on Linux, `~/Library/Caches` on macOS and `%LOCALAPPDATA%` on Windows. Set `NODE_COMPILE_CACHE=<folder>` to use a different folder, or `NODE_DISABLE_COMPILE_CACHE=1` to turn the cache off. If the folder cannot be written, `mark` runs with no cache.
 
