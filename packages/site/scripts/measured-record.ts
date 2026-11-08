@@ -2,8 +2,8 @@
 /**
  * This script writes the record of the measured numbers of the site (CLI-124, schema `measured/1`).
  *
- *   node scripts/measured-record.ts --out <file> --bench <prefix>=<results folder>... --engine <package>=<folder>...
- *   node scripts/measured-record.ts --out <file> --merge <record>...
+ *   node packages/site/scripts/measured-record.ts --out <file> --bench <prefix>=<results folder>... --engine <package>=<folder>...
+ *   node packages/site/scripts/measured-record.ts --out <file> --merge <record>...
  *
  * Each `--bench` folder holds one JSON file for each benchmark, as `bench(name, { writeResult })` of
  * vitest writes it. Each number gets the key `<prefix>.<file name>` and the median of its latency
@@ -38,6 +38,8 @@ export interface MeasuredRun {
   readonly date: string;
   /** The full commit of the code that ran. */
   readonly commit: string;
+  /** The path of the workflow of the run, from the root of the repository. */
+  readonly workflow: string;
 }
 
 /** The record of the measured numbers of one run. */
@@ -82,8 +84,12 @@ export function runOfEnvironment(env: NodeJS.ProcessEnv, now: Date): MeasuredRun
   const commit = env["GITHUB_SHA"];
   if (!id || !repository || !commit) throw new Error("GITHUB_RUN_ID, GITHUB_REPOSITORY and GITHUB_SHA give the run: start the script in a workflow");
   if (!/^[0-9a-f]{40}$/.test(commit)) throw new Error(`GITHUB_SHA is not a full commit: ${commit}`);
+  // GITHUB_WORKFLOW_REF has the form <owner>/<repo>/<path>@<ref>
+  const ref = env["GITHUB_WORKFLOW_REF"] ?? "";
+  const workflow = ref.startsWith(`${repository}/`) && ref.includes("@") ? ref.slice(repository.length + 1, ref.lastIndexOf("@")) : "";
+  if (!workflow.startsWith(".github/workflows/")) throw new Error(`GITHUB_WORKFLOW_REF names no workflow of ${repository}: ${ref}`);
   const server = env["GITHUB_SERVER_URL"] ?? "https://github.com";
-  return { id, url: `${server}/${repository}/actions/runs/${id}`, date: now.toISOString().replace(/\.\d{3}Z$/, "Z"), commit };
+  return { id, url: `${server}/${repository}/actions/runs/${id}`, date: now.toISOString().replace(/\.\d{3}Z$/, "Z"), commit, workflow };
 }
 
 /** This function joins the records of the jobs of one run. It throws when two records have different runs or the same key. */
@@ -94,7 +100,7 @@ export function mergeRecords(records: readonly MeasuredRecord[]): MeasuredRecord
   const numbers: Record<string, MeasuredNumber> = { ...first.numbers };
   let date = first.run.date;
   for (const record of rest) {
-    if (record.run.id !== first.run.id || record.run.commit !== first.run.commit) throw new Error(`the records are of the runs ${first.run.id} and ${record.run.id}`);
+    if (record.run.id !== first.run.id || record.run.commit !== first.run.commit || record.run.workflow !== first.run.workflow) throw new Error(`the records are of the runs ${first.run.id} and ${record.run.id}`);
     for (const [name, version] of Object.entries(record.engines)) {
       if (engines[name] !== undefined && engines[name] !== version) throw new Error(`${name} has the versions ${engines[name]} and ${version}`);
       engines[name] = version;

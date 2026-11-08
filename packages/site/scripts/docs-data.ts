@@ -444,7 +444,18 @@ export function linkResolver({ file, repoRoot, docsByPath }: { file: string; rep
  * - `pages`: the content of each page (loaded with the page);
  * - `search`: the headings of each page, for the command palette.
  */
-export function readDocs(packagesDir: string, packages: DocPackage[], { canRun = () => false }: { canRun?: (key: string) => boolean } = {}): DocsData {
+export function readDocs(
+  packagesDir: string,
+  packages: DocPackage[],
+  {
+    canRun = () => false,
+    fill = (_slug, markdown) => markdown,
+  }: {
+    canRun?: (key: string) => boolean;
+    /** This function changes the Markdown of a page before the conversion. The build fills the measured numbers with it. */
+    fill?: (slug: string, markdown: string) => string;
+  } = {},
+): DocsData {
   const repoRoot = dirname(packagesDir);
   const sources = docSources(packagesDir, packages);
   const docsByPath = new Map(sources.map((source) => [source.path.toLowerCase(), source.slug]));
@@ -453,7 +464,7 @@ export function readDocs(packagesDir: string, packages: DocPackage[], { canRun =
   const pages: DocsData["pages"] = {};
   const search: DocsData["search"] = [];
   for (const source of sources) {
-    const markdown = readFileSync(source.path, "utf8");
+    const markdown = fill(source.slug, readFileSync(source.path, "utf8"));
     const resolveLink = linkResolver({ file: source.path, repoRoot, docsByPath });
     const converted = convertMarkdown(markdown, { resolveLink, canRun });
     const repoPath = relative(repoRoot, source.path).split(sep).join("/");

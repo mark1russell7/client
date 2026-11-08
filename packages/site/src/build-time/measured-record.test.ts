@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
+import { afterAll, beforeAll, describe, it } from "vitest";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { after, before, describe, it } from "node:test";
-import { main, MEASURED_SCHEMA, mergeRecords, numberOfBenchResult, numbersOfFolder, runOfEnvironment, type MeasuredRecord } from "./measured-record.ts";
+import { main, MEASURED_SCHEMA, mergeRecords, numberOfBenchResult, numbersOfFolder, runOfEnvironment, type MeasuredRecord } from "../../scripts/measured-record.ts";
 
 const COMMIT = "0123456789abcdef0123456789abcdef01234567";
-const ENV = { GITHUB_RUN_ID: "42", GITHUB_REPOSITORY: "owner/repo", GITHUB_SHA: COMMIT };
+const WORKFLOW = ".github/workflows/nightly.yml";
+const ENV = { GITHUB_RUN_ID: "42", GITHUB_REPOSITORY: "owner/repo", GITHUB_SHA: COMMIT, GITHUB_WORKFLOW_REF: `owner/repo/${WORKFLOW}@refs/heads/main` };
 const NOW = new Date("2026-11-08T21:50:00.123Z");
 
 const result = (p50: unknown, samplesCount: unknown = 20) => ({ latency: { p50, samplesCount, mean: 99 }, context: { cpu: "test" } });
@@ -14,7 +15,7 @@ const result = (p50: unknown, samplesCount: unknown = 20) => ({ latency: { p50, 
 describe("measured-record", () => {
   let root: string;
 
-  before(() => {
+  beforeAll(() => {
     root = mkdtempSync(join(tmpdir(), "measured-record-"));
     mkdirSync(join(root, "results"));
     writeFileSync(join(root, "results", "write-1000.json"), JSON.stringify(result(14.5)));
@@ -25,7 +26,7 @@ describe("measured-record", () => {
     writeFileSync(join(root, "pkg", "package.json"), JSON.stringify({ name: "@scope/engine", version: "0.7.1" }));
   });
 
-  after(() => {
+  afterAll(() => {
     rmSync(root, { recursive: true, force: true });
   });
 
@@ -47,13 +48,15 @@ describe("measured-record", () => {
   });
 
   it("gives the run of GitHub Actions, and refuses a run with no full commit", () => {
-    assert.deepEqual(runOfEnvironment(ENV, NOW), { id: "42", url: "https://github.com/owner/repo/actions/runs/42", date: "2026-11-08T21:50:00Z", commit: COMMIT });
+    assert.deepEqual(runOfEnvironment(ENV, NOW), { id: "42", url: "https://github.com/owner/repo/actions/runs/42", date: "2026-11-08T21:50:00Z", commit: COMMIT, workflow: WORKFLOW });
     assert.throws(() => runOfEnvironment({}, NOW), /start the script in a workflow/);
     assert.throws(() => runOfEnvironment({ ...ENV, GITHUB_SHA: "0123abc" }, NOW), /not a full commit/);
+    assert.throws(() => runOfEnvironment({ ...ENV, GITHUB_WORKFLOW_REF: undefined }, NOW), /names no workflow of owner\/repo/);
+    assert.throws(() => runOfEnvironment({ ...ENV, GITHUB_WORKFLOW_REF: "other/repo/.github/workflows/x.yml@main" }, NOW), /names no workflow/);
   });
 
   it("joins the records of one run with the earliest date, and refuses two runs, two versions or one key twice", () => {
-    const run = { id: "42", url: "u", date: "2026-11-08T22:00:00Z", commit: COMMIT };
+    const run = { id: "42", url: "u", date: "2026-11-08T22:00:00Z", commit: COMMIT, workflow: WORKFLOW };
     const a: MeasuredRecord = { schema: MEASURED_SCHEMA, run, engines: { e: "1.0.0" }, numbers: { "a.x": numberOfBenchResult(result(1), "x") } };
     const b: MeasuredRecord = { schema: MEASURED_SCHEMA, run: { ...run, date: "2026-11-08T21:00:00Z" }, engines: { e: "1.0.0", f: "2.0.0" }, numbers: { "b.y": numberOfBenchResult(result(2), "y") } };
     const merged = mergeRecords([a, b]);

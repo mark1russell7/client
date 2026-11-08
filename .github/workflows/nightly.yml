@@ -96,6 +96,19 @@ jobs:
           packages/client-collections/bench/results
           packages/client-sqlite/bench/results
           packages/client-store/bench/results
+      # The record of the measured numbers of the site (CLI-124, the format measured/1). The Pages
+      # build downloads the newest record of main and fills the numbers of the docs pages from it.
+      - name: The record of the measured numbers of the site
+        run: >-
+          mkdir -p "$RUNNER_TEMP/measured" &&
+          node packages/site/scripts/measured-record.ts --out "$RUNNER_TEMP/measured/measured-nightly.json"
+          --bench nightly=packages/client-sqlite/bench/results
+          --engine @procedures/sqlite=packages/client-sqlite
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: measured-nightly
+          path: ${{ runner.temp }}/measured
+          retention-days: 30
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
