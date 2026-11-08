@@ -46,6 +46,7 @@ type ProgramSaveDefinition: dist/program-store/programs.d.ts#ProgramSaveDefiniti
 type ProgramSaveInput: dist/program-store/programs.d.ts#ProgramSaveInput
 type ProgramStore: dist/program-store/types.d.ts#ProgramStore
 type ProgramWriteOptions: dist/program-store/types.d.ts#ProgramWriteOptions
+type PushBatch: dist/storage/hybrid.d.ts#PushBatch
 QueueFullError: dist/storage/hybrid.d.ts#QueueFullError
 type QueueRefusal: dist/storage/hybrid.d.ts#QueueRefusal
 type QueueStore: dist/storage/queue.d.ts#QueueStore
@@ -194,6 +195,7 @@ ModeSwitchError: dist/storage/hybrid.d.ts#ModeSwitchError
 PendingWriteError: dist/storage/hybrid.d.ts#PendingWriteError
 type ProgramStore: dist/program-store/types.d.ts#ProgramStore
 type ProgramWriteOptions: dist/program-store/types.d.ts#ProgramWriteOptions
+type PushBatch: dist/storage/hybrid.d.ts#PushBatch
 QueueFullError: dist/storage/hybrid.d.ts#QueueFullError
 type QueueRefusal: dist/storage/hybrid.d.ts#QueueRefusal
 type QueueStore: dist/storage/queue.d.ts#QueueStore
@@ -746,6 +748,11 @@ export interface HybridStorageOptions {
     isUnavailable?: (error: unknown) => boolean;
     isRefusal?: (error: unknown) => boolean;
     isTooLarge?: (error: unknown) => boolean;
+    capacityOf?: (error: unknown) => {
+        readonly units: number;
+        readonly capacity: number;
+    } | undefined;
+    pushBatch?: PushBatch | undefined;
     onRefused?: (refusal: QueueRefusal) => void | Promise<void>;
     onDropped?: (drop: DroppedWrite) => void | Promise<void>;
     local?: LocalCopyStorage<any>;
@@ -799,6 +806,12 @@ export declare class PendingWriteError extends Error {
     readonly code = "WRITE_PENDING";
     readonly pending = true;
     constructor(operation: string, cause: unknown);
+}
+
+### dist/storage/hybrid.d.ts#PushBatch
+export interface PushBatch {
+    readonly maxItems?: number | undefined;
+    readonly maxBytes?: number | undefined;
 }
 
 ### dist/storage/hybrid.d.ts#QueueFullError
