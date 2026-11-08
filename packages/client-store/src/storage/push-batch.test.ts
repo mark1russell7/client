@@ -17,7 +17,7 @@ const item = (id: string, n: number, rev = "L"): Item => ({ id, n, rev });
 interface Call {
   readonly method: string;
   readonly ids: string[];
-  readonly expected?: Array<[string, string | null]>;
+  readonly expected?: ReadonlyArray<readonly [string, string | null]>;
 }
 
 const forbidden = (): Error => Object.assign(new Error("not allowed"), { code: "FORBIDDEN" });
