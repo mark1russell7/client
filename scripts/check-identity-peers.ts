@@ -69,7 +69,7 @@ export function identityUses(dtsFiles: readonly string[], report: string, identi
   const found = new Set<string>();
   for (const dts of dtsFiles) {
     for (const { original, local } of serviceNames(dts)) {
-      if (identity.includes(original) && new RegExp(String.raw`(?<![\w$])${local.replace(/\$/g, "\\$")}(?![\w$])`).test(report)) found.add(original);
+      if (identity.includes(original) && new RegExp(String.raw`(?<![\w$])${local.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&")}(?![\w$])`).test(report)) found.add(original);
     }
   }
   return [...found].sort();
