@@ -150,9 +150,11 @@ export interface HybridStorageOptions {
    *   three-way merge uses it. `null`: the remote had no item. The value is undefined when the
    *   storage does not know it. Examples are a storage with no `versionOf`, an operation of an
    *   older version, and a write after a restart, before a sync.
+   * @param context - `context.overlap(paths)` reports the paths where the merge kept only one side.
+   *   The hook `onDropped` gets one call with the reason `overlap` for each call.
    * @returns Merged value
    */
-  mergeFn?: <T>(local: T, remote: T, base: T | null | undefined) => T;
+  mergeFn?: <T>(local: T, remote: T, base: T | null | undefined, context: MergeContext) => T;
 
   /**
    * The key of a remote item, for the local cache. The default reads a string `id` field. Give
@@ -270,6 +272,9 @@ export interface HybridStorageOptions {
    * `remote` decides, on a delete of the remote and on a refusal. The call comes after the local
    * copy changed, so the hook can write the value again. An error of the hook does not stop the
    * sync. The sync waits for the hook.
+   *
+   * The hook also gets each overlap that `mergeFn` reports, with the reason `overlap`. The merged write of an overlap
+   * stays in the queue.
    */
   onDropped?: (drop: DroppedWrite) => void | Promise<void>;
 
@@ -603,6 +608,15 @@ export interface QueueRefusal {
   restored: boolean;
 }
 
+/** The fourth argument of `mergeFn` (roadmap CLI-109). */
+export interface MergeContext {
+  /**
+   * This method reports the paths where the merge kept only one side, for example `["title"]`. Each call during the
+   * merge gives one call of `onDropped` with the reason `overlap`. A call after the end of the merge changes nothing.
+   */
+  overlap(paths: readonly string[]): void;
+}
+
 /**
  * A queued write that left the queue with no send that the remote took: the argument of the hook
  * `onDropped` (roadmap CLI-106). The hook can get a write again after a crash, because the store
@@ -618,13 +632,21 @@ export interface DroppedWrite {
   value: unknown;
   /**
    * The cause: the policy took the remote value, the remote deleted the item, or the remote refused the write. The
-   * cause `too-large` tells that the write was larger than the limit of the remote (roadmap CLI-108).
+   * cause `too-large` tells that the write was larger than the limit of the remote (roadmap CLI-108). The cause
+   * `overlap` tells that `mergeFn` kept only one side of some paths (roadmap CLI-109). Its merged write stays in the
+   * queue.
    */
-  reason: "conflict" | "remote-delete" | "refused" | "too-large";
+  reason: "conflict" | "remote-delete" | "refused" | "too-large" | "overlap";
   /** The sync that dropped the write. */
   during: "pull" | "push";
-  /** The remote value that replaced the write, for the reason `conflict`. */
+  /** The remote value that replaced the write, for the reason `conflict`. The remote value of the merge, for `overlap`. */
   remote?: unknown;
+  /** The base value of the merge, for the reason `overlap`. This value is undefined when the storage does not know it. */
+  base?: unknown;
+  /** The value that `mergeFn` gave, for the reason `overlap`. */
+  merged?: unknown;
+  /** The paths that `mergeFn` reported, for the reason `overlap`. */
+  paths?: string[];
   /** The error of the remote, for the reasons `refused` and `too-large`. */
   error?: unknown;
 }
@@ -1032,7 +1054,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   private readonly queueStore: QueueStore;
   private options: {
     conflictResolution: ConflictResolution;
-    mergeFn?: <T>(local: T, remote: T, base: T | null | undefined) => T;
+    mergeFn?: <T>(local: T, remote: T, base: T | null | undefined, context: MergeContext) => T;
     keyOf: (item: T) => string | undefined;
     versionOf?: (item: T) => string | undefined;
     sendBaseVersions: boolean;
@@ -1174,6 +1196,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     syncCount: 0,
     conflicts: 0,
     dropped: 0,
+    overlaps: 0,
   };
 
   constructor(
@@ -2490,6 +2513,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
         syncCount: this.stats.syncCount,
         conflicts: this.stats.conflicts,
         dropped: this.stats.dropped,
+        overlaps: this.stats.overlaps,
         pendingOps: this.offlineOps.length,
         isOnline: this.isOnline,
         mode: this.mode,
@@ -2873,9 +2897,11 @@ export class HybridStorage<T> implements CollectionStorage<T> {
         conflicts.push(id);
         return false;
       }
-      const resolved = this.resolveConflict(localItem, item);
+      const overlaps: string[][] = [];
+      const resolved = this.resolveConflict(localItem, item, undefined, overlaps);
       await this.localSet(id, resolved, this.syncOrigin);
       this.stats.conflicts++;
+      await this.reportOverlaps({ id, during: "pull", local: localItem, remote: item, base: undefined, merged: resolved }, overlaps);
     }
     if (remoteVersion !== undefined) {
       this.bases.set(id, remoteVersion);
@@ -2950,13 +2976,16 @@ export class HybridStorage<T> implements CollectionStorage<T> {
         return true;
       case "merge": {
         if (localItem === undefined) break;
-        const merged = this.resolveConflict(localItem, remoteItem, this.queuedBaseValue(id));
+        const base = this.queuedBaseValue(id);
+        const overlaps: string[][] = [];
+        const merged = this.resolveConflict(localItem, remoteItem, base, overlaps);
         if (!this.dropQueued(id)) break;
         await this.localSet(id, merged, this.syncOrigin);
         this.bases.set(id, remoteVersion);
         this.noteBaseValue(id, remoteVersion, remoteItem);
         // The merged write changes the remote item of this conflict: that item is its base
         this.offlineOps.push({ type: "set", data: { id, value: merged }, timestamp: Date.now(), base: [[id, remoteVersion]], baseValues: [[id, remoteItem]] });
+        await this.reportOverlaps({ id, during, local: localItem, remote: remoteItem, base, merged }, overlaps);
         return true;
       }
       case "error":
@@ -2977,6 +3006,33 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       await this.options.onDropped?.(drop);
     } catch {
       // An error of the hook does not stop the sync
+    }
+  }
+
+  /**
+   * This method gives each overlap of a merge to the hook `onDropped` (roadmap CLI-109). It counts the overlaps, not the
+   * dropped writes: the merged write stays in the queue. An error of the hook does not stop the sync.
+   */
+  private async reportOverlaps(
+    merge: { id: string; during: DroppedWrite["during"]; local: T; remote: T; base: T | null | undefined; merged: T },
+    overlaps: readonly string[][],
+  ): Promise<void> {
+    for (const paths of overlaps) {
+      this.stats.overlaps++;
+      try {
+        await this.options.onDropped?.({
+          id: merge.id,
+          value: merge.local,
+          reason: "overlap",
+          during: merge.during,
+          remote: merge.remote,
+          base: merge.base,
+          merged: merge.merged,
+          paths,
+        });
+      } catch {
+        // An error of the hook does not stop the sync
+      }
     }
   }
 
@@ -3357,7 +3413,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   /**
    * Resolve conflict between local and remote versions.
    */
-  private resolveConflict(local: T, remote: T, base?: T | null): T {
+  private resolveConflict(local: T, remote: T, base?: T | null, overlaps?: string[][]): T {
     switch (this.options.conflictResolution) {
       case "local":
         return local;
@@ -3371,7 +3427,19 @@ export class HybridStorage<T> implements CollectionStorage<T> {
             "Merge function required for conflict resolution strategy 'merge'"
           );
         }
-        return this.options.mergeFn(local, remote, base);
+        {
+          let open = true;
+          const context: MergeContext = {
+            overlap: (paths) => {
+              if (open) overlaps?.push([...paths]);
+            },
+          };
+          try {
+            return this.options.mergeFn(local, remote, base, context);
+          } finally {
+            open = false;
+          }
+        }
 
       case "error":
         throw new Error(
