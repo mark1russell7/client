@@ -48,6 +48,7 @@ import { admittedValue, rowsOf } from "./rows.js";
 import { realClock, type Clock } from "../clock.js";
 import { SubscriptionRechecks, type RecheckCause, type RightsChange, type RightsScope, type RightsScopes, type SubscriptionRecheck } from "./recheck.js";
 import { DROPPED, RowHintFilter, collectionInvocation, collectionRulesOf, markFilteredTopic, type HintFilterMode } from "../procedures/collection/hint-filter.js";
+import { shareEncoding } from "../frame-encoding.js";
 
 /** The number of topics that one subscription can name. */
 export const MAX_SUBSCRIPTION_TOPICS = 64;
@@ -327,7 +328,8 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
    */
   private deliver(event: QueuedEvent): Promise<IteratorResult<EventItem>> {
     const filtered = this.filters?.get(event.topic)?.apply(event.data);
-    if (!filtered) return this.item(event.topic, event.data);
+    // Each subscriber of the topic gets this same data, so a transport encodes it once (roadmap CLI-112)
+    if (!filtered) return this.item(event.topic, shareEncoding(event.data, this));
     return filtered.then(
       (data) => (data === DROPPED ? this.next() : this.item(event.topic, data)),
       // A filter that fails: the subscriber reads the changes itself

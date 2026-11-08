@@ -1,5 +1,13 @@
 # @procedures/archive
 
+## 0.51.0
+
+### Patch Changes
+
+- Updated dependencies [0c3bfa3]
+  - @procedures/client@0.51.0
+  - @procedures/fs@0.51.0
+
 ## 0.50.0
 
 ### Patch Changes

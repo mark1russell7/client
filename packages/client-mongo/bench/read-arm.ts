@@ -4,8 +4,8 @@
  *
  * The child writes the documents of the case, and it reads one time alone with a count of its commands.
  * Then it sends a burst of reads at the same time. A second client reads the counters of the server. The
- * arm `after` is the source of this tree. The arm `before` is the same file at the base commit, which
- * the workflow writes next to it. An arm `share<n>` is a copy of the source with its own limit of reads.
+ * arm `after` is the source of this tree. The arm `before` is the whole source of the base commit, which
+ * the workflow writes to `base/`. An arm `share<n>` is a copy of the source with its own limit of reads.
  * The child prints the JSON line of `freshRun`, and adds one line to the file of the counts.
  */
 
@@ -34,7 +34,7 @@ const { kind, documents } = parseReadCase(caseName);
 const url = process.env["MONGO_TEST_URL"];
 if (url === undefined) throw new RangeError("this child needs MONGO_TEST_URL");
 
-const source = arm === "before" ? "../src/storage/document-storage.base.ts" : arm.startsWith("share") ? `../src/storage/document-storage.${arm}.ts` : "../src/storage/document-storage.ts";
+const source = arm === "before" ? "../base/src/storage/document-storage.ts" : arm.startsWith("share") ? `../src/storage/document-storage.${arm}.ts` : "../src/storage/document-storage.ts";
 const { MongoDocumentStorage } = (await import(source)) as typeof import("../src/storage/document-storage.js");
 
 const name = `read_bench_${process.pid}`;
