@@ -460,6 +460,11 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    * that `admission()` gave. Only this server adds an entry, so a request cannot claim one.
    */
   private readonly admissions = new WeakMap<Credentials, { readonly principal: Principal | undefined; readonly narrowing: ServerRequest<unknown>["narrowing"] }>();
+  /**
+   * The admission of each request object. The late lookup of a lazy registry admits a request
+   * before it loads packages, and the call of the same request uses that result again.
+   */
+  private readonly admitted = new WeakMap<ServerRequest<unknown>, Promise<ServerResponse<unknown> | undefined>>();
   /** The functions that `drain()` waits on: each one runs when no call is in flight */
   private idleWaiters: Array<() => void> = [];
   /** The publisher of the remote events, from the option `events`, or undefined. */
@@ -847,7 +852,20 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    */
   protected override findLateHandler(method: Method, request: ServerRequest<unknown>): Promise<ServerHandler | null> | null {
     if (!this.servesRegistry || !this.procedureRegistry.lazy) return null;
-    return this.procedureRegistry.resolve(methodToPath(method)).then(() => this.findHandler(method, request));
+    const path = methodToPath(method);
+    // A path outside the expose rule of the face loads nothing, as findHandler() gives it no handler
+    if (request.expose !== undefined) {
+      const rule: unknown = request.expose;
+      if (typeof rule !== "function" || rule(path) !== true) return null;
+    }
+    return (async (): Promise<ServerHandler | null> => {
+      // Only an admitted request loads packages (audit 2026-11-08). Before, a caller with no
+      // credentials loaded packages, and got the load errors of the packages.
+      const refusal = await this.admit(request);
+      if (refusal) return () => Promise.resolve(refusal);
+      await this.procedureRegistry.resolve(path);
+      return this.findHandler(method, request);
+    })();
   }
 
   /**
@@ -896,9 +914,20 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    * request hook refuses it, and the hook does not run (CLI-1). The authenticate function gives
    * the principal. The credentials of an admission of this server (`admission()`) skip the
    * checks: the request gets the principal and the narrowing of that admission (CLI-2b). The
-   * function gives an UNAUTHORIZED response, or undefined when the request passes.
+   * function gives an UNAUTHORIZED response, or undefined when the request passes. The checks
+   * run one time for each request object.
    */
-  private async admit(request: ServerRequest<unknown>): Promise<ServerResponse<unknown> | undefined> {
+  private admit(request: ServerRequest<unknown>): Promise<ServerResponse<unknown> | undefined> {
+    let result = this.admitted.get(request);
+    if (result === undefined) {
+      result = this.checkRequest(request);
+      this.admitted.set(request, result);
+    }
+    return result;
+  }
+
+  /** The checks of `admit()` for one request object. */
+  private async checkRequest(request: ServerRequest<unknown>): Promise<ServerResponse<unknown> | undefined> {
     const unauthorized = (message: string): ServerResponse<unknown> => ({
       id: request.id,
       status: { type: "error", code: "UNAUTHORIZED", message, retryable: false },
