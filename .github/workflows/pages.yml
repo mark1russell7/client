@@ -47,7 +47,7 @@ jobs:
       statuses: read
       pages: write
       id-token: write
-    uses: mark1russell7/template/.github/workflows/reusable-pages.yml@e077054e0f2ebb8441e4bc525b56cf2acc2afb6f # main
+    uses: mark1russell7/template/.github/workflows/reusable-pages.yml@fc41ae3906e671ae746e9597ccc351a4e7ce8a3b # main
     with:
       # The data of the site comes from the dist/ of every package. The site depends on each package
       # that registers procedures, so `pnpm build` builds the site last. The build renders each page
