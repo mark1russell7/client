@@ -2,12 +2,16 @@
  * The verdict of the speed gate of the store (roadmap CLI-94): `--jobs <folder> --out <file> [--run <id>] [--pr <number>] [--enforce] [--more <file>]`.
  * This script reads the claim "not slower by more than the limit of the case" of `gate-limit.json` over the job files of the folder.
  * With `--enforce`, the exit code is 1 for a block and 2 for no read. With `--more`, the file takes the line `more=<cases>` for the next look.
+ *
+ * An annotation on the check line names each outcome that is not a pass. A run with no `--enforce` and no `--more` only reports, so
+ * its outcome is a warning. The cases that only report give a warning at the last look. With `--enforce`, the step of `ci.yml`
+ * gives the error of the gate.
  */
 
 import { appendFileSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import type { PairedTime } from "@mark1russell7/rigor-bench";
+import { gateAnnotation, gateOf, type PairedTime } from "@mark1russell7/rigor-bench";
 import { caseClaim, joinJobs, overStated, passingLimit, READ_CASES, storeGate, WRITE_CASES, type GateLimit } from "./gate-verdict.js";
 import { poolErrors, type KeptError } from "./write-cases.js";
 
@@ -16,7 +20,7 @@ const LEAST_RUNS = 5;
 
 interface JobFile {
   readonly job: string;
-  readonly env: unknown;
+  readonly env?: { readonly cpu: string };
   readonly candidate: readonly PairedTime[];
   readonly aa: readonly PairedTime[];
 }
@@ -86,5 +90,13 @@ for (const claim of report.claims) {
   console.log(`${head}, held in ${String(claim.k)} of ${String(claim.n)} flip runs, Wilson low ${String(claim.wilsonLow)} (${claim.record || "no flip run"})`);
   for (const line of claim.breaks) console.log(`${claim.case}: detection does not rise with the slowdown: ${line}`);
 }
+// A look with --more is not the last look, so its outcome is not final
+const envs = jobs.flatMap(({ env }) => (env === undefined ? [] : [env]));
+const last = values.enforce === true || values.more === undefined;
+const cases = gateOf(verdict.cases);
+const gateLine = values.enforce === true || !last ? undefined : gateAnnotation({ gate: "The speed gate of the store", outcome: result.outcome, reason: result.text, cases: result.outcome === "block" ? cases.blocks : cases.noRead, envs, enforced: false });
+const reported = gateOf(result.reported);
+const reportedLine = !last || result.reported.length === 0 ? undefined : gateAnnotation({ gate: "The report-only cases of the store gate", outcome: reported.outcome, reason: reported.reason, cases: reported.outcome === "block" ? reported.blocks : reported.noRead, envs, enforced: false });
+for (const line of [gateLine, reportedLine]) if (line !== undefined) console.log(line);
 if (values.more !== undefined && result.more.length > 0) appendFileSync(values.more, `more=${result.more.join(",")}\n`);
 if (values.enforce === true) process.exitCode = result.exitCode;

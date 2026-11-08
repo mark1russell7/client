@@ -31,6 +31,8 @@ export interface GrowthJob {
   readonly job: string;
   readonly candidate: readonly PairedTime[];
   readonly skipped?: readonly GrowthSkip[];
+  /** The computer of the job, as `benchEnv` gives it. A job file of an older run has no computer. */
+  readonly env?: { readonly cpu: string };
 }
 
 /** The reason of a skip of a child over its time limit (`overLimit: "skip"` of `freshRun`). */
@@ -58,6 +60,8 @@ export interface FanOutGrowth {
   readonly outcome: GrowthGateOutcome;
   /** The text that tells why the gate does not pass, or undefined for a pass. */
   readonly reason: string | undefined;
+  /** The cases behind an outcome that is not a pass, in sorted order. A pass has no cases. */
+  readonly cases: readonly string[];
   /** The verdicts of the case `total`, or undefined when the jobs have no case `total`. */
   readonly gate: Readonly<Record<FanOutArm, GrowthVerdict>> | undefined;
   /** The verdicts of the case `block`, or undefined when the jobs have no case `block` (the run of a pull request). */
@@ -76,18 +80,21 @@ export function fanOutGrowth(jobs: readonly GrowthJob[]): FanOutGrowth {
   const skips = jobs.flatMap(({ job, skipped }) => (skipped ?? []).filter((skip) => parseCase(skip.case).measure === "total").map((skip) => ({ job, ...skip })));
   const list = (some: typeof skips): string => some.map((skip) => `${skip.case} (arm ${skip.arm}, job ${skip.job}): ${skip.reason}`).join("; ");
   const late = skips.filter((skip) => OVER_LIMIT.test(skip.reason));
-  if (late.length > 0) return { outcome: "block", reason: `a publish did not end in time: ${list(late)}`, gate, report };
-  if (skips.length > 0) return { outcome: "no read", reason: `the jobs skipped a case of the gate: ${list(skips)}`, gate, report };
-  if (gate === undefined) return { outcome: "no read", reason: "the jobs time the case total at fewer than 2 sizes", gate, report };
+  const casesOf = (ids: readonly string[]): string[] => [...new Set(ids)].sort();
+  const timed = casesOf(jobs.flatMap(({ candidate }) => candidate.map((record) => record.case).filter((id) => parseCase(id).measure === "total")));
+  if (late.length > 0) return { outcome: "block", reason: `a publish did not end in time: ${list(late)}`, cases: casesOf(late.map((skip) => skip.case)), gate, report };
+  if (skips.length > 0) return { outcome: "no read", reason: `the jobs skipped a case of the gate: ${list(skips)}`, cases: casesOf(skips.map((skip) => skip.case)), gate, report };
+  if (gate === undefined) return { outcome: "no read", reason: "the jobs time the case total at fewer than 2 sizes", cases: timed, gate, report };
   const count = new Set(jobs.map(({ job }) => job)).size;
-  if (count < MIN_JOBS) return { outcome: "no read", reason: `the gate needs ${MIN_JOBS} jobs or more, and the run has ${count}`, gate, report };
+  if (count < MIN_JOBS) return { outcome: "no read", reason: `the gate needs ${MIN_JOBS} jobs or more, and the run has ${count}`, cases: timed, gate, report };
   const steps = (Object.keys(gate) as FanOutArm[]).flatMap((arm) => gate[arm].steps.map((step) => ({ arm, step })));
   const text = (outcome: string): string =>
     steps
       .filter(({ step }) => step.outcome === outcome)
       .map(({ arm, step }) => `${arm} ${step.from} to ${step.to}: ${step.median.toFixed(1)}x (${step.low.toFixed(1)} to ${step.high.toFixed(1)}), limit ${MAX_GROWTH}x`)
       .join("; ");
-  if (steps.some(({ step }) => step.outcome === "beyond")) return { outcome: "block", reason: `the time of a publish grows too fast: ${text("beyond")}`, gate, report };
-  if (steps.some(({ step }) => step.outcome === "cannot decide")) return { outcome: "no read", reason: `the interval crosses the limit: ${text("cannot decide")}. Add jobs up to the budget.`, gate, report };
-  return { outcome: "pass", reason: undefined, gate, report };
+  const stepCases = (outcome: string): string[] => casesOf(steps.filter(({ step }) => step.outcome === outcome).flatMap(({ step }) => [`total-${step.from}`, `total-${step.to}`]));
+  if (steps.some(({ step }) => step.outcome === "beyond")) return { outcome: "block", reason: `the time of a publish grows too fast: ${text("beyond")}`, cases: stepCases("beyond"), gate, report };
+  if (steps.some(({ step }) => step.outcome === "cannot decide")) return { outcome: "no read", reason: `the interval crosses the limit: ${text("cannot decide")}. Add jobs up to the budget.`, cases: stepCases("cannot decide"), gate, report };
+  return { outcome: "pass", reason: undefined, cases: [], gate, report };
 }
