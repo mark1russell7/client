@@ -604,8 +604,8 @@ importers:
   packages/client-cue:
     dependencies:
       '@mark1russell7/cue':
-        specifier: ^2.1.1
-        version: 2.1.1
+        specifier: ^2.1.2
+        version: 2.1.2
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -3367,6 +3367,11 @@ packages:
 
   '@mark1russell7/cue@2.1.1':
     resolution: {integrity: sha512-0/L9nQwGqUTCLTnUPtYKJ/cvXTr/gJWFWASUzGUjKyj3LxNpYgAplLuTPNQe0g4kjcM+9JAb/D/IfYwBGvM/mA==}
+    engines: {node: '>=22'}
+    hasBin: true
+
+  '@mark1russell7/cue@2.1.2':
+    resolution: {integrity: sha512-PjEWeyq353cz3gZyNmYkv/rUChybd3h9BWRW3UWP+fs0s7/CwGeVRzCpYLnvLR4gyHC367G/PS3kqWJO9GEAkg==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -6791,6 +6796,8 @@ snapshots:
       yaml: 2.9.1
 
   '@mark1russell7/cue@2.1.1': {}
+
+  '@mark1russell7/cue@2.1.2': {}
 
   '@mark1russell7/docker-sqlite@0.2.1':
     dependencies:
