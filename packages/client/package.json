@@ -132,6 +132,7 @@
     "@mark1russell7/api-report": "^0.4.1",
     "@mark1russell7/cue": "^2.1.1",
     "@mark1russell7/rigor-bench": "^0.2.25",
+    "@mark1russell7/rigor-generators": "^0.1.8",
     "@mark1russell7/rigor-statistics": "^0.1.9",
     "@stryker-mutator/core": "10.0.0",
     "@stryker-mutator/vitest-runner": "10.0.0",

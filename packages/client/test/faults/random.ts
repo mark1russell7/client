@@ -5,19 +5,14 @@
  * `FAULT_SEED=<seed>`, and it makes the same choices.
  */
 
+import { mulberry32 } from "@mark1russell7/rigor-generators";
+
 /** A function that gives a number from 0 (included) to 1 (excluded). */
 export type Random = () => number;
 
-/** This function gives the generator of a seed (the mulberry32 algorithm). */
+/** This function gives the generator of a seed. Its home is `mulberry32` of `@mark1russell7/rigor-generators`. */
 export function seededRandom(seed: number): Random {
-  let state = seed >>> 0;
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let t = state;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+  return mulberry32(seed);
 }
 
 /** This function gives an integer from `min` to `max`, both included. */
