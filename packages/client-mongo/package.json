@@ -85,6 +85,7 @@
     "procedures": "./dist/register.js"
   },
   "dependencies": {
+    "@mark1russell7/collections": "^0.9.4",
     "@procedures/client": "workspace:*",
     "@procedures/collections": "workspace:*",
     "mongodb": "^7.0.0",
