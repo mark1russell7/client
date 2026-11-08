@@ -559,6 +559,20 @@ export interface RawStorageWrite {
 /** The result of an adoption: `adopted`, `lost` (the document changed since: another adoption or write won), or `unknown` (no image and no stored `_id` tells the id and the partition). */
 export type RawAdoption = "adopted" | "lost" | "unknown";
 
+/**
+ * The key of a stored `_id` in a map: its extended JSON. Two object ids with other fields are two
+ * keys, and an `ObjectId` and its hex text are two keys too (audit 2026-11-08).
+ */
+function storedIdKey(id: unknown): string {
+  return BSON.EJSON.stringify({ v: id as never }, { relaxed: false });
+}
+
+/** The order of two stored `_id` values of one place: two texts by their text, else by their keys. */
+function idOrder(a: unknown, b: unknown, keyA: string, keyB: string): number {
+  const [x, y] = typeof a === "string" && typeof b === "string" ? [a, b] : [keyA, keyB];
+  return x < y ? -1 : x > y ? 1 : 0;
+}
+
 /** True when two values have the same BSON. */
 function sameBson(a: unknown, b: unknown): boolean {
   try {
@@ -1398,13 +1412,16 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
 
   /** The listed documents with later documents over them, in the order of the entries. A tombstone removes its document. */
   private withLaterDocs(listed: readonly Document[], later: readonly Document[]): Document[] {
-    const idOf = (doc: Document): string => String(doc["_id"]);
-    const docs = new Map(listed.map((doc) => [idOf(doc), doc]));
+    // The key knows the type of the `_id`: before, `String()` gave each object `_id` one key
+    const keyOf = (doc: Document): string => storedIdKey(doc["_id"]);
+    const docs = new Map(listed.map((doc) => [keyOf(doc), doc]));
     for (const doc of later) {
-      if (doc[TOMB] === true) docs.delete(idOf(doc));
-      else docs.set(idOf(doc), doc);
+      if (doc[TOMB] === true) docs.delete(keyOf(doc));
+      else docs.set(keyOf(doc), doc);
     }
-    return [...docs.values()].sort((a, b) => this.placeOf(a) - this.placeOf(b) || (idOf(a) < idOf(b) ? -1 : idOf(a) > idOf(b) ? 1 : 0));
+    return [...docs]
+      .sort(([keyA, a], [keyB, b]) => this.placeOf(a) - this.placeOf(b) || idOrder(a["_id"], b["_id"], keyA, keyB))
+      .map(([, doc]) => doc);
   }
 
   async getChangesSince(since?: string): Promise<StorageChanges<T>> {

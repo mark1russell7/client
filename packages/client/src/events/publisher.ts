@@ -41,7 +41,7 @@ import { collectionTopicTarget, partitionOfCall } from "../procedures/collection
 import type { AnyProcedure, Capability, ProcedureContext } from "../procedures/types.js";
 import type { Principal } from "../server/types.js";
 import type { EventBus, Unsubscribe } from "./types.js";
-import { getGlobalEventBus } from "./bus.js";
+import { currentEmission, getGlobalEventBus } from "./bus.js";
 import { LiveState, type LiveStateOptions } from "./live-state.js";
 import { EVENTS_SUBSCRIBE_PATH, type EventItem, type SubscribeInput } from "./remote.js";
 import { admittedValue, rowsOf } from "./rows.js";
@@ -221,6 +221,8 @@ function matchesName(field: RightsScope["collection"], name: string | undefined)
 interface QueuedEvent {
   readonly topic: string;
   readonly data: unknown;
+  /** The mark of the emit of the bus: the subscribers of one emit share the text of its data. */
+  readonly emission?: object | undefined;
 }
 
 /** The `reset` hint that a re-check gives to a subscriber with a row filter (roadmap CLI-78). */
@@ -296,7 +298,8 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
   /** This function takes one event of the bus. It never waits. */
   private push(topic: string, data: unknown): void {
     if (this.closed) return;
-    const event: QueuedEvent = { topic, data };
+    const emission = currentEmission();
+    const event: QueuedEvent = emission === undefined ? { topic, data } : { topic, data, emission };
     const waiter = this.waiter;
     if (waiter && this.queue.length === 0 && !this.recheck) {
       this.waiter = undefined;
@@ -329,7 +332,7 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
   private deliver(event: QueuedEvent): Promise<IteratorResult<EventItem>> {
     const filtered = this.filters?.get(event.topic)?.apply(event.data);
     // Each subscriber of the topic gets this same data, so a transport encodes it once (roadmap CLI-112)
-    if (!filtered) return this.item(event.topic, shareEncoding(event.data, this));
+    if (!filtered) return this.item(event.topic, shareEncoding(event.data, this, event.emission));
     return filtered.then(
       (data) => (data === DROPPED ? this.next() : this.item(event.topic, data)),
       // A filter that fails: the subscriber reads the changes itself
