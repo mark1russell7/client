@@ -14,13 +14,15 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { type GrowthVerdict, aaBand, caseIntervals, poolRecords, pooledVerdict, type PairedTime } from "@mark1russell7/rigor-bench";
 import { median } from "@mark1russell7/rigor-statistics";
-import { fanOutGrowth } from "./fan-out-growth.js";
+import { type GrowthSkip, fanOutGrowth } from "./fan-out-growth.js";
 
 interface JobFile {
   readonly job: string;
   readonly env: unknown;
   readonly candidate: readonly PairedTime[];
   readonly aa: readonly PairedTime[];
+  /** The cases that the job skipped. A job file of an older run has no list. */
+  readonly skipped?: readonly GrowthSkip[];
 }
 
 const { values } = parseArgs({ options: { jobs: { type: "string" }, out: { type: "string" }, run: { type: "string" } } });
@@ -31,7 +33,7 @@ const jobs = readdirSync(folder)
   .filter((name) => name.endsWith(".json"))
   .map((name) => JSON.parse(readFileSync(join(folder, name), "utf8")) as JobFile);
 
-const records = jobs.map(({ job, candidate, aa }) => ({ job, candidate, aa }));
+const records = jobs.map(({ job, candidate, aa, skipped }) => ({ job, candidate, aa, ...(skipped === undefined ? {} : { skipped }) }));
 const pool = poolRecords(records);
 const verdict = pooledVerdict(records);
 const band = aaBand(pool.aa);

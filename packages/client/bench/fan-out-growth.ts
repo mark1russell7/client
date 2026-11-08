@@ -1,7 +1,7 @@
 /**
  * The growth gate of the fan-out bench (roadmap CLI-90). The time of one publish must grow less than 15 times for each
  * 10 times more subscribers. A cost that grows as n x n grows 100 times. The gate reads the ratio inside each job, so
- * the speed of a runner does not change the verdict.
+ * the speed of a runner does not change the verdict. A case `total` whose child did not end in its time limit blocks.
  *
  * Only the case `total` is a gate: the time to reach all subscribers. The case `block` of the arm `sliced` is one slice,
  * so its growth is a report.
@@ -19,11 +19,22 @@ export const MAX_GROWTH = 15;
  */
 export const MIN_JOBS = 5;
 
-/** The records of one job. */
+/** A case that an arm of a job skipped, as `freshRun` gives it. */
+export interface GrowthSkip {
+  readonly arm: string;
+  readonly case: string;
+  readonly reason: string;
+}
+
+/** The records of one job, and the cases that it skipped. */
 export interface GrowthJob {
   readonly job: string;
   readonly candidate: readonly PairedTime[];
+  readonly skipped?: readonly GrowthSkip[];
 }
+
+/** The reason of a skip of a child over its time limit (`overLimit: "skip"` of `freshRun`). */
+const OVER_LIMIT = /^took more than \d+ ms$/;
 
 /** The arms of the bench: `a` is `plain`, and `b` is `sliced`. */
 export type FanOutArm = "plain" | "sliced";
@@ -61,6 +72,12 @@ export function fanOutGrowth(jobs: readonly GrowthJob[]): FanOutGrowth {
   const both = (measure: "block" | "total") => (sizes(measure) < 2 ? undefined : { plain: verdict(measure, "plain"), sliced: verdict(measure, "sliced") });
   const gate = both("total");
   const report = both("block");
+  // A case of the gate that did not end in time is a block. Another skip of a case of the gate leaves the gate without its data
+  const skips = jobs.flatMap(({ job, skipped }) => (skipped ?? []).filter((skip) => parseCase(skip.case).measure === "total").map((skip) => ({ job, ...skip })));
+  const list = (some: typeof skips): string => some.map((skip) => `${skip.case} (arm ${skip.arm}, job ${skip.job}): ${skip.reason}`).join("; ");
+  const late = skips.filter((skip) => OVER_LIMIT.test(skip.reason));
+  if (late.length > 0) return { outcome: "block", reason: `a publish did not end in time: ${list(late)}`, gate, report };
+  if (skips.length > 0) return { outcome: "no read", reason: `the jobs skipped a case of the gate: ${list(skips)}`, gate, report };
   if (gate === undefined) return { outcome: "no read", reason: "the jobs time the case total at fewer than 2 sizes", gate, report };
   const count = new Set(jobs.map(({ job }) => job)).size;
   if (count < MIN_JOBS) return { outcome: "no read", reason: `the gate needs ${MIN_JOBS} jobs or more, and the run has ${count}`, gate, report };

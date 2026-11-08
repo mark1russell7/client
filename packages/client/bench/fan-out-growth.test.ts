@@ -36,6 +36,37 @@ describe("the growth gate of the fan-out bench", () => {
     expect(growth.reason).toContain(`limit ${MAX_GROWTH}x`);
   });
 
+  it("blocks a case total whose child did not end in its time limit, and names the case, the arm and the job", () => {
+    const late = (name: string): GrowthJob => {
+      const { candidate } = job(name, { plain: 100, sliced: 11.5 });
+      return { job: name, candidate: candidate.filter((record) => record.case !== "total-100000"), skipped: [{ arm: "plain", case: "total-100000", reason: "took more than 120000 ms" }] };
+    };
+    const growth = fanOutGrowth(FIVE.map(late));
+    expect(growth.outcome).toBe("block");
+    expect(growth.reason).toContain("a publish did not end in time: total-100000 (arm plain, job 1): took more than 120000 ms");
+    expect(growth.reason).toContain("(arm plain, job 5)");
+  });
+
+  it("blocks a late case total in one job, when the other jobs pass", () => {
+    const jobs = FIVE.map((name) => job(name, { plain: 13, sliced: 11.5 }));
+    const growth = fanOutGrowth([...jobs.slice(0, 4), { ...jobs[4]!, skipped: [{ arm: "sliced", case: "total-100000", reason: "took more than 120000 ms" }] }]);
+    expect(growth.outcome).toBe("block");
+    expect(growth.reason).toBe("a publish did not end in time: total-100000 (arm sliced, job 5): took more than 120000 ms");
+  });
+
+  it("gives no read for a skip of a case total with another reason", () => {
+    const jobs = FIVE.map((name) => job(name, { plain: 13, sliced: 11.5 }));
+    const growth = fanOutGrowth([{ ...jobs[0]!, skipped: [{ arm: "plain", case: "total-10000", reason: "too large" }] }, ...jobs.slice(1)]);
+    expect(growth.outcome).toBe("no read");
+    expect(growth.reason).toBe("the jobs skipped a case of the gate: total-10000 (arm plain, job 1): too large");
+  });
+
+  it("passes when only a case block did not end in time, because the block is a report", () => {
+    const jobs = FIVE.map((name) => job(name, { plain: 13, sliced: 11.5 }));
+    const growth = fanOutGrowth(jobs.map((one) => ({ ...one, skipped: [{ arm: "plain", case: "block-100000", reason: "took more than 120000 ms" }] })));
+    expect(growth.outcome).toBe("pass");
+  });
+
   it("gives no read when the jobs fall on both sides of the limit", () => {
     const growth = fanOutGrowth([job("1", { plain: 12, sliced: 11 }), job("2", { plain: 19, sliced: 11 }), job("3", { plain: 13, sliced: 11 }), job("4", { plain: 13, sliced: 11 }), job("5", { plain: 12, sliced: 11 })]);
     expect(growth.outcome).toBe("no read");
