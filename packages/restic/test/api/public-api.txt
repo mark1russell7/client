@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 19 names
+## . (dist/index.d.ts): names
 
 type ArgValue: @procedures/shell/cli#ArgValue (external)
 FLAG_NAME: @procedures/shell/cli#FLAG_NAME (external)
@@ -26,14 +26,14 @@ resticProcedures: dist/procedures.d.ts#resticProcedures
 resticRunProcedure: dist/procedures.d.ts#resticRunProcedure
 runRestic: dist/procedures.d.ts#runRestic
 
-## ./module (dist/module.d.ts): 4 names
+## ./module (dist/module.d.ts): names
 
 createResticModule: dist/module.d.ts#createResticModule
 default: dist/module.d.ts#resticModule
 registerResticProcedures: dist/module.d.ts#registerResticProcedures
 resticModule: dist/module.d.ts#resticModule
 
-## ./register (dist/register.d.ts): 3 names
+## ./register (dist/register.d.ts): names
 
 createResticModule: dist/module.d.ts#createResticModule
 registerResticProcedures: dist/module.d.ts#registerResticProcedures

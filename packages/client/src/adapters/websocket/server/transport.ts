@@ -559,7 +559,8 @@ export class WebSocketServerTransport implements ServerTransport {
         ws.close(1002, "protocol version");
         return;
       }
-      this.send(ws, { id: message.id || "hello", type: "hello", protocol: PROTOCOL_VERSION });
+      // The limit of the server: a client refuses a larger call alone, before the server closes the connection (roadmap CLI-108)
+      this.send(ws, { id: message.id || "hello", type: "hello", protocol: PROTOCOL_VERSION, maxPayload: this.options.maxPayload });
       return;
     }
 

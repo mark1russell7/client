@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 75 names
+## . (dist/index.d.ts): names
 
 type BundleSurfaceModule: dist/surface.d.ts#BundleSurfaceModule
 DEFAULT_ELICIT_TIMEOUT_MS: dist/transport/mcp-transport.d.ts#DEFAULT_ELICIT_TIMEOUT_MS
@@ -82,13 +82,13 @@ registerMcpProcedures: dist/module.d.ts#registerMcpProcedures
 resolveBundleRegister: dist/surface.d.ts#resolveBundleRegister
 taskSupportOf: @procedures/mcp#taskSupportOf (external)
 
-## ./module (dist/module.d.ts): 3 names
+## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#mcpModule
 mcpModule: dist/module.d.ts#mcpModule
 registerMcpProcedures: dist/module.d.ts#registerMcpProcedures
 
-## ./register (dist/register.d.ts): 2 names
+## ./register (dist/register.d.ts): names
 
 mcpModule: dist/module.d.ts#mcpModule
 registerMcpProcedures: dist/module.d.ts#registerMcpProcedures

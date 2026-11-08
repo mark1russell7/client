@@ -5,4 +5,4 @@
 import { LIVE_CASES } from "./live-cases.js";
 import { runLiveJob } from "./live-job.js";
 
-await runLiveJob(LIVE_CASES, "store", "live");
+await runLiveJob(LIVE_CASES, "store", ["live"]);

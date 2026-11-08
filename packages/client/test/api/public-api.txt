@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 672 names
+## . (dist/index.d.ts): names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -70,8 +70,10 @@ type CurrentItem: dist/procedures/collection/precondition.d.ts#CurrentItem
 DEADLINE_METADATA_KEY: dist/client/deadline.d.ts#DEADLINE_METADATA_KEY
 DEFAULT_FIND_LIMIT: dist/procedures/collection/query.d.ts#DEFAULT_FIND_LIMIT
 DEFAULT_KEPT_METADATA: dist/server/error-policy.d.ts#DEFAULT_KEPT_METADATA
+DEFAULT_LIVE_BYTES: dist/events/live-state.d.ts#DEFAULT_LIVE_BYTES
 DEFAULT_LIVE_KEYS: dist/events/live-state.d.ts#DEFAULT_LIVE_KEYS
 DEFAULT_LIVE_TOPICS: dist/events/live-state.d.ts#DEFAULT_LIVE_TOPICS
+DEFAULT_LIVE_TOPIC_BYTES: dist/events/live-state.d.ts#DEFAULT_LIVE_TOPIC_BYTES
 DEFAULT_LIVE_VALUE_BYTES: dist/events/live-state.d.ts#DEFAULT_LIVE_VALUE_BYTES
 DEFAULT_QUERY_OPERATORS: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_OPERATORS
 DEFAULT_QUERY_POLICY: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_POLICY
@@ -679,7 +681,7 @@ withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 writeLog: dist/logger.d.ts#writeLog
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 660 names
+## ./browser (dist/browser.d.ts): names
 
 type Admission: dist/server/types.d.ts#Admission
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
@@ -744,8 +746,10 @@ type CurrentItem: dist/procedures/collection/precondition.d.ts#CurrentItem
 DEADLINE_METADATA_KEY: dist/client/deadline.d.ts#DEADLINE_METADATA_KEY
 DEFAULT_FIND_LIMIT: dist/procedures/collection/query.d.ts#DEFAULT_FIND_LIMIT
 DEFAULT_KEPT_METADATA: dist/server/error-policy.d.ts#DEFAULT_KEPT_METADATA
+DEFAULT_LIVE_BYTES: dist/events/live-state.d.ts#DEFAULT_LIVE_BYTES
 DEFAULT_LIVE_KEYS: dist/events/live-state.d.ts#DEFAULT_LIVE_KEYS
 DEFAULT_LIVE_TOPICS: dist/events/live-state.d.ts#DEFAULT_LIVE_TOPICS
+DEFAULT_LIVE_TOPIC_BYTES: dist/events/live-state.d.ts#DEFAULT_LIVE_TOPIC_BYTES
 DEFAULT_LIVE_VALUE_BYTES: dist/events/live-state.d.ts#DEFAULT_LIVE_VALUE_BYTES
 DEFAULT_QUERY_OPERATORS: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_OPERATORS
 DEFAULT_QUERY_POLICY: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_POLICY
@@ -1342,7 +1346,7 @@ withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 writeLog: dist/logger.d.ts#writeLog
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./node (dist/node.d.ts): 40 names
+## ./node (dist/node.d.ts): names
 
 type Addressing: dist/adapters/http/server/addressing.d.ts#Addressing
 BodyError: dist/adapters/http/server/body.d.ts#BodyError
@@ -1385,10 +1389,10 @@ upgradeHandler: dist/adapters/websocket/server/upgrade.d.ts#upgradeHandler
 urlAddressing: dist/adapters/http/server/addressing.d.ts#urlAddressing
 writeNdjsonStream: dist/adapters/http/server/ndjson.d.ts#writeNdjsonStream
 
-## ./register (dist/register.d.ts): 0 names
+## ./register (dist/register.d.ts): names
 
 
-## ./client (dist/client/index.d.ts): 126 names
+## ./client (dist/client/index.d.ts): names
 
 type AuthOptions: dist/client/middleware/auth.d.ts#AuthOptions
 type BaseCaller: dist/client/typed.d.ts#BaseCaller
@@ -1517,14 +1521,16 @@ seconds: dist/duration.d.ts#seconds
 toMs: dist/duration.d.ts#toMs
 writeRemainingTime: dist/client/deadline.d.ts#writeRemainingTime
 
-## ./events (dist/events/index.d.ts): 78 names
+## ./events (dist/events/index.d.ts): names
 
 type AdmitLiveLeave: dist/events/live-state.d.ts#AdmitLiveLeave
 type AdmitLiveSet: dist/events/live-state.d.ts#AdmitLiveSet
 type ChannelMap: dist/events/types.d.ts#ChannelMap
 type ChannelTimingOptions: dist/events/bus.d.ts#ChannelTimingOptions
+DEFAULT_LIVE_BYTES: dist/events/live-state.d.ts#DEFAULT_LIVE_BYTES
 DEFAULT_LIVE_KEYS: dist/events/live-state.d.ts#DEFAULT_LIVE_KEYS
 DEFAULT_LIVE_TOPICS: dist/events/live-state.d.ts#DEFAULT_LIVE_TOPICS
+DEFAULT_LIVE_TOPIC_BYTES: dist/events/live-state.d.ts#DEFAULT_LIVE_TOPIC_BYTES
 DEFAULT_LIVE_VALUE_BYTES: dist/events/live-state.d.ts#DEFAULT_LIVE_VALUE_BYTES
 type DefaultChannels: dist/events/types.d.ts#DefaultChannels
 DefaultEventBus: dist/events/bus.d.ts#DefaultEventBus
@@ -1598,7 +1604,7 @@ throttleChannel: dist/events/bus.d.ts#throttleChannel
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
-## ./procedures (dist/procedures/index.d.ts): 370 names
+## ./procedures (dist/procedures/index.d.ts): names
 
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
@@ -1971,7 +1977,7 @@ withHintImages: dist/procedures/collection/hint-filter.d.ts#withHintImages
 withScope: dist/procedures/ref.d.ts#withScope
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./middleware (dist/middleware/index.d.ts): 13 names
+## ./middleware (dist/middleware/index.d.ts): names
 
 type AsyncMiddleware: dist/middleware/types.d.ts#AsyncMiddleware
 type IsAsyncMiddleware: dist/middleware/types.d.ts#IsAsyncMiddleware
@@ -1987,7 +1993,7 @@ compose: dist/middleware/compose.d.ts#compose
 wrapWithAsyncMiddlewares: dist/middleware/compose.d.ts#wrapWithAsyncMiddlewares
 wrapWithSyncMiddlewares: dist/middleware/compose.d.ts#wrapWithSyncMiddlewares
 
-## ./server (dist/server/index.d.ts): 48 names
+## ./server (dist/server/index.d.ts): names
 
 type Admission: dist/server/types.d.ts#Admission
 type AmbientCredentials: dist/server/types.d.ts#AmbientCredentials
@@ -2038,7 +2044,7 @@ rpcServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#rpcServerUrlStra
 segmentsToTopic: dist/procedures/segments.d.ts#segmentsToTopic
 topicToSegments: dist/procedures/segments.d.ts#topicToSegments
 
-## ./query (dist/procedures/collection/query.d.ts): 36 names
+## ./query (dist/procedures/collection/query.d.ts): names
 
 type CurrentItem: dist/procedures/collection/precondition.d.ts#CurrentItem
 DEFAULT_FIND_LIMIT: dist/procedures/collection/query.d.ts#DEFAULT_FIND_LIMIT
@@ -2077,7 +2083,7 @@ versionConflict: dist/procedures/collection/precondition.d.ts#versionConflict
 versionConflicts: dist/procedures/collection/precondition.d.ts#versionConflicts
 versionConflictsOf: dist/procedures/collection/precondition.d.ts#versionConflictsOf
 
-## ./testing (dist/testing/index.d.ts): 19 names
+## ./testing (dist/testing/index.d.ts): names
 
 CONTRACT_COLLECTION: dist/testing/transport-contract.d.ts#CONTRACT_COLLECTION
 CONTRACT_PATHS: dist/testing/transport-contract.d.ts#CONTRACT_PATHS
@@ -2561,6 +2567,7 @@ export interface WebSocketMessage<TReq = unknown> {
     id: string;
     type: "hello" | "request" | "response" | "error" | "stream" | "cancel" | "credit" | "ping" | "pong" | "server-request" | "server-response" | "event";
     protocol?: number;
+    maxPayload?: number;
     method?: {
         service: string;
         operation: string;
@@ -3566,11 +3573,17 @@ export type AdmitLiveLeave = (call: LiveLeaveCall) => boolean | Promise<boolean>
 ### dist/events/live-state.d.ts#AdmitLiveSet
 export type AdmitLiveSet = (call: LiveSetCall) => LiveAdmission | null | Promise<LiveAdmission | null>;
 
+### dist/events/live-state.d.ts#DEFAULT_LIVE_BYTES
+export declare const DEFAULT_LIVE_BYTES = 67108864;
+
 ### dist/events/live-state.d.ts#DEFAULT_LIVE_KEYS
 export declare const DEFAULT_LIVE_KEYS = 1024;
 
 ### dist/events/live-state.d.ts#DEFAULT_LIVE_TOPICS
 export declare const DEFAULT_LIVE_TOPICS = 4096;
+
+### dist/events/live-state.d.ts#DEFAULT_LIVE_TOPIC_BYTES
+export declare const DEFAULT_LIVE_TOPIC_BYTES = 1048576;
 
 ### dist/events/live-state.d.ts#DEFAULT_LIVE_VALUE_BYTES
 export declare const DEFAULT_LIVE_VALUE_BYTES = 16384;
@@ -3646,6 +3659,7 @@ export declare class LiveState {
     readonly procedures: readonly AnyProcedure[];
     constructor(options: LiveStateOptions, host: LiveStateHost);
     get size(): number;
+    get bytes(): number;
     route(topic: string, ctx: ProcedureContext): Promise<string | undefined>;
     set(topic: string, key: string, value: unknown, options?: LiveSetOptions): number;
     snapshot(topic: string): LiveEntry[];
@@ -3672,6 +3686,8 @@ export interface LiveStateOptions {
     maxKeysPerTopic?: number | undefined;
     maxValueBytes?: number | undefined;
     maxTopics?: number | undefined;
+    maxTopicBytes?: number | undefined;
+    maxBytes?: number | undefined;
     clock?: Clock | undefined;
 }
 

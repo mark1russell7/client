@@ -1,5 +1,31 @@
 # @procedures/dag
 
+## 0.50.0
+
+### Patch Changes
+
+- Updated dependencies [54cdb34]
+  - @procedures/client@0.50.0
+
+## 0.49.1
+
+### Patch Changes
+
+- Updated dependencies [a11008a]
+  - @procedures/client@0.49.1
+
+## 0.49.0
+
+### Minor Changes
+
+- a1aedc5: The release train: the ranges of @mark1russell7/collections change to a version outside the old range.
+
+### Patch Changes
+
+- Updated dependencies [bf0aa79]
+- Updated dependencies [a1aedc5]
+  - @procedures/client@0.49.0
+
 ## 0.48.2
 
 ### Patch Changes

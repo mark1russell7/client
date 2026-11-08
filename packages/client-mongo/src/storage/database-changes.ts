@@ -12,6 +12,8 @@
  * - The resume token is the `_id` of the last event, after its `onChange` resolved. A batch without
  *   events gives the token of the batch (the post-batch resume token). `resumeToken` of the handle
  *   gives the token at this time.
+ * - A stream that fails before its first event keeps the first token of its open. The next stream
+ *   starts at that token, so a change after `ready` is not lost.
  * - After an error of the stream, the watcher waits for the backoff. Then it opens the stream again
  *   with `startAfter` and the token. Thus it loses no change and gives no change twice.
  * - An error of `onChange` has the same backoff. The token stays at the change before, so the same
@@ -29,10 +31,17 @@
  *   of the backoff. An `onChange` that runs finishes, and no change comes after it.
  * - Change streams need a replica set or a sharded cluster. The watcher asks the server (`hello`)
  *   before the first open: on a single server, it stops with the code 40573.
+ * - An event over the BSON limit of 16 MiB comes in fragments. The pipeline ends with the stage
+ *   `$changeStreamSplitLargeEvent`, and the watcher joins the fragments into one event. A server
+ *   before 6.0.9 does not know the stage. The watcher then opens the stream without it.
+ * - An error with one code at one token, 5 times in a row, does not go away: the watcher stops. An
+ *   example is an event over the BSON limit (code 10334) with no split stage. A network error and an
+ *   error that the driver resumes do not count.
  */
 import type { ChangeStream, ChangeStreamDocument, ChangeStreamOptions, Db, Document, ResumeToken, Timestamp } from "mongodb";
 import { realClock, writeLog, type Cancel, type Clock, type LogFields, type Logger, type ResubscribeBackoff } from "@procedures/client";
 import { COMMAND_NOT_FOUND, LOST_TOKEN_CODES, backoffOf, codeOf, isPermanent, messageOf } from "./storage-hints.js";
+import { SAME_TOKEN_LIMIT, SPLIT_LARGE_EVENT_STAGE, UNKNOWN_STAGE_CODE, eventJoiner, sameTokenFaults } from "./split-events.js";
 
 /** The options of `watchDatabaseChanges()`. */
 export interface WatchDatabaseChangesOptions<TChange extends Document = ChangeStreamDocument> {
@@ -43,8 +52,9 @@ export interface WatchDatabaseChangesOptions<TChange extends Document = ChangeSt
   onChange: (change: TChange) => void | Promise<void>;
   /**
    * The function that gets the error that stops the watcher. The error is an `invalidate` event, a
-   * lost resume token, or an error of the first open that does not go away. An `invalidate` event
-   * gives an `Error` with the event in its field `change`.
+   * lost resume token, or an error of the first open that does not go away. An error with one code at
+   * one token 5 times in a row also stops the watcher. An `invalidate` event gives an `Error` with the event in its field
+   * `change`. The error of a fault at one token has the fields `code`, `resumeToken` and `cause`.
    */
   onError?: ((error: unknown) => void) | undefined;
   /** The resume token after which the first stream starts. Give only one of `resumeAfter`, `startAfter` and `startAtOperationTime`. */
@@ -59,6 +69,12 @@ export interface WatchDatabaseChangesOptions<TChange extends Document = ChangeSt
   fullDocumentBeforeChange?: "whenAvailable" | "required" | "off" | undefined;
   /** The pipeline of the stream, for example a `$match` of the collections. @default [] */
   pipeline?: Document[] | undefined;
+  /**
+   * True to add the stage `$changeStreamSplitLargeEvent` after the pipeline. The watcher then joins
+   * the fragments of an event over 16 MiB. With false, such an event stops the watcher.
+   * @default true
+   */
+  splitLargeEvents?: boolean | undefined;
   /** More options of the stream, for example `maxAwaitTimeMS`, `batchSize` or `showExpandedEvents`. */
   streamOptions?: Omit<ChangeStreamOptions, "resumeAfter" | "startAfter" | "startAtOperationTime" | "fullDocument" | "fullDocumentBeforeChange"> | undefined;
   /**
@@ -164,6 +180,15 @@ export function watchDatabaseChanges<TChange extends Document = ChangeStreamDocu
   let attempt = 0;
   let database: string | undefined;
   let stream: ChangeStream<Document, TChange> | undefined;
+  /**
+   * The first token of the open stream, and true after the stream gives its first event. A fault before
+   * the first event, with no other token, opens the next stream at this token, so no change is lost.
+   */
+  let openToken: ResumeToken | undefined;
+  let gaveEvent = false;
+  /** True while the pipeline ends with the split stage. A server that does not know the stage sets it to false. */
+  let split = options.splitLargeEvents !== false;
+  const faults = sameTokenFaults();
   /** The timer of a backoff, and the end of its wait. */
   let timer: Cancel | undefined;
   let wake: (() => void) | undefined;
@@ -232,17 +257,25 @@ export function watchDatabaseChanges<TChange extends Document = ChangeStreamDocu
 
   /** One stream: it reads the events until an error, an `invalidate` event or the stop. */
   const read = async (next: ChangeStream<Document, TChange>): Promise<void> => {
+    const joiner = eventJoiner();
     for (;;) {
-      const change = await next.tryNext();
+      const raw = await next.tryNext();
       if (stopped) return;
       markOpen();
-      if (change === null) {
-        // A batch without events: its token is after each event that `onChange` took
+      if (raw !== null) gaveEvent = true;
+      if (raw === null) {
+        // A batch without events: its token is after each event that `onChange` took. In the middle of a split event, the token stays before it
         const batchToken = next.resumeToken;
-        if (batchToken !== undefined && batchToken !== null) token = batchToken;
+        if (!joiner.partial && batchToken !== undefined && batchToken !== null) token = batchToken;
         succeeded();
         continue;
       }
+      const result = joiner.push(raw);
+      if (result.kind === "part") continue;
+      if (result.kind === "missing") {
+        log("warn", "A split event comes without its first fragments: the stream started after one of them", { missing: result.missing, collection: collectionOf(result.change) });
+      }
+      const change = result.change as TChange;
       if (change["operationType"] === "invalidate") {
         token = change["_id"];
         return fail(Object.assign(new Error(`the change stream of the database ${database ?? ""} was invalidated`), { change }), { operationType: "invalidate" });
@@ -253,6 +286,7 @@ export function watchDatabaseChanges<TChange extends Document = ChangeStreamDocu
         throw new HandlerError(error, change);
       }
       token = change["_id"];
+      faults.reset();
       succeeded();
     }
   };
@@ -287,15 +321,22 @@ export function watchDatabaseChanges<TChange extends Document = ChangeStreamDocu
       if (stopped) return;
       if (token === undefined && opened) log("warn", "The change stream opens again without a resume token: it can miss changes", {});
       try {
-        const next = handle.watch<Document, TChange>(options.pipeline ?? [], {
+        const pipeline = [...(options.pipeline ?? []), ...(split ? [SPLIT_LARGE_EVENT_STAGE] : [])];
+        const next = handle.watch<Document, TChange>(pipeline, {
           ...options.streamOptions,
           ...(options.fullDocument !== undefined && { fullDocument: options.fullDocument }),
           ...(options.fullDocumentBeforeChange !== undefined && { fullDocumentBeforeChange: options.fullDocumentBeforeChange }),
           ...start(),
         });
         stream = next;
+        openToken = undefined;
+        gaveEvent = false;
         // The first token of the stream comes with the answer of the server: the stream is open, before the first getMore
         next.on("resumeTokenChanged", markOpen);
+        // The driver also gives the token of each event before onChange takes it, so only a token before the first event is kept
+        next.once("resumeTokenChanged", (first: ResumeToken | null | undefined) => {
+          if (!gaveEvent && first !== null && first !== undefined) openToken = first;
+        });
         try {
           await read(next);
         } finally {
@@ -312,9 +353,22 @@ export function watchDatabaseChanges<TChange extends Document = ChangeStreamDocu
           });
           continue;
         }
+        // A fault before the first event of a stream with no token: the next stream starts at the first token of this stream (CLI-107)
+        if (token === undefined && !gaveEvent && openToken !== undefined) token = openToken;
         const code = codeOf(error);
         if (code !== undefined && LOST_TOKEN_CODES.has(code)) return fail(error, { code });
+        if (code === UNKNOWN_STAGE_CODE && split) {
+          // A server before 6.0.9: the stream opens again without the split stage
+          split = false;
+          log("warn", "The server does not know the stage $changeStreamSplitLargeEvent: an event over 16 MiB stops the watcher", { error, code });
+          continue;
+        }
         if (!opened && isPermanent(error)) return fail(error, { code });
+        const repeats = faults.count(error, token);
+        if (repeats >= SAME_TOKEN_LIMIT) {
+          const stuck = Object.assign(new Error(`the change stream failed ${repeats} times at one token with the code ${String(code)}: ${messageOf(error)}`), { code, resumeToken: token, cause: error });
+          return fail(stuck, { code, repeats });
+        }
         await backoff("The change stream failed: it opens again after a backoff", { error, code });
       }
     }

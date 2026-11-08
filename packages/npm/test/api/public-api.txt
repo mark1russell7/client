@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 43 names
+## . (dist/index.d.ts): names
 
 NpmCommandOutput: dist/types.d.ts#NpmCommandOutput
 NpmCommandOutputSchema: dist/types.d.ts#NpmCommandOutputSchema
@@ -50,13 +50,13 @@ parseDistTags: dist/procedures/npm/distTags/list.d.ts#parseDistTags
 registerNpmProcedures: dist/module.d.ts#registerNpmProcedures
 resolveNpm: dist/procedures/npm/shared.d.ts#resolveNpm
 
-## ./module (dist/module.d.ts): 3 names
+## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#npmModule
 npmModule: dist/module.d.ts#npmModule
 registerNpmProcedures: dist/module.d.ts#registerNpmProcedures
 
-## ./register (dist/register.d.ts): 2 names
+## ./register (dist/register.d.ts): names
 
 npmModule: dist/module.d.ts#npmModule
 registerNpmProcedures: dist/module.d.ts#registerNpmProcedures

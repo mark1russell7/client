@@ -4,7 +4,7 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (dist/index.d.ts): 24 names
+## . (dist/index.d.ts): names
 
 APPLE_EPOCH_MS: dist/backup.d.ts#APPLE_EPOCH_MS
 BackupFile: dist/backup.d.ts#BackupFile
@@ -31,13 +31,13 @@ readMessages: dist/backup.d.ts#readMessages
 readSmsDatabase: dist/backup.d.ts#readSmsDatabase
 registerIosBackupProcedures: dist/module.d.ts#registerIosBackupProcedures
 
-## ./module (dist/module.d.ts): 3 names
+## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#iosBackupModule
 iosBackupModule: dist/module.d.ts#iosBackupModule
 registerIosBackupProcedures: dist/module.d.ts#registerIosBackupProcedures
 
-## ./register (dist/register.d.ts): 2 names
+## ./register (dist/register.d.ts): names
 
 iosBackupModule: dist/module.d.ts#iosBackupModule
 registerIosBackupProcedures: dist/module.d.ts#registerIosBackupProcedures
