@@ -449,6 +449,29 @@ describe("runProcedureHost: the telemetry SDK of the app (CLI-130)", () => {
     expect(process.exits).toEqual([0]);
   }, 20000);
 
+  it("stops the SDK one time in the last phase at a stop request", async () => {
+    let stage = "startup";
+    const record = (event: LifecycleEvent): void => {
+      if (event.machine === "drain") stage = event.to;
+    };
+    const telemetry = fakeTelemetry(() => stage);
+    const running = await host.runProcedureHost({ name: "otel-request", mode: "background", host: hostOptions("peer-otel-request"), telemetry: telemetry.start, run: { process: fakeProcess(), record } });
+    await running.life.shutdown("the test stops the host");
+    expect(telemetry.steps).toEqual(["start in startup", `shutdown in ${host.TELEMETRY_FLUSH_PHASE}`]);
+  }, 20000);
+
+  it("fails the run before a listener opens when the SDK does not start", async () => {
+    const port = 40004;
+    const lockfile = { pid: 1, port, transport: "http", endpoint: `http://127.0.0.1:${port}/api`, startedAt: new Date().toISOString(), token: "t", cwd: "/work", build: "build-1", peerId: "peer-otel-fail" };
+    const start = (): never => {
+      throw new Error("the exporter has no endpoint");
+    };
+    await expect(
+      host.runProcedureHost({ name: "otel-fail", mode: "background", host: hostOptions("peer-otel-fail"), lockfile, telemetry: start, run: { process: fakeProcess() } }),
+    ).rejects.toThrow(/no endpoint/);
+    expect(lockfiles.readLockfileForPort(port)).toBeNull();
+  }, 20000);
+
   it("refuses a profile with no phase to flush the telemetry, and starts no SDK", async () => {
     const telemetry = fakeTelemetry(() => "startup");
     const profile = { ...daemon, phases: (daemon.phases ?? []).filter((phase) => phase.name !== host.TELEMETRY_FLUSH_PHASE) };
