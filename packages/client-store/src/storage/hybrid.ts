@@ -1148,7 +1148,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   /** The operations in `offlineOps` that the queue store does not have yet */
   private readonly unpersisted = new Set<QueuedOperation>();
   /** The count of operations at the head of the queue that the push sends at this time: more than 1 for a merged send (roadmap CLI-121) */
-  private inFlight = 0;
+  private sendingCount = 0;
   /** The length of the JSON text of each queued operation, for the byte cap of a merged send */
   private readonly opSizes = new WeakMap<QueuedOperation, number>();
   /** The cap of ids of one send that an error of `isTooLarge` set, below `pushBatch.maxItems` (roadmap CLI-121) */
@@ -3197,7 +3197,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
         }
         const run = this.pushRun(alone);
         if (run.length > 1) {
-          this.inFlight = run.length;
+          this.sendingCount = run.length;
           try {
             for (const queued of run) this.echoSent(queued);
             await this.executeOperation(mergedOperation(run));
@@ -3219,7 +3219,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
             if (conflicts === undefined) this.isOnline = false;
             throw error;
           } finally {
-            this.inFlight = 0;
+            this.sendingCount = 0;
           }
           for (const queued of run) this.noteRemoteWrite(queued);
           // Remove the operations only after they reached the remote
@@ -3794,7 +3794,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       const ids = idsOf(queued);
       if (!ids.includes(id) && !ids.includes("*")) continue;
       // pushQueue can be sending the first operations at this time: do not change them
-      const sending = index < Math.max(1, this.inFlight) && this.pushing;
+      const sending = index < Math.max(1, this.sendingCount) && this.pushing;
       return !sending && (queued.type === "set" || queued.type === "delete") ? index : -1;
     }
     return -1;
