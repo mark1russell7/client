@@ -87,7 +87,7 @@
     "@mark1russell7/collections": "^0.9.4",
     "@procedures/client": "workspace:*",
     "@procedures/collections": "workspace:*",
-    "@mark1russell7/service": "^0.8.2",
+    "@mark1russell7/service": "^0.8.3",
     "mongodb": "^7.0.0",
     "zod": "^4.6.5"
   }

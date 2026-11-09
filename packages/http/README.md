@@ -148,6 +148,23 @@ A refusal is `FORBIDDEN` with the reason `host-not-allowed`. When the signal of 
 - The procedure does not connect again after the end of the stream. To continue, a caller sends the last ID in `lastEventId`.
 - A redirect of a POST obeys the rules of the redirects. A 303, or a 301 or 302, continues with a GET without the body.
 
+## The frame rules of a response
+
+A page can refuse to show in a frame of another page. `frameRefusal(headers, { ancestor, page })` gives the decision of a browser. It uses no network.
+
+```ts
+import { frameRefusal } from "@procedures/http";
+
+const decision = frameRefusal(response.headers, { ancestor: "https://a.example", page: response.url });
+// { refused: true, by: "x-frame-options", detail: "X-Frame-Options is SAMEORIGIN, and https://a.example is another origin." }
+```
+
+- An enforced policy with `frame-ancestors` decides. Then the function ignores `X-Frame-Options`. Each such policy must accept the ancestor.
+- Else `X-Frame-Options` decides, by the rules of the HTML standard. `DENY` refuses, and `SAMEORIGIN` refuses an ancestor of another origin.
+- Values of `X-Frame-Options` that do not agree refuse each frame. `ALLOW-FROM` and unknown values do not refuse, as in a browser.
+- `Content-Security-Policy-Report-Only` does not refuse.
+- `parseCsp`, `sourceAllows` and `sourceListAllows` give the parts of the CSP3 rules: the policies of the headers, and the match of a source expression.
+
 ## Limits of this package
 
 - The procedures do not use a proxy.
