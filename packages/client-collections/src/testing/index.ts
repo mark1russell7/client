@@ -17,4 +17,12 @@ export {
   type ContractTestApi,
   type ContractTestContext,
 } from "./storage-contract.js";
-export { ContractViolation, deepEqual } from "@mark1russell7/collections/testing";
+export {
+  /**
+   * @deprecated A later MINOR removes this name. The checks of the suite then throw the `AssertionError` of
+   * `node:assert`.
+   */
+  ContractViolation,
+  /** @deprecated A later MINOR removes this name. Use `isDeepStrictEqual` of `node:util`. */
+  deepEqual,
+} from "@mark1russell7/collections/testing";
