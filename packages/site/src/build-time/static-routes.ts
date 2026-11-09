@@ -3,13 +3,12 @@
  */
 
 import type { PageMeta } from "../lib/seo";
+import { escapeAttribute as escapeHtml } from "@mark1russell7/text";
 
 /** One page that the build writes as its own HTML file. */
 export type StaticRoute = PageMeta;
 
-export function escapeHtml(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
+export { escapeHtml };
 
 /**
  * This function gives the HTML of one route: the HTML of the app with the title and the
