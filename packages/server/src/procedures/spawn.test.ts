@@ -11,7 +11,7 @@
  * Windows) before it imports the module under test.
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { EventEmitter } from "node:events";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -74,5 +74,23 @@ describe("spawnMarkServer (CLI-27)", () => {
     expect(args).not.toContain("--idle-timeout");
     expect(args).not.toContain("--fs-root");
     expect(args.slice(-7)).toEqual(["--server", "--port", "3101", "--host", "127.0.0.1", "--transport", "both"]);
+  });
+
+  it("starts mark of the PATH with no script when the folder has no mark CLI, and logs to ~/.mark/server.log", () => {
+    const empty = mkdtempSync(join(tmpdir(), "server-spawn-cwd-"));
+    const cwd = vi.spyOn(process, "cwd").mockReturnValue(empty);
+    try {
+      const { calls, spawner } = fakeSpawner();
+      const spawned = start.spawnMarkServer({ port: 3102, host: "127.0.0.1", spawner });
+      expect(spawned.command).toBe("mark");
+      expect(calls[0]!.command).toBe("mark");
+      expect(calls[0]!.args).toEqual(["--server", "--port", "3102", "--host", "127.0.0.1"]);
+      expect(calls[0]!.options.cwd).toBe(empty);
+      expect(spawned.logFile).toBe(join(home, ".mark", "server.log"));
+      expect(start.SERVER_LOG_PATH).toBe(spawned.logFile);
+    } finally {
+      cwd.mockRestore();
+      rmSync(empty, { recursive: true, force: true });
+    }
   });
 });

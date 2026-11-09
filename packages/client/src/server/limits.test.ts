@@ -5,6 +5,7 @@
  * - A limit of the writes of each tenant refuses a write above the limit with `RATE_LIMITED`. The
  *   refusal is retryable, with the wait in `retry-after` and the cause in `reason`. The call does
  *   not run.
+ * - A refusal with the cause `capacity` is `RATE_LIMITED`, not retryable, and has no wait.
  * - Each tenant has its own bucket. A limit of the writes does not limit the reads.
  * - The key is data (the principal, a claim, the route, a list of them) or a function. A call
  *   without a value of its key is outside the limit.
@@ -23,7 +24,7 @@ import { seconds } from "../duration.js";
 import { ProcedureServer } from "./procedure-server.js";
 import { hostPolicy, procedureServerOptions } from "./host-policy.js";
 import { pathToMethod } from "./method.js";
-import type { CallLimit } from "./limits.js";
+import { rateLimitedResponse, type CallLimit } from "./limits.js";
 import type { PrincipalOf, ServerResponse } from "./types.js";
 import { LOCAL_CREDENTIALS } from "./request-auth.js";
 
@@ -290,5 +291,16 @@ describe("the limits of the calls of a server (CLI-40)", () => {
     const without = procedureServerOptions(hostPolicy({}));
     expect("limits" in without || "limitStores" in without).toBe(false);
     expect("limits" in hostPolicy({ limits: [] })).toBe(false);
+  });
+
+  it("gives a capacity refusal as RATE_LIMITED that is not retryable and has no wait", () => {
+    const response = rateLimitedResponse("1", { limit: "uploads", refused: { allowed: false, cause: "capacity", units: 5, capacity: 3 } });
+    expect(response.status).toEqual({
+      type: "error",
+      code: "RATE_LIMITED",
+      message: "The limit uploads of the host refuses the call at each time: 5 units are over its capacity of 3",
+      retryable: false,
+    });
+    expect(response.metadata).toEqual({ reason: "capacity" });
   });
 });

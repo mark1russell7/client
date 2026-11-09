@@ -58,6 +58,7 @@
 
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
+import { backoffDelay, type Backoff } from "@mark1russell7/service/backoff";
 import { BSON, ObjectId, type AnyBulkWriteOperation, type ChangeStream, type ClientSession, type Collection, type Db, type Document } from "mongodb";
 import { collectionChangeTopic, ms, optionalMs, realClock, Semaphore, writeLog, type Cancel, type Clock, type CollectionChangeEvent, type Duration, type LogFields, type Logger } from "@procedures/client";
 import { DEFAULT_STORED_FORM, DOCUMENT_STORAGE_FIELDS, MongoDocumentStorage, TOMBSTONE_FIELD, storageWriteTarget, type StorageWriteTarget, type StoredForm } from "./document-storage.js";
@@ -308,6 +309,12 @@ function groups<T>(items: readonly T[]): T[][] {
 
 /** The most tries of a run in a transaction after a write conflict (code 112). After them, the run gives way, and comes back after `rewatch`. */
 const CONFLICT_RETRIES = 3;
+
+/**
+ * The wait before try `attempt + 1` after a write conflict: from 50 to 100 ms after the first try, twice as long after each
+ * next try. The jitter keeps two processes that conflict apart.
+ */
+export const CONFLICT_BACKOFF: Backoff = { base: 100, factor: 2, jitter: { kind: "subtract", fraction: 0.5 } };
 
 /** The most ids of a hint of a target not in a stored form. More ids give a reset hint. */
 const MAX_HINT_IDS = 10_000;
@@ -1220,7 +1227,7 @@ export class ViewMaterializer {
           if (isWriteConflict(error)) {
             // A write conflict tries again a few times after a short wait, so a steady stream of writes does not starve the view
             if (attempt < CONFLICT_RETRIES) {
-              await this.pause(25 * 2 ** attempt * (1 + Math.random()));
+              await this.pause(backoffDelay(CONFLICT_BACKOFF, attempt));
               continue;
             }
             throw new PassSuperseded(`another process wrote the view at the same time (${String((error as Error)?.message ?? error)})`);
