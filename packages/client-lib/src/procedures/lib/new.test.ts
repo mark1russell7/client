@@ -52,7 +52,7 @@ function check(): RuleResult {
 /** This function starts lib.new with the field `files` of a cue version, and gives the path of the new manifest. */
 async function libNew(name: string, cueFiles: string[]): Promise<string> {
   writeFileSync(join(root, "cue-files.json"), JSON.stringify(cueFiles));
-  const result = outputValue(await invokePath<LibNewOutput>(["lib", "new"], { name, rootPath: root }, { registry }));
+  const result = await outputValue(await invokePath<LibNewOutput>(["lib", "new"], { name, rootPath: root }, { registry }));
   expect(result.errors).toEqual([]);
   expect(result.success).toBe(true);
   return join(root, "packages", name, "package.json");
