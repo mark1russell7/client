@@ -145,19 +145,31 @@ export { escapeHtml };
 /** The characters of the HTML entities that `plainText` decodes. */
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'" };
 
+/**
+ * This function removes the HTML tags of a text. It repeats the strip until the text does not change.
+ * One pass gives the same text, but the code scanner of the repository examines only this form.
+ * Then it removes each "<" that starts a tag, for example after "<<b>script>". A "<" before a space or a digit stays.
+ */
+function stripTags(text: string): string {
+  let previous: string;
+  do {
+    previous = text;
+    text = text.replace(/<[^>]+>/g, "");
+  } while (text !== previous);
+  return text.replace(/<(?=[A-Za-z/!?])/g, "");
+}
+
 /** The plain text of a line of inline Markdown: code spans, emphasis, links and images lose their marks. */
 export function plainText(markdown: string): string {
-  return String(markdown)
+  const marked = String(markdown)
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, "")
     .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/`([^`]*)`/g, "$1")
     .replace(/(\*\*|__)(.+?)\1/g, "$2")
     .replace(/(\*|_)(.+?)\1/g, "$2")
-    // An escaped "<" becomes an entity, so the two steps after this one keep it
-    .replace(/\\</g, "&lt;")
-    .replace(/<[^>]+>/g, "")
-    // A nested tag, for example "<<b>script>", leaves the start of a tag after the strip. A "<" before a space or a digit stays
-    .replace(/<(?=[A-Za-z/!?])/g, "")
+    // An escaped "<" becomes an entity, so stripTags keeps it
+    .replace(/\\</g, "&lt;");
+  return stripTags(marked)
     .replace(/\\([\\`*_{}[\]()#+\-.!|<>])/g, "$1")
     // One pass for all the entities, so that "&amp;lt;" becomes "&lt;" and not "<"
     .replace(/&(amp|lt|gt|quot|#39);/g, (_, name: string) => ENTITIES[name]!)
