@@ -125,6 +125,7 @@ import { ensureConnection } from "../connection.js";
 import { noteOwnNumbers, notePrunedIds, ownerOf } from "./own-writes.js";
 import { boundPipeline, cutResults, DEFAULT_PIPELINE_LIMITS, scopePipeline, type PipelineLimits } from "./pipeline-scope.js";
 import { CHANGE_READ_DIVISOR, poolShare } from "./pool-share.js";
+import { escapeRegExp as escapeRegex } from "@mark1russell7/text";
 
 /** The fields of the storage in a stored document. */
 const KEY = "_key";
@@ -588,10 +589,6 @@ export type RawAdoptionResult = RawAdoption | { readonly error: unknown };
 
 /** The most floor documents that `partitions()` reads. */
 const MAX_KNOWN_PARTITIONS = 10_000;
-
-function escapeRegex(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 /** The reader of the parts of a storage. The class sets it, so it can read its private fields. */
 let sourceOfStorage: <T>(storage: MongoDocumentStorage<T>) => StorageChangeSource;

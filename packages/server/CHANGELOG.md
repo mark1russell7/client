@@ -1,5 +1,15 @@
 # @procedures/server
 
+## 0.52.5
+
+### Patch Changes
+
+- 36adc69: `runProcedureHost()` takes the option `telemetry`: a function that starts the telemetry SDK of the app. The host starts it before the dependencies and the listeners, and gives `{ stopOnSignals: false }`. The phase `flush the output` stops it last. The cap of the phase limits the wait. The new exports are `TELEMETRY_FLUSH_PHASE`, `HostTelemetry` and `HostTelemetryOptions`.
+- Updated dependencies [25a5f44]
+  - @procedures/client@0.52.5
+  - @procedures/fs@0.52.5
+  - @procedures/peer@0.52.5
+
 ## 0.52.4
 
 ### Patch Changes

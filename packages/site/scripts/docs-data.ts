@@ -27,6 +27,7 @@ import sql from "highlight.js/lib/languages/sql";
 import typescript from "highlight.js/lib/languages/typescript";
 import xml from "highlight.js/lib/languages/xml";
 import yaml from "highlight.js/lib/languages/yaml";
+import { escapeAttribute as escapeHtml } from "@mark1russell7/text";
 
 export const REPOSITORY_URL = "https://github.com/mark1russell7/client";
 /** The name of the site, at the end of each document title. */
@@ -139,9 +140,7 @@ const SAFE_TAGS = /^<\/?(details|summary|br|kbd|sub|sup|b|i|em|strong|code|hr)\s
 /** The ids of the page that a heading must not take. */
 const RESERVED_IDS = new Set(["main", "root", "app"]);
 
-export function escapeHtml(text: string): string {
-  return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
+export { escapeHtml };
 
 /** The characters of the HTML entities that `plainText` decodes. */
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'" };
