@@ -21,6 +21,19 @@ describe("the copies of the store of the suite tenant-separate", () => {
     expect(copies.neither).toContain("Math.floor(Math.random() * 1000)");
   });
 
+  it("spreads the counter with either id: the collection name of main, or the counter id of a counter for each partition (CLI-96)", () => {
+    const update = (id: string): string => `{ _id: ${id} },\n            { $inc: { seq: count }`;
+    // The source of this tree has one of the two ids. The test makes the other one from it.
+    const ids = ["this.collectionName", "this.counterId"];
+    const own = ids.find((id) => source.includes(update(id)));
+    expect(own).toBeDefined();
+    for (const id of ids) {
+      const text = source.replace(update(own!), update(id));
+      expect(text).toContain(update(id));
+      expect(copiesOf(text).many).toContain("{ _id: `${" + id + "}:${Math.floor(Math.random() * 1000)}` }");
+    }
+  });
+
   it("stops when the source does not have the text one time", () => {
     expect(() => swap("a", "b", "c")).toThrow(RangeError);
     expect(() => swap("bb", "b", "c")).toThrow(RangeError);

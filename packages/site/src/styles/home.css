@@ -198,16 +198,17 @@
   }
 }
 
+/* The JSON keeps its lines and its indent. A long line scrolls inside the box, with the fade of scroll-cue */
 .hero-code {
+  --scroll-cue-bg: var(--color-surface-sunken);
   margin: var(--space-3) var(--space-3) 0;
   padding: var(--space-3);
   max-height: 12.5rem;
-  overflow-y: auto;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  overflow: auto;
+  white-space: pre;
   border: 1px solid var(--color-rule);
   border-radius: var(--radius);
-  background: var(--color-surface-sunken);
+  background-color: var(--color-surface-sunken);
   font-size: var(--text-xs);
   line-height: 1.5;
 }
@@ -408,27 +409,33 @@
   gap: var(--space-4);
 }
 
-.hosts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
-  gap: var(--space-3);
-}
-
-.host {
-  display: grid;
-  gap: var(--space-1);
-  border: 1px solid var(--color-rule);
-  border-radius: var(--radius);
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-surface);
+/* The hosts as tabs: the tabs scroll sideways on a phone, with the fade of scroll-cue */
+.host-tabs {
   min-width: 0;
 }
 
-/* The code wraps at its spaces, not inside a word */
-.host code {
-  font-size: var(--text-xs);
+.host-tab-buttons {
+  --scroll-cue-bg: var(--color-surface);
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+.host-tab-buttons button {
+  white-space: nowrap;
+}
+
+.host-panel {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.host-panel pre {
   color: var(--color-accent-strong);
-  overflow-wrap: break-word;
+}
+
+.host-count {
+  margin: 0;
 }
 
 /* ---- The usage of a procedure (the catalog) ---- */

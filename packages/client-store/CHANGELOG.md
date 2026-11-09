@@ -1,5 +1,130 @@
 # @procedures/store
 
+## 0.54.0
+
+### Patch Changes
+
+- 1401489: The tarball of each package leaves out `dist/.tsbuildinfo`. The `files` list of each package has the entry `!dist/.tsbuildinfo` after `dist`.
+  
+  The build writes this file for incremental builds. An app does not use it, and it added its size to each tarball (61 KB in `@procedures/json` 0.52.3). The conventions rule `pack-no-buildinfo` finds it.
+  
+  PATCH: the exports and the behavior do not change.
+- Updated dependencies [ef8e080]
+- Updated dependencies [c351b59]
+- Updated dependencies [1401489]
+  - @procedures/collections@0.54.0
+  - @procedures/client@0.54.0
+
+## 0.53.1
+
+### Patch Changes
+
+- Updated dependencies [84f0c78]
+- Updated dependencies [abf290c]
+  - @procedures/client@0.53.1
+  - @procedures/collections@0.53.1
+
+## 0.53.0
+
+### Patch Changes
+
+- The packages use the new versions of their dependencies of the owner: `@mark1russell7/service` `^0.8.3`, `@mark1russell7/coeval` `^0.26.1` and `@mark1russell7/docker-sqlite` `^0.3.0`. The range of `@mark1russell7/collections` stays `^0.5.0`: its version 0.7.0 and later remove names that `@procedures/collections` exports.
+- 556d0a8: The packages use `@mark1russell7/service` `^0.8.2` in place of `^0.6.0`. Version 0.7.0 adds the refusal cause `capacity`, and version 0.8.0 refuses a listen backlog of 0. Version 0.8.2 adds the call context of OpenTelemetry. The types `Clock` and `Cancel` of `@mark1russell7/service/clock` do not change: their home is `@mark1russell7/algebra/clock`, and the entry gives them again.
+  
+  A refusal of a call limit with the cause `capacity` gives `RATE_LIMITED` that is not retryable and has no `retry-after`. A take of one unit does not get this cause, because each policy holds 1 unit or more.
+- Updated dependencies [bc98f77]
+- Updated dependencies [33510a2]
+- Updated dependencies [11d9084]
+- Updated dependencies [d28ccb5]
+- Updated dependencies [735cfcf]
+- Updated dependencies
+- Updated dependencies [556d0a8]
+  - @procedures/client@0.53.0
+  - @procedures/collections@0.53.0
+
+## 0.52.5
+
+### Patch Changes
+
+- Updated dependencies [25a5f44]
+  - @procedures/client@0.52.5
+  - @procedures/collections@0.52.5
+
+## 0.52.4
+
+### Patch Changes
+
+- @procedures/client@0.52.4
+  - @procedures/collections@0.52.4
+
+## 0.52.3
+
+### Patch Changes
+
+- Updated dependencies [db1bcaa]
+  - @procedures/client@0.52.3
+  - @procedures/collections@0.52.3
+
+## 0.52.2
+
+### Patch Changes
+
+- 913fb0e: The option `pushBatch` of `HybridStorage` merges queued writes into one batch for each send (roadmap CLI-121). The push sends the run of queued sets at the head of the queue as one `setBatch`. It sends the run of deletes as one `deleteBatch`. A first sync of many writes thus makes few remote calls.
+  
+  The caps `maxItems` (default 100) and `maxBytes` (default 1 MiB of JSON) limit each send. A queued batch over the caps goes as batches within the caps. Thus a flush stays within the capacity of a remote limit, when the caps are within it. A send with a too-large error lowers the cap of ids of each later send. The new cap is n × capacity / units with the capacity of the error (option `capacityOf`), else half of n. Thus a flush is not sent again as single writes.
+  
+  A refused or conflicting merged batch goes again as its separate writes. Thus `onRefused`, `onDropped` and the conflict policy get the same writes as without the merge. Without the option, the push sends each queued write alone, as before.
+- @procedures/client@0.52.2
+  - @procedures/collections@0.52.2
+
+## 0.52.1
+
+### Patch Changes
+
+- @procedures/client@0.52.1
+  - @procedures/collections@0.52.1
+
+## 0.52.0
+
+### Minor Changes
+
+- 01a1410: `mergeFn` gets a fourth argument, `context` (roadmap CLI-109). `context.overlap(paths)` reports the paths where the merge kept only one side. The hook `onDropped` gets one call with the reason `overlap` for each report. The report holds `remote`, `base`, `merged` and `paths`. The merged write stays in the queue. `getMetadata()` counts the reports as `stats.overlaps`.
+  
+  Migration steps for the site and each app:
+  
+  - The type `DroppedWrite["reason"]` gets the value `"overlap"`. Add a case for it to each exhaustive `switch` over `reason`. Otherwise the check of `never` does not compile.
+  - An `onDropped` hook that writes the value again must skip the reason `overlap`. The merged write of an overlap is still in the queue.
+  - Code that calls a `mergeFn` itself must give a fourth argument, for example `{ overlap: () => {} }`. A merge function with two or three parameters needs no change.
+
+### Patch Changes
+
+- @procedures/client@0.52.0
+  - @procedures/collections@0.52.0
+
+## 0.51.0
+
+### Patch Changes
+
+- Updated dependencies [0c3bfa3]
+  - @procedures/client@0.51.0
+  - @procedures/collections@0.51.0
+
+## 0.50.0
+
+### Patch Changes
+
+- Updated dependencies [54cdb34]
+  - @procedures/client@0.50.0
+  - @procedures/collections@0.50.0
+
+## 0.49.1
+
+### Patch Changes
+
+- Updated dependencies [a11008a]
+  - @procedures/client@0.49.1
+  - @procedures/collections@0.49.1
+
 ## 0.49.0
 
 ### Breaking changes

@@ -8,6 +8,7 @@
  */
 
 import { definePackage, createProcedure, type ProcedureModule, type PackageDefinition } from "@procedures/client";
+import shellModule from "@procedures/shell/module";
 import gitModule from "@procedures/git/module";
 import fsModule from "@procedures/fs/module";
 import {
@@ -220,7 +221,7 @@ const libPackage: PackageDefinition = definePackage("@procedures/lib", [
     libImportCyclesProcedure,
     // ecosystem.* procedures
     ecosystemProceduresProcedure,
-  ], [fsModule, gitModule]);
+  ], [shellModule, fsModule, gitModule]);
 
 /**
  * The module of this package, for `createRegistry()`: its procedures as data. Importing this

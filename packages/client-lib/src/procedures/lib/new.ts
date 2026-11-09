@@ -90,6 +90,21 @@ register${pascal}Procedures();
 `;
 }
 
+/** The negation of the build info file of tsc, which the cue presets write in `dist`. */
+const NO_BUILD_INFO = "!dist/.tsbuildinfo";
+
+/**
+ * This function gives the field `files` of a new package with `!dist/.tsbuildinfo` after `dist`. So npm does not pack
+ * the build info file of tsc (conventions rule `pack-no-buildinfo`). Cue 2.1.2 and earlier write `["dist", "src"]`.
+ * A list without the entry `dist` stays as it is.
+ */
+function filesWithoutBuildInfo(files: unknown): unknown[] {
+  const list: unknown[] = Array.isArray(files) ? files : ["dist", "src"];
+  const at = list.indexOf("dist");
+  if (at < 0 || list.includes(NO_BUILD_INFO)) return list;
+  return [...list.slice(0, at + 1), NO_BUILD_INFO, ...list.slice(at + 1)];
+}
+
 /**
  * Run the workspace's cue-config CLI (not npx: a new package has no node_modules,
  * and npx would download an unrelated package from the registry).
@@ -172,7 +187,7 @@ export async function libNew(input: LibNewInput, ctx: ProcedureContext): Promise
         "Would create packages/" + input.name + " with src/index.ts, src/module.ts, src/register.ts and src/types.ts",
         `Would run cue-config init --preset ${input.preset}`,
         "Would run cue-config generate",
-        `Would set the package name to ${packageName}, the exports, client.procedures and the client dependency`,
+        `Would set the package name to ${packageName}, the exports, the files without the build info of tsc, client.procedures and the client dependency`,
         "Then run pnpm install and pnpm build in the workspace root",
       ],
       errors: [],
@@ -227,6 +242,7 @@ export async function libNew(input: LibNewInput, ctx: ProcedureContext): Promise
     };
     // Only the register entry has a side effect, so a bundler can drop the rest
     pkgJson["sideEffects"] = ["./dist/register.js"];
+    pkgJson["files"] = filesWithoutBuildInfo(pkgJson["files"]);
     pkgJson["client"] = { procedures: "./dist/register.js" };
     pkgJson["dependencies"] = {
       ...((pkgJson["dependencies"] as Record<string, string> | undefined) ?? {}),

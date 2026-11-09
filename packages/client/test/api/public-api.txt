@@ -70,8 +70,10 @@ type CurrentItem: dist/procedures/collection/precondition.d.ts#CurrentItem
 DEADLINE_METADATA_KEY: dist/client/deadline.d.ts#DEADLINE_METADATA_KEY
 DEFAULT_FIND_LIMIT: dist/procedures/collection/query.d.ts#DEFAULT_FIND_LIMIT
 DEFAULT_KEPT_METADATA: dist/server/error-policy.d.ts#DEFAULT_KEPT_METADATA
+DEFAULT_LIVE_BYTES: dist/events/live-state.d.ts#DEFAULT_LIVE_BYTES
 DEFAULT_LIVE_KEYS: dist/events/live-state.d.ts#DEFAULT_LIVE_KEYS
 DEFAULT_LIVE_TOPICS: dist/events/live-state.d.ts#DEFAULT_LIVE_TOPICS
+DEFAULT_LIVE_TOPIC_BYTES: dist/events/live-state.d.ts#DEFAULT_LIVE_TOPIC_BYTES
 DEFAULT_LIVE_VALUE_BYTES: dist/events/live-state.d.ts#DEFAULT_LIVE_VALUE_BYTES
 DEFAULT_QUERY_OPERATORS: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_OPERATORS
 DEFAULT_QUERY_POLICY: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_POLICY
@@ -206,6 +208,7 @@ type MachineDuration: dist/machines.d.ts#MachineDuration
 type MachineTimer: dist/machines.d.ts#MachineTimer
 type MachineTransition: dist/machines.d.ts#MachineTransition
 type MachineTransitionDef: dist/machines.d.ts#MachineTransitionDef
+type MainPortLike: dist/adapters/port/transport.d.ts#MainPortLike
 type Message: dist/client/types.d.ts#Message
 type Metadata: dist/client/types.d.ts#Metadata
 type Method: dist/client/types.d.ts#Method
@@ -479,6 +482,7 @@ documentAt: dist/procedures/program.d.ts#documentAt
 effectsIn: dist/procedures/idempotency.d.ts#effectsIn
 effectsOf: dist/procedures/capability.d.ts#effectsOf
 effectsValue: dist/procedures/effects.d.ts#effectsValue
+electronPortOf: dist/adapters/port/transport.d.ts#electronPortOf
 elicitConfirmation: dist/procedures/elicit.d.ts#elicitConfirmation
 elicitInput: dist/procedures/elicit.d.ts#elicitInput
 elicitWithPolicy: dist/procedures/elicit.d.ts#elicitWithPolicy
@@ -744,8 +748,10 @@ type CurrentItem: dist/procedures/collection/precondition.d.ts#CurrentItem
 DEADLINE_METADATA_KEY: dist/client/deadline.d.ts#DEADLINE_METADATA_KEY
 DEFAULT_FIND_LIMIT: dist/procedures/collection/query.d.ts#DEFAULT_FIND_LIMIT
 DEFAULT_KEPT_METADATA: dist/server/error-policy.d.ts#DEFAULT_KEPT_METADATA
+DEFAULT_LIVE_BYTES: dist/events/live-state.d.ts#DEFAULT_LIVE_BYTES
 DEFAULT_LIVE_KEYS: dist/events/live-state.d.ts#DEFAULT_LIVE_KEYS
 DEFAULT_LIVE_TOPICS: dist/events/live-state.d.ts#DEFAULT_LIVE_TOPICS
+DEFAULT_LIVE_TOPIC_BYTES: dist/events/live-state.d.ts#DEFAULT_LIVE_TOPIC_BYTES
 DEFAULT_LIVE_VALUE_BYTES: dist/events/live-state.d.ts#DEFAULT_LIVE_VALUE_BYTES
 DEFAULT_QUERY_OPERATORS: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_OPERATORS
 DEFAULT_QUERY_POLICY: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_POLICY
@@ -877,6 +883,7 @@ type MachineDuration: dist/machines.d.ts#MachineDuration
 type MachineTimer: dist/machines.d.ts#MachineTimer
 type MachineTransition: dist/machines.d.ts#MachineTransition
 type MachineTransitionDef: dist/machines.d.ts#MachineTransitionDef
+type MainPortLike: dist/adapters/port/transport.d.ts#MainPortLike
 type Message: dist/client/types.d.ts#Message
 type Metadata: dist/client/types.d.ts#Metadata
 type Method: dist/client/types.d.ts#Method
@@ -1147,6 +1154,7 @@ documentAt: dist/procedures/program.d.ts#documentAt
 effectsIn: dist/procedures/idempotency.d.ts#effectsIn
 effectsOf: dist/procedures/capability.d.ts#effectsOf
 effectsValue: dist/procedures/effects.d.ts#effectsValue
+electronPortOf: dist/adapters/port/transport.d.ts#electronPortOf
 elicitConfirmation: dist/procedures/elicit.d.ts#elicitConfirmation
 elicitInput: dist/procedures/elicit.d.ts#elicitInput
 elicitWithPolicy: dist/procedures/elicit.d.ts#elicitWithPolicy
@@ -1523,8 +1531,10 @@ type AdmitLiveLeave: dist/events/live-state.d.ts#AdmitLiveLeave
 type AdmitLiveSet: dist/events/live-state.d.ts#AdmitLiveSet
 type ChannelMap: dist/events/types.d.ts#ChannelMap
 type ChannelTimingOptions: dist/events/bus.d.ts#ChannelTimingOptions
+DEFAULT_LIVE_BYTES: dist/events/live-state.d.ts#DEFAULT_LIVE_BYTES
 DEFAULT_LIVE_KEYS: dist/events/live-state.d.ts#DEFAULT_LIVE_KEYS
 DEFAULT_LIVE_TOPICS: dist/events/live-state.d.ts#DEFAULT_LIVE_TOPICS
+DEFAULT_LIVE_TOPIC_BYTES: dist/events/live-state.d.ts#DEFAULT_LIVE_TOPIC_BYTES
 DEFAULT_LIVE_VALUE_BYTES: dist/events/live-state.d.ts#DEFAULT_LIVE_VALUE_BYTES
 type DefaultChannels: dist/events/types.d.ts#DefaultChannels
 DefaultEventBus: dist/events/bus.d.ts#DefaultEventBus
@@ -2407,6 +2417,14 @@ export interface MockTransportOptions {
 ### dist/adapters/mock/client/types.d.ts#ResponseMatcher
 export type ResponseMatcher = (method: any, payload: unknown) => boolean;
 
+### dist/adapters/port/transport.d.ts#MainPortLike
+export interface MainPortLike {
+    postMessage(message: unknown): void;
+    on(type: "message", listener: MainListener): unknown;
+    off?(type: "message", listener: MainListener): unknown;
+    start(): void;
+}
+
 ### dist/adapters/port/transport.d.ts#PortLike
 export interface PortLike {
     postMessage(message: unknown): void;
@@ -2431,6 +2449,9 @@ export interface PortTransportOptions {
     credentials?: Credentials | undefined;
     streamWindow?: number | undefined;
 }
+
+### dist/adapters/port/transport.d.ts#electronPortOf
+export declare function electronPortOf(port: MainPortLike): PortLike;
 
 ### dist/adapters/sequence.d.ts#STREAM_GAP_METADATA_KEY
 export declare const STREAM_GAP_METADATA_KEY = "stream-gap";
@@ -3567,11 +3588,17 @@ export type AdmitLiveLeave = (call: LiveLeaveCall) => boolean | Promise<boolean>
 ### dist/events/live-state.d.ts#AdmitLiveSet
 export type AdmitLiveSet = (call: LiveSetCall) => LiveAdmission | null | Promise<LiveAdmission | null>;
 
+### dist/events/live-state.d.ts#DEFAULT_LIVE_BYTES
+export declare const DEFAULT_LIVE_BYTES = 67108864;
+
 ### dist/events/live-state.d.ts#DEFAULT_LIVE_KEYS
 export declare const DEFAULT_LIVE_KEYS = 1024;
 
 ### dist/events/live-state.d.ts#DEFAULT_LIVE_TOPICS
 export declare const DEFAULT_LIVE_TOPICS = 4096;
+
+### dist/events/live-state.d.ts#DEFAULT_LIVE_TOPIC_BYTES
+export declare const DEFAULT_LIVE_TOPIC_BYTES = 1048576;
 
 ### dist/events/live-state.d.ts#DEFAULT_LIVE_VALUE_BYTES
 export declare const DEFAULT_LIVE_VALUE_BYTES = 16384;
@@ -3647,6 +3674,7 @@ export declare class LiveState {
     readonly procedures: readonly AnyProcedure[];
     constructor(options: LiveStateOptions, host: LiveStateHost);
     get size(): number;
+    get bytes(): number;
     route(topic: string, ctx: ProcedureContext): Promise<string | undefined>;
     set(topic: string, key: string, value: unknown, options?: LiveSetOptions): number;
     snapshot(topic: string): LiveEntry[];
@@ -3673,6 +3701,8 @@ export interface LiveStateOptions {
     maxKeysPerTopic?: number | undefined;
     maxValueBytes?: number | undefined;
     maxTopics?: number | undefined;
+    maxTopicBytes?: number | undefined;
+    maxBytes?: number | undefined;
     clock?: Clock | undefined;
 }
 
@@ -5124,6 +5154,7 @@ export interface TracingInterceptorOptions {
     onSpan: (span: InvocationSpan) => void;
     onStart?: ((span: InvocationSpan) => void) | undefined;
     now?: (() => number) | undefined;
+    apiSpans?: boolean | undefined;
 }
 
 ### dist/procedures/interceptors.d.ts#metricsInterceptor
@@ -6298,6 +6329,7 @@ export interface HostPolicy {
     readonly interceptors: readonly Interceptor[];
     readonly token: string | undefined;
     readonly principalOf?: PrincipalOf | undefined;
+    readonly trustBaggage?: ((request: ServerRequest<unknown>) => boolean) | undefined;
     readonly browser: BrowserGuardOptions;
     readonly capabilityOf: ((request?: ServerRequest<unknown>) => Capability | undefined) | undefined;
     readonly clearanceOrder: ClearanceOrder | undefined;
@@ -6317,6 +6349,7 @@ export interface HostPolicyOptions {
     interceptors?: readonly Interceptor[] | undefined;
     token?: string | undefined;
     principalOf?: PrincipalOf | undefined;
+    trustBaggage?: ((request: ServerRequest<unknown>) => boolean) | undefined;
     browser?: BrowserGuardOptions | undefined;
     capability?: Capability | ((request: ServerRequest<unknown>) => Capability | undefined) | undefined;
     readOnly?: boolean | undefined;
@@ -6467,6 +6500,7 @@ export interface ProcedureServerOptions extends ServerOptions {
     admitItem?: AdmitItem | undefined;
     idempotency?: IdempotencyOptions | false | undefined;
     token?: string | undefined;
+    trustBaggage?: ((request: ServerRequest<unknown>) => boolean) | undefined;
     authenticate?: ((request: ServerRequest<unknown>) => Principal | undefined | Promise<Principal | undefined>) | undefined;
     principalOf?: PrincipalOf | undefined;
     ambientCredentials?: AmbientCredentials | false | undefined;

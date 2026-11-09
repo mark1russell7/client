@@ -57,6 +57,8 @@ const cases = LIVE_CASES.map((name) => ({
       readerEvents: summary(own, (row) => row.readerEvents),
       readerReads: summary(own, (row) => row.readerReads),
       readerBytes: summary(own, (row) => row.readerBytes),
+      chainBreaks: summary(own, (row) => row.chainBreaks),
+      repliesPerEvent: summary(own, (row) => (row.readerEvents === 0 ? null : row.replied / row.readerEvents)),
       cpuMsPerSet: summary(own, (row) => row.cpuMs / row.planned),
       loopP99Ms: summary(own, (row) => row.loopP99Ms),
       errors: Object.fromEntries(errors),

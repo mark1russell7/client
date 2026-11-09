@@ -120,13 +120,13 @@ function Detail({ call, onClose }: { call: TraceCall; onClose: () => void }): Re
       <div className="trace-detail-body">
         <div>
           <div className="muted small">input</div>
-          <pre className="code" tabIndex={0} aria-label={`Input of ${call.key}`}>
+          <pre className="code scroll-cue" tabIndex={0} aria-label={`Input of ${call.key}`}>
             {call.input === undefined ? "(none)" : formatValue(call.input)}
           </pre>
         </div>
         <div>
           <div className="muted small">{call.error !== undefined ? "error" : "output"}</div>
-          <pre className={`code${call.error !== undefined ? " error-text" : ""}`} tabIndex={0} aria-label={`${call.error !== undefined ? "Error" : "Output"} of ${call.key}`}>
+          <pre className={`code scroll-cue${call.error !== undefined ? " error-text" : ""}`} tabIndex={0} aria-label={`${call.error !== undefined ? "Error" : "Output"} of ${call.key}`}>
             {call.error ?? (call.end === undefined ? "(no result yet)" : formatValue(call.output))}
           </pre>
         </div>

@@ -9,8 +9,8 @@ import { parseArgs } from "node:util";
 import { benchEnv, freshRun } from "@mark1russell7/rigor-bench/fresh";
 import type { LiveArm } from "./live-cases.js";
 
-/** This function runs the cases on one base arm and one candidate arm, and writes the record of the job. */
-export async function runLiveJob(cases: readonly string[], base: LiveArm, candidate: LiveArm): Promise<void> {
+/** This function starts the cases on one base arm and its candidate arms, and writes the record of the job. */
+export async function runLiveJob(cases: readonly string[], base: LiveArm, candidates: readonly LiveArm[]): Promise<void> {
   const { values } = parseArgs({ options: { job: { type: "string" }, rounds: { type: "string" }, cap: { type: "string" }, out: { type: "string" } } });
   const job = Number(values.job);
   const rounds = Number(values.rounds);
@@ -29,7 +29,7 @@ export async function runLiveJob(cases: readonly string[], base: LiveArm, candid
 
   const run = await freshRun({
     base: arm(base),
-    candidates: [arm(candidate)],
+    candidates: candidates.map(arm),
     cases: [...cases],
     rounds,
     roundOffset: (job - 1) * rounds,
@@ -37,6 +37,6 @@ export async function runLiveJob(cases: readonly string[], base: LiveArm, candid
     timeoutMs: cap * 1000,
   });
 
-  writeFileSync(values.out, `${JSON.stringify({ job: String(job), env: benchEnv(), candidate: run.pairs[candidate], aa: run.pairs[base] })}
+  writeFileSync(values.out, `${JSON.stringify({ job: String(job), env: benchEnv(), candidate: run.pairs[candidates[0]!], candidates: Object.fromEntries(candidates.map((name) => [name, run.pairs[name]])), aa: run.pairs[`${base}~aa`] ?? run.pairs[base] })}
 `);
 }

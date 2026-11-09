@@ -11,7 +11,7 @@ import { createProcedure } from "../../procedures/define.js";
 import { createRegistry } from "../../procedures/module.js";
 import { ProcedureServer } from "../../server/procedure-server.js";
 import { pathToMethod } from "../../server/method.js";
-import { PortTransport } from "./transport.js";
+import { PortTransport, electronPortOf } from "./transport.js";
 
 const read = { reads: [], writes: [] };
 
@@ -133,5 +133,40 @@ describe("PortTransport (R27)", () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
     await page.close();
     await expect(call).rejects.toThrow("The port transport closed");
+  });
+});
+
+describe("electronPortOf", () => {
+  /** A port in the form of `MessagePortMain` of Electron, over a Node port: its listener gets an event with `data`. */
+  function mainPortOf(port: MessageChannel["port1"]) {
+    const added = new Map<(event: { data: unknown }) => void, (data: unknown) => void>();
+    return {
+      postMessage: (message: unknown) => port.postMessage(message),
+      on(type: "message", listener: (event: { data: unknown }) => void) {
+        const each = (data: unknown): void => listener({ data });
+        added.set(listener, each);
+        port.on(type, each);
+      },
+      off(type: "message", listener: (event: { data: unknown }) => void) {
+        const each = added.get(listener);
+        if (each !== undefined) port.off(type, each);
+      },
+      start: () => port.start(),
+    };
+  }
+
+  it("serves the calls of a port of the main process, and stops to listen when the transport closes", async () => {
+    const channel = new MessageChannel();
+    const server = new PortTransport(electronPortOf(mainPortOf(channel.port1)), { serve: served({ produced: 0, aborted: 0 }) });
+    const page = new PortTransport(channel.port2);
+    cleanups.push(async () => {
+      await page.close();
+      channel.port1.close();
+      channel.port2.close();
+    });
+    expect(await new Client(page).call(pathToMethod(["worker", "double"]), { n: 21 })).toBe(42);
+    expect(channel.port1.listenerCount("message")).toBe(1);
+    await server.close();
+    expect(channel.port1.listenerCount("message")).toBe(0);
   });
 });

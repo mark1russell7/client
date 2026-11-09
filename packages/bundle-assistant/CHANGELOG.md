@@ -1,5 +1,171 @@
 # @procedures/bundle-assistant
 
+## 0.54.0
+
+### Patch Changes
+
+- 1401489: The tarball of each package leaves out `dist/.tsbuildinfo`. The `files` list of each package has the entry `!dist/.tsbuildinfo` after `dist`.
+  
+  The build writes this file for incremental builds. An app does not use it, and it added its size to each tarball (61 KB in `@procedures/json` 0.52.3). The conventions rule `pack-no-buildinfo` finds it.
+  
+  PATCH: the exports and the behavior do not change.
+- Updated dependencies [ef8e080]
+- Updated dependencies [1401489]
+  - @procedures/client@0.54.0
+  - @procedures/exif@0.54.0
+  - @procedures/geo@0.54.0
+  - @procedures/http@0.54.0
+  - @procedures/ics@0.54.0
+  - @procedures/mail@0.54.0
+  - @procedures/weather@0.54.0
+
+## 0.53.1
+
+### Patch Changes
+
+- Updated dependencies [84f0c78]
+- Updated dependencies [abf290c]
+  - @procedures/client@0.53.1
+  - @procedures/exif@0.53.1
+  - @procedures/geo@0.53.1
+  - @procedures/http@0.53.1
+  - @procedures/ics@0.53.1
+  - @procedures/mail@0.53.1
+  - @procedures/weather@0.53.1
+
+## 0.53.0
+
+### Patch Changes
+
+- Updated dependencies [bc98f77]
+- Updated dependencies [11d9084]
+- Updated dependencies [5072370]
+- Updated dependencies [d84a98c]
+- Updated dependencies [d28ccb5]
+- Updated dependencies [735cfcf]
+- Updated dependencies
+- Updated dependencies [556d0a8]
+  - @procedures/client@0.53.0
+  - @procedures/http@0.53.0
+  - @procedures/exif@0.53.0
+  - @procedures/geo@0.53.0
+  - @procedures/ics@0.53.0
+  - @procedures/mail@0.53.0
+  - @procedures/weather@0.53.0
+
+## 0.52.5
+
+### Patch Changes
+
+- Updated dependencies [25a5f44]
+  - @procedures/client@0.52.5
+  - @procedures/exif@0.52.5
+  - @procedures/geo@0.52.5
+  - @procedures/http@0.52.5
+  - @procedures/ics@0.52.5
+  - @procedures/mail@0.52.5
+  - @procedures/weather@0.52.5
+
+## 0.52.4
+
+### Patch Changes
+
+- @procedures/client@0.52.4
+  - @procedures/exif@0.52.4
+  - @procedures/geo@0.52.4
+  - @procedures/http@0.52.4
+  - @procedures/ics@0.52.4
+  - @procedures/mail@0.52.4
+  - @procedures/weather@0.52.4
+
+## 0.52.3
+
+### Patch Changes
+
+- Updated dependencies [db1bcaa]
+  - @procedures/client@0.52.3
+  - @procedures/exif@0.52.3
+  - @procedures/geo@0.52.3
+  - @procedures/http@0.52.3
+  - @procedures/ics@0.52.3
+  - @procedures/mail@0.52.3
+  - @procedures/weather@0.52.3
+
+## 0.52.2
+
+### Patch Changes
+
+- @procedures/client@0.52.2
+  - @procedures/exif@0.52.2
+  - @procedures/geo@0.52.2
+  - @procedures/http@0.52.2
+  - @procedures/ics@0.52.2
+  - @procedures/mail@0.52.2
+  - @procedures/weather@0.52.2
+
+## 0.52.1
+
+### Patch Changes
+
+- @procedures/client@0.52.1
+  - @procedures/exif@0.52.1
+  - @procedures/geo@0.52.1
+  - @procedures/http@0.52.1
+  - @procedures/ics@0.52.1
+  - @procedures/mail@0.52.1
+  - @procedures/weather@0.52.1
+
+## 0.52.0
+
+### Patch Changes
+
+- @procedures/client@0.52.0
+  - @procedures/exif@0.52.0
+  - @procedures/geo@0.52.0
+  - @procedures/http@0.52.0
+  - @procedures/ics@0.52.0
+  - @procedures/mail@0.52.0
+  - @procedures/weather@0.52.0
+
+## 0.51.0
+
+### Patch Changes
+
+- Updated dependencies [0c3bfa3]
+  - @procedures/client@0.51.0
+  - @procedures/exif@0.51.0
+  - @procedures/geo@0.51.0
+  - @procedures/http@0.51.0
+  - @procedures/ics@0.51.0
+  - @procedures/mail@0.51.0
+  - @procedures/weather@0.51.0
+
+## 0.50.0
+
+### Patch Changes
+
+- Updated dependencies [54cdb34]
+  - @procedures/client@0.50.0
+  - @procedures/exif@0.50.0
+  - @procedures/geo@0.50.0
+  - @procedures/http@0.50.0
+  - @procedures/ics@0.50.0
+  - @procedures/mail@0.50.0
+  - @procedures/weather@0.50.0
+
+## 0.49.1
+
+### Patch Changes
+
+- Updated dependencies [a11008a]
+  - @procedures/client@0.49.1
+  - @procedures/exif@0.49.1
+  - @procedures/geo@0.49.1
+  - @procedures/http@0.49.1
+  - @procedures/ics@0.49.1
+  - @procedures/mail@0.49.1
+  - @procedures/weather@0.49.1
+
 ## 0.49.0
 
 ### Patch Changes

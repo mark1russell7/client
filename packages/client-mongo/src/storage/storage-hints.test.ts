@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, expect, it, vi, type TestContext } from 
 import { MongoClient, ObjectId, type Db, type Document } from "mongodb";
 import { collectionChangeTopic, createEventBus, ms, type Clock } from "@procedures/client";
 import { DEFAULT_STORED_FORM, MongoDocumentStorage, storageChangeSource, versionOfStored, type MongoDocumentStorageOptions, type StoredForm } from "./document-storage.js";
-import { storageChangeOf, watchStorageChanges, type StorageChangeHint } from "./storage-hints.js";
+import { backoffOf, storageChangeOf, watchStorageChanges, type StorageChangeHint } from "./storage-hints.js";
 import { noteOwnNumbers, notePrunedIds, trackOwnNumbers } from "./own-writes.js";
 
 /**
@@ -206,6 +206,21 @@ describe("the writes of this process (CLI-77)", () => {
     expect(own.take(20)).toBe(false);
   });
 
+  it("keys a number of a counter of a partition by its partition (CLI-96)", () => {
+    const own = trackOwnNumbers(db, "scoped");
+    noteOwnNumbers(db, "scoped", 5, 2, "acme");
+    noteOwnNumbers(db, "scoped", 9, 1, "");
+    expect(own.take(5)).toBe(false);
+    expect(own.take(5, "beta")).toBe(false);
+    expect(own.take(5, "acme")).toBe(true);
+    expect(own.take(5, "acme")).toBe(false);
+    expect(own.take(6, "acme")).toBe(true);
+    // A store without a partition notes the empty text: an event without a partition takes it
+    expect(own.take(9, "acme")).toBe(false);
+    expect(own.take(9)).toBe(true);
+    own.close();
+  });
+
   it("gives each tracker its own numbers, and two Db objects of one client and one database share them", () => {
     const first = trackOwnNumbers(db, "shared");
     const second = trackOwnNumbers(dbOf("own_numbers_test"), "shared");
@@ -253,6 +268,8 @@ class FakeStream extends EventEmitter {
   closed = false;
   /** The pipeline of the open of the stream. */
   pipeline: Document[] = [];
+  /** The options of the open of the stream. */
+  options: Document = {};
   async close(): Promise<void> {
     this.closed = true;
   }
@@ -262,9 +279,10 @@ class FakeStream extends EventEmitter {
 function fakeWatch(collections: { counters?: Document; items?: Document; hello?: Document } = {}) {
   const streams: FakeStream[] = [];
   const items = {
-    watch: (pipeline: Document[]) => {
+    watch: (pipeline: Document[], options: Document = {}) => {
       const stream = new FakeStream();
       stream.pipeline = pipeline;
+      stream.options = options;
       streams.push(stream);
       return stream;
     },
@@ -580,6 +598,31 @@ describe("watchStorageChanges without a server (CLI-77)", () => {
     expect(published[0]).toEqual({ topic: collectionChangeTopic("fake_notes", "t5"), event: { changed: [], deleted: [], reset: true } });
     expect(runs).toHaveLength(4);
     expect(logs.some((line) => line.startsWith("warn") && line.includes("host unreachable") && line.includes('"t5"'))).toBe(true);
+    await watch.stop();
+  });
+});
+
+/** A resume token of the server form: the type byte `82`, the timestamp, and a rest. */
+const serverToken = (seconds: number, increment: number, rest = "2B0229296E04"): { _data: string } => ({
+  _data: `82${seconds.toString(16).padStart(8, "0")}${increment.toString(16).padStart(8, "0")}${rest}`,
+});
+
+describe("the age of the token of watchStorageChanges (CLI-110)", () => {
+  it("moves at a later cluster time on the clock of the watcher, and not at the same cluster time again", async () => {
+    const { storage, stream, clock, log, publish } = fakeWatch();
+    let at = 0;
+    const timed = { now: () => at, after: clock.after } as Clock;
+    const watch = watchStorageChanges(storage, publish, { clock: timed, log });
+    const open = await stream();
+    at = 100;
+    expect(watch.tokenAgeMs).toBe(100);
+    open.emit("resumeTokenChanged", serverToken(10, 1));
+    expect(watch.tokenAgeMs).toBe(0);
+    at = 180;
+    open.emit("resumeTokenChanged", serverToken(10, 1, "FF"));
+    expect(watch.tokenAgeMs).toBe(80);
+    open.emit("resumeTokenChanged", serverToken(11, 0));
+    expect(watch.tokenAgeMs).toBe(0);
     await watch.stop();
   });
 });
@@ -1045,6 +1088,32 @@ withMongo("watchStorageChanges on MongoDB (CLI-77)", { timeout: TEST_TIMEOUT_MS 
     }
   });
 
+  it("skips the own write of its partition with a counter for each partition, and publishes the same number of another partition (CLI-96)", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const { collection, storage, log } = setup<{ title: string }>({ sequence: "partition" });
+    const otherClient = new MongoClient(url!);
+    await otherClient.connect();
+    const other = new MongoDocumentStorage<{ title: string }>({ collection, db: () => otherClient.db(db.databaseName), client: () => otherClient, sequence: "partition" });
+    const published: Array<{ topic: string; event: StorageChangeHint }> = [];
+    const watch = watchStorageChanges(storage, (topic, event) => void published.push({ topic, event }), { log });
+    try {
+      await watch.ready;
+      await storage.forPartition("acme").set("a", { title: "a" });
+      // A note of acme that no event took yet: the write of beta in another process has the same number
+      noteOwnNumbers(db, collection, 2, 1, "acme");
+      await other.forPartition("beta").set("b", { title: "b" });
+      await other.forPartition("beta").set("c", { title: "c" });
+      expect(await other.forPartition("beta").versionOf("c")).toBe("2");
+      await eventually(() => expect(eventsOf(published, "c")).toHaveLength(1));
+      await settle(collection, published, "sentinel");
+      expect(eventsOf(published, "a")).toEqual([]);
+      expect(eventsOf(published, "b")).toHaveLength(1);
+    } finally {
+      await watch.stop();
+      await otherClient.close();
+    }
+  });
+
   it("reads the partition and the id with the stored form, and takes the name of the procedures", async (context) => {
     if (!replicaSet) return context.skip?.("change streams need a replica set");
     const { collection, storage, log } = setup<{ title: string }>({ form: tenantForm });
@@ -1154,6 +1223,27 @@ describe("watchStorageChanges and an event over the BSON limit (CLI-107)", () =>
     await watch.stop();
   });
 
+  it("opens the stream again before a split event that it read in part, and joins all its fragments (audit 2026-11-08)", async () => {
+    const { storage, stream, runs, clock, log, published, publish } = fakeWatch();
+    const watch = watchStorageChanges(storage, publish, { clock, log, backoff: { initialDelay: ms(10), jitter: 0 } });
+    const first = await stream();
+    // The token of a batch, then the token and the change of fragment 1, in the order of the driver
+    first.emit("resumeTokenChanged", { t: 0 });
+    first.emit("resumeTokenChanged", { t: 1 });
+    first.emit("change", { _id: { t: 1 }, operationType: "insert", documentKey: { _id: "t5\u001fa" }, splitEvent: { fragment: 1, of: 2 } });
+    first.emit("error", serverError(6, "host unreachable"));
+    await vi.waitFor(() => expect(runs).toHaveLength(1));
+    runs[0]!();
+    const second = await stream(1);
+    // Before, the stream opened after fragment 1, and fragment 2 alone gave a gap
+    expect(second.options["startAfter"]).toEqual({ t: 0 });
+    second.emit("change", { _id: { t: 1 }, operationType: "insert", documentKey: { _id: "t5\u001fa" }, splitEvent: { fragment: 1, of: 2 } });
+    second.emit("change", { _id: { t: 2 }, fullDocument: { _id: "t5\u001fa", _key: "a", _part: "t5", _seq: 3 }, splitEvent: { fragment: 2, of: 2 } });
+    await vi.waitFor(() => expect(published).toHaveLength(1));
+    expect(isGap(published[0]!)).toBe(false);
+    await watch.stop();
+  });
+
   it("opens no split stage with splitLargeEvents false", async () => {
     const { storage, stream, clock, log, publish } = fakeWatch();
     const watch = watchStorageChanges(storage, publish, { clock, log, splitLargeEvents: false });
@@ -1215,5 +1305,50 @@ describe("watchStorageChanges and an event over the BSON limit (CLI-107)", () =>
     expect(published).toEqual([]);
     expect(logs.some((line) => line.includes("at one token"))).toBe(false);
     await watch.stop();
+  });
+});
+
+describe("backoffOf and the backoff of service", () => {
+  // The formula of backoffOf before it called backoffDelay of @mark1russell7/service
+  const before = (initial: number, max: number, factor: number, jitter: number, attempt: number, r: number): number => {
+    const full = Math.min(max, initial * factor ** attempt);
+    return full - full * jitter * r;
+  };
+
+  it("gives the delays of the old formula for each try, with the same random numbers", () => {
+    const draws = [0, 0.25, 0.5, 0.999_999, 0.123_456_789];
+    const policies = [
+      { initialDelay: undefined, maxDelay: undefined, backoffMultiplier: undefined, jitter: undefined },
+      { initialDelay: 10, maxDelay: 40, backoffMultiplier: undefined, jitter: 0 },
+      { initialDelay: 0, maxDelay: 0, backoffMultiplier: 3, jitter: 0.5 },
+      { initialDelay: 7, maxDelay: 1_000_000, backoffMultiplier: 1.5, jitter: 0.3 },
+      { initialDelay: 250, maxDelay: 250, backoffMultiplier: 1, jitter: 1 },
+    ];
+    const random = vi.spyOn(Math, "random");
+    try {
+      for (const policy of policies) {
+        const options = Object.fromEntries(Object.entries(policy).filter(([, value]) => value !== undefined).map(([key, value]) => [key, key.endsWith("Delay") ? ms(value as number) : value]));
+        const delayOf = backoffOf(options);
+        for (let attempt = 0; attempt < 40; attempt++) {
+          for (const r of draws) {
+            random.mockReturnValueOnce(r);
+            const [initial, max, factor, jitter] = [policy.initialDelay ?? 250, policy.maxDelay ?? 30_000, policy.backoffMultiplier ?? 2, policy.jitter ?? 1];
+            const expected = before(initial, max, factor, jitter, attempt, r);
+            const got = delayOf(attempt);
+            // The two formulas round differently in the last bits: full * (1 - j * r) against full - full * j * r.
+            // The old difference loses bits when j * r is near 1, so the bound is a part of the delay before its jitter.
+            expect(Math.abs(got - expected)).toBeLessThanOrEqual(Math.min(max, initial * factor ** attempt) * 1e-12);
+          }
+        }
+      }
+    } finally {
+      random.mockRestore();
+    }
+  });
+
+  it("refuses the policies that the old formula refused", () => {
+    expect(() => backoffOf({ initialDelay: ms(50), maxDelay: ms(10) })).toThrow(RangeError);
+    expect(() => backoffOf({ backoffMultiplier: 0.5 })).toThrow(RangeError);
+    expect(() => backoffOf({ jitter: 2 })).toThrow(RangeError);
   });
 });

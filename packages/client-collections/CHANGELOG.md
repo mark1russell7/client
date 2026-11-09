@@ -1,5 +1,165 @@
 # @procedures/collections
 
+## 0.54.0
+
+### Minor Changes
+
+- ef8e080: `@procedures/collections` uses `@mark1russell7/collections` 0.10, and its root removes the 121 names that version 0.10 does not export (roadmap CLI-131 and CLI-113). The last release marked each of these names as `@deprecated`, with its replacement. MINOR: before 1.0.0 a removed export raises MINOR.
+  
+  Migration steps for the site and each app:
+  
+  1. Import `Optional`, `Result` and their functions from `@mark1russell7/optional`. The table gives the new names.
+  
+     | Old name | New name |
+     | --- | --- |
+     | `Option` | `Optional` |
+     | `Some` | `some` |
+     | `None` | `none` |
+     | `Ok` | `ok` |
+     | `Err` | `err` |
+     | `getOrElse` | `getOr` |
+     | `getOrElseResult` | `getOkOr` |
+     | `mapOption` | `map` |
+     | `flatMapOption` | `flatMap` |
+     | `mapError` | `mapErr` |
+     | `optionToResult` | `fromOptional` |
+     | `resultToOption` | `toOptional` |
+     | `toNullable` | `unwrap` |
+  
+  2. Read the values of the safe middleware (`safeList`, `safeQueue`, `safeDeque` and `safeMap`) with the field `tag`, not `_tag`. A present value is `{ tag: "some", value }`. An absent value is `{ tag: "none" }`.
+  3. Import the 13 channel names (`Channel`, `select`, `timeout`, `ticker`, `pipeline`, `fanOut`, `fanIn`, `merge`, `buffered`, `unbuffered`, `channel`, `workerPool` and the type `SelectCase`) from `@mark1russell7/service/channel`.
+  4. Use the retries of `@mark1russell7/service` in place of the retry names of collections.
+  5. Change the second names to the names of the table. Do not nest the locked uses of `synchronized`.
+  
+     | Old name | New name |
+     | --- | --- |
+     | `unmodifiableList` | `readonlyList` |
+     | `unmodifiableMap` | `readonlyMap` |
+     | `unmodifiableCollection` | `readonlyCollection` |
+     | `mutableListOf` | `listOf` |
+     | `mutableMapOf` | `mapOf` |
+     | `safe` | `safeList`, `safeQueue`, `safeDeque` or `safeMap` |
+     | `reentrantSynchronized` | `synchronized` |
+  
+  6. The other removed names have no replacement. The `@deprecated` tag of the last release names each of them.
+  
+  These behaviors of the re-exported names change:
+  
+  - `defaultCompare` orders values of different types by type first. A sort of values of mixed types gives a different order. `1` and `"1"` are not equal.
+  - `range` gives `start + i * step` at index `i`. So `range(0, 1, 0.1)` gives 10 numbers, not 11. A value that is not finite, or a `step` of 0, throws a `RangeError`.
+  - `nCopies` throws a `RangeError` when `n` is not a safe integer of 0 or more.
+  - A full `boundedList` with `drop-oldest` drops the last element at `insert(0, x)`, as `unshift(x)` does.
+  - A full `boundedDeque` with `drop-oldest` drops the last element at `addFirst`.
+  - An expired entry of `ttlMap` is not in `size`, `getOrUndefined` or the iteration.
+  - An evented layer gives no event for an element that a layer below refused.
+  
+  `@procedures/dag` and `@procedures/client` use the range `^0.10.0` too. Their exports do not change. These behaviors of `@procedures/dag` change:
+  
+  - With `failFast: false`, `executeDAG` does not start a node whose dependency failed. The node gets a skipped result, and `DAGResult.skippedNodes` has its id. To start each node, as before, give the option `skipDependents: false`.
+  - `dag.traverse` with `continueOnError` does not start the visit of a package whose dependency failed or was skipped. Its result has `skipped: true` and a `reason` with the error of the dependency. Before, the traversal visited such a package.
+  - A caller of `dag.traverse` with `continueOnError` that reads `visited` or `skipped` finds the dependents of a failed package in `skipped`.
+
+### Patch Changes
+
+- c351b59: The entry `@procedures/collections/testing` marks `ContractViolation` and `deepEqual` as deprecated. A later MINOR removes them, and the checks of the contract suite then throw the `AssertionError` of `node:assert`. The suite then uses `node:assert` and `rejects` of `@mark1russell7/rigor-testkit`, and it does not import `@mark1russell7/collections/testing`.
+  
+  Migration: replace `deepEqual(a, b)` with `isDeepStrictEqual(a, b)` of `node:util`. That function also compares the prototypes. A test that expects a `ContractViolation` from the suite expects an `AssertionError` or an `Error`.
+  
+  PATCH: the exports and the behavior do not change in this version.
+- 1401489: The tarball of each package leaves out `dist/.tsbuildinfo`. The `files` list of each package has the entry `!dist/.tsbuildinfo` after `dist`.
+  
+  The build writes this file for incremental builds. An app does not use it, and it added its size to each tarball (61 KB in `@procedures/json` 0.52.3). The conventions rule `pack-no-buildinfo` finds it.
+  
+  PATCH: the exports and the behavior do not change.
+- Updated dependencies [ef8e080]
+- Updated dependencies [1401489]
+  - @procedures/client@0.54.0
+
+## 0.53.1
+
+### Patch Changes
+
+- Updated dependencies [84f0c78]
+- Updated dependencies [abf290c]
+  - @procedures/client@0.53.1
+
+## 0.53.0
+
+### Patch Changes
+
+- 33510a2: The root of `@procedures/collections` marks 121 names as deprecated. Versions 0.7.0 to 0.10.0 of `@mark1russell7/collections` remove these names, and a later MINOR of `@procedures/collections` removes them too. The tag of each name gives its replacement:
+  
+  - `Option`, `Result` and their functions: the names of `@mark1russell7/optional`. For example, `getOrElse` becomes `getOr`, and `mapOption` becomes `map`.
+  - The 13 channel names, from `Channel` to `workerPool`: the same names of `@mark1russell7/service/channel`.
+  - The second names: `readonlyList`, `readonlyMap`, `readonlyCollection`, `listOf` and `mapOf`. Use `synchronized` in place of `reentrantSynchronized`.
+  - The other names have no replacement.
+- Updated dependencies [bc98f77]
+- Updated dependencies [11d9084]
+- Updated dependencies [d28ccb5]
+- Updated dependencies [735cfcf]
+- Updated dependencies
+- Updated dependencies [556d0a8]
+  - @procedures/client@0.53.0
+
+## 0.52.5
+
+### Patch Changes
+
+- Updated dependencies [25a5f44]
+  - @procedures/client@0.52.5
+
+## 0.52.4
+
+### Patch Changes
+
+- @procedures/client@0.52.4
+
+## 0.52.3
+
+### Patch Changes
+
+- Updated dependencies [db1bcaa]
+  - @procedures/client@0.52.3
+
+## 0.52.2
+
+### Patch Changes
+
+- @procedures/client@0.52.2
+
+## 0.52.1
+
+### Patch Changes
+
+- @procedures/client@0.52.1
+
+## 0.52.0
+
+### Patch Changes
+
+- @procedures/client@0.52.0
+
+## 0.51.0
+
+### Patch Changes
+
+- Updated dependencies [0c3bfa3]
+  - @procedures/client@0.51.0
+
+## 0.50.0
+
+### Patch Changes
+
+- Updated dependencies [54cdb34]
+  - @procedures/client@0.50.0
+
+## 0.49.1
+
+### Patch Changes
+
+- Updated dependencies [a11008a]
+  - @procedures/client@0.49.1
+
 ## 0.49.0
 
 ### Breaking changes

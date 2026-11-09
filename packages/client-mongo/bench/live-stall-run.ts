@@ -6,4 +6,4 @@
 import { STALL_CASES } from "./live-cases.js";
 import { runLiveJob } from "./live-job.js";
 
-await runLiveJob(STALL_CASES, "storequiet", "store");
+await runLiveJob(STALL_CASES, "storequiet", ["store", "storefilter"]);
