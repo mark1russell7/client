@@ -54,6 +54,7 @@ import {
   createProcessor,
   filterDAGFromRoot,
 } from "@mark1russell7/collections/dag";
+import type { DAGResult } from "@mark1russell7/collections/dag";
 
 /**
  * This function gives the nodes of the packages of a `lib.scan` output. A dependency on a
@@ -272,11 +273,9 @@ export async function dagTraverse(
   const dagResult = await executeDAG(dag, processor, {
     concurrency: input.concurrency ?? 4,
     failFast: !input.continueOnError,
-    // With continueOnError, the traversal visits each package, also a package whose dependency failed
-    skipDependents: false,
   });
 
-  const skipped = skippedResults(dag.levels.flat(), results, dagResult.failedNodes);
+  const skipped = skippedResults(dag.levels.flat(), results, dagResult);
 
   return {
     success: dagResult.success,
@@ -290,19 +289,26 @@ export async function dagTraverse(
 
 /**
  * This function gives one result for each node without a result, in the order of the levels.
- * Each visit records its own result. Thus a node without a result is in a level that
- * `executeDAG` did not start. An earlier visit failed, and `failFast` stopped the traversal.
+ * Each visit records its own result. A node without a result did not start, for one of two reasons:
+ *
+ * - `executeDAG` skipped it, because a dependency failed or was skipped. Its error names those dependencies.
+ * - It is in a level that `executeDAG` did not start. An earlier visit failed, and `failFast` stopped the traversal.
  */
 export function skippedResults(
   nodes: readonly PackageNode[],
   results: readonly TraverseNodeResult[],
-  failedNodes: readonly string[]
+  dagResult: Pick<DAGResult<PackageNode>, "failedNodes" | "skippedNodes" | "results">
 ): TraverseNodeResult[] {
   const done = new Set(results.map((result) => result.name));
-  const reason =
-    `The visit of ${failedNodes.join(", ")} failed, and the traversal stopped before this package ` +
+  const dependents = new Set(dagResult.skippedNodes);
+  const stopped =
+    `The visit of ${dagResult.failedNodes.join(", ")} failed, and the traversal stopped before this package ` +
     "(continueOnError is false)";
+  const reason = (node: PackageNode): string =>
+    dependents.has(node.name)
+      ? `A dependency of this package failed or was skipped, so its visit did not start: ${dagResult.results.get(node.name)?.error?.message ?? "no message"}`
+      : stopped;
   return nodes
     .filter((node) => !done.has(node.name))
-    .map((node) => ({ name: node.name, path: node.repoPath, success: false, duration: 0, skipped: true, reason }));
+    .map((node) => ({ name: node.name, path: node.repoPath, success: false, duration: 0, skipped: true, reason: reason(node) }));
 }

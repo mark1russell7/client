@@ -4,7 +4,7 @@
 "@procedures/client": patch
 ---
 
-`@procedures/collections` uses `@mark1russell7/collections` 0.10, and its root removes the 121 names that version 0.10 does not export (roadmap CLI-131). The last release marked each of these names as `@deprecated`, with its replacement. MINOR: before 1.0.0 a removed export raises MINOR.
+`@procedures/collections` uses `@mark1russell7/collections` 0.10, and its root removes the 121 names that version 0.10 does not export (roadmap CLI-131 and CLI-113). The last release marked each of these names as `@deprecated`, with its replacement. MINOR: before 1.0.0 a removed export raises MINOR.
 
 Migration steps for the site and each app:
 
@@ -53,7 +53,8 @@ These behaviors of the re-exported names change:
 - An expired entry of `ttlMap` is not in `size`, `getOrUndefined` or the iteration.
 - An evented layer gives no event for an element that a layer below refused.
 
-`@procedures/dag` and `@procedures/client` use the range `^0.10.0` too. Their exports do not change. The `executeDAG` of `@procedures/dag` changes:
+`@procedures/dag` and `@procedures/client` use the range `^0.10.0` too. Their exports do not change. These behaviors of `@procedures/dag` change:
 
 - With `failFast: false`, `executeDAG` does not start a node whose dependency failed. The node gets a skipped result, and `DAGResult.skippedNodes` has its id. To start each node, as before, give the option `skipDependents: false`.
-- `dag.traverse` with `continueOnError` gives this option, so it visits each package, as before.
+- `dag.traverse` with `continueOnError` does not start the visit of a package whose dependency failed or was skipped. Its result has `skipped: true` and a `reason` with the error of the dependency. Before, the traversal visited such a package.
+- A caller of `dag.traverse` with `continueOnError` that reads `visited` or `skipped` finds the dependents of a failed package in `skipped`.
