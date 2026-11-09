@@ -1,5 +1,15 @@
 # @procedures/llm
 
+## 0.52.5
+
+### Patch Changes
+
+- Updated dependencies [f39708c]
+- Updated dependencies [25a5f44]
+  - @procedures/json@0.52.5
+  - @procedures/client@0.52.5
+  - @procedures/http@0.52.5
+
 ## 0.52.4
 
 ### Patch Changes
