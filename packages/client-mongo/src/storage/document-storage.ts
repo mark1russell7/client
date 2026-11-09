@@ -245,7 +245,7 @@ export interface MongoDocumentStorageOptions<T = unknown> {
    *
    * - With `sequence: "partition"`, each partition has its own queue. Without this bound, each partition of a process has a transaction open at once.
    * - A whole number of 1 or more, or `Infinity` for no bound. Another value is a `RangeError`.
-   * - The default of 8 is provisional. A sweep of 1, 2, 4, 8 and 16 at the bench case `400-p2` sets it.
+   * - The sweeps of 2, 4, 8, 16 and `Infinity` at the bench cases `400-p2` and `4000-p2` set the default of 8.
    */
   writesInFlight?: number | undefined;
   /**
@@ -376,7 +376,7 @@ function writePermitsOf(db: Db, bound: number): Semaphore {
   let byBound = WRITES.get(owner);
   if (!byBound) WRITES.set(owner, (byBound = new Map()));
   let permits = byBound.get(bound);
-  if (!permits) byBound.set(bound, (permits = new Semaphore(bound)));
+  if (!permits) byBound.set(bound, (permits = semaphore(bound)));
   return permits;
 }
 
@@ -1587,7 +1587,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     // The permit comes after the turn in the queue, so a write that waits for an earlier write of its counter holds no permit
     if (this.writesInFlight === Infinity) return enqueueWrite(db, this.counterId, run);
     const permits = writePermitsOf(db, this.writesInFlight);
-    return enqueueWrite(db, this.counterId, () => permits.withPermit(run));
+    return enqueueWrite(db, this.counterId, () => permits.run(run));
   }
 
   async set(id: string, value: T, options?: StorageItemWriteOptions): Promise<void> {
