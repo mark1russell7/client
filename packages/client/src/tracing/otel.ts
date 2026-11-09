@@ -9,7 +9,7 @@
  * - With no SDK, `startApiSpan` gives undefined, and the W3C code of `traceparent.ts` operates as
  *   before (D6).
  */
-import { context, createContextKey, isSpanContextValid, propagation, SpanStatusCode, trace } from "@opentelemetry/api";
+import { context, createContextKey, isSpanContextValid, propagation, ROOT_CONTEXT, SpanStatusCode, trace } from "@opentelemetry/api";
 import type { Context, Span, SpanKind, TextMapSetter } from "@opentelemetry/api";
 
 /** The name of the tracer of the spans of this package */
@@ -75,4 +75,24 @@ export function remoteParent(metadata: Record<string, unknown>, from: Context = 
   if (typeof metadata["tracestate"] === "string") carrier["tracestate"] = metadata["tracestate"];
   const extracted = propagation.extract(from, carrier);
   return isSpanContextValid(trace.getSpanContext(extracted) ?? { traceId: "", spanId: "", traceFlags: 0 }) ? extracted : from;
+}
+
+/**
+ * This function gives the context of the caller of an invocation of a host (roadmap item C10 of
+ * otel-ts): the handler runs in it, so its logs, metrics, spans and nested calls carry the ids of
+ * the caller.
+ *
+ * - The remote span of the `traceparent` and `tracestate` of `metadata` is always the parent.
+ * - The `baggage` of `metadata` replaces the baggage of `from` only when the caller is trusted.
+ * - When the caller is not trusted, the context has no baggage: an end user cannot set the
+ *   baggage of the services. The baggage of `from` can come from the headers of the same request,
+ *   for example from the HTTP instrumentation of an SDK, so the function removes it too.
+ */
+export function callerContext(metadata: Record<string, unknown>, trusted: boolean, from: Context = context.active()): Context {
+  const parent = remoteParent(metadata, from);
+  if (!trusted) return propagation.getBaggage(parent) === undefined ? parent : propagation.deleteBaggage(parent);
+  const baggage = metadata["baggage"];
+  if (typeof baggage !== "string") return parent;
+  const extracted = propagation.getBaggage(propagation.extract(ROOT_CONTEXT, { baggage }));
+  return extracted === undefined ? parent : propagation.setBaggage(parent, extracted);
 }
