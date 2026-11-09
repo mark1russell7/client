@@ -51,9 +51,11 @@ export {
 } from "./hybrid.js";
 export type {
   DroppedWrite,
+  MergeContext,
   HybridStorageOptions,
   HybridMode,
   LocalCopyStorage,
+  PushBatch,
   QueueRefusal,
   RemoteApplyCause,
   RemoteApplyContext,

@@ -1,5 +1,57 @@
 # @procedures/schedule
 
+## 0.52.4
+
+### Patch Changes
+
+- @procedures/client@0.52.4
+  - @procedures/fs@0.52.4
+  - @procedures/store@0.52.4
+
+## 0.52.3
+
+### Patch Changes
+
+- Updated dependencies [db1bcaa]
+  - @procedures/client@0.52.3
+  - @procedures/fs@0.52.3
+  - @procedures/store@0.52.3
+
+## 0.52.2
+
+### Patch Changes
+
+- Updated dependencies [913fb0e]
+  - @procedures/store@0.52.2
+  - @procedures/client@0.52.2
+  - @procedures/fs@0.52.2
+
+## 0.52.1
+
+### Patch Changes
+
+- @procedures/client@0.52.1
+  - @procedures/fs@0.52.1
+  - @procedures/store@0.52.1
+
+## 0.52.0
+
+### Patch Changes
+
+- Updated dependencies [01a1410]
+  - @procedures/store@0.52.0
+  - @procedures/client@0.52.0
+  - @procedures/fs@0.52.0
+
+## 0.51.0
+
+### Patch Changes
+
+- Updated dependencies [0c3bfa3]
+  - @procedures/client@0.51.0
+  - @procedures/fs@0.51.0
+  - @procedures/store@0.51.0
+
 ## 0.50.0
 
 ### Patch Changes

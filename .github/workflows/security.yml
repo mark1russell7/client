@@ -31,7 +31,7 @@ jobs:
       security-events: write
       actions: read
     steps:
-      - uses: mark1russell7/template/.github/actions/security-scan@8a01259f04dce1d6a2fa351b758c6d283e9f7fc9 # main
+      - uses: mark1russell7/template/.github/actions/security-scan@fc41ae3906e671ae746e9597ccc351a4e7ce8a3b # main
 
   # The check of the scans that the ruleset of main names (template CI.md, "The check of the
   # ruleset"). The scans stay in this file, because they need security-events: write.

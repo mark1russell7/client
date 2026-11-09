@@ -1,5 +1,111 @@
 # @procedures/mark
 
+## 0.52.4
+
+### Patch Changes
+
+- Updated dependencies [79cd1ee]
+  - @procedures/server@0.52.4
+  - @procedures/cli-kit@0.52.4
+  - @procedures/client@0.52.4
+  - @procedures/cli-run@0.52.4
+  - @procedures/fs@0.52.4
+  - @procedures/lib@0.52.4
+  - @procedures/pnpm@0.52.4
+  - @procedures/procedure@0.52.4
+  - @procedures/peer@0.52.4
+  - @procedures/shell@0.52.4
+  - @procedures/vitest@0.52.4
+  - @procedures/mcp-dev-tools@0.52.4
+
+## 0.52.3
+
+### Patch Changes
+
+- Updated dependencies [db1bcaa]
+  - @procedures/client@0.52.3
+  - @procedures/cli-run@0.52.3
+  - @procedures/cli-kit@0.52.3
+  - @procedures/fs@0.52.3
+  - @procedures/lib@0.52.3
+  - @procedures/pnpm@0.52.3
+  - @procedures/procedure@0.52.3
+  - @procedures/peer@0.52.3
+  - @procedures/shell@0.52.3
+  - @procedures/vitest@0.52.3
+  - @procedures/mcp-dev-tools@0.52.3
+  - @procedures/server@0.52.3
+
+## 0.52.2
+
+### Patch Changes
+
+- @procedures/cli-kit@0.52.2
+  - @procedures/client@0.52.2
+  - @procedures/cli-run@0.52.2
+  - @procedures/fs@0.52.2
+  - @procedures/lib@0.52.2
+  - @procedures/pnpm@0.52.2
+  - @procedures/procedure@0.52.2
+  - @procedures/peer@0.52.2
+  - @procedures/shell@0.52.2
+  - @procedures/vitest@0.52.2
+  - @procedures/mcp-dev-tools@0.52.2
+  - @procedures/server@0.52.2
+
+## 0.52.1
+
+### Patch Changes
+
+- c5a444c: The README tells the date, the commit and the version of each measured number. These numbers are the compile cache of `mark`, the write limit of `MongoDocumentStorage` and the benchmarks of `SqliteStorage`.
+- @procedures/lib@0.52.1
+  - @procedures/mcp-dev-tools@0.52.1
+  - @procedures/cli-kit@0.52.1
+  - @procedures/client@0.52.1
+  - @procedures/cli-run@0.52.1
+  - @procedures/fs@0.52.1
+  - @procedures/pnpm@0.52.1
+  - @procedures/procedure@0.52.1
+  - @procedures/peer@0.52.1
+  - @procedures/shell@0.52.1
+  - @procedures/vitest@0.52.1
+  - @procedures/server@0.52.1
+
+## 0.52.0
+
+### Patch Changes
+
+- @procedures/cli-kit@0.52.0
+  - @procedures/client@0.52.0
+  - @procedures/cli-run@0.52.0
+  - @procedures/fs@0.52.0
+  - @procedures/lib@0.52.0
+  - @procedures/pnpm@0.52.0
+  - @procedures/procedure@0.52.0
+  - @procedures/peer@0.52.0
+  - @procedures/shell@0.52.0
+  - @procedures/vitest@0.52.0
+  - @procedures/mcp-dev-tools@0.52.0
+  - @procedures/server@0.52.0
+
+## 0.51.0
+
+### Patch Changes
+
+- Updated dependencies [0c3bfa3]
+  - @procedures/client@0.51.0
+  - @procedures/cli-kit@0.51.0
+  - @procedures/cli-run@0.51.0
+  - @procedures/fs@0.51.0
+  - @procedures/lib@0.51.0
+  - @procedures/pnpm@0.51.0
+  - @procedures/procedure@0.51.0
+  - @procedures/peer@0.51.0
+  - @procedures/shell@0.51.0
+  - @procedures/vitest@0.51.0
+  - @procedures/mcp-dev-tools@0.51.0
+  - @procedures/server@0.51.0
+
 ## 0.50.0
 
 ### Patch Changes

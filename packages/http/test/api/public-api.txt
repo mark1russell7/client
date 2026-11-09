@@ -7,12 +7,16 @@
 ## . (dist/index.d.ts): names
 
 type AllowedTarget: dist/policy.d.ts#AllowedTarget
+type CspPolicy: dist/frame.d.ts#CspPolicy
 DEFAULT_HOST_POLICY: dist/policy.d.ts#DEFAULT_HOST_POLICY
 DEFAULT_ITEM_BYTES: dist/exchange.d.ts#DEFAULT_ITEM_BYTES
 DEFAULT_MAX_BYTES: dist/exchange.d.ts#DEFAULT_MAX_BYTES
 DEFAULT_SETTINGS: dist/exchange.d.ts#DEFAULT_SETTINGS
 DEFAULT_TIMEOUT_MS: dist/exchange.d.ts#DEFAULT_TIMEOUT_MS
+type FrameOrigins: dist/frame.d.ts#FrameOrigins
+type FrameRefusal: dist/frame.d.ts#FrameRefusal
 HOST_NOT_ALLOWED: dist/policy.d.ts#HOST_NOT_ALLOWED
+type HeaderSource: dist/frame.d.ts#HeaderSource
 type HostFetch: dist/host-fetch.d.ts#HostFetch
 type HostFetchInit: dist/host-fetch.d.ts#HostFetchInit
 type HostFetchResponse: dist/host-fetch.d.ts#HostFetchResponse
@@ -42,6 +46,7 @@ checkHost: dist/policy.d.ts#checkHost
 createHostFetch: dist/host-fetch.d.ts#createHostFetch
 createHostPolicy: dist/policy.d.ts#createHostPolicy
 createHttpModule: dist/module.d.ts#createHttpModule
+frameRefusal: dist/frame.d.ts#frameRefusal
 httpJson: dist/procedures/http/json.d.ts#httpJson
 httpModule: dist/module.d.ts#httpModule
 httpNdjson: dist/procedures/http/ndjson.d.ts#httpNdjson
@@ -52,7 +57,10 @@ isHostNotAllowed: dist/policy.d.ts#isHostNotAllowed
 isPublicAddress: dist/address.d.ts#isPublicAddress
 ndjsonLines: dist/parsers.d.ts#ndjsonLines
 parseAddress: dist/address.d.ts#parseAddress
+parseCsp: dist/frame.d.ts#parseCsp
 registerHttpProcedures: dist/module.d.ts#registerHttpProcedures
+sourceAllows: dist/frame.d.ts#sourceAllows
+sourceListAllows: dist/frame.d.ts#sourceListAllows
 specialClass: dist/address.d.ts#specialClass
 sseEvents: dist/parsers.d.ts#sseEvents
 systemResolver: dist/policy.d.ts#systemResolver
@@ -126,11 +134,43 @@ export interface HttpSettings {
     readonly maxResponseBytes: number;
 }
 
+### dist/frame.d.ts#CspPolicy
+export type CspPolicy = ReadonlyMap<string, readonly string[]>;
+
+### dist/frame.d.ts#FrameOrigins
+export interface FrameOrigins {
+    readonly ancestor: string | URL;
+    readonly page: string | URL;
+}
+
+### dist/frame.d.ts#FrameRefusal
+export interface FrameRefusal {
+    readonly refused: boolean;
+    readonly by: "csp" | "x-frame-options" | null;
+    readonly detail: string;
+}
+
+### dist/frame.d.ts#HeaderSource
+export type HeaderSource = Headers | Readonly<Record<string, string | readonly string[] | undefined>>;
+
+### dist/frame.d.ts#frameRefusal
+export declare function frameRefusal(headers: HeaderSource, { ancestor, page }: FrameOrigins): FrameRefusal;
+
+### dist/frame.d.ts#parseCsp
+export declare function parseCsp(values: readonly string[]): CspPolicy[];
+
+### dist/frame.d.ts#sourceAllows
+export declare function sourceAllows(source: string, origin: string | URL, self: string | URL): boolean;
+
+### dist/frame.d.ts#sourceListAllows
+export declare function sourceListAllows(list: readonly string[], origin: string | URL, self: string | URL): boolean;
+
 ### dist/host-fetch.d.ts#HostFetch
 export type HostFetch = (url: string, init?: HostFetchInit) => Promise<HostFetchResponse>;
 
 ### dist/host-fetch.d.ts#HostFetchInit
 export interface HostFetchInit {
+    readonly method?: "GET" | "HEAD" | undefined;
     readonly headers?: Readonly<Record<string, string>> | undefined;
     readonly signal?: AbortSignal | undefined;
 }
@@ -140,6 +180,7 @@ export interface HostFetchResponse {
     readonly ok: boolean;
     readonly status: number;
     readonly url: string;
+    readonly headers: Readonly<Record<string, string | readonly string[]>>;
     text(): Promise<string>;
     json(): Promise<unknown>;
 }

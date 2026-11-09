@@ -1,5 +1,45 @@
 # @procedures/client
 
+## 0.52.4
+
+No changes in this release.
+
+## 0.52.3
+
+### Patch Changes
+
+- db1bcaa: Fixes of the weekly audit of 2026-11-08:
+  
+  - `@procedures/client`: the batch reader of the HTTP client goes on after the abort of a call with a full buffer. Before, the reader waited with no end, and the other calls of the batch waited too.
+  - `@procedures/client`: a subscriber that joins after a publish gets the new value of an object that changed and is published again. Before, it could get the text of the first publish.
+  - `@procedures/client`: a lazy registry loads no package for a request that the server refuses, or for a path outside the expose rule of the face. A lazy registry warns about at most 1000 paths that are not in its index.
+  - `@procedures/client`: an `exclude` entry with a plain dot hides a path whose segment has a dot, as the encoded key does.
+  - `@procedures/mongo`: a full answer keeps each item when the stored ids are not strings. A change stream that stops in a split event opens again before the event, and joins all its fragments.
+  - `@procedures/restic`: an `sftp:` location with a part after an `@` that starts with `-` gets a refusal.
+  - `@procedures/cli-run`: the doc of `cli.run` tells that a value that starts with `@` goes to `mark` as it is.
+
+## 0.52.2
+
+No changes in this release.
+
+## 0.52.1
+
+No changes in this release.
+
+## 0.52.0
+
+No changes in this release.
+
+## 0.51.0
+
+### Patch Changes
+
+- 0c3bfa3: A server encodes an event once for each topic, not once for each subscriber. The WebSocket and the NDJSON transports put the same text in the frame of each connection.
+  
+  Before this change, one event cost subscribers x event bytes of encode work. The text of each frame stays byte-equal to the text before this change.
+  
+  A source can publish the same object again after a change. That publish is a new event, and its frames encode the new value.
+
 ## 0.50.0
 
 ### Minor Changes

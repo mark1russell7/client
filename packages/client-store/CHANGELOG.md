@@ -1,5 +1,64 @@
 # @procedures/store
 
+## 0.52.4
+
+### Patch Changes
+
+- @procedures/client@0.52.4
+  - @procedures/collections@0.52.4
+
+## 0.52.3
+
+### Patch Changes
+
+- Updated dependencies [db1bcaa]
+  - @procedures/client@0.52.3
+  - @procedures/collections@0.52.3
+
+## 0.52.2
+
+### Patch Changes
+
+- 913fb0e: The option `pushBatch` of `HybridStorage` merges queued writes into one batch for each send (roadmap CLI-121). The push sends the run of queued sets at the head of the queue as one `setBatch`. It sends the run of deletes as one `deleteBatch`. A first sync of many writes thus makes few remote calls.
+  
+  The caps `maxItems` (default 100) and `maxBytes` (default 1 MiB of JSON) limit each send. A queued batch over the caps goes as batches within the caps. Thus a flush stays within the capacity of a remote limit, when the caps are within it. A send with a too-large error lowers the cap of ids of each later send. The new cap is n × capacity / units with the capacity of the error (option `capacityOf`), else half of n. Thus a flush is not sent again as single writes.
+  
+  A refused or conflicting merged batch goes again as its separate writes. Thus `onRefused`, `onDropped` and the conflict policy get the same writes as without the merge. Without the option, the push sends each queued write alone, as before.
+- @procedures/client@0.52.2
+  - @procedures/collections@0.52.2
+
+## 0.52.1
+
+### Patch Changes
+
+- @procedures/client@0.52.1
+  - @procedures/collections@0.52.1
+
+## 0.52.0
+
+### Minor Changes
+
+- 01a1410: `mergeFn` gets a fourth argument, `context` (roadmap CLI-109). `context.overlap(paths)` reports the paths where the merge kept only one side. The hook `onDropped` gets one call with the reason `overlap` for each report. The report holds `remote`, `base`, `merged` and `paths`. The merged write stays in the queue. `getMetadata()` counts the reports as `stats.overlaps`.
+  
+  Migration steps for the site and each app:
+  
+  - The type `DroppedWrite["reason"]` gets the value `"overlap"`. Add a case for it to each exhaustive `switch` over `reason`. Otherwise the check of `never` does not compile.
+  - An `onDropped` hook that writes the value again must skip the reason `overlap`. The merged write of an overlap is still in the queue.
+  - Code that calls a `mergeFn` itself must give a fourth argument, for example `{ overlap: () => {} }`. A merge function with two or three parameters needs no change.
+
+### Patch Changes
+
+- @procedures/client@0.52.0
+  - @procedures/collections@0.52.0
+
+## 0.51.0
+
+### Patch Changes
+
+- Updated dependencies [0c3bfa3]
+  - @procedures/client@0.51.0
+  - @procedures/collections@0.51.0
+
 ## 0.50.0
 
 ### Patch Changes

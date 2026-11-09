@@ -1,0 +1,38 @@
+name: Start MongoDB 7
+description: This action starts MongoDB 7 in Docker on port 27017 and waits for it.
+
+inputs:
+  topology:
+    description: The topology, single-server or replica-set. A replica set has one node.
+    default: replica-set
+  test-commands:
+    description: The value 1 turns on the test commands of a replica set, for the failpoint tests.
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        TOPOLOGY: ${{ inputs.topology }}
+        TEST_COMMANDS: ${{ inputs.test-commands }}
+      run: |
+        if [ "$TOPOLOGY" = "replica-set" ]; then
+          args=(--replSet rs0 --bind_ip_all)
+          if [ "$TEST_COMMANDS" = "1" ]; then args+=(--setParameter enableTestCommands=1); fi
+          docker run -d --name mongo -p 27017:27017 mongo:7 "${args[@]}"
+        else
+          docker run -d --name mongo -p 27017:27017 mongo:7
+        fi
+        for i in $(seq 1 60); do
+          docker exec mongo mongosh --quiet --eval "db.adminCommand('ping').ok" >/dev/null 2>&1 && break
+          sleep 1
+        done
+        if [ "$TOPOLOGY" = "replica-set" ]; then
+          docker exec mongo mongosh --quiet --eval "rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] })"
+          for i in $(seq 1 60); do
+            [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ] && break
+            sleep 1
+          done
+          [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ]
+        fi

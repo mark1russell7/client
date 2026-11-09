@@ -1,0 +1,13 @@
+name: The tools of the store gate
+description: This action installs Node, pnpm and the dependencies of the benches of the store.
+
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: 24
+        cache: pnpm
+    - shell: bash
+      run: pnpm install --frozen-lockfile --filter mark1russell7-monorepo --filter "@procedures/mongo..."
