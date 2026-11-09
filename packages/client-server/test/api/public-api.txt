@@ -59,12 +59,14 @@ type ServerCreateInput: dist/types.d.ts#ServerCreateInput
 type ServerCreateOutput: dist/types.d.ts#ServerCreateOutput
 type ServerDisconnectInput: dist/types.d.ts#ServerDisconnectInput
 type ServerDisconnectOutput: dist/types.d.ts#ServerDisconnectOutput
+type StaticFaceOptions: dist/host/static-face.d.ts#StaticFaceOptions
 type TransportConfig: dist/types.d.ts#TransportConfig
 type TransportType: dist/types.d.ts#TransportType
 type WebSocketTransportConfig: dist/types.d.ts#WebSocketTransportConfig
 type WsFaceOptions: dist/host/faces.d.ts#WsFaceOptions
 callOperations: dist/host/tracking.d.ts#callOperations
 connect: dist/connection/index.d.ts#connect
+contentTypeOf: dist/host/static-face.d.ts#contentTypeOf
 createPeer: dist/peer/index.d.ts#createPeer
 createProcedureHost: dist/host/index.d.ts#createProcedureHost
 disconnect: dist/connection/index.d.ts#disconnect
@@ -90,6 +92,7 @@ registerServerProcedures: dist/module.d.ts#registerServerProcedures
 serverConnectProcedure: dist/procedures/server.connect.d.ts#serverConnectProcedure
 serverCreateProcedure: dist/procedures/server.create.d.ts#serverCreateProcedure
 serverDisconnectProcedure: dist/procedures/server.disconnect.d.ts#serverDisconnectProcedure
+staticFace: dist/host/static-face.d.ts#staticFace
 watchProcedures: dist/discovery/index.d.ts#watchProcedures
 wsFace: dist/host/faces.d.ts#wsFace
 
@@ -393,6 +396,20 @@ export interface LocalFace {
 
 ### dist/host/local-face.d.ts#localFace
 export declare function localFace(): LocalFace;
+
+### dist/host/static-face.d.ts#StaticFaceOptions
+export interface StaticFaceOptions {
+    readonly root: string;
+    readonly basePath?: string | undefined;
+    readonly fallback?: string | false | undefined;
+    readonly headers?: Readonly<Record<string, string>> | undefined;
+}
+
+### dist/host/static-face.d.ts#contentTypeOf
+export declare function contentTypeOf(path: string): string;
+
+### dist/host/static-face.d.ts#staticFace
+export declare function staticFace(options: StaticFaceOptions): HostFaceFactory;
 
 ### dist/host/tracking.d.ts#CallDetail
 export interface CallDetail {

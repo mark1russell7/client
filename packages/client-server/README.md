@@ -108,6 +108,7 @@ This package depends on:
 - `zod` - Schema validation
 - `zod-to-json-schema` - JSON schema generation
 - `@mark1russell7/service` - The runner: the contracts of the parts, and `httpTransport` of `./http`
+- `@mark1russell7/files` - The containment check of the paths of `staticFace()`
 
 ## Usage
 
@@ -192,6 +193,31 @@ const host = createProcedureHost({
 - **`narrowing`** (`CapabilityRequest` or a list of them): a narrower capability for each call of the face, as `mcpFace({ narrowing })` (CLI-43). The face adds it as one more source of the narrowing key (CLI-30). The server applies the meet of all the sources, so a `Procedure-Narrowing` header of the page cannot make the face wider. The nested calls of a call get the narrowed capability. Thus `client.chain` and a program of `procedure.define` cannot write through the face. A narrowing that is not valid stops the host with an error.
 - **`expose`** (a list of patterns, a tool surface or a function): the procedures that the callers of the face reach, as `hostPolicy({ expose })`. The server meets it with the expose rule of the host, for the call and for each nested call. A call outside it gets `NOT_FOUND`, and a nested call of a data-driven procedure outside it gets `NOT_EXPOSED`. The rule applies to each procedure, also to `host.health`, `host.info`, `host.metrics` and `events.subscribe`.
 - A face without these options serves the same calls as before. The option objects of `faces.http` and `faces.ws` take them too.
+
+### The built files of a page
+
+`staticFace()` serves the files of a folder, for example the `dist` folder of a Vite build. Thus an app with a page needs only the one listener of its host.
+
+```typescript
+import { createProcedureHost, staticFace, LOCAL_LISTENER_KNOBS } from "@procedures/peer";
+
+const host = createProcedureHost({
+  registry,
+  faces: {
+    http: true,
+    ws: true,
+    page: staticFace({ root: "dist", headers: { "Content-Security-Policy": "default-src 'self'" } }),
+  },
+  listen: [{ port: 3000, knobs: LOCAL_LISTENER_KNOBS }],
+});
+```
+
+- Put the face last. The first face that takes a request serves it, so the procedure faces keep their paths.
+- The face takes each `GET` and `HEAD` request under its `basePath` (default `/`).
+- Each path stays in `root`. A path that leaves it, also through a symbolic link, gets 404.
+- A folder gives its `index.html`. A path with no file and no extension is a route of the page. A request that accepts `text/html` gets the `fallback` file (default `index.html`). Another request, for example a probe, gets 404. With `fallback: false`, each route gets 404.
+- Each response has the `headers` of the options and `X-Content-Type-Options: nosniff`. A file has an `ETag`, and the same tag in `If-None-Match` gets 304.
+- The request tracking of the host tracks each request, so the drain of a stop waits for it.
 
 ### Creating a Server Peer
 
