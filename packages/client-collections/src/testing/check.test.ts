@@ -15,6 +15,13 @@ function caseOf(create: () => ContractStorage, start: string): ContractCase {
   return found;
 }
 
+/** The rejection of a case. A case that passes fails the test. */
+async function failureOf(contractCase: ContractCase): Promise<AssertionError> {
+  const error = await contractCase.run().then(() => undefined, (reason: unknown) => reason);
+  expect(error).toBeInstanceOf(AssertionError);
+  return error as AssertionError;
+}
+
 describe("the contract suite finds a broken storage", () => {
   it("a delete() that always gives true", async () => {
     class Broken extends InMemoryStorage<ContractItem> {
@@ -23,7 +30,9 @@ describe("the contract suite finds a broken storage", () => {
         return true;
       }
     }
-    await expect(caseOf(() => new Broken(), "an empty storage").run()).rejects.toMatchObject({ message: "delete() of a missing id", actual: true, expected: false });
+    const failure = await failureOf(caseOf(() => new Broken(), "an empty storage"));
+    expect(failure.message).toBe("delete() of a missing id");
+    expect([failure.actual, failure.expected]).toEqual([true, false]);
   });
 
   it("a getAll() in another order", async () => {
@@ -56,7 +65,9 @@ describe("the contract suite finds a broken storage", () => {
         return (await super.get(id)) ?? undefined;
       }
     }
-    await expect(caseOf(() => new Broken(), "the storage keeps JSON values").run()).rejects.toMatchObject({ message: 'get("null")', actual: undefined, expected: null });
+    const failure = await failureOf(caseOf(() => new Broken(), "the storage keeps JSON values"));
+    expect(failure.message).toBe('get("null")');
+    expect([failure.actual, failure.expected]).toEqual([undefined, null]);
   });
 
   it("a delta in the order of the first write of each id", async () => {
