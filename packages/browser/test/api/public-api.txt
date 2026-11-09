@@ -1,0 +1,148 @@
+# The public API of @procedures/browser
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The command `api-report check` compares this file with the built .d.ts files.
+# To accept a change of the API, start the build, then `api-report update`, and review the diff.
+
+## . (dist/index.d.ts): names
+
+BROWSER_ENV: dist/browser.d.ts#BROWSER_ENV
+BROWSER_NAMES: dist/browser.d.ts#BROWSER_NAMES
+CHROME_PATH_ENV: dist/browser.d.ts#CHROME_PATH_ENV
+type CommandRunner: dist/run.d.ts#CommandRunner
+DEFAULT_SCREENSHOT_SIZE: dist/screenshot.d.ts#DEFAULT_SCREENSHOT_SIZE
+DEFAULT_TIMEOUT_MS: dist/run.d.ts#DEFAULT_TIMEOUT_MS
+FindBrowserOptions: dist/browser.d.ts#FindBrowserOptions
+type HeadlessOptions: dist/run.d.ts#HeadlessOptions
+MAX_SCREENSHOT_SIDE: dist/screenshot.d.ts#MAX_SCREENSHOT_SIDE
+type RenderPdfOptions: dist/pdf.d.ts#RenderPdfOptions
+type RenderPdfResult: dist/pdf.d.ts#RenderPdfResult
+type RenderResult: dist/run.d.ts#RenderResult
+RenderScreenshotOptions: dist/screenshot.d.ts#RenderScreenshotOptions
+RenderScreenshotResult: dist/screenshot.d.ts#RenderScreenshotResult
+SCREENSHOT_EXTENSIONS: dist/screenshot.d.ts#SCREENSHOT_EXTENSIONS
+ScreenshotFormat: dist/screenshot.d.ts#ScreenshotFormat
+ScreenshotSize: dist/screenshot.d.ts#ScreenshotSize
+WINDOWS_BROWSER_NAMES: dist/browser.d.ts#WINDOWS_BROWSER_NAMES
+browserCandidates: dist/browser.d.ts#browserCandidates
+findBrowser: dist/browser.d.ts#findBrowser
+isImageFile: dist/screenshot.d.ts#isImageFile
+isPdfFile: dist/pdf.d.ts#isPdfFile
+pdfArgs: dist/pdf.d.ts#pdfArgs
+renderPdf: dist/pdf.d.ts#renderPdf
+renderScreenshot: dist/screenshot.d.ts#renderScreenshot
+screenshotArgs: dist/screenshot.d.ts#screenshotArgs
+screenshotFormatOf: dist/screenshot.d.ts#screenshotFormatOf
+
+## Declarations
+
+### dist/browser.d.ts#BROWSER_ENV
+export declare const BROWSER_ENV = "PDF_BROWSER";
+
+### dist/browser.d.ts#BROWSER_NAMES
+export declare const BROWSER_NAMES: readonly string[];
+
+### dist/browser.d.ts#CHROME_PATH_ENV
+export declare const CHROME_PATH_ENV = "CHROME_PATH";
+
+### dist/browser.d.ts#FindBrowserOptions
+export interface FindBrowserOptions {
+    readonly executable?: string | undefined;
+    readonly env?: Readonly<Record<string, string | undefined>> | undefined;
+    readonly platform?: NodeJS.Platform | undefined;
+    readonly exists?: ((path: string) => boolean) | undefined;
+}
+
+### dist/browser.d.ts#WINDOWS_BROWSER_NAMES
+export declare const WINDOWS_BROWSER_NAMES: readonly string[];
+
+### dist/browser.d.ts#browserCandidates
+export declare function browserCandidates(platform: NodeJS.Platform, env: Readonly<Record<string, string | undefined>>): string[];
+
+### dist/browser.d.ts#findBrowser
+export declare function findBrowser(options?: FindBrowserOptions): string | undefined;
+
+### dist/pdf.d.ts#RenderPdfOptions
+export interface RenderPdfOptions extends HeadlessOptions {
+    readonly html?: string | undefined;
+    readonly file?: string | undefined;
+}
+
+### dist/pdf.d.ts#RenderPdfResult
+export type RenderPdfResult = RenderResult;
+
+### dist/pdf.d.ts#isPdfFile
+export declare function isPdfFile(path: string): boolean;
+
+### dist/pdf.d.ts#pdfArgs
+export declare function pdfArgs(page: string, output: string, profile: string, extra?: readonly string[]): string[];
+
+### dist/pdf.d.ts#renderPdf
+export declare function renderPdf(options: RenderPdfOptions): Promise<RenderPdfResult>;
+
+### dist/run.d.ts#CommandRunner
+export type CommandRunner = (command: string, options: CommandOptions) => Promise<CommandResult>;
+
+### dist/run.d.ts#DEFAULT_TIMEOUT_MS
+export declare const DEFAULT_TIMEOUT_MS = 60000;
+
+### dist/run.d.ts#HeadlessOptions
+export interface HeadlessOptions extends FindBrowserOptions {
+    readonly output?: string | undefined;
+    readonly args?: readonly string[] | undefined;
+    readonly timeout?: number | undefined;
+    readonly signal?: AbortSignal | undefined;
+    readonly runner?: CommandRunner | undefined;
+}
+
+### dist/run.d.ts#RenderResult
+export interface RenderResult {
+    readonly path: string;
+    readonly bytes: number;
+    readonly browser: string;
+}
+
+### dist/screenshot.d.ts#DEFAULT_SCREENSHOT_SIZE
+export declare const DEFAULT_SCREENSHOT_SIZE: ScreenshotSize;
+
+### dist/screenshot.d.ts#MAX_SCREENSHOT_SIDE
+export declare const MAX_SCREENSHOT_SIDE = 16384;
+
+### dist/screenshot.d.ts#RenderScreenshotOptions
+export interface RenderScreenshotOptions extends HeadlessOptions {
+    readonly url?: string | undefined;
+    readonly html?: string | undefined;
+    readonly file?: string | undefined;
+    readonly format?: ScreenshotFormat | undefined;
+    readonly size?: ScreenshotSize | undefined;
+    readonly budget?: number | undefined;
+}
+
+### dist/screenshot.d.ts#RenderScreenshotResult
+export interface RenderScreenshotResult extends RenderResult {
+    readonly format: ScreenshotFormat;
+}
+
+### dist/screenshot.d.ts#SCREENSHOT_EXTENSIONS
+export declare const SCREENSHOT_EXTENSIONS: Readonly<Record<ScreenshotFormat, string>>;
+
+### dist/screenshot.d.ts#ScreenshotFormat
+export type ScreenshotFormat = "png" | "jpeg" | "webp";
+
+### dist/screenshot.d.ts#ScreenshotSize
+export interface ScreenshotSize {
+    readonly width: number;
+    readonly height: number;
+}
+
+### dist/screenshot.d.ts#isImageFile
+export declare function isImageFile(path: string, format: ScreenshotFormat): boolean;
+
+### dist/screenshot.d.ts#renderScreenshot
+export declare function renderScreenshot(options: RenderScreenshotOptions): Promise<RenderScreenshotResult>;
+
+### dist/screenshot.d.ts#screenshotArgs
+export declare function screenshotArgs(page: string, output: string, profile: string, size: ScreenshotSize, budget?: number, extra?: readonly string[]): string[];
+
+### dist/screenshot.d.ts#screenshotFormatOf
+export declare function screenshotFormatOf(output?: string, format?: ScreenshotFormat): ScreenshotFormat;

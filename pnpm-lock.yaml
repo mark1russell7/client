@@ -185,11 +185,11 @@ importers:
         specifier: ^0.2.0
         version: 0.2.1(@swc/core@1.16.22)(dependency-cruiser@18.7.2)
       '@mark1russell7/conventions':
-        specifier: ^0.38.5
-        version: 0.38.5
+        specifier: ^0.40.2
+        version: 0.40.2
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@mark1russell7/rigor-bench':
         specifier: ^0.2.33
         version: 0.2.33(esbuild@0.28.2)
@@ -235,7 +235,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -263,7 +263,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -294,10 +294,29 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       mongodb:
         specifier: ^7.7.0
         version: 7.8.0(socks@2.8.10)
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.3
+        version: 5.1.0(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(@vitest/coverage-v8@5.1.0)(vite@6.4.5(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))
+
+  packages/browser:
+    dependencies:
+      '@procedures/shell':
+        specifier: workspace:*
+        version: link:../client-shell
+    devDependencies:
+      '@mark1russell7/cue':
+        specifier: ^2.1.1
+        version: 2.1.2
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -334,7 +353,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -377,7 +396,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -423,7 +442,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -448,7 +467,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -473,7 +492,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -525,7 +544,7 @@ importers:
         version: 0.5.0
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@mark1russell7/otel-ts':
         specifier: ^0.6.0
         version: 0.6.0(@opentelemetry/sdk-node@0.223.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0))(supports-color@7.2.0)(vite@6.4.5(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))(zone.js@0.16.3)
@@ -598,7 +617,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -620,7 +639,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -635,7 +654,7 @@ importers:
     dependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -673,7 +692,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -698,7 +717,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -723,7 +742,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -751,7 +770,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -794,7 +813,7 @@ importers:
         version: 0.40.2
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -822,7 +841,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@mark1russell7/service':
         specifier: ^0.8.3
         version: 0.8.3(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
@@ -865,7 +884,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@mark1russell7/rigor-bench':
         specifier: ^0.2.33
         version: 0.2.33(esbuild@0.28.2)
@@ -908,7 +927,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -933,7 +952,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -958,7 +977,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -983,7 +1002,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1014,7 +1033,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1045,7 +1064,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@modelcontextprotocol/sdk':
         specifier: ^1.32.1
         version: 1.32.2(supports-color@7.2.0)(zod@4.6.7)
@@ -1082,7 +1101,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1125,7 +1144,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1150,7 +1169,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1175,7 +1194,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@procedures/collections':
         specifier: workspace:*
         version: link:../client-collections
@@ -1212,7 +1231,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1246,7 +1265,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1280,7 +1299,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1302,7 +1321,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       fast-check:
         specifier: ^4.10.2
         version: 4.10.2
@@ -1317,7 +1336,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1339,7 +1358,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1361,7 +1380,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1386,7 +1405,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1411,7 +1430,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1436,7 +1455,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1461,7 +1480,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1495,7 +1514,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1517,7 +1536,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1548,7 +1567,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2
@@ -1582,7 +1601,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1607,7 +1626,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1677,7 +1696,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@mark1russell7/otel-ts':
         specifier: ^0.6.0
         version: 0.6.0(@opentelemetry/sdk-node@0.223.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0))(supports-color@7.2.0)(vite@6.4.5(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))(zone.js@0.16.3)
@@ -1839,7 +1858,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1864,7 +1883,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1889,7 +1908,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1902,19 +1921,22 @@ importers:
 
   packages/pdf:
     dependencies:
+      '@procedures/browser':
+        specifier: workspace:*
+        version: link:../browser
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
-      '@procedures/shell':
-        specifier: workspace:*
-        version: link:../client-shell
       zod:
         specifier: ^4.6.5
         version: 4.6.7
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
+      '@procedures/shell':
+        specifier: workspace:*
+        version: link:../client-shell
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1939,7 +1961,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1967,7 +1989,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1995,7 +2017,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@mark1russell7/service':
         specifier: ^0.8.3
         version: 0.8.3(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
@@ -2026,7 +2048,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -2051,7 +2073,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@procedures/store':
         specifier: workspace:*
         version: link:../client-store
@@ -2094,7 +2116,7 @@ importers:
         version: 4.14.0(playwright-core@1.65.0)
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@mark1russell7/site-pages':
         specifier: ^0.4.3
         version: 0.4.3
@@ -2113,6 +2135,9 @@ importers:
       '@procedures/better-auth':
         specifier: workspace:*
         version: link:../better-auth
+      '@procedures/browser':
+        specifier: workspace:*
+        version: link:../browser
       '@procedures/bundle-assistant':
         specifier: workspace:*
         version: link:../bundle-assistant
@@ -2302,7 +2327,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -2324,7 +2349,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -2349,7 +2374,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.3
+        version: 2.1.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -3512,8 +3537,8 @@ packages:
     engines: {node: '>=22'}
     hasBin: true
 
-  '@mark1russell7/cue@2.1.3':
-    resolution: {integrity: sha512-CeQu2WZKGHjkZxjJ/bY60QiNYlfsDfrKwZfBeOmZSvOmEZlWRa8KlLtJ0mufNJ+pEogvfq+MB10JejCMyRH/Iw==}
+  '@mark1russell7/cue@2.1.2':
+    resolution: {integrity: sha512-PjEWeyq353cz3gZyNmYkv/rUChybd3h9BWRW3UWP+fs0s7/CwGeVRzCpYLnvLR4gyHC367G/PS3kqWJO9GEAkg==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -7415,7 +7440,7 @@ snapshots:
     dependencies:
       yaml: 2.9.1
 
-  '@mark1russell7/cue@2.1.3': {}
+  '@mark1russell7/cue@2.1.2': {}
 
   '@mark1russell7/docker-sqlite@0.3.0':
     dependencies:
