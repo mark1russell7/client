@@ -95,6 +95,7 @@ import {
 } from "./document-storage.js";
 import { SAME_TOKEN_LIMIT, SPLIT_LARGE_EVENT_STAGE, UNKNOWN_STAGE_CODE, eventJoiner, sameTokenFaults } from "./split-events.js";
 import { trackOwnNumbers, type OwnNumbers } from "./own-writes.js";
+import { tokenAge } from "./token-age.js";
 
 /** The change of one item of a change event of a `MongoDocumentStorage` collection, from `storageChangeOf()`. */
 export interface StorageChange {
@@ -231,6 +232,11 @@ export interface StorageChangesWatch {
    * opens the stream again after the other errors.
    */
   readonly ready: Promise<void>;
+  /**
+   * The milliseconds of the clock since the resume token of the stream last moved to a later cluster time, or since the start
+   * before the first move. The same cluster time again does not move it. A large value on an open watcher tells a stalled feed (roadmap CLI-110).
+   */
+  readonly tokenAgeMs: number;
   /** This method stops the watcher: it closes the stream and cancels the timer of a backoff. */
   stop(): Promise<void>;
 }
@@ -493,6 +499,12 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
   let stopped = false;
   let stream: ChangeStream | undefined;
   let token: unknown;
+  const age = tokenAge(clock);
+  /** This function sets the token of the watcher, and notes it for `tokenAgeMs`. */
+  const setToken = (next: unknown): void => {
+    token = next;
+    age.note(next);
+  };
   /** True after a stream was open: a new stream without a token can then miss changes. */
   let opened = false;
   let attempt = 0;
@@ -838,7 +850,7 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
   };
 
   const onChange = (change: Document): void => {
-    token = change["_id"];
+    setToken(change["_id"]);
     attempt = 0;
     faults.reset();
     const type = change["operationType"];
@@ -982,7 +994,7 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
       if (!joiner.partial) {
         // The driver gives the token of a document before its change: fragment 1 puts the token back (audit 2026-11-08)
         tokenBefore = token;
-        token = resumeToken;
+        setToken(resumeToken);
       }
       opened = true;
       if (JSON.stringify(resumeToken) !== openToken) attempt = 0;
@@ -998,17 +1010,18 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
       const result = joiner.push(change);
       if (result.kind === "part") {
         // The first fragment of a split event: the token goes back to the token before the event
+        // The token goes back with no note for `tokenAgeMs`: the age keeps the latest token that moved it
         if ((change["splitEvent"] as { fragment?: unknown } | undefined)?.fragment === 1) token = tokenBefore;
         return;
       }
       if (result.kind === "missing") {
         // The stream started after a fragment: the event cannot be read, so the subscribers read the collection in full
-        token = result.change["_id"];
+        setToken(result.change["_id"]);
         return gap(`a split event of ${source.collection} came without its first ${result.missing} fragments`, { missing: result.missing, resumeToken: true });
       }
       if (result.change["operationType"] === "invalidate") {
         // The collection was dropped or renamed: the stream starts after the invalidate event
-        token = result.change["_id"];
+        setToken(result.change["_id"]);
         return end("ended (invalidate)");
       }
       onChange(result.change);
@@ -1022,6 +1035,9 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
 
   return {
     ready,
+    get tokenAgeMs(): number {
+      return age.ageMs();
+    },
     async stop(): Promise<void> {
       if (stopped) return;
       stopped = true;
