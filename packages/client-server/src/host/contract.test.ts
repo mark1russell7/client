@@ -60,6 +60,8 @@ async function hostOf(spec: ContractSpec, type: FaceType, connect: (address: str
       events: spec.events,
       ...(spec.token !== undefined && { token: spec.token }),
       ...(spec.principalOf !== undefined && { principalOf: spec.principalOf }),
+      // The limits of the calls come from the policy of the host (CLI-40)
+      ...(spec.limits !== undefined && { limits: spec.limits }),
     }),
     serverOptions: {
       ...(spec.errors !== undefined && { errors: spec.errors }),

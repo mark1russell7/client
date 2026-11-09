@@ -495,6 +495,10 @@ export class McpServerTransport implements ServerTransport {
         const reason = typeof response.metadata?.["reason"] === "string" ? response.metadata["reason"] : undefined;
         const wait = response.metadata?.["retry-after"];
         const retryAfterMs = typeof wait === "number" && Number.isFinite(wait) && wait >= 0 ? wait : undefined;
+        // The units and the capacity of a refusal for its size (roadmap CLI-122)
+        const units = response.metadata?.["units"];
+        const capacity = response.metadata?.["capacity"];
+        const sized = typeof units === "number" && typeof capacity === "number" && Number.isFinite(units) && Number.isFinite(capacity);
         return {
           content: [
             {
@@ -508,6 +512,7 @@ export class McpServerTransport implements ServerTransport {
             retryable: response.status.retryable === true,
             ...(reason ? { reason } : {}),
             ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
+            ...(sized ? { units, capacity } : {}),
           },
         };
       }

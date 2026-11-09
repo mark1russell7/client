@@ -44,6 +44,7 @@ import type { CollectionStorage } from "../procedures/collection/storage.js";
 import type { ProcedureRegistry } from "../procedures/registry.js";
 import type { PrincipalOf } from "../server/types.js";
 import type { ServerErrorPolicy } from "../server/error-policy.js";
+import type { CallLimit } from "../server/limits.js";
 import type { EventPublisherOptions } from "../events/publisher.js";
 import type { EventTransport } from "../events/remote.js";
 import type { Transport } from "../client/types.js";
@@ -131,6 +132,8 @@ export interface ContractSpec {
   readonly onError?: ((error: Error) => void) | undefined;
   /** The size limit of a request, in bytes, for a face with `sizeLimit`. */
   readonly sizeLimit?: number | undefined;
+  /** The limits of the calls of the server (`ProcedureServerOptions.limits`). Only a face with `server` gets them. */
+  readonly limits?: readonly CallLimit[] | undefined;
 }
 
 /** The options of one call of a caller. */
@@ -461,6 +464,22 @@ export function describeTransportContract(face: ContractFace, runner: ContractRu
       expect(await errorOf(itemsOf(caller.stream(["contract", "failStream"], { code: "ECONNREFUSED" })))).toMatchObject({ code: "INTERNAL_ERROR", message: "internal error" });
       // The server gives each hidden error to its logger
       expect(logged.length).toBeGreaterThanOrEqual(3);
+    });
+
+    it.skipIf(!caps.server)("refuses a call over the capacity of a limit with PAYLOAD_TOO_LARGE, the units and the capacity (CLI-122)", async () => {
+      // Each call costs 13 units, over the burst of 12: no wait lets it in, and the procedure does not run
+      const limit: CallLimit = {
+        name: "contract.capacity",
+        key: "route",
+        policy: { type: "token-bucket", rate: { value: 1, unit: "count/s" }, burst: { value: 12, unit: "count" } },
+        store: { kind: "local" },
+        evict: { maxKeys: { value: 10, unit: "count" } },
+        cost: 13,
+      };
+      const caller = await start(fresh(), { limits: [limit] });
+      const error = await errorOf(caller.call(["contract", "fail"], { code: "E_APP" }));
+      expect(error).toMatchObject({ code: "PAYLOAD_TOO_LARGE", retryable: false });
+      if (caps.errorMetadata) expect(error.metadata).toMatchObject({ reason: "capacity", units: 13, capacity: 12 });
     });
 
     it("gives VERSION_CONFLICT, and the conflicts when the caller gets the metadata of an error (CLI-16)", async () => {

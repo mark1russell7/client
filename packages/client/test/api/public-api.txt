@@ -6389,6 +6389,7 @@ export interface CallLimit {
     readonly policy: LimitPolicy;
     readonly store: LimiterStoreSpec;
     readonly evict: LimiterEviction;
+    readonly cost?: number | ((call: LimitedCall) => number) | undefined;
 }
 
 ### dist/server/limits.d.ts#CallLimitCovers
@@ -6870,6 +6871,7 @@ export interface ContractSpec {
     readonly errors?: ServerErrorPolicy | undefined;
     readonly onError?: ((error: Error) => void) | undefined;
     readonly sizeLimit?: number | undefined;
+    readonly limits?: readonly CallLimit[] | undefined;
 }
 
 ### dist/testing/transport-contract.d.ts#clientCaller
