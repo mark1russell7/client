@@ -182,6 +182,17 @@ console.log(names.length + " packages import and register nothing, " + ${JSON.st
     );
     process.stdout.write(`  ok   ${run("node", ["smoke.mjs"], app)}`);
 
+    // One copy of service (CLI-117). Service keys some state by object identity (a lifecycle, an
+    // HTTP answer), so a package that passes such a value has service as a peer. The install then
+    // gives that package the copy of the app, and no copy of its own.
+    const service = "@mark1russell7/service";
+    for (const pkg of packages.filter((p) => p.manifest.peerDependencies?.[service] !== undefined)) {
+      const own = join(app, "node_modules", ...pkg.name.split("/"), "node_modules", ...service.split("/"));
+      if (existsSync(own)) fail(`${pkg.name}: the install gave it its own copy of ${service}, so the app and the package do not share its state`);
+      else if (!existsSync(join(app, "node_modules", ...service.split("/")))) fail(`${pkg.name}: the install has no ${service} for its peer`);
+      else console.log(`  ok   ${pkg.name} uses the one copy of ${service}`);
+    }
+
     // The bins start
     for (const pkg of packages) {
       for (const [bin, path] of Object.entries(pkg.bin)) {

@@ -196,6 +196,9 @@ importers:
       '@mark1russell7/rigor-statistics':
         specifier: ^0.1.2
         version: 0.1.25
+      '@mark1russell7/service':
+        specifier: ^0.8.3
+        version: 0.8.3(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
       '@mark1russell7/ste-lint':
         specifier: ^0.3.0
         version: 0.3.0
@@ -1055,9 +1058,6 @@ importers:
       '@mark1russell7/files':
         specifier: ^0.0.2
         version: 0.0.2
-      '@mark1russell7/service':
-        specifier: ^0.8.3
-        version: 0.8.3(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1068,6 +1068,9 @@ importers:
       '@mark1russell7/cue':
         specifier: ^2.1.1
         version: 2.1.2
+      '@mark1russell7/service':
+        specifier: ^0.8.3
+        version: 0.8.3(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
       '@modelcontextprotocol/sdk':
         specifier: ^1.32.1
         version: 1.32.2(supports-color@7.2.0)(zod@4.6.7)
@@ -1496,9 +1499,6 @@ importers:
 
   packages/impl-mcp-dev:
     dependencies:
-      '@mark1russell7/service':
-        specifier: ^0.8.3
-        version: 0.8.3(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
       '@procedures/bundle-mcp':
         specifier: workspace:*
         version: link:../bundle-mcp
@@ -1518,6 +1518,9 @@ importers:
       '@mark1russell7/cue':
         specifier: ^2.1.1
         version: 2.1.2
+      '@mark1russell7/service':
+        specifier: ^0.8.3
+        version: 0.8.3(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -2036,9 +2039,6 @@ importers:
 
   packages/server:
     dependencies:
-      '@mark1russell7/service':
-        specifier: ^0.8.3
-        version: 0.8.3(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -2052,6 +2052,9 @@ importers:
       '@mark1russell7/cue':
         specifier: ^2.1.1
         version: 2.1.2
+      '@mark1russell7/service':
+        specifier: ^0.8.3
+        version: 0.8.3(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -7414,7 +7417,7 @@ snapshots:
 
   '@mark1russell7/algebra@0.8.3(zod@4.6.7)':
     dependencies:
-      '@mark1russell7/quantity': 0.3.0(zod@4.6.7)
+      '@mark1russell7/quantity': 0.3.3(zod@4.6.7)
     optionalDependencies:
       zod: 4.6.7
 
