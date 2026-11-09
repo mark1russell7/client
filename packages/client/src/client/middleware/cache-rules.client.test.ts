@@ -390,6 +390,12 @@ describe("the cache: statistics and options", () => {
     expect(stats[1]).toEqual({ hits: 1, misses: 2, size: 1, evictions: 1, hitRate: 33.33 });
   });
 
+  it("refuses a capacity that is not a positive whole number", () => {
+    for (const capacity of [0, -1, 1.5, Number.NaN, Infinity]) {
+      expect(() => createCacheMiddleware({ methods: ["users.get"], capacity })).toThrow(RangeError);
+    }
+  });
+
   it("counts the response of a call in flight as a hit", async () => {
     vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
     const stats: CacheStats[] = [];
