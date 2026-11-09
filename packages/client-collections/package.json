@@ -71,7 +71,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@mark1russell7/collections": "^0.5.0",
+    "@mark1russell7/collections": "^0.10.0",
     "@procedures/client": "workspace:*"
   },
   "devDependencies": {
