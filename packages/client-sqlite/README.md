@@ -527,7 +527,7 @@ The storage has two SQLite engines. The option `engine` selects one.
 - The two engines use the same file format. A file that one engine writes opens with the other engine, with its items and its versions.
 - `getEngine()` gives the engine of the storage. `getMetadata()` gives it in `stats.engine`. `isNodeSqliteAvailable()` tells if this Node.js has `node:sqlite`.
 
-The nightly benchmarks (`bench/storage.bench.ts`) measure the two engines in a file. These are the mean times of one CI run with Node.js 26 on Linux:
+The nightly benchmarks (`bench/storage.bench.ts`) measure the two engines in a file. These are the mean times from [the nightly CI of 2026-10-17](https://github.com/mark1russell7/client/actions/runs/38994273238), on the code of commit `89481b05` (`@procedures/sqlite` 0.4.0), with Node.js 26 on Linux. The numbers are of that commit. A later version can give different numbers:
 
 | The benchmark | `node` | `sqljs` |
 |---|---|---|

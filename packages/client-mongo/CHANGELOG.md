@@ -1,5 +1,44 @@
 # @procedures/mongo
 
+## 0.52.4
+
+### Patch Changes
+
+- @procedures/client@0.52.4
+  - @procedures/collections@0.52.4
+
+## 0.52.3
+
+### Patch Changes
+
+- db1bcaa: Fixes of the weekly audit of 2026-11-08:
+  
+  - `@procedures/client`: the batch reader of the HTTP client goes on after the abort of a call with a full buffer. Before, the reader waited with no end, and the other calls of the batch waited too.
+  - `@procedures/client`: a subscriber that joins after a publish gets the new value of an object that changed and is published again. Before, it could get the text of the first publish.
+  - `@procedures/client`: a lazy registry loads no package for a request that the server refuses, or for a path outside the expose rule of the face. A lazy registry warns about at most 1000 paths that are not in its index.
+  - `@procedures/client`: an `exclude` entry with a plain dot hides a path whose segment has a dot, as the encoded key does.
+  - `@procedures/mongo`: a full answer keeps each item when the stored ids are not strings. A change stream that stops in a split event opens again before the event, and joins all its fragments.
+  - `@procedures/restic`: an `sftp:` location with a part after an `@` that starts with `-` gets a refusal.
+  - `@procedures/cli-run`: the doc of `cli.run` tells that a value that starts with `@` goes to `mark` as it is.
+- Updated dependencies [db1bcaa]
+  - @procedures/client@0.52.3
+  - @procedures/collections@0.52.3
+
+## 0.52.2
+
+### Patch Changes
+
+- @procedures/client@0.52.2
+  - @procedures/collections@0.52.2
+
+## 0.52.1
+
+### Patch Changes
+
+- c5a444c: The README tells the date, the commit and the version of each measured number. These numbers are the compile cache of `mark`, the write limit of `MongoDocumentStorage` and the benchmarks of `SqliteStorage`.
+- @procedures/client@0.52.1
+  - @procedures/collections@0.52.1
+
 ## 0.52.0
 
 ### Patch Changes

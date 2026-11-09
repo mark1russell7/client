@@ -9,6 +9,8 @@
 HOST_PROFILES: dist/host.d.ts#HOST_PROFILES
 type HostIdle: dist/idle.d.ts#HostIdle
 type HostRunMode: dist/host.d.ts#HostRunMode
+type HostTelemetry: dist/host.d.ts#HostTelemetry
+type HostTelemetryOptions: dist/host.d.ts#HostTelemetryOptions
 IDLE_POLL_MS: dist/idle.d.ts#IDLE_POLL_MS
 type MarkServerSpawn: dist/procedures/server.start.d.ts#MarkServerSpawn
 type ProcedureHostRunConfig: dist/host.d.ts#ProcedureHostRunConfig
@@ -28,6 +30,7 @@ type ServerStopInput: dist/types.d.ts#ServerStopInput
 type ServerStopOutput: dist/types.d.ts#ServerStopOutput
 ServerStopOutputSchema: dist/schemas.d.ts#ServerStopOutputSchema
 type SpawnedMarkServer: dist/procedures/server.start.d.ts#SpawnedMarkServer
+TELEMETRY_FLUSH_PHASE: dist/host.d.ts#TELEMETRY_FLUSH_PHASE
 type TransportConfig: dist/types.d.ts#TransportConfig
 hostProcedures: dist/module.d.ts#hostProcedures
 loadProcedureModule: dist/run.d.ts#loadProcedureModule
@@ -77,6 +80,16 @@ export declare const HOST_PROFILES: Readonly<Record<HostRunMode, Profile>>;
 ### dist/host.d.ts#HostRunMode
 export type HostRunMode = "foreground" | "background";
 
+### dist/host.d.ts#HostTelemetry
+export interface HostTelemetry {
+    shutdown(): Promise<void>;
+}
+
+### dist/host.d.ts#HostTelemetryOptions
+export interface HostTelemetryOptions {
+    readonly stopOnSignals: false;
+}
+
 ### dist/host.d.ts#ProcedureHostRunConfig
 export interface ProcedureHostRunConfig {
     readonly name: string;
@@ -89,6 +102,7 @@ export interface ProcedureHostRunConfig {
     readonly probes?: HostProbeServer | undefined;
     readonly declare?: ((svc: ServiceBuilder, host: ProcedureHost) => void) | undefined;
     readonly idle?: HostIdle | undefined;
+    readonly telemetry?: ((options: HostTelemetryOptions) => HostTelemetry) | undefined;
 }
 
 ### dist/host.d.ts#RunningHost
@@ -98,6 +112,9 @@ export interface RunningHost {
     readonly life: Lifecycle;
     probes(): string[];
 }
+
+### dist/host.d.ts#TELEMETRY_FLUSH_PHASE
+export declare const TELEMETRY_FLUSH_PHASE = "flush the output";
 
 ### dist/host.d.ts#runProcedureHost
 export declare function runProcedureHost(config: ProcedureHostRunConfig): Promise<RunningHost>;

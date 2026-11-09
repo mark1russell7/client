@@ -86,7 +86,12 @@ class Channel<T> {
   private readonly items: T[] = [];
   private ended = false;
   private wake: (() => void) | undefined;
-  private room: (() => void) | undefined;
+  /**
+   * The pushes that wait for room. The reader of the batch waits here, and the last item of an
+   * abort can wait here too. Each one gets the room. Before, a second push took the place of the
+   * first, and the reader of the batch waited with no end (audit 2026-11-08).
+   */
+  private readonly rooms: Array<() => void> = [];
 
   /** It resolves when the reader has room for more items. */
   push(item: T): Promise<void> {
@@ -94,7 +99,7 @@ class Channel<T> {
     this.items.push(item);
     this.wake?.();
     if (this.items.length < HIGH_WATER) return Promise.resolve();
-    return new Promise<void>((resolve) => (this.room = resolve));
+    return new Promise<void>((resolve) => this.rooms.push(resolve));
   }
 
   end(): void {
@@ -104,9 +109,7 @@ class Channel<T> {
   }
 
   private free(): void {
-    const room = this.room;
-    this.room = undefined;
-    room?.();
+    for (const room of this.rooms.splice(0)) room();
   }
 
   async *read(): AsyncGenerator<T, void, undefined> {

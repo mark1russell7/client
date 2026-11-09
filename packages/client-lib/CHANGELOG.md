@@ -1,5 +1,51 @@
 # @procedures/lib
 
+## 0.52.4
+
+### Patch Changes
+
+- @procedures/client@0.52.4
+  - @procedures/dag@0.52.4
+  - @procedures/fs@0.52.4
+  - @procedures/git@0.52.4
+  - @procedures/pnpm@0.52.4
+  - @procedures/shell@0.52.4
+
+## 0.52.3
+
+### Patch Changes
+
+- Updated dependencies [db1bcaa]
+  - @procedures/client@0.52.3
+  - @procedures/dag@0.52.3
+  - @procedures/fs@0.52.3
+  - @procedures/git@0.52.3
+  - @procedures/pnpm@0.52.3
+  - @procedures/shell@0.52.3
+
+## 0.52.2
+
+### Patch Changes
+
+- @procedures/client@0.52.2
+  - @procedures/dag@0.52.2
+  - @procedures/fs@0.52.2
+  - @procedures/git@0.52.2
+  - @procedures/pnpm@0.52.2
+  - @procedures/shell@0.52.2
+
+## 0.52.1
+
+### Patch Changes
+
+- Updated dependencies [d0f3362]
+  - @procedures/git@0.52.1
+  - @procedures/client@0.52.1
+  - @procedures/dag@0.52.1
+  - @procedures/fs@0.52.1
+  - @procedures/pnpm@0.52.1
+  - @procedures/shell@0.52.1
+
 ## 0.52.0
 
 ### Patch Changes

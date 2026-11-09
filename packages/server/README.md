@@ -337,11 +337,16 @@ await life.done; // the runner ends the process after the stop in stages
 - **The lockfile.** `lockfile` makes the lockfile a dependency of the service. The startup writes it before the listeners start, and the shutdown removes it after the listeners close.
 - **The probes.** Each listener of the host answers the probes under `/_probes` (CLI-9). `probes: { port, host, prefix, retryAfter }` moves them to a probe server on a port of its own (decision D5). `probes()` of the result gives the base URL of each place that answers them.
 - **The parts of the app.** `declare(svc, host)` gives the builder of the service to the app before `run()` (CLI-62). The app declares its transports, dependencies, checks and phase work with the methods of the builder. `describe()` shows them, and the runner starts and stops them with the host. The example follows this list.
+- **The telemetry.** `telemetry` starts the telemetry SDK of the app before the dependencies and the listeners (CLI-130). The phase `flush the output` stops it last. The example after the list shows it.
 - **Outside a service.** `startServer()` starts the same server as a peer, for a test or an app that has its own lifecycle.
 
 ```typescript
+import { startNodeTelemetry } from "@mark1russell7/otel-ts/node";
+
 const { host, life } = await runProcedureHost({
   name: "app-dev",
+  // The host gives { stopOnSignals: false }: the runner owns the signals
+  telemetry: (options) => startNodeTelemetry({ serviceName: "app-dev", ...options }),
   mode: "foreground",
   // The calls wait for the readiness of the dependency of the app (CLI-45)
   host: { name: "app", registry, policy, controller: { requires: ["mongo"] }, listen },
@@ -361,6 +366,7 @@ const { host, life } = await runProcedureHost({
 - The parts of the app come after the parts of the host. Thus the server of the host starts before a transport of the app. A listener of the app can mount `host.handler`.
 - The lockfile comes after the dependencies of the app. It connects last, and it closes first.
 - Without `declare`, the service has only the parts of the host.
+- The cap of the phase `flush the output` limits the wait for the telemetry: 1 s in `localDev` and `daemon`. The host refuses `telemetry` with a profile that has no such phase.
 
 #### The logger
 

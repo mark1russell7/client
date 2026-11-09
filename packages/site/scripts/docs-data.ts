@@ -154,7 +154,11 @@ export function plainText(markdown: string): string {
     .replace(/`([^`]*)`/g, "$1")
     .replace(/(\*\*|__)(.+?)\1/g, "$2")
     .replace(/(\*|_)(.+?)\1/g, "$2")
+    // An escaped "<" becomes an entity, so the two steps after this one keep it
+    .replace(/\\</g, "&lt;")
     .replace(/<[^>]+>/g, "")
+    // A nested tag, for example "<<b>script>", leaves the start of a tag after the strip. A "<" before a space or a digit stays
+    .replace(/<(?=[A-Za-z/!?])/g, "")
     .replace(/\\([\\`*_{}[\]()#+\-.!|<>])/g, "$1")
     // One pass for all the entities, so that "&amp;lt;" becomes "&lt;" and not "<"
     .replace(/&(amp|lt|gt|quot|#39);/g, (_, name: string) => ENTITIES[name]!)
@@ -295,11 +299,11 @@ export function convertMarkdown(
         if (language === "mermaid") {
           return (
             `<figure class="doc-diagram"><figcaption>Diagram source (Mermaid). GitHub draws it on the page of the file.</figcaption>` +
-            `<pre class="doc-code" tabindex="0"><code>${escapeHtml(text)}</code></pre></figure>\n`
+            `<pre class="doc-code scroll-cue" tabindex="0"><code>${escapeHtml(text)}</code></pre></figure>\n`
           );
         }
         const label = language ? ` data-lang="${escapeHtml(language)}"` : "";
-        const pre = `<pre class="doc-code"${label} tabindex="0"><code class="hljs">${highlightCode(text, language)}</code></pre>`;
+        const pre = `<pre class="doc-code scroll-cue"${label} tabindex="0"><code class="hljs">${highlightCode(text, language)}</code></pre>`;
         if (language === "json" || language === "jsonc") {
           const found = programOf(text);
           if (found !== null) {

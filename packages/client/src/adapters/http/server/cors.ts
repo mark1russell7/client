@@ -50,6 +50,8 @@ export const DEFAULT_CORS_HEADERS: readonly string[] = Object.freeze([
   HTTPHeaders.SPAN_ID,
   HTTPHeaders.PARENT_SPAN_ID,
   "traceparent",
+  "tracestate",
+  "baggage",
   PROTOCOL_HEADER,
   HTTPHeaders.METADATA,
   // The narrowing key of a call (CLI-30)

@@ -70,6 +70,8 @@ import {
 import { narrowCapability } from "../procedures/capability.js";
 import { DEADLINE_METADATA_KEY, TIMEOUT_METADATA_KEY, absorbTimeout, writeRemainingTime } from "./deadline.js";
 import { ms } from "../duration.js";
+import { context as otelContext, SpanKind, trace } from "@opentelemetry/api";
+import { asInternalCall, endApiSpan, injectContext, startApiSpan } from "../tracing/otel.js";
 import type { Capability, ClearanceOrder, NestedCallOptions } from "../procedures/types.js";
 import { PROCEDURE_REGISTRY } from "../procedures/registry.js";
 import { validateSchema } from "../procedures/schema.js";
@@ -917,7 +919,28 @@ export class Client<TContext = {}> {
       // The remaining time of the deadline goes with each try, so the server stops the handler
       // when this client stops waiting (roadmap R10)
       writeRemainingTime(context.message.metadata);
-      yield* self.transport.send<TReq, TRes>(context.message);
+      // With an SDK of OpenTelemetry, each try is a span of the API, and the propagator writes its
+      // context into the metadata, with the mark of an internal call (roadmap C8 of otel-ts)
+      const { metadata, method } = context.message;
+      const active = otelContext.active();
+      const span = startApiSpan(`${method.service}.${method.operation}`, SpanKind.CLIENT, active);
+      if (span === undefined) {
+        yield* self.transport.send<TReq, TRes>(context.message);
+        return;
+      }
+      const own = span.spanContext();
+      const parent = trace.getSpanContext(active);
+      metadata.tracing = { traceId: own.traceId, spanId: own.spanId, ...(parent ? { parentSpanId: parent.spanId } : {}) };
+      injectContext(asInternalCall(trace.setSpan(active, span)), metadata as Record<string, unknown>);
+      let failure: unknown;
+      try {
+        yield* self.transport.send<TReq, TRes>(context.message);
+      } catch (error) {
+        failure = error;
+        throw error;
+      } finally {
+        endApiSpan(span, failure);
+      }
     };
 
     // The first middleware is the outermost one (onion model)

@@ -36,7 +36,7 @@ import {
   type StorageChanges,
 } from "@procedures/client";
 import { InMemoryStorage } from "@procedures/collections";
-import { MongoDocumentStorage } from "./document-storage.js";
+import { DEFAULT_STORED_FORM, MongoDocumentStorage, type StoredForm } from "./document-storage.js";
 
 /** The value of a write. Each write has its own value, so a value tells the write. */
 interface Item {
@@ -1087,7 +1087,7 @@ withMongo("the race of a change cursor and a write in flight, on a real store (C
   }
 
   /** One store with gates on the reads of its next full answer, and a subscriber that joins with that answer. */
-  function gatedStore(path: StorePath, options: { unbounded?: boolean; maxTombstones?: number; onList?: () => Promise<void> } = {}) {
+  function gatedStore(path: StorePath, options: { unbounded?: boolean; maxTombstones?: number; onList?: () => Promise<void>; form?: StoredForm } = {}) {
     const collection = `race${++next}`;
     const order = new CommitOrder();
     const afterList = gate();
@@ -1115,6 +1115,7 @@ withMongo("the race of a change cursor and a write in flight, on a real store (C
       client: () => client,
       ...(path === "pending" ? { transactions: "never" as const } : {}),
       ...(options.maxTombstones === undefined ? {} : { maxTombstones: options.maxTombstones }),
+      ...(options.form ? { form: options.form } : {}),
     });
     const host = new Host(store as unknown as RaceStorage, callWithValues);
     const subscriber = new ValueFollower(host);
@@ -1198,6 +1199,33 @@ withMongo("the race of a change cursor and a write in flight, on a real store (C
       const answer = subscriber.fulls[0]!;
       console.log(`race ${JSON.stringify({ name: `${path}-second-mark`, version: answer.version, changed: answer.changed })}`);
       expect(answer.changed).toEqual([
+        { id: "x", value: { v: "v2" } },
+        { id: "y", value: { v: "u1" } },
+        { id: "z", value: { v: "n1" } },
+      ]);
+    });
+
+    it("a change between the list and the second mark keeps each item of a form with object ids (audit 2026-11-08)", async (context) => {
+      if (path === "transaction" && !replicaSet) return context.skip?.("the path needs a replica set");
+      // Each stored `_id` is an object: before, the merge gave them one key, and the answer kept one item
+      const objectForm: StoredForm = {
+        ...DEFAULT_STORED_FORM,
+        storedId: (_partition, id) => ({ key: id }),
+        idOf: (stored) => (typeof stored === "object" && stored !== null && typeof (stored as { key?: unknown }).key === "string" ? (stored as { key: string }).key : undefined),
+      };
+      const gated = gatedStore(path, { form: objectForm });
+      const { host, subscriber, armed } = gated;
+      await host.write("x", { v: "v1" });
+      await host.write("y", { v: "u1" });
+      await host.changes();
+      armed.list = true;
+      const joining = subscriber.join();
+      await gated.afterList.reached;
+      await gated.write("x", "v2");
+      await gated.write("z", "n1");
+      gated.afterList.open();
+      await joining;
+      expect(subscriber.fulls[0]!.changed).toEqual([
         { id: "x", value: { v: "v2" } },
         { id: "y", value: { v: "u1" } },
         { id: "z", value: { v: "n1" } },
