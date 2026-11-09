@@ -1,5 +1,14 @@
 # @procedures/json
 
+## 0.52.5
+
+### Patch Changes
+
+- f39708c: The root entry exports `isPlainObject`. The function gives true for an object whose prototype is `Object.prototype` or null. An app can import it and delete its own copy.
+- Updated dependencies [25a5f44]
+  - @procedures/client@0.52.5
+  - @procedures/compiler@0.52.5
+
 ## 0.52.4
 
 ### Patch Changes

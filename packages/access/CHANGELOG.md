@@ -1,5 +1,12 @@
 # @procedures/access
 
+## 0.52.5
+
+### Patch Changes
+
+- Updated dependencies [25a5f44]
+  - @procedures/client@0.52.5
+
 ## 0.52.4
 
 ### Patch Changes

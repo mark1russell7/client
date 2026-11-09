@@ -1,5 +1,14 @@
 # @procedures/mongo
 
+## 0.52.5
+
+### Patch Changes
+
+- 2058f02: The change watchers and the write-conflict retry of `ViewMaterializer` take their delays from `backoffDelay` of `@mark1russell7/service/backoff`. The delays do not change: a test compares each delay with the old formula. The package thus has the new dependency `@mark1russell7/service` `^0.6.5`.
+- Updated dependencies [25a5f44]
+  - @procedures/client@0.52.5
+  - @procedures/collections@0.52.5
+
 ## 0.52.4
 
 ### Patch Changes
