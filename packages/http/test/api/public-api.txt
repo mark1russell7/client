@@ -170,6 +170,7 @@ export type HostFetch = (url: string, init?: HostFetchInit) => Promise<HostFetch
 
 ### dist/host-fetch.d.ts#HostFetchInit
 export interface HostFetchInit {
+    readonly method?: "GET" | "HEAD" | undefined;
     readonly headers?: Readonly<Record<string, string>> | undefined;
     readonly signal?: AbortSignal | undefined;
 }
@@ -179,6 +180,7 @@ export interface HostFetchResponse {
     readonly ok: boolean;
     readonly status: number;
     readonly url: string;
+    readonly headers: Readonly<Record<string, string | readonly string[]>>;
     text(): Promise<string>;
     json(): Promise<unknown>;
 }

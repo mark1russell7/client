@@ -169,6 +169,43 @@ describe("one trace of the API from the client to the handler, with an SDK (C8)"
     }
   });
 
+  it("continues the trace context of the metadata for a call with no active span (C19)", async () => {
+    const { client, stop } = await started();
+    try {
+      const traceId = "0af7651916cd43dd8448eb211c80319c";
+      const spanId = "b7ad6b7169203331";
+      // For example, `mark` gives the variables TRACEPARENT and TRACESTATE of its environment
+      await context.with(ROOT_CONTEXT, () =>
+        client.call({ service: "test", operation: "outer" }, {}, { metadata: { traceparent: `00-${traceId}-${spanId}-01`, tracestate: "vendor=1" } }),
+      );
+      const call = exporter.getFinishedSpans().find((span) => span.kind === SpanKind.CLIENT)!;
+      expect(call.spanContext().traceId).toBe(traceId);
+      expect(call.parentSpanContext).toMatchObject({ traceId, spanId, isRemote: true });
+      expect(call.spanContext().traceState?.serialize()).toBe("vendor=1");
+      expect(exporter.getFinishedSpans().every((span) => span.spanContext().traceId === traceId)).toBe(true);
+      // The propagator wrote the span of the call over the trace context of the caller
+      expect(injected[0]!.carrier).toMatchObject({ traceparent: `00-${traceId}-${call.spanContext().spanId}-01` });
+    } finally {
+      await stop();
+    }
+  });
+
+  it("makes the active span the parent, not the trace context of the metadata (C19)", async () => {
+    const { client, stop } = await started();
+    try {
+      const app = trace.getTracer("test").startSpan("app");
+      await context.with(trace.setSpan(ROOT_CONTEXT, app), () =>
+        client.call({ service: "test", operation: "outer" }, {}, { metadata: { traceparent: "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01" } }),
+      );
+      app.end();
+      const call = exporter.getFinishedSpans().find((span) => span.kind === SpanKind.CLIENT)!;
+      expect(call.spanContext().traceId).toBe(app.spanContext().traceId);
+      expect(call.parentSpanContext?.spanId).toBe(app.spanContext().spanId);
+    } finally {
+      await stop();
+    }
+  });
+
   it("makes no span of the API for the metrics interceptor", async () => {
     const { client, stop } = await started("metrics");
     try {
