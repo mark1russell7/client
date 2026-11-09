@@ -36,6 +36,7 @@
   },
   "files": [
     "dist",
+    "!dist/.tsbuildinfo",
     "src",
     "!src/**/*.test.ts",
     "!src/**/*.test.tsx",
