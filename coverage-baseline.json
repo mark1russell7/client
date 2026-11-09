@@ -17,6 +17,12 @@
     "functions": 88.1,
     "branches": 86.3
   },
+  "@procedures/browser": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 98.3
+  },
   "@procedures/bundle-assistant": {
     "lines": 66.6,
     "statements": 66.6,
@@ -225,7 +231,7 @@
     "lines": 100,
     "statements": 100,
     "functions": 100,
-    "branches": 98.6
+    "branches": 100
   },
   "@procedures/peer": {
     "lines": 86.6,

@@ -4,7 +4,7 @@
 > from the workspace's package.json files and the live procedure registry.
 > Regenerate with `node packages/documentation/scripts/generate-packages.ts` after `pnpm build`.
 
-**Packages:** 59. **Procedures:** 299. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
+**Packages:** 60. **Procedures:** 299. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
 
 Dependencies marked *(general)* are separate repositories, published on npm under `@mark1russell7`.
 
@@ -13,6 +13,7 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/access` | `packages/access` | The rights of a principal on a scope: access lists, owners, implied rights and conditions over a document, with the rules of the app as a policy, and the output filter of a host. | — | `client` |
 | `@procedures/archive` | `packages/archive` | Archives as procedures: make, list and extract tar.gz and zip, with a check of each path against zip slip and links out of the target. | `archive.*` (3) | `client`, `fs` |
 | `@procedures/better-auth` | `packages/better-auth` | Better Auth for a procedures server: the sign-in with GitHub, Google and passkeys over MongoDB, and a request hook that gives the principal of a session or of an agent token. | — | `client` |
+| `@procedures/browser` | `packages/browser` | Find a Chromium browser that is already installed (Edge, Chrome or Chromium), and render a page with it: a PDF file or a screenshot, with no browser download. | — | `shell` |
 | `@procedures/bundle-assistant` | `packages/bundle-assistant` | The opt-in tools of the personal assistant for an MCP host: calendar files, mail parsing, places, routes, weather and photo metadata, without the procedures that can carry data out. | — | `client`, `exif`, `geo`, `http`, `ics`, `mail`, `weather` |
 | `@procedures/bundle-dev` | `packages/bundle-dev` | One import that registers the development procedures of the client ecosystem: shell, file system, git, pnpm, workspace, DAG and procedure scaffolding. | `client.*` (16), `procedure.*` (5) | `cli-run`, `client`, `compiler`, `dag`, `fs`, `git`, `lib`, `pnpm`, `procedure`, `shell` |
 | `@procedures/bundle-mcp` | `packages/bundle-mcp` | The curated tool surface for Claude: registers the docker, mongo, sqlite, cue, vitest and workspace procedures and selects which ones an MCP server exposes. | — | `client`, `compiler`, `cue`, `dag`, `docker`, `json`, `lib`, `mongo`, `procedure`, `sqlite`, `vitest` |
@@ -59,7 +60,7 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/mcp` | `packages/mcp` | Map typed procedures to MCP tools: JSON Schema from Zod, tool names, and input and result conversion for Model Context Protocol servers. | — | — |
 | `@procedures/notify` | `packages/notify` | Push notifications through ntfy, the public server or your own, with a title, a priority, tags and a tap address. | `notify.*` (1) | `client` |
 | `@procedures/npm` | `packages/npm` | The npm registry as typed procedures: view, dist-tags, whoami, pack (a dry run by default) and deprecate, run with argv, and a confirmation for each write to the registry. | `npm.*` (7) | `client`, `shell` |
-| `@procedures/pdf` | `packages/pdf` | HTML to PDF with a headless Chromium browser that is already installed (Edge, Chrome or Chromium), with no browser download. | `pdf.*` (1) | `client`, `shell` |
+| `@procedures/pdf` | `packages/pdf` | HTML to PDF with a headless Chromium browser that is already installed (Edge, Chrome or Chromium), as the procedure pdf.render. The render is in @procedures/browser. | `pdf.*` (1) | `browser`, `client` |
 | `@procedures/privacy-scan` | `packages/privacy-scan` | Find private data in text before it goes public: email addresses, phone numbers, coordinates and the terms of your list. | `privacyScan.*` (2) | `client`, `@mark1russell7/text` *(general)* |
 | `@procedures/restic` | `packages/restic` | The restic backup program as one procedure: backup, snapshots, restore and forget, with JSON output and no secret as input. | `restic.*` (1) | `client`, `shell` |
 | `@procedures/schedule` | `packages/schedule` | A cron for stored programs: schedules as procedures, and a scheduler that a host starts, with an injectable clock and no overlapping runs. | `schedule.*` (4) | `client`, `fs`, `store` |
