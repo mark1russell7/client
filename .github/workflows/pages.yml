@@ -54,14 +54,20 @@ jobs:
       # in Chromium (an HTML file for each page, and its Open Graph image), and the smoke test uses it too.
       #
       # The measured numbers of the docs pages come from the newest record of the nightly run of main
-      # (packages/site/scripts/measured.ts). With no record, the build fails.
+      # (packages/site/scripts/measured.ts). With no record, the build unsets SITE_MEASURED_DIR, and each
+      # measured block gives its text for GitHub and npm. The site deploys, and the job measured-record
+      # below fails, so the missing record stays red.
       build: |
         id=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=measured-nightly&per_page=30" \
           --jq '[.artifacts[] | select(.expired | not) | select(.workflow_run.head_branch == "main")][0].id // empty')
-        if [ -z "$id" ]; then echo "::error::no artifact measured-nightly of main: the nightly run wrote no record"; exit 1; fi
-        mkdir -p packages/site/measured
-        gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "$RUNNER_TEMP/measured.zip"
-        unzip -o -q "$RUNNER_TEMP/measured.zip" -d packages/site/measured
+        if [ -z "$id" ]; then
+          echo "::warning::no artifact measured-nightly of main: the docs pages show no measured numbers"
+          unset SITE_MEASURED_DIR
+        else
+          mkdir -p packages/site/measured
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "$RUNNER_TEMP/measured.zip"
+          unzip -o -q "$RUNNER_TEMP/measured.zip" -d packages/site/measured
+        fi
         pnpm --filter @procedures/site exec playwright install --with-deps chromium
         pnpm build
         pnpm --filter @procedures/site test:e2e
@@ -78,3 +84,20 @@ jobs:
       data-stamps: packages/site/dist/data/data-stamps.json
       indexnow-key: 626da9a7ba19ca53f2437cb462de76e7
       timeout-minutes: 25
+
+  # The strict read of the measured record. The build above deploys without a record, so this job
+  # keeps a missing record red: no nightly run of main yet, a failed nightly, or an expired artifact.
+  measured-record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    steps:
+      - name: The newest record of the nightly run of main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          id=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=measured-nightly&per_page=30" \
+            --jq '[.artifacts[] | select(.expired | not) | select(.workflow_run.head_branch == "main")][0].id // empty')
+          if [ -z "$id" ]; then echo "::error::no artifact measured-nightly of main: the nightly run wrote no record"; exit 1; fi
+          echo "The record of the measured numbers is the artifact $id"
