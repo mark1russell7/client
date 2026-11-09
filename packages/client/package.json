@@ -120,19 +120,19 @@
   },
   "dependencies": {
     "@mark1russell7/algebra": "^0.8.0",
-    "@mark1russell7/coeval": "^0.22.0",
+    "@mark1russell7/coeval": "^0.26.1",
     "@mark1russell7/collections": "^0.5.0",
     "@mark1russell7/quantity": "^0.3.0",
-    "@mark1russell7/service": "^0.8.2",
+    "@mark1russell7/service": "^0.8.3",
     "@opentelemetry/api": "^1.9.0",
     "@types/ws": "^8.18.1",
     "ws": "^8.18.3",
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@mark1russell7/api-report": "^0.4.1",
+    "@mark1russell7/api-report": "^0.5.0",
     "@mark1russell7/cue": "^2.1.1",
-    "@mark1russell7/otel-ts": "^0.4.0",
+    "@mark1russell7/otel-ts": "^0.6.0",
     "@mark1russell7/rigor-bench": "^0.2.25",
     "@mark1russell7/rigor-statistics": "^0.1.9",
     "@opentelemetry/context-async-hooks": "^2.12.0",
