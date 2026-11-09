@@ -805,6 +805,9 @@ importers:
 
   packages/client-mongo:
     dependencies:
+      '@mark1russell7/service':
+        specifier: ^0.6.5
+        version: 0.6.5(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -830,9 +833,6 @@ importers:
       '@mark1russell7/rigor-statistics':
         specifier: ^0.1.9
         version: 0.1.25
-      '@mark1russell7/service':
-        specifier: ^0.6.0
-        version: 0.6.5(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/peer':
         specifier: workspace:*
         version: link:../client-server
