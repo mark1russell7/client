@@ -2,10 +2,11 @@
  * The contract suite against broken storages: each break must fail the case that covers it.
  */
 
+import { AssertionError } from "node:assert";
 import { describe, it, expect } from "vitest";
 import { InMemoryStorage } from "../storage/memory.js";
 import type { StorageChanges } from "../storage/interface.js";
-import { ContractViolation, collectionStorageContract, type ContractCase, type ContractItem, type ContractStorage } from "./index.js";
+import { collectionStorageContract, type ContractCase, type ContractItem, type ContractStorage } from "./index.js";
 
 /** The case of the suite with this start of its name, for a storage. */
 function caseOf(create: () => ContractStorage, start: string): ContractCase {
@@ -22,7 +23,7 @@ describe("the contract suite finds a broken storage", () => {
         return true;
       }
     }
-    await expect(caseOf(() => new Broken(), "an empty storage").run()).rejects.toThrow(/delete\(\) of a missing id: expected false, got true/);
+    await expect(caseOf(() => new Broken(), "an empty storage").run()).rejects.toMatchObject({ message: "delete() of a missing id", actual: true, expected: false });
   });
 
   it("a getAll() in another order", async () => {
@@ -31,7 +32,7 @@ describe("the contract suite finds a broken storage", () => {
         return (await super.getAll()).reverse();
       }
     }
-    await expect(caseOf(() => new Broken(), "the entries keep the order").run()).rejects.toThrow(ContractViolation);
+    await expect(caseOf(() => new Broken(), "the entries keep the order").run()).rejects.toThrow(AssertionError);
   });
 
   it("a getChangesSince() that forgets the deletes", async () => {
@@ -41,7 +42,7 @@ describe("the contract suite finds a broken storage", () => {
       }
     }
     await expect(caseOf(() => new Broken(), "getChangesSince(version) gives").run()).rejects.toThrow(/deleted of a delta/);
-    await expect(caseOf(() => new Broken(), "a random sequence").run()).rejects.toThrow(ContractViolation);
+    await expect(caseOf(() => new Broken(), "a random sequence").run()).rejects.toThrow(AssertionError);
   });
 
   it("a storage that keeps the values does not pass the case of the copies", async () => {
@@ -55,7 +56,7 @@ describe("the contract suite finds a broken storage", () => {
         return (await super.get(id)) ?? undefined;
       }
     }
-    await expect(caseOf(() => new Broken(), "the storage keeps JSON values").run()).rejects.toThrow(/get\("null"\): expected null, got undefined/);
+    await expect(caseOf(() => new Broken(), "the storage keeps JSON values").run()).rejects.toMatchObject({ message: 'get("null")', actual: undefined, expected: null });
   });
 
   it("a delta in the order of the first write of each id", async () => {
@@ -90,7 +91,7 @@ describe("the contract suite finds a broken storage", () => {
         }
       }
     }
-    await expect(caseOf(() => new Broken(), "after close()").run()).rejects.toThrow(/get\(\) after close\(\) must reject with an Error whose message says "closed", not "no"/);
+    await expect(caseOf(() => new Broken(), "after close()").run()).rejects.toThrow(/get\(\) after close\(\) must reject with an Error whose message says "closed", not 'no'/);
   });
 
   it("skips a case for an optional method that the storage does not have", async () => {
