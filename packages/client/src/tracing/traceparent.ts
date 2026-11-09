@@ -4,7 +4,11 @@
  * the metadata of a call (and HTTP as the `traceparent` header). The tracing interceptor of a
  * server continues that trace, and gives it to the nested calls, so one trace goes from the
  * client to the last handler. Before, the client and the server made two traces.
+ *
+ * The checks of the ids are `isValidTraceId` and `isValidSpanId` of `@opentelemetry/api`
+ * (decision D7 of otel-ts). They refuse an id of only zeros.
  */
+import { isValidSpanId, isValidTraceId } from "@opentelemetry/api";
 
 /**
  * The metadata key of the W3C trace context of a call.
@@ -14,9 +18,11 @@
  */
 export const TRACEPARENT_METADATA_KEY = "traceparent";
 
+/** The form of version 00. The ids in it have only lowercase digits, as W3C Trace Context requires. */
 const TRACEPARENT = /^00-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})$/;
-const ZERO_TRACE = "0".repeat(32);
-const ZERO_SPAN = "0".repeat(16);
+
+/** An uppercase hex digit. The checks of the API accept it, but W3C Trace Context does not. */
+const UPPERCASE_HEX = /[A-F]/;
 
 /**
  * A trace context: the trace, the span of the caller, and the sampled flag.
@@ -69,7 +75,7 @@ function randomHex(bytes: number): string {
  */
 export function newTraceId(): string {
   const id = randomHex(16);
-  return id === ZERO_TRACE ? newTraceId() : id;
+  return isValidTraceId(id) ? id : newTraceId();
 }
 
 /**
@@ -80,7 +86,7 @@ export function newTraceId(): string {
  */
 export function newSpanId(): string {
   const id = randomHex(8);
-  return id === ZERO_SPAN ? newSpanId() : id;
+  return isValidSpanId(id) ? id : newSpanId();
 }
 
 /**
@@ -90,7 +96,7 @@ export function newSpanId(): string {
  * context (roadmap C8 of otel-ts). A later MINOR removes this export, when each app registers an SDK (D6).
  */
 export function isW3cIds(traceId: string, spanId: string): boolean {
-  return /^[0-9a-f]{32}$/.test(traceId) && /^[0-9a-f]{16}$/.test(spanId) && traceId !== ZERO_TRACE && spanId !== ZERO_SPAN;
+  return isValidTraceId(traceId) && isValidSpanId(spanId) && !UPPERCASE_HEX.test(traceId) && !UPPERCASE_HEX.test(spanId);
 }
 
 /**
@@ -113,7 +119,7 @@ export function parseTraceparent(value: unknown): TraceContext | undefined {
   if (typeof value !== "string") return undefined;
   const match = TRACEPARENT.exec(value.trim().toLowerCase());
   if (!match) return undefined;
-  const [, traceId, spanId, flags] = match;
-  if (traceId === ZERO_TRACE || spanId === ZERO_SPAN) return undefined;
-  return { traceId: traceId!, spanId: spanId!, sampled: (parseInt(flags!, 16) & 1) === 1 };
+  const [, traceId = "", spanId = "", flags = ""] = match;
+  if (!isValidTraceId(traceId) || !isValidSpanId(spanId)) return undefined;
+  return { traceId, spanId, sampled: (parseInt(flags, 16) & 1) === 1 };
 }
