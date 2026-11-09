@@ -206,17 +206,22 @@ const host = createProcedureHost({
   faces: {
     http: true,
     ws: true,
-    page: staticFace({ root: "dist", headers: { "Content-Security-Policy": "default-src 'self'" } }),
+    page: staticFace({ root: "dist", headers: { "Content-Security-Policy": "default-src 'self'; frame-ancestors 'self'" } }),
   },
   listen: [{ port: 3000, knobs: LOCAL_LISTENER_KNOBS }],
 });
 ```
 
 - Put the face last. The first face that takes a request serves it, so the procedure faces keep their paths.
-- The face takes each `GET` and `HEAD` request under its `basePath` (default `/`).
+- The face takes each `GET` and `HEAD` request under its `basePath` (default `/`). The face adds a `/` at the start of a base path that has none.
 - Each path stays in `root`. A path that leaves it, also through a symbolic link, gets 404.
+- A path with a segment that starts with `.` gets 404, so the `.env` or `.git` of a root stay hidden. Only `.well-known` is served.
+- A missing root gives 404. The next request reads the root again, so the files of a later build are served.
 - A folder gives its `index.html`. A path with no file and no extension is a route of the page. A request that accepts `text/html` gets the `fallback` file (default `index.html`). Another request, for example a probe, gets 404. With `fallback: false`, each route gets 404.
-- Each response has the `headers` of the options and `X-Content-Type-Options: nosniff`. A file has an `ETag`, and the same tag in `If-None-Match` gets 304.
+- A route with a dot in its last segment, for example `/u/john.doe`, has an extension. It gets 404, not the fallback.
+- By default, only a page of the same origin can show the files in a frame: `DEFAULT_STATIC_HEADERS` has `Content-Security-Policy: frame-ancestors 'self'` and `X-Frame-Options: SAMEORIGIN`.
+- A header of `headers` replaces the default header of the same name, in any case. A policy of your own replaces the default policy, so put a `frame-ancestors` rule in it.
+- Each response also has `X-Content-Type-Options: nosniff`. A file has an `ETag`, and the same tag in `If-None-Match` gets 304.
 - The request tracking of the host tracks each request, so the drain of a stop waits for it.
 
 ### Creating a Server Peer

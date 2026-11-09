@@ -1043,6 +1043,9 @@ importers:
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
+      '@procedures/http':
+        specifier: workspace:*
+        version: link:../http
       '@procedures/mcp-server':
         specifier: workspace:*
         version: link:../client-mcp

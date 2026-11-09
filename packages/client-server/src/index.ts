@@ -33,6 +33,7 @@ export {
   wsFace,
   localFace,
   staticFace,
+  DEFAULT_STATIC_HEADERS,
   contentTypeOf,
   LOCAL_LISTENER_KNOBS,
   HOST_PROBE_PREFIX,

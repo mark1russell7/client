@@ -9,10 +9,16 @@
  * - `HEAD` gets the headers with no body. The same `ETag` in `If-None-Match` gets 304.
  * - A malformed path or a NUL character gets 400.
  * - The procedure faces keep their paths: the static face is last, and `POST` is not its method.
- * - Under a base path, the face takes only the paths under it.
+ * - Under a base path, the face takes only the paths under it. A base path with no `/` at the start gets one.
+ * - By default, only a page of the same origin can show the files in a frame. A header of the
+ *   options replaces the default header of the same name, in any case. `frameRefusal` of
+ *   `@procedures/http` reads the headers as a browser does.
+ * - A hidden path (`.env`, `.git`, also through a link) gets 404. `.well-known` is served.
+ * - A missing root gives 404, and the files of a later build are served.
  */
 
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { frameRefusal } from "@procedures/http";
 import { request } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -21,7 +27,14 @@ import * as z from "zod";
 import { service, type Lifecycle, type ServiceBuilder } from "@mark1russell7/service";
 import { fakeProcess } from "@mark1russell7/service/testing";
 import { createProcedure, createRegistry, ms, seconds } from "@procedures/client";
-import { createProcedureHost, contentTypeOf, staticFace, LOCAL_LISTENER_KNOBS, type ProcedureHostFaces } from "./index.js";
+import {
+  createProcedureHost,
+  contentTypeOf,
+  staticFace,
+  DEFAULT_STATIC_HEADERS,
+  LOCAL_LISTENER_KNOBS,
+  type ProcedureHostFaces,
+} from "./index.js";
 
 const CSP = "default-src 'self'";
 /** The header of the navigation of a browser. */
@@ -93,6 +106,10 @@ async function hostWith(name: string, faces: ProcedureHostFaces): Promise<string
 let origin: string;
 let based: string;
 let strict: string;
+let bare: string;
+let framed: string;
+let later: string;
+let laterRoot: string;
 
 beforeAll(async () => {
   folder = mkdtempSync(join(tmpdir(), "static-face-"));
@@ -106,12 +123,25 @@ beforeAll(async () => {
   writeFileSync(join(root, "docs", "index.html"), "<p>docs</p>");
   writeFileSync(join(folder, "secret.txt"), "secret");
   writeFileSync(join(folder, "outside", "secret.txt"), "secret");
+  writeFileSync(join(root, ".env"), "secret");
+  mkdirSync(join(root, ".git"));
+  writeFileSync(join(root, ".git", "config"), "secret");
+  mkdirSync(join(root, ".well-known"));
+  writeFileSync(join(root, ".well-known", "security.txt"), "Contact: mailto:security@example.com");
   // A junction needs no rights on Windows. On the other systems, the type is ignored
   symlinkSync(join(folder, "outside"), join(root, "link"), "junction");
+  symlinkSync(join(root, ".git"), join(root, "repository"), "junction");
+  laterRoot = join(folder, "later");
 
   origin = await hostWith("static-face", { http: true, page: staticFace({ root, headers: { "Content-Security-Policy": CSP } }) });
   based = await hostWith("static-face-based", { http: true, page: staticFace({ root, basePath: "/app/" }) });
   strict = await hostWith("static-face-strict", { http: true, page: staticFace({ root, fallback: false }) });
+  bare = await hostWith("static-face-bare", { http: true, page: staticFace({ root, basePath: "app" }) });
+  framed = await hostWith("static-face-framed", {
+    http: true,
+    page: staticFace({ root, headers: { "content-security-policy": "frame-ancestors https://other.example" } }),
+  });
+  later = await hostWith("static-face-later", { http: true, page: staticFace({ root: laterRoot }) });
 }, 20000);
 
 afterAll(async () => {
@@ -222,5 +252,70 @@ describe("staticFace", () => {
     expect((await send(based, "/app/duel/1", "GET", PAGE)).body).toContain("<title>app</title>");
     const out = await send(based, "/application/x");
     expect(out.body).not.toContain("<title>app</title>");
+  });
+
+  it("adds the / at the start of a base path that has none", async () => {
+    expect((await send(bare, "/app/assets/app.js")).body).toBe("console.log(1);");
+    expect((await send(bare, "/assets/app.js")).body).not.toBe("console.log(1);");
+  });
+});
+
+describe("the frame policy of staticFace", () => {
+  it("refuses a frame of another origin by default, and allows a frame of its own origin", async () => {
+    const got = await send(strict, "/");
+    expect(got.headers["content-security-policy"]).toBe(DEFAULT_STATIC_HEADERS["Content-Security-Policy"]);
+    expect(got.headers["x-frame-options"]).toBe("SAMEORIGIN");
+    const page = `${strict}/`;
+    expect(frameRefusal(got.headers, { ancestor: "https://other.example", page }).refused).toBe(true);
+    expect(frameRefusal(got.headers, { ancestor: strict, page }).refused).toBe(false);
+    const missing = await send(strict, "/assets/gone.js");
+    expect(frameRefusal(missing.headers, { ancestor: "https://other.example", page }).refused).toBe(true);
+  });
+
+  it("lets a header of the options replace the default header of the same name, in any case", async () => {
+    const got = await send(framed, "/");
+    expect(got.headers["content-security-policy"]).toBe("frame-ancestors https://other.example");
+    expect(got.headers["x-frame-options"]).toBe("SAMEORIGIN");
+    const page = `${framed}/`;
+    expect(frameRefusal(got.headers, { ancestor: "https://other.example", page }).refused).toBe(false);
+    expect(frameRefusal(got.headers, { ancestor: "https://third.example", page }).refused).toBe(true);
+  });
+
+  it("keeps the default frame-ancestors only when the options do not give a policy", async () => {
+    const got = await send(origin, "/");
+    expect(got.headers["content-security-policy"]).toBe(CSP);
+    expect(frameRefusal(got.headers, { ancestor: "https://other.example", page: `${origin}/` }).refused).toBe(true);
+  });
+});
+
+describe("the hidden files and the root of staticFace", () => {
+  it.each(["/.env", "/%2eenv", "/.git/config", "/assets/../.env", "/repository/config", "/.git"])("gives 404 for a hidden path (%s)", async (path) => {
+    const got = await send(origin, path);
+    expect(got.status).toBe(404);
+    expect(got.body).not.toContain("secret");
+  });
+
+  it("gives 404 and not the fallback to a page request for a hidden path", async () => {
+    expect((await send(origin, "/.git/config", "GET", PAGE)).status).toBe(404);
+    // A link to a hidden folder is a route of the page: the page comes, and not the file
+    const linked = await send(origin, "/repository/config", "GET", PAGE);
+    expect(linked.body).toContain("<title>app</title>");
+    expect(linked.body).not.toContain("secret");
+  });
+
+  it("serves .well-known", async () => {
+    const got = await send(origin, "/.well-known/security.txt");
+    expect(got.status).toBe(200);
+    expect(got.body).toContain("Contact:");
+  });
+
+  it("gives 404 for a missing root, and serves the files of a later build", async () => {
+    const before = await send(later, "/", "GET", PAGE);
+    expect(before.status).toBe(404);
+    mkdirSync(laterRoot);
+    writeFileSync(join(laterRoot, "index.html"), "<!doctype html><title>later</title>");
+    const after = await send(later, "/", "GET", PAGE);
+    expect(after.status).toBe(200);
+    expect(after.body).toContain("<title>later</title>");
   });
 });

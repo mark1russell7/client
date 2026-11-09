@@ -8,15 +8,20 @@
  * - A path with no file and no extension is a route of the page. A request that accepts `text/html`
  *   gets the fallback file (`index.html`), and the router of the page shows the route. Another
  *   request gets 404, so a probe or a client of data does not get a page.
- * - Each response has the headers of the options, for example a content security policy, and
- *   `X-Content-Type-Options: nosniff`. An `ETag` lets the browser keep a file until it changes.
+ * - Each response has a strict frame policy by default: only a page of the same origin can show the
+ *   files in a frame (`DEFAULT_STATIC_HEADERS`). A header of the options replaces the default header
+ *   of the same name. Each response also has `X-Content-Type-Options: nosniff`. An `ETag` lets the
+ *   browser keep a file until it changes.
+ * - A path with a segment that starts with `.` gets 404, so `.env` or `.git` of a root stay hidden.
+ *   Only `.well-known` is served.
+ * - A root that is missing gives 404. The next request reads the root again, so a later build serves.
  * - Each request goes through the request tracking of the host (`track`, CLI-54), so the drain waits for it.
  */
 
 import { createReadStream } from "node:fs";
 import { realpath, stat } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { extname, join, resolve } from "node:path";
+import { extname, join, relative, resolve } from "node:path";
 import { isInside } from "@mark1russell7/files";
 import type { HostFaceFactory } from "./faces.js";
 
@@ -31,8 +36,33 @@ export interface StaticFaceOptions {
    * request that accepts `text/html` gets it. The default is `index.html`. `false` gives 404 for such a path.
    */
   readonly fallback?: string | false | undefined;
-  /** The headers of each response of the face, for example `Content-Security-Policy`. */
+  /**
+   * The headers of each response of the face, for example `Content-Security-Policy`. A header of
+   * this record replaces the header of `DEFAULT_STATIC_HEADERS` with the same name, in any case.
+   */
   readonly headers?: Readonly<Record<string, string>> | undefined;
+}
+
+/**
+ * The default headers of each response of the static face. Only a page of the same origin can show
+ * the files in a frame. The CSP rule is for the current browsers, and `X-Frame-Options` is for the
+ * old browsers.
+ */
+export const DEFAULT_STATIC_HEADERS: Readonly<Record<string, string>> = Object.freeze({
+  "Content-Security-Policy": "frame-ancestors 'self'",
+  "X-Frame-Options": "SAMEORIGIN",
+});
+
+/** This function gives the default headers with the headers of the options. A name of the options replaces the default name in any case. */
+function headersWith(given: Readonly<Record<string, string>>): Readonly<Record<string, string>> {
+  const names = new Set(Object.keys(given).map((name) => name.toLowerCase()));
+  const kept = Object.entries(DEFAULT_STATIC_HEADERS).filter(([name]) => !names.has(name.toLowerCase()));
+  return { ...Object.fromEntries(kept), ...given };
+}
+
+/** This function tells if a path has a hidden segment: a segment that starts with `.`, except `.well-known`. */
+function hidden(path: string): boolean {
+  return path.split(/[\\/]/).some((segment) => segment.startsWith(".") && segment !== ".well-known");
 }
 
 /** The content type of each extension that a built page has. Another extension gets `application/octet-stream`. */
@@ -76,12 +106,12 @@ interface Found {
 async function fileIn(root: string, path: string): Promise<Found | undefined> {
   try {
     let real = await realpath(resolve(root, `.${path}`));
-    // A symbolic link can point out of the root: the real path must stay in it
-    if (!isInside(root, real)) return undefined;
+    // A symbolic link can point out of the root, or to a hidden file in it: the real path must stay in it, and not hidden
+    if (!isInside(root, real) || hidden(relative(root, real))) return undefined;
     let info = await stat(real);
     if (info.isDirectory()) {
       real = await realpath(join(real, "index.html"));
-      if (!isInside(root, real)) return undefined;
+      if (!isInside(root, real) || hidden(relative(root, real))) return undefined;
       info = await stat(real);
     }
     if (!info.isFile()) return undefined;
@@ -150,6 +180,13 @@ function withoutTrailingSlashes(path: string): string {
   return path.slice(0, end);
 }
 
+/** This function gives the base path with one `/` at the start and none at the end: `app/` gives `/app`, and `` gives `/`. */
+function basePathOf(given: string): string {
+  const trimmed = withoutTrailingSlashes(given);
+  if (trimmed === "") return "/";
+  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+}
+
 /**
  * This function gives the static face: the files of a folder under a base path. Refer to the start of
  * this file for its rules.
@@ -157,15 +194,15 @@ function withoutTrailingSlashes(path: string): string {
  * @example
  * ```typescript
  * createProcedureHost({
- *   faces: { http: true, ws: true, page: staticFace({ root: "dist", headers: { "Content-Security-Policy": "default-src 'self'" } }) },
+ *   faces: { http: true, ws: true, page: staticFace({ root: "dist", headers: { "Content-Security-Policy": "default-src 'self'; frame-ancestors 'self'" } }) },
  *   listen: [{ port: 3000, knobs: LOCAL_LISTENER_KNOBS }],
  * });
  * ```
  */
 export function staticFace(options: StaticFaceOptions): HostFaceFactory {
-  const basePath = withoutTrailingSlashes(options.basePath ?? "/") || "/";
+  const basePath = basePathOf(options.basePath ?? "/");
   const fallback = options.fallback ?? "index.html";
-  const headers = options.headers ?? {};
+  const headers = headersWith(options.headers ?? {});
   const root = resolve(options.root);
   /** The real path of the root, after its symbolic links. The first request reads it. */
   let realRoot: Promise<string> | undefined;
@@ -182,8 +219,19 @@ export function staticFace(options: StaticFaceOptions): HostFaceFactory {
       answer(res, 400, "The path of the request is not valid.", headers);
       return;
     }
-    realRoot ??= realpath(root);
-    const base = await realRoot;
+    if (hidden(decoded)) {
+      answer(res, 404, "No file has this path.", headers);
+      return;
+    }
+    let base: string;
+    try {
+      base = await (realRoot ??= realpath(root));
+    } catch {
+      // The root is missing, for example before the first build: the next request reads it again
+      realRoot = undefined;
+      answer(res, 404, "No file has this path.", headers);
+      return;
+    }
     const file =
       (await fileIn(base, decoded)) ??
       // A route of the page has no extension, and the browser asks for a page: the router of the page shows it

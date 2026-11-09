@@ -10,6 +10,7 @@ type CallDetail: dist/host/tracking.d.ts#CallDetail
 type CallOperation: dist/host/tracking.d.ts#CallOperation
 type ConnectOptions: dist/connection/index.d.ts#ConnectOptions
 type Connection: dist/connection/index.d.ts#Connection
+DEFAULT_STATIC_HEADERS: dist/host/static-face.d.ts#DEFAULT_STATIC_HEADERS
 type FaceCallRules: dist/host/faces.d.ts#FaceCallRules
 type FaceHandler: dist/host/tracking.d.ts#FaceHandler
 type FaceHandlerOptions: dist/host/tracking.d.ts#FaceHandlerOptions
@@ -396,6 +397,9 @@ export interface LocalFace {
 
 ### dist/host/local-face.d.ts#localFace
 export declare function localFace(): LocalFace;
+
+### dist/host/static-face.d.ts#DEFAULT_STATIC_HEADERS
+export declare const DEFAULT_STATIC_HEADERS: Readonly<Record<string, string>>;
 
 ### dist/host/static-face.d.ts#StaticFaceOptions
 export interface StaticFaceOptions {
