@@ -536,8 +536,8 @@ importers:
         specifier: ^0.1.9
         version: 0.1.25
       '@mark1russell7/rigor-testkit':
-        specifier: ^0.1.1
-        version: 0.1.1(@opentelemetry/api-logs@0.223.0)(@opentelemetry/api@1.10.0)
+        specifier: ^0.1.2
+        version: 0.1.2(@opentelemetry/api-logs@0.223.0)(@opentelemetry/api@1.10.0)(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))
       '@opentelemetry/api-logs':
         specifier: ^0.223.0
         version: 0.223.0
@@ -3580,6 +3580,27 @@ packages:
       '@opentelemetry/api':
         optional: true
       '@opentelemetry/api-logs':
+        optional: true
+
+  '@mark1russell7/rigor-testkit@0.1.2':
+    resolution: {integrity: sha512-0Gm9hBcuzZbS8Sa5Kn49W+1VGNoyuuLMCOKd+mLIO22Wgbco4Ab6eyDgKrc3So7K42moQeHT3pQfDVASzCcKPA==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      '@opentelemetry/api': ^1.9.0
+      '@opentelemetry/api-logs': ^0.213.0 || ^0.223.0
+      '@opentelemetry/sdk-logs': ^0.223.0
+      '@opentelemetry/sdk-metrics': ^2.12.0
+      '@opentelemetry/sdk-trace-base': ^2.12.0
+    peerDependenciesMeta:
+      '@opentelemetry/api':
+        optional: true
+      '@opentelemetry/api-logs':
+        optional: true
+      '@opentelemetry/sdk-logs':
+        optional: true
+      '@opentelemetry/sdk-metrics':
+        optional: true
+      '@opentelemetry/sdk-trace-base':
         optional: true
 
   '@mark1russell7/service@0.8.3':
@@ -7470,6 +7491,14 @@ snapshots:
     optionalDependencies:
       '@opentelemetry/api': 1.10.0
       '@opentelemetry/api-logs': 0.223.0
+
+  '@mark1russell7/rigor-testkit@0.1.2(@opentelemetry/api-logs@0.223.0)(@opentelemetry/api@1.10.0)(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))':
+    optionalDependencies:
+      '@opentelemetry/api': 1.10.0
+      '@opentelemetry/api-logs': 0.223.0
+      '@opentelemetry/sdk-logs': 0.223.0(@opentelemetry/api@1.10.0)
+      '@opentelemetry/sdk-metrics': 2.12.0(@opentelemetry/api@1.10.0)
+      '@opentelemetry/sdk-trace-base': 2.12.0(@opentelemetry/api@1.10.0)
 
   '@mark1russell7/service@0.8.3(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)':
     dependencies:
