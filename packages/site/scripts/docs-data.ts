@@ -27,6 +27,7 @@ import sql from "highlight.js/lib/languages/sql";
 import typescript from "highlight.js/lib/languages/typescript";
 import xml from "highlight.js/lib/languages/xml";
 import yaml from "highlight.js/lib/languages/yaml";
+import { escapeAttribute as escapeHtml } from "@mark1russell7/text";
 
 export const REPOSITORY_URL = "https://github.com/mark1russell7/client";
 /** The name of the site, at the end of each document title. */
@@ -139,22 +140,36 @@ const SAFE_TAGS = /^<\/?(details|summary|br|kbd|sub|sup|b|i|em|strong|code|hr)\s
 /** The ids of the page that a heading must not take. */
 const RESERVED_IDS = new Set(["main", "root", "app"]);
 
-export function escapeHtml(text: string): string {
-  return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
+export { escapeHtml };
 
 /** The characters of the HTML entities that `plainText` decodes. */
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'" };
 
+/**
+ * This function removes the HTML tags of a text. It repeats the strip until the text does not change.
+ * One pass gives the same text, but the code scanner of the repository examines only this form.
+ * Then it removes each "<" that starts a tag, for example after "<<b>script>". A "<" before a space or a digit stays.
+ */
+function stripTags(text: string): string {
+  let previous: string;
+  do {
+    previous = text;
+    text = text.replace(/<[^>]+>/g, "");
+  } while (text !== previous);
+  return text.replace(/<(?=[A-Za-z/!?])/g, "");
+}
+
 /** The plain text of a line of inline Markdown: code spans, emphasis, links and images lose their marks. */
 export function plainText(markdown: string): string {
-  return String(markdown)
+  const marked = String(markdown)
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, "")
     .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/`([^`]*)`/g, "$1")
     .replace(/(\*\*|__)(.+?)\1/g, "$2")
     .replace(/(\*|_)(.+?)\1/g, "$2")
-    .replace(/<[^>]+>/g, "")
+    // An escaped "<" becomes an entity, so stripTags keeps it
+    .replace(/\\</g, "&lt;");
+  return stripTags(marked)
     .replace(/\\([\\`*_{}[\]()#+\-.!|<>])/g, "$1")
     // One pass for all the entities, so that "&amp;lt;" becomes "&lt;" and not "<"
     .replace(/&(amp|lt|gt|quot|#39);/g, (_, name: string) => ENTITIES[name]!)

@@ -819,6 +819,8 @@ The server stack does the rest of R37. Each Node host starts under `run()` and `
 | CLI-123 | Packages | @procedures/git reads the state of worktrees and refs from files, with no git process | M | in progress | CLI-121, CLI-122 | client | [PR #493](https://github.com/mark1russell7/client/pull/493) |
 | CLI-124 | Site | The measured numbers of the client site come from scheduled runs, with a freshness limit | M | in progress | CLI-120 | client | [site-pages: freshness](https://github.com/mark1russell7/template/tree/main/packages/site-pages#the-freshness-of-a-measured-page), [PR #517 (sqlite)](https://github.com/mark1russell7/client/pull/517) |
 | CLI-125 | Packages | A pure glob matcher in @procedures/fs/glob, with no client import | S | later | — | client | — |
+| CLI-130 | Runner | runProcedureHost starts the telemetry SDK of the app, and the last phase of the stop flushes it | S | in progress | CLI-62 | client | [PR #522](https://github.com/mark1russell7/client/pull/522) |
+| CLI-131 | Packages | @procedures/collections moves to @mark1russell7/collections 0.10, as its own MINOR | M | in progress | — | client | [PR #529](https://github.com/mark1russell7/client/pull/529), [PR #540](https://github.com/mark1russell7/client/pull/540) |
 | DOC-1 | Docs | Replace HOST-OWNERSHIP-BRIEF with a server layer contract | M | done | D14, REL-0 | server-stack | [client #6](https://github.com/mark1russell7/client/pull/6), [client 94407186](https://github.com/mark1russell7/client/commit/94407186) |
 | DOC-2 | Docs | Fix stale client storage docs and record R37 follow-ups in the client roadmap | S | done | — | server-stack | [client #6](https://github.com/mark1russell7/client/pull/6), [client 94407186](https://github.com/mark1russell7/client/commit/94407186) |
 | DOC-3 | Docs | Link the cross-repo server tracker from each repo's CLAUDE.md and roadmap | S | done | DOC-1 | server-stack | [client 94407186](https://github.com/mark1russell7/client/commit/94407186), [client #56](https://github.com/mark1russell7/client/pull/56), [client #85](https://github.com/mark1russell7/client/pull/85) |
@@ -834,7 +836,7 @@ The server stack does the rest of R37. Each Node host starts under `run()` and `
 | REL-6 | Releases | Client 0.12.1: the first publish of better-auth and access | S | done | APP-16, APP-13 | release | [npm 0.12.1](https://www.npmjs.com/package/@procedures/client/v/0.12.1), in 0.12.1 |
 | REL-7 | Releases | The apps move to client ^0.14.0 | S | done | CLI-48 | app | — |
 
-- These items break the API: CLI-1, CLI-2b, CLI-4, CLI-5, CLI-6, CLI-7, CLI-8, CLI-9, CLI-11, CLI-16, CLI-26, CLI-42, CLI-47, CLI-48, CLI-51, CLI-68, CLI-69. Each one is its own MINOR of the client group (D13).
+- These items break the API: CLI-1, CLI-2b, CLI-4, CLI-5, CLI-6, CLI-7, CLI-8, CLI-9, CLI-11, CLI-16, CLI-26, CLI-42, CLI-47, CLI-48, CLI-51, CLI-68 and CLI-69. Step 2 of CLI-131 also breaks the API. Each one is its own MINOR of the client group (D13).
 - CLI-28 breaks the API only if the version leaves the URL.
 - The other items are additive. Each one ships as a PATCH of the client group.
 

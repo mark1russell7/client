@@ -13,6 +13,8 @@ import type { Admission, AmbientCredentials, Credentials, Method, Principal, Pri
 import { methodName, methodToPath, pathToMethod } from "./method.js";
 import { isLocalCredentials } from "./request-auth.js";
 import { STREAM_METADATA_KEY } from "./stream-metadata.js";
+import { context as otelContext } from "@opentelemetry/api";
+import { callerContext } from "../tracing/otel.js";
 import type {
   AnyProcedure,
   ProcedurePath,
@@ -150,6 +152,20 @@ export interface ProcedureServerOptions extends ServerOptions {
    * network request": no presented token matches it, not even an empty one.
    */
   token?: string | undefined;
+
+  /**
+   * Which callers can set the baggage of a call (roadmap item C10 of otel-ts). Each handler runs in
+   * the context of its caller: the remote span of the `traceparent` and `tracestate` of the
+   * metadata is its parent. The `baggage` of the metadata goes into the context only from a
+   * trusted caller. Without it, the handler runs with no baggage, so an end user cannot set the
+   * baggage of the services.
+   *
+   * A local request (`LOCAL_CREDENTIALS`) and a request with the token of the server are always
+   * trusted. This function can trust more requests, for example the requests of a principal of a
+   * service. It runs after the checks of the request, so it can read `request.principal`. An
+   * error of the function means "not trusted". The default trusts no other request.
+   */
+  trustBaggage?: ((request: ServerRequest<unknown>) => boolean) | undefined;
 
   /**
    * This function gives the principal of a request, or undefined to refuse it with
@@ -455,11 +471,17 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
   private readonly token: string | undefined;
   private readonly principalOf: PrincipalOf | undefined;
   private readonly authenticate: ProcedureServerOptions["authenticate"];
+  private readonly trustBaggage: ProcedureServerOptions["trustBaggage"];
+  /**
+   * The requests whose caller can set the baggage (C10): a local request, a request with the
+   * token of the server, or a request with the admission of such a request.
+   */
+  private readonly trustedCallers = new WeakSet<ServerRequest<unknown>>();
   /**
    * The admissions of this server (CLI-2b): the identity of each object of admitted credentials
    * that `admission()` gave. Only this server adds an entry, so a request cannot claim one.
    */
-  private readonly admissions = new WeakMap<Credentials, { readonly principal: Principal | undefined; readonly narrowing: ServerRequest<unknown>["narrowing"] }>();
+  private readonly admissions = new WeakMap<Credentials, { readonly principal: Principal | undefined; readonly narrowing: ServerRequest<unknown>["narrowing"]; readonly trusted: boolean }>();
   /**
    * The admission of each request object. The late lookup of a lazy registry admits a request
    * before it loads packages, and the call of the same request uses that result again.
@@ -497,6 +519,7 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
     this.token = options.token;
     this.principalOf = options.principalOf;
     this.authenticate = options.authenticate;
+    this.trustBaggage = options.trustBaggage;
     const ambient = options.ambientCredentials ?? (this.principalOf ? "always" : this.authenticate ? "cookies" : undefined);
     this.ambientCredentials = ambient === false ? undefined : ambient;
     this.debugReport =
@@ -937,6 +960,7 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
     // again. Only this server makes such credentials, so a copy or a forgery has no entry.
     const admitted = request.credentials !== undefined ? this.admissions.get(request.credentials) : undefined;
     if (admitted) {
+      if (admitted.trusted) this.trustedCallers.add(request);
       if (admitted.principal) request.principal = admitted.principal;
       if (admitted.narrowing) {
         const order = this.capabilityOptions.clearanceOrder;
@@ -953,6 +977,8 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
     // A local face (this process, MCP over stdio, a message port) sets the local marker. The
     // marker key is a symbol, so a request from the network cannot carry it (CLI-1).
     const credentials = isLocalCredentials(request.credentials) ? undefined : request.credentials;
+    // A local caller is a part of this process: it can set the baggage (C10)
+    if (isLocalCredentials(request.credentials)) this.trustedCallers.add(request);
     let identity: RequestIdentity | undefined;
     if (this.principalOf && credentials !== undefined) {
       try {
@@ -966,6 +992,8 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
       const bearer = identity?.bearer ?? credentials.bearer;
       if (!tokenMatches(this.token, bearer)) return unauthorized("Unauthorized: this server requires its token");
       request.principal = { id: "token", via: "token" };
+      // A caller with the token of the server is a service of the operator: it can set the baggage (C10)
+      this.trustedCallers.add(request);
     }
     if (identity?.principal) request.principal = identity.principal;
     if (identity?.narrowing) {
@@ -1063,7 +1091,7 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
       return { ok: false, code: "UNAUTHORIZED", message: refusal.status.type === "error" ? refusal.status.message : "Unauthorized" };
     }
     const admitted: Credentials = Object.freeze({ ...credentials });
-    this.admissions.set(admitted, { principal: request.principal, narrowing: request.narrowing });
+    this.admissions.set(admitted, { principal: request.principal, narrowing: request.narrowing, trusted: this.trustedCallers.has(request) });
     return { ok: true, credentials: admitted, ...(request.principal ? { principal: request.principal } : {}) };
   }
 
@@ -1144,6 +1172,17 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
     };
   }
 
+  /** True when the caller of `request` can set the baggage of the call (C10). */
+  private trustsCaller(request: ServerRequest<unknown>): boolean {
+    if (this.trustedCallers.has(request)) return true;
+    if (!this.trustBaggage) return false;
+    try {
+      return this.trustBaggage(request) === true;
+    } catch {
+      return false;
+    }
+  }
+
   /** Run a procedure for a request with a signal. */
   private async run(procedure: AnyProcedure, request: ServerRequest<unknown>, signal: AbortSignal | undefined): Promise<ServerResponse<unknown>> {
     // The call uses the storages that it takes until its end: the end of a stream, for a stream
@@ -1160,7 +1199,10 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
         const message = `The server cannot narrow the capability of the request: ${error instanceof Error ? error.message : String(error)}`;
         return errorResponse(request.id, Object.assign(new Error(message), { code: "INTERNAL_ERROR" }), request);
       }
-      const output = await invokeProcedure(procedure, request.payload, {
+      // The handler runs in the context of its caller (C10): its trace always, its baggage only
+      // when the caller is trusted
+      const caller = callerContext(request.metadata, this.trustsCaller(request));
+      const output = await otelContext.with(caller, () => invokeProcedure(procedure, request.payload, {
         registry: this.procedureRegistry,
         metadata: request.metadata,
         signal,
@@ -1182,7 +1224,7 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
         ...(request.principal !== undefined ? { principal: request.principal } : {}),
         // The bus of the remote events is the bus of the procedures (EVENTS.md)
         ...(this.publisher ? { bus: this.publisher.bus } : {}),
-      });
+      }));
       if (output.kind === "stream") {
         // The faces that collect a stream read this mark (roadmap R15)
         const unbounded = (procedure.metadata as { stream?: { unbounded?: boolean } } | undefined)?.stream?.unbounded === true;

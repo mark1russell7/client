@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, expect, it, vi, type TestContext } from 
 import { MongoClient, ObjectId, type Db, type Document } from "mongodb";
 import { collectionChangeTopic, createEventBus, ms, type Clock } from "@procedures/client";
 import { DEFAULT_STORED_FORM, MongoDocumentStorage, storageChangeSource, versionOfStored, type MongoDocumentStorageOptions, type StoredForm } from "./document-storage.js";
-import { storageChangeOf, watchStorageChanges, type StorageChangeHint } from "./storage-hints.js";
+import { backoffOf, storageChangeOf, watchStorageChanges, type StorageChangeHint } from "./storage-hints.js";
 import { noteOwnNumbers, notePrunedIds, trackOwnNumbers } from "./own-writes.js";
 
 /**
@@ -583,6 +583,31 @@ describe("watchStorageChanges without a server (CLI-77)", () => {
     expect(published[0]).toEqual({ topic: collectionChangeTopic("fake_notes", "t5"), event: { changed: [], deleted: [], reset: true } });
     expect(runs).toHaveLength(4);
     expect(logs.some((line) => line.startsWith("warn") && line.includes("host unreachable") && line.includes('"t5"'))).toBe(true);
+    await watch.stop();
+  });
+});
+
+/** A resume token of the server form: the type byte `82`, the timestamp, and a rest. */
+const serverToken = (seconds: number, increment: number, rest = "2B0229296E04"): { _data: string } => ({
+  _data: `82${seconds.toString(16).padStart(8, "0")}${increment.toString(16).padStart(8, "0")}${rest}`,
+});
+
+describe("the age of the token of watchStorageChanges (CLI-110)", () => {
+  it("moves at a later cluster time on the clock of the watcher, and not at the same cluster time again", async () => {
+    const { storage, stream, clock, log, publish } = fakeWatch();
+    let at = 0;
+    const timed = { now: () => at, after: clock.after } as Clock;
+    const watch = watchStorageChanges(storage, publish, { clock: timed, log });
+    const open = await stream();
+    at = 100;
+    expect(watch.tokenAgeMs).toBe(100);
+    open.emit("resumeTokenChanged", serverToken(10, 1));
+    expect(watch.tokenAgeMs).toBe(0);
+    at = 180;
+    open.emit("resumeTokenChanged", serverToken(10, 1, "FF"));
+    expect(watch.tokenAgeMs).toBe(80);
+    open.emit("resumeTokenChanged", serverToken(11, 0));
+    expect(watch.tokenAgeMs).toBe(0);
     await watch.stop();
   });
 });
@@ -1239,5 +1264,50 @@ describe("watchStorageChanges and an event over the BSON limit (CLI-107)", () =>
     expect(published).toEqual([]);
     expect(logs.some((line) => line.includes("at one token"))).toBe(false);
     await watch.stop();
+  });
+});
+
+describe("backoffOf and the backoff of service", () => {
+  // The formula of backoffOf before it called backoffDelay of @mark1russell7/service
+  const before = (initial: number, max: number, factor: number, jitter: number, attempt: number, r: number): number => {
+    const full = Math.min(max, initial * factor ** attempt);
+    return full - full * jitter * r;
+  };
+
+  it("gives the delays of the old formula for each try, with the same random numbers", () => {
+    const draws = [0, 0.25, 0.5, 0.999_999, 0.123_456_789];
+    const policies = [
+      { initialDelay: undefined, maxDelay: undefined, backoffMultiplier: undefined, jitter: undefined },
+      { initialDelay: 10, maxDelay: 40, backoffMultiplier: undefined, jitter: 0 },
+      { initialDelay: 0, maxDelay: 0, backoffMultiplier: 3, jitter: 0.5 },
+      { initialDelay: 7, maxDelay: 1_000_000, backoffMultiplier: 1.5, jitter: 0.3 },
+      { initialDelay: 250, maxDelay: 250, backoffMultiplier: 1, jitter: 1 },
+    ];
+    const random = vi.spyOn(Math, "random");
+    try {
+      for (const policy of policies) {
+        const options = Object.fromEntries(Object.entries(policy).filter(([, value]) => value !== undefined).map(([key, value]) => [key, key.endsWith("Delay") ? ms(value as number) : value]));
+        const delayOf = backoffOf(options);
+        for (let attempt = 0; attempt < 40; attempt++) {
+          for (const r of draws) {
+            random.mockReturnValueOnce(r);
+            const [initial, max, factor, jitter] = [policy.initialDelay ?? 250, policy.maxDelay ?? 30_000, policy.backoffMultiplier ?? 2, policy.jitter ?? 1];
+            const expected = before(initial, max, factor, jitter, attempt, r);
+            const got = delayOf(attempt);
+            // The two formulas round differently in the last bits: full * (1 - j * r) against full - full * j * r.
+            // The old difference loses bits when j * r is near 1, so the bound is a part of the delay before its jitter.
+            expect(Math.abs(got - expected)).toBeLessThanOrEqual(Math.min(max, initial * factor ** attempt) * 1e-12);
+          }
+        }
+      }
+    } finally {
+      random.mockRestore();
+    }
+  });
+
+  it("refuses the policies that the old formula refused", () => {
+    expect(() => backoffOf({ initialDelay: ms(50), maxDelay: ms(10) })).toThrow(RangeError);
+    expect(() => backoffOf({ backoffMultiplier: 0.5 })).toThrow(RangeError);
+    expect(() => backoffOf({ jitter: 2 })).toThrow(RangeError);
   });
 });

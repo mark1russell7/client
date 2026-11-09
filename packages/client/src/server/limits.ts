@@ -236,9 +236,22 @@ export function limitedCall(procedure: { readonly path: ProcedurePath; readonly 
 /**
  * This function gives the response of a refused call: `RATE_LIMITED`, retryable, with the wait in
  * `retry-after` (milliseconds) and the cause in `reason`. The failure of a store stays on the server.
+ * A refusal with the cause `capacity` is not retryable and has no wait: no wait lets its units in.
  */
 export function rateLimitedResponse(id: string, refusal: CallLimitRefusal): ServerResponse<unknown> {
   const { limit, refused } = refusal;
+  if (refused.cause === "capacity") {
+    return {
+      id,
+      status: {
+        type: "error",
+        code: "RATE_LIMITED",
+        message: `The limit ${limit} of the host refuses the call at each time: ${refused.units} units are over its capacity of ${refused.capacity}`,
+        retryable: false,
+      },
+      metadata: { reason: refused.cause },
+    };
+  }
   const waitMs = valueIn(refused.retryAfter, "ms");
   const seconds = retryAfterSeconds(refused.retryAfter);
   return {

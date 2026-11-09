@@ -137,6 +137,8 @@ const VOLATILE_METADATA = new Set([
   "idempotency-key",
   "procedure-timeout",
   "traceparent",
+  "tracestate",
+  "baggage",
 ]);
 
 /** The part of the metadata that can change a response. */
