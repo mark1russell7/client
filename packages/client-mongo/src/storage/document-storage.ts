@@ -246,6 +246,8 @@ export interface MongoDocumentStorageOptions<T = unknown> {
    * - With `sequence: "partition"`, each partition has its own queue. Without this bound, each partition of a process has a transaction open at once.
    * - A whole number of 1 or more, or `Infinity` for no bound. Another value is a `RangeError`.
    * - The sweeps of 2, 4, 8, 16 and `Infinity` at the bench cases `400-p2` and `4000-p2` set the default of 8.
+   * - With `sequence: "partition"`, `Infinity` costs approximately 30 % of the writes a second. The bench run 42428048767
+   *   gives 638.5 against 916.5 of the default sequence at `4000-p2`. The store emits a process warning one time for it.
    */
   writesInFlight?: number | undefined;
   /**
@@ -366,6 +368,21 @@ const READS = new WeakMap<object, Semaphore>();
 
 /** The default of the option `writesInFlight`: the most writes of each client at one time (roadmap CLI-96). */
 export const DEFAULT_WRITES_IN_FLIGHT = 8;
+
+/** The code of the process warning for a store with `sequence: "partition"` and no bound on its writes. */
+export const UNBOUNDED_PARTITION_WARNING = "PROCEDURES_MONGO_UNBOUNDED_PARTITION";
+
+let warnedUnboundedPartition = false;
+
+/** This function emits the process warning of an unbounded store with a counter for each partition, one time. */
+function warnUnboundedPartition(): void {
+  if (warnedUnboundedPartition) return;
+  warnedUnboundedPartition = true;
+  process.emitWarning(
+    'writesInFlight: Infinity with sequence: "partition" costs approximately 30 % of the writes a second. Use the default bound of 8.',
+    { code: UNBOUNDED_PARTITION_WARNING },
+  );
+}
 
 /** The permits of the writes of each client, by the value of `writesInFlight`: the stores with one value share the permits. */
 const WRITES = new WeakMap<object, Map<number, Semaphore>>();
@@ -937,6 +954,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     if (!(this.writesInFlight === Infinity || (Number.isSafeInteger(this.writesInFlight) && this.writesInFlight >= 1))) {
       throw new RangeError(`writesInFlight must be a whole number of 1 or more, or Infinity, not ${String(options.writesInFlight)}`);
     }
+    if (this.writesInFlight === Infinity && this.sequence === "partition") warnUnboundedPartition();
     this.partitions = partitions ?? new Map();
   }
 

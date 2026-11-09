@@ -10,9 +10,9 @@
  * These rows need `MONGO_TEST_URL` (CI starts a `mongo:7` service).
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { MongoClient, type CommandFailedEvent, type CommandStartedEvent, type CommandSucceededEvent, type Db } from "mongodb";
-import { DEFAULT_WRITES_IN_FLIGHT, MongoDocumentStorage } from "./document-storage.js";
+import { DEFAULT_WRITES_IN_FLIGHT, MongoDocumentStorage, UNBOUNDED_PARTITION_WARNING } from "./document-storage.js";
 
 const url = process.env["MONGO_TEST_URL"];
 const withMongo = url ? describe : describe.skip;
@@ -99,7 +99,25 @@ describe("the option writesInFlight (CLI-96)", () => {
       expect(() => new MongoDocumentStorage({ collection: "c", writesInFlight: bad })).toThrow(RangeError);
     }
     expect(() => new MongoDocumentStorage({ collection: "c", writesInFlight: Infinity })).not.toThrow();
+  });
+
+  it("keeps the default bound at 8, the value that the sweeps at 400-p2 and 4000-p2 chose", () => {
     expect(DEFAULT_WRITES_IN_FLIGHT).toBe(8);
+  });
+
+  it("emits one process warning for a store with sequence partition and no bound", () => {
+    const emit = vi.spyOn(process, "emitWarning").mockImplementation(() => undefined);
+    try {
+      new MongoDocumentStorage({ collection: "c", writesInFlight: Infinity });
+      new MongoDocumentStorage({ collection: "c", sequence: "partition" });
+      expect(emit).not.toHaveBeenCalled();
+      new MongoDocumentStorage({ collection: "p", sequence: "partition", writesInFlight: Infinity });
+      new MongoDocumentStorage({ collection: "p", sequence: "partition", writesInFlight: Infinity });
+      expect(emit).toHaveBeenCalledTimes(1);
+      expect(emit.mock.calls[0]?.[1]).toEqual({ code: UNBOUNDED_PARTITION_WARNING });
+    } finally {
+      emit.mockRestore();
+    }
   });
 });
 
