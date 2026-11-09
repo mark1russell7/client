@@ -1,5 +1,30 @@
 # @procedures/mongo
 
+## 0.53.0
+
+### Minor Changes
+
+- 831ab0f: Breaking change (roadmap CLI-110): the types `DatabaseChangesWatch` and `StorageChangesWatch` have the new getter `tokenAgeMs`, and it is not optional. The handles of `watchDatabaseChanges()` and `watchStorageChanges()` give it. It gives the milliseconds of the clock of the watcher since the resume token last moved to a later cluster time. Before the first move, it counts from the start of the watcher. A new token at the same cluster time does not move it. An app reads a stalled feed from it, without a sampler of its own.
+  
+  Some apps make their own objects of the type `DatabaseChangesWatch` or `StorageChangesWatch`, for example a fake of a test. To migrate, add the getter `tokenAgeMs` to each of these objects. Code that only reads a handle needs no change.
+
+### Patch Changes
+
+- The packages use the new versions of their dependencies of the owner: `@mark1russell7/service` `^0.8.3`, `@mark1russell7/coeval` `^0.26.1` and `@mark1russell7/docker-sqlite` `^0.3.0`. The range of `@mark1russell7/collections` stays `^0.5.0`: its version 0.7.0 and later remove names that `@procedures/collections` exports.
+- 556d0a8: The packages use `@mark1russell7/service` `^0.8.2` in place of `^0.6.0`. Version 0.7.0 adds the refusal cause `capacity`, and version 0.8.0 refuses a listen backlog of 0. Version 0.8.2 adds the call context of OpenTelemetry. The types `Clock` and `Cancel` of `@mark1russell7/service/clock` do not change: their home is `@mark1russell7/algebra/clock`, and the entry gives them again.
+  
+  A refusal of a call limit with the cause `capacity` gives `RATE_LIMITED` that is not retryable and has no `retry-after`. A take of one unit does not get this cause, because each policy holds 1 unit or more.
+- 1f638a3: The escape of a text for a regular expression is `escapeRegExp` of `@mark1russell7/text`, the home of the escape functions. The output does not change. Each of the three packages thus has the new dependency `@mark1russell7/text` `^0.0.2`, which has no dependencies.
+- Updated dependencies [bc98f77]
+- Updated dependencies [33510a2]
+- Updated dependencies [11d9084]
+- Updated dependencies [d28ccb5]
+- Updated dependencies [735cfcf]
+- Updated dependencies
+- Updated dependencies [556d0a8]
+  - @procedures/client@0.53.0
+  - @procedures/collections@0.53.0
+
 ## 0.52.5
 
 ### Patch Changes

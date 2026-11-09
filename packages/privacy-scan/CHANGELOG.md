@@ -1,5 +1,18 @@
 # @procedures/privacy-scan
 
+## 0.53.0
+
+### Patch Changes
+
+- 1f638a3: The escape of a text for a regular expression is `escapeRegExp` of `@mark1russell7/text`, the home of the escape functions. The output does not change. Each of the three packages thus has the new dependency `@mark1russell7/text` `^0.0.2`, which has no dependencies.
+- Updated dependencies [bc98f77]
+- Updated dependencies [11d9084]
+- Updated dependencies [d28ccb5]
+- Updated dependencies [735cfcf]
+- Updated dependencies
+- Updated dependencies [556d0a8]
+  - @procedures/client@0.53.0
+
 ## 0.52.5
 
 ### Patch Changes
