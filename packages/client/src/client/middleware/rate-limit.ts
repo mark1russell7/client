@@ -308,6 +308,10 @@ export function createRateLimitMiddleware(
     while (queue.length > 0) {
       const decision = take();
       if (!decision.allowed) {
+        // A take of one token is never over the capacity: the bucket holds maxRequests tokens, 1 or more
+        if (decision.cause === "capacity") {
+          throw new Error(`The bucket refuses one token at each time (capacity ${decision.capacity}): this is a defect`);
+        }
         // The time until the next whole token
         const wait = Math.max(1, Math.ceil(valueIn(decision.retryAfter, "ms")));
         drainTimer = clock.after(wait, () => {
