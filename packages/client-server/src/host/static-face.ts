@@ -143,6 +143,13 @@ function send(req: IncomingMessage, res: ServerResponse, file: Found, headers: R
   });
 }
 
+/** This function removes the slashes at the end of a path. A loop, not a regular expression, keeps the time linear. */
+function withoutTrailingSlashes(path: string): string {
+  let end = path.length;
+  while (end > 0 && path.charCodeAt(end - 1) === 0x2f) end--;
+  return path.slice(0, end);
+}
+
 /**
  * This function gives the static face: the files of a folder under a base path. Refer to the start of
  * this file for its rules.
@@ -156,7 +163,7 @@ function send(req: IncomingMessage, res: ServerResponse, file: Found, headers: R
  * ```
  */
 export function staticFace(options: StaticFaceOptions): HostFaceFactory {
-  const basePath = (options.basePath ?? "/").replace(/\/+$/, "") || "/";
+  const basePath = withoutTrailingSlashes(options.basePath ?? "/") || "/";
   const fallback = options.fallback ?? "index.html";
   const headers = options.headers ?? {};
   const root = resolve(options.root);
