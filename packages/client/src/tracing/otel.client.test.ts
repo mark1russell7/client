@@ -19,10 +19,12 @@ import { Client } from "../client/client.js";
 import { createProcedure } from "../procedures/define.js";
 import { createRegistry } from "../procedures/module.js";
 import { metricsInterceptor, tracingInterceptor, type InvocationSpan } from "../procedures/interceptors.js";
-import { ProcedureServer } from "../server/procedure-server.js";
+import { ProcedureServer, type ProcedureServerOptions } from "../server/procedure-server.js";
+import { LOCAL_CREDENTIALS } from "../server/request-auth.js";
+import { pathToMethod } from "../server/method.js";
 import { HttpTransport } from "../adapters/http/client/transport.js";
 import { HttpServerTransport } from "../adapters/http/server/transport.js";
-import { INTERNAL_CALL_KEY, asInternalCall, startApiSpan } from "./otel.js";
+import { INTERNAL_CALL_KEY, asInternalCall, callerContext, startApiSpan } from "./otel.js";
 
 const exporter = new InMemorySpanExporter();
 /** Each carrier that the propagator wrote, with the mark of an internal call of its context */
@@ -56,7 +58,7 @@ afterEach(() => {
 });
 
 /** A server on the loopback with `outer`, which calls `inner`, and the spans of its interceptor */
-const started = async (interceptors: "tracing" | "metrics" = "tracing") => {
+const started = async (interceptors: "tracing" | "metrics" = "tracing", options: ProcedureServerOptions & { bearer?: string } = {}) => {
   const spans: InvocationSpan[] = [];
   const seen: Array<{ traceId: string | undefined; tenant: string | undefined }> = [];
   const registry = createRegistry({
@@ -85,20 +87,26 @@ const started = async (interceptors: "tracing" | "metrics" = "tracing") => {
     ],
   });
   const interceptor = interceptors === "tracing" ? tracingInterceptor({ onSpan: (span) => spans.push(span) }) : metricsInterceptor().interceptor;
-  const server = new ProcedureServer({ registry, interceptors: [interceptor] });
+  const { bearer, ...serverOptions } = options;
+  const server = new ProcedureServer({ ...serverOptions, registry, interceptors: [interceptor] });
   server.registerFromRegistry();
   const app = express();
   const http = createServer(app);
   server.addTransport(new HttpServerTransport(server, { app, httpServer: http }));
   await server.start();
   await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", () => resolve()));
-  const client = new Client(new HttpTransport({ baseUrl: `http://127.0.0.1:${(http.address() as AddressInfo).port}/api` }));
+  const client = new Client(
+    new HttpTransport({
+      baseUrl: `http://127.0.0.1:${(http.address() as AddressInfo).port}/api`,
+      defaultHeaders: bearer === undefined ? {} : { Authorization: `Bearer ${bearer}` },
+    }),
+  );
   const stop = async (): Promise<void> => {
     await server.stop();
     http.closeAllConnections();
     await new Promise<void>((resolve) => http.close(() => resolve()));
   };
-  return { client, spans, seen, stop };
+  return { client, server, spans, seen, stop };
 };
 
 describe("the mark of an internal call (C8)", () => {
@@ -142,7 +150,7 @@ describe("one trace of the API from the client to the handler, with an SDK (C8)"
         baggage: "tenant=acme",
         tracing: { traceId, spanId: call.spanContext().spanId, parentSpanId: app.spanContext().spanId },
       });
-      // The handler runs in its span. The host reads no baggage from the metadata: @procedures/peer does, after its token check (C10)
+      // The handler runs in its span. The caller has no token, so the host does not use its baggage (C10)
       expect(seen).toEqual([{ traceId, tenant: undefined }]);
     } finally {
       await stop();
@@ -169,6 +177,91 @@ describe("one trace of the API from the client to the handler, with an SDK (C8)"
     } finally {
       await stop();
     }
+  });
+});
+
+describe("the handler runs in the context of its caller (C10)", () => {
+  const TRACE_ID = "0af7651916cd43dd8448eb211c80319c";
+  const metadata = { traceparent: `00-${TRACE_ID}-b7ad6b7169203331-01`, baggage: "tenant=acme" };
+  /** The context that the handler of `test.outer` sees for one request to the engine */
+  const handled = async (options: ProcedureServerOptions, credentials: Parameters<ProcedureServer["handle"]>[0]["credentials"]) => {
+    const { server, seen, stop } = await started("metrics", options);
+    try {
+      const response = await server.handle({ id: "1", method: pathToMethod(["test", "outer"]), payload: {}, metadata: { ...metadata }, credentials });
+      expect(response.status.type).toBe("success");
+      return seen[0];
+    } finally {
+      await stop();
+    }
+  };
+
+  it("uses the trace and the baggage of a caller with the token of the server, with the metrics interceptor only", async () => {
+    const { client, seen, stop } = await started("metrics", { token: "secret", bearer: "secret" });
+    try {
+      const app = trace.getTracer("test").startSpan("app");
+      const caller = propagation.setBaggage(trace.setSpan(ROOT_CONTEXT, app), propagation.createBaggage({ tenant: { value: "acme" } }));
+      expect(await context.with(caller, () => client.call({ service: "test", operation: "outer" }, {}))).toBe(7);
+      app.end();
+      // Before C10, the peer host (metrics interceptor only) ran the handler outside the trace of its caller
+      expect(seen).toEqual([{ traceId: app.spanContext().traceId, tenant: "acme" }]);
+    } finally {
+      await stop();
+    }
+  });
+
+  it("uses the trace, but not the baggage, of a caller with no token", async () => {
+    const { client, seen, stop } = await started("metrics");
+    try {
+      const app = trace.getTracer("test").startSpan("app");
+      const caller = propagation.setBaggage(trace.setSpan(ROOT_CONTEXT, app), propagation.createBaggage({ tenant: { value: "acme" } }));
+      await context.with(caller, () => client.call({ service: "test", operation: "outer" }, {}));
+      app.end();
+      expect(seen).toEqual([{ traceId: app.spanContext().traceId, tenant: undefined }]);
+    } finally {
+      await stop();
+    }
+  });
+
+  it("trusts a local caller", async () => {
+    expect(await handled({}, LOCAL_CREDENTIALS)).toEqual({ traceId: TRACE_ID, tenant: "acme" });
+  });
+
+  it("trusts a caller with the token of the server, and the calls of its admission", async () => {
+    expect(await handled({ token: "secret" }, { bearer: "secret" })).toEqual({ traceId: TRACE_ID, tenant: "acme" });
+    const { server, seen, stop } = await started("metrics", { token: "secret" });
+    try {
+      const admission = await server.admission({ bearer: "secret" });
+      expect(admission.ok).toBe(true);
+      if (!admission.ok) return;
+      await server.handle({ id: "1", method: pathToMethod(["test", "outer"]), payload: {}, metadata: { ...metadata }, credentials: admission.credentials });
+      expect(seen).toEqual([{ traceId: TRACE_ID, tenant: "acme" }]);
+    } finally {
+      await stop();
+    }
+  });
+
+  it("does not trust a principal of the request hook alone", async () => {
+    const principalOf = () => ({ principal: { id: "alice", via: "cookie" } });
+    expect(await handled({ principalOf }, { bearer: "alice" })).toEqual({ traceId: TRACE_ID, tenant: undefined });
+  });
+
+  it("trusts the callers that the function trustBaggage names, and not after an error of it", async () => {
+    const principalOf = () => ({ principal: { id: "billing", via: "mtls" } });
+    const trustBaggage = (request: { principal?: { id: string } | undefined }) => request.principal?.id === "billing";
+    expect(await handled({ principalOf, trustBaggage }, { bearer: "x" })).toEqual({ traceId: TRACE_ID, tenant: "acme" });
+    const throws = () => {
+      throw new Error("no");
+    };
+    expect(await handled({ principalOf, trustBaggage: throws }, { bearer: "x" })).toEqual({ traceId: TRACE_ID, tenant: undefined });
+  });
+
+  it("removes the baggage of the active context for a caller that is not trusted", () => {
+    const active = propagation.setBaggage(ROOT_CONTEXT, propagation.createBaggage({ tenant: { value: "spoof" } }));
+    expect(propagation.getBaggage(callerContext({}, false, active))).toBeUndefined();
+    // A trusted caller with no baggage in the metadata keeps the baggage of the active context (a call in this process)
+    expect(propagation.getBaggage(callerContext({}, true, active))?.getEntry("tenant")?.value).toBe("spoof");
+    // The baggage of a trusted caller replaces it
+    expect(propagation.getBaggage(callerContext({ baggage: "tenant=acme" }, true, active))?.getAllEntries()).toEqual([["tenant", { value: "acme" }]]);
   });
 });
 
