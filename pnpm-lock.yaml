@@ -808,6 +808,9 @@ importers:
         specifier: ^4.6.5
         version: 4.6.7
     devDependencies:
+      '@mark1russell7/conventions':
+        specifier: ^0.40.2
+        version: 0.40.2
       '@mark1russell7/cue':
         specifier: ^2.1.1
         version: 2.1.2
