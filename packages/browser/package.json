@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/browser",
-  "version": "0.53.1",
+  "version": "0.54.0",
   "description": "Find a Chromium browser that is already installed (Edge, Chrome or Chromium), and render a page with it: a PDF file or a screenshot, with no browser download.",
   "keywords": [
     "browser",
