@@ -45,6 +45,50 @@ export interface PortLike {
   start?(): void;
 }
 
+/** The listener of a port of the main process of Electron: it gets an event, and the message is its `data`. */
+type MainListener = (event: { readonly data: unknown }) => void;
+
+/**
+ * A port of the main process of Electron (`MessagePortMain`). The listener of its `on` gets an event with the message
+ * in `data`. The Node form of `PortLike` gets the message itself, so `electronPortOf` changes the form.
+ */
+export interface MainPortLike {
+  postMessage(message: unknown): void;
+  on(type: "message", listener: MainListener): unknown;
+  off?(type: "message", listener: MainListener): unknown;
+  start(): void;
+}
+
+/**
+ * This function gives the `PortLike` of a port of the main process of Electron. Each listener gets the `data` of the
+ * event. `off` removes the listener that `on` added, so the close of a `PortTransport` stops to listen.
+ *
+ * @example
+ * ```typescript
+ * const { port1, port2 } = new MessageChannelMain();
+ * new PortTransport(electronPortOf(port1), { serve: server });
+ * window.webContents.postMessage("ports", null, [port2]);
+ * ```
+ */
+export function electronPortOf(port: MainPortLike): PortLike {
+  const listeners = new Map<(data: unknown) => void, MainListener>();
+  return {
+    postMessage: (message) => port.postMessage(message),
+    on(type, listener) {
+      const each: MainListener = (event) => listener(event.data);
+      listeners.set(listener, each);
+      return port.on(type, each);
+    },
+    off(type, listener) {
+      const each = listeners.get(listener);
+      if (each === undefined) return undefined;
+      listeners.delete(listener);
+      return port.off?.(type, each);
+    },
+    start: () => port.start(),
+  };
+}
+
 /** The options of a `PortTransport`. */
 export interface PortTransportOptions {
   /** The handler of the calls of the other side, for example a `ProcedureServer`. */
