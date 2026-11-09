@@ -1018,6 +1018,9 @@ importers:
 
   packages/client-server:
     dependencies:
+      '@mark1russell7/files':
+        specifier: ^0.0.2
+        version: 0.0.2
       '@mark1russell7/service':
         specifier: ^0.8.3
         version: 0.8.3(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
@@ -1040,6 +1043,9 @@ importers:
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
+      '@procedures/http':
+        specifier: workspace:*
+        version: link:../http
       '@procedures/mcp-server':
         specifier: workspace:*
         version: link:../client-mcp
@@ -3494,6 +3500,10 @@ packages:
 
   '@mark1russell7/docker-sqlite@0.3.0':
     resolution: {integrity: sha512-BB6pdD424Ig7CD8/DOXHOAB2iLnQ7UF9mY8Qih0GhEwxe6iHj8hOKBgeMehg3JjNzeLtIjUv/xriZizJJzsVIA==}
+    engines: {node: '>=22'}
+
+  '@mark1russell7/files@0.0.2':
+    resolution: {integrity: sha512-3oKnBCxZi5ChjRmxP3lMFsWTRZuhHvt8I7ZHIr2UmgPQR5VrY/qJDKF6k9m8IqFq4958m0Z1+8BDa0SqXe/Ymw==}
     engines: {node: '>=22'}
 
   '@mark1russell7/optional@1.2.0':
@@ -7381,6 +7391,8 @@ snapshots:
     dependencies:
       '@types/sql.js': 1.4.11
       sql.js: 1.14.2
+
+  '@mark1russell7/files@0.0.2': {}
 
   '@mark1russell7/optional@1.2.0': {}
 
