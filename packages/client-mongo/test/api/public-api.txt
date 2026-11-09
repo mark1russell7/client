@@ -721,6 +721,7 @@ export interface DatabaseChangesWatch {
     readonly ready: Promise<void>;
     readonly resumeToken: ResumeToken | undefined;
     readonly stopped: boolean;
+    readonly tokenAgeMs: number;
     stop(): Promise<void>;
 }
 
@@ -1027,6 +1028,7 @@ export type StorageChangeHint = CollectionChangeEvent;
 ### dist/storage/storage-hints.d.ts#StorageChangesWatch
 export interface StorageChangesWatch {
     readonly ready: Promise<void>;
+    readonly tokenAgeMs: number;
     stop(): Promise<void>;
 }
 

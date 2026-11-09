@@ -44,6 +44,19 @@ function nextTask(slice: () => void): void {
   else setTimeout(slice, 0);
 }
 
+/** The emit whose handler runs, or undefined. A handler that emits gets the mark of its own emit. */
+let emitting: object | undefined;
+
+/**
+ * This function gives the mark of the emit whose handler runs: one object for each `emit()` of a
+ * `DefaultEventBus`. Each handler of that emit gets the same object. It gives undefined outside a handler, in
+ * the replay of the buffer, and for another bus. The publisher ties the shared text of a value to
+ * one emit with it (audit 2026-11-08).
+ */
+export function currentEmission(): object | undefined {
+  return emitting;
+}
+
 /** The handlers of a channel, each with the number of its subscription, in the order of these numbers. */
 type ChannelHandlers = Map<EventHandler<unknown>, number>;
 
@@ -57,6 +70,8 @@ interface PendingEvent {
   readonly cursor: Iterator<[EventHandler<unknown>, number]>;
   /** The last subscription at `emit()`. A later handler does not get this event. */
   readonly lastSubscription: number;
+  /** The mark of the emit (`currentEmission()`): a small object, so a share keeps no handlers. */
+  readonly emission: object;
   done: boolean;
 }
 
@@ -142,11 +157,14 @@ export class DefaultEventBus implements EventBus {
       return;
     }
 
-    for (const handler of channelSubs.keys()) this.call(handler, data, channel);
+    const emission = {};
+    for (const handler of channelSubs.keys()) this.call(handler, data, channel, emission);
   }
 
   /** This function calls one handler. An error goes to `onError`, and it stops no other handler. */
-  private call(handler: EventHandler<unknown>, data: unknown, channel: string): void {
+  private call(handler: EventHandler<unknown>, data: unknown, channel: string, emission?: object): void {
+    const outer = emitting;
+    emitting = emission;
     try {
       const result = handler(data);
       // Handle async handlers
@@ -155,12 +173,14 @@ export class DefaultEventBus implements EventBus {
       }
     } catch (error) {
       this.options.onError(error instanceof Error ? error : new Error(String(error)), channel);
+    } finally {
+      emitting = outer;
     }
   }
 
   /** This function puts an event in the queue of the slices. A full queue finishes its oldest events. */
   private enqueue(channel: string, data: unknown, handlers: ChannelHandlers, fanOut: Required<EventFanOutOptions>): void {
-    this.pending.push({ channel, data, handlers, cursor: handlers.entries(), lastSubscription: this.lastSubscription, done: false });
+    this.pending.push({ channel, data, handlers, cursor: handlers.entries(), lastSubscription: this.lastSubscription, emission: {}, done: false });
     this.pendingOn.set(channel, (this.pendingOn.get(channel) ?? 0) + 1);
     while (this.pending.length - this.pendingHead > fanOut.maxPending) {
       const oldest = this.pending[this.pendingHead]!;
@@ -201,7 +221,8 @@ export class DefaultEventBus implements EventBus {
         event.done = true;
         break;
       }
-      this.call(step.value[0], event.data, event.channel);
+      // Each slice of one emit gives the same mark
+      this.call(step.value[0], event.data, event.channel, event.emission);
       calls++;
     }
     return calls;

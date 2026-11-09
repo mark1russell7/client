@@ -61,6 +61,17 @@ describe("exposePatterns and surfaceRule", () => {
     expect(rule(["vitest", "watch"])).toBe(false);
     expect(rule(["shell", "run"])).toBe(false);
   });
+
+  it("hide a path with a dot in a segment for an excluded key in each form (audit 2026-11-08)", () => {
+    const path = ["collections", "e2e.tabs", "delete"];
+    for (const entry of ["collections.e2e%2Etabs.delete", "collections.e2e.tabs.delete"]) {
+      expect(surfaceRule({ namespaces: ["collections"], exclude: [entry] })(path)).toBe(false);
+      expect(hostPolicy({ exclude: [entry] }).expose?.(path)).toBe(false);
+      expect(hostPolicy({ expose: ["collections.*"], exclude: [entry] }).expose?.(path)).toBe(false);
+    }
+    // Another procedure of the collection stays
+    expect(hostPolicy({ exclude: ["collections.e2e.tabs.delete"] }).expose?.(["collections", "e2e.tabs", "find"])).toBe(true);
+  });
 });
 
 describe("hostPolicy", () => {
@@ -111,8 +122,8 @@ describe("hostPolicy", () => {
       expect(await handle(service, "find")).toMatchObject({ type: "success" });
       expect(await handle(service, "drop")).toMatchObject({ type: "error", code: "NOT_FOUND" });
     }
-    // An entry in the raw form of before CLI-75 does not match the encoded key
-    expect(hostPolicy({ exclude: ["collections.e2e.tabs.drop"] }).expose?.(["collections", "e2e.tabs", "drop"])).toBe(true);
+    // An exclusion in the raw form of before CLI-75 still hides the path (audit 2026-11-08). Before, it hid nothing.
+    expect(hostPolicy({ exclude: ["collections.e2e.tabs.drop"] }).expose?.(["collections", "e2e.tabs", "drop"])).toBe(false);
     expect(hostPolicy({ exclude: ["collections.e2e%2Etabs.drop"] }).expose?.(["collections", "e2e.tabs", "drop"])).toBe(false);
   });
 
@@ -120,6 +131,12 @@ describe("hostPolicy", () => {
     const policy = hostPolicy({ token: "t", browser: { allowedOrigins: ["https://app.example"] } });
     expect(policy.token).toBe("t");
     expect(policy.browser.allowedOrigins).toEqual(["https://app.example"]);
+  });
+
+  it("gives a ProcedureServer the trustBaggage function, and no function without the option (C10)", () => {
+    const trustBaggage = () => true;
+    expect(procedureServerOptions(hostPolicy({ trustBaggage })).trustBaggage).toBe(trustBaggage);
+    expect("trustBaggage" in procedureServerOptions(hostPolicy())).toBe(false);
   });
 });
 

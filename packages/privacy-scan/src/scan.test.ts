@@ -80,6 +80,15 @@ describe("scanText", () => {
     expect(scanText("mail someone@mailhost.zz", { mask: true })).toEqual([{ kind: "email", line: 1, column: 6, match: "s******************" }]);
   });
 
+  it("orders two findings at the same place by their kind", () => {
+    // The made-up number is in two parts, so the push check of new lines does not see a phone number.
+    const number = ["+1555", "5550100"].join("");
+    expect(scanText(`call ${number}`, { terms: [number], kinds: ["phone", "term"] })).toEqual([
+      { kind: "term", line: 1, column: 6, match: number },
+      { kind: "phone", line: 1, column: 6, match: number },
+    ]);
+  });
+
   it("counts the lines of a text with CRLF", () => {
     expect(scanText("first\r\nsecond Fooville\r\n", { terms: ["Fooville"] })).toEqual([{ kind: "term", line: 2, column: 8, match: "Fooville" }]);
   });

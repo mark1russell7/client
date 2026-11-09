@@ -726,6 +726,8 @@ const notes = new MongoDocumentStorage<Note>({
 
   The same runner writes 799 a second over 100 collections with a p99 of 37.5 ms, so the limit comes from the one collection. Runs: [the rungs](https://github.com/mark1russell7/client/actions/runs/41956238365), [the ceiling](https://github.com/mark1russell7/client/actions/runs/41966001438).
 
+  The study of 2026-11-05 measured the code of the commits `5c55c327` and `ca514219` (`@procedures/mongo` 0.47.2). The numbers and the limit are of that code. A later version can give different numbers.
+
 ### Change hints from the change stream: `watchStorageChanges`
 
 The collection procedures publish an event for each of their writes. A write that does not go through them (a raw write, a script, a view, another process) has no event. `watchStorageChanges(storage, publish, options)` watches the change stream of the collection of a storage and publishes a hint of each change (roadmap CLI-77). Change streams need a replica set.
@@ -781,6 +783,7 @@ await watch.stop();
 - **The image before the change.** Set `fullDocumentBeforeChange: "whenAvailable"`. A collection gives the image only with `changeStreamPreAndPostImages: { enabled: true }` (MongoDB 6 or later).
 - **One event at a time.** The events go in the order of the stream. The watcher reads the next event after `onChange` resolves.
 - **The resume token** is the `_id` of the last event after its `onChange` resolved. A batch without events gives the token of the batch. The getter `resumeToken` of the handle gives the token at this time.
+- **The age of the token.** The getter `tokenAgeMs` gives the milliseconds of `clock` since the token last moved to a later cluster time. Before the first move, it counts from the start. The same cluster time again does not move it. A large value on an open watcher tells a stalled feed. The handle of `watchStorageChanges` has the same getter.
 - **No lost change.** After an error of the stream, the watcher waits for the backoff. Then it opens the stream again with `startAfter` and the token. Thus it loses no change and gives no change twice.
 - **An error of `onChange`** has the same backoff. The token stays at the change before, so the same change comes again.
 - **The backoff** starts at `initialDelay` and grows by `backoffMultiplier` to at most `maxDelay`, with `jitter`. A change or a batch without events sets it back to `initialDelay`. The defaults are `ms(250)`, 2, `seconds(30)` and the full jitter, as for `watchStorageChanges`.

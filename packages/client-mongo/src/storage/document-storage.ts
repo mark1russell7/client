@@ -119,11 +119,13 @@ import {
   type StorageWriteOptions,
   type VersionConflict,
 } from "@procedures/collections";
-import { optionalMs, Semaphore, toMs, type Duration } from "@procedures/client";
+import { semaphore, type Semaphore } from "@mark1russell7/collections";
+import { optionalMs, toMs, type Duration } from "@procedures/client";
 import { ensureConnection } from "../connection.js";
 import { noteOwnNumbers, notePrunedIds, ownerOf } from "./own-writes.js";
 import { boundPipeline, cutResults, DEFAULT_PIPELINE_LIMITS, scopePipeline, type PipelineLimits } from "./pipeline-scope.js";
 import { CHANGE_READ_DIVISOR, poolShare } from "./pool-share.js";
+import { escapeRegExp as escapeRegex } from "@mark1russell7/text";
 
 /** The fields of the storage in a stored document. */
 const KEY = "_key";
@@ -401,8 +403,8 @@ function enqueueWrite<R>(db: Db, name: string, task: () => Promise<R>): Promise<
 function withReadPermit<R>(db: Db, task: () => Promise<R>): Promise<R> {
   const owner = ownerOf(db);
   let reads = READS.get(owner);
-  if (!reads) READS.set(owner, (reads = new Semaphore(poolShare(db, CHANGE_READ_DIVISOR))));
-  return reads.withPermit(task);
+  if (!reads) READS.set(owner, (reads = semaphore(poolShare(db, CHANGE_READ_DIVISOR))));
+  return reads.run(task);
 }
 
 /**
@@ -611,6 +613,20 @@ export interface RawStorageWrite {
 /** The result of an adoption: `adopted`, `lost` (the document changed since: another adoption or write won), or `unknown` (no image and no stored `_id` tells the id and the partition). */
 export type RawAdoption = "adopted" | "lost" | "unknown";
 
+/**
+ * The key of a stored `_id` in a map: its extended JSON. Two object ids with other fields are two
+ * keys, and an `ObjectId` and its hex text are two keys too (audit 2026-11-08).
+ */
+function storedIdKey(id: unknown): string {
+  return BSON.EJSON.stringify({ v: id as never }, { relaxed: false });
+}
+
+/** The order of two stored `_id` values of one place: two texts by their text, else by their keys. */
+function idOrder(a: unknown, b: unknown, keyA: string, keyB: string): number {
+  const [x, y] = typeof a === "string" && typeof b === "string" ? [a, b] : [keyA, keyB];
+  return x < y ? -1 : x > y ? 1 : 0;
+}
+
 /** True when two values have the same BSON. */
 function sameBson(a: unknown, b: unknown): boolean {
   try {
@@ -625,10 +641,6 @@ export type RawAdoptionResult = RawAdoption | { readonly error: unknown };
 
 /** The most floor documents that `partitions()` reads. */
 const MAX_KNOWN_PARTITIONS = 10_000;
-
-function escapeRegex(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 /** The reader of the parts of a storage. The class sets it, so it can read its private fields. */
 let sourceOfStorage: <T>(storage: MongoDocumentStorage<T>) => StorageChangeSource;
@@ -1517,13 +1529,16 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
 
   /** The listed documents with later documents over them, in the order of the entries. A tombstone removes its document. */
   private withLaterDocs(listed: readonly Document[], later: readonly Document[]): Document[] {
-    const idOf = (doc: Document): string => String(doc["_id"]);
-    const docs = new Map(listed.map((doc) => [idOf(doc), doc]));
+    // The key knows the type of the `_id`: before, `String()` gave each object `_id` one key
+    const keyOf = (doc: Document): string => storedIdKey(doc["_id"]);
+    const docs = new Map(listed.map((doc) => [keyOf(doc), doc]));
     for (const doc of later) {
-      if (doc[TOMB] === true) docs.delete(idOf(doc));
-      else docs.set(idOf(doc), doc);
+      if (doc[TOMB] === true) docs.delete(keyOf(doc));
+      else docs.set(keyOf(doc), doc);
     }
-    return [...docs.values()].sort((a, b) => this.placeOf(a) - this.placeOf(b) || (idOf(a) < idOf(b) ? -1 : idOf(a) > idOf(b) ? 1 : 0));
+    return [...docs]
+      .sort(([keyA, a], [keyB, b]) => this.placeOf(a) - this.placeOf(b) || idOrder(a["_id"], b["_id"], keyA, keyB))
+      .map(([, doc]) => doc);
   }
 
   async getChangesSince(since?: string): Promise<StorageChanges<T>> {

@@ -106,6 +106,14 @@ describe("createLazyRegistry", () => {
     expect(warnings).toEqual(["the index has no package for beta.one: each package loads", "the index has no package for no.such: each package loads"]);
   });
 
+  it("warns for at most 1000 paths outside the index, and tells that the next ones get no warning (audit 2026-11-08)", async () => {
+    const { registry, warnings } = lazy({ index: {} });
+    for (let n = 0; n < 1005; n++) await registry.resolve(["no", `such${n}`]);
+    expect(warnings).toHaveLength(1000);
+    expect(warnings[998]).toBe("the index has no package for no.such998: each package loads");
+    expect(warnings[999]).toBe("the index has no package for no.such999: each package loads. The next paths with no package get no warning.");
+  });
+
   it("loads the packages of a path one after the other when the index names two", async () => {
     const order: string[] = [];
     const { registry } = lazy({
@@ -230,6 +238,44 @@ describe("the dispatch points with a lazy registry", () => {
     expect(server.procedureCount).toBe(clientModule.procedures.length + 1);
     await server.loadAll();
     expect(server.procedureCount).toBe(clientModule.procedures.length + 3);
+  });
+
+  it("the server loads no package for a request that it refuses, or outside the expose rule of the face (audit 2026-11-08)", async () => {
+    const { registry, loads } = lazy({
+      load: async (name) => {
+        loads.set(name, (loads.get(name) ?? 0) + 1);
+        throw new Error(`the build of ${name} is missing`);
+      },
+    });
+    const server = new ProcedureServer({ registry, token: "secret" });
+    server.registerFromRegistry();
+    const request = (id: string, extra: Record<string, unknown> = {}) => ({ id, method: pathToMethod(["no", "such"]), payload: {}, metadata: {}, ...extra });
+    const refused = await server.handle(request("1"));
+    expect(refused.status).toMatchObject({ type: "error", code: "UNAUTHORIZED" });
+    expect(JSON.stringify(refused)).not.toContain("the build of");
+    expect((await server.handle(request("2", { credentials: { bearer: "wrong" } }))).status).toMatchObject({ code: "UNAUTHORIZED" });
+    expect((await server.handle(request("3", { credentials: { bearer: "secret" }, expose: () => false }))).status).toMatchObject({ type: "error" });
+    expect(loads.size).toBe(0);
+    // An admitted request loads the packages, and gets the load error
+    const admitted = await server.handle(request("4", { credentials: { bearer: "secret" } }));
+    expect(JSON.stringify(admitted)).toContain("the build of");
+    expect(loads.size).toBe(2);
+  });
+
+  it("runs the authenticate function one time for a call that loads its package", async () => {
+    const { registry } = lazy();
+    let checks = 0;
+    const server = new ProcedureServer({
+      registry,
+      authenticate: () => {
+        checks++;
+        return { id: "alice", via: "test" };
+      },
+    });
+    server.registerFromRegistry();
+    const response = await server.handle({ id: "1", method: pathToMethod(["beta", "one"]), payload: {}, metadata: {}, credentials: {} });
+    expect(response.payload).toBe("beta-one");
+    expect(checks).toBe(1);
   });
 
   it("the local transport reports a failed load with its cause", async () => {
