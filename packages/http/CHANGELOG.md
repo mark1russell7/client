@@ -1,5 +1,34 @@
 # @procedures/http
 
+## 0.53.1
+
+### Patch Changes
+
+- Updated dependencies [84f0c78]
+- Updated dependencies [abf290c]
+  - @procedures/client@0.53.1
+
+## 0.53.0
+
+### Patch Changes
+
+- 5072370: `frameRefusal` tells if a browser refuses to show a page in a frame, from the headers `Content-Security-Policy` (`frame-ancestors`) and `X-Frame-Options`. `parseCsp`, `sourceAllows` and `sourceListAllows` give the parts of the CSP3 rules.
+- d84a98c: `createHostFetch` gives the `headers` of the response, and takes the option `method: "HEAD"`. A `HEAD` request reads only the headers. Thus a caller of `frameRefusal` does not read the body of a large page.
+- Updated dependencies [bc98f77]
+- Updated dependencies [11d9084]
+- Updated dependencies [d28ccb5]
+- Updated dependencies [735cfcf]
+- Updated dependencies
+- Updated dependencies [556d0a8]
+  - @procedures/client@0.53.0
+
+## 0.52.5
+
+### Patch Changes
+
+- Updated dependencies [25a5f44]
+  - @procedures/client@0.52.5
+
 ## 0.52.4
 
 ### Patch Changes

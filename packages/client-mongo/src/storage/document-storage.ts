@@ -119,11 +119,13 @@ import {
   type StorageWriteOptions,
   type VersionConflict,
 } from "@procedures/collections";
-import { optionalMs, Semaphore, toMs, type Duration } from "@procedures/client";
+import { semaphore, type Semaphore } from "@mark1russell7/collections";
+import { optionalMs, toMs, type Duration } from "@procedures/client";
 import { ensureConnection } from "../connection.js";
 import { noteOwnNumbers, notePrunedIds, ownerOf } from "./own-writes.js";
 import { boundPipeline, cutResults, DEFAULT_PIPELINE_LIMITS, scopePipeline, type PipelineLimits } from "./pipeline-scope.js";
 import { CHANGE_READ_DIVISOR, poolShare } from "./pool-share.js";
+import { escapeRegExp as escapeRegex } from "@mark1russell7/text";
 
 /** The fields of the storage in a stored document. */
 const KEY = "_key";
@@ -349,8 +351,8 @@ function enqueueWrite<R>(db: Db, name: string, task: () => Promise<R>): Promise<
 function withReadPermit<R>(db: Db, task: () => Promise<R>): Promise<R> {
   const owner = ownerOf(db);
   let reads = READS.get(owner);
-  if (!reads) READS.set(owner, (reads = new Semaphore(poolShare(db, CHANGE_READ_DIVISOR))));
-  return reads.withPermit(task);
+  if (!reads) READS.set(owner, (reads = semaphore(poolShare(db, CHANGE_READ_DIVISOR))));
+  return reads.run(task);
 }
 
 /**
@@ -587,10 +589,6 @@ export type RawAdoptionResult = RawAdoption | { readonly error: unknown };
 
 /** The most floor documents that `partitions()` reads. */
 const MAX_KNOWN_PARTITIONS = 10_000;
-
-function escapeRegex(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 /** The reader of the parts of a storage. The class sets it, so it can read its private fields. */
 let sourceOfStorage: <T>(storage: MongoDocumentStorage<T>) => StorageChangeSource;

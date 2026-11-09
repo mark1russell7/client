@@ -1,5 +1,45 @@
 # @procedures/mcp-server
 
+## 0.53.1
+
+### Patch Changes
+
+- Updated dependencies [84f0c78]
+- Updated dependencies [abf290c]
+  - @procedures/client@0.53.1
+  - @procedures/mcp@0.53.1
+
+## 0.53.0
+
+### Patch Changes
+
+- d28ccb5: Each handler runs in the context of OpenTelemetry of its caller (roadmap item C10 of otel-ts). Thus its logs, metrics, spans and nested calls carry the ids of the trace of the caller, also on a host with no tracing interceptor.
+  
+  - `ProcedureServer` makes the remote span of the `traceparent` and `tracestate` of the metadata the parent of the handler. It uses the `baggage` of the metadata only from a trusted caller: a local request, a request with the token of the server, or a request that the new option `trustBaggage(request)` names. For another caller, the handler runs with no baggage, also when the HTTP instrumentation of an SDK read a `baggage` header.
+  - The MCP face puts the keys `traceparent`, `tracestate` and `baggage` of the `_meta` of a tool call into the metadata of the call. Over Streamable HTTP, the headers with these names apply when `_meta` does not have the key.
+  - `mark` sends the environment variables `TRACEPARENT`, `TRACESTATE` and `BAGGAGE` with its call, as the metadata keys `traceparent`, `tracestate` and `baggage`.
+- The packages use the new versions of their dependencies of the owner: `@mark1russell7/service` `^0.8.3`, `@mark1russell7/coeval` `^0.26.1` and `@mark1russell7/docker-sqlite` `^0.3.0`. The range of `@mark1russell7/collections` stays `^0.5.0`: its version 0.7.0 and later remove names that `@procedures/collections` exports.
+- 556d0a8: The packages use `@mark1russell7/service` `^0.8.2` in place of `^0.6.0`. Version 0.7.0 adds the refusal cause `capacity`, and version 0.8.0 refuses a listen backlog of 0. Version 0.8.2 adds the call context of OpenTelemetry. The types `Clock` and `Cancel` of `@mark1russell7/service/clock` do not change: their home is `@mark1russell7/algebra/clock`, and the entry gives them again.
+  
+  A refusal of a call limit with the cause `capacity` gives `RATE_LIMITED` that is not retryable and has no `retry-after`. A take of one unit does not get this cause, because each policy holds 1 unit or more.
+- 1f638a3: The escape of a text for a regular expression is `escapeRegExp` of `@mark1russell7/text`, the home of the escape functions. The output does not change. Each of the three packages thus has the new dependency `@mark1russell7/text` `^0.0.2`, which has no dependencies.
+- Updated dependencies [bc98f77]
+- Updated dependencies [11d9084]
+- Updated dependencies [d28ccb5]
+- Updated dependencies [735cfcf]
+- Updated dependencies
+- Updated dependencies [556d0a8]
+  - @procedures/client@0.53.0
+  - @procedures/mcp@0.53.0
+
+## 0.52.5
+
+### Patch Changes
+
+- Updated dependencies [25a5f44]
+  - @procedures/client@0.52.5
+  - @procedures/mcp@0.52.5
+
 ## 0.52.4
 
 ### Patch Changes

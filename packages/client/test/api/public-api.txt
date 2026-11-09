@@ -6329,6 +6329,7 @@ export interface HostPolicy {
     readonly interceptors: readonly Interceptor[];
     readonly token: string | undefined;
     readonly principalOf?: PrincipalOf | undefined;
+    readonly trustBaggage?: ((request: ServerRequest<unknown>) => boolean) | undefined;
     readonly browser: BrowserGuardOptions;
     readonly capabilityOf: ((request?: ServerRequest<unknown>) => Capability | undefined) | undefined;
     readonly clearanceOrder: ClearanceOrder | undefined;
@@ -6348,6 +6349,7 @@ export interface HostPolicyOptions {
     interceptors?: readonly Interceptor[] | undefined;
     token?: string | undefined;
     principalOf?: PrincipalOf | undefined;
+    trustBaggage?: ((request: ServerRequest<unknown>) => boolean) | undefined;
     browser?: BrowserGuardOptions | undefined;
     capability?: Capability | ((request: ServerRequest<unknown>) => Capability | undefined) | undefined;
     readOnly?: boolean | undefined;

@@ -1,5 +1,39 @@
 # @procedures/peer
 
+## 0.53.1
+
+### Patch Changes
+
+- Updated dependencies [84f0c78]
+- Updated dependencies [abf290c]
+  - @procedures/client@0.53.1
+
+## 0.53.0
+
+### Patch Changes
+
+- 0da2c6d: `staticFace()` serves the built files of a page on the listener of a procedures host, next to the procedure faces. Each path stays in the root, also through a symbolic link. A route of the page gets the fallback file when the request accepts `text/html`.
+  
+  Each response has a strict frame policy by default (`DEFAULT_STATIC_HEADERS`), the headers of the options, `nosniff` and an `ETag`. A hidden path (`.env`, `.git`) gets 404, except `.well-known`. A missing root gives 404 until a build makes it. `contentTypeOf()` gives the content type of a file from its extension.
+- The packages use the new versions of their dependencies of the owner: `@mark1russell7/service` `^0.8.3`, `@mark1russell7/coeval` `^0.26.1` and `@mark1russell7/docker-sqlite` `^0.3.0`. The range of `@mark1russell7/collections` stays `^0.5.0`: its version 0.7.0 and later remove names that `@procedures/collections` exports.
+- 556d0a8: The packages use `@mark1russell7/service` `^0.8.2` in place of `^0.6.0`. Version 0.7.0 adds the refusal cause `capacity`, and version 0.8.0 refuses a listen backlog of 0. Version 0.8.2 adds the call context of OpenTelemetry. The types `Clock` and `Cancel` of `@mark1russell7/service/clock` do not change: their home is `@mark1russell7/algebra/clock`, and the entry gives them again.
+  
+  A refusal of a call limit with the cause `capacity` gives `RATE_LIMITED` that is not retryable and has no `retry-after`. A take of one unit does not get this cause, because each policy holds 1 unit or more.
+- Updated dependencies [bc98f77]
+- Updated dependencies [11d9084]
+- Updated dependencies [d28ccb5]
+- Updated dependencies [735cfcf]
+- Updated dependencies
+- Updated dependencies [556d0a8]
+  - @procedures/client@0.53.0
+
+## 0.52.5
+
+### Patch Changes
+
+- Updated dependencies [25a5f44]
+  - @procedures/client@0.52.5
+
 ## 0.52.4
 
 ### Patch Changes

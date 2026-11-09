@@ -587,6 +587,31 @@ describe("watchStorageChanges without a server (CLI-77)", () => {
   });
 });
 
+/** A resume token of the server form: the type byte `82`, the timestamp, and a rest. */
+const serverToken = (seconds: number, increment: number, rest = "2B0229296E04"): { _data: string } => ({
+  _data: `82${seconds.toString(16).padStart(8, "0")}${increment.toString(16).padStart(8, "0")}${rest}`,
+});
+
+describe("the age of the token of watchStorageChanges (CLI-110)", () => {
+  it("moves at a later cluster time on the clock of the watcher, and not at the same cluster time again", async () => {
+    const { storage, stream, clock, log, publish } = fakeWatch();
+    let at = 0;
+    const timed = { now: () => at, after: clock.after } as Clock;
+    const watch = watchStorageChanges(storage, publish, { clock: timed, log });
+    const open = await stream();
+    at = 100;
+    expect(watch.tokenAgeMs).toBe(100);
+    open.emit("resumeTokenChanged", serverToken(10, 1));
+    expect(watch.tokenAgeMs).toBe(0);
+    at = 180;
+    open.emit("resumeTokenChanged", serverToken(10, 1, "FF"));
+    expect(watch.tokenAgeMs).toBe(80);
+    open.emit("resumeTokenChanged", serverToken(11, 0));
+    expect(watch.tokenAgeMs).toBe(0);
+    await watch.stop();
+  });
+});
+
 const url = process.env["MONGO_TEST_URL"];
 const withMongo = url ? describe : describe.skip;
 let client: MongoClient | undefined;
