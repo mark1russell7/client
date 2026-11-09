@@ -69,6 +69,42 @@ describe("the trace ids and span ids", () => {
     expect(spy).toHaveBeenCalledTimes(2);
   });
 
+  it("are not W3C ids when they are all zeros, uppercase, or of the wrong length", () => {
+    const traceId = "0af7651916cd43dd8448eb211c80319c";
+    const spanId = "b7ad6b7169203331";
+    expect(isW3cIds(traceId, spanId)).toBe(true);
+    expect(isW3cIds("0".repeat(32), spanId)).toBe(false);
+    expect(isW3cIds(traceId, "0".repeat(16))).toBe(false);
+    expect(isW3cIds(traceId.toUpperCase(), spanId)).toBe(false);
+    expect(isW3cIds(traceId, spanId.toUpperCase())).toBe(false);
+    expect(isW3cIds(traceId.slice(1), spanId)).toBe(false);
+    expect(isW3cIds(traceId, `${spanId}0`)).toBe(false);
+    expect(isW3cIds(`${traceId.slice(1)}g`, spanId)).toBe(false);
+  });
+
+  it("parse no traceparent whose trace id or span id is all zeros", () => {
+    expect(parseTraceparent(`00-${"0".repeat(32)}-b7ad6b7169203331-01`)).toBeUndefined();
+    expect(parseTraceparent(`00-0af7651916cd43dd8448eb211c80319c-${"0".repeat(16)}-01`)).toBeUndefined();
+    expect(parseTraceparent(" 00-0AF7651916CD43DD8448EB211C80319C-B7AD6B7169203331-00 ")).toEqual({
+      traceId: "0af7651916cd43dd8448eb211c80319c",
+      spanId: "b7ad6b7169203331",
+      sampled: false,
+    });
+  });
+
+  it("make a new id when the random bytes are all zeros", async () => {
+    // The first 24 bytes are zeros: the first three span ids are not valid, so the fourth one comes back
+    let counter = 0;
+    vi.spyOn(globalThis.crypto, "getRandomValues").mockImplementation(<T extends ArrayBufferView | null>(array: T): T => {
+      const bytes = array as unknown as Uint8Array;
+      for (let index = 0; index < bytes.length; index++) bytes[index] = index < 24 ? 0 : counter++ % 255 + 1;
+      return array;
+    });
+    const ids = await freshIds();
+    expect(ids.newSpanId()).toBe("0102030405060708");
+    expect(ids.newTraceId()).toBe("090a0b0c0d0e0f101112131415161718");
+  });
+
   it("use Math.random when the platform has no getRandomValues", () => {
     const crypto = globalThis.crypto;
     vi.stubGlobal("crypto", undefined);
