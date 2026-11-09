@@ -272,6 +272,8 @@ export async function dagTraverse(
   const dagResult = await executeDAG(dag, processor, {
     concurrency: input.concurrency ?? 4,
     failFast: !input.continueOnError,
+    // With continueOnError, the traversal visits each package, also a package whose dependency failed
+    skipDependents: false,
   });
 
   const skipped = skippedResults(dag.levels.flat(), results, dagResult.failedNodes);

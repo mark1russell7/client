@@ -1,6 +1,6 @@
 ---
 "@procedures/collections": minor
-"@procedures/dag": patch
+"@procedures/dag": minor
 "@procedures/client": patch
 ---
 
@@ -53,4 +53,7 @@ These behaviors of the re-exported names change:
 - An expired entry of `ttlMap` is not in `size`, `getOrUndefined` or the iteration.
 - An evented layer gives no event for an element that a layer below refused.
 
-`@procedures/dag` and `@procedures/client` use the range `^0.10.0` too. Their exports do not change.
+`@procedures/dag` and `@procedures/client` use the range `^0.10.0` too. Their exports do not change. The `executeDAG` of `@procedures/dag` changes:
+
+- With `failFast: false`, `executeDAG` does not start a node whose dependency failed. The node gets a skipped result, and `DAGResult.skippedNodes` has its id. To start each node, as before, give the option `skipDependents: false`.
+- `dag.traverse` with `continueOnError` gives this option, so it visits each package, as before.
