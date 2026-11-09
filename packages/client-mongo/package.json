@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/mongo",
-  "version": "0.52.3",
+  "version": "0.52.4",
   "description": "MongoDB as typed procedures: documents, bulk writes, distinct, explain, collections, indexes, aggregation, change streams and database info, with safe update and delete targets.",
   "keywords": [
     "mongodb",
@@ -67,7 +67,6 @@
     "@mark1russell7/rigor-bench": "^0.2.33",
     "@mark1russell7/rigor-generators": "^0.1.5",
     "@mark1russell7/rigor-statistics": "^0.1.9",
-    "@mark1russell7/service": "^0.6.0",
     "@procedures/peer": "workspace:*",
     "@procedures/store": "workspace:*",
     "@types/node": "^22.0.0",
@@ -87,6 +86,7 @@
   "dependencies": {
     "@procedures/client": "workspace:*",
     "@procedures/collections": "workspace:*",
+    "@mark1russell7/service": "^0.6.5",
     "mongodb": "^7.0.0",
     "zod": "^4.6.5"
   }

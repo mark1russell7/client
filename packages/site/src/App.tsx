@@ -191,7 +191,7 @@ export function App(): ReactElement {
           </span>
           client
         </a>
-        <nav aria-label="Main">
+        <nav aria-label="Main" className="scroll-cue">
           {NAV.map((item) => (
             <a key={item.page} href={href(item.page)} aria-current={route.page === item.page ? "page" : undefined}>
               {item.label}

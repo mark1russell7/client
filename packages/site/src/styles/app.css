@@ -135,6 +135,8 @@ p {
 }
 
 .site-header nav {
+  /* The fade of scroll-cue shows that the links go on, when they scroll sideways */
+  --scroll-cue-bg: var(--color-surface);
   display: flex;
   gap: var(--space-1);
   flex-wrap: wrap;
