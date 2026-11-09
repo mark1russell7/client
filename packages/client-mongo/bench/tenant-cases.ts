@@ -14,7 +14,13 @@
  * with many counters, and with both. A case with `-tmpfs` at its end uses a MongoDB with its files in memory, so no disk is in the path.
  *
  * The suite `tenant-first` adds the first loads of new tenants to the steady load. A case with `-first<n>` has n first loads in one second.
+ *
+ * The suite `tenant-partition` is the gate of roadmap CLI-96. Its arm `partition` is the store with the option
+ * `sequence: "partition"`, so each partition has its own counter and its own write queue.
  */
+
+import type { ServerRead } from "./tenant-server.js";
+import type { TenantSpread } from "./tenant-spread.js";
 
 export const TENANT_CASES = ["20-p1", "20-p2", "20-p4", "200-p1", "200-p2", "200-p4", "2000-p1", "2000-p2", "20-p2-burst", "200-p2-burst"] as const;
 
@@ -30,6 +36,25 @@ export const SEPARATE_ARMS = ["noqueue", "many", "neither"] as const;
 /** The cases of the suite `tenant-first`: the steady load of two rungs, with 1, 5 and 10 first loads in one second. */
 export const FIRST_LOAD_CASES = ["20-p2-first1", "20-p2-first10", "200-p2-first1", "200-p2-first5", "200-p2-first10"] as const;
 
+/**
+ * The cases of the suite `tenant-partition`: the rungs of 1,000, 2,000, 4,000, 10,000, 20,000 and 40,000 active tenants, with two
+ * processes and more. The case `400-p2` is the case of the sweep of the bound of the writes in flight (CLI-96).
+ * The cases `200-p2` and `200-p4` are the gate row at the stated limit of a partition, 200 writes a second (CLI-96).
+ */
+export const PARTITION_CASES = ["200-p2", "200-p4", "400-p2", "800-p1", "800-p2", "2000-p2", "4000-p2", "8000-p2", "8000-p4"] as const;
+
+/**
+ * The cases of each tenant suite. The plan of `stream-cost.yml` reads this map, so each CI job holds one case.
+ * This file has no imports, so Node loads it in the plan without an install.
+ */
+export const SUITE_CASES: Readonly<Record<string, readonly string[]>> = {
+  tenant: TENANT_CASES,
+  "tenant-ceiling": CEILING_CASES,
+  "tenant-separate": SEPARATE_CASES,
+  "tenant-first": FIRST_LOAD_CASES,
+  "tenant-partition": PARTITION_CASES,
+};
+
 /** The processors of MongoDB in a case with `-apart`. */
 export const MONGO_CORES = "0,1";
 
@@ -40,13 +65,16 @@ export const WRITER_CORES = "2,3";
 export const ALL_CORES = "0-3";
 
 /** The arms of the bench. */
-export type TenantArm = "store" | "control" | (typeof SEPARATE_ARMS)[number];
+export type TenantArm = "store" | "control" | "partition" | (typeof SEPARATE_ARMS)[number];
 
 /** The arms of the bench, in the order of a report. */
-export const TENANT_ARMS: readonly TenantArm[] = ["store", "control", ...SEPARATE_ARMS];
+export const TENANT_ARMS: readonly TenantArm[] = ["store", "control", "partition", ...SEPARATE_ARMS];
 
 /** The writes of an active tenant in one second: the first guess of the scale ladder. */
 export const WRITES_PER_TENANT = 0.2;
+
+/** The first writes of the arm `partition` that a writer sends at one time, before the load. */
+export const WARM_GROUP = 100;
 
 /** The time of the load of a child. */
 export const WINDOW_MS = 20_000;
@@ -99,6 +127,9 @@ export const DRIVER_LIMIT_MS = 100;
 /** The largest p99 of a write, from its planned time, of a provisional pass. It is a first reading, not a limit from runs. */
 export const KEEP_UP_P99_MS = 1_000;
 
+/** The largest share of the transactions that abort in a case of two processes or more (roadmap CLI-96). */
+export const ABORT_LIMIT = 0.01;
+
 /** The smallest share of the planned rate that a provisional pass needs. */
 export const KEEP_UP_SHARE = 0.95;
 
@@ -124,15 +155,21 @@ export function parseTenantCase(id: string): TenantCase {
 
 /**
  * This function gives the tenant of an arrival. In the burst, one arrival in `(rate + 10) / 10` goes to the tenant
- * `BURST_TENANT`, so that tenant gets about 10 writes in that second. Each other arrival goes to the tenants in turn,
+ * `BURST_TENANT`, so that tenant gets approximately 10 writes in that second. Each other arrival goes to the tenants in turn,
  * and each process gets a turn at each tenant, so a tenant writes through each process.
+ *
+ * The turn of each process starts `active / processes` tenants after the turn of the process before it. So two writes of
+ * one tenant are approximately `active` arrivals apart, and a tenant writes once in `1 / WRITES_PER_TENANT` seconds, as on the ladder.
+ * Before this change, the arrivals `2k` and `2k + 1` went to one tenant from two processes, approximately 1 ms apart (CLI-96 ladder run 2).
  */
 export function tenantOf(kase: TenantCase, index: number, plannedMs: number): number {
   if (kase.burst && plannedMs >= BURST_AT_MS && plannedMs < BURST_AT_MS + BURST_MS) {
     const every = Math.max(1, Math.round((kase.rate + BURST_WRITES) / BURST_WRITES));
     if (index % every === 0) return BURST_TENANT;
   }
-  return Math.floor(index / kase.processes) % kase.active;
+  // Each process starts its turn at another tenant, so two writes of one tenant are approximately `active` arrivals apart, not one.
+  const process = index % kase.processes;
+  return (Math.floor(index / kase.processes) + process * Math.floor(kase.active / kase.processes)) % kase.active;
 }
 
 /** One write of a first load: its load and its entry of `FIRST_LOAD_SPLIT`. */
@@ -211,6 +248,18 @@ export interface TenantCount {
   /** The transactions of the server in the load and the grace. An abort that the driver retries is one more start. */
   readonly transactionsStarted: number;
   readonly transactionsAborted: number;
+  /**
+   * The commits of the server in the load and the grace. A start minus an abort is not a commit: a transaction that
+   * is open at the last reading is neither. A record from before this field has none.
+   */
+  readonly transactionsCommitted?: number;
+  /** The transactions that are open at the reading after the writers exit. A record from before this field has none. */
+  readonly transactionsOpen?: number;
+  /**
+   * The option `writesInFlight` of the stores of the writers (CLI-96). An absent value is the default of the store.
+   * JSON has no `Infinity`, so the record keeps the text `"Infinity"`.
+   */
+  readonly writesInFlight?: number | "Infinity";
   /** The processors of the machine in the load. The value is null where the machine has no `/proc/stat`. */
   readonly cores: readonly CoreShare[] | null;
   /** The disk in the load. The value is null where the machine has no `/proc/diskstats`. A record from before this field has none. */
@@ -219,6 +268,8 @@ export interface TenantCount {
   readonly journal?: JournalRead | null;
   /** The share of one processor that each writer used in the load. A value near 1 means that the writer is the limit. */
   readonly writerBusy?: readonly number[];
+  /** The time of the first writes of each writer, before the load. A record from before this field has none. */
+  readonly warmMs?: readonly number[];
   /** One message of each kind of failure, with its count. */
   readonly errors?: Readonly<Record<string, number>>;
   /** The writes of the first loads in the case. */
@@ -227,4 +278,20 @@ export interface TenantCount {
   readonly firstLoadMs?: number;
   /** The p99 of the writes of the first loads, from their planned times. */
   readonly firstLoadP99Ms?: number;
+  /** The server in the load. A record from before this field has none. */
+  readonly server?: ServerRead;
+  /** The spread of the run over its keys and its processes (roadmap CLI-96). A record from before this field has none. */
+  readonly spread?: TenantSpread;
+}
+
+/**
+ * This function reads the bound of the writes in flight of a sweep (CLI-96) from the variable `TENANT_WRITES_IN_FLIGHT`.
+ * An empty or absent text gives `undefined`: the store keeps its default. The other texts are a whole number from 1
+ * to 9999, or `Infinity`. Another text is a `RangeError`.
+ */
+export function writesInFlightOf(text: string | undefined): number | undefined {
+  if (text === undefined || text === "") return undefined;
+  if (text === "Infinity") return Infinity;
+  if (!/^[1-9][0-9]{0,3}$/.test(text)) throw new RangeError(`TENANT_WRITES_IN_FLIGHT must be a whole number from 1 to 9999, or Infinity, not ${JSON.stringify(text)}`);
+  return Number(text);
 }

@@ -1,32 +1,25 @@
 /**
  * The report of the tenant load bench: `--jobs <folder> --out <file> [--run <id>]`. For each case and arm this script
- * gives the median and the worst of each measure over the children, and a reading against the first guess of the
- * ladder. A rate that is a first guess gives only a provisional pass. A driver that lost its schedule gives no reading.
+ * gives the median and the worst of each measure over the children. It also gives a reading against the first guess of
+ * the ladder, and the limit of each rung of the ladder. A rate that is a first guess gives only a provisional pass. A driver that lost its schedule gives no reading.
  */
 
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { aaBand, caseIntervals, poolRecords, type PairedTime } from "@mark1russell7/rigor-bench";
+import { aaBand, caseIntervals, poolRecords } from "@mark1russell7/rigor-bench";
 import { median } from "@mark1russell7/rigor-statistics";
 import { TENANT_ARMS, parseTenantCase, type TenantCount } from "./tenant-cases.js";
-import { READING_RULE, READING_RULE_CHANGE, readingOf } from "./tenant-reading.js";
-
-interface JobFile {
-  readonly job: string;
-  readonly env: unknown;
-  readonly candidate: readonly PairedTime[];
-  readonly aa: readonly PairedTime[];
-  readonly base?: string;
-  readonly pairs?: Readonly<Record<string, readonly PairedTime[]>>;
-}
+import { mergeJobFiles, type JobFile } from "./tenant-jobs.js";
+import { ABORT_RULE, LIMIT_RULE, READING_RULE, READING_RULE_CHANGE, abortReadingOf, abortShareOf, commitsPerWriteOf, cpuOf, limitOf, readingOf } from "./tenant-reading.js";
 
 const { values } = parseArgs({ options: { jobs: { type: "string" }, out: { type: "string" }, run: { type: "string" } } });
 if (values.jobs === undefined || values.out === undefined) throw new RangeError("this report needs --jobs and --out");
 
 const folder = values.jobs;
 const names = readdirSync(folder);
-const jobs = names.filter((name) => name.endsWith(".json")).map((name) => JSON.parse(readFileSync(join(folder, name), "utf8")) as JobFile);
+// A CI job of one case gives one file for each case of a job, so the files of a job join first.
+const jobs = mergeJobFiles(names.filter((name) => name.endsWith(".json")).map((name) => JSON.parse(readFileSync(join(folder, name), "utf8")) as JobFile));
 const counts = names
   .filter((name) => name.endsWith(".jsonl"))
   .flatMap((name) => readFileSync(join(folder, name), "utf8").trim().split("\n"))
@@ -55,6 +48,31 @@ const fieldMedian = (rows: readonly TenantCount[], pick: (row: TenantCount) => n
   const values = rows.map(pick).filter((value): value is number => value !== undefined);
   return values.length === 0 ? null : round(median(values), 3);
 };
+
+/** This function gives the time of the first writes of the writers, before the load: the median and the worst. The value is null for old records. */
+function warmSummary(rows: readonly TenantCount[]): { median: number; worst: number } | null {
+  const values = rows.flatMap((row) => row.warmMs ?? []);
+  return values.length === 0 ? null : { median: Math.round(median(values)), worst: Math.max(...values) };
+}
+
+/** This function gives the processor time of the children: the median for each write, and the worst share of the runner and of one writer. */
+function cpuSummary(rows: readonly TenantCount[]): { writerMsPerWrite: number | null; runnerMsPerWrite: number | null; runnerFull: { median: number | null; worst: number | null }; writerWorst: number | null } {
+  const readings = rows.map(cpuOf);
+  const middle = (pick: (reading: ReturnType<typeof cpuOf>) => number | null): number | null => {
+    const values = readings.map(pick).filter((value): value is number => value !== null);
+    return values.length === 0 ? null : round(median(values), 3);
+  };
+  const worst = (pick: (reading: ReturnType<typeof cpuOf>) => number | null): number | null => {
+    const values = readings.map(pick).filter((value): value is number => value !== null);
+    return values.length === 0 ? null : Math.max(...values);
+  };
+  return {
+    writerMsPerWrite: middle((reading) => reading.writerMsPerWrite),
+    runnerMsPerWrite: middle((reading) => reading.runnerMsPerWrite),
+    runnerFull: { median: middle((reading) => reading.runnerFull), worst: worst((reading) => reading.runnerFull) },
+    writerWorst: worst((reading) => reading.writerWorst),
+  };
+}
 
 /** This function gives the count of each kind of failure over the children. */
 function errorsOf(rows: readonly TenantCount[]): Record<string, number> {
@@ -99,8 +117,15 @@ const cases = caseNames.map((name) => {
       writeConflicts: summary(rows, (row) => row.writeConflicts),
       transactionsStarted: summary(rows, (row) => row.transactionsStarted),
       transactionsAborted: summary(rows, (row) => row.transactionsAborted),
+      commitsPerWrite: rows.map(commitsPerWriteOf),
+      transactionsOpen: rows.map((row) => row.transactionsOpen ?? null),
+      writesInFlight: rows.map((row) => row.writesInFlight ?? null),
       conflictShare: conflictShare(rows),
+      abortShare: { median: round(median(rows.map(abortShareOf)), 4), worst: round(Math.max(...rows.map(abortShareOf)), 4) },
+      aborts: abortReadingOf(rows, processes),
       cores: coresOf(rows),
+      cpu: cpuSummary(rows),
+      warmMs: warmSummary(rows),
       p99OverBase: overBase(arm, name),
       disk: {
         device: rows.find((row) => row.disk)?.disk?.device ?? null,
@@ -112,6 +137,18 @@ const cases = caseNames.map((name) => {
       journal: { syncsPerSecond: fieldMedian(rows, (row) => row.journal?.syncsPerSecond), msPerSync: fieldMedian(rows, (row) => row.journal?.msPerSync) },
       writerBusy: fieldMedian(rows.flatMap((row) => (row.writerBusy ?? []).map((value) => ({ ...row, writerBusy: [value] }))), (row) => row.writerBusy?.[0]),
       errors: errorsOf(rows),
+      server: rows.some((row) => row.server)
+        ? {
+            serverWriteMs: fieldMedian(rows, (row) => row.server?.serverWriteMs ?? undefined),
+            serverWrites: fieldMedian(rows, (row) => row.server?.serverWrites ?? undefined),
+            collectionLockWaitMs: fieldMedian(rows, (row) => row.server?.lockWaitMs.collection ?? undefined),
+            globalLockWaitMs: fieldMedian(rows, (row) => row.server?.lockWaitMs.global ?? undefined),
+            appEvictionMs: fieldMedian(rows, (row) => row.server?.appEvictionMs ?? undefined),
+            queuedWritersMax: fieldMedian(rows, (row) => row.server?.queuedWritersMax ?? undefined),
+            ticketsAvailableMin: fieldMedian(rows, (row) => row.server?.ticketsAvailableMin ?? undefined),
+            dirtyMbMax: fieldMedian(rows, (row) => row.server?.dirtyMbMax ?? undefined),
+          }
+        : null,
       firstLoad: firstLoads === 0 ? undefined : {
         writes: fieldMedian(rows, (row) => row.firstLoadWrites),
         slowestLoadMs: summary(rows, (row) => row.firstLoadMs ?? 0),
@@ -143,13 +180,39 @@ const tail = cases
   .flatMap((entry) => entry.arms.map((arm) => ({ rate: entry.rate, processes: entry.processes, apart: entry.apart, tmpfs: entry.tmpfs, arm: arm.arm, conflictShare: arm.conflictShare, p50Ms: arm.p50Ms.median, p99Ms: arm.p99Ms.median, reading: arm.reading.outcome })))
   .sort((a, b) => a.arm.localeCompare(b.arm) || Number(a.apart) - Number(b.apart) || Number(a.tmpfs) - Number(b.tmpfs) || a.rate - b.rate || a.processes - b.processes);
 
+// The rungs of the arm `partition` (roadmap CLI-96). A rung passes with a provisional pass and, with two processes or more, the abort rule.
+// A rung that does not pass names its limit: a full runner says nothing about the partition, so that rung gives no reading.
+const ladder = cases.flatMap((entry) =>
+  entry.arms
+    .filter((arm) => arm.arm === "partition")
+    .map((arm) => ({ arm, limit: limitOf({ outcome: arm.reading.outcome, abortsHold: arm.aborts?.holds ?? null, runnerFull: arm.cpu.runnerFull.worst, writerWorst: arm.cpu.writerWorst }) }))
+    .map(({ arm, limit }) => ({
+      case: entry.case,
+      rate: entry.rate,
+      processes: entry.processes,
+      activeTenants: entry.activeTenants,
+      reading: arm.reading.outcome,
+      reasons: [...arm.reading.reasons, ...(arm.aborts && !arm.aborts.holds ? [`a child aborted ${arm.aborts.worst} of its transactions, over ${arm.aborts.limit}`] : [])],
+      p99Ms: arm.p99Ms,
+      writesPerSecond: arm.writesPerSecond,
+      abortShare: arm.abortShare,
+      cpu: arm.cpu,
+      limit: limit.limit,
+      limitReasons: limit.reasons,
+      outcome: limit.limit === null ? "provisional pass" : limit.limit === "runner" ? "no reading" : "fail",
+    }))
+);
+
 const report = {
   schema: "tenant-bench/1",
   run: values.run ?? "",
   rule: READING_RULE,
+  abortRule: ABORT_RULE,
+  limitRule: LIMIT_RULE,
   ruleChange: READING_RULE_CHANGE,
   aa: band ? { noise: round(band.noise, 4), high: round(band.high, 3), median: round(band.median, 3), cases: band.cases } : null,
   tail,
+  ladder,
   cases,
   env: jobs.map(({ job, env }) => ({ job, env })),
 };

@@ -11,7 +11,8 @@ import { createInterface } from "node:readline";
 import { parseArgs } from "node:util";
 import { MongoClient } from "mongodb";
 import type { MongoDocumentStorage } from "../src/storage/document-storage.js";
-import { CONTROL_COLLECTIONS, FIRST_LOAD_SPLIT, GRACE_MS, SEPARATE_ARMS, TENANT_ARMS, TENANT_BYTES, WINDOW_MS, WRITE_CONFLICT, firstLoadCollection, firstLoadOf, parseTenantCase, tenantOf, type FirstLoadWrite, type TenantArm } from "./tenant-cases.js";
+import { SEPARATOR } from "../src/storage/document-storage.js";
+import { CONTROL_COLLECTIONS, FIRST_LOAD_SPLIT, GRACE_MS, SEPARATE_ARMS, TENANT_ARMS, TENANT_BYTES, WARM_GROUP, WINDOW_MS, WRITE_CONFLICT, firstLoadCollection, writesInFlightOf, firstLoadOf, parseTenantCase, tenantOf, type FirstLoadWrite, type TenantArm } from "./tenant-cases.js";
 import { planOf } from "./tenant-plan.js";
 
 const { values } = parseArgs({
@@ -31,6 +32,12 @@ const me = Number(meText);
 const source = (SEPARATE_ARMS as readonly (string | undefined)[]).includes(arm) ? `../src/storage/document-storage.${arm}.ts` : "../src/storage/document-storage.ts";
 const { MongoDocumentStorage: Storage } = (await import(source)) as typeof import("../src/storage/document-storage.js");
 const kase = parseTenantCase(caseName);
+// A sweep of the bound of the writes in flight (CLI-96). A store without the option ignores it, so the writer stops here.
+const writesInFlight = writesInFlightOf(process.env["TENANT_WRITES_IN_FLIGHT"]);
+if (writesInFlight !== undefined && !("DEFAULT_WRITES_IN_FLIGHT" in (await import(source)))) {
+  throw new Error("TENANT_WRITES_IN_FLIGHT is set, but the store of this tree has no option writesInFlight (CLI-96)");
+}
+const bound = writesInFlight === undefined ? {} : { writesInFlight };
 const plan = planOf(caseName, seed);
 
 // The server counter of write conflicts leaves out a conflict in a transaction, so the writer counts the replies.
@@ -44,22 +51,34 @@ const db = client.db(database);
 type Store = MongoDocumentStorage<{ text: string }>;
 const stores: Store[] = Array.from({ length: kase.active }, (_, tenant) => {
   const collection = arm === "control" ? `docs${tenant % CONTROL_COLLECTIONS}` : "docs";
-  return new Storage<{ text: string }>({ collection, partition: `t${tenant}`, db: () => db, client: () => client });
+  // The arm `partition` gives each partition its own counter and its own write queue (roadmap CLI-96)
+  return new Storage<{ text: string }>({ collection, partition: `t${tenant}`, db: () => db, client: () => client, ...bound, ...(arm === "partition" ? { sequence: "partition" as const } : {}) });
 });
 const text = "x".repeat(TENANT_BYTES);
 
 // The first write of a store in a process notes its floor and makes its indexes. The bench measures the writes after it.
+// The writer gives the time of these first writes, because at 40,000 stores they take most of the time of a child.
+const warmFrom = performance.now();
 // One collection takes them one at a time, because an arm with no queue has nothing else that holds them back.
+// The arm `partition` has a queue and a counter for each store, so it takes them in groups of `WARM_GROUP`.
 if (arm === "control") await Promise.all(stores.map((store) => store.set(`first${me}`, { text })));
+else if (arm === "partition") for (let at = 0; at < stores.length; at += WARM_GROUP) await Promise.all(stores.slice(at, at + WARM_GROUP).map((store) => store.set(`first${me}`, { text })));
 else for (const store of stores) await store.set(`first${me}`, { text });
 
 // A first load is the first write of its stores in this process, so its stores start in the load. Its collections exist, as they do in a live app.
 if (kase.firstLoads > 0) {
   for (const collection of FIRST_LOAD_SPLIT.keys()) {
     const name = firstLoadCollection(arm as TenantArm, { load: 0, collection });
-    await new Storage<{ text: string }>({ collection: name, partition: "warm", db: () => db, client: () => client }).set(`first${me}`, { text });
+    await new Storage<{ text: string }>({ collection: name, partition: "warm", db: () => db, client: () => client, ...bound }).set(`first${me}`, { text });
   }
 }
+// The arm `partition` measures the counter of each partition (roadmap CLI-96). A store without the option `sequence` ignores
+// the option and writes the counter of the collection, so the arm stops here and does not give the numbers of the wrong store.
+if (arm === "partition" && !(await db.collection("__storage_counters").findOne({ _id: `seq${SEPARATOR}docs${SEPARATOR}t0` as never }))) {
+  throw new Error("the arm partition found no counter for the partition t0: the store of this tree has no option sequence (CLI-96)");
+}
+const warmMs = performance.now() - warmFrom;
+console.error(`writer ${me}: the first writes of ${stores.length} stores took ${Math.round(warmMs)} ms`);
 const loadStores = new Map<string, Store>();
 /** This function gives the store of a first load in one collection, and starts it at its first write. */
 const loadStore = (write: FirstLoadWrite): Store => {
@@ -123,5 +142,5 @@ while (now() < end && completions.filter((entry) => entry.done === null).length 
 
 // A write to a pipe can still be in progress when the process ends, so the exit waits for its callback. The line of a high rate is long.
 clearTimeout(busyTimer);
-process.stdout.write(`${JSON.stringify({ completions, failures, writeConflicts, errors, writerBusy })}
+process.stdout.write(`${JSON.stringify({ completions, failures, writeConflicts, errors, writerBusy, warmMs })}
 `, () => process.exit(0));

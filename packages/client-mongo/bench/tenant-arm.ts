@@ -20,8 +20,10 @@ import { parseArgs } from "node:util";
 import { latencyQuantile, measureLoad, scheduleHeld, type Completion } from "@mark1russell7/rigor-chaos";
 import { median, quantile } from "@mark1russell7/rigor-statistics";
 import { MongoClient } from "mongodb";
-import { ALL_CORES, BURST_AT_MS, BURST_TENANT, DRIVER_LIMIT_MS, GRACE_MS, MONGO_CORES, TENANT_ARMS, WINDOW_MS, WRITER_CORES, firstLoadOf, parseTenantCase, tenantOf, type CoreShare, type DiskRead, type JournalRead, type TenantArm, type TenantCount } from "./tenant-cases.js";
+import { ALL_CORES, BURST_AT_MS, BURST_TENANT, DRIVER_LIMIT_MS, GRACE_MS, MONGO_CORES, TENANT_ARMS, WINDOW_MS, WRITER_CORES, firstLoadOf, parseTenantCase, tenantOf, writesInFlightOf, type CoreShare, type DiskRead, type JournalRead, type TenantArm, type TenantCount } from "./tenant-cases.js";
 import { planOf } from "./tenant-plan.js";
+import { sampleOf, serverRead, totalsOf, type ServerRead, type ServerSample } from "./tenant-server.js";
+import { spreadOf } from "./tenant-spread.js";
 
 const { values } = parseArgs({ options: { arm: { type: "string" }, case: { type: "string" }, job: { type: "string" }, counts: { type: "string" } } });
 const { arm, case: caseName, job, counts } = values;
@@ -41,6 +43,7 @@ interface WriterResult {
   readonly writeConflicts: number;
   readonly errors: Readonly<Record<string, number>>;
   readonly writerBusy: number;
+  readonly warmMs: number;
 }
 
 const container = process.env["MONGO_CONTAINER"];
@@ -59,20 +62,35 @@ const writers = Array.from({ length: kase.processes }, (_, me) => {
     out.once("line", () => resolve());
     child.once("exit", (code) => reject(new Error(`a writer ended with the code ${code} before it was ready`)));
   });
-  const result = new Promise<WriterResult>((resolve) => {
-    void ready.then(() => out.once("line", (line) => resolve(JSON.parse(line) as WriterResult)));
+  // A writer that ends with no result line fails the arm at once, with its code and signal. Otherwise the arm waits until the cap kills it, and the job does not tell which writer stopped.
+  const result = new Promise<WriterResult>((resolve, reject) => {
+    void ready.then(
+      () => out.once("line", (line) => resolve(JSON.parse(line) as WriterResult)),
+      () => undefined
+    );
+    child.once("close", (code, signal) => reject(new Error(`the writer ${me} of the case ${caseName} ended with the code ${code} and the signal ${signal} before it gave its result`)));
   });
+  // The arm reads this rejection through Promise.all. This handler only stops a second report when the writer was not ready.
+  result.catch(() => undefined);
   return { child, ready, result };
 });
 
 const admin = await MongoClient.connect(url);
-const serverCounts = async (): Promise<{ started: number; aborted: number }> => {
+const serverCounts = async (): Promise<{ started: number; aborted: number; committed: number; open: number }> => {
   const status = await admin.db("admin").command({ serverStatus: 1 });
   return {
     started: Number(status["transactions"]?.["totalStarted"] ?? 0),
     aborted: Number(status["transactions"]?.["totalAborted"] ?? 0),
+    committed: Number(status["transactions"]?.["totalCommitted"] ?? 0),
+    open: Number(status["transactions"]?.["currentOpen"] ?? 0),
   };
 };
+
+const serverStatus = (): Promise<unknown> => admin.db("admin").command({ serverStatus: 1 });
+// A probe (CLI-96) reads the server each second. The readings add a little load, so a run takes them only on request.
+const SAMPLE_SERVER = process.env["TENANT_SERVER_SAMPLES"] === "1";
+/** The bound of the writes in flight of a sweep (CLI-96), for the record. The writers read the same variable. */
+const WRITES_IN_FLIGHT = writesInFlightOf(process.env["TENANT_WRITES_IN_FLIGHT"]);
 
 type CoreTimes = Map<number, { idle: number; iowait: number; total: number }>;
 
@@ -164,12 +182,22 @@ const before = await serverCounts();
 const startAt = Date.now() + 1_000;
 for (const writer of writers) writer.child.stdin.write(`${startAt}\n`);
 
-const inLoad = (async (): Promise<{ cores: CoreShare[] | null; disk: DiskRead | null; journal: JournalRead | null }> => {
+const inLoad = (async (): Promise<{ cores: CoreShare[] | null; disk: DiskRead | null; journal: JournalRead | null; server: ServerRead }> => {
   await sleep(Math.max(startAt - Date.now(), 0));
   const from = readCores();
   const disksFrom = readDisks();
   const journalFrom = await readJournal();
-  await sleep(WINDOW_MS);
+  const totalsFrom = totalsOf(await serverStatus());
+  const loadFrom = Date.now();
+  const samples: ServerSample[] | undefined = SAMPLE_SERVER ? [] : undefined;
+  if (samples) {
+    for (let second = 1; second * 1000 < WINDOW_MS; second++) {
+      await sleep(Math.max(loadFrom + second * 1000 - Date.now(), 0));
+      samples.push(sampleOf(await serverStatus(), Date.now() - loadFrom));
+    }
+  }
+  await sleep(Math.max(loadFrom + WINDOW_MS - Date.now(), 0));
+  const totalsTo = totalsOf(await serverStatus());
   const cores = coreShares(from, readCores());
   const disk = diskRead(disksFrom, readDisks());
   const journalTo = await readJournal();
@@ -177,11 +205,11 @@ const inLoad = (async (): Promise<{ cores: CoreShare[] | null; disk: DiskRead | 
   const journal = journalFrom && journalTo
     ? { syncsPerSecond: Number((syncs / (WINDOW_MS / 1000)).toFixed(1)), msPerSync: Number((syncs === 0 ? 0 : (journalTo.micros - journalFrom.micros) / 1000 / syncs).toFixed(3)) }
     : null;
-  return { cores, disk, journal };
+  return { cores, disk, journal, server: serverRead(totalsFrom, totalsTo, samples) };
 })();
 
 const results = await Promise.all(writers.map((writer) => writer.result));
-const { cores, disk, journal } = await inLoad;
+const { cores, disk, journal, server } = await inLoad;
 const after = await serverCounts();
 
 const end = WINDOW_MS + GRACE_MS;
@@ -207,6 +235,18 @@ const othersValues = plan.times.flatMap((planned, index) => {
   return [done === null ? Math.max(0, end - planned) : done - planned];
 });
 const othersP99 = quantile(othersValues, 0.99, "nearest-rank");
+
+// The spread over the keys and the processes (roadmap CLI-96): a first load and the tenant of the burst are not keys of the plan.
+const spread = spreadOf(
+  plan.times.flatMap((planned, index) => {
+    if (firstLoadOf(kase, index, planned)) return [];
+    const key = tenantOf(kase, index, planned);
+    if (kase.burst && key === BURST_TENANT) return [];
+    const done = doneByIndex.get(index) ?? null;
+    return [{ key, process: index % kase.processes, ms: done === null ? Math.max(0, end - planned) : done - planned, replied: done !== null }];
+  }),
+  kase.processes
+);
 
 // The first loads: the time of a write counts from its plan, and the time of a load counts from the start of the burst.
 const loadWrites = plan.times.flatMap((planned, index) => {
@@ -243,14 +283,20 @@ const line: TenantCount = {
   writeConflicts: results.reduce((sum, result) => sum + result.writeConflicts, 0),
   transactionsStarted: after.started - before.started,
   transactionsAborted: after.aborted - before.aborted,
+  transactionsCommitted: after.committed - before.committed,
+  transactionsOpen: after.open,
+  ...(WRITES_IN_FLIGHT === undefined ? {} : { writesInFlight: Number.isFinite(WRITES_IN_FLIGHT) ? WRITES_IN_FLIGHT : ("Infinity" as const) }),
   cores,
   disk,
   journal,
   writerBusy: results.map((result) => Number(result.writerBusy.toFixed(3))),
+  warmMs: results.map((result) => Math.round(result.warmMs)),
   errors: Object.fromEntries(
     results.flatMap((result) => Object.entries(result.errors)).reduce((all, [kind, count]) => all.set(kind, (all.get(kind) ?? 0) + count), new Map<string, number>())
   ),
   ...firstLoad,
+  server,
+  spread,
 };
 appendFileSync(counts, `${JSON.stringify(line)}\n`);
 await admin.db(database).dropDatabase().catch(() => undefined);

@@ -15,6 +15,7 @@ name: Stream cost
 # CLI-95). The suite `tenant-ceiling` tells a limit of that collection from a limit of the runner, with
 # MongoDB and the writers on all processors and apart. The suite `tenant-separate` tells the queue of a
 # process from the counter document and from the disk. The suite `tenant-first` adds first loads of new tenants.
+# The suite `tenant-partition` is the gate of a counter and a write queue for each partition (roadmap CLI-96).
 #
 # Only a dispatch starts the workflow, and no ruleset needs its checks. It only reports, except for the
 # objective of the suite `read-bound` and the suite `gate` with `enforce`.
@@ -36,6 +37,7 @@ on:
           - tenant-ceiling
           - tenant-separate
           - tenant-first
+          - tenant-partition
         default: stream
       enforce:
         description: The suite gate fails the run when a case is not within its limit.
@@ -72,6 +74,18 @@ on:
         description: The time that each request to MongoDB waits, for a read of a remote server. The value 0 adds no wait.
         type: string
         default: "0"
+      case:
+        description: One case of a tenant suite, or all. Each case of a tenant suite has its own CI job.
+        type: string
+        default: all
+      server_samples:
+        description: Each tenant arm reads the server each second, for a probe (CLI-96). The readings add a little load.
+        type: boolean
+        default: false
+      writes_in_flight:
+        description: The option writesInFlight of the tenant stores, for a sweep (CLI-96). Empty keeps the default of the store.
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -91,26 +105,54 @@ jobs:
     timeout-minutes: 5
     outputs:
       runs: ${{ steps.plan.outputs.runs }}
+      cases: ${{ steps.plan.outputs.cases }}
     steps:
+      # The plan reads the cases of a tenant suite from bench/tenant-cases.ts. That file has no imports, so it needs no install.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
       - name: Plan the jobs
         id: plan
         env:
+          SUITE: ${{ inputs.suite }}
+          CASE: ${{ inputs.case }}
           RUNS: ${{ inputs.runs }}
           ROUNDS: ${{ inputs.rounds }}
           CAP: ${{ inputs.cap_seconds }}
           BASE: ${{ inputs.base }}
           DELAY: ${{ inputs.mongo_delay_ms }}
+          WRITES_IN_FLIGHT: ${{ inputs.writes_in_flight }}
         run: |
+          [[ -z "$WRITES_IN_FLIGHT" || "$WRITES_IN_FLIGHT" =~ ^([1-9][0-9]{0,3}|Infinity)$ ]] || { echo "writes_in_flight must be empty, a number from 1 to 9999, or Infinity, not $WRITES_IN_FLIGHT"; exit 1; }
           [[ "$DELAY" =~ ^[0-9]{1,3}$ ]] || { echo "mongo_delay_ms must be a number from 0 to 999, not $DELAY"; exit 1; }
           [[ "$RUNS" =~ ^[1-9]$ ]] || { echo "runs must be a number from 1 to 9, not $RUNS"; exit 1; }
           [[ "$ROUNDS" =~ ^[1-9][0-9]?$ ]] || { echo "rounds must be a number from 1 to 99, not $ROUNDS"; exit 1; }
           [[ "$CAP" =~ ^[1-9][0-9]{0,2}$ ]] || { echo "cap_seconds must be a number from 1 to 999, not $CAP"; exit 1; }
           [[ "$BASE" =~ ^[0-9a-f]{7,40}$ ]] || { echo "base must be a commit, not $BASE"; exit 1; }
           echo "runs=[$(seq -s, 1 "$RUNS")]" >> "$GITHUB_OUTPUT"
+          # Each case of a tenant suite has its own CI job, so a slow rung does not hold the job of the other rungs (CLI-96).
+          if [[ "$SUITE" == tenant* ]]; then
+            cases=$(node -e '
+              const [file, suite, only] = process.argv.slice(1);
+              import(require("node:url").pathToFileURL(file).href).then(({ SUITE_CASES }) => {
+                const all = SUITE_CASES[suite];
+                if (!all) throw new Error(`bench/tenant-cases.ts has no cases for the suite ${suite}`);
+                if (only !== "all" && !all.includes(only)) throw new Error(`the suite ${suite} has no case ${only}: ${all.join(", ")}`);
+                console.log(JSON.stringify(only === "all" ? all : [only]));
+              });
+            ' packages/client-mongo/bench/tenant-cases.ts "$SUITE" "$CASE")
+          else
+            [ "$CASE" = all ] || { echo "the input case is only for a tenant suite, not $SUITE"; exit 1; }
+            cases='["all"]'
+          fi
+          echo "cases=$cases" >> "$GITHUB_OUTPUT"
 
   bench:
     needs: plan
-    name: stream cost (job ${{ matrix.job }})
+    name: stream cost (job ${{ matrix.job }}${{ matrix.case != 'all' && format(', {0}', matrix.case) || '' }})
     runs-on: ubuntu-latest
     timeout-minutes: ${{ startsWith(inputs.suite, 'tenant') && 90 || 60 }}
     strategy:
@@ -119,6 +161,7 @@ jobs:
       max-parallel: 3
       matrix:
         job: ${{ fromJSON(needs.plan.outputs.runs) }}
+        case: ${{ fromJSON(needs.plan.outputs.cases) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -149,7 +192,7 @@ jobs:
       - name: Test the rules of the tenant bench
         if: startsWith(inputs.suite, 'tenant')
         working-directory: packages/client-mongo
-        run: node node_modules/vitest/vitest.mjs run bench/tenant-reading.test.ts bench/tenant-cases.test.ts bench/tenant-copies.test.ts
+        run: node node_modules/vitest/vitest.mjs run bench/tenant-reading.test.ts bench/tenant-cases.test.ts bench/tenant-copies.test.ts bench/tenant-jobs.test.ts bench/tenant-server.test.ts bench/tenant-spread.test.ts
       - name: Hold the stated delay on the connection to MongoDB
         if: ${{ inputs.mongo_delay_ms != '0' }}
         env:
@@ -162,6 +205,9 @@ jobs:
         working-directory: packages/client-mongo
         env:
           JOB: ${{ matrix.job }}
+          CASE: ${{ matrix.case }}
+          TENANT_SERVER_SAMPLES: ${{ inputs.server_samples && '1' || '' }}
+          TENANT_WRITES_IN_FLIGHT: ${{ inputs.writes_in_flight }}
           BASE_ARM: ${{ inputs.suite == 'read-bound' && inputs.base_arm || '' }}
           ROUNDS: ${{ inputs.rounds }}
           CAP: ${{ inputs.cap_seconds }}
@@ -169,10 +215,14 @@ jobs:
           MONGO_TEST_URL: mongodb://localhost:27017/?directConnection=true
           MONGO_CONTAINER: ${{ inputs.suite == 'tenant-ceiling' && 'mongo' || '' }}
           MONGO_TMPFS_URL: mongodb://localhost:27018/?directConnection=true
-        run: node --import tsx "bench/$SUITE-run.ts" --job "$JOB" --rounds "$ROUNDS" --cap "$CAP" --out "bench-out/job-$JOB.json" ${BASE_ARM:+--base "$BASE_ARM"}
+        run: |
+          if [ "$CASE" = all ]; then out="bench-out/job-$JOB.json"; only=(); else out="bench-out/job-$JOB-$CASE.json"; only=(--case "$CASE"); fi
+          node --import tsx "bench/$SUITE-run.ts" --job "$JOB" --rounds "$ROUNDS" --cap "$CAP" --out "$out" "${only[@]}" ${BASE_ARM:+--base "$BASE_ARM"}
+      # A failed job also keeps its records: the rounds that ended before the failure are a reading too.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
         with:
-          name: stream-cost-job-${{ matrix.job }}
+          name: stream-cost-job-${{ matrix.job }}${{ matrix.case != 'all' && format('-{0}', matrix.case) || '' }}
           path: packages/client-mongo/bench-out/
           if-no-files-found: error
 
