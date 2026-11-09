@@ -308,12 +308,10 @@ export function createRateLimitMiddleware(
     while (queue.length > 0) {
       const decision = take();
       if (!decision.allowed) {
-        // A take of one token is never over the capacity: the bucket holds maxRequests tokens, 1 or more
-        if (decision.cause === "capacity") {
-          throw new Error(`The bucket refuses one token at each time (capacity ${decision.capacity}): this is a defect`);
-        }
-        // The time until the next whole token
-        const wait = Math.max(1, Math.ceil(valueIn(decision.retryAfter, "ms")));
+        // The time until the next whole token. A take of one unit is never over a burst of 1 or more,
+        // so a capacity refusal does not occur here. If it occurs, the queue waits one window.
+        const wait =
+          decision.cause === "capacity" ? Math.max(1, window) : Math.max(1, Math.ceil(valueIn(decision.retryAfter, "ms")));
         drainTimer = clock.after(wait, () => {
           drainTimer = undefined;
           scheduleDrain();
