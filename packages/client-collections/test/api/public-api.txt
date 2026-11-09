@@ -324,10 +324,8 @@ type ContractItem: dist/testing/storage-contract.d.ts#ContractItem
 type ContractStorage: dist/testing/storage-contract.d.ts#ContractStorage
 type ContractTestApi: dist/testing/storage-contract.d.ts#ContractTestApi
 type ContractTestContext: dist/testing/storage-contract.d.ts#ContractTestContext
-ContractViolation: @mark1russell7/collections/testing#ContractViolation (external)
 collectionStorageContract: dist/testing/storage-contract.d.ts#collectionStorageContract
 contractVersionOf: dist/testing/storage-contract.d.ts#contractVersionOf
-deepEqual: @mark1russell7/collections/testing#deepEqual (external)
 describeCollectionStorageContract: dist/testing/storage-contract.d.ts#describeCollectionStorageContract
 
 ## Declarations

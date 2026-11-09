@@ -6,8 +6,9 @@
  * `@procedures/sqlite`. Before, each package copied the cases of `InMemoryStorage`.
  *
  * The suite is in the test-only entry `@procedures/collections/testing`. It imports no test
- * framework: the caller gives `describe` and `it`, and the checks throw `ContractViolation`. So a
- * storage package imports the suite without a cycle, and a runtime entry never loads vitest.
+ * framework: the caller gives `describe` and `it`, and the checks throw the `AssertionError` of
+ * `node:assert`. So a storage package imports the suite without a cycle, and a runtime entry does
+ * not load vitest.
  *
  * ```ts
  * import { describe, it } from "vitest";
@@ -42,7 +43,14 @@ import {
   type StorageSelector,
   type VersionConflict,
 } from "@procedures/client/query";
-import { holds, rejects, same, show } from "@mark1russell7/collections/testing";
+import assert from "node:assert/strict";
+import { inspect } from "node:util";
+import { rejects } from "@mark1russell7/rigor-testkit";
+
+/** This function gives the text of a value for the message of a failed check, on one line. */
+function show(value: unknown): string {
+  return inspect(value, { breakLength: Infinity, depth: null });
+}
 
 /** The item of the suite. Its `id` is its key, so a `HybridStorage` can sync it. */
 export interface ContractItem {
@@ -324,7 +332,7 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
         ["size", storage.size()],
         ["getBatch", storage.getBatch(["a"])],
       ];
-      for (const [name, result] of results) holds(isPromise(result), `${name}() did not give a promise`);
+      for (const [name, result] of results) assert.ok(isPromise(result), `${name}() did not give a promise`);
       await Promise.all(results.map(([, result]) => result));
       for (const [name, start] of [
         ["set", () => storage.set("a", item("a", 1))],
@@ -334,7 +342,7 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
         ["clear", () => storage.clear()],
       ] as Array<[string, () => Promise<unknown>]>) {
         const result = start();
-        holds(isPromise(result), `${name}() did not give a promise`);
+        assert.ok(isPromise(result), `${name}() did not give a promise`);
         await result;
       }
     }),
@@ -342,16 +350,16 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
 
   add("an empty storage has no item", () =>
     withStorage(create, async (storage) => {
-      same(await storage.size(), 0, "size() of an empty storage");
-      same(await storage.getAll(), [], "getAll() of an empty storage");
-      same(await storage.get("a"), undefined, "get() of a missing id");
-      same(await storage.has("a"), false, "has() of a missing id");
-      same(await storage.getBatch(["a", "b"]), new Map(), "getBatch() of missing ids");
-      same(await storage.find(() => true), [], "find() in an empty storage");
-      same(await storage.delete("a"), false, "delete() of a missing id");
-      same(await storage.deleteBatch(["a", "b"]), 0, "deleteBatch() of missing ids");
-      if (storage.getEntries) same(await storage.getEntries(), [], "getEntries() of an empty storage");
-      if (storage.getIds) same(await storage.getIds(), [], "getIds() of an empty storage");
+      assert.deepStrictEqual(await storage.size(), 0, "size() of an empty storage");
+      assert.deepStrictEqual(await storage.getAll(), [], "getAll() of an empty storage");
+      assert.deepStrictEqual(await storage.get("a"), undefined, "get() of a missing id");
+      assert.deepStrictEqual(await storage.has("a"), false, "has() of a missing id");
+      assert.deepStrictEqual(await storage.getBatch(["a", "b"]), new Map(), "getBatch() of missing ids");
+      assert.deepStrictEqual(await storage.find(() => true), [], "find() in an empty storage");
+      assert.deepStrictEqual(await storage.delete("a"), false, "delete() of a missing id");
+      assert.deepStrictEqual(await storage.deleteBatch(["a", "b"]), 0, "deleteBatch() of missing ids");
+      if (storage.getEntries) assert.deepStrictEqual(await storage.getEntries(), [], "getEntries() of an empty storage");
+      if (storage.getIds) assert.deepStrictEqual(await storage.getIds(), [], "getIds() of an empty storage");
     }),
   );
 
@@ -359,41 +367,41 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
     withStorage(create, async (storage) => {
       await storage.set("a", item("a", 1, ["x"]));
       await storage.set("b", item("b", 2));
-      same(await storage.get("a"), item("a", 1, ["x"]), "get() after set()");
-      same(await storage.has("a"), true, "has() after set()");
-      same(await storage.size(), 2, "size() after two set() calls");
+      assert.deepStrictEqual(await storage.get("a"), item("a", 1, ["x"]), "get() after set()");
+      assert.deepStrictEqual(await storage.has("a"), true, "has() after set()");
+      assert.deepStrictEqual(await storage.size(), 2, "size() after two set() calls");
       await storage.set("a", item("a", 10));
-      same(await storage.get("a"), item("a", 10), "get() after a second set() of the id");
-      same(await storage.size(), 2, "size() after a second set() of an id");
+      assert.deepStrictEqual(await storage.get("a"), item("a", 10), "get() after a second set() of the id");
+      assert.deepStrictEqual(await storage.size(), 2, "size() after a second set() of an id");
     }),
   );
 
   add("delete() gives true for an item that existed, and deleteBatch() counts the items that existed", () =>
     withStorage(create, async (storage) => {
       await storage.setBatch([["a", item("a", 1)], ["b", item("b", 2)], ["c", item("c", 3)]]);
-      same(await storage.delete("a"), true, "delete() of an item");
-      same(await storage.delete("a"), false, "a second delete() of the id");
-      same(await storage.has("a"), false, "has() after delete()");
-      same(await storage.get("a"), undefined, "get() after delete()");
-      same(await storage.deleteBatch(["b", "missing", "b"]), 1, "deleteBatch() with a missing id and a repeated id");
-      same(ids(await storage.getAll()), ["c"], "getAll() after the deletes");
+      assert.deepStrictEqual(await storage.delete("a"), true, "delete() of an item");
+      assert.deepStrictEqual(await storage.delete("a"), false, "a second delete() of the id");
+      assert.deepStrictEqual(await storage.has("a"), false, "has() after delete()");
+      assert.deepStrictEqual(await storage.get("a"), undefined, "get() after delete()");
+      assert.deepStrictEqual(await storage.deleteBatch(["b", "missing", "b"]), 1, "deleteBatch() with a missing id and a repeated id");
+      assert.deepStrictEqual(ids(await storage.getAll()), ["c"], "getAll() after the deletes");
     }),
   );
 
   add("setBatch() and getBatch(): the last value of an id wins, a missing id is not in the map, and empty batches change nothing", () =>
     withStorage(create, async (storage) => {
       await storage.setBatch([["a", item("a", 1)], ["b", item("b", 2)], ["a", item("a", 3)]]);
-      same(await storage.get("a"), item("a", 3), "get() of an id that setBatch() set two times");
-      same(await storage.size(), 2, "size() after setBatch() with a repeated id");
-      same(
+      assert.deepStrictEqual(await storage.get("a"), item("a", 3), "get() of an id that setBatch() set two times");
+      assert.deepStrictEqual(await storage.size(), 2, "size() after setBatch() with a repeated id");
+      assert.deepStrictEqual(
         await storage.getBatch(["b", "missing", "a"]),
         new Map([["b", item("b", 2)], ["a", item("a", 3)]]),
         "getBatch() with a missing id",
       );
       await storage.setBatch([]);
-      same(await storage.deleteBatch([]), 0, "deleteBatch() of no id");
-      same(await storage.getBatch([]), new Map(), "getBatch() of no id");
-      same(await storage.size(), 2, "size() after the empty batches");
+      assert.deepStrictEqual(await storage.deleteBatch([]), 0, "deleteBatch() of no id");
+      assert.deepStrictEqual(await storage.getBatch([]), new Map(), "getBatch() of no id");
+      assert.deepStrictEqual(await storage.size(), 2, "size() after the empty batches");
     }),
   );
 
@@ -401,15 +409,15 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
     withStorage(create, async (storage) => {
       await storage.setBatch([["c", item("c", 3)], ["a", item("a", 1)], ["b", item("b", 2)]]);
       await storage.set("a", item("a", 10));
-      same(ids(await storage.getAll()), ["c", "a", "b"], "getAll() after a second set() of an id: the id keeps its place");
+      assert.deepStrictEqual(ids(await storage.getAll()), ["c", "a", "b"], "getAll() after a second set() of an id: the id keeps its place");
       // A delete, then a set: the id goes to the end
       await storage.delete("c");
       await storage.set("c", item("c", 30));
       const expected: Array<[string, ContractItem]> = [["a", item("a", 10)], ["b", item("b", 2)], ["c", item("c", 30)]];
-      same(await storage.getAll(), expected.map(([, value]) => value), "getAll() after a delete and a new set() of an id");
-      same(ids(await storage.find(() => true)), ["a", "b", "c"], "find() keeps the order of the entries");
-      if (storage.getEntries) same(await storage.getEntries(), expected, "getEntries() keeps the order of the entries");
-      if (storage.getIds) same(await storage.getIds(), ["a", "b", "c"], "getIds() keeps the order of the entries");
+      assert.deepStrictEqual(await storage.getAll(), expected.map(([, value]) => value), "getAll() after a delete and a new set() of an id");
+      assert.deepStrictEqual(ids(await storage.find(() => true)), ["a", "b", "c"], "find() keeps the order of the entries");
+      if (storage.getEntries) assert.deepStrictEqual(await storage.getEntries(), expected, "getEntries() keeps the order of the entries");
+      if (storage.getIds) assert.deepStrictEqual(await storage.getIds(), ["a", "b", "c"], "getIds() keeps the order of the entries");
     }),
   );
 
@@ -420,20 +428,20 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       await storage.delete("a");
       await storage.set("a", item("a", 10));
       const first = await storage.getIds!();
-      same(first, ["c", "b", "a"], "getIds() after a delete and a new set() of an id");
+      assert.deepStrictEqual(first, ["c", "b", "a"], "getIds() after a delete and a new set() of an id");
       first.splice(0);
-      same(await storage.getIds!(), ["c", "b", "a"], "getIds() after a change of an earlier result");
-      if (storage.getEntries) same(await storage.getIds!(), (await storage.getEntries()).map(([id]) => id), "getIds() and the ids of getEntries()");
+      assert.deepStrictEqual(await storage.getIds!(), ["c", "b", "a"], "getIds() after a change of an earlier result");
+      if (storage.getEntries) assert.deepStrictEqual(await storage.getIds!(), (await storage.getEntries()).map(([id]) => id), "getIds() and the ids of getEntries()");
       await storage.clear();
-      same(await storage.getIds!(), [], "getIds() after clear()");
+      assert.deepStrictEqual(await storage.getIds!(), [], "getIds() after clear()");
     }),
   );
 
   add("find() gives the matching items in order, and an error of the predicate rejects the promise", () =>
     withStorage(create, async (storage) => {
       await storage.setBatch([["a", item("a", 1)], ["b", item("b", 2)], ["c", item("c", 3)], ["d", item("d", 4)]]);
-      same(ids(await storage.find((value) => value.n % 2 === 0)), ["b", "d"], "find() of the even items");
-      same(await storage.find(() => false), [], "find() without a match");
+      assert.deepStrictEqual(ids(await storage.find((value) => value.n % 2 === 0)), ["b", "d"], "find() of the even items");
+      assert.deepStrictEqual(await storage.find(() => false), [], "find() without a match");
       const error = await rejects(
         () =>
           storage.find(() => {
@@ -441,7 +449,7 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
           }),
         "find() with a predicate that throws",
       );
-      holds(error instanceof Error && error.message.includes("the predicate failed"), `find() must reject with the error of the predicate, not ${show(error instanceof Error ? error.message : error)}`);
+      assert.ok(error instanceof Error && error.message.includes("the predicate failed"), `find() must reject with the error of the predicate, not ${show(error instanceof Error ? error.message : error)}`);
     }),
   );
 
@@ -449,12 +457,12 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
     withStorage(create, async (storage) => {
       await storage.setBatch([["a", item("a", 1)], ["b", item("b", 2)], ["c", item("c", 3)]]);
       await storage.clear();
-      same(await storage.size(), 0, "size() after clear()");
-      same(await storage.getAll(), [], "getAll() after clear()");
-      same(await storage.has("a"), false, "has() after clear()");
+      assert.deepStrictEqual(await storage.size(), 0, "size() after clear()");
+      assert.deepStrictEqual(await storage.getAll(), [], "getAll() after clear()");
+      assert.deepStrictEqual(await storage.has("a"), false, "has() after clear()");
       await storage.clear();
       await storage.set("d", item("d", 4));
-      same(await storage.getAll(), [item("d", 4)], "getAll() after clear() and set()");
+      assert.deepStrictEqual(await storage.getAll(), [item("d", 4)], "getAll() after clear() and set()");
     }),
   );
 
@@ -470,9 +478,9 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       batch.delete("a");
       batch.set("z", item("z", 0));
       if (storage.getEntries) (await storage.getEntries()).splice(0);
-      same(ids(await storage.getAll()), ["a", "b"], "getAll() after changes of the results");
-      same(await storage.has("z"), false, "has() of an id that only a result got");
-      same(await storage.getBatch(["a"]), new Map([["a", item("a", 1)]]), "getBatch() after a change of a result");
+      assert.deepStrictEqual(ids(await storage.getAll()), ["a", "b"], "getAll() after changes of the results");
+      assert.deepStrictEqual(await storage.has("z"), false, "has() of an id that only a result got");
+      assert.deepStrictEqual(await storage.getBatch(["a"]), new Map([["a", item("a", 1)]]), "getBatch() after a change of a result");
     }),
   );
 
@@ -486,8 +494,8 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       await storage.setBatch([["b", batch]]);
       batch.tags!.push("changed after setBatch");
       const read = (await storage.get("a"))!;
-      same(read, item("a", 1, ["x"]), "get() after a change of the value that set() took");
-      same(await storage.get("b"), item("b", 2, ["y"]), "get() after a change of the value that setBatch() took");
+      assert.deepStrictEqual(read, item("a", 1, ["x"]), "get() after a change of the value that set() took");
+      assert.deepStrictEqual(await storage.get("b"), item("b", 2, ["y"]), "get() after a change of the value that setBatch() took");
       read.n = 98;
       read.tags!.push("changed after get");
       (await storage.getAll())[0]!.n = 97;
@@ -512,10 +520,10 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
         });
         await storage.set("c", item("c", 3, ["z"]));
         stop();
-        same(await storage.get("c"), item("c", 3, ["z"]), "get() after an observer changed the value of a change");
+        assert.deepStrictEqual(await storage.get("c"), item("c", 3, ["z"]), "get() after an observer changed the value of a change");
       }
-      same(await storage.get("a"), item("a", 1, ["x"]), "get() after changes of the read values");
-      same(await storage.get("b"), item("b", 2, ["y"]), "get() of the other item after changes of the read values");
+      assert.deepStrictEqual(await storage.get("a"), item("a", 1, ["x"]), "get() after changes of the read values");
+      assert.deepStrictEqual(await storage.get("b"), item("b", 2, ["y"]), "get() of the other item after changes of the read values");
     }),
   );
 
@@ -533,14 +541,14 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
         ["null", null],
       ];
       await storage.setBatch(values);
-      for (const [id, value] of values) same(await storage.get(id), value, `get("${id}")`);
-      same(await storage.getAll(), values.map(([, value]) => value), "getAll() of the JSON values");
-      same(await storage.getBatch(values.map(([id]) => id)), new Map(values), "getBatch() of the JSON values");
-      same(await storage.size(), values.length, "size() with the JSON values");
-      same(await storage.has("null"), true, "has() of an id whose value is null");
+      for (const [id, value] of values) assert.deepStrictEqual(await storage.get(id), value, `get("${id}")`);
+      assert.deepStrictEqual(await storage.getAll(), values.map(([, value]) => value), "getAll() of the JSON values");
+      assert.deepStrictEqual(await storage.getBatch(values.map(([id]) => id)), new Map(values), "getBatch() of the JSON values");
+      assert.deepStrictEqual(await storage.size(), values.length, "size() with the JSON values");
+      assert.deepStrictEqual(await storage.has("null"), true, "has() of an id whose value is null");
       await storage.set("single", null);
-      same(await storage.get("single"), null, "get() of an id that set() gave the value null");
-      same(await storage.get("missing"), undefined, "get() of a missing id, next to a stored null");
+      assert.deepStrictEqual(await storage.get("single"), null, "get() of an id that set() gave the value null");
+      assert.deepStrictEqual(await storage.get("missing"), undefined, "get() of a missing id, next to a stored null");
     }),
   );
 
@@ -548,8 +556,8 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
     withStorage(create, async (storage) => {
       const count = 20;
       await Promise.all(Array.from({ length: count }, (_, n) => storage.set(`k${n}`, item(`k${n}`, n))));
-      same(await storage.size(), count, `size() after ${count} writes at the same time`);
-      same(ids(await storage.getAll()).sort(), Array.from({ length: count }, (_, n) => `k${n}`).sort(), "the ids after the writes at the same time");
+      assert.deepStrictEqual(await storage.size(), count, `size() after ${count} writes at the same time`);
+      assert.deepStrictEqual(ids(await storage.getAll()).sort(), Array.from({ length: count }, (_, n) => `k${n}`).sort(), "the ids after the writes at the same time");
     }),
   );
 
@@ -561,10 +569,10 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       await storage.setBatch(entries);
       await storage.set("c", item("c", 30));
       const first = await changes();
-      holds(typeof first.version === "string" && first.version !== "", `the version must be a text that is not empty, not ${show(first.version)}`);
-      same(first.full, true, "full of the first call");
-      same(first.changed, [["c", item("c", 30)], ["a", item("a", 1)], ["b", item("b", 2)]], "changed of the first call: every item, in the order of the entries");
-      same(first.deleted, [], "deleted of a full result");
+      assert.ok(typeof first.version === "string" && first.version !== "", `the version must be a text that is not empty, not ${show(first.version)}`);
+      assert.deepStrictEqual(first.full, true, "full of the first call");
+      assert.deepStrictEqual(first.changed, [["c", item("c", 30)], ["a", item("a", 1)], ["b", item("b", 2)]], "changed of the first call: every item, in the order of the entries");
+      assert.deepStrictEqual(first.deleted, [], "deleted of a full result");
     }),
   );
 
@@ -579,10 +587,10 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       await storage.delete("missing");
       await storage.set("d", item("d", 4));
       const delta = await changes(start.version);
-      same(delta.full, false, "full of a delta");
-      same(delta.changed, [["a", item("a", 10)], ["d", item("d", 4)]], "changed of a delta");
-      same(delta.deleted, ["b"], "deleted of a delta");
-      holds(delta.version !== start.version, "the version must change after a write");
+      assert.deepStrictEqual(delta.full, false, "full of a delta");
+      assert.deepStrictEqual(delta.changed, [["a", item("a", 10)], ["d", item("d", 4)]], "changed of a delta");
+      assert.deepStrictEqual(delta.deleted, ["b"], "deleted of a delta");
+      assert.ok(delta.version !== start.version, "the version must change after a write");
     }),
   );
 
@@ -599,7 +607,7 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       await storage.delete("c");
       await storage.setBatch([["e", item("e", 5)], ["b", item("b", 21)]]);
       const delta = await changes(start.version);
-      same(
+      assert.deepStrictEqual(
         { changed: delta.changed, deleted: delta.deleted },
         { changed: [["a", item("a", 10)], ["e", item("e", 5)], ["b", item("b", 21)]], deleted: ["d", "c"] },
         "the order of a delta: an id written again after another id comes after it",
@@ -609,7 +617,7 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       await storage.set("c", item("c", 30));
       await storage.deleteBatch(["e", "a"]);
       const next = await changes(delta.version);
-      same({ changed: next.changed, deleted: next.deleted }, { changed: [["c", item("c", 30)]], deleted: ["e", "a"] }, "the order of the next delta");
+      assert.deepStrictEqual({ changed: next.changed, deleted: next.deleted }, { changed: [["c", item("c", 30)]], deleted: ["e", "a"] }, "the order of the next delta");
     }),
   );
 
@@ -622,14 +630,14 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       await storage.delete("b");
       await storage.set("b", item("b", 20));
       const back = await changes(start.version);
-      same({ full: back.full, changed: back.changed, deleted: back.deleted }, { full: false, changed: [["b", item("b", 20)]], deleted: [] }, "a delete, then a set of the id");
+      assert.deepStrictEqual({ full: back.full, changed: back.changed, deleted: back.deleted }, { full: false, changed: [["b", item("b", 20)]], deleted: [] }, "a delete, then a set of the id");
 
       // The entries are a, c, b now: b went to the end at its new set
       await storage.clear();
       const cleared = await changes(back.version);
-      same({ full: cleared.full, changed: cleared.changed, deleted: cleared.deleted }, { full: false, changed: [], deleted: ["a", "c", "b"] }, "the changes of clear()");
+      assert.deepStrictEqual({ full: cleared.full, changed: cleared.changed, deleted: cleared.deleted }, { full: false, changed: [], deleted: ["a", "c", "b"] }, "the changes of clear()");
       const quiet = await changes(cleared.version);
-      same({ full: quiet.full, changed: quiet.changed, deleted: quiet.deleted }, { full: false, changed: [], deleted: [] }, "the changes without a write");
+      assert.deepStrictEqual({ full: quiet.full, changed: quiet.changed, deleted: quiet.deleted }, { full: false, changed: [], deleted: [] }, "the changes without a write");
     }),
   );
 
@@ -641,12 +649,12 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       await changes();
       for (const unknown of ["not a version", ""]) {
         const result = await changes(unknown);
-        same({ full: result.full, changed: result.changed, deleted: result.deleted }, { full: true, changed: [["a", item("a", 1)], ["b", item("b", 2)]], deleted: [] }, `the changes since ${show(unknown)}`);
+        assert.deepStrictEqual({ full: result.full, changed: result.changed, deleted: result.deleted }, { full: true, changed: [["a", item("a", 1)], ["b", item("b", 2)]], deleted: [] }, `the changes since ${show(unknown)}`);
       }
       await withStorage(create, async (other) => {
         await other.set("x", item("x", 9));
         const foreign = (await changesOf(other)()).version;
-        same((await changes(foreign)).full, true, "full for a version of another storage");
+        assert.deepStrictEqual((await changes(foreign)).full, true, "full for a version of another storage");
       });
     }),
   );
@@ -662,12 +670,12 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
         // Two deletes fit in the log
         await storage.deleteBatch(["a", "b"]);
         const two = await changes(start.version);
-        same({ full: two.full, changed: two.changed, deleted: two.deleted }, { full: false, changed: [], deleted: ["a", "b"] }, "two deletes in a log of two");
+        assert.deepStrictEqual({ full: two.full, changed: two.changed, deleted: two.deleted }, { full: false, changed: [], deleted: ["a", "b"] }, "two deletes in a log of two");
         // The third delete drops the oldest one: the start version gives all items now
         await storage.delete("c");
         const after = await changes(start.version);
-        same({ full: after.full, changed: after.changed, deleted: after.deleted }, { full: true, changed: [["d", item("d", 4)]], deleted: [] }, "a version older than a dropped delete");
-        same((await changes(after.version)).full, false, "a version after the dropped deletes still gives a delta");
+        assert.deepStrictEqual({ full: after.full, changed: after.changed, deleted: after.deleted }, { full: true, changed: [["d", item("d", 4)]], deleted: [] }, "a version older than a dropped delete");
+        assert.deepStrictEqual((await changes(after.version)).full, false, "a version after the dropped deletes still gives a delta");
       }),
     );
   }
@@ -702,7 +710,7 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
           label = `delete(${id})`;
           const existed = model.delete(id);
           if (existed) note(id, true);
-          same(await storage.delete(id), existed, `the result of step ${step}: ${label}`);
+          assert.deepStrictEqual(await storage.delete(id), existed, `the result of step ${step}: ${label}`);
         } else if (kind < 15) {
           const batch: Array<[string, ContractItem]> = Array.from({ length: 1 + random(3) }, (_, index) => {
             const id = pick();
@@ -722,7 +730,7 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
             if (existed) note(id, true);
             return existed;
           }).length;
-          same(await storage.deleteBatch(batch), expected, `the result of step ${step}: ${label}`);
+          assert.deepStrictEqual(await storage.deleteBatch(batch), expected, `the result of step ${step}: ${label}`);
         } else if (kind < 19) {
           label = "clear()";
           await storage.clear();
@@ -732,17 +740,17 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
           label = "a saved version";
           if (hasChanges) versions.push({ version: (await storage.getChangesSince!()).version, entries: new Map(model), at: clock });
         }
-        same(await storage.getAll(), [...model.values()], `getAll() after step ${step}: ${label}`);
+        assert.deepStrictEqual(await storage.getAll(), [...model.values()], `getAll() after step ${step}: ${label}`);
       }
-      same(await storage.size(), model.size, "size() after the sequence");
-      if (storage.getEntries) same(await storage.getEntries(), [...model.entries()], "getEntries() after the sequence");
-      if (storage.getIds) same(await storage.getIds(), [...model.keys()], "getIds() after the sequence");
+      assert.deepStrictEqual(await storage.size(), model.size, "size() after the sequence");
+      if (storage.getEntries) assert.deepStrictEqual(await storage.getEntries(), [...model.entries()], "getEntries() after the sequence");
+      if (storage.getIds) assert.deepStrictEqual(await storage.getIds(), [...model.keys()], "getIds() after the sequence");
       if (!hasChanges) return;
-      holds(versions.length > 0, "the sequence saved no version: change the seed");
+      assert.ok(versions.length > 0, "the sequence saved no version: change the seed");
       for (const [index, saved] of versions.entries()) {
         const result = await storage.getChangesSince!(saved.version);
         if (result.full) {
-          same(result.changed, [...model.entries()], `the full changes since version ${index}: every item, in the order of the entries`);
+          assert.deepStrictEqual(result.changed, [...model.entries()], `the full changes since version ${index}: every item, in the order of the entries`);
           continue;
         }
         // A delta: the changes after the version, in the order of the last change of each id
@@ -751,11 +759,11 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
           changed: after.filter(([, change]) => !change.deleted).map(([id]): [string, ContractItem] => [id, model.get(id)!]),
           deleted: after.filter(([, change]) => change.deleted).map(([id]) => id),
         };
-        same({ changed: result.changed, deleted: result.deleted }, expected, `the changes since version ${index}`);
+        assert.deepStrictEqual({ changed: result.changed, deleted: result.deleted }, expected, `the changes since version ${index}`);
         const rebuilt = new Map(saved.entries);
         for (const id of result.deleted) rebuilt.delete(id);
         for (const [id, value] of result.changed) rebuilt.set(id, value);
-        same(rebuilt, new Map(model), `the items of version ${index} with its changes`);
+        assert.deepStrictEqual(rebuilt, new Map(model), `the items of version ${index} with its changes`);
       }
     }),
   );
@@ -771,8 +779,8 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       await storage.setBatch([...DOCUMENTS]);
       for (const [selector, expected] of SELECTOR_CASES) {
         const result = await storage.query!(selector);
-        same(entryIds(result), expected, `the ids of query(${show(selector)})`);
-        same(result, queryEntries(DOCUMENTS, selector), `the entries of query(${show(selector)})`);
+        assert.deepStrictEqual(entryIds(result), expected, `the ids of query(${show(selector)})`);
+        assert.deepStrictEqual(result, queryEntries(DOCUMENTS, selector), `the entries of query(${show(selector)})`);
       }
     }),
   );
@@ -783,9 +791,9 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       const storage = typed as unknown as JsonStorage;
       await storage.setBatch([...DOCUMENTS]);
       for (const [options, expected] of OPTION_CASES) {
-        same(entryIds(await storage.query!({}, options)), expected, `the ids of query({}, ${show(options)})`);
+        assert.deepStrictEqual(entryIds(await storage.query!({}, options)), expected, `the ids of query({}, ${show(options)})`);
       }
-      same(entryIds(await storage.query!({ n: { $exists: true } }, { sort: { n: -1 }, limit: 2 })), ["e", "d"], "a selector with a sort and a limit");
+      assert.deepStrictEqual(entryIds(await storage.query!({ n: { $exists: true } }, { sort: { n: -1 }, limit: 2 })), ["e", "d"], "a selector with a sort and a limit");
     }),
   );
 
@@ -833,7 +841,7 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
           expected = undefined;
         }
         if (expected === undefined) await rejects(() => storage.query!(selector, options), label);
-        else same(await storage.query!(selector, options), expected, label);
+        else assert.deepStrictEqual(await storage.query!(selector, options), expected, label);
       }
     }),
   );
@@ -856,8 +864,8 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
         await storage.setBatch([...DOCUMENTS]);
         for (const [selector, expected] of REGEX_CASES) {
           const result = await storage.query!(selector);
-          same(entryIds(result), expected, `the ids of query(${show(selector)})`);
-          same(result, queryEntries(DOCUMENTS, selector, {}, REGEX_POLICY), `the entries of query(${show(selector)})`);
+          assert.deepStrictEqual(entryIds(result), expected, `the ids of query(${show(selector)})`);
+          assert.deepStrictEqual(result, queryEntries(DOCUMENTS, selector, {}, REGEX_POLICY), `the entries of query(${show(selector)})`);
         }
         await rejects(() => storage.query!(REDOS), `query(${show(REDOS)}) under a policy with $regex`);
       }),
@@ -903,7 +911,7 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
             [{}, { skip: 5 }, ["f", "g"]],
           ];
           for (const [selector, query, expected] of permitted) {
-            same(entryIds(await storage.query!(selector, query)), expected, `the ids of query(${show(selector)}, ${show(query)})`);
+            assert.deepStrictEqual(entryIds(await storage.query!(selector, query)), expected, `the ids of query(${show(selector)}, ${show(query)})`);
           }
         },
       ),
@@ -919,19 +927,19 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       if (lacks(typed, "patch", context)) return;
       const storage = typed as unknown as JsonStorage;
       await storage.set("a", { id: "a", n: 1, tags: ["x"], meta: { kind: "k1", score: 10 } });
-      same(await storage.patch!("a", { n: 2 }), { id: "a", n: 2, tags: ["x"], meta: { kind: "k1", score: 10 } }, "patch() of one field");
-      same(await storage.patch!("a", { meta: { score: 11, extra: true }, tags: null }), { id: "a", n: 2, meta: { kind: "k1", score: 11, extra: true } }, "patch() of an object field and a null field");
-      same(await storage.patch!("a", { tags: ["y", "z"], meta: { extra: null } }), { id: "a", n: 2, meta: { kind: "k1", score: 11 }, tags: ["y", "z"] }, "patch() of an array field and a nested null");
-      same(await storage.get("a"), { id: "a", n: 2, meta: { kind: "k1", score: 11 }, tags: ["y", "z"] }, "get() after the patches");
-      same(await storage.patch!("missing", { n: 1 }), undefined, "patch() of a missing id");
-      same(await storage.has("missing"), false, "has() of a missing id after patch()");
-      same(await storage.size(), 1, "size() after patch() of a missing id");
+      assert.deepStrictEqual(await storage.patch!("a", { n: 2 }), { id: "a", n: 2, tags: ["x"], meta: { kind: "k1", score: 10 } }, "patch() of one field");
+      assert.deepStrictEqual(await storage.patch!("a", { meta: { score: 11, extra: true }, tags: null }), { id: "a", n: 2, meta: { kind: "k1", score: 11, extra: true } }, "patch() of an object field and a null field");
+      assert.deepStrictEqual(await storage.patch!("a", { tags: ["y", "z"], meta: { extra: null } }), { id: "a", n: 2, meta: { kind: "k1", score: 11 }, tags: ["y", "z"] }, "patch() of an array field and a nested null");
+      assert.deepStrictEqual(await storage.get("a"), { id: "a", n: 2, meta: { kind: "k1", score: 11 }, tags: ["y", "z"] }, "get() after the patches");
+      assert.deepStrictEqual(await storage.patch!("missing", { n: 1 }), undefined, "patch() of a missing id");
+      assert.deepStrictEqual(await storage.has("missing"), false, "has() of a missing id after patch()");
+      assert.deepStrictEqual(await storage.size(), 1, "size() after patch() of a missing id");
       await storage.set("plain", 5);
-      same(await storage.patch!("plain", { n: 1 }), { n: 1 }, "patch() of an item that is not an object");
+      assert.deepStrictEqual(await storage.patch!("plain", { n: 1 }), { n: 1 }, "patch() of an item that is not an object");
       for (const fields of [null, [1], "x", 3]) {
         await rejects(() => storage.patch!("a", fields as never), `patch() with the fields ${show(fields)}`);
       }
-      same(await storage.get("a"), { id: "a", n: 2, meta: { kind: "k1", score: 11 }, tags: ["y", "z"] }, "get() after the patches that were not correct");
+      assert.deepStrictEqual(await storage.get("a"), { id: "a", n: 2, meta: { kind: "k1", score: 11 }, tags: ["y", "z"] }, "get() after the patches that were not correct");
     }),
   );
 
@@ -940,12 +948,12 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       if (lacks(typed, "patch", context)) return;
       const storage = typed as unknown as JsonStorage;
       await storage.set("a", { id: "a", n: 1, tags: ["x", "y"], meta: { kind: "k1", score: 10 } });
-      same(
+      assert.deepStrictEqual(
         await storage.patch!("a", { $set: { "meta.kind": "k2", note: null, "tags.1": "z", "deep.new.path": 1 }, $unset: ["meta.score"] }),
         { id: "a", n: 1, tags: ["x", "z"], meta: { kind: "k2" }, note: null, deep: { new: { path: 1 } } },
         "patch() with $set and $unset",
       );
-      same(
+      assert.deepStrictEqual(
         await storage.patch!("a", { $unset: ["tags.0", "missing.path", "deep"], $set: { "tags.2": "w" } }),
         { id: "a", n: 1, tags: [null, "z", "w"], meta: { kind: "k2" }, note: null },
         "patch() that removes an element of an array, a missing path and a field, and adds an element",
@@ -961,9 +969,9 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
         ["a path past the end of an array", { $set: { "tags.7": "v" } }],
       ];
       for (const [what, fields] of wrong) await rejects(() => storage.patch!("a", fields as never), `patch() with ${what}`);
-      same(await storage.get("a"), after, "get() after the patches that were not correct");
-      same(await storage.patch!("missing", { $set: { n: 1 } }), undefined, "patch() with $set of a missing id");
-      same(await storage.has("missing"), false, "has() of a missing id after patch() with $set");
+      assert.deepStrictEqual(await storage.get("a"), after, "get() after the patches that were not correct");
+      assert.deepStrictEqual(await storage.patch!("missing", { $set: { n: 1 } }), undefined, "patch() with $set of a missing id");
+      assert.deepStrictEqual(await storage.has("missing"), false, "has() of a missing id after patch() with $set");
     }),
   );
 
@@ -972,12 +980,12 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       if (lacks(typed, "patch", context)) return;
       const storage = typed as unknown as JsonStorage;
       await storage.set("a", { id: "a", tags: ["a", "b", "c", "d"], rows: [{ n: 1, keys: ["x"] }, { n: 2, keys: ["y"] }], meta: { kind: "k1" } });
-      same(
+      assert.deepStrictEqual(
         await storage.patch!("a", { $remove: ["tags.1", "tags.3", "meta.kind"], $insert: { "rows.1.keys.0": "w" } }),
         { id: "a", tags: ["a", "c"], rows: [{ n: 1, keys: ["x"] }, { n: 2, keys: ["w", "y"] }], meta: {} },
         "patch() with $remove and $insert",
       );
-      same(
+      assert.deepStrictEqual(
         await storage.patch!("a", { $insert: { "tags.0": "z", "tags.2": "e" }, $remove: ["rows.0", "missing.0"], $set: { "rows.1.n": 3 } }),
         { id: "a", tags: ["z", "a", "c", "e"], rows: [{ n: 3, keys: ["w", "y"] }], meta: {} },
         "patch() that inserts at the start and at the end, and removes a missing path",
@@ -992,7 +1000,7 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
         ["an $insert into a value that is not an array", { $insert: { "meta.0": "q" } }],
       ];
       for (const [what, fields] of wrong) await rejects(() => storage.patch!("a", fields as never), `patch() with ${what}`);
-      same(await storage.get("a"), after, "get() after the patches that were not correct");
+      assert.deepStrictEqual(await storage.get("a"), after, "get() after the patches that were not correct");
     }),
   );
 
@@ -1005,7 +1013,7 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       await Promise.all(Array.from({ length: count }, (_, n) => storage.patch!("a", { [`f${n}`]: n })));
       const expected: Record<string, unknown> = { id: "a" };
       for (let n = 0; n < count; n++) expected[`f${n}`] = n;
-      same(await storage.get("a"), expected, `get() after ${count} patches at the same time`);
+      assert.deepStrictEqual(await storage.get("a"), expected, `get() after ${count} patches at the same time`);
     }),
   );
 
@@ -1017,7 +1025,7 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       await storage.patch!("a", { n: 10 });
       await storage.patch!("missing", { n: 3 });
       const delta = await storage.getChangesSince!(start.version);
-      same({ full: delta.full, changed: delta.changed, deleted: delta.deleted }, { full: false, changed: [["a", item("a", 10)]], deleted: [] }, "the changes after a patch");
+      assert.deepStrictEqual({ full: delta.full, changed: delta.changed, deleted: delta.deleted }, { full: false, changed: [["a", item("a", 10)]], deleted: [] }, "the changes after a patch");
     }),
   );
 
@@ -1031,14 +1039,14 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       const batches: unknown[][] = [];
       const stop = storage.observe!((batch) => batches.push(plainBatch(batch)));
       await storage.set("a", item("a", 1));
-      same(batches.length, 1, "the batches when set() resolves");
+      assert.deepStrictEqual(batches.length, 1, "the batches when set() resolves");
       await storage.setBatch([["b", item("b", 2)], ["c", item("c", 3)]]);
       await storage.delete("a");
       await storage.deleteBatch(["b", "missing"]);
       if (storage.patch) await storage.patch("c", { n: 30 });
       await storage.clear();
       stop();
-      same(
+      assert.deepStrictEqual(
         batches,
         [
           [{ type: "set", id: "a", value: item("a", 1) }],
@@ -1067,7 +1075,7 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       await storage.setBatch([]);
       await storage.clear();
       if (storage.patch) await storage.patch("missing", { n: 1 });
-      same(batches, [], "the batches of the writes that change nothing");
+      assert.deepStrictEqual(batches, [], "the batches of the writes that change nothing");
       await storage.set("a", item("a", 1), { origin: "sync" });
       await storage.setBatch([["b", item("b", 2)]], { origin: "app" });
       await storage.delete("a", { origin: "sync" });
@@ -1075,7 +1083,7 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       await storage.set("c", item("c", 3), {});
       await storage.clear({ origin: "reset" });
       stop();
-      same(
+      assert.deepStrictEqual(
         batches,
         [
           [{ type: "set", id: "a", value: item("a", 1), origin: "sync" }],
@@ -1103,8 +1111,8 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       await storage.delete("a");
       stopSecond();
       await storage.set("b", item("b", 2));
-      same(first, ["set"], "the changes of the first observer");
-      same(second, ["set", "delete"], "the changes of the second observer");
+      assert.deepStrictEqual(first, ["set"], "the changes of the first observer");
+      assert.deepStrictEqual(second, ["set", "delete"], "the changes of the second observer");
     }),
   );
 
@@ -1114,7 +1122,7 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       await storage.flush!();
       await storage.set("a", item("a", 1));
       await storage.flush!();
-      same(await storage.get("a"), item("a", 1), "get() after flush()");
+      assert.deepStrictEqual(await storage.get("a"), item("a", 1), "get() after flush()");
     }),
   );
 
@@ -1123,8 +1131,8 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       if (lacks(storage, "getMetadata", context)) return;
       await storage.setBatch([["a", item("a", 1)], ["b", item("b", 2)]]);
       const metadata = await storage.getMetadata!();
-      holds(["memory", "api", "hybrid", "synced", "custom"].includes(metadata.type), `getMetadata() gave the unknown type ${show(metadata.type)}`);
-      same(metadata.size, 2, "the size of getMetadata()");
+      assert.ok(["memory", "api", "hybrid", "synced", "custom"].includes(metadata.type), `getMetadata() gave the unknown type ${show(metadata.type)}`);
+      assert.deepStrictEqual(metadata.size, 2, "the size of getMetadata()");
     }),
   );
 
@@ -1158,7 +1166,7 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       const check = async (when: string): Promise<void> => {
         for (const [name, start] of operations) {
           const error = await rejects(start, `${name}() ${when}`);
-          holds(
+          assert.ok(
             error instanceof Error && /closed/i.test(error.message),
             `${name}() ${when} must reject with an Error whose message says "closed", not ${show(error instanceof Error ? error.message : error)}`,
           );
@@ -1172,7 +1180,7 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
         } catch (thrown) {
           error = thrown;
         }
-        holds(error instanceof Error && /closed/i.test(error.message), `observe() ${when} must throw an Error whose message says "closed", not ${show(error instanceof Error ? error.message : error)}`);
+        assert.ok(error instanceof Error && /closed/i.test(error.message), `observe() ${when} must throw an Error whose message says "closed", not ${show(error instanceof Error ? error.message : error)}`);
       };
       await check("after close()");
       checkObserve("after close()");
@@ -1194,9 +1202,9 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
  */
 function conflictsOfRejection(error: unknown, what: string): readonly VersionConflict[] {
   const code = (error as { code?: unknown } | null)?.code;
-  holds(code === "VERSION_CONFLICT", `${what}: the error must have the code VERSION_CONFLICT, not ${show(code)} (${show(error instanceof Error ? error.message : error)})`);
+  assert.ok(code === "VERSION_CONFLICT", `${what}: the error must have the code VERSION_CONFLICT, not ${show(code)} (${show(error instanceof Error ? error.message : error)})`);
   const conflicts = versionConflictsOf(error);
-  holds(conflicts !== undefined, `${what}: the error must have its conflicts`);
+  assert.ok(conflicts !== undefined, `${what}: the error must have its conflicts`);
   return conflicts!;
 }
 
@@ -1212,10 +1220,10 @@ function addPreconditionCases(
       await rejects(() => storage.set("a", item("a", 2), { expectedVersion: "v1" }), "set() with expectedVersion on a storage without versions");
       await rejects(() => storage.delete("a", { expectedVersion: "v1" }), "delete() with expectedVersion on a storage without versions");
       await rejects(() => storage.setBatch([["a", item("a", 3)]], { expectedVersions: [["a", "v1"]] }), "setBatch() with expectedVersions on a storage without versions");
-      same(await storage.get("a"), item("a", 1), "the item after the refused writes");
+      assert.deepStrictEqual(await storage.get("a"), item("a", 1), "the item after the refused writes");
       // A write without a precondition is the write of before
       await storage.set("a", item("a", 4));
-      same(await storage.get("a"), item("a", 4), "a write without expectedVersion");
+      assert.deepStrictEqual(await storage.get("a"), item("a", 4), "a write without expectedVersion");
     }),
   );
 
@@ -1226,11 +1234,11 @@ function addPreconditionCases(
     withStorage(versioned, async (storage) => {
       await storage.set("a", item("a", 1));
       await storage.set("a", item("a", 2), { expectedVersion: "v1" });
-      same(await storage.get("a"), item("a", 2), "the item after set() with the expected version");
+      assert.deepStrictEqual(await storage.get("a"), item("a", 2), "the item after set() with the expected version");
       await storage.set("a", item("a", 3));
-      same(await storage.get("a"), item("a", 3), "the item after set() without expectedVersion");
-      same(await storage.delete("a", { expectedVersion: "v3" }), true, "delete() with the expected version");
-      same(await storage.get("a"), undefined, "the item after delete() with the expected version");
+      assert.deepStrictEqual(await storage.get("a"), item("a", 3), "the item after set() without expectedVersion");
+      assert.deepStrictEqual(await storage.delete("a", { expectedVersion: "v3" }), true, "delete() with the expected version");
+      assert.deepStrictEqual(await storage.get("a"), undefined, "the item after delete() with the expected version");
     }),
   );
 
@@ -1244,15 +1252,15 @@ function addPreconditionCases(
       const before = storage.getChangesSince ? (await storage.getChangesSince()).version : undefined;
       const expected: VersionConflict = { id: "a", expected: "v2", found: true, value: item("a", 1), version: "v1" };
       const setError = await rejects(() => storage.set("a", item("a", 3), { expectedVersion: "v2" }), "set() with a stale version");
-      same(conflictsOfRejection(setError, "set() with a stale version"), [expected], "the conflicts of set() with a stale version");
+      assert.deepStrictEqual(conflictsOfRejection(setError, "set() with a stale version"), [expected], "the conflicts of set() with a stale version");
       const deleteError = await rejects(() => storage.delete("a", { expectedVersion: "v2" }), "delete() with a stale version");
-      same(conflictsOfRejection(deleteError, "delete() with a stale version"), [expected], "the conflicts of delete() with a stale version");
-      same(await storage.get("a"), item("a", 1), "the item after the refused writes");
+      assert.deepStrictEqual(conflictsOfRejection(deleteError, "delete() with a stale version"), [expected], "the conflicts of delete() with a stale version");
+      assert.deepStrictEqual(await storage.get("a"), item("a", 1), "the item after the refused writes");
       stop?.();
-      same(batches, 0, "the batches of observe() for the refused writes");
+      assert.deepStrictEqual(batches, 0, "the batches of observe() for the refused writes");
       if (storage.getChangesSince && before !== undefined) {
         const after = await storage.getChangesSince(before);
-        same({ changed: after.changed, deleted: after.deleted }, { changed: [], deleted: [] }, "the changes after the refused writes");
+        assert.deepStrictEqual({ changed: after.changed, deleted: after.deleted }, { changed: [], deleted: [] }, "the changes after the refused writes");
       }
     }),
   );
@@ -1260,13 +1268,13 @@ function addPreconditionCases(
   add("the expected version null expects no item", () =>
     withStorage(versioned, async (storage) => {
       await storage.set("b", item("b", 1), { expectedVersion: null });
-      same(await storage.get("b"), item("b", 1), "set() with expectedVersion null of a missing id");
+      assert.deepStrictEqual(await storage.get("b"), item("b", 1), "set() with expectedVersion null of a missing id");
       const exists = await rejects(() => storage.set("b", item("b", 2), { expectedVersion: null }), "set() with expectedVersion null of an existing id");
-      same(conflictsOfRejection(exists, "set() with expectedVersion null of an existing id"), [{ id: "b", expected: null, found: true, value: item("b", 1), version: "v1" }], "the conflict of an existing id");
+      assert.deepStrictEqual(conflictsOfRejection(exists, "set() with expectedVersion null of an existing id"), [{ id: "b", expected: null, found: true, value: item("b", 1), version: "v1" }], "the conflict of an existing id");
       const missing = await rejects(() => storage.set("c", item("c", 1), { expectedVersion: "v1" }), "set() with a version of a missing id");
-      same(conflictsOfRejection(missing, "set() with a version of a missing id"), [{ id: "c", expected: "v1", found: false, version: null }], "the conflict of a missing id");
-      same(await storage.has("c"), false, "the missing id after the refused set()");
-      same(await storage.delete("x", { expectedVersion: null }), false, "delete() with expectedVersion null of a missing id");
+      assert.deepStrictEqual(conflictsOfRejection(missing, "set() with a version of a missing id"), [{ id: "c", expected: "v1", found: false, version: null }], "the conflict of a missing id");
+      assert.deepStrictEqual(await storage.has("c"), false, "the missing id after the refused set()");
+      assert.deepStrictEqual(await storage.delete("x", { expectedVersion: null }), false, "delete() with expectedVersion null of a missing id");
     }),
   );
 
@@ -1277,11 +1285,11 @@ function addPreconditionCases(
         () => storage.setBatch([["a", item("a", 2)], ["b", item("b", 2)], ["c", item("c", 1)]], { expectedVersions: [["a", "v1"], ["b", "v9"]] }),
         "setBatch() with one stale version",
       );
-      same(conflictsOfRejection(error, "setBatch() with one stale version"), [{ id: "b", expected: "v9", found: true, value: item("b", 1), version: "v1" }], "the conflicts of setBatch()");
-      same(await storage.getBatch(["a", "b", "c"]), new Map([["a", item("a", 1)], ["b", item("b", 1)]]), "the items after the refused batch");
+      assert.deepStrictEqual(conflictsOfRejection(error, "setBatch() with one stale version"), [{ id: "b", expected: "v9", found: true, value: item("b", 1), version: "v1" }], "the conflicts of setBatch()");
+      assert.deepStrictEqual(await storage.getBatch(["a", "b", "c"]), new Map([["a", item("a", 1)], ["b", item("b", 1)]]), "the items after the refused batch");
       // An id without an expected version has no precondition
       await storage.setBatch([["a", item("a", 2)], ["b", item("b", 2)], ["c", item("c", 1)]], { expectedVersions: [["a", "v1"], ["b", "v1"]] });
-      same(await storage.getBatch(["a", "b", "c"]), new Map([["a", item("a", 2)], ["b", item("b", 2)], ["c", item("c", 1)]]), "the items after the batch");
+      assert.deepStrictEqual(await storage.getBatch(["a", "b", "c"]), new Map([["a", item("a", 2)], ["b", item("b", 2)], ["c", item("c", 1)]]), "the items after the batch");
     }),
   );
 
@@ -1293,11 +1301,11 @@ function addPreconditionCases(
         storage.set("a", item("a", 3), { expectedVersion: "v1" }),
       ]);
       const won = results.flatMap((result, index) => (result.status === "fulfilled" ? [index] : []));
-      same(won.length, 1, "the number of writes that won");
+      assert.deepStrictEqual(won.length, 1, "the number of writes that won");
       const lost = results.find((result): result is PromiseRejectedResult => result.status === "rejected")!;
       const conflicts = conflictsOfRejection(lost.reason, "the write that lost");
-      same(conflicts.map((conflict) => conflict.id), ["a"], "the conflict of the write that lost");
-      same(await storage.get("a"), item("a", won[0] === 0 ? 2 : 3), "the item of the write that won");
+      assert.deepStrictEqual(conflicts.map((conflict) => conflict.id), ["a"], "the conflict of the write that lost");
+      assert.deepStrictEqual(await storage.get("a"), item("a", won[0] === 0 ? 2 : 3), "the item of the write that won");
     }),
   );
 }

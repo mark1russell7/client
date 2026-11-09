@@ -326,7 +326,7 @@ describeCollectionStorageContract(
 - It tests the preconditions of the writes. A storage of `create()` must reject a write with an expected version. With `createWithVersions`, the suite tests the conflicts, the current items, `null`, the batches, and two writes at the same time.
 - A case for an optional method skips a storage without the method.
 - A random sequence of writes runs against a `Map`. Each saved version must give the right changes, in the order of the last change of each id.
-- The suite imports no test framework. The caller gives `describe` and `it`, and a failed check throws `ContractViolation`. The runtime entries do not import this entry.
+- The suite imports no test framework. The caller gives `describe` and `it`, and a failed check throws the `AssertionError` of `node:assert`. The `rejects` check comes from `@mark1russell7/rigor-testkit`, an optional peer dependency that this entry needs. The runtime entries do not import this entry.
 - The suite has no option that hides a difference of a storage. Before, the options `copies` and `nullValues` declared the differences, and the suite sorted each delta.
 
 | Storage | Package | Notes |

@@ -2,16 +2,24 @@
  * The contract suite against broken storages: each break must fail the case that covers it.
  */
 
+import { AssertionError } from "node:assert";
 import { describe, it, expect } from "vitest";
 import { InMemoryStorage } from "../storage/memory.js";
 import type { StorageChanges } from "../storage/interface.js";
-import { ContractViolation, collectionStorageContract, type ContractCase, type ContractItem, type ContractStorage } from "./index.js";
+import { collectionStorageContract, type ContractCase, type ContractItem, type ContractStorage } from "./index.js";
 
 /** The case of the suite with this start of its name, for a storage. */
 function caseOf(create: () => ContractStorage, start: string): ContractCase {
   const found = collectionStorageContract({ create }).find((contractCase) => contractCase.name.startsWith(start));
   if (!found) throw new Error(`no case starts with ${start}`);
   return found;
+}
+
+/** The rejection of a case. A case that passes fails the test. Node adds a diff after the message of the check. */
+async function failureOf(contractCase: ContractCase): Promise<AssertionError> {
+  const error = await contractCase.run().then(() => undefined, (reason: unknown) => reason);
+  expect(error).toBeInstanceOf(AssertionError);
+  return error as AssertionError;
 }
 
 describe("the contract suite finds a broken storage", () => {
@@ -22,7 +30,9 @@ describe("the contract suite finds a broken storage", () => {
         return true;
       }
     }
-    await expect(caseOf(() => new Broken(), "an empty storage").run()).rejects.toThrow(/delete\(\) of a missing id: expected false, got true/);
+    const failure = await failureOf(caseOf(() => new Broken(), "an empty storage"));
+    expect(failure.message.split("\n")[0]).toBe("delete() of a missing id");
+    expect([failure.actual, failure.expected]).toEqual([true, false]);
   });
 
   it("a getAll() in another order", async () => {
@@ -31,7 +41,7 @@ describe("the contract suite finds a broken storage", () => {
         return (await super.getAll()).reverse();
       }
     }
-    await expect(caseOf(() => new Broken(), "the entries keep the order").run()).rejects.toThrow(ContractViolation);
+    await expect(caseOf(() => new Broken(), "the entries keep the order").run()).rejects.toThrow(AssertionError);
   });
 
   it("a getChangesSince() that forgets the deletes", async () => {
@@ -41,7 +51,7 @@ describe("the contract suite finds a broken storage", () => {
       }
     }
     await expect(caseOf(() => new Broken(), "getChangesSince(version) gives").run()).rejects.toThrow(/deleted of a delta/);
-    await expect(caseOf(() => new Broken(), "a random sequence").run()).rejects.toThrow(ContractViolation);
+    await expect(caseOf(() => new Broken(), "a random sequence").run()).rejects.toThrow(AssertionError);
   });
 
   it("a storage that keeps the values does not pass the case of the copies", async () => {
@@ -55,7 +65,9 @@ describe("the contract suite finds a broken storage", () => {
         return (await super.get(id)) ?? undefined;
       }
     }
-    await expect(caseOf(() => new Broken(), "the storage keeps JSON values").run()).rejects.toThrow(/get\("null"\): expected null, got undefined/);
+    const failure = await failureOf(caseOf(() => new Broken(), "the storage keeps JSON values"));
+    expect(failure.message.split("\n")[0]).toBe('get("null")');
+    expect([failure.actual, failure.expected]).toEqual([undefined, null]);
   });
 
   it("a delta in the order of the first write of each id", async () => {
@@ -90,7 +102,7 @@ describe("the contract suite finds a broken storage", () => {
         }
       }
     }
-    await expect(caseOf(() => new Broken(), "after close()").run()).rejects.toThrow(/get\(\) after close\(\) must reject with an Error whose message says "closed", not "no"/);
+    await expect(caseOf(() => new Broken(), "after close()").run()).rejects.toThrow(/get\(\) after close\(\) must reject with an Error whose message says "closed", not 'no'/);
   });
 
   it("skips a case for an optional method that the storage does not have", async () => {

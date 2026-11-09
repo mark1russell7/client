@@ -79,6 +79,7 @@
   },
   "devDependencies": {
     "@mark1russell7/cue": "^2.1.1",
+    "@mark1russell7/rigor-testkit": "^0.1.4",
     "@procedures/collections": "workspace:*",
     "@procedures/fs": "workspace:*",
     "@procedures/store": "workspace:*",
