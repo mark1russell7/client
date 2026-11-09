@@ -37,10 +37,11 @@ export const SEPARATE_ARMS = ["noqueue", "many", "neither"] as const;
 export const FIRST_LOAD_CASES = ["20-p2-first1", "20-p2-first10", "200-p2-first1", "200-p2-first5", "200-p2-first10"] as const;
 
 /**
- * The cases of the suite `tenant-partition`: the rungs of 2,000, 4,000, 10,000, 20,000 and 40,000 active tenants, with two
+ * The cases of the suite `tenant-partition`: the rungs of 1,000, 2,000, 4,000, 10,000, 20,000 and 40,000 active tenants, with two
  * processes and more. The case `400-p2` is the case of the sweep of the bound of the writes in flight (CLI-96).
+ * The cases `200-p2` and `200-p4` are the gate row at the stated limit of a partition, 200 writes a second (CLI-96).
  */
-export const PARTITION_CASES = ["400-p2", "800-p1", "800-p2", "2000-p2", "4000-p2", "8000-p2", "8000-p4"] as const;
+export const PARTITION_CASES = ["200-p2", "200-p4", "400-p2", "800-p1", "800-p2", "2000-p2", "4000-p2", "8000-p2", "8000-p4"] as const;
 
 /**
  * The cases of each tenant suite. The plan of `stream-cost.yml` reads this map, so each CI job holds one case.

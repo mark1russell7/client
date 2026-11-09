@@ -55,7 +55,7 @@ describe("the abort rule of the tenant bench (roadmap CLI-96)", () => {
   it("has a rung of two processes or more at each rate of the suite tenant-partition", () => {
     const kases = PARTITION_CASES.map(parseTenantCase);
     for (const rate of new Set(kases.map((kase) => kase.rate))) expect(kases.some((kase) => kase.rate === rate && kase.processes >= 2)).toBe(true);
-    expect(new Set(kases.map((kase) => kase.rate))).toEqual(new Set([400, 800, 2000, 4000, 8000]));
+    expect(new Set(kases.map((kase) => kase.rate))).toEqual(new Set([200, 400, 800, 2000, 4000, 8000]));
   });
 });
 
