@@ -18,7 +18,8 @@ import { type GrowthSkip, fanOutGrowth } from "./fan-out-growth.js";
 
 interface JobFile {
   readonly job: string;
-  readonly env: unknown;
+  /** The computer of the job, as `benchEnv` gives it. A job file of an older run has no computer. */
+  readonly env?: { readonly cpu: string };
   readonly candidate: readonly PairedTime[];
   readonly aa: readonly PairedTime[];
   /** The cases that the job skipped. A job file of an older run has no list. */
