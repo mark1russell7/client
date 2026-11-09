@@ -68,7 +68,8 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
     "@procedures/mcp": "workspace:*",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "@mark1russell7/text": "^0.0.2"
   },
   "peerDependencies": {
     "@procedures/client": "workspace:^"
