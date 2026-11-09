@@ -135,6 +135,8 @@ p {
 }
 
 .site-header nav {
+  /* The fade of scroll-cue shows that the links go on, when they scroll sideways */
+  --scroll-cue-bg: var(--color-surface);
   display: flex;
   gap: var(--space-1);
   flex-wrap: wrap;
@@ -494,6 +496,8 @@ textarea[aria-invalid="true"] {
 
 pre.code,
 .code-block {
+  /* A browser with no scroll timelines paints the box with this color under the cue of scroll-cue */
+  --scroll-cue-bg: var(--color-surface-sunken);
   background: var(--color-surface-sunken);
   border: 1px solid var(--color-rule);
   border-radius: var(--radius);

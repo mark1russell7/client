@@ -5139,6 +5139,7 @@ export interface TracingInterceptorOptions {
     onSpan: (span: InvocationSpan) => void;
     onStart?: ((span: InvocationSpan) => void) | undefined;
     now?: (() => number) | undefined;
+    apiSpans?: boolean | undefined;
 }
 
 ### dist/procedures/interceptors.d.ts#metricsInterceptor
@@ -6482,6 +6483,7 @@ export interface ProcedureServerOptions extends ServerOptions {
     admitItem?: AdmitItem | undefined;
     idempotency?: IdempotencyOptions | false | undefined;
     token?: string | undefined;
+    trustBaggage?: ((request: ServerRequest<unknown>) => boolean) | undefined;
     authenticate?: ((request: ServerRequest<unknown>) => Principal | undefined | Promise<Principal | undefined>) | undefined;
     principalOf?: PrincipalOf | undefined;
     ambientCredentials?: AmbientCredentials | false | undefined;

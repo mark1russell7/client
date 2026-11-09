@@ -68,6 +68,7 @@
  * - Change streams need a replica set or a sharded cluster. The watcher asks the server (`hello`)
  *   before the first open: on a single server, `ready` rejects (code 40573).
  */
+import { backoffDelay, type Backoff } from "@mark1russell7/service/backoff";
 import { MongoAPIError, MongoParseError, BSON, type ChangeStream, type Db, type Document } from "mongodb";
 import {
   collectionChangeTopic,
@@ -374,7 +375,10 @@ export function storageChangeOf(change: Document, form: StoredForm = DEFAULT_STO
   return { id, partition, deleted: false, raw: false, version, seq: written };
 }
 
-/** The delay before try `attempt` (0 for the first) of a backoff. */
+/**
+ * The delay before try `attempt` (0 for the first) of a backoff. The `backoffDelay` function of
+ * `@mark1russell7/service` gives it: its first try is 1.
+ */
 export function backoffOf(options: ResubscribeBackoff | undefined): (attempt: number) => number {
   const initial = optionalMs(options?.initialDelay, "backoff.initialDelay") ?? 250;
   const max = optionalMs(options?.maxDelay, "backoff.maxDelay") ?? 30_000;
@@ -383,10 +387,8 @@ export function backoffOf(options: ResubscribeBackoff | undefined): (attempt: nu
   if (!(initial >= 0) || !(max >= initial)) throw new RangeError("backoff: initialDelay must be 0 or more, and maxDelay must be initialDelay or more");
   if (!(factor >= 1)) throw new RangeError("backoff: backoffMultiplier must be 1 or more");
   if (!(jitter >= 0 && jitter <= 1)) throw new RangeError("backoff: jitter must be from 0 to 1");
-  return (attempt) => {
-    const full = Math.min(max, initial * factor ** attempt);
-    return full - full * jitter * Math.random();
-  };
+  const policy: Backoff = { base: initial, factor, cap: max, jitter: { kind: "subtract", fraction: jitter } };
+  return (attempt) => backoffDelay(policy, attempt + 1);
 }
 
 /** The message of an error. */
@@ -940,6 +942,8 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
     }
     stream = next;
     const joiner = eventJoiner();
+    /** The token before the document of the last token: the token before the event at fragment 1. */
+    let tokenBefore: unknown = token;
     /** The token at the open: a reopen at the same token is no success, so the backoff does not start again. */
     const openToken = JSON.stringify(token ?? null);
     let ended = false;
@@ -975,7 +979,11 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
     next.on("resumeTokenChanged", (resumeToken: unknown) => {
       if (resumeToken === undefined || resumeToken === null) return;
       // In the middle of a split event, the token stays before the event: a stream that opens again gets all its fragments
-      if (!joiner.partial) token = resumeToken;
+      if (!joiner.partial) {
+        // The driver gives the token of a document before its change: fragment 1 puts the token back (audit 2026-11-08)
+        tokenBefore = token;
+        token = resumeToken;
+      }
       opened = true;
       if (JSON.stringify(resumeToken) !== openToken) attempt = 0;
       markReady();
@@ -988,7 +996,11 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
       live = true;
       afterQueue();
       const result = joiner.push(change);
-      if (result.kind === "part") return;
+      if (result.kind === "part") {
+        // The first fragment of a split event: the token goes back to the token before the event
+        if ((change["splitEvent"] as { fragment?: unknown } | undefined)?.fragment === 1) token = tokenBefore;
+        return;
+      }
       if (result.kind === "missing") {
         // The stream started after a fragment: the event cannot be read, so the subscribers read the collection in full
         token = result.change["_id"];

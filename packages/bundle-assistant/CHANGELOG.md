@@ -1,5 +1,79 @@
 # @procedures/bundle-assistant
 
+## 0.52.4
+
+### Patch Changes
+
+- @procedures/client@0.52.4
+  - @procedures/exif@0.52.4
+  - @procedures/geo@0.52.4
+  - @procedures/http@0.52.4
+  - @procedures/ics@0.52.4
+  - @procedures/mail@0.52.4
+  - @procedures/weather@0.52.4
+
+## 0.52.3
+
+### Patch Changes
+
+- Updated dependencies [db1bcaa]
+  - @procedures/client@0.52.3
+  - @procedures/exif@0.52.3
+  - @procedures/geo@0.52.3
+  - @procedures/http@0.52.3
+  - @procedures/ics@0.52.3
+  - @procedures/mail@0.52.3
+  - @procedures/weather@0.52.3
+
+## 0.52.2
+
+### Patch Changes
+
+- @procedures/client@0.52.2
+  - @procedures/exif@0.52.2
+  - @procedures/geo@0.52.2
+  - @procedures/http@0.52.2
+  - @procedures/ics@0.52.2
+  - @procedures/mail@0.52.2
+  - @procedures/weather@0.52.2
+
+## 0.52.1
+
+### Patch Changes
+
+- @procedures/client@0.52.1
+  - @procedures/exif@0.52.1
+  - @procedures/geo@0.52.1
+  - @procedures/http@0.52.1
+  - @procedures/ics@0.52.1
+  - @procedures/mail@0.52.1
+  - @procedures/weather@0.52.1
+
+## 0.52.0
+
+### Patch Changes
+
+- @procedures/client@0.52.0
+  - @procedures/exif@0.52.0
+  - @procedures/geo@0.52.0
+  - @procedures/http@0.52.0
+  - @procedures/ics@0.52.0
+  - @procedures/mail@0.52.0
+  - @procedures/weather@0.52.0
+
+## 0.51.0
+
+### Patch Changes
+
+- Updated dependencies [0c3bfa3]
+  - @procedures/client@0.51.0
+  - @procedures/exif@0.51.0
+  - @procedures/geo@0.51.0
+  - @procedures/http@0.51.0
+  - @procedures/ics@0.51.0
+  - @procedures/mail@0.51.0
+  - @procedures/weather@0.51.0
+
 ## 0.50.0
 
 ### Patch Changes

@@ -1,5 +1,56 @@
 # @procedures/server
 
+## 0.52.4
+
+### Patch Changes
+
+- 79cd1ee: The procedures `server.start` and `server.status` get the folder `~/.mark` and the folder of the lockfiles from `getMarkDir()` and `getServersDir()` of `@procedures/peer/lockfile`. Before, each of the two files made its own copy of the path. The paths do not change.
+- @procedures/client@0.52.4
+  - @procedures/fs@0.52.4
+  - @procedures/peer@0.52.4
+
+## 0.52.3
+
+### Patch Changes
+
+- Updated dependencies [db1bcaa]
+  - @procedures/client@0.52.3
+  - @procedures/fs@0.52.3
+  - @procedures/peer@0.52.3
+
+## 0.52.2
+
+### Patch Changes
+
+- @procedures/client@0.52.2
+  - @procedures/fs@0.52.2
+  - @procedures/peer@0.52.2
+
+## 0.52.1
+
+### Patch Changes
+
+- @procedures/client@0.52.1
+  - @procedures/fs@0.52.1
+  - @procedures/peer@0.52.1
+
+## 0.52.0
+
+### Patch Changes
+
+- @procedures/client@0.52.0
+  - @procedures/fs@0.52.0
+  - @procedures/peer@0.52.0
+
+## 0.51.0
+
+### Patch Changes
+
+- Updated dependencies [0c3bfa3]
+  - @procedures/client@0.51.0
+  - @procedures/fs@0.51.0
+  - @procedures/peer@0.51.0
+
 ## 0.50.0
 
 ### Patch Changes
