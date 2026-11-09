@@ -179,23 +179,23 @@ importers:
         specifier: ^3.0.3
         version: 3.0.3
       '@mark1russell7/api-report':
-        specifier: ^0.4.1
-        version: 0.4.1
+        specifier: ^0.5.0
+        version: 0.5.0
       '@mark1russell7/boundaries':
         specifier: ^0.2.0
         version: 0.2.1(@swc/core@1.16.20)(dependency-cruiser@18.7.0)
       '@mark1russell7/conventions':
-        specifier: ^0.36.1
-        version: 0.36.1
+        specifier: ^0.38.5
+        version: 0.38.5
       '@mark1russell7/cue':
         specifier: ^2.1.1
         version: 2.1.2
       '@mark1russell7/rigor-bench':
         specifier: ^0.2.17
-        version: 0.2.32(esbuild@0.28.2)
+        version: 0.2.33(esbuild@0.28.2)
       '@mark1russell7/rigor-statistics':
         specifier: ^0.1.2
-        version: 0.1.25
+        version: 0.1.26
       '@mark1russell7/ste-lint':
         specifier: ^0.3.0
         version: 0.3.0
@@ -491,19 +491,19 @@ importers:
     dependencies:
       '@mark1russell7/algebra':
         specifier: ^0.8.0
-        version: 0.8.1(zod@4.6.7)
+        version: 0.8.3(zod@4.6.7)
       '@mark1russell7/coeval':
-        specifier: ^0.22.0
-        version: 0.22.0
+        specifier: ^0.26.1
+        version: 0.26.1
       '@mark1russell7/collections':
-        specifier: ^0.5.0
-        version: 0.5.0
+        specifier: ^0.10.0
+        version: 0.10.0(zod@4.6.7)
       '@mark1russell7/quantity':
         specifier: ^0.3.0
-        version: 0.3.0(zod@4.6.7)
+        version: 0.3.3(zod@4.6.7)
       '@mark1russell7/service':
-        specifier: ^0.6.0
-        version: 0.6.5(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        specifier: ^0.8.3
+        version: 0.8.3(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@opentelemetry/api':
         specifier: ^1.9.0
         version: 1.10.0
@@ -521,20 +521,20 @@ importers:
         version: 4.6.7
     devDependencies:
       '@mark1russell7/api-report':
-        specifier: ^0.4.1
-        version: 0.4.1
+        specifier: ^0.5.0
+        version: 0.5.0
       '@mark1russell7/cue':
         specifier: ^2.1.1
         version: 2.1.2
       '@mark1russell7/otel-ts':
-        specifier: ^0.4.0
-        version: 0.4.0(supports-color@7.2.0)(vite@6.4.5(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))(zone.js@0.16.3)
+        specifier: ^0.6.0
+        version: 0.6.0(supports-color@7.2.0)(vite@6.4.5(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))(zone.js@0.16.3)
       '@mark1russell7/rigor-bench':
         specifier: ^0.2.25
-        version: 0.2.32(esbuild@0.28.2)
+        version: 0.2.33(esbuild@0.28.2)
       '@mark1russell7/rigor-statistics':
         specifier: ^0.1.9
-        version: 0.1.25
+        version: 0.1.26
       '@opentelemetry/context-async-hooks':
         specifier: ^2.12.0
         version: 2.12.0(@opentelemetry/api@1.10.0)
@@ -597,8 +597,8 @@ importers:
   packages/client-collections:
     dependencies:
       '@mark1russell7/collections':
-        specifier: ^0.5.0
-        version: 0.5.0
+        specifier: ^0.10.0
+        version: 0.10.0(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -647,8 +647,8 @@ importers:
   packages/client-dag:
     dependencies:
       '@mark1russell7/collections':
-        specifier: ^0.5.0
-        version: 0.5.0
+        specifier: ^0.10.0
+        version: 0.10.0(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -803,8 +803,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.2
       '@mark1russell7/service':
-        specifier: ^0.6.0
-        version: 0.6.5(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        specifier: ^0.8.3
+        version: 0.8.3(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -821,8 +821,8 @@ importers:
   packages/client-mongo:
     dependencies:
       '@mark1russell7/service':
-        specifier: ^0.6.5
-        version: 0.6.5(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        specifier: ^0.8.3
+        version: 0.8.3(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -841,13 +841,13 @@ importers:
         version: 2.1.2
       '@mark1russell7/rigor-bench':
         specifier: ^0.2.28
-        version: 0.2.32(esbuild@0.28.2)
+        version: 0.2.33(esbuild@0.28.2)
       '@mark1russell7/rigor-generators':
         specifier: ^0.1.5
         version: 0.1.8
       '@mark1russell7/rigor-statistics':
         specifier: ^0.1.9
-        version: 0.1.25
+        version: 0.1.26
       '@procedures/peer':
         specifier: workspace:*
         version: link:../client-server
@@ -1004,8 +1004,8 @@ importers:
   packages/client-server:
     dependencies:
       '@mark1russell7/service':
-        specifier: ^0.6.0
-        version: 0.6.5(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        specifier: ^0.8.3
+        version: 0.8.3(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1131,8 +1131,8 @@ importers:
   packages/client-sqlite:
     dependencies:
       '@mark1russell7/docker-sqlite':
-        specifier: ^0.2.0
-        version: 0.2.1
+        specifier: ^0.3.0
+        version: 0.3.0
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1165,8 +1165,8 @@ importers:
   packages/client-store:
     dependencies:
       '@mark1russell7/service':
-        specifier: ^0.6.0
-        version: 0.6.5(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        specifier: ^0.8.3
+        version: 0.8.3(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1258,8 +1258,8 @@ importers:
   packages/compiler:
     dependencies:
       '@mark1russell7/coeval':
-        specifier: ^0.22.0
-        version: 0.22.0
+        specifier: ^0.26.1
+        version: 0.26.1
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1439,8 +1439,8 @@ importers:
   packages/impl-mcp-dev:
     dependencies:
       '@mark1russell7/service':
-        specifier: ^0.6.0
-        version: 0.6.5(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        specifier: ^0.8.3
+        version: 0.8.3(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/bundle-mcp':
         specifier: workspace:*
         version: link:../bundle-mcp
@@ -1529,8 +1529,8 @@ importers:
   packages/llm:
     dependencies:
       '@mark1russell7/service':
-        specifier: ^0.6.0
-        version: 0.6.5(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        specifier: ^0.8.3
+        version: 0.8.3(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1585,8 +1585,8 @@ importers:
   packages/mark:
     dependencies:
       '@mark1russell7/service':
-        specifier: ^0.6.0
-        version: 0.6.5(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        specifier: ^0.8.3
+        version: 0.8.3(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/cli-kit':
         specifier: workspace:*
         version: link:../cli-kit
@@ -1925,8 +1925,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.2
       '@mark1russell7/service':
-        specifier: ^0.6.0
-        version: 0.6.5(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        specifier: ^0.8.3
+        version: 0.8.3(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1940,8 +1940,8 @@ importers:
   packages/server:
     dependencies:
       '@mark1russell7/service':
-        specifier: ^0.6.0
-        version: 0.6.5(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        specifier: ^0.8.3
+        version: 0.8.3(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -2024,8 +2024,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.2
       '@mark1russell7/site-pages':
-        specifier: ^0.3.5
-        version: 0.3.5
+        specifier: ^0.4.3
+        version: 0.4.3
       '@playwright/test':
         specifier: ^1.64.0
         version: 1.64.1
@@ -2216,8 +2216,8 @@ importers:
   packages/systems:
     dependencies:
       '@mark1russell7/service':
-        specifier: ^0.6.0
-        version: 0.6.5(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
+        specifier: ^0.8.3
+        version: 0.8.3(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -3373,8 +3373,8 @@ packages:
     resolution: {integrity: sha512-6QEf6yqFbETdwGITKq57aYoPfX/3K8XFNwsAlx0C1M7o8cb79sv1M3w+tWuWvIcSbNqrLF7OD7YpZMVVz335hQ==}
     engines: {node: '>=20.0.0'}
 
-  '@mark1russell7/algebra@0.8.1':
-    resolution: {integrity: sha512-lpuX4jO56Ht7F6ugymJwPCoL1F6fMVX/HAfuWaxfxBUCTrZxpSwD8qVk6O9M0fqaiyj2XUE+D5fz1XQP6BQlRA==}
+  '@mark1russell7/algebra@0.8.3':
+    resolution: {integrity: sha512-Z0saYxCDcqZu1leABWqksrIa9y9dbeTjR5l36ZRBqsDW6XfUcM4mWoE90YgzSW86YFP+dcV8y+WCKu8446e/ng==}
     engines: {node: '>=22.19'}
     peerDependencies:
       zod: ^4.1.0
@@ -3382,8 +3382,8 @@ packages:
       zod:
         optional: true
 
-  '@mark1russell7/api-report@0.4.1':
-    resolution: {integrity: sha512-kx3vmIdzwGJf+aZ66qoYWm65IlrEzrbSXckAQed0I+fxs6+wFygVoum6ZVBeKdz05rHHLD9kiarwQQcI5LhsDQ==}
+  '@mark1russell7/api-report@0.5.0':
+    resolution: {integrity: sha512-1mbJ614xQr+qQ5uLWOubNP1n9CEY/ytfwC2p9eLt5PIH+xWt2yAKBWm2kuIm5A2xiBldZAJ7QEuyoa4+jJLKpQ==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -3399,15 +3399,15 @@ packages:
       dependency-cruiser:
         optional: true
 
-  '@mark1russell7/coeval@0.22.0':
-    resolution: {integrity: sha512-woojpBeRerVqxfFBx0yiR6ibSpm2f9mcfsUPDdvIyT9GKZ2uCtM0S/108Ur765C0rjNKxopwlSH4xXyhf906iA==}
+  '@mark1russell7/coeval@0.26.1':
+    resolution: {integrity: sha512-fzWgtsl3xpoOwmB5u/ZqEDPQIG6hIkXN3qSZc8uoN2Rv54OrqrMLw5Bgr9gedqIWhfHnT0+61EgkmRkoVg539Q==}
 
-  '@mark1russell7/collections@0.5.0':
-    resolution: {integrity: sha512-/SBxY5LOLjIYuBiSf0hdxA6OeGPJUIAHSQSepVDZVnCLEvY1Jte0E3ec0ahN3oyO7oE677FY9d3LuuN18nyv3g==}
+  '@mark1russell7/collections@0.10.0':
+    resolution: {integrity: sha512-WsLRfrej6msQLVqcS17x6KODic8bLf/IuOF2tD04NNbOhWKYCQi0xAEGBCy/TtthxRvRa6Yti2fcpeIQbX/nCA==}
     engines: {node: '>=22.12'}
 
-  '@mark1russell7/conventions@0.36.1':
-    resolution: {integrity: sha512-Fb9YVVIYWTYX/+2yvtubLB4a0ognZrCs2Gy+U7RARQ9GP9jF1h4oqH5pDZiao1MUOYH070xOerUBqL4PsqnBGQ==}
+  '@mark1russell7/conventions@0.38.5':
+    resolution: {integrity: sha512-nzPyMDJPvcL886YOj9S7nUg0/uorOpAl45zIaZA88K020nipvzf2mao2bZrhXRsyTluXlnxog/I1aj+UFeI//Q==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -3416,20 +3416,24 @@ packages:
     engines: {node: '>=22'}
     hasBin: true
 
-  '@mark1russell7/docker-sqlite@0.2.1':
-    resolution: {integrity: sha512-hPpTZGcf5JZXogDTJMx4o/bfWZSIdK/3aguJc2xcKRksYwG3K0FXYt+j96JT4VCX7BRu/HQb3kWy4q1tkPTIjQ==}
+  '@mark1russell7/docker-sqlite@0.3.0':
+    resolution: {integrity: sha512-BB6pdD424Ig7CD8/DOXHOAB2iLnQ7UF9mY8Qih0GhEwxe6iHj8hOKBgeMehg3JjNzeLtIjUv/xriZizJJzsVIA==}
     engines: {node: '>=22'}
 
-  '@mark1russell7/otel-ts@0.4.0':
-    resolution: {integrity: sha512-EoCGUATimUoepGGwzb8vAApzuMXOpyVixyzfQggiyk+fEJ7EQNI3g2xKskocAW/vfSPvGn5kN5qAkxx+xsfIgA==}
+  '@mark1russell7/optional@1.2.0':
+    resolution: {integrity: sha512-vS5jF21WC/VApRv4p8afRZahcMl9cuNp03LxbVngY9nYkzq+S7Oit6ksySt2baML+tp46UF60sxnHxn1jlwtTg==}
+    engines: {node: '>=22.12'}
+
+  '@mark1russell7/otel-ts@0.6.0':
+    resolution: {integrity: sha512-l6QIZm0k/VTQg6/XI9Cy+LIEt60R7l6lMaH6yFdgVkt+slurXKsnSF5/w7XwiKfPmMtf5UWtF9nOuB8zFGED8Q==}
     peerDependencies:
       '@opentelemetry/sdk-node': '>=0.200.0'
     peerDependenciesMeta:
       '@opentelemetry/sdk-node':
         optional: true
 
-  '@mark1russell7/quantity@0.3.0':
-    resolution: {integrity: sha512-psfyKmVrOz5ynHgr2ED7WM5Pa/XVy6DR28jCaSGY42gvV0CJEq7HJRpV6sgkvWx8s3Et7evJWR56aG5tjCHZIw==}
+  '@mark1russell7/quantity@0.3.3':
+    resolution: {integrity: sha512-sQ0+t+E6zeORzRVSqjvEL+Pvzh79vJSnETBQeLjYkebujHxsRVkGWnbp9SMjl3Qwh7JHTT8k4JL2n+ex+NIfGQ==}
     engines: {node: '>=22.19'}
     peerDependencies:
       zod: ^4.1.0
@@ -3441,8 +3445,8 @@ packages:
     resolution: {integrity: sha512-hn2C5jjOFCGKJqFQPHt57C/Cn1l9Lb9MltVNtL71KSu+nRrfPOmg8ujYB5n3oDFFWNdNA4bE/8LLT4tG3lmrGA==}
     engines: {node: '>=22'}
 
-  '@mark1russell7/rigor-bench@0.2.32':
-    resolution: {integrity: sha512-VJa/hkaYrQdKzN+gql0g8ZPsbD+S2uoLo/bUbFFGvdRzm1QGGMFW+lwU0UupIyA6ZpXaVmI+YPs+eszIzU1OhA==}
+  '@mark1russell7/rigor-bench@0.2.33':
+    resolution: {integrity: sha512-Z905E0XTaT2LNskOwoUURnFXYczru17TLC8TrcEOEUz2ufRCJfZHAjfhCeVbiB5uDHZX9UTf2cgzqQRk6hU8Aw==}
     engines: {node: '>=22'}
     hasBin: true
     peerDependencies:
@@ -3451,31 +3455,24 @@ packages:
       esbuild:
         optional: true
 
-  '@mark1russell7/rigor-generators@0.1.5':
-    resolution: {integrity: sha512-YkABrG6+AV4oZKWoSIayDGxKTqcTMbp/eGa+3u00X09Jv9TfpHFDeqHlEQARMBzJ/kvy/EMNIXQZMGa3Nobuzw==}
-    engines: {node: '>=22'}
-
-  '@mark1russell7/rigor-generators@0.1.6':
-    resolution: {integrity: sha512-eSuVS6nNd2H63dMrfleop+ffBtNd8Ua0/JrcUWUMxf2jHWw432fSwJ+aSa4ecAYq1Pa2ReCfwpqFUP4MII5+GA==}
-    engines: {node: '>=22'}
-
   '@mark1russell7/rigor-generators@0.1.8':
     resolution: {integrity: sha512-6AC/YQdSrMKs/1NcHesjmmxVjKrqTDXjzKaElE8N8TgsqgiApCbsnk5xRoGJfvIJZUX7vJHFB9F+w48OSdRtHQ==}
-    engines: {node: '>=22'}
-
-  '@mark1russell7/rigor-statistics@0.1.15':
-    resolution: {integrity: sha512-dxr3UiAs64JXV3trXCaTRTesHqXEMUoVvDGIyrz0BWsAZERA/lrIQNUATFAuqnAWzdmbHUyi/5nzA4uPXTSTJw==}
     engines: {node: '>=22'}
 
   '@mark1russell7/rigor-statistics@0.1.25':
     resolution: {integrity: sha512-bdDOlHTDAz02QM40XG9fA//8J/FcfUhfXyUnlW6Dwwlnxd3fGQjAkIy6kn1iPRbKtk29mf4XdDN1VSKzMvc7RQ==}
     engines: {node: '>=22'}
 
-  '@mark1russell7/service@0.6.5':
-    resolution: {integrity: sha512-USBAaZX8lQ3nmBzaTycF+6xQJyIQ51ZTWIxw9rZnZ5bhaqZe5FydTgVPYr92/gb8VWcOG4jxWsPnLPBBEaxzSA==}
+  '@mark1russell7/rigor-statistics@0.1.26':
+    resolution: {integrity: sha512-JhwMAsYFg9FLFGVHRt6U7TWYmRblA/f+zS08H+DVzRlP4ypAqwmX6+QXNY+jNbwkyFPJqaLQJq/1PSC8QoKIWQ==}
+    engines: {node: '>=22'}
+
+  '@mark1russell7/service@0.8.3':
+    resolution: {integrity: sha512-FEtGbg7XH8hhlmHdTRZnR5MOXznMD+ctYAftGVivgnrFDT4cvL7fz4FH2MgLgMg3JKoQ7yzf154V8whEUEjK+g==}
     engines: {node: '>=22.19'}
     peerDependencies:
       '@grpc/grpc-js': ^1.14.6
+      '@opentelemetry/api': ^1.9.0
       amqplib: ^2.2.0
       ioredis: ^6.0.0
       mongodb: ^7.7.0
@@ -3484,6 +3481,8 @@ packages:
       zod: ^4.1.0
     peerDependenciesMeta:
       '@grpc/grpc-js':
+        optional: true
+      '@opentelemetry/api':
         optional: true
       amqplib:
         optional: true
@@ -3498,8 +3497,8 @@ packages:
       zod:
         optional: true
 
-  '@mark1russell7/site-pages@0.3.5':
-    resolution: {integrity: sha512-3/VryGHcANgpTwAdAeyWL08I2qpfyUoXCVBUYtzjRQDpGT4i/wCUgJpAziiJrhY5g8HDOOsKgP/9Nf+kGh0a7Q==}
+  '@mark1russell7/site-pages@0.4.3':
+    resolution: {integrity: sha512-6RVlKnaXyVAwcZwrKugTcm32strh0D5Dz+ZSSz6zlLXtWtX31C23ue88bPh7PujLw6r90PywY00uSkNafOCKfg==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -3540,14 +3539,6 @@ packages:
     resolution: {integrity: sha512-X5XaVWZIBCT7HHZGm5I7ZQXDwLG+bGXuSrMQAW+7Zvl87h1kmc1ZB1VSRJcpUfoUrGQp4Fkoxm5kZ+Ms+aW+eA==}
     engines: {node: '>= 20.19.0'}
 
-  '@opentelemetry/api-logs@0.213.0':
-    resolution: {integrity: sha512-zRM5/Qj6G84Ej3F1yt33xBVY/3tnMxtL1fiDIxYbDWYaZ/eudVw3/PBiZ8G7JwUxXxjW8gU4g6LnOyfGKYHYgw==}
-    engines: {node: '>=8.0.0'}
-
-  '@opentelemetry/api-logs@0.214.0':
-    resolution: {integrity: sha512-40lSJeqYO8Uz2Yj7u94/SJWE/wONa7rmMKjI1ZcIjgf3MHNHv1OZUCrCETGuaRF62d5pQD1wKIW+L4lmSMTzZA==}
-    engines: {node: '>=8.0.0'}
-
   '@opentelemetry/api-logs@0.223.0':
     resolution: {integrity: sha512-Oepm6etVPFCn0VWB1t833iOTgz1eYBDUPxcrOR/XvwzD1+Ag9VzSPSrrKAFNJ/haatj+8CXbG47pZXvdNQKDJw==}
     engines: {node: '>=8.0.0'}
@@ -3556,8 +3547,8 @@ packages:
     resolution: {integrity: sha512-lMkyes8iHrG+mk6WH7X70MdCLI2RS0FwNBY1PyQ8UemaijE2m5mv5A0Niy3HtbYTFrgkUEQjFMXmSAk2hQDuPQ==}
     engines: {node: '>=8.0.0'}
 
-  '@opentelemetry/auto-instrumentations-web@0.59.0':
-    resolution: {integrity: sha512-TeVsa/jNHzHIjKO1WKZ3rkvJyBcDP5qo91et6iz4r/+aEu+zRq4rR92GTpLg28gV4juvSYIftNHroC/qI3tMkQ==}
+  '@opentelemetry/auto-instrumentations-web@0.68.0':
+    resolution: {integrity: sha512-IxgpKP24BA7uT9vG1By5/YjYh5/e8HX0mwB+SKqmrxXYYgO4+H/xyxEK1yV+KPMtW95wuzZvkTU+HuBS34wtHg==}
     engines: {node: ^18.19.0 || >=20.6.0}
     peerDependencies:
       '@opentelemetry/api': ^1.9.0
@@ -3586,38 +3577,20 @@ packages:
     peerDependencies:
       '@opentelemetry/api': '>=1.0.0 <1.10.0'
 
-  '@opentelemetry/core@2.6.0':
-    resolution: {integrity: sha512-HLM1v2cbZ4TgYN6KEOj+Bbj8rAKriOdkF9Ed3tG25FoprSiQl7kYc+RRT6fUZGOvx0oMi5U67GoFdT+XUn8zEg==}
-    engines: {node: ^18.19.0 || >=20.6.0}
-    peerDependencies:
-      '@opentelemetry/api': '>=1.0.0 <1.10.0'
-
-  '@opentelemetry/core@2.6.1':
-    resolution: {integrity: sha512-8xHSGWpJP9wBxgBpnqGL0R3PbdWQndL1Qp50qrg71+B28zK5OQmUgcDKLJgzyAAV38t4tOyLMGDD60LneR5W8g==}
-    engines: {node: ^18.19.0 || >=20.6.0}
-    peerDependencies:
-      '@opentelemetry/api': '>=1.0.0 <1.10.0'
-
-  '@opentelemetry/exporter-logs-otlp-http@0.213.0':
-    resolution: {integrity: sha512-vqDVSpLp09ZzcFIdb7QZrEFPxUlO3GzdhBKLstq3jhYB5ow3+ZtV5V0ngSdi/0BZs+J5WPiN1+UDV4X5zD/GzA==}
+  '@opentelemetry/exporter-logs-otlp-http@0.223.0':
+    resolution: {integrity: sha512-YQh9+t/JmV9OeRkoLhPb4yvcrWCX6lAOmXFos/JKoD+KITZYZoxf0acnwAk6YDI9O7fX68O2ka38hx1G9exl8w==}
     engines: {node: ^18.19.0 || >=20.6.0}
     peerDependencies:
       '@opentelemetry/api': ^1.3.0
 
-  '@opentelemetry/exporter-logs-otlp-proto@0.213.0':
-    resolution: {integrity: sha512-gQk41nqfK3KhDk8jbSo3LR/fQBlV7f6Q5xRcfDmL1hZlbgXQPdVFV9/rIfYUrCoq1OM+2NnKnFfGjBt6QpLSsA==}
+  '@opentelemetry/exporter-logs-otlp-proto@0.223.0':
+    resolution: {integrity: sha512-wt33CkhmLfFDSRXNOABWQzVfks1PQvsRNIHqiY5Y5Hi6SiVF7iJYDTqpaUhbwcmyJYcB0LzBNvsic8GyufMxAA==}
     engines: {node: ^18.19.0 || >=20.6.0}
     peerDependencies:
       '@opentelemetry/api': ^1.3.0
 
-  '@opentelemetry/exporter-metrics-otlp-http@0.213.0':
-    resolution: {integrity: sha512-yw3fTIw4KQIRXC/ZyYQq5gtA3Ogfdfz/g5HVgleobQAcjUUE8Nj3spGMx8iQPp+S+u6/js7BixufRkXhzLmpJA==}
-    engines: {node: ^18.19.0 || >=20.6.0}
-    peerDependencies:
-      '@opentelemetry/api': ^1.3.0
-
-  '@opentelemetry/exporter-trace-otlp-http@0.213.0':
-    resolution: {integrity: sha512-tnRmJD39aWrE/Sp7F6AbRNAjKHToDkAqBi6i0lESpGWz3G+f4bhVAV6mgSXH2o18lrDVJXo6jf9bAywQw43wRA==}
+  '@opentelemetry/exporter-metrics-otlp-http@0.223.0':
+    resolution: {integrity: sha512-hNC8yai/+xCNyTuiOy6JFepXXA/sb/2jCzQRY7c2cUWz6owaidihlHUpO20B9/dj8JKPNo8rcn7ikTy7Cj+JaQ==}
     engines: {node: ^18.19.0 || >=20.6.0}
     peerDependencies:
       '@opentelemetry/api': ^1.3.0
@@ -3628,20 +3601,14 @@ packages:
     peerDependencies:
       '@opentelemetry/api': ^1.3.0
 
-  '@opentelemetry/exporter-trace-otlp-proto@0.213.0':
-    resolution: {integrity: sha512-six3vPq3sL+ge1iZOfKEg+RHuFQhGb8ZTdlvD234w/0gi8ty/qKD46qoGpKvM3amy5yYunWBKiFBW47WaVS26w==}
+  '@opentelemetry/exporter-trace-otlp-proto@0.223.0':
+    resolution: {integrity: sha512-hCFhPuROokNpwLibKmeMRuBNjPtbL+Ja5y/e/KBl5p3QcaH7xBjkj8roIGgKwCNJ4WChRLBzfoaNM3QksogfWw==}
     engines: {node: ^18.19.0 || >=20.6.0}
     peerDependencies:
       '@opentelemetry/api': ^1.3.0
 
-  '@opentelemetry/instrumentation-document-load@0.59.0':
-    resolution: {integrity: sha512-G83vyrmGDk0hwqd+78UPQzC4OlNp6R2F0K7EwPpxSuXLxrGQi+SQF0+mBn1XIkvrNcs4WL26XG2RXC3ASTPd6A==}
-    engines: {node: ^18.19.0 || >=20.6.0}
-    peerDependencies:
-      '@opentelemetry/api': ^1.3.0
-
-  '@opentelemetry/instrumentation-fetch@0.214.0':
-    resolution: {integrity: sha512-KiGqvXJCO9VmEXanA85oxNBOAk94vSkOMgJfj/g7G58YxLoI+XzeMPFnuUicexinvfa39IjbG81Z9nU9rSfCDA==}
+  '@opentelemetry/instrumentation-document-load@0.68.0':
+    resolution: {integrity: sha512-pkUPmaW0Mlim8Eetfflhc1oSdvs6SGS2oqGw+eOqNUGWqqpOkCzT/s6STvvMk4wzo2L8OIOMFTntDRatVRg71g==}
     engines: {node: ^18.19.0 || >=20.6.0}
     peerDependencies:
       '@opentelemetry/api': ^1.3.0
@@ -3652,39 +3619,21 @@ packages:
     peerDependencies:
       '@opentelemetry/api': ^1.3.0
 
-  '@opentelemetry/instrumentation-long-task@0.58.0':
-    resolution: {integrity: sha512-p0UaglfFnpD3nwgdAW9jtmG003+4E91LFix7I5H2tUqSvcZs6d1psAreWg0FCrWKXb3iTEqRGkc/wfdwpOMDyg==}
+  '@opentelemetry/instrumentation-long-task@0.67.0':
+    resolution: {integrity: sha512-wBQb7KvI4XrxgDCPJlOPt198zdyxEiER12JyqvLOAeNQLFN5ei5I7cOv5KUdf7HwkQKZuGMD/6REaSxeJGUmnA==}
     engines: {node: ^18.19.0 || >=20.6.0}
     peerDependencies:
       '@opentelemetry/api': ^1.3.0
 
-  '@opentelemetry/instrumentation-user-interaction@0.58.0':
-    resolution: {integrity: sha512-OQmo3p/q71wao/PkANl2aTEkSgGRN5CuHuW97LyXF39uP3R6k5DibRCQjaTC/yVavBGT5Sj0KuzUGauCWvdrSw==}
+  '@opentelemetry/instrumentation-user-interaction@0.67.0':
+    resolution: {integrity: sha512-dVnhsgHVhwPsRrBmVHjN6wpeZ1oThv9WH09uRHL8AwAsvrMJPxOXV/YSUFda4aUhym6IgdO7sV0PsFrGxDY0Og==}
     engines: {node: ^18.19.0 || >=20.6.0}
     peerDependencies:
       '@opentelemetry/api': ^1.3.0
       zone.js: ^0.11.4 || ^0.13.0 || ^0.14.0 || ^0.15.0 || ^0.16.0
 
-  '@opentelemetry/instrumentation-xml-http-request@0.214.0':
-    resolution: {integrity: sha512-8XGIZCmDXrpbGLvT6iuBUjrYvuMjxTsfgoj/vyxdIEj1qduoAhBPOaJFSyFQ/V4DdcvQx5ReI5xEm/9GJ+OKFw==}
-    engines: {node: ^18.19.0 || >=20.6.0}
-    peerDependencies:
-      '@opentelemetry/api': ^1.3.0
-
   '@opentelemetry/instrumentation-xml-http-request@0.223.0':
     resolution: {integrity: sha512-yGYXxoHRkcgxVp5FKpoDFYxbP1z3IA8UkBTjhqIdp5Cy6y8aUsmaxYoYorZdLJfmnIqgQmZqBvjcHhM1MrvAUw==}
-    engines: {node: ^18.19.0 || >=20.6.0}
-    peerDependencies:
-      '@opentelemetry/api': ^1.3.0
-
-  '@opentelemetry/instrumentation@0.213.0':
-    resolution: {integrity: sha512-3i9NdkET/KvQomeh7UaR/F4r9P25Rx6ooALlWXPIjypcEOUxksCmVu0zA70NBJWlrMW1rPr/LRidFAflLI+s/w==}
-    engines: {node: ^18.19.0 || >=20.6.0}
-    peerDependencies:
-      '@opentelemetry/api': ^1.3.0
-
-  '@opentelemetry/instrumentation@0.214.0':
-    resolution: {integrity: sha512-MHqEX5Dk59cqVah5LiARMACku7jXSVk9iVDWOea4x3cr7VfdByeDCURK6o1lntT1JS/Tsovw01UJrBhN3/uC5w==}
     engines: {node: ^18.19.0 || >=20.6.0}
     peerDependencies:
       '@opentelemetry/api': ^1.3.0
@@ -3695,20 +3644,8 @@ packages:
     peerDependencies:
       '@opentelemetry/api': ^1.3.0
 
-  '@opentelemetry/otlp-exporter-base@0.213.0':
-    resolution: {integrity: sha512-MegxAP1/n09Ob2dQvY5NBDVjAFkZRuKtWKxYev1R2M8hrsgXzQGkaMgoEKeUOyQ0FUyYcO29UOnYdQWmWa0PXg==}
-    engines: {node: ^18.19.0 || >=20.6.0}
-    peerDependencies:
-      '@opentelemetry/api': ^1.3.0
-
   '@opentelemetry/otlp-exporter-base@0.223.0':
     resolution: {integrity: sha512-HlJMrJXjOqdQeoYNDHEvFTpaY2p9uWDK1GPl5AZ4wI5easzfoppTduOv47M8eiF+4ew42vfI/Xvt7THYgESnRw==}
-    engines: {node: ^18.19.0 || >=20.6.0}
-    peerDependencies:
-      '@opentelemetry/api': ^1.3.0
-
-  '@opentelemetry/otlp-transformer@0.213.0':
-    resolution: {integrity: sha512-RSuAlxFFPjeK4d5Y6ps8L2WhaQI6CXWllIjvo5nkAlBpmq2XdYWEBGiAbOF4nDs8CX4QblJDv5BbMUft3sEfDw==}
     engines: {node: ^18.19.0 || >=20.6.0}
     peerDependencies:
       '@opentelemetry/api': ^1.3.0
@@ -3725,24 +3662,6 @@ packages:
     peerDependencies:
       '@opentelemetry/api': '>=1.3.0 <1.10.0'
 
-  '@opentelemetry/resources@2.6.0':
-    resolution: {integrity: sha512-D4y/+OGe3JSuYUCBxtH5T9DSAWNcvCb/nQWIga8HNtXTVPQn59j0nTBAgaAXxUVBDl40mG3Tc76b46wPlZaiJQ==}
-    engines: {node: ^18.19.0 || >=20.6.0}
-    peerDependencies:
-      '@opentelemetry/api': '>=1.3.0 <1.10.0'
-
-  '@opentelemetry/resources@2.6.1':
-    resolution: {integrity: sha512-lID/vxSuKWXM55XhAKNoYXu9Cutoq5hFdkbTdI/zDKQktXzcWBVhNsOkiZFTMU9UtEWuGRNe0HUgmsFldIdxVA==}
-    engines: {node: ^18.19.0 || >=20.6.0}
-    peerDependencies:
-      '@opentelemetry/api': '>=1.3.0 <1.10.0'
-
-  '@opentelemetry/sdk-logs@0.213.0':
-    resolution: {integrity: sha512-00xlU3GZXo3kXKve4DLdrAL0NAFUaZ9appU/mn00S/5kSUdAvyYsORaDUfR04Mp2CLagAOhrzfUvYozY/EZX2g==}
-    engines: {node: ^18.19.0 || >=20.6.0}
-    peerDependencies:
-      '@opentelemetry/api': '>=1.4.0 <1.10.0'
-
   '@opentelemetry/sdk-logs@0.223.0':
     resolution: {integrity: sha512-ApiAfUiUh6fmJt1GbsBuoeDn8D8IL42UvGyPUr8o1Z89ZeIiOCE1rZ78KkIUjEX3OV8Oorl9ez5Qjo43ZynDyw==}
     engines: {node: ^18.19.0 || >=20.6.0}
@@ -3755,12 +3674,6 @@ packages:
     peerDependencies:
       '@opentelemetry/api': '>=1.9.0 <1.10.0'
 
-  '@opentelemetry/sdk-metrics@2.6.0':
-    resolution: {integrity: sha512-CicxWZxX6z35HR83jl+PLgtFgUrKRQ9LCXyxgenMnz5A1lgYWfAog7VtdOvGkJYyQgMNPhXQwkYrDLujk7z1Iw==}
-    engines: {node: ^18.19.0 || >=20.6.0}
-    peerDependencies:
-      '@opentelemetry/api': '>=1.9.0 <1.10.0'
-
   '@opentelemetry/sdk-trace-base@2.12.0':
     resolution: {integrity: sha512-JOERgZCxRM06FEJ5kEWxlSRChah6MmXDx3KwCruqEv/iEyLkTokCSemf2y1w8oIHtfrr8EVTpzebq/31vn2Cpg==}
     engines: {node: ^18.19.0 || >=20.6.0}
@@ -3768,29 +3681,8 @@ packages:
     peerDependencies:
       '@opentelemetry/api': '>=1.3.0 <1.10.0'
 
-  '@opentelemetry/sdk-trace-base@2.6.0':
-    resolution: {integrity: sha512-g/OZVkqlxllgFM7qMKqbPV9c1DUPhQ7d4n3pgZFcrnrNft9eJXZM2TNHTPYREJBrtNdRytYyvwjgL5geDKl3EQ==}
-    engines: {node: ^18.19.0 || >=20.6.0}
-    deprecated: Use @opentelemetry/sdk-trace package
-    peerDependencies:
-      '@opentelemetry/api': '>=1.3.0 <1.10.0'
-
-  '@opentelemetry/sdk-trace-base@2.6.1':
-    resolution: {integrity: sha512-r86ut4T1e8vNwB35CqCcKd45yzqH6/6Wzvpk2/cZB8PsPLlZFTvrh8yfOS3CYZYcUmAx4hHTZJ8AO8Dj8nrdhw==}
-    engines: {node: ^18.19.0 || >=20.6.0}
-    deprecated: Use @opentelemetry/sdk-trace package
-    peerDependencies:
-      '@opentelemetry/api': '>=1.3.0 <1.10.0'
-
   '@opentelemetry/sdk-trace-web@2.12.0':
     resolution: {integrity: sha512-y0hCzbnBHScmioF0drJOyaPk1sQf2wwbIuy3rWlM0Fcx8mLfPDvFsQ7tJ+zMm8yAqI06rSlFKkL7ZpcrFOqAdQ==}
-    engines: {node: ^18.19.0 || >=20.6.0}
-    deprecated: Use @opentelemetry/sdk-trace package
-    peerDependencies:
-      '@opentelemetry/api': '>=1.0.0 <1.10.0'
-
-  '@opentelemetry/sdk-trace-web@2.6.1':
-    resolution: {integrity: sha512-JQevIjBlWGcKBfuwe7tdxGR/75RERsf1OOIvUzPKq86J8qhzkyjnLTTuPNPLRQF1xxEe65W5aI1Uwl6yWUGPQQ==}
     engines: {node: ^18.19.0 || >=20.6.0}
     deprecated: Use @opentelemetry/sdk-trace package
     peerDependencies:
@@ -3874,33 +3766,6 @@ packages:
   '@pnpm/deps.graph-sequencer@1100.0.1':
     resolution: {integrity: sha512-pOr5+q1fLYKwFN3LAJuGZEnfXDcQ73zqgDHMtGy+K+uIoUqyY+6MeDCWFwfu+4EFuq76I5EPFofoNAI+Bmmq4A==}
     engines: {node: '>=22.13'}
-
-  '@protobufjs/aspromise@1.1.2':
-    resolution: {integrity: sha512-j+gKExEuLmKwvz3OgROXtrJ2UG2x8Ch2YZUxahh+s1F2HZ+wAceUNLkvy6zKCPVRkU++ZWQrdxsUeQXmcg4uoQ==}
-
-  '@protobufjs/base64@1.1.2':
-    resolution: {integrity: sha512-AZkcAA5vnN/v4PDqKyMR5lx7hZttPDgClv83E//FMNhR2TMcLUhfRUBHCmSl0oi9zMgDDqRUJkSxO3wm85+XLg==}
-
-  '@protobufjs/codegen@2.0.5':
-    resolution: {integrity: sha512-zgXFLzW3Ap33e6d0Wlj4MGIm6Ce8O89n/apUaGNB/jx+hw+ruWEp7EwGUshdLKVRCxZW12fp9r40E1mQrf/34g==}
-
-  '@protobufjs/eventemitter@1.1.1':
-    resolution: {integrity: sha512-vW1GmwMZNnL+gMRaovlh9yZX74kc+TTU3FObkkurpMaRtBfLP3ldjS9KQWlwZgraRE0+dheEEoAxdzcJQ8eXZg==}
-
-  '@protobufjs/fetch@1.1.1':
-    resolution: {integrity: sha512-GpptLrs57adMSuHi3VNj0mAF8dwh36LMaYF6XyJ6JMWlVsc+t42tm1HSEDmOs3A8fC9yyeisgLhsTVQokOZ0zw==}
-
-  '@protobufjs/float@1.0.2':
-    resolution: {integrity: sha512-Ddb+kVXlXst9d+R9PfTIxh1EdNkgoRe5tOX6t01f1lYWOvJnSPDBlG241QLzcyPdoNTsblLUdujGSE4RzrTZGQ==}
-
-  '@protobufjs/path@1.1.2':
-    resolution: {integrity: sha512-6JOcJ5Tm08dOHAbdR3GrvP+yUUfkjG5ePsHYczMFLq3ZmMkAD98cDgcT2iA1lJ9NVwFd4tH/iSSoe44YWkltEA==}
-
-  '@protobufjs/pool@1.1.0':
-    resolution: {integrity: sha512-0kELaGSIDBKvcgS4zkjz1PeddatrjYcmMWOlAuAPwAeccUrPHdUqo/J6LiymHHEiJT5NrF1UVwxY14f+fy4WQw==}
-
-  '@protobufjs/utf8@1.1.2':
-    resolution: {integrity: sha512-b1UQwcEZ4yCnMCD8DAL1VlbvBJE9/IX4FTIp7BG1xYpf29SLazLSrqUkj4w7Y5y7cCVP6E5tcqqcI0xemPkHug==}
 
   '@publint/pack@0.1.7':
     resolution: {integrity: sha512-4EDEmvxWtgsCnnVeBvtFIFZtUhPPt1+bA9JrSwU4Sa//6oKtzCSlGGXYJr44OD9aGISymbieJ4mCKHUygUDU+g==}
@@ -5186,9 +5051,6 @@ packages:
     resolution: {integrity: sha512-i24m8rpwhmPIS4zscNzK6MSEhk0DUWa/8iYQWxhffV8jkI4Phvs3F+quL5xvS0gdQR0FyTCMMH33Y78dDTzzIw==}
     engines: {node: '>=18'}
 
-  long@5.3.2:
-    resolution: {integrity: sha512-mNAgZ1GmyNhD7AuqnTG3/VQ26o760+ZYBPKjPvugO8+nLbYfX6TVpJPseBvopbdY+qpZ/lKUnmEc1LeZYS3QAA==}
-
   lru-cache@11.5.3:
     resolution: {integrity: sha512-U4N8FgzmWxc8k1VH8Kr6lQg18U7Fjvby6wXHVRX/ZZ7IwWbRMgrRbP0Wrb5q5NVinryp4SQampHKdvtecItxUg==}
     engines: {node: 20 || >=22}
@@ -5480,10 +5342,6 @@ packages:
   prompts@2.4.2:
     resolution: {integrity: sha512-NxNv/kLguCA7p3jE8oL2aEBsrJWgAakBpgmgK6lpPWV+WuOmY6r2/zbAVnP+T8bQlA0nzHXSJSJW0Hq7ylaD2Q==}
     engines: {node: '>= 6'}
-
-  protobufjs@7.6.6:
-    resolution: {integrity: sha512-dYDWdjSl5RNb7SgPxGQcRU+GtvP7s2fpkrY0r432PcOIaZ0/rBcxEZnQN67iJhFuQiVw754JDoPruPCNdGsbjg==}
-    engines: {node: '>=12.0.0'}
 
   proxy-addr@2.0.8:
     resolution: {integrity: sha512-5nnx0yGyVUcY6t9RnWcARWtwT9F1D8O9rt08htPvnd49W1IgZtmLkhu9WfMzQj1cFxjHIO6connUNVW5k7AVyQ==}
@@ -7214,52 +7072,64 @@ snapshots:
       tinyglobby: 0.2.17
       yaml: 2.9.1
 
-  '@mark1russell7/algebra@0.8.1(zod@4.6.7)':
+  '@mark1russell7/algebra@0.8.3(zod@4.6.7)':
     dependencies:
-      '@mark1russell7/quantity': 0.3.0(zod@4.6.7)
+      '@mark1russell7/quantity': 0.3.3(zod@4.6.7)
     optionalDependencies:
       zod: 4.6.7
 
-  '@mark1russell7/api-report@0.4.1': {}
+  '@mark1russell7/api-report@0.5.0':
+    dependencies:
+      '@mark1russell7/conventions': 0.38.5
 
   '@mark1russell7/boundaries@0.2.1(@swc/core@1.16.20)(dependency-cruiser@18.7.0)':
     optionalDependencies:
       '@swc/core': 1.16.20
       dependency-cruiser: 18.7.0
 
-  '@mark1russell7/coeval@0.22.0': {}
+  '@mark1russell7/coeval@0.26.1':
+    dependencies:
+      '@mark1russell7/rigor-generators': 0.1.8
 
-  '@mark1russell7/collections@0.5.0': {}
+  '@mark1russell7/collections@0.10.0(zod@4.6.7)':
+    dependencies:
+      '@mark1russell7/algebra': 0.8.3(zod@4.6.7)
+      '@mark1russell7/optional': 1.2.0
+      '@mark1russell7/rigor-statistics': 0.1.26
+    transitivePeerDependencies:
+      - zod
 
-  '@mark1russell7/conventions@0.36.1':
+  '@mark1russell7/conventions@0.38.5':
     dependencies:
       yaml: 2.9.1
 
   '@mark1russell7/cue@2.1.2': {}
 
-  '@mark1russell7/docker-sqlite@0.2.1':
+  '@mark1russell7/docker-sqlite@0.3.0':
     dependencies:
       '@types/sql.js': 1.4.11
       sql.js: 1.14.2
 
-  '@mark1russell7/otel-ts@0.4.0(supports-color@7.2.0)(vite@6.4.5(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))(zone.js@0.16.3)':
+  '@mark1russell7/optional@1.2.0': {}
+
+  '@mark1russell7/otel-ts@0.6.0(supports-color@7.2.0)(vite@6.4.5(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))(zone.js@0.16.3)':
     dependencies:
       '@grafana/faro-web-sdk': 2.13.0
       '@grafana/faro-web-tracing': 2.13.0(supports-color@7.2.0)
       '@opentelemetry/api': 1.10.0
-      '@opentelemetry/api-logs': 0.213.0
-      '@opentelemetry/auto-instrumentations-web': 0.59.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)(zone.js@0.16.3)
+      '@opentelemetry/api-logs': 0.223.0
+      '@opentelemetry/auto-instrumentations-web': 0.68.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)(zone.js@0.16.3)
       '@opentelemetry/context-zone': 2.12.0(@opentelemetry/api@1.10.0)
       '@opentelemetry/core': 2.12.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/exporter-logs-otlp-http': 0.213.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/exporter-logs-otlp-proto': 0.213.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/exporter-metrics-otlp-http': 0.213.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/exporter-trace-otlp-http': 0.213.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/exporter-trace-otlp-proto': 0.213.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/instrumentation': 0.213.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)
-      '@opentelemetry/instrumentation-long-task': 0.58.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)
+      '@opentelemetry/exporter-logs-otlp-http': 0.223.0(@opentelemetry/api@1.10.0)
+      '@opentelemetry/exporter-logs-otlp-proto': 0.223.0(@opentelemetry/api@1.10.0)
+      '@opentelemetry/exporter-metrics-otlp-http': 0.223.0(@opentelemetry/api@1.10.0)
+      '@opentelemetry/exporter-trace-otlp-http': 0.223.0(@opentelemetry/api@1.10.0)
+      '@opentelemetry/exporter-trace-otlp-proto': 0.223.0(@opentelemetry/api@1.10.0)
+      '@opentelemetry/instrumentation': 0.223.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)
+      '@opentelemetry/instrumentation-long-task': 0.67.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)
       '@opentelemetry/resources': 2.12.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/sdk-logs': 0.213.0(@opentelemetry/api@1.10.0)
+      '@opentelemetry/sdk-logs': 0.223.0(@opentelemetry/api@1.10.0)
       '@opentelemetry/sdk-metrics': 2.12.0(@opentelemetry/api@1.10.0)
       '@opentelemetry/sdk-trace-base': 2.12.0(@opentelemetry/api@1.10.0)
       '@opentelemetry/sdk-trace-web': 2.12.0(@opentelemetry/api@1.10.0)
@@ -7271,7 +7141,7 @@ snapshots:
       - vite
       - zone.js
 
-  '@mark1russell7/quantity@0.3.0(zod@4.6.7)':
+  '@mark1russell7/quantity@0.3.3(zod@4.6.7)':
     dependencies:
       '@mark1russell7/rational': 0.1.2
     optionalDependencies:
@@ -7279,40 +7149,38 @@ snapshots:
 
   '@mark1russell7/rational@0.1.2': {}
 
-  '@mark1russell7/rigor-bench@0.2.32(esbuild@0.28.2)':
+  '@mark1russell7/rigor-bench@0.2.33(esbuild@0.28.2)':
     dependencies:
-      '@mark1russell7/rigor-generators': 0.1.6
-      '@mark1russell7/rigor-statistics': 0.1.25
+      '@mark1russell7/rigor-generators': 0.1.8
+      '@mark1russell7/rigor-statistics': 0.1.26
     optionalDependencies:
       esbuild: 0.28.2
 
-  '@mark1russell7/rigor-generators@0.1.5': {}
-
-  '@mark1russell7/rigor-generators@0.1.6': {}
-
   '@mark1russell7/rigor-generators@0.1.8': {}
-
-  '@mark1russell7/rigor-statistics@0.1.15':
-    dependencies:
-      '@mark1russell7/rigor-generators': 0.1.6
 
   '@mark1russell7/rigor-statistics@0.1.25':
     dependencies:
       '@mark1russell7/rigor-generators': 0.1.8
 
-  '@mark1russell7/service@0.6.5(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)':
+  '@mark1russell7/rigor-statistics@0.1.26':
     dependencies:
-      '@mark1russell7/algebra': 0.8.1(zod@4.6.7)
-      '@mark1russell7/quantity': 0.3.0(zod@4.6.7)
-      '@mark1russell7/rigor-generators': 0.1.5
+      '@mark1russell7/rigor-generators': 0.1.8
+
+  '@mark1russell7/service@0.8.3(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.0)(zod@4.6.7)':
+    dependencies:
+      '@mark1russell7/algebra': 0.8.3(zod@4.6.7)
+      '@mark1russell7/collections': 0.10.0(zod@4.6.7)
+      '@mark1russell7/quantity': 0.3.3(zod@4.6.7)
+      '@mark1russell7/rigor-generators': 0.1.8
     optionalDependencies:
+      '@opentelemetry/api': 1.10.0
       mongodb: 7.8.0(socks@2.8.10)
       ws: 8.22.0
       zod: 4.6.7
 
-  '@mark1russell7/site-pages@0.3.5':
+  '@mark1russell7/site-pages@0.4.3':
     dependencies:
-      '@mark1russell7/rigor-statistics': 0.1.15
+      '@mark1russell7/rigor-statistics': 0.1.25
 
   '@mark1russell7/splay@0.2.0': {}
 
@@ -7353,28 +7221,20 @@ snapshots:
 
   '@noble/hashes@2.4.0': {}
 
-  '@opentelemetry/api-logs@0.213.0':
-    dependencies:
-      '@opentelemetry/api': 1.10.0
-
-  '@opentelemetry/api-logs@0.214.0':
-    dependencies:
-      '@opentelemetry/api': 1.10.0
-
   '@opentelemetry/api-logs@0.223.0':
     dependencies:
       '@opentelemetry/api': 1.10.0
 
   '@opentelemetry/api@1.10.0': {}
 
-  '@opentelemetry/auto-instrumentations-web@0.59.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)(zone.js@0.16.3)':
+  '@opentelemetry/auto-instrumentations-web@0.68.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)(zone.js@0.16.3)':
     dependencies:
       '@opentelemetry/api': 1.10.0
-      '@opentelemetry/instrumentation': 0.214.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)
-      '@opentelemetry/instrumentation-document-load': 0.59.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)
-      '@opentelemetry/instrumentation-fetch': 0.214.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)
-      '@opentelemetry/instrumentation-user-interaction': 0.58.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)(zone.js@0.16.3)
-      '@opentelemetry/instrumentation-xml-http-request': 0.214.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)
+      '@opentelemetry/instrumentation': 0.223.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)
+      '@opentelemetry/instrumentation-document-load': 0.68.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)
+      '@opentelemetry/instrumentation-fetch': 0.223.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)
+      '@opentelemetry/instrumentation-user-interaction': 0.67.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)(zone.js@0.16.3)
+      '@opentelemetry/instrumentation-xml-http-request': 0.223.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)
       zone.js: 0.16.3
     transitivePeerDependencies:
       - supports-color
@@ -7400,53 +7260,28 @@ snapshots:
       '@opentelemetry/api': 1.10.0
       '@opentelemetry/semantic-conventions': 1.45.0
 
-  '@opentelemetry/core@2.6.0(@opentelemetry/api@1.10.0)':
+  '@opentelemetry/exporter-logs-otlp-http@0.223.0(@opentelemetry/api@1.10.0)':
     dependencies:
       '@opentelemetry/api': 1.10.0
-      '@opentelemetry/semantic-conventions': 1.45.0
+      '@opentelemetry/otlp-exporter-base': 0.223.0(@opentelemetry/api@1.10.0)
+      '@opentelemetry/otlp-transformer': 0.223.0(@opentelemetry/api@1.10.0)
+      '@opentelemetry/sdk-logs': 0.223.0(@opentelemetry/api@1.10.0)
 
-  '@opentelemetry/core@2.6.1(@opentelemetry/api@1.10.0)':
+  '@opentelemetry/exporter-logs-otlp-proto@0.223.0(@opentelemetry/api@1.10.0)':
     dependencies:
       '@opentelemetry/api': 1.10.0
-      '@opentelemetry/semantic-conventions': 1.45.0
+      '@opentelemetry/otlp-exporter-base': 0.223.0(@opentelemetry/api@1.10.0)
+      '@opentelemetry/otlp-transformer': 0.223.0(@opentelemetry/api@1.10.0)
+      '@opentelemetry/sdk-logs': 0.223.0(@opentelemetry/api@1.10.0)
 
-  '@opentelemetry/exporter-logs-otlp-http@0.213.0(@opentelemetry/api@1.10.0)':
+  '@opentelemetry/exporter-metrics-otlp-http@0.223.0(@opentelemetry/api@1.10.0)':
     dependencies:
       '@opentelemetry/api': 1.10.0
-      '@opentelemetry/api-logs': 0.213.0
-      '@opentelemetry/core': 2.6.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/otlp-exporter-base': 0.213.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/otlp-transformer': 0.213.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/sdk-logs': 0.213.0(@opentelemetry/api@1.10.0)
-
-  '@opentelemetry/exporter-logs-otlp-proto@0.213.0(@opentelemetry/api@1.10.0)':
-    dependencies:
-      '@opentelemetry/api': 1.10.0
-      '@opentelemetry/api-logs': 0.213.0
-      '@opentelemetry/core': 2.6.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/otlp-exporter-base': 0.213.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/otlp-transformer': 0.213.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/resources': 2.6.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/sdk-logs': 0.213.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/sdk-trace-base': 2.6.0(@opentelemetry/api@1.10.0)
-
-  '@opentelemetry/exporter-metrics-otlp-http@0.213.0(@opentelemetry/api@1.10.0)':
-    dependencies:
-      '@opentelemetry/api': 1.10.0
-      '@opentelemetry/core': 2.6.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/otlp-exporter-base': 0.213.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/otlp-transformer': 0.213.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/resources': 2.6.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/sdk-metrics': 2.6.0(@opentelemetry/api@1.10.0)
-
-  '@opentelemetry/exporter-trace-otlp-http@0.213.0(@opentelemetry/api@1.10.0)':
-    dependencies:
-      '@opentelemetry/api': 1.10.0
-      '@opentelemetry/core': 2.6.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/otlp-exporter-base': 0.213.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/otlp-transformer': 0.213.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/resources': 2.6.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/sdk-trace-base': 2.6.0(@opentelemetry/api@1.10.0)
+      '@opentelemetry/core': 2.12.0(@opentelemetry/api@1.10.0)
+      '@opentelemetry/otlp-exporter-base': 0.223.0(@opentelemetry/api@1.10.0)
+      '@opentelemetry/otlp-transformer': 0.223.0(@opentelemetry/api@1.10.0)
+      '@opentelemetry/resources': 2.12.0(@opentelemetry/api@1.10.0)
+      '@opentelemetry/sdk-metrics': 2.12.0(@opentelemetry/api@1.10.0)
 
   '@opentelemetry/exporter-trace-otlp-http@0.223.0(@opentelemetry/api@1.10.0)':
     dependencies:
@@ -7455,31 +7290,19 @@ snapshots:
       '@opentelemetry/otlp-transformer': 0.223.0(@opentelemetry/api@1.10.0)
       '@opentelemetry/sdk-trace': 2.12.0(@opentelemetry/api@1.10.0)
 
-  '@opentelemetry/exporter-trace-otlp-proto@0.213.0(@opentelemetry/api@1.10.0)':
+  '@opentelemetry/exporter-trace-otlp-proto@0.223.0(@opentelemetry/api@1.10.0)':
     dependencies:
       '@opentelemetry/api': 1.10.0
-      '@opentelemetry/core': 2.6.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/otlp-exporter-base': 0.213.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/otlp-transformer': 0.213.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/resources': 2.6.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/sdk-trace-base': 2.6.0(@opentelemetry/api@1.10.0)
+      '@opentelemetry/otlp-exporter-base': 0.223.0(@opentelemetry/api@1.10.0)
+      '@opentelemetry/otlp-transformer': 0.223.0(@opentelemetry/api@1.10.0)
+      '@opentelemetry/sdk-trace': 2.12.0(@opentelemetry/api@1.10.0)
 
-  '@opentelemetry/instrumentation-document-load@0.59.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)':
+  '@opentelemetry/instrumentation-document-load@0.68.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)':
     dependencies:
       '@opentelemetry/api': 1.10.0
       '@opentelemetry/core': 2.12.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/instrumentation': 0.214.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)
+      '@opentelemetry/instrumentation': 0.223.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)
       '@opentelemetry/sdk-trace-web': 2.12.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/semantic-conventions': 1.45.0
-    transitivePeerDependencies:
-      - supports-color
-
-  '@opentelemetry/instrumentation-fetch@0.214.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)':
-    dependencies:
-      '@opentelemetry/api': 1.10.0
-      '@opentelemetry/core': 2.6.1(@opentelemetry/api@1.10.0)
-      '@opentelemetry/instrumentation': 0.214.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)
-      '@opentelemetry/sdk-trace-web': 2.6.1(@opentelemetry/api@1.10.0)
       '@opentelemetry/semantic-conventions': 1.45.0
     transitivePeerDependencies:
       - supports-color
@@ -7494,31 +7317,21 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@opentelemetry/instrumentation-long-task@0.58.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)':
+  '@opentelemetry/instrumentation-long-task@0.67.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)':
     dependencies:
       '@opentelemetry/api': 1.10.0
       '@opentelemetry/core': 2.12.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/instrumentation': 0.214.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)
+      '@opentelemetry/instrumentation': 0.223.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)
     transitivePeerDependencies:
       - supports-color
 
-  '@opentelemetry/instrumentation-user-interaction@0.58.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)(zone.js@0.16.3)':
+  '@opentelemetry/instrumentation-user-interaction@0.67.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)(zone.js@0.16.3)':
     dependencies:
       '@opentelemetry/api': 1.10.0
       '@opentelemetry/core': 2.12.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/instrumentation': 0.214.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)
+      '@opentelemetry/instrumentation': 0.223.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)
       '@opentelemetry/sdk-trace-web': 2.12.0(@opentelemetry/api@1.10.0)
       zone.js: 0.16.3
-    transitivePeerDependencies:
-      - supports-color
-
-  '@opentelemetry/instrumentation-xml-http-request@0.214.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)':
-    dependencies:
-      '@opentelemetry/api': 1.10.0
-      '@opentelemetry/core': 2.6.1(@opentelemetry/api@1.10.0)
-      '@opentelemetry/instrumentation': 0.214.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)
-      '@opentelemetry/sdk-trace-web': 2.6.1(@opentelemetry/api@1.10.0)
-      '@opentelemetry/semantic-conventions': 1.45.0
     transitivePeerDependencies:
       - supports-color
 
@@ -7532,24 +7345,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@opentelemetry/instrumentation@0.213.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)':
-    dependencies:
-      '@opentelemetry/api': 1.10.0
-      '@opentelemetry/api-logs': 0.213.0
-      import-in-the-middle: 3.6.0
-      require-in-the-middle: 8.0.1(supports-color@7.2.0)
-    transitivePeerDependencies:
-      - supports-color
-
-  '@opentelemetry/instrumentation@0.214.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)':
-    dependencies:
-      '@opentelemetry/api': 1.10.0
-      '@opentelemetry/api-logs': 0.214.0
-      import-in-the-middle: 3.6.0
-      require-in-the-middle: 8.0.1(supports-color@7.2.0)
-    transitivePeerDependencies:
-      - supports-color
-
   '@opentelemetry/instrumentation@0.223.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)':
     dependencies:
       '@opentelemetry/api': 1.10.0
@@ -7559,28 +7354,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@opentelemetry/otlp-exporter-base@0.213.0(@opentelemetry/api@1.10.0)':
-    dependencies:
-      '@opentelemetry/api': 1.10.0
-      '@opentelemetry/core': 2.6.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/otlp-transformer': 0.213.0(@opentelemetry/api@1.10.0)
-
   '@opentelemetry/otlp-exporter-base@0.223.0(@opentelemetry/api@1.10.0)':
     dependencies:
       '@opentelemetry/api': 1.10.0
       '@opentelemetry/core': 2.12.0(@opentelemetry/api@1.10.0)
       '@opentelemetry/otlp-transformer': 0.223.0(@opentelemetry/api@1.10.0)
-
-  '@opentelemetry/otlp-transformer@0.213.0(@opentelemetry/api@1.10.0)':
-    dependencies:
-      '@opentelemetry/api': 1.10.0
-      '@opentelemetry/api-logs': 0.213.0
-      '@opentelemetry/core': 2.6.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/resources': 2.6.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/sdk-logs': 0.213.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/sdk-metrics': 2.6.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/sdk-trace-base': 2.6.0(@opentelemetry/api@1.10.0)
-      protobufjs: 7.6.6
 
   '@opentelemetry/otlp-transformer@0.223.0(@opentelemetry/api@1.10.0)':
     dependencies:
@@ -7598,26 +7376,6 @@ snapshots:
       '@opentelemetry/core': 2.12.0(@opentelemetry/api@1.10.0)
       '@opentelemetry/semantic-conventions': 1.45.0
 
-  '@opentelemetry/resources@2.6.0(@opentelemetry/api@1.10.0)':
-    dependencies:
-      '@opentelemetry/api': 1.10.0
-      '@opentelemetry/core': 2.6.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/semantic-conventions': 1.45.0
-
-  '@opentelemetry/resources@2.6.1(@opentelemetry/api@1.10.0)':
-    dependencies:
-      '@opentelemetry/api': 1.10.0
-      '@opentelemetry/core': 2.6.1(@opentelemetry/api@1.10.0)
-      '@opentelemetry/semantic-conventions': 1.45.0
-
-  '@opentelemetry/sdk-logs@0.213.0(@opentelemetry/api@1.10.0)':
-    dependencies:
-      '@opentelemetry/api': 1.10.0
-      '@opentelemetry/api-logs': 0.213.0
-      '@opentelemetry/core': 2.6.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/resources': 2.6.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/semantic-conventions': 1.45.0
-
   '@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.10.0)':
     dependencies:
       '@opentelemetry/api': 1.10.0
@@ -7632,12 +7390,6 @@ snapshots:
       '@opentelemetry/core': 2.12.0(@opentelemetry/api@1.10.0)
       '@opentelemetry/resources': 2.12.0(@opentelemetry/api@1.10.0)
 
-  '@opentelemetry/sdk-metrics@2.6.0(@opentelemetry/api@1.10.0)':
-    dependencies:
-      '@opentelemetry/api': 1.10.0
-      '@opentelemetry/core': 2.6.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/resources': 2.6.0(@opentelemetry/api@1.10.0)
-
   '@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)':
     dependencies:
       '@opentelemetry/api': 1.10.0
@@ -7646,31 +7398,11 @@ snapshots:
       '@opentelemetry/sdk-trace': 2.12.0(@opentelemetry/api@1.10.0)
       '@opentelemetry/semantic-conventions': 1.45.0
 
-  '@opentelemetry/sdk-trace-base@2.6.0(@opentelemetry/api@1.10.0)':
-    dependencies:
-      '@opentelemetry/api': 1.10.0
-      '@opentelemetry/core': 2.6.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/resources': 2.6.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/semantic-conventions': 1.45.0
-
-  '@opentelemetry/sdk-trace-base@2.6.1(@opentelemetry/api@1.10.0)':
-    dependencies:
-      '@opentelemetry/api': 1.10.0
-      '@opentelemetry/core': 2.6.1(@opentelemetry/api@1.10.0)
-      '@opentelemetry/resources': 2.6.1(@opentelemetry/api@1.10.0)
-      '@opentelemetry/semantic-conventions': 1.45.0
-
   '@opentelemetry/sdk-trace-web@2.12.0(@opentelemetry/api@1.10.0)':
     dependencies:
       '@opentelemetry/api': 1.10.0
       '@opentelemetry/core': 2.12.0(@opentelemetry/api@1.10.0)
       '@opentelemetry/sdk-trace-base': 2.12.0(@opentelemetry/api@1.10.0)
-
-  '@opentelemetry/sdk-trace-web@2.6.1(@opentelemetry/api@1.10.0)':
-    dependencies:
-      '@opentelemetry/api': 1.10.0
-      '@opentelemetry/core': 2.6.1(@opentelemetry/api@1.10.0)
-      '@opentelemetry/sdk-trace-base': 2.6.1(@opentelemetry/api@1.10.0)
 
   '@opentelemetry/sdk-trace@2.12.0(@opentelemetry/api@1.10.0)':
     dependencies:
@@ -7794,26 +7526,6 @@ snapshots:
       playwright: 1.64.1
 
   '@pnpm/deps.graph-sequencer@1100.0.1': {}
-
-  '@protobufjs/aspromise@1.1.2': {}
-
-  '@protobufjs/base64@1.1.2': {}
-
-  '@protobufjs/codegen@2.0.5': {}
-
-  '@protobufjs/eventemitter@1.1.1': {}
-
-  '@protobufjs/fetch@1.1.1':
-    dependencies:
-      '@protobufjs/aspromise': 1.1.2
-
-  '@protobufjs/float@1.0.2': {}
-
-  '@protobufjs/path@1.1.2': {}
-
-  '@protobufjs/pool@1.1.0': {}
-
-  '@protobufjs/utf8@1.1.2': {}
 
   '@publint/pack@0.1.7':
     dependencies:
@@ -8994,8 +8706,6 @@ snapshots:
       chalk: 5.6.2
       is-unicode-supported: 1.3.0
 
-  long@5.3.2: {}
-
   lru-cache@11.5.3: {}
 
   lru-cache@5.1.1:
@@ -9234,20 +8944,6 @@ snapshots:
     dependencies:
       kleur: 3.0.3
       sisteransi: 1.0.5
-
-  protobufjs@7.6.6:
-    dependencies:
-      '@protobufjs/aspromise': 1.1.2
-      '@protobufjs/base64': 1.1.2
-      '@protobufjs/codegen': 2.0.5
-      '@protobufjs/eventemitter': 1.1.1
-      '@protobufjs/fetch': 1.1.1
-      '@protobufjs/float': 1.0.2
-      '@protobufjs/path': 1.1.2
-      '@protobufjs/pool': 1.1.0
-      '@protobufjs/utf8': 1.1.2
-      '@types/node': 22.20.5
-      long: 5.3.2
 
   proxy-addr@2.0.8:
     dependencies:
