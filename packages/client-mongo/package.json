@@ -84,7 +84,7 @@
     "procedures": "./dist/register.js"
   },
   "dependencies": {
-    "@mark1russell7/collections": "^0.9.4",
+    "@mark1russell7/collections": "^0.10.0",
     "@procedures/client": "workspace:*",
     "@procedures/collections": "workspace:*",
     "@mark1russell7/service": "^0.8.3",
