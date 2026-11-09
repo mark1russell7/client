@@ -1,5 +1,165 @@
 # @procedures/client
 
+## 0.54.0
+
+### Patch Changes
+
+- ef8e080: `@procedures/collections` uses `@mark1russell7/collections` 0.10, and its root removes the 121 names that version 0.10 does not export (roadmap CLI-131 and CLI-113). The last release marked each of these names as `@deprecated`, with its replacement. MINOR: before 1.0.0 a removed export raises MINOR.
+  
+  Migration steps for the site and each app:
+  
+  1. Import `Optional`, `Result` and their functions from `@mark1russell7/optional`. The table gives the new names.
+  
+     | Old name | New name |
+     | --- | --- |
+     | `Option` | `Optional` |
+     | `Some` | `some` |
+     | `None` | `none` |
+     | `Ok` | `ok` |
+     | `Err` | `err` |
+     | `getOrElse` | `getOr` |
+     | `getOrElseResult` | `getOkOr` |
+     | `mapOption` | `map` |
+     | `flatMapOption` | `flatMap` |
+     | `mapError` | `mapErr` |
+     | `optionToResult` | `fromOptional` |
+     | `resultToOption` | `toOptional` |
+     | `toNullable` | `unwrap` |
+  
+  2. Read the values of the safe middleware (`safeList`, `safeQueue`, `safeDeque` and `safeMap`) with the field `tag`, not `_tag`. A present value is `{ tag: "some", value }`. An absent value is `{ tag: "none" }`.
+  3. Import the 13 channel names (`Channel`, `select`, `timeout`, `ticker`, `pipeline`, `fanOut`, `fanIn`, `merge`, `buffered`, `unbuffered`, `channel`, `workerPool` and the type `SelectCase`) from `@mark1russell7/service/channel`.
+  4. Use the retries of `@mark1russell7/service` in place of the retry names of collections.
+  5. Change the second names to the names of the table. Do not nest the locked uses of `synchronized`.
+  
+     | Old name | New name |
+     | --- | --- |
+     | `unmodifiableList` | `readonlyList` |
+     | `unmodifiableMap` | `readonlyMap` |
+     | `unmodifiableCollection` | `readonlyCollection` |
+     | `mutableListOf` | `listOf` |
+     | `mutableMapOf` | `mapOf` |
+     | `safe` | `safeList`, `safeQueue`, `safeDeque` or `safeMap` |
+     | `reentrantSynchronized` | `synchronized` |
+  
+  6. The other removed names have no replacement. The `@deprecated` tag of the last release names each of them.
+  
+  These behaviors of the re-exported names change:
+  
+  - `defaultCompare` orders values of different types by type first. A sort of values of mixed types gives a different order. `1` and `"1"` are not equal.
+  - `range` gives `start + i * step` at index `i`. So `range(0, 1, 0.1)` gives 10 numbers, not 11. A value that is not finite, or a `step` of 0, throws a `RangeError`.
+  - `nCopies` throws a `RangeError` when `n` is not a safe integer of 0 or more.
+  - A full `boundedList` with `drop-oldest` drops the last element at `insert(0, x)`, as `unshift(x)` does.
+  - A full `boundedDeque` with `drop-oldest` drops the last element at `addFirst`.
+  - An expired entry of `ttlMap` is not in `size`, `getOrUndefined` or the iteration.
+  - An evented layer gives no event for an element that a layer below refused.
+  
+  `@procedures/dag` and `@procedures/client` use the range `^0.10.0` too. Their exports do not change. These behaviors of `@procedures/dag` change:
+  
+  - With `failFast: false`, `executeDAG` does not start a node whose dependency failed. The node gets a skipped result, and `DAGResult.skippedNodes` has its id. To start each node, as before, give the option `skipDependents: false`.
+  - `dag.traverse` with `continueOnError` does not start the visit of a package whose dependency failed or was skipped. Its result has `skipped: true` and a `reason` with the error of the dependency. Before, the traversal visited such a package.
+  - A caller of `dag.traverse` with `continueOnError` that reads `visited` or `skipped` finds the dependents of a failed package in `skipped`.
+- 1401489: The tarball of each package leaves out `dist/.tsbuildinfo`. The `files` list of each package has the entry `!dist/.tsbuildinfo` after `dist`.
+  
+  The build writes this file for incremental builds. An app does not use it, and it added its size to each tarball (61 KB in `@procedures/json` 0.52.3). The conventions rule `pack-no-buildinfo` finds it.
+  
+  PATCH: the exports and the behavior do not change.
+
+## 0.53.1
+
+### Patch Changes
+
+- 84f0c78: The mongo store limits its change reads and its passes of the views with `semaphore()` of `@mark1russell7/collections`, the home of the semaphore. The behavior does not change: the permits go to the callers in FIFO order.
+  
+  The class `Semaphore` of `@procedures/client` is deprecated. Use `semaphore(permits)` of `@mark1russell7/collections` in its place. Its `run(task)` replaces `withPermit(fn)`, and its `acquire()` gives the release function. The next MINOR break of `@procedures/client` removes the class.
+- abf290c: `hostPolicy()` takes the option `trustBaggage`, and `procedureServerOptions()` gives it to the `ProcedureServer` (C10). A host made from a policy can now trust the baggage of more callers.
+
+## 0.53.0
+
+### Patch Changes
+
+- bc98f77: `isW3cIds()`, `parseTraceparent()`, `newTraceId()` and `newSpanId()` check the ids with `isValidTraceId()` and `isValidSpanId()` of `@opentelemetry/api` (decision D7 of otel-ts). The results do not change. An id of only zeros is not valid, and `isW3cIds()` still refuses uppercase digits, as W3C Trace Context requires.
+- 11d9084: The browser entry exports `electronPortOf` and the type `MainPortLike`. The function gives the `PortLike` of a `MessagePortMain` of Electron, whose listener gets an event with the message in `data`. An Electron app can delete its own adapter.
+- d28ccb5: Each handler runs in the context of OpenTelemetry of its caller (roadmap item C10 of otel-ts). Thus its logs, metrics, spans and nested calls carry the ids of the trace of the caller, also on a host with no tracing interceptor.
+  
+  - `ProcedureServer` makes the remote span of the `traceparent` and `tracestate` of the metadata the parent of the handler. It uses the `baggage` of the metadata only from a trusted caller: a local request, a request with the token of the server, or a request that the new option `trustBaggage(request)` names. For another caller, the handler runs with no baggage, also when the HTTP instrumentation of an SDK read a `baggage` header.
+  - The MCP face puts the keys `traceparent`, `tracestate` and `baggage` of the `_meta` of a tool call into the metadata of the call. Over Streamable HTTP, the headers with these names apply when `_meta` does not have the key.
+  - `mark` sends the environment variables `TRACEPARENT`, `TRACESTATE` and `BAGGAGE` with its call, as the metadata keys `traceparent`, `tracestate` and `baggage`.
+- 735cfcf: A call with no active span continues the trace context that the caller gave in its metadata (roadmap item C19 of otel-ts). Before, with an SDK, the client span of such a call started a new trace, and the propagator wrote that trace over the `traceparent` of the metadata. Thus `mark` in a program with an SDK lost the trace of its variables `TRACEPARENT` and `TRACESTATE`: the baggage came to the handler, but its spans and logs were in another trace. An active span is still the parent when there is one, and each try reads the trace context of the caller, not the trace context of the try before it.
+  
+  The unit tests of `@procedures/mark` use the propagation gate of rigor-testkit on the two entries of `mark`: the MCP face and the CLI call to the CLI server. Each call of the gate runs in the root context, so only the carrier of the entry (`_meta`, or the environment variables) takes the context. The gate found this fault.
+- The packages use the new versions of their dependencies of the owner: `@mark1russell7/service` `^0.8.3`, `@mark1russell7/coeval` `^0.26.1` and `@mark1russell7/docker-sqlite` `^0.3.0`. The range of `@mark1russell7/collections` stays `^0.5.0`: its version 0.7.0 and later remove names that `@procedures/collections` exports.
+- 556d0a8: The packages use `@mark1russell7/service` `^0.8.2` in place of `^0.6.0`. Version 0.7.0 adds the refusal cause `capacity`, and version 0.8.0 refuses a listen backlog of 0. Version 0.8.2 adds the call context of OpenTelemetry. The types `Clock` and `Cancel` of `@mark1russell7/service/clock` do not change: their home is `@mark1russell7/algebra/clock`, and the entry gives them again.
+  
+  A refusal of a call limit with the cause `capacity` gives `RATE_LIMITED` that is not retryable and has no `retry-after`. A take of one unit does not get this cause, because each policy holds 1 unit or more.
+
+## 0.52.5
+
+### Patch Changes
+
+- 25a5f44: The calls of a client and the invocations of a host use the context of OpenTelemetry (roadmap item C8 of otel-ts, decisions D5 and D6).
+  
+  - `@procedures/client` now depends on `@opentelemetry/api`. The API does nothing until a program registers an SDK, for example with `startNodeTelemetry()` of `@mark1russell7/otel-ts/node`.
+  - With an SDK, each try of a call is a client span of the API. The registered propagator writes `traceparent`, `tracestate` and `baggage` into the metadata, with the mark of an internal call. The propagator of otel-ts sends the baggage only on a call with this mark.
+  - With an SDK, `tracingInterceptor` takes the span ids from a span of the API: a host span for a call of a host, an internal span for a nested call. The handler runs in the context of its span. The host reads no baggage from the metadata.
+  - With no SDK, the behavior does not change: the W3C code of R16 operates.
+  - The new option `apiSpans: false` of `tracingInterceptor` turns the spans of the API off. `metricsInterceptor` uses it.
+  - `tracestate` and `baggage` are in the default CORS headers, and the cache key does not use them.
+  - The W3C exports of `tracing/traceparent.ts` are `@deprecated`. A later MINOR removes them, when the site, MiniMongo, Graph and jarvis register an SDK.
+
+## 0.52.4
+
+No changes in this release.
+
+## 0.52.3
+
+### Patch Changes
+
+- db1bcaa: Fixes of the weekly audit of 2026-11-08:
+  
+  - `@procedures/client`: the batch reader of the HTTP client goes on after the abort of a call with a full buffer. Before, the reader waited with no end, and the other calls of the batch waited too.
+  - `@procedures/client`: a subscriber that joins after a publish gets the new value of an object that changed and is published again. Before, it could get the text of the first publish.
+  - `@procedures/client`: a lazy registry loads no package for a request that the server refuses, or for a path outside the expose rule of the face. A lazy registry warns about at most 1000 paths that are not in its index.
+  - `@procedures/client`: an `exclude` entry with a plain dot hides a path whose segment has a dot, as the encoded key does.
+  - `@procedures/mongo`: a full answer keeps each item when the stored ids are not strings. A change stream that stops in a split event opens again before the event, and joins all its fragments.
+  - `@procedures/restic`: an `sftp:` location with a part after an `@` that starts with `-` gets a refusal.
+  - `@procedures/cli-run`: the doc of `cli.run` tells that a value that starts with `@` goes to `mark` as it is.
+
+## 0.52.2
+
+No changes in this release.
+
+## 0.52.1
+
+No changes in this release.
+
+## 0.52.0
+
+No changes in this release.
+
+## 0.51.0
+
+### Patch Changes
+
+- 0c3bfa3: A server encodes an event once for each topic, not once for each subscriber. The WebSocket and the NDJSON transports put the same text in the frame of each connection.
+  
+  Before this change, one event cost subscribers x event bytes of encode work. The text of each frame stays byte-equal to the text before this change.
+  
+  A source can publish the same object again after a change. That publish is a new event, and its frames encode the new value.
+
+## 0.50.0
+
+### Minor Changes
+
+- 54cdb34: The live state has two limits of bytes: `maxTopicBytes` for each topic, and `maxBytes` for all topics.
+  
+  The product of the earlier limits is more than 64 GiB, so they did not bound the memory of a host. The defaults are 1 MiB for a topic and 64 MiB for a state.
+  
+  The bench `live-limits` set the defaults in run 42152574477, on hosts with a heap limit of 4,496,293,888 bytes (4.19 GiB). A full topic at 1 MiB kept 1,075,659 bytes of heap. A full state at 64 MiB kept 68,842,177 bytes, 1.53 percent of that heap. With the earlier limits, 261 full topics filled the heap. A set that adds bytes above a limit gets `FORBIDDEN` with the reason `write-not-allowed`. A set that makes a value smaller goes. The getter `bytes` gives the bytes of the values, as JSON.
+  
+  A value from another host has the same limits. A value that does not fit is not kept, and the old value of its key ends with the reason `expired`.
+  
+  Migration: find the hosts that keep more than 1 MiB of values on one topic, or more than 64 MiB in all. Each of them sets `maxTopicBytes` or `maxBytes` in the option `live` of `EventPublisher`.
+
 ## 0.49.1
 
 ### Patch Changes

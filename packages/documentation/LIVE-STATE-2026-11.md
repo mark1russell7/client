@@ -68,9 +68,29 @@ Each host runs the deadlines on its own clock. The `gone` of a closed connection
 | Keys on a topic | 1,024, until the bench reads its cost | A set of a new key is refused, and the existing values stay. |
 | Bytes of a value, as JSON | 16,384, until the bench reads its cost | The set is refused. |
 | Topics of a state | 4,096, until the bench reads its cost | A topic with no key and no open window goes. If none exists, a set on a new topic is refused. |
+| Bytes of the values of a topic, as JSON (`maxTopicBytes`) | 1 MiB | A set that adds bytes is refused. A set that makes a value smaller goes. |
+| Bytes of all values of a state, as JSON (`maxBytes`) | 64 MiB | A set that adds bytes is refused. A set that makes a value smaller goes. |
 | A set over HTTP | Each set is one request, and it has no owner connection | Only its time ends it. |
 
 A limit comes from a measure, with its run ids and its formula, as for each limit of this repository.
+
+The product of the keys, the bytes of a value and the topics is more than 64 GiB. So these three limits do not bound the memory of a host. The two limits of bytes bound it.
+
+The bench `live-limits` read the cost of the limits in run 42152574477: 5 jobs of 6 rounds, with a heap limit of 4,496,293,888 bytes.
+
+| Measure | Result |
+| --- | --- |
+| A full topic with the old limits (1,024 keys of 16 KiB) | 17,210,544 bytes of heap, so 261 full topics fill the heap |
+| A full topic at 1 MiB | 1,075,659 bytes of heap |
+| A full state at 64 MiB | 68,842,177 bytes of heap, 1.53 percent of the heap limit |
+| One window event of a full topic of 1,023 keys of 16 KiB, to 10 subscribers | 264 ms of block of the event loop |
+| One window event of a topic of 63 keys of 16 KiB (approximately 1 MiB), to 10 subscribers | 15 ms of block |
+| A `set` of 256 bytes, and of 16 KiB | 3.2 µs and 31.7 µs |
+
+- The limit of a topic bounds a snapshot and a window event. A window event carries each changed key of its topic to each subscriber.
+- The limit of a state bounds the memory of all topics.
+- A value from another host has the same limits. A value that does not fit is not kept, and the old value of its key ends with the reason `expired`. The subscribers of this host got the new value from the bus.
+- The getter `bytes` gives the bytes of the values of a state, as JSON.
 
 ## The cost, read
 

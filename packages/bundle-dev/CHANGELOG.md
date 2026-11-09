@@ -1,5 +1,190 @@
 # @procedures/bundle-dev
 
+## 0.54.0
+
+### Patch Changes
+
+- 1401489: The tarball of each package leaves out `dist/.tsbuildinfo`. The `files` list of each package has the entry `!dist/.tsbuildinfo` after `dist`.
+  
+  The build writes this file for incremental builds. An app does not use it, and it added its size to each tarball (61 KB in `@procedures/json` 0.52.3). The conventions rule `pack-no-buildinfo` finds it.
+  
+  PATCH: the exports and the behavior do not change.
+- Updated dependencies [ef8e080]
+- Updated dependencies [1401489]
+  - @procedures/dag@0.54.0
+  - @procedures/client@0.54.0
+  - @procedures/cli-run@0.54.0
+  - @procedures/fs@0.54.0
+  - @procedures/git@0.54.0
+  - @procedures/lib@0.54.0
+  - @procedures/pnpm@0.54.0
+  - @procedures/procedure@0.54.0
+  - @procedures/shell@0.54.0
+  - @procedures/compiler@0.54.0
+
+## 0.53.1
+
+### Patch Changes
+
+- Updated dependencies [84f0c78]
+- Updated dependencies [abf290c]
+  - @procedures/client@0.53.1
+  - @procedures/cli-run@0.53.1
+  - @procedures/dag@0.53.1
+  - @procedures/fs@0.53.1
+  - @procedures/git@0.53.1
+  - @procedures/lib@0.53.1
+  - @procedures/pnpm@0.53.1
+  - @procedures/procedure@0.53.1
+  - @procedures/shell@0.53.1
+  - @procedures/compiler@0.53.1
+
+## 0.53.0
+
+### Patch Changes
+
+- Updated dependencies [bc98f77]
+- Updated dependencies [11d9084]
+- Updated dependencies [d28ccb5]
+- Updated dependencies [735cfcf]
+- Updated dependencies
+- Updated dependencies [556d0a8]
+  - @procedures/client@0.53.0
+  - @procedures/compiler@0.53.0
+  - @procedures/cli-run@0.53.0
+  - @procedures/dag@0.53.0
+  - @procedures/fs@0.53.0
+  - @procedures/git@0.53.0
+  - @procedures/lib@0.53.0
+  - @procedures/pnpm@0.53.0
+  - @procedures/procedure@0.53.0
+  - @procedures/shell@0.53.0
+
+## 0.52.5
+
+### Patch Changes
+
+- Updated dependencies [25a5f44]
+  - @procedures/client@0.52.5
+  - @procedures/cli-run@0.52.5
+  - @procedures/dag@0.52.5
+  - @procedures/fs@0.52.5
+  - @procedures/git@0.52.5
+  - @procedures/lib@0.52.5
+  - @procedures/pnpm@0.52.5
+  - @procedures/procedure@0.52.5
+  - @procedures/shell@0.52.5
+  - @procedures/compiler@0.52.5
+
+## 0.52.4
+
+### Patch Changes
+
+- @procedures/client@0.52.4
+  - @procedures/cli-run@0.52.4
+  - @procedures/dag@0.52.4
+  - @procedures/fs@0.52.4
+  - @procedures/git@0.52.4
+  - @procedures/lib@0.52.4
+  - @procedures/pnpm@0.52.4
+  - @procedures/procedure@0.52.4
+  - @procedures/shell@0.52.4
+  - @procedures/compiler@0.52.4
+
+## 0.52.3
+
+### Patch Changes
+
+- Updated dependencies [db1bcaa]
+  - @procedures/client@0.52.3
+  - @procedures/cli-run@0.52.3
+  - @procedures/dag@0.52.3
+  - @procedures/fs@0.52.3
+  - @procedures/git@0.52.3
+  - @procedures/lib@0.52.3
+  - @procedures/pnpm@0.52.3
+  - @procedures/procedure@0.52.3
+  - @procedures/shell@0.52.3
+  - @procedures/compiler@0.52.3
+
+## 0.52.2
+
+### Patch Changes
+
+- @procedures/client@0.52.2
+  - @procedures/cli-run@0.52.2
+  - @procedures/dag@0.52.2
+  - @procedures/fs@0.52.2
+  - @procedures/git@0.52.2
+  - @procedures/lib@0.52.2
+  - @procedures/pnpm@0.52.2
+  - @procedures/procedure@0.52.2
+  - @procedures/shell@0.52.2
+  - @procedures/compiler@0.52.2
+
+## 0.52.1
+
+### Patch Changes
+
+- Updated dependencies [d0f3362]
+  - @procedures/git@0.52.1
+  - @procedures/lib@0.52.1
+  - @procedures/client@0.52.1
+  - @procedures/cli-run@0.52.1
+  - @procedures/dag@0.52.1
+  - @procedures/fs@0.52.1
+  - @procedures/pnpm@0.52.1
+  - @procedures/procedure@0.52.1
+  - @procedures/shell@0.52.1
+  - @procedures/compiler@0.52.1
+
+## 0.52.0
+
+### Patch Changes
+
+- @procedures/client@0.52.0
+  - @procedures/cli-run@0.52.0
+  - @procedures/dag@0.52.0
+  - @procedures/fs@0.52.0
+  - @procedures/git@0.52.0
+  - @procedures/lib@0.52.0
+  - @procedures/pnpm@0.52.0
+  - @procedures/procedure@0.52.0
+  - @procedures/shell@0.52.0
+  - @procedures/compiler@0.52.0
+
+## 0.51.0
+
+### Patch Changes
+
+- Updated dependencies [0c3bfa3]
+  - @procedures/client@0.51.0
+  - @procedures/cli-run@0.51.0
+  - @procedures/dag@0.51.0
+  - @procedures/fs@0.51.0
+  - @procedures/git@0.51.0
+  - @procedures/lib@0.51.0
+  - @procedures/pnpm@0.51.0
+  - @procedures/procedure@0.51.0
+  - @procedures/shell@0.51.0
+  - @procedures/compiler@0.51.0
+
+## 0.50.0
+
+### Patch Changes
+
+- Updated dependencies [54cdb34]
+  - @procedures/client@0.50.0
+  - @procedures/cli-run@0.50.0
+  - @procedures/dag@0.50.0
+  - @procedures/fs@0.50.0
+  - @procedures/git@0.50.0
+  - @procedures/lib@0.50.0
+  - @procedures/pnpm@0.50.0
+  - @procedures/procedure@0.50.0
+  - @procedures/shell@0.50.0
+  - @procedures/compiler@0.50.0
+
 ## 0.49.1
 
 ### Patch Changes

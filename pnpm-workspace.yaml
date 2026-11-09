@@ -7,6 +7,8 @@ packages:
 allowBuilds:
   esbuild: true
   "@swc/core": false
+  # The OTLP exporters of otel-ts (a dev dependency of client) bring protobufjs. Its script only examines a version.
+  protobufjs: false
 
 minimumReleaseAgeExclude:
   # Our own packages: the release train updates them, so the release age check of pnpm does not apply to them.

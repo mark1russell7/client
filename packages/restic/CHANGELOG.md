@@ -1,5 +1,110 @@
 # @procedures/restic
 
+## 0.54.0
+
+### Patch Changes
+
+- 1401489: The tarball of each package leaves out `dist/.tsbuildinfo`. The `files` list of each package has the entry `!dist/.tsbuildinfo` after `dist`.
+  
+  The build writes this file for incremental builds. An app does not use it, and it added its size to each tarball (61 KB in `@procedures/json` 0.52.3). The conventions rule `pack-no-buildinfo` finds it.
+  
+  PATCH: the exports and the behavior do not change.
+- Updated dependencies [ef8e080]
+- Updated dependencies [1401489]
+  - @procedures/client@0.54.0
+  - @procedures/shell@0.54.0
+
+## 0.53.1
+
+### Patch Changes
+
+- Updated dependencies [84f0c78]
+- Updated dependencies [abf290c]
+  - @procedures/client@0.53.1
+  - @procedures/shell@0.53.1
+
+## 0.53.0
+
+### Patch Changes
+
+- Updated dependencies [bc98f77]
+- Updated dependencies [11d9084]
+- Updated dependencies [d28ccb5]
+- Updated dependencies [735cfcf]
+- Updated dependencies
+- Updated dependencies [556d0a8]
+  - @procedures/client@0.53.0
+  - @procedures/shell@0.53.0
+
+## 0.52.5
+
+### Patch Changes
+
+- Updated dependencies [25a5f44]
+  - @procedures/client@0.52.5
+  - @procedures/shell@0.52.5
+
+## 0.52.4
+
+### Patch Changes
+
+- @procedures/client@0.52.4
+  - @procedures/shell@0.52.4
+
+## 0.52.3
+
+### Patch Changes
+
+- db1bcaa: Fixes of the weekly audit of 2026-11-08:
+  
+  - `@procedures/client`: the batch reader of the HTTP client goes on after the abort of a call with a full buffer. Before, the reader waited with no end, and the other calls of the batch waited too.
+  - `@procedures/client`: a subscriber that joins after a publish gets the new value of an object that changed and is published again. Before, it could get the text of the first publish.
+  - `@procedures/client`: a lazy registry loads no package for a request that the server refuses, or for a path outside the expose rule of the face. A lazy registry warns about at most 1000 paths that are not in its index.
+  - `@procedures/client`: an `exclude` entry with a plain dot hides a path whose segment has a dot, as the encoded key does.
+  - `@procedures/mongo`: a full answer keeps each item when the stored ids are not strings. A change stream that stops in a split event opens again before the event, and joins all its fragments.
+  - `@procedures/restic`: an `sftp:` location with a part after an `@` that starts with `-` gets a refusal.
+  - `@procedures/cli-run`: the doc of `cli.run` tells that a value that starts with `@` goes to `mark` as it is.
+- Updated dependencies [db1bcaa]
+  - @procedures/client@0.52.3
+  - @procedures/shell@0.52.3
+
+## 0.52.2
+
+### Patch Changes
+
+- @procedures/client@0.52.2
+  - @procedures/shell@0.52.2
+
+## 0.52.1
+
+### Patch Changes
+
+- @procedures/client@0.52.1
+  - @procedures/shell@0.52.1
+
+## 0.52.0
+
+### Patch Changes
+
+- @procedures/client@0.52.0
+  - @procedures/shell@0.52.0
+
+## 0.51.0
+
+### Patch Changes
+
+- Updated dependencies [0c3bfa3]
+  - @procedures/client@0.51.0
+  - @procedures/shell@0.51.0
+
+## 0.50.0
+
+### Patch Changes
+
+- Updated dependencies [54cdb34]
+  - @procedures/client@0.50.0
+  - @procedures/shell@0.50.0
+
 ## 0.49.1
 
 ### Patch Changes

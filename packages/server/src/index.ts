@@ -10,6 +10,8 @@ export { parseConfig, parseTopicPatterns } from "./config.js";
 export { runServer, startServer, loadProcedureModule, type RunningServer, type ServerRunOptions } from "./run.js";
 // The runner entry of the procedures host (CLI-8): the only entry that starts run()
 export { runProcedureHost, HOST_PROFILES, type ProcedureHostRunConfig, type RunningHost, type HostRunMode } from "./host.js";
+// The telemetry SDK of the app (CLI-130): the option `telemetry` of runProcedureHost()
+export { TELEMETRY_FLUSH_PHASE, type HostTelemetry, type HostTelemetryOptions } from "./host.js";
 // The idle stop of a host (CLI-27): the option `idle` of runProcedureHost()
 export { IDLE_POLL_MS, type HostIdle } from "./idle.js";
 export type {

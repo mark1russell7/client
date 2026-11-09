@@ -87,6 +87,17 @@ describe("global flags and procedure flags (CLI-7)", () => {
   });
 });
 
+describe("values that start with @ (audit 2026-11-08)", () => {
+  // cli.run sends each string value as it is (buildMarkArgs of @procedures/cli-run). That is safe
+  // only while mark reads no files: with a readFile option, "@<file>" is the text of a local file.
+  it("keeps the text @<file> and @@<text> of a flag and of an argument: mark reads no files", () => {
+    for (const text of ["@package.json", "@@package.json", "@", "@-x"]) {
+      expect(parse(["git", "commit", `--message=${text}`])).toMatchObject({ errors: [], input: { message: text } });
+      expect(parse(["fs", "exists", "--", text])).toMatchObject({ errors: [], input: { path: text } });
+    }
+  });
+});
+
 describe("conversion by the field type (CLI-9)", () => {
   it("keeps the text of a string field", () => {
     expect(parse(["fs", "exists", "2024"]).input).toEqual({ path: "2024" });

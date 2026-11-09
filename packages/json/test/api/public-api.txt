@@ -52,6 +52,7 @@ csvStringify: dist/procedures/csv/stringify.d.ts#csvStringify
 diffJson: dist/diff.d.ts#diffJson
 escapeToken: dist/value.d.ts#escapeToken
 formatPointer: dist/value.d.ts#formatPointer
+isPlainObject: dist/value.d.ts#isPlainObject
 jsonDiff: dist/procedures/json/diff.d.ts#jsonDiff
 jsonEqual: dist/value.d.ts#jsonEqual
 jsonMerge: dist/procedures/json/merge.d.ts#jsonMerge
@@ -422,6 +423,9 @@ export declare function escapeToken(token: string | number): string;
 
 ### dist/value.d.ts#formatPointer
 export declare function formatPointer(tokens: readonly (string | number)[]): string;
+
+### dist/value.d.ts#isPlainObject
+export declare function isPlainObject(value: unknown): value is Record<string, unknown>;
 
 ### dist/value.d.ts#jsonEqual
 export declare function jsonEqual(a: JsonValue, b: JsonValue): boolean;

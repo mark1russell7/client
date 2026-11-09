@@ -69,7 +69,7 @@
  *   it. One case stays on a single server: a process that stops between such a late write and the
  *   move of its documents. Then a reader that passed the old numbers does not get that change.
  * - A reader can get a write two times, with the same value or a later value. A full answer takes
- *   its mark before it lists the items, so it can hold a write above its mark, and the next delta
+ *   its mark after it lists the items, and it can hold a write above its mark, so the next delta
  *   gives the write again. A reader can also read a late write at its old numbers, and then the move
  *   gives the write new numbers and a new version. The second case occurs only for a write that ends
  *   after `writeLease`.
@@ -119,11 +119,13 @@ import {
   type StorageWriteOptions,
   type VersionConflict,
 } from "@procedures/collections";
-import { optionalMs, Semaphore, toMs, type Duration } from "@procedures/client";
+import { semaphore, type Semaphore } from "@mark1russell7/collections";
+import { optionalMs, toMs, type Duration } from "@procedures/client";
 import { ensureConnection } from "../connection.js";
 import { noteOwnNumbers, notePrunedIds, ownerOf } from "./own-writes.js";
 import { boundPipeline, cutResults, DEFAULT_PIPELINE_LIMITS, scopePipeline, type PipelineLimits } from "./pipeline-scope.js";
 import { CHANGE_READ_DIVISOR, poolShare } from "./pool-share.js";
+import { escapeRegExp as escapeRegex } from "@mark1russell7/text";
 
 /** The fields of the storage in a stored document. */
 const KEY = "_key";
@@ -229,6 +231,26 @@ export interface MongoDocumentStorageOptions<T = unknown> {
   /** The collection of the sequence counters (default `__storage_counters`). */
   counters?: string | undefined;
   /**
+   * The sequence of the numbers of the writes (roadmap CLI-96). `collection` (the default): one counter for the collection.
+   * `partition`: one counter and one write queue for each partition, so the writes of two partitions share no document.
+   *
+   * - Give the same value to each store of a collection. A store refuses a collection that has the other sequence, with a clear error.
+   * - A store with `partition` refuses a collection with numbers on its counter of the collection. Use it for a new collection.
+   * - One partition keeps the limit of one collection with the default: approximately 400 writes a second, and a stated limit of 200.
+   */
+  sequence?: "collection" | "partition" | undefined;
+  /**
+   * The most writes of each client at one time, over the stores with the same value (roadmap CLI-96). The default is 8.
+   * A write waits for a permit after its turn in the write queue of its counter.
+   *
+   * - With `sequence: "partition"`, each partition has its own queue. Without this bound, each partition of a process has a transaction open at once.
+   * - A whole number of 1 or more, or `Infinity` for no bound. Another value is a `RangeError`.
+   * - The sweeps of 2, 4, 8, 16 and `Infinity` at the bench cases `400-p2` and `4000-p2` set the default of 8.
+   * - With `sequence: "partition"`, `Infinity` costs approximately 30 % of the writes a second. The bench run 42428048767
+   *   gives 638.5 against 916.5 of the default sequence at `4000-p2`. The store emits a process warning one time for it.
+   */
+  writesInFlight?: number | undefined;
+  /**
    * The time after which a pending number of a write no longer holds the watermark (default 60 s):
    * a writer that stopped does not stop the change reads. A plain number is a `TypeError`.
    */
@@ -284,13 +306,31 @@ interface PendingRange {
   at: Date;
 }
 
-/** A document of the counters: the sequence of a collection, or the floor of the log of a partition. */
+/** A document of the counters: the sequence of a collection or of a partition, or the floor of the log of a partition. */
 interface CounterDoc {
   _id: string;
   seq?: number;
   epoch?: string;
   floor?: number;
   pending?: PendingRange[];
+  /** `partition` on the counter of a collection whose stores have the option `sequence: "partition"` (roadmap CLI-96). */
+  sequence?: string;
+}
+
+/**
+ * The checks of the sequence of each collection (roadmap CLI-96): by the client, then by the names of the database, the
+ * counters and the collection. A check that fails leaves no entry, so the next call tries again.
+ */
+const SEQUENCE_CHECKS = new WeakMap<object, Map<string, Promise<void>>>();
+
+/** The error of a store whose sequence is not the sequence of its collection (roadmap CLI-96). */
+function sequenceMismatch(collection: string, sequence: "collection" | "partition"): Error {
+  return sequence === "partition"
+    ? new Error(
+        `The collection ${collection} has numbers on its counter of the collection, so the option sequence "partition" refuses it. ` +
+          "The option is for a collection with no writes. The move of a live collection is a step with all processes stopped."
+      )
+    : new Error(`The collection ${collection} has a counter for each partition. Give the option sequence "partition" to each store of it.`);
 }
 
 /** True when a client is on a replica set or a sharded cluster: it has transactions. */
@@ -312,72 +352,76 @@ function hasTransactions(db: Db): Promise<boolean> {
 
 /** The most moves of a late write to new numbers. */
 const MAX_MOVES = 10;
-
-/** The ends of the work of one collection. These promises do not reject. */
-interface WorkQueue {
-  /** The end of each earlier write and change read. */
-  all: Promise<unknown>;
-  /** The end of the last write. */
-  writes: Promise<unknown>;
-}
+/** The most lists of one full result, when a prune or a new epoch passes its marks. */
+const MOST_FULL_TRIES = 3;
 
 /**
- * The writes and the change reads of each collection: by the client, then by the names of the database and the
- * collection. A new `Db` object of the same client has the same queue (roadmap CLI-93). A write goes alone, in the
- * order of the calls. A change read goes after each earlier write, next to the other change reads. So a read and a
- * write keep the order of their calls, and a read does not wait for a read (roadmap CLI-91).
+ * The end of the last write of each collection: by the client, then by the names of the database and the collection.
+ * These promises do not reject. A new `Db` object of the same client has the same queue (roadmap CLI-93). A write goes
+ * alone, in the order of the calls. A change read is not in this queue (roadmap CLI-102). The mark of a read stops
+ * below each write in flight, so a read does not need the end of a write of this process.
  */
-const QUEUES = new WeakMap<object, Map<string, WorkQueue>>();
+const QUEUES = new WeakMap<object, Map<string, Promise<unknown>>>();
 
 /** The change reads of each client at one time. A burst of reads leaves the pool to the other operations. */
 const READS = new WeakMap<object, Semaphore>();
 
-function queueOf(db: Db, name: string): { queues: Map<string, WorkQueue>; collection: string; queue: WorkQueue } {
+/** The default of the option `writesInFlight`: the most writes of each client at one time (roadmap CLI-96). */
+export const DEFAULT_WRITES_IN_FLIGHT = 8;
+
+/** The code of the process warning for a store with `sequence: "partition"` and no bound on its writes. */
+export const UNBOUNDED_PARTITION_WARNING = "PROCEDURES_MONGO_UNBOUNDED_PARTITION";
+
+let warnedUnboundedPartition = false;
+
+/** This function emits the process warning of an unbounded store with a counter for each partition, one time. */
+function warnUnboundedPartition(): void {
+  if (warnedUnboundedPartition) return;
+  warnedUnboundedPartition = true;
+  process.emitWarning(
+    'writesInFlight: Infinity with sequence: "partition" costs approximately 30 % of the writes a second. Use the default bound of 8.',
+    { code: UNBOUNDED_PARTITION_WARNING },
+  );
+}
+
+/** The permits of the writes of each client, by the value of `writesInFlight`: the stores with one value share the permits. */
+const WRITES = new WeakMap<object, Map<number, Semaphore>>();
+
+/** This function gives the permits of the writes of a client for a bound. */
+function writePermitsOf(db: Db, bound: number): Semaphore {
+  const owner = ownerOf(db);
+  let byBound = WRITES.get(owner);
+  if (!byBound) WRITES.set(owner, (byBound = new Map()));
+  let permits = byBound.get(bound);
+  if (!permits) byBound.set(bound, (permits = semaphore(bound)));
+  return permits;
+}
+
+/** This function starts a write after each earlier write of the collection. */
+function enqueueWrite<R>(db: Db, name: string, task: () => Promise<R>): Promise<R> {
   const owner = ownerOf(db);
   let queues = QUEUES.get(owner);
   if (!queues) QUEUES.set(owner, (queues = new Map()));
   const collection = `${db.databaseName}\u0000${name}`;
-  let queue = queues.get(collection);
-  if (!queue) queues.set(collection, (queue = { all: Promise.resolve(), writes: Promise.resolve() }));
-  return { queues, collection, queue };
-}
-
-/** This function drops the queue of a collection when this end is the last of its work. */
-function dropWhenLast(queues: Map<string, WorkQueue>, collection: string, queue: WorkQueue, end: Promise<unknown>): void {
-  void end.then(() => {
-    if (queue.all === end && queues.get(collection) === queue) queues.delete(collection);
-  });
-}
-
-const settledOf = (run: Promise<unknown>): Promise<unknown> =>
-  run.then(
+  const run = (queues.get(collection) ?? Promise.resolve()).then(task);
+  const settled = run.then(
     () => undefined,
     () => undefined
   );
-
-/** This function starts a write after each earlier write and change read of the collection. */
-function enqueueWrite<R>(db: Db, name: string, task: () => Promise<R>): Promise<R> {
-  const { queues, collection, queue } = queueOf(db, name);
-  const run = queue.all.then(task);
-  const settled = settledOf(run);
-  queue.all = settled;
-  queue.writes = settled;
-  dropWhenLast(queues, collection, queue, settled);
+  const known = queues;
+  known.set(collection, settled);
+  void settled.then(() => {
+    if (known.get(collection) === settled) known.delete(collection);
+  });
   return run;
 }
 
-/** This function starts a change read after each earlier write of the collection, next to the other change reads. */
-function enqueueRead<R>(db: Db, name: string, task: () => Promise<R>): Promise<R> {
-  const { queues, collection, queue } = queueOf(db, name);
+/** This function starts a change read within the share of the client. The read waits for no write. */
+function withReadPermit<R>(db: Db, task: () => Promise<R>): Promise<R> {
   const owner = ownerOf(db);
   let reads = READS.get(owner);
-  if (!reads) READS.set(owner, (reads = new Semaphore(poolShare(db, CHANGE_READ_DIVISOR))));
-  const permits = reads;
-  const run = queue.writes.then(() => permits.withPermit(task));
-  const end = Promise.all([queue.all, settledOf(run)]);
-  queue.all = end;
-  dropWhenLast(queues, collection, queue, end);
-  return run;
+  if (!reads) READS.set(owner, (reads = semaphore(poolShare(db, CHANGE_READ_DIVISOR))));
+  return reads.run(task);
 }
 
 /**
@@ -586,6 +630,20 @@ export interface RawStorageWrite {
 /** The result of an adoption: `adopted`, `lost` (the document changed since: another adoption or write won), or `unknown` (no image and no stored `_id` tells the id and the partition). */
 export type RawAdoption = "adopted" | "lost" | "unknown";
 
+/**
+ * The key of a stored `_id` in a map: its extended JSON. Two object ids with other fields are two
+ * keys, and an `ObjectId` and its hex text are two keys too (audit 2026-11-08).
+ */
+function storedIdKey(id: unknown): string {
+  return BSON.EJSON.stringify({ v: id as never }, { relaxed: false });
+}
+
+/** The order of two stored `_id` values of one place: two texts by their text, else by their keys. */
+function idOrder(a: unknown, b: unknown, keyA: string, keyB: string): number {
+  const [x, y] = typeof a === "string" && typeof b === "string" ? [a, b] : [keyA, keyB];
+  return x < y ? -1 : x > y ? 1 : 0;
+}
+
 /** True when two values have the same BSON. */
 function sameBson(a: unknown, b: unknown): boolean {
   try {
@@ -600,10 +658,6 @@ export type RawAdoptionResult = RawAdoption | { readonly error: unknown };
 
 /** The most floor documents that `partitions()` reads. */
 const MAX_KNOWN_PARTITIONS = 10_000;
-
-function escapeRegex(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 /** The reader of the parts of a storage. The class sets it, so it can read its private fields. */
 let sourceOfStorage: <T>(storage: MongoDocumentStorage<T>) => StorageChangeSource;
@@ -654,6 +708,8 @@ export interface StorageWriteTarget {
   withPendingNumbers<R>(db: Db, count: number, write: (first: number) => Promise<R>): Promise<R>;
   /** This method writes the floor document of the partition once (roadmap O66). */
   noteFloor(db: Db): Promise<void>;
+  /** The sequence of the numbers: one counter for the collection, or one for each partition (roadmap CLI-96). */
+  readonly sequence: "collection" | "partition";
   /** This method drops the oldest tombstones over the limit, and raises the floor of the change log. */
   prune(db: Db): Promise<void>;
 }
@@ -771,17 +827,18 @@ function prefilter(selector: StorageSelector, options: SelectorPrefilterOptions,
   return parts.length === 1 ? parts[0] : { $and: parts };
 }
 
-/** The sequence counter of a collection. */
+/** The sequence counter of a collection or of a partition. */
 interface Counter {
   seq: number;
   epoch: string;
+  sequence?: string;
 }
 
 /** The watermark of a collection, with the floor of the log of a partition. */
 interface Watermark extends Counter {
   /** The floor of the log of the partition: 0 when the partition has no floor document. */
   floor: number;
-  /** True when a pending write holds the watermark below the counter. */
+  /** True when the version stops below a pending number. */
   readonly held: boolean;
 }
 
@@ -802,6 +859,8 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
   private readonly maxTombstones: number;
   private readonly countersName: string;
   private readonly writeLeaseMs: number;
+  /** The most writes of each client at one time, over the stores with this value. `Infinity` is no bound. */
+  private readonly writesInFlight: number;
   /** The storages of the partitions, for `forPartition`: the same storage for the same partition. */
   private readonly partitions: Map<string, MongoDocumentStorage<T>>;
   /** The stored form of the documents (roadmap CLI-76). A `ViewMaterializer` of the collection takes the same form. */
@@ -815,6 +874,12 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
   private indexes: Promise<void> | undefined;
   /** True after this storage wrote (or found) the floor document of its partition (roadmap O66). A failed write leaves it false. */
   private floorNoted = false;
+  /** The sequence of the numbers (roadmap CLI-96). */
+  private readonly sequence: "collection" | "partition";
+  /** The `_id` of the counter of the numbers: the collection, or the partition with the option `sequence: "partition"`. */
+  private readonly counterId: string;
+  /** The partition of the notes of the own numbers with a counter for each partition, else `undefined` (roadmap CLI-96). */
+  private readonly ownScope: string | undefined;
   private closed = false;
 
   static {
@@ -833,6 +898,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     writeTargetOfStorage = <S>(storage: MongoDocumentStorage<S>): StorageWriteTarget => ({
       collection: storage.collectionName,
       counters: storage.countersName,
+      sequence: storage.sequence,
       form: storage.form,
       partition: storage.partition,
       writeLeaseMs: storage.writeLeaseMs,
@@ -877,8 +943,18 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     this.maxTombstones = options.maxTombstones ?? 10_000;
     if (!Number.isSafeInteger(this.maxTombstones) || this.maxTombstones < 0) throw new Error("maxTombstones must be a whole number of 0 or more");
     this.countersName = options.counters ?? "__storage_counters";
+    const sequence = options.sequence ?? "collection";
+    if (sequence !== "collection" && sequence !== "partition") throw new TypeError(`sequence must be "collection" or "partition", not ${JSON.stringify(sequence)}`);
+    this.sequence = sequence;
+    this.counterId = sequence === "partition" ? `seq${SEPARATOR}${this.collectionName}${SEPARATOR}${this.partition ?? ""}` : this.collectionName;
+    this.ownScope = sequence === "partition" ? (this.partition ?? "") : undefined;
     this.writeLeaseMs = Math.round(optionalMs(options.writeLease, "writeLease") ?? 60_000);
     if (!Number.isSafeInteger(this.writeLeaseMs) || this.writeLeaseMs < 1) throw new Error("writeLease must be 1 ms or more");
+    this.writesInFlight = options.writesInFlight ?? DEFAULT_WRITES_IN_FLIGHT;
+    if (!(this.writesInFlight === Infinity || (Number.isSafeInteger(this.writesInFlight) && this.writesInFlight >= 1))) {
+      throw new RangeError(`writesInFlight must be a whole number of 1 or more, or Infinity, not ${String(options.writesInFlight)}`);
+    }
+    if (this.writesInFlight === Infinity && this.sequence === "partition") warnUnboundedPartition();
     this.partitions = partitions ?? new Map();
   }
 
@@ -1026,7 +1102,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
    */
   private async allocate(db: Db, count: number): Promise<{ first: number; epoch: string }> {
     const counter = (await db.collection<CounterDoc>(this.countersName).findOneAndUpdate(
-      { _id: this.collectionName },
+      { _id: this.counterId },
       [
         { $set: { seq: { $add: [{ $ifNull: ["$seq", 0] }, count] }, epoch: { $ifNull: ["$epoch", randomUUID()] } } },
         {
@@ -1040,7 +1116,12 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
       { upsert: true, returnDocument: "after" }
     )) as unknown as Counter | null;
     if (!counter) throw new Error(`The sequence of ${this.collectionName} is not available`);
-    return { first: counter.seq - count + 1, epoch: counter.epoch };
+    const first = counter.seq - count + 1;
+    if (this.sequence === "collection" && counter.sequence === "partition") {
+      await this.release(db, first).catch(() => undefined);
+      throw sequenceMismatch(this.collectionName, "collection");
+    }
+    return { first, epoch: counter.epoch };
   }
 
   /**
@@ -1052,7 +1133,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
   private async release(db: Db, first: number): Promise<boolean> {
     const live = { $gt: ["$$this.at", { $subtract: ["$$NOW", this.writeLeaseMs] }] };
     const after = (await db.collection<CounterDoc>(this.countersName).findOneAndUpdate(
-      { _id: this.collectionName },
+      { _id: this.counterId },
       [
         {
           $set: {
@@ -1108,19 +1189,22 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     own = true
   ): Promise<R> {
     const noteOwn = own ? noteOwnNumbers : (): void => undefined;
+    await this.checkSequence(db);
     const client = await this.transactionClient(db);
     if (client) {
       const session = client.startSession();
       try {
         return await session.withTransaction(async () => {
           const counter = (await db.collection<CounterDoc>(this.countersName).findOneAndUpdate(
-            { _id: this.collectionName },
+            { _id: this.counterId },
             { $inc: { seq: count }, $setOnInsert: { epoch: randomUUID() } },
             { upsert: true, returnDocument: "after", session }
           )) as unknown as Counter | null;
           if (!counter) throw new Error(`The sequence of ${this.collectionName} is not available`);
+          // The error aborts the transaction, so the counter keeps its number
+          if (this.sequence === "collection" && counter.sequence === "partition") throw sequenceMismatch(this.collectionName, "collection");
           // A watcher of the collection in this process skips the events of these numbers (roadmap CLI-77)
-          noteOwn(db, this.collectionName, counter.seq - count + 1, count);
+          noteOwn(db, this.collectionName, counter.seq - count + 1, count, this.ownScope);
           return write(counter.seq - count + 1, session);
         });
       } finally {
@@ -1141,10 +1225,11 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     collection: Collection<Stored>,
     count: number,
     write: (first: number) => Promise<R>,
-    noteOwn: (db: Db, collection: string, first: number, count: number) => void
+    noteOwn: (db: Db, collection: string, first: number, count: number, scope?: string) => void
   ): Promise<R> {
+    await this.checkSequence(db);
     let { first } = await this.allocate(db, count);
-    noteOwn(db, this.collectionName, first, count);
+    noteOwn(db, this.collectionName, first, count, this.ownScope);
     let result: R;
     try {
       result = await write(first);
@@ -1156,7 +1241,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
       if (moves >= MAX_MOVES) throw new Error(`A write of ${this.collectionName} stayed late after ${MAX_MOVES} moves to new numbers`);
       // Late: a reader can have passed these numbers. The write takes new ones.
       const next = (await this.allocate(db, count)).first;
-      noteOwn(db, this.collectionName, next, count);
+      noteOwn(db, this.collectionName, next, count, this.ownScope);
       await this.move(collection, first, count, next);
       first = next;
     }
@@ -1166,20 +1251,23 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
   /**
    * The watermark of the collection: the highest number below each pending number of a write whose
    * lease has not ended, the epoch, and the floor of the partition. Each number up to it is written
-   * or abandoned. One command reads them. Only the first read of a collection writes: it makes the counter.
+   * or abandoned. One command reads them. Only the first read of a store writes: it makes the counter. With the
+   * option `sequence: "partition"`, the first read of each process also marks the counter of the collection.
    */
   private async watermark(db: Db): Promise<Watermark> {
+    await this.checkSequence(db);
     const counters = db.collection<CounterDoc>(this.countersName);
     const floorId = this.floorId();
-    const read = (): Promise<Array<{ _id: string; seq: number; epoch: string; floor?: number; low: number | null }>> =>
+    const read = (): Promise<Array<{ _id: string; seq: number; epoch: string; floor?: number; low: number | null; sequence?: string }>> =>
       counters
-        .aggregate<{ _id: string; seq: number; epoch: string; floor?: number; low: number | null }>([
-          { $match: { _id: { $in: [this.collectionName, floorId] } } },
+        .aggregate<{ _id: string; seq: number; epoch: string; floor?: number; low: number | null; sequence?: string }>([
+          { $match: { _id: { $in: [this.counterId, floorId] } } },
           {
             $project: {
               seq: 1,
               epoch: 1,
               floor: 1,
+              sequence: 1,
               low: {
                 $min: {
                   $map: {
@@ -1195,18 +1283,52 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
         ])
         .toArray();
     let docs = await read();
-    if (!docs.some((doc) => doc._id === this.collectionName)) {
+    if (!docs.some((doc) => doc._id === this.counterId)) {
       // A duplicate key: another read made the counter at the same time
-      await counters.updateOne({ _id: this.collectionName }, { $setOnInsert: { seq: 0, epoch: randomUUID() } }, { upsert: true }).catch((error: unknown) => {
+      await counters.updateOne({ _id: this.counterId }, { $setOnInsert: { seq: 0, epoch: randomUUID() } }, { upsert: true }).catch((error: unknown) => {
         if (!isDuplicateKey(error)) throw error;
       });
       docs = await read();
     }
-    const mark = docs.find((doc) => doc._id === this.collectionName);
+    const mark = docs.find((doc) => doc._id === this.counterId);
     if (!mark) throw new Error(`The sequence of ${this.collectionName} is not available`);
+    if (this.sequence === "collection" && mark.sequence === "partition") throw sequenceMismatch(this.collectionName, "collection");
     const seq = typeof mark.low === "number" ? Math.min(mark.seq, mark.low - 1) : mark.seq;
     const floor = docs.find((doc) => doc._id === floorId)?.floor;
     return { seq, epoch: mark.epoch, floor: typeof floor === "number" ? floor : 0, held: seq < mark.seq };
+  }
+
+  /**
+   * This method checks once for each collection that a store with the option `sequence: "partition"` can use it (roadmap
+   * CLI-96). One atomic step marks the counter of the collection, unless that counter has numbers. A store with the default
+   * reads the mark in its own steps on that counter, so it needs no check of its own.
+   */
+  private checkSequence(db: Db): Promise<void> {
+    if (this.sequence === "collection") return Promise.resolve();
+    const owner = ownerOf(db);
+    let checks = SEQUENCE_CHECKS.get(owner);
+    if (!checks) SEQUENCE_CHECKS.set(owner, (checks = new Map()));
+    const key = `${db.databaseName}\u0000${this.countersName}\u0000${this.collectionName}`;
+    let check = checks.get(key);
+    if (!check) {
+      const mark = async (): Promise<void> => {
+        const counter = await db.collection<CounterDoc>(this.countersName).findOneAndUpdate(
+          { _id: this.collectionName },
+          // A counter with numbers keeps its mark as it is: absent for a collection of the default sequence
+          [{ $set: { sequence: { $cond: [{ $gt: [{ $ifNull: ["$seq", 0] }, 0] }, "$sequence", "partition"] } } }],
+          { upsert: true, returnDocument: "after" }
+        );
+        if (counter?.sequence !== "partition") throw sequenceMismatch(this.collectionName, "partition");
+      };
+      // Two processes can insert the counter at the same time: the second finds it at its next try
+      check = mark().catch((error: unknown) => (isDuplicateKey(error) ? mark() : Promise.reject(error)));
+      checks.set(key, check);
+      const own = checks;
+      check.catch(() => {
+        if (own.get(key) === check) own.delete(key);
+      });
+    }
+    return check;
   }
 
   /** The id of the document of the oldest kept change of the partition. */
@@ -1390,19 +1512,60 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     return doc ? seqVersion(doc) : undefined;
   }
 
+  /**
+   * This method gives a full result. An event with values can land between the first mark and the
+   * list, so the first mark is not a version that this list can have. The method takes a second mark
+   * after the list and reads the rows between the two marks. The second mark is the version.
+   *
+   * That read stops at the second mark. A row past the mark keeps the value of the list, and its later
+   * value comes after this result, in order. So the value of an id does not go back at a subscriber.
+   * The cost is one more aggregate for each full result, and two more finds when the mark moved.
+   */
+  private async fullResult(db: Db, items: Collection<Stored>, first: Watermark): Promise<StorageChanges<T>> {
+    const result = (mark: Watermark, docs: readonly Document[]): StorageChanges<T> => ({
+      version: `${mark.epoch}.${mark.seq}`,
+      full: true,
+      changed: this.decodeAll(docs),
+      deleted: [],
+      ...(mark.held ? { held: true } : {}),
+    });
+    let mark = first;
+    for (let tries = 1; ; tries += 1) {
+      const listed = await items.find(this.liveFilter()).sort({ [ORD]: 1, _id: 1 }).toArray();
+      const after = await this.watermark(db);
+      if (after.epoch === mark.epoch) {
+        if (after.seq <= mark.seq) return result(mark, listed);
+        const docs = await items.find({ ...this.partitionFilter(), [SEQ]: { $gt: mark.seq, $lte: after.seq } } as Filter<Stored>).toArray();
+        // A prune raises the floor before its delete, so a query that missed a tombstone sees the new floor here (roadmap CLI-93)
+        if (mark.seq >= (await this.floorOf(db))) return result(after, this.withLaterDocs(listed, docs));
+      }
+      // The log does not tell the changes since this mark. Each later read from this version, an event too, gets a full result
+      if (tries === MOST_FULL_TRIES) return result(mark, listed);
+      mark = after;
+    }
+  }
+
+  /** The listed documents with later documents over them, in the order of the entries. A tombstone removes its document. */
+  private withLaterDocs(listed: readonly Document[], later: readonly Document[]): Document[] {
+    // The key knows the type of the `_id`: before, `String()` gave each object `_id` one key
+    const keyOf = (doc: Document): string => storedIdKey(doc["_id"]);
+    const docs = new Map(listed.map((doc) => [keyOf(doc), doc]));
+    for (const doc of later) {
+      if (doc[TOMB] === true) docs.delete(keyOf(doc));
+      else docs.set(keyOf(doc), doc);
+    }
+    return [...docs]
+      .sort(([keyA, a], [keyB, b]) => this.placeOf(a) - this.placeOf(b) || idOrder(a["_id"], b["_id"], keyA, keyB))
+      .map(([, doc]) => doc);
+  }
+
   async getChangesSince(since?: string): Promise<StorageChanges<T>> {
     const { db, items } = await this.collection();
-    return enqueueRead(db, this.collectionName, async () => {
+    return withReadPermit(db, async () => {
       const counter = await this.watermark(db);
       const version = `${counter.epoch}.${counter.seq}`;
       const held = counter.held ? { held: true } : {};
-      const full = async (): Promise<StorageChanges<T>> => ({
-        version,
-        full: true,
-        changed: this.decodeAll(await items.find(this.liveFilter()).sort({ [ORD]: 1, _id: 1 }).toArray()),
-        deleted: [],
-        ...held,
-      });
+      const full = (): Promise<StorageChanges<T>> => this.fullResult(db, items, counter);
       const match = since === undefined ? null : /^([^.]+)\.(\d+)$/.exec(since);
       if (!match || match[1] !== counter.epoch) return full();
       const from = Number(match[2]);
@@ -1434,11 +1597,15 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
 
   private async write<R>(task: (db: Db, items: Collection<Stored>) => Promise<R>): Promise<R> {
     const { db, items } = await this.collection();
-    return enqueueWrite(db, this.collectionName, async () => {
+    const run = async (): Promise<R> => {
       // The floor document of the partition, outside each transaction of the task (roadmap O66)
       await this.noteFloor(db);
       return task(db, items);
-    });
+    };
+    // The permit comes after the turn in the queue, so a write that waits for an earlier write of its counter holds no permit
+    if (this.writesInFlight === Infinity) return enqueueWrite(db, this.counterId, run);
+    const permits = writePermitsOf(db, this.writesInFlight);
+    return enqueueWrite(db, this.counterId, () => permits.run(run));
   }
 
   async set(id: string, value: T, options?: StorageItemWriteOptions): Promise<void> {

@@ -11,6 +11,7 @@ import { realClock, type Cancel, type Clock } from "../../../clock.js";
 import { toMs, type Duration } from "../../../duration.js";
 import { PROTOCOL_HEADER, PROTOCOL_VERSION, errorCodeOf, retryableOf } from "../../../protocol.js";
 import { TIMER_DEFAULTS } from "../../../timers.js";
+import { encodeFrame } from "../../../frame-encoding.js";
 
 /** The media type of a stream response: one JSON value on each line. */
 export const NDJSON_MEDIA_TYPE = "application/x-ndjson";
@@ -83,7 +84,7 @@ export function keepAliveMsOf(keepAlive: Duration | false | undefined): number {
 
 /** One JSON line of the stream. */
 function lineOf(frame: unknown): string {
-  return `${JSON.stringify(frame)}\n`;
+  return `${encodeFrame(frame)}\n`;
 }
 
 /**

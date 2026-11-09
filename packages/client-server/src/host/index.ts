@@ -667,6 +667,7 @@ function outgoingAnswers(): OutgoingAnswers {
 
 export { httpFace, wsFace } from "./faces.js";
 export { localFace, type LocalFace } from "./local-face.js";
+export { staticFace, contentTypeOf, DEFAULT_STATIC_HEADERS, type StaticFaceOptions } from "./static-face.js";
 export type { FaceCallRules, HostFace, HostFaceContext, HostFaceEndpoint, HostFaceFactory, HostFaceUpgrade, HttpFaceOptions, WsFaceOptions } from "./faces.js";
 export { callOperations, faceHandler, httpTracker, operationOfCall } from "./tracking.js";
 export type { CallDetail, CallOperation, FaceHandler, FaceHandlerOptions, HttpTracker, HttpTrackerOptions } from "./tracking.js";

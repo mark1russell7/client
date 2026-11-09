@@ -5,6 +5,7 @@
 
 import { readdir, readFile, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
+import { escapeRegExp } from "@mark1russell7/text";
 
 /** The kinds of private data that the scan finds. */
 export type FindingKind = "term" | "email" | "phone" | "coordinate";
@@ -69,8 +70,6 @@ const SKIPPED_FOLDERS = new Set(["node_modules", ".git", "dist", "coverage", ".t
 
 /** The scan reads the first bytes of a file to find a binary file: a text file has no NUL byte. */
 const BINARY_PROBE_BYTES = 8192;
-
-const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /**
  * This function makes the pattern of a term. The match ignores case. A term that starts or ends

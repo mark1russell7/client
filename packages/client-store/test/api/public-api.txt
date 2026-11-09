@@ -28,6 +28,7 @@ type LocalCopyStorage: dist/storage/hybrid.d.ts#LocalCopyStorage
 MemoryProgramStore: dist/program-store/memory.d.ts#MemoryProgramStore
 MemoryQueueStore: dist/storage/queue.d.ts#MemoryQueueStore
 MemorySyncStateStore: dist/storage/sync-state.d.ts#MemorySyncStateStore
+type MergeContext: dist/storage/hybrid.d.ts#MergeContext
 MissingKeysError: dist/storage/hybrid.d.ts#MissingKeysError
 ModeSwitchError: dist/storage/hybrid.d.ts#ModeSwitchError
 PendingWriteError: dist/storage/hybrid.d.ts#PendingWriteError
@@ -45,6 +46,7 @@ type ProgramSaveDefinition: dist/program-store/programs.d.ts#ProgramSaveDefiniti
 type ProgramSaveInput: dist/program-store/programs.d.ts#ProgramSaveInput
 type ProgramStore: dist/program-store/types.d.ts#ProgramStore
 type ProgramWriteOptions: dist/program-store/types.d.ts#ProgramWriteOptions
+type PushBatch: dist/storage/hybrid.d.ts#PushBatch
 QueueFullError: dist/storage/hybrid.d.ts#QueueFullError
 type QueueRefusal: dist/storage/hybrid.d.ts#QueueRefusal
 type QueueStore: dist/storage/queue.d.ts#QueueStore
@@ -193,6 +195,7 @@ ModeSwitchError: dist/storage/hybrid.d.ts#ModeSwitchError
 PendingWriteError: dist/storage/hybrid.d.ts#PendingWriteError
 type ProgramStore: dist/program-store/types.d.ts#ProgramStore
 type ProgramWriteOptions: dist/program-store/types.d.ts#ProgramWriteOptions
+type PushBatch: dist/storage/hybrid.d.ts#PushBatch
 QueueFullError: dist/storage/hybrid.d.ts#QueueFullError
 type QueueRefusal: dist/storage/hybrid.d.ts#QueueRefusal
 type QueueStore: dist/storage/queue.d.ts#QueueStore
@@ -682,9 +685,12 @@ export declare class ConflictError extends Error {
 export interface DroppedWrite {
     id: string;
     value: unknown;
-    reason: "conflict" | "remote-delete" | "refused" | "too-large";
+    reason: "conflict" | "remote-delete" | "refused" | "too-large" | "overlap";
     during: "pull" | "push";
     remote?: unknown;
+    base?: unknown;
+    merged?: unknown;
+    paths?: string[];
     error?: unknown;
 }
 
@@ -729,7 +735,7 @@ export interface HybridStorageOptions {
     mode?: HybridMode;
     writeStrategy?: WriteStrategy;
     conflictResolution?: ConflictResolution;
-    mergeFn?: <T>(local: T, remote: T, base: T | null | undefined) => T;
+    mergeFn?: <T>(local: T, remote: T, base: T | null | undefined, context: MergeContext) => T;
     keyOf?: (item: any) => string | undefined;
     versionOf?: (item: any) => string | undefined;
     sendBaseVersions?: boolean;
@@ -742,6 +748,11 @@ export interface HybridStorageOptions {
     isUnavailable?: (error: unknown) => boolean;
     isRefusal?: (error: unknown) => boolean;
     isTooLarge?: (error: unknown) => boolean;
+    capacityOf?: (error: unknown) => {
+        readonly units: number;
+        readonly capacity: number;
+    } | undefined;
+    pushBatch?: PushBatch | undefined;
     onRefused?: (refusal: QueueRefusal) => void | Promise<void>;
     onDropped?: (drop: DroppedWrite) => void | Promise<void>;
     local?: LocalCopyStorage<any>;
@@ -768,6 +779,11 @@ export type LocalCopyStorage<T> = CollectionStorage<T> & {
     getEntries(): Promise<Array<[string, T]>>;
 };
 
+### dist/storage/hybrid.d.ts#MergeContext
+export interface MergeContext {
+    overlap(paths: readonly string[]): void;
+}
+
 ### dist/storage/hybrid.d.ts#MissingKeysError
 export declare class MissingKeysError extends Error {
     readonly name = "MissingKeysError";
@@ -790,6 +806,12 @@ export declare class PendingWriteError extends Error {
     readonly code = "WRITE_PENDING";
     readonly pending = true;
     constructor(operation: string, cause: unknown);
+}
+
+### dist/storage/hybrid.d.ts#PushBatch
+export interface PushBatch {
+    readonly maxItems?: number | undefined;
+    readonly maxBytes?: number | undefined;
 }
 
 ### dist/storage/hybrid.d.ts#QueueFullError
