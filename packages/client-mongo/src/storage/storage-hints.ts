@@ -868,7 +868,7 @@ export function watchStorageChanges<T>(storage: MongoDocumentStorage<T>, publish
     if (source.partition !== undefined && item.partition !== source.partition) return;
     if (!item.raw) {
       // The event of a write of this process: the collection procedures publish it
-      if (skipOwn && own && item.seq !== undefined && own.take(item.seq)) return;
+      if (skipOwn && own && item.seq !== undefined && own.take(item.seq, item.partition)) return;
       return publishItem(item);
     }
     const before = asDocument(change["fullDocumentBeforeChange"]);

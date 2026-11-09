@@ -514,8 +514,10 @@ const job = await queue.dequeue();
 
 ### Channels (Go-style)
 
+The channels are in `@mark1russell7/service/channel`. This package does not export them.
+
 ```typescript
-import { Channel } from "@procedures/collections";
+import { Channel } from "@mark1russell7/service/channel";
 
 const ch = new Channel<Message>(10); // Buffered channel
 

@@ -29,6 +29,7 @@ import { readStatusData } from "./status-data.ts";
 import { readStatusBoard, type StatusBoardData } from "@mark1russell7/site-pages";
 import { readReleases, splitReleases, type RepositoryReleases } from "./releases-data.ts";
 import { docModuleName, readDocs, type DocsData } from "./docs-data.ts";
+import { fillMeasured, joinStamps, readMeasured, stampOfPage, type MeasuredStampRun } from "./measured.ts";
 import { countTests, npmVersion } from "./site-metrics.ts";
 import type { JsonSchema, LoadFailure, PackageInfo, ProcedureInfo, StatusData } from "../src/data/index.ts";
 
@@ -310,9 +311,22 @@ try {
 // the README of each package, as HTML. A program block can run when the browser has its procedures.
 // ---------------------------------------------------------------------------
 
+// The measured numbers (scripts/measured.ts): SITE_MEASURED_DIR names the folder of the records of the
+// scheduled runs, relative to the site. The Pages build downloads them, and each measured block must fill.
+// With no folder, a block shows its text for GitHub and npm, and its page gets no stamp.
+const measuredDir = process.env["SITE_MEASURED_DIR"];
+const measuredRuns = new Map<string, readonly MeasuredStampRun[]>();
 let docs: DocsData;
 try {
-  docs = readDocs(PACKAGES, packages, { canRun: (key) => browserKeys.has(key) });
+  const records = measuredDir ? readMeasured(join(SITE, measuredDir)) : undefined;
+  docs = readDocs(PACKAGES, packages, {
+    canRun: (key) => browserKeys.has(key),
+    fill: (slug, markdown) => {
+      const filled = fillMeasured(markdown, records, slug);
+      if (filled.runs.length > 0) measuredRuns.set(slug, filled.runs);
+      return filled.markdown;
+    },
+  });
 } catch (error) {
   fail(`the docs pages cannot be made. ${(error as Error | null | undefined)?.stack ?? error}`);
 }
@@ -365,6 +379,15 @@ const PUBLIC_DATA = join(SITE, "public", "data");
 mkdirSync(PUBLIC_DATA, { recursive: true });
 writeFileSync(join(PUBLIC_DATA, "status.json"), JSON.stringify(board, null, 2) + "\n");
 writeFileSync(join(PUBLIC_DATA, "releases.json"), JSON.stringify(releases.releases, null, 2) + "\n");
+// The data stamps of the measured pages: the fixed studies of data-stamps.json, and a stamp for each page
+// with measured numbers. The Pages gate reads this file (data/data-stamps.json of the built site).
+try {
+  const fixed = JSON.parse(readFileSync(join(SITE, "data-stamps.json"), "utf8")) as { schema?: unknown; pages?: unknown };
+  const measured = [...measuredRuns].map(([slug, runs]) => stampOfPage(`docs/${slug}/index.html`, runs));
+  writeFileSync(join(PUBLIC_DATA, "data-stamps.json"), JSON.stringify(joinStamps(fixed, measured), null, 2) + "\n");
+} catch (error) {
+  fail(`the data stamps cannot be made. ${messageOf(error)}`);
+}
 // The list of the docs pages goes with the routes; the content of each page and the headings for
 // the command palette load only with the page and the palette.
 write("docs-index", docs.index);
