@@ -92,7 +92,7 @@ const registry = createRegistry(createHttpModule({ allow: ["localhost:11434", "1
 
 ### The host policy in other packages
 
-`createHostFetch(options)` gives a `fetch` for GET requests through the same checks. Its options are the options of `createHttpModule()`. A procedure of another package uses it for a URL of its caller:
+`createHostFetch(options)` gives a `fetch` for GET and HEAD requests through the same checks. Its options are the options of `createHttpModule()`. A procedure of another package uses it for a URL of its caller:
 
 - `weather.forecast` uses it by default.
 - `createGeoModule({ fetch })` and `createIcsModule({ fetch })` take it. Their default stays the global `fetch`, because their roots run in a browser.
@@ -106,6 +106,13 @@ const registry = createRegistry(createGeoModule({ fetch: createHostFetch({ allow
 ```
 
 A refusal is `FORBIDDEN` with the reason `host-not-allowed`. When the signal of the caller aborts, the function throws the reason of the signal, as `fetch` does.
+
+The response has `headers`, with names in lowercase. The option `method: "HEAD"` reads only the headers of a page, for example for `frameRefusal`:
+
+```ts
+const response = await hostFetch(url, { method: "HEAD", signal: AbortSignal.timeout(5_000) });
+const decision = frameRefusal(response.headers, { ancestor: "http://127.0.0.1:3000", page: response.url });
+```
 
 ## Limits and time
 

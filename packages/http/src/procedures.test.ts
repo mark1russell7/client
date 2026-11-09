@@ -765,6 +765,23 @@ describe("createHostFetch", () => {
     expect(isHostNotAllowed(redirected)).toBe(true);
   });
 
+  it("gives the headers of the response, and reads only the headers for HEAD", async () => {
+    const hostFetch = createHostFetch({ allow: ["127.0.0.1"] });
+    const got = await hostFetch(`${base}/text`);
+    expect(got.headers["content-type"]).toBe("text/plain");
+    expect(got.headers["set-cookie"]).toEqual(["a=1", "b=2"]);
+    const head = await hostFetch(`${base}/text`, { method: "HEAD" });
+    expect(seen.get("/text")?.method).toBe("HEAD");
+    expect(head).toMatchObject({ ok: true, status: 200 });
+    expect(head.headers["content-type"]).toBe("text/plain");
+    expect(await head.text()).toBe("");
+    // A redirect gives the headers and the URL of the last response
+    const moved = await hostFetch(`${base}/redirect/same`, { method: "HEAD" });
+    expect(moved.url).toBe(`${base}/json?from=redirect`);
+    expect(moved.headers["content-type"]).toBe("application/json");
+    expect(seen.get("/json")?.method).toBe("HEAD");
+  });
+
   it("throws the reason of the signal of the caller, as fetch does", async () => {
     const hostFetch = createHostFetch({ allow: ["127.0.0.1"] });
     const error = await hostFetch(`${base}/hang`, { signal: AbortSignal.timeout(50) }).then(
