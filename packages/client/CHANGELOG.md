@@ -1,5 +1,24 @@
 # @procedures/client
 
+## 0.53.0
+
+### Patch Changes
+
+- bc98f77: `isW3cIds()`, `parseTraceparent()`, `newTraceId()` and `newSpanId()` check the ids with `isValidTraceId()` and `isValidSpanId()` of `@opentelemetry/api` (decision D7 of otel-ts). The results do not change. An id of only zeros is not valid, and `isW3cIds()` still refuses uppercase digits, as W3C Trace Context requires.
+- 11d9084: The browser entry exports `electronPortOf` and the type `MainPortLike`. The function gives the `PortLike` of a `MessagePortMain` of Electron, whose listener gets an event with the message in `data`. An Electron app can delete its own adapter.
+- d28ccb5: Each handler runs in the context of OpenTelemetry of its caller (roadmap item C10 of otel-ts). Thus its logs, metrics, spans and nested calls carry the ids of the trace of the caller, also on a host with no tracing interceptor.
+  
+  - `ProcedureServer` makes the remote span of the `traceparent` and `tracestate` of the metadata the parent of the handler. It uses the `baggage` of the metadata only from a trusted caller: a local request, a request with the token of the server, or a request that the new option `trustBaggage(request)` names. For another caller, the handler runs with no baggage, also when the HTTP instrumentation of an SDK read a `baggage` header.
+  - The MCP face puts the keys `traceparent`, `tracestate` and `baggage` of the `_meta` of a tool call into the metadata of the call. Over Streamable HTTP, the headers with these names apply when `_meta` does not have the key.
+  - `mark` sends the environment variables `TRACEPARENT`, `TRACESTATE` and `BAGGAGE` with its call, as the metadata keys `traceparent`, `tracestate` and `baggage`.
+- 735cfcf: A call with no active span continues the trace context that the caller gave in its metadata (roadmap item C19 of otel-ts). Before, with an SDK, the client span of such a call started a new trace, and the propagator wrote that trace over the `traceparent` of the metadata. Thus `mark` in a program with an SDK lost the trace of its variables `TRACEPARENT` and `TRACESTATE`: the baggage came to the handler, but its spans and logs were in another trace. An active span is still the parent when there is one, and each try reads the trace context of the caller, not the trace context of the try before it.
+  
+  The unit tests of `@procedures/mark` use the propagation gate of rigor-testkit on the two entries of `mark`: the MCP face and the CLI call to the CLI server. Each call of the gate runs in the root context, so only the carrier of the entry (`_meta`, or the environment variables) takes the context. The gate found this fault.
+- The packages use the new versions of their dependencies of the owner: `@mark1russell7/service` `^0.8.3`, `@mark1russell7/coeval` `^0.26.1` and `@mark1russell7/docker-sqlite` `^0.3.0`. The range of `@mark1russell7/collections` stays `^0.5.0`: its version 0.7.0 and later remove names that `@procedures/collections` exports.
+- 556d0a8: The packages use `@mark1russell7/service` `^0.8.2` in place of `^0.6.0`. Version 0.7.0 adds the refusal cause `capacity`, and version 0.8.0 refuses a listen backlog of 0. Version 0.8.2 adds the call context of OpenTelemetry. The types `Clock` and `Cancel` of `@mark1russell7/service/clock` do not change: their home is `@mark1russell7/algebra/clock`, and the entry gives them again.
+  
+  A refusal of a call limit with the cause `capacity` gives `RATE_LIMITED` that is not retryable and has no `retry-after`. A take of one unit does not get this cause, because each policy holds 1 unit or more.
+
 ## 0.52.5
 
 ### Patch Changes
