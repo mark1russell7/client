@@ -208,6 +208,7 @@ type MachineDuration: dist/machines.d.ts#MachineDuration
 type MachineTimer: dist/machines.d.ts#MachineTimer
 type MachineTransition: dist/machines.d.ts#MachineTransition
 type MachineTransitionDef: dist/machines.d.ts#MachineTransitionDef
+type MainPortLike: dist/adapters/port/transport.d.ts#MainPortLike
 type Message: dist/client/types.d.ts#Message
 type Metadata: dist/client/types.d.ts#Metadata
 type Method: dist/client/types.d.ts#Method
@@ -481,6 +482,7 @@ documentAt: dist/procedures/program.d.ts#documentAt
 effectsIn: dist/procedures/idempotency.d.ts#effectsIn
 effectsOf: dist/procedures/capability.d.ts#effectsOf
 effectsValue: dist/procedures/effects.d.ts#effectsValue
+electronPortOf: dist/adapters/port/transport.d.ts#electronPortOf
 elicitConfirmation: dist/procedures/elicit.d.ts#elicitConfirmation
 elicitInput: dist/procedures/elicit.d.ts#elicitInput
 elicitWithPolicy: dist/procedures/elicit.d.ts#elicitWithPolicy
@@ -881,6 +883,7 @@ type MachineDuration: dist/machines.d.ts#MachineDuration
 type MachineTimer: dist/machines.d.ts#MachineTimer
 type MachineTransition: dist/machines.d.ts#MachineTransition
 type MachineTransitionDef: dist/machines.d.ts#MachineTransitionDef
+type MainPortLike: dist/adapters/port/transport.d.ts#MainPortLike
 type Message: dist/client/types.d.ts#Message
 type Metadata: dist/client/types.d.ts#Metadata
 type Method: dist/client/types.d.ts#Method
@@ -1151,6 +1154,7 @@ documentAt: dist/procedures/program.d.ts#documentAt
 effectsIn: dist/procedures/idempotency.d.ts#effectsIn
 effectsOf: dist/procedures/capability.d.ts#effectsOf
 effectsValue: dist/procedures/effects.d.ts#effectsValue
+electronPortOf: dist/adapters/port/transport.d.ts#electronPortOf
 elicitConfirmation: dist/procedures/elicit.d.ts#elicitConfirmation
 elicitInput: dist/procedures/elicit.d.ts#elicitInput
 elicitWithPolicy: dist/procedures/elicit.d.ts#elicitWithPolicy
@@ -2413,6 +2417,14 @@ export interface MockTransportOptions {
 ### dist/adapters/mock/client/types.d.ts#ResponseMatcher
 export type ResponseMatcher = (method: any, payload: unknown) => boolean;
 
+### dist/adapters/port/transport.d.ts#MainPortLike
+export interface MainPortLike {
+    postMessage(message: unknown): void;
+    on(type: "message", listener: MainListener): unknown;
+    off?(type: "message", listener: MainListener): unknown;
+    start(): void;
+}
+
 ### dist/adapters/port/transport.d.ts#PortLike
 export interface PortLike {
     postMessage(message: unknown): void;
@@ -2437,6 +2449,9 @@ export interface PortTransportOptions {
     credentials?: Credentials | undefined;
     streamWindow?: number | undefined;
 }
+
+### dist/adapters/port/transport.d.ts#electronPortOf
+export declare function electronPortOf(port: MainPortLike): PortLike;
 
 ### dist/adapters/sequence.d.ts#STREAM_GAP_METADATA_KEY
 export declare const STREAM_GAP_METADATA_KEY = "stream-gap";
