@@ -28,6 +28,7 @@ on:
           - write
           - gate
           - views
+          - live-stall
         default: stream
       enforce:
         description: The suite gate fails the run when a case is not within its limit.
