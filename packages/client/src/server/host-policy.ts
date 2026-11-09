@@ -96,6 +96,12 @@ export interface HostPolicyOptions {
    * query) and gives a bearer token, a principal and a narrowing (`ProcedureServerOptions`).
    */
   principalOf?: PrincipalOf | undefined;
+  /**
+   * The callers whose `baggage` the handler gets (C10), more than a local request and a request
+   * with the token. The function runs after the checks of the request, so it can read
+   * `request.principal`. Without it, no other caller sets the baggage of the services.
+   */
+  trustBaggage?: ((request: ServerRequest<unknown>) => boolean) | undefined;
   /** The browser checks of the network transports (`allowedOrigins`, `allowedHosts`, `allowGet`). */
   browser?: BrowserGuardOptions | undefined;
   /**
@@ -137,6 +143,8 @@ export interface HostPolicy {
   readonly token: string | undefined;
   /** The request hook of the network requests, or undefined for none. */
   readonly principalOf?: PrincipalOf | undefined;
+  /** The callers whose baggage the handler gets (C10), or undefined for none more. */
+  readonly trustBaggage?: ((request: ServerRequest<unknown>) => boolean) | undefined;
   readonly browser: BrowserGuardOptions;
   /** The capability of a call from a caller, or undefined for no limits. */
   readonly capabilityOf: ((request?: ServerRequest<unknown>) => Capability | undefined) | undefined;
@@ -190,6 +198,7 @@ export function hostPolicy(options: HostPolicyOptions = {}): HostPolicy {
     interceptors,
     token: options.token,
     ...(options.principalOf ? { principalOf: options.principalOf } : {}),
+    ...(options.trustBaggage ? { trustBaggage: options.trustBaggage } : {}),
     browser: options.browser ?? {},
     capabilityOf: capabilityOfOptions(options),
     clearanceOrder: options.clearanceOrder,
@@ -212,6 +221,8 @@ export function procedureServerOptions(policy: HostPolicy, registry?: ProcedureR
     ...(policy.token !== undefined ? { token: policy.token } : {}),
     // The request hook of the policy: the credentials of a cookie, a header or the query (CLI-2a)
     ...(policy.principalOf ? { principalOf: policy.principalOf } : {}),
+    // The callers whose baggage the handler gets (C10)
+    ...(policy.trustBaggage ? { trustBaggage: policy.trustBaggage } : {}),
     ...(policy.interceptors.length > 0 ? { interceptors: policy.interceptors } : {}),
     ...(policy.capabilityOf ? { capability: policy.capabilityOf } : {}),
     ...(policy.clearanceOrder ? { clearanceOrder: policy.clearanceOrder } : {}),

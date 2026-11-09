@@ -20,6 +20,7 @@ import { createProcedure } from "../procedures/define.js";
 import { createRegistry } from "../procedures/module.js";
 import { metricsInterceptor, tracingInterceptor, type InvocationSpan } from "../procedures/interceptors.js";
 import { ProcedureServer, type ProcedureServerOptions } from "../server/procedure-server.js";
+import { hostPolicy, procedureServerOptions } from "../server/host-policy.js";
 import { LOCAL_CREDENTIALS } from "../server/request-auth.js";
 import { pathToMethod } from "../server/method.js";
 import { HttpTransport } from "../adapters/http/client/transport.js";
@@ -290,6 +291,16 @@ describe("the handler runs in the context of its caller (C10)", () => {
       throw new Error("no");
     };
     expect(await handled({ principalOf, trustBaggage: throws }, { bearer: "x" })).toEqual({ traceId: TRACE_ID, tenant: undefined });
+  });
+
+  it("trusts the callers that trustBaggage of the host policy names", async () => {
+    const principalOf = () => ({ principal: { id: "billing", via: "mtls" } });
+    const fromPolicy = (trustBaggage?: (request: { principal?: { id: string } | undefined }) => boolean) => {
+      const options = procedureServerOptions(hostPolicy({ principalOf, ...(trustBaggage ? { trustBaggage } : {}) }));
+      return { principalOf: options.principalOf, trustBaggage: options.trustBaggage };
+    };
+    expect(await handled(fromPolicy((request) => request.principal?.id === "billing"), { bearer: "x" })).toEqual({ traceId: TRACE_ID, tenant: "acme" });
+    expect(await handled(fromPolicy(), { bearer: "x" })).toEqual({ traceId: TRACE_ID, tenant: undefined });
   });
 
   it("removes the baggage of the active context for a caller that is not trusted", () => {
