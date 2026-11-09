@@ -15,7 +15,7 @@ function caseOf(create: () => ContractStorage, start: string): ContractCase {
   return found;
 }
 
-/** The rejection of a case. A case that passes fails the test. */
+/** The rejection of a case. A case that passes fails the test. Node adds a diff after the message of the check. */
 async function failureOf(contractCase: ContractCase): Promise<AssertionError> {
   const error = await contractCase.run().then(() => undefined, (reason: unknown) => reason);
   expect(error).toBeInstanceOf(AssertionError);
@@ -31,7 +31,7 @@ describe("the contract suite finds a broken storage", () => {
       }
     }
     const failure = await failureOf(caseOf(() => new Broken(), "an empty storage"));
-    expect(failure.message).toBe("delete() of a missing id");
+    expect(failure.message.split("\n")[0]).toBe("delete() of a missing id");
     expect([failure.actual, failure.expected]).toEqual([true, false]);
   });
 
@@ -66,7 +66,7 @@ describe("the contract suite finds a broken storage", () => {
       }
     }
     const failure = await failureOf(caseOf(() => new Broken(), "the storage keeps JSON values"));
-    expect(failure.message).toBe('get("null")');
+    expect(failure.message.split("\n")[0]).toBe('get("null")');
     expect([failure.actual, failure.expected]).toEqual([undefined, null]);
   });
 
