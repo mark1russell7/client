@@ -335,7 +335,8 @@ async function* validatedItems(
   signal: AbortSignal | undefined,
 ): AsyncGenerator<unknown, void, undefined> {
   const iterator = source[Symbol.asyncIterator]();
-  const own = signal && streamSignal(signal);
+  const own = signal; // flip run CLI-90: the old path, one shared signal
+  void streamSignal;
   let done = false;
   let aborted = false;
   try {
