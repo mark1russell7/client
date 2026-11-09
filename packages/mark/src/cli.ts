@@ -25,6 +25,7 @@ import { startRepl } from "./repl.js";
 import { findChildren, findProcedure, parseCommandLine, parseLeadingGlobals } from "./args.js";
 import { groupHelp, rootHelp, validationMessage } from "@procedures/cli-kit";
 import { failureOf } from "./failure.js";
+import { traceCarrierMetadata } from "./trace-carrier.js";
 
 /** The version of this package. This file is `dist/cli.js` (or `src/cli.ts` in the tests): the package.json is one folder up. */
 const VERSION = (JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string }).version;
@@ -498,7 +499,9 @@ export async function executeArgs(
       // request/response procedure gives one item, so its output does not change. The signal of
       // the request goes with the call: the drain of a stop aborts it (CLI-26).
       let items = 0;
-      for await (const item of cold.client.stream(method, validated, { signal })) {
+      // The trace context of the environment goes with the call (C10 of otel-ts)
+      const metadata = traceCarrierMetadata();
+      for await (const item of cold.client.stream(method, validated, { signal, ...(Object.keys(metadata).length > 0 ? { metadata } : {}) })) {
         if (spinner && items === 0) spinner.stop();
         items++;
         printItem(item);
