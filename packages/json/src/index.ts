@@ -5,7 +5,7 @@ export { jsonQuery, jsonPatch, jsonDiff, jsonMerge, jsonValidate } from "./proce
 export { yamlParse, yamlStringify } from "./procedures/yaml/index.js";
 export { csvParse, csvStringify } from "./procedures/csv/index.js";
 // The functions behind the procedures, for a program in the same process
-export { assertJson, cloneJson, jsonEqual, JsonError, PROTOTYPE_KEYS, formatPointer, escapeToken, type JsonErrorCode } from "./value.js";
+export { assertJson, cloneJson, jsonEqual, JsonError, PROTOTYPE_KEYS, formatPointer, escapeToken, isPlainObject, type JsonErrorCode } from "./value.js";
 export { parsePointer, lookup, arrayIndex, type Lookup } from "./pointer.js";
 export { parsePath, queryPath, type PathMatch, type PathStep } from "./path.js";
 export { applyPatch } from "./patch.js";
