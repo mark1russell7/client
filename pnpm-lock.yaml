@@ -180,25 +180,25 @@ importers:
         version: 3.0.3
       '@mark1russell7/api-report':
         specifier: ^0.5.0
-        version: 0.5.0
+        version: 0.5.3
       '@mark1russell7/boundaries':
         specifier: ^0.2.0
         version: 0.2.1(@swc/core@1.16.22)(dependency-cruiser@18.7.2)
       '@mark1russell7/conventions':
         specifier: ^0.40.2
-        version: 0.40.2
+        version: 0.40.6
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@mark1russell7/rigor-bench':
         specifier: ^0.2.33
-        version: 0.2.33(esbuild@0.28.2)
+        version: 0.2.34(esbuild@0.28.2)
       '@mark1russell7/rigor-statistics':
         specifier: ^0.1.2
-        version: 0.1.25
+        version: 0.1.27
       '@mark1russell7/ste-lint':
         specifier: ^0.3.0
-        version: 0.3.0
+        version: 0.3.1
       '@swc/core':
         specifier: ^1.16.20
         version: 1.16.22
@@ -206,7 +206,7 @@ importers:
         specifier: ^22.0.0
         version: 22.20.5
       '@vitest/coverage-v8':
-        specifier: 5.1.0
+        specifier: ^5.0.3
         version: 5.1.0(vitest@5.1.0)
       dependency-cruiser:
         specifier: ^18.7.0
@@ -235,7 +235,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -263,7 +263,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -294,7 +294,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       mongodb:
         specifier: ^7.7.0
         version: 7.8.0(socks@2.8.10)
@@ -313,7 +313,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -353,7 +353,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -396,7 +396,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -442,7 +442,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -467,7 +467,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -492,7 +492,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -510,7 +510,7 @@ importers:
     dependencies:
       '@mark1russell7/algebra':
         specifier: ^0.8.0
-        version: 0.8.1(zod@4.6.7)
+        version: 0.8.4(zod@4.6.7)
       '@mark1russell7/coeval':
         specifier: ^0.26.1
         version: 0.26.1
@@ -519,10 +519,10 @@ importers:
         version: 0.10.0(zod@4.6.7)
       '@mark1russell7/quantity':
         specifier: ^0.3.0
-        version: 0.3.0(zod@4.6.7)
+        version: 0.3.5(zod@4.6.7)
       '@mark1russell7/service':
         specifier: ^0.8.3
-        version: 0.8.3(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
+        version: 0.8.6(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
       '@opentelemetry/api':
         specifier: ^1.9.0
         version: 1.10.0
@@ -541,22 +541,22 @@ importers:
     devDependencies:
       '@mark1russell7/api-report':
         specifier: ^0.5.0
-        version: 0.5.0
+        version: 0.5.3
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@mark1russell7/otel-ts':
-        specifier: ^0.6.0
-        version: 0.6.0(@opentelemetry/sdk-node@0.223.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0))(supports-color@7.2.0)(vite@6.4.5(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))(zone.js@0.16.3)
+        specifier: ^0.7.5
+        version: 0.7.5(@opentelemetry/sdk-node@0.223.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0))(supports-color@7.2.0)(vite@6.4.5(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))(zone.js@0.16.3)
       '@mark1russell7/rigor-bench':
         specifier: ^0.2.33
-        version: 0.2.33(esbuild@0.28.2)
+        version: 0.2.34(esbuild@0.28.2)
       '@mark1russell7/rigor-statistics':
         specifier: ^0.1.9
-        version: 0.1.25
+        version: 0.1.27
       '@mark1russell7/rigor-testkit':
         specifier: ^0.1.2
-        version: 0.1.2(@opentelemetry/api-logs@0.223.0)(@opentelemetry/api@1.10.0)(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))
+        version: 0.1.4(@opentelemetry/api-logs@0.223.0)(@opentelemetry/api@1.10.0)(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))(fast-check@4.10.2)
       '@opentelemetry/api-logs':
         specifier: ^0.223.0
         version: 0.223.0
@@ -617,7 +617,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -639,7 +639,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -654,7 +654,7 @@ importers:
     dependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -692,7 +692,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -717,7 +717,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -742,7 +742,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -770,7 +770,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -810,10 +810,10 @@ importers:
     devDependencies:
       '@mark1russell7/conventions':
         specifier: ^0.40.2
-        version: 0.40.2
+        version: 0.40.6
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -841,10 +841,10 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@mark1russell7/service':
         specifier: ^0.8.3
-        version: 0.8.3(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
+        version: 0.8.6(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -865,7 +865,7 @@ importers:
         version: 0.10.0(zod@4.6.7)
       '@mark1russell7/service':
         specifier: ^0.8.3
-        version: 0.8.3(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
+        version: 0.8.6(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
       '@mark1russell7/text':
         specifier: ^0.0.2
         version: 0.0.2
@@ -884,19 +884,19 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@mark1russell7/rigor-bench':
         specifier: ^0.2.33
-        version: 0.2.33(esbuild@0.28.2)
+        version: 0.2.34(esbuild@0.28.2)
       '@mark1russell7/rigor-chaos':
         specifier: ^0.1.0
         version: 0.1.3
       '@mark1russell7/rigor-generators':
         specifier: ^0.1.5
-        version: 0.1.8
+        version: 0.1.14
       '@mark1russell7/rigor-statistics':
         specifier: ^0.1.9
-        version: 0.1.25
+        version: 0.1.27
       '@procedures/peer':
         specifier: workspace:*
         version: link:../client-server
@@ -930,7 +930,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -955,7 +955,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -980,7 +980,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1005,7 +1005,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1036,7 +1036,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1057,7 +1057,7 @@ importers:
         version: 0.0.2
       '@mark1russell7/service':
         specifier: ^0.8.3
-        version: 0.8.3(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
+        version: 0.8.6(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1067,7 +1067,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@modelcontextprotocol/sdk':
         specifier: ^1.32.1
         version: 1.32.2(supports-color@7.2.0)(zod@4.6.7)
@@ -1104,7 +1104,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1147,7 +1147,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1165,14 +1165,14 @@ importers:
     dependencies:
       '@mark1russell7/splay':
         specifier: ^0.2.0
-        version: 0.2.0
+        version: 0.2.1
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1197,7 +1197,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@procedures/collections':
         specifier: workspace:*
         version: link:../client-collections
@@ -1221,7 +1221,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.8.3
-        version: 0.8.3(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
+        version: 0.8.6(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1234,7 +1234,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1268,7 +1268,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1302,7 +1302,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1324,7 +1324,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       fast-check:
         specifier: ^4.10.2
         version: 4.10.2
@@ -1339,7 +1339,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1361,7 +1361,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1383,7 +1383,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1408,7 +1408,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1433,7 +1433,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1458,7 +1458,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1483,7 +1483,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1498,7 +1498,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.8.3
-        version: 0.8.3(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
+        version: 0.8.6(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
       '@procedures/bundle-mcp':
         specifier: workspace:*
         version: link:../bundle-mcp
@@ -1517,7 +1517,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1539,7 +1539,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1570,7 +1570,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2
@@ -1588,7 +1588,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.8.3
-        version: 0.8.3(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
+        version: 0.8.6(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1604,7 +1604,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1629,7 +1629,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1644,7 +1644,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.8.3
-        version: 0.8.3(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
+        version: 0.8.6(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
       '@procedures/cli-kit':
         specifier: workspace:*
         version: link:../cli-kit
@@ -1699,13 +1699,13 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@mark1russell7/otel-ts':
-        specifier: ^0.6.0
-        version: 0.6.0(@opentelemetry/sdk-node@0.223.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0))(supports-color@7.2.0)(vite@6.4.5(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))(zone.js@0.16.3)
+        specifier: ^0.7.5
+        version: 0.7.5(@opentelemetry/sdk-node@0.223.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0))(supports-color@7.2.0)(vite@6.4.5(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))(zone.js@0.16.3)
       '@mark1russell7/rigor-testkit':
         specifier: ^0.1.2
-        version: 0.1.2(@opentelemetry/api-logs@0.223.0)(@opentelemetry/api@1.10.0)(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))
+        version: 0.1.4(@opentelemetry/api-logs@0.223.0)(@opentelemetry/api@1.10.0)(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))(fast-check@4.10.2)
       '@modelcontextprotocol/sdk':
         specifier: ^1.32.2
         version: 1.32.2(supports-color@7.2.0)(zod@4.6.7)
@@ -1861,7 +1861,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1886,7 +1886,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1911,7 +1911,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1936,7 +1936,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@procedures/shell':
         specifier: workspace:*
         version: link:../client-shell
@@ -1964,7 +1964,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1992,7 +1992,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -2020,10 +2020,10 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@mark1russell7/service':
         specifier: ^0.8.3
-        version: 0.8.3(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
+        version: 0.8.6(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -2038,7 +2038,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.8.3
-        version: 0.8.3(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
+        version: 0.8.6(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -2051,7 +2051,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -2076,7 +2076,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@procedures/store':
         specifier: workspace:*
         version: link:../client-store
@@ -2119,10 +2119,10 @@ importers:
         version: 4.14.0(playwright-core@1.65.0)
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@mark1russell7/site-pages':
         specifier: ^0.4.3
-        version: 0.4.3
+        version: 0.4.6
       '@mark1russell7/text':
         specifier: ^0.0.2
         version: 0.0.2
@@ -2320,7 +2320,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.8.3
-        version: 0.8.3(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
+        version: 0.8.6(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -2330,7 +2330,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -2352,7 +2352,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -2377,7 +2377,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.1.1
-        version: 2.1.2
+        version: 2.1.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -3289,9 +3289,6 @@ packages:
   '@grafana/faro-web-sdk@2.13.0':
     resolution: {integrity: sha512-k/vZL73Ii4PR6IyhyZZU/wWAlLL8HyPQ1re9CFyyIN2bXuX5b0dTYTLBHlEAK3oGqi7Nj/jGwKXoM27BNLPLuQ==}
 
-  '@grafana/faro-web-tracing@2.13.0':
-    resolution: {integrity: sha512-HANZzP3i3L5LF3B5JrktQ94iCmCm9oqv7HfgGyuxRI3c/yoHQzz7/qJu7iflo8cJrwrdAco2vIHsljgFNeuwWA==}
-
   '@grpc/grpc-js@1.14.7':
     resolution: {integrity: sha512-W4W/fcBMGRVtG6dW2c7cw2mnpS3hvbBd+oQXjh2iYFTZDk1JJmcNqkM5KSaPubQpamlUUurrlb7G1s9NJeERmQ==}
     engines: {node: '>=12.10.0'}
@@ -3488,8 +3485,8 @@ packages:
     resolution: {integrity: sha512-6QEf6yqFbETdwGITKq57aYoPfX/3K8XFNwsAlx0C1M7o8cb79sv1M3w+tWuWvIcSbNqrLF7OD7YpZMVVz335hQ==}
     engines: {node: '>=20.0.0'}
 
-  '@mark1russell7/algebra@0.8.1':
-    resolution: {integrity: sha512-lpuX4jO56Ht7F6ugymJwPCoL1F6fMVX/HAfuWaxfxBUCTrZxpSwD8qVk6O9M0fqaiyj2XUE+D5fz1XQP6BQlRA==}
+  '@mark1russell7/algebra@0.8.4':
+    resolution: {integrity: sha512-jNwuJZWGUrjaowNJ0WCk6+cIIBXot3DQ8W2Rs4vMeYhDHhyU+gnqY35jcAwG5ZjzCgfM1AICA4eHquc1p10ZGw==}
     engines: {node: '>=22.19'}
     peerDependencies:
       zod: ^4.1.0
@@ -3497,17 +3494,8 @@ packages:
       zod:
         optional: true
 
-  '@mark1russell7/algebra@0.8.3':
-    resolution: {integrity: sha512-Z0saYxCDcqZu1leABWqksrIa9y9dbeTjR5l36ZRBqsDW6XfUcM4mWoE90YgzSW86YFP+dcV8y+WCKu8446e/ng==}
-    engines: {node: '>=22.19'}
-    peerDependencies:
-      zod: ^4.1.0
-    peerDependenciesMeta:
-      zod:
-        optional: true
-
-  '@mark1russell7/api-report@0.5.0':
-    resolution: {integrity: sha512-1mbJ614xQr+qQ5uLWOubNP1n9CEY/ytfwC2p9eLt5PIH+xWt2yAKBWm2kuIm5A2xiBldZAJ7QEuyoa4+jJLKpQ==}
+  '@mark1russell7/api-report@0.5.3':
+    resolution: {integrity: sha512-tdg5rrwp1xTd19dEtfhZ3ZxDSx07AnUWFZuNpMr9zFnUjAx5AYL238L6EFfo6HnevfKlxzQWGOmvpkFB1v80sw==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -3530,18 +3518,13 @@ packages:
     resolution: {integrity: sha512-WsLRfrej6msQLVqcS17x6KODic8bLf/IuOF2tD04NNbOhWKYCQi0xAEGBCy/TtthxRvRa6Yti2fcpeIQbX/nCA==}
     engines: {node: '>=22.12'}
 
-  '@mark1russell7/conventions@0.38.5':
-    resolution: {integrity: sha512-nzPyMDJPvcL886YOj9S7nUg0/uorOpAl45zIaZA88K020nipvzf2mao2bZrhXRsyTluXlnxog/I1aj+UFeI//Q==}
+  '@mark1russell7/conventions@0.40.6':
+    resolution: {integrity: sha512-QKW7+0RketlRTVFAbPEK3TEJSj6v3JJmWuTaFV+fxI/83wdbVBedr1jNsdjplmaXWx1aEypUytsqIP7hihZDsA==}
     engines: {node: '>=22'}
     hasBin: true
 
-  '@mark1russell7/conventions@0.40.2':
-    resolution: {integrity: sha512-kP3h89OGSpEwaVNvxXkkK2uPfBtMLgy+JvfSUbhp0iO6xsgt/JqAsPJM9XJQKh6gRR6u+GFiiEwTyck+amH00g==}
-    engines: {node: '>=22'}
-    hasBin: true
-
-  '@mark1russell7/cue@2.1.2':
-    resolution: {integrity: sha512-PjEWeyq353cz3gZyNmYkv/rUChybd3h9BWRW3UWP+fs0s7/CwGeVRzCpYLnvLR4gyHC367G/PS3kqWJO9GEAkg==}
+  '@mark1russell7/cue@2.1.3':
+    resolution: {integrity: sha512-CeQu2WZKGHjkZxjJ/bY60QiNYlfsDfrKwZfBeOmZSvOmEZlWRa8KlLtJ0mufNJ+pEogvfq+MB10JejCMyRH/Iw==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -3557,25 +3540,19 @@ packages:
     resolution: {integrity: sha512-vS5jF21WC/VApRv4p8afRZahcMl9cuNp03LxbVngY9nYkzq+S7Oit6ksySt2baML+tp46UF60sxnHxn1jlwtTg==}
     engines: {node: '>=22.12'}
 
-  '@mark1russell7/otel-ts@0.6.0':
-    resolution: {integrity: sha512-l6QIZm0k/VTQg6/XI9Cy+LIEt60R7l6lMaH6yFdgVkt+slurXKsnSF5/w7XwiKfPmMtf5UWtF9nOuB8zFGED8Q==}
+  '@mark1russell7/otel-ts@0.7.5':
+    resolution: {integrity: sha512-REth0HO1jg+OoOooT8lnk6m3RZSAxBjnMCF8PdIRKftNWzzgUozL5ll7/PVjD0WP3r0WVX3OAt0H5L2V/gXsRA==}
     peerDependencies:
+      '@mark1russell7/lag': '>=0.4.2 <0.6.0'
       '@opentelemetry/sdk-node': '>=0.200.0'
     peerDependenciesMeta:
+      '@mark1russell7/lag':
+        optional: true
       '@opentelemetry/sdk-node':
         optional: true
 
-  '@mark1russell7/quantity@0.3.0':
-    resolution: {integrity: sha512-psfyKmVrOz5ynHgr2ED7WM5Pa/XVy6DR28jCaSGY42gvV0CJEq7HJRpV6sgkvWx8s3Et7evJWR56aG5tjCHZIw==}
-    engines: {node: '>=22.19'}
-    peerDependencies:
-      zod: ^4.1.0
-    peerDependenciesMeta:
-      zod:
-        optional: true
-
-  '@mark1russell7/quantity@0.3.3':
-    resolution: {integrity: sha512-sQ0+t+E6zeORzRVSqjvEL+Pvzh79vJSnETBQeLjYkebujHxsRVkGWnbp9SMjl3Qwh7JHTT8k4JL2n+ex+NIfGQ==}
+  '@mark1russell7/quantity@0.3.5':
+    resolution: {integrity: sha512-RCwaYZjMH3mVbnhLIW/xz2Enz4ekUBOY80g20pb4nhk9I1U9eDXd/eMxmkvN+/szFYjpzTRQp7Skq7zk2DVxzA==}
     engines: {node: '>=22.19'}
     peerDependencies:
       zod: ^4.1.0
@@ -3587,8 +3564,8 @@ packages:
     resolution: {integrity: sha512-hn2C5jjOFCGKJqFQPHt57C/Cn1l9Lb9MltVNtL71KSu+nRrfPOmg8ujYB5n3oDFFWNdNA4bE/8LLT4tG3lmrGA==}
     engines: {node: '>=22'}
 
-  '@mark1russell7/rigor-bench@0.2.33':
-    resolution: {integrity: sha512-Z905E0XTaT2LNskOwoUURnFXYczru17TLC8TrcEOEUz2ufRCJfZHAjfhCeVbiB5uDHZX9UTf2cgzqQRk6hU8Aw==}
+  '@mark1russell7/rigor-bench@0.2.34':
+    resolution: {integrity: sha512-1oFx5Q6a8bTffut1HA/7zbahTPva9rnhqm1w7INJ5Yj8PAVfSBoRWXAFnz8ju75H5FR/393WSYOFNKOr2GzPTQ==}
     engines: {node: '>=22'}
     hasBin: true
     peerDependencies:
@@ -3601,6 +3578,10 @@ packages:
     resolution: {integrity: sha512-PHY5gk3RLjM1uIDDt9DczYSZKU8vp31GNvJsAUuHFxoC8N60TGFiEI+v5tpec3/e4DSeUr1207v8xo9xvyd6vg==}
     engines: {node: '>=22'}
 
+  '@mark1russell7/rigor-generators@0.1.14':
+    resolution: {integrity: sha512-wSSv2qWetdgWMhhr7VdujBKgdF0kYB8PsckImdGC3yibgpI79fwos0U61dKZaPF7DebhE29F9AXWk7Ke//ASPQ==}
+    engines: {node: '>=22'}
+
   '@mark1russell7/rigor-generators@0.1.8':
     resolution: {integrity: sha512-6AC/YQdSrMKs/1NcHesjmmxVjKrqTDXjzKaElE8N8TgsqgiApCbsnk5xRoGJfvIJZUX7vJHFB9F+w48OSdRtHQ==}
     engines: {node: '>=22'}
@@ -3609,8 +3590,12 @@ packages:
     resolution: {integrity: sha512-bdDOlHTDAz02QM40XG9fA//8J/FcfUhfXyUnlW6Dwwlnxd3fGQjAkIy6kn1iPRbKtk29mf4XdDN1VSKzMvc7RQ==}
     engines: {node: '>=22'}
 
-  '@mark1russell7/rigor-testkit@0.1.2':
-    resolution: {integrity: sha512-0Gm9hBcuzZbS8Sa5Kn49W+1VGNoyuuLMCOKd+mLIO22Wgbco4Ab6eyDgKrc3So7K42moQeHT3pQfDVASzCcKPA==}
+  '@mark1russell7/rigor-statistics@0.1.27':
+    resolution: {integrity: sha512-UnBEZVSVSytwFH5pJ5ezlOCEs/19Ur0/REQ+Tq5BYs8uYWSNoP/hZNGx2tdqLN2Rn0u+A41GwieBnuM6DuWS4g==}
+    engines: {node: '>=22'}
+
+  '@mark1russell7/rigor-testkit@0.1.4':
+    resolution: {integrity: sha512-3OLqD2CUf4DKaGo/JulkXwR+UM+fJ2opVcY5SA3QN5DRnso/+bFEMWOMa3nRN0Azrlq9/bPkx+47vfU2bYVRBA==}
     engines: {node: '>=22'}
     peerDependencies:
       '@opentelemetry/api': ^1.9.0
@@ -3618,6 +3603,7 @@ packages:
       '@opentelemetry/sdk-logs': ^0.223.0
       '@opentelemetry/sdk-metrics': ^2.12.0
       '@opentelemetry/sdk-trace-base': ^2.12.0
+      fast-check: ^4.0.0
     peerDependenciesMeta:
       '@opentelemetry/api':
         optional: true
@@ -3629,9 +3615,11 @@ packages:
         optional: true
       '@opentelemetry/sdk-trace-base':
         optional: true
+      fast-check:
+        optional: true
 
-  '@mark1russell7/service@0.8.3':
-    resolution: {integrity: sha512-FEtGbg7XH8hhlmHdTRZnR5MOXznMD+ctYAftGVivgnrFDT4cvL7fz4FH2MgLgMg3JKoQ7yzf154V8whEUEjK+g==}
+  '@mark1russell7/service@0.8.6':
+    resolution: {integrity: sha512-BX5effgTFE+EyT1Id/w9Xr8xcUmRfs+PuvaLhYGGXraXTe1v0ISRiqL3hM3MNi7gCpfvve/n6lSvZoC8pBPlnw==}
     engines: {node: '>=22.19'}
     peerDependencies:
       '@grpc/grpc-js': ^1.14.6
@@ -3660,17 +3648,17 @@ packages:
       zod:
         optional: true
 
-  '@mark1russell7/site-pages@0.4.3':
-    resolution: {integrity: sha512-6RVlKnaXyVAwcZwrKugTcm32strh0D5Dz+ZSSz6zlLXtWtX31C23ue88bPh7PujLw6r90PywY00uSkNafOCKfg==}
+  '@mark1russell7/site-pages@0.4.6':
+    resolution: {integrity: sha512-h/vcASVZcbf3UhDBHlalot0PvAzt8tUpLC6ngZgZoZJSw9Aj3Pcm6lw5irKmP1o42aFI8SnhJvxSuC9PUWZPAg==}
     engines: {node: '>=22'}
     hasBin: true
 
-  '@mark1russell7/splay@0.2.0':
-    resolution: {integrity: sha512-iwTvpGKrAvjnKsNCJXT3nrKKbQDf7+OCi/cZkEk4gKSeFyumKVUDgcSUD3dDmLDBZrmb6xRcTtxEZGkMNaBIjw==}
+  '@mark1russell7/splay@0.2.1':
+    resolution: {integrity: sha512-fL2beXodoe8w0zhQ2CGBKr5sI5hoF28aDxq8OMYyFWsVLVnoGzhMVtUhZ0TDDCx8uLDoSk4Sw2VQKw80mB2O8A==}
     engines: {node: '>=22'}
 
-  '@mark1russell7/ste-lint@0.3.0':
-    resolution: {integrity: sha512-Z5GuoAvFk9Vf4tnN/XTHiffbU2SjtZb0EtcQsLJlSAApkXovQZTPOtCFyvRbcU+qMINiXJMXppwolSsxya6s8A==}
+  '@mark1russell7/ste-lint@0.3.1':
+    resolution: {integrity: sha512-J9tDcjOC1lMDCEuGumRzDJ5RJ/uXtLUpv93wzFlRMl4hGtI371HtPCQHwB7d0VhetJ6UBkkzLj+XCezctrEgpQ==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -7202,22 +7190,6 @@ snapshots:
       ua-parser-js: 1.0.41
       web-vitals: 6.2.3
 
-  '@grafana/faro-web-tracing@2.13.0(supports-color@7.2.0)':
-    dependencies:
-      '@grafana/faro-web-sdk': 2.13.0
-      '@opentelemetry/api': 1.10.0
-      '@opentelemetry/core': 2.12.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/exporter-trace-otlp-http': 0.223.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/instrumentation': 0.223.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)
-      '@opentelemetry/instrumentation-fetch': 0.223.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)
-      '@opentelemetry/instrumentation-xml-http-request': 0.223.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)
-      '@opentelemetry/otlp-transformer': 0.223.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/resources': 2.12.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/sdk-trace-web': 2.12.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/semantic-conventions': 1.45.0
-    transitivePeerDependencies:
-      - supports-color
-
   '@grpc/grpc-js@1.14.7':
     dependencies:
       '@grpc/proto-loader': 0.8.1
@@ -7406,21 +7378,15 @@ snapshots:
       tinyglobby: 0.2.17
       yaml: 2.9.1
 
-  '@mark1russell7/algebra@0.8.1(zod@4.6.7)':
+  '@mark1russell7/algebra@0.8.4(zod@4.6.7)':
     dependencies:
-      '@mark1russell7/quantity': 0.3.0(zod@4.6.7)
+      '@mark1russell7/quantity': 0.3.5(zod@4.6.7)
     optionalDependencies:
       zod: 4.6.7
 
-  '@mark1russell7/algebra@0.8.3(zod@4.6.7)':
+  '@mark1russell7/api-report@0.5.3':
     dependencies:
-      '@mark1russell7/quantity': 0.3.0(zod@4.6.7)
-    optionalDependencies:
-      zod: 4.6.7
-
-  '@mark1russell7/api-report@0.5.0':
-    dependencies:
-      '@mark1russell7/conventions': 0.38.5
+      '@mark1russell7/conventions': 0.40.6
 
   '@mark1russell7/boundaries@0.2.1(@swc/core@1.16.22)(dependency-cruiser@18.7.2)':
     optionalDependencies:
@@ -7433,21 +7399,17 @@ snapshots:
 
   '@mark1russell7/collections@0.10.0(zod@4.6.7)':
     dependencies:
-      '@mark1russell7/algebra': 0.8.3(zod@4.6.7)
+      '@mark1russell7/algebra': 0.8.4(zod@4.6.7)
       '@mark1russell7/optional': 1.2.0
-      '@mark1russell7/rigor-statistics': 0.1.25
+      '@mark1russell7/rigor-statistics': 0.1.27
     transitivePeerDependencies:
       - zod
 
-  '@mark1russell7/conventions@0.38.5':
+  '@mark1russell7/conventions@0.40.6':
     dependencies:
       yaml: 2.9.1
 
-  '@mark1russell7/conventions@0.40.2':
-    dependencies:
-      yaml: 2.9.1
-
-  '@mark1russell7/cue@2.1.2': {}
+  '@mark1russell7/cue@2.1.3': {}
 
   '@mark1russell7/docker-sqlite@0.3.0':
     dependencies:
@@ -7458,10 +7420,9 @@ snapshots:
 
   '@mark1russell7/optional@1.2.0': {}
 
-  '@mark1russell7/otel-ts@0.6.0(@opentelemetry/sdk-node@0.223.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0))(supports-color@7.2.0)(vite@6.4.5(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))(zone.js@0.16.3)':
+  '@mark1russell7/otel-ts@0.7.5(@opentelemetry/sdk-node@0.223.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0))(supports-color@7.2.0)(vite@6.4.5(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))(zone.js@0.16.3)':
     dependencies:
       '@grafana/faro-web-sdk': 2.13.0
-      '@grafana/faro-web-tracing': 2.13.0(supports-color@7.2.0)
       '@opentelemetry/api': 1.10.0
       '@opentelemetry/api-logs': 0.223.0
       '@opentelemetry/auto-instrumentations-web': 0.68.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0)(zone.js@0.16.3)
@@ -7489,13 +7450,7 @@ snapshots:
       - vite
       - zone.js
 
-  '@mark1russell7/quantity@0.3.0(zod@4.6.7)':
-    dependencies:
-      '@mark1russell7/rational': 0.1.2
-    optionalDependencies:
-      zod: 4.6.7
-
-  '@mark1russell7/quantity@0.3.3(zod@4.6.7)':
+  '@mark1russell7/quantity@0.3.5(zod@4.6.7)':
     dependencies:
       '@mark1russell7/rational': 0.1.2
     optionalDependencies:
@@ -7503,17 +7458,20 @@ snapshots:
 
   '@mark1russell7/rational@0.1.2': {}
 
-  '@mark1russell7/rigor-bench@0.2.33(esbuild@0.28.2)':
+  '@mark1russell7/rigor-bench@0.2.34(esbuild@0.28.2)':
     dependencies:
-      '@mark1russell7/rigor-generators': 0.1.8
-      '@mark1russell7/rigor-statistics': 0.1.25
+      '@mark1russell7/rigor-generators': 0.1.14
+      '@mark1russell7/rigor-statistics': 0.1.27
+      '@mark1russell7/text': 0.0.2
     optionalDependencies:
       esbuild: 0.28.2
 
   '@mark1russell7/rigor-chaos@0.1.3':
     dependencies:
-      '@mark1russell7/rigor-generators': 0.1.8
-      '@mark1russell7/rigor-statistics': 0.1.25
+      '@mark1russell7/rigor-generators': 0.1.14
+      '@mark1russell7/rigor-statistics': 0.1.27
+
+  '@mark1russell7/rigor-generators@0.1.14': {}
 
   '@mark1russell7/rigor-generators@0.1.8': {}
 
@@ -7521,20 +7479,26 @@ snapshots:
     dependencies:
       '@mark1russell7/rigor-generators': 0.1.8
 
-  '@mark1russell7/rigor-testkit@0.1.2(@opentelemetry/api-logs@0.223.0)(@opentelemetry/api@1.10.0)(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))':
+  '@mark1russell7/rigor-statistics@0.1.27':
+    dependencies:
+      '@mark1russell7/rigor-generators': 0.1.14
+
+  '@mark1russell7/rigor-testkit@0.1.4(@opentelemetry/api-logs@0.223.0)(@opentelemetry/api@1.10.0)(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))(fast-check@4.10.2)':
     optionalDependencies:
       '@opentelemetry/api': 1.10.0
       '@opentelemetry/api-logs': 0.223.0
       '@opentelemetry/sdk-logs': 0.223.0(@opentelemetry/api@1.10.0)
       '@opentelemetry/sdk-metrics': 2.12.0(@opentelemetry/api@1.10.0)
       '@opentelemetry/sdk-trace-base': 2.12.0(@opentelemetry/api@1.10.0)
+      fast-check: 4.10.2
 
-  '@mark1russell7/service@0.8.3(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)':
+  '@mark1russell7/service@0.8.6(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)':
     dependencies:
-      '@mark1russell7/algebra': 0.8.3(zod@4.6.7)
+      '@mark1russell7/algebra': 0.8.4(zod@4.6.7)
       '@mark1russell7/collections': 0.10.0(zod@4.6.7)
-      '@mark1russell7/quantity': 0.3.3(zod@4.6.7)
+      '@mark1russell7/quantity': 0.3.5(zod@4.6.7)
       '@mark1russell7/rigor-generators': 0.1.8
+      '@mark1russell7/text': 0.0.2
     optionalDependencies:
       '@grpc/grpc-js': 1.14.7
       '@opentelemetry/api': 1.10.0
@@ -7542,13 +7506,13 @@ snapshots:
       ws: 8.22.1
       zod: 4.6.7
 
-  '@mark1russell7/site-pages@0.4.3':
+  '@mark1russell7/site-pages@0.4.6':
     dependencies:
       '@mark1russell7/rigor-statistics': 0.1.25
 
-  '@mark1russell7/splay@0.2.0': {}
+  '@mark1russell7/splay@0.2.1': {}
 
-  '@mark1russell7/ste-lint@0.3.0':
+  '@mark1russell7/ste-lint@0.3.1':
     dependencies:
       typescript: 6.0.3
 
