@@ -237,7 +237,7 @@ jobs:
       # `lib new` runs cue-config, which needs the CUE binary (the scaffold test of mark)
       # The SHA-256 that GitHub records for the release asset (CUE publishes no checksums.txt for v0.15.1)
       - name: Install CUE
-        uses: mark1russell7/template/.github/actions/setup-cue@33b21ee9ded1c22a99baf1a71b187160012d3695 # main
+        uses: mark1russell7/template/.github/actions/setup-cue@d20d75b11120af71eaf6d2f59385c9cd053fff8b # main
         with:
           version: "0.15.1"
           sha256: 516fa080c1af12578ff76a4165cc7bf14ad9bbe5d9724a0c07553860d038885e
@@ -291,7 +291,7 @@ jobs:
       # The scaffold test of mark runs cue-config, which needs the CUE binary
       # The SHA-256 that GitHub records for the release asset (CUE publishes no checksums.txt for v0.15.1)
       - name: Install CUE
-        uses: mark1russell7/template/.github/actions/setup-cue@33b21ee9ded1c22a99baf1a71b187160012d3695 # main
+        uses: mark1russell7/template/.github/actions/setup-cue@d20d75b11120af71eaf6d2f59385c9cd053fff8b # main
         with:
           version: "0.15.1"
           sha256: aa282261245e9ab0d65b17ec3c7207f5231600106f7b26fc0c2e158b3937ca3f
