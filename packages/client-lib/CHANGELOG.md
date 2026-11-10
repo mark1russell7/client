@@ -1,5 +1,22 @@
 # @procedures/lib
 
+## 0.54.1
+
+### Patch Changes
+
+- 25dd6f5: `lib.new` writes `!dist/.tsbuildinfo` after `dist` in the field `files` of a new package, so npm does not pack the build info file of tsc. With cue 2.1.3 the entry is already there, and `lib.new` does not add a second one.
+  
+  The module of `@procedures/lib` brings the module of `@procedures/shell`. Before, `createRegistry(libModule)` had no `shell.run`, and `lib.new` uses it.
+  
+  PATCH: a bug fix, the exports do not change.
+- Updated dependencies [13c3a8b]
+  - @procedures/client@0.54.1
+  - @procedures/dag@0.54.1
+  - @procedures/fs@0.54.1
+  - @procedures/git@0.54.1
+  - @procedures/pnpm@0.54.1
+  - @procedures/shell@0.54.1
+
 ## 0.54.0
 
 ### Patch Changes
