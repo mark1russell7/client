@@ -50,7 +50,7 @@ jobs:
       match: ${{ steps.changes.outputs.match }}
     steps:
       - id: changes
-        uses: mark1russell7/template/.github/actions/changes@fc41ae3906e671ae746e9597ccc351a4e7ce8a3b # main
+        uses: mark1russell7/template/.github/actions/changes@33b21ee9ded1c22a99baf1a71b187160012d3695 # main
         with:
           paths: |
             packages/client/src/events/**
@@ -158,6 +158,6 @@ jobs:
     timeout-minutes: 2
     permissions: {}
     steps:
-      - uses: mark1russell7/template/.github/actions/gate-summary@fc41ae3906e671ae746e9597ccc351a4e7ce8a3b # main
+      - uses: mark1russell7/template/.github/actions/gate-summary@33b21ee9ded1c22a99baf1a71b187160012d3695 # main
         with:
           needs: ${{ toJSON(needs) }}
