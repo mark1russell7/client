@@ -3,6 +3,9 @@
   "extends": [
     "github>mark1russell7/template//renovate/default"
   ],
+  "schedule": [
+    "before 6am on friday"
+  ],
   "ignorePaths": [
     "**/node_modules/**",
     "**/bower_components/**",
