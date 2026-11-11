@@ -27,8 +27,8 @@ import {
   type ProcedureRegistry,
 } from "@procedures/client";
 import { confineFsProcedures, createFsModule, fsModule, registerFsProcedures } from "./module.js";
-import { SYSTEM_LINK_RULE, linkDestination, type LinkRule } from "./link-target.js";
-import { OUTSIDE_ROOT, isInside, isOutsideRoot, realPathOf } from "./root.js";
+import { SYSTEM_LINK_RULE, linkDestination, linkRuleOf, type LinkRule } from "./link-target.js";
+import { OUTSIDE_ROOT, isInside, isOutsideRoot, realPathOf, resolveRoot } from "./root.js";
 import type { ExistsOutput, GlobOutput, ReadOutput, ReaddirOutput, WriteOutput } from "./types.js";
 
 const WINDOWS = process.platform === "win32";
@@ -445,8 +445,11 @@ function makeLayout(layout: LinkLayout): void {
   }
 }
 
-/** The files in `base` with this content. The search does not follow a link. */
-function filesWith(content: string, folder: string = base): string[] {
+/**
+ * The files in `base` with this content. The search does not follow a link. It starts at the real
+ * path of `base`, as `fromBase` does: on Windows, `base` can have a short 8.3 name.
+ */
+function filesWith(content: string, folder: string = realpathSync.native(base)): string[] {
   const found: string[] = [];
   for (const entry of readdirSync(folder, { withFileTypes: true })) {
     const path = join(folder, entry.name);
@@ -476,6 +479,79 @@ describe("linkDestination", () => {
     expect(await linkDestination(link, ["a", "y"].join(sep), "text")).toBe(join(real, "a", "y"));
     expect(await linkDestination(link, join(outside, "z"), "folders")).toBe(join(realpathSync.native(outside), "z"));
     expect(await linkDestination(link, join(outside, "z"), "text")).toBe(join(outside, "z"));
+  });
+});
+
+describe("the rule of a system", () => {
+  it("is text on Windows and folders on each other system", () => {
+    expect(linkRuleOf("win32")).toBe("text");
+    expect(linkRuleOf("linux")).toBe("folders");
+    expect(linkRuleOf("darwin")).toBe("folders");
+    expect(SYSTEM_LINK_RULE).toBe(linkRuleOf(process.platform));
+  });
+});
+
+/** The error of a call, or undefined when the call resolves. */
+async function failure(key: string, input: unknown): Promise<unknown> {
+  return call(key, input).then(
+    () => undefined,
+    (thrown: unknown) => thrown,
+  );
+}
+
+/** The error of a promise, or undefined when it resolves. */
+async function rejection(promise: Promise<unknown>): Promise<NodeJS.ErrnoException | undefined> {
+  return promise.then(
+    () => undefined,
+    (thrown: unknown) => thrown as NodeJS.ErrnoException,
+  );
+}
+
+/** A chain of `count` file links in the root: `name0` leads to `name1`, and the last one to `end`. */
+function linkChain(name: string, count: number, end: string): void {
+  for (let index = 0; index < count; index++) {
+    symlinkSync(index === count - 1 ? end : `${name}${index + 1}`, join(root, `${name}${index}`), "file");
+  }
+}
+
+describe("targets that do not resolve, and the limit of links", () => {
+  it("keeps a missing folder of a target, and a name under a file, as they are", async () => {
+    const real = realpathSync.native(root);
+    const link = join(root, "l");
+    expect(await linkDestination(link, ["no-folder", "x"].join(sep), "folders")).toBe(join(real, "no-folder", "x"));
+    // a.txt is a file: the system gives ENOTDIR for a name under it, and the check counts it as missing
+    expect(await linkDestination(link, ["a.txt", "y", "x"].join(sep), "folders")).toBe(join(real, "a.txt", "y", "x"));
+  });
+
+  it.skipIf(!FILE_LINKS)("refuses a self-link in a target, in a path and as the root, and writes nothing", async () => {
+    symlinkSync("self", join(root, "self"), "file");
+    symlinkSync("self-root", join(base, "self-root"), "dir");
+    const errors = {
+      target: await rejection(linkDestination(join(root, "l"), ["self", "x"].join(sep), "folders")),
+      path: await rejection(realPathOf(join(root, "self", "x"))),
+      root: await rejection(resolveRoot(join(base, "self-root"))),
+    };
+    expect(errors.path).toBeInstanceOf(Error);
+    expect(errors.root).toBeInstanceOf(Error);
+    if (WINDOWS) {
+      // The code of a self-link on Windows, for the record of the run
+      console.info(`self-link codes on Windows: ${JSON.stringify(Object.fromEntries(Object.entries(errors).map(([key, error]) => [key, error?.code])))}`);
+    } else {
+      expect(Object.values(errors).map((error) => error?.code)).toEqual(["ELOOP", "ELOOP", "ELOOP"]);
+    }
+    expect(await failure("fs.write", { path: join("self", "x"), content: "written" })).toBeDefined();
+    expect(filesWith("written")).toEqual([]);
+  });
+
+  it.skipIf(!FILE_LINKS)("follows a chain of 40 links, and refuses a chain of 41 with ELOOP", async () => {
+    linkChain("long", 40, "end40");
+    linkChain("over", 41, "end41");
+    expect(fromBase(await realPathOf(join(root, "long0")))).toBe("root/end40");
+    expect(await rejection(realPathOf(join(root, "over0")))).toMatchObject({ code: "ELOOP" });
+    await call<WriteOutput>("fs.write", { path: "long0", content: "written" });
+    expect(filesWith("written").map(fromBase)).toEqual(["root/end40"]);
+    expect(await failure("fs.write", { path: "over0", content: "over" })).toBeDefined();
+    expect(filesWith("over")).toEqual([]);
   });
 });
 

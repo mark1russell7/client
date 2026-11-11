@@ -39,8 +39,13 @@ async function realOrSame(path: string): Promise<string> {
  */
 export type LinkRule = "folders" | "text";
 
+/** The rule of a system: `text` on Windows, `folders` on each other system. */
+export function linkRuleOf(platform: NodeJS.Platform): LinkRule {
+  return platform === "win32" ? "text" : "folders";
+}
+
 /** The rule of the system of this process. */
-export const SYSTEM_LINK_RULE: LinkRule = process.platform === "win32" ? "text" : "folders";
+export const SYSTEM_LINK_RULE: LinkRule = linkRuleOf(process.platform);
 
 /**
  * This function gives the path that the target of a symlink leads to. A relative target starts at
