@@ -4,8 +4,17 @@
  * a list of files, so they run the same on each system.
  */
 
+import { EventEmitter } from "node:events";
 import { describe, expect, it } from "vitest";
-import { programPath, systemProgram, windowsPathFolders, windowsPathValue } from "./program.js";
+import {
+  nameStartErrors,
+  programPath,
+  startFile,
+  systemProgram,
+  whichCall,
+  windowsPathFolders,
+  windowsPathValue,
+} from "./program.js";
 
 /** The options of a Windows lookup over a fixed list of files. */
 function windows(files: readonly string[], hostEnv: Record<string, string | undefined> = {}) {
@@ -78,3 +87,73 @@ describe("systemProgram", () => {
     expect(systemProgram("taskkill.exe", {})).toBe("C:\\Windows\\System32\\taskkill.exe");
   });
 });
+
+describe("startFile", () => {
+  it("gives the match of programPath, and the command as it is on POSIX", () => {
+    expect(startFile("git", { PATH: "/usr/bin" }, { platform: "linux", isFile: () => false })).toBe("git");
+    expect(startFile("tool", { PATH: "C:\\bin" }, windows(["C:\\bin\\tool.exe"]))).toBe("C:\\bin\\tool.exe");
+    expect(startFile(".\\tool", { PATH: "C:\\bin" }, windows([]))).toBe(".\\tool");
+  });
+
+  it("gives a path in a folder that cannot exist when no folder of PATH has the program", () => {
+    const options = windows(["tool.exe", "C:\\Win\\System32\\tool.exe"], { SystemRoot: "C:\\Win" });
+    expect(startFile("tool", { PATH: ".;C:\\bin" }, options)).toBe("C:\\Win\\System32\\<not in PATH>\\tool");
+    // No join: the names . and .. stay in the path, so the path is not a folder that exists
+    expect(startFile(".", { PATH: "C:\\bin" }, options)).toBe("C:\\Win\\System32\\<not in PATH>\\.");
+    expect(startFile("..", { PATH: "C:\\bin" }, options)).toBe("C:\\Win\\System32\\<not in PATH>\\..");
+  });
+});
+
+/** The error that Node gives for a start that fails, with the fields that callers read. */
+function startError(file: string): NodeJS.ErrnoException & { spawnargs: string[] } {
+  const error = new Error(`spawn ${file} ENOENT`) as NodeJS.ErrnoException & { spawnargs: string[] };
+  Object.assign(error, { errno: -4058, code: "ENOENT", syscall: `spawn ${file}`, path: file, spawnargs: ["one"] });
+  return error;
+}
+
+describe("nameStartErrors", () => {
+  it("names the command in the error of a start of its file, as a start by name does", () => {
+    const child = new EventEmitter();
+    nameStartErrors(child, "tool", "C:\\bin\\tool.exe");
+    const seen: unknown[] = [];
+    child.on("error", (error) => seen.push(error));
+    child.emit("error", startError("C:\\bin\\tool.exe"));
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({ message: "spawn tool ENOENT", code: "ENOENT", errno: -4058, syscall: "spawn tool", path: "tool", spawnargs: ["one"] });
+    expect((seen[0] as Error).stack).toContain("spawn tool ENOENT");
+    expect((seen[0] as Error).stack).not.toContain("tool.exe");
+  });
+
+  it("keeps another error as it is", () => {
+    const child = new EventEmitter();
+    nameStartErrors(child, "tool", "C:\\bin\\tool.exe");
+    const seen: unknown[] = [];
+    child.on("error", (error) => seen.push(error));
+    const other = Object.assign(new Error("kill EPERM"), { syscall: "kill" });
+    child.emit("error", other);
+    expect(seen[0]).toBe(other);
+    expect(other).toMatchObject({ message: "kill EPERM", syscall: "kill" });
+  });
+
+  it("throws the error when the child has no other listener, as an EventEmitter does", () => {
+    const child = new EventEmitter();
+    nameStartErrors(child, "tool", "C:\\bin\\tool.exe");
+    expect(() => child.emit("error", startError("C:\\bin\\tool.exe"))).toThrow("spawn tool ENOENT");
+  });
+
+  it("adds no listener when the file is the command", () => {
+    const child = new EventEmitter();
+    nameStartErrors(child, "git", "git");
+    expect(child.listenerCount("error")).toBe(0);
+  });
+});
+
+describe("whichCall", () => {
+  it("gives which on POSIX, and where with the folders of PATH only on Windows", () => {
+    expect(whichCall("git", "linux")).toEqual({ program: "which", args: ["git"] });
+    expect(whichCall("git", "win32")).toEqual({ program: "where", args: ["$PATH:git"] });
+    expect(whichCall(".\\git", "win32")).toEqual({ program: "where", args: [".\\git"] });
+    expect(whichCall("C:\\bin\\git.exe", "win32")).toEqual({ program: "where", args: ["C:\\bin\\git.exe"] });
+  });
+});
+

@@ -3,7 +3,7 @@
  */
 
 import { spawn, type ChildProcess, type SpawnOptions as NodeSpawnOptions } from "node:child_process";
-import { programPath, startMissing } from "./program.js";
+import { nameStartErrors, startFile } from "./program.js";
 import { OWN_PROCESS_GROUP, track } from "./tree-kill.js";
 
 export interface SpawnOptions {
@@ -25,13 +25,13 @@ export interface SpawnOptions {
  * its own process group, so `killTree` reaches its descendants. The child is recorded until it
  * ends, so the end of the host kills it.
  *
- * On Windows, a command with no folder starts from a folder of `PATH` only (`programPath`), never
+ * On Windows, a command with no folder starts from a folder of `PATH` only (`startFile`), never
  * from the working folder. When no folder of `PATH` has it, the start fails with ENOENT, as for
- * a missing program.
+ * a missing program. The error names the command, as before.
  */
 export function startChild(command: string, options: SpawnOptions, stdin: "pipe" | "ignore"): ChildProcess {
   const env = options.env ? { ...process.env, ...options.env } : process.env;
-  const file = programPath(command, env);
+  const file = startFile(command, env);
   const spawnOptions: NodeSpawnOptions = {
     cwd: options.cwd,
     env,
@@ -44,9 +44,8 @@ export function startChild(command: string, options: SpawnOptions, stdin: "pipe"
     ...(options.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}),
   };
   const args = [...(options.args ?? [])];
-  const child = file === undefined
-    ? startMissing(command, args, { ...spawnOptions, env: { ...env } })
-    : spawn(file, args, spawnOptions);
+  const child = spawn(file, args, spawnOptions);
+  nameStartErrors(child, command, file);
   track(child);
   return child;
 }

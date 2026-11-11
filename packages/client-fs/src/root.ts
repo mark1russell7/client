@@ -12,16 +12,17 @@
  * - The check uses the real path (`fs.realpath`) of the path. For a path that does not exist, it
  *   uses the real path of the nearest existing ancestor. So a symlinked parent folder cannot
  *   lead a write or a `mkdir` out of the root.
- * - A relative target of a symlink starts at the real folder of the link, as the system resolves
- *   it, not at the text of the path.
+ * - A relative target of a symlink starts at the real folder of the link, not at the text of the
+ *   path. A `..` in the target follows the rule of the system (`link-target.ts`).
  * - The procedure gets the absolute path, so the paths of the output are absolute.
  *
  * On Windows, the comparison ignores the case of the letters, and `/` and `\` are the same.
  */
 
 import { readlink, realpath } from "node:fs/promises";
-import { basename, dirname, isAbsolute, join, parse, relative, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { InvocationError, type ProcedurePath } from "@procedures/client";
+import { isMissing, linkDestination } from "./link-target.js";
 
 /** The reason of the `FORBIDDEN` error for a path outside the root. */
 export const OUTSIDE_ROOT = "outside-root";
@@ -38,12 +39,6 @@ export function isInside(folder: string, path: string): boolean {
   return rel === "" || (!isAbsolute(rel) && rel !== ".." && !rel.startsWith(`..${sep}`));
 }
 
-/** True for the error of a path that does not exist. */
-function isMissing(error: unknown): boolean {
-  const code = (error as NodeJS.ErrnoException | undefined)?.code;
-  return code === "ENOENT" || code === "ENOTDIR";
-}
-
 /** The target of a symlink, or undefined when the path is not a symlink or does not exist. */
 async function linkTarget(path: string): Promise<string | undefined> {
   try {
@@ -54,43 +49,6 @@ async function linkTarget(path: string): Promise<string | undefined> {
     if (code === "EINVAL" || isMissing(error)) return undefined;
     throw error;
   }
-}
-
-/** The real path of a path, or the path itself when it does not exist. */
-async function realOrSame(path: string): Promise<string> {
-  try {
-    return await realpath(path);
-  } catch (error) {
-    if (isMissing(error)) return path;
-    throw error;
-  }
-}
-
-/**
- * This function gives the path that the target of a symlink leads to, as the system resolves it.
- * A relative target starts at the real folder of the link, not at the text of the path: an
- * earlier link to a folder changes the folder of the link. Each folder of the target before its
- * last name is resolved to its real path, so a `..` after a link goes up from the target of that
- * link.
- */
-async function linkDestination(link: string, target: string): Promise<string> {
-  // The folder of the link exists: the system read the link in it
-  const folder = await realpath(dirname(link));
-  const { root } = parse(target);
-  let current = root === "" ? folder : resolve(folder, root);
-  const names = target
-    .slice(root.length)
-    .split(sep === "\\" ? /[\\/]/ : "/")
-    .filter((name) => name !== "" && name !== ".");
-  for (const [index, name] of names.entries()) {
-    if (name === "..") {
-      current = dirname(current);
-    } else {
-      current = join(current, name);
-      if (index < names.length - 1) current = await realOrSame(current);
-    }
-  }
-  return current;
 }
 
 /**

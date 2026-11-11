@@ -4,15 +4,12 @@
  * On Windows, Node (libuv) looks for a program name with no folder first in the working folder of
  * the child, and only then in the folders of `PATH`. So "run `git` in this cloned repository"
  * started a `git.exe` from the top folder of the repository. The helpers give `spawn` the
- * absolute path from `programPath()`, which searches only the folders of `PATH`.
+ * absolute path from `startFile()`, which searches only the folders of `PATH`. The functions take
+ * the operating system, the environment and the file test as inputs, so each system tests them.
  */
 
-import { spawn, type ChildProcess, type SpawnOptions } from "node:child_process";
 import { statSync } from "node:fs";
 import { win32 } from "node:path";
-
-/** The variable that stops the search of the working folder, when the host process has it. */
-const NO_CURRENT_DIRECTORY = "NoDefaultCurrentDirectoryInExePath";
 
 /** The options of `programPath`. Each one has a default from the host, so the tests can set it. */
 export interface ProgramPathOptions {
@@ -110,21 +107,63 @@ export function programPath(
 }
 
 /**
- * This function starts a program that no folder of `PATH` has, so that it fails as a missing
- * program fails: an `error` event with `spawn <name> ENOENT`. The variable of the host stops the
- * search of the working folder for the time of the call, so a program of that name in the working
- * folder does not start. `spawn` searches in the same call, so no other code sees the variable.
+ * A folder name that no file system of Windows allows: NTFS refuses `<` and `>` in a name. A path
+ * through it does not exist, so a start of it fails with ENOENT and searches no other folder.
  */
-export function startMissing(command: string, args: readonly string[], options: SpawnOptions): ChildProcess {
-  // On Windows, the names of process.env have no fixed case
-  const saved = process.env[NO_CURRENT_DIRECTORY];
-  process.env[NO_CURRENT_DIRECTORY] = "1";
-  try {
-    return spawn(command, [...args], options);
-  } finally {
-    if (saved === undefined) delete process.env[NO_CURRENT_DIRECTORY];
-    else process.env[NO_CURRENT_DIRECTORY] = saved;
-  }
+const NO_FOLDER = "<not in PATH>";
+
+/**
+ * This function gives the file that `startChild` gives to `spawn`. It is the result of
+ * `programPath()` when there is one. When no folder of `PATH` has the program, it gives a fully
+ * qualified path that does not exist, in the system folder. So the start fails with ENOENT, as for
+ * a missing program, and the system does not look in the working folder.
+ */
+export function startFile(
+  command: string,
+  env: Readonly<Record<string, string | undefined>>,
+  options: ProgramPathOptions = {},
+): string {
+  // No join: a join would remove a name such as `..`, and the path would be a folder that exists
+  return programPath(command, env, options) ?? `${systemProgram(NO_FOLDER, options.hostEnv ?? process.env)}\\${command}`;
+}
+
+/** The part of an error of Node that names the file of a start. */
+interface StartError {
+  message: string;
+  stack?: string | undefined;
+  syscall?: string | undefined;
+  path?: string | undefined;
+}
+
+/**
+ * When `file` is not `command`, this function changes each start error of `child` to name
+ * `command`, as Node names it for a start by name: the `message` (`spawn git ENOENT`), the
+ * `stack`, the `syscall` and the `path`. So the error of a call is the same as before the lookup.
+ * A child with no other listener of `error` still throws the error, as Node does.
+ */
+export function nameStartErrors(child: NodeJS.EventEmitter, command: string, file: string): void {
+  if (file === command) return;
+  const fileCall = `spawn ${file}`;
+  const commandCall = `spawn ${command}`;
+  child.prependListener("error", (error: StartError) => {
+    if (error.syscall === fileCall) {
+      error.syscall = commandCall;
+      if (error.path === file) error.path = command;
+      if (error.message.startsWith(fileCall)) error.message = commandCall + error.message.slice(fileCall.length);
+      if (error.stack !== undefined) error.stack = error.stack.replace(fileCall, commandCall);
+    }
+    if (child.listenerCount("error") === 1) throw error;
+  });
+}
+
+/**
+ * The program and the arguments of `shell.which` for a command. On Windows, `where name` gives a
+ * match in the working folder first. `where $PATH:name` looks only in the folders of `PATH`, as a
+ * start of a program by its name does. A command with a folder part goes to `where` as it is.
+ */
+export function whichCall(command: string, platform: NodeJS.Platform = process.platform): { program: string; args: string[] } {
+  if (platform !== "win32") return { program: "which", args: [command] };
+  return { program: "where", args: [hasFolder(command) ? command : `$PATH:${command}`] };
 }
 
 /**

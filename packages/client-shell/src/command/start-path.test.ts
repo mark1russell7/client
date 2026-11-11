@@ -7,6 +7,8 @@
  * Windows looks in the working folder first unless the host process has the variable
  * `NoDefaultCurrentDirectoryInExePath`. Each test removes that variable from the host for its
  * time, so the result does not depend on the shell that started the tests.
+ *
+ * The last test runs on each system: the error of a program that no folder has names the command.
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -16,6 +18,7 @@ import { join } from "node:path";
 import { runCommand } from "./index.js";
 import { shellRun } from "../procedures/shell/run.js";
 import { shellWhich } from "../procedures/shell/which.js";
+import { startChild } from "./spawn.js";
 
 const WINDOWS = process.platform === "win32";
 const VARIABLE = "NoDefaultCurrentDirectoryInExePath";
@@ -106,5 +109,15 @@ describe.skipIf(!WINDOWS)("a program name with no folder (Windows only: POSIX do
       process.chdir(folder);
       if (path !== undefined) process.env["PATH"] = path;
     }
+  });
+});
+
+describe("the error of a program that no folder has (each system)", () => {
+  it("names the command, with the fields of a start by name", async () => {
+    const name = "no-such-program-of-the-start-test";
+    const child = startChild(name, { args: ["one"] }, "ignore");
+    const error = await new Promise<NodeJS.ErrnoException & { spawnargs?: string[] }>((resolve) => child.once("error", resolve));
+    expect(error).toMatchObject({ code: "ENOENT", syscall: `spawn ${name}`, path: name, spawnargs: ["one"], message: `spawn ${name} ENOENT` });
+    expect(error.stack).toContain(`spawn ${name} ENOENT`);
   });
 });

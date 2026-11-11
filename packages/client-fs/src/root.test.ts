@@ -6,9 +6,9 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, parse, sep } from "node:path";
+import { join, parse, relative, sep } from "node:path";
 import {
   Client,
   InvocationError,
@@ -27,7 +27,8 @@ import {
   type ProcedureRegistry,
 } from "@procedures/client";
 import { confineFsProcedures, createFsModule, fsModule, registerFsProcedures } from "./module.js";
-import { OUTSIDE_ROOT, isInside, isOutsideRoot } from "./root.js";
+import { SYSTEM_LINK_RULE, linkDestination, type LinkRule } from "./link-target.js";
+import { OUTSIDE_ROOT, isInside, isOutsideRoot, realPathOf } from "./root.js";
 import type { ExistsOutput, GlobOutput, ReadOutput, ReaddirOutput, WriteOutput } from "./types.js";
 
 const WINDOWS = process.platform === "win32";
@@ -330,41 +331,186 @@ describe("symlinks and junctions", () => {
 });
 
 /**
- * The links of a cloned repository `r`, with relative targets. The system resolves the target of
- * a link from the real folder of the link, not from the text of the path:
- * - `r/a/b/c/l` leads to `r/top`.
- * - `r/top/d` leads to `new-file`, three folders up from `r/top`: the folder of the root.
- * - `r/top/up` leads to the folder outside the root, and `r/top/e` leads to `up/../other-file`.
- * - `r/top/ok` leads to `r/inside-file`.
- * The targets of `d`, `e` and `ok` do not exist.
+ * A table of links with relative targets. Each row makes its folders and links in the temporary
+ * folder `base`, and names a path in the root. `lands` gives the file that a write through the
+ * path makes, relative to `base`, by each rule of `link-target.ts`: `folders` (POSIX) and `text`
+ * (Windows). The targets are literal text with the separator of the system: `path.join` would
+ * remove a name before `..`.
  */
-function linkedRepository(): void {
-  mkdirSync(join(root, "r", "top"), { recursive: true });
-  mkdirSync(join(root, "r", "a", "b", "c"), { recursive: true });
-  symlinkSync(join("..", "..", "..", "top"), join(root, "r", "a", "b", "c", "l"), "dir");
-  symlinkSync(join("..", "..", "..", "new-file"), join(root, "r", "top", "d"), "file");
-  symlinkSync(join("..", "..", "..", "outside"), join(root, "r", "top", "up"), "dir");
-  symlinkSync(join("up", "..", "other-file"), join(root, "r", "top", "e"), "file");
-  symlinkSync(join("..", "inside-file"), join(root, "r", "top", "ok"), "file");
+interface LinkLayout {
+  name: string;
+  /** The folders to make, relative to `base`. */
+  make: readonly string[];
+  /** The links to make, in order. A target is a list of names, or an absolute path in `base`. */
+  links: ReadonlyArray<{ at: string; to: readonly string[] | { absolute: string }; kind: "file" | "dir" }>;
+  /** The path to write through, relative to `base`. */
+  path: string;
+  lands: Record<LinkRule, string>;
 }
 
-describe("a link to a missing target behind a link to a folder (skipped where the system refuses to make a symlink)", () => {
-  it.skipIf(!FILE_LINKS)("refuses fs.write and the destination of fs.copy that lead out of the root, and writes nothing outside", async () => {
-    linkedRepository();
-    // By the text of the path, r/a/b/c/l/d leads to r/a/new-file. The system writes base/new-file.
-    await refusal("fs.write", { path: "r/a/b/c/l/d", content: "x" });
-    await refusal("fs.copy", { src: "a.txt", dest: "r/a/b/c/l/d", overwrite: true });
-    // By the text of the target, r/top/e leads to r/top/other-file. The system writes base/other-file.
-    await refusal("fs.write", { path: "r/top/e", content: "x" });
-    await refusal("fs.copy", { src: "a.txt", dest: "r/top/e", overwrite: true });
-    expect(existsSync(join(base, "new-file"))).toBe(false);
-    expect(existsSync(join(base, "other-file"))).toBe(false);
-  });
+const LINK_LAYOUTS: readonly LinkLayout[] = [
+  {
+    name: "../../name: up two folders, out of the root",
+    make: [],
+    links: [{ at: "root/sub/l", to: ["..", "..", "row1"], kind: "file" }],
+    path: "root/sub/l",
+    lands: { folders: "row1", text: "row1" },
+  },
+  {
+    name: "name/../name, where the first name is a link to a folder outside",
+    make: ["outside/far"],
+    links: [
+      { at: "root/up", to: ["..", "outside", "far"], kind: "dir" },
+      { at: "root/l", to: ["up", "..", "row2"], kind: "file" },
+    ],
+    path: "root/l",
+    lands: { folders: "outside/row2", text: "root/row2" },
+  },
+  {
+    name: "a/../../x, where a is a link to a deep folder in the root",
+    make: ["root/deep/deeper"],
+    links: [
+      { at: "root/a", to: ["deep", "deeper"], kind: "dir" },
+      { at: "root/l", to: ["a", "..", "..", "row3"], kind: "file" },
+    ],
+    path: "root/l",
+    lands: { folders: "root/row3", text: "row3" },
+  },
+  {
+    name: "an absolute target outside",
+    make: [],
+    links: [{ at: "root/l", to: { absolute: "outside/row4" }, kind: "file" }],
+    path: "root/l",
+    lands: { folders: "outside/row4", text: "outside/row4" },
+  },
+  {
+    name: "a chain of two links",
+    make: [],
+    links: [
+      { at: "root/l1", to: ["l2"], kind: "file" },
+      { at: "root/l2", to: ["..", "outside", "row5"], kind: "file" },
+    ],
+    path: "root/l1",
+    lands: { folders: "outside/row5", text: "outside/row5" },
+  },
+  {
+    name: "a target through a link to a folder outside",
+    make: [],
+    links: [
+      { at: "root/door", to: ["..", "outside"], kind: "dir" },
+      { at: "root/l", to: ["door", "row6"], kind: "file" },
+    ],
+    path: "root/l",
+    lands: { folders: "outside/row6", text: "outside/row6" },
+  },
+  {
+    name: "a path through a link to a folder: the target starts at the real folder of the link",
+    make: ["root/r/a/b/c", "root/r/top"],
+    links: [
+      { at: "root/r/a/b/c/l", to: ["..", "..", "..", "top"], kind: "dir" },
+      { at: "root/r/top/d", to: ["..", "..", "..", "row7"], kind: "file" },
+    ],
+    path: "root/r/a/b/c/l/d",
+    lands: { folders: "row7", text: "row7" },
+  },
+  {
+    name: "a link to a missing file in the root",
+    make: [],
+    links: [{ at: "root/sub/l", to: ["..", "row8"], kind: "file" }],
+    path: "root/sub/l",
+    lands: { folders: "root/row8", text: "root/row8" },
+  },
+  {
+    name: "a path through a link to a folder, to a missing file in the root",
+    make: ["root/r/a/b/c", "root/r/top"],
+    links: [
+      { at: "root/r/a/b/c/l", to: ["..", "..", "..", "top"], kind: "dir" },
+      { at: "root/r/top/ok", to: ["..", "row9"], kind: "file" },
+    ],
+    path: "root/r/a/b/c/l/ok",
+    lands: { folders: "root/r/row9", text: "root/r/row9" },
+  },
+];
 
-  it.skipIf(!FILE_LINKS)("writes through a link to a missing target in the root", async () => {
-    linkedRepository();
-    await call<WriteOutput>("fs.write", { path: "r/a/b/c/l/ok", content: "inside" });
-    expect(readFileSync(join(root, "r", "inside-file"), "utf8")).toBe("inside");
+/** The absolute path of a path of the table, relative to `base`. */
+function inBase(path: string): string {
+  return join(base, ...path.split("/"));
+}
+
+function makeLayout(layout: LinkLayout): void {
+  for (const folder of layout.make) mkdirSync(inBase(folder), { recursive: true });
+  for (const link of layout.links) {
+    const target = Array.isArray(link.to) ? link.to.join(sep) : inBase((link.to as { absolute: string }).absolute);
+    symlinkSync(target, inBase(link.at), link.kind);
+  }
+}
+
+/** The files in `base` with this content. The search does not follow a link. */
+function filesWith(content: string, folder: string = base): string[] {
+  const found: string[] = [];
+  for (const entry of readdirSync(folder, { withFileTypes: true })) {
+    const path = join(folder, entry.name);
+    if (entry.isDirectory()) found.push(...filesWith(content, path));
+    else if (entry.isFile() && readFileSync(path, "utf8") === content) found.push(path);
+  }
+  return found;
+}
+
+/** A real path as a path of the table: relative to the real path of `base`, with `/`. */
+function fromBase(path: string): string {
+  const rel = relative(realpathSync.native(base), path).split(sep).join("/");
+  return WINDOWS ? rel.toLowerCase() : rel;
+}
+
+describe("linkDestination", () => {
+  it("follows the real folders with the rule folders, and reads the target as text with the rule text", async () => {
+    mkdirSync(join(root, "deep", "deeper"), { recursive: true });
+    linkFolder(join(root, "deep", "deeper"), join(root, "a"));
+    const real = realpathSync.native(root);
+    // The link itself does not have to exist: the function reads only its folder
+    const link = join(root, "l");
+    const target = ["a", "..", "x"].join(sep);
+    expect(await linkDestination(link, target, "folders")).toBe(join(real, "deep", "x"));
+    expect(await linkDestination(link, target, "text")).toBe(join(real, "x"));
+    expect(await linkDestination(link, ["a", "y"].join(sep), "folders")).toBe(join(real, "deep", "deeper", "y"));
+    expect(await linkDestination(link, ["a", "y"].join(sep), "text")).toBe(join(real, "a", "y"));
+    expect(await linkDestination(link, join(outside, "z"), "folders")).toBe(join(realpathSync.native(outside), "z"));
+    expect(await linkDestination(link, join(outside, "z"), "text")).toBe(join(outside, "z"));
+  });
+});
+
+describe.skipIf(!FILE_LINKS)("the rule of links against the system (skipped where the system refuses to make a symlink)", () => {
+  it.each(LINK_LAYOUTS)("realPathOf gives the file that a write with node:fs makes: $name", async (layout) => {
+    makeLayout(layout);
+    const path = inBase(layout.path);
+    const predicted = await realPathOf(path);
+    writeFileSync(path, "probe");
+    expect({ rule: SYSTEM_LINK_RULE, made: filesWith("probe").map(fromBase) }).toEqual({ rule: SYSTEM_LINK_RULE, made: [layout.lands[SYSTEM_LINK_RULE]] });
+    expect(fromBase(predicted)).toBe(layout.lands[SYSTEM_LINK_RULE]);
+  });
+});
+
+describe.skipIf(!FILE_LINKS)("links with relative targets through the procedures (skipped where the system refuses to make a symlink)", () => {
+  it.each(LINK_LAYOUTS)("fs.write and the destination of fs.copy write in the root only: $name", async (layout) => {
+    makeLayout(layout);
+    const lands = layout.lands[SYSTEM_LINK_RULE];
+    const input = layout.path.slice("root/".length);
+    if (lands.startsWith("root/")) {
+      await call<WriteOutput>("fs.write", { path: input, content: "written" });
+      expect(filesWith("written").map(fromBase)).toEqual([lands]);
+    } else {
+      await refusal("fs.write", { path: input, content: "written" });
+      expect(filesWith("written")).toEqual([]);
+    }
+    writeFileSync(join(root, "copy-source.txt"), "copied");
+    if (lands.startsWith("root/")) {
+      await call("fs.copy", { src: "copy-source.txt", dest: input, overwrite: true });
+    } else {
+      await refusal("fs.copy", { src: "copy-source.txt", dest: input, overwrite: true });
+    }
+    const copies = filesWith("copied").map(fromBase);
+    expect(copies.every((copy) => copy.startsWith("root/"))).toBe(true);
+    expect(copies.length).toBe(lands.startsWith("root/") ? 2 : 1);
   });
 });
 
