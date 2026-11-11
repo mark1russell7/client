@@ -17,8 +17,15 @@
  */
 
 import { execFile, spawnSync, type ChildProcess } from "node:child_process";
+import { systemProgram } from "./program.js";
 
 const WINDOWS = process.platform === "win32";
+
+/**
+ * The full path of `taskkill.exe` in the system folder. A bare name started a `taskkill.exe` of
+ * the working folder of the host first.
+ */
+const TASKKILL = WINDOWS ? systemProgram("taskkill.exe") : "taskkill";
 
 /**
  * True when a child must start with `detached: true`. On POSIX, `detached` puts the child in a
@@ -35,7 +42,7 @@ export function killTree(child: ChildProcess, signal: NodeJS.Signals = "SIGTERM"
   if (!running(child)) return;
   const pid = child.pid!;
   if (WINDOWS) {
-    execFile("taskkill", ["/T", "/F", "/PID", String(pid)], { windowsHide: true }, (error) => {
+    execFile(TASKKILL, ["/T", "/F", "/PID", String(pid)], { windowsHide: true }, (error) => {
       // taskkill fails when the process ended in the meantime, or when taskkill is missing
       if (error && running(child)) child.kill(signal);
     });
@@ -55,7 +62,7 @@ function killTreeSync(child: ChildProcess): void {
   const pid = child.pid!;
   try {
     if (WINDOWS) {
-      spawnSync("taskkill", ["/T", "/F", "/PID", String(pid)], { windowsHide: true, stdio: "ignore" });
+      spawnSync(TASKKILL, ["/T", "/F", "/PID", String(pid)], { windowsHide: true, stdio: "ignore" });
     } else {
       process.kill(-pid, "SIGKILL");
     }
