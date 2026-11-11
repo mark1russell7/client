@@ -547,7 +547,12 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # Only the two packages and the packages that they need, not the whole workspace
       - run: pnpm --filter "@procedures/shell..." --filter "@procedures/fs..." run build
-      - run: pnpm --filter @procedures/shell --filter @procedures/fs run test
+      # Two steps: a failure of the first one does not stop the tests of the second one
+      - name: The tests of @procedures/shell
+        run: pnpm --filter @procedures/shell run test
+      - name: The tests of @procedures/fs
+        if: ${{ !cancelled() }}
+        run: pnpm --filter @procedures/fs run test
 
   # The one check that the ruleset of main names (template CI.md, "The check of the ruleset").
   # It needs each job of the merge gate, starts also after a failure, and fails when one of them
