@@ -110,7 +110,7 @@
   - With no SDK, the behavior does not change: the W3C code of R16 operates.
   - The new option `apiSpans: false` of `tracingInterceptor` turns the spans of the API off. `metricsInterceptor` uses it.
   - `tracestate` and `baggage` are in the default CORS headers, and the cache key does not use them.
-  - The W3C exports of `tracing/traceparent.ts` are `@deprecated`. A later MINOR removes them, when the site, MiniMongo, Graph and jarvis register an SDK.
+  - The W3C exports of `tracing/traceparent.ts` are `@deprecated`. A later MINOR removes them, when the site and each private application register an SDK.
 
 ## 0.52.4
 
