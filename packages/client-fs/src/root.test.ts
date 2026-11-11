@@ -531,14 +531,12 @@ describe("targets that do not resolve, and the limit of links", () => {
       path: await rejection(realPathOf(join(root, "self", "x"))),
       root: await rejection(resolveRoot(join(base, "self-root"))),
     };
-    expect(errors.path).toBeInstanceOf(Error);
-    expect(errors.root).toBeInstanceOf(Error);
-    if (WINDOWS) {
-      // The code of a self-link on Windows, for the record of the run
-      console.info(`self-link codes on Windows: ${JSON.stringify(Object.fromEntries(Object.entries(errors).map(([key, error]) => [key, error?.code])))}`);
-    } else {
-      expect(Object.values(errors).map((error) => error?.code)).toEqual(["ELOOP", "ELOOP", "ELOOP"]);
-    }
+    expect(Object.values(errors).map((error) => error instanceof Error)).toEqual([true, true, true]);
+    // In each of the three cases, the code comes from fs.realpath of the system, not from this
+    // package: the target from realOrSame, the path and the root from the first realpath. POSIX
+    // gives ELOOP for a loop of links. Windows gave ELOOP in CI too, but the code comes from the
+    // translation of a system error by libuv, so only the rejection is asserted there.
+    if (!WINDOWS) expect(Object.values(errors).map((error) => error?.code)).toEqual(["ELOOP", "ELOOP", "ELOOP"]);
     expect(await failure("fs.write", { path: join("self", "x"), content: "written" })).toBeDefined();
     expect(filesWith("written")).toEqual([]);
   });
