@@ -1,5 +1,16 @@
 # @procedures/compiler
 
+## 0.55.0
+
+### Minor Changes
+
+- fd9c6d4: The release train: the ranges of @mark1russell7/coeval change to a version outside the old range. This release has breaking changes.
+
+### Patch Changes
+
+- Updated dependencies [fd9c6d4]
+  - @procedures/client@0.55.0
+
 ## 0.54.1
 
 ### Patch Changes
