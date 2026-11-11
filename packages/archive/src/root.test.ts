@@ -294,14 +294,14 @@ describe("symlinks and junctions", () => {
   });
 
   it.skipIf(!FILE_LINKS)("refuses a link to a missing target behind a link to a folder, with relative targets", async () => {
-    // r/a/b/c/l leads to r/top, and r/top/d leads to new.zip three folders up: the folder of the root.
-    // By the text of the path, r/a/b/c/l/d leads to r/a/new.zip. The system writes base/new.zip.
+    // r/a/b/c/l leads to r/top, and r/top/d.zip leads to new.zip three folders up: the folder of the root.
+    // By the text of the path, r/a/b/c/l/d.zip leads to r/a/new.zip. The system writes base/new.zip.
     mkdirSync(join(root, "r", "top"), { recursive: true });
     mkdirSync(join(root, "r", "a", "b", "c"), { recursive: true });
     symlinkSync(join("..", "..", "..", "top"), join(root, "r", "a", "b", "c", "l"), "dir");
-    symlinkSync(join("..", "..", "..", "new.zip"), join(root, "r", "top", "d"), "file");
-    await refusal("archive.create", { output: "r/a/b/c/l/d", source: "sub" });
-    await refusal("archive.create", { output: "r/a/b/c/l/d", source: "sub", overwrite: true });
+    symlinkSync(join("..", "..", "..", "new.zip"), join(root, "r", "top", "d.zip"), "file");
+    await refusal("archive.create", { output: "r/a/b/c/l/d.zip", source: "sub" });
+    await refusal("archive.create", { output: "r/a/b/c/l/d.zip", source: "sub", overwrite: true });
     expect(existsSync(join(base, "new.zip"))).toBe(false);
   });
 });

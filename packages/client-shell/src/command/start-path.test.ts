@@ -10,7 +10,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runCommand } from "./index.js";
@@ -99,7 +99,9 @@ describe.skipIf(!WINDOWS)("a program name with no folder (Windows only: POSIX do
     try {
       const found = await shellWhich({ command: NAME });
       expect(found.found).toBe(true);
-      expect(found.path?.toLowerCase()).toBe(join(bin, `${NAME}.exe`).toLowerCase());
+      // The temporary folder can have a short 8.3 name (RUNNER~1), and where gives the long name
+      const real = (path: string): string => realpathSync.native(path).toLowerCase();
+      expect(real(found.path ?? "")).toBe(real(join(bin, `${NAME}.exe`)));
     } finally {
       process.chdir(folder);
       if (path !== undefined) process.env["PATH"] = path;
