@@ -1,5 +1,12 @@
 # @procedures/browser
 
+## 0.55.0
+
+### Patch Changes
+
+- Updated dependencies [2918e97]
+  - @procedures/shell@0.55.0
+
 ## 0.54.1
 
 ### Patch Changes

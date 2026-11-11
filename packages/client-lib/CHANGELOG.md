@@ -1,5 +1,18 @@
 # @procedures/lib
 
+## 0.55.0
+
+### Patch Changes
+
+- Updated dependencies [fd9c6d4]
+- Updated dependencies [2918e97]
+  - @procedures/client@0.55.0
+  - @procedures/shell@0.55.0
+  - @procedures/fs@0.55.0
+  - @procedures/dag@0.55.0
+  - @procedures/git@0.55.0
+  - @procedures/pnpm@0.55.0
+
 ## 0.54.1
 
 ### Patch Changes
