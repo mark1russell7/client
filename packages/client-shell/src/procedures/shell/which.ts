@@ -16,8 +16,11 @@ export async function shellWhich(
   if (input.command.startsWith("-")) {
     return { path: null, found: false };
   }
-  const program = process.platform === "win32" ? "where" : "which";
-  const result = await runCommand(program, { args: [input.command], signal: ctx?.signal, timeout: 30_000 });
+  const windows = process.platform === "win32";
+  // On Windows, `where name` gives a match in the current folder first. `where $PATH:name` looks
+  // only in the folders of PATH, as the start of a program by its name does.
+  const name = windows && !/[\\/:]/.test(input.command) ? `$PATH:${input.command}` : input.command;
+  const result = await runCommand(windows ? "where" : "which", { args: [name], signal: ctx?.signal, timeout: 30_000 });
   if (!result.success) {
     return { path: null, found: false };
   }

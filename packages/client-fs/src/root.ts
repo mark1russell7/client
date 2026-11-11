@@ -12,13 +12,15 @@
  * - The check uses the real path (`fs.realpath`) of the path. For a path that does not exist, it
  *   uses the real path of the nearest existing ancestor. So a symlinked parent folder cannot
  *   lead a write or a `mkdir` out of the root.
+ * - A relative target of a symlink starts at the real folder of the link, as the system resolves
+ *   it, not at the text of the path.
  * - The procedure gets the absolute path, so the paths of the output are absolute.
  *
  * On Windows, the comparison ignores the case of the letters, and `/` and `\` are the same.
  */
 
 import { readlink, realpath } from "node:fs/promises";
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, parse, relative, resolve, sep } from "node:path";
 import { InvocationError, type ProcedurePath } from "@procedures/client";
 
 /** The reason of the `FORBIDDEN` error for a path outside the root. */
@@ -54,6 +56,43 @@ async function linkTarget(path: string): Promise<string | undefined> {
   }
 }
 
+/** The real path of a path, or the path itself when it does not exist. */
+async function realOrSame(path: string): Promise<string> {
+  try {
+    return await realpath(path);
+  } catch (error) {
+    if (isMissing(error)) return path;
+    throw error;
+  }
+}
+
+/**
+ * This function gives the path that the target of a symlink leads to, as the system resolves it.
+ * A relative target starts at the real folder of the link, not at the text of the path: an
+ * earlier link to a folder changes the folder of the link. Each folder of the target before its
+ * last name is resolved to its real path, so a `..` after a link goes up from the target of that
+ * link.
+ */
+async function linkDestination(link: string, target: string): Promise<string> {
+  // The folder of the link exists: the system read the link in it
+  const folder = await realpath(dirname(link));
+  const { root } = parse(target);
+  let current = root === "" ? folder : resolve(folder, root);
+  const names = target
+    .slice(root.length)
+    .split(sep === "\\" ? /[\\/]/ : "/")
+    .filter((name) => name !== "" && name !== ".");
+  for (const [index, name] of names.entries()) {
+    if (name === "..") {
+      current = dirname(current);
+    } else {
+      current = join(current, name);
+      if (index < names.length - 1) current = await realOrSame(current);
+    }
+  }
+  return current;
+}
+
 /**
  * This function gives the real path of an absolute path. For a path that does not exist, it
  * gives the real path of the nearest existing ancestor and the rest of the path. A symlink whose
@@ -75,7 +114,7 @@ export async function realPathOf(path: string, links = 0): Promise<string> {
         loop.code = "ELOOP";
         throw loop;
       }
-      return join(await realPathOf(resolve(dirname(current), target), links + 1), ...rest);
+      return join(await realPathOf(await linkDestination(current, target), links + 1), ...rest);
     }
     const parent = dirname(current);
     // No ancestor exists, for example a drive that is not there

@@ -2,7 +2,8 @@
  * Start a child process the one way the helpers allow: an argument list, no shell, no window.
  */
 
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn, type ChildProcess, type SpawnOptions as NodeSpawnOptions } from "node:child_process";
+import { programPath, startMissing } from "./program.js";
 import { OWN_PROCESS_GROUP, track } from "./tree-kill.js";
 
 export interface SpawnOptions {
@@ -23,17 +24,29 @@ export interface SpawnOptions {
  * This function starts `command` with `shell: false` and `windowsHide`. On POSIX the child gets
  * its own process group, so `killTree` reaches its descendants. The child is recorded until it
  * ends, so the end of the host kills it.
+ *
+ * On Windows, a command with no folder starts from a folder of `PATH` only (`programPath`), never
+ * from the working folder. When no folder of `PATH` has it, the start fails with ENOENT, as for
+ * a missing program.
  */
 export function startChild(command: string, options: SpawnOptions, stdin: "pipe" | "ignore"): ChildProcess {
-  const child = spawn(command, [...(options.args ?? [])], {
+  const env = options.env ? { ...process.env, ...options.env } : process.env;
+  const file = programPath(command, env);
+  const spawnOptions: NodeSpawnOptions = {
     cwd: options.cwd,
-    env: options.env ? { ...process.env, ...options.env } : process.env,
+    env,
     shell: false,
     windowsHide: true,
     detached: OWN_PROCESS_GROUP,
     stdio: [stdin, "pipe", "pipe"],
+    // The program gets the name of the call as its first argument, as before
+    argv0: command,
     ...(options.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}),
-  });
+  };
+  const args = [...(options.args ?? [])];
+  const child = file === undefined
+    ? startMissing(command, args, { ...spawnOptions, env: { ...env } })
+    : spawn(file, args, spawnOptions);
   track(child);
   return child;
 }
