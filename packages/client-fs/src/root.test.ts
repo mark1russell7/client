@@ -329,6 +329,45 @@ describe("symlinks and junctions", () => {
   });
 });
 
+/**
+ * The links of a cloned repository `r`, with relative targets. The system resolves the target of
+ * a link from the real folder of the link, not from the text of the path:
+ * - `r/a/b/c/l` leads to `r/top`.
+ * - `r/top/d` leads to `new-file`, three folders up from `r/top`: the folder of the root.
+ * - `r/top/up` leads to the folder outside the root, and `r/top/e` leads to `up/../other-file`.
+ * - `r/top/ok` leads to `r/inside-file`.
+ * The targets of `d`, `e` and `ok` do not exist.
+ */
+function linkedRepository(): void {
+  mkdirSync(join(root, "r", "top"), { recursive: true });
+  mkdirSync(join(root, "r", "a", "b", "c"), { recursive: true });
+  symlinkSync(join("..", "..", "..", "top"), join(root, "r", "a", "b", "c", "l"), "dir");
+  symlinkSync(join("..", "..", "..", "new-file"), join(root, "r", "top", "d"), "file");
+  symlinkSync(join("..", "..", "..", "outside"), join(root, "r", "top", "up"), "dir");
+  symlinkSync(join("up", "..", "other-file"), join(root, "r", "top", "e"), "file");
+  symlinkSync(join("..", "inside-file"), join(root, "r", "top", "ok"), "file");
+}
+
+describe("a link to a missing target behind a link to a folder (skipped where the system refuses to make a symlink)", () => {
+  it.skipIf(!FILE_LINKS)("refuses fs.write and the destination of fs.copy that lead out of the root, and writes nothing outside", async () => {
+    linkedRepository();
+    // By the text of the path, r/a/b/c/l/d leads to r/a/new-file. The system writes base/new-file.
+    await refusal("fs.write", { path: "r/a/b/c/l/d", content: "x" });
+    await refusal("fs.copy", { src: "a.txt", dest: "r/a/b/c/l/d", overwrite: true });
+    // By the text of the target, r/top/e leads to r/top/other-file. The system writes base/other-file.
+    await refusal("fs.write", { path: "r/top/e", content: "x" });
+    await refusal("fs.copy", { src: "a.txt", dest: "r/top/e", overwrite: true });
+    expect(existsSync(join(base, "new-file"))).toBe(false);
+    expect(existsSync(join(base, "other-file"))).toBe(false);
+  });
+
+  it.skipIf(!FILE_LINKS)("writes through a link to a missing target in the root", async () => {
+    linkedRepository();
+    await call<WriteOutput>("fs.write", { path: "r/a/b/c/l/ok", content: "inside" });
+    expect(readFileSync(join(root, "r", "inside-file"), "utf8")).toBe("inside");
+  });
+});
+
 describe("Windows and POSIX paths", () => {
   it("compares the paths of the system: case and drives on Windows", async () => {
     if (WINDOWS) {
