@@ -87,7 +87,7 @@
     ]
   },
   "dependencies": {
-    "@mark1russell7/coeval": "^0.26.1",
+    "@mark1russell7/coeval": "^0.29.0",
     "@procedures/client": "workspace:*",
     "zod": "^4.6.5"
   }
