@@ -1421,9 +1421,15 @@ importers:
 
   packages/gh:
     dependencies:
+      '@mark1russell7/service':
+        specifier: ^0.8.6
+        version: 0.8.6(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.1)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
+      '@procedures/http':
+        specifier: workspace:*
+        version: link:../http
       '@procedures/shell':
         specifier: workspace:*
         version: link:../client-shell
