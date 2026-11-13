@@ -101,6 +101,45 @@ describe("parseChromeBookmarks", () => {
     expect(bad.roots[0]?.total).toBe(1);
   });
 
+  it("puts the roots with other names after the roots of Chrome, in the order of their code units, not of a locale", () => {
+    const folder = (name: string): Record<string, unknown> => ({ type: "folder", name, guid: `g-${name}` });
+    const read = parseChromeBookmarks({ roots: { a_extra: folder("a_extra"), other: folder("Other"), Z_extra: folder("Z_extra"), bookmark_bar: folder("Bar") } });
+    // A locale puts "a" before "Z", but the code unit of "Z" (0x5A) comes before the code unit of "a" (0x61)
+    expect(["a_extra", "Z_extra"].sort((a, b) => a.localeCompare(b, "en"))).toEqual(["a_extra", "Z_extra"]);
+    expect(read.roots.map((root) => root.name)).toEqual(["Bar", "Other", "Z_extra", "a_extra"]);
+  });
+
+  it("gives a folder with no guid and no id the key of its place, so two sibling folders with one name have different keys", () => {
+    const twin = (site: string): Record<string, unknown> => ({ type: "folder", name: "Same", children: [{ type: "folder", name: "Inner", children: [{ type: "url", url: site }] }] });
+    const value = { roots: { bookmark_bar: { type: "folder", name: "Bar", children: [{ type: "url", url: "https://first.example/" }, twin("https://a.example/"), twin("https://b.example/")] } } };
+    const read = parseChromeBookmarks(value, { prefix: "p:" });
+    const bar = read.roots[0]!;
+    expect(bar.key).toBe("p:bookmark_bar");
+    expect(bar.folders.map((folder) => folder.key)).toEqual(["p:bookmark_bar/1", "p:bookmark_bar/2"]);
+    // The two folders Inner have the same names on their paths, but different places
+    expect(bar.folders.map((folder) => folder.folders[0]?.key)).toEqual(["p:bookmark_bar/1/0", "p:bookmark_bar/2/0"]);
+    expect(parseChromeBookmarks(value, { prefix: "p:" })).toEqual(read);
+  });
+
+  it("uses an id of text or number as the key, and the place for an empty or other id", () => {
+    const value = {
+      roots: {
+        bookmark_bar: {
+          type: "folder",
+          name: "Bar",
+          id: 1,
+          children: [
+            { type: "folder", name: "A", id: "7" },
+            { type: "folder", name: "B", id: "" },
+            { type: "folder", name: "C", id: { n: 1 }, guid: "" },
+          ],
+        },
+      },
+    };
+    const bar = parseChromeBookmarks(value).roots[0]!;
+    expect([bar.key, ...bar.folders.map((folder) => folder.key)]).toEqual(["1", "7", "bookmark_bar/1", "bookmark_bar/2"]);
+  });
+
   it("refuses a value with no roots", () => {
     for (const value of [null, [], "x", {}, { roots: [] }]) expect(() => parseChromeBookmarks(value)).toThrow("roots");
   });

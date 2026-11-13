@@ -45,7 +45,10 @@ export interface Bookmark {
 
 /** A folder of the bookmarks, with its sites and the folders in it. */
 export interface BookmarkFolder {
-  /** The key of the folder: its `guid`, else its `id`, after the prefix of the parse. Each parse of a file gives the same keys. */
+  /**
+   * The key of the folder, after the prefix of the parse: its `guid`, else its `id`, else its place in the file. The place is
+   * the name of the root, then the index of each child, for example `bookmark_bar/2/0`. Each parse of a file gives the same keys.
+   */
   readonly key: string;
   readonly name: string;
   /** The names of the folders from the root to this folder. The last name is the name of this folder. */
@@ -79,7 +82,7 @@ export interface ParseChromeBookmarksOptions {
   readonly prefix?: string | undefined;
 }
 
-/** The order of the roots that Chrome writes. A root with another name comes after them. */
+/** The order of the roots that Chrome writes. The roots with other names come after them, in the order of their code units. */
 const ROOT_ORDER = ["bookmark_bar", "other", "synced"];
 
 /** The time from 1601-01-01 (the start of the Chrome times) to 1970-01-01, in milliseconds. */
@@ -115,6 +118,14 @@ function isNode(value: unknown): value is Node {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** This function gives the `guid` of a folder, else its `id`. An empty text or a value of another type is not a key. */
+function ownKey(node: Node): string | undefined {
+  if (typeof node.guid === "string" && node.guid !== "") return node.guid;
+  if (typeof node.id === "string" && node.id !== "") return node.id;
+  if (typeof node.id === "number" && Number.isFinite(node.id)) return String(node.id);
+  return undefined;
+}
+
 function rank(name: string): number {
   const index = ROOT_ORDER.indexOf(name);
   return index === -1 ? ROOT_ORDER.length : index;
@@ -134,16 +145,17 @@ export function parseChromeBookmarks(value: unknown, options: ParseChromeBookmar
   const problems: BookmarkProblem[] = [];
   let skipped = 0;
 
-  const folderOf = (node: Node, parent: readonly string[], fallback: string, depth: number): BookmarkFolder => {
+  // The place of a folder is the name of its root, then the index of each child to it. It is unique in a file.
+  const folderOf = (node: Node, parent: readonly string[], fallback: string, depth: number, place: string): BookmarkFolder => {
     const name = typeof node.name === "string" && node.name !== "" ? node.name : fallback;
     const path = [...parent, name];
-    const own = typeof node.guid === "string" && node.guid !== "" ? node.guid : String(node.id ?? path.join("/"));
+    const own = ownKey(node) ?? place;
     const folders: BookmarkFolder[] = [];
     const sites: Bookmark[] = [];
     let total = 0;
     const children = Array.isArray(node.children) ? (node.children as unknown[]) : [];
     if (node.children !== undefined && !Array.isArray(node.children)) problems.push({ path, message: "The children of a folder must be a list." });
-    for (const child of children) {
+    for (const [index, child] of children.entries()) {
       if (!isNode(child)) {
         problems.push({ path, message: "A bookmark must be an object." });
       } else if (child.type === "url") {
@@ -160,7 +172,7 @@ export function parseChromeBookmarks(value: unknown, options: ParseChromeBookmar
           problems.push({ path, message: `A folder is deeper than ${MAX_BOOKMARK_DEPTH} folders. The parser does not read it.` });
           continue;
         }
-        const folder = folderOf(child, path, "Folder", depth + 1);
+        const folder = folderOf(child, path, "Folder", depth + 1, `${place}/${index}`);
         folders.push(folder);
         total += folder.total;
       } else {
@@ -170,13 +182,14 @@ export function parseChromeBookmarks(value: unknown, options: ParseChromeBookmar
     return { key: `${prefix}${own}`, name, path, folders, sites, total };
   };
 
-  const names = Object.keys(rootNodes).sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+  // The order of the code units, not of a locale, so each runtime gives the same parse
+  const names = Object.keys(rootNodes).sort((a, b) => rank(a) - rank(b) || (a < b ? -1 : a > b ? 1 : 0));
   const roots: BookmarkFolder[] = [];
   for (const name of names) {
     const node = rootNodes[name];
     // The roots object of an old file also has values that are not folders, for example a sync transaction version
     if (!isNode(node) || node.type !== "folder") continue;
-    roots.push(folderOf(node, [], name, 1));
+    roots.push(folderOf(node, [], name, 1, name));
   }
   return { roots, skipped, problems };
 }
