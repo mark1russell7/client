@@ -68,14 +68,15 @@ export function assertExistingPackageName(name: string): void {
     !name.startsWith("_") &&
     !EXCLUDED.has(name.toLowerCase()) &&
     parts.every(urlSafe) &&
-    !(parts.at(-1) ?? "").startsWith(".");
+    // The name of a scoped package does not start with a period. Only a scoped name has a valid slash.
+    !name.includes("/.");
   if (!valid) throw new Error(`"${name}" is not a valid npm package name.`);
 }
 
 /** This function gives the name of a package as one segment of a URL path: `@scope/name` becomes `@scope%2Fname`. */
 export function nameSegment(name: string): string {
   assertExistingPackageName(name);
-  return name.replace("/", "%2F");
+  return name.replaceAll("/", "%2F");
 }
 
 /** This function gives the error of a body with a shape that the extractor does not know. */

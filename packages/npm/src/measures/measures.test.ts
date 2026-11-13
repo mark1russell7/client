@@ -1,6 +1,7 @@
 /**
  * The use measures, on responses recorded on 2026-11-13 from npm, deps.dev and jsDelivr. The name of each recorded
- * file ends with the HTTP status of its response. No test sends a request.
+ * file ends with the HTTP status of its response. Small bodies written by hand give the shapes that no recording shows.
+ * No test sends a request.
  */
 
 import { readFileSync } from "node:fs";
@@ -187,6 +188,84 @@ describe("the npm registry", () => {
     const name = "no-such-package-wirelab-x";
     expect(extractRegistryVersion(recorded("registry-version-missing.404.json"), registryVersionRequest(name).url).missing).toEqual([name]);
     expect(extractRegistryDocument(recorded("registry-document-missing.404.json"), registryDocumentRequest(name).url).missing).toEqual([name]);
+  });
+});
+
+describe("the shapes that the recorded responses do not show", () => {
+  const long = `<html>${"busy ".repeat(60)}</html>`;
+
+  it("refuses a request with an empty version, an empty tag or an unknown period", () => {
+    expect(() => depsDevDependentsRequest("sockette", " ")).toThrow(/version of a dependents request is empty/);
+    expect(() => registryVersionRequest("sockette", "")).toThrow(/tag of a version request is empty/);
+    expect(() => jsdelivrHitsRequest("sockette", "decade" as "day")).toThrow(/not a period of the jsDelivr data API/);
+  });
+
+  it("refuses a URL of another source, and cuts a long body in the error", () => {
+    expect(() => extractDownloads("{}", "https://registry.npmjs.org/sockette")).toThrow(/is not a URL of the form \/downloads\/point\//);
+    expect(() => extractDownloads(long, "https://api.npmjs.org/downloads/point/last-week/sockette")).toThrow(/: <html>(busy ){38}busy\.\.\.$/);
+  });
+
+  it("refuses a URL that names no package or no version", () => {
+    expect(() => extractDepsDevPackage("{}", "https://api.deps.dev/v3/systems/npm/packages/")).toThrow(/names no package/);
+    expect(() => extractDepsDevDependents("{}", "https://api.deps.dev/v3alpha/systems/npm/packages/sockette")).toThrow(/names no package version/);
+    expect(() => extractRegistryDocument("{}", "https://registry.npmjs.org/")).toThrow(/names no package/);
+    expect(() => extractRegistryDocument("{}", "https://registry.npmjs.org/@stomp")).toThrow(/names the scope @stomp and no package/);
+    expect(() => extractJsdelivrHits("{}", "https://data.jsdelivr.com/v1/stats/packages/npm/sockette")).toThrow(/names no period/);
+    expect(() => extractJsdelivrHits("{}", "https://data.jsdelivr.com/v1/stats/packages/npm/sockette?period=decade")).toThrow(/names no period/);
+  });
+
+  it("throws on a body that is not the shape of its source", () => {
+    const url = (request: { url: string }): string => request.url;
+    expect(() => extractDownloads('{"sockette":{"package":"sockette"}}', `https://api.npmjs.org/downloads/point/last-week/sockette,ws`)).toThrow(/not a count of downloads/);
+    expect(() => extractDepsDevPackage("<html>", url(depsDevPackageRequest("sockette")))).toThrow(/not a deps\.dev package/);
+    expect(() => extractDepsDevPackage('{"versions":[1]}', url(depsDevPackageRequest("sockette")))).toThrow(/not a deps\.dev package/);
+    expect(() => extractDepsDevDependents("<html>", url(depsDevDependentsRequest("sockette", "2.0.6")))).toThrow(/not a deps\.dev count of dependents/);
+    expect(() => extractDepsDevDependents('{"dependentCount":"many"}', url(depsDevDependentsRequest("sockette", "2.0.6")))).toThrow(/not a deps\.dev count of dependents/);
+    expect(() => extractJsdelivrHits("<html>", url(jsdelivrHitsRequest("sockette")))).toThrow(/not jsDelivr hits/);
+    expect(() => extractRegistryVersion("<html>", url(registryVersionRequest("sockette")))).toThrow(/not an npm version document/);
+    expect(() => extractRegistryDocument("<html>", url(registryDocumentRequest("sockette")))).toThrow(/not an abbreviated npm document/);
+  });
+
+  it("reads the deprecated versions, a version with no time and a package with no default version", () => {
+    const body = JSON.stringify({
+      versions: [
+        { versionKey: { version: "1.0.0" }, isDeprecated: true, deprecatedReason: "Use 2." },
+        { versionKey: { version: "2.0.0" }, publishedAt: "", isDeprecated: true },
+      ],
+    });
+    expect(extractDepsDevPackage(body, depsDevPackageRequest("sockette").url).rows).toEqual([
+      {
+        package: "sockette",
+        defaultVersion: null,
+        versions: [
+          { version: "1.0.0", publishedAt: null, isDefault: false, deprecated: "Use 2." },
+          { version: "2.0.0", publishedAt: null, isDefault: false, deprecated: "" },
+        ],
+      },
+    ]);
+  });
+
+  it("reads a missing count of dependents as 0, as proto3 JSON leaves it out", () => {
+    const rows = extractDepsDevDependents('{"dependentCount":5,"directDependentCount":5}', depsDevDependentsRequest("sockette", "2.0.6").url).rows;
+    expect(rows).toEqual([{ package: "sockette", version: "2.0.6", dependents: 5, direct: 5, indirect: 0 }]);
+  });
+
+  it("reads hits with no days and no previous period", () => {
+    expect(extractJsdelivrHits('{"hits":{"total":0}}', jsdelivrHitsRequest("sockette", "day").url).rows).toEqual([
+      { package: "sockette", period: "day", start: null, end: null, hits: 0, rank: null, typeRank: null, previousHits: null },
+    ]);
+  });
+
+  it("reads a repository as text, and a license as an object", () => {
+    const body = JSON.stringify({ version: "1.0.0", repository: "github:lukeed/sockette", license: { type: "MIT" } });
+    expect(extractRegistryVersion(body, registryVersionRequest("sockette").url).rows[0]).toMatchObject({ repository: "github:lukeed/sockette", repositoryDirectory: null, license: "MIT" });
+  });
+
+  it("reads a deprecated latest version, and skips a tag that names no version text", () => {
+    const deprecated = JSON.stringify({ "dist-tags": { latest: "1.0.0", odd: 7 }, versions: { "1.0.0": { deprecated: "Use ws." } } });
+    expect(extractRegistryDocument(deprecated, registryDocumentRequest("sockette").url).rows[0]).toMatchObject({ distTags: { latest: "1.0.0" }, versions: 1, latestDeprecated: "Use ws.", modified: null });
+    const noLatest = JSON.stringify({ "dist-tags": {}, versions: {} });
+    expect(extractRegistryDocument(noLatest, registryDocumentRequest("sockette").url).rows[0]).toMatchObject({ distTags: {}, versions: 0, latestDeprecated: null });
   });
 });
 
