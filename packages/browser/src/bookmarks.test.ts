@@ -82,6 +82,15 @@ describe("parseChromeBookmarks", () => {
     expect(roots[0]?.total).toBe(3);
   });
 
+  it("tests a long address in linear time", () => {
+    // Two quantifiers that agree on "!" make a failed test of this address take quadratic time.
+    const url = `http://${"!".repeat(100_000)} `;
+    const file = { roots: { bookmark_bar: { type: "folder", name: "Bar", guid: "g-long", children: [{ type: "url", name: "Long", url, guid: "g-l" }] } } };
+    const start = performance.now();
+    expect(parseChromeBookmarks(file).skipped).toBe(1);
+    expect(performance.now() - start).toBeLessThan(1000);
+  });
+
   it("gives the keys of the guids, after the prefix", () => {
     expect(roots[0]?.key).toBe("g-bar");
     const account = parseChromeBookmarks(FILE, { prefix: "account:" });

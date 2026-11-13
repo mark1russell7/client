@@ -88,8 +88,12 @@ const ROOT_ORDER = ["bookmark_bar", "other", "synced"];
 /** The time from 1601-01-01 (the start of the Chrome times) to 1970-01-01, in milliseconds. */
 const WINDOWS_EPOCH_MS = 11_644_473_600_000n;
 
-/** A web address has the scheme `http` or `https`, a host, and no spaces. The test does not use `URL`, so it is the same in each runtime. */
-const WEB = /^https?:\/\/[^\s/?#]+\S*$/i;
+/**
+ * A web address has the scheme `http` or `https`, a host, and no spaces. The test does not use `URL`, so it is the same in each
+ * runtime. The first character of the host is one class, and the rest is `\S*`. Thus no two quantifiers agree on the same
+ * character, and the test runs in linear time.
+ */
+const WEB = /^https?:\/\/[^\s/?#]\S*$/i;
 
 /**
  * This function gives the ISO 8601 time of a Chrome time, or `undefined` for no time. A Chrome time
