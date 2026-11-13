@@ -1908,6 +1908,9 @@ importers:
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
+      '@procedures/json':
+        specifier: workspace:*
+        version: link:../json
       '@procedures/shell':
         specifier: workspace:*
         version: link:../client-shell

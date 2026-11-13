@@ -64,6 +64,7 @@ lookup: dist/pointer.d.ts#lookup
 mergePatch: dist/merge.d.ts#mergePatch
 mergeThreeWay: dist/three-way.d.ts#mergeThreeWay
 parseCsv: dist/csv.d.ts#parseCsv
+parseJsonOrUndefined: dist/value.d.ts#parseJsonOrUndefined
 parsePath: dist/path.d.ts#parsePath
 parsePointer: dist/pointer.d.ts#parsePointer
 parseYaml: dist/yaml.d.ts#parseYaml
@@ -429,6 +430,9 @@ export declare function isPlainObject(value: unknown): value is Record<string, u
 
 ### dist/value.d.ts#jsonEqual
 export declare function jsonEqual(a: JsonValue, b: JsonValue): boolean;
+
+### dist/value.d.ts#parseJsonOrUndefined
+export declare function parseJsonOrUndefined(text: string): JsonValue | undefined;
 
 ### dist/yaml.d.ts#YamlParseOptions
 export interface YamlParseOptions {
