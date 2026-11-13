@@ -114,6 +114,21 @@ const response = await hostFetch(url, { method: "HEAD", signal: AbortSignal.time
 const decision = frameRefusal(response.headers, { ancestor: "http://127.0.0.1:3000", page: response.url });
 ```
 
+### The addresses and the local names
+
+- `isPublicAddress(address)` tells if an IP address is public. `specialClass(bytes)` gives the class of an address that is not public.
+- `isLocalName(hostname)` tells if a host name is a name of this computer or of the local network. The function reads no DNS.
+- A local name is `localhost` or a name in the domain `localhost`, `local`, `internal` or `home.arpa`. The letter case and a final dot change nothing.
+- The sources of the domains are RFC 6761, RFC 6762 (mDNS), RFC 8375 and the reservation of `internal` by ICANN in 2024.
+
+```ts
+import { isLocalName } from "@procedures/http";
+
+isLocalName("printer.local"); // true
+isLocalName("Router.Home.Arpa."); // true
+isLocalName("myinternal.example"); // false
+```
+
 ## Limits and time
 
 - Each input of `http.request` and `http.json` has `timeoutMs`. The default is 30 seconds.
