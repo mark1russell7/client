@@ -29,7 +29,7 @@ jobs:
   # The check names are "CI / checks (ubuntu-latest, node <version>)".
   ci:
     name: CI
-    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@d20d75b11120af71eaf6d2f59385c9cd053fff8b # main
+    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@4466542421ef76bcb3ccf5b5e1765d4f509f8f4f # main
     with:
       # Build first: each package builds dist/ with `tsc -b`, and dependents read the types from
       # dist/. The types and the writing rules do not change with the Node version, so the job
@@ -62,7 +62,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: mark1russell7/template/.github/actions/changeset-check@d20d75b11120af71eaf6d2f59385c9cd053fff8b # main
+      - uses: mark1russell7/template/.github/actions/changeset-check@4466542421ef76bcb3ccf5b5e1765d4f509f8f4f # main
 
   # The checks of this repository, once, on Node 26. They need the build, but not each Node version.
   checks:
@@ -269,7 +269,7 @@ jobs:
       # The SHA-256 that GitHub records for the release asset (CUE publishes no checksums.txt for v0.15.1)
       - name: Install CUE for the coverage
         if: ${{ !cancelled() }}
-        uses: mark1russell7/template/.github/actions/setup-cue@d20d75b11120af71eaf6d2f59385c9cd053fff8b # main
+        uses: mark1russell7/template/.github/actions/setup-cue@4466542421ef76bcb3ccf5b5e1765d4f509f8f4f # main
         with:
           version: "0.15.1"
           sha256: aa282261245e9ab0d65b17ec3c7207f5231600106f7b26fc0c2e158b3937ca3f
