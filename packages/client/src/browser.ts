@@ -70,7 +70,6 @@ export {
   createErrorFromHTTPStatus,
   createErrorFromException,
   formatError,
-  errorMessage,
 } from "./client/index.js";
 
 // ============================================================================

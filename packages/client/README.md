@@ -813,9 +813,6 @@ createErrorFromException(error: unknown, context?: ErrorContext): RichError
 // Format error
 formatError(error: RichError): string
 
-// The text of a thrown value: the message of an Error, else String(value). It does not throw.
-errorMessage(error: unknown): string
-
 // Check if known error
 isKnownError(code: string): boolean
 

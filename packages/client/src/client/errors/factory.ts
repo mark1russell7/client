@@ -249,40 +249,6 @@ export function formatError(error: RichError, includeStack = false): string {
 }
 
 /**
- * This function gives the text of a thrown value: the `message` of an `Error`, else
- * `String(value)`. When the conversion to text throws an error, the function gives
- * `Object.prototype.toString.call(value)`, for example `[object Object]`. When that also fails, it
- * gives the type of the value in brackets, for example `[object]`. The function does not throw, so a
- * `catch` block can give it each value that it catches.
- *
- * @example
- * ```typescript
- * try {
- *   await client.call(["files", "read"], { path });
- * } catch (error) {
- *   console.error(errorMessage(error));
- * }
- * ```
- */
-export function errorMessage(error: unknown): string {
-  try {
-    if (error instanceof Error) {
-      const message: unknown = error.message;
-      return typeof message === "string" ? message : String(message);
-    }
-    return String(error);
-  } catch {
-    // String() throws for an object with no prototype, or with a toString that throws
-    try {
-      return Object.prototype.toString.call(error);
-    } catch {
-      // A revoked Proxy throws also here, but typeof never throws
-      return `[${typeof error}]`;
-    }
-  }
-}
-
-/**
  * Check if error is retryable.
  */
 export function isRetryable(error: RichError): boolean {

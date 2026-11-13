@@ -58,7 +58,6 @@ export {
   createErrorFromException,
   richErrorToStatus,
   formatError,
-  errorMessage,
   isRetryable,
   isErrorCategory,
 } from "./factory.js";
