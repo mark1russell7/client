@@ -528,6 +528,32 @@ jobs:
           path: packages/site/node_modules/.cache/playwright/results
           retention-days: 7
 
+  # The Windows code of the shell and file packages, on Node 26: the start of a program by its
+  # name, the kill of a process tree, and the links and drives of a root. The shared CI runs on
+  # ubuntu only, so before this job no check started the Windows branches of these packages.
+  windows:
+    name: Windows (shell and fs, node 26)
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Only the two packages and the packages that they need, not the whole workspace
+      - run: pnpm --filter "@procedures/shell..." --filter "@procedures/fs..." run build
+      # Two steps: a failure of the first one does not stop the tests of the second one
+      - name: The tests of @procedures/shell
+        run: pnpm --filter @procedures/shell run test
+      - name: The tests of @procedures/fs
+        if: ${{ !cancelled() }}
+        run: pnpm --filter @procedures/fs run test
+
   # The one check that the ruleset of main names (template CI.md, "The check of the ruleset").
   # It needs each job of the merge gate, starts also after a failure, and fails when one of them
   # did not pass. Only a job that ALLOW_SKIP names can be skipped (changesets skips on a push).
@@ -535,7 +561,7 @@ jobs:
   ci-ok:
     name: CI OK
     if: ${{ !cancelled() }}
-    needs: [ci, changesets, checks, mongo, mongo-speed-plan, mongo-speed, mongo-speed-look, mongo-speed-more, mongo-speed-verdict, site]
+    needs: [ci, changesets, checks, mongo, mongo-speed-plan, mongo-speed, mongo-speed-look, mongo-speed-more, mongo-speed-verdict, site, windows]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     permissions: {}

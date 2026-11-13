@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/gh",
-  "version": "0.54.1",
-  "description": "The GitHub CLI as procedures: pull requests, workflow runs and artifacts, releases, issues and the GitHub API, with an argument list and no shell.",
+  "version": "0.55.0",
+  "description": "The GitHub CLI as procedures: pull requests, workflow runs and artifacts, releases, issues and the GitHub API, with an argument list and no shell. Also a REST client with conditional requests and the limits of the rate.",
   "keywords": [
     "procedures",
     "github",
@@ -60,11 +60,11 @@
     "./dist/register.js"
   ],
   "devDependencies": {
-    "typescript": "^7.0.2",
-    "@types/node": "^22.0.0",
     "@mark1russell7/cue": "^2.1.1",
-    "vitest": "^5.0.3",
-    "@procedures/fs": "workspace:*"
+    "@procedures/fs": "workspace:*",
+    "@types/node": "^22.0.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
   },
   "engines": {
     "node": ">=22"
@@ -73,7 +73,9 @@
     "procedures": "./dist/register.js"
   },
   "dependencies": {
+    "@mark1russell7/service": "^0.8.6",
     "@procedures/client": "workspace:*",
+    "@procedures/http": "workspace:*",
     "@procedures/shell": "workspace:*",
     "zod": "^4.6.5"
   },

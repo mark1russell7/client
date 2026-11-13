@@ -55,6 +55,31 @@ The GitHub CLI (`gh`) as procedures: pull requests, workflow runs, artifacts, re
 - With `paginate: true`, the pages of an array become one array. The pages of an object become an array of the pages.
 - The method is an input, and `PUT` or `DELETE` can replace or remove data. Thus `gh.api` declares `writes: ["network"]` and keeps the default: destructive.
 
+### The REST client
+
+`createRestClient` is a client of the REST API for a program that sends many requests, for example a dispatcher of runners. It does not use `gh`, so a request starts no process.
+
+```typescript
+import { createRestClient } from "@procedures/gh";
+
+const github = createRestClient({ token: () => readToken() });
+const answer = await github.request({ method: "GET", path: "/repos/owner/name/actions/runs", query: { status: "queued" } }, signal);
+```
+
+- The client sends each request with `httpRequest` of `@procedures/http`, with its host policy and its limits of size and time.
+- The token is a text, or a function that gives it before each request. A token of a GitHub App changes each hour.
+- Each status is an answer: `{ status, body, cached }`. The client throws only when it gets no answer, or when a wait is too long.
+- A GET with a stored answer is a conditional request. For an answer 304, the client gives the stored answer with the status 200 and `cached: true`.
+- GitHub does not count an answer 304 for the primary limit. The client keeps 1,000 answers. The option `cacheEntries` changes the count.
+- A sliding window of `@mark1russell7/service/limiter` holds the secondary limit: 900 points in each minute.
+- A GET costs 1 point. A POST, a PUT, a PATCH or a DELETE costs 5 points, and it waits one second after the write before it.
+- After a refusal for the rate (429, or 403 with a sign of the rate), the client waits the time of `retry-after` or until `x-ratelimit-reset`.
+- With no time in the headers, the wait is one minute. Each refusal in a sequence doubles it, to 16 minutes.
+- A request whose wait is longer than `maxWaitMs` (60 seconds) throws a `RestRateError` at once, and sends nothing.
+- The client refuses a path with a query, a segment `.` or `..`, a backslash or a space. Thus a request stays on its endpoint.
+- No error text of the client has the token or the body of an answer.
+- `state()` gives the counts of the client: the requests, the answers 304, the refusals for the rate and the wait.
+
 ## Use
 
 ```typescript
@@ -81,3 +106,5 @@ Under the root of a host (`mark --fs-root`, `procedure-server --fs-root`, `MCP_F
 ## Tests
 
 `pnpm --filter @procedures/gh test` runs the procedures with a fake shell. The tests examine each argument list, the JSON of `gh`, the failures and the values that cannot become options.
+
+The tests of the REST client use a fake transport and a fake clock. They examine the headers, the stored answers, the window of points, the waits after a refusal and the checks of a path.
