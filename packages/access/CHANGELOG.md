@@ -1,5 +1,11 @@
 # @procedures/access
 
+## 0.55.1
+
+### Patch Changes
+
+- @procedures/client@0.55.1
+
 ## 0.55.0
 
 ### Patch Changes
