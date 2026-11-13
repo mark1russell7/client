@@ -128,7 +128,7 @@ jobs:
       # The shared action retries the download, keeps the archive in a cache, and checks its SHA-256 also on a cache hit.
       # The SHA-256 is the digest that GitHub records for the Linux amd64 asset (CUE publishes no checksums file).
       - name: Install CUE
-        uses: mark1russell7/template/.github/actions/setup-cue@fc41ae3906e671ae746e9597ccc351a4e7ce8a3b # main
+        uses: mark1russell7/template/.github/actions/setup-cue@4466542421ef76bcb3ccf5b5e1765d4f509f8f4f # main
         with:
           version: "0.15.1"
           sha256: aa282261245e9ab0d65b17ec3c7207f5231600106f7b26fc0c2e158b3937ca3f
@@ -199,7 +199,7 @@ jobs:
       # tarball of packages.txt whose version npm does not have, with the npm CLI and provenance. It
       # skips each version that is on npm, so a new start after a partial publish is safe.
       - id: publish
-        uses: mark1russell7/template/.github/actions/npm-publish@072c68a9d4b3fbaea886ad60ae54b6ebbef42bde # main
+        uses: mark1russell7/template/.github/actions/npm-publish@4466542421ef76bcb3ccf5b5e1765d4f509f8f4f # main
         with:
           new-packages: ${{ inputs.new-packages || 'error' }}
 
@@ -213,7 +213,7 @@ jobs:
     # this repository. It skips each tag that exists. GitHub refuses (HTTP 403) a tag from the
     # workflow token on a commit whose workflow files match no branch. Then the summary of the run
     # has the command for the owner, or start scripts/release-tags.mjs.
-    uses: mark1russell7/template/.github/workflows/reusable-release-tag.yml@072c68a9d4b3fbaea886ad60ae54b6ebbef42bde # main
+    uses: mark1russell7/template/.github/workflows/reusable-release-tag.yml@4466542421ef76bcb3ccf5b5e1765d4f509f8f4f # main
     permissions:
       contents: write
     with:
