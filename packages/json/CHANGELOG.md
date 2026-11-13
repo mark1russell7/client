@@ -1,5 +1,16 @@
 # @procedures/json
 
+## 0.55.2
+
+### Patch Changes
+
+- 12ececd: The root entry of `@procedures/json` exports `parseJsonOrUndefined(text)`. It reads a JSON text and gives `undefined` when the text is not valid JSON. It does not throw.
+  
+  - A key `__proto__` of the text stays data, as in the other functions of the package.
+  - `@procedures/npm/measures` uses it to read the response bodies of the use measures.
+- @procedures/client@0.55.2
+  - @procedures/compiler@0.55.2
+
 ## 0.55.1
 
 ### Patch Changes
