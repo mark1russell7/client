@@ -86,26 +86,62 @@ function lastLines(text: string, count = 5): string {
 }
 
 /**
+ * This function removes a folder and its content. It tries again 3 times, 100 ms apart, because
+ * Windows can hold a file for a short time after the browser stops. A removal that fails leaves the
+ * folder and does not throw. Thus it does not hide the result or the error of the caller.
+ */
+function removeFolder(path: string): void {
+  try {
+    rmSync(path, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+  } catch {
+    // The folder stays in the temporary folder of the system
+  }
+}
+
+/**
+ * This function makes a new temporary folder, gives its path to `use`, and then removes the folder,
+ * also when `use` throws. The name of the folder starts with `prefix`. The folder is in `folder`,
+ * else in the temporary folder of the system. Each temporary folder of this package uses this function.
+ */
+export async function withTemporaryFolder<T>(prefix: string, folder: string | undefined, use: (path: string) => Promise<T>): Promise<T> {
+  const path = mkdtempSync(join(folder ?? tmpdir(), prefix));
+  try {
+    return await use(path);
+  } finally {
+    removeFolder(path);
+  }
+}
+
+/**
  * This function starts the browser one time for a render, and gives the path and the size of the
  * file. It throws when it finds no browser, at the time limit and after a cancel. It also throws
  * when the file is missing, empty or not of the kind of the render.
  *
  * An existing output file changes only after the check of the new file. Thus a failed render keeps
- * an old output file.
+ * an old output file. Without the option `output`, the file goes in a new temporary folder. This
+ * folder stays after a success, and goes after a failure.
  */
 export async function headlessRender(render: HeadlessRender, source: PageSource, options: HeadlessOptions): Promise<RenderResult> {
   const browser = findBrowser(options);
   if (browser === undefined) {
     throw new Error(`No browser found. Install Microsoft Edge, Google Chrome or Chromium, or set ${BROWSER_ENV} to the browser program.`);
   }
-
-  const work = mkdtempSync(join(tmpdir(), render.prefix));
-  const profile = join(work, "profile");
-  const htmlFile = join(work, "page.html");
-  const output = resolve(options.output ?? join(work, render.file));
-  const written = join(work, render.file);
-  let made = false;
+  if (options.output !== undefined) return renderOnce(render, source, options, browser, resolve(options.output));
+  const kept = mkdtempSync(join(tmpdir(), render.prefix));
   try {
+    return await renderOnce(render, source, options, browser, join(kept, render.file));
+  } catch (error) {
+    removeFolder(kept);
+    throw error;
+  }
+}
+
+/** This function starts the browser in a temporary folder that always goes, and copies the checked file to `output`. */
+function renderOnce(render: HeadlessRender, source: PageSource, options: HeadlessOptions, browser: string, output: string): Promise<RenderResult> {
+  return withTemporaryFolder(render.prefix, undefined, async (work) => {
+    const profile = join(work, "profile");
+    const htmlFile = join(work, "page.html");
+    const written = join(work, render.file);
     let page: string;
     if ("html" in source) {
       writeFileSync(htmlFile, source.html, "utf8");
@@ -136,17 +172,8 @@ export async function headlessRender(render: HeadlessRender, source: PageSource,
       throw new Error(`The browser made no ${render.noun} (exit code ${result.exitCode})${detail ? `: ${detail}` : ""}`);
     }
     if (!render.isValid(written)) throw new Error(`The file ${output} is not a ${render.noun}`);
-    // The temporary folder goes in `finally`, so a copy is enough, also across two drives
-    if (written !== output) copyFileSync(written, output);
-    made = true;
+    // The temporary folder goes after this function, so a copy is enough, also across two drives
+    copyFileSync(written, output);
     return { path: output, bytes, browser };
-  } finally {
-    // The temporary page and profile go. A default output stays in its folder after a success.
-    if (made && options.output === undefined) {
-      rmSync(profile, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
-      rmSync(htmlFile, { force: true });
-    } else {
-      rmSync(work, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
-    }
-  }
+  });
 }

@@ -54,6 +54,7 @@ httpRequest: dist/procedures/http/request.d.ts#httpRequest
 httpSettings: dist/module.d.ts#httpSettings
 httpSse: dist/procedures/http/sse.d.ts#httpSse
 isHostNotAllowed: dist/policy.d.ts#isHostNotAllowed
+isLocalName: dist/address.d.ts#isLocalName
 isPublicAddress: dist/address.d.ts#isPublicAddress
 ndjsonLines: dist/parsers.d.ts#ndjsonLines
 parseAddress: dist/address.d.ts#parseAddress
@@ -83,6 +84,9 @@ httpSettings: dist/module.d.ts#httpSettings
 registerHttpProcedures: dist/module.d.ts#registerHttpProcedures
 
 ## Declarations
+
+### dist/address.d.ts#isLocalName
+export declare function isLocalName(hostname: string): boolean;
 
 ### dist/address.d.ts#isPublicAddress
 export declare function isPublicAddress(address: string | AddressBytes): boolean;

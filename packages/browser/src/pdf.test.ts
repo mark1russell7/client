@@ -1,8 +1,8 @@
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { CommandOptions, CommandResult } from "@procedures/shell/command";
 import { isPdfFile, pdfArgs, renderPdf } from "./pdf.js";
 import type { CommandRunner } from "./run.js";
@@ -160,5 +160,24 @@ describe("renderPdf", () => {
     };
     await expect(renderPdf({ html: "x", executable: "/opt/browser", runner: failing })).rejects.toThrow(/made no PDF file/);
     expect(existsSync(folders[0]!)).toBe(false);
+  });
+
+  it("keeps only the PDF in the folder of the default output, and removes that folder after a failure", async () => {
+    const temp = scratch();
+    // tmpdir() reads TMPDIR on Linux and macOS, and TEMP or TMP on Windows
+    for (const name of ["TMPDIR", "TEMP", "TMP"]) vi.stubEnv(name, temp);
+    try {
+      expect(tmpdir()).toBe(temp);
+      const { runner } = fakeBrowser();
+      const result = await renderPdf({ html: "x", executable: "/opt/browser", runner });
+      const kept = basename(dirname(result.path));
+      expect(readdirSync(dirname(result.path))).toEqual(["page.pdf"]);
+      expect(readdirSync(temp)).toEqual([kept]);
+      const failing: CommandRunner = async () => ({ ...OK, exitCode: 1, success: false });
+      await expect(renderPdf({ html: "x", executable: "/opt/browser", runner: failing })).rejects.toThrow(/made no PDF file/);
+      expect(readdirSync(temp)).toEqual([kept]);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
