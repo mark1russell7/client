@@ -5,7 +5,8 @@
  * - The version document of a tag gives the version, its deprecation, its repository and its license.
  * - The abbreviated document gives the tags, the count of versions and the time of the last change.
  */
-import { type Extracted, type MeasureRequest, isRecord, jsonOrUndefined, nameSegment, pathAfter, shapeError } from "./shared.js";
+import { isPlainObject, parseJsonOrUndefined } from "@procedures/json";
+import { type Extracted, type MeasureRequest, nameSegment, pathAfter, shapeError } from "./shared.js";
 
 /** The `Accept` header of the abbreviated document of a package. */
 export const ACCEPT_ABBREVIATED = "application/vnd.npm.install-v1+json";
@@ -68,9 +69,9 @@ const textOf = (value: unknown): string | null => (typeof value === "string" && 
  */
 export function extractRegistryVersion(text: string, url: string): Extracted<RegistryVersion> {
   const { name } = nameOf(pathAfter(url, "/"));
-  const json = jsonOrUndefined(text);
+  const json = parseJsonOrUndefined(text);
   if (typeof json === "string" && /not found/i.test(json)) return { rows: [], missing: [name] };
-  if (!isRecord(json) || typeof json["version"] !== "string") throw shapeError(url, "an npm version document", text);
+  if (!isPlainObject(json) || typeof json["version"] !== "string") throw shapeError(url, "an npm version document", text);
   const repo = json["repository"];
   const license = json["license"];
   return {
@@ -79,9 +80,9 @@ export function extractRegistryVersion(text: string, url: string): Extracted<Reg
         package: name,
         version: json["version"],
         deprecated: typeof json["deprecated"] === "string" ? json["deprecated"] : null,
-        repository: isRecord(repo) ? textOf(repo["url"]) : textOf(repo),
-        repositoryDirectory: isRecord(repo) ? textOf(repo["directory"]) : null,
-        license: isRecord(license) ? textOf(license["type"]) : textOf(license),
+        repository: isPlainObject(repo) ? textOf(repo["url"]) : textOf(repo),
+        repositoryDirectory: isPlainObject(repo) ? textOf(repo["directory"]) : null,
+        license: isPlainObject(license) ? textOf(license["type"]) : textOf(license),
       },
     ],
     missing: [],
@@ -91,9 +92,9 @@ export function extractRegistryVersion(text: string, url: string): Extracted<Reg
 /** This function reads the response of `registryDocumentRequest`. A package that the registry does not know is in `missing`. */
 export function extractRegistryDocument(text: string, url: string): Extracted<RegistryDocument> {
   const { name } = nameOf(pathAfter(url, "/"));
-  const json = jsonOrUndefined(text);
-  if (isRecord(json) && typeof json["error"] === "string" && /not found/i.test(json["error"])) return { rows: [], missing: [name] };
-  if (!isRecord(json) || !isRecord(json["versions"]) || !isRecord(json["dist-tags"])) throw shapeError(url, "an abbreviated npm document", text);
+  const json = parseJsonOrUndefined(text);
+  if (isPlainObject(json) && typeof json["error"] === "string" && /not found/i.test(json["error"])) return { rows: [], missing: [name] };
+  if (!isPlainObject(json) || !isPlainObject(json["versions"]) || !isPlainObject(json["dist-tags"])) throw shapeError(url, "an abbreviated npm document", text);
   const tags: Record<string, string> = {};
   for (const [tag, version] of Object.entries(json["dist-tags"])) if (typeof version === "string") tags[tag] = version;
   const latest = tags["latest"] === undefined ? undefined : json["versions"][tags["latest"]];
@@ -104,7 +105,7 @@ export function extractRegistryDocument(text: string, url: string): Extracted<Re
         modified: textOf(json["modified"]),
         distTags: tags,
         versions: Object.keys(json["versions"]).length,
-        latestDeprecated: isRecord(latest) && typeof latest["deprecated"] === "string" ? latest["deprecated"] : null,
+        latestDeprecated: isPlainObject(latest) && typeof latest["deprecated"] === "string" ? latest["deprecated"] : null,
       },
     ],
     missing: [],

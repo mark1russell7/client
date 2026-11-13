@@ -5,7 +5,8 @@
  * dependents. Thus the count includes transitive use. The dependents need a version, and the package request
  * gives the default version.
  */
-import { ACCEPT_JSON, type Extracted, type MeasureRequest, assertPackageName, isRecord, jsonOrUndefined, pathAfter, shapeError } from "./shared.js";
+import { isPlainObject, parseJsonOrUndefined } from "@procedures/json";
+import { ACCEPT_JSON, type Extracted, type MeasureRequest, assertExistingPackageName, pathAfter, shapeError } from "./shared.js";
 
 /** One version of a package, as deps.dev knows it. */
 export interface DepsDevVersion {
@@ -37,13 +38,13 @@ const DEPENDENTS_PREFIX = "/v3alpha/systems/npm/packages/";
 
 /** This function gives the request for the versions of a package. */
 export function depsDevPackageRequest(name: string): MeasureRequest {
-  assertPackageName(name);
+  assertExistingPackageName(name);
   return { url: `https://api.deps.dev${PACKAGE_PREFIX}${encodeURIComponent(name)}`, accept: ACCEPT_JSON };
 }
 
 /** This function gives the request for the dependents of one version of a package. */
 export function depsDevDependentsRequest(name: string, version: string): MeasureRequest {
-  assertPackageName(name);
+  assertExistingPackageName(name);
   if (version.trim() === "") throw new Error("The version of a dependents request is empty.");
   return { url: `https://api.deps.dev${DEPENDENTS_PREFIX}${encodeURIComponent(name)}/versions/${encodeURIComponent(version)}:dependents`, accept: ACCEPT_JSON };
 }
@@ -53,13 +54,13 @@ export function extractDepsDevPackage(text: string, url: string): Extracted<Deps
   const [name] = pathAfter(url, PACKAGE_PREFIX);
   if (name === undefined) throw new Error(`${url} names no package.`);
   if (text.trim() === "package not found") return { rows: [], missing: [name] };
-  const body = jsonOrUndefined(text);
-  const versions = isRecord(body) ? body["versions"] : undefined;
+  const body = parseJsonOrUndefined(text);
+  const versions = isPlainObject(body) ? body["versions"] : undefined;
   if (!Array.isArray(versions)) throw shapeError(url, "a deps.dev package", text);
   const rows: DepsDevVersion[] = versions.map((entry: unknown) => {
-    const key = isRecord(entry) ? entry["versionKey"] : undefined;
-    const version = isRecord(key) ? key["version"] : undefined;
-    if (!isRecord(entry) || typeof version !== "string") throw shapeError(url, "a deps.dev package", text);
+    const key = isPlainObject(entry) ? entry["versionKey"] : undefined;
+    const version = isPlainObject(key) ? key["version"] : undefined;
+    if (!isPlainObject(entry) || typeof version !== "string") throw shapeError(url, "a deps.dev package", text);
     const published = entry["publishedAt"];
     const reason = entry["deprecatedReason"];
     return {
@@ -82,9 +83,10 @@ export function extractDepsDevDependents(text: string, url: string): Extracted<D
   const version = last?.replace(/:dependents$/, "");
   if (name === undefined || version === undefined) throw new Error(`${url} names no package version.`);
   if (text.trim() === "dependents not found") return { rows: [], missing: [`${name}@${version}`] };
-  const body = jsonOrUndefined(text);
-  if (!isRecord(body)) throw shapeError(url, "a deps.dev count of dependents", text);
+  const body = parseJsonOrUndefined(text);
+  if (!isPlainObject(body)) throw shapeError(url, "a deps.dev count of dependents", text);
   const count = (field: string): number => {
+    // The proto3 JSON of deps.dev leaves out each field with the value 0. Thus a missing count is 0, not an error.
     const value = body[field] ?? 0;
     if (!Number.isInteger(value)) throw shapeError(url, "a deps.dev count of dependents", text);
     return value as number;

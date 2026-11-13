@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import {
   DOWNLOADS_BULK_LIMIT,
   type MeasureFetch,
+  assertExistingPackageName,
   depsDevDependentsRequest,
   depsDevPackageRequest,
   downloadsRequests,
@@ -25,6 +26,22 @@ import {
 } from "./index.js";
 
 const recorded = (file: string): string => readFileSync(join(import.meta.dirname, "__tests__", "recorded", file), "utf8");
+
+describe("the names of packages", () => {
+  it("accepts the names of existing packages, with the rules of npm for old packages", () => {
+    for (const name of ["sockette", "JSONStream", "Base64", "a~b", "it's(ok)!*", "@stomp/stompjs", "@scope/Name"]) {
+      expect(() => assertExistingPackageName(name)).not.toThrow();
+    }
+    expect(registryVersionRequest("JSONStream").url).toBe("https://registry.npmjs.org/JSONStream/latest");
+    expect(depsDevPackageRequest("JSONStream").url).toBe("https://api.deps.dev/v3/systems/npm/packages/JSONStream");
+    expect(jsdelivrHitsRequest("JSONStream").url).toBe("https://data.jsdelivr.com/v1/stats/packages/npm/JSONStream?period=month");
+  });
+
+  it("refuses a name that npm refuses for each package", () => {
+    const bad = ["", "Bad Name", " lead", ".hidden", "_private", "node_modules", "Favicon.ico", "a/b", "a,b", "café", "@scope/", "@scope/.hidden", "@a/b/c", "x".repeat(215)];
+    for (const name of bad) expect(() => assertExistingPackageName(name)).toThrow(/not a valid npm package name/);
+  });
+});
 
 describe("the npm downloads", () => {
   const period = "2026-11-01:2026-11-07";
@@ -51,6 +68,22 @@ describe("the npm downloads", () => {
         { package: "robust-websocket", start: "2026-11-01", end: "2026-11-07", downloads: 6996 },
       ],
       missing: ["no-such-package-wirelab-x"],
+    });
+  });
+
+  it("puts old names with capital letters into a bulk request, next to a scoped name", () => {
+    const requests = downloadsRequests(["JSONStream", "Base64", "sockette", "@stomp/stompjs"], period);
+    expect(requests.map((request) => request.url)).toEqual([
+      `https://api.npmjs.org/downloads/point/${period}/JSONStream,Base64,sockette`,
+      `https://api.npmjs.org/downloads/point/${period}/@stomp/stompjs`,
+    ]);
+    expect(extractDownloads(recorded("npm-downloads-bulk-legacy.200.json"), requests[0]?.url ?? "")).toEqual({
+      rows: [
+        { package: "JSONStream", start: "2026-11-01", end: "2026-11-07", downloads: 14831241 },
+        { package: "Base64", start: "2026-11-01", end: "2026-11-07", downloads: 981674 },
+        { package: "sockette", start: "2026-11-01", end: "2026-11-07", downloads: 23772 },
+      ],
+      missing: [],
     });
   });
 

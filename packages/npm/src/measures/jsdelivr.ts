@@ -4,7 +4,8 @@
  * A hit is one request of a file of the package to the CDN. Many pages load a browser client from a CDN, not from a
  * bundle. The hits measure this use, and the npm downloads do not count it.
  */
-import { ACCEPT_JSON, type Extracted, type MeasureRequest, assertPackageName, isRecord, jsonOrUndefined, pathAfter, shapeError } from "./shared.js";
+import { isPlainObject, parseJsonOrUndefined } from "@procedures/json";
+import { ACCEPT_JSON, type Extracted, type MeasureRequest, assertExistingPackageName, pathAfter, shapeError } from "./shared.js";
 
 /** A period of the jsDelivr data API. Each period ends on the last full day. */
 export type JsdelivrPeriod = "day" | "week" | "month" | "quarter" | "year";
@@ -30,7 +31,7 @@ const PERIODS: readonly JsdelivrPeriod[] = ["day", "week", "month", "quarter", "
 
 /** This function gives the request for the hits of a package in one period. */
 export function jsdelivrHitsRequest(name: string, period: JsdelivrPeriod = "month"): MeasureRequest {
-  assertPackageName(name);
+  assertExistingPackageName(name);
   if (!PERIODS.includes(period)) throw new Error(`"${period}" is not a period of the jsDelivr data API.`);
   return { url: `https://data.jsdelivr.com${PREFIX}${name}?period=${period}`, accept: ACCEPT_JSON };
 }
@@ -45,10 +46,10 @@ export function extractJsdelivrHits(text: string, url: string): Extracted<Jsdeli
   const name = pathAfter(url, PREFIX).join("/");
   const period = new URL(url).searchParams.get("period") as JsdelivrPeriod | null;
   if (period === null || !PERIODS.includes(period)) throw new Error(`${url} names no period of the jsDelivr data API.`);
-  const body = jsonOrUndefined(text);
-  const hits = isRecord(body) ? body["hits"] : undefined;
-  if (!isRecord(hits) || !Number.isInteger(hits["total"])) throw shapeError(url, "jsDelivr hits", text);
-  const days = isRecord(hits["dates"]) ? Object.keys(hits["dates"]).sort() : [];
+  const body = parseJsonOrUndefined(text);
+  const hits = isPlainObject(body) ? body["hits"] : undefined;
+  if (!isPlainObject(hits) || !Number.isInteger(hits["total"])) throw shapeError(url, "jsDelivr hits", text);
+  const days = isPlainObject(hits["dates"]) ? Object.keys(hits["dates"]).sort() : [];
   const previous = hits["prev"];
   return {
     rows: [
@@ -60,7 +61,7 @@ export function extractJsdelivrHits(text: string, url: string): Extracted<Jsdeli
         hits: hits["total"] as number,
         rank: rankOf(hits["rank"]),
         typeRank: rankOf(hits["typeRank"]),
-        previousHits: isRecord(previous) && Number.isInteger(previous["total"]) ? (previous["total"] as number) : null,
+        previousHits: isPlainObject(previous) && Number.isInteger(previous["total"]) ? (previous["total"] as number) : null,
       },
     ],
     missing: [],

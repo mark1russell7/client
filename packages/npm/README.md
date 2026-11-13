@@ -74,6 +74,7 @@ Each measure is a pair of pure functions. The request builder gives the URL and 
 
 - The npm downloads include the installs through other packages. The deps.dev dependents include the indirect dependents. Thus both measures include transitive use.
 - `downloadsRequests` puts up to 128 packages without a scope into one bulk request. Each package with a scope gets its own request.
+- The request builders accept the name of each existing package. Some old packages have names that a new package cannot have, for example `JSONStream`. `assertExistingPackageName` applies the rules of npm for these names.
 - An extractor puts each package that the source does not know into `missing`. A body of another shape, for example a rate limit, throws an error that names the URL.
 - The dependents need a version. `extractDepsDevPackage` gives the default version.
 

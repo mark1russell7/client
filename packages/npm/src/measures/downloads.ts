@@ -4,7 +4,8 @@
  * The count includes each install that comes through another package, so it includes transitive use. A bulk request
  * gives the counts of up to 128 packages without a scope. A package with a scope needs a request of its own.
  */
-import { ACCEPT_JSON, type Extracted, type MeasureRequest, assertPackageName, isRecord, jsonOrUndefined, pathAfter, shapeError } from "./shared.js";
+import { isPlainObject, parseJsonOrUndefined } from "@procedures/json";
+import { ACCEPT_JSON, type Extracted, type MeasureRequest, assertExistingPackageName, pathAfter, shapeError } from "./shared.js";
 
 /** The most packages of one bulk request of the npm downloads API. */
 export const DOWNLOADS_BULK_LIMIT = 128;
@@ -30,7 +31,7 @@ const PERIOD = /^(?:last-day|last-week|last-month|\d{4}-\d{2}-\d{2}:\d{4}-\d{2}-
 export function downloadsRequests(packages: readonly string[], period: DownloadsPeriod = "last-week"): MeasureRequest[] {
   if (!PERIOD.test(period)) throw new Error(`"${period}" is not a period of the npm downloads API.`);
   const unique = [...new Set(packages)];
-  unique.forEach(assertPackageName);
+  unique.forEach(assertExistingPackageName);
   const base = `https://api.npmjs.org${PREFIX}${period}/`;
   const plain = unique.filter((name) => !name.startsWith("@"));
   const requests: MeasureRequest[] = [];
@@ -42,7 +43,7 @@ export function downloadsRequests(packages: readonly string[], period: Downloads
 }
 
 function row(url: string, value: unknown, text: string): DownloadsRow {
-  if (!isRecord(value) || typeof value["package"] !== "string" || typeof value["start"] !== "string" || typeof value["end"] !== "string" || !Number.isInteger(value["downloads"])) {
+  if (!isPlainObject(value) || typeof value["package"] !== "string" || typeof value["start"] !== "string" || typeof value["end"] !== "string" || !Number.isInteger(value["downloads"])) {
     throw shapeError(url, "a count of downloads", text);
   }
   return { package: value["package"], start: value["start"], end: value["end"], downloads: value["downloads"] as number };
@@ -56,8 +57,8 @@ export function extractDownloads(text: string, url: string): Extracted<Downloads
   const [, ...rest] = pathAfter(url, PREFIX);
   const joined = rest.join("/");
   const names = joined.startsWith("@") ? [joined] : joined.split(",");
-  const body = jsonOrUndefined(text);
-  if (!isRecord(body)) throw shapeError(url, "a JSON object", text);
+  const body = parseJsonOrUndefined(text);
+  if (!isPlainObject(body)) throw shapeError(url, "a JSON object", text);
   const error = body["error"];
   if (typeof error === "string") {
     if (names.length === 1 && /not found/i.test(error)) return { rows: [], missing: names };

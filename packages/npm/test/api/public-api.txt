@@ -67,7 +67,7 @@ type MeasureFetch: dist/measures/shared.d.ts#MeasureFetch
 type MeasureRequest: dist/measures/shared.d.ts#MeasureRequest
 RegistryDocument: dist/measures/registry.d.ts#RegistryDocument
 RegistryVersion: dist/measures/registry.d.ts#RegistryVersion
-assertPackageName: dist/measures/shared.d.ts#assertPackageName
+assertExistingPackageName: dist/measures/shared.d.ts#assertExistingPackageName
 depsDevDependentsRequest: dist/measures/deps-dev.d.ts#depsDevDependentsRequest
 depsDevPackageRequest: dist/measures/deps-dev.d.ts#depsDevPackageRequest
 downloadsRequests: dist/measures/downloads.d.ts#downloadsRequests
@@ -228,8 +228,8 @@ export interface MeasureRequest {
     readonly accept: string;
 }
 
-### dist/measures/shared.d.ts#assertPackageName
-export declare function assertPackageName(name: string): void;
+### dist/measures/shared.d.ts#assertExistingPackageName
+export declare function assertExistingPackageName(name: string): void;
 
 ### dist/measures/shared.d.ts#measure
 export declare function measure<Row>(fetch: MeasureFetch, request: MeasureRequest, extract: Extractor<Row>): Promise<Extracted<Row>>;

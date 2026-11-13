@@ -53,6 +53,18 @@ export function isPlainObject(value: unknown): value is Record<string, unknown> 
   return prototype === Object.prototype || prototype === null;
 }
 
+/**
+ * This function reads a JSON text. It gives `undefined` when the text is not valid JSON, and it does not throw. A key
+ * `__proto__` of the text stays data.
+ */
+export function parseJsonOrUndefined(text: string): JsonValue | undefined {
+  try {
+    return JSON.parse(text) as JsonValue;
+  } catch {
+    return undefined;
+  }
+}
+
 /** This function sets an own data property: a key `__proto__` stays data. */
 export function put(target: Record<string, unknown>, key: string, value: unknown): void {
   Object.defineProperty(target, key, { value, writable: true, enumerable: true, configurable: true });

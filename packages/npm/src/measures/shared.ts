@@ -47,37 +47,41 @@ export async function measure<Row>(fetch: MeasureFetch, request: MeasureRequest,
 /** The `Accept` header of a JSON API. */
 export const ACCEPT_JSON = "application/json";
 
-const NAME = /^(?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/;
+/** The names that npm refuses for all packages, also for old packages. */
+const EXCLUDED = new Set(["node_modules", "favicon.ico"]);
 
-/** This function throws an error when the text is not a valid name of a new npm package. */
-export function assertPackageName(name: string): void {
-  if (name.length > 214 || !NAME.test(name)) throw new Error(`"${name}" is not a valid npm package name.`);
+const SCOPED = /^@([^/]+)\/([^/]+)$/;
+
+const urlSafe = (part: string): boolean => part !== "" && encodeURIComponent(part) === part;
+
+/**
+ * This function throws an error when the text cannot be the name of a package on npm. It applies the rules of npm for
+ * existing packages, because old packages keep names that a new package cannot have. Thus capital letters and the
+ * characters `~'!()*` are valid, for example `JSONStream`. Each part of the name is safe in a URL.
+ */
+export function assertExistingPackageName(name: string): void {
+  const scoped = SCOPED.exec(name);
+  const parts = scoped === null ? [name] : scoped.slice(1);
+  const valid =
+    name.length <= 214 &&
+    !name.startsWith(".") &&
+    !name.startsWith("_") &&
+    !EXCLUDED.has(name.toLowerCase()) &&
+    parts.every(urlSafe) &&
+    !(parts.at(-1) ?? "").startsWith(".");
+  if (!valid) throw new Error(`"${name}" is not a valid npm package name.`);
 }
 
 /** This function gives the name of a package as one segment of a URL path: `@scope/name` becomes `@scope%2Fname`. */
 export function nameSegment(name: string): string {
-  assertPackageName(name);
+  assertExistingPackageName(name);
   return name.replace("/", "%2F");
-}
-
-/** This function reads a JSON body, or gives `undefined` when the text is not JSON. */
-export function jsonOrUndefined(text: string): unknown {
-  try {
-    return JSON.parse(text) as unknown;
-  } catch {
-    return undefined;
-  }
 }
 
 /** This function gives the error of a body with a shape that the extractor does not know. */
 export function shapeError(url: string, what: string, text: string): Error {
   const start = text.length > 200 ? `${text.slice(0, 200)}...` : text;
   return new Error(`${url} answered a body that is not ${what}: ${start}`);
-}
-
-/** This function tells if a value is an object that is not an array. */
-export function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /** This function gives the path segments of a URL after a prefix, with each segment decoded. */
