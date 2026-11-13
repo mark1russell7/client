@@ -1,11 +1,12 @@
 /**
- * The profiles of Chrome on the disk. This file finds the folder of the user data of Chrome. Then
- * it finds the bookmarks files of each profile in it, with the names of the profiles. The parse of
- * a file is in `bookmarks.ts`. This file uses Node.js, so only the root entry exports it.
+ * The profiles of the Chromium browsers on the disk: Google Chrome, Microsoft Edge and Chromium.
+ * This file finds the folders of the user data of each browser. Then it finds the bookmarks files of
+ * each profile in them, with the names of the profiles. The parse of a file is in `bookmarks.ts`.
+ * This file uses Node.js, so only the root entry exports it.
  */
 
 import { readFile, readdir, stat } from "node:fs/promises";
-import { join } from "node:path";
+import { join, posix, win32 } from "node:path";
 import { BOOKMARK_FILES, profileNames, type BookmarkSource } from "./bookmarks.js";
 
 /** The file operations of the search. A test gives files in memory. */
@@ -39,19 +40,53 @@ export const diskFileAccess: FileAccess = {
 };
 
 /**
- * This function gives the folders of the user data of Google Chrome for a platform. Each profile of
- * Chrome is a folder in one of them. The function reads no file.
+ * The key of a Chromium browser that keeps its profiles in a folder of user data. These are the
+ * browsers that `findBrowser` finds. The key is the first part of the id of a bookmarks file.
  */
-export function chromeDataFolders(platform: NodeJS.Platform, env: Readonly<Record<string, string | undefined>>, home: string): string[] {
-  if (platform === "win32") {
-    const local = env["LOCALAPPDATA"] ?? join(home, "AppData", "Local");
-    return [join(local, "Google", "Chrome", "User Data")];
-  }
-  if (platform === "darwin") return [join(home, "Library", "Application Support", "Google", "Chrome")];
-  return [join(env["XDG_CONFIG_HOME"] ?? join(home, ".config"), "google-chrome")];
+export type ProfileBrowser = "chrome" | "edge" | "chromium";
+
+/** The browsers of `browserDataFolders`, in the order of its result. */
+export const PROFILE_BROWSERS: readonly ProfileBrowser[] = ["chrome", "edge", "chromium"];
+
+/** A folder of the user data of a browser. Each profile of the browser is a folder in it. */
+export interface BrowserDataFolder {
+  /** The key of the browser, for example `chrome`. Another key, for example `brave`, is also correct. */
+  readonly browser: string;
+  /** The path of the folder. */
+  readonly folder: string;
 }
 
-/** A profile folder of Chrome has the name `Default` or `Profile <n>`. The guest and system profiles have no bookmarks. */
+/** The parts of the path of the user data of each browser, on each platform. */
+const DATA_PATHS: Readonly<Record<ProfileBrowser, { readonly windows: readonly string[]; readonly mac: readonly string[]; readonly linux: string }>> = {
+  chrome: { windows: ["Google", "Chrome", "User Data"], mac: ["Google", "Chrome"], linux: "google-chrome" },
+  edge: { windows: ["Microsoft", "Edge", "User Data"], mac: ["Microsoft Edge"], linux: "microsoft-edge" },
+  chromium: { windows: ["Chromium", "User Data"], mac: ["Chromium"], linux: "chromium" },
+};
+
+/**
+ * This function gives the folders of the user data of the browsers for a platform. Windows uses
+ * `LOCALAPPDATA`, macOS uses `~/Library/Application Support`, and Linux uses `XDG_CONFIG_HOME` or `~/.config`.
+ * The function reads no file, so a folder in the result can be absent.
+ */
+export function browserDataFolders(
+  platform: NodeJS.Platform,
+  env: Readonly<Record<string, string | undefined>>,
+  home: string,
+  browsers: readonly ProfileBrowser[] = PROFILE_BROWSERS,
+): BrowserDataFolder[] {
+  if (platform === "win32") {
+    const local = env["LOCALAPPDATA"] ?? win32.join(home, "AppData", "Local");
+    return browsers.map((browser) => ({ browser, folder: win32.join(local, ...DATA_PATHS[browser].windows) }));
+  }
+  if (platform === "darwin") {
+    const support = posix.join(home, "Library", "Application Support");
+    return browsers.map((browser) => ({ browser, folder: posix.join(support, ...DATA_PATHS[browser].mac) }));
+  }
+  const config = env["XDG_CONFIG_HOME"] ?? posix.join(home, ".config");
+  return browsers.map((browser) => ({ browser, folder: posix.join(config, DATA_PATHS[browser].linux) }));
+}
+
+/** A profile folder has the name `Default` or `Profile <n>`. The guest and system profiles have no bookmarks. */
 const PROFILE = /^(Default|Profile \d+)$/;
 
 /** This function gives the order of two profile folders: `Default` first, then `Profile <n>` by the number. */
@@ -60,8 +95,10 @@ function profileOrder(a: string, b: string): number {
   return number(a) - number(b);
 }
 
-/** A bookmarks file that the search found, with its profile folder and its path. */
+/** A bookmarks file that the search found, with its browser, its profile folder and its path. */
 export interface BookmarkFile extends BookmarkSource {
+  /** The key of the browser of the profile, for example `chrome` or `edge`. */
+  readonly browser: string;
   /** The name of the folder of the profile, for example `Default` or `Profile 2`. */
   readonly profile: string;
   /** The path of the file. */
@@ -69,13 +106,14 @@ export interface BookmarkFile extends BookmarkSource {
 }
 
 /**
- * This function finds the bookmarks files of the Chrome profiles in the folders of the user data.
- * It gives `Default` first, then `Profile <n>` by the number. The file `Local State` gives the
- * names of the profiles. Without it, a profile has the name of its folder.
+ * This function finds the bookmarks files of the profiles in the folders of the user data, in the
+ * order of the folders. In a folder, it gives `Default` first, then `Profile <n>` by the number. The
+ * file `Local State` gives the names of the profiles. Without it, a profile has the name of its folder.
+ * The id of a file starts with the key of its browser, so the files of two browsers have different ids.
  */
-export async function findBookmarkFiles(folders: readonly string[], files: FileAccess = diskFileAccess): Promise<BookmarkFile[]> {
+export async function findBookmarkFiles(folders: readonly BrowserDataFolder[], files: FileAccess = diskFileAccess): Promise<BookmarkFile[]> {
   const found: BookmarkFile[] = [];
-  for (const folder of folders) {
+  for (const { browser, folder } of folders) {
     let names = new Map<string, string>();
     try {
       names = profileNames(JSON.parse(await files.read(join(folder, "Local State"))));
@@ -87,7 +125,7 @@ export async function findBookmarkFiles(folders: readonly string[], files: FileA
       for (const [file, kind] of Object.entries(BOOKMARK_FILES)) {
         const path = join(folder, profile, file);
         if ((await files.size(path)) === undefined) continue;
-        found.push({ id: `chrome:${profile}:${file}`, name: names.get(profile) ?? profile, kind, profile, path });
+        found.push({ id: `${browser}:${profile}:${file}`, name: names.get(profile) ?? profile, kind, browser, profile, path });
       }
     }
   }

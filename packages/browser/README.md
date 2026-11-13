@@ -6,7 +6,7 @@
 npm install @procedures/browser
 ```
 
-This package finds a Chromium browser that is already on the host: Microsoft Edge, Google Chrome or Chromium. It renders a page with that browser: a PDF file or a screenshot. The package does not download a browser. It also finds and reads the bookmarks files of the Chrome profiles.
+This package finds a Chromium browser that is already on the host: Microsoft Edge, Google Chrome or Chromium. It renders a page with that browser: a PDF file or a screenshot. The package does not download a browser. It also finds and reads the bookmarks files of the profiles of Chrome, Edge and Chromium.
 
 Each render uses one headless run. The run starts the browser one time, with argv, in a new temporary folder with its own profile. The renders give only their flags and the check of their file.
 
@@ -83,23 +83,24 @@ const { path, bytes } = await renderPdf({ html: "<h1>Menu</h1><p>Soup of the day
 
 When the search finds no browser, each render gives an error that names `PDF_BROWSER`. The name comes from `@procedures/pdf`, the first home of the search.
 
-## The bookmarks of Chrome
+## The bookmarks of the profiles
 
 ```ts
 import { homedir } from "node:os";
-import { chromeDataFolders, findBookmarkFiles, MAX_BOOKMARKS_BYTES, parseChromeBookmarks } from "@procedures/browser";
+import { browserDataFolders, findBookmarkFiles, MAX_BOOKMARKS_BYTES, parseChromeBookmarks } from "@procedures/browser";
 
-const files = await findBookmarkFiles(chromeDataFolders(process.platform, process.env, homedir()));
-for (const file of files) console.log(file.id, file.name, file.kind, file.path);
+const files = await findBookmarkFiles(browserDataFolders(process.platform, process.env, homedir()));
+for (const file of files) console.log(file.id, file.browser, file.name, file.kind, file.path);
 ```
 
-- `chromeDataFolders(platform, env, home)` gives the folder of the user data of Google Chrome on Windows, macOS and Linux. It reads no file.
-- `findBookmarkFiles(folders, files)` finds the files `Bookmarks` and `AccountBookmarks` of each profile. It reads the names of the profiles from the file `Local State`.
-- The profiles come in the order of Chrome: `Default` first, then `Profile <n>` by the number. The guest and system profiles have no bookmarks.
-- The id of a file is `chrome:<profile folder>:<file name>`. A host can give the id and the name to a page, and keep the path.
+- `browserDataFolders(platform, env, home, browsers)` gives the folder of the user data of each browser on Windows, macOS and Linux. It reads no file.
+- The browsers are `chrome`, `edge` and `chromium` (`PROFILE_BROWSERS`), the browsers that `findBrowser` finds. The argument `browsers` selects some of them.
+- `findBookmarkFiles(folders, files)` finds the files `Bookmarks` and `AccountBookmarks` of each profile. It reads the names of the profiles from the file `Local State`. Each folder has the key of its browser, so a caller can add the folder of another Chromium browser.
+- The files come in the order of the folders. In a folder, `Default` comes first, then `Profile <n>` by the number. The guest and system profiles have no bookmarks.
+- The id of a file is `<browser>:<profile folder>:<file name>`, for example `edge:Default:Bookmarks`. The files of two browsers have different ids. A host can give the id and the name to a page, and keep the path.
 - The argument `files` is the file access of the search. The default is `diskFileAccess`. A test gives files in memory.
 
-`parseChromeBookmarks(value, options)` reads the JSON of a bookmarks file. It gives the root folders, each with its folders and its sites.
+`parseChromeBookmarks(value, options)` reads the JSON of a bookmarks file. Chrome, Edge and Chromium write the same format. The parser gives the root folders, each with its folders and its sites.
 
 - Each site has its address, its title, the time when the user added it, and the names of its folders as `path`.
 - The parser keeps only the `http` and `https` addresses. The count `skipped` tells how many other bookmarks the file has.

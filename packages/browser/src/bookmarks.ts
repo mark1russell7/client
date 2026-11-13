@@ -1,6 +1,7 @@
 /**
- * The bookmarks files of Chrome. This file reads the JSON of a bookmarks file, and gives a tree of
- * folders with their sites. It also reads the names of the profiles from the file `Local State`.
+ * The bookmarks files of Chrome. Edge and Chromium write the same format. This file reads the JSON
+ * of a bookmarks file, and gives a tree of folders with their sites. It also reads the names of the
+ * profiles from the file `Local State`.
  *
  * This file imports no Node built-in, so a page can use it: the entry `@procedures/browser/bookmarks`.
  * The search for the files on the disk is in `profiles.ts`, on the root entry.
@@ -14,19 +15,18 @@ export const MAX_BOOKMARKS_BYTES: number = 64 * 1024 * 1024;
 
 /**
  * The kind of a bookmarks file. `profile` is the file `Bookmarks` of a profile. `account` is the
- * file `AccountBookmarks`: the bookmarks of a Google account with no sync. `file` is another file,
- * for example a file that the user chose.
+ * file `AccountBookmarks`: the bookmarks of a Google account with no sync.
  */
-export type BookmarkFileKind = "profile" | "account" | "file";
+export type BookmarkFileKind = "profile" | "account";
 
-/** The bookmarks files of a Chrome profile, by the name of the file, with their kinds. */
+/** The bookmarks files of a profile, by the name of the file, with their kinds. */
 export const BOOKMARK_FILES: Readonly<Record<string, BookmarkFileKind>> = { Bookmarks: "profile", AccountBookmarks: "account" };
 
 /** A bookmarks file, with no path. A host can give this to a page and keep the path. */
 export interface BookmarkSource {
-  /** The id of the file. The search gives `chrome:<profile folder>:<file name>`. */
+  /** The id of the file. The search gives `<browser>:<profile folder>:<file name>`, for example `chrome:Default:Bookmarks`. */
   readonly id: string;
-  /** The name of the profile, as Chrome shows it, or the name of a file that the user chose. */
+  /** The name of the profile, as the browser shows it. */
   readonly name: string;
   readonly kind: BookmarkFileKind;
 }
@@ -182,8 +182,8 @@ export function parseChromeBookmarks(value: unknown, options: ParseChromeBookmar
 }
 
 /**
- * This function gives the name of each profile from the JSON of the file `Local State` of Chrome,
- * by the folder of the profile. A value that it cannot read gives no names.
+ * This function gives the name of each profile from the JSON of the file `Local State` of a
+ * Chromium browser, by the folder of the profile. A value that it cannot read gives no names.
  */
 export function profileNames(localState: unknown): Map<string, string> {
   const names = new Map<string, string>();

@@ -15,6 +15,7 @@ BookmarkFileKind: dist/bookmarks.d.ts#BookmarkFileKind
 BookmarkFolder: dist/bookmarks.d.ts#BookmarkFolder
 BookmarkProblem: dist/bookmarks.d.ts#BookmarkProblem
 BookmarkSource: dist/bookmarks.d.ts#BookmarkSource
+BrowserDataFolder: dist/profiles.d.ts#BrowserDataFolder
 CHROME_PATH_ENV: dist/browser.d.ts#CHROME_PATH_ENV
 ChromeBookmarks: dist/bookmarks.d.ts#ChromeBookmarks
 type CommandRunner: dist/run.d.ts#CommandRunner
@@ -26,7 +27,9 @@ type HeadlessOptions: dist/run.d.ts#HeadlessOptions
 MAX_BOOKMARKS_BYTES: dist/bookmarks.d.ts#MAX_BOOKMARKS_BYTES
 MAX_BOOKMARK_DEPTH: dist/bookmarks.d.ts#MAX_BOOKMARK_DEPTH
 MAX_SCREENSHOT_SIDE: dist/screenshot.d.ts#MAX_SCREENSHOT_SIDE
+PROFILE_BROWSERS: dist/profiles.d.ts#PROFILE_BROWSERS
 ParseChromeBookmarksOptions: dist/bookmarks.d.ts#ParseChromeBookmarksOptions
+ProfileBrowser: dist/profiles.d.ts#ProfileBrowser
 type RenderPdfOptions: dist/pdf.d.ts#RenderPdfOptions
 type RenderPdfResult: dist/pdf.d.ts#RenderPdfResult
 type RenderResult: dist/run.d.ts#RenderResult
@@ -39,7 +42,7 @@ ScreenshotFormat: dist/screenshot.d.ts#ScreenshotFormat
 ScreenshotSize: dist/screenshot.d.ts#ScreenshotSize
 WINDOWS_BROWSER_NAMES: dist/browser.d.ts#WINDOWS_BROWSER_NAMES
 browserCandidates: dist/browser.d.ts#browserCandidates
-chromeDataFolders: dist/profiles.d.ts#chromeDataFolders
+browserDataFolders: dist/profiles.d.ts#browserDataFolders
 chromeTime: dist/bookmarks.d.ts#chromeTime
 diskFileAccess: dist/profiles.d.ts#diskFileAccess
 findBookmarkFiles: dist/profiles.d.ts#findBookmarkFiles
@@ -85,7 +88,7 @@ export interface Bookmark {
 }
 
 ### dist/bookmarks.d.ts#BookmarkFileKind
-export type BookmarkFileKind = "profile" | "account" | "file";
+export type BookmarkFileKind = "profile" | "account";
 
 ### dist/bookmarks.d.ts#BookmarkFolder
 export interface BookmarkFolder {
@@ -183,8 +186,15 @@ export declare function renderPdf(options: RenderPdfOptions): Promise<RenderPdfR
 
 ### dist/profiles.d.ts#BookmarkFile
 export interface BookmarkFile extends BookmarkSource {
+    readonly browser: string;
     readonly profile: string;
     readonly path: string;
+}
+
+### dist/profiles.d.ts#BrowserDataFolder
+export interface BrowserDataFolder {
+    readonly browser: string;
+    readonly folder: string;
 }
 
 ### dist/profiles.d.ts#FileAccess
@@ -194,14 +204,20 @@ export interface FileAccess {
     read(file: string): Promise<string>;
 }
 
-### dist/profiles.d.ts#chromeDataFolders
-export declare function chromeDataFolders(platform: NodeJS.Platform, env: Readonly<Record<string, string | undefined>>, home: string): string[];
+### dist/profiles.d.ts#PROFILE_BROWSERS
+export declare const PROFILE_BROWSERS: readonly ProfileBrowser[];
+
+### dist/profiles.d.ts#ProfileBrowser
+export type ProfileBrowser = "chrome" | "edge" | "chromium";
+
+### dist/profiles.d.ts#browserDataFolders
+export declare function browserDataFolders(platform: NodeJS.Platform, env: Readonly<Record<string, string | undefined>>, home: string, browsers?: readonly ProfileBrowser[]): BrowserDataFolder[];
 
 ### dist/profiles.d.ts#diskFileAccess
 export declare const diskFileAccess: FileAccess;
 
 ### dist/profiles.d.ts#findBookmarkFiles
-export declare function findBookmarkFiles(folders: readonly string[], files?: FileAccess): Promise<BookmarkFile[]>;
+export declare function findBookmarkFiles(folders: readonly BrowserDataFolder[], files?: FileAccess): Promise<BookmarkFile[]>;
 
 ### dist/run.d.ts#CommandRunner
 export type CommandRunner = (command: string, options: CommandOptions) => Promise<CommandResult>;
