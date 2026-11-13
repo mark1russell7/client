@@ -91,7 +91,7 @@ const WINDOWS_EPOCH_MS = 11_644_473_600_000n;
 /**
  * A web address has the scheme `http` or `https`, a host, and no spaces. The test does not use `URL`, so it is the same in each
  * runtime. The first character of the host is one class, and the rest is `\S*`. Thus no two quantifiers agree on the same
- * character, and the test runs in linear time.
+ * character, and the time of the test is linear in the length of the address.
  */
 const WEB = /^https?:\/\/[^\s/?#]\S*$/i;
 
