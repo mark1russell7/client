@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describeCollectionStorageContract, type ContractItem } from "@procedures/collections/testing";
+import { describeCollectionStorageContract, type ContractItem, type ContractTestApi } from "@procedures/collections/testing";
 import { MEMORY_PATH, SqliteStorage, isNodeSqliteAvailable } from "./storage.js";
 
 vi.mock("node:sqlite", () => {
@@ -56,6 +56,11 @@ describe("SqliteStorage when the import of node:sqlite fails", () => {
   });
 });
 
+// sql.js writes the whole file after each write. On a Windows runner the case of 80 random writes
+// takes 3 s of the default limit of 5 s (Nightly, 2026-11-09), and it failed twice at 5 s.
+const CONTRACT_CASE_MS = 30_000;
+const itWithLimit: ContractTestApi["it"] = (name, body) => it(name, body, CONTRACT_CASE_MS);
+
 // The fallback keeps the contract
 describeCollectionStorageContract(
   "SqliteStorage (auto without node:sqlite) in a file",
@@ -63,5 +68,5 @@ describeCollectionStorageContract(
     create: () => new SqliteStorage<ContractItem>({ path: tempDb(), table: "items" }),
     createWithVersions: (versionOf) => new SqliteStorage<ContractItem>({ path: tempDb(), table: "items", versionOf }),
   },
-  { describe, it },
+  { describe, it: itWithLimit },
 );
