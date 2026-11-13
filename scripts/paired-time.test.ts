@@ -4,6 +4,7 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { quantile } from "@mark1russell7/rigor-statistics";
 import { aaId, childResult, measureIsolated, pairedMarkdown, quantileOf, timeChild } from "./lib/paired-time.ts";
 
 const ENV = { cpu: "Test CPU 9000", cores: 4, os: "test", arch: "x64", node: "v0.0.0" };
@@ -161,5 +162,29 @@ describe("the options", () => {
   it("refuses a peakRss that an arm gives in mode process", async () => {
     const arms = [{ id: "a", run: () => ({ peakRss: 1 }) }];
     await assert.rejects(() => measureIsolated({ mode: "process", inputs: [{ id: "i" }], repeats: 1, arms, env: ENV }), /peakRss in mode process/);
+  });
+});
+
+// This test is not a test of the source. It holds the copy to its home: the quantiles of a list are in
+// @mark1russell7/rigor-statistics. The copy stays because the paired bench loads this module with no install.
+// It goes with the paired time test when the gates package of rigor replaces this copy.
+describe("quantileOf and the quantile of rigor-statistics", () => {
+  it("gives the same number as quantile(values, p) with the method linear, for each list and each p", () => {
+    let cases = 0;
+    for (let n = 1; n <= 40; n++) {
+      // A fixed list of times with repeats, a zero and values of different sizes, in no order
+      const values = Array.from({ length: n }, (_, i) => ((i * 7919) % 101) / 7 + (i % 3 === 0 ? 1e6 : 0) - (i === 5 ? 3 : 0));
+      for (let step = 0; step <= 100; step++) {
+        const p = step / 100;
+        assert.equal(quantileOf(values, p), quantile(values, p, "linear"), `n ${n}, p ${p}`);
+        cases++;
+      }
+    }
+    assert.equal(cases, 40 * 101);
+  });
+
+  it("gives NaN for an empty list, where the quantile of rigor-statistics throws", () => {
+    assert.ok(Number.isNaN(quantileOf([], 0.5)));
+    assert.throws(() => quantile([], 0.5));
   });
 });
