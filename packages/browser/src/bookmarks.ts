@@ -186,8 +186,9 @@ export function parseChromeBookmarks(value: unknown, options: ParseChromeBookmar
     return { key: `${prefix}${own}`, name, path, folders, sites, total };
   };
 
-  // The order of the code units, not of a locale, so each runtime gives the same parse
-  const names = Object.keys(rootNodes).sort((a, b) => rank(a) - rank(b) || (a < b ? -1 : a > b ? 1 : 0));
+  // The order of the code units, not of a locale, so each runtime gives the same parse. The names are the keys of one
+  // object, so no two names are equal.
+  const names = Object.keys(rootNodes).sort((a, b) => rank(a) - rank(b) || (a < b ? -1 : 1));
   const roots: BookmarkFolder[] = [];
   for (const name of names) {
     const node = rootNodes[name];

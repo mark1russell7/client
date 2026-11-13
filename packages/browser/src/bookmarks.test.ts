@@ -116,6 +116,15 @@ describe("parseChromeBookmarks", () => {
     // A locale puts "a" before "Z", but the code unit of "Z" (0x5A) comes before the code unit of "a" (0x61)
     expect(["a_extra", "Z_extra"].sort((a, b) => a.localeCompare(b, "en"))).toEqual(["a_extra", "Z_extra"]);
     expect(read.roots.map((root) => root.name)).toEqual(["Bar", "Other", "Z_extra", "a_extra"]);
+    // The order of the keys in the file does not change the order of the roots
+    const reversed = parseChromeBookmarks({ roots: { bookmark_bar: folder("Bar"), Z_extra: folder("Z_extra"), other: folder("Other"), a_extra: folder("a_extra") } });
+    expect(reversed.roots.map((root) => root.name)).toEqual(["Bar", "Other", "Z_extra", "a_extra"]);
+  });
+
+  it("gives a folder with no name the key of its root, or the name Folder", () => {
+    const read = parseChromeBookmarks({ roots: { other: { type: "folder", children: [{ type: "folder", name: "", children: [] }] } } });
+    expect(read.roots[0]?.name).toBe("other");
+    expect(read.roots[0]?.folders[0]?.path).toEqual(["other", "Folder"]);
   });
 
   it("gives a folder with no guid and no id the key of its place, so two sibling folders with one name have different keys", () => {

@@ -33,6 +33,12 @@ describe("browserCandidates", () => {
     expect(candidates).toContain("/usr/local/bin/chromium");
   });
 
+  it("gives only the app bundles of /Applications on macOS when HOME is not set", () => {
+    const bundles = browserCandidates("darwin", { PATH: "/usr/local/bin" }).filter((candidate) => candidate.includes(".app/"));
+    expect(bundles).toHaveLength(3);
+    expect(bundles.every((bundle) => bundle.startsWith("/Applications/"))).toBe(true);
+  });
+
   it("gives the program names on the PATH of Linux", () => {
     const candidates = browserCandidates("linux", { PATH: "/usr/bin:/snap/bin" });
     expect(candidates[0]).toBe("/usr/bin/google-chrome");
