@@ -56,7 +56,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@clack/prompts": "^0.7.0",
+    "@clack/prompts": "^0.11.0",
     "@procedures/client": "workspace:*"
   },
   "devDependencies": {
