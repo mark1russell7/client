@@ -1,0 +1,56 @@
+---
+"@procedures/access": patch
+"@procedures/archive": patch
+"@procedures/better-auth": patch
+"@procedures/browser": patch
+"@procedures/bundle-assistant": patch
+"@procedures/bundle-dev": patch
+"@procedures/bundle-mcp": patch
+"@procedures/claude-cli": patch
+"@procedures/cli-kit": patch
+"@procedures/cli-run": patch
+"@procedures/collections": patch
+"@procedures/cue": patch
+"@procedures/dag": patch
+"@procedures/docker": patch
+"@procedures/env": patch
+"@procedures/exif": patch
+"@procedures/fs": patch
+"@procedures/geo": patch
+"@procedures/gh": patch
+"@procedures/git": patch
+"@procedures/http": patch
+"@procedures/ics": patch
+"@procedures/ios-backup": patch
+"@procedures/json": patch
+"@procedures/lib": patch
+"@procedures/llm": patch
+"@procedures/mail": patch
+"@procedures/mark": patch
+"@procedures/mcp": patch
+"@procedures/mcp-dev-tools": patch
+"@procedures/node": patch
+"@procedures/notify": patch
+"@procedures/npm": patch
+"@procedures/pdf": patch
+"@procedures/playground": patch
+"@procedures/pnpm": patch
+"@procedures/procedure": patch
+"@procedures/restic": patch
+"@procedures/s3": patch
+"@procedures/schedule": patch
+"@procedures/server": patch
+"@procedures/shell": patch
+"@procedures/signaldb": patch
+"@procedures/snapshot": patch
+"@procedures/splay": patch
+"@procedures/sqlite": patch
+"@procedures/store": patch
+"@procedures/systems": patch
+"@procedures/tailscale": patch
+"@procedures/vite": patch
+"@procedures/vitest": patch
+"@procedures/weather": patch
+---
+
+An automated dependency update changes the shipped files, so this PATCH ships them.

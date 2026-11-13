@@ -30,11 +30,13 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./bookmarks": {
       "types": "./dist/bookmarks.d.ts",
-      "import": "./dist/bookmarks.js"
+      "import": "./dist/bookmarks.js",
+      "default": "./dist/bookmarks.js"
     }
   },
   "files": [
