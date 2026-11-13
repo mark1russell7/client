@@ -6,7 +6,10 @@
 import { existsSync } from "node:fs";
 import { posix, win32 } from "node:path";
 
-/** The environment variable that names the browser program. It comes before the search. */
+/**
+ * The environment variable that names the browser program. It comes before the search. The name
+ * comes from `@procedures/pdf`, the first home of the search, and each render reads it.
+ */
 export const BROWSER_ENV = "PDF_BROWSER";
 
 /** The second environment variable for the browser program. Other tools use this name too. */

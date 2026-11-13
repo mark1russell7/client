@@ -5,7 +5,7 @@
  * already installed.
  */
 
-import { renderPdf, type CommandRunner } from "../../render.js";
+import { renderPdf, type CommandRunner } from "@procedures/browser";
 import type { PdfRenderInput, PdfRenderOutput } from "../../types.js";
 
 /**

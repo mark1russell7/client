@@ -1,5 +1,69 @@
 # @procedures/shell
 
+## 0.55.0
+
+### Patch Changes
+
+- 2918e97: Two security fixes:
+  
+  - `@procedures/shell`: on Windows, a program name with no folder starts only from a folder of `PATH`, never from the working folder of the call. Before, a call such as "run `git` in this cloned repository" started a `git.exe` from the top folder of the repository. When no folder of `PATH` has the program, the start fails with `ENOENT`, as for a missing program, and the error names the program as before. `taskkill` starts by its full path in the system folder, and `shell.which` gives a match from `PATH` only.
+  - `@procedures/fs`: under a root, a link to a missing target is resolved against the real folder of the link. Before, the check resolved a relative target against the text of the path. When an earlier part of the path was a link to a folder, the check said "inside the root" for a write that went outside it. A `..` in a relative target follows the rule of the system: POSIX goes up from the real folder of the name before it, and Windows removes that name as text. The archive procedures and the other users of `@procedures/fs/root` get the same fix.
+- Updated dependencies [fd9c6d4]
+  - @procedures/client@0.55.0
+
+## 0.54.1
+
+### Patch Changes
+
+- Updated dependencies [13c3a8b]
+  - @procedures/client@0.54.1
+
+## 0.54.0
+
+### Patch Changes
+
+- 1401489: The tarball of each package leaves out `dist/.tsbuildinfo`. The `files` list of each package has the entry `!dist/.tsbuildinfo` after `dist`.
+  
+  The build writes this file for incremental builds. An app does not use it, and it added its size to each tarball (61 KB in `@procedures/json` 0.52.3). The conventions rule `pack-no-buildinfo` finds it.
+  
+  PATCH: the exports and the behavior do not change.
+- Updated dependencies [ef8e080]
+- Updated dependencies [1401489]
+  - @procedures/client@0.54.0
+
+## 0.53.1
+
+### Patch Changes
+
+- Updated dependencies [84f0c78]
+- Updated dependencies [abf290c]
+  - @procedures/client@0.53.1
+
+## 0.53.0
+
+### Patch Changes
+
+- Updated dependencies [bc98f77]
+- Updated dependencies [11d9084]
+- Updated dependencies [d28ccb5]
+- Updated dependencies [735cfcf]
+- Updated dependencies
+- Updated dependencies [556d0a8]
+  - @procedures/client@0.53.0
+
+## 0.52.5
+
+### Patch Changes
+
+- Updated dependencies [25a5f44]
+  - @procedures/client@0.52.5
+
+## 0.52.4
+
+### Patch Changes
+
+- @procedures/client@0.52.4
+
 ## 0.52.3
 
 ### Patch Changes

@@ -1,0 +1,146 @@
+/**
+ * One writer process of the tenant load bench: `--arm <arm> --case <case> --seed <seed> --me <n> --database <name>`.
+ *
+ * The writer takes each `processes`-th arrival of the plan, so a tenant writes through each process. It has one
+ * `Db` object and one client, as an app on one connection has. It writes once to each tenant, prints `ready`, and
+ * reads the time of the start from its stdin. It sends each arrival at its planned time and does not wait
+ * for a reply, so a slow store cannot slow its load. At the end of the grace it prints its completions.
+ */
+
+import { createInterface } from "node:readline";
+import { parseArgs } from "node:util";
+import { MongoClient } from "mongodb";
+import type { MongoDocumentStorage } from "../src/storage/document-storage.js";
+import { SEPARATOR } from "../src/storage/document-storage.js";
+import { CONTROL_COLLECTIONS, FIRST_LOAD_SPLIT, GRACE_MS, SEPARATE_ARMS, TENANT_ARMS, TENANT_BYTES, WARM_GROUP, WINDOW_MS, WRITE_CONFLICT, firstLoadCollection, writesInFlightOf, firstLoadOf, parseTenantCase, tenantOf, type FirstLoadWrite, type TenantArm } from "./tenant-cases.js";
+import { planOf } from "./tenant-plan.js";
+
+const { values } = parseArgs({
+  options: {
+    arm: { type: "string" },
+    case: { type: "string" },
+    seed: { type: "string" },
+    me: { type: "string" },
+    database: { type: "string" },
+  },
+});
+const { arm, case: caseName, seed, me: meText, database } = values;
+const url = process.env["MONGO_TEST_URL"];
+if (!TENANT_ARMS.includes(arm as TenantArm) || !caseName || !seed || !meText || !database || !url) throw new RangeError("this writer needs --arm, --case, --seed, --me, --database and MONGO_TEST_URL");
+const me = Number(meText);
+// An arm of the suite `tenant-separate` uses a copy of the store, which its run writes next to the source
+const source = (SEPARATE_ARMS as readonly (string | undefined)[]).includes(arm) ? `../src/storage/document-storage.${arm}.ts` : "../src/storage/document-storage.ts";
+const { MongoDocumentStorage: Storage } = (await import(source)) as typeof import("../src/storage/document-storage.js");
+const kase = parseTenantCase(caseName);
+// A sweep of the bound of the writes in flight (CLI-96). A store without the option ignores it, so the writer stops here.
+const writesInFlight = writesInFlightOf(process.env["TENANT_WRITES_IN_FLIGHT"]);
+if (writesInFlight !== undefined && !("DEFAULT_WRITES_IN_FLIGHT" in (await import(source)))) {
+  throw new Error("TENANT_WRITES_IN_FLIGHT is set, but the store of this tree has no option writesInFlight (CLI-96)");
+}
+const bound = writesInFlight === undefined ? {} : { writesInFlight };
+const plan = planOf(caseName, seed);
+
+// The server counter of write conflicts leaves out a conflict in a transaction, so the writer counts the replies.
+const client = await MongoClient.connect(url, { monitorCommands: true });
+let writeConflicts = 0;
+client.on("commandFailed", (event) => {
+  if ((event.failure as { code?: number }).code === WRITE_CONFLICT) writeConflicts++;
+});
+const db = client.db(database);
+
+type Store = MongoDocumentStorage<{ text: string }>;
+const stores: Store[] = Array.from({ length: kase.active }, (_, tenant) => {
+  const collection = arm === "control" ? `docs${tenant % CONTROL_COLLECTIONS}` : "docs";
+  // The arm `partition` gives each partition its own counter and its own write queue (roadmap CLI-96)
+  return new Storage<{ text: string }>({ collection, partition: `t${tenant}`, db: () => db, client: () => client, ...bound, ...(arm === "partition" ? { sequence: "partition" as const } : {}) });
+});
+const text = "x".repeat(TENANT_BYTES);
+
+// The first write of a store in a process notes its floor and makes its indexes. The bench measures the writes after it.
+// The writer gives the time of these first writes, because at 40,000 stores they take most of the time of a child.
+const warmFrom = performance.now();
+// One collection takes them one at a time, because an arm with no queue has nothing else that holds them back.
+// The arm `partition` has a queue and a counter for each store, so it takes them in groups of `WARM_GROUP`.
+if (arm === "control") await Promise.all(stores.map((store) => store.set(`first${me}`, { text })));
+else if (arm === "partition") for (let at = 0; at < stores.length; at += WARM_GROUP) await Promise.all(stores.slice(at, at + WARM_GROUP).map((store) => store.set(`first${me}`, { text })));
+else for (const store of stores) await store.set(`first${me}`, { text });
+
+// A first load is the first write of its stores in this process, so its stores start in the load. Its collections exist, as they do in a live app.
+if (kase.firstLoads > 0) {
+  for (const collection of FIRST_LOAD_SPLIT.keys()) {
+    const name = firstLoadCollection(arm as TenantArm, { load: 0, collection });
+    await new Storage<{ text: string }>({ collection: name, partition: "warm", db: () => db, client: () => client, ...bound }).set(`first${me}`, { text });
+  }
+}
+// The arm `partition` measures the counter of each partition (roadmap CLI-96). A store without the option `sequence` ignores
+// the option and writes the counter of the collection, so the arm stops here and does not give the numbers of the wrong store.
+if (arm === "partition" && !(await db.collection("__storage_counters").findOne({ _id: `seq${SEPARATOR}docs${SEPARATOR}t0` as never }))) {
+  throw new Error("the arm partition found no counter for the partition t0: the store of this tree has no option sequence (CLI-96)");
+}
+const warmMs = performance.now() - warmFrom;
+console.error(`writer ${me}: the first writes of ${stores.length} stores took ${Math.round(warmMs)} ms`);
+const loadStores = new Map<string, Store>();
+/** This function gives the store of a first load in one collection, and starts it at its first write. */
+const loadStore = (write: FirstLoadWrite): Store => {
+  const key = `${write.load}/${write.collection}`;
+  const known = loadStores.get(key);
+  if (known) return known;
+  const store: Store = new Storage<{ text: string }>({ collection: firstLoadCollection(arm as TenantArm, write), partition: `f${write.load}`, db: () => db, client: () => client });
+  loadStores.set(key, store);
+  return store;
+};
+
+const lines = createInterface({ input: process.stdin });
+const startAt = await new Promise<number>((resolve) => {
+  lines.once("line", (line) => resolve(Number(line)));
+  console.log("ready");
+});
+lines.close();
+
+writeConflicts = 0;
+const toStart = startAt - Date.now();
+if (toStart > 0) await new Promise((resolve) => setTimeout(resolve, toStart));
+const zero = performance.now();
+const now = (): number => performance.now() - zero;
+
+const end = WINDOW_MS + GRACE_MS;
+const completions: { index: number; sent: number; done: number | null }[] = [];
+let failures = 0;
+const errors: Record<string, number> = {};
+const cpuAtStart = process.cpuUsage();
+let writerBusy = 0;
+const busyTimer = setTimeout(() => {
+  const used = process.cpuUsage(cpuAtStart);
+  writerBusy = (used.user + used.system) / 1000 / WINDOW_MS;
+}, WINDOW_MS);
+
+for (let index = me; index < plan.times.length; index += kase.processes) {
+  const planned = plan.times[index]!;
+  const wait = planned - now();
+  // Each turn gives the event loop a pass, so a driver that is behind does not hold back the replies.
+  await new Promise((resolve) => (wait > 1 ? setTimeout(resolve, wait) : setImmediate(resolve)));
+  const sent = now();
+  if (sent > end) break;
+  const completion: { index: number; sent: number; done: number | null } = { index, sent, done: null };
+  completions.push(completion);
+  const loadWrite = firstLoadOf(kase, index, planned);
+  (loadWrite ? loadStore(loadWrite) : stores[tenantOf(kase, index, planned)]!).set(`d${index}`, { text }).then(
+    () => {
+      const done = now();
+      if (done <= end) completion.done = done;
+    },
+    (error: unknown) => {
+      failures++;
+      const kind = (error instanceof Error ? error.message : String(error)).slice(0, 200);
+      errors[kind] = (errors[kind] ?? 0) + 1;
+    }
+  );
+}
+
+// The grace: stop early when each write has its reply or its failure.
+while (now() < end && completions.filter((entry) => entry.done === null).length > failures) await new Promise((resolve) => setTimeout(resolve, 100));
+
+// A write to a pipe can still be in progress when the process ends, so the exit waits for its callback. The line of a high rate is long.
+clearTimeout(busyTimer);
+process.stdout.write(`${JSON.stringify({ completions, failures, writeConflicts, errors, writerBusy, warmMs })}
+`, () => process.exit(0));

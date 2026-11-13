@@ -92,7 +92,7 @@ const registry = createRegistry(createHttpModule({ allow: ["localhost:11434", "1
 
 ### The host policy in other packages
 
-`createHostFetch(options)` gives a `fetch` for GET requests through the same checks. Its options are the options of `createHttpModule()`. A procedure of another package uses it for a URL of its caller:
+`createHostFetch(options)` gives a `fetch` for GET and HEAD requests through the same checks. Its options are the options of `createHttpModule()`. A procedure of another package uses it for a URL of its caller:
 
 - `weather.forecast` uses it by default.
 - `createGeoModule({ fetch })` and `createIcsModule({ fetch })` take it. Their default stays the global `fetch`, because their roots run in a browser.
@@ -106,6 +106,13 @@ const registry = createRegistry(createGeoModule({ fetch: createHostFetch({ allow
 ```
 
 A refusal is `FORBIDDEN` with the reason `host-not-allowed`. When the signal of the caller aborts, the function throws the reason of the signal, as `fetch` does.
+
+The response has `headers`, with names in lowercase. The option `method: "HEAD"` reads only the headers of a page, for example for `frameRefusal`:
+
+```ts
+const response = await hostFetch(url, { method: "HEAD", signal: AbortSignal.timeout(5_000) });
+const decision = frameRefusal(response.headers, { ancestor: "http://127.0.0.1:3000", page: response.url });
+```
 
 ## Limits and time
 
@@ -147,6 +154,23 @@ A refusal is `FORBIDDEN` with the reason `host-not-allowed`. When the signal of 
 - An event has `event` (`message` by default), `data`, the last event ID `id` and `retry`.
 - The procedure does not connect again after the end of the stream. To continue, a caller sends the last ID in `lastEventId`.
 - A redirect of a POST obeys the rules of the redirects. A 303, or a 301 or 302, continues with a GET without the body.
+
+## The frame rules of a response
+
+A page can refuse to show in a frame of another page. `frameRefusal(headers, { ancestor, page })` gives the decision of a browser. It uses no network.
+
+```ts
+import { frameRefusal } from "@procedures/http";
+
+const decision = frameRefusal(response.headers, { ancestor: "https://a.example", page: response.url });
+// { refused: true, by: "x-frame-options", detail: "X-Frame-Options is SAMEORIGIN, and https://a.example is another origin." }
+```
+
+- An enforced policy with `frame-ancestors` decides. Then the function ignores `X-Frame-Options`. Each such policy must accept the ancestor.
+- Else `X-Frame-Options` decides, by the rules of the HTML standard. `DENY` refuses, and `SAMEORIGIN` refuses an ancestor of another origin.
+- Values of `X-Frame-Options` that do not agree refuse each frame. `ALLOW-FROM` and unknown values do not refuse, as in a browser.
+- `Content-Security-Policy-Report-Only` does not refuse.
+- `parseCsp`, `sourceAllows` and `sourceListAllows` give the parts of the CSP3 rules: the policies of the headers, and the match of a source expression.
 
 ## Limits of this package
 

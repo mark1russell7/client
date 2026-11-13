@@ -6,6 +6,7 @@
  */
 
 import { currentBuild, findServer, type LockfileData } from "./lockfile.js";
+import { traceCarrierMetadata } from "./trace-carrier.js";
 
 interface ClientModeResult {
   success: boolean;
@@ -88,7 +89,10 @@ export async function cliServerConnection(
         // is the last item. The signal aborts the request, and the server aborts the call (before
         // CLI-26, the call had no signal: a Ctrl-C ended this process, and the server continued).
         let last: { value: unknown } | undefined;
-        for await (const item of client.stream(method, input, signal ? { signal } : undefined)) {
+        // The trace context of the environment goes with the call (C10 of otel-ts)
+        const metadata = traceCarrierMetadata();
+        const options = { ...(signal ? { signal } : {}), ...(Object.keys(metadata).length > 0 ? { metadata } : {}) };
+        for await (const item of client.stream(method, input, options)) {
           last = { value: item };
           onItem?.(item);
         }

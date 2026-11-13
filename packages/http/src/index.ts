@@ -11,3 +11,6 @@ export { isPublicAddress, parseAddress, specialClass } from "./address.js";
 export { HttpError, type HttpErrorCode } from "./errors.js";
 export { DEFAULT_MAX_BYTES, DEFAULT_ITEM_BYTES, DEFAULT_TIMEOUT_MS, DEFAULT_SETTINGS, type HttpSettings } from "./exchange.js";
 export { ndjsonLines, sseEvents, type NdjsonLine, type ServerSentEvent } from "./parsers.js";
+// The frame rules of a response: frame-ancestors of CSP3 and X-Frame-Options
+export { frameRefusal, parseCsp, sourceAllows, sourceListAllows } from "./frame.js";
+export type { CspPolicy, FrameOrigins, FrameRefusal, HeaderSource } from "./frame.js";

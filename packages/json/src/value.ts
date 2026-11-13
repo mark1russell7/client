@@ -46,7 +46,7 @@ export class JsonError extends Error {
   }
 }
 
-/** True for an object whose prototype is `Object.prototype` or null. */
+/** This function gives true for an object whose prototype is `Object.prototype` or null. An array, a class instance and null give false. */
 export function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
   const prototype: unknown = Object.getPrototypeOf(value);

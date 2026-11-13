@@ -47,24 +47,57 @@ jobs:
       statuses: read
       pages: write
       id-token: write
-    uses: mark1russell7/template/.github/workflows/reusable-pages.yml@fc41ae3906e671ae746e9597ccc351a4e7ce8a3b # main
+    uses: mark1russell7/template/.github/workflows/reusable-pages.yml@d20d75b11120af71eaf6d2f59385c9cd053fff8b # main
     with:
       # The data of the site comes from the dist/ of every package. The site depends on each package
       # that registers procedures, so `pnpm build` builds the site last. The build renders each page
       # in Chromium (an HTML file for each page, and its Open Graph image), and the smoke test uses it too.
+      #
+      # The measured numbers of the docs pages come from the newest record of the nightly run of main
+      # (packages/site/scripts/measured.ts). With no record, the build unsets SITE_MEASURED_DIR, and each
+      # measured block gives its text for GitHub and npm. The site deploys, and the job measured-record
+      # below fails, so the missing record stays red.
       build: |
+        id=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=measured-nightly&per_page=30" \
+          --jq '[.artifacts[] | select(.expired | not) | select(.workflow_run.head_branch == "main")][0].id // empty')
+        if [ -z "$id" ]; then
+          echo "::warning::no artifact measured-nightly of main: the docs pages show no measured numbers"
+          unset SITE_MEASURED_DIR
+        else
+          mkdir -p packages/site/measured
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "$RUNNER_TEMP/measured.zip"
+          unzip -o -q "$RUNNER_TEMP/measured.zip" -d packages/site/measured
+        fi
         pnpm --filter @procedures/site exec playwright install --with-deps chromium
         pnpm build
         pnpm --filter @procedures/site test:e2e
       out: packages/site/dist
       # SITE_PRERENDER=1: the deploy has the prerendered pages, or the build fails.
-      env: '{"SITE_BASE": "/client/", "SITE_URL": "https://mark1russell7.github.io/client/", "SITE_PRERENDER": "1"}'
+      env: '{"SITE_BASE": "/client/", "SITE_URL": "https://mark1russell7.github.io/client/", "SITE_PRERENDER": "1", "SITE_MEASURED_DIR": "measured"}'
       # The status page reads the open pull requests and issues (read access only)
       github-token: true
       pending: green
       site-pages: false
       site-check: true
-      # The data stamps of the measured package pages: dated studies of one commit each (site-pages freshness)
-      data-stamps: packages/site/data-stamps.json
+      # The data stamps of the measured package pages (site-pages freshness): the dated studies of
+      # packages/site/data-stamps.json, and a stamp with a limit for each page with measured numbers
+      data-stamps: packages/site/dist/data/data-stamps.json
       indexnow-key: 626da9a7ba19ca53f2437cb462de76e7
       timeout-minutes: 25
+
+  # The strict read of the measured record. The build above deploys without a record, so this job
+  # keeps a missing record red: no nightly run of main yet, a failed nightly, or an expired artifact.
+  measured-record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    steps:
+      - name: The newest record of the nightly run of main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          id=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=measured-nightly&per_page=30" \
+            --jq '[.artifacts[] | select(.expired | not) | select(.workflow_run.head_branch == "main")][0].id // empty')
+          if [ -z "$id" ]; then echo "::error::no artifact measured-nightly of main: the nightly run wrote no record"; exit 1; fi
+          echo "The record of the measured numbers is the artifact $id"

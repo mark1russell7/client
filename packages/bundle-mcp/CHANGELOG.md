@@ -1,5 +1,142 @@
 # @procedures/bundle-mcp
 
+## 0.55.0
+
+### Patch Changes
+
+- Updated dependencies [fd9c6d4]
+  - @procedures/client@0.55.0
+  - @procedures/compiler@0.55.0
+  - @procedures/cue@0.55.0
+  - @procedures/dag@0.55.0
+  - @procedures/docker@0.55.0
+  - @procedures/lib@0.55.0
+  - @procedures/mongo@0.55.0
+  - @procedures/procedure@0.55.0
+  - @procedures/sqlite@0.55.0
+  - @procedures/vitest@0.55.0
+  - @procedures/json@0.55.0
+
+## 0.54.1
+
+### Patch Changes
+
+- Updated dependencies [25dd6f5]
+- Updated dependencies [8dc3e6c]
+- Updated dependencies [13c3a8b]
+- Updated dependencies [3914b5f]
+  - @procedures/lib@0.54.1
+  - @procedures/sqlite@0.54.1
+  - @procedures/client@0.54.1
+  - @procedures/mongo@0.54.1
+  - @procedures/cue@0.54.1
+  - @procedures/dag@0.54.1
+  - @procedures/docker@0.54.1
+  - @procedures/procedure@0.54.1
+  - @procedures/vitest@0.54.1
+  - @procedures/compiler@0.54.1
+  - @procedures/json@0.54.1
+
+## 0.54.0
+
+### Patch Changes
+
+- 1401489: The tarball of each package leaves out `dist/.tsbuildinfo`. The `files` list of each package has the entry `!dist/.tsbuildinfo` after `dist`.
+  
+  The build writes this file for incremental builds. An app does not use it, and it added its size to each tarball (61 KB in `@procedures/json` 0.52.3). The conventions rule `pack-no-buildinfo` finds it.
+  
+  PATCH: the exports and the behavior do not change.
+- Updated dependencies [ef8e080]
+- Updated dependencies [1401489]
+  - @procedures/dag@0.54.0
+  - @procedures/client@0.54.0
+  - @procedures/cue@0.54.0
+  - @procedures/docker@0.54.0
+  - @procedures/lib@0.54.0
+  - @procedures/mongo@0.54.0
+  - @procedures/procedure@0.54.0
+  - @procedures/sqlite@0.54.0
+  - @procedures/vitest@0.54.0
+  - @procedures/compiler@0.54.0
+  - @procedures/json@0.54.0
+
+## 0.53.1
+
+### Patch Changes
+
+- Updated dependencies [84f0c78]
+- Updated dependencies [abf290c]
+  - @procedures/client@0.53.1
+  - @procedures/mongo@0.53.1
+  - @procedures/cue@0.53.1
+  - @procedures/dag@0.53.1
+  - @procedures/docker@0.53.1
+  - @procedures/lib@0.53.1
+  - @procedures/procedure@0.53.1
+  - @procedures/sqlite@0.53.1
+  - @procedures/vitest@0.53.1
+  - @procedures/compiler@0.53.1
+  - @procedures/json@0.53.1
+
+## 0.53.0
+
+### Patch Changes
+
+- Updated dependencies [bc98f77]
+- Updated dependencies [11d9084]
+- Updated dependencies [d28ccb5]
+- Updated dependencies [735cfcf]
+- Updated dependencies
+- Updated dependencies [556d0a8]
+- Updated dependencies [1f638a3]
+- Updated dependencies [831ab0f]
+  - @procedures/client@0.53.0
+  - @procedures/mongo@0.53.0
+  - @procedures/sqlite@0.53.0
+  - @procedures/compiler@0.53.0
+  - @procedures/cue@0.53.0
+  - @procedures/dag@0.53.0
+  - @procedures/docker@0.53.0
+  - @procedures/lib@0.53.0
+  - @procedures/procedure@0.53.0
+  - @procedures/vitest@0.53.0
+  - @procedures/json@0.53.0
+
+## 0.52.5
+
+### Patch Changes
+
+- Updated dependencies [f39708c]
+- Updated dependencies [2058f02]
+- Updated dependencies [25a5f44]
+  - @procedures/json@0.52.5
+  - @procedures/mongo@0.52.5
+  - @procedures/client@0.52.5
+  - @procedures/cue@0.52.5
+  - @procedures/dag@0.52.5
+  - @procedures/docker@0.52.5
+  - @procedures/lib@0.52.5
+  - @procedures/procedure@0.52.5
+  - @procedures/sqlite@0.52.5
+  - @procedures/vitest@0.52.5
+  - @procedures/compiler@0.52.5
+
+## 0.52.4
+
+### Patch Changes
+
+- @procedures/client@0.52.4
+  - @procedures/cue@0.52.4
+  - @procedures/dag@0.52.4
+  - @procedures/docker@0.52.4
+  - @procedures/lib@0.52.4
+  - @procedures/mongo@0.52.4
+  - @procedures/procedure@0.52.4
+  - @procedures/sqlite@0.52.4
+  - @procedures/vitest@0.52.4
+  - @procedures/compiler@0.52.4
+  - @procedures/json@0.52.4
+
 ## 0.52.3
 
 ### Patch Changes

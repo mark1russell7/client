@@ -58,8 +58,10 @@
 
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
+import { backoffDelay, type Backoff } from "@mark1russell7/service/backoff";
 import { BSON, ObjectId, type AnyBulkWriteOperation, type ChangeStream, type ClientSession, type Collection, type Db, type Document } from "mongodb";
-import { collectionChangeTopic, ms, optionalMs, realClock, Semaphore, writeLog, type Cancel, type Clock, type CollectionChangeEvent, type Duration, type LogFields, type Logger } from "@procedures/client";
+import { semaphore, type Semaphore } from "@mark1russell7/collections";
+import { collectionChangeTopic, ms, optionalMs, realClock, writeLog, type Cancel, type Clock, type CollectionChangeEvent, type Duration, type LogFields, type Logger } from "@procedures/client";
 import { DEFAULT_STORED_FORM, DOCUMENT_STORAGE_FIELDS, MongoDocumentStorage, TOMBSTONE_FIELD, storageWriteTarget, type StorageWriteTarget, type StoredForm } from "./document-storage.js";
 import { scopePipeline } from "./pipeline-scope.js";
 import { poolShare } from "./pool-share.js";
@@ -309,6 +311,12 @@ function groups<T>(items: readonly T[]): T[][] {
 /** The most tries of a run in a transaction after a write conflict (code 112). After them, the run gives way, and comes back after `rewatch`. */
 const CONFLICT_RETRIES = 3;
 
+/**
+ * The wait before try `attempt + 1` after a write conflict: from 50 to 100 ms after the first try, twice as long after each
+ * next try. The jitter keeps two processes that conflict apart.
+ */
+export const CONFLICT_BACKOFF: Backoff = { base: 100, factor: 2, jitter: { kind: "subtract", fraction: 0.5 } };
+
 /** The most ids of a hint of a target not in a stored form. More ids give a reset hint. */
 const MAX_HINT_IDS = 10_000;
 
@@ -352,6 +360,7 @@ function contentHash(doc: Document): string {
 interface StorageTargetValues {
   readonly form: StoredForm;
   readonly counters: string | undefined;
+  readonly sequence: "collection" | "partition" | undefined;
   readonly writeLeaseMs: number | undefined;
   readonly maxTombstones: number | undefined;
 }
@@ -490,7 +499,7 @@ export class ViewMaterializer {
   /** The time of the last change of each partition with a timer: the end of the wait of the pass. */
   private readonly lastChange = new Map<string, number>();
   /** The passes that run at one time. A burst that reaches each partition does not fill the pool. */
-  private passes = new Semaphore(MOST_PASSES);
+  private passes: Semaphore = semaphore(MOST_PASSES);
   /** The timers of the streams that open again, and of the ends of the grace times. */
   private readonly retries = new Set<Cancel>();
   private readonly clock: Clock;
@@ -549,7 +558,7 @@ export class ViewMaterializer {
   /**
    * A target of `storageTargets` as a storage on the database of the materializer, so its writes
    * and the transaction of a run use one client. A given storage gives its form, its counters,
-   * `writeLease` and `maxTombstones`.
+   * its sequence, `writeLease` and `maxTombstones`.
    */
   private storageTargetOf(collection: string, entry: ViewStorageTargetEntry): StorageTargetEntry {
     const wrapped = typeof entry === "object" && entry !== null && "target" in entry ? entry : { target: entry };
@@ -560,15 +569,15 @@ export class ViewMaterializer {
     if (target instanceof MongoDocumentStorage) {
       const parts = storageWriteTarget(target);
       if (parts.collection !== collection) throw new TypeError(`The storage target ${collection} has a storage of the collection ${parts.collection}`);
-      values = { form: parts.form, counters: parts.counters, writeLeaseMs: parts.writeLeaseMs, maxTombstones: parts.maxTombstones };
+      values = { form: parts.form, counters: parts.counters, sequence: parts.sequence, writeLeaseMs: parts.writeLeaseMs, maxTombstones: parts.maxTombstones };
     } else if (typeof target === "object" && target !== null && typeof (target as Partial<StoredForm>).storedId === "function") {
-      values = { form: target as StoredForm, counters: undefined, writeLeaseMs: undefined, maxTombstones: undefined };
+      values = { form: target as StoredForm, counters: undefined, sequence: undefined, writeLeaseMs: undefined, maxTombstones: undefined };
     } else {
       throw new TypeError(`The storage target ${collection} needs a MongoDocumentStorage, a stored form or a ViewStorageTarget`);
     }
     // The same values give the storage of the last run: its partitions keep their state (the floor document of O66)
     const cached = this.storageTargetCache.get(collection);
-    if (cached && cached.form === values.form && cached.counters === values.counters && cached.writeLeaseMs === values.writeLeaseMs && cached.maxTombstones === values.maxTombstones) {
+    if (cached && cached.form === values.form && cached.counters === values.counters && cached.sequence === values.sequence && cached.writeLeaseMs === values.writeLeaseMs && cached.maxTombstones === values.maxTombstones) {
       return { storage: cached.storage, storagePartitionOf };
     }
     const db = (): Db => {
@@ -581,6 +590,7 @@ export class ViewMaterializer {
       form: values.form,
       transactions: "never",
       ...(values.counters !== undefined ? { counters: values.counters } : {}),
+      ...(values.sequence !== undefined ? { sequence: values.sequence } : {}),
       ...(values.writeLeaseMs !== undefined ? { writeLease: ms(values.writeLeaseMs) } : {}),
       ...(values.maxTombstones !== undefined ? { maxTombstones: values.maxTombstones } : {}),
     });
@@ -641,7 +651,7 @@ export class ViewMaterializer {
     this.stopped = false;
     this.intake = true;
     this.db = await this.options.db();
-    this.passes = new Semaphore(passLimit(this.db));
+    this.passes = semaphore(passLimit(this.db));
     // The stream of the views opens before the read of the views: a change between the two reaches both (roadmap O63)
     await this.watchViews();
     const count = await this.resync();
@@ -1093,7 +1103,7 @@ export class ViewMaterializer {
       this.timers.delete(partition);
       this.lastChange.delete(partition);
       if (!this.intake) return;
-      void this.serial(partition, () => this.passes.withPermit(() => this.pass(partition))).catch((error: unknown) =>
+      void this.serial(partition, () => this.passes.run(() => this.pass(partition))).catch((error: unknown) =>
         this.log("error", "The pass failed", { partition, error }, `the pass of ${partition} failed: ${String((error as Error)?.message ?? error)}`)
       );
     });
@@ -1220,7 +1230,7 @@ export class ViewMaterializer {
           if (isWriteConflict(error)) {
             // A write conflict tries again a few times after a short wait, so a steady stream of writes does not starve the view
             if (attempt < CONFLICT_RETRIES) {
-              await this.pause(25 * 2 ** attempt * (1 + Math.random()));
+              await this.pause(backoffDelay(CONFLICT_BACKOFF, attempt));
               continue;
             }
             throw new PassSuperseded(`another process wrote the view at the same time (${String((error as Error)?.message ?? error)})`);

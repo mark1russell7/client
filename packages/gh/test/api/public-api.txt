@@ -6,6 +6,10 @@
 
 ## . (dist/index.d.ts): names
 
+GITHUB_API_URL: dist/rest.d.ts#GITHUB_API_URL
+GITHUB_API_VERSION: dist/rest.d.ts#GITHUB_API_VERSION
+GITHUB_POINTS: dist/rest.d.ts#GITHUB_POINTS
+GITHUB_POINTS_PER_MINUTE: dist/rest.d.ts#GITHUB_POINTS_PER_MINUTE
 GhApiFieldValue: dist/types.d.ts#GhApiFieldValue
 GhApiInput: dist/types.d.ts#GhApiInput
 GhApiMethod: dist/types.d.ts#GhApiMethod
@@ -44,7 +48,23 @@ GhRunViewInput: dist/types.d.ts#GhRunViewInput
 GhRunViewOutput: dist/types.d.ts#GhRunViewOutput
 GhWorkflowRunInput: dist/types.d.ts#GhWorkflowRunInput
 GhWorkflowRunOutput: dist/types.d.ts#GhWorkflowRunOutput
+LONGEST_RATE_WAIT_MS: dist/rest.d.ts#LONGEST_RATE_WAIT_MS
+RATE_WAIT_MS: dist/rest.d.ts#RATE_WAIT_MS
+RestAnswer: dist/rest.d.ts#RestAnswer
+RestClient: dist/rest.d.ts#RestClient
+RestClientOptions: dist/rest.d.ts#RestClientOptions
+RestClientState: dist/rest.d.ts#RestClientState
+RestExchange: dist/rest.d.ts#RestExchange
+RestMethod: dist/rest.d.ts#RestMethod
+RestRateError: dist/rest.d.ts#RestRateError
+RestReply: dist/rest.d.ts#RestReply
+RestRequest: dist/rest.d.ts#RestRequest
+RestTransport: dist/rest.d.ts#RestTransport
+createRestClient: dist/rest.d.ts#createRestClient
 ghModule: dist/module.d.ts#ghModule
+httpTransport: dist/rest.d.ts#httpTransport
+isRateRefusal: dist/rest.d.ts#isRateRefusal
+rateWaitMs: dist/rest.d.ts#rateWaitMs
 registerGhProcedures: dist/module.d.ts#registerGhProcedures
 
 ## ./module (dist/module.d.ts): names
@@ -65,6 +85,114 @@ export declare const ghModule: ProcedureModule;
 
 ### dist/module.d.ts#registerGhProcedures
 export declare const registerGhProcedures: PackageDefinition["register"];
+
+### dist/rest.d.ts#GITHUB_API_URL
+export declare const GITHUB_API_URL: string;
+
+### dist/rest.d.ts#GITHUB_API_VERSION
+export declare const GITHUB_API_VERSION: string;
+
+### dist/rest.d.ts#GITHUB_POINTS
+export declare const GITHUB_POINTS: {
+    readonly read: number;
+    readonly write: number;
+};
+
+### dist/rest.d.ts#GITHUB_POINTS_PER_MINUTE
+export declare const GITHUB_POINTS_PER_MINUTE: number;
+
+### dist/rest.d.ts#LONGEST_RATE_WAIT_MS
+export declare const LONGEST_RATE_WAIT_MS: number;
+
+### dist/rest.d.ts#RATE_WAIT_MS
+export declare const RATE_WAIT_MS: {
+    readonly first: number;
+    readonly last: number;
+};
+
+### dist/rest.d.ts#RestAnswer
+export interface RestAnswer {
+    readonly status: number;
+    readonly body: unknown;
+    readonly cached: boolean;
+}
+
+### dist/rest.d.ts#RestClient
+export interface RestClient {
+    request(request: RestRequest, signal: AbortSignal): Promise<RestAnswer>;
+    state(): RestClientState;
+}
+
+### dist/rest.d.ts#RestClientOptions
+export interface RestClientOptions {
+    readonly token: string | (() => string | Promise<string>);
+    readonly baseUrl?: string | undefined;
+    readonly apiVersion?: string | undefined;
+    readonly userAgent?: string | undefined;
+    readonly pointsPerMinute?: number | undefined;
+    readonly cacheEntries?: number | undefined;
+    readonly maxWaitMs?: number | undefined;
+    readonly transport?: RestTransport | undefined;
+    readonly clock?: Clock | undefined;
+}
+
+### dist/rest.d.ts#RestClientState
+export interface RestClientState {
+    readonly sent: number;
+    readonly notModified: number;
+    readonly rateRefusals: number;
+    readonly cacheEntries: number;
+    readonly remaining: number | null;
+    readonly blockedForMs: number;
+}
+
+### dist/rest.d.ts#RestExchange
+export interface RestExchange {
+    readonly method: RestMethod;
+    readonly url: string;
+    readonly headers: Readonly<Record<string, string>>;
+    readonly body: unknown;
+}
+
+### dist/rest.d.ts#RestMethod
+export type RestMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
+### dist/rest.d.ts#RestRateError
+export declare class RestRateError extends Error {
+    readonly name = "RestRateError";
+    readonly retryAfterMs: number;
+    constructor(message: string, retryAfterMs: number);
+}
+
+### dist/rest.d.ts#RestReply
+export interface RestReply {
+    readonly status: number;
+    readonly headers: Readonly<Record<string, string | readonly string[]>>;
+    readonly body: unknown;
+}
+
+### dist/rest.d.ts#RestRequest
+export interface RestRequest {
+    readonly method: RestMethod;
+    readonly path: string;
+    readonly query?: Readonly<Record<string, string>> | undefined;
+    readonly body?: unknown;
+}
+
+### dist/rest.d.ts#RestTransport
+export type RestTransport = (exchange: RestExchange, signal: AbortSignal) => Promise<RestReply>;
+
+### dist/rest.d.ts#createRestClient
+export declare function createRestClient(options: RestClientOptions): RestClient;
+
+### dist/rest.d.ts#httpTransport
+export declare const httpTransport: RestTransport;
+
+### dist/rest.d.ts#isRateRefusal
+export declare function isRateRefusal(reply: RestReply): boolean;
+
+### dist/rest.d.ts#rateWaitMs
+export declare function rateWaitMs(reply: RestReply, strikes: number): number;
 
 ### dist/types.d.ts#GhApiFieldValue
 export type GhApiFieldValue = string | number | boolean | null;

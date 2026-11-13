@@ -7,7 +7,7 @@
 
 import type { ClientRunner, ClientContext, ResponseItem, Metadata, Method, TypedClientMiddleware } from "../types.js";
 import type { CacheContext } from "./contexts.js";
-import { LruMap } from "./lru.js";
+import { LRUCache } from "@mark1russell7/collections";
 import { isDuration, optionalMs, type Duration } from "../../duration.js";
 import type { Effects } from "../../procedures/types.js";
 import { TIMER_DEFAULTS } from "../../timers.js";
@@ -137,6 +137,8 @@ const VOLATILE_METADATA = new Set([
   "idempotency-key",
   "procedure-timeout",
   "traceparent",
+  "tracestate",
+  "baggage",
 ]);
 
 /** The part of the metadata that can change a response. */
@@ -279,7 +281,7 @@ export function createCacheMiddleware(options: CacheOptions): TypedClientMiddlew
 
   // An LRU map bounds the memory. Each entry keeps its own expiry time, so a call can give its
   // own TTL: before, one TTL map expired every entry after the TTL of the middleware.
-  const cache = new LruMap<string, CacheEntry>(capacity, () => {
+  const cache = new LRUCache<string, CacheEntry>(capacity, () => {
     stats.evictions++;
   });
 
