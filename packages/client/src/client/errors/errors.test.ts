@@ -290,6 +290,33 @@ describe("errorMessage", () => {
     expect(errorMessage(undefined)).toBe("undefined");
     expect(errorMessage(null)).toBe("null");
     expect(errorMessage(42)).toBe("42");
+    // A Symbol has a String() text, but no conversion with a template
+    expect(errorMessage(Symbol("s"))).toBe("Symbol(s)");
+    expect(errorMessage(Object.assign(new Error("x"), { message: 42 }))).toBe("42");
+  });
+
+  it("never throws: it gives the tag of the object when String(value) throws", () => {
+    expect(() => String(Object.create(null))).toThrow(TypeError);
+    expect(errorMessage(Object.create(null))).toBe("[object Object]");
+    const loud = {
+      toString(): string {
+        throw new Error("no text");
+      },
+    };
+    expect(errorMessage(loud)).toBe("[object Object]");
+    const silent = Object.defineProperty(new Error("hidden"), "message", {
+      get(): string {
+        throw new Error("no message");
+      },
+    });
+    expect(errorMessage(silent)).toBe("[object Error]");
+  });
+
+  it("never throws: it gives the type of a revoked Proxy, for which the tag also throws", () => {
+    const { proxy, revoke } = Proxy.revocable({}, {});
+    revoke();
+    expect(() => Object.prototype.toString.call(proxy)).toThrow(TypeError);
+    expect(errorMessage(proxy)).toBe("[object]");
   });
 });
 
