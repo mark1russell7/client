@@ -2093,8 +2093,8 @@ importers:
         specifier: workspace:*
         version: link:../client-store
       '@signaldb/core':
-        specifier: ^1.8.1
-        version: 1.8.1
+        specifier: ^2.0.0
+        version: 2.0.2
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -4217,8 +4217,8 @@ packages:
   '@sec-ant/readable-stream@0.4.1':
     resolution: {integrity: sha512-831qok9r2t8AlxLko40y2ebgSDhenenCatLVeW/uBtnHPyhHOvG0C7TvfgecV+wHzIm5KUICgzmVpWS+IMEAeg==}
 
-  '@signaldb/core@1.8.1':
-    resolution: {integrity: sha512-85+ehSokMaKrPue42wPLmF+tU2jfky99kC2UlamfYS64I1YMMCWDeOdx17PNMpTxLdGFlCgnDEpTZB5XO3HFyQ==}
+  '@signaldb/core@2.0.2':
+    resolution: {integrity: sha512-78Zkb5TJ1QmdcCB3DkWa3i99k3YMDOrHA210wEETa8K/PZCmLNm/PwsaMl4O8B3XxbXQekNnrIM2/AOGA2BhUw==}
 
   '@simplewebauthn/browser@13.3.0':
     resolution: {integrity: sha512-BE/UWv6FOToAdVk0EokzkqQQDOWtNydYlY6+OrmiZ5SCNmb41VehttboTetUM3T/fr6EAFYVXjz4My2wg230rQ==}
@@ -8152,7 +8152,7 @@ snapshots:
 
   '@sec-ant/readable-stream@0.4.1': {}
 
-  '@signaldb/core@1.8.1':
+  '@signaldb/core@2.0.2':
     dependencies:
       fast-sort: 3.4.1
       mingo: 7.2.5
