@@ -1,15 +1,23 @@
 /**
  * The profiles of the Chromium browsers on the disk: Google Chrome, Microsoft Edge and Chromium.
  * This file finds the folders of the user data of each browser. Then it finds the bookmarks files of
- * each profile in them, with the names of the profiles. The parse of a file is in `bookmarks.ts`.
+ * each profile in them, with the names of the profiles, and reads a file. The parse is in `bookmarks.ts`.
  * This file uses Node.js, so only the root entry exports it.
  */
 
 import { readFile, readdir, stat } from "node:fs/promises";
 import { join, posix, win32 } from "node:path";
-import { BOOKMARK_FILES, profileNames, type BookmarkSource } from "./bookmarks.js";
+import {
+  BOOKMARK_FILES,
+  MAX_BOOKMARKS_BYTES,
+  parseChromeBookmarks,
+  profileNames,
+  type BookmarkSource,
+  type ChromeBookmarks,
+  type ParseChromeBookmarksOptions,
+} from "./bookmarks.js";
 
-/** The file operations of the search. A test gives files in memory. */
+/** The file operations of the search and of the read. A test gives files in memory. */
 export interface FileAccess {
   /** This function gives the names in a folder, or no names when the folder does not exist. */
   list(folder: string): Promise<readonly string[]>;
@@ -19,7 +27,11 @@ export interface FileAccess {
   read(file: string): Promise<string>;
 }
 
-/** The file operations on the disk. */
+/**
+ * The file operations on the disk. `list` gives no names for each error, not only for a missing
+ * folder: also for a folder that it cannot read (`EACCES`). `size` gives `undefined` for each error
+ * and for a path that is not a file. `read` throws the error of the disk.
+ */
 export const diskFileAccess: FileAccess = {
   list: async (folder) => {
     try {
@@ -103,6 +115,8 @@ export interface BookmarkFile extends BookmarkSource {
   readonly profile: string;
   /** The path of the file. */
   readonly path: string;
+  /** The size of the file in bytes, at the time of the search. A file over `MAX_BOOKMARKS_BYTES` is not a bookmarks file. */
+  readonly size: number;
 }
 
 /**
@@ -124,10 +138,39 @@ export async function findBookmarkFiles(folders: readonly BrowserDataFolder[], f
     for (const profile of [...profiles].sort(profileOrder)) {
       for (const [file, kind] of Object.entries(BOOKMARK_FILES)) {
         const path = join(folder, profile, file);
-        if ((await files.size(path)) === undefined) continue;
-        found.push({ id: `${browser}:${profile}:${file}`, name: names.get(profile) ?? profile, kind, browser, profile, path });
+        const size = await files.size(path);
+        if (size === undefined) continue;
+        found.push({ id: `${browser}:${profile}:${file}`, name: names.get(profile) ?? profile, kind, browser, profile, path, size });
       }
     }
   }
   return found;
+}
+
+/**
+ * This function reads and parses a bookmarks file that `findBookmarkFiles` found. It reads the size
+ * again, because the file can change after the search. It refuses a file over `MAX_BOOKMARKS_BYTES`
+ * before the read. The default prefix of the keys is the id of the file and a colon, so the keys of
+ * two files are different.
+ *
+ * @throws Error when the file is not there, is too large, is not JSON or has no roots
+ */
+export async function readBookmarkFile(
+  file: Pick<BookmarkFile, "id" | "path">,
+  files: FileAccess = diskFileAccess,
+  options: ParseChromeBookmarksOptions = {},
+): Promise<ChromeBookmarks> {
+  const size = await files.size(file.path);
+  if (size === undefined) throw new Error(`The file ${file.path} is not there now.`);
+  if (size > MAX_BOOKMARKS_BYTES) {
+    throw new Error(`The file ${file.path} has ${size} bytes. A bookmarks file has ${MAX_BOOKMARKS_BYTES} bytes at most.`);
+  }
+  const text = await files.read(file.path);
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch (error) {
+    throw new Error(`The file ${file.path} is not JSON, so it is not a bookmarks file.`, { cause: error });
+  }
+  return parseChromeBookmarks(value, { prefix: options.prefix ?? `${file.id}:` });
 }

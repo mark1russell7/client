@@ -2,8 +2,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { parseChromeBookmarks } from "./bookmarks.js";
-import { browserDataFolders, diskFileAccess, findBookmarkFiles, PROFILE_BROWSERS, type FileAccess } from "./profiles.js";
+import { MAX_BOOKMARKS_BYTES, parseChromeBookmarks } from "./bookmarks.js";
+import { browserDataFolders, diskFileAccess, findBookmarkFiles, PROFILE_BROWSERS, readBookmarkFile, type FileAccess } from "./profiles.js";
 
 const DATA = join("home", "chrome");
 const EDGE = join("home", "edge");
@@ -89,6 +89,7 @@ describe("findBookmarkFiles", () => {
       ["chrome:Profile 10:Bookmarks", "Profile 10", "profile", "chrome", "Profile 10"],
     ]);
     expect(found[2]?.path).toBe(join(DATA, "Profile 2", "Bookmarks"));
+    expect(found[2]?.size).toBe(bookmarks("https://d.example/").length);
   });
 
   it("gives the files of two browsers with the same profiles different ids, in the order of the folders", async () => {
@@ -135,5 +136,48 @@ describe("findBookmarkFiles", () => {
     } finally {
       rmSync(data, { recursive: true, force: true });
     }
+  });
+});
+
+describe("readBookmarkFile", () => {
+  const FILE = { id: "chrome:Default:Bookmarks", path: join(DATA, "Default", "Bookmarks") };
+
+  /** This function gives the files of FILES with the size `size` for each file, and counts the reads. */
+  function sized(size: number | undefined): { files: FileAccess; reads: () => number } {
+    let reads = 0;
+    const base = memory(FILES);
+    return {
+      files: { ...base, size: async () => size, read: async (file) => (reads++, base.read(file)) },
+      reads: () => reads,
+    };
+  }
+
+  it("reads and parses a file that the search found, with the id of the file as the default prefix", async () => {
+    const [found] = await findBookmarkFiles([{ browser: "chrome", folder: DATA }], memory(FILES));
+    const read = await readBookmarkFile(found!, memory(FILES));
+    expect(read.roots[0]?.key).toBe("chrome:Default:Bookmarks:bar");
+    expect(read.roots[0]?.sites[0]?.url).toBe("https://a.example/");
+    expect((await readBookmarkFile(FILE, memory(FILES), { prefix: "" })).roots[0]?.key).toBe("bar");
+  });
+
+  it("refuses a file over MAX_BOOKMARKS_BYTES before the read, and reads a file of exactly that size", async () => {
+    const large = sized(MAX_BOOKMARKS_BYTES + 1);
+    await expect(readBookmarkFile(FILE, large.files)).rejects.toThrow(`has ${MAX_BOOKMARKS_BYTES + 1} bytes. A bookmarks file has ${MAX_BOOKMARKS_BYTES} bytes at most.`);
+    expect(large.reads()).toBe(0);
+    const limit = sized(MAX_BOOKMARKS_BYTES);
+    expect((await readBookmarkFile(FILE, limit.files)).roots).toHaveLength(1);
+    expect(limit.reads()).toBe(1);
+  });
+
+  it("refuses a file that is gone, a file that is not JSON and a JSON value with no roots", async () => {
+    const gone = sized(undefined);
+    await expect(readBookmarkFile(FILE, gone.files)).rejects.toThrow("is not there now");
+    expect(gone.reads()).toBe(0);
+    const broken = memory({ ...FILES, [FILE.path]: "{ not json" });
+    const error = await readBookmarkFile(FILE, broken).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toMatch(/is not JSON, so it is not a bookmarks file/);
+    expect((error as Error).cause).toBeInstanceOf(SyntaxError);
+    await expect(readBookmarkFile(FILE, memory({ ...FILES, [FILE.path]: "{}" }))).rejects.toThrow("roots");
   });
 });

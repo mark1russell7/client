@@ -70,6 +70,7 @@ const { path, bytes } = await renderPdf({ html: "<h1>Menu</h1><p>Soup of the day
 - The temporary profile keeps the render apart from a browser that the user has open.
 - A missing file, an empty file or a file of the wrong kind gives an error.
 - An existing output file changes only after the check of the new file. Thus a failed render keeps an old output file.
+- Each render removes its temporary page and profile, also after an error. For a file that Windows holds, the removal tries again 3 times.
 
 ## The browser
 
@@ -87,10 +88,11 @@ When the search finds no browser, each render gives an error that names `PDF_BRO
 
 ```ts
 import { homedir } from "node:os";
-import { browserDataFolders, findBookmarkFiles, MAX_BOOKMARKS_BYTES, parseChromeBookmarks } from "@procedures/browser";
+import { browserDataFolders, findBookmarkFiles, readBookmarkFile } from "@procedures/browser";
 
 const files = await findBookmarkFiles(browserDataFolders(process.platform, process.env, homedir()));
-for (const file of files) console.log(file.id, file.browser, file.name, file.kind, file.path);
+for (const file of files) console.log(file.id, file.browser, file.name, file.kind, file.size);
+const first = files[0] === undefined ? undefined : await readBookmarkFile(files[0]);
 ```
 
 - `browserDataFolders(platform, env, home, browsers)` gives the folder of the user data of each browser on Windows, macOS and Linux. It reads no file.
@@ -98,17 +100,22 @@ for (const file of files) console.log(file.id, file.browser, file.name, file.kin
 - `findBookmarkFiles(folders, files)` finds the files `Bookmarks` and `AccountBookmarks` of each profile. It reads the names of the profiles from the file `Local State`. Each folder has the key of its browser, so a caller can add the folder of another Chromium browser.
 - The files come in the order of the folders. In a folder, `Default` comes first, then `Profile <n>` by the number. The guest and system profiles have no bookmarks.
 - The id of a file is `<browser>:<profile folder>:<file name>`, for example `edge:Default:Bookmarks`. The files of two browsers have different ids. A host can give the id and the name to a page, and keep the path.
-- The argument `files` is the file access of the search. The default is `diskFileAccess`. A test gives files in memory.
+- Each file has its `path` and its `size` in bytes at the time of the search.
+- `readBookmarkFile(file, files, options)` reads and parses a file. It reads the size again, and refuses a file over `MAX_BOOKMARKS_BYTES` before the read. The default prefix of the keys is the id of the file and a colon.
+- The argument `files` is the file access. The default is `diskFileAccess`. A test gives files in memory.
+- `diskFileAccess.list` gives no names for each error: a missing folder, and also a folder that it cannot read (`EACCES`).
 
 `parseChromeBookmarks(value, options)` reads the JSON of a bookmarks file. Chrome, Edge and Chromium write the same format. The parser gives the root folders, each with its folders and its sites.
 
 - Each site has its address, its title, the time when the user added it, and the names of its folders as `path`.
 - The parser keeps only the `http` and `https` addresses. The count `skipped` tells how many other bookmarks the file has.
 - A part that the parser cannot read gives a problem in `problems`. The parser reads the other parts.
+- The key of a folder is its `guid`, else its `id`, else its place in the file. The place is the name of its root and the index of each child. Thus each folder of a file has a different key.
 - The option `prefix` goes before each key of a folder. Give two files different prefixes, so that their keys are different.
+- The roots of Chrome come first. The roots with other names come after them, in the order of their code units. Thus each runtime gives the same parse.
 - The parser reads 100 folders deep at most (`MAX_BOOKMARK_DEPTH`). A deeper folder gives a problem.
 - A value with no object `roots` is not a bookmarks file. Then the parser throws.
-- `MAX_BOOKMARKS_BYTES` is the largest file that a reader accepts: 64 MB. Examine the size before the read.
+- `MAX_BOOKMARKS_BYTES` is the largest bookmarks file: 64 MB. `readBookmarkFile` applies it. A page that reads a file of its own examines the size before the read.
 
 ### The entry for a page
 

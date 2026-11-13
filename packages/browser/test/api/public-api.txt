@@ -52,6 +52,7 @@ isPdfFile: dist/pdf.d.ts#isPdfFile
 parseChromeBookmarks: dist/bookmarks.d.ts#parseChromeBookmarks
 pdfArgs: dist/pdf.d.ts#pdfArgs
 profileNames: dist/bookmarks.d.ts#profileNames
+readBookmarkFile: dist/profiles.d.ts#readBookmarkFile
 renderPdf: dist/pdf.d.ts#renderPdf
 renderScreenshot: dist/screenshot.d.ts#renderScreenshot
 renderScreenshotBytes: dist/screenshot.d.ts#renderScreenshotBytes
@@ -189,6 +190,7 @@ export interface BookmarkFile extends BookmarkSource {
     readonly browser: string;
     readonly profile: string;
     readonly path: string;
+    readonly size: number;
 }
 
 ### dist/profiles.d.ts#BrowserDataFolder
@@ -218,6 +220,9 @@ export declare const diskFileAccess: FileAccess;
 
 ### dist/profiles.d.ts#findBookmarkFiles
 export declare function findBookmarkFiles(folders: readonly BrowserDataFolder[], files?: FileAccess): Promise<BookmarkFile[]>;
+
+### dist/profiles.d.ts#readBookmarkFile
+export declare function readBookmarkFile(file: Pick<BookmarkFile, "id" | "path">, files?: FileAccess, options?: ParseChromeBookmarksOptions): Promise<ChromeBookmarks>;
 
 ### dist/run.d.ts#CommandRunner
 export type CommandRunner = (command: string, options: CommandOptions) => Promise<CommandResult>;

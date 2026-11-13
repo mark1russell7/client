@@ -136,7 +136,7 @@ export async function headlessRender(render: HeadlessRender, source: PageSource,
   }
 }
 
-/** This function runs the browser in a temporary folder that always goes, and copies the checked file to `output`. */
+/** This function starts the browser in a temporary folder that always goes, and copies the checked file to `output`. */
 function renderOnce(render: HeadlessRender, source: PageSource, options: HeadlessOptions, browser: string, output: string): Promise<RenderResult> {
   return withTemporaryFolder(render.prefix, undefined, async (work) => {
     const profile = join(work, "profile");
