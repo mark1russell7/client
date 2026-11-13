@@ -219,16 +219,15 @@ function pause(clock: Clock, ms: number, signal: AbortSignal, what: string): Pro
       reject(new Error(`The signal stopped the request ${what}.`));
       return;
     }
-    let cancel: Cancel = () => {};
     const stop = (): void => {
       cancel();
       reject(new Error(`The signal stopped the request ${what}.`));
     };
-    signal.addEventListener("abort", stop, { once: true });
-    cancel = clock.after(ms, () => {
+    const cancel: Cancel = clock.after(ms, () => {
       signal.removeEventListener("abort", stop);
       resolve();
     });
+    signal.addEventListener("abort", stop, { once: true });
   });
 }
 
