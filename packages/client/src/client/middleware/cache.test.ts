@@ -60,6 +60,22 @@ describe("the cache key of a payload", () => {
     expect(stableStringify(1n)).not.toBe(stableStringify(1));
   });
 
+  it("keeps apart the payloads that differ only in a Date, a RegExp, a Map or a Set (CLI-128)", () => {
+    const pairs: Array<[unknown, unknown]> = [
+      [{ since: new Date(0) }, { since: new Date(1_000) }],
+      [{ since: new Date(Number.NaN) }, { since: new Date(0) }],
+      [{ match: /a/ }, { match: /a/i }],
+      [{ m: new Map([["a", 1]]) }, { m: new Map([["a", 2]]) }],
+      [{ s: new Set([1]) }, { s: new Set([2]) }],
+    ];
+    for (const [a, b] of pairs) expect(stableStringify(a)).not.toBe(stableStringify(b));
+    expect(stableStringify(new Date(0))).toBe("Date(0)");
+    expect(stableStringify(/a+"/gi)).toBe('RegExp("/a+\\"/gi")');
+    expect(stableStringify(new Map<unknown, unknown>([["b", 2n], [1, { y: 1, x: 0 }]]))).toBe('Map(["b",2n],[1,{"x":0,"y":1}])');
+    expect(stableStringify(new Set(["b", "a"]))).toBe('Set("a","b")');
+    expect(stableStringify(new Set([2, 1]))).toBe(stableStringify(new Set([1, 2])));
+  });
+
   it("keeps the versions of a method apart", () => {
     const v1 = defaultKeyGenerator({ ...method, version: "v1" }, {});
     const v2 = defaultKeyGenerator({ ...method, version: "v2" }, {});

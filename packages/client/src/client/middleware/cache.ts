@@ -114,6 +114,13 @@ export function stableStringify(value: unknown): string {
   if (Array.isArray(value)) {
     return `[${value.map(stableStringify).join(",")}]`;
   }
+  // A Date, a RegExp, a Map and a Set have no own keys: before CLI-128, the key of each one was {}
+  if (value instanceof Date) return `Date(${value.getTime()})`;
+  if (value instanceof RegExp) return `RegExp(${JSON.stringify(String(value))})`;
+  if (value instanceof Map) {
+    return `Map(${[...value].map(([key, item]) => `[${stableStringify(key)},${stableStringify(item)}]`).sort().join(",")})`;
+  }
+  if (value instanceof Set) return `Set(${[...value].map(stableStringify).sort().join(",")})`;
   const obj = value as Record<string, unknown>;
   const body = Object.keys(obj)
     .sort()
