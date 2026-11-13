@@ -57,6 +57,38 @@ await invokePath(
 mark npm pack --cwd packages/app
 ```
 
+## The use measures
+
+The entry `@procedures/npm/measures` reads how much a package is used, from free public sources. It has no Node built-in, so a browser can also use it.
+
+Each measure is a pair of pure functions. The request builder gives the URL and the `Accept` header. The extractor reads the body text of the response into typed rows. Neither function sends a request.
+
+| Measure | Request builder | Extractor | Row |
+|---|---|---|---|
+| npm downloads | `downloadsRequests(packages, period)` | `extractDownloads` | `DownloadsRow` |
+| deps.dev versions | `depsDevPackageRequest(name)` | `extractDepsDevPackage` | `DepsDevPackage` |
+| deps.dev dependents | `depsDevDependentsRequest(name, version)` | `extractDepsDevDependents` | `DepsDevDependents` |
+| jsDelivr hits | `jsdelivrHitsRequest(name, period)` | `extractJsdelivrHits` | `JsdelivrHits` |
+| The version of a tag | `registryVersionRequest(name, tag)` | `extractRegistryVersion` | `RegistryVersion` |
+| The abbreviated document | `registryDocumentRequest(name)` | `extractRegistryDocument` | `RegistryDocument` |
+
+- The npm downloads include the installs through other packages. The deps.dev dependents include the indirect dependents. Thus both measures include transitive use.
+- `downloadsRequests` puts up to 128 packages without a scope into one bulk request. Each package with a scope gets its own request.
+- An extractor puts each package that the source does not know into `missing`. A body of another shape, for example a rate limit, throws an error that names the URL.
+- The dependents need a version. `extractDepsDevPackage` gives the default version.
+
+The caller gives the fetch. `measure(fetch, request, extract)` sends one request and reads the response. `globalThis.fetch` fits the type `MeasureFetch`. A crawler can use the request builder and the extractor in its own recipe.
+
+```typescript
+import { downloadsRequests, extractDownloads, measure } from "@procedures/npm/measures";
+
+for (const request of downloadsRequests(["sockette", "@stomp/stompjs"], "last-week")) {
+  const { rows, missing } = await measure(globalThis.fetch, request, extractDownloads);
+}
+```
+
+`measure` does not wait between two requests. Keep the pace of each source: the npm downloads API refuses fast series of requests with HTTP 429.
+
 ## How the package finds npm
 
 On Windows, `npm` is a `.cmd` file, and Node starts a `.cmd` file only through a shell. So `resolveNpm()` finds the `npm-cli.js` script of the npm of this Node, and starts it with Node. When the npm CLI starts the process, the script comes from `npm_execpath`.

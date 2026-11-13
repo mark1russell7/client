@@ -50,6 +50,38 @@ parseDistTags: dist/procedures/npm/distTags/list.d.ts#parseDistTags
 registerNpmProcedures: dist/module.d.ts#registerNpmProcedures
 resolveNpm: dist/procedures/npm/shared.d.ts#resolveNpm
 
+## ./measures (dist/measures/index.d.ts): names
+
+ACCEPT_ABBREVIATED: dist/measures/registry.d.ts#ACCEPT_ABBREVIATED
+DOWNLOADS_BULK_LIMIT: dist/measures/downloads.d.ts#DOWNLOADS_BULK_LIMIT
+DepsDevDependents: dist/measures/deps-dev.d.ts#DepsDevDependents
+DepsDevPackage: dist/measures/deps-dev.d.ts#DepsDevPackage
+DepsDevVersion: dist/measures/deps-dev.d.ts#DepsDevVersion
+DownloadsPeriod: dist/measures/downloads.d.ts#DownloadsPeriod
+DownloadsRow: dist/measures/downloads.d.ts#DownloadsRow
+type Extracted: dist/measures/shared.d.ts#Extracted
+type Extractor: dist/measures/shared.d.ts#Extractor
+JsdelivrHits: dist/measures/jsdelivr.d.ts#JsdelivrHits
+JsdelivrPeriod: dist/measures/jsdelivr.d.ts#JsdelivrPeriod
+type MeasureFetch: dist/measures/shared.d.ts#MeasureFetch
+type MeasureRequest: dist/measures/shared.d.ts#MeasureRequest
+RegistryDocument: dist/measures/registry.d.ts#RegistryDocument
+RegistryVersion: dist/measures/registry.d.ts#RegistryVersion
+assertPackageName: dist/measures/shared.d.ts#assertPackageName
+depsDevDependentsRequest: dist/measures/deps-dev.d.ts#depsDevDependentsRequest
+depsDevPackageRequest: dist/measures/deps-dev.d.ts#depsDevPackageRequest
+downloadsRequests: dist/measures/downloads.d.ts#downloadsRequests
+extractDepsDevDependents: dist/measures/deps-dev.d.ts#extractDepsDevDependents
+extractDepsDevPackage: dist/measures/deps-dev.d.ts#extractDepsDevPackage
+extractDownloads: dist/measures/downloads.d.ts#extractDownloads
+extractJsdelivrHits: dist/measures/jsdelivr.d.ts#extractJsdelivrHits
+extractRegistryDocument: dist/measures/registry.d.ts#extractRegistryDocument
+extractRegistryVersion: dist/measures/registry.d.ts#extractRegistryVersion
+jsdelivrHitsRequest: dist/measures/jsdelivr.d.ts#jsdelivrHitsRequest
+measure: dist/measures/shared.d.ts#measure
+registryDocumentRequest: dist/measures/registry.d.ts#registryDocumentRequest
+registryVersionRequest: dist/measures/registry.d.ts#registryVersionRequest
+
 ## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#npmModule
@@ -62,6 +94,145 @@ npmModule: dist/module.d.ts#npmModule
 registerNpmProcedures: dist/module.d.ts#registerNpmProcedures
 
 ## Declarations
+
+### dist/measures/deps-dev.d.ts#DepsDevDependents
+export interface DepsDevDependents {
+    readonly package: string;
+    readonly version: string;
+    readonly dependents: number;
+    readonly direct: number;
+    readonly indirect: number;
+}
+
+### dist/measures/deps-dev.d.ts#DepsDevPackage
+export interface DepsDevPackage {
+    readonly package: string;
+    readonly defaultVersion: string | null;
+    readonly versions: readonly DepsDevVersion[];
+}
+
+### dist/measures/deps-dev.d.ts#DepsDevVersion
+export interface DepsDevVersion {
+    readonly version: string;
+    readonly publishedAt: string | null;
+    readonly isDefault: boolean;
+    readonly deprecated: string | null;
+}
+
+### dist/measures/deps-dev.d.ts#depsDevDependentsRequest
+export declare function depsDevDependentsRequest(name: string, version: string): MeasureRequest;
+
+### dist/measures/deps-dev.d.ts#depsDevPackageRequest
+export declare function depsDevPackageRequest(name: string): MeasureRequest;
+
+### dist/measures/deps-dev.d.ts#extractDepsDevDependents
+export declare function extractDepsDevDependents(text: string, url: string): Extracted<DepsDevDependents>;
+
+### dist/measures/deps-dev.d.ts#extractDepsDevPackage
+export declare function extractDepsDevPackage(text: string, url: string): Extracted<DepsDevPackage>;
+
+### dist/measures/downloads.d.ts#DOWNLOADS_BULK_LIMIT
+export declare const DOWNLOADS_BULK_LIMIT = 128;
+
+### dist/measures/downloads.d.ts#DownloadsPeriod
+export type DownloadsPeriod = "last-day" | "last-week" | "last-month" | `${string}:${string}`;
+
+### dist/measures/downloads.d.ts#DownloadsRow
+export interface DownloadsRow {
+    readonly package: string;
+    readonly start: string;
+    readonly end: string;
+    readonly downloads: number;
+}
+
+### dist/measures/downloads.d.ts#downloadsRequests
+export declare function downloadsRequests(packages: readonly string[], period?: DownloadsPeriod): MeasureRequest[];
+
+### dist/measures/downloads.d.ts#extractDownloads
+export declare function extractDownloads(text: string, url: string): Extracted<DownloadsRow>;
+
+### dist/measures/jsdelivr.d.ts#JsdelivrHits
+export interface JsdelivrHits {
+    readonly package: string;
+    readonly period: JsdelivrPeriod;
+    readonly start: string | null;
+    readonly end: string | null;
+    readonly hits: number;
+    readonly rank: number | null;
+    readonly typeRank: number | null;
+    readonly previousHits: number | null;
+}
+
+### dist/measures/jsdelivr.d.ts#JsdelivrPeriod
+export type JsdelivrPeriod = "day" | "week" | "month" | "quarter" | "year";
+
+### dist/measures/jsdelivr.d.ts#extractJsdelivrHits
+export declare function extractJsdelivrHits(text: string, url: string): Extracted<JsdelivrHits>;
+
+### dist/measures/jsdelivr.d.ts#jsdelivrHitsRequest
+export declare function jsdelivrHitsRequest(name: string, period?: JsdelivrPeriod): MeasureRequest;
+
+### dist/measures/registry.d.ts#ACCEPT_ABBREVIATED
+export declare const ACCEPT_ABBREVIATED = "application/vnd.npm.install-v1+json";
+
+### dist/measures/registry.d.ts#RegistryDocument
+export interface RegistryDocument {
+    readonly package: string;
+    readonly modified: string | null;
+    readonly distTags: Readonly<Record<string, string>>;
+    readonly versions: number;
+    readonly latestDeprecated: string | null;
+}
+
+### dist/measures/registry.d.ts#RegistryVersion
+export interface RegistryVersion {
+    readonly package: string;
+    readonly version: string;
+    readonly deprecated: string | null;
+    readonly repository: string | null;
+    readonly repositoryDirectory: string | null;
+    readonly license: string | null;
+}
+
+### dist/measures/registry.d.ts#extractRegistryDocument
+export declare function extractRegistryDocument(text: string, url: string): Extracted<RegistryDocument>;
+
+### dist/measures/registry.d.ts#extractRegistryVersion
+export declare function extractRegistryVersion(text: string, url: string): Extracted<RegistryVersion>;
+
+### dist/measures/registry.d.ts#registryDocumentRequest
+export declare function registryDocumentRequest(name: string): MeasureRequest;
+
+### dist/measures/registry.d.ts#registryVersionRequest
+export declare function registryVersionRequest(name: string, tag?: string): MeasureRequest;
+
+### dist/measures/shared.d.ts#Extracted
+export interface Extracted<Row> {
+    readonly rows: readonly Row[];
+    readonly missing: readonly string[];
+}
+
+### dist/measures/shared.d.ts#Extractor
+export type Extractor<Row> = (text: string, url: string) => Extracted<Row>;
+
+### dist/measures/shared.d.ts#MeasureFetch
+export type MeasureFetch = (url: string, init: {
+    readonly headers: Readonly<Record<string, string>>;
+}) => Promise<{
+    readonly text: () => Promise<string>;
+}>;
+
+### dist/measures/shared.d.ts#MeasureRequest
+export interface MeasureRequest {
+    readonly url: string;
+    readonly accept: string;
+}
+
+### dist/measures/shared.d.ts#assertPackageName
+export declare function assertPackageName(name: string): void;
+
+### dist/measures/shared.d.ts#measure
+export declare function measure<Row>(fetch: MeasureFetch, request: MeasureRequest, extract: Extractor<Row>): Promise<Extracted<Row>>;
 
 ### dist/module.d.ts#npmModule
 export declare const npmModule: ProcedureModule;
