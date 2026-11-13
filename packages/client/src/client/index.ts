@@ -20,6 +20,7 @@ export {
   createErrorFromHTTPStatus,
   createErrorFromException,
   formatError,
+  errorMessage,
 } from "./errors/index.js";
 
 // Transport Adapters

@@ -17,6 +17,7 @@ import {
   createErrorFromException,
   createErrorFromHTTPStatus,
   errorCodeToHTTPStatus,
+  errorMessage,
   formatError,
   getErrorMetadata,
   getErrorsByCategory,
@@ -271,6 +272,24 @@ describe("the factory functions (R30)", () => {
     expect(isRetryable(createError("ABORTED"))).toBe(false);
     expect(isErrorCategory(createError("UNAUTHORIZED"), ErrorCategory.AUTH)).toBe(true);
     expect(isErrorCategory(createError("UNAUTHORIZED"), ErrorCategory.NETWORK)).toBe(false);
+  });
+});
+
+describe("errorMessage", () => {
+  it("gives the message of an Error, also of a subclass and of an Error with an empty message", () => {
+    expect(errorMessage(new Error("the disk is full"))).toBe("the disk is full");
+    expect(errorMessage(new TypeError("not a function"))).toBe("not a function");
+    expect(errorMessage(new ClientError({ type: "error", code: "UNAVAILABLE", message: "busy", retryable: true }, "r1"))).toBe("busy");
+    expect(errorMessage(new Error(""))).toBe("");
+  });
+
+  it("gives String(value) for each other value", () => {
+    expect(errorMessage("a text")).toBe("a text");
+    expect(errorMessage({ message: "not an Error" })).toBe("[object Object]");
+    expect(errorMessage({ toString: () => "own text" })).toBe("own text");
+    expect(errorMessage(undefined)).toBe("undefined");
+    expect(errorMessage(null)).toBe("null");
+    expect(errorMessage(42)).toBe("42");
   });
 });
 

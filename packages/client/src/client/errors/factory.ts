@@ -249,6 +249,23 @@ export function formatError(error: RichError, includeStack = false): string {
 }
 
 /**
+ * This function gives the text of a thrown value: the `message` of an `Error`, else
+ * `String(value)`. A `catch` block can give it each value that it catches.
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await client.call(["files", "read"], { path });
+ * } catch (error) {
+ *   console.error(errorMessage(error));
+ * }
+ * ```
+ */
+export function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
  * Check if error is retryable.
  */
 export function isRetryable(error: RichError): boolean {

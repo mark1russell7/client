@@ -487,6 +487,7 @@ elicitConfirmation: dist/procedures/elicit.d.ts#elicitConfirmation
 elicitInput: dist/procedures/elicit.d.ts#elicitInput
 elicitWithPolicy: dist/procedures/elicit.d.ts#elicitWithPolicy
 encodeSegment: dist/procedures/segments.d.ts#encodeSegment
+errorMessage: dist/client/errors/factory.d.ts#errorMessage
 examinesNestedCall: dist/procedures/capability.d.ts#examinesNestedCall
 executeRef: dist/procedures/program.d.ts#executeRef
 executeWithConcurrency: dist/client/batch-executor.d.ts#executeWithConcurrency
@@ -1159,6 +1160,7 @@ elicitConfirmation: dist/procedures/elicit.d.ts#elicitConfirmation
 elicitInput: dist/procedures/elicit.d.ts#elicitInput
 elicitWithPolicy: dist/procedures/elicit.d.ts#elicitWithPolicy
 encodeSegment: dist/procedures/segments.d.ts#encodeSegment
+errorMessage: dist/client/errors/factory.d.ts#errorMessage
 examinesNestedCall: dist/procedures/capability.d.ts#examinesNestedCall
 executeRef: dist/procedures/program.d.ts#executeRef
 executeWithConcurrency: dist/client/batch-executor.d.ts#executeWithConcurrency
@@ -1498,6 +1500,7 @@ createZodMiddleware: dist/client/validation/middleware.d.ts#createZodMiddleware
 deadlineOf: dist/client/deadline.d.ts#deadlineOf
 defaultUrlPattern: dist/adapters/http/shared/strategies.d.ts#defaultUrlPattern
 deliveryOf: dist/client/middleware/items.d.ts#deliveryOf
+errorMessage: dist/client/errors/factory.d.ts#errorMessage
 extractTracingInfo: dist/client/middleware/tracing.d.ts#extractTracingInfo
 formatError: dist/client/errors/factory.d.ts#formatError
 getErrorMetadata: dist/client/errors/registry.d.ts#getErrorMetadata
@@ -2898,6 +2901,9 @@ export declare function createErrorFromException(error: Error, context?: Partial
 
 ### dist/client/errors/factory.d.ts#createErrorFromHTTPStatus
 export declare function createErrorFromHTTPStatus(status: number, context?: Partial<ErrorContext>): RichError;
+
+### dist/client/errors/factory.d.ts#errorMessage
+export declare function errorMessage(error: unknown): string;
 
 ### dist/client/errors/factory.d.ts#formatError
 export declare function formatError(error: RichError, includeStack?: boolean): string;
