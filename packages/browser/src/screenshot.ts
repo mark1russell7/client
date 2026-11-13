@@ -4,10 +4,9 @@
  * writes a PNG, JPEG or WebP picture of the window.
  */
 
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync } from "node:fs";
 import { extname, join } from "node:path";
-import { headlessRender, readHead, type HeadlessOptions, type HeadlessRender, type PageSource, type RenderResult } from "./run.js";
+import { headlessRender, readHead, withTemporaryFolder, type HeadlessOptions, type HeadlessRender, type PageSource, type RenderResult } from "./run.js";
 
 /** The formats of a screenshot. The browser chooses the format from the extension of the file. */
 export type ScreenshotFormat = "png" | "jpeg" | "webp";
@@ -167,16 +166,8 @@ export interface RenderScreenshotBytesResult {
 export async function renderScreenshotBytes(options: RenderScreenshotBytesOptions): Promise<RenderScreenshotBytesResult> {
   const { folder, ...rest } = options;
   const format = rest.format ?? "png";
-  const work = mkdtempSync(join(folder ?? tmpdir(), "procedures-screenshot-bytes-"));
-  try {
+  return withTemporaryFolder("procedures-screenshot-bytes-", folder, async (work) => {
     const { path, browser } = await renderScreenshot({ ...rest, format, output: join(work, `picture${SCREENSHOT_EXTENSIONS[format]}`) });
     return { data: readFileSync(path), format, browser };
-  } finally {
-    try {
-      // On Windows, a virus scanner can hold the file for a short time, so the removal tries again
-      rmSync(work, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
-    } catch {
-      // A temporary folder that stays is not an error of the render, and must not hide its error
-    }
-  }
+  });
 }
