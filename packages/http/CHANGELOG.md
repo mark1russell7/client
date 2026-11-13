@@ -1,5 +1,12 @@
 # @procedures/http
 
+## 0.55.2
+
+### Patch Changes
+
+- a86b44f: `@procedures/http` has `isLocalName(hostname)`. It tells if a host name is a name of this computer or of the local network. Such a name is `localhost`, or a name in the domain `localhost`, `local`, `internal` or `home.arpa`. The letter case and a final dot change nothing. The change adds a name only, so it is a patch.
+- @procedures/client@0.55.2
+
 ## 0.55.1
 
 ### Patch Changes

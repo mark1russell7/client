@@ -1,5 +1,13 @@
 # @procedures/pdf
 
+## 0.55.2
+
+### Patch Changes
+
+- Updated dependencies [a86b44f]
+  - @procedures/browser@0.55.2
+  - @procedures/client@0.55.2
+
 ## 0.55.1
 
 ### Patch Changes
