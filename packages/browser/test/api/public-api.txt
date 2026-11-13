@@ -6,18 +6,32 @@
 
 ## . (dist/index.d.ts): names
 
+BOOKMARK_FILES: dist/bookmarks.d.ts#BOOKMARK_FILES
 BROWSER_ENV: dist/browser.d.ts#BROWSER_ENV
 BROWSER_NAMES: dist/browser.d.ts#BROWSER_NAMES
+Bookmark: dist/bookmarks.d.ts#Bookmark
+BookmarkFile: dist/profiles.d.ts#BookmarkFile
+BookmarkFileKind: dist/bookmarks.d.ts#BookmarkFileKind
+BookmarkFolder: dist/bookmarks.d.ts#BookmarkFolder
+BookmarkProblem: dist/bookmarks.d.ts#BookmarkProblem
+BookmarkSource: dist/bookmarks.d.ts#BookmarkSource
 CHROME_PATH_ENV: dist/browser.d.ts#CHROME_PATH_ENV
+ChromeBookmarks: dist/bookmarks.d.ts#ChromeBookmarks
 type CommandRunner: dist/run.d.ts#CommandRunner
 DEFAULT_SCREENSHOT_SIZE: dist/screenshot.d.ts#DEFAULT_SCREENSHOT_SIZE
 DEFAULT_TIMEOUT_MS: dist/run.d.ts#DEFAULT_TIMEOUT_MS
+FileAccess: dist/profiles.d.ts#FileAccess
 FindBrowserOptions: dist/browser.d.ts#FindBrowserOptions
 type HeadlessOptions: dist/run.d.ts#HeadlessOptions
+MAX_BOOKMARKS_BYTES: dist/bookmarks.d.ts#MAX_BOOKMARKS_BYTES
+MAX_BOOKMARK_DEPTH: dist/bookmarks.d.ts#MAX_BOOKMARK_DEPTH
 MAX_SCREENSHOT_SIDE: dist/screenshot.d.ts#MAX_SCREENSHOT_SIDE
+ParseChromeBookmarksOptions: dist/bookmarks.d.ts#ParseChromeBookmarksOptions
 type RenderPdfOptions: dist/pdf.d.ts#RenderPdfOptions
 type RenderPdfResult: dist/pdf.d.ts#RenderPdfResult
 type RenderResult: dist/run.d.ts#RenderResult
+RenderScreenshotBytesOptions: dist/screenshot.d.ts#RenderScreenshotBytesOptions
+RenderScreenshotBytesResult: dist/screenshot.d.ts#RenderScreenshotBytesResult
 RenderScreenshotOptions: dist/screenshot.d.ts#RenderScreenshotOptions
 RenderScreenshotResult: dist/screenshot.d.ts#RenderScreenshotResult
 SCREENSHOT_EXTENSIONS: dist/screenshot.d.ts#SCREENSHOT_EXTENSIONS
@@ -25,16 +39,103 @@ ScreenshotFormat: dist/screenshot.d.ts#ScreenshotFormat
 ScreenshotSize: dist/screenshot.d.ts#ScreenshotSize
 WINDOWS_BROWSER_NAMES: dist/browser.d.ts#WINDOWS_BROWSER_NAMES
 browserCandidates: dist/browser.d.ts#browserCandidates
+chromeDataFolders: dist/profiles.d.ts#chromeDataFolders
+chromeTime: dist/bookmarks.d.ts#chromeTime
+diskFileAccess: dist/profiles.d.ts#diskFileAccess
+findBookmarkFiles: dist/profiles.d.ts#findBookmarkFiles
 findBrowser: dist/browser.d.ts#findBrowser
 isImageFile: dist/screenshot.d.ts#isImageFile
 isPdfFile: dist/pdf.d.ts#isPdfFile
+parseChromeBookmarks: dist/bookmarks.d.ts#parseChromeBookmarks
 pdfArgs: dist/pdf.d.ts#pdfArgs
+profileNames: dist/bookmarks.d.ts#profileNames
 renderPdf: dist/pdf.d.ts#renderPdf
 renderScreenshot: dist/screenshot.d.ts#renderScreenshot
+renderScreenshotBytes: dist/screenshot.d.ts#renderScreenshotBytes
 screenshotArgs: dist/screenshot.d.ts#screenshotArgs
 screenshotFormatOf: dist/screenshot.d.ts#screenshotFormatOf
 
+## ./bookmarks (dist/bookmarks.d.ts): names
+
+BOOKMARK_FILES: dist/bookmarks.d.ts#BOOKMARK_FILES
+Bookmark: dist/bookmarks.d.ts#Bookmark
+BookmarkFileKind: dist/bookmarks.d.ts#BookmarkFileKind
+BookmarkFolder: dist/bookmarks.d.ts#BookmarkFolder
+BookmarkProblem: dist/bookmarks.d.ts#BookmarkProblem
+BookmarkSource: dist/bookmarks.d.ts#BookmarkSource
+ChromeBookmarks: dist/bookmarks.d.ts#ChromeBookmarks
+MAX_BOOKMARKS_BYTES: dist/bookmarks.d.ts#MAX_BOOKMARKS_BYTES
+MAX_BOOKMARK_DEPTH: dist/bookmarks.d.ts#MAX_BOOKMARK_DEPTH
+ParseChromeBookmarksOptions: dist/bookmarks.d.ts#ParseChromeBookmarksOptions
+chromeTime: dist/bookmarks.d.ts#chromeTime
+parseChromeBookmarks: dist/bookmarks.d.ts#parseChromeBookmarks
+profileNames: dist/bookmarks.d.ts#profileNames
+
 ## Declarations
+
+### dist/bookmarks.d.ts#BOOKMARK_FILES
+export declare const BOOKMARK_FILES: Readonly<Record<string, BookmarkFileKind>>;
+
+### dist/bookmarks.d.ts#Bookmark
+export interface Bookmark {
+    readonly url: string;
+    readonly title?: string;
+    readonly added?: string;
+    readonly path: readonly string[];
+}
+
+### dist/bookmarks.d.ts#BookmarkFileKind
+export type BookmarkFileKind = "profile" | "account" | "file";
+
+### dist/bookmarks.d.ts#BookmarkFolder
+export interface BookmarkFolder {
+    readonly key: string;
+    readonly name: string;
+    readonly path: readonly string[];
+    readonly folders: readonly BookmarkFolder[];
+    readonly sites: readonly Bookmark[];
+    readonly total: number;
+}
+
+### dist/bookmarks.d.ts#BookmarkProblem
+export interface BookmarkProblem {
+    readonly path: readonly string[];
+    readonly message: string;
+}
+
+### dist/bookmarks.d.ts#BookmarkSource
+export interface BookmarkSource {
+    readonly id: string;
+    readonly name: string;
+    readonly kind: BookmarkFileKind;
+}
+
+### dist/bookmarks.d.ts#ChromeBookmarks
+export interface ChromeBookmarks {
+    readonly roots: readonly BookmarkFolder[];
+    readonly skipped: number;
+    readonly problems: readonly BookmarkProblem[];
+}
+
+### dist/bookmarks.d.ts#MAX_BOOKMARKS_BYTES
+export declare const MAX_BOOKMARKS_BYTES: number;
+
+### dist/bookmarks.d.ts#MAX_BOOKMARK_DEPTH
+export declare const MAX_BOOKMARK_DEPTH = 100;
+
+### dist/bookmarks.d.ts#ParseChromeBookmarksOptions
+export interface ParseChromeBookmarksOptions {
+    readonly prefix?: string | undefined;
+}
+
+### dist/bookmarks.d.ts#chromeTime
+export declare function chromeTime(value: unknown): string | undefined;
+
+### dist/bookmarks.d.ts#parseChromeBookmarks
+export declare function parseChromeBookmarks(value: unknown, options?: ParseChromeBookmarksOptions): ChromeBookmarks;
+
+### dist/bookmarks.d.ts#profileNames
+export declare function profileNames(localState: unknown): Map<string, string>;
 
 ### dist/browser.d.ts#BROWSER_ENV
 export declare const BROWSER_ENV = "PDF_BROWSER";
@@ -80,6 +181,28 @@ export declare function pdfArgs(page: string, output: string, profile: string, e
 ### dist/pdf.d.ts#renderPdf
 export declare function renderPdf(options: RenderPdfOptions): Promise<RenderPdfResult>;
 
+### dist/profiles.d.ts#BookmarkFile
+export interface BookmarkFile extends BookmarkSource {
+    readonly profile: string;
+    readonly path: string;
+}
+
+### dist/profiles.d.ts#FileAccess
+export interface FileAccess {
+    list(folder: string): Promise<readonly string[]>;
+    size(file: string): Promise<number | undefined>;
+    read(file: string): Promise<string>;
+}
+
+### dist/profiles.d.ts#chromeDataFolders
+export declare function chromeDataFolders(platform: NodeJS.Platform, env: Readonly<Record<string, string | undefined>>, home: string): string[];
+
+### dist/profiles.d.ts#diskFileAccess
+export declare const diskFileAccess: FileAccess;
+
+### dist/profiles.d.ts#findBookmarkFiles
+export declare function findBookmarkFiles(folders: readonly string[], files?: FileAccess): Promise<BookmarkFile[]>;
+
 ### dist/run.d.ts#CommandRunner
 export type CommandRunner = (command: string, options: CommandOptions) => Promise<CommandResult>;
 
@@ -107,6 +230,18 @@ export declare const DEFAULT_SCREENSHOT_SIZE: ScreenshotSize;
 
 ### dist/screenshot.d.ts#MAX_SCREENSHOT_SIDE
 export declare const MAX_SCREENSHOT_SIDE = 16384;
+
+### dist/screenshot.d.ts#RenderScreenshotBytesOptions
+export interface RenderScreenshotBytesOptions extends Omit<RenderScreenshotOptions, "output"> {
+    readonly folder?: string | undefined;
+}
+
+### dist/screenshot.d.ts#RenderScreenshotBytesResult
+export interface RenderScreenshotBytesResult {
+    readonly data: Uint8Array;
+    readonly format: ScreenshotFormat;
+    readonly browser: string;
+}
 
 ### dist/screenshot.d.ts#RenderScreenshotOptions
 export interface RenderScreenshotOptions extends HeadlessOptions {
@@ -140,6 +275,9 @@ export declare function isImageFile(path: string, format: ScreenshotFormat): boo
 
 ### dist/screenshot.d.ts#renderScreenshot
 export declare function renderScreenshot(options: RenderScreenshotOptions): Promise<RenderScreenshotResult>;
+
+### dist/screenshot.d.ts#renderScreenshotBytes
+export declare function renderScreenshotBytes(options: RenderScreenshotBytesOptions): Promise<RenderScreenshotBytesResult>;
 
 ### dist/screenshot.d.ts#screenshotArgs
 export declare function screenshotArgs(page: string, output: string, profile: string, size: ScreenshotSize, budget?: number, extra?: readonly string[]): string[];

@@ -4,7 +4,9 @@
  * writes a PNG, JPEG or WebP picture of the window.
  */
 
-import { extname } from "node:path";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { extname, join } from "node:path";
 import { headlessRender, readHead, type HeadlessOptions, type HeadlessRender, type PageSource, type RenderResult } from "./run.js";
 
 /** The formats of a screenshot. The browser chooses the format from the extension of the file. */
@@ -138,4 +140,43 @@ export async function renderScreenshot(options: RenderScreenshotOptions): Promis
     isValid: (path) => isImageFile(path, format),
   };
   return { ...(await headlessRender(render, source, options)), format };
+}
+
+/** The options of `renderScreenshotBytes`: the options of `renderScreenshot`, with no `output`. */
+export interface RenderScreenshotBytesOptions extends Omit<RenderScreenshotOptions, "output"> {
+  /** The folder that gets the temporary folder of the picture. The default is the temporary folder of the system. */
+  readonly folder?: string | undefined;
+}
+
+/** The result of `renderScreenshotBytes`: the picture, its format and the browser program. */
+export interface RenderScreenshotBytesResult {
+  /** The bytes of the picture. In Node.js, the value is a `Buffer`. */
+  readonly data: Uint8Array;
+  readonly format: ScreenshotFormat;
+  /** The browser program that made the picture. */
+  readonly browser: string;
+}
+
+/**
+ * This function loads a page in a headless browser, and gives the picture of the window as bytes.
+ * It has the options and the errors of `renderScreenshot`, with no `output`.
+ *
+ * The function writes the picture to a new temporary folder, and reads it. Then it removes the
+ * folder, also after an error. A folder that the system does not let it remove stays, and gives no error.
+ */
+export async function renderScreenshotBytes(options: RenderScreenshotBytesOptions): Promise<RenderScreenshotBytesResult> {
+  const { folder, ...rest } = options;
+  const format = rest.format ?? "png";
+  const work = mkdtempSync(join(folder ?? tmpdir(), "procedures-screenshot-bytes-"));
+  try {
+    const { path, browser } = await renderScreenshot({ ...rest, format, output: join(work, `picture${SCREENSHOT_EXTENSIONS[format]}`) });
+    return { data: readFileSync(path), format, browser };
+  } finally {
+    try {
+      // On Windows, a virus scanner can hold the file for a short time, so the removal tries again
+      rmSync(work, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+    } catch {
+      // A temporary folder that stays is not an error of the render, and must not hide its error
+    }
+  }
 }

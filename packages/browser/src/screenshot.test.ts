@@ -1,11 +1,11 @@
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { CommandOptions, CommandResult } from "@procedures/shell/command";
 import type { CommandRunner } from "./run.js";
-import { isImageFile, renderScreenshot, screenshotArgs, screenshotFormatOf, type ScreenshotFormat } from "./screenshot.js";
+import { isImageFile, renderScreenshot, renderScreenshotBytes, screenshotArgs, screenshotFormatOf, type ScreenshotFormat } from "./screenshot.js";
 
 const SIGNATURES: Readonly<Record<ScreenshotFormat, Buffer>> = {
   png: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]),
@@ -175,5 +175,53 @@ describe("renderScreenshot", () => {
 
   it("tells how to name a browser when it finds none", async () => {
     await expect(renderScreenshot({ html: "x", env: { PATH: "" }, platform: "linux", exists: () => false })).rejects.toThrow(/No browser found.*PDF_BROWSER/);
+  });
+});
+
+describe("renderScreenshotBytes", () => {
+  it("gives the picture as bytes, and removes its temporary folder", async () => {
+    const folder = scratch();
+    const { runner, calls } = fakeBrowser();
+    const result = await renderScreenshotBytes({ url: "https://example.com/", executable: "/opt/browser", runner, folder });
+    expect(result.format).toBe("png");
+    expect(result.browser).toBe("/opt/browser");
+    expect(result.data).toBeInstanceOf(Uint8Array);
+    expect(Buffer.from(result.data).equals(SIGNATURES.png)).toBe(true);
+    expect(calls[0]!.page).toBe("https://example.com/");
+    expect(readdirSync(folder)).toEqual([]);
+  });
+
+  it("takes the format, the size and the budget of the options", async () => {
+    const folder = scratch();
+    const { runner, calls } = fakeBrowser();
+    const result = await renderScreenshotBytes({ html: "<h1>Card</h1>", format: "jpeg", size: { width: 320, height: 200 }, budget: 1500, executable: "/opt/browser", runner, folder });
+    expect(result.format).toBe("jpeg");
+    expect(Buffer.from(result.data).equals(SIGNATURES.jpeg)).toBe(true);
+    expect(calls[0]!.page).toBe("<h1>Card</h1>");
+    expect(flag(calls[0]!.options.args ?? [], "--window-size")).toBe("320,200");
+    expect(flag(calls[0]!.options.args ?? [], "--virtual-time-budget")).toBe("1500");
+    expect(readdirSync(folder)).toEqual([]);
+  });
+
+  it("removes its temporary folder when the render fails, and gives the error of renderScreenshot", async () => {
+    const folder = scratch();
+    const wrong = fakeBrowser(SIGNATURES.jpeg);
+    await expect(renderScreenshotBytes({ html: "x", executable: "/opt/browser", runner: wrong.runner, folder })).rejects.toThrow(/is not a PNG file/);
+    const none = fakeBrowser(null);
+    await expect(renderScreenshotBytes({ html: "x", format: "webp", executable: "/opt/browser", runner: none.runner, folder })).rejects.toThrow(/made no WEBP file/);
+    const cancelled: CommandRunner = async () => ({ ...OK, aborted: true });
+    await expect(renderScreenshotBytes({ html: "x", executable: "/opt/browser", runner: cancelled, folder })).rejects.toThrow(/cancelled/);
+    expect(readdirSync(folder)).toEqual([]);
+  });
+
+  it("refuses the options that renderScreenshot refuses, before it starts the browser", async () => {
+    const folder = scratch();
+    const { runner, calls } = fakeBrowser();
+    await expect(renderScreenshotBytes({ executable: "/opt/browser", runner, folder })).rejects.toThrow(/one of url, html and file/);
+    await expect(renderScreenshotBytes({ url: "--remote-debugging-port=9222", executable: "/opt/browser", runner, folder })).rejects.toThrow(/an http, https or file address/);
+    await expect(renderScreenshotBytes({ html: "x", size: { width: 0, height: 1 }, executable: "/opt/browser", runner, folder })).rejects.toThrow(/integers from 1 to 16384/);
+    await expect(renderScreenshotBytes({ html: "x", env: { PATH: "" }, platform: "linux", exists: () => false, folder })).rejects.toThrow(/No browser found/);
+    expect(calls).toHaveLength(0);
+    expect(readdirSync(folder)).toEqual([]);
   });
 });

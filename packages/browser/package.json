@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/browser",
   "version": "0.55.1",
-  "description": "Find a Chromium browser that is already installed (Edge, Chrome or Chromium), and render a page with it: a PDF file or a screenshot, with no browser download.",
+  "description": "Find a Chromium browser that is already installed (Edge, Chrome or Chromium), and render a page with it: a PDF file or a screenshot, with no browser download. Find and read the bookmarks files of the Chrome profiles.",
   "keywords": [
     "browser",
     "headless",
@@ -10,6 +10,7 @@
     "edge",
     "pdf",
     "screenshot",
+    "bookmarks",
     "procedures"
   ],
   "homepage": "https://mark1russell7.github.io/client/",
@@ -30,6 +31,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./bookmarks": {
+      "types": "./dist/bookmarks.d.ts",
+      "import": "./dist/bookmarks.js"
     }
   },
   "files": [
@@ -63,7 +68,12 @@
     "typescript": "^7.0.2",
     "@types/node": "^22.0.0",
     "@mark1russell7/cue": "^2.1.1",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.3",
+    "fast-check": "^4.10.2"
   },
-  "client": null
+  "client": {
+    "browser": [
+      "./bookmarks"
+    ]
+  }
 }
