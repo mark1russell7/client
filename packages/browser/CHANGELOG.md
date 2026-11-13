@@ -1,5 +1,11 @@
 # @procedures/browser
 
+## 0.55.1
+
+### Patch Changes
+
+- @procedures/shell@0.55.1
+
 ## 0.55.0
 
 ### Patch Changes
