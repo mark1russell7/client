@@ -308,6 +308,7 @@ export interface PolicyProxy {
     readonly port: number;
     readonly url: string;
     readonly refusals: readonly ProxyRefusal[];
+    readonly requests: number;
     close(): Promise<void>;
 }
 

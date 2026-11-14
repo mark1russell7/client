@@ -153,12 +153,19 @@ try {
 - The proxy examines the host of each request with `checkHost`. The connection uses only the checked addresses, so a second DNS answer cannot change the address.
 - The proxy gives the status 403 to a host that the policy refuses. The page of the 403 does not tell the reason.
 - `proxy.refusals` gives the first 1000 refusals (`MAX_PROXY_REFUSALS`). `onRefusal` gets each refusal at its time. An error of `onRefusal` does not stop the proxy.
-- A host with no address and a connection that fails get the status 502. Each other request gets the status 400.
+- A host with no address, a connection that fails and a response with a bad status (for example 99) get the status 502. Each other request gets the status 400.
 - The proxy does not send the headers of one connection, for example `proxy-authorization` and `connection`.
+- `proxy.requests` gives the number of requests until now, also each refused request. The value stays after `close()`.
 - `close()` closes each open connection and the listener. Then the port is free. A second call does nothing.
 - The default policy is `DEFAULT_HOST_POLICY`: each public host, and no other host.
 
 `@procedures/browser` uses the proxy for its option `hostPolicy`.
+
+Use the proxy only for one run, and close it at the end of the run:
+
+- The listener has no token. While the proxy runs, each program on this computer can send requests through it.
+- Such a program can reach each host that the policy permits. With an `allow` entry for an intranet host, it can reach that intranet host.
+- The connections to the hosts have no idle time-out. `close()` closes them.
 
 ## Limits and time
 

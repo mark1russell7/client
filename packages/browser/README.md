@@ -92,8 +92,10 @@ const { data } = await renderScreenshotBytes({
 
 - The run starts the policy proxy of `@procedures/http` (`startPolicyProxy`) before the browser. The proxy stops at the end of the run, also after an error.
 - The proxy gives the status 403 to each host that the policy refuses. The browser shows an error for that request.
-- `DEFAULT_HOST_POLICY` of `@procedures/http` allows each public host, and no other host.
+- `DEFAULT_HOST_POLICY` of `@procedures/http` lets the browser reach each public host, and no other host.
 - The option applies to each render: the screenshot and the PDF file.
+- A Chrome or Edge policy of the computer (`ProxySettings` or `ProxyMode`) replaces the flag `--proxy-server`, and the browser gives no error. Thus the run counts the requests of the proxy.
+- When the page is an `http:` or `https:` URL and the proxy gets no request, the render fails. The page of an `html` or `file` source can have no request, so this check does not apply to it.
 
 `policyProxyArgs(proxyUrl)` gives the flags of the browser. They come before the flags of `args`:
 

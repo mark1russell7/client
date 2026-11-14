@@ -8,6 +8,7 @@
  *
  * With the option `hostPolicy`, the run starts a policy proxy of `@procedures/http`. The browser
  * sends each request through the proxy, and the proxy applies the host policy to each request.
+ * When the page is an `http:` or `https:` URL and the proxy gets no request, the run fails.
  */
 
 import { closeSync, copyFileSync, mkdirSync, mkdtempSync, openSync, readSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -202,7 +203,9 @@ export async function withTemporaryFolder<T>(prefix: string, folder: string | un
  * folder stays after a success, and goes after a failure.
  *
  * With the option `hostPolicy`, the browser gets the flags of `policyProxyArgs` before the flags of
- * `args`. The proxy stops at the end of the run, also after an error.
+ * `args`. The proxy stops at the end of the run, also after an error. When the page is an `http:`
+ * or `https:` URL and the proxy gets no request, the render fails. Then the requests of the page
+ * did not go through the policy.
  */
 export async function headlessRender(render: HeadlessRender, source: PageSource, options: HeadlessOptions): Promise<RenderResult> {
   checkPolicyOptions(options);
@@ -262,6 +265,13 @@ function renderOnce(render: HeadlessRender, source: PageSource, options: Headles
     if (bytes === undefined || bytes === 0) {
       const detail = lastLines(result.stderr || result.stdout);
       throw new Error(`The browser made no ${render.noun} (exit code ${result.exitCode})${detail ? `: ${detail}` : ""}`);
+    }
+    // A Chrome or Edge policy (ProxySettings or ProxyMode) replaces the flag --proxy-server, and the browser gives no error.
+    // A web page sends at least one request, so a run with no request through the proxy is not a pass
+    if (proxy !== undefined && /^https?:/i.test(page) && proxy.requests === 0) {
+      throw new Error(
+        "The browser sent no request through the policy proxy, so the host policy did not apply. A Chrome or Edge policy (ProxySettings or ProxyMode) can replace the flag --proxy-server.",
+      );
     }
     if (!render.isValid(written)) throw new Error(`The file ${output} is not a ${render.noun}`);
     // The temporary folder goes after this function, so a copy is enough, also across two drives

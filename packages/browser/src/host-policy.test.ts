@@ -169,6 +169,36 @@ describe("the option hostPolicy of a render", () => {
     expect(args).toContain("--disable-quic");
   });
 
+  it("fails a render of an http: or https: URL when no request went through the proxy, and closes the proxy", async () => {
+    // A browser with a machine policy for its proxy: it ignores --proxy-server, and makes the file without the proxy
+    const ports: number[] = [];
+    const bypassing: CommandRunner = async (_command, options) => {
+      const args = options.args ?? [];
+      ports.push(Number(new URL(flag(args, "--proxy-server")!).port));
+      writeFileSync(flag(args, "--screenshot")!, PNG);
+      return OK;
+    };
+    for (const url of ["https://site.example/", "HTTP://site.example/page"]) {
+      await expect(renderScreenshotBytes({ url, ...BROWSER, runner: bypassing, hostPolicy: testPolicy() }), url).rejects.toThrow(
+        "The browser sent no request through the policy proxy, so the host policy did not apply. A Chrome or Edge policy (ProxySettings or ProxyMode) can replace the flag --proxy-server.",
+      );
+    }
+    expect(ports).toHaveLength(2);
+    for (const port of ports) expect(await refusesConnections(port)).toBe(true);
+    // A page of HTML or of a data: URL can have no request, so the gate does not apply to it
+    for (const source of [{ html: "<p>a</p>" }, { url: "data:text/html,<p>a</p>" }]) {
+      const { data } = await renderScreenshotBytes({ ...source, ...BROWSER, runner: bypassing, hostPolicy: testPolicy() });
+      expect(Buffer.from(data).equals(PNG)).toBe(true);
+    }
+    // Without hostPolicy there is no proxy, and no gate
+    const plain: CommandRunner = async (_command, options) => {
+      writeFileSync(flag(options.args ?? [], "--screenshot")!, PNG);
+      return OK;
+    };
+    const { data } = await renderScreenshotBytes({ url: "https://site.example/", ...BROWSER, runner: plain });
+    expect(Buffer.from(data).equals(PNG)).toBe(true);
+  });
+
   it("refuses each flag of args that can undo the proxy flags, before the browser starts", async () => {
     const { runner, runs } = proxiedBrowser();
     const conflicts = [

@@ -13,11 +13,12 @@
  *   rebinding).
  * - A host that the policy refuses gets the status 403. The proxy records each refusal and gives
  *   it to `onRefusal`.
- * - A host with no address, and a connection that fails, get the status 502.
+ * - A host with no address, a connection that fails and a response that the proxy cannot send on
+ *   get the status 502.
  * - Each other request gets the status 400.
  */
 
-import { createServer, request as plainRequest, STATUS_CODES, type IncomingHttpHeaders, type IncomingMessage, type ServerResponse } from "node:http";
+import { createServer, request as plainRequest, STATUS_CODES, type IncomingHttpHeaders, type IncomingMessage, type OutgoingHttpHeaders, type ServerResponse } from "node:http";
 import { connect, type AddressInfo, type Socket } from "node:net";
 import type { Duplex } from "node:stream";
 import { pinnedLookup } from "./exchange.js";
@@ -60,6 +61,12 @@ export interface PolicyProxy {
   readonly url: string;
   /** The refusals until now, in their order. The list keeps the first `MAX_PROXY_REFUSALS` refusals. */
   readonly refusals: readonly ProxyRefusal[];
+  /**
+   * The number of requests until now: each `CONNECT` request and each plain request, also a refused
+   * request and a request with a bad form. The value stays after `close()`. When a program that
+   * has the URL of the proxy loads a page, and the value is 0, the program did not use the proxy.
+   */
+  readonly requests: number;
   /** This function stops the listener and closes each open connection. Then the port is free. A second call does nothing. */
   close(): Promise<void>;
 }
@@ -73,8 +80,11 @@ interface Failure {
 /** The text of a 403 answer. The refusal record has the reason, and the page does not get it. */
 const REFUSED = "The host policy of the proxy refuses this host.";
 
-/** The text of a 502 answer. */
+/** The text of a 502 answer when the connection fails. */
 const NO_CONNECTION = "The proxy cannot connect to this host.";
+
+/** The text of a 502 answer when the response of the host has a status that the proxy cannot send on, for example 99. */
+const BAD_RESPONSE = "The host gave a response that the proxy cannot send on.";
 
 /** The headers of one connection (RFC 9110, section 7.6.1). The proxy does not send them on. */
 const HOP_BY_HOP: ReadonlySet<string> = new Set([
@@ -90,11 +100,11 @@ const HOP_BY_HOP: ReadonlySet<string> = new Set([
 ]);
 
 /** The headers without the headers of one connection, and without each header that `connection` names. */
-function endToEnd(headers: IncomingHttpHeaders): Record<string, string | string[]> {
+function endToEnd(headers: IncomingHttpHeaders): OutgoingHttpHeaders {
   const named = new Set(String(headers.connection ?? "").split(",").map((token) => token.trim().toLowerCase()));
-  const out: Record<string, string | string[]> = {};
+  const out: OutgoingHttpHeaders = {};
   for (const [name, value] of Object.entries(headers)) {
-    if (value !== undefined && !HOP_BY_HOP.has(name) && !named.has(name)) out[name] = value;
+    if (!HOP_BY_HOP.has(name) && !named.has(name)) out[name] = value;
   }
   return out;
 }
@@ -141,7 +151,12 @@ function rawAnswer(socket: Duplex, failure: Failure): void {
 /** This function writes a failure as the response of a plain request. */
 function answer(response: ServerResponse, failure: Failure): void {
   const body = `${failure.message}\n`;
-  response.writeHead(failure.status, { "content-type": "text/plain; charset=utf-8", "content-length": Buffer.byteLength(body), connection: "close" });
+  // A failed writeHead keeps the status text of the host. Thus the answer gives its own status text
+  response.writeHead(failure.status, String(STATUS_CODES[failure.status]), {
+    "content-type": "text/plain; charset=utf-8",
+    "content-length": Buffer.byteLength(body),
+    connection: "close",
+  });
   response.end(body);
 }
 
@@ -149,6 +164,11 @@ function answer(response: ServerResponse, failure: Failure): void {
  * This function starts a forward proxy on `127.0.0.1`, on a free port, and gives its address. The
  * proxy applies the host policy to each request. Give its URL to a program, for example in the
  * flag `--proxy-server` of a browser. Call `close()` at the end.
+ *
+ * - The listener has no token. While the proxy runs, each program on this computer can send
+ *   requests through it, to each host that the policy permits.
+ * - The connections to the hosts have no idle time-out. Thus keep the proxy only for one run:
+ *   `close()` closes each connection.
  *
  * ```ts
  * const proxy = await startPolicyProxy({ policy: createHostPolicy({ allow: ["intranet.example"] }) });
@@ -163,14 +183,15 @@ export async function startPolicyProxy(options: PolicyProxyOptions = {}): Promis
   const policy = options.policy ?? DEFAULT_HOST_POLICY;
   const refusals: ProxyRefusal[] = [];
   const sockets = new Set<Duplex>();
+  let requests = 0;
   let closed = false;
 
-  /** This function keeps a socket until it closes, so that `close()` can close it. */
+  /**
+   * This function keeps a socket until it closes, so that `close()` can close it. No socket comes
+   * after `close()`: the server takes no connection, the check of a request stops each new
+   * connection, and the close of the client socket stops a request in progress.
+   */
   const track = (socket: Duplex): void => {
-    if (closed) {
-      socket.destroy();
-      return;
-    }
     sockets.add(socket);
     socket.once("close", () => sockets.delete(socket));
   };
@@ -181,7 +202,8 @@ export async function startPolicyProxy(options: PolicyProxyOptions = {}): Promis
       return await checkHost(policy, url, PROXY_PATH, `the ${method} request`);
     } catch (error) {
       if (!isHostNotAllowed(error)) return { status: 502, message: NO_CONNECTION };
-      const refusal: ProxyRefusal = { method, target, reason: error instanceof Error ? error.message : String(error) };
+      // isHostNotAllowed gives true only for an InvocationError
+      const refusal: ProxyRefusal = { method, target, reason: (error as Error).message };
       if (refusals.length < MAX_PROXY_REFUSALS) refusals.push(refusal);
       try {
         options.onRefusal?.(refusal);
@@ -194,10 +216,16 @@ export async function startPolicyProxy(options: PolicyProxyOptions = {}): Promis
 
   /** A `CONNECT` request: a tunnel to the checked addresses of the target. */
   const tunnel = async (request: IncomingMessage, client: Duplex, head: Buffer): Promise<void> => {
+    requests += 1;
     let upstream: Socket | undefined;
-    client.on("error", () => upstream?.destroy());
-    client.once("close", () => upstream?.destroy());
-    const authority = request.url ?? "";
+    // An error of the client socket closes it. Then the tunnel closes too
+    const drop = (): void => {
+      upstream?.destroy();
+    };
+    client.on("error", drop);
+    client.once("close", drop);
+    // The server sets the URL of each request
+    const authority = String(request.url);
     const url = connectUrl(authority);
     if (url === undefined) {
       rawAnswer(client, { status: 400, message: "The target of CONNECT is host:port." });
@@ -231,8 +259,10 @@ export async function startPolicyProxy(options: PolicyProxyOptions = {}): Promis
 
   /** A plain request: the request goes to the checked addresses of its host, and the response comes back. */
   const forward = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
-    const method = request.method ?? "GET";
-    const url = plainUrl(request.url ?? "");
+    requests += 1;
+    // The server sets the method and the URL of each request
+    const method = String(request.method);
+    const url = plainUrl(String(request.url));
     if (url === undefined) {
       request.resume();
       answer(response, { status: 400, message: "The proxy takes CONNECT requests, and requests for an absolute http: URL." });
@@ -262,21 +292,24 @@ export async function startPolicyProxy(options: PolicyProxyOptions = {}): Promis
     });
     outgoing.on("socket", track);
     outgoing.on("response", (upstream) => {
-      upstream.on("error", () => response.destroy());
       try {
-        response.writeHead(upstream.statusCode ?? 502, upstream.statusMessage, endToEnd(upstream.headers));
+        // The client parser sets the status. writeHead refuses some of them, for example 99
+        response.writeHead(Number(upstream.statusCode), upstream.statusMessage, endToEnd(upstream.headers));
       } catch {
         upstream.destroy();
-        response.destroy();
+        answer(response, { status: 502, message: BAD_RESPONSE });
         return;
       }
+      // A response that stops early stops the response to the client too
+      upstream.on("error", () => response.destroy());
       upstream.pipe(response);
     });
     outgoing.on("error", () => {
-      if (!response.headersSent) answer(response, { status: 502, message: NO_CONNECTION });
-      else response.destroy();
+      if (response.headersSent) response.destroy();
+      else answer(response, { status: 502, message: NO_CONNECTION });
     });
-    request.on("error", () => outgoing.destroy());
+    // When the client connection closes before the end of the response, the request to the host stops.
+    // A request body that stops early closes the client connection too
     response.once("close", () => {
       if (!response.writableFinished) outgoing.destroy();
     });
@@ -285,20 +318,18 @@ export async function startPolicyProxy(options: PolicyProxyOptions = {}): Promis
 
   const server = createServer();
   server.on("connection", track);
+  // The two functions do not reject. If one does, the bound destroy closes the connection with the error
   server.on("connect", (request: IncomingMessage, client: Duplex, head: Buffer) => {
-    tunnel(request, client, head).catch(() => client.destroy());
+    tunnel(request, client, head).catch(client.destroy.bind(client));
   });
   server.on("request", (request: IncomingMessage, response: ServerResponse) => {
-    forward(request, response).catch(() => response.destroy());
+    forward(request, response).catch(response.destroy.bind(response));
   });
   await new Promise<void>((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(0, PROXY_HOST, () => {
-      server.off("error", reject);
-      resolve();
-    });
+    // reject stays the listener of "error". After the start it does nothing, and an error does not stop the process
+    server.on("error", reject);
+    server.listen(0, PROXY_HOST, resolve);
   });
-  server.on("error", () => undefined);
   const { port } = server.address() as AddressInfo;
 
   let closing: Promise<void> | undefined;
@@ -317,6 +348,9 @@ export async function startPolicyProxy(options: PolicyProxyOptions = {}): Promis
     url: `http://${PROXY_HOST}:${port}`,
     get refusals(): readonly ProxyRefusal[] {
       return [...refusals];
+    },
+    get requests(): number {
+      return requests;
     },
     close,
   };
