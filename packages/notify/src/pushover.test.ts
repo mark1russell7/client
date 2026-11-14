@@ -94,6 +94,33 @@ describe("pushoverSendRequest", () => {
   });
 });
 
+describe("the optional fields of a send", () => {
+  it("adds a title, a link, a priority below 0, monospace and a time to live", () => {
+    const request = pushoverSendRequest(
+      TOKEN,
+      message({ title: "Warning", url: "https://example.org/a", urlTitle: "Details", priority: -1, format: "monospace", ttlMs: 3_600_500, devices: [] }),
+    );
+    expect(form(request.body)).toEqual({
+      token: TOKEN,
+      user: USER,
+      message: "A tornado warning covers the place.",
+      title: "Warning",
+      url: "https://example.org/a",
+      url_title: "Details",
+      priority: "-1",
+      monospace: "1",
+      ttl: "3600",
+    });
+  });
+
+  it("refuses a bad sound, a bad device and a time to live under 1 second", () => {
+    expect(() => pushoverSendRequest(TOKEN, message({ sound: "no sound" }))).toThrow(/sound/);
+    expect(() => pushoverSendRequest(TOKEN, message({ devices: ["a,b"] }))).toThrow(/device/);
+    expect(() => pushoverSendRequest(TOKEN, message({ ttlMs: 999 }))).toThrow(/1 second/);
+    expect(() => pushoverValidateRequest(TOKEN, USER, "a b")).toThrow(/device/);
+  });
+});
+
 describe("the other request builders", () => {
   it("reads a receipt and the limits with GET, with the token in the query", () => {
     expect(pushoverReceiptRequest(TOKEN, RECEIPT)).toEqual({
@@ -219,6 +246,22 @@ describe("the extractors", () => {
     });
   });
 
+  it("gives a failure for an answer without the fields of its call", () => {
+    for (const text of ["[]", "null", "7"]) expect(extractPushoverSent({ status: 200, text }), text).toMatchObject({ ok: false, kind: "server" });
+    expect(extractPushoverSent({ status: 200, text: JSON.stringify({ status: 1 }) })).toMatchObject({ ok: false, kind: "server" });
+    expect(extractPushoverCancelled({ status: 500, text: "" })).toMatchObject({ ok: false, kind: "server" });
+    expect(extractPushoverValidated({ status: 200, text: JSON.stringify({ status: 1, group: 1, devices: "iphone" }) })).toEqual({
+      ok: true,
+      group: true,
+      devices: [],
+      licenses: [],
+    });
+    expect(extractPushoverLimits({ status: 429, text: "{}" })).toMatchObject({ ok: false, kind: "rate-limited" });
+    expect(extractPushoverLimits({ status: 200, text: JSON.stringify({ status: 1, limit: 10000 }) })).toMatchObject({ ok: false, kind: "server" });
+    expect(extractPushoverCallback("acknowledged=1")).toBeUndefined();
+    expect(extractPushoverCallback(new URLSearchParams({ receipt: RECEIPT, acknowledged: "1" }).toString())).toBeUndefined();
+  });
+
   it("reads the acknowledgment that Pushover posts to the callback, and refuses another body", () => {
     const body = new URLSearchParams({ receipt: RECEIPT, acknowledged: "1", acknowledged_at: "1360019238", acknowledged_by: USER, acknowledged_by_device: "iphone" }).toString();
     expect(extractPushoverCallback(body)).toEqual({ receipt: RECEIPT, acknowledgedAt: 1_360_019_238_000, acknowledgedBy: USER, acknowledgedByDevice: "iphone" });
@@ -306,6 +349,33 @@ describe("the Pushover procedures", () => {
     await expect(run("cancel", { receipt: RECEIPT, tag: "k=1" })).rejects.toThrow(/receipt or tag/);
     await expect(run("cancel", {})).rejects.toThrow(/receipt or tag/);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("sends a message without repeats, cancels by receipt, validates a user key and reads the limits", async () => {
+    process.env["PUSHOVER_APP_TOKEN"] = TOKEN;
+    process.env["PUSHOVER_USER_KEY"] = USER;
+    const answers = [
+      { status: 1, request: REQUEST_ID },
+      { status: 1, request: REQUEST_ID },
+      { status: 1, group: 0, devices: ["iphone"], licenses: ["iOS"], request: REQUEST_ID },
+      { status: 1, group: 0, devices: ["ipad"], licenses: [], request: REQUEST_ID },
+      { limit: 10000, remaining: 9990, reset: 1393653600, status: 1, request: REQUEST_ID },
+    ];
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify(answers.shift()), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await run("send", { message: "Test", priority: 1, retryMs: 60_000 })).toEqual({ ok: true, request: REQUEST_ID });
+    expect(await run("cancel", { receipt: RECEIPT })).toEqual({ ok: true, request: REQUEST_ID });
+    expect(await run("validate", {})).toEqual({ ok: true, group: false, devices: ["iphone"], licenses: ["iOS"] });
+    const other = `madeupother${"0".repeat(19)}`;
+    expect(await run("validate", { user: other, device: "ipad" })).toMatchObject({ ok: true, devices: ["ipad"] });
+    expect(await run("limits", {})).toEqual({ ok: true, limits: { limit: 10000, remaining: 9990, resetAt: 1_393_653_600_000 } });
+    const calls = fetchMock.mock.calls as unknown as Array<[string, { body?: string }]>;
+    expect(form(calls[0]?.[1].body)).toMatchObject({ priority: "1" });
+    expect(form(calls[0]?.[1].body)).not.toHaveProperty("retry");
+    expect(calls[1]?.[0]).toBe(`https://api.pushover.net/1/receipts/${RECEIPT}/cancel.json`);
+    expect(form(calls[2]?.[1].body)).toEqual({ token: TOKEN, user: USER });
+    expect(form(calls[3]?.[1].body)).toEqual({ token: TOKEN, user: other, device: "ipad" });
+    expect(calls[4]?.[0]).toBe(`https://api.pushover.net/1/apps/limits.json?token=${TOKEN}`);
   });
 
   it("cancels by tag", async () => {
