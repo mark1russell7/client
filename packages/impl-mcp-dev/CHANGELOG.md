@@ -1,5 +1,18 @@
 # @procedures/mcp-dev-tools
 
+## 0.56.0
+
+### Patch Changes
+
+- 13996cf: An automated dependency update changes the shipped files, so this PATCH ships them.
+- Updated dependencies [13996cf]
+- Updated dependencies [13996cf]
+  - @procedures/bundle-mcp@0.56.0
+  - @procedures/fs@0.56.0
+  - @procedures/client@0.56.0
+  - @procedures/compiler@0.56.0
+  - @procedures/mcp-server@0.56.0
+
 ## 0.55.2
 
 ### Patch Changes

@@ -1,5 +1,24 @@
 # @procedures/bundle-mcp
 
+## 0.56.0
+
+### Patch Changes
+
+- 13996cf: An automated dependency update changes the shipped files, so this PATCH ships them.
+- Updated dependencies [13996cf]
+- Updated dependencies [13996cf]
+  - @procedures/cue@0.56.0
+  - @procedures/dag@0.56.0
+  - @procedures/docker@0.56.0
+  - @procedures/json@0.56.0
+  - @procedures/lib@0.56.0
+  - @procedures/procedure@0.56.0
+  - @procedures/sqlite@0.56.0
+  - @procedures/vitest@0.56.0
+  - @procedures/client@0.56.0
+  - @procedures/compiler@0.56.0
+  - @procedures/mongo@0.56.0
+
 ## 0.55.2
 
 ### Patch Changes
