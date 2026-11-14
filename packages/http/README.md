@@ -155,7 +155,7 @@ try {
 - `proxy.refusals` gives the first 1000 refusals (`MAX_PROXY_REFUSALS`). `onRefusal` gets each refusal at its time. An error of `onRefusal` does not stop the proxy.
 - A host with no address, a connection that fails and a response with a bad status (for example 99) get the status 502. Each other request gets the status 400.
 - The proxy does not send the headers of one connection, for example `proxy-authorization` and `connection`.
-- `proxy.requests` gives the number of requests until now, also each refused request. The value stays after `close()`.
+- `proxy.requests` gives the number of requests that the proxy got, also each refused request. The value stays after `close()`.
 - `close()` closes each open connection and the listener. Then the port is free. A second call does nothing.
 - The default policy is `DEFAULT_HOST_POLICY`: each public host, and no other host.
 

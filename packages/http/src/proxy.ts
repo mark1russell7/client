@@ -62,7 +62,7 @@ export interface PolicyProxy {
   /** The refusals until now, in their order. The list keeps the first `MAX_PROXY_REFUSALS` refusals. */
   readonly refusals: readonly ProxyRefusal[];
   /**
-   * The number of requests until now: each `CONNECT` request and each plain request, also a refused
+   * The number of requests that the proxy got: each `CONNECT` request and each plain request, also a refused
    * request and a request with a bad form. The value stays after `close()`. When a program that
    * has the URL of the proxy loads a page, and the value is 0, the program did not use the proxy.
    */

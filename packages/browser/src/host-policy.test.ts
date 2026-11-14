@@ -6,7 +6,10 @@
 
 import { createServer, request as httpRequest, type Server } from "node:http";
 import { connect, type AddressInfo } from "node:net";
-import { writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createHostPolicy, type HostPolicy, type ProxyRefusal, type ResolvedAddress } from "@procedures/http";
 import type { CommandOptions, CommandResult } from "@procedures/shell/command";
@@ -185,10 +188,17 @@ describe("the option hostPolicy of a render", () => {
     }
     expect(ports).toHaveLength(2);
     for (const port of ports) expect(await refusesConnections(port)).toBe(true);
-    // A page of HTML or of a data: URL can have no request, so the gate does not apply to it
-    for (const source of [{ html: "<p>a</p>" }, { url: "data:text/html,<p>a</p>" }]) {
-      const { data } = await renderScreenshotBytes({ ...source, ...BROWSER, runner: bypassing, hostPolicy: testPolicy() });
-      expect(Buffer.from(data).equals(PNG)).toBe(true);
+    // A page of HTML or of a file: URL can have no request, so the gate does not apply to it
+    const folder = mkdtempSync(join(tmpdir(), "host-policy-"));
+    try {
+      const file = join(folder, "page.html");
+      writeFileSync(file, "<p>a</p>");
+      for (const source of [{ html: "<p>a</p>" }, { url: pathToFileURL(file).href }]) {
+        const { data } = await renderScreenshotBytes({ ...source, ...BROWSER, runner: bypassing, hostPolicy: testPolicy() });
+        expect(Buffer.from(data).equals(PNG)).toBe(true);
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
     }
     // Without hostPolicy there is no proxy, and no gate
     const plain: CommandRunner = async (_command, options) => {
