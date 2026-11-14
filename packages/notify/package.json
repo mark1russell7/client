@@ -2,11 +2,12 @@
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/notify",
   "version": "0.55.2",
-  "description": "Push notifications through ntfy, the public server or your own, with a title, a priority, tags and a tap address.",
+  "description": "Push notifications through ntfy (the public server or your own) and Pushover, with emergency messages that repeat until acknowledged.",
   "keywords": [
     "notification",
     "push",
     "ntfy",
+    "pushover",
     "procedures"
   ],
   "homepage": "https://mark1russell7.github.io/client/",
@@ -28,6 +29,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./pushover": {
+      "types": "./dist/pushover.d.ts",
+      "import": "./dist/pushover.js",
+      "default": "./dist/pushover.js"
     },
     "./module": {
       "types": "./dist/module.d.ts",
@@ -77,6 +83,9 @@
     "vitest": "^5.0.3"
   },
   "client": {
+    "browser": [
+      "./pushover"
+    ],
     "procedures": "./dist/register.js"
   }
 }

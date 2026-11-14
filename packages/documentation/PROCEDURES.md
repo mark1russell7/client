@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.ts`.
 
-**Total procedures:** 299 across 50 namespaces. Loaded 47 package register(s).
+**Total procedures:** 304 across 50 namespaces. Loaded 47 package register(s).
 
 ## Namespaces
 
@@ -36,7 +36,7 @@
 - [`mcp.*`](#mcp) — 2 procedure(s)
 - [`mongo.*`](#mongo) — 20 procedure(s)
 - [`node.*`](#node) — 5 procedure(s)
-- [`notify.*`](#notify) — 1 procedure(s)
+- [`notify.*`](#notify) — 6 procedure(s)
 - [`npm.*`](#npm) — 7 procedure(s)
 - [`pdf.*`](#pdf) — 1 procedure(s)
 - [`pnpm.*`](#pnpm) — 12 procedure(s)
@@ -406,6 +406,11 @@
 
 | Procedure | Description |
 |-----------|-------------|
+| `notify.pushover.cancel` | Stop the repeats of a Pushover emergency message, by its receipt or by a tag |
+| `notify.pushover.limits` | Read the monthly message limit of the Pushover application, the messages left and the reset time |
+| `notify.pushover.receipt` | Read the receipt of a Pushover emergency message: acknowledged, by which device, expired. Read it at most once in 5 s. |
+| `notify.pushover.send` | Send a Pushover message. Priority 2 repeats until the user acknowledges it, and gives a receipt. |
+| `notify.pushover.validate` | Examine a Pushover user key: its active devices and licenses. It sends no message. |
 | `notify.send` | Send a push notification through ntfy |
 
 ## npm
