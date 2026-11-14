@@ -64,6 +64,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@procedures/http": "workspace:*",
     "@procedures/shell": "workspace:*"
   },
   "devDependencies": {
