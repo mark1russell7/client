@@ -51,6 +51,7 @@ isImageFile: dist/screenshot.d.ts#isImageFile
 isPdfFile: dist/pdf.d.ts#isPdfFile
 parseChromeBookmarks: dist/bookmarks.d.ts#parseChromeBookmarks
 pdfArgs: dist/pdf.d.ts#pdfArgs
+policyProxyArgs: dist/run.d.ts#policyProxyArgs
 profileNames: dist/bookmarks.d.ts#profileNames
 readBookmarkFile: dist/profiles.d.ts#readBookmarkFile
 renderPdf: dist/pdf.d.ts#renderPdf
@@ -237,6 +238,8 @@ export interface HeadlessOptions extends FindBrowserOptions {
     readonly timeout?: number | undefined;
     readonly signal?: AbortSignal | undefined;
     readonly runner?: CommandRunner | undefined;
+    readonly hostPolicy?: HostPolicy | undefined;
+    readonly onHostRefusal?: ((refusal: ProxyRefusal) => void) | undefined;
 }
 
 ### dist/run.d.ts#RenderResult
@@ -245,6 +248,9 @@ export interface RenderResult {
     readonly bytes: number;
     readonly browser: string;
 }
+
+### dist/run.d.ts#policyProxyArgs
+export declare function policyProxyArgs(proxyUrl: string): string[];
 
 ### dist/screenshot.d.ts#DEFAULT_SCREENSHOT_SIZE
 export declare const DEFAULT_SCREENSHOT_SIZE: ScreenshotSize;

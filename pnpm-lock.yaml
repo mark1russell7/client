@@ -307,6 +307,9 @@ importers:
 
   packages/browser:
     dependencies:
+      '@procedures/http':
+        specifier: workspace:*
+        version: link:../http
       '@procedures/shell':
         specifier: workspace:*
         version: link:../client-shell

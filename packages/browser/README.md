@@ -65,12 +65,52 @@ const { path, bytes } = await renderPdf({ html: "<h1>Menu</h1><p>Soup of the day
 | `timeout` | The time limit, in milliseconds. The default is 60000. |
 | `signal` | When the signal aborts, the browser stops. |
 | `runner` | The function that runs the browser. The default is `runCommand` of `@procedures/shell`. The tests give their own. |
+| `hostPolicy` | The host policy of each request of the browser, from `@procedures/http`. The section [The host policy](#the-host-policy) tells more. |
+| `onHostRefusal` | This function gets each request that the host policy refused. It needs `hostPolicy`. |
 
 - The browser starts through `runCommand` of `@procedures/shell`, not through a shell. At the time limit, or when the signal aborts, `runCommand` stops the process tree of the browser.
 - The temporary profile keeps the render apart from a browser that the user has open.
 - A missing file, an empty file or a file of the wrong kind gives an error.
 - An existing output file changes only after the check of the new file. Thus a failed render keeps an old output file.
 - Each render removes its temporary page and profile, also after an error. For a file that Windows holds, the removal tries again 3 times.
+
+## The host policy
+
+A check of the address before the render is not enough. A redirect, a resource of the page or a second DNS answer can reach a local address. The option `hostPolicy` applies the policy to each request of the browser.
+
+```ts
+import { createHostPolicy } from "@procedures/http";
+import { renderScreenshotBytes } from "@procedures/browser";
+
+const { data } = await renderScreenshotBytes({
+  url: "https://news.example/",
+  format: "jpeg",
+  hostPolicy: createHostPolicy({ allow: ["cdn.intranet.example"] }),
+  onHostRefusal: (refusal) => console.warn(refusal.method, refusal.target, refusal.reason),
+});
+```
+
+- The run starts the policy proxy of `@procedures/http` (`startPolicyProxy`) before the browser. The proxy stops at the end of the run, also after an error.
+- The proxy gives the status 403 to each host that the policy refuses. The browser shows an error for that request.
+- `DEFAULT_HOST_POLICY` of `@procedures/http` allows each public host, and no other host.
+- The option applies to each render: the screenshot and the PDF file.
+
+`policyProxyArgs(proxyUrl)` gives the flags of the browser. They come before the flags of `args`:
+
+| Flag | What it does |
+|---|---|
+| `--proxy-server=<url of the proxy>` | The browser sends each `http:`, `https:`, `ws:` and `wss:` request to the proxy. The proxy resolves the names, not the browser. |
+| `--proxy-bypass-list=<-loopback>` | The browser also sends the requests for `localhost`, the loopback addresses and the link-local addresses to the proxy. |
+| `--disable-quic` | The browser does not use QUIC, so no request goes over UDP around the proxy. |
+| `--force-webrtc-ip-handling-policy=disable_non_proxied_udp` | WebRTC does not use UDP, and does not show a local address. |
+| `--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE 127.0.0.1` | The browser does no DNS look-up. The only exception is the address of the proxy. |
+
+- With `hostPolicy`, `args` cannot have a flag that can undo these flags. The run gives an error before it starts the browser.
+- These flags are `--proxy-server`, `--proxy-bypass-list`, `--no-proxy-server`, `--proxy-pac-url`, `--proxy-auto-detect`, `--use-system-proxy-resolver` and `--winhttp-proxy-resolver`.
+- The other flags are `--enable-quic`, `--origin-to-force-quic-on`, `--force-webrtc-ip-handling-policy`, `--host-resolver-rules` and `--host-rules`.
+- The check finds a flag with the prefix `--`, `-` or `/`, and ignores the letter case.
+- WebTransport fails through a proxy, so a page cannot use it.
+- The sources of the flags are the Chromium documents `net/docs/proxy.md`, `chrome_switches.h`, `network_switch_list.h`, `network_switches.cc`, `content_switches.cc` and `webrtc_ip_handling_policy.h`.
 
 ## The browser
 
