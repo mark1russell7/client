@@ -29,18 +29,22 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./module": {
       "types": "./dist/module.d.ts",
-      "import": "./dist/module.js"
+      "import": "./dist/module.js",
+      "default": "./dist/module.js"
     },
     "./register": {
       "types": "./dist/register.d.ts",
-      "import": "./dist/register.js"
+      "import": "./dist/register.js",
+      "default": "./dist/register.js"
     },
     "./register.js": {
-      "import": "./dist/register.js"
+      "import": "./dist/register.js",
+      "default": "./dist/register.js"
     }
   },
   "files": [
