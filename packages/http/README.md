@@ -129,6 +129,37 @@ isLocalName("Router.Home.Arpa."); // true
 isLocalName("myinternal.example"); // false
 ```
 
+### The policy proxy for other programs
+
+`startPolicyProxy(options)` starts a local forward proxy. The proxy applies the host policy to each request of another program, for example a headless browser.
+
+```ts
+import { createHostPolicy, startPolicyProxy } from "@procedures/http";
+
+const proxy = await startPolicyProxy({
+  policy: createHostPolicy({ allow: ["intranet.example"] }),
+  onRefusal: (refusal) => console.warn(refusal.method, refusal.target, refusal.reason),
+});
+try {
+  // Start the program with the flag `--proxy-server=${proxy.url}`
+} finally {
+  await proxy.close();
+}
+```
+
+- The proxy listens on `127.0.0.1`, on a free port. `proxy.url` is its address, for example `http://127.0.0.1:41234`.
+- A `CONNECT` request opens a tunnel to `host:port`. A browser sends `https:`, `wss:` and `ws:` requests in a tunnel.
+- A plain request has an absolute `http:` URL, for example `GET http://a.example/page`. The proxy sends it to the host, and gives back the response.
+- The proxy examines the host of each request with `checkHost`. The connection uses only the checked addresses, so a second DNS answer cannot change the address.
+- The proxy gives the status 403 to a host that the policy refuses. The page of the 403 does not tell the reason.
+- `proxy.refusals` gives the first 1000 refusals (`MAX_PROXY_REFUSALS`). `onRefusal` gets each refusal at its time. An error of `onRefusal` does not stop the proxy.
+- A host with no address and a connection that fails get the status 502. Each other request gets the status 400.
+- The proxy does not send the headers of one connection, for example `proxy-authorization` and `connection`.
+- `close()` closes each open connection and the listener. Then the port is free. A second call does nothing.
+- The default policy is `DEFAULT_HOST_POLICY`: each public host, and no other host.
+
+`@procedures/browser` uses the proxy for its option `hostPolicy`.
+
 ## Limits and time
 
 - Each input of `http.request` and `http.json` has `timeoutMs`. The default is 30 seconds.
@@ -190,6 +221,7 @@ const decision = frameRefusal(response.headers, { ancestor: "https://a.example",
 ## Limits of this package
 
 - The procedures do not use a proxy.
+- The policy proxy does not decrypt a tunnel. It examines the host and the port of a tunnel, not the requests in it.
 - Each request gets its own connection. The procedures do not keep connections open.
 - The check and the connection use the same addresses. A server can still send a redirect, and the check examines it before its connection.
 

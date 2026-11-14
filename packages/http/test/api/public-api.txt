@@ -39,7 +39,12 @@ HttpSseOutput: dist/types.d.ts#HttpSseOutput
 HttpStreamInput: dist/types.d.ts#HttpStreamInput
 HttpTarget: dist/types.d.ts#HttpTarget
 JsonValue: dist/types.d.ts#JsonValue
+MAX_PROXY_REFUSALS: dist/proxy.d.ts#MAX_PROXY_REFUSALS
 type NdjsonLine: dist/parsers.d.ts#NdjsonLine
+PROXY_HOST: dist/proxy.d.ts#PROXY_HOST
+type PolicyProxy: dist/proxy.d.ts#PolicyProxy
+type PolicyProxyOptions: dist/proxy.d.ts#PolicyProxyOptions
+type ProxyRefusal: dist/proxy.d.ts#ProxyRefusal
 type ResolvedAddress: dist/policy.d.ts#ResolvedAddress
 type ServerSentEvent: dist/parsers.d.ts#ServerSentEvent
 checkHost: dist/policy.d.ts#checkHost
@@ -64,6 +69,7 @@ sourceAllows: dist/frame.d.ts#sourceAllows
 sourceListAllows: dist/frame.d.ts#sourceListAllows
 specialClass: dist/address.d.ts#specialClass
 sseEvents: dist/parsers.d.ts#sseEvents
+startPolicyProxy: dist/proxy.d.ts#startPolicyProxy
 systemResolver: dist/policy.d.ts#systemResolver
 
 ## ./module (dist/module.d.ts): names
@@ -289,6 +295,37 @@ export declare function httpRequest(input: HttpRequestInput, ctx?: ScopeContext,
 
 ### dist/procedures/http/sse.d.ts#httpSse
 export declare function httpSse(input: HttpSseInput, ctx?: ScopeContext, settings?: HttpSettings): Promise<AsyncGenerator<HttpSseOutput, void, undefined>>;
+
+### dist/proxy.d.ts#MAX_PROXY_REFUSALS
+export declare const MAX_PROXY_REFUSALS = 1000;
+
+### dist/proxy.d.ts#PROXY_HOST
+export declare const PROXY_HOST = "127.0.0.1";
+
+### dist/proxy.d.ts#PolicyProxy
+export interface PolicyProxy {
+    readonly host: string;
+    readonly port: number;
+    readonly url: string;
+    readonly refusals: readonly ProxyRefusal[];
+    close(): Promise<void>;
+}
+
+### dist/proxy.d.ts#PolicyProxyOptions
+export interface PolicyProxyOptions {
+    readonly policy?: HostPolicy | undefined;
+    readonly onRefusal?: ((refusal: ProxyRefusal) => void) | undefined;
+}
+
+### dist/proxy.d.ts#ProxyRefusal
+export interface ProxyRefusal {
+    readonly method: string;
+    readonly target: string;
+    readonly reason: string;
+}
+
+### dist/proxy.d.ts#startPolicyProxy
+export declare function startPolicyProxy(options?: PolicyProxyOptions): Promise<PolicyProxy>;
 
 ### dist/types.d.ts#HttpJsonInput
 export interface HttpJsonInput extends HttpTarget {
