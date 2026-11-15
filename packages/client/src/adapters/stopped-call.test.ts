@@ -1,8 +1,9 @@
 /**
  * The end of a call that the stop of a face cuts (`WIRE-PROTOCOL.md`, section "Error codes",
- * CLI-48). The handler started, so the call can have had its effect: each face ends the call with
- * `UNAVAILABLE` and `retryable: false`, and the retry middleware does not send it again. The tests
- * stop the server with `close()`: the stop of the server aborts the calls before it stops each face.
+ * CLI-48). Each face ends the call with `UNAVAILABLE`. The handler of a call that writes started,
+ * so the call can have had its effect: its flag is `retryable: false`, and the retry middleware
+ * does not send it again. A repeatable call keeps `retryable: true`, as on the host. The tests stop
+ * the server with `close()`: the stop of the server aborts the calls before it stops each face.
  */
 
 import { describe, it, expect, afterEach, vi } from "vitest";
@@ -25,9 +26,13 @@ import { WebSocketTransport } from "./websocket/client/transport.js";
 import { PortTransport } from "./port/transport.js";
 import type { Transport } from "../client/types.js";
 
-const read = { reads: [], writes: [] };
+/** The effects of a procedure that changes nothing: a second start gives the same state */
+const READS = { reads: [], writes: [] };
+/** The effects of a procedure that writes: a second start can do the write two times */
+const WRITES = { reads: [], writes: ["notes"] };
 const feed = pathToMethod(["t", "feed"]);
 const wait = pathToMethod(["t", "wait"]);
+const look = pathToMethod(["t", "look"]);
 
 let cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => {
@@ -57,8 +62,9 @@ const untilAbort = (signal: AbortSignal | undefined): Promise<void> =>
   });
 
 /**
- * A server with `t.feed` (one item, then a wait for the abort) and `t.wait`. The handler of
- * `t.wait` waits for the abort and then throws, as a handler that obeys its signal does.
+ * A server with `t.feed` (one item, then a wait for the abort), `t.wait` and `t.look`. The
+ * handlers of `t.wait` and `t.look` wait for the abort and then throw, as a handler that obeys its
+ * signal does. `t.feed` and `t.wait` write. `t.look` changes nothing, so it is repeatable.
  */
 function serverOf(seen: Seen): ProcedureServer {
   const server = new ProcedureServer({
@@ -69,26 +75,28 @@ function serverOf(seen: Seen): ProcedureServer {
           .path(["t", "feed"])
           .input(z.object({}))
           .output(z.number())
-          .meta({ effects: read })
+          .meta({ effects: WRITES })
           .handler(async function* (_input: unknown, ctx: { signal?: AbortSignal }) {
             seen.starts++;
             yield 1;
             await untilAbort(ctx.signal);
           } as never)
           .build(),
-        createProcedure()
-          .path(["t", "wait"])
-          .input(z.object({}))
-          .output(z.string())
-          .meta({ effects: read })
-          .handler(async (_input, ctx) => {
-            seen.starts++;
-            seen.waited();
-            await untilAbort(ctx.signal);
-            ctx.signal?.throwIfAborted();
-            return "late";
-          })
-          .build(),
+        ...(["wait", "look"] as const).map((name) =>
+          createProcedure()
+            .path(["t", name])
+            .input(z.object({}))
+            .output(z.string())
+            .meta({ effects: name === "wait" ? WRITES : READS })
+            .handler(async (_input, ctx) => {
+              seen.starts++;
+              seen.waited();
+              await untilAbort(ctx.signal);
+              ctx.signal?.throwIfAborted();
+              return "late";
+            })
+            .build(),
+        ),
       ],
     }),
   });
@@ -134,8 +142,13 @@ async function errorOfCut(call: Promise<unknown>, seen: Seen, cut: () => Promise
 
 /** The error of a call that the stop cut: `ClientError` keeps the flag in its status. */
 const STOPPED = { status: { code: "UNAVAILABLE", retryable: false } };
+/** The error of a repeatable call that the stop cut: a retry of it is safe. */
+const STOPPED_REPEATABLE = { status: { code: "UNAVAILABLE", retryable: true } };
 
-describe("a call that the stop of a face cuts ends with UNAVAILABLE and no retry (CLI-48)", () => {
+/** A client of the transport without the retry middleware: the test reads the first end. */
+const plainClient = (transport: Transport): Client => new Client({ transport, throwOnError: true });
+
+describe("a call that the stop of a face cuts ends with UNAVAILABLE, and a retry only for a repeatable call (CLI-48)", () => {
   describe("the HTTP face", () => {
     /** A server on Express, and a client with a spy fetch that keeps the status of each answer. */
     async function start(seen: Seen) {
@@ -152,8 +165,8 @@ describe("a call that the stop of a face cuts ends with UNAVAILABLE and no retry
         statuses.push(response.status);
         return response;
       };
-      const client = retryingClient(new HttpTransport({ baseUrl: `http://127.0.0.1:${port}/api`, fetch: spy }));
-      return { server, client, statuses };
+      const transport = new HttpTransport({ baseUrl: `http://127.0.0.1:${port}/api`, fetch: spy });
+      return { server, client: retryingClient(transport), plain: plainClient(transport), statuses };
     }
 
     it("ends a stream after its first item with the error line, and sends no second try", async () => {
@@ -176,6 +189,15 @@ describe("a call that the stop of a face cuts ends with UNAVAILABLE and no retry
       expect(statuses).toEqual([500]);
       expect(seen.starts).toBe(1);
     });
+
+    it("ends a repeatable call with HTTP 503 and the retryable flag", async () => {
+      const seen = seenOf();
+      const { server, plain, statuses } = await start(seen);
+      const error = await errorOfCut(plain.call(look, {}), seen, () => server.close());
+      expect(error).toMatchObject(STOPPED_REPEATABLE);
+      expect(statuses).toEqual([503]);
+      expect(seen.starts).toBe(1);
+    });
   });
 
   describe("the WebSocket face", () => {
@@ -190,7 +212,7 @@ describe("a call that the stop of a face cuts ends with UNAVAILABLE and no retry
       cleanups.push(() => server.stop());
       const transport = new WebSocketTransport({ url: `ws://127.0.0.1:${port}/ws`, heartbeat: { enabled: false }, reconnect: { enabled: false } });
       cleanups.push(() => transport.close());
-      return { server, client: retryingClient(transport) };
+      return { server, client: retryingClient(transport), plain: plainClient(transport) };
     }
 
     it("sends the error frame of a stream before the socket closes", async () => {
@@ -211,6 +233,14 @@ describe("a call that the stop of a face cuts ends with UNAVAILABLE and no retry
       expect(error).toMatchObject(STOPPED);
       expect(seen.starts).toBe(1);
     });
+
+    it("sends the error frame of a repeatable call with the retryable flag", async () => {
+      const seen = seenOf();
+      const { server, plain } = await start(seen);
+      const error = await errorOfCut(plain.call(look, {}), seen, () => server.close());
+      expect(error).toMatchObject(STOPPED_REPEATABLE);
+      expect(seen.starts).toBe(1);
+    });
   });
 
   describe("the port face", () => {
@@ -224,7 +254,7 @@ describe("a call that the stop of a face cuts ends with UNAVAILABLE and no retry
         channel.port1.close();
         channel.port2.close();
       });
-      return { worker, client: retryingClient(page) };
+      return { worker, client: retryingClient(page), plain: plainClient(page) };
     }
 
     it("sends the error of a stream when the side that serves it closes, on an open port", async () => {
@@ -243,6 +273,14 @@ describe("a call that the stop of a face cuts ends with UNAVAILABLE and no retry
       const { worker, client } = start(seen);
       const error = await errorOfCut(client.call(wait, {}), seen, () => worker.close());
       expect(error).toMatchObject(STOPPED);
+      expect(seen.starts).toBe(1);
+    });
+
+    it("sends the error of a repeatable call with the retryable flag", async () => {
+      const seen = seenOf();
+      const { worker, plain } = start(seen);
+      const error = await errorOfCut(plain.call(look, {}), seen, () => worker.close());
+      expect(error).toMatchObject(STOPPED_REPEATABLE);
       expect(seen.starts).toBe(1);
     });
   });

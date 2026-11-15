@@ -11,13 +11,13 @@
  * `server-response`), with one value, no stream, no cancel and no signal.
  */
 
-import type { Message, ResponseItem } from "../../../client/types.js";
+import type { Message, Method, ResponseItem } from "../../../client/types.js";
 import type { RequestHandler, ServerRequest } from "../../../server/types.js";
 import type { WebSocketMessage } from "../server/types.js";
 import { withoutInternalKeys } from "../../metadata.js";
 import { StreamSequence, gapOf, itemMetadata } from "../../sequence.js";
 import { DELIVERY_METADATA_KEY } from "../../../client/middleware/items.js";
-import { errorCodeOf, foldedErrorCode, retryableOf } from "../../../protocol.js";
+import { errorCodeOf, foldedErrorCode, retryableOf, stoppedCallError } from "../../../protocol.js";
 import { lastResortError } from "../../../server/last-resort.js";
 import type { Logger } from "../../../logger.js";
 
@@ -344,6 +344,8 @@ export class IncomingCalls {
 
   /** The calls that run, by wire id: a cancel frame or a closed socket aborts them */
   private readonly inflight = new Map<string, AbortController>();
+  /** The method of each call that runs, by its controller: the stop reads its effects (CLI-48) */
+  private readonly methods = new WeakMap<AbortController, Method>();
   /** The flow control of the streams that run, by wire id */
   private readonly credits = new Map<string, StreamCredit>();
 
@@ -386,13 +388,18 @@ export class IncomingCalls {
   }
 
   /**
-   * This function aborts each call that runs: the socket closed, or the side stops. When the side
-   * stops on an open socket, `end` is the error of each call. Each call gets an error frame with
-   * it before its abort, so the other side knows the outcome (CLI-48).
+   * This function aborts each call that runs. The cause is `"closed"` (the socket closed) or
+   * `"stopped"` (the side stops on an open socket). A stopped call first gets its error frame, so
+   * the other side knows the outcome (CLI-48). The frame asks for a retry only for a repeatable
+   * call of the handler (`isRepeatableCall`).
    */
-  abortAll(end?: { readonly code: string; readonly message: string; readonly retryable: boolean }): void {
+  abortAll(cause: "closed" | "stopped" = "closed"): void {
     for (const [id, controller] of this.inflight) {
-      if (end !== undefined) this.sendError(id, end.message, end.code, end.retryable);
+      if (cause === "stopped") {
+        const method = this.methods.get(controller);
+        const end = stoppedCallError(method !== undefined && this.options.handler.isRepeatableCall?.(method) === true);
+        this.sendError(id, end.message, end.code, end.retryable);
+      }
       controller.abort();
     }
     const had = this.inflight.size > 0;
@@ -404,6 +411,7 @@ export class IncomingCalls {
   private async serve(frame: WebSocketMessage): Promise<void> {
     const controller = new AbortController();
     this.inflight.set(frame.id, controller);
+    if (frame.method) this.methods.set(controller, frame.method);
     let credit: StreamCredit | undefined;
     let request: ServerRequest | undefined;
     try {

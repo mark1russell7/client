@@ -564,7 +564,10 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
    * `writeNdjsonStream`. Another client gets the last item as plain JSON, the "sponge" mode, and a
    * stream without an end gets `NOT_ACCEPTABLE` (roadmap R15).
    */
-  const streamToHttp = async (response: ServerResponse, stream: AsyncIterable<unknown>, req: IncomingMessage, res: NodeResponse, signal: AbortSignal): Promise<void> => {
+  /** True when a call of the method is repeatable: the end of its cut asks for a retry (CLI-48) */
+  const isRepeatableCall = (method: Method): boolean => server.isRepeatableCall?.(method) === true;
+
+  const streamToHttp = async (response: ServerResponse, stream: AsyncIterable<unknown>, req: IncomingMessage, res: NodeResponse, signal: AbortSignal, repeatable: boolean): Promise<void> => {
     const ndjson = String(req.headers.accept ?? "").includes(NDJSON);
 
     if (!ndjson && isUnboundedStream(response)) {
@@ -597,7 +600,7 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
     }
 
     // The lines, the backpressure, the keep-alive and the abort of close() (WIRE-PROTOCOL.md)
-    await writeNdjsonStream(res, stream, { signal, keepAlive, errorOf, clock });
+    await writeNdjsonStream(res, stream, { signal, keepAlive, errorOf, clock, retryableOnStop: repeatable });
   };
 
   /**
@@ -685,14 +688,15 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
 
       const serverResponse = await server.handle(serverRequest);
       if (serverResponse.stream) {
-        await streamToHttp(serverResponse, serverResponse.stream, req, res, controller.signal);
+        await streamToHttp(serverResponse, serverResponse.stream, req, res, controller.signal, isRepeatableCall(serverRequest.method));
         return;
       }
       // An error of a call that close() cut comes from the cut: the handler stopped at its signal.
-      // The call ends as on the other faces, with UNAVAILABLE and no retry, because the call can
-      // have had its effect (CLI-48). A value goes out: the call ended before the cut stopped it.
+      // The call ends as on the other faces, with UNAVAILABLE. Only a repeatable call asks for a
+      // retry: another call can have had its effect (CLI-48). A value goes out: the call ended
+      // before the cut stopped it.
       const cut = cutRequests.has(controller) && serverResponse.status.type === "error";
-      toHttp(cut ? { ...serverResponse, status: { type: "error", ...stoppedCallError() } } : serverResponse, res);
+      toHttp(cut ? { ...serverResponse, status: { type: "error", ...stoppedCallError(isRepeatableCall(serverRequest.method)) } } : serverResponse, res);
     } catch (error) {
       if (!res.headersSent) sendLastResort(res, error, serverRequest ?? undefined, (error as Error).message || "Internal server error");
     } finally {

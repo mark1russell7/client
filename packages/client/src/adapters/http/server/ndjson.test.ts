@@ -198,7 +198,8 @@ describe("writeNdjsonStream on node:http", () => {
     const plain = await plainServer((res) => writeNdjsonStream(res, items, { signal: AbortSignal.abort() }));
     const result = await exchange(plain.url);
     expect(result["contentType"]).toBe("application/x-ndjson");
-    expect(JSON.parse(String(result["body"]))).toMatchObject({ type: "error", error: { code: "ABORTED" } });
+    // The face does not know if the handler started, so the end line asks for no retry (CLI-48)
+    expect(JSON.parse(String(result["body"]))).toMatchObject({ type: "error", error: { code: "UNAVAILABLE", retryable: false } });
     await sleep(5);
     expect(calls).toEqual({ next: 0, returned: 1 });
   });

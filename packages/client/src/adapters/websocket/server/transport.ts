@@ -33,7 +33,7 @@ import { optionalMs } from "../../../duration.js";
 import { headerNames, requestCredentials, urlParts, withoutSecretHeaders } from "../../../server/request-auth.js";
 import { attachUpgradeTarget, refuseUpgrade } from "./upgrade-router.js";
 import { realClock, type Cancel } from "../../../clock.js";
-import { PROTOCOL_VERSION, protocolVersionOf, stoppedCallError } from "../../../protocol.js";
+import { PROTOCOL_VERSION, protocolVersionOf } from "../../../protocol.js";
 import { TIMER_DEFAULTS } from "../../../timers.js";
 import { writeLog, type Logger } from "../../../logger.js";
 import {
@@ -264,10 +264,10 @@ export class WebSocketServerTransport implements ServerTransport {
     this.detach = undefined;
     if (this.wss) {
       // Stop the requests in progress, so their handlers end (deep dive TRN-15), and fail the
-      // calls that the server sent to its clients. Each stopped call gets its error before the
-      // socket closes: the call can have had its effect (CLI-48).
+      // calls that the server sent to its clients. Each stopped call gets its error frame before the
+      // socket closes, with the flag of its effects (CLI-48).
       for (const channel of this.channels.values()) {
-        channel.incoming.abortAll(stoppedCallError());
+        channel.incoming.abortAll("stopped");
         channel.outgoing.failAll("Server stopped");
       }
       this.channels.clear();

@@ -1356,6 +1356,16 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
   }
 
   /**
+   * This method tells if a call of a method is repeatable: the declared effects of its procedure
+   * give the same state after a second start (`isRepeatable`). A face reads it when its stop cuts a
+   * call (CLI-48). The host uses the same rule. An unknown method is not repeatable.
+   */
+  isRepeatableCall(method: Method): boolean {
+    const procedure = this.resolveProcedure(method);
+    return procedure !== undefined && isRepeatable(effectsOf(procedure));
+  }
+
+  /**
    * This method gives the keyed limiters of the option `limits`, in its sequence (CLI-40). A host
    * declares each one on its service with `svc.limiter(limiter.name, limiter.spec)`, so
    * `describe()` and `lint()` see it.

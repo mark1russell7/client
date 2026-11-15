@@ -54,6 +54,12 @@ export interface WriteNdjsonStreamOptions {
    * test gives a fake clock.
    */
   readonly clock?: Clock | undefined;
+  /**
+   * The flag `retryable` of the end line of a stream that an abort cuts on an open response (CLI-48).
+   * Set it to true only for a repeatable procedure. Another call can have had its effect.
+   * @default false
+   */
+  readonly retryableOnStop?: boolean | undefined;
 }
 
 /**
@@ -196,12 +202,12 @@ export async function writeNdjsonStream(res: ServerResponse, items: AsyncIterabl
 
   /**
    * This function ends an open response after an abort. The response is open, so the client did
-   * not close the connection: the stop of the face cut the call. The call can have had its effect,
-   * so the end line does not ask for a retry.
+   * not close the connection: the stop of the face cut the call. The end line asks for a retry only
+   * for a repeatable call (`retryableOnStop`): another call can have had its effect.
    */
   const endAborted = (): void => {
     if (!res.writableEnded && !res.destroyed) {
-      res.end(lineOf({ type: "error", error: stoppedCallError() }));
+      res.end(lineOf({ type: "error", error: stoppedCallError(options.retryableOnStop === true) }));
     }
   };
 

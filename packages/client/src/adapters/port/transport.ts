@@ -22,7 +22,6 @@
 import type { Message, ResponseItem, Transport } from "../../client/types.js";
 import type { Credentials, RequestHandler } from "../../server/types.js";
 import { LOCAL_CREDENTIALS } from "../../server/request-auth.js";
-import { stoppedCallError } from "../../protocol.js";
 import type { WebSocketMessage } from "../websocket/server/types.js";
 import { IncomingCalls, OutgoingCalls } from "../websocket/shared/rpc.js";
 import { withoutInternalKeys } from "../metadata.js";
@@ -180,7 +179,7 @@ export class PortTransport implements Transport {
     if (!this.open) return;
     // The port stays open: each call of the other side that the close stops gets its error first.
     // Before, the other side got no frame, and its call waited for its time-out (CLI-48).
-    this.incoming?.abortAll(stoppedCallError());
+    this.incoming?.abortAll("stopped");
     this.open = false;
     this.outgoing.failAll("The port transport closed");
     if (this.port.removeEventListener) this.port.removeEventListener("message", this.onBrowserMessage);
