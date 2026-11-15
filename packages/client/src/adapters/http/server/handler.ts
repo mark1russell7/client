@@ -26,7 +26,7 @@ import { capacityFieldsOf } from "../../../client/middleware/items.js";
 import { assertNamedOrigins, checkBrowserRequest, needsNamedOrigin, type BrowserGuardOptions } from "../../../server/browser-guard.js";
 import { isUnboundedStream } from "../../../server/stream-metadata.js";
 import { headerNames, isSecretHeader, queryRecord, requestCredentials, urlParts, withoutSecretHeaders } from "../../../server/request-auth.js";
-import { PROTOCOL_HEADER, PROTOCOL_VERSION, httpStatusOf, protocolVersionOf } from "../../../protocol.js";
+import { PROTOCOL_HEADER, PROTOCOL_VERSION, httpStatusOf, protocolVersionOf, stoppedCallError } from "../../../protocol.js";
 import { realClock, type Cancel, type Clock } from "../../../clock.js";
 import { ms, type Duration } from "../../../duration.js";
 import { NDJSON_MEDIA_TYPE as NDJSON, defaultNdjsonError as errorOf, keepAliveMsOf, writeNdjsonStream } from "./ndjson.js";
@@ -149,7 +149,11 @@ export interface NodeProcedureHandler {
   drain(deadline: number, signal?: AbortSignal): Promise<void>;
   /** The number of requests in progress, open streams too. */
   inFlight(): number;
-  /** This method aborts each request in progress: an open stream ends, and its handler gets `return()`. */
+  /**
+   * This method aborts each request in progress: an open stream ends, and its handler gets
+   * `return()`. Each call that it cuts and that ends with an error gets `UNAVAILABLE` and
+   * `retryable: false` (CLI-48).
+   */
   close(): void;
 }
 
@@ -332,6 +336,8 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
 
   /** The controllers of the requests in progress: close() aborts them (deep dive TRN-15) */
   const openRequests = new Set<AbortController>();
+  /** The controllers that close() aborted: the stop of the face cut their calls (CLI-48) */
+  const cutRequests = new WeakSet<AbortController>();
   /** The functions that drain() waits on: each one runs when no request is in progress */
   let idleWaiters: Array<() => void> = [];
   let stopped = false;
@@ -682,7 +688,11 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
         await streamToHttp(serverResponse, serverResponse.stream, req, res, controller.signal);
         return;
       }
-      toHttp(serverResponse, res);
+      // An error of a call that close() cut comes from the cut: the handler stopped at its signal.
+      // The call ends as on the other faces, with UNAVAILABLE and no retry, because the call can
+      // have had its effect (CLI-48). A value goes out: the call ended before the cut stopped it.
+      const cut = cutRequests.has(controller) && serverResponse.status.type === "error";
+      toHttp(cut ? { ...serverResponse, status: { type: "error", ...stoppedCallError() } } : serverResponse, res);
     } catch (error) {
       if (!res.headersSent) sendLastResort(res, error, serverRequest ?? undefined, (error as Error).message || "Internal server error");
     } finally {
@@ -742,7 +752,10 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
       return openRequests.size;
     },
     close(): void {
-      for (const controller of [...openRequests]) controller.abort();
+      for (const controller of [...openRequests]) {
+        cutRequests.add(controller);
+        controller.abort();
+      }
       openRequests.clear();
       const waiters = idleWaiters;
       idleWaiters = [];

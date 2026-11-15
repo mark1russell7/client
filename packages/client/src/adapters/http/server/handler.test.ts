@@ -385,7 +385,9 @@ describe("procedureHandler: the stop parts of a service transport (CLI-3)", () =
 
     handler.close();
     await stream.ended;
-    expect(stream.text).toContain('"code":"ABORTED"');
+    // The stop cut a call that ran: no retry (CLI-48)
+    expect(stream.text).toContain('"code":"UNAVAILABLE"');
+    expect(stream.text).toContain('"retryable":false');
     expect(handler.inFlight()).toBe(0);
   });
 

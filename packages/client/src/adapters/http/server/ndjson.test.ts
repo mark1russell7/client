@@ -175,7 +175,7 @@ describe("writeNdjsonStream on node:http", () => {
     expect(clock.pending).toBe(0);
   });
 
-  it("ends the stream with ABORTED when the signal aborts, and the iterator gets return()", async () => {
+  it("ends the stream with UNAVAILABLE and no retry when the signal aborts, and the iterator gets return()", async () => {
     const clock = fakeClock();
     const { items, calls } = quietItems();
     const controller = new AbortController();
@@ -186,7 +186,7 @@ describe("writeNdjsonStream on node:http", () => {
     await stream.ended;
     await Promise.all(plain.done);
     expect(stream.text).toBe(
-      itemLine(1, "first") + `${JSON.stringify({ type: "error", error: { code: "ABORTED", message: "The server stopped the request", retryable: true } })}\n`,
+      itemLine(1, "first") + `${JSON.stringify({ type: "error", error: { code: "UNAVAILABLE", message: "The server stopped during the call", retryable: false } })}\n`,
     );
     await sleep(5);
     expect(calls.returned).toBe(1);

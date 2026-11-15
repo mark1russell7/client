@@ -385,9 +385,16 @@ export class IncomingCalls {
     return true;
   }
 
-  /** This function aborts each call that runs: the socket closed, or the side stops. */
-  abortAll(): void {
-    for (const controller of this.inflight.values()) controller.abort();
+  /**
+   * This function aborts each call that runs: the socket closed, or the side stops. When the side
+   * stops on an open socket, `end` is the error of each call. Each call gets an error frame with
+   * it before its abort, so the other side knows the outcome (CLI-48).
+   */
+  abortAll(end?: { readonly code: string; readonly message: string; readonly retryable: boolean }): void {
+    for (const [id, controller] of this.inflight) {
+      if (end !== undefined) this.sendError(id, end.message, end.code, end.retryable);
+      controller.abort();
+    }
     const had = this.inflight.size > 0;
     this.inflight.clear();
     this.credits.clear();

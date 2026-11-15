@@ -14,7 +14,7 @@ import { StreamSequence, gapOf, itemMetadata } from "../../sequence.js";
 import type { Credentials, RequestHandler, ServerResponse } from "../../../server/types.js";
 import { methodToPath } from "../../../server/method.js";
 import { optionalMs } from "../../../duration.js";
-import { PROTOCOL_VERSION, protocolVersionOf } from "../../../protocol.js";
+import { PROTOCOL_VERSION, protocolVersionOf, stoppedCallError } from "../../../protocol.js";
 import { TIMER_DEFAULTS } from "../../../timers.js";
 import { realClock, type Cancel, type Clock } from "../../../clock.js";
 import { heartbeat, type Heartbeat } from "@mark1russell7/service/heartbeat";
@@ -1020,7 +1020,8 @@ export class WebSocketTransport implements Transport {
     this.setState(WebSocketState.DISCONNECTING, "close");
     this.stopHeartbeat();
     this.clearHandshakeTimer();
-    this.incoming?.abortAll();
+    // The socket is open: each call of the server that the close stops gets its error (CLI-48)
+    this.incoming?.abortAll(stoppedCallError());
     this.incoming = undefined;
 
     if (this.reconnectTimer) {

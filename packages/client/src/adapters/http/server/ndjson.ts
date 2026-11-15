@@ -9,7 +9,7 @@
 import type { ServerResponse } from "node:http";
 import { realClock, type Cancel, type Clock } from "../../../clock.js";
 import { toMs, type Duration } from "../../../duration.js";
-import { PROTOCOL_HEADER, PROTOCOL_VERSION, errorCodeOf, retryableOf } from "../../../protocol.js";
+import { PROTOCOL_HEADER, PROTOCOL_VERSION, errorCodeOf, retryableOf, stoppedCallError } from "../../../protocol.js";
 import { TIMER_DEFAULTS } from "../../../timers.js";
 import { encodeFrame } from "../../../frame-encoding.js";
 
@@ -194,10 +194,14 @@ export async function writeNdjsonStream(res: ServerResponse, items: AsyncIterabl
     startTimer();
   }
 
-  /** This function ends an open response after an abort: the server stopped the request. */
+  /**
+   * This function ends an open response after an abort. The response is open, so the client did
+   * not close the connection: the stop of the face cut the call. The call can have had its effect,
+   * so the end line does not ask for a retry.
+   */
   const endAborted = (): void => {
     if (!res.writableEnded && !res.destroyed) {
-      res.end(lineOf({ type: "error", error: { code: "ABORTED", message: "The server stopped the request", retryable: true } }));
+      res.end(lineOf({ type: "error", error: stoppedCallError() }));
     }
   };
 

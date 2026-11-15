@@ -120,6 +120,16 @@ export function retryableOf(error: unknown, items: number): boolean {
   return isProtocolErrorCode(code) ? ERROR_CODES[code].retryable : false;
 }
 
+/**
+ * This function gives the error of a call that the stop of a face cuts after its handler started.
+ * The code is `UNAVAILABLE`, as for a new call while the server stops. The flag is false: the call
+ * can have had its effect, so a retry can do the effect two times (`WIRE-PROTOCOL.md`, section
+ * "Error codes", CLI-48).
+ */
+export function stoppedCallError(): { readonly code: "UNAVAILABLE"; readonly message: string; readonly retryable: false } {
+  return { code: "UNAVAILABLE", message: "The server stopped during the call", retryable: false };
+}
+
 /** The codes that a server before CLI-4 gave, and the code and the reason of wire v1 for each. */
 const FOLDED_ERROR_CODES: ReadonlyMap<string, { readonly code: ProtocolErrorCode; readonly reason?: string }> = new Map([
   ["SERVER_STOPPED", { code: "UNAVAILABLE" }],
