@@ -1,5 +1,12 @@
 # @procedures/ios-backup
 
+## 0.59.0
+
+### Patch Changes
+
+- Updated dependencies [8f8e5b2]
+  - @procedures/client@0.59.0
+
 ## 0.58.2
 
 ### Patch Changes
