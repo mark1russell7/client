@@ -212,7 +212,7 @@ The declaration is `FsRootRules` of the core: `cwd`, `paths`, `names`, `required
 
 ### The hold of the roots
 
-The check of a path and the operation read the links of the path at two times. A call that changes a folder of the path to a link between them leads the operation out of the root. A hold of the roots (`holdRoots()` of `@procedures/fs/root`) keeps the calls of the process out of this gap:
+The check of a path and the operation read the links of the path at two times. A hold of the roots (`holdRoots()` of `@procedures/fs/root`) keeps these links the same between the two reads, for the calls of the process:
 
 | Calls | Hold |
 | --- | --- |
@@ -313,7 +313,7 @@ The keys of the configuration of a repository that a root refuses. The error nam
 
 ### The limits
 
-- The check and the operation are two steps. The hold of the roots keeps the calls of the process out of the gap. Another process that changes a folder to a link between the two steps is outside the hold.
+- The check and the operation are two steps. The hold of the roots covers only the calls of this process.
 - The items of a stream come after its hold. A stream that reads a path again for each item, for example `claude.follow`, reads its links again each time.
 - A confined procedure answers for its handler. A handler that reads a path that its rules do not name is a defect of its rules. The tests of the packages examine the rules.
 - A program that a confined procedure starts reads its own configuration. For example, the docker program reads its configuration in the home folder.

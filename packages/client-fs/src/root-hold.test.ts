@@ -3,7 +3,7 @@
  *
  * - Shared holds start together. The exclusive hold starts alone, in the order of the calls.
  * - A nested call starts in the hold of its caller. A shared hold cannot become exclusive.
- * - Two moves cannot change a folder of a checked path to a link before the write of the path.
+ * - The moves of other calls wait until a write ends, so the write stays in the root.
  * - A confined procedure that writes files holds the roots alone. One that only reads shares them.
  * - `openWatch()` opens its watcher at once, so a change before the first read reaches the stream.
  */
@@ -30,7 +30,7 @@ import { rootedHandlers } from "./handlers.js";
 import { holdRoots } from "./root-hold.js";
 import { openWatch } from "./procedures/fs/watch.js";
 
-/** A hook after each `realpath` of the check: a test opens the gap between the check and the use here. */
+/** A hook after each `realpath` of the check: a test starts other calls between the check and the use here. */
 const gate = vi.hoisted(() => ({ after: undefined as ((path: string) => Promise<void>) | undefined }));
 
 vi.mock("node:fs/promises", async (importOriginal) => {
@@ -163,8 +163,8 @@ describe("holdRoots", () => {
 });
 
 describe("the check and the use of a path", () => {
-  it("keeps a write in the root when two moves change a folder of its path to a link", async () => {
-    // The root holds a clone with a link out of the root, and a plain folder w/sub
+  it("keeps a write in the root: the moves of other calls wait until the write ends", async () => {
+    // The root holds a folder repo with a linked folder sub, and a plain folder w/sub
     mkdirSync(join(root, "repo"));
     linkFolder(outside, join(root, "repo", "sub"));
     mkdirSync(join(root, "w", "sub"), { recursive: true });
@@ -174,19 +174,19 @@ describe("the check and the use of a path", () => {
     gate.after = async (path) => {
       if (!path.endsWith(`${sep}w${sep}sub`)) return;
       gate.after = undefined;
-      // The gap between the check of w/sub/x and the write: the two moves start here
+      // The two moves start after the check of w/sub/x, before the write
       moves = (async () => {
         await handlers.move({ src: "w", dest: "w0" });
         await handlers.move({ src: "repo", dest: "w" });
       })();
       raced = await Promise.race([moves.then(() => "moved"), delay(200)]);
     };
-    await handlers.write({ path: join("w", "sub", "x"), content: "planted" });
+    await handlers.write({ path: join("w", "sub", "x"), content: "text" });
     await moves;
     // The moves waited for the end of the write
     expect(raced).toBe("time");
     expect(existsSync(join(outside, "x"))).toBe(false);
-    expect(readFileSync(join(root, "w0", "sub", "x"), "utf8")).toBe("planted");
+    expect(readFileSync(join(root, "w0", "sub", "x"), "utf8")).toBe("text");
   });
 });
 

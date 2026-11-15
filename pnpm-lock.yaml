@@ -742,6 +742,9 @@ importers:
 
   packages/client-fs:
     dependencies:
+      '@mark1russell7/collections':
+        specifier: ^0.11.1
+        version: 0.11.1(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -3549,6 +3552,10 @@ packages:
 
   '@mark1russell7/collections@0.10.0':
     resolution: {integrity: sha512-WsLRfrej6msQLVqcS17x6KODic8bLf/IuOF2tD04NNbOhWKYCQi0xAEGBCy/TtthxRvRa6Yti2fcpeIQbX/nCA==}
+    engines: {node: '>=22.12'}
+
+  '@mark1russell7/collections@0.11.1':
+    resolution: {integrity: sha512-A8WllF8xDdMzIC1WBJYEf5PHO5zt+TJ/qVYGGHZMRbAu5y/U0ngToSdy7AkQeFlk/dLaPDydY+lCs18X817Cpw==}
     engines: {node: '>=22.12'}
 
   '@mark1russell7/conventions@0.41.5':
@@ -7492,6 +7499,14 @@ snapshots:
       '@mark1russell7/algebra': 0.8.5(zod@4.6.7)
       '@mark1russell7/optional': 1.2.0
       '@mark1russell7/rigor-statistics': 0.1.29
+    transitivePeerDependencies:
+      - zod
+
+  '@mark1russell7/collections@0.11.1(zod@4.6.7)':
+    dependencies:
+      '@mark1russell7/algebra': 0.8.5(zod@4.6.7)
+      '@mark1russell7/optional': 1.2.0
+      '@mark1russell7/rigor-statistics': 0.2.1
     transitivePeerDependencies:
       - zod
 

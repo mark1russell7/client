@@ -18,8 +18,8 @@
  *
  * On Windows, the comparison ignores the case of the letters, and `/` and `\` are the same.
  *
- * A check and the operation of a call start in one hold of the roots (`root-hold.ts`). So another
- * call of the process cannot change a folder of a checked path to a link before the operation.
+ * A check and the operation of a call start in one hold of the roots (`root-hold.ts`). So the
+ * operation reads the links that the check read.
  */
 
 import { readlink, realpath } from "node:fs/promises";

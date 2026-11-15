@@ -1,9 +1,8 @@
 /**
  * The hold of the roots: it ties the use of a path to the check of the path.
  *
- * `inRoot()` reads the links of a path, and the operation reads them again. A call that changes a
- * folder of the path to a link between the two reads leads the operation out of the root. The hold
- * closes this gap for the calls of one process:
+ * `inRoot()` reads the links of a path, and the operation reads them again. The hold keeps the
+ * links of the roots the same between the two reads, for the calls of one process:
  * - A call that cannot make a link takes a shared hold. Shared holds start together.
  * - A call that can make a link takes the exclusive hold, and starts alone. These calls are
  *   `fs.move`, `fs.copy`, `archive.extract`, and each confined procedure that writes files or
@@ -14,8 +13,8 @@
  *   handler gives the stream. `fs.watch` opens its watcher in the hold.
  * - A nested call starts in the hold of its caller.
  *
- * One hold covers all roots of the process, because a root can be in another root. Another process
- * that changes the folders of a root is outside the hold.
+ * One hold covers all roots of the process, because a root can be in another root. The hold covers
+ * only the calls of this process.
  */
 
 import { AsyncLocalStorage } from "node:async_hooks";
