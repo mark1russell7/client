@@ -1200,6 +1200,9 @@ importers:
       '@mark1russell7/docker-sqlite':
         specifier: ^0.3.0
         version: 0.3.0
+      '@mark1russell7/sqlite':
+        specifier: ^0.3.3
+        version: 0.3.3
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -3709,6 +3712,10 @@ packages:
   '@mark1russell7/splay@0.2.2':
     resolution: {integrity: sha512-hraH78EAk4354LZY08EbUls6vpj+BC4bxVVr0rkFf97fW/yNqidmNLaH18qUIkPZ8N/YwtpqS4it1NCQodTPzA==}
     engines: {node: '>=22'}
+
+  '@mark1russell7/sqlite@0.3.3':
+    resolution: {integrity: sha512-FQmvcDymVQtT/atS1Yv7khd05GF3rc5D62YXRsDG2ICJP96leTNnpAwSNDbaKwKBbQyBbgQ9rux7MQOd3sefUg==}
+    engines: {node: '>=22.16'}
 
   '@mark1russell7/ste-lint@0.3.2':
     resolution: {integrity: sha512-0WRNon1oYKX1mmTP/AhrPnpoGAGolmpkJWHaTkHXc4SKe1tQhUvPrY/0TQ4gvu7aN+TEPpypiZDIkOjYZG8qBA==}
@@ -7611,6 +7618,8 @@ snapshots:
       '@mark1russell7/rigor-statistics': 0.1.29
 
   '@mark1russell7/splay@0.2.2': {}
+
+  '@mark1russell7/sqlite@0.3.3': {}
 
   '@mark1russell7/ste-lint@0.3.2':
     dependencies:
