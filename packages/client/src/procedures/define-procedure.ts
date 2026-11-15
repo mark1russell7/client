@@ -366,7 +366,7 @@ export const defineProcedureProcedure: Procedure<
       metadata: {
         ...(metadata ?? { description: `Runtime-defined aggregation procedure` }),
         // The framework sets the source and the body after the metadata of the caller: a caller
-        // cannot remove them or give a false body (RV-P-2)
+        // cannot remove them or give a false body
         generatedFrom: "procedure.define",
         aggregation,
         // No effects of its own, as client.chain: the admission examines each nested call of a

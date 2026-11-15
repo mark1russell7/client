@@ -656,7 +656,7 @@ describe("procedure.define through a client (deep dive 2026-10)", () => {
     expect(runtimeProgramOf(registry.get(["client", "add"])!)).toBeUndefined();
   });
 
-  it("refuses a typed metadata field with a wrong type, and procedure.list keeps its entries (RV-P-2)", async () => {
+  it("refuses a typed metadata field with a wrong type, and procedure.list keeps its entries", async () => {
     const { client, registry } = makeClient();
     await define(client, ["test", "good"], add(1, 1));
     for (const metadata of [{ tags: "math" }, { description: 5 }, { effects: { writes: "fs" } }]) {
@@ -669,7 +669,7 @@ describe("procedure.define through a client (deep dive 2026-10)", () => {
     expect(listed.procedures.map((p) => p.path.join("."))).toContain("test.good");
   });
 
-  it("keeps the source and the body of the framework when the caller gives metadata (RV-P-2)", async () => {
+  it("keeps the source and the body of the framework when the caller gives metadata", async () => {
     const { client, registry } = makeClient();
     const body = add({ $ref: "input.a" }, 1);
     const falseBody = add(5, 5);
@@ -684,7 +684,7 @@ describe("procedure.define through a client (deep dive 2026-10)", () => {
     expect(metadata["note"]).toBe(7);
   });
 
-  it("the registry refuses a procedure of code with a typed metadata field of a wrong type (RV-P-2)", () => {
+  it("the registry refuses a procedure of code with a typed metadata field of a wrong type", () => {
     const registry = new ProcedureRegistry();
     const procedure = { ...allCoreProcedures[0]!, path: ["test", "typed"], metadata: { tags: "math" } } as never;
     expect(() => registry.register(procedure)).toThrow("The field metadata.tags has a wrong type");

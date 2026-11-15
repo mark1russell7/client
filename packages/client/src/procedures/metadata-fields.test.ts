@@ -1,5 +1,5 @@
 /**
- * The schema of the typed metadata fields (`metadata-fields.ts`, RV-P-2): each typed field has its
+ * The schema of the typed metadata fields (`metadata-fields.ts`): each typed field has its
  * type, and a custom field keeps any value.
  */
 

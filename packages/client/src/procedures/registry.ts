@@ -203,7 +203,7 @@ export class ProcedureRegistry {
     } catch (error) {
       throw new RegistryError((error as Error).message, path);
     }
-    // A typed field of the metadata with a wrong type stops here, before a reader gets it (RV-P-2)
+    // A typed field of the metadata with a wrong type stops here, before a reader gets it
     const fieldRefusal = metadataFieldRefusal(procedure.metadata);
     if (fieldRefusal) throw new RegistryError(`${fieldRefusal} (${key})`, path);
     // An override of the tool hints can only make the tool look more dangerous than its effects
