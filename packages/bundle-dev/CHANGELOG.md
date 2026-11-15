@@ -1,5 +1,37 @@
 # @procedures/bundle-dev
 
+## 0.59.0
+
+### Patch Changes
+
+- Updated dependencies [8f8e5b2]
+  - @procedures/client@0.59.0
+  - @procedures/lib@0.59.0
+  - @procedures/cli-run@0.59.0
+  - @procedures/dag@0.59.0
+  - @procedures/fs@0.59.0
+  - @procedures/git@0.59.0
+  - @procedures/pnpm@0.59.0
+  - @procedures/procedure@0.59.0
+  - @procedures/shell@0.59.0
+  - @procedures/compiler@0.59.0
+
+## 0.58.2
+
+### Patch Changes
+
+- Updated dependencies [217871c]
+  - @procedures/client@0.58.2
+  - @procedures/cli-run@0.58.2
+  - @procedures/dag@0.58.2
+  - @procedures/fs@0.58.2
+  - @procedures/git@0.58.2
+  - @procedures/lib@0.58.2
+  - @procedures/pnpm@0.58.2
+  - @procedures/procedure@0.58.2
+  - @procedures/shell@0.58.2
+  - @procedures/compiler@0.58.2
+
 ## 0.58.1
 
 ### Patch Changes

@@ -6,7 +6,7 @@
  * runs a procedures host under `run()`, and `startServer()` starts a server outside a service.
  */
 
-export { parseConfig, parseTopicPatterns } from "./config.js";
+export { parseAllowedHosts, parseConfig, parseTopicPatterns } from "./config.js";
 export { runServer, startServer, loadProcedureModule, type RunningServer, type ServerRunOptions } from "./run.js";
 // The runner entry of the procedures host (CLI-8): the only entry that starts run()
 export { runProcedureHost, HOST_PROFILES, type ProcedureHostRunConfig, type RunningHost, type HostRunMode } from "./host.js";

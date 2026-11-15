@@ -140,7 +140,7 @@ The package provides a `mark` binary for command-line usage.
 mark [global options] <path...> [positional...] [--options]
 mark serve [--procedures pkgs] [--port N] [--token T | --no-token] [--expose patterns] [--events topics] [--fs-root folder] [--probe-port N]
 mark mcp [--bundles list] [--tool-timeout ms] [--read-only] [--http port] [--max-sessions n] [--fs-root folder] [--debug]
-mark --server [--port N] [--host H] [--transport http|websocket|both] [--events topics] [--probe-port N] [--idle-timeout ms]
+mark --server [--port N] [--host H] [--allowed-host names] [--transport http|websocket|both] [--events topics] [--probe-port N] [--idle-timeout ms]
 mark -i
 mark --fs-root <folder> <command | --server | -i | serve | mcp>
 ```
@@ -249,7 +249,7 @@ A flag before the command path is a global flag. After the path, a flag is the c
 | `--local` | | Run the command in this process, not on the CLI server |
 | `--json <json>` | | Execute raw procedure reference |
 | `--fs-root <folder>` | | Keep each path of each procedure in the folder, also in the nested calls, and refuse the procedures that it cannot confine. Give it before the command. |
-| `--server` | | Start the CLI server (with `--port`, `--host`, `--transport`, `--events`) |
+| `--server` | | Start the CLI server (with `--port`, `--host`, `--allowed-host`, `--transport`, `--events`) |
 | `--interactive` | `-i` | Start the REPL |
 
 #### Exit Codes and Failures
