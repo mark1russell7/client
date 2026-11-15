@@ -466,7 +466,7 @@ async function runInvocation<TOutput>(invocation: Invocation, options: InvokeOpt
 
   // The admission: before the input validation, so a refused call learns nothing from its input
   const parent = invocation.parent;
-  if (!parent || examinesNestedCall(parent.procedure, parent.capability, invocation.capability)) {
+  if (!parent || examinesNestedCall(parent.procedure, parent.capability, invocation.capability, procedure)) {
     const refusal = capabilityRefusal(procedure, invocation.capability);
     if (refusal?.reason === "deadline") throw new InvocationError("TIMEOUT", refusal.message, path);
     if (refusal) throw new InvocationError("FORBIDDEN", refusal.message, path, refusal.reason);
