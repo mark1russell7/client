@@ -13,6 +13,7 @@ import type { IncomingMessage } from "node:http";
 import type { Method, Metadata, Status } from "../../../client/types.js";
 import type { RequestHandler, ServerRequest, ServerResponse } from "../../../server/types.js";
 import { lastResortError } from "../../../server/last-resort.js";
+import { capacityFieldsOf } from "../../../client/middleware/items.js";
 import { pathToMethod } from "../../../server/method.js";
 import { segmentsOf } from "./addressing.js";
 import type { NdjsonError } from "./ndjson.js";
@@ -73,6 +74,8 @@ export interface BatchError extends NdjsonError {
   readonly reason?: string | undefined;
   readonly retryAfterMs?: number | undefined;
   readonly conflicts?: unknown[] | undefined;
+  readonly units?: number | undefined;
+  readonly capacity?: number | undefined;
 }
 
 /** True when the request is a batch: `POST` with the header `Procedures-Batch: 1`. */
@@ -139,6 +142,7 @@ export function batchErrorOf(status: Extract<Status, { type: "error" }>, metadat
     ...(typeof wait === "number" && Number.isFinite(wait) && wait >= 0 ? { retryAfterMs: wait } : {}),
     ...(typeof reason === "string" ? { reason } : {}),
     ...(Array.isArray(conflicts) ? { conflicts } : {}),
+    ...capacityFieldsOf(metadata),
   };
 }
 
