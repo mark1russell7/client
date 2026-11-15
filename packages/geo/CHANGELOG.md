@@ -1,5 +1,13 @@
 # @procedures/geo
 
+## 0.56.0
+
+### Patch Changes
+
+- 13996cf: An automated dependency update changes the shipped files, so this PATCH ships them.
+- Updated dependencies [13996cf]
+  - @procedures/client@0.56.0
+
 ## 0.55.2
 
 ### Patch Changes

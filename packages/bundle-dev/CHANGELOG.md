@@ -1,5 +1,23 @@
 # @procedures/bundle-dev
 
+## 0.56.0
+
+### Patch Changes
+
+- 13996cf: An automated dependency update changes the shipped files, so this PATCH ships them.
+- Updated dependencies [13996cf]
+- Updated dependencies [13996cf]
+  - @procedures/cli-run@0.56.0
+  - @procedures/dag@0.56.0
+  - @procedures/fs@0.56.0
+  - @procedures/git@0.56.0
+  - @procedures/lib@0.56.0
+  - @procedures/pnpm@0.56.0
+  - @procedures/procedure@0.56.0
+  - @procedures/shell@0.56.0
+  - @procedures/client@0.56.0
+  - @procedures/compiler@0.56.0
+
 ## 0.55.2
 
 ### Patch Changes
