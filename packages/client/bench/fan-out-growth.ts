@@ -1,5 +1,5 @@
 /**
- * The growth gate of the fan-out bench (roadmap CLI-90). The time of one publish must grow less than 15 times for each
+ * The growth gate of the fan-out bench (roadmap CLI-90). The time of one publish must grow less than 24 times for each
  * 10 times more subscribers. A cost that grows as n x n grows 100 times. The gate reads the ratio inside each job, so
  * the speed of a runner does not change the verdict. A case `total` whose child did not end in its time limit blocks.
  *
@@ -10,12 +10,23 @@
 import { type GrowthRound, type GrowthVerdict, type PairedTime, growthVerdict } from "@mark1russell7/rigor-bench";
 import { parseCase } from "./fan-out-cases.js";
 
-/** The largest growth of the time of a publish for each 10 times more subscribers. */
-export const MAX_GROWTH = 15;
+/**
+ * The largest growth of the time of a publish for each 10 times more subscribers. The CPU cache changes the growth of
+ * the same code. From 10,000 to 100,000 subscribers, 15 jobs with a known CPU (11-14 and 11-15) gave these values:
+ *
+ * - The plain arm grew 14.1 to 18.1 times on the Intel Xeon 6975P-C and 6973P-C.
+ * - The plain arm grew 13.1 to 14.1 times on the other models.
+ *
+ * The old limit of 15 was inside this spread. Thus one job on an Intel Xeon 6975P-C gave a no read for unchanged code
+ * (run 43672997903). The limit is the worst job of 8 runs (40 jobs, 11-10 to 11-15) plus the spread of these jobs:
+ * 18.05 + (18.05 - 12.36) = 23.74, so 24. A cost of n x n grows 100 times, far above the limit. The runs are
+ * 42750370538, 43149179338, 43359868280, 43379972726, 43612686670, 43642753736, 43651133227 and 43672997903.
+ */
+export const MAX_GROWTH = 24;
 
 /**
  * The least jobs of a gate. With 3 jobs, the interval of a step is the range of the jobs, so one job decides it.
- * The run 42399340081 of 3 jobs gave an upper bound of 14.68x, near the limit. A read of fewer jobs is a no read.
+ * The run 42399340081 of 3 jobs gave an upper bound of 14.68x, near the old limit of 15. A read of fewer jobs is a no read.
  */
 export const MIN_JOBS = 5;
 
