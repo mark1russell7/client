@@ -1,5 +1,23 @@
 # @procedures/mark
 
+## 0.57.0
+
+### Patch Changes
+
+- d9d1923: The package leaves out `dist/manifest.json`. Each build gave this file a different fingerprint and time, so the release check found a change in each pull request. An installed copy did not read the shipped file, because its fingerprint names the builds of the workspace. The first start of an installed copy writes the file, as before. No effect on the public API.
+- @procedures/mcp-dev-tools@0.57.0
+  - @procedures/cli-kit@0.57.0
+  - @procedures/client@0.57.0
+  - @procedures/cli-run@0.57.0
+  - @procedures/fs@0.57.0
+  - @procedures/lib@0.57.0
+  - @procedures/pnpm@0.57.0
+  - @procedures/procedure@0.57.0
+  - @procedures/peer@0.57.0
+  - @procedures/shell@0.57.0
+  - @procedures/vitest@0.57.0
+  - @procedures/server@0.57.0
+
 ## 0.56.0
 
 ### Patch Changes

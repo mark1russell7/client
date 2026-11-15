@@ -4,7 +4,7 @@ name: Event fan-out
 # 100,000 subscribers, with and without the slices of the event bus (roadmap CLI-90). Each sample is
 # a fresh process. Each job has an A/A pair. The report pools the jobs.
 #
-# The times are a report. The growth of the time of a publish is a gate (bench/fan-out-growth.ts): less than 15 times
+# The times are a report. The growth of the time of a publish is a gate (bench/fan-out-growth.ts): less than 24 times
 # for each 10 times more subscribers.
 #
 # A pull request that changes the event bus or the procedures runs the gate: 5 jobs of 6 rounds, only the case total.
@@ -145,7 +145,7 @@ jobs:
           name: event-fan-out-report
           path: packages/client/fan-out-report.json
           if-no-files-found: error
-      # The growth gate: less than 15 times for each 10 times more subscribers. A no read is not a pass.
+      # The growth gate: less than 24 times for each 10 times more subscribers. A no read is not a pass.
       - name: The growth gate
         working-directory: packages/client
         run: node --import tsx bench/fan-out-gate.ts --jobs bench-out

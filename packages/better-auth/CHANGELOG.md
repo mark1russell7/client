@@ -1,5 +1,11 @@
 # @procedures/better-auth
 
+## 0.57.0
+
+### Patch Changes
+
+- @procedures/client@0.57.0
+
 ## 0.56.0
 
 ### Patch Changes

@@ -478,6 +478,12 @@ interface StoreInternals {
   watermark(db: Db): Promise<{ seq: number; epoch: string; floor: number }>;
   move(collection: Collection<never>, first: number, count: number, next: number): Promise<void>;
   withNumbers<R>(db: Db, collection: Collection<never>, count: number, write: (first: number) => Promise<R>): Promise<R>;
+  settle(db: Db, items: Collection<never>, found: readonly unknown[], first: unknown): Promise<unknown>;
+}
+
+/** This function makes a reader with no rule for late writes: a read keeps the version of the mark before its find. */
+function noSettle(store: MongoDocumentStorage<Item>): void {
+  (store as unknown as StoreInternals).settle = async (_db, _items, _found, mark) => ({ mark, later: [], alone: false });
 }
 
 /** The holds of the reads of a store. */
@@ -1436,6 +1442,133 @@ withMongo("the race of a change cursor and a write in flight, on a real store (C
     expect(row.unknown).toEqual([]);
     expect(row.back).toEqual([]);
     expect(row.finalDiffers).toEqual([]);
+  });
+
+  /** The reads in which a late write lands: a delta, or the second read of a full answer. */
+  const LANDING_READS = ["delta", "full"] as const;
+  /** The wait after a write takes its number: past the lease, and far inside the time that keeps an expired range. */
+  const PAST_LEASE_MS = LATE_LEASE_MS * 3;
+
+  /** A gate of one step: `wait` stops until `open`, and `reached` tells when a step got to the gate. */
+  function step(): { wait: () => Promise<void>; reached: Promise<void>; open: () => void } {
+    let open: () => void = () => undefined;
+    let reach: () => void = () => undefined;
+    const opened = new Promise<void>((resolve) => (open = resolve));
+    const reached = new Promise<void>((resolve) => (reach = resolve));
+    return {
+      wait: async () => {
+        reach();
+        await opened;
+      },
+      reached,
+      open: () => open(),
+    };
+  }
+
+  /**
+   * This function lands a late write in a held read (roadmap O100). Write X takes its number and waits past its lease.
+   * Write B ends, so its release meets the expired range of X. The reader holds its read after the mark of the read.
+   * Write A gives the id a new value, and a read since that mark, as a chain reads, gets A. Then X lands and the read ends.
+   * The function gives the value that a subscriber at the version of the read has after the event of that chain read.
+   */
+  async function lateLanding(kind: (typeof LANDING_READS)[number], fault?: (store: MongoDocumentStorage<Item>) => void) {
+    const collection = `race${++next}`;
+    const commit = step();
+    const released = step();
+    const list = step();
+    const find = step();
+    let listArmed = false;
+    let findArmed = false;
+    const reads: ReadHolds = {
+      afterList: async () => {
+        if (!listArmed) return;
+        listArmed = false;
+        await list.wait();
+      },
+      delta: async (ofFull) => {
+        if (!findArmed || ofFull !== (kind === "full")) return;
+        findArmed = false;
+        await find.wait();
+      },
+    };
+    const storeOf = (index: number, holds: Holds, held?: ReadHolds): MongoDocumentStorage<Item> => {
+      const client = clients[index]!;
+      const on = heldDb(client.db(database), collection, holds, held);
+      return new MongoDocumentStorage<Item>({ collection, db: () => on, client: () => client, transactions: "never", writeLease: ms(LATE_LEASE_MS) });
+    };
+    const late = storeOf(0, { before: commit.wait, after: released.wait });
+    const writer = storeOf(1, FREE);
+    const reader = storeOf(2, FREE, reads);
+    fault?.(reader);
+    await writer.set("k", { v: "v0" });
+    let x: Promise<void> = Promise.resolve();
+    // X takes its number and holds before its commit. Then its lease ends, and B ends
+    const pastLease = async (): Promise<void> => {
+      x = late.set("k", { v: "x1" });
+      await commit.reached;
+      await new Promise((resolve) => setTimeout(resolve, PAST_LEASE_MS));
+      await writer.set("b", { v: "b1" });
+    };
+    let read: Promise<StorageChanges<Item>>;
+    if (kind === "delta") {
+      const start = (await reader.getChangesSince()).version;
+      await pastLease();
+      findArmed = true;
+      read = reader.getChangesSince(start);
+    } else {
+      // The first mark of the full answer comes before X takes its number, and its second mark passes the expired range of X
+      listArmed = true;
+      findArmed = true;
+      read = reader.getChangesSince();
+      await list.reached;
+      await pastLease();
+      list.open();
+    }
+    await find.reached;
+    // The anchor of the chain is the mark of the held read: no write ends between the two marks
+    const anchor = (await writer.getChangesSince()).version;
+    await writer.set("k", { v: "a1" });
+    const event = await writer.getChangesSince(anchor);
+    commit.open();
+    // X landed at its old number, and its release waits
+    await released.reached;
+    find.open();
+    const answer = await read;
+    released.open();
+    await x;
+    const after = await reader.getChangesSince(answer.version);
+    // A subscriber applies the values of an event only when the event starts at its cursor
+    const values = new Map(answer.changed.map(([id, item]) => [id, item.v]));
+    if (answer.version === anchor) for (const [id, item] of event.changed) values.set(id, item.v);
+    const valueOf = (changes: StorageChanges<Item>): string | undefined => changes.changed.find(([id]) => id === "k")?.[1].v;
+    return {
+      anchor,
+      version: answer.version,
+      event: valueOf(event),
+      value: values.get("k"),
+      after: valueOf(after),
+      store: (await valuesOf(reader)).get("k"),
+    };
+  }
+
+  describe.each(LANDING_READS)("a late write lands in a held read: %s", (kind) => {
+    it("the read takes marks again, so the event of an earlier mark does not give an older value", async () => {
+      const landing = await lateLanding(kind);
+      console.log(`race ${JSON.stringify({ name: `pending-late-landing-${kind}`, ...landing })}`);
+      expect(landing.event).toBe("a1");
+      expect(landing.version).not.toBe(landing.anchor);
+      expect(landing.value).toBe("x1");
+      expect(landing.store).toBe("x1");
+      expect(landing.after).toBe("x1");
+    });
+
+    it("the flip: with no new marks, the event of the earlier mark gives the older value", async () => {
+      const landing = await lateLanding(kind, noSettle);
+      console.log(`race ${JSON.stringify({ name: `pending-late-landing-${kind}-flip`, ...landing })}`);
+      expect(landing.version).toBe(landing.anchor);
+      expect(landing.value).toBe("a1");
+      expect(landing.store).toBe("x1");
+    });
   });
 
   it("a write past its lease loses nothing: a reader can see it twice, with one value", async () => {
