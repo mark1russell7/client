@@ -6,18 +6,27 @@
  * stops, aborts, calls of the server to the client, short subscriptions to remote events, and
  * reconnects. Each client also keeps one subscription for the whole time: it resubscribes after
  * each reconnect (`documentation/EVENTS.md`). At the end, each call has an answer, the maps of the
- * two sides are empty, no listener stays on the bus, and the heap grew less than a limit.
+ * two sides are empty, no listener stays on the bus, and the heap did not leak.
  *
  * HTTP: clients send values, streams that the reader stops, aborts, and quiet NDJSON streams with
  * keep-alive lines between their items. At the end, no request is open, no keep-alive timer
- * stays, and the heap grew less than a limit.
+ * stays, and the heap did not leak.
  *
  * Node runs the tests with `--expose-gc`, so the heap is measured after a collection.
+ *
+ * The leak (roadmap O99): the loops start for a warm-up, the first tenth of the time. Then they
+ * stop, and the heap is measured at rest. The loops start again until the end, and the heap is
+ * measured at rest again. The leak is the growth between the two measures. In the warm-up, each
+ * kind of step occurs many times, so its compiled code and its lazy state are in the first measure.
+ * Before O99, the gate measured from a cold start: the cost of the first steps counted as growth,
+ * and a change that added to that cost turned the gate red with no leak. The record keeps the
+ * growth from the cold start (`heapBeforeMb`, `heapAfterMb`).
  */
 
 import { describe, it, expect } from "vitest";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
+import { cpus } from "node:os";
 import express from "express";
 import * as z from "zod";
 import { Client } from "./client/client.js";
@@ -52,16 +61,16 @@ const minutes = Number(process.env["SOAK_MINUTES"] ?? 0);
  */
 const LIMITS = {
   ws: {
-    // The heap growth in MB. 3.10 + (3.10 - 2.82) = 3.38, so 3.4 (O85: 5).
-    heapMb: gateLimit([3.1, 2.84, 2.96, 2.82, 2.91], "ceiling", 0.1),
+    // The leak in MB, from the warm-up to the end. PROVISIONAL: the limit of the growth from the cold start, until 5 runs of O99.
+    leakMb: gateLimit([3.1, 2.84, 2.96, 2.82, 2.91], "ceiling", 0.1),
     // The calls. 961695 - (1096935 - 961695) = 826455, so 826000 (O85: 641000).
     calls: gateLimit([966_963, 1_096_935, 961_695, 1_092_157, 968_772], "floor", 1000),
     // The failures for each reconnect. 0.937 + (0.937 - 0.922) = 0.952, so 0.96 (O85: 1.5).
     failuresPerReconnect: gateLimit([0.937, 0.927, 0.928, 0.922, 0.936], "ceiling", 0.01),
   },
   http: {
-    // The heap growth in MB. 4.54 + (4.54 - 4.47) = 4.61, so 4.7 (O85: 7).
-    heapMb: gateLimit([4.51, 4.51, 4.5, 4.54, 4.47], "ceiling", 0.1),
+    // The leak in MB, from the warm-up to the end. PROVISIONAL: the limit of the growth from the cold start, until 5 runs of O99.
+    leakMb: gateLimit([4.51, 4.51, 4.5, 4.54, 4.47], "ceiling", 0.1),
     // The calls. 175003 - (187858 - 175003) = 162148, so 162000 (O85: 116000).
     calls: gateLimit([177_093, 187_858, 175_583, 187_641, 175_003], "floor", 1000),
     // The sums of the 5 runs: their calls and their failures (0). `failureLimit` gives the limit of
@@ -69,8 +78,12 @@ const LIMITS = {
     measured: { calls: 177_093 + 187_858 + 175_583 + 187_641 + 175_003, failures: 0 },
   },
 };
-/** `SOAK_HEAP_MB` sets the two limits of the heap growth, in megabytes, for a run by hand. */
+/** `SOAK_HEAP_MB` sets the two limits of the leak, in megabytes, for a run by hand. */
 const heapOverride = process.env["SOAK_HEAP_MB"] ? Number(process.env["SOAK_HEAP_MB"]) : undefined;
+/** The warm-up is this part of the time of a soak (O99) */
+const WARMUP_SHARE = 0.1;
+/** The CPU model of the runner, for the record: a limit covers the CPU models of its runs */
+const cpu = cpus()[0]?.model.trim() ?? "unknown";
 const CLIENTS = 4;
 const read = { reads: [], writes: [] };
 const sleep = (time: number) => new Promise((resolve) => setTimeout(resolve, time));
@@ -189,13 +202,15 @@ describe.runIf(minutes > 0)("the WebSocket transport under load (R32)", () => {
     const ticker = setInterval(() => host.publish("soak.ticks", ++tick), 20);
     await sleep(500);
     const heapBefore = heapMb();
+    const warmEnd = Date.now() + minutes * 60_000 * WARMUP_SHARE;
 
-    const loop = async (index: number) => {
+    // The step of each client goes on after the rest of the warm-up
+    const steps = clients.map(() => 0);
+    const loop = async (index: number, stopAt: number) => {
       const client = clients[index]!;
       const transport = transports[index]!;
-      let step = 0;
-      while (Date.now() < end) {
-        step++;
+      while (Date.now() < stopAt) {
+        const step = ++steps[index]!;
         try {
           if (step % 500 === 0) {
             // A reconnect: the connection drops, and the client opens a new one
@@ -239,11 +254,20 @@ describe.runIf(minutes > 0)("the WebSocket transport under load (R32)", () => {
         }
       }
     };
-    await Promise.all(clients.map((_, index) => loop(index)));
+    // A rest: the loops stopped, the ticks and the long subscriptions go on. The last step of a loop
+    // can be a short subscription. Its unsubscribe sends a cancel, and the server closes the
+    // subscription when the cancel arrives. Thus the rest waits for the cancels in flight (O84). A
+    // subscription that stays open keeps the count above the number of clients.
+    const rest = async () => {
+      await until(() => host.publisher!.subscriptions === transports.length, 5000);
+      await sleep(1000);
+      return heapMb();
+    };
+    await Promise.all(clients.map((_, index) => loop(index, warmEnd)));
+    const heapWarm = await rest();
+    await Promise.all(clients.map((_, index) => loop(index, end)));
+    const heapEnd = await rest();
 
-    // The last step of a loop can be a short subscription. Its unsubscribe sends a cancel, and the
-    // server closes the subscription when the cancel arrives. Thus the count waits for the cancels
-    // in flight (O84). A subscription that stays open keeps the count above the number of clients.
     clearInterval(ticker);
     await until(() => host.publisher!.subscriptions === transports.length, 5000);
     // The long subscriptions end: their calls leave the maps of the two sides
@@ -258,7 +282,8 @@ describe.runIf(minutes > 0)("the WebSocket transport under load (R32)", () => {
     }).channels;
     const serverMaps = [...channels.values()].map((channel) => channel.incoming.size + channel.incoming.credits.size + channel.outgoing.size);
     // One line that the nightly keeps in its artifact soak-measure-<run> (O85)
-    console.log(`soak-measure ws ${JSON.stringify({ ...counts, heapBeforeMb: heapBefore, heapAfterMb: heapAfter, pending, serverMaps, events })}`);
+    const heap = { heapBeforeMb: heapBefore, heapWarmMb: heapWarm, heapEndMb: heapEnd, heapAfterMb: heapAfter, leakMb: heapEnd - heapWarm };
+    console.log(`soak-measure ws ${JSON.stringify({ ...counts, ...heap, cpu, pending, serverMaps, events })}`);
 
     for (const transport of transports) await transport.close();
     await host.stop();
@@ -271,7 +296,7 @@ describe.runIf(minutes > 0)("the WebSocket transport under load (R32)", () => {
     expect(pending).toEqual(transports.map(() => 0));
     expect(serverMaps.every((size) => size === 0)).toBe(true);
     expect(host.callsInFlight).toBe(0);
-    expect(heapAfter - heapBefore).toBeLessThan(heapOverride ?? LIMITS.ws.heapMb);
+    expect(heap.leakMb).toBeLessThan(heapOverride ?? LIMITS.ws.leakMb);
     // Each long subscription got events, and it resubscribed after each reconnect of its client
     for (let index = 0; index < transports.length; index++) {
       expect(ticks[index]).toBeGreaterThan(0);
@@ -301,12 +326,14 @@ describe.runIf(minutes > 0)("the HTTP transport under load (R32)", () => {
     const counts = { calls: 0, failures: 0, quietItems: 0 };
     await sleep(500);
     const heapBefore = heapMb();
+    const warmEnd = Date.now() + minutes * 60_000 * WARMUP_SHARE;
 
-    const loop = async (index: number) => {
+    // The step of each client goes on after the rest of the warm-up
+    const steps = clients.map(() => 0);
+    const loop = async (index: number, stopAt: number) => {
       const client = clients[index]!;
-      let step = 0;
-      while (Date.now() < end) {
-        step++;
+      while (Date.now() < stopAt) {
+        const step = ++steps[index]!;
         try {
           if (step % 7 === 0) {
             for await (const item of client.stream<unknown, number>(pathToMethod(["soak", "count"]), { to: 1000 })) {
@@ -337,13 +364,19 @@ describe.runIf(minutes > 0)("the HTTP transport under load (R32)", () => {
         await sleep(5);
       }
     };
-    await Promise.all(clients.map((_, index) => loop(index)));
-
-    await sleep(1000);
-    const heapAfter = heapMb();
+    // A rest: the loops stopped, and each request ended
+    const rest = async () => {
+      await sleep(1000);
+      return heapMb();
+    };
+    await Promise.all(clients.map((_, index) => loop(index, warmEnd)));
+    const heapWarm = await rest();
+    await Promise.all(clients.map((_, index) => loop(index, end)));
+    const heapAfter = await rest();
     // The requests in progress of the procedure handler of the transport (CLI-3 moved them there)
     const openRequests = transport.inFlight();
-    const report = { ...counts, heapBeforeMb: heapBefore, heapAfterMb: heapAfter, openRequests, timersLive: timers.live, timersStarted: timers.started, callsInFlight: host.callsInFlight };
+    const heap = { heapBeforeMb: heapBefore, heapWarmMb: heapWarm, heapAfterMb: heapAfter, leakMb: heapAfter - heapWarm };
+    const report = { ...counts, ...heap, cpu, openRequests, timersLive: timers.live, timersStarted: timers.started, callsInFlight: host.callsInFlight };
     console.log(`soak-measure http ${JSON.stringify(report)}`);
 
     await host.stop();
@@ -360,6 +393,6 @@ describe.runIf(minutes > 0)("the HTTP transport under load (R32)", () => {
     expect(report.timersLive).toBe(0);
     expect(report.timersStarted).toBeGreaterThan(0);
     expect(report.callsInFlight).toBe(0);
-    expect(heapAfter - heapBefore).toBeLessThan(heapOverride ?? LIMITS.http.heapMb);
+    expect(heap.leakMb).toBeLessThan(heapOverride ?? LIMITS.http.leakMb);
   }, (minutes + 2) * 60_000);
 });
