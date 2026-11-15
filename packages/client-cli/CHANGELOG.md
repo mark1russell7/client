@@ -1,5 +1,13 @@
 # @procedures/cli-run
 
+## 0.58.0
+
+### Patch Changes
+
+- Updated dependencies [11f5035]
+  - @procedures/client@0.58.0
+  - @procedures/shell@0.58.0
+
 ## 0.57.0
 
 ### Patch Changes
