@@ -293,6 +293,21 @@ describe("SqliteStorage (sqljs): the whole-file writes", () => {
     expect(await again.size()).toBe(50);
   });
 
+  it("writes and reads after each file write: an export of sql.js frees each statement", async () => {
+    const path = tempDb();
+    const storage = storageOf<{ n: number }>({ path, table: "items", engine: "sqljs" });
+    await storage.set("a", { n: 1 });
+    expect(await storage.get("a")).toEqual({ n: 1 });
+    await storage.set("b", { n: 2 });
+    expect(await storage.get("b")).toEqual({ n: 2 });
+    expect(await storage.size()).toBe(2);
+    await storage.close();
+
+    const again = storageOf<{ n: number }>({ path, table: "items", engine: "sqljs" });
+    expect(await again.size()).toBe(2);
+    await again.close();
+  });
+
   it("a failed file write fails the write, and flush() writes the change later", async () => {
     const dir = tempDir();
     const path = join(dir, "blocked", "items.db");
