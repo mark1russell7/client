@@ -9,4 +9,4 @@ A host can limit the depth of the nested calls.
 - A value that is not a whole number of 0 or more stops the call or the start of the server with a `TypeError`.
 - Without `maxDepth`, the depth has no limit, as before. The first call over the depth 64 in the process writes one warning.
 
-Migration before 0.62.0: version 0.62.0 sets the default limit to 64. A host with deeper call trees sets `maxDepth` to its own limit.
+Migration before 0.61.0: version 0.61.0 sets the default limit to 64. A host with deeper call trees sets `maxDepth` to its own limit.
