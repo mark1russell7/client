@@ -19,7 +19,7 @@
 import { InvocationError } from "../procedures/invoke.js";
 import { VERSION_CONFLICTS_METADATA_KEY, versionConflictsOf } from "../procedures/collection/precondition.js";
 import { errorCodeOf, retryableOf } from "../protocol.js";
-import { CallLimitError } from "./limits.js";
+import { CallLimitError } from "./call-limit-error.js";
 import type { ServerResponse } from "./types.js";
 
 /** The real error of each error status that the server made from an error. */
