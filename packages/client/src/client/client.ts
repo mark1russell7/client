@@ -71,7 +71,7 @@ import { narrowCapability } from "../procedures/capability.js";
 import { DEADLINE_METADATA_KEY, TIMEOUT_METADATA_KEY, absorbTimeout, writeRemainingTime } from "./deadline.js";
 import { ms } from "../duration.js";
 import { context as otelContext, SpanKind, trace } from "@opentelemetry/api";
-import { asInternalCall, callParent, callerTraceOf, endApiSpan, injectContext, startApiSpan, type CallerTrace } from "../tracing/otel.js";
+import { asInternalCall, callParent, callerTraceOf, endApiSpan, injectContext, iterateInContext, startApiSpan, type CallerTrace } from "../tracing/otel.js";
 import type { Capability, ClearanceOrder, NestedCallOptions } from "../procedures/types.js";
 import { PROCEDURE_REGISTRY } from "../procedures/registry.js";
 import { validateSchema } from "../procedures/schema.js";
@@ -934,10 +934,14 @@ export class Client<TContext = {}> {
       const own = span.spanContext();
       const parent = trace.getSpanContext(active);
       metadata.tracing = { traceId: own.traceId, spanId: own.spanId, ...(parent ? { parentSpanId: parent.spanId } : {}) };
-      injectContext(asInternalCall(trace.setSpan(active, span)), metadata as Record<string, unknown>);
+      const inSpan = trace.setSpan(active, span);
+      injectContext(asInternalCall(inSpan), metadata as Record<string, unknown>);
       let failure: unknown;
       try {
-        yield* self.transport.send<TReq, TRes>(context.message);
+        // The span of the try is active while the transport sends. So an instrumentation of fetch
+        // or of the HTTP module starts its span in the trace of the call, and the HTTP header and
+        // the metadata carry one trace. Before, the instrumentation started a second trace.
+        yield* iterateInContext(inSpan, () => self.transport.send<TReq, TRes>(context.message));
       } catch (error) {
         failure = error;
         throw error;
