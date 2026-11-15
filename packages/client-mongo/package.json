@@ -73,6 +73,7 @@
     "@mark1russell7/rigor-chaos": "^0.1.0",
     "@mark1russell7/rigor-generators": "^0.1.5",
     "@mark1russell7/rigor-statistics": "^0.1.9",
+    "@mark1russell7/rigor-testkit": "^0.1.4",
     "@procedures/peer": "workspace:*",
     "@procedures/store": "workspace:*",
     "@types/node": "^22.0.0",
