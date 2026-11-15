@@ -57,7 +57,7 @@ describe("SqliteStorage when the import of node:sqlite fails", () => {
 });
 
 // sql.js writes the whole file after each write. On a Windows runner the case of 80 random writes
-// takes 3 s of the default limit of 5 s (Nightly, 2026-11-09), and it failed twice at 5 s.
+// takes 2.8 s to 4.1 s of the default limit of 5 s (Nightly, 11-09 to 11-15), and it failed twice at 5 s.
 const CONTRACT_CASE_MS = 30_000;
 const itWithLimit: ContractTestApi["it"] = (name, body) => it(name, body, CONTRACT_CASE_MS);
 
