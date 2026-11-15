@@ -661,7 +661,7 @@ export class WebSocketServerTransport implements ServerTransport {
    * - When the buffer holds more than `highWaterMark` after the frame, the method pauses the reads
    *   of the connection. The reads continue when the socket wrote the buffer down to the mark. Thus
    *   the server does not read the next frames of a peer that does not read the answers, and the
-   *   answers cannot fill the memory of the process.
+   *   send buffer stays near the mark.
    *
    * The method gives false when it did not send the frame. `onWritten` runs when the socket wrote
    * the frame, or when the write failed.

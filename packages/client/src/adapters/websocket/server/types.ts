@@ -76,7 +76,7 @@ export interface WebSocketServerTransportOptions extends Omit<BrowserGuardOption
    * The number of bytes that a connection can hold in its send buffer before a stream waits
    * (deep dive TRN-3: before, a stream ran to its end whatever the reader did). Above it, the
    * server also stops reading the frames of the connection until the socket wrote the buffer down to
-   * the mark. Thus a peer that does not read cannot fill the memory of the server with answers.
+   * the mark. Thus the send buffer of each connection stays near the mark.
    * @default 1 MiB
    */
   highWaterMark?: number;

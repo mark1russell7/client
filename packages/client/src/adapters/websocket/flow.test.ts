@@ -78,7 +78,7 @@ describe("the flow of the frames of a connection", () => {
     await waitFor(() => server.sockets[0]?.isPaused === true);
     await sleep(200);
     const socket = server.sockets[0]!;
-    // Without the pause, the buffer holds the answers of all 1500 frames (24 MB) less the buffers of the system
+    // The pause keeps the buffer near the mark, also with 24 MB of frames sent
     expect(socket.bufferedAmount).toBeLessThan(highWaterMark + 512 * KIB);
     expect(socket.isPaused).toBe(true);
     client.resume();
@@ -90,7 +90,7 @@ describe("the flow of the frames of a connection", () => {
   it("ends a peer that does not read, also when it sends pong frames", async () => {
     const server = await startServer({ highWaterMark: 16 * KIB, heartbeat: { interval: ms(50), misses: 2 } });
     const client = await deafClient(server.url);
-    // Pongs that answer no ping: before, each one set the count of the missed pongs to 0
+    // Pongs that answer no ping do not keep the connection open
     const pongs = setInterval(() => client.pong(), 10);
     cleanups.push(() => clearInterval(pongs));
     sendPings(client, 1000, 16 * KIB);
