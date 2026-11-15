@@ -75,6 +75,14 @@ describe("global flags and procedure flags (CLI-7)", () => {
     expect(parseLeadingGlobals(["--fs-root"]).errors).toEqual(["--fs-root needs a value"]);
   });
 
+  it("collects a repeated --allowed-host of --server", () => {
+    expect(parseLeadingGlobals(["--server", "--host", "0.0.0.0", "--allowed-host", "box.lan", "--allowed-host=api.lan"]).globals).toEqual({
+      server: true,
+      host: "0.0.0.0",
+      "allowed-host": "box.lan,api.lan",
+    });
+  });
+
   it("reports a flag that neither the procedure nor the globals have", () => {
     expect(parse(["fs", "exists", "x", "--bogus"]).errors).toEqual(["Unknown option for mark fs exists: --bogus"]);
     expect(parse(["docker", "exec", "-iz", "box", "sh"]).errors).toEqual(["Unknown option -z in -iz"]);

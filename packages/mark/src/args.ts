@@ -30,6 +30,7 @@ export type GlobalName =
   | "server"
   | "port"
   | "host"
+  | "allowed-host"
   | "transport"
   | "events"
   | "probe-port"
