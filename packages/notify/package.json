@@ -35,6 +35,11 @@
       "import": "./dist/pushover.js",
       "default": "./dist/pushover.js"
     },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js",
+      "default": "./dist/testing/index.js"
+    },
     "./module": {
       "types": "./dist/module.d.ts",
       "import": "./dist/module.js",
@@ -76,11 +81,20 @@
     "@procedures/client": "workspace:*",
     "zod": "^4.6.5"
   },
+  "peerDependencies": {
+    "@mark1russell7/rigor-testkit": "^0.1.7"
+  },
+  "peerDependenciesMeta": {
+    "@mark1russell7/rigor-testkit": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "typescript": "^7.0.2",
     "@types/node": "^22.0.0",
     "@mark1russell7/cue": "^2.1.1",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.3",
+    "@mark1russell7/rigor-testkit": "^0.1.7"
   },
   "client": {
     "browser": [

@@ -81,6 +81,26 @@ const sent = await callPushover(fetch, request, extractPushoverSent, { timeoutMs
 
 A request holds the API token. Do not log a request or its URL.
 
+### The entry `./testing`
+
+`@procedures/notify/testing` has a fake of the Pushover API for tests. The fake is data for `startScriptedServer` of `@mark1russell7/rigor-testkit/http`.
+
+- `pushoverApi` gives the routes of the fake. Each request builder of `./pushover` gets a reply.
+- `pushoverFetchTo` sends the requests of the builders to the fake.
+- `pushoverLedgerOf` reads the records of the server: each send, its first read and its first cancel.
+
+`@mark1russell7/rigor-testkit` is an optional peer dependency. Add it to the `devDependencies` of your tests.
+
+```ts
+import { startScriptedServer } from "@mark1russell7/rigor-testkit/http";
+import { pushoverApi, pushoverFetchTo, pushoverLedgerOf } from "@procedures/notify/testing";
+
+const server = await startScriptedServer(pushoverApi({ tags: ["test-1"] }));
+const sent = await callPushover(pushoverFetchTo(server.url), request, extractPushoverSent, { timeoutMs: 5_000 });
+const ledger = pushoverLedgerOf(server.requests);
+await server.close();
+```
+
 ### Failures and pace
 
 - A request builder throws an error when the input breaks a rule of the API. Pushover refuses such a request, and many refusals can block the address of the caller.
