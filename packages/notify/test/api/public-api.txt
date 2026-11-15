@@ -95,6 +95,17 @@ pushoverReceiptRequest: dist/pushover.d.ts#pushoverReceiptRequest
 pushoverSendRequest: dist/pushover.d.ts#pushoverSendRequest
 pushoverValidateRequest: dist/pushover.d.ts#pushoverValidateRequest
 
+## ./testing (dist/testing/index.d.ts): names
+
+PushoverApiOptions: dist/testing/index.d.ts#PushoverApiOptions
+PushoverLedger: dist/testing/index.d.ts#PushoverLedger
+PushoverLedgerMessage: dist/testing/index.d.ts#PushoverLedgerMessage
+PushoverReceiptState: dist/testing/index.d.ts#PushoverReceiptState
+pushoverApi: dist/testing/index.d.ts#pushoverApi
+pushoverFetchTo: dist/testing/index.d.ts#pushoverFetchTo
+pushoverLedgerOf: dist/testing/index.d.ts#pushoverLedgerOf
+pushoverReceiptOf: dist/testing/index.d.ts#pushoverReceiptOf
+
 ## ./module (dist/module.d.ts): names
 
 default: dist/module.d.ts#notifyModule
@@ -376,3 +387,56 @@ export declare function pushoverSendRequest(token: string, message: PushoverMess
 
 ### dist/pushover.d.ts#pushoverValidateRequest
 export declare function pushoverValidateRequest(token: string, user: string, device?: string): PushoverRequest;
+
+### dist/testing/index.d.ts#PushoverApiOptions
+export interface PushoverApiOptions {
+    readonly receipts?: number;
+    readonly state?: PushoverReceiptState;
+    readonly acknowledgedAt?: number;
+    readonly expiresAt?: number;
+    readonly tags?: readonly string[] | "any";
+    readonly limit?: {
+        readonly messages: number;
+        readonly resetAt: number;
+    };
+}
+
+### dist/testing/index.d.ts#PushoverLedger
+export interface PushoverLedger {
+    readonly messages: readonly PushoverLedgerMessage[];
+    readonly counts: {
+        readonly sends: number;
+        readonly reads: number;
+        readonly cancels: number;
+        readonly tagCancels: number;
+        readonly validates: number;
+        readonly limits: number;
+        readonly other: number;
+    };
+}
+
+### dist/testing/index.d.ts#PushoverLedgerMessage
+export interface PushoverLedgerMessage {
+    readonly receipt: string;
+    readonly priority: number;
+    readonly tags: readonly string[];
+    readonly position: number;
+    readonly connection: number;
+    readonly readAt?: number;
+    readonly cancelledAt?: number;
+}
+
+### dist/testing/index.d.ts#PushoverReceiptState
+export type PushoverReceiptState = "pending" | "acknowledged" | "expired";
+
+### dist/testing/index.d.ts#pushoverApi
+export declare function pushoverApi(options?: PushoverApiOptions): ScriptedServerOptions;
+
+### dist/testing/index.d.ts#pushoverFetchTo
+export declare function pushoverFetchTo(origin: string, fetch?: PushoverFetch): PushoverFetch;
+
+### dist/testing/index.d.ts#pushoverLedgerOf
+export declare function pushoverLedgerOf(requests: readonly ScriptedRequest[]): PushoverLedger;
+
+### dist/testing/index.d.ts#pushoverReceiptOf
+export declare function pushoverReceiptOf(index: number): string;

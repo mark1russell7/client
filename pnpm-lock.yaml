@@ -1911,6 +1911,9 @@ importers:
       '@mark1russell7/cue':
         specifier: ^2.1.1
         version: 2.1.4
+      '@mark1russell7/rigor-testkit':
+        specifier: ^0.1.7
+        version: 0.1.7(@opentelemetry/api-logs@0.223.1)(@opentelemetry/api@1.10.0)(fast-check@4.10.2)
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -3628,6 +3631,30 @@ packages:
       '@opentelemetry/api-logs': ^0.213.0 || ^0.223.0
       '@opentelemetry/sdk-logs': ^0.223.0
       '@opentelemetry/sdk-metrics': ^2.12.0
+      '@opentelemetry/sdk-trace-base': ^2.12.0
+      fast-check: ^4.0.0
+    peerDependenciesMeta:
+      '@opentelemetry/api':
+        optional: true
+      '@opentelemetry/api-logs':
+        optional: true
+      '@opentelemetry/sdk-logs':
+        optional: true
+      '@opentelemetry/sdk-metrics':
+        optional: true
+      '@opentelemetry/sdk-trace-base':
+        optional: true
+      fast-check:
+        optional: true
+
+  '@mark1russell7/rigor-testkit@0.1.7':
+    resolution: {integrity: sha512-/Xz+efOov3xH4o7xOZmbdWWgyeMy/nt1XSh15WrPk292vl0cS6d8rdIqHIMM/goFKv3UdeqxVET7jZC/wZkQ0g==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      '@opentelemetry/api': ^1.9.0
+      '@opentelemetry/api-logs': ^0.213.0 || ^0.223.0
+      '@opentelemetry/sdk-logs': ^0.223.0 || ^3.0.0
+      '@opentelemetry/sdk-metrics': ^2.12.0 || ^3.0.0
       '@opentelemetry/sdk-trace-base': ^2.12.0
       fast-check: ^4.0.0
     peerDependenciesMeta:
@@ -7554,6 +7581,12 @@ snapshots:
       fast-check: 4.10.2
 
   '@mark1russell7/rigor-testkit@0.1.5(@opentelemetry/api-logs@0.223.1)(@opentelemetry/api@1.10.0)(fast-check@4.10.2)':
+    optionalDependencies:
+      '@opentelemetry/api': 1.10.0
+      '@opentelemetry/api-logs': 0.223.1
+      fast-check: 4.10.2
+
+  '@mark1russell7/rigor-testkit@0.1.7(@opentelemetry/api-logs@0.223.1)(@opentelemetry/api@1.10.0)(fast-check@4.10.2)':
     optionalDependencies:
       '@opentelemetry/api': 1.10.0
       '@opentelemetry/api-logs': 0.223.1
