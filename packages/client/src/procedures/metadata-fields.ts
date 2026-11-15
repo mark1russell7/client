@@ -16,7 +16,7 @@ const nameList = z.array(z.string());
 
 /** The schema of the typed fields of `ProcedureMetadata`. Another field keeps any value. */
 export const procedureMetadataFields: z.ZodType<Record<string, unknown>> = z.looseObject({
-  description: z.string().optional().describe("The description of the procedure, for people and for tools"),
+  description: z.string().optional().describe("A text that tells people and tools what the procedure does"),
   tags: nameList.optional().describe("The tags of the procedure"),
   title: z.string().optional().describe("The short name of the procedure, for example the title of an MCP tool"),
   deprecated: z.boolean().optional().describe("True when the procedure is deprecated"),
@@ -61,7 +61,7 @@ const FIELD_TYPES: Readonly<Record<string, string>> = {
 
 /** One typed field of metadata with a wrong type. */
 export interface MetadataFieldProblem {
-  /** The path of the wrong value, for example `metadata.tags` or `metadata.effects.writes`. */
+  /** The path of the wrong value, for example `metadata.tags`, `metadata.tags[1]` or `metadata.effects.writes`. */
   readonly field: string;
   /** The typed field that holds the wrong value, for example `metadata.effects`, or `metadata` itself. */
   readonly typedField: string;
@@ -82,7 +82,7 @@ export function metadataFieldProblems(metadata: unknown): MetadataFieldProblem[]
   const problems: MetadataFieldProblem[] = [];
   const seen = new Set<string>();
   for (const issue of result.error.issues) {
-    const field = issue.path.length > 0 ? `metadata.${issue.path.map(String).join(".")}` : "metadata";
+    const field = z.core.toDotPath(["metadata", ...issue.path]);
     if (seen.has(field)) continue;
     seen.add(field);
     const top = issue.path.length > 0 ? String(issue.path[0]) : undefined;

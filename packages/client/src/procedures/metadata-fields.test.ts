@@ -27,7 +27,7 @@ describe("metadataFieldProblems", () => {
 
   it.each([
     [{ tags: "math" }, "metadata.tags", "metadata.tags", "a list of strings"],
-    [{ tags: ["math", 1] }, "metadata.tags.1", "metadata.tags", "a list of strings"],
+    [{ tags: ["math", 1] }, "metadata.tags[1]", "metadata.tags", "a list of strings"],
     [{ description: 5 }, "metadata.description", "metadata.description", "a string"],
     [{ title: ["x"] }, "metadata.title", "metadata.title", "a string"],
     [{ deprecated: "yes" }, "metadata.deprecated", "metadata.deprecated", "a boolean"],
