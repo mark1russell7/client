@@ -1,5 +1,29 @@
 # @procedures/signaldb
 
+## 0.58.1
+
+### Patch Changes
+
+- Updated dependencies [1d47080]
+  - @procedures/client@0.58.1
+  - @procedures/collections@0.58.1
+
+## 0.58.0
+
+### Patch Changes
+
+- Updated dependencies [11f5035]
+  - @procedures/client@0.58.0
+  - @procedures/collections@0.58.0
+
+## 0.57.0
+
+### Patch Changes
+
+- Updated dependencies [f284167]
+  - @procedures/collections@0.57.0
+  - @procedures/client@0.57.0
+
 ## 0.56.0
 
 ### Patch Changes

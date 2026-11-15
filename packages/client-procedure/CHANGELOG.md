@@ -1,5 +1,30 @@
 # @procedures/procedure
 
+## 0.58.1
+
+### Patch Changes
+
+- Updated dependencies [1d47080]
+  - @procedures/client@0.58.1
+
+## 0.58.0
+
+### Patch Changes
+
+- 9f5b1a4: `procedure.new` adds the procedure to the list of `definePackage()`. Before, it refused each module of `definePackage()`, with the error "the file has no defineModule, registerProcedures or registerAll call".
+  
+  `procedure.new` also adds the procedure to an array literal with a method call, for example `[...].map(underARoot)` of the git and pnpm packages. The method gets the new procedure as each other item.
+  
+  PATCH: a fix of `procedure.new`.
+- Updated dependencies [11f5035]
+  - @procedures/client@0.58.0
+
+## 0.57.0
+
+### Patch Changes
+
+- @procedures/client@0.57.0
+
 ## 0.56.0
 
 ### Patch Changes
