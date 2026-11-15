@@ -21,7 +21,7 @@ describe("metadataFieldRefusal", () => {
 
   it.each([
     [{ tags: "math" }, "metadata.tags"],
-    [{ tags: ["math", 1] }, "metadata.tags.1"],
+    [{ tags: ["math", 1] }, "metadata.tags[1]"],
     [{ description: 5 }, "metadata.description"],
     [{ title: ["x"] }, "metadata.title"],
     [{ deprecated: "yes" }, "metadata.deprecated"],
