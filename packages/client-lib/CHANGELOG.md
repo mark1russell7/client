@@ -1,5 +1,142 @@
 # @procedures/lib
 
+## 0.57.0
+
+### Patch Changes
+
+- @procedures/client@0.57.0
+  - @procedures/dag@0.57.0
+  - @procedures/fs@0.57.0
+  - @procedures/git@0.57.0
+  - @procedures/pnpm@0.57.0
+  - @procedures/shell@0.57.0
+
+## 0.56.0
+
+### Patch Changes
+
+- 13996cf: An automated dependency update changes the shipped files, so this PATCH ships them.
+- Updated dependencies [13996cf]
+- Updated dependencies [13996cf]
+  - @procedures/dag@0.56.0
+  - @procedures/fs@0.56.0
+  - @procedures/git@0.56.0
+  - @procedures/pnpm@0.56.0
+  - @procedures/shell@0.56.0
+  - @procedures/client@0.56.0
+
+## 0.55.2
+
+### Patch Changes
+
+- @procedures/client@0.55.2
+  - @procedures/dag@0.55.2
+  - @procedures/fs@0.55.2
+  - @procedures/git@0.55.2
+  - @procedures/pnpm@0.55.2
+  - @procedures/shell@0.55.2
+
+## 0.55.1
+
+### Patch Changes
+
+- @procedures/client@0.55.1
+  - @procedures/dag@0.55.1
+  - @procedures/fs@0.55.1
+  - @procedures/git@0.55.1
+  - @procedures/pnpm@0.55.1
+  - @procedures/shell@0.55.1
+
+## 0.55.0
+
+### Patch Changes
+
+- Updated dependencies [fd9c6d4]
+- Updated dependencies [2918e97]
+  - @procedures/client@0.55.0
+  - @procedures/shell@0.55.0
+  - @procedures/fs@0.55.0
+  - @procedures/dag@0.55.0
+  - @procedures/git@0.55.0
+  - @procedures/pnpm@0.55.0
+
+## 0.54.1
+
+### Patch Changes
+
+- 25dd6f5: `lib.new` writes `!dist/.tsbuildinfo` after `dist` in the field `files` of a new package, so npm does not pack the build info file of tsc. With cue 2.1.3 the entry is already there, and `lib.new` does not add a second one.
+  
+  The module of `@procedures/lib` brings the module of `@procedures/shell`. Before, `createRegistry(libModule)` had no `shell.run`, and `lib.new` uses it.
+  
+  PATCH: a bug fix, the exports do not change.
+- Updated dependencies [13c3a8b]
+  - @procedures/client@0.54.1
+  - @procedures/dag@0.54.1
+  - @procedures/fs@0.54.1
+  - @procedures/git@0.54.1
+  - @procedures/pnpm@0.54.1
+  - @procedures/shell@0.54.1
+
+## 0.54.0
+
+### Patch Changes
+
+- 1401489: The tarball of each package leaves out `dist/.tsbuildinfo`. The `files` list of each package has the entry `!dist/.tsbuildinfo` after `dist`.
+  
+  The build writes this file for incremental builds. An app does not use it, and it added its size to each tarball (61 KB in `@procedures/json` 0.52.3). The conventions rule `pack-no-buildinfo` finds it.
+  
+  PATCH: the exports and the behavior do not change.
+- Updated dependencies [ef8e080]
+- Updated dependencies [1401489]
+  - @procedures/dag@0.54.0
+  - @procedures/client@0.54.0
+  - @procedures/fs@0.54.0
+  - @procedures/git@0.54.0
+  - @procedures/pnpm@0.54.0
+  - @procedures/shell@0.54.0
+
+## 0.53.1
+
+### Patch Changes
+
+- Updated dependencies [84f0c78]
+- Updated dependencies [abf290c]
+  - @procedures/client@0.53.1
+  - @procedures/dag@0.53.1
+  - @procedures/fs@0.53.1
+  - @procedures/git@0.53.1
+  - @procedures/pnpm@0.53.1
+  - @procedures/shell@0.53.1
+
+## 0.53.0
+
+### Patch Changes
+
+- Updated dependencies [bc98f77]
+- Updated dependencies [11d9084]
+- Updated dependencies [d28ccb5]
+- Updated dependencies [735cfcf]
+- Updated dependencies
+- Updated dependencies [556d0a8]
+  - @procedures/client@0.53.0
+  - @procedures/dag@0.53.0
+  - @procedures/fs@0.53.0
+  - @procedures/git@0.53.0
+  - @procedures/pnpm@0.53.0
+  - @procedures/shell@0.53.0
+
+## 0.52.5
+
+### Patch Changes
+
+- Updated dependencies [25a5f44]
+  - @procedures/client@0.52.5
+  - @procedures/dag@0.52.5
+  - @procedures/fs@0.52.5
+  - @procedures/git@0.52.5
+  - @procedures/pnpm@0.52.5
+  - @procedures/shell@0.52.5
+
 ## 0.52.4
 
 ### Patch Changes

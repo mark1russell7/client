@@ -30,6 +30,7 @@
       "@procedures/ios-backup",
       "@procedures/privacy-scan",
       "@procedures/pdf",
+      "@procedures/browser",
       "@procedures/claude-cli",
       "@procedures/cue",
       "@procedures/dag",

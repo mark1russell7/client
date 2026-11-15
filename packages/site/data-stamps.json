@@ -47,25 +47,6 @@
         "reproduce": "The numbers are of @procedures/mongo 0.47.2 at the commits 5c55c327 and ca514219. A run of a later commit measures a different version, so it does not reproduce them.",
         "today": "The page names the date, the commits and the version of the study. The write limit of 200 a second is a provisional plan from that study. It claims nothing about the current version."
       }
-    },
-    {
-      "page": "docs/packages/client-sqlite/index.html",
-      "study": true,
-      "runs": [
-        {
-          "id": "38994273238",
-          "url": "https://github.com/mark1russell7/client/actions/runs/38994273238",
-          "date": "2026-10-17T02:16:26Z",
-          "engines": {
-            "@procedures/sqlite": "0.4.0"
-          },
-          "commit": "89481b05139135ca25476041f76fbd54c9893786"
-        }
-      ],
-      "noLimit": {
-        "reproduce": "The numbers are of @procedures/sqlite 0.4.0 at commit 89481b05. A run of a later commit measures a different version, so it does not reproduce them.",
-        "today": "The page names the date, the commits and the version of the study. It claims nothing about the current version."
-      }
     }
   ]
 }

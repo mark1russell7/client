@@ -11,3 +11,4 @@ package-lock.json.bak
 cue.mod/pkg/
 .vite/
 public/data/
+measured/

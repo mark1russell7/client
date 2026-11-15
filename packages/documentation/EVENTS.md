@@ -367,6 +367,41 @@ Each write of the core collection procedures publishes a change event on the bus
 - The delivery is at most once. `EventsChangeFeed` of `@procedures/store` thus tells each loss to its `HybridStorage`, and the storage pulls.
 - The option `changeEvents` of `createCollectionProcedures()` turns the events off, or gives the topic of each call. The partition of a collection goes in the topic.
 
+#### The change events under overload
+
+Overload is an offered rate of writes above the rate that the storage serves. Before roadmap CLI-102, a subscriber on the topic stopped almost all replies in overload. The writes went through, but their replies did not come.
+
+The fault had two parts:
+
+- The reply of a write waits for the publish of its change event. Thus the event of a write is on the bus before its reply.
+- The publish reads the change log. In `@procedures/mongo`, that read went into the write queue of the collection, behind each write that waited.
+
+Thus each publish waited for the full queue, and each reply waited for a publish. With no subscriber, a publish reads nothing, so the same load kept its replies.
+
+The design has three answers to overload. The table gives the state of each answer and the reason.
+
+| Answer | State | Reason |
+|---|---|---|
+| A reply does not wait for a read that queues behind the writes it replies to. | Taken in `@procedures/mongo` 0.51.0 (PR #448). | `getChangesSince()` does not go into the write queue. The mark of a read stops below each write in flight, so a later read gives each write that this read did not give. |
+| A publish coalesces, so one read covers all the changes that wait. | Taken since CLI-15. | A write that ends while a publish waits joins that publish. Each chain has at most one publish that reads and one publish that waits. |
+| Work past a bound gets a clear refusal. | Not taken in the collection procedures. The host takes it (CLI-132). | The coalescing bounds the work of the publishes. The write queue is the general fault, with or without a subscriber. |
+
+The bound goes to the host, not to the change events:
+
+- The work of the publishes does not grow with the offered rate. One publish reads each write that ended before it starts.
+- The write queue of `MongoDocumentStorage` has no bound on its length. The option `writesInFlight` bounds the transactions at one time, not the writes that wait.
+- That queue grows past the service rate also with no subscriber. Thus a bound in the change events does not stop the fault.
+- The limits of the host (CLI-40) refuse a call past a rate with `RATE_LIMITED` and a wait in `retry-after`. The work did not start, so a retry after the wait is safe.
+- A rate limit needs the service rate, and the service rate changes with the storage and the load. A bound on the calls in flight does not need it.
+- The limiter of `@mark1russell7/service` has only rate policies (`TokenBucket` and `SlidingWindow`). Roadmap item CLI-132 adds a policy of calls in flight to that package first, then to the limits of the host.
+
+`changeEvents` stays `true` by default:
+
+- With the first two answers, a subscriber costs one read of the change log for each publish, not one for each write.
+- A topic with no subscriber reads nothing, so a host that does not subscribe pays only one check for each write.
+- The live-stall bench of `@procedures/mongo` measures the replies at 100 writers with a subscriber (arm `store`) and with no subscriber (arm `storequiet`).
+- The default stays `true` when the median replies of `store` are 80 % or more of the median replies of `storequiet`. Below that, the default changes to `false`, as its own MINOR (decision D13).
+
 #### The values reach a subscriber only through the checks of a read
 
 A value of a collection reaches a caller only through a read with its checks. Thus the events obey these rules:

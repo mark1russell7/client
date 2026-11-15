@@ -469,8 +469,8 @@ export type { MachineDocument, MachineTransition, MachineTransitionDef, MachineT
 export { TIMER_DEFAULTS } from "./timers.js";
 export type { TimerDefaults } from "./timers.js";
 // The transport over a message port: a Web Worker, a MessageChannel (roadmap R27)
-export { PortTransport } from "./adapters/port/transport.js";
-export type { PortLike, PortTransportOptions } from "./adapters/port/transport.js";
+export { PortTransport, electronPortOf } from "./adapters/port/transport.js";
+export type { MainPortLike, PortLike, PortTransportOptions } from "./adapters/port/transport.js";
 // The W3C trace context: one trace from the client to the handler (roadmap R16)
 export { TRACEPARENT_METADATA_KEY, formatTraceparent, parseTraceparent, newTraceId, newSpanId, isW3cIds } from "./tracing/traceparent.js";
 export type { TraceContext } from "./tracing/traceparent.js";
