@@ -1,5 +1,13 @@
 # @procedures/mcp-server
 
+## 0.58.2
+
+### Patch Changes
+
+- Updated dependencies [217871c]
+  - @procedures/client@0.58.2
+  - @procedures/mcp@0.58.2
+
 ## 0.58.1
 
 ### Patch Changes
