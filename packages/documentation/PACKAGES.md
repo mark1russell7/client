@@ -4,7 +4,7 @@
 > from the workspace's package.json files and the live procedure registry.
 > Regenerate with `node packages/documentation/scripts/generate-packages.ts` after `pnpm build`.
 
-**Packages:** 60. **Procedures:** 304. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
+**Packages:** 60. **Procedures:** 305. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
 
 Dependencies marked *(general)* are separate repositories, published on npm under `@mark1russell7`.
 
@@ -34,7 +34,7 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/playground` | `packages/client-playground` | A typed fluent API to write procedure programs in TypeScript (proc, ref, run) with autocomplete, then run them with the client. | — | `client` |
 | `@procedures/pnpm` | `packages/client-pnpm` | pnpm commands as typed procedures: install, add, remove, run, exec, list, why, outdated, update, pack and link, with --filter and -r, run with argv and option-injection guards. | `pnpm.*` (12) | `client`, `shell` |
 | `@procedures/procedure` | `packages/client-procedure` | Procedure scaffolding and management: procedure.new writes typed procedure files, plus get, list, define and the procedure store. | `procedure.*` (2) | `client` |
-| `@procedures/s3` | `packages/client-s3` | AWS S3 as typed procedures: upload, download with safe part files, list, head, copy, presigned URLs, delete and multipart uploads. | `s3.*` (12) | `client` |
+| `@procedures/s3` | `packages/client-s3` | AWS S3 as typed procedures: upload, download with safe part files, list, head, copy, presigned URLs, delete and multipart uploads. | `s3.*` (13) | `client` |
 | `@procedures/peer` | `packages/client-server` | Serve procedures: createProcedureHost() gives the parts of a service, with HTTP, WebSocket and MCP faces on one listener. Also peers, server.create, server.call and server.connections, and manifests. | `server.*` (5), `manifest.*` (1), `_discovery.*` (1) | `@mark1russell7/files` *(general)*, `@mark1russell7/service` *(general)*, `client` |
 | `@procedures/shell` | `packages/client-shell` | Safe command execution for TypeScript: shell.run with argv and no shell, shell.stream line streaming with backpressure, process-tree kill, timeouts and output caps. | `shell.*` (4) | `client` |
 | `@procedures/snapshot` | `packages/client-snapshot` | Snapshot and restore development environments with S3: git state, packages and files, with streamed archives and a safe restore. | `snapshot.*` (5) | `client`, `fs`, `git`, `pnpm`, `s3`, `shell` |
@@ -58,7 +58,7 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/mail` | `packages/mail` | Email procedures: the headers, addresses and text of a raw MIME message, and the headers of recent IMAP messages, read only. | `mail.*` (2) | `client` |
 | `@procedures/mark` | `packages/mark` | mark: one CLI for every procedure package. It finds the procedures, parses flags by their Zod types, runs local or through a fast warm server, and asks for missing arguments. | — | `@mark1russell7/service` *(general)*, `cli-kit`, `cli-run`, `client`, `fs`, `lib`, `mcp-dev-tools`, `peer`, `pnpm`, `procedure`, `server`, `shell`, `vitest` |
 | `@procedures/mcp` | `packages/mcp` | Map typed procedures to MCP tools: JSON Schema from Zod, tool names, and input and result conversion for Model Context Protocol servers. | — | — |
-| `@procedures/notify` | `packages/notify` | Push notifications through ntfy (the public server or your own) and Pushover, with emergency messages that repeat until acknowledged. | `notify.*` (6) | `client` |
+| `@procedures/notify` | `packages/notify` | Push notifications through ntfy (the public server or your own) and Pushover, with emergency messages that repeat until acknowledged, and Twilio texts and voice calls. | `notify.*` (6) | `@mark1russell7/text` *(general)*, `client` |
 | `@procedures/npm` | `packages/npm` | The npm registry as typed procedures: view, dist-tags, whoami, pack (a dry run by default) and deprecate, run with argv, and a confirmation for each write to the registry. The entry ./measures reads the use of a package: npm downloads, deps.dev dependents and jsDelivr hits. | `npm.*` (7) | `client`, `json`, `shell` |
 | `@procedures/pdf` | `packages/pdf` | HTML to PDF with a headless Chromium browser that is already installed (Edge, Chrome or Chromium), as the procedure pdf.render. The render is in @procedures/browser. | `pdf.*` (1) | `browser`, `client` |
 | `@procedures/privacy-scan` | `packages/privacy-scan` | Find private data in text before it goes public: email addresses, phone numbers, coordinates and the terms of your list. | `privacyScan.*` (2) | `client`, `@mark1russell7/text` *(general)* |

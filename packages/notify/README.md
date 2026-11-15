@@ -2,10 +2,11 @@
 
 [![npm](https://img.shields.io/npm/v/@procedures/notify?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/notify)
 
-Push notifications through ntfy (the public server or your own) and through Pushover.
+Push notifications through ntfy (the public server or your own) and through Pushover. Text messages and voice calls through Twilio.
 
 - With ntfy, each phone that subscribes to the topic gets the message.
 - With Pushover, each device of the user gets the message. An emergency message repeats until the user acknowledges it.
+- With Twilio, a phone gets a text message or a voice call. A call can tell a person from an answering machine.
 
 ## Install
 
@@ -110,3 +111,43 @@ await server.close();
 - After `refused` or `auth`, do not send the same request again.
 - After `rate-limited`, the application sent its messages of the month. Each send fails until `resetAt`.
 - Read one receipt at most once in 5 seconds.
+
+## Twilio
+
+`@procedures/notify/twilio` has pure functions for text messages and voice calls of Twilio. A browser can also use them. The entry has no procedures.
+
+- `twilioTextRequest` sends a text. `twilioTextStatusRequest` reads its status.
+- `twilioCallRequest` starts a call. `twilioCallStatusRequest` reads its status, and `twilioEndCallRequest` ends it.
+- `twilioSayTwiml` gives the TwiML of a call that says a text. It escapes the text.
+- `extractTwilioText` and `extractTwilioCall` read a response. `callTwilio` sends one request through the fetch that the caller gives.
+
+```ts
+import { callTwilio, extractTwilioCall, twilioCallRequest, twilioSayTwiml } from "@procedures/notify/twilio";
+
+const request = twilioCallRequest(credentials, {
+  to: phone, // E.164: a plus sign, the country code and the number
+  from: twilioNumber,
+  twiml: twilioSayTwiml("A test of the alerts.", 3),
+  ringMs: 45_000,
+  machineDetection: "Enable",
+});
+const call = await callTwilio(fetch, request, extractTwilioCall, { timeoutMs: 20_000 });
+```
+
+### The credentials
+
+`credentials` has the account SID (`AC`) and the auth token of the account. Better: give an API key with `keySid` (`SK`) and its secret. You can revoke a key and keep the account.
+
+A request holds the credentials in its `authorization` header. Do not log a request or its headers.
+
+### The states
+
+- A text is `pending`, `delivered` or `failed`. A carrier confirms the delivery of a text only in some countries.
+- A call is `pending`, `connected`, `answered`, `machine`, `unanswered` or `failed`. `ended` is true when the status cannot change again.
+- Only a call with `machineDetection` tells `answered` (a person) from `machine`. Without it, an answered call is `connected`.
+
+### Failures of Twilio
+
+- The kinds and the waits are the same as the kinds of Pushover. `code` holds the error code of Twilio.
+- `rate-limited` tells that the account has too many requests at the same time. Wait `retryAfterMs`, then send the same request again.
+- After `refused`, do not send the same request again. For example, the code `21211` tells that the number is not valid.
