@@ -214,7 +214,13 @@ export function checkBrowserRequest(
     const name = hostNameOf(headers.host);
     const allowed = options.allowedHosts ?? [];
     if (!LOOPBACK_NAMES.has(name) && !isIpAddressHost(name) && !allowed.some((host) => host.toLowerCase() === name)) {
-      return refusal("host-header-not-allowed", `Forbidden: the host "${name}" is not allowed`);
+      // The refusal names the two settings that permit a name, so an operator finds the change
+      return refusal(
+        "host-header-not-allowed",
+        name === ""
+          ? "Forbidden: the request has no Host header"
+          : `Forbidden: the host "${name}" is not allowed. To permit it, add it to allowedHosts of the host policy, or start the server with --allowed-host ${name}`
+      );
     }
   }
 

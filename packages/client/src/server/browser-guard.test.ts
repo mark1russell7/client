@@ -273,6 +273,15 @@ describe("checkBrowserRequest", () => {
     expect(reasonOf(on("192.168.1.5", { host: "other.lan" }, { allowedHosts: "*" }))).toBe("ok");
   });
 
+  it("names allowedHosts and --allowed-host in the refusal of a name", () => {
+    const refused = on("192.168.1.5", { host: "My-Server.lan:3000" });
+    expect(refused.ok === false && refused.message).toBe(
+      'Forbidden: the host "my-server.lan" is not allowed. To permit it, add it to allowedHosts of the host policy, or start the server with --allowed-host my-server.lan'
+    );
+    const noHost = on("192.168.1.5", {});
+    expect(noHost.ok === false && noHost.message).toBe("Forbidden: the request has no Host header");
+  });
+
   it("refuses the origin 'null' (a sandboxed frame or a file) unless every origin is allowed", () => {
     expect(check({ host: "localhost", origin: "null" }).ok).toBe(false);
     expect(check({ host: "localhost", origin: "null" }, { allowedOrigins: "*" }).ok).toBe(true);
