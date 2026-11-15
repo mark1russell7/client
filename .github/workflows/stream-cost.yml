@@ -260,12 +260,19 @@ jobs:
           status=0
           node --import tsx "bench/$SUITE-report.ts" --jobs bench-out --out "$SUITE-report.json" --run "$RUN" $ENFORCE ${DELAY:+--delay "$DELAY"} || status=$?
           { echo "Prediction: $PREDICTION"; echo '```json'; cat "$SUITE-report.json" || true; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          # The candidate limits of the partition gate row for each CPU model (CLI-96). Only a commit changes the frozen file.
+          if [ "$SUITE" = tenant-partition ]; then
+            node --import tsx bench/partition-candidates.ts --jobs bench-out --out partition-candidates.json || status=$?
+            { echo '```json'; cat partition-candidates.json || true; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          fi
           echo "status=$status" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ !cancelled() }}
         with:
           name: ${{ inputs.suite }}-cost-report
-          path: packages/client-mongo/${{ inputs.suite }}-report.json
+          path: |
+            packages/client-mongo/${{ inputs.suite }}-report.json
+            packages/client-mongo/partition-candidates.json
           if-no-files-found: warn
       - name: The verdict
         env:

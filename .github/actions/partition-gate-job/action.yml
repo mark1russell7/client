@@ -1,0 +1,36 @@
+name: One job of the partition gate row
+description: This action starts one job of the suite tenant-partition for one case on MongoDB 7 and uploads the records of the job.
+
+inputs:
+  job:
+    description: The number of the job. A second look has the number 2.
+    required: true
+  case:
+    description: The case of the job, from bench/partition-limits.ts.
+    required: true
+  artifact:
+    description: The name of the artifact that takes the records.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/start-mongo
+    - uses: ./.github/actions/store-gate-tools
+    - shell: bash
+      run: pnpm --filter "@procedures/mongo^..." run build
+    # The rounds and the cap are the values of the runs of the frozen limits: a job with other values has another spread
+    - name: Start the job
+      shell: bash
+      working-directory: packages/client-mongo
+      env:
+        MONGO_TEST_URL: mongodb://localhost:27017/?directConnection=true
+        JOB: ${{ inputs.job }}
+        CASE: ${{ inputs.case }}
+      run: node --import tsx bench/tenant-partition-run.ts --job "$JOB" --rounds 3 --cap 90 --case "$CASE" --out "bench-out/job-$JOB-$CASE.json"
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      if: always()
+      with:
+        name: ${{ inputs.artifact }}
+        path: packages/client-mongo/bench-out/
+        if-no-files-found: warn

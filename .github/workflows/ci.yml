@@ -485,6 +485,157 @@ jobs:
             packages/client-mongo/gate-report.json
           if-no-files-found: warn
 
+  # The gate row of the partition store (roadmap CLI-96). A pull request that changes the source of the
+  # storage starts one job of 3 rounds for each case at 200 writes a second, with 2 and 4 processes. Each
+  # job reads against the frozen limit of its CPU model in bench/partition-limits.json, and the rung keeps
+  # its absolute reading. A case with no read on a model with a limit gets one more job. "No read" is red
+  # with its own text: it is not a block and not a pass.
+  mongo-partition-plan:
+    name: MongoDB (a change of the storage)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      changed: ${{ steps.storage.outputs.changed }}
+      cases: ${{ steps.storage.outputs.cases }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      # HEAD is the merge of the pull request, and its first parent is the base of that merge
+      - name: Find a change of the storage or of the limits
+        id: storage
+        run: |
+          changed=$(git diff --name-only HEAD^1 HEAD | grep -E '^packages/client-mongo/src/storage/' | grep -vE '\.test\.tsx?$' || true)
+          if [ -n "$changed" ]; then echo "changed=true" >> "$GITHUB_OUTPUT"; else echo "No file of the storage changed, so this gate has nothing to read."; fi
+          # The cases of PARTITION_GATE_CASES. The verdict reads that list, so a case with no job here reads "no read".
+          echo 'cases=["200-p2","200-p4"]' >> "$GITHUB_OUTPUT"
+          if ! git diff --quiet HEAD^1 HEAD -- packages/client-mongo/bench/partition-limits.json; then echo "limits=true" >> "$GITHUB_OUTPUT"; fi
+      - uses: ./.github/actions/store-gate-tools
+        if: steps.storage.outputs.changed == 'true' || steps.storage.outputs.limits == 'true'
+      - name: Test the verdict
+        if: steps.storage.outputs.changed == 'true' || steps.storage.outputs.limits == 'true'
+        run: pnpm --filter @procedures/mongo exec vitest run bench/partition-limits.test.ts
+      # A tighter limit and a new model are free. A looser limit needs a new reason in the file.
+      - name: Check the file of limits against its base
+        if: steps.storage.outputs.limits == 'true'
+        working-directory: packages/client-mongo
+        run: |
+          before=()
+          if git show HEAD^1:packages/client-mongo/bench/partition-limits.json > "$RUNNER_TEMP/limits-before.json" 2>/dev/null; then before=(--before "$RUNNER_TEMP/limits-before.json"); fi
+          node --import tsx bench/partition-limits-check.ts "${before[@]}"
+
+  mongo-partition:
+    name: MongoDB (the partition gate row, ${{ matrix.case }})
+    needs: mongo-partition-plan
+    if: needs.mongo-partition-plan.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        case: ${{ fromJSON(needs.mongo-partition-plan.outputs.cases) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/partition-gate-job
+        with:
+          job: "1"
+          case: ${{ matrix.case }}
+          artifact: partition-gate-job-${{ matrix.case }}
+
+  mongo-partition-look:
+    name: MongoDB (the first look of the partition gate row)
+    needs: [mongo-partition-plan, mongo-partition]
+    if: ${{ !cancelled() && needs.mongo-partition-plan.outputs.changed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      rerun: ${{ steps.look.outputs.rerun }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/store-gate-tools
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: partition-gate-job-*
+          merge-multiple: true
+          path: packages/client-mongo/bench-out
+      # This step does not end the gate. The job after the second look gives the verdict.
+      - name: Find the cases with no read
+        id: look
+        working-directory: packages/client-mongo
+        run: |
+          node --import tsx bench/tenant-partition-report.ts --jobs bench-out --out look-report.json
+          node --import tsx bench/partition-gate.ts --jobs bench-out --report look-report.json --out look-gate.json --rerun "$GITHUB_OUTPUT" || true
+
+  mongo-partition-more:
+    name: MongoDB (the second look of the partition gate row, ${{ matrix.case }})
+    needs: mongo-partition-look
+    if: ${{ !cancelled() && needs.mongo-partition-look.result == 'success' && needs.mongo-partition-look.outputs.rerun != '' && needs.mongo-partition-look.outputs.rerun != '[]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        case: ${{ fromJSON(needs.mongo-partition-look.outputs.rerun) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/partition-gate-job
+        with:
+          job: "2"
+          case: ${{ matrix.case }}
+          artifact: partition-gate-more-${{ matrix.case }}
+
+  mongo-partition-verdict:
+    name: MongoDB (the verdict of the partition gate row)
+    needs: [mongo-partition-plan, mongo-partition, mongo-partition-look, mongo-partition-more]
+    if: ${{ !cancelled() && needs.mongo-partition-plan.outputs.changed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/store-gate-tools
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: partition-gate-job-*
+          merge-multiple: true
+          path: packages/client-mongo/bench-out
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: partition-gate-more-*
+          merge-multiple: true
+          path: packages/client-mongo/bench-out
+      # A rerun of the workflow is a further look. The name of the artifact keeps the attempt, for the count of the reruns.
+      - name: The verdict
+        working-directory: packages/client-mongo
+        run: |
+          status=0
+          node --import tsx bench/tenant-partition-report.ts --jobs bench-out --out partition-report.json
+          node --import tsx bench/partition-gate.ts --jobs bench-out --report partition-report.json --out partition-gate.json || status=$?
+          { echo '```json'; cat partition-gate.json || true; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$status" = 2 ]; then echo "::error title=The partition gate row has no read::$(jq -r .text partition-gate.json)"; fi
+          if [ "$status" = 1 ]; then echo "::error title=The partition gate row blocks this change::$(jq -r .text partition-gate.json)"; fi
+          exit "$status"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: partition-gate-report-attempt-${{ github.run_attempt }}
+          path: |
+            packages/client-mongo/bench-out/
+            packages/client-mongo/partition-report.json
+            packages/client-mongo/partition-gate.json
+          if-no-files-found: warn
+
   site:
     name: Site (browser smoke test)
     runs-on: ubuntu-latest
