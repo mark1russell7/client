@@ -1,5 +1,33 @@
 # @procedures/client
 
+## 0.58.1
+
+### Patch Changes
+
+- 1d47080: **Security fix:** a `register()` handler of a `ProcedureServer` needs the token, keeps the call limits and gets the stop refusal, as the host policy states.
+  
+  The handler gets the same admission as a procedure. Before, only the procedures got it.
+  
+  - A network request must send the token of the host policy, as the policy documents. The request hook and `authenticate` apply too.
+  - The call limits apply to the route of the handler. A handler declares no effects, so a limit of the writes covers it too.
+  - After `stopIntake()`, a new request gets `UNAVAILABLE`. `inFlight()` counts the call until its response, so `drain()` waits for it.
+  
+  A local request (`LOCAL_CREDENTIALS`) passes, as before. A client that sends the token sees no change.
+
+## 0.58.0
+
+### Minor Changes
+
+- 11f5035: A call limit takes a cost for each call (roadmap CLI-122). The new field `cost` of `CallLimit` is a whole number of 1 or more, or a function of the call. The default is 1. A cost for each item keeps a batch within the limit.
+  
+  A call whose cost is over the burst or the limit of the policy gets a capacity refusal. Its code changes from `RATE_LIMITED` to `PAYLOAD_TOO_LARGE`, not retryable. The metadata gives `reason: "capacity"`, `units` and `capacity`. The HTTP face answers 413 in place of 429, with `units` and `capacity` in the body and no `Retry-After`. The HTTP client, the batch, the WebSocket and the MCP faces carry both numbers.
+  
+  Migration steps:
+  
+  1. Code that reads a capacity refusal as `RATE_LIMITED` with `reason: "capacity"` reads `PAYLOAD_TOO_LARGE`. An HTTP client reads 413 in place of 429.
+  2. A store with pushes of batches sets `pushBatch` of `HybridStorage` within the capacity of the limit. A 413 with `units` and `capacity` lowers the cap of later pushes.
+  3. A host with a limit of each call gives no `cost`. Its limits keep one unit for each call.
+
 ## 0.57.0
 
 No changes in this release.
