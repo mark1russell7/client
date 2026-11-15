@@ -112,6 +112,7 @@ function isIpAddressHost(name: string): boolean {
       return false;
     }
   }
+  // path-check: the four numbers of an IPv4 address, not the parts of a path
   const parts = name.split(".");
   return parts.length === 4 && parts.every((part) => /^\d{1,3}$/.test(part) && Number(part) <= 255);
 }
