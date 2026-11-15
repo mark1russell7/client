@@ -53,7 +53,7 @@ export function endApiSpan(span: Span, error?: unknown): void {
 }
 
 /**
- * This function gives the items of the iterable of `open`, and starts `open` and each step of its
+ * This function gives the items of the iterable of `open`. It starts `open` and each step of the
  * iterator (`next`, `return` and `throw`) in the context `from`. An instrumentation that starts in a
  * step, for example the instrumentation of `fetch`, thus gets the span of `from` as its parent.
  * The context manager of a browser keeps a context only during a synchronous function. There, only

@@ -939,8 +939,8 @@ export class Client<TContext = {}> {
       let failure: unknown;
       try {
         // The span of the try is active while the transport sends. So an instrumentation of fetch
-        // or of the HTTP module starts its span in the trace of the call, and the HTTP header and
-        // the metadata carry one trace. Before, the instrumentation started a second trace.
+        // or of the HTTP module starts its span in the trace of the call. The HTTP header and the
+        // metadata thus carry one trace. Before, the instrumentation started a second trace.
         yield* iterateInContext(inSpan, () => self.transport.send<TReq, TRes>(context.message));
       } catch (error) {
         failure = error;
