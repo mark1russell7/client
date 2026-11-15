@@ -281,6 +281,8 @@ A gap before the end frame gives only the warning, and the stream ends. The remo
 
 - The client sends `{"type":"ping"}` frames, and the server answers with `{"type":"pong"}`.
 - The server sends WebSocket ping control frames. A connection that misses two pongs one after the other closes.
+- While the send buffer of a connection holds more than its high-water mark (1 MiB by default), the server does not read the frames of the connection. It reads them again when the socket wrote the buffer down to the mark.
+- While the server does not read the frames of a connection, it cannot read a pong. A frame that the server wrote since the last ping then counts as the pong. Thus a peer that reads slowly stays open, and a peer that does not read closes.
 
 ### Reserved frame types
 

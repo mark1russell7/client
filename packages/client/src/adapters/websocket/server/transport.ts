@@ -49,6 +49,16 @@ import {
 /** The `readyState` of an open socket: `WebSocket.OPEN` of `ws`. */
 const OPEN = 1;
 
+/** The flow state of one connection: the pause of its reads, and the frames that its socket wrote. */
+interface Flow {
+  /** True while the transport paused the reads of the connection: its send buffer is above `highWaterMark`. */
+  paused: boolean;
+  /** The count of the frames of the transport that the socket wrote. */
+  written: number;
+  /** The value of `written` at the last beat of the heartbeat. */
+  writtenAtBeat: number;
+}
+
 /**
  * This function gives the `WebSocketServer` class of `ws`. The start of the first server loads the
  * package, not the import of this file: a process without a socket does not load `ws` (roadmap O93).
@@ -89,7 +99,7 @@ export class WebSocketServerTransport implements ServerTransport {
   private options: Required<
     Omit<
       WebSocketServerTransportOptions,
-      "server" | "authenticate" | "onConnection" | "allowedOrigins" | "allowedHosts" | "heartbeat" | "reverseRequestTimeout" | "secretHeaders" | "logger"
+      "server" | "authenticate" | "onConnection" | "allowedOrigins" | "allowedHosts" | "heartbeat" | "reverseRequestTimeout" | "secretHeaders" | "logger" | "maxBufferedBytes"
     >
   > & {
     server: WebSocketServerTransportOptions["server"];
@@ -118,6 +128,10 @@ export class WebSocketServerTransport implements ServerTransport {
   private heartbeatTimer: ReturnType<typeof setInterval> | undefined;
   /** The pings without a pong, one after the other, of each connection */
   private readonly missedPongs = new WeakMap<WebSocket, number>();
+  /** The flow state of each connection, which `send()` keeps */
+  private readonly flows = new WeakMap<WebSocket, Flow>();
+  /** The largest send buffer of a connection in bytes, or undefined for no limit */
+  private readonly maxBufferedBytes: number | undefined;
 
   // Tracked connections with IDs for bidirectional RPC
   private trackedConnections = new Map<string, TrackedConnection>();
@@ -155,6 +169,11 @@ export class WebSocketServerTransport implements ServerTransport {
       clientTracking: options.clientTracking ?? true,
       highWaterMark: options.highWaterMark ?? 1024 * 1024,
     };
+    const maxBufferedBytes = options.maxBufferedBytes;
+    if (maxBufferedBytes !== undefined && !(Number.isFinite(maxBufferedBytes) && maxBufferedBytes > 0)) {
+      throw new RangeError(`WebSocketServerTransport: maxBufferedBytes must be a positive number of bytes, not ${String(maxBufferedBytes)}`);
+    }
+    this.maxBufferedBytes = maxBufferedBytes;
     this.guard = { allowedOrigins: options.allowedOrigins, allowedHosts: options.allowedHosts };
     // CSRF: a server that reads the cookies of each request needs named origins (CLI-2a)
     assertNamedOrigins("WebSocketServerTransport", server.ambientCredentials, options.allowedOrigins, "allowedOrigins");
@@ -171,11 +190,16 @@ export class WebSocketServerTransport implements ServerTransport {
 
   /**
    * One beat of the heartbeat: a connection that missed too many pongs closes at once (its close
-   * event aborts its requests), and each other connection gets a ping.
+   * event aborts its requests), and each other connection gets a ping. While the reads of a
+   * connection are paused, the server cannot read its pong. A frame that the socket wrote since the
+   * last beat then counts as the pong: the peer reads, but slowly.
    */
   private beat(): void {
     if (!this.heartbeat) return;
     for (const ws of this.connections) {
+      const flow = this.flowOf(ws);
+      if (flow.paused && flow.written > flow.writtenAtBeat) this.missedPongs.set(ws, 0);
+      flow.writtenAtBeat = flow.written;
       const missed = this.missedPongs.get(ws) ?? 0;
       if (missed >= this.heartbeat.misses) {
         writeLog(this.logger, "error", "A connection missed its pongs: closing it", { transport: this.name, missed }, `[${this.name}] A connection missed ${missed} pongs: closing it`);
@@ -410,7 +434,9 @@ export class WebSocketServerTransport implements ServerTransport {
 
     // The calls of this connection in the two directions (roadmap R24)
     const isOpen = (): boolean => ws.readyState === OPEN;
-    const send = (frame: WebSocketMessage): void => this.send(ws, frame);
+    const send = (frame: WebSocketMessage): void => {
+      this.send(ws, frame);
+    };
     this.channels.set(connectionId, {
       incoming: new IncomingCalls({
         handler: this.server,
@@ -587,16 +613,15 @@ export class WebSocketServerTransport implements ServerTransport {
    * the socket has written this frame, or the signal aborts.
    */
   private sendWithBackpressure(ws: WebSocket, message: WebSocketMessage, signal: AbortSignal): Promise<void> {
-    if (ws.readyState !== OPEN) return Promise.resolve();
     return new Promise<void>((resolve) => {
       let waiting = false;
       const onAbort = (): void => resolve();
-      ws.send(encodeFrame(message), () => {
+      const sent = this.send(ws, message, () => {
         if (!waiting) return;
         signal.removeEventListener("abort", onAbort);
         resolve();
       });
-      if (ws.bufferedAmount > this.options.highWaterMark && !signal.aborted) {
+      if (sent && ws.bufferedAmount > this.options.highWaterMark && !signal.aborted) {
         waiting = true;
         signal.addEventListener("abort", onAbort, { once: true });
       } else {
@@ -629,12 +654,56 @@ export class WebSocketServerTransport implements ServerTransport {
   }
 
   /**
-   * Send message to client.
+   * This method sends one frame to a connection. Each frame of the transport goes through it.
+   *
+   * - When the send buffer of the connection holds more than `maxBufferedBytes`, the method ends
+   *   the connection and does not send the frame: the peer does not read its frames.
+   * - When the buffer holds more than `highWaterMark` after the frame, the method pauses the reads
+   *   of the connection. The reads continue when the socket wrote the buffer down to the mark. Thus
+   *   the server does not read the next frames of a peer that does not read the answers, and the
+   *   answers cannot fill the memory of the process.
+   *
+   * The method gives false when it did not send the frame. `onWritten` runs when the socket wrote
+   * the frame, or when the write failed.
    */
-  private send(ws: WebSocket, message: WebSocketMessage): void {
-    if (ws.readyState === OPEN) {
-      ws.send(encodeFrame(message));
+  private send(ws: WebSocket, message: WebSocketMessage, onWritten?: () => void): boolean {
+    if (ws.readyState !== OPEN) return false;
+    const limit = this.maxBufferedBytes;
+    if (limit !== undefined && ws.bufferedAmount > limit) {
+      const buffered = ws.bufferedAmount;
+      writeLog(this.logger, "error", "A connection does not read its frames: closing it", { transport: this.name, buffered, maxBufferedBytes: limit }, `[${this.name}] A connection holds ${buffered} bytes that it did not read, more than maxBufferedBytes ${limit}: closing it`);
+      ws.terminate();
+      return false;
     }
+    const flow = this.flowOf(ws);
+    ws.send(encodeFrame(message), (error?: Error) => {
+      if (!error) this.written(ws, flow);
+      onWritten?.();
+    });
+    if (!flow.paused && ws.bufferedAmount > this.options.highWaterMark) {
+      flow.paused = true;
+      ws.pause();
+    }
+    return true;
+  }
+
+  /** This method counts a frame that the socket wrote, and continues the reads of a connection whose buffer drained. */
+  private written(ws: WebSocket, flow: Flow): void {
+    flow.written += 1;
+    if (flow.paused && ws.bufferedAmount <= this.options.highWaterMark) {
+      flow.paused = false;
+      ws.resume();
+    }
+  }
+
+  /** This method gives the flow state of a connection, and makes it at the first use. */
+  private flowOf(ws: WebSocket): Flow {
+    let flow = this.flows.get(ws);
+    if (!flow) {
+      flow = { paused: false, written: 0, writtenAtBeat: 0 };
+      this.flows.set(ws, flow);
+    }
+    return flow;
   }
 
   /**
