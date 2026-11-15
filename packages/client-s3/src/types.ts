@@ -620,3 +620,29 @@ export const S3PresignOutputSchema: z.ZodType<S3PresignOutput> = z.looseObject({
   expiresIn: z.number().describe("The seconds until the URL expires"),
   expiresAt: z.string().describe("The time at which the URL expires (ISO 8601)"),
 });
+
+// =============================================================================
+// s3.read Types: an object into memory, with a size limit
+// =============================================================================
+
+/** The input of `s3.read`: the input of `s3.download` without `destPath`. */
+export const S3ReadInputSchema: z.ZodObject<{
+  bucket: z.ZodString;
+  key: z.ZodString;
+  encoding: z.ZodOptional<z.ZodString>;
+  versionId: z.ZodOptional<z.ZodString>;
+  maxBytes: z.ZodOptional<z.ZodNumber>;
+}> = S3DownloadInputSchema.omit({ destPath: true });
+
+export type S3ReadInput = z.infer<typeof S3ReadInputSchema>;
+
+/** The output of `s3.read`: the output of `s3.download` without `path`. */
+export type S3ReadOutput = Omit<S3DownloadOutput, "path">;
+
+export const S3ReadOutputSchema: z.ZodType<S3ReadOutput> = z.looseObject({
+  body: z.string().describe("The content: text with an encoding, base64 without one"),
+  contentLength: z.number().describe("The size of the object, in bytes"),
+  contentType: z.string().optional().describe("The content type"),
+  etag: z.string().optional().describe("The ETag of the object, without quotes"),
+  lastModified: z.string().optional().describe("The time of the last change (ISO 8601)"),
+});
