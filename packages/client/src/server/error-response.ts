@@ -19,6 +19,7 @@
 import { InvocationError } from "../procedures/invoke.js";
 import { VERSION_CONFLICTS_METADATA_KEY, versionConflictsOf } from "../procedures/collection/precondition.js";
 import { errorCodeOf, retryableOf } from "../protocol.js";
+import { CallLimitError } from "./limits.js";
 import type { ServerResponse } from "./types.js";
 
 /** The real error of each error status that the server made from an error. */
@@ -70,6 +71,8 @@ export function errorResponse(id: string, error: unknown, request?: object): Ser
   const retryAfterMs = (error as { retryAfterMs?: unknown } | undefined)?.retryAfterMs;
   const metadata: Record<string, unknown> = reason ? { reason } : {};
   if (typeof retryAfterMs === "number" && Number.isFinite(retryAfterMs) && retryAfterMs >= 0) metadata["retry-after"] = retryAfterMs;
+  // A refused nested call gives the metadata of a refusal at the door: the cause, the wait, the units
+  if (error instanceof CallLimitError) Object.assign(metadata, error.limitMetadata);
   // A VERSION_CONFLICT error tells the current item of each conflict (roadmap CLI-16)
   const conflicts = versionConflictsOf(error);
   if (conflicts !== undefined) metadata[VERSION_CONFLICTS_METADATA_KEY] = conflicts;
