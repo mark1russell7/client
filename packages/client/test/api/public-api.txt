@@ -5830,6 +5830,7 @@ export declare class ProcedureRegistry {
 ### dist/procedures/registry.d.ts#ProcedureRegistryOptions
 export interface ProcedureRegistryOptions {
     resolver?: RegistryResolver | undefined;
+    logger?: Logger | undefined;
 }
 
 ### dist/procedures/registry.d.ts#RegistryError
