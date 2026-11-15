@@ -7,8 +7,9 @@
  * ran any procedure, and the WebSocket server accepted a connection from any page
  * (cross-site WebSocket hijacking). The checks here are on by default in both transports:
  *
- * - A connection that arrives on a loopback address must name a loopback host in its `Host`
- *   header. A DNS rebinding attack sends the name of the attacker's site.
+ * - Each request must name a permitted host in its `Host` header: a loopback name, an IP address,
+ *   or a name of `allowedHosts`. A DNS rebinding attack sends the name of the attacker's site.
+ *   The check is on each listener, also on a LAN address (`0.0.0.0`).
  * - A browser request (an `Origin` header) must come from the server's own origin, or from an
  *   origin in `allowedOrigins`.
  * - A request that the browser marks `Sec-Fetch-Site: cross-site` or `same-site` and that has
@@ -33,9 +34,10 @@ export interface BrowserGuardOptions {
    */
   allowedOrigins?: readonly string[] | "*" | ((origin: string) => boolean) | undefined;
   /**
-   * The host names that a request on a loopback address can name in its `Host` header,
-   * besides the loopback names. `"*"` turns the check off.
-   * @default [] (only `localhost`, `127.0.0.1` and `[::1]`)
+   * The host names that a request can name in its `Host` header, besides the loopback names and
+   * the IP addresses. The check is on each listener. A server that a LAN or a proxy reaches by a
+   * name lists that name here. `"*"` turns the check off.
+   * @default [] (only `localhost`, `127.0.0.1`, `[::1]` and the IP addresses)
    */
   allowedHosts?: readonly string[] | "*" | undefined;
   /**
@@ -93,6 +95,25 @@ function refusal(reason: Extract<GuardResult, { ok: false }>["reason"], message:
 /** True for a host name or a bind address that only this computer can reach. */
 export function isLoopbackHost(host: string): boolean {
   return LOOPBACK_NAMES.has(host.toLowerCase());
+}
+
+/**
+ * True for a host name that is an IP address: four decimal numbers from 0 to 255 (`192.168.1.20`),
+ * or an IPv6 address in brackets (`[fe80::1]`). A browser writes an IP address of a URL in these
+ * forms in the `Host` header. A DNS rebinding attack needs a name, not an IP address.
+ */
+function isIpAddressHost(name: string): boolean {
+  if (name.startsWith("[")) {
+    // The URL parser accepts only a valid IPv6 address in brackets
+    if (!/^\[[0-9a-f:.]+\]$/.test(name)) return false;
+    try {
+      return new URL(`http://${name}/`).hostname.startsWith("[");
+    } catch {
+      return false;
+    }
+  }
+  const parts = name.split(".");
+  return parts.length === 4 && parts.every((part) => /^\d{1,3}$/.test(part) && Number(part) <= 255);
 }
 
 /** True for a local socket address on the loopback interface (IPv4, IPv6, or IPv4 in IPv6). */
@@ -187,10 +208,12 @@ export function checkBrowserRequest(
 ): GuardResult {
   const { headers } = req;
 
-  // DNS rebinding: a request on a loopback address must name a loopback host
-  if (options.allowedHosts !== "*" && isLoopbackAddress(req.socket?.localAddress)) {
+  // DNS rebinding: each request names a loopback host, an IP address or a permitted name, on each
+  // listener. The check of the origin below compares the origin with this Host header.
+  if (options.allowedHosts !== "*") {
     const name = hostNameOf(headers.host);
-    if (!LOOPBACK_NAMES.has(name) && !(options.allowedHosts ?? []).includes(name)) {
+    const allowed = options.allowedHosts ?? [];
+    if (!LOOPBACK_NAMES.has(name) && !isIpAddressHost(name) && !allowed.some((host) => host.toLowerCase() === name)) {
       return refusal("host-header-not-allowed", `Forbidden: the host "${name}" is not allowed`);
     }
   }

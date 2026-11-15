@@ -15,7 +15,7 @@ import { ProcedureServer } from "./procedure-server.js";
 import { ProcedureRegistry } from "../procedures/registry.js";
 import { defineProcedure } from "../procedures/define.js";
 import { outputSchema } from "../procedures/core/schemas.js";
-import { checkBrowserRequest, isLoopbackAddress, type BrowserGuardOptions } from "./browser-guard.js";
+import { checkBrowserRequest, isLoopbackAddress, type BrowserGuardOptions, type GuardResult } from "./browser-guard.js";
 
 let cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => {
@@ -227,10 +227,50 @@ describe("checkBrowserRequest", () => {
     expect(isLoopbackAddress("192.168.1.5")).toBe(false);
   });
 
-  it("checks the host only on a loopback address", () => {
+  // A request on a socket with this local address
+  const on = (localAddress: string, headers: Record<string, string>, options: BrowserGuardOptions = {}) =>
+    checkBrowserRequest({ method: "POST", headers: { "content-type": "application/json", "content-length": "2", ...headers }, socket: { localAddress } }, options, true);
+  const reasonOf = (result: GuardResult) => (result.ok ? "ok" : result.reason);
+
+  it("checks the host on a loopback address", () => {
     expect(check({ host: "evil.example" }).ok).toBe(false);
     expect(check({ host: "evil.example" }, { allowedHosts: ["evil.example"] }).ok).toBe(true);
-    expect(checkBrowserRequest({ method: "POST", headers: { host: "my-server.lan" }, socket: { localAddress: "192.168.1.5" } }, {}, true).ok).toBe(true);
+  });
+
+  it("checks the host on a LAN address too: a DNS rebinding page is not the origin of the server", () => {
+    // The page http://evil.example:3000 after its name resolves to the LAN address of the host
+    const rebound = { host: "evil.example:3000", origin: "http://evil.example:3000" };
+    expect(reasonOf(on("192.168.1.20", rebound))).toBe("host-header-not-allowed");
+    expect(reasonOf(on("::ffff:192.168.1.20", rebound))).toBe("host-header-not-allowed");
+    expect(reasonOf(on("fe80::1", rebound))).toBe("host-header-not-allowed");
+    expect(reasonOf(on("192.168.1.5", { host: "my-server.lan" }))).toBe("host-header-not-allowed");
+    // A request with no Host header names no permitted host
+    expect(reasonOf(on("192.168.1.20", {}))).toBe("host-header-not-allowed");
+  });
+
+  it("accepts the loopback names and the IP addresses on each listener", () => {
+    for (const local of ["127.0.0.1", "::1", "192.168.1.20", "::ffff:192.168.1.20", "172.17.0.2"]) {
+      for (const host of ["localhost:3000", "127.0.0.1:3000", "[::1]:3000", "LOCALHOST", "192.168.1.20:3000", "10.0.0.7", "[fe80::1]:3000", "[::ffff:c0a8:114]"]) {
+        expect(reasonOf(on(local, { host })), `${host} on ${local}`).toBe("ok");
+      }
+    }
+    // The page of an IP address is the origin of the server at that address
+    expect(reasonOf(on("192.168.1.20", { host: "192.168.1.20:3000", origin: "http://192.168.1.20:3000" }))).toBe("ok");
+  });
+
+  it("refuses a name that only looks like an IP address", () => {
+    for (const host of ["1.2.3.4.evil.example", "256.1.1.1", "1.2.3", "1.2.3.4.5", "0x7f.0.0.1", "[evil.example]", "[]", "[:]x", "127.0.0.1.nip.io"]) {
+      expect(reasonOf(on("192.168.1.20", { host })), host).toBe("host-header-not-allowed");
+    }
+  });
+
+  it("accepts a name of allowedHosts on each listener, in any case, and each name with '*'", () => {
+    const options: BrowserGuardOptions = { allowedHosts: ["My-Server.lan"] };
+    expect(reasonOf(on("192.168.1.5", { host: "my-server.lan:3000" }, options))).toBe("ok");
+    expect(reasonOf(on("192.168.1.5", { host: "MY-SERVER.LAN" }, options))).toBe("ok");
+    expect(reasonOf(on("127.0.0.1", { host: "my-server.lan" }, options))).toBe("ok");
+    expect(reasonOf(on("192.168.1.5", { host: "other.lan" }, options))).toBe("host-header-not-allowed");
+    expect(reasonOf(on("192.168.1.5", { host: "other.lan" }, { allowedHosts: "*" }))).toBe("ok");
   });
 
   it("refuses the origin 'null' (a sandboxed frame or a file) unless every origin is allowed", () => {
