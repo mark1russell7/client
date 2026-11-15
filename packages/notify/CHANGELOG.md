@@ -1,5 +1,47 @@
 # @procedures/notify
 
+## 0.56.0
+
+### Patch Changes
+
+- 7337fd4: `@procedures/notify` sends through Pushover. The change adds names and is backward compatible, so it is a patch.
+  
+  - The new procedures are `notify.pushover.send`, `notify.pushover.receipt`, `notify.pushover.cancel`, `notify.pushover.validate` and `notify.pushover.limits`.
+  - `notify.pushover.send` with the priority `2` sends an emergency message. Pushover repeats it until the user acknowledges it, or until it expires.
+  - `notify.pushover.cancel` stops the repeats by a receipt, or by a tag. With a tag, a process that did not send the message can stop it.
+  - The procedures read the keys from `PUSHOVER_APP_TOKEN` and `PUSHOVER_USER_KEY`. Each variable name of `tokenEnv` and `userEnv` starts with `PUSHOVER_`.
+  - The new entry `./pushover` has pure request builders and extractors, and `callPushover`. The caller gives the fetch. The entry imports no Node built-in.
+  - A builder throws an error for input that Pushover refuses. An extractor gives each failure as a value with a `kind`, and does not throw.
+- 13996cf: An automated dependency update changes the shipped files, so this PATCH ships them.
+- Updated dependencies [13996cf]
+  - @procedures/client@0.56.0
+
+## 0.55.2
+
+### Patch Changes
+
+- @procedures/client@0.55.2
+
+## 0.55.1
+
+### Patch Changes
+
+- @procedures/client@0.55.1
+
+## 0.55.0
+
+### Patch Changes
+
+- Updated dependencies [fd9c6d4]
+  - @procedures/client@0.55.0
+
+## 0.54.1
+
+### Patch Changes
+
+- Updated dependencies [13c3a8b]
+  - @procedures/client@0.54.1
+
 ## 0.54.0
 
 ### Patch Changes

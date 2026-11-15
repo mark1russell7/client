@@ -1,5 +1,87 @@
 # @procedures/bundle-dev
 
+## 0.56.0
+
+### Patch Changes
+
+- 13996cf: An automated dependency update changes the shipped files, so this PATCH ships them.
+- Updated dependencies [13996cf]
+- Updated dependencies [13996cf]
+  - @procedures/cli-run@0.56.0
+  - @procedures/dag@0.56.0
+  - @procedures/fs@0.56.0
+  - @procedures/git@0.56.0
+  - @procedures/lib@0.56.0
+  - @procedures/pnpm@0.56.0
+  - @procedures/procedure@0.56.0
+  - @procedures/shell@0.56.0
+  - @procedures/client@0.56.0
+  - @procedures/compiler@0.56.0
+
+## 0.55.2
+
+### Patch Changes
+
+- @procedures/client@0.55.2
+  - @procedures/cli-run@0.55.2
+  - @procedures/dag@0.55.2
+  - @procedures/fs@0.55.2
+  - @procedures/git@0.55.2
+  - @procedures/lib@0.55.2
+  - @procedures/pnpm@0.55.2
+  - @procedures/procedure@0.55.2
+  - @procedures/shell@0.55.2
+  - @procedures/compiler@0.55.2
+
+## 0.55.1
+
+### Patch Changes
+
+- @procedures/client@0.55.1
+  - @procedures/cli-run@0.55.1
+  - @procedures/dag@0.55.1
+  - @procedures/fs@0.55.1
+  - @procedures/git@0.55.1
+  - @procedures/lib@0.55.1
+  - @procedures/pnpm@0.55.1
+  - @procedures/procedure@0.55.1
+  - @procedures/shell@0.55.1
+  - @procedures/compiler@0.55.1
+
+## 0.55.0
+
+### Patch Changes
+
+- Updated dependencies [fd9c6d4]
+- Updated dependencies [2918e97]
+  - @procedures/client@0.55.0
+  - @procedures/compiler@0.55.0
+  - @procedures/shell@0.55.0
+  - @procedures/fs@0.55.0
+  - @procedures/cli-run@0.55.0
+  - @procedures/dag@0.55.0
+  - @procedures/git@0.55.0
+  - @procedures/lib@0.55.0
+  - @procedures/pnpm@0.55.0
+  - @procedures/procedure@0.55.0
+
+## 0.54.1
+
+### Patch Changes
+
+- Updated dependencies [25dd6f5]
+- Updated dependencies [13c3a8b]
+  - @procedures/lib@0.54.1
+  - @procedures/client@0.54.1
+  - @procedures/cli-run@0.54.1
+  - @procedures/dag@0.54.1
+  - @procedures/fs@0.54.1
+  - @procedures/git@0.54.1
+  - @procedures/pnpm@0.54.1
+  - @procedures/procedure@0.54.1
+  - @procedures/shell@0.54.1
+  - @procedures/compiler@0.54.1
+
 ## 0.54.0
 
 ### Patch Changes

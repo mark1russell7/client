@@ -1,5 +1,94 @@
 # @procedures/bundle-mcp
 
+## 0.56.0
+
+### Patch Changes
+
+- 13996cf: An automated dependency update changes the shipped files, so this PATCH ships them.
+- Updated dependencies [13996cf]
+- Updated dependencies [13996cf]
+  - @procedures/cue@0.56.0
+  - @procedures/dag@0.56.0
+  - @procedures/docker@0.56.0
+  - @procedures/json@0.56.0
+  - @procedures/lib@0.56.0
+  - @procedures/procedure@0.56.0
+  - @procedures/sqlite@0.56.0
+  - @procedures/vitest@0.56.0
+  - @procedures/client@0.56.0
+  - @procedures/compiler@0.56.0
+  - @procedures/mongo@0.56.0
+
+## 0.55.2
+
+### Patch Changes
+
+- Updated dependencies [12ececd]
+  - @procedures/json@0.55.2
+  - @procedures/client@0.55.2
+  - @procedures/cue@0.55.2
+  - @procedures/dag@0.55.2
+  - @procedures/docker@0.55.2
+  - @procedures/lib@0.55.2
+  - @procedures/mongo@0.55.2
+  - @procedures/procedure@0.55.2
+  - @procedures/sqlite@0.55.2
+  - @procedures/vitest@0.55.2
+  - @procedures/compiler@0.55.2
+
+## 0.55.1
+
+### Patch Changes
+
+- @procedures/client@0.55.1
+  - @procedures/cue@0.55.1
+  - @procedures/dag@0.55.1
+  - @procedures/docker@0.55.1
+  - @procedures/lib@0.55.1
+  - @procedures/mongo@0.55.1
+  - @procedures/procedure@0.55.1
+  - @procedures/sqlite@0.55.1
+  - @procedures/vitest@0.55.1
+  - @procedures/compiler@0.55.1
+  - @procedures/json@0.55.1
+
+## 0.55.0
+
+### Patch Changes
+
+- Updated dependencies [fd9c6d4]
+  - @procedures/client@0.55.0
+  - @procedures/compiler@0.55.0
+  - @procedures/cue@0.55.0
+  - @procedures/dag@0.55.0
+  - @procedures/docker@0.55.0
+  - @procedures/lib@0.55.0
+  - @procedures/mongo@0.55.0
+  - @procedures/procedure@0.55.0
+  - @procedures/sqlite@0.55.0
+  - @procedures/vitest@0.55.0
+  - @procedures/json@0.55.0
+
+## 0.54.1
+
+### Patch Changes
+
+- Updated dependencies [25dd6f5]
+- Updated dependencies [8dc3e6c]
+- Updated dependencies [13c3a8b]
+- Updated dependencies [3914b5f]
+  - @procedures/lib@0.54.1
+  - @procedures/sqlite@0.54.1
+  - @procedures/client@0.54.1
+  - @procedures/mongo@0.54.1
+  - @procedures/cue@0.54.1
+  - @procedures/dag@0.54.1
+  - @procedures/docker@0.54.1
+  - @procedures/procedure@0.54.1
+  - @procedures/vitest@0.54.1
+  - @procedures/compiler@0.54.1
+  - @procedures/json@0.54.1
+
 ## 0.54.0
 
 ### Patch Changes

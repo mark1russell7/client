@@ -12,6 +12,8 @@
  * - The check uses the real path (`fs.realpath`) of the path. For a path that does not exist, it
  *   uses the real path of the nearest existing ancestor. So a symlinked parent folder cannot
  *   lead a write or a `mkdir` out of the root.
+ * - A relative target of a symlink starts at the real folder of the link, not at the text of the
+ *   path. A `..` in the target follows the rule of the system (`link-target.ts`).
  * - The procedure gets the absolute path, so the paths of the output are absolute.
  *
  * On Windows, the comparison ignores the case of the letters, and `/` and `\` are the same.
@@ -20,6 +22,7 @@
 import { readlink, realpath } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { InvocationError, type ProcedurePath } from "@procedures/client";
+import { isMissing, linkDestination } from "./link-target.js";
 
 /** The reason of the `FORBIDDEN` error for a path outside the root. */
 export const OUTSIDE_ROOT = "outside-root";
@@ -34,12 +37,6 @@ const MAX_LINKS = 40;
 export function isInside(folder: string, path: string): boolean {
   const rel = relative(folder, path);
   return rel === "" || (!isAbsolute(rel) && rel !== ".." && !rel.startsWith(`..${sep}`));
-}
-
-/** True for the error of a path that does not exist. */
-function isMissing(error: unknown): boolean {
-  const code = (error as NodeJS.ErrnoException | undefined)?.code;
-  return code === "ENOENT" || code === "ENOTDIR";
 }
 
 /** The target of a symlink, or undefined when the path is not a symlink or does not exist. */
@@ -75,7 +72,7 @@ export async function realPathOf(path: string, links = 0): Promise<string> {
         loop.code = "ELOOP";
         throw loop;
       }
-      return join(await realPathOf(resolve(dirname(current), target), links + 1), ...rest);
+      return join(await realPathOf(await linkDestination(current, target), links + 1), ...rest);
     }
     const parent = dirname(current);
     // No ancestor exists, for example a drive that is not there

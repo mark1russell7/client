@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from "vitest";
 import { InvocationError } from "@procedures/client";
-import { formatAddress, isPublicAddress, parseAddress, parseRange, rangeHas, specialClass } from "./address.js";
+import { formatAddress, isLocalName, isPublicAddress, parseAddress, parseRange, rangeHas, specialClass } from "./address.js";
 import { checkHost, createHostPolicy, DEFAULT_HOST_POLICY, HOST_NOT_ALLOWED, isHostNotAllowed, systemResolver, type HostPolicyOptions, type ResolvedAddress } from "./policy.js";
 
 const PATH = ["http", "request"];
@@ -114,6 +114,24 @@ describe("the classes of addresses", () => {
     expect(rangeHas(range, parseAddress("::ffff:10.0.0.1")!)).toBe(false);
     expect(parseRange("10.0.0.0/33")).toBeUndefined();
     expect(parseRange("10.0.0.0/x")).toBeUndefined();
+  });
+});
+
+describe("isLocalName", () => {
+  it.each(["localhost", "app.localhost", "printer.local", "nas.internal", "internal", "local", "router.home.arpa", "home.arpa", "a.b.c.local"])("%s is a local name", (name) => {
+    expect(isLocalName(name)).toBe(true);
+  });
+
+  it("ignores the letter case and one final dot", () => {
+    for (const name of ["LOCALHOST", "Printer.Local", "NAS.INTERNAL", "Router.Home.Arpa", "localhost.", "printer.local.", "Router.HOME.ARPA."]) expect(isLocalName(name), name).toBe(true);
+  });
+
+  it("refuses a name that only ends with the letters of a domain", () => {
+    for (const name of ["notlocal", "myinternal.example", "localhost.example", "mylocalhost", "home.arpa.example", "arpa", "fakehome.arpa", "local.example"]) expect(isLocalName(name), name).toBe(false);
+  });
+
+  it("refuses an IP address, a public name and the empty text", () => {
+    for (const name of ["127.0.0.1", "::1", "[::1]", "192.168.1.1", "example.com", "", "."]) expect(isLocalName(name), name).toBe(false);
   });
 });
 
