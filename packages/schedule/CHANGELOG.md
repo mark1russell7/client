@@ -1,5 +1,13 @@
 # @procedures/schedule
 
+## 0.57.0
+
+### Patch Changes
+
+- @procedures/store@0.57.0
+  - @procedures/client@0.57.0
+  - @procedures/fs@0.57.0
+
 ## 0.56.0
 
 ### Patch Changes
