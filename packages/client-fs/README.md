@@ -711,7 +711,7 @@ const { hash, size } = await client.exec(["fs", "hash"], { path: "./archive.tgz"
 
 #### `fs.temp`
 
-The procedure makes a new folder in the temporary folder of the system, and gives its path. With a root, the folder is in the folder `.tmp` of the root. The `prefix` has letters, digits, dots, underscores and hyphens only.
+The procedure makes a new folder in the temporary folder of the system, and gives its path. With a root, the folder is in the folder `.tmp` of the root. The `prefix` has letters, digits, dots, underscores and hyphens only. The prefix is only the start of the name, so a prefix of `..` makes a folder in the same place.
 
 #### `fs.watch`
 
