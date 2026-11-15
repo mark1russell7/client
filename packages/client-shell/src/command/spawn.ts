@@ -4,7 +4,7 @@
 
 import { spawn, type ChildProcess, type SpawnOptions as NodeSpawnOptions } from "node:child_process";
 import { nameStartErrors, startFile } from "./program.js";
-import { OWN_PROCESS_GROUP, track } from "./tree-kill.js";
+import { OWN_PROCESS_GROUP, killTree, track } from "./tree-kill.js";
 
 export interface SpawnOptions {
   /** The arguments. Each one goes to the program as it is: no shell reads it. */
@@ -48,6 +48,32 @@ export function startChild(command: string, options: SpawnOptions, stdin: "pipe"
   nameStartErrors(child, command, file);
   track(child);
   return child;
+}
+
+/**
+ * The time in milliseconds that the output pipes get after the end of the child, at a time limit,
+ * an abort or a stop. The data in the pipes arrives in this time.
+ */
+const PIPE_DRAIN_MS = 250;
+
+/**
+ * This function ends a command at its time limit, its abort or its stop. It kills the process
+ * tree. After the end of the child, the output pipes get `PIPE_DRAIN_MS`, then the function
+ * closes them. Thus a descendant that keeps the pipes (a process outside the group of the child,
+ * or each descendant on Windows) does not hold the command. The `close` event of the child follows.
+ */
+export function endCommand(child: ChildProcess, signal: NodeJS.Signals = "SIGTERM"): void {
+  killTree(child, signal);
+  const closePipes = (): void => {
+    const timer = setTimeout(() => {
+      child.stdout?.destroy();
+      child.stderr?.destroy();
+    }, PIPE_DRAIN_MS);
+    timer.unref();
+    child.once("close", () => clearTimeout(timer));
+  };
+  if (child.exitCode !== null || child.signalCode !== null) closePipes();
+  else child.once("exit", closePipes);
 }
 
 /** The text of an error that kept a program from starting, for example `spawn x ENOENT`. */
