@@ -1,5 +1,11 @@
 # @procedures/client
 
+## 0.56.0
+
+### Minor Changes
+
+- 13996cf: The release train: the ranges of @mark1russell7/coeval, @mark1russell7/quantity, @mark1russell7/text, @mark1russell7/files change to a version outside the old range. This release has breaking changes.
+
 ## 0.55.2
 
 No changes in this release.

@@ -1,5 +1,17 @@
 # @procedures/llm
 
+## 0.56.0
+
+### Patch Changes
+
+- 13996cf: An automated dependency update changes the shipped files, so this PATCH ships them.
+- Updated dependencies [7498bc1]
+- Updated dependencies [13996cf]
+- Updated dependencies [13996cf]
+  - @procedures/http@0.56.0
+  - @procedures/json@0.56.0
+  - @procedures/client@0.56.0
+
 ## 0.55.2
 
 ### Patch Changes
