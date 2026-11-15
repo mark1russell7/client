@@ -1,5 +1,23 @@
 # @procedures/snapshot
 
+## 0.58.2
+
+### Patch Changes
+
+- b6bc11e: Each `snapshot.*` procedure declares the procedures that it calls in `metadata.calls`. The declared effects of each procedure include the effects of these procedures, and the effects check of the ecosystem examines each edge.
+  
+  `snapshot.list`, `snapshot.diff` and `snapshot.restore` read the metadata of a snapshot with `s3.read`, not with `s3.download`. So `snapshot.list` and `snapshot.diff` start under a capability without writes.
+  
+  PATCH: a fix of the declarations. The input and the output of each procedure do not change.
+- Updated dependencies [217871c]
+- Updated dependencies [b6bc11e]
+  - @procedures/client@0.58.2
+  - @procedures/s3@0.58.2
+  - @procedures/fs@0.58.2
+  - @procedures/git@0.58.2
+  - @procedures/pnpm@0.58.2
+  - @procedures/shell@0.58.2
+
 ## 0.58.1
 
 ### Patch Changes
