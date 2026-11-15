@@ -71,6 +71,7 @@ const snapshotCreateProcedure = createProcedure()
   .output(SnapshotCreateOutputSchema)
   .meta({
     description: "Create environment snapshot and upload to S3",
+    calls: ["git.status", "git.revParse", "git.remote", "git.stash.list", "s3.upload", "s3.multipart.init", "s3.multipart.upload", "s3.multipart.complete", "s3.multipart.abort"],
     // It writes the archive to a new folder of the temporary directory and to new S3 keys with a
     // unique id, so it replaces no data
     effects: { reads: ["fs", "s3", "network"], writes: ["fs", "s3", "network"], destructive: false },
@@ -90,7 +91,8 @@ const snapshotListProcedure = createProcedure()
   .output(SnapshotListOutputSchema)
   .meta({
     description: "List available snapshots in S3 bucket",
-    // It downloads the metadata files into memory, not to a file
+    calls: ["s3.list", "s3.read"],
+    // It reads the metadata files into memory with s3.read, not to a file
     effects: { reads: ["s3", "network"], writes: [] },
     args: [],
     shorts: { bucket: "b", prefix: "p", maxResults: "n" },
@@ -107,6 +109,7 @@ const snapshotRestoreProcedure = createProcedure()
   .output(SnapshotRestoreOutputSchema)
   .meta({
     description: "Restore environment from S3 snapshot",
+    calls: ["s3.list", "s3.read", "s3.download"],
     // With overwrite: true, a restored folder replaces the existing folder
     effects: { reads: ["fs", "s3", "network"], writes: ["fs"] },
     fsRoot: RESTORE_UNDER_A_ROOT,
@@ -125,6 +128,7 @@ const snapshotDiffProcedure = createProcedure()
   .output(SnapshotDiffOutputSchema)
   .meta({
     description: "Compare current state against a snapshot",
+    calls: ["s3.list", "s3.read", "git.revParse", "git.diff", "git.stash.list"],
     // It reads the repositories with git queries that change nothing
     effects: { reads: ["fs", "s3", "network"], writes: [] },
     fsRoot: DIFF_UNDER_A_ROOT,
@@ -143,6 +147,7 @@ const snapshotDeleteProcedure = createProcedure()
   .output(SnapshotDeleteOutputSchema)
   .meta({
     description: "Delete a snapshot from S3",
+    calls: ["s3.list", "s3.delete"],
     effects: { reads: ["s3", "network"], writes: ["s3", "network"] },
     args: ["id"],
     shorts: { bucket: "b" },

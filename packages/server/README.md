@@ -157,6 +157,7 @@ procedure-server -p @procedures/mongo/register -t http,websocket
 | `--transport` | `-t` | `http` | Transports: http, websocket, local |
 | `--port` | - | `3000` | Port for the primary transport |
 | `--host` | - | `127.0.0.1` | Host to bind to. `0.0.0.0` serves every loaded procedure to the network |
+| `--allowed-host` | - | no names | The host names that a request can give in its `Host` header, besides `localhost` and the IP addresses. Give the name that a LAN or a proxy uses for this computer. Repeat the option, or separate the names with commas. `*` turns the check off. |
 | `--base-path` | - | `/api` | Base path for HTTP transport |
 | `--cors` | - | off | Enable CORS |
 | `--no-cors` | - | - | Disable CORS |

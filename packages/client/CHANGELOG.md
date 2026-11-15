@@ -1,5 +1,69 @@
 # @procedures/client
 
+## 0.59.0
+
+### Minor Changes
+
+- 8f8e5b2: **Breaking change:** each listener examines the `Host` header. By default, only `localhost`, `127.0.0.1`, `[::1]` and IP addresses pass. Give each other name with `--allowed-host` or `allowedHosts`.
+  
+  The browser checks examine the `Host` header on each listener. Before, they examined it only on a loopback address. A server on a LAN address (`0.0.0.0`) accepted each host name.
+  
+  A request must name one of these hosts in its `Host` header:
+  
+  - A loopback name: `localhost`, `127.0.0.1` or `[::1]`.
+  - An IP address, for example `192.168.1.20` or `[fe80::1]`.
+  - A name of `browser.allowedHosts` of the host policy, with any letter case.
+  
+  A request with another name gets `FORBIDDEN` (403) with the reason `host-header-not-allowed`. A request without a `Host` header gets it too. The message of the refusal names `allowedHosts` and `--allowed-host`. `browser.allowedHosts: "*"` turns the check off.
+  
+  The server command and `mark --server` get the option `--allowed-host <names>`. Repeat the option, or separate the names with commas. `@procedures/server` exports `parseAllowedHosts`.
+  
+  Migration steps:
+  
+  - A server that a LAN, a proxy or a container network reaches by a name: give the name in `browser.allowedHosts` of `hostPolicy()`. Or start the server with `--allowed-host <name>`.
+  - An MCP face on HTTP that clients reach by a name: give the name in `http.allowedHosts` of the face, or in `browser.allowedHosts` of the policy.
+  - A server that clients reach by `localhost` or by an IP address: no change.
+
+## 0.58.2
+
+### Patch Changes
+
+- 217871c: The admission examines each nested call that its caller does not declare. A procedure of code with declared effects answers for a nested call only in one case. An entry of its `metadata.calls` names the callee, and the effects of the callee are in its declaration. `checkEffects()` examines the same edges. Before, such a procedure answered for each of its nested calls, also without `calls`.
+  
+  Declare each nested callee of a procedure of code in `metadata.calls`. A nested call that the caller does not declare passes only when the capability permits the callee as a direct call.
+  
+  `examinesNestedCall()` gets the optional parameter `callee`. Without it, the function gives true.
+  
+  PATCH: a fix of the admission, and a new optional parameter.
+
+## 0.58.1
+
+### Patch Changes
+
+- 1d47080: **Security fix:** a `register()` handler of a `ProcedureServer` needs the token, keeps the call limits and gets the stop refusal, as the host policy states.
+  
+  The handler gets the same admission as a procedure. Before, only the procedures got it.
+  
+  - A network request must send the token of the host policy, as the policy documents. The request hook and `authenticate` apply too.
+  - The call limits apply to the route of the handler. A handler declares no effects, so a limit of the writes covers it too.
+  - After `stopIntake()`, a new request gets `UNAVAILABLE`. `inFlight()` counts the call until its response, so `drain()` waits for it.
+  
+  A local request (`LOCAL_CREDENTIALS`) passes, as before. A client that sends the token sees no change.
+
+## 0.58.0
+
+### Minor Changes
+
+- 11f5035: A call limit takes a cost for each call (roadmap CLI-122). The new field `cost` of `CallLimit` is a whole number of 1 or more, or a function of the call. The default is 1. A cost for each item keeps a batch within the limit.
+  
+  A call whose cost is over the burst or the limit of the policy gets a capacity refusal. Its code changes from `RATE_LIMITED` to `PAYLOAD_TOO_LARGE`, not retryable. The metadata gives `reason: "capacity"`, `units` and `capacity`. The HTTP face answers 413 in place of 429, with `units` and `capacity` in the body and no `Retry-After`. The HTTP client, the batch, the WebSocket and the MCP faces carry both numbers.
+  
+  Migration steps:
+  
+  1. Code that reads a capacity refusal as `RATE_LIMITED` with `reason: "capacity"` reads `PAYLOAD_TOO_LARGE`. An HTTP client reads 413 in place of 429.
+  2. A store with pushes of batches sets `pushBatch` of `HybridStorage` within the capacity of the limit. A 413 with `units` and `capacity` lowers the cap of later pushes.
+  3. A host with a limit of each call gives no `cost`. Its limits keep one unit for each call.
+
 ## 0.57.0
 
 No changes in this release.

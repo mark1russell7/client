@@ -406,7 +406,7 @@ A `FORBIDDEN` error tells its reason in the metadata key `reason`. The HTTP body
 | `partition-not-allowed` | The collection procedures | The partition resolver of the collection refuses the partition of the call (CLI-17). |
 | `write-not-allowed` | The collection procedures | The guard of the collection (`admission.guard`) refuses a write. The storage does not change (CLI-41). |
 | `origin-not-allowed` | The browser checks | The `Origin` of the request is not the origin of the server or a permitted origin. A cross-site request without a permitted origin gets it too. |
-| `host-header-not-allowed` | The browser checks | A request on a loopback address names a `Host` that is not permitted (DNS rebinding). |
+| `host-header-not-allowed` | The browser checks | The `Host` of the request is not a loopback name, an IP address or a permitted name (DNS rebinding). The check is on each listener. |
 | `method-not-allowed` | The browser checks of HTTP | The HTTP method is `GET` or `HEAD`, and the option `allowGet` is off. |
 | `media-type-not-allowed` | The browser checks of HTTP | The request body is not JSON. |
 
