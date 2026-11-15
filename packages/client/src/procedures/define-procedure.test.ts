@@ -656,6 +656,41 @@ describe("procedure.define through a client (deep dive 2026-10)", () => {
     expect(runtimeProgramOf(registry.get(["client", "add"])!)).toBeUndefined();
   });
 
+  it("refuses a typed metadata field with a wrong type, and procedure.list keeps its entries (RV-P-2)", async () => {
+    const { client, registry } = makeClient();
+    await define(client, ["test", "good"], add(1, 1));
+    for (const metadata of [{ tags: "math" }, { description: 5 }, { effects: { writes: "fs" } }]) {
+      await expect(
+        client.exec({ $proc: ["procedure", "define"], input: { path: ["test", "bad"], aggregation: add(1, 1), metadata } }),
+      ).rejects.toThrow();
+      expect(registry.get(["test", "bad"])).toBeUndefined();
+    }
+    const listed = await client.exec<{ procedures: Array<{ path: string[] }> }>(["procedure", "list"], {});
+    expect(listed.procedures.map((p) => p.path.join("."))).toContain("test.good");
+  });
+
+  it("keeps the source and the body of the framework when the caller gives metadata (RV-P-2)", async () => {
+    const { client, registry } = makeClient();
+    const body = add({ $ref: "input.a" }, 1);
+    const falseBody = add(5, 5);
+    await client.exec({
+      $proc: ["procedure", "define"],
+      input: { path: ["test", "meta"], aggregation: body, metadata: { description: "Add one", aggregation: falseBody, generatedFrom: "code", note: 7 } },
+    });
+    const metadata = registry.get(["test", "meta"])!.metadata;
+    expect(metadata["generatedFrom"]).toBe("procedure.define");
+    expect(metadata["aggregation"]).toEqual(body);
+    // A custom field keeps its value: the framework does not read it
+    expect(metadata["note"]).toBe(7);
+  });
+
+  it("the registry refuses a procedure of code with a typed metadata field of a wrong type (RV-P-2)", () => {
+    const registry = new ProcedureRegistry();
+    const procedure = { ...allCoreProcedures[0]!, path: ["test", "typed"], metadata: { tags: "math" } } as never;
+    expect(() => registry.register(procedure)).toThrow("The field metadata.tags has a wrong type");
+    expect(registry.get(["test", "typed"])).toBeUndefined();
+  });
+
   it("CORE-4: a three-step pipeline keeps $last and the step names", async () => {
     const { client } = makeClient();
     await define(client, ["test", "pipeline"], {
