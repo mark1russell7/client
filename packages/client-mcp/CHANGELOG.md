@@ -1,5 +1,48 @@
 # @procedures/mcp-server
 
+## 0.56.0
+
+### Minor Changes
+
+- 13996cf: The release train: the ranges of @mark1russell7/coeval, @mark1russell7/quantity, @mark1russell7/text, @mark1russell7/files change to a version outside the old range. This release has breaking changes.
+
+### Patch Changes
+
+- Updated dependencies [13996cf]
+- Updated dependencies [13996cf]
+  - @procedures/mcp@0.56.0
+  - @procedures/client@0.56.0
+
+## 0.55.2
+
+### Patch Changes
+
+- @procedures/client@0.55.2
+  - @procedures/mcp@0.55.2
+
+## 0.55.1
+
+### Patch Changes
+
+- @procedures/client@0.55.1
+  - @procedures/mcp@0.55.1
+
+## 0.55.0
+
+### Patch Changes
+
+- Updated dependencies [fd9c6d4]
+  - @procedures/client@0.55.0
+  - @procedures/mcp@0.55.0
+
+## 0.54.1
+
+### Patch Changes
+
+- Updated dependencies [13c3a8b]
+  - @procedures/client@0.54.1
+  - @procedures/mcp@0.54.1
+
 ## 0.54.0
 
 ### Patch Changes

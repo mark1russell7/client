@@ -10,12 +10,90 @@ FetchPost: dist/notify.d.ts#FetchPost
 NOTIFY_TOKEN_ENV: dist/procedures.d.ts#NOTIFY_TOKEN_ENV
 NTFY_URL: dist/notify.d.ts#NTFY_URL
 Notification: dist/notify.d.ts#Notification
+PUSHOVER_API: dist/pushover.d.ts#PUSHOVER_API
+PUSHOVER_ENV: dist/pushover-procedures.d.ts#PUSHOVER_ENV
+PUSHOVER_EXPIRE_MAX_MS: dist/pushover.d.ts#PUSHOVER_EXPIRE_MAX_MS
+PUSHOVER_KEY: dist/pushover.d.ts#PUSHOVER_KEY
+PUSHOVER_LIMITS: dist/pushover.d.ts#PUSHOVER_LIMITS
+PUSHOVER_MIN_WAIT_MS: dist/pushover.d.ts#PUSHOVER_MIN_WAIT_MS
+PUSHOVER_RETRY_MIN_MS: dist/pushover.d.ts#PUSHOVER_RETRY_MIN_MS
+PushoverCallback: dist/pushover.d.ts#PushoverCallback
+PushoverCancelled: dist/pushover.d.ts#PushoverCancelled
+PushoverEmergency: dist/pushover.d.ts#PushoverEmergency
+PushoverFailure: dist/pushover.d.ts#PushoverFailure
+PushoverFailureKind: dist/pushover.d.ts#PushoverFailureKind
+PushoverFetch: dist/pushover.d.ts#PushoverFetch
+PushoverLimits: dist/pushover.d.ts#PushoverLimits
+PushoverLimitsRead: dist/pushover.d.ts#PushoverLimitsRead
+PushoverMessage: dist/pushover.d.ts#PushoverMessage
+PushoverPriority: dist/pushover.d.ts#PushoverPriority
+PushoverReceipt: dist/pushover.d.ts#PushoverReceipt
+PushoverRequest: dist/pushover.d.ts#PushoverRequest
+PushoverResponse: dist/pushover.d.ts#PushoverResponse
+PushoverSent: dist/pushover.d.ts#PushoverSent
+PushoverValidated: dist/pushover.d.ts#PushoverValidated
+callPushover: dist/pushover.d.ts#callPushover
+extractPushoverCallback: dist/pushover.d.ts#extractPushoverCallback
+extractPushoverCancelled: dist/pushover.d.ts#extractPushoverCancelled
+extractPushoverLimits: dist/pushover.d.ts#extractPushoverLimits
+extractPushoverReceipt: dist/pushover.d.ts#extractPushoverReceipt
+extractPushoverSent: dist/pushover.d.ts#extractPushoverSent
+extractPushoverValidated: dist/pushover.d.ts#extractPushoverValidated
 headerSafe: dist/notify.d.ts#headerSafe
 notifyModule: dist/module.d.ts#notifyModule
 notifyProcedures: dist/procedures.d.ts#notifyProcedures
 notifySendProcedure: dist/procedures.d.ts#notifySendProcedure
+pushoverCancelByTagRequest: dist/pushover.d.ts#pushoverCancelByTagRequest
+pushoverCancelProcedure: dist/pushover-procedures.d.ts#pushoverCancelProcedure
+pushoverCancelRequest: dist/pushover.d.ts#pushoverCancelRequest
+pushoverLimitsProcedure: dist/pushover-procedures.d.ts#pushoverLimitsProcedure
+pushoverLimitsRequest: dist/pushover.d.ts#pushoverLimitsRequest
+pushoverProcedures: dist/pushover-procedures.d.ts#pushoverProcedures
+pushoverReceiptProcedure: dist/pushover-procedures.d.ts#pushoverReceiptProcedure
+pushoverReceiptRequest: dist/pushover.d.ts#pushoverReceiptRequest
+pushoverSendProcedure: dist/pushover-procedures.d.ts#pushoverSendProcedure
+pushoverSendRequest: dist/pushover.d.ts#pushoverSendRequest
+pushoverValidateProcedure: dist/pushover-procedures.d.ts#pushoverValidateProcedure
+pushoverValidateRequest: dist/pushover.d.ts#pushoverValidateRequest
 registerNotifyProcedures: dist/module.d.ts#registerNotifyProcedures
 sendNotification: dist/notify.d.ts#sendNotification
+
+## ./pushover (dist/pushover.d.ts): names
+
+PUSHOVER_API: dist/pushover.d.ts#PUSHOVER_API
+PUSHOVER_EXPIRE_MAX_MS: dist/pushover.d.ts#PUSHOVER_EXPIRE_MAX_MS
+PUSHOVER_KEY: dist/pushover.d.ts#PUSHOVER_KEY
+PUSHOVER_LIMITS: dist/pushover.d.ts#PUSHOVER_LIMITS
+PUSHOVER_MIN_WAIT_MS: dist/pushover.d.ts#PUSHOVER_MIN_WAIT_MS
+PUSHOVER_RETRY_MIN_MS: dist/pushover.d.ts#PUSHOVER_RETRY_MIN_MS
+PushoverCallback: dist/pushover.d.ts#PushoverCallback
+PushoverCancelled: dist/pushover.d.ts#PushoverCancelled
+PushoverEmergency: dist/pushover.d.ts#PushoverEmergency
+PushoverFailure: dist/pushover.d.ts#PushoverFailure
+PushoverFailureKind: dist/pushover.d.ts#PushoverFailureKind
+PushoverFetch: dist/pushover.d.ts#PushoverFetch
+PushoverLimits: dist/pushover.d.ts#PushoverLimits
+PushoverLimitsRead: dist/pushover.d.ts#PushoverLimitsRead
+PushoverMessage: dist/pushover.d.ts#PushoverMessage
+PushoverPriority: dist/pushover.d.ts#PushoverPriority
+PushoverReceipt: dist/pushover.d.ts#PushoverReceipt
+PushoverRequest: dist/pushover.d.ts#PushoverRequest
+PushoverResponse: dist/pushover.d.ts#PushoverResponse
+PushoverSent: dist/pushover.d.ts#PushoverSent
+PushoverValidated: dist/pushover.d.ts#PushoverValidated
+callPushover: dist/pushover.d.ts#callPushover
+extractPushoverCallback: dist/pushover.d.ts#extractPushoverCallback
+extractPushoverCancelled: dist/pushover.d.ts#extractPushoverCancelled
+extractPushoverLimits: dist/pushover.d.ts#extractPushoverLimits
+extractPushoverReceipt: dist/pushover.d.ts#extractPushoverReceipt
+extractPushoverSent: dist/pushover.d.ts#extractPushoverSent
+extractPushoverValidated: dist/pushover.d.ts#extractPushoverValidated
+pushoverCancelByTagRequest: dist/pushover.d.ts#pushoverCancelByTagRequest
+pushoverCancelRequest: dist/pushover.d.ts#pushoverCancelRequest
+pushoverLimitsRequest: dist/pushover.d.ts#pushoverLimitsRequest
+pushoverReceiptRequest: dist/pushover.d.ts#pushoverReceiptRequest
+pushoverSendRequest: dist/pushover.d.ts#pushoverSendRequest
+pushoverValidateRequest: dist/pushover.d.ts#pushoverValidateRequest
 
 ## ./module (dist/module.d.ts): names
 
@@ -80,3 +158,221 @@ export declare const notifyProcedures: AnyProcedure[];
 
 ### dist/procedures.d.ts#notifySendProcedure
 export declare const notifySendProcedure: AnyProcedure;
+
+### dist/pushover-procedures.d.ts#PUSHOVER_ENV
+export declare const PUSHOVER_ENV: RegExp;
+
+### dist/pushover-procedures.d.ts#pushoverCancelProcedure
+export declare const pushoverCancelProcedure: AnyProcedure;
+
+### dist/pushover-procedures.d.ts#pushoverLimitsProcedure
+export declare const pushoverLimitsProcedure: AnyProcedure;
+
+### dist/pushover-procedures.d.ts#pushoverProcedures
+export declare const pushoverProcedures: AnyProcedure[];
+
+### dist/pushover-procedures.d.ts#pushoverReceiptProcedure
+export declare const pushoverReceiptProcedure: AnyProcedure;
+
+### dist/pushover-procedures.d.ts#pushoverSendProcedure
+export declare const pushoverSendProcedure: AnyProcedure;
+
+### dist/pushover-procedures.d.ts#pushoverValidateProcedure
+export declare const pushoverValidateProcedure: AnyProcedure;
+
+### dist/pushover.d.ts#PUSHOVER_API
+export declare const PUSHOVER_API = "https://api.pushover.net/1";
+
+### dist/pushover.d.ts#PUSHOVER_EXPIRE_MAX_MS
+export declare const PUSHOVER_EXPIRE_MAX_MS = 10800000;
+
+### dist/pushover.d.ts#PUSHOVER_KEY
+export declare const PUSHOVER_KEY: RegExp;
+
+### dist/pushover.d.ts#PUSHOVER_LIMITS
+export declare const PUSHOVER_LIMITS: {
+    readonly message: 1024;
+    readonly title: 250;
+    readonly url: 512;
+    readonly urlTitle: 100;
+    readonly device: 25;
+    readonly users: 50;
+};
+
+### dist/pushover.d.ts#PUSHOVER_MIN_WAIT_MS
+export declare const PUSHOVER_MIN_WAIT_MS = 5000;
+
+### dist/pushover.d.ts#PUSHOVER_RETRY_MIN_MS
+export declare const PUSHOVER_RETRY_MIN_MS = 30000;
+
+### dist/pushover.d.ts#PushoverCallback
+export interface PushoverCallback {
+    readonly receipt: string;
+    readonly acknowledgedAt: number;
+    readonly acknowledgedBy?: string;
+    readonly acknowledgedByDevice?: string;
+}
+
+### dist/pushover.d.ts#PushoverCancelled
+export interface PushoverCancelled {
+    readonly ok: true;
+    readonly request?: string;
+    readonly cancelled?: number;
+}
+
+### dist/pushover.d.ts#PushoverEmergency
+export interface PushoverEmergency {
+    readonly retryMs: number;
+    readonly expireMs: number;
+    readonly callback?: string | undefined;
+    readonly tags?: readonly string[] | undefined;
+}
+
+### dist/pushover.d.ts#PushoverFailure
+export interface PushoverFailure {
+    readonly ok: false;
+    readonly kind: PushoverFailureKind;
+    readonly status: number;
+    readonly errors: readonly string[];
+    readonly request?: string;
+    readonly retryAfterMs?: number;
+    readonly resetAt?: number;
+}
+
+### dist/pushover.d.ts#PushoverFailureKind
+export type PushoverFailureKind = "network" | "timeout" | "server" | "rate-limited" | "auth" | "refused";
+
+### dist/pushover.d.ts#PushoverFetch
+export type PushoverFetch = (url: string, init: {
+    method: string;
+    headers: Record<string, string>;
+    body?: string;
+    signal: AbortSignal;
+}) => Promise<{
+    readonly status: number;
+    text(): Promise<string>;
+    readonly headers: {
+        get(name: string): string | null;
+    };
+}>;
+
+### dist/pushover.d.ts#PushoverLimits
+export interface PushoverLimits {
+    readonly limit: number;
+    readonly remaining: number;
+    readonly resetAt: number;
+}
+
+### dist/pushover.d.ts#PushoverLimitsRead
+export interface PushoverLimitsRead {
+    readonly ok: true;
+    readonly limits: PushoverLimits;
+}
+
+### dist/pushover.d.ts#PushoverMessage
+export interface PushoverMessage {
+    readonly user: string;
+    readonly message: string;
+    readonly title?: string | undefined;
+    readonly url?: string | undefined;
+    readonly urlTitle?: string | undefined;
+    readonly priority?: PushoverPriority | undefined;
+    readonly emergency?: PushoverEmergency | undefined;
+    readonly sound?: string | undefined;
+    readonly devices?: readonly string[] | undefined;
+    readonly timestampMs?: number | undefined;
+    readonly format?: "text" | "html" | "monospace" | undefined;
+    readonly ttlMs?: number | undefined;
+}
+
+### dist/pushover.d.ts#PushoverPriority
+export type PushoverPriority = -2 | -1 | 0 | 1 | 2;
+
+### dist/pushover.d.ts#PushoverReceipt
+export interface PushoverReceipt {
+    readonly ok: true;
+    readonly acknowledged: boolean;
+    readonly acknowledgedAt?: number;
+    readonly acknowledgedBy?: string;
+    readonly acknowledgedByDevice?: string;
+    readonly lastDeliveredAt?: number;
+    readonly expired: boolean;
+    readonly expiresAt: number;
+    readonly calledBack: boolean;
+    readonly calledBackAt?: number;
+}
+
+### dist/pushover.d.ts#PushoverRequest
+export interface PushoverRequest {
+    readonly url: string;
+    readonly method: "GET" | "POST";
+    readonly headers: Readonly<Record<string, string>>;
+    readonly body?: string;
+}
+
+### dist/pushover.d.ts#PushoverResponse
+export interface PushoverResponse {
+    readonly status: number;
+    readonly text: string;
+    readonly headers?: {
+        get(name: string): string | null;
+    } | undefined;
+}
+
+### dist/pushover.d.ts#PushoverSent
+export interface PushoverSent {
+    readonly ok: true;
+    readonly request: string;
+    readonly receipt?: string;
+    readonly limits?: PushoverLimits;
+}
+
+### dist/pushover.d.ts#PushoverValidated
+export interface PushoverValidated {
+    readonly ok: true;
+    readonly group: boolean;
+    readonly devices: readonly string[];
+    readonly licenses: readonly string[];
+}
+
+### dist/pushover.d.ts#callPushover
+export declare function callPushover<Result>(fetch: PushoverFetch, request: PushoverRequest, extract: (response: PushoverResponse) => Result | PushoverFailure, options: {
+    readonly timeoutMs: number;
+    readonly signal?: AbortSignal | undefined;
+}): Promise<Result | PushoverFailure>;
+
+### dist/pushover.d.ts#extractPushoverCallback
+export declare function extractPushoverCallback(body: string): PushoverCallback | undefined;
+
+### dist/pushover.d.ts#extractPushoverCancelled
+export declare function extractPushoverCancelled(response: PushoverResponse): PushoverCancelled | PushoverFailure;
+
+### dist/pushover.d.ts#extractPushoverLimits
+export declare function extractPushoverLimits(response: PushoverResponse): PushoverLimitsRead | PushoverFailure;
+
+### dist/pushover.d.ts#extractPushoverReceipt
+export declare function extractPushoverReceipt(response: PushoverResponse): PushoverReceipt | PushoverFailure;
+
+### dist/pushover.d.ts#extractPushoverSent
+export declare function extractPushoverSent(response: PushoverResponse): PushoverSent | PushoverFailure;
+
+### dist/pushover.d.ts#extractPushoverValidated
+export declare function extractPushoverValidated(response: PushoverResponse): PushoverValidated | PushoverFailure;
+
+### dist/pushover.d.ts#pushoverCancelByTagRequest
+export declare function pushoverCancelByTagRequest(token: string, tag: string): PushoverRequest;
+
+### dist/pushover.d.ts#pushoverCancelRequest
+export declare function pushoverCancelRequest(token: string, receipt: string): PushoverRequest;
+
+### dist/pushover.d.ts#pushoverLimitsRequest
+export declare function pushoverLimitsRequest(token: string): PushoverRequest;
+
+### dist/pushover.d.ts#pushoverReceiptRequest
+export declare function pushoverReceiptRequest(token: string, receipt: string): PushoverRequest;
+
+### dist/pushover.d.ts#pushoverSendRequest
+export declare function pushoverSendRequest(token: string, message: PushoverMessage): PushoverRequest;
+
+### dist/pushover.d.ts#pushoverValidateRequest
+export declare function pushoverValidateRequest(token: string, user: string, device?: string): PushoverRequest;

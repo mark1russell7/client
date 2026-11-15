@@ -4,7 +4,7 @@
 > from the workspace's package.json files and the live procedure registry.
 > Regenerate with `node packages/documentation/scripts/generate-packages.ts` after `pnpm build`.
 
-**Packages:** 60. **Procedures:** 299. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
+**Packages:** 60. **Procedures:** 304. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
 
 Dependencies marked *(general)* are separate repositories, published on npm under `@mark1russell7`.
 
@@ -13,7 +13,7 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/access` | `packages/access` | The rights of a principal on a scope: access lists, owners, implied rights and conditions over a document, with the rules of the app as a policy, and the output filter of a host. | — | `client` |
 | `@procedures/archive` | `packages/archive` | Archives as procedures: make, list and extract tar.gz and zip, with a check of each path against zip slip and links out of the target. | `archive.*` (3) | `client`, `fs` |
 | `@procedures/better-auth` | `packages/better-auth` | Better Auth for a procedures server: the sign-in with GitHub, Google and passkeys over MongoDB, and a request hook that gives the principal of a session or of an agent token. | — | `client` |
-| `@procedures/browser` | `packages/browser` | Find a Chromium browser that is already installed (Edge, Chrome or Chromium), and render a page with it: a PDF file or a screenshot, with no browser download. | — | `shell` |
+| `@procedures/browser` | `packages/browser` | Find a Chromium browser that is already installed (Edge, Chrome or Chromium), and render a page with it: a PDF file or a screenshot, with no browser download. Find and read the bookmarks files of the profiles of Chrome, Edge and Chromium. | — | `http`, `shell` |
 | `@procedures/bundle-assistant` | `packages/bundle-assistant` | The opt-in tools of the personal assistant for an MCP host: calendar files, mail parsing, places, routes, weather and photo metadata, without the procedures that can carry data out. | — | `client`, `exif`, `geo`, `http`, `ics`, `mail`, `weather` |
 | `@procedures/bundle-dev` | `packages/bundle-dev` | One import that registers the development procedures of the client ecosystem: shell, file system, git, pnpm, workspace, DAG and procedure scaffolding. | `client.*` (16), `procedure.*` (5) | `cli-run`, `client`, `compiler`, `dag`, `fs`, `git`, `lib`, `pnpm`, `procedure`, `shell` |
 | `@procedures/bundle-mcp` | `packages/bundle-mcp` | The curated tool surface for Claude: registers the docker, mongo, sqlite, cue, vitest and workspace procedures and selects which ones an MCP server exposes. | — | `client`, `compiler`, `cue`, `dag`, `docker`, `json`, `lib`, `mongo`, `procedure`, `sqlite`, `vitest` |
@@ -48,7 +48,7 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/env` | `packages/env` | Environment variables as procedures: one variable, the names, and the check of the required ones, with the secrets masked. | `env.*` (3) | `client` |
 | `@procedures/exif` | `packages/exif` | When and where a JPEG photo was taken, from its EXIF block (time, offset, GPS), without a dependency. | `exif.*` (1) | `client` |
 | `@procedures/geo` | `packages/geo` | Map procedures: the coordinates of an address (OpenStreetMap Nominatim), the time and distance of a drive (OSRM), the great-circle distance and the geohash. | `geo.*` (4) | `client` |
-| `@procedures/gh` | `packages/gh` | The GitHub CLI as procedures: pull requests, workflow runs and artifacts, releases, issues and the GitHub API, with an argument list and no shell. | `gh.*` (16) | `client`, `shell` |
+| `@procedures/gh` | `packages/gh` | The GitHub CLI as procedures: pull requests, workflow runs and artifacts, releases, issues and the GitHub API, with an argument list and no shell. Also a REST client with conditional requests and the limits of the rate. | `gh.*` (16) | `@mark1russell7/service` *(general)*, `client`, `http`, `shell` |
 | `@procedures/http` | `packages/http` | HTTP as procedures: request, JSON, NDJSON and server-sent events, with a host allowlist that refuses private addresses, size limits and the deadline of the call. | `http.*` (4) | `client` |
 | `@procedures/ics` | `packages/ics` | An iCalendar (RFC 5545) reader and writer without dependencies: the events of a calendar, their occurrences in a time window with the recurrences, and a calendar from events. | `ics.*` (4) | `client` |
 | `@procedures/mcp-dev-tools` | `packages/impl-mcp-dev` | A ready-to-use MCP server for Claude Code and Claude Desktop: 91 developer tools (docker, mongo, sqlite, cue, vitest, workspace) with a strict call policy. | — | `@mark1russell7/service` *(general)*, `bundle-mcp`, `client`, `compiler`, `fs`, `mcp-server` |
@@ -58,8 +58,8 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/mail` | `packages/mail` | Email procedures: the headers, addresses and text of a raw MIME message, and the headers of recent IMAP messages, read only. | `mail.*` (2) | `client` |
 | `@procedures/mark` | `packages/mark` | mark: one CLI for every procedure package. It finds the procedures, parses flags by their Zod types, runs local or through a fast warm server, and asks for missing arguments. | — | `@mark1russell7/service` *(general)*, `cli-kit`, `cli-run`, `client`, `fs`, `lib`, `mcp-dev-tools`, `peer`, `pnpm`, `procedure`, `server`, `shell`, `vitest` |
 | `@procedures/mcp` | `packages/mcp` | Map typed procedures to MCP tools: JSON Schema from Zod, tool names, and input and result conversion for Model Context Protocol servers. | — | — |
-| `@procedures/notify` | `packages/notify` | Push notifications through ntfy, the public server or your own, with a title, a priority, tags and a tap address. | `notify.*` (1) | `client` |
-| `@procedures/npm` | `packages/npm` | The npm registry as typed procedures: view, dist-tags, whoami, pack (a dry run by default) and deprecate, run with argv, and a confirmation for each write to the registry. | `npm.*` (7) | `client`, `shell` |
+| `@procedures/notify` | `packages/notify` | Push notifications through ntfy (the public server or your own) and Pushover, with emergency messages that repeat until acknowledged. | `notify.*` (6) | `client` |
+| `@procedures/npm` | `packages/npm` | The npm registry as typed procedures: view, dist-tags, whoami, pack (a dry run by default) and deprecate, run with argv, and a confirmation for each write to the registry. The entry ./measures reads the use of a package: npm downloads, deps.dev dependents and jsDelivr hits. | `npm.*` (7) | `client`, `json`, `shell` |
 | `@procedures/pdf` | `packages/pdf` | HTML to PDF with a headless Chromium browser that is already installed (Edge, Chrome or Chromium), as the procedure pdf.render. The render is in @procedures/browser. | `pdf.*` (1) | `browser`, `client` |
 | `@procedures/privacy-scan` | `packages/privacy-scan` | Find private data in text before it goes public: email addresses, phone numbers, coordinates and the terms of your list. | `privacyScan.*` (2) | `client`, `@mark1russell7/text` *(general)* |
 | `@procedures/restic` | `packages/restic` | The restic backup program as one procedure: backup, snapshots, restore and forget, with JSON output and no secret as input. | `restic.*` (1) | `client`, `shell` |

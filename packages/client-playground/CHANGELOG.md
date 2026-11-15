@@ -1,5 +1,39 @@
 # @procedures/playground
 
+## 0.56.0
+
+### Patch Changes
+
+- 13996cf: An automated dependency update changes the shipped files, so this PATCH ships them.
+- Updated dependencies [13996cf]
+  - @procedures/client@0.56.0
+
+## 0.55.2
+
+### Patch Changes
+
+- @procedures/client@0.55.2
+
+## 0.55.1
+
+### Patch Changes
+
+- @procedures/client@0.55.1
+
+## 0.55.0
+
+### Patch Changes
+
+- Updated dependencies [fd9c6d4]
+  - @procedures/client@0.55.0
+
+## 0.54.1
+
+### Patch Changes
+
+- Updated dependencies [13c3a8b]
+  - @procedures/client@0.54.1
+
 ## 0.54.0
 
 ### Patch Changes

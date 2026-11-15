@@ -1,5 +1,31 @@
 # @procedures/client
 
+## 0.56.0
+
+### Minor Changes
+
+- 13996cf: The release train: the ranges of @mark1russell7/coeval, @mark1russell7/quantity, @mark1russell7/text, @mark1russell7/files change to a version outside the old range. This release has breaking changes.
+
+## 0.55.2
+
+No changes in this release.
+
+## 0.55.1
+
+No changes in this release.
+
+## 0.55.0
+
+### Minor Changes
+
+- fd9c6d4: The release train: the ranges of @mark1russell7/coeval change to a version outside the old range. This release has breaking changes.
+
+## 0.54.1
+
+### Patch Changes
+
+- 13c3a8b: The cache middleware keeps its entries in `LRUCache` of `@mark1russell7/collections`, the home of the LRU cache (roadmap O98). The core removes its own `LruMap`. `LRUCache` checks the capacity and has `deleteWhere`, so the behavior does not change. A capacity that is not a positive whole number throws a `RangeError`, as before. An esbuild bundle for a browser gets 1075 more bytes of minified code, 478 bytes of gzip.
+
 ## 0.54.0
 
 ### Patch Changes
@@ -104,7 +130,7 @@
   - With no SDK, the behavior does not change: the W3C code of R16 operates.
   - The new option `apiSpans: false` of `tracingInterceptor` turns the spans of the API off. `metricsInterceptor` uses it.
   - `tracestate` and `baggage` are in the default CORS headers, and the cache key does not use them.
-  - The W3C exports of `tracing/traceparent.ts` are `@deprecated`. A later MINOR removes them, when the site, MiniMongo, Graph and jarvis register an SDK.
+  - The W3C exports of `tracing/traceparent.ts` are `@deprecated`. A later MINOR removes them, when the site and each private application register an SDK.
 
 ## 0.52.4
 
