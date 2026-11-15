@@ -14,3 +14,4 @@ export { s3MultipartAbort } from "./multipart-abort.js";
 export { s3Head } from "./head.js";
 export { s3Copy } from "./copy.js";
 export { s3Presign } from "./presign.js";
+export { s3Read } from "./read.js";

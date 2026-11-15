@@ -1,5 +1,14 @@
 # @procedures/npm
 
+## 0.58.1
+
+### Patch Changes
+
+- Updated dependencies [1d47080]
+  - @procedures/client@0.58.1
+  - @procedures/shell@0.58.1
+  - @procedures/json@0.58.1
+
 ## 0.58.0
 
 ### Patch Changes

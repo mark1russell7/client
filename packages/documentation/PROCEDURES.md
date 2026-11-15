@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.ts`.
 
-**Total procedures:** 304 across 50 namespaces. Loaded 47 package register(s).
+**Total procedures:** 305 across 50 namespaces. Loaded 47 package register(s).
 
 ## Namespaces
 
@@ -44,7 +44,7 @@
 - [`procedure.*`](#procedure) — 12 procedure(s)
 - [`program.*`](#program) — 4 procedure(s)
 - [`restic.*`](#restic) — 1 procedure(s)
-- [`s3.*`](#s3) — 12 procedure(s)
+- [`s3.*`](#s3) — 13 procedure(s)
 - [`schedule.*`](#schedule) — 4 procedure(s)
 - [`sdk.*`](#sdk) — 2 procedure(s)
 - [`server.*`](#server) — 8 procedure(s)
@@ -502,6 +502,7 @@
 | `s3.multipart.init` | Initialize multipart upload for large files |
 | `s3.multipart.upload` | Upload a part in multipart upload |
 | `s3.presign` | A presigned URL for a GET or a PUT of an object, with an expiry in seconds |
+| `s3.read` | Read an S3 object into memory, with a size limit (maxBytes, 64 MiB by default) |
 | `s3.upload` | Upload content to S3 bucket |
 
 ## schedule
