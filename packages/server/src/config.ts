@@ -57,10 +57,10 @@ export function parseAllowedHosts(value: string): string[] | "*" {
         .filter((name) => name.length > 0)
     ),
   ];
-  if (names.length === 0) throw new Error("--allowed-host needs a host name, such as my-server.lan, or *");
+  if (names.length === 0) throw new Error("--allowed-host needs a host name (for example my-server.lan) or *");
   for (const name of names) {
     if (name !== "*" && !/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/.test(name)) {
-      throw new Error(`Invalid host name: "${name}". Give a name without a port or a scheme, such as my-server.lan, or *.`);
+      throw new Error(`Invalid host name: "${name}". Give a name without a port or a scheme (for example my-server.lan) or *.`);
     }
   }
   return names.includes("*") ? "*" : names;

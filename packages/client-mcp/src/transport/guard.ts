@@ -4,8 +4,8 @@
  * The `handle` of the face calls `guardMcpRequest` before a request reaches the MCP SDK. The face
  * mounts on more than one kind of listener, so the listener adds no second check for its path.
  *
- * - The checks of a web browser (`checkBrowserRequest` of the core): a request on a loopback
- *   address names a loopback host or an allowed host (DNS rebinding), and an `Origin` header names
+ * - The checks of a web browser (`checkBrowserRequest` of the core): each request names a loopback
+ *   host, an IP address or an allowed host (DNS rebinding), and an `Origin` header names
  *   the server or a permitted origin. A request with cookies needs a named origin (CSRF).
  * - The credentials are not checked here (CLI-2b). After the browser checks, the face gives each
  *   request to the admission of its server (`admission()` of the handler): the request hook, the
@@ -54,7 +54,7 @@ export const MCP_HTTP_LIMITS: {
 export interface McpRequestGuardOptions {
   /** The browser origins that can call the face, besides its own origin. */
   readonly allowedOrigins?: BrowserGuardOptions["allowedOrigins"];
-  /** The host names that a request on a loopback address can name, besides the loopback names. */
+  /** The host names that a request can name, besides the loopback names and the IP addresses. */
   readonly allowedHosts?: BrowserGuardOptions["allowedHosts"];
   /** True when the server trusts cookies for the request: then only a named origin can call (CSRF). */
   readonly ambient?: boolean | undefined;
