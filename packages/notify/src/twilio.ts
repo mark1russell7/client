@@ -309,12 +309,12 @@ export function twilioEndCallRequest(credentials: TwilioCredentials, sid: string
   return post(credentials, `/Calls/${sid}.json`, { Status: end });
 }
 
-/** The characters that XML 1.0 does not allow, other than the tab, the line feed and the carriage return. */
-const NOT_XML = /[\u0000-\u0008\u000b\u000c\u000e-\u001f￾￿]/g;
+/** The characters that XML 1.0 does not permit, other than the tab, the line feed and the carriage return. */
+const NOT_XML = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffe\uffff]/g;
 
 /**
  * This function gives the TwiML that says a text, `repeats` times (1 to 10) with a pause of one second
- * between two repeats. It escapes the text, and it changes each character that XML does not allow to
+ * between two repeats. It escapes the text, and it changes each character that XML does not permit to
  * a space. It throws an error when the TwiML has more than 4000 characters.
  */
 export function twilioSayTwiml(text: string, repeats = 1): string {
