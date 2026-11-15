@@ -338,14 +338,20 @@ export interface IncomingCallsOptions {
   onSettled?: (() => void) | undefined;
 }
 
+/** A call that runs: its method, and the number of its stream items that went out. */
+interface RunningCall {
+  readonly method: Method | undefined;
+  items: number;
+}
+
 /** The calls that the other side sends on one socket, served by a handler. */
 export class IncomingCalls {
   private readonly options: IncomingCallsOptions;
 
   /** The calls that run, by wire id: a cancel frame or a closed socket aborts them */
   private readonly inflight = new Map<string, AbortController>();
-  /** The method of each call that runs, by its controller: the stop reads its effects (CLI-48) */
-  private readonly methods = new WeakMap<AbortController, Method>();
+  /** The method and the sent items of each call that runs, by its controller: the stop reads them (CLI-48) */
+  private readonly calls = new WeakMap<AbortController, RunningCall>();
   /** The flow control of the streams that run, by wire id */
   private readonly credits = new Map<string, StreamCredit>();
 
@@ -391,13 +397,15 @@ export class IncomingCalls {
    * This function aborts each call that runs. The cause is `"closed"` (the socket closed) or
    * `"stopped"` (the side stops on an open socket). A stopped call first gets its error frame, so
    * the other side knows the outcome (CLI-48). The frame asks for a retry only for a repeatable
-   * call of the handler (`isRepeatableCall`).
+   * call of the handler (`isRepeatableCall`) that sent no stream item: a retry after an item sends
+   * the items again (CLI-58).
    */
   abortAll(cause: "closed" | "stopped" = "closed"): void {
     for (const [id, controller] of this.inflight) {
       if (cause === "stopped") {
-        const method = this.methods.get(controller);
-        const end = stoppedCallError(method !== undefined && this.options.handler.isRepeatableCall?.(method) === true);
+        const call = this.calls.get(controller);
+        const repeatable = call?.method !== undefined && call.items === 0 && this.options.handler.isRepeatableCall?.(call.method) === true;
+        const end = stoppedCallError(repeatable);
         this.sendError(id, end.message, end.code, end.retryable);
       }
       controller.abort();
@@ -411,7 +419,8 @@ export class IncomingCalls {
   private async serve(frame: WebSocketMessage): Promise<void> {
     const controller = new AbortController();
     this.inflight.set(frame.id, controller);
-    if (frame.method) this.methods.set(controller, frame.method);
+    const call: RunningCall = { method: frame.method, items: 0 };
+    this.calls.set(controller, call);
     let credit: StreamCredit | undefined;
     let request: ServerRequest | undefined;
     try {
@@ -420,7 +429,7 @@ export class IncomingCalls {
       if (response.stream) {
         credit = typeof frame.credit === "number" && frame.credit > 0 ? new StreamCredit(frame.credit) : undefined;
         if (credit) this.credits.set(frame.id, credit);
-        await this.sendStream(frame.id, response.stream, controller.signal, credit);
+        await this.sendStream(frame.id, response.stream, controller.signal, credit, call);
       } else {
         const out: WebSocketMessage = {
           id: frame.id,
@@ -457,9 +466,9 @@ export class IncomingCalls {
    * `stream.done`. Each `stream` frame has its `seq`, from 1. An error of the stream ends it with
    * an `error` frame. When the signal aborts (a cancel frame, a closed socket), the loop stops,
    * and the handler of the stream gets return(). The stream takes its next item only when the
-   * reader has credit for it.
+   * reader has credit for it. `call.items` counts the item frames, also one that waits for room.
    */
-  private async sendStream(id: string, stream: AsyncIterable<unknown>, signal: AbortSignal, credit: StreamCredit | undefined): Promise<void> {
+  private async sendStream(id: string, stream: AsyncIterable<unknown>, signal: AbortSignal, credit: StreamCredit | undefined, call: RunningCall): Promise<void> {
     const iterator = stream[Symbol.asyncIterator]();
     let done = false;
     let seq = 0;
@@ -474,6 +483,7 @@ export class IncomingCalls {
         }
         if (signal.aborted || !this.options.isOpen()) return;
         const item: WebSocketMessage = { id, type: "stream", seq: ++seq, payload: result.value, stream: { done: false } };
+        call.items = seq;
         if (this.options.sendWithBackpressure) await this.options.sendWithBackpressure(item, signal);
         else this.send(item);
       }

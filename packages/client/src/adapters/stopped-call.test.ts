@@ -2,7 +2,8 @@
  * The end of a call that the stop of a face cuts (`WIRE-PROTOCOL.md`, section "Error codes",
  * CLI-48). Each face ends the call with `UNAVAILABLE`. The handler of a call that writes started,
  * so the call can have had its effect: its flag is `retryable: false`, and the retry middleware
- * does not send it again. A repeatable call keeps `retryable: true`, as on the host. The tests stop
+ * does not send it again. A repeatable call keeps `retryable: true`, as on the host, until the
+ * first item of its stream: a retry after an item sends the items again. The tests stop
  * the server with `close()`: the stop of the server aborts the calls before it stops each face.
  */
 
@@ -31,6 +32,7 @@ const READS = { reads: [], writes: [] };
 /** The effects of a procedure that writes: a second start can do the write two times */
 const WRITES = { reads: [], writes: ["notes"] };
 const feed = pathToMethod(["t", "feed"]);
+const watch = pathToMethod(["t", "watch"]);
 const wait = pathToMethod(["t", "wait"]);
 const look = pathToMethod(["t", "look"]);
 
@@ -62,26 +64,29 @@ const untilAbort = (signal: AbortSignal | undefined): Promise<void> =>
   });
 
 /**
- * A server with `t.feed` (one item, then a wait for the abort), `t.wait` and `t.look`. The
- * handlers of `t.wait` and `t.look` wait for the abort and then throw, as a handler that obeys its
- * signal does. `t.feed` and `t.wait` write. `t.look` changes nothing, so it is repeatable.
+ * A server with the streams `t.feed` and `t.watch` (one item, then a wait for the abort), and the
+ * calls `t.wait` and `t.look`. The handlers of `t.wait` and `t.look` wait for the abort and then
+ * throw, as a handler that obeys its signal does. `t.feed` and `t.wait` write. `t.watch` and
+ * `t.look` change nothing, so they are repeatable.
  */
 function serverOf(seen: Seen): ProcedureServer {
   const server = new ProcedureServer({
     registry: createRegistry({
       name: "t",
       procedures: [
-        createProcedure()
-          .path(["t", "feed"])
-          .input(z.object({}))
-          .output(z.number())
-          .meta({ effects: WRITES })
-          .handler(async function* (_input: unknown, ctx: { signal?: AbortSignal }) {
-            seen.starts++;
-            yield 1;
-            await untilAbort(ctx.signal);
-          } as never)
-          .build(),
+        ...(["feed", "watch"] as const).map((name) =>
+          createProcedure()
+            .path(["t", name])
+            .input(z.object({}))
+            .output(z.number())
+            .meta({ effects: name === "feed" ? WRITES : READS })
+            .handler(async function* (_input: unknown, ctx: { signal?: AbortSignal }) {
+              seen.starts++;
+              yield 1;
+              await untilAbort(ctx.signal);
+            } as never)
+            .build(),
+        ),
         ...(["wait", "look"] as const).map((name) =>
           createProcedure()
             .path(["t", name])
@@ -180,6 +185,17 @@ describe("a call that the stop of a face cuts ends with UNAVAILABLE, and a retry
       expect(seen.starts).toBe(1);
     });
 
+    it("ends a repeatable stream after its first item with no retry: a retry sends the items again", async () => {
+      const seen = seenOf();
+      const { server, client, statuses } = await start(seen);
+      const read = await readUntilCut(client.stream(watch, {}), () => server.close());
+      await read.cutting;
+      expect(read.items).toEqual([1]);
+      expect(read.error).toMatchObject(STOPPED);
+      expect(statuses).toEqual([200]);
+      expect(seen.starts).toBe(1);
+    });
+
     it("ends a call with a value with HTTP 500, and sends no second try", async () => {
       const seen = seenOf();
       const { server, client, statuses } = await start(seen);
@@ -226,6 +242,16 @@ describe("a call that the stop of a face cuts ends with UNAVAILABLE, and a retry
       expect(seen.starts).toBe(1);
     });
 
+    it("sends the error frame of a repeatable stream after its first item with no retry", async () => {
+      const seen = seenOf();
+      const { server, client } = await start(seen);
+      const read = await readUntilCut(client.stream(watch, {}), () => server.close());
+      await read.cutting;
+      expect(read.items).toEqual([1]);
+      expect(read.error).toMatchObject(STOPPED);
+      expect(seen.starts).toBe(1);
+    });
+
     it("sends the error frame of a call with a value before the socket closes", async () => {
       const seen = seenOf();
       const { server, client } = await start(seen);
@@ -264,6 +290,16 @@ describe("a call that the stop of a face cuts ends with UNAVAILABLE, and a retry
       await read.cutting;
       expect(read.items).toEqual([1]);
       // Before, the caller got no frame, and its call waited for its time-out
+      expect(read.error).toMatchObject(STOPPED);
+      expect(seen.starts).toBe(1);
+    });
+
+    it("sends the error of a repeatable stream after its first item with no retry", async () => {
+      const seen = seenOf();
+      const { worker, client } = start(seen);
+      const read = await readUntilCut(client.stream(watch, {}), () => worker.close());
+      await read.cutting;
+      expect(read.items).toEqual([1]);
       expect(read.error).toMatchObject(STOPPED);
       expect(seen.starts).toBe(1);
     });
