@@ -9,6 +9,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, sep } from "node:path";
@@ -169,19 +170,22 @@ describe("the check and the use of a path", () => {
     linkFolder(outside, join(root, "repo", "sub"));
     mkdirSync(join(root, "w", "sub"), { recursive: true });
     const handlers = rootedHandlers(root);
+    // The hook starts in the async context of the write, so it is in the hold of the write. The
+    // context of the test has no hold: the moves start there, as the calls of other clients.
+    const atTest = AsyncLocalStorage.snapshot();
     let moves: Promise<unknown> | undefined;
     let raced: string | undefined;
     gate.after = async (path) => {
       if (!path.endsWith(`${sep}w${sep}sub`)) return;
       gate.after = undefined;
       // The two moves start after the check of w/sub/x, before the write
-      moves = (async () => {
-        await handlers.move({ src: "w", dest: "w0" });
-        await handlers.move({ src: "repo", dest: "w" });
-      })();
+      moves = atTest(async () => {
+        await handlers.move({ src: "w", dest: "w0", overwrite: false });
+        await handlers.move({ src: "repo", dest: "w", overwrite: false });
+      });
       raced = await Promise.race([moves.then(() => "moved"), delay(200)]);
     };
-    await handlers.write({ path: join("w", "sub", "x"), content: "text" });
+    await handlers.write({ path: join("w", "sub", "x"), content: "text", encoding: "utf8", mode: "write" });
     await moves;
     // The moves waited for the end of the write
     expect(raced).toBe("time");
@@ -225,7 +229,7 @@ describe("the hold of a confined procedure", () => {
     const read = invokePath(["fs", "read"], { path: "a.txt" }, { registry }).then(() => "read");
     expect(await Promise.race([read, delay(100)])).toBe("time");
     release.open();
-    expect(outputValue(await change)).toBe("done");
+    expect(await outputValue(await change)).toBe("done");
     expect(await read).toBe("read");
   });
 
@@ -238,7 +242,7 @@ describe("the hold of a confined procedure", () => {
     const read = invokePath(["fs", "read"], { path: "a.txt" }, { registry }).then(() => "read");
     expect(await Promise.race([read, delay(1000)])).toBe("read");
     release.open();
-    expect(outputValue(await look)).toBe("done");
+    expect(await outputValue(await look)).toBe("done");
   });
 
   it.each([
