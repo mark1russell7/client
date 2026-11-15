@@ -400,6 +400,9 @@ function withRequestTimeout(
 // Procedure Server
 // =============================================================================
 
+/** The facts of a call target that the limits read: a procedure, or the method of a handler of `register()`. */
+type LimitTarget = { readonly path: ProcedurePath; readonly metadata?: unknown };
+
 /**
  * Server with procedure auto-registration and repository pattern.
  *
@@ -856,6 +859,9 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    * The expose rule of the face of the request (`request.expose`, AG1-B) comes before both. A path
    * outside it has no handler, also a handler of `register()` and an `alwaysOn` pin. A rule that is
    * not a function admits no path, so a face that sets a wrong value does not open the server.
+   *
+   * A handler of `register()` gets the same admission as a procedure: the refusal while the server
+   * stops, the token, the request hook, `authenticate` and the limits. It counts as a call in flight.
    */
   protected override findHandler(method: Method, request?: ServerRequest<unknown>): ServerHandler | null {
     if (request?.expose !== undefined) {
@@ -863,7 +869,10 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
       if (typeof rule !== "function" || rule(methodToPath(method)) !== true) return null;
     }
     const handler = super.findHandler(method);
-    if (handler) return handler;
+    if (handler) {
+      const target = { path: methodToPath(method) };
+      return async (request) => (await this.admitCall(target, request)) ?? (await this.tracked(() => handler(request)));
+    }
     const procedure = this.resolveProcedure(method);
     return procedure ? (request) => this.invoke(procedure, request) : null;
   }
@@ -896,6 +905,25 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    * time for its key (R1).
    */
   private async invoke(procedure: AnyProcedure, request: ServerRequest<unknown>): Promise<ServerResponse<unknown>> {
+    const refusal = await this.admitCall(procedure, request);
+    if (refusal) return refusal;
+    return this.tracked(() => {
+      const key = this.idempotency ? idempotencyKeyOf(request.metadata) : undefined;
+      // The key of the cache has the principal: another caller with the same key does not get the
+      // result of this call (audit s21). The JSON of the principal has no NUL character.
+      const principal = request.principal ? JSON.stringify([request.principal.via, request.principal.id]) : "";
+      return key === undefined || isRepeatable(effectsOf(procedure))
+        ? this.run(procedure, request, joinSignals(request.signal, this.lifetime.signal))
+        : this.runKeyed(procedure, request, `${pathToKey(procedure.path)}\u0000${principal}\u0000${key}`);
+    });
+  }
+
+  /**
+   * The checks of a call at the door of the server, for a procedure and for a handler of
+   * `register()`: the refusal while the server stops, `admit()` and the limits. The function gives
+   * the refusal, or undefined when the call passes.
+   */
+  private async admitCall(target: LimitTarget, request: ServerRequest<unknown>): Promise<ServerResponse<unknown> | undefined> {
     if (this.draining) {
       // The server stops: a client can send the call to another server, or again later (R14)
       return {
@@ -907,19 +935,18 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
     const refusal = await this.admit(request);
     if (refusal) return refusal;
     // The limits come after the authentication, so a key can read the principal (CLI-40)
-    const limited = await this.limit(procedure, request);
-    if (limited) return limited;
+    return this.limit(target, request);
+  }
+
+  /**
+   * This method counts a call in flight until its response, or until the end of its stream. So
+   * `drain()` waits for the call.
+   */
+  private async tracked(run: () => Promise<ServerResponse<unknown>> | ServerResponse<unknown>): Promise<ServerResponse<unknown>> {
     this.calls++;
     let response: ServerResponse<unknown> | undefined;
     try {
-      const key = this.idempotency ? idempotencyKeyOf(request.metadata) : undefined;
-      // The key of the cache has the principal: another caller with the same key does not get the
-      // result of this call (audit s21). The JSON of the principal has no NUL character.
-      const principal = request.principal ? JSON.stringify([request.principal.via, request.principal.id]) : "";
-      response =
-        key === undefined || isRepeatable(effectsOf(procedure))
-          ? await this.run(procedure, request, joinSignals(request.signal, this.lifetime.signal))
-          : await this.runKeyed(procedure, request, `${pathToKey(procedure.path)}\u0000${principal}\u0000${key}`);
+      response = await run();
     } finally {
       // A stream is in flight until its end; another response is done now
       if (!response?.stream) this.callEnded();
@@ -1018,10 +1045,10 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    * `RATE_LIMITED` response, or undefined when the call passes. A key or a cover function that
    * throws gives `INTERNAL_ERROR`, so a defect of a limit does not let a call in.
    */
-  private async limit(procedure: AnyProcedure, request: ServerRequest<unknown>): Promise<ServerResponse<unknown> | undefined> {
+  private async limit(target: LimitTarget, request: ServerRequest<unknown>): Promise<ServerResponse<unknown> | undefined> {
     if (!this.callLimits) return undefined;
     try {
-      const refused = await this.callLimits.admit(limitedCall(procedure, request));
+      const refused = await this.callLimits.admit(limitedCall(target, request));
       return refused ? rateLimitedResponse(request.id, refused) : undefined;
     } catch (error) {
       const message = `The limits of the server cannot admit the call: ${error instanceof Error ? error.message : String(error)}`;
