@@ -75,6 +75,8 @@ import {
   type S3PresignInput,
   type S3PresignOutput,
 } from "./types.js";
+import { s3Read } from "./procedures/s3/read.js";
+import { S3ReadInputSchema, S3ReadOutputSchema, type S3ReadInput, type S3ReadOutput } from "./types.js";
 
 // =============================================================================
 // The rules under a root of the files (roadmap R33, tracker item O36)
@@ -286,6 +288,22 @@ const s3PresignProcedure = createProcedure()
   .handler(async (input: S3PresignInput, ctx): Promise<S3PresignOutput> => s3Presign(input, ctx.capability))
   .build();
 
+// s3.read: an object into memory, with no writes. A caller that only reads an object declares
+// this procedure, and not s3.download, whose destPath writes a file.
+
+const s3ReadProcedure = createProcedure()
+  .path(["s3", "read"])
+  .input(S3ReadInputSchema)
+  .output(S3ReadOutputSchema)
+  .meta({
+    description: "Read an S3 object into memory, with a size limit (maxBytes, 64 MiB by default)",
+    effects: { reads: ["s3", "network"], writes: [] },
+    shorts: { bucket: "b", key: "k", encoding: "e" },
+    output: "json",
+  })
+  .handler(async (input: S3ReadInput): Promise<S3ReadOutput> => s3Read(input))
+  .build();
+
 // =============================================================================
 // Registration
 // =============================================================================
@@ -303,6 +321,7 @@ const s3Package: PackageDefinition = definePackage("@procedures/s3", [
     s3HeadProcedure,
     s3CopyProcedure,
     s3PresignProcedure,
+    s3ReadProcedure,
   ]);
 
 /**
