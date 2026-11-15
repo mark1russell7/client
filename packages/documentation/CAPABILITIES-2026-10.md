@@ -210,6 +210,25 @@ The declaration is `FsRootRules` of the core: `cwd`, `paths`, `names`, `required
 - The context of the call holds the caller, so the rule also holds for a stream (`docker.logs` with `follow` starts `shell.stream`).
 - The handler of a confined procedure and of a program procedure gets the root in `ctx.fsRoot`. A procedure that starts a program uses it to keep the program in the root. Git and gh use it.
 
+### The hold of the roots
+
+The check of a path and the operation read the links of the path at two times. A call that changes a folder of the path to a link between them leads the operation out of the root. A hold of the roots (`holdRoots()` of `@procedures/fs/root`) keeps the calls of the process out of this gap:
+
+| Calls | Hold |
+| --- | --- |
+| `fs.read`, `fs.write`, `fs.exists`, `fs.mkdir`, `fs.rm`, `fs.stat`, `fs.readdir`, `fs.glob`, `fs.read.json`, `fs.write.json`, `fs.hash`, `fs.temp`, `fs.watch` | shared |
+| `fs.move`, `fs.copy` | exclusive: they move or copy links |
+| `archive.create`, `archive.list` with the root of the module | shared |
+| `archive.extract` with the root of the module | exclusive: it can make a link |
+| A confined procedure whose effects write `fs` or `process`, or name no writes | exclusive: it or its program can make a link |
+| Each other confined procedure | shared |
+
+- Shared holds start together. An exclusive hold starts alone. The calls get the hold in the order that they came.
+- A call holds from the check of its paths to the end of its operation. A walk (`fs.glob`, `fs.copy`, `fs.rm`) holds for the time of the walk.
+- A nested call starts in the hold of its caller. A program procedure starts in the hold of its confined caller.
+- A stream holds until its handler gives the stream. `fs.watch` opens its watcher in the hold.
+- One hold covers all roots of the process. While a confined procedure that writes files works, for example `git.clone`, the other calls wait.
+
 ### The default for a procedure without rules
 
 A procedure without `metadata.fsRoot` gets a decision from its effects. The decision fails closed, as the admission of a capability does:
@@ -294,7 +313,8 @@ The keys of the configuration of a repository that a root refuses. The error nam
 
 ### The limits
 
-- The check and the operation are two steps. The check does not see a link that another process changes between them.
+- The check and the operation are two steps. The hold of the roots keeps the calls of the process out of the gap. Another process that changes a folder to a link between the two steps is outside the hold.
+- The items of a stream come after its hold. A stream that reads a path again for each item, for example `claude.follow`, reads its links again each time.
 - A confined procedure answers for its handler. A handler that reads a path that its rules do not name is a defect of its rules. The tests of the packages examine the rules.
 - A program that a confined procedure starts reads its own configuration. For example, the docker program reads its configuration in the home folder.
 - `confineToRoot()` examines the procedures of the registry when it starts. A procedure that a host registers later gets no rules. `procedure.define` makes data-driven procedures, and their nested calls get the rules.
