@@ -4206,7 +4206,7 @@ export declare function effectsOf(procedure: {
 }): Effects | undefined;
 
 ### dist/procedures/capability.d.ts#examinesNestedCall
-export declare function examinesNestedCall(caller: AnyProcedure, callerCapability: Capability<unknown>, capability: Capability<unknown>): boolean;
+export declare function examinesNestedCall(caller: AnyProcedure, callerCapability: Capability<unknown>, capability: Capability<unknown>, callee?: AnyProcedure): boolean;
 
 ### dist/procedures/capability.d.ts#explainInvocation
 export declare function explainInvocation(path: ProcedurePath, capability: Capability<unknown> | undefined, registry: {
