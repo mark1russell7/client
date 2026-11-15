@@ -100,6 +100,12 @@ describe("pushoverFetchTo", () => {
     });
     await fetch("https://api.pushover.net/1/receipts/x.json?token=t", { method: "GET", headers: {}, signal: new AbortController().signal });
     expect(calls).toEqual(["http://127.0.0.1:9/1/receipts/x.json?token=t"]);
+    const slashes = pushoverFetchTo(`http://127.0.0.1:9${"/".repeat(100_000)}`, async (url) => {
+      calls.push(url);
+      return { status: 200, text: async () => "{}", headers: { get: () => null } };
+    });
+    await slashes("https://api.pushover.net/1/apps/limits.json?token=t", { method: "GET", headers: {}, signal: new AbortController().signal });
+    expect(calls[1]).toBe("http://127.0.0.1:9/1/apps/limits.json?token=t");
     await expect(fetch("https://example.com/1/messages.json", { method: "POST", headers: {}, signal: new AbortController().signal })).rejects.toThrow(TypeError);
   });
 });

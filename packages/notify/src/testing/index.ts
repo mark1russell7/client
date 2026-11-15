@@ -105,7 +105,10 @@ export function pushoverApi(options: PushoverApiOptions = {}): ScriptedServerOpt
  * `origin`, with the same path and query. A request to another address fails, as a network failure does.
  */
 export function pushoverFetchTo(origin: string, fetch: PushoverFetch = globalThis.fetch): PushoverFetch {
-  const base = origin.replace(/\/+$/, "");
+  // A loop removes the slashes at the end. A regular expression such as /\/+$/ takes quadratic time on many slashes.
+  let end = origin.length;
+  while (end > 0 && origin.charCodeAt(end - 1) === 0x2f) end -= 1;
+  const base = origin.slice(0, end);
   return (url, init) => {
     if (!url.startsWith(`${PUSHOVER_API}/`)) return Promise.reject(new TypeError(`The address ${url} is not an address of the Pushover API.`));
     return fetch(`${base}${VERSION}${url.slice(PUSHOVER_API.length)}`, init);
