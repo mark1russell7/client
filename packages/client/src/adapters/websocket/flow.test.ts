@@ -119,13 +119,17 @@ describe("the flow of the frames of a connection", () => {
       await sleep(100);
     };
     beat(); // 1 missed pong
-    await readSome();
-    beat(); // The socket wrote frames while the reads were paused: the count starts again at 1
-    await readSome();
-    beat();
-    expect(socket.readyState).toBe(WsClient.OPEN);
+    // Five beats, more than misses: the socket wrote frames before each one, so the count starts again at 1
+    for (let round = 0; round < 5; round++) {
+      await readSome();
+      expect(socket.isPaused).toBe(true);
+      beat();
+      expect(socket.readyState).toBe(WsClient.OPEN);
+    }
+    expect(server.disconnects()).toBe(0);
     beat(); // No frame written since the last beat: 2 missed pongs
-    beat(); // 2 missed pongs: the connection closes
+    expect(socket.readyState).toBe(WsClient.OPEN);
+    beat(); // 2 missed pongs, as many as misses: the connection closes
     expect(socket.readyState).not.toBe(WsClient.OPEN);
     await waitFor(() => server.disconnects() === 1);
   }, 30_000);
@@ -149,6 +153,27 @@ describe("the flow of the frames of a connection", () => {
     expect(largest).toBeLessThanOrEqual(maxBufferedBytes + 17 * KIB);
     expect(error).toHaveBeenCalledTimes(1);
     expect(String(error.mock.calls[0]?.[0])).toContain("more than maxBufferedBytes 262144");
+  }, 15_000);
+
+  it("sends one frame larger than maxBufferedBytes, and ends the connection at the next frame", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const maxBufferedBytes = 64 * KIB;
+    const server = await startServer({ highWaterMark: 16 * KIB, maxBufferedBytes, heartbeat: false });
+    await deafClient(server.url);
+    await waitFor(() => server.sockets.length === 1);
+    const socket = server.sockets[0]!;
+    // One frame of 8 MiB: the buffer is empty before it, so the server sends it
+    server.transport.broadcast({ id: "large", type: "event", data: "x".repeat(8 * 1024 * KIB) });
+    await sleep(100);
+    expect(socket.readyState).toBe(WsClient.OPEN);
+    expect(error).not.toHaveBeenCalled();
+    // The peer does not read, so the frame stays in the buffer of the server
+    expect(socket.bufferedAmount).toBeGreaterThan(maxBufferedBytes);
+    // The next frame finds a buffer over the limit: the connection ends before the frame
+    server.transport.broadcast({ id: "next", type: "event", data: "small" });
+    expect(socket.readyState).not.toBe(WsClient.OPEN);
+    await waitFor(() => server.disconnects() === 1);
+    expect(error).toHaveBeenCalledTimes(1);
   }, 15_000);
 
   it("refuses a maxBufferedBytes that is not a positive number", () => {
