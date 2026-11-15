@@ -5172,7 +5172,7 @@ export declare function tracingInterceptor(options: TracingInterceptorOptions): 
 export type AdmitItem = (item: unknown, invocation: Invocation) => boolean | Promise<boolean>;
 
 ### dist/procedures/invoke.d.ts#ForbiddenReason
-export type ForbiddenReason = CapabilityRefusalReason | "outside-root" | "host-not-allowed" | "topic-not-allowed" | "partition-not-allowed" | "write-not-allowed";
+export type ForbiddenReason = CapabilityRefusalReason | "outside-root" | "host-not-allowed" | "topic-not-allowed" | "partition-not-allowed" | "write-not-allowed" | "depth";
 
 ### dist/procedures/invoke.d.ts#Interceptor
 export type Interceptor = (invocation: Invocation, next: InvocationNext) => Promise<ProcedureOutput<unknown>>;
@@ -5231,6 +5231,7 @@ export interface InvokeOptions {
     strictCalls?: boolean | undefined;
     interceptors?: readonly Interceptor[] | undefined;
     parent?: Invocation | undefined;
+    maxDepth?: number | undefined;
     capability?: Capability | undefined;
     narrow?: CapabilityRequest | undefined;
     onNarrowingNotes?: ((notes: readonly NarrowingNote[]) => void) | undefined;
@@ -6326,6 +6327,7 @@ export declare function faceRules(options: FaceRulesOptions, policy: Pick<HostPo
 export interface HostPolicy {
     readonly expose: ((path: ProcedurePath) => boolean) | undefined;
     readonly strictCalls: boolean;
+    readonly maxDepth?: number | undefined;
     readonly interceptors: readonly Interceptor[];
     readonly token: string | undefined;
     readonly principalOf?: PrincipalOf | undefined;
@@ -6345,6 +6347,7 @@ export interface HostPolicyOptions {
     expose?: readonly string[] | ToolSurface | ((path: ProcedurePath) => boolean) | undefined;
     exclude?: readonly string[] | undefined;
     strictCalls?: boolean | undefined;
+    maxDepth?: number | undefined;
     timeout?: Duration | undefined;
     interceptors?: readonly Interceptor[] | undefined;
     token?: string | undefined;
@@ -6494,6 +6497,7 @@ export interface ProcedureServerOptions extends ServerOptions {
     clock?: Clock | undefined;
     expose?: ((path: ProcedurePath) => boolean) | undefined;
     strictCalls?: boolean | undefined;
+    maxDepth?: number | undefined;
     interceptors?: readonly Interceptor[] | undefined;
     capability?: Capability | ((request: ServerRequest<unknown>) => Capability | undefined) | undefined;
     clearanceOrder?: ClearanceOrder | undefined;

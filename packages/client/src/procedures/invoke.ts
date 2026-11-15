@@ -79,7 +79,7 @@ export type InvocationErrorCode =
  * - `write-not-allowed`: the guard of a collection (`admission.guard`) refuses a write (roadmap
  *   CLI-41).
  */
-export type ForbiddenReason = CapabilityRefusalReason | "outside-root" | "host-not-allowed" | "topic-not-allowed" | "partition-not-allowed" | "write-not-allowed";
+export type ForbiddenReason = CapabilityRefusalReason | "outside-root" | "host-not-allowed" | "topic-not-allowed" | "partition-not-allowed" | "write-not-allowed" | "depth";
 
 /** An error of the invocation itself. An error that the handler throws passes through unchanged. */
 export class InvocationError extends Error {
@@ -100,6 +100,42 @@ export class InvocationError extends Error {
     this.path = path;
     this.reason = reason;
   }
+}
+
+/** The depth over which a call tree without `maxDepth` writes a warning. */
+const DEPTH_WARNING = 64;
+
+/** True after the warning of the depth: the process writes it one time. */
+let depthWarned = false;
+
+/**
+ * This function refuses an invocation over the depth limit with `FORBIDDEN` and the reason
+ * `depth`. Without a limit, it writes one warning for the first invocation over the depth 64.
+ */
+function checkDepth(invocation: Invocation, maxDepth: number | undefined): void {
+  const { depth, path } = invocation;
+  if (maxDepth !== undefined) {
+    if (!Number.isSafeInteger(maxDepth) || maxDepth < 0) throw new TypeError(`The option maxDepth is a whole number of 0 or more, not ${String(maxDepth)}`);
+    if (depth > maxDepth) {
+      throw new InvocationError("FORBIDDEN", `The call of ${pathToKey(path)} is at the depth ${String(depth)} of nested calls, over the limit ${String(maxDepth)}`, path, "depth");
+    }
+    return;
+  }
+  if (depth <= DEPTH_WARNING || depthWarned) return;
+  depthWarned = true;
+  console.warn(
+    `[procedures] The call of ${pathToKey(path)} is at the depth ${String(depth)} of nested calls. ` +
+      `@procedures/client 0.62.0 refuses a call over the depth ${String(DEPTH_WARNING)}. Set the option maxDepth to keep a larger limit.`,
+  );
+}
+
+/**
+ * This function sets the warning of the depth back to its start, for a test.
+ *
+ * @internal
+ */
+export function resetDepthWarning(): void {
+  depthWarned = false;
 }
 
 function abortError(path: ProcedurePath): InvocationError {
@@ -159,6 +195,13 @@ export interface InvokeOptions {
   interceptors?: readonly Interceptor[] | undefined;
   /** The invocation whose handler makes this call. The context client sets it for a nested call. */
   parent?: Invocation | undefined;
+  /**
+   * The highest depth of a nested call: a whole number of 0 or more. A call at a larger depth gets
+   * `FORBIDDEN` with the reason `depth`, and its handler does not start. Without a value, the depth
+   * has no limit, and the first call over the depth 64 in the process writes a warning. The nested
+   * calls get it too.
+   */
+  maxDepth?: number | undefined;
   /**
    * The capability of the call: its clearance, permitted effects and deadline. The host makes it
    * from its authentication. The nested calls get it, or a narrower one. Absent: no limits.
@@ -418,6 +461,8 @@ export async function invokeProcedure<TOutput = unknown>(
     capability: options.capability ?? UNLIMITED_CAPABILITY,
     ...(options.principal !== undefined ? { principal: options.principal } : {}),
   };
+  // A procedure that calls itself stops at the depth limit of the host, before its interceptors
+  checkDepth(invocation, options.maxDepth);
   // A deadline that the parent does not have (from a host, a request or a narrowed nested call)
   // ends the invocation at that time, as the timeout interceptor does
   const deadline = invocation.capability.deadline;
