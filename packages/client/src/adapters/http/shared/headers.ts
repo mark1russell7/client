@@ -222,7 +222,7 @@ export class DefaultHeaderConverter implements HeaderConverter {
 const STRUCTURED_FIELDS = new Set(["tracing", "auth", "timeout", "retry"]);
 
 /** A header name: the "token" characters of RFC 9110. */
-export const HEADER_TOKEN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
+export const HEADER_TOKEN: RegExp = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
 
 /** A header value that fetch accepts: Latin-1, with no control characters but tab. */
 const LATIN1 = /^[\t\x20-\x7e\x80-\xff]*$/;
