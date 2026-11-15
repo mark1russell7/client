@@ -46,6 +46,22 @@ export function retryAfterOf(item: ResponseItem<unknown>): number | undefined {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : undefined;
 }
 
+/** The units of a call that a limit refuses for its size, and the capacity of that limit (roadmap CLI-122). */
+export interface CallCapacity {
+  readonly units: number;
+  readonly capacity: number;
+}
+
+/**
+ * This function gives the fields `units` and `capacity` of a record, when both are finite numbers, else an empty
+ * record. The metadata and the error bodies of a refusal for its size carry these fields (roadmap CLI-122).
+ */
+export function capacityFieldsOf(fields: unknown): CallCapacity | Record<string, never> {
+  if (fields === null || typeof fields !== "object") return {};
+  const { units, capacity } = fields as { units?: unknown; capacity?: unknown };
+  return typeof units === "number" && typeof capacity === "number" && Number.isFinite(units) && Number.isFinite(capacity) ? { units, capacity } : {};
+}
+
 /**
  * The error codes that say that the service is not available: the server is down, busy, slow or
  * stopping, or the network failed. A circuit breaker counts only these (roadmap R12). An abort,

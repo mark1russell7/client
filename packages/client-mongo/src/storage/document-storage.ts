@@ -66,8 +66,13 @@
  *   counter document until it ends, and a version stops below the lowest pending number. A
  *   pending number of a writer that stopped expires after `writeLease`. A write that ends after
  *   its lease moves its documents to new numbers, so a reader that passed the old numbers gets
- *   it. One case stays on a single server: a process that stops between such a late write and the
- *   move of its documents. Then a reader that passed the old numbers does not get that change.
+ *   it. An expired pending range stays in the counter for 10 leases, and for 60 s at least. When a
+ *   read finds a row in such a range, it takes marks again until the mark stops. Thus an event since
+ *   an earlier mark does not give an older value of that row (roadmap O100).
+ * - Two cases stay on a single server. A process can stop between a late write and the move of its
+ *   documents. Then a reader that passed the old numbers does not get that change. A late write can
+ *   land after its range left the counter. Then a subscriber can get an older value, until the move
+ *   gives the newer value again.
  * - A reader can get a write two times, with the same value or a later value. A full answer takes
  *   its mark after it lists the items, and it can hold a write above its mark, so the next delta
  *   gives the write again. A reader can also read a late write at its old numbers, and then the move
@@ -354,6 +359,12 @@ function hasTransactions(db: Db): Promise<boolean> {
 const MAX_MOVES = 10;
 /** The most lists of one full result, when a prune or a new epoch passes its marks. */
 const MOST_FULL_TRIES = 3;
+/** The most marks that one read takes after its find, while late writes land in its rows (roadmap O100). */
+const MOST_SETTLES = 8;
+/** An expired pending range stays in the counter for this count of leases, so a read sees a late write in its rows. */
+const LATE_KEEP_LEASES = 10;
+/** The shortest time in milliseconds that an expired pending range stays in the counter. */
+const LATE_KEEP_MIN_MS = 60_000;
 
 /**
  * The end of the last write of each collection: by the client, then by the names of the database and the collection.
@@ -840,6 +851,18 @@ interface Watermark extends Counter {
   floor: number;
   /** True when the version stops below a pending number. */
   readonly held: boolean;
+  /** The pending ranges whose lease ended: a late write can land in them after this mark. */
+  readonly late: ReadonlyArray<{ readonly from: number; readonly to: number }>;
+}
+
+/** The end of a read that waited for its late writes (roadmap O100). */
+interface Settled {
+  /** The mark of the version. */
+  readonly mark: Watermark;
+  /** The rows of the finds after the first find, in their order. */
+  readonly later: readonly Document[];
+  /** True when the marks did not stop: the version is new, so no event starts at it. */
+  readonly alone: boolean;
 }
 
 /**
@@ -1125,13 +1148,16 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
   }
 
   /**
-   * This method ends the pending numbers of a write, and drops the pending numbers whose lease
-   * ended. In the same atomic step, the server tells if the numbers were still in their lease: the
+   * This method ends the pending numbers of a write, and drops the pending numbers older than the
+   * keep time. In the same atomic step, the server tells if the numbers were still in their lease: the
    * time since `at` only grows, so a range in its lease at the end was in its lease for the whole
    * write, and no reader passed its numbers.
    */
   private async release(db: Db, first: number): Promise<boolean> {
     const live = { $gt: ["$$this.at", { $subtract: ["$$NOW", this.writeLeaseMs] }] };
+    // An expired range stays for the keep time, so a read that finds a row of a late write sees its range (roadmap O100)
+    const keepMs = Math.max(LATE_KEEP_LEASES * this.writeLeaseMs, LATE_KEEP_MIN_MS);
+    const kept = { $gt: ["$$this.at", { $subtract: ["$$NOW", keepMs] }] };
     const after = (await db.collection<CounterDoc>(this.countersName).findOneAndUpdate(
       { _id: this.counterId },
       [
@@ -1145,7 +1171,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
                 ],
               },
             },
-            pending: { $filter: { input: { $ifNull: ["$pending", []] }, cond: { $and: [{ $ne: ["$$this.from", first] }, live] } } },
+            pending: { $filter: { input: { $ifNull: ["$pending", []] }, cond: { $and: [{ $ne: ["$$this.from", first] }, kept] } } },
           },
         },
       ],
@@ -1250,17 +1276,19 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
 
   /**
    * The watermark of the collection: the highest number below each pending number of a write whose
-   * lease has not ended, the epoch, and the floor of the partition. Each number up to it is written
-   * or abandoned. One command reads them. Only the first read of a store writes: it makes the counter. With the
-   * option `sequence: "partition"`, the first read of each process also marks the counter of the collection.
+   * lease has not ended, the epoch, and the floor of the partition. Each number up to it is written,
+   * abandoned or late. The pending ranges whose lease ended are the late ranges. One command reads them. Only the first read of a
+   * store writes: it makes the counter. With the option `sequence: "partition"`, the first read of each process also marks the counter of the collection.
    */
   private async watermark(db: Db): Promise<Watermark> {
     await this.checkSequence(db);
     const counters = db.collection<CounterDoc>(this.countersName);
     const floorId = this.floorId();
-    const read = (): Promise<Array<{ _id: string; seq: number; epoch: string; floor?: number; low: number | null; sequence?: string }>> =>
+    type Read = { _id: string; seq: number; epoch: string; floor?: number; low: number | null; late?: Array<{ from: number; to: number }>; sequence?: string };
+    const live = { $gt: ["$$this.at", { $subtract: ["$$NOW", this.writeLeaseMs] }] };
+    const read = (): Promise<Read[]> =>
       counters
-        .aggregate<{ _id: string; seq: number; epoch: string; floor?: number; low: number | null; sequence?: string }>([
+        .aggregate<Read>([
           { $match: { _id: { $in: [this.counterId, floorId] } } },
           {
             $project: {
@@ -1268,15 +1296,9 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
               epoch: 1,
               floor: 1,
               sequence: 1,
-              low: {
-                $min: {
-                  $map: {
-                    input: {
-                      $filter: { input: { $ifNull: ["$pending", []] }, cond: { $gt: ["$$this.at", { $subtract: ["$$NOW", this.writeLeaseMs] }] } },
-                    },
-                    in: "$$this.from",
-                  },
-                },
+              low: { $min: { $map: { input: { $filter: { input: { $ifNull: ["$pending", []] }, cond: live } }, in: "$$this.from" } } },
+              late: {
+                $map: { input: { $filter: { input: { $ifNull: ["$pending", []] }, cond: { $not: [live] } } }, in: { from: "$$this.from", to: "$$this.to" } },
               },
             },
           },
@@ -1295,7 +1317,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     if (this.sequence === "collection" && mark.sequence === "partition") throw sequenceMismatch(this.collectionName, "collection");
     const seq = typeof mark.low === "number" ? Math.min(mark.seq, mark.low - 1) : mark.seq;
     const floor = docs.find((doc) => doc._id === floorId)?.floor;
-    return { seq, epoch: mark.epoch, floor: typeof floor === "number" ? floor : 0, held: seq < mark.seq };
+    return { seq, epoch: mark.epoch, floor: typeof floor === "number" ? floor : 0, held: seq < mark.seq, late: mark.late ?? [] };
   }
 
   /**
@@ -1520,10 +1542,11 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
    * That read stops at the second mark. A row past the mark keeps the value of the list, and its later
    * value comes after this result, in order. So the value of an id does not go back at a subscriber.
    * The cost is one more aggregate for each full result, and two more finds when the mark moved.
+   * A late write can land in the rows of the second read. Then `settle` takes marks again (roadmap O100).
    */
   private async fullResult(db: Db, items: Collection<Stored>, first: Watermark): Promise<StorageChanges<T>> {
-    const result = (mark: Watermark, docs: readonly Document[]): StorageChanges<T> => ({
-      version: `${mark.epoch}.${mark.seq}`,
+    const result = (mark: Watermark, docs: readonly Document[], alone = false): StorageChanges<T> => ({
+      version: this.versionText(mark, alone),
       full: true,
       changed: this.decodeAll(docs),
       deleted: [],
@@ -1536,8 +1559,11 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
       if (after.epoch === mark.epoch) {
         if (after.seq <= mark.seq) return result(mark, listed);
         const docs = await items.find({ ...this.partitionFilter(), [SEQ]: { $gt: mark.seq, $lte: after.seq } } as Filter<Stored>).toArray();
+        const settled = await this.settle(db, items, docs, after);
         // A prune raises the floor before its delete, so a query that missed a tombstone sees the new floor here (roadmap CLI-93)
-        if (mark.seq >= (await this.floorOf(db))) return result(after, this.withLaterDocs(listed, docs));
+        if (settled && mark.seq >= (await this.floorOf(db))) {
+          return result(settled.mark, this.withLaterDocs(listed, [...docs, ...settled.later]), settled.alone);
+        }
       }
       // The log does not tell the changes since this mark. Each later read from this version, an event too, gets a full result
       if (tries === MOST_FULL_TRIES) return result(mark, listed);
@@ -1566,7 +1592,8 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
       const version = `${counter.epoch}.${counter.seq}`;
       const held = counter.held ? { held: true } : {};
       const full = (): Promise<StorageChanges<T>> => this.fullResult(db, items, counter);
-      const match = since === undefined ? null : /^([^.]+)\.(\d+)$/.exec(since);
+      // A version that no event has ends with a third part (roadmap O100)
+      const match = since === undefined ? null : /^([^.]+)\.(\d+)(?:\.[^.]+)?$/.exec(since);
       if (!match || match[1] !== counter.epoch) return full();
       const from = Number(match[2]);
       if (from < counter.floor || from > counter.seq) return full();
@@ -1577,18 +1604,73 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
         .find({ ...this.partitionFilter(), [SEQ]: { $gt: from, $lte: counter.seq } } as Filter<Stored>)
         .sort({ [SEQ]: 1 })
         .toArray();
+      const settled = await this.settle(db, items, docs, counter);
+      if (!settled) return full();
       // A prune raises the floor before its delete, so a query that missed a tombstone sees the new floor here (roadmap CLI-93)
       if (from < (await this.floorOf(db))) return full();
       const changed: Array<[string, T]> = [];
       const deleted: string[] = [];
-      for (const doc of docs) {
+      for (const doc of this.withLaterRows(docs, settled.later)) {
         const id = this.idOfDoc(doc);
         if (id === undefined) continue;
         if (doc[TOMB] === true) deleted.push(id);
         else changed.push(this.decode(doc, id)!);
       }
-      return { version, full: false, changed, deleted, ...held };
+      const { mark, alone } = settled;
+      return { version: this.versionText(mark, alone), full: false, changed, deleted, ...(mark.held ? { held: true } : {}) };
     });
+  }
+
+  /**
+   * This method protects a read from late writes (roadmap O100). A late write can land in the rows of a
+   * read after the mark of the read. An event since that mark, with a find before the landing, then has
+   * an older value of the row.
+   *
+   * When a found row is in a late range of its mark, the method takes a new mark. When that mark moved,
+   * the method finds the rows up to it and examines them in the same way. A row that landed late came
+   * from a find before the mark of the version, so an event since that version has the row or a later
+   * value. Other rows landed before the mark of their find, and that order gives the same result.
+   * `undefined` tells that the epoch changed.
+   */
+  private async settle(db: Db, items: Collection<Stored>, found: readonly Document[], first: Watermark): Promise<Settled | undefined> {
+    let mark = first;
+    const later: Document[] = [];
+    for (let docs = found, marks = 0; this.hasLateRows(docs, mark); marks += 1) {
+      // The marks did not stop: a version that no event has keeps the subscribers from the events of earlier marks
+      if (marks === MOST_SETTLES) return { mark, later, alone: true };
+      const next = await this.watermark(db);
+      if (next.epoch !== mark.epoch) return undefined;
+      if (next.seq <= mark.seq) break;
+      docs = await items
+        .find({ ...this.partitionFilter(), [SEQ]: { $gt: mark.seq, $lte: next.seq } } as Filter<Stored>)
+        .sort({ [SEQ]: 1 })
+        .toArray();
+      later.push(...docs);
+      mark = next;
+    }
+    return { mark, later, alone: false };
+  }
+
+  /** True when a row of `docs` has a number in a late range of `mark`. */
+  private hasLateRows(docs: readonly Document[], mark: Watermark): boolean {
+    if (mark.late.length === 0) return false;
+    return docs.some((doc) => {
+      const seq = doc[SEQ] as number;
+      return mark.late.some((range) => seq >= range.from && seq <= range.to);
+    });
+  }
+
+  /** The rows of a delta with the rows of later finds over them, by id, in the order of their numbers. A tombstone stays. */
+  private withLaterRows(docs: readonly Document[], later: readonly Document[]): readonly Document[] {
+    if (later.length === 0) return docs;
+    const rows = new Map<string, Document>();
+    for (const doc of [...docs, ...later]) rows.set(storedIdKey(doc["_id"]), doc);
+    return [...rows.values()].sort((a, b) => (a[SEQ] as number) - (b[SEQ] as number));
+  }
+
+  /** The text of the version of a mark. A version that no event has gets a third part. */
+  private versionText(mark: Watermark, alone: boolean): string {
+    return alone ? `${mark.epoch}.${mark.seq}.${randomUUID()}` : `${mark.epoch}.${mark.seq}`;
   }
 
   // ===========================================================================
