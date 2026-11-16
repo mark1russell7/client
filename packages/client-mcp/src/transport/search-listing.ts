@@ -8,7 +8,7 @@
  */
 
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
-import { SEARCH_LIMIT, SEARCH_MAX_LIMIT, searchDocuments } from "@procedures/client";
+import { SEARCH_LIMIT, SEARCH_MAX_LIMIT, searchDocuments, type SearchDocument } from "@procedures/client";
 import { toToolDefinition, type McpTool } from "@procedures/mcp";
 
 /** How the server lists its tools: `"each"` lists each tool, `"search"` lists the three search tools. */
@@ -92,6 +92,19 @@ function nameOf(args: Record<string, unknown> | undefined): string | CallToolRes
   return typeof name === "string" && name.length > 0 ? name : invalidInput("The input needs a name: the name of a tool from search_tools");
 }
 
+/**
+ * This function gives the search document of each tool: its name, the segments of its path, its
+ * description and its tags. `search_tools` ranks these documents, and the quality gate measures them.
+ */
+export function toolSearchDocuments(tools: Iterable<McpTool>): SearchDocument[] {
+  return Array.from(tools, (tool) => ({
+    name: tool.name,
+    words: tool.procedurePath,
+    description: tool.description,
+    tags: tool.tags,
+  }));
+}
+
 /** This function gives the result of `search_tools`: the best hits of the query over the tools. */
 export function searchToolsResult(tools: Iterable<McpTool>, args: Record<string, unknown> | undefined, json?: "pretty" | "compact"): CallToolResult {
   const query = args?.["query"];
@@ -100,13 +113,7 @@ export function searchToolsResult(tools: Iterable<McpTool>, args: Record<string,
   if (limit !== undefined && (typeof limit !== "number" || !Number.isInteger(limit) || limit < 1 || limit > SEARCH_MAX_LIMIT)) {
     return invalidInput(`The limit is a whole number from 1 to ${SEARCH_MAX_LIMIT}`);
   }
-  const documents = Array.from(tools, (tool) => ({
-    name: tool.name,
-    words: tool.procedurePath,
-    description: tool.description,
-    tags: tool.tags,
-  }));
-  const result = searchDocuments(documents, query, { limit: limit as number | undefined });
+  const result = searchDocuments(toolSearchDocuments(tools), query, { limit: limit as number | undefined });
   // A hit with no description has no field description in JSON
   return valueResult({ hits: result.hits, matched: result.matched, total: result.total }, json);
 }
