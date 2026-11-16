@@ -103,19 +103,25 @@ describe("the flow of the frames of a connection", () => {
     const beat = (): void => (server.transport as unknown as { beat(): void }).beat();
     const client = await deafClient(server.url);
     let messages = 0;
+    let stopAt = Number.POSITIVE_INFINITY;
     client.on("message", () => {
       messages += 1;
+      // The client stops at the target in the handler: a poll reads megabytes before it stops
+      if (messages >= stopAt) client.pause();
     });
     sendPings(client, 1500, 16 * KIB);
     await waitFor(() => server.sockets[0]?.isPaused === true);
     await sleep(100);
     const socket = server.sockets[0]!;
-    /** The client reads 20 answers, then stops again. */
+    /** The client sends more pings, reads 20 answers, then stops again until the server pauses. */
     const readSome = async (): Promise<void> => {
-      const target = messages + 20;
+      // New pings in each round: the server has frames to read and answers to write
+      sendPings(client, 100, 16 * KIB);
+      stopAt = messages + 20;
       client.resume();
-      await waitFor(() => messages >= target);
-      client.pause();
+      await waitFor(() => messages >= stopAt);
+      stopAt = Number.POSITIVE_INFINITY;
+      await waitFor(() => socket.isPaused);
       await sleep(100);
     };
     beat(); // 1 missed pong
