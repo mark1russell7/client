@@ -1,6 +1,6 @@
 /**
  * The exports generator and its loader. The fixture `test/exports/fixture.d.ts` has one function
- * for each case of a type, and `fixture.js` is its implementation. The manifest of the fixture is
+ * for each case of a type, and `functions.ts` is its implementation. The manifest of the fixture is
  * a golden file: a change of the generator shows in its diff.
  */
 
@@ -12,7 +12,7 @@ import { generateExportsManifest } from "./generate.js";
 import { exportInputSchema, exportOutputSchema, exportsModule, jsonValue } from "./exports/load.js";
 import type { ExportsManifest } from "./exports/types.js";
 import { stubTransport } from "../test/harness.js";
-import * as fixture from "../test/exports/fixture.js";
+import * as fixture from "../test/exports/functions.js";
 
 const fixtureDir = join(dirname(fileURLToPath(import.meta.url)), "..", "test", "exports");
 const PURE = { reads: [], writes: [] };
