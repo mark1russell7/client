@@ -1,5 +1,27 @@
 # @procedures/collections
 
+## 0.60.1
+
+### Patch Changes
+
+- 4ab1acf: `UndoLog` refuses an undo when another writer changed only a Date of the item (CLI-127). Before this fix, `fingerprintOf` gave the text `{}` for each Date, RegExp, Map and Set. A change of only one of these values kept the fingerprint, so the undo wrote over the change of the other writer.
+  
+  The fingerprint of an item with one of these values changes. An entry that the log recorded before the upgrade for such an item no longer matches, so its undo is refused. The fingerprints of the other items do not change.
+- Updated dependencies [beca782]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [a87cdda]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+
 ## 0.60.0
 
 ### Patch Changes
