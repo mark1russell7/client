@@ -112,6 +112,14 @@ describe("plainText", () => {
     expect(plainText("a &amp; b &lt;c&gt; &quot;d&quot; &#39;e&#39;")).toBe(`a & b <c> "d" 'e'`);
     expect(plainText("&amp;lt;script&amp;gt;")).toBe("&lt;script&gt;");
   });
+
+  it("removes each tag, also a nested tag, and keeps an escaped \"<\"", () => {
+    expect(plainText("<<b>script>alert(1)<</b>/script>")).not.toContain("<");
+    expect(plainText("a <em>b</em> c")).toBe("a b c");
+    expect(plainText("a \\< b and c &lt; d")).toBe("a < b and c < d");
+    expect(plainText("x < 60 and y <= 3")).toBe("x < 60 and y <= 3");
+    expect(plainText("<</b>!-- c --><<i>/p>")).not.toMatch(/<[A-Za-z/!?]/);
+  });
 });
 
 describe("linkResolver", () => {

@@ -12,16 +12,18 @@
 import { spawn, type ChildProcess, type SpawnOptions } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as os from "node:os";
 import { createProcedure, type Effects, type FsRootRules, type Procedure } from "@procedures/client";
 import { HOST_PROBE_PREFIX } from "@procedures/peer";
-import { checkServer, readLockfileForPort, type LockfileData } from "@procedures/peer/lockfile";
+import { checkServer, getMarkDir, getServersDir, readLockfileForPort, type LockfileData } from "@procedures/peer/lockfile";
 import { ServerStartOutputSchema, serverStartInputSchema } from "../schemas.js";
 import type { ServerStartInput, ServerStartOutput } from "../types.js";
 
-const MARK_DIR = path.join(os.homedir(), ".mark");
-const SERVERS_DIR = path.join(MARK_DIR, "servers");
-const LOG_PATH = path.join(MARK_DIR, "server.log");
+// The folders come from the lockfile module of @procedures/peer, the one home of `~/.mark`
+const MARK_DIR = getMarkDir();
+const SERVERS_DIR = getServersDir();
+/** The log file of a server that `server.start` starts: `~/.mark/server.log`. */
+export const SERVER_LOG_PATH: string = path.join(MARK_DIR, "server.log");
+const LOG_PATH = SERVER_LOG_PATH;
 const LOG_PREV_PATH = path.join(MARK_DIR, "server.log.1");
 
 

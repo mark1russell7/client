@@ -44,6 +44,29 @@ export function parseTopicPatterns(value: string): string[] {
 }
 
 /**
+ * This function gives the host names of an `--allowed-host` value: comma-separated names without a
+ * port (`my-server.lan`), or `"*"` when a name is `*`. A request names a loopback host, an IP address
+ * or one of these names in its `Host` header. Each other name gets `FORBIDDEN` (`host-header-not-allowed`).
+ */
+export function parseAllowedHosts(value: string): string[] | "*" {
+  const names = [
+    ...new Set(
+      value
+        .split(",")
+        .map((name) => name.trim().toLowerCase())
+        .filter((name) => name.length > 0)
+    ),
+  ];
+  if (names.length === 0) throw new Error("--allowed-host needs a host name (for example my-server.lan) or *");
+  for (const name of names) {
+    if (name !== "*" && !/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/.test(name)) {
+      throw new Error(`Invalid host name: "${name}". Give a name without a port or a scheme (for example my-server.lan) or *.`);
+    }
+  }
+  return names.includes("*") ? "*" : names;
+}
+
+/**
  * Parse command line arguments into server configuration.
  *
  * Usage:
@@ -66,6 +89,7 @@ export function parseConfig(argv: string[]): ServerConfig {
   const events: string[] = [];
   let fsRoot: string | undefined;
   let probePort: number | undefined;
+  const allowedHostValues: string[] = [];
 
   for (let i = 0; i < argv.length; i++) {
     const token = argv[i]!;
@@ -92,6 +116,10 @@ export function parseConfig(argv: string[]): ServerConfig {
         break;
       case "--host":
         host = value();
+        break;
+      case "--allowed-host":
+        // Repeatable: each value adds its names to the Host check of each listener
+        allowedHostValues.push(value());
         break;
       case "--probe-port":
         probePort = parsePort(value());
@@ -183,6 +211,7 @@ export function parseConfig(argv: string[]): ServerConfig {
     events,
     ...(fsRoot !== undefined ? { fsRoot } : {}),
     ...(probePort !== undefined ? { probePort } : {}),
+    ...(allowedHostValues.length > 0 ? { allowedHosts: parseAllowedHosts(allowedHostValues.join(",")) } : {}),
   };
 }
 
@@ -206,6 +235,12 @@ OPTIONS:
   --host <address>          Host to bind to
                             Default: 127.0.0.1 (0.0.0.0 exposes every
                             procedure to the network)
+
+  --allowed-host <names>    The host names that a request can name in its
+                            Host header, besides localhost and the IP
+                            addresses: for example the LAN name of the
+                            computer. Repeatable, or comma-separated.
+                            * turns the check off. Default: none
 
   --base-path <path>        Base path for HTTP transport
                             Default: /api

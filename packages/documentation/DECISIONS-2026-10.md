@@ -18,7 +18,7 @@ This log records the decisions I made while working without the owner present. E
 The owner accepted the default answers of CAPABILITIES-2026-10 and gave the rest of the decisions to the implementation, for generality and the long term. The proposal lists the 14 decisions. The judgment calls that a user sees:
 
 - **`ctx.capability` and `ctx.resources` are required fields of `ProcedureContext`.** A handler gets typed resources without `?`. A test that makes a context by hand adds `capability: {}` and `resources: {}`.
-- **A procedure of code with declared effects answers for its nested calls.** The admission does not examine them again, as `metadata.calls` already does for the reach. Without this rule, a read-only session cannot start `git.status`, because it uses `shell.run`.
+- **A procedure of code with declared effects answers for its nested calls.** The admission does not examine them again, as `metadata.calls` already does for the reach. Without this rule, a read-only session cannot start `git.status`, because it uses `shell.run`. Since 2026-11-15, the rule covers a declared edge only. The `calls` of the caller name the callee, and the effects of the callee are in its declaration. The admission examines each other nested call.
 - **The output filter examines only the output that leaves the host.** A nested result is not filtered, so a parent never gets a stream with holes.
 - **`git.remote` is two procedures** (CAP-5 in the status). A caller of `git.remote` with `url` calls `git.remote.set` now.
 - **The four findings CAP-1 to CAP-4** stay open, or are a decision (CAP-4): the declarations tell the truth about the code, and a read-only session refuses those procedures.

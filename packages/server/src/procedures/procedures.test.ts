@@ -49,27 +49,58 @@ afterEach(async () => {
   for (const server of servers.splice(0)) await new Promise<void>((resolve) => server.close(() => resolve()));
   for (const child of children.splice(0)) child.kill();
   for (const lockfile of lockfiles.readAllLockfiles()) lockfiles.removeLockfileForPort(lockfile.port);
+  given.clear();
 });
+
+/**
+ * The set `given` holds the ports that the helpers gave in this test. The system can give a closed
+ * port again to the next listener, so two helpers can get the same port without this set.
+ */
+const given = new Set<number>();
+
+const portOf = (server: Server): number => {
+  const address = server.address();
+  return typeof address === "object" && address ? address.port : 0;
+};
+
+const close = (server: Server): Promise<void> => new Promise((resolve) => server.close(() => resolve()));
+
+/** This helper starts a server from `make` on a port that no helper gave in this test. It holds each used port until it finds a new one. */
+async function listenOnNewPort(make: () => Server): Promise<Server> {
+  const held: Server[] = [];
+  try {
+    for (;;) {
+      const server = make();
+      await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+      if (!given.has(portOf(server))) {
+        given.add(portOf(server));
+        return server;
+      }
+      held.push(server);
+    }
+  } finally {
+    for (const server of held) await close(server);
+  }
+}
 
 /** An HTTP server that answers each request (`host.info` too) with this peer id. It gives its port. */
 async function healthServer(peerId: string): Promise<number> {
-  const server = createServer((_request, response) => {
-    response.setHeader("content-type", "application/json");
-    response.end(JSON.stringify({ peerId }));
-  });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+  const server = await listenOnNewPort(() =>
+    createServer((_request, response) => {
+      response.setHeader("content-type", "application/json");
+      response.end(JSON.stringify({ peerId }));
+    }),
+  );
   servers.push(server);
-  const address = server.address();
-  return typeof address === "object" && address ? address.port : 0;
+  return portOf(server);
 }
 
-/** A port that nothing listens on. */
+/** A port that nothing listens on, and that no other helper gave in this test. */
 async function closedPort(): Promise<number> {
-  const server = createServer();
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
-  const address = server.address();
-  await new Promise<void>((resolve) => server.close(() => resolve()));
-  return typeof address === "object" && address ? address.port : 0;
+  const server = await listenOnNewPort(() => createServer());
+  const port = portOf(server);
+  await close(server);
+  return port;
 }
 
 /** The lockfile of a server on a port. The PID belongs to no process of the test. */

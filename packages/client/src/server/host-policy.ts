@@ -59,11 +59,22 @@ export function exposePatterns(patterns: readonly string[]): (path: ProcedurePat
   };
 }
 
+/**
+ * This function tells if a list of excluded keys names a path. An entry can be the key of the path
+ * (`collections.e2e%2Etabs.delete`) or its segments joined with plain dots
+ * (`collections.e2e.tabs.delete`), the form before CLI-75. So an exclusion of the old form still
+ * hides its procedure (audit 2026-11-08). The plain form can hide one more path, but not one less.
+ */
+function isExcluded(excluded: ReadonlySet<string>, path: ProcedurePath): boolean {
+  // path-check: the raw form of an exclude entry before CLI-75, compared as text, not decoded.
+  return excluded.has(pathToKey(path)) || excluded.has(path.join("."));
+}
+
 /** The rule of a tool surface: the namespaces, less the excluded keys. */
 export function surfaceRule(surface: ToolSurface): (path: ProcedurePath) => boolean {
   const namespaces = new Set(surface.namespaces);
   const excluded = new Set(surface.exclude ?? []);
-  return (path) => namespaces.has(path[0] ?? "") && !excluded.has(pathToKey(path));
+  return (path) => namespaces.has(path[0] ?? "") && !isExcluded(excluded, path);
 }
 
 /** The options of `hostPolicy()`. */
@@ -85,6 +96,12 @@ export interface HostPolicyOptions {
    * query) and gives a bearer token, a principal and a narrowing (`ProcedureServerOptions`).
    */
   principalOf?: PrincipalOf | undefined;
+  /**
+   * The callers whose `baggage` the handler gets (C10), more than a local request and a request
+   * with the token. The function runs after the checks of the request, so it can read
+   * `request.principal`. Without it, no other caller sets the baggage of the services.
+   */
+  trustBaggage?: ((request: ServerRequest<unknown>) => boolean) | undefined;
   /** The browser checks of the network transports (`allowedOrigins`, `allowedHosts`, `allowGet`). */
   browser?: BrowserGuardOptions | undefined;
   /**
@@ -126,6 +143,8 @@ export interface HostPolicy {
   readonly token: string | undefined;
   /** The request hook of the network requests, or undefined for none. */
   readonly principalOf?: PrincipalOf | undefined;
+  /** The callers whose baggage the handler gets (C10), or undefined for none more. */
+  readonly trustBaggage?: ((request: ServerRequest<unknown>) => boolean) | undefined;
   readonly browser: BrowserGuardOptions;
   /** The capability of a call from a caller, or undefined for no limits. */
   readonly capabilityOf: ((request?: ServerRequest<unknown>) => Capability | undefined) | undefined;
@@ -163,7 +182,7 @@ function exposeOf(options: HostPolicyOptions): ((path: ProcedurePath) => boolean
           : surfaceRule(expose as ToolSurface);
   const excluded = new Set(options.exclude ?? []);
   if (excluded.size === 0) return rule;
-  return (path) => !excluded.has(pathToKey(path)) && (rule ? rule(path) : true);
+  return (path) => !isExcluded(excluded, path) && (rule ? rule(path) : true);
 }
 
 /** This function builds the policy of a host from its options. */
@@ -179,6 +198,7 @@ export function hostPolicy(options: HostPolicyOptions = {}): HostPolicy {
     interceptors,
     token: options.token,
     ...(options.principalOf ? { principalOf: options.principalOf } : {}),
+    ...(options.trustBaggage ? { trustBaggage: options.trustBaggage } : {}),
     browser: options.browser ?? {},
     capabilityOf: capabilityOfOptions(options),
     clearanceOrder: options.clearanceOrder,
@@ -201,6 +221,8 @@ export function procedureServerOptions(policy: HostPolicy, registry?: ProcedureR
     ...(policy.token !== undefined ? { token: policy.token } : {}),
     // The request hook of the policy: the credentials of a cookie, a header or the query (CLI-2a)
     ...(policy.principalOf ? { principalOf: policy.principalOf } : {}),
+    // The callers whose baggage the handler gets (C10)
+    ...(policy.trustBaggage ? { trustBaggage: policy.trustBaggage } : {}),
     ...(policy.interceptors.length > 0 ? { interceptors: policy.interceptors } : {}),
     ...(policy.capabilityOf ? { capability: policy.capabilityOf } : {}),
     ...(policy.clearanceOrder ? { clearanceOrder: policy.clearanceOrder } : {}),

@@ -11,16 +11,26 @@
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import * as z from "zod";
-import { createProcedure, createRegistry, defineModule, invokePath, outputValue, type ProcedureModule, type ProcedureRegistry } from "@procedures/client";
+import {
+  createProcedure,
+  createRegistry,
+  defineModule,
+  invokePath,
+  narrowCapability,
+  outputValue,
+  type Effects,
+  type ProcedureModule,
+  type ProcedureRegistry,
+} from "@procedures/client";
 import { confineToRoot, rootDecisionOf } from "@procedures/fs/module";
 import { gitModule } from "@procedures/git/module";
 import { snapshotModule } from "./module.js";
 import { fakeS3, type FakeS3 } from "../test/fake-s3.js";
-import type { SnapshotCreateOutput, SnapshotDiffOutput } from "./types.js";
+import type { SnapshotCreateOutput, SnapshotDiffOutput, SnapshotListOutput } from "./types.js";
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 
@@ -60,16 +70,27 @@ function initRepo(path: string): void {
   git(path, "remote", "add", "origin", "https://example.com/proj.git");
 }
 
-/** The procedures `s3.upload`, `s3.list` and `s3.download` of a fake S3, as a module of the host. */
+/**
+ * The effects of the fake `s3.*` procedures. They are the effects of the real procedures, but the
+ * fake `s3.upload` reads no file: the body is in its input.
+ */
+const S3_EFFECTS: Readonly<Record<string, Effects>> = {
+  upload: { reads: ["s3", "network"], writes: ["s3", "network"] },
+  list: { reads: ["s3", "network"], writes: [] },
+  download: { reads: ["s3", "network"], writes: ["fs"] },
+  read: { reads: ["s3", "network"], writes: [] },
+};
+
+/** The procedures `s3.upload`, `s3.list`, `s3.download` and `s3.read` of a fake S3, as a module of the host. */
 function s3Module(fake: FakeS3): ProcedureModule {
   return defineModule(
     "fake-s3",
-    ["upload", "list", "download"].map((name) =>
+    Object.entries(S3_EFFECTS).map(([name, effects]) =>
       createProcedure()
         .path(["s3", name])
         .input(z.looseObject({}))
         .output(z.unknown())
-        .meta({ description: `The fake s3.${name}`, effects: { reads: ["s3", "network"], writes: ["s3", "network"] } })
+        .meta({ description: `The fake s3.${name}`, effects })
         .handler(async (input: Record<string, unknown>) => fake.ctx.client.call(["s3", name], input))
         .build(),
     ),
@@ -211,5 +232,34 @@ describe("the snapshot procedures under the root of a host", () => {
       (thrown: unknown) => thrown,
     );
     expect(error).toMatchObject({ code: "NOT_FOUND" });
+  });
+});
+
+describe("the calls of the snapshot procedures", () => {
+  /** The source of a snapshot procedure, with the source of the S3 listing when it lists. */
+  function sourceOf(name: string): string {
+    const read = (file: string): string => readFileSync(new URL(`./procedures/snapshot/${file}`, import.meta.url), "utf8");
+    const text = read(`${name}.ts`);
+    return text.includes("listAllObjects(") ? text + read("s3-lookup.ts") : text;
+  }
+
+  it("name each procedure that the source of a snapshot procedure calls, and no other", () => {
+    for (const procedure of snapshotModule.procedures) {
+      const name = procedure.path[1]!;
+      const paths = [...sourceOf(name).matchAll(/\[("(?:s3|git)"(?:,\s*"[A-Za-z]+")+)\]/g)];
+      const called = new Set(paths.map((match) => (JSON.parse(`[${match[1]}]`) as string[]).join(".")));
+      expect([...(procedure.metadata.calls ?? [])].sort(), name).toEqual([...called].sort());
+    }
+  });
+
+  it("list the snapshots under a capability without writes, which refuses s3.download", async () => {
+    const plain = createRegistry(snapshotModule, s3Module(s3));
+    const metadata = { id: "x", name: "dev", preset: "p", createdAt: "2026-01-01T00:00:00Z", archiveSize: 1, environment: { os: "linux" } };
+    s3.objects.set("snapshots/x.metadata.json", { body: Buffer.from(JSON.stringify(metadata)), lastModified: "2026-01-01T00:00:00Z" });
+    const readOnly = narrowCapability(undefined, { effects: { writes: [] } });
+    const listed = await outputValue(await invokePath<SnapshotListOutput>(["snapshot", "list"], { bucket: "b" }, { registry: plain, capability: readOnly }));
+    expect(listed.snapshots.map((entry) => entry.id)).toEqual(["x"]);
+    const download = invokePath(["s3", "download"], { bucket: "b", key: "snapshots/x.metadata.json" }, { registry: plain, capability: readOnly });
+    await expect(download).rejects.toMatchObject({ code: "FORBIDDEN", reason: "effects-exceeded" });
   });
 });

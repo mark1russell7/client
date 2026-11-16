@@ -5,11 +5,15 @@
  * - A limit of the writes of each tenant refuses a write above the limit with `RATE_LIMITED`. The
  *   refusal is retryable, with the wait in `retry-after` and the cause in `reason`. The call does
  *   not run.
+ * - A refusal with the cause `capacity` is `RATE_LIMITED`, not retryable, and has no wait.
  * - Each tenant has its own bucket. A limit of the writes does not limit the reads.
  * - The key is data (the principal, a claim, the route, a list of them) or a function. A call
  *   without a value of its key is outside the limit.
  * - A shared store follows `onStoreFailure`. A limit without its store, two limits with one name
  *   and a spec with a problem are refused at the start.
+ * - A limit with `nested: true` takes the units of each nested call that it covers. A refused nested
+ *   call gets the code, the wait and the metadata of a refusal at the door. A limit without the
+ *   field counts the calls of a caller only, and the server writes a warning.
  * - Each test reads time only from a fake clock: no real sleeps.
  */
 
@@ -23,8 +27,9 @@ import { seconds } from "../duration.js";
 import { ProcedureServer } from "./procedure-server.js";
 import { hostPolicy, procedureServerOptions } from "./host-policy.js";
 import { pathToMethod } from "./method.js";
-import type { CallLimit } from "./limits.js";
+import { rateLimitedResponse, type CallLimit, type LimitedCall } from "./limits.js";
 import type { PrincipalOf, ServerResponse } from "./types.js";
+import type { LogFields, Logger, LogLevel } from "../logger.js";
 import { LOCAL_CREDENTIALS } from "./request-auth.js";
 
 const WRITES = { reads: ["notes"], writes: ["notes"] };
@@ -35,6 +40,34 @@ const count = (value: number): { value: number; unit: string } => ({ value, unit
 
 /** The runs of each procedure: a refused call does not run. */
 let runs: Record<string, number> = {};
+
+/** The errors of the nested calls that `notes.fanout` kept. */
+let nestedErrors: unknown[] = [];
+
+/**
+ * A procedure that writes `n` times with nested calls of `notes.write`. With `keepGoing`, it keeps
+ * the code of each failed call in its output. Without it, the first error ends the call.
+ */
+const fanout = createProcedure()
+  .path(["notes", "fanout"])
+  .input(z.object({ n: z.number(), keepGoing: z.boolean().optional() }))
+  .output(z.array(z.string()))
+  .meta({ effects: WRITES })
+  .handler(async (input, ctx) => {
+    runs["fanout"] = (runs["fanout"] ?? 0) + 1;
+    const outcomes: string[] = [];
+    for (let n = 0; n < input.n; n++) {
+      try {
+        outcomes.push(await ctx.client.call<object, string>(["notes", "write"], {}));
+      } catch (error) {
+        if (input.keepGoing !== true) throw error;
+        nestedErrors.push(error);
+        outcomes.push(String((error as { code?: unknown }).code));
+      }
+    }
+    return outcomes;
+  })
+  .build();
 
 function registryOf() {
   const procedure = (name: string, effects: typeof WRITES | typeof READS) =>
@@ -48,7 +81,7 @@ function registryOf() {
         return name;
       })
       .build();
-  return createRegistry({ name: "limits-test", procedures: [procedure("write", WRITES), procedure("read", READS), procedure("other", WRITES)] });
+  return createRegistry({ name: "limits-test", procedures: [procedure("write", WRITES), procedure("read", READS), procedure("other", WRITES), fanout] });
 }
 
 /** The request hook of the tests: the bearer token `tok-<tenant>` names the tenant of the principal. */
@@ -77,19 +110,43 @@ const ONE_EACH_MINUTE: CallLimit = {
 };
 
 /** A server with the limits, on a fake clock, with the request hook of the tests. */
-function serverOf(limits: readonly CallLimit[], clock: FakeClock = fakeClock(), limitStores?: Readonly<Record<string, LimiterStore>>): ProcedureServer {
+function serverOf(
+  limits: readonly CallLimit[],
+  clock: FakeClock = fakeClock(),
+  limitStores?: Readonly<Record<string, LimiterStore>>,
+  logger: Logger = memoryLogger(),
+): ProcedureServer {
   runs = {};
+  nestedErrors = [];
   const policy = hostPolicy({ principalOf, limits, ...(limitStores ? { limitStores } : {}) });
-  return new ProcedureServer({ ...procedureServerOptions(policy, registryOf()), clock });
+  return new ProcedureServer({ ...procedureServerOptions(policy, registryOf()), clock, logger });
+}
+
+/** A line of the memory logger. */
+interface LogLine {
+  readonly level: LogLevel;
+  readonly message: string;
+  readonly fields: LogFields;
+}
+
+/** A logger that keeps each line in memory. */
+function memoryLogger(): Logger & { readonly lines: LogLine[] } {
+  const lines: LogLine[] = [];
+  return {
+    lines,
+    log: (level, message, fields) => {
+      lines.push({ level, message, fields });
+    },
+  };
 }
 
 let sent = 0;
 /** A call of a procedure: with the token of a tenant (a network call), or with the local marker (a call of this process, CLI-1). */
-function call(server: ProcedureServer, tenant: string | undefined, procedure: string): Promise<ServerResponse<unknown>> {
+function call(server: ProcedureServer, tenant: string | undefined, procedure: string, payload: unknown = {}): Promise<ServerResponse<unknown>> {
   return server.handle({
     id: `call-${++sent}`,
     method: pathToMethod(["notes", procedure]),
-    payload: {},
+    payload,
     metadata: {},
     credentials: tenant !== undefined ? { bearer: `tok-${tenant}` } : LOCAL_CREDENTIALS,
   });
@@ -290,5 +347,164 @@ describe("the limits of the calls of a server (CLI-40)", () => {
     const without = procedureServerOptions(hostPolicy({}));
     expect("limits" in without || "limitStores" in without).toBe(false);
     expect("limits" in hostPolicy({ limits: [] })).toBe(false);
+  });
+
+  it("gives a capacity refusal as PAYLOAD_TOO_LARGE that is not retryable, with its units and the capacity", () => {
+    const response = rateLimitedResponse("1", { limit: "uploads", refused: { allowed: false, cause: "capacity", units: 5, capacity: 3 } });
+    expect(response.status).toEqual({
+      type: "error",
+      code: "PAYLOAD_TOO_LARGE",
+      message: "The limit uploads of the host refuses the call: it costs 5 units, over the capacity of 3",
+      retryable: false,
+    });
+    expect(response.metadata).toEqual({ reason: "capacity", units: 5, capacity: 3 });
+  });
+});
+
+describe("the cost of a call (CLI-122)", () => {
+  /** The count of the list `items` of the payload of a call. */
+  const itemsOf = (call: LimitedCall): number => {
+    const items = (call.request.payload as { items?: unknown } | undefined)?.items;
+    return Array.isArray(items) ? items.length : 0;
+  };
+  /** A payload with `n` items. */
+  const items = (n: number): { items: string[] } => ({ items: Array.from({ length: n }, (_, index) => `s${String(index)}`) });
+  /** A burst of 12 units for each tenant, and a cost of 1 + ceil(items / 50) for each write. */
+  const BY_ITEMS: CallLimit = {
+    ...WRITES_PER_TENANT,
+    name: "notes.items",
+    policy: { type: "token-bucket", rate: { value: 1, unit: "count/s" }, burst: count(12) },
+    cost: (call) => 1 + Math.ceil(itemsOf(call) / 50),
+  };
+
+  it("refuses a call over the capacity with PAYLOAD_TOO_LARGE, the units and the capacity, and takes nothing", async () => {
+    const server = serverOf([BY_ITEMS]);
+    // 600 items cost 13 units, over the burst of 12
+    const refused = await call(server, "acme", "write", items(600));
+    expect(refused.status).toMatchObject({ type: "error", code: "PAYLOAD_TOO_LARGE", retryable: false });
+    expect(refused.metadata).toEqual({ reason: "capacity", units: 13, capacity: 12 });
+    expect(refused.status.type === "error" ? refused.status.message : "").toContain("notes.items");
+    expect(runs["write"]).toBeUndefined();
+    // The refusal took nothing: 500 items cost 11 of the 12 units
+    expect(outcome(await call(server, "acme", "write", items(500)))).toBe("ok");
+    // One unit is left: 1 item costs 2 units, thus the call waits for one unit
+    expect((await call(server, "acme", "write", items(1))).metadata).toEqual({ "retry-after": 1000, reason: "limit" });
+    // A call with no items costs 1 unit
+    expect(outcome(await call(server, "acme", "write"))).toBe("ok");
+    expect(runs["write"]).toBe(2);
+  });
+
+  it("takes one unit for a limit with no cost, a fixed cost for each call, and refuses a fixed cost that is not a whole number of 1 or more", async () => {
+    const server = serverOf([{ ...BY_ITEMS, cost: 5 }]);
+    expect(outcome(await call(server, "acme", "write", items(600)))).toBe("ok");
+    expect(outcome(await call(server, "acme", "write"))).toBe("ok");
+    // 10 of the 12 units are used: a third call of 5 units waits
+    expect((await call(server, "acme", "write")).metadata).toMatchObject({ reason: "limit" });
+    const { cost: _cost, ...noCost } = BY_ITEMS;
+    const one = serverOf([noCost]);
+    for (let index = 0; index < 12; index++) expect(outcome(await call(one, "acme", "write", items(600)))).toBe("ok");
+    expect((await call(one, "acme", "write")).metadata).toMatchObject({ reason: "limit" });
+    for (const cost of [0, 1.5, -1, Number.NaN]) expect(() => serverOf([{ ...BY_ITEMS, cost }])).toThrow(/The cost of the limit notes.items is a whole number of 1 or more/);
+  });
+});
+
+describe("the limits of the nested calls", () => {
+  /** Two writes of each tenant in each minute, for the route notes.write only: the route notes.fanout is outside the limit. */
+  const NESTED_WRITES: CallLimit = {
+    name: "notes.write",
+    key: { claim: "tenant" },
+    covers: { routes: ["notes.write"] },
+    policy: { type: "sliding-window", limit: count(2), window: seconds(60) },
+    store: { kind: "local" },
+    evict: { maxKeys: count(100) },
+    nested: true,
+  };
+
+  /** The output of a call, or the code of its error. */
+  const outputOf = (response: ServerResponse<unknown>): unknown => (response.status.type === "success" ? response.payload : response.status.code);
+
+  it("takes a unit for each nested call that a limit with nested: true covers, and refuses the calls above the limit", async () => {
+    const server = serverOf([NESTED_WRITES]);
+    expect(outputOf(await call(server, "acme", "fanout", { n: 5, keepGoing: true }))).toEqual(["write", "write", "RATE_LIMITED", "RATE_LIMITED", "RATE_LIMITED"]);
+    expect(runs).toEqual({ fanout: 1, write: 2 });
+    // The error of a refused nested call has the parts of a refusal at the door
+    expect(nestedErrors[0]).toMatchObject({ code: "RATE_LIMITED", retryable: true, retryAfterMs: 60_000, limitMetadata: { "retry-after": 60_000, reason: "limit" } });
+    expect((nestedErrors[0] as Error).message).toBe("The limit notes.write of the host refuses the nested call of notes.write (limit): retry after 60 s");
+    // The calls of a caller and the nested calls use one bucket for each tenant
+    expect(outcome(await call(server, "acme", "write"))).toBe("RATE_LIMITED");
+    expect(outputOf(await call(server, "beta", "fanout", { n: 1 }))).toEqual(["write"]);
+  });
+
+  it("gives the caller the refusal of a nested call with the code, the wait and the cause", async () => {
+    const clock = fakeClock();
+    const server = serverOf([NESTED_WRITES], clock);
+    const refused = await call(server, "acme", "fanout", { n: 3 });
+    expect(refused.status).toMatchObject({ type: "error", code: "RATE_LIMITED", retryable: true });
+    expect(refused.metadata).toEqual({ "retry-after": 60_000, reason: "limit" });
+    expect(runs["write"]).toBe(2);
+    // After the window, the nested calls run again
+    await clock.advance(60_000);
+    expect(outputOf(await call(server, "acme", "fanout", { n: 2 }))).toEqual(["write", "write"]);
+  });
+
+  it("gives a nested call over the capacity PAYLOAD_TOO_LARGE with the units and the capacity, and does not run it", async () => {
+    const server = serverOf([{ ...NESTED_WRITES, cost: 5 }]);
+    const refused = await call(server, "acme", "fanout", { n: 1 });
+    expect(refused.status).toMatchObject({ type: "error", code: "PAYLOAD_TOO_LARGE", retryable: false });
+    expect(refused.metadata).toEqual({ reason: "capacity", units: 5, capacity: 2 });
+    expect(runs["write"]).toBeUndefined();
+  });
+
+  it("gives the cover, the key and the cost the depth and the input of each call", async () => {
+    const seen: { route: string; depth: number; input: unknown }[] = [];
+    const covers = (limited: LimitedCall): boolean => {
+      seen.push({ route: limited.route, depth: limited.depth, input: limited.input });
+      return true;
+    };
+    const server = serverOf([{ ...NESTED_WRITES, covers }]);
+    expect(outcome(await call(server, "acme", "fanout", { n: 1 }))).toBe("ok");
+    expect(seen).toEqual([
+      { route: "notes.fanout", depth: 0, input: { n: 1 } },
+      { route: "notes.write", depth: 1, input: {} },
+    ]);
+  });
+
+  it("counts the calls of a caller only for a limit without nested: true, and warns one time for a limit without the field", async () => {
+    const logger = memoryLogger();
+    const { nested: _nested, ...withoutField } = NESTED_WRITES;
+    const server = serverOf([withoutField, { ...NESTED_WRITES, name: "old", nested: false }], fakeClock(), undefined, logger);
+    expect(outputOf(await call(server, "acme", "fanout", { n: 5 }))).toEqual(["write", "write", "write", "write", "write"]);
+    expect(runs["write"]).toBe(5);
+    // The calls of the caller still take their units
+    for (let n = 0; n < 2; n++) expect(outcome(await call(server, "acme", "write"))).toBe("ok");
+    expect(outcome(await call(server, "acme", "write"))).toBe("RATE_LIMITED");
+    expect(logger.lines).toEqual([
+      {
+        level: "warn",
+        message:
+          "The limit notes.write counts the calls of a caller only, not their nested calls. @procedures/client 0.61.0 counts the nested calls too. " +
+          "Set nested: true to count them, or nested: false to keep this rule.",
+        fields: { limit: "notes.write" },
+      },
+    ]);
+  });
+
+  it("refuses a nested call with INTERNAL_ERROR when the key function of a limit throws, and does not run it", async () => {
+    const key = (limited: LimitedCall): string => {
+      if (limited.depth > 0) throw new Error("no key");
+      return "key";
+    };
+    const server = serverOf([{ ...NESTED_WRITES, key }]);
+    const refused = await call(server, "acme", "fanout", { n: 1 });
+    expect(refused.status).toMatchObject({ type: "error", code: "INTERNAL_ERROR" });
+    expect(refused.status.type === "error" ? refused.status.message : "").toContain("cannot admit the nested call of notes.write: no key");
+    expect(runs["write"]).toBeUndefined();
+  });
+});
+
+describe("the check of the field nested", () => {
+  it("refuses a value of nested that is not true, false or absent at the start", () => {
+    const limit = { ...WRITES_PER_TENANT, nested: "true" } as unknown as CallLimit;
+    expect(() => serverOf([limit])).toThrow('The field nested of the limit notes.writes is true, false or absent, not "true"');
   });
 });
