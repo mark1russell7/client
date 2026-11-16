@@ -532,7 +532,7 @@ export type {
 export type { ProgressUpdate, ReportProgress } from "./procedures/progress.js";
 export { toolHintsOf, toolHintOverrideOf, toolHintOverrideRefusal } from "./procedures/hints.js";
 export type { ToolHintOverride } from "./procedures/hints.js";
-export { untrustedText, untrustedFieldsOf, untrustedTextsOf } from "./procedures/untrusted.js";
+export { untrustedText, untrustedFieldsOf, untrustedTextsOf, markUntrusted, untrustedMarkOf } from "./procedures/untrusted.js";
 export type { UntrustedText, UntrustedSource, UntrustedValue } from "./procedures/untrusted.js";
 // One manifest type (roadmap R17)
 export { MANIFEST_FORMAT, describeProcedure as describeProcedureEntry, describeRegistry, exposedProcedures, hashOf } from "./procedures/manifest.js";

@@ -75,6 +75,7 @@
   },
   "dependencies": {
     "@mark1russell7/collections": "^0.10.0",
+    "@mark1russell7/rigor-generators": "^0.2.0",
     "@procedures/client": "workspace:*"
   },
   "peerDependencies": {

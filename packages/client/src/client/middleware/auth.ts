@@ -6,8 +6,12 @@
  *
  * Each transport converts metadata.auth to its protocol format:
  * - HTTP: Authorization header, X-API-Key header
- * - WebSocket: Frame metadata
+ * - WebSocket: Frame metadata. The server drops the key `auth` of a frame (roadmap R18), so a
+ *   WebSocket client gives its token in the upgrade: `?token=<token>` in the `url`, or a cookie.
+ *   The key `auth` in the frames is deprecated: a later MINOR stops sending it.
  * - Local: Passed directly to handler
+ *
+ * A server reads the token from `context.request.credentials?.bearer`, not from the metadata.
  */
 
 import type { TypedClientMiddleware } from "../types.js";
@@ -54,14 +58,14 @@ export interface AuthOptions {
  * ```typescript
  * createAuthMiddleware({ token: process.env.API_TOKEN })
  * // HTTP: Authorization: Bearer abc123
- * // WebSocket: frame.metadata.auth.token
+ * // WebSocket: the server drops frame.metadata.auth: give the token in the upgrade (?token=abc123)
  * ```
  *
  * @example API Key
  * ```typescript
  * createAuthMiddleware({ apiKey: process.env.API_KEY })
  * // HTTP: X-API-Key: xyz789
- * // WebSocket: frame.metadata.auth.apiKey
+ * // WebSocket: the server drops frame.metadata.auth: give the key in the query of the url or a cookie
  * ```
  *
  * @example Dynamic Auth (from function)
