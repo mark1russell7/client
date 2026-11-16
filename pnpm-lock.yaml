@@ -1201,8 +1201,8 @@ importers:
   packages/client-sqlite:
     dependencies:
       '@mark1russell7/sqlite':
-        specifier: ^0.3.5
-        version: 0.3.5
+        specifier: ^0.3.6
+        version: 0.3.6
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -3716,8 +3716,8 @@ packages:
     resolution: {integrity: sha512-hraH78EAk4354LZY08EbUls6vpj+BC4bxVVr0rkFf97fW/yNqidmNLaH18qUIkPZ8N/YwtpqS4it1NCQodTPzA==}
     engines: {node: '>=22'}
 
-  '@mark1russell7/sqlite@0.3.5':
-    resolution: {integrity: sha512-jvB2RVKlW7IV6g/1+xd5LiSpUUHoivfkJ+dhITTgJipmk8qCTmoz/OtA5dJ0k8HVeFgxaFVyQNi/kwOJYuff0w==}
+  '@mark1russell7/sqlite@0.3.6':
+    resolution: {integrity: sha512-5XLi5WPVxGHwqv7BseNm4y/tGxG4uCQ2UjKhnqFVtuIcUuWEgIwCxnyiik2DyQ8PLgZweF5VDinsErp5O6twVQ==}
     engines: {node: '>=22.13'}
 
   '@mark1russell7/ste-lint@0.3.2':
@@ -7620,7 +7620,7 @@ snapshots:
 
   '@mark1russell7/splay@0.2.2': {}
 
-  '@mark1russell7/sqlite@0.3.5': {}
+  '@mark1russell7/sqlite@0.3.6': {}
 
   '@mark1russell7/ste-lint@0.3.2':
     dependencies:
