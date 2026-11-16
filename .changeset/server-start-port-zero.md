@@ -10,4 +10,5 @@
 - `runProcedureHost()` with a lockfile on the port 0 writes the lockfile at the end of the startup. The lockfile takes the port of the listener with the scheme and the path of its endpoint. When no listener matches, the host stops with the code 1.
 - `server.start` with `{ port: 0 }` finds the lockfile of the new server by the PID of its child process. Its result gives the port. At the timeout, the result gives the port when the lockfile has one.
 - The other ports work as before.
+- The default ports do not change. This change adds an accepted value, so it is a feature, and before 1.0.0 a feature is a PATCH.
 - A test that starts a server in a child process gives it the port 0 and reads the port from the lockfile or from the output of the child. Then no other process can take the port between a pick and the listen.
