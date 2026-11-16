@@ -1,5 +1,28 @@
 # @procedures/ios-backup
 
+## 0.60.1
+
+### Patch Changes
+
+- 987c1de: The package opens each SQLite file with `openDatabase` of `@mark1russell7/sqlite`, with `readOnly`. The read does not change: the connection reads the file and does not write it.
+  
+  - On Node.js 26.11 and later, a read gives no warning DEP0210. Node.js 26.11 renamed the class `DatabaseSync` to `Database`, and `openDatabase` takes the new name first.
+  - The package has the new dependency `@mark1russell7/sqlite`. It loads that package at the first read, as it loaded `node:sqlite` before.
+- Updated dependencies [beca782]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [a87cdda]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+
 ## 0.60.0
 
 ### Patch Changes

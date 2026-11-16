@@ -9,6 +9,7 @@
  * The introspection procedures, the compiler (R20) and the SDK generators read it.
  */
 
+import { canonicalJson } from "@mark1russell7/rigor-generators";
 import { pathToKey, type AnyProcedure, type Effects, type ProcedurePath } from "./types.js";
 import { jsonSchemaOf, type JsonSchema } from "./schema.js";
 import { isDataDriven } from "./ref.js";
@@ -133,21 +134,14 @@ export function describeRegistry(registry: { getAll(): AnyProcedure[] }, options
   return { format: MANIFEST_FORMAT, hash: hashOf(procedures), procedures };
 }
 
-/** A stable JSON text: the keys of each object in order. */
-function stableJson(value: unknown): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "null";
-  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
-  const object = value as Record<string, unknown>;
-  return `{${Object.keys(object)
-    .sort()
-    .filter((key) => object[key] !== undefined)
-    .map((key) => `${JSON.stringify(key)}:${stableJson(object[key])}`)
-    .join(",")}}`;
-}
-
-/** A 64-bit FNV-1a hash of the stable JSON of a value, as 16 hex digits. */
+/**
+ * A 64-bit FNV-1a hash of the canonical JSON text of a value, as 16 hex digits. The text has the
+ * keys of each object in order (`canonicalJson` of `@mark1russell7/rigor-generators`).
+ *
+ * @throws TypeError when the value holds a function, a symbol or a cycle
+ */
 export function hashOf(value: unknown): string {
-  const text = stableJson(value);
+  const text = canonicalJson(value, { form: "json", tags: "typed" });
   let hash = 0xcbf29ce484222325n;
   const prime = 0x100000001b3n;
   for (let index = 0; index < text.length; index++) {
