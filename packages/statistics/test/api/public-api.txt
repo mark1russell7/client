@@ -1,0 +1,35 @@
+# The public API of @procedures/statistics
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The command `api-report check` compares this file with the built .d.ts files.
+# To accept a change of the API, start the build, then `api-report update`, and review the diff.
+
+## . (dist/index.d.ts): names
+
+registerStatisticsProcedures: dist/module.d.ts#registerStatisticsProcedures
+statisticsManifest: dist/manifest.d.ts#manifest
+statisticsModule: dist/module.d.ts#statisticsModule
+
+## ./module (dist/module.d.ts): names
+
+default: dist/module.d.ts#statisticsModule
+registerStatisticsProcedures: dist/module.d.ts#registerStatisticsProcedures
+statisticsManifest: dist/manifest.d.ts#manifest
+statisticsModule: dist/module.d.ts#statisticsModule
+
+## ./register (dist/register.d.ts): names
+
+registerStatisticsProcedures: dist/module.d.ts#registerStatisticsProcedures
+statisticsManifest: dist/manifest.d.ts#manifest
+statisticsModule: dist/module.d.ts#statisticsModule
+
+## Declarations
+
+### dist/manifest.d.ts#manifest
+export declare const manifest: ExportsManifest;
+
+### dist/module.d.ts#registerStatisticsProcedures
+export declare function registerStatisticsProcedures(registry?: ProcedureRegistry): void;
+
+### dist/module.d.ts#statisticsModule
+export declare const statisticsModule: ProcedureModule;

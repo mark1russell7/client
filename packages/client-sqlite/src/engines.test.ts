@@ -1,7 +1,7 @@
 /**
- * The engine choice of SqliteStorage: `auto`, `node` and `sqljs`, a file of one engine in the
- * other, the share of a file in one process, a lock of another connection, two processes on one
- * file, and a read-only file. `engines.fallback.test.ts` tests a Node.js without `node:sqlite`.
+ * The engine choice of SqliteStorage: `auto` and `node` use `node:sqlite`, and version 0.61.0 removed `sqljs`. The
+ * tests also cover the share of a file in one process, a lock of another connection, two processes on one file, and
+ * a read-only file.
  */
 
 import { afterEach, describe, expect, it } from "vitest";
@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { ms } from "@procedures/client";
-import { MEMORY_PATH, SqliteStorage, isNodeSqliteAvailable, type SqliteEngineName, type SqliteStorageOptions } from "./storage.js";
+import { MEMORY_PATH, SqliteStorage, isNodeSqliteAvailable, type SqliteStorageOptions } from "./storage.js";
 
 const dirs: string[] = [];
 const open: Array<SqliteStorage<unknown>> = [];
@@ -33,15 +33,23 @@ function storageOf<T>(options: SqliteStorageOptions): SqliteStorage<T> {
   return storage;
 }
 
-const nodeAvailable = await isNodeSqliteAvailable();
-
 describe("SqliteStorage: the engine choice", () => {
-  it("auto uses node when Node.js has node:sqlite, and sqljs uses sql.js", async () => {
+  it("node:sqlite is available on each supported Node.js (22.13 or later)", async () => {
+    expect(await isNodeSqliteAvailable()).toBe(true);
+  });
+
+  it("auto and node use node:sqlite", async () => {
     const auto = storageOf<number>({ path: MEMORY_PATH, table: "items" });
     expect(auto.engine).toBe("auto");
-    expect(await auto.getEngine()).toBe(nodeAvailable ? "node" : "sqljs");
-    const sqljs = storageOf<number>({ path: MEMORY_PATH, table: "items", engine: "sqljs" });
-    expect(await sqljs.getEngine()).toBe("sqljs");
+    expect(await auto.getEngine()).toBe("node");
+    const node = storageOf<number>({ path: MEMORY_PATH, table: "items", engine: "node" });
+    expect(await node.getEngine()).toBe("node");
+  });
+
+  it("refuses the removed engine sqljs, and tells the engine to use", () => {
+    expect(() => new SqliteStorage({ path: MEMORY_PATH, table: "items", engine: "sqljs" as never })).toThrow(
+      /The SQLite engine sqljs was removed in version 0\.61\.0: use auto or node/,
+    );
   });
 
   it("refuses an unknown engine", () => {
@@ -53,90 +61,40 @@ describe("SqliteStorage: the engine choice", () => {
   });
 });
 
-describe.runIf(nodeAvailable)("SqliteStorage: one file format for the two engines", () => {
-  const pairs: Array<[SqliteEngineName, SqliteEngineName]> = [
-    ["node", "sqljs"],
-    ["sqljs", "node"],
-  ];
-  for (const [writer, reader] of pairs) {
-    it(`a file that ${writer} writes opens with ${reader}, with its items and its versions`, async () => {
-      const path = tempDb();
-      const first = storageOf<{ n: number }>({ path, table: "items", engine: writer });
-      await first.setBatch([["a", { n: 1 }], ["b", { n: 2 }], ["c", { n: 3 }]]);
-      await first.delete("b");
-      const version = (await first.getChangesSince()).version;
-      await first.close();
-
-      const second = storageOf<{ n: number }>({ path, table: "items", engine: reader });
-      expect(await second.getEngine()).toBe(reader);
-      expect(await second.getEntries()).toEqual([["a", { n: 1 }], ["c", { n: 3 }]]);
-      // The version of the other engine stays valid
-      await second.set("d", { n: 4 });
-      await second.delete("a");
-      expect(await second.getChangesSince(version)).toMatchObject({ full: false, changed: [["d", { n: 4 }]], deleted: ["a"] });
-      await second.close();
-
-      // And back to the first engine
-      const third = storageOf<{ n: number }>({ path, table: "items", engine: writer });
-      expect(await third.getIds()).toEqual(["c", "d"]);
-    });
-  }
-});
-
-describe.runIf(nodeAvailable)("SqliteStorage: the engines of one file in one process", () => {
-  it("a storage with auto shares the open database, and a storage with the other engine refuses it", async () => {
+describe("SqliteStorage: the storages of one file in one process", () => {
+  it("the storages of one file share one open database, with auto and node", async () => {
     const path = tempDb();
     const first = storageOf<{ n: number }>({ path, table: "items", engine: "node" });
     await first.set("a", { n: 1 });
     const auto = storageOf<{ n: number }>({ path, table: "items", engine: "auto" });
     expect(await auto.getEngine()).toBe("node");
     expect(await auto.get("a")).toEqual({ n: 1 });
-    const other = storageOf<{ n: number }>({ path, table: "items", engine: "sqljs" });
-    await expect(other.get("a")).rejects.toThrow(/is open with the SQLite engine node in this process/);
-    // The refusal does not close the database of the other storages
-    expect(await first.get("a")).toEqual({ n: 1 });
+    await auto.set("b", { n: 2 });
+    await auto.close();
+    // The close of one storage does not close the database of the other storages
+    expect(await first.getIds()).toEqual(["a", "b"]);
+    await first.close();
+
+    const later = storageOf<{ n: number }>({ path, table: "items" });
+    expect(await later.getEntries()).toEqual([["a", { n: 1 }], ["b", { n: 2 }]]);
   });
 
-  it("the first storage of a file sets the engine, and after the last close a storage opens the file with its own engine", async () => {
+  it("flush() does no work and keeps the items", async () => {
     const path = tempDb();
-    // The two storages open at the same time: the first one opens the file
-    const sqljs = storageOf<{ n: number }>({ path, table: "items", engine: "sqljs" });
-    const node = storageOf<{ n: number }>({ path, table: "items", engine: "node" });
-    await expect(node.get("a")).rejects.toThrow(/is open with the SQLite engine sqljs/);
-    await sqljs.set("a", { n: 1 });
-    await sqljs.close();
-    const later = storageOf<{ n: number }>({ path, table: "items", engine: "node" });
-    expect(await later.get("a")).toEqual({ n: 1 });
+    const storage = storageOf<{ n: number }>({ path, table: "items" });
+    await storage.set("a", { n: 1 });
+    await storage.flush();
+    expect(await storage.get("a")).toEqual({ n: 1 });
   });
 });
 
-describe.runIf(nodeAvailable)("SqliteStorage (node): locks and processes", () => {
-  it("sql.js refuses a file whose write-ahead log has changes, and opens it after the log is gone", async () => {
-    const path = tempDb();
-    // A connection of node:sqlite outside the storages: it keeps changes in the log
-    const { DatabaseSync } = (await import("node:sqlite")) as unknown as {
-      DatabaseSync: new (path: string) => { exec(sql: string): void; close(): void };
-    };
-    const raw = new DatabaseSync(path);
-    raw.exec("PRAGMA journal_mode = WAL; PRAGMA wal_autocheckpoint = 0;");
-    raw.exec(`CREATE TABLE "items" (id TEXT PRIMARY KEY, value TEXT NOT NULL); INSERT INTO "items" VALUES ('a', '{"n":1}');`);
-    expect(existsSync(`${path}-wal`)).toBe(true);
-    const sqljs = storageOf<{ n: number }>({ path, table: "items", engine: "sqljs" });
-    await expect(sqljs.get("a")).rejects.toThrow(/has a write-ahead log/);
-    raw.close();
-
-    const again = storageOf<{ n: number }>({ path, table: "items", engine: "sqljs" });
-    expect(await again.get("a")).toEqual({ n: 1 });
-  });
-
+describe("SqliteStorage: locks and processes", () => {
   it("a write waits for the lock of another connection, and fails after the busy timeout", async () => {
     const path = tempDb();
     const storage = storageOf<{ n: number }>({ path, table: "items", engine: "node", busyTimeout: ms(50) });
     await storage.set("a", { n: 1 });
-    const { DatabaseSync } = (await import("node:sqlite")) as unknown as {
-      DatabaseSync: new (path: string) => { exec(sql: string): void; close(): void };
-    };
-    const other = new DatabaseSync(path);
+    const { openDatabase } = await import("@mark1russell7/sqlite");
+    const other = openDatabase(path, { wal: false });
     try {
       other.exec("BEGIN IMMEDIATE");
       await expect(storage.set("b", { n: 2 })).rejects.toThrow(/database is locked/);
