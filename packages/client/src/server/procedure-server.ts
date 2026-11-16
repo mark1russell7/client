@@ -1548,8 +1548,10 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
   /**
    * This method stops the server with the stop parts, in the sequence of the stages of the runner:
    * `stopIntake()`, `drain()` for the grace time, `close()`, and then the close of each storage
-   * (`closeStorages()`). The server can start again, with new storages from `useStorage()`. A
-   * service under `run()` declares the parts and the storage handles in place of this method.
+   * (`closeStorages()`). The intake stays stopped until the next `start()`: a call after the stop
+   * gets the retryable `UNAVAILABLE`. The server can start again, with new storages from
+   * `useStorage()`. A service under `run()` declares the parts and the storage handles in place of
+   * this method.
    */
   override async stop(options: StopOptions = {}): Promise<void> {
     const graceMs = optionalMs(options.grace, "grace") ?? TIMER_DEFAULTS.server.stopGraceMs;
@@ -1558,12 +1560,8 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
     this.stopIntake();
     await this.drain(this.clock.now() + graceMs, new AbortController().signal);
     await this.close();
-    try {
-      await this.closeStorages();
-    } finally {
-      // A server can start again: its next calls get a new signal
-      this.reopen();
-    }
+    // The intake stays stopped: start() opens it again, with a new signal
+    await this.closeStorages();
   }
 }
 

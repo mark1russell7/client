@@ -264,6 +264,21 @@ describe("the stop parts of ProcedureServer (CLI-5)", () => {
     await next.release();
   });
 
+  it("stop() keeps the intake stopped until the next start(), and the server serves again", async () => {
+    const { server, call, offer, hold } = serverOf();
+    await server.start();
+    await server.stop();
+    expect(server.stopping).toBe(true);
+    expect((await call(["parts", "quick"], {})).status).toMatchObject({ type: "error", code: "UNAVAILABLE", retryable: true });
+    await server.start();
+    expect(server.stopping).toBe(false);
+    expect(await offer()).toBe(true);
+    // A call after the start gets a new signal: the abort of the stop does not reach it
+    const next = await hold();
+    expect(next.aborted).toBe(false);
+    await next.release();
+  });
+
   it("stopIntake() ends each subscription of events.subscribe", async () => {
     const server = new ProcedureServer({ events: { topics: ["news"] } });
     let ended = 0;
