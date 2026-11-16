@@ -442,7 +442,7 @@ A procedure can make more calls with `ctx.client`, for example each step of `cli
 - The cover, the key and the cost of the limit get the call at each depth. `LimitedCall.depth` is 0 for the call of the caller, and 1 or more for a nested call. `LimitedCall.input` is the input of the call at that depth.
 - The procedure gets the refusal as an error with the code, the wait and the cause. When the procedure does not catch the error, the caller gets the same response as a refusal before the run.
 
-A limit with `nested: false` takes units only for the calls of a caller. A limit without the field has the same rule, and the server writes a warning at the start. `@procedures/client` 0.61.0 changes the default to `true`.
+A limit with `nested: false` takes units only for the calls of a caller. A limit without the field has the same rule, and the server writes a warning at the start. `@procedures/client` 0.64.0 changes the default to `true`.
 
 A call above a limit gets `RATE_LIMITED`. The call did not start, thus a retry after the wait is safe. The error has these parts on each face:
 
