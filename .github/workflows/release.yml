@@ -10,7 +10,7 @@ name: Release
 # Two events start a run:
 #
 #   push            A push to main that changes packages/client/package.json. When the version in
-#                   that file is not the version of the parent commit, the commit is a version
+#                   that file is not the version before the push, the commit is a version
 #                   commit, and the run publishes the versions of that commit. It publishes them
 #                   also when a newer changeset waits at that commit. For a different change of the
 #                   file (a dependency), the run stops after the job "gate".
@@ -23,7 +23,7 @@ name: Release
 #
 #   gate            Gives the kind of the run: "version-commit", "none" (a push that does not
 #                   change the version, then no other job starts) or "dispatch". It reads the
-#                   version of the commit and of its parent with the GitHub API. It holds only
+#                   version of the commit and of main before the push with the GitHub API. It holds only
 #                   "contents: read" and runs no code of this repository: no checkout.
 #   ci              Stops when the commit has no green CI run. In a push run, it first waits for
 #                   the CI run of the commit, which starts at the same time as this run. It holds
@@ -110,11 +110,13 @@ jobs:
       kind: ${{ steps.kind.outputs.kind }}
     steps:
       # The fixed group gives one version to all public packages, so the version of
-      # @procedures/client is the version of each package. The parent is the first parent: for a
-      # merge commit, the commit of main before the merge.
+      # @procedures/client is the version of each package. The base is the head of main before the
+      # push (github.event.before), so a push of several commits compares the whole push. When the
+      # event has no base (40 zeros), the base is the first parent of the commit.
       - id: kind
         env:
           GH_TOKEN: ${{ github.token }}
+          BEFORE: ${{ github.event.before }}
         run: |
           if [ "$GITHUB_EVENT_NAME" != push ]; then
             echo "kind=dispatch" >> "$GITHUB_OUTPUT"
@@ -126,16 +128,20 @@ jobs:
           version_at() {
             gh api --header "Accept: application/vnd.github.raw+json" "repos/$GITHUB_REPOSITORY/contents/$file?ref=$1" | jq -r '.version // ""'
           }
-          parent=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA" --jq '.parents[0].sha // ""')
-          if [ -z "$parent" ]; then
-            echo "::error::The commit $GITHUB_SHA has no parent."
+          if [[ "$BEFORE" =~ ^[0-9a-f]{40}$ ]] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ]; then
+            base=$BEFORE
+          else
+            base=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA" --jq '.parents[0].sha // ""')
+          fi
+          if [ -z "$base" ]; then
+            echo "::error::The push to $GITHUB_SHA has no base commit and the commit has no parent."
             exit 1
           fi
           new=$(version_at "$GITHUB_SHA")
-          old=$(version_at "$parent")
+          old=$(version_at "$base")
           for version in "$new" "$old"; do
             if ! [[ "$version" =~ ^[0-9A-Za-z.+-]+$ ]]; then
-              echo "::error::A version in $file at $GITHUB_SHA or its parent $parent is not correct."
+              echo "::error::A version in $file at $GITHUB_SHA or at the base $base is not correct."
               exit 1
             fi
           done

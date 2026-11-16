@@ -120,14 +120,14 @@ A user who installs an old package sees "Moved to `@procedures/<name>`". The old
 
 ### The two starts of the workflow
 
-- **A push to `main`.** Only a push that changes `packages/client/package.json` starts a run. The job `gate` compares the version in that file with the version in the parent commit. When the two versions are different, the commit is a version commit, and the run publishes the versions of that commit. For a different change of the file, for example a dependency, the run stops after the job `gate`.
+- **A push to `main`.** Only a push that changes `packages/client/package.json` starts a run. The job `gate` compares the version in that file with the version on `main` before the push. When the two versions are different, the commit is a version commit, and the run publishes the versions of that commit. For a different change of the file, for example a dependency, the run stops after the job `gate`.
 - **A start by hand (`workflow_dispatch`).** The run works as before. With changesets, it opens or updates the version pull request. Without changesets, it publishes each version that is not on npm.
 
 A version-commit run publishes also when a newer changeset waits at the commit. This occurs when a changeset merges after the workflow made the version pull request. The changeset stays for the next version pull request. Before this change, a start by hand at such a commit opened the next version pull request and published nothing.
 
 A version-commit run does not start the Changesets action. With changesets, that action moves the working tree to the branch `changeset-release/main` and writes the next versions there. A pack after it packs those versions, not the versions of the commit.
 
-The job `gate` compares the last commit of a push with its first parent. The version pull request has one commit, so each merge method works. When a push of more than one commit changes the version in an earlier commit, start the workflow by hand.
+The job `gate` compares the last commit of a push with the head of `main` before the push (`github.event.before`). So a push of more than one commit is a version commit when any of its commits changes the version. When the event has no such commit, the job uses the first parent.
 
 ### One run at a time
 
@@ -145,7 +145,7 @@ The workflow has six jobs. Only one job starts the code of this repository, and 
 
 | Job | Permissions | What it does |
 |---|---|---|
-| `gate` | `contents: read` | It reads the version of the commit and of its parent with the GitHub API. It gives the kind of the run: `version-commit`, `none` or `dispatch`. |
+| `gate` | `contents: read` | It reads the version of the commit and of `main` before the push with the GitHub API. It gives the kind of the run: `version-commit`, `none` or `dispatch`. |
 | `ci` | `actions: read` | It stops the run when the commit has no green CI run on `main`. In a push run, it first waits for that CI run. |
 | `build` | `contents: write`, `pull-requests: write` | It does the checks. Then it opens the version pull request, or it packs the versions that are not on npm. |
 | `publish` | `id-token: write` | The action `npm-publish` of the template publishes the tarballs with the npm CLI. |
