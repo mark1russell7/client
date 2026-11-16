@@ -20,7 +20,7 @@ import type { IncomingHttpHeaders, IncomingMessage, ServerResponse as NodeRespon
 import type { Metadata, Method } from "../../../client/types.js";
 import type { RequestHandler, ServerRequest, ServerResponse } from "../../../server/types.js";
 import { lastResortError } from "../../../server/last-resort.js";
-import { decodeMetadataHeader, METADATA_HEADER_LIMIT } from "../shared/index.js";
+import { decodeMetadataHeader, HTTPHeaders, METADATA_HEADER_LIMIT } from "../shared/index.js";
 import { ERROR_REGISTRY } from "../../../client/errors/index.js";
 import { capacityFieldsOf } from "../../../client/middleware/items.js";
 import { assertNamedOrigins, checkBrowserRequest, needsNamedOrigin, type BrowserGuardOptions } from "../../../server/browser-guard.js";
@@ -535,7 +535,7 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
     // whole second by an error of floating point does not add a second (CLI-40).
     const retryAfterMs = metadata["retry-after"];
     const hasRetryAfter = typeof retryAfterMs === "number" && Number.isFinite(retryAfterMs) && retryAfterMs >= 0;
-    if (hasRetryAfter) res.setHeader("Retry-After", String(retryAfterSeconds({ value: retryAfterMs, unit: "ms" })));
+    if (hasRetryAfter) res.setHeader(HTTPHeaders.RETRY_AFTER, String(retryAfterSeconds({ value: retryAfterMs, unit: "ms" })));
     // The reason of a FORBIDDEN error travels on each face (roadmap R25)
     const reason = typeof metadata["reason"] === "string" ? metadata["reason"] : undefined;
     // The current items of a VERSION_CONFLICT error (roadmap CLI-16)

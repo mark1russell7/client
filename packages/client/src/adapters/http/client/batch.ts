@@ -22,7 +22,7 @@ import { toMs, type Duration } from "../../../duration.js";
 import { HTTPHeaders, createAbortError, createErrorFromException, decodeMetadataHeader } from "../shared/index.js";
 
 /** The header of a batch request, and of the answer of a server that takes batches. */
-export const BATCH_HEADER = "Procedures-Batch";
+const BATCH_HEADER = HTTPHeaders.BATCH;
 
 /** The options of the batches of `HttpTransport`. */
 export interface HttpBatchOptions {

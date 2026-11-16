@@ -289,7 +289,8 @@ describe("procedureHandler: CORS (CLI-3, CLI-18)", () => {
     expect(preflight.status).toBe(204);
     expect(preflight.headers["access-control-allow-origin"]).toBe("https://app.example");
     expect(preflight.headers["access-control-allow-credentials"]).toBe("true");
-    expect(preflight.headers["vary"]).toBe("Origin");
+    // The answer of a preflight names the requested headers, so it varies by them too
+    expect(preflight.headers["vary"]).toBe("Origin, Access-Control-Request-Headers");
     expect(String(preflight.headers["access-control-allow-headers"])).toContain("X-Metadata");
     expect(preflight.headers["access-control-expose-headers"]).toBe("Procedures-Protocol");
     expect(preflight.headers["access-control-max-age"]).toBe("60");
@@ -326,6 +327,7 @@ describe("procedureHandler: CORS (CLI-3, CLI-18)", () => {
       "access-control-allow-headers",
       "access-control-allow-methods",
       "access-control-allow-origin",
+      "access-control-expose-headers",
       "access-control-max-age",
     ]);
   });
