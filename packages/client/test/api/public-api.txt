@@ -2625,6 +2625,7 @@ export interface WebSocketServerTransportOptions extends Omit<BrowserGuardOption
     maxPayload?: number;
     clientTracking?: boolean;
     highWaterMark?: number;
+    maxBufferedBytes?: number;
     heartbeat?: {
         interval?: Duration;
         misses?: number;
