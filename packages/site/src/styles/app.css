@@ -1498,9 +1498,15 @@ button.pkg-bar.selected {
   }
 }
 
+/* A wide table scrolls in its box, with the fade of scroll-cue. The fade takes the color behind the box */
 .table-wrap {
+  --scroll-cue-bg: var(--color-page);
   overflow-x: auto;
   max-width: 100%;
+}
+
+.panel .table-wrap {
+  --scroll-cue-bg: var(--color-surface);
 }
 
 table.schema {
