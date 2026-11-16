@@ -206,7 +206,7 @@ The CI names below are the jobs and the steps of `.github/workflows/ci.yml`.
 
 - **Rule.** Each page of the site stays within its size budget, after gzip.
 - **Reason.** A change in the core can pull code into the main bundle of each page. Example: the budget found that the error policy of CLI-80 went into the main bundle.
-- **Guard.** The tests "the budgets" in `packages/site/e2e/seo.spec.ts`, in the CI job "Site (browser smoke test)". The budgets are 256 kB for a page, 180 kB for its scripts and 128 kB for the scripts of a Web Worker.
+- **Guard.** The tests "the budgets" in `packages/site/e2e/seo.spec.ts`, in the CI job "Site / Site check". The budgets are 256 kB for a page, 180 kB for its scripts and 128 kB for the scripts of a Web Worker.
 
 ### I11. Versioning
 
