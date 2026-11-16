@@ -527,12 +527,16 @@ The storage has two SQLite engines. The option `engine` selects one.
 - The two engines use the same file format. A file that one engine writes opens with the other engine, with its items and its versions.
 - `getEngine()` gives the engine of the storage. `getMetadata()` gives it in `stats.engine`. `isNodeSqliteAvailable()` tells if this Node.js has `node:sqlite`.
 
-The nightly benchmarks (`bench/storage.bench.ts`) measure the two engines in a file. These are the mean times of one CI run with Node.js 26 on Linux:
+<!-- measured
+The nightly benchmarks (`bench/storage.bench.ts`) measure the two engines in a file. These are the median times of [the nightly run of {run.date}]({run.url}), on the code of commit `{run.commit}` (`@procedures/sqlite` {engine:@procedures/sqlite}), with Node.js 26 on Linux. The site takes them from the newest nightly run, and its build fails when they are more than {run.limit} days old:
 
 | The benchmark | `node` | `sqljs` |
 |---|---|---|
-| 1,000 calls of `set()`, one after the other, in a table of 1,000 items | 141 ms | 1,246 ms |
-| One `getAll()` of a table of 10,000 items | 20 ms | 28 ms |
+| 1,000 calls of `set()`, one after the other, in a table of 1,000 items | {nightly.sqlite-node-file-write-1000} | {nightly.sqlite-sqljs-file-write-1000} |
+| One `getAll()` of a table of 10,000 items | {nightly.sqlite-node-file-read-10000} | {nightly.sqlite-sqljs-file-read-10000} |
+-->
+The nightly benchmarks (`bench/storage.bench.ts`) measure the two engines in a file. [The page of this package on the site](https://mark1russell7.github.io/client/docs/packages/client-sqlite/) shows the times of the newest nightly run, with its date and its commit.
+<!-- /measured -->
 
 The engine `sqljs` writes the whole file at each write, so its write time grows with the size of the file.
 

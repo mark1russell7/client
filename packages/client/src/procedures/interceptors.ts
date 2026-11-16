@@ -10,6 +10,8 @@ import { InvocationError, closableUnread, type Interceptor, type Invocation, typ
 import { pathToKey, type ProcedurePath } from "./types.js";
 import { toMs, type Duration } from "../duration.js";
 import { TRACEPARENT_METADATA_KEY, formatTraceparent, newSpanId, newTraceId, parseTraceparent } from "../tracing/traceparent.js";
+import { context as otelContext, isSpanContextValid, SpanKind, trace, type Span } from "@opentelemetry/api";
+import { endApiSpan, remoteParent, startApiSpan } from "../tracing/otel.js";
 
 // =============================================================================
 // Timeout
@@ -134,7 +136,10 @@ export interface InvocationSpan {
    * remote caller, when the caller sent a `traceparent` (roadmap R16), or none.
    */
   readonly parentId: string | undefined;
-  /** True when the parent span is in another process: the caller of a host. */
+  /**
+   * True when the parent span came from the `traceparent` of the call: the caller of a host. With an
+   * SDK of OpenTelemetry, a local call of a client also has a remote parent: the span of its client.
+   */
   readonly remoteParent?: boolean | undefined;
   /** The same for every span of one call of a host, and of its caller when it sent a trace. */
   readonly traceId: string;
@@ -162,6 +167,12 @@ export interface TracingInterceptorOptions {
   onStart?: ((span: InvocationSpan) => void) | undefined;
   /** The clock. The default is `performance.now()`. */
   now?: (() => number) | undefined;
+  /**
+   * With an SDK of OpenTelemetry, each invocation is also a span of the API, and the span ids come
+   * from it: a host span (`SERVER`) for a call of a host, an `INTERNAL` span for a nested call.
+   * The handler runs in the context of its span. Default: true. With no SDK, this option does nothing.
+   */
+  apiSpans?: boolean | undefined;
 }
 
 
@@ -173,6 +184,8 @@ export function tracingInterceptor(options: TracingInterceptorOptions): Intercep
   const now = options.now ?? (() => performance.now());
   /** The open spans, by the id of their invocation */
   const open = new Map<number, InvocationSpan>();
+  /** The open spans of the API, by the id of their invocation */
+  const apiOpen = new Map<number, Span>();
 
   const finish = (span: InvocationSpan, invocationId: number, error?: unknown): void => {
     span.end = now();
@@ -186,22 +199,35 @@ export function tracingInterceptor(options: TracingInterceptorOptions): Intercep
       span.status = "ok";
     }
     open.delete(invocationId);
+    const apiSpan = apiOpen.get(invocationId);
+    if (apiSpan !== undefined) {
+      apiOpen.delete(invocationId);
+      endApiSpan(apiSpan, error);
+    }
     options.onSpan(span);
   };
 
   return async (invocation, next) => {
     const parent = invocation.parent ? open.get(invocation.parent.id) : undefined;
-    // A call of a host continues the trace of its caller (W3C traceparent, roadmap R16)
-    const remote = parent ? undefined : parseTraceparent(invocation.metadata[TRACEPARENT_METADATA_KEY]);
+    const key = pathToKey(invocation.path);
+    // With an SDK, the span of the API gives the ids (roadmap C8 of otel-ts, D5). The parent is the
+    // span of the parent invocation, else the span of the traceparent of the call.
+    const parentApi = invocation.parent ? apiOpen.get(invocation.parent.id) : undefined;
+    const apiParent = parentApi !== undefined ? trace.setSpan(otelContext.active(), parentApi) : remoteParent(invocation.metadata);
+    const apiSpan = options.apiSpans === false ? undefined : startApiSpan(key, invocation.parent ? SpanKind.INTERNAL : SpanKind.SERVER, apiParent);
+    const apiParentSpan = apiSpan === undefined ? undefined : trace.getSpanContext(apiParent);
+    // With no SDK: a call of a host continues the trace of its caller (W3C traceparent, roadmap R16)
+    const remote = parent || apiSpan ? undefined : parseTraceparent(invocation.metadata[TRACEPARENT_METADATA_KEY]);
     // W3C span ids, so a trace backend can join the spans of the client and of the server
-    const id = newSpanId();
+    const id = apiSpan?.spanContext().spanId ?? newSpanId();
+    const apiParentId = apiParentSpan !== undefined && isSpanContextValid(apiParentSpan) ? apiParentSpan.spanId : undefined;
     const span: InvocationSpan = {
       id,
-      parentId: parent?.id ?? remote?.spanId,
-      ...(remote ? { remoteParent: true } : {}),
-      traceId: parent?.traceId ?? remote?.traceId ?? newTraceId(),
+      parentId: apiSpan ? apiParentId : (parent?.id ?? remote?.spanId),
+      ...(remote || (apiParentId !== undefined && apiParentSpan?.isRemote === true) ? { remoteParent: true } : {}),
+      traceId: apiSpan?.spanContext().traceId ?? parent?.traceId ?? remote?.traceId ?? newTraceId(),
       path: invocation.path,
-      key: pathToKey(invocation.path),
+      key,
       depth: invocation.depth,
       start: now(),
       end: undefined,
@@ -209,12 +235,16 @@ export function tracingInterceptor(options: TracingInterceptorOptions): Intercep
       status: "running",
     };
     open.set(invocation.id, span);
+    if (apiSpan !== undefined) apiOpen.set(invocation.id, apiSpan);
     options.onStart?.(span);
 
     let output: ProcedureOutput<unknown>;
     try {
       // The nested calls (and their remote calls) carry the span of this invocation (R16)
-      output = await next({ metadata: { ...invocation.metadata, [TRACEPARENT_METADATA_KEY]: formatTraceparent(span.traceId, id) } });
+      const sampled = apiSpan === undefined || (apiSpan.spanContext().traceFlags & 1) === 1;
+      const run = () => next({ metadata: { ...invocation.metadata, [TRACEPARENT_METADATA_KEY]: formatTraceparent(span.traceId, id, sampled) } });
+      // The handler runs in the context of its span, so its logs, metrics and calls get the ids
+      output = await (apiSpan === undefined ? run() : otelContext.with(trace.setSpan(apiParent, apiSpan), run));
     } catch (error) {
       finish(span, invocation.id, error);
       throw error;
@@ -286,6 +316,7 @@ export function metricsInterceptor(options: { now?: () => number } = {}): Metric
   };
   return {
     interceptor: tracingInterceptor({
+      apiSpans: false,
       onSpan: (span) => record(span.key, span.durationMs ?? 0, span.status === "error"),
       ...(options.now ? { now: options.now } : {}),
     }),

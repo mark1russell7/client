@@ -1,6 +1,8 @@
 import "@fontsource-variable/atkinson-hyperlegible-next";
 import "@fontsource-variable/atkinson-hyperlegible-mono";
 import "./styles/tokens.css";
+// The fade at the edge of a code block that scrolls sideways (the class scroll-cue)
+import "@mark1russell7/site-pages/scroll-cue.css";
 import "./styles/app.css";
 import "./styles/status.css";
 import "./styles/lab.css";

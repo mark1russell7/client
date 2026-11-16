@@ -470,12 +470,14 @@ The package has one procedure, `dag.traverse`. It came from `client-lib` in vers
 | `rootPath` | the workspace | The workspace root |
 | `concurrency` | 4 | The number of visits at the same time |
 | `serialize` | `auto` | When the visits in one git repository start one at a time: `auto` (when the visit uses a `git` procedure), `repository` (always) or `none` |
-| `continueOnError` | false | Continue after a failed visit |
+| `continueOnError` | false | Continue after a failed visit, without the dependents of the failed package |
 | `dryRun` | false | Give the plan only |
 
 All packages of the monorepo are in one git repository. Concurrent `git add` commands fail on `index.lock`, so `auto` starts git visits one at a time (deep dive DATA-17).
 
-The output has one result for each package of the graph. A failed visit stops the traversal after its level when `continueOnError` is false. Each package that the traversal did not visit then has a result with `skipped: true`, `success: false` and a `reason`. These results come after the results of the visits. `visited` counts the visits that succeeded, `failed` counts the visits that failed, and `skipped` counts the packages without a visit.
+The output has one result for each package of the graph. A failed visit stops the traversal after its level when `continueOnError` is false. Each package that the traversal did not visit then has a result with `skipped: true`, `success: false` and a `reason`.
+
+With `continueOnError`, the visit of a package whose dependency failed or was skipped does not start. Its result has `skipped: true` and a `reason` with the error of the dependency. These results come after the results of the visits. `visited` counts the visits that succeeded, `failed` counts the visits that failed, and `skipped` counts the packages without a visit.
 
 ```typescript
 import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";

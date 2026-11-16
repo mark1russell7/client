@@ -220,6 +220,9 @@ async function prepareServer(config: ServerConfig, log: (line: string) => void, 
     // the topic rule is empty, so each subscription gets TOPIC_NOT_FOUND. The bus is the global
     // bus, which is also the ctx.bus of the procedures.
     events: { topics: config.events ?? [] },
+    // --allowed-host: the names of the Host check of each listener, besides localhost and the IP
+    // addresses. A LAN listener (0.0.0.0) that a client reaches by a name needs that name.
+    ...(config.allowedHosts !== undefined ? { browser: { allowedHosts: config.allowedHosts } } : {}),
   });
   return { registry, policy, token, generated, confined };
 }

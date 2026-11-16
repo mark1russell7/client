@@ -87,7 +87,7 @@ function ProgramCode({ program }: { program: Json }): ReactElement {
   const text = compactJson(program);
   const parts = text.split(/("\$(?:proc|ref|name)")/g);
   return (
-    <pre className="hero-code" tabIndex={0} aria-label="The program as JSON">
+    <pre className="hero-code scroll-cue" tabIndex={0} aria-label="The program as JSON">
       {parts.map((part, index) => (part.startsWith('"$') ? <span key={index} className="tok-key">{part}</span> : part))}
     </pre>
   );

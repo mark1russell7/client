@@ -9,9 +9,10 @@
  * A procedure declares its effects in `metadata.effects`. The admission (`capabilityRefusal()`)
  * compares them with the permitted effects. It examines each call of a host, each nested call
  * of a data-driven procedure (its caller chose the refs), and each nested call with a narrowed
- * capability. A procedure of code that declares its effects answers for its own nested calls:
- * `checkEffects()` examines those declarations against the call graph, as `metadata.calls`
- * makes the reach of a procedure visible.
+ * capability. A procedure of code that declares its effects answers for each nested call that
+ * its `metadata.calls` declares, when the effects of the callee are in its own declaration.
+ * `checkEffects()` examines the same edges against the call graph. The admission examines each
+ * other nested call.
  */
 
 import type {
@@ -261,13 +262,55 @@ export function capabilityRefusal(
 }
 
 /**
- * True when the admission examines a nested call: the caller is data-driven (its caller chose
- * the refs), the caller declares no effects, or the capability of the nested call is narrower
- * than the capability of its caller. A procedure of code with declared effects answers for its
- * own nested calls (`checkEffects()` examines them).
+ * True when the admission examines a nested call. The admission skips only a declared edge: a
+ * procedure of code with declared effects calls a procedure that an entry of its `metadata.calls`
+ * names, with the same capability, and the effects of the callee are in the declaration of the
+ * caller (`edgeFaults()` gives nothing). A caller without `calls` answers for no nested call.
+ * Without the callee, the function cannot name the edge, so it gives true.
  */
-export function examinesNestedCall(caller: AnyProcedure, callerCapability: Capability<unknown>, capability: Capability<unknown>): boolean {
-  return isDataDriven(caller) || effectsOf(caller) === undefined || capability !== callerCapability;
+export function examinesNestedCall(
+  caller: AnyProcedure,
+  callerCapability: Capability<unknown>,
+  capability: Capability<unknown>,
+  callee?: AnyProcedure
+): boolean {
+  if (callee === undefined || isDataDriven(caller) || capability !== callerCapability) return true;
+  const own = effectsOf(caller);
+  if (own === undefined) return true;
+  const key = pathToKey(callee.path);
+  if (!(declaredCalls(caller) ?? []).some((entry) => callMatches(entry, key))) return true;
+  return edgeFaults(own, callee).length > 0;
+}
+
+/** The entries of `metadata.calls` of a procedure, or undefined when it declares none. */
+function declaredCalls(procedure: AnyProcedure): readonly string[] | undefined {
+  const calls = (procedure.metadata as { calls?: unknown } | undefined)?.calls;
+  return Array.isArray(calls) ? (calls as string[]) : undefined;
+}
+
+/**
+ * The faults of one edge of the call graph: each read or change of the callee that the
+ * declaration of the caller does not include. A callee that writes `process` starts a program,
+ * and the caller declares what that program does, so the check skips `process`. A kind that the
+ * caller does not declare has no limit here: the admission refuses that caller under a capability
+ * that limits the kind.
+ */
+function edgeFaults(own: Effects, callee: AnyProcedure): string[] {
+  const theirs = effectsOf(callee);
+  if (!theirs) return ["the callee declares no effects"];
+  const faults: string[] = [];
+  for (const kind of ["reads", "writes"] as const) {
+    const mine = own[kind];
+    const declared = theirs[kind];
+    if (declared === undefined) {
+      faults.push(`the callee does not declare what it ${VERB[kind]}`);
+      continue;
+    }
+    if (mine === undefined) continue;
+    const missing = declared.filter((name) => name !== "process" && !mine.includes(name));
+    if (missing.length > 0) faults.push(`the declaration does not include ${missing.join(", ")} in ${kind}`);
+  }
+  return faults;
 }
 
 /** The result of `explainInvocation()`. */
@@ -321,34 +364,16 @@ export function checkEffects(procedures: readonly AnyProcedure[]): EffectsViolat
   const violations: EffectsViolation[] = [];
   for (const procedure of procedures) {
     const own = effectsOf(procedure);
-    const calls = (procedure.metadata as { calls?: unknown } | undefined)?.calls;
-    if (!own || !Array.isArray(calls) || isDataDriven(procedure)) continue;
+    const calls = declaredCalls(procedure);
+    if (!own || !calls || isDataDriven(procedure)) continue;
     const key = pathToKey(procedure.path);
     const callees = new Set<string>();
-    for (const entry of calls as string[]) {
+    for (const entry of calls) {
       for (const candidate of byKey.keys()) if (callMatches(entry, candidate)) callees.add(candidate);
     }
     for (const calleeKey of [...callees].sort()) {
-      const callee = byKey.get(calleeKey)!;
-      const theirs = effectsOf(callee);
-      const report = (message: string): void => {
-        violations.push({ path: procedure.path, callee: calleeKey, message: `${key} calls ${calleeKey}: ${message}` });
-      };
-      if (!theirs) {
-        report("the callee declares no effects");
-        continue;
-      }
-      for (const kind of ["reads", "writes"] as const) {
-        const mine = own[kind];
-        const needed = (theirs[kind] ?? []).filter((name) => name !== "process");
-        if (theirs[kind] === undefined) {
-          report(`the callee does not declare what it ${VERB[kind]}`);
-        } else if (mine === undefined) {
-          continue;
-        } else {
-          const missing = needed.filter((name) => !mine.includes(name));
-          if (missing.length > 0) report(`the declaration does not include ${missing.join(", ")} in ${kind}`);
-        }
+      for (const fault of edgeFaults(own, byKey.get(calleeKey)!)) {
+        violations.push({ path: procedure.path, callee: calleeKey, message: `${key} calls ${calleeKey}: ${fault}` });
       }
     }
   }

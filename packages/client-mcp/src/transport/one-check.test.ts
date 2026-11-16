@@ -62,7 +62,7 @@ interface Counts {
 function countedBrowser(counts: Counts): BrowserGuardOptions {
   const allowedHosts = new Proxy(["app.test"], {
     get(target, key, receiver) {
-      if (key === "includes") counts.hosts++;
+      if (key === "includes" || key === "some") counts.hosts++;
       return Reflect.get(target, key, receiver) as unknown;
     },
   });

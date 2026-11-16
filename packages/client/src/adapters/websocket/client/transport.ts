@@ -1020,7 +1020,8 @@ export class WebSocketTransport implements Transport {
     this.setState(WebSocketState.DISCONNECTING, "close");
     this.stopHeartbeat();
     this.clearHandshakeTimer();
-    this.incoming?.abortAll();
+    // The socket is open: each call of the server that the close stops gets its error (CLI-48)
+    this.incoming?.abortAll("stopped");
     this.incoming = undefined;
 
     if (this.reconnectTimer) {

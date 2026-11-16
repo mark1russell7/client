@@ -7,7 +7,9 @@
 ## . (dist/index.d.ts): names
 
 type GitContext: dist/procedures/git/run.d.ts#GitContext
+type GitDirs: dist/procedures/git/files.d.ts#GitDirs
 GitError: dist/procedures/git/run.d.ts#GitError
+type GitHeadInfo: dist/procedures/git/files.d.ts#GitHeadInfo
 type GitPorcelainEntry: dist/procedures/git/porcelain.d.ts#GitPorcelainEntry
 type GitRunOptions: dist/procedures/git/run.d.ts#GitRunOptions
 classifyStatus: dist/procedures/git/porcelain.d.ts#classifyStatus
@@ -22,6 +24,7 @@ gitCheckout: dist/procedures/git/checkout.d.ts#gitCheckout
 gitClone: dist/procedures/git/clone.d.ts#gitClone
 gitCommit: dist/procedures/git/commit.d.ts#gitCommit
 gitDiff: dist/procedures/git/diff.d.ts#gitDiff
+gitDirsOf: dist/procedures/git/files.d.ts#gitDirsOf
 gitFetch: dist/procedures/git/fetch.d.ts#gitFetch
 gitInit: dist/procedures/git/init.d.ts#gitInit
 gitLog: dist/procedures/git/log.d.ts#gitLog
@@ -53,8 +56,12 @@ gitTagList: dist/procedures/git/tag/list.d.ts#gitTagList
 gitWorktreeAdd: dist/procedures/git/worktree/add.d.ts#gitWorktreeAdd
 gitWorktreeList: dist/procedures/git/worktree/list.d.ts#gitWorktreeList
 gitWorktreeRemove: dist/procedures/git/worktree/remove.d.ts#gitWorktreeRemove
+onRemote: dist/procedures/git/files.d.ts#onRemote
 parseNumstat: dist/procedures/git/diff.d.ts#parseNumstat
 parsePorcelainV1: dist/procedures/git/porcelain.d.ts#parsePorcelainV1
+readHead: dist/procedures/git/files.d.ts#readHead
+readRefs: dist/procedures/git/files.d.ts#readRefs
+readWorktrees: dist/procedures/git/files.d.ts#readWorktrees
 registerGitProcedures: dist/module.d.ts#registerGitProcedures
 
 ## ./module (dist/module.d.ts): names
@@ -111,6 +118,34 @@ export declare function parseNumstat(output: string): GitDiffFile[];
 
 ### dist/procedures/git/fetch.d.ts#gitFetch
 export declare function gitFetch(input: GitFetchInput, ctx?: GitContext): Promise<GitFetchOutput>;
+
+### dist/procedures/git/files.d.ts#GitDirs
+export interface GitDirs {
+    gitDir: string;
+    commonDir: string;
+}
+
+### dist/procedures/git/files.d.ts#GitHeadInfo
+export interface GitHeadInfo {
+    head?: string | undefined;
+    branch?: string | undefined;
+    detached: boolean;
+}
+
+### dist/procedures/git/files.d.ts#gitDirsOf
+export declare function gitDirsOf(tree: string): Promise<GitDirs>;
+
+### dist/procedures/git/files.d.ts#onRemote
+export declare function onRemote(repo: string, sha: string): Promise<true | "unknown">;
+
+### dist/procedures/git/files.d.ts#readHead
+export declare function readHead(tree: string): Promise<GitHeadInfo>;
+
+### dist/procedures/git/files.d.ts#readRefs
+export declare function readRefs(repo: string): Promise<Map<string, string>>;
+
+### dist/procedures/git/files.d.ts#readWorktrees
+export declare function readWorktrees(main: string): Promise<GitWorktreeInfo[]>;
 
 ### dist/procedures/git/init.d.ts#gitInit
 export declare function gitInit(input: GitInitInput, ctx?: GitContext): Promise<GitInitOutput>;
