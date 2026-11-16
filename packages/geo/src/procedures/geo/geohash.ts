@@ -4,7 +4,7 @@
  * Give the geohash of a point
  */
 
-import { decodeGeohash, geohash } from "../../geohash.js";
+import { decodeGeohash, geohash } from "@mark1russell7/geo";
 import type { GeoGeohashInput, GeoGeohashOutput } from "../../types.js";
 
 /**
