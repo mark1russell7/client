@@ -4,7 +4,7 @@
 
 Each pnpm procedure declares the same effects: it reads `fs` and `network`, and it writes `fs` and `process`.
 
-- Before each command, pnpm reads the configuration of the working folder. Then it installs the config dependencies of the project from the registry, and it loads the `.pnpmfile.cjs` of the project. It can also start the pnpm that the field `packageManager` names.
+- Before each command, pnpm reads the configuration of the working folder. Then it installs the config dependencies of the project from the registry, and it loads the `.pnpmfile.cjs` of the project. It can also start the pnpm that the field `packageManager` names. pnpm 10.26 and pnpm 12.18 do these steps for each command, and no flag of pnpm stops the install.
 - These steps are code of the project. So `pnpm.list`, `pnpm.why`, `pnpm.outdated` and `pnpm.store.path` also write `process`, as `pnpm.install` does.
 - A test starts the real `pnpm list` in a project whose `.pnpmfile.cjs` writes a file, and it finds the file.
 
