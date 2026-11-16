@@ -175,7 +175,10 @@ export interface InvokeOptions {
    * of the host gets it in its context, not its nested calls.
    */
   progress?: ReportProgress | undefined;
-  /** The input is valid already (for example, the route resolver validated it). */
+  /**
+   * The input of this call is valid already (for example, the route resolver validated it). The
+   * nested calls do not get it: each one validates its own input.
+   */
   inputValidated?: boolean | undefined;
   /**
    * This client replaces the default `ctx.client`, for example a Client that sends unknown paths
@@ -644,7 +647,11 @@ export function createProcedureContext(
   options: InvokeOptions = {},
   invocation?: Invocation,
 ): ProcedureContext {
-  const nestedOptions: InvokeOptions = invocation ? { ...options, parent: invocation } : options;
+  // The flag inputValidated is a fact about the input of this call, so each nested call
+  // validates its own input
+  const nestedOptions: InvokeOptions = invocation
+    ? { ...options, inputValidated: undefined, parent: invocation }
+    : { ...options, inputValidated: undefined };
   let client: ProcedureClient;
   if (typeof options.client === "function") {
     client = invocation ? options.client(invocation) : registryClient(procedure, nestedOptions);
