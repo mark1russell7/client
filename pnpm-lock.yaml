@@ -1862,6 +1862,9 @@ importers:
       '@procedures/sqlite':
         specifier: workspace:*
         version: link:../client-sqlite
+      '@procedures/statistics':
+        specifier: workspace:*
+        version: link:../statistics
       '@procedures/store':
         specifier: workspace:*
         version: link:../client-store
