@@ -77,6 +77,30 @@ export function remoteParent(metadata: Record<string, unknown>, from: Context = 
   return isSpanContextValid(trace.getSpanContext(extracted) ?? { traceId: "", spanId: "", traceFlags: 0 }) ? extracted : from;
 }
 
+/** The trace context that the caller of a call gave in its metadata: `traceparent` and `tracestate`, strings only */
+export type CallerTrace = { readonly traceparent?: string; readonly tracestate?: string };
+
+/** This function gives the `traceparent` and `tracestate` of `metadata`, before the client writes its own. */
+export function callerTraceOf(metadata: Readonly<Record<string, unknown>>): CallerTrace {
+  const { traceparent, tracestate } = metadata;
+  return {
+    ...(typeof traceparent === "string" ? { traceparent } : {}),
+    ...(typeof tracestate === "string" ? { tracestate } : {}),
+  };
+}
+
+/**
+ * This function gives the parent context of a try of a call of a client (roadmap item C19 of
+ * otel-ts): the active context when it has a valid span, else the remote span of `caller`, the
+ * trace context that the caller gave in the metadata of the call. For example, `mark` gives the
+ * environment variables `TRACEPARENT` and `TRACESTATE` there. Without this, the span of the call
+ * started a new trace, and the propagator wrote that trace over the trace context of the caller.
+ */
+export function callParent(caller: CallerTrace, from: Context = context.active()): Context {
+  const active = trace.getSpanContext(from);
+  return active !== undefined && isSpanContextValid(active) ? from : remoteParent(caller, from);
+}
+
 /**
  * This function gives the context of the caller of an invocation of a host (roadmap item C10 of
  * otel-ts): the handler runs in it, so its logs, metrics, spans and nested calls carry the ids of

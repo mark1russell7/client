@@ -92,7 +92,7 @@ const registry = createRegistry(createHttpModule({ allow: ["localhost:11434", "1
 
 ### The host policy in other packages
 
-`createHostFetch(options)` gives a `fetch` for GET requests through the same checks. Its options are the options of `createHttpModule()`. A procedure of another package uses it for a URL of its caller:
+`createHostFetch(options)` gives a `fetch` for GET and HEAD requests through the same checks. Its options are the options of `createHttpModule()`. A procedure of another package uses it for a URL of its caller:
 
 - `weather.forecast` uses it by default.
 - `createGeoModule({ fetch })` and `createIcsModule({ fetch })` take it. Their default stays the global `fetch`, because their roots run in a browser.
@@ -106,6 +106,66 @@ const registry = createRegistry(createGeoModule({ fetch: createHostFetch({ allow
 ```
 
 A refusal is `FORBIDDEN` with the reason `host-not-allowed`. When the signal of the caller aborts, the function throws the reason of the signal, as `fetch` does.
+
+The response has `headers`, with names in lowercase. The option `method: "HEAD"` reads only the headers of a page, for example for `frameRefusal`:
+
+```ts
+const response = await hostFetch(url, { method: "HEAD", signal: AbortSignal.timeout(5_000) });
+const decision = frameRefusal(response.headers, { ancestor: "http://127.0.0.1:3000", page: response.url });
+```
+
+### The addresses and the local names
+
+- `isPublicAddress(address)` tells if an IP address is public. `specialClass(bytes)` gives the class of an address that is not public.
+- `isLocalName(hostname)` tells if a host name is a name of this computer or of the local network. The function reads no DNS.
+- A local name is `localhost` or a name in the domain `localhost`, `local`, `internal` or `home.arpa`. The letter case and a final dot change nothing.
+- The sources of the domains are RFC 6761, RFC 6762 (mDNS), RFC 8375 and the reservation of `internal` by ICANN in 2024.
+
+```ts
+import { isLocalName } from "@procedures/http";
+
+isLocalName("printer.local"); // true
+isLocalName("Router.Home.Arpa."); // true
+isLocalName("myinternal.example"); // false
+```
+
+### The policy proxy for other programs
+
+`startPolicyProxy(options)` starts a local forward proxy. The proxy applies the host policy to each request of another program, for example a headless browser.
+
+```ts
+import { createHostPolicy, startPolicyProxy } from "@procedures/http";
+
+const proxy = await startPolicyProxy({
+  policy: createHostPolicy({ allow: ["intranet.example"] }),
+  onRefusal: (refusal) => console.warn(refusal.method, refusal.target, refusal.reason),
+});
+try {
+  // Start the program with the flag `--proxy-server=${proxy.url}`
+} finally {
+  await proxy.close();
+}
+```
+
+- The proxy listens on `127.0.0.1`, on a free port. `proxy.url` is its address, for example `http://127.0.0.1:41234`.
+- A `CONNECT` request opens a tunnel to `host:port`. A browser sends `https:`, `wss:` and `ws:` requests in a tunnel.
+- A plain request has an absolute `http:` URL, for example `GET http://a.example/page`. The proxy sends it to the host, and gives back the response.
+- The proxy examines the host of each request with `checkHost`. The connection uses only the checked addresses, so a second DNS answer cannot change the address.
+- The proxy gives the status 403 to a host that the policy refuses. The page of the 403 does not tell the reason.
+- `proxy.refusals` gives the first 1000 refusals (`MAX_PROXY_REFUSALS`). `onRefusal` gets each refusal at its time. An error of `onRefusal` does not stop the proxy.
+- A host with no address, a connection that fails and a response with a bad status (for example 99) get the status 502. Each other request gets the status 400.
+- The proxy does not send the headers of one connection, for example `proxy-authorization` and `connection`.
+- `proxy.requests` gives the number of requests that the proxy got, also each refused request. The value stays after `close()`.
+- `close()` closes each open connection and the listener. Then the port is free. A second call does nothing.
+- The default policy is `DEFAULT_HOST_POLICY`: each public host, and no other host.
+
+`@procedures/browser` uses the proxy for its option `hostPolicy`.
+
+Use the proxy only for one run, and close it at the end of the run:
+
+- The listener has no token. While the proxy runs, each program on this computer can send requests through it.
+- Such a program can reach each host that the policy permits. With an `allow` entry for an intranet host, it can reach that intranet host.
+- The connections to the hosts have no idle time-out. `close()` closes them.
 
 ## Limits and time
 
@@ -168,6 +228,7 @@ const decision = frameRefusal(response.headers, { ancestor: "https://a.example",
 ## Limits of this package
 
 - The procedures do not use a proxy.
+- The policy proxy does not decrypt a tunnel. It examines the host and the port of a tunnel, not the requests in it.
 - Each request gets its own connection. The procedures do not keep connections open.
 - The check and the connection use the same addresses. A server can still send a redirect, and the check examines it before its connection.
 

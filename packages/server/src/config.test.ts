@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { parseConfig } from "./config.js";
+import { parseAllowedHosts, parseConfig } from "./config.js";
 
 describe("parseConfig", () => {
   it("gives a loopback HTTP server by default", () => {
@@ -34,6 +34,25 @@ describe("parseConfig", () => {
     expect(config.fsRoot).toBe("./data");
     expect(parseConfig(["--events", "*"]).events).toEqual(["*"]);
     expect(parseConfig([]).fsRoot).toBeUndefined();
+  });
+
+  it("reads the names of --allowed-host, repeated or comma-separated, in lower case", () => {
+    expect(parseConfig(["--allowed-host", "Box.LAN", "--allowed-host=api.example.com, box.lan"]).allowedHosts).toEqual([
+      "box.lan",
+      "api.example.com",
+    ]);
+    expect(parseConfig(["--allowed-host", "box.lan,*"]).allowedHosts).toBe("*");
+    expect(parseConfig([]).allowedHosts).toBeUndefined();
+    expect(parseAllowedHosts("my-server")).toEqual(["my-server"]);
+  });
+
+  it("reports an invalid name of --allowed-host", () => {
+    expect(() => parseConfig(["--allowed-host", "box.lan:3000"])).toThrow('Invalid host name: "box.lan:3000"');
+    expect(() => parseConfig(["--allowed-host", "http://box.lan"])).toThrow('Invalid host name: "http://box.lan"');
+    expect(() => parseConfig(["--allowed-host=-box.lan"])).toThrow('Invalid host name: "-box.lan"');
+    expect(() => parseConfig(["--allowed-host", "box..lan"])).toThrow('Invalid host name: "box..lan"');
+    expect(() => parseConfig(["--allowed-host", " , "])).toThrow("--allowed-host needs a host name");
+    expect(() => parseConfig(["--allowed-host"])).toThrow("--allowed-host needs a value");
   });
 
   it("reads the port of the probe server (CLI-9)", () => {

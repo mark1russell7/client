@@ -11,6 +11,11 @@
  * the packages that declare `client.procedures` and the build information of each one, of the
  * core, and of mark. When a package was built again, or added, or removed, the fingerprint
  * changes: mark then loads the procedures as before and writes the manifest again.
+ *
+ * The package leaves out `dist/manifest.json`. Its fingerprint names the builds of one workspace,
+ * and an installed copy has none of these builds. Thus the first start of an installed copy writes
+ * the file. A shipped copy also had a different fingerprint and time after each build, so the
+ * release check found a change in each pull request.
  */
 
 import { createHash } from "node:crypto";

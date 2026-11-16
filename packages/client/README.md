@@ -140,6 +140,7 @@ A host controls which procedures its callers reach, also through nested calls. S
 The client uses `@opentelemetry/api` only. The API does nothing until the program registers an SDK, for example with `startNodeTelemetry()` of `@mark1russell7/otel-ts/node`.
 
 - With an SDK, each try of a call is a client span. The registered propagator writes `traceparent`, `tracestate` and `baggage` into the metadata of the call.
+- The parent of the client span is the active span. When no span is active, the parent is the `traceparent` and `tracestate` that the caller gave in the metadata of the call. For example, `mark` gives the variables `TRACEPARENT` and `TRACESTATE` of its environment there.
 - The client marks each call as an internal call. The propagator of otel-ts sends the baggage only on an internal call.
 - With an SDK, `tracingInterceptor` makes a host span for a call of a host, and an internal span for a nested call. The handler runs in the context of its span.
 - The host reads no baggage from the metadata. `@procedures/peer` reads it from a trusted caller.

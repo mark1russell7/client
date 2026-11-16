@@ -301,7 +301,7 @@ const fsWatchProcedure = createProcedure()
 // =============================================================================
 
 // The root for all the procedures of a registry (roadmap R33)
-export { rootDecisionOf, rootRulesOf, type ConfinedRegistry, type RootDecision, type RootKind } from "./confine.js";
+export { rootDecisionOf, rootHoldOf, rootRulesOf, type ConfinedRegistry, type RootDecision, type RootKind } from "./confine.js";
 
 /**
  * The module of this package, for `createRegistry()`: its procedures as data. Importing this
