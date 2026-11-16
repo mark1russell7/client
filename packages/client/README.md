@@ -641,7 +641,7 @@ interface HttpServerTransportOptions {
 
 With `cors: true`, the transport sends the CORS headers of `corsOptions`. The default of `credentials` is false for the origin `"*"`, and true for each other origin.
 
-Deprecated: the CORS headers on the routes of the app outside `basePath`. From 0.63.0, the transport applies CORS only to `basePath` and the paths under it. An app that needs CORS on its own routes adds its own CORS function.
+The transport applies CORS only to `basePath` and the paths under it. Another route of the app gets no CORS header from the transport, and its `OPTIONS` request goes to the route. An app that needs CORS on its own routes adds its own CORS function, for example `credentialedCors()`.
 
 A URL strategy gets a `UrlStrategyRequest`: the method, the path, the URL, the headers, the query and the body. The type is structural. A `Request` of Express agrees with it, and so does the `UrlRequest` of `procedureHandler`.
 

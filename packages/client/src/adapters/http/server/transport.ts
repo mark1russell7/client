@@ -15,9 +15,9 @@ import type { ServerTransport } from "../../../server/types.js";
 import type { RequestHandler } from "../../../server/types.js";
 import type { HttpServerTransportOptions } from "./types.js";
 import { createPatternServerUrlStrategy } from "./strategies.js";
-import { applyCors, corsOrigins, corsPolicy, type CorsPolicy } from "./cors.js";
+import { corsOrigins } from "./cors.js";
 import { createProcedureHandler, type NodeProcedureHandler } from "./handler.js";
-import { isBatchRequest } from "./batch.js";
+import { isBatchPreflight, isBatchRequest } from "./batch.js";
 import { writeLog, type Logger } from "../../../logger.js";
 
 /**
@@ -59,8 +59,6 @@ export class HttpServerTransport implements ServerTransport {
   private options: { port: number; host: string; basePath: string; cors: boolean; httpServer: HttpServer | undefined; takesBasePath: boolean; batch: boolean };
   /** The procedure handler that does the work of each request (CLI-3) */
   private readonly handler: NodeProcedureHandler;
-  /** The CORS of the app, or undefined when it is off */
-  private readonly cors: CorsPolicy | undefined;
   private stopped = false;
   /** The logger of the start and the stop: the option, or the logger of the server (CLI-87) */
   private readonly logger: Logger | undefined;
@@ -83,11 +81,10 @@ export class HttpServerTransport implements ServerTransport {
     // Route by URL path so the raw server matches the HTTP client's default URL format instead of
     // inferring the operation from the verb (BUGS-2026-07 C3, bug 16)
     const urlStrategy = options.urlStrategy ?? createPatternServerUrlStrategy(basePath);
+    // The handler applies the CORS, only to the requests of the route of the procedures. As with
+    // procedureHandler, the credentials go by default only with a named origin, and an origin that
+    // is not permitted gets no CORS header (CLI-59).
     const corsOptions = this.options.cors ? (options.corsOptions ?? {}) : undefined;
-    // The given options go over the defaults. As with procedureHandler, the credentials go by default
-    // only with a named origin: "*" with credentials is invalid.
-    // An origin that is not permitted gets no CORS header, as with procedureHandler (CLI-59)
-    this.cors = corsOptions ? { ...corsPolicy(corsOptions, (corsOptions.origin ?? "*") !== "*"), permittedOnly: true } : undefined;
     this.handler = createProcedureHandler(
       server,
       {
@@ -102,12 +99,12 @@ export class HttpServerTransport implements ServerTransport {
         secretQuery: options.secretQuery,
         addressing: options.addressing,
         batch: options.batch,
+        cors: corsOptions,
       },
       {
         legacy: true,
         matchAll: true,
         face: { name: "HttpServerTransport", originOption: "corsOptions.origin" },
-        corsOutside: true,
         methodOf: (req) => urlStrategy(req as Request),
         sendJson: (res, status, body) => {
           (res as Response).status(status).json(body);
@@ -129,29 +126,21 @@ export class HttpServerTransport implements ServerTransport {
   }
 
   /**
-   * Setup Express routes: the CORS of the app, then the procedure handler under the base path.
+   * This function sets the route of the procedure handler: the paths under the base path. The
+   * handler applies the CORS of the transport to these requests only. Another route of the app gets
+   * no CORS header from the transport.
    */
   private setupRoutes(): void {
-    const cors = this.cors;
-    if (cors) {
-      // One allowed origin goes back: the request's origin when it is in the list, with
-      // Vary: Origin so that caches keep them apart. A preflight ends here with 204.
-      // Deprecated: this function applies to each route of the app. From 0.63.0, it applies only to
-      // the base path and the paths under it.
-      this.app.use((req, res, next) => {
-        if (!applyCors(req, res, cors)) next();
-      });
-    }
-
     // Catch-all route for RPC - use regex to match any path under basePath, and the base path
     // itself for an addressing that takes it. A batch also goes to the base path itself; another
-    // request there goes on to the app (CLI-32).
-    const { basePath, takesBasePath, batch } = this.options;
+    // request there goes on to the app (CLI-32). With CORS, the preflight request of a batch goes
+    // to the handler too, and its CORS answers it.
+    const { basePath, takesBasePath, batch, cors } = this.options;
     const bareBase = basePath.replace(/\/$/, "");
     this.app.all(
       basePathRoute(basePath, takesBasePath || batch),
       async (req, res, next) => {
-        if (!takesBasePath && req.path.replace(/\/$/, "") === bareBase && !isBatchRequest(req)) {
+        if (!takesBasePath && req.path.replace(/\/$/, "") === bareBase && !isBatchRequest(req) && !(cors && isBatchPreflight(req))) {
           next();
           return;
         }

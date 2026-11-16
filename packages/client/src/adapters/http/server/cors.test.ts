@@ -29,8 +29,11 @@ afterEach(async () => {
   cleanups = [];
 });
 
-/** A procedure server over HTTP with the CORS of the page `APP`, or of the origins `origin`. */
-async function start(allowedHeaders?: string[], origin: string | string[] = [APP]): Promise<number> {
+/**
+ * A procedure server over HTTP with the CORS of the page `APP`, or of the origins `origin`. `routes`
+ * adds the routes of the app after the transport.
+ */
+async function start(allowedHeaders?: string[], origin: string | string[] = [APP], routes?: (app: express.Express) => void): Promise<number> {
   const registry = createRegistry({
     name: "t",
     procedures: [
@@ -49,6 +52,7 @@ async function start(allowedHeaders?: string[], origin: string | string[] = [APP
   const http = createServer(app);
   const corsOptions = allowedHeaders === undefined ? { origin } : { origin, allowedHeaders };
   server.addTransport(new HttpServerTransport(server, { app, httpServer: http, cors: true, corsOptions }));
+  routes?.(app);
   await server.start();
   await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", () => resolve()));
   cleanups.push(async () => {
@@ -60,11 +64,13 @@ async function start(allowedHeaders?: string[], origin: string | string[] = [APP
 }
 
 /** This function sends one request with `node:http`, so the test sets the headers of a browser. */
-async function send(port: number, method: string, headers: Record<string, string>): Promise<{ status: number; headers: IncomingHttpHeaders }> {
+async function send(port: number, method: string, headers: Record<string, string>, path = "/api"): Promise<{ status: number; headers: IncomingHttpHeaders; body: string }> {
   return new Promise((resolve, reject) => {
-    const req = request({ host: "127.0.0.1", port, method, path: "/api", headers }, (res) => {
-      res.resume();
-      res.on("end", () => resolve({ status: res.statusCode ?? 0, headers: res.headers }));
+    const req = request({ host: "127.0.0.1", port, method, path, headers }, (res) => {
+      let body = "";
+      res.setEncoding("utf8");
+      res.on("data", (chunk: string) => (body += chunk));
+      res.on("end", () => resolve({ status: res.statusCode ?? 0, headers: res.headers, body }));
     });
     req.on("error", reject);
     req.end();
@@ -160,5 +166,32 @@ describe("the credentials of the CORS of HttpServerTransport", () => {
     const call = { origin: APP, "content-type": "application/json", "procedures-batch": "1" };
     const calls = [await send(named, "POST", call), await send(any, "POST", call)];
     expect(calls.map((answer) => answer.headers["access-control-allow-credentials"])).toEqual(["true", undefined]);
+  });
+});
+
+describe("the reach of the CORS of HttpServerTransport", () => {
+  /** The names of the CORS headers of an answer. */
+  const corsNames = (headers: IncomingHttpHeaders): string[] => Object.keys(headers).filter((name) => name.startsWith("access-control-"));
+
+  it("gives a route of the app outside the base path no CORS header, and its OPTIONS request reaches the route", async () => {
+    const port = await start(undefined, [APP], (app) => {
+      app.options("/files", (_req, res) => {
+        res.status(200).send("options of the app");
+      });
+      app.get("/files", (_req, res) => {
+        res.send("files of the app");
+      });
+    });
+    const options = await send(port, "OPTIONS", { origin: APP, "access-control-request-method": "GET" }, "/files");
+    const get = await send(port, "GET", { origin: APP }, "/files");
+    expect([options.status, options.body, get.status, get.body]).toEqual([200, "options of the app", 200, "files of the app"]);
+    expect([corsNames(options.headers), corsNames(get.headers)]).toEqual([[], []]);
+  });
+
+  it("answers the preflight of a batch at the base path itself, and of a call under it", async () => {
+    const port = await start();
+    const batch = await preflight(port, ["content-type", "procedures-batch"]);
+    const call = await send(port, "OPTIONS", { origin: APP, "access-control-request-method": "POST" }, "/api/t/echo");
+    expect([batch.status, batch.headers["access-control-allow-origin"], call.status, call.headers["access-control-allow-origin"]]).toEqual([204, APP, 204, APP]);
   });
 });
