@@ -556,7 +556,7 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
     for (const limit of options.limits ?? []) {
       if (limit.nested !== undefined) continue;
       const message =
-        `The limit ${limit.name} counts the calls of a caller only, not their nested calls. @procedures/client 0.61.0 counts the nested calls too. ` +
+        `The limit ${limit.name} counts the calls of a caller only, not their nested calls. @procedures/client 0.64.0 counts the nested calls too. ` +
         `Set nested: true to count them, or nested: false to keep this rule.`;
       writeLog(options.logger, "warn", message, { limit: limit.name }, `[ProcedureServer] ${message}`);
     }
