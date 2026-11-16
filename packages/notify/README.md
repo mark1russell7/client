@@ -87,6 +87,7 @@ A request holds the API token. Do not log a request or its URL.
 `@procedures/notify/testing` has a fake of the Pushover API for tests. The fake is data for `startScriptedServer` of `@mark1russell7/rigor-testkit/http`.
 
 - `pushoverApi` gives the routes of the fake. Each request builder of `./pushover` gets a reply.
+- The option `receiptStates` gives the replies of each receipt, one at each read. After the end, each read gives the last entry again.
 - `pushoverFetchTo` sends the requests of the builders to the fake.
 - `pushoverLedgerOf` reads the records of the server: each send, its first read and its first cancel.
 

@@ -173,6 +173,7 @@ twilioTextStatusRequest: dist/twilio.d.ts#twilioTextStatusRequest
 PushoverApiOptions: dist/testing/index.d.ts#PushoverApiOptions
 PushoverLedger: dist/testing/index.d.ts#PushoverLedger
 PushoverLedgerMessage: dist/testing/index.d.ts#PushoverLedgerMessage
+PushoverReceiptReply: dist/testing/index.d.ts#PushoverReceiptReply
 PushoverReceiptState: dist/testing/index.d.ts#PushoverReceiptState
 pushoverApi: dist/testing/index.d.ts#pushoverApi
 pushoverFetchTo: dist/testing/index.d.ts#pushoverFetchTo
@@ -466,6 +467,7 @@ export interface PushoverApiOptions {
     readonly receipts?: number;
     readonly state?: PushoverReceiptState;
     readonly acknowledgedAt?: number;
+    readonly receiptStates?: (index: number) => readonly PushoverReceiptReply[];
     readonly expiresAt?: number;
     readonly tags?: readonly string[] | "any";
     readonly limit?: {
@@ -497,6 +499,12 @@ export interface PushoverLedgerMessage {
     readonly connection: number;
     readonly readAt?: number;
     readonly cancelledAt?: number;
+}
+
+### dist/testing/index.d.ts#PushoverReceiptReply
+export interface PushoverReceiptReply {
+    readonly state: PushoverReceiptState;
+    readonly acknowledgedAt?: number;
 }
 
 ### dist/testing/index.d.ts#PushoverReceiptState
