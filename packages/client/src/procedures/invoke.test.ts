@@ -9,6 +9,7 @@ import { getEventListeners } from "node:events";
 import { describe, it, expect } from "vitest";
 import * as z from "zod";
 import { Client } from "../client/client.js";
+import type { ClientOptions } from "../client/types.js";
 import { LocalTransport } from "../adapters/local/client/index.js";
 import { ProcedureRegistry } from "./registry.js";
 import { defineProcedure } from "./define.js";
@@ -515,5 +516,16 @@ describe("the depth limit of the nested calls", () => {
     const { registry, runs } = recursive();
     expect(await down(registry, 70, 100)).toBe(70);
     expect(runs).toHaveLength(71);
+  });
+
+  it("gives the maxDepth of a Client and of a LocalTransport to their local calls", async () => {
+    const { registry } = recursive();
+    const transport = stubTransport as unknown as ClientOptions["transport"];
+    expect(await new Client({ transport, maxDepth: 100 }).useRegistry(registry).exec(["test", "down"], { n: 70 })).toBe(70);
+    await expect(new Client({ transport, maxDepth: 2 }).useRegistry(registry).exec(["test", "down"], { n: 5 })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(new Client({ transport }).useRegistry(registry).exec(["test", "down"], { n: 70 })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    const local = (maxDepth: number) => new Client(new LocalTransport({ registry, maxDepth }));
+    expect(await local(100).call({ service: "test", operation: "down" }, { n: 70 })).toBe(70);
+    await expect(local(2).call({ service: "test", operation: "down" }, { n: 5 })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });
