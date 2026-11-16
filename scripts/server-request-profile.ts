@@ -1,6 +1,8 @@
 /**
- * The analysis of the CPU profiles of the server request bench (O94). It has no I/O: the script
- * `server-request.ts` takes the profiles of the host child, and this file compares them.
+ * The analysis of the CPU profiles and the heap profiles of the server request bench (O94). It has
+ * no I/O: the script `server-request.ts` takes the profiles of the host child, and this file compares
+ * them. `amountTableOf()` gives the excess table of both kinds: the self time of a CPU profile, and the
+ * bytes of a heap profile (`heapAnalysisOf()`).
  *
  * The question: which functions of the host spend the transport time of each step of `client.chain`?
  * The profile `a` is of a case with many steps (`chain-200`), and the profile `b` is of a case with
@@ -264,8 +266,98 @@ function totalsOf(side: ProfileSide, selves: readonly FunctionSelf[]): ProfileTo
   };
 }
 
+/** The amount of one function in one profile: the self time in µs of a CPU profile, or the bytes of a heap profile. */
+export interface FunctionAmount {
+  readonly key: string;
+  readonly functionName: string;
+  readonly location: string;
+  /** The line of V8, from 0 */
+  readonly lineNumber: number;
+  readonly amount: number;
+  /** The samples of a CPU profile, or the nodes with bytes of a heap profile */
+  readonly count: number;
+}
+
+/** The amount of a function in one profile of the table. */
+export interface SideAmount {
+  readonly amount: number;
+  readonly perCall: number;
+  readonly count: number;
+}
+
+/** One row of the generic excess table: one function. */
+export interface AmountRow {
+  readonly key: string;
+  readonly functionName: string;
+  readonly location: string;
+  readonly lineNumber: number;
+  readonly group: string;
+  readonly hostSide: boolean;
+  readonly a: SideAmount;
+  readonly b: SideAmount;
+  /** The amount per call in `a` minus the amount per call in `b` */
+  readonly excess: number;
+  /** The excess over the total excess. NaN when the total excess is not above 0. */
+  readonly share: number;
+}
+
+/** One group of the generic excess table: the sums of the rows of one group. */
+export interface AmountGroup {
+  readonly group: string;
+  readonly functions: number;
+  readonly aPerCall: number;
+  readonly bPerCall: number;
+  readonly excess: number;
+  readonly share: number;
+}
+
+/** The generic excess table of two profiles of one kind. */
+export interface AmountTable {
+  /** The sum of the excess of all functions: the amount per call of `a` minus that of `b` */
+  readonly totalExcess: number;
+  /** The functions, from the largest excess */
+  readonly rows: readonly AmountRow[];
+  /** The groups, from the largest excess */
+  readonly groups: readonly AmountGroup[];
+}
+
 /** This function sorts rows from the largest excess, and then by key. */
-const byExcess = <T extends { excessUs: number }>(key: (row: T) => string) => (x: T, y: T) => y.excessUs - x.excessUs || (key(x) < key(y) ? -1 : key(x) > key(y) ? 1 : 0);
+const byExcess = <T extends { excess: number }>(key: (row: T) => string) => (x: T, y: T) => y.excess - x.excess || (key(x) < key(y) ? -1 : key(x) > key(y) ? 1 : 0);
+
+/**
+ * This function gives the excess table of the amounts of the profile `a` (many steps) against the
+ * amounts of the profile `b` (few steps). The CPU analysis and the heap analysis use it. A function of
+ * only one profile has 0 in the other profile. It throws for a count of calls that is not a whole
+ * number above 0.
+ */
+export function amountTableOf(a: { readonly id: string; readonly calls: number; readonly amounts: readonly FunctionAmount[] }, b: { readonly id: string; readonly calls: number; readonly amounts: readonly FunctionAmount[] }): AmountTable {
+  for (const side of [a, b]) if (!Number.isInteger(side.calls) || side.calls <= 0) throw new Error(`The profile ${side.id} has ${side.calls} calls: give a whole number above 0.`);
+  const none: SideAmount = { amount: 0, perCall: 0, count: 0 };
+  const sideOf = (f: FunctionAmount | undefined, calls: number): SideAmount => (f === undefined ? none : { amount: f.amount, perCall: f.amount / calls, count: f.count });
+  const inA = new Map(a.amounts.map((f) => [f.key, f]));
+  const inB = new Map(b.amounts.map((f) => [f.key, f]));
+  const keys = [...new Set([...inA.keys(), ...inB.keys()])];
+  const rows = keys.map((key) => {
+    const f = (inA.get(key) ?? inB.get(key))!;
+    const sa = sideOf(inA.get(key), a.calls);
+    const sb = sideOf(inB.get(key), b.calls);
+    return { key, functionName: f.functionName, location: f.location, lineNumber: f.lineNumber, group: groupOf(f.location), hostSide: isHostSide(f.location), a: sa, b: sb, excess: sa.perCall - sb.perCall };
+  });
+  const totalExcess = rows.reduce((s, r) => s + r.excess, 0);
+  const shareOf = (excess: number) => (totalExcess > 0 ? excess / totalExcess : Number.NaN);
+  const sorted: AmountRow[] = rows.map((r) => ({ ...r, share: shareOf(r.excess) })).sort(byExcess((r) => r.key));
+  const groupMap = new Map<string, { group: string; functions: number; aPerCall: number; bPerCall: number; excess: number }>();
+  for (const r of sorted) {
+    const g = groupMap.get(r.group) ?? { group: r.group, functions: 0, aPerCall: 0, bPerCall: 0, excess: 0 };
+    g.functions += 1;
+    g.aPerCall += r.a.perCall;
+    g.bPerCall += r.b.perCall;
+    g.excess += r.excess;
+    groupMap.set(r.group, g);
+  }
+  const groups: AmountGroup[] = [...groupMap.values()].map((g) => ({ ...g, share: shareOf(g.excess) })).sort(byExcess((g) => g.group));
+  return { totalExcess, rows: sorted, groups };
+}
 
 /**
  * This function gives the analysis of the profile `a` (many steps) against the profile `b` (few
@@ -274,34 +366,14 @@ const byExcess = <T extends { excessUs: number }>(key: (row: T) => string) => (x
  * It throws for a count of calls that is not a whole number above 0.
  */
 export function profileAnalysisOf(a: ProfileSide, b: ProfileSide, tree: string): ProfileAnalysis {
-  for (const side of [a, b]) if (!Number.isInteger(side.calls) || side.calls <= 0) throw new Error(`The profile ${side.id} has ${side.calls} calls: give a whole number above 0.`);
   const selfA = selfTimesOf(a.profile, tree);
   const selfB = selfTimesOf(b.profile, tree);
-  const none: SideTime = { selfUs: 0, perCallUs: 0, samples: 0 };
-  const timeOf = (f: FunctionSelf | undefined, calls: number): SideTime => (f === undefined ? none : { selfUs: f.selfUs, perCallUs: f.selfUs / calls, samples: f.samples });
-  const inA = new Map(selfA.map((f) => [f.key, f]));
-  const inB = new Map(selfB.map((f) => [f.key, f]));
-  const keys = [...new Set([...inA.keys(), ...inB.keys()])];
-  const rows = keys.map((key) => {
-    const f = (inA.get(key) ?? inB.get(key))!;
-    const ta = timeOf(inA.get(key), a.calls);
-    const tb = timeOf(inB.get(key), b.calls);
-    return { key, functionName: f.functionName, location: f.location, lineNumber: f.lineNumber, group: groupOf(f.location), hostSide: isHostSide(f.location), a: ta, b: tb, excessUs: ta.perCallUs - tb.perCallUs };
-  });
-  const totalExcessUs = rows.reduce((s, r) => s + r.excessUs, 0);
-  const shareOf = (excess: number) => (totalExcessUs > 0 ? excess / totalExcessUs : Number.NaN);
-  const functions: ExcessRow[] = rows.map((r) => ({ ...r, share: shareOf(r.excessUs) })).sort(byExcess((r) => r.key));
-  const groupMap = new Map<string, { group: string; functions: number; aPerCallUs: number; bPerCallUs: number; excessUs: number }>();
-  for (const r of functions) {
-    const g = groupMap.get(r.group) ?? { group: r.group, functions: 0, aPerCallUs: 0, bPerCallUs: 0, excessUs: 0 };
-    g.functions += 1;
-    g.aPerCallUs += r.a.perCallUs;
-    g.bPerCallUs += r.b.perCallUs;
-    g.excessUs += r.excessUs;
-    groupMap.set(r.group, g);
-  }
-  const groups: GroupRow[] = [...groupMap.values()].map((g) => ({ ...g, share: shareOf(g.excessUs) })).sort(byExcess((g) => g.group));
-  return { a: totalsOf(a, selfA), b: totalsOf(b, selfB), totalExcessUs, functions, groups, outcomes: outcomesOf(functions, totalExcessUs) };
+  const amountsOf = (selves: readonly FunctionSelf[]): FunctionAmount[] => selves.map((f) => ({ key: f.key, functionName: f.functionName, location: f.location, lineNumber: f.lineNumber, amount: f.selfUs, count: f.samples }));
+  const table = amountTableOf({ id: a.id, calls: a.calls, amounts: amountsOf(selfA) }, { id: b.id, calls: b.calls, amounts: amountsOf(selfB) });
+  const timeOf = (s: SideAmount): SideTime => ({ selfUs: s.amount, perCallUs: s.perCall, samples: s.count });
+  const functions: ExcessRow[] = table.rows.map((r) => ({ key: r.key, functionName: r.functionName, location: r.location, lineNumber: r.lineNumber, group: r.group, hostSide: r.hostSide, a: timeOf(r.a), b: timeOf(r.b), excessUs: r.excess, share: r.share }));
+  const groups: GroupRow[] = table.groups.map((g) => ({ group: g.group, functions: g.functions, aPerCallUs: g.aPerCall, bPerCallUs: g.bPerCall, excessUs: g.excess, share: g.share }));
+  return { a: totalsOf(a, selfA), b: totalsOf(b, selfB), totalExcessUs: table.totalExcess, functions, groups, outcomes: outcomesOf(functions, table.totalExcess) };
 }
 
 /** This function gives the outcomes of the prediction from the excess table, sorted from the largest excess. */
@@ -385,6 +457,150 @@ export function profileMarkdownOf(record: ProfileRecord, top = 25): string {
     `| Group | Functions | \`${a.id}\` µs per call | \`${b.id}\` µs per call | Excess µs | Share |`,
     "|---|---|---|---|---|---|",
     ...analysis.groups.map((g) => `| \`${cell(g.group)}\` | ${g.functions} | ${us(g.aPerCallUs)} | ${us(g.bPerCallUs)} | ${us(g.excessUs)} | ${pc(g.share)} |`),
+    "",
+  ];
+  return `${lines.join("\n")}\n`;
+}
+
+/** The format of the record of the heap kind of the profile mode. */
+export const HEAP_PROFILE_FORMAT = "server-request-heap/1";
+
+/** One node of a sampling heap profile of V8: a call stack and the bytes that its samples stand for. */
+export interface HeapProfileNode {
+  readonly callFrame: { readonly functionName: string; readonly url: string; readonly lineNumber: number };
+  /** The bytes of the samples of the node, scaled by V8 to an estimate of all the bytes of the stack */
+  readonly selfSize: number;
+  readonly children: readonly HeapProfileNode[];
+}
+
+/** A sampling heap profile of V8, as `HeapProfiler.stopSampling` gives it: only the fields that the analysis reads. */
+export interface HeapProfile {
+  readonly head: HeapProfileNode;
+}
+
+/**
+ * This function gives the bytes of each function of a heap profile: the sum of `selfSize` of the
+ * nodes of the function. A function is its name, its location and its line, as in a CPU profile. The
+ * count of a function is its nodes with bytes. The walk has no recursion, so a deep stack does not
+ * stop the analysis. The order is the order of the walk, from the head.
+ */
+export function heapAmountsOf(profile: HeapProfile, tree: string): FunctionAmount[] {
+  const functions = new Map<string, { key: string; functionName: string; location: string; lineNumber: number; amount: number; count: number }>();
+  const stack: HeapProfileNode[] = [profile.head];
+  while (stack.length > 0) {
+    const node = stack.pop()!;
+    if (node.selfSize > 0) {
+      const location = locationOf(node.callFrame, tree);
+      const key = keyOf(node.callFrame.functionName, location, node.callFrame.lineNumber);
+      const entry = functions.get(key) ?? { key, functionName: node.callFrame.functionName, location, lineNumber: node.callFrame.lineNumber, amount: 0, count: 0 };
+      entry.amount += node.selfSize;
+      entry.count += 1;
+      functions.set(key, entry);
+    }
+    for (let i = node.children.length - 1; i >= 0; i--) stack.push(node.children[i]!);
+  }
+  return [...functions.values()];
+}
+
+/** One heap profile of the analysis: the case, the profile and the count of calls in it. */
+export interface HeapSide {
+  readonly id: string;
+  readonly profile: HeapProfile;
+  readonly calls: number;
+}
+
+/** The totals of one heap profile. */
+export interface HeapTotals {
+  readonly id: string;
+  readonly calls: number;
+  /** The functions with bytes */
+  readonly functions: number;
+  readonly totalBytes: number;
+  readonly perCallBytes: number;
+}
+
+/** The analysis of two heap profiles. The amounts of the table are bytes. */
+export interface HeapAnalysis {
+  readonly a: HeapTotals;
+  readonly b: HeapTotals;
+  /** The bytes per call of `a` minus the bytes per call of `b` */
+  readonly totalExcessBytes: number;
+  readonly functions: readonly AmountRow[];
+  readonly groups: readonly AmountGroup[];
+}
+
+/**
+ * This function gives the analysis of the heap profile `a` (many steps) against the heap profile `b`
+ * (few steps): the bytes per call of each function, the excess table and the groups. It throws for a
+ * count of calls that is not a whole number above 0.
+ */
+export function heapAnalysisOf(a: HeapSide, b: HeapSide, tree: string): HeapAnalysis {
+  const amountsA = heapAmountsOf(a.profile, tree);
+  const amountsB = heapAmountsOf(b.profile, tree);
+  const table = amountTableOf({ id: a.id, calls: a.calls, amounts: amountsA }, { id: b.id, calls: b.calls, amounts: amountsB });
+  const totalsOfHeap = (side: HeapSide, amounts: readonly FunctionAmount[]): HeapTotals => {
+    const totalBytes = amounts.reduce((s, f) => s + f.amount, 0);
+    return { id: side.id, calls: side.calls, functions: amounts.length, totalBytes, perCallBytes: totalBytes / side.calls };
+  };
+  return { a: totalsOfHeap(a, amountsA), b: totalsOfHeap(b, amountsB), totalExcessBytes: table.totalExcess, functions: table.rows, groups: table.groups };
+}
+
+/** The record of the heap kind of the profile mode. */
+export interface HeapRecord {
+  readonly format: typeof HEAP_PROFILE_FORMAT;
+  readonly refs: { readonly head: string };
+  readonly node: string;
+  readonly run: { readonly label: string; readonly id?: string; readonly url?: string };
+  /** The mean bytes between two samples that the host child asked for */
+  readonly samplingIntervalBytes: number;
+  /** The untimed calls before the profiler starts, the same for each case */
+  readonly warmup: number;
+  /** The calls in each profile, the same for each case */
+  readonly calls: number;
+  /** The profile file of each case, relative to the folder of the record */
+  readonly files: Readonly<Record<string, string>>;
+  readonly analysis: HeapAnalysis;
+}
+
+/** This function gives the Markdown of a record of the heap kind: the totals, the top functions and the groups, in bytes per call. */
+export function heapMarkdownOf(record: HeapRecord, top = 25): string {
+  const { analysis } = record;
+  const { a, b } = analysis;
+  const bytes = (x: number) => (Number.isFinite(x) ? Math.round(x).toString() : "none");
+  const pc = (x: number) => (Number.isFinite(x) ? `${(x * 100).toFixed(1)} %` : "none");
+  // The lines of V8 start from 0, and the Markdown gives them from 1
+  const where = (r: AmountRow) => `${r.location}${r.lineNumber >= 0 ? `:${r.lineNumber + 1}` : ""}`;
+  // A backslash and a | of a name get a backslash: the | does not end the cell of the table
+  const cell = (s: string) => s.replace(/[\\|]/g, (c) => `\\${c}`);
+  const lines = [
+    `# Server request heap profile (O94): \`${a.id}\` against \`${b.id}\``,
+    "",
+    `Head \`${record.refs.head}\`, Node.js ${record.node}. The host child of each case did ${record.warmup} untimed calls, then the sampling heap profiler ran for ${record.calls} calls, with a mean interval of ${record.samplingIntervalBytes} bytes. The profile keeps the objects that the garbage collector freed, so the bytes are all the allocations of a function, not only the live objects.`,
+    "",
+    "- The bytes of a function are the sum of the scaled bytes of its nodes.",
+    `- The excess of a function is its bytes per call in \`${a.id}\` minus its bytes per call in \`${b.id}\`.`,
+    "- The share of a function is its excess over the total excess of all functions.",
+    "- A line is from 1.",
+    "",
+    "| Profile | Calls | Functions with bytes | Bytes | Bytes per call |",
+    "|---|---|---|---|---|",
+    ...[a, b].map((t) => `| \`${t.id}\` | ${t.calls} | ${t.functions} | ${bytes(t.totalBytes)} | ${bytes(t.perCallBytes)} |`),
+    "",
+    `The total excess is ${bytes(analysis.totalExcessBytes)} bytes per call.`,
+    "",
+    `## The top ${top} functions`,
+    "",
+    `| # | Function | Location | \`${a.id}\` bytes per call | \`${b.id}\` bytes per call | Excess bytes | Share |`,
+    "|---|---|---|---|---|---|---|",
+    ...analysis.functions
+      .slice(0, top)
+      .map((r, i) => `| ${i + 1} | \`${cell(r.functionName || "(anonymous)")}\` | \`${cell(where(r))}\` | ${bytes(r.a.perCall)} | ${bytes(r.b.perCall)} | ${bytes(r.excess)} | ${pc(r.share)} |`),
+    "",
+    "## The groups",
+    "",
+    `| Group | Functions | \`${a.id}\` bytes per call | \`${b.id}\` bytes per call | Excess bytes | Share |`,
+    "|---|---|---|---|---|---|",
+    ...analysis.groups.map((g) => `| \`${cell(g.group)}\` | ${g.functions} | ${bytes(g.aPerCall)} | ${bytes(g.bPerCall)} | ${bytes(g.excess)} | ${pc(g.share)} |`),
     "",
   ];
   return `${lines.join("\n")}\n`;
