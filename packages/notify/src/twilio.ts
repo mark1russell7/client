@@ -191,14 +191,6 @@ const SERVICE_SID = /^MG[0-9a-fA-F]{32}$/;
 const TEXT_SID = /^(SM|MM)[0-9a-fA-F]{32}$/;
 const CALL_SID = /^CA[0-9a-fA-F]{32}$/;
 const PHONE = /^\+[1-9][0-9]{1,14}$/;
-const SECRET = /^[\x21-\x7e]+$/;
-const FORM = "application/x-www-form-urlencoded";
-
-function assertCredentials(credentials: TwilioCredentials): void {
-  if (!TWILIO_ACCOUNT_SID.test(credentials.accountSid)) throw new Error("The account SID is not AC and 32 hexadecimal digits.");
-  if (credentials.keySid !== undefined && !KEY_SID.test(credentials.keySid)) throw new Error("The API key SID is not SK and 32 hexadecimal digits.");
-  if (!SECRET.test(credentials.secret)) throw new Error("The secret is empty, or it has a character that is not visible ASCII.");
-}
 
 function assertPhone(value: string, what: string): void {
   if (!PHONE.test(value)) throw new Error(`The ${what} is not a phone number in E.164 form.`);
