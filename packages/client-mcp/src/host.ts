@@ -457,8 +457,12 @@ export function createMcpHost(options: McpHostOptions = {}): McpHost {
       if (managed) throw new Error("This MCP host is declared on a service already. A host declares one time.");
       if (running || stopping) throw new Error("This MCP host started without a service. Declare it before it starts.");
       managed = true;
-      // The storages connect before the server starts, and close after it (as the procedures host does)
-      for (const handle of [...server.storageHandles(), ...server.partitionHandles()]) {
+      // The storages and the partitions connect before the server starts, and close after it (as the procedures host does).
+      // Each kind has its own loop: the type of a handle sets the type of its dependency.
+      for (const handle of server.storageHandles()) {
+        svc.dependency(handle.name, { system: null, knobs: {}, operations: STORAGE_OPERATIONS }, handle);
+      }
+      for (const handle of server.partitionHandles()) {
         svc.dependency(handle.name, { system: null, knobs: {}, operations: STORAGE_OPERATIONS }, handle);
       }
       svc.server("mcp", {}, {
