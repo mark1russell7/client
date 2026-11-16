@@ -571,7 +571,7 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
    * `close()` on an open response gives `UNAVAILABLE`. Its flag `retryable` is true only for a
    * repeatable call before its first item (CLI-48).
    */
-  const streamToHttp =async (response: ServerResponse, stream: AsyncIterable<unknown>, req: IncomingMessage, res: NodeResponse, signal: AbortSignal, repeatable: boolean): Promise<void> => {
+  const streamToHttp = async (response: ServerResponse, stream: AsyncIterable<unknown>, req: IncomingMessage, res: NodeResponse, signal: AbortSignal, repeatable: boolean): Promise<void> => {
     const ndjson = String(req.headers.accept ?? "").includes(NDJSON);
 
     if (!ndjson && isUnboundedStream(response)) {

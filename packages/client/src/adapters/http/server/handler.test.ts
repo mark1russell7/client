@@ -416,7 +416,8 @@ describe("procedureHandler: the stop parts of a service transport (CLI-3)", () =
       await quiet.waiting;
       handler.close();
       const { status, body } = await answer;
-      expect(status).toBe(503);
+      // An error without a retry gets 500, not 503 (CLI-48, decision D3)
+      expect(status).toBe(retryable ? 503 : 500);
       expect(JSON.parse(body)).toMatchObject({ code: "UNAVAILABLE", retryable });
       await vi.waitFor(() => expect(quiet.returned()).toBe(true));
     }
@@ -429,7 +430,7 @@ describe("procedureHandler: the stop parts of a service transport (CLI-3)", () =
     await quiet.waiting;
     handler.close();
     const { status, body } = await answer;
-    expect(status).toBe(503);
+    expect(status).toBe(500);
     expect(JSON.parse(body)).toMatchObject({ code: "UNAVAILABLE", retryable: false });
   });
 
