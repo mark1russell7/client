@@ -4,7 +4,8 @@
  * Give the great-circle distance between two points
  */
 
-import { greatCircleKm } from "../../distance.js";
+import { distanceKm } from "@mark1russell7/geo";
+import { EARTH_RADIUS_KM } from "../../distance.js";
 import type { GeoDistanceInput, GeoDistanceOutput } from "../../types.js";
 
 /**
@@ -12,5 +13,5 @@ import type { GeoDistanceInput, GeoDistanceOutput } from "../../types.js";
  * nothing.
  */
 export async function geoDistance(input: GeoDistanceInput): Promise<GeoDistanceOutput> {
-  return { km: greatCircleKm(input.from, input.to) };
+  return { km: distanceKm(input.from, input.to, EARTH_RADIUS_KM) };
 }

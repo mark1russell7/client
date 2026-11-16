@@ -18,11 +18,16 @@ import { join } from "node:path";
 import { runCommand } from "./index.js";
 import { shellRun } from "../procedures/shell/run.js";
 import { shellWhich } from "../procedures/shell/which.js";
-import { startChild } from "./spawn.js";
+import { spawnProgram, spawnProgramSync, startChild } from "./spawn.js";
 
 const WINDOWS = process.platform === "win32";
 const VARIABLE = "NoDefaultCurrentDirectoryInExePath";
 const SYSTEM = join(process.env["SystemRoot"] ?? "C:\\Windows", "System32");
+/**
+ * The time limit of each Windows test. Each test starts two or three programs. On a busy Windows runner, this can take
+ * more than the 5 seconds of the default limit (2026-11-16: shell.which took 5.17 s).
+ */
+const START_TIMEOUT = 30_000;
 /** The name of the test program. No real program has this name. */
 const NAME = "start-path-probe";
 
@@ -57,10 +62,12 @@ beforeEach(async () => {
 afterEach(() => {
   if (!WINDOWS) return;
   for (const [key, value] of saved) if (value !== undefined) process.env[key] = value;
+  // A test that timed out can still have its working folder in base, and Windows does not remove a folder in use
+  if (process.cwd().toLowerCase().startsWith(base.toLowerCase())) process.chdir(tmpdir());
   rmSync(base, { recursive: true, force: true });
 });
 
-describe.skipIf(!WINDOWS)("a program name with no folder (Windows only: POSIX does not look in the working folder)", () => {
+describe.skipIf(!WINDOWS)("a program name with no folder (Windows only: POSIX does not look in the working folder)", { timeout: START_TIMEOUT }, () => {
   beforeEach(() => {
     copyFileSync(join(SYSTEM, "whoami.exe"), join(work, `${NAME}.exe`));
   });
@@ -79,6 +86,29 @@ describe.skipIf(!WINDOWS)("a program name with no folder (Windows only: POSIX do
     const procedure = await shellRun({ command: NAME, args: [], cwd: work, env: childPath(), encoding: "utf8" });
     expect(procedure.success).toBe(true);
     expect(procedure.stdout.trim()).toBe(host);
+  });
+
+  it("spawnProgram and spawnProgramSync start the program of PATH, not the decoy of the working folder", async () => {
+    copyFileSync(join(SYSTEM, "hostname.exe"), join(bin, `${NAME}.exe`));
+    // These functions take the whole environment of the child, as spawn of Node does
+    const env = { ...process.env, ...childPath() };
+
+    const child = spawnProgram(NAME, [], { cwd: work, env, stdio: ["ignore", "pipe", "ignore"] });
+    let output = "";
+    child.stdout?.setEncoding("utf8").on("data", (chunk: string) => (output += chunk));
+    const code = await new Promise<number | null>((resolve, reject) => child.once("error", reject).once("close", resolve));
+    expect(code).toBe(0);
+    expect(output.trim()).toBe(host);
+
+    const result = spawnProgramSync(NAME, [], { cwd: work, env, encoding: "utf8" });
+    expect(result.error).toBeUndefined();
+    expect(result.stdout.trim()).toBe(host);
+  });
+
+  it("spawnProgramSync fails with ENOENT when no folder of PATH has the program, and does not start the decoy", () => {
+    const result = spawnProgramSync(NAME, [], { cwd: work, env: { ...process.env, ...childPath() }, encoding: "utf8" });
+    expect(result.error).toMatchObject({ code: "ENOENT", syscall: `spawnSync ${NAME}`, path: NAME });
+    expect(result.status).toBeNull();
   });
 
   it("fails with ENOENT when no folder of PATH has the program, and does not start the decoy", async () => {
@@ -119,5 +149,24 @@ describe("the error of a program that no folder has (each system)", () => {
     const error = await new Promise<NodeJS.ErrnoException & { spawnargs?: string[] }>((resolve) => child.once("error", resolve));
     expect(error).toMatchObject({ code: "ENOENT", syscall: `spawn ${name}`, path: name, spawnargs: ["one"], message: `spawn ${name} ENOENT` });
     expect(error.stack).toContain(`spawn ${name} ENOENT`);
+  });
+
+  it("spawnProgram and spawnProgramSync name the command in the error", async () => {
+    const name = "no-such-program-of-the-start-test";
+    const child = spawnProgram(name, ["one"], { stdio: "ignore" });
+    const error = await new Promise<NodeJS.ErrnoException>((resolve) => child.once("error", resolve));
+    expect(error).toMatchObject({ code: "ENOENT", syscall: `spawn ${name}`, path: name, message: `spawn ${name} ENOENT` });
+
+    const result = spawnProgramSync(name, ["one"]);
+    expect(result.error).toMatchObject({ code: "ENOENT", syscall: `spawnSync ${name}`, path: name, message: `spawnSync ${name} ENOENT` });
+  });
+
+  it("spawnProgramSync starts no shell, also when the caller asks for one", () => {
+    // A POSIX shell changes $X, and cmd.exe changes %X%. With no shell, the argument stays as it is.
+    // The type of the options has no `shell`. A value with more fields still goes in, as from JavaScript.
+    const options = { encoding: "utf8" as const, env: { ...process.env, X: "x" }, shell: true };
+    const result = spawnProgramSync(process.execPath, ["-p", "process.argv[1]", "$X%X%"], options);
+    expect(result.error).toBeUndefined();
+    expect(result.stdout.trim()).toBe("$X%X%");
   });
 });

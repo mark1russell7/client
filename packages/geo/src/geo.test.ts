@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { InvocationError, ProcedureRegistry, createRegistry, invokePath, outputValue } from "@procedures/client";
-import { drivingRoute, geocode } from "./geo.js";
+import { drivingRoute, geocode, type FetchJson } from "./geo.js";
 import { createGeoModule, geoModule } from "./module.js";
 import { geoProcedures } from "./procedures.js";
 
@@ -82,6 +82,35 @@ describe("the fetch option", () => {
     const request = geocode("x", { userAgent: "my-app/1.0", timeoutMs: 1_000, fetch: async () => Promise.reject(failure) });
     await expect(request).rejects.toThrow(/Nominatim did not answer: the request failed/);
     await expect(request).rejects.toHaveProperty("cause", failure);
+  });
+});
+
+describe("the answers of the services", () => {
+  const answer = (status: number, body: unknown) => async () => ({ ok: status >= 200 && status < 300, status, json: async () => body });
+
+  it("reports an HTTP error of Nominatim and of OSRM", async () => {
+    await expect(geocode("x", { userAgent: "my-app/1.0", timeoutMs: 1_000, fetch: answer(503, {}) })).rejects.toThrow("Nominatim gave HTTP 503");
+    await expect(drivingRoute({ lat: 0, lon: 0 }, { lat: 1, lon: 1 }, { timeoutMs: 1_000, fetch: answer(429, {}) })).rejects.toThrow("OSRM gave HTTP 429");
+  });
+
+  it("gives undefined for a body that is not a list, and the query as the name of a row with no name", async () => {
+    expect(await geocode("x", { userAgent: "my-app/1.0", timeoutMs: 1_000, fetch: answer(200, { error: "no list" }) })).toBeUndefined();
+    const row = await geocode("1 Test Road", { userAgent: "my-app/1.0", timeoutMs: 1_000, fetch: answer(200, [{ lat: "1", lon: "2" }]) });
+    expect(row).toEqual({ lat: 1, lon: 2, displayName: "1 Test Road" });
+  });
+
+  it("reports a route answer with no code", async () => {
+    const request = drivingRoute({ lat: 0, lon: 0 }, { lat: 1, lon: 1 }, { timeoutMs: 1_000, fetch: answer(200, {}) });
+    await expect(request).rejects.toThrow("OSRM found no route (no code)");
+  });
+
+  it("stops when the signal of the caller aborts", async () => {
+    const controller = new AbortController();
+    const fetchJson: FetchJson = (_url, init) =>
+      new Promise((_resolve, reject) => init.signal.addEventListener("abort", () => reject(init.signal.reason)));
+    const request = geocode("x", { userAgent: "my-app/1.0", timeoutMs: 60_000, signal: controller.signal, fetch: fetchJson });
+    controller.abort(new Error("the caller stopped"));
+    await expect(request).rejects.toThrow(/Nominatim did not answer: the request failed/);
   });
 });
 

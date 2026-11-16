@@ -119,7 +119,10 @@ await server.close();
 - `twilioTextRequest` sends a text. `twilioTextStatusRequest` reads its status.
 - `twilioCallRequest` starts a call. `twilioCallStatusRequest` reads its status, and `twilioEndCallRequest` ends it.
 - `twilioSayTwiml` gives the TwiML of a call that says a text. It escapes the text.
-- `extractTwilioText` and `extractTwilioCall` read a response. `callTwilio` sends one request through the fetch that the caller gives.
+- `twilioGatherTwiml` says a text in a `<Gather>` and sends the key of the person to an address. With no key, it says the text `after`.
+- Each TwiML builder takes a `voice` and a `language` for each `<Say>`.
+- `twilioBalanceRequest` reads the balance of the account.
+- `extractTwilioText`, `extractTwilioCall` and `extractTwilioBalance` read a response. `callTwilio` sends one request through the fetch that the caller gives.
 
 ```ts
 import { callTwilio, extractTwilioCall, twilioCallRequest, twilioSayTwiml } from "@procedures/notify/twilio";
