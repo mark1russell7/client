@@ -90,7 +90,10 @@ interface Capability<C = unknown> {
 
 ## Three places of enforcement
 
-1. **Admission.** Before the input validation, the invocation compares the declared effects of the procedure with the permitted effects. For a nested call, this occurs before the lookup, as `nestedCallRefusal()` does today. A refused path tells nothing about the procedure.
+1. **Admission.** Before the input validation, the invocation compares the declared effects of the procedure with the permitted effects. The comparison needs these effects, so it occurs after the lookup.
+   - A capability does not hide the procedures of a host. A path that the registry does not have gives `NOT_FOUND`, and a procedure without a handler gives `NO_HANDLER`.
+   - The expose rule of the host hides the procedures (`packages/client/docs/POLICY.md`). A host gives the same answer for a hidden procedure and a free path.
+   - For a nested call, the call policy (`nestedCallRefusal()`) examines the path before the lookup. Its refusal depends only on the path, so it tells nothing about the procedure.
 2. **Narrowed resources.** The host gives a context function: `resources: (invocation) => R`. The handler reads `ctx.resources`. The function can give a narrowed resource for a lower clearance: a database view that contains only the records of that clearance.
 3. **The output filter.** The host can give `admitItem: (item, invocation) => boolean`. The invocation drops each stream item, or the value, that the function refuses. This is a second net for a handler that reads data without `ctx.resources`.
 

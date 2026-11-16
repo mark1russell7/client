@@ -1,5 +1,64 @@
 # @procedures/node
 
+## 0.60.1
+
+### Patch Changes
+
+- Updated dependencies [beca782]
+- Updated dependencies [d472a8b]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [264e6a1]
+- Updated dependencies [11fcffb]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [e8e88ac]
+- Updated dependencies [a87cdda]
+- Updated dependencies [a6fd4f3]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+  - @procedures/shell@0.60.1
+  - @procedures/fs@0.60.1
+
+## 0.60.0
+
+### Patch Changes
+
+- 7250ac5: Only the shell package starts a program. On Windows, each start finds a program name with no folder only in the folders of `PATH`, not in the working folder.
+  
+  - `@procedures/shell/command` has two new helpers. `spawnProgram(command, args, options)` starts a program that the caller keeps, for example a detached process. `spawnProgramSync(command, args, options)` starts a program and waits for its end. They take the options of `spawn` and `spawnSync` of Node, without `shell`: the option `shell` is always `false`. The default of `windowsHide` is `true`. The error of a failed start names the command.
+  - `@procedures/server`: the background `mark --server` starts with `spawnProgram`. Before, on Windows, a start of `mark` by its name looked first in the working folder of the call.
+  - `@procedures/claude-cli`: `startTurn()` starts `claude` with `spawnProgram`. Before, on Windows, a start of a name with no folder (from the option `executable` or from the environment variable) looked first in the working folder.
+  - `@procedures/node`: the fresh bundle starts its build with `spawnProgramSync`. It starts `process.execPath`, so its behavior does not change.
+  - A Windows caller that put a program in the working folder, and not in a folder of `PATH`, gets ENOENT after this change. Such a caller gives the path of the program, for example `.\mark.exe`.
+- Updated dependencies [7250ac5]
+- Updated dependencies [3075d86]
+  - @procedures/shell@0.60.0
+  - @procedures/client@0.60.0
+  - @procedures/fs@0.60.0
+
+## 0.59.1
+
+### Patch Changes
+
+- Updated dependencies [425ea64]
+- Updated dependencies [ea801cd]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6513a83]
+- Updated dependencies [8c69a74]
+- Updated dependencies [74ddeff]
+- Updated dependencies [c0ecfe0]
+- Updated dependencies [6cc8f0e]
+  - @procedures/client@0.59.1
+  - @procedures/fs@0.59.1
+  - @procedures/shell@0.59.1
+
 ## 0.59.0
 
 ### Patch Changes

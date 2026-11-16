@@ -1,5 +1,58 @@
 # @procedures/sqlite
 
+## 0.60.1
+
+### Patch Changes
+
+- f2d045b: The engine `sqljs` of `SqliteStorage` is deprecated. Version 0.61.0 removes it and needs Node.js 22.13 or later.
+  
+  - The first open of the engine `sqljs` in a process shows one `DeprecationWarning` with the code `PROCEDURES_SQLITE_SQLJS`. The engine `auto` on a Node.js without `node:sqlite` shows it too.
+  - To prepare, use Node.js 22.13 or later with the engine `node` or `auto`. A file of the engine `sqljs` opens with the engine `node`.
+  - The flag `--no-deprecation` of Node.js hides the warning.
+- Updated dependencies [beca782]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [a87cdda]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+
+## 0.60.0
+
+### Patch Changes
+
+- Updated dependencies [3075d86]
+  - @procedures/client@0.60.0
+
+## 0.59.1
+
+### Patch Changes
+
+- 2419e31: `SqliteStorage` uses `@mark1russell7/sqlite` for its SQLite work. The public API and the behavior of the storage do not change.
+  
+  - The engine `node` opens a file with `openDatabase` of `@mark1russell7/sqlite`. The pragmas stay the same: WAL, the busy timeout and `synchronous = NORMAL`. A read-only file keeps its journal mode.
+  - The engine `sqljs` gives its database to `sqlJsConnection` of `@mark1russell7/sqlite`. Thus both engines give one kind of connection, and the storage has one set of queries.
+  - The write transaction, the read transaction and the check of the columns come from the entry `@mark1russell7/sqlite/portable`. That entry imports no module of Node.js.
+  - The engine `auto` uses `node:sqlite` from Node.js 22.13, as before. `@mark1russell7/sqlite` adds a probe of the transaction state for Node.js 22.13 to 22.15, which have no `isTransaction`.
+  - The new dependency is `@mark1russell7/sqlite`.
+  
+  PATCH: an internal change with no change to the public API.
+- Updated dependencies [425ea64]
+- Updated dependencies [ea801cd]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6513a83]
+- Updated dependencies [8c69a74]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6cc8f0e]
+  - @procedures/client@0.59.1
+
 ## 0.59.0
 
 ### Patch Changes

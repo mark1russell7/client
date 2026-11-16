@@ -29,11 +29,11 @@ import { headerNames, isSecretHeader, queryRecord, requestCredentials, urlParts,
 import { PROTOCOL_HEADER, PROTOCOL_VERSION, httpStatusOf, protocolVersionOf, stoppedCallError } from "../../../protocol.js";
 import { realClock, type Cancel, type Clock } from "../../../clock.js";
 import { ms, type Duration } from "../../../duration.js";
-import { NDJSON_MEDIA_TYPE as NDJSON, defaultNdjsonError as errorOf, keepAliveMsOf, writeNdjsonStream } from "./ndjson.js";
+import { NDJSON_MEDIA_TYPE as NDJSON, defaultNdjsonError as errorOf, keepAliveMsOf, readLastItem, writeNdjsonStream } from "./ndjson.js";
 import { applyCors, corsOrigins, corsPolicy, type CorsOptions, type CorsPolicy } from "./cors.js";
 import { urlAddressing, type Addressing } from "./addressing.js";
 import { BodyError, readJsonBody } from "./body.js";
-import { BATCH_HEADER, batchFrames, batchOptionsOf, isBatchRequest, parseBatch, type HandlerBatchOptions, type BatchRun } from "./batch.js";
+import { BATCH_HEADER, batchFrames, batchOptionsOf, isBatchPreflight, isBatchRequest, parseBatch, type HandlerBatchOptions, type BatchRun } from "./batch.js";
 import { NARROWING_METADATA_KEY, addNarrowing } from "../../../procedures/narrowing.js";
 import { isWireMetadataKey } from "../../metadata.js";
 import { retryAfterSeconds } from "@mark1russell7/service/limiter";
@@ -353,7 +353,8 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
   const matches = (req: IncomingMessage): boolean => {
     if (compat.matchAll === true) return true;
     const path = pathOf(req);
-    return path.startsWith(prefix) || (path === bareBase && (addressing.takesBasePath === true || (batch !== undefined && isBatchRequest(req))));
+    // The base path itself takes a batch and the preflight request of a batch (CLI-32)
+    return path.startsWith(prefix) || (path === bareBase && (addressing.takesBasePath === true || (batch !== undefined && (isBatchRequest(req) || isBatchPreflight(req)))));
   };
 
   /** True when the request is a batch at the base path (CLI-32). */
@@ -561,14 +562,18 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
     });
   };
 
+  /** True when a call of the method is repeatable: the end of its cut asks for a retry (CLI-48) */
+  const isRepeatableCall = (method: Method): boolean => server.isRepeatableCall?.(method) === true;
+
   /**
    * This function sends a stream response. A client that accepts NDJSON gets the lines of
    * `writeNdjsonStream`. Another client gets the last item as plain JSON, the "sponge" mode, and a
    * stream without an end gets `NOT_ACCEPTABLE` (roadmap R15).
+   *
+   * In both modes, `signal` stops the read of the stream, and the stream gets `return()`. A cut of
+   * `close()` on an open response gives `UNAVAILABLE`. Its flag `retryable` is true only for a
+   * repeatable call before its first item (CLI-48).
    */
-  /** True when a call of the method is repeatable: the end of its cut asks for a retry (CLI-48) */
-  const isRepeatableCall = (method: Method): boolean => server.isRepeatableCall?.(method) === true;
-
   const streamToHttp = async (response: ServerResponse, stream: AsyncIterable<unknown>, req: IncomingMessage, res: NodeResponse, signal: AbortSignal, repeatable: boolean): Promise<void> => {
     const ndjson = String(req.headers.accept ?? "").includes(NDJSON);
 
@@ -580,19 +585,22 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
     }
 
     if (!ndjson) {
-      let last: { value: unknown } | undefined;
-      // The count of the items of the stream: an error before the first item gets the flag of its
-      // code, and an error after it gets false without a flag of its own (CLI-68)
-      let items = 0;
-      try {
-        for await (const item of stream) {
-          items++;
-          last = { value: item };
+      const read = await readLastItem(stream, signal);
+      // A stop, or an error after the stop, ends the call as a cut: an open response gets UNAVAILABLE.
+      // A closed connection gets no response.
+      if (read.outcome === "stopped" || (read.outcome === "error" && signal.aborted)) {
+        if (!res.writableEnded && !res.destroyed) {
+          toHttp({ id: response.id, status: { type: "error", ...stoppedCallError(repeatable && read.items === 0) }, metadata: {} }, res);
         }
-      } catch (error) {
-        toHttp({ id: response.id, status: { type: "error", ...errorOf(error, items) }, metadata: {} }, res);
         return;
       }
+      // The count of the items of the stream: an error before the first item gets the flag of its
+      // code, and an error after it gets false without a flag of its own (CLI-68)
+      if (read.outcome === "error") {
+        toHttp({ id: response.id, status: { type: "error", ...errorOf(read.error, read.items) }, metadata: {} }, res);
+        return;
+      }
+      const { last } = read;
       if (!last) {
         toHttp({ id: response.id, status: { type: "error", code: "NO_OUTPUT", message: "The procedure gave no output", retryable: false }, metadata: {} }, res);
         return;

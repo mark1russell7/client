@@ -154,3 +154,65 @@ A request holds the credentials in its `authorization` header. Do not log a requ
 - The kinds and the waits are the same as the kinds of Pushover. `code` holds the error code of Twilio.
 - `rate-limited` tells that the account has too many requests at the same time. Wait `retryAfterMs`, then send the same request again.
 - After `refused`, do not send the same request again. For example, the code `21211` tells that the number is not valid.
+
+## Twilio Serverless
+
+`@procedures/notify/twilio-serverless` has pure functions for the Twilio Serverless API. They put functions and assets on a domain of Twilio. Examples are the TwiML of a call and the address that gets the key of a person. A browser can also use them. The entry has no procedures.
+
+- `twilioServerlessServiceRequest` makes a service. `twilioServerlessServiceFetchRequest` reads a service by its SID or its unique name.
+- `twilioServerlessFunctionRequest` and `twilioServerlessAssetRequest` make a function and an asset. The list requests read them, one page at a time.
+- `twilioServerlessFunctionVersionRequest` and `twilioServerlessAssetVersionRequest` upload the text of a file as a new version. The body is multipart, and the same input gives the same body.
+- `twilioServerlessBuildRequest` starts a build of versions, with the npm packages and the runtime of the functions.
+- `twilioServerlessBuildStep` gives the next step of the poll of a build. It has no timer: the caller waits, sends the request and gives the read to the next step.
+- `twilioServerlessEnvironmentRequest` makes an environment. Its domain name is in the read of the environment.
+- `twilioServerlessVariableRequest` and `twilioServerlessVariableUpdateRequest` set a variable of an environment.
+- `twilioServerlessDeploymentRequest` deploys a complete build to an environment.
+- `twilioServerlessNextPageRequest` reads the next page of a list. It refuses an address of another host.
+- Each `extractTwilioServerless...` function reads a response into a typed result or a `TwilioFailure`. It does not throw.
+
+The credentials, `TwilioRequest`, `TwilioResponse`, `TwilioFailure` and `callTwilio` are the same as in `./twilio`. A builder throws an error when the input breaks a rule of the API, for example a path without a slash at the start.
+
+```ts
+import { callTwilio } from "@procedures/notify/twilio";
+import {
+  extractTwilioServerlessBuild,
+  twilioServerlessBuildRequest,
+  twilioServerlessBuildStep,
+} from "@procedures/notify/twilio-serverless";
+
+const started = await callTwilio(fetch, twilioServerlessBuildRequest(credentials, serviceSid, { functionVersions, runtime: "node22" }), extractTwilioServerlessBuild, { timeoutMs: 20_000 });
+if (!started.ok) throw new Error(started.errors.join(" "));
+const poll = { serviceSid, buildSid: started.sid, startedAt: Date.now() };
+let step = twilioServerlessBuildStep(credentials, poll, Date.now(), started);
+while (step.step === "poll") {
+  const { waitMs, request } = step;
+  await new Promise((resolve) => setTimeout(resolve, waitMs));
+  const read = await callTwilio(fetch, request, extractTwilioServerlessBuild, { timeoutMs: 20_000 });
+  step = twilioServerlessBuildStep(credentials, poll, Date.now(), read);
+}
+```
+
+After `done`, `twilioServerlessDeploymentRequest` deploys the build. After `failed` or `timed-out`, `last` holds the last read.
+
+`twilioServerlessDeploy` deploys a plan with these functions: the service, the environment, the files, the build and the variables. Its ports hold the fetch, the clock and the wait.
+
+- A second deploy of the same plan reads three lists and changes nothing.
+- A change of a variable alone deploys the build of the environment again.
+- A new `version` of the plan uploads the files again. The variable `DEPLOY_VERSION` holds the version of the last deployment.
+- Each step can go again. After a failure, start the deploy again.
+
+```ts
+import { twilioServerlessDeploy } from "@procedures/notify/twilio-serverless";
+
+const result = await twilioServerlessDeploy({ fetch, now: Date.now, sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)) }, credentials, {
+  service: { uniqueName: "my-app", friendlyName: "My app" },
+  environment: { uniqueName: "production", domainSuffix: "prod" },
+  functions: [{ path: "/start", visibility: "public", content: code }],
+  build: { runtime: "node22", dependencies: { twilio: "5.0.0" } },
+  variables: { FROM: from },
+  version: contentHash,
+});
+if (result.ok) console.log(`https://${result.domainName}/start`);
+```
+
+A variable can hold a secret. Do not log a variable request, a variable read or its value.

@@ -19,6 +19,9 @@ function setup(options: { cap?: number } = {}) {
   return { notes, archive, entries, log, change, tick: () => (time += 10) };
 }
 
+/** The fingerprints of three items in the version before CLI-127. */
+const FINGERPRINTS = { null: "77074ba4b8756554", note: "04445d06e55bef9c", nested: "879ba88d58956f24" };
+
 describe("UndoLog", () => {
   it("undoes the newest change with its inverse patch, one change at a time", async () => {
     const { notes, log, change } = setup();
@@ -107,6 +110,16 @@ describe("UndoLog", () => {
     expect(await notes.get("n1")).toEqual({ id: "n1", tags: ["c"], title: "theirs" });
   });
 
+  it("refuses the undo when another writer changed only a Date of the item (CLI-127)", async () => {
+    const { notes, log, change } = setup();
+    await notes.set("n1", { id: "n1", title: "a", at: new Date(0) });
+    await change("n1", { $set: { title: "b" } });
+    await notes.patch("n1", { $set: { at: new Date(1_000) } });
+    const error = await log.undo().catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(UndoConflictError);
+    expect(await notes.get("n1")).toEqual({ id: "n1", title: "b", at: new Date(1_000) });
+  });
+
   it("refuses a whole group before its first write when one item of the group changed", async () => {
     const { notes, archive, log, tick } = setup();
     await notes.set("n1", { id: "n1", n: 1 });
@@ -163,6 +176,26 @@ describe("UndoLog", () => {
     expect(fingerprintOf({ a: 1 })).not.toBe(fingerprintOf({ a: "1" }));
     expect(fingerprintOf({ a: 1, b: undefined })).toBe(fingerprintOf({ a: 1 }));
     expect(fingerprintOf({ a: 1 })).toMatch(/^[0-9a-f]{16}$/);
+  });
+
+  it("fingerprintOf tells apart items that differ only in a Date, a RegExp, a Map or a Set (CLI-127)", () => {
+    const pairs: Array<[unknown, unknown]> = [
+      [{ at: new Date(0) }, { at: new Date(1) }],
+      [{ at: new Date(Number.NaN) }, { at: new Date(0) }],
+      [{ re: /a/ }, { re: /a/i }],
+      [{ m: new Map([["a", 1]]) }, { m: new Map([["a", 2]]) }],
+      [{ s: new Set([1]) }, { s: new Set([2]) }],
+    ];
+    for (const [a, b] of pairs) expect(fingerprintOf(a)).not.toBe(fingerprintOf(b));
+    expect(fingerprintOf(new Map([["a", 1], ["b", 2]]))).toBe(fingerprintOf(new Map([["b", 2], ["a", 1]])));
+    expect(fingerprintOf(new Set([2, 1]))).toBe(fingerprintOf(new Set([1, 2])));
+  });
+
+  it("fingerprintOf keeps the fingerprint of an item without a Date, a RegExp, a Map or a Set (CLI-127)", () => {
+    // The fingerprints of the version before CLI-127: a stored entry of the log keeps its fingerprint
+    expect(fingerprintOf(null)).toBe(FINGERPRINTS.null);
+    expect(fingerprintOf({ id: "n1", title: "a", tags: ["x", "y"] })).toBe(FINGERPRINTS.note);
+    expect(fingerprintOf({ b: [1, null, { d: 2.5, c: "é" }], a: true, u: undefined })).toBe(FINGERPRINTS.nested);
   });
 
   it("keeps the entry when the log has no storage for its collection", async () => {

@@ -1,5 +1,59 @@
 # @procedures/archive
 
+## 0.60.1
+
+### Patch Changes
+
+- Updated dependencies [beca782]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [264e6a1]
+- Updated dependencies [11fcffb]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [e8e88ac]
+- Updated dependencies [a87cdda]
+- Updated dependencies [a6fd4f3]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+  - @procedures/fs@0.60.1
+
+## 0.60.0
+
+### Patch Changes
+
+- Updated dependencies [3075d86]
+  - @procedures/client@0.60.0
+  - @procedures/fs@0.60.0
+
+## 0.59.1
+
+### Patch Changes
+
+- c0ecfe0: The check of a path in a root and the operation on the path start in one hold of the roots. Thus the operation reads the links that the check read, for the calls of this process.
+  
+  - `fs.move`, `fs.copy`, `archive.extract` and each confined procedure that writes files or starts a process hold the roots alone. The other calls share the hold.
+  - The calls get the hold in the order that they came. A nested call starts in the hold of its caller.
+  - A call in a shared hold that starts a nested call that needs the hold alone gets an error. This nested call writes files, and its caller declares no file writes.
+  - `holdRoots()` and `RootHoldMode` of `@procedures/fs/root`, and `rootHoldOf()` of `@procedures/fs`, give the hold to other packages.
+  - `@procedures/fs` uses `rwLock()` of `@mark1russell7/collections`.
+- Updated dependencies [425ea64]
+- Updated dependencies [ea801cd]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6513a83]
+- Updated dependencies [8c69a74]
+- Updated dependencies [74ddeff]
+- Updated dependencies [c0ecfe0]
+- Updated dependencies [6cc8f0e]
+  - @procedures/client@0.59.1
+  - @procedures/fs@0.59.1
+
 ## 0.59.0
 
 ### Patch Changes

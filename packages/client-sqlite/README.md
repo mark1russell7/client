@@ -517,8 +517,14 @@ The storage has two SQLite engines. The option `engine` selects one.
 | `engine` | The engine | The file write |
 |---|---|---|
 | `node` | `node:sqlite` of Node.js, without a native build | SQLite writes only the changed pages. The file is in WAL mode. |
-| `sqljs` | sql.js (SQLite in WebAssembly), through `@mark1russell7/docker-sqlite` | The storage keeps the database in memory, and it writes the whole file after a write. |
+| `sqljs` (deprecated) | sql.js (SQLite in WebAssembly), through `@mark1russell7/docker-sqlite` | The storage keeps the database in memory, and it writes the whole file after a write. |
 | `auto` (the default) | `node` when Node.js has `node:sqlite`, and else `sqljs` | |
+
+The engine `sqljs` is deprecated. Version 0.61.0 removes it, and the package then needs Node.js 22.13 or later.
+
+- The first open of the engine `sqljs` in a process shows one `DeprecationWarning` with the code `PROCEDURES_SQLITE_SQLJS`. The engine `auto` on a Node.js without `node:sqlite` shows it too.
+- To prepare, use Node.js 22.13 or later with the engine `node` or `auto`. A file of the engine `sqljs` opens with the engine `node`.
+- The flag `--no-deprecation` of Node.js hides the warning.
 
 - Node.js 22.13 and later have `node:sqlite` without a flag. Node.js 22.5 to 22.12 have it only with the flag `--experimental-sqlite`. Node.js 22.0 to 22.4 do not have it.
 - Node.js 22 shows the warning `ExperimentalWarning: SQLite is an experimental feature` at the first open of the engine `node`. Node.js 24 and 26 do not show it.

@@ -1,5 +1,127 @@
 # @procedures/client
 
+## 0.60.1
+
+### Patch Changes
+
+- beca782: `procedureHandler` answers the preflight request of a batch at the base path itself: `OPTIONS {base}` with `Procedures-Batch` in `Access-Control-Request-Headers`. Its CORS rule gives the answer. Before this release, the handler gave this request to the app, so a batch from a page on another origin failed.
+  
+  - The default of `corsOptions.credentials` of `HttpServerTransport` is the rule of `procedureHandler`: false for the origin `"*"`, and true for each other origin. Before this release, the transport also sent `Access-Control-Allow-Credentials: true` with the origin `"*"`. A browser refuses that pair for a call with credentials.
+  - Deprecated: the CORS headers of `HttpServerTransport` on the routes of the app outside its base path. From 0.63.0, the transport applies CORS only to the base path and the paths under it. An app that needs CORS on its own routes adds its own CORS function.
+- 6dbc47e: Deprecated: under the expose rule of a host, `procedure.define` at a free hidden path, and `procedure.load` of a stored program at a free hidden path. From 0.62.0, the define gets `NOT_EXPOSED`, and the load gives the program as a conflict.
+  
+  To prepare, move each such program to an exposed path, or add its path to the expose rule of the host. This note changes no code.
+- 663465c: An `exclude` entry of a host policy or of a tool surface takes the patterns of `expose`: an exact key, a prefix (`shell.*`) or `*`. A prefix entry hides each procedure under the prefix. An exact key of the form before the escape of dotted names also stays valid.
+- 66585f5: A host can limit the depth of the nested calls.
+  
+  - The new option `maxDepth` of `invokeProcedure()`, `ProcedureServer` and `hostPolicy()` is the highest depth of a nested call. The call of a caller has the depth 0.
+  - A call at a larger depth gets `FORBIDDEN` with the new reason `depth`. Its handler does not start. Thus a loop of calls to one procedure stops at the limit.
+  - A value that is not a whole number of 0 or more stops the call or the start of the server with a `TypeError`.
+  - Without `maxDepth`, the depth has no limit, as before. The first call over the depth 64 in the process writes one warning.
+  
+  Migration before 0.64.0: version 0.64.0 sets the default limit to 64. A host with deeper call trees sets `maxDepth` to its own limit.
+- 511d820: A time limit above 2147483647 ms (24.8 days) holds for its full time. The rule covers the timeout interceptor and the deadline of a capability. It also covers the timeout middleware of the client and the timeouts of the HTTP and WebSocket transports. Each timer uses the platform clock, and the clock arms a long time in steps. `setTimeout` alone starts such a timer after 1 ms. A limit of `Infinity` sets no timer.
+- 02a7074: Each nested call of a procedure validates its own input. The option `inputValidated` applies only to the call that gets it.
+- 265f41c: The warning of a limit without the field `nested` names 0.64.0, the version that changes the default to `true`.
+- a87cdda: The storages of a partitioned collection close at the stop of the server.
+  
+  - `CollectionPartitions` gets an optional `close()`. `closeStorages()` and `stop()` of `ProcedureServer` close each partitions object one time with it.
+  - `ProcedureServer.partitionHandles()` gives one dependency handle for each partitions object, with the name `partitions.<collections>`. The handle closes the partitions after the transports close.
+  - The procedures host and the MCP host declare these handles next to the storage handles. The new type `McpRunnerPartitions` of `@procedures/mcp-server` is the partitions handle, and `McpServiceBuilder.dependency` takes it next to `McpRunnerDependency`. `host.dependencies` of the procedures host also gives the storages and partitions that the app adds after the construction.
+  - Partitions without `close()` stay on the server, and the host closes their storages.
+- 94b5f88: The HTTP face stops the read of a stream for a client without NDJSON (the "sponge" mode) when the call stops. A closed connection and `close()` stop the read, also while the stream waits for its next item. The stream gets `return()`. A cut of `close()` on an open response gives `UNAVAILABLE` (HTTP 503), not the last item. Its flag `retryable` is true only for a repeatable call before its first item, as in an NDJSON stream.
+- ca23351: After `stop()` of a `ProcedureServer`, the intake stays stopped until the next `start()`, as after `close()`. A call after the stop gets the retryable `UNAVAILABLE`. `start()` opens the intake again, with a new signal.
+- 84e1b25: The WebSocket face gives `return()` to the stream of a handler when the send of an item frame throws, so the `finally` block of the handler runs. The `error` frame of the call comes first. The count of the items that went out, which sets the retry flag of that error, has only the frames that the socket took.
+- fe6cd23: The WebSocket server and client examine the shape of each frame before they read its fields. The server answers a frame of another shape with `INVALID_REQUEST` and the id of the frame. The client drops such a frame. `WIRE-PROTOCOL.md` gives the rules.
+- e9b7551: `WebSocketServerTransport` sends each frame through one function with a flow rule.
+  
+  - While the send buffer of a connection holds more than `highWaterMark`, the server does not read the frames of the connection. It reads them again when the socket wrote the buffer down to the mark.
+  - While the reads of a connection are paused, a frame that the socket wrote since the last ping counts as the pong of the heartbeat. Thus a peer that reads slowly stays open, and a peer that does not read closes.
+  - The new option `maxBufferedBytes` is the largest send buffer of a connection. A send that finds a larger buffer ends the connection. It bounds the frames that the server sends with no request, for example `broadcast()`. It has no default.
+
+## 0.60.0
+
+### Minor Changes
+
+- 3075d86: The registry examines the types of the metadata fields that the framework reads. A procedure whose field has a wrong type gets a `RegistryError` that names the field.
+  
+  This is a breaking change. Before, `register()` and `procedure.define` accepted a typed field with a wrong type, and 0.59.1 gave a warning. After this change, they refuse it.
+  
+  - The refusal names the field and the type that the field needs, for example `The field metadata.tags needs a list of strings`.
+  - The option `logger` of `ProcedureRegistry` gets the errors of the registry: a listener that throws. The default writes to the console as before.
+  - `register()` refuses the procedure, from code, from `procedure.define` or from a program store. A stored program with a wrong type fails its load, and the other programs load.
+  - The input schema of `procedure.define` uses the same schema, so a wrong type fails the call.
+  - `procedure.define` sets `generatedFrom` and `aggregation` after the metadata of the caller. Before, metadata from the caller removed these two fields.
+  - A custom field keeps any value. The framework does not read it.
+  
+  Migration: give each typed field of the metadata the type of `ProcedureMetadata`. The error names the field, for example `The field metadata.tags has a wrong type`.
+  
+  | Field | Type |
+  | --- | --- |
+  | `description`, `title`, `deprecationMessage` | a string |
+  | `tags`, `untrusted` | a list of strings |
+  | `deprecated` | a boolean |
+  | `effects` | an object: `reads` and `writes` are lists of strings, `idempotent` and `destructive` are booleans |
+  | `stream` | an object: `unbounded` is a boolean |
+  | `fsRoot` | an object: `cwd` and `refuse` are strings, `paths`, `names`, `required` and `values` are lists of strings, `program` is a boolean |
+  
+  For example, change `tags: "math"` to `tags: ["math"]`. A program in a store with a wrong type does not load: define it again with the correct type.
+
+## 0.59.1
+
+### Patch Changes
+
+- 425ea64: The CORS of a procedure server accepts each request header of `HttpTransport` in a browser.
+  
+  - `HttpTransport` sends each text key of the metadata as a header of its own. Before this change, the preflight answer named only a fixed list. So a call with a key of the application, with the retry middleware (`idempotency-key`) or in a batch (`Procedures-Batch`) failed in a browser.
+  - Without the option `allowedHeaders`, the preflight answer names the fixed list and each valid header name of `Access-Control-Request-Headers`. The answer also has `Vary: Access-Control-Request-Headers`, so a shared cache keeps one answer for each list.
+  - With the option `allowedHeaders`, the answer names only the headers of the option, as before.
+  - The fixed list also has `Procedures-Batch` and `idempotency-key`.
+  - Without the option `exposedHeaders`, a page can read `Procedures-Protocol`, `Procedures-Batch` and `Retry-After`. `HttpTransport` reads the batch header and `Retry-After`.
+- ea801cd: `onError` and the `logger` of a `Server` get each failure of a call one time, under each error policy, as their docs state. Before, under the default policy `"all"`, a failed procedure reached no log. A host with `onError` or `logger` gets each failure that its callers see, as the docs say.
+  
+  - A failure is an error with a code that is not known, or with a failure code (`HANDLER_ERROR`, `INTERNAL_ERROR`). A refusal with a known code (`NOT_FOUND`, `VALIDATION_ERROR`) and a code of `codes` go to no log.
+  - The error that ends a stream and an error of a face after `handle()` go to the log too. The line is `A handler failed`, as for a handler that throws.
+  - A `map` result is the decision of the host and goes to no log. Under `"coded"`, a hidden error keeps its line.
+  - Without `onError` and `logger`, the console gets no new line.
+- 74ddeff: The stop of a `ProcedureServer` ends a stream of a call with an idempotency key. Before, the stream lost the link to the stop when its first item came.
+  
+  - The cooperative abort of `drain()` and the abort of `close()` reach the stream until its last item, as on the path without a key.
+  - A stream of a local caller without a signal ends at the stop, so `inFlight()` goes to 0.
+  - The stream still ends with its caller.
+- 6513a83: The registry gives a warning for a typed metadata field with a wrong type. Version 0.60.0 refuses such a field.
+  
+  - The typed fields are the fields of `ProcedureMetadata` that the framework reads: `description`, `tags`, `title`, `deprecated`, `deprecationMessage`, `effects`, `stream`, `untrusted` and `fsRoot`. A custom field keeps any value.
+  - The warning comes one time for each procedure and field. It names the procedure, the field and the type that the field needs. The procedure stays in the registry, and its calls work as before.
+  - The new option `logger` of `ProcedureRegistry` gets the warnings. The default writes to the console.
+  
+  To prepare for 0.60.0, give each typed field the type that the warning names. For example, change `tags: "math"` to `tags: ["math"]`.
+- 8c69a74: A limit of the calls can also count the nested calls of a procedure.
+  
+  - The new field `nested` of a `CallLimit` sets the rule. With `nested: true`, the limit takes the units of each nested call that it covers, for example each step of `client.chain` and `client.parallel`. A refused nested call does not start. The procedure gets an error with the code `RATE_LIMITED` or `PAYLOAD_TOO_LARGE`, the wait in `retry-after` and the cause in `reason`. When the procedure does not catch it, the caller gets the same response as a refusal before the run.
+  - `LimitedCall` has two new fields: `depth` (0 for the call of a caller, 1 or more for a nested call) and `input`. A cover, key or cost function of a limit with `nested: true` reads them.
+  - A limit without the field `nested` keeps the old rule: it counts only the calls of a caller. The server writes one warning at the start for each such limit.
+  - A value of `nested` that is not `true` or `false` stops the start of the server with an error.
+  
+  Migration before 0.61.0: version 0.61.0 changes the default to `nested: true`. Give each limit the field `nested`. Use `true` to count the nested calls, or `false` to keep the old rule. The warning then stops.
+- 74ddeff: **Security fix:** a `register()` handler of a `ProcedureServer` needs the token, keeps the call limits and gets the stop refusal, as the host policy states.
+  
+  The handler gets the same admission as a procedure. Before, only the procedures got it.
+  
+  - A network request must send the token of the host policy, as the policy documents. The request hook and `authenticate` apply too.
+  - The call limits apply to the route of the handler. A handler declares no effects, so a limit of the writes covers it too.
+  - After `stopIntake()`, a new request gets `UNAVAILABLE`. `inFlight()` counts the call until its response, so `drain()` waits for it.
+  
+  A local request (`LOCAL_CREDENTIALS`) passes, as before. A client that sends the token sees no change.
+- 6cc8f0e: A call that the stop of a face cuts ends with `UNAVAILABLE` on each face, as `WIRE-PROTOCOL.md` tells (CLI-48). The flag `retryable` follows the declared effects of the procedure, with the rule of the host.
+  
+  - A repeatable procedure (`isRepeatable`) gives the same state after a second start. Its cut call ends with `retryable: true`. A stream that sent an item ends with `retryable: false`, because a retry sends the items again.
+  - The handler of another call started, so the call can have had its effect. Its cut call ends with `retryable: false`, and the retry middleware does not send it again.
+  - The HTTP face: an open stream ended with `ABORTED` and `retryable: true` for each procedure. A call with a value ended with the error of its handler after the abort. Both end with `UNAVAILABLE`. A call with a value gets HTTP 503 when it is repeatable, and HTTP 500 when it is not. A value that the handler gives after the cut still goes out.
+  - The WebSocket face: the server and the client send the error frame of each stopped call before the socket closes. Before, the caller got `CONNECTION_CLOSED`, and the outcome of the call was not known.
+  - The port transport: `close()` sends the error of each call of the other side that it stops. Before, the other side got no frame, and its call waited for its time-out.
+  - New optional members: `RequestHandler.isRepeatableCall(method)`, implemented by `ProcedureServer` and forwarded by the face handler of the host, and the option `retryableOnStop` of `writeNdjsonStream`. A handler without `isRepeatableCall` ends each cut call with `retryable: false`.
+
 ## 0.59.0
 
 ### Minor Changes

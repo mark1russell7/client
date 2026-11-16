@@ -1,5 +1,66 @@
 # @procedures/fs
 
+## 0.60.1
+
+### Patch Changes
+
+- 264e6a1: With `dot: true`, `fs.glob` uses the glob matcher of `@mark1russell7/files` for the pattern and each `ignore` entry. A brace group can hold a dot name, for example `{.git,node_modules}`. The matcher knows `*`, `**`, `?`, sets and brace groups.
+- 11fcffb: `fs.temp` makes its folder in the base folder for each prefix. The prefix is only the start of the folder name, so the prefixes `.` and `..` also make a folder in the base folder. With a root, the base folder is `.tmp` of the root.
+- e8e88ac: On Windows, the root check refuses a network or device path of another share before it opens the path.
+  
+  - A path that starts with two slashes (`\\host\share\name`, `//host/share/name`, `\\?\UNC\host\share\name` or `\\.\pipe\name`) is outside the root, unless the root is on the same share. The check gets `FORBIDDEN` with the reason `outside-root` and does not open the path.
+  - `realPathIsInside()` gives false for such a path, and the root check of the git procedures does the same.
+  - The new function `isOtherShare()` of the entry `@procedures/fs/root` gives this decision.
+  - On other systems, nothing changes.
+- a6fd4f3: `fs.read` and `fs.read.json` get the input `maxBytes`, the largest count of bytes that the read loads. `fs.read` also gets `offset` and `length` for a part of a file.
+  
+  - A part larger than `maxBytes` gives a `RangeError` with the code `ERR_FS_FILE_TOO_LARGE`. For a regular file, the error comes before the read.
+  - The read loads pieces of 1 MiB from one open file. Thus the limit holds also for a pipe or a file of the system with no size.
+  - Without `maxBytes`, the read loads the whole file, as before. The first read over 16 MiB in a process writes one warning.
+  
+  Migration before 0.64.0: version 0.64.0 sets 16 MiB as the default of `maxBytes`. A caller that reads larger files sets `maxBytes` to its own limit.
+- Updated dependencies [beca782]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [a87cdda]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+
+## 0.60.0
+
+### Patch Changes
+
+- Updated dependencies [3075d86]
+  - @procedures/client@0.60.0
+
+## 0.59.1
+
+### Patch Changes
+
+- c0ecfe0: The check of a path in a root and the operation on the path start in one hold of the roots. Thus the operation reads the links that the check read, for the calls of this process.
+  
+  - `fs.move`, `fs.copy`, `archive.extract` and each confined procedure that writes files or starts a process hold the roots alone. The other calls share the hold.
+  - The calls get the hold in the order that they came. A nested call starts in the hold of its caller.
+  - A call in a shared hold that starts a nested call that needs the hold alone gets an error. This nested call writes files, and its caller declares no file writes.
+  - `holdRoots()` and `RootHoldMode` of `@procedures/fs/root`, and `rootHoldOf()` of `@procedures/fs`, give the hold to other packages.
+  - `@procedures/fs` uses `rwLock()` of `@mark1russell7/collections`.
+- Updated dependencies [425ea64]
+- Updated dependencies [ea801cd]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6513a83]
+- Updated dependencies [8c69a74]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6cc8f0e]
+  - @procedures/client@0.59.1
+
 ## 0.59.0
 
 ### Patch Changes
