@@ -15,7 +15,7 @@
 
 The packages use `@mark1russell7/service` and `@mark1russell7/algebra` 0.9.0.
 
-This is a breaking change. Before, a timer of service work (a backoff, a retry, a time-out) did not keep a Node process alive. A script could end while such a timer waited. After this change, the process waits for the timer, as it does for `setTimeout`.
+This is a breaking change. Before, a timer of service work (a backoff, a retry, a time-out) did not keep a Node process alive. A script ended while such a timer waited. After this change, the process waits for the timer, as it does for `setTimeout`.
 
 - The `realClock` of `@procedures/client` worked this way before. Its timers do not change.
 - The watch timers of service (checks, the watchdog, the sweeps) do not keep a process alive.
