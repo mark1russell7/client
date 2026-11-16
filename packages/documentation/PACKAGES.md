@@ -4,7 +4,7 @@
 > from the workspace's package.json files and the live procedure registry.
 > Regenerate with `node packages/documentation/scripts/generate-packages.ts` after `pnpm build`.
 
-**Packages:** 60. **Procedures:** 305. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
+**Packages:** 61. **Procedures:** 379. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
 
 Dependencies marked *(general)* are separate repositories, published on npm under `@mark1russell7`.
 
@@ -67,6 +67,7 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/server` | `packages/server` | A standalone procedure server: load procedure packages and serve them over HTTP and WebSocket with a token and an expose list. Its procedures server.start, server.stop and server.status manage the background server of the mark CLI. | `server.*` (3) | `@mark1russell7/service` *(general)*, `client`, `peer`, `shell` |
 | `@procedures/signaldb` | `packages/signaldb` | SignalDbStorage: a CollectionStorage over the SignalDB collection of an app, so the collection is the local copy of a HybridStorage and the app keeps its reactive queries. | — | `client`, `collections` |
 | `@procedures/site` | `packages/site` | The website of the client ecosystem: the Composer, the procedure catalog and the architecture map | — | `client`, `store` |
+| `@procedures/statistics` | `packages/statistics` | The functions of @mark1russell7/rigor-statistics as procedures, made from its types: medians, intervals, tests and fits as typed calls, MCP tools and CLI commands. | `statistics.*` (74) | `@mark1russell7/rigor-statistics` *(general)*, `client`, `compiler` |
 | `@procedures/systems` | `packages/systems` | The timer law of systems for the client: it binds the times of the middleware, the transports and the server to the symbols of the law, and examines the rules of the client. | `systems.*` (1) | `@mark1russell7/service` *(general)*, `client` |
 | `@procedures/tailscale` | `packages/tailscale` | The tailscale CLI as one procedure: status, ip, serve, up and down, with JSON output. | `tailscale.*` (1) | `client`, `shell` |
 | `@procedures/weather` | `packages/weather` | A weather forecast for a point from Open-Meteo, without a key: each day and each hour, metric or imperial. | `weather.*` (1) | `client`, `http` |
