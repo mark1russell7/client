@@ -80,7 +80,11 @@ jobs:
     needs: plan
     name: event fan-out (job ${{ matrix.job }})
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # The limit comes from the nightly runs, which time all the cases. Over 9 nights (11-08 to 11-16),
+    # 41 of 45 jobs passed in 17 to 44 minutes, and 4 jobs stopped at the old limit of 45. The limit is
+    # the worst passed job plus the spread of the passed jobs: 44 + (44 - 17) = 71, so 75. A job of a
+    # pull request times only the case total, in 13 to 23 minutes.
+    timeout-minutes: 75
     strategy:
       fail-fast: false
       # The runners are shared by all repositories of the account (the rule runner-budget)
