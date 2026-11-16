@@ -2,7 +2,8 @@
  * The candidate limits of the gate row of the partition store (roadmap CLI-96): `--jobs <folder> ... --out <file>`. Each
  * option `--jobs` adds the jobs of one run. The report gives the candidate of each case and CPU model, and the change from
  * the frozen file. With `--freeze --commit <sha> --date <YYYY-MM-DD>`, this script also writes the frozen file. It refuses
- * a looser limit, because a looser limit needs a reason in the file. The nightly does not use `--freeze`.
+ * a looser limit, because a looser limit needs a reason in the file. The nightly does not use `--freeze`. The commit of the
+ * stamp is `--commit`, else `GITHUB_SHA`: the commit of the run. With neither, the script refuses, because a stamp names a real commit.
  */
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -28,7 +29,9 @@ const limitsPath = values.limits ?? fileURLToPath(new URL("partition-limits.json
 const frozen = existsSync(limitsPath) ? (JSON.parse(readFileSync(limitsPath, "utf8")) as ModelLimitsFile) : null;
 const { reads, faults } = partitionReads(loadPartitionJobs(values.jobs));
 const candidates = candidateLimits(reads, MODEL_LIMIT_RULE);
-const next = freezeLimits(PARTITION_MEASURE, candidates, { commit: values.commit ?? "candidate", date: values.date ?? new Date().toISOString().slice(0, 10) }, MODEL_LIMIT_RULE);
+const commit = values.commit ?? process.env.GITHUB_SHA;
+if (commit === undefined || commit === "") throw new RangeError("this report needs --commit, or GITHUB_SHA in CI: the commit of the records");
+const next = freezeLimits(PARTITION_MEASURE, candidates, { commit, date: values.date ?? new Date().toISOString().slice(0, 10) }, MODEL_LIMIT_RULE);
 const changes = frozen === null ? null : limitChanges(frozen, next);
 
 writeFileSync(values.out, `${JSON.stringify({ measure: PARTITION_MEASURE, rule: MODEL_LIMIT_RULE, faults, candidates, changes }, null, 2)}\n`);
