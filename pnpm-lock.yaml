@@ -180,13 +180,13 @@ importers:
         version: 3.0.3
       '@mark1russell7/api-report':
         specifier: ^0.5.0
-        version: 0.5.6
+        version: 0.5.8
       '@mark1russell7/boundaries':
         specifier: ^0.2.0
         version: 0.2.1(@swc/core@1.16.22)(dependency-cruiser@18.7.2)
       '@mark1russell7/conventions':
-        specifier: ^0.41.0
-        version: 0.41.5
+        specifier: ^0.42.0
+        version: 0.42.0
       '@mark1russell7/cue':
         specifier: ^2.1.1
         version: 2.1.4
@@ -547,7 +547,7 @@ importers:
     devDependencies:
       '@mark1russell7/api-report':
         specifier: ^0.5.0
-        version: 0.5.6
+        version: 0.5.8
       '@mark1russell7/cue':
         specifier: ^2.1.1
         version: 2.1.4
@@ -562,7 +562,7 @@ importers:
         version: 0.1.29
       '@mark1russell7/rigor-testkit':
         specifier: ^0.1.2
-        version: 0.1.5(@opentelemetry/api-logs@0.223.0)(@opentelemetry/api@1.10.0)(@opentelemetry/sdk-logs@0.223.1(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-metrics@2.12.1(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))(fast-check@4.10.2)
+        version: 0.1.10(@opentelemetry/api-logs@0.223.0)(@opentelemetry/api@1.10.0)(@opentelemetry/sdk-logs@0.223.1(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-metrics@2.12.1(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))(fast-check@4.10.2)
       '@opentelemetry/api-logs':
         specifier: ^0.223.0
         version: 0.223.0
@@ -648,7 +648,7 @@ importers:
         version: 2.1.4
       '@mark1russell7/rigor-testkit':
         specifier: ^0.1.4
-        version: 0.1.5(@opentelemetry/api-logs@0.223.1)(@opentelemetry/api@1.10.0)(fast-check@4.10.2)
+        version: 0.1.10(@opentelemetry/api-logs@0.223.1)(@opentelemetry/api@1.10.0)(fast-check@4.10.2)
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -821,8 +821,8 @@ importers:
         version: 4.6.7
     devDependencies:
       '@mark1russell7/conventions':
-        specifier: ^0.41.0
-        version: 0.41.5
+        specifier: ^0.42.0
+        version: 0.42.0
       '@mark1russell7/cue':
         specifier: ^2.1.1
         version: 2.1.4
@@ -911,7 +911,7 @@ importers:
         version: 0.1.29
       '@mark1russell7/rigor-testkit':
         specifier: ^0.1.4
-        version: 0.1.5(@opentelemetry/api-logs@0.223.1)(@opentelemetry/api@1.10.0)(fast-check@4.10.2)
+        version: 0.1.10(@opentelemetry/api-logs@0.223.1)(@opentelemetry/api@1.10.0)(fast-check@4.10.2)
       '@procedures/peer':
         specifier: workspace:*
         version: link:../client-server
@@ -1202,10 +1202,10 @@ importers:
     dependencies:
       '@mark1russell7/docker-sqlite':
         specifier: ^0.3.0
-        version: 0.3.0
+        version: 0.3.1
       '@mark1russell7/sqlite':
         specifier: ^0.3.4
-        version: 0.3.4
+        version: 0.3.5
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1218,7 +1218,7 @@ importers:
         version: 2.1.4
       '@mark1russell7/rigor-testkit':
         specifier: ^0.1.4
-        version: 0.1.5(@opentelemetry/api-logs@0.223.1)(@opentelemetry/api@1.10.0)(fast-check@4.10.2)
+        version: 0.1.10(@opentelemetry/api-logs@0.223.1)(@opentelemetry/api@1.10.0)(fast-check@4.10.2)
       '@procedures/collections':
         specifier: workspace:*
         version: link:../client-collections
@@ -1258,7 +1258,7 @@ importers:
         version: 2.1.4
       '@mark1russell7/rigor-testkit':
         specifier: ^0.1.4
-        version: 0.1.5(@opentelemetry/api-logs@0.223.1)(@opentelemetry/api@1.10.0)(fast-check@4.10.2)
+        version: 0.1.10(@opentelemetry/api-logs@0.223.1)(@opentelemetry/api@1.10.0)(fast-check@4.10.2)
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1735,7 +1735,7 @@ importers:
         version: 0.7.5(@opentelemetry/sdk-node@0.223.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0))(supports-color@7.2.0)(vite@6.4.6(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))(zone.js@0.16.3)
       '@mark1russell7/rigor-testkit':
         specifier: ^0.1.2
-        version: 0.1.5(@opentelemetry/api-logs@0.223.0)(@opentelemetry/api@1.10.0)(@opentelemetry/sdk-logs@0.223.1(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-metrics@2.12.1(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))(fast-check@4.10.2)
+        version: 0.1.10(@opentelemetry/api-logs@0.223.0)(@opentelemetry/api@1.10.0)(@opentelemetry/sdk-logs@0.223.1(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-metrics@2.12.1(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))(fast-check@4.10.2)
       '@modelcontextprotocol/sdk':
         specifier: ^1.32.2
         version: 1.32.2(supports-color@7.2.0)(zod@4.6.7)
@@ -1922,7 +1922,7 @@ importers:
         version: 2.1.4
       '@mark1russell7/rigor-testkit':
         specifier: ^0.1.7
-        version: 0.1.7(@opentelemetry/api-logs@0.223.1)(@opentelemetry/api@1.10.0)(fast-check@4.10.2)
+        version: 0.1.10(@opentelemetry/api-logs@0.223.1)(@opentelemetry/api@1.10.0)(fast-check@4.10.2)
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -2118,7 +2118,7 @@ importers:
         version: 2.1.4
       '@mark1russell7/rigor-testkit':
         specifier: ^0.1.4
-        version: 0.1.5(@opentelemetry/api-logs@0.223.1)(@opentelemetry/api@1.10.0)(fast-check@4.10.2)
+        version: 0.1.10(@opentelemetry/api-logs@0.223.1)(@opentelemetry/api@1.10.0)(fast-check@4.10.2)
       '@procedures/store':
         specifier: workspace:*
         version: link:../client-store
@@ -2163,8 +2163,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.4
       '@mark1russell7/site-pages':
-        specifier: ^0.4.3
-        version: 0.4.8
+        specifier: ^0.5.4
+        version: 0.5.4
       '@mark1russell7/text':
         specifier: ^0.0.5
         version: 0.0.5
@@ -3536,8 +3536,8 @@ packages:
       zod:
         optional: true
 
-  '@mark1russell7/api-report@0.5.6':
-    resolution: {integrity: sha512-WgMnxnLhm7UoZL8aaosuAk8eik69SyhgoJ6y5rSwwX4A4v9kr98/DV+uGZE6B0XsO0oCg6cg57DhPMQKapKyrw==}
+  '@mark1russell7/api-report@0.5.8':
+    resolution: {integrity: sha512-HS395EG0QBs2uA4EZ8gLak2m6YMqkC8XqPagNuE36uY8F6YZmb9Xz5SEr52Gv/6fb6J8JTXpw/zfkZeDAXcdHQ==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -3564,8 +3564,8 @@ packages:
     resolution: {integrity: sha512-A8WllF8xDdMzIC1WBJYEf5PHO5zt+TJ/qVYGGHZMRbAu5y/U0ngToSdy7AkQeFlk/dLaPDydY+lCs18X817Cpw==}
     engines: {node: '>=22.12'}
 
-  '@mark1russell7/conventions@0.41.5':
-    resolution: {integrity: sha512-utYAEou/70qKRpukES+mYKZ+KxNpjOd9yyyM6sdQS0+geurjQ7YTlW0ov2CbjnTK8HVSkf1OHRo+SnIBD3fYmA==}
+  '@mark1russell7/conventions@0.42.0':
+    resolution: {integrity: sha512-KWhUSt52Ol7YaL1ut8dUfzXHmDmrnbXdI9BBwNTCf9oibvrRKi5K/PjdvzD8gh6UvRlINq+Kwqe6H/B8ljcS4w==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -3574,8 +3574,8 @@ packages:
     engines: {node: '>=22'}
     hasBin: true
 
-  '@mark1russell7/docker-sqlite@0.3.0':
-    resolution: {integrity: sha512-BB6pdD424Ig7CD8/DOXHOAB2iLnQ7UF9mY8Qih0GhEwxe6iHj8hOKBgeMehg3JjNzeLtIjUv/xriZizJJzsVIA==}
+  '@mark1russell7/docker-sqlite@0.3.1':
+    resolution: {integrity: sha512-pH6mHGWp02iaPLSWqYWrpdCPRq6k4CBfqXrrh9SAHgEzINLY/vFpTsX/+b4zfH6BFaKJbPwT+fq+l1RUDEzxPA==}
     engines: {node: '>=22'}
 
   '@mark1russell7/files@0.0.3':
@@ -3636,32 +3636,12 @@ packages:
     resolution: {integrity: sha512-4m8yw4giLH/y1HcsroBQSHAWByC5fK/iJb4dNGCPT6Eelr26bxvBz7kMC7UMFSzGcR+W8GTrAwlAQmmFnQDMuA==}
     engines: {node: '>=22'}
 
-  '@mark1russell7/rigor-testkit@0.1.5':
-    resolution: {integrity: sha512-9wt6zR8Z1Jez3se1OfaXlg3ZIH8ZmG+n2FDTb0xoYYrhl+3HHtKuMo+XPWPyYLWMiZvtywtVr/uUF/tRidfWcA==}
+  '@mark1russell7/rigor-statistics@0.2.7':
+    resolution: {integrity: sha512-XJ2igHIhxiXEhPIJQjHa0YerAP4g7cJi/NkLphICdPCMhrD5Vwc8CnL9PPxOIz1+oJ0MTJ8eX7Jickcwz269wQ==}
     engines: {node: '>=22'}
-    peerDependencies:
-      '@opentelemetry/api': ^1.9.0
-      '@opentelemetry/api-logs': ^0.213.0 || ^0.223.0
-      '@opentelemetry/sdk-logs': ^0.223.0
-      '@opentelemetry/sdk-metrics': ^2.12.0
-      '@opentelemetry/sdk-trace-base': ^2.12.0
-      fast-check: ^4.0.0
-    peerDependenciesMeta:
-      '@opentelemetry/api':
-        optional: true
-      '@opentelemetry/api-logs':
-        optional: true
-      '@opentelemetry/sdk-logs':
-        optional: true
-      '@opentelemetry/sdk-metrics':
-        optional: true
-      '@opentelemetry/sdk-trace-base':
-        optional: true
-      fast-check:
-        optional: true
 
-  '@mark1russell7/rigor-testkit@0.1.7':
-    resolution: {integrity: sha512-/Xz+efOov3xH4o7xOZmbdWWgyeMy/nt1XSh15WrPk292vl0cS6d8rdIqHIMM/goFKv3UdeqxVET7jZC/wZkQ0g==}
+  '@mark1russell7/rigor-testkit@0.1.10':
+    resolution: {integrity: sha512-mnWF2KDPEllIb0BZo7tXQTbHNAN4Eb+RHGaO1a+KP+i2ixeGjx3lqvSXXX2pF99A4tDxweT3aRMrVi50aFxo8Q==}
     engines: {node: '>=22'}
     peerDependencies:
       '@opentelemetry/api': ^1.9.0
@@ -3714,8 +3694,8 @@ packages:
       zod:
         optional: true
 
-  '@mark1russell7/site-pages@0.4.8':
-    resolution: {integrity: sha512-uN7SV7VxrsMyH7/cPOUClFOnJhw24S2+qVaMIoNK+7AtJe3FB4l5qN2NowKAYvYgLcDpY4gUBlw9meJ6/Gq2pQ==}
+  '@mark1russell7/site-pages@0.5.4':
+    resolution: {integrity: sha512-LGYUaGsq4eEiP15brQD3bMEKXKlZ9wC9ukIAWG8iVnFE0E/Qrrgt74cMV8DT+qZmTwpaldD7+aOKurfB26d4cw==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -3723,8 +3703,8 @@ packages:
     resolution: {integrity: sha512-hraH78EAk4354LZY08EbUls6vpj+BC4bxVVr0rkFf97fW/yNqidmNLaH18qUIkPZ8N/YwtpqS4it1NCQodTPzA==}
     engines: {node: '>=22'}
 
-  '@mark1russell7/sqlite@0.3.4':
-    resolution: {integrity: sha512-IVmkdnP5WawL1ChEVkmnJAf75UJ7GOursZRsOrcKpeWFriw9ydkxKyApDlJwpO0oFeQIxsprKMqapWE0UqR8fg==}
+  '@mark1russell7/sqlite@0.3.5':
+    resolution: {integrity: sha512-jvB2RVKlW7IV6g/1+xd5LiSpUUHoivfkJ+dhITTgJipmk8qCTmoz/OtA5dJ0k8HVeFgxaFVyQNi/kwOJYuff0w==}
     engines: {node: '>=22.13'}
 
   '@mark1russell7/ste-lint@0.3.2':
@@ -7492,9 +7472,9 @@ snapshots:
     optionalDependencies:
       zod: 4.6.7
 
-  '@mark1russell7/api-report@0.5.6':
+  '@mark1russell7/api-report@0.5.8':
     dependencies:
-      '@mark1russell7/conventions': 0.41.5
+      '@mark1russell7/conventions': 0.42.0
 
   '@mark1russell7/boundaries@0.2.1(@swc/core@1.16.22)(dependency-cruiser@18.7.2)':
     optionalDependencies:
@@ -7524,13 +7504,13 @@ snapshots:
     transitivePeerDependencies:
       - zod
 
-  '@mark1russell7/conventions@0.41.5':
+  '@mark1russell7/conventions@0.42.0':
     dependencies:
       yaml: 2.9.1
 
   '@mark1russell7/cue@2.1.4': {}
 
-  '@mark1russell7/docker-sqlite@0.3.0':
+  '@mark1russell7/docker-sqlite@0.3.1':
     dependencies:
       '@types/sql.js': 1.4.11
       sql.js: 1.14.2
@@ -7600,7 +7580,11 @@ snapshots:
     dependencies:
       '@mark1russell7/rigor-generators': 0.1.16
 
-  '@mark1russell7/rigor-testkit@0.1.5(@opentelemetry/api-logs@0.223.0)(@opentelemetry/api@1.10.0)(@opentelemetry/sdk-logs@0.223.1(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-metrics@2.12.1(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))(fast-check@4.10.2)':
+  '@mark1russell7/rigor-statistics@0.2.7':
+    dependencies:
+      '@mark1russell7/rigor-generators': 0.1.16
+
+  '@mark1russell7/rigor-testkit@0.1.10(@opentelemetry/api-logs@0.223.0)(@opentelemetry/api@1.10.0)(@opentelemetry/sdk-logs@0.223.1(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-metrics@2.12.1(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))(fast-check@4.10.2)':
     optionalDependencies:
       '@opentelemetry/api': 1.10.0
       '@opentelemetry/api-logs': 0.223.0
@@ -7609,13 +7593,7 @@ snapshots:
       '@opentelemetry/sdk-trace-base': 2.12.0(@opentelemetry/api@1.10.0)
       fast-check: 4.10.2
 
-  '@mark1russell7/rigor-testkit@0.1.5(@opentelemetry/api-logs@0.223.1)(@opentelemetry/api@1.10.0)(fast-check@4.10.2)':
-    optionalDependencies:
-      '@opentelemetry/api': 1.10.0
-      '@opentelemetry/api-logs': 0.223.1
-      fast-check: 4.10.2
-
-  '@mark1russell7/rigor-testkit@0.1.7(@opentelemetry/api-logs@0.223.1)(@opentelemetry/api@1.10.0)(fast-check@4.10.2)':
+  '@mark1russell7/rigor-testkit@0.1.10(@opentelemetry/api-logs@0.223.1)(@opentelemetry/api@1.10.0)(fast-check@4.10.2)':
     optionalDependencies:
       '@opentelemetry/api': 1.10.0
       '@opentelemetry/api-logs': 0.223.1
@@ -7635,13 +7613,13 @@ snapshots:
       ws: 8.22.2
       zod: 4.6.7
 
-  '@mark1russell7/site-pages@0.4.8':
+  '@mark1russell7/site-pages@0.5.4':
     dependencies:
-      '@mark1russell7/rigor-statistics': 0.1.29
+      '@mark1russell7/rigor-statistics': 0.2.7
 
   '@mark1russell7/splay@0.2.2': {}
 
-  '@mark1russell7/sqlite@0.3.4': {}
+  '@mark1russell7/sqlite@0.3.5': {}
 
   '@mark1russell7/ste-lint@0.3.2':
     dependencies:
