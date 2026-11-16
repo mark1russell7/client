@@ -178,3 +178,47 @@ export function sideOf(sign: number): MaybeSide {
 export function grow(value: Grow<number>): number {
   return value.value;
 }
+
+interface Die {
+  readonly seed: number;
+  roll(): number;
+}
+
+interface Coin {
+  flip(): boolean;
+}
+
+export function die(seed: number, faces?: Map<number, number>): Die {
+  let state = seed;
+  return {
+    seed,
+    roll: () => {
+      state = (state * 31 + 7) % 6;
+      return faces?.get(state) ?? state + 1;
+    },
+  };
+}
+
+export function rolls(count: number, made: Die): number[] {
+  return Array.from({ length: count }, () => made.roll());
+}
+
+export function maybeRoll(made?: Die): number {
+  return made?.roll() ?? 0;
+}
+
+export function coin(seed: number): Coin {
+  return { flip: () => seed % 2 === 0 };
+}
+
+export function fairCoin(seed: number): Coin {
+  return { flip: () => seed % 2 === 1 };
+}
+
+export function flips(made: Coin): boolean {
+  return made.flip();
+}
+
+export function curried(make: (seed: number) => () => number): number {
+  return make(1)();
+}

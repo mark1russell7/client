@@ -144,3 +144,26 @@ export declare function weight(spec: Spec): number;
 export declare function sideOf(sign: number): MaybeSide;
 /** The first value of a type with no end. */
 export declare function grow(value: Grow<number>): number;
+/** A die with a seed: an object with a method, so it is not JSON. */
+export interface Die {
+  readonly seed: number;
+  roll(): number;
+}
+/** A die from a seed: the factory of a constructed input. The faces are not JSON, so the input stops before them. */
+export declare function die(seed: number, faces?: Map<number, number>): Die;
+/** The rolls of a die: a constructed input. */
+export declare function rolls(count: number, die: Die): number[];
+/** One roll, or 0 with no die: an optional constructed input. */
+export declare function maybeRoll(die?: Die): number;
+/** A coin: two functions give it. */
+export interface Coin {
+  flip(): boolean;
+}
+/** A coin from a seed. */
+export declare function coin(seed: number): Coin;
+/** The other coin from a seed. */
+export declare function fairCoin(seed: number): Coin;
+/** One flip: the overlay names the factory of the coin. */
+export declare function flips(coin: Coin): boolean;
+/** A function parameter whose result is a function: a sub-program gives JSON, so it cannot give it. */
+export declare function curried(make: (seed: number) => () => number): number;

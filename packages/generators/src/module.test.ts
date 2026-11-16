@@ -35,6 +35,16 @@ describe("@procedures/generators", () => {
     );
   });
 
+  it("makes the Random of a design from its seed before each call, so two calls give the same design", async () => {
+    const expected = generators.latinHypercube(5, 3, generators.random(7));
+    expect(await call("latinHypercube", { n: 5, d: 3, r: { seed: 7 } })).toEqual(expected);
+    expect(await call("latinHypercube", { n: 5, d: 3, r: { seed: 7 } })).toEqual(expected);
+    expect(await call("randomDesign", { n: 4, d: 2, r: { seed: "a name" } })).toEqual(generators.randomDesign(4, 2, generators.random("a name")));
+    const source = { $proc: ["generators", "deriveSeed"], input: { seed: { $ref: "seed" }, label: "source" }, $when: "$never" };
+    await expect(call("randomDesign", { n: 2, d: 2, r: { seed: 3, source } })).rejects.toThrow();
+    await expect(call("latinHypercube", { n: 5, d: 3, r: generators.random(7) })).rejects.toThrow();
+  });
+
   it("refuses an input that does not match the schema", async () => {
     await expect(call("deriveSeed", { seed: 7, label: 3 })).rejects.toThrow();
   });

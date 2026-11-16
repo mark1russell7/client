@@ -242,13 +242,14 @@ await client.exec(["statistics", "median"], { values: [3, 1, 2, 10] }); // 2.5
 - A call in process gives the output that a call over HTTP gives. An `undefined` item of an array becomes `null`, and a property with an `undefined` value is absent.
 - A type parameter is any JSON value, or the schema of its constraint.
 - The overlay is the data that the types cannot tell. It has the effects of the package and of single functions. It also names the functions with no procedure, each with its reason.
+- The field `constructors` of the overlay names the factory of a type, when more than one function gives the type.
 
 Each other function gets an exemption with its reason and the part of the signature that decided:
 
 | Reason | The cause | The plan |
 |---|---|---|
 | `function-parameter` | A sub-program cannot give the function: it has more than one signature, a type parameter, a rest parameter, a promise, no value or a type that is not JSON. | No change. |
-| `input-not-json` | An input is not JSON: a `Map`, a `Date`, a `bigint`, an object with methods, or a type that does not resolve. | An object with methods becomes a handle. |
+| `input-not-json` | An input is not JSON: a `Map`, a `Date`, a `bigint`, an object with methods that no pure factory makes, or a type that does not resolve. | An object with methods becomes a handle. |
 | `output-not-json` | The output is not JSON, for example a class instance. | The handle of the instance. |
 | `overload` | The function has more than one signature. | One procedure for each signature. |
 | `overlay` | The overlay exempts the function. | No change. |
@@ -280,8 +281,25 @@ A function parameter, for example the statistic of a bootstrap, gets a sub-progr
 - The loader examines the input of each operator and the result of the function with their schemas.
 - An array of calls is a chain, so a sub-program refuses it. Only the root call has a `$when`.
 - A function that a sub-program cannot give stays exempt with the reason `function-parameter`. A function in an output gives the reason `output-not-json`.
+- A sub-program gives JSON. So a function whose result is a function stays exempt with the reason `function-parameter`.
 
 Thus a sub-program changes nothing, and it gives the same value for the same input.
+
+### A constructed input
+
+A parameter that is not JSON, for example a `Random` with methods, gets a constructed input. A pure function of the package, the factory, makes the value from JSON:
+
+```json
+{ "$proc": ["generators", "latinHypercube"], "input": { "n": 5, "d": 3, "r": { "seed": 7 } } }
+```
+
+- The input value is the input of the factory: one property for each parameter. Here the factory is `random(seed)`.
+- The schema of the parameter has the keyword `x-procedures-construct`. It gives the name of the factory and the names of its parameters.
+- A factory is an export with one signature and no type parameter. Its effects are pure, and it gives an object, not a promise.
+- The input of a factory stops at its first optional parameter that is not JSON. A parameter that is not JSON and not optional refuses the factory.
+- When more than one factory gives the type, the field `constructors` of the overlay names one. Without it, the function stays exempt, and the detail names the factories.
+- Only a parameter of the function gets a constructed input, not a property of a parameter.
+- Before each call, the loader makes a new value with the factory. Thus a call does not change the next call.
 
 ## The procedures
 

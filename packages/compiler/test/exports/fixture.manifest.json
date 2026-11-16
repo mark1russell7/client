@@ -661,6 +661,49 @@
       }
     },
     {
+      "name": "maybeRoll",
+      "path": [
+        "fixture",
+        "maybeRoll"
+      ],
+      "description": "One roll, or 0 with no die: an optional constructed input.",
+      "params": [
+        "die"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "die": {
+            "type": "object",
+            "properties": {
+              "seed": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "seed"
+            ],
+            "additionalProperties": false,
+            "description": "The input of die: the procedure makes the Die with die(seed) before the call.",
+            "x-procedures-construct": {
+              "function": "die",
+              "params": [
+                "seed"
+              ]
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "minus",
       "path": [
         "fixture",
@@ -866,6 +909,60 @@
       },
       "output": {
         "type": "string"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "rolls",
+      "path": [
+        "fixture",
+        "rolls"
+      ],
+      "description": "The rolls of a die: a constructed input.",
+      "params": [
+        "count",
+        "die"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "die": {
+            "type": "object",
+            "properties": {
+              "seed": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "seed"
+            ],
+            "additionalProperties": false,
+            "description": "The input of die: the procedure makes the Die with die(seed) before the call.",
+            "x-procedures-construct": {
+              "function": "die",
+              "params": [
+                "seed"
+              ]
+            }
+          }
+        },
+        "required": [
+          "count",
+          "die"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        }
       },
       "effects": {
         "reads": [],
@@ -1167,9 +1264,24 @@
       "detail": "value: a type that does not resolve"
     },
     {
+      "name": "coin",
+      "reason": "output-not-json",
+      "detail": "an object with the method flip"
+    },
+    {
       "name": "counter",
       "reason": "output-not-json",
       "detail": "an instance of the class Counter"
+    },
+    {
+      "name": "curried",
+      "reason": "function-parameter",
+      "detail": "make: (seed: number) => () => number"
+    },
+    {
+      "name": "die",
+      "reason": "input-not-json",
+      "detail": "faces: Map"
     },
     {
       "name": "each",
@@ -1180,6 +1292,16 @@
       "name": "fail",
       "reason": "output-not-json",
       "detail": "never"
+    },
+    {
+      "name": "fairCoin",
+      "reason": "output-not-json",
+      "detail": "an object with the method flip"
+    },
+    {
+      "name": "flips",
+      "reason": "input-not-json",
+      "detail": "coin: an object with the method flip. The functions coin, fairCoin give Coin: overlay.constructors names one"
     },
     {
       "name": "grow",
@@ -1237,6 +1359,6 @@
       "Counter"
     ],
     "values": 1,
-    "types": 10
+    "types": 12
   }
 }
