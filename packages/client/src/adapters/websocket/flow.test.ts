@@ -102,25 +102,30 @@ describe("the flow of the frames of a connection", () => {
     const server = await startServer({ highWaterMark: 16 * KIB, heartbeat: { interval: ms(60_000), misses: 2 } });
     const beat = (): void => (server.transport as unknown as { beat(): void }).beat();
     const client = await deafClient(server.url);
-    let messages = 0;
-    let stopAt = Number.POSITIVE_INFINITY;
+    let stop = (): boolean => false;
     client.on("message", () => {
-      messages += 1;
-      // The client stops at the target in the handler: a poll reads megabytes before it stops
-      if (messages >= stopAt) client.pause();
+      // The client stops in the handler: a poll reads megabytes before it stops
+      if (stop()) client.pause();
     });
     sendPings(client, 1500, 16 * KIB);
     await waitFor(() => server.sockets[0]?.isPaused === true);
     await sleep(100);
     const socket = server.sockets[0]!;
-    /** The client sends more pings, reads 20 answers, then stops again until the server pauses. */
+    /** The count of the frames that the socket of the server wrote. The transport keeps it for each connection. */
+    const written = (): number => (server.transport as unknown as { flows: WeakMap<WebSocket, { written: number }> }).flows.get(socket)?.written ?? 0;
+    /**
+     * The client reads until the socket of the server wrote 4 more frames, then it stops until the
+     * server pauses again. A count of the messages that the client read is not sufficient: the
+     * client can read them from its own buffers, and then the server writes no frame.
+     */
     const readSome = async (): Promise<void> => {
       // New pings in each round: the server has frames to read and answers to write
       sendPings(client, 100, 16 * KIB);
-      stopAt = messages + 20;
+      const target = written() + 4;
+      stop = () => written() >= target;
       client.resume();
-      await waitFor(() => messages >= stopAt);
-      stopAt = Number.POSITIVE_INFINITY;
+      await waitFor(() => written() >= target && client.isPaused);
+      stop = () => false;
       await waitFor(() => socket.isPaused);
       await sleep(100);
     };
