@@ -12,6 +12,7 @@
 
 import { existsSync } from "node:fs";
 import type { DatabaseSync, StatementSync } from "node:sqlite";
+import type { ConfinableDatabase } from "@mark1russell7/sqlite";
 import { MEMORY_PATH } from "../../engines.js";
 import { loadSqlite, type Sqlite } from "../../load.js";
 import { DEFAULT_DB_PATH } from "../../types.js";
@@ -60,7 +61,7 @@ export function isConfineAvailable(sqlite: Sqlite): boolean {
   if (confineAvailable === undefined) {
     const probe = sqlite.openDatabase(MEMORY_PATH, { wal: false });
     try {
-      sqlite.confineToFile(probe);
+      confine(sqlite, probe);
       confineAvailable = true;
     } catch (error) {
       if (!(error instanceof sqlite.ConfineUnavailableError)) throw error;
@@ -70,6 +71,14 @@ export function isConfineAvailable(sqlite: Sqlite): boolean {
     }
   }
   return confineAvailable;
+}
+
+/**
+ * This function puts the guard `confineToFile` on a connection. The `DatabaseSync` type of `@types/node` 22 has no
+ * `setAuthorizer`, so TypeScript refuses it as a `ConfinableDatabase`. The cast goes when the home accepts that type.
+ */
+function confine(sqlite: Sqlite, db: DatabaseSync): void {
+  sqlite.confineToFile(db as ConfinableDatabase);
 }
 
 /** This function throws `ConfineUnavailableError` when this Node.js has no guard, before the call opens its file. */
@@ -96,7 +105,7 @@ export async function withDatabase<T>(path: string, mode: OpenMode, work: (db: D
   });
   try {
     if (mode.queryOnly) db.exec("PRAGMA query_only = 1");
-    if (mode.callerSql) sqlite.confineToFile(db);
+    if (mode.callerSql) confine(sqlite, db);
     return work(db, sqlite);
   } finally {
     db.close();
