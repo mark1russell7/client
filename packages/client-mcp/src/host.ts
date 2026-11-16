@@ -188,6 +188,9 @@ export interface McpRunnerPart {
 /** A storage of the server as a dependency of the runner: the shape of `DependencyHandle`. */
 export type McpRunnerDependency = ReturnType<ProcedureServer["storageHandles"]>[number];
 
+/** The partitions of the server as a dependency of the runner: the shape of `DependencyHandle`. */
+export type McpRunnerPartitions = ReturnType<ProcedureServer["partitionHandles"]>[number];
+
 /**
  * What `McpHost.declare()` uses of the builder of a service (`ServiceBuilder` of
  * `@mark1russell7/service`). The types are structural.
@@ -197,7 +200,7 @@ export interface McpServiceBuilder {
   dependency(
     name: string,
     spec: { system: null; knobs: Readonly<Record<string, never>>; operations: Readonly<Record<string, { idempotent: boolean }>> },
-    handle: McpRunnerDependency,
+    handle: McpRunnerDependency | McpRunnerPartitions,
   ): unknown;
   trigger(trigger: "stdin-close"): unknown;
 }
@@ -457,8 +460,8 @@ export function createMcpHost(options: McpHostOptions = {}): McpHost {
       if (managed) throw new Error("This MCP host is declared on a service already. A host declares one time.");
       if (running || stopping) throw new Error("This MCP host started without a service. Declare it before it starts.");
       managed = true;
-      // The storages connect before the server starts, and close after it (as the procedures host does)
-      for (const handle of server.storageHandles()) {
+      // The storages and the partitions connect before the server starts, and close after it (as the procedures host does).
+      for (const handle of [...server.storageHandles(), ...server.partitionHandles()]) {
         svc.dependency(handle.name, { system: null, knobs: {}, operations: STORAGE_OPERATIONS }, handle);
       }
       svc.server("mcp", {}, {

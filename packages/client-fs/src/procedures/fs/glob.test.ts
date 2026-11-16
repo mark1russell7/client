@@ -13,7 +13,7 @@ let root: string;
 
 beforeAll(() => {
   root = mkdtempSync(join(tmpdir(), "fs-glob-"));
-  for (const file of ["a/q.ts", "a/node_modules/x/p.ts", "b/r.tsx", "b/.dot.ts", ".hidden/h.ts", "dist/d.ts"]) {
+  for (const file of ["a/q.ts", "a/node_modules/x/p.ts", "b/r.tsx", "b/.dot.ts", ".hidden/h.ts", "dist/d.ts", ".git/config", ".env", ".npmrc", ".github/a.md", "docs/b.md"]) {
     mkdirSync(join(root, file, ".."), { recursive: true });
     writeFileSync(join(root, file), "");
   }
@@ -64,5 +64,16 @@ describe("fs.glob", () => {
   it("matches an explicit dot pattern with dot: true", async () => {
     const result = await run({ pattern: ".hidden/*.ts", cwd: root, dot: true });
     expect(result.matches).toEqual([".hidden/h.ts"]);
+  });
+
+  it("matches a dot name in a brace group of the pattern with dot: true", async () => {
+    const result = await run({ pattern: "{.github,docs}/**/*.md", cwd: root, dot: true });
+    expect(result.matches).toEqual([".github/a.md", "docs/b.md"]);
+  });
+
+  it("ignores a dot name in a brace group of an ignore entry with dot: true", async () => {
+    const ignore = ["**/{.git,node_modules}/**", "{.env,.npmrc}", "{.github,docs,.hidden}/**"];
+    const result = await run({ pattern: "**/*", cwd: root, dot: true, ignore });
+    expect(result.matches).toEqual(["a", "a/q.ts", "b", "b/.dot.ts", "b/r.tsx", "dist", "dist/d.ts"]);
   });
 });

@@ -10,8 +10,8 @@
  * script that the `.cmd` file starts, run with Node.
  */
 
-import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import type { ProcedureContext } from "@procedures/client";
 import { defineCliTool, execPathProgram, findInPath, nodeScript, parseJsonDocument } from "@procedures/shell/cli";
 import type { PnpmCommandOutput, PnpmJsonOutput } from "../../types.js";
@@ -54,6 +54,93 @@ export function resolvePnpm(): { command: string; prefix: string[] } {
   if (found) return found;
   const execPath = process.env["npm_execpath"];
   throw new Error(`pnpm was not found: install pnpm, or run this from a pnpm script (npm_execpath: ${execPath ?? "not set"})`);
+}
+
+/** This function gives true when the npm package name is the name of a package that holds a pnpm program. */
+function isPnpmPackage(name: unknown): boolean {
+  return name === "pnpm" || (typeof name === "string" && name.startsWith("@pnpm/exe"));
+}
+
+/** This function gives the version in the `package.json` of the pnpm package that holds the program file, or undefined. */
+function pnpmPackageVersion(file: string): string | undefined {
+  let real: string;
+  try {
+    real = realpathSync(file);
+  } catch {
+    return undefined;
+  }
+  // The executable of pnpm 12 is in the folder of its package, and pnpm.cjs is in the bin folder
+  for (const dir of [dirname(real), dirname(dirname(real))]) {
+    const manifest = join(dir, "package.json");
+    if (!existsSync(manifest)) continue;
+    try {
+      const data = JSON.parse(readFileSync(manifest, "utf8")) as { name?: unknown; version?: unknown };
+      if (isPnpmPackage(data.name) && typeof data.version === "string") return data.version;
+    } catch {
+      continue;
+    }
+  }
+  return undefined;
+}
+
+/** The largest shell shim that `shimTarget` reads, as in pnpm. */
+const MAX_SHELL_SHIM_BYTES = 64 * 1024;
+
+/**
+ * This function gives the target of a global shim of pnpm 12, or undefined for a file that is not
+ * a shim. A shim is a copy of the pnpm executable. The file `.pnpm-shim-v1-<name>-target` beside
+ * it holds the path of its target: UTF-16 on Windows, the raw bytes on other systems. An older
+ * shim is a shell script with the line `# cmd-shim-target=<path>`. A target `pkg:<package>` has no
+ * installed program.
+ */
+function shimTarget(file: string): string | undefined {
+  const dir = dirname(file);
+  const sidecar = join(dir, `.pnpm-shim-v1-${basename(file).replace(/\.exe$/i, "")}-target`);
+  let target: string | undefined;
+  try {
+    if (existsSync(sidecar)) {
+      const bytes = readFileSync(sidecar);
+      // A path of Linux or macOS has no NUL byte, and UTF-16 has one in each ASCII character
+      target = bytes.toString(bytes.includes(0) ? "utf16le" : "utf8");
+    } else if (statSync(file).size <= MAX_SHELL_SHIM_BYTES) {
+      const marker = "# cmd-shim-target=";
+      const line = readFileSync(file, "utf8").split(/\r?\n/).findLast((text) => text.startsWith(marker));
+      target = line?.slice(marker.length);
+    }
+  } catch {
+    return undefined;
+  }
+  return target === undefined || target === "" || target.startsWith("pkg:") ? undefined : resolve(dir, target);
+}
+
+/**
+ * This function gives the version of the pnpm that `resolvePnpm` finds. It reads the
+ * `package.json` of the pnpm package of the program, and it starts no program. For a global shim
+ * of pnpm 12, it reads the package of the target of the shim. It gives `undefined` when it finds no
+ * pnpm, or no `package.json` of a pnpm package.
+ *
+ * `pnpm --version` reads the configuration of the working folder. Its `packageManager` field can
+ * make pnpm download and start a different pnpm. Thus this function does not start pnpm.
+ */
+export function installedPnpmVersion(): string | undefined {
+  let program: { command: string; prefix: string[] };
+  try {
+    program = resolvePnpm();
+  } catch {
+    return undefined;
+  }
+  // A script of pnpm runs with Node: the file of pnpm is the first argument
+  let file = program.prefix[0] ?? program.command;
+  if (!isAbsolute(file)) {
+    const name = file;
+    const found = findInPath((dir) => (existsSync(join(dir, name)) ? { command: join(dir, name), prefix: [] } : undefined));
+    if (found === undefined) return undefined;
+    file = found.command;
+  }
+  const version = pnpmPackageVersion(file);
+  if (version !== undefined) return version;
+  const target = shimTarget(file);
+  return target === undefined ? undefined : pnpmPackageVersion(target);
 }
 
 /** The runner of pnpm. It finds pnpm at each command. */

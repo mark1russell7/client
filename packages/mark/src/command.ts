@@ -117,6 +117,8 @@ export interface MarkHostConfig {
   readonly token?: string | undefined;
   /** The topic patterns of the remote events (`--events`). The default is none. */
   readonly events?: readonly string[] | undefined;
+  /** The names of the Host check (`--allowed-host`), besides localhost and the IP addresses. The default is none. */
+  readonly allowedHosts?: readonly string[] | "*" | undefined;
 }
 
 /**
@@ -127,7 +129,11 @@ export interface MarkHostConfig {
 export async function markHostOptions(config: MarkHostConfig): Promise<ProcedureHostOptions> {
   const { hostPolicy } = await import("@procedures/client");
   const { peerHostOptions } = await import("@procedures/peer");
-  const policy = hostPolicy({ ...(config.token !== undefined ? { token: config.token } : {}), events: { topics: [...(config.events ?? [])] } });
+  const policy = hostPolicy({
+    ...(config.token !== undefined ? { token: config.token } : {}),
+    events: { topics: [...(config.events ?? [])] },
+    ...(config.allowedHosts !== undefined ? { browser: { allowedHosts: config.allowedHosts } } : {}),
+  });
   return peerHostOptions({ id: config.id, transports: [...config.transports], registry: config.registry, policy }, "procedures");
 }
 

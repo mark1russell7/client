@@ -378,7 +378,7 @@ export default function StatusHistory(): ReactElement {
         {shown.length === 0 ? (
           <p className="callout">No finding matches the filters.</p>
         ) : (
-          <div className="table-wrap">
+          <div className="table-wrap scroll-cue" tabIndex={0} role="region" aria-label="The findings">
             <table className="findings">
               <thead>
                 <tr>
@@ -449,7 +449,7 @@ export default function StatusHistory(): ReactElement {
           <summary>
             The fixes of October ({status.july.fixes.length} rows)
           </summary>
-          <div className="table-wrap">
+          <div className="table-wrap scroll-cue" tabIndex={0} role="region" aria-label="The fixes of October">
             <table className="findings compact">
               <thead>
                 <tr>

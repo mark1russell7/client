@@ -53,7 +53,7 @@ export async function snapshotRestore(
     const metadataResult = await ctx.client.call<
       { bucket: string; key: string; encoding?: string },
       { body: string }
-    >(["s3", "download"], {
+    >(["s3", "read"], {
       bucket: input.bucket,
       key: metadataKey,
       encoding: "utf8",

@@ -46,11 +46,23 @@ export class JsonError extends Error {
   }
 }
 
-/** True for an object whose prototype is `Object.prototype` or null. */
+/** This function gives true for an object whose prototype is `Object.prototype` or null. An array, a class instance and null give false. */
 export function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
   const prototype: unknown = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
+}
+
+/**
+ * This function reads a JSON text. It gives `undefined` when the text is not valid JSON, and it does not throw. A key
+ * `__proto__` of the text stays data.
+ */
+export function parseJsonOrUndefined(text: string): JsonValue | undefined {
+  try {
+    return JSON.parse(text) as JsonValue;
+  } catch {
+    return undefined;
+  }
 }
 
 /** This function sets an own data property: a key `__proto__` stays data. */

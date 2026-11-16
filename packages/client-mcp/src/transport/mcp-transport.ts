@@ -138,6 +138,27 @@ function callNarrowing(extra: CallExtra): unknown {
   return addNarrowing(fromMeta, extra.requestInfo?.headers[NARROWING_METADATA_KEY]);
 }
 
+/** The keys of the W3C trace context and baggage that a tool call can carry (C10 of otel-ts). */
+const TRACE_CONTEXT_KEYS = ["traceparent", "tracestate", "baggage"] as const;
+
+/**
+ * The trace context of a tool call (roadmap item C10 of otel-ts): the keys `traceparent`,
+ * `tracestate` and `baggage` of the `_meta` of the request, as the MCP specification gives
+ * them, or else the headers of a call over Streamable HTTP. The server makes the remote span of
+ * the trace the parent of the call. It uses the baggage only from a trusted caller.
+ */
+function callTraceContext(extra: CallExtra): Record<string, string> {
+  const meta = extra._meta;
+  const headers = extra.requestInfo?.headers;
+  const found: Record<string, string> = {};
+  for (const key of TRACE_CONTEXT_KEYS) {
+    const fromMeta = meta !== undefined && Object.hasOwn(meta, key) ? meta[key] : undefined;
+    const value = typeof fromMeta === "string" ? fromMeta : headers?.[key];
+    if (typeof value === "string") found[key] = value;
+  }
+  return found;
+}
+
 /**
  * Generate a unique request ID.
  */
@@ -439,11 +460,14 @@ export class McpServerTransport implements ServerTransport {
     // a local face. Each other SDK server is a session of Streamable HTTP (CLI-1).
     const credentials = callCredentials(extra, server === this.mcpServer);
     const narrowing = callNarrowing(extra);
+    const traceContext = callTraceContext(extra);
     const serverRequest = {
       id: generateRequestId(),
       method: pathToMethod(path),
       payload: args ?? {},
       metadata: {
+        // The trace context of the caller (C10 of otel-ts): the server reads it
+        ...traceContext,
         transport: "mcp" as const,
         mcpRequestId: generateRequestId(),
         // The narrowing key of the call: the server applies it (CLI-30)
@@ -495,6 +519,10 @@ export class McpServerTransport implements ServerTransport {
         const reason = typeof response.metadata?.["reason"] === "string" ? response.metadata["reason"] : undefined;
         const wait = response.metadata?.["retry-after"];
         const retryAfterMs = typeof wait === "number" && Number.isFinite(wait) && wait >= 0 ? wait : undefined;
+        // The units and the capacity of a refusal for its size (roadmap CLI-122)
+        const units = response.metadata?.["units"];
+        const capacity = response.metadata?.["capacity"];
+        const sized = typeof units === "number" && typeof capacity === "number" && Number.isFinite(units) && Number.isFinite(capacity);
         return {
           content: [
             {
@@ -508,6 +536,7 @@ export class McpServerTransport implements ServerTransport {
             retryable: response.status.retryable === true,
             ...(reason ? { reason } : {}),
             ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
+            ...(sized ? { units, capacity } : {}),
           },
         };
       }

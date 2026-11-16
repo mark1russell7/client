@@ -17,8 +17,8 @@ AWS S3 operations as RPC procedures. Upload, download, list, delete, and perform
 - **Zod validation**: Runtime type safety on all inputs
 - **MinIO/LocalStack support**: Custom S3 endpoints for testing
 
-The package has 12 procedures. Its register entry (`import "@procedures/s3/register"`) registers them:
-- **Standard**: `s3.upload`, `s3.download`, `s3.list`, `s3.listAll`, `s3.delete`
+The package has 13 procedures. Its register entry (`import "@procedures/s3/register"`) registers them:
+- **Standard**: `s3.upload`, `s3.download`, `s3.read`, `s3.list`, `s3.listAll`, `s3.delete`
 - **Metadata, copies and URLs**: `s3.head`, `s3.copy`, `s3.presign`
 - **Multipart**: `s3.multipart.init`, `s3.multipart.upload`, `s3.multipart.complete`, `s3.multipart.abort`
 
@@ -261,6 +261,17 @@ interface S3DownloadOutput {
   etag?: string;                     // Object ETag
   lastModified?: string;             // ISO timestamp
 }
+```
+
+#### `s3.read`
+
+The procedure reads an object into memory and writes no file. Its input is the input of `s3.download` without `destPath`. Its output is the output of `s3.download` without `path`. `maxBytes` is the limit of the size (64 MiB by default).
+
+`s3.download` can write a file, so its declared effects include the writes of `fs`. A procedure that only reads an object uses `s3.read` and declares no writes.
+
+```typescript
+const metadata = await client.exec(["s3", "read"], { bucket: "my-bucket", key: "snapshots/x.metadata.json", encoding: "utf8" });
+console.log(JSON.parse(metadata.body));
 ```
 
 #### `s3.list`

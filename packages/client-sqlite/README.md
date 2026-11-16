@@ -517,8 +517,14 @@ The storage has two SQLite engines. The option `engine` selects one.
 | `engine` | The engine | The file write |
 |---|---|---|
 | `node` | `node:sqlite` of Node.js, without a native build | SQLite writes only the changed pages. The file is in WAL mode. |
-| `sqljs` | sql.js (SQLite in WebAssembly), through `@mark1russell7/docker-sqlite` | The storage keeps the database in memory, and it writes the whole file after a write. |
+| `sqljs` (deprecated) | sql.js (SQLite in WebAssembly), through `@mark1russell7/docker-sqlite` | The storage keeps the database in memory, and it writes the whole file after a write. |
 | `auto` (the default) | `node` when Node.js has `node:sqlite`, and else `sqljs` | |
+
+The engine `sqljs` is deprecated. Version 0.61.0 removes it, and the package then needs Node.js 22.13 or later.
+
+- The first open of the engine `sqljs` in a process shows one `DeprecationWarning` with the code `PROCEDURES_SQLITE_SQLJS`. The engine `auto` on a Node.js without `node:sqlite` shows it too.
+- To prepare, use Node.js 22.13 or later with the engine `node` or `auto`. A file of the engine `sqljs` opens with the engine `node`.
+- The flag `--no-deprecation` of Node.js hides the warning.
 
 - Node.js 22.13 and later have `node:sqlite` without a flag. Node.js 22.5 to 22.12 have it only with the flag `--experimental-sqlite`. Node.js 22.0 to 22.4 do not have it.
 - Node.js 22 shows the warning `ExperimentalWarning: SQLite is an experimental feature` at the first open of the engine `node`. Node.js 24 and 26 do not show it.
@@ -527,12 +533,16 @@ The storage has two SQLite engines. The option `engine` selects one.
 - The two engines use the same file format. A file that one engine writes opens with the other engine, with its items and its versions.
 - `getEngine()` gives the engine of the storage. `getMetadata()` gives it in `stats.engine`. `isNodeSqliteAvailable()` tells if this Node.js has `node:sqlite`.
 
-The nightly benchmarks (`bench/storage.bench.ts`) measure the two engines in a file. These are the mean times from [the nightly CI of 2026-10-17](https://github.com/mark1russell7/client/actions/runs/38994273238), on the code of commit `89481b05` (`@procedures/sqlite` 0.4.0), with Node.js 26 on Linux. The numbers are of that commit. A later version can give different numbers:
+<!-- measured
+The nightly benchmarks (`bench/storage.bench.ts`) measure the two engines in a file. These are the median times of [the nightly run of {run.date}]({run.url}), on the code of commit `{run.commit}` (`@procedures/sqlite` {engine:@procedures/sqlite}), with Node.js 26 on Linux. The site takes them from the newest nightly run, and its build fails when they are more than {run.limit} days old:
 
 | The benchmark | `node` | `sqljs` |
 |---|---|---|
-| 1,000 calls of `set()`, one after the other, in a table of 1,000 items | 141 ms | 1,246 ms |
-| One `getAll()` of a table of 10,000 items | 20 ms | 28 ms |
+| 1,000 calls of `set()`, one after the other, in a table of 1,000 items | {nightly.sqlite-node-file-write-1000} | {nightly.sqlite-sqljs-file-write-1000} |
+| One `getAll()` of a table of 10,000 items | {nightly.sqlite-node-file-read-10000} | {nightly.sqlite-sqljs-file-read-10000} |
+-->
+The nightly benchmarks (`bench/storage.bench.ts`) measure the two engines in a file. [The page of this package on the site](https://mark1russell7.github.io/client/docs/packages/client-sqlite/) shows the times of the newest nightly run, with its date and its commit.
+<!-- /measured -->
 
 The engine `sqljs` writes the whole file at each write, so its write time grows with the size of the file.
 

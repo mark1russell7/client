@@ -10,6 +10,7 @@ import {
   UNLIMITED_CAPABILITY,
   capabilityRefusal,
   checkEffects,
+  examinesNestedCall,
   explainInvocation,
   ladder,
   narrowCapability,
@@ -49,11 +50,40 @@ function makeRegistry(log: string[] = []): ProcedureRegistry {
   registry.register(proc(["files", "read"], () => { log.push("read"); return "content"; }, { effects: READS_FS }));
   registry.register(proc(["files", "write"], () => { log.push("write"); return "written"; }, { effects: WRITES_FS }));
   registry.register(proc(["files", "unknown"], () => { log.push("unknown"); return "?"; }));
-  // A procedure of code that declares its effects and uses a helper that declares none
+  // A procedure that starts a program: its caller declares what the program does
+  registry.register(proc(["files", "program"], () => { log.push("program"); return "program"; }, { effects: { reads: [], writes: ["process"] } }));
+  // A procedure of code that declares its effects and its call of the program
   registry.register(
-    proc(["files", "summary"], (_input, ctx) => ctx.client.call(["files", "unknown"], {}), {
+    proc(["files", "summary"], (_input, ctx) => ctx.client.call(["files", "program"], {}), {
+      effects: READS_FS,
+      calls: ["files.program"],
+    })
+  );
+  // A procedure of code that declares its call of a helper that declares no effects
+  registry.register(
+    proc(["files", "helped"], (_input, ctx) => ctx.client.call(["files", "unknown"], {}), {
       effects: READS_FS,
       calls: ["files.unknown"],
+    })
+  );
+  // A procedure of code that declares its effects and no calls, and changes a file
+  registry.register(
+    proc(["files", "export"], (_input, ctx) => ctx.client.call(["files", "write"], {}), {
+      effects: { reads: ["fs"], writes: [] },
+    })
+  );
+  // A procedure of code whose calls do not name the procedure that it calls
+  registry.register(
+    proc(["files", "reach"], (_input, ctx) => ctx.client.call(["files", "write"], {}), {
+      effects: { reads: ["fs"], writes: [] },
+      calls: ["files.read"],
+    })
+  );
+  // A procedure of code whose calls name the writer with a pattern, but whose effects do not include it
+  registry.register(
+    proc(["files", "wide"], (_input, ctx) => ctx.client.call(["files", "write"], {}), {
+      effects: { reads: ["fs"], writes: [] },
+      calls: ["files.*"],
     })
   );
   // The same caller, but it narrows its nested call
@@ -208,11 +238,55 @@ describe("invocations under a capability", () => {
     expect(log).toEqual(["read"]);
   });
 
-  it("lets a procedure of code with declared effects answer for its nested calls", async () => {
+  it("lets a procedure of code answer for a declared nested call in its effects", async () => {
     const log: string[] = [];
     const registry = makeRegistry(log);
-    expect(await run(registry, ["files", "summary"], {}, { capability: READ_ONLY })).toBe("?");
-    expect(log).toEqual(["unknown"]);
+    // As a direct call, a read-only capability refuses the program
+    expect((await refusal(run(registry, ["files", "program"], {}, { capability: READ_ONLY }))).reason).toBe("effects-exceeded");
+    expect(await run(registry, ["files", "summary"], {}, { capability: READ_ONLY })).toBe("program");
+    expect(log).toEqual(["program"]);
+  });
+
+  it("examines each nested call of a caller that declares effects and no calls", async () => {
+    const log: string[] = [];
+    const registry = makeRegistry(log);
+    const error = await refusal(run(registry, ["files", "export"], {}, { capability: READ_ONLY }));
+    expect(error.code).toBe("FORBIDDEN");
+    expect(error.reason).toBe("effects-exceeded");
+    expect(error.message).toContain("files.write");
+    expect(log).toEqual([]);
+    // With no capability, the nested call starts as before
+    expect(await run(registry, ["files", "export"], {})).toBe("written");
+    expect(log).toEqual(["write"]);
+  });
+
+  it("examines a nested call that the calls of its caller do not name", async () => {
+    const log: string[] = [];
+    const error = await refusal(run(makeRegistry(log), ["files", "reach"], {}, { capability: READ_ONLY }));
+    expect(error.reason).toBe("effects-exceeded");
+    expect(log).toEqual([]);
+  });
+
+  it("examines a declared nested call whose effects are not in the declaration of its caller", async () => {
+    const log: string[] = [];
+    const error = await refusal(run(makeRegistry(log), ["files", "wide"], {}, { capability: READ_ONLY }));
+    expect(error.reason).toBe("effects-exceeded");
+    expect(log).toEqual([]);
+  });
+
+  it("examines a declared nested call of a callee that declares no effects", async () => {
+    const log: string[] = [];
+    const registry = makeRegistry(log);
+    expect((await refusal(run(registry, ["files", "helped"], {}, { capability: READ_ONLY }))).reason).toBe("effects-undeclared");
+    expect(log).toEqual([]);
+    expect(await run(registry, ["files", "helped"], {})).toBe("?");
+  });
+
+  it("examines a nested call when the function does not get the callee", () => {
+    const caller = proc(["a", "caller"], () => 1, { effects: READS_FS, calls: ["a.*"] });
+    const callee = proc(["a", "reader"], () => 1, { effects: READS_FS });
+    expect(examinesNestedCall(caller, READ_ONLY, READ_ONLY, callee)).toBe(false);
+    expect(examinesNestedCall(caller, READ_ONLY, READ_ONLY)).toBe(true);
   });
 
   it("examines a nested call that the caller narrows", async () => {
@@ -477,5 +551,35 @@ describe("a Client with a capability", () => {
     expect(await client.exec(["remote", "thing"], {})).toBe("remote");
     expect(sent?.[TIMEOUT_METADATA_KEY]).toBeGreaterThan(4000);
     expect(sent?.[TIMEOUT_METADATA_KEY]).toBeLessThanOrEqual(5000);
+  });
+});
+
+describe("the lookup and the admission", () => {
+  it("finds the procedure before the admission compares its effects", async () => {
+    const log: string[] = [];
+    const registry = makeRegistry(log);
+    registry.register(
+      defineProcedure({ path: ["files", "stub"], input: outputSchema<unknown>(), output: outputSchema<unknown>(), metadata: { effects: WRITES_FS } }) as AnyProcedure
+    );
+    expect((await refusal(run(registry, ["files", "nope"], {}, { capability: READ_ONLY }))).code).toBe("NOT_FOUND");
+    expect((await refusal(run(registry, ["files", "stub"], {}, { capability: READ_ONLY }))).code).toBe("NO_HANDLER");
+    expect((await refusal(run(registry, ["files", "write"], {}, { capability: READ_ONLY }))).code).toBe("FORBIDDEN");
+    expect(log).toEqual([]);
+  });
+
+  it("refuses a nested call by its path under an expose rule, so a hidden procedure and a free path get the same answer", async () => {
+    const log: string[] = [];
+    const registry = makeRegistry(log);
+    const exposed = new Set(["client.chain", "files.read"]);
+    const expose = (path: string[]): boolean => exposed.has(path.join("."));
+    const answers: string[] = [];
+    for (const target of [["files", "nope"], ["files", "write"]]) {
+      const chain = { steps: [{ $proc: target, input: {} }] };
+      const error = await refusal(run(registry, ["client", "chain"], chain, { capability: READ_ONLY, expose }));
+      expect(error.code).toBe("NOT_EXPOSED");
+      answers.push(error.message.replace(target.join("."), "<path>"));
+    }
+    expect(answers[0]).toBe(answers[1]);
+    expect(log).toEqual([]);
   });
 });
