@@ -29,6 +29,7 @@ type ProcessFollowItem: dist/command/processes.d.ts#ProcessFollowItem
 type ProcessOutputChunk: dist/command/processes.d.ts#ProcessOutputChunk
 type ProcessOutputListener: dist/command/processes.d.ts#ProcessOutputListener
 ProcessRegistry: dist/command/processes.d.ts#ProcessRegistry
+type ProgramSpawnOptions: dist/command/spawn.d.ts#ProgramSpawnOptions
 type ShellExecInput: dist/types.d.ts#ShellExecInput
 ShellExecInputSchema: dist/types.d.ts#ShellExecInputSchema
 type ShellExecOutput: dist/types.d.ts#ShellExecOutput
@@ -64,6 +65,8 @@ shellExec: dist/procedures/shell/exec.d.ts#shellExec
 shellRun: dist/procedures/shell/run.d.ts#shellRun
 shellStream: dist/procedures/shell/stream.d.ts#shellStream
 shellWhich: dist/procedures/shell/which.d.ts#shellWhich
+spawnProgram: dist/command/spawn.d.ts#spawnProgram
+spawnProgramSync: dist/command/spawn.d.ts#spawnProgramSync
 streamCommand: dist/command/stream.d.ts#streamCommand
 
 ## ./module (dist/module.d.ts): names
@@ -90,6 +93,7 @@ type ProcessFollowItem: dist/command/processes.d.ts#ProcessFollowItem
 type ProcessOutputChunk: dist/command/processes.d.ts#ProcessOutputChunk
 type ProcessOutputListener: dist/command/processes.d.ts#ProcessOutputListener
 ProcessRegistry: dist/command/processes.d.ts#ProcessRegistry
+type ProgramSpawnOptions: dist/command/spawn.d.ts#ProgramSpawnOptions
 type SpawnOptions: dist/command/spawn.d.ts#SpawnOptions
 type StartProcessOptions: dist/command/processes.d.ts#StartProcessOptions
 type StopResult: dist/command/processes.d.ts#StopResult
@@ -97,6 +101,8 @@ type StreamCommandOptions: dist/command/stream.d.ts#StreamCommandOptions
 killTree: dist/command/tree-kill.d.ts#killTree
 processes: dist/command/processes.d.ts#processes
 runCommand: dist/command/run.d.ts#runCommand
+spawnProgram: dist/command/spawn.d.ts#spawnProgram
+spawnProgramSync: dist/command/spawn.d.ts#spawnProgramSync
 streamCommand: dist/command/stream.d.ts#streamCommand
 
 ## ./cli (dist/cli/index.d.ts): names
@@ -389,6 +395,9 @@ export interface CommandResult {
 ### dist/command/run.d.ts#runCommand
 export declare function runCommand(command: string, options?: CommandOptions): Promise<CommandResult>;
 
+### dist/command/spawn.d.ts#ProgramSpawnOptions
+export type ProgramSpawnOptions = Omit<NodeSpawnOptions, "shell">;
+
 ### dist/command/spawn.d.ts#SpawnOptions
 export interface SpawnOptions {
     args?: readonly string[] | undefined;
@@ -396,6 +405,14 @@ export interface SpawnOptions {
     env?: Record<string, string | undefined> | undefined;
     windowsVerbatimArguments?: boolean | undefined;
 }
+
+### dist/command/spawn.d.ts#spawnProgram
+export declare function spawnProgram(command: string, args: readonly string[], options?: ProgramSpawnOptions): ChildProcess;
+
+### dist/command/spawn.d.ts#spawnProgramSync
+export declare function spawnProgramSync(command: string, args: readonly string[], options: Omit<SpawnSyncOptionsWithStringEncoding, "shell">): SpawnSyncReturns<string>;
+export declare function spawnProgramSync(command: string, args: readonly string[], options?: Omit<SpawnSyncOptionsWithBufferEncoding, "shell">): SpawnSyncReturns<Buffer>;
+export declare function spawnProgramSync(command: string, args: readonly string[], options?: Omit<SpawnSyncOptions, "shell">): SpawnSyncReturns<string | Buffer>;
 
 ### dist/command/stream.d.ts#CommandStreamItem
 export type CommandStreamItem = {

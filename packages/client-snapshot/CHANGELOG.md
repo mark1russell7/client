@@ -1,5 +1,37 @@
 # @procedures/snapshot
 
+## 0.60.0
+
+### Patch Changes
+
+- Updated dependencies [7250ac5]
+- Updated dependencies [3075d86]
+  - @procedures/shell@0.60.0
+  - @procedures/client@0.60.0
+  - @procedures/git@0.60.0
+  - @procedures/pnpm@0.60.0
+  - @procedures/fs@0.60.0
+  - @procedures/s3@0.60.0
+
+## 0.59.1
+
+### Patch Changes
+
+- Updated dependencies [425ea64]
+- Updated dependencies [ea801cd]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6513a83]
+- Updated dependencies [8c69a74]
+- Updated dependencies [74ddeff]
+- Updated dependencies [c0ecfe0]
+- Updated dependencies [6cc8f0e]
+  - @procedures/client@0.59.1
+  - @procedures/fs@0.59.1
+  - @procedures/git@0.59.1
+  - @procedures/pnpm@0.59.1
+  - @procedures/s3@0.59.1
+  - @procedures/shell@0.59.1
+
 ## 0.59.0
 
 ### Patch Changes

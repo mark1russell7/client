@@ -79,7 +79,7 @@ export type InvocationErrorCode =
  * - `write-not-allowed`: the guard of a collection (`admission.guard`) refuses a write (roadmap
  *   CLI-41).
  */
-export type ForbiddenReason = CapabilityRefusalReason | "outside-root" | "host-not-allowed" | "topic-not-allowed" | "partition-not-allowed" | "write-not-allowed";
+export type ForbiddenReason = CapabilityRefusalReason | "outside-root" | "host-not-allowed" | "topic-not-allowed" | "partition-not-allowed" | "write-not-allowed" | "depth";
 
 /** An error of the invocation itself. An error that the handler throws passes through unchanged. */
 export class InvocationError extends Error {
@@ -100,6 +100,42 @@ export class InvocationError extends Error {
     this.path = path;
     this.reason = reason;
   }
+}
+
+/** The depth over which a call tree without `maxDepth` writes a warning. */
+const DEPTH_WARNING = 64;
+
+/** True after the warning of the depth: the process writes it one time. */
+let depthWarned = false;
+
+/**
+ * This function refuses an invocation over the depth limit with `FORBIDDEN` and the reason
+ * `depth`. Without a limit, it writes one warning for the first invocation over the depth 64.
+ */
+function checkDepth(invocation: Invocation, maxDepth: number | undefined): void {
+  const { depth, path } = invocation;
+  if (maxDepth !== undefined) {
+    if (!Number.isSafeInteger(maxDepth) || maxDepth < 0) throw new TypeError(`The option maxDepth is a whole number of 0 or more, not ${String(maxDepth)}`);
+    if (depth > maxDepth) {
+      throw new InvocationError("FORBIDDEN", `The call of ${pathToKey(path)} is at the depth ${String(depth)} of nested calls, over the limit ${String(maxDepth)}`, path, "depth");
+    }
+    return;
+  }
+  if (depth <= DEPTH_WARNING || depthWarned) return;
+  depthWarned = true;
+  console.warn(
+    `[procedures] The call of ${pathToKey(path)} is at the depth ${String(depth)} of nested calls. ` +
+      `@procedures/client 0.64.0 refuses a call over the depth ${String(DEPTH_WARNING)}. Set the option maxDepth to keep a larger limit.`,
+  );
+}
+
+/**
+ * This function sets the warning of the depth back to its start, for a test.
+ *
+ * @internal
+ */
+export function resetDepthWarning(): void {
+  depthWarned = false;
 }
 
 function abortError(path: ProcedurePath): InvocationError {
@@ -139,7 +175,10 @@ export interface InvokeOptions {
    * of the host gets it in its context, not its nested calls.
    */
   progress?: ReportProgress | undefined;
-  /** The input is valid already (for example, the route resolver validated it). */
+  /**
+   * The input of this call is valid already (for example, the route resolver validated it). The
+   * nested calls do not get it: each one validates its own input.
+   */
   inputValidated?: boolean | undefined;
   /**
    * This client replaces the default `ctx.client`, for example a Client that sends unknown paths
@@ -159,6 +198,13 @@ export interface InvokeOptions {
   interceptors?: readonly Interceptor[] | undefined;
   /** The invocation whose handler makes this call. The context client sets it for a nested call. */
   parent?: Invocation | undefined;
+  /**
+   * The highest depth of a nested call: a whole number of 0 or more. A call at a larger depth gets
+   * `FORBIDDEN` with the reason `depth`, and its handler does not start. Without a value, the depth
+   * has no limit, and the first call over the depth 64 in the process writes a warning. The nested
+   * calls get it too.
+   */
+  maxDepth?: number | undefined;
   /**
    * The capability of the call: its clearance, permitted effects and deadline. The host makes it
    * from its authentication. The nested calls get it, or a narrower one. Absent: no limits.
@@ -185,6 +231,12 @@ export interface InvokeOptions {
    * It drops a refused stream item. A refused value gives `FORBIDDEN` (reason `clearance`).
    */
   admitItem?: AdmitItem | undefined;
+  /**
+   * The admission of each nested call: an invocation at the depth 1 or more. It runs after the
+   * check of the capability and before the validation of the input. It throws to refuse the call. A
+   * server gives its limits here. The nested calls get it too.
+   */
+  admitNested?: ((invocation: Invocation) => Promise<void> | void) | undefined;
   /**
    * The principal of the call, from the authentication of the host. It goes to `ctx.principal`,
    * to the invocation and to the nested calls.
@@ -418,6 +470,8 @@ export async function invokeProcedure<TOutput = unknown>(
     capability: options.capability ?? UNLIMITED_CAPABILITY,
     ...(options.principal !== undefined ? { principal: options.principal } : {}),
   };
+  // A procedure that calls itself stops at the depth limit of the host, before its interceptors
+  checkDepth(invocation, options.maxDepth);
   // A deadline that the parent does not have (from a host, a request or a narrowed nested call)
   // ends the invocation at that time, as the timeout interceptor does
   const deadline = invocation.capability.deadline;
@@ -470,6 +524,13 @@ async function runInvocation<TOutput>(invocation: Invocation, options: InvokeOpt
     const refusal = capabilityRefusal(procedure, invocation.capability);
     if (refusal?.reason === "deadline") throw new InvocationError("TIMEOUT", refusal.message, path);
     if (refusal) throw new InvocationError("FORBIDDEN", refusal.message, path, refusal.reason);
+  }
+  // The admission of a nested call by the host, for example its limits. A call of the host passed
+  // the admission of its face. Without a promise, the handler starts before an await.
+  if (parent && options.admitNested) {
+    const admitted = options.admitNested(invocation);
+    if (admitted) await admitted;
+    if (options.signal?.aborted) throw abortError(path);
   }
 
   let data: unknown = input;
@@ -586,7 +647,11 @@ export function createProcedureContext(
   options: InvokeOptions = {},
   invocation?: Invocation,
 ): ProcedureContext {
-  const nestedOptions: InvokeOptions = invocation ? { ...options, parent: invocation } : options;
+  // The flag inputValidated is a fact about the input of this call, so each nested call
+  // validates its own input
+  const nestedOptions: InvokeOptions = invocation
+    ? { ...options, inputValidated: undefined, parent: invocation }
+    : { ...options, inputValidated: undefined };
   let client: ProcedureClient;
   if (typeof options.client === "function") {
     client = invocation ? options.client(invocation) : registryClient(procedure, nestedOptions);

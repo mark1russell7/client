@@ -18,9 +18,10 @@ import { pathToMethod } from "../../../server/method.js";
 import { segmentsOf } from "./addressing.js";
 import type { NdjsonError } from "./ndjson.js";
 import { BodyError } from "./body.js";
+import { HTTPHeaders } from "../shared/index.js";
 
 /** The request header of a batch, and of the answer of a server that took the batch. */
-export const BATCH_HEADER = "Procedures-Batch";
+export const BATCH_HEADER: typeof HTTPHeaders.BATCH = HTTPHeaders.BATCH;
 
 /** The options of the batches of `procedureHandler`. */
 export interface HandlerBatchOptions {
@@ -81,6 +82,18 @@ export interface BatchError extends NdjsonError {
 /** True when the request is a batch: `POST` with the header `Procedures-Batch: 1`. */
 export function isBatchRequest(req: IncomingMessage): boolean {
   return (req.method ?? "").toUpperCase() === "POST" && req.headers[BATCH_HEADER.toLowerCase()] === "1";
+}
+
+/**
+ * True when the request is the preflight request of a batch: `OPTIONS`, and the header
+ * `Access-Control-Request-Headers` names `Procedures-Batch`. A browser sends it before a batch to
+ * another origin.
+ */
+export function isBatchPreflight(req: IncomingMessage): boolean {
+  if ((req.method ?? "").toUpperCase() !== "OPTIONS") return false;
+  const requested = req.headers["access-control-request-headers"];
+  const names = Array.isArray(requested) ? requested.join(",") : (requested ?? "");
+  return names.split(",").some((name) => name.trim().toLowerCase() === BATCH_HEADER.toLowerCase());
 }
 
 /** The resolved options of the batches, or undefined when the handler takes no batch. */

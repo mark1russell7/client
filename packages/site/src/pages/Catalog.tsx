@@ -29,32 +29,38 @@ function Badges({ procedure }: { procedure: ProcedureSummary }): ReactElement {
   );
 }
 
-function SchemaTable({ schema, fields }: { schema: JsonSchema; fields: ProcedureInfo["fields"] }): ReactElement {
+/**
+ * This component shows the fields of a schema in a table. At phone width, the CSS shows each field
+ * as a block. The roles keep the table for a screen reader. Each cell after the type has a label.
+ */
+function SchemaTable({ schema, fields, label }: { schema: JsonSchema; fields: ProcedureInfo["fields"]; label: string }): ReactElement {
   if (fields && fields.length > 0) {
     return (
-      <div className="table-wrap">
-      <table className="schema">
-        <thead>
-          <tr>
-            <th>Field</th>
-            <th>Type</th>
-            <th>Required</th>
-          </tr>
-        </thead>
-        <tbody>
-          {fields.map((field) => (
-            <tr key={field.name}>
-              <td>
-                <code>{field.name}</code>
-              </td>
-              <td>
-                <code>{field.type}</code>
-              </td>
-              <td>{field.optional ? "no" : "yes"}</td>
+      <div className="table-wrap scroll-cue" tabIndex={0} role="region" aria-label={label}>
+        <table className="schema" role="table">
+          <thead role="rowgroup">
+            <tr role="row">
+              <th role="columnheader">Field</th>
+              <th role="columnheader">Type</th>
+              <th role="columnheader">Required</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody role="rowgroup">
+            {fields.map((field) => (
+              <tr key={field.name} role="row">
+                <td role="cell" className="schema-name">
+                  <code>{field.name}</code>
+                </td>
+                <td role="cell" className="schema-type">
+                  <code>{field.type}</code>
+                </td>
+                <td role="cell" data-label="Required">
+                  {field.optional ? "no" : "yes"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     );
   }
@@ -64,33 +70,39 @@ function SchemaTable({ schema, fields }: { schema: JsonSchema; fields: Procedure
   }
   const required = new Set(schema.required ?? []);
   return (
-    <div className="table-wrap">
-    <table className="schema">
-      <thead>
-        <tr>
-          <th>Field</th>
-          <th>Type</th>
-          <th>Required</th>
-          <th>Default</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        {properties.map(([name, property]) => (
-          <tr key={name}>
-            <td>
-              <code>{name}</code>
-            </td>
-            <td>
-              <code>{typeText(property)}</code>
-            </td>
-            <td>{required.has(name) ? "yes" : "no"}</td>
-            <td>{property.default !== undefined ? <code>{JSON.stringify(property.default)}</code> : ""}</td>
-            <td className="small">{property.description ?? ""}</td>
+    <div className="table-wrap scroll-cue" tabIndex={0} role="region" aria-label={label}>
+      <table className="schema" role="table">
+        <thead role="rowgroup">
+          <tr role="row">
+            <th role="columnheader">Field</th>
+            <th role="columnheader">Type</th>
+            <th role="columnheader">Required</th>
+            <th role="columnheader">Default</th>
+            <th role="columnheader">Description</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody role="rowgroup">
+          {properties.map(([name, property]) => (
+            <tr key={name} role="row">
+              <td role="cell" className="schema-name">
+                <code>{name}</code>
+              </td>
+              <td role="cell" className="schema-type">
+                <code>{typeText(property)}</code>
+              </td>
+              <td role="cell" data-label="Required">
+                {required.has(name) ? "yes" : "no"}
+              </td>
+              <td role="cell" data-label="Default">
+                {property.default !== undefined ? <code>{JSON.stringify(property.default)}</code> : ""}
+              </td>
+              <td role="cell" data-label="Description" className="small">
+                {property.description ?? ""}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -240,9 +252,9 @@ function DetailBody({ procedure }: { procedure: ProcedureInfo }): ReactElement {
       ) : null}
       <Usage procedure={procedure} packageName={pkg?.name ?? procedure.package} />
       <h2>Input</h2>
-      <SchemaTable schema={procedure.input} fields={procedure.fields} />
+      <SchemaTable schema={procedure.input} fields={procedure.fields} label="The fields of the input" />
       <h2>Output</h2>
-      <SchemaTable schema={procedure.output} fields={null} />
+      <SchemaTable schema={procedure.output} fields={null} label="The fields of the output" />
       <details style={{ marginTop: "var(--space-4)" }}>
         <summary className="small">JSON Schemas</summary>
         <pre className="code scroll-cue" tabIndex={0} aria-label="The JSON Schemas">

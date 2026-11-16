@@ -177,9 +177,11 @@ export class PortTransport implements Transport {
   /** This function stops the calls in the two directions, and stops to listen. It does not close the port. */
   async close(): Promise<void> {
     if (!this.open) return;
+    // The port stays open: each call of the other side that the close stops gets its error first.
+    // Before, the other side got no frame, and its call waited for its time-out (CLI-48).
+    this.incoming?.abortAll("stopped");
     this.open = false;
     this.outgoing.failAll("The port transport closed");
-    this.incoming?.abortAll();
     if (this.port.removeEventListener) this.port.removeEventListener("message", this.onBrowserMessage);
     else this.port.off?.("message", this.onNodeMessage);
   }

@@ -20,20 +20,20 @@ import type { IncomingHttpHeaders, IncomingMessage, ServerResponse as NodeRespon
 import type { Metadata, Method } from "../../../client/types.js";
 import type { RequestHandler, ServerRequest, ServerResponse } from "../../../server/types.js";
 import { lastResortError } from "../../../server/last-resort.js";
-import { decodeMetadataHeader, METADATA_HEADER_LIMIT } from "../shared/index.js";
+import { decodeMetadataHeader, HTTPHeaders, METADATA_HEADER_LIMIT } from "../shared/index.js";
 import { ERROR_REGISTRY } from "../../../client/errors/index.js";
 import { capacityFieldsOf } from "../../../client/middleware/items.js";
 import { assertNamedOrigins, checkBrowserRequest, needsNamedOrigin, type BrowserGuardOptions } from "../../../server/browser-guard.js";
 import { isUnboundedStream } from "../../../server/stream-metadata.js";
 import { headerNames, isSecretHeader, queryRecord, requestCredentials, urlParts, withoutSecretHeaders } from "../../../server/request-auth.js";
-import { PROTOCOL_HEADER, PROTOCOL_VERSION, httpStatusOf, protocolVersionOf } from "../../../protocol.js";
+import { PROTOCOL_HEADER, PROTOCOL_VERSION, httpStatusOf, protocolVersionOf, stoppedCallError } from "../../../protocol.js";
 import { realClock, type Cancel, type Clock } from "../../../clock.js";
 import { ms, type Duration } from "../../../duration.js";
-import { NDJSON_MEDIA_TYPE as NDJSON, defaultNdjsonError as errorOf, keepAliveMsOf, writeNdjsonStream } from "./ndjson.js";
+import { NDJSON_MEDIA_TYPE as NDJSON, defaultNdjsonError as errorOf, keepAliveMsOf, readLastItem, writeNdjsonStream } from "./ndjson.js";
 import { applyCors, corsOrigins, corsPolicy, type CorsOptions, type CorsPolicy } from "./cors.js";
 import { urlAddressing, type Addressing } from "./addressing.js";
 import { BodyError, readJsonBody } from "./body.js";
-import { BATCH_HEADER, batchFrames, batchOptionsOf, isBatchRequest, parseBatch, type HandlerBatchOptions, type BatchRun } from "./batch.js";
+import { BATCH_HEADER, batchFrames, batchOptionsOf, isBatchPreflight, isBatchRequest, parseBatch, type HandlerBatchOptions, type BatchRun } from "./batch.js";
 import { NARROWING_METADATA_KEY, addNarrowing } from "../../../procedures/narrowing.js";
 import { retryAfterSeconds } from "@mark1russell7/service/limiter";
 
@@ -149,7 +149,11 @@ export interface NodeProcedureHandler {
   drain(deadline: number, signal?: AbortSignal): Promise<void>;
   /** The number of requests in progress, open streams too. */
   inFlight(): number;
-  /** This method aborts each request in progress: an open stream ends, and its handler gets `return()`. */
+  /**
+   * This method aborts each request in progress: an open stream ends, and its handler gets
+   * `return()`. Each call that it cuts and that ends with an error gets `UNAVAILABLE` and
+   * `retryable: false` (CLI-48).
+   */
   close(): void;
 }
 
@@ -332,6 +336,8 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
 
   /** The controllers of the requests in progress: close() aborts them (deep dive TRN-15) */
   const openRequests = new Set<AbortController>();
+  /** The controllers that close() aborted: the stop of the face cut their calls (CLI-48) */
+  const cutRequests = new WeakSet<AbortController>();
   /** The functions that drain() waits on: each one runs when no request is in progress */
   let idleWaiters: Array<() => void> = [];
   let stopped = false;
@@ -346,7 +352,8 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
   const matches = (req: IncomingMessage): boolean => {
     if (compat.matchAll === true) return true;
     const path = pathOf(req);
-    return path.startsWith(prefix) || (path === bareBase && (addressing.takesBasePath === true || (batch !== undefined && isBatchRequest(req))));
+    // The base path itself takes a batch and the preflight request of a batch (CLI-32)
+    return path.startsWith(prefix) || (path === bareBase && (addressing.takesBasePath === true || (batch !== undefined && (isBatchRequest(req) || isBatchPreflight(req)))));
   };
 
   /** True when the request is a batch at the base path (CLI-32). */
@@ -535,7 +542,7 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
     // whole second by an error of floating point does not add a second (CLI-40).
     const retryAfterMs = metadata["retry-after"];
     const hasRetryAfter = typeof retryAfterMs === "number" && Number.isFinite(retryAfterMs) && retryAfterMs >= 0;
-    if (hasRetryAfter) res.setHeader("Retry-After", String(retryAfterSeconds({ value: retryAfterMs, unit: "ms" })));
+    if (hasRetryAfter) res.setHeader(HTTPHeaders.RETRY_AFTER, String(retryAfterSeconds({ value: retryAfterMs, unit: "ms" })));
     // The reason of a FORBIDDEN error travels on each face (roadmap R25)
     const reason = typeof metadata["reason"] === "string" ? metadata["reason"] : undefined;
     // The current items of a VERSION_CONFLICT error (roadmap CLI-16)
@@ -553,12 +560,19 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
     });
   };
 
+  /** True when a call of the method is repeatable: the end of its cut asks for a retry (CLI-48) */
+  const isRepeatableCall = (method: Method): boolean => server.isRepeatableCall?.(method) === true;
+
   /**
    * This function sends a stream response. A client that accepts NDJSON gets the lines of
    * `writeNdjsonStream`. Another client gets the last item as plain JSON, the "sponge" mode, and a
    * stream without an end gets `NOT_ACCEPTABLE` (roadmap R15).
+   *
+   * In both modes, `signal` stops the read of the stream, and the stream gets `return()`. A cut of
+   * `close()` on an open response gives `UNAVAILABLE`. Its flag `retryable` is true only for a
+   * repeatable call before its first item (CLI-48).
    */
-  const streamToHttp = async (response: ServerResponse, stream: AsyncIterable<unknown>, req: IncomingMessage, res: NodeResponse, signal: AbortSignal): Promise<void> => {
+  const streamToHttp = async (response: ServerResponse, stream: AsyncIterable<unknown>, req: IncomingMessage, res: NodeResponse, signal: AbortSignal, repeatable: boolean): Promise<void> => {
     const ndjson = String(req.headers.accept ?? "").includes(NDJSON);
 
     if (!ndjson && isUnboundedStream(response)) {
@@ -569,19 +583,22 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
     }
 
     if (!ndjson) {
-      let last: { value: unknown } | undefined;
-      // The count of the items of the stream: an error before the first item gets the flag of its
-      // code, and an error after it gets false without a flag of its own (CLI-68)
-      let items = 0;
-      try {
-        for await (const item of stream) {
-          items++;
-          last = { value: item };
+      const read = await readLastItem(stream, signal);
+      // A stop, or an error after the stop, ends the call as a cut: an open response gets UNAVAILABLE.
+      // A closed connection gets no response.
+      if (read.outcome === "stopped" || (read.outcome === "error" && signal.aborted)) {
+        if (!res.writableEnded && !res.destroyed) {
+          toHttp({ id: response.id, status: { type: "error", ...stoppedCallError(repeatable && read.items === 0) }, metadata: {} }, res);
         }
-      } catch (error) {
-        toHttp({ id: response.id, status: { type: "error", ...errorOf(error, items) }, metadata: {} }, res);
         return;
       }
+      // The count of the items of the stream: an error before the first item gets the flag of its
+      // code, and an error after it gets false without a flag of its own (CLI-68)
+      if (read.outcome === "error") {
+        toHttp({ id: response.id, status: { type: "error", ...errorOf(read.error, read.items) }, metadata: {} }, res);
+        return;
+      }
+      const { last } = read;
       if (!last) {
         toHttp({ id: response.id, status: { type: "error", code: "NO_OUTPUT", message: "The procedure gave no output", retryable: false }, metadata: {} }, res);
         return;
@@ -591,7 +608,7 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
     }
 
     // The lines, the backpressure, the keep-alive and the abort of close() (WIRE-PROTOCOL.md)
-    await writeNdjsonStream(res, stream, { signal, keepAlive, errorOf, clock });
+    await writeNdjsonStream(res, stream, { signal, keepAlive, errorOf, clock, retryableOnStop: repeatable });
   };
 
   /**
@@ -679,10 +696,15 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
 
       const serverResponse = await server.handle(serverRequest);
       if (serverResponse.stream) {
-        await streamToHttp(serverResponse, serverResponse.stream, req, res, controller.signal);
+        await streamToHttp(serverResponse, serverResponse.stream, req, res, controller.signal, isRepeatableCall(serverRequest.method));
         return;
       }
-      toHttp(serverResponse, res);
+      // An error of a call that close() cut comes from the cut: the handler stopped at its signal.
+      // The call ends as on the other faces, with UNAVAILABLE. Only a repeatable call asks for a
+      // retry: another call can have had its effect (CLI-48). A value goes out: the call ended
+      // before the cut stopped it.
+      const cut = cutRequests.has(controller) && serverResponse.status.type === "error";
+      toHttp(cut ? { ...serverResponse, status: { type: "error", ...stoppedCallError(isRepeatableCall(serverRequest.method)) } } : serverResponse, res);
     } catch (error) {
       if (!res.headersSent) sendLastResort(res, error, serverRequest ?? undefined, (error as Error).message || "Internal server error");
     } finally {
@@ -742,7 +764,10 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
       return openRequests.size;
     },
     close(): void {
-      for (const controller of [...openRequests]) controller.abort();
+      for (const controller of [...openRequests]) {
+        cutRequests.add(controller);
+        controller.abort();
+      }
       openRequests.clear();
       const waiters = idleWaiters;
       idleWaiters = [];

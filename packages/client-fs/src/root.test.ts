@@ -28,7 +28,7 @@ import {
 } from "@procedures/client";
 import { confineFsProcedures, createFsModule, fsModule, registerFsProcedures } from "./module.js";
 import { SYSTEM_LINK_RULE, linkDestination, linkRuleOf, type LinkRule } from "./link-target.js";
-import { OUTSIDE_ROOT, isInside, isOutsideRoot, realPathOf, resolveRoot } from "./root.js";
+import { OUTSIDE_ROOT, isInside, isOtherShare, isOutsideRoot, realPathIsInside, realPathOf, resolveRoot } from "./root.js";
 import type { ExistsOutput, GlobOutput, ReadOutput, ReaddirOutput, WriteOutput } from "./types.js";
 
 const WINDOWS = process.platform === "win32";
@@ -605,6 +605,35 @@ describe("Windows and POSIX paths", () => {
       // On POSIX, the case is significant: another case is another path
       await refusal("fs.read", { path: join(root.toUpperCase(), "a.txt") });
       expect((await call<ReadOutput>("fs.read", { path: `${root}//sub/./b.txt` })).content).toBe("beta");
+    }
+  });
+
+  it("refuses a network or device path of another share before it opens the path", async () => {
+    const at = (path: string) => ({ folder: path, real: path });
+    // Only on Windows, and only for a path that starts with two slashes
+    expect(isOtherShare(at("C:\\r"), "\\\\203.0.113.7\\s\\x", "win32")).toBe(true);
+    expect(isOtherShare(at("C:\\r"), "//host/share/x", "win32")).toBe(true);
+    expect(isOtherShare(at("C:\\r"), "\\\\?\\UNC\\host\\share\\x", "win32")).toBe(true);
+    expect(isOtherShare(at("C:\\r"), "\\\\.\\pipe\\name", "win32")).toBe(true);
+    expect(isOtherShare(at("C:\\r"), "\\\\?\\C:\\r\\x", "win32")).toBe(true);
+    expect(isOtherShare(at("C:\\r"), "C:\\r\\x", "win32")).toBe(false);
+    expect(isOtherShare(at("C:\\r"), "D:\\x", "win32")).toBe(false);
+    // A root on a share keeps its own share, in each form and case of the letters
+    const share = at("\\\\nas\\proj\\root");
+    expect(isOtherShare(share, "\\\\NAS\\Proj\\root\\x", "win32")).toBe(false);
+    expect(isOtherShare(share, "\\\\?\\UNC\\nas\\proj\\other", "win32")).toBe(false);
+    expect(isOtherShare(share, "\\\\nas\\other\\x", "win32")).toBe(true);
+    expect(isOtherShare({ folder: "S:\\root", real: "\\\\nas\\proj\\root" }, "\\\\nas\\proj\\x", "win32")).toBe(false);
+    // POSIX has no network paths: two slashes start a local path
+    expect(isOtherShare(at("/r"), "//host/share/x", "linux")).toBe(false);
+    if (WINDOWS) {
+      // A host that does not exist: the refusal comes at once, with no connection and no wait
+      const started = performance.now();
+      for (const path of ["\\\\203.0.113.7\\s\\x", "//203.0.113.7/s/x", "\\\\.\\pipe\\procedures-test"]) {
+        expect((await refusal("fs.exists", { path })).message).toContain("is a network or device path outside the root");
+      }
+      expect(await realPathIsInside(await resolveRoot(root), "\\\\203.0.113.7\\s\\x")).toBe(false);
+      expect(performance.now() - started).toBeLessThan(1000);
     }
   });
 

@@ -29,6 +29,11 @@ defaults:
   run:
     shell: bash
 
+# Each job starts when the job before it ends, in the order of this file: mutation, bench, soak,
+# live, windows, coverage and the coverage spread. So the nightly holds at most 3 runners, the
+# max-parallel of one matrix (the first rule of the runner budget). A skipped or failed job does
+# not stop the next job: each job after the first has `!cancelled()` in its condition. On 11-16
+# the five jobs of the nightly took 17, 2, 21, 2 and 5 minutes, so the chain takes less than an hour.
 jobs:
   mutation:
     name: Mutation tests (Stryker)
@@ -59,7 +64,8 @@ jobs:
 
   bench:
     name: Benchmarks
-    if: ${{ !inputs.only || contains(inputs.only, 'bench') }}
+    needs: mutation
+    if: ${{ !cancelled() && (!inputs.only || contains(inputs.only, 'bench')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -135,8 +141,6 @@ jobs:
 
   soak:
     name: WebSocket and HTTP soak (10 minutes each)
-    # bench, soak and live run one after the other, so that the nightly holds at most 3 runners.
-    # A skipped or failed job before does not stop the next one.
     needs: bench
     if: ${{ !cancelled() && (!inputs.only || contains(inputs.only, 'soak')) }}
     runs-on: ubuntu-latest
@@ -212,7 +216,8 @@ jobs:
 
   windows:
     name: Windows (Node 24) run ${{ matrix.run }}
-    if: ${{ !inputs.only || contains(inputs.only, 'windows') }}
+    needs: live
+    if: ${{ !cancelled() && (!inputs.only || contains(inputs.only, 'windows')) }}
     runs-on: windows-latest
     timeout-minutes: 45
     # The input `runs` gives more than one run: the per-test timeouts on Windows come from 5 runs
@@ -236,7 +241,7 @@ jobs:
       # `lib new` runs cue-config, which needs the CUE binary (the scaffold test of mark)
       # The SHA-256 that GitHub records for the release asset (CUE publishes no checksums.txt for v0.15.1)
       - name: Install CUE
-        uses: mark1russell7/template/.github/actions/setup-cue@4466542421ef76bcb3ccf5b5e1765d4f509f8f4f # main
+        uses: mark1russell7/template/.github/actions/setup-cue@8e44f07b96860e61207d3955817276af52b2a148 # main
         with:
           version: "0.15.1"
           sha256: 516fa080c1af12578ff76a4165cc7bf14ad9bbe5d9724a0c07553860d038885e
@@ -252,7 +257,8 @@ jobs:
   # them. Only a dispatch with `only` that names coverage starts it: the CI workflow has the check.
   coverage:
     name: Coverage run ${{ matrix.run }}
-    if: ${{ contains(inputs.only, 'coverage') }}
+    needs: windows
+    if: ${{ !cancelled() && contains(inputs.only, 'coverage') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -290,7 +296,7 @@ jobs:
       # The scaffold test of mark runs cue-config, which needs the CUE binary
       # The SHA-256 that GitHub records for the release asset (CUE publishes no checksums.txt for v0.15.1)
       - name: Install CUE
-        uses: mark1russell7/template/.github/actions/setup-cue@4466542421ef76bcb3ccf5b5e1765d4f509f8f4f # main
+        uses: mark1russell7/template/.github/actions/setup-cue@8e44f07b96860e61207d3955817276af52b2a148 # main
         with:
           version: "0.15.1"
           sha256: aa282261245e9ab0d65b17ec3c7207f5231600106f7b26fc0c2e158b3937ca3f

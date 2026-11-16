@@ -2118,10 +2118,114 @@
         "description": "The body of the procedure: a call ({ $proc, input }) that runs, as client.exec runs it, each time the procedure is called"
       },
       "metadata": {
-        "description": "The metadata of the procedure, for example { description, tags }",
+        "description": "The metadata of the procedure, for example { description, tags }. The fields of the framework have their types. A custom field keeps any value.",
         "type": "object",
-        "propertyNames": {
-          "type": "string"
+        "properties": {
+          "description": {
+            "description": "A text that tells people and tools what the procedure does",
+            "type": "string"
+          },
+          "tags": {
+            "description": "The tags of the procedure",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "title": {
+            "description": "The short name of the procedure, for example the title of an MCP tool",
+            "type": "string"
+          },
+          "deprecated": {
+            "description": "True when the procedure is deprecated",
+            "type": "boolean"
+          },
+          "deprecationMessage": {
+            "description": "The steps that replace a deprecated procedure",
+            "type": "string"
+          },
+          "effects": {
+            "description": "The side effects of the procedure",
+            "type": "object",
+            "properties": {
+              "reads": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "writes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "idempotent": {
+                "type": "boolean"
+              },
+              "destructive": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": {}
+          },
+          "stream": {
+            "description": "The stream of the procedure",
+            "type": "object",
+            "properties": {
+              "unbounded": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": {}
+          },
+          "untrusted": {
+            "description": "The output fields that hold text from outside the host",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "fsRoot": {
+            "description": "The rules of the procedure under a root of the files",
+            "type": "object",
+            "properties": {
+              "cwd": {
+                "type": "string"
+              },
+              "paths": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "names": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "required": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "values": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "refuse": {
+                "type": "string"
+              },
+              "program": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": {}
+          }
         },
         "additionalProperties": {}
       },

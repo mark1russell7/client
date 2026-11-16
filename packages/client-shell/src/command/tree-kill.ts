@@ -5,7 +5,8 @@
  * grandchildren keep running (a `pnpm` that starts `node`, a `vite` that starts `esbuild`).
  * - On Windows, `taskkill /T /F` ends the tree of the process id.
  * - Elsewhere, the child starts in its own process group (`detached`), and a signal to the
- *   negative pid reaches every process of the group.
+ *   negative pid reaches every process of the group. The group can outlive the child: a
+ *   descendant keeps it. The signal then goes to the group while a process of the group lives.
  *
  * The module also records each live child. When the host process ends (a normal exit, or
  * SIGINT, SIGTERM or SIGHUP), it kills each recorded tree, so no child keeps running alone.
@@ -37,9 +38,42 @@ function running(child: ChildProcess): boolean {
   return child.pid !== undefined && child.exitCode === null && child.signalCode === null;
 }
 
-/** This function kills the process tree of `child`. It does nothing when the child has ended. */
+/**
+ * True when a process of the group of `pid` lives. The id of a group stays reserved while a
+ * process of the group lives, so a signal to the group then reaches only that group.
+ */
+function groupLives(pid: number): boolean {
+  try {
+    process.kill(-pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * This function signals the group of a child that ended, while a process of the group lives. It
+ * does nothing on Windows, where the tree of an ended process is not known.
+ */
+function signalOrphans(child: ChildProcess, signal: NodeJS.Signals): void {
+  const pid = child.pid;
+  if (WINDOWS || pid === undefined || !groupLives(pid)) return;
+  try {
+    process.kill(-pid, signal);
+  } catch {
+    // The group ended in the meantime
+  }
+}
+
+/**
+ * This function kills the process tree of `child`. When the child ended and a descendant keeps
+ * its process group (POSIX), the function signals that group.
+ */
 export function killTree(child: ChildProcess, signal: NodeJS.Signals = "SIGTERM"): void {
-  if (!running(child)) return;
+  if (!running(child)) {
+    signalOrphans(child, signal);
+    return;
+  }
   const pid = child.pid!;
   if (WINDOWS) {
     execFile(TASKKILL, ["/T", "/F", "/PID", String(pid)], { windowsHide: true }, (error) => {
@@ -58,7 +92,10 @@ export function killTree(child: ChildProcess, signal: NodeJS.Signals = "SIGTERM"
 
 /** The synchronous form, for the exit of the host, when callbacks do not run any more. */
 function killTreeSync(child: ChildProcess): void {
-  if (!running(child)) return;
+  if (!running(child)) {
+    signalOrphans(child, "SIGKILL");
+    return;
+  }
   const pid = child.pid!;
   try {
     if (WINDOWS) {
@@ -121,7 +158,8 @@ function unhook(): void {
 }
 
 /**
- * This function records a child until it ends. While at least one child is recorded, the hooks
+ * This function records a child until it and its output pipes end (`close`). A descendant can
+ * keep the pipes after the end of the child. While at least one child is recorded, the hooks
  * kill the recorded trees when the host ends. With no recorded child, the host has no hooks.
  */
 export function track(child: ChildProcess): void {
@@ -132,6 +170,5 @@ export function track(child: ChildProcess): void {
     live.delete(child);
     if (live.size === 0) unhook();
   };
-  child.once("exit", forget);
-  child.once("error", forget);
+  child.once("close", forget);
 }

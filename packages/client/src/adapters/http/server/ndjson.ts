@@ -9,7 +9,7 @@
 import type { ServerResponse } from "node:http";
 import { realClock, type Cancel, type Clock } from "../../../clock.js";
 import { toMs, type Duration } from "../../../duration.js";
-import { PROTOCOL_HEADER, PROTOCOL_VERSION, errorCodeOf, retryableOf } from "../../../protocol.js";
+import { PROTOCOL_HEADER, PROTOCOL_VERSION, errorCodeOf, retryableOf, stoppedCallError } from "../../../protocol.js";
 import { TIMER_DEFAULTS } from "../../../timers.js";
 import { encodeFrame } from "../../../frame-encoding.js";
 
@@ -54,6 +54,13 @@ export interface WriteNdjsonStreamOptions {
    * test gives a fake clock.
    */
   readonly clock?: Clock | undefined;
+  /**
+   * The flag `retryable` of the end line of a stream that an abort cuts on an open response (CLI-48).
+   * Set it to true only for a repeatable procedure. Another call can have had its effect. After the
+   * first item, the end line gets false: a retry sends the items again (CLI-58).
+   * @default false
+   */
+  readonly retryableOnStop?: boolean | undefined;
 }
 
 /**
@@ -108,6 +115,53 @@ function nextOrStop<T>(iterator: AsyncIterator<T>, stop: AbortSignal): Promise<I
       },
     );
   });
+}
+
+/**
+ * The outcome of `readLastItem`. `items` is the count of the items before the outcome.
+ *
+ * - `end`: the iterator ended by itself. `last` holds the last item, or is `undefined` for no item.
+ * - `stopped`: the stop signal aborted before the end.
+ * - `error`: the `next()` of the iterator threw `error`.
+ */
+export type LastItemRead =
+  | { readonly outcome: "end"; readonly last: { readonly value: unknown } | undefined; readonly items: number }
+  | { readonly outcome: "stopped"; readonly items: number }
+  | { readonly outcome: "error"; readonly error: unknown; readonly items: number };
+
+/**
+ * This function reads a stream to its end and keeps the last item: the "sponge" mode of a client
+ * without NDJSON. The stop signal ends the read, also while `next()` waits. A read that stops
+ * before the end gives `return()` to the iterator, as `writeNdjsonStream` does. The promise does
+ * not reject.
+ */
+export async function readLastItem(items: AsyncIterable<unknown>, stop: AbortSignal): Promise<LastItemRead> {
+  const iterator = items[Symbol.asyncIterator]();
+  /** True when the iterator ended by itself: at its end, or with an error */
+  let ended = false;
+  let count = 0;
+  let last: { value: unknown } | undefined;
+  try {
+    for (;;) {
+      let next: IteratorResult<unknown> | undefined;
+      try {
+        next = await nextOrStop(iterator, stop);
+      } catch (error) {
+        ended = true;
+        return { outcome: "error", error, items: count };
+      }
+      if (next === undefined) return { outcome: "stopped", items: count };
+      if (next.done) {
+        ended = true;
+        return { outcome: "end", last, items: count };
+      }
+      count++;
+      last = { value: next.value };
+    }
+  } finally {
+    // A pending next() keeps the return() waiting, so the read does not wait for it
+    if (!ended) void Promise.resolve().then(() => iterator.return?.()).catch(() => undefined);
+  }
 }
 
 /**
@@ -194,10 +248,15 @@ export async function writeNdjsonStream(res: ServerResponse, items: AsyncIterabl
     startTimer();
   }
 
-  /** This function ends an open response after an abort: the server stopped the request. */
-  const endAborted = (): void => {
+  /**
+   * This function ends an open response after an abort. The response is open, so the client did
+   * not close the connection: the stop of the face cut the call. The end line asks for a retry only
+   * for a repeatable call (`retryableOnStop`) before its first item: another call can have had its
+   * effect, and a retry after an item sends the items again. `items` is the count of the item lines.
+   */
+  const endAborted = (items: number): void => {
     if (!res.writableEnded && !res.destroyed) {
-      res.end(lineOf({ type: "error", error: { code: "ABORTED", message: "The server stopped the request", retryable: true } }));
+      res.end(lineOf({ type: "error", error: stoppedCallError(options.retryableOnStop === true && items === 0) }));
     }
   };
 
@@ -235,14 +294,14 @@ export async function writeNdjsonStream(res: ServerResponse, items: AsyncIterabl
     }
     stopTimer();
     if (stop.signal.aborted) {
-      endAborted();
+      endAborted(seq);
       return;
     }
     res.end(lineOf({ type: "done", seq: ++seq }));
   } catch (error) {
     stopTimer();
     if (stop.signal.aborted) {
-      endAborted();
+      endAborted(seq);
       return;
     }
     // The count of the item lines before the error: before the first item, an error without a flag
