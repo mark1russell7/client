@@ -1,5 +1,30 @@
 # @procedures/notify
 
+## 0.59.1
+
+### Patch Changes
+
+- 68b3175: The entry `@procedures/notify/twilio` has three new functions and a new option.
+  
+  - `twilioGatherTwiml` gives the TwiML of a call that says a text in a `<Gather>`. Twilio sends the key of the person to the address `action`. With no key, the TwiML says the text `after`, and the call ends. It escapes the texts and the address.
+  - `twilioBalanceRequest` and `extractTwilioBalance` read the balance of the account, as a number and as the decimal text of Twilio.
+  - `twilioSayTwiml` and `twilioGatherTwiml` take a `voice` and a `language` for each `<Say>`. Without them, the TwiML does not change.
+  
+  PATCH: new exports and a new optional parameter, before 1.0.0.
+- ce207f7: The new entry `@procedures/notify/twilio` has the request builders and the extractors of Twilio text messages and voice calls: send a text, start a call, read the status of each, end a call, and the TwiML of a call that says a text. `callTwilio` sends one request through the fetch of the caller. The entry imports no Node built-in, so a browser can also use it.
+  
+  `callPushover` and `callTwilio` use one internal call helper. The behavior of `callPushover` does not change.
+  
+  PATCH: a new entry and new exports, before 1.0.0.
+- Updated dependencies [425ea64]
+- Updated dependencies [ea801cd]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6513a83]
+- Updated dependencies [8c69a74]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6cc8f0e]
+  - @procedures/client@0.59.1
+
 ## 0.59.0
 
 ### Patch Changes
