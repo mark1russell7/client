@@ -186,6 +186,7 @@ A client can send many calls in one request (CLI-32). The answer is one NDJSON s
 The request:
 
 - `POST {base}`, with the header `Procedures-Batch: 1` and the other headers of "The request".
+- A browser on another origin first sends a preflight request: `OPTIONS {base}`, with `Procedures-Batch` in `Access-Control-Request-Headers`. The server answers it with its CORS rule, and no procedure starts.
 - The body is `{"calls": [{"id": "1", "path": "notes.list", "input": {}, "headers": {...}, "metadata": {...}}]}`.
 - `id` is a text of 1 to 128 characters, unique in the batch. Each frame of the call names it.
 - `path` is a text with dots or a list of segments, as in `bodyPathAddressing()`. Without `input`, the input is `{}`.

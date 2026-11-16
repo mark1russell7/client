@@ -281,9 +281,39 @@ describe("procedureHandler: the error codes of wire v1 (CLI-3)", () => {
     expect(preflight.headers["access-control-allow-origin"]).toBeUndefined();
     expect(writes()).toBe(0);
   });
+
+  it("answers the preflight of a batch at the base path itself with 204, also without CORS", async () => {
+    const { port, writes, appHits } = await startApp();
+    const preflight = await send(port, "OPTIONS", "/api/proc", { "access-control-request-method": "POST", "access-control-request-headers": "content-type, procedures-batch" });
+    expect(preflight.status).toBe(204);
+    expect(preflight.headers["access-control-allow-origin"]).toBeUndefined();
+    expect([writes(), appHits]).toEqual([0, []]);
+  });
 });
 
 describe("procedureHandler: CORS (CLI-3, CLI-18)", () => {
+  // A browser on another origin sends this preflight before a batch to the bare base path (CLI-32)
+  const batchPreflight = { origin: "https://app.example", "access-control-request-method": "POST", "access-control-request-headers": "content-type, procedures-batch" };
+
+  it("answers the preflight of a batch at the base path itself, with no CORS function of the app", async () => {
+    const { port, writes, appHits } = await startApp({ cors: { origin: ["https://app.example"] } });
+    const preflight = await send(port, "OPTIONS", "/api/proc", batchPreflight);
+    expect(preflight.status).toBe(204);
+    expect(preflight.headers["access-control-allow-origin"]).toBe("https://app.example");
+    expect(String(preflight.headers["access-control-allow-headers"]).toLowerCase()).toContain("procedures-batch");
+    expect([writes(), appHits]).toEqual([0, []]);
+  });
+
+  it("gives the app each other request at the base path itself, and each request there without batches", async () => {
+    const { port, appHits } = await startApp({ cors: { origin: ["https://app.example"] } });
+    const plain = await send(port, "OPTIONS", "/api/proc", { origin: "https://app.example", "access-control-request-method": "GET" });
+    expect(plain.body).toBe("a route of the app");
+    const off = await startApp({ cors: { origin: ["https://app.example"] }, batch: false });
+    const offPreflight = await send(off.port, "OPTIONS", "/api/proc", batchPreflight);
+    expect(offPreflight.body).toBe("a route of the app");
+    expect([appHits, off.appHits]).toEqual([["/api/proc"], ["/api/proc"]]);
+  });
+
   it("names an allowed origin with credentials and Vary, and lets that origin call", async () => {
     const { port } = await startApp({ cors: { origin: ["https://app.example"], credentials: true, exposedHeaders: ["Procedures-Protocol"], maxAge: seconds(60) } });
     const preflight = await send(port, "OPTIONS", "/api/proc/proc/echo", { origin: "https://app.example", "access-control-request-method": "POST" });

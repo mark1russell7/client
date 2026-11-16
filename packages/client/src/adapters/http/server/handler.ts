@@ -33,7 +33,7 @@ import { NDJSON_MEDIA_TYPE as NDJSON, defaultNdjsonError as errorOf, keepAliveMs
 import { applyCors, corsOrigins, corsPolicy, type CorsOptions, type CorsPolicy } from "./cors.js";
 import { urlAddressing, type Addressing } from "./addressing.js";
 import { BodyError, readJsonBody } from "./body.js";
-import { BATCH_HEADER, batchFrames, batchOptionsOf, isBatchRequest, parseBatch, type HandlerBatchOptions, type BatchRun } from "./batch.js";
+import { BATCH_HEADER, batchFrames, batchOptionsOf, isBatchPreflight, isBatchRequest, parseBatch, type HandlerBatchOptions, type BatchRun } from "./batch.js";
 import { NARROWING_METADATA_KEY, addNarrowing } from "../../../procedures/narrowing.js";
 import { retryAfterSeconds } from "@mark1russell7/service/limiter";
 
@@ -352,7 +352,8 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
   const matches = (req: IncomingMessage): boolean => {
     if (compat.matchAll === true) return true;
     const path = pathOf(req);
-    return path.startsWith(prefix) || (path === bareBase && (addressing.takesBasePath === true || (batch !== undefined && isBatchRequest(req))));
+    // The base path itself takes a batch and the preflight request of a batch (CLI-32)
+    return path.startsWith(prefix) || (path === bareBase && (addressing.takesBasePath === true || (batch !== undefined && (isBatchRequest(req) || isBatchPreflight(req)))));
   };
 
   /** True when the request is a batch at the base path (CLI-32). */
