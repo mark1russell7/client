@@ -16,7 +16,7 @@ import { lstat, mkdir, realpath, rm, symlink, unlink, utimes } from "node:fs/pro
 import { dirname, join } from "node:path";
 import { DEFAULT_ARCHIVE_SETTINGS, formatOfFile, type ArchiveSettings } from "../../format.js";
 import { planExtract, type PlannedEntry, type RawEntry } from "../../paths.js";
-import { isInside, outsideRoot, placesOf } from "../../root.js";
+import { inHold, isInside, outsideRoot, placesOf } from "../../root.js";
 import { extractTar, readTarEntries } from "../../tar.js";
 import { extractZipFile, readZipDirectory, readZipLink, type ZipEntry } from "../../zip.js";
 import type { ArchiveExtractInput, ArchiveExtractOutput } from "../../types.js";
@@ -75,7 +75,13 @@ function countsOf(planned: readonly PlannedEntry[]): Pick<ArchiveExtractOutput, 
 /**
  * Extract a tar.gz or zip archive into a folder, with a check of each path
  */
-export async function archiveExtract(input: ArchiveExtractInput, settings: ArchiveSettings = DEFAULT_ARCHIVE_SETTINGS): Promise<ArchiveExtractOutput> {
+export function archiveExtract(input: ArchiveExtractInput, settings: ArchiveSettings = DEFAULT_ARCHIVE_SETTINGS): Promise<ArchiveExtractOutput> {
+  // The check of the paths and the work start in one hold of the roots: it can make a link
+  return inHold(settings.root, "exclusive", () => extractInRoot(input, settings));
+}
+
+/** The work of `archiveExtract()`, in its hold of the roots. */
+async function extractInRoot(input: ArchiveExtractInput, settings: ArchiveSettings): Promise<ArchiveExtractOutput> {
   const places = await placesOf(settings.root, ["archive", "extract"]);
   const archive = await places.place(input.archive);
   const folder = await places.place(input.target);

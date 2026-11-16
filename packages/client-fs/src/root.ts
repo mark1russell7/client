@@ -17,12 +17,17 @@
  * - The procedure gets the absolute path, so the paths of the output are absolute.
  *
  * On Windows, the comparison ignores the case of the letters, and `/` and `\` are the same.
+ *
+ * A check and the operation of a call start in one hold of the roots (`root-hold.ts`). So the
+ * operation reads the links that the check read.
  */
 
 import { readlink, realpath } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { InvocationError, type ProcedurePath } from "@procedures/client";
 import { isMissing, linkDestination } from "./link-target.js";
+
+export { holdRoots, type RootHoldMode } from "./root-hold.js";
 
 /** The reason of the `FORBIDDEN` error for a path outside the root. */
 export const OUTSIDE_ROOT = "outside-root";

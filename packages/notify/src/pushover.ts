@@ -13,6 +13,8 @@
  * GET. Do not log a request or its URL.
  */
 
+import { callApi } from "./call.js";
+
 /** The base of the Pushover API. */
 export const PUSHOVER_API = "https://api.pushover.net/1";
 
@@ -507,24 +509,11 @@ export async function callPushover<Result>(
   extract: (response: PushoverResponse) => Result | PushoverFailure,
   options: { readonly timeoutMs: number; readonly signal?: AbortSignal | undefined },
 ): Promise<Result | PushoverFailure> {
-  const signals = [AbortSignal.timeout(options.timeoutMs), ...(options.signal ? [options.signal] : [])];
-  try {
-    const response = await fetch(request.url, {
-      method: request.method,
-      headers: { ...request.headers },
-      ...(request.body === undefined ? {} : { body: request.body }),
-      signal: AbortSignal.any(signals),
-    });
-    return extract({ status: response.status, text: await response.text(), headers: response.headers });
-  } catch (error) {
-    if (options.signal?.aborted) throw options.signal.reason;
-    const timedOut = (error as { name?: string } | undefined)?.name === "TimeoutError";
-    return {
-      ok: false,
-      kind: timedOut ? "timeout" : "network",
-      status: 0,
-      errors: [timedOut ? `Pushover did not answer in ${options.timeoutMs} ms.` : "The request did not reach Pushover."],
-      retryAfterMs: PUSHOVER_MIN_WAIT_MS,
-    };
-  }
+  return callApi<Result, PushoverFailure>(fetch, request, extract, options, (kind) => ({
+    ok: false,
+    kind,
+    status: 0,
+    errors: [kind === "timeout" ? `Pushover did not answer in ${options.timeoutMs} ms.` : "The request did not reach Pushover."],
+    retryAfterMs: PUSHOVER_MIN_WAIT_MS,
+  }));
 }
