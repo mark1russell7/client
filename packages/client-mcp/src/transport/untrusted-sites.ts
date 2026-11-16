@@ -103,6 +103,7 @@ export function separateUntrusted(value: unknown, declared: readonly string[], e
         for (const field of fields) {
           if (!Object.hasOwn(record, field)) continue;
           changed = true;
+          // path-check: the label of a field path in the result (`items.0.text`), not a procedure path
           const label = [...path, field].join(".");
           const own = top && declared.includes(field);
           const texts = untrustedTextsOf(record[field]);
