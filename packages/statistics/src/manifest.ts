@@ -10,6 +10,12 @@ export const manifest: ExportsManifest = {
     "statistics"
   ],
   "$defs": {
+    "BinomialSide": {
+      "enum": [
+        "less",
+        "greater"
+      ]
+    },
     "BootstrapOptions": {
       "type": "object",
       "properties": {
@@ -537,6 +543,14 @@ export const manifest: ExportsManifest = {
         "steps"
       ]
     },
+    "CoverageReason": {
+      "enum": [
+        "qualifies",
+        "cell-rejected",
+        "pooled-low",
+        "cell-rejected-and-pooled-low"
+      ]
+    },
     "CoverageStep": {
       "type": "object",
       "properties": {
@@ -576,12 +590,7 @@ export const manifest: ExportsManifest = {
           "description": "The sample size `m` passes the two tests of the bar."
         },
         "reason": {
-          "enum": [
-            "qualifies",
-            "cell-rejected",
-            "pooled-low",
-            "cell-rejected-and-pooled-low"
-          ]
+          "$ref": "#/$defs/CoverageReason"
         }
       },
       "required": [
@@ -950,6 +959,14 @@ export const manifest: ExportsManifest = {
         }
       }
     },
+    "NoiseState": {
+      "enum": [
+        "gain",
+        "loss",
+        "noise",
+        "no-spread"
+      ]
+    },
     "NoiseVerdict": {
       "type": "object",
       "properties": {
@@ -976,12 +993,7 @@ export const manifest: ExportsManifest = {
           "description": "The larger of `spread` and `margin`. The absolute mean must be above it."
         },
         "state": {
-          "enum": [
-            "gain",
-            "loss",
-            "noise",
-            "no-spread"
-          ]
+          "$ref": "#/$defs/NoiseState"
         }
       },
       "required": [
@@ -1183,11 +1195,7 @@ export const manifest: ExportsManifest = {
           "type": "number"
         },
         "outcome": {
-          "enum": [
-            "a",
-            "b",
-            "tie"
-          ]
+          "$ref": "#/$defs/PairOutcome"
         },
         "weight": {
           "type": "number",
@@ -1198,6 +1206,13 @@ export const manifest: ExportsManifest = {
         "a",
         "b",
         "outcome"
+      ]
+    },
+    "PairOutcome": {
+      "enum": [
+        "a",
+        "b",
+        "tie"
       ]
     },
     "PairProbabilities": {
@@ -1220,6 +1235,43 @@ export const manifest: ExportsManifest = {
         "a",
         "b",
         "tie"
+      ]
+    },
+    "ParsedResponseRecord": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "ok": {
+              "const": true
+            },
+            "record": {
+              "$ref": "#/$defs/ResponseRecord"
+            }
+          },
+          "required": [
+            "ok",
+            "record"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ok": {
+              "const": false
+            },
+            "faults": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ResponseFault"
+              }
+            }
+          },
+          "required": [
+            "ok",
+            "faults"
+          ]
+        }
       ]
     },
     "PermutationOptions": {
@@ -1421,15 +1473,18 @@ export const manifest: ExportsManifest = {
         }
       }
     },
+    "RatingModel": {
+      "enum": [
+        "bradley-terry",
+        "elo",
+        "glicko2"
+      ]
+    },
     "RatingModelChoice": {
       "type": "object",
       "properties": {
         "model": {
-          "enum": [
-            "bradley-terry",
-            "elo",
-            "glicko2"
-          ],
+          "$ref": "#/$defs/RatingModel",
           "description": "The model with the lowest log-loss, or `\"bradley-terry\"` when the log has too few picks for a test."
         },
         "scores": {
@@ -1469,11 +1524,7 @@ export const manifest: ExportsManifest = {
         "models": {
           "type": "array",
           "items": {
-            "enum": [
-              "bradley-terry",
-              "elo",
-              "glicko2"
-            ]
+            "$ref": "#/$defs/RatingModel"
           },
           "description": "The models to compare. The default is all three, in the order `\"bradley-terry\"`, `\"elo\"` and `\"glicko2\"`."
         },
@@ -1499,11 +1550,7 @@ export const manifest: ExportsManifest = {
       "type": "object",
       "properties": {
         "model": {
-          "enum": [
-            "bradley-terry",
-            "elo",
-            "glicko2"
-          ]
+          "$ref": "#/$defs/RatingModel"
         },
         "logLoss": {
           "type": "number",
@@ -1539,14 +1586,7 @@ export const manifest: ExportsManifest = {
           "type": "string"
         },
         "at": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "number"
-            }
-          ],
+          "$ref": "#/$defs/ResponseValue",
           "description": "The value of the varied dimension."
         },
         "reason": {
@@ -1602,14 +1642,7 @@ export const manifest: ExportsManifest = {
       "type": "object",
       "properties": {
         "at": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "number"
-            }
-          ],
+          "$ref": "#/$defs/ResponseValue",
           "description": "The value of the varied dimension."
         },
         "value": {
@@ -1650,17 +1683,7 @@ export const manifest: ExportsManifest = {
         "dimensions": {
           "type": "array",
           "items": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/ContinuousDimension"
-              },
-              {
-                "$ref": "#/$defs/OrdinalDimension"
-              },
-              {
-                "$ref": "#/$defs/CategoricalDimension"
-              }
-            ]
+            "$ref": "#/$defs/ResponseDimension"
           }
         },
         "measures": {
@@ -1689,6 +1712,53 @@ export const manifest: ExportsManifest = {
         "dimensions",
         "measures",
         "points"
+      ]
+    },
+    "ResponseDimension": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ContinuousDimension"
+        },
+        {
+          "$ref": "#/$defs/OrdinalDimension"
+        },
+        {
+          "$ref": "#/$defs/CategoricalDimension"
+        }
+      ]
+    },
+    "ResponseFactor": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "dimension": {
+              "type": "string"
+            },
+            "power": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "dimension",
+            "power"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "dimension": {
+              "type": "string"
+            },
+            "level": {
+              "$ref": "#/$defs/ResponseValue"
+            }
+          },
+          "required": [
+            "dimension",
+            "level"
+          ]
+        }
       ]
     },
     "ResponseFault": {
@@ -1754,45 +1824,7 @@ export const manifest: ExportsManifest = {
           "items": {
             "type": "array",
             "items": {
-              "anyOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "dimension": {
-                      "type": "string"
-                    },
-                    "power": {
-                      "type": "number"
-                    }
-                  },
-                  "required": [
-                    "dimension",
-                    "power"
-                  ]
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "dimension": {
-                      "type": "string"
-                    },
-                    "level": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "number"
-                        }
-                      ]
-                    }
-                  },
-                  "required": [
-                    "dimension",
-                    "level"
-                  ]
-                }
-              ]
+              "$ref": "#/$defs/ResponseFactor"
             }
           },
           "description": "The stated terms of a ridge fit, in place of `degree` and `interactions`."
@@ -1928,6 +1960,19 @@ export const manifest: ExportsManifest = {
         "skill"
       ]
     },
+    "ResponseInputValue": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        }
+      ]
+    },
     "ResponseMeasure": {
       "type": "object",
       "properties": {
@@ -1972,6 +2017,16 @@ export const manifest: ExportsManifest = {
         "direction"
       ]
     },
+    "ResponseModel": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RidgeResponseModel"
+        },
+        {
+          "$ref": "#/$defs/TableResponseModel"
+        }
+      ]
+    },
     "ResponsePoint": {
       "type": "object",
       "properties": {
@@ -1982,17 +2037,7 @@ export const manifest: ExportsManifest = {
           "type": "object",
           "properties": {},
           "additionalProperties": {
-            "anyOf": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              }
-            ]
+            "$ref": "#/$defs/ResponseInputValue"
           },
           "description": "The value of each dimension."
         },
@@ -2053,14 +2098,7 @@ export const manifest: ExportsManifest = {
         "models": {
           "type": "array",
           "items": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/RidgeResponseModel"
-              },
-              {
-                "$ref": "#/$defs/TableResponseModel"
-              }
-            ]
+            "$ref": "#/$defs/ResponseModel"
           }
         },
         "folds": {
@@ -2078,17 +2116,7 @@ export const manifest: ExportsManifest = {
         "dimensions": {
           "type": "array",
           "items": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/ContinuousDimension"
-              },
-              {
-                "$ref": "#/$defs/OrdinalDimension"
-              },
-              {
-                "$ref": "#/$defs/CategoricalDimension"
-              }
-            ]
+            "$ref": "#/$defs/ResponseDimension"
           }
         },
         "measures": {
@@ -2134,17 +2162,7 @@ export const manifest: ExportsManifest = {
           "type": "object",
           "properties": {},
           "additionalProperties": {
-            "anyOf": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              }
-            ]
+            "$ref": "#/$defs/ResponseInputValue"
           },
           "description": "The value of each other dimension."
         },
@@ -2197,17 +2215,7 @@ export const manifest: ExportsManifest = {
           "type": "object",
           "properties": {},
           "additionalProperties": {
-            "anyOf": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              }
-            ]
+            "$ref": "#/$defs/ResponseInputValue"
           },
           "description": "The value of each held dimension. Each other dimension takes its usual value, as `sliceResponse` tells."
         },
@@ -2235,14 +2243,7 @@ export const manifest: ExportsManifest = {
           "type": "string"
         },
         "at": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "number"
-            }
-          ],
+          "$ref": "#/$defs/ResponseValue",
           "description": "The value of the varied dimension."
         },
         "value": {
@@ -2281,44 +2282,20 @@ export const manifest: ExportsManifest = {
           "type": "object",
           "properties": {},
           "additionalProperties": {
-            "anyOf": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              }
-            ]
+            "$ref": "#/$defs/ResponseInputValue"
           },
           "description": "The value of each other dimension."
         },
         "x": {
           "type": "array",
           "items": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              }
-            ]
+            "$ref": "#/$defs/ResponseValue"
           }
         },
         "y": {
           "type": "array",
           "items": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              }
-            ]
+            "$ref": "#/$defs/ResponseValue"
           }
         },
         "cells": {
@@ -2375,24 +2352,10 @@ export const manifest: ExportsManifest = {
           "type": "array",
           "prefixItems": [
             {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "number"
-                }
-              ]
+              "$ref": "#/$defs/ResponseValue"
             },
             {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "number"
-                }
-              ]
+              "$ref": "#/$defs/ResponseValue"
             }
           ],
           "minItems": 2,
@@ -2441,17 +2404,7 @@ export const manifest: ExportsManifest = {
           "type": "object",
           "properties": {},
           "additionalProperties": {
-            "anyOf": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              }
-            ]
+            "$ref": "#/$defs/ResponseInputValue"
           },
           "description": "The value of each held dimension. Each other dimension takes its usual value, as `sliceResponse` tells."
         },
@@ -2482,24 +2435,10 @@ export const manifest: ExportsManifest = {
           "type": "array",
           "prefixItems": [
             {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "number"
-                }
-              ]
+              "$ref": "#/$defs/ResponseValue"
             },
             {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "number"
-                }
-              ]
+              "$ref": "#/$defs/ResponseValue"
             }
           ],
           "minItems": 2,
@@ -2525,17 +2464,7 @@ export const manifest: ExportsManifest = {
         "at": {
           "type": "array",
           "items": {
-            "anyOf": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              }
-            ]
+            "$ref": "#/$defs/ResponseInputValue"
           },
           "description": "The value of each dimension of the table, in the order of its `dimensions`. An absent dimension has `null`."
         },
@@ -2554,6 +2483,16 @@ export const manifest: ExportsManifest = {
         "n"
       ]
     },
+    "ResponseValue": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        }
+      ]
+    },
     "ResponseWhen": {
       "type": "object",
       "properties": {
@@ -2564,20 +2503,26 @@ export const manifest: ExportsManifest = {
         "levels": {
           "type": "array",
           "items": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              }
-            ]
+            "$ref": "#/$defs/ResponseValue"
           }
         }
       },
       "required": [
         "dimension",
         "levels"
+      ]
+    },
+    "RidgeInput": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RidgeNumberInput"
+        },
+        {
+          "$ref": "#/$defs/RidgeRankInput"
+        },
+        {
+          "$ref": "#/$defs/RidgeLevelInput"
+        }
       ]
     },
     "RidgeLevelInput": {
@@ -2695,17 +2640,7 @@ export const manifest: ExportsManifest = {
         "inputs": {
           "type": "array",
           "items": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/RidgeNumberInput"
-              },
-              {
-                "$ref": "#/$defs/RidgeRankInput"
-              },
-              {
-                "$ref": "#/$defs/RidgeLevelInput"
-              }
-            ]
+            "$ref": "#/$defs/RidgeInput"
           }
         },
         "intercept": {
@@ -2749,45 +2684,7 @@ export const manifest: ExportsManifest = {
         "factors": {
           "type": "array",
           "items": {
-            "anyOf": [
-              {
-                "type": "object",
-                "properties": {
-                  "dimension": {
-                    "type": "string"
-                  },
-                  "power": {
-                    "type": "number"
-                  }
-                },
-                "required": [
-                  "dimension",
-                  "power"
-                ]
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "dimension": {
-                    "type": "string"
-                  },
-                  "level": {
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "type": "number"
-                      }
-                    ]
-                  }
-                },
-                "required": [
-                  "dimension",
-                  "level"
-                ]
-              }
-            ]
+            "$ref": "#/$defs/ResponseFactor"
           }
         },
         "weight": {
@@ -2943,17 +2840,20 @@ export const manifest: ExportsManifest = {
         "runs"
       ]
     },
+    "SmoothLaw": {
+      "enum": [
+        "uniform",
+        "normal",
+        "exponential",
+        "log-normal",
+        "pareto"
+      ]
+    },
     "SmoothLawScore": {
       "type": "object",
       "properties": {
         "law": {
-          "enum": [
-            "uniform",
-            "normal",
-            "exponential",
-            "log-normal",
-            "pareto"
-          ]
+          "$ref": "#/$defs/SmoothLaw"
         },
         "meanLogDensity": {
           "type": "number",
@@ -3293,11 +3193,7 @@ export const manifest: ExportsManifest = {
           "description": "The method that made the interval. It is not `requested` after a fallback or a choice of the method `\"auto\"`."
         },
         "requested": {
-          "enum": [
-            "auto",
-            "conservative",
-            "tight"
-          ],
+          "$ref": "#/$defs/UStatisticMethod",
           "description": "The method of the options."
         },
         "mean": {
@@ -3348,6 +3244,13 @@ export const manifest: ExportsManifest = {
         "high"
       ]
     },
+    "UStatisticMethod": {
+      "enum": [
+        "auto",
+        "conservative",
+        "tight"
+      ]
+    },
     "UStatisticOptions": {
       "type": "object",
       "properties": {
@@ -3360,11 +3263,7 @@ export const manifest: ExportsManifest = {
           "description": "The number of units in the whole population, `n`. It is a whole number, and it is not less than the sample."
         },
         "method": {
-          "enum": [
-            "auto",
-            "conservative",
-            "tight"
-          ],
+          "$ref": "#/$defs/UStatisticMethod",
           "description": "The method of the interval. The methods `\"conservative\"` and `\"auto\"` need `range`."
         },
         "level": {
@@ -3455,13 +3354,7 @@ export const manifest: ExportsManifest = {
         "additionalProperties": false
       },
       "output": {
-        "enum": [
-          "uniform",
-          "normal",
-          "exponential",
-          "log-normal",
-          "pareto"
-        ]
+        "$ref": "#/$defs/SmoothLaw"
       },
       "effects": {
         "reads": [],
@@ -3536,10 +3429,7 @@ export const manifest: ExportsManifest = {
             "description": "- The chance of a success under the claim, from 0 to 1."
           },
           "side": {
-            "enum": [
-              "less",
-              "greater"
-            ],
+            "$ref": "#/$defs/BinomialSide",
             "description": "- The side of the tail."
           }
         },
@@ -4553,11 +4443,7 @@ export const manifest: ExportsManifest = {
         "type": "object",
         "properties": {
           "model": {
-            "enum": [
-              "bradley-terry",
-              "elo",
-              "glicko2"
-            ]
+            "$ref": "#/$defs/RatingModel"
           },
           "items": {
             "type": "number"
@@ -5544,41 +5430,7 @@ export const manifest: ExportsManifest = {
         "additionalProperties": false
       },
       "output": {
-        "anyOf": [
-          {
-            "type": "object",
-            "properties": {
-              "ok": {
-                "const": true
-              },
-              "record": {
-                "$ref": "#/$defs/ResponseRecord"
-              }
-            },
-            "required": [
-              "ok",
-              "record"
-            ]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "ok": {
-                "const": false
-              },
-              "faults": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/$defs/ResponseFault"
-                }
-              }
-            },
-            "required": [
-              "ok",
-              "faults"
-            ]
-          }
-        ]
+        "$ref": "#/$defs/ParsedResponseRecord"
       },
       "effects": {
         "reads": [],
@@ -5638,30 +5490,13 @@ export const manifest: ExportsManifest = {
         "type": "object",
         "properties": {
           "model": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/RidgeResponseModel"
-              },
-              {
-                "$ref": "#/$defs/TableResponseModel"
-              }
-            ]
+            "$ref": "#/$defs/ResponseModel"
           },
           "inputs": {
             "type": "object",
             "properties": {},
             "additionalProperties": {
-              "anyOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "number"
-                }
-              ]
+              "$ref": "#/$defs/ResponseInputValue"
             }
           }
         },
@@ -5981,17 +5816,7 @@ export const manifest: ExportsManifest = {
               "dimensions": {
                 "type": "array",
                 "items": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/$defs/ContinuousDimension"
-                    },
-                    {
-                      "$ref": "#/$defs/OrdinalDimension"
-                    },
-                    {
-                      "$ref": "#/$defs/CategoricalDimension"
-                    }
-                  ]
+                  "$ref": "#/$defs/ResponseDimension"
                 }
               }
             },
@@ -6497,30 +6322,13 @@ export const manifest: ExportsManifest = {
               "dimensions": {
                 "type": "array",
                 "items": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/$defs/ContinuousDimension"
-                    },
-                    {
-                      "$ref": "#/$defs/OrdinalDimension"
-                    },
-                    {
-                      "$ref": "#/$defs/CategoricalDimension"
-                    }
-                  ]
+                  "$ref": "#/$defs/ResponseDimension"
                 }
               },
               "models": {
                 "type": "array",
                 "items": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/$defs/RidgeResponseModel"
-                    },
-                    {
-                      "$ref": "#/$defs/TableResponseModel"
-                    }
-                  ]
+                  "$ref": "#/$defs/ResponseModel"
                 }
               }
             },
@@ -6870,17 +6678,7 @@ export const manifest: ExportsManifest = {
         "type": "object",
         "properties": {
           "dimension": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/ContinuousDimension"
-              },
-              {
-                "$ref": "#/$defs/OrdinalDimension"
-              },
-              {
-                "$ref": "#/$defs/CategoricalDimension"
-              }
-            ]
+            "$ref": "#/$defs/ResponseDimension"
           },
           "values": {
             "type": "object",

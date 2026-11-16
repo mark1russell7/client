@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.ts`.
 
-**Total procedures:** 386 across 51 namespaces. Loaded 48 package register(s).
+**Total procedures:** 403 across 52 namespaces. Loaded 49 package register(s).
 
 ## Namespaces
 
@@ -21,6 +21,7 @@
 - [`env.*`](#env) — 3 procedure(s)
 - [`exif.*`](#exif) — 1 procedure(s)
 - [`fs.*`](#fs) — 15 procedure(s)
+- [`generators.*`](#generators) — 17 procedure(s)
 - [`geo.*`](#geo) — 4 procedure(s)
 - [`gh.*`](#gh) — 16 procedure(s)
 - [`git.*`](#git) — 46 procedure(s)
@@ -204,6 +205,28 @@
 | `fs.watch` | The changes of a file or folder, as a stream |
 | `fs.write` | Write content to file |
 | `fs.write.json` | Write a value as a JSON file, with a rename at the end |
+
+## generators
+
+| Procedure | Description |
+|-----------|-------------|
+| `generators.betaCdf` | This function gives the regularized incomplete beta function: the beta cumulative distribution at `x`. |
+| `generators.canonicalHash` | This function gives the content hash of a value: `sha256Hex(canonicalJson(value, options))`. |
+| `generators.canonicalJson` | This function gives the canonical form of a value. The default form is RFC 8785 (JCS): |
+| `generators.dependsOnLibm` | This function tells if the numbers of a family use `Math.exp`, `Math.log` or `Math.pow`. The result of those functions can change between JavaScript engines. Thus such a family has the same numbers only on one platform. |
+| `generators.deriveSeed` | The seed of the stream with the name `label` under `seed`: the hash of `"<seed>:<label>"`. |
+| `generators.fnv1a32` | The FNV-1a hash of 32 bits of a string. The option `input` selects the units that the hash reads: |
+| `generators.normalCdf` | This function gives the standard normal cumulative distribution, `P(Z <= x)`. Below 0.75 in size, `x` uses the series of `0.5 + phi(x) * (x + x^3/3 + x^5/15 + ...)`. The tails use the continued fraction of the Mills ratio, so a lower tail has no cancellation. On 2026-11-09 the error was at most 4.4 ulps from -38 to 9, against `mpmath`. `normalCdf(-37)` is approximately 5.7e-300, not 0. |
+| `generators.normalQuantile` | This function gives the quantile of the standard normal law: the `x` with `normalCdf(x) = p`. It uses PPND16 of Wichura (algorithm AS 241). Below 0.075, one step of Halley with `normalCdf` follows. Above 0.5, `p` uses the lower tail at `1 - p`. This subtraction is exact. On 2026-11-09 the error was at most 1.2 ulps in the tails and 5.5 ulps from 0.075 to 0.925, against `mpmath`. |
+| `generators.plackettLuceOrder` | A random order of a list with the Plackett-Luce law of the weights (the Gumbel-max method). Each item gets the sum of its log-weight and a Gumbel draw. The order goes from the largest sum to the smallest. |
+| `generators.recordedSpec` | This function gives the spec of the family `recorded` that draws from a table. |
+| `generators.seedOf` | The 32-bit seed of a number (its low 32 bits, unsigned) or of a string (its FNV-1a hash). |
+| `generators.seedsFrom` | The seeds of a run: the seeds in `given` (the text of an environment variable, for example `process.env.SEED`), else the default seeds. An empty text gives the defaults. |
+| `generators.sha256Hex` | This function gives the SHA-256 digest of the bytes of a string, as 64 lowercase hex characters. The option `input` selects the bytes of a lone surrogate. It is not for passwords: it has no salt and no cost. |
+| `generators.shrinkPoint` | This function shrinks a point of a family that fails. Each dimension moves toward `shrinkTarget`, while the point still fails. - In each round, each dimension first tries its target. Then a bisection on the scale of the dimension finds the edge of the failure. - The rounds continue until a round has no move, or until the budget of checks ends. - The function `fails` gives `true` for a point that fails. A first point that does not fail is a `RangeError`. - The shrink has no random draws. Thus the same point and the same function give the same result. |
+| `generators.shrinkTarget` | This function gives the target of a dimension: the value of its range nearest to 0. |
+| `generators.stablePick` | One item of a list, chosen by highest random weight: each key has a weight from `seed`, and the largest weight wins. |
+| `generators.tupleCoverage` | This function gives the coverage of some rows over named dimensions, with the strength `t` (the default is 2). A row holds a combination when it has each of its values. The function compares the values as text with `String`, and it ignores the fields of a row that are not dimensions. With fewer dimensions than `t`, the combinations are those of all the dimensions. Thus no dimensions give one empty combination, with the key `""`. |
 
 ## geo
 

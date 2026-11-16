@@ -17,6 +17,18 @@ export interface Tree {
 
 export type Side = "less" | "greater" | "two-sided";
 
+/** A side or no side: a named union with an undefined member. */
+export type MaybeSide = Side | undefined;
+
+/** A distribution: a named union with a member that holds the union again. */
+export type Spec = { readonly kind: "fixed"; readonly value: number } | { readonly kind: "mix"; readonly parts: readonly Spec[] };
+
+/** A type that grows at each level: each level is a new type, so it has no end. */
+export interface Grow<T> {
+  readonly value: T;
+  readonly next: Grow<T[]>;
+}
+
 export interface Options {
   readonly side?: Side;
   readonly level?: number;
@@ -126,3 +138,9 @@ export declare function unset(value: undefined): number;
 export { vanished } from "./missing.js";
 /** A tuple with an undefined item: JSON gives null for it. */
 export declare function lookup(key: string): [string, undefined];
+/** The number of fixed parts of a distribution. */
+export declare function weight(spec: Spec): number;
+/** The side of a sign, or undefined for zero. */
+export declare function sideOf(sign: number): MaybeSide;
+/** The first value of a type with no end. */
+export declare function grow(value: Grow<number>): number;

@@ -235,7 +235,8 @@ await client.exec(["statistics", "median"], { values: [3, 1, 2, 10] }); // 2.5
 ```
 
 - The input is an object with one property for each parameter. The handler gives the properties to the function in the order of the parameters. A rest parameter is an array.
-- The schemas come from the types. A named interface or type alias goes into `$defs` one time, so a recursive type is a reference to itself.
+- The schemas come from the types. A named interface or type alias goes into `$defs` one time, so a recursive type is a reference to itself. A named union also goes into `$defs`. Its definition has no `undefined` member, as an input of a union with no name. For an output with an `undefined` member, the schema is the definition or `null`.
+- A schema has at most 64 levels. A deeper type, for example a type that grows at each level, fails closed: its function gets an exemption.
 - The description comes from the first paragraph of the doc comment. The description of a parameter or a property comes from its own doc comment.
 - An output of `undefined` or `void` is `null`, as in JSON. For a function that gives a promise, the output is the value of the promise.
 - A call in process gives the output that a call over HTTP gives. An `undefined` item of an array becomes `null`, and a property with an `undefined` value is absent.

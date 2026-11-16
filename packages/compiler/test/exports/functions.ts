@@ -9,6 +9,15 @@ interface Point {
   readonly y: number;
 }
 
+type MaybeSide = "less" | "greater" | "two-sided" | undefined;
+
+type Spec = { readonly kind: "fixed"; readonly value: number } | { readonly kind: "mix"; readonly parts: readonly Spec[] };
+
+interface Grow<T> {
+  readonly value: T;
+  readonly next: Grow<T[]>;
+}
+
 interface Tree {
   readonly name: string;
   readonly children: readonly Tree[];
@@ -156,4 +165,16 @@ export function unset(): number {
 
 export function lookup(key: string): [string, undefined] {
   return [key, undefined];
+}
+
+export function weight(spec: Spec): number {
+  return spec.kind === "fixed" ? 1 : spec.parts.reduce((sum, part) => sum + weight(part), 0);
+}
+
+export function sideOf(sign: number): MaybeSide {
+  return sign > 0 ? "greater" : sign < 0 ? "less" : undefined;
+}
+
+export function grow(value: Grow<number>): number {
+  return value.value;
 }

@@ -52,6 +52,13 @@
         "run"
       ]
     },
+    "MaybeSide": {
+      "enum": [
+        "less",
+        "greater",
+        "two-sided"
+      ]
+    },
     "Note": {
       "type": "object",
       "properties": {
@@ -102,6 +109,43 @@
       "required": [
         "x",
         "y"
+      ]
+    },
+    "Spec": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "fixed"
+            },
+            "value": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "mix"
+            },
+            "parts": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Spec"
+              }
+            }
+          },
+          "required": [
+            "kind",
+            "parts"
+          ]
+        }
       ]
     },
     "Tree": {
@@ -829,6 +873,43 @@
       }
     },
     {
+      "name": "sideOf",
+      "path": [
+        "fixture",
+        "sideOf"
+      ],
+      "description": "The side of a sign, or undefined for zero.",
+      "params": [
+        "sign"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "sign": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "sign"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/MaybeSide"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "sortBy",
       "path": [
         "fixture",
@@ -1042,6 +1123,36 @@
         "reads": [],
         "writes": []
       }
+    },
+    {
+      "name": "weight",
+      "path": [
+        "fixture",
+        "weight"
+      ],
+      "description": "The number of fixed parts of a distribution.",
+      "params": [
+        "spec"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "$ref": "#/$defs/Spec"
+          }
+        },
+        "required": [
+          "spec"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
     }
   ],
   "exempt": [
@@ -1069,6 +1180,11 @@
       "name": "fail",
       "reason": "output-not-json",
       "detail": "never"
+    },
+    {
+      "name": "grow",
+      "reason": "input-not-json",
+      "detail": "value.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.value: a type deeper than 64 levels"
     },
     {
       "name": "handlerOf",
@@ -1121,6 +1237,6 @@
       "Counter"
     ],
     "values": 1,
-    "types": 7
+    "types": 10
   }
 }

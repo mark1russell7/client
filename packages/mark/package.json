@@ -103,6 +103,7 @@
     "@procedures/docker": "workspace:*",
     "@procedures/env": "workspace:*",
     "@procedures/exif": "workspace:*",
+    "@procedures/generators": "workspace:*",
     "@procedures/geo": "workspace:*",
     "@procedures/gh": "workspace:*",
     "@procedures/git": "workspace:*",

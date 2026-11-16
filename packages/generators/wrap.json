@@ -1,0 +1,10 @@
+{
+  "home": "@mark1russell7/rigor-generators",
+  "entry": ".",
+  "namespace": ["generators"],
+  "manifest": "src/manifest.ts",
+  "overlay": {
+    "effects": { "reads": [], "writes": [] }
+  },
+  "pure": true
+}

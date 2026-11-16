@@ -81,6 +81,9 @@ class NotJson extends Error {
   }
 }
 
+/** The deepest schema that the generator makes. A deeper type fails closed. */
+const MAX_DEPTH = 64;
+
 /** The names of the global object types that have no JSON form. */
 const NOT_JSON_GLOBALS = new Set([
   "Date", "Map", "Set", "WeakMap", "WeakSet", "WeakRef", "RegExp", "Promise", "Error",
@@ -124,6 +127,7 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
 
   const defs = new Map<string, ExportsJsonSchema>();
   const defNames = new Map<TS.Type, string>();
+  let depth = 0;
   const procedures: ExportProcedure[] = [];
   const exempt: ExportExemption[] = [];
   const classes: string[] = [];
@@ -263,6 +267,17 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
    * member gives `null`, as in JSON. A property with an `undefined` member is optional.
    */
   function schemaOf(type: TS.Type, output: boolean): ExportsJsonSchema {
+    // A generic type can grow at each level, for example Nest<Nest<T>>: such a type fails closed
+    if (depth >= MAX_DEPTH) throw new NotJson(`a type deeper than ${MAX_DEPTH} levels`, false);
+    depth++;
+    try {
+      return typeSchema(type, output);
+    } finally {
+      depth--;
+    }
+  }
+
+  function typeSchema(type: TS.Type, output: boolean): ExportsJsonSchema {
     const flags = type.flags;
     // A type that does not resolve is the error type of the checker: the check fails closed
     if (flags & ts.TypeFlags.Any && (type as { intrinsicName?: string }).intrinsicName === "error") {
@@ -294,7 +309,17 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
   }
 
   function unionSchema(type: TS.UnionType, output: boolean): ExportsJsonSchema {
-    let members = type.types;
+    // A named union goes into $defs as a named object does. This also ends a cycle through it.
+    const named = definitionName(type);
+    if (named === undefined) return membersSchema(type.types, output);
+    // The definition serves inputs and outputs, so it has no undefined member: an output adds null
+    const defined = type.types.filter((member) => !(member.flags & (ts.TypeFlags.Undefined | ts.TypeFlags.Void)));
+    const reference = definition(type, named, () => membersSchema(defined, false));
+    return output && defined.length < type.types.length ? { anyOf: [reference, { type: "null" }] } : reference;
+  }
+
+  function membersSchema(all: readonly TS.Type[], output: boolean): ExportsJsonSchema {
+    let members = all;
     // An optional property or parameter has `T | undefined`: its schema is the schema of T
     const defined = members.filter((member) => !(member.flags & (ts.TypeFlags.Undefined | ts.TypeFlags.Void)));
     const hasUndefined = defined.length < members.length;
@@ -337,22 +362,24 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
 
     // A named type goes into $defs one time, and a reference stands for it. This also ends a cycle.
     const named = definitionName(type);
-    if (named !== undefined) {
-      const existing = defNames.get(type);
-      if (existing !== undefined) return { $ref: `#/$defs/${existing}` };
-      const key = uniqueName(named);
-      defNames.set(type, key);
-      defs.set(key, {});
-      try {
-        defs.set(key, plainObjectSchema(type));
-      } catch (error) {
-        defs.delete(key);
-        defNames.delete(type);
-        throw error;
-      }
-      return { $ref: `#/$defs/${key}` };
+    return named !== undefined ? definition(type, named, () => plainObjectSchema(type)) : plainObjectSchema(type);
+  }
+
+  /** A reference to the definition of a named type. The first reference builds the definition. */
+  function definition(type: TS.Type, named: string, build: () => ExportsJsonSchema): ExportsJsonSchema {
+    const existing = defNames.get(type);
+    if (existing !== undefined) return { $ref: `#/$defs/${existing}` };
+    const key = uniqueName(named);
+    defNames.set(type, key);
+    defs.set(key, {});
+    try {
+      defs.set(key, build());
+    } catch (error) {
+      defs.delete(key);
+      defNames.delete(type);
+      throw error;
     }
-    return plainObjectSchema(type);
+    return { $ref: `#/$defs/${key}` };
   }
 
   function plainObjectSchema(type: TS.Type): ExportsJsonSchema {
