@@ -8,9 +8,10 @@
  */
 
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { HTTPHeaders, HTTPMethod } from "../shared/index.js";
+import { HEADER_TOKEN, HTTPHeaders, HTTPMethod } from "../shared/index.js";
 import { PROTOCOL_HEADER } from "../../../protocol.js";
 import { NARROWING_HEADER } from "../../../procedures/narrowing.js";
+import { IDEMPOTENCY_KEY_METADATA } from "../../../procedures/idempotency.js";
 import { toMs, type Duration } from "../../../duration.js";
 import type { BrowserGuardOptions } from "../../../server/browser-guard.js";
 
@@ -25,9 +26,18 @@ export interface CorsOptions {
   readonly origin?: string | readonly string[] | ((origin: string) => boolean) | undefined;
   /** The methods of `Access-Control-Allow-Methods`. @default GET, POST, PUT, DELETE, PATCH, OPTIONS */
   readonly methods?: readonly string[] | undefined;
-  /** The request headers of `Access-Control-Allow-Headers`. @default the headers of `HttpTransport` */
+  /**
+   * The request headers of `Access-Control-Allow-Headers`. Without this option, the answer to a
+   * preflight request names the headers of `HttpTransport` and each header that the preflight
+   * request names. So a page can send a key of its metadata, which `HttpTransport` also sends as a
+   * header. With this option, the answer names only the headers of the option.
+   * @default the headers of `HttpTransport`, and the headers that the preflight request names
+   */
   readonly allowedHeaders?: readonly string[] | undefined;
-  /** The response headers that a page can read (`Access-Control-Expose-Headers`). @default none */
+  /**
+   * The response headers that a page can read (`Access-Control-Expose-Headers`).
+   * @default `Procedures-Protocol`, `Procedures-Batch` and `Retry-After`
+   */
   readonly exposedHeaders?: readonly string[] | undefined;
   /**
    * True: a page can send cookies (`fetch` with `credentials: "include"`). The response then has
@@ -50,14 +60,26 @@ export const DEFAULT_CORS_HEADERS: readonly string[] = Object.freeze([
   HTTPHeaders.SPAN_ID,
   HTTPHeaders.PARENT_SPAN_ID,
   "traceparent",
+  "tracestate",
+  "baggage",
   PROTOCOL_HEADER,
   HTTPHeaders.METADATA,
+  // A request of many calls (CLI-32)
+  HTTPHeaders.BATCH,
+  // The key of a call that the retry middleware can send again (R1)
+  IDEMPOTENCY_KEY_METADATA,
   // The narrowing key of a call (CLI-30)
   NARROWING_HEADER,
   "collection",
   "collectionName",
   "database",
 ]);
+
+/**
+ * The response headers of the protocol: the default `exposedHeaders`. `HttpTransport` reads the
+ * batch header and `Retry-After`. A page can read the version of the protocol.
+ */
+export const DEFAULT_CORS_EXPOSED_HEADERS: readonly string[] = Object.freeze([PROTOCOL_HEADER, HTTPHeaders.BATCH, HTTPHeaders.RETRY_AFTER]);
 
 /** The methods of the default `Access-Control-Allow-Methods`. */
 export const DEFAULT_CORS_METHODS: readonly string[] = Object.freeze([
@@ -77,6 +99,8 @@ export interface CorsPolicy {
   readonly varies: boolean;
   readonly methods: string | undefined;
   readonly allowedHeaders: string | undefined;
+  /** True: the answer to a preflight request also names each header of its `Access-Control-Request-Headers`. */
+  readonly requestedHeaders?: boolean | undefined;
   readonly exposedHeaders: string | undefined;
   readonly credentials: boolean;
   /** The value of `Access-Control-Max-Age` in seconds, or undefined. */
@@ -105,7 +129,9 @@ export function corsPolicy(options: CorsOptions, defaultCredentials: boolean): C
     varies: origin !== "*",
     methods: join("methods" in options ? options.methods : DEFAULT_CORS_METHODS),
     allowedHeaders: join("allowedHeaders" in options ? options.allowedHeaders : DEFAULT_CORS_HEADERS),
-    exposedHeaders: join(options.exposedHeaders),
+    // No fixed list can name the keys of the metadata of an application
+    requestedHeaders: !("allowedHeaders" in options),
+    exposedHeaders: join("exposedHeaders" in options ? options.exposedHeaders : DEFAULT_CORS_EXPOSED_HEADERS),
     credentials: options.credentials ?? defaultCredentials,
     maxAge: maxAgeMs === undefined || maxAgeMs <= 0 ? undefined : String(Math.floor(maxAgeMs / 1000)),
   };
@@ -118,6 +144,27 @@ function vary(res: ServerResponse, field: string): void {
   const fields = text.split(",").map((part) => part.trim().toLowerCase());
   if (fields.includes("*") || fields.includes(field.toLowerCase())) return;
   res.setHeader("Vary", text.trim() === "" ? field : `${text}, ${field}`);
+}
+
+/**
+ * This function gives the value of `Access-Control-Allow-Headers` for a preflight request: the
+ * headers of `base`, and each name of `Access-Control-Request-Headers` that `base` does not have.
+ * A name that is not a token of RFC 9110 does not go. The response gets
+ * `Vary: Access-Control-Request-Headers`, so a shared cache keeps one answer for each list.
+ */
+function withRequestedHeaders(req: IncomingMessage, res: ServerResponse, base: string | undefined): string | undefined {
+  vary(res, "Access-Control-Request-Headers");
+  const requested = req.headers["access-control-request-headers"];
+  if (typeof requested !== "string") return base;
+  const names = base === undefined ? [] : base.split(", ");
+  const known = new Set(names.map((name) => name.toLowerCase()));
+  for (const part of requested.split(",")) {
+    const name = part.trim();
+    if (!HEADER_TOKEN.test(name) || known.has(name.toLowerCase())) continue;
+    known.add(name.toLowerCase());
+    names.push(name);
+  }
+  return names.length === 0 ? undefined : names.join(", ");
 }
 
 /**
@@ -137,7 +184,8 @@ export function applyCors(req: IncomingMessage, res: ServerResponse, policy: Cor
   }
   if (allowed !== undefined) res.setHeader("Access-Control-Allow-Origin", allowed);
   if (policy.methods !== undefined) res.setHeader("Access-Control-Allow-Methods", policy.methods);
-  if (policy.allowedHeaders !== undefined) res.setHeader("Access-Control-Allow-Headers", policy.allowedHeaders);
+  const allowedHeaders = req.method === "OPTIONS" && policy.requestedHeaders === true ? withRequestedHeaders(req, res, policy.allowedHeaders) : policy.allowedHeaders;
+  if (allowedHeaders !== undefined) res.setHeader("Access-Control-Allow-Headers", allowedHeaders);
   if (policy.exposedHeaders !== undefined) res.setHeader("Access-Control-Expose-Headers", policy.exposedHeaders);
   if (policy.credentials) res.setHeader("Access-Control-Allow-Credentials", "true");
   if (req.method !== "OPTIONS") return false;

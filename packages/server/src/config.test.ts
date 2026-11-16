@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { parseConfig } from "./config.js";
+import { parseAllowedHosts, parseConfig } from "./config.js";
 
 describe("parseConfig", () => {
   it("gives a loopback HTTP server by default", () => {
@@ -36,6 +36,25 @@ describe("parseConfig", () => {
     expect(parseConfig([]).fsRoot).toBeUndefined();
   });
 
+  it("reads the names of --allowed-host, repeated or comma-separated, in lower case", () => {
+    expect(parseConfig(["--allowed-host", "Box.LAN", "--allowed-host=api.example.com, box.lan"]).allowedHosts).toEqual([
+      "box.lan",
+      "api.example.com",
+    ]);
+    expect(parseConfig(["--allowed-host", "box.lan,*"]).allowedHosts).toBe("*");
+    expect(parseConfig([]).allowedHosts).toBeUndefined();
+    expect(parseAllowedHosts("my-server")).toEqual(["my-server"]);
+  });
+
+  it("reports an invalid name of --allowed-host", () => {
+    expect(() => parseConfig(["--allowed-host", "box.lan:3000"])).toThrow('Invalid host name: "box.lan:3000"');
+    expect(() => parseConfig(["--allowed-host", "http://box.lan"])).toThrow('Invalid host name: "http://box.lan"');
+    expect(() => parseConfig(["--allowed-host=-box.lan"])).toThrow('Invalid host name: "-box.lan"');
+    expect(() => parseConfig(["--allowed-host", "box..lan"])).toThrow('Invalid host name: "box..lan"');
+    expect(() => parseConfig(["--allowed-host", " , "])).toThrow("--allowed-host needs a host name");
+    expect(() => parseConfig(["--allowed-host"])).toThrow("--allowed-host needs a value");
+  });
+
   it("reads the port of the probe server (CLI-9)", () => {
     expect(parseConfig(["--probe-port", "9090"]).probePort).toBe(9090);
     expect(parseConfig(["--probe-port=9091", "--port", "4000"]).probePort).toBe(9091);
@@ -52,6 +71,15 @@ describe("parseConfig", () => {
     expect(() => parseConfig(["--fs-root"])).toThrow("--fs-root needs a value");
   });
 
+  it("reads the port 0 of the first transport and of the probes: each takes a free port", () => {
+    const config = parseConfig(["--port", "0", "--probe-port", "0", "-t", "http,websocket"]);
+    expect(config.transports).toEqual([
+      { type: "http", port: 0, host: "127.0.0.1", basePath: "/api" },
+      { type: "websocket", port: 3001, host: "127.0.0.1", path: "/ws" },
+    ]);
+    expect(config.probePort).toBe(0);
+  });
+
   it("reads the options in any order", () => {
     const config = parseConfig(["--cors", "--port=4000", "-t", "http,websocket", "--host", "::1", "-p", "a,b"]);
     expect(config.procedures).toEqual(["a", "b"]);
@@ -64,6 +92,7 @@ describe("parseConfig", () => {
   it("reports an invalid port, a missing value, an unknown transport and an unknown option", () => {
     expect(() => parseConfig(["--port", "abc"])).toThrow('Invalid port: "abc"');
     expect(() => parseConfig(["--port", "70000"])).toThrow('Invalid port: "70000"');
+    expect(() => parseConfig(["--port=-1"])).toThrow('Invalid port: "-1"');
     expect(() => parseConfig(["--port"])).toThrow("--port needs a value");
     expect(() => parseConfig(["--host", "--verbose"])).toThrow("--host needs a value");
     expect(() => parseConfig(["-t", "udp"])).toThrow('Unknown transport: "udp"');

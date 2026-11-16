@@ -89,7 +89,9 @@ describe("SqliteStorage as the durable local copy of HybridStorage (roadmap R45)
     const file = new SqliteStorage<Item>({ path: join(dir, "local.db"), table: "items" });
     expect(await file.getEntries()).toEqual([["x", { n: 10 }], ["a", { n: 1 }], ["b", { n: 2 }]]);
     await file.close();
-  });
+    // Three restarts on files: 0.5 s to 1.2 s on a Windows runner (Nightly, 11-12 to 11-15),
+    // and 5.2 s on 11-14, past the default limit of 5 s.
+  }, 30_000);
 
   it("a SqliteStorage remote gives a delta to the sync, also after the remote restarts", async () => {
     const dir = mkdtempSync(join(tmpdir(), "client-sqlite-hybrid-"));

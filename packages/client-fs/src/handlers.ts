@@ -23,8 +23,9 @@ import { readJson } from "./procedures/fs/json.js";
 import { fsWriteJson } from "./procedures/fs/write-json.js";
 import { fsHash } from "./procedures/fs/hash.js";
 import { fsTemp } from "./procedures/fs/temp.js";
-import { fsWatch } from "./procedures/fs/watch.js";
+import { openWatch } from "./procedures/fs/watch.js";
 import { inRoot, isOutsideRoot, outsideRoot, realPathIsInside, resolveRoot, type ResolvedRoot } from "./root.js";
+import { holdRoots } from "./root-hold.js";
 import type {
   ReadInput,
   ReadOutput,
@@ -123,62 +124,76 @@ export function rootedHandlers(root: string): FsHandlers {
     const at: ProcedurePath = ["fs", ...procedure];
     return { root: resolved, inside: (path) => inRoot(resolved, path, at) };
   };
+  /** The handler of a call that cannot make a link: its check and its operation start in a shared hold of the roots. */
+  const shared =
+    <I, O>(handler: (input: I) => Promise<O>) =>
+    (input: I): Promise<O> =>
+      holdRoots("shared", () => handler(input));
+  /** The handler of a call that can move or copy a link: its check and its operation start in the exclusive hold. */
+  const exclusive =
+    <I, O>(handler: (input: I) => Promise<O>) =>
+    (input: I): Promise<O> =>
+      holdRoots("exclusive", () => handler(input));
 
   return {
-    read: async (input) => {
+    read: shared(async (input) => {
       const { inside } = await check("read");
       return read({ ...input, path: await inside(input.path) });
-    },
-    write: async (input) => {
+    }),
+    write: shared(async (input) => {
       const { inside } = await check("write");
       return write({ ...input, path: await inside(input.path) });
-    },
-    exists: async (input) => {
+    }),
+    exists: shared(async (input) => {
       const { inside } = await check("exists");
       return exists({ ...input, path: await inside(input.path) });
-    },
-    mkdir: async (input) => {
+    }),
+    mkdir: shared(async (input) => {
       const { inside } = await check("mkdir");
       return mkdir({ ...input, path: await inside(input.path) });
-    },
-    rm: async (input) => {
+    }),
+    rm: shared(async (input) => {
       const { inside } = await check("rm");
       return rm({ ...input, path: await inside(input.path) });
-    },
-    stat: async (input) => {
+    }),
+    stat: shared(async (input) => {
       const { inside } = await check("stat");
       return stat({ ...input, path: await inside(input.path) });
-    },
-    readJson: async (input) => {
+    }),
+    readJson: shared(async (input) => {
       const { inside } = await check("read", "json");
       return readJson({ ...input, path: await inside(input.path) });
-    },
-    writeJson: async (input) => {
+    }),
+    writeJson: shared(async (input) => {
       const { inside } = await check("write", "json");
       return fsWriteJson({ ...input, path: await inside(input.path) });
-    },
-    hash: async (input) => {
+    }),
+    hash: shared(async (input) => {
       const { inside } = await check("hash");
       return fsHash({ ...input, path: await inside(input.path) });
-    },
+    }),
     // The temporary folders of a root are in its folder .tmp, so they stay inside the root
-    temp: async (input) => {
+    temp: shared(async (input) => {
       const { inside } = await check("temp");
       return fsTemp(input, await inside(".tmp"));
-    },
+    }),
+    // The watcher opens in the hold, so it watches the checked folder. The changes come after the hold.
     watch: async function* (input, ctx) {
-      const { inside } = await check("watch");
-      yield* fsWatch({ ...input, path: await inside(input.path) }, ctx?.signal);
+      const changes = await holdRoots("shared", async () => {
+        const { inside } = await check("watch");
+        return openWatch({ ...input, path: await inside(input.path) }, ctx?.signal);
+      });
+      yield* changes;
     },
-    copy: async (input) => {
+    copy: exclusive(async (input) => {
       const { inside } = await check("copy");
       return copy({ ...input, src: await inside(input.src), dest: await inside(input.dest) });
-    },
-    move: async (input) => {
+    }),
+    move: exclusive(async (input) => {
       const { inside } = await check("move");
       return move({ ...input, src: await inside(input.src), dest: await inside(input.dest) });
-    },
-    readdir: async (input) => {
+    }),
+    readdir: shared(async (input) => {
       const { inside } = await check("readdir");
       // The stats of an entry follow a symlink: an entry whose target is outside the root gets no stats
       const result = await readdir({ ...input, path: await inside(input.path), includeStats: false });
@@ -194,8 +209,8 @@ export function rootedHandlers(root: string): FsHandlers {
         }
       }
       return result;
-    },
-    glob: async (input) => {
+    }),
+    glob: shared(async (input) => {
       const { root: resolved, inside } = await check("glob");
       const cwd = await inside(input.cwd ?? ".");
       if (patternLeavesFolder(input.pattern)) {
@@ -209,6 +224,6 @@ export function rootedHandlers(root: string): FsHandlers {
         if (await realPathIsInside(resolved, absolute)) matches.push(input.absolute ? absolute : match);
       }
       return { pattern: input.pattern, matches };
-    },
+    }),
   };
 }

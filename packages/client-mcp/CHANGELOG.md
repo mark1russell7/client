@@ -1,5 +1,236 @@
 # @procedures/mcp-server
 
+## 0.60.1
+
+### Patch Changes
+
+- a87cdda: Deprecated: the raw text of a nested untrusted field in the structured content of an MCP tool. From 0.61.0, the structured content puts each nested untrusted string in its envelope. A code caller that reads the raw nested text must read the envelope.
+- a87cdda: The storages of a partitioned collection close at the stop of the server.
+  
+  - `CollectionPartitions` gets an optional `close()`. `closeStorages()` and `stop()` of `ProcedureServer` close each partitions object one time with it.
+  - `ProcedureServer.partitionHandles()` gives one dependency handle for each partitions object, with the name `partitions.<collections>`. The handle closes the partitions after the transports close.
+  - The procedures host and the MCP host declare these handles next to the storage handles. The new type `McpRunnerPartitions` of `@procedures/mcp-server` is the partitions handle, and `McpServiceBuilder.dependency` takes it next to `McpRunnerDependency`. `host.dependencies` of the procedures host also gives the storages and partitions that the app adds after the construction.
+  - Partitions without `close()` stay on the server, and the host closes their storages.
+- Updated dependencies [beca782]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [a87cdda]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+  - @procedures/mcp@0.60.1
+
+## 0.60.0
+
+### Patch Changes
+
+- Updated dependencies [3075d86]
+  - @procedures/client@0.60.0
+  - @procedures/mcp@0.60.0
+
+## 0.59.1
+
+### Patch Changes
+
+- Updated dependencies [425ea64]
+- Updated dependencies [ea801cd]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6513a83]
+- Updated dependencies [8c69a74]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6cc8f0e]
+  - @procedures/client@0.59.1
+  - @procedures/mcp@0.59.1
+
+## 0.59.0
+
+### Minor Changes
+
+- 8f8e5b2: **Breaking change:** each listener examines the `Host` header. By default, only `localhost`, `127.0.0.1`, `[::1]` and IP addresses pass. Give each other name with `--allowed-host` or `allowedHosts`.
+  
+  The browser checks examine the `Host` header on each listener. Before, they examined it only on a loopback address. A server on a LAN address (`0.0.0.0`) accepted each host name.
+  
+  A request must name one of these hosts in its `Host` header:
+  
+  - A loopback name: `localhost`, `127.0.0.1` or `[::1]`.
+  - An IP address, for example `192.168.1.20` or `[fe80::1]`.
+  - A name of `browser.allowedHosts` of the host policy, with any letter case.
+  
+  A request with another name gets `FORBIDDEN` (403) with the reason `host-header-not-allowed`. A request without a `Host` header gets it too. The message of the refusal names `allowedHosts` and `--allowed-host`. `browser.allowedHosts: "*"` turns the check off.
+  
+  The server command and `mark --server` get the option `--allowed-host <names>`. Repeat the option, or separate the names with commas. `@procedures/server` exports `parseAllowedHosts`.
+  
+  Migration steps:
+  
+  - A server that a LAN, a proxy or a container network reaches by a name: give the name in `browser.allowedHosts` of `hostPolicy()`. Or start the server with `--allowed-host <name>`.
+  - An MCP face on HTTP that clients reach by a name: give the name in `http.allowedHosts` of the face, or in `browser.allowedHosts` of the policy.
+  - A server that clients reach by `localhost` or by an IP address: no change.
+
+### Patch Changes
+
+- Updated dependencies [8f8e5b2]
+  - @procedures/client@0.59.0
+  - @procedures/mcp@0.59.0
+
+## 0.58.2
+
+### Patch Changes
+
+- Updated dependencies [217871c]
+  - @procedures/client@0.58.2
+  - @procedures/mcp@0.58.2
+
+## 0.58.1
+
+### Patch Changes
+
+- Updated dependencies [1d47080]
+  - @procedures/client@0.58.1
+  - @procedures/mcp@0.58.1
+
+## 0.58.0
+
+### Patch Changes
+
+- 11f5035: A call limit takes a cost for each call (roadmap CLI-122). The new field `cost` of `CallLimit` is a whole number of 1 or more, or a function of the call. The default is 1. A cost for each item keeps a batch within the limit.
+  
+  A call whose cost is over the burst or the limit of the policy gets a capacity refusal. Its code changes from `RATE_LIMITED` to `PAYLOAD_TOO_LARGE`, not retryable. The metadata gives `reason: "capacity"`, `units` and `capacity`. The HTTP face answers 413 in place of 429, with `units` and `capacity` in the body and no `Retry-After`. The HTTP client, the batch, the WebSocket and the MCP faces carry both numbers.
+  
+  Migration steps:
+  
+  1. Code that reads a capacity refusal as `RATE_LIMITED` with `reason: "capacity"` reads `PAYLOAD_TOO_LARGE`. An HTTP client reads 413 in place of 429.
+  2. A store with pushes of batches sets `pushBatch` of `HybridStorage` within the capacity of the limit. A 413 with `units` and `capacity` lowers the cap of later pushes.
+  3. A host with a limit of each call gives no `cost`. Its limits keep one unit for each call.
+- Updated dependencies [11f5035]
+  - @procedures/client@0.58.0
+  - @procedures/mcp@0.58.0
+
+## 0.57.0
+
+### Patch Changes
+
+- @procedures/client@0.57.0
+  - @procedures/mcp@0.57.0
+
+## 0.56.0
+
+### Minor Changes
+
+- 13996cf: The release train: the ranges of @mark1russell7/coeval, @mark1russell7/quantity, @mark1russell7/text, @mark1russell7/files change to a version outside the old range. This release has breaking changes.
+
+### Patch Changes
+
+- Updated dependencies [13996cf]
+- Updated dependencies [13996cf]
+  - @procedures/mcp@0.56.0
+  - @procedures/client@0.56.0
+
+## 0.55.2
+
+### Patch Changes
+
+- @procedures/client@0.55.2
+  - @procedures/mcp@0.55.2
+
+## 0.55.1
+
+### Patch Changes
+
+- @procedures/client@0.55.1
+  - @procedures/mcp@0.55.1
+
+## 0.55.0
+
+### Patch Changes
+
+- Updated dependencies [fd9c6d4]
+  - @procedures/client@0.55.0
+  - @procedures/mcp@0.55.0
+
+## 0.54.1
+
+### Patch Changes
+
+- Updated dependencies [13c3a8b]
+  - @procedures/client@0.54.1
+  - @procedures/mcp@0.54.1
+
+## 0.54.0
+
+### Patch Changes
+
+- 1401489: The tarball of each package leaves out `dist/.tsbuildinfo`. The `files` list of each package has the entry `!dist/.tsbuildinfo` after `dist`.
+  
+  The build writes this file for incremental builds. An app does not use it, and it added its size to each tarball (61 KB in `@procedures/json` 0.52.3). The conventions rule `pack-no-buildinfo` finds it.
+  
+  PATCH: the exports and the behavior do not change.
+- Updated dependencies [ef8e080]
+- Updated dependencies [1401489]
+  - @procedures/client@0.54.0
+  - @procedures/mcp@0.54.0
+
+## 0.53.1
+
+### Patch Changes
+
+- Updated dependencies [84f0c78]
+- Updated dependencies [abf290c]
+  - @procedures/client@0.53.1
+  - @procedures/mcp@0.53.1
+
+## 0.53.0
+
+### Patch Changes
+
+- d28ccb5: Each handler runs in the context of OpenTelemetry of its caller (roadmap item C10 of otel-ts). Thus its logs, metrics, spans and nested calls carry the ids of the trace of the caller, also on a host with no tracing interceptor.
+  
+  - `ProcedureServer` makes the remote span of the `traceparent` and `tracestate` of the metadata the parent of the handler. It uses the `baggage` of the metadata only from a trusted caller: a local request, a request with the token of the server, or a request that the new option `trustBaggage(request)` names. For another caller, the handler runs with no baggage, also when the HTTP instrumentation of an SDK read a `baggage` header.
+  - The MCP face puts the keys `traceparent`, `tracestate` and `baggage` of the `_meta` of a tool call into the metadata of the call. Over Streamable HTTP, the headers with these names apply when `_meta` does not have the key.
+  - `mark` sends the environment variables `TRACEPARENT`, `TRACESTATE` and `BAGGAGE` with its call, as the metadata keys `traceparent`, `tracestate` and `baggage`.
+- The packages use the new versions of their dependencies of the owner: `@mark1russell7/service` `^0.8.3`, `@mark1russell7/coeval` `^0.26.1` and `@mark1russell7/docker-sqlite` `^0.3.0`. The range of `@mark1russell7/collections` stays `^0.5.0`: its version 0.7.0 and later remove names that `@procedures/collections` exports.
+- 556d0a8: The packages use `@mark1russell7/service` `^0.8.2` in place of `^0.6.0`. Version 0.7.0 adds the refusal cause `capacity`, and version 0.8.0 refuses a listen backlog of 0. Version 0.8.2 adds the call context of OpenTelemetry. The types `Clock` and `Cancel` of `@mark1russell7/service/clock` do not change: their home is `@mark1russell7/algebra/clock`, and the entry gives them again.
+  
+  A refusal of a call limit with the cause `capacity` gives `RATE_LIMITED` that is not retryable and has no `retry-after`. A take of one unit does not get this cause, because each policy holds 1 unit or more.
+- 1f638a3: The escape of a text for a regular expression is `escapeRegExp` of `@mark1russell7/text`, the home of the escape functions. The output does not change. Each of the three packages thus has the new dependency `@mark1russell7/text` `^0.0.2`, which has no dependencies.
+- Updated dependencies [bc98f77]
+- Updated dependencies [11d9084]
+- Updated dependencies [d28ccb5]
+- Updated dependencies [735cfcf]
+- Updated dependencies
+- Updated dependencies [556d0a8]
+  - @procedures/client@0.53.0
+  - @procedures/mcp@0.53.0
+
+## 0.52.5
+
+### Patch Changes
+
+- Updated dependencies [25a5f44]
+  - @procedures/client@0.52.5
+  - @procedures/mcp@0.52.5
+
+## 0.52.4
+
+### Patch Changes
+
+- @procedures/client@0.52.4
+  - @procedures/mcp@0.52.4
+
+## 0.52.3
+
+### Patch Changes
+
+- Updated dependencies [db1bcaa]
+  - @procedures/client@0.52.3
+  - @procedures/mcp@0.52.3
+
 ## 0.52.2
 
 ### Patch Changes

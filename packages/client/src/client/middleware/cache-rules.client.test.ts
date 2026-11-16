@@ -47,6 +47,36 @@ describe("the cache (R13)", () => {
     expect(b).toBe(1);
   });
 
+  it("gives two calls that differ only in a Date two responses (CLI-128)", async () => {
+    const { transport, calls } = counting();
+    const client = new Client(transport).use(createCacheMiddleware({ methods: ["users.get"] }));
+    const first = await client.call(read, { since: new Date(0) });
+    const second = await client.call(read, { since: new Date(1_000) });
+    expect(calls()).toBe(2);
+    expect(second).not.toBe(first);
+    expect(await client.call(read, { since: new Date(1_000) })).toBe(second);
+    expect(calls()).toBe(2);
+  });
+
+  it("sends a call whose key generator throws past the cache, with no read and no store (CLI-128)", async () => {
+    const { transport, calls } = counting();
+    const client = new Client(transport).use(createCacheMiddleware({ methods: ["users.get"] }));
+    const payload = { id: 1, compare: () => 0 };
+    expect(await client.call(read, payload)).toBe(1);
+    expect(await client.call(read, payload)).toBe(2);
+    expect(calls()).toBe(2);
+    const custom = new Client(counting().transport).use(
+      createCacheMiddleware({
+        methods: ["users.get"],
+        keyGenerator: () => {
+          throw new Error("no key");
+        },
+      }),
+    );
+    expect(await custom.call(read, {})).toBe(1);
+    expect(await custom.call(read, {})).toBe(2);
+  });
+
   it("a write deletes the entries of the methods that read its resources", async () => {
     const { transport, calls } = counting();
     const client = new Client(transport).use(createCacheMiddleware({ methods: ["users.get", "orders.list"], effects: effectsOf }));
@@ -388,6 +418,12 @@ describe("the cache: statistics and options", () => {
     expect(stats).toHaveLength(1);
     vi.advanceTimersByTime(1);
     expect(stats[1]).toEqual({ hits: 1, misses: 2, size: 1, evictions: 1, hitRate: 33.33 });
+  });
+
+  it("refuses a capacity that is not a positive whole number", () => {
+    for (const capacity of [0, -1, 1.5, Number.NaN, Infinity]) {
+      expect(() => createCacheMiddleware({ methods: ["users.get"], capacity })).toThrow(RangeError);
+    }
   });
 
   it("counts the response of a call in flight as a hit", async () => {

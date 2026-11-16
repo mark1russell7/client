@@ -1,5 +1,345 @@
 # @procedures/client
 
+## 0.60.1
+
+### Patch Changes
+
+- beca782: `procedureHandler` answers the preflight request of a batch at the base path itself: `OPTIONS {base}` with `Procedures-Batch` in `Access-Control-Request-Headers`. Its CORS rule gives the answer. Before this release, the handler gave this request to the app, so a batch from a page on another origin failed.
+  
+  - The default of `corsOptions.credentials` of `HttpServerTransport` is the rule of `procedureHandler`: false for the origin `"*"`, and true for each other origin. Before this release, the transport also sent `Access-Control-Allow-Credentials: true` with the origin `"*"`. A browser refuses that pair for a call with credentials.
+  - Deprecated: the CORS headers of `HttpServerTransport` on the routes of the app outside its base path. From 0.63.0, the transport applies CORS only to the base path and the paths under it. An app that needs CORS on its own routes adds its own CORS function.
+- 6dbc47e: Deprecated: under the expose rule of a host, `procedure.define` at a free hidden path, and `procedure.load` of a stored program at a free hidden path. From 0.62.0, the define gets `NOT_EXPOSED`, and the load gives the program as a conflict.
+  
+  To prepare, move each such program to an exposed path, or add its path to the expose rule of the host. This note changes no code.
+- 663465c: An `exclude` entry of a host policy or of a tool surface takes the patterns of `expose`: an exact key, a prefix (`shell.*`) or `*`. A prefix entry hides each procedure under the prefix. An exact key of the form before the escape of dotted names also stays valid.
+- 66585f5: A host can limit the depth of the nested calls.
+  
+  - The new option `maxDepth` of `invokeProcedure()`, `ProcedureServer` and `hostPolicy()` is the highest depth of a nested call. The call of a caller has the depth 0.
+  - A call at a larger depth gets `FORBIDDEN` with the new reason `depth`. Its handler does not start. Thus a loop of calls to one procedure stops at the limit.
+  - A value that is not a whole number of 0 or more stops the call or the start of the server with a `TypeError`.
+  - Without `maxDepth`, the depth has no limit, as before. The first call over the depth 64 in the process writes one warning.
+  
+  Migration before 0.64.0: version 0.64.0 sets the default limit to 64. A host with deeper call trees sets `maxDepth` to its own limit.
+- 511d820: A time limit above 2147483647 ms (24.8 days) holds for its full time. The rule covers the timeout interceptor and the deadline of a capability. It also covers the timeout middleware of the client and the timeouts of the HTTP and WebSocket transports. Each timer uses the platform clock, and the clock arms a long time in steps. `setTimeout` alone starts such a timer after 1 ms. A limit of `Infinity` sets no timer.
+- 02a7074: Each nested call of a procedure validates its own input. The option `inputValidated` applies only to the call that gets it.
+- 265f41c: The warning of a limit without the field `nested` names 0.64.0, the version that changes the default to `true`.
+- a87cdda: The storages of a partitioned collection close at the stop of the server.
+  
+  - `CollectionPartitions` gets an optional `close()`. `closeStorages()` and `stop()` of `ProcedureServer` close each partitions object one time with it.
+  - `ProcedureServer.partitionHandles()` gives one dependency handle for each partitions object, with the name `partitions.<collections>`. The handle closes the partitions after the transports close.
+  - The procedures host and the MCP host declare these handles next to the storage handles. The new type `McpRunnerPartitions` of `@procedures/mcp-server` is the partitions handle, and `McpServiceBuilder.dependency` takes it next to `McpRunnerDependency`. `host.dependencies` of the procedures host also gives the storages and partitions that the app adds after the construction.
+  - Partitions without `close()` stay on the server, and the host closes their storages.
+- 94b5f88: The HTTP face stops the read of a stream for a client without NDJSON (the "sponge" mode) when the call stops. A closed connection and `close()` stop the read, also while the stream waits for its next item. The stream gets `return()`. A cut of `close()` on an open response gives `UNAVAILABLE` (HTTP 503), not the last item. Its flag `retryable` is true only for a repeatable call before its first item, as in an NDJSON stream.
+- ca23351: After `stop()` of a `ProcedureServer`, the intake stays stopped until the next `start()`, as after `close()`. A call after the stop gets the retryable `UNAVAILABLE`. `start()` opens the intake again, with a new signal.
+- 84e1b25: The WebSocket face gives `return()` to the stream of a handler when the send of an item frame throws, so the `finally` block of the handler runs. The `error` frame of the call comes first. The count of the items that went out, which sets the retry flag of that error, has only the frames that the socket took.
+- fe6cd23: The WebSocket server and client examine the shape of each frame before they read its fields. The server answers a frame of another shape with `INVALID_REQUEST` and the id of the frame. The client drops such a frame. `WIRE-PROTOCOL.md` gives the rules.
+- e9b7551: `WebSocketServerTransport` sends each frame through one function with a flow rule.
+  
+  - While the send buffer of a connection holds more than `highWaterMark`, the server does not read the frames of the connection. It reads them again when the socket wrote the buffer down to the mark.
+  - While the reads of a connection are paused, a frame that the socket wrote since the last ping counts as the pong of the heartbeat. Thus a peer that reads slowly stays open, and a peer that does not read closes.
+  - The new option `maxBufferedBytes` is the largest send buffer of a connection. A send that finds a larger buffer ends the connection. It bounds the frames that the server sends with no request, for example `broadcast()`. It has no default.
+
+## 0.60.0
+
+### Minor Changes
+
+- 3075d86: The registry examines the types of the metadata fields that the framework reads. A procedure whose field has a wrong type gets a `RegistryError` that names the field.
+  
+  This is a breaking change. Before, `register()` and `procedure.define` accepted a typed field with a wrong type, and 0.59.1 gave a warning. After this change, they refuse it.
+  
+  - The refusal names the field and the type that the field needs, for example `The field metadata.tags needs a list of strings`.
+  - The option `logger` of `ProcedureRegistry` gets the errors of the registry: a listener that throws. The default writes to the console as before.
+  - `register()` refuses the procedure, from code, from `procedure.define` or from a program store. A stored program with a wrong type fails its load, and the other programs load.
+  - The input schema of `procedure.define` uses the same schema, so a wrong type fails the call.
+  - `procedure.define` sets `generatedFrom` and `aggregation` after the metadata of the caller. Before, metadata from the caller removed these two fields.
+  - A custom field keeps any value. The framework does not read it.
+  
+  Migration: give each typed field of the metadata the type of `ProcedureMetadata`. The error names the field, for example `The field metadata.tags has a wrong type`.
+  
+  | Field | Type |
+  | --- | --- |
+  | `description`, `title`, `deprecationMessage` | a string |
+  | `tags`, `untrusted` | a list of strings |
+  | `deprecated` | a boolean |
+  | `effects` | an object: `reads` and `writes` are lists of strings, `idempotent` and `destructive` are booleans |
+  | `stream` | an object: `unbounded` is a boolean |
+  | `fsRoot` | an object: `cwd` and `refuse` are strings, `paths`, `names`, `required` and `values` are lists of strings, `program` is a boolean |
+  
+  For example, change `tags: "math"` to `tags: ["math"]`. A program in a store with a wrong type does not load: define it again with the correct type.
+
+## 0.59.1
+
+### Patch Changes
+
+- 425ea64: The CORS of a procedure server accepts each request header of `HttpTransport` in a browser.
+  
+  - `HttpTransport` sends each text key of the metadata as a header of its own. Before this change, the preflight answer named only a fixed list. So a call with a key of the application, with the retry middleware (`idempotency-key`) or in a batch (`Procedures-Batch`) failed in a browser.
+  - Without the option `allowedHeaders`, the preflight answer names the fixed list and each valid header name of `Access-Control-Request-Headers`. The answer also has `Vary: Access-Control-Request-Headers`, so a shared cache keeps one answer for each list.
+  - With the option `allowedHeaders`, the answer names only the headers of the option, as before.
+  - The fixed list also has `Procedures-Batch` and `idempotency-key`.
+  - Without the option `exposedHeaders`, a page can read `Procedures-Protocol`, `Procedures-Batch` and `Retry-After`. `HttpTransport` reads the batch header and `Retry-After`.
+- ea801cd: `onError` and the `logger` of a `Server` get each failure of a call one time, under each error policy, as their docs state. Before, under the default policy `"all"`, a failed procedure reached no log. A host with `onError` or `logger` gets each failure that its callers see, as the docs say.
+  
+  - A failure is an error with a code that is not known, or with a failure code (`HANDLER_ERROR`, `INTERNAL_ERROR`). A refusal with a known code (`NOT_FOUND`, `VALIDATION_ERROR`) and a code of `codes` go to no log.
+  - The error that ends a stream and an error of a face after `handle()` go to the log too. The line is `A handler failed`, as for a handler that throws.
+  - A `map` result is the decision of the host and goes to no log. Under `"coded"`, a hidden error keeps its line.
+  - Without `onError` and `logger`, the console gets no new line.
+- 74ddeff: The stop of a `ProcedureServer` ends a stream of a call with an idempotency key. Before, the stream lost the link to the stop when its first item came.
+  
+  - The cooperative abort of `drain()` and the abort of `close()` reach the stream until its last item, as on the path without a key.
+  - A stream of a local caller without a signal ends at the stop, so `inFlight()` goes to 0.
+  - The stream still ends with its caller.
+- 6513a83: The registry gives a warning for a typed metadata field with a wrong type. Version 0.60.0 refuses such a field.
+  
+  - The typed fields are the fields of `ProcedureMetadata` that the framework reads: `description`, `tags`, `title`, `deprecated`, `deprecationMessage`, `effects`, `stream`, `untrusted` and `fsRoot`. A custom field keeps any value.
+  - The warning comes one time for each procedure and field. It names the procedure, the field and the type that the field needs. The procedure stays in the registry, and its calls work as before.
+  - The new option `logger` of `ProcedureRegistry` gets the warnings. The default writes to the console.
+  
+  To prepare for 0.60.0, give each typed field the type that the warning names. For example, change `tags: "math"` to `tags: ["math"]`.
+- 8c69a74: A limit of the calls can also count the nested calls of a procedure.
+  
+  - The new field `nested` of a `CallLimit` sets the rule. With `nested: true`, the limit takes the units of each nested call that it covers, for example each step of `client.chain` and `client.parallel`. A refused nested call does not start. The procedure gets an error with the code `RATE_LIMITED` or `PAYLOAD_TOO_LARGE`, the wait in `retry-after` and the cause in `reason`. When the procedure does not catch it, the caller gets the same response as a refusal before the run.
+  - `LimitedCall` has two new fields: `depth` (0 for the call of a caller, 1 or more for a nested call) and `input`. A cover, key or cost function of a limit with `nested: true` reads them.
+  - A limit without the field `nested` keeps the old rule: it counts only the calls of a caller. The server writes one warning at the start for each such limit.
+  - A value of `nested` that is not `true` or `false` stops the start of the server with an error.
+  
+  Migration before 0.61.0: version 0.61.0 changes the default to `nested: true`. Give each limit the field `nested`. Use `true` to count the nested calls, or `false` to keep the old rule. The warning then stops.
+- 74ddeff: **Security fix:** a `register()` handler of a `ProcedureServer` needs the token, keeps the call limits and gets the stop refusal, as the host policy states.
+  
+  The handler gets the same admission as a procedure. Before, only the procedures got it.
+  
+  - A network request must send the token of the host policy, as the policy documents. The request hook and `authenticate` apply too.
+  - The call limits apply to the route of the handler. A handler declares no effects, so a limit of the writes covers it too.
+  - After `stopIntake()`, a new request gets `UNAVAILABLE`. `inFlight()` counts the call until its response, so `drain()` waits for it.
+  
+  A local request (`LOCAL_CREDENTIALS`) passes, as before. A client that sends the token sees no change.
+- 6cc8f0e: A call that the stop of a face cuts ends with `UNAVAILABLE` on each face, as `WIRE-PROTOCOL.md` tells (CLI-48). The flag `retryable` follows the declared effects of the procedure, with the rule of the host.
+  
+  - A repeatable procedure (`isRepeatable`) gives the same state after a second start. Its cut call ends with `retryable: true`. A stream that sent an item ends with `retryable: false`, because a retry sends the items again.
+  - The handler of another call started, so the call can have had its effect. Its cut call ends with `retryable: false`, and the retry middleware does not send it again.
+  - The HTTP face: an open stream ended with `ABORTED` and `retryable: true` for each procedure. A call with a value ended with the error of its handler after the abort. Both end with `UNAVAILABLE`. A call with a value gets HTTP 503 when it is repeatable, and HTTP 500 when it is not. A value that the handler gives after the cut still goes out.
+  - The WebSocket face: the server and the client send the error frame of each stopped call before the socket closes. Before, the caller got `CONNECTION_CLOSED`, and the outcome of the call was not known.
+  - The port transport: `close()` sends the error of each call of the other side that it stops. Before, the other side got no frame, and its call waited for its time-out.
+  - New optional members: `RequestHandler.isRepeatableCall(method)`, implemented by `ProcedureServer` and forwarded by the face handler of the host, and the option `retryableOnStop` of `writeNdjsonStream`. A handler without `isRepeatableCall` ends each cut call with `retryable: false`.
+
+## 0.59.0
+
+### Minor Changes
+
+- 8f8e5b2: **Breaking change:** each listener examines the `Host` header. By default, only `localhost`, `127.0.0.1`, `[::1]` and IP addresses pass. Give each other name with `--allowed-host` or `allowedHosts`.
+  
+  The browser checks examine the `Host` header on each listener. Before, they examined it only on a loopback address. A server on a LAN address (`0.0.0.0`) accepted each host name.
+  
+  A request must name one of these hosts in its `Host` header:
+  
+  - A loopback name: `localhost`, `127.0.0.1` or `[::1]`.
+  - An IP address, for example `192.168.1.20` or `[fe80::1]`.
+  - A name of `browser.allowedHosts` of the host policy, with any letter case.
+  
+  A request with another name gets `FORBIDDEN` (403) with the reason `host-header-not-allowed`. A request without a `Host` header gets it too. The message of the refusal names `allowedHosts` and `--allowed-host`. `browser.allowedHosts: "*"` turns the check off.
+  
+  The server command and `mark --server` get the option `--allowed-host <names>`. Repeat the option, or separate the names with commas. `@procedures/server` exports `parseAllowedHosts`.
+  
+  Migration steps:
+  
+  - A server that a LAN, a proxy or a container network reaches by a name: give the name in `browser.allowedHosts` of `hostPolicy()`. Or start the server with `--allowed-host <name>`.
+  - An MCP face on HTTP that clients reach by a name: give the name in `http.allowedHosts` of the face, or in `browser.allowedHosts` of the policy.
+  - A server that clients reach by `localhost` or by an IP address: no change.
+
+## 0.58.2
+
+### Patch Changes
+
+- 217871c: The admission examines each nested call that its caller does not declare. A procedure of code with declared effects answers for a nested call only in one case. An entry of its `metadata.calls` names the callee, and the effects of the callee are in its declaration. `checkEffects()` examines the same edges. Before, such a procedure answered for each of its nested calls, also without `calls`.
+  
+  Declare each nested callee of a procedure of code in `metadata.calls`. A nested call that the caller does not declare passes only when the capability permits the callee as a direct call.
+  
+  `examinesNestedCall()` gets the optional parameter `callee`. Without it, the function gives true.
+  
+  PATCH: a fix of the admission, and a new optional parameter.
+
+## 0.58.1
+
+### Patch Changes
+
+- 1d47080: **Security fix:** a `register()` handler of a `ProcedureServer` needs the token, keeps the call limits and gets the stop refusal, as the host policy states.
+  
+  The handler gets the same admission as a procedure. Before, only the procedures got it.
+  
+  - A network request must send the token of the host policy, as the policy documents. The request hook and `authenticate` apply too.
+  - The call limits apply to the route of the handler. A handler declares no effects, so a limit of the writes covers it too.
+  - After `stopIntake()`, a new request gets `UNAVAILABLE`. `inFlight()` counts the call until its response, so `drain()` waits for it.
+  
+  A local request (`LOCAL_CREDENTIALS`) passes, as before. A client that sends the token sees no change.
+
+## 0.58.0
+
+### Minor Changes
+
+- 11f5035: A call limit takes a cost for each call (roadmap CLI-122). The new field `cost` of `CallLimit` is a whole number of 1 or more, or a function of the call. The default is 1. A cost for each item keeps a batch within the limit.
+  
+  A call whose cost is over the burst or the limit of the policy gets a capacity refusal. Its code changes from `RATE_LIMITED` to `PAYLOAD_TOO_LARGE`, not retryable. The metadata gives `reason: "capacity"`, `units` and `capacity`. The HTTP face answers 413 in place of 429, with `units` and `capacity` in the body and no `Retry-After`. The HTTP client, the batch, the WebSocket and the MCP faces carry both numbers.
+  
+  Migration steps:
+  
+  1. Code that reads a capacity refusal as `RATE_LIMITED` with `reason: "capacity"` reads `PAYLOAD_TOO_LARGE`. An HTTP client reads 413 in place of 429.
+  2. A store with pushes of batches sets `pushBatch` of `HybridStorage` within the capacity of the limit. A 413 with `units` and `capacity` lowers the cap of later pushes.
+  3. A host with a limit of each call gives no `cost`. Its limits keep one unit for each call.
+
+## 0.57.0
+
+No changes in this release.
+
+## 0.56.0
+
+### Minor Changes
+
+- 13996cf: The release train: the ranges of @mark1russell7/coeval, @mark1russell7/quantity, @mark1russell7/text, @mark1russell7/files change to a version outside the old range. This release has breaking changes.
+
+## 0.55.2
+
+No changes in this release.
+
+## 0.55.1
+
+No changes in this release.
+
+## 0.55.0
+
+### Minor Changes
+
+- fd9c6d4: The release train: the ranges of @mark1russell7/coeval change to a version outside the old range. This release has breaking changes.
+
+## 0.54.1
+
+### Patch Changes
+
+- 13c3a8b: The cache middleware keeps its entries in `LRUCache` of `@mark1russell7/collections`, the home of the LRU cache (roadmap O98). The core removes its own `LruMap`. `LRUCache` checks the capacity and has `deleteWhere`, so the behavior does not change. A capacity that is not a positive whole number throws a `RangeError`, as before. An esbuild bundle for a browser gets 1075 more bytes of minified code, 478 bytes of gzip.
+
+## 0.54.0
+
+### Patch Changes
+
+- ef8e080: `@procedures/collections` uses `@mark1russell7/collections` 0.10, and its root removes the 121 names that version 0.10 does not export (roadmap CLI-131 and CLI-113). The last release marked each of these names as `@deprecated`, with its replacement. MINOR: before 1.0.0 a removed export raises MINOR.
+  
+  Migration steps for the site and each app:
+  
+  1. Import `Optional`, `Result` and their functions from `@mark1russell7/optional`. The table gives the new names.
+  
+     | Old name | New name |
+     | --- | --- |
+     | `Option` | `Optional` |
+     | `Some` | `some` |
+     | `None` | `none` |
+     | `Ok` | `ok` |
+     | `Err` | `err` |
+     | `getOrElse` | `getOr` |
+     | `getOrElseResult` | `getOkOr` |
+     | `mapOption` | `map` |
+     | `flatMapOption` | `flatMap` |
+     | `mapError` | `mapErr` |
+     | `optionToResult` | `fromOptional` |
+     | `resultToOption` | `toOptional` |
+     | `toNullable` | `unwrap` |
+  
+  2. Read the values of the safe middleware (`safeList`, `safeQueue`, `safeDeque` and `safeMap`) with the field `tag`, not `_tag`. A present value is `{ tag: "some", value }`. An absent value is `{ tag: "none" }`.
+  3. Import the 13 channel names (`Channel`, `select`, `timeout`, `ticker`, `pipeline`, `fanOut`, `fanIn`, `merge`, `buffered`, `unbuffered`, `channel`, `workerPool` and the type `SelectCase`) from `@mark1russell7/service/channel`.
+  4. Use the retries of `@mark1russell7/service` in place of the retry names of collections.
+  5. Change the second names to the names of the table. Do not nest the locked uses of `synchronized`.
+  
+     | Old name | New name |
+     | --- | --- |
+     | `unmodifiableList` | `readonlyList` |
+     | `unmodifiableMap` | `readonlyMap` |
+     | `unmodifiableCollection` | `readonlyCollection` |
+     | `mutableListOf` | `listOf` |
+     | `mutableMapOf` | `mapOf` |
+     | `safe` | `safeList`, `safeQueue`, `safeDeque` or `safeMap` |
+     | `reentrantSynchronized` | `synchronized` |
+  
+  6. The other removed names have no replacement. The `@deprecated` tag of the last release names each of them.
+  
+  These behaviors of the re-exported names change:
+  
+  - `defaultCompare` orders values of different types by type first. A sort of values of mixed types gives a different order. `1` and `"1"` are not equal.
+  - `range` gives `start + i * step` at index `i`. So `range(0, 1, 0.1)` gives 10 numbers, not 11. A value that is not finite, or a `step` of 0, throws a `RangeError`.
+  - `nCopies` throws a `RangeError` when `n` is not a safe integer of 0 or more.
+  - A full `boundedList` with `drop-oldest` drops the last element at `insert(0, x)`, as `unshift(x)` does.
+  - A full `boundedDeque` with `drop-oldest` drops the last element at `addFirst`.
+  - An expired entry of `ttlMap` is not in `size`, `getOrUndefined` or the iteration.
+  - An evented layer gives no event for an element that a layer below refused.
+  
+  `@procedures/dag` and `@procedures/client` use the range `^0.10.0` too. Their exports do not change. These behaviors of `@procedures/dag` change:
+  
+  - With `failFast: false`, `executeDAG` does not start a node whose dependency failed. The node gets a skipped result, and `DAGResult.skippedNodes` has its id. To start each node, as before, give the option `skipDependents: false`.
+  - `dag.traverse` with `continueOnError` does not start the visit of a package whose dependency failed or was skipped. Its result has `skipped: true` and a `reason` with the error of the dependency. Before, the traversal visited such a package.
+  - A caller of `dag.traverse` with `continueOnError` that reads `visited` or `skipped` finds the dependents of a failed package in `skipped`.
+- 1401489: The tarball of each package leaves out `dist/.tsbuildinfo`. The `files` list of each package has the entry `!dist/.tsbuildinfo` after `dist`.
+  
+  The build writes this file for incremental builds. An app does not use it, and it added its size to each tarball (61 KB in `@procedures/json` 0.52.3). The conventions rule `pack-no-buildinfo` finds it.
+  
+  PATCH: the exports and the behavior do not change.
+
+## 0.53.1
+
+### Patch Changes
+
+- 84f0c78: The mongo store limits its change reads and its passes of the views with `semaphore()` of `@mark1russell7/collections`, the home of the semaphore. The behavior does not change: the permits go to the callers in FIFO order.
+  
+  The class `Semaphore` of `@procedures/client` is deprecated. Use `semaphore(permits)` of `@mark1russell7/collections` in its place. Its `run(task)` replaces `withPermit(fn)`, and its `acquire()` gives the release function. The next MINOR break of `@procedures/client` removes the class.
+- abf290c: `hostPolicy()` takes the option `trustBaggage`, and `procedureServerOptions()` gives it to the `ProcedureServer` (C10). A host made from a policy can now trust the baggage of more callers.
+
+## 0.53.0
+
+### Patch Changes
+
+- bc98f77: `isW3cIds()`, `parseTraceparent()`, `newTraceId()` and `newSpanId()` check the ids with `isValidTraceId()` and `isValidSpanId()` of `@opentelemetry/api` (decision D7 of otel-ts). The results do not change. An id of only zeros is not valid, and `isW3cIds()` still refuses uppercase digits, as W3C Trace Context requires.
+- 11d9084: The browser entry exports `electronPortOf` and the type `MainPortLike`. The function gives the `PortLike` of a `MessagePortMain` of Electron, whose listener gets an event with the message in `data`. An Electron app can delete its own adapter.
+- d28ccb5: Each handler runs in the context of OpenTelemetry of its caller (roadmap item C10 of otel-ts). Thus its logs, metrics, spans and nested calls carry the ids of the trace of the caller, also on a host with no tracing interceptor.
+  
+  - `ProcedureServer` makes the remote span of the `traceparent` and `tracestate` of the metadata the parent of the handler. It uses the `baggage` of the metadata only from a trusted caller: a local request, a request with the token of the server, or a request that the new option `trustBaggage(request)` names. For another caller, the handler runs with no baggage, also when the HTTP instrumentation of an SDK read a `baggage` header.
+  - The MCP face puts the keys `traceparent`, `tracestate` and `baggage` of the `_meta` of a tool call into the metadata of the call. Over Streamable HTTP, the headers with these names apply when `_meta` does not have the key.
+  - `mark` sends the environment variables `TRACEPARENT`, `TRACESTATE` and `BAGGAGE` with its call, as the metadata keys `traceparent`, `tracestate` and `baggage`.
+- 735cfcf: A call with no active span continues the trace context that the caller gave in its metadata (roadmap item C19 of otel-ts). Before, with an SDK, the client span of such a call started a new trace, and the propagator wrote that trace over the `traceparent` of the metadata. Thus `mark` in a program with an SDK lost the trace of its variables `TRACEPARENT` and `TRACESTATE`: the baggage came to the handler, but its spans and logs were in another trace. An active span is still the parent when there is one, and each try reads the trace context of the caller, not the trace context of the try before it.
+  
+  The unit tests of `@procedures/mark` use the propagation gate of rigor-testkit on the two entries of `mark`: the MCP face and the CLI call to the CLI server. Each call of the gate runs in the root context, so only the carrier of the entry (`_meta`, or the environment variables) takes the context. The gate found this fault.
+- The packages use the new versions of their dependencies of the owner: `@mark1russell7/service` `^0.8.3`, `@mark1russell7/coeval` `^0.26.1` and `@mark1russell7/docker-sqlite` `^0.3.0`. The range of `@mark1russell7/collections` stays `^0.5.0`: its version 0.7.0 and later remove names that `@procedures/collections` exports.
+- 556d0a8: The packages use `@mark1russell7/service` `^0.8.2` in place of `^0.6.0`. Version 0.7.0 adds the refusal cause `capacity`, and version 0.8.0 refuses a listen backlog of 0. Version 0.8.2 adds the call context of OpenTelemetry. The types `Clock` and `Cancel` of `@mark1russell7/service/clock` do not change: their home is `@mark1russell7/algebra/clock`, and the entry gives them again.
+  
+  A refusal of a call limit with the cause `capacity` gives `RATE_LIMITED` that is not retryable and has no `retry-after`. A take of one unit does not get this cause, because each policy holds 1 unit or more.
+
+## 0.52.5
+
+### Patch Changes
+
+- 25a5f44: The calls of a client and the invocations of a host use the context of OpenTelemetry (roadmap item C8 of otel-ts, decisions D5 and D6).
+  
+  - `@procedures/client` now depends on `@opentelemetry/api`. The API does nothing until a program registers an SDK, for example with `startNodeTelemetry()` of `@mark1russell7/otel-ts/node`.
+  - With an SDK, each try of a call is a client span of the API. The registered propagator writes `traceparent`, `tracestate` and `baggage` into the metadata, with the mark of an internal call. The propagator of otel-ts sends the baggage only on a call with this mark.
+  - With an SDK, `tracingInterceptor` takes the span ids from a span of the API: a host span for a call of a host, an internal span for a nested call. The handler runs in the context of its span. The host reads no baggage from the metadata.
+  - With no SDK, the behavior does not change: the W3C code of R16 operates.
+  - The new option `apiSpans: false` of `tracingInterceptor` turns the spans of the API off. `metricsInterceptor` uses it.
+  - `tracestate` and `baggage` are in the default CORS headers, and the cache key does not use them.
+  - The W3C exports of `tracing/traceparent.ts` are `@deprecated`. A later MINOR removes them, when the site and each private application register an SDK.
+
+## 0.52.4
+
+No changes in this release.
+
+## 0.52.3
+
+### Patch Changes
+
+- db1bcaa: Fixes of the weekly audit of 2026-11-08:
+  
+  - `@procedures/client`: the batch reader of the HTTP client goes on after the abort of a call with a full buffer. Before, the reader waited with no end, and the other calls of the batch waited too.
+  - `@procedures/client`: a subscriber that joins after a publish gets the new value of an object that changed and is published again. Before, it could get the text of the first publish.
+  - `@procedures/client`: a lazy registry loads no package for a request that the server refuses, or for a path outside the expose rule of the face. A lazy registry warns about at most 1000 paths that are not in its index.
+  - `@procedures/client`: an `exclude` entry with a plain dot hides a path whose segment has a dot, as the encoded key does.
+  - `@procedures/mongo`: a full answer keeps each item when the stored ids are not strings. A change stream that stops in a split event opens again before the event, and joins all its fragments.
+  - `@procedures/restic`: an `sftp:` location with a part after an `@` that starts with `-` gets a refusal.
+  - `@procedures/cli-run`: the doc of `cli.run` tells that a value that starts with `@` goes to `mark` as it is.
+
 ## 0.52.2
 
 No changes in this release.

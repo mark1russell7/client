@@ -92,6 +92,16 @@ describe("the fingerprint", () => {
     expect(computeFingerprint(root, markDir)).not.toBe(before);
   });
 
+  it("of an installed copy differs from the build, so the package leaves out the manifest", () => {
+    // An installed copy has no workspace and no `dist/.tsbuildinfo` of mark: the files list leaves it out
+    const install = mkdtempSync(join(tmpdir(), "mark-install-"));
+    dirs.push(install);
+    expect(computeFingerprint(null, install)).not.toBe(computeFingerprint());
+    const pkg = JSON.parse(readFileSync(join(markDir, "package.json"), "utf8")) as { files: string[] };
+    expect(pkg.files).toContain("!dist/.tsbuildinfo");
+    expect(pkg.files, "a shipped manifest differs after each build, and an install never reads it").toContain("!dist/manifest.json");
+  });
+
   it("makes a manifest with another fingerprint stale", () => {
     const root = mkdtempSync(join(tmpdir(), "mark-manifest-"));
     dirs.push(root);

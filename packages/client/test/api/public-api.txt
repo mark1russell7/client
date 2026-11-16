@@ -208,6 +208,7 @@ type MachineDuration: dist/machines.d.ts#MachineDuration
 type MachineTimer: dist/machines.d.ts#MachineTimer
 type MachineTransition: dist/machines.d.ts#MachineTransition
 type MachineTransitionDef: dist/machines.d.ts#MachineTransitionDef
+type MainPortLike: dist/adapters/port/transport.d.ts#MainPortLike
 type Message: dist/client/types.d.ts#Message
 type Metadata: dist/client/types.d.ts#Metadata
 type Method: dist/client/types.d.ts#Method
@@ -238,6 +239,7 @@ PURE_EFFECTS: dist/procedures/effects.d.ts#PURE_EFFECTS
 type PackageDefinition: dist/procedures/module.d.ts#PackageDefinition
 type PartitionInput: dist/procedures/collection/partition.d.ts#PartitionInput
 type PartitionResolver: dist/procedures/collection/partition.d.ts#PartitionResolver
+type PartitionsHandle: dist/server/procedure-server.d.ts#PartitionsHandle
 type PermittedEffects: dist/procedures/types.d.ts#PermittedEffects
 type PortLike: dist/adapters/port/transport.d.ts#PortLike
 PortTransport: dist/adapters/port/transport.d.ts#PortTransport
@@ -481,6 +483,7 @@ documentAt: dist/procedures/program.d.ts#documentAt
 effectsIn: dist/procedures/idempotency.d.ts#effectsIn
 effectsOf: dist/procedures/capability.d.ts#effectsOf
 effectsValue: dist/procedures/effects.d.ts#effectsValue
+electronPortOf: dist/adapters/port/transport.d.ts#electronPortOf
 elicitConfirmation: dist/procedures/elicit.d.ts#elicitConfirmation
 elicitInput: dist/procedures/elicit.d.ts#elicitInput
 elicitWithPolicy: dist/procedures/elicit.d.ts#elicitWithPolicy
@@ -881,6 +884,7 @@ type MachineDuration: dist/machines.d.ts#MachineDuration
 type MachineTimer: dist/machines.d.ts#MachineTimer
 type MachineTransition: dist/machines.d.ts#MachineTransition
 type MachineTransitionDef: dist/machines.d.ts#MachineTransitionDef
+type MainPortLike: dist/adapters/port/transport.d.ts#MainPortLike
 type Message: dist/client/types.d.ts#Message
 type Metadata: dist/client/types.d.ts#Metadata
 type Method: dist/client/types.d.ts#Method
@@ -911,6 +915,7 @@ PURE_EFFECTS: dist/procedures/effects.d.ts#PURE_EFFECTS
 type PackageDefinition: dist/procedures/module.d.ts#PackageDefinition
 type PartitionInput: dist/procedures/collection/partition.d.ts#PartitionInput
 type PartitionResolver: dist/procedures/collection/partition.d.ts#PartitionResolver
+type PartitionsHandle: dist/server/procedure-server.d.ts#PartitionsHandle
 type PermittedEffects: dist/procedures/types.d.ts#PermittedEffects
 type PortLike: dist/adapters/port/transport.d.ts#PortLike
 PortTransport: dist/adapters/port/transport.d.ts#PortTransport
@@ -1151,6 +1156,7 @@ documentAt: dist/procedures/program.d.ts#documentAt
 effectsIn: dist/procedures/idempotency.d.ts#effectsIn
 effectsOf: dist/procedures/capability.d.ts#effectsOf
 effectsValue: dist/procedures/effects.d.ts#effectsValue
+electronPortOf: dist/adapters/port/transport.d.ts#electronPortOf
 elicitConfirmation: dist/procedures/elicit.d.ts#elicitConfirmation
 elicitInput: dist/procedures/elicit.d.ts#elicitInput
 elicitWithPolicy: dist/procedures/elicit.d.ts#elicitWithPolicy
@@ -2003,6 +2009,7 @@ type ErrorCall: dist/server/error-policy.d.ts#ErrorCall
 type ExposedError: dist/server/error-policy.d.ts#ExposedError
 HIDDEN_ERROR_MESSAGE: dist/server/error-policy.d.ts#HIDDEN_ERROR_MESSAGE
 HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
+type PartitionsHandle: dist/server/procedure-server.d.ts#PartitionsHandle
 type Principal: dist/server/types.d.ts#Principal
 type PrincipalOf: dist/server/types.d.ts#PrincipalOf
 ProcedureServer: dist/server/procedure-server.d.ts#ProcedureServer
@@ -2254,6 +2261,7 @@ export interface WriteNdjsonStreamOptions {
     readonly keepAlive?: Duration | false | undefined;
     readonly errorOf?: ((error: unknown, items: number) => NdjsonError) | undefined;
     readonly clock?: Clock | undefined;
+    readonly retryableOnStop?: boolean | undefined;
 }
 
 ### dist/adapters/http/server/ndjson.d.ts#writeNdjsonStream
@@ -2413,6 +2421,14 @@ export interface MockTransportOptions {
 ### dist/adapters/mock/client/types.d.ts#ResponseMatcher
 export type ResponseMatcher = (method: any, payload: unknown) => boolean;
 
+### dist/adapters/port/transport.d.ts#MainPortLike
+export interface MainPortLike {
+    postMessage(message: unknown): void;
+    on(type: "message", listener: MainListener): unknown;
+    off?(type: "message", listener: MainListener): unknown;
+    start(): void;
+}
+
 ### dist/adapters/port/transport.d.ts#PortLike
 export interface PortLike {
     postMessage(message: unknown): void;
@@ -2437,6 +2453,9 @@ export interface PortTransportOptions {
     credentials?: Credentials | undefined;
     streamWindow?: number | undefined;
 }
+
+### dist/adapters/port/transport.d.ts#electronPortOf
+export declare function electronPortOf(port: MainPortLike): PortLike;
 
 ### dist/adapters/sequence.d.ts#STREAM_GAP_METADATA_KEY
 export declare const STREAM_GAP_METADATA_KEY = "stream-gap";
@@ -2609,6 +2628,7 @@ export interface WebSocketServerTransportOptions extends Omit<BrowserGuardOption
     maxPayload?: number;
     clientTracking?: boolean;
     highWaterMark?: number;
+    maxBufferedBytes?: number;
     heartbeat?: {
         interval?: Duration;
         misses?: number;
@@ -4190,7 +4210,7 @@ export declare function effectsOf(procedure: {
 }): Effects | undefined;
 
 ### dist/procedures/capability.d.ts#examinesNestedCall
-export declare function examinesNestedCall(caller: AnyProcedure, callerCapability: Capability<unknown>, capability: Capability<unknown>): boolean;
+export declare function examinesNestedCall(caller: AnyProcedure, callerCapability: Capability<unknown>, capability: Capability<unknown>, callee?: AnyProcedure): boolean;
 
 ### dist/procedures/capability.d.ts#explainInvocation
 export declare function explainInvocation(path: ProcedurePath, capability: Capability<unknown> | undefined, registry: {
@@ -4294,6 +4314,7 @@ export declare function withHintImages<T extends object>(event: T, images: HintI
 export interface CollectionPartitions<T = unknown> {
     storageOf(partition: string): CollectionStorage<T>;
     resolve: PartitionResolver;
+    close?(): Promise<void> | void;
 }
 
 ### dist/procedures/collection/partition.d.ts#CollectionTopicCollisionError
@@ -5139,6 +5160,7 @@ export interface TracingInterceptorOptions {
     onSpan: (span: InvocationSpan) => void;
     onStart?: ((span: InvocationSpan) => void) | undefined;
     now?: (() => number) | undefined;
+    apiSpans?: boolean | undefined;
 }
 
 ### dist/procedures/interceptors.d.ts#metricsInterceptor
@@ -5156,7 +5178,7 @@ export declare function tracingInterceptor(options: TracingInterceptorOptions): 
 export type AdmitItem = (item: unknown, invocation: Invocation) => boolean | Promise<boolean>;
 
 ### dist/procedures/invoke.d.ts#ForbiddenReason
-export type ForbiddenReason = CapabilityRefusalReason | "outside-root" | "host-not-allowed" | "topic-not-allowed" | "partition-not-allowed" | "write-not-allowed";
+export type ForbiddenReason = CapabilityRefusalReason | "outside-root" | "host-not-allowed" | "topic-not-allowed" | "partition-not-allowed" | "write-not-allowed" | "depth";
 
 ### dist/procedures/invoke.d.ts#Interceptor
 export type Interceptor = (invocation: Invocation, next: InvocationNext) => Promise<ProcedureOutput<unknown>>;
@@ -5215,12 +5237,14 @@ export interface InvokeOptions {
     strictCalls?: boolean | undefined;
     interceptors?: readonly Interceptor[] | undefined;
     parent?: Invocation | undefined;
+    maxDepth?: number | undefined;
     capability?: Capability | undefined;
     narrow?: CapabilityRequest | undefined;
     onNarrowingNotes?: ((notes: readonly NarrowingNote[]) => void) | undefined;
     clearanceOrder?: ClearanceOrder | undefined;
     resources?: ((invocation: Invocation) => ResourcesOf) | undefined;
     admitItem?: AdmitItem | undefined;
+    admitNested?: ((invocation: Invocation) => Promise<void> | void) | undefined;
     principal?: Principal | undefined;
 }
 
@@ -5814,6 +5838,7 @@ export declare class ProcedureRegistry {
 ### dist/procedures/registry.d.ts#ProcedureRegistryOptions
 export interface ProcedureRegistryOptions {
     resolver?: RegistryResolver | undefined;
+    logger?: Logger | undefined;
 }
 
 ### dist/procedures/registry.d.ts#RegistryError
@@ -6310,9 +6335,11 @@ export declare function faceRules(options: FaceRulesOptions, policy: Pick<HostPo
 export interface HostPolicy {
     readonly expose: ((path: ProcedurePath) => boolean) | undefined;
     readonly strictCalls: boolean;
+    readonly maxDepth?: number | undefined;
     readonly interceptors: readonly Interceptor[];
     readonly token: string | undefined;
     readonly principalOf?: PrincipalOf | undefined;
+    readonly trustBaggage?: ((request: ServerRequest<unknown>) => boolean) | undefined;
     readonly browser: BrowserGuardOptions;
     readonly capabilityOf: ((request?: ServerRequest<unknown>) => Capability | undefined) | undefined;
     readonly clearanceOrder: ClearanceOrder | undefined;
@@ -6328,10 +6355,12 @@ export interface HostPolicyOptions {
     expose?: readonly string[] | ToolSurface | ((path: ProcedurePath) => boolean) | undefined;
     exclude?: readonly string[] | undefined;
     strictCalls?: boolean | undefined;
+    maxDepth?: number | undefined;
     timeout?: Duration | undefined;
     interceptors?: readonly Interceptor[] | undefined;
     token?: string | undefined;
     principalOf?: PrincipalOf | undefined;
+    trustBaggage?: ((request: ServerRequest<unknown>) => boolean) | undefined;
     browser?: BrowserGuardOptions | undefined;
     capability?: Capability | ((request: ServerRequest<unknown>) => Capability | undefined) | undefined;
     readOnly?: boolean | undefined;
@@ -6388,6 +6417,8 @@ export interface CallLimit {
     readonly policy: LimitPolicy;
     readonly store: LimiterStoreSpec;
     readonly evict: LimiterEviction;
+    readonly cost?: number | ((call: LimitedCall) => number) | undefined;
+    readonly nested?: boolean | undefined;
 }
 
 ### dist/server/limits.d.ts#CallLimitCovers
@@ -6412,6 +6443,8 @@ export interface LimitedCall {
     readonly writes: boolean;
     readonly principal: Principal | undefined;
     readonly request: ServerRequest<unknown>;
+    readonly depth: number;
+    readonly input: unknown;
 }
 
 ### dist/server/method.d.ts#methodName
@@ -6422,6 +6455,15 @@ export declare function methodToPath(method: Pick<Method, "service" | "operation
 
 ### dist/server/method.d.ts#pathToMethod
 export declare function pathToMethod(path: readonly string[]): Method;
+
+### dist/server/procedure-server.d.ts#PartitionsHandle
+export interface PartitionsHandle {
+    readonly name: string;
+    readonly collections: readonly string[];
+    readonly partitions: CollectionPartitions<unknown>;
+    connect(signal: AbortSignal): Promise<void> | void;
+    close(): Promise<void>;
+}
 
 ### dist/server/procedure-server.d.ts#ProcedureServer
 export declare class ProcedureServer extends Server implements RepositoryProvider, StopParts {
@@ -6455,10 +6497,12 @@ export declare class ProcedureServer extends Server implements RepositoryProvide
     getRegistry(): ProcedureRegistry;
     hasProcedure(path: ProcedurePath): boolean;
     procedureOf(method: Method): AnyProcedure | undefined;
+    isRepeatableCall(method: Method): boolean;
     limiters(): readonly KeyedLimiter[];
     publish<T>(topic: string, data: T): void;
     closeStorages(): Promise<void>;
     storageHandles(): StorageHandle[];
+    partitionHandles(): PartitionsHandle[];
     start(): Promise<void>;
     stopIntake(): void;
     drain(deadline: number, signal: AbortSignal): Promise<void>;
@@ -6475,6 +6519,7 @@ export interface ProcedureServerOptions extends ServerOptions {
     clock?: Clock | undefined;
     expose?: ((path: ProcedurePath) => boolean) | undefined;
     strictCalls?: boolean | undefined;
+    maxDepth?: number | undefined;
     interceptors?: readonly Interceptor[] | undefined;
     capability?: Capability | ((request: ServerRequest<unknown>) => Capability | undefined) | undefined;
     clearanceOrder?: ClearanceOrder | undefined;
@@ -6482,6 +6527,7 @@ export interface ProcedureServerOptions extends ServerOptions {
     admitItem?: AdmitItem | undefined;
     idempotency?: IdempotencyOptions | false | undefined;
     token?: string | undefined;
+    trustBaggage?: ((request: ServerRequest<unknown>) => boolean) | undefined;
     authenticate?: ((request: ServerRequest<unknown>) => Principal | undefined | Promise<Principal | undefined>) | undefined;
     principalOf?: PrincipalOf | undefined;
     ambientCredentials?: AmbientCredentials | false | undefined;
@@ -6666,6 +6712,7 @@ export interface RequestHandler {
     readonly ambientCredentials?: AmbientCredentials | undefined;
     identify?(credentials: Credentials): Promise<Principal | undefined>;
     admission?(credentials: Credentials): Promise<Admission>;
+    isRepeatableCall?(method: Method): boolean;
     readonly logger?: Logger | undefined;
 }
 
@@ -6869,6 +6916,7 @@ export interface ContractSpec {
     readonly errors?: ServerErrorPolicy | undefined;
     readonly onError?: ((error: Error) => void) | undefined;
     readonly sizeLimit?: number | undefined;
+    readonly limits?: readonly CallLimit[] | undefined;
 }
 
 ### dist/testing/transport-contract.d.ts#clientCaller

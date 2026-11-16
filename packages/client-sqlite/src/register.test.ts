@@ -80,4 +80,21 @@ describe("logs.store and logs.query", () => {
     await expect(call("logs", "store", { dbPath, level: "loud", message: "x" })).rejects.toThrow(/Invalid log level/);
     await expect(call("logs", "query", { dbPath, limit: "1; DROP TABLE logs" })).rejects.toThrow(/Invalid limit/);
   });
+
+  it("gives pages with limit and offset, and an offset with no limit", async () => {
+    const dbPath = tempDb();
+    for (const message of ["a", "b", "c"]) await call("logs", "store", { dbPath, level: "info", message, command: "build" });
+    await call("logs", "store", { dbPath, level: "info", message: "other", command: "test" });
+    // The entries can have one timestamp, so the test counts the entries of each page and does not read their order
+    const page = async (input: { limit?: number; offset?: number }): Promise<string[]> =>
+      (await call<LogsQueryOutput>("logs", "query", { dbPath, command: "build", ...input })).logs.map((entry) => entry.message);
+
+    expect(await page({ limit: 2 })).toHaveLength(2);
+    expect(await page({ limit: 1, offset: 2 })).toHaveLength(1);
+    // SQLite refuses OFFSET with no LIMIT: the procedure adds LIMIT -1
+    const rest = await page({ offset: 1 });
+    expect(rest).toHaveLength(2);
+    expect(rest.every((message) => ["a", "b", "c"].includes(message))).toBe(true);
+    expect(await page({ offset: 3 })).toEqual([]);
+  });
 });

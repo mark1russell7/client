@@ -240,6 +240,7 @@ vi.mock("./s3-client.js", () => ({
 }));
 
 const { s3Module } = await import("./module.js");
+const { s3Read } = await import("./procedures/s3/read.js");
 const registry = createRegistry(s3Module);
 
 async function call<T>(path: ProcedurePath, input: unknown): Promise<T> {
@@ -326,6 +327,36 @@ describe("s3.download", () => {
   it("refuses a maxBytes that is not a positive integer", async () => {
     await expect(call(["s3", "download"], { bucket: "b", key: "k", maxBytes: 0 })).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
     await expect(call(["s3", "download"], { bucket: "b", key: "k", maxBytes: 1.5 })).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+  });
+});
+
+describe("s3.read", () => {
+  it("gives an object as base64, or as text with an encoding", async () => {
+    await seed("a.txt");
+    const binary = await call<{ body: string; contentLength: number; etag: string }>(["s3", "read"], { bucket: "b", key: "a.txt" });
+    expect(Buffer.from(binary.body, "base64").toString()).toBe("content of a.txt");
+    expect(binary.contentLength).toBe(16);
+    expect(binary.etag).toBe(md5(Buffer.from("content of a.txt")));
+    const text = await call<{ body: string }>(["s3", "read"], { bucket: "b", key: "a.txt", encoding: "utf8" });
+    expect(text.body).toBe("content of a.txt");
+  });
+
+  it("writes no file, also for a direct call with a destPath", async () => {
+    await seed("a.txt");
+    const destPath = join(dir, "a.txt");
+    const result = await s3Read({ bucket: "b", key: "a.txt", encoding: "utf8", destPath } as Parameters<typeof s3Read>[0]);
+    expect(result.body).toBe("content of a.txt");
+    expect(result).not.toHaveProperty("path");
+    expect(existsSync(destPath)).toBe(false);
+  });
+
+  it("refuses an object larger than maxBytes", async () => {
+    await seed("a.txt");
+    await expect(call(["s3", "read"], { bucket: "b", key: "a.txt", maxBytes: 4 })).rejects.toThrow(/more than maxBytes \(4\)/);
+  });
+
+  it("fails with NoSuchKey for a missing key", async () => {
+    await expect(call(["s3", "read"], { bucket: "b", key: "missing" })).rejects.toBeInstanceOf(NoSuchKey);
   });
 });
 
@@ -537,6 +568,7 @@ const DECLARED: Record<string, Effects> = {
   "s3.head": { reads: ["s3", "network"], writes: [] },
   "s3.copy": { reads: ["s3", "network"], writes: ["s3", "network"], destructive: true, idempotent: true },
   "s3.presign": { reads: ["fs", "network"], writes: [] },
+  "s3.read": { reads: ["s3", "network"], writes: [] },
 };
 
 /**
@@ -553,6 +585,8 @@ function effectsInput(key: string): Record<string, unknown> {
       return { bucket: "b", key: "new.txt", body: "new" };
     case "s3.download":
       return { bucket: "b", key: "a.txt", destPath: join(dir, "a.txt") };
+    case "s3.read":
+      return { bucket: "b", key: "a.txt" };
     case "s3.delete":
       return { bucket: "b", key: "a.txt" };
     case "s3.multipart.init":

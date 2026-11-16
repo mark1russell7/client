@@ -8,6 +8,7 @@
  * - `expose`: the procedures that callers reach. Patterns: an exact key (`git.status`), a prefix
  *   (`git.*`) or `*`. A tool surface: namespaces and the keys to leave out. Without it: every
  *   procedure.
+ * - `exclude`: the procedures that callers do not reach, with the patterns of `expose`.
  * - `strictCalls`: a procedure of code that declares no `metadata.calls` calls only exposed
  *   procedures (a host for an outside caller sets it).
  * - `timeout`: the time limit of each call from a caller (not of its nested calls).
@@ -38,11 +39,12 @@ import type { CallLimit } from "./limits.js";
 /** The procedures of a host that are tools: namespaces (first path segments), less some keys. */
 export interface ToolSurface {
   namespaces: readonly string[];
+  /** The procedures to leave out, with the patterns of `exposePatterns()`: an exact key, a prefix (`docker.*`) or `*`. */
   exclude?: readonly string[] | undefined;
 }
 
-/** The rule of a list of patterns: an exact key (`git.status`), a prefix (`git.*`) or `*`. */
-export function exposePatterns(patterns: readonly string[]): (path: ProcedurePath) => boolean {
+/** The test of a list of patterns on one key: an exact key, a prefix (`git.*`) or `*`. */
+function keyPatterns(patterns: readonly string[]): (key: string) => boolean {
   const exact = new Set<string>();
   const prefixes: string[] = [];
   let all = false;
@@ -51,29 +53,48 @@ export function exposePatterns(patterns: readonly string[]): (path: ProcedurePat
     else if (pattern.endsWith(".*")) prefixes.push(pattern.slice(0, -1));
     else exact.add(pattern);
   }
-  return (path) => {
-    if (all) return true;
-    // The key encodes a dot in a segment (roadmap CLI-75), as the method name does
-    const key = pathToKey(path);
-    return exact.has(key) || prefixes.some((prefix) => key.startsWith(prefix));
-  };
+  return (key) => all || exact.has(key) || prefixes.some((prefix) => key.startsWith(prefix));
 }
 
-/** The rule of a tool surface: the namespaces, less the excluded keys. */
+/** The rule of a list of patterns: an exact key (`git.status`), a prefix (`git.*`) or `*`. */
+export function exposePatterns(patterns: readonly string[]): (path: ProcedurePath) => boolean {
+  const matches = keyPatterns(patterns);
+  // The key encodes a dot in a segment (roadmap CLI-75), as the method name does
+  return (path) => matches(pathToKey(path));
+}
+
+/**
+ * The rule of an exclude list, with the patterns of `exposePatterns()`. Each pattern gets the key of
+ * the path (`collections.e2e%2Etabs.delete`) and its segments joined with plain dots
+ * (`collections.e2e.tabs.delete`), the form before CLI-75. So an exclusion of the old form still
+ * hides its procedure (audit 2026-11-08). The plain form can hide one more path, but not one less.
+ */
+function excludePatterns(patterns: readonly string[]): (path: ProcedurePath) => boolean {
+  const matches = keyPatterns(patterns);
+  // path-check: the raw form of an exclude entry before CLI-75, compared as text, not decoded.
+  return (path) => matches(pathToKey(path)) || matches(path.join("."));
+}
+
+/** The rule of a tool surface: the namespaces, less the procedures of its exclude patterns. */
 export function surfaceRule(surface: ToolSurface): (path: ProcedurePath) => boolean {
   const namespaces = new Set(surface.namespaces);
-  const excluded = new Set(surface.exclude ?? []);
-  return (path) => namespaces.has(path[0] ?? "") && !excluded.has(pathToKey(path));
+  const excluded = excludePatterns(surface.exclude ?? []);
+  return (path) => namespaces.has(path[0] ?? "") && !excluded(path);
 }
 
 /** The options of `hostPolicy()`. */
 export interface HostPolicyOptions {
   /** The procedures that callers reach. Without it: every procedure of the registry. */
   expose?: readonly string[] | ToolSurface | ((path: ProcedurePath) => boolean) | undefined;
-  /** Keys that callers do not reach, also when `expose` matches them. */
+  /**
+   * The procedures that callers do not reach, also when `expose` matches them. The patterns are
+   * the patterns of `expose`: an exact key, a prefix (`shell.*`) or `*`.
+   */
   exclude?: readonly string[] | undefined;
   /** A procedure of code with no `metadata.calls` calls only exposed procedures. */
   strictCalls?: boolean | undefined;
+  /** The highest depth of a nested call. A call at a larger depth gets `FORBIDDEN` with the reason `depth`. */
+  maxDepth?: number | undefined;
   /** The time limit of each call from a caller, for example `minutes(10)`. 0 or no value: no limit. */
   timeout?: Duration | undefined;
   /** More interceptors, after the policy's own (tracing, metrics). */
@@ -85,6 +106,12 @@ export interface HostPolicyOptions {
    * query) and gives a bearer token, a principal and a narrowing (`ProcedureServerOptions`).
    */
   principalOf?: PrincipalOf | undefined;
+  /**
+   * The callers whose `baggage` the handler gets (C10), more than a local request and a request
+   * with the token. The function runs after the checks of the request, so it can read
+   * `request.principal`. Without it, no other caller sets the baggage of the services.
+   */
+  trustBaggage?: ((request: ServerRequest<unknown>) => boolean) | undefined;
   /** The browser checks of the network transports (`allowedOrigins`, `allowedHosts`, `allowGet`). */
   browser?: BrowserGuardOptions | undefined;
   /**
@@ -122,10 +149,14 @@ export interface HostPolicyOptions {
 export interface HostPolicy {
   readonly expose: ((path: ProcedurePath) => boolean) | undefined;
   readonly strictCalls: boolean;
+  /** The highest depth of a nested call, or undefined for no limit. */
+  readonly maxDepth?: number | undefined;
   readonly interceptors: readonly Interceptor[];
   readonly token: string | undefined;
   /** The request hook of the network requests, or undefined for none. */
   readonly principalOf?: PrincipalOf | undefined;
+  /** The callers whose baggage the handler gets (C10), or undefined for none more. */
+  readonly trustBaggage?: ((request: ServerRequest<unknown>) => boolean) | undefined;
   readonly browser: BrowserGuardOptions;
   /** The capability of a call from a caller, or undefined for no limits. */
   readonly capabilityOf: ((request?: ServerRequest<unknown>) => Capability | undefined) | undefined;
@@ -161,9 +192,10 @@ function exposeOf(options: HostPolicyOptions): ((path: ProcedurePath) => boolean
         : Array.isArray(expose)
           ? exposePatterns(expose as readonly string[])
           : surfaceRule(expose as ToolSurface);
-  const excluded = new Set(options.exclude ?? []);
-  if (excluded.size === 0) return rule;
-  return (path) => !excluded.has(pathToKey(path)) && (rule ? rule(path) : true);
+  const exclude = options.exclude ?? [];
+  if (exclude.length === 0) return rule;
+  const excluded = excludePatterns(exclude);
+  return (path) => !excluded(path) && (rule ? rule(path) : true);
 }
 
 /** This function builds the policy of a host from its options. */
@@ -176,9 +208,11 @@ export function hostPolicy(options: HostPolicyOptions = {}): HostPolicy {
   return {
     expose: exposeOf(options),
     strictCalls: options.strictCalls ?? false,
+    ...(options.maxDepth !== undefined ? { maxDepth: options.maxDepth } : {}),
     interceptors,
     token: options.token,
     ...(options.principalOf ? { principalOf: options.principalOf } : {}),
+    ...(options.trustBaggage ? { trustBaggage: options.trustBaggage } : {}),
     browser: options.browser ?? {},
     capabilityOf: capabilityOfOptions(options),
     clearanceOrder: options.clearanceOrder,
@@ -197,10 +231,13 @@ export function procedureServerOptions(policy: HostPolicy, registry?: ProcedureR
     ...(registry ? { registry } : {}),
     ...(policy.expose ? { expose: policy.expose } : {}),
     strictCalls: policy.strictCalls,
+    ...(policy.maxDepth !== undefined ? { maxDepth: policy.maxDepth } : {}),
     // The token of the policy: ProcedureServer examines it for each network request (R18)
     ...(policy.token !== undefined ? { token: policy.token } : {}),
     // The request hook of the policy: the credentials of a cookie, a header or the query (CLI-2a)
     ...(policy.principalOf ? { principalOf: policy.principalOf } : {}),
+    // The callers whose baggage the handler gets (C10)
+    ...(policy.trustBaggage ? { trustBaggage: policy.trustBaggage } : {}),
     ...(policy.interceptors.length > 0 ? { interceptors: policy.interceptors } : {}),
     ...(policy.capabilityOf ? { capability: policy.capabilityOf } : {}),
     ...(policy.clearanceOrder ? { clearanceOrder: policy.clearanceOrder } : {}),

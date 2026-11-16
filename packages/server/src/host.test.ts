@@ -22,6 +22,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fakeClock, fakeProcess, scriptedCheck, seeded } from "@mark1russell7/service/testing";
 import { httpTransport } from "@mark1russell7/service/http";
+import { daemon } from "@mark1russell7/service";
 import type { DependencyHandle, Lifecycle, LifecycleEvent, ServiceBuilder, TransportImpl } from "@mark1russell7/service";
 import { createRegistry, hostPolicy, seconds } from "@procedures/client";
 import type { ProcedureHost } from "@procedures/peer";
@@ -115,6 +116,63 @@ describe("runProcedureHost (CLI-8)", () => {
     lives.splice(0);
     expect(lockfiles.readLockfileForPort(40001)).toBeNull();
     expect(process.exits).toEqual([0]);
+  }, 20000);
+
+  it("with the port 0, writes the lockfile with the port that the listener got, and removes it at the shutdown", async () => {
+    const process = fakeProcess();
+    const lockfile = {
+      pid: 2,
+      port: 0,
+      transport: "http",
+      endpoint: "http://127.0.0.1:0/api",
+      startedAt: new Date().toISOString(),
+      token: "host-token",
+      cwd: "/work",
+      build: "build-1",
+      peerId: "peer-port-zero",
+    };
+    const running = await host.runProcedureHost({ name: "port-zero", mode: "background", host: hostOptions("peer-port-zero"), lockfile, run: { process } });
+    lives.push(running.life);
+    expect(running.life.state).toBe("running");
+    // The lockfile names the port of the listener, and host.info answers at its endpoint
+    const [written] = lockfiles.readAllLockfiles().filter((each) => each.peerId === "peer-port-zero");
+    const [endpoint] = running.host.info.endpoints();
+    expect(written?.port).toBe(Number(new URL(endpoint!.address).port));
+    expect(written?.endpoint).toBe(`http://127.0.0.1:${written!.port}/api`);
+    expect(await lockfiles.checkServer(written!)).toBe("alive");
+    expect(lockfiles.readLockfileForPort(0)).toBeNull();
+
+    await running.life.shutdown("the test stops the host");
+    expect(await running.life.done).toBe(0);
+    lives.splice(0);
+    expect(lockfiles.readLockfileForPort(written!.port)).toBeNull();
+  }, 20000);
+
+  it("with the port 0, stops with the code 1 when no listener has the scheme and the path of the lockfile", async () => {
+    const process = fakeProcess();
+    const lines: string[] = [];
+    const lockfile = {
+      pid: 3,
+      port: 0,
+      transport: "websocket",
+      endpoint: "ws://127.0.0.1:0/ws",
+      startedAt: new Date().toISOString(),
+      token: "host-token",
+      cwd: "/work",
+      build: "build-1",
+      peerId: "peer-no-match",
+    };
+    const running = await host.runProcedureHost({
+      name: "no-match",
+      mode: "background",
+      host: hostOptions("peer-no-match"),
+      lockfile,
+      log: (line) => lines.push(line),
+      run: { process },
+    });
+    expect(await running.life.done).toBe(1);
+    expect(lines).toContain("No listener of the host has the address of the lockfile (ws://127.0.0.1:0/ws).");
+    expect(lockfiles.readAllLockfiles().filter((each) => each.peerId === "peer-no-match")).toEqual([]);
   }, 20000);
 
   it("declares the profile of each mode: an exit at a second signal in the foreground, no effect in the background", async () => {
@@ -402,4 +460,115 @@ describe("runServer (CLI-8)", () => {
       console.log = log;
     }
   }, 30000);
+});
+
+describe("runProcedureHost: the telemetry SDK of the app (CLI-130)", () => {
+  /** A fake SDK: it records its start and its stop, with the stage of the lifecycle at each one. */
+  function fakeTelemetry(stage: () => string, shutdown: () => Promise<void> = async () => {}) {
+    const steps: string[] = [];
+    const options: unknown[] = [];
+    const start = (given: { readonly stopOnSignals: false }) => {
+      options.push(given);
+      steps.push(`start in ${stage()}`);
+      return {
+        shutdown: async () => {
+          steps.push(`shutdown in ${stage()}`);
+          await shutdown();
+        },
+      };
+    };
+    return { start, steps, options };
+  }
+
+  it("starts the SDK before each dependency and listener, and stops it in the last phase, after the lockfile", async () => {
+    const port = 40003;
+    let stage = "startup";
+    const started: string[] = [];
+    const record = (event: LifecycleEvent): void => {
+      if (event.machine === "drain") stage = event.to;
+      if (event.on === "component.started" && event.detail !== undefined) started.push(event.detail);
+    };
+    const lockfile = { pid: 1, port, transport: "http", endpoint: `http://127.0.0.1:${port}/api`, startedAt: new Date().toISOString(), token: "t", cwd: "/work", build: "build-1", peerId: "peer-otel" };
+    const telemetry = fakeTelemetry(() => `${stage}, ${started.length} parts, ${lockfiles.readLockfileForPort(port) === null ? "no lockfile" : "lockfile"}`);
+    const process = fakeProcess();
+    const running = await host.runProcedureHost({ name: "otel", mode: "background", host: hostOptions("peer-otel"), lockfile, telemetry: telemetry.start, run: { process, record } });
+    lives.push(running.life);
+    expect(running.life.state).toBe("running");
+    // The host gives the option that leaves the signals to the runner
+    expect(telemetry.options).toEqual([{ stopOnSignals: false }]);
+    expect(telemetry.steps).toEqual(["start in startup, 0 parts, no lockfile"]);
+
+    process.signal("SIGTERM");
+    expect(await running.life.done).toBe(0);
+    lives.splice(0);
+    // One stop, in the last phase: the lockfile is gone, thus each other part stopped before it
+    expect(telemetry.steps.slice(1)).toEqual([`shutdown in ${host.TELEMETRY_FLUSH_PHASE}, ${started.length} parts, no lockfile`]);
+    expect(process.exits).toEqual([0]);
+  }, 20000);
+
+  it("stops the SDK one time in the last phase at a stop request", async () => {
+    let stage = "startup";
+    const record = (event: LifecycleEvent): void => {
+      if (event.machine === "drain") stage = event.to;
+    };
+    const telemetry = fakeTelemetry(() => stage);
+    const running = await host.runProcedureHost({ name: "otel-request", mode: "background", host: hostOptions("peer-otel-request"), telemetry: telemetry.start, run: { process: fakeProcess(), record } });
+    await running.life.shutdown("the test stops the host");
+    expect(telemetry.steps).toEqual(["start in startup", `shutdown in ${host.TELEMETRY_FLUSH_PHASE}`]);
+  }, 20000);
+
+  it("fails the run before a listener opens when the SDK does not start", async () => {
+    const port = 40004;
+    const lockfile = { pid: 1, port, transport: "http", endpoint: `http://127.0.0.1:${port}/api`, startedAt: new Date().toISOString(), token: "t", cwd: "/work", build: "build-1", peerId: "peer-otel-fail" };
+    const start = (): never => {
+      throw new Error("the exporter has no endpoint");
+    };
+    await expect(
+      host.runProcedureHost({ name: "otel-fail", mode: "background", host: hostOptions("peer-otel-fail"), lockfile, telemetry: start, run: { process: fakeProcess() } }),
+    ).rejects.toThrow(/no endpoint/);
+    expect(lockfiles.readLockfileForPort(port)).toBeNull();
+  }, 20000);
+
+  it("refuses a profile with no phase to flush the telemetry, and starts no SDK", async () => {
+    const telemetry = fakeTelemetry(() => "startup");
+    const profile = { ...daemon, phases: (daemon.phases ?? []).filter((phase) => phase.name !== host.TELEMETRY_FLUSH_PHASE) };
+    await expect(
+      host.runProcedureHost({ name: "no-flush", mode: "background", host: hostOptions("peer-no-flush"), profile, telemetry: telemetry.start, run: { process: fakeProcess() } }),
+    ).rejects.toThrow(/flush the output/);
+    expect(telemetry.steps).toEqual([]);
+  }, 20000);
+
+  it("ends the stop at the cap of the phase when the flush does not end", async () => {
+    const telemetry = fakeTelemetry(() => "any", () => new Promise<void>(() => {}));
+    const process = fakeProcess();
+    const running = await host.runProcedureHost({ name: "slow-flush", mode: "background", host: hostOptions("peer-slow-flush"), telemetry: telemetry.start, run: { process } });
+    lives.push(running.life);
+    process.signal("SIGTERM");
+    // The phase has a cap of 1 s: the lifecycle ends, and the exit code tells the stop that did not end
+    const code = await running.life.done;
+    lives.splice(0);
+    expect(telemetry.steps).toEqual(["start in any", "shutdown in any"]);
+    expect(process.exits).toEqual([code]);
+  }, 20000);
+
+  it("stops the SDK when run() throws, and throws the error again", async () => {
+    const telemetry = fakeTelemetry(() => "startup");
+    // The controller requires a dependency that the service does not declare: run() refuses the service
+    const options = { ...hostOptions("peer-refused"), controller: { requires: ["missing"] } };
+    await expect(
+      host.runProcedureHost({ name: "refused", mode: "background", host: options, telemetry: telemetry.start, run: { process: fakeProcess() } }),
+    ).rejects.toThrow();
+    expect(telemetry.steps).toEqual(["start in startup", "shutdown in startup"]);
+  }, 20000);
+});
+
+describe("boundLockfile", () => {
+  it("takes the port of the endpoint with the scheme and the path of the lockfile, and keeps its host", () => {
+    const lockfile = { pid: 1, port: 0, transport: "both", endpoint: "http://[::1]:0/api", startedAt: "2026-11-15T00:00:00.000Z", peerId: "peer-bound" };
+    const endpoints = [{ address: "ws://localhost:4100/ws" }, { address: "http://localhost:4200/api" }];
+    expect(host.boundLockfile(lockfile, endpoints)).toEqual({ ...lockfile, port: 4200, endpoint: "http://[::1]:4200/api" });
+    expect(host.boundLockfile({ ...lockfile, endpoint: "ws://[::1]:0/ws" }, endpoints)).toMatchObject({ port: 4100, endpoint: "ws://[::1]:4100/ws" });
+    // No endpoint with the scheme and the path: no lockfile
+    expect(host.boundLockfile(lockfile, [{ address: "http://localhost:4300/" }, { address: "not a URL" }])).toBeUndefined();
+  });
 });

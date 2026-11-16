@@ -32,20 +32,21 @@ const { found, result } = await client.exec(["geo", "geocode"], {
 
 ## Distance and geohash
 
-These functions use no network:
+The procedures `geo.distance` and `geo.geohash` use [`@mark1russell7/geo`](https://github.com/mark1russell7/geo). They use no network. For the plain functions, import that package:
 
 ```ts
-import { decodeGeohash, geohash, greatCircleKm } from "@procedures/geo";
+import { decodeGeohash, distanceKm, geohash } from "@mark1russell7/geo";
+import { EARTH_RADIUS_KM } from "@procedures/geo";
 
-greatCircleKm({ lat: 48.8584, lon: 2.2945 }, { lat: 52.5163, lon: 13.3777 }); // 879.0864603595937
+distanceKm({ lat: 48.8584, lon: 2.2945 }, { lat: 52.5163, lon: 13.3777 }, EARTH_RADIUS_KM); // 879.0864603595937
 geohash({ lat: 48.8584, lon: 2.2945 }); // "u09tunq"
 decodeGeohash("u09tunq"); // { south, west, north, east, center }
 ```
 
-- `greatCircleKm(a, b)` uses the haversine formula on a sphere with the mean radius of the Earth (`EARTH_RADIUS_KM`, 6371 km). It does not round the result. A road is longer than this distance.
-- `geohash(point, precision)` gives `precision` characters (1 to 12, default 7). The first bit is the longitude. A coordinate on the middle of a range goes to the upper half.
-- `decodeGeohash(hash)` gives the edges and the center of the cell of a geohash. It reads upper case letters.
-- The functions throw a `RangeError` for a point off the map and for a precision out of range.
+- `geo.distance` uses the haversine formula on a sphere with the mean radius of the Earth (`EARTH_RADIUS_KM`, 6371 km). It does not round the result. A road is longer than this distance.
+- `geo.geohash` gives `precision` characters (1 to 12, default 7) and the cell of the geohash. The first bit is the longitude. A coordinate on the middle of a range goes to the upper half.
+- The procedures refuse a point off the map and a precision out of range.
+- This package also has `greatCircleKm`, `geohash`, `decodeGeohash`, `GeohashCell` and the geohash constants. They are deprecated, and they go at the next MINOR of the client group. Until then, they keep their old checks.
 
 ## The policy of the public servers
 

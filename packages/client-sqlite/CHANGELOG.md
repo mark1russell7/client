@@ -1,5 +1,181 @@
 # @procedures/sqlite
 
+## 0.60.1
+
+### Patch Changes
+
+- f2d045b: The engine `sqljs` of `SqliteStorage` is deprecated. Version 0.61.0 removes it and needs Node.js 22.13 or later.
+  
+  - The first open of the engine `sqljs` in a process shows one `DeprecationWarning` with the code `PROCEDURES_SQLITE_SQLJS`. The engine `auto` on a Node.js without `node:sqlite` shows it too.
+  - To prepare, use Node.js 22.13 or later with the engine `node` or `auto`. A file of the engine `sqljs` opens with the engine `node`.
+  - The flag `--no-deprecation` of Node.js hides the warning.
+- Updated dependencies [beca782]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [a87cdda]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+
+## 0.60.0
+
+### Patch Changes
+
+- Updated dependencies [3075d86]
+  - @procedures/client@0.60.0
+
+## 0.59.1
+
+### Patch Changes
+
+- 2419e31: `SqliteStorage` uses `@mark1russell7/sqlite` for its SQLite work. The public API and the behavior of the storage do not change.
+  
+  - The engine `node` opens a file with `openDatabase` of `@mark1russell7/sqlite`. The pragmas stay the same: WAL, the busy timeout and `synchronous = NORMAL`. A read-only file keeps its journal mode.
+  - The engine `sqljs` gives its database to `sqlJsConnection` of `@mark1russell7/sqlite`. Thus both engines give one kind of connection, and the storage has one set of queries.
+  - The write transaction, the read transaction and the check of the columns come from the entry `@mark1russell7/sqlite/portable`. That entry imports no module of Node.js.
+  - The engine `auto` uses `node:sqlite` from Node.js 22.13, as before. `@mark1russell7/sqlite` adds a probe of the transaction state for Node.js 22.13 to 22.15, which have no `isTransaction`.
+  - The new dependency is `@mark1russell7/sqlite`.
+  
+  PATCH: an internal change with no change to the public API.
+- Updated dependencies [425ea64]
+- Updated dependencies [ea801cd]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6513a83]
+- Updated dependencies [8c69a74]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6cc8f0e]
+  - @procedures/client@0.59.1
+
+## 0.59.0
+
+### Patch Changes
+
+- Updated dependencies [8f8e5b2]
+  - @procedures/client@0.59.0
+
+## 0.58.2
+
+### Patch Changes
+
+- Updated dependencies [217871c]
+  - @procedures/client@0.58.2
+
+## 0.58.1
+
+### Patch Changes
+
+- Updated dependencies [1d47080]
+  - @procedures/client@0.58.1
+
+## 0.58.0
+
+### Patch Changes
+
+- Updated dependencies [11f5035]
+  - @procedures/client@0.58.0
+
+## 0.57.0
+
+### Patch Changes
+
+- @procedures/client@0.57.0
+
+## 0.56.0
+
+### Patch Changes
+
+- 13996cf: An automated dependency update changes the shipped files, so this PATCH ships them.
+- Updated dependencies [13996cf]
+  - @procedures/client@0.56.0
+
+## 0.55.2
+
+### Patch Changes
+
+- @procedures/client@0.55.2
+
+## 0.55.1
+
+### Patch Changes
+
+- @procedures/client@0.55.1
+
+## 0.55.0
+
+### Patch Changes
+
+- Updated dependencies [fd9c6d4]
+  - @procedures/client@0.55.0
+
+## 0.54.1
+
+### Patch Changes
+
+- 8dc3e6c: The README has no typed benchmark numbers. The site page of the package shows the median times of the newest nightly run, with its date, its commit and its version. The Pages build fails when these numbers are more than 3 days old.
+- Updated dependencies [13c3a8b]
+  - @procedures/client@0.54.1
+
+## 0.54.0
+
+### Patch Changes
+
+- 1401489: The tarball of each package leaves out `dist/.tsbuildinfo`. The `files` list of each package has the entry `!dist/.tsbuildinfo` after `dist`.
+  
+  The build writes this file for incremental builds. An app does not use it, and it added its size to each tarball (61 KB in `@procedures/json` 0.52.3). The conventions rule `pack-no-buildinfo` finds it.
+  
+  PATCH: the exports and the behavior do not change.
+- Updated dependencies [ef8e080]
+- Updated dependencies [1401489]
+  - @procedures/client@0.54.0
+
+## 0.53.1
+
+### Patch Changes
+
+- Updated dependencies [84f0c78]
+- Updated dependencies [abf290c]
+  - @procedures/client@0.53.1
+
+## 0.53.0
+
+### Patch Changes
+
+- The packages use the new versions of their dependencies of the owner: `@mark1russell7/service` `^0.8.3`, `@mark1russell7/coeval` `^0.26.1` and `@mark1russell7/docker-sqlite` `^0.3.0`. The range of `@mark1russell7/collections` stays `^0.5.0`: its version 0.7.0 and later remove names that `@procedures/collections` exports.
+- Updated dependencies [bc98f77]
+- Updated dependencies [11d9084]
+- Updated dependencies [d28ccb5]
+- Updated dependencies [735cfcf]
+- Updated dependencies
+- Updated dependencies [556d0a8]
+  - @procedures/client@0.53.0
+
+## 0.52.5
+
+### Patch Changes
+
+- Updated dependencies [25a5f44]
+  - @procedures/client@0.52.5
+
+## 0.52.4
+
+### Patch Changes
+
+- @procedures/client@0.52.4
+
+## 0.52.3
+
+### Patch Changes
+
+- Updated dependencies [db1bcaa]
+  - @procedures/client@0.52.3
+
 ## 0.52.2
 
 ### Patch Changes

@@ -1,5 +1,191 @@
 # @procedures/fs
 
+## 0.60.1
+
+### Patch Changes
+
+- 264e6a1: With `dot: true`, `fs.glob` uses the glob matcher of `@mark1russell7/files` for the pattern and each `ignore` entry. A brace group can hold a dot name, for example `{.git,node_modules}`. The matcher knows `*`, `**`, `?`, sets and brace groups.
+- 11fcffb: `fs.temp` makes its folder in the base folder for each prefix. The prefix is only the start of the folder name, so the prefixes `.` and `..` also make a folder in the base folder. With a root, the base folder is `.tmp` of the root.
+- e8e88ac: On Windows, the root check refuses a network or device path of another share before it opens the path.
+  
+  - A path that starts with two slashes (`\\host\share\name`, `//host/share/name`, `\\?\UNC\host\share\name` or `\\.\pipe\name`) is outside the root, unless the root is on the same share. The check gets `FORBIDDEN` with the reason `outside-root` and does not open the path.
+  - `realPathIsInside()` gives false for such a path, and the root check of the git procedures does the same.
+  - The new function `isOtherShare()` of the entry `@procedures/fs/root` gives this decision.
+  - On other systems, nothing changes.
+- a6fd4f3: `fs.read` and `fs.read.json` get the input `maxBytes`, the largest count of bytes that the read loads. `fs.read` also gets `offset` and `length` for a part of a file.
+  
+  - A part larger than `maxBytes` gives a `RangeError` with the code `ERR_FS_FILE_TOO_LARGE`. For a regular file, the error comes before the read.
+  - The read loads pieces of 1 MiB from one open file. Thus the limit holds also for a pipe or a file of the system with no size.
+  - Without `maxBytes`, the read loads the whole file, as before. The first read over 16 MiB in a process writes one warning.
+  
+  Migration before 0.64.0: version 0.64.0 sets 16 MiB as the default of `maxBytes`. A caller that reads larger files sets `maxBytes` to its own limit.
+- Updated dependencies [beca782]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [a87cdda]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+
+## 0.60.0
+
+### Patch Changes
+
+- Updated dependencies [3075d86]
+  - @procedures/client@0.60.0
+
+## 0.59.1
+
+### Patch Changes
+
+- c0ecfe0: The check of a path in a root and the operation on the path start in one hold of the roots. Thus the operation reads the links that the check read, for the calls of this process.
+  
+  - `fs.move`, `fs.copy`, `archive.extract` and each confined procedure that writes files or starts a process hold the roots alone. The other calls share the hold.
+  - The calls get the hold in the order that they came. A nested call starts in the hold of its caller.
+  - A call in a shared hold that starts a nested call that needs the hold alone gets an error. This nested call writes files, and its caller declares no file writes.
+  - `holdRoots()` and `RootHoldMode` of `@procedures/fs/root`, and `rootHoldOf()` of `@procedures/fs`, give the hold to other packages.
+  - `@procedures/fs` uses `rwLock()` of `@mark1russell7/collections`.
+- Updated dependencies [425ea64]
+- Updated dependencies [ea801cd]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6513a83]
+- Updated dependencies [8c69a74]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6cc8f0e]
+  - @procedures/client@0.59.1
+
+## 0.59.0
+
+### Patch Changes
+
+- Updated dependencies [8f8e5b2]
+  - @procedures/client@0.59.0
+
+## 0.58.2
+
+### Patch Changes
+
+- Updated dependencies [217871c]
+  - @procedures/client@0.58.2
+
+## 0.58.1
+
+### Patch Changes
+
+- Updated dependencies [1d47080]
+  - @procedures/client@0.58.1
+
+## 0.58.0
+
+### Patch Changes
+
+- Updated dependencies [11f5035]
+  - @procedures/client@0.58.0
+
+## 0.57.0
+
+### Patch Changes
+
+- @procedures/client@0.57.0
+
+## 0.56.0
+
+### Patch Changes
+
+- 13996cf: An automated dependency update changes the shipped files, so this PATCH ships them.
+- Updated dependencies [13996cf]
+  - @procedures/client@0.56.0
+
+## 0.55.2
+
+### Patch Changes
+
+- @procedures/client@0.55.2
+
+## 0.55.1
+
+### Patch Changes
+
+- @procedures/client@0.55.1
+
+## 0.55.0
+
+### Patch Changes
+
+- 2918e97: Two security fixes:
+  
+  - `@procedures/shell`: on Windows, a program name with no folder starts only from a folder of `PATH`, never from the working folder of the call. Before, a call such as "run `git` in this cloned repository" started a `git.exe` from the top folder of the repository. When no folder of `PATH` has the program, the start fails with `ENOENT`, as for a missing program, and the error names the program as before. `taskkill` starts by its full path in the system folder, and `shell.which` gives a match from `PATH` only.
+  - `@procedures/fs`: under a root, a link to a missing target is resolved against the real folder of the link. Before, the check resolved a relative target against the text of the path. When an earlier part of the path was a link to a folder, the check said "inside the root" for a write that went outside it. A `..` in a relative target follows the rule of the system: POSIX goes up from the real folder of the name before it, and Windows removes that name as text. The archive procedures and the other users of `@procedures/fs/root` get the same fix.
+- Updated dependencies [fd9c6d4]
+  - @procedures/client@0.55.0
+
+## 0.54.1
+
+### Patch Changes
+
+- Updated dependencies [13c3a8b]
+  - @procedures/client@0.54.1
+
+## 0.54.0
+
+### Patch Changes
+
+- 1401489: The tarball of each package leaves out `dist/.tsbuildinfo`. The `files` list of each package has the entry `!dist/.tsbuildinfo` after `dist`.
+  
+  The build writes this file for incremental builds. An app does not use it, and it added its size to each tarball (61 KB in `@procedures/json` 0.52.3). The conventions rule `pack-no-buildinfo` finds it.
+  
+  PATCH: the exports and the behavior do not change.
+- Updated dependencies [ef8e080]
+- Updated dependencies [1401489]
+  - @procedures/client@0.54.0
+
+## 0.53.1
+
+### Patch Changes
+
+- Updated dependencies [84f0c78]
+- Updated dependencies [abf290c]
+  - @procedures/client@0.53.1
+
+## 0.53.0
+
+### Patch Changes
+
+- Updated dependencies [bc98f77]
+- Updated dependencies [11d9084]
+- Updated dependencies [d28ccb5]
+- Updated dependencies [735cfcf]
+- Updated dependencies
+- Updated dependencies [556d0a8]
+  - @procedures/client@0.53.0
+
+## 0.52.5
+
+### Patch Changes
+
+- Updated dependencies [25a5f44]
+  - @procedures/client@0.52.5
+
+## 0.52.4
+
+### Patch Changes
+
+- @procedures/client@0.52.4
+
+## 0.52.3
+
+### Patch Changes
+
+- Updated dependencies [db1bcaa]
+  - @procedures/client@0.52.3
+
 ## 0.52.2
 
 ### Patch Changes

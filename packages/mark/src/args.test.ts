@@ -75,6 +75,14 @@ describe("global flags and procedure flags (CLI-7)", () => {
     expect(parseLeadingGlobals(["--fs-root"]).errors).toEqual(["--fs-root needs a value"]);
   });
 
+  it("collects a repeated --allowed-host of --server", () => {
+    expect(parseLeadingGlobals(["--server", "--host", "0.0.0.0", "--allowed-host", "box.lan", "--allowed-host=api.lan"]).globals).toEqual({
+      server: true,
+      host: "0.0.0.0",
+      "allowed-host": "box.lan,api.lan",
+    });
+  });
+
   it("reports a flag that neither the procedure nor the globals have", () => {
     expect(parse(["fs", "exists", "x", "--bogus"]).errors).toEqual(["Unknown option for mark fs exists: --bogus"]);
     expect(parse(["docker", "exec", "-iz", "box", "sh"]).errors).toEqual(["Unknown option -z in -iz"]);
@@ -84,6 +92,17 @@ describe("global flags and procedure flags (CLI-7)", () => {
     const line = parse(["untyped", "--some-flag", "value", "--count", "3", "--on"]);
     expect(line.errors).toEqual([]);
     expect(line.input).toEqual({ someFlag: "value", count: 3, on: true });
+  });
+});
+
+describe("values that start with @ (audit 2026-11-08)", () => {
+  // cli.run sends each string value as it is (buildMarkArgs of @procedures/cli-run). That is safe
+  // only while mark reads no files: with a readFile option, "@<file>" is the text of a local file.
+  it("keeps the text @<file> and @@<text> of a flag and of an argument: mark reads no files", () => {
+    for (const text of ["@package.json", "@@package.json", "@", "@-x"]) {
+      expect(parse(["git", "commit", `--message=${text}`])).toMatchObject({ errors: [], input: { message: text } });
+      expect(parse(["fs", "exists", "--", text])).toMatchObject({ errors: [], input: { path: text } });
+    }
   });
 });
 

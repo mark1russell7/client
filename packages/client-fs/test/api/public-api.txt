@@ -49,6 +49,7 @@ readdir: dist/procedures/fs/readdir.d.ts#readdir
 registerFsProcedures: dist/module.d.ts#registerFsProcedures
 rm: dist/procedures/fs/rm.d.ts#rm
 rootDecisionOf: dist/confine.d.ts#rootDecisionOf
+rootHoldOf: dist/confine.d.ts#rootHoldOf
 rootRulesOf: dist/confine.d.ts#rootRulesOf
 stat: dist/procedures/fs/stat.d.ts#stat
 withLock: dist/files/lock.d.ts#withLock
@@ -70,6 +71,7 @@ default: dist/module.d.ts#fsModule
 fsModule: dist/module.d.ts#fsModule
 registerFsProcedures: dist/module.d.ts#registerFsProcedures
 rootDecisionOf: dist/confine.d.ts#rootDecisionOf
+rootHoldOf: dist/confine.d.ts#rootHoldOf
 rootRulesOf: dist/confine.d.ts#rootRulesOf
 
 ## ./register (dist/register.d.ts): names
@@ -85,14 +87,18 @@ createFsModule: dist/module.d.ts#createFsModule
 fsModule: dist/module.d.ts#fsModule
 registerFsProcedures: dist/module.d.ts#registerFsProcedures
 rootDecisionOf: dist/confine.d.ts#rootDecisionOf
+rootHoldOf: dist/confine.d.ts#rootHoldOf
 rootRulesOf: dist/confine.d.ts#rootRulesOf
 
 ## ./root (dist/root.d.ts): names
 
 OUTSIDE_ROOT: dist/root.d.ts#OUTSIDE_ROOT
 ResolvedRoot: dist/root.d.ts#ResolvedRoot
+type RootHoldMode: dist/root-hold.d.ts#RootHoldMode
+holdRoots: dist/root-hold.d.ts#holdRoots
 inRoot: dist/root.d.ts#inRoot
 isInside: dist/root.d.ts#isInside
+isOtherShare: dist/root.d.ts#isOtherShare
 isOutsideRoot: dist/root.d.ts#isOutsideRoot
 outsideRoot: dist/root.d.ts#outsideRoot
 realPathIsInside: dist/root.d.ts#realPathIsInside
@@ -144,6 +150,9 @@ export type RootKind = "fs" | "confined" | "program" | "refused" | "unchanged";
 
 ### dist/confine.d.ts#rootDecisionOf
 export declare function rootDecisionOf(procedure: Pick<AnyProcedure, "path" | "metadata" | "handler">): RootDecision;
+
+### dist/confine.d.ts#rootHoldOf
+export declare function rootHoldOf(procedure: Pick<AnyProcedure, "path" | "metadata">): RootHoldMode;
 
 ### dist/confine.d.ts#rootRulesOf
 export declare function rootRulesOf(procedure: Pick<AnyProcedure, "path" | "metadata">): FsRootRules | undefined;
@@ -320,6 +329,12 @@ export declare function fsWriteJson(input: FsWriteJsonInput): Promise<FsWriteJso
 ### dist/procedures/fs/write.d.ts#write
 export declare function write(input: WriteInput): Promise<WriteOutput>;
 
+### dist/root-hold.d.ts#RootHoldMode
+export type RootHoldMode = "shared" | "exclusive";
+
+### dist/root-hold.d.ts#holdRoots
+export declare function holdRoots<T>(mode: RootHoldMode, work: () => T | PromiseLike<T>): Promise<T>;
+
 ### dist/root.d.ts#OUTSIDE_ROOT
 export declare const OUTSIDE_ROOT = "outside-root";
 
@@ -334,6 +349,9 @@ export declare function inRoot(root: ResolvedRoot, path: string, procedure: Proc
 
 ### dist/root.d.ts#isInside
 export declare function isInside(folder: string, path: string): boolean;
+
+### dist/root.d.ts#isOtherShare
+export declare function isOtherShare(root: ResolvedRoot, absolute: string, platform?: NodeJS.Platform): boolean;
 
 ### dist/root.d.ts#isOutsideRoot
 export declare function isOutsideRoot(error: unknown): boolean;

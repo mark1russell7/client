@@ -7,7 +7,8 @@
 // entry of its package.json, an import of a workspace package resolves, an import of a workspace
 // scope names a known package, and no package imports an app. The analysis does not follow
 // node_modules and the dist/ folders, and it resolves an import as Node resolves an ESM import. This
-// file adds the rules of this repository: a transport does not import the server.
+// file adds the rules of this repository: a transport does not import the server, and only the shell
+// package starts a program.
 // scripts/check-boundaries.test.ts tests all the rules on a fixture repository.
 //
 // The rule "a browser entry imports no Node built-in" is not here: scripts/check-browser-entries.ts
@@ -34,6 +35,20 @@ const SERVER = [
   "^@procedures/(server|peer)(/|$)",
 ];
 
+/** The shell package (`@procedures/shell`): the one package that starts a program. */
+const SHELL = "^packages/client-shell/";
+
+/**
+ * The module that starts a program: the built-in `child_process`, by each of its two names. The
+ * shared options exclude node_modules from the analysis, so an import of an npm package that wraps
+ * it (execa, cross-spawn) does not show here. scripts/check-packages.ts reads the dependencies of
+ * each package for these packages.
+ */
+const PROGRAM_STARTS = "^(node:)?child_process$";
+
+/** The tests. They start programs of their own fixtures, and they do not ship. */
+const TESTS = ["\\.test\\.ts$", "/test/", "/__tests__/"];
+
 /** The rules of this repository. `boundaries()` puts the reference I9 before each comment. */
 const CLIENT_RULES: Rule[] = [
   {
@@ -49,6 +64,13 @@ const CLIENT_RULES: Rule[] = [
     comment: "A transport reaches the server through other modules, for example through a barrel file (an index.ts). Import the module that has the code, not the barrel.",
     from: { path: TRANSPORTS },
     to: { path: SERVER, reachable: true },
+  },
+  {
+    name: "program-start-outside-shell",
+    severity: "error",
+    comment: "Only the shell package starts a program. On Windows its lookup finds a name with no folder only in the folders of PATH, never in the working folder, so a git.exe in a cloned repository does not start. Use spawnProgram, spawnProgramSync, runCommand, streamCommand or processes of @procedures/shell/command. An import of the types of node:child_process is allowed.",
+    from: { path: "^packages/[^/]+/src/", pathNot: [SHELL, ...TESTS] },
+    to: { path: PROGRAM_STARTS, dependencyTypesNot: ["type-only"] },
   },
 ];
 

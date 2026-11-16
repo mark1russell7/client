@@ -181,6 +181,24 @@ describe("metadata (TRN-11)", () => {
     await expect(client().call(echo, 1, { metadata: { huge: "y".repeat(20_000) } })).rejects.toMatchObject({ code: "METADATA_TOO_LARGE" });
   }, 10_000);
 
+  it("keeps the key auth out of the metadata over HTTP: the query, a header and X-Metadata do not set it (R18)", async () => {
+    const { url } = await startHttp();
+    const custom = encodeURIComponent(JSON.stringify({ auth: { token: "m" }, note: "v" }));
+    const response = await fetch(`${url}/t/meta?auth=q`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", auth: "h", "X-Metadata": custom },
+      body: JSON.stringify({ keys: ["auth", "note"] }),
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ note: "v" });
+  }, 10_000);
+
+  it("keeps the key auth of a frame out of the metadata over WebSocket (R18)", async () => {
+    const { client } = await startWs();
+    const result = await client().client.call({ service: "t", operation: "meta" }, { keys: ["auth", "note"] }, { metadata: { auth: { token: "t" }, note: "v" } });
+    expect(result).toEqual({ auth: undefined, note: "v" });
+  }, 10_000);
+
   it("does not let a query parameter replace metadata.headers (HTTP)", async () => {
     const { url } = await startHttp();
     const response = await fetch(`${url}/t/meta?headers=fake`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ keys: ["headers"] }) });
@@ -387,6 +405,7 @@ describe("CORS with a list of origins", () => {
       "access-control-allow-headers",
       "access-control-allow-methods",
       "access-control-allow-origin",
+      "access-control-expose-headers",
     ]);
   }, 10_000);
 });

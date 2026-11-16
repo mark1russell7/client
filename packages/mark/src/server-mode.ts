@@ -32,6 +32,11 @@ export interface ServerModeOptions {
   /** The folder that confines each path of the `fs.*` procedures (`--fs-root`). */
   fsRoot?: string | undefined;
   /**
+   * The host names that a request can name in its `Host` header (`--allowed-host`), besides the
+   * loopback names and the IP addresses. `"*"` turns the check off. The default is none.
+   */
+  allowedHosts?: readonly string[] | "*" | undefined;
+  /**
    * The port of the probe server (`--probe-port`, CLI-9), on the address of `host`. Without it, each
    * listener answers the probes under `/_probes`.
    */
@@ -71,7 +76,8 @@ function buildTransports(options: ServerModeOptions) {
   if (transport === "websocket" || transport === "both") {
     transports.push({
       type: "websocket",
-      port: transport === "both" ? port + 1 : port,
+      // The port 0: each listener gets a free port of its own
+      port: transport === "both" && port !== 0 ? port + 1 : port,
       host,
       path: "/ws",
     });
@@ -104,6 +110,9 @@ export async function startServerMode(options: ServerModeOptions, run?: Procedur
   const host = options.host ?? "127.0.0.1";
   if (!["127.0.0.1", "localhost", "::1"].includes(host)) {
     print.warning(`The server listens on ${host}: other computers can reach it. Every request needs its token.`);
+    if (options.allowedHosts === undefined) {
+      print.info("A client that uses a name of this computer, not its IP address, needs --allowed-host <name>.");
+    }
   }
   if (options.transport === "websocket") {
     print.warning("A WebSocket-only server takes no `mark` commands: `mark` sends its commands over HTTP.");
@@ -126,7 +135,7 @@ export async function startServerMode(options: ServerModeOptions, run?: Procedur
   const running = await runProcedureHost({
     name: "mark-server",
     mode: "background",
-    host: await markHostOptions({ id, registry, transports, token, events }),
+    host: await markHostOptions({ id, registry, transports, token, events, ...(options.allowedHosts !== undefined ? { allowedHosts: options.allowedHosts } : {}) }),
     lockfile: {
       pid: process.pid,
       port,
@@ -192,12 +201,13 @@ export function serverEndpoint(host: string, port: number, transport?: string): 
 
 /**
  * The port number of a `--port` value. An invalid port is an error (before, it became 3000:
- * deep dive CLI-16).
+ * deep dive CLI-16). The port 0 takes a free port: the lockfile of the server gives the port that
+ * the listener got.
  */
 export function parsePort(value: string): number {
   const port = /^\d+$/.test(value) ? Number(value) : NaN;
-  if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    throw new Error(`Invalid port: "${value}". Give a number from 1 to 65535.`);
+  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+    throw new Error(`Invalid port: "${value}". Give a number from 0 to 65535. The port 0 takes a free port.`);
   }
   return port;
 }

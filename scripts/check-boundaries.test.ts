@@ -78,6 +78,13 @@ before(async () => {
     "packages/site/package.json": { name: "@procedures/site", private: true, type: "module", exports: { ".": "./dist/index.js" } },
     "packages/site/dist/index.js": "export const page = 1;\n",
     "packages/site/src/page.ts": `import { b } from "@procedures/lib-b";\nexport const page = b;\n`,
+    // The shell package starts programs. Each other package uses it, and imports only the types of child_process.
+    "packages/client-shell/package.json": { name: "@procedures/shell", type: "module", exports: { "./command": "./dist/command/index.js" } },
+    "packages/client-shell/src/command/spawn.ts": `import { spawn } from "node:child_process";\nexport const spawnProgram = spawn;\n`,
+    "packages/lib-a/src/starts-node.ts": `import { spawn } from "node:child_process";\nexport const value = spawn;\n`,
+    "packages/lib-a/src/starts-bare.ts": `import { execFileSync } from "child_process";\nexport const value = execFileSync;\n`,
+    "packages/lib-a/src/start-types.ts": `import type { ChildProcess } from "node:child_process";\nexport type Child = ChildProcess;\n`,
+    "packages/lib-a/src/start.test.ts": `import { spawn } from "node:child_process";\nexport const value = spawn;\n`,
   });
   link("@procedures/client", "client");
   link("@procedures/lib-b", "lib-b");
@@ -92,7 +99,7 @@ before(async () => {
     validate: true,
     ruleSet: { forbidden },
   } as ICruiseOptions;
-  const result = await cruise(["packages/client/src", "packages/client-mcp/src", "packages/lib-a/src", "packages/lib-b/src", "packages/site/src"], cruiseOptions);
+  const result = await cruise(["packages/client/src", "packages/client-mcp/src", "packages/client-shell/src", "packages/lib-a/src", "packages/lib-b/src", "packages/site/src"], cruiseOptions);
   if (typeof result.output === "string") throw new Error("dependency-cruiser gave a text, not a cruise result");
   violations = result.output.summary.violations.map(({ rule, from, to }) => `${rule.name}: ${from} -> ${to}`);
 });
@@ -147,6 +154,11 @@ describe("the import boundaries (I9, CLI-83)", () => {
     assert.ok(of("packages/lib-a/src/app-relative.ts").includes("import-of-the-app-procedures-site: packages/lib-a/src/app-relative.ts -> packages/site/src/page.ts"));
   });
 
+  it("only the shell package starts a program: by node:child_process or by child_process", () => {
+    assert.deepEqual(of("packages/lib-a/src/starts-node.ts"), ["program-start-outside-shell: packages/lib-a/src/starts-node.ts -> child_process"]);
+    assert.deepEqual(of("packages/lib-a/src/starts-bare.ts"), ["program-start-outside-shell: packages/lib-a/src/starts-bare.ts -> child_process"]);
+  });
+
   it("the good imports pass: shared helpers, imports inside a package, entries of the exports map, an app that imports a library, and the tests", () => {
     for (const file of [
       "packages/client/src/adapters/http/server/good.ts",
@@ -158,6 +170,10 @@ describe("the import boundaries (I9, CLI-83)", () => {
       "packages/lib-a/src/inside.ts",
       "packages/lib-a/src/by-name.ts",
       "packages/site/src/page.ts",
+      // The shell package, an import of the types of child_process, and a test
+      "packages/client-shell/src/command/spawn.ts",
+      "packages/lib-a/src/start-types.ts",
+      "packages/lib-a/src/start.test.ts",
     ]) {
       assert.deepEqual(of(file), [], file);
     }

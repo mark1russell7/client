@@ -42,6 +42,8 @@ import {
   type StorageSelector,
 } from "@procedures/client";
 import { VersionConflictError, applyPatch, patchProblems, preconditionNotSupported, queryEntries, versionConflicts, type CurrentItem } from "@procedures/client/query";
+// The entry /portable imports no module of Node.js. The engine node loads node:sqlite only when a storage opens.
+import { readTransaction, tableColumns, transaction } from "@mark1russell7/sqlite/portable";
 import {
   MEMORY_PATH,
   checkEngine,
@@ -80,8 +82,9 @@ export interface SqliteStorageOptions<T = unknown> {
    * - `node`: the module `node:sqlite` of Node.js 22.13 or later. It writes only the changes, and
    *   the file is in WAL mode. Two processes can use one file.
    * - `sqljs`: sql.js, SQLite in WebAssembly. It keeps the database in memory, and it writes the
-   *   whole file after a write.
-   * - `auto`: `node` when Node.js has `node:sqlite`, and else `sqljs`.
+   *   whole file after a write. This engine is deprecated, and version 0.61.0 removes it. Its first
+   *   open in a process shows a `DeprecationWarning` with the code `PROCEDURES_SQLITE_SQLJS`.
+   * - `auto`: `node` when Node.js has `node:sqlite`, and else `sqljs`, with the same warning.
    *
    * The storages of one file in one process share one database, and thus one engine. The first
    * storage of the file sets it. A storage with another engine than `auto` refuses a database
@@ -125,38 +128,6 @@ export function checkTableName(name: unknown): string {
     );
   }
   return name;
-}
-
-/**
- * This function runs the work in a transaction. An error rolls back each change of the work.
- * With `keep` false, the transaction always rolls back: the work only tests a change.
- */
-function transaction<R>(db: EngineDatabase, work: () => R, keep = true): R {
-  // IMMEDIATE takes the write lock at the start, so the busy timeout applies to it. A deferred
-  // transaction of the engine node that reads and then writes can fail at once in WAL mode.
-  db.exec("BEGIN IMMEDIATE");
-  try {
-    const result = work();
-    db.exec(keep ? "COMMIT" : "ROLLBACK");
-    return result;
-  } catch (error) {
-    try {
-      db.exec("ROLLBACK");
-    } catch {
-      // SQLite rolled back the transaction already
-    }
-    throw error;
-  }
-}
-
-/** This function runs several reads in one read transaction, so they see one state of the file. */
-function readTransaction<R>(db: EngineDatabase, work: () => R): R {
-  db.exec("BEGIN");
-  try {
-    return work();
-  } finally {
-    db.exec("COMMIT");
-  }
 }
 
 /** The JSON text of a value. A value without JSON text is a `TypeError`. */
@@ -209,7 +180,7 @@ function newEpoch(): string {
 
 /** This function throws when the table exists without the columns of a storage. */
 function checkColumns(db: EngineDatabase, table: string): void {
-  const columns = new Set(db.all<{ name: string }>(`PRAGMA table_info("${table}")`).map((row) => row.name));
+  const columns = new Set(tableColumns(db.connection, table));
   if (!columns.has("id") || !columns.has("value")) {
     throw new Error(`The table ${table} exists, and it does not have the columns id and value of a SqliteStorage`);
   }
@@ -231,7 +202,7 @@ function prepareTable(db: EngineDatabase, table: string, epoch: string): void {
     checkColumns(db, table);
     return;
   }
-  transaction(db, () => {
+  transaction(db.connection, () => {
     db.exec(SCHEMA);
     db.exec(`CREATE TABLE IF NOT EXISTS "${table}" (id TEXT PRIMARY KEY, value TEXT NOT NULL)`);
     checkColumns(db, table);
@@ -512,7 +483,7 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
    */
   async getChangesSince(since?: string): Promise<StorageChanges<T>> {
     const db = await this.database();
-    return readTransaction(db, () => {
+    return readTransaction(db.connection, () => {
       const { epoch, seq, floor } = this.counter(db);
       const version = `${epoch}:${seq}`;
       const from = parseVersion(since, epoch, seq);
@@ -797,7 +768,7 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
   private runWrite<R>(db: EngineDatabase, change: (db: EngineDatabase, next: () => number) => R, keep: boolean): WriteResult<R> {
     let changed = false;
     const value = transaction(
-      db,
+      db.connection,
       () => {
         const counter = this.counter(db);
         const next = (): number => {
@@ -811,7 +782,8 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
         }
         return result;
       },
-      keep,
+      // With keep false, the transaction rolls back: the work only tests a change
+      { commit: keep },
     );
     return { value, changed };
   }
