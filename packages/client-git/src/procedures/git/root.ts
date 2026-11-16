@@ -27,7 +27,7 @@ import { access, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
 import type { ProcedurePath } from "@procedures/client";
-import { inRoot, isInside, outsideRoot, realPathOf, resolveRoot, type ResolvedRoot } from "@procedures/fs/root";
+import { inRoot, isInside, outsideRoot, realPathIsInside, resolveRoot, type ResolvedRoot } from "@procedures/fs/root";
 import { runCommand } from "@procedures/shell/command";
 
 /** The root of one call of a git procedure. */
@@ -366,9 +366,9 @@ async function examine(args: string[], cwd: string, env: Record<string, string |
   return runCommand("git", { args: [...safeConfig(hooks), ...args], cwd, env, input });
 }
 
-/** True when the real path of a path is in the root. */
+/** True when the real path of a path is in the root. A network path of another share is outside, and the check does not open it. */
 async function isInRoot(root: ResolvedRoot, path: string): Promise<boolean> {
-  return isInside(root.real, await realPathOf(path));
+  return realPathIsInside(root, path);
 }
 
 /** True when a file or a folder exists. */

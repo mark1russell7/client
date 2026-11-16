@@ -6,7 +6,7 @@
  */
 
 import { getEventListeners } from "node:events";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import * as z from "zod";
 import { Client } from "../client/client.js";
 import { LocalTransport } from "../adapters/local/client/index.js";
@@ -14,7 +14,7 @@ import { ProcedureRegistry } from "./registry.js";
 import { defineProcedure } from "./define.js";
 import { outputSchema } from "./core/schemas.js";
 import { coreProcedures } from "./core/index.js";
-import { InvocationError, invokeProcedure, invokePath, outputItems, outputValue } from "./invoke.js";
+import { InvocationError, invokeProcedure, invokePath, outputItems, outputValue, resetDepthWarning } from "./invoke.js";
 import type { ProcedureContext } from "./types.js";
 import { createRefScope, scopeOf, withScope } from "./ref.js";
 
@@ -235,6 +235,43 @@ describe("Client with streaming procedures", () => {
   });
 });
 
+describe("the input of a nested call", () => {
+  it("is validated, also when the call of the host has inputValidated", async () => {
+    const registry = new ProcedureRegistry();
+    const seen: unknown[] = [];
+    registry.register(
+      defineProcedure({
+        path: ["test", "inner"],
+        input: z.object({ to: z.number() }),
+        output: outputSchema<null>(),
+        handler: (input: { to: number }) => {
+          seen.push(input);
+          return null;
+        },
+      }),
+    );
+    registry.register(
+      defineProcedure({
+        path: ["test", "outer"],
+        input: z.object({ to: z.unknown() }),
+        output: outputSchema<null>(),
+        handler: async (input: { to: unknown }, ctx: ProcedureContext) => {
+          await ctx.client.call(["test", "inner"], { to: input.to });
+          return null;
+        },
+      }),
+    );
+    // The flag is about the input of the host call only
+    await expect(invokePath(["test", "outer"], { to: "three" }, { registry, inputValidated: true })).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      path: ["test", "inner"],
+    });
+    expect(seen).toEqual([]);
+    await outputValue(await invokePath(["test", "outer"], { to: 3 }, { registry, inputValidated: true }));
+    expect(seen).toEqual([{ to: 3 }]);
+  });
+});
+
 describe("LocalTransport with a registry", () => {
   it("runs a procedure by path: one item for a value, one item for each value of a stream", async () => {
     const { registry } = makeRegistry();
@@ -400,5 +437,83 @@ describe("the caller of a nested call (roadmap R33)", () => {
     await client.call({ service: "test", operation: "outer" }, {});
     expect(seen[0]).toBeUndefined();
     expect(seen[1]).toBe(outer);
+  });
+});
+
+describe("the depth limit of the nested calls", () => {
+  /** A registry with test.down: it calls itself with the input n - 1 until n is 0. `runs` keeps the n of each run. */
+  function recursive(): { registry: ProcedureRegistry; runs: number[] } {
+    const registry = new ProcedureRegistry();
+    const runs: number[] = [];
+    registry.register(
+      defineProcedure({
+        path: ["test", "down"],
+        input: z.object({ n: z.number() }),
+        output: outputSchema<number>(),
+        handler: async (input: { n: number }, ctx: ProcedureContext) => {
+          runs.push(input.n);
+          if (input.n === 0) return 0;
+          return 1 + (await ctx.client.call<{ n: number }, number>(["test", "down"], { n: input.n - 1 }));
+        },
+      }),
+    );
+    return { registry, runs };
+  }
+
+  /** The value of a call of test.down, or its error. */
+  const down = async (registry: ProcedureRegistry, n: number, maxDepth?: number): Promise<unknown> => {
+    try {
+      return await outputValue(await invokePath(["test", "down"], { n }, { registry, ...(maxDepth !== undefined ? { maxDepth } : {}) }));
+    } catch (error) {
+      return error;
+    }
+  };
+
+  it("refuses a nested call over maxDepth with FORBIDDEN and the reason depth, and its handler does not start", async () => {
+    const { registry, runs } = recursive();
+    const error = await down(registry, 10, 3);
+    expect(error).toBeInstanceOf(InvocationError);
+    expect(error).toMatchObject({ code: "FORBIDDEN", reason: "depth", path: ["test", "down"] });
+    expect((error as Error).message).toBe("The call of test.down is at the depth 4 of nested calls, over the limit 3");
+    // The depths 0 to 3 ran, and the depth 4 did not start
+    expect(runs).toEqual([10, 9, 8, 7]);
+  });
+
+  it("runs a call tree at the limit, and maxDepth 0 refuses each nested call", async () => {
+    const { registry, runs } = recursive();
+    expect(await down(registry, 3, 3)).toBe(3);
+    expect(runs).toEqual([3, 2, 1, 0]);
+    expect(await down(registry, 0, 0)).toBe(0);
+    expect(await down(registry, 1, 0)).toMatchObject({ code: "FORBIDDEN", reason: "depth" });
+  });
+
+  it("refuses a maxDepth that is not a whole number of 0 or more", async () => {
+    const { registry, runs } = recursive();
+    for (const maxDepth of [-1, 1.5, Number.NaN]) {
+      const error = await down(registry, 1, maxDepth);
+      expect(error).toBeInstanceOf(TypeError);
+      expect((error as Error).message).toBe(`The option maxDepth is a whole number of 0 or more, not ${String(maxDepth)}`);
+    }
+    expect(runs).toEqual([]);
+  });
+
+  it("writes one warning in the process for the first call over the depth 64 without maxDepth, and runs the call", async () => {
+    resetDepthWarning();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      const { registry } = recursive();
+      expect(await down(registry, 64)).toBe(64);
+      expect(warn).not.toHaveBeenCalled();
+      expect(await down(registry, 70)).toBe(70);
+      expect(await down(registry, 70)).toBe(70);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0]?.[0]).toBe(
+        "[procedures] The call of test.down is at the depth 65 of nested calls. " +
+          "@procedures/client 0.64.0 refuses a call over the depth 64. Set the option maxDepth to keep a larger limit.",
+      );
+    } finally {
+      warn.mockRestore();
+      resetDepthWarning();
+    }
   });
 });

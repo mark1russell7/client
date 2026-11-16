@@ -7,7 +7,7 @@
  *   Node.js. It writes only the changed pages of the file, and SQLite locks the file for each write.
  * - The engine `sqljs` is sql.js (SQLite in WebAssembly), through `@mark1russell7/docker-sqlite`
  *   and the adapter `sqlJsConnection`. It keeps the database in memory and writes the whole file
- *   after a write.
+ *   after a write. It is deprecated: its first open in a process shows a `DeprecationWarning`.
  * - The two engines read and write the same file format.
  *
  * This module loads the main entry of `@mark1russell7/sqlite`, and with it `node:sqlite`, only
@@ -21,14 +21,39 @@ import { sqlJsConnection, type SqlConnection, type SqlStatement } from "@mark1ru
 /** The path of a database that is only in memory. */
 export const MEMORY_PATH = ":memory:";
 
-/** The engine of a database: `node:sqlite` (`node`) or sql.js (`sqljs`). */
+/**
+ * The engine of a database: `node:sqlite` (`node`) or sql.js (`sqljs`). The engine `sqljs` is
+ * deprecated. Version 0.61.0 removes it and needs Node.js 22.13 or later.
+ */
 export type SqliteEngineName = "node" | "sqljs";
 
 /**
  * The engine choice of a `SqliteStorage`. With `auto`, the storage uses `node` when Node.js has
- * `node:sqlite`, and `sqljs` when it does not.
+ * `node:sqlite`, and the deprecated engine `sqljs` when it does not.
  */
 export type SqliteEngine = "auto" | SqliteEngineName;
+
+/** The code of the deprecation warning of the engine `sqljs`. */
+const SQLJS_DEPRECATION_CODE = "PROCEDURES_SQLITE_SQLJS";
+
+let sqlJsWarned = false;
+
+/**
+ * This function shows the deprecation warning of the engine `sqljs`, one time in a process. The
+ * flag `--no-deprecation` of Node.js hides it.
+ */
+function warnSqlJs(engine: SqliteEngine): void {
+  if (sqlJsWarned) return;
+  sqlJsWarned = true;
+  const cause =
+    engine === "sqljs"
+      ? "The SQLite engine sqljs is deprecated"
+      : `This Node.js (${process.version}) has no node:sqlite, so the engine auto uses the deprecated engine sqljs`;
+  process.emitWarning(
+    `${cause}. Version 0.61.0 of @procedures/sqlite removes it: use Node.js 22.13 or later, with the engine node or auto.`,
+    { type: "DeprecationWarning", code: SQLJS_DEPRECATION_CODE },
+  );
+}
 
 const ENGINES: ReadonlySet<string> = new Set<SqliteEngine>(["auto", "node", "sqljs"]);
 
@@ -306,6 +331,7 @@ export async function openEngine(path: string, engine: SqliteEngine, busyTimeout
     if (sqlite) return new NodeOpenDatabase(sqlite, path, busyTimeoutMs);
     if (engine === "node") throw noNodeSqlite();
   }
+  warnSqlJs(engine);
   if (path !== MEMORY_PATH) checkNoWriteAheadLog(path);
   const { db, save } = await createConnection({ dbPath: path });
   return new SqlJsOpenDatabase(new ConnectionDatabase(sqlJsConnection(db)), save);

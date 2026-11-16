@@ -15,7 +15,7 @@ import * as path from "node:path";
 import { createProcedure, type Effects, type FsRootRules, type Procedure } from "@procedures/client";
 import { HOST_PROBE_PREFIX } from "@procedures/peer";
 import { spawnProgram } from "@procedures/shell/command";
-import { checkServer, getMarkDir, getServersDir, readLockfileForPort, type LockfileData } from "@procedures/peer/lockfile";
+import { checkServer, getMarkDir, getServersDir, readAllLockfiles, readLockfileForPort, type LockfileData } from "@procedures/peer/lockfile";
 import { ServerStartOutputSchema, serverStartInputSchema } from "../schemas.js";
 import type { ServerStartInput, ServerStartOutput } from "../types.js";
 
@@ -82,12 +82,24 @@ async function readProbe(url: string): Promise<"ready" | "starting" | "absent"> 
 }
 
 /**
- * The lockfile of the new server, when `host.info` answers its token with its peer id. A lockfile
- * with the peer id `before` is from before the spawn, thus it is not the lockfile of the new server.
+ * This function gives the reader of the lockfile that names the new server, before the check of
+ * `host.info`:
+ * - On a port, the lockfile of the port. A lockfile with the peer id `before` is from before the
+ *   spawn, thus it is not the lockfile of the new server.
+ * - On the port 0, the lockfile with the PID of the child. The server writes it with the port that
+ *   its listener got.
  */
-async function newServer(port: number, before: string | undefined): Promise<LockfileData | undefined> {
-  const lockfile = readLockfileForPort(port);
-  if (lockfile === null || lockfile.peerId === undefined || lockfile.peerId === before) return undefined;
+function lockfileOfNewServer(port: number, before: string | undefined, pid: number | undefined): () => LockfileData | undefined {
+  if (port === 0) return () => (pid === undefined ? undefined : readAllLockfiles().find((lockfile) => lockfile.pid === pid && lockfile.peerId !== undefined));
+  return () => {
+    const lockfile = readLockfileForPort(port);
+    return lockfile === null || lockfile.peerId === undefined || lockfile.peerId === before ? undefined : lockfile;
+  };
+}
+
+/** The lockfile of the new server, when `host.info` answers its token with its peer id. */
+async function aliveServer(lockfile: LockfileData | undefined): Promise<LockfileData | undefined> {
+  if (lockfile === undefined) return undefined;
   return (await checkServer(lockfile, READ_TIMEOUT_MS)) === "alive" ? lockfile : undefined;
 }
 
@@ -102,12 +114,13 @@ type WaitResult = { readonly ready: LockfileData } | { readonly end: ChildEnd } 
  *   needs the lockfile of the new server, and `host.info` must answer its token with its peer id.
  * - A listener without probes (a build of `mark` before CLI-9) answers 404. Then `host.info` alone
  *   tells the readiness, because the service refuses each call until its startup ends.
+ * - On the port 0, the probe waits for the lockfile of the child: it gives the port.
  * - The wait stops at once when the process ends.
  */
 async function waitForServer(options: {
-  readonly url: string;
+  readonly url: (port: number) => string;
   readonly port: number;
-  readonly before: string | undefined;
+  readonly lockfile: () => LockfileData | undefined;
   readonly end: Promise<ChildEnd>;
   readonly timeoutMs: number;
 }): Promise<WaitResult> {
@@ -116,8 +129,9 @@ async function waitForServer(options: {
   const deadline = Date.now() + options.timeoutMs;
   for (;;) {
     if (ended !== undefined) return { end: ended };
-    if ((await readProbe(options.url)) !== "starting") {
-      const ready = await newServer(options.port, options.before);
+    const port = options.port !== 0 ? options.port : options.lockfile()?.port;
+    if (port !== undefined && (await readProbe(options.url(port))) !== "starting") {
+      const ready = await aliveServer(options.lockfile());
       if (ready !== undefined) return { ready };
     }
     if (ended !== undefined) return { end: ended };
@@ -335,8 +349,8 @@ export const serverStartProcedure: Procedure<
     const transport = input.transport ?? "http";
     const timeoutMs = input.timeout ?? SERVER_START_TIMEOUT_MS;
 
-    // Check if server is already running on this port
-    const existing = readLockfileForPort(port);
+    // Check if server is already running on this port. The port 0 has no lockfile.
+    const existing = port === 0 ? null : readLockfileForPort(port);
     if (existing && (await checkServer(existing)) === "alive") {
       return {
         success: false,
@@ -351,7 +365,8 @@ export const serverStartProcedure: Procedure<
     const end = endOf(child);
 
     // The wait for the readiness (CLI-9): the readiness probe, and host.info for the identity of the server
-    const result = await waitForServer({ url: readinessUrl(host, port), port, before: existing?.peerId, end, timeoutMs });
+    const lockfile = lockfileOfNewServer(port, existing?.peerId, child.pid);
+    const result = await waitForServer({ url: (bound) => readinessUrl(host, bound), port, lockfile, end, timeoutMs });
     if ("ready" in result) {
       return {
         success: true,
@@ -372,10 +387,12 @@ export const serverStartProcedure: Procedure<
       };
     }
     // The timeout: the process still starts, but the server is not ready. Thus the start failed (CLI-9).
+    // On the port 0, the port comes from the lockfile of the child, when it has one.
+    const shownPort = port !== 0 ? port : lockfile()?.port;
     return {
       success: false,
       ...(pid !== undefined ? { pid } : {}),
-      port,
+      ...(shownPort !== undefined ? { port: shownPort } : {}),
       logFile: LOG_PATH,
       message: `The server is not ready after ${timeoutMs} ms. Its process (PID ${pid ?? "unknown"}) still starts: check ${LOG_PATH}, and run 'mark server status' later.`,
     };

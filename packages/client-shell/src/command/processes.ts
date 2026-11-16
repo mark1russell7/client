@@ -15,9 +15,8 @@
 
 import type { ChildProcess } from "node:child_process";
 import { StringDecoder } from "node:string_decoder";
-import { killTree } from "./tree-kill.js";
 import { OutputCollector } from "./output.js";
-import { startChild, startError, type SpawnOptions } from "./spawn.js";
+import { endCommand, startChild, startError, type SpawnOptions } from "./spawn.js";
 
 export interface ManagedProcessInfo {
   id: string;
@@ -44,7 +43,7 @@ export interface StartProcessOptions extends SpawnOptions {
 }
 
 export interface StopResult {
-  /** True when this call ended a running process. */
+  /** True when this call ended a running process. It is false when the process did not end in the grace time. */
   stopped: boolean;
   exitCode?: number;
   signal?: string;
@@ -370,19 +369,20 @@ export class ProcessRegistry {
 
   /**
    * This function kills the process tree and waits for the end. When the process does not end
-   * within the grace time, it kills again with SIGKILL.
+   * within the grace time, it kills again with SIGKILL. A descendant that keeps the output pipes
+   * does not hold the end. When the record has no end after the second grace time, `stopped` is false.
    */
   async stop(id: string, signal: NodeJS.Signals = "SIGTERM"): Promise<StopResult> {
     const entry = this.entries.get(id);
     if (!entry || entry.info.exitedAt) {
       return entry ? this.stopResult(entry, false) : { stopped: false };
     }
-    killTree(entry.child, signal);
+    endCommand(entry.child, signal);
     if (!(await this.endsWithin(entry, STOP_GRACE_MS))) {
-      killTree(entry.child, "SIGKILL");
+      endCommand(entry.child, "SIGKILL");
       await this.endsWithin(entry, STOP_GRACE_MS);
     }
-    return this.stopResult(entry, true);
+    return this.stopResult(entry, entry.info.exitedAt !== undefined);
   }
 
   /** This function stops every running process of the registry (or of one group). */

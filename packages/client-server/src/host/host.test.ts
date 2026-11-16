@@ -130,6 +130,7 @@ describe("createProcedureHost (CLI-7)", () => {
     const description = host.declare(serviceOf("declare")).describe();
     expect(description.transports.map((transport) => transport.name)).toEqual(["procedures", "procedures.ws", "procedures.listen.http"]);
     expect(description.dependencies.map((dependency) => dependency.name)).toEqual(["collections.things"]);
+    expect(host.dependencies.map((dependency) => dependency.name)).toEqual(["collections.things"]);
     const controller = description.controllers.find((each) => each.name === "procedures");
     expect(controller?.patterns?.map((pattern) => pattern.pattern)).toEqual(["http *", "ws *"]);
     expect(Object.keys(controller?.patterns?.[0]?.operations ?? {}).sort()).toEqual(["keyed", "once", "repeatable"]);
@@ -140,6 +141,14 @@ describe("createProcedureHost (CLI-7)", () => {
     expect(operationOfCall({ controller: "procedures", route: "http x.y", params: {}, wildcards: ["x.y"], detail: undefined })).toBe("once");
     // The WebSocket face opened its server at its construction
     await host.parts.find((part) => part.name === "procedures.ws")?.impl.close();
+  });
+
+  it("declares a dependency for each partitions object, also one that the app gives after the construction", () => {
+    const host = createProcedureHost({ registry: registryOf(), collections: { things: emptyStorage() } });
+    host.server.usePartitions("notes", { storageOf: () => emptyStorage(), resolve: () => undefined, close: () => undefined });
+    expect(host.dependencies.map((dependency) => dependency.name)).toEqual(["collections.things", "partitions.notes"]);
+    const description = host.declare(serviceOf("partitions")).describe();
+    expect(description.dependencies.map((dependency) => dependency.name)).toEqual(["collections.things", "partitions.notes"]);
   });
 
   it("runs under run(): each call goes through life.request, and a stream ends in-band at the cooperative abort", async () => {
