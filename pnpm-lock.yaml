@@ -527,8 +527,8 @@ importers:
         specifier: ^0.4.0
         version: 0.4.0(zod@4.6.7)
       '@mark1russell7/rigor-generators':
-        specifier: ^0.1.19
-        version: 0.1.19
+        specifier: ^0.2.0
+        version: 0.2.0
       '@mark1russell7/service':
         specifier: ^0.8.3
         version: 0.8.9(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.2)(zod@4.6.7)
@@ -643,8 +643,8 @@ importers:
         specifier: ^0.10.0
         version: 0.10.0(zod@4.6.7)
       '@mark1russell7/rigor-generators':
-        specifier: ^0.1.19
-        version: 0.1.19
+        specifier: ^0.2.0
+        version: 0.2.0
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -885,8 +885,8 @@ importers:
         specifier: ^0.10.0
         version: 0.10.0(zod@4.6.7)
       '@mark1russell7/rigor-generators':
-        specifier: ^0.1.19
-        version: 0.1.19
+        specifier: ^0.2.0
+        version: 0.2.0
       '@mark1russell7/service':
         specifier: ^0.8.3
         version: 0.8.9(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.2)(zod@4.6.7)
@@ -3652,6 +3652,10 @@ packages:
 
   '@mark1russell7/rigor-generators@0.1.19':
     resolution: {integrity: sha512-WIo/zJhj8RRRdNCz8JKEXOMZ4iPSh1h3igFGiWgRoAZGgETPuW7bP2oBgKVbMKEHn66c+hoXuCnwrIjguBaByA==}
+    engines: {node: '>=22'}
+
+  '@mark1russell7/rigor-generators@0.2.0':
+    resolution: {integrity: sha512-eTyJhK4Nowx1KQ3QrsQqLiAlhFoL+8m1OT6He+X0Lf0G/0f9OyQC8ponQLViQKRkP/ef10B6oACFjtjnKErobg==}
     engines: {node: '>=22'}
 
   '@mark1russell7/rigor-statistics@0.1.29':
@@ -7639,6 +7643,8 @@ snapshots:
       '@mark1russell7/rigor-statistics': 0.1.29
 
   '@mark1russell7/rigor-generators@0.1.19': {}
+
+  '@mark1russell7/rigor-generators@0.2.0': {}
 
   '@mark1russell7/rigor-statistics@0.1.29':
     dependencies:
