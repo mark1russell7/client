@@ -102,7 +102,8 @@ describe("the error policy on the MCP face (CLI-80)", () => {
     const { call, logged } = await start(undefined);
     expect(await call("raw")).toMatchObject({ code: "HANDLER_ERROR", text: MONGO_MESSAGE });
     expect((await call("raw", "stream")).text).toContain(MONGO_MESSAGE);
-    expect(logged).toEqual([]);
+    // A failure that the caller sees goes to onError one time for each call
+    expect(logged.map((error) => error.message)).toEqual([errorOf("raw").message, errorOf("raw").message]);
   });
 
   it("expose: \"coded\" sends INTERNAL_ERROR \"internal error\" for an error without a known code, and logs it", async () => {
