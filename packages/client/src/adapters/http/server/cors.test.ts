@@ -77,21 +77,26 @@ async function send(port: number, method: string, headers: Record<string, string
   });
 }
 
-/** The preflight request of a page of `APP` for a POST with the request headers `names`. */
-const preflight = (port: number, names: readonly string[]) =>
-  send(port, "OPTIONS", { origin: APP, "access-control-request-method": "POST", "access-control-request-headers": names.join(",") });
+/**
+ * The preflight request of a page of `APP` for a POST with the request headers `names`. A browser
+ * sends it to the path of the request: by default the path of the procedure `t.echo`.
+ */
+const preflight = (port: number, names: readonly string[], path = "/api/t/echo") =>
+  send(port, "OPTIONS", { origin: APP, "access-control-request-method": "POST", "access-control-request-headers": names.join(",") }, path);
 
 /** The names of a header list, in lowercase. */
 const namesOf = (value: string | string[] | undefined): string[] => String(value ?? "").split(",").map((name) => name.trim().toLowerCase()).filter((name) => name !== "");
 
 /**
- * The request headers of `HttpTransport`, as a browser names them in a preflight request: a call
- * with the retry middleware, a batch of two calls, and a call with a key of the application.
+ * The path and the request headers of each request of `HttpTransport`, as a browser names them in
+ * a preflight request: a call with the retry middleware, a batch of two calls, and a call with a key
+ * of the application.
  */
-async function sentHeaderNames(port: number): Promise<string[][]> {
-  const sent: string[][] = [];
+async function sentRequests(port: number): Promise<Array<{ path: string; names: string[] }>> {
+  const sent: Array<{ path: string; names: string[] }> = [];
   const spy: typeof fetch = (url, init) => {
-    sent.push([...new Headers(init?.headers).keys()].sort());
+    const href = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+    sent.push({ path: new URL(href).pathname, names: [...new Headers(init?.headers).keys()].sort() });
     return fetch(url, init);
   };
   const baseUrl = `http://127.0.0.1:${port}/api`;
@@ -107,11 +112,12 @@ async function sentHeaderNames(port: number): Promise<string[][]> {
 describe("the CORS of the request headers of HttpTransport", () => {
   it("answers the preflight request of each request of HttpTransport, with no allowedHeaders option", async () => {
     const port = await start();
-    const sent = await sentHeaderNames(port);
-    // The test examines the three headers that the fixed list did not have
-    expect(sent.flat()).toEqual(expect.arrayContaining(["idempotency-key", "procedures-batch", "tenant"]));
-    for (const names of sent) {
-      const answer = await preflight(port, names);
+    const sent = await sentRequests(port);
+    // The test examines the three headers that the fixed list did not have, and the path of the batch
+    expect(sent.flatMap((request) => request.names)).toEqual(expect.arrayContaining(["idempotency-key", "procedures-batch", "tenant"]));
+    expect(new Set(sent.map((request) => request.path))).toEqual(new Set(["/api", "/api/t/echo"]));
+    for (const { path, names } of sent) {
+      const answer = await preflight(port, names, path);
       expect(answer.status).toBe(204);
       expect(answer.headers["access-control-allow-origin"]).toBe(APP);
       expect(namesOf(answer.headers["access-control-allow-headers"])).toEqual(expect.arrayContaining(names));
@@ -121,10 +127,10 @@ describe("the CORS of the request headers of HttpTransport", () => {
 
   it("has each header of the protocol in the default list, so a fixed list from it also passes", async () => {
     const port = await start();
-    const sent = await sentHeaderNames(port);
+    const sent = await sentRequests(port);
     const listed = DEFAULT_CORS_HEADERS.map((name) => name.toLowerCase());
     // Only the key of the application is not in the list
-    expect([...new Set(sent.flat())].filter((name) => !listed.includes(name))).toEqual(["tenant"]);
+    expect([...new Set(sent.flatMap((request) => request.names))].filter((name) => !listed.includes(name))).toEqual(["tenant"]);
   });
 
   it("names only the headers of the allowedHeaders option, when it is given", async () => {
@@ -190,7 +196,7 @@ describe("the reach of the CORS of HttpServerTransport", () => {
 
   it("answers the preflight of a batch at the base path itself, and of a call under it", async () => {
     const port = await start();
-    const batch = await preflight(port, ["content-type", "procedures-batch"]);
+    const batch = await preflight(port, ["content-type", "procedures-batch"], "/api");
     const call = await send(port, "OPTIONS", { origin: APP, "access-control-request-method": "POST" }, "/api/t/echo");
     expect([batch.status, batch.headers["access-control-allow-origin"], call.status, call.headers["access-control-allow-origin"]]).toEqual([204, APP, 204, APP]);
   });
