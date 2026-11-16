@@ -20,13 +20,14 @@
  */
 
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { spawnSync, type ChildProcess } from "node:child_process";
 import { appendFileSync, closeSync, constants, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync, writeSync } from "node:fs";
-import { connect, createServer } from "node:net";
+import { connect } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
+import { childServerGroup } from "@mark1russell7/rigor-testkit/child";
 import { cooperativeAbortAt, type Profile } from "@mark1russell7/service";
 import { HOST_PROFILES } from "../src/host.js";
 
@@ -55,47 +56,63 @@ interface Exit {
   readonly at: number;
 }
 
-/** A host process: its output and its exit. */
+/** A host process: the port of its listener, its output and its exit. */
 interface HostProcess {
-  readonly child: ChildProcessWithoutNullStreams;
+  readonly child: ChildProcess;
+  /** The port that the listener of the host got. The host starts on the port 0. */
+  readonly port: number;
   output(): string;
   /** This function waits until the output (stdout and stderr) has the text. */
   waitFor(text: string, ms: number): Promise<void>;
   readonly exited: Promise<Exit>;
 }
 
-const children: ChildProcessWithoutNullStreams[] = [];
+/** The hosts of a test. The group stops them at the end of the test. */
+const hosts = childServerGroup();
 const folders: string[] = [];
 const descriptors: number[] = [];
 
-afterEach(() => {
-  for (const child of children.splice(0)) {
-    if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
-  }
+afterEach(async () => {
+  await hosts.stopAll();
   // The write end of a pipe that a failed test did not close
   for (const fd of descriptors.splice(0)) closeSync(fd);
   for (const folder of folders.splice(0)) rmSync(folder, { recursive: true, force: true, maxRetries: 3 });
 });
 
-/** This function starts `node` with the arguments: a host. */
-function startHost(args: readonly string[], options: { readonly cwd?: string; readonly env?: Readonly<Record<string, string>> } = {}): HostProcess {
-  const child = spawn(process.execPath, [...args], {
+/**
+ * The line of the HTTP endpoint that `procedure-server` and `mark --server` write to stdout, for
+ * example `  [http] http://127.0.0.1:41234/api`. Its group is the port that the listener got.
+ */
+const HTTP_ENDPOINT = /\[http\] http:\/\/\S+:(\d+)\/api/;
+
+/**
+ * This function starts `node` with the arguments: a host. Give the arguments the port 0: the system
+ * then gives the port at the listen. The function waits until the host writes `Press Ctrl+C`, and
+ * reads the port of the HTTP endpoint line.
+ */
+async function startHost(
+  args: readonly string[],
+  options: { readonly cwd?: string; readonly env?: Readonly<Record<string, string>>; readonly timeoutMs: number },
+): Promise<HostProcess> {
+  const server = await hosts.start({
+    command: process.execPath,
+    args,
     ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
     env: { ...process.env, FORCE_COLOR: "0", NO_COLOR: "1", ...options.env },
+    report: { from: "stdout", pattern: HTTP_ENDPOINT },
+    ready: /Press Ctrl\+C/,
+    timeoutMs: options.timeoutMs,
   });
-  children.push(child);
-  let output = "";
+  const { child } = server;
   let exit: Exit | undefined;
   const watchers = new Set<() => void>();
   const changed = (): void => {
     for (const watcher of [...watchers]) watcher();
   };
-  const onData = (data: Buffer): void => {
-    output += data.toString();
-    changed();
-  };
-  child.stdout.on("data", onData);
-  child.stderr.on("data", onData);
+  // The fixture added its listeners of the output first: thus `server.output()` has each chunk before a watcher reads it
+  child.stdout?.on("data", changed);
+  child.stderr?.on("data", changed);
+  // The fixture gives the server while the child runs. Thus the exit event of the child comes after this listener.
   const exited = new Promise<Exit>((resolve) => {
     child.once("exit", (code, signal) => {
       exit = { code, signal, at: performance.now() };
@@ -110,32 +127,22 @@ function startHost(args: readonly string[], options: { readonly cwd?: string; re
         watchers.delete(check);
       };
       const check = (): void => {
-        if (output.includes(text)) {
+        if (server.output().includes(text)) {
           stop();
           resolve();
         } else if (exit !== undefined) {
           stop();
-          reject(new Error(`The host exited (code ${exit.code}, signal ${exit.signal}) before "${text}":\n${output}`));
+          reject(new Error(`The host exited (code ${exit.code}, signal ${exit.signal}) before "${text}":\n${server.output()}`));
         }
       };
       const timer = setTimeout(() => {
         stop();
-        reject(new Error(`No "${text}" within ${ms} ms:\n${output}`));
+        reject(new Error(`No "${text}" within ${ms} ms:\n${server.output()}`));
       }, ms);
       watchers.add(check);
       check();
     });
-  return { child, output: () => output, waitFor, exited };
-}
-
-/** A free port of the loopback interface. */
-async function freePort(): Promise<number> {
-  const server = createServer();
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
-  const address = server.address();
-  const port = typeof address === "object" && address ? address.port : 0;
-  await new Promise<void>((resolve) => server.close(() => resolve()));
-  return port;
+  return { child, port: server.port, output: () => server.output(), waitFor, exited };
 }
 
 /** This function gives the value of the promise, or fails after `ms`. */
@@ -486,13 +493,12 @@ describe.skipIf(process.platform === "win32")("the hosts stop under run(): SIGTE
   });
 
   it("procedure-server (the profile localDev)", async () => {
-    const port = await freePort();
     const token = "lifecycle-token";
+    const host = await startHost([SERVER_BIN, "--port", "0", "--token", token, "--transport", "http", "--procedures", FIXTURE], { timeoutMs: 60_000 });
+    const { port } = host;
     const base = `http://127.0.0.1:${port}/api`;
-    const host = startHost([SERVER_BIN, "--port", String(port), "--token", token, "--transport", "http", "--procedures", FIXTURE]);
     let count: StreamCall | undefined;
     try {
-      await host.waitFor("Press Ctrl+C", 60_000);
       const scenario: Scenario = {
         name: "procedure-server",
         host,
@@ -537,12 +543,12 @@ describe.skipIf(process.platform === "win32")("the hosts stop under run(): SIGTE
     const pipe = join(home, "grace.fifo");
     const made = spawnSync("mkfifo", [pipe], { encoding: "utf8" });
     expect(made.status, made.stderr).toBe(0);
-    const port = await freePort();
-    // mark --server writes its lockfile under the home folder, and takes the commands of its folder
-    const host = startHost([MARK_BIN, "--server", "--port", String(port)], { cwd: home, env: { HOME: home, USERPROFILE: home } });
+    // mark --server writes its lockfile under the home folder, and takes the commands of its folder.
+    // On the port 0, the lockfile has the port that the listener got.
+    const host = await startHost([MARK_BIN, "--server", "--port", "0"], { cwd: home, env: { HOME: home, USERPROFILE: home }, timeoutMs: 90_000 });
+    const { port } = host;
     let read: { status: number; body: unknown } | undefined;
     try {
-      await host.waitFor("Press Ctrl+C", 90_000);
       const lockPath = join(home, ".mark", "servers", `${port}.lock`);
       const lock = JSON.parse(readFileSync(lockPath, "utf8")) as { endpoint: string; token: string };
       // The calls start no program. @procedures/shell kills each program that it started at the
