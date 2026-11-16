@@ -668,7 +668,7 @@ importers:
   packages/client-cue:
     dependencies:
       '@mark1russell7/cue':
-        specifier: ^2.1.1
+        specifier: ^2.1.2
         version: 2.1.4
       '@procedures/client':
         specifier: workspace:*
