@@ -118,6 +118,12 @@ export interface ProcedureServerOptions extends ServerOptions {
   strictCalls?: boolean | undefined;
 
   /**
+   * The highest depth of a nested call, a whole number of 0 or more. A call at a larger depth gets
+   * `FORBIDDEN` with the reason `depth`. Without a value, the depth has no limit (`InvokeOptions.maxDepth`).
+   */
+  maxDepth?: number | undefined;
+
+  /**
    * The interceptors of each request and its nested calls, the outermost first: policy,
    * tracing, timeouts, metrics (see `procedures/interceptors.ts`).
    */
@@ -453,6 +459,7 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
   private servesRegistry = false;
   private readonly expose: ((path: ProcedurePath) => boolean) | undefined;
   private readonly strictCalls: boolean;
+  private readonly maxDepth: number | undefined;
   private readonly interceptors: readonly Interceptor[];
   /** The capability options of the requests (CAPABILITIES-2026-10). */
   private readonly capabilityOptions: Pick<ProcedureServerOptions, "capability" | "clearanceOrder" | "resources" | "admitItem">;
@@ -511,6 +518,10 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
     this.clock = options.clock ?? realClock;
     this.expose = options.expose;
     this.strictCalls = options.strictCalls ?? false;
+    if (options.maxDepth !== undefined && (!Number.isSafeInteger(options.maxDepth) || options.maxDepth < 0)) {
+      throw new TypeError(`The option maxDepth is a whole number of 0 or more, not ${String(options.maxDepth)}`);
+    }
+    this.maxDepth = options.maxDepth;
     this.interceptors = options.interceptors ?? [];
     this.capabilityOptions = {
       capability: options.capability,
@@ -1272,6 +1283,8 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
         // The rule of the face of the request meets the rule of the server, also for each nested call (AG1-B)
         expose: request.expose !== undefined ? meetExpose(this.expose, request.expose) : this.expose,
         strictCalls: this.strictCalls,
+        // The depth limit of the nested calls: a procedure that calls itself stops there
+        ...(this.maxDepth !== undefined ? { maxDepth: this.maxDepth } : {}),
         interceptors: this.interceptors,
         capability,
         clearanceOrder,

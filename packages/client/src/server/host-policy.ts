@@ -85,6 +85,8 @@ export interface HostPolicyOptions {
   exclude?: readonly string[] | undefined;
   /** A procedure of code with no `metadata.calls` calls only exposed procedures. */
   strictCalls?: boolean | undefined;
+  /** The highest depth of a nested call. A call at a larger depth gets `FORBIDDEN` with the reason `depth`. */
+  maxDepth?: number | undefined;
   /** The time limit of each call from a caller, for example `minutes(10)`. 0 or no value: no limit. */
   timeout?: Duration | undefined;
   /** More interceptors, after the policy's own (tracing, metrics). */
@@ -139,6 +141,8 @@ export interface HostPolicyOptions {
 export interface HostPolicy {
   readonly expose: ((path: ProcedurePath) => boolean) | undefined;
   readonly strictCalls: boolean;
+  /** The highest depth of a nested call, or undefined for no limit. */
+  readonly maxDepth?: number | undefined;
   readonly interceptors: readonly Interceptor[];
   readonly token: string | undefined;
   /** The request hook of the network requests, or undefined for none. */
@@ -195,6 +199,7 @@ export function hostPolicy(options: HostPolicyOptions = {}): HostPolicy {
   return {
     expose: exposeOf(options),
     strictCalls: options.strictCalls ?? false,
+    ...(options.maxDepth !== undefined ? { maxDepth: options.maxDepth } : {}),
     interceptors,
     token: options.token,
     ...(options.principalOf ? { principalOf: options.principalOf } : {}),
@@ -217,6 +222,7 @@ export function procedureServerOptions(policy: HostPolicy, registry?: ProcedureR
     ...(registry ? { registry } : {}),
     ...(policy.expose ? { expose: policy.expose } : {}),
     strictCalls: policy.strictCalls,
+    ...(policy.maxDepth !== undefined ? { maxDepth: policy.maxDepth } : {}),
     // The token of the policy: ProcedureServer examines it for each network request (R18)
     ...(policy.token !== undefined ? { token: policy.token } : {}),
     // The request hook of the policy: the credentials of a cookie, a header or the query (CLI-2a)
