@@ -162,13 +162,19 @@ jobs:
             # branch changeset-release/main of the Changesets action, or release/<version> of a
             # local `pnpm changeset version`. A change of the version in a different pull request,
             # or in a push with no pull request, is an error, and the run publishes nothing.
-            branches=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '.[] | select(.merged_at != null and .base.ref == "main") | .head.ref')
+            # Just after a merge, GitHub can give an empty list of the pull requests of the commit.
+            # So the step reads the list up to three times, 10 seconds apart.
             from_version_pr=false
-            while read -r branch; do
-              case "$branch" in
-                changeset-release/main | release/*) from_version_pr=true ;;
-              esac
-            done <<< "$branches"
+            for attempt in 1 2 3; do
+              branches=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '.[] | select(.merged_at != null and .base.ref == "main") | .head.ref')
+              while read -r branch; do
+                case "$branch" in
+                  changeset-release/main | release/*) from_version_pr=true ;;
+                esac
+              done <<< "$branches"
+              if [ "$from_version_pr" = true ] || [ "$attempt" = 3 ]; then break; fi
+              sleep 10
+            done
             if [ "$from_version_pr" != true ]; then
               echo "::error::The version in $file changed from $old to $new at $GITHUB_SHA, but no merged version pull request (branch changeset-release/main or release/<version>) made the commit. The run publishes nothing. To publish this commit, start release.yml by hand."
               exit 1
