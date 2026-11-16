@@ -4,6 +4,9 @@
  * run. The field `bound` is the high end of the 95 % interval of the ratio sliced/plain, times the
  * high end of the A/A band.
  *
+ * A run with fewer than 5 A/A cases gives no band. Then the field `aa` shows no read with its reason,
+ * and each `bound` is null. A skipped case of the A/A arm gives such a run.
+ *
  * The field `worstMs` of a `block` case is the budget candidate: the worst sliced time of all rounds.
  *
  * The field `growth` is the growth gate (`fan-out-growth.ts`). The script `fan-out-gate.ts` fails the job when it does not pass.
@@ -12,7 +15,7 @@
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { type GrowthVerdict, aaBand, caseIntervals, poolRecords, pooledVerdict, type PairedTime } from "@mark1russell7/rigor-bench";
+import { type GrowthVerdict, aaBand, caseIntervals, caseRatios, poolRecords, pooledVerdict, type PairedTime } from "@mark1russell7/rigor-bench";
 import { median } from "@mark1russell7/rigor-statistics";
 import { type GrowthSkip, fanOutGrowth } from "./fan-out-growth.js";
 
@@ -37,7 +40,10 @@ const jobs = readdirSync(folder)
 const records = jobs.map(({ job, candidate, aa, skipped }) => ({ job, candidate, aa, ...(skipped === undefined ? {} : { skipped }) }));
 const pool = poolRecords(records);
 const verdict = pooledVerdict(records);
-const band = aaBand(pool.aa);
+/** The fewest A/A cases that give a band: the 5-seed rule of `aaBand`. */
+const AA_MINIMUM = 5;
+const aaCases = caseRatios(pool.aa).length;
+const band = aaCases >= AA_MINIMUM ? aaBand(pool.aa, { minimum: AA_MINIMUM }) : undefined;
 
 const round = (value: number, digits: number): number => Number(value.toFixed(digits));
 
@@ -51,7 +57,7 @@ const cases = caseIntervals(pool.candidate).map((entry) => ({
   ratio: round(entry.ratio, 4),
   low: round(entry.low, 4),
   high: round(entry.high, 4),
-  bound: round(entry.high * band.high, 4),
+  bound: band === undefined ? null : round(entry.high * band.high, 4),
   rounds: entry.rounds,
 }));
 
@@ -62,7 +68,10 @@ const steps = (verdict: GrowthVerdict) =>
 const report = {
   schema: "fan-out-bench/1",
   run: values.run ?? "",
-  aa: { noise: round(band.noise, 4), high: round(band.high, 3), median: round(band.median, 3), cases: band.cases },
+  aa:
+    band === undefined
+      ? { read: "none", reason: `the A/A arm has ${aaCases} cases, and a band needs ${AA_MINIMUM} or more`, cases: aaCases }
+      : { noise: round(band.noise, 4), high: round(band.high, 3), median: round(band.median, 3), cases: band.cases },
   verdict: { outcome: verdict.outcome, reason: verdict.reason },
   cases,
   growth: {
