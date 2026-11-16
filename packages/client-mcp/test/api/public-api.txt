@@ -26,6 +26,7 @@ type McpHostState: dist/host.d.ts#McpHostState
 type McpRequestGuardOptions: dist/transport/guard.d.ts#McpRequestGuardOptions
 type McpRunnerDependency: dist/host.d.ts#McpRunnerDependency
 type McpRunnerPart: dist/host.d.ts#McpRunnerPart
+type McpRunnerPartitions: dist/host.d.ts#McpRunnerPartitions
 type McpServerInfo: @procedures/mcp#McpServerInfo (external)
 McpServerTransport: dist/transport/mcp-transport.d.ts#McpServerTransport
 type McpServerTransportOptions: dist/types.d.ts#McpServerTransportOptions
@@ -215,6 +216,9 @@ export interface McpRunnerPart {
     close(): Promise<void> | void;
 }
 
+### dist/host.d.ts#McpRunnerPartitions
+export type McpRunnerPartitions = ReturnType<ProcedureServer["partitionHandles"]>[number];
+
 ### dist/host.d.ts#McpServiceBuilder
 export interface McpServiceBuilder {
     server(name: string, knobs: Readonly<Record<string, never>>, impl: McpRunnerPart): unknown;
@@ -224,7 +228,7 @@ export interface McpServiceBuilder {
         operations: Readonly<Record<string, {
             idempotent: boolean;
         }>>;
-    }, handle: McpRunnerDependency): unknown;
+    }, handle: McpRunnerDependency | McpRunnerPartitions): unknown;
     trigger(trigger: "stdin-close"): unknown;
 }
 
