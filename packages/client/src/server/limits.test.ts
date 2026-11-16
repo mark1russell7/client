@@ -11,9 +11,9 @@
  *   without a value of its key is outside the limit.
  * - A shared store follows `onStoreFailure`. A limit without its store, two limits with one name
  *   and a spec with a problem are refused at the start.
- * - A limit with `nested: true` takes the units of each nested call that it covers. A refused nested
- *   call gets the code, the wait and the metadata of a refusal at the door. A limit without the
- *   field counts the calls of a caller only, and the server writes a warning.
+ * - A limit with `nested: true` or without the field takes the units of each nested call that it
+ *   covers. A refused nested call gets the code, the wait and the metadata of a refusal at the door.
+ *   A limit with `nested: false` counts the calls of a caller only.
  * - Each test reads time only from a fake clock: no real sleeps.
  */
 
@@ -469,24 +469,25 @@ describe("the limits of the nested calls", () => {
     ]);
   });
 
-  it("counts the calls of a caller only for a limit without nested: true, and warns one time for a limit without the field", async () => {
+  it("takes a unit for each nested call that a limit without the field nested covers, and writes no warning", async () => {
     const logger = memoryLogger();
     const { nested: _nested, ...withoutField } = NESTED_WRITES;
-    const server = serverOf([withoutField, { ...NESTED_WRITES, name: "old", nested: false }], fakeClock(), undefined, logger);
+    const server = serverOf([withoutField], fakeClock(), undefined, logger);
+    expect(logger.lines).toEqual([]);
+    expect(outputOf(await call(server, "acme", "fanout", { n: 5, keepGoing: true }))).toEqual(["write", "write", "RATE_LIMITED", "RATE_LIMITED", "RATE_LIMITED"]);
+    expect(runs).toEqual({ fanout: 1, write: 2 });
+    // The calls of a caller and the nested calls use one bucket for each tenant
+    expect(outcome(await call(server, "acme", "write"))).toBe("RATE_LIMITED");
+    expect(logger.lines).toEqual([]);
+  });
+
+  it("counts the calls of a caller only for a limit with nested: false", async () => {
+    const server = serverOf([{ ...NESTED_WRITES, nested: false }]);
     expect(outputOf(await call(server, "acme", "fanout", { n: 5 }))).toEqual(["write", "write", "write", "write", "write"]);
     expect(runs["write"]).toBe(5);
     // The calls of the caller still take their units
     for (let n = 0; n < 2; n++) expect(outcome(await call(server, "acme", "write"))).toBe("ok");
     expect(outcome(await call(server, "acme", "write"))).toBe("RATE_LIMITED");
-    expect(logger.lines).toEqual([
-      {
-        level: "warn",
-        message:
-          "The limit notes.write counts the calls of a caller only, not their nested calls. @procedures/client 0.64.0 counts the nested calls too. " +
-          "Set nested: true to count them, or nested: false to keep this rule.",
-        fields: { limit: "notes.write" },
-      },
-    ]);
   });
 
   it("refuses a nested call with INTERNAL_ERROR when the key function of a limit throws, and does not run it", async () => {

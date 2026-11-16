@@ -1,9 +1,9 @@
 /**
  * The limit of the loaded bytes of `fs.read` and `fs.read.json`, and the part of a file that
- * `offset` and `length` give. The warning test comes first: the warning comes one time in a module.
+ * `offset` and `length` give. Without `maxBytes`, the limit is 16 MiB.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -29,23 +29,28 @@ beforeEach(() => {
 
 afterEach(() => {
   rmSync(dir, { recursive: true, force: true });
-  vi.restoreAllMocks();
 });
 
 describe("the limit of the bytes that fs.read loads", () => {
-  it("writes one warning for the first read over 16 MiB without maxBytes, and reads the file", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  it("refuses a file over 16 MiB without maxBytes, and reads it with a larger maxBytes", async () => {
     const size = 16 * 1024 * 1024 + 1;
-    writeFileSync(join(dir, "large.txt"), Buffer.alloc(size, 97));
-    const first = await call<ReadOutput>("fs.read", { path: join(dir, "large.txt") });
-    expect(first.content.length).toBe(size);
-    await call<ReadOutput>("fs.read", { path: join(dir, "large.txt") });
-    expect(warn.mock.calls).toEqual([
-      ["@procedures/fs 0.64.0 refuses a read over 16777216 bytes without the input maxBytes. Set maxBytes to read a larger file."],
-    ]);
-    // With maxBytes, the same read gives the error and no warning
-    await expect(call("fs.read", { path: join(dir, "large.txt"), maxBytes: 1024 })).rejects.toMatchObject({ code: "ERR_FS_FILE_TOO_LARGE" });
-    expect(warn).toHaveBeenCalledTimes(1);
+    const path = join(dir, "large.txt");
+    writeFileSync(path, Buffer.alloc(size, 97));
+    const refusal = call("fs.read", { path });
+    await expect(refusal).rejects.toBeInstanceOf(RangeError);
+    await expect(refusal).rejects.toMatchObject({ code: "ERR_FS_FILE_TOO_LARGE" });
+    await expect(refusal).rejects.toThrow("has more than 16777216 bytes, the limit maxBytes");
+    // fs.read.json has the same default
+    await expect(call("fs.read.json", { path })).rejects.toMatchObject({ code: "ERR_FS_FILE_TOO_LARGE" });
+    // A larger maxBytes keeps the old behavior
+    const read = await call<ReadOutput>("fs.read", { path, maxBytes: size });
+    expect(read.content.length).toBe(size);
+  }, 30_000);
+
+  it("reads a file of 16 MiB without maxBytes", async () => {
+    const size = 16 * 1024 * 1024;
+    writeFileSync(join(dir, "limit.txt"), Buffer.alloc(size, 97));
+    expect((await call<ReadOutput>("fs.read", { path: join(dir, "limit.txt") })).content.length).toBe(size);
   }, 30_000);
 
   it("reads a file at the limit, and refuses a file over it", async () => {

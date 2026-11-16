@@ -405,7 +405,7 @@ A `FORBIDDEN` error tells its reason in the metadata key `reason`. The HTTP body
 | `topic-not-allowed` | The publisher of the events | The publisher refuses the topic. |
 | `partition-not-allowed` | The collection procedures | The partition resolver of the collection refuses the partition of the call (CLI-17). |
 | `write-not-allowed` | The collection procedures | The guard of the collection (`admission.guard`) refuses a write. The storage does not change (CLI-41). |
-| `depth` | The depth limit of the host | The nested call is deeper than the option `maxDepth` of the host. Its handler does not start. |
+| `depth` | The depth limit of the host | The nested call is deeper than the option `maxDepth` of the host, 64 by default. Its handler does not start. |
 | `origin-not-allowed` | The browser checks | The `Origin` of the request is not the origin of the server or a permitted origin. A cross-site request without a permitted origin gets it too. |
 | `host-header-not-allowed` | The browser checks | The `Host` of the request is not a loopback name, an IP address or a permitted name (DNS rebinding). The check is on each listener. |
 | `method-not-allowed` | The browser checks of HTTP | The HTTP method is `GET` or `HEAD`, and the option `allowGet` is off. |
@@ -437,13 +437,13 @@ A host can limit the calls of each key, for example the writes of each tenant (C
 
 The server takes the units in the sequence of the limits. The first refusal stops the call. A limit before the refusal keeps its unit: the server does not give it back.
 
-A procedure can make more calls with `ctx.client`, for example each step of `client.chain` and `client.parallel`. These calls are nested calls. A limit with `nested: true` also takes the units of each nested call that it covers:
+A procedure can make more calls with `ctx.client`, for example each step of `client.chain` and `client.parallel`. These calls are nested calls. A limit with `nested: true`, or without the field, also takes the units of each nested call that it covers:
 
 - The server takes the units before the validation of the input of the nested call. A refused nested call does not start.
 - The cover, the key and the cost of the limit get the call at each depth. `LimitedCall.depth` is 0 for the call of the caller, and 1 or more for a nested call. `LimitedCall.input` is the input of the call at that depth.
 - The procedure gets the refusal as an error with the code, the wait and the cause. When the procedure does not catch the error, the caller gets the same response as a refusal before the run.
 
-A limit with `nested: false` takes units only for the calls of a caller. A limit without the field has the same rule, and the server writes a warning at the start. `@procedures/client` 0.64.0 changes the default to `true`.
+A limit with `nested: false` takes units only for the calls of a caller. Since `@procedures/client` 0.64.0, the default is `true`. Before 0.64.0, a limit without the field took units only for the calls of a caller.
 
 A call above a limit gets `RATE_LIMITED`. The call did not start, thus a retry after the wait is safe. The error has these parts on each face:
 

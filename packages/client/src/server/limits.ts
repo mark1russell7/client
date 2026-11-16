@@ -59,7 +59,7 @@ export interface LimitedCall {
   readonly request: ServerRequest<unknown>;
   /**
    * The depth of the call: 0 for the call of a caller, 1 for a call that its procedure makes with
-   * `ctx.client`, 2 for a call of that call, and so on. Only a limit with `nested: true` gets a depth over 0.
+   * `ctx.client`, 2 for a call of that call, and so on. A limit with `nested: false` gets only the depth 0.
    */
   readonly depth: number;
   /** The input of the call: the payload of the request at the depth 0, and the input of the nested call at a larger depth. */
@@ -126,8 +126,7 @@ export interface CallLimit {
    * `client.parallel`. The cover, the key and the cost then get the call at each depth
    * (`LimitedCall.depth`). False: the limit takes the units of the calls of a caller only.
    *
-   * The default is false, and the server writes a warning for a limit without this field.
-   * `@procedures/client` 0.64.0 changes the default to true.
+   * The default is true.
    */
   readonly nested?: boolean | undefined;
 }
@@ -143,12 +142,12 @@ export interface CallLimitRefusal {
 export interface CallLimiter {
   /** The keyed limiters, in the sequence of the limits. A host declares each one with `svc.limiter(name, spec)`. */
   readonly limiters: readonly KeyedLimiter[];
-  /** True when a limit takes the units of the nested calls (`nested: true`). */
+  /** True when a limit takes the units of the nested calls: a limit without `nested: false`. */
   readonly coversNested: boolean;
   /**
    * This method takes the cost of the call from each limit that covers it, in the sequence of the
    * limits. It gives the first refusal, or undefined. A limit before the refusal keeps its units.
-   * A nested call (a depth over 0) gets only the limits with `nested: true`.
+   * A nested call (a depth over 0) gets only the limits without `nested: false`.
    */
   admit(call: LimitedCall): Promise<CallLimitRefusal | undefined>;
 }
@@ -252,12 +251,13 @@ export function callLimiter(limits: readonly CallLimit[], options: CallLimiterOp
     const keyOf = keyFunction(limit.key);
     const covers = coversFunction(limit.covers);
     const costOf = costFunction(limit);
-    // A limit from a file can give the text "true": the check refuses it, so the limit does not count less than it says
+    // A limit from a file can give the text "false": the check refuses it, so the limit does not count more than it says
     if (limit.nested !== undefined && typeof limit.nested !== "boolean") {
       throw new Error(`The field nested of the limit ${limit.name} is true, false or absent, not ${JSON.stringify(limit.nested)}`);
     }
     const limiter = keyedLimiter(limit.name, { key: keyNameOf(limit), policy: limit.policy, store: limit.store, evict: limit.evict }, storeOf(limit, local, stores));
-    return { limiter, keyOf, covers, costOf, nested: limit.nested === true };
+    // A limit without the field takes the units of the nested calls too
+    return { limiter, keyOf, covers, costOf, nested: limit.nested !== false };
   });
   return {
     limiters: entries.map((entry) => entry.limiter),

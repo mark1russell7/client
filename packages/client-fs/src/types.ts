@@ -24,8 +24,8 @@ export const ReadInputSchema: z.ZodObject<{
   offset: z.number().int().min(0).optional().describe("The first byte of the part to read (default 0)"),
   /** The count of bytes of the part to read. Without it, the part goes to the end of the file. */
   length: z.number().int().min(0).optional().describe("The count of bytes to read (default: to the end of the file)"),
-  /** The largest count of bytes that the read loads. A larger part gives the error `ERR_FS_FILE_TOO_LARGE`. */
-  maxBytes: z.number().int().min(0).optional().describe("The largest count of bytes to load. A larger part fails with ERR_FS_FILE_TOO_LARGE"),
+  /** The largest count of bytes that the read loads. The default is 16 MiB. A larger part gives the error `ERR_FS_FILE_TOO_LARGE`. */
+  maxBytes: z.number().int().min(0).optional().describe("The largest count of bytes to load (default 16 MiB). A larger part fails with ERR_FS_FILE_TOO_LARGE"),
 });
 
 export type ReadInput = z.infer<typeof ReadInputSchema>;
@@ -326,8 +326,8 @@ export const ReadJsonInputSchema: z.ZodObject<{
 }> = z.object({
   /** Path to JSON file */
   path: z.string().describe("Path to JSON file"),
-  /** The largest count of bytes that the read loads. A larger file gives the error `ERR_FS_FILE_TOO_LARGE`. */
-  maxBytes: z.number().int().min(0).optional().describe("The largest count of bytes to load. A larger file fails with ERR_FS_FILE_TOO_LARGE"),
+  /** The largest count of bytes that the read loads. The default is 16 MiB. A larger file gives the error `ERR_FS_FILE_TOO_LARGE`. */
+  maxBytes: z.number().int().min(0).optional().describe("The largest count of bytes to load (default 16 MiB). A larger file fails with ERR_FS_FILE_TOO_LARGE"),
 });
 
 export type ReadJsonInput = z.infer<typeof ReadJsonInputSchema>;
