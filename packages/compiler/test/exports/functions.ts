@@ -20,6 +20,11 @@ interface Shape {
   area(): number;
 }
 
+interface Handler {
+  readonly name: string;
+  readonly run: (value: number) => number;
+}
+
 interface Note {
   readonly text: string;
   readonly extra: string | undefined;
@@ -36,6 +41,14 @@ export const LIMIT = 10;
 
 export function add(a: number, b: number): number {
   return a + b;
+}
+
+export function minus(a: number, b: number): number {
+  return a - b;
+}
+
+export function above(value: number, limit: number): boolean {
+  return value > limit;
 }
 
 export function norm(point: Point, options: { readonly level?: number } = {}): number {
@@ -82,6 +95,19 @@ export function apply(values: readonly number[], fn: (value: number) => number):
 
 export function sortBy(values: readonly number[], options: { readonly compare: (a: number, b: number) => number }): number[] {
   return [...values].sort(options.compare);
+}
+
+export function findIndex(values: readonly number[], predicate: (value: number, index: number) => boolean): number {
+  return values.findIndex((value, index) => predicate(value, index));
+}
+
+export function choose(a: number, b: number, score?: (a: number, b: number) => number | undefined): number {
+  const value = score?.(a, b);
+  return value === undefined ? -1 : value;
+}
+
+export function useHandler(handler: Handler, value: number): number {
+  return handler.run(value);
 }
 
 export function counter(): Counter {
