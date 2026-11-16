@@ -602,6 +602,8 @@ Find files matching a glob pattern using the Node.js `fs.glob` API (`node:fs/pro
 
 With `dot: true`, the walk uses the glob matcher of `@mark1russell7/files`. Each wildcard matches a name that starts with `.`, and a brace group can hold a dot name, for example `{.github,docs}/**`. The matcher knows `*`, `**`, `?`, sets and brace groups.
 
+A pattern `x/**` also gives the folder `x`, as without `dot`. An ignore pattern keeps the walk out of a folder only when it matches the folder or each entry in it. A pattern can start with `./`.
+
 ```typescript
 const result = await client.exec(
   ["fs", "glob"],

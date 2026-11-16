@@ -578,6 +578,7 @@ lookupOutputRef: dist/procedures/ref.d.ts#lookupOutputRef
 manifestProcedure: dist/procedures/define-procedure.d.ts#manifestProcedure
 mapProcedure: dist/procedures/core/index.d.ts#mapProcedure
 markDataDriven: dist/procedures/ref.d.ts#markDataDriven
+markUntrusted: dist/procedures/untrusted.d.ts#markUntrusted
 matchPath: dist/client/route-resolver.d.ts#matchPath
 matchesSelector: dist/procedures/collection/query.d.ts#matchesSelector
 mathProcedures: dist/procedures/core/math.d.ts#mathProcedures
@@ -679,6 +680,7 @@ tryCatchProcedure: dist/procedures/core/index.d.ts#tryCatchProcedure
 typed: dist/procedures/core/schemas.d.ts#typed
 typedAnySchema: dist/procedures/core/schemas.d.ts#typedAnySchema
 untrustedFieldsOf: dist/procedures/untrusted.d.ts#untrustedFieldsOf
+untrustedMarkOf: dist/procedures/untrusted.d.ts#untrustedMarkOf
 untrustedText: dist/procedures/untrusted.d.ts#untrustedText
 untrustedTextsOf: dist/procedures/untrusted.d.ts#untrustedTextsOf
 validateCalls: dist/procedures/policy.d.ts#validateCalls
@@ -1259,6 +1261,7 @@ lookupOutputRef: dist/procedures/ref.d.ts#lookupOutputRef
 manifestProcedure: dist/procedures/define-procedure.d.ts#manifestProcedure
 mapProcedure: dist/procedures/core/index.d.ts#mapProcedure
 markDataDriven: dist/procedures/ref.d.ts#markDataDriven
+markUntrusted: dist/procedures/untrusted.d.ts#markUntrusted
 matchPath: dist/client/route-resolver.d.ts#matchPath
 matchesSelector: dist/procedures/collection/query.d.ts#matchesSelector
 mathProcedures: dist/procedures/core/math.d.ts#mathProcedures
@@ -1359,6 +1362,7 @@ tryCatchProcedure: dist/procedures/core/index.d.ts#tryCatchProcedure
 typed: dist/procedures/core/schemas.d.ts#typed
 typedAnySchema: dist/procedures/core/schemas.d.ts#typedAnySchema
 untrustedFieldsOf: dist/procedures/untrusted.d.ts#untrustedFieldsOf
+untrustedMarkOf: dist/procedures/untrusted.d.ts#untrustedMarkOf
 untrustedText: dist/procedures/untrusted.d.ts#untrustedText
 untrustedTextsOf: dist/procedures/untrusted.d.ts#untrustedTextsOf
 validateCalls: dist/procedures/policy.d.ts#validateCalls
@@ -1938,6 +1942,7 @@ lookupOutputRef: dist/procedures/ref.d.ts#lookupOutputRef
 manifestProcedure: dist/procedures/define-procedure.d.ts#manifestProcedure
 mapProcedure: dist/procedures/core/index.d.ts#mapProcedure
 markDataDriven: dist/procedures/ref.d.ts#markDataDriven
+markUntrusted: dist/procedures/untrusted.d.ts#markUntrusted
 matchesSelector: dist/procedures/collection/query.d.ts#matchesSelector
 mathProcedures: dist/procedures/core/math.d.ts#mathProcedures
 mergePatch: dist/procedures/collection/query.d.ts#mergePatch
@@ -2006,6 +2011,7 @@ tryCatchProcedure: dist/procedures/core/index.d.ts#tryCatchProcedure
 typed: dist/procedures/core/schemas.d.ts#typed
 typedAnySchema: dist/procedures/core/schemas.d.ts#typedAnySchema
 untrustedFieldsOf: dist/procedures/untrusted.d.ts#untrustedFieldsOf
+untrustedMarkOf: dist/procedures/untrusted.d.ts#untrustedMarkOf
 untrustedText: dist/procedures/untrusted.d.ts#untrustedText
 untrustedTextsOf: dist/procedures/untrusted.d.ts#untrustedTextsOf
 validateProcedure: dist/procedures/define.d.ts#validateProcedure
@@ -6290,8 +6296,14 @@ export interface UntrustedText {
 ### dist/procedures/untrusted.d.ts#UntrustedValue
 export type UntrustedValue = string | UntrustedText | readonly (string | UntrustedText)[];
 
+### dist/procedures/untrusted.d.ts#markUntrusted
+export declare function markUntrusted<T>(value: T, fields: readonly string[]): T;
+
 ### dist/procedures/untrusted.d.ts#untrustedFieldsOf
 export declare function untrustedFieldsOf(procedure: AnyProcedure): readonly string[];
+
+### dist/procedures/untrusted.d.ts#untrustedMarkOf
+export declare function untrustedMarkOf(value: unknown): readonly string[];
 
 ### dist/procedures/untrusted.d.ts#untrustedText
 export declare function untrustedText(text: string, source?: UntrustedSource): UntrustedText;
