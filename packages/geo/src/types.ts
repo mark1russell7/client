@@ -4,7 +4,7 @@
 
 import * as z from "zod";
 import type { Point } from "./geo.js";
-import type { GeohashCell } from "./geohash.js";
+import type { GeohashCell } from "@mark1russell7/geo";
 
 const point = z.object({ lat: z.number().min(-90).max(90), lon: z.number().min(-180).max(180) });
 
