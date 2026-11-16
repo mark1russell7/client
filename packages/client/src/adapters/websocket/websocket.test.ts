@@ -116,6 +116,24 @@ describe("WebSocket transport", () => {
     await sleep(50);
     await transport.close();
 
+    // The client stops on an open socket: it sends the error frame of the call that it serves.
+    // Its handler started, so the call ends with no retry (CLI-48).
+    await expect(pending).rejects.toMatchObject({ code: "UNAVAILABLE", retryable: false });
+    expect(Date.now() - started).toBeLessThan(2000);
+  });
+
+  it("L29: a server-to-client request fails at once when the socket of that client drops", async () => {
+    const server = await startServer();
+    connectClient(server.url, { onServerRequest: () => new Promise(() => {}) });
+    await waitFor(() => server.wsServer.getTrackedConnections().length === 1);
+    const [connection] = server.wsServer.getTrackedConnections();
+
+    const started = Date.now();
+    const pending = server.wsServer.callClient(connection!.id, ["client", "work"], {}, 10_000);
+    await sleep(50);
+    // A dropped socket sends no frame: the call fails with the close of the connection
+    (connection!.socket as unknown as { terminate(): void }).terminate();
+
     await expect(pending).rejects.toThrow(/connection closed/i);
     expect(Date.now() - started).toBeLessThan(2000);
   });
