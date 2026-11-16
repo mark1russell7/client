@@ -2,7 +2,7 @@
  * One arm of the fan-out bench, in its own process: `--arm plain|sliced --case <id>`. A case is
  * `block-<subscribers>` or `total-<subscribers>`. The child opens real subscriptions of `events.subscribe`,
  * with the output validation and a JSON frame for each item, and publishes one event several times.
- * It prints the JSON line of `freshRun`.
+ * It prints the JSON line of `freshRun`, with the GC events of the timed publishes (`eventProbe`).
  *
  * - `block`: the worst gap between two tasks of the event loop during one publish. Microtasks count.
  * - `total`: the median time from the publish to the last frame.
@@ -15,6 +15,7 @@
  */
 
 import { parseArgs } from "node:util";
+import { eventProbe } from "@mark1russell7/rigor-bench/fresh";
 import { median } from "@mark1russell7/rigor-statistics";
 import { createEventBus } from "../src/events/bus.js";
 import { EventPublisher } from "../src/events/publisher.js";
@@ -86,14 +87,19 @@ async function publish(): Promise<{ block: number; total: number }> {
 for (let i = 0; i < WARM_PUBLISHES; i++) await publish();
 bytes = 0;
 
+// The probe marks the start of each timed publish and the end of the last. Its halves are the first two and the last two publishes
+const probe = eventProbe();
 const blocks: number[] = [];
 const totals: number[] = [];
 for (let i = 0; i < TIMED_PUBLISHES; i++) {
+  probe.mark(i);
   const { block, total } = await publish();
   blocks.push(block);
   totals.push(total);
 }
+probe.mark(TIMED_PUBLISHES);
+const events = await probe.events(TIMED_PUBLISHES);
 
 const ms = measure === "block" ? Math.max(...blocks) : median(totals);
-console.log(JSON.stringify({ ms, hash: String(bytes) }));
+console.log(JSON.stringify({ ms, hash: String(bytes), events }));
 process.exit(0);
