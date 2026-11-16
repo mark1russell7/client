@@ -1,0 +1,17 @@
+{
+  "$comment": "The site config of packages/site (the template CI.md, \"The site config\"). pages.yml deploys this site from main, and the job site of ci.yml checks the same build on each pull request. The build gets the measured numbers of the docs pages from the newest record of the nightly run of main (packages/site/scripts/measured.ts). With no record, it unsets SITE_MEASURED_DIR and each measured block gives its text for GitHub and npm. pnpm build builds the site last, renders each page in Chromium (SITE_PRERENDER=1: with no prerendered pages, the build fails), and the browser smoke test of the site uses those pages. The status page reads the open pull requests and issues (github-token). The site has its own Releases page and Status page, so site-pages is off. The data stamps are those of the measured package pages. The IndexNow key is public: the site serves public/<key>.txt.",
+  "build": "id=$(gh api \"repos/$GITHUB_REPOSITORY/actions/artifacts?name=measured-nightly&per_page=30\" --jq '[.artifacts[] | select(.expired | not) | select(.workflow_run.head_branch == \"main\")][0].id // empty')\nif [ -z \"$id\" ]; then\n  echo \"::warning::no artifact measured-nightly of main: the docs pages show no measured numbers\"\n  unset SITE_MEASURED_DIR\nelse\n  mkdir -p packages/site/measured\n  gh api \"repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip\" > \"$RUNNER_TEMP/measured.zip\"\n  unzip -o -q \"$RUNNER_TEMP/measured.zip\" -d packages/site/measured\nfi\npnpm --filter @procedures/site exec playwright install --with-deps chromium\npnpm build\npnpm --filter @procedures/site test:e2e\n",
+  "out": "packages/site/dist",
+  "env": {
+    "SITE_BASE": "/client/",
+    "SITE_URL": "https://mark1russell7.github.io/client/",
+    "SITE_PRERENDER": "1",
+    "SITE_MEASURED_DIR": "measured"
+  },
+  "github-token": true,
+  "site-pages": false,
+  "site-check": true,
+  "site-check-pages": "/,/composer/,/lab/,/status/,/releases/,/claude/,/catalog/,/catalog/git.status/,/docs/,/architecture/",
+  "data-stamps": "packages/site/dist/data/data-stamps.json",
+  "indexnow-key": "626da9a7ba19ca53f2437cb462de76e7"
+}

@@ -82,7 +82,7 @@ The script starts `npm trust github <package> --file release.yml --repo mark1rus
 
 ### 5. Set the repository and the packages
 
-- The publish job has no GitHub environment, and the trusted publishers name none. The owner starts each run by hand, and that start is the approval. Refer to "The OIDC exchange of npm".
+- The publish job has no GitHub environment, and the trusted publishers name none. The approval of a publish is the merge of a version commit to `main`, or a start by hand. Only a person who can write to `main` can do these steps. Refer to "The OIDC exchange of npm".
 - The setting `Allow GitHub Actions to create and approve pull requests` is on (2026-10-17). Thus the release workflow opens the pull request "Version the packages", and nobody pushes the version commit by hand. Before 2026-10-17, the version step was a commit on `main` (ae9ed9f, 41007b6, 844a317).
 - After the first release from the workflow, set "Require two-factor authentication and disallow tokens" for each package. Start this command in a terminal. npm opens the browser for the 2FA:
 
@@ -105,24 +105,58 @@ A user who installs an old package sees "Moved to `@procedures/<name>`". The old
 
 1. For each change that users see, add a changeset: start `pnpm changeset` and answer the questions. Commit the file.
 2. Start `gh workflow run release.yml --repo mark1russell7/client`, or "Release" from Actions on GitHub. With changesets on `main`, the workflow opens or updates the pull request "Version the packages". It sets the new versions and writes the change logs.
-3. Merge that pull request. Wait for the green CI run of the merge on `main`. Then start the release workflow again. Without changesets, it publishes.
-4. The workflow does the checks and the strict package check. Then `scripts/publish-ci.mjs` packs each version that is not on npm. A different job publishes the tarballs with provenance.
-5. For each version that it publishes, the workflow makes the git tag `<name>@<version>` and a GitHub release with the change log of that version.
+3. GitHub starts no checks for a pull request that the workflow token opens. To start the checks, close the version pull request and open it again.
+4. Merge the version pull request when its checks are green. Merge it with your own account: a merge with the workflow token starts no workflow. The merge starts the release workflow, and no second start is necessary. The run waits for the green CI run of the merge on `main`, and then it publishes.
+5. The workflow does the checks and the strict package check. Then `scripts/publish-ci.mjs` packs each version that is not on npm. A different job publishes the tarballs with provenance.
+6. For each version that it publishes, the workflow makes the git tag `<name>@<version>` and a GitHub release with the change log of that version.
    - If a release made no tags or no GitHub releases, start `node scripts/release-tags.mjs --commit <sha of "Version the packages">`. It makes the missing ones, and `--dry-run` tells them first. The tags and releases of 0.3.0 come from this script.
-6. If the publish stops, start the workflow again. It skips the versions that are on npm.
-7. npm shows a new version some minutes after the publish. Until then, `npm view` shows the previous version.
+7. If the publish stops, open the run on GitHub and start "Re-run failed jobs". The jobs skip the versions that are on npm.
+8. npm shows a new version some minutes after the publish. Until then, `npm view` shows the previous version.
+
+### Who does what
+
+- The author of a change adds its changeset. A maintainer starts the workflow to open the version pull request. The maintainer merges that pull request when its checks are green, and the merge publishes.
+- The owner keeps these steps: a new public package (its bootstrap and its first publish), the trust changes on npm (`--trust` and `--lock`), and the repair of a failed release.
+
+### The two starts of the workflow
+
+- **A push to `main`.** Only a push that changes `packages/client/package.json` starts a run. The job `gate` compares the version in that file with the version on `main` before the push. When the two versions are different, the commit is a version commit, and the run publishes the versions of that commit. For a different change of the file, for example a dependency, the run stops after the job `gate`.
+- **A start by hand (`workflow_dispatch`).** The run works as before. With changesets, it opens or updates the version pull request. Without changesets, it publishes each version that is not on npm.
+
+A version-commit run publishes also when a newer changeset waits at the commit. This occurs when a changeset merges after the workflow made the version pull request. The changeset stays for the next version pull request. Before this change, a start by hand at such a commit opened the next version pull request and published nothing.
+
+A version-commit run does not start the Changesets action. With changesets, that action moves the working tree to the branch `changeset-release/main` and writes the next versions there. A pack after it packs those versions, not the versions of the commit.
+
+The job `gate` compares the last commit of a push with the head of `main` before the push (`github.event.before`). So a push of more than one commit is a version commit when any of its commits changes the version. When the event has no such commit, the job uses the first parent.
+
+A changed version publishes only when the merge of a version pull request made the commit. The branch of that pull request is `changeset-release/main` (the Changesets action) or `release/<version>` (a local `pnpm changeset version`). The job `gate` reads the pull request of the commit with the GitHub API. When a different pull request or a push with no pull request changes the version, the run stops with an error and publishes nothing. To publish such a commit, start the workflow by hand on `main`.
+
+A person merges the version pull request, or turns on its auto-merge. GitHub starts no workflow for a push that the `GITHUB_TOKEN` of a workflow makes. So a merge by a bot with that token publishes nothing, and no run tells why. Then start the workflow by hand on `main`.
+
+### One run at a time
+
+The runs of the release workflow wait in one queue: the concurrency group `release` with `queue: max`. A run starts when the run before it ends. No run cancels a different run. Without `queue: max`, GitHub keeps only one waiting run in a group, and a newer run cancels the waiting run.
+
+- A version merge while a release runs: the run of the merge waits. Then it publishes.
+- A version merge, and then a push that changes only a dependency in `packages/client/package.json`: the second run waits until the end of the earlier run. Then its job `gate` finds no version change, and the second run stops.
+- Two starts by hand: the second run waits until the end of the earlier run. Then it opens the version pull request or publishes, as before.
+
+A push run waits for the CI run of its commit in the job `ci`, for 120 minutes or less. While it waits, the runs after it wait too.
 
 ### The jobs of the release workflow
 
-The workflow has four jobs. Only one job starts the code of this repository, and that job gets no OIDC token. The release of `mark1russell7/template` uses the same pattern.
+The workflow has six jobs. Only one job starts the code of this repository, and that job gets no OIDC token. The release of `mark1russell7/template` uses the same pattern.
 
 | Job | Permissions | What it does |
 |---|---|---|
-| `build` | `actions: read`, `contents: write`, `pull-requests: write` | It does the checks. Then it opens the version pull request, or it packs the versions that are not on npm. |
+| `gate` | `contents: read`, `pull-requests: read` | It reads the version of the commit and of `main` before the push, and the pull request of the commit, with the GitHub API. It gives the kind of the run: `version-commit`, `none` or `dispatch`. |
+| `ci` | `actions: read` | It stops the run when the commit has no green CI run on `main`. In a push run, it first waits for that CI run. |
+| `build` | `contents: write`, `pull-requests: write` | It does the checks. Then it opens the version pull request, or it packs the versions that are not on npm. |
 | `publish` | `id-token: write` | The action `npm-publish` of the template publishes the tarballs with the npm CLI. |
 | `github-release` | `contents: write` | The workflow `reusable-release-tag.yml` of the template makes the git tags and the GitHub releases. |
 | `latest` | `contents: write` | It makes the release of `@procedures/client` the latest release. |
 
+- The jobs `gate` and `ci` do no checkout. They read only data from the GitHub API.
 - The job `build` installs, builds and tests the code of this repository. Its write permissions are only for the version pull request.
 - `scripts/publish-ci.mjs` writes two artifacts of the run. The artifact `release` has `packages.txt` and the tarballs. The artifact `tags` has the plan of the GitHub releases.
 - pnpm packs each package, so the tarballs have the versions of the `workspace:*` dependencies.
@@ -138,7 +172,8 @@ The workflow has four jobs. Only one job starts the code of this repository, and
 A release publishes only a commit that is on `main`. The job `build` compares the commit of the run with `main`. The commit must be the head of `main` or an older commit of `main`.
 
 - A manual run on the branch of a pull request publishes nothing. Merge the pull request first.
-- To publish a version commit after `main` has newer commits, push the branch `release/<version>` at that commit. Then start `gh workflow run release.yml --repo mark1russell7/client --ref release/<version>`.
+- A run that a push to `main` starts is on a commit of `main`. It passes also when `main` gets newer commits while the run waits.
+- To publish a version commit again after `main` has newer commits, re-run the failed jobs of its run. When no changeset waits at that commit, you can also push the branch `release/<version>` at that commit. Then start `gh workflow run release.yml --repo mark1russell7/client --ref release/<version>`.
 - GitHub refuses a tag from the workflow (HTTP 403) when the workflow files of the commit match no branch. Then the summary of the run shows a `gh release create` command. Start it with your own token, or start `scripts/release-tags.mjs`.
 
 ### The OIDC exchange of npm

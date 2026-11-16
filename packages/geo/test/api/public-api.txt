@@ -140,22 +140,16 @@ export declare function getJson(url: string, options: {
 }, service: string): Promise<unknown>;
 
 ### dist/geohash.d.ts#DEFAULT_GEOHASH_PRECISION
-export declare const DEFAULT_GEOHASH_PRECISION = 7;
+export declare const DEFAULT_GEOHASH_PRECISION: typeof GEO_DEFAULT_GEOHASH_PRECISION;
 
 ### dist/geohash.d.ts#GEOHASH_ALPHABET
-export declare const GEOHASH_ALPHABET = "0123456789bcdefghjkmnpqrstuvwxyz";
+export declare const GEOHASH_ALPHABET: typeof GEO_GEOHASH_ALPHABET;
 
 ### dist/geohash.d.ts#GeohashCell
-export interface GeohashCell {
-    readonly south: number;
-    readonly west: number;
-    readonly north: number;
-    readonly east: number;
-    readonly center: Point;
-}
+export type GeohashCell = GeoGeohashCell;
 
 ### dist/geohash.d.ts#MAX_GEOHASH_PRECISION
-export declare const MAX_GEOHASH_PRECISION = 12;
+export declare const MAX_GEOHASH_PRECISION: typeof GEO_MAX_GEOHASH_PRECISION;
 
 ### dist/geohash.d.ts#decodeGeohash
 export declare const decodeGeohash: (hash: string) => GeohashCell;

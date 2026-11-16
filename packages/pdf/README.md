@@ -33,7 +33,7 @@ const { path, bytes } = await client.call(["pdf", "render"], {
 
 ## The functions
 
-The package root also gives the functions without a registry:
+The package root also gives the functions without a registry. Their home is [`@procedures/browser`](../browser), and this package gives them again, so no caller breaks. New code imports them from `@procedures/browser`, which also takes screenshots.
 
 - `renderPdf(options)` prints the page and gives `{ path, bytes, browser }`. The options are the input of `pdf.render`, and `signal`, `env`, `platform` and `runner`.
 - `findBrowser(options)` gives the path of the browser program, or `undefined`.

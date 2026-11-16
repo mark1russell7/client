@@ -9,12 +9,12 @@
  * - `cancelTurn` stops the process tree of a turn by its process id.
  */
 
-import { spawn, type SpawnOptions } from "node:child_process";
+import type { SpawnOptions } from "node:child_process";
 import { closeSync, mkdirSync, mkdtempSync, openSync, readSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
-import { runCommand, type CommandOptions, type CommandResult } from "@procedures/shell/command";
+import { runCommand, spawnProgram, type CommandOptions, type CommandResult } from "@procedures/shell/command";
 import { normalizeLine, type ClaudeEvent } from "./events.js";
 import { CLAUDE_ENV, findClaude } from "./executable.js";
 
@@ -28,13 +28,13 @@ export interface SpawnedProcess {
   unref(): void;
 }
 
-/** The function that starts a process. The default is `spawn` of `node:child_process`. */
+/** The function that starts a process. The default is `spawnProgram` of `@procedures/shell`. */
 export type Spawner = (command: string, args: readonly string[], options: SpawnOptions) => SpawnedProcess;
 
-// An exception to the rule that a wrapper starts programs through runCommand() of
-// @procedures/shell: the turn must outlive its host, and runCommand pipes and stops each child
-// (SERVER-LAYERS.md, "The run path of a CLI wrapper")
-const defaultSpawner: Spawner = (command, args, options) => spawn(command, [...args], options);
+// Not runCommand(): the turn must outlive its host, and runCommand pipes and stops each child.
+// spawnProgram() does not record the child, and on Windows it finds a name with no folder only in
+// the folders of PATH (SERVER-LAYERS.md, "The run path of a CLI wrapper")
+const defaultSpawner: Spawner = (command, args, options) => spawnProgram(command, args, options);
 
 /** The options of `startTurn`. */
 export interface StartTurnOptions {

@@ -35,6 +35,11 @@ export interface ServerConfig {
    * under `/_probes`, and the server has no probe server.
    */
   probePort?: number | undefined;
+  /**
+   * The host names that a request can name in its `Host` header (`--allowed-host`), besides the
+   * loopback names and the IP addresses. `"*"` turns the check off. Undefined: no other names.
+   */
+  allowedHosts?: string[] | "*" | undefined;
 }
 
 export interface ServerCreateResult {
@@ -48,7 +53,7 @@ export interface ServerCreateResult {
 // =============================================================================
 
 export interface ServerStartInput {
-  /** Port to listen on */
+  /** The port to listen on. The port 0 takes a free port, and the result gives it. */
   port?: number | undefined;
   /** Host to bind to */
   host?: string | undefined;

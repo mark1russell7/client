@@ -135,6 +135,8 @@ p {
 }
 
 .site-header nav {
+  /* The fade of scroll-cue shows that the links go on, when they scroll sideways */
+  --scroll-cue-bg: var(--color-surface);
   display: flex;
   gap: var(--space-1);
   flex-wrap: wrap;
@@ -1496,9 +1498,15 @@ button.pkg-bar.selected {
   }
 }
 
+/* A wide table scrolls in its box, with the fade of scroll-cue. The fade takes the color behind the box */
 .table-wrap {
+  --scroll-cue-bg: var(--color-page);
   overflow-x: auto;
   max-width: 100%;
+}
+
+.panel .table-wrap {
+  --scroll-cue-bg: var(--color-surface);
 }
 
 table.schema {
@@ -1515,13 +1523,75 @@ table.schema td {
   vertical-align: top;
 }
 
+/* With break-word, only a word that is wider than its column wraps. In a table, anywhere also shrinks the column to one letter */
 table.schema td code {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 table.schema th {
   color: var(--color-ink-muted);
   font-weight: 600;
+}
+
+/* At phone width, each field is a block: the name and the type on one line, then each other value with its label */
+@media (max-width: 720px) {
+  table.schema,
+  table.schema tbody,
+  table.schema td {
+    display: block;
+  }
+
+  table.schema thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  table.schema tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px var(--space-2);
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--color-rule);
+  }
+
+  table.schema td {
+    padding: 0;
+    border-bottom: 0;
+    min-width: 0;
+  }
+
+  table.schema td code {
+    overflow-wrap: anywhere;
+  }
+
+  table.schema td.schema-name code {
+    font-weight: 600;
+  }
+
+  table.schema td.schema-type {
+    color: var(--color-ink-muted);
+  }
+
+  table.schema td[data-label] {
+    flex-basis: 100%;
+  }
+
+  /* The column header already names the cell for a screen reader, so the label has an empty alternative text */
+  table.schema td[data-label]::before {
+    content: attr(data-label) ": ";
+    content: attr(data-label) ": " / "";
+    color: var(--color-ink-muted);
+    font-weight: 600;
+  }
+
+  table.schema td[data-label]:empty {
+    display: none;
+  }
 }
 
 .facts {

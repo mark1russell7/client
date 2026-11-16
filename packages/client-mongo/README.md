@@ -666,6 +666,7 @@ server.usePartitions("notes", { storageOf: (partition) => notes.forPartition(par
 | `maxTombstones` | The most deletes that the change log keeps in each partition (default 10000) |
 | `queryPolicy` | The query policy of `query()` without a policy of the call |
 | `counters` | The collection of the sequence counters (default `__storage_counters`) |
+| `sequence` | `collection` (the default): one counter of the numbers for the collection. `partition`: one counter and one write queue for each partition (roadmap CLI-96). The next section tells when to use it. |
 | `writeLease` | The time after which a pending number of a write that stopped no longer holds the readers (default `seconds(60)`). A plain number is a `TypeError`. |
 | `client` | The client of the database, for the transactions. The default is the client of the default connection when `db` is absent. With `db` and no `client`, a write is not a transaction, also on a replica set: it uses the watermark. |
 | `transactions` | `auto` (the default): a transaction for each write on a replica set or a sharded cluster. `never`: the watermark only. |
@@ -677,6 +678,11 @@ server.usePartitions("notes", { storageOf: (partition) => notes.forPartition(par
 - **The change log.** Each write gets the next number of the sequence of the collection, and a delete leaves a tombstone. `getChangesSince()` thus gives the exact changes and deletes. A version of another epoch, or a version before the oldest dropped tombstone, gives a full result.
 - **The versions.** `versionOf(id)` gives the number of the last write of an item.
 - **The queries.** `query()` sends the equality of a string, a number or a boolean, and `$in` of them, to MongoDB as a filter. `queryEntries()` of the core then gives the exact result, so a query gives the result of the reference.
+- **A counter for each partition.** With `sequence: "partition"`, the writes of two partitions share no document, so they do not wait for each other. The numbers of two partitions can be equal. A store reads only its partition, so the numbers stay in order in each partition.
+  - Give the same `sequence` to each store of a collection, and to the storage of a view target. A store refuses a collection that has the other sequence, with a clear error.
+  - Use the option only for a new collection. A store with the option refuses a collection with numbers on its counter of the collection. Thus a live collection gains nothing. Its move is a step with all processes stopped.
+  - One partition keeps the limit of one collection with the default: approximately 400 writes a second. The stated limit of a partition is 200 writes a second.
+  - The gain is for the other partitions. One tenant wrote a burst in the CI tests of CLI-96. The p99 of the writes of the other tenants went from 316 to 758 ms to 12 to 51 ms.
 - **Several writers.** On a replica set, a write takes its numbers and writes in one transaction. On a single server, a watermark keeps the log exact. Each write keeps its numbers pending until it ends, and a version stops below the lowest pending number. A write that ends after its lease moves its documents to new numbers.
 - **The cases that stay on a single server.** A process that stops between a late write and the move of its documents leaves that change below the watermark. A reader that passed those numbers does not get the change. And a precondition (`expectedVersion`) of a document without `_seq` has the guard `{ _seq: { $exists: false } }`: a writer outside the storage between the test and the write is not seen. On a replica set, the test and the write are one transaction, and these cases do not occur.
 - **The partitions.** An id cannot have the character U+001F, and each write filter has the partition. A write cannot change a document of another partition.
@@ -777,6 +783,7 @@ await watch.stop();
 - **The image before the change.** Set `fullDocumentBeforeChange: "whenAvailable"`. A collection gives the image only with `changeStreamPreAndPostImages: { enabled: true }` (MongoDB 6 or later).
 - **One event at a time.** The events go in the order of the stream. The watcher reads the next event after `onChange` resolves.
 - **The resume token** is the `_id` of the last event after its `onChange` resolved. A batch without events gives the token of the batch. The getter `resumeToken` of the handle gives the token at this time.
+- **The age of the token.** The getter `tokenAgeMs` gives the milliseconds of `clock` since the token last moved to a later cluster time. Before the first move, it counts from the start. The same cluster time again does not move it. A large value on an open watcher tells a stalled feed. The handle of `watchStorageChanges` has the same getter.
 - **No lost change.** After an error of the stream, the watcher waits for the backoff. Then it opens the stream again with `startAfter` and the token. Thus it loses no change and gives no change twice.
 - **An error of `onChange`** has the same backoff. The token stays at the change before, so the same change comes again.
 - **The backoff** starts at `initialDelay` and grows by `backoffMultiplier` to at most `maxDelay`, with `jitter`. A change or a batch without events sets it back to `initialDelay`. The defaults are `ms(250)`, 2, `seconds(30)` and the full jitter, as for `watchStorageChanges`.

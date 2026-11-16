@@ -1,31 +1,59 @@
 /**
- * The two SQLite engines of `SqliteStorage`: `node:sqlite` and sql.js.
+ * The two SQLite engines of `SqliteStorage`: `node:sqlite` and sql.js. Each engine gives a
+ * `SqlConnection` of `@mark1russell7/sqlite`, so the storage has one set of queries and uses the
+ * transactions of that package.
  *
- * - The engine `node` is the module `node:sqlite` of Node.js. It writes only the changed pages of
- *   the file, and SQLite locks the file for each write.
- * - The engine `sqljs` is sql.js (SQLite in WebAssembly), through `@mark1russell7/docker-sqlite`.
- *   It keeps the database in memory and writes the whole file after a write.
+ * - The engine `node` is `openDatabase` of `@mark1russell7/sqlite`, on the module `node:sqlite` of
+ *   Node.js. It writes only the changed pages of the file, and SQLite locks the file for each write.
+ * - The engine `sqljs` is sql.js (SQLite in WebAssembly), through `@mark1russell7/docker-sqlite`
+ *   and the adapter `sqlJsConnection`. It keeps the database in memory and writes the whole file
+ *   after a write. It is deprecated: its first open in a process shows a `DeprecationWarning`.
  * - The two engines read and write the same file format.
  *
- * This module imports `node:sqlite` only when a storage opens: an import of the package does not
- * load it.
+ * This module loads the main entry of `@mark1russell7/sqlite`, and with it `node:sqlite`, only
+ * when a storage opens. An import of this package does not load them.
  */
 
-import { existsSync, mkdirSync, statSync } from "node:fs";
-import { dirname } from "node:path";
-import { createConnection, type Database } from "@mark1russell7/docker-sqlite";
+import { existsSync, statSync } from "node:fs";
+import { createConnection } from "@mark1russell7/docker-sqlite";
+import { sqlJsConnection, type SqlConnection, type SqlStatement } from "@mark1russell7/sqlite/portable";
 
 /** The path of a database that is only in memory. */
 export const MEMORY_PATH = ":memory:";
 
-/** The engine of a database: `node:sqlite` (`node`) or sql.js (`sqljs`). */
+/**
+ * The engine of a database: `node:sqlite` (`node`) or sql.js (`sqljs`). The engine `sqljs` is
+ * deprecated. Version 0.61.0 removes it and needs Node.js 22.13 or later.
+ */
 export type SqliteEngineName = "node" | "sqljs";
 
 /**
  * The engine choice of a `SqliteStorage`. With `auto`, the storage uses `node` when Node.js has
- * `node:sqlite`, and `sqljs` when it does not.
+ * `node:sqlite`, and the deprecated engine `sqljs` when it does not.
  */
 export type SqliteEngine = "auto" | SqliteEngineName;
+
+/** The code of the deprecation warning of the engine `sqljs`. */
+const SQLJS_DEPRECATION_CODE = "PROCEDURES_SQLITE_SQLJS";
+
+let sqlJsWarned = false;
+
+/**
+ * This function shows the deprecation warning of the engine `sqljs`, one time in a process. The
+ * flag `--no-deprecation` of Node.js hides it.
+ */
+function warnSqlJs(engine: SqliteEngine): void {
+  if (sqlJsWarned) return;
+  sqlJsWarned = true;
+  const cause =
+    engine === "sqljs"
+      ? "The SQLite engine sqljs is deprecated"
+      : `This Node.js (${process.version}) has no node:sqlite, so the engine auto uses the deprecated engine sqljs`;
+  process.emitWarning(
+    `${cause}. Version 0.61.0 of @procedures/sqlite removes it: use Node.js 22.13 or later, with the engine node or auto.`,
+    { type: "DeprecationWarning", code: SQLJS_DEPRECATION_CODE },
+  );
+}
 
 const ENGINES: ReadonlySet<string> = new Set<SqliteEngine>(["auto", "node", "sqljs"]);
 
@@ -40,8 +68,13 @@ export function checkEngine(engine: unknown): SqliteEngine {
 /** A value that a statement takes or gives. */
 export type SqlValue = string | number | null;
 
+/** A connection of an engine: a `SqlConnection` that closes. */
+type EngineConnection = SqlConnection & { close(): void };
+
 /** The calls of an open database that a storage uses. Each call is synchronous. */
 export interface EngineDatabase {
+  /** The connection, for the transactions and the schema functions of `@mark1russell7/sqlite`. */
+  readonly connection: SqlConnection;
   /** The rows of a query, as objects. */
   all<R>(sql: string, params?: SqlValue[]): R[];
   /** The first row of a statement for each list of parameters, or undefined for no row. */
@@ -53,61 +86,14 @@ export interface EngineDatabase {
   close(): void;
 }
 
-// ---------------------------------------------------------------------------
-// node:sqlite
-// ---------------------------------------------------------------------------
+/** A database of either engine. It keeps one prepared statement for each SQL text. */
+class ConnectionDatabase implements EngineDatabase {
+  readonly connection: EngineConnection;
 
-/** The part of a statement of `node:sqlite` that the storage uses. */
-interface NodeStatement {
-  all(...params: SqlValue[]): unknown[];
-  get(...params: SqlValue[]): unknown;
-  run(...params: SqlValue[]): { changes: number | bigint };
-}
+  private readonly statements = new Map<string, SqlStatement>();
 
-/** The part of a database of `node:sqlite` that the storage uses. */
-interface NodeHandle {
-  prepare(sql: string): NodeStatement;
-  exec(sql: string): void;
-  close(): void;
-}
-
-/** The database class of `node:sqlite`: `Database`, or `DatabaseSync` before Node.js 26.11. */
-type NodeDatabaseClass = new (path: string) => NodeHandle;
-
-let nodeModule: Promise<NodeDatabaseClass | undefined> | undefined;
-
-/**
- * This function loads `node:sqlite` one time. The promise gives undefined when the import fails,
- * or when the module has no database class. Node.js before 22.13 has the module only with the
- * flag `--experimental-sqlite`.
- */
-function loadNodeSqlite(): Promise<NodeDatabaseClass | undefined> {
-  nodeModule ??= import("node:sqlite")
-    .then((module: unknown) => {
-      const exports = module as { Database?: unknown; DatabaseSync?: unknown };
-      const found = "Database" in exports ? exports.Database : exports.DatabaseSync;
-      return typeof found === "function" ? (found as NodeDatabaseClass) : undefined;
-    })
-    .catch(() => undefined);
-  return nodeModule;
-}
-
-/**
- * This function gives true when this Node.js has `node:sqlite` without a flag (Node.js 22.13 or
- * later). Then the engine `auto` uses it.
- */
-export async function isNodeSqliteAvailable(): Promise<boolean> {
-  return (await loadNodeSqlite()) !== undefined;
-}
-
-/** A database of `node:sqlite`. It keeps the prepared statements of the storage. */
-class NodeDatabase implements EngineDatabase {
-  private readonly handle: NodeHandle;
-
-  private readonly statements = new Map<string, NodeStatement>();
-
-  constructor(handle: NodeHandle) {
-    this.handle = handle;
+  constructor(connection: EngineConnection) {
+    this.connection = connection;
   }
 
   all<R>(sql: string, params: SqlValue[] = []): R[] {
@@ -124,103 +110,77 @@ class NodeDatabase implements EngineDatabase {
   }
 
   exec(sql: string): void {
-    this.handle.exec(sql);
+    this.connection.exec(sql);
   }
 
   close(): void {
     this.statements.clear();
-    this.handle.close();
+    this.connection.close();
   }
 
-  private statement(sql: string): NodeStatement {
+  private statement(sql: string): SqlStatement {
     let statement = this.statements.get(sql);
     if (!statement) {
-      statement = this.handle.prepare(sql);
+      statement = this.connection.prepare(sql);
       this.statements.set(sql, statement);
     }
     return statement;
   }
 }
 
-/** The error code of SQLite for a write to a read-only database. */
-const SQLITE_READONLY = 8;
+// ---------------------------------------------------------------------------
+// node:sqlite, through @mark1russell7/sqlite
+// ---------------------------------------------------------------------------
+
+/** The part of `@mark1russell7/sqlite` that the engine `node` uses. */
+type NodeSqlite = Pick<typeof import("@mark1russell7/sqlite"), "openDatabase">;
+
+let nodeModule: Promise<NodeSqlite | undefined> | undefined;
 
 /**
- * This function opens a database file with `node:sqlite`, and makes the file when it is missing.
- * The file gets WAL mode, so a read in another process does not wait for a write. The busy
- * timeout makes a write wait for the lock of another process.
+ * This function loads `@mark1russell7/sqlite` one time, and opens a database in memory as a test.
+ * The promise gives undefined when the import or the test fails. Node.js before 22.13 has
+ * `node:sqlite` only with the flag `--experimental-sqlite`.
  */
-function openNodeFile(Database: NodeDatabaseClass, path: string, busyTimeoutMs: number): NodeDatabase {
-  const handle = new Database(path);
-  try {
-    handle.exec(`PRAGMA busy_timeout = ${Math.max(0, Math.floor(busyTimeoutMs))}`);
-    try {
-      handle.prepare("PRAGMA journal_mode = WAL").get();
-    } catch (error) {
-      // A read-only file keeps its journal mode: the reads work, and a write gives the error. An
-      // error of an older Node.js can have no `errcode`: then its message tells it.
-      const { errcode, message } = error as { errcode?: unknown; message?: unknown };
-      if (errcode !== SQLITE_READONLY && !/readonly database/i.test(String(message))) throw error;
-    }
-    // In WAL mode, NORMAL keeps the file consistent after a crash, with fewer disk syncs
-    handle.exec("PRAGMA synchronous = NORMAL");
-  } catch (error) {
-    handle.close();
-    throw error;
-  }
-  return new NodeDatabase(handle);
+function loadNodeSqlite(): Promise<NodeSqlite | undefined> {
+  nodeModule ??= import("@mark1russell7/sqlite")
+    .then((module: NodeSqlite) => {
+      module.openDatabase(MEMORY_PATH, { wal: false }).close();
+      return module;
+    })
+    .catch(() => undefined);
+  return nodeModule;
 }
 
-// ---------------------------------------------------------------------------
-// sql.js
-// ---------------------------------------------------------------------------
+/**
+ * This function gives true when this Node.js has `node:sqlite` without a flag (Node.js 22.13 or
+ * later). Then the engine `auto` uses it.
+ */
+export async function isNodeSqliteAvailable(): Promise<boolean> {
+  return (await loadNodeSqlite()) !== undefined;
+}
 
-/** A database of sql.js. */
-class SqlJsDatabase implements EngineDatabase {
-  private readonly raw: Database;
+/**
+ * This function opens a database file with `node:sqlite`, and makes the file and its folder when
+ * they are missing. The file gets WAL mode, so a read in another process does not wait for a
+ * write. A read-only file keeps its journal mode: the reads work, and a write gives the error. The
+ * busy timeout makes a write wait for the lock of another process. In WAL mode, `NORMAL` keeps the
+ * file consistent after a crash, with fewer disk syncs.
+ */
+function openNodeFile(sqlite: NodeSqlite, path: string, busyTimeoutMs: number): ConnectionDatabase {
+  return new ConnectionDatabase(
+    sqlite.openDatabase(path, {
+      wal: "when-writable",
+      synchronous: "NORMAL",
+      busyTimeoutMs: Math.max(0, Math.floor(busyTimeoutMs)),
+      makeFolder: true,
+    }),
+  );
+}
 
-  constructor(raw: Database) {
-    this.raw = raw;
-  }
-
-  all<R>(sql: string, params: SqlValue[] = []): R[] {
-    const statement = this.raw.prepare(sql);
-    try {
-      statement.bind(params);
-      const out: R[] = [];
-      while (statement.step()) out.push(statement.getAsObject() as R);
-      return out;
-    } finally {
-      statement.free();
-    }
-  }
-
-  firstOfEach<R>(sql: string, params: SqlValue[][]): Array<R | undefined> {
-    const statement = this.raw.prepare(sql);
-    try {
-      return params.map((list) => {
-        statement.bind(list);
-        const row = statement.step() ? (statement.getAsObject() as R) : undefined;
-        statement.reset();
-        return row;
-      });
-    } finally {
-      statement.free();
-    }
-  }
-
-  run(sql: string, params: SqlValue[] = []): number {
-    this.raw.run(sql, params);
-    return this.raw.getRowsModified();
-  }
-
-  exec(sql: string): void {
-    this.raw.exec(sql);
-  }
-
-  close(): void {
-    this.raw.close();
-  }
+/** This function opens a database in memory with `node:sqlite`. */
+function openNodeMemory(sqlite: NodeSqlite): ConnectionDatabase {
+  return new ConnectionDatabase(sqlite.openDatabase(MEMORY_PATH, { wal: false }));
 }
 
 // ---------------------------------------------------------------------------
@@ -257,7 +217,7 @@ export interface OpenDatabase {
  * an item: until then, the database is in memory.
  */
 class NodeOpenDatabase implements OpenDatabase {
-  private readonly Database: NodeDatabaseClass;
+  private readonly sqlite: NodeSqlite;
   private readonly path: string;
   private readonly busyTimeoutMs: number;
 
@@ -265,30 +225,25 @@ class NodeOpenDatabase implements OpenDatabase {
   db: EngineDatabase;
   waiting: boolean;
 
-  constructor(
-    Database: NodeDatabaseClass,
-    path: string,
-    busyTimeoutMs: number,
-  ) {
-    this.Database = Database;
+  constructor(sqlite: NodeSqlite, path: string, busyTimeoutMs: number) {
+    this.sqlite = sqlite;
     this.path = path;
     this.busyTimeoutMs = busyTimeoutMs;
     if (path === MEMORY_PATH) {
-      this.db = new NodeDatabase(new Database(MEMORY_PATH));
+      this.db = openNodeMemory(sqlite);
       this.waiting = false;
     } else if (existsSync(path)) {
-      this.db = openNodeFile(Database, path, busyTimeoutMs);
+      this.db = openNodeFile(sqlite, path, busyTimeoutMs);
       this.waiting = false;
     } else {
-      this.db = new NodeDatabase(new Database(MEMORY_PATH));
+      this.db = openNodeMemory(sqlite);
       this.waiting = true;
     }
   }
 
   makeFile(copy: CopySchema): void {
     if (!this.waiting) return;
-    mkdirSync(dirname(this.path), { recursive: true });
-    const file = openNodeFile(this.Database, this.path, this.busyTimeoutMs);
+    const file = openNodeFile(this.sqlite, this.path, this.busyTimeoutMs);
     try {
       copy(this.db, file);
     } catch (error) {
@@ -313,18 +268,19 @@ class NodeOpenDatabase implements OpenDatabase {
   }
 }
 
+// ---------------------------------------------------------------------------
+// sql.js
+// ---------------------------------------------------------------------------
+
 /** A database of sql.js: the database is in memory, and `saveFile()` writes the whole file. */
 class SqlJsOpenDatabase implements OpenDatabase {
-  readonly db: SqlJsDatabase;
+  readonly db: ConnectionDatabase;
   private readonly save: () => Promise<void>;
 
   readonly engine = "sqljs";
   readonly waiting = false;
 
-  constructor(
-    db: SqlJsDatabase,
-    save: () => Promise<void>,
-  ) {
+  constructor(db: ConnectionDatabase, save: () => Promise<void>) {
     this.db = db;
     this.save = save;
   }
@@ -371,11 +327,12 @@ function noNodeSqlite(): Error {
 /** This function opens the database of a path with an engine. `auto` uses `node` when it can. */
 export async function openEngine(path: string, engine: SqliteEngine, busyTimeoutMs: number): Promise<OpenDatabase> {
   if (engine !== "sqljs") {
-    const Database = await loadNodeSqlite();
-    if (Database) return new NodeOpenDatabase(Database, path, busyTimeoutMs);
+    const sqlite = await loadNodeSqlite();
+    if (sqlite) return new NodeOpenDatabase(sqlite, path, busyTimeoutMs);
     if (engine === "node") throw noNodeSqlite();
   }
+  warnSqlJs(engine);
   if (path !== MEMORY_PATH) checkNoWriteAheadLog(path);
   const { db, save } = await createConnection({ dbPath: path });
-  return new SqlJsOpenDatabase(new SqlJsDatabase(db), save);
+  return new SqlJsOpenDatabase(new ConnectionDatabase(sqlJsConnection(db)), save);
 }
