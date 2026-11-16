@@ -472,7 +472,7 @@ describe("the depth limit of the nested calls", () => {
       expect(warn).toHaveBeenCalledTimes(1);
       expect(warn.mock.calls[0]?.[0]).toBe(
         "[procedures] The call of test.down is at the depth 65 of nested calls. " +
-          "@procedures/client 0.61.0 refuses a call over the depth 64. Set the option maxDepth to keep a larger limit.",
+          "@procedures/client 0.64.0 refuses a call over the depth 64. Set the option maxDepth to keep a larger limit.",
       );
     } finally {
       warn.mockRestore();
