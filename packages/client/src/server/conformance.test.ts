@@ -59,6 +59,7 @@ async function serverOf(spec: ContractSpec): Promise<ProcedureServer> {
     ...(spec.principalOf !== undefined && { principalOf: spec.principalOf }),
     ...(spec.errors !== undefined && { errors: spec.errors }),
     ...(spec.onError !== undefined && { onError: spec.onError }),
+    ...(spec.limits !== undefined && { limits: spec.limits }),
   });
   return server;
 }

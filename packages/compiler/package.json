@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/compiler",
-  "version": "0.52.2",
+  "version": "0.60.1",
   "description": "The compiler of procedure programs: it checks a JSON program before the first call (scopes, effects, schemas, capability) and writes it as a plain async function.",
   "keywords": [
     "compiler",
@@ -30,23 +30,28 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./module": {
       "types": "./dist/module.d.ts",
-      "import": "./dist/module.js"
+      "import": "./dist/module.js",
+      "default": "./dist/module.js"
     },
     "./register": {
       "types": "./dist/register.d.ts",
-      "import": "./dist/register.js"
+      "import": "./dist/register.js",
+      "default": "./dist/register.js"
     },
     "./runtime": {
       "types": "./dist/runtime.d.ts",
-      "import": "./dist/runtime.js"
+      "import": "./dist/runtime.js",
+      "default": "./dist/runtime.js"
     }
   },
   "files": [
     "dist",
+    "!dist/.tsbuildinfo",
     "src",
     "!src/**/*.test.ts",
     "!src/**/*.test.tsx",
@@ -86,7 +91,7 @@
     ]
   },
   "dependencies": {
-    "@mark1russell7/coeval": "^0.22.0",
+    "@mark1russell7/coeval": "^0.34.0",
     "@procedures/client": "workspace:*",
     "zod": "^4.6.5"
   }

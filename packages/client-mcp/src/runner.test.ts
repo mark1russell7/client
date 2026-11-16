@@ -252,6 +252,14 @@ describe("McpHost.declare", () => {
     await expect(store.createTask({}, 1, { method: "tools/call", params: { name: "test.echo" } })).rejects.toThrow(/stopping/);
   });
 
+  it("declares a dependency for each storage and each partitions object of its server", () => {
+    const dependencies: string[] = [];
+    const host = createMcpHost({ modules: [testModule], faces: { http: {} } });
+    host.server.usePartitions("notes", { storageOf: () => { throw new Error("no storage in this test"); }, resolve: () => undefined });
+    host.declare({ server: () => undefined, dependency: (name) => dependencies.push(name), trigger: () => undefined });
+    expect(dependencies).toEqual(["partitions.notes"]);
+  });
+
   it("declares no trigger without a stdio face", () => {
     const calls: string[] = [];
     const host = createMcpHost({ modules: [testModule], faces: { http: {} } });

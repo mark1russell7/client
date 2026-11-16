@@ -58,8 +58,11 @@
 
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
+import { backoffDelay, type Backoff } from "@mark1russell7/service/backoff";
 import { BSON, ObjectId, type AnyBulkWriteOperation, type ChangeStream, type ClientSession, type Collection, type Db, type Document } from "mongodb";
-import { collectionChangeTopic, ms, optionalMs, realClock, Semaphore, writeLog, type Cancel, type Clock, type CollectionChangeEvent, type Duration, type LogFields, type Logger } from "@procedures/client";
+import { semaphore, type Semaphore } from "@mark1russell7/collections";
+import { canonicalJson } from "@mark1russell7/rigor-generators";
+import { collectionChangeTopic, ms, optionalMs, realClock, writeLog, type Cancel, type Clock, type CollectionChangeEvent, type Duration, type LogFields, type Logger } from "@procedures/client";
 import { DEFAULT_STORED_FORM, DOCUMENT_STORAGE_FIELDS, MongoDocumentStorage, TOMBSTONE_FIELD, storageWriteTarget, type StorageWriteTarget, type StoredForm } from "./document-storage.js";
 import { scopePipeline } from "./pipeline-scope.js";
 import { poolShare } from "./pool-share.js";
@@ -309,6 +312,12 @@ function groups<T>(items: readonly T[]): T[][] {
 /** The most tries of a run in a transaction after a write conflict (code 112). After them, the run gives way, and comes back after `rewatch`. */
 const CONFLICT_RETRIES = 3;
 
+/**
+ * The wait before try `attempt + 1` after a write conflict: from 50 to 100 ms after the first try, twice as long after each
+ * next try. The jitter keeps two processes that conflict apart.
+ */
+export const CONFLICT_BACKOFF: Backoff = { base: 100, factor: 2, jitter: { kind: "subtract", fraction: 0.5 } };
+
 /** The most ids of a hint of a target not in a stored form. More ids give a reset hint. */
 const MAX_HINT_IDS = 10_000;
 
@@ -340,18 +349,25 @@ export function defaultStorageRowId(id: unknown): string {
   return BSON.EJSON.stringify(id as Document, { relaxed: true });
 }
 
+/**
+ * The hash of the content of a row of a target (CLI-126). A plain target keeps it in `_viewHash`.
+ * A target in a stored form gets it from each stored document at each run.
+ */
+export function rowHash(content: Document): string {
+  return createHash("sha1").update(hashText(content)).digest("hex");
+}
+
 /** The hash of a stored document without its numbers (`_seq` and `_ord`): two documents with the same content give the same hash. */
-function contentHash(doc: Document): string {
+export function contentHash(doc: Document): string {
   const { _seq: _number, _ord: _place, ...rest } = doc;
-  return createHash("sha1")
-    .update(canonical(BSON.EJSON.serialize(rest, { relaxed: false })))
-    .digest("hex");
+  return rowHash(rest);
 }
 
 /** The values of a target in a stored form that make its storage. */
 interface StorageTargetValues {
   readonly form: StoredForm;
   readonly counters: string | undefined;
+  readonly sequence: "collection" | "partition" | undefined;
   readonly writeLeaseMs: number | undefined;
   readonly maxTombstones: number | undefined;
 }
@@ -448,15 +464,33 @@ function idKey(id: unknown): string {
   return BSON.EJSON.stringify({ id }, { relaxed: false });
 }
 
-/** A text of a value with sorted keys: two objects with the same fields give the same text. */
-function canonical(value: unknown): string {
-  if (value === null || value === undefined || typeof value !== "object") return JSON.stringify(value) ?? "undefined";
-  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+/**
+ * The text that the hash of a row reads (CLI-126): the canonical JSON text of the JSON form of the
+ * row (`canonicalJson` of `@mark1russell7/rigor-generators`, CLI-128). Two rows with the same
+ * fields in another order give the same text.
+ */
+export function hashText(value: unknown): string {
+  return canonicalJson(jsonForm(value), { form: "json", tags: "typed" });
+}
+
+/**
+ * The JSON form of a value for a hash. A JSON value stays the same, so a row of JSON values keeps
+ * its text. Each other value becomes its canonical Extended JSON form: a Date, a BSON value, a
+ * bigint, NaN, an infinity and -0. A RegExp becomes the same form, with its flags in order.
+ * `undefined` becomes null, as in Extended JSON.
+ */
+function jsonForm(value: unknown): unknown {
+  if (value === undefined || value === null) return null;
+  if (typeof value === "string" || typeof value === "boolean") return value;
+  if (typeof value === "number" && Number.isFinite(value) && !Object.is(value, -0)) return value;
+  if (Array.isArray(value)) return value.map(jsonForm);
+  // Extended JSON refuses the flags of JavaScript that BSON does not have, for example "g"
+  if (value instanceof RegExp) return { $regularExpression: { pattern: value.source, options: [...value.flags].sort().join("") } };
+  if (typeof value !== "object" || value instanceof Date || typeof (value as { _bsontype?: unknown })._bsontype === "string") {
+    return (BSON.EJSON.serialize({ value } as Document, { relaxed: false }) as { value?: unknown }).value ?? null;
+  }
   const record = value as Record<string, unknown>;
-  return `{${Object.keys(record)
-    .sort()
-    .map((key) => `${JSON.stringify(key)}:${canonical(record[key])}`)
-    .join(",")}}`;
+  return Object.fromEntries(Object.keys(record).map((key) => [key, jsonForm(record[key])]));
 }
 
 /**
@@ -490,7 +524,7 @@ export class ViewMaterializer {
   /** The time of the last change of each partition with a timer: the end of the wait of the pass. */
   private readonly lastChange = new Map<string, number>();
   /** The passes that run at one time. A burst that reaches each partition does not fill the pool. */
-  private passes = new Semaphore(MOST_PASSES);
+  private passes: Semaphore = semaphore(MOST_PASSES);
   /** The timers of the streams that open again, and of the ends of the grace times. */
   private readonly retries = new Set<Cancel>();
   private readonly clock: Clock;
@@ -549,7 +583,7 @@ export class ViewMaterializer {
   /**
    * A target of `storageTargets` as a storage on the database of the materializer, so its writes
    * and the transaction of a run use one client. A given storage gives its form, its counters,
-   * `writeLease` and `maxTombstones`.
+   * its sequence, `writeLease` and `maxTombstones`.
    */
   private storageTargetOf(collection: string, entry: ViewStorageTargetEntry): StorageTargetEntry {
     const wrapped = typeof entry === "object" && entry !== null && "target" in entry ? entry : { target: entry };
@@ -560,15 +594,15 @@ export class ViewMaterializer {
     if (target instanceof MongoDocumentStorage) {
       const parts = storageWriteTarget(target);
       if (parts.collection !== collection) throw new TypeError(`The storage target ${collection} has a storage of the collection ${parts.collection}`);
-      values = { form: parts.form, counters: parts.counters, writeLeaseMs: parts.writeLeaseMs, maxTombstones: parts.maxTombstones };
+      values = { form: parts.form, counters: parts.counters, sequence: parts.sequence, writeLeaseMs: parts.writeLeaseMs, maxTombstones: parts.maxTombstones };
     } else if (typeof target === "object" && target !== null && typeof (target as Partial<StoredForm>).storedId === "function") {
-      values = { form: target as StoredForm, counters: undefined, writeLeaseMs: undefined, maxTombstones: undefined };
+      values = { form: target as StoredForm, counters: undefined, sequence: undefined, writeLeaseMs: undefined, maxTombstones: undefined };
     } else {
       throw new TypeError(`The storage target ${collection} needs a MongoDocumentStorage, a stored form or a ViewStorageTarget`);
     }
     // The same values give the storage of the last run: its partitions keep their state (the floor document of O66)
     const cached = this.storageTargetCache.get(collection);
-    if (cached && cached.form === values.form && cached.counters === values.counters && cached.writeLeaseMs === values.writeLeaseMs && cached.maxTombstones === values.maxTombstones) {
+    if (cached && cached.form === values.form && cached.counters === values.counters && cached.sequence === values.sequence && cached.writeLeaseMs === values.writeLeaseMs && cached.maxTombstones === values.maxTombstones) {
       return { storage: cached.storage, storagePartitionOf };
     }
     const db = (): Db => {
@@ -581,6 +615,7 @@ export class ViewMaterializer {
       form: values.form,
       transactions: "never",
       ...(values.counters !== undefined ? { counters: values.counters } : {}),
+      ...(values.sequence !== undefined ? { sequence: values.sequence } : {}),
       ...(values.writeLeaseMs !== undefined ? { writeLease: ms(values.writeLeaseMs) } : {}),
       ...(values.maxTombstones !== undefined ? { maxTombstones: values.maxTombstones } : {}),
     });
@@ -641,7 +676,7 @@ export class ViewMaterializer {
     this.stopped = false;
     this.intake = true;
     this.db = await this.options.db();
-    this.passes = new Semaphore(passLimit(this.db));
+    this.passes = semaphore(passLimit(this.db));
     // The stream of the views opens before the read of the views: a change between the two reaches both (roadmap O63)
     await this.watchViews();
     const count = await this.resync();
@@ -1093,7 +1128,7 @@ export class ViewMaterializer {
       this.timers.delete(partition);
       this.lastChange.delete(partition);
       if (!this.intake) return;
-      void this.serial(partition, () => this.passes.withPermit(() => this.pass(partition))).catch((error: unknown) =>
+      void this.serial(partition, () => this.passes.run(() => this.pass(partition))).catch((error: unknown) =>
         this.log("error", "The pass failed", { partition, error }, `the pass of ${partition} failed: ${String((error as Error)?.message ?? error)}`)
       );
     });
@@ -1220,7 +1255,7 @@ export class ViewMaterializer {
           if (isWriteConflict(error)) {
             // A write conflict tries again a few times after a short wait, so a steady stream of writes does not starve the view
             if (attempt < CONFLICT_RETRIES) {
-              await this.pause(25 * 2 ** attempt * (1 + Math.random()));
+              await this.pause(backoffDelay(CONFLICT_BACKOFF, attempt));
               continue;
             }
             throw new PassSuperseded(`another process wrote the view at the same time (${String((error as Error)?.message ?? error)})`);
@@ -1364,7 +1399,7 @@ export class ViewMaterializer {
         // read them (roadmap CLI-77). The other fields, for example _json and _key, are the content of the row.
         for (const name of ROW_DROPPED_FIELDS) delete content[name];
         const stored = this.targetId(_id, partition, generation);
-        const hash = createHash("sha1").update(canonical(content)).digest("hex");
+        const hash = rowHash(content);
         group.push({
           id: _id,
           key: idKey(stored),

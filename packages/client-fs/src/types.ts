@@ -12,11 +12,20 @@ import * as z from "zod";
 export const ReadInputSchema: z.ZodObject<{
   path: z.ZodString;
   encoding: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+  offset: z.ZodOptional<z.ZodNumber>;
+  length: z.ZodOptional<z.ZodNumber>;
+  maxBytes: z.ZodOptional<z.ZodNumber>;
 }> = z.object({
   /** Path to file to read */
   path: z.string().describe("Path to file to read"),
   /** File encoding (default: utf8) */
   encoding: z.string().optional().default("utf8").describe("File encoding (default: utf8)"),
+  /** The first byte of the part to read. The default is 0. A part of a text can cut a character of more than one byte. */
+  offset: z.number().int().min(0).optional().describe("The first byte of the part to read (default 0)"),
+  /** The count of bytes of the part to read. Without it, the part goes to the end of the file. */
+  length: z.number().int().min(0).optional().describe("The count of bytes to read (default: to the end of the file)"),
+  /** The largest count of bytes that the read loads. A larger part gives the error `ERR_FS_FILE_TOO_LARGE`. */
+  maxBytes: z.number().int().min(0).optional().describe("The largest count of bytes to load. A larger part fails with ERR_FS_FILE_TOO_LARGE"),
 });
 
 export type ReadInput = z.infer<typeof ReadInputSchema>;
@@ -313,9 +322,12 @@ export interface GlobOutput {
 
 export const ReadJsonInputSchema: z.ZodObject<{
   path: z.ZodString;
+  maxBytes: z.ZodOptional<z.ZodNumber>;
 }> = z.object({
   /** Path to JSON file */
   path: z.string().describe("Path to JSON file"),
+  /** The largest count of bytes that the read loads. A larger file gives the error `ERR_FS_FILE_TOO_LARGE`. */
+  maxBytes: z.number().int().min(0).optional().describe("The largest count of bytes to load. A larger file fails with ERR_FS_FILE_TOO_LARGE"),
 });
 
 export type ReadJsonInput = z.infer<typeof ReadJsonInputSchema>;

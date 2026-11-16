@@ -9,7 +9,8 @@ import { EventEmitter } from "node:events";
 import { afterAll, beforeAll, describe, expect, it, vi, type TestContext } from "vitest";
 import { MongoClient, ObjectId, type Db, type Document } from "mongodb";
 import { ms, realClock, type Clock } from "@procedures/client";
-import { ViewMaterializer, identityPartition, viewFilter, type MaterializedView, type ViewPartitionOf, type ViewStorageSource } from "./materializer.js";
+import { backoffBand, backoffDelay } from "@mark1russell7/service/backoff";
+import { CONFLICT_BACKOFF, ViewMaterializer, identityPartition, viewFilter, type MaterializedView, type ViewPartitionOf, type ViewStorageSource } from "./materializer.js";
 import { DEFAULT_STORED_FORM, type StoredForm } from "./document-storage.js";
 
 const url = process.env["MONGO_TEST_URL"];
@@ -251,6 +252,23 @@ withMongo("ViewMaterializer on MongoDB", { timeout: TEST_TIMEOUT_MS }, () => {
     // A pass-through row of a _json item keeps its content, and a view can project _key
     expect(sorted(rows)).toEqual([{ _id: "a", _part: "t1", _key: "a", _ord: 3, _kid: true, _kpf: ["kind"], _json: "x", kind: "a", n: 1 }]);
     for (const name of ["_seq", "_tomb"]) expect(rows[0]).not.toHaveProperty(name);
+    await views.stop();
+  });
+
+  it("writes a row again when only a Date or a RegExp of its content changes (CLI-126)", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const { db, views } = setup();
+    await db.collection("items").insertOne({ _id: "1" as never, _part: "t1", kind: "a", at: new Date(0), re: /a/ });
+    // The rows of a plain target: the hash of a row is the hash of its raw BSON content
+    const pipeline = [{ $group: { _id: "$kind", last: { $max: "$at" }, re: { $first: "$re" } } }];
+    await db.collection("_aggregations").insertOne(sumsView({ _id: "lasts", pipeline, targetCollection: "lasts" }) as never);
+    await views.start();
+    expect((await rowOf(db, "lasts", "a"))?.["last"]).toEqual(new Date(0));
+
+    await db.collection("items").updateOne({ _id: "1" as never }, { $set: { at: new Date(1_000) } });
+    await eventually(async () => expect((await rowOf(db, "lasts", "a"))?.["last"]).toEqual(new Date(1_000)));
+    await db.collection("items").updateOne({ _id: "1" as never }, { $set: { re: /b/i } });
+    await eventually(async () => expect(String((await rowOf(db, "lasts", "a"))?.["re"])).toBe("/b/i"));
     await views.stop();
   });
 
@@ -1054,4 +1072,23 @@ withMongo("ViewMaterializer on MongoDB", { timeout: TEST_TIMEOUT_MS }, () => {
       await views.stop();
     }
   }, POOL_USE_TIMEOUT_MS);
+});
+
+describe("the wait after a write conflict", () => {
+  it("gives the waits of the old formula 25 * 2 ** attempt * (1 + r), with the draw 1 - r", () => {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      for (const r of [0, 0.25, 0.5, 0.75, 0.999_999]) {
+        const before = 25 * 2 ** attempt * (1 + r);
+        expect(backoffDelay(CONFLICT_BACKOFF, attempt, () => 1 - r)).toBeCloseTo(before, 9);
+      }
+    }
+  });
+
+  it("waits from 50 to 100 ms after the first try, and twice as long after each next try", () => {
+    expect([1, 2, 3].map((attempt) => backoffBand(CONFLICT_BACKOFF, attempt))).toEqual([
+      { low: 50, high: 100 },
+      { low: 100, high: 200 },
+      { low: 200, high: 400 },
+    ]);
+  });
 });

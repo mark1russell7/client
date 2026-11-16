@@ -94,7 +94,7 @@ export { hostProcedures } from "./server/host-procedures.js";
 export type { HostSource } from "./server/host-procedures.js";
 export type { ProcedureServerOptions, RegisterProcedureOptions, StorageConfig, StopOptions, UseStorageOptions } from "./server/procedure-server.js";
 // The stop parts of the server and its storages as dependencies, in the shape of the runner (CLI-5)
-export type { StopParts, StorageHandle } from "./server/procedure-server.js";
+export type { PartitionsHandle, StopParts, StorageHandle } from "./server/procedure-server.js";
 // The limits of the calls: keyed limiters of @mark1russell7/service/limiter in the admission path (CLI-40)
 export type { CallLimit, CallLimitCovers, CallLimitKey, CallLimitKeyPart, LimitedCall } from "./server/limits.js";
 export {
@@ -469,8 +469,8 @@ export type { MachineDocument, MachineTransition, MachineTransitionDef, MachineT
 export { TIMER_DEFAULTS } from "./timers.js";
 export type { TimerDefaults } from "./timers.js";
 // The transport over a message port: a Web Worker, a MessageChannel (roadmap R27)
-export { PortTransport } from "./adapters/port/transport.js";
-export type { PortLike, PortTransportOptions } from "./adapters/port/transport.js";
+export { PortTransport, electronPortOf } from "./adapters/port/transport.js";
+export type { MainPortLike, PortLike, PortTransportOptions } from "./adapters/port/transport.js";
 // The W3C trace context: one trace from the client to the handler (roadmap R16)
 export { TRACEPARENT_METADATA_KEY, formatTraceparent, parseTraceparent, newTraceId, newSpanId, isW3cIds } from "./tracing/traceparent.js";
 export type { TraceContext } from "./tracing/traceparent.js";
@@ -524,7 +524,7 @@ export type {
 export type { ProgressUpdate, ReportProgress } from "./procedures/progress.js";
 export { toolHintsOf, toolHintOverrideOf, toolHintOverrideRefusal } from "./procedures/hints.js";
 export type { ToolHintOverride } from "./procedures/hints.js";
-export { untrustedText, untrustedFieldsOf, untrustedTextsOf } from "./procedures/untrusted.js";
+export { untrustedText, untrustedFieldsOf, untrustedTextsOf, markUntrusted, untrustedMarkOf } from "./procedures/untrusted.js";
 export type { UntrustedText, UntrustedSource, UntrustedValue } from "./procedures/untrusted.js";
 // One manifest type (roadmap R17)
 export { MANIFEST_FORMAT, describeProcedure as describeProcedureEntry, describeRegistry, exposedProcedures, hashOf } from "./procedures/manifest.js";

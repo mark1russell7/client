@@ -8,8 +8,9 @@
 import { ClientError, type Transport, type Message, type ResponseItem } from "../../../client/types.js";
 import type { WebSocketTransportOptions, WebSocketMessage, ServerRequestHandler, EventHandler, WebSocketClass } from "./types.js";
 import { WebSocketState } from "./types.js";
-import { withoutInternalKeys } from "../../metadata.js";
+import { wireMetadata, withoutInternalKeys } from "../../metadata.js";
 import { IncomingCalls } from "../shared/rpc.js";
+import { checkFrame } from "../shared/frame.js";
 import { StreamSequence, gapOf, itemMetadata } from "../../sequence.js";
 import type { Credentials, RequestHandler, ServerResponse } from "../../../server/types.js";
 import { methodToPath } from "../../../server/method.js";
@@ -406,8 +407,10 @@ export class WebSocketTransport implements Transport {
       ws.onmessage = (event) => {
         if (this.ws !== ws) return;
         try {
-          const message: WebSocketMessage = JSON.parse(event.data);
-          this.handleMessage(message);
+          // The shape of the frame, before the code reads its fields. The client drops a bad frame
+          const check = checkFrame(JSON.parse(event.data));
+          if (check.ok) this.handleMessage(check.frame);
+          else console.error(`[${this.name}] Invalid message format: ${check.reason}`);
         } catch (error) {
           console.error(`[${this.name}] Failed to parse message:`, error);
         }
@@ -585,7 +588,8 @@ export class WebSocketTransport implements Transport {
         id: frame.id,
         method: frame.method!,
         payload: frame.payload === undefined ? {} : frame.payload,
-        metadata: withoutInternalKeys(frame.metadata),
+        // A frame of the network sets no credentials, so its key `auth` stays out too (roadmap R18)
+        metadata: wireMetadata(frame.metadata),
         signal,
         credentials: NETWORK_WITHOUT_CREDENTIALS,
       }),
@@ -755,6 +759,8 @@ export class WebSocketTransport implements Transport {
     const window = this.options.streamWindow;
 
     // Create WebSocket message. The internal metadata keys stay in this process (deep dive TRN-11).
+    // The key `auth` still goes in the frame, and the server drops it (roadmap R18). This is
+    // deprecated: a later MINOR stops sending it. The token of a connection goes in its upgrade.
     const wsMessage: WebSocketMessage<TReq> = {
       id: wireId,
       type: "request",
@@ -1020,7 +1026,8 @@ export class WebSocketTransport implements Transport {
     this.setState(WebSocketState.DISCONNECTING, "close");
     this.stopHeartbeat();
     this.clearHandshakeTimer();
-    this.incoming?.abortAll();
+    // The socket is open: each call of the server that the close stops gets its error (CLI-48)
+    this.incoming?.abortAll("stopped");
     this.incoming = undefined;
 
     if (this.reconnectTimer) {

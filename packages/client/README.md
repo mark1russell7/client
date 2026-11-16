@@ -135,6 +135,17 @@ A host controls which procedures its callers reach, also through nested calls. S
 - A procedure of code declares its nested calls in `metadata.calls`. With `strictCalls`, a procedure that declares nothing calls only exposed procedures.
 - Interceptors run around each invocation and its nested calls: `timeoutInterceptor`, `tracingInterceptor`, `metricsInterceptor`.
 
+#### Traces with OpenTelemetry
+
+The client uses `@opentelemetry/api` only. The API does nothing until the program registers an SDK, for example with `startNodeTelemetry()` of `@mark1russell7/otel-ts/node`.
+
+- With an SDK, each try of a call is a client span. The registered propagator writes `traceparent`, `tracestate` and `baggage` into the metadata of the call.
+- The parent of the client span is the active span. When no span is active, the parent is the `traceparent` and `tracestate` that the caller gave in the metadata of the call. For example, `mark` gives the variables `TRACEPARENT` and `TRACESTATE` of its environment there.
+- The client marks each call as an internal call. The propagator of otel-ts sends the baggage only on an internal call.
+- With an SDK, `tracingInterceptor` makes a host span for a call of a host, and an internal span for a nested call. The handler runs in the context of its span.
+- The host reads no baggage from the metadata. `@procedures/peer` reads it from a trusted caller.
+- With no SDK, the client sends the W3C `traceparent` of its own ids, as before.
+
 ### 5. Related Packages
 
 - `@procedures/collections`: data structures (`List`, `Map`, `Set`, `Queue`) and composable behaviors (LRU, TTL, bounded, evented).
@@ -627,6 +638,10 @@ interface HttpServerTransportOptions {
   clock?: Clock;                 // the clock of the keep-alive timers
 }
 ```
+
+With `cors: true`, the transport sends the CORS headers of `corsOptions`. The default of `credentials` is false for the origin `"*"`, and true for each other origin.
+
+Deprecated: the CORS headers on the routes of the app outside `basePath`. From 0.63.0, the transport applies CORS only to `basePath` and the paths under it. An app that needs CORS on its own routes adds its own CORS function.
 
 A URL strategy gets a `UrlStrategyRequest`: the method, the path, the URL, the headers, the query and the body. The type is structural. A `Request` of Express agrees with it, and so does the `UrlRequest` of `procedureHandler`.
 

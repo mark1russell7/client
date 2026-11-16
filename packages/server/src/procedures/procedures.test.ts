@@ -51,25 +51,39 @@ afterEach(async () => {
   for (const lockfile of lockfiles.readAllLockfiles()) lockfiles.removeLockfileForPort(lockfile.port);
 });
 
-/** An HTTP server that answers each request (`host.info` too) with this peer id. It gives its port. */
-async function healthServer(peerId: string): Promise<number> {
-  const server = createServer((_request, response) => {
-    response.setHeader("content-type", "application/json");
-    response.end(JSON.stringify({ peerId }));
-  });
+const portOf = (server: Server): number => {
+  const address = server.address();
+  return typeof address === "object" && address ? address.port : 0;
+};
+
+/**
+ * This helper starts a server on a free port (the port 0), and it gives the port. The test holds
+ * the server until its end, so no other listener gets the port.
+ */
+async function listening(server: Server): Promise<number> {
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
   servers.push(server);
-  const address = server.address();
-  return typeof address === "object" && address ? address.port : 0;
+  return portOf(server);
 }
 
-/** A port that nothing listens on. */
-async function closedPort(): Promise<number> {
+/** An HTTP server that answers each request (`host.info` too) with this peer id. It gives its port. */
+function healthServer(peerId: string): Promise<number> {
+  return listening(
+    createServer((_request, response) => {
+      response.setHeader("content-type", "application/json");
+      response.end(JSON.stringify({ peerId }));
+    }),
+  );
+}
+
+/**
+ * The port of a server that does not answer: it closes each connection at once, thus a read of
+ * `host.info` fails as on a closed port. The test holds the port, so no other listener gets it.
+ */
+function deadPort(): Promise<number> {
   const server = createServer();
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
-  const address = server.address();
-  await new Promise<void>((resolve) => server.close(() => resolve()));
-  return typeof address === "object" && address ? address.port : 0;
+  server.on("connection", (socket) => socket.destroy());
+  return listening(server);
 }
 
 /** The lockfile of a server on a port. The PID belongs to no process of the test. */
@@ -147,7 +161,7 @@ describe("server.status", () => {
   });
 
   it("removes the lockfile of a server that does not answer", async () => {
-    const port = await closedPort();
+    const port = await deadPort();
     lock(port, "peer-gone");
     expect(await run(status, {})).toEqual({ running: false, message: "Server is not running (cleaned up stale lockfile)" });
     expect(lockfiles.readLockfileForPort(port)).toBeNull();
@@ -156,7 +170,7 @@ describe("server.status", () => {
   it("summarizes more than one server, and removes the stale lockfiles", async () => {
     const one = await healthServer("peer-1");
     const two = await healthServer("peer-2");
-    const gone = await closedPort();
+    const gone = await deadPort();
     lock(one, "peer-1", ago(10_000));
     lock(two, "peer-2", ago(10_000));
     lock(gone, "peer-3");
@@ -167,8 +181,8 @@ describe("server.status", () => {
   });
 
   it("reports no server when each lockfile of several is stale", async () => {
-    lock(await closedPort(), "peer-x");
-    lock(await closedPort(), "peer-y");
+    lock(await deadPort(), "peer-x");
+    lock(await deadPort(), "peer-y");
     expect(await run(status, {})).toEqual({ running: false, message: "No servers running (cleaned up stale lockfiles)" });
   });
 });
@@ -180,7 +194,7 @@ describe("server.stop", () => {
   });
 
   it("removes a stale lockfile, and does not signal another process on the port", async () => {
-    const gone = await closedPort();
+    const gone = await deadPort();
     const other = await healthServer("someone-else");
     lock(gone, "peer-gone");
     lock(other, "peer-expected");
@@ -192,15 +206,21 @@ describe("server.stop", () => {
   });
 
   it("stops a server that answers as its peer, and removes its lockfile", async () => {
-    const port = await closedPort();
+    // The child listens on a free port (the port 0), and it writes the port that it got on its output
     const code = [
       'const http = require("node:http");',
-      'http.createServer((q, s) => { s.setHeader("content-type", "application/json"); s.end(JSON.stringify({ peerId: "peer-child" })); })',
-      `  .listen(${port}, "127.0.0.1", () => console.log("ready"));`,
+      'const server = http.createServer((q, s) => { s.setHeader("content-type", "application/json"); s.end(JSON.stringify({ peerId: "peer-child" })); });',
+      'server.listen(0, "127.0.0.1", () => console.log(String(server.address().port)));',
     ].join("\n");
     const child = spawn(process.execPath, ["-e", code], { stdio: ["ignore", "pipe", "inherit"] });
     children.push(child);
-    await new Promise<void>((resolve) => child.stdout!.once("data", () => resolve()));
+    const port = await new Promise<number>((resolve) => {
+      let output = "";
+      child.stdout!.on("data", (chunk: Buffer) => {
+        output += chunk.toString();
+        if (output.includes("\n")) resolve(Number(output.trim()));
+      });
+    });
     lock(port, "peer-child", new Date().toISOString(), child.pid!);
 
     const result = await run(stop, { port, force: true });
@@ -223,12 +243,12 @@ describe("server.start (CLI-9: it waits for the readiness of the server)", () =>
   });
 
   /**
-   * A fake CLI in a temporary folder. It writes the lockfile of its `--port`, as `mark --server`
-   * does, and then it acts as `mode` says:
+   * A fake CLI in a temporary folder. It listens on its `--port`, and it writes its lockfile with
+   * the port that it got, as `mark --server` does with the port 0. It acts as `mode` says:
    * - `ready`: its probe answers 503 for `readyAfterMs`, then 200. `host.info` answers the token.
    * - `no-probes`: the listener has no probes (404), as a build of `mark` before CLI-9. `host.info` answers.
    * - `never-ready`: its probe answers 503 for each read.
-   * - `no-listener`: it writes the lockfile and listens on nothing.
+   * - `no-listener`: it writes the lockfile of its `--port` and listens on nothing.
    */
   function fakeCli(mode: "ready" | "no-probes" | "never-ready" | "no-listener", readyAfterMs = 0): { cli: string; folder: string } {
     const folder = mkdtempSync(join(tmpdir(), "server-start-cli-"));
@@ -245,13 +265,16 @@ describe("server.start (CLI-9: it waits for the readiness of the server)", () =>
       'const peerId = "peer-fake-" + process.pid;',
       'const dir = path.join(os.homedir(), ".mark", "servers");',
       "fs.mkdirSync(dir, { recursive: true });",
-      'const endpoint = "http://127.0.0.1:" + port + "/api";',
-      'const lockfile = { pid: process.pid, port, transport: "http", endpoint, startedAt: new Date().toISOString(), token, cwd: process.cwd(), build: "fake", peerId };',
-      'fs.writeFileSync(path.join(dir, port + ".lock"), JSON.stringify(lockfile));',
+      "const lock = (bound) => {",
+      '  const endpoint = "http://127.0.0.1:" + bound + "/api";',
+      '  const lockfile = { pid: process.pid, port: bound, transport: "http", endpoint, startedAt: new Date().toISOString(), token, cwd: process.cwd(), build: "fake", peerId };',
+      '  fs.writeFileSync(path.join(dir, bound + ".lock"), JSON.stringify(lockfile));',
+      "};",
       `const readyAt = Date.now() + ${readyAfterMs};`,
       "setInterval(() => undefined, 1000);",
-      'if (mode !== "no-listener") {',
-      "  http.createServer((req, res) => {",
+      'if (mode === "no-listener") lock(port);',
+      "else {",
+      "  const server = http.createServer((req, res) => {",
       '    if (req.url === "/_probes/readiness") {',
       '      if (mode === "no-probes") { res.statusCode = 404; res.end(); return; }',
       '      const ready = mode === "ready" && Date.now() >= readyAt;',
@@ -266,7 +289,8 @@ describe("server.start (CLI-9: it waits for the readiness of the server)", () =>
       "    }",
       "    res.statusCode = 401;",
       '    res.end("{}");',
-      '  }).listen(port, "127.0.0.1");',
+      "  });",
+      '  server.listen(port, "127.0.0.1", () => lock(server.address().port));',
       "}",
       "",
     ];
@@ -302,8 +326,7 @@ describe("server.start (CLI-9: it waits for the readiness of the server)", () =>
     const cli = fakeMarkPath(folder);
     writeFileSync(cli, "process.exit(1);\n");
     try {
-      const port = await closedPort();
-      const { result, elapsed } = await startWith(cli, { port, transport: "websocket" });
+      const { result, elapsed } = await startWith(cli, { port: 0, transport: "websocket" });
       const log = join(home, ".mark", "server.log");
       expect(result).toEqual({
         success: false,
@@ -312,7 +335,7 @@ describe("server.start (CLI-9: it waits for the readiness of the server)", () =>
         message: `The server process (PID ${String(result["pid"])}) exited with the code 1 before it was ready. Check ${log} for details.`,
       });
       expect(elapsed).toBeLessThan(10_000);
-      expect(lockfiles.readLockfileForPort(port)).toBeNull();
+      expect(lockfiles.readAllLockfiles()).toEqual([]);
     } finally {
       rmSync(folder, { recursive: true, force: true });
     }
@@ -320,9 +343,15 @@ describe("server.start (CLI-9: it waits for the readiness of the server)", () =>
 
   it("waits until the readiness probe answers 200 and host.info answers the token of the new lockfile", async () => {
     const { cli, folder } = fakeCli("ready", 800);
+    // The lockfile of another server that answers: the port 0 takes only the lockfile of its child
+    const other = await healthServer("peer-other");
+    lock(other, "peer-other");
     try {
-      const port = await closedPort();
-      const { result, elapsed } = await startWith(cli, { port });
+      const { result, elapsed } = await startWith(cli, { port: 0 });
+      // The result gives the port that the child got, from its lockfile
+      const port = result["port"] as number;
+      expect(port).toBeGreaterThan(0);
+      expect(port).not.toBe(other);
       expect(result).toMatchObject({ success: true, port, endpoint: `http://127.0.0.1:${port}/api`, logFile: join(home, ".mark", "server.log") });
       expect(result["message"]).toBe(`Server started (PID ${String(result["pid"])})`);
       // The PID is the PID of the new server, from its lockfile
@@ -338,9 +367,9 @@ describe("server.start (CLI-9: it waits for the readiness of the server)", () =>
   it("takes host.info alone when the listener has no probes (a build of mark before CLI-9)", async () => {
     const { cli, folder } = fakeCli("no-probes");
     try {
-      const port = await closedPort();
-      const { result } = await startWith(cli, { port });
-      expect(result).toMatchObject({ success: true, port });
+      const { result } = await startWith(cli, { port: 0 });
+      expect(result).toMatchObject({ success: true, port: expect.any(Number) });
+      expect(lockfiles.readLockfileForPort(result["port"] as number)?.pid).toBe(result["pid"]);
     } finally {
       rmSync(folder, { recursive: true, force: true });
     }
@@ -349,20 +378,42 @@ describe("server.start (CLI-9: it waits for the readiness of the server)", () =>
   it("gives success false with the PID at the timeout, while the process still starts", async () => {
     const { cli, folder } = fakeCli("never-ready");
     try {
-      const port = await closedPort();
-      const { result, elapsed } = await startWith(cli, { port, timeout: 1_000 });
+      // The timeout of 2 s gives the child the time to listen and to write its lockfile
+      const { result, elapsed } = await startWith(cli, { port: 0, timeout: 2_000 });
       const log = join(home, ".mark", "server.log");
+      // The port comes from the lockfile of the child
+      const [written] = lockfiles.readAllLockfiles();
+      expect(written?.pid).toBe(result["pid"]);
       expect(result).toEqual({
         success: false,
         pid: expect.any(Number),
-        port,
+        port: written!.port,
         logFile: log,
-        message: `The server is not ready after 1000 ms. Its process (PID ${String(result["pid"])}) still starts: check ${log}, and run 'mark server status' later.`,
+        message: `The server is not ready after 2000 ms. Its process (PID ${String(result["pid"])}) still starts: check ${log}, and run 'mark server status' later.`,
       });
-      expect(elapsed).toBeGreaterThanOrEqual(1_000);
+      expect(elapsed).toBeGreaterThanOrEqual(2_000);
       expect(elapsed).toBeLessThan(10_000);
       // The process still runs: the procedure does not stop it
       expect(() => process.kill(result["pid"] as number, 0)).not.toThrow();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }, 20_000);
+
+  it("on a port, takes the lockfile of the port when host.info answers its peer id", async () => {
+    // The test holds the port. Its server answers the probe, and host.info with the peer id of the lockfile of the port.
+    let port = 0;
+    port = await listening(
+      createServer((_request, response) => {
+        response.setHeader("content-type", "application/json");
+        response.end(JSON.stringify({ peerId: lockfiles.readLockfileForPort(port)?.peerId }));
+      }),
+    );
+    const { cli, folder } = fakeCli("no-listener");
+    try {
+      const { result } = await startWith(cli, { port, timeout: 5_000 });
+      expect(result).toMatchObject({ success: true, port, endpoint: `http://127.0.0.1:${port}/api` });
+      expect(result["pid"]).toBe(lockfiles.readLockfileForPort(port)?.pid);
     } finally {
       rmSync(folder, { recursive: true, force: true });
     }
@@ -387,15 +438,17 @@ describe("server.start (CLI-9: it waits for the readiness of the server)", () =>
     const { LOCAL_LISTENER_KNOBS } = await import("@procedures/peer");
     const { createRegistry, hostPolicy } = await import("@procedures/client");
     const { fakeProcess } = await import("@mark1russell7/service/testing");
-    const port = await closedPort();
     const running = await runProcedureHost({
       name: "mark-server",
       mode: "background",
-      host: { registry: createRegistry(), policy: hostPolicy({ token: "t" }), listen: [{ port, knobs: LOCAL_LISTENER_KNOBS }] },
+      host: { registry: createRegistry(), policy: hostPolicy({ token: "t" }), listen: [{ port: 0, knobs: LOCAL_LISTENER_KNOBS }] },
       run: { process: fakeProcess() },
     });
     try {
-      expect(running.probes()).toEqual([`http://127.0.0.1:${port}/_probes`]);
+      // The listener takes a free port, and the probes give it
+      const [base] = running.probes();
+      expect(base).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/_probes$/);
+      const port = Number(new URL(base!).port);
       const answer = await fetch(readinessUrl("127.0.0.1", port));
       expect(answer.status).toBe(200);
       expect(await answer.json()).toMatchObject({ status: "pass", probe: "readiness" });

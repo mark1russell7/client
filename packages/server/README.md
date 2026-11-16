@@ -155,8 +155,9 @@ procedure-server -p @procedures/mongo/register -t http,websocket
 |--------|-------|---------|-------------|
 | `--procedures` | `-p` | - | Comma-separated procedure packages to load |
 | `--transport` | `-t` | `http` | Transports: http, websocket, local |
-| `--port` | - | `3000` | Port for the primary transport |
+| `--port` | - | `3000` | Port for the primary transport. The port 0 takes a free port, and the output gives the port that the listener got. |
 | `--host` | - | `127.0.0.1` | Host to bind to. `0.0.0.0` serves every loaded procedure to the network |
+| `--allowed-host` | - | no names | The host names that a request can give in its `Host` header, besides `localhost` and the IP addresses. Give the name that a LAN or a proxy uses for this computer. Repeat the option, or separate the names with commas. `*` turns the check off. |
 | `--base-path` | - | `/api` | Base path for HTTP transport |
 | `--cors` | - | off | Enable CORS |
 | `--no-cors` | - | - | Disable CORS |
@@ -252,6 +253,9 @@ The package has three procedures. They manage the background server of the `mark
 - `mark` finds the package from its `client.procedures` field: `mark server start`, `mark server stop` and `mark server status` run them.
 - The lockfiles stay in `@procedures/peer` (`@procedures/peer/lockfile`), because the peer of `mark --server` writes them.
 - `server.start` waits for the readiness of the server (CLI-9). It reads the readiness probe of the listener (`/_probes/readiness`) until it answers 200. The probe has no identity, thus `host.info` must also answer the token of the new lockfile with its peer id. A listener without probes (a build of `mark` before CLI-9) answers 404, and then `host.info` alone tells the readiness.
+- `server.start` with the port 0 starts the server on a free port. The server writes its lockfile after the startup, with the port that its listener got. `server.start` finds this lockfile by the PID of its child process, and its result gives the port.
+- A test that starts a server in a child process gives it the port 0 and reads the port that it got. Then no other process can take the port between a pick and the listen.
+- `runProcedureHost()` with a lockfile on the port 0 writes the lockfile at the end of the startup. The lockfile takes the port of the listener with the scheme and the path of its endpoint. When no listener matches, the host stops with the code 1.
 - The wait stops as soon as the server is ready or its process exits. `timeout` (milliseconds, default 15000) sets the limit.
 - At the timeout, `server.start` gives `success: false` with the PID of the process that still starts. Before CLI-9, it gave `success: true` with the message "still loading".
 
@@ -337,11 +341,16 @@ await life.done; // the runner ends the process after the stop in stages
 - **The lockfile.** `lockfile` makes the lockfile a dependency of the service. The startup writes it before the listeners start, and the shutdown removes it after the listeners close.
 - **The probes.** Each listener of the host answers the probes under `/_probes` (CLI-9). `probes: { port, host, prefix, retryAfter }` moves them to a probe server on a port of its own (decision D5). `probes()` of the result gives the base URL of each place that answers them.
 - **The parts of the app.** `declare(svc, host)` gives the builder of the service to the app before `run()` (CLI-62). The app declares its transports, dependencies, checks and phase work with the methods of the builder. `describe()` shows them, and the runner starts and stops them with the host. The example follows this list.
+- **The telemetry.** `telemetry` starts the telemetry SDK of the app before the dependencies and the listeners (CLI-130). The phase `flush the output` stops it last. The example after the list shows it.
 - **Outside a service.** `startServer()` starts the same server as a peer, for a test or an app that has its own lifecycle.
 
 ```typescript
+import { startNodeTelemetry } from "@mark1russell7/otel-ts/node";
+
 const { host, life } = await runProcedureHost({
   name: "app-dev",
+  // The host gives { stopOnSignals: false }: the runner owns the signals
+  telemetry: (options) => startNodeTelemetry({ serviceName: "app-dev", ...options }),
   mode: "foreground",
   // The calls wait for the readiness of the dependency of the app (CLI-45)
   host: { name: "app", registry, policy, controller: { requires: ["mongo"] }, listen },
@@ -361,6 +370,7 @@ const { host, life } = await runProcedureHost({
 - The parts of the app come after the parts of the host. Thus the server of the host starts before a transport of the app. A listener of the app can mount `host.handler`.
 - The lockfile comes after the dependencies of the app. It connects last, and it closes first.
 - Without `declare`, the service has only the parts of the host.
+- The cap of the phase `flush the output` limits the wait for the telemetry: 1 s in `localDev` and `daemon`. The host refuses `telemetry` with a profile that has no such phase.
 
 #### The logger
 

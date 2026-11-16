@@ -44,6 +44,10 @@ function resolveMarkCli(): string {
  * for a record. Before, the procedure sent `--key value`, so a value that starts with "-" became
  * a flag, and it dropped a `false` boolean, so a default of `true` could not be turned off.
  * The `--` keeps a positional argument that starts with "-" from becoming a flag.
+ *
+ * A value that starts with "@" goes as it is too, because `mark` reads no files. The parser of
+ * `@procedures/cli-kit` with a `readFile` option reads `@<file>` as the text of a local file. A
+ * test of `mark` (`args.test.ts`, "values that start with @") fails if `mark` gets that option.
  */
 export function buildMarkArgs(input: Pick<CliRunInput, "path" | "positional" | "args">): string[] {
   const args: string[] = [...input.path];

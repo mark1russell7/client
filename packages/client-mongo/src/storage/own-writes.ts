@@ -35,8 +35,11 @@ const MAX_OWN_WRITES = 100_000;
 
 /** The noted writes of one watcher of one collection. */
 export interface OwnNumbers {
-  /** True when a write of this process noted the number and no event took it yet. The number is then taken. */
-  take(seq: number): boolean;
+  /**
+   * True when a write of this process noted the number and no event took it yet. The number is then taken. With a counter for
+   * each partition (roadmap CLI-96), two partitions can have the same number, so give the partition of the event too.
+   */
+  take(seq: number, partition?: string): boolean;
   /** True when this process pruned the tombstone of the stored `_id` and no event took it yet. The entry is then taken. */
   takePruned(storedId: unknown): boolean;
   /** This method ends the tracking: the storage notes no more entries for it. */
@@ -52,7 +55,8 @@ export interface TrackOwnNumbersOptions {
 }
 
 interface Tracker {
-  readonly numbers: Map<number, number> | undefined;
+  /** The numbers: a number for the counter of the collection, and the partition with the number for a counter of each partition. */
+  readonly numbers: Map<number | string, number> | undefined;
   readonly pruned: Map<string, number>;
   readonly now: () => number;
 }
@@ -121,8 +125,9 @@ export function trackOwnNumbers(db: Db, collection: string, options: TrackOwnNum
     return until > tracker.now();
   };
   return {
-    take(seq: number): boolean {
-      return tracker.numbers !== undefined && live(tracker.numbers as Map<unknown, number>, seq);
+    take(seq: number, partition?: string): boolean {
+      const numbers = tracker.numbers as Map<unknown, number> | undefined;
+      return numbers !== undefined && (live(numbers, seq) || live(numbers, scopedKey(partition ?? "", seq)));
     },
     takePruned(storedId: unknown): boolean {
       return live(tracker.pruned as Map<unknown, number>, idKey(storedId));
@@ -137,14 +142,22 @@ export function trackOwnNumbers(db: Db, collection: string, options: TrackOwnNum
   };
 }
 
-/** This function notes the numbers `first` to `first + count - 1` of a write of this process, for each open tracker of the collection. */
-export function noteOwnNumbers(db: Db, collection: string, first: number, count: number): void {
+/** The key of a number of a counter of a partition (roadmap CLI-96). The partition of a store without a partition is the empty text. */
+function scopedKey(partition: string, seq: number): string {
+  return `${partition}\u001f${String(seq)}`;
+}
+
+/**
+ * This function notes the numbers `first` to `first + count - 1` of a write of this process, for each open tracker of the
+ * collection. `scope` is the partition of a counter of each partition (roadmap CLI-96), and absent for the counter of the collection.
+ */
+export function noteOwnNumbers(db: Db, collection: string, first: number, count: number, scope?: string): void {
   const trackers = trackersOf(db, collection);
   if (!trackers) return;
   for (const tracker of trackers) {
     if (!tracker.numbers) continue;
-    const numbers: number[] = [];
-    for (let seq = first; seq < first + count; seq++) numbers.push(seq);
+    const numbers: Array<number | string> = [];
+    for (let seq = first; seq < first + count; seq++) numbers.push(scope === undefined ? seq : scopedKey(scope, seq));
     noteAll(tracker.numbers, numbers, tracker.now());
   }
 }

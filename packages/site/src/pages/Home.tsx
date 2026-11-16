@@ -1,4 +1,4 @@
-import { useState, type ReactElement, type ReactNode } from "react";
+import { useState, type KeyboardEvent, type ReactElement, type ReactNode } from "react";
 import { LiveHero } from "../components/LiveHero";
 import { mcpTools, metrics, packages, procedures } from "../data";
 import { href } from "../lib/router";
@@ -97,6 +97,60 @@ function InstallCommand(): ReactElement {
   );
 }
 
+/**
+ * The hosts as tabs: one host at a time, so a phone does not scroll past six cards. The keys follow
+ * the tabs pattern of the ARIA practices: the arrow keys, Home and End move the selection.
+ */
+function HostTabs(): ReactElement {
+  const [chosen, setChosen] = useState(0);
+  const host = HOSTS[chosen]!;
+  const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number): void => {
+    const last = HOSTS.length - 1;
+    const next =
+      event.key === "ArrowRight" ? (index === last ? 0 : index + 1)
+      : event.key === "ArrowLeft" ? (index === 0 ? last : index - 1)
+      : event.key === "Home" ? 0
+      : event.key === "End" ? last
+      : -1;
+    if (next < 0) return;
+    event.preventDefault();
+    setChosen(next);
+    document.getElementById(`host-tab-${next}`)?.focus();
+  };
+  return (
+    <div className="host-tabs panel">
+      <div className="tabs">
+        <div role="tablist" aria-label="The hosts" className="tab-buttons host-tab-buttons scroll-cue">
+          {HOSTS.map((item, index) => (
+            <button
+              key={item.name}
+              id={`host-tab-${index}`}
+              type="button"
+              role="tab"
+              aria-selected={chosen === index}
+              aria-controls="host-panel"
+              tabIndex={chosen === index ? 0 : -1}
+              onClick={() => setChosen(index)}
+              onKeyDown={(event) => onKeyDown(event, index)}
+            >
+              {item.name}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="host-panel" role="tabpanel" id="host-panel" aria-labelledby={`host-tab-${chosen}`}>
+        <pre className="code scroll-cue" tabIndex={0} aria-label={`The call from the host ${host.name}`}>
+          {host.how}
+        </pre>
+        <p className="small muted">{host.detail}</p>
+        <p className="small muted host-count">
+          Host {chosen + 1} of {HOSTS.length}. Each host uses the same registry.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function Stat({ value, label }: { value: number; label: string }): ReactElement {
   return (
     <div className="stat">
@@ -157,7 +211,7 @@ export function Home(): ReactElement {
             </span>
             <div className="step-body">
               <h3>Define a procedure</h3>
-              <p className="small">A path, an input schema, an output schema and a handler. Importing the package registers it.</p>
+              <p className="small">A path, an input schema, an output schema and a handler. An import registers nothing: a host registers the module of the package.</p>
               <pre className="code scroll-cue" tabIndex={0} aria-label="Define a procedure">
                 {DEFINE}
               </pre>
@@ -195,17 +249,7 @@ export function Home(): ReactElement {
 
       <section aria-labelledby="hosts-title">
         <h2 id="hosts-title">Write it once, call it from everywhere</h2>
-        <div className="hosts">
-          {HOSTS.map((host) => (
-            <div className="host" key={host.name}>
-              <strong>{host.name}</strong>
-              <div>
-                <code>{host.how}</code>
-              </div>
-              <div className="small muted">{host.detail}</div>
-            </div>
-          ))}
-        </div>
+        <HostTabs />
       </section>
 
       <section aria-labelledby="box-title">

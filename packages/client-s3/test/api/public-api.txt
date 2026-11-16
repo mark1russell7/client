@@ -42,6 +42,9 @@ type S3MultipartUploadOutput: dist/types.d.ts#S3MultipartUploadOutput
 type S3PresignInput: dist/types.d.ts#S3PresignInput
 S3PresignInputSchema: dist/types.d.ts#S3PresignInputSchema
 type S3PresignOutput: dist/types.d.ts#S3PresignOutput
+type S3ReadInput: dist/types.d.ts#S3ReadInput
+S3ReadInputSchema: dist/types.d.ts#S3ReadInputSchema
+type S3ReadOutput: dist/types.d.ts#S3ReadOutput
 type S3UploadCall: dist/types.d.ts#S3UploadCall
 S3UploadCallSchema: dist/types.d.ts#S3UploadCallSchema
 type S3UploadFileInput: dist/types.d.ts#S3UploadFileInput
@@ -66,6 +69,7 @@ s3MultipartComplete: dist/procedures/s3/multipart-complete.d.ts#s3MultipartCompl
 s3MultipartInit: dist/procedures/s3/multipart-init.d.ts#s3MultipartInit
 s3MultipartUpload: dist/procedures/s3/multipart-upload.d.ts#s3MultipartUpload
 s3Presign: dist/procedures/s3/presign.d.ts#s3Presign
+s3Read: dist/procedures/s3/read.d.ts#s3Read
 s3Upload: dist/procedures/s3/upload.d.ts#s3Upload
 
 ## ./module (dist/module.d.ts): names
@@ -124,6 +128,9 @@ export declare function s3MultipartUpload(input: S3MultipartUploadInput): Promis
 
 ### dist/procedures/s3/presign.d.ts#s3Presign
 export declare function s3Presign(input: S3PresignInput, capability?: Capability): Promise<S3PresignOutput>;
+
+### dist/procedures/s3/read.d.ts#s3Read
+export declare function s3Read(input: S3ReadInput): Promise<S3ReadOutput>;
 
 ### dist/procedures/s3/upload.d.ts#s3Upload
 export declare function s3Upload(input: S3UploadCall): Promise<S3UploadOutput>;
@@ -380,6 +387,21 @@ export interface S3PresignOutput {
     expiresIn: number;
     expiresAt: string;
 }
+
+### dist/types.d.ts#S3ReadInput
+export type S3ReadInput = z.infer<typeof S3ReadInputSchema>;
+
+### dist/types.d.ts#S3ReadInputSchema
+export declare const S3ReadInputSchema: z.ZodObject<{
+    bucket: z.ZodString;
+    key: z.ZodString;
+    encoding: z.ZodOptional<z.ZodString>;
+    versionId: z.ZodOptional<z.ZodString>;
+    maxBytes: z.ZodOptional<z.ZodNumber>;
+}>;
+
+### dist/types.d.ts#S3ReadOutput
+export type S3ReadOutput = Omit<S3DownloadOutput, "path">;
 
 ### dist/types.d.ts#S3UploadCall
 export type S3UploadCall = (S3UploadInput & {

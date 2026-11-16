@@ -1,5 +1,5 @@
 name: Start MongoDB 7
-description: This action starts MongoDB 7 in Docker on port 27017 and waits for it.
+description: This action starts MongoDB 7 in Docker and waits for it.
 
 inputs:
   topology:
@@ -7,6 +7,15 @@ inputs:
     default: replica-set
   test-commands:
     description: The value 1 turns on the test commands of a replica set, for the failpoint tests.
+    default: ""
+  name:
+    description: The name of the container.
+    default: mongo
+  port:
+    description: The port on the runner.
+    default: "27017"
+  memory-files:
+    description: The value 1 keeps the files of a replica set in memory, so no disk is in the path.
     default: ""
 
 runs:
@@ -16,23 +25,28 @@ runs:
       env:
         TOPOLOGY: ${{ inputs.topology }}
         TEST_COMMANDS: ${{ inputs.test-commands }}
+        NAME: ${{ inputs.name }}
+        PORT: ${{ inputs.port }}
+        MEMORY_FILES: ${{ inputs.memory-files }}
       run: |
         if [ "$TOPOLOGY" = "replica-set" ]; then
           args=(--replSet rs0 --bind_ip_all)
           if [ "$TEST_COMMANDS" = "1" ]; then args+=(--setParameter enableTestCommands=1); fi
-          docker run -d --name mongo -p 27017:27017 mongo:7 "${args[@]}"
+          docker_args=()
+          if [ "$MEMORY_FILES" = "1" ]; then docker_args+=(--tmpfs /data/db:rw,size=4g); fi
+          docker run -d --name "$NAME" -p "$PORT:27017" "${docker_args[@]}" mongo:7 "${args[@]}"
         else
-          docker run -d --name mongo -p 27017:27017 mongo:7
+          docker run -d --name "$NAME" -p "$PORT:27017" mongo:7
         fi
         for i in $(seq 1 60); do
-          docker exec mongo mongosh --quiet --eval "db.adminCommand('ping').ok" >/dev/null 2>&1 && break
+          docker exec "$NAME" mongosh --quiet --eval "db.adminCommand('ping').ok" >/dev/null 2>&1 && break
           sleep 1
         done
         if [ "$TOPOLOGY" = "replica-set" ]; then
-          docker exec mongo mongosh --quiet --eval "rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] })"
+          docker exec "$NAME" mongosh --quiet --eval "rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] })"
           for i in $(seq 1 60); do
-            [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ] && break
+            [ "$(docker exec "$NAME" mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ] && break
             sleep 1
           done
-          [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ]
+          [ "$(docker exec "$NAME" mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ]
         fi

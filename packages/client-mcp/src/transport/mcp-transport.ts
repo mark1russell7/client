@@ -33,7 +33,7 @@ import type {
   ReportProgress,
   Logger,
 } from "@procedures/client";
-import { LOCAL_CREDENTIALS, NARROWING_METADATA_KEY, PROCEDURE_REGISTRY, addNarrowing, pathToKey, pathToMethod, createElicit, elicitWithPolicy, lastResortError, requestCredentials, retryableOf, untrustedTextsOf, writeLog } from "@procedures/client";
+import { LOCAL_CREDENTIALS, NARROWING_METADATA_KEY, PROCEDURE_REGISTRY, addNarrowing, pathToKey, pathToMethod, createElicit, elicitWithPolicy, lastResortError, requestCredentials, retryableOf, writeLog, type UntrustedText } from "@procedures/client";
 import {
   proceduresToMcpTools,
   toToolDefinition,
@@ -44,7 +44,8 @@ import { createStdioTransport } from "./stdio.js";
 import { createSseTransport } from "./sse.js";
 import { createHttpTransport, requestCredentialsOf, type McpHttpTransport } from "./http.js";
 import { optionalMs } from "@procedures/client";
-import { createUntrustedEnvelopes } from "../untrusted.js";
+import { createUntrustedEnvelopes, type UntrustedEnvelopes } from "../untrusted.js";
+import { separateUntrusted } from "./untrusted-sites.js";
 import { taskStoreOf, type McpTaskStore } from "../tasks.js";
 
 /**
@@ -136,6 +137,27 @@ function callNarrowing(extra: CallExtra): unknown {
   const meta = extra._meta;
   const fromMeta = meta !== undefined && Object.hasOwn(meta, NARROWING_METADATA_KEY) ? meta[NARROWING_METADATA_KEY] : undefined;
   return addNarrowing(fromMeta, extra.requestInfo?.headers[NARROWING_METADATA_KEY]);
+}
+
+/** The keys of the W3C trace context and baggage that a tool call can carry (C10 of otel-ts). */
+const TRACE_CONTEXT_KEYS = ["traceparent", "tracestate", "baggage"] as const;
+
+/**
+ * The trace context of a tool call (roadmap item C10 of otel-ts): the keys `traceparent`,
+ * `tracestate` and `baggage` of the `_meta` of the request, as the MCP specification gives
+ * them, or else the headers of a call over Streamable HTTP. The server makes the remote span of
+ * the trace the parent of the call. It uses the baggage only from a trusted caller.
+ */
+function callTraceContext(extra: CallExtra): Record<string, string> {
+  const meta = extra._meta;
+  const headers = extra.requestInfo?.headers;
+  const found: Record<string, string> = {};
+  for (const key of TRACE_CONTEXT_KEYS) {
+    const fromMeta = meta !== undefined && Object.hasOwn(meta, key) ? meta[key] : undefined;
+    const value = typeof fromMeta === "string" ? fromMeta : headers?.[key];
+    if (typeof value === "string") found[key] = value;
+  }
+  return found;
 }
 
 /**
@@ -439,11 +461,14 @@ export class McpServerTransport implements ServerTransport {
     // a local face. Each other SDK server is a session of Streamable HTTP (CLI-1).
     const credentials = callCredentials(extra, server === this.mcpServer);
     const narrowing = callNarrowing(extra);
+    const traceContext = callTraceContext(extra);
     const serverRequest = {
       id: generateRequestId(),
       method: pathToMethod(path),
       payload: args ?? {},
       metadata: {
+        // The trace context of the caller (C10 of otel-ts): the server reads it
+        ...traceContext,
         transport: "mcp" as const,
         mcpRequestId: generateRequestId(),
         // The narrowing key of the call: the server applies it (CLI-30)
@@ -495,6 +520,10 @@ export class McpServerTransport implements ServerTransport {
         const reason = typeof response.metadata?.["reason"] === "string" ? response.metadata["reason"] : undefined;
         const wait = response.metadata?.["retry-after"];
         const retryAfterMs = typeof wait === "number" && Number.isFinite(wait) && wait >= 0 ? wait : undefined;
+        // The units and the capacity of a refusal for its size (roadmap CLI-122)
+        const units = response.metadata?.["units"];
+        const capacity = response.metadata?.["capacity"];
+        const sized = typeof units === "number" && typeof capacity === "number" && Number.isFinite(units) && Number.isFinite(capacity);
         return {
           content: [
             {
@@ -508,6 +537,7 @@ export class McpServerTransport implements ServerTransport {
             retryable: response.status.retryable === true,
             ...(reason ? { reason } : {}),
             ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
+            ...(sized ? { units, capacity } : {}),
           },
         };
       }
@@ -563,12 +593,12 @@ export class McpServerTransport implements ServerTransport {
           break;
         }
         // An item with untrusted fields gives its data, then its envelopes (CLI-10)
-        const rendered = tool?.untrusted ? this.render(item, tool).content : undefined;
-        const text = rendered ? rendered.map((block) => block.text).join("\n") : toText(item, this.options.json);
+        const rendered = this.render(item, tool, false).content;
+        const text = rendered.map((block) => block.text).join("\n");
         blocks.push({ type: "text", text });
         if (blocks.length > MAX_STREAM_BLOCKS) blocks.shift();
         if (progressToken !== undefined && !ownProgress()) {
-          const message = rendered ? rendered[0]!.text : text;
+          const message = rendered[0]!.text;
           await extra
             .sendNotification({
               method: "notifications/progress",
@@ -595,33 +625,36 @@ export class McpServerTransport implements ServerTransport {
   }
 
   /**
-   * The content of a successful value. A tool with untrusted fields (`metadata.untrusted`) gives
-   * the data as JSON in the first block. The second block has the texts of those fields in
-   * envelopes. In the structured content, each untrusted field is the text of its envelopes.
+   * The content of a successful value. The untrusted fields are the fields that the tool declares
+   * (`metadata.untrusted`) and the fields of the marked objects at each depth (`markUntrusted()`).
+   * With such a field, the first block has the data as JSON, and the second block has the texts in
+   * envelopes. In the structured content, a declared field is the text of its envelopes, and each
+   * text of another field is in its envelope, with the same shape.
    */
-  private render(value: unknown, tool: McpTool): McpToolContent {
-    const fields = tool.untrusted ?? [];
-    if (fields.length === 0 || value === null || typeof value !== "object" || Array.isArray(value)) {
-      const structured = tool.outputSchema ? structuredContentOf(value) : undefined;
-      return { content: [{ type: "text", text: toText(value, this.options.json) }], ...(structured ? { structuredContent: structured } : {}) };
-    }
-    const data: Record<string, unknown> = { ...(value as Record<string, unknown>) };
-    const envelopes = createUntrustedEnvelopes(this.options.untrusted ?? {});
+  private render(value: unknown, tool: McpTool | undefined, structuredOutput = true): McpToolContent {
+    const name = tool?.name ?? "";
     const wrap = this.options.untrusted?.wrap;
+    // One answer has one id for all of its envelopes
+    let envelopes: UntrustedEnvelopes | undefined;
+    const seal = (texts: readonly UntrustedText[], field: string): string =>
+      wrap ? wrap(texts, { tool: name, field }) : (envelopes ??= createUntrustedEnvelopes(this.options.untrusted ?? {})).text(texts);
+    const { data, structured, sites } = separateUntrusted(value, tool?.untrusted ?? [], (text, label) => seal([text], label));
+    const schema = structuredOutput && tool?.outputSchema !== undefined;
+    if (sites.length === 0) {
+      const plain = schema ? structuredContentOf(value) : undefined;
+      return { content: [{ type: "text", text: toText(value, this.options.json) }], ...(plain ? { structuredContent: plain } : {}) };
+    }
     const texts: Record<string, string> = {};
     const blocks: string[] = [];
-    for (const field of fields) {
-      if (!(field in data)) continue;
-      const items = untrustedTextsOf(data[field]);
-      delete data[field];
-      const text = wrap ? wrap(items, { tool: tool.name, field }) : envelopes.text(items);
-      texts[field] = text;
+    for (const site of sites) {
+      const text = seal(site.texts, site.label);
+      if (site.declared) texts[site.label] = text;
       if (text !== "") blocks.push(text);
     }
     const content: McpTextBlock[] = [{ type: "text", text: toText(data, this.options.json) }];
     if (blocks.length > 0) content.push({ type: "text", text: blocks.join("\n") });
-    const structured = tool.outputSchema ? structuredContentOf(data) : undefined;
-    return { content, ...(structured ? { structuredContent: { ...structured, ...texts } } : {}) };
+    const object = schema ? structuredContentOf(structured) : undefined;
+    return { content, ...(object ? { structuredContent: { ...object, ...texts } } : {}) };
   }
 
   /**

@@ -115,7 +115,7 @@ When the server reads cookies, the face trusts a request with a cookie only from
 
 The Streamable HTTP face checks each request before the request reaches the MCP SDK. The face has no token check of its own.
 
-- The browser checks come first, with `guardMcpRequest`. A request on a loopback address must name a loopback host, or a host of `allowedHosts` (the default is `browser.allowedHosts` of the policy), in its `Host` header. Thus DNS rebinding cannot reach the tools. An `Origin` header must name the server or a permitted origin (the default is `browser.allowedOrigins` of the policy).
+- The browser checks come first, with `guardMcpRequest`. Each request must name a loopback host, an IP address or a host of `allowedHosts` (the default is `browser.allowedHosts` of the policy) in its `Host` header, on each listener. Thus DNS rebinding cannot reach the tools. An `Origin` header must name the server or a permitted origin (the default is `browser.allowedOrigins` of the policy).
 - Then the admission of the server checks the credentials. With a token, each request sends `Authorization: Bearer <token>`. The scheme has any case, for example `bearer` (RFC 7235). The check is `tokenMatches` of the core: its time does not tell the token. A refused request gets 401 with a `WWW-Authenticate` header.
 - The token of a host is the token of its policy. A `token` of the HTTP face of `createMcpHost` becomes the token of the policy, and two different tokens stop the host with an error. `McpServerTransport` refuses a token in its HTTP options: give the token to the server. Refer to [Deprecated token options](#deprecated-token-options).
 - `guardMcpRequest` refuses a `token` option. The first call with it throws a `TypeError` that names the migration. Each later call with it gives a refusal with the status 500, without an error. Thus each request stays refused, and the log gets one error.
@@ -315,6 +315,13 @@ createProcedure()
 - In the structured content and the output schema, each untrusted field is a string: the text of its envelopes.
 - The host option `untrusted` changes the tag (`tag: "untrusted-web-content"`) and the notice. Its `wrap` function replaces the envelopes.
 - `createUntrustedEnvelopes()` gives the same envelopes for other uses.
+
+The untrusted fields of a procedure stay untrusted in the output of each caller: `client.chain`, a procedure of `procedure.define`, or a procedure of code.
+
+- The face finds these fields at each depth of the output. The first block has the data without them, and the second block has their envelopes.
+- The attribute `field` of each envelope gives the path of its field, for example `pages.0.web_content`.
+- In the structured content, each text of a nested field is in its envelope, and the field keeps its shape. Thus the content agrees with the output schema.
+- The HTTP and WebSocket faces give the output as it is.
 
 ## The result of a tool
 

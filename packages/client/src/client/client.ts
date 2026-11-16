@@ -70,6 +70,8 @@ import {
 import { narrowCapability } from "../procedures/capability.js";
 import { DEADLINE_METADATA_KEY, TIMEOUT_METADATA_KEY, absorbTimeout, writeRemainingTime } from "./deadline.js";
 import { ms } from "../duration.js";
+import { context as otelContext, SpanKind, trace } from "@opentelemetry/api";
+import { asInternalCall, callParent, callerTraceOf, endApiSpan, injectContext, startApiSpan, type CallerTrace } from "../tracing/otel.js";
 import type { Capability, ClearanceOrder, NestedCallOptions } from "../procedures/types.js";
 import { PROCEDURE_REGISTRY } from "../procedures/registry.js";
 import { validateSchema } from "../procedures/schema.js";
@@ -825,8 +827,9 @@ export class Client<TContext = {}> {
     // remaining time again for each try (roadmap R10)
     absorbTimeout(message.metadata);
 
-    // Compose middleware chain
-    const runner = this.composeMiddleware<TReq, TRes>();
+    // Compose middleware chain. The trace context that the caller gave in the metadata is read
+    // before a middleware or a try writes its own (roadmap C19 of otel-ts).
+    const runner = this.composeMiddleware<TReq, TRes>(callerTraceOf(message.metadata as Record<string, unknown>));
 
     // Execute through middleware chain
     const context: ClientContext<TReq> = { message };
@@ -897,7 +900,7 @@ export class Client<TContext = {}> {
         metadata["timeout"] = NO_SUBSCRIPTION_TIMEOUT as unknown as NonNullable<Metadata["timeout"]>;
         Object.assign(metadata, message.metadata);
         absorbTimeout(metadata);
-        return this.composeMiddleware<TReq, TRes>()({ message: { ...message, metadata } });
+        return this.composeMiddleware<TReq, TRes>(callerTraceOf(metadata as Record<string, unknown>))({ message: { ...message, metadata } });
       };
       this.subscriptionTransport = { send };
     }
@@ -907,17 +910,40 @@ export class Client<TContext = {}> {
   /**
    * Compose middleware chain using universal middleware composition.
    *
+   * @param caller - The trace context that the caller gave in the metadata of the call. It is the
+   *   parent of the span of each try when no span is active (roadmap C19 of otel-ts).
    * @returns Composed runner function
    * @private
    */
-  private composeMiddleware<TReq, TRes>(): ClientRunner<TReq, TRes> {
+  private composeMiddleware<TReq, TRes>(caller: CallerTrace): ClientRunner<TReq, TRes> {
     // Innermost function: call transport
     const self = this;
     const transportRunner: ClientRunner<TReq, TRes> = async function* (context: ClientContext<TReq>) {
       // The remaining time of the deadline goes with each try, so the server stops the handler
       // when this client stops waiting (roadmap R10)
       writeRemainingTime(context.message.metadata);
-      yield* self.transport.send<TReq, TRes>(context.message);
+      // With an SDK of OpenTelemetry, each try is a span of the API, and the propagator writes its
+      // context into the metadata, with the mark of an internal call (roadmap C8 of otel-ts)
+      const { metadata, method } = context.message;
+      const active = callParent(caller, otelContext.active());
+      const span = startApiSpan(`${method.service}.${method.operation}`, SpanKind.CLIENT, active);
+      if (span === undefined) {
+        yield* self.transport.send<TReq, TRes>(context.message);
+        return;
+      }
+      const own = span.spanContext();
+      const parent = trace.getSpanContext(active);
+      metadata.tracing = { traceId: own.traceId, spanId: own.spanId, ...(parent ? { parentSpanId: parent.spanId } : {}) };
+      injectContext(asInternalCall(trace.setSpan(active, span)), metadata as Record<string, unknown>);
+      let failure: unknown;
+      try {
+        yield* self.transport.send<TReq, TRes>(context.message);
+      } catch (error) {
+        failure = error;
+        throw error;
+      } finally {
+        endApiSpan(span, failure);
+      }
     };
 
     // The first middleware is the outermost one (onion model)

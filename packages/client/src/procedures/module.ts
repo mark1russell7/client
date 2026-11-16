@@ -159,6 +159,9 @@ export interface LazyRegistryOptions {
   readonly warn?: ((message: string) => void) | undefined;
 }
 
+/** The most paths with no package in the index that a lazy registry warns about: 1000. */
+const MOST_WARNED_PATHS = 1000;
+
 /** The first line of the message of an error. */
 function firstLine(error: unknown): string {
   return (error instanceof Error ? error.message : String(error)).split("\n")[0] ?? "";
@@ -216,9 +219,14 @@ export function createLazyRegistry(options: LazyRegistryOptions): ProcedureRegis
       if (named !== undefined && named.length > 0) {
         targets = named;
       } else {
-        if (!warnedPaths.has(key)) {
+        // The set has a bound: a caller can send many names that the index does not have (audit 2026-11-08)
+        if (!warnedPaths.has(key) && warnedPaths.size < MOST_WARNED_PATHS) {
           warnedPaths.add(key);
-          warn(`the index has no package for ${key}: each package loads`);
+          warn(
+            warnedPaths.size < MOST_WARNED_PATHS
+              ? `the index has no package for ${key}: each package loads`
+              : `the index has no package for ${key}: each package loads. The next paths with no package get no warning.`,
+          );
         }
         targets = packages;
       }

@@ -43,6 +43,11 @@ export function fakeS3(pageSize = 1000): FakeS3 {
       }
       return { body: object.body.toString((encoding as BufferEncoding | undefined) ?? "base64") };
     },
+    "s3.read": ({ key, encoding }) => {
+      const object = objects.get(key as string);
+      if (!object) throw new Error(`NoSuchKey: ${String(key)}`);
+      return { body: object.body.toString((encoding as BufferEncoding | undefined) ?? "base64"), contentLength: object.body.length };
+    },
     "s3.list": ({ prefix, maxKeys, continuationToken }) => {
       const keys = [...objects.keys()].filter((key) => key.startsWith((prefix as string | undefined) ?? "")).sort();
       const start = continuationToken ? Number(continuationToken) : 0;

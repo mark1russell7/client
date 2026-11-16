@@ -12,18 +12,21 @@
  * - The caps of the stages sum to 10 s. They replace the hard-exit timer of 10 s of the entries.
  * - No check gates readiness or liveness, so the host is ready from the end of its startup.
  * - The lockfile is a dependency: its connect writes it before the listeners start, and its close
- *   removes it after the listeners close.
+ *   removes it after the listeners close. A lockfile with the port 0 waits for the port of its
+ *   listener: the entry writes it at the end of the startup (`boundLockfile()`).
  * - The option `declare` gives the builder of the service to the app before `run()`. The app
  *   declares its own parts and dependencies with the vocabulary of the runner (CLI-62).
  * - The probes of the service answer on each listener of the host under `/_probes`, or on a port
  *   of their own with the option `probes` (CLI-9, decision D5). The service gives both.
+ * - The option `telemetry` starts the telemetry SDK of the app before the listeners. The phase
+ *   `flush the output` stops it, after each other part (CLI-130).
  */
 
 import { daemon, localDev, service, type Lifecycle, type Profile, type RunOptions, type ServiceBuilder } from "@mark1russell7/service";
 import { probeServer, type ProbeKind } from "@mark1russell7/service/http";
 import { hostPolicy, realClock, seconds, type Duration, type HostPolicy, type Interceptor } from "@procedures/client";
 import { LOCAL_LISTENER_KNOBS, createProcedureHost, type ProcedureHost, type ProcedureHostOptions } from "@procedures/peer";
-import { lockfileHandle, type LockfileData } from "@procedures/peer/lockfile";
+import { lockfileHandle, writeLockfile, type LockfileData } from "@procedures/peer/lockfile";
 import { idleInterceptor, idleTimer, idleTimes, type HostIdle } from "./idle.js";
 
 /** The mode of a run: in the foreground of a terminal, or as the background host of `mark`. */
@@ -52,6 +55,20 @@ export interface HostProbeServer {
    * `liveness` and `report`. The port answers 404 for a kind that is not in the list.
    */
   readonly kinds?: readonly ProbeKind[] | undefined;
+}
+
+/** The phase of the stop that flushes the telemetry: the last phase of `localDev` and `daemon`. */
+export const TELEMETRY_FLUSH_PHASE = "flush the output";
+
+/** The options that the host gives to the start of the telemetry. The runner owns the signals, thus the SDK adds no signal listener. */
+export interface HostTelemetryOptions {
+  readonly stopOnSignals: false;
+}
+
+/** The telemetry SDK of an app, as the host uses it (CLI-130). `startNodeTelemetry()` of `@mark1russell7/otel-ts/node` gives this shape. */
+export interface HostTelemetry {
+  /** This method sends the last spans and metrics, and stops the SDK. */
+  shutdown(): Promise<void>;
 }
 
 /** The configuration of `runProcedureHost()`. */
@@ -101,6 +118,19 @@ export interface ProcedureHostRunConfig {
    *   and the lockfile goes at the end.
    */
   readonly idle?: HostIdle | undefined;
+  /**
+   * This function starts the telemetry SDK of the app (CLI-130), for example
+   * `(options) => startNodeTelemetry({ ...settings, ...options })`.
+   *
+   * - The host starts it one time, after the declaration of the service and before `run()`. Thus the SDK
+   *   starts before each dependency and each listener.
+   * - The host gives `{ stopOnSignals: false }`, because the runner owns the signals.
+   * - The phase `flush the output` starts `shutdown()`, after each other part stops. The cap of the phase
+   *   limits the wait. A longer flush needs a profile with a longer cap.
+   * - The profile must have the phase `flush the output`. Without it, the host throws before it starts the SDK.
+   * - When `run()` throws, the host stops the SDK and throws the error again.
+   */
+  readonly telemetry?: ((options: HostTelemetryOptions) => HostTelemetry) | undefined;
 }
 
 /** A host that runs under `run()`: the host, the service of the process and its lifecycle. */
@@ -122,6 +152,11 @@ export interface RunningHost {
  * exits with the code 1 after the shutdown.
  */
 export async function runProcedureHost(config: ProcedureHostRunConfig): Promise<RunningHost> {
+  const profile = config.profile ?? HOST_PROFILES[config.mode];
+  // The telemetry needs its phase of the stop: without it, the SDK does not start (CLI-130)
+  if (config.telemetry && !profile.phases?.some((phase) => phase.name === TELEMETRY_FLUSH_PHASE)) {
+    throw new Error(`runProcedureHost: the option telemetry needs the phase "${TELEMETRY_FLUSH_PHASE}" in the profile of the service ${config.name}`);
+  }
   const clock = config.run?.clock;
   // A probe server of its own: the listeners of the host then answer no probes, unless the host options say so (D5)
   const dedicated = config.probes;
@@ -147,7 +182,6 @@ export async function runProcedureHost(config: ProcedureHostRunConfig): Promise<
     ...(clock ? { clock } : {}),
     ...(dedicated && config.host.probes === undefined ? { probes: false } : {}),
   });
-  const profile = config.profile ?? HOST_PROFILES[config.mode];
   const svc = service(config.name).profile(profile);
   const probes = dedicated
     ? probeServer({
@@ -169,11 +203,38 @@ export async function runProcedureHost(config: ProcedureHostRunConfig): Promise<
   // The parts of the app (CLI-62): after the parts of the host, so the server of the host has the
   // lifecycle before a transport of the app takes a call
   config.declare?.(svc, host);
-  // The lockfile: after the storages and the dependencies of the app it connects, and before them it closes
-  if (config.lockfile) svc.dependency("lockfile", { system: null, knobs: {}, operations: {} }, lockfileHandle(config.lockfile));
+  // The lockfile: after the storages and the dependencies of the app it connects, and before them it closes.
+  // A lockfile with the port 0 has no port before the listen: the end of the startup writes it.
+  let written: LockfileData | undefined;
+  if (config.lockfile) {
+    const handle = config.lockfile.port === 0 ? { connect: () => undefined, close: () => (written ? lockfileHandle(written).close() : undefined) } : lockfileHandle(config.lockfile);
+    svc.dependency("lockfile", { system: null, knobs: {}, operations: {} }, handle);
+  }
   const log = config.log;
   if (log && profile.phases?.some((phase) => phase.name === "stop intake")) svc.onPhase("stop intake", () => log("\nShutting down..."));
-  life = await svc.run(config.run);
+  // The telemetry (CLI-130): it starts after the declaration, thus a declaration that throws starts no SDK.
+  // The last phase of the stop flushes it, after the listeners and the dependencies.
+  let telemetry: HostTelemetry | undefined;
+  if (config.telemetry) svc.onPhase(TELEMETRY_FLUSH_PHASE, () => telemetry?.shutdown());
+  telemetry = config.telemetry?.({ stopOnSignals: false });
+  try {
+    life = await svc.run(config.run);
+  } catch (error) {
+    await telemetry?.shutdown();
+    throw error;
+  }
+  if (config.lockfile?.port === 0 && life.state === "running") {
+    // No client can find a host without its lockfile, so the host stops with the code 1
+    const bound = boundLockfile(config.lockfile, host.info.endpoints());
+    try {
+      if (bound === undefined) throw new Error(`No listener of the host has the address of the lockfile (${config.lockfile.endpoint}).`);
+      writeLockfile(bound);
+      written = bound;
+    } catch (error) {
+      config.log?.(error instanceof Error ? error.message : String(error));
+      void life.shutdown("the host has no lockfile", { code: 1 });
+    }
+  }
   if (idle) {
     // The timer stops with the lifecycle, also after a stop for another cause
     void life.done.then(() => idle.cancel());
@@ -187,6 +248,24 @@ export async function runProcedureHost(config: ProcedureHostRunConfig): Promise<
     return [`http://${shown}:${address.port}${dedicated?.prefix ?? ""}`];
   };
   return { host, service: svc, life, probes: () => (probes ? probeBase() : host.info.probes()) };
+}
+
+/**
+ * This function gives the lockfile of a host that listens on the port 0, with the port that its
+ * listener got. The listener is the endpoint of the host with the scheme and the path of the
+ * lockfile endpoint. The result is `undefined` when no endpoint matches.
+ */
+export function boundLockfile(lockfile: LockfileData, endpoints: ReadonlyArray<{ readonly address: string }>): LockfileData | undefined {
+  const wanted = new URL(lockfile.endpoint);
+  for (const endpoint of endpoints) {
+    if (!URL.canParse(endpoint.address)) continue;
+    const address = new URL(endpoint.address);
+    if (address.protocol !== wanted.protocol || address.pathname !== wanted.pathname || address.port === "") continue;
+    const shown = new URL(lockfile.endpoint);
+    shown.port = address.port;
+    return { ...lockfile, port: Number(address.port), endpoint: shown.href };
+  }
+  return undefined;
 }
 
 /** This function gives a policy with one more interceptor, after the interceptors of the policy. */

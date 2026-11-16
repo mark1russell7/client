@@ -140,7 +140,7 @@ The package provides a `mark` binary for command-line usage.
 mark [global options] <path...> [positional...] [--options]
 mark serve [--procedures pkgs] [--port N] [--token T | --no-token] [--expose patterns] [--events topics] [--fs-root folder] [--probe-port N]
 mark mcp [--bundles list] [--tool-timeout ms] [--read-only] [--http port] [--max-sessions n] [--fs-root folder] [--debug]
-mark --server [--port N] [--host H] [--transport http|websocket|both] [--events topics] [--probe-port N] [--idle-timeout ms]
+mark --server [--port N] [--host H] [--allowed-host names] [--transport http|websocket|both] [--events topics] [--probe-port N] [--idle-timeout ms]
 mark -i
 mark --fs-root <folder> <command | --server | -i | serve | mcp>
 ```
@@ -154,7 +154,7 @@ The bin is `dist/bin.js`. `node dist/cli.js` also runs the CLI. Importing `@proc
 | Command | Host | Notes |
 |---|---|---|
 | `mark <command>` | This process (the cold mode), or the CLI server (the warm mode) | The registry has the module of each workspace package with `client.procedures`. In the two modes, the command starts under `run()` of `@mark1russell7/service`. |
-| `mark --server` | The CLI server | The same registry, on `127.0.0.1`, with a token in the lockfile. A later `mark` command in the same folder uses it. |
+| `mark --server` | The CLI server | The same registry, on `127.0.0.1`, with a token in the lockfile. A later `mark` command in the same folder uses it. With `--port 0`, each listener takes a free port, and the lockfile gives the port. |
 | `mark serve` | The procedure server | The options of the `procedure-server` command. A package of `--procedures` resolves from the current folder, then from the folder of `mark`. A token is necessary by default. |
 | `mark mcp` | The dev-tools MCP server, over stdio | The server of Claude Code's MCP configuration. stdout holds only protocol lines, and `mark mcp --help` writes to stderr. |
 
@@ -249,7 +249,7 @@ A flag before the command path is a global flag. After the path, a flag is the c
 | `--local` | | Run the command in this process, not on the CLI server |
 | `--json <json>` | | Execute raw procedure reference |
 | `--fs-root <folder>` | | Keep each path of each procedure in the folder, also in the nested calls, and refuse the procedures that it cannot confine. Give it before the command. |
-| `--server` | | Start the CLI server (with `--port`, `--host`, `--transport`, `--events`) |
+| `--server` | | Start the CLI server (with `--port`, `--host`, `--allowed-host`, `--transport`, `--events`) |
 | `--interactive` | `-i` | Start the REPL |
 
 #### Exit Codes and Failures

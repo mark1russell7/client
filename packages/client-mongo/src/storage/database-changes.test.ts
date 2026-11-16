@@ -773,3 +773,36 @@ describe.runIf(url)("watchDatabaseChanges against a real server (CLI-88)", () =>
     }
   });
 });
+
+describe("the age of the token of watchDatabaseChanges (CLI-110)", () => {
+  it("counts on the clock of the watcher, and moves to 0 at a change that onChange took", async () => {
+    const recording = recordingClock();
+    let at = 0;
+    const clock = { now: () => at, after: recording.clock.after } as Clock;
+    const { server, watch, changes } = fakeWatch({ clock });
+    await watch.ready;
+    await server.waiting();
+    at = 300;
+    expect(watch.tokenAgeMs).toBe(300);
+    server.push(insert("a"));
+    await vi.waitFor(() => expect(changes).toHaveLength(1));
+    expect(watch.tokenAgeMs).toBe(0);
+    await watch.stop();
+  });
+
+  it("moves to 0 at the first token of a stream that fails before its first event", async () => {
+    const recording = recordingClock();
+    let at = 0;
+    const clock = { now: () => at, after: recording.clock.after } as Clock;
+    const { server, watch } = fakeWatch({ clock });
+    await watch.ready;
+    const first = await server.waiting(0);
+    at = 300;
+    expect(watch.tokenAgeMs).toBe(300);
+    first.wake(serverError(10334, "BSONObj size: 18874982 (0x1200266) is invalid"));
+    await server.waiting(1);
+    expect(server.streams[1]!.options["startAfter"]).toEqual(batchToken(0));
+    expect(watch.tokenAgeMs).toBe(0);
+    await watch.stop();
+  });
+});

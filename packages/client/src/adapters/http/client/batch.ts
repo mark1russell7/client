@@ -15,14 +15,14 @@
  */
 
 import type { Message, Metadata, ResponseItem, Status } from "../../../client/types.js";
-import { DELIVERY_METADATA_KEY, RETRY_AFTER_METADATA_KEY, isNotSentError } from "../../../client/middleware/items.js";
+import { DELIVERY_METADATA_KEY, RETRY_AFTER_METADATA_KEY, capacityFieldsOf, isNotSentError } from "../../../client/middleware/items.js";
 import { StreamSequence, streamItemMetadata } from "../../sequence.js";
 import { foldedErrorCode, PROTOCOL_HEADER, PROTOCOL_VERSION } from "../../../protocol.js";
 import { toMs, type Duration } from "../../../duration.js";
 import { HTTPHeaders, createAbortError, createErrorFromException, decodeMetadataHeader } from "../shared/index.js";
 
 /** The header of a batch request, and of the answer of a server that takes batches. */
-export const BATCH_HEADER = "Procedures-Batch";
+const BATCH_HEADER = HTTPHeaders.BATCH;
 
 /** The options of the batches of `HttpTransport`. */
 export interface HttpBatchOptions {
@@ -86,7 +86,12 @@ class Channel<T> {
   private readonly items: T[] = [];
   private ended = false;
   private wake: (() => void) | undefined;
-  private room: (() => void) | undefined;
+  /**
+   * The pushes that wait for room. The reader of the batch waits here, and the last item of an
+   * abort can wait here too. Each one gets the room. Before, a second push took the place of the
+   * first, and the reader of the batch waited with no end (audit 2026-11-08).
+   */
+  private readonly rooms: Array<() => void> = [];
 
   /** It resolves when the reader has room for more items. */
   push(item: T): Promise<void> {
@@ -94,7 +99,7 @@ class Channel<T> {
     this.items.push(item);
     this.wake?.();
     if (this.items.length < HIGH_WATER) return Promise.resolve();
-    return new Promise<void>((resolve) => (this.room = resolve));
+    return new Promise<void>((resolve) => this.rooms.push(resolve));
   }
 
   end(): void {
@@ -104,9 +109,7 @@ class Channel<T> {
   }
 
   private free(): void {
-    const room = this.room;
-    this.room = undefined;
-    room?.();
+    for (const room of this.rooms.splice(0)) room();
   }
 
   async *read(): AsyncGenerator<T, void, undefined> {
@@ -454,7 +457,7 @@ export class HttpBatcher {
   }
 }
 
-/** The metadata of an error body: the wait, the reason and the conflicts (R12, R25, CLI-16). */
+/** The metadata of an error body: the wait, the reason, the conflicts, the units and the capacity (R12, R25, CLI-16, CLI-122). */
 function errorMetadataOf(body: unknown): Metadata {
   if (body === null || typeof body !== "object") return {};
   const fields = body as { retryAfterMs?: unknown; reason?: unknown; conflicts?: unknown };
@@ -462,5 +465,5 @@ function errorMetadataOf(body: unknown): Metadata {
   if (typeof fields.retryAfterMs === "number" && Number.isFinite(fields.retryAfterMs) && fields.retryAfterMs >= 0) out[RETRY_AFTER_METADATA_KEY] = fields.retryAfterMs;
   if (typeof fields.reason === "string") out["reason"] = fields.reason;
   if (Array.isArray(fields.conflicts)) out["conflicts"] = fields.conflicts;
-  return out;
+  return { ...out, ...capacityFieldsOf(body) };
 }

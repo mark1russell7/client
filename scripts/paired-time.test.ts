@@ -16,6 +16,9 @@ function fakeClock() {
   return { clock: () => now, spend: (ms: number) => (now += ms) };
 }
 
+// These tests are not tests of the source. They hold the copies to their home: the quantile, the mean and the SD
+// of a list are in @mark1russell7/rigor-statistics. The copies stay because the paired bench loads this module
+// with no install. They go with the paired time test when the gates package of rigor replaces this copy.
 describe("the copies of rigor-statistics in paired-time (CA14)", () => {
   /** Seeded random lists of 1 to 40 values, with ties, negative values and a wide range. */
   function lists(): number[][] {
@@ -31,14 +34,19 @@ describe("the copies of rigor-statistics in paired-time (CA14)", () => {
   }
   const close = (a: number, b: number) => Math.abs(a - b) <= 1e-12 * Math.max(1, Math.abs(a), Math.abs(b));
 
-  it("quantileOf gives the linear quantile of rigor-statistics on each list", () => {
+  it("quantileOf gives the same number as the linear quantile of rigor-statistics, for each list and each q", () => {
+    let cases = 0;
     for (const values of lists()) {
-      for (const q of [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]) {
+      for (let step = 0; step <= 100; step++) {
+        const q = step / 100;
         const ours = quantileOf(values, q);
         const home = quantile(values, q, "linear");
-        assert.ok(close(ours, home), `${JSON.stringify(values)} q=${q}: ${ours} != ${home}`);
+        // For the list [0, -0] at q = 1, the copy gives 0 and the home gives -0. The operator === takes them as equal
+        assert.ok(ours === home, `${JSON.stringify(values)} q=${q}: ${ours} !== ${home}`);
+        cases++;
       }
     }
+    assert.equal(cases, 305 * 101);
   });
 
   it("meanOf and sampleSD give mean and sd of rigor-statistics on each list of 2 values or more", () => {
