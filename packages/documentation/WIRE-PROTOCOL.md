@@ -277,6 +277,17 @@ The receiver reports the gap in three ways:
 
 A gap before the end frame gives only the warning, and the stream ends. The remote events have the same rule for the `seq` of their events (refer to "Remote events").
 
+### The shape of a frame
+
+Each side examines the shape of each frame before it reads the fields (`checkFrame` in `adapters/websocket/shared/frame.ts`).
+
+- A frame is a JSON object. Its `id`, when it is present, is a text, and its `type` is a text.
+- The fields `metadata`, `status`, `error` and `stream` are JSON objects, or they are absent or `null`.
+- The field `method` has the texts `service` and `operation`, and the field `path` is a list of texts.
+- The server answers a frame of another shape with an `error` frame that has the code `INVALID_REQUEST` and the `id` of the frame. The connection stays open.
+- The client drops a frame of another shape, with a line on the console.
+- An unknown field and an unknown frame type pass the check. The rules of "Reserved frame types" apply to them.
+
 ### The heartbeat
 
 - The client sends `{"type":"ping"}` frames, and the server answers with `{"type":"pong"}`.
