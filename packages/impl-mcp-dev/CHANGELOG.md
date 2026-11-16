@@ -1,5 +1,59 @@
 # @procedures/mcp-dev-tools
 
+## 0.59.0
+
+### Patch Changes
+
+- Updated dependencies [8f8e5b2]
+  - @procedures/client@0.59.0
+  - @procedures/mcp-server@0.59.0
+  - @procedures/bundle-mcp@0.59.0
+  - @procedures/fs@0.59.0
+  - @procedures/compiler@0.59.0
+
+## 0.58.2
+
+### Patch Changes
+
+- Updated dependencies [217871c]
+  - @procedures/client@0.58.2
+  - @procedures/bundle-mcp@0.58.2
+  - @procedures/fs@0.58.2
+  - @procedures/mcp-server@0.58.2
+  - @procedures/compiler@0.58.2
+
+## 0.58.1
+
+### Patch Changes
+
+- Updated dependencies [1d47080]
+  - @procedures/client@0.58.1
+  - @procedures/bundle-mcp@0.58.1
+  - @procedures/fs@0.58.1
+  - @procedures/mcp-server@0.58.1
+  - @procedures/compiler@0.58.1
+
+## 0.58.0
+
+### Patch Changes
+
+- Updated dependencies [11f5035]
+  - @procedures/client@0.58.0
+  - @procedures/mcp-server@0.58.0
+  - @procedures/bundle-mcp@0.58.0
+  - @procedures/fs@0.58.0
+  - @procedures/compiler@0.58.0
+
+## 0.57.0
+
+### Patch Changes
+
+- @procedures/bundle-mcp@0.57.0
+  - @procedures/client@0.57.0
+  - @procedures/fs@0.57.0
+  - @procedures/mcp-server@0.57.0
+  - @procedures/compiler@0.57.0
+
 ## 0.56.0
 
 ### Patch Changes

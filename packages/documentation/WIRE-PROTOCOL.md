@@ -406,7 +406,7 @@ A `FORBIDDEN` error tells its reason in the metadata key `reason`. The HTTP body
 | `partition-not-allowed` | The collection procedures | The partition resolver of the collection refuses the partition of the call (CLI-17). |
 | `write-not-allowed` | The collection procedures | The guard of the collection (`admission.guard`) refuses a write. The storage does not change (CLI-41). |
 | `origin-not-allowed` | The browser checks | The `Origin` of the request is not the origin of the server or a permitted origin. A cross-site request without a permitted origin gets it too. |
-| `host-header-not-allowed` | The browser checks | A request on a loopback address names a `Host` that is not permitted (DNS rebinding). |
+| `host-header-not-allowed` | The browser checks | The `Host` of the request is not a loopback name, an IP address or a permitted name (DNS rebinding). The check is on each listener. |
 | `method-not-allowed` | The browser checks of HTTP | The HTTP method is `GET` or `HEAD`, and the option `allowGet` is off. |
 | `media-type-not-allowed` | The browser checks of HTTP | The request body is not JSON. |
 
@@ -435,6 +435,14 @@ Before CLI-4, some faces gave codes outside the table. Since CLI-4, each face gi
 A host can limit the calls of each key, for example the writes of each tenant (CLI-40). The option `limits` of the host policy gives the limits. Each limit is a keyed limiter of `@mark1russell7/service/limiter`. The server takes one unit of each limit that covers a call, after the authentication and before the run. Thus each face has the same limits.
 
 The server takes the units in the sequence of the limits. The first refusal stops the call. A limit before the refusal keeps its unit: the server does not give it back.
+
+A procedure can make more calls with `ctx.client`, for example each step of `client.chain` and `client.parallel`. These calls are nested calls. A limit with `nested: true` also takes the units of each nested call that it covers:
+
+- The server takes the units before the validation of the input of the nested call. A refused nested call does not start.
+- The cover, the key and the cost of the limit get the call at each depth. `LimitedCall.depth` is 0 for the call of the caller, and 1 or more for a nested call. `LimitedCall.input` is the input of the call at that depth.
+- The procedure gets the refusal as an error with the code, the wait and the cause. When the procedure does not catch the error, the caller gets the same response as a refusal before the run.
+
+A limit with `nested: false` takes units only for the calls of a caller. A limit without the field has the same rule, and the server writes a warning at the start. `@procedures/client` 0.61.0 changes the default to `true`.
 
 A call above a limit gets `RATE_LIMITED`. The call did not start, thus a retry after the wait is safe. The error has these parts on each face:
 
@@ -465,6 +473,8 @@ new ProcedureServer({
 - A hidden error keeps only the metadata keys of an allowlist: the option `keepMetadata`. The default is `DEFAULT_KEPT_METADATA`, the trace keys `traceparent` and `tracestate`. Each other key goes, also a key that the server does not know, for example `issues`. A `map` result keeps the same keys, and adds the keys of its own error. Thus no part of the raw error goes out: not its message, its cause, its details or its data.
 - A code of the platform (`ECONNREFUSED`, `ENOENT`) and a number (a code of MongoDB) are not known codes. The codes `INTERNAL_ERROR`, `HANDLER_ERROR`, `UNKNOWN`, `OUTPUT_VALIDATION_ERROR` and `NO_OUTPUT` tell of a failure of the server, so `"coded"` hides their message too. For example, the message of `OUTPUT_VALIDATION_ERROR` names the fields and the values of the wrong output.
 - The server gives each hidden error to its logger `onError` one time, with its message and its stack. Without `onError`, the server writes it to `console.error`.
+- The server also gives each other failure to `onError` and to its `logger` one time, under each policy, also under `"all"`. A failure is an error with a code that is not known, or with one of the failure codes above. A code of `codes` is not a failure. Without `onError` and `logger`, the console gets no line for a failure that the caller sees.
+- A `map` result is the decision of the host, so the server does not log its real error. `map` gets each error, so it can log one.
 - The server applies `map` first, to each error. `map` gets the real error, of its own class, and the call: `{ path, transport }`. The face sets `transport`: `http`, `websocket`, `port` or `mcp`. 
 - The result of `map` goes to the caller as it is, also with a code of the application. The server makes the usual error response of the result, so its `retryAfterMs` and the conflicts of a `VERSION_CONFLICT` error go out too. `undefined` gives the error to `expose`. A `map` that throws gives `INTERNAL_ERROR`.
 - The server finds the real error of a response through two links. Neither link is a field of the response. One is the status object. The other is the request object, with the code and the message of the status. A middleware that copies the response or its status keeps a link. A status that a middleware makes for another error has no link, and `map` gets a `ServerError` of the status.

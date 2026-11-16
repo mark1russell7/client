@@ -72,9 +72,16 @@ describe("the growth gate of the fan-out bench", () => {
   });
 
   it("gives no read when the jobs fall on both sides of the limit", () => {
-    const growth = fanOutGrowth([job("1", { plain: 12, sliced: 11 }), job("2", { plain: 19, sliced: 11 }), job("3", { plain: 13, sliced: 11 }), job("4", { plain: 13, sliced: 11 }), job("5", { plain: 12, sliced: 11 })]);
+    const growth = fanOutGrowth([job("1", { plain: 12, sliced: 11 }), job("2", { plain: 30, sliced: 11 }), job("3", { plain: 13, sliced: 11 }), job("4", { plain: 13, sliced: 11 }), job("5", { plain: 12, sliced: 11 })]);
     expect(growth.outcome).toBe("no read");
     expect(growth.reason).toContain("the interval crosses the limit");
+  });
+
+  it("passes the jobs of the run 43672997903, where one job on an Intel Xeon 6975P-C grew 18 times", () => {
+    const values = [15.76, 18.05, 14.66, 13.31, 13.76];
+    const growth = fanOutGrowth(values.map((plain, index) => job(String(index + 1), { plain, sliced: 13 }, ["total"])));
+    expect(MAX_GROWTH).toBe(24);
+    expect(growth.outcome).toBe("pass");
   });
 
   it("gives no read for fewer than 5 jobs, also when each job is within the limit", () => {

@@ -1,5 +1,50 @@
 # @procedures/mongo
 
+## 0.59.0
+
+### Patch Changes
+
+- Updated dependencies [8f8e5b2]
+  - @procedures/client@0.59.0
+  - @procedures/collections@0.59.0
+
+## 0.58.2
+
+### Patch Changes
+
+- Updated dependencies [217871c]
+  - @procedures/client@0.58.2
+  - @procedures/collections@0.58.2
+
+## 0.58.1
+
+### Patch Changes
+
+- Updated dependencies [1d47080]
+  - @procedures/client@0.58.1
+  - @procedures/collections@0.58.1
+
+## 0.58.0
+
+### Patch Changes
+
+- f03c27a: `MongoDocumentStorage` on the path of pending numbers: a late write does not give a subscriber an older value after a newer value. A late write lands after its lease. Before, a late write could land in the rows of a read after the mark of that read. An event since that mark, read before the landing, then gave an older value of the row. The move of the late write gave the newer value again later.
+  
+  An expired pending range stays in the counter for 10 leases, and for 60 s at least. When a read finds a row in such a range, it takes marks again until the mark stops. With no late write, a read has no added cost. After 8 marks that do not stop, the read gives a version with a third part, so no event starts at it. A read since such a version reads since its number.
+  
+  PATCH: a fix of the change log of the store. The public API does not change.
+- Updated dependencies [11f5035]
+  - @procedures/client@0.58.0
+  - @procedures/collections@0.58.0
+
+## 0.57.0
+
+### Patch Changes
+
+- Updated dependencies [f284167]
+  - @procedures/collections@0.57.0
+  - @procedures/client@0.57.0
+
 ## 0.56.0
 
 ### Minor Changes

@@ -243,7 +243,9 @@ describe.each([
     await store.put(schedule("count"));
     await Promise.all(Array.from({ length: 25 }, () => store.update("count", (each) => ({ ...each, runs: each.runs + 1 }))));
     expect((await store.get("count"))!.runs).toBe(25);
-  });
+    // 25 locked writes of the file store: 1.8 s to 2.8 s on a Windows runner (Nightly, 11-12 to
+    // 11-15), and 5.3 s on 11-14, past the default limit of 5 s.
+  }, 30_000);
 
   it("refuses a schedule of a bad shape", async () => {
     const store = make();

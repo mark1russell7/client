@@ -129,7 +129,7 @@ describe("the keep-alive lines of HttpServerTransport", () => {
     await stream.ended;
     expect(framesOf(stream.text)).toEqual([
       { type: "item", seq: 1, payload: 1 },
-      { type: "error", error: { code: "ABORTED", message: "The server stopped the request", retryable: true } },
+      { type: "error", error: { code: "UNAVAILABLE", message: "The server stopped during the call", retryable: false } },
     ]);
     expect(clock.pending).toBe(0);
     await vi.waitFor(() => expect(feed.returned).toBe(true));
