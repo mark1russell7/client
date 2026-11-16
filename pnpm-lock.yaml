@@ -1868,6 +1868,9 @@ importers:
       '@procedures/sqlite':
         specifier: workspace:*
         version: link:../client-sqlite
+      '@procedures/statistics':
+        specifier: workspace:*
+        version: link:../statistics
       '@procedures/store':
         specifier: workspace:*
         version: link:../client-store
@@ -2330,6 +2333,9 @@ importers:
       '@procedures/sqlite':
         specifier: workspace:*
         version: link:../client-sqlite
+      '@procedures/statistics':
+        specifier: workspace:*
+        version: link:../statistics
       '@procedures/systems':
         specifier: workspace:*
         version: link:../systems
@@ -2375,6 +2381,28 @@ importers:
       vite:
         specifier: ^6.0.0
         version: 6.4.6(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1)
+      vitest:
+        specifier: ^5.0.3
+        version: 5.1.0(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(@vitest/coverage-v8@5.1.0)(vite@6.4.6(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))
+
+  packages/statistics:
+    dependencies:
+      '@mark1russell7/rigor-statistics':
+        specifier: ^0.1.29
+        version: 0.1.29
+      '@procedures/client':
+        specifier: workspace:*
+        version: link:../client
+      '@procedures/compiler':
+        specifier: workspace:*
+        version: link:../compiler
+    devDependencies:
+      '@mark1russell7/cue':
+        specifier: ^2.1.1
+        version: 2.1.4
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
       vitest:
         specifier: ^5.0.3
         version: 5.1.0(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(@vitest/coverage-v8@5.1.0)(vite@6.4.6(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))

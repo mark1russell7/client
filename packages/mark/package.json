@@ -125,6 +125,7 @@
     "@procedures/snapshot": "workspace:*",
     "@procedures/splay": "workspace:*",
     "@procedures/sqlite": "workspace:*",
+    "@procedures/statistics": "workspace:*",
     "@procedures/store": "workspace:*",
     "@procedures/systems": "workspace:*",
     "@procedures/tailscale": "workspace:*",

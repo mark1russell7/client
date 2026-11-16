@@ -323,6 +323,12 @@
     "functions": 97.1,
     "branches": 83.7
   },
+  "@procedures/statistics": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
   "@procedures/store": {
     "lines": 93.6,
     "statements": 91.2,
