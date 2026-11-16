@@ -249,8 +249,8 @@ importers:
   packages/archive:
     dependencies:
       '@mark1russell7/files':
-        specifier: ^0.0.3
-        version: 0.0.3
+        specifier: ^0.0.4
+        version: 0.0.4
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -755,8 +755,8 @@ importers:
         specifier: ^0.11.1
         version: 0.11.1(zod@4.6.7)
       '@mark1russell7/files':
-        specifier: ^0.0.3
-        version: 0.0.3
+        specifier: ^0.0.4
+        version: 0.0.4
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -808,8 +808,8 @@ importers:
   packages/client-lib:
     dependencies:
       '@mark1russell7/files':
-        specifier: ^0.0.3
-        version: 0.0.3
+        specifier: ^0.0.4
+        version: 0.0.4
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1083,8 +1083,8 @@ importers:
   packages/client-server:
     dependencies:
       '@mark1russell7/files':
-        specifier: ^0.0.3
-        version: 0.0.3
+        specifier: ^0.0.4
+        version: 0.0.4
       '@mark1russell7/service':
         specifier: ^0.8.3
         version: 0.8.9(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.2)(zod@4.6.7)
@@ -3605,8 +3605,8 @@ packages:
     resolution: {integrity: sha512-pH6mHGWp02iaPLSWqYWrpdCPRq6k4CBfqXrrh9SAHgEzINLY/vFpTsX/+b4zfH6BFaKJbPwT+fq+l1RUDEzxPA==}
     engines: {node: '>=22'}
 
-  '@mark1russell7/files@0.0.3':
-    resolution: {integrity: sha512-FiiKK/sAbp39ypGv+2XzYRc+s911pdCtu97UQ4LiKmQKHjqPiyocGO48r2YObucxUkQhnm9mCdkiQxW6rFjiAg==}
+  '@mark1russell7/files@0.0.4':
+    resolution: {integrity: sha512-Pb978ZnvlAxzcdWtRtqTGb7mZFCvlNrdKnpZqhxQ7gafzeNGf1JqYFuB4RWiLbJzRuFUWjEoAVG5f2TndCIlSg==}
     engines: {node: '>=22'}
 
   '@mark1russell7/geo@0.3.1':
@@ -7589,7 +7589,7 @@ snapshots:
       '@types/sql.js': 1.4.11
       sql.js: 1.14.2
 
-  '@mark1russell7/files@0.0.3': {}
+  '@mark1russell7/files@0.0.4': {}
 
   '@mark1russell7/geo@0.3.1':
     dependencies:
