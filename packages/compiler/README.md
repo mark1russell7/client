@@ -212,6 +212,47 @@ The converter of the schemas knows a part of JSON Schema:
 
 A test writes the SDK of the core procedures to a temporary folder. It type-checks the SDK with the TypeScript and the strict options of this package.
 
+## The procedures of a package from its types
+
+The generator reads the declaration files of a package. It gives a procedure for each public function whose inputs and output are JSON. Nobody writes the wrapper, so the wrapper cannot drift from its package.
+
+```typescript
+import { generateExportsManifest } from "@procedures/compiler/generate";
+import { exportsModule } from "@procedures/compiler";
+import * as statistics from "@mark1russell7/rigor-statistics";
+
+// At build time, in Node: the manifest is data
+const manifest = generateExportsManifest({
+  declarations: "node_modules/@mark1russell7/rigor-statistics/build/index.d.ts",
+  package: "@mark1russell7/rigor-statistics",
+  namespace: ["statistics"],
+  overlay: { effects: { reads: [], writes: [] } },
+});
+
+// At run time, also in a browser: the procedures
+const registry = createRegistry(exportsModule(manifest, statistics));
+await client.exec(["statistics", "median"], { values: [3, 1, 2, 10] }); // 2.5
+```
+
+- The input is an object with one property for each parameter. The handler gives the properties to the function in the order of the parameters. A rest parameter is an array.
+- The schemas come from the types. A named interface or type alias goes into `$defs` one time, so a recursive type is a reference to itself.
+- The description comes from the first paragraph of the doc comment. The description of a parameter or a property comes from its own doc comment.
+- An output of `undefined` or `void` is `null`, as in JSON. For a function that gives a promise, the output is the value of the promise.
+- A type parameter is any JSON value, or the schema of its constraint.
+- The overlay is the data that the types cannot tell. It has the effects of the package and of single functions. It also names the functions with no procedure, each with its reason.
+
+Each other function gets an exemption with its reason and the part of the signature that decided:
+
+| Reason | The cause | The plan |
+|---|---|---|
+| `function-parameter` | A parameter is a function, for example a statistic of a bootstrap. | A program gives the function as a call. |
+| `input-not-json` | An input is not JSON: a `Map`, a `Date`, a `bigint`, an object with methods, or a type that does not resolve. | An object with methods becomes a handle. |
+| `output-not-json` | The output is not JSON, for example a class instance. | The handle of the instance. |
+| `overload` | The function has more than one signature. | One procedure for each signature. |
+| `overlay` | The overlay exempts the function. | No change. |
+
+A type that does not resolve fails closed: it gives an exemption, not a schema that accepts each value. TypeScript 7 has no compiler API in JavaScript, so the entry `./generate` reads the API of TypeScript 5. Add `"typescript-api": "npm:typescript@^5.9.3"` to the `devDependencies` of the package that starts the generator.
+
 ## The procedures
 
 ```typescript

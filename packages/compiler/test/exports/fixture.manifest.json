@@ -1,0 +1,449 @@
+{
+  "format": "procedures-exports/1",
+  "package": "fixture",
+  "version": "1.0.0",
+  "entry": ".",
+  "namespace": [
+    "fixture"
+  ],
+  "$defs": {
+    "Options": {
+      "type": "object",
+      "properties": {
+        "side": {
+          "enum": [
+            "less",
+            "greater",
+            "two-sided"
+          ]
+        },
+        "level": {
+          "type": "number"
+        },
+        "labels": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "Point": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number",
+          "description": "The x coordinate."
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ]
+    },
+    "Tree": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Tree"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "children"
+      ]
+    }
+  },
+  "procedures": [
+    {
+      "name": "add",
+      "path": [
+        "fixture",
+        "add"
+      ],
+      "description": "The sum of two numbers.",
+      "params": [
+        "a",
+        "b"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "a": {
+            "type": "number",
+            "description": "The first number."
+          },
+          "b": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "a",
+          "b"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": [],
+        "idempotent": true
+      }
+    },
+    {
+      "name": "depth",
+      "path": [
+        "fixture",
+        "depth"
+      ],
+      "description": "The depth of a tree.",
+      "params": [
+        "tree"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "tree": {
+            "$ref": "#/$defs/Tree"
+          }
+        },
+        "required": [
+          "tree"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "first",
+      "path": [
+        "fixture",
+        "first"
+      ],
+      "description": "The first item of a list.",
+      "params": [
+        "items"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {}
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "output": {},
+      "generics": [
+        "T"
+      ],
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "flip",
+      "path": [
+        "fixture",
+        "flip"
+      ],
+      "description": "A choice of a side, or null.",
+      "params": [
+        "side"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "side": {
+            "enum": [
+              null,
+              "less",
+              "greater",
+              "two-sided"
+            ]
+          }
+        },
+        "required": [
+          "side"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "enum": [
+          null,
+          "less",
+          "greater",
+          "two-sided"
+        ]
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "greet",
+      "path": [
+        "fixture",
+        "greet"
+      ],
+      "description": "A greeting, later.",
+      "params": [
+        "name",
+        "loud"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "loud": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "string"
+      },
+      "async": true,
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "norm",
+      "path": [
+        "fixture",
+        "norm"
+      ],
+      "description": "The distance of a point from the origin, at a level.",
+      "params": [
+        "point",
+        "options"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "point": {
+            "$ref": "#/$defs/Point"
+          },
+          "options": {
+            "$ref": "#/$defs/Options"
+          }
+        },
+        "required": [
+          "point"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "nothing",
+      "path": [
+        "fixture",
+        "nothing"
+      ],
+      "description": "Nothing.",
+      "params": [],
+      "input": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "null"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "pair",
+      "path": [
+        "fixture",
+        "pair"
+      ],
+      "description": "A pair of a word and its length.",
+      "params": [
+        "word"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "word": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "word"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "array",
+        "prefixItems": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          }
+        ],
+        "minItems": 2,
+        "maxItems": 2
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "strict",
+      "path": [
+        "fixture",
+        "strict"
+      ],
+      "description": "A literal flag.",
+      "params": [
+        "flag",
+        "mode"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "flag": {
+            "const": true
+          },
+          "mode": {
+            "enum": [
+              2,
+              1
+            ]
+          }
+        },
+        "required": [
+          "flag",
+          "mode"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "const": "yes"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "total",
+      "path": [
+        "fixture",
+        "total"
+      ],
+      "description": "The sum of each number.",
+      "params": [],
+      "rest": "values",
+      "input": {
+        "type": "object",
+        "properties": {
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    }
+  ],
+  "exempt": [
+    {
+      "name": "apply",
+      "reason": "function-parameter",
+      "detail": "fn: (value: number) => number"
+    },
+    {
+      "name": "big",
+      "reason": "input-not-json",
+      "detail": "value: bigint"
+    },
+    {
+      "name": "broken",
+      "reason": "input-not-json",
+      "detail": "value: a type that does not resolve"
+    },
+    {
+      "name": "counter",
+      "reason": "output-not-json",
+      "detail": "an instance of the class Counter"
+    },
+    {
+      "name": "keys",
+      "reason": "input-not-json",
+      "detail": "map: Map"
+    },
+    {
+      "name": "parse",
+      "reason": "overload",
+      "detail": "2 signatures"
+    },
+    {
+      "name": "sortBy",
+      "reason": "function-parameter",
+      "detail": "options.compare: (a: number, b: number) => number"
+    }
+  ],
+  "others": {
+    "classes": [
+      "Counter"
+    ],
+    "values": 1,
+    "types": 4
+  }
+}
