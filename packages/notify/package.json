@@ -47,6 +47,11 @@
       "import": "./dist/twilio-serverless.js",
       "default": "./dist/twilio-serverless.js"
     },
+    "./webhook": {
+      "types": "./dist/webhook.d.ts",
+      "import": "./dist/webhook.js",
+      "default": "./dist/webhook.js"
+    },
     "./testing": {
       "types": "./dist/testing/index.d.ts",
       "import": "./dist/testing/index.js",
@@ -113,7 +118,8 @@
     "browser": [
       "./pushover",
       "./twilio",
-      "./twilio-serverless"
+      "./twilio-serverless",
+      "./webhook"
     ],
     "procedures": "./dist/register.js"
   }
