@@ -11,6 +11,7 @@ import type { TimeoutContext } from "./contexts.js";
 import { deadlineOf, narrowDeadline, restoreDeadline } from "../deadline.js";
 import { resilience } from "./resilience.js";
 import { optionalMs, type Duration } from "../../duration.js";
+import { realClock } from "../../clock.js";
 
 /**
  * Timeout middleware options.
@@ -135,7 +136,8 @@ async function* runWithTimeout<TReq, TRes>(
   retryable: boolean,
 ): AsyncGenerator<ResponseItem<TRes>, void, undefined> {
   const timeoutController = new AbortController();
-  const timeoutId = setTimeout(() => timeoutController.abort(), ms);
+  // The clock arms a time above 2147483647 ms in steps. Infinity sets no timer.
+  const cancelTimer = Number.isFinite(ms) ? realClock.after(ms, () => timeoutController.abort()) : undefined;
   // The overall timeout is the deadline of the call: the transport sends its remaining time to
   // the server (roadmap R10). The timeout of one try is not: the server keeps a keyed write
   // until the next try can get its result, and the request signal stops another call.
@@ -178,7 +180,7 @@ async function* runWithTimeout<TReq, TRes>(
     phase = "done";
     throw error;
   } finally {
-    clearTimeout(timeoutId);
+    cancelTimer?.();
     restoreDeadline(context.message.metadata, deadlineBefore);
     cleanup();
     // Restore the caller's original signal; we only swapped in the composed signal for this

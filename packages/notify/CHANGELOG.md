@@ -1,5 +1,43 @@
 # @procedures/notify
 
+## 0.60.1
+
+### Patch Changes
+
+- Updated dependencies [beca782]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [a87cdda]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+
+## 0.60.0
+
+### Patch Changes
+
+- 1fc4ea3: The new entry `@procedures/notify/twilio-serverless` has pure functions for the Twilio Serverless API. A browser can also use them.
+  
+  - The request builders make a service, a function, an asset and their versions. They also start a build, and make an environment, a variable and a deployment.
+  - An upload of a version has a multipart body. Its boundary is pure, so the same input gives the same body.
+  - `twilioServerlessBuildStep` gives the next step of the poll of a build. It has no timer.
+  - `twilioServerlessDeploy` deploys a plan of files, a build and variables to one environment. A second deploy of the same plan changes nothing.
+  - The extractors read each response into a typed result or a `TwilioFailure`. They do not throw.
+  - A builder throws an error when the input breaks a rule of the API.
+  
+  The shared types of `./twilio` moved to an internal module that the two entries import. The API of `./twilio` does not change.
+  
+  PATCH: a new entry and new exports, before 1.0.0.
+- Updated dependencies [3075d86]
+  - @procedures/client@0.60.0
+
 ## 0.59.1
 
 ### Patch Changes

@@ -4,7 +4,7 @@
  * parts of a service transport.
  */
 
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { createServer, request, type IncomingMessage, type Server as HttpServer, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import express from "express";
@@ -14,6 +14,7 @@ import { createProcedure } from "../../../procedures/define.js";
 import { createRegistry } from "../../../procedures/module.js";
 import { ProcedureServer, type ProcedureServerOptions } from "../../../server/procedure-server.js";
 import { pathToMethod } from "../../../server/method.js";
+import type { RequestHandler, ServerRequest } from "../../../server/types.js";
 import { Client } from "../../../client/client.js";
 import { HttpTransport } from "../client/transport.js";
 import { procedureHandler, type NodeProcedureHandler, type ProcedureHandlerOptions } from "./handler.js";
@@ -435,7 +436,95 @@ describe("procedureHandler: the stop parts of a service transport (CLI-3)", () =
     await drain;
     stream.destroy();
   });
+
+  it("ends a sponge read that close() cuts with UNAVAILABLE, and the stream gets return()", async () => {
+    // Before the first item, a repeatable call asks for a retry. After it, the call does not (CLI-48)
+    for (const [items, retryable] of [[[], true], [[1], false]] as const) {
+      const quiet = quietStream(items);
+      const { port, handler } = await startStub(quiet.stream, true);
+      const answer = send(port, "POST", "/api/proc/s/o", JSON_HEADERS, "{}");
+      await quiet.waiting;
+      handler.close();
+      const { status, body } = await answer;
+      // An error without a retry gets 500, not 503 (CLI-48, decision D3)
+      expect(status).toBe(retryable ? 503 : 500);
+      expect(JSON.parse(body)).toMatchObject({ code: "UNAVAILABLE", retryable });
+      await vi.waitFor(() => expect(quiet.returned()).toBe(true));
+    }
+  });
+
+  it("gives UNAVAILABLE, not the last item, when the stream ends at the cut of close()", async () => {
+    const quiet = quietStream([1], { endAtAbort: true });
+    const { port, handler } = await startStub(quiet.stream, false);
+    const answer = send(port, "POST", "/api/proc/s/o", JSON_HEADERS, "{}");
+    await quiet.waiting;
+    handler.close();
+    const { status, body } = await answer;
+    expect(status).toBe(500);
+    expect(JSON.parse(body)).toMatchObject({ code: "UNAVAILABLE", retryable: false });
+  });
+
+  it("stops a sponge read when the client goes away, and the stream gets return()", async () => {
+    const quiet = quietStream([1]);
+    const { port } = await startStub(quiet.stream, false);
+    const req = request({ host: "127.0.0.1", port, method: "POST", path: "/api/proc/s/o", headers: JSON_HEADERS });
+    req.on("error", () => undefined);
+    req.end("{}");
+    await quiet.waiting;
+    req.destroy();
+    await vi.waitFor(() => expect(quiet.returned()).toBe(true));
+  });
 });
+
+/**
+ * A stream that does not read its signal: it gives `items`, then its `next()` waits without an end.
+ * Only `return()` ends it. With `endAtAbort`, the waiting `next()` ends at the abort of the signal.
+ */
+function quietStream(
+  items: readonly unknown[],
+  options: { endAtAbort?: boolean } = {}
+): { stream: (signal: AbortSignal | undefined) => AsyncIterable<unknown>; waiting: Promise<void>; returned: () => boolean } {
+  let returned = false;
+  let markWaiting: () => void = () => undefined;
+  const waiting = new Promise<void>((resolve) => (markWaiting = resolve));
+  const stream = (signal: AbortSignal | undefined): AsyncIterable<unknown> => {
+    const queue = [...items];
+    const iterator: AsyncIterator<unknown> = {
+      next: () => {
+        if (queue.length > 0) return Promise.resolve({ done: false, value: queue.shift() });
+        markWaiting();
+        return new Promise<IteratorResult<unknown>>((resolve) => {
+          if (options.endAtAbort) signal?.addEventListener("abort", () => resolve({ done: true, value: undefined }), { once: true });
+        });
+      },
+      return: () => {
+        returned = true;
+        return Promise.resolve({ done: true, value: undefined });
+      },
+    };
+    return { [Symbol.asyncIterator]: () => iterator };
+  };
+  return { stream, waiting, returned: () => returned };
+}
+
+/** A handler on a stub server. Each call gives the stream of `stream`, without NDJSON for the client. */
+async function startStub(
+  stream: (signal: AbortSignal | undefined) => AsyncIterable<unknown>,
+  repeatable: boolean
+): Promise<{ port: number; handler: NodeProcedureHandler }> {
+  const stub = {
+    handle: async (request: ServerRequest) => ({ id: request.id, status: { type: "success", code: 200 }, metadata: {}, stream: stream(request.signal) }),
+    isRepeatableCall: () => repeatable,
+  } as unknown as RequestHandler;
+  const handler = procedureHandler(stub, { basePath: "/api/proc", keepAlive: false });
+  const port = await listen(
+    createServer((req: IncomingMessage, res: ServerResponse) => {
+      if (!handler(req, res)) res.end();
+    })
+  );
+  cleanups.push(() => handler.close());
+  return { port, handler };
+}
 
 describe("procedureHandler: inside Express (CLI-3)", () => {
   it("mounts as a middleware, reads the body of express.json(), and the routes of the app stay", async () => {

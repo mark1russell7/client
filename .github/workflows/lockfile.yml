@@ -1,0 +1,30 @@
+# The pnpm-lock.yaml of a branch, made again on a runner by the shared workflow reusable-lockfile.yml of
+# the template (its CI.md, "The lockfile of a branch"). A dependency update then does not need a local install:
+#
+#   gh workflow run lockfile.yml --ref <branch>
+#   gh run download <run id> -n lockfile -D <folder>
+#
+# The job merges main into the branch with no commit, then starts `pnpm install --lockfile-only
+# --no-frozen-lockfile --ignore-scripts`. The artifact "lockfile" has pnpm-lock.yaml and merge.txt with
+# the commit of main. Merge that commit into the branch, copy the file, and commit it. The job
+# "Repository checks" of ci.yml then does a frozen install of that commit.
+#
+# GitHub dispatches this file only from main. The branch must also have the file: merge main into it.
+# A dispatch on main fails.
+name: Lockfile
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+# One run for each branch: a new start cancels the older one
+concurrency:
+  group: lockfile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lockfile:
+    uses: mark1russell7/template/.github/workflows/reusable-lockfile.yml@d9ac576cdbfb2c91feaab900e0748911b1b26c3a # main
+    permissions:
+      contents: read
