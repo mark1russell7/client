@@ -1150,9 +1150,6 @@ importers:
       '@procedures/s3':
         specifier: workspace:*
         version: link:../client-s3
-      '@procedures/shell':
-        specifier: workspace:*
-        version: link:../client-shell
       tar:
         specifier: ^7.5.0
         version: 7.5.22

@@ -10,8 +10,8 @@
  * script that the `.cmd` file starts, run with Node.
  */
 
-import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { dirname, isAbsolute, join } from "node:path";
 import type { ProcedureContext } from "@procedures/client";
 import { defineCliTool, execPathProgram, findInPath, nodeScript, parseJsonDocument } from "@procedures/shell/cli";
 import type { PnpmCommandOutput, PnpmJsonOutput } from "../../types.js";
@@ -54,6 +54,53 @@ export function resolvePnpm(): { command: string; prefix: string[] } {
   if (found) return found;
   const execPath = process.env["npm_execpath"];
   throw new Error(`pnpm was not found: install pnpm, or run this from a pnpm script (npm_execpath: ${execPath ?? "not set"})`);
+}
+
+/** This function gives true when the npm package name is the name of a package that holds a pnpm program. */
+function isPnpmPackage(name: unknown): boolean {
+  return name === "pnpm" || (typeof name === "string" && name.startsWith("@pnpm/exe"));
+}
+
+/**
+ * This function gives the version of the pnpm that `resolvePnpm` finds. It reads the
+ * `package.json` of the pnpm package of the program, and it starts no program. It gives
+ * `undefined` when it finds no pnpm, or no `package.json` of a pnpm package beside the program.
+ *
+ * `pnpm --version` reads the configuration of the working folder. Its `packageManager` field can
+ * make pnpm download and start a different pnpm. Thus this function does not start pnpm.
+ */
+export function installedPnpmVersion(): string | undefined {
+  let program: { command: string; prefix: string[] };
+  try {
+    program = resolvePnpm();
+  } catch {
+    return undefined;
+  }
+  // A script of pnpm runs with Node: the file of pnpm is the first argument
+  let file = program.prefix[0] ?? program.command;
+  if (!isAbsolute(file)) {
+    const name = file;
+    const found = findInPath((dir) => (existsSync(join(dir, name)) ? { command: join(dir, name), prefix: [] } : undefined));
+    if (found === undefined) return undefined;
+    file = found.command;
+  }
+  try {
+    file = realpathSync(file);
+  } catch {
+    return undefined;
+  }
+  // The executable of pnpm 12 is in the folder of its package, and pnpm.cjs is in the bin folder
+  for (const dir of [dirname(file), dirname(dirname(file))]) {
+    const manifest = join(dir, "package.json");
+    if (!existsSync(manifest)) continue;
+    try {
+      const data = JSON.parse(readFileSync(manifest, "utf8")) as { name?: unknown; version?: unknown };
+      if (isPnpmPackage(data.name) && typeof data.version === "string") return data.version;
+    } catch {
+      continue;
+    }
+  }
+  return undefined;
 }
 
 /** The runner of pnpm. It finds pnpm at each command. */

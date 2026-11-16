@@ -3,14 +3,14 @@
  */
 
 import { describe, it, expect, afterEach } from "vitest";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ProcedureContext } from "@procedures/client";
 import { fakeShell, type FakeShellInput } from "@procedures/shell/testing";
 import { pnpmAdd } from "./add.js";
 import { pnpmRun } from "./run.js";
-import { resolvePnpm } from "./shared.js";
+import { installedPnpmVersion, resolvePnpm } from "./shared.js";
 
 const savedExecPath = process.env["npm_execpath"];
 afterEach(() => {
@@ -56,5 +56,34 @@ describe("pnpm procedures", () => {
       process.env["npm_execpath"] = executable;
       expect(resolvePnpm()).toEqual({ command: executable, prefix: [] });
     }
+  });
+});
+
+/** This function makes a package folder with a package.json and an empty program file, and gives the program. */
+function pnpmPackage(name: string, version: string, program: string): string {
+  const folder = mkdtempSync(join(tmpdir(), "pnpm-version-"));
+  writeFileSync(join(folder, "package.json"), JSON.stringify({ name, version }));
+  const file = join(folder, program);
+  mkdirSync(join(file, ".."), { recursive: true });
+  writeFileSync(file, "");
+  return file;
+}
+
+describe("installedPnpmVersion", () => {
+  it("reads the version of the package of pnpm.cjs, one folder above the script", () => {
+    process.env["npm_execpath"] = pnpmPackage("pnpm", "10.26.0", join("bin", "pnpm.cjs"));
+    expect(installedPnpmVersion()).toBe("10.26.0");
+  });
+
+  it("reads the version of the package that holds the executable of pnpm 12", () => {
+    process.env["npm_execpath"] = pnpmPackage("pnpm", "12.20.0", "pnpm.exe");
+    expect(installedPnpmVersion()).toBe("12.20.0");
+    process.env["npm_execpath"] = pnpmPackage("@pnpm/exe.win32-x64", "12.20.1", "pnpm");
+    expect(installedPnpmVersion()).toBe("12.20.1");
+  });
+
+  it("gives undefined when the package beside the program is not a pnpm package", () => {
+    process.env["npm_execpath"] = pnpmPackage("corepack", "0.34.0", join("bin", "pnpm.cjs"));
+    expect(installedPnpmVersion()).toBeUndefined();
   });
 });
