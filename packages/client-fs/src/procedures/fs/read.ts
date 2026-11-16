@@ -7,7 +7,7 @@
  *   error `ERR_FS_FILE_TOO_LARGE`. For a regular file, the error comes before the read. For a pipe
  *   or a file of the system with no size, it comes when the count goes over the limit.
  * - Without `maxBytes`, the first read over 16 MiB in the process writes one warning. Version
- *   0.61.0 sets 16 MiB as the default of `maxBytes`.
+ *   0.64.0 sets 16 MiB as the default of `maxBytes`.
  */
 
 import { open, type FileHandle } from "node:fs/promises";
@@ -33,7 +33,7 @@ function warnLargeRead(): void {
   if (warned) return;
   warned = true;
   console.warn(
-    `@procedures/fs 0.61.0 refuses a read over ${String(WARNING_BYTES)} bytes without the input maxBytes. Set maxBytes to read a larger file.`,
+    `@procedures/fs 0.64.0 refuses a read over ${String(WARNING_BYTES)} bytes without the input maxBytes. Set maxBytes to read a larger file.`,
   );
 }
 

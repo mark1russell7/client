@@ -8,4 +8,4 @@
 - The read loads pieces of 1 MiB from one open file. Thus the limit holds also for a pipe or a file of the system with no size.
 - Without `maxBytes`, the read loads the whole file, as before. The first read over 16 MiB in a process writes one warning.
 
-Migration before 0.61.0: version 0.61.0 sets 16 MiB as the default of `maxBytes`. A caller that reads larger files sets `maxBytes` to its own limit.
+Migration before 0.64.0: version 0.64.0 sets 16 MiB as the default of `maxBytes`. A caller that reads larger files sets `maxBytes` to its own limit.

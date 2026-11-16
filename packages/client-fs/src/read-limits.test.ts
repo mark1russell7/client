@@ -41,7 +41,7 @@ describe("the limit of the bytes that fs.read loads", () => {
     expect(first.content.length).toBe(size);
     await call<ReadOutput>("fs.read", { path: join(dir, "large.txt") });
     expect(warn.mock.calls).toEqual([
-      ["@procedures/fs 0.61.0 refuses a read over 16777216 bytes without the input maxBytes. Set maxBytes to read a larger file."],
+      ["@procedures/fs 0.64.0 refuses a read over 16777216 bytes without the input maxBytes. Set maxBytes to read a larger file."],
     ]);
     // With maxBytes, the same read gives the error and no warning
     await expect(call("fs.read", { path: join(dir, "large.txt"), maxBytes: 1024 })).rejects.toMatchObject({ code: "ERR_FS_FILE_TOO_LARGE" });
