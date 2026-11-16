@@ -1,5 +1,13 @@
 # @procedures/browser
 
+## 0.60.0
+
+### Patch Changes
+
+- Updated dependencies [7250ac5]
+  - @procedures/shell@0.60.0
+  - @procedures/http@0.60.0
+
 ## 0.59.1
 
 ### Patch Changes
