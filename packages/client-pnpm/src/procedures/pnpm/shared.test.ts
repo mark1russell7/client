@@ -5,7 +5,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import type { ProcedureContext } from "@procedures/client";
 import { fakeShell, type FakeShellInput } from "@procedures/shell/testing";
 import { pnpmAdd } from "./add.js";
@@ -13,9 +13,13 @@ import { pnpmRun } from "./run.js";
 import { installedPnpmVersion, resolvePnpm } from "./shared.js";
 
 const savedExecPath = process.env["npm_execpath"];
+const savedPath = process.env["PATH"];
+const platform = Object.getOwnPropertyDescriptor(process, "platform")!;
 afterEach(() => {
   if (savedExecPath === undefined) delete process.env["npm_execpath"];
   else process.env["npm_execpath"] = savedExecPath;
+  process.env["PATH"] = savedPath;
+  Object.defineProperty(process, "platform", platform);
 });
 
 /** A context whose shell.run records its input, with pnpm resolved to a fake script. */
@@ -85,5 +89,72 @@ describe("installedPnpmVersion", () => {
   it("gives undefined when the package beside the program is not a pnpm package", () => {
     process.env["npm_execpath"] = pnpmPackage("corepack", "0.34.0", join("bin", "pnpm.cjs"));
     expect(installedPnpmVersion()).toBeUndefined();
+    const folder = mkdtempSync(join(tmpdir(), "pnpm-version-"));
+    writeFileSync(join(folder, "package.json"), "{");
+    process.env["npm_execpath"] = join(folder, "pnpm");
+    writeFileSync(join(folder, "pnpm"), "");
+    expect(installedPnpmVersion()).toBeUndefined();
+  });
+
+  it("reads the version of the target of a global shim of pnpm 12", () => {
+    const target = pnpmPackage("pnpm", "12.18.0", "pnpm");
+    for (const [name, encoding] of [["pnpm", "utf8"], ["pnpm.exe", "utf16le"]] as const) {
+      const bin = shimFolder();
+      writeFileSync(join(bin, name), "the executable of pnpm");
+      writeFileSync(join(bin, ".pnpm-shim-v1-pnpm-target"), Buffer.from(target, encoding));
+      process.env["npm_execpath"] = join(bin, name);
+      expect(installedPnpmVersion()).toBe("12.18.0");
+    }
+  });
+
+  it("reads the version of the target of a shell shim, relative to the folder of the shim", () => {
+    const target = pnpmPackage("@pnpm/exe.linux-x64", "12.18.1", "pnpm");
+    const bin = shimFolder();
+    writeFileSync(join(bin, "pnpm"), `#!/bin/sh\nexec "$basedir/.pnpm-shim-v1" --shim pnpm "$0" -- "$@"\n# cmd-shim-target=${relative(bin, target)}\n`);
+    process.env["npm_execpath"] = join(bin, "pnpm");
+    expect(installedPnpmVersion()).toBe("12.18.1");
+  });
+
+  it("gives undefined for a shim with no installed program", () => {
+    const sidecar = (bin: string): string => join(bin, ".pnpm-shim-v1-pnpm-target");
+    const cases: ((bin: string) => void)[] = [
+      (bin) => writeFileSync(sidecar(bin), "pkg:pnpm"),
+      (bin) => writeFileSync(sidecar(bin), ""),
+      (bin) => writeFileSync(sidecar(bin), join(bin, "missing", "pnpm")),
+      (bin) => mkdirSync(sidecar(bin)),
+      (bin) => writeFileSync(join(bin, "pnpm"), "#!/bin/sh\nexec pnpm\n"),
+      (bin) => writeFileSync(join(bin, "pnpm"), "# cmd-shim-target=x\n".repeat(4000)),
+    ];
+    for (const write of cases) {
+      const bin = shimFolder();
+      writeFileSync(join(bin, "pnpm"), "the executable of pnpm");
+      write(bin);
+      process.env["npm_execpath"] = join(bin, "pnpm");
+      expect(installedPnpmVersion()).toBeUndefined();
+    }
+  });
+
+  it("finds a pnpm by its name in PATH, and gives undefined when PATH has no pnpm", () => {
+    delete process.env["npm_execpath"];
+    Object.defineProperty(process, "platform", { ...platform, value: "linux" });
+    const bin = shimFolder();
+    writeFileSync(join(bin, "pnpm"), "the executable of pnpm");
+    writeFileSync(join(bin, ".pnpm-shim-v1-pnpm-target"), pnpmPackage("pnpm", "12.19.0", "pnpm"));
+    process.env["PATH"] = bin;
+    expect(installedPnpmVersion()).toBe("12.19.0");
+    process.env["PATH"] = shimFolder();
+    expect(installedPnpmVersion()).toBeUndefined();
+  });
+
+  it("gives undefined when resolvePnpm finds no pnpm", () => {
+    delete process.env["npm_execpath"];
+    Object.defineProperty(process, "platform", { ...platform, value: "win32" });
+    process.env["PATH"] = shimFolder();
+    expect(installedPnpmVersion()).toBeUndefined();
   });
 });
+
+/** This function makes an empty folder for the shims of a test. */
+function shimFolder(): string {
+  return mkdtempSync(join(tmpdir(), "pnpm-shim-"));
+}
