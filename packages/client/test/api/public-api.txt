@@ -2364,6 +2364,7 @@ export interface LocalTransportOptions {
     interceptors?: readonly Interceptor[] | undefined;
     capability?: Capability | undefined;
     clearanceOrder?: ClearanceOrder | undefined;
+    maxDepth?: number | undefined;
     events?: EventPublisher | undefined;
 }
 
@@ -3345,6 +3346,7 @@ export interface ClientOptions {
     interceptors?: readonly Interceptor[];
     capability?: Capability;
     clearanceOrder?: ClearanceOrder;
+    maxDepth?: number;
 }
 
 ### dist/client/types.d.ts#ClientRunner

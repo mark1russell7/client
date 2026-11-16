@@ -36,7 +36,7 @@ The check runs before the lookup and before the input validation. So a refused c
 
 The call of a caller has the depth 0, and each nested call adds 1. The option `maxDepth` of `invokeProcedure()`, `ProcedureServer` and `hostPolicy()` is the highest depth. The default is 64.
 
-- A deeper call gets `FORBIDDEN` with the reason `depth`, and its handler does not start. Thus a procedure that calls itself with no end stops at the limit.
+- A deeper call gets `FORBIDDEN` with the reason `depth`, and its handler does not start. Thus a recursion with no end stops at the limit.
 - A host with deeper call trees sets `maxDepth` to its own limit.
 
 ### `metadata.calls`
