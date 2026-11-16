@@ -490,7 +490,7 @@ export const getProcedureProcedure: Procedure<
   },
   handler: async (input: ProcedureGetInput, ctx?: ProcedureContext) => {
     const path = typeof input.path === "string" ? keyToPath(input.path) : input.path;
-    // A path outside the expose rule of the host is not found (R17), and its package does not load
+    // A path outside the expose rule of the host is not found (R17), also when a procedure is at it
     if (hiddenFromCaller(ctx, path)) return { found: false as const };
     // A lazy registry loads the package of the path first (roadmap O93)
     const procedure = await resolveIn(ctx?.registry ?? PROCEDURE_REGISTRY, path);
