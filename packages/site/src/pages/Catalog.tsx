@@ -29,10 +29,10 @@ function Badges({ procedure }: { procedure: ProcedureSummary }): ReactElement {
   );
 }
 
-function SchemaTable({ schema, fields }: { schema: JsonSchema; fields: ProcedureInfo["fields"] }): ReactElement {
+function SchemaTable({ schema, fields, label }: { schema: JsonSchema; fields: ProcedureInfo["fields"]; label: string }): ReactElement {
   if (fields && fields.length > 0) {
     return (
-      <div className="table-wrap">
+      <div className="table-wrap scroll-cue" tabIndex={0} role="region" aria-label={label}>
       <table className="schema">
         <thead>
           <tr>
@@ -64,7 +64,7 @@ function SchemaTable({ schema, fields }: { schema: JsonSchema; fields: Procedure
   }
   const required = new Set(schema.required ?? []);
   return (
-    <div className="table-wrap">
+    <div className="table-wrap scroll-cue" tabIndex={0} role="region" aria-label={label}>
     <table className="schema">
       <thead>
         <tr>
@@ -240,9 +240,9 @@ function DetailBody({ procedure }: { procedure: ProcedureInfo }): ReactElement {
       ) : null}
       <Usage procedure={procedure} packageName={pkg?.name ?? procedure.package} />
       <h2>Input</h2>
-      <SchemaTable schema={procedure.input} fields={procedure.fields} />
+      <SchemaTable schema={procedure.input} fields={procedure.fields} label="The fields of the input" />
       <h2>Output</h2>
-      <SchemaTable schema={procedure.output} fields={null} />
+      <SchemaTable schema={procedure.output} fields={null} label="The fields of the output" />
       <details style={{ marginTop: "var(--space-4)" }}>
         <summary className="small">JSON Schemas</summary>
         <pre className="code scroll-cue" tabIndex={0} aria-label="The JSON Schemas">

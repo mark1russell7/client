@@ -38,6 +38,8 @@ import { pathToKey, type Effects, type ProcedurePath } from "../procedures/types
 import { exposePatterns } from "./host-policy.js";
 import type { Principal, ServerRequest, ServerResponse } from "./types.js";
 
+export { CallLimitError } from "./call-limit-error.js";
+
 /** The facts of a call that a limit reads. The server gives them after the authentication of the call. */
 export interface LimitedCall {
   /** The path of the procedure of the call. */
@@ -50,8 +52,18 @@ export interface LimitedCall {
   readonly writes: boolean;
   /** The principal of the call: from the request hook, the token check or the authenticate function. Undefined for a call without one. */
   readonly principal: Principal | undefined;
-  /** The request. Its payload and its metadata come from the caller, thus a key from them is a claim of the caller. */
+  /**
+   * The request of the caller. Its payload and its metadata come from the caller, thus a key from
+   * them is a claim of the caller. For a nested call, it is the request whose procedure made the call.
+   */
   readonly request: ServerRequest<unknown>;
+  /**
+   * The depth of the call: 0 for the call of a caller, 1 for a call that its procedure makes with
+   * `ctx.client`, 2 for a call of that call, and so on. Only a limit with `nested: true` gets a depth over 0.
+   */
+  readonly depth: number;
+  /** The input of the call: the payload of the request at the depth 0, and the input of the nested call at a larger depth. */
+  readonly input: unknown;
 }
 
 /**
@@ -108,6 +120,16 @@ export interface CallLimit {
    * CLI-122). A call whose cost is over the burst or the limit of the policy gets a capacity refusal.
    */
   readonly cost?: number | ((call: LimitedCall) => number) | undefined;
+  /**
+   * True: the limit also takes the units of each nested call that it covers. A nested call is a
+   * call that a procedure makes with `ctx.client`, for example each step of `client.chain` and
+   * `client.parallel`. The cover, the key and the cost then get the call at each depth
+   * (`LimitedCall.depth`). False: the limit takes the units of the calls of a caller only.
+   *
+   * The default is false, and the server writes a warning for a limit without this field.
+   * `@procedures/client` 0.61.0 changes the default to true.
+   */
+  readonly nested?: boolean | undefined;
 }
 
 /** The refusal of a call by one limit. */
@@ -121,9 +143,12 @@ export interface CallLimitRefusal {
 export interface CallLimiter {
   /** The keyed limiters, in the sequence of the limits. A host declares each one with `svc.limiter(name, spec)`. */
   readonly limiters: readonly KeyedLimiter[];
+  /** True when a limit takes the units of the nested calls (`nested: true`). */
+  readonly coversNested: boolean;
   /**
    * This method takes the cost of the call from each limit that covers it, in the sequence of the
    * limits. It gives the first refusal, or undefined. A limit before the refusal keeps its units.
+   * A nested call (a depth over 0) gets only the limits with `nested: true`.
    */
   admit(call: LimitedCall): Promise<CallLimitRefusal | undefined>;
 }
@@ -227,13 +252,19 @@ export function callLimiter(limits: readonly CallLimit[], options: CallLimiterOp
     const keyOf = keyFunction(limit.key);
     const covers = coversFunction(limit.covers);
     const costOf = costFunction(limit);
+    // A limit from a file can give the text "true": the check refuses it, so the limit does not count less than it says
+    if (limit.nested !== undefined && typeof limit.nested !== "boolean") {
+      throw new Error(`The field nested of the limit ${limit.name} is true, false or absent, not ${JSON.stringify(limit.nested)}`);
+    }
     const limiter = keyedLimiter(limit.name, { key: keyNameOf(limit), policy: limit.policy, store: limit.store, evict: limit.evict }, storeOf(limit, local, stores));
-    return { limiter, keyOf, covers, costOf };
+    return { limiter, keyOf, covers, costOf, nested: limit.nested === true };
   });
   return {
     limiters: entries.map((entry) => entry.limiter),
+    coversNested: entries.some((entry) => entry.nested),
     async admit(call) {
-      for (const { limiter, keyOf, covers, costOf } of entries) {
+      for (const { limiter, keyOf, covers, costOf, nested } of entries) {
+        if (call.depth > 0 && !nested) continue;
         if (!covers(call)) continue;
         const key = keyOf(call);
         if (key === undefined) continue;
@@ -245,8 +276,18 @@ export function callLimiter(limits: readonly CallLimit[], options: CallLimiterOp
   };
 }
 
-/** This function gives the facts of a call for the limits: its procedure, its effects, its principal and its request. */
-export function limitedCall(procedure: { readonly path: ProcedurePath; readonly metadata?: unknown }, request: ServerRequest<unknown>): LimitedCall {
+/** The place of a nested call for the limits: its depth (1 or more) and its input. */
+export interface NestedPlace {
+  readonly depth: number;
+  readonly input: unknown;
+}
+
+/**
+ * This function gives the facts of a call for the limits: its procedure, its effects, its principal
+ * and its request. Without a nested place, the call is the call of the caller: the depth 0, with the
+ * payload of the request as its input.
+ */
+export function limitedCall(procedure: { readonly path: ProcedurePath; readonly metadata?: unknown }, request: ServerRequest<unknown>, nested?: NestedPlace): LimitedCall {
   const effects = effectsOf(procedure);
   return {
     path: procedure.path,
@@ -255,6 +296,8 @@ export function limitedCall(procedure: { readonly path: ProcedurePath; readonly 
     writes: !isReadOnly(effects),
     principal: request.principal,
     request,
+    depth: nested?.depth ?? 0,
+    input: nested ? nested.input : request.payload,
   };
 }
 
@@ -262,8 +305,9 @@ export function limitedCall(procedure: { readonly path: ProcedurePath; readonly 
  * This function gives the response of a refused call. A wait refusal is `RATE_LIMITED`, retryable,
  * with the wait in `retry-after` (milliseconds) and the cause in `reason`. A capacity refusal is
  * `PAYLOAD_TOO_LARGE`, not retryable, with `units` and `capacity`. The failure of a store stays on the server.
+ * The text `what` names the refused call in the message.
  */
-export function rateLimitedResponse(id: string, refusal: CallLimitRefusal): ServerResponse<unknown> {
+export function rateLimitedResponse(id: string, refusal: CallLimitRefusal, what = "the call"): ServerResponse<unknown> {
   const { limit, refused } = refusal;
   if (refused.cause === "capacity") {
     return {
@@ -271,7 +315,7 @@ export function rateLimitedResponse(id: string, refusal: CallLimitRefusal): Serv
       status: {
         type: "error",
         code: "PAYLOAD_TOO_LARGE",
-        message: `The limit ${limit} of the host refuses the call: it costs ${String(refused.units)} units, over the capacity of ${String(refused.capacity)}`,
+        message: `The limit ${limit} of the host refuses ${what}: it costs ${String(refused.units)} units, over the capacity of ${String(refused.capacity)}`,
         retryable: false,
       },
       metadata: { reason: refused.cause, units: refused.units, capacity: refused.capacity },
@@ -284,7 +328,7 @@ export function rateLimitedResponse(id: string, refusal: CallLimitRefusal): Serv
     status: {
       type: "error",
       code: "RATE_LIMITED",
-      message: `The limit ${limit} of the host refuses the call (${refused.cause}): retry after ${seconds} s`,
+      message: `The limit ${limit} of the host refuses ${what} (${refused.cause}): retry after ${seconds} s`,
       retryable: true,
     },
     metadata: { [RETRY_AFTER]: waitMs, reason: refused.cause },

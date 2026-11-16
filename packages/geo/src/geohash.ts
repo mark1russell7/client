@@ -1,97 +1,74 @@
 /**
- * The geohash of a point, and the cell of a geohash. A geohash interleaves the bits of the
- * longitude and the latitude, and writes five bits as one character of a base-32 alphabet.
+ * The geohash of a point, and the cell of a geohash. The home of these functions is
+ * `@mark1russell7/geo`. This module gives them with their old names until the next MINOR of the
+ * client group. Then they go.
  */
 
+import {
+  decodeGeohash as geoDecodeGeohash,
+  DEFAULT_GEOHASH_PRECISION as GEO_DEFAULT_GEOHASH_PRECISION,
+  GEOHASH_ALPHABET as GEO_GEOHASH_ALPHABET,
+  geohash as geoGeohash,
+  type GeohashCell as GeoGeohashCell,
+  MAX_GEOHASH_PRECISION as GEO_MAX_GEOHASH_PRECISION,
+} from "@mark1russell7/geo";
 import type { Point } from "./geo.js";
 
-/** The base-32 alphabet of the geohash. It has no `a`, `i`, `l` or `o`. */
-export const GEOHASH_ALPHABET = "0123456789bcdefghjkmnpqrstuvwxyz";
-
-/** The precision (number of characters) when the caller gives none. At the equator, a cell of 7 characters is approximately 153 m by 153 m. */
-export const DEFAULT_GEOHASH_PRECISION = 7;
-
-/** The maximum precision. A cell of 12 characters is smaller than 4 cm by 4 cm. */
-export const MAX_GEOHASH_PRECISION = 12;
-
-/** The cell of a geohash: its edges, in degrees, and its center. */
-export interface GeohashCell {
-  readonly south: number;
-  readonly west: number;
-  readonly north: number;
-  readonly east: number;
-  readonly center: Point;
-}
-
-const checkPoint = (point: Point): void => {
-  if (!Number.isFinite(point.lat) || point.lat < -90 || point.lat > 90) throw new RangeError(`The latitude ${point.lat} is not from -90 to 90`);
-  if (!Number.isFinite(point.lon) || point.lon < -180 || point.lon > 180) throw new RangeError(`The longitude ${point.lon} is not from -180 to 180`);
-};
+/**
+ * The base-32 alphabet of the geohash. It has no `a`, `i`, `l` or `o`.
+ *
+ * @deprecated Use `GEOHASH_ALPHABET` of `@mark1russell7/geo`.
+ */
+export const GEOHASH_ALPHABET: typeof GEO_GEOHASH_ALPHABET = GEO_GEOHASH_ALPHABET;
 
 /**
- * This function gives the geohash of a point. The first bit is the longitude. A coordinate on
- * the middle of a range goes to the upper half.
+ * The precision (number of characters) when the caller gives none.
+ *
+ * @deprecated Use `DEFAULT_GEOHASH_PRECISION` of `@mark1russell7/geo`.
+ */
+export const DEFAULT_GEOHASH_PRECISION: typeof GEO_DEFAULT_GEOHASH_PRECISION = GEO_DEFAULT_GEOHASH_PRECISION;
+
+/**
+ * The maximum precision. A cell of 12 characters is smaller than 4 cm by 4 cm.
+ *
+ * @deprecated Use `MAX_GEOHASH_PRECISION` of `@mark1russell7/geo`.
+ */
+export const MAX_GEOHASH_PRECISION: typeof GEO_MAX_GEOHASH_PRECISION = GEO_MAX_GEOHASH_PRECISION;
+
+/**
+ * The cell of a geohash: its edges, in degrees, and its center.
+ *
+ * @deprecated Use `GeohashCell` of `@mark1russell7/geo`.
+ */
+export type GeohashCell = GeoGeohashCell;
+
+/**
+ * This function gives the geohash of a point, with `geohash` of `@mark1russell7/geo`. It keeps
+ * the old check of this package: a longitude out of -180 to 180 throws a `RangeError`. It also
+ * throws a `RangeError` for a latitude off the map or a precision out of range.
+ *
+ * @deprecated Use `geohash` of `@mark1russell7/geo`. That function puts a longitude out of -180
+ * to 180 into that range. The old check goes at the next MINOR of the client group.
  */
 export const geohash = (point: Point, precision: number = DEFAULT_GEOHASH_PRECISION): string => {
-  checkPoint(point);
-  if (!Number.isInteger(precision) || precision < 1 || precision > MAX_GEOHASH_PRECISION) {
-    throw new RangeError(`The precision ${precision} is not an integer from 1 to ${MAX_GEOHASH_PRECISION}`);
+  if (!Number.isFinite(point.lon) || point.lon < -180 || point.lon > 180) {
+    throw new RangeError(`The longitude ${point.lon} is not from -180 to 180`);
   }
-  const latRange = [-90, 90] as [number, number];
-  const lonRange = [-180, 180] as [number, number];
-  let hash = "";
-  let bits = 0;
-  let value = 0;
-  let evenBit = true;
-  while (hash.length < precision) {
-    const range = evenBit ? lonRange : latRange;
-    const coordinate = evenBit ? point.lon : point.lat;
-    const mid = (range[0] + range[1]) / 2;
-    if (coordinate >= mid) {
-      value = (value << 1) | 1;
-      range[0] = mid;
-    } else {
-      value <<= 1;
-      range[1] = mid;
-    }
-    evenBit = !evenBit;
-    bits += 1;
-    if (bits === 5) {
-      hash += GEOHASH_ALPHABET[value];
-      bits = 0;
-      value = 0;
-    }
-  }
-  return hash;
+  return geoGeohash(point, precision);
 };
 
 /**
- * This function gives the cell of a geohash: its edges and its center. Upper case letters are
- * correct. It throws a `RangeError` for a character that is not in the alphabet.
+ * This function gives the cell of a geohash, with `decodeGeohash` of `@mark1russell7/geo`. Upper
+ * case letters are correct. It keeps the old reading of this package: it puts all of the text in
+ * lower case first, so the KELVIN SIGN (U+212A) is a `k`. It throws a `RangeError` for a character
+ * that is not in the alphabet.
+ *
+ * @deprecated Use `decodeGeohash` of `@mark1russell7/geo`. That function refuses each character
+ * that is not ASCII. The old reading goes at the next MINOR of the client group.
  */
 export const decodeGeohash = (hash: string): GeohashCell => {
   if (hash.length === 0 || hash.length > MAX_GEOHASH_PRECISION) {
     throw new RangeError(`A geohash has 1 to ${MAX_GEOHASH_PRECISION} characters`);
   }
-  const lat = [-90, 90] as [number, number];
-  const lon = [-180, 180] as [number, number];
-  let evenBit = true;
-  for (const char of hash.toLowerCase()) {
-    const value = GEOHASH_ALPHABET.indexOf(char);
-    if (value === -1) throw new RangeError(`"${char}" is not a character of a geohash`);
-    for (let bit = 4; bit >= 0; bit -= 1) {
-      const range = evenBit ? lon : lat;
-      const mid = (range[0] + range[1]) / 2;
-      if ((value >> bit) & 1) range[0] = mid;
-      else range[1] = mid;
-      evenBit = !evenBit;
-    }
-  }
-  return {
-    south: lat[0],
-    west: lon[0],
-    north: lat[1],
-    east: lon[1],
-    center: { lat: (lat[0] + lat[1]) / 2, lon: (lon[0] + lon[1]) / 2 },
-  };
+  return geoDecodeGeohash(hash.toLowerCase());
 };

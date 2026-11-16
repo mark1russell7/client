@@ -1,5 +1,84 @@
 # @procedures/client
 
+## 0.59.1
+
+### Patch Changes
+
+- 425ea64: The CORS of a procedure server accepts each request header of `HttpTransport` in a browser.
+  
+  - `HttpTransport` sends each text key of the metadata as a header of its own. Before this change, the preflight answer named only a fixed list. So a call with a key of the application, with the retry middleware (`idempotency-key`) or in a batch (`Procedures-Batch`) failed in a browser.
+  - Without the option `allowedHeaders`, the preflight answer names the fixed list and each valid header name of `Access-Control-Request-Headers`. The answer also has `Vary: Access-Control-Request-Headers`, so a shared cache keeps one answer for each list.
+  - With the option `allowedHeaders`, the answer names only the headers of the option, as before.
+  - The fixed list also has `Procedures-Batch` and `idempotency-key`.
+  - Without the option `exposedHeaders`, a page can read `Procedures-Protocol`, `Procedures-Batch` and `Retry-After`. `HttpTransport` reads the batch header and `Retry-After`.
+- ea801cd: `onError` and the `logger` of a `Server` get each failure of a call one time, under each error policy, as their docs state. Before, under the default policy `"all"`, a failed procedure reached no log. A host with `onError` or `logger` gets each failure that its callers see, as the docs say.
+  
+  - A failure is an error with a code that is not known, or with a failure code (`HANDLER_ERROR`, `INTERNAL_ERROR`). A refusal with a known code (`NOT_FOUND`, `VALIDATION_ERROR`) and a code of `codes` go to no log.
+  - The error that ends a stream and an error of a face after `handle()` go to the log too. The line is `A handler failed`, as for a handler that throws.
+  - A `map` result is the decision of the host and goes to no log. Under `"coded"`, a hidden error keeps its line.
+  - Without `onError` and `logger`, the console gets no new line.
+- 74ddeff: The stop of a `ProcedureServer` ends a stream of a call with an idempotency key. Before, the stream lost the link to the stop when its first item came.
+  
+  - The cooperative abort of `drain()` and the abort of `close()` reach the stream until its last item, as on the path without a key.
+  - A stream of a local caller without a signal ends at the stop, so `inFlight()` goes to 0.
+  - The stream still ends with its caller.
+- 6513a83: The registry gives a warning for a typed metadata field with a wrong type. Version 0.60.0 refuses such a field.
+  
+  - The typed fields are the fields of `ProcedureMetadata` that the framework reads: `description`, `tags`, `title`, `deprecated`, `deprecationMessage`, `effects`, `stream`, `untrusted` and `fsRoot`. A custom field keeps any value.
+  - The warning comes one time for each procedure and field. It names the procedure, the field and the type that the field needs. The procedure stays in the registry, and its calls work as before.
+  - The new option `logger` of `ProcedureRegistry` gets the warnings. The default writes to the console.
+  
+  To prepare for 0.60.0, give each typed field the type that the warning names. For example, change `tags: "math"` to `tags: ["math"]`.
+- 8c69a74: A limit of the calls can also count the nested calls of a procedure.
+  
+  - The new field `nested` of a `CallLimit` sets the rule. With `nested: true`, the limit takes the units of each nested call that it covers, for example each step of `client.chain` and `client.parallel`. A refused nested call does not start. The procedure gets an error with the code `RATE_LIMITED` or `PAYLOAD_TOO_LARGE`, the wait in `retry-after` and the cause in `reason`. When the procedure does not catch it, the caller gets the same response as a refusal before the run.
+  - `LimitedCall` has two new fields: `depth` (0 for the call of a caller, 1 or more for a nested call) and `input`. A cover, key or cost function of a limit with `nested: true` reads them.
+  - A limit without the field `nested` keeps the old rule: it counts only the calls of a caller. The server writes one warning at the start for each such limit.
+  - A value of `nested` that is not `true` or `false` stops the start of the server with an error.
+  
+  Migration before 0.61.0: version 0.61.0 changes the default to `nested: true`. Give each limit the field `nested`. Use `true` to count the nested calls, or `false` to keep the old rule. The warning then stops.
+- 74ddeff: **Security fix:** a `register()` handler of a `ProcedureServer` needs the token, keeps the call limits and gets the stop refusal, as the host policy states.
+  
+  The handler gets the same admission as a procedure. Before, only the procedures got it.
+  
+  - A network request must send the token of the host policy, as the policy documents. The request hook and `authenticate` apply too.
+  - The call limits apply to the route of the handler. A handler declares no effects, so a limit of the writes covers it too.
+  - After `stopIntake()`, a new request gets `UNAVAILABLE`. `inFlight()` counts the call until its response, so `drain()` waits for it.
+  
+  A local request (`LOCAL_CREDENTIALS`) passes, as before. A client that sends the token sees no change.
+- 6cc8f0e: A call that the stop of a face cuts ends with `UNAVAILABLE` on each face, as `WIRE-PROTOCOL.md` tells (CLI-48). The flag `retryable` follows the declared effects of the procedure, with the rule of the host.
+  
+  - A repeatable procedure (`isRepeatable`) gives the same state after a second start. Its cut call ends with `retryable: true`. A stream that sent an item ends with `retryable: false`, because a retry sends the items again.
+  - The handler of another call started, so the call can have had its effect. Its cut call ends with `retryable: false`, and the retry middleware does not send it again.
+  - The HTTP face: an open stream ended with `ABORTED` and `retryable: true` for each procedure. A call with a value ended with the error of its handler after the abort. Both end with `UNAVAILABLE`. A call with a value gets HTTP 503 when it is repeatable, and HTTP 500 when it is not. A value that the handler gives after the cut still goes out.
+  - The WebSocket face: the server and the client send the error frame of each stopped call before the socket closes. Before, the caller got `CONNECTION_CLOSED`, and the outcome of the call was not known.
+  - The port transport: `close()` sends the error of each call of the other side that it stops. Before, the other side got no frame, and its call waited for its time-out.
+  - New optional members: `RequestHandler.isRepeatableCall(method)`, implemented by `ProcedureServer` and forwarded by the face handler of the host, and the option `retryableOnStop` of `writeNdjsonStream`. A handler without `isRepeatableCall` ends each cut call with `retryable: false`.
+
+## 0.59.0
+
+### Minor Changes
+
+- 8f8e5b2: **Breaking change:** each listener examines the `Host` header. By default, only `localhost`, `127.0.0.1`, `[::1]` and IP addresses pass. Give each other name with `--allowed-host` or `allowedHosts`.
+  
+  The browser checks examine the `Host` header on each listener. Before, they examined it only on a loopback address. A server on a LAN address (`0.0.0.0`) accepted each host name.
+  
+  A request must name one of these hosts in its `Host` header:
+  
+  - A loopback name: `localhost`, `127.0.0.1` or `[::1]`.
+  - An IP address, for example `192.168.1.20` or `[fe80::1]`.
+  - A name of `browser.allowedHosts` of the host policy, with any letter case.
+  
+  A request with another name gets `FORBIDDEN` (403) with the reason `host-header-not-allowed`. A request without a `Host` header gets it too. The message of the refusal names `allowedHosts` and `--allowed-host`. `browser.allowedHosts: "*"` turns the check off.
+  
+  The server command and `mark --server` get the option `--allowed-host <names>`. Repeat the option, or separate the names with commas. `@procedures/server` exports `parseAllowedHosts`.
+  
+  Migration steps:
+  
+  - A server that a LAN, a proxy or a container network reaches by a name: give the name in `browser.allowedHosts` of `hostPolicy()`. Or start the server with `--allowed-host <name>`.
+  - An MCP face on HTTP that clients reach by a name: give the name in `http.allowedHosts` of the face, or in `browser.allowedHosts` of the policy.
+  - A server that clients reach by `localhost` or by an IP address: no change.
+
 ## 0.58.2
 
 ### Patch Changes

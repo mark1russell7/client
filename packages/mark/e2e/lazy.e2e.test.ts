@@ -35,6 +35,10 @@ const ALLOWED_WORKSPACE = new Map<string, string>([
   ["@procedures/lib", "a static import of cli.ts: `@procedures/lib/cli-flags` of the flag parser"],
   ["@procedures/peer", "a static import of cli.ts (`@procedures/peer/lockfile`) and the local face of the cold host"],
   ["@procedures/server", "the cold host of a command (`runProcedureHost()`, CLI-26)"],
+  [
+    "@procedures/shell",
+    "a static import of server.start.ts: `spawnProgram` of `@procedures/shell/command`, the one home of program starts (the rule program-start-outside-shell). The entry imports only node: modules and registers no procedure",
+  ],
 ]);
 
 /** The name of the package of each folder of the workspace. */

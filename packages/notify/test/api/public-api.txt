@@ -32,13 +32,38 @@ PushoverRequest: dist/pushover.d.ts#PushoverRequest
 PushoverResponse: dist/pushover.d.ts#PushoverResponse
 PushoverSent: dist/pushover.d.ts#PushoverSent
 PushoverValidated: dist/pushover.d.ts#PushoverValidated
+TWILIO_ACCOUNT_SID: dist/twilio.d.ts#TWILIO_ACCOUNT_SID
+TWILIO_API: dist/twilio.d.ts#TWILIO_API
+TWILIO_LIMITS: dist/twilio.d.ts#TWILIO_LIMITS
+TWILIO_MIN_WAIT_MS: dist/twilio.d.ts#TWILIO_MIN_WAIT_MS
+TWILIO_RING_MAX_MS: dist/twilio.d.ts#TWILIO_RING_MAX_MS
+TWILIO_VALIDITY_MAX_MS: dist/twilio.d.ts#TWILIO_VALIDITY_MAX_MS
+TwilioBalanceRead: dist/twilio.d.ts#TwilioBalanceRead
+TwilioCall: dist/twilio.d.ts#TwilioCall
+TwilioCallRead: dist/twilio.d.ts#TwilioCallRead
+TwilioCallState: dist/twilio.d.ts#TwilioCallState
+TwilioCredentials: dist/twilio.d.ts#TwilioCredentials
+TwilioFailure: dist/twilio.d.ts#TwilioFailure
+TwilioFailureKind: dist/twilio.d.ts#TwilioFailureKind
+TwilioFetch: dist/twilio.d.ts#TwilioFetch
+TwilioGather: dist/twilio.d.ts#TwilioGather
+TwilioRequest: dist/twilio.d.ts#TwilioRequest
+TwilioResponse: dist/twilio.d.ts#TwilioResponse
+TwilioText: dist/twilio.d.ts#TwilioText
+TwilioTextRead: dist/twilio.d.ts#TwilioTextRead
+TwilioTextState: dist/twilio.d.ts#TwilioTextState
+TwilioVoice: dist/twilio.d.ts#TwilioVoice
 callPushover: dist/pushover.d.ts#callPushover
+callTwilio: dist/twilio.d.ts#callTwilio
 extractPushoverCallback: dist/pushover.d.ts#extractPushoverCallback
 extractPushoverCancelled: dist/pushover.d.ts#extractPushoverCancelled
 extractPushoverLimits: dist/pushover.d.ts#extractPushoverLimits
 extractPushoverReceipt: dist/pushover.d.ts#extractPushoverReceipt
 extractPushoverSent: dist/pushover.d.ts#extractPushoverSent
 extractPushoverValidated: dist/pushover.d.ts#extractPushoverValidated
+extractTwilioBalance: dist/twilio.d.ts#extractTwilioBalance
+extractTwilioCall: dist/twilio.d.ts#extractTwilioCall
+extractTwilioText: dist/twilio.d.ts#extractTwilioText
 headerSafe: dist/notify.d.ts#headerSafe
 notifyModule: dist/module.d.ts#notifyModule
 notifyProcedures: dist/procedures.d.ts#notifyProcedures
@@ -57,6 +82,16 @@ pushoverValidateProcedure: dist/pushover-procedures.d.ts#pushoverValidateProcedu
 pushoverValidateRequest: dist/pushover.d.ts#pushoverValidateRequest
 registerNotifyProcedures: dist/module.d.ts#registerNotifyProcedures
 sendNotification: dist/notify.d.ts#sendNotification
+twilioBalanceRequest: dist/twilio.d.ts#twilioBalanceRequest
+twilioCallRequest: dist/twilio.d.ts#twilioCallRequest
+twilioCallState: dist/twilio.d.ts#twilioCallState
+twilioCallStatusRequest: dist/twilio.d.ts#twilioCallStatusRequest
+twilioEndCallRequest: dist/twilio.d.ts#twilioEndCallRequest
+twilioGatherTwiml: dist/twilio.d.ts#twilioGatherTwiml
+twilioSayTwiml: dist/twilio.d.ts#twilioSayTwiml
+twilioTextRequest: dist/twilio.d.ts#twilioTextRequest
+twilioTextState: dist/twilio.d.ts#twilioTextState
+twilioTextStatusRequest: dist/twilio.d.ts#twilioTextStatusRequest
 
 ## ./pushover (dist/pushover.d.ts): names
 
@@ -94,6 +129,44 @@ pushoverLimitsRequest: dist/pushover.d.ts#pushoverLimitsRequest
 pushoverReceiptRequest: dist/pushover.d.ts#pushoverReceiptRequest
 pushoverSendRequest: dist/pushover.d.ts#pushoverSendRequest
 pushoverValidateRequest: dist/pushover.d.ts#pushoverValidateRequest
+
+## ./twilio (dist/twilio.d.ts): names
+
+TWILIO_ACCOUNT_SID: dist/twilio.d.ts#TWILIO_ACCOUNT_SID
+TWILIO_API: dist/twilio.d.ts#TWILIO_API
+TWILIO_LIMITS: dist/twilio.d.ts#TWILIO_LIMITS
+TWILIO_MIN_WAIT_MS: dist/twilio.d.ts#TWILIO_MIN_WAIT_MS
+TWILIO_RING_MAX_MS: dist/twilio.d.ts#TWILIO_RING_MAX_MS
+TWILIO_VALIDITY_MAX_MS: dist/twilio.d.ts#TWILIO_VALIDITY_MAX_MS
+TwilioBalanceRead: dist/twilio.d.ts#TwilioBalanceRead
+TwilioCall: dist/twilio.d.ts#TwilioCall
+TwilioCallRead: dist/twilio.d.ts#TwilioCallRead
+TwilioCallState: dist/twilio.d.ts#TwilioCallState
+TwilioCredentials: dist/twilio.d.ts#TwilioCredentials
+TwilioFailure: dist/twilio.d.ts#TwilioFailure
+TwilioFailureKind: dist/twilio.d.ts#TwilioFailureKind
+TwilioFetch: dist/twilio.d.ts#TwilioFetch
+TwilioGather: dist/twilio.d.ts#TwilioGather
+TwilioRequest: dist/twilio.d.ts#TwilioRequest
+TwilioResponse: dist/twilio.d.ts#TwilioResponse
+TwilioText: dist/twilio.d.ts#TwilioText
+TwilioTextRead: dist/twilio.d.ts#TwilioTextRead
+TwilioTextState: dist/twilio.d.ts#TwilioTextState
+TwilioVoice: dist/twilio.d.ts#TwilioVoice
+callTwilio: dist/twilio.d.ts#callTwilio
+extractTwilioBalance: dist/twilio.d.ts#extractTwilioBalance
+extractTwilioCall: dist/twilio.d.ts#extractTwilioCall
+extractTwilioText: dist/twilio.d.ts#extractTwilioText
+twilioBalanceRequest: dist/twilio.d.ts#twilioBalanceRequest
+twilioCallRequest: dist/twilio.d.ts#twilioCallRequest
+twilioCallState: dist/twilio.d.ts#twilioCallState
+twilioCallStatusRequest: dist/twilio.d.ts#twilioCallStatusRequest
+twilioEndCallRequest: dist/twilio.d.ts#twilioEndCallRequest
+twilioGatherTwiml: dist/twilio.d.ts#twilioGatherTwiml
+twilioSayTwiml: dist/twilio.d.ts#twilioSayTwiml
+twilioTextRequest: dist/twilio.d.ts#twilioTextRequest
+twilioTextState: dist/twilio.d.ts#twilioTextState
+twilioTextStatusRequest: dist/twilio.d.ts#twilioTextStatusRequest
 
 ## ./testing (dist/testing/index.d.ts): names
 
@@ -440,3 +513,189 @@ export declare function pushoverLedgerOf(requests: readonly ScriptedRequest[]): 
 
 ### dist/testing/index.d.ts#pushoverReceiptOf
 export declare function pushoverReceiptOf(index: number): string;
+
+### dist/twilio.d.ts#TWILIO_ACCOUNT_SID
+export declare const TWILIO_ACCOUNT_SID: RegExp;
+
+### dist/twilio.d.ts#TWILIO_API
+export declare const TWILIO_API = "https://api.twilio.com/2010-04-01";
+
+### dist/twilio.d.ts#TWILIO_LIMITS
+export declare const TWILIO_LIMITS: {
+    readonly body: 1600;
+    readonly twiml: 4000;
+};
+
+### dist/twilio.d.ts#TWILIO_MIN_WAIT_MS
+export declare const TWILIO_MIN_WAIT_MS = 5000;
+
+### dist/twilio.d.ts#TWILIO_RING_MAX_MS
+export declare const TWILIO_RING_MAX_MS = 600000;
+
+### dist/twilio.d.ts#TWILIO_VALIDITY_MAX_MS
+export declare const TWILIO_VALIDITY_MAX_MS = 36000000;
+
+### dist/twilio.d.ts#TwilioBalanceRead
+export interface TwilioBalanceRead {
+    readonly ok: true;
+    readonly balance: number;
+    readonly balanceText: string;
+    readonly currency: string;
+}
+
+### dist/twilio.d.ts#TwilioCall
+export interface TwilioCall {
+    readonly to: string;
+    readonly from: string;
+    readonly twiml?: string | undefined;
+    readonly url?: string | undefined;
+    readonly ringMs?: number | undefined;
+    readonly machineDetection?: "Enable" | "DetectMessageEnd" | undefined;
+    readonly limitMs?: number | undefined;
+    readonly statusCallback?: string | undefined;
+}
+
+### dist/twilio.d.ts#TwilioCallRead
+export interface TwilioCallRead {
+    readonly ok: true;
+    readonly sid: string;
+    readonly status: string;
+    readonly state: TwilioCallState;
+    readonly ended: boolean;
+    readonly answeredBy?: string;
+    readonly durationMs?: number;
+    readonly startedAt?: number;
+    readonly endedAt?: number;
+}
+
+### dist/twilio.d.ts#TwilioCallState
+export type TwilioCallState = "pending" | "connected" | "answered" | "machine" | "unanswered" | "failed";
+
+### dist/twilio.d.ts#TwilioCredentials
+export interface TwilioCredentials {
+    readonly accountSid: string;
+    readonly keySid?: string | undefined;
+    readonly secret: string;
+}
+
+### dist/twilio.d.ts#TwilioFailure
+export interface TwilioFailure {
+    readonly ok: false;
+    readonly kind: TwilioFailureKind;
+    readonly status: number;
+    readonly errors: readonly string[];
+    readonly code?: number;
+    readonly retryAfterMs?: number;
+}
+
+### dist/twilio.d.ts#TwilioFailureKind
+export type TwilioFailureKind = "network" | "timeout" | "server" | "rate-limited" | "auth" | "refused";
+
+### dist/twilio.d.ts#TwilioFetch
+export type TwilioFetch = ApiFetch;
+
+### dist/twilio.d.ts#TwilioGather
+export interface TwilioGather extends TwilioVoice {
+    readonly action: string;
+    readonly method?: "POST" | "GET" | undefined;
+    readonly digits?: number | undefined;
+    readonly timeoutMs?: number | undefined;
+    readonly repeats?: number | undefined;
+    readonly after?: string | undefined;
+    readonly actionOnEmptyResult?: boolean | undefined;
+}
+
+### dist/twilio.d.ts#TwilioRequest
+export interface TwilioRequest {
+    readonly url: string;
+    readonly method: "GET" | "POST";
+    readonly headers: Readonly<Record<string, string>>;
+    readonly body?: string;
+}
+
+### dist/twilio.d.ts#TwilioResponse
+export interface TwilioResponse {
+    readonly status: number;
+    readonly text: string;
+    readonly headers?: {
+        get(name: string): string | null;
+    } | undefined;
+}
+
+### dist/twilio.d.ts#TwilioText
+export interface TwilioText {
+    readonly to: string;
+    readonly from?: string | undefined;
+    readonly messagingServiceSid?: string | undefined;
+    readonly body: string;
+    readonly validityMs?: number | undefined;
+    readonly statusCallback?: string | undefined;
+}
+
+### dist/twilio.d.ts#TwilioTextRead
+export interface TwilioTextRead {
+    readonly ok: true;
+    readonly sid: string;
+    readonly status: string;
+    readonly state: TwilioTextState;
+    readonly errorCode?: number;
+    readonly errorMessage?: string;
+    readonly segments?: number;
+    readonly createdAt?: number;
+    readonly sentAt?: number;
+    readonly updatedAt?: number;
+}
+
+### dist/twilio.d.ts#TwilioTextState
+export type TwilioTextState = "pending" | "delivered" | "failed";
+
+### dist/twilio.d.ts#TwilioVoice
+export interface TwilioVoice {
+    readonly voice?: string | undefined;
+    readonly language?: string | undefined;
+}
+
+### dist/twilio.d.ts#callTwilio
+export declare function callTwilio<Result>(fetch: TwilioFetch, request: TwilioRequest, extract: (response: TwilioResponse) => Result | TwilioFailure, options: {
+    readonly timeoutMs: number;
+    readonly signal?: AbortSignal | undefined;
+}): Promise<Result | TwilioFailure>;
+
+### dist/twilio.d.ts#extractTwilioBalance
+export declare function extractTwilioBalance(response: TwilioResponse): TwilioBalanceRead | TwilioFailure;
+
+### dist/twilio.d.ts#extractTwilioCall
+export declare function extractTwilioCall(response: TwilioResponse): TwilioCallRead | TwilioFailure;
+
+### dist/twilio.d.ts#extractTwilioText
+export declare function extractTwilioText(response: TwilioResponse): TwilioTextRead | TwilioFailure;
+
+### dist/twilio.d.ts#twilioBalanceRequest
+export declare function twilioBalanceRequest(credentials: TwilioCredentials): TwilioRequest;
+
+### dist/twilio.d.ts#twilioCallRequest
+export declare function twilioCallRequest(credentials: TwilioCredentials, call: TwilioCall): TwilioRequest;
+
+### dist/twilio.d.ts#twilioCallState
+export declare function twilioCallState(status: string, answeredBy?: string): TwilioCallState;
+
+### dist/twilio.d.ts#twilioCallStatusRequest
+export declare function twilioCallStatusRequest(credentials: TwilioCredentials, sid: string): TwilioRequest;
+
+### dist/twilio.d.ts#twilioEndCallRequest
+export declare function twilioEndCallRequest(credentials: TwilioCredentials, sid: string, end?: "completed" | "canceled"): TwilioRequest;
+
+### dist/twilio.d.ts#twilioGatherTwiml
+export declare function twilioGatherTwiml(text: string, gather: TwilioGather): string;
+
+### dist/twilio.d.ts#twilioSayTwiml
+export declare function twilioSayTwiml(text: string, repeats?: number, voice?: TwilioVoice): string;
+
+### dist/twilio.d.ts#twilioTextRequest
+export declare function twilioTextRequest(credentials: TwilioCredentials, text: TwilioText): TwilioRequest;
+
+### dist/twilio.d.ts#twilioTextState
+export declare function twilioTextState(status: string): TwilioTextState;
+
+### dist/twilio.d.ts#twilioTextStatusRequest
+export declare function twilioTextStatusRequest(credentials: TwilioCredentials, sid: string): TwilioRequest;

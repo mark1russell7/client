@@ -1,13 +1,15 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/notify",
-  "version": "0.58.2",
-  "description": "Push notifications through ntfy (the public server or your own) and Pushover, with emergency messages that repeat until acknowledged.",
+  "version": "0.59.1",
+  "description": "Push notifications through ntfy (the public server or your own) and Pushover, with emergency messages that repeat until acknowledged, and Twilio texts and voice calls.",
   "keywords": [
     "notification",
     "push",
     "ntfy",
     "pushover",
+    "twilio",
+    "sms",
     "procedures"
   ],
   "homepage": "https://mark1russell7.github.io/client/",
@@ -34,6 +36,11 @@
       "types": "./dist/pushover.d.ts",
       "import": "./dist/pushover.js",
       "default": "./dist/pushover.js"
+    },
+    "./twilio": {
+      "types": "./dist/twilio.d.ts",
+      "import": "./dist/twilio.js",
+      "default": "./dist/twilio.js"
     },
     "./testing": {
       "types": "./dist/testing/index.d.ts",
@@ -78,6 +85,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@mark1russell7/text": "^0.0.6",
     "@procedures/client": "workspace:*",
     "zod": "^4.6.5"
   },
@@ -98,7 +106,8 @@
   },
   "client": {
     "browser": [
-      "./pushover"
+      "./pushover",
+      "./twilio"
     ],
     "procedures": "./dist/register.js"
   }

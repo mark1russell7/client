@@ -11,7 +11,6 @@
  * The module needs the optional peer dependencies `esbuild` (for the build) and `tsx` (for the fallback).
  */
 
-import { spawnSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import {
   mkdirSync,
@@ -26,6 +25,7 @@ import {
 import { basename, dirname, extname, join, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { writeFileAtomicSync } from "@procedures/fs/files";
+import { spawnProgramSync } from "@procedures/shell/command";
 import type { Loader, OnLoadArgs, OnLoadResult, OnResolveArgs, OnResolveResult, Plugin } from "esbuild";
 
 /** The format of the builds. A build of another format is stale. */
@@ -278,7 +278,7 @@ const recordFailure = (outDir: string, text: string): void => {
 export async function launch(spec: FreshBundleSpec): Promise<void> {
   let main = freshEntry(spec);
   if (main === undefined) {
-    const child = spawnSync(
+    const child = spawnProgramSync(
       process.execPath,
       ["--experimental-import-meta-resolve", "--input-type=module", "--eval", BUILD_SCRIPT],
       {
