@@ -1,5 +1,44 @@
 # @procedures/client
 
+## 0.60.1
+
+### Patch Changes
+
+- beca782: `procedureHandler` answers the preflight request of a batch at the base path itself: `OPTIONS {base}` with `Procedures-Batch` in `Access-Control-Request-Headers`. Its CORS rule gives the answer. Before this release, the handler gave this request to the app, so a batch from a page on another origin failed.
+  
+  - The default of `corsOptions.credentials` of `HttpServerTransport` is the rule of `procedureHandler`: false for the origin `"*"`, and true for each other origin. Before this release, the transport also sent `Access-Control-Allow-Credentials: true` with the origin `"*"`. A browser refuses that pair for a call with credentials.
+  - Deprecated: the CORS headers of `HttpServerTransport` on the routes of the app outside its base path. From 0.63.0, the transport applies CORS only to the base path and the paths under it. An app that needs CORS on its own routes adds its own CORS function.
+- 6dbc47e: Deprecated: under the expose rule of a host, `procedure.define` at a free hidden path, and `procedure.load` of a stored program at a free hidden path. From 0.62.0, the define gets `NOT_EXPOSED`, and the load gives the program as a conflict.
+  
+  To prepare, move each such program to an exposed path, or add its path to the expose rule of the host. This note changes no code.
+- 663465c: An `exclude` entry of a host policy or of a tool surface takes the patterns of `expose`: an exact key, a prefix (`shell.*`) or `*`. A prefix entry hides each procedure under the prefix. An exact key of the form before the escape of dotted names also stays valid.
+- 66585f5: A host can limit the depth of the nested calls.
+  
+  - The new option `maxDepth` of `invokeProcedure()`, `ProcedureServer` and `hostPolicy()` is the highest depth of a nested call. The call of a caller has the depth 0.
+  - A call at a larger depth gets `FORBIDDEN` with the new reason `depth`. Its handler does not start. Thus a loop of calls to one procedure stops at the limit.
+  - A value that is not a whole number of 0 or more stops the call or the start of the server with a `TypeError`.
+  - Without `maxDepth`, the depth has no limit, as before. The first call over the depth 64 in the process writes one warning.
+  
+  Migration before 0.64.0: version 0.64.0 sets the default limit to 64. A host with deeper call trees sets `maxDepth` to its own limit.
+- 511d820: A time limit above 2147483647 ms (24.8 days) holds for its full time. The rule covers the timeout interceptor and the deadline of a capability. It also covers the timeout middleware of the client and the timeouts of the HTTP and WebSocket transports. Each timer uses the platform clock, and the clock arms a long time in steps. `setTimeout` alone starts such a timer after 1 ms. A limit of `Infinity` sets no timer.
+- 02a7074: Each nested call of a procedure validates its own input. The option `inputValidated` applies only to the call that gets it.
+- 265f41c: The warning of a limit without the field `nested` names 0.64.0, the version that changes the default to `true`.
+- a87cdda: The storages of a partitioned collection close at the stop of the server.
+  
+  - `CollectionPartitions` gets an optional `close()`. `closeStorages()` and `stop()` of `ProcedureServer` close each partitions object one time with it.
+  - `ProcedureServer.partitionHandles()` gives one dependency handle for each partitions object, with the name `partitions.<collections>`. The handle closes the partitions after the transports close.
+  - The procedures host and the MCP host declare these handles next to the storage handles. The new type `McpRunnerPartitions` of `@procedures/mcp-server` is the partitions handle, and `McpServiceBuilder.dependency` takes it next to `McpRunnerDependency`. `host.dependencies` of the procedures host also gives the storages and partitions that the app adds after the construction.
+  - Partitions without `close()` stay on the server, and the host closes their storages.
+- 94b5f88: The HTTP face stops the read of a stream for a client without NDJSON (the "sponge" mode) when the call stops. A closed connection and `close()` stop the read, also while the stream waits for its next item. The stream gets `return()`. A cut of `close()` on an open response gives `UNAVAILABLE` (HTTP 503), not the last item. Its flag `retryable` is true only for a repeatable call before its first item, as in an NDJSON stream.
+- ca23351: After `stop()` of a `ProcedureServer`, the intake stays stopped until the next `start()`, as after `close()`. A call after the stop gets the retryable `UNAVAILABLE`. `start()` opens the intake again, with a new signal.
+- 84e1b25: The WebSocket face gives `return()` to the stream of a handler when the send of an item frame throws, so the `finally` block of the handler runs. The `error` frame of the call comes first. The count of the items that went out, which sets the retry flag of that error, has only the frames that the socket took.
+- fe6cd23: The WebSocket server and client examine the shape of each frame before they read its fields. The server answers a frame of another shape with `INVALID_REQUEST` and the id of the frame. The client drops such a frame. `WIRE-PROTOCOL.md` gives the rules.
+- e9b7551: `WebSocketServerTransport` sends each frame through one function with a flow rule.
+  
+  - While the send buffer of a connection holds more than `highWaterMark`, the server does not read the frames of the connection. It reads them again when the socket wrote the buffer down to the mark.
+  - While the reads of a connection are paused, a frame that the socket wrote since the last ping counts as the pong of the heartbeat. Thus a peer that reads slowly stays open, and a peer that does not read closes.
+  - The new option `maxBufferedBytes` is the largest send buffer of a connection. A send that finds a larger buffer ends the connection. It bounds the frames that the server sends with no request, for example `broadcast()`. It has no default.
+
 ## 0.60.0
 
 ### Minor Changes
