@@ -143,8 +143,10 @@ describe("procedure.search", () => {
   });
 
   it("checks its input", () => {
-    expect(searchProceduresProcedure.input!.safeParse({ query: "" }).success).toBe(false);
-    expect(searchProceduresProcedure.input!.safeParse({ query: "x", limit: 101 }).success).toBe(false);
-    expect(searchProceduresProcedure.input!.safeParse({ query: "x", limit: 5, namespace: "git" }).success).toBe(true);
+    // The schema of the procedure is a zod schema: the type of the field is the general schema
+    const input = searchProceduresProcedure.input as unknown as z.ZodType;
+    expect(input.safeParse({ query: "" }).success).toBe(false);
+    expect(input.safeParse({ query: "x", limit: 101 }).success).toBe(false);
+    expect(input.safeParse({ query: "x", limit: 5, namespace: "git" }).success).toBe(true);
   });
 });
