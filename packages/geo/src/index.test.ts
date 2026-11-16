@@ -10,6 +10,7 @@ describe("the package root", () => {
       expect(typeof root[name], name).toBe("function");
     }
     expect(root.EARTH_RADIUS_KM).toBe(6371);
-    expect(root.decodeGeohash(root.geohash({ lat: 10, lon: 20 })).center.lat).toBeCloseTo(10, 5);
+    const cell = root.decodeGeohash(root.geohash({ lat: 10, lon: 20 }));
+    expect(cell.south <= 10 && 10 <= cell.north && cell.west <= 20 && 20 <= cell.east).toBe(true);
   });
 });
