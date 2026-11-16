@@ -467,29 +467,38 @@ export class IncomingCalls {
    * an `error` frame. When the signal aborts (a cancel frame, a closed socket), the loop stops,
    * and the handler of the stream gets return(). The stream takes its next item only when the
    * reader has credit for it. `call.items` counts the item frames, also one that waits for room.
+   * When the send of an item throws, the handler of the stream gets return() after the `error` frame.
    */
   private async sendStream(id: string, stream: AsyncIterable<unknown>, signal: AbortSignal, credit: StreamCredit | undefined, call: RunningCall): Promise<void> {
     const iterator = stream[Symbol.asyncIterator]();
-    let done = false;
+    /** True when the iterator ended by itself: at its end, or with an error of its next() */
+    let ended = false;
+    /** The count of the item frames that went out */
     let seq = 0;
     try {
       for (;;) {
         if (credit && !(await credit.take(signal))) return;
         if (signal.aborted || !this.options.isOpen()) return;
-        const result = await iterator.next();
+        let result: IteratorResult<unknown>;
+        try {
+          result = await iterator.next();
+        } catch (error) {
+          ended = true;
+          throw error;
+        }
         if (result.done) {
-          done = true;
+          ended = true;
           break;
         }
         if (signal.aborted || !this.options.isOpen()) return;
-        const item: WebSocketMessage = { id, type: "stream", seq: ++seq, payload: result.value, stream: { done: false } };
-        call.items = seq;
+        const item: WebSocketMessage = { id, type: "stream", seq: seq + 1, payload: result.value, stream: { done: false } };
+        call.items = seq + 1;
         if (this.options.sendWithBackpressure) await this.options.sendWithBackpressure(item, signal);
         else this.send(item);
+        seq += 1;
       }
-      this.send({ id, type: "stream", seq: ++seq, stream: { done: true } });
+      this.send({ id, type: "stream", seq: seq + 1, stream: { done: true } });
     } catch (error) {
-      done = true;
       if (signal.aborted) return;
       // `seq` counts the item frames that went out: before the first item, an error without a flag
       // gets the flag of its code (CLI-68)
@@ -502,8 +511,8 @@ export class IncomingCalls {
         stream: { done: true },
       });
     } finally {
-      // The loop stopped before the end: the handler gets return()
-      if (!done) await iterator.return?.();
+      // The loop stopped before the end of the iterator: the handler gets return()
+      if (!ended) await iterator.return?.();
     }
   }
 
