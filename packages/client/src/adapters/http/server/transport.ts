@@ -84,9 +84,10 @@ export class HttpServerTransport implements ServerTransport {
     // inferring the operation from the verb (BUGS-2026-07 C3, bug 16)
     const urlStrategy = options.urlStrategy ?? createPatternServerUrlStrategy(basePath);
     const corsOptions = this.options.cors ? (options.corsOptions ?? {}) : undefined;
-    // The given options go over the defaults, and the transport sends the credentials by default.
+    // The given options go over the defaults. As with procedureHandler, the credentials go by default
+    // only with a named origin: "*" with credentials is invalid.
     // An origin that is not permitted gets no CORS header, as with procedureHandler (CLI-59)
-    this.cors = corsOptions ? { ...corsPolicy(corsOptions, true), permittedOnly: true } : undefined;
+    this.cors = corsOptions ? { ...corsPolicy(corsOptions, (corsOptions.origin ?? "*") !== "*"), permittedOnly: true } : undefined;
     this.handler = createProcedureHandler(
       server,
       {
@@ -135,6 +136,8 @@ export class HttpServerTransport implements ServerTransport {
     if (cors) {
       // One allowed origin goes back: the request's origin when it is in the list, with
       // Vary: Origin so that caches keep them apart. A preflight ends here with 204.
+      // Deprecated: this function applies to each route of the app. From 0.63.0, it applies only to
+      // the base path and the paths under it.
       this.app.use((req, res, next) => {
         if (!applyCors(req, res, cors)) next();
       });

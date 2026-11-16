@@ -84,6 +84,18 @@ export function isBatchRequest(req: IncomingMessage): boolean {
   return (req.method ?? "").toUpperCase() === "POST" && req.headers[BATCH_HEADER.toLowerCase()] === "1";
 }
 
+/**
+ * True when the request is the preflight request of a batch: `OPTIONS`, and the header
+ * `Access-Control-Request-Headers` names `Procedures-Batch`. A browser sends it before a batch to
+ * another origin.
+ */
+export function isBatchPreflight(req: IncomingMessage): boolean {
+  if ((req.method ?? "").toUpperCase() !== "OPTIONS") return false;
+  const requested = req.headers["access-control-request-headers"];
+  const names = Array.isArray(requested) ? requested.join(",") : (requested ?? "");
+  return names.split(",").some((name) => name.trim().toLowerCase() === BATCH_HEADER.toLowerCase());
+}
+
 /** The resolved options of the batches, or undefined when the handler takes no batch. */
 export function batchOptionsOf(option: boolean | HandlerBatchOptions | undefined): ResolvedBatchOptions | undefined {
   if (option === false) return undefined;
