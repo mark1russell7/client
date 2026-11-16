@@ -402,3 +402,40 @@ describe("the caller of a nested call (roadmap R33)", () => {
     expect(seen[1]).toBe(outer);
   });
 });
+
+describe("the input of a nested call", () => {
+  it("is validated, also when the call of the host has inputValidated", async () => {
+    const registry = new ProcedureRegistry();
+    const seen: unknown[] = [];
+    registry.register(
+      defineProcedure({
+        path: ["test", "inner"],
+        input: z.object({ to: z.number() }),
+        output: outputSchema<null>(),
+        handler: (input: { to: number }) => {
+          seen.push(input);
+          return null;
+        },
+      }),
+    );
+    registry.register(
+      defineProcedure({
+        path: ["test", "outer"],
+        input: z.object({ to: z.unknown() }),
+        output: outputSchema<null>(),
+        handler: async (input: { to: unknown }, ctx: ProcedureContext) => {
+          await ctx.client.call(["test", "inner"], { to: input.to });
+          return null;
+        },
+      }),
+    );
+    // The flag is about the input of the host call only
+    await expect(invokePath(["test", "outer"], { to: "three" }, { registry, inputValidated: true })).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      path: ["test", "inner"],
+    });
+    expect(seen).toEqual([]);
+    await outputValue(await invokePath(["test", "outer"], { to: 3 }, { registry, inputValidated: true }));
+    expect(seen).toEqual([{ to: 3 }]);
+  });
+});
