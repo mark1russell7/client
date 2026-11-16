@@ -19,6 +19,7 @@ import type { ServerTransport, ServerRequest } from "../../../server/types.js";
 import type { Message, ResponseItem, Transport } from "../../../client/types.js";
 import { pathToMethod } from "../../../server/method.js";
 import { IncomingCalls, OutgoingCalls } from "../shared/rpc.js";
+import { checkFrame } from "../shared/frame.js";
 import type { RequestHandler } from "../../../server/types.js";
 import type {
   WebSocketServerTransportOptions,
@@ -560,13 +561,20 @@ export class WebSocketServerTransport implements ServerTransport {
     connectionId: string
   ): Promise<void> {
     // Parse message
-    let message: WebSocketMessage;
+    let parsed: unknown;
     try {
-      message = JSON.parse(data.toString());
+      parsed = JSON.parse(data.toString());
     } catch {
       this.sendError(ws, "unknown", "Invalid JSON message");
       return;
     }
+    // The shape of the frame, before the code reads its fields
+    const check = checkFrame(parsed);
+    if (!check.ok) {
+      this.sendError(ws, check.id, `Invalid message format: ${check.reason}`, "INVALID_REQUEST");
+      return;
+    }
+    const message = check.frame;
 
     // Handle ping (client heartbeat)
     if (message.type === "ping") {
