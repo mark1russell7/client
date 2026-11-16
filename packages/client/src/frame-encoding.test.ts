@@ -197,6 +197,16 @@ describe("the text of a frame", () => {
     expect(encodeFrame({ data: shareEncoding(data, first) })).toBe('{"data":{"n":2}}');
     expect(encodeFrame({ data: shareEncoding(data, second) })).toBe('{"data":{"n":2}}');
   });
+
+  it("encodes a changed value again for a new receiver of a later emit (audit 2026-11-08)", () => {
+    const data = { n: 1 };
+    const [first, late] = [{}, {}];
+    expect(encodeFrame({ data: shareEncoding(data, receiver(), first) })).toBe('{"data":{"n":1}}');
+    data.n = 2;
+    // The late receiver did not get the first emit: before the mark, it got the text of that emit
+    expect(encodeFrame({ data: shareEncoding(data, receiver(), late) })).toBe('{"data":{"n":2}}');
+    expect(encodeFrame({ data: shareEncoding(data, receiver(), late) })).toBe('{"data":{"n":2}}');
+  });
 });
 
 let cleanups: Array<() => Promise<void> | void> = [];
@@ -305,5 +315,26 @@ describe.each(faces)("the encodes of one event on $name", (face) => {
       ['{"n":1}', '{"n":2}'],
     ]);
     expect(sharedEncodes() - before).toBe(2);
+  });
+
+  it("sends the new value of an object published again to a subscriber that joined after the first publish (audit 2026-11-08)", async () => {
+    const bus = createEventBus();
+    const publisher = new EventPublisher({ bus, topics: ["room.*"] });
+    const connect = await face.host(publisher);
+    const early: string[] = [];
+    const leave = subscribeRemote(connect(), ["room.a"], (data) => void early.push(JSON.stringify(data)));
+    await leave.ready;
+    const data = { n: 1 };
+    publisher.publish("room.a", data);
+    await waitForEach([early], 1);
+    leave();
+    const late: string[] = [];
+    const unsubscribe = subscribeRemote(connect(), ["room.a"], (data) => void late.push(JSON.stringify(data)));
+    cleanups.push(() => unsubscribe());
+    await unsubscribe.ready;
+    data.n = 2;
+    publisher.publish("room.a", data);
+    await waitForEach([late], 1);
+    expect({ early, late }).toEqual({ early: ['{"n":1}'], late: ['{"n":2}'] });
   });
 });

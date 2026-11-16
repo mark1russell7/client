@@ -1,5 +1,139 @@
 # @procedures/http
 
+## 0.59.0
+
+### Patch Changes
+
+- Updated dependencies [8f8e5b2]
+  - @procedures/client@0.59.0
+
+## 0.58.2
+
+### Patch Changes
+
+- Updated dependencies [217871c]
+  - @procedures/client@0.58.2
+
+## 0.58.1
+
+### Patch Changes
+
+- Updated dependencies [1d47080]
+  - @procedures/client@0.58.1
+
+## 0.58.0
+
+### Patch Changes
+
+- Updated dependencies [11f5035]
+  - @procedures/client@0.58.0
+
+## 0.57.0
+
+### Patch Changes
+
+- @procedures/client@0.57.0
+
+## 0.56.0
+
+### Patch Changes
+
+- 7498bc1: `@procedures/http` has a local forward proxy that applies the host policy to each request of another program. `@procedures/browser` uses it for the new option `hostPolicy` of each render. The change adds names and is backward compatible, so it is a patch.
+  
+  - `startPolicyProxy({ policy, onRefusal })` starts the proxy on `127.0.0.1`, on a free port. It gives `host`, `port`, `url`, `refusals`, `requests` and `close()`.
+  - The proxy takes `CONNECT` tunnels and plain requests with an absolute `http:` URL. It examines each host with `checkHost`, and connects only to the checked addresses.
+  - A refused host gets the status 403. `refusals` keeps the first `MAX_PROXY_REFUSALS` refusals, and `onRefusal` gets each refusal.
+  - The options `hostPolicy` and `onHostRefusal` of each render start the proxy for the run, and stop it at the end, also after an error.
+  - `policyProxyArgs(proxyUrl)` gives the flags of the browser: the proxy, the bypass rule `<-loopback>`, no QUIC, no UDP for WebRTC and no DNS look-up.
+  - With `hostPolicy`, a flag of `args` that can undo these flags gives an error before the browser starts.
+  - A Chrome or Edge policy of the computer (`ProxySettings` or `ProxyMode`) replaces `--proxy-server` with no error. Thus a render of an `http:` or `https:` URL fails when the proxy gets no request.
+  - `@procedures/browser` now depends on `@procedures/http`.
+- 13996cf: An automated dependency update changes the shipped files, so this PATCH ships them.
+- Updated dependencies [13996cf]
+  - @procedures/client@0.56.0
+
+## 0.55.2
+
+### Patch Changes
+
+- a86b44f: `@procedures/http` has `isLocalName(hostname)`. It tells if a host name is a name of this computer or of the local network. Such a name is `localhost`, or a name in the domain `localhost`, `local`, `internal` or `home.arpa`. The letter case and a final dot change nothing. The change adds a name only, so it is a patch.
+- @procedures/client@0.55.2
+
+## 0.55.1
+
+### Patch Changes
+
+- @procedures/client@0.55.1
+
+## 0.55.0
+
+### Patch Changes
+
+- Updated dependencies [fd9c6d4]
+  - @procedures/client@0.55.0
+
+## 0.54.1
+
+### Patch Changes
+
+- Updated dependencies [13c3a8b]
+  - @procedures/client@0.54.1
+
+## 0.54.0
+
+### Patch Changes
+
+- 1401489: The tarball of each package leaves out `dist/.tsbuildinfo`. The `files` list of each package has the entry `!dist/.tsbuildinfo` after `dist`.
+  
+  The build writes this file for incremental builds. An app does not use it, and it added its size to each tarball (61 KB in `@procedures/json` 0.52.3). The conventions rule `pack-no-buildinfo` finds it.
+  
+  PATCH: the exports and the behavior do not change.
+- Updated dependencies [ef8e080]
+- Updated dependencies [1401489]
+  - @procedures/client@0.54.0
+
+## 0.53.1
+
+### Patch Changes
+
+- Updated dependencies [84f0c78]
+- Updated dependencies [abf290c]
+  - @procedures/client@0.53.1
+
+## 0.53.0
+
+### Patch Changes
+
+- 5072370: `frameRefusal` tells if a browser refuses to show a page in a frame, from the headers `Content-Security-Policy` (`frame-ancestors`) and `X-Frame-Options`. `parseCsp`, `sourceAllows` and `sourceListAllows` give the parts of the CSP3 rules.
+- d84a98c: `createHostFetch` gives the `headers` of the response, and takes the option `method: "HEAD"`. A `HEAD` request reads only the headers. Thus a caller of `frameRefusal` does not read the body of a large page.
+- Updated dependencies [bc98f77]
+- Updated dependencies [11d9084]
+- Updated dependencies [d28ccb5]
+- Updated dependencies [735cfcf]
+- Updated dependencies
+- Updated dependencies [556d0a8]
+  - @procedures/client@0.53.0
+
+## 0.52.5
+
+### Patch Changes
+
+- Updated dependencies [25a5f44]
+  - @procedures/client@0.52.5
+
+## 0.52.4
+
+### Patch Changes
+
+- @procedures/client@0.52.4
+
+## 0.52.3
+
+### Patch Changes
+
+- Updated dependencies [db1bcaa]
+  - @procedures/client@0.52.3
+
 ## 0.52.2
 
 ### Patch Changes

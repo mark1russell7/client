@@ -17,6 +17,8 @@
  *   declares its own parts and dependencies with the vocabulary of the runner (CLI-62).
  * - The probes of the service answer on each listener of the host under `/_probes`, or on a port
  *   of their own with the option `probes` (CLI-9, decision D5). The service gives both.
+ * - The option `telemetry` starts the telemetry SDK of the app before the listeners. The phase
+ *   `flush the output` stops it, after each other part (CLI-130).
  */
 
 import { daemon, localDev, service, type Lifecycle, type Profile, type RunOptions, type ServiceBuilder } from "@mark1russell7/service";
@@ -52,6 +54,20 @@ export interface HostProbeServer {
    * `liveness` and `report`. The port answers 404 for a kind that is not in the list.
    */
   readonly kinds?: readonly ProbeKind[] | undefined;
+}
+
+/** The phase of the stop that flushes the telemetry: the last phase of `localDev` and `daemon`. */
+export const TELEMETRY_FLUSH_PHASE = "flush the output";
+
+/** The options that the host gives to the start of the telemetry. The runner owns the signals, thus the SDK adds no signal listener. */
+export interface HostTelemetryOptions {
+  readonly stopOnSignals: false;
+}
+
+/** The telemetry SDK of an app, as the host uses it (CLI-130). `startNodeTelemetry()` of `@mark1russell7/otel-ts/node` gives this shape. */
+export interface HostTelemetry {
+  /** This method sends the last spans and metrics, and stops the SDK. */
+  shutdown(): Promise<void>;
 }
 
 /** The configuration of `runProcedureHost()`. */
@@ -101,6 +117,19 @@ export interface ProcedureHostRunConfig {
    *   and the lockfile goes at the end.
    */
   readonly idle?: HostIdle | undefined;
+  /**
+   * This function starts the telemetry SDK of the app (CLI-130), for example
+   * `(options) => startNodeTelemetry({ ...settings, ...options })`.
+   *
+   * - The host starts it one time, after the declaration of the service and before `run()`. Thus the SDK
+   *   starts before each dependency and each listener.
+   * - The host gives `{ stopOnSignals: false }`, because the runner owns the signals.
+   * - The phase `flush the output` starts `shutdown()`, after each other part stops. The cap of the phase
+   *   limits the wait. A longer flush needs a profile with a longer cap.
+   * - The profile must have the phase `flush the output`. Without it, the host throws before it starts the SDK.
+   * - When `run()` throws, the host stops the SDK and throws the error again.
+   */
+  readonly telemetry?: ((options: HostTelemetryOptions) => HostTelemetry) | undefined;
 }
 
 /** A host that runs under `run()`: the host, the service of the process and its lifecycle. */
@@ -122,6 +151,11 @@ export interface RunningHost {
  * exits with the code 1 after the shutdown.
  */
 export async function runProcedureHost(config: ProcedureHostRunConfig): Promise<RunningHost> {
+  const profile = config.profile ?? HOST_PROFILES[config.mode];
+  // The telemetry needs its phase of the stop: without it, the SDK does not start (CLI-130)
+  if (config.telemetry && !profile.phases?.some((phase) => phase.name === TELEMETRY_FLUSH_PHASE)) {
+    throw new Error(`runProcedureHost: the option telemetry needs the phase "${TELEMETRY_FLUSH_PHASE}" in the profile of the service ${config.name}`);
+  }
   const clock = config.run?.clock;
   // A probe server of its own: the listeners of the host then answer no probes, unless the host options say so (D5)
   const dedicated = config.probes;
@@ -147,7 +181,6 @@ export async function runProcedureHost(config: ProcedureHostRunConfig): Promise<
     ...(clock ? { clock } : {}),
     ...(dedicated && config.host.probes === undefined ? { probes: false } : {}),
   });
-  const profile = config.profile ?? HOST_PROFILES[config.mode];
   const svc = service(config.name).profile(profile);
   const probes = dedicated
     ? probeServer({
@@ -173,7 +206,17 @@ export async function runProcedureHost(config: ProcedureHostRunConfig): Promise<
   if (config.lockfile) svc.dependency("lockfile", { system: null, knobs: {}, operations: {} }, lockfileHandle(config.lockfile));
   const log = config.log;
   if (log && profile.phases?.some((phase) => phase.name === "stop intake")) svc.onPhase("stop intake", () => log("\nShutting down..."));
-  life = await svc.run(config.run);
+  // The telemetry (CLI-130): it starts after the declaration, thus a declaration that throws starts no SDK.
+  // The last phase of the stop flushes it, after the listeners and the dependencies.
+  let telemetry: HostTelemetry | undefined;
+  if (config.telemetry) svc.onPhase(TELEMETRY_FLUSH_PHASE, () => telemetry?.shutdown());
+  telemetry = config.telemetry?.({ stopOnSignals: false });
+  try {
+    life = await svc.run(config.run);
+  } catch (error) {
+    await telemetry?.shutdown();
+    throw error;
+  }
   if (idle) {
     // The timer stops with the lifecycle, also after a stop for another cause
     void life.done.then(() => idle.cancel());

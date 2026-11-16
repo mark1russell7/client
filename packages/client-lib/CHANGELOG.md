@@ -1,5 +1,235 @@
 # @procedures/lib
 
+## 0.59.0
+
+### Minor Changes
+
+- 8f8e5b2: **Breaking change:** each listener examines the `Host` header. By default, only `localhost`, `127.0.0.1`, `[::1]` and IP addresses pass. Give each other name with `--allowed-host` or `allowedHosts`.
+  
+  The browser checks examine the `Host` header on each listener. Before, they examined it only on a loopback address. A server on a LAN address (`0.0.0.0`) accepted each host name.
+  
+  A request must name one of these hosts in its `Host` header:
+  
+  - A loopback name: `localhost`, `127.0.0.1` or `[::1]`.
+  - An IP address, for example `192.168.1.20` or `[fe80::1]`.
+  - A name of `browser.allowedHosts` of the host policy, with any letter case.
+  
+  A request with another name gets `FORBIDDEN` (403) with the reason `host-header-not-allowed`. A request without a `Host` header gets it too. The message of the refusal names `allowedHosts` and `--allowed-host`. `browser.allowedHosts: "*"` turns the check off.
+  
+  The server command and `mark --server` get the option `--allowed-host <names>`. Repeat the option, or separate the names with commas. `@procedures/server` exports `parseAllowedHosts`.
+  
+  Migration steps:
+  
+  - A server that a LAN, a proxy or a container network reaches by a name: give the name in `browser.allowedHosts` of `hostPolicy()`. Or start the server with `--allowed-host <name>`.
+  - An MCP face on HTTP that clients reach by a name: give the name in `http.allowedHosts` of the face, or in `browser.allowedHosts` of the policy.
+  - A server that clients reach by `localhost` or by an IP address: no change.
+
+### Patch Changes
+
+- Updated dependencies [8f8e5b2]
+  - @procedures/client@0.59.0
+  - @procedures/dag@0.59.0
+  - @procedures/fs@0.59.0
+  - @procedures/git@0.59.0
+  - @procedures/pnpm@0.59.0
+  - @procedures/shell@0.59.0
+
+## 0.58.2
+
+### Patch Changes
+
+- Updated dependencies [217871c]
+  - @procedures/client@0.58.2
+  - @procedures/dag@0.58.2
+  - @procedures/fs@0.58.2
+  - @procedures/git@0.58.2
+  - @procedures/pnpm@0.58.2
+  - @procedures/shell@0.58.2
+
+## 0.58.1
+
+### Patch Changes
+
+- Updated dependencies [1d47080]
+  - @procedures/client@0.58.1
+  - @procedures/dag@0.58.1
+  - @procedures/fs@0.58.1
+  - @procedures/git@0.58.1
+  - @procedures/pnpm@0.58.1
+  - @procedures/shell@0.58.1
+
+## 0.58.0
+
+### Patch Changes
+
+- Updated dependencies [11f5035]
+  - @procedures/client@0.58.0
+  - @procedures/dag@0.58.0
+  - @procedures/fs@0.58.0
+  - @procedures/git@0.58.0
+  - @procedures/pnpm@0.58.0
+  - @procedures/shell@0.58.0
+
+## 0.57.0
+
+### Patch Changes
+
+- @procedures/client@0.57.0
+  - @procedures/dag@0.57.0
+  - @procedures/fs@0.57.0
+  - @procedures/git@0.57.0
+  - @procedures/pnpm@0.57.0
+  - @procedures/shell@0.57.0
+
+## 0.56.0
+
+### Patch Changes
+
+- 13996cf: An automated dependency update changes the shipped files, so this PATCH ships them.
+- Updated dependencies [13996cf]
+- Updated dependencies [13996cf]
+  - @procedures/dag@0.56.0
+  - @procedures/fs@0.56.0
+  - @procedures/git@0.56.0
+  - @procedures/pnpm@0.56.0
+  - @procedures/shell@0.56.0
+  - @procedures/client@0.56.0
+
+## 0.55.2
+
+### Patch Changes
+
+- @procedures/client@0.55.2
+  - @procedures/dag@0.55.2
+  - @procedures/fs@0.55.2
+  - @procedures/git@0.55.2
+  - @procedures/pnpm@0.55.2
+  - @procedures/shell@0.55.2
+
+## 0.55.1
+
+### Patch Changes
+
+- @procedures/client@0.55.1
+  - @procedures/dag@0.55.1
+  - @procedures/fs@0.55.1
+  - @procedures/git@0.55.1
+  - @procedures/pnpm@0.55.1
+  - @procedures/shell@0.55.1
+
+## 0.55.0
+
+### Patch Changes
+
+- Updated dependencies [fd9c6d4]
+- Updated dependencies [2918e97]
+  - @procedures/client@0.55.0
+  - @procedures/shell@0.55.0
+  - @procedures/fs@0.55.0
+  - @procedures/dag@0.55.0
+  - @procedures/git@0.55.0
+  - @procedures/pnpm@0.55.0
+
+## 0.54.1
+
+### Patch Changes
+
+- 25dd6f5: `lib.new` writes `!dist/.tsbuildinfo` after `dist` in the field `files` of a new package, so npm does not pack the build info file of tsc. With cue 2.1.3 the entry is already there, and `lib.new` does not add a second one.
+  
+  The module of `@procedures/lib` brings the module of `@procedures/shell`. Before, `createRegistry(libModule)` had no `shell.run`, and `lib.new` uses it.
+  
+  PATCH: a bug fix, the exports do not change.
+- Updated dependencies [13c3a8b]
+  - @procedures/client@0.54.1
+  - @procedures/dag@0.54.1
+  - @procedures/fs@0.54.1
+  - @procedures/git@0.54.1
+  - @procedures/pnpm@0.54.1
+  - @procedures/shell@0.54.1
+
+## 0.54.0
+
+### Patch Changes
+
+- 1401489: The tarball of each package leaves out `dist/.tsbuildinfo`. The `files` list of each package has the entry `!dist/.tsbuildinfo` after `dist`.
+  
+  The build writes this file for incremental builds. An app does not use it, and it added its size to each tarball (61 KB in `@procedures/json` 0.52.3). The conventions rule `pack-no-buildinfo` finds it.
+  
+  PATCH: the exports and the behavior do not change.
+- Updated dependencies [ef8e080]
+- Updated dependencies [1401489]
+  - @procedures/dag@0.54.0
+  - @procedures/client@0.54.0
+  - @procedures/fs@0.54.0
+  - @procedures/git@0.54.0
+  - @procedures/pnpm@0.54.0
+  - @procedures/shell@0.54.0
+
+## 0.53.1
+
+### Patch Changes
+
+- Updated dependencies [84f0c78]
+- Updated dependencies [abf290c]
+  - @procedures/client@0.53.1
+  - @procedures/dag@0.53.1
+  - @procedures/fs@0.53.1
+  - @procedures/git@0.53.1
+  - @procedures/pnpm@0.53.1
+  - @procedures/shell@0.53.1
+
+## 0.53.0
+
+### Patch Changes
+
+- Updated dependencies [bc98f77]
+- Updated dependencies [11d9084]
+- Updated dependencies [d28ccb5]
+- Updated dependencies [735cfcf]
+- Updated dependencies
+- Updated dependencies [556d0a8]
+  - @procedures/client@0.53.0
+  - @procedures/dag@0.53.0
+  - @procedures/fs@0.53.0
+  - @procedures/git@0.53.0
+  - @procedures/pnpm@0.53.0
+  - @procedures/shell@0.53.0
+
+## 0.52.5
+
+### Patch Changes
+
+- Updated dependencies [25a5f44]
+  - @procedures/client@0.52.5
+  - @procedures/dag@0.52.5
+  - @procedures/fs@0.52.5
+  - @procedures/git@0.52.5
+  - @procedures/pnpm@0.52.5
+  - @procedures/shell@0.52.5
+
+## 0.52.4
+
+### Patch Changes
+
+- @procedures/client@0.52.4
+  - @procedures/dag@0.52.4
+  - @procedures/fs@0.52.4
+  - @procedures/git@0.52.4
+  - @procedures/pnpm@0.52.4
+  - @procedures/shell@0.52.4
+
+## 0.52.3
+
+### Patch Changes
+
+- Updated dependencies [db1bcaa]
+  - @procedures/client@0.52.3
+  - @procedures/dag@0.52.3
+  - @procedures/fs@0.52.3
+  - @procedures/git@0.52.3
+  - @procedures/pnpm@0.52.3
+  - @procedures/shell@0.52.3
+
 ## 0.52.2
 
 ### Patch Changes

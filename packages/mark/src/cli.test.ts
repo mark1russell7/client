@@ -91,6 +91,7 @@ describe("exit codes (CLI-8)", () => {
     expect(await exitCodeOf(["fs", "exists", "x", "--server"])).toBe(1);
     expect(await exitCodeOf(["fs", "exists", "x", "--port", "4000"])).toBe(1);
     expect(await exitCodeOf(["fs", "exists", "x", "--events", "orders.*"])).toBe(1);
+    expect(await exitCodeOf(["fs", "exists", "x", "--allowed-host", "box.lan"])).toBe(1);
   });
 
   it("is 1 for an --fs-root that is not the root of the run, and 0 for the same root", async () => {

@@ -9,7 +9,8 @@ import { EventEmitter } from "node:events";
 import { afterAll, beforeAll, describe, expect, it, vi, type TestContext } from "vitest";
 import { MongoClient, ObjectId, type Db, type Document } from "mongodb";
 import { ms, realClock, type Clock } from "@procedures/client";
-import { ViewMaterializer, identityPartition, viewFilter, type MaterializedView, type ViewPartitionOf, type ViewStorageSource } from "./materializer.js";
+import { backoffBand, backoffDelay } from "@mark1russell7/service/backoff";
+import { CONFLICT_BACKOFF, ViewMaterializer, identityPartition, viewFilter, type MaterializedView, type ViewPartitionOf, type ViewStorageSource } from "./materializer.js";
 import { DEFAULT_STORED_FORM, type StoredForm } from "./document-storage.js";
 
 const url = process.env["MONGO_TEST_URL"];
@@ -1054,4 +1055,23 @@ withMongo("ViewMaterializer on MongoDB", { timeout: TEST_TIMEOUT_MS }, () => {
       await views.stop();
     }
   }, POOL_USE_TIMEOUT_MS);
+});
+
+describe("the wait after a write conflict", () => {
+  it("gives the waits of the old formula 25 * 2 ** attempt * (1 + r), with the draw 1 - r", () => {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      for (const r of [0, 0.25, 0.5, 0.75, 0.999_999]) {
+        const before = 25 * 2 ** attempt * (1 + r);
+        expect(backoffDelay(CONFLICT_BACKOFF, attempt, () => 1 - r)).toBeCloseTo(before, 9);
+      }
+    }
+  });
+
+  it("waits from 50 to 100 ms after the first try, and twice as long after each next try", () => {
+    expect([1, 2, 3].map((attempt) => backoffBand(CONFLICT_BACKOFF, attempt))).toEqual([
+      { low: 50, high: 100 },
+      { low: 100, high: 200 },
+      { low: 200, high: 400 },
+    ]);
+  });
 });

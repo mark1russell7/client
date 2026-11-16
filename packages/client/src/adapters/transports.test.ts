@@ -387,6 +387,7 @@ describe("CORS with a list of origins", () => {
       "access-control-allow-headers",
       "access-control-allow-methods",
       "access-control-allow-origin",
+      "access-control-expose-headers",
     ]);
   }, 10_000);
 });
