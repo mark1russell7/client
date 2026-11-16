@@ -9,13 +9,14 @@ import type { ServerConfig, TransportConfig } from "./types.js";
 const TRANSPORT_TYPES = ["http", "websocket", "local"] as const;
 
 /**
- * The port number of a `--port` value. An invalid port is an error: before, it was ignored and
- * the server used port 3000 (deep dive CLI-16).
+ * The port number of a `--port` or `--probe-port` value. An invalid port is an error: before, it was
+ * ignored and the server used port 3000 (deep dive CLI-16). The port 0 takes a free port: the output
+ * of the server gives the port that the listener got.
  */
 function parsePort(value: string): number {
   const port = /^\d+$/.test(value) ? Number(value) : NaN;
-  if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    throw new Error(`Invalid port: "${value}". Give a number from 1 to 65535.`);
+  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+    throw new Error(`Invalid port: "${value}". Give a number from 0 to 65535. The port 0 takes a free port.`);
   }
   return port;
 }
@@ -229,7 +230,7 @@ OPTIONS:
   --transport, -t <types>   Comma-separated transports: http, websocket, local
                             Default: http
 
-  --port <number>           Port for the first transport
+  --port <number>           Port for the first transport. 0 takes a free port.
                             Default: 3000 (HTTP), 3001 (WebSocket)
 
   --host <address>          Host to bind to

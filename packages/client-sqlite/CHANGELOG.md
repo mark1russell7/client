@@ -1,5 +1,36 @@
 # @procedures/sqlite
 
+## 0.60.1
+
+### Patch Changes
+
+- f2d045b: The engine `sqljs` of `SqliteStorage` is deprecated. Version 0.61.0 removes it and needs Node.js 22.13 or later.
+  
+  - The first open of the engine `sqljs` in a process shows one `DeprecationWarning` with the code `PROCEDURES_SQLITE_SQLJS`. The engine `auto` on a Node.js without `node:sqlite` shows it too.
+  - To prepare, use Node.js 22.13 or later with the engine `node` or `auto`. A file of the engine `sqljs` opens with the engine `node`.
+  - The flag `--no-deprecation` of Node.js hides the warning.
+- Updated dependencies [beca782]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [a87cdda]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+
+## 0.60.0
+
+### Patch Changes
+
+- Updated dependencies [3075d86]
+  - @procedures/client@0.60.0
+
 ## 0.59.1
 
 ### Patch Changes

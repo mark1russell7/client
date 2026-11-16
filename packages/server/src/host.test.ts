@@ -118,6 +118,63 @@ describe("runProcedureHost (CLI-8)", () => {
     expect(process.exits).toEqual([0]);
   }, 20000);
 
+  it("with the port 0, writes the lockfile with the port that the listener got, and removes it at the shutdown", async () => {
+    const process = fakeProcess();
+    const lockfile = {
+      pid: 2,
+      port: 0,
+      transport: "http",
+      endpoint: "http://127.0.0.1:0/api",
+      startedAt: new Date().toISOString(),
+      token: "host-token",
+      cwd: "/work",
+      build: "build-1",
+      peerId: "peer-port-zero",
+    };
+    const running = await host.runProcedureHost({ name: "port-zero", mode: "background", host: hostOptions("peer-port-zero"), lockfile, run: { process } });
+    lives.push(running.life);
+    expect(running.life.state).toBe("running");
+    // The lockfile names the port of the listener, and host.info answers at its endpoint
+    const [written] = lockfiles.readAllLockfiles().filter((each) => each.peerId === "peer-port-zero");
+    const [endpoint] = running.host.info.endpoints();
+    expect(written?.port).toBe(Number(new URL(endpoint!.address).port));
+    expect(written?.endpoint).toBe(`http://127.0.0.1:${written!.port}/api`);
+    expect(await lockfiles.checkServer(written!)).toBe("alive");
+    expect(lockfiles.readLockfileForPort(0)).toBeNull();
+
+    await running.life.shutdown("the test stops the host");
+    expect(await running.life.done).toBe(0);
+    lives.splice(0);
+    expect(lockfiles.readLockfileForPort(written!.port)).toBeNull();
+  }, 20000);
+
+  it("with the port 0, stops with the code 1 when no listener has the scheme and the path of the lockfile", async () => {
+    const process = fakeProcess();
+    const lines: string[] = [];
+    const lockfile = {
+      pid: 3,
+      port: 0,
+      transport: "websocket",
+      endpoint: "ws://127.0.0.1:0/ws",
+      startedAt: new Date().toISOString(),
+      token: "host-token",
+      cwd: "/work",
+      build: "build-1",
+      peerId: "peer-no-match",
+    };
+    const running = await host.runProcedureHost({
+      name: "no-match",
+      mode: "background",
+      host: hostOptions("peer-no-match"),
+      lockfile,
+      log: (line) => lines.push(line),
+      run: { process },
+    });
+    expect(await running.life.done).toBe(1);
+    expect(lines).toContain("No listener of the host has the address of the lockfile (ws://127.0.0.1:0/ws).");
+    expect(lockfiles.readAllLockfiles().filter((each) => each.peerId === "peer-no-match")).toEqual([]);
+  }, 20000);
+
   it("declares the profile of each mode: an exit at a second signal in the foreground, no effect in the background", async () => {
     const foreground = await host.runProcedureHost({ name: "fg", mode: "foreground", host: hostOptions("peer-fg"), run: { process: fakeProcess() } });
     lives.push(foreground.life);
@@ -503,4 +560,15 @@ describe("runProcedureHost: the telemetry SDK of the app (CLI-130)", () => {
     ).rejects.toThrow();
     expect(telemetry.steps).toEqual(["start in startup", "shutdown in startup"]);
   }, 20000);
+});
+
+describe("boundLockfile", () => {
+  it("takes the port of the endpoint with the scheme and the path of the lockfile, and keeps its host", () => {
+    const lockfile = { pid: 1, port: 0, transport: "both", endpoint: "http://[::1]:0/api", startedAt: "2026-11-15T00:00:00.000Z", peerId: "peer-bound" };
+    const endpoints = [{ address: "ws://localhost:4100/ws" }, { address: "http://localhost:4200/api" }];
+    expect(host.boundLockfile(lockfile, endpoints)).toEqual({ ...lockfile, port: 4200, endpoint: "http://[::1]:4200/api" });
+    expect(host.boundLockfile({ ...lockfile, endpoint: "ws://[::1]:0/ws" }, endpoints)).toMatchObject({ port: 4100, endpoint: "ws://[::1]:4100/ws" });
+    // No endpoint with the scheme and the path: no lockfile
+    expect(host.boundLockfile(lockfile, [{ address: "http://localhost:4300/" }, { address: "not a URL" }])).toBeUndefined();
+  });
 });

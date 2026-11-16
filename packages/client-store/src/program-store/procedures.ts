@@ -12,6 +12,10 @@
  * is a runtime-defined procedure again: data-driven, so a server with an expose rule lets it
  * call only the exposed procedures. Load programs only from a store that you trust: a host with
  * no expose rule runs whatever a program calls.
+ *
+ * Deprecated: under an expose rule, the load of a stored program at a free hidden path. From
+ * 0.62.0, `procedure.load` gives such a program as a conflict. Move the program to an exposed
+ * path, or add its path to the expose rule.
  */
 
 import * as z from "zod";
