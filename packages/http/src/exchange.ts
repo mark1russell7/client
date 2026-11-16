@@ -175,8 +175,11 @@ export function prepareStream(parts: StreamRequestParts, path: ProcedurePath, se
   return prepare({ ...parts, method }, path, settings, { headers: extra, body: body?.bytes });
 }
 
-/** A `lookup` for the socket that gives only the addresses that the check allowed. */
-function pinnedLookup(target: AllowedTarget): LookupFunction {
+/**
+ * A `lookup` for the socket that gives only the addresses that the check allowed. The exchange and
+ * the policy proxy (`proxy.ts`) use it.
+ */
+export function pinnedLookup(target: AllowedTarget): LookupFunction {
   return (_hostname, options, callback) => {
     const family = options.family === "IPv4" ? 4 : options.family === "IPv6" ? 6 : options.family;
     const addresses = family === 4 || family === 6 ? target.addresses.filter((entry) => entry.family === family) : target.addresses;

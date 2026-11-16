@@ -40,7 +40,7 @@ const minutes = Number(process.env["SOAK_MINUTES"] ?? 0);
  * O85). The runs are the matrix of nightly run 41371616323 (2026-11-02, jobs 1 to 5). Each run
  * wrote its values in the line `soak-measure`, and the artifacts soak-measure-1 to -5 keep them.
  *
- * The rule of the strategist (2026-11-02, roadmap O88), which `gateLimit` applies. The spread is
+ * The rule of the maintainer (2026-11-02, roadmap O88), which `gateLimit` applies. The spread is
  * the highest run minus the lowest run. The rule has no factor and no fixed margin.
  * - A limit of growth (the heap, the failures) is the worst run plus the spread, rounded up.
  * - A floor (the calls) is the worst run minus the spread, rounded down to a thousand. The floor

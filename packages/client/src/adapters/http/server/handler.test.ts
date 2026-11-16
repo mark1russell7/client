@@ -289,7 +289,8 @@ describe("procedureHandler: CORS (CLI-3, CLI-18)", () => {
     expect(preflight.status).toBe(204);
     expect(preflight.headers["access-control-allow-origin"]).toBe("https://app.example");
     expect(preflight.headers["access-control-allow-credentials"]).toBe("true");
-    expect(preflight.headers["vary"]).toBe("Origin");
+    // The answer of a preflight names the requested headers, so it varies by them too
+    expect(preflight.headers["vary"]).toBe("Origin, Access-Control-Request-Headers");
     expect(String(preflight.headers["access-control-allow-headers"])).toContain("X-Metadata");
     expect(preflight.headers["access-control-expose-headers"]).toBe("Procedures-Protocol");
     expect(preflight.headers["access-control-max-age"]).toBe("60");
@@ -326,6 +327,7 @@ describe("procedureHandler: CORS (CLI-3, CLI-18)", () => {
       "access-control-allow-headers",
       "access-control-allow-methods",
       "access-control-allow-origin",
+      "access-control-expose-headers",
       "access-control-max-age",
     ]);
   });
@@ -385,7 +387,9 @@ describe("procedureHandler: the stop parts of a service transport (CLI-3)", () =
 
     handler.close();
     await stream.ended;
-    expect(stream.text).toContain('"code":"ABORTED"');
+    // The stop cut a call that ran: no retry (CLI-48)
+    expect(stream.text).toContain('"code":"UNAVAILABLE"');
+    expect(stream.text).toContain('"retryable":false');
     expect(handler.inFlight()).toBe(0);
   });
 

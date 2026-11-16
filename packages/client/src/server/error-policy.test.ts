@@ -298,7 +298,8 @@ describe("the default error policy keeps the old behavior (CLI-80)", () => {
       for (const { face, transport } of all.faces) {
         expect(await callerError(transport, { kind: "mongo" }), face).toMatchObject({ code: "HANDLER_ERROR", message: MONGO_MESSAGE });
       }
-      expect(all.logged).toEqual([]);
+      // A failure that the caller sees goes to onError one time for each call
+      expect(all.logged.map((error) => (error as Error).message)).toEqual(all.faces.map(() => MONGO_MESSAGE));
     } finally {
       await all.stop();
     }
@@ -586,7 +587,7 @@ describe("a map result with metadata (CLI-80)", () => {
   });
 
   it("keeps the wait of a map result on the stream path", async () => {
-    const response = exposedResponse({ expose: "coded", map: busyMap }, requestOf(), { id: "s1", status: { type: "success", code: 200 }, metadata: {}, stream: failingAfterOne(errorOf("busy")) }, () => undefined);
+    const response = exposedResponse({ expose: "coded", map: busyMap }, requestOf(), { id: "s1", status: { type: "success", code: 200 }, metadata: {}, stream: failingAfterOne(errorOf("busy")) }, { hidden: () => undefined });
     expect(await endOf(response.stream!)).toMatchObject({ code: "TOO_MANY_REQUESTS", message: "Try again soon", retryable: true, retryAfterMs: 1500 });
   });
 });
@@ -601,19 +602,19 @@ describe("the metadata of a hidden error (CLI-80)", () => {
   }
 
   it("keeps only the trace keys by default: an unknown key such as issues goes", () => {
-    const exposed = exposedResponse({ expose: "coded" }, requestOf(), decorated(), () => undefined);
+    const exposed = exposedResponse({ expose: "coded" }, requestOf(), decorated(), { hidden: () => undefined });
     expect(exposed.status).toEqual({ type: "error", code: "INTERNAL_ERROR", message: "internal error", retryable: false });
     expect(exposed.metadata).toEqual({ traceparent, tracestate });
     expect(DEFAULT_KEPT_METADATA).toEqual(["traceparent", "tracestate"]);
   });
 
   it("keeps the keys of keepMetadata, and only those", () => {
-    const exposed = exposedResponse({ expose: "coded", keepMetadata: ["app-table"] }, requestOf(), decorated(), () => undefined);
+    const exposed = exposedResponse({ expose: "coded", keepMetadata: ["app-table"] }, requestOf(), decorated(), { hidden: () => undefined });
     expect(exposed.metadata).toEqual({ "app-table": "users_v2" });
   });
 
   it("applies the allowlist to a map result too", () => {
-    const exposed = exposedResponse({ expose: "coded", map: () => ({ code: "STORE_DOWN", message: "The store is down" }) }, requestOf(), decorated(), () => undefined);
+    const exposed = exposedResponse({ expose: "coded", map: () => ({ code: "STORE_DOWN", message: "The store is down" }) }, requestOf(), decorated(), { hidden: () => undefined });
     expect(exposed.status).toMatchObject({ code: "STORE_DOWN", message: "The store is down" });
     expect(exposed.metadata).toEqual({ traceparent, tracestate });
   });
@@ -656,7 +657,7 @@ describe("the link to the real error (CLI-80)", () => {
     const response = errorResponse(request.id, new StoreError("relation users_v2 does not exist", "users_v2"), request);
     // A timeout wrapper replaced the error: the code and the message are of another error
     const replaced: ServerResponse = { ...response, status: { type: "error", code: "TIMEOUT", message: "The call took too long", retryable: true } };
-    exposedResponse({ map: (error) => void seen.push(error) }, request, replaced, () => undefined);
+    exposedResponse({ map: (error) => void seen.push(error) }, request, replaced, { hidden: () => undefined });
     expect(seen).toHaveLength(1);
     expect(seen[0]).toBeInstanceOf(ServerError);
     expect(seen[0]).toMatchObject({ code: "TIMEOUT", message: "The call took too long", retryable: true });
@@ -668,7 +669,7 @@ describe("the logger gets each error one time (CLI-80)", () => {
     const logged: unknown[] = [];
     const log = (error: unknown): void => void logged.push(error);
     const real = new Error(MONGO_MESSAGE);
-    const response = exposedResponse({ expose: "coded" }, requestOf(), { id: "s2", status: { type: "success", code: 200 }, metadata: {}, stream: failingAfterOne(real) }, log);
+    const response = exposedResponse({ expose: "coded" }, requestOf(), { id: "s2", status: { type: "success", code: 200 }, metadata: {}, stream: failingAfterOne(real) }, { hidden: log });
     const thrown = await endOf(response.stream!);
     expect(thrown).toMatchObject({ ...HIDDEN, retryable: false });
     // A face that gives the error to its last-resort catch: no second log

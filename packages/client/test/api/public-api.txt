@@ -2258,6 +2258,7 @@ export interface WriteNdjsonStreamOptions {
     readonly keepAlive?: Duration | false | undefined;
     readonly errorOf?: ((error: unknown, items: number) => NdjsonError) | undefined;
     readonly clock?: Clock | undefined;
+    readonly retryableOnStop?: boolean | undefined;
 }
 
 ### dist/adapters/http/server/ndjson.d.ts#writeNdjsonStream
@@ -4205,7 +4206,7 @@ export declare function effectsOf(procedure: {
 }): Effects | undefined;
 
 ### dist/procedures/capability.d.ts#examinesNestedCall
-export declare function examinesNestedCall(caller: AnyProcedure, callerCapability: Capability<unknown>, capability: Capability<unknown>): boolean;
+export declare function examinesNestedCall(caller: AnyProcedure, callerCapability: Capability<unknown>, capability: Capability<unknown>, callee?: AnyProcedure): boolean;
 
 ### dist/procedures/capability.d.ts#explainInvocation
 export declare function explainInvocation(path: ProcedurePath, capability: Capability<unknown> | undefined, registry: {
@@ -5237,6 +5238,7 @@ export interface InvokeOptions {
     clearanceOrder?: ClearanceOrder | undefined;
     resources?: ((invocation: Invocation) => ResourcesOf) | undefined;
     admitItem?: AdmitItem | undefined;
+    admitNested?: ((invocation: Invocation) => Promise<void> | void) | undefined;
     principal?: Principal | undefined;
 }
 
@@ -5830,6 +5832,7 @@ export declare class ProcedureRegistry {
 ### dist/procedures/registry.d.ts#ProcedureRegistryOptions
 export interface ProcedureRegistryOptions {
     resolver?: RegistryResolver | undefined;
+    logger?: Logger | undefined;
 }
 
 ### dist/procedures/registry.d.ts#RegistryError
@@ -6329,6 +6332,7 @@ export interface HostPolicy {
     readonly interceptors: readonly Interceptor[];
     readonly token: string | undefined;
     readonly principalOf?: PrincipalOf | undefined;
+    readonly trustBaggage?: ((request: ServerRequest<unknown>) => boolean) | undefined;
     readonly browser: BrowserGuardOptions;
     readonly capabilityOf: ((request?: ServerRequest<unknown>) => Capability | undefined) | undefined;
     readonly clearanceOrder: ClearanceOrder | undefined;
@@ -6348,6 +6352,7 @@ export interface HostPolicyOptions {
     interceptors?: readonly Interceptor[] | undefined;
     token?: string | undefined;
     principalOf?: PrincipalOf | undefined;
+    trustBaggage?: ((request: ServerRequest<unknown>) => boolean) | undefined;
     browser?: BrowserGuardOptions | undefined;
     capability?: Capability | ((request: ServerRequest<unknown>) => Capability | undefined) | undefined;
     readOnly?: boolean | undefined;
@@ -6404,6 +6409,8 @@ export interface CallLimit {
     readonly policy: LimitPolicy;
     readonly store: LimiterStoreSpec;
     readonly evict: LimiterEviction;
+    readonly cost?: number | ((call: LimitedCall) => number) | undefined;
+    readonly nested?: boolean | undefined;
 }
 
 ### dist/server/limits.d.ts#CallLimitCovers
@@ -6428,6 +6435,8 @@ export interface LimitedCall {
     readonly writes: boolean;
     readonly principal: Principal | undefined;
     readonly request: ServerRequest<unknown>;
+    readonly depth: number;
+    readonly input: unknown;
 }
 
 ### dist/server/method.d.ts#methodName
@@ -6471,6 +6480,7 @@ export declare class ProcedureServer extends Server implements RepositoryProvide
     getRegistry(): ProcedureRegistry;
     hasProcedure(path: ProcedurePath): boolean;
     procedureOf(method: Method): AnyProcedure | undefined;
+    isRepeatableCall(method: Method): boolean;
     limiters(): readonly KeyedLimiter[];
     publish<T>(topic: string, data: T): void;
     closeStorages(): Promise<void>;
@@ -6683,6 +6693,7 @@ export interface RequestHandler {
     readonly ambientCredentials?: AmbientCredentials | undefined;
     identify?(credentials: Credentials): Promise<Principal | undefined>;
     admission?(credentials: Credentials): Promise<Admission>;
+    isRepeatableCall?(method: Method): boolean;
     readonly logger?: Logger | undefined;
 }
 
@@ -6886,6 +6897,7 @@ export interface ContractSpec {
     readonly errors?: ServerErrorPolicy | undefined;
     readonly onError?: ((error: Error) => void) | undefined;
     readonly sizeLimit?: number | undefined;
+    readonly limits?: readonly CallLimit[] | undefined;
 }
 
 ### dist/testing/transport-contract.d.ts#clientCaller

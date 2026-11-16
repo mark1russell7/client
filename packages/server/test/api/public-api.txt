@@ -34,6 +34,7 @@ TELEMETRY_FLUSH_PHASE: dist/host.d.ts#TELEMETRY_FLUSH_PHASE
 type TransportConfig: dist/types.d.ts#TransportConfig
 hostProcedures: dist/module.d.ts#hostProcedures
 loadProcedureModule: dist/run.d.ts#loadProcedureModule
+parseAllowedHosts: dist/config.d.ts#parseAllowedHosts
 parseConfig: dist/config.d.ts#parseConfig
 parseTopicPatterns: dist/config.d.ts#parseTopicPatterns
 registerServerProcedures: dist/module.d.ts#registerServerProcedures
@@ -67,6 +68,9 @@ serverModule: dist/module.d.ts#serverModule
 procedure-server: ./dist/cli.js
 
 ## Declarations
+
+### dist/config.d.ts#parseAllowedHosts
+export declare function parseAllowedHosts(value: string): string[] | "*";
 
 ### dist/config.d.ts#parseConfig
 export declare function parseConfig(argv: string[]): ServerConfig;
@@ -240,6 +244,7 @@ export interface ServerConfig {
     events?: string[] | undefined;
     fsRoot?: string | undefined;
     probePort?: number | undefined;
+    allowedHosts?: string[] | "*" | undefined;
 }
 
 ### dist/types.d.ts#ServerCreateResult

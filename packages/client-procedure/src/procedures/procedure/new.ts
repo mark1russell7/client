@@ -8,9 +8,10 @@
  * The scaffolded code compiles with the strict options of the workspace (deep dive CLI-13):
  * - the handler names its unused input `_input` (noUnusedParameters);
  * - types.ts is created, or gets `import * as z from "zod"`, when it needs it;
- * - the registration goes into the list that defineModule gets in src/module.ts: an array literal,
- *   or the array of a variable that module.ts declares. A package of the old kind, without
- *   module.ts, gets it in the registerProcedures([...]) array of src/register.ts.
+ * - the registration goes into the list that defineModule or definePackage gets in
+ *   src/module.ts: an array literal, or the array of a variable that module.ts declares. A
+ *   package of the old kind, without module.ts, gets it in the registerProcedures([...]) array
+ *   of src/register.ts.
  * A name whose path, file, types or registration exists already is an error, and nothing is
  * written. Before, "a.b.c" and "a.c" wrote the same file, and existing types were reused silently.
  * A module whose list procedure.new cannot find is an error too, and nothing is written.
@@ -356,7 +357,7 @@ function arrayDeclaration(source: string, name: string, mask: boolean[]): { stat
 }
 
 /** The argument of each call that holds the procedures */
-const LIST_ARGUMENT: Readonly<Record<string, number>> = { defineModule: 1, registerProcedures: 0, registerAll: 0 };
+const LIST_ARGUMENT: Readonly<Record<string, number>> = { defineModule: 1, definePackage: 1, registerProcedures: 0, registerAll: 0 };
 
 /** The source with the item in the list, and the place for the definition of the item */
 export interface RegistrationEdit {
@@ -373,19 +374,20 @@ function shortText(text: string): string {
 
 /**
  * Add an item to the list of procedures of the first defineModule("name", list),
- * registerProcedures(list) or registerAll(list) call. The list is an array literal, the variable of
- * an array that this file declares, or `[...variable]`. Gives the reason as an error when the
- * source has no such list. Before, the item went into the first array after the call, also when
- * that array was the argument of `registerModules` (the ics and geo packages).
+ * definePackage("name", list), registerProcedures(list) or registerAll(list) call. The list is an
+ * array literal, an array literal with a method call (`[...].map(fn)`, the git and pnpm packages),
+ * the variable of an array that this file declares, or `[...variable]`. Gives the reason as an
+ * error when the source has no such list. Before, the item went into the first array after the
+ * call, also when that array was the argument of `registerModules` (the ics and geo packages).
  */
 export function addToRegistration(source: string, item: string): RegistrationEdit | { error: string } {
   const mask = codeMask(source);
   // The first call in code, not in a comment or a string, and not the declaration of the function
-  const call = [...source.matchAll(/\b(defineModule|registerProcedures|registerAll)\s*\(/g)].find(
+  const call = [...source.matchAll(/\b(defineModule|definePackage|registerProcedures|registerAll)\s*\(/g)].find(
     (match) => mask[match.index] && !/\bfunction\s*$/.test(source.slice(0, match.index))
   );
   if (!call) {
-    return { error: "the file has no defineModule, registerProcedures or registerAll call" };
+    return { error: "the file has no defineModule, definePackage, registerProcedures or registerAll call" };
   }
   const fn = call[1]!;
   const args = callArguments(source, call.index + call[0].length - 1);
@@ -404,7 +406,8 @@ export function addToRegistration(source: string, item: string): RegistrationEdi
   const callStatement = anchor && anchor.index <= call.index ? anchor.index : statementStart(source, call.index);
 
   let target: { open: number; before: number } | undefined;
-  if (text.startsWith("[") && closingBracket(source, list.start) === list.end - 1) {
+  const close = text.startsWith("[") ? closingBracket(source, list.start) : -1;
+  if (close !== -1 && close === list.end - 1) {
     // [...variable]: the item goes into the array of the variable, when this file declares it
     const spread = /^\[\s*\.\.\.\s*([A-Za-z_$][\w$]*)\s*,?\s*\]$/.exec(text);
     const declared = spread ? arrayDeclaration(source, spread[1]!, mask) : undefined;
@@ -415,6 +418,9 @@ export function addToRegistration(source: string, item: string): RegistrationEdi
       return { error: `${fn} gets "${text}", and this file does not declare "${text}" as an array` };
     }
     target = { open: declared.open, before: declared.statement };
+  } else if (close !== -1 && close < list.end && /^\s*\.\s*[A-Za-z_$][\w$]*\s*\(/.test(source.slice(close + 1, list.end))) {
+    // [...].map(fn): the item goes into the array, so that the method gets it as each other item
+    target = { open: list.start, before: callStatement };
   } else {
     return { error: `${fn} gets "${shortText(text)}", which is not an array or a variable of this file` };
   }

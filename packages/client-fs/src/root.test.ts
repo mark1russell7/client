@@ -6,9 +6,9 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, parse, sep } from "node:path";
+import { join, parse, relative, sep } from "node:path";
 import {
   Client,
   InvocationError,
@@ -27,7 +27,8 @@ import {
   type ProcedureRegistry,
 } from "@procedures/client";
 import { confineFsProcedures, createFsModule, fsModule, registerFsProcedures } from "./module.js";
-import { OUTSIDE_ROOT, isInside, isOutsideRoot } from "./root.js";
+import { SYSTEM_LINK_RULE, linkDestination, linkRuleOf, type LinkRule } from "./link-target.js";
+import { OUTSIDE_ROOT, isInside, isOutsideRoot, realPathOf, resolveRoot } from "./root.js";
 import type { ExistsOutput, GlobOutput, ReadOutput, ReaddirOutput, WriteOutput } from "./types.js";
 
 const WINDOWS = process.platform === "win32";
@@ -326,6 +327,264 @@ describe("symlinks and junctions", () => {
     await refusal("fs.write", { path: "dangling.txt", content: "planted" });
     expect(existsSync(join(outside, "planted.txt"))).toBe(false);
     expect(readFileSync(join(outside, "secret.txt"), "utf8")).toBe("secret");
+  });
+});
+
+/**
+ * A table of links with relative targets. Each row makes its folders and links in the temporary
+ * folder `base`, and names a path in the root. `lands` gives the file that a write through the
+ * path makes, relative to `base`, by each rule of `link-target.ts`: `folders` (POSIX) and `text`
+ * (Windows). The targets are literal text with the separator of the system: `path.join` would
+ * remove a name before `..`.
+ */
+interface LinkLayout {
+  name: string;
+  /** The folders to make, relative to `base`. */
+  make: readonly string[];
+  /** The links to make, in order. A target is a list of names, or an absolute path in `base`. */
+  links: ReadonlyArray<{ at: string; to: readonly string[] | { absolute: string }; kind: "file" | "dir" }>;
+  /** The path to write through, relative to `base`. */
+  path: string;
+  lands: Record<LinkRule, string>;
+}
+
+const LINK_LAYOUTS: readonly LinkLayout[] = [
+  {
+    name: "../../name: up two folders, out of the root",
+    make: [],
+    links: [{ at: "root/sub/l", to: ["..", "..", "row1"], kind: "file" }],
+    path: "root/sub/l",
+    lands: { folders: "row1", text: "row1" },
+  },
+  {
+    name: "name/../name, where the first name is a link to a folder outside",
+    make: ["outside/far"],
+    links: [
+      { at: "root/up", to: ["..", "outside", "far"], kind: "dir" },
+      { at: "root/l", to: ["up", "..", "row2"], kind: "file" },
+    ],
+    path: "root/l",
+    lands: { folders: "outside/row2", text: "root/row2" },
+  },
+  {
+    name: "a/../../x, where a is a link to a deep folder in the root",
+    make: ["root/deep/deeper"],
+    links: [
+      { at: "root/a", to: ["deep", "deeper"], kind: "dir" },
+      { at: "root/l", to: ["a", "..", "..", "row3"], kind: "file" },
+    ],
+    path: "root/l",
+    lands: { folders: "root/row3", text: "row3" },
+  },
+  {
+    name: "an absolute target outside",
+    make: [],
+    links: [{ at: "root/l", to: { absolute: "outside/row4" }, kind: "file" }],
+    path: "root/l",
+    lands: { folders: "outside/row4", text: "outside/row4" },
+  },
+  {
+    name: "a chain of two links",
+    make: [],
+    links: [
+      { at: "root/l1", to: ["l2"], kind: "file" },
+      { at: "root/l2", to: ["..", "outside", "row5"], kind: "file" },
+    ],
+    path: "root/l1",
+    lands: { folders: "outside/row5", text: "outside/row5" },
+  },
+  {
+    name: "a target through a link to a folder outside",
+    make: [],
+    links: [
+      { at: "root/door", to: ["..", "outside"], kind: "dir" },
+      { at: "root/l", to: ["door", "row6"], kind: "file" },
+    ],
+    path: "root/l",
+    lands: { folders: "outside/row6", text: "outside/row6" },
+  },
+  {
+    name: "a path through a link to a folder: the target starts at the real folder of the link",
+    make: ["root/r/a/b/c", "root/r/top"],
+    links: [
+      { at: "root/r/a/b/c/l", to: ["..", "..", "..", "top"], kind: "dir" },
+      { at: "root/r/top/d", to: ["..", "..", "..", "row7"], kind: "file" },
+    ],
+    path: "root/r/a/b/c/l/d",
+    lands: { folders: "row7", text: "row7" },
+  },
+  {
+    name: "a link to a missing file in the root",
+    make: [],
+    links: [{ at: "root/sub/l", to: ["..", "row8"], kind: "file" }],
+    path: "root/sub/l",
+    lands: { folders: "root/row8", text: "root/row8" },
+  },
+  {
+    name: "a path through a link to a folder, to a missing file in the root",
+    make: ["root/r/a/b/c", "root/r/top"],
+    links: [
+      { at: "root/r/a/b/c/l", to: ["..", "..", "..", "top"], kind: "dir" },
+      { at: "root/r/top/ok", to: ["..", "row9"], kind: "file" },
+    ],
+    path: "root/r/a/b/c/l/ok",
+    lands: { folders: "root/r/row9", text: "root/r/row9" },
+  },
+];
+
+/** The absolute path of a path of the table, relative to `base`. */
+function inBase(path: string): string {
+  return join(base, ...path.split("/"));
+}
+
+function makeLayout(layout: LinkLayout): void {
+  for (const folder of layout.make) mkdirSync(inBase(folder), { recursive: true });
+  for (const link of layout.links) {
+    const target = Array.isArray(link.to) ? link.to.join(sep) : inBase((link.to as { absolute: string }).absolute);
+    symlinkSync(target, inBase(link.at), link.kind);
+  }
+}
+
+/**
+ * The files in `base` with this content. The search does not follow a link. It starts at the real
+ * path of `base`, as `fromBase` does: on Windows, `base` can have a short 8.3 name.
+ */
+function filesWith(content: string, folder: string = realpathSync.native(base)): string[] {
+  const found: string[] = [];
+  for (const entry of readdirSync(folder, { withFileTypes: true })) {
+    const path = join(folder, entry.name);
+    if (entry.isDirectory()) found.push(...filesWith(content, path));
+    else if (entry.isFile() && readFileSync(path, "utf8") === content) found.push(path);
+  }
+  return found;
+}
+
+/** A real path as a path of the table: relative to the real path of `base`, with `/`. */
+function fromBase(path: string): string {
+  const rel = relative(realpathSync.native(base), path).split(sep).join("/");
+  return WINDOWS ? rel.toLowerCase() : rel;
+}
+
+describe("linkDestination", () => {
+  it("follows the real folders with the rule folders, and reads the target as text with the rule text", async () => {
+    mkdirSync(join(root, "deep", "deeper"), { recursive: true });
+    linkFolder(join(root, "deep", "deeper"), join(root, "a"));
+    const real = realpathSync.native(root);
+    // The link itself does not have to exist: the function reads only its folder
+    const link = join(root, "l");
+    const target = ["a", "..", "x"].join(sep);
+    expect(await linkDestination(link, target, "folders")).toBe(join(real, "deep", "x"));
+    expect(await linkDestination(link, target, "text")).toBe(join(real, "x"));
+    expect(await linkDestination(link, ["a", "y"].join(sep), "folders")).toBe(join(real, "deep", "deeper", "y"));
+    expect(await linkDestination(link, ["a", "y"].join(sep), "text")).toBe(join(real, "a", "y"));
+    expect(await linkDestination(link, join(outside, "z"), "folders")).toBe(join(realpathSync.native(outside), "z"));
+    expect(await linkDestination(link, join(outside, "z"), "text")).toBe(join(outside, "z"));
+  });
+});
+
+describe("the rule of a system", () => {
+  it("is text on Windows and folders on each other system", () => {
+    expect(linkRuleOf("win32")).toBe("text");
+    expect(linkRuleOf("linux")).toBe("folders");
+    expect(linkRuleOf("darwin")).toBe("folders");
+    expect(SYSTEM_LINK_RULE).toBe(linkRuleOf(process.platform));
+  });
+});
+
+/** The error of a call, or undefined when the call resolves. */
+async function failure(key: string, input: unknown): Promise<unknown> {
+  return call(key, input).then(
+    () => undefined,
+    (thrown: unknown) => thrown,
+  );
+}
+
+/** The error of a promise, or undefined when it resolves. */
+async function rejection(promise: Promise<unknown>): Promise<NodeJS.ErrnoException | undefined> {
+  return promise.then(
+    () => undefined,
+    (thrown: unknown) => thrown as NodeJS.ErrnoException,
+  );
+}
+
+/** A chain of `count` file links in the root: `name0` leads to `name1`, and the last one to `end`. */
+function linkChain(name: string, count: number, end: string): void {
+  for (let index = 0; index < count; index++) {
+    symlinkSync(index === count - 1 ? end : `${name}${index + 1}`, join(root, `${name}${index}`), "file");
+  }
+}
+
+describe("targets that do not resolve, and the limit of links", () => {
+  it("keeps a missing folder of a target, and a name under a file, as they are", async () => {
+    const real = realpathSync.native(root);
+    const link = join(root, "l");
+    expect(await linkDestination(link, ["no-folder", "x"].join(sep), "folders")).toBe(join(real, "no-folder", "x"));
+    // a.txt is a file: the system gives ENOTDIR for a name under it, and the check counts it as missing
+    expect(await linkDestination(link, ["a.txt", "y", "x"].join(sep), "folders")).toBe(join(real, "a.txt", "y", "x"));
+  });
+
+  it.skipIf(!FILE_LINKS)("refuses a self-link in a target, in a path and as the root, and writes nothing", async () => {
+    symlinkSync("self", join(root, "self"), "file");
+    symlinkSync("self-root", join(base, "self-root"), "dir");
+    const errors = {
+      target: await rejection(linkDestination(join(root, "l"), ["self", "x"].join(sep), "folders")),
+      path: await rejection(realPathOf(join(root, "self", "x"))),
+      root: await rejection(resolveRoot(join(base, "self-root"))),
+    };
+    expect(Object.values(errors).map((error) => error instanceof Error)).toEqual([true, true, true]);
+    // In each of the three cases, the code comes from fs.realpath of the system, not from this
+    // package: the target from realOrSame, the path and the root from the first realpath. POSIX
+    // gives ELOOP for a loop of links. Windows gave ELOOP in CI too, but the code comes from the
+    // translation of a system error by libuv, so only the rejection is asserted there.
+    if (!WINDOWS) expect(Object.values(errors).map((error) => error?.code)).toEqual(["ELOOP", "ELOOP", "ELOOP"]);
+    expect(await failure("fs.write", { path: join("self", "x"), content: "written" })).toBeDefined();
+    expect(filesWith("written")).toEqual([]);
+  });
+
+  it.skipIf(!FILE_LINKS)("follows a chain of 40 links, and refuses a chain of 41 with ELOOP", async () => {
+    linkChain("long", 40, "end40");
+    linkChain("over", 41, "end41");
+    expect(fromBase(await realPathOf(join(root, "long0")))).toBe("root/end40");
+    expect(await rejection(realPathOf(join(root, "over0")))).toMatchObject({ code: "ELOOP" });
+    await call<WriteOutput>("fs.write", { path: "long0", content: "written" });
+    expect(filesWith("written").map(fromBase)).toEqual(["root/end40"]);
+    expect(await failure("fs.write", { path: "over0", content: "over" })).toBeDefined();
+    expect(filesWith("over")).toEqual([]);
+  });
+});
+
+describe.skipIf(!FILE_LINKS)("the rule of links against the system (skipped where the system refuses to make a symlink)", () => {
+  it.each(LINK_LAYOUTS)("realPathOf gives the file that a write with node:fs makes: $name", async (layout) => {
+    makeLayout(layout);
+    const path = inBase(layout.path);
+    const predicted = await realPathOf(path);
+    writeFileSync(path, "probe");
+    expect({ rule: SYSTEM_LINK_RULE, made: filesWith("probe").map(fromBase) }).toEqual({ rule: SYSTEM_LINK_RULE, made: [layout.lands[SYSTEM_LINK_RULE]] });
+    expect(fromBase(predicted)).toBe(layout.lands[SYSTEM_LINK_RULE]);
+  });
+});
+
+describe.skipIf(!FILE_LINKS)("links with relative targets through the procedures (skipped where the system refuses to make a symlink)", () => {
+  it.each(LINK_LAYOUTS)("fs.write and the destination of fs.copy write in the root only: $name", async (layout) => {
+    makeLayout(layout);
+    const lands = layout.lands[SYSTEM_LINK_RULE];
+    const input = layout.path.slice("root/".length);
+    if (lands.startsWith("root/")) {
+      await call<WriteOutput>("fs.write", { path: input, content: "written" });
+      expect(filesWith("written").map(fromBase)).toEqual([lands]);
+    } else {
+      await refusal("fs.write", { path: input, content: "written" });
+      expect(filesWith("written")).toEqual([]);
+    }
+    writeFileSync(join(root, "copy-source.txt"), "copied");
+    if (lands.startsWith("root/")) {
+      await call("fs.copy", { src: "copy-source.txt", dest: input, overwrite: true });
+    } else {
+      await refusal("fs.copy", { src: "copy-source.txt", dest: input, overwrite: true });
+    }
+    const copies = filesWith("copied").map(fromBase);
+    expect(copies.every((copy) => copy.startsWith("root/"))).toBe(true);
+    expect(copies.length).toBe(lands.startsWith("root/") ? 2 : 1);
   });
 });
 

@@ -23,6 +23,7 @@ interface HostOptions {
   transports: Array<{ type: string; port: number; host: string; basePath?: string }>;
   token: string;
   events: string[];
+  allowedHosts?: string[] | "*";
 }
 
 const fake = vi.hoisted(() => ({
@@ -124,6 +125,18 @@ describe("startServerMode", () => {
     expect(text()).toContain("Event topics (events.subscribe): job.*");
     expect(text()).toContain("Refused under the root: 1");
     expect(text()).toContain("[probes]");
+  });
+
+  it("gives the names of --allowed-host to the host, and tells a LAN server about the option", async () => {
+    await startServerMode({ port: 3000 });
+    expect(fake.hostOptions).not.toHaveProperty("allowedHosts");
+    expect(text()).not.toContain("--allowed-host");
+    await startServerMode({ port: 3000, host: "0.0.0.0" });
+    expect(text()).toContain("needs --allowed-host <name>");
+    fake.lines = [];
+    await startServerMode({ port: 3000, host: "0.0.0.0", allowedHosts: ["box.lan"] });
+    expect(fake.hostOptions?.allowedHosts).toEqual(["box.lan"]);
+    expect(text()).not.toContain("needs --allowed-host");
   });
 
   it("gives the idle stop of --idle-timeout to the host, and shows it (CLI-27)", async () => {
