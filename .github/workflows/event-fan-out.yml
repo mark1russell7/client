@@ -133,7 +133,7 @@ jobs:
           pattern: event-fan-out-job-*
           merge-multiple: true
           path: packages/client/bench-out
-      # The report needs the A/A band of five cases or more, so only a run with all the cases makes it.
+      # The report pools the jobs. With fewer than 5 A/A cases, its field aa shows no read of the band.
       - name: Pool the jobs
         if: github.event_name != 'pull_request'
         working-directory: packages/client
@@ -150,7 +150,9 @@ jobs:
           path: packages/client/fan-out-report.json
           if-no-files-found: error
       # The growth gate: less than 24 times for each 10 times more subscribers. A no read is not a pass.
+      # The gate reads the job files, so it also runs when the report fails.
       - name: The growth gate
+        if: ${{ !cancelled() }}
         working-directory: packages/client
         run: node --import tsx bench/fan-out-gate.ts --jobs bench-out
 
