@@ -53,6 +53,7 @@ import { MANIFEST_FORMAT, describeProcedure as describeEntry, describeRegistry, 
 import type { JsonSchema } from "./schema.js";
 import { isRuntimeDefined, markRuntimeProgram, runtimeProgramOfHandler } from "./runtime-programs.js";
 import { InvocationError } from "./invoke.js";
+import { procedureMetadataFields } from "./metadata-fields.js";
 
 // Input schemas of procedure.define and procedure.delete (roadmap 2.1)
 const procedurePathField = z.array(z.string().min(1)).min(1);
@@ -65,7 +66,9 @@ const defineInputSchema = z.object({
       $name: z.string().optional().describe("A name that a $ref can read"),
     })
     .describe("The body of the procedure: a call ({ $proc, input }) that runs, as client.exec runs it, each time the procedure is called"),
-  metadata: z.record(z.string(), z.unknown()).optional().describe("The metadata of the procedure, for example { description, tags }"),
+  metadata: procedureMetadataFields
+    .optional()
+    .describe("The metadata of the procedure, for example { description, tags }. The fields of the framework have their types. A custom field keeps any value."),
   replace: z.boolean().optional().describe("Replace a procedure that procedure.define made at the same path (never a procedure of code)"),
 });
 const deleteInputSchema = z.object({
@@ -361,11 +364,11 @@ export const defineProcedureProcedure: Procedure<
       input: anySchema,
       output: anySchema,
       metadata: {
-        ...(metadata ?? {
-          description: `Runtime-defined aggregation procedure`,
-          generatedFrom: "procedure.define",
-          aggregation,
-        }),
+        ...(metadata ?? { description: `Runtime-defined aggregation procedure` }),
+        // The framework sets the source and the body after the metadata of the caller: a caller
+        // cannot remove them or give a false body
+        generatedFrom: "procedure.define",
+        aggregation,
         // No effects of its own, as client.chain: the admission examines each nested call of a
         // data-driven procedure. The framework sets it, so the metadata of a caller cannot claim less
         effects: PURE_EFFECTS,
