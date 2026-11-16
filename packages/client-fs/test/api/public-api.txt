@@ -98,6 +98,7 @@ type RootHoldMode: dist/root-hold.d.ts#RootHoldMode
 holdRoots: dist/root-hold.d.ts#holdRoots
 inRoot: dist/root.d.ts#inRoot
 isInside: dist/root.d.ts#isInside
+isOtherShare: dist/root.d.ts#isOtherShare
 isOutsideRoot: dist/root.d.ts#isOutsideRoot
 outsideRoot: dist/root.d.ts#outsideRoot
 realPathIsInside: dist/root.d.ts#realPathIsInside
@@ -348,6 +349,9 @@ export declare function inRoot(root: ResolvedRoot, path: string, procedure: Proc
 
 ### dist/root.d.ts#isInside
 export declare function isInside(folder: string, path: string): boolean;
+
+### dist/root.d.ts#isOtherShare
+export declare function isOtherShare(root: ResolvedRoot, absolute: string, platform?: NodeJS.Platform): boolean;
 
 ### dist/root.d.ts#isOutsideRoot
 export declare function isOutsideRoot(error: unknown): boolean;

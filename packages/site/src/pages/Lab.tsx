@@ -707,7 +707,7 @@ export function Lab(): ReactElement {
           “In” counts the requests that reached the layer. “On” counts how often it passed a request to the next layer: a retry
           passes one request on more than once, and a cache hit passes it on zero times.
         </p>
-        <div className="table-wrap">
+        <div className="table-wrap scroll-cue" tabIndex={0} role="region" aria-label="Each layer">
           <table className="schema lab-table">
             <thead>
               <tr>

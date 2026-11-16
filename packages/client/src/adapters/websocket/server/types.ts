@@ -74,16 +74,29 @@ export interface WebSocketServerTransportOptions extends Omit<BrowserGuardOption
 
   /**
    * The number of bytes that a connection can hold in its send buffer before a stream waits
-   * (deep dive TRN-3: before, a stream ran to its end whatever the reader did).
+   * (deep dive TRN-3: before, a stream ran to its end whatever the reader did). Above it, the
+   * server also stops reading the frames of the connection until the socket wrote the buffer down to
+   * the mark. Thus the send buffer of each connection stays near the mark.
    * @default 1 MiB
    */
   highWaterMark?: number;
 
   /**
+   * The largest number of bytes in the send buffer of a connection. A send that finds a larger
+   * buffer ends the connection: the peer does not read its frames. The check comes before each
+   * frame, so one large frame does not end a connection. Set it to bound the frames that the
+   * server sends with no request, for example `broadcast()`, also with the heartbeat off.
+   * @default no limit
+   */
+  maxBufferedBytes?: number;
+
+  /**
    * The heartbeat of the server: a WebSocket ping to each connection at each interval. A
    * connection that misses `misses` pongs one after the other is closed, so the server finds a
    * client that went silent (roadmap R3: before, only the client sent pings). Browsers and the
-   * `ws` client answer a ping without code. `false` turns it off.
+   * `ws` client answer a ping without code. While the reads of a connection are paused (the option
+   * `highWaterMark` gives the rule), a frame that the socket wrote since the last ping counts as the pong.
+   * `false` turns it off.
    * @default { interval: seconds(15), misses: 2 } (`TIMER_DEFAULTS.webSocketServer`)
    */
   heartbeat?: { interval?: Duration; misses?: number } | false;

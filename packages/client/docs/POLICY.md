@@ -94,7 +94,7 @@ The client middlewares (retry, cache, auth, circuit breaker, rate limit) wrap `t
 
 ## The policy of a host
 
-`hostPolicy()` (`server/host-policy.ts`) builds the policy of a host from one set of options: `expose` (patterns, a tool surface or a function), `exclude`, `strictCalls`, `timeoutMs`, more `interceptors`, and the `token` and `browser` checks of the network transports. `procedureServerOptions(policy, registry)` gives it to a `ProcedureServer`, and `createPeer({ policy })` of `client-server` gives it to a peer.
+`hostPolicy()` (`server/host-policy.ts`) builds the policy of a host from one set of options. The options are `expose`, `exclude`, `strictCalls`, `timeoutMs`, more `interceptors`, and the `token` and `browser` checks of the network transports. `expose` takes patterns, a tool surface or a function. `exclude` takes the patterns of `expose`. `procedureServerOptions(policy, registry)` gives it to a `ProcedureServer`, and `createPeer({ policy })` of `client-server` gives it to a peer.
 
 ```ts
 import { ProcedureServer, createRegistry, hostPolicy, procedureServerOptions } from "@procedures/client";

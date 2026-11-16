@@ -71,6 +71,15 @@ describe("parseConfig", () => {
     expect(() => parseConfig(["--fs-root"])).toThrow("--fs-root needs a value");
   });
 
+  it("reads the port 0 of the first transport and of the probes: each takes a free port", () => {
+    const config = parseConfig(["--port", "0", "--probe-port", "0", "-t", "http,websocket"]);
+    expect(config.transports).toEqual([
+      { type: "http", port: 0, host: "127.0.0.1", basePath: "/api" },
+      { type: "websocket", port: 3001, host: "127.0.0.1", path: "/ws" },
+    ]);
+    expect(config.probePort).toBe(0);
+  });
+
   it("reads the options in any order", () => {
     const config = parseConfig(["--cors", "--port=4000", "-t", "http,websocket", "--host", "::1", "-p", "a,b"]);
     expect(config.procedures).toEqual(["a", "b"]);
@@ -83,6 +92,7 @@ describe("parseConfig", () => {
   it("reports an invalid port, a missing value, an unknown transport and an unknown option", () => {
     expect(() => parseConfig(["--port", "abc"])).toThrow('Invalid port: "abc"');
     expect(() => parseConfig(["--port", "70000"])).toThrow('Invalid port: "70000"');
+    expect(() => parseConfig(["--port=-1"])).toThrow('Invalid port: "-1"');
     expect(() => parseConfig(["--port"])).toThrow("--port needs a value");
     expect(() => parseConfig(["--host", "--verbose"])).toThrow("--host needs a value");
     expect(() => parseConfig(["-t", "udp"])).toThrow('Unknown transport: "udp"');

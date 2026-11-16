@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
 // A Node without node:sqlite (before 22.13 without the flag): the import of the package works,
-// and the first read gives an error that names the Node version.
-vi.mock("node:sqlite", () => {
+// and the first read gives an error that names the Node version. The package loads node:sqlite
+// through @mark1russell7/sqlite, and that import fails on such a Node.
+vi.mock("@mark1russell7/sqlite", () => {
   throw new Error("No such built-in module: node:sqlite");
 });
 

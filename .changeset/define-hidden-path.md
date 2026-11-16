@@ -1,5 +1,6 @@
 ---
 "@procedures/client": minor
+"@procedures/store": patch
 ---
 
 Break: under the expose rule of a host, `procedure.define` makes a procedure only at an exposed path. A hidden path gets `NOT_EXPOSED`, also a free path. Before this release, a new procedure at a free hidden path was possible. This ends the deprecation of 0.60.1.
