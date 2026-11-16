@@ -1423,6 +1423,9 @@ importers:
 
   packages/geo:
     dependencies:
+      '@mark1russell7/geo':
+        specifier: ^0.3.1
+        version: 0.3.1
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -3585,6 +3588,10 @@ packages:
     resolution: {integrity: sha512-FiiKK/sAbp39ypGv+2XzYRc+s911pdCtu97UQ4LiKmQKHjqPiyocGO48r2YObucxUkQhnm9mCdkiQxW6rFjiAg==}
     engines: {node: '>=22'}
 
+  '@mark1russell7/geo@0.3.1':
+    resolution: {integrity: sha512-mpYSjKse66WZDS//8hBqsf7oLzZ9uI6XpG9bUibdtO4VOE4zprhFi+XlXc+CXowADo+efbRi3LqDFNog4MPB+g==}
+    engines: {node: '>=22.12'}
+
   '@mark1russell7/optional@1.2.0':
     resolution: {integrity: sha512-vS5jF21WC/VApRv4p8afRZahcMl9cuNp03LxbVngY9nYkzq+S7Oit6ksySt2baML+tp46UF60sxnHxn1jlwtTg==}
     engines: {node: '>=22.12'}
@@ -3599,6 +3606,10 @@ packages:
         optional: true
       '@opentelemetry/sdk-node':
         optional: true
+
+  '@mark1russell7/predicates@0.1.4':
+    resolution: {integrity: sha512-1lh7XAAejuygPdes/Ze4XV+p+CqxzLGRW9aUwavnSk5hhnc5YkhZN2rjz1ps7oEC9eImd2yfmbt6QKZktT4XPQ==}
+    engines: {node: '>=22'}
 
   '@mark1russell7/quantity@0.4.0':
     resolution: {integrity: sha512-TucM9+HtueZd+duKWeB3ClS3uIaS545eOF9dB+8kM7vlD0NVBIjQd4IaIzTsQabaPG3WnlPOLJuX8H8LyqrcAQ==}
@@ -7520,6 +7531,11 @@ snapshots:
 
   '@mark1russell7/files@0.0.3': {}
 
+  '@mark1russell7/geo@0.3.1':
+    dependencies:
+      '@mark1russell7/optional': 1.2.0
+      '@mark1russell7/predicates': 0.1.4
+
   '@mark1russell7/optional@1.2.0': {}
 
   '@mark1russell7/otel-ts@0.7.5(@opentelemetry/sdk-node@0.223.0(@opentelemetry/api@1.10.0)(supports-color@7.2.0))(supports-color@7.2.0)(vite@6.4.6(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))(zone.js@0.16.3)':
@@ -7551,6 +7567,8 @@ snapshots:
       - supports-color
       - vite
       - zone.js
+
+  '@mark1russell7/predicates@0.1.4': {}
 
   '@mark1russell7/quantity@0.4.0(zod@4.6.7)':
     dependencies:
