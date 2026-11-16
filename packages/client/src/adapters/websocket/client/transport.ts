@@ -756,6 +756,8 @@ export class WebSocketTransport implements Transport {
     const window = this.options.streamWindow;
 
     // Create WebSocket message. The internal metadata keys stay in this process (deep dive TRN-11).
+    // The key `auth` still goes in the frame, and the server drops it (roadmap R18). This is
+    // deprecated: a later MINOR stops sending it. The token of a connection goes in its upgrade.
     const wsMessage: WebSocketMessage<TReq> = {
       id: wireId,
       type: "request",
