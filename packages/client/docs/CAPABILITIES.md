@@ -46,7 +46,7 @@ An application adds its own names. The packages of this repository use these:
 | `server` | A server that a procedure starts or stops |
 | `collection:<name>` | One collection of `createCollectionProcedures()` |
 
-A procedure that starts one fixed program (`git status` starts `git`) does not declare `process`. It declares what that program reads and writes. Code of the project is not a fixed program: a test file, a build plugin, a package script and a git hook can do anything. So `vitest.run`, `vite.build`, `pnpm.install` and `git.commit` write `process`.
+A procedure that starts one fixed program (`git status` starts `git`) does not declare `process`. It declares what that program reads and writes. Code of the project is not a fixed program: a test file, a build plugin, a package script and a git hook can do anything. So `vitest.run`, `vite.build`, `pnpm.install` and `git.commit` write `process`. Under a capability without `process`, the other git procedures start no program of the repository: no hook, no `core.fsmonitor` and no filter. The rules are in [CAPABILITIES-2026-10.md](../../documentation/CAPABILITIES-2026-10.md#git-under-a-capability-without-process).
 
 `withEffects(effects, procedures)` gives one declaration to a group of procedures. `PURE_EFFECTS` (`reads: [], writes: []`) is the declaration of a procedure that only calculates.
 

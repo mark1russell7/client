@@ -7,6 +7,7 @@
 import { join, basename } from "node:path";
 import { gitArg } from "./args.js";
 import { git, type GitContext } from "./run.js";
+import { remoteUrlUnderGitLimits } from "./limits.js";
 import { pathInGitRoot, remoteUrlInGitRoot } from "./root.js";
 import type { GitCloneInput, GitCloneOutput } from "../../types.js";
 
@@ -21,7 +22,7 @@ export async function gitClone(input: GitCloneInput, ctx: GitContext = {}): Prom
   const fullPath = cwd ? join(cwd, destDir) : destDir;
   // Under a root, the folder of the clone is in the root, also when it comes from the URL ("..")
   await pathInGitRoot(fullPath);
-  remoteUrlInGitRoot(url);
+  remoteUrlUnderGitLimits(remoteUrlInGitRoot(url));
 
   const args: string[] = ["clone"];
   if (branch) args.push("-b", branch);

@@ -262,6 +262,19 @@ export function capabilityRefusal(
 }
 
 /**
+ * True when a capability permits each resource that `effects` names. No capability, or no field
+ * of a kind, permits everything of that kind. A procedure uses it to decide a step at run time,
+ * for example a step that starts a program only when the call permits `process`.
+ */
+export function permitsEffects(capability: Capability<unknown> | undefined, effects: Pick<Effects, "reads" | "writes">): boolean {
+  const permitted = capability?.effects;
+  if (!permitted) return true;
+  const covers = (allowed: readonly string[] | "any" | undefined, names: readonly string[] | undefined): boolean =>
+    allowed === undefined || allowed === "any" || (names ?? []).every((name) => allowed.includes(name));
+  return covers(permitted.reads, effects.reads) && covers(permitted.writes, effects.writes);
+}
+
+/**
  * True when the admission examines a nested call. The admission skips only a declared edge: a
  * procedure of code with declared effects calls a procedure that an entry of its `metadata.calls`
  * names, with the same capability, and the effects of the callee are in the declaration of the

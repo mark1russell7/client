@@ -7,6 +7,7 @@
 
 import { gitArg } from "./args.js";
 import { git, GitError, type GitContext } from "./run.js";
+import { remoteUrlUnderGitLimits } from "./limits.js";
 import { remoteUrlInGitRoot } from "./root.js";
 import type { GitRemoteInput, GitRemoteOutput, GitRemoteSetInput } from "../../types.js";
 
@@ -22,7 +23,7 @@ export async function gitRemoteSet(input: GitRemoteSetInput, ctx: GitContext = {
   const { name, url, cwd } = input;
   const run = { cwd, signal: ctx.signal };
   // Under a root, a URL that starts a remote helper is refused
-  remoteUrlInGitRoot(url);
+  remoteUrlUnderGitLimits(remoteUrlInGitRoot(url));
   try {
     await git(["remote", "set-url", gitArg("name", name), gitArg("url", url)], run);
   } catch (error) {
