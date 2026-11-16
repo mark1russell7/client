@@ -196,6 +196,9 @@ importers:
       '@mark1russell7/rigor-statistics':
         specifier: ^0.1.2
         version: 0.1.29
+      '@mark1russell7/service':
+        specifier: ^0.8.3
+        version: 0.8.9(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.2)(zod@4.6.7)
       '@mark1russell7/ste-lint':
         specifier: ^0.3.0
         version: 0.3.2
@@ -1070,9 +1073,6 @@ importers:
       '@mark1russell7/files':
         specifier: ^0.0.3
         version: 0.0.3
-      '@mark1russell7/service':
-        specifier: ^0.8.3
-        version: 0.8.9(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.2)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1083,6 +1083,9 @@ importers:
       '@mark1russell7/cue':
         specifier: ^2.1.1
         version: 2.1.4
+      '@mark1russell7/service':
+        specifier: ^0.9.0
+        version: 0.9.1(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.2)(zod@4.6.7)
       '@modelcontextprotocol/sdk':
         specifier: ^1.32.1
         version: 1.32.2(supports-color@7.2.0)(zod@4.6.7)
@@ -1529,9 +1532,6 @@ importers:
 
   packages/impl-mcp-dev:
     dependencies:
-      '@mark1russell7/service':
-        specifier: ^0.8.3
-        version: 0.8.9(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.2)(zod@4.6.7)
       '@procedures/bundle-mcp':
         specifier: workspace:*
         version: link:../bundle-mcp
@@ -1551,6 +1551,9 @@ importers:
       '@mark1russell7/cue':
         specifier: ^2.1.1
         version: 2.1.4
+      '@mark1russell7/service':
+        specifier: ^0.9.0
+        version: 0.9.1(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.2)(zod@4.6.7)
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -2078,9 +2081,6 @@ importers:
 
   packages/server:
     dependencies:
-      '@mark1russell7/service':
-        specifier: ^0.8.3
-        version: 0.8.9(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.2)(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -2097,6 +2097,9 @@ importers:
       '@mark1russell7/cue':
         specifier: ^2.1.1
         version: 2.1.4
+      '@mark1russell7/service':
+        specifier: ^0.9.0
+        version: 0.9.1(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.2)(zod@4.6.7)
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -3542,6 +3545,15 @@ packages:
       zod:
         optional: true
 
+  '@mark1russell7/algebra@0.9.2':
+    resolution: {integrity: sha512-YGju+o3GOyR/7ttQdQ7MwMa16VjtbE95NG5cHFpOVUnbw0A7jCxV14hdhFFBtFdO6a4YJKJMKC9VSIMJAjT0sg==}
+    engines: {node: '>=22.19'}
+    peerDependencies:
+      zod: ^4.1.0
+    peerDependenciesMeta:
+      zod:
+        optional: true
+
   '@mark1russell7/api-report@0.5.8':
     resolution: {integrity: sha512-HS395EG0QBs2uA4EZ8gLak2m6YMqkC8XqPagNuE36uY8F6YZmb9Xz5SEr52Gv/6fb6J8JTXpw/zfkZeDAXcdHQ==}
     engines: {node: '>=22'}
@@ -3620,6 +3632,15 @@ packages:
       zod:
         optional: true
 
+  '@mark1russell7/quantity@0.4.1':
+    resolution: {integrity: sha512-L3yZOBpJ1ZMd9CWSLVhz/pJOAQVnN68xpg2sAzHdQiyeOsgG8D3sTDIRIVJ4mTjasJfPQfgcpu8y2txQcS6u4w==}
+    engines: {node: '>=22.19'}
+    peerDependencies:
+      zod: ^4.1.0
+    peerDependenciesMeta:
+      zod:
+        optional: true
+
   '@mark1russell7/rational@0.1.2':
     resolution: {integrity: sha512-hn2C5jjOFCGKJqFQPHt57C/Cn1l9Lb9MltVNtL71KSu+nRrfPOmg8ujYB5n3oDFFWNdNA4bE/8LLT4tG3lmrGA==}
     engines: {node: '>=22'}
@@ -3680,6 +3701,36 @@ packages:
 
   '@mark1russell7/service@0.8.9':
     resolution: {integrity: sha512-QIEkSnv8FYymP1ymiIUizu3G4tkgTKEpNLaKRZlUgTbqruhdy5GsPiKmTfSMGsSialbQ/A/E1kMiZs2gNDnTVw==}
+    engines: {node: '>=22.19'}
+    peerDependencies:
+      '@grpc/grpc-js': ^1.14.6
+      '@opentelemetry/api': ^1.9.0
+      amqplib: ^2.2.0
+      ioredis: ^6.0.0
+      mongodb: ^7.7.0
+      pg: ^8.23.1
+      ws: ^8.22.0
+      zod: ^4.1.0
+    peerDependenciesMeta:
+      '@grpc/grpc-js':
+        optional: true
+      '@opentelemetry/api':
+        optional: true
+      amqplib:
+        optional: true
+      ioredis:
+        optional: true
+      mongodb:
+        optional: true
+      pg:
+        optional: true
+      ws:
+        optional: true
+      zod:
+        optional: true
+
+  '@mark1russell7/service@0.9.1':
+    resolution: {integrity: sha512-GNIgcU277+WK/4+4J2f/+6AZPFh3ebS4SpfpdjU7Kgwu4B/225mrDL/qiRUMWIxdUMvf3XwAd9dxKHJi2ftVaw==}
     engines: {node: '>=22.19'}
     peerDependencies:
       '@grpc/grpc-js': ^1.14.6
@@ -7486,6 +7537,12 @@ snapshots:
     optionalDependencies:
       zod: 4.6.7
 
+  '@mark1russell7/algebra@0.9.2(zod@4.6.7)':
+    dependencies:
+      '@mark1russell7/quantity': 0.4.1(zod@4.6.7)
+    optionalDependencies:
+      zod: 4.6.7
+
   '@mark1russell7/api-report@0.5.8':
     dependencies:
       '@mark1russell7/conventions': 0.42.0
@@ -7576,6 +7633,12 @@ snapshots:
     optionalDependencies:
       zod: 4.6.7
 
+  '@mark1russell7/quantity@0.4.1(zod@4.6.7)':
+    dependencies:
+      '@mark1russell7/rational': 0.1.2
+    optionalDependencies:
+      zod: 4.6.7
+
   '@mark1russell7/rational@0.1.2': {}
 
   '@mark1russell7/rigor-bench@0.2.38(esbuild@0.28.2)':
@@ -7627,6 +7690,21 @@ snapshots:
       '@mark1russell7/quantity': 0.4.0(zod@4.6.7)
       '@mark1russell7/rigor-generators': 0.1.16
       '@mark1russell7/text': 0.0.5
+    optionalDependencies:
+      '@grpc/grpc-js': 1.14.7
+      '@opentelemetry/api': 1.10.0
+      mongodb: 7.8.0(socks@2.8.10)
+      ws: 8.22.2
+      zod: 4.6.7
+
+  '@mark1russell7/service@0.9.1(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(mongodb@7.8.0(socks@2.8.10))(ws@8.22.2)(zod@4.6.7)':
+    dependencies:
+      '@mark1russell7/algebra': 0.9.2(zod@4.6.7)
+      '@mark1russell7/collections': 0.11.1(zod@4.6.7)
+      '@mark1russell7/quantity': 0.4.1(zod@4.6.7)
+      '@mark1russell7/rational': 0.1.2
+      '@mark1russell7/rigor-generators': 0.1.16
+      '@mark1russell7/text': 0.0.6
     optionalDependencies:
       '@grpc/grpc-js': 1.14.7
       '@opentelemetry/api': 1.10.0
