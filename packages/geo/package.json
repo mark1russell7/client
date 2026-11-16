@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/geo",
-  "version": "0.59.0",
+  "version": "0.59.1",
   "description": "Map procedures: the coordinates of an address (OpenStreetMap Nominatim), the time and distance of a drive (OSRM), the great-circle distance and the geohash.",
   "keywords": [
     "geocode",
@@ -76,6 +76,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@mark1russell7/geo": "^0.3.1",
     "@procedures/client": "workspace:*",
     "zod": "^4.6.5"
   },

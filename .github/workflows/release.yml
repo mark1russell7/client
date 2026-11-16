@@ -1,21 +1,48 @@
 name: Release
 
-# Changesets: when changesets wait, this workflow opens a pull request with the new versions and
-# change logs. When no changeset waits, it publishes each package version that is not on npm, with
-# provenance. The public packages have one version together (.changeset/config.json, "fixed").
-# The pull request needs the setting "Allow GitHub Actions to create and approve pull requests".
-# Without it, start `pnpm changeset version` locally, commit the result, and then start this
-# workflow to publish.
+# Changesets: when changesets wait, a start by hand opens a pull request with the new versions and
+# change logs. The merge of that pull request to main starts this workflow, and the run publishes
+# each package version that is not on npm, with provenance. The public packages have one version
+# together (.changeset/config.json, "fixed"). The pull request needs the setting "Allow GitHub
+# Actions to create and approve pull requests". Without it, start `pnpm changeset version`
+# locally on a branch release/<version>, and merge its pull request to main.
+#
+# A person merges the version pull request, or turns on its auto-merge. GitHub starts no workflow
+# for a push that the GITHUB_TOKEN of a workflow makes: a merge by a bot with that token publishes
+# nothing, and no run tells why. Then start release.yml by hand on main.
+#
+# Two events start a run:
+#
+#   push            A push to main that changes packages/client/package.json. When the version in
+#                   that file is not the version before the push, the commit is a version
+#                   commit, and the run publishes the versions of that commit. It publishes them
+#                   also when a newer changeset waits at that commit. For a different change of the
+#                   file (a dependency), the run stops after the job "gate".
+#   dispatch        A start by hand (workflow_dispatch), as before: when changesets wait, the run
+#                   opens or updates the version pull request. Else it publishes each version that
+#                   is not on npm. Use it to open the version pull request, and to publish a commit
+#                   that is not a version commit.
 #
 # The jobs follow the security pattern of the release of mark1russell7/template (its CI.md):
 #
-#   build           Stops when the commit has no green CI run or is not on main. Installs, builds
-#                   and does the checks. When changesets wait, it opens or updates the version pull
-#                   request, and the run stops there. Else scripts/publish-ci.mjs packs each version
-#                   that is not on npm (the artifact "release") and writes the plan of the GitHub
-#                   releases (the artifact "tags"). This job runs the code of this repository, so it
-#                   gets no OIDC token. "contents: write" and "pull-requests: write" are only for
-#                   the version pull request.
+#   gate            Gives the kind of the run: "version-commit", "none" (a push that does not
+#                   change the version, then no other job starts) or "dispatch". It reads the
+#                   version of the commit and of main before the push with the GitHub API. A
+#                   changed version must come from the merge of a version pull request (the branch
+#                   changeset-release/main or release/<version>), else the run stops with an error.
+#                   It holds only "contents: read" and "pull-requests: read" and runs no code of
+#                   this repository: no checkout.
+#   ci              Stops when the commit has no green CI run. In a push run, it first waits for
+#                   the CI run of the commit, which starts at the same time as this run. It holds
+#                   only "actions: read" and runs no code of this repository.
+#   build           Stops when the commit is not on main. Installs, builds and does the checks. In
+#                   a dispatch run with changesets, it opens or updates the version pull request,
+#                   and the run stops there. Else scripts/publish-ci.mjs packs each version that is
+#                   not on npm (the artifact "release") and writes the plan of the GitHub releases
+#                   (the artifact "tags"). A version-commit run does not start the Changesets
+#                   action, so it packs the versions of its commit. This job runs the code of this
+#                   repository, so it gets no OIDC token. "contents: write" and "pull-requests:
+#                   write" are only for the version pull request.
 #   publish         The npm-publish action of the template publishes each tarball whose version npm
 #                   does not have. Only this job holds "id-token: write". It runs no code of this
 #                   repository: no checkout, no install, no package scripts.
@@ -25,8 +52,12 @@ name: Release
 #   latest          Makes the release of @procedures/client the latest one. It holds
 #                   "contents: write" and runs no code of this repository.
 #
-# The owner starts it by hand (workflow_dispatch): that start is the approval. npm trusts this
-# workflow for each package (trusted publishing with OIDC, no token): node scripts/npm-bootstrap.mjs --trust
+# The approval of a publish is the merge of a version commit to main, or a start by hand. Only a
+# person who can write to main can do either. A maintainer merges the version pull request when
+# its checks are green, and the merge publishes. The owner keeps a new package (its bootstrap and
+# first publish), the trust changes on npm and the repair of a failed release. npm trusts this
+# workflow for each package (trusted publishing with OIDC, no token):
+# node scripts/npm-bootstrap.mjs --trust
 # packages/documentation/RELEASE.md tells the one-time bootstrap and the release steps.
 #
 # The publish job stays in this file, and only its steps are shared (a composite action). The
@@ -43,6 +74,10 @@ name: Release
 # The release session moves the pins of the template (mark1russell7/template/...@<commit> # main).
 # Renovate does not change this file (renovate/base.json of the template).
 on:
+  # Also a dependency change of the file starts a run. The job "gate" stops it.
+  push:
+    branches: [main]
+    paths: [packages/client/package.json]
   workflow_dispatch:
     inputs:
       new-packages:
@@ -53,23 +88,160 @@ on:
 
 permissions: {}
 
+# One run at a time, in the order of the starts. Without "queue", a group keeps one waiting run,
+# and a newer run cancels the run that waits, also with cancel-in-progress: false. Then a push to
+# main can cancel the waiting run of a version commit, and its versions do not get published.
+# With "queue: max", up to 100 runs wait in the group, and a newer run cancels no run (the GitHub
+# documentation, "Control the concurrency of workflows and jobs"). A push that does not change the
+# version also waits for its turn, and then stops after the job "gate".
 concurrency:
   group: release
   cancel-in-progress: false
+  queue: max
 
 defaults:
   run:
     shell: bash
 
 jobs:
+  gate:
+    name: Version commit or not
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      # The two versions of packages/client/package.json, from the GitHub API
+      contents: read
+      # The pull request that made the commit: a version commit must come from a version pull request
+      pull-requests: read
+    outputs:
+      # version-commit: a push that changes the version. none: a push that does not change it.
+      # dispatch: a start by hand.
+      kind: ${{ steps.kind.outputs.kind }}
+    steps:
+      # The fixed group gives one version to all public packages, so the version of
+      # @procedures/client is the version of each package. The base is the head of main before the
+      # push (github.event.before), so a push of several commits compares the whole push. When the
+      # event has no base (40 zeros), the base is the first parent of the commit.
+      - id: kind
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != push ]; then
+            echo "kind=dispatch" >> "$GITHUB_OUTPUT"
+            echo "A start by hand: the run opens the version pull request or publishes, as before." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          file=packages/client/package.json
+          # The version in the file at a commit. The step reads the file as data: it runs no code of this repository.
+          version_at() {
+            gh api --header "Accept: application/vnd.github.raw+json" "repos/$GITHUB_REPOSITORY/contents/$file?ref=$1" | jq -r '.version // ""'
+          }
+          if [[ "$BEFORE" =~ ^[0-9a-f]{40}$ ]] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ]; then
+            base=$BEFORE
+          else
+            base=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA" --jq '.parents[0].sha // ""')
+          fi
+          if [ -z "$base" ]; then
+            echo "::error::The push to $GITHUB_SHA has no base commit and the commit has no parent."
+            exit 1
+          fi
+          new=$(version_at "$GITHUB_SHA")
+          old=$(version_at "$base")
+          for version in "$new" "$old"; do
+            if ! [[ "$version" =~ ^[0-9A-Za-z.+-]+$ ]]; then
+              echo "::error::A version in $file at $GITHUB_SHA or at the base $base is not correct."
+              exit 1
+            fi
+          done
+          if [ "$new" = "$old" ]; then
+            kind=none
+            echo "The version in $file stays $new: no release. The other jobs do not start." >> "$GITHUB_STEP_SUMMARY"
+          else
+            # A changed version publishes only when a version pull request made the commit: the
+            # branch changeset-release/main of the Changesets action, or release/<version> of a
+            # local `pnpm changeset version`. A change of the version in a different pull request,
+            # or in a push with no pull request, is an error, and the run publishes nothing.
+            # Just after a merge, GitHub can give an empty list of the pull requests of the commit.
+            # So the step reads the list up to three times, 10 seconds apart.
+            from_version_pr=false
+            for attempt in 1 2 3; do
+              branches=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '.[] | select(.merged_at != null and .base.ref == "main") | .head.ref')
+              while read -r branch; do
+                case "$branch" in
+                  changeset-release/main | release/*) from_version_pr=true ;;
+                esac
+              done <<< "$branches"
+              if [ "$from_version_pr" = true ] || [ "$attempt" = 3 ]; then break; fi
+              sleep 10
+            done
+            if [ "$from_version_pr" != true ]; then
+              echo "::error::The version in $file changed from $old to $new at $GITHUB_SHA, but no merged version pull request (branch changeset-release/main or release/<version>) made the commit. The run publishes nothing. To publish this commit, start release.yml by hand."
+              exit 1
+            fi
+            kind=version-commit
+            echo "A version commit: $old to $new, from a version pull request. The run publishes the versions of $GITHUB_SHA." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "kind=$kind" >> "$GITHUB_OUTPUT"
+
+  ci:
+    name: The commit has a green CI run
+    needs: gate
+    if: needs.gate.outputs.kind != 'none'
+    runs-on: ubuntu-latest
+    # A push run waits for the CI run of its commit: about 15 minutes, more when the runners are busy
+    timeout-minutes: 130
+    permissions:
+      # The CI runs of the commit
+      actions: read
+    steps:
+      # A release starts only from a commit with a green CI run: the CI workflow has the gates that
+      # this workflow does not repeat (the test types, the scope, the side effects, lib audit, the
+      # end-to-end tests of mark and the site) (roadmap R8). Only the CI runs of main count: a
+      # branch that starts at the release commit has its own run, often cancelled.
+      #
+      # A dispatch run does not wait: the CI run must be complete. A push run starts at the same
+      # time as the CI run of its commit, so it waits until the newest CI run of the commit on main
+      # is complete. ci.yml does not cancel a run of a commit of main.
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          KIND: ${{ needs.gate.outputs.kind }}
+        run: |
+          if [ "$KIND" = dispatch ]; then
+            conclusion=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --branch main --commit "$GITHUB_SHA" --status completed --json conclusion --jq '.[0].conclusion // "none"')
+          else
+            deadline=$((SECONDS + 120 * 60))
+            while :; do
+              if run=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --branch main --commit "$GITHUB_SHA" --limit 1 --json status,conclusion --jq '.[0] // {} | "\(.status // "none") \(.conclusion // "none")"'); then
+                read -r status conclusion <<< "$run"
+                if [ "$status" = completed ]; then
+                  break
+                fi
+                echo "The CI run of $GITHUB_SHA: $status"
+              else
+                echo "::warning::GitHub did not list the CI runs of $GITHUB_SHA. The step asks again."
+              fi
+              if [ "$SECONDS" -ge "$deadline" ]; then
+                echo "::error::The CI run of $GITHUB_SHA did not complete in 120 minutes. When it is green, re-run the failed jobs of this run."
+                exit 1
+              fi
+              sleep 60
+            done
+          fi
+          if [ "$conclusion" != "success" ]; then
+            echo "The CI run of $GITHUB_SHA has the result '$conclusion'. Release a commit with a green CI run."
+            echo "In a push run: when the CI run is green again, re-run the failed jobs of this run."
+            exit 1
+          fi
+
   build:
     name: Check, version or pack
+    # A skipped "ci" (a push that does not change the version) skips this job and the jobs after it.
+    needs: [gate, ci]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      # The CI run of the commit (the first step)
-      actions: read
-      # The version pull request: a branch and a pull request. No id-token: this job runs the code of this repository.
+      # The version pull request of a dispatch run: a branch and a pull request. No id-token: this job runs the code of this repository.
       contents: write
       pull-requests: write
     outputs:
@@ -80,23 +252,12 @@ jobs:
       packages: ${{ steps.pack.outputs.packages }}
       client-version: ${{ steps.pack.outputs.client-version }}
     steps:
-      # A release starts only from a commit with a green CI run: the CI workflow has the gates that
-      # this workflow does not repeat (the test types, the scope, the side effects, lib audit, the
-      # end-to-end tests of mark and the site) (roadmap R8)
-      - name: The commit has a green CI run
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          # Only the CI runs of main count: a branch that starts at the release commit has its own run, often cancelled.
-          conclusion=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --branch main --commit "$GITHUB_SHA" --status completed --json conclusion --jq '.[0].conclusion // "none"')
-          if [ "$conclusion" != "success" ]; then
-            echo "The CI run of $GITHUB_SHA has the result '$conclusion'. Release a commit with a green CI run."
-            exit 1
-          fi
       # A release publishes only a commit on main (the step of reusable-release-build.yml of the
       # template). The GitHub compare API (main...<commit>) gives "identical" for the head of main
       # and "behind" for an older commit of main. "ahead" and "diverged" are commits that main does
-      # not have. Thus a temporary branch release/<version> at a version commit of main passes.
+      # not have. Thus a temporary branch release/<version> at a version commit of main passes. A
+      # push run is on a commit of main: "identical", or "behind" when main got newer commits
+      # while the run waited.
       - name: The commit is on main
         env:
           GH_TOKEN: ${{ github.token }}
@@ -142,7 +303,16 @@ jobs:
       # Version 2 of the action: the inputs have the suffix -script, and the token is the default
       # github-token. With changesets, it opens or updates the version pull request. Without
       # changesets, it does nothing: it has no publish-script. The later steps pack the versions.
+      #
+      # Only in a dispatch run. With changesets, the action moves the working tree to the branch
+      # changeset-release/main, resets it to the commit of the run, and starts the version script
+      # there: the package.json files get the next versions (prepareBranch in src/github.ts,
+      # runVersion in src/run.ts of the action). Its commit goes to GitHub through the API, and the
+      # working tree keeps the new versions. A pack after it packs those versions, not the versions
+      # of the commit. Thus a version-commit run does not start the action, and packs the versions of
+      # its commit, also when a newer changeset waits there.
       - id: changesets
+        if: needs.gate.outputs.kind == 'dispatch'
         uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
         with:
           version-script: pnpm exec changeset version
@@ -153,7 +323,7 @@ jobs:
       # HTTP 404 on 2026-10-16 (scripts/publish-ci.mjs tells more).
       - name: Pack the versions that are not on npm
         id: pack
-        if: steps.changesets.outputs.has-changesets == 'false'
+        if: needs.gate.outputs.kind == 'version-commit' || steps.changesets.outputs.has-changesets == 'false'
         run: |
           node scripts/publish-ci.mjs "$RUNNER_TEMP/release" "$RUNNER_TEMP/tags.json"
           packages=$(awk 'NF { printf "%s%s@%s", (n++ ? " " : ""), $1, $2 }' "$RUNNER_TEMP/release/packages.txt")
@@ -198,6 +368,7 @@ jobs:
       # this repository and release.yml. It downloads the artifact "release" and publishes each
       # tarball of packages.txt whose version npm does not have, with the npm CLI and provenance. It
       # skips each version that is on npm, so a new start after a partial publish is safe.
+      # A push run has no inputs, so it gets the default "error".
       - id: publish
         uses: mark1russell7/template/.github/actions/npm-publish@072c68a9d4b3fbaea886ad60ae54b6ebbef42bde # main
         with:
