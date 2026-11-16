@@ -175,7 +175,7 @@ describe("writeNdjsonStream on node:http", () => {
     expect(clock.pending).toBe(0);
   });
 
-  it("ends the stream with ABORTED when the signal aborts, and the iterator gets return()", async () => {
+  it("ends the stream with UNAVAILABLE and no retry when the signal aborts, and the iterator gets return()", async () => {
     const clock = fakeClock();
     const { items, calls } = quietItems();
     const controller = new AbortController();
@@ -186,7 +186,7 @@ describe("writeNdjsonStream on node:http", () => {
     await stream.ended;
     await Promise.all(plain.done);
     expect(stream.text).toBe(
-      itemLine(1, "first") + `${JSON.stringify({ type: "error", error: { code: "ABORTED", message: "The server stopped the request", retryable: true } })}\n`,
+      itemLine(1, "first") + `${JSON.stringify({ type: "error", error: { code: "UNAVAILABLE", message: "The server stopped during the call", retryable: false } })}\n`,
     );
     await sleep(5);
     expect(calls.returned).toBe(1);
@@ -198,7 +198,8 @@ describe("writeNdjsonStream on node:http", () => {
     const plain = await plainServer((res) => writeNdjsonStream(res, items, { signal: AbortSignal.abort() }));
     const result = await exchange(plain.url);
     expect(result["contentType"]).toBe("application/x-ndjson");
-    expect(JSON.parse(String(result["body"]))).toMatchObject({ type: "error", error: { code: "ABORTED" } });
+    // The face does not know if the handler started, so the end line asks for no retry (CLI-48)
+    expect(JSON.parse(String(result["body"]))).toMatchObject({ type: "error", error: { code: "UNAVAILABLE", retryable: false } });
     await sleep(5);
     expect(calls).toEqual({ next: 0, returned: 1 });
   });

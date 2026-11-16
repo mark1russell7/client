@@ -264,9 +264,10 @@ export class WebSocketServerTransport implements ServerTransport {
     this.detach = undefined;
     if (this.wss) {
       // Stop the requests in progress, so their handlers end (deep dive TRN-15), and fail the
-      // calls that the server sent to its clients
+      // calls that the server sent to its clients. Each stopped call gets its error frame before the
+      // socket closes, with the flag of its effects (CLI-48).
       for (const channel of this.channels.values()) {
-        channel.incoming.abortAll();
+        channel.incoming.abortAll("stopped");
         channel.outgoing.failAll("Server stopped");
       }
       this.channels.clear();

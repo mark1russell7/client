@@ -436,6 +436,14 @@ A host can limit the calls of each key, for example the writes of each tenant (C
 
 The server takes the units in the sequence of the limits. The first refusal stops the call. A limit before the refusal keeps its unit: the server does not give it back.
 
+A procedure can make more calls with `ctx.client`, for example each step of `client.chain` and `client.parallel`. These calls are nested calls. A limit with `nested: true` also takes the units of each nested call that it covers:
+
+- The server takes the units before the validation of the input of the nested call. A refused nested call does not start.
+- The cover, the key and the cost of the limit get the call at each depth. `LimitedCall.depth` is 0 for the call of the caller, and 1 or more for a nested call. `LimitedCall.input` is the input of the call at that depth.
+- The procedure gets the refusal as an error with the code, the wait and the cause. When the procedure does not catch the error, the caller gets the same response as a refusal before the run.
+
+A limit with `nested: false` takes units only for the calls of a caller. A limit without the field has the same rule, and the server writes a warning at the start. `@procedures/client` 0.61.0 changes the default to `true`.
+
 A call above a limit gets `RATE_LIMITED`. The call did not start, thus a retry after the wait is safe. The error has these parts on each face:
 
 - The metadata key `retry-after`: the wait in milliseconds. The HTTP body has it as `retryAfterMs`, and the MCP result has it in `_meta`.

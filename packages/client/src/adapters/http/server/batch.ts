@@ -18,9 +18,10 @@ import { pathToMethod } from "../../../server/method.js";
 import { segmentsOf } from "./addressing.js";
 import type { NdjsonError } from "./ndjson.js";
 import { BodyError } from "./body.js";
+import { HTTPHeaders } from "../shared/index.js";
 
 /** The request header of a batch, and of the answer of a server that took the batch. */
-export const BATCH_HEADER = "Procedures-Batch";
+export const BATCH_HEADER: typeof HTTPHeaders.BATCH = HTTPHeaders.BATCH;
 
 /** The options of the batches of `procedureHandler`. */
 export interface HandlerBatchOptions {
