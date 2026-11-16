@@ -9,6 +9,7 @@
     "@axe-core/playwright": "^4.13.0",
     "@mark1russell7/cue": "^2.1.1",
     "@mark1russell7/site-pages": "^0.5.4",
+    "@mark1russell7/text": "^0.0.5",
     "@playwright/test": "^1.64.0",
     "@procedures/access": "workspace:*",
     "@procedures/archive": "workspace:*",
@@ -56,6 +57,7 @@
     "@procedures/snapshot": "workspace:*",
     "@procedures/splay": "workspace:*",
     "@procedures/sqlite": "workspace:*",
+    "@procedures/statistics": "workspace:*",
     "@procedures/systems": "workspace:*",
     "@procedures/tailscale": "workspace:*",
     "@procedures/vite": "workspace:*",
@@ -71,8 +73,7 @@
     "typescript": "^7.0.2",
     "typescript-api": "npm:typescript@^5.9.3",
     "vite": "^6.0.0",
-    "vitest": "^5.0.3",
-    "@mark1russell7/text": "^0.0.5"
+    "vitest": "^5.0.3"
   },
   "scripts": {
     "build": "node scripts/gen-data.ts && vite build && node scripts/kpi.ts",
