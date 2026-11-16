@@ -23,6 +23,11 @@ import { spawnProgram, spawnProgramSync, startChild } from "./spawn.js";
 const WINDOWS = process.platform === "win32";
 const VARIABLE = "NoDefaultCurrentDirectoryInExePath";
 const SYSTEM = join(process.env["SystemRoot"] ?? "C:\\Windows", "System32");
+/**
+ * The time limit of each Windows test. Each test starts two or three programs. On a busy Windows runner, this can take
+ * more than the 5 seconds of the default limit (2026-11-16: shell.which took 5.17 s).
+ */
+const START_TIMEOUT = 30_000;
 /** The name of the test program. No real program has this name. */
 const NAME = "start-path-probe";
 
@@ -57,10 +62,12 @@ beforeEach(async () => {
 afterEach(() => {
   if (!WINDOWS) return;
   for (const [key, value] of saved) if (value !== undefined) process.env[key] = value;
+  // A test that timed out can still have its working folder in base, and Windows does not remove a folder in use
+  if (process.cwd().toLowerCase().startsWith(base.toLowerCase())) process.chdir(tmpdir());
   rmSync(base, { recursive: true, force: true });
 });
 
-describe.skipIf(!WINDOWS)("a program name with no folder (Windows only: POSIX does not look in the working folder)", () => {
+describe.skipIf(!WINDOWS)("a program name with no folder (Windows only: POSIX does not look in the working folder)", { timeout: START_TIMEOUT }, () => {
   beforeEach(() => {
     copyFileSync(join(SYSTEM, "whoami.exe"), join(work, `${NAME}.exe`));
   });
