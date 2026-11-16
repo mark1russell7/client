@@ -575,7 +575,7 @@ export function heapMarkdownOf(record: HeapRecord, top = 25): string {
   const lines = [
     `# Server request heap profile (O94): \`${a.id}\` against \`${b.id}\``,
     "",
-    `Head \`${record.refs.head}\`, Node.js ${record.node}. The host child of each case did ${record.warmup} untimed calls, then the sampling heap profiler ran for ${record.calls} calls, with a mean interval of ${record.samplingIntervalBytes} bytes. The profile keeps the objects that the garbage collector freed, so the bytes are all the allocations of a function, not only the live objects.`,
+    `Head \`${record.refs.head}\`, Node.js ${record.node}. The host child of each case did ${record.warmup} untimed calls, then the sampling heap profiler recorded ${record.calls} calls, with a mean interval of ${record.samplingIntervalBytes} bytes. The profile keeps the objects that the garbage collector freed, so the bytes are all the allocations of a function, not only the live objects.`,
     "",
     "- The bytes of a function are the sum of the scaled bytes of its nodes.",
     `- The excess of a function is its bytes per call in \`${a.id}\` minus its bytes per call in \`${b.id}\`.`,
