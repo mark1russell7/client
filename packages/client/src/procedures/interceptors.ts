@@ -9,6 +9,7 @@
 import { InvocationError, closableUnread, type Interceptor, type Invocation, type ProcedureOutput } from "./invoke.js";
 import { pathToKey, type ProcedurePath } from "./types.js";
 import { toMs, type Duration } from "../duration.js";
+import { realClock, type Cancel } from "../clock.js";
 import { TRACEPARENT_METADATA_KEY, formatTraceparent, newSpanId, newTraceId, parseTraceparent } from "../tracing/traceparent.js";
 import { context as otelContext, isSpanContextValid, SpanKind, trace, type Span } from "@opentelemetry/api";
 import { endApiSpan, remoteParent, startApiSpan } from "../tracing/otel.js";
@@ -85,28 +86,29 @@ export function timeoutInterceptor(options: TimeoutInterceptorOptions): Intercep
 
 /**
  * The timeout interceptor with a limit in milliseconds. The invocation uses it for the deadline
- * of a capability, which is a time in milliseconds.
+ * of a capability, which is a time in milliseconds. A limit of `Infinity` sets no timer. The timer
+ * of the clock arms a limit above 2147483647 ms (24.8 days) in steps, so a long limit holds.
  */
 export function timeoutAfterMs(options: Omit<TimeoutInterceptorOptions, "limit"> & { ms: number }): Interceptor {
   const { ms } = options;
   const appliesTo = options.appliesTo ?? ((invocation: Invocation) => invocation.depth === 0);
   return async (invocation, next) => {
-    if (!(ms > 0) || !appliesTo(invocation)) return next();
+    if (!(ms > 0) || ms === Number.POSITIVE_INFINITY || !appliesTo(invocation)) return next();
     options.onLimit?.(invocation);
 
     const controller = new AbortController();
     const signal = invocation.signal ? anySignal([invocation.signal, controller.signal]) : controller.signal;
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    let cancel: Cancel | undefined;
     const deadline = new Promise<never>((_resolve, reject) => {
-      timer = setTimeout(() => {
+      cancel = realClock.after(ms, () => {
         const error = timeoutError(invocation.path, ms);
         controller.abort(error);
         reject(error);
-      }, ms);
+      });
     });
     // A deadline that no one waits for must not be an unhandled rejection
     deadline.catch(() => undefined);
-    const stop = (): void => clearTimeout(timer);
+    const stop = (): void => cancel?.();
 
     let output: ProcedureOutput<unknown>;
     try {

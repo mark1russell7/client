@@ -50,6 +50,7 @@ import {
   createErrorFromException,
 } from "../shared/index.js";
 import { optionalMs } from "../../../duration.js";
+import { realClock } from "../../../clock.js";
 import { PROTOCOL_HEADER, PROTOCOL_VERSION, foldedErrorCode } from "../../../protocol.js";
 
 /**
@@ -156,15 +157,17 @@ export class HttpTransport implements Transport {
     if (message.signal?.aborted) controller.abort();
     message.signal?.addEventListener("abort", onAbort, { once: true });
     let timedOut = false;
-    let timeoutId = this.timeout
-      ? setTimeout(() => {
-          timedOut = true;
-          controller.abort();
-        }, this.timeout)
-      : undefined;
+    // The clock arms a time above 2147483647 ms in steps. Infinity sets no timer.
+    let cancelTimer =
+      this.timeout && Number.isFinite(this.timeout)
+        ? realClock.after(this.timeout, () => {
+            timedOut = true;
+            controller.abort();
+          })
+        : undefined;
     const firstItem = (): void => {
-      if (timeoutId) clearTimeout(timeoutId);
-      timeoutId = undefined;
+      cancelTimer?.();
+      cancelTimer = undefined;
     };
     let finished = false;
 
@@ -262,7 +265,7 @@ export class HttpTransport implements Transport {
         metadata: { [DELIVERY_METADATA_KEY]: isNotSentError(error) ? "not-sent" : "indeterminate" },
       };
     } finally {
-      if (timeoutId) clearTimeout(timeoutId);
+      cancelTimer?.();
       message.signal?.removeEventListener("abort", onAbort);
       // The reader stopped before the end of a stream: the server stops it
       if (!finished) controller.abort();

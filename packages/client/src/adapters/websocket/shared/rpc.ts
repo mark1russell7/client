@@ -20,6 +20,7 @@ import { DELIVERY_METADATA_KEY } from "../../../client/middleware/items.js";
 import { errorCodeOf, foldedErrorCode, retryableOf, stoppedCallError } from "../../../protocol.js";
 import { lastResortError } from "../../../server/last-resort.js";
 import type { Logger } from "../../../logger.js";
+import { realClock, type Cancel } from "../../../clock.js";
 
 /**
  * A queue of response items that one reader takes in order: push, then end or fail. The reader
@@ -158,7 +159,7 @@ interface PendingCall {
   /** The `seq` of the stream frames: a duplicate or a late frame gives no item */
   order: StreamSequence;
   /** The time limit until the first frame */
-  timeout?: ReturnType<typeof setTimeout> | undefined;
+  timeout?: Cancel | undefined;
 }
 
 /** The options of `OutgoingCalls`. */
@@ -214,7 +215,8 @@ export class OutgoingCalls {
     const queue = new ItemQueue<ResponseItem<unknown>>();
     const pending: PendingCall = { messageId: message.id, queue, order: new StreamSequence(this.options.logger) };
     const limited = Number.isFinite(this.options.requestTimeoutMs) && this.options.requestTimeoutMs > 0;
-    if (limited) pending.timeout = setTimeout(() => {
+    // The clock arms a time above 2147483647 ms in steps
+    if (limited) pending.timeout = realClock.after(this.options.requestTimeoutMs, () => {
       if (this.pending.get(wireId) !== pending) return;
       this.pending.delete(wireId);
       this.sendCancel(wireId);
@@ -225,13 +227,13 @@ export class OutgoingCalls {
         metadata: { [DELIVERY_METADATA_KEY]: "indeterminate" },
       });
       queue.end();
-    }, this.options.requestTimeoutMs);
+    });
     this.pending.set(wireId, pending);
 
     const onAbort = (): void => {
       if (this.pending.get(wireId) !== pending) return;
       this.pending.delete(wireId);
-      if (pending.timeout) clearTimeout(pending.timeout);
+      pending.timeout?.();
       this.sendCancel(wireId);
       queue.push(abortedItem(message.id));
       queue.end();
@@ -261,7 +263,7 @@ export class OutgoingCalls {
       }
     } finally {
       message.signal?.removeEventListener("abort", onAbort);
-      if (pending.timeout) clearTimeout(pending.timeout);
+      pending.timeout?.();
       if (this.pending.get(wireId) === pending) {
         // The reader stopped before the end: the other side stops the stream
         this.pending.delete(wireId);
@@ -279,10 +281,8 @@ export class OutgoingCalls {
     const pending = this.pending.get(frame.id);
     if (!pending) return false;
     // The first frame arrived: the time limit ends. A stream can stay open longer.
-    if (pending.timeout) {
-      clearTimeout(pending.timeout);
-      pending.timeout = undefined;
-    }
+    pending.timeout?.();
+    pending.timeout = undefined;
     if (frame.type === "stream" && !frame.status) {
       // A duplicate or a late frame: its item came before, or the delivery is at most once
       const gap = pending.order.next(frame.seq, frame.id);
@@ -307,7 +307,7 @@ export class OutgoingCalls {
    */
   failAll(reason: string): void {
     for (const pending of this.pending.values()) {
-      if (pending.timeout) clearTimeout(pending.timeout);
+      pending.timeout?.();
       pending.queue.fail(new Error(reason));
     }
     this.pending.clear();
