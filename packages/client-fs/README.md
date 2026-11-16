@@ -600,6 +600,8 @@ interface MoveOutput {
 
 Find files matching a glob pattern using the Node.js `fs.glob` API (`node:fs/promises`, requires Node >= 22).
 
+With `dot: true`, the walk uses the glob matcher of `@mark1russell7/files`. Each wildcard matches a name that starts with `.`, and a brace group can hold a dot name, for example `{.github,docs}/**`. The matcher knows `*`, `**`, `?`, sets and brace groups.
+
 ```typescript
 const result = await client.exec(
   ["fs", "glob"],
