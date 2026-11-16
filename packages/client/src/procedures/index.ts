@@ -395,6 +395,7 @@ export {
   getProcedureProcedure,
   manifestProcedure,
   listProceduresProcedure,
+  searchProceduresProcedure,
   deleteProcedureProcedure,
   metaProcedures,
   getRuntimeProcedure,
@@ -408,7 +409,12 @@ export type {
   AggregationDefinition,
   DefineProcedureInput,
   DefineProcedureOutput,
+  ProcedureSearchHit,
+  ProcedureSearchInput,
+  ProcedureSearchOutput,
 } from "./define-procedure.js";
+export { SEARCH_LIMIT, SEARCH_MAX_LIMIT, searchDocuments, searchWords } from "./search.js";
+export type { SearchDocument, SearchHit, SearchOptions, SearchResult } from "./search.js";
 
 // The storage layer, the synced registry and the procedure.store/load/sync/remote/register
 // procedures moved to @procedures/store (roadmap 3.2): the program store.

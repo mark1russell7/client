@@ -269,6 +269,9 @@ type ProcedureRegistryLike: dist/procedures/types.d.ts#ProcedureRegistryLike
 type ProcedureRegistryOptions: dist/procedures/registry.d.ts#ProcedureRegistryOptions
 type ProcedureResult: dist/procedures/types.d.ts#ProcedureResult
 type ProcedureSchema: dist/procedures/schema.d.ts#ProcedureSchema
+type ProcedureSearchHit: dist/procedures/define-procedure.d.ts#ProcedureSearchHit
+type ProcedureSearchInput: dist/procedures/define-procedure.d.ts#ProcedureSearchInput
+type ProcedureSearchOutput: dist/procedures/define-procedure.d.ts#ProcedureSearchOutput
 ProcedureServer: dist/server/procedure-server.d.ts#ProcedureServer
 type ProcedureServerOptions: dist/server/procedure-server.d.ts#ProcedureServerOptions
 type ProcedureStub: dist/procedures/define.d.ts#ProcedureStub
@@ -320,11 +323,17 @@ type RoutedRequest: dist/adapters/http/server/strategies.d.ts#RoutedRequest
 type RunControlOptions: dist/procedures/program.d.ts#RunControlOptions
 type RunDocumentOptions: dist/procedures/program.d.ts#RunDocumentOptions
 type RunProgramOptions: dist/procedures/program.d.ts#RunProgramOptions
+SEARCH_LIMIT: dist/procedures/search.d.ts#SEARCH_LIMIT
+SEARCH_MAX_LIMIT: dist/procedures/search.d.ts#SEARCH_MAX_LIMIT
 STANDARD_RESOURCES: dist/procedures/capability.d.ts#STANDARD_RESOURCES
 STREAM_GAP_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_GAP_METADATA_KEY
 STREAM_ITEM_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_ITEM_METADATA_KEY
 STREAM_METADATA_KEY: dist/server/stream-metadata.d.ts#STREAM_METADATA_KEY
 type SchemaResult: dist/procedures/schema.d.ts#SchemaResult
+type SearchDocument: dist/procedures/search.d.ts#SearchDocument
+type SearchHit: dist/procedures/search.d.ts#SearchHit
+type SearchOptions: dist/procedures/search.d.ts#SearchOptions
+type SearchResult: dist/procedures/search.d.ts#SearchResult
 Semaphore: dist/client/batch-executor.d.ts#Semaphore
 Server: dist/server/server.d.ts#Server
 type ServerContext: dist/server/types.d.ts#ServerContext
@@ -640,6 +649,9 @@ runProgram: dist/procedures/program.d.ts#runProgram
 runtimeProgramOf: dist/procedures/define-procedure.d.ts#runtimeProgramOf
 scopeOf: dist/procedures/ref.d.ts#scopeOf
 scopeOfNames: dist/procedures/program.d.ts#scopeOfNames
+searchDocuments: dist/procedures/search.d.ts#searchDocuments
+searchProceduresProcedure: dist/procedures/define-procedure.d.ts#searchProceduresProcedure
+searchWords: dist/procedures/search.d.ts#searchWords
 seconds: dist/duration.d.ts#seconds
 segmentsToTopic: dist/procedures/segments.d.ts#segmentsToTopic
 selectorProblems: dist/procedures/collection/query.d.ts#selectorProblems
@@ -945,6 +957,9 @@ type ProcedureRegistryLike: dist/procedures/types.d.ts#ProcedureRegistryLike
 type ProcedureRegistryOptions: dist/procedures/registry.d.ts#ProcedureRegistryOptions
 type ProcedureResult: dist/procedures/types.d.ts#ProcedureResult
 type ProcedureSchema: dist/procedures/schema.d.ts#ProcedureSchema
+type ProcedureSearchHit: dist/procedures/define-procedure.d.ts#ProcedureSearchHit
+type ProcedureSearchInput: dist/procedures/define-procedure.d.ts#ProcedureSearchInput
+type ProcedureSearchOutput: dist/procedures/define-procedure.d.ts#ProcedureSearchOutput
 ProcedureServer: dist/server/procedure-server.d.ts#ProcedureServer
 type ProcedureServerOptions: dist/server/procedure-server.d.ts#ProcedureServerOptions
 type ProcedureStub: dist/procedures/define.d.ts#ProcedureStub
@@ -995,11 +1010,17 @@ RouteResolver: dist/client/route-resolver.d.ts#RouteResolver
 type RunControlOptions: dist/procedures/program.d.ts#RunControlOptions
 type RunDocumentOptions: dist/procedures/program.d.ts#RunDocumentOptions
 type RunProgramOptions: dist/procedures/program.d.ts#RunProgramOptions
+SEARCH_LIMIT: dist/procedures/search.d.ts#SEARCH_LIMIT
+SEARCH_MAX_LIMIT: dist/procedures/search.d.ts#SEARCH_MAX_LIMIT
 STANDARD_RESOURCES: dist/procedures/capability.d.ts#STANDARD_RESOURCES
 STREAM_GAP_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_GAP_METADATA_KEY
 STREAM_ITEM_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_ITEM_METADATA_KEY
 STREAM_METADATA_KEY: dist/server/stream-metadata.d.ts#STREAM_METADATA_KEY
 type SchemaResult: dist/procedures/schema.d.ts#SchemaResult
+type SearchDocument: dist/procedures/search.d.ts#SearchDocument
+type SearchHit: dist/procedures/search.d.ts#SearchHit
+type SearchOptions: dist/procedures/search.d.ts#SearchOptions
+type SearchResult: dist/procedures/search.d.ts#SearchResult
 Semaphore: dist/client/batch-executor.d.ts#Semaphore
 Server: dist/server/server.d.ts#Server
 type ServerContext: dist/server/types.d.ts#ServerContext
@@ -1308,6 +1329,9 @@ runProgram: dist/procedures/program.d.ts#runProgram
 runtimeProgramOf: dist/procedures/define-procedure.d.ts#runtimeProgramOf
 scopeOf: dist/procedures/ref.d.ts#scopeOf
 scopeOfNames: dist/procedures/program.d.ts#scopeOfNames
+searchDocuments: dist/procedures/search.d.ts#searchDocuments
+searchProceduresProcedure: dist/procedures/define-procedure.d.ts#searchProceduresProcedure
+searchWords: dist/procedures/search.d.ts#searchWords
 seconds: dist/duration.d.ts#seconds
 segmentsToTopic: dist/procedures/segments.d.ts#segmentsToTopic
 selectorProblems: dist/procedures/collection/query.d.ts#selectorProblems
@@ -1735,6 +1759,9 @@ type ProcedureRegistryLike: dist/procedures/types.d.ts#ProcedureRegistryLike
 type ProcedureRegistryOptions: dist/procedures/registry.d.ts#ProcedureRegistryOptions
 type ProcedureResult: dist/procedures/types.d.ts#ProcedureResult
 type ProcedureSchema: dist/procedures/schema.d.ts#ProcedureSchema
+type ProcedureSearchHit: dist/procedures/define-procedure.d.ts#ProcedureSearchHit
+type ProcedureSearchInput: dist/procedures/define-procedure.d.ts#ProcedureSearchInput
+type ProcedureSearchOutput: dist/procedures/define-procedure.d.ts#ProcedureSearchOutput
 type ProcedureStub: dist/procedures/define.d.ts#ProcedureStub
 type ProcedureWhen: dist/procedures/ref.d.ts#ProcedureWhen
 type ProgramDocument: dist/procedures/program.d.ts#ProgramDocument
@@ -1760,8 +1787,14 @@ type RunControlOptions: dist/procedures/program.d.ts#RunControlOptions
 type RunDocumentOptions: dist/procedures/program.d.ts#RunDocumentOptions
 type RunOperandOptions: dist/procedures/program.d.ts#RunOperandOptions
 type RunProgramOptions: dist/procedures/program.d.ts#RunProgramOptions
+SEARCH_LIMIT: dist/procedures/search.d.ts#SEARCH_LIMIT
+SEARCH_MAX_LIMIT: dist/procedures/search.d.ts#SEARCH_MAX_LIMIT
 STANDARD_RESOURCES: dist/procedures/capability.d.ts#STANDARD_RESOURCES
 type SchemaResult: dist/procedures/schema.d.ts#SchemaResult
+type SearchDocument: dist/procedures/search.d.ts#SearchDocument
+type SearchHit: dist/procedures/search.d.ts#SearchHit
+type SearchOptions: dist/procedures/search.d.ts#SearchOptions
+type SearchResult: dist/procedures/search.d.ts#SearchResult
 type StandardJSONSchemaConverter: dist/procedures/schema.d.ts#StandardJSONSchemaConverter
 type StandardSchemaV1: dist/procedures/schema.d.ts#StandardSchemaV1
 type StepObserver: dist/procedures/program.d.ts#StepObserver
@@ -1952,6 +1985,9 @@ runProgram: dist/procedures/program.d.ts#runProgram
 runtimeProgramOf: dist/procedures/define-procedure.d.ts#runtimeProgramOf
 scopeOf: dist/procedures/ref.d.ts#scopeOf
 scopeOfNames: dist/procedures/program.d.ts#scopeOfNames
+searchDocuments: dist/procedures/search.d.ts#searchDocuments
+searchProceduresProcedure: dist/procedures/define-procedure.d.ts#searchProceduresProcedure
+searchWords: dist/procedures/search.d.ts#searchWords
 segmentsToTopic: dist/procedures/segments.d.ts#segmentsToTopic
 selectorProblems: dist/procedures/collection/query.d.ts#selectorProblems
 shouldExecuteRef: dist/procedures/ref.d.ts#shouldExecuteRef
@@ -4761,6 +4797,28 @@ export interface DefineProcedureOutput {
     replaced: boolean;
 }
 
+### dist/procedures/define-procedure.d.ts#ProcedureSearchHit
+export interface ProcedureSearchHit {
+    path: ProcedurePath;
+    key: string;
+    description: string | undefined;
+    score: number;
+}
+
+### dist/procedures/define-procedure.d.ts#ProcedureSearchInput
+export interface ProcedureSearchInput {
+    query: string;
+    limit?: number | undefined;
+    namespace?: string | undefined;
+}
+
+### dist/procedures/define-procedure.d.ts#ProcedureSearchOutput
+export interface ProcedureSearchOutput {
+    hits: ProcedureSearchHit[];
+    matched: number;
+    total: number;
+}
+
 ### dist/procedures/define-procedure.d.ts#clearRuntimeProcedures
 export declare function clearRuntimeProcedures(registry?: RegistryOf): void;
 
@@ -4810,6 +4868,9 @@ export declare const metaProcedures: AnyProcedure[];
 export declare function runtimeProgramOf(procedure: {
     handler?: unknown;
 }): AggregationDefinition | undefined;
+
+### dist/procedures/define-procedure.d.ts#searchProceduresProcedure
+export declare const searchProceduresProcedure: Procedure<ProcedureSearchInput, ProcedureSearchOutput, ProcedureMetadata>;
 
 ### dist/procedures/define.d.ts#ProcedureBuilder
 export declare class ProcedureBuilder<TInput = unknown, TOutput = unknown, TMeta extends ProcedureMetadata = ProcedureMetadata> {
@@ -5964,6 +6025,45 @@ export declare function validateSchema<T>(schema: ProcedureSchema<T>, value: unk
 
 ### dist/procedures/schema.d.ts#validateSchemaAsync
 export declare function validateSchemaAsync<T>(schema: ProcedureSchema<T>, value: unknown): Promise<SchemaResult<T>>;
+
+### dist/procedures/search.d.ts#SEARCH_LIMIT
+export declare const SEARCH_LIMIT = 10;
+
+### dist/procedures/search.d.ts#SEARCH_MAX_LIMIT
+export declare const SEARCH_MAX_LIMIT = 100;
+
+### dist/procedures/search.d.ts#SearchDocument
+export interface SearchDocument {
+    readonly name: string;
+    readonly words?: readonly string[] | undefined;
+    readonly description?: string | undefined;
+    readonly tags?: readonly string[] | undefined;
+}
+
+### dist/procedures/search.d.ts#SearchHit
+export interface SearchHit {
+    readonly name: string;
+    readonly description: string | undefined;
+    readonly score: number;
+}
+
+### dist/procedures/search.d.ts#SearchOptions
+export interface SearchOptions {
+    readonly limit?: number | undefined;
+}
+
+### dist/procedures/search.d.ts#SearchResult
+export interface SearchResult {
+    readonly hits: SearchHit[];
+    readonly matched: number;
+    readonly total: number;
+}
+
+### dist/procedures/search.d.ts#searchDocuments
+export declare function searchDocuments(documents: readonly SearchDocument[], query: string, options?: SearchOptions): SearchResult;
+
+### dist/procedures/search.d.ts#searchWords
+export declare function searchWords(text: string): string[];
 
 ### dist/procedures/segments.d.ts#decodeSegment
 export declare function decodeSegment(segment: string): string;

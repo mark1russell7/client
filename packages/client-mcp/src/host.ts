@@ -24,6 +24,7 @@
  *   procedure with `metadata.taskSupport` runs as a task when the client asks for one.
  */
 
+import type { McpToolListing } from "./transport/search-listing.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Transport as SdkTransport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import {
@@ -154,6 +155,8 @@ export interface McpHostOptions {
   toolFilter?: Omit<McpToolFilter, "include"> | undefined;
   /** The name of the tool of a procedure, for example `(path) => path.join("_")`. The default is `git.status`. */
   toolName?: ((path: readonly string[]) => string) | undefined;
+  /** How each face lists the tools: `"each"` (the default) or `"search"`, three search tools (direction 40). */
+  listing?: McpToolListing | undefined;
   /** The limits of a stream that can continue without an end. */
   streamLimits?: { items?: number; time?: Duration } | undefined;
   /** True: debug lines go to stderr. */
@@ -379,6 +382,7 @@ export function createMcpHost(options: McpHostOptions = {}): McpHost {
     serverInfo: { name: options.name ?? "procedure-server", version: options.version ?? "1.0.0" },
     toolFilter,
     ...(options.toolName ? { toolName: options.toolName } : {}),
+    ...(options.listing ? { listing: options.listing } : {}),
     ...(options.instructions !== undefined ? { instructions: options.instructions } : {}),
     ...(options.elicitation ? { elicitation: options.elicitation } : {}),
     ...(options.untrusted ? { untrusted: options.untrusted } : {}),

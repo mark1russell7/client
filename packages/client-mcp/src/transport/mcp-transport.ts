@@ -46,6 +46,7 @@ import { createHttpTransport, requestCredentialsOf, type McpHttpTransport } from
 import { optionalMs } from "@procedures/client";
 import { createUntrustedEnvelopes } from "../untrusted.js";
 import { taskStoreOf, type McpTaskStore } from "../tasks.js";
+import { SEARCH_LISTING_NAMES, SEARCH_LISTING_TOOLS, callTarget, describeToolResult, searchToolsResult, toolNotFound } from "./search-listing.js";
 
 /**
  * The tools with the names of a `toolName` function. Without the function, the tools keep the
@@ -323,6 +324,9 @@ export class McpServerTransport implements ServerTransport {
     server.setRequestHandler(ListToolsRequestSchema, async () => {
       this.log("ListToolsRequest received");
 
+      // The search listing gives three tools, and the model finds the others by a search
+      if (this.options.listing === "search") return { tools: [...SEARCH_LISTING_TOOLS] };
+
       // Without a task store, no tool runs as a task: the list does not say that it can
       const tools = Array.from(this.tools.values(), (tool) => {
         const definition = toToolDefinition(tool);
@@ -337,20 +341,30 @@ export class McpServerTransport implements ServerTransport {
 
     // CallToolRequestSchema -> Execute procedure
     server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
-      const { name, arguments: args, task } = request.params;
+      const { name, task } = request.params;
+      let args = request.params.arguments;
 
       this.log(`CallToolRequest: ${name}`);
 
+      // The three tools of the search listing. call_tool calls its tool as a direct call does.
+      let tool = this.tools.get(name);
+      if (this.options.listing === "search") {
+        if (name === SEARCH_LISTING_NAMES.search) return searchToolsResult(this.tools.values(), args, this.options.json);
+        if (name === SEARCH_LISTING_NAMES.describe) return describeToolResult(this.tools, args, { tasks: this.taskStore !== undefined, json: this.options.json });
+        if (name === SEARCH_LISTING_NAMES.call) {
+          const target = callTarget(this.tools, args);
+          if ("refused" in target) return target.refused;
+          tool = target.tool;
+          args = target.input;
+        }
+      }
+
       // Find tool
-      const tool = this.tools.get(name);
       if (!tool) {
         this.log(`Tool not found: ${name}`);
-        return {
-          content: [{ type: "text" as const, text: `Tool not found: ${name}` }],
-          isError: true,
-          _meta: { code: "NOT_FOUND", retryable: false },
-        };
+        return toolNotFound(name);
       }
+      const toolName = tool.name;
 
       // MCP tasks (CLI-35): a call as a task needs a tool that can run as one, and a call of a
       // tool that runs only as a task needs a task. Without a task store each call is a request.
@@ -358,12 +372,12 @@ export class McpServerTransport implements ServerTransport {
       const callExtra = extra as CallExtra;
       if (task !== undefined) {
         if (!this.taskStore || (support !== "optional" && support !== "required")) {
-          throw new McpError(ErrorCode.MethodNotFound, `The tool ${name} does not run as a task`);
+          throw new McpError(ErrorCode.MethodNotFound, `The tool ${toolName} does not run as a task`);
         }
         return this.startTask(server, this.taskStore, tool, args, callExtra, { method: request.method, params: request.params });
       }
       if (support === "required") {
-        throw new McpError(ErrorCode.MethodNotFound, `The tool ${name} runs only as a task: call it with a task`);
+        throw new McpError(ErrorCode.MethodNotFound, `The tool ${toolName} runs only as a task: call it with a task`);
       }
       return this.callTool(server, tool, args, callExtra);
     });
@@ -769,7 +783,8 @@ export class McpServerTransport implements ServerTransport {
     }
 
     this.log(`Refreshed tools: ${this.tools.size} available`);
-    if (this.running && this.toolSignature() !== before) this.scheduleListChanged();
+    // The search listing does not change: its three tools find the new tools
+    if (this.running && this.options.listing !== "search" && this.toolSignature() !== before) this.scheduleListChanged();
   }
 
   /** The tool names and descriptions: a change of this text is a change of the tool list. */
