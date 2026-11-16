@@ -1,5 +1,154 @@
 # @procedures/json
 
+## 0.59.0
+
+### Patch Changes
+
+- Updated dependencies [8f8e5b2]
+  - @procedures/client@0.59.0
+  - @procedures/compiler@0.59.0
+
+## 0.58.2
+
+### Patch Changes
+
+- Updated dependencies [217871c]
+  - @procedures/client@0.58.2
+  - @procedures/compiler@0.58.2
+
+## 0.58.1
+
+### Patch Changes
+
+- Updated dependencies [1d47080]
+  - @procedures/client@0.58.1
+  - @procedures/compiler@0.58.1
+
+## 0.58.0
+
+### Patch Changes
+
+- Updated dependencies [11f5035]
+  - @procedures/client@0.58.0
+  - @procedures/compiler@0.58.0
+
+## 0.57.0
+
+### Patch Changes
+
+- @procedures/client@0.57.0
+  - @procedures/compiler@0.57.0
+
+## 0.56.0
+
+### Patch Changes
+
+- 13996cf: An automated dependency update changes the shipped files, so this PATCH ships them.
+- Updated dependencies [13996cf]
+  - @procedures/client@0.56.0
+  - @procedures/compiler@0.56.0
+
+## 0.55.2
+
+### Patch Changes
+
+- 12ececd: The root entry of `@procedures/json` exports `parseJsonOrUndefined(text)`. It reads a JSON text and gives `undefined` when the text is not valid JSON. It does not throw.
+  
+  - A key `__proto__` of the text stays data, as in the other functions of the package.
+  - `@procedures/npm/measures` uses it to read the response bodies of the use measures.
+- @procedures/client@0.55.2
+  - @procedures/compiler@0.55.2
+
+## 0.55.1
+
+### Patch Changes
+
+- @procedures/client@0.55.1
+  - @procedures/compiler@0.55.1
+
+## 0.55.0
+
+### Patch Changes
+
+- Updated dependencies [fd9c6d4]
+  - @procedures/client@0.55.0
+  - @procedures/compiler@0.55.0
+
+## 0.54.1
+
+### Patch Changes
+
+- Updated dependencies [13c3a8b]
+  - @procedures/client@0.54.1
+  - @procedures/compiler@0.54.1
+
+## 0.54.0
+
+### Patch Changes
+
+- 1401489: The tarball of each package leaves out `dist/.tsbuildinfo`. The `files` list of each package has the entry `!dist/.tsbuildinfo` after `dist`.
+  
+  The build writes this file for incremental builds. An app does not use it, and it added its size to each tarball (61 KB in `@procedures/json` 0.52.3). The conventions rule `pack-no-buildinfo` finds it.
+  
+  PATCH: the exports and the behavior do not change.
+- Updated dependencies [ef8e080]
+- Updated dependencies [1401489]
+  - @procedures/client@0.54.0
+  - @procedures/compiler@0.54.0
+
+## 0.53.1
+
+### Patch Changes
+
+- Updated dependencies [84f0c78]
+- Updated dependencies [abf290c]
+  - @procedures/client@0.53.1
+  - @procedures/compiler@0.53.1
+
+## 0.53.0
+
+### Patch Changes
+
+- Updated dependencies [bc98f77]
+- Updated dependencies [11d9084]
+- Updated dependencies [d28ccb5]
+- Updated dependencies [735cfcf]
+- Updated dependencies
+- Updated dependencies [556d0a8]
+  - @procedures/client@0.53.0
+  - @procedures/compiler@0.53.0
+
+## 0.52.5
+
+### Patch Changes
+
+- f39708c: The root entry exports `isPlainObject`. The function gives true for an object whose prototype is `Object.prototype` or null. An app can import it and delete its own copy.
+- Updated dependencies [25a5f44]
+  - @procedures/client@0.52.5
+  - @procedures/compiler@0.52.5
+
+## 0.52.4
+
+### Patch Changes
+
+- @procedures/client@0.52.4
+  - @procedures/compiler@0.52.4
+
+## 0.52.3
+
+### Patch Changes
+
+- Updated dependencies [db1bcaa]
+  - @procedures/client@0.52.3
+  - @procedures/compiler@0.52.3
+
+## 0.52.2
+
+### Patch Changes
+
+- @procedures/client@0.52.2
+  - @procedures/compiler@0.52.2
+
 ## 0.52.1
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 /**
- * procedure.new puts the procedure into the list that defineModule gets: an array literal, a
- * variable of this file, or a spread of such a variable. Before, it put the procedure into the
+ * procedure.new puts the procedure into the list that defineModule or definePackage gets: an array
+ * literal, a variable of this file, or a spread of such a variable. Before, it put the procedure into the
  * first array after the call, also into `registerModules(registry, [...])` (the ics and geo
  * packages). A list that it cannot find is an error, and nothing is written.
  */
@@ -53,6 +53,23 @@ const IMPORTED = `${HEADER}import { demoProcedures } from "./procedures.js";
 export const demoModule: ProcedureModule = defineModule("@procedures/demo", demoProcedures);
 ${REGISTER_FUNCTION}`;
 
+/** The module of definePackage: the list is its second argument (the s3 package and most others) */
+const PACKAGE = `import { definePackage, type PackageDefinition, type ProcedureModule } from "@procedures/client";
+import { shellModule } from "@procedures/shell/module";
+import { aProcedure } from "./procedures/a.js";
+
+// =============================================================================
+// Registration
+// =============================================================================
+
+const demoPackage: PackageDefinition = definePackage("@procedures/demo", [
+    aProcedure,
+  ], [shellModule]);
+
+export const demoModule: ProcedureModule = demoPackage.module;
+export const registerDemoProcedures: PackageDefinition["register"] = demoPackage.register;
+`;
+
 /** Gives the source of a successful edit, and fails the test otherwise */
 function edited(source: string): { source: string; before: number } {
   const result = addToRegistration(source, "bProcedure");
@@ -66,6 +83,18 @@ describe("addToRegistration", () => {
     expect(source).toContain('defineModule("@procedures/demo", [aProcedure, bProcedure], [shellModule])');
     expect(source).toContain("registerModules(registry, [demoModule]);");
     expect(source.slice(before)).toMatch(/^export const demoModule/);
+  });
+
+  it("adds the item to the list of definePackage, and not to its requires", () => {
+    const { source, before } = edited(PACKAGE);
+    expect(source).toContain('definePackage("@procedures/demo", [\n    aProcedure,\n    bProcedure,\n  ], [shellModule]);');
+    // The definition goes before the comments above the call
+    expect(source.slice(before)).toMatch(/^\/\/ =+\n\/\/ Registration\n/);
+  });
+
+  it("adds the item to an array literal whose items a method maps (the git and pnpm packages)", () => {
+    const source = PACKAGE.replace("  ], [shellModule]);", "  ].map(underARoot), [shellModule]);");
+    expect(edited(source).source).toContain("    aProcedure,\n    bProcedure,\n  ].map(underARoot), [shellModule]);");
   });
 
   it("follows a variable to its array in the same file", () => {
@@ -104,7 +133,7 @@ describe("addToRegistration", () => {
 
   it("gives an error for a file without a call, and skips the calls in comments and strings", () => {
     const source = `/** defineModule("x", [a]) */\n// registerProcedures([a])\nconst text = "registerAll([a])";\n`;
-    expect(addToRegistration(source, "bProcedure")).toEqual({ error: "the file has no defineModule, registerProcedures or registerAll call" });
+    expect(addToRegistration(source, "bProcedure")).toEqual({ error: "the file has no defineModule, definePackage, registerProcedures or registerAll call" });
   });
 
   it("keeps the first argument of registerProcedures", () => {
@@ -209,6 +238,18 @@ describe("procedure.new", () => {
     expect(module).toContain("  aProcedure,\n  demoHelloProcedure,\n];");
     expect(module).toContain("registerModules(registry, [demoModule]);");
     expect(files.get(join(root, "src", "procedures", "demo", "hello.ts"))).toContain("export async function demoHello(");
+  });
+
+  it("registers the procedure in the list of definePackage", async () => {
+    const files = new Map([[moduleFile, PACKAGE]]);
+    const { ctx } = memoryContext(files);
+    const result = await procedureNew({ name: "demo.hello", path: root, dryRun: false }, ctx);
+    expect(result.errors).toEqual([]);
+    expect(result.success).toBe(true);
+    const module = files.get(moduleFile)!;
+    expect(module).toContain("    aProcedure,\n    demoHelloProcedure,\n  ], [shellModule]);");
+    expect(module.indexOf("const demoHelloProcedure = createProcedure()")).toBeLessThan(module.indexOf("// Registration"));
+    expect(module).toMatch(/import \{ [^}]*createProcedure[^}]* \} from "@procedures\/client";/);
   });
 
   it("writes no effects, and tells the author to write them", async () => {

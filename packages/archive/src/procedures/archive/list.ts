@@ -7,7 +7,7 @@
  */
 
 import { DEFAULT_ARCHIVE_SETTINGS, formatOfFile, type ArchiveSettings } from "../../format.js";
-import { placesOf } from "../../root.js";
+import { inHold, placesOf } from "../../root.js";
 import { readTarEntries } from "../../tar.js";
 import { readZipDirectory, readZipLink } from "../../zip.js";
 import type { ArchiveEntry, ArchiveFormat, ArchiveListInput, ArchiveListOutput } from "../../types.js";
@@ -43,7 +43,13 @@ export async function readEntries(path: string, format: ArchiveFormat, settings:
 /**
  * The entries of a tar.gz or zip archive
  */
-export async function archiveList(input: ArchiveListInput, settings: ArchiveSettings = DEFAULT_ARCHIVE_SETTINGS): Promise<ArchiveListOutput> {
+export function archiveList(input: ArchiveListInput, settings: ArchiveSettings = DEFAULT_ARCHIVE_SETTINGS): Promise<ArchiveListOutput> {
+  // The check of the paths and the work start in one hold of the roots: it reads one archive file
+  return inHold(settings.root, "shared", () => listInRoot(input, settings));
+}
+
+/** The work of `archiveList()`, in its hold of the roots. */
+async function listInRoot(input: ArchiveListInput, settings: ArchiveSettings): Promise<ArchiveListOutput> {
   const path = await (await placesOf(settings.root, ["archive", "list"])).place(input.archive);
   const format = await formatOfFile(path, input.format);
   const entries = await readEntries(path, format, { ...settings, maxBytes: Number.MAX_SAFE_INTEGER });

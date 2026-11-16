@@ -460,6 +460,9 @@ export function determineStrategy(
 
 /**
  * Semaphore for limiting concurrent executions.
+ *
+ * @deprecated Use `semaphore()` of `@mark1russell7/collections`, the home of the semaphore. Its `run(task)` replaces
+ * `withPermit(fn)`, and its `acquire()` gives the release function. The next MINOR break of `@procedures/client` removes this class.
  */
 export class Semaphore {
   private permits: number;

@@ -136,7 +136,9 @@ await ctx.client.call(["notes", "list"], {}, { narrow: { clearance: "public" } }
 
 An interceptor can narrow too: `next({ capability: { effects: { writes: [] } } })`. The framework calculates the result, so a request for more has no effect.
 
-The admission examines each call of a host, each nested call of a data-driven procedure (`client.chain` and the other procedures that start refs, because their caller chose the refs), and each nested call with a narrowed capability. A procedure of code that declares its effects answers for its own nested calls. `checkEffects(procedures)` examines those declarations against `metadata.calls`: a declaration must include the reads and the writes of each procedure in its `calls`. Two things are the claim of the caller. The first is what a program that it starts does (the `process` of a callee). The second is the flags `destructive` and `idempotent`, because they depend on the input that the caller gives.
+The admission examines each call of a host, each nested call of a data-driven procedure (`client.chain` and the other procedures that start refs, because their caller chose the refs), and each nested call with a narrowed capability. A procedure of code that declares its effects answers for a declared edge only. An entry of its `metadata.calls` names the callee, and the effects of the callee are in its declaration. The admission examines each other nested call, also each nested call of a caller without `calls`.
+
+`checkEffects(procedures)` examines the same edges over the registry: a declaration must include the reads and the writes of each procedure in its `calls`. Two things are the claim of the caller. The first is what a program that it starts does (the `process` of a callee). The second is the flags `destructive` and `idempotent`, because they depend on the input that the caller gives.
 
 ## Deadlines
 

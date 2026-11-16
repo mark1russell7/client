@@ -16,6 +16,8 @@ import type {
 import { pathToKey } from "./types.js";
 import { validateCalls } from "./policy.js";
 import { toolHintOverrideRefusal } from "./hints.js";
+import { metadataFieldProblems } from "./metadata-fields.js";
+import { CONSOLE_LOGGER, type Logger } from "../logger.js";
 
 // =============================================================================
 // Registry Errors
@@ -101,6 +103,11 @@ export interface ProcedureRegistryOptions {
    * `get()` gives, and `loadAll()` does nothing.
    */
   resolver?: RegistryResolver | undefined;
+  /**
+   * The logger of the warnings of the registry, for example a typed metadata field with a wrong
+   * type. The default writes to the console.
+   */
+  logger?: Logger | undefined;
 }
 
 /** The reads of a registry that `resolveIn()` and `loadAllIn()` use. A lazy registry has all of them. */
@@ -170,12 +177,19 @@ export class ProcedureRegistry {
   /** The resolver of a lazy registry, or undefined for an eager registry (roadmap O93) */
   private readonly resolver: RegistryResolver | undefined;
 
+  /** The logger of the warnings of the registry. */
+  private readonly logger: Logger;
+
+  /** The pairs of a procedure key and a metadata field that got their warning. */
+  private readonly warnedFields = new Set<string>();
+
   /**
    * This constructor makes an eager registry. With `options.resolver`, the registry is lazy: a
    * miss of `resolve()` loads the packages of the path.
    */
   constructor(options: ProcedureRegistryOptions = {}) {
     this.resolver = options.resolver;
+    this.logger = options.logger ?? CONSOLE_LOGGER;
   }
 
   // ---------------------------------------------------------------------------
@@ -219,6 +233,19 @@ export class ProcedureRegistry {
       throw new RegistryError(
         `Procedure already registered at path: ${key}`,
         path
+      );
+    }
+
+    // A typed metadata field with a wrong type gets one warning for each field and procedure.
+    // Version 0.60.0 of @procedures/client refuses such a field
+    for (const problem of metadataFieldProblems(procedure.metadata)) {
+      const once = JSON.stringify([key, problem.field]);
+      if (this.warnedFields.has(once)) continue;
+      this.warnedFields.add(once);
+      this.logger.log(
+        "warn",
+        `The procedure ${key} has the field ${problem.field} with a wrong type: ${problem.message}. The field ${problem.typedField} needs ${problem.needs}. @procedures/client 0.60.0 refuses this.`,
+        { procedure: key, field: problem.field, needs: problem.needs },
       );
     }
 

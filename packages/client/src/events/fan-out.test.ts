@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import fc from "fast-check";
-import { DefaultEventBus, createEventBus } from "./bus.js";
+import { DefaultEventBus, createEventBus, currentEmission } from "./bus.js";
 import type { EventBusOptions } from "./types.js";
 
 const RUNS = Number(process.env["FC_RUNS"] ?? 200);
@@ -303,5 +303,37 @@ describe("createEventBus (CLI-90)", () => {
     expect(seen).toEqual([]);
     await (bus as DefaultEventBus).drained();
     expect(seen).toEqual([1, 1]);
+  });
+});
+
+describe("the mark of an emit (audit 2026-11-08)", () => {
+  it.each(["one call", "slices"] as const)("is one object for the handlers of one emit, in %s, and undefined outside a handler", (mode) => {
+    const sliced = slicedBus(1);
+    const bus = mode === "slices" ? sliced.bus : new DefaultEventBus();
+    const marks: Array<object | undefined> = [];
+    for (let n = 0; n < 3; n++) bus.on("c", () => void marks.push(currentEmission()));
+    bus.emit("c", 1);
+    bus.emit("c", 1);
+    sliced.run();
+    expect(currentEmission()).toBeUndefined();
+    expect(marks).toHaveLength(6);
+    expect(marks.every((mark) => typeof mark === "object")).toBe(true);
+    expect(new Set(marks.slice(0, 3)).size).toBe(1);
+    expect(new Set(marks.slice(3)).size).toBe(1);
+    expect(marks[0]).not.toBe(marks[3]);
+  });
+
+  it("is the mark of the inner emit in a handler that emits, and the outer mark after it", () => {
+    const bus = new DefaultEventBus();
+    const marks: Record<string, Array<object | undefined>> = { outer: [], inner: [] };
+    bus.on("inner", () => void marks["inner"]!.push(currentEmission()));
+    bus.on("outer", () => {
+      marks["outer"]!.push(currentEmission());
+      bus.emit("inner", 1);
+      marks["outer"]!.push(currentEmission());
+    });
+    bus.emit("outer", 1);
+    expect(marks["outer"]![0]).toBe(marks["outer"]![1]);
+    expect(marks["inner"]![0]).not.toBe(marks["outer"]![0]);
   });
 });

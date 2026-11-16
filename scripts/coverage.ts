@@ -12,6 +12,7 @@
  *   node scripts/coverage.ts --packages a,b     only these folders of packages/
  *   node scripts/coverage.ts --out <file>       also write the raised floors to this file
  *   node scripts/coverage.ts --totals <file>    also write the measured totals to this file
+ *   node scripts/coverage.ts --reports <dir>    keep the reports of each package in this folder
  *   node scripts/coverage.ts --allow-missing    a package without a floor does not fail
  *
  * The run fails when `coverage-baseline.json` is missing or empty, when it finds no package, when a
@@ -79,6 +80,13 @@ const totalsOut = (() => {
   const index = args.indexOf("--totals");
   return index >= 0 ? args[index + 1] : undefined;
 })();
+// The reports of each package, kept for the function report of the code atlas: a folder for each
+// package with coverage-summary.json and coverage-final.json. Without the option, a temporary folder
+// holds them, and the script removes it.
+const reportsOut = (() => {
+  const index = args.indexOf("--reports");
+  return index >= 0 ? args[index + 1] : undefined;
+})();
 const only = (() => {
   const index = args.indexOf("--packages");
   return index >= 0 && args[index + 1] ? new Set(args[index + 1].split(",")) : undefined;
@@ -128,6 +136,8 @@ function measure(pkg: TestedPackage, reports: string): Promise<Result> {
         "--coverage.enabled",
         "--coverage.provider=v8",
         "--coverage.reporter=json-summary",
+        // coverage-final.json: the coverage of each function, for the code atlas
+        "--coverage.reporter=json",
         `--coverage.reportsDirectory=${out}`,
         "--coverage.include=src/**",
         "--maxWorkers=2",
@@ -188,12 +198,12 @@ const packages = packagesWithTests();
 if (packages.length === 0) {
   stop(`No package to examine: the check expected the folders of packages/ whose test script runs vitest${only ? ` (with --packages ${[...only].join(",")})` : ""}.`);
 }
-const reports = mkdtempSync(join(tmpdir(), "coverage-"));
+const reports = reportsOut ?? mkdtempSync(join(tmpdir(), "coverage-"));
 let results: Result[] = [];
 try {
   results = await runAll(packages, reports);
 } finally {
-  rmSync(reports, { recursive: true, force: true });
+  if (reportsOut === undefined) rmSync(reports, { recursive: true, force: true });
 }
 
 if (totalsOut) {

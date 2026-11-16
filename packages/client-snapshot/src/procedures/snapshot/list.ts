@@ -41,7 +41,7 @@ export async function snapshotList(
       const downloadResult = await ctx.client.call<
         { bucket: string; key: string; encoding?: string },
         { body: string }
-      >(["s3", "download"], {
+      >(["s3", "read"], {
         bucket: input.bucket,
         key: obj.key,
         encoding: "utf8",
