@@ -1151,7 +1151,8 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
   /**
    * Run a keyed call one time. The run continues when its caller goes away, so that the next try
    * gets its result: only the deadline of the call and the stop of the server end it. A stream
-   * still stops with its caller, because nobody can read it again.
+   * still stops with its caller, because nobody can read it again. The stop of the server ends a
+   * stream until its last item, as on the path without a key.
    */
   private async runKeyed(procedure: AnyProcedure, request: ServerRequest<unknown>, cacheKey: string): Promise<ServerResponse<unknown>> {
     const { result, first } = this.idempotency!.run(
@@ -1159,18 +1160,23 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
       async () => {
         const detached = new AbortController();
         const stopRun = (): void => detached.abort();
-        this.lifetime.signal.addEventListener("abort", stopRun, { once: true });
-        try {
-          const response = await this.run(procedure, request, detached.signal);
-          if (response.stream) {
-            // A stream follows its caller again
-            if (request.signal?.aborted) detached.abort();
-            else request.signal?.addEventListener("abort", stopRun, { once: true });
-          }
-          return response;
-        } finally {
+        const unlink = (): void => {
           this.lifetime.signal.removeEventListener("abort", stopRun);
+          request.signal?.removeEventListener("abort", stopRun);
+        };
+        this.lifetime.signal.addEventListener("abort", stopRun, { once: true });
+        let response: ServerResponse<unknown> | undefined;
+        try {
+          response = await this.run(procedure, request, detached.signal);
+        } finally {
+          // A response without a stream is done. A stream keeps the link until its end.
+          if (!response?.stream) unlink();
         }
+        if (!response.stream) return response;
+        // A stream follows its caller again
+        if (request.signal?.aborted) detached.abort();
+        else request.signal?.addEventListener("abort", stopRun, { once: true });
+        return { ...response, stream: releasedAtEnd(response.stream, unlink) };
       },
       // A retryable error lets the next try run again: the handler said that a retry is safe
       (response) => !(response.status.type === "error" && response.status.retryable),

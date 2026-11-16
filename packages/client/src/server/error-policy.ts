@@ -119,6 +119,40 @@ function logOnce(log: HiddenErrorLog, error: unknown, request: ServerRequest<unk
   log(error, request);
 }
 
+/**
+ * The logs of the errors of a response. `hidden` gets each error that the policy hides. `failed`
+ * gets each failure that the policy keeps, under each policy. A `map` result goes to no log.
+ *
+ * @internal
+ */
+export interface ErrorLogs {
+  /** The log of the errors that the policy hides. */
+  readonly hidden: HiddenErrorLog;
+  /** The log of each failure that the policy keeps: the caller gets the error as it is. */
+  readonly failed?: HiddenErrorLog | undefined;
+}
+
+/**
+ * True when the code of an error tells of a failure of the server, not of a refusal: a code that
+ * is not known, or a failure code. A code of `codes` is not a failure. `"coded"` hides these errors.
+ *
+ * @internal
+ */
+export function isFailureCode(policy: ServerErrorPolicy | undefined, code: string): boolean {
+  if (policy?.codes?.includes(code) === true) return false;
+  return !isKnownErrorCode(code) || FAILURE_CODES.has(code);
+}
+
+/**
+ * This function gives a failure to the log one time: an error whose code `isFailureCode` names.
+ * An error that a log got before does not go again.
+ *
+ * @internal
+ */
+export function logFailure(policy: ServerErrorPolicy | undefined, error: unknown, code: string, request: ServerRequest<unknown> | undefined, log: HiddenErrorLog): void {
+  if (isFailureCode(policy, code)) logOnce(log, error, request);
+}
+
 /** True when the policy can change a response: `"coded"`, or a `map` function. */
 export function policyActs(policy: ServerErrorPolicy | undefined): policy is ServerErrorPolicy {
   return policy !== undefined && (policy.expose === "coded" || policy.map !== undefined);
@@ -149,9 +183,10 @@ type Decision =
 /**
  * The decision of the policy for one error. `code` is the code that the error has on the wire. A
  * `map` result is final. `"coded"` keeps an error with a code of `codes`, or with a known code
- * that is not a failure code.
+ * that is not a failure code. Without a policy, each error stays as it is.
  */
-function decide(policy: ServerErrorPolicy, error: unknown, code: string, call: ErrorCall, logMapError: (error: unknown) => void): Decision {
+function decide(policy: ServerErrorPolicy | undefined, error: unknown, code: string, call: ErrorCall, logMapError: (error: unknown) => void): Decision {
+  if (policy === undefined) return { kind: "keep" };
   if (policy.map) {
     let mapped: ExposedError | undefined;
     try {
@@ -163,9 +198,7 @@ function decide(policy: ServerErrorPolicy, error: unknown, code: string, call: E
     if (mapped !== undefined) return { kind: "replace", error: mapped };
   }
   if (policy.expose !== "coded") return { kind: "keep" };
-  if (policy.codes?.includes(code) === true) return { kind: "keep" };
-  if (isKnownErrorCode(code) && !FAILURE_CODES.has(code)) return { kind: "keep" };
-  return { kind: "hide" };
+  return isFailureCode(policy, code) ? { kind: "hide" } : { kind: "keep" };
 }
 
 /** A `map` result as an error: a result that is not an `Error` becomes one, with its fields. */
@@ -177,8 +210,8 @@ function errorOfResult(result: ExposedError): Error {
 export const DEFAULT_KEPT_METADATA: readonly string[] = ["traceparent", "tracestate"];
 
 /** The metadata of a response with only the keys of the allowlist `keepMetadata` of the policy. */
-function keptMetadata(policy: ServerErrorPolicy, metadata: ServerResponse<unknown>["metadata"]): ServerResponse<unknown>["metadata"] {
-  const keys = policy.keepMetadata ?? DEFAULT_KEPT_METADATA;
+function keptMetadata(policy: ServerErrorPolicy | undefined, metadata: ServerResponse<unknown>["metadata"]): ServerResponse<unknown>["metadata"] {
+  const keys = policy?.keepMetadata ?? DEFAULT_KEPT_METADATA;
   const kept: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(metadata ?? {})) if (keys.includes(key)) kept[key] = value;
   return kept as ServerResponse<unknown>["metadata"];
@@ -186,11 +219,13 @@ function keptMetadata(policy: ServerErrorPolicy, metadata: ServerResponse<unknow
 
 /**
  * This function applies the error policy to a response that leaves the server: to an error
- * status, and to the error that ends a stream.
+ * status, and to the error that ends a stream. `logs.hidden` gets each hidden error, and
+ * `logs.failed` gets each failure that the policy keeps, also without a policy.
  *
  * @internal
  */
-export function exposedResponse<T>(policy: ServerErrorPolicy, request: ServerRequest<unknown>, response: ServerResponse<T>, log: HiddenErrorLog): ServerResponse<T> {
+export function exposedResponse<T>(policy: ServerErrorPolicy | undefined, request: ServerRequest<unknown>, response: ServerResponse<T>, logs: ErrorLogs): ServerResponse<T> {
+  const log = logs.hidden;
   const status = response.status;
   if (status.type === "error") {
     // A response that the server made without an error (a refusal of the token, a duplicate
@@ -198,6 +233,8 @@ export function exposedResponse<T>(policy: ServerErrorPolicy, request: ServerReq
     const link = realErrorOf(response, request);
     const real = link.found ? link.error : new ServerError(status.message, status.code, status.retryable);
     const decision = decide(policy, real, status.code, callOf(request), (mapError) => logOnce(log, mapError, request));
+    // A failure that goes to the caller as it is goes to the log too. A map result is the decision of the host.
+    if (decision.kind === "keep" && logs.failed) logFailure(policy, real, status.code, request, logs.failed);
     if (decision.kind === "keep") return response;
     const { stream: _stream, payload: _payload, ...rest } = response;
     // Only the keys of the allowlist stay (the trace keys): an unknown key can tell of the error
@@ -216,19 +253,23 @@ export function exposedResponse<T>(policy: ServerErrorPolicy, request: ServerReq
     };
   }
   if (response.stream === undefined) return response;
-  return { ...response, stream: exposedStream(policy, request, response.stream, log) };
+  return { ...response, stream: exposedStream(policy, request, response.stream, logs) };
 }
 
 /**
  * The items of a stream, with the error policy for the error that ends it. A kept error goes on
- * unchanged. Another error goes on as an error of its exposed code and message.
+ * unchanged. Another error goes on as an error of its exposed code and message. A failure that
+ * the policy keeps goes to `logs.failed`.
  */
-function exposedStream<T>(policy: ServerErrorPolicy, request: ServerRequest<unknown>, items: AsyncIterable<T>, log: HiddenErrorLog): AsyncGenerator<T, void, undefined> {
+function exposedStream<T>(policy: ServerErrorPolicy | undefined, request: ServerRequest<unknown>, items: AsyncIterable<T>, logs: ErrorLogs): AsyncGenerator<T, void, undefined> {
+  const log = logs.hidden;
   const exposed = (async function* () {
     try {
       yield* items;
     } catch (error) {
-      const decision = decide(policy, error, errorCodeOf(error), callOf(request), (mapError) => logOnce(log, mapError, request));
+      const code = errorCodeOf(error);
+      const decision = decide(policy, error, code, callOf(request), (mapError) => logOnce(log, mapError, request));
+      if (decision.kind === "keep" && logs.failed) logFailure(policy, error, code, request, logs.failed);
       if (decision.kind === "keep") throw error;
       if (decision.kind === "hide") {
         logOnce(log, error, request);

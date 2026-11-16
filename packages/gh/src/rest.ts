@@ -12,7 +12,7 @@
  */
 
 import type { Cancel, Clock } from "@mark1russell7/service/clock";
-import { realClock } from "@mark1russell7/service/clock";
+import { platformClock, realClock } from "@mark1russell7/service/clock";
 import { keyedLimiter, memoryStore, retryAfterSeconds, type LocalLimiter } from "@mark1russell7/service/limiter";
 import { httpRequest } from "@procedures/http";
 
@@ -77,7 +77,7 @@ export interface RestClientOptions {
   readonly maxWaitMs?: number | undefined;
   /** This transport sends each exchange. The default sends it with `httpRequest` of `@procedures/http`. */
   readonly transport?: RestTransport | undefined;
-  /** This clock gives the monotonic time and the timers. The default is the clock of the platform. */
+  /** This clock gives the monotonic time and the timers. The default is the clock of the platform. A wait of a request then keeps a Node process alive, and the other timers do not. */
   readonly clock?: Clock | undefined;
 }
 
@@ -266,6 +266,9 @@ export function createRestClient(options: RestClientOptions): RestClient {
   }
   const transport = options.transport ?? httpTransport;
   const clock = options.clock ?? realClock;
+  // A wait for the limits is a part of a request that the caller awaits, so its timer keeps a Node
+  // process alive, as the request does. The timers of the store and the limiters do not
+  const waitClock = options.clock ?? platformClock();
   const store = memoryStore(clock);
   const points: LocalLimiter = keyedLimiter(
     "github-points",
@@ -301,7 +304,7 @@ export function createRestClient(options: RestClientOptions): RestClient {
       if (decision.cause === "capacity") throw new RangeError(`The request ${what} costs more points than a minute has.`);
       const wait = Math.max(1, retryAfterSeconds(decision.retryAfter)) * 1000;
       if (clock.now() + wait > deadline) throw new RestRateError(`The request ${what} waits ${wait} ms for the limit of the rate, more than its longest wait.`, wait);
-      await pause(clock, wait, signal, what);
+      await pause(waitClock, wait, signal, what);
     }
   };
 
@@ -313,7 +316,7 @@ export function createRestClient(options: RestClientOptions): RestClient {
       if (clock.now() + blocked > deadline) {
         throw new RestRateError(`GitHub refused a request for the rate. The request ${what} waits ${blocked} ms, more than its longest wait.`, blocked);
       }
-      await pause(clock, blocked, signal, what);
+      await pause(waitClock, blocked, signal, what);
     }
   };
 

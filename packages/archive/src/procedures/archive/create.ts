@@ -15,7 +15,7 @@ import { dirname } from "node:path";
 import { ArchiveError } from "../../errors.js";
 import { DEFAULT_ARCHIVE_SETTINGS, formatOfName, type ArchiveSettings } from "../../format.js";
 import { entryParts } from "../../paths.js";
-import { placesOf, type Places } from "../../root.js";
+import { inHold, placesOf, type Places } from "../../root.js";
 import { createTar } from "../../tar.js";
 import { folderNames, under, walk } from "../../walk.js";
 import { writeZip, type ZipWriteEntry } from "../../zip.js";
@@ -46,7 +46,13 @@ async function inputNames(input: ArchiveCreateInput, places: Places): Promise<{ 
 /**
  * Make a tar.gz or zip archive of a folder or of files
  */
-export async function archiveCreate(input: ArchiveCreateInput, settings: ArchiveSettings = DEFAULT_ARCHIVE_SETTINGS): Promise<ArchiveCreateOutput> {
+export function archiveCreate(input: ArchiveCreateInput, settings: ArchiveSettings = DEFAULT_ARCHIVE_SETTINGS): Promise<ArchiveCreateOutput> {
+  // The check of the paths and the work start in one hold of the roots: it reads files and writes one archive file, and it makes no link
+  return inHold(settings.root, "shared", () => createInRoot(input, settings));
+}
+
+/** The work of `archiveCreate()`, in its hold of the roots. */
+async function createInRoot(input: ArchiveCreateInput, settings: ArchiveSettings): Promise<ArchiveCreateOutput> {
   const places = await placesOf(settings.root, ["archive", "create"]);
   const output = await places.place(input.output);
   const format = formatOfName(input.output, input.format);
