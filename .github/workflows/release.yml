@@ -5,7 +5,11 @@ name: Release
 # each package version that is not on npm, with provenance. The public packages have one version
 # together (.changeset/config.json, "fixed"). The pull request needs the setting "Allow GitHub
 # Actions to create and approve pull requests". Without it, start `pnpm changeset version`
-# locally, and merge the result to main.
+# locally on a branch release/<version>, and merge its pull request to main.
+#
+# A person merges the version pull request, or turns on its auto-merge. GitHub starts no workflow
+# for a push that the GITHUB_TOKEN of a workflow makes: a merge by a bot with that token publishes
+# nothing, and no run tells why. Then start release.yml by hand on main.
 #
 # Two events start a run:
 #
@@ -23,8 +27,11 @@ name: Release
 #
 #   gate            Gives the kind of the run: "version-commit", "none" (a push that does not
 #                   change the version, then no other job starts) or "dispatch". It reads the
-#                   version of the commit and of main before the push with the GitHub API. It holds only
-#                   "contents: read" and runs no code of this repository: no checkout.
+#                   version of the commit and of main before the push with the GitHub API. A
+#                   changed version must come from the merge of a version pull request (the branch
+#                   changeset-release/main or release/<version>), else the run stops with an error.
+#                   It holds only "contents: read" and "pull-requests: read" and runs no code of
+#                   this repository: no checkout.
 #   ci              Stops when the commit has no green CI run. In a push run, it first waits for
 #                   the CI run of the commit, which starts at the same time as this run. It holds
 #                   only "actions: read" and runs no code of this repository.
@@ -104,6 +111,8 @@ jobs:
     permissions:
       # The two versions of packages/client/package.json, from the GitHub API
       contents: read
+      # The pull request that made the commit: a version commit must come from a version pull request
+      pull-requests: read
     outputs:
       # version-commit: a push that changes the version. none: a push that does not change it.
       # dispatch: a start by hand.
@@ -149,8 +158,23 @@ jobs:
             kind=none
             echo "The version in $file stays $new: no release. The other jobs do not start." >> "$GITHUB_STEP_SUMMARY"
           else
+            # A changed version publishes only when a version pull request made the commit: the
+            # branch changeset-release/main of the Changesets action, or release/<version> of a
+            # local `pnpm changeset version`. A change of the version in a different pull request,
+            # or in a push with no pull request, is an error, and the run publishes nothing.
+            branches=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '.[] | select(.merged_at != null and .base.ref == "main") | .head.ref')
+            from_version_pr=false
+            while read -r branch; do
+              case "$branch" in
+                changeset-release/main | release/*) from_version_pr=true ;;
+              esac
+            done <<< "$branches"
+            if [ "$from_version_pr" != true ]; then
+              echo "::error::The version in $file changed from $old to $new at $GITHUB_SHA, but no merged version pull request (branch changeset-release/main or release/<version>) made the commit. The run publishes nothing. To publish this commit, start release.yml by hand."
+              exit 1
+            fi
             kind=version-commit
-            echo "A version commit: $old to $new. The run publishes the versions of $GITHUB_SHA." >> "$GITHUB_STEP_SUMMARY"
+            echo "A version commit: $old to $new, from a version pull request. The run publishes the versions of $GITHUB_SHA." >> "$GITHUB_STEP_SUMMARY"
           fi
           echo "kind=$kind" >> "$GITHUB_OUTPUT"
 

@@ -129,6 +129,10 @@ A version-commit run does not start the Changesets action. With changesets, that
 
 The job `gate` compares the last commit of a push with the head of `main` before the push (`github.event.before`). So a push of more than one commit is a version commit when any of its commits changes the version. When the event has no such commit, the job uses the first parent.
 
+A changed version publishes only when the merge of a version pull request made the commit. The branch of that pull request is `changeset-release/main` (the Changesets action) or `release/<version>` (a local `pnpm changeset version`). The job `gate` reads the pull request of the commit with the GitHub API. When a different pull request or a push with no pull request changes the version, the run stops with an error and publishes nothing. To publish such a commit, start the workflow by hand on `main`.
+
+A person merges the version pull request, or turns on its auto-merge. GitHub starts no workflow for a push that the `GITHUB_TOKEN` of a workflow makes. So a merge by a bot with that token publishes nothing, and no run tells why. Then start the workflow by hand on `main`.
+
 ### One run at a time
 
 The runs of the release workflow wait in one queue: the concurrency group `release` with `queue: max`. A run starts when the run before it ends. No run cancels a different run. Without `queue: max`, GitHub keeps only one waiting run in a group, and a newer run cancels the waiting run.
@@ -145,7 +149,7 @@ The workflow has six jobs. Only one job starts the code of this repository, and 
 
 | Job | Permissions | What it does |
 |---|---|---|
-| `gate` | `contents: read` | It reads the version of the commit and of `main` before the push with the GitHub API. It gives the kind of the run: `version-commit`, `none` or `dispatch`. |
+| `gate` | `contents: read`, `pull-requests: read` | It reads the version of the commit and of `main` before the push, and the pull request of the commit, with the GitHub API. It gives the kind of the run: `version-commit`, `none` or `dispatch`. |
 | `ci` | `actions: read` | It stops the run when the commit has no green CI run on `main`. In a push run, it first waits for that CI run. |
 | `build` | `contents: write`, `pull-requests: write` | It does the checks. Then it opens the version pull request, or it packs the versions that are not on npm. |
 | `publish` | `id-token: write` | The action `npm-publish` of the template publishes the tarballs with the npm CLI. |
