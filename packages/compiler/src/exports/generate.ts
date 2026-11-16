@@ -484,6 +484,7 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
         return undefined;
       }
       const record = node as Record<string, unknown>;
+      // path-check: a position in the input schema, the property names, not a procedure path
       if (PROGRAM_KEYWORD in record) return path.join(".");
       const ref = record["$ref"];
       if (typeof ref === "string" && ref.startsWith("#/$defs/")) {
