@@ -4,13 +4,13 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
+import { startChildServer, type ChildServer } from "@mark1russell7/rigor-testkit/child";
 import { HttpTransport, subscribeRemote, type RemoteEvent } from "@procedures/client";
 import { BIN, mark } from "./run.js";
 
@@ -18,44 +18,27 @@ const TOOLS = fileURLToPath(new URL("../../impl-mcp-dev/tools.snapshot.txt", imp
 /** A procedure package of the old kind with `e2e.publish`, which emits on `ctx.bus`. */
 const PUBLISH_FIXTURE = fileURLToPath(new URL("./fixture-publish.ts", import.meta.url));
 
-async function freePort(): Promise<number> {
-  const server = createServer();
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
-  const address = server.address();
-  const port = typeof address === "object" && address ? address.port : 0;
-  await new Promise<void>((resolve) => server.close(() => resolve()));
-  return port;
-}
+/**
+ * The line of the HTTP endpoint that `mark serve` and `mark --server` write to stdout, for example
+ * `  [http] http://127.0.0.1:41234/api`. Its group is the port that the listener got.
+ */
+const HTTP_ENDPOINT = /\[http\] http:\/\/\S+:(\d+)\/api/;
 
-/** This function starts mark with the arguments, and waits until its output has `ready`. */
-async function startMark(
-  args: string[],
-  ready: string,
-  options: { cwd?: string; env?: Record<string, string> } = {},
-): Promise<{ child: ChildProcessWithoutNullStreams; output: () => string }> {
-  const child = spawn(process.execPath, [BIN, ...args], {
-    windowsHide: true,
+/**
+ * This function starts mark with the arguments. Give the arguments the port 0: the system then gives
+ * the port at the listen. The function waits until mark writes `Press Ctrl+C`, and gives the port of
+ * the HTTP endpoint line.
+ */
+function startMark(args: string[], options: { cwd?: string; env?: Record<string, string> } = {}): Promise<ChildServer> {
+  return startChildServer({
+    command: process.execPath,
+    args: [BIN, ...args],
     ...(options.cwd ? { cwd: options.cwd } : {}),
     env: { ...process.env, FORCE_COLOR: "0", NO_COLOR: "1", ...options.env },
+    report: { from: "stdout", pattern: HTTP_ENDPOINT },
+    ready: /Press Ctrl\+C/,
+    timeoutMs: 60000,
   });
-  let output = "";
-  await new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`No start within 60 s:\n${output}`)), 60000);
-    const onData = (data: Buffer): void => {
-      output += data.toString();
-      if (output.includes(ready)) {
-        clearTimeout(timer);
-        resolve();
-      }
-    };
-    child.stdout.on("data", onData);
-    child.stderr.on("data", onData);
-    child.on("exit", (code) => {
-      clearTimeout(timer);
-      reject(new Error(`mark ${args.join(" ")} exited with ${code}:\n${output}`));
-    });
-  });
-  return { child, output: () => output };
 }
 
 /** A call over HTTP with a token: the status and the JSON body. */
@@ -104,22 +87,15 @@ describe("mark mcp", () => {
   }, 90000);
 
   it("serves the same tools over Streamable HTTP with --http and --token (roadmap R26)", async () => {
-    const port = await freePort();
-    const child = spawn(process.execPath, [BIN, "mcp", "--http", String(port), "--token", "e2e-token"], { windowsHide: true });
+    // On the port 0, mark mcp writes the address of its listener to stderr: stdout carries only the protocol
+    const server = await startChildServer({
+      command: process.execPath,
+      args: [BIN, "mcp", "--http", "0", "--token", "e2e-token"],
+      report: { from: "stderr", pattern: /Streamable HTTP at http:\/\/\S+:(\d+)\/mcp/ },
+      timeoutMs: 60000,
+    });
     try {
-      let output = "";
-      await new Promise<void>((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error(`No start within 60 s: ${output}`)), 60000);
-        child.stderr.on("data", (chunk: Buffer) => {
-          output += chunk.toString();
-          if (output.includes("Streamable HTTP at")) {
-            clearTimeout(timer);
-            resolve();
-          }
-        });
-        child.once("exit", (code) => reject(new Error(`mark mcp ended with ${code}: ${output}`)));
-      });
-      const url = `http://127.0.0.1:${port}/mcp`;
+      const url = `http://127.0.0.1:${server.port}/mcp`;
       const post = (body: unknown, headers: Record<string, string> = {}) =>
         fetch(url, {
           method: "POST",
@@ -143,7 +119,7 @@ describe("mark mcp", () => {
       const expected = readFileSync(TOOLS, "utf8").split(/\r?\n/).filter(Boolean);
       expect(json.result.tools.length).toBe(expected.length);
     } finally {
-      child.kill();
+      await server.stop();
     }
   }, 90000);
 
@@ -198,28 +174,9 @@ describe("mark mcp", () => {
 
 describe("mark serve", () => {
   it("serves the procedures of a package from mark's folder, with the token and the expose list", async () => {
-    const port = await freePort();
-    const child = spawn(process.execPath, [BIN, "serve", "--port", String(port), "--token", "t", "--procedures", "@procedures/fs", "--expose", "fs.exists"], {
-      windowsHide: true,
-    });
+    const server = await startMark(["serve", "--port", "0", "--token", "t", "--procedures", "@procedures/fs", "--expose", "fs.exists"]);
+    const { port } = server;
     try {
-      let output = "";
-      await new Promise<void>((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error(`No start within 60 s:\n${output}`)), 60000);
-        const onData = (data: Buffer): void => {
-          output += data.toString();
-          if (output.includes("Press Ctrl+C")) {
-            clearTimeout(timer);
-            resolve();
-          }
-        };
-        child.stdout.on("data", onData);
-        child.stderr.on("data", onData);
-        child.on("exit", (code) => {
-          clearTimeout(timer);
-          reject(new Error(`mark serve exited with ${code}:\n${output}`));
-        });
-      });
       const call = async (path: string, token?: string): Promise<{ status: number; body: unknown }> => {
         const response = await fetch(`http://127.0.0.1:${port}/api/${path}`, {
           method: "POST",
@@ -238,16 +195,13 @@ describe("mark serve", () => {
       const subscription = subscribeRemote(transport, ["e2e.orders.created"], () => {});
       await expect(subscription.ready).rejects.toMatchObject({ code: "TOPIC_NOT_FOUND" });
     } finally {
-      child.kill();
+      await server.stop();
     }
   }, 120000);
 
   it("serves the topics of --events, and a procedure publishes on the bus of the host (EVENTS.md)", async () => {
-    const port = await freePort();
-    const { child } = await startMark(
-      ["serve", "--port", String(port), "--token", "t", "--procedures", PUBLISH_FIXTURE, "--events", "e2e.orders.*"],
-      "Press Ctrl+C",
-    );
+    const server = await startMark(["serve", "--port", "0", "--token", "t", "--procedures", PUBLISH_FIXTURE, "--events", "e2e.orders.*"]);
+    const { port } = server;
     try {
       const transport = new HttpTransport({ baseUrl: `http://127.0.0.1:${port}/api`, defaultHeaders: { Authorization: "Bearer t" } });
       const events: RemoteEvent[] = [];
@@ -263,7 +217,7 @@ describe("mark serve", () => {
       const outside = subscribeRemote(transport, ["e2e.audit.created"], () => {});
       await expect(outside.ready).rejects.toMatchObject({ code: "TOPIC_NOT_FOUND" });
     } finally {
-      child.kill();
+      await server.stop();
     }
   }, 120000);
 
@@ -273,17 +227,17 @@ describe("mark serve", () => {
     mkdirSync(root);
     writeFileSync(join(root, "inside.txt"), "inside");
     writeFileSync(join(base, "outside.txt"), "outside");
-    const port = await freePort();
     // The root before serve applies to the server of serve
-    const { child, output } = await startMark(["--fs-root", root, "serve", "--port", String(port), "--token", "t", "--procedures", "@procedures/fs"], "Press Ctrl+C");
+    const server = await startMark(["--fs-root", root, "serve", "--port", "0", "--token", "t", "--procedures", "@procedures/fs"]);
+    const { port } = server;
     try {
-      expect(output()).toContain(`File root: ${root}`);
+      expect(server.output()).toContain(`File root: ${root}`);
       const inside = await post(`http://127.0.0.1:${port}/api/fs/read`, "t", { path: "inside.txt" });
       expect(inside).toMatchObject({ status: 200, body: { content: "inside" } });
       const refused = await post(`http://127.0.0.1:${port}/api/fs/read`, "t", { path: join(base, "outside.txt") });
       expect(refused.status).toBe(403);
     } finally {
-      child.kill();
+      await server.stop();
       rmSync(base, { recursive: true, force: true, maxRetries: 3 });
     }
   }, 120000);
@@ -297,11 +251,9 @@ describe("mark --server", () => {
     writeFileSync(join(root, "inside.txt"), "inside");
     writeFileSync(join(home, "outside.txt"), "outside");
     const env = { HOME: home, USERPROFILE: home };
-    const port = await freePort();
-    const { child } = await startMark(["--fs-root", root, "--server", "--port", String(port), "--events", "e2e.audit.*"], "Press Ctrl+C", {
-      cwd: home,
-      env,
-    });
+    // On the port 0, the server writes its lockfile with the port that the listener got
+    const server = await startMark(["--fs-root", root, "--server", "--port", "0", "--events", "e2e.audit.*"], { cwd: home, env });
+    const { port } = server;
     try {
       const lock = JSON.parse(readFileSync(join(home, ".mark", "servers", `${port}.lock`), "utf8")) as { endpoint: string; token: string; fsRoot?: string };
       expect(lock.fsRoot).toBe(root);
@@ -324,9 +276,8 @@ describe("mark --server", () => {
       expect(free.exitCode).toBe(0);
       expect(free.stdout).toContain("outside");
     } finally {
-      child.kill();
       // The host writes the compile cache under HOME at its exit, so the folder goes after the exit
-      if (child.exitCode === null && child.signalCode === null) await new Promise((done) => child.once("exit", done));
+      await server.stop();
       rmSync(home, { recursive: true, force: true, maxRetries: 3 });
     }
   }, 180000);
