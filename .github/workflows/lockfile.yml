@@ -1,0 +1,104 @@
+name: Lockfile
+
+# The pnpm-lock.yaml of a branch, made in CI. Then a computer with low memory does not need a local
+# install. The job resolves the dependencies of the branch with `pnpm install --lockfile-only`
+# and uploads only pnpm-lock.yaml as the artifact "pnpm-lock". It does not push a commit.
+#
+# To use it:
+#   gh workflow run lockfile.yml --ref main -f branch=<branch>
+#   gh run download <run id> -n pnpm-lock -D <folder>
+# Copy the file into the branch, compare its SHA-256 with the summary of the run, and commit it.
+# The job "Repository checks" of ci.yml then does a frozen install of that commit
+# (`pnpm install --frozen-lockfile`). That install fails when the lockfile does not agree with the
+# package.json files.
+#
+# The guards:
+# - The job takes a branch, and it refuses main and the default branch.
+# - The workflow code comes from the ref of the dispatch. Dispatch it from main.
+# - The job fails when the install changes a file other than pnpm-lock.yaml, and it uploads only that file.
+# - The token can only read, and the install starts no script of a package (--ignore-scripts).
+# - A pull request that changes this file starts the job on its own branch. That run is the test of the workflow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "The branch whose pnpm-lock.yaml the job makes. The job refuses main."
+        required: true
+        type: string
+  pull_request:
+    paths:
+      - .github/workflows/lockfile.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lockfile-${{ inputs.branch || github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  lockfile:
+    name: Lockfile
+    runs-on: ubuntu-latest
+    # The install resolves the versions from the registry. It downloads no package.
+    timeout-minutes: 15
+    steps:
+      - name: Refuse main and the default branch
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          BRANCH: ${{ inputs.branch }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          name="${BRANCH#refs/heads/}"
+          if [ -z "$name" ] || [ "$name" = main ] || [ "$name" = "$DEFAULT_BRANCH" ]; then
+            echo "::error::The job does not make the lockfile of '$BRANCH'. Give a branch that is not main."
+            exit 1
+          fi
+          git check-ref-format --branch "$name" > /dev/null
+      # A dispatch checks out the branch. A pull request checks out its own merge commit.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.branch }}
+          persist-credentials: false
+      # The pnpm version comes from "packageManager" in the package.json of the branch.
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+      # In CI, pnpm makes a frozen install by default. With --no-frozen-lockfile, pnpm writes the file.
+      - name: Resolve the dependencies
+        run: pnpm install --lockfile-only --no-frozen-lockfile --ignore-scripts
+      - name: Only pnpm-lock.yaml changed
+        run: |
+          status=0
+          while IFS= read -r line; do
+            path="${line:3}"
+            if [ "$path" != pnpm-lock.yaml ]; then
+              echo "::error file=$path::The install changed $path. The job uploads only pnpm-lock.yaml."
+              status=1
+            fi
+          done < <(git status --porcelain --untracked-files=all)
+          exit "$status"
+      - name: The summary
+        env:
+          BRANCH: ${{ inputs.branch || github.head_ref }}
+        run: |
+          if git diff --quiet -- pnpm-lock.yaml; then state="did not change"; else state="changed"; fi
+          {
+            echo "## The lockfile of \`$BRANCH\`"
+            echo
+            echo "- The commit: \`$(git rev-parse HEAD)\`"
+            echo "- pnpm-lock.yaml $state: $(git diff --shortstat -- pnpm-lock.yaml || true)"
+            echo "- The SHA-256 of the file: \`$(sha256sum pnpm-lock.yaml | cut -d' ' -f1)\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pnpm-lock
+          path: pnpm-lock.yaml
+          if-no-files-found: error
+          retention-days: 7
