@@ -70,6 +70,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@mark1russell7/sqlite": "^0.3.4",
     "@procedures/client": "workspace:*",
     "zod": "^4.6.5"
   },
