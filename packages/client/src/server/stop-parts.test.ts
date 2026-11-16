@@ -181,6 +181,41 @@ describe("the stop parts of ProcedureServer (CLI-5)", () => {
     expect(server.getCollectionNames()).toEqual(["c"]);
   });
 
+  it("close the partitions with close() one time at the stop, and keep the partitions without it", async () => {
+    const events: string[] = [];
+    const tenants = { storageOf: () => recordingStorage(events, "tenant"), resolve: () => undefined, close: () => void events.push("tenants.close") };
+    const shared = { storageOf: () => recordingStorage(events, "shared"), resolve: () => undefined };
+    const { server } = serverOf({ collections: { things: recordingStorage(events, "things") } });
+    server.usePartitions("notes", tenants).usePartitions("tasks", tenants).usePartitions("logs", shared);
+    await server.start();
+    await server.stop();
+    expect(events).toEqual(["things.close", "tenants.close"]);
+    expect(server.hasPartitions("notes")).toBe(false);
+    expect(server.hasPartitions("tasks")).toBe(false);
+    expect(server.hasPartitions("logs")).toBe(true);
+  });
+
+  it("give one handle for each partitions object, and its close removes the collections and closes them", async () => {
+    const events: string[] = [];
+    const tenants = { storageOf: () => recordingStorage(events, "tenant"), resolve: () => undefined, close: async () => void events.push("tenants.close") };
+    const shared = { storageOf: () => recordingStorage(events, "shared"), resolve: () => undefined };
+    const { server } = serverOf();
+    server.usePartitions("notes", tenants).usePartitions("logs", shared).usePartitions("tasks", tenants);
+    const handles = server.partitionHandles();
+    expect(handles.map((handle) => [handle.name, handle.collections])).toEqual([
+      ["partitions.notes+tasks", ["notes", "tasks"]],
+      ["partitions.logs", ["logs"]],
+    ]);
+    const [notes, logs] = handles;
+    await notes!.close();
+    expect(events).toEqual(["tenants.close"]);
+    expect(server.hasPartitions("notes") || server.hasPartitions("tasks")).toBe(false);
+    // Partitions without close() stay on the server: the host closes their storages
+    await logs!.close();
+    expect(server.hasPartitions("logs")).toBe(true);
+    expect(events).toEqual(["tenants.close"]);
+  });
+
   it("stop() calls the parts in the sequence of the stages: intake, drain, close, then the storages", async () => {
     const events: string[] = [];
     const { server, hold, offer } = serverOf({ transports: [recordingTransport(events)], collections: { things: recordingStorage(events, "things") } });

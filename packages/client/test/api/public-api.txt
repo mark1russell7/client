@@ -239,6 +239,7 @@ PURE_EFFECTS: dist/procedures/effects.d.ts#PURE_EFFECTS
 type PackageDefinition: dist/procedures/module.d.ts#PackageDefinition
 type PartitionInput: dist/procedures/collection/partition.d.ts#PartitionInput
 type PartitionResolver: dist/procedures/collection/partition.d.ts#PartitionResolver
+type PartitionsHandle: dist/server/procedure-server.d.ts#PartitionsHandle
 type PermittedEffects: dist/procedures/types.d.ts#PermittedEffects
 type PortLike: dist/adapters/port/transport.d.ts#PortLike
 PortTransport: dist/adapters/port/transport.d.ts#PortTransport
@@ -914,6 +915,7 @@ PURE_EFFECTS: dist/procedures/effects.d.ts#PURE_EFFECTS
 type PackageDefinition: dist/procedures/module.d.ts#PackageDefinition
 type PartitionInput: dist/procedures/collection/partition.d.ts#PartitionInput
 type PartitionResolver: dist/procedures/collection/partition.d.ts#PartitionResolver
+type PartitionsHandle: dist/server/procedure-server.d.ts#PartitionsHandle
 type PermittedEffects: dist/procedures/types.d.ts#PermittedEffects
 type PortLike: dist/adapters/port/transport.d.ts#PortLike
 PortTransport: dist/adapters/port/transport.d.ts#PortTransport
@@ -2007,6 +2009,7 @@ type ErrorCall: dist/server/error-policy.d.ts#ErrorCall
 type ExposedError: dist/server/error-policy.d.ts#ExposedError
 HIDDEN_ERROR_MESSAGE: dist/server/error-policy.d.ts#HIDDEN_ERROR_MESSAGE
 HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
+type PartitionsHandle: dist/server/procedure-server.d.ts#PartitionsHandle
 type Principal: dist/server/types.d.ts#Principal
 type PrincipalOf: dist/server/types.d.ts#PrincipalOf
 ProcedureServer: dist/server/procedure-server.d.ts#ProcedureServer
@@ -4309,6 +4312,7 @@ export declare function withHintImages<T extends object>(event: T, images: HintI
 export interface CollectionPartitions<T = unknown> {
     storageOf(partition: string): CollectionStorage<T>;
     resolve: PartitionResolver;
+    close?(): Promise<void> | void;
 }
 
 ### dist/procedures/collection/partition.d.ts#CollectionTopicCollisionError
@@ -6443,6 +6447,15 @@ export declare function methodToPath(method: Pick<Method, "service" | "operation
 ### dist/server/method.d.ts#pathToMethod
 export declare function pathToMethod(path: readonly string[]): Method;
 
+### dist/server/procedure-server.d.ts#PartitionsHandle
+export interface PartitionsHandle {
+    readonly name: string;
+    readonly collections: readonly string[];
+    readonly partitions: CollectionPartitions<unknown>;
+    connect(signal: AbortSignal): Promise<void> | void;
+    close(): Promise<void>;
+}
+
 ### dist/server/procedure-server.d.ts#ProcedureServer
 export declare class ProcedureServer extends Server implements RepositoryProvider, StopParts {
     readonly publisher: EventPublisher | undefined;
@@ -6479,6 +6492,7 @@ export declare class ProcedureServer extends Server implements RepositoryProvide
     publish<T>(topic: string, data: T): void;
     closeStorages(): Promise<void>;
     storageHandles(): StorageHandle[];
+    partitionHandles(): PartitionsHandle[];
     start(): Promise<void>;
     stopIntake(): void;
     drain(deadline: number, signal: AbortSignal): Promise<void>;

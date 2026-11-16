@@ -458,7 +458,7 @@ export function createMcpHost(options: McpHostOptions = {}): McpHost {
       if (running || stopping) throw new Error("This MCP host started without a service. Declare it before it starts.");
       managed = true;
       // The storages connect before the server starts, and close after it (as the procedures host does)
-      for (const handle of server.storageHandles()) {
+      for (const handle of [...server.storageHandles(), ...server.partitionHandles()]) {
         svc.dependency(handle.name, { system: null, knobs: {}, operations: STORAGE_OPERATIONS }, handle);
       }
       svc.server("mcp", {}, {
