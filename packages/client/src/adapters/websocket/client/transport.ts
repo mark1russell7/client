@@ -8,7 +8,7 @@
 import { ClientError, type Transport, type Message, type ResponseItem } from "../../../client/types.js";
 import type { WebSocketTransportOptions, WebSocketMessage, ServerRequestHandler, EventHandler, WebSocketClass } from "./types.js";
 import { WebSocketState } from "./types.js";
-import { withoutInternalKeys } from "../../metadata.js";
+import { wireMetadata, withoutInternalKeys } from "../../metadata.js";
 import { IncomingCalls } from "../shared/rpc.js";
 import { StreamSequence, gapOf, itemMetadata } from "../../sequence.js";
 import type { Credentials, RequestHandler, ServerResponse } from "../../../server/types.js";
@@ -585,7 +585,8 @@ export class WebSocketTransport implements Transport {
         id: frame.id,
         method: frame.method!,
         payload: frame.payload === undefined ? {} : frame.payload,
-        metadata: withoutInternalKeys(frame.metadata),
+        // A frame of the network sets no credentials, so its key `auth` stays out too (roadmap R18)
+        metadata: wireMetadata(frame.metadata),
         signal,
         credentials: NETWORK_WITHOUT_CREDENTIALS,
       }),

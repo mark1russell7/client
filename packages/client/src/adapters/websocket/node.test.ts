@@ -170,6 +170,32 @@ describe("the WebSocketTransport of @procedures/client/node", () => {
     expect(await toClient.call(pathToMethod(["ui", "greet"]), { name: "node" })).toBe("hello node");
   });
 
+  it("keeps the key auth of a frame of the server out of the metadata of a served call (R18)", async () => {
+    const server = await procedureServer();
+    const served = new ProcedureServer({
+      registry: createRegistry({
+        name: "ui",
+        procedures: [
+          createProcedure()
+            .path(["ui", "meta"])
+            .input(z.object({}))
+            .output(z.object({ auth: z.unknown(), note: z.unknown() }))
+            .meta({ effects: read })
+            .handler(async (_input, ctx) => ({ auth: ctx.metadata["auth"], note: ctx.metadata["note"] }))
+            .build(),
+        ],
+      }),
+    });
+    served.registerFromRegistry();
+    const transport = new WebSocketTransport({ url: server.url, serve: served, heartbeat: { enabled: false }, reconnect: { enabled: false } });
+    cleanups.push(() => transport.close());
+    await waitFor(() => server.ws.getTrackedConnections().length === 1);
+    const id = server.ws.getTrackedConnections()[0]!.id;
+    const toClient = new Client({ transport: server.ws.transportFor(id), throwOnError: true });
+    const result = await toClient.call(pathToMethod(["ui", "meta"]), {}, { metadata: { auth: { token: "t" }, note: "v" } });
+    expect(result).toEqual({ auth: undefined, note: "v" });
+  });
+
   it("ends a dropped socket with terminate(), so the server sees the end at once", async () => {
     const server = await silentServer();
     const terminate = vi.spyOn(WsClient.prototype, "terminate");
