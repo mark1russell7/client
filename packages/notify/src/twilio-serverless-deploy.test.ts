@@ -305,6 +305,14 @@ describe("twilioServerlessDeploy", () => {
     expect(effects.lines.join("\n")).not.toContain("made-up-from-0000");
   });
 
+  it("deploys with no log", async () => {
+    const fake = new FakeServerless();
+    const effects = ports(fake);
+    const result = await twilioServerlessDeploy({ fetch: effects.fetch, now: effects.now, sleep: effects.sleep }, CREDENTIALS, PLAN);
+    expect(result).toMatchObject({ ok: true, changed: true });
+    expect(effects.lines).toEqual([]);
+  });
+
   it("throws for a plan that breaks a rule", async () => {
     const fake = new FakeServerless();
     await expect(twilioServerlessDeploy(ports(fake), CREDENTIALS, { ...PLAN, functions: [] })).rejects.toThrow("no function");

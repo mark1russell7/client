@@ -157,7 +157,7 @@ A request holds the credentials in its `authorization` header. Do not log a requ
 
 ## Twilio Serverless
 
-`@procedures/notify/twilio-serverless` has pure functions for the Twilio Serverless API. They put functions and assets on a domain of Twilio, for example the TwiML of a call or the address that gets the key of a person. A browser can also use them. The entry has no procedures.
+`@procedures/notify/twilio-serverless` has pure functions for the Twilio Serverless API. They put functions and assets on a domain of Twilio. Examples are the TwiML of a call and the address that gets the key of a person. A browser can also use them. The entry has no procedures.
 
 - `twilioServerlessServiceRequest` makes a service. `twilioServerlessServiceFetchRequest` reads a service by its SID or its unique name.
 - `twilioServerlessFunctionRequest` and `twilioServerlessAssetRequest` make a function and an asset. The list requests read them, one page at a time.
