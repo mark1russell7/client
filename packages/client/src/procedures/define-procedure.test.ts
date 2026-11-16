@@ -858,9 +858,30 @@ describe("procedure.define and procedure.delete under the expose rule of a host"
       expect(JSON.stringify(replaced.status)).toContain("Procedure not exposed: admin.hook");
     }
     expect(runtimeProgramOf(registry.get(["admin", "hook"])!)).toEqual(identity("host"));
-    // A new procedure at a free hidden path stays possible, as before (the R23 test of impl-mcp-dev)
+  });
+
+  it("procedure.define refuses a free hidden path, and the registry gets nothing", async () => {
+    const { registry, call } = await host();
     const made = await call(["procedure", "define"], { path: ["admin", "other"], aggregation: identity("caller") });
-    expect(made.status).toMatchObject({ type: "success" });
+    expect(made.status).toMatchObject({ type: "error", code: "NOT_EXPOSED" });
+    expect(registry.get(["admin", "other"])).toBeUndefined();
+  });
+
+  it("gives the same answer for a free hidden path and a used hidden path", async () => {
+    const { call } = await host();
+    // The answers differ only in the key of the path: the key goes out of each one
+    const answer = async (path: string[], service: string, payload: Record<string, unknown>) => {
+      const response = await call(["procedure", service], { path, ...payload });
+      return JSON.stringify({ status: response.status, payload: response.payload }).split(path.join(".")).join("<path>");
+    };
+    for (const [service, payload] of [
+      ["define", { aggregation: identity("caller") }],
+      ["define", { aggregation: identity("caller"), replace: true }],
+      ["get", {}],
+      ["delete", {}],
+    ] as const) {
+      expect(await answer(["admin", "hook"], service, payload), service).toBe(await answer(["admin", "free"], service, payload));
+    }
   });
 
   it("still defines, replaces and deletes an exposed procedure", async () => {
