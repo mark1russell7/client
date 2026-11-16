@@ -1,4 +1,4 @@
-// Switch the general packages (cue, splay, docker-sqlite) from github: specifiers to their npm
+// Switch the general packages (cue, splay) from github: specifiers to their npm
 // versions, after they are published.
 //
 // The script:
