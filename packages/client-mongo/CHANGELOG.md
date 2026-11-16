@@ -1,5 +1,17 @@
 # @procedures/mongo
 
+## 0.61.0
+
+### Patch Changes
+
+- 8506442: The hash of a row of `ViewMaterializer` uses `canonicalJson` of `@mark1russell7/rigor-generators` (CLI-128). The local copy of the canonical text is removed. The text of each row does not change, so each row keeps its hash.
+- Updated dependencies [8506442]
+- Updated dependencies [8506442]
+- Updated dependencies [f9a78f9]
+- Updated dependencies [3eb4b59]
+  - @procedures/client@0.61.0
+  - @procedures/collections@0.61.0
+
 ## 0.60.1
 
 ### Patch Changes
