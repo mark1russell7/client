@@ -1475,7 +1475,6 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
       else byPartitions.set(partitions, [name]);
     }
     return Array.from(byPartitions, ([partitions, collections]) => ({
-      // path-check: the name of a health dependency, not a topic.
       name: `partitions.${collections.join("+")}`,
       collections,
       partitions,
