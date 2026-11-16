@@ -251,8 +251,9 @@ Each other function gets an exemption with its reason and the part of the signat
 | `output-not-json` | The output is not JSON, for example a class instance. | The handle of the instance. |
 | `overload` | The function has more than one signature. | One procedure for each signature. |
 | `overlay` | The overlay exempts the function. | No change. |
+| `unresolved` | A re-export does not resolve, for example because its module is not installed. | Install the module. |
 
-A type that does not resolve fails closed: it gives an exemption, not a schema that accepts each value. TypeScript 7 has no compiler API in JavaScript, so the entry `./generate` reads the API of TypeScript 5. Add `"typescript-api": "npm:typescript@^5.9.3"` to the `devDependencies` of the package that starts the generator.
+A type that does not resolve fails closed: it gives an exemption, not a schema that accepts each value. The generator reads the real path of the declaration file, as Node.js does, so a link of pnpm resolves the imports of the package. TypeScript 7 has no compiler API in JavaScript, so the entry `./generate` reads the API of TypeScript 5. Add `"typescript-api": "npm:typescript@^5.9.3"` to the `devDependencies` of the package that starts the generator.
 
 ## The procedures
 

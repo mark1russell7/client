@@ -74,7 +74,9 @@ export type ExportExemptionReason =
   /** The function has more than one signature. */
   | "overload"
   /** The overlay of the package exempts it, with a reason in `detail`. */
-  | "overlay";
+  | "overlay"
+  /** A re-export does not resolve, for example because its module is not installed. */
+  | "unresolved";
 
 /** A public function with no procedure. */
 export interface ExportExemption {

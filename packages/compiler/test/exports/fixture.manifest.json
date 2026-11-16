@@ -644,6 +644,11 @@
       "name": "unset",
       "reason": "input-not-json",
       "detail": "value: undefined"
+    },
+    {
+      "name": "vanished",
+      "reason": "unresolved",
+      "detail": "the export does not resolve, for example its module is not installed"
     }
   ],
   "others": {

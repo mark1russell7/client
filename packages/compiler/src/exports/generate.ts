@@ -105,14 +105,17 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
     // The types of Node.js resolve the node: modules, for example DatabaseSync of node:sqlite
     types: ["node"],
   };
+  // Node.js resolves the imports of a package from its real path, not from a link to it: a link of
+  // pnpm in node_modules has no sibling packages. So the program reads the real path.
+  const absolute = ts.sys.resolvePath(options.declarations);
+  const resolved = (ts.sys.realpath?.(absolute) ?? absolute).split("\\").join("/");
   // The folder of the declarations is the current folder, so the type roots are the folders above it
   const host = ts.createCompilerHost(compilerOptions, true);
-  const resolved = ts.sys.resolvePath(options.declarations).split("\\").join("/");
   const folder = resolved.slice(0, resolved.lastIndexOf("/"));
   host.getCurrentDirectory = () => folder;
-  const program = ts.createProgram({ rootNames: [options.declarations], options: compilerOptions, host });
+  const program = ts.createProgram({ rootNames: [resolved], options: compilerOptions, host });
   const checker = program.getTypeChecker();
-  const source = program.getSourceFile(options.declarations);
+  const source = program.getSourceFile(resolved);
   if (!source) throw new Error(`The declaration file ${options.declarations} is not readable`);
   const moduleSymbol = checker.getSymbolAtLocation(source);
   if (!moduleSymbol) throw new Error(`The declaration file ${options.declarations} is not a module`);
@@ -130,6 +133,11 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
   for (const exported of exports) {
     const symbol = exported.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(exported) : exported;
     const name = exported.name;
+    // A re-export whose module does not resolve has no declaration. It fails closed, as a function
+    if (exported.flags & ts.SymbolFlags.Alias && !symbol.declarations?.length) {
+      exempt.push({ name, reason: "unresolved", detail: "the export does not resolve, for example its module is not installed" });
+      continue;
+    }
     if (symbol.flags & ts.SymbolFlags.Class) {
       classes.push(name);
       continue;

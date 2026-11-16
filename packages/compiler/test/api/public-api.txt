@@ -404,7 +404,8 @@ export type ExportExemptionReason =
  | "input-not-json"
  | "output-not-json"
  | "overload"
- | "overlay";
+ | "overlay"
+ | "unresolved";
 
 ### dist/exports/types.d.ts#ExportOthers
 export interface ExportOthers {

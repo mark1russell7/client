@@ -96,5 +96,7 @@ export declare function measure(shape: Shape): number;
 export declare function read(note: Note): string;
 /** An undefined input is not JSON. */
 export declare function unset(value: undefined): number;
+/** A re-export from a module that does not resolve: the generator fails closed. */
+export { vanished } from "./missing.js";
 /** A tuple with an undefined item: JSON gives null for it. */
 export declare function lookup(key: string): [string, undefined];

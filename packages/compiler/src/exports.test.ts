@@ -61,6 +61,7 @@ describe("generateExportsManifest", () => {
       ["parse", "overload"],
       ["sortBy", "function-parameter"],
       ["unset", "input-not-json"],
+      ["vanished", "unresolved"],
     ]);
   });
 
