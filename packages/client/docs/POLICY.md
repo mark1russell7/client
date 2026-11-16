@@ -18,6 +18,7 @@ const server = new ProcedureServer({
 
 - The server serves only the exposed procedures.
 - The introspection procedures (`procedure.get`, `procedure.list`, `procedure.manifest`) do not show a hidden procedure. `procedure.delete` does not find one, and `procedure.define` refuses to replace one with `NOT_EXPOSED`. Thus a caller cannot remove or replace a hidden procedure.
+- Deprecated: under an expose rule, `procedure.define` at a free hidden path, and `procedure.load` of a stored program at a free hidden path. From 0.62.0, the define gets `NOT_EXPOSED`, and the load gives the program as a conflict.
 - The MCP server lists only the exposed procedures as tools. `client-mcp` makes the rule from a tool surface: `exposeRule({ namespaces, exclude })`. A bundle exports its surface as `mcpNamespaces` and `mcpExclude`.
 
 ## Nested calls

@@ -304,6 +304,8 @@ interface DefineMetadata extends ProcedureMetadata {
  * - The registry gets the procedure first. A define that fails leaves nothing.
  * - The new procedure is data-driven: with a server's `expose` rule, it calls only exposed paths.
  * - With a server's `expose` rule, a caller cannot replace a hidden procedure (`NOT_EXPOSED`).
+ * - Deprecated: with a server's `expose` rule, a new procedure at a free hidden path. From 0.62.0,
+ *   a free hidden path gets `NOT_EXPOSED` too.
  * - Its input is raw (the `runs-refs` tag): `exec()` does not run the body at definition time.
  */
 export const defineProcedureProcedure: Procedure<
