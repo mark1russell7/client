@@ -1566,6 +1566,9 @@ importers:
 
   packages/ios-backup:
     dependencies:
+      '@mark1russell7/sqlite':
+        specifier: ^0.3.4
+        version: 0.3.4
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
