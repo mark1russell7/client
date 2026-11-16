@@ -21,7 +21,7 @@ const packageDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 interface McpClient {
   connect(transport: unknown): Promise<void>;
   listTools(): Promise<{ tools: unknown[] }>;
-  callTool(params: { name: string; arguments?: Record<string, unknown> }): Promise<{ structuredContent?: unknown; isError?: boolean }>;
+  callTool(params: { name: string; arguments?: Record<string, unknown> }): Promise<{ content?: unknown; structuredContent?: unknown; isError?: boolean }>;
   close(): Promise<void>;
 }
 
