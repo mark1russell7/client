@@ -9,19 +9,22 @@
  * peer package, because the peer of `mark --server` writes them.
  */
 
-import { spawn, type ChildProcess, type SpawnOptions } from "node:child_process";
+import type { ChildProcess, SpawnOptions } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as os from "node:os";
 import { createProcedure, type Effects, type FsRootRules, type Procedure } from "@procedures/client";
 import { HOST_PROBE_PREFIX } from "@procedures/peer";
-import { checkServer, readLockfileForPort, type LockfileData } from "@procedures/peer/lockfile";
+import { spawnProgram } from "@procedures/shell/command";
+import { checkServer, getMarkDir, getServersDir, readLockfileForPort, type LockfileData } from "@procedures/peer/lockfile";
 import { ServerStartOutputSchema, serverStartInputSchema } from "../schemas.js";
 import type { ServerStartInput, ServerStartOutput } from "../types.js";
 
-const MARK_DIR = path.join(os.homedir(), ".mark");
-const SERVERS_DIR = path.join(MARK_DIR, "servers");
-const LOG_PATH = path.join(MARK_DIR, "server.log");
+// The folders come from the lockfile module of @procedures/peer, the one home of `~/.mark`
+const MARK_DIR = getMarkDir();
+const SERVERS_DIR = getServersDir();
+/** The log file of a server that `server.start` starts: `~/.mark/server.log`. */
+export const SERVER_LOG_PATH: string = path.join(MARK_DIR, "server.log");
+const LOG_PATH = SERVER_LOG_PATH;
 const LOG_PREV_PATH = path.join(MARK_DIR, "server.log.1");
 
 
@@ -185,10 +188,14 @@ export function findCliPath(): string {
   return "mark";
 }
 
-/** The function that starts a process. The default is `spawn` of `node:child_process`. The tests give their own. */
+/**
+ * The function that starts a process. The default is `spawnProgram` of `@procedures/shell`: on
+ * Windows it finds `mark` only in the folders of `PATH`, never in the working folder. The tests
+ * give their own.
+ */
 export type ServerSpawner = (command: string, args: readonly string[], options: SpawnOptions) => ChildProcess;
 
-const defaultSpawner: ServerSpawner = (command, args, options) => spawn(command, [...args], options);
+const defaultSpawner: ServerSpawner = (command, args, options) => spawnProgram(command, args, options);
 
 /** The options of `spawnMarkServer()`. */
 export interface MarkServerSpawn {

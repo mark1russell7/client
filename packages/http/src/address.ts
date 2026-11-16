@@ -204,3 +204,24 @@ export function isPublicAddress(address: string | AddressBytes): boolean {
   const bytes = typeof address === "string" ? parseAddress(address) : address;
   return bytes !== undefined && specialClass(bytes) === undefined;
 }
+
+/**
+ * The special-use domains of the names of this computer and of the local network: `localhost`
+ * (RFC 6761), `local` for mDNS (RFC 6762), `internal` (reserved by ICANN in 2024) and `home.arpa`
+ * (RFC 8375).
+ */
+const LOCAL_DOMAINS: readonly string[] = ["localhost", "local", "internal", "home.arpa"];
+
+/**
+ * This function tells if a host name is a name of this computer or of the local network. Such a
+ * name is `localhost` or a name in the domain `localhost`, `local`, `internal` or `home.arpa`, in
+ * each letter case. A final dot changes nothing. The function reads no DNS, and an IP address is
+ * not a local name: `isPublicAddress` examines an address.
+ *
+ * The sources of the domains are RFC 6761 (`localhost`), RFC 6762 (`local`, mDNS), RFC 8375
+ * (`home.arpa`) and the ICANN reservation of `internal` (2024).
+ */
+export function isLocalName(hostname: string): boolean {
+  const name = hostname.toLowerCase().replace(/\.$/, "");
+  return LOCAL_DOMAINS.some((domain) => name === domain || name.endsWith(`.${domain}`));
+}

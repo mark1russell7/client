@@ -55,7 +55,7 @@ describe("convertMarkdown", () => {
 
   it("colors code at build time and keeps the code of an unknown language as text", () => {
     const out = html("```ts\nconst a = 1;\n```\n\n```cue\nx: <1>\n```\n");
-    expect(out).toContain('<pre class="doc-code" data-lang="ts" tabindex="0"><code class="hljs"><span class="hljs-keyword">const</span>');
+    expect(out).toContain('<pre class="doc-code scroll-cue" data-lang="ts" tabindex="0"><code class="hljs"><span class="hljs-keyword">const</span>');
     expect(out).toContain("x: &lt;1&gt;");
   });
 
@@ -111,6 +111,14 @@ describe("plainText", () => {
   it("decodes each entity one time, so an escaped entity stays an entity", () => {
     expect(plainText("a &amp; b &lt;c&gt; &quot;d&quot; &#39;e&#39;")).toBe(`a & b <c> "d" 'e'`);
     expect(plainText("&amp;lt;script&amp;gt;")).toBe("&lt;script&gt;");
+  });
+
+  it("removes each tag, also a nested tag, and keeps an escaped \"<\"", () => {
+    expect(plainText("<<b>script>alert(1)<</b>/script>")).not.toContain("<");
+    expect(plainText("a <em>b</em> c")).toBe("a b c");
+    expect(plainText("a \\< b and c &lt; d")).toBe("a < b and c < d");
+    expect(plainText("x < 60 and y <= 3")).toBe("x < 60 and y <= 3");
+    expect(plainText("<</b>!-- c --><<i>/p>")).not.toMatch(/<[A-Za-z/!?]/);
   });
 });
 

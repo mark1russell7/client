@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/playground",
-  "version": "0.50.0",
+  "version": "0.59.0",
   "description": "A typed fluent API to write procedure programs in TypeScript (proc, ref, run) with autocomplete, then run them with the client.",
   "keywords": [
     "dsl",
@@ -27,11 +27,13 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     }
   },
   "files": [
     "dist",
+    "!dist/.tsbuildinfo",
     "src",
     "!src/**/*.test.ts",
     "!src/**/*.test.tsx",

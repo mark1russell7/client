@@ -13,6 +13,8 @@ import type { Admission, AmbientCredentials, Credentials, Method, Principal, Pri
 import { methodName, methodToPath, pathToMethod } from "./method.js";
 import { isLocalCredentials } from "./request-auth.js";
 import { STREAM_METADATA_KEY } from "./stream-metadata.js";
+import { context as otelContext } from "@opentelemetry/api";
+import { callerContext } from "../tracing/otel.js";
 import type {
   AnyProcedure,
   ProcedurePath,
@@ -38,7 +40,7 @@ import type { CollectionProceduresOptions } from "../procedures/collection/proce
 import type { NarrowingNote } from "../procedures/narrowing.js";
 import type { ServerDebugReport } from "./types.js";
 import type { KeyedLimiter, LimiterStore } from "@mark1russell7/service/limiter";
-import { callLimiter, limitedCall, rateLimitedResponse, type CallLimit, type CallLimiter } from "./limits.js";
+import { CallLimitError, callLimiter, limitedCall, rateLimitedResponse, type CallLimit, type CallLimiter, type CallLimitRefusal } from "./limits.js";
 import { writeLog } from "../logger.js";
 import { meetExpose } from "./face-rules.js";
 
@@ -150,6 +152,20 @@ export interface ProcedureServerOptions extends ServerOptions {
    * network request": no presented token matches it, not even an empty one.
    */
   token?: string | undefined;
+
+  /**
+   * Which callers can set the baggage of a call (roadmap item C10 of otel-ts). Each handler runs in
+   * the context of its caller: the remote span of the `traceparent` and `tracestate` of the
+   * metadata is its parent. The `baggage` of the metadata goes into the context only from a
+   * trusted caller. Without it, the handler runs with no baggage, so an end user cannot set the
+   * baggage of the services.
+   *
+   * A local request (`LOCAL_CREDENTIALS`) and a request with the token of the server are always
+   * trusted. This function can trust more requests, for example the requests of a principal of a
+   * service. It runs after the checks of the request, so it can read `request.principal`. An
+   * error of the function means "not trusted". The default trusts no other request.
+   */
+  trustBaggage?: ((request: ServerRequest<unknown>) => boolean) | undefined;
 
   /**
    * This function gives the principal of a request, or undefined to refuse it with
@@ -384,6 +400,9 @@ function withRequestTimeout(
 // Procedure Server
 // =============================================================================
 
+/** The facts of a call target that the limits read: a procedure, or the method of a handler of `register()`. */
+type LimitTarget = { readonly path: ProcedurePath; readonly metadata?: unknown };
+
 /**
  * Server with procedure auto-registration and repository pattern.
  *
@@ -455,11 +474,22 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
   private readonly token: string | undefined;
   private readonly principalOf: PrincipalOf | undefined;
   private readonly authenticate: ProcedureServerOptions["authenticate"];
+  private readonly trustBaggage: ProcedureServerOptions["trustBaggage"];
+  /**
+   * The requests whose caller can set the baggage (C10): a local request, a request with the
+   * token of the server, or a request with the admission of such a request.
+   */
+  private readonly trustedCallers = new WeakSet<ServerRequest<unknown>>();
   /**
    * The admissions of this server (CLI-2b): the identity of each object of admitted credentials
    * that `admission()` gave. Only this server adds an entry, so a request cannot claim one.
    */
-  private readonly admissions = new WeakMap<Credentials, { readonly principal: Principal | undefined; readonly narrowing: ServerRequest<unknown>["narrowing"] }>();
+  private readonly admissions = new WeakMap<Credentials, { readonly principal: Principal | undefined; readonly narrowing: ServerRequest<unknown>["narrowing"]; readonly trusted: boolean }>();
+  /**
+   * The admission of each request object. The late lookup of a lazy registry admits a request
+   * before it loads packages, and the call of the same request uses that result again.
+   */
+  private readonly admitted = new WeakMap<ServerRequest<unknown>, Promise<ServerResponse<unknown> | undefined>>();
   /** The functions that `drain()` waits on: each one runs when no call is in flight */
   private idleWaiters: Array<() => void> = [];
   /** The publisher of the remote events, from the option `events`, or undefined. */
@@ -492,6 +522,7 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
     this.token = options.token;
     this.principalOf = options.principalOf;
     this.authenticate = options.authenticate;
+    this.trustBaggage = options.trustBaggage;
     const ambient = options.ambientCredentials ?? (this.principalOf ? "always" : this.authenticate ? "cookies" : undefined);
     this.ambientCredentials = ambient === false ? undefined : ambient;
     this.debugReport =
@@ -510,6 +541,14 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
           : undefined;
     // The limits of the calls: one keyed limiter for each limit, on the clock of the server (CLI-40)
     this.callLimits = options.limits && options.limits.length > 0 ? callLimiter(options.limits, { clock: this.clock, stores: options.limitStores }) : undefined;
+    // A limit without the field nested keeps the old rule for one more version: the server tells it
+    for (const limit of options.limits ?? []) {
+      if (limit.nested !== undefined) continue;
+      const message =
+        `The limit ${limit.name} counts the calls of a caller only, not their nested calls. @procedures/client 0.61.0 counts the nested calls too. ` +
+        `Set nested: true to count them, or nested: false to keep this rule.`;
+      writeLog(options.logger, "warn", message, { limit: limit.name }, `[ProcedureServer] ${message}`);
+    }
     // The remote events: the server pins events.subscribe, as a host pins host.health (EVENTS.md).
     // The topic rule is its expose rule, so the pin is always on (CLI-47). The publisher that the
     // server makes gets the clock of the server for its re-checks (CLI-44).
@@ -828,6 +867,9 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    * The expose rule of the face of the request (`request.expose`, AG1-B) comes before both. A path
    * outside it has no handler, also a handler of `register()` and an `alwaysOn` pin. A rule that is
    * not a function admits no path, so a face that sets a wrong value does not open the server.
+   *
+   * A handler of `register()` gets the same admission as a procedure: the refusal while the server
+   * stops, the token, the request hook, `authenticate` and the limits. It counts as a call in flight.
    */
   protected override findHandler(method: Method, request?: ServerRequest<unknown>): ServerHandler | null {
     if (request?.expose !== undefined) {
@@ -835,7 +877,10 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
       if (typeof rule !== "function" || rule(methodToPath(method)) !== true) return null;
     }
     const handler = super.findHandler(method);
-    if (handler) return handler;
+    if (handler) {
+      const target = { path: methodToPath(method) };
+      return async (request) => (await this.admitCall(target, request)) ?? (await this.tracked(() => handler(request)));
+    }
     const procedure = this.resolveProcedure(method);
     return procedure ? (request) => this.invoke(procedure, request) : null;
   }
@@ -847,7 +892,20 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    */
   protected override findLateHandler(method: Method, request: ServerRequest<unknown>): Promise<ServerHandler | null> | null {
     if (!this.servesRegistry || !this.procedureRegistry.lazy) return null;
-    return this.procedureRegistry.resolve(methodToPath(method)).then(() => this.findHandler(method, request));
+    const path = methodToPath(method);
+    // A path outside the expose rule of the face loads nothing, as findHandler() gives it no handler
+    if (request.expose !== undefined) {
+      const rule: unknown = request.expose;
+      if (typeof rule !== "function" || rule(path) !== true) return null;
+    }
+    return (async (): Promise<ServerHandler | null> => {
+      // Only an admitted request loads packages (audit 2026-11-08). Before, a caller with no
+      // credentials loaded packages, and got the load errors of the packages.
+      const refusal = await this.admit(request);
+      if (refusal) return () => Promise.resolve(refusal);
+      await this.procedureRegistry.resolve(path);
+      return this.findHandler(method, request);
+    })();
   }
 
   /**
@@ -855,6 +913,25 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    * time for its key (R1).
    */
   private async invoke(procedure: AnyProcedure, request: ServerRequest<unknown>): Promise<ServerResponse<unknown>> {
+    const refusal = await this.admitCall(procedure, request);
+    if (refusal) return refusal;
+    return this.tracked(() => {
+      const key = this.idempotency ? idempotencyKeyOf(request.metadata) : undefined;
+      // The key of the cache has the principal: another caller with the same key does not get the
+      // result of this call (audit s21). The JSON of the principal has no NUL character.
+      const principal = request.principal ? JSON.stringify([request.principal.via, request.principal.id]) : "";
+      return key === undefined || isRepeatable(effectsOf(procedure))
+        ? this.run(procedure, request, joinSignals(request.signal, this.lifetime.signal))
+        : this.runKeyed(procedure, request, `${pathToKey(procedure.path)}\u0000${principal}\u0000${key}`);
+    });
+  }
+
+  /**
+   * The checks of a call at the door of the server, for a procedure and for a handler of
+   * `register()`: the refusal while the server stops, `admit()` and the limits. The function gives
+   * the refusal, or undefined when the call passes.
+   */
+  private async admitCall(target: LimitTarget, request: ServerRequest<unknown>): Promise<ServerResponse<unknown> | undefined> {
     if (this.draining) {
       // The server stops: a client can send the call to another server, or again later (R14)
       return {
@@ -866,19 +943,18 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
     const refusal = await this.admit(request);
     if (refusal) return refusal;
     // The limits come after the authentication, so a key can read the principal (CLI-40)
-    const limited = await this.limit(procedure, request);
-    if (limited) return limited;
+    return this.limit(target, request);
+  }
+
+  /**
+   * This method counts a call in flight until its response, or until the end of its stream. So
+   * `drain()` waits for the call.
+   */
+  private async tracked(run: () => Promise<ServerResponse<unknown>> | ServerResponse<unknown>): Promise<ServerResponse<unknown>> {
     this.calls++;
     let response: ServerResponse<unknown> | undefined;
     try {
-      const key = this.idempotency ? idempotencyKeyOf(request.metadata) : undefined;
-      // The key of the cache has the principal: another caller with the same key does not get the
-      // result of this call (audit s21). The JSON of the principal has no NUL character.
-      const principal = request.principal ? JSON.stringify([request.principal.via, request.principal.id]) : "";
-      response =
-        key === undefined || isRepeatable(effectsOf(procedure))
-          ? await this.run(procedure, request, joinSignals(request.signal, this.lifetime.signal))
-          : await this.runKeyed(procedure, request, `${pathToKey(procedure.path)}\u0000${principal}\u0000${key}`);
+      response = await run();
     } finally {
       // A stream is in flight until its end; another response is done now
       if (!response?.stream) this.callEnded();
@@ -896,9 +972,20 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    * request hook refuses it, and the hook does not run (CLI-1). The authenticate function gives
    * the principal. The credentials of an admission of this server (`admission()`) skip the
    * checks: the request gets the principal and the narrowing of that admission (CLI-2b). The
-   * function gives an UNAUTHORIZED response, or undefined when the request passes.
+   * function gives an UNAUTHORIZED response, or undefined when the request passes. The checks
+   * run one time for each request object.
    */
-  private async admit(request: ServerRequest<unknown>): Promise<ServerResponse<unknown> | undefined> {
+  private admit(request: ServerRequest<unknown>): Promise<ServerResponse<unknown> | undefined> {
+    let result = this.admitted.get(request);
+    if (result === undefined) {
+      result = this.checkRequest(request);
+      this.admitted.set(request, result);
+    }
+    return result;
+  }
+
+  /** The checks of `admit()` for one request object. */
+  private async checkRequest(request: ServerRequest<unknown>): Promise<ServerResponse<unknown> | undefined> {
     const unauthorized = (message: string): ServerResponse<unknown> => ({
       id: request.id,
       status: { type: "error", code: "UNAUTHORIZED", message, retryable: false },
@@ -908,6 +995,7 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
     // again. Only this server makes such credentials, so a copy or a forgery has no entry.
     const admitted = request.credentials !== undefined ? this.admissions.get(request.credentials) : undefined;
     if (admitted) {
+      if (admitted.trusted) this.trustedCallers.add(request);
       if (admitted.principal) request.principal = admitted.principal;
       if (admitted.narrowing) {
         const order = this.capabilityOptions.clearanceOrder;
@@ -924,6 +1012,8 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
     // A local face (this process, MCP over stdio, a message port) sets the local marker. The
     // marker key is a symbol, so a request from the network cannot carry it (CLI-1).
     const credentials = isLocalCredentials(request.credentials) ? undefined : request.credentials;
+    // A local caller is a part of this process: it can set the baggage (C10)
+    if (isLocalCredentials(request.credentials)) this.trustedCallers.add(request);
     let identity: RequestIdentity | undefined;
     if (this.principalOf && credentials !== undefined) {
       try {
@@ -937,6 +1027,8 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
       const bearer = identity?.bearer ?? credentials.bearer;
       if (!tokenMatches(this.token, bearer)) return unauthorized("Unauthorized: this server requires its token");
       request.principal = { id: "token", via: "token" };
+      // A caller with the token of the server is a service of the operator: it can set the baggage (C10)
+      this.trustedCallers.add(request);
     }
     if (identity?.principal) request.principal = identity.principal;
     if (identity?.narrowing) {
@@ -961,15 +1053,33 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    * `RATE_LIMITED` response, or undefined when the call passes. A key or a cover function that
    * throws gives `INTERNAL_ERROR`, so a defect of a limit does not let a call in.
    */
-  private async limit(procedure: AnyProcedure, request: ServerRequest<unknown>): Promise<ServerResponse<unknown> | undefined> {
+  private async limit(target: LimitTarget, request: ServerRequest<unknown>): Promise<ServerResponse<unknown> | undefined> {
     if (!this.callLimits) return undefined;
     try {
-      const refused = await this.callLimits.admit(limitedCall(procedure, request));
+      const refused = await this.callLimits.admit(limitedCall(target, request));
       return refused ? rateLimitedResponse(request.id, refused) : undefined;
     } catch (error) {
       const message = `The limits of the server cannot admit the call: ${error instanceof Error ? error.message : String(error)}`;
       return errorResponse(request.id, Object.assign(new Error(message), { code: "INTERNAL_ERROR" }), request);
     }
+  }
+
+  /**
+   * The limits of a nested call: the units of each limit with `nested: true` that covers it. The
+   * method throws a refusal as a `CallLimitError`, so the error has the code, the wait and the
+   * metadata of a refusal at the door. A key or a cover function that throws gives `INTERNAL_ERROR`.
+   */
+  private async limitNested(invocation: Invocation, request: ServerRequest<unknown>): Promise<void> {
+    const limits = this.callLimits;
+    if (!limits) return;
+    let refused: CallLimitRefusal | undefined;
+    try {
+      refused = await limits.admit(limitedCall(invocation.procedure, request, { depth: invocation.depth, input: invocation.input }));
+    } catch (error) {
+      const message = `The limits of the server cannot admit the nested call of ${pathToKey(invocation.path)}: ${error instanceof Error ? error.message : String(error)}`;
+      throw Object.assign(new Error(message), { code: "INTERNAL_ERROR" });
+    }
+    if (refused) throw new CallLimitError(rateLimitedResponse(request.id, refused, `the nested call of ${pathToKey(invocation.path)}`));
   }
 
   /** One call in flight ended: `drain()` can end when it was the last one. */
@@ -1034,14 +1144,15 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
       return { ok: false, code: "UNAUTHORIZED", message: refusal.status.type === "error" ? refusal.status.message : "Unauthorized" };
     }
     const admitted: Credentials = Object.freeze({ ...credentials });
-    this.admissions.set(admitted, { principal: request.principal, narrowing: request.narrowing });
+    this.admissions.set(admitted, { principal: request.principal, narrowing: request.narrowing, trusted: this.trustedCallers.has(request) });
     return { ok: true, credentials: admitted, ...(request.principal ? { principal: request.principal } : {}) };
   }
 
   /**
    * Run a keyed call one time. The run continues when its caller goes away, so that the next try
    * gets its result: only the deadline of the call and the stop of the server end it. A stream
-   * still stops with its caller, because nobody can read it again.
+   * still stops with its caller, because nobody can read it again. The stop of the server ends a
+   * stream until its last item, as on the path without a key.
    */
   private async runKeyed(procedure: AnyProcedure, request: ServerRequest<unknown>, cacheKey: string): Promise<ServerResponse<unknown>> {
     const { result, first } = this.idempotency!.run(
@@ -1049,18 +1160,23 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
       async () => {
         const detached = new AbortController();
         const stopRun = (): void => detached.abort();
-        this.lifetime.signal.addEventListener("abort", stopRun, { once: true });
-        try {
-          const response = await this.run(procedure, request, detached.signal);
-          if (response.stream) {
-            // A stream follows its caller again
-            if (request.signal?.aborted) detached.abort();
-            else request.signal?.addEventListener("abort", stopRun, { once: true });
-          }
-          return response;
-        } finally {
+        const unlink = (): void => {
           this.lifetime.signal.removeEventListener("abort", stopRun);
+          request.signal?.removeEventListener("abort", stopRun);
+        };
+        this.lifetime.signal.addEventListener("abort", stopRun, { once: true });
+        let response: ServerResponse<unknown> | undefined;
+        try {
+          response = await this.run(procedure, request, detached.signal);
+        } finally {
+          // A response without a stream is done. A stream keeps the link until its end.
+          if (!response?.stream) unlink();
         }
+        if (!response.stream) return response;
+        // A stream follows its caller again
+        if (request.signal?.aborted) detached.abort();
+        else request.signal?.addEventListener("abort", stopRun, { once: true });
+        return { ...response, stream: releasedAtEnd(response.stream, unlink) };
       },
       // A retryable error lets the next try run again: the handler said that a retry is safe
       (response) => !(response.status.type === "error" && response.status.retryable),
@@ -1115,6 +1231,17 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
     };
   }
 
+  /** True when the caller of `request` can set the baggage of the call (C10). */
+  private trustsCaller(request: ServerRequest<unknown>): boolean {
+    if (this.trustedCallers.has(request)) return true;
+    if (!this.trustBaggage) return false;
+    try {
+      return this.trustBaggage(request) === true;
+    } catch {
+      return false;
+    }
+  }
+
   /** Run a procedure for a request with a signal. */
   private async run(procedure: AnyProcedure, request: ServerRequest<unknown>, signal: AbortSignal | undefined): Promise<ServerResponse<unknown>> {
     // The call uses the storages that it takes until its end: the end of a stream, for a stream
@@ -1131,7 +1258,10 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
         const message = `The server cannot narrow the capability of the request: ${error instanceof Error ? error.message : String(error)}`;
         return errorResponse(request.id, Object.assign(new Error(message), { code: "INTERNAL_ERROR" }), request);
       }
-      const output = await invokeProcedure(procedure, request.payload, {
+      // The handler runs in the context of its caller (C10): its trace always, its baggage only
+      // when the caller is trusted
+      const caller = callerContext(request.metadata, this.trustsCaller(request));
+      const output = await otelContext.with(caller, () => invokeProcedure(procedure, request.payload, {
         registry: this.procedureRegistry,
         metadata: request.metadata,
         signal,
@@ -1147,13 +1277,15 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
         clearanceOrder,
         resources,
         admitItem,
+        // The limits with nested: true take the units of each nested call too
+        ...(this.callLimits?.coversNested ? { admitNested: (invocation: Invocation) => this.limitNested(invocation, request) } : {}),
         // The parts of the narrowing key without effect go to the debug reports (CLI-30)
         onNarrowingNotes: this.narrowingReports(request),
         // The principal of the authentication: ctx.principal, and the nested calls (R18)
         ...(request.principal !== undefined ? { principal: request.principal } : {}),
         // The bus of the remote events is the bus of the procedures (EVENTS.md)
         ...(this.publisher ? { bus: this.publisher.bus } : {}),
-      });
+      }));
       if (output.kind === "stream") {
         // The faces that collect a stream read this mark (roadmap R15)
         const unbounded = (procedure.metadata as { stream?: { unbounded?: boolean } } | undefined)?.stream?.unbounded === true;
@@ -1255,6 +1387,16 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    */
   procedureOf(method: Method): AnyProcedure | undefined {
     return this.resolveProcedure(method);
+  }
+
+  /**
+   * This method tells if a call of a method is repeatable: the declared effects of its procedure
+   * give the same state after a second start (`isRepeatable`). A face reads it when its stop cuts a
+   * call (CLI-48). The host uses the same rule. An unknown method is not repeatable.
+   */
+  isRepeatableCall(method: Method): boolean {
+    const procedure = this.resolveProcedure(method);
+    return procedure !== undefined && isRepeatable(effectsOf(procedure));
   }
 
   /**

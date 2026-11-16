@@ -12,7 +12,7 @@ import type {
 } from "../../../client/types.js";
 
 import type { HttpTransportOptions } from "./types.js";
-import { DELIVERY_METADATA_KEY, RETRY_AFTER_METADATA_KEY, isNotSentError } from "../../../client/middleware/items.js";
+import { DELIVERY_METADATA_KEY, RETRY_AFTER_METADATA_KEY, capacityFieldsOf, isNotSentError } from "../../../client/middleware/items.js";
 import { StreamSequence, streamItemMetadata } from "../../sequence.js";
 import { HttpBatcher } from "./batch.js";
 
@@ -214,7 +214,7 @@ export class HttpTransport implements Transport {
       const status = this.httpStatusToUniversal(response.status as HTTPStatus, responseBody);
       finished = true;
       if (status.type === "error") {
-        const retryAfter = retryAfterMsOf(response.headers.get("Retry-After"), responseBody);
+        const retryAfter = retryAfterMsOf(response.headers.get(HTTPHeaders.RETRY_AFTER), responseBody);
         if (retryAfter !== undefined) metadata[RETRY_AFTER_METADATA_KEY] = retryAfter;
         // The reason of a FORBIDDEN error (roadmap R25). An older server gave the reason in its
         // code (CLI-4): FORBIDDEN_ORIGIN gives FORBIDDEN with the reason origin-not-allowed.
@@ -224,6 +224,8 @@ export class HttpTransport implements Transport {
         // The current items of a VERSION_CONFLICT error (roadmap CLI-16)
         const conflicts = (responseBody as { conflicts?: unknown } | null | undefined)?.conflicts;
         if (Array.isArray(conflicts)) metadata["conflicts"] = conflicts;
+        // The units and the capacity of a refusal for its size (roadmap CLI-122)
+        Object.assign(metadata, capacityFieldsOf(responseBody));
       }
 
       // Yield single response item

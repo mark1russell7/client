@@ -97,7 +97,9 @@ node packages/mark/dist/cli.js --help
 
 ### The compile cache
 
-The `mark` executable enables the compile cache of Node.js (22.1 and later) before it loads the CLI. The second and later runs read the compiled code from the cache. In CI, one `mark` call took 1019 ms with no cache and 754 ms with a warm cache. The first run after an install, or after a change of a file, writes the cache and takes approximately 170 ms more.
+The `mark` executable enables the compile cache of Node.js (22.1 and later) before it loads the CLI. The second and later runs read the compiled code from the cache.
+
+A study in CI on 2026-11-02 measured the code of commit `74a2801a` (`@procedures/mark` 0.46.0, Node.js 26.13, Linux), in [the record of the study](https://github.com/mark1russell7/client/actions/runs/41420191261). One `mark` call took 1019 ms with no cache and 754 ms with a warm cache. The first call after an install, or after a change of a file, wrote the cache and took approximately 170 ms more. The numbers are of that commit. A later version can give different numbers.
 
 The cache folder is `mark/compile-cache` in the cache folder of the user: `$XDG_CACHE_HOME` or `~/.cache` on Linux, `~/Library/Caches` on macOS and `%LOCALAPPDATA%` on Windows. Set `NODE_COMPILE_CACHE=<folder>` to use a different folder, or `NODE_DISABLE_COMPILE_CACHE=1` to turn the cache off. If the folder cannot be written, `mark` runs with no cache.
 
@@ -138,7 +140,7 @@ The package provides a `mark` binary for command-line usage.
 mark [global options] <path...> [positional...] [--options]
 mark serve [--procedures pkgs] [--port N] [--token T | --no-token] [--expose patterns] [--events topics] [--fs-root folder] [--probe-port N]
 mark mcp [--bundles list] [--tool-timeout ms] [--read-only] [--http port] [--max-sessions n] [--fs-root folder] [--debug]
-mark --server [--port N] [--host H] [--transport http|websocket|both] [--events topics] [--probe-port N] [--idle-timeout ms]
+mark --server [--port N] [--host H] [--allowed-host names] [--transport http|websocket|both] [--events topics] [--probe-port N] [--idle-timeout ms]
 mark -i
 mark --fs-root <folder> <command | --server | -i | serve | mcp>
 ```
@@ -247,7 +249,7 @@ A flag before the command path is a global flag. After the path, a flag is the c
 | `--local` | | Run the command in this process, not on the CLI server |
 | `--json <json>` | | Execute raw procedure reference |
 | `--fs-root <folder>` | | Keep each path of each procedure in the folder, also in the nested calls, and refuse the procedures that it cannot confine. Give it before the command. |
-| `--server` | | Start the CLI server (with `--port`, `--host`, `--transport`, `--events`) |
+| `--server` | | Start the CLI server (with `--port`, `--host`, `--allowed-host`, `--transport`, `--events`) |
 | `--interactive` | `-i` | Start the REPL |
 
 #### Exit Codes and Failures

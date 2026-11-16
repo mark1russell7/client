@@ -36,6 +36,7 @@ export type {
   HybridStorageOptions,
   HybridMode,
   LocalCopyStorage,
+  PushBatch,
   QueueRefusal,
   RemoteApplyCause,
   RemoteApplyContext,

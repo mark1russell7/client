@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.ts`.
 
-**Total procedures:** 299 across 50 namespaces. Loaded 47 package register(s).
+**Total procedures:** 305 across 50 namespaces. Loaded 47 package register(s).
 
 ## Namespaces
 
@@ -36,7 +36,7 @@
 - [`mcp.*`](#mcp) — 2 procedure(s)
 - [`mongo.*`](#mongo) — 20 procedure(s)
 - [`node.*`](#node) — 5 procedure(s)
-- [`notify.*`](#notify) — 1 procedure(s)
+- [`notify.*`](#notify) — 6 procedure(s)
 - [`npm.*`](#npm) — 7 procedure(s)
 - [`pdf.*`](#pdf) — 1 procedure(s)
 - [`pnpm.*`](#pnpm) — 12 procedure(s)
@@ -44,7 +44,7 @@
 - [`procedure.*`](#procedure) — 12 procedure(s)
 - [`program.*`](#program) — 4 procedure(s)
 - [`restic.*`](#restic) — 1 procedure(s)
-- [`s3.*`](#s3) — 12 procedure(s)
+- [`s3.*`](#s3) — 13 procedure(s)
 - [`schedule.*`](#schedule) — 4 procedure(s)
 - [`sdk.*`](#sdk) — 2 procedure(s)
 - [`server.*`](#server) — 8 procedure(s)
@@ -406,6 +406,11 @@
 
 | Procedure | Description |
 |-----------|-------------|
+| `notify.pushover.cancel` | Stop the repeats of a Pushover emergency message, by its receipt or by a tag |
+| `notify.pushover.limits` | Read the monthly message limit of the Pushover application, the messages left and the reset time |
+| `notify.pushover.receipt` | Read the receipt of a Pushover emergency message: acknowledged, by which device, expired. Read it at most once in 5 s. |
+| `notify.pushover.send` | Send a Pushover message. Priority 2 repeats until the user acknowledges it, and gives a receipt. |
+| `notify.pushover.validate` | Examine a Pushover user key: its active devices and licenses. It sends no message. |
 | `notify.send` | Send a push notification through ntfy |
 
 ## npm
@@ -497,6 +502,7 @@
 | `s3.multipart.init` | Initialize multipart upload for large files |
 | `s3.multipart.upload` | Upload a part in multipart upload |
 | `s3.presign` | A presigned URL for a GET or a PUT of an object, with an expiry in seconds |
+| `s3.read` | Read an S3 object into memory, with a size limit (maxBytes, 64 MiB by default) |
 | `s3.upload` | Upload content to S3 bucket |
 
 ## schedule

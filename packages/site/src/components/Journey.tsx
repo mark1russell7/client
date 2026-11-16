@@ -301,7 +301,7 @@ export function Journey(): ReactElement {
               <p className="journey-title" aria-live={playing ? "off" : "polite"}>
                 {step.title}
               </p>
-              {step.detail ? <pre className="code-block journey-code">{step.detail}</pre> : null}
+              {step.detail ? <pre className="code-block journey-code scroll-cue">{step.detail}</pre> : null}
               <p className="small muted">{LANE_INFO[step.lane].summary}</p>
             </>
           ) : (

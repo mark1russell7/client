@@ -5,6 +5,7 @@
 import { createProcedure, type AnyProcedure, type ProcedureContext } from "@procedures/client";
 import * as z from "zod";
 import { sendNotification } from "./notify.js";
+import { pushoverProcedures } from "./pushover-procedures.js";
 
 /**
  * The names of the variables that `tokenEnv` of `notify.send` can name: `NTFY_` or `NOTIFY_`,
@@ -57,4 +58,5 @@ export const notifySendProcedure: AnyProcedure = createProcedure()
   })
   .build();
 
-export const notifyProcedures: AnyProcedure[] = [notifySendProcedure];
+/** The procedures of the package: `notify.send` (ntfy) and the Pushover procedures. */
+export const notifyProcedures: AnyProcedure[] = [notifySendProcedure, ...pushoverProcedures];
