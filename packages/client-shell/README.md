@@ -51,6 +51,8 @@ The wrapper packages start their programs with the helpers of `@procedures/shell
 | `streamCommand(command, options)` | It gives each output line while the program runs, then an `exit` item. |
 | `processes` | It records a long-running program: `start`, `list`, `waitFor`, `output`, `subscribe`, `follow`, `stop`. |
 | `killTree(child)` | It kills a child process and all the processes that it started. |
+| `spawnProgram(command, args, options)` | It starts a program that the caller keeps, for example a detached process with files as its standard input and output. It takes the options of `spawn` of Node, without `shell`, and it gives the child. |
+| `spawnProgramSync(command, args, options)` | It starts a program and waits for its end, as `spawnSync` of Node does. |
 
 The rules of the helpers:
 
@@ -59,7 +61,9 @@ The rules of the helpers:
 - Each output stream has a limit (`maxOutputBytes`, 64 MiB by default). The helper keeps the first bytes, or the last bytes with `keep: "tail"`.
 - A program without an `input` gets an empty stdin.
 - When the reader of `streamCommand` is slow, the helper stops reading the pipes, so the program waits.
-- When the host ends, the helpers kill each child that still runs.
+- When the host ends, the helpers kill each child that still runs. `spawnProgram` and `spawnProgramSync` do not record the child, so the caller decides when it stops.
+- On Windows, a program name with no folder starts only from a folder of `PATH`, not from the working folder. So a `git.exe` in a cloned repository does not start when a tool runs `git` in its folder. When no folder of `PATH` has the program, the start fails with ENOENT.
+- Only this package starts programs in the repository of the procedures. The import rule `program-start-outside-shell` fails each other package that imports `node:child_process`. An import of the types is permitted.
 
 ```typescript
 import { runCommand } from "@procedures/shell/command";

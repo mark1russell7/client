@@ -1,5 +1,27 @@
 # @procedures/sqlite
 
+## 0.59.1
+
+### Patch Changes
+
+- 2419e31: `SqliteStorage` uses `@mark1russell7/sqlite` for its SQLite work. The public API and the behavior of the storage do not change.
+  
+  - The engine `node` opens a file with `openDatabase` of `@mark1russell7/sqlite`. The pragmas stay the same: WAL, the busy timeout and `synchronous = NORMAL`. A read-only file keeps its journal mode.
+  - The engine `sqljs` gives its database to `sqlJsConnection` of `@mark1russell7/sqlite`. Thus both engines give one kind of connection, and the storage has one set of queries.
+  - The write transaction, the read transaction and the check of the columns come from the entry `@mark1russell7/sqlite/portable`. That entry imports no module of Node.js.
+  - The engine `auto` uses `node:sqlite` from Node.js 22.13, as before. `@mark1russell7/sqlite` adds a probe of the transaction state for Node.js 22.13 to 22.15, which have no `isTransaction`.
+  - The new dependency is `@mark1russell7/sqlite`.
+  
+  PATCH: an internal change with no change to the public API.
+- Updated dependencies [425ea64]
+- Updated dependencies [ea801cd]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6513a83]
+- Updated dependencies [8c69a74]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6cc8f0e]
+  - @procedures/client@0.59.1
+
 ## 0.59.0
 
 ### Patch Changes

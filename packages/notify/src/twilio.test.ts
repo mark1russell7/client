@@ -4,12 +4,15 @@ import {
   TWILIO_LIMITS,
   TWILIO_MIN_WAIT_MS,
   callTwilio,
+  extractTwilioBalance,
   extractTwilioCall,
   extractTwilioText,
+  twilioBalanceRequest,
   twilioCallRequest,
   twilioCallState,
   twilioCallStatusRequest,
   twilioEndCallRequest,
+  twilioGatherTwiml,
   twilioSayTwiml,
   twilioTextRequest,
   twilioTextState,
@@ -247,6 +250,66 @@ describe("twilioSayTwiml", () => {
     expect(() => twilioSayTwiml("x".repeat(TWILIO_LIMITS.twiml))).toThrow();
     expect(() => twilioSayTwiml("&".repeat(900))).toThrow();
   });
+
+  it("says the text in the voice and the language", () => {
+    expect(twilioSayTwiml("Go now.", 1, { voice: "Polly.Joanna", language: "en-US" })).toContain('<Say voice="Polly.Joanna" language="en-US">Go now.</Say>');
+    expect(twilioSayTwiml("Go now.", 1, { language: "en" })).toContain('<Say language="en">Go now.</Say>');
+    for (const voice of [{ voice: 'x" onload="y' }, { voice: "" }, { language: "en US" }, { language: 'en"' }, { language: "e" }]) {
+      expect(() => twilioSayTwiml("Go now.", 1, voice), JSON.stringify(voice)).toThrow();
+    }
+  });
+});
+
+describe("twilioGatherTwiml", () => {
+  const ACTION = "https://example.test/press?round=1&call=a";
+
+  it("says the text in a gather of one key, and posts the key to the action", () => {
+    expect(twilioGatherTwiml("Press 1 to confirm.", { action: ACTION })).toBe(
+      '<?xml version="1.0" encoding="UTF-8"?><Response><Gather input="dtmf" numDigits="1" timeout="5" action="https://example.test/press?round=1&amp;call=a" method="POST"><Say>Press 1 to confirm.</Say></Gather></Response>',
+    );
+  });
+
+  it("repeats the text in the gather, and says the text after it when no key came", () => {
+    const twiml = twilioGatherTwiml("Press 1.", { action: ACTION, repeats: 2, after: "No key came. Goodbye.", voice: "Polly.Joanna", language: "en-US" });
+    expect(twiml).toContain('<Say voice="Polly.Joanna" language="en-US">Press 1.</Say><Pause length="1"/><Say voice="Polly.Joanna" language="en-US">Press 1.</Say></Gather>');
+    expect(twiml).toMatch(/<\/Gather><Say voice="Polly.Joanna" language="en-US">No key came. Goodbye.<\/Say><\/Response>$/);
+  });
+
+  it("takes the count of keys, the wait, the method and the request with no key", () => {
+    const twiml = twilioGatherTwiml("Enter the code.", { action: ACTION, digits: 4, timeoutMs: 10_500, method: "GET", actionOnEmptyResult: true });
+    expect(twiml).toContain('<Gather input="dtmf" numDigits="4" timeout="10" action="https://example.test/press?round=1&amp;call=a" method="GET" actionOnEmptyResult="true">');
+  });
+
+  it("escapes the texts and the action, so no input can add a verb or an attribute", () => {
+    const twiml = twilioGatherTwiml(`Go </Say><Dial>${TO}</Dial>`, { action: 'https://example.test/" method="GET', after: `<Hangup/> & "bye"` });
+    expect(twiml).toContain('action="https://example.test/&quot; method=&quot;GET"');
+    expect(twiml).toContain("&lt;/Say&gt;&lt;Dial&gt;");
+    expect(twiml).toContain("&lt;Hangup/&gt; &amp; \"bye\"");
+    expect(twiml.match(/ method="/g)).toHaveLength(1);
+    expect(twiml).not.toContain("<Dial>");
+    expect(twiml).not.toContain("<Hangup/>");
+  });
+
+  it("throws for an input that breaks a rule of the API", () => {
+    const good = { action: ACTION };
+    for (const gather of [
+      { action: "ftp://example.test/press" },
+      { action: "/press" },
+      { ...good, digits: 0 },
+      { ...good, digits: 11 },
+      { ...good, digits: 1.5 },
+      { ...good, timeoutMs: 500 },
+      { ...good, timeoutMs: 61_000 },
+      { ...good, repeats: 0 },
+      { ...good, method: "PUT" as "POST" },
+      { ...good, after: " " },
+      { ...good, voice: "a b" },
+    ]) {
+      expect(() => twilioGatherTwiml("Press 1.", gather), JSON.stringify(gather)).toThrow();
+    }
+    expect(() => twilioGatherTwiml(" ", good)).toThrow();
+    expect(() => twilioGatherTwiml("x".repeat(TWILIO_LIMITS.twiml), good)).toThrow();
+  });
 });
 
 describe("extractTwilioText", () => {
@@ -378,6 +441,32 @@ describe("the states", () => {
     ["failed", undefined, "failed"],
   ])("a call with the status %s, answered by %s, is %s", (status, answeredBy, state) => {
     expect(twilioCallState(status, answeredBy)).toBe(state);
+  });
+});
+
+describe("the balance", () => {
+  // The body has the shape of the Balance resource of the API (twilio.com/docs/usage/api/account), read on 2026-11-15.
+  const BALANCE = { currency: "USD", balance: "1.83164", account_sid: ACCOUNT };
+
+  it("reads the balance of the account with a GET that has no body", () => {
+    const request = twilioBalanceRequest(CREDENTIALS);
+    expect(request).toEqual({ url: `${TWILIO_API}/Accounts/${ACCOUNT}/Balance.json`, method: "GET", headers: { authorization: basic(ACCOUNT, SECRET), accept: "application/json" } });
+    expect(twilioBalanceRequest({ ...CREDENTIALS, keySid: KEY }).headers["authorization"]).toBe(basic(KEY, SECRET));
+    expect(() => twilioBalanceRequest({ ...CREDENTIALS, accountSid: "AC1/../x" })).toThrow();
+  });
+
+  it("gives the balance as a number and as the decimal text of Twilio", () => {
+    expect(extractTwilioBalance(ok(BALANCE, 200))).toEqual({ ok: true, balance: 1.83164, balanceText: "1.83164", currency: "USD" });
+    expect(extractTwilioBalance(ok({ ...BALANCE, balance: "-0.50" }, 200))).toMatchObject({ ok: true, balance: -0.5, balanceText: "-0.50" });
+    expect(extractTwilioBalance(ok({ ...BALANCE, balance: "0" }, 200))).toMatchObject({ ok: true, balance: 0 });
+    expect(extractTwilioBalance(ok({ ...BALANCE, balance: 12.5 }, 200))).toMatchObject({ ok: true, balance: 12.5, balanceText: "12.5" });
+  });
+
+  it("gives a failure for a body with no balance, a balance that is not a decimal or no currency", () => {
+    for (const body of [{ ...BALANCE, balance: undefined }, { ...BALANCE, balance: "1,83" }, { ...BALANCE, balance: "" }, { ...BALANCE, balance: "1e3" }, { ...BALANCE, currency: "usd" }, { ...BALANCE, currency: undefined }]) {
+      expect(extractTwilioBalance(ok(body, 200)), JSON.stringify(body)).toMatchObject({ ok: false, kind: "server" });
+    }
+    expect(extractTwilioBalance(error(401, 20003, "Authenticate"))).toMatchObject({ ok: false, kind: "auth", code: 20003 });
   });
 });
 
