@@ -92,9 +92,10 @@ describe("pushoverApi", () => {
   });
 
   it("gives state and acknowledgedAt at each read without receiptStates", async () => {
-    const { fetch } = await start({ state: "pending", acknowledgedAt: 1_800_000_000_000 });
+    const acknowledgedAt = 1_800_000_000_000;
+    const { fetch } = await start({ state: "acknowledged", acknowledgedAt });
     for (let count = 0; count < 2; count += 1) {
-      expect(await callPushover(fetch, pushoverReceiptRequest(TOKEN, pushoverReceiptOf(0)), extractPushoverReceipt, LIMIT)).toMatchObject({ ok: true, acknowledged: false, expired: false });
+      expect(await callPushover(fetch, pushoverReceiptRequest(TOKEN, pushoverReceiptOf(0)), extractPushoverReceipt, LIMIT)).toMatchObject({ ok: true, acknowledged: true, acknowledgedAt, expired: false });
     }
   });
 
