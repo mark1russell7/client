@@ -76,4 +76,24 @@ describe("fs.glob", () => {
     const result = await run({ pattern: "**/*", cwd: root, dot: true, ignore });
     expect(result.matches).toEqual(["a", "a/q.ts", "b", "b/.dot.ts", "b/r.tsx", "dist", "dist/d.ts"]);
   });
+
+  it("gives the folder of a pattern b/** with dot: true, as fs.glob without dot does", async () => {
+    expect((await run({ pattern: "b/**", cwd: root, dot: true })).matches).toEqual(["b", "b/.dot.ts", "b/r.tsx"]);
+    expect((await run({ pattern: "b/**", cwd: root })).matches).toEqual(["b", "b/r.tsx"]);
+  });
+
+  it("keeps the walk out of a folder only when an ignore pattern matches the folder or each entry in it", async () => {
+    const result = await run({ pattern: "**", cwd: root, dot: true, ignore: ["**/.*"] });
+    expect(result.matches).toEqual([
+      "a", "a/node_modules", "a/node_modules/x", "a/node_modules/x/p.ts", "a/q.ts",
+      "b", "b/r.tsx", "dist", "dist/d.ts", "docs", "docs/b.md",
+    ]);
+    // "a/*" also matches "a/", thus it ignores the folder a. "b/?????" ignores only b/r.tsx.
+    const below = await run({ pattern: "**", cwd: root, dot: true, ignore: ["b/?????", "a/*"] });
+    expect(below.matches.filter((path) => path.startsWith("a") || path.startsWith("b"))).toEqual(["b", "b/.dot.ts"]);
+  });
+
+  it("matches a pattern that starts with ./ with dot: true", async () => {
+    expect((await run({ pattern: "./b/*", cwd: root, dot: true })).matches).toEqual(["b/.dot.ts", "b/r.tsx"]);
+  });
 });
