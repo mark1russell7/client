@@ -136,22 +136,31 @@ interface StartError {
 }
 
 /**
- * When `file` is not `command`, this function changes each start error of `child` to name
+ * When `file` is not `command`, this function changes one start error of `file` to name
  * `command`, as Node names it for a start by name: the `message` (`spawn git ENOENT`), the
- * `stack`, the `syscall` and the `path`. So the error of a call is the same as before the lookup.
- * A child with no other listener of `error` still throws the error, as Node does.
+ * `stack`, the `syscall` and the `path`. `call` is the function of Node that started the
+ * program: `spawn` or `spawnSync`. Another error does not change.
+ */
+export function nameStartError(error: StartError, command: string, file: string, call: "spawn" | "spawnSync" = "spawn"): void {
+  if (file === command) return;
+  const fileCall = `${call} ${file}`;
+  const commandCall = `${call} ${command}`;
+  if (error.syscall !== fileCall) return;
+  error.syscall = commandCall;
+  if (error.path === file) error.path = command;
+  if (error.message.startsWith(fileCall)) error.message = commandCall + error.message.slice(fileCall.length);
+  if (error.stack !== undefined) error.stack = error.stack.replace(fileCall, commandCall);
+}
+
+/**
+ * When `file` is not `command`, this function changes each start error of `child` to name
+ * `command` (`nameStartError`). So the error of a call is the same as before the lookup. A child
+ * with no other listener of `error` still throws the error, as Node does.
  */
 export function nameStartErrors(child: NodeJS.EventEmitter, command: string, file: string): void {
   if (file === command) return;
-  const fileCall = `spawn ${file}`;
-  const commandCall = `spawn ${command}`;
   child.prependListener("error", (error: StartError) => {
-    if (error.syscall === fileCall) {
-      error.syscall = commandCall;
-      if (error.path === file) error.path = command;
-      if (error.message.startsWith(fileCall)) error.message = commandCall + error.message.slice(fileCall.length);
-      if (error.stack !== undefined) error.stack = error.stack.replace(fileCall, commandCall);
-    }
+    nameStartError(error, command, file);
     if (child.listenerCount("error") === 1) throw error;
   });
 }

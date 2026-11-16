@@ -75,6 +75,7 @@
     "@mark1russell7/service": "^0.8.3",
     "@procedures/client": "workspace:*",
     "@procedures/peer": "workspace:*",
+    "@procedures/shell": "workspace:*",
     "zod": "^4.6.5"
   },
   "devDependencies": {
