@@ -9,13 +9,15 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { Client, ProcedureRegistry, registerModules } from "@procedures/client/browser";
 import { generateExportsManifest } from "./generate.js";
-import { exportInputSchema, exportsModule } from "./exports/load.js";
+import { exportInputSchema, exportOutputSchema, exportsModule, jsonValue } from "./exports/load.js";
 import type { ExportsManifest } from "./exports/types.js";
 import { stubTransport } from "../test/harness.js";
 import * as fixture from "../test/exports/fixture.js";
 
 const fixtureDir = join(dirname(fileURLToPath(import.meta.url)), "..", "test", "exports");
 const PURE = { reads: [], writes: [] };
+// One run of the generator builds a TypeScript program with the types of Node.js: 1 to 3 s, more under coverage
+const GENERATE_TIMEOUT = 30_000;
 
 function manifestOfFixture(): ExportsManifest {
   return generateExportsManifest({
@@ -33,8 +35,9 @@ function clientOf(manifest: ExportsManifest): Client {
   return new Client({ transport: stubTransport }).useRegistry(registry);
 }
 
+const manifest = manifestOfFixture();
+
 describe("generateExportsManifest", () => {
-  const manifest = manifestOfFixture();
 
   it("gives the golden manifest of the fixture", async () => {
     await expect(`${JSON.stringify(manifest, null, 2)}\n`).toMatchFileSnapshot("../test/exports/fixture.manifest.json");
@@ -42,7 +45,7 @@ describe("generateExportsManifest", () => {
 
   it("gives a procedure for each function with JSON inputs and a JSON output", () => {
     expect(manifest.procedures.map((procedure) => procedure.name)).toEqual([
-      "add", "depth", "first", "flip", "greet", "norm", "nothing", "pair", "strict", "total",
+      "add", "depth", "first", "flip", "greet", "identity", "lookup", "norm", "nothing", "pair", "pick", "read", "strict", "toggle", "total",
     ]);
   });
 
@@ -52,9 +55,12 @@ describe("generateExportsManifest", () => {
       ["big", "input-not-json"],
       ["broken", "input-not-json"],
       ["counter", "output-not-json"],
+      ["fail", "output-not-json"],
       ["keys", "input-not-json"],
+      ["measure", "input-not-json"],
       ["parse", "overload"],
       ["sortBy", "function-parameter"],
+      ["unset", "input-not-json"],
     ]);
   });
 
@@ -63,7 +69,7 @@ describe("generateExportsManifest", () => {
   });
 
   it("counts the classes, the values and the types", () => {
-    expect(manifest.others).toEqual({ classes: ["Counter"], values: 1, types: 4 });
+    expect(manifest.others).toEqual({ classes: ["Counter"], values: 1, types: 6 });
   });
 
   it("takes the description from the first paragraph of the doc comment, and of each parameter", () => {
@@ -86,7 +92,7 @@ describe("generateExportsManifest", () => {
     });
     expect(exempted.exempt).toContainEqual({ name: "add", reason: "overlay", detail: "a test of the overlay" });
     expect(exempted.procedures.find((procedure) => procedure.name === "add")).toBeUndefined();
-  });
+  }, GENERATE_TIMEOUT);
 
   it("gives a recursive type one definition that refers to itself", () => {
     const depth = manifest.procedures.find((procedure) => procedure.name === "depth")!;
@@ -105,14 +111,36 @@ describe("generateExportsManifest", () => {
     });
   });
 
+  it("gives each type of a union, and an enum for a union of literals", () => {
+    const pick = manifest.procedures.find((procedure) => procedure.name === "pick")!;
+    expect(pick.input).toMatchObject({ properties: { value: { anyOf: [{ type: "string" }, { type: "number" }] }, when: { enum: [true, "auto"] } } });
+    expect(manifest.procedures.find((procedure) => procedure.name === "identity")!.input).toMatchObject({ properties: { value: {} } });
+  });
+
+  it("refuses a named type with a method, and keeps no definition of it", () => {
+    expect(manifest.exempt.find((exemption) => exemption.name === "measure")?.detail).toBe("shape: an object with the method area");
+    expect(manifest.$defs).not.toHaveProperty("Shape");
+  });
+
+  it("makes a property with an undefined member optional, and gives null for an undefined item of an output", () => {
+    expect(manifest.$defs["Note"]).toMatchObject({ required: ["text"] });
+    expect(manifest.procedures.find((procedure) => procedure.name === "lookup")!.output).toMatchObject({
+      prefixItems: [{ type: "string" }, { type: "null" }],
+    });
+  });
+
+  it("throws on a declaration file that is not readable, or that is not a module", () => {
+    const of = (file: string) => () => generateExportsManifest({ declarations: join(fixtureDir, file), package: "fixture", namespace: ["fixture"] });
+    expect(of("absent.d.ts")).toThrow(/is not readable/);
+    expect(of("script.d.ts")).toThrow(/is not a module/);
+  }, GENERATE_TIMEOUT * 2);
+
   it("gives the same manifest on each run", () => {
     expect(manifestOfFixture()).toEqual(manifest);
-  });
+  }, GENERATE_TIMEOUT);
 });
 
 describe("exportsModule", () => {
-  const manifest = manifestOfFixture();
-
   it("calls each function with the properties of the input, in the order of its parameters", async () => {
     const client = clientOf(manifest);
     expect(await client.exec(["fixture", "add"], { a: 2, b: 3 })).toBe(5);
@@ -125,6 +153,12 @@ describe("exportsModule", () => {
     expect(await client.exec(["fixture", "greet"], { name: "Ada", loud: true })).toBe("HELLO ADA");
     expect(await client.exec(["fixture", "flip"], { side: null })).toBeNull();
     expect(await client.exec(["fixture", "strict"], { flag: true, mode: 2 })).toBe("yes");
+    expect(await client.exec(["fixture", "identity"], { value: { any: ["value"] } })).toEqual({ any: ["value"] });
+    expect(await client.exec(["fixture", "toggle"], { on: true })).toBe(false);
+    expect(await client.exec(["fixture", "pick"], { value: 7, when: "auto" })).toBe("7");
+    expect(await client.exec(["fixture", "read"], { note: { text: "a" } })).toBe("a");
+    expect(await client.exec(["fixture", "read"], { note: { text: "a", extra: "b" } })).toBe("a b");
+    expect(await client.exec(["fixture", "lookup"], { key: "k" })).toEqual(["k", null]);
   });
 
   it("gives null for an absent output", async () => {
@@ -146,6 +180,26 @@ describe("exportsModule", () => {
   it("throws when the package does not export a function of the manifest", () => {
     const { add: _add, ...rest } = fixture;
     expect(() => exportsModule(manifest, rest)).toThrow(/does not export the functions add/);
+  });
+
+  it("gives the JSON form of an output, and copies only what changes", () => {
+    const same = { list: [1, 2], nested: { word: "a" } };
+    expect(jsonValue(same)).toBe(same);
+    expect(jsonValue([1, undefined, [undefined]])).toEqual([1, null, [null]]);
+    expect(jsonValue({ a: 1, b: undefined, c: { d: undefined, e: [undefined] } })).toEqual({ a: 1, c: { e: [null] } });
+    expect(jsonValue(undefined)).toBeNull();
+    const date = new Date(0);
+    expect(jsonValue(date)).toBe(date);
+  });
+
+  it("throws on a manifest of another format", () => {
+    expect(() => exportsModule({ ...manifest, format: "procedures-exports/0" as ExportsManifest["format"] }, fixture)).toThrow("this loader reads procedures-exports/1");
+  });
+
+  it("gives the output schema with its definitions, and throws on a definition that the manifest does not have", () => {
+    const depth = manifest.procedures.find((procedure) => procedure.name === "depth")!;
+    expect(exportOutputSchema(manifest, depth)).toEqual({ type: "number" });
+    expect(() => exportInputSchema({ ...manifest, $defs: {} }, depth)).toThrow(/the definition Tree, which the manifest does not have/);
   });
 
   it("gives the procedures their descriptions and effects", () => {

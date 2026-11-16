@@ -17,3 +17,11 @@ export function counter() { return new Counter(); }
 export function parse(text, radix = 10) { return Number.parseInt(text, radix); }
 export function big(value) { return value * 2n; }
 export function broken() { return 0; }
+export function identity(value) { return value; }
+export function fail(message) { throw new Error(message); }
+export function toggle(on) { return !on; }
+export function pick(value, when) { return when === true ? value : String(value); }
+export function measure(shape) { return shape.area(); }
+export function read(note) { return note.extra === undefined ? note.text : `${note.text} ${note.extra}`; }
+export function unset() { return 0; }
+export function lookup(key) { return [key, undefined]; }

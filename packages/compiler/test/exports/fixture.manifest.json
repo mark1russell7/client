@@ -7,6 +7,20 @@
     "fixture"
   ],
   "$defs": {
+    "Note": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "extra": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ]
+    },
     "Options": {
       "type": "object",
       "properties": {
@@ -240,6 +254,72 @@
       }
     },
     {
+      "name": "identity",
+      "path": [
+        "fixture",
+        "identity"
+      ],
+      "description": "Any value: unknown is any JSON value.",
+      "params": [
+        "value"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "value": {}
+        },
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "output": {},
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "lookup",
+      "path": [
+        "fixture",
+        "lookup"
+      ],
+      "description": "A tuple with an undefined item: JSON gives null for it.",
+      "params": [
+        "key"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "array",
+        "prefixItems": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "minItems": 2,
+        "maxItems": 2
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "norm",
       "path": [
         "fixture",
@@ -335,6 +415,88 @@
       }
     },
     {
+      "name": "pick",
+      "path": [
+        "fixture",
+        "pick"
+      ],
+      "description": "A union of types, and a union of a literal flag and a word.",
+      "params": [
+        "value",
+        "when"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "when": {
+            "enum": [
+              true,
+              "auto"
+            ]
+          }
+        },
+        "required": [
+          "value",
+          "when"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          }
+        ]
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "read",
+      "path": [
+        "fixture",
+        "read"
+      ],
+      "description": "The text of a note.",
+      "params": [
+        "note"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "$ref": "#/$defs/Note"
+          }
+        },
+        "required": [
+          "note"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "string"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "strict",
       "path": [
         "fixture",
@@ -366,6 +528,36 @@
       },
       "output": {
         "const": "yes"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "toggle",
+      "path": [
+        "fixture",
+        "toggle"
+      ],
+      "description": "A flag.",
+      "params": [
+        "on"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "on": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "on"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "boolean"
       },
       "effects": {
         "reads": [],
@@ -424,9 +616,19 @@
       "detail": "an instance of the class Counter"
     },
     {
+      "name": "fail",
+      "reason": "output-not-json",
+      "detail": "never"
+    },
+    {
       "name": "keys",
       "reason": "input-not-json",
       "detail": "map: Map"
+    },
+    {
+      "name": "measure",
+      "reason": "input-not-json",
+      "detail": "shape: an object with the method area"
     },
     {
       "name": "parse",
@@ -437,6 +639,11 @@
       "name": "sortBy",
       "reason": "function-parameter",
       "detail": "options.compare: (a: number, b: number) => number"
+    },
+    {
+      "name": "unset",
+      "reason": "input-not-json",
+      "detail": "value: undefined"
     }
   ],
   "others": {
@@ -444,6 +651,6 @@
       "Counter"
     ],
     "values": 1,
-    "types": 4
+    "types": 6
   }
 }

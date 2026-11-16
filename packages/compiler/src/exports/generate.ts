@@ -371,8 +371,8 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
     return schema;
   }
 
+  // A bare undefined does not get here: schemaOf refuses it in a property
   function hasUndefinedMember(type: TS.Type): boolean {
-    if (type.flags & (ts.TypeFlags.Undefined | ts.TypeFlags.Void)) return true;
     return type.isUnion() && type.types.some((member) => (member.flags & (ts.TypeFlags.Undefined | ts.TypeFlags.Void)) !== 0);
   }
 

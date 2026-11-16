@@ -238,6 +238,7 @@ await client.exec(["statistics", "median"], { values: [3, 1, 2, 10] }); // 2.5
 - The schemas come from the types. A named interface or type alias goes into `$defs` one time, so a recursive type is a reference to itself.
 - The description comes from the first paragraph of the doc comment. The description of a parameter or a property comes from its own doc comment.
 - An output of `undefined` or `void` is `null`, as in JSON. For a function that gives a promise, the output is the value of the promise.
+- A call in process gives the output that a call over HTTP gives. An `undefined` item of an array becomes `null`, and a property with an `undefined` value is absent.
 - A type parameter is any JSON value, or the schema of its constraint.
 - The overlay is the data that the types cannot tell. It has the effects of the package and of single functions. It also names the functions with no procedure, each with its reason.
 

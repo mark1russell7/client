@@ -23,6 +23,17 @@ export interface Options {
   readonly labels?: Readonly<Record<string, string>>;
 }
 
+/** A shape: a named type with a method is not JSON. */
+export interface Shape {
+  area(): number;
+}
+
+/** A note: a property with an undefined member can be absent. */
+export interface Note {
+  readonly text: string;
+  readonly extra: string | undefined;
+}
+
 /** A class: a candidate for a handle. */
 export declare class Counter {
   count: number;
@@ -71,3 +82,19 @@ export declare function parse(text: string, radix: number): number;
 export declare function big(value: bigint): bigint;
 /** A type that does not resolve: the generator fails closed. */
 export declare function broken(value: Missing): number;
+/** Any value: unknown is any JSON value. */
+export declare function identity(value: unknown): unknown;
+/** No output: never is not JSON. */
+export declare function fail(message: string): never;
+/** A flag. */
+export declare function toggle(on: boolean): boolean;
+/** A union of types, and a union of a literal flag and a word. */
+export declare function pick(value: string | number, when: true | "auto"): string | number;
+/** The area of a shape. */
+export declare function measure(shape: Shape): number;
+/** The text of a note. */
+export declare function read(note: Note): string;
+/** An undefined input is not JSON. */
+export declare function unset(value: undefined): number;
+/** A tuple with an undefined item: JSON gives null for it. */
+export declare function lookup(key: string): [string, undefined];

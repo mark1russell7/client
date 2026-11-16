@@ -6,3 +6,4 @@ The generator of procedures from the types of a package (direction 40). `generat
 
 - The entry `./generate` reads the compiler API of TypeScript 5 as the optional peer `typescript-api` (`npm:typescript@^5.9.3`), because TypeScript 7 has no compiler API in JavaScript.
 - A type that does not resolve fails closed: it gives an exemption, not a schema that accepts each value.
+- A call in process gives the JSON form of the output, as a call over HTTP does. An `undefined` item of an array becomes `null`, and a property with an `undefined` value is absent.
