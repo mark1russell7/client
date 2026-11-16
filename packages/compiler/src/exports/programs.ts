@@ -16,6 +16,7 @@ import * as z from "zod";
 import {
   InvocationError,
   PROCEDURE_REGISTRY,
+  pathToKey,
   resolveIn,
   type AnyProcedure,
   type ProcedureContext,
@@ -94,7 +95,7 @@ export async function withSubPrograms(
     const reached = ctx?.expose === undefined || ctx.expose([...callee]);
     const operator = reached ? operatorOf(await resolveIn(registry, [...callee])) : undefined;
     if (operator === undefined) {
-      throw refusal(path, at, `calls ${callee.join(".")}, which is not an operator that this caller reaches. A sub-program calls only the pure procedures of exports manifests that give no promise`);
+      throw refusal(path, at, `calls ${pathToKey(callee)}, which is not an operator that this caller reaches. A sub-program calls only the pure procedures of exports manifests that give no promise`);
     }
     return operator;
   };
@@ -165,7 +166,7 @@ async function compileSubProgram(call: Record<string, unknown>, program: Exports
   if ($when !== undefined && $when !== "$never") {
     throw refusal(context.path, context.at, `has the $when ${JSON.stringify($when)}. A sub-program is data until the package calls it, so its $when is "$never" or absent`);
   }
-  const body = await expression(rest, program, context, true);
+  const body = await expression(rest, program, context);
   const result = z.fromJSONSchema(withDefinitions(program.output, context.defs) as never);
   return (...args: unknown[]): unknown => {
     // A package can give more arguments than the parameters, as Array.prototype.map does
@@ -179,9 +180,8 @@ async function compileSubProgram(call: Record<string, unknown>, program: Exports
   };
 }
 
-/** The expression of a part of a sub-program. The root is one call. */
-async function expression(node: unknown, program: ExportsProgram, context: Context, root = false): Promise<Expression> {
-  if (root && !isCall(node)) throw refusal(context.path, context.at, `is not a call. A sub-program is one call: { "$proc": [...], "input": {...} }`);
+/** The expression of a part of a sub-program. `bind()` compiles only a call, so the root is one call. */
+async function expression(node: unknown, program: ExportsProgram, context: Context): Promise<Expression> {
   if (Array.isArray(node)) {
     if (node.some(isCall)) throw refusal(context.path, context.at, "has an array of calls. In a program such an array is a chain, and a sub-program has no chain");
     const items: Expression[] = [];
@@ -199,7 +199,7 @@ async function expression(node: unknown, program: ExportsProgram, context: Conte
     if (record["$when"] !== undefined) throw refusal(context.path, context.at, "has a call with a $when in it. Only the root of a sub-program has a $when");
     const operator = await context.lookup(record["$proc"] as readonly string[], context.at);
     const input = await expression(record["input"] ?? {}, program, context);
-    const key = operator.path.join(".");
+    const key = pathToKey(operator.path);
     return (args) => {
       const checked = operator.input.safeParse(input(args));
       if (!checked.success) {
@@ -215,6 +215,7 @@ async function expression(node: unknown, program: ExportsProgram, context: Conte
 
 /** The expression of a `$ref`: a parameter of the function, and optional fields with dots between them. */
 function reference(text: string, program: ExportsProgram, context: Context): Expression {
+  // path-check: a $ref names a parameter and the fields of its value, not a procedure path
   const [name = "", ...fields] = text.split(".");
   const index = program.params.indexOf(name);
   if (index < 0) {
@@ -259,6 +260,7 @@ function resolved(schema: unknown, defs: Definitions): Record<string, unknown> |
 }
 
 function where(at: readonly string[]): string {
+  // path-check: a position in the input of the call, the property names of its value
   return at.length ? at.join(".") : "the input";
 }
 
