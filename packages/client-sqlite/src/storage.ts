@@ -537,7 +537,8 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
 
   /**
    * This method does no work: each write is in the file at the commit of its transaction. It
-   * rejects after `close()`. It stays for the callers of the removed engine `sqljs`.
+   * rejects after `close()`. It is the optional method `flush` of `CollectionStorage`, which the
+   * drain of a procedure server calls.
    */
   async flush(): Promise<void> {
     this.checkOpen();

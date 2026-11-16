@@ -1375,7 +1375,7 @@
         ]
       },
       "dbPath": {
-        "description": "The SQLite database file (default: the CLI log database, ~/logs/cli/cli.db). A query does not make a missing file.",
+        "description": "The SQLite database file (default: the CLI log database, ~/logs/cli/cli.db). A query does not make a missing file, and a write makes it.",
         "type": "string"
       }
     }
@@ -1423,7 +1423,7 @@
         "type": "string"
       },
       "dbPath": {
-        "description": "The SQLite database file (default: the CLI log database, ~/logs/cli/cli.db). A query does not make a missing file.",
+        "description": "The SQLite database file (default: the CLI log database, ~/logs/cli/cli.db). A query does not make a missing file, and a write makes it.",
         "type": "string"
       }
     },
@@ -2521,7 +2521,7 @@
         "items": {}
       },
       "dbPath": {
-        "description": "The SQLite database file (default: the CLI log database, ~/logs/cli/cli.db). A query does not make a missing file.",
+        "description": "The SQLite database file (default: the CLI log database, ~/logs/cli/cli.db). A query does not make a missing file, and a write makes it.",
         "type": "string"
       }
     },
@@ -2542,7 +2542,7 @@
         "items": {}
       },
       "dbPath": {
-        "description": "The SQLite database file (default: the CLI log database, ~/logs/cli/cli.db). A query does not make a missing file.",
+        "description": "The SQLite database file (default: the CLI log database, ~/logs/cli/cli.db). A query does not make a missing file, and a write makes it.",
         "type": "string"
       }
     },

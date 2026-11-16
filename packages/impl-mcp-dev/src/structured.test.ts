@@ -10,6 +10,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { DatabaseSync } from "node:sqlite";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -53,6 +54,12 @@ const NOT_OBJECT_OUTPUT = new Set([
   "client.throw",
 ]);
 
+/**
+ * True when this Node.js has the guard of the SQL procedures: `setAuthorizer` of `DatabaseSync`. `confineToFile` of
+ * `@mark1russell7/sqlite` checks the same method, so the suites follow the check of the procedures, not the version.
+ */
+const guard = typeof (DatabaseSync.prototype as { setAuthorizer?: unknown }).setAuthorizer === "function";
+
 /** A tool whose output is a union (one value, or a stream of items): no object schema. */
 const UNION_OUTPUT = new Set(["docker.logs"]);
 
@@ -92,7 +99,7 @@ describe("MCP structured output", () => {
     expect(undescribed, "output fields without a description").toEqual([]);
   });
 
-  it("gives structured content that the SDK client accepts (sqlite.execute, sqlite.query, logs)", async () => {
+  it.runIf(guard)("gives structured content that the SDK client accepts (sqlite.execute, sqlite.query)", async () => {
     const dbPath = join(tmp, "structured.db");
     await client.callTool({ name: "sqlite.execute", arguments: { dbPath, sql: "CREATE TABLE t (n INTEGER, s TEXT)" } });
     const inserted = await client.callTool({ name: "sqlite.execute", arguments: { dbPath, sql: "INSERT INTO t VALUES (?, ?)", params: [1, "a"] } });
@@ -101,7 +108,20 @@ describe("MCP structured output", () => {
     const queried = await client.callTool({ name: "sqlite.query", arguments: { dbPath, sql: "SELECT n, s FROM t" } });
     expect(queried.isError).toBeFalsy();
     expect(queried.structuredContent).toEqual({ columns: ["n", "s"], rows: [{ n: 1, s: "a" }] });
+  }, 60_000);
 
+  it.skipIf(guard)("refuses sqlite.execute and sqlite.query on a Node.js with no guard, with no structured content", async () => {
+    const dbPath = join(tmp, "refused.db");
+    for (const [name, sql] of [["sqlite.execute", "CREATE TABLE t (n INTEGER)"], ["sqlite.query", "SELECT 1"]] as const) {
+      const refused = await client.callTool({ name, arguments: { dbPath, sql } });
+      expect(refused.isError, name).toBe(true);
+      expect(refused.structuredContent, name).toBeUndefined();
+      expect(JSON.stringify(refused.content), name).toContain("Node.js 24.10 or later");
+    }
+  }, 60_000);
+
+  it("gives structured content that the SDK client accepts (logs.store, logs.query)", async () => {
+    const dbPath = join(tmp, "structured-logs.db");
     await client.callTool({ name: "logs.store", arguments: { dbPath, level: "info", message: "hello", data: { k: 1 } } });
     const logs = await client.callTool({ name: "logs.query", arguments: { dbPath } });
     expect(logs.isError).toBeFalsy();

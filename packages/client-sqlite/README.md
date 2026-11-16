@@ -262,7 +262,8 @@ interface DbExecuteOutput {
 - One statement runs alone. `changes` is the number of rows that it changed. A change of the schema gives `0`.
 - A script of several statements runs in one transaction: all its statements take effect, or none does. `changes` is the total of the script.
 - A script that starts with `BEGIN`, `SAVEPOINT` or another statement that controls a transaction runs as written. After an error, the procedure rolls back the open transaction.
-- In a script, a later statement that controls a transaction is refused. `VACUUM` cannot run in a transaction, so send it alone.
+- In a script that does not start with such a statement, a later one is refused. `VACUUM` cannot run in a transaction, so send it alone.
+- SQL that leaves a transaction open fails, also `BEGIN` alone. The procedure rolls the transaction back, so the file keeps none of its changes. End each transaction with `COMMIT` or `ROLLBACK`.
 - `params` bind to one statement. A script with `params` is refused.
 - The procedure makes a missing file.
 

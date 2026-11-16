@@ -98,6 +98,17 @@ describe.runIf(guard)("sqlite.execute and sqlite.query", () => {
     expect(await call<DbExecuteOutput>("sqlite", "execute", { dbPath, sql: "INSERT INTO t VALUES (5)" })).toEqual({ changes: 1 });
   });
 
+  it("refuses SQL that leaves a transaction open, rolls it back, and the file keeps no new row", async () => {
+    const dbPath = tempDb();
+    await call("sqlite", "execute", { dbPath, sql: "CREATE TABLE t (n INTEGER); INSERT INTO t VALUES (1);" });
+    for (const sql of ["BEGIN; INSERT INTO t VALUES (5);", "BEGIN", "SAVEPOINT s; INSERT INTO t VALUES (6);"]) {
+      await expect(call("sqlite", "execute", { dbPath, sql }), sql).rejects.toThrow(/left a transaction open.*COMMIT or ROLLBACK/);
+    }
+    expect((await call<DbQueryOutput>("sqlite", "query", { dbPath, sql: "SELECT n FROM t ORDER BY n" })).rows).toEqual([{ n: 1 }]);
+    // No transaction stays open: the next write works
+    expect(await call<DbExecuteOutput>("sqlite", "execute", { dbPath, sql: "INSERT INTO t VALUES (7)" })).toEqual({ changes: 1 });
+  });
+
   it("refuses a later statement that controls a transaction in a script, params for a script, and SQL with no statement", async () => {
     const dbPath = tempDb();
     await call("sqlite", "execute", { dbPath, sql: "CREATE TABLE t (n INTEGER)" });

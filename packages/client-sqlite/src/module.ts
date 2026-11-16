@@ -219,9 +219,21 @@ const LOGS_QUERY_MODE: OpenMode = { procedure: "logs.query", missing: "empty", q
  *   does.
  * - A script that starts with `BEGIN` (or another statement that controls a transaction) runs as written. It controls
  *   its own transactions. After an error, the procedure rolls back the open transaction.
+ * - A text that leaves a transaction open fails, also one `BEGIN` alone. The procedure rolls the transaction back, so
+ *   the file keeps none of its changes. Without this check, the close of the connection rolls it back with no error.
  */
 function executeSql(sqlite: Sqlite, db: DatabaseSync, sql: string, params: readonly SqlParam[]): number {
   const label = "sqlite.execute";
+  const changes = runExecuteSql(sqlite, db, sql, params, label);
+  if (db.isTransaction) {
+    db.exec("ROLLBACK");
+    throw new Error(`${label}: the SQL left a transaction open, so the procedure rolled it back. End each transaction with COMMIT or ROLLBACK.`);
+  }
+  return changes;
+}
+
+/** This function runs the SQL text of `sqlite.execute` in the ways that `executeSql` tells. */
+function runExecuteSql(sqlite: Sqlite, db: DatabaseSync, sql: string, params: readonly SqlParam[], label: string): number {
   const { count, firstControls } = countStatements(sqlite, db, sql);
   if (count === 0) throw new Error(`${label}: the SQL has no statement`);
   if (count === 1) {
