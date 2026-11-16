@@ -2,7 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/@procedures/ios-backup?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/ios-backup)
 
-This package reads an iPhone backup in the MobileSync format. It finds the newest backup, finds a file in `Manifest.db` and reads the messages of `sms.db`. The package has no native dependency. It reads SQLite with `node:sqlite`.
+This package reads an iPhone backup in the MobileSync format. It finds the newest backup, finds a file in `Manifest.db` and reads the messages of `sms.db`. The package has no native dependency. It opens SQLite with `openDatabase` of `@mark1russell7/sqlite`, which uses `node:sqlite`.
 
 ## Install
 
@@ -53,7 +53,7 @@ The package root exports the functions of the procedures.
 - The package cannot read an encrypted backup. Make a backup without encryption to read the messages.
 - When the `text` column of a message is empty, the package reads the text from its `attributedBody` column. Such a message has `from_attributed_body: true`.
 - The times are ISO 8601 strings in UTC, to the second. The package reads the times in nanoseconds (iOS 11 and later) and in seconds (older databases).
-- The package loads `node:sqlite` at the first read. Thus an import of the package does not show the experimental warning of Node.
+- The package loads `@mark1russell7/sqlite` and `node:sqlite` at the first read. Thus an import of the package does not show the experimental warning of Node.
 
 ## The root of the files
 

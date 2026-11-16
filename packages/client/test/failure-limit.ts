@@ -3,7 +3,7 @@
  * in place of limits set by feel. `gateLimit` gives a limit from the values of 5 runs.
  * `failureLimit` gives the limit of the failures of one run, from a count of 0 or more.
  *
- * The rule of the strategist for `failureLimit`:
+ * The rule of the maintainer for `failureLimit`:
  * - The measured runs give an upper failure rate `p` with 95 % confidence. With 0 failures, the
  *   rule of three gives `p = 3 / C`, where `C` is the sum of the calls of the measured runs.
  * - With `k > 0` failures, `p` is the exact upper bound of a Poisson count: `P(Poisson(p * C) <= k) = 5 %`.
@@ -60,7 +60,7 @@ export function failureLimit(runs: MeasuredRuns, calls: number): number {
 
 /**
  * This function gives the limit of a gate from the values of at least 5 measured runs (the rule of
- * the strategist, 2026-11-02). The spread is the highest value minus the lowest value.
+ * the maintainer, 2026-11-02). The spread is the highest value minus the lowest value.
  * - A ceiling (a growth, a rate) is the highest value plus the spread, rounded up to `step`.
  * - A floor (a count) is the lowest value minus the spread, rounded down to `step`.
  * The rule has no factor and no fixed margin.

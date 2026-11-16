@@ -1,5 +1,448 @@
 # @procedures/mark
 
+## 0.60.1
+
+### Patch Changes
+
+- ce78260: `server.start`, `mark --server`, `mark serve`, `procedure-server` and `runProcedureHost()` accept the port 0. The server listens on a free port, and its lockfile gives the port that the listener got.
+  
+  - `mark --server --port 0` starts each listener on a free port. With `--transport both`, the WebSocket listener gets a free port of its own.
+  - `procedure-server --port 0` and `mark serve --port 0` start the first transport on a free port. The endpoint lines of the output give the port that the listener got. `--probe-port 0` gives the probe server a free port.
+  - `runProcedureHost()` with a lockfile on the port 0 writes the lockfile at the end of the startup. The lockfile takes the port of the listener with the scheme and the path of its endpoint. When no listener matches, the host stops with the code 1.
+  - `server.start` with `{ port: 0 }` finds the lockfile of the new server by the PID of its child process. Its result gives the port. At the timeout, the result gives the port when the lockfile has one.
+  - The other ports work as before.
+  - The default ports do not change. This change adds an accepted value, so it is a feature, and before 1.0.0 a feature is a PATCH.
+  - A test that starts a server in a child process gives it the port 0 and reads the port from the lockfile or from the output of the child. Then no other process can take the port between a pick and the listen.
+- Updated dependencies [beca782]
+- Updated dependencies [d472a8b]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [264e6a1]
+- Updated dependencies [11fcffb]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [e8e88ac]
+- Updated dependencies [a87cdda]
+- Updated dependencies [a6fd4f3]
+- Updated dependencies [ce78260]
+- Updated dependencies [6e6805f]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+  - @procedures/shell@0.60.1
+  - @procedures/fs@0.60.1
+  - @procedures/peer@0.60.1
+  - @procedures/server@0.60.1
+  - @procedures/pnpm@0.60.1
+  - @procedures/cli-kit@0.60.1
+  - @procedures/cli-run@0.60.1
+  - @procedures/lib@0.60.1
+  - @procedures/procedure@0.60.1
+  - @procedures/vitest@0.60.1
+  - @procedures/mcp-dev-tools@0.60.1
+
+## 0.60.0
+
+### Patch Changes
+
+- Updated dependencies [7250ac5]
+- Updated dependencies [3075d86]
+  - @procedures/shell@0.60.0
+  - @procedures/server@0.60.0
+  - @procedures/client@0.60.0
+  - @procedures/cli-run@0.60.0
+  - @procedures/lib@0.60.0
+  - @procedures/pnpm@0.60.0
+  - @procedures/vitest@0.60.0
+  - @procedures/cli-kit@0.60.0
+  - @procedures/fs@0.60.0
+  - @procedures/procedure@0.60.0
+  - @procedures/peer@0.60.0
+  - @procedures/mcp-dev-tools@0.60.0
+
+## 0.59.1
+
+### Patch Changes
+
+- Updated dependencies [425ea64]
+- Updated dependencies [ea801cd]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6513a83]
+- Updated dependencies [8c69a74]
+- Updated dependencies [74ddeff]
+- Updated dependencies [c0ecfe0]
+- Updated dependencies [6cc8f0e]
+  - @procedures/client@0.59.1
+  - @procedures/fs@0.59.1
+  - @procedures/peer@0.59.1
+  - @procedures/cli-kit@0.59.1
+  - @procedures/cli-run@0.59.1
+  - @procedures/lib@0.59.1
+  - @procedures/pnpm@0.59.1
+  - @procedures/procedure@0.59.1
+  - @procedures/shell@0.59.1
+  - @procedures/vitest@0.59.1
+  - @procedures/mcp-dev-tools@0.59.1
+  - @procedures/server@0.59.1
+
+## 0.59.0
+
+### Minor Changes
+
+- 8f8e5b2: **Breaking change:** each listener examines the `Host` header. By default, only `localhost`, `127.0.0.1`, `[::1]` and IP addresses pass. Give each other name with `--allowed-host` or `allowedHosts`.
+  
+  The browser checks examine the `Host` header on each listener. Before, they examined it only on a loopback address. A server on a LAN address (`0.0.0.0`) accepted each host name.
+  
+  A request must name one of these hosts in its `Host` header:
+  
+  - A loopback name: `localhost`, `127.0.0.1` or `[::1]`.
+  - An IP address, for example `192.168.1.20` or `[fe80::1]`.
+  - A name of `browser.allowedHosts` of the host policy, with any letter case.
+  
+  A request with another name gets `FORBIDDEN` (403) with the reason `host-header-not-allowed`. A request without a `Host` header gets it too. The message of the refusal names `allowedHosts` and `--allowed-host`. `browser.allowedHosts: "*"` turns the check off.
+  
+  The server command and `mark --server` get the option `--allowed-host <names>`. Repeat the option, or separate the names with commas. `@procedures/server` exports `parseAllowedHosts`.
+  
+  Migration steps:
+  
+  - A server that a LAN, a proxy or a container network reaches by a name: give the name in `browser.allowedHosts` of `hostPolicy()`. Or start the server with `--allowed-host <name>`.
+  - An MCP face on HTTP that clients reach by a name: give the name in `http.allowedHosts` of the face, or in `browser.allowedHosts` of the policy.
+  - A server that clients reach by `localhost` or by an IP address: no change.
+
+### Patch Changes
+
+- Updated dependencies [8f8e5b2]
+  - @procedures/client@0.59.0
+  - @procedures/server@0.59.0
+  - @procedures/lib@0.59.0
+  - @procedures/cli-kit@0.59.0
+  - @procedures/cli-run@0.59.0
+  - @procedures/fs@0.59.0
+  - @procedures/pnpm@0.59.0
+  - @procedures/procedure@0.59.0
+  - @procedures/peer@0.59.0
+  - @procedures/shell@0.59.0
+  - @procedures/vitest@0.59.0
+  - @procedures/mcp-dev-tools@0.59.0
+
+## 0.58.2
+
+### Patch Changes
+
+- Updated dependencies [217871c]
+  - @procedures/client@0.58.2
+  - @procedures/cli-kit@0.58.2
+  - @procedures/cli-run@0.58.2
+  - @procedures/fs@0.58.2
+  - @procedures/lib@0.58.2
+  - @procedures/pnpm@0.58.2
+  - @procedures/procedure@0.58.2
+  - @procedures/peer@0.58.2
+  - @procedures/shell@0.58.2
+  - @procedures/vitest@0.58.2
+  - @procedures/mcp-dev-tools@0.58.2
+  - @procedures/server@0.58.2
+
+## 0.58.1
+
+### Patch Changes
+
+- Updated dependencies [1d47080]
+  - @procedures/client@0.58.1
+  - @procedures/cli-kit@0.58.1
+  - @procedures/cli-run@0.58.1
+  - @procedures/fs@0.58.1
+  - @procedures/lib@0.58.1
+  - @procedures/pnpm@0.58.1
+  - @procedures/procedure@0.58.1
+  - @procedures/peer@0.58.1
+  - @procedures/shell@0.58.1
+  - @procedures/vitest@0.58.1
+  - @procedures/mcp-dev-tools@0.58.1
+  - @procedures/server@0.58.1
+
+## 0.58.0
+
+### Patch Changes
+
+- Updated dependencies [11f5035]
+- Updated dependencies [9f5b1a4]
+  - @procedures/client@0.58.0
+  - @procedures/procedure@0.58.0
+  - @procedures/cli-kit@0.58.0
+  - @procedures/cli-run@0.58.0
+  - @procedures/fs@0.58.0
+  - @procedures/lib@0.58.0
+  - @procedures/pnpm@0.58.0
+  - @procedures/peer@0.58.0
+  - @procedures/shell@0.58.0
+  - @procedures/vitest@0.58.0
+  - @procedures/mcp-dev-tools@0.58.0
+  - @procedures/server@0.58.0
+
+## 0.57.0
+
+### Patch Changes
+
+- d9d1923: The package leaves out `dist/manifest.json`. Each build gave this file a different fingerprint and time, so the release check found a change in each pull request. An installed copy did not read the shipped file, because its fingerprint names the builds of the workspace. The first start of an installed copy writes the file, as before. No effect on the public API.
+- @procedures/mcp-dev-tools@0.57.0
+  - @procedures/cli-kit@0.57.0
+  - @procedures/client@0.57.0
+  - @procedures/cli-run@0.57.0
+  - @procedures/fs@0.57.0
+  - @procedures/lib@0.57.0
+  - @procedures/pnpm@0.57.0
+  - @procedures/procedure@0.57.0
+  - @procedures/peer@0.57.0
+  - @procedures/shell@0.57.0
+  - @procedures/vitest@0.57.0
+  - @procedures/server@0.57.0
+
+## 0.56.0
+
+### Patch Changes
+
+- 13996cf: An automated dependency update changes the shipped files, so this PATCH ships them.
+- Updated dependencies [13996cf]
+- Updated dependencies [13996cf]
+  - @procedures/cli-kit@0.56.0
+  - @procedures/cli-run@0.56.0
+  - @procedures/fs@0.56.0
+  - @procedures/lib@0.56.0
+  - @procedures/mcp-dev-tools@0.56.0
+  - @procedures/pnpm@0.56.0
+  - @procedures/procedure@0.56.0
+  - @procedures/server@0.56.0
+  - @procedures/shell@0.56.0
+  - @procedures/vitest@0.56.0
+  - @procedures/client@0.56.0
+  - @procedures/peer@0.56.0
+
+## 0.55.2
+
+### Patch Changes
+
+- @procedures/peer@0.55.2
+  - @procedures/mcp-dev-tools@0.55.2
+  - @procedures/cli-kit@0.55.2
+  - @procedures/client@0.55.2
+  - @procedures/cli-run@0.55.2
+  - @procedures/fs@0.55.2
+  - @procedures/lib@0.55.2
+  - @procedures/pnpm@0.55.2
+  - @procedures/procedure@0.55.2
+  - @procedures/shell@0.55.2
+  - @procedures/vitest@0.55.2
+  - @procedures/server@0.55.2
+
+## 0.55.1
+
+### Patch Changes
+
+- @procedures/cli-kit@0.55.1
+  - @procedures/client@0.55.1
+  - @procedures/cli-run@0.55.1
+  - @procedures/fs@0.55.1
+  - @procedures/lib@0.55.1
+  - @procedures/pnpm@0.55.1
+  - @procedures/procedure@0.55.1
+  - @procedures/peer@0.55.1
+  - @procedures/shell@0.55.1
+  - @procedures/vitest@0.55.1
+  - @procedures/mcp-dev-tools@0.55.1
+  - @procedures/server@0.55.1
+
+## 0.55.0
+
+### Patch Changes
+
+- Updated dependencies [fd9c6d4]
+- Updated dependencies [2918e97]
+  - @procedures/client@0.55.0
+  - @procedures/shell@0.55.0
+  - @procedures/fs@0.55.0
+  - @procedures/cli-kit@0.55.0
+  - @procedures/cli-run@0.55.0
+  - @procedures/lib@0.55.0
+  - @procedures/pnpm@0.55.0
+  - @procedures/procedure@0.55.0
+  - @procedures/peer@0.55.0
+  - @procedures/vitest@0.55.0
+  - @procedures/mcp-dev-tools@0.55.0
+  - @procedures/server@0.55.0
+
+## 0.54.1
+
+### Patch Changes
+
+- Updated dependencies [25dd6f5]
+- Updated dependencies [13c3a8b]
+  - @procedures/lib@0.54.1
+  - @procedures/client@0.54.1
+  - @procedures/cli-kit@0.54.1
+  - @procedures/cli-run@0.54.1
+  - @procedures/fs@0.54.1
+  - @procedures/pnpm@0.54.1
+  - @procedures/procedure@0.54.1
+  - @procedures/peer@0.54.1
+  - @procedures/shell@0.54.1
+  - @procedures/vitest@0.54.1
+  - @procedures/mcp-dev-tools@0.54.1
+  - @procedures/server@0.54.1
+
+## 0.54.0
+
+### Patch Changes
+
+- 1401489: The tarball of each package leaves out `dist/.tsbuildinfo`. The `files` list of each package has the entry `!dist/.tsbuildinfo` after `dist`.
+  
+  The build writes this file for incremental builds. An app does not use it, and it added its size to each tarball (61 KB in `@procedures/json` 0.52.3). The conventions rule `pack-no-buildinfo` finds it.
+  
+  PATCH: the exports and the behavior do not change.
+- Updated dependencies [ef8e080]
+- Updated dependencies [1401489]
+  - @procedures/client@0.54.0
+  - @procedures/cli-kit@0.54.0
+  - @procedures/cli-run@0.54.0
+  - @procedures/fs@0.54.0
+  - @procedures/lib@0.54.0
+  - @procedures/pnpm@0.54.0
+  - @procedures/procedure@0.54.0
+  - @procedures/peer@0.54.0
+  - @procedures/shell@0.54.0
+  - @procedures/vitest@0.54.0
+  - @procedures/mcp-dev-tools@0.54.0
+  - @procedures/server@0.54.0
+
+## 0.53.1
+
+### Patch Changes
+
+- Updated dependencies [84f0c78]
+- Updated dependencies [abf290c]
+  - @procedures/client@0.53.1
+  - @procedures/cli-kit@0.53.1
+  - @procedures/cli-run@0.53.1
+  - @procedures/fs@0.53.1
+  - @procedures/lib@0.53.1
+  - @procedures/pnpm@0.53.1
+  - @procedures/procedure@0.53.1
+  - @procedures/peer@0.53.1
+  - @procedures/shell@0.53.1
+  - @procedures/vitest@0.53.1
+  - @procedures/mcp-dev-tools@0.53.1
+  - @procedures/server@0.53.1
+
+## 0.53.0
+
+### Patch Changes
+
+- d28ccb5: Each handler runs in the context of OpenTelemetry of its caller (roadmap item C10 of otel-ts). Thus its logs, metrics, spans and nested calls carry the ids of the trace of the caller, also on a host with no tracing interceptor.
+  
+  - `ProcedureServer` makes the remote span of the `traceparent` and `tracestate` of the metadata the parent of the handler. It uses the `baggage` of the metadata only from a trusted caller: a local request, a request with the token of the server, or a request that the new option `trustBaggage(request)` names. For another caller, the handler runs with no baggage, also when the HTTP instrumentation of an SDK read a `baggage` header.
+  - The MCP face puts the keys `traceparent`, `tracestate` and `baggage` of the `_meta` of a tool call into the metadata of the call. Over Streamable HTTP, the headers with these names apply when `_meta` does not have the key.
+  - `mark` sends the environment variables `TRACEPARENT`, `TRACESTATE` and `BAGGAGE` with its call, as the metadata keys `traceparent`, `tracestate` and `baggage`.
+- The packages use the new versions of their dependencies of the owner: `@mark1russell7/service` `^0.8.3`, `@mark1russell7/coeval` `^0.26.1` and `@mark1russell7/docker-sqlite` `^0.3.0`. The range of `@mark1russell7/collections` stays `^0.5.0`: its version 0.7.0 and later remove names that `@procedures/collections` exports.
+- 556d0a8: The packages use `@mark1russell7/service` `^0.8.2` in place of `^0.6.0`. Version 0.7.0 adds the refusal cause `capacity`, and version 0.8.0 refuses a listen backlog of 0. Version 0.8.2 adds the call context of OpenTelemetry. The types `Clock` and `Cancel` of `@mark1russell7/service/clock` do not change: their home is `@mark1russell7/algebra/clock`, and the entry gives them again.
+  
+  A refusal of a call limit with the cause `capacity` gives `RATE_LIMITED` that is not retryable and has no `retry-after`. A take of one unit does not get this cause, because each policy holds 1 unit or more.
+- Updated dependencies [bc98f77]
+- Updated dependencies [11d9084]
+- Updated dependencies [d28ccb5]
+- Updated dependencies [735cfcf]
+- Updated dependencies [0da2c6d]
+- Updated dependencies
+- Updated dependencies [556d0a8]
+  - @procedures/client@0.53.0
+  - @procedures/peer@0.53.0
+  - @procedures/mcp-dev-tools@0.53.0
+  - @procedures/server@0.53.0
+  - @procedures/cli-kit@0.53.0
+  - @procedures/cli-run@0.53.0
+  - @procedures/fs@0.53.0
+  - @procedures/lib@0.53.0
+  - @procedures/pnpm@0.53.0
+  - @procedures/procedure@0.53.0
+  - @procedures/shell@0.53.0
+  - @procedures/vitest@0.53.0
+
+## 0.52.5
+
+### Patch Changes
+
+- Updated dependencies [36adc69]
+- Updated dependencies [25a5f44]
+  - @procedures/server@0.52.5
+  - @procedures/client@0.52.5
+  - @procedures/cli-kit@0.52.5
+  - @procedures/cli-run@0.52.5
+  - @procedures/fs@0.52.5
+  - @procedures/lib@0.52.5
+  - @procedures/pnpm@0.52.5
+  - @procedures/procedure@0.52.5
+  - @procedures/peer@0.52.5
+  - @procedures/shell@0.52.5
+  - @procedures/vitest@0.52.5
+  - @procedures/mcp-dev-tools@0.52.5
+
+## 0.52.4
+
+### Patch Changes
+
+- Updated dependencies [79cd1ee]
+  - @procedures/server@0.52.4
+  - @procedures/cli-kit@0.52.4
+  - @procedures/client@0.52.4
+  - @procedures/cli-run@0.52.4
+  - @procedures/fs@0.52.4
+  - @procedures/lib@0.52.4
+  - @procedures/pnpm@0.52.4
+  - @procedures/procedure@0.52.4
+  - @procedures/peer@0.52.4
+  - @procedures/shell@0.52.4
+  - @procedures/vitest@0.52.4
+  - @procedures/mcp-dev-tools@0.52.4
+
+## 0.52.3
+
+### Patch Changes
+
+- Updated dependencies [db1bcaa]
+  - @procedures/client@0.52.3
+  - @procedures/cli-run@0.52.3
+  - @procedures/cli-kit@0.52.3
+  - @procedures/fs@0.52.3
+  - @procedures/lib@0.52.3
+  - @procedures/pnpm@0.52.3
+  - @procedures/procedure@0.52.3
+  - @procedures/peer@0.52.3
+  - @procedures/shell@0.52.3
+  - @procedures/vitest@0.52.3
+  - @procedures/mcp-dev-tools@0.52.3
+  - @procedures/server@0.52.3
+
+## 0.52.2
+
+### Patch Changes
+
+- @procedures/cli-kit@0.52.2
+  - @procedures/client@0.52.2
+  - @procedures/cli-run@0.52.2
+  - @procedures/fs@0.52.2
+  - @procedures/lib@0.52.2
+  - @procedures/pnpm@0.52.2
+  - @procedures/procedure@0.52.2
+  - @procedures/peer@0.52.2
+  - @procedures/shell@0.52.2
+  - @procedures/vitest@0.52.2
+  - @procedures/mcp-dev-tools@0.52.2
+  - @procedures/server@0.52.2
+
 ## 0.52.1
 
 ### Patch Changes

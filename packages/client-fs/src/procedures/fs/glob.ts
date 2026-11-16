@@ -12,50 +12,38 @@
 
 import { glob as nodeGlob, readdir } from "node:fs/promises";
 import { posix, resolve } from "node:path";
+import { globToRegExp } from "@mark1russell7/files/glob";
 import type { GlobInput, GlobOutput } from "../../types.js";
-
-// A character that a file name cannot hold. It takes the place of a leading "." of a name, so
-// that "*" and "**" match dot entries when `dot` is true.
-const DOT = "\u0001";
 
 /** "a\\b" (Windows) becomes "a/b". */
 function toPosix(path: string): string {
   return path.split("\\").join("/");
 }
 
-/** Each name of the path that starts with "." starts with DOT instead. */
-function hideDots(path: string): string {
-  return path
-    .split("/")
-    .map((name) => (name.startsWith(".") && name !== "." && name !== ".." ? DOT + name.slice(1) : name))
-    .join("/");
-}
-
 function ignored(path: string, ignore: readonly string[]): boolean {
   return ignore.some((pattern) => posix.matchesGlob(path, pattern));
 }
 
-/** A folder is not entered when each path inside it is ignored. */
-function folderIgnored(path: string, ignore: readonly string[]): boolean {
-  return ignored(`${path}/${DOT}`, ignore) || ignored(path, ignore);
-}
-
-/** All the matches of `pattern` under `root`, dot entries included. */
+/**
+ * All the matches of `pattern` under `root`, dot entries included. The matcher of
+ * `@mark1russell7/files` expands the brace groups, and each wildcard matches a leading ".".
+ */
 async function walkWithDots(root: string, pattern: string, ignore: readonly string[]): Promise<string[]> {
-  const hiddenPattern = hideDots(pattern);
-  const hiddenIgnore = ignore.map(hideDots);
+  const matcher = globToRegExp(pattern, { dot: true });
+  const ignorers = ignore.map((entry) => globToRegExp(entry, { dot: true }));
+  const isIgnored = (path: string): boolean => ignorers.some((entry) => entry.test(path));
   const matches: string[] = [];
 
   async function visit(relative: string): Promise<void> {
     const entries = await readdir(relative ? resolve(root, relative) : root, { withFileTypes: true });
     for (const entry of entries) {
       const path = relative ? `${relative}/${entry.name}` : entry.name;
-      const hidden = hideDots(path);
       if (entry.isDirectory()) {
-        if (folderIgnored(hidden, hiddenIgnore)) continue;
-        if (posix.matchesGlob(hidden, hiddenPattern)) matches.push(path);
+        // An ignore pattern that matches the folder, alone or with a "/" after it, keeps the walk out of it
+        if (isIgnored(path) || isIgnored(`${path}/`)) continue;
+        if (matcher.test(path)) matches.push(path);
         await visit(path);
-      } else if (posix.matchesGlob(hidden, hiddenPattern) && !ignored(hidden, hiddenIgnore)) {
+      } else if (matcher.test(path) && !isIgnored(path)) {
         matches.push(path);
       }
     }

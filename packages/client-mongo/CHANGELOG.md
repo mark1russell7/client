@@ -1,5 +1,245 @@
 # @procedures/mongo
 
+## 0.60.1
+
+### Patch Changes
+
+- 487d144: `ViewMaterializer` writes a row of a target again when only a value that is not JSON changes, for example a Date (CLI-126). Before this fix, the hash of a row of a plain target gave `{}` for each Date. A row that changed only in a Date kept its hash, so the view kept the old value.
+  
+  The hash of a row reads one text in both kinds of target. A JSON value stays as it is. Each other value gives its canonical Extended JSON form. These values are a Date, a RegExp, a BSON value, NaN, an infinity and -0. A BSON value is, for example, an ObjectId, a Decimal128, a Binary, a Timestamp or a Long.
+  
+  Fix: a target in a stored form stopped its run at a row with a RegExp that has the flag `g`. The old hash read the canonical Extended JSON of the row, and Extended JSON refuses the flag `g`. The driver (bson 7.3.3) reads the BSON option `s` of a regular expression as the flag `g`. So a row read back from MongoDB with the option `s` also stopped the run. The hash text of a RegExp is `{"$regularExpression": {"options", "pattern"}}`, with its flags in order, so the run continues.
+  
+  Migration: a plain target keeps the hash of each row in `_viewHash`. The hash of a row with a value that is not JSON changes. At the first pass after the upgrade, a view writes each of these rows one time. The rows of JSON values keep their hash, and the view does not write them.
+- Updated dependencies [beca782]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [a87cdda]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [4ab1acf]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+  - @procedures/collections@0.60.1
+
+## 0.60.0
+
+### Patch Changes
+
+- Updated dependencies [3075d86]
+  - @procedures/client@0.60.0
+  - @procedures/collections@0.60.0
+
+## 0.59.1
+
+### Patch Changes
+
+- Updated dependencies [425ea64]
+- Updated dependencies [ea801cd]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6513a83]
+- Updated dependencies [8c69a74]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6cc8f0e]
+  - @procedures/client@0.59.1
+  - @procedures/collections@0.59.1
+
+## 0.59.0
+
+### Patch Changes
+
+- Updated dependencies [8f8e5b2]
+  - @procedures/client@0.59.0
+  - @procedures/collections@0.59.0
+
+## 0.58.2
+
+### Patch Changes
+
+- Updated dependencies [217871c]
+  - @procedures/client@0.58.2
+  - @procedures/collections@0.58.2
+
+## 0.58.1
+
+### Patch Changes
+
+- Updated dependencies [1d47080]
+  - @procedures/client@0.58.1
+  - @procedures/collections@0.58.1
+
+## 0.58.0
+
+### Patch Changes
+
+- f03c27a: `MongoDocumentStorage` on the path of pending numbers: a late write does not give a subscriber an older value after a newer value. A late write lands after its lease. Before, a late write could land in the rows of a read after the mark of that read. An event since that mark, read before the landing, then gave an older value of the row. The move of the late write gave the newer value again later.
+  
+  An expired pending range stays in the counter for 10 leases, and for 60 s at least. When a read finds a row in such a range, it takes marks again until the mark stops. With no late write, a read has no added cost. After 8 marks that do not stop, the read gives a version with a third part, so no event starts at it. A read since such a version reads since its number.
+  
+  PATCH: a fix of the change log of the store. The public API does not change.
+- Updated dependencies [11f5035]
+  - @procedures/client@0.58.0
+  - @procedures/collections@0.58.0
+
+## 0.57.0
+
+### Patch Changes
+
+- Updated dependencies [f284167]
+  - @procedures/collections@0.57.0
+  - @procedures/client@0.57.0
+
+## 0.56.0
+
+### Minor Changes
+
+- 13996cf: The release train: the ranges of @mark1russell7/coeval, @mark1russell7/quantity, @mark1russell7/text, @mark1russell7/files change to a version outside the old range. This release has breaking changes.
+
+### Patch Changes
+
+- Updated dependencies [13996cf]
+- Updated dependencies [13996cf]
+  - @procedures/collections@0.56.0
+  - @procedures/client@0.56.0
+
+## 0.55.2
+
+### Patch Changes
+
+- @procedures/client@0.55.2
+  - @procedures/collections@0.55.2
+
+## 0.55.1
+
+### Patch Changes
+
+- @procedures/client@0.55.1
+  - @procedures/collections@0.55.1
+
+## 0.55.0
+
+### Patch Changes
+
+- Updated dependencies [fd9c6d4]
+  - @procedures/client@0.55.0
+  - @procedures/collections@0.55.0
+
+## 0.54.1
+
+### Patch Changes
+
+- 3914b5f: `MongoDocumentStorage` has the new option `sequence` (CLI-96). The default `collection` keeps one counter of the numbers for the collection. With `partition`, each partition has its own counter and its own write queue, so the writes of two partitions share no document.
+  
+  - The gain is for the other partitions. One tenant wrote a burst in the CI tests of CLI-96. The p99 of the writes of the other tenants went from 316 to 758 ms to 12 to 51 ms.
+  - The rate of one partition does not change: approximately 400 writes a second. The stated limit of a partition is 200 writes a second.
+  - A live collection gains nothing. A store with the option refuses a collection with numbers on its counter of the collection, with a clear error. Use the option for a new collection. The move of a live collection is a step with all processes stopped.
+  - A store with the default refuses a collection whose stores have the option. Give the same `sequence` to each store of a collection, and to the storage of a view target.
+  - A first load of many tenants does not hold each schedule on each CPU model of the runners. The tail of the other tenants is the claim. A host that wants a warm pool for a first load sets `minPoolSize` of its client.
+  - The new option `writesInFlight` bounds the writes of each client at one time, over the stores with the same value. The default is 8. Before it, each partition of a process kept a transaction open at once, and the server queue reached 152 tickets with 20,000 partitions.
+  - The bound covers each store of a client, also with the default `sequence`. A client that writes more than 8 collections at once gets a queue for the permits. Set `writesInFlight: Infinity` to keep no bound.
+  - A watcher notes the writes of this process that it skips with their partition, because two partitions can have the same number.
+- Updated dependencies [13c3a8b]
+  - @procedures/client@0.54.1
+  - @procedures/collections@0.54.1
+
+## 0.54.0
+
+### Patch Changes
+
+- 1401489: The tarball of each package leaves out `dist/.tsbuildinfo`. The `files` list of each package has the entry `!dist/.tsbuildinfo` after `dist`.
+  
+  The build writes this file for incremental builds. An app does not use it, and it added its size to each tarball (61 KB in `@procedures/json` 0.52.3). The conventions rule `pack-no-buildinfo` finds it.
+  
+  PATCH: the exports and the behavior do not change.
+- Updated dependencies [ef8e080]
+- Updated dependencies [c351b59]
+- Updated dependencies [1401489]
+  - @procedures/collections@0.54.0
+  - @procedures/client@0.54.0
+
+## 0.53.1
+
+### Patch Changes
+
+- 84f0c78: The mongo store limits its change reads and its passes of the views with `semaphore()` of `@mark1russell7/collections`, the home of the semaphore. The behavior does not change: the permits go to the callers in FIFO order.
+  
+  The class `Semaphore` of `@procedures/client` is deprecated. Use `semaphore(permits)` of `@mark1russell7/collections` in its place. Its `run(task)` replaces `withPermit(fn)`, and its `acquire()` gives the release function. The next MINOR break of `@procedures/client` removes the class.
+- Updated dependencies [84f0c78]
+- Updated dependencies [abf290c]
+  - @procedures/client@0.53.1
+  - @procedures/collections@0.53.1
+
+## 0.53.0
+
+### Minor Changes
+
+- 831ab0f: Breaking change (roadmap CLI-110): the types `DatabaseChangesWatch` and `StorageChangesWatch` have the new getter `tokenAgeMs`, and it is not optional. The handles of `watchDatabaseChanges()` and `watchStorageChanges()` give it. It gives the milliseconds of the clock of the watcher since the resume token last moved to a later cluster time. Before the first move, it counts from the start of the watcher. A new token at the same cluster time does not move it. An app reads a stalled feed from it, without a sampler of its own.
+  
+  Some apps make their own objects of the type `DatabaseChangesWatch` or `StorageChangesWatch`, for example a fake of a test. To migrate, add the getter `tokenAgeMs` to each of these objects. Code that only reads a handle needs no change.
+
+### Patch Changes
+
+- The packages use the new versions of their dependencies of the owner: `@mark1russell7/service` `^0.8.3`, `@mark1russell7/coeval` `^0.26.1` and `@mark1russell7/docker-sqlite` `^0.3.0`. The range of `@mark1russell7/collections` stays `^0.5.0`: its version 0.7.0 and later remove names that `@procedures/collections` exports.
+- 556d0a8: The packages use `@mark1russell7/service` `^0.8.2` in place of `^0.6.0`. Version 0.7.0 adds the refusal cause `capacity`, and version 0.8.0 refuses a listen backlog of 0. Version 0.8.2 adds the call context of OpenTelemetry. The types `Clock` and `Cancel` of `@mark1russell7/service/clock` do not change: their home is `@mark1russell7/algebra/clock`, and the entry gives them again.
+  
+  A refusal of a call limit with the cause `capacity` gives `RATE_LIMITED` that is not retryable and has no `retry-after`. A take of one unit does not get this cause, because each policy holds 1 unit or more.
+- 1f638a3: The escape of a text for a regular expression is `escapeRegExp` of `@mark1russell7/text`, the home of the escape functions. The output does not change. Each of the three packages thus has the new dependency `@mark1russell7/text` `^0.0.2`, which has no dependencies.
+- Updated dependencies [bc98f77]
+- Updated dependencies [33510a2]
+- Updated dependencies [11d9084]
+- Updated dependencies [d28ccb5]
+- Updated dependencies [735cfcf]
+- Updated dependencies
+- Updated dependencies [556d0a8]
+  - @procedures/client@0.53.0
+  - @procedures/collections@0.53.0
+
+## 0.52.5
+
+### Patch Changes
+
+- 2058f02: The change watchers and the write-conflict retry of `ViewMaterializer` take their delays from `backoffDelay` of `@mark1russell7/service/backoff`. The delays do not change: a test compares each delay with the old formula. The package thus has the new dependency `@mark1russell7/service` `^0.6.5`.
+- Updated dependencies [25a5f44]
+  - @procedures/client@0.52.5
+  - @procedures/collections@0.52.5
+
+## 0.52.4
+
+### Patch Changes
+
+- @procedures/client@0.52.4
+  - @procedures/collections@0.52.4
+
+## 0.52.3
+
+### Patch Changes
+
+- db1bcaa: Fixes of the weekly audit of 2026-11-08:
+  
+  - `@procedures/client`: the batch reader of the HTTP client goes on after the abort of a call with a full buffer. Before, the reader waited with no end, and the other calls of the batch waited too.
+  - `@procedures/client`: a subscriber that joins after a publish gets the new value of an object that changed and is published again. Before, it could get the text of the first publish.
+  - `@procedures/client`: a lazy registry loads no package for a request that the server refuses, or for a path outside the expose rule of the face. A lazy registry warns about at most 1000 paths that are not in its index.
+  - `@procedures/client`: an `exclude` entry with a plain dot hides a path whose segment has a dot, as the encoded key does.
+  - `@procedures/mongo`: a full answer keeps each item when the stored ids are not strings. A change stream that stops in a split event opens again before the event, and joins all its fragments.
+  - `@procedures/restic`: an `sftp:` location with a part after an `@` that starts with `-` gets a refusal.
+  - `@procedures/cli-run`: the doc of `cli.run` tells that a value that starts with `@` goes to `mark` as it is.
+- Updated dependencies [db1bcaa]
+  - @procedures/client@0.52.3
+  - @procedures/collections@0.52.3
+
+## 0.52.2
+
+### Patch Changes
+
+- @procedures/client@0.52.2
+  - @procedures/collections@0.52.2
+
 ## 0.52.1
 
 ### Patch Changes

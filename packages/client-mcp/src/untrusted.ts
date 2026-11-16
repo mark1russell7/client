@@ -15,6 +15,7 @@
  */
 
 import type { UntrustedText } from "@procedures/client";
+import { escapeRegExp } from "@mark1russell7/text";
 
 /** The default tag of an envelope. */
 export const DEFAULT_UNTRUSTED_TAG = "untrusted-content";
@@ -53,10 +54,6 @@ export interface UntrustedEnvelopes {
 }
 
 const SEPARATORS = "\\s\\-‐‑‒–—";
-
-function escapeRegExp(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 /** A random id of 8 hexadecimal digits. */
 function randomId(): string {

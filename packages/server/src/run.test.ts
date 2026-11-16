@@ -5,6 +5,7 @@
 
 import { describe, it, expect, afterEach } from "vitest";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { request as httpRequest } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -115,7 +116,41 @@ describe("startServer", () => {
     expect(await call(port, "server/connections")).toBe(200);
     expect(await call(port, "fixture/hello")).toBe(404);
   });
+
+  it("checks the Host header against --allowed-host", async () => {
+    const named = await start(["--allowed-host", "box.lan"]);
+    const plain = await start([]);
+    expect(named.server.policy.browser?.allowedHosts).toEqual(["box.lan"]);
+    expect(plain.server.policy.browser?.allowedHosts).toBeUndefined();
+    expect(await statusWithHost(named.port, "box.lan")).toBe(200);
+    expect(await statusWithHost(plain.port, "box.lan")).toBe(403);
+    expect(await statusWithHost(named.port, "other.lan")).toBe(403);
+    // The loopback names and the IP addresses pass without the option
+    expect(await statusWithHost(plain.port, "localhost")).toBe(200);
+    expect(await statusWithHost(plain.port, "192.168.1.20")).toBe(200);
+  });
 });
+
+/** The status of a call of `server.connections` with this name in the Host header. */
+function statusWithHost(port: number, name: string): Promise<number | undefined> {
+  return new Promise((resolve, reject) => {
+    const request = httpRequest(
+      {
+        host: "127.0.0.1",
+        port,
+        path: "/api/server/connections",
+        method: "POST",
+        headers: { host: `${name}:${port}`, "content-type": "application/json", "content-length": "2", authorization: "Bearer t" },
+      },
+      (response) => {
+        response.resume();
+        response.on("end", () => resolve(response.statusCode));
+      }
+    );
+    request.on("error", reject);
+    request.end("{}");
+  });
+}
 
 describe("the remote events of the server (--events, EVENTS.md)", () => {
   it("serves a subscription over WebSocket and HTTP, and a procedure publishes on its bus", async () => {

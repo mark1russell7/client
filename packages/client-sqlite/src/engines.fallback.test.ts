@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describeCollectionStorageContract, type ContractItem } from "@procedures/collections/testing";
+import { describeCollectionStorageContract, type ContractItem, type ContractTestApi } from "@procedures/collections/testing";
 import { MEMORY_PATH, SqliteStorage, isNodeSqliteAvailable } from "./storage.js";
 
 vi.mock("node:sqlite", () => {
@@ -54,7 +54,32 @@ describe("SqliteStorage when the import of node:sqlite fails", () => {
     // close() of a storage whose open failed resolves
     await storage.close();
   });
+
+  it("the engine auto gives one DeprecationWarning in a process, with the Node.js version", async () => {
+    // A new copy of the module starts with no warning. The mock of node:sqlite stays.
+    vi.resetModules();
+    const emit = vi.spyOn(process, "emitWarning").mockImplementation(() => undefined);
+    try {
+      const engines = await import("./engines.js");
+      for (let open = 0; open < 2; open += 1) {
+        (await engines.openEngine(engines.MEMORY_PATH, "auto", 1_000)).close();
+      }
+      const warnings = emit.mock.calls
+        .filter(([, options]) => typeof options === "object" && options.code === "PROCEDURES_SQLITE_SQLJS")
+        .map(([warning]) => String(warning));
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain(`This Node.js (${process.version}) has no node:sqlite`);
+      expect(warnings[0]).toMatch(/0\.61\.0/);
+    } finally {
+      emit.mockRestore();
+    }
+  });
 });
+
+// sql.js writes the whole file after each write. On a Windows runner the case of 80 random writes
+// takes 2.8 s to 4.1 s of the default limit of 5 s (Nightly, 11-09 to 11-15), and it failed twice at 5 s.
+const CONTRACT_CASE_MS = 30_000;
+const itWithLimit: ContractTestApi["it"] = (name, body) => it(name, body, CONTRACT_CASE_MS);
 
 // The fallback keeps the contract
 describeCollectionStorageContract(
@@ -63,5 +88,5 @@ describeCollectionStorageContract(
     create: () => new SqliteStorage<ContractItem>({ path: tempDb(), table: "items" }),
     createWithVersions: (versionOf) => new SqliteStorage<ContractItem>({ path: tempDb(), table: "items", versionOf }),
   },
-  { describe, it },
+  { describe, it: itWithLimit },
 );

@@ -237,3 +237,33 @@ describe("upgradeHandler: the stop parts of a service transport (CLI-3)", () => 
     expect(await connect(port, "/ws")).toBe("error");
   });
 });
+
+describe("the frames of a client that do not have the shape of the protocol", () => {
+  it("get INVALID_REQUEST with the id of the frame, give no error line, and the connection stays open", async () => {
+    const { server } = makeServer();
+    const lines: string[] = [];
+    const handler = upgradeHandler(server, { path: "/ws", heartbeat: false, logger: { log: (level, message) => lines.push(`${level} ${message}`) } });
+    cleanups.push(() => handler.close());
+    const http = createServer();
+    http.on("upgrade", (req, socket, head) => {
+      if (!handler(req, socket, head)) socket.destroy();
+    });
+    const port = await listen(http);
+    const { ws, next } = await open(port, "/ws");
+
+    ws.send("null");
+    expect(await next("unknown")).toMatchObject({ type: "error", error: { code: "INVALID_REQUEST", message: "Invalid message format: a frame is a JSON object" } });
+    const bad: Array<[string, Record<string, unknown>, string]> = [
+      ["b1", { type: "request", method: "up.echo", payload: {} }, "the field method does not have the texts service and operation"],
+      ["b2", { type: "request", method: pathToMethod(["up", "echo"]), metadata: "text", payload: { text: "x" } }, "the field metadata is not a JSON object"],
+      ["b3", { type: 5 }, "the field type is not a text"],
+    ];
+    for (const [id, frame, reason] of bad) {
+      ws.send(JSON.stringify({ id, ...frame }));
+      expect(await next(id)).toMatchObject({ type: "error", error: { code: "INVALID_REQUEST", message: `Invalid message format: ${reason}` } });
+    }
+    ws.send(request("ok", ["up", "echo"], { text: "after" }));
+    expect((await next("ok"))["payload"]).toEqual({ text: "after" });
+    expect(lines.filter((line) => line.startsWith("error"))).toEqual([]);
+  });
+});

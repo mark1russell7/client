@@ -269,7 +269,10 @@ export interface ProcedureHost {
   readonly upgrade: (req: IncomingMessage, socket: Duplex, head: Buffer) => boolean;
   /** The transports: the procedure server first, then the stop parts of the faces, then each listener of the host. */
   readonly parts: readonly HostPart[];
-  /** The dependencies: one for each storage of the collections. */
+  /**
+   * The dependencies: one for each storage of the collections, and one for each partitions object
+   * (`usePartitions()` of the server). The host reads them at each read.
+   */
   readonly dependencies: readonly HostDependency[];
   readonly checks: readonly HostCheck[];
   /** The controller of the calls, with one route pattern for each face. */
@@ -542,11 +545,13 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
   });
   const parts: HostPart[] = [serverPart, ...faceParts, ...listenerParts];
 
-  const dependencies: HostDependency[] = server.storageHandles().map((handle) => ({
-    name: handle.name,
-    spec: { system: null, knobs: {}, operations: STORAGE_OPERATIONS },
-    handle,
-  }));
+  // The storages and the partitions of the server at the read, also those that the app gives after the construction
+  const dependenciesOf = (): HostDependency[] =>
+    [...server.storageHandles(), ...server.partitionHandles()].map((handle) => ({
+      name: handle.name,
+      spec: { system: null, knobs: {}, operations: STORAGE_OPERATIONS },
+      handle,
+    }));
   const checks: HostCheck[] = [];
   const operations = callOperations(keyedWindowMs);
   const controllers: HostController[] = [
@@ -580,13 +585,15 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
     handler,
     upgrade,
     parts,
-    dependencies,
+    get dependencies(): readonly HostDependency[] {
+      return dependenciesOf();
+    },
     checks,
     controllers,
     limiters,
     info,
     declare(svc: ServiceBuilder): ServiceBuilder {
-      for (const dependency of dependencies) svc.dependency(dependency.name, dependency.spec, dependency.handle);
+      for (const dependency of dependenciesOf()) svc.dependency(dependency.name, dependency.spec, dependency.handle);
       for (const part of parts) svc.server(part.name, part.knobs, part.impl);
       for (const { check, run } of checks) svc.check(check, run);
       for (const controller of controllers) {
@@ -667,6 +674,7 @@ function outgoingAnswers(): OutgoingAnswers {
 
 export { httpFace, wsFace } from "./faces.js";
 export { localFace, type LocalFace } from "./local-face.js";
+export { staticFace, contentTypeOf, DEFAULT_STATIC_HEADERS, type StaticFaceOptions } from "./static-face.js";
 export type { FaceCallRules, HostFace, HostFaceContext, HostFaceEndpoint, HostFaceFactory, HostFaceUpgrade, HttpFaceOptions, WsFaceOptions } from "./faces.js";
 export { callOperations, faceHandler, httpTracker, operationOfCall } from "./tracking.js";
 export type { CallDetail, CallOperation, FaceHandler, FaceHandlerOptions, HttpTracker, HttpTrackerOptions } from "./tracking.js";

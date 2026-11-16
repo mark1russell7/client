@@ -1,7 +1,7 @@
 /**
  * The programs of the snapshot procedures. Git goes through the `git.*` procedures of the host
- * (`gitCall`), so a root of the files confines it (tracker item O46). Pnpm starts through
- * runCommand: async, with the signal, and no shell. Under a root, pnpm does not start.
+ * (`gitCall`), so a root of the files confines it (tracker item O46). Pnpm does not start: its
+ * version comes from the `package.json` of its package. Under a root, the version is "unknown".
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -66,8 +66,8 @@ describe("snapshot commands", () => {
     await expect(gitCall(contextOf(rooted), ["git", "revParse"], { cwd: dir })).rejects.toMatchObject({ code: "FORBIDDEN", reason: "outside-root" });
   });
 
-  it("reads the pnpm version, and starts no pnpm under a root", async () => {
-    expect(await pnpmVersion()).toMatch(/^\d+\.\d+\.\d+/);
-    expect(await pnpmVersion(undefined, tmpdir())).toBe("unknown");
+  it("reads the pnpm version, and reads nothing under a root", () => {
+    expect(pnpmVersion()).toMatch(/^\d+\.\d+\.\d+/);
+    expect(pnpmVersion(tmpdir())).toBe("unknown");
   });
 });

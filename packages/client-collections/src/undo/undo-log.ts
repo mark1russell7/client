@@ -83,10 +83,27 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** The JSON text of a value with the keys of each object in order. A missing item is `undefined`. */
+/**
+ * The tagged text of a value that has no own keys, or `undefined` for each other value (CLI-127). The
+ * items of a Map or a Set are in the order of their text. A tag is not JSON, so it is not the text of an object.
+ */
+function taggedText(value: object): string | undefined {
+  if (value instanceof Date) return `Date(${value.getTime()})`;
+  if (value instanceof RegExp) return `RegExp(${JSON.stringify(String(value))})`;
+  if (value instanceof Map) return `Map(${[...value].map(([key, item]) => `[${canonical(key)},${canonical(item)}]`).sort().join(",")})`;
+  if (value instanceof Set) return `Set(${[...value].map(canonical).sort().join(",")})`;
+  return undefined;
+}
+
+/**
+ * The JSON text of a value with the keys of each object in order. A missing item is `undefined`. A
+ * Date, a RegExp, a Map and a Set get a tag with their value. Before CLI-127, the text of each one was `{}`.
+ */
 function canonical(value: unknown): string {
   if (value === undefined || value === null) return "null";
   if (Array.isArray(value)) return `[${value.map((item) => (item === undefined ? "null" : canonical(item))).join(",")}]`;
+  const tag = typeof value === "object" ? taggedText(value) : undefined;
+  if (tag !== undefined) return tag;
   if (isObject(value)) {
     const keys = Object.keys(value).filter((key) => value[key] !== undefined).sort();
     return `{${keys.map((key) => `${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}`;

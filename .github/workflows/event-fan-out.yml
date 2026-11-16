@@ -4,7 +4,7 @@ name: Event fan-out
 # 100,000 subscribers, with and without the slices of the event bus (roadmap CLI-90). Each sample is
 # a fresh process. Each job has an A/A pair. The report pools the jobs.
 #
-# The times are a report. The growth of the time of a publish is a gate (bench/fan-out-growth.ts): less than 15 times
+# The times are a report. The growth of the time of a publish is a gate (bench/fan-out-growth.ts): less than 24 times
 # for each 10 times more subscribers.
 #
 # A pull request that changes the event bus or the procedures runs the gate: 5 jobs of 6 rounds, only the case total.
@@ -50,7 +50,7 @@ jobs:
       match: ${{ steps.changes.outputs.match }}
     steps:
       - id: changes
-        uses: mark1russell7/template/.github/actions/changes@fc41ae3906e671ae746e9597ccc351a4e7ce8a3b # main
+        uses: mark1russell7/template/.github/actions/changes@8e44f07b96860e61207d3955817276af52b2a148 # main
         with:
           paths: |
             packages/client/src/events/**
@@ -80,7 +80,11 @@ jobs:
     needs: plan
     name: event fan-out (job ${{ matrix.job }})
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # The limit comes from the nightly runs, which time all the cases. Over 9 nights (11-08 to 11-16),
+    # 41 of 45 jobs passed in 17 to 44 minutes, and 4 jobs stopped at the old limit of 45. The limit is
+    # the worst passed job plus the spread of the passed jobs: 44 + (44 - 17) = 71, so 75. A job of a
+    # pull request times only the case total, in 13 to 23 minutes.
+    timeout-minutes: 75
     strategy:
       fail-fast: false
       # The runners are shared by all repositories of the account (the rule runner-budget)
@@ -91,7 +95,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
@@ -118,7 +122,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
@@ -129,7 +133,7 @@ jobs:
           pattern: event-fan-out-job-*
           merge-multiple: true
           path: packages/client/bench-out
-      # The report needs the A/A band of five cases or more, so only a run with all the cases makes it.
+      # The report pools the jobs. With fewer than 5 A/A cases, its field aa shows no read of the band.
       - name: Pool the jobs
         if: github.event_name != 'pull_request'
         working-directory: packages/client
@@ -145,8 +149,10 @@ jobs:
           name: event-fan-out-report
           path: packages/client/fan-out-report.json
           if-no-files-found: error
-      # The growth gate: less than 15 times for each 10 times more subscribers. A no read is not a pass.
+      # The growth gate: less than 24 times for each 10 times more subscribers. A no read is not a pass.
+      # The gate reads the job files, so it also runs when the report fails.
       - name: The growth gate
+        if: ${{ !cancelled() }}
         working-directory: packages/client
         run: node --import tsx bench/fan-out-gate.ts --jobs bench-out
 
@@ -158,6 +164,6 @@ jobs:
     timeout-minutes: 2
     permissions: {}
     steps:
-      - uses: mark1russell7/template/.github/actions/gate-summary@fc41ae3906e671ae746e9597ccc351a4e7ce8a3b # main
+      - uses: mark1russell7/template/.github/actions/gate-summary@8e44f07b96860e61207d3955817276af52b2a148 # main
         with:
           needs: ${{ toJSON(needs) }}

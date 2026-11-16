@@ -27,6 +27,7 @@ export type {
   McpHostState,
   McpRunnerPart,
   McpRunnerDependency,
+  McpRunnerPartitions,
   McpServiceBuilder,
 } from "./host.js";
 export { DEFAULT_ELICIT_TIMEOUT_MS } from "./transport/mcp-transport.js";

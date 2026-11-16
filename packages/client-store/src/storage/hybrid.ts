@@ -70,7 +70,7 @@ import {
 } from "@procedures/client/query";
 import { optionalMs, realClock, type Cancel, type Clock, type Duration } from "@procedures/client/browser";
 import { backoffDelay } from "@mark1russell7/service/backoff";
-import { MemoryQueueStore, idsOf, singlesOf, withoutId, type QueuedOperation, type QueueStore } from "./queue.js";
+import { MemoryQueueStore, chunksOf, idsOf, singlesOf, withoutId, type QueuedOperation, type QueueStore } from "./queue.js";
 import type { SyncError, SyncStatus } from "./types.js";
 import type { RemoteChangeFeed, RemoteChangeHint, RemoteChanges } from "./feed.js";
 import { isSyncState, type SyncStateStore } from "./sync-state.js";
@@ -258,6 +258,33 @@ export interface HybridStorageOptions {
    * code `PAYLOAD_TOO_LARGE`.
    */
   isTooLarge?: (error: unknown) => boolean;
+
+  /**
+   * This function reads the capacity of a send from an error of `isTooLarge` (roadmap CLI-121). It gives the units of
+   * the refused send and the capacity of the remote limit, or undefined. Only `pushBatch` reads it. The default reads
+   * the numbers `units` and `capacity` of the metadata of the error. A capacity refusal of a limit of the server gives
+   * these numbers.
+   */
+  capacityOf?: (error: unknown) => { readonly units: number; readonly capacity: number } | undefined;
+
+  /**
+   * The merge of queued writes into one batch for each send (roadmap CLI-121). Without it, the push sends each queued
+   * write alone. With it, the push sends the run of sets at the head of the queue as one `setBatch`. It sends the run
+   * of deletes as one `deleteBatch`. Thus a first sync of many writes makes few remote calls.
+   *
+   * - A run stops at a write of another kind and at an id that the run already has. It also stops at a write that
+   *   waits for the queue store, and at the caps of `PushBatch`. So the order of the writes of each id stays.
+   * - A delete of one id with a base version does not join a run, because `deleteBatch` sends no base versions.
+   * - A queued batch over the caps goes as batches within the caps. Set the caps within the capacity of a remote limit
+   *   for each call. Then no send of a flush is larger than that capacity. A limit with a cost for each item is an example.
+   * - The writes leave the queue only after the remote took the batch.
+   * - When the remote refuses a merged batch or finds a conflict in it, the push sends each write of the run again
+   *   alone. Thus `onRefused`, `onDropped` and the conflict policy get the same writes as without the merge.
+   * - A send of n ids with an error of `isTooLarge` lowers the cap of ids of each later send. With a capacity of
+   *   `capacityOf`, the cap is n × capacity / units. Without it, the cap is half of n. The push then sends the same
+   *   writes in smaller sends. Only a write of one id with this error leaves the queue, with the reason `too-large`.
+   */
+  pushBatch?: PushBatch | undefined;
 
   /**
    * This hook gets each queued write that the remote refused (roadmap O67). The local copy of its
@@ -786,8 +813,53 @@ const defaultIsRefusal = (error: unknown): boolean => {
   return typeof code === "string" && REFUSAL_CODES.has(code);
 };
 
+/** The caps of a merged send of the queue (roadmap CLI-121). */
+export interface PushBatch {
+  /** The most ids in one merged send. The default is 100. */
+  readonly maxItems?: number | undefined;
+  /** The most characters of the JSON text of the writes in one merged send. The default is 1048576 (1 MiB). */
+  readonly maxBytes?: number | undefined;
+}
+
+/** This function gives the caps of a merged send, with the defaults. It throws a `RangeError` for a cap that is not a whole number of 1 or more. */
+function pushBatchOf(batch: PushBatch): { maxItems: number; maxBytes: number } {
+  const cap = (value: number | undefined, fallback: number, name: string): number => {
+    if (value === undefined) return fallback;
+    if (!Number.isInteger(value) || value < 1) throw new RangeError(`pushBatch.${name} must be a whole number of 1 or more, not ${String(value)}`);
+    return value;
+  };
+  return { maxItems: cap(batch.maxItems, 100, "maxItems"), maxBytes: cap(batch.maxBytes, 1_048_576, "maxBytes") };
+}
+
+/** This function gives the kind of a write in a merged send: `set` for a set or a set batch, `delete` for a delete or its batch. */
+function mergeKind(op: QueuedOperation): "set" | "delete" | undefined {
+  if (op.type === "set" || op.type === "setBatch") return "set";
+  if (op.type === "delete" || op.type === "deleteBatch") return "delete";
+  return undefined;
+}
+
+/** This function gives one batch with the writes of a run, in their order (roadmap CLI-121). */
+function mergedOperation(run: readonly QueuedOperation[]): QueuedOperation {
+  const timestamp = run[0]!.timestamp;
+  if (mergeKind(run[0]!) === "delete") return { type: "deleteBatch", data: { ids: run.flatMap(idsOf) }, timestamp };
+  const items = run.flatMap((op): Array<[string, unknown]> => {
+    const data = op.data as { id: string; value: unknown; items: Array<[string, unknown]> };
+    return op.type === "set" ? [[data.id, data.value]] : data.items;
+  });
+  return { type: "setBatch", data: { items }, timestamp };
+}
+
 /** The default of `isTooLarge`: an error with the code `PAYLOAD_TOO_LARGE` (roadmap CLI-108). */
 const defaultIsTooLarge = (error: unknown): boolean => (error as { code?: unknown } | null | undefined)?.code === "PAYLOAD_TOO_LARGE";
+
+/** The default of `capacityOf`: the numbers `units` and `capacity` of the metadata of the error, with units over the capacity. */
+const defaultCapacityOf = (error: unknown): { units: number; capacity: number } | undefined => {
+  const metadata = (error as { metadata?: { units?: unknown; capacity?: unknown } | null } | null | undefined)?.metadata;
+  const units = metadata?.units;
+  const capacity = metadata?.capacity;
+  if (typeof units !== "number" || typeof capacity !== "number" || !Number.isFinite(units) || !Number.isFinite(capacity)) return undefined;
+  return capacity >= 1 && units > capacity ? { units, capacity } : undefined;
+};
 
 /** True when a remote does not know a procedure: an older server without `changes`. */
 const isNotFound = (error: unknown): boolean =>
@@ -1066,6 +1138,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     isUnavailable: (error: unknown) => boolean;
     isRefusal: (error: unknown) => boolean;
     isTooLarge: (error: unknown) => boolean;
+    capacityOf: (error: unknown) => { readonly units: number; readonly capacity: number } | undefined;
+    pushBatch?: { maxItems: number; maxBytes: number };
     onRefused?: (refusal: QueueRefusal) => void | Promise<void>;
     onDropped?: (drop: DroppedWrite) => void | Promise<void>;
   };
@@ -1073,6 +1147,12 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   private offlineOps: QueuedOperation[] = [];
   /** The operations in `offlineOps` that the queue store does not have yet */
   private readonly unpersisted = new Set<QueuedOperation>();
+  /** The count of operations at the head of the queue that the push sends at this time: more than 1 for a merged send (roadmap CLI-121) */
+  private sendingCount = 0;
+  /** The length of the JSON text of each queued operation, for the byte cap of a merged send */
+  private readonly opSizes = new WeakMap<QueuedOperation, number>();
+  /** The cap of ids of one send that an error of `isTooLarge` set, below `pushBatch.maxItems` (roadmap CLI-121) */
+  private itemCap: number | undefined;
   /** True when the queue store can differ from `offlineOps`: a failed write, or sent operations */
   private storeDirty = false;
   /** The calls of the queue store, one at a time */
@@ -1224,6 +1304,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       isUnavailable: options.isUnavailable ?? defaultIsUnavailable,
       isRefusal: options.isRefusal ?? defaultIsRefusal,
       isTooLarge: options.isTooLarge ?? defaultIsTooLarge,
+      capacityOf: options.capacityOf ?? defaultCapacityOf,
+      ...(options.pushBatch !== undefined && { pushBatch: pushBatchOf(options.pushBatch) }),
       ...(options.onRefused !== undefined && { onRefused: options.onRefused }),
       ...(options.onDropped !== undefined && { onDropped: options.onDropped }),
     };
@@ -3094,12 +3176,59 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     let split = false;
     // The operations whose conflicts this push resolved once (roadmap CLI-16)
     const resolved = new Set<QueuedOperation>();
+    // The operations that go alone: a merged send of them failed (roadmap CLI-121)
+    const alone = new Set<QueuedOperation>();
     try {
       while (this.offlineOps.length > 0) {
         const op = this.offlineOps[0]!;
         if (this.unpersisted.has(op)) {
           // The write of this operation waits for the queue store
           await this.storeChain;
+          continue;
+        }
+        const chunks = this.chunksOfHead(op);
+        if (chunks.length > 1) {
+          // A batch over the caps goes as batches within the caps (roadmap CLI-121)
+          if (alone.has(op)) for (const chunk of chunks) alone.add(chunk);
+          this.offlineOps.splice(0, 1, ...chunks);
+          split = true;
+          this.storeDirty = true;
+          continue;
+        }
+        const run = this.pushRun(alone);
+        if (run.length > 1) {
+          this.sendingCount = run.length;
+          try {
+            for (const queued of run) this.echoSent(queued);
+            await this.executeOperation(mergedOperation(run));
+          } catch (error) {
+            const conflicts = this.sendsBaseVersions() ? versionConflictsOf(error) : undefined;
+            const refusal = this.refusalOf(error, conflicts);
+            if (refusal === "too-large" && this.lowerItemCap(run.reduce((sum, queued) => sum + idsOf(queued).length, 0), error)) {
+              // The same writes go again in smaller sends
+              this.isOnline = true;
+              continue;
+            }
+            if ((conflicts !== undefined && conflicts.length > 0) || refusal !== undefined) {
+              // Each write of the run goes again alone, so the policy and the hooks get each write as without the merge
+              this.isOnline = true;
+              for (const queued of run) alone.add(queued);
+              continue;
+            }
+            // The run and the later operations stay queued
+            if (conflicts === undefined) this.isOnline = false;
+            throw error;
+          } finally {
+            this.sendingCount = 0;
+          }
+          for (const queued of run) this.noteRemoteWrite(queued);
+          // Remove the operations only after they reached the remote
+          for (const queued of run) {
+            if (this.offlineOps[0] !== queued) break;
+            this.offlineOps.shift();
+            sent++;
+            this.storeDirty = true;
+          }
           continue;
         }
         try {
@@ -3121,13 +3250,18 @@ export class HybridStorage<T> implements CollectionStorage<T> {
             }
             continue;
           }
-          const tooLarge = conflicts === undefined && !(error instanceof QueueStoreError) && this.options.isTooLarge(error);
-          const refused = tooLarge || (conflicts === undefined && !(error instanceof QueueStoreError) && !this.options.isUnavailable(error) && this.options.isRefusal(error));
-          if (refused) {
+          const refusal = this.refusalOf(error, conflicts);
+          if (refusal === "too-large" && this.lowerItemCap(idsOf(op).length, error)) {
+            // The batch goes again in smaller batches, not as one write for each id (roadmap CLI-121)
+            this.isOnline = true;
+            continue;
+          }
+          if (refusal !== undefined) {
             this.isOnline = true;
             const singles = singlesOf(op);
             if (singles.length > 1 && this.offlineOps[0] === op) {
               // A batch goes again as one write for each id, so only the bad write leaves the queue (roadmap CLI-108)
+              if (alone.has(op)) for (const single of singles) alone.add(single);
               this.offlineOps.splice(0, 1, ...singles);
               split = true;
               this.storeDirty = true;
@@ -3139,7 +3273,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
               sent++;
               this.storeDirty = true;
             }
-            await this.refuseQueued(op, error, tooLarge ? "too-large" : "refused");
+            await this.refuseQueued(op, error, refusal);
             continue;
           }
           // This operation and the later ones stay queued
@@ -3163,6 +3297,89 @@ export class HybridStorage<T> implements CollectionStorage<T> {
         await this.persistAll().catch(() => undefined);
       }
     }
+  }
+
+  /**
+   * This method tells if the remote refused a write: `too-large`, `refused`, or undefined for another error. A conflict
+   * and an error of the queue store are not a refusal.
+   */
+  private refusalOf(error: unknown, conflicts: readonly VersionConflict[] | undefined): "too-large" | "refused" | undefined {
+    if (conflicts !== undefined || error instanceof QueueStoreError) return undefined;
+    if (this.options.isTooLarge(error)) return "too-large";
+    return !this.options.isUnavailable(error) && this.options.isRefusal(error) ? "refused" : undefined;
+  }
+
+  /**
+   * This method gives the run of queued operations at the head of the queue that one send takes (roadmap CLI-121). The
+   * run is the head operation alone when `pushBatch` is not set, or when the head cannot join a merged send.
+   */
+  private pushRun(alone: ReadonlySet<QueuedOperation>): QueuedOperation[] {
+    const head = this.offlineOps[0]!;
+    const caps = this.options.pushBatch;
+    const kind = mergeKind(head);
+    if (caps === undefined || kind === undefined || alone.has(head) || !this.canJoinRun(head)) return [head];
+    const run: QueuedOperation[] = [];
+    const ids = new Set<string>();
+    let items = 0;
+    let bytes = 0;
+    for (const op of this.offlineOps) {
+      if (mergeKind(op) !== kind || alone.has(op) || this.unpersisted.has(op) || !this.canJoinRun(op)) break;
+      const opIds = idsOf(op);
+      // A second write of an id goes in a later send, so the order of the writes of the id stays
+      if (opIds.some((id) => ids.has(id))) break;
+      const size = this.sizeOf(op);
+      if (run.length > 0 && (items + opIds.length > this.maxItemsOf(caps) || bytes + size > caps.maxBytes)) break;
+      run.push(op);
+      for (const id of opIds) ids.add(id);
+      items += opIds.length;
+      bytes += size;
+    }
+    return run;
+  }
+
+  /** This method gives the batches within the caps of `pushBatch` of the head operation, or the head alone. */
+  private chunksOfHead(op: QueuedOperation): QueuedOperation[] {
+    const caps = this.options.pushBatch;
+    if (caps === undefined || mergeKind(op) === undefined) return [op];
+    const maxItems = this.maxItemsOf(caps);
+    if (idsOf(op).length <= maxItems && this.sizeOf(op) <= caps.maxBytes) return [op];
+    return chunksOf(op, maxItems, caps.maxBytes);
+  }
+
+  /** This method gives the cap of ids of one send: `pushBatch.maxItems`, or the lower cap that an error of `isTooLarge` set. */
+  private maxItemsOf(caps: { maxItems: number }): number {
+    return this.itemCap === undefined ? caps.maxItems : Math.min(caps.maxItems, this.itemCap);
+  }
+
+  /**
+   * This method lowers the cap of ids of each later send after an error of `isTooLarge` for a send of `ids` ids (roadmap
+   * CLI-121). With a capacity of `capacityOf`, the cap is ids × capacity / units, else half of the ids. It is false when
+   * `pushBatch` is not set or the send had one id: then the write leaves the queue as before.
+   */
+  private lowerItemCap(ids: number, error: unknown): boolean {
+    if (this.options.pushBatch === undefined || ids <= 1) return false;
+    const capacity = this.options.capacityOf(error);
+    const next = capacity === undefined ? Math.floor(ids / 2) : Math.floor((ids * capacity.capacity) / capacity.units);
+    // Each lower cap is smaller than the refused send, thus the push ends
+    const cap = Math.max(1, Math.min(ids - 1, next));
+    this.itemCap = this.itemCap === undefined ? cap : Math.min(this.itemCap, cap);
+    return true;
+  }
+
+  /** True when an operation can join a merged send. A delete of one id with a base version cannot: `deleteBatch` sends no base versions. */
+  private canJoinRun(op: QueuedOperation): boolean {
+    if (op.type !== "delete" || !this.sendsBaseVersions()) return true;
+    return this.bases.get((op.data as { id: string }).id) === undefined;
+  }
+
+  /** The length of the JSON text of the data of an operation. */
+  private sizeOf(op: QueuedOperation): number {
+    let size = this.opSizes.get(op);
+    if (size === undefined) {
+      size = JSON.stringify(op.data)?.length ?? 0;
+      this.opSizes.set(op, size);
+    }
+    return size;
   }
 
   /**
@@ -3576,8 +3793,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       const queued = this.offlineOps[index]!;
       const ids = idsOf(queued);
       if (!ids.includes(id) && !ids.includes("*")) continue;
-      // pushQueue can be sending the first operation now: do not change it
-      const sending = index === 0 && this.pushing;
+      // pushQueue can be sending the first operations at this time: do not change them
+      const sending = index < Math.max(1, this.sendingCount) && this.pushing;
       return !sending && (queued.type === "set" || queued.type === "delete") ? index : -1;
     }
     return -1;

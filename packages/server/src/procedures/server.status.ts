@@ -5,15 +5,11 @@
  * The procedure came from `@procedures/peer`: it belongs to the host.
  */
 
-import * as path from "node:path";
-import * as os from "node:os";
 import { createProcedure, type Effects, type FsRootRules, type Procedure } from "@procedures/client";
 import { checkServer, readAllLockfiles, readLockfileForPort, removeLockfileForPort, type LockfileData } from "@procedures/peer/lockfile";
 import { ServerStatusOutputSchema, serverStatusInputSchema } from "../schemas.js";
 import type { ServerStatusInput, ServerStatusOutput } from "../types.js";
-
-const MARK_DIR = path.join(os.homedir(), ".mark");
-const LOG_PATH = path.join(MARK_DIR, "server.log");
+import { SERVER_LOG_PATH as LOG_PATH } from "./server.start.js";
 
 
 

@@ -61,6 +61,34 @@ describe("exposePatterns and surfaceRule", () => {
     expect(rule(["vitest", "watch"])).toBe(false);
     expect(rule(["shell", "run"])).toBe(false);
   });
+
+  it("hide a path with a dot in a segment for an excluded key in each form (audit 2026-11-08)", () => {
+    const path = ["collections", "e2e.tabs", "delete"];
+    for (const entry of ["collections.e2e%2Etabs.delete", "collections.e2e.tabs.delete"]) {
+      expect(surfaceRule({ namespaces: ["collections"], exclude: [entry] })(path)).toBe(false);
+      expect(hostPolicy({ exclude: [entry] }).expose?.(path)).toBe(false);
+      expect(hostPolicy({ expose: ["collections.*"], exclude: [entry] }).expose?.(path)).toBe(false);
+    }
+    // Another procedure of the collection stays
+    expect(hostPolicy({ exclude: ["collections.e2e.tabs.delete"] }).expose?.(["collections", "e2e.tabs", "find"])).toBe(true);
+  });
+
+  it("hide each procedure of an exclude pattern: a prefix or *", () => {
+    const rule = hostPolicy({ expose: ["*"], exclude: ["shell.*", "fs.write"] }).expose!;
+    expect(rule(["shell", "run"])).toBe(false);
+    expect(rule(["shell", "exec"])).toBe(false);
+    expect(rule(["fs", "write"])).toBe(false);
+    expect(rule(["fs", "read"])).toBe(true);
+    expect(rule(["shellx", "run"])).toBe(true);
+    expect(hostPolicy({ exclude: ["*"] }).expose?.(["git", "status"])).toBe(false);
+    const surface = surfaceRule({ namespaces: ["docker", "git"], exclude: ["docker.*"] });
+    expect(surface(["docker", "prune"])).toBe(false);
+    expect(surface(["git", "status"])).toBe(true);
+    // A prefix in each form hides a path with a dot in a segment
+    for (const entry of ["collections.e2e.tabs.*", "collections.e2e%2Etabs.*"]) {
+      expect(hostPolicy({ exclude: [entry] }).expose?.(["collections", "e2e.tabs", "drop"])).toBe(false);
+    }
+  });
 });
 
 describe("hostPolicy", () => {
@@ -94,6 +122,20 @@ describe("hostPolicy", () => {
     expect(await call(server, ["tool", "slow"])).toMatchObject({ type: "error", code: "TIMEOUT" });
   });
 
+  it("gives a ProcedureServer the depth limit of the nested calls, and the server refuses a depth that is not a whole number", async () => {
+    // tool.loop calls itself with no end: the depth limit ends it
+    const loop = defineModule("host-policy-depth", [
+      proc(["tool", "loop"], async (_input: never, ctx: ProcedureContext) => ctx.client.call(["tool", "loop"], {})),
+    ]);
+    const policy = hostPolicy({ maxDepth: 5 });
+    expect(policy.maxDepth).toBe(5);
+    expect(procedureServerOptions(policy).maxDepth).toBe(5);
+    expect(procedureServerOptions(hostPolicy())).not.toHaveProperty("maxDepth");
+    const server = new ProcedureServer(procedureServerOptions(policy, createRegistry(loop)));
+    expect(await call(server, ["tool", "loop"])).toMatchObject({ type: "error", code: "FORBIDDEN" });
+    expect(() => new ProcedureServer({ maxDepth: -1 })).toThrow("The option maxDepth is a whole number of 0 or more, not -1");
+  });
+
   it("gives one result for each spelling of an escape in a dotted name (CLI-75)", async () => {
     const tabs = defineModule("host-policy-dotted", [
       proc(["collections", "e2e.tabs", "find"], () => "found"),
@@ -111,8 +153,8 @@ describe("hostPolicy", () => {
       expect(await handle(service, "find")).toMatchObject({ type: "success" });
       expect(await handle(service, "drop")).toMatchObject({ type: "error", code: "NOT_FOUND" });
     }
-    // An entry in the raw form of before CLI-75 does not match the encoded key
-    expect(hostPolicy({ exclude: ["collections.e2e.tabs.drop"] }).expose?.(["collections", "e2e.tabs", "drop"])).toBe(true);
+    // An exclusion in the raw form of before CLI-75 still hides the path (audit 2026-11-08). Before, it hid nothing.
+    expect(hostPolicy({ exclude: ["collections.e2e.tabs.drop"] }).expose?.(["collections", "e2e.tabs", "drop"])).toBe(false);
     expect(hostPolicy({ exclude: ["collections.e2e%2Etabs.drop"] }).expose?.(["collections", "e2e.tabs", "drop"])).toBe(false);
   });
 
@@ -120,6 +162,12 @@ describe("hostPolicy", () => {
     const policy = hostPolicy({ token: "t", browser: { allowedOrigins: ["https://app.example"] } });
     expect(policy.token).toBe("t");
     expect(policy.browser.allowedOrigins).toEqual(["https://app.example"]);
+  });
+
+  it("gives a ProcedureServer the trustBaggage function, and no function without the option (C10)", () => {
+    const trustBaggage = () => true;
+    expect(procedureServerOptions(hostPolicy({ trustBaggage })).trustBaggage).toBe(trustBaggage);
+    expect("trustBaggage" in procedureServerOptions(hostPolicy())).toBe(false);
   });
 });
 
