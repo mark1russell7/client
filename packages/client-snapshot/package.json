@@ -78,7 +78,6 @@
     "@procedures/git": "workspace:*",
     "@procedures/pnpm": "workspace:*",
     "@procedures/s3": "workspace:*",
-    "@procedures/shell": "workspace:*",
     "tar": "^7.5.0",
     "zod": "^4.6.5"
   },

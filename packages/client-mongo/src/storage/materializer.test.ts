@@ -255,6 +255,23 @@ withMongo("ViewMaterializer on MongoDB", { timeout: TEST_TIMEOUT_MS }, () => {
     await views.stop();
   });
 
+  it("writes a row again when only a Date or a RegExp of its content changes (CLI-126)", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const { db, views } = setup();
+    await db.collection("items").insertOne({ _id: "1" as never, _part: "t1", kind: "a", at: new Date(0), re: /a/ });
+    // The rows of a plain target: the hash of a row is the hash of its raw BSON content
+    const pipeline = [{ $group: { _id: "$kind", last: { $max: "$at" }, re: { $first: "$re" } } }];
+    await db.collection("_aggregations").insertOne(sumsView({ _id: "lasts", pipeline, targetCollection: "lasts" }) as never);
+    await views.start();
+    expect((await rowOf(db, "lasts", "a"))?.["last"]).toEqual(new Date(0));
+
+    await db.collection("items").updateOne({ _id: "1" as never }, { $set: { at: new Date(1_000) } });
+    await eventually(async () => expect((await rowOf(db, "lasts", "a"))?.["last"]).toEqual(new Date(1_000)));
+    await db.collection("items").updateOne({ _id: "1" as never }, { $set: { re: /b/i } });
+    await eventually(async () => expect(String((await rowOf(db, "lasts", "a"))?.["re"])).toBe("/b/i"));
+    await views.stop();
+  });
+
   it("runs a chain of views in one pass, marks a cycle, and resumes when the cycle ends", async (context) => {
     if (!replicaSet) return context.skip?.("change streams need a replica set");
     const { db, views } = setup();
