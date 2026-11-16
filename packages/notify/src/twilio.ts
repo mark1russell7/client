@@ -14,6 +14,31 @@
 
 import { escapeAttribute, escapeHtml } from "@mark1russell7/text";
 import { callApi, type ApiFetch } from "./call.js";
+import {
+  FORM,
+  TWILIO_MIN_WAIT_MS,
+  date,
+  failure,
+  integer,
+  some,
+  sort,
+  text,
+  twilioRequestOf,
+  type TwilioCredentials,
+  type TwilioFailure,
+  type TwilioRequest,
+  type TwilioResponse,
+} from "./twilio-common.js";
+
+export {
+  TWILIO_ACCOUNT_SID,
+  TWILIO_MIN_WAIT_MS,
+  type TwilioCredentials,
+  type TwilioFailure,
+  type TwilioFailureKind,
+  type TwilioRequest,
+  type TwilioResponse,
+} from "./twilio-common.js";
 
 /** The base of the Twilio REST API. */
 export const TWILIO_API = "https://api.twilio.com/2010-04-01";
@@ -26,25 +51,6 @@ export const TWILIO_VALIDITY_MAX_MS = 36_000_000;
 
 /** The longest time that a call rings before Twilio gives it as not answered: 600 seconds. */
 export const TWILIO_RING_MAX_MS = 600_000;
-
-/**
- * The wait before a call goes again after a server error, a refusal of the concurrency limit or no
- * answer: 5 seconds. A `Retry-After` header of Twilio replaces it.
- */
-export const TWILIO_MIN_WAIT_MS = 5_000;
-
-/** The form of an account SID: `AC` and 32 hexadecimal digits. */
-export const TWILIO_ACCOUNT_SID: RegExp = /^AC[0-9a-fA-F]{32}$/;
-
-/**
- * The credentials of one Twilio account. Without `keySid`, `secret` is the auth token of the account.
- * With `keySid` (an API key, `SK` and 32 hexadecimal digits), `secret` is the secret of the key.
- */
-export interface TwilioCredentials {
-  readonly accountSid: string;
-  readonly keySid?: string | undefined;
-  readonly secret: string;
-}
 
 /** One text message (SMS). */
 export interface TwilioText {
@@ -109,49 +115,6 @@ export interface TwilioGather extends TwilioVoice {
   readonly after?: string | undefined;
   /** When it is true, Twilio also sends a request to `action` when no key came. The default is false. */
   readonly actionOnEmptyResult?: boolean | undefined;
-}
-
-/** One call of the Twilio API. Its fields fit the `init` of `fetch`. */
-export interface TwilioRequest {
-  readonly url: string;
-  readonly method: "GET" | "POST";
-  /** The headers. They hold the credentials. */
-  readonly headers: Readonly<Record<string, string>>;
-  /** The form body of a POST. */
-  readonly body?: string;
-}
-
-/** The parts of an HTTP response that an extractor reads. A `Response` of `fetch` and its text fit it. */
-export interface TwilioResponse {
-  readonly status: number;
-  readonly text: string;
-  /** The headers. The extractors read only `Retry-After`. */
-  readonly headers?: { get(name: string): string | null } | undefined;
-}
-
-/**
- * The kind of a failure.
- * - `network`: the request did not reach Twilio, or no answer came.
- * - `timeout`: no answer came in the time limit.
- * - `server`: Twilio had an error. The same request can go again after `retryAfterMs`.
- * - `rate-limited`: the account has too many requests at the same time. The request can go again after `retryAfterMs`.
- * - `auth`: Twilio refused the credentials, or the account cannot do the request.
- * - `refused`: Twilio refused the input, for example a number that cannot get texts. The same request fails again.
- */
-export type TwilioFailureKind = "network" | "timeout" | "server" | "rate-limited" | "auth" | "refused";
-
-/** A call that failed. An extractor does not throw: it gives a failure. */
-export interface TwilioFailure {
-  readonly ok: false;
-  readonly kind: TwilioFailureKind;
-  /** The HTTP status. It is `0` when no answer came. */
-  readonly status: number;
-  /** The message of Twilio, or a description of the failure. */
-  readonly errors: readonly string[];
-  /** The error code of Twilio, for example `21211` for a number that is not valid. */
-  readonly code?: number;
-  /** The shortest wait before the same request goes again. Only `server`, `rate-limited`, `network` and `timeout` have it. */
-  readonly retryAfterMs?: number;
 }
 
 /**
@@ -224,7 +187,6 @@ export interface TwilioBalanceRead {
 // Request builders
 // =============================================================================
 
-const KEY_SID = /^SK[0-9a-fA-F]{32}$/;
 const SERVICE_SID = /^MG[0-9a-fA-F]{32}$/;
 const TEXT_SID = /^(SM|MM)[0-9a-fA-F]{32}$/;
 const CALL_SID = /^CA[0-9a-fA-F]{32}$/;
@@ -253,23 +215,16 @@ function seconds(ms: number, min: number, max: number, what: string): string {
   return String(value);
 }
 
-function headers(credentials: TwilioCredentials, form: boolean): Record<string, string> {
-  const user = credentials.keySid ?? credentials.accountSid;
-  return { authorization: `Basic ${btoa(`${user}:${credentials.secret}`)}`, accept: "application/json", ...(form ? { "content-type": FORM } : {}) };
-}
-
 function account(credentials: TwilioCredentials, path: string): string {
   return `${TWILIO_API}/Accounts/${credentials.accountSid}${path}`;
 }
 
 function post(credentials: TwilioCredentials, path: string, fields: Record<string, string>): TwilioRequest {
-  assertCredentials(credentials);
-  return { url: account(credentials, path), method: "POST", headers: headers(credentials, true), body: new URLSearchParams(fields).toString() };
+  return twilioRequestOf(credentials, "POST", account(credentials, path), { type: FORM, text: new URLSearchParams(fields).toString() });
 }
 
 function get(credentials: TwilioCredentials, path: string): TwilioRequest {
-  assertCredentials(credentials);
-  return { url: account(credentials, path), method: "GET", headers: headers(credentials, false) };
+  return twilioRequestOf(credentials, "GET", account(credentials, path));
 }
 
 /**
@@ -415,57 +370,8 @@ export function twilioGatherTwiml(text: string, gather: TwilioGather): string {
 // Extractors
 // =============================================================================
 
-type Body = Readonly<Record<string, unknown>>;
-
-function parse(text: string): Body | undefined {
-  try {
-    const value: unknown = JSON.parse(text);
-    return typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Body) : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-const text = (value: unknown): string | undefined => (typeof value === "string" && value !== "" ? value : undefined);
-const integer = (value: unknown): number | undefined => (typeof value === "number" && Number.isInteger(value) ? value : undefined);
 /** Twilio gives some counts as decimal text, for example `num_segments` and `duration`. */
 const countText = (value: unknown): number | undefined => (typeof value === "string" && /^\d+$/.test(value) ? Number(value) : integer(value));
-/** Twilio gives each date in the form of RFC 2822, in GMT. */
-const date = (value: unknown): number | undefined => {
-  const at = typeof value === "string" ? Date.parse(value) : Number.NaN;
-  return Number.isFinite(at) ? at : undefined;
-};
-/** This function gives `{ [key]: value }`, or an empty object when the value is undefined. */
-const some = <K extends string, V>(key: K, value: V | undefined): { [P in K]?: V } => (value === undefined ? {} : { [key]: value }) as { [P in K]?: V };
-
-function retryAfter(response: TwilioResponse): number {
-  const value = response.headers?.get("retry-after")?.trim();
-  return value !== undefined && /^\d+$/.test(value) ? Math.max(Number(value) * 1000, TWILIO_MIN_WAIT_MS) : TWILIO_MIN_WAIT_MS;
-}
-
-function failure(kind: TwilioFailureKind, response: TwilioResponse, body: Body | undefined, fallback: string): TwilioFailure {
-  const waits = kind === "server" || kind === "rate-limited";
-  return {
-    ok: false,
-    kind,
-    status: response.status,
-    errors: [text(body?.["message"]) ?? fallback],
-    ...some("code", integer(body?.["code"])),
-    ...some("retryAfterMs", waits ? retryAfter(response) : undefined),
-  };
-}
-
-/** This function sorts a response. It gives the body of a success, or a failure. Twilio accepted a call only for an HTTP status 2xx with a JSON object. */
-function sort(response: TwilioResponse): { readonly ok: true; readonly body: Body } | TwilioFailure {
-  const body = parse(response.text);
-  const status = response.status;
-  if (status === 429) return failure("rate-limited", response, body, "Twilio refused the request: too many requests at the same time.");
-  if (status === 401 || status === 403) return failure("auth", response, body, `Twilio refused the credentials with HTTP ${status}.`);
-  if (status >= 400 && status < 500) return failure("refused", response, body, `Twilio refused the request with HTTP ${status}.`);
-  if (status < 200 || status >= 300) return failure("server", response, body, `Twilio gave HTTP ${status}.`);
-  if (body === undefined) return failure("server", response, body, "The answer of Twilio is not a JSON object.");
-  return { ok: true, body };
-}
 
 /** This function gives the state of a text from its status. */
 export function twilioTextState(status: string): TwilioTextState {

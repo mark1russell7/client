@@ -42,6 +42,11 @@
       "import": "./dist/twilio.js",
       "default": "./dist/twilio.js"
     },
+    "./twilio-serverless": {
+      "types": "./dist/twilio-serverless.d.ts",
+      "import": "./dist/twilio-serverless.js",
+      "default": "./dist/twilio-serverless.js"
+    },
     "./testing": {
       "types": "./dist/testing/index.d.ts",
       "import": "./dist/testing/index.js",
@@ -107,7 +112,8 @@
   "client": {
     "browser": [
       "./pushover",
-      "./twilio"
+      "./twilio",
+      "./twilio-serverless"
     ],
     "procedures": "./dist/register.js"
   }
