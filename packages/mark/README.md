@@ -154,7 +154,7 @@ The bin is `dist/bin.js`. `node dist/cli.js` also runs the CLI. Importing `@proc
 | Command | Host | Notes |
 |---|---|---|
 | `mark <command>` | This process (the cold mode), or the CLI server (the warm mode) | The registry has the module of each workspace package with `client.procedures`. In the two modes, the command starts under `run()` of `@mark1russell7/service`. |
-| `mark --server` | The CLI server | The same registry, on `127.0.0.1`, with a token in the lockfile. A later `mark` command in the same folder uses it. |
+| `mark --server` | The CLI server | The same registry, on `127.0.0.1`, with a token in the lockfile. A later `mark` command in the same folder uses it. With `--port 0`, each listener takes a free port, and the lockfile gives the port. |
 | `mark serve` | The procedure server | The options of the `procedure-server` command. A package of `--procedures` resolves from the current folder, then from the folder of `mark`. A token is necessary by default. |
 | `mark mcp` | The dev-tools MCP server, over stdio | The server of Claude Code's MCP configuration. stdout holds only protocol lines, and `mark mcp --help` writes to stderr. |
 

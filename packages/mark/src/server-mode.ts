@@ -76,7 +76,8 @@ function buildTransports(options: ServerModeOptions) {
   if (transport === "websocket" || transport === "both") {
     transports.push({
       type: "websocket",
-      port: transport === "both" ? port + 1 : port,
+      // The port 0: each listener gets a free port of its own
+      port: transport === "both" && port !== 0 ? port + 1 : port,
       host,
       path: "/ws",
     });
@@ -200,12 +201,13 @@ export function serverEndpoint(host: string, port: number, transport?: string): 
 
 /**
  * The port number of a `--port` value. An invalid port is an error (before, it became 3000:
- * deep dive CLI-16).
+ * deep dive CLI-16). The port 0 takes a free port: the lockfile of the server gives the port that
+ * the listener got.
  */
 export function parsePort(value: string): number {
   const port = /^\d+$/.test(value) ? Number(value) : NaN;
-  if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    throw new Error(`Invalid port: "${value}". Give a number from 1 to 65535.`);
+  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+    throw new Error(`Invalid port: "${value}". Give a number from 0 to 65535. The port 0 takes a free port.`);
   }
   return port;
 }
