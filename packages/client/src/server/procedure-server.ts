@@ -40,7 +40,7 @@ import type { CollectionProceduresOptions } from "../procedures/collection/proce
 import type { NarrowingNote } from "../procedures/narrowing.js";
 import type { ServerDebugReport } from "./types.js";
 import type { KeyedLimiter, LimiterStore } from "@mark1russell7/service/limiter";
-import { callLimiter, limitedCall, rateLimitedResponse, type CallLimit, type CallLimiter } from "./limits.js";
+import { CallLimitError, callLimiter, limitedCall, rateLimitedResponse, type CallLimit, type CallLimiter, type CallLimitRefusal } from "./limits.js";
 import { writeLog } from "../logger.js";
 import { meetExpose } from "./face-rules.js";
 
@@ -541,6 +541,14 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
           : undefined;
     // The limits of the calls: one keyed limiter for each limit, on the clock of the server (CLI-40)
     this.callLimits = options.limits && options.limits.length > 0 ? callLimiter(options.limits, { clock: this.clock, stores: options.limitStores }) : undefined;
+    // A limit without the field nested keeps the old rule for one more version: the server tells it
+    for (const limit of options.limits ?? []) {
+      if (limit.nested !== undefined) continue;
+      const message =
+        `The limit ${limit.name} counts the calls of a caller only, not their nested calls. @procedures/client 0.61.0 counts the nested calls too. ` +
+        `Set nested: true to count them, or nested: false to keep this rule.`;
+      writeLog(options.logger, "warn", message, { limit: limit.name }, `[ProcedureServer] ${message}`);
+    }
     // The remote events: the server pins events.subscribe, as a host pins host.health (EVENTS.md).
     // The topic rule is its expose rule, so the pin is always on (CLI-47). The publisher that the
     // server makes gets the clock of the server for its re-checks (CLI-44).
@@ -1056,6 +1064,24 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
     }
   }
 
+  /**
+   * The limits of a nested call: the units of each limit with `nested: true` that covers it. The
+   * method throws a refusal as a `CallLimitError`, so the error has the code, the wait and the
+   * metadata of a refusal at the door. A key or a cover function that throws gives `INTERNAL_ERROR`.
+   */
+  private async limitNested(invocation: Invocation, request: ServerRequest<unknown>): Promise<void> {
+    const limits = this.callLimits;
+    if (!limits) return;
+    let refused: CallLimitRefusal | undefined;
+    try {
+      refused = await limits.admit(limitedCall(invocation.procedure, request, { depth: invocation.depth, input: invocation.input }));
+    } catch (error) {
+      const message = `The limits of the server cannot admit the nested call of ${pathToKey(invocation.path)}: ${error instanceof Error ? error.message : String(error)}`;
+      throw Object.assign(new Error(message), { code: "INTERNAL_ERROR" });
+    }
+    if (refused) throw new CallLimitError(rateLimitedResponse(request.id, refused, `the nested call of ${pathToKey(invocation.path)}`));
+  }
+
   /** One call in flight ended: `drain()` can end when it was the last one. */
   private callEnded(): void {
     this.calls--;
@@ -1125,7 +1151,8 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
   /**
    * Run a keyed call one time. The run continues when its caller goes away, so that the next try
    * gets its result: only the deadline of the call and the stop of the server end it. A stream
-   * still stops with its caller, because nobody can read it again.
+   * still stops with its caller, because nobody can read it again. The stop of the server ends a
+   * stream until its last item, as on the path without a key.
    */
   private async runKeyed(procedure: AnyProcedure, request: ServerRequest<unknown>, cacheKey: string): Promise<ServerResponse<unknown>> {
     const { result, first } = this.idempotency!.run(
@@ -1133,18 +1160,23 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
       async () => {
         const detached = new AbortController();
         const stopRun = (): void => detached.abort();
-        this.lifetime.signal.addEventListener("abort", stopRun, { once: true });
-        try {
-          const response = await this.run(procedure, request, detached.signal);
-          if (response.stream) {
-            // A stream follows its caller again
-            if (request.signal?.aborted) detached.abort();
-            else request.signal?.addEventListener("abort", stopRun, { once: true });
-          }
-          return response;
-        } finally {
+        const unlink = (): void => {
           this.lifetime.signal.removeEventListener("abort", stopRun);
+          request.signal?.removeEventListener("abort", stopRun);
+        };
+        this.lifetime.signal.addEventListener("abort", stopRun, { once: true });
+        let response: ServerResponse<unknown> | undefined;
+        try {
+          response = await this.run(procedure, request, detached.signal);
+        } finally {
+          // A response without a stream is done. A stream keeps the link until its end.
+          if (!response?.stream) unlink();
         }
+        if (!response.stream) return response;
+        // A stream follows its caller again
+        if (request.signal?.aborted) detached.abort();
+        else request.signal?.addEventListener("abort", stopRun, { once: true });
+        return { ...response, stream: releasedAtEnd(response.stream, unlink) };
       },
       // A retryable error lets the next try run again: the handler said that a retry is safe
       (response) => !(response.status.type === "error" && response.status.retryable),
@@ -1245,6 +1277,8 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
         clearanceOrder,
         resources,
         admitItem,
+        // The limits with nested: true take the units of each nested call too
+        ...(this.callLimits?.coversNested ? { admitNested: (invocation: Invocation) => this.limitNested(invocation, request) } : {}),
         // The parts of the narrowing key without effect go to the debug reports (CLI-30)
         onNarrowingNotes: this.narrowingReports(request),
         // The principal of the authentication: ctx.principal, and the nested calls (R18)
@@ -1353,6 +1387,16 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    */
   procedureOf(method: Method): AnyProcedure | undefined {
     return this.resolveProcedure(method);
+  }
+
+  /**
+   * This method tells if a call of a method is repeatable: the declared effects of its procedure
+   * give the same state after a second start (`isRepeatable`). A face reads it when its stop cuts a
+   * call (CLI-48). The host uses the same rule. An unknown method is not repeatable.
+   */
+  isRepeatableCall(method: Method): boolean {
+    const procedure = this.resolveProcedure(method);
+    return procedure !== undefined && isRepeatable(effectsOf(procedure));
   }
 
   /**

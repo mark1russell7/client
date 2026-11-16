@@ -214,7 +214,7 @@ export class HttpTransport implements Transport {
       const status = this.httpStatusToUniversal(response.status as HTTPStatus, responseBody);
       finished = true;
       if (status.type === "error") {
-        const retryAfter = retryAfterMsOf(response.headers.get("Retry-After"), responseBody);
+        const retryAfter = retryAfterMsOf(response.headers.get(HTTPHeaders.RETRY_AFTER), responseBody);
         if (retryAfter !== undefined) metadata[RETRY_AFTER_METADATA_KEY] = retryAfter;
         // The reason of a FORBIDDEN error (roadmap R25). An older server gave the reason in its
         // code (CLI-4): FORBIDDEN_ORIGIN gives FORBIDDEN with the reason origin-not-allowed.

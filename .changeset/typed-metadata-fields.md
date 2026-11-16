@@ -4,8 +4,10 @@
 
 The registry examines the types of the metadata fields that the framework reads. A procedure whose field has a wrong type gets a `RegistryError` that names the field.
 
-This is a breaking change. Before, `register()` and `procedure.define` accepted a typed field with a wrong type. After this change, they refuse it.
+This is a breaking change. Before, `register()` and `procedure.define` accepted a typed field with a wrong type, and 0.59.1 gave a warning. After this change, they refuse it.
 
+- The refusal names the field and the type that the field needs, for example `The field metadata.tags needs a list of strings`.
+- The option `logger` of `ProcedureRegistry` gets the errors of the registry: a listener that throws. The default writes to the console as before.
 - `register()` refuses the procedure, from code, from `procedure.define` or from a program store. A stored program with a wrong type fails its load, and the other programs load.
 - The input schema of `procedure.define` uses the same schema, so a wrong type fails the call.
 - `procedure.define` sets `generatedFrom` and `aggregation` after the metadata of the caller. Before, metadata from the caller removed these two fields.

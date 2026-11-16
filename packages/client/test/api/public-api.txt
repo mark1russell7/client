@@ -2258,6 +2258,7 @@ export interface WriteNdjsonStreamOptions {
     readonly keepAlive?: Duration | false | undefined;
     readonly errorOf?: ((error: unknown, items: number) => NdjsonError) | undefined;
     readonly clock?: Clock | undefined;
+    readonly retryableOnStop?: boolean | undefined;
 }
 
 ### dist/adapters/http/server/ndjson.d.ts#writeNdjsonStream
@@ -5237,6 +5238,7 @@ export interface InvokeOptions {
     clearanceOrder?: ClearanceOrder | undefined;
     resources?: ((invocation: Invocation) => ResourcesOf) | undefined;
     admitItem?: AdmitItem | undefined;
+    admitNested?: ((invocation: Invocation) => Promise<void> | void) | undefined;
     principal?: Principal | undefined;
 }
 
@@ -5830,6 +5832,7 @@ export declare class ProcedureRegistry {
 ### dist/procedures/registry.d.ts#ProcedureRegistryOptions
 export interface ProcedureRegistryOptions {
     resolver?: RegistryResolver | undefined;
+    logger?: Logger | undefined;
 }
 
 ### dist/procedures/registry.d.ts#RegistryError
@@ -6407,6 +6410,7 @@ export interface CallLimit {
     readonly store: LimiterStoreSpec;
     readonly evict: LimiterEviction;
     readonly cost?: number | ((call: LimitedCall) => number) | undefined;
+    readonly nested?: boolean | undefined;
 }
 
 ### dist/server/limits.d.ts#CallLimitCovers
@@ -6431,6 +6435,8 @@ export interface LimitedCall {
     readonly writes: boolean;
     readonly principal: Principal | undefined;
     readonly request: ServerRequest<unknown>;
+    readonly depth: number;
+    readonly input: unknown;
 }
 
 ### dist/server/method.d.ts#methodName
@@ -6474,6 +6480,7 @@ export declare class ProcedureServer extends Server implements RepositoryProvide
     getRegistry(): ProcedureRegistry;
     hasProcedure(path: ProcedurePath): boolean;
     procedureOf(method: Method): AnyProcedure | undefined;
+    isRepeatableCall(method: Method): boolean;
     limiters(): readonly KeyedLimiter[];
     publish<T>(topic: string, data: T): void;
     closeStorages(): Promise<void>;
@@ -6686,6 +6693,7 @@ export interface RequestHandler {
     readonly ambientCredentials?: AmbientCredentials | undefined;
     identify?(credentials: Credentials): Promise<Principal | undefined>;
     admission?(credentials: Credentials): Promise<Admission>;
+    isRepeatableCall?(method: Method): boolean;
     readonly logger?: Logger | undefined;
 }
 

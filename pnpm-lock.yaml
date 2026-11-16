@@ -742,6 +742,9 @@ importers:
 
   packages/client-fs:
     dependencies:
+      '@mark1russell7/collections':
+        specifier: ^0.11.1
+        version: 0.11.1(zod@4.6.7)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1200,6 +1203,9 @@ importers:
       '@mark1russell7/docker-sqlite':
         specifier: ^0.3.0
         version: 0.3.0
+      '@mark1russell7/sqlite':
+        specifier: ^0.3.4
+        version: 0.3.4
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1901,6 +1907,9 @@ importers:
 
   packages/notify:
     dependencies:
+      '@mark1russell7/text':
+        specifier: ^0.0.6
+        version: 0.0.6
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -3551,6 +3560,10 @@ packages:
     resolution: {integrity: sha512-WsLRfrej6msQLVqcS17x6KODic8bLf/IuOF2tD04NNbOhWKYCQi0xAEGBCy/TtthxRvRa6Yti2fcpeIQbX/nCA==}
     engines: {node: '>=22.12'}
 
+  '@mark1russell7/collections@0.11.1':
+    resolution: {integrity: sha512-A8WllF8xDdMzIC1WBJYEf5PHO5zt+TJ/qVYGGHZMRbAu5y/U0ngToSdy7AkQeFlk/dLaPDydY+lCs18X817Cpw==}
+    engines: {node: '>=22.12'}
+
   '@mark1russell7/conventions@0.41.5':
     resolution: {integrity: sha512-utYAEou/70qKRpukES+mYKZ+KxNpjOd9yyyM6sdQS0+geurjQ7YTlW0ov2CbjnTK8HVSkf1OHRo+SnIBD3fYmA==}
     engines: {node: '>=22'}
@@ -3710,6 +3723,10 @@ packages:
     resolution: {integrity: sha512-hraH78EAk4354LZY08EbUls6vpj+BC4bxVVr0rkFf97fW/yNqidmNLaH18qUIkPZ8N/YwtpqS4it1NCQodTPzA==}
     engines: {node: '>=22'}
 
+  '@mark1russell7/sqlite@0.3.4':
+    resolution: {integrity: sha512-IVmkdnP5WawL1ChEVkmnJAf75UJ7GOursZRsOrcKpeWFriw9ydkxKyApDlJwpO0oFeQIxsprKMqapWE0UqR8fg==}
+    engines: {node: '>=22.13'}
+
   '@mark1russell7/ste-lint@0.3.2':
     resolution: {integrity: sha512-0WRNon1oYKX1mmTP/AhrPnpoGAGolmpkJWHaTkHXc4SKe1tQhUvPrY/0TQ4gvu7aN+TEPpypiZDIkOjYZG8qBA==}
     engines: {node: '>=22'}
@@ -3717,6 +3734,10 @@ packages:
 
   '@mark1russell7/text@0.0.5':
     resolution: {integrity: sha512-Ql1eBET3PgEBL5DWZHZ20GRZmorkq6mWdnfj21cqXfLvZdikO+GlvSAfbv1ld7YCnEqxOa7eg6ESfl+jzPGe9w==}
+    engines: {node: '>=22.12'}
+
+  '@mark1russell7/text@0.0.6':
+    resolution: {integrity: sha512-IwKQHx9U+k5AbEzZ8q4CxImQCuYXSFhvzMOSgy5UGYrZRIBO9RES7SYrXDrKqQFtMl5qD2QbibffevUPsrUW+A==}
     engines: {node: '>=22.12'}
 
   '@modelcontextprotocol/sdk@1.32.2':
@@ -7495,6 +7516,14 @@ snapshots:
     transitivePeerDependencies:
       - zod
 
+  '@mark1russell7/collections@0.11.1(zod@4.6.7)':
+    dependencies:
+      '@mark1russell7/algebra': 0.8.5(zod@4.6.7)
+      '@mark1russell7/optional': 1.2.0
+      '@mark1russell7/rigor-statistics': 0.2.1
+    transitivePeerDependencies:
+      - zod
+
   '@mark1russell7/conventions@0.41.5':
     dependencies:
       yaml: 2.9.1
@@ -7612,11 +7641,15 @@ snapshots:
 
   '@mark1russell7/splay@0.2.2': {}
 
+  '@mark1russell7/sqlite@0.3.4': {}
+
   '@mark1russell7/ste-lint@0.3.2':
     dependencies:
       typescript: 6.0.3
 
   '@mark1russell7/text@0.0.5': {}
+
+  '@mark1russell7/text@0.0.6': {}
 
   '@modelcontextprotocol/sdk@1.32.2(supports-color@7.2.0)(zod@4.6.7)':
     dependencies:

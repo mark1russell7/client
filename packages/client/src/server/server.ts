@@ -17,7 +17,7 @@ import type {
 } from "./types.js";
 import { HandlerNotFoundError, ServerError } from "./types.js";
 import { compose } from "../middleware/index.js";
-import { callOf, exposeError, exposedResponse, markLogged, policyActs, type ExposedError, type HiddenErrorLog, type ServerErrorPolicy } from "./error-policy.js";
+import { callOf, exposeError, exposedResponse, logFailure, markLogged, policyActs, type ExposedError, type HiddenErrorLog, type ServerErrorPolicy } from "./error-policy.js";
 import { withRealError } from "./error-response.js";
 import { CONSOLE_LOGGER, type LogFields, type Logger } from "../logger.js";
 import { methodName } from "./method.js";
@@ -34,8 +34,15 @@ export interface ServerOptions {
 
   /**
    * Global error handler.
-   * Called when a handler throws an error. The error policy (`errors`) also gives it each hidden
-   * error one time. A last-resort error of a face that failed before it knew the call comes with
+   * The server gives it each failure of a call one time, under each error policy:
+   * - An error that a handler throws, also the error of a method that has no handler.
+   * - An error response or the end of a stream with a code that is not known, or with a failure
+   *   code (`HANDLER_ERROR`, `INTERNAL_ERROR`). A code of the option `codes` is not a failure.
+   *   A `map` result of the error policy is the decision of the host, and does not go to it.
+   * - An error of a face after `handle()`.
+   *
+   * An error response with a known code of a refusal (`NOT_FOUND`, `VALIDATION_ERROR`) does not go
+   * to it. A last-resort error of a face that failed before it knew the call comes with
    * `UNKNOWN_REQUEST`: a request with the id `"unknown"`. The third argument gives the logger of
    * the server: the option `logger`, or `CONSOLE_LOGGER` without it (CLI-87).
    */
@@ -259,9 +266,11 @@ export class Server {
     request: ServerRequest<TReq>
   ): Promise<ServerResponse<TRes>> {
     const policy = this.options.errors;
-    if (!policyActs(policy)) return this.handleRaw(request);
+    const logsFailures = this.logsFailures();
+    if (!policyActs(policy) && !logsFailures) return this.handleRaw(request);
     const response = await this.handleRaw<TReq, TRes>(request);
-    return exposedResponse(policy, request, response, this.hiddenErrorLog);
+    // Each failure goes to onError and to the logger one time, under each policy (CLI-87)
+    return exposedResponse(policy, request, response, { hidden: this.hiddenErrorLog, ...(logsFailures ? { failed: this.failureLog } : {}) });
   }
 
   /**
@@ -271,7 +280,11 @@ export class Server {
    * logger gets each hidden error one time. A face calls it through `lastResortError`.
    */
   exposeError(error: unknown, request: ServerRequest | undefined, raw: ExposedError): ExposedError {
-    return exposeError(this.options.errors, error, callOf(request), (real) => this.hiddenErrorLog(real, request), raw);
+    const policy = this.options.errors;
+    const exposed = exposeError(policy, error, callOf(request), (real) => this.hiddenErrorLog(real, request), raw);
+    // A failure that the policy keeps goes to onError and to the logger too: a kept error is `raw` itself
+    if (exposed === raw && this.logsFailures()) logFailure(policy, error, raw.code, request, this.failureLog);
+    return exposed;
   }
 
   /**
@@ -286,6 +299,22 @@ export class Server {
   private errorContext(): ServerErrorContext {
     return { logger: this.options.logger ?? CONSOLE_LOGGER };
   }
+
+  /** True when the server has a log of its failures: `onError` or the option `logger`. */
+  private logsFailures(): boolean {
+    return this.options.onError !== undefined || this.options.logger !== undefined;
+  }
+
+  /**
+   * The log of a failure that the error policy does not hide: `onError` and the logger. The line
+   * is the line of a handler that throws. Without `onError` and the logger, the console gets no line.
+   */
+  private readonly failureLog: HiddenErrorLog = (error, request) => {
+    const real = error instanceof Error ? error : new Error(String(error));
+    const { onError, logger } = this.options;
+    if (onError) onError(real, request ?? UNKNOWN_REQUEST, this.errorContext());
+    if (logger) logger.log("error", "A handler failed", errorFields(request, real));
+  };
 
   /** The logger of the errors that the error policy hides: `onError` and the logger, or `console.error` without them. */
   private readonly hiddenErrorLog: HiddenErrorLog = (error, request) => {
@@ -338,12 +367,11 @@ export class Server {
 
       return response;
     } catch (error) {
-      // Log error: to onError and to the logger (CLI-87)
-      const { onError, logger } = this.options;
-      if (onError) onError(error as Error, request, this.errorContext());
-      if (logger) logger.log("error", "A handler failed", errorFields(request, error));
-      // The error policy does not log this error again (CLI-80)
-      if (onError || logger) markLogged(error);
+      // Log error: to onError and to the logger (CLI-87). The error policy does not log it again (CLI-80).
+      if (this.logsFailures()) {
+        markLogged(error);
+        this.failureLog(error, request);
+      }
 
       // Convert error to response
       return this.errorToResponse<TRes>(request, error as Error);

@@ -17,6 +17,7 @@ import { pathToKey } from "./types.js";
 import { validateCalls } from "./policy.js";
 import { toolHintOverrideRefusal } from "./hints.js";
 import { metadataFieldRefusal } from "./metadata-fields.js";
+import { writeLog, type Logger } from "../logger.js";
 
 // =============================================================================
 // Registry Errors
@@ -102,6 +103,11 @@ export interface ProcedureRegistryOptions {
    * `get()` gives, and `loadAll()` does nothing.
    */
   resolver?: RegistryResolver | undefined;
+  /**
+   * The logger of the errors of the registry, for example a listener that throws. The default
+   * writes to the console.
+   */
+  logger?: Logger | undefined;
 }
 
 /** The reads of a registry that `resolveIn()` and `loadAllIn()` use. A lazy registry has all of them. */
@@ -171,12 +177,16 @@ export class ProcedureRegistry {
   /** The resolver of a lazy registry, or undefined for an eager registry (roadmap O93) */
   private readonly resolver: RegistryResolver | undefined;
 
+  /** The logger of the errors of the registry. Without it, the errors go to the console. */
+  private readonly logger: Logger | undefined;
+
   /**
    * This constructor makes an eager registry. With `options.resolver`, the registry is lazy: a
    * miss of `resolve()` loads the packages of the path.
    */
   constructor(options: ProcedureRegistryOptions = {}) {
     this.resolver = options.resolver;
+    this.logger = options.logger;
   }
 
   // ---------------------------------------------------------------------------
@@ -511,7 +521,8 @@ export class ProcedureRegistry {
         try {
           listener(procedure);
         } catch (error) {
-          console.error(`Registry listener error for ${event}:`, error);
+          const message = `Registry listener error for ${event}: ${error instanceof Error ? error.message : String(error)}`;
+          writeLog(this.logger, "error", message, { event, error }, `Registry listener error for ${event}:`, error);
         }
       }
     }

@@ -32,6 +32,11 @@ export interface ServerModeOptions {
   /** The folder that confines each path of the `fs.*` procedures (`--fs-root`). */
   fsRoot?: string | undefined;
   /**
+   * The host names that a request can name in its `Host` header (`--allowed-host`), besides the
+   * loopback names and the IP addresses. `"*"` turns the check off. The default is none.
+   */
+  allowedHosts?: readonly string[] | "*" | undefined;
+  /**
    * The port of the probe server (`--probe-port`, CLI-9), on the address of `host`. Without it, each
    * listener answers the probes under `/_probes`.
    */
@@ -104,6 +109,9 @@ export async function startServerMode(options: ServerModeOptions, run?: Procedur
   const host = options.host ?? "127.0.0.1";
   if (!["127.0.0.1", "localhost", "::1"].includes(host)) {
     print.warning(`The server listens on ${host}: other computers can reach it. Every request needs its token.`);
+    if (options.allowedHosts === undefined) {
+      print.info("A client that uses a name of this computer, not its IP address, needs --allowed-host <name>.");
+    }
   }
   if (options.transport === "websocket") {
     print.warning("A WebSocket-only server takes no `mark` commands: `mark` sends its commands over HTTP.");
@@ -126,7 +134,7 @@ export async function startServerMode(options: ServerModeOptions, run?: Procedur
   const running = await runProcedureHost({
     name: "mark-server",
     mode: "background",
-    host: await markHostOptions({ id, registry, transports, token, events }),
+    host: await markHostOptions({ id, registry, transports, token, events, ...(options.allowedHosts !== undefined ? { allowedHosts: options.allowedHosts } : {}) }),
     lockfile: {
       pid: process.pid,
       port,

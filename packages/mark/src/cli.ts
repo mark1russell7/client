@@ -88,7 +88,7 @@ function showRootHelp(procedures: readonly CommandLike[]): void {
     footer: [
       "Hosts: 'mark serve [--procedures pkgs] [--port N] [--expose patterns] [--events topics]' (the procedure server),",
       "       'mark mcp' (the dev-tools MCP server over stdio).",
-      "Modes: 'mark --server [--port N] [--host H] [--transport http|websocket|both] [--events topics] [--probe-port N] [--idle-timeout ms]' and 'mark -i' (the REPL).",
+      "Modes: 'mark --server [--port N] [--host H] [--allowed-host names] [--transport http|websocket|both] [--events topics] [--probe-port N] [--idle-timeout ms]' and 'mark -i' (the REPL).",
       "Root:  'mark --fs-root <folder> <command>' keeps each path of each procedure in the folder, also in each mode and host.",
       "       It refuses the procedures that it cannot confine: git, pnpm, docker run, a program (FORBIDDEN, outside-root).",
     ],
@@ -97,7 +97,7 @@ function showRootHelp(procedures: readonly CommandLike[]): void {
 }
 
 /** The global flags that only `--server` takes. */
-const SERVER_OPTIONS = ["port", "host", "transport", "events", "probe-port", "idle-timeout"] as const;
+const SERVER_OPTIONS = ["port", "host", "allowed-host", "transport", "events", "probe-port", "idle-timeout"] as const;
 
 /** True when the global flags give an option of `--server`. */
 function hasServerOption(globals: Readonly<Record<string, unknown>>): boolean {
@@ -109,6 +109,13 @@ async function eventPatterns(value: string | boolean | undefined): Promise<strin
   if (value === undefined) return [];
   const { parseTopicPatterns } = await import("@procedures/server");
   return parseTopicPatterns(String(value));
+}
+
+/** The host names of `--allowed-host`, checked as `mark serve` checks them. */
+async function allowedHostNames(value: string | boolean | undefined): Promise<string[] | "*" | undefined> {
+  if (value === undefined) return undefined;
+  const { parseAllowedHosts } = await import("@procedures/server");
+  return parseAllowedHosts(String(value));
 }
 
 /**
@@ -290,7 +297,7 @@ export async function executeArgs(
     return;
   }
   if (hasServerOption(globals)) {
-    fail("--port, --host, --transport, --events, --probe-port and --idle-timeout are options of --server.");
+    fail("--port, --host, --allowed-host, --transport, --events, --probe-port and --idle-timeout are options of --server.");
     return;
   }
   // The root applies to the whole run: the procedures load with it, and a warm server must have it
@@ -736,6 +743,8 @@ async function run(argv: string[], options: RunCliOptions = {}): Promise<void> {
     const host = globals.host === undefined ? "127.0.0.1" : String(globals.host);
     const transport = globals.transport === undefined ? "http" : parseTransport(String(globals.transport));
     const events = await eventPatterns(globals.events);
+    // --allowed-host: the names of the Host check, besides localhost and the IP addresses
+    const allowedHosts = await allowedHostNames(globals["allowed-host"]);
     // --probe-port: the probes answer on a port of their own (CLI-9, decision D5)
     const probePort = globals["probe-port"] === undefined ? undefined : parsePort(String(globals["probe-port"]));
     // --idle-timeout: the server stops by itself after this time with no call (CLI-27)
@@ -746,6 +755,7 @@ async function run(argv: string[], options: RunCliOptions = {}): Promise<void> {
       transport,
       verbose,
       events,
+      ...(allowedHosts !== undefined ? { allowedHosts } : {}),
       ...(probePort !== undefined ? { probePort } : {}),
       ...(idleTimeoutMs !== undefined ? { idleTimeoutMs } : {}),
       ...(fsRoot !== undefined ? { fsRoot } : {}),
@@ -754,7 +764,7 @@ async function run(argv: string[], options: RunCliOptions = {}): Promise<void> {
   }
   // Before, `mark --port 4000 serve` ignored --port without a word
   if (hasServerOption(globals)) {
-    fail("--port, --host, --transport, --events, --probe-port and --idle-timeout are options of --server.", "For mark serve, give them after serve.");
+    fail("--port, --host, --allowed-host, --transport, --events, --probe-port and --idle-timeout are options of --server.", "For mark serve, give them after serve.");
     return;
   }
 
