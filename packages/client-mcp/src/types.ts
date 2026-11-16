@@ -75,8 +75,8 @@ export interface HttpTransportOptions {
    */
   allowedOrigins?: BrowserGuardOptions["allowedOrigins"];
   /**
-   * The host names that a request on a loopback address can name in its `Host` header, besides
-   * the loopback names (`browser.allowedHosts` of the host policy). `"*"` turns the check off.
+   * The host names that a request can name in its `Host` header, besides the loopback names and
+   * the IP addresses (`browser.allowedHosts` of the host policy). `"*"` turns the check off.
    */
   allowedHosts?: readonly string[] | "*" | undefined;
   /**

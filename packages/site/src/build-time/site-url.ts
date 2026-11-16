@@ -4,7 +4,7 @@
 
 /**
  * This function gives the absolute URL of the published site, with a slash at the end. The value
- * comes from the `SITE_URL` environment variable (refer to `.github/workflows/pages.yml`).
+ * comes from the `SITE_URL` environment variable (refer to `.github/site.json`).
  * Without it, the function uses `fallback`.
  */
 export function resolveSiteUrl(value: string | undefined, fallback: string): string {

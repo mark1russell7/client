@@ -1,5 +1,208 @@
 # @procedures/notify
 
+## 0.60.1
+
+### Patch Changes
+
+- Updated dependencies [beca782]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [a87cdda]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+
+## 0.60.0
+
+### Patch Changes
+
+- 1fc4ea3: The new entry `@procedures/notify/twilio-serverless` has pure functions for the Twilio Serverless API. A browser can also use them.
+  
+  - The request builders make a service, a function, an asset and their versions. They also start a build, and make an environment, a variable and a deployment.
+  - An upload of a version has a multipart body. Its boundary is pure, so the same input gives the same body.
+  - `twilioServerlessBuildStep` gives the next step of the poll of a build. It has no timer.
+  - `twilioServerlessDeploy` deploys a plan of files, a build and variables to one environment. A second deploy of the same plan changes nothing.
+  - The extractors read each response into a typed result or a `TwilioFailure`. They do not throw.
+  - A builder throws an error when the input breaks a rule of the API.
+  
+  The shared types of `./twilio` moved to an internal module that the two entries import. The API of `./twilio` does not change.
+  
+  PATCH: a new entry and new exports, before 1.0.0.
+- Updated dependencies [3075d86]
+  - @procedures/client@0.60.0
+
+## 0.59.1
+
+### Patch Changes
+
+- 68b3175: The entry `@procedures/notify/twilio` has three new functions and a new option.
+  
+  - `twilioGatherTwiml` gives the TwiML of a call that says a text in a `<Gather>`. Twilio sends the key of the person to the address `action`. With no key, the TwiML says the text `after`, and the call ends. It escapes the texts and the address.
+  - `twilioBalanceRequest` and `extractTwilioBalance` read the balance of the account, as a number and as the decimal text of Twilio.
+  - `twilioSayTwiml` and `twilioGatherTwiml` take a `voice` and a `language` for each `<Say>`. Without them, the TwiML does not change.
+  
+  PATCH: new exports and a new optional parameter, before 1.0.0.
+- ce207f7: The new entry `@procedures/notify/twilio` has the request builders and the extractors of Twilio text messages and voice calls: send a text, start a call, read the status of each, end a call, and the TwiML of a call that says a text. `callTwilio` sends one request through the fetch of the caller. The entry imports no Node built-in, so a browser can also use it.
+  
+  `callPushover` and `callTwilio` use one internal call helper. The behavior of `callPushover` does not change.
+  
+  PATCH: a new entry and new exports, before 1.0.0.
+- Updated dependencies [425ea64]
+- Updated dependencies [ea801cd]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6513a83]
+- Updated dependencies [8c69a74]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6cc8f0e]
+  - @procedures/client@0.59.1
+
+## 0.59.0
+
+### Patch Changes
+
+- Updated dependencies [8f8e5b2]
+  - @procedures/client@0.59.0
+
+## 0.58.2
+
+### Patch Changes
+
+- Updated dependencies [217871c]
+  - @procedures/client@0.58.2
+
+## 0.58.1
+
+### Patch Changes
+
+- Updated dependencies [1d47080]
+  - @procedures/client@0.58.1
+
+## 0.58.0
+
+### Patch Changes
+
+- Updated dependencies [11f5035]
+  - @procedures/client@0.58.0
+
+## 0.57.0
+
+### Patch Changes
+
+- 9c0a8c3: The new entry `@procedures/notify/testing` has a fake of the Pushover API for tests. `pushoverApi` gives the routes of a scripted server of `@mark1russell7/rigor-testkit/http`, with a reply to the request of each builder of `./pushover`. `pushoverFetchTo` sends the requests of the builders to that server. `pushoverLedgerOf` reads the records of the server: each send, its first read and its first cancel, by receipt or by tag.
+  
+  `@mark1russell7/rigor-testkit` is an optional peer dependency. The other entries do not use it.
+  
+  PATCH: a new feature before 1.0.0 (0.y.z).
+- @procedures/client@0.57.0
+
+## 0.56.0
+
+### Patch Changes
+
+- 7337fd4: `@procedures/notify` sends through Pushover. The change adds names and is backward compatible, so it is a patch.
+  
+  - The new procedures are `notify.pushover.send`, `notify.pushover.receipt`, `notify.pushover.cancel`, `notify.pushover.validate` and `notify.pushover.limits`.
+  - `notify.pushover.send` with the priority `2` sends an emergency message. Pushover repeats it until the user acknowledges it, or until it expires.
+  - `notify.pushover.cancel` stops the repeats by a receipt, or by a tag. With a tag, a process that did not send the message can stop it.
+  - The procedures read the keys from `PUSHOVER_APP_TOKEN` and `PUSHOVER_USER_KEY`. Each variable name of `tokenEnv` and `userEnv` starts with `PUSHOVER_`.
+  - The new entry `./pushover` has pure request builders and extractors, and `callPushover`. The caller gives the fetch. The entry imports no Node built-in.
+  - A builder throws an error for input that Pushover refuses. An extractor gives each failure as a value with a `kind`, and does not throw.
+- 13996cf: An automated dependency update changes the shipped files, so this PATCH ships them.
+- Updated dependencies [13996cf]
+  - @procedures/client@0.56.0
+
+## 0.55.2
+
+### Patch Changes
+
+- @procedures/client@0.55.2
+
+## 0.55.1
+
+### Patch Changes
+
+- @procedures/client@0.55.1
+
+## 0.55.0
+
+### Patch Changes
+
+- Updated dependencies [fd9c6d4]
+  - @procedures/client@0.55.0
+
+## 0.54.1
+
+### Patch Changes
+
+- Updated dependencies [13c3a8b]
+  - @procedures/client@0.54.1
+
+## 0.54.0
+
+### Patch Changes
+
+- 1401489: The tarball of each package leaves out `dist/.tsbuildinfo`. The `files` list of each package has the entry `!dist/.tsbuildinfo` after `dist`.
+  
+  The build writes this file for incremental builds. An app does not use it, and it added its size to each tarball (61 KB in `@procedures/json` 0.52.3). The conventions rule `pack-no-buildinfo` finds it.
+  
+  PATCH: the exports and the behavior do not change.
+- Updated dependencies [ef8e080]
+- Updated dependencies [1401489]
+  - @procedures/client@0.54.0
+
+## 0.53.1
+
+### Patch Changes
+
+- Updated dependencies [84f0c78]
+- Updated dependencies [abf290c]
+  - @procedures/client@0.53.1
+
+## 0.53.0
+
+### Patch Changes
+
+- Updated dependencies [bc98f77]
+- Updated dependencies [11d9084]
+- Updated dependencies [d28ccb5]
+- Updated dependencies [735cfcf]
+- Updated dependencies
+- Updated dependencies [556d0a8]
+  - @procedures/client@0.53.0
+
+## 0.52.5
+
+### Patch Changes
+
+- Updated dependencies [25a5f44]
+  - @procedures/client@0.52.5
+
+## 0.52.4
+
+### Patch Changes
+
+- @procedures/client@0.52.4
+
+## 0.52.3
+
+### Patch Changes
+
+- Updated dependencies [db1bcaa]
+  - @procedures/client@0.52.3
+
+## 0.52.2
+
+### Patch Changes
+
+- @procedures/client@0.52.2
+
 ## 0.52.1
 
 ### Patch Changes

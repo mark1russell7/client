@@ -11,12 +11,12 @@
  *   lead a write or a `mkdir` out of the root.
  *
  * On Windows, the comparison ignores the case of the letters, and `/` and `\` are the same. This
- * file adds only `placesOf()`, the paths of one call of an archive procedure.
+ * file adds only `placesOf()`, the paths of one call of an archive procedure, and `inHold()`.
  */
 
 import { resolve } from "node:path";
 import type { ProcedurePath } from "@procedures/client";
-import { inRoot, resolveRoot as resolveFsRoot, type ResolvedRoot } from "@procedures/fs/root";
+import { holdRoots, inRoot, resolveRoot as resolveFsRoot, type ResolvedRoot, type RootHoldMode } from "@procedures/fs/root";
 
 export { OUTSIDE_ROOT, inRoot, isInside, isOutsideRoot, outsideRoot, realPathIsInside, realPathOf, type ResolvedRoot } from "@procedures/fs/root";
 
@@ -35,6 +35,15 @@ export interface Places {
    * `FORBIDDEN` with the reason `outside-root`.
    */
   place(path: string): Promise<string>;
+}
+
+/**
+ * This function starts the work of one call in a hold of the roots (`holdRoots()` of
+ * `@procedures/fs/root`) when the module has a root. So the check of a path and its use read the
+ * same links. Without a root, the work starts with no hold.
+ */
+export function inHold<T>(root: string | undefined, mode: RootHoldMode, work: () => Promise<T>): Promise<T> {
+  return root === undefined ? work() : holdRoots(mode, work);
 }
 
 /** This function gives the paths of one call. With a root, the root must exist when the call starts. */

@@ -10,6 +10,7 @@ import type { WebSocketTransportOptions, WebSocketMessage, ServerRequestHandler,
 import { WebSocketState } from "./types.js";
 import { withoutInternalKeys } from "../../metadata.js";
 import { IncomingCalls } from "../shared/rpc.js";
+import { checkFrame } from "../shared/frame.js";
 import { StreamSequence, gapOf, itemMetadata } from "../../sequence.js";
 import type { Credentials, RequestHandler, ServerResponse } from "../../../server/types.js";
 import { methodToPath } from "../../../server/method.js";
@@ -406,8 +407,10 @@ export class WebSocketTransport implements Transport {
       ws.onmessage = (event) => {
         if (this.ws !== ws) return;
         try {
-          const message: WebSocketMessage = JSON.parse(event.data);
-          this.handleMessage(message);
+          // The shape of the frame, before the code reads its fields. The client drops a bad frame
+          const check = checkFrame(JSON.parse(event.data));
+          if (check.ok) this.handleMessage(check.frame);
+          else console.error(`[${this.name}] Invalid message format: ${check.reason}`);
         } catch (error) {
           console.error(`[${this.name}] Failed to parse message:`, error);
         }
@@ -1020,7 +1023,8 @@ export class WebSocketTransport implements Transport {
     this.setState(WebSocketState.DISCONNECTING, "close");
     this.stopHeartbeat();
     this.clearHandshakeTimer();
-    this.incoming?.abortAll();
+    // The socket is open: each call of the server that the close stops gets its error (CLI-48)
+    this.incoming?.abortAll("stopped");
     this.incoming = undefined;
 
     if (this.reconnectTimer) {

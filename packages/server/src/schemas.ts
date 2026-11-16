@@ -20,9 +20,11 @@ import type {
 } from "./types.js";
 
 const port = z.number().int().min(1).max(65535);
+/** The port of a start: the port 0 takes a free port, and the lockfile of the server gives it. */
+const startPort = z.number().int().min(0).max(65535);
 
 export const serverStartInputSchema: ZodLikeSchema<ServerStartInput> = z.object({
-    port: port.optional().describe("The port to listen on (default: 3000)"),
+    port: startPort.optional().describe("The port to listen on (default: 3000). The port 0 takes a free port, and the result gives it."),
     host: z.string().min(1).optional().describe("The host to bind to (default: 127.0.0.1)"),
     transport: z.enum(["http", "websocket", "both"]).optional().describe("The transport (default: http)"),
     timeout: z.number().int().min(1).max(600_000).optional().describe("The time to wait for the readiness of the server, in milliseconds (default: 15000)"),

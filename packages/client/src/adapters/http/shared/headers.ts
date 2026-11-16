@@ -45,6 +45,12 @@ export const HTTPHeaders = {
   // The custom metadata of a request, as URI-encoded JSON (deep dive TRN-11)
   METADATA: "X-Metadata",
 
+  // The header of a batch request, and of the answer of a server that takes batches (CLI-32)
+  BATCH: "Procedures-Batch",
+
+  // The wait before a retry, in whole seconds
+  RETRY_AFTER: "Retry-After",
+
   // Server timing
   SERVER_TIMING: "Server-Timing",
 } as const;
@@ -216,7 +222,7 @@ export class DefaultHeaderConverter implements HeaderConverter {
 const STRUCTURED_FIELDS = new Set(["tracing", "auth", "timeout", "retry"]);
 
 /** A header name: the "token" characters of RFC 9110. */
-const HEADER_TOKEN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
+export const HEADER_TOKEN: RegExp = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
 
 /** A header value that fetch accepts: Latin-1, with no control characters but tab. */
 const LATIN1 = /^[\t\x20-\x7e\x80-\xff]*$/;

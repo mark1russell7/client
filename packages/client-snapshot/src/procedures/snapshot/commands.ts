@@ -5,17 +5,14 @@
  *   this package. Under a root of the files, the rules of the root then apply to each git command:
  *   the working folder in the root, no hooks, no configuration that starts a program (tracker
  *   item O46).
- * - `runCommand` starts pnpm. It is async, kills the process tree when the signal aborts, and runs
- *   no shell. Under a root, pnpm does not start.
+ * - The version of pnpm comes from the `package.json` of the pnpm package. No program starts, so the
+ *   declared effects of `snapshot.create` do not need `process`. Under a root, the version is
+ *   "unknown".
  */
 
 import type { ProcedureContext, ProcedurePath } from "@procedures/client";
 import { isOutsideRoot } from "@procedures/fs/root";
-import { runCommand } from "@procedures/shell/command";
-import { resolvePnpm } from "@procedures/pnpm";
-
-/** The longest time of one pnpm query, in milliseconds. */
-const QUERY_TIMEOUT_MS = 30_000;
+import { installedPnpmVersion } from "@procedures/pnpm";
 
 /**
  * This function starts a `git.*` procedure of the host and gives its output. It gives `undefined`
@@ -32,17 +29,11 @@ export async function gitCall<T>(ctx: ProcedureContext, path: ProcedurePath, inp
 }
 
 /**
- * This function gives the version of pnpm, or "unknown" when pnpm cannot run. Under a root of the
- * files (`fsRoot`), it starts no program and gives "unknown".
+ * This function gives the version of pnpm, or "unknown" when no pnpm package names it. It reads the
+ * version with `installedPnpmVersion()` of `@procedures/pnpm`, and it starts no program. Under a
+ * root of the files (`fsRoot`), it reads no file and gives "unknown".
  */
-export async function pnpmVersion(signal?: AbortSignal, fsRoot?: string): Promise<string> {
+export function pnpmVersion(fsRoot?: string): string {
   if (fsRoot !== undefined) return "unknown";
-  let pnpm: { command: string; prefix: string[] };
-  try {
-    pnpm = resolvePnpm();
-  } catch {
-    return "unknown";
-  }
-  const result = await runCommand(pnpm.command, { args: [...pnpm.prefix, "--version"], signal, timeout: QUERY_TIMEOUT_MS });
-  return result.success ? result.stdout.trim() : "unknown";
+  return installedPnpmVersion() ?? "unknown";
 }

@@ -70,7 +70,7 @@ export {
 } from "./procedures/pnpm/index.js";
 
 // How the procedures find pnpm (no shell): other packages that run pnpm use it too
-export { resolvePnpm } from "./procedures/pnpm/shared.js";
+export { installedPnpmVersion, resolvePnpm } from "./procedures/pnpm/shared.js";
 
 // Registration
 export { registerPnpmProcedures } from "./module.js";

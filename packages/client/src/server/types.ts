@@ -257,6 +257,13 @@ export interface RequestHandler {
    */
   admission?(credentials: Credentials): Promise<Admission>;
   /**
+   * This function tells if a call of a method is repeatable: its procedure gives the same state
+   * after a second start (CLI-48). A face reads it when its stop cuts a call. The cut call of a
+   * repeatable procedure ends with `retryable: true`. `ProcedureServer` has it. Absent: each cut
+   * call ends with `retryable: false`.
+   */
+  isRepeatableCall?(method: Method): boolean;
+  /**
    * The logger of the handler (CLI-87). A face writes its log lines to it, unless the options of the
    * face give a logger. `Server` has it. Absent: the face writes to the console.
    */

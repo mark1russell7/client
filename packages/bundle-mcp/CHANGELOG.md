@@ -1,5 +1,385 @@
 # @procedures/bundle-mcp
 
+## 0.60.1
+
+### Patch Changes
+
+- Updated dependencies [beca782]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [a87cdda]
+- Updated dependencies [94b5f88]
+- Updated dependencies [f2d045b]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [487d144]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+  - @procedures/sqlite@0.60.1
+  - @procedures/mongo@0.60.1
+  - @procedures/cue@0.60.1
+  - @procedures/dag@0.60.1
+  - @procedures/docker@0.60.1
+  - @procedures/lib@0.60.1
+  - @procedures/procedure@0.60.1
+  - @procedures/vitest@0.60.1
+  - @procedures/compiler@0.60.1
+  - @procedures/json@0.60.1
+
+## 0.60.0
+
+### Patch Changes
+
+- Updated dependencies [3075d86]
+  - @procedures/client@0.60.0
+  - @procedures/cue@0.60.0
+  - @procedures/docker@0.60.0
+  - @procedures/lib@0.60.0
+  - @procedures/vitest@0.60.0
+  - @procedures/dag@0.60.0
+  - @procedures/mongo@0.60.0
+  - @procedures/procedure@0.60.0
+  - @procedures/sqlite@0.60.0
+  - @procedures/compiler@0.60.0
+  - @procedures/json@0.60.0
+
+## 0.59.1
+
+### Patch Changes
+
+- Updated dependencies [425ea64]
+- Updated dependencies [ea801cd]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6513a83]
+- Updated dependencies [8c69a74]
+- Updated dependencies [74ddeff]
+- Updated dependencies [2419e31]
+- Updated dependencies [6cc8f0e]
+  - @procedures/client@0.59.1
+  - @procedures/sqlite@0.59.1
+  - @procedures/cue@0.59.1
+  - @procedures/dag@0.59.1
+  - @procedures/docker@0.59.1
+  - @procedures/lib@0.59.1
+  - @procedures/mongo@0.59.1
+  - @procedures/procedure@0.59.1
+  - @procedures/vitest@0.59.1
+  - @procedures/compiler@0.59.1
+  - @procedures/json@0.59.1
+
+## 0.59.0
+
+### Patch Changes
+
+- Updated dependencies [8f8e5b2]
+  - @procedures/client@0.59.0
+  - @procedures/lib@0.59.0
+  - @procedures/cue@0.59.0
+  - @procedures/dag@0.59.0
+  - @procedures/docker@0.59.0
+  - @procedures/mongo@0.59.0
+  - @procedures/procedure@0.59.0
+  - @procedures/sqlite@0.59.0
+  - @procedures/vitest@0.59.0
+  - @procedures/compiler@0.59.0
+  - @procedures/json@0.59.0
+
+## 0.58.2
+
+### Patch Changes
+
+- Updated dependencies [217871c]
+  - @procedures/client@0.58.2
+  - @procedures/cue@0.58.2
+  - @procedures/dag@0.58.2
+  - @procedures/docker@0.58.2
+  - @procedures/lib@0.58.2
+  - @procedures/mongo@0.58.2
+  - @procedures/procedure@0.58.2
+  - @procedures/sqlite@0.58.2
+  - @procedures/vitest@0.58.2
+  - @procedures/compiler@0.58.2
+  - @procedures/json@0.58.2
+
+## 0.58.1
+
+### Patch Changes
+
+- Updated dependencies [1d47080]
+  - @procedures/client@0.58.1
+  - @procedures/cue@0.58.1
+  - @procedures/dag@0.58.1
+  - @procedures/docker@0.58.1
+  - @procedures/lib@0.58.1
+  - @procedures/mongo@0.58.1
+  - @procedures/procedure@0.58.1
+  - @procedures/sqlite@0.58.1
+  - @procedures/vitest@0.58.1
+  - @procedures/compiler@0.58.1
+  - @procedures/json@0.58.1
+
+## 0.58.0
+
+### Patch Changes
+
+- Updated dependencies [11f5035]
+- Updated dependencies [f03c27a]
+- Updated dependencies [9f5b1a4]
+  - @procedures/client@0.58.0
+  - @procedures/mongo@0.58.0
+  - @procedures/procedure@0.58.0
+  - @procedures/cue@0.58.0
+  - @procedures/dag@0.58.0
+  - @procedures/docker@0.58.0
+  - @procedures/lib@0.58.0
+  - @procedures/sqlite@0.58.0
+  - @procedures/vitest@0.58.0
+  - @procedures/compiler@0.58.0
+  - @procedures/json@0.58.0
+
+## 0.57.0
+
+### Patch Changes
+
+- @procedures/mongo@0.57.0
+  - @procedures/sqlite@0.57.0
+  - @procedures/client@0.57.0
+  - @procedures/cue@0.57.0
+  - @procedures/dag@0.57.0
+  - @procedures/docker@0.57.0
+  - @procedures/lib@0.57.0
+  - @procedures/procedure@0.57.0
+  - @procedures/vitest@0.57.0
+  - @procedures/compiler@0.57.0
+  - @procedures/json@0.57.0
+
+## 0.56.0
+
+### Patch Changes
+
+- 13996cf: An automated dependency update changes the shipped files, so this PATCH ships them.
+- Updated dependencies [13996cf]
+- Updated dependencies [13996cf]
+  - @procedures/cue@0.56.0
+  - @procedures/dag@0.56.0
+  - @procedures/docker@0.56.0
+  - @procedures/json@0.56.0
+  - @procedures/lib@0.56.0
+  - @procedures/procedure@0.56.0
+  - @procedures/sqlite@0.56.0
+  - @procedures/vitest@0.56.0
+  - @procedures/client@0.56.0
+  - @procedures/compiler@0.56.0
+  - @procedures/mongo@0.56.0
+
+## 0.55.2
+
+### Patch Changes
+
+- Updated dependencies [12ececd]
+  - @procedures/json@0.55.2
+  - @procedures/client@0.55.2
+  - @procedures/cue@0.55.2
+  - @procedures/dag@0.55.2
+  - @procedures/docker@0.55.2
+  - @procedures/lib@0.55.2
+  - @procedures/mongo@0.55.2
+  - @procedures/procedure@0.55.2
+  - @procedures/sqlite@0.55.2
+  - @procedures/vitest@0.55.2
+  - @procedures/compiler@0.55.2
+
+## 0.55.1
+
+### Patch Changes
+
+- @procedures/client@0.55.1
+  - @procedures/cue@0.55.1
+  - @procedures/dag@0.55.1
+  - @procedures/docker@0.55.1
+  - @procedures/lib@0.55.1
+  - @procedures/mongo@0.55.1
+  - @procedures/procedure@0.55.1
+  - @procedures/sqlite@0.55.1
+  - @procedures/vitest@0.55.1
+  - @procedures/compiler@0.55.1
+  - @procedures/json@0.55.1
+
+## 0.55.0
+
+### Patch Changes
+
+- Updated dependencies [fd9c6d4]
+  - @procedures/client@0.55.0
+  - @procedures/compiler@0.55.0
+  - @procedures/cue@0.55.0
+  - @procedures/dag@0.55.0
+  - @procedures/docker@0.55.0
+  - @procedures/lib@0.55.0
+  - @procedures/mongo@0.55.0
+  - @procedures/procedure@0.55.0
+  - @procedures/sqlite@0.55.0
+  - @procedures/vitest@0.55.0
+  - @procedures/json@0.55.0
+
+## 0.54.1
+
+### Patch Changes
+
+- Updated dependencies [25dd6f5]
+- Updated dependencies [8dc3e6c]
+- Updated dependencies [13c3a8b]
+- Updated dependencies [3914b5f]
+  - @procedures/lib@0.54.1
+  - @procedures/sqlite@0.54.1
+  - @procedures/client@0.54.1
+  - @procedures/mongo@0.54.1
+  - @procedures/cue@0.54.1
+  - @procedures/dag@0.54.1
+  - @procedures/docker@0.54.1
+  - @procedures/procedure@0.54.1
+  - @procedures/vitest@0.54.1
+  - @procedures/compiler@0.54.1
+  - @procedures/json@0.54.1
+
+## 0.54.0
+
+### Patch Changes
+
+- 1401489: The tarball of each package leaves out `dist/.tsbuildinfo`. The `files` list of each package has the entry `!dist/.tsbuildinfo` after `dist`.
+  
+  The build writes this file for incremental builds. An app does not use it, and it added its size to each tarball (61 KB in `@procedures/json` 0.52.3). The conventions rule `pack-no-buildinfo` finds it.
+  
+  PATCH: the exports and the behavior do not change.
+- Updated dependencies [ef8e080]
+- Updated dependencies [1401489]
+  - @procedures/dag@0.54.0
+  - @procedures/client@0.54.0
+  - @procedures/cue@0.54.0
+  - @procedures/docker@0.54.0
+  - @procedures/lib@0.54.0
+  - @procedures/mongo@0.54.0
+  - @procedures/procedure@0.54.0
+  - @procedures/sqlite@0.54.0
+  - @procedures/vitest@0.54.0
+  - @procedures/compiler@0.54.0
+  - @procedures/json@0.54.0
+
+## 0.53.1
+
+### Patch Changes
+
+- Updated dependencies [84f0c78]
+- Updated dependencies [abf290c]
+  - @procedures/client@0.53.1
+  - @procedures/mongo@0.53.1
+  - @procedures/cue@0.53.1
+  - @procedures/dag@0.53.1
+  - @procedures/docker@0.53.1
+  - @procedures/lib@0.53.1
+  - @procedures/procedure@0.53.1
+  - @procedures/sqlite@0.53.1
+  - @procedures/vitest@0.53.1
+  - @procedures/compiler@0.53.1
+  - @procedures/json@0.53.1
+
+## 0.53.0
+
+### Patch Changes
+
+- Updated dependencies [bc98f77]
+- Updated dependencies [11d9084]
+- Updated dependencies [d28ccb5]
+- Updated dependencies [735cfcf]
+- Updated dependencies
+- Updated dependencies [556d0a8]
+- Updated dependencies [1f638a3]
+- Updated dependencies [831ab0f]
+  - @procedures/client@0.53.0
+  - @procedures/mongo@0.53.0
+  - @procedures/sqlite@0.53.0
+  - @procedures/compiler@0.53.0
+  - @procedures/cue@0.53.0
+  - @procedures/dag@0.53.0
+  - @procedures/docker@0.53.0
+  - @procedures/lib@0.53.0
+  - @procedures/procedure@0.53.0
+  - @procedures/vitest@0.53.0
+  - @procedures/json@0.53.0
+
+## 0.52.5
+
+### Patch Changes
+
+- Updated dependencies [f39708c]
+- Updated dependencies [2058f02]
+- Updated dependencies [25a5f44]
+  - @procedures/json@0.52.5
+  - @procedures/mongo@0.52.5
+  - @procedures/client@0.52.5
+  - @procedures/cue@0.52.5
+  - @procedures/dag@0.52.5
+  - @procedures/docker@0.52.5
+  - @procedures/lib@0.52.5
+  - @procedures/procedure@0.52.5
+  - @procedures/sqlite@0.52.5
+  - @procedures/vitest@0.52.5
+  - @procedures/compiler@0.52.5
+
+## 0.52.4
+
+### Patch Changes
+
+- @procedures/client@0.52.4
+  - @procedures/cue@0.52.4
+  - @procedures/dag@0.52.4
+  - @procedures/docker@0.52.4
+  - @procedures/lib@0.52.4
+  - @procedures/mongo@0.52.4
+  - @procedures/procedure@0.52.4
+  - @procedures/sqlite@0.52.4
+  - @procedures/vitest@0.52.4
+  - @procedures/compiler@0.52.4
+  - @procedures/json@0.52.4
+
+## 0.52.3
+
+### Patch Changes
+
+- Updated dependencies [db1bcaa]
+  - @procedures/client@0.52.3
+  - @procedures/mongo@0.52.3
+  - @procedures/cue@0.52.3
+  - @procedures/dag@0.52.3
+  - @procedures/docker@0.52.3
+  - @procedures/lib@0.52.3
+  - @procedures/procedure@0.52.3
+  - @procedures/sqlite@0.52.3
+  - @procedures/vitest@0.52.3
+  - @procedures/compiler@0.52.3
+  - @procedures/json@0.52.3
+
+## 0.52.2
+
+### Patch Changes
+
+- @procedures/mongo@0.52.2
+  - @procedures/sqlite@0.52.2
+  - @procedures/client@0.52.2
+  - @procedures/cue@0.52.2
+  - @procedures/dag@0.52.2
+  - @procedures/docker@0.52.2
+  - @procedures/lib@0.52.2
+  - @procedures/procedure@0.52.2
+  - @procedures/vitest@0.52.2
+  - @procedures/compiler@0.52.2
+  - @procedures/json@0.52.2
+
 ## 0.52.1
 
 ### Patch Changes
