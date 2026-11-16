@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-22.13+-green.svg)](https://nodejs.org/)
 
 SQLite database operations via client procedures. Execute queries and store structured logs via `client.call()`.
 
@@ -47,19 +47,19 @@ graph TB
         end
 
         Migrations["Log Table Migrations<br/>(Auto-created on first use)"]
+        Storage["SqliteStorage<br/>(collection storage)"]
         Types["types.ts<br/>(Type Definitions)"]
     end
 
-    subgraph "docker-sqlite Layer"
-        DockerSqlite["@mark1russell7/docker-sqlite"]
-        Utilities["withConnection<br/>query, execute<br/>runMigrations"]
+    subgraph "The engine: @mark1russell7/sqlite"
+        Home["openDatabase, transaction<br/>migrate, snapshot"]
     end
 
-    subgraph "SQLite Engine"
-        SqlJs["sql.js<br/>(SQLite WASM)"]
+    subgraph "SQLite"
+        NodeSqlite["node:sqlite<br/>(Node.js 22.13 or later)"]
     end
 
-    subgraph "Storage"
+    subgraph "Files"
         LogDB["~/logs/cli/cli.db<br/>(Default log database)"]
         CustomDB["Custom databases<br/>(via dbPath parameter)"]
     end
@@ -67,15 +67,15 @@ graph TB
     Register --> Client
     Register --> Registry
 
-    DB --> DockerSqlite
-    Logs --> DockerSqlite
+    DB --> Home
+    Logs --> Home
     Logs --> Migrations
+    Storage --> Home
 
-    DockerSqlite --> Utilities
-    Utilities --> SqlJs
+    Home --> NodeSqlite
 
-    SqlJs --> LogDB
-    SqlJs --> CustomDB
+    NodeSqlite --> LogDB
+    NodeSqlite --> CustomDB
 
     Types -.-> DB
     Types -.-> Logs
@@ -92,18 +92,18 @@ graph LR
     App["Your Application"]
     ClientSqlite["@procedures/sqlite"]
     Client["@procedures/client"]
-    DockerSqlite["@mark1russell7/docker-sqlite"]
-    SqlJs["sql.js"]
+    Home["@mark1russell7/sqlite"]
+    NodeSqlite["node:sqlite"]
 
     App --> ClientSqlite
     ClientSqlite --> Client
-    ClientSqlite --> DockerSqlite
-    DockerSqlite --> SqlJs
+    ClientSqlite --> Home
+    Home --> NodeSqlite
 
     App -.client.call.-> Client
     Client -.executes.-> ClientSqlite
-    ClientSqlite -.queries.-> DockerSqlite
-    DockerSqlite -.uses.-> SqlJs
+    ClientSqlite -.opens the file.-> Home
+    Home -.uses.-> NodeSqlite
 ```
 
 ### Log Storage Flow
@@ -112,20 +112,18 @@ graph LR
 sequenceDiagram
     participant App
     participant LogsStore
-    participant DockerSqlite
-    participant Migration
-    participant SQLite
+    participant Home as @mark1russell7/sqlite
+    participant SQLite as node:sqlite
 
     App->>LogsStore: logs.store({ level, message, ... })
-    LogsStore->>Migration: ensureLogsTable()
-    Migration->>DockerSqlite: withConnection()
-    DockerSqlite->>SQLite: Open ~/logs/cli/cli.db
-    Migration->>DockerSqlite: runMigrations()
-    DockerSqlite->>SQLite: CREATE TABLE IF NOT EXISTS logs
-    LogsStore->>DockerSqlite: execute(INSERT INTO logs ...)
-    DockerSqlite->>SQLite: INSERT
-    SQLite-->>DockerSqlite: lastInsertRowId
-    DockerSqlite-->>LogsStore: { id }
+    LogsStore->>Home: openDatabase(~/logs/cli/cli.db)
+    Home->>SQLite: Open the file, set the busy timeout
+    LogsStore->>Home: transaction()
+    Home->>SQLite: BEGIN IMMEDIATE
+    LogsStore->>SQLite: CREATE TABLE IF NOT EXISTS logs (version 1 in _migrations)
+    LogsStore->>SQLite: INSERT INTO logs
+    SQLite-->>LogsStore: lastInsertRowid
+    Home->>SQLite: COMMIT
     LogsStore-->>App: { id: 123 }
 ```
 
@@ -140,6 +138,12 @@ Since 0.2.0, an import of the package registers nothing. To register its procedu
 ```ts
 import "@procedures/sqlite/register";
 ```
+
+### The Node.js versions
+
+The package needs Node.js 22.13 or later. Each procedure opens the file through the engine of `@mark1russell7/sqlite`, on `node:sqlite`.
+
+`sqlite.query`, `sqlite.execute`, `sqlite.transaction` and `sqlite.migrate` need Node.js 24.10 or later: they refuse with `CONFINE_UNAVAILABLE` before it. They refuse before they open or make the file. The other procedures and `SqliteStorage` work on Node.js 22.13 or later.
 
 ## Configuration
 
@@ -202,6 +206,9 @@ interface DbQueryOutput<T = Record<string, unknown>> {
 }
 ```
 
+- The procedure runs only the first statement of `sql`.
+- The procedure only reads. A missing file reads as an empty database, and the procedure does not make it.
+
 **Example:**
 ```typescript
 const result = await client.exec(
@@ -251,6 +258,13 @@ interface DbExecuteOutput {
   changes: number;          // Number of rows affected
 }
 ```
+
+- One statement runs alone. `changes` is the number of rows that it changed. A change of the schema gives `0`.
+- A script of several statements runs in one transaction: all its statements take effect, or none does. `changes` is the total of the script.
+- A script that starts with `BEGIN`, `SAVEPOINT` or another statement that controls a transaction runs as written. After an error, the procedure rolls back the open transaction.
+- In a script, a later statement that controls a transaction is refused. `VACUUM` cannot run in a transaction, so send it alone.
+- `params` bind to one statement. A script with `params` is refused.
+- The procedure makes a missing file.
 
 **Examples:**
 ```typescript
@@ -333,9 +347,11 @@ const { applied, skipped, version } = await client.exec(["sqlite", "migrate"], {
 
 #### `sqlite.backup`
 
-The procedure copies a database to a new file (`to`). It does not replace a file, and it does not write the source. With `vacuum: true`, it compacts the copy.
+The procedure copies a database to a new file (`to`). It does not replace a file, and it does not write the source. A missing source is an error (`ENOENT`).
 
-This package uses SQLite in WebAssembly (sql.js). The database is in the memory of the module. `VACUUM INTO` and the backup API of SQLite write into the file system of the module, not to the disk. Thus the procedure writes the image of the database (its `export()`). It takes the image in the file queue of the database, where no other call of the process changes it. It writes the image to a file next to the target, checks it with `PRAGMA integrity_check`, and then renames it.
+The procedure writes a snapshot of the database (`snapshot` of `@mark1russell7/sqlite`) to a temporary file next to the target. It checks the copy with `PRAGMA integrity_check`, and then it renames the copy. The copy has the changes in the WAL file of the source, and it is always compact.
+
+The option `vacuum` is deprecated and has no effect. A later minor version removes it.
 
 ```typescript
 const { path, bytes } = await client.exec(["sqlite", "backup"], { dbPath: "./app.db", to: "./backups/app-2026-10-16.db" });
@@ -504,47 +520,34 @@ const users = new SqliteStorage<User>({ path: "./data/app.db", table: "users" })
 await users.set("u1", { name: "Ada" });
 await users.setBatch([["u2", { name: "Bob" }], ["u3", { name: "Cy" }]]);
 const changes = await users.getChangesSince(); // { version, full: true, changed, deleted: [] }
-await users.getEngine(); // "node" on Node.js 22.13 or later
+await users.getEngine(); // "node"
 await users.close();
 ```
 
 The entry `@procedures/sqlite/storage` has the storage alone. The package root exports it too.
 
-### The engines
+### The engine
 
-The storage has two SQLite engines. The option `engine` selects one.
+The storage uses `node:sqlite` of Node.js, through the engine of `@mark1russell7/sqlite`. SQLite writes only the changed pages, and the file is in WAL mode. The option `engine` takes `auto` (the default) or `node`. Both select `node:sqlite`.
 
-| `engine` | The engine | The file write |
-|---|---|---|
-| `node` | `node:sqlite` of Node.js, without a native build | SQLite writes only the changed pages. The file is in WAL mode. |
-| `sqljs` (deprecated) | sql.js (SQLite in WebAssembly), through `@mark1russell7/docker-sqlite` | The storage keeps the database in memory, and it writes the whole file after a write. |
-| `auto` (the default) | `node` when Node.js has `node:sqlite`, and else `sqljs` | |
+Version 0.61.0 removed the engine `sqljs` (sql.js, SQLite in WebAssembly). The option `engine: "sqljs"` is a `TypeError`. A file of the engine `sqljs` opens with the engine `node`, with its items and its versions.
 
-The engine `sqljs` is deprecated. Version 0.61.0 removes it, and the package then needs Node.js 22.13 or later.
-
-- The first open of the engine `sqljs` in a process shows one `DeprecationWarning` with the code `PROCEDURES_SQLITE_SQLJS`. The engine `auto` on a Node.js without `node:sqlite` shows it too.
-- To prepare, use Node.js 22.13 or later with the engine `node` or `auto`. A file of the engine `sqljs` opens with the engine `node`.
-- The flag `--no-deprecation` of Node.js hides the warning.
-
-- Node.js 22.13 and later have `node:sqlite` without a flag. Node.js 22.5 to 22.12 have it only with the flag `--experimental-sqlite`. Node.js 22.0 to 22.4 do not have it.
-- Node.js 22 shows the warning `ExperimentalWarning: SQLite is an experimental feature` at the first open of the engine `node`. Node.js 24 and 26 do not show it.
+- Node.js 22.13 and later have `node:sqlite` without a flag.
+- Node.js 22 shows the warning `ExperimentalWarning: SQLite is an experimental feature` at the first open. Node.js 24 and 26 do not show it.
 - Node.js 26.11 renamed the class `DatabaseSync` to `Database`. The storage uses `Database` when the module has it, and else `DatabaseSync`.
-- With `auto`, the storage uses `sqljs` when the import of `node:sqlite` fails. With `node`, the open fails then, and each operation gives the error.
-- The two engines use the same file format. A file that one engine writes opens with the other engine, with its items and its versions.
+- When the import of `node:sqlite` fails, the open fails, and each operation gives the error.
 - `getEngine()` gives the engine of the storage. `getMetadata()` gives it in `stats.engine`. `isNodeSqliteAvailable()` tells if this Node.js has `node:sqlite`.
 
 <!-- measured
-The nightly benchmarks (`bench/storage.bench.ts`) measure the two engines in a file. These are the median times of [the nightly run of {run.date}]({run.url}), on the code of commit `{run.commit}` (`@procedures/sqlite` {engine:@procedures/sqlite}), with Node.js 26 on Linux. The site takes them from the newest nightly run, and its build fails when they are more than {run.limit} days old:
+The nightly benchmarks (`bench/storage.bench.ts`) measure the storage in a file. These are the median times of [the nightly run of {run.date}]({run.url}), on the code of commit `{run.commit}` (`@procedures/sqlite` {engine:@procedures/sqlite}), with Node.js 26 on Linux. The site takes them from the newest nightly run, and its build fails when they are more than {run.limit} days old:
 
-| The benchmark | `node` | `sqljs` |
-|---|---|---|
-| 1,000 calls of `set()`, one after the other, in a table of 1,000 items | {nightly.sqlite-node-file-write-1000} | {nightly.sqlite-sqljs-file-write-1000} |
-| One `getAll()` of a table of 10,000 items | {nightly.sqlite-node-file-read-10000} | {nightly.sqlite-sqljs-file-read-10000} |
+| The benchmark | The time |
+|---|---|
+| 1,000 calls of `set()`, one after the other, in a table of 1,000 items | {nightly.sqlite-node-file-write-1000} |
+| One `getAll()` of a table of 10,000 items | {nightly.sqlite-node-file-read-10000} |
 -->
-The nightly benchmarks (`bench/storage.bench.ts`) measure the two engines in a file. [The page of this package on the site](https://mark1russell7.github.io/client/docs/packages/client-sqlite/) shows the times of the newest nightly run, with its date and its commit.
+The nightly benchmarks (`bench/storage.bench.ts`) measure the storage in a file. [The page of this package on the site](https://mark1russell7.github.io/client/docs/packages/client-sqlite/) shows the times of the newest nightly run, with its date and its commit.
 <!-- /measured -->
-
-The engine `sqljs` writes the whole file at each write, so its write time grows with the size of the file.
 
 ### The table and the values
 
@@ -572,32 +575,21 @@ The engine `sqljs` writes the whole file at each write, so its write time grows 
 - Each write runs in a transaction with the change log. A batch that fails changes nothing.
 - A write ends after its change is in the file.
 - A storage that only reads does not make the file. The storage makes the file, and its folder, at the first write that changes an item.
-- `close()` writes the file and releases the database. After it, each operation rejects, also `flush()` and an empty batch. A second `close()` does nothing.
+- `close()` releases the database. After it, each operation rejects, also `flush()` and an empty batch. A second `close()` does nothing.
 - The storages of one file in one process share one database. Thus the storages of two tables in one file keep their items.
-- The first storage of a file sets the engine of the shared database. A later storage with the engine `auto` uses it. A later storage with the other engine refuses it.
-
-The engine `node`:
-
 - The commit of a transaction writes the change to the file. `flush()` has nothing to write.
 - The file is in WAL mode, with `synchronous = NORMAL`. After a crash, the file stays consistent. A power loss can lose the last commits.
 - A write that cannot make the file fails, and it changes nothing.
 - A read-only file opens. The reads work, and each write fails.
 
-The engine `sqljs`:
-
-- The storage keeps the database in memory, and it writes the whole file after each write. When several writes wait, one file write holds their changes.
-- A failed file write fails the write. The change stays in memory, and `flush()` or the next write writes it.
-- The storage refuses a file with a write-ahead log (`<file>-wal`) of the engine `node`. The log can hold changes that are not in the file. Open the file with the engine `node` one time, or close the process that has it open.
-
 ### Two processes on one file
 
-- With the engine `node` in each process, two processes can use one file at the same time.
+- Two processes can use one file at the same time.
 - SQLite locks the file for each write. A write waits for the lock of another process for `busyTimeout` (5 seconds by default). After it, the write fails with `database is locked`.
 - In WAL mode, a read does not wait for a write of another process.
 - Each write reads the version counter in its transaction, so the versions of the two processes agree. `getChangesSince()` reads in one read transaction.
 - A storage that opened before the file existed opens the file when another process makes it.
-- The engine `sqljs` does not coordinate with another process. Its whole-file write replaces the writes of the other process. Do not use it on a file that another process writes.
-- The procedures `sqlite.query` and `sqlite.execute` use sql.js, and they do not share the database of the storages. Do not write the file from them while a storage has it open.
+- Each procedure opens the file through the engine of `@mark1russell7/sqlite`. A procedure waits for the lock as a storage does, so the procedures and the storages can use one file at the same time.
 
 ### The durable local copy of `HybridStorage`
 
@@ -719,91 +711,26 @@ logs.forEach(log => {
 });
 ```
 
-### Direct Database Access (Without RPC)
+### Direct database access (without a procedure)
 
-For lower-level access, use re-exported utilities from `docker-sqlite`:
-
-```typescript
-import {
-  withConnection,
-  query,
-  execute,
-  lastInsertRowId,
-  runMigrations,
-  createMigration
-} from "@procedures/sqlite";
-
-// Managed connection with automatic cleanup
-await withConnection({ dbPath: "./data/app.db" }, (db) => {
-  // Execute mutations
-  execute(db, "INSERT INTO users (name, email) VALUES (?, ?)", [
-    "Bob Smith",
-    "bob@example.com"
-  ]);
-
-  const userId = lastInsertRowId(db);
-  console.log("Inserted user ID:", userId);
-
-  // Query data
-  const result = query<{ id: number; name: string; email: string }>(
-    db,
-    "SELECT * FROM users WHERE id = ?",
-    [userId]
-  );
-
-  console.log(result.rows);
-});
-
-// Connection is automatically closed after callback
-```
-
-### Database Migrations
+Version 0.61.0 removed the functions of `@mark1russell7/docker-sqlite` from this package. For direct access, use `@mark1russell7/sqlite`:
 
 ```typescript
-import {
-  withConnection,
-  runMigrations,
-  getMigrationStatus,
-  rollbackMigration,
-  type Migration
-} from "@procedures/sqlite";
+import { openDatabase, transaction } from "@mark1russell7/sqlite";
 
-const migrations: Migration[] = [
-  {
-    version: 1,
-    description: "Create users table",
-    up: `
-      CREATE TABLE users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        created_at TEXT DEFAULT (datetime('now'))
-      );
-      CREATE INDEX idx_users_email ON users(email);
-    `,
-    down: "DROP TABLE users;"
-  },
-  {
-    version: 2,
-    description: "Add users.active column",
-    up: "ALTER TABLE users ADD COLUMN active BOOLEAN DEFAULT 1;",
-    down: "ALTER TABLE users DROP COLUMN active;"
-  }
-];
-
-await withConnection({ dbPath: "./app.db" }, (db) => {
-  // Run migrations
-  runMigrations(db, migrations);
-
-  // Check migration status
-  const status = getMigrationStatus(db);
-  console.log("Current version:", status.currentVersion);
-  console.log("Applied migrations:", status.appliedMigrations);
-
-  // Rollback last migration if needed
-  // rollbackMigration(db, migrations);
-});
+const db = openDatabase("./data/app.db");
+try {
+  const id = transaction(db, () => {
+    const result = db.prepare("INSERT INTO users (name, email) VALUES (?, ?)").run("Bob Smith", "bob@example.com");
+    return Number(result.lastInsertRowid);
+  });
+  console.log(db.prepare("SELECT * FROM users WHERE id = ?").all(id));
+} finally {
+  db.close();
+}
 ```
+
+For migrations, use the procedure `sqlite.migrate`, or `migrate` of `@mark1russell7/sqlite`.
 
 ### Type-Safe Queries
 
@@ -850,47 +777,13 @@ import "@procedures/s3/register.js";
 ### Runtime Dependencies
 
 - **@procedures/client** - Core client procedure system
-- **@mark1russell7/docker-sqlite** - SQLite connection and query utilities
+- **@mark1russell7/sqlite** - The SQLite engine on `node:sqlite`: the open of a file, transactions, migrations and snapshots
 
 ### Development Dependencies
 
 - **@mark1russell7/cue** - Configuration and type utilities
 - **typescript** (^5.9.3) - TypeScript compiler
 - **@types/node** (^22.0.0) - Node.js type definitions
-
-## Re-exported docker-sqlite Utilities
-
-`client-sqlite` re-exports all utilities from `docker-sqlite` for direct use:
-
-```typescript
-// Connection management
-export { withConnection, createConnection } from "@mark1russell7/docker-sqlite";
-
-// Query execution
-export { query, execute, execMultiple, lastInsertRowId } from "@mark1russell7/docker-sqlite";
-
-// Table utilities
-export { tableExists } from "@mark1russell7/docker-sqlite";
-
-// Migration utilities
-export {
-  getMigrationStatus,
-  runMigrations,
-  rollbackMigration,
-  createMigration
-} from "@mark1russell7/docker-sqlite";
-
-// Types
-export type {
-  ConnectionConfig,
-  ConnectionCallback,
-  QueryResult,
-  ExecuteResult,
-  Migration,
-  MigrationStatus,
-  Database
-} from "@mark1russell7/docker-sqlite";
-```
 
 ## Package Structure
 
@@ -901,10 +794,11 @@ client-sqlite/
 │   ├── module.ts             # The procedures as data, and the sqlite.query, sqlite.execute and logs.* handlers
 │   ├── register.ts           # The ./register entry: registers the module
 │   ├── storage.ts            # SqliteStorage, the collection storage (the ./storage entry)
-│   ├── engines.ts            # The engines of SqliteStorage: node:sqlite and sql.js
+│   ├── engines.ts            # The engine of SqliteStorage: node:sqlite through @mark1russell7/sqlite
+│   ├── load.ts               # The load of @mark1russell7/sqlite
 │   ├── procedures/db/        # sqlite.tables, sqlite.schema, sqlite.transaction, sqlite.migrate, sqlite.backup
 │   └── index.ts              # Main entry point
-├── bench/                    # The benchmarks of the engines (the nightly workflow runs them)
+├── bench/                    # The benchmarks of the storage (the nightly workflow runs them)
 ├── dist/                     # Compiled output
 ├── package.json
 ├── tsconfig.json

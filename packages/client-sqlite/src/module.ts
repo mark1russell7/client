@@ -11,17 +11,8 @@
 
 import { definePackage, createProcedure, type AnyProcedure, type FsRootRules, type ProcedureModule, type PackageDefinition } from "@procedures/client";
 import * as z from "zod";
+import type { DatabaseSync } from "node:sqlite";
 import {
-  withConnection,
-  query,
-  execute,
-  lastInsertRowId,
-  runMigrations,
-  tableExists,
-  type Migration,
-} from "@mark1russell7/docker-sqlite";
-import {
-  DEFAULT_DB_PATH,
   LOG_LEVELS,
   type DbQueryInput,
   type DbQueryOutput,
@@ -35,6 +26,19 @@ import {
   type LogLevel,
 } from "./types.js";
 import { dbTables, dbSchema, dbTransaction, dbMigrate, dbBackup } from "./procedures/db/index.js";
+import {
+  countStatements,
+  databasePath,
+  rowsOf,
+  runStatement,
+  runStatements,
+  toSqlParams,
+  totalChanges,
+  withDatabase,
+  type OpenMode,
+  type SqlParam,
+} from "./procedures/db/shared.js";
+import type { Sqlite } from "./load.js";
 import {
   DbTablesInputSchema,
   DbTablesOutputSchema,
@@ -62,10 +66,11 @@ import {
 // The rules under a root of the files (roadmap R33)
 // =============================================================================
 
-// The procedures open the file in the process with sql.js, which keeps the database in memory. An
-// ATTACH or a VACUUM INTO of the SQL goes to the memory file system of sql.js, not to the disk.
-// So the paths of the input are all the paths that a call reaches. The default database (the CLI
-// log database in the home folder) is outside a root, so under a root a call must give dbPath.
+// Each procedure opens the file through the engine of @mark1russell7/sqlite. The procedures that run
+// the SQL of a caller (sqlite.query, sqlite.execute, sqlite.transaction and sqlite.migrate) keep that
+// SQL on its file with confineToFile. So the paths of the input are all the paths that a call reaches.
+// The default database (the CLI log database in the home folder) is outside a root, so under a root
+// a call must give dbPath.
 
 /** A procedure of one database file. `:memory:` is a database in memory, not a path. */
 const DATABASE_IN_A_ROOT: FsRootRules = { paths: ["dbPath"], required: ["dbPath"], values: [":memory:"] };
@@ -87,7 +92,7 @@ const BACKUP_IN_A_ROOT: FsRootRules = { paths: ["dbPath", "to"], required: ["dbP
 const dbPathField = z
   .string()
   .optional()
-  .describe("The SQLite database file (default: the CLI log database, ~/logs/cli/cli.db). A query does not make a missing file.");
+  .describe("The SQLite database file (default: the CLI log database, ~/logs/cli/cli.db). A query does not make a missing file, and a write makes it.");
 const paramsField = z
   .array(z.unknown())
   .optional()
@@ -158,11 +163,8 @@ const logsQueryOutputSchema: z.ZodType<LogsQueryOutput> = z.looseObject({
 // Log Table Migrations
 // =============================================================================
 
-const LOG_MIGRATIONS: Migration[] = [
-  {
-    version: 1,
-    description: "Create logs table",
-    up: `
+/** The SQL of the logs table: the version 1 of the log migrations. The file format is the format of earlier versions. */
+const LOG_TABLE_SQL = `
       CREATE TABLE IF NOT EXISTS logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         timestamp TEXT NOT NULL DEFAULT (datetime('now')),
@@ -179,18 +181,68 @@ const LOG_MIGRATIONS: Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level);
       CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp);
       CREATE INDEX IF NOT EXISTS idx_logs_command ON logs(command);
-    `,
-    down: "DROP TABLE IF EXISTS logs;",
-  },
-];
+    `;
 
 /**
- * Ensure the logs table exists
+ * This function makes the logs table when the file does not have it, in the transaction of the caller. The table
+ * `_migrations` records the version 1, as in earlier versions of this package, so a file of an earlier version
+ * opens with its logs.
  */
-async function ensureLogsTable(dbPath: string): Promise<void> {
-  await withConnection({ dbPath }, (db) => {
-    runMigrations(db, LOG_MIGRATIONS);
-  });
+function ensureLogsTable(db: DatabaseSync): void {
+  db.exec(
+    "CREATE TABLE IF NOT EXISTS _migrations (version INTEGER PRIMARY KEY, description TEXT NOT NULL, applied_at TEXT NOT NULL DEFAULT (datetime('now')))",
+  );
+  if (rowsOf(db, "SELECT 1 FROM _migrations WHERE version = 1").length > 0) return;
+  db.exec(LOG_TABLE_SQL);
+  db.prepare("INSERT INTO _migrations (version, description) VALUES (?, ?)").run(1, "Create logs table");
+}
+
+/** True when the database has a table of the name. */
+function tableExists(db: DatabaseSync, name: string): boolean {
+  return rowsOf(db, "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", [name]).length > 0;
+}
+
+/** `sqlite.query`: a missing file reads as an empty database, the connection only reads, and the guard is on. */
+const QUERY_MODE: OpenMode = { procedure: "sqlite.query", missing: "empty", queryOnly: true, callerSql: true };
+/** `sqlite.execute`: a missing file is made, and the guard is on. */
+const EXECUTE_MODE: OpenMode = { procedure: "sqlite.execute", missing: "make", queryOnly: false, callerSql: true };
+/** `logs.store`: a missing file is made. The procedure runs only its own SQL. */
+const LOGS_STORE_MODE: OpenMode = { procedure: "logs.store", missing: "make", queryOnly: false, callerSql: false };
+/** `logs.query`: the connection only reads. The procedure runs only its own SQL. */
+const LOGS_QUERY_MODE: OpenMode = { procedure: "logs.query", missing: "empty", queryOnly: true, callerSql: false };
+
+/**
+ * This function runs the SQL text of `sqlite.execute`, and gives the number of rows that it changed.
+ *
+ * - One statement runs alone with its params. Thus a `VACUUM` or a pragma works.
+ * - A script of several statements takes no params. It runs in one transaction: all its statements take effect, or none
+ *   does.
+ * - A script that starts with `BEGIN` (or another statement that controls a transaction) runs as written. It controls
+ *   its own transactions. After an error, the procedure rolls back the open transaction.
+ */
+function executeSql(sqlite: Sqlite, db: DatabaseSync, sql: string, params: readonly SqlParam[]): number {
+  const label = "sqlite.execute";
+  const { count, firstControls } = countStatements(sqlite, db, sql);
+  if (count === 0) throw new Error(`${label}: the SQL has no statement`);
+  if (count === 1) {
+    const before = totalChanges(db);
+    runStatement(db.prepare(sql), params);
+    return totalChanges(db) - before;
+  }
+  if (params.length > 0) {
+    throw new Error(`${label}: the params bind to one statement, and the SQL has several. Send one statement for each call.`);
+  }
+  if (!firstControls) return sqlite.transaction(db, () => runStatements(sqlite, db, sql, [], label).changes);
+  try {
+    return runStatements(sqlite, db, sql, [], label, "allow").changes;
+  } catch (error) {
+    try {
+      if (db.isTransaction) db.exec("ROLLBACK");
+    } catch {
+      // SQLite ended the transaction already
+    }
+    throw error;
+  }
 }
 
 // =============================================================================
@@ -209,16 +261,12 @@ const sqliteQueryProcedure = createProcedure()
     fsRoot: DATABASE_IN_A_ROOT,
   })
   .handler(async (input: DbQueryInput): Promise<DbQueryOutput> => {
-    const dbPath = input.dbPath ?? DEFAULT_DB_PATH;
-    const params = input.params ?? [];
-
-    return withConnection({ dbPath }, (db) => {
-      db.run("PRAGMA query_only = 1");
-      const result = query(db, input.sql, params);
-      return {
-        columns: result.columns,
-        rows: result.rows,
-      };
+    const params = toSqlParams(input.params, "sqlite.query");
+    return withDatabase(databasePath(input.dbPath), QUERY_MODE, (db) => {
+      // Only the first statement of the text runs
+      const statement = db.prepare(input.sql);
+      const columns = statement.columns().map((column) => column.name);
+      return { columns, rows: statement.all(...params) as Record<string, unknown>[] };
     });
   })
   .build();
@@ -237,13 +285,8 @@ const sqliteExecuteProcedure = createProcedure()
     fsRoot: DATABASE_IN_A_ROOT,
   })
   .handler(async (input: DbExecuteInput): Promise<DbExecuteOutput> => {
-    const dbPath = input.dbPath ?? DEFAULT_DB_PATH;
-    const params = input.params ?? [];
-
-    return withConnection({ dbPath }, (db) => {
-      const result = execute(db, input.sql, params);
-      return { changes: result.changes };
-    });
+    const params = toSqlParams(input.params, "sqlite.execute");
+    return withDatabase(databasePath(input.dbPath), EXECUTE_MODE, (db, sqlite) => ({ changes: executeSql(sqlite, db, input.sql, params) }));
   })
   .build();
 
@@ -262,37 +305,33 @@ const logsStoreProcedure = createProcedure()
     fsRoot: DATABASE_IN_A_ROOT,
   })
   .handler(async (input: LogsStoreInput): Promise<LogsStoreOutput> => {
-    const dbPath = input.dbPath ?? DEFAULT_DB_PATH;
+    const dbPath = databasePath(input.dbPath);
 
     // Validate log level
     if (!LOG_LEVELS.includes(input.level)) {
       throw new Error(`Invalid log level: ${input.level}`);
     }
 
-    // Ensure table exists
-    await ensureLogsTable(dbPath);
-
-    return withConnection({ dbPath }, (db) => {
-      const dataJson = input.data ? JSON.stringify(input.data) : null;
-
-      execute(
-        db,
-        `INSERT INTO logs (level, message, data, session_id, command, context, error_stack)
+    return withDatabase(dbPath, LOGS_STORE_MODE, (db, sqlite) =>
+      sqlite.transaction(db, () => {
+        ensureLogsTable(db);
+        const result = db
+          .prepare(
+            `INSERT INTO logs (level, message, data, session_id, command, context, error_stack)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [
-          input.level,
-          input.message,
-          dataJson,
-          input.sessionId ?? null,
-          input.command ?? null,
-          input.context ?? null,
-          input.errorStack ?? null,
-        ]
-      );
-
-      const id = lastInsertRowId(db);
-      return { id };
-    });
+          )
+          .run(
+            input.level,
+            input.message,
+            input.data ? JSON.stringify(input.data) : null,
+            input.sessionId ?? null,
+            input.command ?? null,
+            input.context ?? null,
+            input.errorStack ?? null,
+          );
+        return { id: Number(result.lastInsertRowid) };
+      }),
+    );
   })
   .build();
 
@@ -327,15 +366,12 @@ const logsQueryProcedure = createProcedure()
     fsRoot: DATABASE_IN_A_ROOT,
   })
   .handler(async (input: LogsQueryInput): Promise<LogsQueryOutput> => {
-    const dbPath = input.dbPath ?? DEFAULT_DB_PATH;
-
-    return withConnection({ dbPath }, (db) => {
+    return withDatabase(databasePath(input.dbPath), LOGS_QUERY_MODE, (db) => {
       if (!tableExists(db, "logs")) {
         return { logs: [] };
       }
-      db.run("PRAGMA query_only = 1");
       const conditions: string[] = [];
-      const params: unknown[] = [];
+      const params: SqlParam[] = [];
 
       if (input.sessionId !== undefined) {
         conditions.push("session_id = ?");
@@ -381,7 +417,7 @@ const logsQueryProcedure = createProcedure()
         ${offsetClause}
       `;
 
-      const result = query<{
+      const rows = rowsOf<{
         id: number;
         timestamp: string;
         level: string;
@@ -393,8 +429,8 @@ const logsQueryProcedure = createProcedure()
         error_stack: string | null;
       }>(db, sql, params);
 
-      const logs: LogEntry[] = result.rows.map((row) => ({
-        id: row.id,
+      const logs: LogEntry[] = rows.map((row) => ({
+        id: Number(row.id),
         timestamp: row.timestamp,
         level: row.level as LogLevel,
         message: row.message,
@@ -407,12 +443,8 @@ const logsQueryProcedure = createProcedure()
 
       // Total number of rows matching the filters, ignoring LIMIT/OFFSET, so
       // callers can paginate. `params` holds only the WHERE-clause bindings.
-      const countResult = query<{ total: number }>(
-        db,
-        `SELECT COUNT(*) AS total FROM logs ${whereClause}`,
-        params
-      );
-      const total = countResult.rows[0]?.total ?? 0;
+      const counted = rowsOf<{ total: number }>(db, `SELECT COUNT(*) AS total FROM logs ${whereClause}`, params);
+      const total = Number(counted[0]?.total ?? 0);
 
       return { logs, total };
     });

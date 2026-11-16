@@ -6,10 +6,7 @@
 
 ## . (dist/index.d.ts): names
 
-type ConnectionCallback: @mark1russell7/docker-sqlite#ConnectionCallback (external)
-type ConnectionConfig: @mark1russell7/docker-sqlite#ConnectionConfig (external)
 DEFAULT_DB_PATH: dist/types.d.ts#DEFAULT_DB_PATH
-type Database: @mark1russell7/docker-sqlite#Database (external)
 type DbBackupInput: dist/types.d.ts#DbBackupInput
 type DbBackupOutput: dist/types.d.ts#DbBackupOutput
 type DbColumnInfo: dist/types.d.ts#DbColumnInfo
@@ -31,7 +28,6 @@ type DbTablesInput: dist/types.d.ts#DbTablesInput
 type DbTablesOutput: dist/types.d.ts#DbTablesOutput
 type DbTransactionInput: dist/types.d.ts#DbTransactionInput
 type DbTransactionOutput: dist/types.d.ts#DbTransactionOutput
-type ExecuteResult: @mark1russell7/docker-sqlite#ExecuteResult (external)
 LOG_LEVELS: dist/types.d.ts#LOG_LEVELS
 type LogEntry: dist/types.d.ts#LogEntry
 type LogLevel: dist/types.d.ts#LogLevel
@@ -40,32 +36,18 @@ type LogsQueryOutput: dist/types.d.ts#LogsQueryOutput
 type LogsStoreInput: dist/types.d.ts#LogsStoreInput
 type LogsStoreOutput: dist/types.d.ts#LogsStoreOutput
 MEMORY_PATH: dist/engines.d.ts#MEMORY_PATH
-type Migration: @mark1russell7/docker-sqlite#Migration (external)
-type MigrationStatus: @mark1russell7/docker-sqlite#MigrationStatus (external)
-type QueryResult: @mark1russell7/docker-sqlite#QueryResult (external)
 type SqliteEngine: dist/engines.d.ts#SqliteEngine
 type SqliteEngineName: dist/engines.d.ts#SqliteEngineName
 SqliteStorage: dist/storage.d.ts#SqliteStorage
 type SqliteStorageOptions: dist/storage.d.ts#SqliteStorageOptions
 checkTableName: dist/storage.d.ts#checkTableName
-createConnection: @mark1russell7/docker-sqlite#createConnection (external)
-createMigration: @mark1russell7/docker-sqlite#createMigration (external)
 dbBackup: dist/procedures/db/backup.d.ts#dbBackup
 dbMigrate: dist/procedures/db/migrate.d.ts#dbMigrate
 dbSchema: dist/procedures/db/schema.d.ts#dbSchema
 dbTables: dist/procedures/db/tables.d.ts#dbTables
 dbTransaction: dist/procedures/db/transaction.d.ts#dbTransaction
-execMultiple: @mark1russell7/docker-sqlite#execMultiple (external)
-execute: @mark1russell7/docker-sqlite#execute (external)
-getMigrationStatus: @mark1russell7/docker-sqlite#getMigrationStatus (external)
 isNodeSqliteAvailable: dist/engines.d.ts#isNodeSqliteAvailable
-lastInsertRowId: @mark1russell7/docker-sqlite#lastInsertRowId (external)
-query: @mark1russell7/docker-sqlite#query (external)
 registerSqliteProcedures: dist/module.d.ts#registerSqliteProcedures
-rollbackMigration: @mark1russell7/docker-sqlite#rollbackMigration (external)
-runMigrations: @mark1russell7/docker-sqlite#runMigrations (external)
-tableExists: @mark1russell7/docker-sqlite#tableExists (external)
-withConnection: @mark1russell7/docker-sqlite#withConnection (external)
 
 ## ./module (dist/module.d.ts): names
 
@@ -97,7 +79,7 @@ export declare const MEMORY_PATH = ":memory:";
 export type SqliteEngine = "auto" | SqliteEngineName;
 
 ### dist/engines.d.ts#SqliteEngineName
-export type SqliteEngineName = "node" | "sqljs";
+export type SqliteEngineName = "node";
 
 ### dist/engines.d.ts#isNodeSqliteAvailable
 export declare function isNodeSqliteAvailable(): Promise<boolean>;

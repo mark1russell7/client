@@ -379,7 +379,7 @@ export const DbMigrateOutputSchema: z.ZodType<DbMigrateOutput> = z.looseObject({
 export interface DbBackupInput {
   /** The new file. The procedure does not replace a file. */
   to: string;
-  /** Also compact the copy (VACUUM): it leaves out the free pages */
+  /** @deprecated This option has no effect since version 0.61.0: the copy is always compact. A later minor version removes it. */
   vacuum?: boolean | undefined;
   dbPath?: string | undefined;
 }
@@ -393,7 +393,7 @@ export interface DbBackupOutput {
 
 export const DbBackupInputSchema: z.ZodType<DbBackupInput> = z.object({
   to: z.string().min(1).describe("The new file. The procedure does not replace a file."),
-  vacuum: z.boolean().optional().describe("Also compact the copy (VACUUM): it leaves out the free pages"),
+  vacuum: z.boolean().optional().describe("Deprecated, with no effect: the copy is always compact. A later minor version removes it."),
   dbPath,
 });
 
