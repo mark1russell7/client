@@ -12,7 +12,7 @@
  * A request holds the credentials in its `authorization` header. Do not log a request or its headers.
  */
 
-import { escapeHtml } from "@mark1russell7/text";
+import { escapeAttribute, escapeHtml } from "@mark1russell7/text";
 import { callApi, type ApiFetch } from "./call.js";
 
 /** The base of the Twilio REST API. */
@@ -83,6 +83,32 @@ export interface TwilioCall {
   readonly limitMs?: number | undefined;
   /** An address on the internet that gets a POST when the call ends. */
   readonly statusCallback?: string | undefined;
+}
+
+/** The voice of each `<Say>` of a TwiML. Without a field, Twilio uses its default. */
+export interface TwilioVoice {
+  /** The voice of Twilio, for example `Polly.Joanna` or `alice`. */
+  readonly voice?: string | undefined;
+  /** The language of the text, as a language tag: for example `en-US`. */
+  readonly language?: string | undefined;
+}
+
+/** A `<Gather>` that says a text and waits for the keys of the person. Its voice is the voice of each `<Say>`. */
+export interface TwilioGather extends TwilioVoice {
+  /** The http or https address that gets the keys. Twilio sends them in the field `Digits`. */
+  readonly action: string;
+  /** The method of the request to `action`. The default is `POST`. */
+  readonly method?: "POST" | "GET" | undefined;
+  /** The count of keys to wait for, 1 to 10. The default is 1. */
+  readonly digits?: number | undefined;
+  /** The wait for a key after the text, 1 to 60 seconds. The default is 5 seconds. */
+  readonly timeoutMs?: number | undefined;
+  /** The count of the text in the gather, 1 to 10, with a pause of one second between two. The default is 1. */
+  readonly repeats?: number | undefined;
+  /** The text to say after the gather, when no key came. Then the TwiML ends, and the call ends. */
+  readonly after?: string | undefined;
+  /** When it is true, Twilio also sends a request to `action` when no key came. The default is false. */
+  readonly actionOnEmptyResult?: boolean | undefined;
 }
 
 /** One call of the Twilio API. Its fields fit the `init` of `fetch`. */
@@ -181,6 +207,17 @@ export interface TwilioCallRead {
   readonly durationMs?: number;
   readonly startedAt?: number;
   readonly endedAt?: number;
+}
+
+/** The balance of an account: the answer of `twilioBalanceRequest`. */
+export interface TwilioBalanceRead {
+  readonly ok: true;
+  /** The balance in the currency of the account, for example `1.83164`. It is below 0 when the account owes money. */
+  readonly balance: number;
+  /** The balance as the decimal text of Twilio. It keeps each digit. */
+  readonly balanceText: string;
+  /** The currency of the account, as the code of ISO 4217: for example `USD`. */
+  readonly currency: string;
 }
 
 // =============================================================================
@@ -309,21 +346,69 @@ export function twilioEndCallRequest(credentials: TwilioCredentials, sid: string
   return post(credentials, `/Calls/${sid}.json`, { Status: end });
 }
 
+/**
+ * This function gives the request that reads the balance of the account. With the auto recharge off,
+ * the balance is the most that the account can spend. A send fails when the balance is empty.
+ */
+export function twilioBalanceRequest(credentials: TwilioCredentials): TwilioRequest {
+  return get(credentials, "/Balance.json");
+}
+
 /** The characters that XML 1.0 does not permit, other than the tab, the line feed and the carriage return. */
 const NOT_XML = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffe\uffff]/g;
+
+const VOICE = /^[A-Za-z0-9._-]{1,100}$/;
+const LANGUAGE = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
+
+/** This function gives one `<Say>` of a text. It escapes the text and the attributes. */
+function sayOf(text: string, voice: TwilioVoice): string {
+  if (text.trim() === "") throw new Error("The text to say is empty.");
+  if (voice.voice !== undefined && !VOICE.test(voice.voice)) throw new Error("The voice is not 1 to 100 letters, digits, dots, dashes and underscores.");
+  if (voice.language !== undefined && !LANGUAGE.test(voice.language)) throw new Error("The language is not a language tag, for example en-US.");
+  const attributes = `${voice.voice === undefined ? "" : ` voice="${escapeAttribute(voice.voice)}"`}${voice.language === undefined ? "" : ` language="${escapeAttribute(voice.language)}"`}`;
+  return `<Say${attributes}>${escapeHtml(text.replace(NOT_XML, " "))}</Say>`;
+}
+
+/** This function gives a `<Say>` `repeats` times (1 to 10), with a pause of one second between two repeats. */
+function repeated(say: string, repeats: number): string {
+  if (!(Number.isInteger(repeats) && repeats >= 1 && repeats <= 10)) throw new Error("The count of repeats is not 1 to 10.");
+  return Array.from({ length: repeats }, () => say).join('<Pause length="1"/>');
+}
+
+/** This function gives the TwiML document of the verbs. It throws an error when the TwiML has more than 4000 characters. */
+function twimlOf(verbs: string): string {
+  const twiml = `<?xml version="1.0" encoding="UTF-8"?><Response>${verbs}</Response>`;
+  if (twiml.length > TWILIO_LIMITS.twiml) throw new Error(`The TwiML has more than ${TWILIO_LIMITS.twiml} characters.`);
+  return twiml;
+}
 
 /**
  * This function gives the TwiML that says a text, `repeats` times (1 to 10) with a pause of one second
  * between two repeats. It escapes the text, and it changes each character that XML does not permit to
  * a space. It throws an error when the TwiML has more than 4000 characters.
  */
-export function twilioSayTwiml(text: string, repeats = 1): string {
-  if (text.trim() === "") throw new Error("The text to say is empty.");
-  if (!(Number.isInteger(repeats) && repeats >= 1 && repeats <= 10)) throw new Error("The count of repeats is not 1 to 10.");
-  const say = `<Say>${escapeHtml(text.replace(NOT_XML, " "))}</Say>`;
-  const twiml = `<?xml version="1.0" encoding="UTF-8"?><Response>${Array.from({ length: repeats }, () => say).join('<Pause length="1"/>')}</Response>`;
-  if (twiml.length > TWILIO_LIMITS.twiml) throw new Error(`The TwiML has more than ${TWILIO_LIMITS.twiml} characters.`);
-  return twiml;
+export function twilioSayTwiml(text: string, repeats = 1, voice: TwilioVoice = {}): string {
+  return twimlOf(repeated(sayOf(text, voice), repeats));
+}
+
+/**
+ * This function gives the TwiML that says a text in a `<Gather>` and waits for the keys of the person.
+ *
+ * - Twilio sends the keys to `action` in the field `Digits`. A key during the text also counts.
+ * - With no key, Twilio says `after`. Then the TwiML ends, and the call ends.
+ * - It escapes the texts and the action address. It throws an error for an input that breaks a rule of the API.
+ */
+export function twilioGatherTwiml(text: string, gather: TwilioGather): string {
+  assertAddress(gather.action, "action of the gather");
+  const method = gather.method ?? "POST";
+  if (method !== "POST" && method !== "GET") throw new Error(`${String(method)} is not a method of a gather.`);
+  const digits = gather.digits ?? 1;
+  if (!(Number.isInteger(digits) && digits >= 1 && digits <= 10)) throw new Error("The count of keys is not 1 to 10.");
+  const timeout = seconds(gather.timeoutMs ?? 5_000, 1, 60, "wait for a key");
+  const empty = gather.actionOnEmptyResult === true ? ' actionOnEmptyResult="true"' : "";
+  const open = `<Gather input="dtmf" numDigits="${digits}" timeout="${timeout}" action="${escapeAttribute(gather.action)}" method="${method}"${empty}>`;
+  const after = gather.after === undefined ? "" : sayOf(gather.after, gather);
+  return twimlOf(`${open}${repeated(sayOf(text, gather), gather.repeats ?? 1)}</Gather>${after}`);
 }
 
 // =============================================================================
@@ -444,6 +529,23 @@ export function extractTwilioCall(response: TwilioResponse): TwilioCallRead | Tw
     ...some("startedAt", date(body["start_time"])),
     ...some("endedAt", date(body["end_time"])),
   };
+}
+
+const DECIMAL = /^-?[0-9]+(\.[0-9]+)?$/;
+const CURRENCY = /^[A-Z]{3}$/;
+
+/** Twilio gives the balance as decimal text. This function also accepts a finite number. */
+const decimal = (value: unknown): string | undefined =>
+  typeof value === "string" && DECIMAL.test(value) ? value : typeof value === "number" && Number.isFinite(value) ? String(value) : undefined;
+
+/** This function reads the response of `twilioBalanceRequest`. It does not throw. */
+export function extractTwilioBalance(response: TwilioResponse): TwilioBalanceRead | TwilioFailure {
+  const sorted = sort(response);
+  if (!sorted.ok) return sorted;
+  const balanceText = decimal(sorted.body["balance"]);
+  const currency = text(sorted.body["currency"]);
+  if (balanceText === undefined || currency === undefined || !CURRENCY.test(currency)) return failure("server", response, undefined, "The answer of Twilio has no balance or no currency.");
+  return { ok: true, balance: Number(balanceText), balanceText, currency };
 }
 
 // =============================================================================
