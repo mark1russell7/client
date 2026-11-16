@@ -118,6 +118,53 @@ function nextOrStop<T>(iterator: AsyncIterator<T>, stop: AbortSignal): Promise<I
 }
 
 /**
+ * The outcome of `readLastItem`. `items` is the count of the items before the outcome.
+ *
+ * - `end`: the iterator ended by itself. `last` holds the last item, or is `undefined` for no item.
+ * - `stopped`: the stop signal aborted before the end.
+ * - `error`: the `next()` of the iterator threw `error`.
+ */
+export type LastItemRead =
+  | { readonly outcome: "end"; readonly last: { readonly value: unknown } | undefined; readonly items: number }
+  | { readonly outcome: "stopped"; readonly items: number }
+  | { readonly outcome: "error"; readonly error: unknown; readonly items: number };
+
+/**
+ * This function reads a stream to its end and keeps the last item: the "sponge" mode of a client
+ * without NDJSON. The stop signal ends the read, also while `next()` waits. A read that stops
+ * before the end gives `return()` to the iterator, as `writeNdjsonStream` does. The promise does
+ * not reject.
+ */
+export async function readLastItem(items: AsyncIterable<unknown>, stop: AbortSignal): Promise<LastItemRead> {
+  const iterator = items[Symbol.asyncIterator]();
+  /** True when the iterator ended by itself: at its end, or with an error */
+  let ended = false;
+  let count = 0;
+  let last: { value: unknown } | undefined;
+  try {
+    for (;;) {
+      let next: IteratorResult<unknown> | undefined;
+      try {
+        next = await nextOrStop(iterator, stop);
+      } catch (error) {
+        ended = true;
+        return { outcome: "error", error, items: count };
+      }
+      if (next === undefined) return { outcome: "stopped", items: count };
+      if (next.done) {
+        ended = true;
+        return { outcome: "end", last, items: count };
+      }
+      count++;
+      last = { value: next.value };
+    }
+  } finally {
+    // A pending next() keeps the return() waiting, so the read does not wait for it
+    if (!ended) void Promise.resolve().then(() => iterator.return?.()).catch(() => undefined);
+  }
+}
+
+/**
  * This function waits until the response can take more data: the `drain` event. A closed
  * connection or the stop signal also ends the wait (deep dive TRN-3).
  */
