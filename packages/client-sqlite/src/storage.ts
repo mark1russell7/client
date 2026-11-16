@@ -82,8 +82,9 @@ export interface SqliteStorageOptions<T = unknown> {
    * - `node`: the module `node:sqlite` of Node.js 22.13 or later. It writes only the changes, and
    *   the file is in WAL mode. Two processes can use one file.
    * - `sqljs`: sql.js, SQLite in WebAssembly. It keeps the database in memory, and it writes the
-   *   whole file after a write.
-   * - `auto`: `node` when Node.js has `node:sqlite`, and else `sqljs`.
+   *   whole file after a write. This engine is deprecated, and version 0.61.0 removes it. Its first
+   *   open in a process shows a `DeprecationWarning` with the code `PROCEDURES_SQLITE_SQLJS`.
+   * - `auto`: `node` when Node.js has `node:sqlite`, and else `sqljs`, with the same warning.
    *
    * The storages of one file in one process share one database, and thus one engine. The first
    * storage of the file sets it. A storage with another engine than `auto` refuses a database

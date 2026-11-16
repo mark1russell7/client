@@ -54,6 +54,26 @@ describe("SqliteStorage when the import of node:sqlite fails", () => {
     // close() of a storage whose open failed resolves
     await storage.close();
   });
+
+  it("the engine auto gives one DeprecationWarning in a process, with the Node.js version", async () => {
+    // A new copy of the module starts with no warning. The mock of node:sqlite stays.
+    vi.resetModules();
+    const emit = vi.spyOn(process, "emitWarning").mockImplementation(() => undefined);
+    try {
+      const engines = await import("./engines.js");
+      for (let open = 0; open < 2; open += 1) {
+        (await engines.openEngine(engines.MEMORY_PATH, "auto", 1_000)).close();
+      }
+      const warnings = emit.mock.calls
+        .filter(([, options]) => typeof options === "object" && options.code === "PROCEDURES_SQLITE_SQLJS")
+        .map(([warning]) => String(warning));
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain(`This Node.js (${process.version}) has no node:sqlite`);
+      expect(warnings[0]).toMatch(/0\.61\.0/);
+    } finally {
+      emit.mockRestore();
+    }
+  });
 });
 
 // sql.js writes the whole file after each write. On a Windows runner the case of 80 random writes

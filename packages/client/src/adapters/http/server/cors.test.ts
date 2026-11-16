@@ -29,8 +29,8 @@ afterEach(async () => {
   cleanups = [];
 });
 
-/** A procedure server over HTTP with the CORS of the page `APP`. */
-async function start(allowedHeaders?: string[]): Promise<number> {
+/** A procedure server over HTTP with the CORS of the page `APP`, or of the origins `origin`. */
+async function start(allowedHeaders?: string[], origin: string | string[] = [APP]): Promise<number> {
   const registry = createRegistry({
     name: "t",
     procedures: [
@@ -47,7 +47,7 @@ async function start(allowedHeaders?: string[]): Promise<number> {
   server.registerFromRegistry();
   const app = express();
   const http = createServer(app);
-  const corsOptions = allowedHeaders === undefined ? { origin: [APP] } : { origin: [APP], allowedHeaders };
+  const corsOptions = allowedHeaders === undefined ? { origin } : { origin, allowedHeaders };
   server.addTransport(new HttpServerTransport(server, { app, httpServer: http, cors: true, corsOptions }));
   await server.start();
   await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", () => resolve()));
@@ -145,5 +145,20 @@ describe("the CORS of the request headers of HttpTransport", () => {
     expect(answer.headers["access-control-allow-origin"]).toBe(APP);
     expect(namesOf(answer.headers["access-control-expose-headers"])).toEqual(DEFAULT_CORS_EXPOSED_HEADERS.map((name) => name.toLowerCase()));
     expect(DEFAULT_CORS_EXPOSED_HEADERS).toEqual(["Procedures-Protocol", "Procedures-Batch", "Retry-After"]);
+  });
+});
+
+describe("the credentials of the CORS of HttpServerTransport", () => {
+  it("sends Access-Control-Allow-Credentials for a named origin, and not for the origin \"*\"", async () => {
+    const named = await start();
+    const any = await start(undefined, "*");
+    const answers = [await preflight(named, ["content-type"]), await preflight(any, ["content-type"])];
+    expect(answers.map((answer) => [answer.status, answer.headers["access-control-allow-origin"], answer.headers["access-control-allow-credentials"]])).toEqual([
+      [204, APP, "true"],
+      [204, "*", undefined],
+    ]);
+    const call = { origin: APP, "content-type": "application/json", "procedures-batch": "1" };
+    const calls = [await send(named, "POST", call), await send(any, "POST", call)];
+    expect(calls.map((answer) => answer.headers["access-control-allow-credentials"])).toEqual(["true", undefined]);
   });
 });

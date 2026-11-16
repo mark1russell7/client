@@ -29,32 +29,38 @@ function Badges({ procedure }: { procedure: ProcedureSummary }): ReactElement {
   );
 }
 
+/**
+ * This component shows the fields of a schema in a table. At phone width, the CSS shows each field
+ * as a block. The roles keep the table for a screen reader. Each cell after the type has a label.
+ */
 function SchemaTable({ schema, fields, label }: { schema: JsonSchema; fields: ProcedureInfo["fields"]; label: string }): ReactElement {
   if (fields && fields.length > 0) {
     return (
       <div className="table-wrap scroll-cue" tabIndex={0} role="region" aria-label={label}>
-      <table className="schema">
-        <thead>
-          <tr>
-            <th>Field</th>
-            <th>Type</th>
-            <th>Required</th>
-          </tr>
-        </thead>
-        <tbody>
-          {fields.map((field) => (
-            <tr key={field.name}>
-              <td>
-                <code>{field.name}</code>
-              </td>
-              <td>
-                <code>{field.type}</code>
-              </td>
-              <td>{field.optional ? "no" : "yes"}</td>
+        <table className="schema" role="table">
+          <thead role="rowgroup">
+            <tr role="row">
+              <th role="columnheader">Field</th>
+              <th role="columnheader">Type</th>
+              <th role="columnheader">Required</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody role="rowgroup">
+            {fields.map((field) => (
+              <tr key={field.name} role="row">
+                <td role="cell" className="schema-name">
+                  <code>{field.name}</code>
+                </td>
+                <td role="cell" className="schema-type">
+                  <code>{field.type}</code>
+                </td>
+                <td role="cell" data-label="Required">
+                  {field.optional ? "no" : "yes"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     );
   }
@@ -65,32 +71,38 @@ function SchemaTable({ schema, fields, label }: { schema: JsonSchema; fields: Pr
   const required = new Set(schema.required ?? []);
   return (
     <div className="table-wrap scroll-cue" tabIndex={0} role="region" aria-label={label}>
-    <table className="schema">
-      <thead>
-        <tr>
-          <th>Field</th>
-          <th>Type</th>
-          <th>Required</th>
-          <th>Default</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        {properties.map(([name, property]) => (
-          <tr key={name}>
-            <td>
-              <code>{name}</code>
-            </td>
-            <td>
-              <code>{typeText(property)}</code>
-            </td>
-            <td>{required.has(name) ? "yes" : "no"}</td>
-            <td>{property.default !== undefined ? <code>{JSON.stringify(property.default)}</code> : ""}</td>
-            <td className="small">{property.description ?? ""}</td>
+      <table className="schema" role="table">
+        <thead role="rowgroup">
+          <tr role="row">
+            <th role="columnheader">Field</th>
+            <th role="columnheader">Type</th>
+            <th role="columnheader">Required</th>
+            <th role="columnheader">Default</th>
+            <th role="columnheader">Description</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody role="rowgroup">
+          {properties.map(([name, property]) => (
+            <tr key={name} role="row">
+              <td role="cell" className="schema-name">
+                <code>{name}</code>
+              </td>
+              <td role="cell" className="schema-type">
+                <code>{typeText(property)}</code>
+              </td>
+              <td role="cell" data-label="Required">
+                {required.has(name) ? "yes" : "no"}
+              </td>
+              <td role="cell" data-label="Default">
+                {property.default !== undefined ? <code>{JSON.stringify(property.default)}</code> : ""}
+              </td>
+              <td role="cell" data-label="Description" className="small">
+                {property.description ?? ""}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
