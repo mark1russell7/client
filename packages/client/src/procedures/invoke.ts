@@ -186,6 +186,12 @@ export interface InvokeOptions {
    */
   admitItem?: AdmitItem | undefined;
   /**
+   * The admission of each nested call: an invocation at the depth 1 or more. It runs after the
+   * check of the capability and before the validation of the input. It throws to refuse the call. A
+   * server gives its limits here. The nested calls get it too.
+   */
+  admitNested?: ((invocation: Invocation) => Promise<void> | void) | undefined;
+  /**
    * The principal of the call, from the authentication of the host. It goes to `ctx.principal`,
    * to the invocation and to the nested calls.
    */
@@ -467,10 +473,17 @@ async function runInvocation<TOutput>(invocation: Invocation, options: InvokeOpt
 
   // The admission: before the input validation, so a refused call learns nothing from its input
   const parent = invocation.parent;
-  if (!parent || examinesNestedCall(parent.procedure, parent.capability, invocation.capability)) {
+  if (!parent || examinesNestedCall(parent.procedure, parent.capability, invocation.capability, procedure)) {
     const refusal = capabilityRefusal(procedure, invocation.capability);
     if (refusal?.reason === "deadline") throw new InvocationError("TIMEOUT", refusal.message, path);
     if (refusal) throw new InvocationError("FORBIDDEN", refusal.message, path, refusal.reason);
+  }
+  // The admission of a nested call by the host, for example its limits. A call of the host passed
+  // the admission of its face. Without a promise, the handler starts before an await.
+  if (parent && options.admitNested) {
+    const admitted = options.admitNested(invocation);
+    if (admitted) await admitted;
+    if (options.signal?.aborted) throw abortError(path);
   }
 
   let data: unknown = input;

@@ -43,7 +43,7 @@ const options: ConstructorParameters<typeof Stryker>[0] = {
   htmlReporter: { fileName: "reports/mutation/index.html" },
   jsonReporter: { fileName: "reports/mutation/mutation.json" },
   // The floor comes from measured runs, not from a number set by feel (roadmap O85). The rule of
-  // the strategist (2026-11-02, roadmap O88): the floor is the worst of the last 5 runs minus their
+  // the maintainer (2026-11-02, roadmap O88): the floor is the worst of the last 5 runs minus their
   // spread, rounded down to 0.1. The rule has no factor and no fixed margin.
   // The nightly runs on main (scheduled) and run 41366212710 (a full dispatch):
   //   40265089062 (2026-10-26) 88.07, 40444986317 (10-27) 88.36, 40626675823 (10-28) 88.36,

@@ -38,6 +38,7 @@ import {
   type ProcedureRegistry,
 } from "@procedures/client";
 import { inRoot, outsideRoot, resolveRoot, type ResolvedRoot } from "./root.js";
+import { holdRoots, type RootHoldMode } from "./root-hold.js";
 
 /** What a root does to a procedure. */
 export type RootKind = "fs" | "confined" | "program" | "refused" | "unchanged";
@@ -119,6 +120,17 @@ export function rootDecisionOf(procedure: Pick<AnyProcedure, "path" | "metadata"
     return { kind: "refused", reason: "it starts a program, and it declares no metadata.fsRoot" };
   }
   return { kind: "unchanged" };
+}
+
+/**
+ * This function gives the hold of the roots of a confined procedure (`root-hold.ts`). A procedure
+ * that writes files or starts a process can make a link, so it holds the roots alone. A procedure
+ * that declares no writes holds them alone too. Each other procedure takes a shared hold.
+ */
+export function rootHoldOf(procedure: Pick<AnyProcedure, "path" | "metadata">): RootHoldMode {
+  const writes = effectsOf(procedure)?.writes;
+  if (writes === undefined) return "exclusive";
+  return writes.includes(FILES) || writes.includes(PROGRAMS) ? "exclusive" : "shared";
 }
 
 /** What `confineToRoot()` did. Each list holds the keys of the procedures. */
@@ -240,15 +252,19 @@ export function confineOtherProcedures(registry: ProcedureRegistry, folder: stri
             `this procedure starts the program of its input. Under the root ${folder}, it runs only as the nested call of a confined procedure that names it in metadata.calls, not for ${from}`,
           );
         }
+        // A program starts only in a confined caller, so it starts in the hold of that caller
         const resolved = await root();
         return original(await confinedInput(input, rules, resolved, procedure.path), withRoot(ctx as ProcedureContext, resolved));
       }) as Handler;
       result.programs.push(key);
     } else {
-      handler = (async (input: unknown, ctx: ProcedureContext) => {
-        const resolved = await root();
-        return original(await confinedInput(input, rules, resolved, procedure.path), withRoot(ctx, resolved));
-      }) as Handler;
+      // The check of the paths and the work of the procedure start in one hold of the roots
+      const hold = rootHoldOf(procedure);
+      handler = (async (input: unknown, ctx: ProcedureContext) =>
+        holdRoots(hold, async () => {
+          const resolved = await root();
+          return original(await confinedInput(input, rules, resolved, procedure.path), withRoot(ctx, resolved));
+        })) as Handler;
       result.confined.push(key);
     }
     registry.register({ ...procedure, handler }, { override: true });

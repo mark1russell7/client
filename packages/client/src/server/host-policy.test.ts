@@ -132,6 +132,12 @@ describe("hostPolicy", () => {
     expect(policy.token).toBe("t");
     expect(policy.browser.allowedOrigins).toEqual(["https://app.example"]);
   });
+
+  it("gives a ProcedureServer the trustBaggage function, and no function without the option (C10)", () => {
+    const trustBaggage = () => true;
+    expect(procedureServerOptions(hostPolicy({ trustBaggage })).trustBaggage).toBe(trustBaggage);
+    expect("trustBaggage" in procedureServerOptions(hostPolicy())).toBe(false);
+  });
 });
 
 /** The first items of a subscription on a server, or the code of its refusal. */

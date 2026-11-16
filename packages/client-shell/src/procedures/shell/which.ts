@@ -4,6 +4,7 @@
  * Find the full path to a command.
  */
 
+import { whichCall } from "../../command/program.js";
 import { runCommand } from "../../command/run.js";
 import type { ShellWhichInput, ShellWhichOutput } from "../../types.js";
 
@@ -16,8 +17,9 @@ export async function shellWhich(
   if (input.command.startsWith("-")) {
     return { path: null, found: false };
   }
-  const program = process.platform === "win32" ? "where" : "which";
-  const result = await runCommand(program, { args: [input.command], signal: ctx?.signal, timeout: 30_000 });
+  // On Windows, only the folders of PATH, as the start of a program by its name
+  const { program, args } = whichCall(input.command);
+  const result = await runCommand(program, { args, signal: ctx?.signal, timeout: 30_000 });
   if (!result.success) {
     return { path: null, found: false };
   }

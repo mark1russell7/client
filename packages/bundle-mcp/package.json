@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/bundle-mcp",
-  "version": "0.52.4",
+  "version": "0.59.0",
   "description": "The curated tool surface for Claude: registers the docker, mongo, sqlite, cue, vitest and workspace procedures and selects which ones an MCP server exposes.",
   "keywords": [
     "mcp",
@@ -29,22 +29,27 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./module": {
       "types": "./dist/module.d.ts",
-      "import": "./dist/module.js"
+      "import": "./dist/module.js",
+      "default": "./dist/module.js"
     },
     "./register": {
       "types": "./dist/register.d.ts",
-      "import": "./dist/register.js"
+      "import": "./dist/register.js",
+      "default": "./dist/register.js"
     },
     "./register.js": {
-      "import": "./dist/register.js"
+      "import": "./dist/register.js",
+      "default": "./dist/register.js"
     }
   },
   "files": [
     "dist",
+    "!dist/.tsbuildinfo",
     "src",
     "!src/**/*.test.ts",
     "!src/**/*.test.tsx",
