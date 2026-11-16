@@ -61,6 +61,7 @@ import { isDeepStrictEqual } from "node:util";
 import { backoffDelay, type Backoff } from "@mark1russell7/service/backoff";
 import { BSON, ObjectId, type AnyBulkWriteOperation, type ChangeStream, type ClientSession, type Collection, type Db, type Document } from "mongodb";
 import { semaphore, type Semaphore } from "@mark1russell7/collections";
+import { canonicalJson } from "@mark1russell7/rigor-generators";
 import { collectionChangeTopic, ms, optionalMs, realClock, writeLog, type Cancel, type Clock, type CollectionChangeEvent, type Duration, type LogFields, type Logger } from "@procedures/client";
 import { DEFAULT_STORED_FORM, DOCUMENT_STORAGE_FIELDS, MongoDocumentStorage, TOMBSTONE_FIELD, storageWriteTarget, type StorageWriteTarget, type StoredForm } from "./document-storage.js";
 import { scopePipeline } from "./pipeline-scope.js";
@@ -465,10 +466,11 @@ function idKey(id: unknown): string {
 
 /**
  * The text that the hash of a row reads (CLI-126): the canonical JSON text of the JSON form of the
- * row. Two rows with the same fields in another order give the same text.
+ * row (`canonicalJson` of `@mark1russell7/rigor-generators`, CLI-128). Two rows with the same
+ * fields in another order give the same text.
  */
 export function hashText(value: unknown): string {
-  return canonical(jsonForm(value));
+  return canonicalJson(jsonForm(value), { form: "json", tags: "typed" });
 }
 
 /**
@@ -489,17 +491,6 @@ function jsonForm(value: unknown): unknown {
   }
   const record = value as Record<string, unknown>;
   return Object.fromEntries(Object.keys(record).map((key) => [key, jsonForm(record[key])]));
-}
-
-/** The canonical text of a JSON value: the keys of each object in order. */
-function canonical(value: unknown): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
-  const record = value as Record<string, unknown>;
-  return `{${Object.keys(record)
-    .sort()
-    .map((key) => `${JSON.stringify(key)}:${canonical(record[key])}`)
-    .join(",")}}`;
 }
 
 /**

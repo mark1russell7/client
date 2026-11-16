@@ -135,6 +135,7 @@
     "@mark1russell7/coeval": "^0.34.0",
     "@mark1russell7/collections": "^0.10.0",
     "@mark1russell7/quantity": "^0.4.0",
+    "@mark1russell7/rigor-generators": "^0.1.19",
     "@mark1russell7/service": "^0.8.3",
     "@opentelemetry/api": "^1.9.0",
     "@types/ws": "^8.18.1",
