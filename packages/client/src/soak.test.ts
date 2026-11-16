@@ -48,6 +48,8 @@ const minutes = Number(process.env["SOAK_MINUTES"] ?? 0);
  * The limits of the soak come from 5 runs of 10 minutes, not from numbers set by feel (roadmap
  * O85). The runs are the matrix of nightly run 41371616323 (2026-11-02, jobs 1 to 5). Each run
  * wrote its values in the line `soak-measure`, and the artifacts soak-measure-1 to -5 keep them.
+ * The two limits of the leak come from nightly run 43826835627 (2026-11-16, jobs 1 to 5, roadmap
+ * O99). Its runs had 4 CPU models: two Intel Xeon models and two AMD EPYC models.
  *
  * The rule of the maintainer (2026-11-02, roadmap O88), which `gateLimit` applies. The spread is
  * the highest run minus the lowest run. The rule has no factor and no fixed margin.
@@ -61,16 +63,16 @@ const minutes = Number(process.env["SOAK_MINUTES"] ?? 0);
  */
 const LIMITS = {
   ws: {
-    // The leak in MB, from the warm-up to the end. PROVISIONAL: the limit of the growth from the cold start, until 5 runs of O99.
-    leakMb: gateLimit([3.1, 2.84, 2.96, 2.82, 2.91], "ceiling", 0.1),
+    // The leak in MB, from the warm-up to the end. 1.62 + (1.62 - 1.12) = 2.12, so 2.2 (O99).
+    leakMb: gateLimit([1.28, 1.62, 1.49, 1.12, 1.28], "ceiling", 0.1),
     // The calls. 961695 - (1096935 - 961695) = 826455, so 826000 (O85: 641000).
     calls: gateLimit([966_963, 1_096_935, 961_695, 1_092_157, 968_772], "floor", 1000),
     // The failures for each reconnect. 0.937 + (0.937 - 0.922) = 0.952, so 0.96 (O85: 1.5).
     failuresPerReconnect: gateLimit([0.937, 0.927, 0.928, 0.922, 0.936], "ceiling", 0.01),
   },
   http: {
-    // The leak in MB, from the warm-up to the end. PROVISIONAL: the limit of the growth from the cold start, until 5 runs of O99.
-    leakMb: gateLimit([4.51, 4.51, 4.5, 4.54, 4.47], "ceiling", 0.1),
+    // The leak in MB, from the warm-up to the end. 0.58 + (0.58 - 0.5) = 0.66, so 0.7 (O99).
+    leakMb: gateLimit([0.5, 0.51, 0.53, 0.53, 0.58], "ceiling", 0.1),
     // The calls. 175003 - (187858 - 175003) = 162148, so 162000 (O85: 116000).
     calls: gateLimit([177_093, 187_858, 175_583, 187_641, 175_003], "floor", 1000),
     // The sums of the 5 runs: their calls and their failures (0). `failureLimit` gives the limit of
