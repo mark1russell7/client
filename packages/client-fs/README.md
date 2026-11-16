@@ -282,11 +282,11 @@ interface ReadInput {
   encoding?: string;         // Default: "utf8"
   offset?: number;           // The first byte of the part. Default: 0
   length?: number;           // The bytes of the part. Default: to the end of the file
-  maxBytes?: number;         // The largest count of bytes to load
+  maxBytes?: number;         // The largest count of bytes to load. Default: 16 MiB
 }
 ```
 
-A part larger than `maxBytes` gives a `RangeError` with the code `ERR_FS_FILE_TOO_LARGE`. Without `maxBytes`, the first read over 16 MiB in a process writes a warning. Version 0.65.0 sets 16 MiB as the default.
+A part larger than `maxBytes` gives a `RangeError` with the code `ERR_FS_FILE_TOO_LARGE`. The default of `maxBytes` is 16 MiB. To read a larger file, give a larger `maxBytes`.
 
 **Output:**
 ```typescript
@@ -673,9 +673,11 @@ console.log(result.data);  // Parsed JSON object
 ```typescript
 interface ReadJsonInput {
   path: string;
-  maxBytes?: number;         // The largest count of bytes to load
+  maxBytes?: number;         // The largest count of bytes to load. Default: 16 MiB
 }
 ```
+
+A file larger than `maxBytes` gives a `RangeError` with the code `ERR_FS_FILE_TOO_LARGE`.
 
 **Output:**
 ```typescript

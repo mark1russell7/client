@@ -133,6 +133,7 @@ A host controls which procedures its callers reach, also through nested calls. S
 - `expose`: the procedures that the callers of a server can reach.
 - A data-driven procedure (`client.chain`) calls only exposed procedures.
 - A procedure of code declares its nested calls in `metadata.calls`. With `strictCalls`, a procedure that declares nothing calls only exposed procedures.
+- `maxDepth`: the highest depth of a nested call. The default is 64. A deeper call gets `FORBIDDEN` with the reason `depth`.
 - Interceptors run around each invocation and its nested calls: `timeoutInterceptor`, `tracingInterceptor`, `metricsInterceptor`.
 
 #### Traces with OpenTelemetry
