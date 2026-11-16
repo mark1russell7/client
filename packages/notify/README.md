@@ -194,4 +194,25 @@ while (step.step === "poll") {
 
 After `done`, `twilioServerlessDeploymentRequest` deploys the build. After `failed` or `timed-out`, `last` holds the last read.
 
+`twilioServerlessDeploy` deploys a plan with these functions: the service, the environment, the files, the build and the variables. Its ports hold the fetch, the clock and the wait.
+
+- A second deploy of the same plan reads three lists and changes nothing.
+- A change of a variable alone deploys the build of the environment again.
+- A new `version` of the plan uploads the files again. The variable `DEPLOY_VERSION` holds the version of the last deployment.
+- Each step can go again. After a failure, start the deploy again.
+
+```ts
+import { twilioServerlessDeploy } from "@procedures/notify/twilio-serverless";
+
+const result = await twilioServerlessDeploy({ fetch, now: Date.now, sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)) }, credentials, {
+  service: { uniqueName: "my-app", friendlyName: "My app" },
+  environment: { uniqueName: "production", domainSuffix: "prod" },
+  functions: [{ path: "/start", visibility: "public", content: code }],
+  build: { runtime: "node22", dependencies: { twilio: "5.0.0" } },
+  variables: { FROM: from },
+  version: contentHash,
+});
+if (result.ok) console.log(`https://${result.domainName}/start`);
+```
+
 A variable can hold a secret. Do not log a variable request, a variable read or its value.

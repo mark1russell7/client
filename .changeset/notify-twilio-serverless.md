@@ -7,6 +7,7 @@ The new entry `@procedures/notify/twilio-serverless` has pure functions for the 
 - The request builders make a service, a function, an asset and their versions. They also start a build, and make an environment, a variable and a deployment.
 - An upload of a version has a multipart body. Its boundary is pure, so the same input gives the same body.
 - `twilioServerlessBuildStep` gives the next step of the poll of a build. It has no timer.
+- `twilioServerlessDeploy` deploys a plan of files, a build and variables to one environment. A second deploy of the same plan changes nothing.
 - The extractors read each response into a typed result or a `TwilioFailure`. They do not throw.
 - A builder throws an error when the input breaks a rule of the API.
 

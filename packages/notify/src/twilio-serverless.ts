@@ -4,7 +4,7 @@
  * deployments. A request builder gives the URL, the method, the headers and the body of one call. An
  * extractor reads the HTTP status, the headers and the body text of the response into a typed result.
  * Neither function sends a request. `callTwilio` of `./twilio` sends one request through the fetch of
- * the caller.
+ * the caller. `twilioServerlessDeploy` sends the requests of a full deploy through the same fetch.
  *
  * This entry imports no Node built-in, so a browser can also use it.
  *
@@ -27,6 +27,7 @@ import {
   type TwilioRequest,
   type TwilioResponse,
 } from "./twilio-common.js";
+import { callTwilio, type TwilioFetch } from "./twilio.js";
 
 /** The base of the Twilio Serverless API. */
 export const TWILIO_SERVERLESS_API = "https://serverless.twilio.com/v1";
@@ -732,4 +733,241 @@ export function extractTwilioServerlessVariables(response: TwilioResponse): Twil
 /** This function reads the response of `twilioServerlessDeploymentRequest`. It does not throw. */
 export function extractTwilioServerlessDeployment(response: TwilioResponse): TwilioServerlessRead<TwilioServerlessDeployment> | TwilioFailure {
   return one(response, readDeployment, "a deployment");
+}
+
+// =============================================================================
+// The deploy of a service
+// =============================================================================
+
+/** The default name of the variable that holds the version of the last deployment. */
+export const TWILIO_SERVERLESS_VERSION_KEY = "DEPLOY_VERSION";
+
+/** The most pages that the deploy reads of one list. */
+const MAX_PAGES = 100;
+
+/** The plan of a deploy: the files, the build and the variables of one environment of one service. */
+export interface TwilioServerlessDeployPlan {
+  /** The service. The deploy makes it when no service has its unique name. The deploy does not change a service that exists. */
+  readonly service: TwilioServerlessServiceInput;
+  /** The environment. The deploy makes it when the service has no environment with its unique name. */
+  readonly environment: TwilioServerlessEnvironmentInput;
+  /** The functions: one or more. The friendly name of each function is its path. */
+  readonly functions: readonly TwilioServerlessFile[];
+  /** The assets. The friendly name of each asset is its path. */
+  readonly assets?: readonly TwilioServerlessFile[] | undefined;
+  /** The npm packages and the runtime of the build. */
+  readonly build?: Pick<TwilioServerlessBuildInput, "dependencies" | "runtime"> | undefined;
+  /** The variables of the environment. The deploy makes or changes each of them. It removes no variable. */
+  readonly variables?: Readonly<Record<string, string>> | undefined;
+  /**
+   * The version of the files and of the build, for example a content hash. A change of a file or of the
+   * build needs a new version. The deploy uploads no file when the environment has this version.
+   */
+  readonly version: string;
+  /** The variable that holds the version. The default is `TWILIO_SERVERLESS_VERSION_KEY`. */
+  readonly versionKey?: string | undefined;
+}
+
+/** The effects of a deploy. A test gives fakes. */
+export interface TwilioServerlessDeployPorts {
+  readonly fetch: TwilioFetch;
+  /** The clock of the poll of the build, in milliseconds. */
+  readonly now: () => number;
+  /** This port waits between two reads of the status of the build. */
+  readonly sleep: (ms: number) => Promise<void>;
+  /** The time limit of each request. The default is 30 seconds. */
+  readonly timeoutMs?: number | undefined;
+  readonly signal?: AbortSignal | undefined;
+  /** This port gets one line for each change. No line holds the value of a variable. */
+  readonly log?: ((line: string) => void) | undefined;
+}
+
+/** The part of a deploy that failed. */
+export type TwilioServerlessDeployStage = "service" | "environment" | "variables" | "functions" | "assets" | "upload" | "build" | "deployment" | "version";
+
+/** The result of a deploy. */
+export type TwilioServerlessDeployResult =
+  | {
+      readonly ok: true;
+      /** False when the environment already had the version and each variable. Then the deploy changed nothing. */
+      readonly changed: boolean;
+      readonly serviceSid: string;
+      readonly environmentSid: string;
+      /** The domain name of the environment. Each function answers at `https://` and this name and its path. */
+      readonly domainName: string;
+      /** The build that the environment runs. */
+      readonly buildSid: string;
+    }
+  | {
+      readonly ok: false;
+      readonly stage: TwilioServerlessDeployStage;
+      readonly errors: readonly string[];
+      /** The failure of the request, when a request failed. */
+      readonly failure?: TwilioFailure;
+    };
+
+type Failed = Extract<TwilioServerlessDeployResult, { readonly ok: false }>;
+
+/** The error that stops a deploy at a failed step. The deploy catches it and gives its result. */
+class DeployStop extends Error {
+  readonly result: Failed;
+  constructor(result: Failed) {
+    super(result.errors.join(" "));
+    this.result = result;
+  }
+}
+
+/** This function throws an error when the plan breaks a rule. The builders check the rest of each input. */
+function assertPlan(plan: TwilioServerlessDeployPlan, versionKey: string): void {
+  if (plan.functions.length === 0) throw new Error("The plan has no function.");
+  const paths = [...plan.functions, ...(plan.assets ?? [])].map((file) => file.path);
+  if (new Set(paths).size !== paths.length) throw new Error("Two files of the plan have the same path.");
+  named(plan.version, TWILIO_SERVERLESS_LIMITS.variableValueBytes, "version of the plan");
+  named(versionKey, TWILIO_SERVERLESS_LIMITS.variableKey, "key of the version");
+  if (Object.keys(plan.variables ?? {}).includes(versionKey)) throw new Error(`The variables of the plan have the key of the version, ${versionKey}.`);
+}
+
+/**
+ * This function deploys a plan to Twilio Serverless, and it gives the domain name of the environment.
+ * A second deploy of the same plan reads three lists and changes nothing.
+ *
+ * 1. It reads the service by its unique name, or it makes the service.
+ * 2. It reads the environment, or it makes the environment.
+ * 3. It makes or changes each variable of the plan.
+ * 4. When the environment does not have the version, it uploads each file, it starts a build and polls it.
+ * 5. It deploys the build. A change of a variable alone deploys the build that the environment has.
+ * 6. Then it writes the version to the variable `versionKey`.
+ *
+ * Each step can go again, so a caller starts the deploy again after a failure. The function throws an
+ * error only for a plan that breaks a rule.
+ */
+export async function twilioServerlessDeploy(
+  ports: TwilioServerlessDeployPorts,
+  credentials: TwilioCredentials,
+  plan: TwilioServerlessDeployPlan,
+): Promise<TwilioServerlessDeployResult> {
+  const versionKey = plan.versionKey ?? TWILIO_SERVERLESS_VERSION_KEY;
+  assertPlan(plan, versionKey);
+  const log = ports.log ?? (() => undefined);
+  const options = { timeoutMs: ports.timeoutMs ?? 30_000, signal: ports.signal };
+  const call = async <Result>(stage: TwilioServerlessDeployStage, request: TwilioRequest, extract: (response: TwilioResponse) => Result | TwilioFailure): Promise<Result> => {
+    const result = await callTwilio(ports.fetch, request, extract, options);
+    if (isFailure(result)) throw new DeployStop({ ok: false, stage, errors: result.errors, failure: result });
+    return result;
+  };
+  const all = async <Item>(stage: TwilioServerlessDeployStage, first: TwilioRequest, extract: (response: TwilioResponse) => TwilioServerlessPage<Item> | TwilioFailure): Promise<Item[]> => {
+    const items: Item[] = [];
+    let request: TwilioRequest | undefined = first;
+    for (let count = 0; request !== undefined; count += 1) {
+      if (count === MAX_PAGES) throw new DeployStop({ ok: false, stage, errors: [`The list has more than ${MAX_PAGES} pages.`] });
+      const found: TwilioServerlessPage<Item> = await call(stage, request, extract);
+      items.push(...found.items);
+      request = found.nextPageUrl === undefined ? undefined : twilioServerlessNextPageRequest(credentials, found.nextPageUrl);
+    }
+    return items;
+  };
+
+  try {
+    const service = await ensureService(ports, credentials, plan, options, log);
+    const environments = await all("environment", twilioServerlessEnvironmentListRequest(credentials, service.sid, { pageSize: 50 }), extractTwilioServerlessEnvironments);
+    let environment = environments.find((found) => found.uniqueName === plan.environment.uniqueName);
+    if (environment === undefined) {
+      environment = await call("environment", twilioServerlessEnvironmentRequest(credentials, service.sid, plan.environment), extractTwilioServerlessEnvironment);
+      log(`The deploy made the environment ${environment.sid}.`);
+    }
+    const environmentSid = environment.sid;
+    const variables = await all("variables", twilioServerlessVariableListRequest(credentials, service.sid, environmentSid, { pageSize: 50 }), extractTwilioServerlessVariables);
+    const byKey = new Map(variables.map((variable) => [variable.key, variable]));
+    let changedVariables = 0;
+    for (const [key, value] of Object.entries(plan.variables ?? {})) {
+      const found = byKey.get(key);
+      if (found?.value === value) continue;
+      if (found === undefined) await call("variables", twilioServerlessVariableRequest(credentials, service.sid, environmentSid, { key, value }), extractTwilioServerlessVariable);
+      else await call("variables", twilioServerlessVariableUpdateRequest(credentials, service.sid, environmentSid, found.sid, value), extractTwilioServerlessVariable);
+      log(`The deploy wrote the variable ${key}.`);
+      changedVariables += 1;
+    }
+    const current = environment.buildSid;
+    const same = current !== undefined && byKey.get(versionKey)?.value === plan.version;
+    const done = { serviceSid: service.sid, environmentSid, domainName: environment.domainName };
+    if (same && changedVariables === 0) return { ok: true, changed: false, ...done, buildSid: current };
+
+    const buildSid = same ? current : await buildOf(ports, credentials, plan, service.sid, call, all, log);
+    await call("deployment", twilioServerlessDeploymentRequest(credentials, service.sid, environmentSid, buildSid), extractTwilioServerlessDeployment);
+    log(`The deploy deployed the build ${buildSid}.`);
+    if (!same) {
+      const found = byKey.get(versionKey);
+      if (found === undefined) await call("version", twilioServerlessVariableRequest(credentials, service.sid, environmentSid, { key: versionKey, value: plan.version }), extractTwilioServerlessVariable);
+      else await call("version", twilioServerlessVariableUpdateRequest(credentials, service.sid, environmentSid, found.sid, plan.version), extractTwilioServerlessVariable);
+    }
+    return { ok: true, changed: true, ...done, buildSid };
+  } catch (error) {
+    if (error instanceof DeployStop) return error.result;
+    throw error;
+  }
+}
+
+const isFailure = (value: unknown): value is TwilioFailure => typeof value === "object" && value !== null && Reflect.get(value, "ok") === false;
+
+async function ensureService(
+  ports: TwilioServerlessDeployPorts,
+  credentials: TwilioCredentials,
+  plan: TwilioServerlessDeployPlan,
+  options: { readonly timeoutMs: number; readonly signal?: AbortSignal | undefined },
+  log: (line: string) => void,
+): Promise<TwilioServerlessService> {
+  const found = await callTwilio(ports.fetch, twilioServerlessServiceFetchRequest(credentials, plan.service.uniqueName), extractTwilioServerlessService, options);
+  if (!isFailure(found)) return found;
+  if (found.status !== 404) throw new DeployStop({ ok: false, stage: "service", errors: found.errors, failure: found });
+  const made = await callTwilio(ports.fetch, twilioServerlessServiceRequest(credentials, plan.service), extractTwilioServerlessService, options);
+  if (isFailure(made)) throw new DeployStop({ ok: false, stage: "service", errors: made.errors, failure: made });
+  log(`The deploy made the service ${made.sid}.`);
+  return made;
+}
+
+type Call = <Result>(stage: TwilioServerlessDeployStage, request: TwilioRequest, extract: (response: TwilioResponse) => Result | TwilioFailure) => Promise<Result>;
+type All = <Item>(stage: TwilioServerlessDeployStage, first: TwilioRequest, extract: (response: TwilioResponse) => TwilioServerlessPage<Item> | TwilioFailure) => Promise<Item[]>;
+
+/** This function uploads each file as a new version, starts a build of the versions and polls it. It gives the SID of the complete build. */
+async function buildOf(
+  ports: TwilioServerlessDeployPorts,
+  credentials: TwilioCredentials,
+  plan: TwilioServerlessDeployPlan,
+  serviceSid: string,
+  call: Call,
+  all: All,
+  log: (line: string) => void,
+): Promise<string> {
+  const upload = async (kind: "functions" | "assets", files: readonly TwilioServerlessFile[]): Promise<string[]> => {
+    if (files.length === 0) return [];
+    const list = kind === "functions" ? twilioServerlessFunctionListRequest : twilioServerlessAssetListRequest;
+    const extract = kind === "functions" ? extractTwilioServerlessFunctions : extractTwilioServerlessAssets;
+    const resources = await all(kind, list(credentials, serviceSid, { pageSize: 50 }), extract);
+    const versions: string[] = [];
+    for (const file of files) {
+      let resource = resources.find((found) => found.friendlyName === file.path);
+      if (resource === undefined) {
+        const make = kind === "functions" ? twilioServerlessFunctionRequest : twilioServerlessAssetRequest;
+        resource = await call(kind, make(credentials, serviceSid, file.path), extractTwilioServerlessResource);
+        log(`The deploy made the ${kind === "functions" ? "function" : "asset"} ${file.path}.`);
+      }
+      const send = kind === "functions" ? twilioServerlessFunctionVersionRequest : twilioServerlessAssetVersionRequest;
+      versions.push((await call("upload", send(credentials, serviceSid, resource.sid, file), extractTwilioServerlessVersion)).sid);
+    }
+    return versions;
+  };
+  const functionVersions = await upload("functions", plan.functions);
+  const assetVersions = await upload("assets", plan.assets ?? []);
+  const started = await call("build", twilioServerlessBuildRequest(credentials, serviceSid, { ...plan.build, functionVersions, assetVersions }), extractTwilioServerlessBuild);
+  log(`The deploy started the build ${started.sid}.`);
+  const poll: TwilioServerlessBuildPoll = { serviceSid, buildSid: started.sid, startedAt: ports.now() };
+  let last: TwilioServerlessRead<TwilioServerlessBuild> | TwilioFailure = started;
+  for (;;) {
+    const step = twilioServerlessBuildStep(credentials, poll, ports.now(), last);
+    if (step.step === "done") return started.sid;
+    if (step.step === "failed") throw new DeployStop({ ok: false, stage: "build", errors: step.last.ok ? [`The build ${started.sid} failed.`] : step.last.errors, ...(step.last.ok ? {} : { failure: step.last }) });
+    if (step.step === "timed-out") throw new DeployStop({ ok: false, stage: "build", errors: [`The build ${started.sid} did not end in ${step.elapsedMs} ms.`] });
+    await ports.sleep(step.waitMs);
+    last = await callTwilio(ports.fetch, step.request, extractTwilioServerlessBuild, { timeoutMs: ports.timeoutMs ?? 30_000, signal: ports.signal });
+  }
 }
