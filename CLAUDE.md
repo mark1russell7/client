@@ -64,6 +64,7 @@ Decision D13 sets these rules. The section "Releases of the server stack" of the
 
 - To make a package, start `node packages/mark/dist/cli.js lib new <name>`. Then start `pnpm install` and `pnpm build`.
 - The command makes `packages/<name>` with the `cue-config` files, `src/module.ts`, `src/register.ts` and the `client.procedures` field.
+- The command adds the package to the fixed group of `@procedures/client`, at the version of the group. A release before the merge changes that version: merge `main` and set the version again.
 - `src/module.ts` holds the procedures as data. Only `src/register.ts`, the `./register` entry, registers them in the global registry.
 - An import of a package root or of `./module` must register nothing. `scripts/check-side-effects.ts` fails when one does.
 - A package that runs in a browser lists its browser entries in `client.browser` of its `package.json`.
