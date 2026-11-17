@@ -238,3 +238,23 @@ export function sizes(items: readonly { readonly name: string; readonly size: nu
 export function stamp(record: { readonly at: bigint }): number {
   return Number(record.at);
 }
+
+export function either(value: { readonly seed: number } | { flip(): boolean }): number {
+  return "seed" in value ? value.seed : 0;
+}
+
+export function bag(items: Set<number>): { take(): number } {
+  return { take: () => items.values().next().value ?? 0 };
+}
+
+export function draw(made: { take(): number }): number {
+  return made.take();
+}
+
+export function deck(seed: number, ...cards: number[]): { deal(): number } {
+  return { deal: () => cards[0] ?? seed };
+}
+
+export function deal(made: { deal(): number }): number {
+  return made.deal();
+}

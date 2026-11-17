@@ -45,20 +45,24 @@ describe("generateExportsManifest", () => {
 
   it("gives a procedure for each function with JSON inputs and a JSON output", () => {
     expect(manifest.procedures.map((procedure) => procedure.name)).toEqual([
-      "above", "add", "apply", "chain", "choose", "depth", "findIndex", "first", "flip", "greet", "identity", "lookup", "maybeRoll", "minus", "norm", "nothing", "pair",
+      "above", "add", "apply", "chain", "choose", "deal", "depth", "findIndex", "first", "flip", "greet", "identity", "lookup", "maybeRoll", "minus", "norm", "nothing", "pair",
       "pick", "read", "rolls", "scale", "sideOf", "sizes", "sortBy", "strict", "toggle", "total", "useHandler", "weight",
     ]);
   });
 
   it("gives each other function an exemption with its reason", () => {
     expect(manifest.exempt.map(({ name, reason }) => [name, reason])).toEqual([
+      ["bag", "input-not-json"],
       ["big", "input-not-json"],
       ["broken", "input-not-json"],
       ["coin", "output-not-json"],
       ["counter", "output-not-json"],
       ["curried", "function-parameter"],
+      ["deck", "output-not-json"],
       ["die", "input-not-json"],
+      ["draw", "input-not-json"],
       ["each", "function-parameter"],
+      ["either", "input-not-json"],
       ["fail", "output-not-json"],
       ["fairCoin", "output-not-json"],
       ["flips", "input-not-json"],
@@ -81,7 +85,7 @@ describe("generateExportsManifest", () => {
   });
 
   it("counts the classes, the values and the types", () => {
-    expect(manifest.others).toEqual({ classes: ["Counter"], values: 1, types: 13 });
+    expect(manifest.others).toEqual({ classes: ["Counter"], values: 1, types: 15 });
   });
 
   it("takes the description from the first paragraph of the doc comment, and of each parameter", () => {
@@ -205,6 +209,16 @@ describe("generateExportsManifest", () => {
 
   it("refuses a sub-program for a function whose result is a function", () => {
     expect(manifest.exempt.find((exemption) => exemption.name === "curried")?.detail).toBe("make: (seed: number) => () => number");
+  });
+
+  it("stops the input of a factory at a rest parameter, and makes no input for a union or a factory with no JSON input", async () => {
+    expect(manifest.procedures.find((procedure) => procedure.name === "deal")?.input).toMatchObject({
+      properties: { deck: { [CONSTRUCT_KEYWORD]: { function: "deck", params: ["seed"] } } },
+    });
+    expect(await clientOf(manifest).exec(["fixture", "deal"], { deck: { seed: 4 } })).toBe(4);
+    const detail = (name: string) => manifest.exempt.find((exemption) => exemption.name === name)?.detail;
+    expect(detail("draw")).toBe("bag: an object with the method take");
+    expect(detail("either")).toMatch(/^value: /);
   });
 
   it("throws when the package does not export the factory of a constructed input", () => {

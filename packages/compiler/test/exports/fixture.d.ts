@@ -167,8 +167,6 @@ export declare function fairCoin(seed: number): Coin;
 export declare function flips(coin: Coin): boolean;
 /** A function parameter whose result is a function: a sub-program gives JSON, so it cannot give it. */
 export declare function curried(make: (seed: number) => () => number): number;
-
-
 /** A factor or a function of each value: a union with a sub-program. */
 export declare function scale(values: readonly number[], factor: number | ((value: number) => number)): number[];
 /** The steps of a value, in order: an array of sub-programs. */
@@ -182,3 +180,21 @@ export interface Named {
 export declare function sizes(items: readonly Named[], key: (item: Named) => number): number[];
 /** A property that is not JSON. */
 export declare function stamp(record: { readonly at: bigint }): number;
+/** A union of two types that are not JSON: no factory makes it. */
+export declare function either(value: Die | Coin): number;
+/** A bag of numbers. Its factory takes a set, so the factory has no JSON input. */
+export interface Bag {
+  take(): number;
+}
+/** A bag from a set: not a factory of a constructed input. */
+export declare function bag(items: Set<number>): Bag;
+/** One number of a bag: no factory makes the bag from JSON. */
+export declare function draw(bag: Bag): number;
+/** A deck of cards. */
+export interface Deck {
+  deal(): number;
+}
+/** A deck from a seed and cards: the input of the factory stops at the rest parameter. */
+export declare function deck(seed: number, ...cards: number[]): Deck;
+/** The first card of a deck: a constructed input. */
+export declare function deal(deck: Deck): number;

@@ -296,7 +296,7 @@ A parameter that is not JSON, for example a `Random` with methods, gets a constr
 - The input value is the input of the factory: one property for each parameter. Here the factory is `random(seed)`.
 - The schema of the parameter has the keyword `x-procedures-construct`. It gives the name of the factory and the names of its parameters.
 - A factory is an export with one signature and no type parameter. Its effects are pure, and it gives an object, not a promise.
-- The input of a factory stops at its first optional parameter that is not JSON. A parameter that is not JSON and not optional refuses the factory.
+- The input of a factory stops at a rest parameter, or at its first optional parameter that is not JSON. A parameter that is not JSON and not optional refuses the factory.
 - When more than one factory gives the type, the field `constructors` of the overlay names one. Without it, the function stays exempt, and the detail names the factories.
 - Only a parameter of the function gets a constructed input, not a property of a parameter.
 - Before each call, the loader makes a new value with the factory. Thus a call does not change the next call.
