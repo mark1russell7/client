@@ -9,6 +9,15 @@ interface Point {
   readonly y: number;
 }
 
+type MaybeSide = "less" | "greater" | "two-sided" | undefined;
+
+type Spec = { readonly kind: "fixed"; readonly value: number } | { readonly kind: "mix"; readonly parts: readonly Spec[] };
+
+interface Grow<T> {
+  readonly value: T;
+  readonly next: Grow<T[]>;
+}
+
 interface Tree {
   readonly name: string;
   readonly children: readonly Tree[];
@@ -158,6 +167,62 @@ export function lookup(key: string): [string, undefined] {
   return [key, undefined];
 }
 
+export function weight(spec: Spec): number {
+  return spec.kind === "fixed" ? 1 : spec.parts.reduce((sum, part) => sum + weight(part), 0);
+}
+
+export function sideOf(sign: number): MaybeSide {
+  return sign > 0 ? "greater" : sign < 0 ? "less" : undefined;
+}
+
+export function grow(value: Grow<number>): number {
+  return value.value;
+}
+
+interface Die {
+  readonly seed: number;
+  roll(): number;
+}
+
+interface Coin {
+  flip(): boolean;
+}
+
+export function die(seed: number, faces?: Map<number, number>): Die {
+  let state = seed;
+  return {
+    seed,
+    roll: () => {
+      state = (state * 31 + 7) % 6;
+      return faces?.get(state) ?? state + 1;
+    },
+  };
+}
+
+export function rolls(count: number, made: Die): number[] {
+  return Array.from({ length: count }, () => made.roll());
+}
+
+export function maybeRoll(made?: Die): number {
+  return made?.roll() ?? 0;
+}
+
+export function coin(seed: number): Coin {
+  return { flip: () => seed % 2 === 0 };
+}
+
+export function fairCoin(seed: number): Coin {
+  return { flip: () => seed % 2 === 1 };
+}
+
+export function flips(made: Coin): boolean {
+  return made.flip();
+}
+
+export function curried(make: (seed: number) => () => number): number {
+  return make(1)();
+}
+
 export function scale(values: readonly number[], factor: number | ((value: number) => number)): number[] {
   return values.map((value) => (typeof factor === "function" ? factor(value) : value * factor));
 }
@@ -172,4 +237,46 @@ export function sizes(items: readonly { readonly name: string; readonly size: nu
 
 export function stamp(record: { readonly at: bigint }): number {
   return Number(record.at);
+}
+
+export function either(value: { readonly seed: number } | { flip(): boolean }): number {
+  return "seed" in value ? value.seed : 0;
+}
+
+export function bag(items: Set<number>): { take(): number } {
+  return { take: () => items.values().next().value ?? 0 };
+}
+
+export function draw(made: { take(): number }): number {
+  return made.take();
+}
+
+export function deck(seed: number, ...cards: number[]): { deal(): number } {
+  return { deal: () => cards[0] ?? seed };
+}
+
+export function deal(made: { deal(): number }): number {
+  return made.deal();
+}
+
+export function present<T>(value: T | null | undefined): { readonly value: NonNullable<T> } | null {
+  return value === null || value === undefined ? null : { value };
+}
+
+export function anything(value: {}): {} {
+  return value;
+}
+
+export function known(value: string | number): string {
+  return String(value);
+}
+
+export function tally(words: readonly string[]): ReadonlyMap<string, number> {
+  const counts = new Map<string, number>();
+  for (const word of words) counts.set(word, (counts.get(word) ?? 0) + 1);
+  return counts;
+}
+
+export function definite(value: string): string {
+  return value;
 }
