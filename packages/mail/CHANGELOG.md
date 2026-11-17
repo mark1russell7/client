@@ -1,5 +1,14 @@
 # @procedures/mail
 
+## 0.61.0
+
+### Patch Changes
+
+- Updated dependencies [8506442]
+- Updated dependencies [f9a78f9]
+- Updated dependencies [3eb4b59]
+  - @procedures/client@0.61.0
+
 ## 0.60.1
 
 ### Patch Changes
