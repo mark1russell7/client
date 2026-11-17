@@ -21,7 +21,8 @@ import {
   type AnyProcedure,
   type ProcedureContext,
 } from "@procedures/client/browser";
-import { withDefinitions } from "./definitions.js";
+import { reachesNode, resolvedSchema, withDefinitions } from "./definitions.js";
+import { codecDecoder } from "./codecs.js";
 import { jsonValue } from "./json.js";
 import { PROGRAM_KEYWORD, type ExportsJsonSchema, type ExportsManifest, type ExportsProgram } from "./types.js";
 
@@ -54,26 +55,7 @@ const REACHES = new WeakMap<object, boolean>();
 
 /** True when a schema has a sub-program, also through its definitions. */
 export function reachesProgram(schema: unknown, defs: Definitions): boolean {
-  if (schema === null || typeof schema !== "object") return false;
-  const known = REACHES.get(schema);
-  if (known !== undefined) return known;
-  const seen = new Set<string>();
-  const visit = (node: unknown): boolean => {
-    if (node === null || typeof node !== "object") return false;
-    if (Array.isArray(node)) return node.some(visit);
-    const record = node as Record<string, unknown>;
-    if (PROGRAM_KEYWORD in record) return true;
-    const name = definitionName(record);
-    if (name !== undefined) {
-      if (seen.has(name)) return false;
-      seen.add(name);
-      return visit(defs[name]);
-    }
-    return Object.values(record).some(visit);
-  };
-  const result = visit(schema);
-  REACHES.set(schema, result);
-  return result;
+  return reachesNode(schema, defs, (node) => PROGRAM_KEYWORD in node, REACHES);
 }
 
 /**
@@ -108,14 +90,14 @@ type Compile = (call: Record<string, unknown>, program: ExportsProgram, at: stri
 
 /** The value with a function in place of each call at a sub-program position of the schema. */
 async function bind(value: unknown, schema: unknown, defs: Definitions, at: readonly string[], compile: Compile): Promise<unknown> {
-  const node = resolved(schema, defs);
+  const node = resolvedSchema(schema, defs);
   if (node === undefined) return value;
   const program = node[PROGRAM_KEYWORD] as ExportsProgram | undefined;
   if (program !== undefined) return isCall(value) ? compile(value, program, where(at)) : value;
   const anyOf = node["anyOf"];
   if (Array.isArray(anyOf)) {
     // A call goes to a branch that is a sub-program. Another value goes to the one branch that has one
-    const branches = anyOf.map((branch) => resolved(branch, defs));
+    const branches = anyOf.map((branch) => resolvedSchema(branch, defs));
     const direct = branches.find((branch) => branch?.[PROGRAM_KEYWORD] !== undefined);
     if (direct !== undefined && isCall(value)) return compile(value, direct[PROGRAM_KEYWORD] as ExportsProgram, where(at));
     const reaching = anyOf.filter((branch) => reachesProgram(branch, defs));
@@ -168,6 +150,8 @@ async function compileSubProgram(call: Record<string, unknown>, program: Exports
   }
   const body = await expression(rest, program, context);
   const result = z.fromJSONSchema(withDefinitions(program.output, context.defs) as never);
+  // The package gets the decoded result, for example a bigint for its decimal string
+  const decode = codecDecoder(program.output, context.defs);
   return (...args: unknown[]): unknown => {
     // A package can give more arguments than the parameters, as Array.prototype.map does
     const value = body(args.slice(0, program.params.length).map(jsonValue));
@@ -176,7 +160,7 @@ async function compileSubProgram(call: Record<string, unknown>, program: Exports
     if (!checked.success) {
       throw new InvocationError("VALIDATION_ERROR", `The sub-program at ${context.at} gives a result that its function refuses: ${issues(checked.error)}`, [...context.path]);
     }
-    return checked.data;
+    return decode === undefined ? checked.data : decode(checked.data);
   };
 }
 
@@ -238,25 +222,6 @@ function isCall(value: unknown): value is Record<string, unknown> {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
   const proc = (value as Record<string, unknown>)["$proc"];
   return Array.isArray(proc) && proc.length > 0 && proc.every((segment) => typeof segment === "string");
-}
-
-/** The name of the definition that a schema refers to, or undefined. */
-function definitionName(node: Record<string, unknown>): string | undefined {
-  const ref = node["$ref"];
-  return typeof ref === "string" && ref.startsWith("#/$defs/") ? ref.slice("#/$defs/".length) : undefined;
-}
-
-/** The schema itself, or the definition that it refers to. */
-function resolved(schema: unknown, defs: Definitions): Record<string, unknown> | undefined {
-  let node = schema;
-  const seen = new Set<string>();
-  while (node !== null && typeof node === "object" && !Array.isArray(node)) {
-    const name = definitionName(node as Record<string, unknown>);
-    if (name === undefined || seen.has(name)) return node as Record<string, unknown>;
-    seen.add(name);
-    node = defs[name];
-  }
-  return undefined;
 }
 
 function where(at: readonly string[]): string {

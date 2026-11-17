@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/quantity",
-  "version": "0.61.0",
+  "version": "0.62.0",
   "description": "The functions of @mark1russell7/quantity as procedures, made from its types: amounts in typed units, conversions and formats as typed calls, MCP tools and CLI commands.",
   "keywords": [
     "units",

@@ -98,6 +98,10 @@ export function keys(map: Map<string, number>): number {
   return map.size;
 }
 
+export function sizeOf(fn: (map: Map<string, number>) => number): number {
+  return fn(new Map([["a", 1], ["b", 2]]));
+}
+
 export function apply(values: readonly number[], fn: (value: number) => number): number[] {
   return values.map(fn);
 }
@@ -188,7 +192,7 @@ interface Coin {
   flip(): boolean;
 }
 
-export function die(seed: number, faces?: Map<number, number>): Die {
+export function die(seed: number, faces?: Map<number, number>, _clock?: Date): Die {
   let state = seed;
   return {
     seed,
@@ -279,4 +283,50 @@ export function tally(words: readonly string[]): ReadonlyMap<string, number> {
 
 export function definite(value: string): string {
   return value;
+}
+
+export function lock(at: Date): { open(): boolean } {
+  return { open: () => at.getTime() > 0 };
+}
+
+export function opens(made: { open(): boolean }): boolean {
+  return made.open();
+}
+
+export function sumOf(values: Iterable<number>): number {
+  let sum = 0;
+  for (const value of values) sum += value;
+  return sum;
+}
+
+export function* naturals(limit: number): Iterable<number> {
+  for (let value = 0; value < limit; value++) yield value;
+}
+
+export function drain(source: { readonly values: Iterable<number> }): number {
+  return sumOf(source.values);
+}
+
+export function sourceOf(limit: number): { readonly values: Iterable<number> } {
+  return { values: naturals(limit) };
+}
+
+export function kindOf(value: number | { readonly at: bigint }): string {
+  return typeof value === "number" ? "number" : typeof value.at;
+}
+
+export function exactly(value: bigint): bigint {
+  return value * 2n;
+}
+
+export function distinct(words: Iterable<string>): ReadonlySet<string> {
+  return new Set(words);
+}
+
+export function step(value: bigint, by: (value: bigint) => bigint): bigint {
+  return by(value) + 1n;
+}
+
+export function feed(fn: (values: Iterable<number>) => number): number {
+  return fn(naturals(3));
 }

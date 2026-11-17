@@ -1,5 +1,28 @@
 # @procedures/lib
 
+## 0.62.0
+
+### Patch Changes
+
+- fdb89bc: The path, glob and walk functions of three packages move to their home, `@mark1russell7/files` (roadmap CLI-125).
+  
+  - `@procedures/fs`: `isInside` is a re-export of `@mark1russell7/files`. With `dot: true`, `fs.glob` uses `findEntriesAsync` of `@mark1russell7/files`, and its walk does not block the event loop.
+  - `@procedures/fs`: with `dot: true`, an absolute pattern under `cwd` matches. Before, it matched nothing. The other matches do not change.
+  - `@procedures/lib`: `expandHome` is a re-export of `@mark1russell7/files`. `findWorkspaceRoot` uses `findUp`.
+  - `@procedures/archive`: the walk of `archive.create` uses `walk` of `@mark1russell7/files`. `portableLinkTarget` uses `toPosix`. The limits and the error codes do not change.
+  - `@procedures/peer`: the range of `@mark1russell7/files` is `^0.0.4`, as in the other packages. The code does not change.
+- 2b6a9bd: `lib.new` adds the new package to the fixed group of `@procedures/client` in `.changeset/config.json`. It also gives the package the version of that group. Before, the package kept the version of cue (0.1.0), and the package check failed on two versions until a person set the version.
+  
+  PATCH: before 1.0.0, a backward-compatible fix raises PATCH. A workspace with no fixed group of `@procedures/client` keeps the old behavior.
+- Updated dependencies [14f61a7]
+- Updated dependencies [fdb89bc]
+  - @procedures/client@0.62.0
+  - @procedures/fs@0.62.0
+  - @procedures/dag@0.62.0
+  - @procedures/git@0.62.0
+  - @procedures/pnpm@0.62.0
+  - @procedures/shell@0.62.0
+
 ## 0.61.0
 
 ### Patch Changes

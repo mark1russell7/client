@@ -10,6 +10,7 @@ type ArrayNode: dist/ir.d.ts#ArrayNode
 type Binding: dist/ir.d.ts#Binding
 type BindingKind: dist/ir.d.ts#BindingKind
 type BodyEffects: dist/effects.d.ts#BodyEffects
+CODEC_KEYWORD: dist/exports/types.d.ts#CODEC_KEYWORD
 CONSTRUCT_KEYWORD: dist/exports/types.d.ts#CONSTRUCT_KEYWORD
 type CallExplanation: dist/explain.d.ts#CallExplanation
 CallExplanationOutput: dist/types.d.ts#CallExplanationOutput
@@ -42,6 +43,7 @@ type ExportExemption: dist/exports/types.d.ts#ExportExemption
 type ExportExemptionReason: dist/exports/types.d.ts#ExportExemptionReason
 type ExportOthers: dist/exports/types.d.ts#ExportOthers
 type ExportProcedure: dist/exports/types.d.ts#ExportProcedure
+type ExportsCodec: dist/exports/types.d.ts#ExportsCodec
 type ExportsConstruct: dist/exports/types.d.ts#ExportsConstruct
 type ExportsJsonSchema: dist/exports/types.d.ts#ExportsJsonSchema
 type ExportsManifest: dist/exports/types.d.ts#ExportsManifest
@@ -393,6 +395,9 @@ export declare function exportOutputSchema(manifest: ExportsManifest, procedure:
 ### dist/exports/load.d.ts#exportsModule
 export declare function exportsModule(manifest: ExportsManifest, functions: Readonly<Record<string, unknown>>, options?: ExportsModuleOptions): ProcedureModule;
 
+### dist/exports/types.d.ts#CODEC_KEYWORD
+export declare const CODEC_KEYWORD: "x-procedures-codec";
+
 ### dist/exports/types.d.ts#CONSTRUCT_KEYWORD
 export declare const CONSTRUCT_KEYWORD: "x-procedures-construct";
 
@@ -435,6 +440,9 @@ export interface ExportProcedure {
     readonly effects?: Effects;
     readonly generics?: readonly string[];
 }
+
+### dist/exports/types.d.ts#ExportsCodec
+export type ExportsCodec = "bigint" | "map" | "set" | "iterable";
 
 ### dist/exports/types.d.ts#ExportsConstruct
 export interface ExportsConstruct {
