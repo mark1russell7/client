@@ -1,7 +1,7 @@
 /**
  * sqlite.query and logs.query only read (CAP-1, CAP-3, roadmap R7). Before, the query procedure
  * (then db.query) ran any statement and the file kept its changes, and the first logs.query made
- * the database file.
+ * the database file. `sqlite.query` needs the guard: `confine.test.ts` tests a Node.js without it.
  */
 
 import { afterEach, describe, expect, it } from "vitest";
@@ -9,10 +9,13 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Client, LocalTransport, createRegistry } from "@procedures/client";
+import { loadSqlite } from "./load.js";
 import { sqliteModule } from "./module.js";
+import { isConfineAvailable } from "./procedures/db/shared.js";
 import type { DbQueryOutput, LogsQueryOutput } from "./types.js";
 
 const client = new Client(new LocalTransport({ registry: createRegistry(sqliteModule) }));
+const guard = isConfineAvailable(await loadSqlite());
 const dirs: string[] = [];
 
 afterEach(() => {
@@ -29,7 +32,7 @@ function call<T>(service: string, operation: string, input: unknown): Promise<T>
   return client.call<unknown, T>({ service, operation }, input);
 }
 
-describe("sqlite.query is read only (CAP-1)", () => {
+describe.runIf(guard)("sqlite.query is read only (CAP-1)", () => {
   it("refuses a statement that changes data, and the file keeps its bytes", async () => {
     const dbPath = tempDb();
     await call("sqlite", "execute", { dbPath, sql: "CREATE TABLE t (n INTEGER)" });
