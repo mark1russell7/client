@@ -8,7 +8,7 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
     "@mark1russell7/cue": "^2.1.1",
-    "@mark1russell7/site-pages": "^0.5.4",
+    "@mark1russell7/site-pages": "^0.7.0",
     "@mark1russell7/text": "^0.0.5",
     "@playwright/test": "^1.64.0",
     "@procedures/access": "workspace:*",
