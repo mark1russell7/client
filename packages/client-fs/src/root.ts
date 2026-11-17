@@ -26,7 +26,8 @@
  */
 
 import { readlink, realpath } from "node:fs/promises";
-import { basename, dirname, isAbsolute, join, relative, resolve, sep, win32 } from "node:path";
+import { basename, dirname, join, resolve, win32 } from "node:path";
+import { isInside } from "@mark1russell7/files";
 import { InvocationError, type ProcedurePath } from "@procedures/client";
 import { isMissing, linkDestination } from "./link-target.js";
 
@@ -40,12 +41,9 @@ const MAX_LINKS = 40;
 
 /**
  * This function tells if `path` is `folder` or a path in `folder`. The two paths are absolute.
- * On Windows, the case of the letters is not significant.
+ * On Windows, the case of the letters is not significant. Its home is `@mark1russell7/files`.
  */
-export function isInside(folder: string, path: string): boolean {
-  const rel = relative(folder, path);
-  return rel === "" || (!isAbsolute(rel) && rel !== ".." && !rel.startsWith(`..${sep}`));
-}
+export { isInside };
 
 /** The target of a symlink, or undefined when the path is not a symlink or does not exist. */
 async function linkTarget(path: string): Promise<string | undefined> {

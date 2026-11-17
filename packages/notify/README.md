@@ -7,6 +7,7 @@ Push notifications through ntfy (the public server or your own) and through Push
 - With ntfy, each phone that subscribes to the topic gets the message.
 - With Pushover, each device of the user gets the message. An emergency message repeats until the user acknowledges it.
 - With Twilio, a phone gets a text message or a voice call. A call can tell a person from an answering machine.
+- With a webhook, a server of your choice gets a signed JSON request in the form of Standard Webhooks.
 
 ## Install
 
@@ -216,3 +217,35 @@ if (result.ok) console.log(`https://${result.domainName}/start`);
 ```
 
 A variable can hold a secret. Do not log a variable request, a variable read or its value.
+
+## Webhooks
+
+`@procedures/notify/webhook` has pure functions for webhooks in the form of [Standard Webhooks](https://www.standardwebhooks.com). A browser can also use them. The entry has no procedures.
+
+- A sender signs the text `id.timestamp.body` with HMAC-SHA256. The headers are `webhook-id`, `webhook-timestamp` and `webhook-signature`.
+- A secret is `whsec_` and the base64 of 24 to 64 random bytes. A request can have one signature for each secret, thus a receiver can change its secret.
+- A receiver checks the signature and the time, in a tolerance of 5 minutes.
+
+```ts
+import { parseWebhookSecret, sendWebhook, verifyWebhook, webhookBody } from "@procedures/notify/webhook";
+
+const parsed = parseWebhookSecret(process.env.WEBHOOK_SECRET ?? "");
+if (!parsed.ok) throw new Error(parsed.problem);
+const body = webhookBody("alert.sent", Date.now(), { title: "Tornado warning" });
+const sent = await sendWebhook(fetch, { url, id: crypto.randomUUID(), timestampMs: Date.now(), body }, [parsed.secret]);
+
+// The receiver reads the body as text, before a parse.
+const check = await verifyWebhook({ headers: request.headers, body: text }, [parsed.secret], Date.now());
+```
+
+### Failures of a webhook
+
+`extractWebhookSent` sorts a response by the rules of the spec. The extractor does not throw.
+
+- `throttled` (429, 502, 504) and `server` (other 5xx) get a wait from `Retry-After`, and 5 seconds at least.
+- `gone` (410) tells the sender to stop each send to the endpoint.
+- `redirect` (3xx) is a failure. Change the address. The send does not follow a redirect.
+- `refused` (other statuses) fails again with the same message.
+- `network` and `timeout` have no answer. The time limit is 15 seconds.
+
+Each send of one message keeps its id, thus the receiver drops a second copy. A secret is a key: do not log it.

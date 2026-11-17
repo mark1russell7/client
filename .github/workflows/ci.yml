@@ -159,6 +159,16 @@ jobs:
         run: |
           node --test scripts/check-declared-imports.test.ts
           node scripts/check-declared-imports.ts
+      # Each wrap package (direction 40) has the manifest that the generator gives now from the
+      # types of its home, so each public function of the home has a procedure or an exemption.
+      # The share of the functions with a procedure does not fall below the ratchet in
+      # wraps.coverage.json. The step needs the build of @procedures/compiler. First the tests of
+      # the check, then the check.
+      - name: Check the wraps of the homes
+        if: ${{ !cancelled() }}
+        run: |
+          node --test scripts/wraps.test.ts
+          node scripts/wraps.ts check
       # The paths, the topics and the storage writes (invariants I3 and I5, CLI-84). A path, a key, a
       # method or a topic goes through the codec of @procedures/client, and not through a join or a
       # split on ".". Only the storage files write a MongoDB collection. The step parses the src/
