@@ -55,7 +55,7 @@ const seed = await outputValue(output);
 | Functions | Reason | The cause |
 | --- | --- | --- |
 | `familyMap`, `mulberry32`, `sampler` | `output-not-json` | The result is a function. |
-| `random`, `randomOf` | `output-not-json` | The result is a `Random`: an object with methods. |
+| `random`, `randomOf` | `function-parameter` | The parameter `source` is a function that gives a function. The result is a `Random`, a constructed input of the other procedures. |
 | `distributionOf` | `output-not-json` | The result is a `Distribution`: an object with methods. |
 | `coveringRows` | `output-not-json` | The type of the result is a generic mapped type. |
 | `shrinkPointAsync` | `function-parameter` | The function `fails` can give a promise. |
