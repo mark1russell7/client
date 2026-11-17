@@ -1,5 +1,18 @@
 # @procedures/cue
 
+## 0.61.0
+
+### Patch Changes
+
+- 9593125: The procedure `cue.generate` takes `resolveFeatures` from `@mark1russell7/cue/core` 2.1.2, its home. The local copy is gone. The output order of the features does not change.
+- Updated dependencies [8506442]
+- Updated dependencies [84d9551]
+- Updated dependencies [f9a78f9]
+- Updated dependencies [3eb4b59]
+  - @procedures/client@0.61.0
+  - @procedures/fs@0.61.0
+  - @procedures/shell@0.61.0
+
 ## 0.60.1
 
 ### Patch Changes
