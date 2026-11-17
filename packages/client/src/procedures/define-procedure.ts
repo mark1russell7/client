@@ -285,6 +285,15 @@ export function clearRuntimeProcedures(registry: RegistryOf = PROCEDURE_REGISTRY
 // =============================================================================
 
 /**
+ * This rule tells if a path is outside the expose rule of the host (R17). A path outside it is
+ * not the caller's. `procedure.define`, `procedure.get` and `procedure.delete` examine it before
+ * the lookup, so a free path and a used path get the same answer.
+ */
+function hiddenFromCaller(ctx: ProcedureContext | undefined, path: ProcedurePath): boolean {
+  return ctx?.expose !== undefined && !ctx.expose(path);
+}
+
+/**
  * Metadata for the procedure.define procedure.
  */
 interface DefineMetadata extends ProcedureMetadata {
@@ -306,9 +315,8 @@ interface DefineMetadata extends ProcedureMetadata {
  *   stays: an MCP client cannot replace a tool or an internal procedure.
  * - The registry gets the procedure first. A define that fails leaves nothing.
  * - The new procedure is data-driven: with a server's `expose` rule, it calls only exposed paths.
- * - With a server's `expose` rule, a caller cannot replace a hidden procedure (`NOT_EXPOSED`).
- * - Deprecated: with a server's `expose` rule, a new procedure at a free hidden path. From 0.62.0,
- *   a free hidden path gets `NOT_EXPOSED` too.
+ * - With a server's `expose` rule, the procedure goes only to an exposed path. A hidden path gets
+ *   `NOT_EXPOSED`, with the same message for a free path and a used path.
  * - Its input is raw (the `runs-refs` tag): `exec()` does not run the body at definition time.
  */
 export const defineProcedureProcedure: Procedure<
@@ -337,16 +345,17 @@ export const defineProcedureProcedure: Procedure<
     }
 
     const pathKey = pathToKey(path);
-    // A lazy registry loads the package of the path first: a procedure of a package is not new (roadmap O93)
-    const existing = await resolveIn(registry, path);
-    // A procedure outside the expose rule of the host is not the caller's to replace (R17)
-    if (existing && ctx?.expose && !ctx.expose(path)) {
+    // A path outside the expose rule of the host is not the caller's (R17). The refusal comes
+    // before the lookup, so the answer does not tell if a procedure is at the path.
+    if (hiddenFromCaller(ctx, path)) {
       throw new InvocationError(
         "NOT_EXPOSED",
-        `Procedure not exposed: ${pathKey}. procedure.define can replace only a procedure that this host exposes.`,
+        `Procedure not exposed: ${pathKey}. procedure.define makes a procedure only at a path that this host exposes.`,
         ctx.path ?? ["procedure", "define"]
       );
     }
+    // A lazy registry loads the package of the path first: a procedure of a package is not new (roadmap O93)
+    const existing = await resolveIn(registry, path);
     if (existing && !isRuntimeDefined(existing)) {
       throw new Error(
         `A code procedure exists at path: ${pathKey}. procedure.define can replace only a procedure that procedure.define made.`
@@ -484,12 +493,11 @@ export const getProcedureProcedure: Procedure<
   },
   handler: async (input: ProcedureGetInput, ctx?: ProcedureContext) => {
     const path = typeof input.path === "string" ? keyToPath(input.path) : input.path;
+    // A path outside the expose rule of the host is not found (R17), also when a procedure is at it
+    if (hiddenFromCaller(ctx, path)) return { found: false as const };
     // A lazy registry loads the package of the path first (roadmap O93)
     const procedure = await resolveIn(ctx?.registry ?? PROCEDURE_REGISTRY, path);
-    // A procedure outside the expose rule of the host is not found (R17)
-    if (!procedure || (ctx?.expose && !ctx.expose(procedure.path))) {
-      return { found: false as const };
-    }
+    if (!procedure) return { found: false as const };
     const entry = describeEntry(procedure);
     return {
       found: true as const,
@@ -584,7 +592,7 @@ export const deleteProcedureProcedure: Procedure<
   handler: async (input: { path: ProcedurePath }, ctx?: ProcedureContext): Promise<{ deleted: boolean }> => {
     const registry = ctx?.registry ?? PROCEDURE_REGISTRY;
     // A procedure outside the expose rule of the host is not found (R17)
-    if (ctx?.expose && !ctx.expose(input.path)) {
+    if (hiddenFromCaller(ctx, input.path)) {
       return { deleted: false };
     }
     // A lazy registry loads the package of the path first (roadmap O93)
