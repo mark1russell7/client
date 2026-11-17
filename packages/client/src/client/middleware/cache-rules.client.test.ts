@@ -4,6 +4,7 @@
  * the call (an auth layer inside the cache) is not stored.
  */
 
+import { getEventListeners } from "node:events";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { Client } from "../client.js";
 import { createCacheMiddleware, invalidateCache, type CacheStats } from "./cache.js";
@@ -473,9 +474,45 @@ describe("the cache: an abort while a call in flight runs (audit pass 2)", () =>
     const outcome = await Promise.race([secondOutcome, new Promise((resolve) => setTimeout(() => resolve("still waiting"), 500))]);
     expect(outcome).toBeInstanceOf(Error);
     expect(String((outcome as Error).message)).toMatch(/abort/i);
+    // The abort removes the listener of the wait, before the first call ends
+    expect(getEventListeners(caller.signal, "abort")).toHaveLength(0);
     release();
     expect(await first).toBe(1);
     expect(t.calls()).toBe(1);
+  });
+
+  it("ends at once the wait of a caller whose signal aborted before the wait", async () => {
+    const t = scripted();
+    const release = t.hold();
+    const client = new Client(t.transport).use(createCacheMiddleware({ methods: ["users.get"] }));
+    const first = client.call(read, {});
+    await tick();
+    const outcome = await Promise.race([
+      client.call(read, {}, { signal: AbortSignal.abort() }).catch((error: unknown) => error),
+      new Promise((resolve) => setTimeout(() => resolve("still waiting"), 500)),
+    ]);
+    expect(outcome).toBeInstanceOf(Error);
+    expect(String((outcome as Error).message)).toMatch(/abort/i);
+    release();
+    expect(await first).toBe(1);
+    expect(t.calls()).toBe(1);
+  });
+
+  it("gives the response of the call in flight to a caller whose signal does not abort, and removes the listener", async () => {
+    const t = scripted();
+    const release = t.hold();
+    const client = new Client(t.transport).use(createCacheMiddleware({ methods: ["users.get"] }));
+    const first = client.call(read, {});
+    await tick();
+    const caller = new AbortController();
+    const second = client.call(read, {}, { signal: caller.signal });
+    await tick();
+    release();
+    const outcome = await Promise.race([second, new Promise((resolve) => setTimeout(() => resolve("still waiting"), 500))]);
+    expect(outcome).toBe(1);
+    expect(await first).toBe(1);
+    expect(t.calls()).toBe(1);
+    expect(getEventListeners(caller.signal, "abort")).toHaveLength(0);
   });
 });
 

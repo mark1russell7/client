@@ -136,8 +136,9 @@ async function* runWithTimeout<TReq, TRes>(
   retryable: boolean,
 ): AsyncGenerator<ResponseItem<TRes>, void, undefined> {
   const timeoutController = new AbortController();
-  // The clock arms a time above 2147483647 ms in steps. Infinity sets no timer.
-  const cancelTimer = Number.isFinite(ms) ? realClock.after(ms, () => timeoutController.abort()) : undefined;
+  // The clock arms a time above 2147483647 ms in steps. The time is finite: `toMs` refuses a
+  // duration that is not finite, and `deadlineOf` gives only a finite deadline.
+  const cancelTimer = realClock.after(ms, () => timeoutController.abort());
   // The overall timeout is the deadline of the call: the transport sends its remaining time to
   // the server (roadmap R10). The timeout of one try is not: the server keeps a keyed write
   // until the next try can get its result, and the request signal stops another call.
@@ -180,7 +181,7 @@ async function* runWithTimeout<TReq, TRes>(
     phase = "done";
     throw error;
   } finally {
-    cancelTimer?.();
+    cancelTimer();
     restoreDeadline(context.message.metadata, deadlineBefore);
     cleanup();
     // Restore the caller's original signal; we only swapped in the composed signal for this

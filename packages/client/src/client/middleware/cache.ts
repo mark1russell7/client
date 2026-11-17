@@ -9,7 +9,7 @@ import type { ClientRunner, ClientContext, ResponseItem, Metadata, Method, Typed
 import type { CacheContext } from "./contexts.js";
 import { LRUCache } from "@mark1russell7/collections";
 import { canonicalJson } from "@mark1russell7/rigor-generators";
-import { isDuration, optionalMs, type Duration } from "../../duration.js";
+import { isDuration, optionalMs, toMs, type Duration } from "../../duration.js";
 import type { Effects } from "../../procedures/types.js";
 import { TIMER_DEFAULTS } from "../../timers.js";
 import { methodName } from "../../server/method.js";
@@ -155,8 +155,9 @@ function copyItem<T>(item: ResponseItem<T>): ResponseItem<T> | undefined {
   try {
     return structuredClone(item);
   } catch {
-    return undefined;
+    // A payload with a function or a symbol has no copy
   }
+  return undefined;
 }
 
 /** A stored response and the time at which it expires. */
@@ -185,38 +186,38 @@ function cacheOverrides(value: unknown): { ttl?: number; bypass?: boolean; refre
   if (typeof value !== "object" || value === null) return {};
   const { ttl, bypass, refresh } = value as Record<string, unknown>;
   return {
-    ...(isDuration(ttl) && ttl.value >= 0 ? { ttl: optionalMs(ttl, "cache.ttl")! } : {}),
+    // A ttl that is not a duration, or is below zero, keeps the ttl of the options
+    ...(isDuration(ttl) && ttl.value >= 0 ? { ttl: toMs(ttl) } : {}),
     ...(bypass === true ? { bypass: true } : {}),
     ...(refresh === true ? { refresh: true } : {}),
   };
 }
 
-/**
- * Default should cache predicate - only cache successful responses.
- */
 /** The value of `untilAbort` when the signal aborts first. */
 const ABORTED: unique symbol = Symbol("aborted");
 
-/** The value of a promise, or `ABORTED` when the signal aborts first. Without a signal, the promise. */
-function untilAbort<T>(promise: Promise<T>, signal: AbortSignal | undefined): Promise<T | typeof ABORTED> {
-  if (signal === undefined) return promise;
+/**
+ * This function gives the entry of a call in flight, or `ABORTED` when the signal aborts first.
+ * Without a signal, it gives the entry. The promise of a call in flight does not reject: an error
+ * settles it with `undefined`.
+ */
+function untilAbort(
+  pending: Promise<CacheEntry | undefined>,
+  signal: AbortSignal | undefined,
+): Promise<CacheEntry | undefined | typeof ABORTED> {
+  if (signal === undefined) return pending;
   if (signal.aborted) return Promise.resolve(ABORTED);
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const onAbort = (): void => resolve(ABORTED);
     signal.addEventListener("abort", onAbort, { once: true });
-    promise.then(
-      (value) => {
-        signal.removeEventListener("abort", onAbort);
-        resolve(value);
-      },
-      (error: unknown) => {
-        signal.removeEventListener("abort", onAbort);
-        reject(error);
-      },
-    );
+    void pending.then((entry) => {
+      signal.removeEventListener("abort", onAbort);
+      resolve(entry);
+    });
   });
 }
 
+/** This function is the default `shouldCache`: the cache stores only a response that succeeded. */
 function defaultShouldCache(item: ResponseItem<unknown>): boolean {
   return item.status.type === "success";
 }
@@ -310,8 +311,8 @@ export function createCacheMiddleware(options: CacheOptions): TypedClientMiddlew
   const inFlight = new Map<string, Promise<CacheEntry | undefined>>();
 
   /** A write that succeeded deletes the entries that read one of its resources (R13). */
-  const invalidateAfterWrite = (method: Method): void => {
-    const writes = effectsOf?.(method)?.writes;
+  const invalidateAfterWrite = (effects: (method: Method) => Effects | undefined, method: Method): void => {
+    const writes = effects(method)?.writes;
     if (!writes || writes.length === 0) return;
     cache.deleteWhere((entry) => entry.reads === undefined || entry.reads.some((resource) => writes.includes(resource)));
   };
@@ -324,7 +325,7 @@ export function createCacheMiddleware(options: CacheOptions): TypedClientMiddlew
           if (item.status.type === "error") failed = true;
           yield item;
         }
-        if (!failed && effectsOf) invalidateAfterWrite(context.message.method);
+        if (!failed && effectsOf) invalidateAfterWrite(effectsOf, context.message.method);
         return;
       }
 
@@ -342,8 +343,9 @@ export function createCacheMiddleware(options: CacheOptions): TypedClientMiddlew
         try {
           return keyGenerator(context.message.method, context.message.payload, metadata);
         } catch {
-          return undefined;
+          // The call has no key
         }
+        return undefined;
       };
       const cacheKey = overrides.bypass ? undefined : keyOf();
 
@@ -399,7 +401,8 @@ export function createCacheMiddleware(options: CacheOptions): TypedClientMiddlew
       try {
         for await (const item of next(context)) {
           count++;
-          if (count === 1) first = item;
+          // The store needs a response of one item: the first item is the response
+          first ??= item;
           yield item;
         }
         setState(false);

@@ -80,6 +80,13 @@ describe("the cache key of a payload", () => {
     expect(defaultKeyGenerator(method, {}, { tenant: "a" })).not.toBe(defaultKeyGenerator(method, {}, {}));
   });
 
+  it("ignores the internal metadata keys, whose names start with two underscores", () => {
+    const plain = defaultKeyGenerator(method, {}, { tenant: "a" });
+    expect(defaultKeyGenerator(method, {}, { tenant: "a", __deadline: 1_000, __local: true })).toBe(plain);
+    // One underscore does not make a key internal
+    expect(defaultKeyGenerator(method, {}, { tenant: "a", _page: 2 })).not.toBe(plain);
+  });
+
   it("keeps apart the payloads that differ only in a Date, a RegExp, a Map or a Set (CLI-128)", () => {
     const pairs: Array<[unknown, unknown]> = [
       [{ since: new Date(0) }, { since: new Date(1_000) }],
