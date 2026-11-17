@@ -16,10 +16,12 @@ import type * as TS from "typescript-api";
 import type { Effects } from "@procedures/client/browser";
 import {
   EXPORTS_MANIFEST_FORMAT,
+  PROGRAM_KEYWORD,
   type ExportExemption,
   type ExportProcedure,
   type ExportsJsonSchema,
   type ExportsManifest,
+  type ExportsProgram,
 } from "./types.js";
 
 /** The data that a package adds to the generated manifest: the overlay. */
@@ -231,6 +233,9 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
       if (!(error instanceof NotJson)) throw error;
       return { name, reason: "output-not-json", detail: error.detail() };
     }
+    // A named type serves inputs and outputs, so a function in it can reach an output as a sub-program
+    const programAt = programPath(output);
+    if (programAt !== undefined) return { name, reason: "output-not-json", detail: programAt ? `${programAt}: a function` : "a function" };
 
     const description = firstParagraph(text(symbol.getDocumentationComment(checker)));
     return {
@@ -313,6 +318,7 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
 
   function objectSchema(type: TS.Type, output: boolean): ExportsJsonSchema {
     if (type.getCallSignatures().length > 0 || type.getConstructSignatures().length > 0) {
+      if (!output) return programSchema(type);
       throw new NotJson(checker.typeToString(type), true);
     }
     const symbol = type.getSymbol() ?? type.aliasSymbol;
@@ -377,6 +383,103 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
     const stringIndex = checker.getIndexInfoOfType(type, ts.IndexKind.String);
     if (stringIndex) schema["additionalProperties"] = schemaOf(stringIndex.type, false);
     return schema;
+  }
+
+  /**
+   * The schema of a function in an input: a sub-program, one call of a pure procedure as data
+   * (d40-language-ops). The function has one signature with no type parameter and no rest
+   * parameter. Its parameters and its result are JSON, and its result is not a promise.
+   */
+  function programSchema(type: TS.Type): ExportsJsonSchema {
+    const what = checker.typeToString(type);
+    const signatures = type.getCallSignatures();
+    const signature = signatures[0];
+    if (
+      signature === undefined ||
+      signatures.length > 1 ||
+      type.getConstructSignatures().length > 0 ||
+      checker.getPropertiesOfType(type).length > 0 ||
+      (signature.getTypeParameters()?.length ?? 0) > 0
+    ) {
+      throw new NotJson(what, true);
+    }
+    try {
+      const params: string[] = [];
+      const inputs: ExportsJsonSchema[] = [];
+      for (const [index, parameter] of signature.getParameters().entries()) {
+        const declaration = parameter.valueDeclaration;
+        if (!declaration || !ts.isParameter(declaration) || declaration.dotDotDotToken) throw new NotJson(what, true);
+        params.push(ts.isIdentifier(declaration.name) ? declaration.name.text : `arg${index}`);
+        // The package gives these values to the function, as it gives an output
+        inputs.push(schemaOf(checker.getTypeOfSymbolAtLocation(parameter, declaration), true));
+      }
+      const result = signature.getReturnType();
+      if (promisedType(result) || result.flags & (ts.TypeFlags.Void | ts.TypeFlags.Undefined)) throw new NotJson(what, true);
+      // The function gives this value to the package, as an input does
+      const resultSchema = schemaOf(result, false);
+      const hasNull = result.isUnion() && result.types.some((member) => (member.flags & ts.TypeFlags.Null) !== 0);
+      const program: ExportsProgram = {
+        params,
+        inputs,
+        output: resultSchema,
+        ...(hasUndefinedMember(result) && !hasNull ? { undefinedForNull: true as const } : {}),
+      };
+      const reads = params.length ? ` It reads each parameter as {"$ref": "<name>"}: ${params.join(", ")}.` : "";
+      return {
+        type: "object",
+        description: `One call of a pure procedure, as data, for the function ${what}.${reads}`,
+        required: ["$proc"],
+        properties: {
+          $proc: { type: "array", items: { type: "string" }, minItems: 1 },
+          input: {},
+          $when: { const: "$never" },
+        },
+        [PROGRAM_KEYWORD]: program,
+      };
+    } catch (error) {
+      throw error instanceof NotJson ? new NotJson(what, true) : error;
+    }
+  }
+
+  /**
+   * This function gives the path from a schema to its first sub-program, through the definitions.
+   * The path of the schema itself is `""`. The result is `undefined` when the schema has no sub-program.
+   */
+  function programPath(schema: ExportsJsonSchema): string | undefined {
+    const seen = new Set<string>();
+    const visit = (node: unknown, path: readonly string[]): string | undefined => {
+      if (node === null || typeof node !== "object") return undefined;
+      if (Array.isArray(node)) {
+        for (const item of node) {
+          const found = visit(item, path);
+          if (found !== undefined) return found;
+        }
+        return undefined;
+      }
+      const record = node as Record<string, unknown>;
+      // path-check: a position in the input schema, the property names, not a procedure path
+      if (PROGRAM_KEYWORD in record) return path.join(".");
+      const ref = record["$ref"];
+      if (typeof ref === "string" && ref.startsWith("#/$defs/")) {
+        const key = ref.slice("#/$defs/".length);
+        if (seen.has(key)) return undefined;
+        seen.add(key);
+        return visit(defs.get(key), path);
+      }
+      const properties = record["properties"];
+      if (properties !== null && typeof properties === "object") {
+        for (const [key, value] of Object.entries(properties)) {
+          const found = visit(value, [...path, key]);
+          if (found !== undefined) return found;
+        }
+      }
+      for (const key of ["items", "prefixItems", "additionalProperties", "anyOf"]) {
+        const found = visit(record[key], path);
+        if (found !== undefined) return found;
+      }
+      return undefined;
+    };
+    return visit(schema, []);
   }
 
   // A bare undefined does not get here: schemaOf refuses it in a property

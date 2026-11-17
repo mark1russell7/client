@@ -3,6 +3,7 @@
  * `npm.view` and `npm.distTags.list` read the same data through the npm CLI.
  *
  * - The version document of a tag gives the version, its deprecation, its repository and its license.
+ * - The same document gives the URL, the hashes and the size of the tarball of the version.
  * - The abbreviated document gives the tags, the count of versions and the time of the last change.
  */
 import { isPlainObject, parseJsonOrUndefined } from "@procedures/json";
@@ -22,6 +23,25 @@ export interface RegistryVersion {
   /** The folder of the package in its repository, for a package of a monorepo. */
   readonly repositoryDirectory: string | null;
   readonly license: string | null;
+}
+
+/** The facts of the tarball of one version of a package, from the version document. */
+export interface RegistryDist {
+  readonly package: string;
+  readonly version: string;
+  /** The URL of the tarball. */
+  readonly tarball: string;
+  /**
+   * The Subresource Integrity text of the tarball, for example `sha512-<base64>`, or `null`. An old version can have
+   * only `shasum`. `tarballIntegrity` gives the text to check in the two cases.
+   */
+  readonly integrity: string | null;
+  /** The SHA-1 hash of the tarball as hexadecimal text, or `null`. */
+  readonly shasum: string | null;
+  /** The count of files in the tarball, or `null` when the document does not give it. */
+  readonly fileCount: number | null;
+  /** The size in bytes of the files of the tarball after extraction, or `null` when the document does not give it. */
+  readonly unpackedSize: number | null;
 }
 
 /** The facts of the abbreviated document of a package. */
@@ -63,6 +83,8 @@ function nameOf(segments: readonly string[]): { name: string; rest: readonly str
 
 const textOf = (value: unknown): string | null => (typeof value === "string" && value !== "" ? value : null);
 
+const countOf = (value: unknown): number | null => (typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null);
+
 /**
  * This function reads the response of `registryVersionRequest`. A package or a tag that the registry does not know is
  * in `missing`.
@@ -83,6 +105,35 @@ export function extractRegistryVersion(text: string, url: string): Extracted<Reg
         repository: isPlainObject(repo) ? textOf(repo["url"]) : textOf(repo),
         repositoryDirectory: isPlainObject(repo) ? textOf(repo["directory"]) : null,
         license: isPlainObject(license) ? textOf(license["type"]) : textOf(license),
+      },
+    ],
+    missing: [],
+  };
+}
+
+/**
+ * This function reads the facts of the tarball from the response of `registryVersionRequest`. The tag of that request
+ * can be an exact version, for example `registryVersionRequest("sockette", "2.0.6")`. A package or a version that the
+ * registry does not know is in `missing`. `checkIntegrity` checks the bytes of the tarball against these facts.
+ */
+export function extractRegistryDist(text: string, url: string): Extracted<RegistryDist> {
+  const { name } = nameOf(pathAfter(url, "/"));
+  const json = parseJsonOrUndefined(text);
+  if (typeof json === "string" && /not found/i.test(json)) return { rows: [], missing: [name] };
+  const dist = isPlainObject(json) ? json["dist"] : undefined;
+  if (!isPlainObject(json) || typeof json["version"] !== "string" || !isPlainObject(dist) || typeof dist["tarball"] !== "string") {
+    throw shapeError(url, "an npm version document with a tarball", text);
+  }
+  return {
+    rows: [
+      {
+        package: name,
+        version: json["version"],
+        tarball: dist["tarball"],
+        integrity: textOf(dist["integrity"]),
+        shasum: textOf(dist["shasum"]),
+        fileCount: countOf(dist["fileCount"]),
+        unpackedSize: countOf(dist["unpackedSize"]),
       },
     ],
     missing: [],
