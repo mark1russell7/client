@@ -71,7 +71,8 @@
       "@procedures/predicates",
       "@procedures/quantity",
       "@procedures/algebra",
-      "@procedures/optional"
+      "@procedures/optional",
+      "@procedures/rational"
     ]
   ],
   "linked": [],
