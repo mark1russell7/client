@@ -58,6 +58,7 @@
     "@procedures/splay": "workspace:*",
     "@procedures/sqlite": "workspace:*",
     "@procedures/statistics": "workspace:*",
+    "@procedures/generators": "workspace:*",
     "@procedures/systems": "workspace:*",
     "@procedures/tailscale": "workspace:*",
     "@procedures/vite": "workspace:*",

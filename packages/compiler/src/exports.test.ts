@@ -45,8 +45,8 @@ describe("generateExportsManifest", () => {
 
   it("gives a procedure for each function with JSON inputs and a JSON output", () => {
     expect(manifest.procedures.map((procedure) => procedure.name)).toEqual([
-      "above", "add", "apply", "chain", "choose", "depth", "findIndex", "first", "flip", "greet", "identity", "lookup", "minus", "norm", "nothing", "pair", "pick", "read",
-      "scale", "sizes", "sortBy", "strict", "toggle", "total", "useHandler",
+      "above", "add", "apply", "chain", "choose", "depth", "findIndex", "first", "flip", "greet", "identity", "lookup", "minus", "norm", "nothing", "pair", "pick",
+      "read", "scale", "sideOf", "sizes", "sortBy", "strict", "toggle", "total", "useHandler", "weight",
     ]);
   });
 
@@ -57,6 +57,7 @@ describe("generateExportsManifest", () => {
       ["counter", "output-not-json"],
       ["each", "function-parameter"],
       ["fail", "output-not-json"],
+      ["grow", "input-not-json"],
       ["handlerOf", "output-not-json"],
       ["keys", "input-not-json"],
       ["later", "function-parameter"],
@@ -75,7 +76,7 @@ describe("generateExportsManifest", () => {
   });
 
   it("counts the classes, the values and the types", () => {
-    expect(manifest.others).toEqual({ classes: ["Counter"], values: 1, types: 8 });
+    expect(manifest.others).toEqual({ classes: ["Counter"], values: 1, types: 11 });
   });
 
   it("takes the description from the first paragraph of the doc comment, and of each parameter", () => {
@@ -115,6 +116,31 @@ describe("generateExportsManifest", () => {
         },
       },
     });
+  });
+
+  it("gives a named union one definition, also when a member of the union holds the union again", async () => {
+    const weight = manifest.procedures.find((procedure) => procedure.name === "weight")!;
+    expect(weight.input).toMatchObject({ properties: { spec: { $ref: "#/$defs/Spec" } } });
+    const [fixed, mix] = (manifest.$defs["Spec"] as { anyOf: Record<string, unknown>[] }).anyOf;
+    expect(fixed).toMatchObject({ properties: { kind: { const: "fixed" } } });
+    expect(mix).toMatchObject({ properties: { parts: { type: "array", items: { $ref: "#/$defs/Spec" } } } });
+    const client = clientOf(manifest);
+    const spec = { kind: "mix", parts: [{ kind: "fixed", value: 1 }, { kind: "mix", parts: [{ kind: "fixed", value: 2 }] }] };
+    expect(await client.exec(["fixture", "weight"], { spec })).toBe(2);
+    await expect(client.exec(["fixture", "weight"], { spec: { kind: "mix", parts: [{ kind: "none" }] } })).rejects.toThrow();
+  });
+
+  it("gives null for the undefined member of a named union in an output, and keeps it out of the definition", async () => {
+    expect(manifest.$defs["MaybeSide"]).toEqual({ enum: ["less", "greater", "two-sided"] });
+    expect(manifest.procedures.find((procedure) => procedure.name === "sideOf")!.output).toEqual({ anyOf: [{ $ref: "#/$defs/MaybeSide" }, { type: "null" }] });
+    const client = clientOf(manifest);
+    expect(await client.exec(["fixture", "sideOf"], { sign: -2 })).toBe("less");
+    expect(await client.exec(["fixture", "sideOf"], { sign: 0 })).toBeNull();
+  });
+
+  it("fails closed on a type that grows at each level", () => {
+    expect(manifest.exempt.find((exemption) => exemption.name === "grow")?.detail).toMatch(/^value\.next\.next\..*: a type deeper than 64 levels$/);
+    expect(Object.keys(manifest.$defs).filter((name) => name.startsWith("Grow"))).toEqual([]);
   });
 
   it("gives each type of a union, and an enum for a union of literals", () => {
