@@ -1,5 +1,45 @@
 # @procedures/mongo
 
+## 0.61.0
+
+### Patch Changes
+
+- 8506442: The hash of a row of `ViewMaterializer` uses `canonicalJson` of `@mark1russell7/rigor-generators` (CLI-128). The local copy of the canonical text is removed. The text of each row does not change, so each row keeps its hash.
+- Updated dependencies [8506442]
+- Updated dependencies [8506442]
+- Updated dependencies [f9a78f9]
+- Updated dependencies [3eb4b59]
+  - @procedures/client@0.61.0
+  - @procedures/collections@0.61.0
+
+## 0.60.1
+
+### Patch Changes
+
+- 487d144: `ViewMaterializer` writes a row of a target again when only a value that is not JSON changes, for example a Date (CLI-126). Before this fix, the hash of a row of a plain target gave `{}` for each Date. A row that changed only in a Date kept its hash, so the view kept the old value.
+  
+  The hash of a row reads one text in both kinds of target. A JSON value stays as it is. Each other value gives its canonical Extended JSON form. These values are a Date, a RegExp, a BSON value, NaN, an infinity and -0. A BSON value is, for example, an ObjectId, a Decimal128, a Binary, a Timestamp or a Long.
+  
+  Fix: a target in a stored form stopped its run at a row with a RegExp that has the flag `g`. The old hash read the canonical Extended JSON of the row, and Extended JSON refuses the flag `g`. The driver (bson 7.3.3) reads the BSON option `s` of a regular expression as the flag `g`. So a row read back from MongoDB with the option `s` also stopped the run. The hash text of a RegExp is `{"$regularExpression": {"options", "pattern"}}`, with its flags in order, so the run continues.
+  
+  Migration: a plain target keeps the hash of each row in `_viewHash`. The hash of a row with a value that is not JSON changes. At the first pass after the upgrade, a view writes each of these rows one time. The rows of JSON values keep their hash, and the view does not write them.
+- Updated dependencies [beca782]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [a87cdda]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [4ab1acf]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+  - @procedures/collections@0.60.1
+
 ## 0.60.0
 
 ### Patch Changes

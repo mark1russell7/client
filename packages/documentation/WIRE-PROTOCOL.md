@@ -123,6 +123,7 @@ The server reads the credentials of each network request. They go to the request
 - The first value of each query parameter.
 - The secret headers stay out of the metadata: `Authorization`, `Proxy-Authorization`, `Cookie`, `X-Api-Key` and the names of the option `secretHeaders`.
 - The secret query parameters stay out of the metadata too. For `procedureHandler`, the default of the option `secretQuery` is `["token"]`. For `HttpServerTransport`, the default is no parameter.
+- The metadata key `auth` holds credentials, so a network request does not set it. Each network face drops it from the query, the headers, `X-Metadata` and the metadata of a WebSocket frame. A local face keeps it.
 - The request hook can give the bearer token from a cookie, a header or the query, for example `?token=<token>`. A WebSocket connection gives the credentials of its upgrade to each call, and its `?token=` query is a bearer token.
 - A local face sets the local marker `LOCAL_CREDENTIALS` in place of credentials (CLI-1). The local faces are a direct `handle()` of the application, MCP over stdio and `PortTransport`. The request hook and the token check do not apply to a local request.
 - The key of the marker is a symbol. JSON, a header, a cookie and a query cannot carry it. Thus a network request cannot claim to be local.

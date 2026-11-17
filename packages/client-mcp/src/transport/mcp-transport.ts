@@ -33,7 +33,7 @@ import type {
   ReportProgress,
   Logger,
 } from "@procedures/client";
-import { LOCAL_CREDENTIALS, NARROWING_METADATA_KEY, PROCEDURE_REGISTRY, addNarrowing, pathToKey, pathToMethod, createElicit, elicitWithPolicy, lastResortError, requestCredentials, retryableOf, untrustedTextsOf, writeLog } from "@procedures/client";
+import { LOCAL_CREDENTIALS, NARROWING_METADATA_KEY, PROCEDURE_REGISTRY, addNarrowing, pathToKey, pathToMethod, createElicit, elicitWithPolicy, lastResortError, requestCredentials, retryableOf, writeLog, type UntrustedText } from "@procedures/client";
 import {
   proceduresToMcpTools,
   toToolDefinition,
@@ -44,7 +44,8 @@ import { createStdioTransport } from "./stdio.js";
 import { createSseTransport } from "./sse.js";
 import { createHttpTransport, requestCredentialsOf, type McpHttpTransport } from "./http.js";
 import { optionalMs } from "@procedures/client";
-import { createUntrustedEnvelopes } from "../untrusted.js";
+import { createUntrustedEnvelopes, type UntrustedEnvelopes } from "../untrusted.js";
+import { separateUntrusted } from "./untrusted-sites.js";
 import { taskStoreOf, type McpTaskStore } from "../tasks.js";
 
 /**
@@ -592,12 +593,12 @@ export class McpServerTransport implements ServerTransport {
           break;
         }
         // An item with untrusted fields gives its data, then its envelopes (CLI-10)
-        const rendered = tool?.untrusted ? this.render(item, tool).content : undefined;
-        const text = rendered ? rendered.map((block) => block.text).join("\n") : toText(item, this.options.json);
+        const rendered = this.render(item, tool, false).content;
+        const text = rendered.map((block) => block.text).join("\n");
         blocks.push({ type: "text", text });
         if (blocks.length > MAX_STREAM_BLOCKS) blocks.shift();
         if (progressToken !== undefined && !ownProgress()) {
-          const message = rendered ? rendered[0]!.text : text;
+          const message = rendered[0]!.text;
           await extra
             .sendNotification({
               method: "notifications/progress",
@@ -624,33 +625,36 @@ export class McpServerTransport implements ServerTransport {
   }
 
   /**
-   * The content of a successful value. A tool with untrusted fields (`metadata.untrusted`) gives
-   * the data as JSON in the first block. The second block has the texts of those fields in
-   * envelopes. In the structured content, each untrusted field is the text of its envelopes.
+   * The content of a successful value. The untrusted fields are the fields that the tool declares
+   * (`metadata.untrusted`) and the fields of the marked objects at each depth (`markUntrusted()`).
+   * With such a field, the first block has the data as JSON, and the second block has the texts in
+   * envelopes. In the structured content, a declared field is the text of its envelopes, and each
+   * text of another field is in its envelope, with the same shape.
    */
-  private render(value: unknown, tool: McpTool): McpToolContent {
-    const fields = tool.untrusted ?? [];
-    if (fields.length === 0 || value === null || typeof value !== "object" || Array.isArray(value)) {
-      const structured = tool.outputSchema ? structuredContentOf(value) : undefined;
-      return { content: [{ type: "text", text: toText(value, this.options.json) }], ...(structured ? { structuredContent: structured } : {}) };
-    }
-    const data: Record<string, unknown> = { ...(value as Record<string, unknown>) };
-    const envelopes = createUntrustedEnvelopes(this.options.untrusted ?? {});
+  private render(value: unknown, tool: McpTool | undefined, structuredOutput = true): McpToolContent {
+    const name = tool?.name ?? "";
     const wrap = this.options.untrusted?.wrap;
+    // One answer has one id for all of its envelopes
+    let envelopes: UntrustedEnvelopes | undefined;
+    const seal = (texts: readonly UntrustedText[], field: string): string =>
+      wrap ? wrap(texts, { tool: name, field }) : (envelopes ??= createUntrustedEnvelopes(this.options.untrusted ?? {})).text(texts);
+    const { data, structured, sites } = separateUntrusted(value, tool?.untrusted ?? [], (text, label) => seal([text], label));
+    const schema = structuredOutput && tool?.outputSchema !== undefined;
+    if (sites.length === 0) {
+      const plain = schema ? structuredContentOf(value) : undefined;
+      return { content: [{ type: "text", text: toText(value, this.options.json) }], ...(plain ? { structuredContent: plain } : {}) };
+    }
     const texts: Record<string, string> = {};
     const blocks: string[] = [];
-    for (const field of fields) {
-      if (!(field in data)) continue;
-      const items = untrustedTextsOf(data[field]);
-      delete data[field];
-      const text = wrap ? wrap(items, { tool: tool.name, field }) : envelopes.text(items);
-      texts[field] = text;
+    for (const site of sites) {
+      const text = seal(site.texts, site.label);
+      if (site.declared) texts[site.label] = text;
       if (text !== "") blocks.push(text);
     }
     const content: McpTextBlock[] = [{ type: "text", text: toText(data, this.options.json) }];
     if (blocks.length > 0) content.push({ type: "text", text: blocks.join("\n") });
-    const structured = tool.outputSchema ? structuredContentOf(data) : undefined;
-    return { content, ...(structured ? { structuredContent: { ...structured, ...texts } } : {}) };
+    const object = schema ? structuredContentOf(structured) : undefined;
+    return { content, ...(object ? { structuredContent: { ...object, ...texts } } : {}) };
   }
 
   /**
