@@ -4,8 +4,9 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { quantile } from "@mark1russell7/rigor-statistics";
-import { aaId, childResult, measureIsolated, pairedMarkdown, quantileOf, timeChild } from "./lib/paired-time.ts";
+import { random } from "@mark1russell7/rigor-generators";
+import { mean, quantile, sd } from "@mark1russell7/rigor-statistics";
+import { aaId, childResult, meanOf, measureIsolated, pairedMarkdown, quantileOf, sampleSD, timeChild } from "./lib/paired-time.ts";
 
 const ENV = { cpu: "Test CPU 9000", cores: 4, os: "test", arch: "x64", node: "v0.0.0" };
 
@@ -14,6 +15,57 @@ function fakeClock() {
   let now = 0;
   return { clock: () => now, spend: (ms: number) => (now += ms) };
 }
+
+// These tests are not tests of the source. They hold the copies to their home: the quantile, the mean and the SD
+// of a list are in @mark1russell7/rigor-statistics. The copies stay because the paired bench loads this module
+// with no install. They go with the paired time test when the gates package of rigor replaces this copy.
+describe("the copies of rigor-statistics in paired-time (CA14)", () => {
+  /** Seeded random lists of 1 to 40 values, with ties, negative values and a wide range. */
+  function lists(): number[][] {
+    const r = random("paired-time-statistics");
+    const rng = () => r.next();
+    const out: number[][] = [[5], [2, 2], [1, 2], [0, -0], [3, 3, 3]];
+    for (let i = 0; i < 300; i++) {
+      const length = 1 + Math.floor(rng() * 40);
+      const scale = 10 ** Math.floor(rng() * 7 - 3);
+      out.push(Array.from({ length }, () => (rng() < 0.2 ? Math.round(rng() * 4) : (rng() - 0.3) * scale)));
+    }
+    return out;
+  }
+  const close = (a: number, b: number) => Math.abs(a - b) <= 1e-12 * Math.max(1, Math.abs(a), Math.abs(b));
+
+  it("quantileOf gives the same number as the linear quantile of rigor-statistics, for each list and each q", () => {
+    let cases = 0;
+    for (const values of lists()) {
+      for (let step = 0; step <= 100; step++) {
+        const q = step / 100;
+        const ours = quantileOf(values, q);
+        const home = quantile(values, q, "linear");
+        // For the list [0, -0] at q = 1, the copy gives 0 and the home gives -0. The operator === takes them as equal
+        assert.ok(ours === home, `${JSON.stringify(values)} q=${q}: ${ours} !== ${home}`);
+        cases++;
+      }
+    }
+    assert.equal(cases, 305 * 101);
+  });
+
+  it("meanOf and sampleSD give mean and sd of rigor-statistics on each list of 2 values or more", () => {
+    for (const values of lists()) {
+      assert.ok(close(meanOf(values), mean(values)), `mean of ${JSON.stringify(values)}`);
+      if (values.length >= 2) assert.ok(close(sampleSD(values), sd(values)), `sd of ${JSON.stringify(values)}`);
+    }
+  });
+
+  it("pins the differences: NaN for an empty list and an SD of 0 below 2 values, where rigor-statistics throws", () => {
+    assert.ok(Number.isNaN(quantileOf([], 0.5)));
+    assert.throws(() => quantile([], 0.5), RangeError);
+    assert.ok(Number.isNaN(meanOf([])));
+    assert.throws(() => mean([]), RangeError);
+    assert.equal(sampleSD([7]), 0);
+    assert.equal(sampleSD([]), 0);
+    assert.throws(() => sd([7]), RangeError);
+  });
+});
 
 describe("quantileOf", () => {
   it("interpolates between the two nearest values", () => {
@@ -162,29 +214,5 @@ describe("the options", () => {
   it("refuses a peakRss that an arm gives in mode process", async () => {
     const arms = [{ id: "a", run: () => ({ peakRss: 1 }) }];
     await assert.rejects(() => measureIsolated({ mode: "process", inputs: [{ id: "i" }], repeats: 1, arms, env: ENV }), /peakRss in mode process/);
-  });
-});
-
-// This test is not a test of the source. It holds the copy to its home: the quantiles of a list are in
-// @mark1russell7/rigor-statistics. The copy stays because the paired bench loads this module with no install.
-// It goes with the paired time test when the gates package of rigor replaces this copy.
-describe("quantileOf and the quantile of rigor-statistics", () => {
-  it("gives the same number as quantile(values, p) with the method linear, for each list and each p", () => {
-    let cases = 0;
-    for (let n = 1; n <= 40; n++) {
-      // A fixed list of times with repeats, a zero and values of different sizes, in no order
-      const values = Array.from({ length: n }, (_, i) => ((i * 7919) % 101) / 7 + (i % 3 === 0 ? 1e6 : 0) - (i === 5 ? 3 : 0));
-      for (let step = 0; step <= 100; step++) {
-        const p = step / 100;
-        assert.equal(quantileOf(values, p), quantile(values, p, "linear"), `n ${n}, p ${p}`);
-        cases++;
-      }
-    }
-    assert.equal(cases, 40 * 101);
-  });
-
-  it("gives NaN for an empty list, where the quantile of rigor-statistics throws", () => {
-    assert.ok(Number.isNaN(quantileOf([], 0.5)));
-    assert.throws(() => quantile([], 0.5));
   });
 });
