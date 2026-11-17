@@ -246,7 +246,7 @@ Each other function gets an exemption with its reason and the part of the signat
 
 | Reason | The cause | The plan |
 |---|---|---|
-| `function-parameter` | A parameter is a function, for example a statistic of a bootstrap. | A program gives the function as a call. |
+| `function-parameter` | A sub-program cannot give the function: it has more than one signature, a type parameter, a rest parameter, a promise, no value or a type that is not JSON. | No change. |
 | `input-not-json` | An input is not JSON: a `Map`, a `Date`, a `bigint`, an object with methods, or a type that does not resolve. | An object with methods becomes a handle. |
 | `output-not-json` | The output is not JSON, for example a class instance. | The handle of the instance. |
 | `overload` | The function has more than one signature. | One procedure for each signature. |
@@ -254,6 +254,33 @@ Each other function gets an exemption with its reason and the part of the signat
 | `unresolved` | A re-export does not resolve, for example because its module is not installed. | Install the module. |
 
 A type that does not resolve fails closed: it gives an exemption, not a schema that accepts each value. The generator reads the real path of the declaration file, as Node.js does, so a link of pnpm resolves the imports of the package. TypeScript 7 has no compiler API in JavaScript, so the entry `./generate` reads the API of TypeScript 5. Add `"typescript-api": "npm:typescript@^5.9.3"` to the `devDependencies` of the package that starts the generator.
+
+
+### A function parameter is a sub-program
+
+A function parameter, for example the statistic of a bootstrap, gets a sub-program. A sub-program is one call of a pure procedure, as data. It reads each parameter of the function as `{ "$ref": "<name>" }`:
+
+```json
+{
+  "$proc": ["statistics", "bootstrap"],
+  "input": {
+    "data": [3, 1, 4, 1, 5],
+    "statistic": { "$proc": ["statistics", "mean"], "input": { "values": { "$ref": "sample" } }, "$when": "$never" },
+    "options": { "runs": 200, "seed": 7 }
+  }
+}
+```
+
+- In a program, `"$when": "$never"` keeps the call as data. A tool input of MCP or a direct call can omit `$when`.
+- The schema of the position has the keyword `x-procedures-program`. It gives the names and the schemas of the parameters, and the schema of the result.
+- The loader compiles the call into a function. The function gives its value at once, as the package needs it.
+- A sub-program uses only operators. An operator is a pure procedure of an exports manifest. It gives no promise and takes no sub-program.
+- The loader finds each operator in the registry of the caller, before the function of the package starts. It obeys the `expose` rule of the caller.
+- The loader examines the input of each operator and the result of the function with their schemas.
+- An array of calls is a chain, so a sub-program refuses it. Only the root call has a `$when`.
+- A function that a sub-program cannot give stays exempt with the reason `function-parameter`. A function in an output gives the reason `output-not-json`.
+
+Thus a sub-program changes nothing, and it gives the same value for the same input.
 
 ## The procedures
 

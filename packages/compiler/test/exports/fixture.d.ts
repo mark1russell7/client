@@ -28,6 +28,12 @@ export interface Shape {
   area(): number;
 }
 
+/** A handler: a named type with a callback. */
+export interface Handler {
+  readonly name: string;
+  readonly run: (value: number) => number;
+}
+
 /** A note: a property with an undefined member can be absent. */
 export interface Note {
   readonly text: string;
@@ -49,6 +55,10 @@ export declare const LIMIT = 10;
  * @param a The first number.
  */
 export declare function add(a: number, b: number): number;
+/** The difference of two numbers. */
+export declare function minus(a: number, b: number): number;
+/** True when a number is over a limit. */
+export declare function above(value: number, limit: number): boolean;
 /** The distance of a point from the origin, at a level. */
 export declare function norm(point: Point, options?: Options): number;
 /** The sum of each number. */
@@ -69,10 +79,26 @@ export declare function flip(side: Side | null): Side | null;
 export declare function strict(flag: true, mode: 1 | 2): "yes";
 /** A count of the keys of a map: a Map is not JSON. */
 export declare function keys(map: Map<string, number>): number;
-/** A callback is not JSON. */
+/** A callback with JSON values: a sub-program gives it. */
 export declare function apply(values: readonly number[], fn: (value: number) => number): number[];
-/** An option with a callback is not JSON. */
+/** An option with a callback: a sub-program gives it. */
 export declare function sortBy(values: readonly number[], options: { readonly compare: (a: number, b: number) => number }): number[];
+/** A callback with two parameters. */
+export declare function findIndex(values: readonly number[], predicate: (value: number, index: number) => boolean): number;
+/** An optional callback whose result can be undefined: a sub-program gives undefined for null. */
+export declare function choose(a: number, b: number, score?: (a: number, b: number) => number | undefined): number;
+/** A callback in a named type. */
+export declare function useHandler(handler: Handler, value: number): number;
+/** A named type with a callback is not JSON in an output. */
+export declare function handlerOf(name: string): Handler;
+/** A callback that gives a promise: a sub-program gives its value at once, so it cannot. */
+export declare function later(values: readonly number[], fn: (value: number) => Promise<number>): Promise<number[]>;
+/** A callback with no value. */
+export declare function each(values: readonly number[], fn: (value: number) => void): void;
+/** A generic callback. */
+export declare function twice(fn: <T>(value: T) => T): number;
+/** A callback with a parameter that is not JSON. */
+export declare function sizeOf(fn: (map: Map<string, number>) => number): number;
 /** A counter: the output is a class instance. */
 export declare function counter(): Counter;
 /** Two signatures. */
@@ -100,3 +126,16 @@ export declare function unset(value: undefined): number;
 export { vanished } from "./missing.js";
 /** A tuple with an undefined item: JSON gives null for it. */
 export declare function lookup(key: string): [string, undefined];
+/** A factor or a function of each value: a union with a sub-program. */
+export declare function scale(values: readonly number[], factor: number | ((value: number) => number)): number[];
+/** The steps of a value, in order: an array of sub-programs. */
+export declare function chain(value: number, steps: readonly ((value: number) => number)[]): number;
+/** An item with a name and a size. */
+export interface Named {
+  readonly name: string;
+  readonly size: number;
+}
+/** The key of each item: a sub-program that reads the fields of its parameter. */
+export declare function sizes(items: readonly Named[], key: (item: Named) => number): number[];
+/** A property that is not JSON. */
+export declare function stamp(record: { readonly at: bigint }): number;
