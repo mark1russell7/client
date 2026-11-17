@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { DEFAULT_TOOL_TIMEOUT_MS, loadConfig, parseMaxSessions, parseTimeout } from "./config.js";
+import { DEFAULT_TOOL_TIMEOUT_MS, loadConfig, parseListing, parseMaxSessions, parseTimeout } from "./config.js";
 
 describe("parseTimeout", () => {
   it("reads milliseconds, and 0 turns the limit off", () => {
@@ -100,6 +100,32 @@ describe("MCP_PROGRAM_CHECK (roadmap R22)", () => {
     } finally {
       if (before === undefined) delete process.env["MCP_PROGRAM_CHECK"];
       else process.env["MCP_PROGRAM_CHECK"] = before;
+    }
+  });
+});
+
+describe("MCP_LISTING (direction 40)", () => {
+  it("is each tool by default, and search gives the three search tools", () => {
+    expect(parseListing(undefined)).toBeUndefined();
+    expect(parseListing(" ")).toBeUndefined();
+    expect(parseListing("each")).toBe("each");
+    expect(parseListing(" search ")).toBe("search");
+  });
+
+  it("refuses a value that is not a listing, so a mistake does not list each tool", () => {
+    expect(() => parseListing("serch")).toThrow(/each" or "search/);
+  });
+
+  it("goes into the configuration", () => {
+    const before = process.env["MCP_LISTING"];
+    try {
+      delete process.env["MCP_LISTING"];
+      expect(loadConfig().listing).toBeUndefined();
+      process.env["MCP_LISTING"] = "search";
+      expect(loadConfig().listing).toBe("search");
+    } finally {
+      if (before === undefined) delete process.env["MCP_LISTING"];
+      else process.env["MCP_LISTING"] = before;
     }
   });
 });
