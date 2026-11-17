@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.ts`.
 
-**Total procedures:** 519 across 56 namespaces. Loaded 53 package register(s).
+**Total procedures:** 561 across 56 namespaces. Loaded 53 package register(s).
 
 ## Namespaces
 
@@ -23,7 +23,7 @@
 - [`exif.*`](#exif) — 1 procedure(s)
 - [`fs.*`](#fs) — 15 procedure(s)
 - [`generators.*`](#generators) — 23 procedure(s)
-- [`geo.*`](#geo) — 4 procedure(s)
+- [`geo.*`](#geo) — 46 procedure(s)
 - [`gh.*`](#gh) — 16 procedure(s)
 - [`git.*`](#git) — 46 procedure(s)
 - [`http.*`](#http) — 4 procedure(s)
@@ -291,10 +291,52 @@
 
 | Procedure | Description |
 |-----------|-------------|
-| `geo.distance` | Give the great-circle distance between two points in kilometres (haversine), without the network |
+| `geo.bboxCenter` | This function gives the middle of a box. Its latitude is the middle of the latitudes of the box. Its longitude is the middle of the arc of longitudes from the west to the east. For a box that crosses the antimeridian, the middle is on the arc across the antimeridian. |
+| `geo.bboxContains` | This function gives `true` when the closed box has the point. A box that reaches a pole has the pole for each longitude. |
+| `geo.bboxIntersects` | This function gives `true` when the two closed boxes have a common point. Two boxes that touch on an edge have a common point. Two boxes that reach the same pole have the pole. |
+| `geo.bboxOfGeoJson` | This function gives the smallest bounding box of a GeoJSON object. It reads the coordinates, not the member `bbox`. |
+| `geo.bboxOfPoints` | This function gives the smallest bounding box of the points. A box crosses the antimeridian when that makes it narrower. For an empty array, the result is `undefined`. |
+| `geo.bufferKm` | This function gives the buffer of a GeoJSON geometry: the area within a distance in kilometres of the geometry, as a polygon for a map. The module documentation gives the rules and the guarantee of the tolerance. |
+| `geo.bufferMeters` | This function gives the buffer of a GeoJSON geometry: the area within a distance in metres of the geometry, as a polygon for a map. It uses the rules of `bufferKm`. |
+| `geo.centralAngleRadians` | This function gives the angle between two points at the center of the sphere, in radians from 0 to pi. It uses the haversine formula. The result is the same when the two points change places. |
+| `geo.circleKm` | This function gives a circle on the Earth as a polygon. The radius is a great-circle distance in kilometres. The module documentation gives the rules for the antimeridian and the poles. |
+| `geo.circleMeters` | This function gives a circle on the Earth as a polygon. The radius is a great-circle distance in metres. The module documentation gives the rules for the antimeridian and the poles. |
+| `geo.decodeGeohash` | This function gives the cell of a geohash: its edges and its center. Upper case letters are correct. Each character must be an ASCII digit or an ASCII letter. |
+| `geo.densify` | This function gives a copy of a geometry with more positions on its edges. It divides each edge into equal parts, so that no part is longer than `maxStep` degrees of longitude or of latitude. Use it before a drawing on a globe. |
+| `geo.destinationKm` | This function gives the point at a distance from a start point, along the great circle with an initial bearing. The longitude of the result is normalized. A negative distance goes in the opposite direction. |
+| `geo.destinationMeters` | This function gives the point at a distance in metres from a start point, along the great circle with an initial bearing. The longitude of the result is normalized. |
+| `geo.distance` | Give the great-circle distance between two points in kilometres (haversine), without the network. Deprecated: use geo.distanceKm with radiusKm 6371 |
+| `geo.distanceBetweenGeometriesKm` | This function gives the great-circle distance in kilometres between the nearest points of two GeoJSON geometries. The rules are in the description of this module. The model is a sphere. |
+| `geo.distanceBetweenGeometriesMeters` | This function gives the great-circle distance in metres between the nearest points of two GeoJSON geometries. It uses the rules of `distanceBetweenGeometriesKm`. |
+| `geo.distanceKm` | This function gives the great-circle distance between two points in kilometres. The model is a sphere. On the ellipsoid of WGS84, the true distance can be different by up to approximately 0.6 %. |
+| `geo.distanceMeters` | This function gives the great-circle distance between two points in metres. The model is a sphere. |
+| `geo.distanceToGeometryKm` | This function gives the great-circle distance in kilometres from a point to the nearest point of a GeoJSON geometry. The rules are in the description of this module. The model is a sphere. |
+| `geo.distanceToGeometryMeters` | This function gives the great-circle distance in metres from a point to the nearest point of a GeoJSON geometry. It uses the rules of `distanceToGeometryKm`. |
+| `geo.followsRightHandRule` | This function gives `true` when the polygon follows the right-hand rule of RFC 7946 (section 3.1.6): each exterior ring is counterclockwise, and each hole is clockwise. A degenerate ring does not follow the rule. |
+| `geo.fromGeoJsonBBox` | This function reads a GeoJSON bounding box of 4 or 6 numbers, with the rules of `parseGeoJson`. It examines the altitudes, and then it ignores them. It gives a box with longitudes from -180 to 180, with no rounding: |
+| `geo.fromPosition` | This function gives the point of a GeoJSON position. It ignores the altitude. The longitude of the result is normalized. |
+| `geo.fromUnitVector` | This function gives the point in the direction of a vector from the center of a sphere. The vector can have each length other than 0. The longitude of the result is normalized. |
 | `geo.geocode` | Find the coordinates of an address or a place name (OpenStreetMap Nominatim) |
+| `geo.geodesicDirect` | This function gives the point at a distance along the geodesic from a start point with an initial bearing. It also gives the bearing of the geodesic at that point. |
+| `geo.geodesicInverse` | This function gives the geodesic between two points on an ellipsoid: its length and its bearings at the two ends. The geodesic is the shortest path between the two points on the ellipsoid. |
 | `geo.geohash` | Give the geohash of a point and the cell of that geohash, without the network |
+| `geo.geohashesInBBox` | This function gives the geohashes of the cells that cover a closed box, with one precision. The list has each cell that has a point of the box one time, with the rule of `geohash` for a point on an edge. So a cell that touches the box only on the south edge or the west edge of the box is not in the list. A cell that touches the box only on the north edge or the east edge of the box is in the list. The order is from south to north, then from west to east. A box that crosses the antimeridian is correct. |
+| `geo.geohashNeighbor` | This function gives the neighbor of a cell in a direction, with the same precision. The longitude wraps at the antimeridian. Past a pole, the result is `undefined`. |
+| `geo.geohashNeighbors` | This function gives the eight neighbors of a cell. A neighbor past a pole is `undefined`. |
+| `geo.initialBearing` | This function gives the initial bearing of the great circle from `from` to `to`, in degrees clockwise from north. The result is from 0 to less than 360. |
+| `geo.intermediatePoint` | This function gives the point at a part of the way along the great circle from `from` to `to`. A part of 0 gives the start, 0.5 gives the middle, and 1 gives the end. The longitude of the result is normalized. |
+| `geo.latLon` | This function gives a point with a normalized longitude. |
+| `geo.locatePoint` | This function gives the location of a point against a Polygon or a MultiPolygon: `inside`, `boundary` or `outside`. The rules are in the description of this module. A point on the boundary of one part and inside another part is `inside`. A closed polygon contains the point when the result is not `outside`. |
+| `geo.normalizeLon` | This function gives the longitude in the range from -180 to less than 180. A longitude of 180 becomes -180, and -0 becomes 0. The result has no rounding: it is the longitude plus a multiple of 360. So the function does not change a longitude that is already in the range, other than -0. |
+| `geo.polygonIntersectsBBox` | This function gives `true` when a closed polygon and a closed box have a common point. A box that crosses the antimeridian is two rectangles, one on each side. |
+| `geo.polygonsIntersect` | This function gives `true` when two closed polygons have a common point. Polygons that touch at one point intersect. A polygon in a hole of the other polygon does not intersect it, unless they touch. The rules are in the description of this module. The result is the same when `a` and `b` change places. |
+| `geo.rewind` | This function gives a copy of the polygon that follows the right-hand rule of RFC 7946. It reverses each clockwise exterior ring and each counterclockwise hole. It does not change a degenerate ring. The copy keeps the other members of the object. |
+| `geo.ringWinding` | This function gives the winding of a ring in the plane of longitude and latitude: the sign of its exact signed area. The sum uses exact dyadic numbers, so a rounding error cannot change the result. For a ring that crosses itself, the result is the sign of the sum of the signed areas of its loops. |
 | `geo.route` | Give the time and the distance of a drive between two points (OSRM) |
+| `geo.simplifyRegions` | This function simplifies regions that share borders, for example the counties of a state, with the method of Douglas and Peucker. It gives one region for each region of the input, with the same type. |
+| `geo.toGeoJsonBBox` | This function gives the GeoJSON form `[west, south, east, north]` of a box. |
+| `geo.toPosition` | This function gives the GeoJSON position `[lon, lat]` of a point. |
+| `geo.toUnitVector` | This function gives the unit vector of a point, from the center of a sphere to the point. A drawing in 3D multiplies the vector by its radius. |
 
 ## gh
 
