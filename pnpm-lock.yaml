@@ -1483,11 +1483,14 @@ importers:
   packages/geo:
     dependencies:
       '@mark1russell7/geo':
-        specifier: ^0.3.1
-        version: 0.3.1
+        specifier: ^0.5.3
+        version: 0.5.3
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
+      '@procedures/compiler':
+        specifier: workspace:*
+        version: link:../compiler
       zod:
         specifier: ^4.6.5
         version: 4.6.7
@@ -3782,8 +3785,8 @@ packages:
     resolution: {integrity: sha512-Pb978ZnvlAxzcdWtRtqTGb7mZFCvlNrdKnpZqhxQ7gafzeNGf1JqYFuB4RWiLbJzRuFUWjEoAVG5f2TndCIlSg==}
     engines: {node: '>=22'}
 
-  '@mark1russell7/geo@0.3.1':
-    resolution: {integrity: sha512-mpYSjKse66WZDS//8hBqsf7oLzZ9uI6XpG9bUibdtO4VOE4zprhFi+XlXc+CXowADo+efbRi3LqDFNog4MPB+g==}
+  '@mark1russell7/geo@0.5.3':
+    resolution: {integrity: sha512-3NUmhjBQXQadIxbjnfIOMGaRaKroTLtY94CMJxLTFXlItXbAU94cTFsnAPt8bBJoJbHfmf9xbmaNcnRn3MfLsw==}
     engines: {node: '>=22.12'}
 
   '@mark1russell7/optional@1.2.0':
@@ -7761,7 +7764,7 @@ snapshots:
 
   '@mark1russell7/files@0.0.4': {}
 
-  '@mark1russell7/geo@0.3.1':
+  '@mark1russell7/geo@0.5.3':
     dependencies:
       '@mark1russell7/optional': 1.2.0
       '@mark1russell7/predicates': 0.1.5

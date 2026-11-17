@@ -118,14 +118,22 @@ export const geoRouteProcedure: AnyProcedure = routeProcedure(undefined);
 // geo.distance
 // =============================================================================
 
+/**
+ * The procedure `geo.distance`.
+ *
+ * @deprecated Use the generated procedure `geo.distanceKm` with `{ a, b, radiusKm: 6371 }`. It gives the same value.
+ * The default radius of `geo.distanceKm` is 6371.0088 km. This procedure goes at a later MINOR of the client group.
+ */
 export const geoDistanceProcedure: AnyProcedure = createProcedure()
   .path(["geo", "distance"])
   .input(GeoDistanceInputSchema)
   .output(GeoDistanceOutputSchema)
   .meta({
-    description: "Give the great-circle distance between two points in kilometres (haversine), without the network",
+    description:
+      "Give the great-circle distance between two points in kilometres (haversine), without the network. Deprecated: use geo.distanceKm with radiusKm 6371",
     output: "json",
     effects: PURE,
+    deprecated: true,
   })
   .handler(async (input: GeoDistanceInput): Promise<GeoDistanceOutput> => geoDistance(input))
   .build();
