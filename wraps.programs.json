@@ -174,6 +174,156 @@
           0.19666967575903982
         ]
       ]
+    },
+    {
+      "name": "netem-time-of-a-datagram",
+      "description": "The time that netem gives one UDP datagram of 1,000 bytes at 10 Mbit/s. algebra gives the frame length and the time in nanoseconds, and quantity converts it to milliseconds.",
+      "program": {
+        "$proc": [
+          "quantity",
+          "format"
+        ],
+        "input": {
+          "amount": {
+            "$proc": [
+              "quantity",
+              "convert"
+            ],
+            "input": {
+              "amount": {
+                "$proc": [
+                  "quantity",
+                  "quantity"
+                ],
+                "input": {
+                  "value": {
+                    "$proc": [
+                      "algebra",
+                      "netemPacketTime"
+                    ],
+                    "input": {
+                      "length": {
+                        "$proc": [
+                          "algebra",
+                          "udpFrameLength"
+                        ],
+                        "input": {
+                          "payload": 1000
+                        }
+                      },
+                      "rate": {
+                        "rate": 1250000
+                      }
+                    }
+                  },
+                  "unit": "ns"
+                }
+              },
+              "to": "ms"
+            }
+          }
+        }
+      },
+      "result": "0.83 ms"
+    },
+    {
+      "name": "side-of-the-median-point",
+      "description": "The side of the point of the medians of a sample from the line through (0, 0) and (10, 10). The exact predicate gives 1 for the left side.",
+      "program": {
+        "$proc": [
+          "predicates",
+          "orient2dSign"
+        ],
+        "input": {
+          "ax": 0,
+          "ay": 0,
+          "bx": 10,
+          "by": 10,
+          "cx": {
+            "$proc": [
+              "statistics",
+              "median"
+            ],
+            "input": {
+              "values": [
+                1,
+                2,
+                3,
+                4,
+                9
+              ]
+            }
+          },
+          "cy": {
+            "$proc": [
+              "statistics",
+              "median"
+            ],
+            "input": {
+              "values": [
+                4,
+                5,
+                6,
+                7,
+                8
+              ]
+            }
+          }
+        }
+      },
+      "result": 1
+    },
+    {
+      "name": "format-of-a-duration-that-can-be-absent",
+      "description": "The text of a duration in milliseconds that can be null. optional maps a present value through quantity, and gives a fallback text for an absent value.",
+      "program": {
+        "$proc": [
+          "optional",
+          "getOr"
+        ],
+        "input": {
+          "o": {
+            "$proc": [
+              "optional",
+              "map"
+            ],
+            "input": {
+              "o": {
+                "$proc": [
+                  "optional",
+                  "fromNullable"
+                ],
+                "input": {
+                  "value": 1500
+                }
+              },
+              "f": {
+                "$proc": [
+                  "quantity",
+                  "format"
+                ],
+                "input": {
+                  "amount": {
+                    "$proc": [
+                      "quantity",
+                      "quantity"
+                    ],
+                    "input": {
+                      "value": {
+                        "$ref": "v"
+                      },
+                      "unit": "ms"
+                    }
+                  }
+                },
+                "$when": "$never"
+              }
+            }
+          },
+          "fallback": "unknown"
+        }
+      },
+      "result": "1,500 ms"
     }
   ]
 }

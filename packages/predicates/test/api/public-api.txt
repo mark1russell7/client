@@ -1,0 +1,35 @@
+# The public API of @procedures/predicates
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The command `api-report check` compares this file with the built .d.ts files.
+# To accept a change of the API, start the build, then `api-report update`, and review the diff.
+
+## . (dist/index.d.ts): names
+
+predicatesManifest: dist/manifest.d.ts#manifest
+predicatesModule: dist/module.d.ts#predicatesModule
+registerPredicatesProcedures: dist/module.d.ts#registerPredicatesProcedures
+
+## ./module (dist/module.d.ts): names
+
+default: dist/module.d.ts#predicatesModule
+predicatesManifest: dist/manifest.d.ts#manifest
+predicatesModule: dist/module.d.ts#predicatesModule
+registerPredicatesProcedures: dist/module.d.ts#registerPredicatesProcedures
+
+## ./register (dist/register.d.ts): names
+
+predicatesManifest: dist/manifest.d.ts#manifest
+predicatesModule: dist/module.d.ts#predicatesModule
+registerPredicatesProcedures: dist/module.d.ts#registerPredicatesProcedures
+
+## Declarations
+
+### dist/manifest.d.ts#manifest
+export declare const manifest: ExportsManifest;
+
+### dist/module.d.ts#predicatesModule
+export declare const predicatesModule: ProcedureModule;
+
+### dist/module.d.ts#registerPredicatesProcedures
+export declare function registerPredicatesProcedures(registry?: ProcedureRegistry): void;

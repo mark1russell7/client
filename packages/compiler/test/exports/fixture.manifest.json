@@ -256,6 +256,48 @@
       }
     },
     {
+      "name": "anything",
+      "path": [
+        "fixture",
+        "anything"
+      ],
+      "description": "A value of the type {}: each value but null and undefined.",
+      "params": [
+        "value"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "boolean",
+              "number",
+              "string",
+              "array",
+              "object"
+            ]
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": [
+          "boolean",
+          "number",
+          "string",
+          "array",
+          "object"
+        ]
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "apply",
       "path": [
         "fixture",
@@ -515,6 +557,39 @@
       }
     },
     {
+      "name": "definite",
+      "path": [
+        "fixture",
+        "definite"
+      ],
+      "description": "NonNullable of a constraint with null.",
+      "params": [
+        "value"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "string"
+      },
+      "generics": [
+        "T"
+      ],
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "depth",
       "path": [
         "fixture",
@@ -744,6 +819,43 @@
         "additionalProperties": false
       },
       "output": {},
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "known",
+      "path": [
+        "fixture",
+        "known"
+      ],
+      "description": "NonNullable of a union with null: the union without null.",
+      "params": [
+        "value"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "string"
+      },
       "effects": {
         "reads": [],
         "writes": []
@@ -1009,6 +1121,60 @@
           }
         ]
       },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "present",
+      "path": [
+        "fixture",
+        "present"
+      ],
+      "description": "A value that is present: NonNullable of a type parameter is T & {}, each value but null.",
+      "params": [
+        "value"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "description": "The value, or null. The generator removes the hyphen of TSDoc."
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "anyOf": [
+          {
+            "type": "null"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": [
+                  "boolean",
+                  "number",
+                  "string",
+                  "array",
+                  "object"
+                ]
+              }
+            },
+            "required": [
+              "value"
+            ]
+          }
+        ]
+      },
+      "generics": [
+        "T"
+      ],
       "effects": {
         "reads": [],
         "writes": []
@@ -1640,6 +1806,11 @@
       "name": "stamp",
       "reason": "input-not-json",
       "detail": "record.at: bigint"
+    },
+    {
+      "name": "tally",
+      "reason": "output-not-json",
+      "detail": "ReadonlyMap"
     },
     {
       "name": "twice",

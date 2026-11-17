@@ -103,9 +103,15 @@ interface FactoryInput {
 /** The deepest schema that the generator makes. A deeper type fails closed. */
 const MAX_DEPTH = 64;
 
+/**
+ * The schema of each JSON value but null. In TypeScript, the type `{}` takes each value but null and
+ * undefined, and `NonNullable<T>` is `T & {}`. The schema lists the types, because zod cannot read `not`.
+ */
+const NOT_NULL: ExportsJsonSchema = { type: ["boolean", "number", "string", "array", "object"] };
+
 /** The names of the global object types that have no JSON form. */
 const NOT_JSON_GLOBALS = new Set([
-  "Date", "Map", "Set", "WeakMap", "WeakSet", "WeakRef", "RegExp", "Promise", "Error",
+  "Date", "Map", "Set", "ReadonlyMap", "ReadonlySet", "WeakMap", "WeakSet", "WeakRef", "RegExp", "Promise", "Error",
   "ArrayBuffer", "SharedArrayBuffer", "DataView", "Uint8Array", "Uint8ClampedArray", "Int8Array",
   "Uint16Array", "Int16Array", "Uint32Array", "Int32Array", "Float32Array", "Float64Array",
   "BigInt64Array", "BigUint64Array", "ReadableStream", "WritableStream", "AbortSignal",
@@ -243,7 +249,7 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
         }
         schema = constructed;
       }
-      const own = text(parameter.getDocumentationComment(checker));
+      const own = parameterText(parameter);
       const description = own && CONSTRUCT_KEYWORD in schema ? `${own} ${String(schema["description"])}` : own;
       properties[parameterName] = description ? { ...schema, description } : schema;
       if (parameterDeclaration.dotDotDotToken) rest = parameterName;
@@ -363,7 +369,7 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
         return undefined;
       }
       const parameterName = ts.isIdentifier(declaration.name) ? declaration.name.text : `arg${index}`;
-      const description = text(parameter.getDocumentationComment(checker));
+      const description = parameterText(parameter);
       properties[parameterName] = description ? { ...schema, description } : schema;
       params.push(parameterName);
       if (!optional) required.push(parameterName);
@@ -418,6 +424,12 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
     }
     if (type.isUnion()) return unionSchema(type, output);
     if (flags & ts.TypeFlags.NonPrimitive) return { type: "object" };
+    if (type.isIntersection()) {
+      // A {} in an intersection only takes out null and undefined: NonNullable<T> is T & {}
+      const members = type.types.filter((member) => !isEmptyObject(member));
+      const [member] = members;
+      if (member !== undefined && members.length === 1 && members.length < type.types.length) return withoutNull(schemaOf(member, output));
+    }
     if (type.isIntersection() || flags & ts.TypeFlags.Object) return objectSchema(type, output);
     throw new NotJson(checker.typeToString(type), false);
   }
@@ -473,10 +485,33 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
       return { type: "array", items: element ? schemaOf(element, output) : {} };
     }
     if (symbol && symbol.flags & ts.SymbolFlags.Class) throw new NotJson(`an instance of the class ${symbol.name}`, false);
+    if (isEmptyObject(type)) return NOT_NULL;
 
     // A named type goes into $defs one time, and a reference stands for it. This also ends a cycle.
     const named = definitionName(type);
     return named !== undefined ? definition(type, named, () => plainObjectSchema(type)) : plainObjectSchema(type);
+  }
+
+  /** True for the type `{}`: an object type with no property, no signature and no index. */
+  function isEmptyObject(type: TS.Type): boolean {
+    return (
+      (type.flags & ts.TypeFlags.Object) !== 0 &&
+      checker.getPropertiesOfType(type).length === 0 &&
+      type.getCallSignatures().length === 0 &&
+      type.getConstructSignatures().length === 0 &&
+      checker.getIndexInfosOfType(type).length === 0 &&
+      !checker.isArrayType(type) &&
+      !checker.isTupleType(type)
+    );
+  }
+
+  /** The schema without null: the schema of `NonNullable` of a type. */
+  function withoutNull(schema: ExportsJsonSchema): ExportsJsonSchema {
+    if (Object.keys(schema).length === 0) return NOT_NULL;
+    const members = schema["anyOf"];
+    if (!Array.isArray(members)) return schema;
+    const kept = members.filter((member: ExportsJsonSchema) => !(Object.keys(member).length === 1 && member["type"] === "null"));
+    return kept.length === 1 ? (kept[0] as ExportsJsonSchema) : { ...schema, anyOf: kept };
   }
 
   /** A reference to the definition of a named type. The first reference builds the definition. */
@@ -653,6 +688,11 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
 
   function text(parts: readonly TS.SymbolDisplayPart[]): string {
     return ts.displayPartsToString([...parts]).trim();
+  }
+
+  /** The doc of a parameter, without the hyphen of TSDoc: `@param name - text` gives `text`. */
+  function parameterText(parameter: TS.Symbol): string {
+    return text(parameter.getDocumentationComment(checker)).replace(/^-\s+/, "");
   }
 }
 

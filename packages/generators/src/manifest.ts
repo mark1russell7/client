@@ -1026,7 +1026,7 @@ export const manifest: ExportsManifest = {
         "properties": {
           "x": {
             "type": "number",
-            "description": "- A number. `-Infinity` gives 0 and `Infinity` gives 1. `NaN` throws a `RangeError`."
+            "description": "A number. `-Infinity` gives 0 and `Infinity` gives 1. `NaN` throws a `RangeError`."
           }
         },
         "required": [
@@ -1057,7 +1057,7 @@ export const manifest: ExportsManifest = {
         "properties": {
           "p": {
             "type": "number",
-            "description": "- The share of the law below the result, from 0 to 1. A `p` of 0 gives `-Infinity` and 1 gives `Infinity`."
+            "description": "The share of the law below the result, from 0 to 1. A `p` of 0 gives `-Infinity` and 1 gives `Infinity`."
           }
         },
         "required": [

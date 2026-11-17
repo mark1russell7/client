@@ -1,4 +1,20 @@
 {
+  "@mark1russell7/algebra": {
+    "procedures": 41,
+    "functions": 46
+  },
+  "@mark1russell7/optional": {
+    "procedures": 20,
+    "functions": 23
+  },
+  "@mark1russell7/predicates": {
+    "procedures": 13,
+    "functions": 13
+  },
+  "@mark1russell7/quantity": {
+    "procedures": 27,
+    "functions": 32
+  },
   "@mark1russell7/rigor-generators": {
     "procedures": 23,
     "functions": 31
