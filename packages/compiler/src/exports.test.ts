@@ -45,8 +45,8 @@ describe("generateExportsManifest", () => {
 
   it("gives a procedure for each function with JSON inputs and a JSON output", () => {
     expect(manifest.procedures.map((procedure) => procedure.name)).toEqual([
-      "above", "add", "apply", "chain", "choose", "deal", "depth", "findIndex", "first", "flip", "greet", "identity", "lookup", "maybeRoll", "minus", "norm", "nothing", "pair",
-      "pick", "read", "rolls", "scale", "sideOf", "sizes", "sortBy", "strict", "toggle", "total", "useHandler", "weight",
+      "above", "add", "anything", "apply", "chain", "choose", "deal", "definite", "depth", "findIndex", "first", "flip", "greet", "identity", "known", "lookup", "maybeRoll", "minus",
+      "norm", "nothing", "pair", "pick", "present", "read", "rolls", "scale", "sideOf", "sizes", "sortBy", "strict", "toggle", "total", "useHandler", "weight",
     ]);
   });
 
@@ -74,6 +74,7 @@ describe("generateExportsManifest", () => {
       ["parse", "overload"],
       ["sizeOf", "function-parameter"],
       ["stamp", "input-not-json"],
+      ["tally", "output-not-json"],
       ["twice", "function-parameter"],
       ["unset", "input-not-json"],
       ["vanished", "unresolved"],
@@ -395,8 +396,25 @@ describe("sub-programs", () => {
     await expect(client.exec(["fixture", "sizes"], { items, key: program(sum(ref("item.none"), 1)) })).rejects.toThrow("gives fixture.add an input that its schema refuses");
   });
 
+  it("takes each value but null for {} and for NonNullable of a type parameter", async () => {
+    const client = clientOf(manifest);
+    const notNull = { type: ["boolean", "number", "string", "array", "object"] };
+    const schemaOf = (name: string) => manifest.procedures.find((procedure) => procedure.name === name)!;
+    expect(schemaOf("anything").output).toEqual(notNull);
+    expect(schemaOf("definite").input).toMatchObject({ properties: { value: { type: "string" } } });
+    // The output check takes a number, a string, an array and an object, and refuses null
+    for (const value of [1500, "a", [1], { a: 1 }, false]) {
+      expect(await client.exec(["fixture", "present"], { value })).toEqual({ value });
+      expect(await client.exec(["fixture", "anything"], { value })).toEqual(value);
+    }
+    expect(await client.exec(["fixture", "present"], { value: null })).toBeNull();
+    await expect(client.exec(["fixture", "anything"], { value: null })).rejects.toThrow();
+    expect(await client.exec(["fixture", "known"], { value: 7 })).toBe("7");
+  });
+
   it("names the property that is not JSON in the detail of an exemption", () => {
     expect(manifest.exempt.find((exemption) => exemption.name === "stamp")?.detail).toBe("record.at: bigint");
+    expect(manifest.exempt.find((exemption) => exemption.name === "tally")?.detail).toBe("ReadonlyMap");
   });
 
   it("takes a call with no $when outside a program, as an MCP tool gets it", async () => {

@@ -258,3 +258,25 @@ export function deck(seed: number, ...cards: number[]): { deal(): number } {
 export function deal(made: { deal(): number }): number {
   return made.deal();
 }
+
+export function present<T>(value: T | null | undefined): { readonly value: NonNullable<T> } | null {
+  return value === null || value === undefined ? null : { value };
+}
+
+export function anything(value: {}): {} {
+  return value;
+}
+
+export function known(value: string | number): string {
+  return String(value);
+}
+
+export function tally(words: readonly string[]): ReadonlyMap<string, number> {
+  const counts = new Map<string, number>();
+  for (const word of words) counts.set(word, (counts.get(word) ?? 0) + 1);
+  return counts;
+}
+
+export function definite(value: string): string {
+  return value;
+}

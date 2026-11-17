@@ -198,3 +198,17 @@ export interface Deck {
 export declare function deck(seed: number, ...cards: number[]): Deck;
 /** The first card of a deck: a constructed input. */
 export declare function deal(deck: Deck): number;
+/**
+ * A value that is present: NonNullable of a type parameter is T & {}, each value but null.
+ *
+ * @param value - The value, or null. The generator removes the hyphen of TSDoc.
+ */
+export declare function present<T>(value: T | null | undefined): { readonly value: NonNullable<T> } | null;
+/** A value of the type {}: each value but null and undefined. */
+export declare function anything(value: {}): {};
+/** NonNullable of a union with null: the union without null. */
+export declare function known(value: NonNullable<string | number | null>): string;
+/** The count of each word: a ReadonlyMap is not JSON. */
+export declare function tally(words: readonly string[]): ReadonlyMap<string, number>;
+/** NonNullable of a constraint with null. */
+export declare function definite<T extends string | null>(value: NonNullable<T>): string;

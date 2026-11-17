@@ -1,0 +1,35 @@
+# The public API of @procedures/optional
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The command `api-report check` compares this file with the built .d.ts files.
+# To accept a change of the API, start the build, then `api-report update`, and review the diff.
+
+## . (dist/index.d.ts): names
+
+optionalManifest: dist/manifest.d.ts#manifest
+optionalModule: dist/module.d.ts#optionalModule
+registerOptionalProcedures: dist/module.d.ts#registerOptionalProcedures
+
+## ./module (dist/module.d.ts): names
+
+default: dist/module.d.ts#optionalModule
+optionalManifest: dist/manifest.d.ts#manifest
+optionalModule: dist/module.d.ts#optionalModule
+registerOptionalProcedures: dist/module.d.ts#registerOptionalProcedures
+
+## ./register (dist/register.d.ts): names
+
+optionalManifest: dist/manifest.d.ts#manifest
+optionalModule: dist/module.d.ts#optionalModule
+registerOptionalProcedures: dist/module.d.ts#registerOptionalProcedures
+
+## Declarations
+
+### dist/manifest.d.ts#manifest
+export declare const manifest: ExportsManifest;
+
+### dist/module.d.ts#optionalModule
+export declare const optionalModule: ProcedureModule;
+
+### dist/module.d.ts#registerOptionalProcedures
+export declare function registerOptionalProcedures(registry?: ProcedureRegistry): void;

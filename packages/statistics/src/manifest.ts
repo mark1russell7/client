@@ -3418,19 +3418,19 @@ export const manifest: ExportsManifest = {
         "properties": {
           "k": {
             "type": "number",
-            "description": "- The count of successes, a whole number from 0 to `n`."
+            "description": "The count of successes, a whole number from 0 to `n`."
           },
           "n": {
             "type": "number",
-            "description": "- The count of trials, a whole number of 0 or more."
+            "description": "The count of trials, a whole number of 0 or more."
           },
           "p": {
             "type": "number",
-            "description": "- The chance of a success under the claim, from 0 to 1."
+            "description": "The chance of a success under the claim, from 0 to 1."
           },
           "side": {
             "$ref": "#/$defs/BinomialSide",
-            "description": "- The side of the tail."
+            "description": "The side of the tail."
           }
         },
         "required": [
@@ -4277,11 +4277,11 @@ export const manifest: ExportsManifest = {
             "items": {
               "$ref": "#/$defs/CoverageCell"
             },
-            "description": "- The hits and the draws of each cell. Each cell has its own sample size."
+            "description": "The hits and the draws of each cell. Each cell has its own sample size."
           },
           "bar": {
             "$ref": "#/$defs/CoverageBar",
-            "description": "- The level, the alpha of the Holm family and the pooled lower end."
+            "description": "The level, the alpha of the Holm family and the pooled lower end."
           }
         },
         "required": [
@@ -5208,7 +5208,7 @@ export const manifest: ExportsManifest = {
         "properties": {
           "x": {
             "type": "number",
-            "description": "- A number. `-Infinity` gives 0 and `Infinity` gives 1. `NaN` throws a `RangeError`."
+            "description": "A number. `-Infinity` gives 0 and `Infinity` gives 1. `NaN` throws a `RangeError`."
           }
         },
         "required": [
@@ -5239,7 +5239,7 @@ export const manifest: ExportsManifest = {
         "properties": {
           "p": {
             "type": "number",
-            "description": "- The share of the law below the result, from 0 to 1. A `p` of 0 gives `-Infinity` and 1 gives `Infinity`."
+            "description": "The share of the law below the result, from 0 to 1. A `p` of 0 gives `-Infinity` and 1 gives `Infinity`."
           }
         },
         "required": [
@@ -5270,7 +5270,7 @@ export const manifest: ExportsManifest = {
         "properties": {
           "options": {
             "$ref": "#/$defs/OptionFloorOptions",
-            "description": "- The spread, the difference, the family and the targets."
+            "description": "The spread, the difference, the family and the targets."
           }
         },
         "required": [
@@ -6557,11 +6557,11 @@ export const manifest: ExportsManifest = {
         "properties": {
           "p": {
             "type": "number",
-            "description": "- The share of the law below the result, above 0 and below 1."
+            "description": "The share of the law below the result, above 0 and below 1."
           },
           "df": {
             "type": "number",
-            "description": "- The degrees of freedom, above 0."
+            "description": "The degrees of freedom, above 0."
           }
         },
         "required": [
@@ -6642,11 +6642,11 @@ export const manifest: ExportsManifest = {
             "items": {
               "type": "number"
             },
-            "description": "- The total of each unit of the sample. The sample has more units than `r`."
+            "description": "The total of each unit of the sample. The sample has more units than `r`."
           },
           "options": {
             "$ref": "#/$defs/UStatisticOptions",
-            "description": "- The order, the population, the method, the level and the range of the kernel."
+            "description": "The order, the population, the method, the level and the range of the kernel."
           }
         },
         "required": [

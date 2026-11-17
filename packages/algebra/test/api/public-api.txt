@@ -1,0 +1,35 @@
+# The public API of @procedures/algebra
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The command `api-report check` compares this file with the built .d.ts files.
+# To accept a change of the API, start the build, then `api-report update`, and review the diff.
+
+## . (dist/index.d.ts): names
+
+algebraManifest: dist/manifest.d.ts#manifest
+algebraModule: dist/module.d.ts#algebraModule
+registerAlgebraProcedures: dist/module.d.ts#registerAlgebraProcedures
+
+## ./module (dist/module.d.ts): names
+
+algebraManifest: dist/manifest.d.ts#manifest
+algebraModule: dist/module.d.ts#algebraModule
+default: dist/module.d.ts#algebraModule
+registerAlgebraProcedures: dist/module.d.ts#registerAlgebraProcedures
+
+## ./register (dist/register.d.ts): names
+
+algebraManifest: dist/manifest.d.ts#manifest
+algebraModule: dist/module.d.ts#algebraModule
+registerAlgebraProcedures: dist/module.d.ts#registerAlgebraProcedures
+
+## Declarations
+
+### dist/manifest.d.ts#manifest
+export declare const manifest: ExportsManifest;
+
+### dist/module.d.ts#algebraModule
+export declare const algebraModule: ProcedureModule;
+
+### dist/module.d.ts#registerAlgebraProcedures
+export declare function registerAlgebraProcedures(registry?: ProcedureRegistry): void;
