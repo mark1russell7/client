@@ -1,6 +1,6 @@
 {
   "@mark1russell7/algebra": {
-    "procedures": 41,
+    "procedures": 44,
     "functions": 46
   },
   "@mark1russell7/geo": {
@@ -16,7 +16,7 @@
     "functions": 13
   },
   "@mark1russell7/quantity": {
-    "procedures": 27,
+    "procedures": 31,
     "functions": 32
   },
   "@mark1russell7/rigor-generators": {
@@ -24,7 +24,7 @@
     "functions": 31
   },
   "@mark1russell7/rigor-statistics": {
-    "procedures": 81,
+    "procedures": 82,
     "functions": 82
   }
 }

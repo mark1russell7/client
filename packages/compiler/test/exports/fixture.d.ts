@@ -89,7 +89,7 @@ export declare function nothing(): void;
 export declare function flip(side: Side | null): Side | null;
 /** A literal flag. */
 export declare function strict(flag: true, mode: 1 | 2): "yes";
-/** A count of the keys of a map: a Map is not JSON. */
+/** A count of the keys of a map: a Map is a list of entries in JSON. */
 export declare function keys(map: Map<string, number>): number;
 /** A callback with JSON values: a sub-program gives it. */
 export declare function apply(values: readonly number[], fn: (value: number) => number): number[];
@@ -109,14 +109,14 @@ export declare function later(values: readonly number[], fn: (value: number) => 
 export declare function each(values: readonly number[], fn: (value: number) => void): void;
 /** A generic callback. */
 export declare function twice(fn: <T>(value: T) => T): number;
-/** A callback with a parameter that is not JSON. */
+/** A callback with a map parameter: the sub-program gets the list of entries. */
 export declare function sizeOf(fn: (map: Map<string, number>) => number): number;
 /** A counter: the output is a class instance. */
 export declare function counter(): Counter;
 /** Two signatures. */
 export declare function parse(text: string): number;
 export declare function parse(text: string, radix: number): number;
-/** A big number is not JSON. */
+/** Twice a big number: a bigint is a decimal string in JSON. */
 export declare function big(value: bigint): bigint;
 /** A type that does not resolve: the generator fails closed. */
 export declare function broken(value: Missing): number;
@@ -149,8 +149,11 @@ export interface Die {
   readonly seed: number;
   roll(): number;
 }
-/** A die from a seed: the factory of a constructed input. The faces are not JSON, so the input stops before them. */
-export declare function die(seed: number, faces?: Map<number, number>): Die;
+/**
+ * A die from a seed: the factory of a constructed input. The faces are a list of entries in JSON. The
+ * clock is not JSON, so the input stops before it.
+ */
+export declare function die(seed: number, faces?: Map<number, number>, clock?: Date): Die;
 /** The rolls of a die: a constructed input. */
 export declare function rolls(count: number, die: Die): number[];
 /** One roll, or 0 with no die: an optional constructed input. */
@@ -178,17 +181,17 @@ export interface Named {
 }
 /** The key of each item: a sub-program that reads the fields of its parameter. */
 export declare function sizes(items: readonly Named[], key: (item: Named) => number): number[];
-/** A property that is not JSON. */
+/** A bigint in a property: its decimal string. */
 export declare function stamp(record: { readonly at: bigint }): number;
 /** A union of two types that are not JSON: no factory makes it. */
 export declare function either(value: Die | Coin): number;
-/** A bag of numbers. Its factory takes a set, so the factory has no JSON input. */
+/** A bag of numbers. Its factory takes a set: a list in JSON. */
 export interface Bag {
   take(): number;
 }
-/** A bag from a set: not a factory of a constructed input. */
+/** A bag from a set: the factory of a constructed input. */
 export declare function bag(items: Set<number>): Bag;
-/** One number of a bag: no factory makes the bag from JSON. */
+/** One number of a bag: a constructed input with a set. */
 export declare function draw(bag: Bag): number;
 /** A deck of cards. */
 export interface Deck {
@@ -208,7 +211,37 @@ export declare function present<T>(value: T | null | undefined): { readonly valu
 export declare function anything(value: {}): {};
 /** NonNullable of a union with null: the union without null. */
 export declare function known(value: NonNullable<string | number | null>): string;
-/** The count of each word: a ReadonlyMap is not JSON. */
+/** The count of each word: a ReadonlyMap is a list of entries in JSON. */
 export declare function tally(words: readonly string[]): ReadonlyMap<string, number>;
 /** NonNullable of a constraint with null. */
 export declare function definite<T extends string | null>(value: NonNullable<T>): string;
+/** A lock. Its factory takes a date, so no factory makes it from JSON. */
+export interface Lock {
+  open(): boolean;
+}
+/** A lock from a date: a Date is not JSON, so this function is not a factory of a constructed input. */
+export declare function lock(at: Date): Lock;
+/** One opening of a lock: no factory makes the lock from JSON. */
+export declare function opens(lock: Lock): boolean;
+/** The sum of the values of an iterable: a list in JSON. */
+export declare function sumOf(values: Iterable<number>): number;
+/** The natural numbers below a limit: an iterable output is not JSON, because an iterable can have no end. */
+export declare function naturals(limit: number): Iterable<number>;
+/** A source of values: a named type with an iterable. */
+export interface Source {
+  readonly values: Iterable<number>;
+}
+/** The sum of the values of a source: an input can hold an iterable. */
+export declare function drain(source: Source): number;
+/** A source below a limit: the iterable reaches the output through the named type. */
+export declare function sourceOf(limit: number): Source;
+/** The type of a number or of a stamp: a union with a bigint in a member. */
+export declare function kindOf(value: number | { readonly at: bigint }): string;
+/** Twice a bigint literal: its decimal string. */
+export declare function exactly(value: -7n | 7n): bigint;
+/** The distinct words: a ReadonlySet is a list in JSON. */
+export declare function distinct(words: Iterable<string>): ReadonlySet<string>;
+/** One more than the step of a bigint: a sub-program gives a bigint to the package. */
+export declare function step(value: bigint, by: (value: bigint) => bigint): bigint;
+/** A callback with an iterable parameter: the package can give an iterable with no end, so a sub-program cannot. */
+export declare function feed(fn: (values: Iterable<number>) => number): number;

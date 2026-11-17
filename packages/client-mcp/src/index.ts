@@ -15,7 +15,7 @@ export { McpServerTransport } from "./transport/mcp-transport.js";
 export { createStdioTransport } from "./transport/stdio.js";
 export { createSseTransport } from "./transport/sse.js";
 // The search listing (direction 40): three tools in place of each tool
-export { SEARCH_LISTING_NAMES, SEARCH_LISTING_TOOLS } from "./transport/search-listing.js";
+export { SEARCH_LISTING_NAMES, SEARCH_LISTING_TOOLS, toolSearchDocuments } from "./transport/search-listing.js";
 export type { McpToolListing } from "./transport/search-listing.js";
 
 // The host factory (CLI-10): one MCP host for each server of procedures

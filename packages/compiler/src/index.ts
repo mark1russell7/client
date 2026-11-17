@@ -37,13 +37,14 @@ export type * from "./ir.js";
 export type { CompiledProgram, ProgramContext, RuntimeFrame } from "./runtime.js";
 export { exportsModule, exportInputSchema, exportOutputSchema } from "./exports/load.js";
 export type { ExportsModuleOptions } from "./exports/load.js";
-export { CONSTRUCT_KEYWORD, EXPORTS_MANIFEST_FORMAT, PROGRAM_KEYWORD } from "./exports/types.js";
+export { CODEC_KEYWORD, CONSTRUCT_KEYWORD, EXPORTS_MANIFEST_FORMAT, PROGRAM_KEYWORD } from "./exports/types.js";
 export type {
   ExportsManifest,
   ExportProcedure,
   ExportExemption,
   ExportExemptionReason,
   ExportOthers,
+  ExportsCodec,
   ExportsConstruct,
   ExportsJsonSchema,
   ExportsProgram,

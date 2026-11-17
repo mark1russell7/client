@@ -4,12 +4,12 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.ts`.
 
-**Total procedures:** 553 across 56 namespaces. Loaded 53 package register(s).
+**Total procedures:** 519 across 56 namespaces. Loaded 53 package register(s).
 
 ## Namespaces
 
 - [`_discovery.*`](#_discovery) — 1 procedure(s)
-- [`algebra.*`](#algebra) — 41 procedure(s)
+- [`algebra.*`](#algebra) — 44 procedure(s)
 - [`archive.*`](#archive) — 3 procedure(s)
 - [`claude.*`](#claude) — 4 procedure(s)
 - [`cli.*`](#cli) — 1 procedure(s)
@@ -23,7 +23,7 @@
 - [`exif.*`](#exif) — 1 procedure(s)
 - [`fs.*`](#fs) — 15 procedure(s)
 - [`generators.*`](#generators) — 23 procedure(s)
-- [`geo.*`](#geo) — 46 procedure(s)
+- [`geo.*`](#geo) — 4 procedure(s)
 - [`gh.*`](#gh) — 16 procedure(s)
 - [`git.*`](#git) — 46 procedure(s)
 - [`http.*`](#http) — 4 procedure(s)
@@ -47,7 +47,7 @@
 - [`privacyScan.*`](#privacyScan) — 2 procedure(s)
 - [`procedure.*`](#procedure) — 13 procedure(s)
 - [`program.*`](#program) — 4 procedure(s)
-- [`quantity.*`](#quantity) — 27 procedure(s)
+- [`quantity.*`](#quantity) — 31 procedure(s)
 - [`restic.*`](#restic) — 1 procedure(s)
 - [`s3.*`](#s3) — 13 procedure(s)
 - [`schedule.*`](#schedule) — 4 procedure(s)
@@ -57,7 +57,7 @@
 - [`snapshot.*`](#snapshot) — 5 procedure(s)
 - [`splay.*`](#splay) — 2 procedure(s)
 - [`sqlite.*`](#sqlite) — 7 procedure(s)
-- [`statistics.*`](#statistics) — 81 procedure(s)
+- [`statistics.*`](#statistics) — 82 procedure(s)
 - [`systems.*`](#systems) — 1 procedure(s)
 - [`tailscale.*`](#tailscale) — 1 procedure(s)
 - [`vite.*`](#vite) — 4 procedure(s)
@@ -100,6 +100,9 @@
 | `algebra.netemSchedule` | This function gives the outcome of each packet in a netem queue with a rate. A packet that the queue takes leaves at `max(last, at + latency) + time`. `last` is the time to send of the packet before it, and `time` is the time of `netemPacketTime`. The queue holds each packet until it leaves, thus a delay of 100 ms at 1,000 packets per second fills a limit of 100. |
 | `algebra.oomBadness` | This function gives the points of a task for the OOM killer. The points are its resident pages, its swap entries and the pages of its page tables. To this sum, the kernel adds `oom_score_adj` times `totalPages / 1000`, in integer arithmetic. A task at −1000 gives undefined, because the OOM killer does not take it. |
 | `algebra.oomVictim` | This function gives the index of the task that the OOM killer of a cgroup takes: the task with the most points. Of tasks with equal points, the last one in the order of the scan wins (`mm/oom_kill.c`, lines 342-351). A task replaces the choice unless its points are less. It gives undefined when the OOM killer can take no task. |
+| `algebra.parseExpr` | This function parses the arithmetic of a document, or it throws an error that tells where the text stops making sense. |
+| `algebra.portSearchChain` | This function gives the exact chain of the search: the share of each count of connects to one destination, over `rounds` rounds. Each round closes its connections with a reset, and the next round starts where the last connect of the round before put the start. The first round starts at each even offset with the same chance. |
+| `algebra.portSearchShares` | This function gives the law of the search: the share of each count of connects to one destination before `EADDRNOTAVAIL`, over `rounds` rounds. An even range, and a range of one port, give their size in each round: the two passes reach each port. An odd range gives its size or one less, from the exact chain, up to `PORT_SEARCH_CHAIN_LARGEST` ports. |
 | `algebra.portSearchSpan` | This function gives the size that the search reads: the size of the range, rounded down to an even number. |
 | `algebra.probeTrain` | This function gives the times of a train of probes, exactly, in seconds. The first probe is at `first`, and each next probe is one `interval` later, `count` probes in all. A first time without an end gives no probe. An interval without an end gives only the first probe. Keepalive at its defaults sends its probes at 7200 s, 7275 s, and so on to 7800 s. |
 | `algebra.pschedFactor` | This function gives the factor of a rate in bytes per second (`psched_ratecfg_precompute__`). The kernel doubles a factor of 10^9 until the quotient by the rate fills 32 bits. At 125,000 bytes per second, `mult` is 4,194,304,000 and `shift` is 19. |
@@ -288,52 +291,10 @@
 
 | Procedure | Description |
 |-----------|-------------|
-| `geo.bboxCenter` | This function gives the middle of a box. Its latitude is the middle of the latitudes of the box. Its longitude is the middle of the arc of longitudes from the west to the east. For a box that crosses the antimeridian, the middle is on the arc across the antimeridian. |
-| `geo.bboxContains` | This function gives `true` when the closed box has the point. A box that reaches a pole has the pole for each longitude. |
-| `geo.bboxIntersects` | This function gives `true` when the two closed boxes have a common point. Two boxes that touch on an edge have a common point. Two boxes that reach the same pole have the pole. |
-| `geo.bboxOfGeoJson` | This function gives the smallest bounding box of a GeoJSON object. It reads the coordinates, not the member `bbox`. |
-| `geo.bboxOfPoints` | This function gives the smallest bounding box of the points. A box crosses the antimeridian when that makes it narrower. For an empty array, the result is `undefined`. |
-| `geo.bufferKm` | This function gives the buffer of a GeoJSON geometry: the area within a distance in kilometres of the geometry, as a polygon for a map. The module documentation gives the rules and the guarantee of the tolerance. |
-| `geo.bufferMeters` | This function gives the buffer of a GeoJSON geometry: the area within a distance in metres of the geometry, as a polygon for a map. It uses the rules of `bufferKm`. |
-| `geo.centralAngleRadians` | This function gives the angle between two points at the center of the sphere, in radians from 0 to pi. It uses the haversine formula. The result is the same when the two points change places. |
-| `geo.circleKm` | This function gives a circle on the Earth as a polygon. The radius is a great-circle distance in kilometres. The module documentation gives the rules for the antimeridian and the poles. |
-| `geo.circleMeters` | This function gives a circle on the Earth as a polygon. The radius is a great-circle distance in metres. The module documentation gives the rules for the antimeridian and the poles. |
-| `geo.decodeGeohash` | This function gives the cell of a geohash: its edges and its center. Upper case letters are correct. Each character must be an ASCII digit or an ASCII letter. |
-| `geo.densify` | This function gives a copy of a geometry with more positions on its edges. It divides each edge into equal parts, so that no part is longer than `maxStep` degrees of longitude or of latitude. Use it before a drawing on a globe. |
-| `geo.destinationKm` | This function gives the point at a distance from a start point, along the great circle with an initial bearing. The longitude of the result is normalized. A negative distance goes in the opposite direction. |
-| `geo.destinationMeters` | This function gives the point at a distance in metres from a start point, along the great circle with an initial bearing. The longitude of the result is normalized. |
-| `geo.distance` | Give the great-circle distance between two points in kilometres (haversine), without the network. Deprecated: use geo.distanceKm with radiusKm 6371 |
-| `geo.distanceBetweenGeometriesKm` | This function gives the great-circle distance in kilometres between the nearest points of two GeoJSON geometries. The rules are in the description of this module. The model is a sphere. |
-| `geo.distanceBetweenGeometriesMeters` | This function gives the great-circle distance in metres between the nearest points of two GeoJSON geometries. It uses the rules of `distanceBetweenGeometriesKm`. |
-| `geo.distanceKm` | This function gives the great-circle distance between two points in kilometres. The model is a sphere. On the ellipsoid of WGS84, the true distance can be different by up to approximately 0.6 %. |
-| `geo.distanceMeters` | This function gives the great-circle distance between two points in metres. The model is a sphere. |
-| `geo.distanceToGeometryKm` | This function gives the great-circle distance in kilometres from a point to the nearest point of a GeoJSON geometry. The rules are in the description of this module. The model is a sphere. |
-| `geo.distanceToGeometryMeters` | This function gives the great-circle distance in metres from a point to the nearest point of a GeoJSON geometry. It uses the rules of `distanceToGeometryKm`. |
-| `geo.followsRightHandRule` | This function gives `true` when the polygon follows the right-hand rule of RFC 7946 (section 3.1.6): each exterior ring is counterclockwise, and each hole is clockwise. A degenerate ring does not follow the rule. |
-| `geo.fromGeoJsonBBox` | This function reads a GeoJSON bounding box of 4 or 6 numbers, with the rules of `parseGeoJson`. It examines the altitudes, and then it ignores them. It gives a box with longitudes from -180 to 180, with no rounding: |
-| `geo.fromPosition` | This function gives the point of a GeoJSON position. It ignores the altitude. The longitude of the result is normalized. |
-| `geo.fromUnitVector` | This function gives the point in the direction of a vector from the center of a sphere. The vector can have each length other than 0. The longitude of the result is normalized. |
+| `geo.distance` | Give the great-circle distance between two points in kilometres (haversine), without the network |
 | `geo.geocode` | Find the coordinates of an address or a place name (OpenStreetMap Nominatim) |
-| `geo.geodesicDirect` | This function gives the point at a distance along the geodesic from a start point with an initial bearing. It also gives the bearing of the geodesic at that point. |
-| `geo.geodesicInverse` | This function gives the geodesic between two points on an ellipsoid: its length and its bearings at the two ends. The geodesic is the shortest path between the two points on the ellipsoid. |
 | `geo.geohash` | Give the geohash of a point and the cell of that geohash, without the network |
-| `geo.geohashesInBBox` | This function gives the geohashes of the cells that cover a closed box, with one precision. The list has each cell that has a point of the box one time, with the rule of `geohash` for a point on an edge. So a cell that touches the box only on the south edge or the west edge of the box is not in the list. A cell that touches the box only on the north edge or the east edge of the box is in the list. The order is from south to north, then from west to east. A box that crosses the antimeridian is correct. |
-| `geo.geohashNeighbor` | This function gives the neighbor of a cell in a direction, with the same precision. The longitude wraps at the antimeridian. Past a pole, the result is `undefined`. |
-| `geo.geohashNeighbors` | This function gives the eight neighbors of a cell. A neighbor past a pole is `undefined`. |
-| `geo.initialBearing` | This function gives the initial bearing of the great circle from `from` to `to`, in degrees clockwise from north. The result is from 0 to less than 360. |
-| `geo.intermediatePoint` | This function gives the point at a part of the way along the great circle from `from` to `to`. A part of 0 gives the start, 0.5 gives the middle, and 1 gives the end. The longitude of the result is normalized. |
-| `geo.latLon` | This function gives a point with a normalized longitude. |
-| `geo.locatePoint` | This function gives the location of a point against a Polygon or a MultiPolygon: `inside`, `boundary` or `outside`. The rules are in the description of this module. A point on the boundary of one part and inside another part is `inside`. A closed polygon contains the point when the result is not `outside`. |
-| `geo.normalizeLon` | This function gives the longitude in the range from -180 to less than 180. A longitude of 180 becomes -180, and -0 becomes 0. The result has no rounding: it is the longitude plus a multiple of 360. So the function does not change a longitude that is already in the range, other than -0. |
-| `geo.polygonIntersectsBBox` | This function gives `true` when a closed polygon and a closed box have a common point. A box that crosses the antimeridian is two rectangles, one on each side. |
-| `geo.polygonsIntersect` | This function gives `true` when two closed polygons have a common point. Polygons that touch at one point intersect. A polygon in a hole of the other polygon does not intersect it, unless they touch. The rules are in the description of this module. The result is the same when `a` and `b` change places. |
-| `geo.rewind` | This function gives a copy of the polygon that follows the right-hand rule of RFC 7946. It reverses each clockwise exterior ring and each counterclockwise hole. It does not change a degenerate ring. The copy keeps the other members of the object. |
-| `geo.ringWinding` | This function gives the winding of a ring in the plane of longitude and latitude: the sign of its exact signed area. The sum uses exact dyadic numbers, so a rounding error cannot change the result. For a ring that crosses itself, the result is the sign of the sum of the signed areas of its loops. |
 | `geo.route` | Give the time and the distance of a drive between two points (OSRM) |
-| `geo.simplifyRegions` | This function simplifies regions that share borders, for example the counties of a state, with the method of Douglas and Peucker. It gives one region for each region of the input, with the same type. |
-| `geo.toGeoJsonBBox` | This function gives the GeoJSON form `[west, south, east, north]` of a box. |
-| `geo.toPosition` | This function gives the GeoJSON position `[lon, lat]` of a point. |
-| `geo.toUnitVector` | This function gives the unit vector of a point, from the center of a sphere to the point. A drawing in 3D multiplies the vector by its radius. |
 
 ## gh
 
@@ -655,6 +616,7 @@
 | `quantity.canonicalUnit` | This function gives the canonical spelling of a unit, for data from another system: "hr" is "h". |
 | `quantity.compare` | This function gives -1, 0 or 1. Infinity is larger than all amounts, and equal to itself. |
 | `quantity.convert` | _(no description)_ |
+| `quantity.convertExact` | This function converts a value in one unit, exactly, into another unit. |
 | `quantity.convertible` | _(no description)_ |
 | `quantity.format` | This function prints an amount: "$1,234.56", "$500/mo", "7,875 s", "34.5%", "72°F", "12 reps", "∞ s". |
 | `quantity.formatDuration` | This function prints a time as people say it: "2 h 11 min 15 s", "45 min", "2 days 3 h". A time of less than a second keeps its own unit ("250 ms"). The `parts` option sets the most units that it names, and it rounds the smallest. It is `formatOnScale` with a compound of days, hours, minutes and seconds. |
@@ -665,9 +627,11 @@
 | `quantity.isUnbounded` | _(no description)_ |
 | `quantity.kindOf` | _(no description)_ |
 | `quantity.kindOfQuantity` | This function gives the kind that a quantity measures. |
+| `quantity.lookupAtom` | This function gives the atom that a spelling names: its symbol or one of its aliases. |
 | `quantity.max` | _(no description)_ |
 | `quantity.mean` | This function gives the arithmetic mean. For a logarithmic level, it gives the energy mean: 10·log10 of the mean power. |
 | `quantity.min` | _(no description)_ |
+| `quantity.parseUnit` | This function resolves a unit from its spelling. The spelling has symbols or their aliases, factors joined by `·` or `*`, and one `/` at most. All that follows the slash divides: "kcal/h·kg" is per hour per kilogram. A factor can have a power (`m^2`) and say what it counts (`{rep}`). |
 | `quantity.quantity` | This function makes a quantity, and checks that it has a finite value and a canonical unit. |
 | `quantity.round` | This function rounds an amount to the decimals that its unit keeps (money to the cent), or to `decimals`. |
 | `quantity.sameVector` | _(no description)_ |
@@ -675,6 +639,7 @@
 | `quantity.sub` | _(no description)_ |
 | `quantity.sum` | This function gives the sum in `unit`, or in the unit of the first amount. An empty sum needs `unit`. |
 | `quantity.toNanoseconds` | This function gives a time as a whole number of nanoseconds, or refuses it. A double holds each whole nanosecond for approximately 104 days. |
+| `quantity.tryParseUnit` | This function gives the unit of a spelling, or undefined when the spelling names no unit. |
 | `quantity.unbounded` | _(no description)_ |
 | `quantity.valueIn` | This function gives the number that a quantity is in a unit. |
 | `quantity.whyNotConvertible` | This function gives the reason that `from` cannot become `to`, or undefined when it can. |
@@ -834,6 +799,7 @@
 | `statistics.responseCells` | This function gives the number of fitted places of a view before the view starts: the product of the lengths of its axes. A level axis counts its levels, and a continuous axis counts `steps`. The field `nearest` reads each point at each place, so the reads of a view are this count times the number of points. The default of `steps` is the default of a view. The function throws a RangeError for an unknown dimension, for one dimension named two times, and for a bad `steps`. |
 | `statistics.ridgeSolve` | This function gives the coefficients `beta` that solve `(gram + lambda * P) beta = moment`. - `gram` is the symmetric matrix `X'X` of size `k`, in row order. The function reads only its lower triangle. - `moment` is the vector `X'y` of length `k`. - With `lambda` 0, the result is the ordinary least-squares fit. |
 | `statistics.runningMean` | This function gives the mean of the values: `sum / n`. It throws a RangeError for the empty summary. |
+| `statistics.runningOf` | This function gives the summary of the values of a list or another iterable, in their order. |
 | `statistics.runningSd` | This function gives the sample standard deviation of the values (the divisor is n - 1). It needs 2 values or more. Equal values give exactly 0, as `sd` gives. A rounding error cannot make the result NaN. |
 | `statistics.sampleTotalInterval` | A bootstrap interval of the total of a population from a uniform sample of `m` of its `n` items, drawn without replacement. The estimate is `scale * sum(values)`. Each run draws `m` values with replacement, as `bootstrap` does. The deviation of each run from the sum of the sample gets the factor `scale * sqrt(1 - m / n)`, the finite population correction. When `m` is `n`, the interval is the estimate. |
 | `statistics.sd` | The sample standard deviation (the divisor is n - 1). It needs 2 values or more. Equal values give exactly 0. The rounding of the mean gives a small number that is not 0 for some equal values, so the function examines them first. |

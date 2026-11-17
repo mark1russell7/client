@@ -947,6 +947,103 @@ export const manifest: ExportsManifest = {
         "rate"
       ]
     },
+    "Node": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "num"
+            },
+            "n": {
+              "$ref": "#/$defs/Rational"
+            }
+          },
+          "required": [
+            "op",
+            "n"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "knob"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "name"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "enum": [
+                "+",
+                "-",
+                "*",
+                "/"
+              ]
+            },
+            "a": {
+              "$ref": "#/$defs/Node"
+            },
+            "b": {
+              "$ref": "#/$defs/Node"
+            }
+          },
+          "required": [
+            "op",
+            "a",
+            "b"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "neg"
+            },
+            "a": {
+              "$ref": "#/$defs/Node"
+            }
+          },
+          "required": [
+            "op",
+            "a"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "enum": [
+                "min",
+                "max",
+                "floor",
+                "ceil",
+                "pow"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Node"
+              }
+            }
+          },
+          "required": [
+            "op",
+            "args"
+          ]
+        }
+      ]
+    },
     "OomTask": {
       "type": "object",
       "properties": {
@@ -1067,6 +1164,25 @@ export const manifest: ExportsManifest = {
       "required": [
         "value",
         "unit"
+      ]
+    },
+    "Rational": {
+      "type": "object",
+      "properties": {
+        "n": {
+          "type": "string",
+          "pattern": "^-?(0|[1-9][0-9]*)$",
+          "x-procedures-codec": "bigint"
+        },
+        "d": {
+          "type": "string",
+          "pattern": "^-?(0|[1-9][0-9]*)$",
+          "x-procedures-codec": "bigint"
+        }
+      },
+      "required": [
+        "n",
+        "d"
       ]
     },
     "Realization": {
@@ -2973,6 +3089,132 @@ export const manifest: ExportsManifest = {
       }
     },
     {
+      "name": "parseExpr",
+      "path": [
+        "algebra",
+        "parseExpr"
+      ],
+      "description": "This function parses the arithmetic of a document, or it throws an error that tells where the text stops making sense.",
+      "params": [
+        "text"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "$ref": "#/$defs/Node"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "portSearchChain",
+      "path": [
+        "algebra",
+        "portSearchChain"
+      ],
+      "description": "This function gives the exact chain of the search: the share of each count of connects to one destination, over `rounds` rounds. Each round closes its connections with a reset, and the next round starts where the last connect of the round before put the start. The first round starts at each even offset with the same chance.",
+      "params": [
+        "size",
+        "rounds"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "size": {
+            "type": "number"
+          },
+          "rounds": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "size"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "array",
+        "items": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "x-procedures-codec": "map"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "portSearchShares",
+      "path": [
+        "algebra",
+        "portSearchShares"
+      ],
+      "description": "This function gives the law of the search: the share of each count of connects to one destination before `EADDRNOTAVAIL`, over `rounds` rounds. An even range, and a range of one port, give their size in each round: the two passes reach each port. An odd range gives its size or one less, from the exact chain, up to `PORT_SEARCH_CHAIN_LARGEST` ports.",
+      "params": [
+        "size",
+        "rounds"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "size": {
+            "type": "number"
+          },
+          "rounds": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "size"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "array",
+        "items": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "x-procedures-codec": "map"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "portSearchSpan",
       "path": [
         "algebra",
@@ -3953,21 +4195,6 @@ export const manifest: ExportsManifest = {
       "name": "overValues",
       "reason": "output-not-json",
       "detail": "KnobValues"
-    },
-    {
-      "name": "parseExpr",
-      "reason": "output-not-json",
-      "detail": "n.n: bigint"
-    },
-    {
-      "name": "portSearchChain",
-      "reason": "output-not-json",
-      "detail": "ReadonlyMap"
-    },
-    {
-      "name": "portSearchShares",
-      "reason": "output-not-json",
-      "detail": "ReadonlyMap"
     },
     {
       "name": "runMachine",
