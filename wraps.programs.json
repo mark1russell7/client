@@ -1,0 +1,179 @@
+{
+  "programs": [
+    {
+      "name": "seeded-bootstrap-of-a-median",
+      "description": "The bootstrap interval of a median. The seed of the bootstrap comes from a label, through deriveSeed.",
+      "program": {
+        "$proc": [
+          "statistics",
+          "bootstrap"
+        ],
+        "input": {
+          "data": [
+            3,
+            1,
+            4,
+            1,
+            5,
+            9,
+            2,
+            6,
+            5,
+            3,
+            5,
+            8,
+            9,
+            7,
+            9
+          ],
+          "statistic": {
+            "$proc": [
+              "statistics",
+              "median"
+            ],
+            "input": {
+              "values": {
+                "$ref": "sample"
+              }
+            },
+            "$when": "$never"
+          },
+          "options": {
+            "runs": 400,
+            "seed": {
+              "$proc": [
+                "generators",
+                "deriveSeed"
+              ],
+              "input": {
+                "seed": 7,
+                "label": "bootstrap"
+              }
+            }
+          }
+        }
+      },
+      "result": {
+        "estimate": 5,
+        "low": 3,
+        "high": 7,
+        "level": 0.95,
+        "runs": 400,
+        "finite": 400,
+        "seed": 1120721394
+      }
+    },
+    {
+      "name": "content-hash-of-an-interval",
+      "description": "The SHA-256 of the canonical JSON of a Wilson interval: a key for a store of results.",
+      "program": {
+        "$proc": [
+          "generators",
+          "canonicalHash"
+        ],
+        "input": {
+          "value": {
+            "$proc": [
+              "statistics",
+              "wilson"
+            ],
+            "input": {
+              "k": 8,
+              "n": 10
+            }
+          }
+        }
+      },
+      "result": "e2f930fa8af8603e0805cd904854d52e38c3f453a5c7b8a8c8883dcc90e9bea8"
+    },
+    {
+      "name": "seeded-order-by-weight",
+      "description": "A Plackett-Luce order of four shares. The weight of each share is a normal quantile from statistics, and the seed is the hash of a name.",
+      "program": {
+        "$proc": [
+          "generators",
+          "plackettLuceOrder"
+        ],
+        "input": {
+          "seed": {
+            "$proc": [
+              "generators",
+              "sha256Hex"
+            ],
+            "input": {
+              "text": "an order"
+            }
+          },
+          "items": [
+            0.2,
+            0.9,
+            0.5,
+            0.7
+          ],
+          "logWeightOf": {
+            "$proc": [
+              "statistics",
+              "normalQuantile"
+            ],
+            "input": {
+              "p": {
+                "$ref": "item"
+              }
+            },
+            "$when": "$never"
+          }
+        }
+      },
+      "result": [
+        0.7,
+        0.9,
+        0.2,
+        0.5
+      ]
+    },
+    {
+      "name": "latin-hypercube-from-a-label",
+      "description": "A Latin hypercube of four points in two dimensions. The procedure makes its Random from a seed, and the seed comes from a label, through deriveSeed.",
+      "program": {
+        "$proc": [
+          "generators",
+          "latinHypercube"
+        ],
+        "input": {
+          "n": 4,
+          "d": 2,
+          "r": {
+            "seed": {
+              "$proc": [
+                "generators",
+                "deriveSeed"
+              ],
+              "input": {
+                "seed": 7,
+                "label": "design"
+              }
+            }
+          }
+        }
+      },
+      "result": [
+        [
+          0.8873362895683385,
+          0.8690022618393414
+        ],
+        [
+          0.5519742068136111,
+          0.4157125820638612
+        ],
+        [
+          0.09121613699244335,
+          0.5413490640348755
+        ],
+        [
+          0.3456299683894031,
+          0.19666967575903982
+        ]
+      ]
+    }
+  ]
+}

@@ -5,5 +5,6 @@
   "manifest": "src/manifest.ts",
   "overlay": {
     "effects": { "reads": [], "writes": [] }
-  }
+  },
+  "pure": true
 }

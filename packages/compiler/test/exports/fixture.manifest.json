@@ -52,6 +52,13 @@
         "run"
       ]
     },
+    "MaybeSide": {
+      "enum": [
+        "less",
+        "greater",
+        "two-sided"
+      ]
+    },
     "Named": {
       "type": "object",
       "properties": {
@@ -117,6 +124,43 @@
       "required": [
         "x",
         "y"
+      ]
+    },
+    "Spec": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "fixed"
+            },
+            "value": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "mix"
+            },
+            "parts": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Spec"
+              }
+            }
+          },
+          "required": [
+            "kind",
+            "parts"
+          ]
+        }
       ]
     },
     "Tree": {
@@ -425,6 +469,52 @@
       }
     },
     {
+      "name": "deal",
+      "path": [
+        "fixture",
+        "deal"
+      ],
+      "description": "The first card of a deck: a constructed input.",
+      "params": [
+        "deck"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "deck": {
+            "type": "object",
+            "properties": {
+              "seed": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "seed"
+            ],
+            "additionalProperties": false,
+            "description": "The input of deck: the procedure makes the Deck with deck(seed) before the call.",
+            "x-procedures-construct": {
+              "function": "deck",
+              "params": [
+                "seed"
+              ]
+            }
+          }
+        },
+        "required": [
+          "deck"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "depth",
       "path": [
         "fixture",
@@ -700,6 +790,49 @@
       }
     },
     {
+      "name": "maybeRoll",
+      "path": [
+        "fixture",
+        "maybeRoll"
+      ],
+      "description": "One roll, or 0 with no die: an optional constructed input.",
+      "params": [
+        "die"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "die": {
+            "type": "object",
+            "properties": {
+              "seed": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "seed"
+            ],
+            "additionalProperties": false,
+            "description": "The input of die: the procedure makes the Die with die(seed) before the call.",
+            "x-procedures-construct": {
+              "function": "die",
+              "params": [
+                "seed"
+              ]
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "minus",
       "path": [
         "fixture",
@@ -912,6 +1045,60 @@
       }
     },
     {
+      "name": "rolls",
+      "path": [
+        "fixture",
+        "rolls"
+      ],
+      "description": "The rolls of a die: a constructed input.",
+      "params": [
+        "count",
+        "die"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "die": {
+            "type": "object",
+            "properties": {
+              "seed": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "seed"
+            ],
+            "additionalProperties": false,
+            "description": "The input of die: the procedure makes the Die with die(seed) before the call.",
+            "x-procedures-construct": {
+              "function": "die",
+              "params": [
+                "seed"
+              ]
+            }
+          }
+        },
+        "required": [
+          "count",
+          "die"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        }
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "scale",
       "path": [
         "fixture",
@@ -983,6 +1170,43 @@
         "items": {
           "type": "number"
         }
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "sideOf",
+      "path": [
+        "fixture",
+        "sideOf"
+      ],
+      "description": "The side of a sign, or undefined for zero.",
+      "params": [
+        "sign"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "sign": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "sign"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/MaybeSide"
+          },
+          {
+            "type": "null"
+          }
+        ]
       },
       "effects": {
         "reads": [],
@@ -1274,9 +1498,44 @@
         "reads": [],
         "writes": []
       }
+    },
+    {
+      "name": "weight",
+      "path": [
+        "fixture",
+        "weight"
+      ],
+      "description": "The number of fixed parts of a distribution.",
+      "params": [
+        "spec"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "$ref": "#/$defs/Spec"
+          }
+        },
+        "required": [
+          "spec"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
     }
   ],
   "exempt": [
+    {
+      "name": "bag",
+      "reason": "input-not-json",
+      "detail": "items: Set"
+    },
     {
       "name": "big",
       "reason": "input-not-json",
@@ -1288,9 +1547,34 @@
       "detail": "value: a type that does not resolve"
     },
     {
+      "name": "coin",
+      "reason": "output-not-json",
+      "detail": "an object with the method flip"
+    },
+    {
       "name": "counter",
       "reason": "output-not-json",
       "detail": "an instance of the class Counter"
+    },
+    {
+      "name": "curried",
+      "reason": "function-parameter",
+      "detail": "make: (seed: number) => () => number"
+    },
+    {
+      "name": "deck",
+      "reason": "output-not-json",
+      "detail": "an object with the method deal"
+    },
+    {
+      "name": "die",
+      "reason": "input-not-json",
+      "detail": "faces: Map"
+    },
+    {
+      "name": "draw",
+      "reason": "input-not-json",
+      "detail": "bag: an object with the method take"
     },
     {
       "name": "each",
@@ -1298,9 +1582,29 @@
       "detail": "fn: (value: number) => void"
     },
     {
+      "name": "either",
+      "reason": "input-not-json",
+      "detail": "value: an object with the method flip"
+    },
+    {
       "name": "fail",
       "reason": "output-not-json",
       "detail": "never"
+    },
+    {
+      "name": "fairCoin",
+      "reason": "output-not-json",
+      "detail": "an object with the method flip"
+    },
+    {
+      "name": "flips",
+      "reason": "input-not-json",
+      "detail": "coin: an object with the method flip. The functions coin, fairCoin give Coin: overlay.constructors names one"
+    },
+    {
+      "name": "grow",
+      "reason": "input-not-json",
+      "detail": "value.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.value: a type deeper than 64 levels"
     },
     {
       "name": "handlerOf",
@@ -1358,6 +1662,6 @@
       "Counter"
     ],
     "values": 1,
-    "types": 8
+    "types": 15
   }
 }

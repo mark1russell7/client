@@ -68,6 +68,16 @@ node scripts/wraps.ts generate --package statistics
 
 The command writes `src/manifest.ts`. It also raises the ratchet of the library in `wraps.coverage.json`. CI starts `node scripts/wraps.ts check`. The check fails when the manifest is not current, or when the share of the functions with a procedure falls.
 
+## The gate of a pure wrap
+
+The wrap is pure: its `wrap.json` has `"pure": true`. So `node scripts/wraps.ts check` also examines these conditions:
+
+- Each procedure has no effects.
+- The field `client.browser` lists `.`, `./module` and `./register`.
+- A program of `wraps.programs.json` uses a procedure of the wrap.
+
+The programs of `wraps.programs.json`, at the root of the repository, use the procedures of the pure wraps, also across libraries. The check starts each program two times. The two results must be equal, and equal to the recorded result. An update of a library can change a result on purpose. Then start `node scripts/wraps.ts generate` with no `--package`. Give the reason in the pull request.
+
 ## License
 
 MIT
