@@ -123,7 +123,9 @@ await server.close();
 - `twilioGatherTwiml` says a text in a `<Gather>` and sends the key of the person to an address. With no key, it says the text `after`.
 - Each TwiML builder takes a `voice` and a `language` for each `<Say>`.
 - `twilioBalanceRequest` reads the balance of the account.
-- `extractTwilioText`, `extractTwilioCall` and `extractTwilioBalance` read a response. `callTwilio` sends one request through the fetch that the caller gives.
+- `twilioMessageListRequest` reads one page of the texts, with the filters `to`, `from`, `dateSentAfter` and `pageSize`. `twilioNextPageRequest` reads the next page.
+- `twilioOptOutKeyword` gives the keyword of a received text: `stop`, `start` or `help`.
+- `extractTwilioText`, `extractTwilioCall`, `extractTwilioBalance` and `extractTwilioMessages` read a response. `callTwilio` sends one request through the fetch that the caller gives.
 
 ```ts
 import { callTwilio, extractTwilioCall, twilioCallRequest, twilioSayTwiml } from "@procedures/notify/twilio";
@@ -149,6 +151,31 @@ A request holds the credentials in its `authorization` header. Do not log a requ
 - A text is `pending`, `delivered` or `failed`. A carrier confirms the delivery of a text only in some countries.
 - A call is `pending`, `connected`, `answered`, `machine`, `unanswered` or `failed`. `ended` is true when the status cannot change again.
 - Only a call with `machineDetection` tells `answered` (a person) from `machine`. Without it, an answered call is `connected`.
+
+### The replies of the recipients
+
+A recipient can reply `STOP` to stop the texts of a Twilio number, and `START` to start them again. Twilio blocks the texts to a person who replied `STOP`. To keep a list of the recipients that agree to get texts, read the received texts and their keywords:
+
+```ts
+import { callTwilio, extractTwilioMessages, twilioMessageListRequest, twilioNextPageRequest, twilioOptOutKeyword, type TwilioRequest } from "@procedures/notify/twilio";
+
+let request: TwilioRequest | undefined = twilioMessageListRequest(credentials, { to: twilioNumber, dateSentAfter: lastRead, pageSize: 100 });
+while (request !== undefined) {
+  const page = await callTwilio(fetch, request, extractTwilioMessages, { timeoutMs: 20_000 });
+  if (!page.ok) break; // a TwilioFailure
+  for (const text of page.messages) {
+    if (text.direction === "inbound") record(text.from, twilioOptOutKeyword(text.body), text.dateSent);
+  }
+  request = page.nextPageUri === undefined ? undefined : twilioNextPageRequest(credentials, page.nextPageUri);
+}
+```
+
+- Twilio gives the texts of a page by `dateSent`, the newest first.
+- `dateSentAfter` is the filter `DateSent>`. It includes the time or the day that it names.
+- `TWILIO_OPT_OUT_KEYWORDS`, `TWILIO_OPT_IN_KEYWORDS` and `TWILIO_HELP_KEYWORDS` are the default keywords of Twilio.
+- A keyword is the full body of a text. The case of the letters and the white space around the keyword have no effect. `stop please` is not a keyword.
+- A toll-free number of the US accepts only `START` and `UNSTOP` to start the texts again.
+- An Advanced Opt-Out of a messaging service can add keywords. `twilioOptOutKeyword` knows only the default keywords.
 
 ### Failures of Twilio
 
