@@ -16,7 +16,6 @@ export const root = resolve(import.meta.dirname, "..", "..");
 export const GENERAL_PACKAGES = {
   "@mark1russell7/cue": "^1.0.0",
   "@mark1russell7/splay": "^0.1.0",
-  "@mark1russell7/docker-sqlite": "^0.1.0",
 };
 
 /** Each folder of packages/ with a package.json, and its manifest. */

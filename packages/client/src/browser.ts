@@ -295,6 +295,7 @@ export {
   getProcedureProcedure,
   manifestProcedure,
   listProceduresProcedure,
+  searchProceduresProcedure,
   deleteProcedureProcedure,
   metaProcedures,
   getRuntimeProcedure,
@@ -416,7 +417,14 @@ export type {
   AggregationDefinition,
   DefineProcedureInput,
   DefineProcedureOutput,
+  ProcedureSearchHit,
+  ProcedureSearchInput,
+  ProcedureSearchOutput,
 } from "./procedures/index.js";
+
+// The search of a catalog of procedures or tools (direction 40, the tool surface)
+export { SEARCH_LIMIT, SEARCH_MAX_LIMIT, searchDocuments, searchWords } from "./procedures/index.js";
+export type { SearchDocument, SearchHit, SearchOptions, SearchResult } from "./procedures/index.js";
 
 // ============================================================================
 // Invocation: the one path, the call policy and the interceptors
@@ -524,7 +532,7 @@ export type {
 export type { ProgressUpdate, ReportProgress } from "./procedures/progress.js";
 export { toolHintsOf, toolHintOverrideOf, toolHintOverrideRefusal } from "./procedures/hints.js";
 export type { ToolHintOverride } from "./procedures/hints.js";
-export { untrustedText, untrustedFieldsOf, untrustedTextsOf } from "./procedures/untrusted.js";
+export { untrustedText, untrustedFieldsOf, untrustedTextsOf, markUntrusted, untrustedMarkOf } from "./procedures/untrusted.js";
 export type { UntrustedText, UntrustedSource, UntrustedValue } from "./procedures/untrusted.js";
 // One manifest type (roadmap R17)
 export { MANIFEST_FORMAT, describeProcedure as describeProcedureEntry, describeRegistry, exposedProcedures, hashOf } from "./procedures/manifest.js";

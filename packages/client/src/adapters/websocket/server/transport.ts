@@ -27,7 +27,7 @@ import type {
   TrackedConnection,
   ConnectionEventHandler,
 } from "./types.js";
-import { withoutInternalKeys } from "../../metadata.js";
+import { wireMetadata } from "../../metadata.js";
 import { assertNamedOrigins, checkBrowserRequest, needsNamedOrigin, type BrowserGuardOptions } from "../../../server/browser-guard.js";
 import { encodeFrame } from "../../../frame-encoding.js";
 import { optionalMs } from "../../../duration.js";
@@ -534,7 +534,9 @@ export class WebSocketServerTransport implements ServerTransport {
       // Only an absent payload becomes {}: before, 0, false and "" became {} too (deep dive TRN-10)
       payload: frame.payload === undefined ? {} : frame.payload,
       metadata: {
-        ...withoutInternalKeys(frame.metadata),
+        // The metadata of the frame without its internal keys and the key `auth`: the credentials of
+        // a call are those of the connection (its upgrade), not a key of a frame (roadmap R18)
+        ...wireMetadata(frame.metadata),
         // Add connection info
         connectionId,
         remoteAddress: req.socket.remoteAddress,

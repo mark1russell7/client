@@ -5,11 +5,9 @@
  * or `:memory:`. It implements `CollectionStorage` of `@procedures/client`, so a
  * `ProcedureServer`, an `ApiStorage` server and a `HybridStorage` can use it.
  *
- * - The storage has two engines (the option `engine`). The engine `node` is `node:sqlite` of
- *   Node.js: it writes only the changed pages of the file. The engine `sqljs` is sql.js (SQLite in
- *   WebAssembly) through `@mark1russell7/docker-sqlite`: it keeps the database in memory and
- *   writes the whole file after a write. The default `auto` uses `node` when Node.js has it.
- * - The two engines use the same file format: a file of one engine opens with the other.
+ * - The engine is `node:sqlite` of Node.js, through `@mark1russell7/sqlite`. It writes only the
+ *   changed pages of the file. Version 0.61.0 removed the engine `sqljs`, and a file that it wrote
+ *   opens with its items and its versions.
  * - The table of a collection has the columns `id` (the key) and `value` (the JSON text of the
  *   item). A value goes through `JSON.stringify` and `JSON.parse`.
  * - A change log gives `getChangesSince()`. The table `_storage_log` has the last change of each
@@ -42,7 +40,7 @@ import {
   type StorageSelector,
 } from "@procedures/client";
 import { VersionConflictError, applyPatch, patchProblems, preconditionNotSupported, queryEntries, versionConflicts, type CurrentItem } from "@procedures/client/query";
-// The entry /portable imports no module of Node.js. The engine node loads node:sqlite only when a storage opens.
+// The entry /portable imports no module of Node.js. The storage loads node:sqlite only when it opens.
 import { readTransaction, tableColumns, transaction } from "@mark1russell7/sqlite/portable";
 import {
   MEMORY_PATH,
@@ -77,23 +75,14 @@ export interface SqliteStorageOptions<T = unknown> {
    */
   maxTombstones?: number;
   /**
-   * The SQLite engine.
-   *
-   * - `node`: the module `node:sqlite` of Node.js 22.13 or later. It writes only the changes, and
-   *   the file is in WAL mode. Two processes can use one file.
-   * - `sqljs`: sql.js, SQLite in WebAssembly. It keeps the database in memory, and it writes the
-   *   whole file after a write. This engine is deprecated, and version 0.61.0 removes it. Its first
-   *   open in a process shows a `DeprecationWarning` with the code `PROCEDURES_SQLITE_SQLJS`.
-   * - `auto`: `node` when Node.js has `node:sqlite`, and else `sqljs`, with the same warning.
-   *
-   * The storages of one file in one process share one database, and thus one engine. The first
-   * storage of the file sets it. A storage with another engine than `auto` refuses a database
-   * of the other engine.
+   * The SQLite engine. `auto` and `node` both use the module `node:sqlite` of Node.js 22.13 or
+   * later. It writes only the changes, and the file is in WAL mode. Two processes can use one file.
+   * Version 0.61.0 removed the engine `sqljs`: the constructor refuses it with a `TypeError`.
    * @default "auto"
    */
   engine?: SqliteEngine;
   /**
-   * The time that a write of the engine `node` waits for the lock of another process, for example
+   * The time that a write waits for the lock of another process, for example
    * `seconds(5)`. After it, the write fails with the error `database is locked`. The first
    * storage of a file sets it.
    * @default 5 seconds
@@ -224,7 +213,7 @@ const copySchema: CopySchema = (from, to) => {
 // The databases of the files, shared in the process
 // ---------------------------------------------------------------------------
 
-/** One open database and its file writes. */
+/** One open database, and the storages that use it. */
 class SharedDatabase {
   readonly path: string;
   readonly open: OpenDatabase;
@@ -232,21 +221,8 @@ class SharedDatabase {
   /** The storages that use the database. */
   users = 0;
   closed = false;
-  /**
-   * The engine sqljs: true when the database has a change that is not in the file. The tables
-   * that a storage makes when it opens are not a change: a storage that only reads does not make
-   * the file.
-   */
-  dirty = false;
-  /** The last file write. Its error is in the promise of the write that asked for it. */
-  private saving: Promise<void> = Promise.resolve();
-  /** A file write that waits for the running one. The writes that come before it starts share it. */
-  private next: Promise<void> | undefined;
 
-  constructor(
-    path: string,
-    open: OpenDatabase,
-  ) {
+  constructor(path: string, open: OpenDatabase) {
     this.path = path;
     this.open = open;
   }
@@ -254,55 +230,10 @@ class SharedDatabase {
   get engine(): SqliteEngineName {
     return this.open.engine;
   }
-
-  /** True when the engine writes the whole file after a write: sql.js with a file. */
-  private get savesFile(): boolean {
-    return this.open.engine === "sqljs" && this.path !== MEMORY_PATH;
-  }
-
-  /**
-   * This method records a change, and gives the promise of the file write that holds it. The
-   * engine node wrote the change at the commit of its transaction.
-   */
-  changed(): Promise<void> {
-    if (!this.savesFile) return Promise.resolve();
-    this.dirty = true;
-    return this.save();
-  }
-
-  /**
-   * This method writes the file after the running file write. It gives the promise of a file write that
-   * starts after this call, so the file gets each change that came before the call.
-   */
-  save(): Promise<void> {
-    if (!this.savesFile) return Promise.resolve();
-    if (this.next) return this.next;
-    const run = this.saving.then(async () => {
-      // The file write reads the database now: a later change needs a new file write
-      this.next = undefined;
-      if (!this.dirty) return;
-      this.dirty = false;
-      try {
-        await this.open.saveFile();
-      } catch (error) {
-        this.dirty = true;
-        throw error;
-      }
-    });
-    this.next = run;
-    this.saving = run.catch(() => undefined);
-    return run;
-  }
-}
-
-/** A database of a file that opens or is open, and the engine choice of the storage that opened it. */
-interface FileEntry {
-  engine: SqliteEngine;
-  database: Promise<SharedDatabase>;
 }
 
 /** The databases of the files that open or are open, by the key of the file. */
-const files = new Map<string, FileEntry>();
+const files = new Map<string, Promise<SharedDatabase>>();
 /** The open databases of the files, by the key of the file. */
 const opened = new Map<string, SharedDatabase>();
 
@@ -312,26 +243,25 @@ function fileKey(path: string): string {
   return process.platform === "win32" ? absolute.toLowerCase() : absolute;
 }
 
-async function openDatabase(path: string, engine: SqliteEngine, busyTimeoutMs: number): Promise<SharedDatabase> {
-  return new SharedDatabase(path, await openEngine(path, engine, busyTimeoutMs));
+async function openDatabase(path: string, busyTimeoutMs: number): Promise<SharedDatabase> {
+  return new SharedDatabase(path, await openEngine(path, busyTimeoutMs));
 }
 
 /** This function opens the database of a path, or gives the open database of the same file. */
-async function acquire(path: string, engine: SqliteEngine, busyTimeoutMs: number): Promise<SharedDatabase> {
+async function acquire(path: string, busyTimeoutMs: number): Promise<SharedDatabase> {
   if (path === MEMORY_PATH) {
-    const shared = await openDatabase(path, engine, busyTimeoutMs);
+    const shared = await openDatabase(path, busyTimeoutMs);
     shared.users++;
     return shared;
   }
   const key = fileKey(path);
   for (;;) {
-    let entry = files.get(key);
-    if (!entry) {
-      const opening = openDatabase(path, engine, busyTimeoutMs);
-      entry = { engine, database: opening };
-      files.set(key, entry);
-      const own = entry;
-      opening.then(
+    let opening = files.get(key);
+    if (!opening) {
+      const own = openDatabase(path, busyTimeoutMs);
+      opening = own;
+      files.set(key, own);
+      own.then(
         (shared) => opened.set(key, shared),
         () => {
           // A failed open does not stay: the next storage tries again
@@ -339,41 +269,18 @@ async function acquire(path: string, engine: SqliteEngine, busyTimeoutMs: number
         },
       );
     }
-    let shared: SharedDatabase;
-    try {
-      shared = await entry.database;
-    } catch (error) {
-      // A storage with another engine choice failed to open the file: try with this choice
-      if (entry.engine !== engine) continue;
-      throw error;
-    }
+    const shared = await opening;
     // The last storage closed the database while this one waited: open the file again
     if (shared.closed) continue;
-    if (engine !== "auto" && shared.engine !== engine) {
-      throw new Error(
-        `The file ${path} is open with the SQLite engine ${shared.engine} in this process: a storage with the engine ${engine} cannot share it. Give the engine auto or ${shared.engine}.`,
-      );
-    }
     shared.users++;
     return shared;
   }
 }
 
-/** This function releases a database. The last storage writes the file and closes the database. */
+/** This function releases a database. The last storage closes it. */
 async function release(shared: SharedDatabase): Promise<void> {
   shared.users--;
   if (shared.users > 0) return;
-  let failure: unknown;
-  try {
-    await shared.save();
-  } catch (error) {
-    failure = error;
-  }
-  // Another storage of the file opened while the file write ran
-  if (shared.users > 0) {
-    if (failure !== undefined) throw failure;
-    return;
-  }
   shared.closed = true;
   if (shared.path !== MEMORY_PATH) {
     const key = fileKey(shared.path);
@@ -383,7 +290,6 @@ async function release(shared: SharedDatabase): Promise<void> {
     }
   }
   shared.open.close();
-  if (failure !== undefined) throw failure;
 }
 
 // ---------------------------------------------------------------------------
@@ -411,7 +317,7 @@ interface WriteResult<R> {
  * await users.set("123", { id: "123", name: "John" });
  * const user = await users.get("123"); // { id: "123", name: "John" }
  * const changes = await users.getChangesSince(); // { version, full: true, changed, deleted: [] }
- * await users.getEngine(); // "node" on Node.js 22.13 or later, else "sqljs"
+ * await users.getEngine(); // "node"
  * await users.close();
  * ```
  */
@@ -621,7 +527,7 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
   // ═══ Lifecycle & Metadata ═══
   //
 
-  /** The engine that the storage uses: `node` or `sqljs`. With the option `auto`, the open decides it. */
+  /** The engine that the storage uses: `node`. */
   async getEngine(): Promise<SqliteEngineName> {
     this.checkOpen();
     const shared = await this.opening;
@@ -630,19 +536,18 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
   }
 
   /**
-   * This method writes the database file. Each write ends after its file write already, so a
-   * caller needs it only after a failed file write of the engine `sqljs`. The engine `node`
-   * writes each change at its commit.
+   * This method does no work: each write is in the file at the commit of its transaction. It
+   * rejects after `close()`. It is the optional method `flush` of `CollectionStorage`, which the
+   * drain of a procedure server calls.
    */
   async flush(): Promise<void> {
     this.checkOpen();
-    const shared = await this.opening;
+    await this.opening;
     this.checkOpen();
-    await shared.save();
   }
 
   /**
-   * This method writes the file and releases the database. The items stay in the file. A new
+   * This method releases the database. The items stay in the file. A new
    * storage of the same file and table reads them, and the versions of this storage stay valid.
    * After `close()`, each operation rejects, and a second `close()` does nothing.
    */
@@ -675,7 +580,7 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
 
   /** This method opens the database, and makes the tables of the collection and of the change log. */
   private async open(busyTimeoutMs: number): Promise<SharedDatabase> {
-    const shared = await acquire(this.path, this.engine, busyTimeoutMs);
+    const shared = await acquire(this.path, busyTimeoutMs);
     try {
       prepareTable(shared.open.db, this.table, newEpoch());
       return shared;
@@ -688,7 +593,7 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
   /** The open database. It throws after `close()`, so the promise of the operation rejects. */
   private async database(): Promise<EngineDatabase> {
     const shared = await this.sharedDatabase();
-    // The engine node: another process made the file after the open
+    // Another process made the file after the open
     shared.open.refresh(copySchema);
     return shared.open.db;
   }
@@ -743,13 +648,12 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
   }
 
   /**
-   * One write: the change in a transaction with the change log, then the file write of the engine
-   * `sqljs`. `next` gives the next number of the change log. A write that changes nothing writes
-   * no file.
+   * One write: the change in a transaction with the change log. `next` gives the next number of
+   * the change log.
    *
-   * Before the first write, the engine `node` keeps the database of a missing file in memory, with
-   * no item. A write first tests its change there. When it changes an item, the storage makes the
-   * file and runs the write in it.
+   * Before the first write, the storage keeps the database of a missing file in memory, with no
+   * item. A write first tests its change there. When it changes an item, the storage makes the
+   * file and runs the write in it. Thus a write that changes nothing makes no file.
    */
   private async write<R>(change: (db: EngineDatabase, next: () => number) => R): Promise<R> {
     const shared = await this.sharedDatabase();
@@ -760,9 +664,7 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
       if (!test.changed) return test.value;
       open.makeFile(copySchema);
     }
-    const { value, changed } = this.runWrite(open.db, change, true);
-    if (changed) await shared.changed();
-    return value;
+    return this.runWrite(open.db, change, true).value;
   }
 
   private runWrite<R>(db: EngineDatabase, change: (db: EngineDatabase, next: () => number) => R, keep: boolean): WriteResult<R> {

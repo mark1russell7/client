@@ -151,6 +151,7 @@ export async function createDevToolsHost(config: McpServerConfig = loadConfig())
     version: config.serverVersion,
     debug: config.debug,
     faces: facesOf(config),
+    ...(config.listing ? { listing: config.listing } : {}),
   });
   return {
     registry,

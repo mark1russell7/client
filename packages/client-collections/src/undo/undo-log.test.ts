@@ -21,6 +21,8 @@ function setup(options: { cap?: number } = {}) {
 
 /** The fingerprints of three items in the version before CLI-127. */
 const FINGERPRINTS = { null: "77074ba4b8756554", note: "04445d06e55bef9c", nested: "879ba88d58956f24" };
+/** The fingerprint of an item with a Date, a RegExp, a Map and a Set in the version before CLI-128. */
+const TAGGED_FINGERPRINT = "48515c94e9e7a6d1";
 
 describe("UndoLog", () => {
   it("undoes the newest change with its inverse patch, one change at a time", async () => {
@@ -196,6 +198,19 @@ describe("UndoLog", () => {
     expect(fingerprintOf(null)).toBe(FINGERPRINTS.null);
     expect(fingerprintOf({ id: "n1", title: "a", tags: ["x", "y"] })).toBe(FINGERPRINTS.note);
     expect(fingerprintOf({ b: [1, null, { d: 2.5, c: "é" }], a: true, u: undefined })).toBe(FINGERPRINTS.nested);
+  });
+
+  it("fingerprintOf keeps the fingerprint of an item with a Date, a RegExp, a Map and a Set (CLI-128)", () => {
+    const item = { id: "n1", at: new Date(0), re: /a+/gi, m: new Map<unknown, unknown>([["b", 2], [1, { y: 1, x: 0 }]]), s: new Set(["b", "a"]) };
+    expect(fingerprintOf(item)).toBe(TAGGED_FINGERPRINT);
+  });
+
+  it("fingerprintOf gives a bigint a tag, and throws a TypeError for a function, a symbol or a cycle (CLI-128)", () => {
+    expect(fingerprintOf({ n: 1n })).not.toBe(fingerprintOf({ n: 2n }));
+    expect(fingerprintOf({ n: 1n })).not.toBe(fingerprintOf({ n: 1 }));
+    const cycle: Record<string, unknown> = { id: "c" };
+    cycle["self"] = cycle;
+    for (const item of [{ f: () => 1 }, { s: Symbol("s") }, cycle]) expect(() => fingerprintOf(item)).toThrow(TypeError);
   });
 
   it("keeps the entry when the log has no storage for its collection", async () => {

@@ -7,6 +7,7 @@ Push notifications through ntfy (the public server or your own) and through Push
 - With ntfy, each phone that subscribes to the topic gets the message.
 - With Pushover, each device of the user gets the message. An emergency message repeats until the user acknowledges it.
 - With Twilio, a phone gets a text message or a voice call. A call can tell a person from an answering machine.
+- With a webhook, a server of your choice gets a signed JSON request in the form of Standard Webhooks.
 
 ## Install
 
@@ -122,7 +123,9 @@ await server.close();
 - `twilioGatherTwiml` says a text in a `<Gather>` and sends the key of the person to an address. With no key, it says the text `after`.
 - Each TwiML builder takes a `voice` and a `language` for each `<Say>`.
 - `twilioBalanceRequest` reads the balance of the account.
-- `extractTwilioText`, `extractTwilioCall` and `extractTwilioBalance` read a response. `callTwilio` sends one request through the fetch that the caller gives.
+- `twilioMessageListRequest` reads one page of the texts, with the filters `to`, `from`, `dateSentAfter` and `pageSize`. `twilioNextPageRequest` reads the next page.
+- `twilioOptOutKeyword` gives the keyword of a received text: `stop`, `start` or `help`.
+- `extractTwilioText`, `extractTwilioCall`, `extractTwilioBalance` and `extractTwilioMessages` read a response. `callTwilio` sends one request through the fetch that the caller gives.
 
 ```ts
 import { callTwilio, extractTwilioCall, twilioCallRequest, twilioSayTwiml } from "@procedures/notify/twilio";
@@ -148,6 +151,31 @@ A request holds the credentials in its `authorization` header. Do not log a requ
 - A text is `pending`, `delivered` or `failed`. A carrier confirms the delivery of a text only in some countries.
 - A call is `pending`, `connected`, `answered`, `machine`, `unanswered` or `failed`. `ended` is true when the status cannot change again.
 - Only a call with `machineDetection` tells `answered` (a person) from `machine`. Without it, an answered call is `connected`.
+
+### The replies of the recipients
+
+A recipient can reply `STOP` to stop the texts of a Twilio number, and `START` to start them again. Twilio blocks the texts to a person who replied `STOP`. To keep a list of the recipients that agree to get texts, read the received texts and their keywords:
+
+```ts
+import { callTwilio, extractTwilioMessages, twilioMessageListRequest, twilioNextPageRequest, twilioOptOutKeyword, type TwilioRequest } from "@procedures/notify/twilio";
+
+let request: TwilioRequest | undefined = twilioMessageListRequest(credentials, { to: twilioNumber, dateSentAfter: lastRead, pageSize: 100 });
+while (request !== undefined) {
+  const page = await callTwilio(fetch, request, extractTwilioMessages, { timeoutMs: 20_000 });
+  if (!page.ok) break; // a TwilioFailure
+  for (const text of page.messages) {
+    if (text.direction === "inbound") record(text.from, twilioOptOutKeyword(text.body), text.dateSent);
+  }
+  request = page.nextPageUri === undefined ? undefined : twilioNextPageRequest(credentials, page.nextPageUri);
+}
+```
+
+- Twilio gives the texts of a page by `dateSent`, the newest first.
+- `dateSentAfter` is the filter `DateSent>`. It includes the time or the day that it names.
+- `TWILIO_OPT_OUT_KEYWORDS`, `TWILIO_OPT_IN_KEYWORDS` and `TWILIO_HELP_KEYWORDS` are the default keywords of Twilio.
+- A keyword is the full body of a text. The case of the letters and the white space around the keyword have no effect. `stop please` is not a keyword.
+- A toll-free number of the US accepts only `START` and `UNSTOP` to start the texts again.
+- An Advanced Opt-Out of a messaging service can add keywords. `twilioOptOutKeyword` knows only the default keywords.
 
 ### Failures of Twilio
 
@@ -216,3 +244,35 @@ if (result.ok) console.log(`https://${result.domainName}/start`);
 ```
 
 A variable can hold a secret. Do not log a variable request, a variable read or its value.
+
+## Webhooks
+
+`@procedures/notify/webhook` has pure functions for webhooks in the form of [Standard Webhooks](https://www.standardwebhooks.com). A browser can also use them. The entry has no procedures.
+
+- A sender signs the text `id.timestamp.body` with HMAC-SHA256. The headers are `webhook-id`, `webhook-timestamp` and `webhook-signature`.
+- A secret is `whsec_` and the base64 of 24 to 64 random bytes. A request can have one signature for each secret, thus a receiver can change its secret.
+- A receiver checks the signature and the time, in a tolerance of 5 minutes.
+
+```ts
+import { parseWebhookSecret, sendWebhook, verifyWebhook, webhookBody } from "@procedures/notify/webhook";
+
+const parsed = parseWebhookSecret(process.env.WEBHOOK_SECRET ?? "");
+if (!parsed.ok) throw new Error(parsed.problem);
+const body = webhookBody("alert.sent", Date.now(), { title: "Tornado warning" });
+const sent = await sendWebhook(fetch, { url, id: crypto.randomUUID(), timestampMs: Date.now(), body }, [parsed.secret]);
+
+// The receiver reads the body as text, before a parse.
+const check = await verifyWebhook({ headers: request.headers, body: text }, [parsed.secret], Date.now());
+```
+
+### Failures of a webhook
+
+`extractWebhookSent` sorts a response by the rules of the spec. The extractor does not throw.
+
+- `throttled` (429, 502, 504) and `server` (other 5xx) get a wait from `Retry-After`, and 5 seconds at least.
+- `gone` (410) tells the sender to stop each send to the endpoint.
+- `redirect` (3xx) is a failure. Change the address. The send does not follow a redirect.
+- `refused` (other statuses) fails again with the same message.
+- `network` and `timeout` have no answer. The time limit is 15 seconds.
+
+Each send of one message keeps its id, thus the receiver drops a second copy. A secret is a key: do not log it.

@@ -1,0 +1,2436 @@
+{
+  "format": "procedures-exports/1",
+  "package": "fixture",
+  "version": "1.0.0",
+  "entry": ".",
+  "namespace": [
+    "fixture"
+  ],
+  "$defs": {
+    "Handler": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "run": {
+          "type": "object",
+          "description": "One call of a pure procedure, as data, for the function (value: number) => number. It reads each parameter as {\"$ref\": \"<name>\"}: value.",
+          "required": [
+            "$proc"
+          ],
+          "properties": {
+            "$proc": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "input": {},
+            "$when": {
+              "const": "$never"
+            }
+          },
+          "x-procedures-program": {
+            "params": [
+              "value"
+            ],
+            "inputs": [
+              {
+                "type": "number"
+              }
+            ],
+            "output": {
+              "type": "number"
+            }
+          }
+        }
+      },
+      "required": [
+        "name",
+        "run"
+      ]
+    },
+    "MaybeSide": {
+      "enum": [
+        "less",
+        "greater",
+        "two-sided"
+      ]
+    },
+    "Named": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "size": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "name",
+        "size"
+      ]
+    },
+    "Note": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "extra": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ]
+    },
+    "Options": {
+      "type": "object",
+      "properties": {
+        "side": {
+          "enum": [
+            "less",
+            "greater",
+            "two-sided"
+          ]
+        },
+        "level": {
+          "type": "number"
+        },
+        "labels": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "Point": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number",
+          "description": "The x coordinate."
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ]
+    },
+    "Source": {
+      "type": "object",
+      "properties": {
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "x-procedures-codec": "iterable"
+        }
+      },
+      "required": [
+        "values"
+      ]
+    },
+    "Spec": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "fixed"
+            },
+            "value": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "mix"
+            },
+            "parts": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Spec"
+              }
+            }
+          },
+          "required": [
+            "kind",
+            "parts"
+          ]
+        }
+      ]
+    },
+    "Tree": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Tree"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "children"
+      ]
+    }
+  },
+  "procedures": [
+    {
+      "name": "above",
+      "path": [
+        "fixture",
+        "above"
+      ],
+      "description": "True when a number is over a limit.",
+      "params": [
+        "value",
+        "limit"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "number"
+          },
+          "limit": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "limit"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "boolean"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "add",
+      "path": [
+        "fixture",
+        "add"
+      ],
+      "description": "The sum of two numbers.",
+      "params": [
+        "a",
+        "b"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "a": {
+            "type": "number",
+            "description": "The first number."
+          },
+          "b": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "a",
+          "b"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": [],
+        "idempotent": true
+      }
+    },
+    {
+      "name": "anything",
+      "path": [
+        "fixture",
+        "anything"
+      ],
+      "description": "A value of the type {}: each value but null and undefined.",
+      "params": [
+        "value"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "boolean",
+              "number",
+              "string",
+              "array",
+              "object"
+            ]
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": [
+          "boolean",
+          "number",
+          "string",
+          "array",
+          "object"
+        ]
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "apply",
+      "path": [
+        "fixture",
+        "apply"
+      ],
+      "description": "A callback with JSON values: a sub-program gives it.",
+      "params": [
+        "values",
+        "fn"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "fn": {
+            "type": "object",
+            "description": "One call of a pure procedure, as data, for the function (value: number) => number. It reads each parameter as {\"$ref\": \"<name>\"}: value.",
+            "required": [
+              "$proc"
+            ],
+            "properties": {
+              "$proc": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              },
+              "input": {},
+              "$when": {
+                "const": "$never"
+              }
+            },
+            "x-procedures-program": {
+              "params": [
+                "value"
+              ],
+              "inputs": [
+                {
+                  "type": "number"
+                }
+              ],
+              "output": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "required": [
+          "values",
+          "fn"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        }
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "big",
+      "path": [
+        "fixture",
+        "big"
+      ],
+      "description": "Twice a big number: a bigint is a decimal string in JSON.",
+      "params": [
+        "value"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "pattern": "^-?(0|[1-9][0-9]*)$",
+            "x-procedures-codec": "bigint"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "string",
+        "pattern": "^-?(0|[1-9][0-9]*)$",
+        "x-procedures-codec": "bigint"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "chain",
+      "path": [
+        "fixture",
+        "chain"
+      ],
+      "description": "The steps of a value, in order: an array of sub-programs.",
+      "params": [
+        "value",
+        "steps"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "number"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "One call of a pure procedure, as data, for the function (value: number) => number. It reads each parameter as {\"$ref\": \"<name>\"}: value.",
+              "required": [
+                "$proc"
+              ],
+              "properties": {
+                "$proc": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                },
+                "input": {},
+                "$when": {
+                  "const": "$never"
+                }
+              },
+              "x-procedures-program": {
+                "params": [
+                  "value"
+                ],
+                "inputs": [
+                  {
+                    "type": "number"
+                  }
+                ],
+                "output": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        },
+        "required": [
+          "value",
+          "steps"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "choose",
+      "path": [
+        "fixture",
+        "choose"
+      ],
+      "description": "An optional callback whose result can be undefined: a sub-program gives undefined for null.",
+      "params": [
+        "a",
+        "b",
+        "score"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "a": {
+            "type": "number"
+          },
+          "b": {
+            "type": "number"
+          },
+          "score": {
+            "type": "object",
+            "description": "One call of a pure procedure, as data, for the function (a: number, b: number) => number | undefined. It reads each parameter as {\"$ref\": \"<name>\"}: a, b.",
+            "required": [
+              "$proc"
+            ],
+            "properties": {
+              "$proc": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              },
+              "input": {},
+              "$when": {
+                "const": "$never"
+              }
+            },
+            "x-procedures-program": {
+              "params": [
+                "a",
+                "b"
+              ],
+              "inputs": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "output": {
+                "type": "number"
+              },
+              "undefinedForNull": true
+            }
+          }
+        },
+        "required": [
+          "a",
+          "b"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "deal",
+      "path": [
+        "fixture",
+        "deal"
+      ],
+      "description": "The first card of a deck: a constructed input.",
+      "params": [
+        "deck"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "deck": {
+            "type": "object",
+            "properties": {
+              "seed": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "seed"
+            ],
+            "additionalProperties": false,
+            "description": "The input of deck: the procedure makes the Deck with deck(seed) before the call.",
+            "x-procedures-construct": {
+              "function": "deck",
+              "params": [
+                "seed"
+              ]
+            }
+          }
+        },
+        "required": [
+          "deck"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "definite",
+      "path": [
+        "fixture",
+        "definite"
+      ],
+      "description": "NonNullable of a constraint with null.",
+      "params": [
+        "value"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "string"
+      },
+      "generics": [
+        "T"
+      ],
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "depth",
+      "path": [
+        "fixture",
+        "depth"
+      ],
+      "description": "The depth of a tree.",
+      "params": [
+        "tree"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "tree": {
+            "$ref": "#/$defs/Tree"
+          }
+        },
+        "required": [
+          "tree"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "distinct",
+      "path": [
+        "fixture",
+        "distinct"
+      ],
+      "description": "The distinct words: a ReadonlySet is a list in JSON.",
+      "params": [
+        "words"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "words": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "x-procedures-codec": "iterable"
+          }
+        },
+        "required": [
+          "words"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "x-procedures-codec": "set"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "drain",
+      "path": [
+        "fixture",
+        "drain"
+      ],
+      "description": "The sum of the values of a source: an input can hold an iterable.",
+      "params": [
+        "source"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "$ref": "#/$defs/Source"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "draw",
+      "path": [
+        "fixture",
+        "draw"
+      ],
+      "description": "One number of a bag: a constructed input with a set.",
+      "params": [
+        "bag"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "bag": {
+            "type": "object",
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "x-procedures-codec": "set"
+              }
+            },
+            "required": [
+              "items"
+            ],
+            "additionalProperties": false,
+            "description": "The input of bag: the procedure makes the Bag with bag(items) before the call.",
+            "x-procedures-construct": {
+              "function": "bag",
+              "params": [
+                "items"
+              ]
+            }
+          }
+        },
+        "required": [
+          "bag"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "exactly",
+      "path": [
+        "fixture",
+        "exactly"
+      ],
+      "description": "Twice a bigint literal: its decimal string.",
+      "params": [
+        "value"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "const": "7",
+                "x-procedures-codec": "bigint"
+              },
+              {
+                "const": "-7",
+                "x-procedures-codec": "bigint"
+              }
+            ]
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "string",
+        "pattern": "^-?(0|[1-9][0-9]*)$",
+        "x-procedures-codec": "bigint"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "findIndex",
+      "path": [
+        "fixture",
+        "findIndex"
+      ],
+      "description": "A callback with two parameters.",
+      "params": [
+        "values",
+        "predicate"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "predicate": {
+            "type": "object",
+            "description": "One call of a pure procedure, as data, for the function (value: number, index: number) => boolean. It reads each parameter as {\"$ref\": \"<name>\"}: value, index.",
+            "required": [
+              "$proc"
+            ],
+            "properties": {
+              "$proc": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              },
+              "input": {},
+              "$when": {
+                "const": "$never"
+              }
+            },
+            "x-procedures-program": {
+              "params": [
+                "value",
+                "index"
+              ],
+              "inputs": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "output": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "required": [
+          "values",
+          "predicate"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "first",
+      "path": [
+        "fixture",
+        "first"
+      ],
+      "description": "The first item of a list.",
+      "params": [
+        "items"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {}
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "output": {},
+      "generics": [
+        "T"
+      ],
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "flip",
+      "path": [
+        "fixture",
+        "flip"
+      ],
+      "description": "A choice of a side, or null.",
+      "params": [
+        "side"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "side": {
+            "enum": [
+              null,
+              "less",
+              "greater",
+              "two-sided"
+            ]
+          }
+        },
+        "required": [
+          "side"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "enum": [
+          null,
+          "less",
+          "greater",
+          "two-sided"
+        ]
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "greet",
+      "path": [
+        "fixture",
+        "greet"
+      ],
+      "description": "A greeting, later.",
+      "params": [
+        "name",
+        "loud"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "loud": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "string"
+      },
+      "async": true,
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "identity",
+      "path": [
+        "fixture",
+        "identity"
+      ],
+      "description": "Any value: unknown is any JSON value.",
+      "params": [
+        "value"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "value": {}
+        },
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "output": {},
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "keys",
+      "path": [
+        "fixture",
+        "keys"
+      ],
+      "description": "A count of the keys of a map: a Map is a list of entries in JSON.",
+      "params": [
+        "map"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "map": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "x-procedures-codec": "map"
+          }
+        },
+        "required": [
+          "map"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "kindOf",
+      "path": [
+        "fixture",
+        "kindOf"
+      ],
+      "description": "The type of a number or of a stamp: a union with a bigint in a member.",
+      "params": [
+        "value"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "at": {
+                    "type": "string",
+                    "pattern": "^-?(0|[1-9][0-9]*)$",
+                    "x-procedures-codec": "bigint"
+                  }
+                },
+                "required": [
+                  "at"
+                ]
+              }
+            ]
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "string"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "known",
+      "path": [
+        "fixture",
+        "known"
+      ],
+      "description": "NonNullable of a union with null: the union without null.",
+      "params": [
+        "value"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "string"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "lookup",
+      "path": [
+        "fixture",
+        "lookup"
+      ],
+      "description": "A tuple with an undefined item: JSON gives null for it.",
+      "params": [
+        "key"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "array",
+        "prefixItems": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "minItems": 2,
+        "maxItems": 2
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "maybeRoll",
+      "path": [
+        "fixture",
+        "maybeRoll"
+      ],
+      "description": "One roll, or 0 with no die: an optional constructed input.",
+      "params": [
+        "die"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "die": {
+            "type": "object",
+            "properties": {
+              "seed": {
+                "type": "number"
+              },
+              "faces": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                "x-procedures-codec": "map"
+              }
+            },
+            "required": [
+              "seed"
+            ],
+            "additionalProperties": false,
+            "description": "The input of die: the procedure makes the Die with die(seed, faces) before the call.",
+            "x-procedures-construct": {
+              "function": "die",
+              "params": [
+                "seed",
+                "faces"
+              ]
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "minus",
+      "path": [
+        "fixture",
+        "minus"
+      ],
+      "description": "The difference of two numbers.",
+      "params": [
+        "a",
+        "b"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "a": {
+            "type": "number"
+          },
+          "b": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "a",
+          "b"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "norm",
+      "path": [
+        "fixture",
+        "norm"
+      ],
+      "description": "The distance of a point from the origin, at a level.",
+      "params": [
+        "point",
+        "options"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "point": {
+            "$ref": "#/$defs/Point"
+          },
+          "options": {
+            "$ref": "#/$defs/Options"
+          }
+        },
+        "required": [
+          "point"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "nothing",
+      "path": [
+        "fixture",
+        "nothing"
+      ],
+      "description": "Nothing.",
+      "params": [],
+      "input": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "null"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "pair",
+      "path": [
+        "fixture",
+        "pair"
+      ],
+      "description": "A pair of a word and its length.",
+      "params": [
+        "word"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "word": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "word"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "array",
+        "prefixItems": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          }
+        ],
+        "minItems": 2,
+        "maxItems": 2
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "pick",
+      "path": [
+        "fixture",
+        "pick"
+      ],
+      "description": "A union of types, and a union of a literal flag and a word.",
+      "params": [
+        "value",
+        "when"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "when": {
+            "enum": [
+              true,
+              "auto"
+            ]
+          }
+        },
+        "required": [
+          "value",
+          "when"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          }
+        ]
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "present",
+      "path": [
+        "fixture",
+        "present"
+      ],
+      "description": "A value that is present: NonNullable of a type parameter is T & {}, each value but null.",
+      "params": [
+        "value"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "description": "The value, or null. The generator removes the hyphen of TSDoc."
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "anyOf": [
+          {
+            "type": "null"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": [
+                  "boolean",
+                  "number",
+                  "string",
+                  "array",
+                  "object"
+                ]
+              }
+            },
+            "required": [
+              "value"
+            ]
+          }
+        ]
+      },
+      "generics": [
+        "T"
+      ],
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "read",
+      "path": [
+        "fixture",
+        "read"
+      ],
+      "description": "The text of a note.",
+      "params": [
+        "note"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "$ref": "#/$defs/Note"
+          }
+        },
+        "required": [
+          "note"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "string"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "rolls",
+      "path": [
+        "fixture",
+        "rolls"
+      ],
+      "description": "The rolls of a die: a constructed input.",
+      "params": [
+        "count",
+        "die"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "die": {
+            "type": "object",
+            "properties": {
+              "seed": {
+                "type": "number"
+              },
+              "faces": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                "x-procedures-codec": "map"
+              }
+            },
+            "required": [
+              "seed"
+            ],
+            "additionalProperties": false,
+            "description": "The input of die: the procedure makes the Die with die(seed, faces) before the call.",
+            "x-procedures-construct": {
+              "function": "die",
+              "params": [
+                "seed",
+                "faces"
+              ]
+            }
+          }
+        },
+        "required": [
+          "count",
+          "die"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        }
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "scale",
+      "path": [
+        "fixture",
+        "scale"
+      ],
+      "description": "A factor or a function of each value: a union with a sub-program.",
+      "params": [
+        "values",
+        "factor"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "factor": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "object",
+                "description": "One call of a pure procedure, as data, for the function (value: number) => number. It reads each parameter as {\"$ref\": \"<name>\"}: value.",
+                "required": [
+                  "$proc"
+                ],
+                "properties": {
+                  "$proc": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1
+                  },
+                  "input": {},
+                  "$when": {
+                    "const": "$never"
+                  }
+                },
+                "x-procedures-program": {
+                  "params": [
+                    "value"
+                  ],
+                  "inputs": [
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "output": {
+                    "type": "number"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "required": [
+          "values",
+          "factor"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        }
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "sideOf",
+      "path": [
+        "fixture",
+        "sideOf"
+      ],
+      "description": "The side of a sign, or undefined for zero.",
+      "params": [
+        "sign"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "sign": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "sign"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/MaybeSide"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "sizeOf",
+      "path": [
+        "fixture",
+        "sizeOf"
+      ],
+      "description": "A callback with a map parameter: the sub-program gets the list of entries.",
+      "params": [
+        "fn"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "fn": {
+            "type": "object",
+            "description": "One call of a pure procedure, as data, for the function (map: Map<string, number>) => number. It reads each parameter as {\"$ref\": \"<name>\"}: map.",
+            "required": [
+              "$proc"
+            ],
+            "properties": {
+              "$proc": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              },
+              "input": {},
+              "$when": {
+                "const": "$never"
+              }
+            },
+            "x-procedures-program": {
+              "params": [
+                "map"
+              ],
+              "inputs": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ],
+                    "minItems": 2,
+                    "maxItems": 2
+                  },
+                  "x-procedures-codec": "map"
+                }
+              ],
+              "output": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "required": [
+          "fn"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "sizes",
+      "path": [
+        "fixture",
+        "sizes"
+      ],
+      "description": "The key of each item: a sub-program that reads the fields of its parameter.",
+      "params": [
+        "items",
+        "key"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/Named"
+            }
+          },
+          "key": {
+            "type": "object",
+            "description": "One call of a pure procedure, as data, for the function (item: Named) => number. It reads each parameter as {\"$ref\": \"<name>\"}: item.",
+            "required": [
+              "$proc"
+            ],
+            "properties": {
+              "$proc": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              },
+              "input": {},
+              "$when": {
+                "const": "$never"
+              }
+            },
+            "x-procedures-program": {
+              "params": [
+                "item"
+              ],
+              "inputs": [
+                {
+                  "$ref": "#/$defs/Named"
+                }
+              ],
+              "output": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "required": [
+          "items",
+          "key"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        }
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "sortBy",
+      "path": [
+        "fixture",
+        "sortBy"
+      ],
+      "description": "An option with a callback: a sub-program gives it.",
+      "params": [
+        "values",
+        "options"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "options": {
+            "type": "object",
+            "properties": {
+              "compare": {
+                "type": "object",
+                "description": "One call of a pure procedure, as data, for the function (a: number, b: number) => number. It reads each parameter as {\"$ref\": \"<name>\"}: a, b.",
+                "required": [
+                  "$proc"
+                ],
+                "properties": {
+                  "$proc": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1
+                  },
+                  "input": {},
+                  "$when": {
+                    "const": "$never"
+                  }
+                },
+                "x-procedures-program": {
+                  "params": [
+                    "a",
+                    "b"
+                  ],
+                  "inputs": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "output": {
+                    "type": "number"
+                  }
+                }
+              }
+            },
+            "required": [
+              "compare"
+            ]
+          }
+        },
+        "required": [
+          "values",
+          "options"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        }
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "stamp",
+      "path": [
+        "fixture",
+        "stamp"
+      ],
+      "description": "A bigint in a property: its decimal string.",
+      "params": [
+        "record"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "record": {
+            "type": "object",
+            "properties": {
+              "at": {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)$",
+                "x-procedures-codec": "bigint"
+              }
+            },
+            "required": [
+              "at"
+            ]
+          }
+        },
+        "required": [
+          "record"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "step",
+      "path": [
+        "fixture",
+        "step"
+      ],
+      "description": "One more than the step of a bigint: a sub-program gives a bigint to the package.",
+      "params": [
+        "value",
+        "by"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "pattern": "^-?(0|[1-9][0-9]*)$",
+            "x-procedures-codec": "bigint"
+          },
+          "by": {
+            "type": "object",
+            "description": "One call of a pure procedure, as data, for the function (value: bigint) => bigint. It reads each parameter as {\"$ref\": \"<name>\"}: value.",
+            "required": [
+              "$proc"
+            ],
+            "properties": {
+              "$proc": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              },
+              "input": {},
+              "$when": {
+                "const": "$never"
+              }
+            },
+            "x-procedures-program": {
+              "params": [
+                "value"
+              ],
+              "inputs": [
+                {
+                  "type": "string",
+                  "pattern": "^-?(0|[1-9][0-9]*)$",
+                  "x-procedures-codec": "bigint"
+                }
+              ],
+              "output": {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)$",
+                "x-procedures-codec": "bigint"
+              }
+            }
+          }
+        },
+        "required": [
+          "value",
+          "by"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "string",
+        "pattern": "^-?(0|[1-9][0-9]*)$",
+        "x-procedures-codec": "bigint"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "strict",
+      "path": [
+        "fixture",
+        "strict"
+      ],
+      "description": "A literal flag.",
+      "params": [
+        "flag",
+        "mode"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "flag": {
+            "const": true
+          },
+          "mode": {
+            "enum": [
+              2,
+              1
+            ]
+          }
+        },
+        "required": [
+          "flag",
+          "mode"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "const": "yes"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "sumOf",
+      "path": [
+        "fixture",
+        "sumOf"
+      ],
+      "description": "The sum of the values of an iterable: a list in JSON.",
+      "params": [
+        "values"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "x-procedures-codec": "iterable"
+          }
+        },
+        "required": [
+          "values"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "tally",
+      "path": [
+        "fixture",
+        "tally"
+      ],
+      "description": "The count of each word: a ReadonlyMap is a list of entries in JSON.",
+      "params": [
+        "words"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "words": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "words"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "array",
+        "items": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "x-procedures-codec": "map"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "toggle",
+      "path": [
+        "fixture",
+        "toggle"
+      ],
+      "description": "A flag.",
+      "params": [
+        "on"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "on": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "on"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "boolean"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "total",
+      "path": [
+        "fixture",
+        "total"
+      ],
+      "description": "The sum of each number.",
+      "params": [],
+      "rest": "values",
+      "input": {
+        "type": "object",
+        "properties": {
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "useHandler",
+      "path": [
+        "fixture",
+        "useHandler"
+      ],
+      "description": "A callback in a named type.",
+      "params": [
+        "handler",
+        "value"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "handler": {
+            "$ref": "#/$defs/Handler"
+          },
+          "value": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "handler",
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "weight",
+      "path": [
+        "fixture",
+        "weight"
+      ],
+      "description": "The number of fixed parts of a distribution.",
+      "params": [
+        "spec"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "$ref": "#/$defs/Spec"
+          }
+        },
+        "required": [
+          "spec"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    }
+  ],
+  "exempt": [
+    {
+      "name": "bag",
+      "reason": "output-not-json",
+      "detail": "an object with the method take"
+    },
+    {
+      "name": "broken",
+      "reason": "input-not-json",
+      "detail": "value: a type that does not resolve"
+    },
+    {
+      "name": "coin",
+      "reason": "output-not-json",
+      "detail": "an object with the method flip"
+    },
+    {
+      "name": "counter",
+      "reason": "output-not-json",
+      "detail": "an instance of the class Counter"
+    },
+    {
+      "name": "curried",
+      "reason": "function-parameter",
+      "detail": "make: (seed: number) => () => number"
+    },
+    {
+      "name": "deck",
+      "reason": "output-not-json",
+      "detail": "an object with the method deal"
+    },
+    {
+      "name": "die",
+      "reason": "input-not-json",
+      "detail": "clock: Date"
+    },
+    {
+      "name": "each",
+      "reason": "function-parameter",
+      "detail": "fn: (value: number) => void"
+    },
+    {
+      "name": "either",
+      "reason": "input-not-json",
+      "detail": "value: an object with the method flip"
+    },
+    {
+      "name": "fail",
+      "reason": "output-not-json",
+      "detail": "never"
+    },
+    {
+      "name": "fairCoin",
+      "reason": "output-not-json",
+      "detail": "an object with the method flip"
+    },
+    {
+      "name": "feed",
+      "reason": "function-parameter",
+      "detail": "fn: (values: Iterable<number>) => number"
+    },
+    {
+      "name": "flips",
+      "reason": "input-not-json",
+      "detail": "coin: an object with the method flip. The functions coin, fairCoin give Coin: overlay.constructors names one"
+    },
+    {
+      "name": "grow",
+      "reason": "input-not-json",
+      "detail": "value.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.value: a type deeper than 64 levels"
+    },
+    {
+      "name": "handlerOf",
+      "reason": "output-not-json",
+      "detail": "run: a function"
+    },
+    {
+      "name": "later",
+      "reason": "function-parameter",
+      "detail": "fn: (value: number) => Promise<number>"
+    },
+    {
+      "name": "lock",
+      "reason": "input-not-json",
+      "detail": "at: Date"
+    },
+    {
+      "name": "measure",
+      "reason": "input-not-json",
+      "detail": "shape: an object with the method area"
+    },
+    {
+      "name": "naturals",
+      "reason": "output-not-json",
+      "detail": "Iterable"
+    },
+    {
+      "name": "opens",
+      "reason": "input-not-json",
+      "detail": "lock: an object with the method open"
+    },
+    {
+      "name": "parse",
+      "reason": "overload",
+      "detail": "2 signatures"
+    },
+    {
+      "name": "sourceOf",
+      "reason": "output-not-json",
+      "detail": "values: Iterable"
+    },
+    {
+      "name": "twice",
+      "reason": "function-parameter",
+      "detail": "fn: <T>(value: T) => T"
+    },
+    {
+      "name": "unset",
+      "reason": "input-not-json",
+      "detail": "value: undefined"
+    },
+    {
+      "name": "vanished",
+      "reason": "unresolved",
+      "detail": "the export does not resolve, for example its module is not installed"
+    }
+  ],
+  "others": {
+    "classes": [
+      "Counter"
+    ],
+    "values": 1,
+    "types": 17
+  }
+}
