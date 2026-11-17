@@ -1075,6 +1075,104 @@ export const manifest: ExportsManifest = {
         "unit"
       ]
     },
+    "PairChoice": {
+      "type": "object",
+      "properties": {
+        "a": {
+          "type": "string"
+        },
+        "b": {
+          "type": "string"
+        },
+        "information": {
+          "type": "number",
+          "description": "The information of the pair."
+        }
+      },
+      "required": [
+        "a",
+        "b",
+        "information"
+      ]
+    },
+    "PairChoiceOptions_T": {
+      "type": "object",
+      "properties": {
+        "seed": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "description": "The seed of the draws."
+        },
+        "recent": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "description": "The pairs of the last duels, by key, in each order. The choice takes a recent pair only when there is no other pair."
+        },
+        "candidates": {
+          "type": "number",
+          "description": "The number of second items to examine for the first item. It is a whole number of 1 or more. The default is 24."
+        },
+        "information": {
+          "type": "object",
+          "description": "This function gives the information of a pick between two items, or `undefined` when the pair is not permitted. The value is a finite number. The default is `pairInformation` with the default scale, and it permits each pair.",
+          "required": [
+            "$proc"
+          ],
+          "properties": {
+            "$proc": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "input": {},
+            "$when": {
+              "const": "$never"
+            }
+          },
+          "x-procedures-program": {
+            "params": [
+              "a",
+              "b"
+            ],
+            "inputs": [
+              {
+                "$ref": "#/$defs/RatedItem"
+              },
+              {
+                "$ref": "#/$defs/RatedItem"
+              }
+            ],
+            "output": {
+              "type": "number"
+            },
+            "undefinedForNull": true
+          }
+        }
+      },
+      "required": [
+        "seed"
+      ]
+    },
     "PairComparison": {
       "type": "object",
       "properties": {
@@ -1122,6 +1220,83 @@ export const manifest: ExportsManifest = {
         "a",
         "b",
         "tie"
+      ]
+    },
+    "PermutationOptions": {
+      "type": "object",
+      "properties": {
+        "runs": {
+          "type": "number",
+          "description": "The number of random sign flips. The default is 10 000."
+        },
+        "seed": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "description": "The default is 1."
+        },
+        "statistic": {
+          "type": "object",
+          "description": "The statistic of the differences. The default is the mean.",
+          "required": [
+            "$proc"
+          ],
+          "properties": {
+            "$proc": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "input": {},
+            "$when": {
+              "const": "$never"
+            }
+          },
+          "x-procedures-program": {
+            "params": [
+              "differences"
+            ],
+            "inputs": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              }
+            ],
+            "output": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    },
+    "PermutationResult": {
+      "type": "object",
+      "properties": {
+        "observed": {
+          "type": "number",
+          "description": "The statistic of the observed differences `candidate[i] - baseline[i]`."
+        },
+        "p": {
+          "type": "number",
+          "description": "The two-sided p: (1 + the flips with a statistic as far from 0 or farther) / (1 + runs)."
+        },
+        "runs": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "observed",
+        "p",
+        "runs"
       ]
     },
     "Proportion": {
@@ -3005,6 +3180,95 @@ export const manifest: ExportsManifest = {
         "scale"
       ]
     },
+    "TwoSamplePermutationOptions": {
+      "type": "object",
+      "properties": {
+        "runs": {
+          "type": "number",
+          "description": "The largest number of splits that the test reads. The default is 10 000."
+        },
+        "seed": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "description": "The default is 1."
+        },
+        "statistic": {
+          "type": "object",
+          "description": "The statistic of the two groups. The default is the median of `a` minus the median of `b`.",
+          "required": [
+            "$proc"
+          ],
+          "properties": {
+            "$proc": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "input": {},
+            "$when": {
+              "const": "$never"
+            }
+          },
+          "x-procedures-program": {
+            "params": [
+              "a",
+              "b"
+            ],
+            "inputs": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              }
+            ],
+            "output": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    },
+    "TwoSamplePermutationResult": {
+      "type": "object",
+      "properties": {
+        "exact": {
+          "type": "boolean",
+          "description": "This field is true when the test read each split, so the p has no noise from the draws."
+        },
+        "observed": {
+          "type": "number",
+          "description": "The statistic of the observed differences `candidate[i] - baseline[i]`."
+        },
+        "p": {
+          "type": "number",
+          "description": "The two-sided p: (1 + the flips with a statistic as far from 0 or farther) / (1 + runs)."
+        },
+        "runs": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "exact",
+        "observed",
+        "p",
+        "runs"
+      ]
+    },
     "UStatisticInterval": {
       "type": "object",
       "properties": {
@@ -3296,6 +3560,187 @@ export const manifest: ExportsManifest = {
       }
     },
     {
+      "name": "bootstrap",
+      "path": [
+        "statistics",
+        "bootstrap"
+      ],
+      "description": "A percentile bootstrap interval of `statistic` over `data`. A run whose statistic is not finite (NaN or an infinity) does not count. When no run is finite, low and high are equal to the estimate.",
+      "params": [
+        "data",
+        "statistic",
+        "options"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {}
+          },
+          "statistic": {
+            "type": "object",
+            "description": "One call of a pure procedure, as data, for the function (sample: readonly T[]) => number. It reads each parameter as {\"$ref\": \"<name>\"}: sample.",
+            "required": [
+              "$proc"
+            ],
+            "properties": {
+              "$proc": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              },
+              "input": {},
+              "$when": {
+                "const": "$never"
+              }
+            },
+            "x-procedures-program": {
+              "params": [
+                "sample"
+              ],
+              "inputs": [
+                {
+                  "type": "array",
+                  "items": {}
+                }
+              ],
+              "output": {
+                "type": "number"
+              }
+            }
+          },
+          "options": {
+            "$ref": "#/$defs/BootstrapOptions"
+          }
+        },
+        "required": [
+          "data",
+          "statistic"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "$ref": "#/$defs/Interval"
+      },
+      "generics": [
+        "T"
+      ],
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "bootstrapClusters",
+      "path": [
+        "statistics",
+        "bootstrapClusters"
+      ],
+      "description": "A cluster bootstrap: each run draws whole clusters with replacement, and the statistic reads the rows of the drawn clusters. Use it when the rows of one cluster (one board, one seed, one site) are not independent. The clusters are in the order of their first row.",
+      "params": [
+        "rows",
+        "cluster",
+        "statistic",
+        "options"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "rows": {
+            "type": "array",
+            "items": {}
+          },
+          "cluster": {
+            "type": "object",
+            "description": "One call of a pure procedure, as data, for the function (row: T) => string. It reads each parameter as {\"$ref\": \"<name>\"}: row.",
+            "required": [
+              "$proc"
+            ],
+            "properties": {
+              "$proc": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              },
+              "input": {},
+              "$when": {
+                "const": "$never"
+              }
+            },
+            "x-procedures-program": {
+              "params": [
+                "row"
+              ],
+              "inputs": [
+                {}
+              ],
+              "output": {
+                "type": "string"
+              }
+            }
+          },
+          "statistic": {
+            "type": "object",
+            "description": "One call of a pure procedure, as data, for the function (rows: readonly T[]) => number. It reads each parameter as {\"$ref\": \"<name>\"}: rows.",
+            "required": [
+              "$proc"
+            ],
+            "properties": {
+              "$proc": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              },
+              "input": {},
+              "$when": {
+                "const": "$never"
+              }
+            },
+            "x-procedures-program": {
+              "params": [
+                "rows"
+              ],
+              "inputs": [
+                {
+                  "type": "array",
+                  "items": {}
+                }
+              ],
+              "output": {
+                "type": "number"
+              }
+            }
+          },
+          "options": {
+            "$ref": "#/$defs/BootstrapOptions"
+          }
+        },
+        "required": [
+          "rows",
+          "cluster",
+          "statistic"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "$ref": "#/$defs/Interval"
+      },
+      "generics": [
+        "T"
+      ],
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "bootstrapLeastSquares",
       "path": [
         "statistics",
@@ -3480,6 +3925,172 @@ export const manifest: ExportsManifest = {
       }
     },
     {
+      "name": "bootstrapStrata",
+      "path": [
+        "statistics",
+        "bootstrapStrata"
+      ],
+      "description": "A stratified bootstrap: each run draws, inside each stratum, as many items as the stratum has, with replacement. So each sample keeps the size of each stratum. Use it when the strata are fixed by the design, for example the families of the inputs of a benchmark. The draws of one run go through the strata in the order of the list. With one stratum, the draws are equal to the draws of `bootstrap` with the same seed. The estimate is the statistic of all the strata. A run whose statistic is not finite does not count.",
+      "params": [
+        "strata",
+        "statistic",
+        "options"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "strata": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "statistic": {
+            "type": "object",
+            "description": "One call of a pure procedure, as data, for the function (samples: readonly (readonly T[])[]) => number. It reads each parameter as {\"$ref\": \"<name>\"}: samples.",
+            "required": [
+              "$proc"
+            ],
+            "properties": {
+              "$proc": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              },
+              "input": {},
+              "$when": {
+                "const": "$never"
+              }
+            },
+            "x-procedures-program": {
+              "params": [
+                "samples"
+              ],
+              "inputs": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {}
+                  }
+                }
+              ],
+              "output": {
+                "type": "number"
+              }
+            }
+          },
+          "options": {
+            "$ref": "#/$defs/BootstrapOptions"
+          }
+        },
+        "required": [
+          "strata",
+          "statistic"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "$ref": "#/$defs/Interval"
+      },
+      "generics": [
+        "T"
+      ],
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "bootstrapTwo",
+      "path": [
+        "statistics",
+        "bootstrapTwo"
+      ],
+      "description": "A percentile bootstrap interval of `statistic` over two independent samples `a` and `b`. Use it when the two samples are not paired, for example two arms of a benchmark. Each run draws `a.length` items of `a` with replacement, and then `b.length` items of `b` with replacement. All the draws come from one stream of `random(seed)`. The statistic reads the two drawn samples. The estimate is the statistic of all of `a` and `b`. A run whose statistic is not finite does not count. When no run is finite, low and high are equal to the estimate.",
+      "params": [
+        "a",
+        "b",
+        "statistic",
+        "options"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "a": {
+            "type": "array",
+            "items": {}
+          },
+          "b": {
+            "type": "array",
+            "items": {}
+          },
+          "statistic": {
+            "type": "object",
+            "description": "One call of a pure procedure, as data, for the function (a: readonly A[], b: readonly B[]) => number. It reads each parameter as {\"$ref\": \"<name>\"}: a, b.",
+            "required": [
+              "$proc"
+            ],
+            "properties": {
+              "$proc": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              },
+              "input": {},
+              "$when": {
+                "const": "$never"
+              }
+            },
+            "x-procedures-program": {
+              "params": [
+                "a",
+                "b"
+              ],
+              "inputs": [
+                {
+                  "type": "array",
+                  "items": {}
+                },
+                {
+                  "type": "array",
+                  "items": {}
+                }
+              ],
+              "output": {
+                "type": "number"
+              }
+            }
+          },
+          "options": {
+            "$ref": "#/$defs/BootstrapOptions"
+          }
+        },
+        "required": [
+          "a",
+          "b",
+          "statistic"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "$ref": "#/$defs/Interval"
+      },
+      "generics": [
+        "A",
+        "B"
+      ],
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "bradleyTerry",
       "path": [
         "statistics",
@@ -3627,6 +4238,54 @@ export const manifest: ExportsManifest = {
           "$ref": "#/$defs/CalibrationLevel"
         }
       },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "choosePair",
+      "path": [
+        "statistics",
+        "choosePair"
+      ],
+      "description": "The choice of the next pair of a duel from a pool of rated items. The pool goes in the order of the ratings, from the highest. These are the steps:",
+      "params": [
+        "items",
+        "options"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/RatedItem"
+            }
+          },
+          "options": {
+            "$ref": "#/$defs/PairChoiceOptions_T"
+          }
+        },
+        "required": [
+          "items",
+          "options"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/PairChoice"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "generics": [
+        "T"
+      ],
       "effects": {
         "reads": [],
         "writes": []
@@ -4813,6 +5472,51 @@ export const manifest: ExportsManifest = {
       },
       "output": {
         "$ref": "#/$defs/PairProbabilities"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "pairedPermutation",
+      "path": [
+        "statistics",
+        "pairedPermutation"
+      ],
+      "description": "The paired permutation test (a random sign flip of each difference). It needs no normal distribution and uses the size of each difference, which the sign test does not. A pair with a difference of 0 adds nothing.",
+      "params": [
+        "candidate",
+        "baseline",
+        "options"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "candidate": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "baseline": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "options": {
+            "$ref": "#/$defs/PermutationOptions"
+          }
+        },
+        "required": [
+          "candidate",
+          "baseline"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "$ref": "#/$defs/PermutationResult"
       },
       "effects": {
         "reads": [],
@@ -6067,6 +6771,51 @@ export const manifest: ExportsManifest = {
       }
     },
     {
+      "name": "twoSamplePermutation",
+      "path": [
+        "statistics",
+        "twoSamplePermutation"
+      ],
+      "description": "The two-sample permutation test (a split of the pooled values). It needs no normal distribution and no pairs, so it compares groups of different sizes. The p holds only if the values of the two groups can change places under the null.",
+      "params": [
+        "a",
+        "b",
+        "options"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "a": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "b": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "options": {
+            "$ref": "#/$defs/TwoSamplePermutationOptions"
+          }
+        },
+        "required": [
+          "a",
+          "b"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "$ref": "#/$defs/TwoSamplePermutationResult"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "uStatisticInterval",
       "path": [
         "statistics",
@@ -6245,44 +6994,9 @@ export const manifest: ExportsManifest = {
   ],
   "exempt": [
     {
-      "name": "bootstrap",
-      "reason": "function-parameter",
-      "detail": "statistic: (sample: readonly T[]) => number"
-    },
-    {
-      "name": "bootstrapClusters",
-      "reason": "function-parameter",
-      "detail": "cluster: (row: T) => string"
-    },
-    {
-      "name": "bootstrapStrata",
-      "reason": "function-parameter",
-      "detail": "statistic: (samples: readonly (readonly T[])[]) => number"
-    },
-    {
-      "name": "bootstrapTwo",
-      "reason": "function-parameter",
-      "detail": "statistic: (a: readonly A[], b: readonly B[]) => number"
-    },
-    {
-      "name": "choosePair",
-      "reason": "function-parameter",
-      "detail": "options.information: (a: T, b: T) => number | undefined"
-    },
-    {
-      "name": "pairedPermutation",
-      "reason": "function-parameter",
-      "detail": "options.statistic: (differences: readonly number[]) => number"
-    },
-    {
       "name": "runningOf",
       "reason": "input-not-json",
       "detail": "values: Iterable"
-    },
-    {
-      "name": "twoSamplePermutation",
-      "reason": "function-parameter",
-      "detail": "options.statistic: (a: readonly number[], b: readonly number[]) => number"
     }
   ],
   "others": {

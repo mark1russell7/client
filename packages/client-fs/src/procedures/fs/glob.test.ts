@@ -2,7 +2,7 @@
  * fs.glob: `ignore`, `absolute`, `dot` and `cwd` (deep dive DATA-7).
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -31,6 +31,15 @@ describe("fs.glob", () => {
   it("matches relative to cwd, with / separators, sorted", async () => {
     const result = await run({ pattern: "**/*.{ts,tsx}", cwd: root });
     expect(result.matches).toEqual(["a/node_modules/x/p.ts", "a/q.ts", "b/r.tsx", "dist/d.ts"]);
+  });
+
+  it("matches relative to the working folder when cwd is not given", async () => {
+    const cwd = vi.spyOn(process, "cwd").mockReturnValue(root);
+    try {
+      expect((await run({ pattern: "b/*.tsx" })).matches).toEqual(["b/r.tsx"]);
+    } finally {
+      cwd.mockRestore();
+    }
   });
 
   it("keeps the ignore option (the schema stripped it before)", () => {

@@ -39,7 +39,7 @@ fsWriteJson: dist/procedures/fs/write-json.d.ts#fsWriteJson
 glob: dist/procedures/fs/glob.d.ts#glob
 healNdjsonTail: dist/files/ndjson-tail.d.ts#healNdjsonTail
 healNdjsonTailSync: dist/files/ndjson-tail.d.ts#healNdjsonTailSync
-isInside: dist/root.d.ts#isInside
+isInside: @mark1russell7/files#isInside (external)
 isOutsideRoot: dist/root.d.ts#isOutsideRoot
 mkdir: dist/procedures/fs/mkdir.d.ts#mkdir
 move: dist/procedures/fs/move.d.ts#move
@@ -97,7 +97,7 @@ ResolvedRoot: dist/root.d.ts#ResolvedRoot
 type RootHoldMode: dist/root-hold.d.ts#RootHoldMode
 holdRoots: dist/root-hold.d.ts#holdRoots
 inRoot: dist/root.d.ts#inRoot
-isInside: dist/root.d.ts#isInside
+isInside: @mark1russell7/files#isInside (external)
 isOtherShare: dist/root.d.ts#isOtherShare
 isOutsideRoot: dist/root.d.ts#isOutsideRoot
 outsideRoot: dist/root.d.ts#outsideRoot
@@ -346,9 +346,6 @@ export interface ResolvedRoot {
 
 ### dist/root.d.ts#inRoot
 export declare function inRoot(root: ResolvedRoot, path: string, procedure: ProcedurePath, base?: string): Promise<string>;
-
-### dist/root.d.ts#isInside
-export declare function isInside(folder: string, path: string): boolean;
 
 ### dist/root.d.ts#isOtherShare
 export declare function isOtherShare(root: ResolvedRoot, absolute: string, platform?: NodeJS.Platform): boolean;
