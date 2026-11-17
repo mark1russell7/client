@@ -1,5 +1,62 @@
 # @procedures/sqlite
 
+## 0.61.0
+
+### Minor Changes
+
+- 9f19bb5: The SQLite procedures and `SqliteStorage` use only `node:sqlite`, through the engine of `@mark1russell7/sqlite`. Version 0.61.0 removes the engine `sqljs` and the package `@mark1russell7/docker-sqlite`.
+  
+  Breaking changes, with the steps to migrate:
+  
+  - `sqlite.query`, `sqlite.execute`, `sqlite.transaction` and `sqlite.migrate` need Node.js 24.10 or later: they refuse with `CONFINE_UNAVAILABLE` before it. To migrate, run the host on Node.js 24.10 or later. The other procedures and `SqliteStorage` work on Node.js 22.13 or later.
+  - The package needs Node.js 22.13 or later. Earlier versions of Node.js have no `node:sqlite` without a flag.
+  - `SqliteStorage` refuses the engine `sqljs` with a `TypeError`. To migrate, use the engine `auto` or `node`. A file of the engine `sqljs` opens with the engine `node`, with its items and its versions.
+  - The root entry no longer exports the functions and the types of `@mark1russell7/docker-sqlite` (`withConnection`, `createConnection`, `query`, `execute`, `execMultiple`, `lastInsertRowId`, `tableExists`, `getMigrationStatus`, `runMigrations`, `rollbackMigration`, `createMigration`, `ConnectionConfig`, `ConnectionCallback`, `QueryResult`, `ExecuteResult`, `Migration`, `MigrationStatus`, `Database`). To migrate, import `openDatabase`, `transaction` and `migrate` from `@mark1russell7/sqlite`.
+  - A script of several statements in `sqlite.execute` runs in one transaction: all its statements take effect, or none does. A script that starts with `BEGIN`, `SAVEPOINT` or another statement that controls a transaction runs as written. In a script that does not start with such a statement, a later one is refused. So a `VACUUM` in a script fails: send it alone.
+  - `sqlite.execute` refuses SQL that leaves a transaction open, also `BEGIN` alone. The procedure rolls the transaction back, so the file keeps none of its changes. To migrate, end each transaction with `COMMIT` or `ROLLBACK`.
+  - `sqlite.execute`, `sqlite.transaction`, `sqlite.migrate` and `logs.store` make a missing file when they open it, also when the work then fails.
+  
+  Other changes:
+  
+  - Each procedure writes only the changed pages of the file, and it waits for the lock of another process. A file keeps its journal mode: a WAL file stays in WAL mode.
+  - The number of changes of `sqlite.execute` is correct for a change of the schema: `0`.
+  - `sqlite.backup` writes a snapshot of the file with `snapshot` of `@mark1russell7/sqlite`, checks the copy, and then renames it. The copy is consistent, has the changes in the WAL file, and is always compact. The option `vacuum` has no effect and is deprecated. A later minor version removes it.
+  - A file that an earlier version migrated keeps its migration table and its checksums. A log file of an earlier version keeps its entries.
+  - `flush()` of `SqliteStorage` does no work, because each commit writes the file. It stays as the optional method of `CollectionStorage`.
+  
+  MINOR: breaking changes before 1.0.0.
+
+### Patch Changes
+
+- Updated dependencies [8506442]
+- Updated dependencies [f9a78f9]
+- Updated dependencies [3eb4b59]
+  - @procedures/client@0.61.0
+
+## 0.60.1
+
+### Patch Changes
+
+- f2d045b: The engine `sqljs` of `SqliteStorage` is deprecated. Version 0.61.0 removes it and needs Node.js 22.13 or later.
+  
+  - The first open of the engine `sqljs` in a process shows one `DeprecationWarning` with the code `PROCEDURES_SQLITE_SQLJS`. The engine `auto` on a Node.js without `node:sqlite` shows it too.
+  - To prepare, use Node.js 22.13 or later with the engine `node` or `auto`. A file of the engine `sqljs` opens with the engine `node`.
+  - The flag `--no-deprecation` of Node.js hides the warning.
+- Updated dependencies [beca782]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [a87cdda]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+
 ## 0.60.0
 
 ### Patch Changes

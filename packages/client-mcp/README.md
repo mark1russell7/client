@@ -316,6 +316,13 @@ createProcedure()
 - The host option `untrusted` changes the tag (`tag: "untrusted-web-content"`) and the notice. Its `wrap` function replaces the envelopes.
 - `createUntrustedEnvelopes()` gives the same envelopes for other uses.
 
+The untrusted fields of a procedure stay untrusted in the output of each caller: `client.chain`, a procedure of `procedure.define`, or a procedure of code.
+
+- The face finds these fields at each depth of the output. The first block has the data without them, and the second block has their envelopes.
+- The attribute `field` of each envelope gives the path of its field, for example `pages.0.web_content`.
+- In the structured content, each text of a nested field is in its envelope, and the field keeps its shape. Thus the content agrees with the output schema.
+- The HTTP and WebSocket faces give the output as it is.
+
 ## The result of a tool
 
 - A tool whose output schema is an object has an `outputSchema`. Each result then has `structuredContent`, and a text block for clients that do not read it.
