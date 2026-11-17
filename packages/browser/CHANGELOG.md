@@ -1,5 +1,12 @@
 # @procedures/browser
 
+## 0.61.0
+
+### Patch Changes
+
+- @procedures/shell@0.61.0
+  - @procedures/http@0.61.0
+
 ## 0.60.1
 
 ### Patch Changes
