@@ -1,5 +1,12 @@
 # @procedures/shell
 
+## 0.62.0
+
+### Patch Changes
+
+- Updated dependencies [14f61a7]
+  - @procedures/client@0.62.0
+
 ## 0.61.0
 
 ### Patch Changes
