@@ -1,0 +1,301 @@
+{
+  "about": "The golden queries of the tool search (direction 40). Each query is a task in the words of a model, and expect lists the tools that answer it. The queries were written from the tool names before the first run. The test search-quality.test.ts ranks each query over the tools of the dev-tools server and holds the floors: a drop fails, and a gain fails until the floors record it.",
+  "floors": {
+    "queries": 48,
+    "hit1": 39,
+    "hit5": 43,
+    "mrr": 0.849
+  },
+  "queries": [
+    {
+      "query": "list running containers",
+      "expect": [
+        "docker.ps"
+      ]
+    },
+    {
+      "query": "show the logs of a container",
+      "expect": [
+        "docker.logs",
+        "docker.compose.logs"
+      ]
+    },
+    {
+      "query": "start the services of a compose file",
+      "expect": [
+        "docker.compose.up"
+      ]
+    },
+    {
+      "query": "stop and remove the compose stack",
+      "expect": [
+        "docker.compose.down"
+      ]
+    },
+    {
+      "query": "build a docker image from a Dockerfile",
+      "expect": [
+        "docker.build",
+        "docker.compose.build"
+      ]
+    },
+    {
+      "query": "download an image from a registry",
+      "expect": [
+        "docker.pull"
+      ]
+    },
+    {
+      "query": "run a command inside a running container",
+      "expect": [
+        "docker.exec"
+      ]
+    },
+    {
+      "query": "create a volume",
+      "expect": [
+        "docker.volume.create"
+      ]
+    },
+    {
+      "query": "stop a container",
+      "expect": [
+        "docker.stop"
+      ]
+    },
+    {
+      "query": "find documents in a mongo collection",
+      "expect": [
+        "mongo.documents.find"
+      ]
+    },
+    {
+      "query": "count the documents that match a filter",
+      "expect": [
+        "mongo.documents.count"
+      ]
+    },
+    {
+      "query": "insert a document into mongodb",
+      "expect": [
+        "mongo.documents.insert"
+      ]
+    },
+    {
+      "query": "run an aggregation pipeline",
+      "expect": [
+        "mongo.documents.aggregate"
+      ]
+    },
+    {
+      "query": "check that the database answers",
+      "expect": [
+        "mongo.database.ping"
+      ]
+    },
+    {
+      "query": "create an index on a collection",
+      "expect": [
+        "mongo.indexes.create"
+      ]
+    },
+    {
+      "query": "delete documents",
+      "expect": [
+        "mongo.documents.delete"
+      ]
+    },
+    {
+      "query": "explain the query plan",
+      "expect": [
+        "mongo.documents.explain"
+      ]
+    },
+    {
+      "query": "list the tables of a sqlite database",
+      "expect": [
+        "sqlite.tables"
+      ]
+    },
+    {
+      "query": "run a SQL select query",
+      "expect": [
+        "sqlite.query"
+      ]
+    },
+    {
+      "query": "the schema of a sqlite table",
+      "expect": [
+        "sqlite.schema"
+      ]
+    },
+    {
+      "query": "run the unit tests",
+      "expect": [
+        "vitest.run"
+      ]
+    },
+    {
+      "query": "test coverage report",
+      "expect": [
+        "vitest.coverage"
+      ]
+    },
+    {
+      "query": "parse a yaml file",
+      "expect": [
+        "yaml.parse"
+      ]
+    },
+    {
+      "query": "turn an object into yaml text",
+      "expect": [
+        "yaml.stringify"
+      ]
+    },
+    {
+      "query": "the difference between two json documents",
+      "expect": [
+        "json.diff"
+      ]
+    },
+    {
+      "query": "apply a json patch",
+      "expect": [
+        "json.patch"
+      ]
+    },
+    {
+      "query": "validate json against a schema",
+      "expect": [
+        "json.validate"
+      ]
+    },
+    {
+      "query": "deep merge two objects",
+      "expect": [
+        "json.merge"
+      ]
+    },
+    {
+      "query": "query a json value with a path expression",
+      "expect": [
+        "json.query"
+      ]
+    },
+    {
+      "query": "make a new package in the monorepo",
+      "expect": [
+        "lib.new"
+      ]
+    },
+    {
+      "query": "find import cycles between packages",
+      "expect": [
+        "lib.importCycles"
+      ]
+    },
+    {
+      "query": "the dependency graph of the workspace packages",
+      "expect": [
+        "lib.graph"
+      ]
+    },
+    {
+      "query": "check every package against the template",
+      "expect": [
+        "lib.audit"
+      ]
+    },
+    {
+      "query": "rename a package",
+      "expect": [
+        "lib.rename"
+      ]
+    },
+    {
+      "query": "scaffold a new procedure",
+      "expect": [
+        "procedure.new"
+      ]
+    },
+    {
+      "query": "find a procedure by words",
+      "expect": [
+        "procedure.search"
+      ]
+    },
+    {
+      "query": "list all the registered procedures",
+      "expect": [
+        "procedure.list"
+      ]
+    },
+    {
+      "query": "remove a procedure",
+      "expect": [
+        "procedure.delete"
+      ]
+    },
+    {
+      "query": "run steps in sequence",
+      "expect": [
+        "client.chain"
+      ]
+    },
+    {
+      "query": "run calls at the same time",
+      "expect": [
+        "client.parallel"
+      ]
+    },
+    {
+      "query": "if then else on a condition",
+      "expect": [
+        "client.conditional"
+      ]
+    },
+    {
+      "query": "catch an error and run a fallback",
+      "expect": [
+        "client.tryCatch"
+      ]
+    },
+    {
+      "query": "apply a call to each item of a list",
+      "expect": [
+        "client.map"
+      ]
+    },
+    {
+      "query": "check a program for errors before it runs",
+      "expect": [
+        "program.check"
+      ]
+    },
+    {
+      "query": "draw a diagram of a program",
+      "expect": [
+        "program.diagram"
+      ]
+    },
+    {
+      "query": "generate the config files from cue",
+      "expect": [
+        "cue.generate"
+      ]
+    },
+    {
+      "query": "add a feature to the package configuration",
+      "expect": [
+        "cue.add"
+      ]
+    },
+    {
+      "query": "search the stored log lines",
+      "expect": [
+        "logs.query"
+      ]
+    }
+  ]
+}

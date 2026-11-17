@@ -85,6 +85,7 @@ redirectConsoleToStderr: dist/host.d.ts#redirectConsoleToStderr
 registerMcpProcedures: dist/module.d.ts#registerMcpProcedures
 resolveBundleRegister: dist/surface.d.ts#resolveBundleRegister
 taskSupportOf: @procedures/mcp#taskSupportOf (external)
+toolSearchDocuments: dist/transport/search-listing.d.ts#toolSearchDocuments
 
 ## ./module (dist/module.d.ts): names
 
@@ -448,6 +449,9 @@ export declare const SEARCH_LISTING_NAMES: {
 
 ### dist/transport/search-listing.d.ts#SEARCH_LISTING_TOOLS
 export declare const SEARCH_LISTING_TOOLS: readonly Tool[];
+
+### dist/transport/search-listing.d.ts#toolSearchDocuments
+export declare function toolSearchDocuments(tools: Iterable<McpTool>): SearchDocument[];
 
 ### dist/transport/sse.d.ts#createSseTransport
 export declare function createSseTransport(_options?: SseTransportOptions): never;
