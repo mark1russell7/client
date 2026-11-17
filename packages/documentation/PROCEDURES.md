@@ -4,11 +4,12 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.ts`.
 
-**Total procedures:** 410 across 52 namespaces. Loaded 49 package register(s).
+**Total procedures:** 511 across 56 namespaces. Loaded 53 package register(s).
 
 ## Namespaces
 
 - [`_discovery.*`](#_discovery) — 1 procedure(s)
+- [`algebra.*`](#algebra) — 41 procedure(s)
 - [`archive.*`](#archive) — 3 procedure(s)
 - [`claude.*`](#claude) — 4 procedure(s)
 - [`cli.*`](#cli) — 1 procedure(s)
@@ -39,11 +40,14 @@
 - [`node.*`](#node) — 5 procedure(s)
 - [`notify.*`](#notify) — 6 procedure(s)
 - [`npm.*`](#npm) — 7 procedure(s)
+- [`optional.*`](#optional) — 20 procedure(s)
 - [`pdf.*`](#pdf) — 1 procedure(s)
 - [`pnpm.*`](#pnpm) — 12 procedure(s)
+- [`predicates.*`](#predicates) — 13 procedure(s)
 - [`privacyScan.*`](#privacyScan) — 2 procedure(s)
 - [`procedure.*`](#procedure) — 13 procedure(s)
 - [`program.*`](#program) — 4 procedure(s)
+- [`quantity.*`](#quantity) — 27 procedure(s)
 - [`restic.*`](#restic) — 1 procedure(s)
 - [`s3.*`](#s3) — 13 procedure(s)
 - [`schedule.*`](#schedule) — 4 procedure(s)
@@ -68,6 +72,52 @@
 | Procedure | Description |
 |-----------|-------------|
 | `_discovery.announce` | Exchange procedure manifests for discovery |
+
+## algebra
+
+| Procedure | Description |
+|-----------|-------------|
+| `algebra.acceptQueueHeld` | This function gives the connections that a full accept queue holds: its limit plus one. |
+| `algebra.acceptQueueLimit` | This function gives the limit of the accept queue: the backlog of listen(2), clamped to `somaxconn`. |
+| `algebra.algebraProblems` | This function gives what in a document the algebra cannot read: arithmetic that does not parse, or a model that it does not have. |
+| `algebra.arr` | This function gives one value or many values as an array. |
+| `algebra.conntrackFloor` | This function gives the lowest count of one network namespace after one scan of the conntrack collector under pressure. Each entry of the table can go at that scan. The sources are Linux v7.0, `net/netfilter/nf_conntrack_core.c`. |
+| `algebra.detection` | This function gives the detection: the minimum over the detectors that are live in the situation. The entry to the state arms a timer, and so does what the failure causes: data in flight without an acknowledgment gets a retransmission. An event that occurs cancels a timer. |
+| `algebra.errnoOf` | This function gives the errno of a detection by a timer: the errno of the transition that its event takes from the state. A soft error of the manifestation replaces ETIMEDOUT, but only for the timers whose segments its ICMP quotes in the window. |
+| `algebra.evaluate` | This function evaluates one duration of a timer of a machine, in the unit that its document gives it. The waits of a backoff timer read `fired`, which tells which wait. |
+| `algebra.exprKnobs` | This function gives the knobs that a duration reads, by the names of the machine for them. |
+| `algebra.fifoDefaultLimit` | This function gives the limit of a pfifo or a bfifo with no limit of its own (`net/sched/sch_fifo.c`, lines 106-112). A pfifo holds `txqueuelen` packets. A bfifo holds `txqueuelen` times the MTU plus the link header, in bytes (`psched_mtu`, `include/net/pkt_sched.h`, lines 131-134). A pfifo drops a packet when it holds its limit. A bfifo drops a packet that puts its bytes above its limit (lines 19-36). |
+| `algebra.firings` | This function gives the firings of a backoff timer on a timeline: the sum of its waits, exactly, from the wait `from`. It stops at the first wait that is not a known amount, or at a stop of the options, or after 4096 firings. Each time is the duration of the waits, without how early or late each can fire. |
+| `algebra.fromStates` | This function gives the states that a transition leaves. The state "*" is each state that is not final. |
+| `algebra.gsoQdiscLength` | This function gives the qdisc length of a GSO packet of `length` bytes in `segments` segments. Each segment after the first adds `headers` bytes: the link, network and transport headers of one segment (`net/core/dev.c`, lines 4119-4158). |
+| `algebra.machineProblems` | This function gives the problems in the consistency of a document. Each state, event, timer and knob that it refers to must exist, and it must have an initial state. A reader refuses a machine with problems, and does not draw half of it. |
+| `algebra.memcgHighDelay` | This function gives the delay of a debt of `debt` pages, in jiffies, before the cap and the skip. It is the delay of the largest overage of memory plus the delay of the largest overage of swap. The table in the comment of the source gives this delay (lines 2145-2171): 6 ms at 1% over a high of 100 MiB. |
+| `algebra.memcgHighSleep` | This function gives the jiffies that a task sleeps when it pays a debt of `debt` pages. The sleep is the delay of `memcgHighDelay` with the cap of 2 s. A delay of 10 ms or less gives no sleep. `memory` is the cgroup of the task, then each ancestor below the root. `swap` gives the same for `memory.swap.high`. |
+| `algebra.memcgSleepBounds` | This function gives two usages above `high` for a debt of `debt` pages. The first is the lowest usage that gives a sleep. The second is the lowest usage whose sleep is the cap of 2 s. The sleep does not go down as the usage goes up, thus a search finds each bound. Take a high of 25,600 pages (100 MiB), HZ 1000 and a debt of 64. The sleep starts at 25,936 pages (1.3% over), and the cap starts at 30,126 (17.7% over). |
+| `algebra.memcgThrottle` | This function gives the throttle of a task that grows by `charges` charges of `batch` pages each. It starts from the usage of each level in `levels`: the cgroup of the task, then each ancestor below the root. Each charge adds `batch` pages to each level, and the task pays its debt of `batch` pages before the next charge. A task that touches one page at a time charges a batch of 64 at each 64th page. |
+| `algebra.modelSource` | This function gives the source of the formula of a named model, for a reader of a result. |
+| `algebra.netemPacketTime` | This function gives the time that netem gives a packet of `length` bytes at its rate, in nanoseconds (`packet_time_ns`, lines 357-370). It rounds down. A packet of 1,514 bytes at 10 Mbit/s (1,250,000 bytes per second) takes 1,211,200 ns. |
+| `algebra.netemSchedule` | This function gives the outcome of each packet in a netem queue with a rate. A packet that the queue takes leaves at `max(last, at + latency) + time`. `last` is the time to send of the packet before it, and `time` is the time of `netemPacketTime`. The queue holds each packet until it leaves, thus a delay of 100 ms at 1,000 packets per second fills a limit of 100. |
+| `algebra.oomBadness` | This function gives the points of a task for the OOM killer. The points are its resident pages, its swap entries and the pages of its page tables. To this sum, the kernel adds `oom_score_adj` times `totalPages / 1000`, in integer arithmetic. A task at −1000 gives undefined, because the OOM killer does not take it. |
+| `algebra.oomVictim` | This function gives the index of the task that the OOM killer of a cgroup takes: the task with the most points. Of tasks with equal points, the last one in the order of the scan wins (`mm/oom_kill.c`, lines 342-351). A task replaces the choice unless its points are less. It gives undefined when the OOM killer can take no task. |
+| `algebra.portSearchSpan` | This function gives the size that the search reads: the size of the range, rounded down to an even number. |
+| `algebra.probeTrain` | This function gives the times of a train of probes, exactly, in seconds. The first probe is at `first`, and each next probe is one `interval` later, `count` probes in all. A first time without an end gives no probe. An interval without an end gives only the first probe. Keepalive at its defaults sends its probes at 7200 s, 7275 s, and so on to 7800 s. |
+| `algebra.pschedFactor` | This function gives the factor of a rate in bytes per second (`psched_ratecfg_precompute__`). The kernel doubles a factor of 10^9 until the quotient by the rate fills 32 bits. At 125,000 bytes per second, `mult` is 4,194,304,000 and `shift` is 19. |
+| `algebra.pschedLengthTime` | This function gives the time of `length` bytes at a rate of the packet scheduler, in nanoseconds (`psched_l2t_ns`). The kernel multiplies by its factor and does not divide. Thus a time can be 1 ns short: 1,500 bytes at 3,000,000 bytes per second give 499,999 ns, not 500,000. |
+| `algebra.readsFired` | This function tells if a duration reads the number of times that its timer fired, as the waits of a backoff do. |
+| `algebra.realizationKnobs` | This function gives the knobs that a realization reads, by the names of the machine for them. |
+| `algebra.realizationOf` | This function gives how long a mechanism takes where a machine operates, from the realization of its document. The realization is one of its timers, whole, or its own duration, lateness and early bound over the knobs of the machine. It gives undefined when the document does not realize the mechanism. |
+| `algebra.recovery` | This function gives the recovery from a stall. A backoff timer continues to fire through a stall, and what each firing sends gets through only after the stall ends. Thus the connection moves again at the first firing at the end or after it. That firing can be most of a wait after the end. A stall that stops immediately after one firing costs almost all of the next, longer wait. |
+| `algebra.replay` | This function replays a trace against a machine document, and it gives each disagreement: - Each instance starts in the state that its first transition leaves. - Each transition must leave the state where the replay of its instance is, and that state must be in the document. - The document must have a transition from that state, on that event, to that state. The state "*" is each state that is not final. |
+| `algebra.stackedDetection` | This function gives the detection through the machine that a machine operates on. The detectors of the lower machine are live in the state below the state of this machine. They use the knobs that this machine sets. |
+| `algebra.synGiveUpSends` | This function gives the SYNs that a connect sends before it gives up: the first SYN and each retransmission (`synGiveUpWaits`). A connect whose SYN does not leave adds each of them to the field `drop` of conntrack, and each retransmission to `TCPRetransFail`. |
+| `algebra.tbfBuckets` | This function gives the depths of the buckets of a tbf qdisc and its largest packet. |
+| `algebra.tbfSchedule` | This function gives the outcome of each packet in a tbf qdisc. The buckets are full at the first arrival. A packet leaves at the first time after its arrival and after the packet before it, when the tokens of each bucket cover its time. After it leaves, each bucket loses its time. A bucket gains one token for each nanosecond, up to its depth. |
+| `algebra.timerBand` | This function gives the band of a timer from its bounds, exactly, in `unit`. The band goes from its duration less its early bound to its duration plus its lateness. A bound that the document does not give is zero. A duration without an end gives a band without an end. A keepalive of 11 s, 4 ms early and 352 ms late, gives 10.996 s to 11.352 s. |
+| `algebra.timerOf` | This function gives the bounds of a timer of a machine: how long it operates, how late it can fire, how early. For a backoff timer, it gives one of its waits: the wait after `fired` firings. |
+| `algebra.timerUnder` | This function gives the bounds of a timer of a machine under a failure: its own bounds, with each duration that the manifestation replaces. |
+| `algebra.transitionOn` | This function gives the transition that a machine takes from a state on an event, by its document. |
+| `algebra.udpFrameLength` | This function gives the qdisc length of one UDP datagram of `payload` bytes on an Ethernet device or a veth. It adds the Ethernet header of 14 bytes, the IP header and the UDP header of 8 bytes. The IP header is 20 bytes for IPv4 and 40 bytes for IPv6, with no options. |
 
 ## archive
 
@@ -455,6 +505,31 @@
 | `npm.view` | Read the fields of a package of the npm registry: data has the JSON of npm view |
 | `npm.whoami` | Give the user name of the npm registry |
 
+## optional
+
+| Procedure | Description |
+|-----------|-------------|
+| `optional.err` | This function wraps the error of a step that failed. |
+| `optional.flatMap` | This function applies `f`, which gives an optional, to a present value. An absent value stays absent. |
+| `optional.flatMapResult` | This function applies `f`, which gives a result, to a value. An error stays the same. |
+| `optional.fromNullable` | This function wraps a value, and gives `none` for `null` and `undefined`. |
+| `optional.fromOptional` | This function changes an optional into a result: a present value becomes `ok`, and `none` becomes `err(error)`. |
+| `optional.fromSentinel` | This function changes a value of the sentinel form into an optional. In the sentinel form, the value `sentinel` means "absent", for example a symbol `NotFound`. |
+| `optional.getOkOr` | This function gives the value, or `fallback` for an error. |
+| `optional.getOr` | This function gives the present value, or `fallback`. |
+| `optional.isErr` | This function tells if a result is an error. |
+| `optional.isNone` | This function tells if an optional is absent. |
+| `optional.isOk` | This function tells if a result is a value. |
+| `optional.isSome` | This function tells if an optional is present. |
+| `optional.map` | This function applies `f` to a present value. An absent value stays absent. |
+| `optional.mapErr` | This function applies `f` to an error. A value stays the same. |
+| `optional.mapResult` | This function applies `f` to a value. An error stays the same. |
+| `optional.ok` | This function wraps a value of a step that succeeded. |
+| `optional.some` | This function wraps a present value. |
+| `optional.toOptional` | This function changes a result into an optional: a value becomes `some`, and an error becomes `none`. |
+| `optional.toSentinel` | This function changes an optional into the sentinel form: an absent value becomes `sentinel`. |
+| `optional.unwrap` | This function gives the present value, or `undefined`. |
+
 ## pdf
 
 | Procedure | Description |
@@ -477,6 +552,24 @@
 | `pnpm.store.path` | Get pnpm store path for snapshot/restore |
 | `pnpm.update` | Update packages to their newest versions in the ranges, or with latest to the latest versions |
 | `pnpm.why` | Show the packages that depend on a package: data is the JSON of pnpm why --json |
+
+## predicates
+
+| Procedure | Description |
+|-----------|-------------|
+| `predicates.classifySegments` | This function gives the exact relation of the closed segments `ab` and `cd`. The inputs must be finite. |
+| `predicates.classifySegmentsShifted` | This function gives the exact relation of the closed segment `ab` and the closed segment `cd` after its move by `t`. The rule is the rule of `classifySegments` on the exact moved points. The inputs must be finite. |
+| `predicates.compareShifted` | This function gives the exact sign of `x + t - y`. The inputs must be finite. |
+| `predicates.incircle` | This function gives the exact in-circle sign of the point `d` against the circle through `a`, `b` and `c`, and the stage that decided it. The inputs must be finite. |
+| `predicates.incircleExact` | This function gives the exact in-circle sign over dyadic numbers, with no filter. |
+| `predicates.incircleSign` | This function gives the exact in-circle sign of `incircle` without the stage. It is the form for a hot loop. |
+| `predicates.locateInRings` | This function gives the exact location of the point `(x, y)` against the rings moved by `t = (tx, ty)`. The result has no error: it is the location against the exact moved rings, also when a float sum of a position and `t` rounds. |
+| `predicates.orient2d` | This function gives the exact orientation sign of the points `a`, `b` and `c`, and the stage that decided it. The inputs must be finite. |
+| `predicates.orient2dExact` | This function gives the exact orientation sign over dyadic numbers, with no filter. Each finite float is a dyadic number, so the differences and the products are exact. |
+| `predicates.orient2dShifted` | This function gives the exact orientation sign of the points `a`, `b` and `c + t`, and the stage that decided it. The inputs must be finite. The sign does not change when `a` and `b` move by `-t` in place of `c` by `t`. |
+| `predicates.orient2dShiftedSign` | This function gives the exact sign of `orient2dShifted` without the stage. It is the form for a hot loop. |
+| `predicates.orient2dSign` | This function gives the exact orientation sign of `orient2d` without the stage. It is the form for a hot loop. |
+| `predicates.rayEdge` | This function gives the exact test of the edge from `a` to `b`, moved by `t = (tx, ty)`, and the ray from `(x, y)` to the east. The result has no error, also when a float sum of a position and `t` rounds. |
 
 ## privacyScan
 
@@ -511,6 +604,38 @@
 | `program.compile` | Compile a program to a JavaScript function that makes the same calls in the same order |
 | `program.diagram` | Draw a program as a Mermaid flowchart: the order of the calls, the control flow and the names |
 | `program.explain` | Explain a program before it runs: its effects, each call with the answer of the capability, and the problems |
+
+## quantity
+
+| Procedure | Description |
+|-----------|-------------|
+| `quantity.add` | This function gives a + b in the unit of a. It is exact for decimal inputs, thus money adds to the cent. |
+| `quantity.canonicalUnit` | This function gives the canonical spelling of a unit, for data from another system: "hr" is "h". |
+| `quantity.compare` | This function gives -1, 0 or 1. Infinity is larger than all amounts, and equal to itself. |
+| `quantity.convert` | _(no description)_ |
+| `quantity.convertible` | _(no description)_ |
+| `quantity.format` | This function prints an amount: "$1,234.56", "$500/mo", "7,875 s", "34.5%", "72°F", "12 reps", "∞ s". |
+| `quantity.formatDuration` | This function prints a time as people say it: "2 h 11 min 15 s", "45 min", "2 days 3 h". A time of less than a second keeps its own unit ("250 ms"). The `parts` option sets the most units that it names, and it rounds the smallest. It is `formatOnScale` with a compound of days, hours, minutes and seconds. |
+| `quantity.formatOnScale` | This function prints an amount on a scale: "512 B", "1.5 KiB", "3.5 ms", "1.25 s", "2 min 5 s". It rounds the amount in a step before it compares the amount with the next step. Thus 1,048,575 B gives "1 MiB", not "1,024 KiB". |
+| `quantity.formatUnit` | This function gives how a unit reads next to an amount: "kcal/(h·kg)", "sets/wk", "% of 1RM", "mph". |
+| `quantity.isCanonicalUnit` | This function tells if stored data can have this spelling. Only the canonical spelling is correct. |
+| `quantity.isQuantity` | This function tells if a value from data is a quantity: a finite number and a canonical unit. |
+| `quantity.isUnbounded` | _(no description)_ |
+| `quantity.kindOf` | _(no description)_ |
+| `quantity.kindOfQuantity` | This function gives the kind that a quantity measures. |
+| `quantity.max` | _(no description)_ |
+| `quantity.mean` | This function gives the arithmetic mean. For a logarithmic level, it gives the energy mean: 10·log10 of the mean power. |
+| `quantity.min` | _(no description)_ |
+| `quantity.quantity` | This function makes a quantity, and checks that it has a finite value and a canonical unit. |
+| `quantity.round` | This function rounds an amount to the decimals that its unit keeps (money to the cent), or to `decimals`. |
+| `quantity.sameVector` | _(no description)_ |
+| `quantity.scale` | This function multiplies an amount by a plain number: a count of probes, or a share. |
+| `quantity.sub` | _(no description)_ |
+| `quantity.sum` | This function gives the sum in `unit`, or in the unit of the first amount. An empty sum needs `unit`. |
+| `quantity.toNanoseconds` | This function gives a time as a whole number of nanoseconds, or refuses it. A double holds each whole nanosecond for approximately 104 days. |
+| `quantity.unbounded` | _(no description)_ |
+| `quantity.valueIn` | This function gives the number that a quantity is in a unit. |
+| `quantity.whyNotConvertible` | This function gives the reason that `from` cannot become `to`, or undefined when it can. |
 
 ## restic
 

@@ -241,6 +241,8 @@ await client.exec(["statistics", "median"], { values: [3, 1, 2, 10] }); // 2.5
 - An output of `undefined` or `void` is `null`, as in JSON. For a function that gives a promise, the output is the value of the promise.
 - A call in process gives the output that a call over HTTP gives. An `undefined` item of an array becomes `null`, and a property with an `undefined` value is absent.
 - A type parameter is any JSON value, or the schema of its constraint.
+- The type `{}` is each JSON value but `null`, as in TypeScript. So `NonNullable<T>`, which is `T & {}`, is the schema of `T` without `null`.
+- The description of a parameter has no hyphen of TSDoc: `@param name - text` gives `text`.
 - The overlay is the data that the types cannot tell. It has the effects of the package and of single functions. It also names the functions with no procedure, each with its reason.
 - The field `constructors` of the overlay names the factory of a type, when more than one function gives the type.
 
@@ -249,7 +251,7 @@ Each other function gets an exemption with its reason and the part of the signat
 | Reason | The cause | The plan |
 |---|---|---|
 | `function-parameter` | A sub-program cannot give the function: it has more than one signature, a type parameter, a rest parameter, a promise, no value or a type that is not JSON. | No change. |
-| `input-not-json` | An input is not JSON: a `Map`, a `Date`, a `bigint`, an object with methods that no pure factory makes, or a type that does not resolve. | An object with methods becomes a handle. |
+| `input-not-json` | An input is not JSON: a `Map` or a `ReadonlyMap`, a `Date`, a `bigint`, an object with methods that no pure factory makes, or a type that does not resolve. | An object with methods becomes a handle. |
 | `output-not-json` | The output is not JSON, for example a class instance. | The handle of the instance. |
 | `overload` | The function has more than one signature. | One procedure for each signature. |
 | `overlay` | The overlay exempts the function. | No change. |

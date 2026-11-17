@@ -1,0 +1,15 @@
+{
+  "home": "@mark1russell7/predicates",
+  "entry": ".",
+  "namespace": [
+    "predicates"
+  ],
+  "manifest": "src/manifest.ts",
+  "overlay": {
+    "effects": {
+      "reads": [],
+      "writes": []
+    }
+  },
+  "pure": true
+}
