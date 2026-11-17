@@ -45,8 +45,8 @@ describe("generateExportsManifest", () => {
 
   it("gives a procedure for each function with JSON inputs and a JSON output", () => {
     expect(manifest.procedures.map((procedure) => procedure.name)).toEqual([
-      "above", "add", "apply", "choose", "depth", "findIndex", "first", "flip", "greet", "identity", "lookup", "maybeRoll", "minus", "norm", "nothing", "pair",
-      "pick", "read", "rolls", "sideOf", "sortBy", "strict", "toggle", "total", "useHandler", "weight",
+      "above", "add", "apply", "chain", "choose", "depth", "findIndex", "first", "flip", "greet", "identity", "lookup", "maybeRoll", "minus", "norm", "nothing", "pair",
+      "pick", "read", "rolls", "scale", "sideOf", "sizes", "sortBy", "strict", "toggle", "total", "useHandler", "weight",
     ]);
   });
 
@@ -69,6 +69,7 @@ describe("generateExportsManifest", () => {
       ["measure", "input-not-json"],
       ["parse", "overload"],
       ["sizeOf", "function-parameter"],
+      ["stamp", "input-not-json"],
       ["twice", "function-parameter"],
       ["unset", "input-not-json"],
       ["vanished", "unresolved"],
@@ -80,7 +81,7 @@ describe("generateExportsManifest", () => {
   });
 
   it("counts the classes, the values and the types", () => {
-    expect(manifest.others).toEqual({ classes: ["Counter"], values: 1, types: 12 });
+    expect(manifest.others).toEqual({ classes: ["Counter"], values: 1, types: 13 });
   });
 
   it("takes the description from the first paragraph of the doc comment, and of each parameter", () => {
@@ -357,6 +358,31 @@ describe("sub-programs", () => {
     expect(await client.exec(["fixture", "choose"], { a: 2, b: 3, score: program(sum(ref("a"), ref("b"))) })).toBe(5);
     expect(await client.exec(["fixture", "choose"], { a: 2, b: 3, score: program(op(["fixture", "first"], { items: [] })) })).toBe(-1);
     expect(await client.exec(["fixture", "choose"], { a: 2, b: 3 })).toBe(-1);
+  });
+
+  it("binds a sub-program in a union, in an array, and in an array of the body", async () => {
+    const client = clientOf(manifest);
+    // A union: a call goes to the branch of the sub-program, a number stays a number
+    expect(await client.exec(["fixture", "scale"], { values: [1, 2], factor: 3 })).toEqual([3, 6]);
+    expect(await client.exec(["fixture", "scale"], { values: [1, 2], factor: program(sum(ref("value"), 1)) })).toEqual([2, 3]);
+    // An array of sub-programs: each item is a function
+    expect(await client.exec(["fixture", "chain"], { value: 1, steps: [program(sum(ref("value"), 1)), program(sum(ref("value"), 10))] })).toBe(12);
+    expect(await client.exec(["fixture", "chain"], { value: 1, steps: [] })).toBe(1);
+    // An array in the body of a sub-program, with a reference in it
+    expect(await client.exec(["fixture", "apply"], { values: [1, 2], fn: program(op(["fixture", "total"], { values: [ref("value"), 10] })) })).toEqual([11, 12]);
+  });
+
+  it("reads the own fields of a parameter with dots in a $ref", async () => {
+    const client = clientOf(manifest);
+    const items = [{ name: "a", size: 2 }, { name: "bb", size: 5 }];
+    expect(await client.exec(["fixture", "sizes"], { items, key: program(sum(ref("item.size"), 1)) })).toEqual([3, 6]);
+    // The length of a string is not an own field, so the reference gives undefined, and add refuses it
+    await expect(client.exec(["fixture", "sizes"], { items, key: program(sum(ref("item.name.length"), 1)) })).rejects.toThrow("gives fixture.add an input that its schema refuses");
+    await expect(client.exec(["fixture", "sizes"], { items, key: program(sum(ref("item.none"), 1)) })).rejects.toThrow("gives fixture.add an input that its schema refuses");
+  });
+
+  it("names the property that is not JSON in the detail of an exemption", () => {
+    expect(manifest.exempt.find((exemption) => exemption.name === "stamp")?.detail).toBe("record.at: bigint");
   });
 
   it("takes a call with no $when outside a program, as an MCP tool gets it", async () => {

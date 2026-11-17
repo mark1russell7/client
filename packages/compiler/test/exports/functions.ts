@@ -222,3 +222,19 @@ export function flips(made: Coin): boolean {
 export function curried(make: (seed: number) => () => number): number {
   return make(1)();
 }
+
+export function scale(values: readonly number[], factor: number | ((value: number) => number)): number[] {
+  return values.map((value) => (typeof factor === "function" ? factor(value) : value * factor));
+}
+
+export function chain(value: number, steps: readonly ((value: number) => number)[]): number {
+  return steps.reduce((current, step) => step(current), value);
+}
+
+export function sizes(items: readonly { readonly name: string; readonly size: number }[], key: (item: { readonly name: string; readonly size: number }) => number): number[] {
+  return items.map(key);
+}
+
+export function stamp(record: { readonly at: bigint }): number {
+  return Number(record.at);
+}

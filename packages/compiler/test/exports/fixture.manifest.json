@@ -59,6 +59,21 @@
         "two-sided"
       ]
     },
+    "Named": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "size": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "name",
+        "size"
+      ]
+    },
     "Note": {
       "type": "object",
       "properties": {
@@ -305,6 +320,74 @@
         "items": {
           "type": "number"
         }
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "chain",
+      "path": [
+        "fixture",
+        "chain"
+      ],
+      "description": "The steps of a value, in order: an array of sub-programs.",
+      "params": [
+        "value",
+        "steps"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "number"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "One call of a pure procedure, as data, for the function (value: number) => number. It reads each parameter as {\"$ref\": \"<name>\"}: value.",
+              "required": [
+                "$proc"
+              ],
+              "properties": {
+                "$proc": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                },
+                "input": {},
+                "$when": {
+                  "const": "$never"
+                }
+              },
+              "x-procedures-program": {
+                "params": [
+                  "value"
+                ],
+                "inputs": [
+                  {
+                    "type": "number"
+                  }
+                ],
+                "output": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        },
+        "required": [
+          "value",
+          "steps"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
       },
       "effects": {
         "reads": [],
@@ -970,6 +1053,84 @@
       }
     },
     {
+      "name": "scale",
+      "path": [
+        "fixture",
+        "scale"
+      ],
+      "description": "A factor or a function of each value: a union with a sub-program.",
+      "params": [
+        "values",
+        "factor"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "factor": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "object",
+                "description": "One call of a pure procedure, as data, for the function (value: number) => number. It reads each parameter as {\"$ref\": \"<name>\"}: value.",
+                "required": [
+                  "$proc"
+                ],
+                "properties": {
+                  "$proc": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1
+                  },
+                  "input": {},
+                  "$when": {
+                    "const": "$never"
+                  }
+                },
+                "x-procedures-program": {
+                  "params": [
+                    "value"
+                  ],
+                  "inputs": [
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "output": {
+                    "type": "number"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "required": [
+          "values",
+          "factor"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        }
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "sideOf",
       "path": [
         "fixture",
@@ -1000,6 +1161,77 @@
             "type": "null"
           }
         ]
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "sizes",
+      "path": [
+        "fixture",
+        "sizes"
+      ],
+      "description": "The key of each item: a sub-program that reads the fields of its parameter.",
+      "params": [
+        "items",
+        "key"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/Named"
+            }
+          },
+          "key": {
+            "type": "object",
+            "description": "One call of a pure procedure, as data, for the function (item: Named) => number. It reads each parameter as {\"$ref\": \"<name>\"}: item.",
+            "required": [
+              "$proc"
+            ],
+            "properties": {
+              "$proc": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              },
+              "input": {},
+              "$when": {
+                "const": "$never"
+              }
+            },
+            "x-procedures-program": {
+              "params": [
+                "item"
+              ],
+              "inputs": [
+                {
+                  "$ref": "#/$defs/Named"
+                }
+              ],
+              "output": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "required": [
+          "items",
+          "key"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        }
       },
       "effects": {
         "reads": [],
@@ -1339,6 +1571,11 @@
       "detail": "fn: (map: Map<string, number>) => number"
     },
     {
+      "name": "stamp",
+      "reason": "input-not-json",
+      "detail": "record.at: bigint"
+    },
+    {
       "name": "twice",
       "reason": "function-parameter",
       "detail": "fn: <T>(value: T) => T"
@@ -1359,6 +1596,6 @@
       "Counter"
     ],
     "values": 1,
-    "types": 12
+    "types": 13
   }
 }

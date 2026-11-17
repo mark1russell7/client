@@ -167,3 +167,18 @@ export declare function fairCoin(seed: number): Coin;
 export declare function flips(coin: Coin): boolean;
 /** A function parameter whose result is a function: a sub-program gives JSON, so it cannot give it. */
 export declare function curried(make: (seed: number) => () => number): number;
+
+
+/** A factor or a function of each value: a union with a sub-program. */
+export declare function scale(values: readonly number[], factor: number | ((value: number) => number)): number[];
+/** The steps of a value, in order: an array of sub-programs. */
+export declare function chain(value: number, steps: readonly ((value: number) => number)[]): number;
+/** An item with a name and a size. */
+export interface Named {
+  readonly name: string;
+  readonly size: number;
+}
+/** The key of each item: a sub-program that reads the fields of its parameter. */
+export declare function sizes(items: readonly Named[], key: (item: Named) => number): number[];
+/** A property that is not JSON. */
+export declare function stamp(record: { readonly at: bigint }): number;
