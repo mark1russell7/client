@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.ts`.
 
-**Total procedures:** 379 across 51 namespaces. Loaded 48 package register(s).
+**Total procedures:** 409 across 52 namespaces. Loaded 49 package register(s).
 
 ## Namespaces
 
@@ -21,6 +21,7 @@
 - [`env.*`](#env) — 3 procedure(s)
 - [`exif.*`](#exif) — 1 procedure(s)
 - [`fs.*`](#fs) — 15 procedure(s)
+- [`generators.*`](#generators) — 23 procedure(s)
 - [`geo.*`](#geo) — 4 procedure(s)
 - [`gh.*`](#gh) — 16 procedure(s)
 - [`git.*`](#git) — 46 procedure(s)
@@ -52,7 +53,7 @@
 - [`snapshot.*`](#snapshot) — 5 procedure(s)
 - [`splay.*`](#splay) — 2 procedure(s)
 - [`sqlite.*`](#sqlite) — 7 procedure(s)
-- [`statistics.*`](#statistics) — 74 procedure(s)
+- [`statistics.*`](#statistics) — 81 procedure(s)
 - [`systems.*`](#systems) — 1 procedure(s)
 - [`tailscale.*`](#tailscale) — 1 procedure(s)
 - [`vite.*`](#vite) — 4 procedure(s)
@@ -204,6 +205,34 @@
 | `fs.watch` | The changes of a file or folder, as a stream |
 | `fs.write` | Write content to file |
 | `fs.write.json` | Write a value as a JSON file, with a rename at the end |
+
+## generators
+
+| Procedure | Description |
+|-----------|-------------|
+| `generators.betaCdf` | This function gives the regularized incomplete beta function: the beta cumulative distribution at `x`. |
+| `generators.canonicalHash` | This function gives the content hash of a value: `sha256Hex(canonicalJson(value, options))`. |
+| `generators.canonicalJson` | This function gives the canonical form of a value. The default form is RFC 8785 (JCS): |
+| `generators.coveringArray` | This function gives a covering array of strength `t` over dimensions with `levels[i]` levels each. Each row has the index of one level of each dimension. With fewer dimensions than `t`, the array covers each combination of all the dimensions. Thus no dimensions give one empty row, as the product of no sets has one item. |
+| `generators.dependsOnLibm` | This function tells if the numbers of a family use `Math.exp`, `Math.log` or `Math.pow`. The result of those functions can change between JavaScript engines. Thus such a family has the same numbers only on one platform. |
+| `generators.deriveSeed` | The seed of the stream with the name `label` under `seed`: the hash of `"<seed>:<label>"`. |
+| `generators.familyPoints` | This function gives the points of the family at the points of a unit design. |
+| `generators.fnv1a32` | The FNV-1a hash of 32 bits of a string. The option `input` selects the units that the hash reads: |
+| `generators.latinHypercube` | This function gives a Latin hypercube of `n` points in `d` dimensions. Each column has exactly one point in each of the `n` strata `[k/n, (k+1)/n)`. For each column, the draws are one shuffle of the strata, then one draw in each point. |
+| `generators.normalCdf` | This function gives the standard normal cumulative distribution, `P(Z <= x)`. Below 0.75 in size, `x` uses the series of `0.5 + phi(x) * (x + x^3/3 + x^5/15 + ...)`. The tails use the continued fraction of the Mills ratio, so a lower tail has no cancellation. On 2026-11-09 the error was at most 4.4 ulps from -38 to 9, against `mpmath`. `normalCdf(-37)` is approximately 5.7e-300, not 0. |
+| `generators.normalQuantile` | This function gives the quantile of the standard normal law: the `x` with `normalCdf(x) = p`. It uses PPND16 of Wichura (algorithm AS 241). Below 0.075, one step of Halley with `normalCdf` follows. Above 0.5, `p` uses the lower tail at `1 - p`. This subtraction is exact. On 2026-11-09 the error was at most 1.2 ulps in the tails and 5.5 ulps from 0.075 to 0.925, against `mpmath`. |
+| `generators.plackettLuceOrder` | A random order of a list with the Plackett-Luce law of the weights (the Gumbel-max method). Each item gets the sum of its log-weight and a Gumbel draw. The order goes from the largest sum to the smallest. |
+| `generators.randomDesign` | This function gives `n` independent uniform points of the unit cube in `d` dimensions. The draws go row by row. |
+| `generators.recordedSpec` | This function gives the spec of the family `recorded` that draws from a table. |
+| `generators.saltelliDesign` | This function gives the Saltelli design for the Sobol indices of a model with `d` inputs: `a`, `b` and the `d` matrices `ab`. The design has `n * (d + 2)` points for the model. `a` comes from `r.fork("A")`, and `b` comes from `r.fork("B")`. With `base` `"latin"`, each is a Latin hypercube. |
+| `generators.seedOf` | The 32-bit seed of a number (its low 32 bits, unsigned) or of a string (its FNV-1a hash). |
+| `generators.seedsFrom` | The seeds of a run: the seeds in `given` (the text of an environment variable, for example `process.env.SEED`), else the default seeds. An empty text gives the defaults. |
+| `generators.sha256Hex` | This function gives the SHA-256 digest of the bytes of a string, as 64 lowercase hex characters. The option `input` selects the bytes of a lone surrogate. It is not for passwords: it has no salt and no cost. |
+| `generators.shrinkPoint` | This function shrinks a point of a family that fails. Each dimension moves toward `shrinkTarget`, while the point still fails. - In each round, each dimension first tries its target. Then a bisection on the scale of the dimension finds the edge of the failure. - The rounds continue until a round has no move, or until the budget of checks ends. - The function `fails` gives `true` for a point that fails. A first point that does not fail is a `RangeError`. - The shrink has no random draws. Thus the same point and the same function give the same result. |
+| `generators.shrinkTarget` | This function gives the target of a dimension: the value of its range nearest to 0. |
+| `generators.stablePick` | One item of a list, chosen by highest random weight: each key has a weight from `seed`, and the largest weight wins. |
+| `generators.stratifiedDesign` | This function gives a stratified grid: `strata` strata on each axis, so `strata^d` cells, and one uniform point in each cell. The cells go in the order of their index in base `strata`, with the first dimension as the last digit. |
+| `generators.tupleCoverage` | This function gives the coverage of some rows over named dimensions, with the strength `t` (the default is 2). A row holds a combination when it has each of its values. The function compares the values as text with `String`, and it ignores the fields of a row that are not dimensions. With fewer dimensions than `t`, the combinations are those of all the dimensions. Thus no dimensions give one empty combination, with the key `""`. |
 
 ## geo
 
@@ -581,13 +610,18 @@
 | `statistics.bestSmoothLaw` | This function gives the smooth law with the highest likelihood. Under 300 values the result is not reliable: the normal and the log-normal law lose to the laws with a fitted end. The README gives the measured shares of correct results. The function throws as `smoothLawScores` does. |
 | `statistics.binomialInterval` | The central interval of a count X ~ Binomial(n, p). `low` is the smallest k with P(X <= k) > (1 - level) / 2. `high` is the largest k with P(X >= k) > (1 - level) / 2. Each tail outside the interval holds (1 - level) / 2 or less. The two tails are separate sums, so that a small upper tail keeps its digits. |
 | `statistics.binomialTest` | This function gives the p of the exact one-sided binomial test of `k` successes in `n` trials, with X ~ Binomial(n, p). The side `"less"` gives `P(X <= k)`. A small value rejects the claim "the chance is `p` or more". The side `"greater"` gives `P(X >= k)`. A small value rejects the claim "the chance is `p` or less". |
+| `statistics.bootstrap` | A percentile bootstrap interval of `statistic` over `data`. A run whose statistic is not finite (NaN or an infinity) does not count. When no run is finite, low and high are equal to the estimate. |
+| `statistics.bootstrapClusters` | A cluster bootstrap: each run draws whole clusters with replacement, and the statistic reads the rows of the drawn clusters. Use it when the rows of one cluster (one board, one seed, one site) are not independent. The clusters are in the order of their first row. |
 | `statistics.bootstrapLeastSquares` | A percentile bootstrap interval of each coefficient of the least-squares fit of `y` on the rows of `x`. Each run draws `n` row indexes with replacement, and fits the drawn rows and their `y` values. All the intervals come from the same draws. The estimate of each interval is the coefficient of the fit of all the data. A run with a singular design gives NaN coefficients, so it does not count. The shape errors are the errors of `leastSquares`. |
 | `statistics.bootstrapMedian` | A bootstrap interval of the median. |
 | `statistics.bootstrapMedianRatio` | A bootstrap interval of the ratio `median(numerator) / median(denominator)` of two independent samples. The interval is the uncertainty of the ratio of the two medians. It is not the spread of the samples. A run whose denominator median is 0 is not finite, so it does not count. |
+| `statistics.bootstrapStrata` | A stratified bootstrap: each run draws, inside each stratum, as many items as the stratum has, with replacement. So each sample keeps the size of each stratum. Use it when the strata are fixed by the design, for example the families of the inputs of a benchmark. The draws of one run go through the strata in the order of the list. With one stratum, the draws are equal to the draws of `bootstrap` with the same seed. The estimate is the statistic of all the strata. A run whose statistic is not finite does not count. |
+| `statistics.bootstrapTwo` | A percentile bootstrap interval of `statistic` over two independent samples `a` and `b`. Use it when the two samples are not paired, for example two arms of a benchmark. Each run draws `a.length` items of `a` with replacement, and then `b.length` items of `b` with replacement. All the draws come from one stream of `random(seed)`. The statistic reads the two drawn samples. The estimate is the statistic of all of `a` and `b`. A run whose statistic is not finite does not count. When no run is finite, low and high are equal to the estimate. |
 | `statistics.bradleyTerry` | The Bradley-Terry fit of `comparisons` among `items` items. The function does not sort or change its inputs. An empty list of comparisons gives the prior for each item. The function throws a RangeError for a bad index, a bad outcome, a bad weight and a bad option. |
 | `statistics.bradleyTerrySparse` | The sparse Bradley-Terry fit of `comparisons` among `items` items. It has the model, the options and the checks of `bradleyTerry`, and its memory is in proportion to `items` plus the distinct pairs. The function does not sort or change its inputs. It throws a RangeError for a bad index, a bad outcome, a bad weight and a bad option. |
 | `statistics.brier` | The Brier score: the mean of (p - outcome)^2. 0 is perfect, and 0.25 is a constant 0.5. Lower is better. |
 | `statistics.calibration` | The hit rate of each stated level, from the lowest level. |
+| `statistics.choosePair` | The choice of the next pair of a duel from a pool of rated items. The pool goes in the order of the ratings, from the highest. These are the steps: |
 | `statistics.cohenKappa` | Cohen's kappa of two raters (Cohen, 1960). Item `i` has the category `a[i]` from one rater and `b[i]` from the other. Two categories are the same when they are `===`. A kappa of 1 is full agreement, and 0 is the agreement of chance. |
 | `statistics.compareRatios` | The comparison of a candidate with a baseline, from the ratio candidate / baseline of each input. It answers the three questions of a promotion. How often is the candidate better? By how much? How often is it worse beyond the noise? A promotion reads `gains` against `drops` and `effect`, not `signP` alone, because a sign test counts a win of any size. |
 | `statistics.coverageMinSample` | This function applies a fixed bar of coverage to the cells of a study. It gives the smallest sample size `m` from which an interval method keeps its level. The method qualifies at `m` when the cells with a sample of `m` or more pass two tests: |
@@ -616,6 +650,7 @@
 | `statistics.normalCdf` | This function gives the standard normal cumulative distribution, `P(Z <= x)`. Below 0.75 in size, `x` uses the series of `0.5 + phi(x) * (x + x^3/3 + x^5/15 + ...)`. The tails use the continued fraction of the Mills ratio, so a lower tail has no cancellation. On 2026-11-09 the error was at most 4.4 ulps from -38 to 9, against `mpmath`. `normalCdf(-37)` is approximately 5.7e-300, not 0. |
 | `statistics.normalQuantile` | This function gives the quantile of the standard normal law: the `x` with `normalCdf(x) = p`. It uses PPND16 of Wichura (algorithm AS 241). Below 0.075, one step of Halley with `normalCdf` follows. Above 0.5, `p` uses the lower tail at `1 - p`. This subtraction is exact. On 2026-11-09 the error was at most 1.2 ulps in the tails and 5.5 ulps from 0.075 to 0.925, against `mpmath`. |
 | `statistics.optionFloor` | This function gives the smallest count of values for each of two options. With it, one test finds a difference of `delta` with the stated power. The form is `n = 2 ((t(1 - alpha / (2 tests), df) + t(power, df)) sigma / delta)^2`, with `df = 2 n - 2`. The count is on both sides of that form, so the function takes the first count that meets it. |
+| `statistics.pairedPermutation` | The paired permutation test (a random sign flip of each difference). It needs no normal distribution and uses the size of each difference, which the sign test does not. A pair with a difference of 0 adds nothing. |
 | `statistics.pairInformation` | The expected information of a pick between two items: `p * (1 - p) * (ua^2 + ub^2)`. Here `p` is `eloExpected` of the two ratings, and `ua` and `ub` are the uncertainties. The value is high when the result is not sure (a `p` near 0.5) and the two ratings are not sure. |
 | `statistics.pairProbabilities` | The probabilities of a pair under the Bradley-Terry model with Davidson (1970) ties. The inputs are the log-strengths of the two items and the tie parameter `tie` of `bradleyTerry`. With `tie` 0, the probability that the first item wins is `1 / (1 + exp(sb - sa))`. A constant added to the two strengths changes no probability. |
 | `statistics.parseResponseRecord` | This function examines unknown data, for example the result of `JSON.parse`, against `response-records/1`. It gives `{ ok: true, record }`, with the same object as the record, or `{ ok: false, faults }`. Each fault has the path of the bad field and a message. The function does not throw. Data that the checks cannot read, for example an object with a loop, gives one fault. |
@@ -647,6 +682,7 @@
 | `statistics.summarize` | _(no description)_ |
 | `statistics.surfaceResponse` | This function gives the view of `sliceResponse` over two dimensions. The fields `x` and `y` are the two axes, and `cells` has one row for each value of `y`. The rules of the held values, of the matching points and of the band are the rules of `sliceResponse`. The function also throws a RangeError when the two varied dimensions are one dimension. It throws when a conditional dimension varies with its parent, and when two varied dimensions need no common level. |
 | `statistics.tQuantile` | This function gives the quantile of the Student t law, from a bisection of its distribution function. |
+| `statistics.twoSamplePermutation` | The two-sample permutation test (a split of the pooled values). It needs no normal distribution and no pairs, so it compares groups of different sizes. The p holds only if the values of the two groups can change places under the null. |
 | `statistics.uStatisticInterval` | This function gives the interval of a total over all the sets of `r` units of a population. The data is a uniform sample of `m` of the `n` units, without replacement. An example is the count of crossings between all pairs of routes. The input is the total of each sampled unit: the sum of the kernel over the sets of `r` sampled units that hold the unit. Thus the sum of the totals is `r * S`, with `S` the total of the sample. The kernel is symmetric. |
 | `statistics.whenHolds` | This function gives true when a place has the condition of a dimension. A dimension with no condition is present. |
 | `statistics.wilson` | The Wilson score interval of `k` successes in `n` trials (Wilson, 1927). It keeps its level for a small n and for a proportion near 0 or 1, where the normal interval does not. For n = 0 the interval is 0 to 1. |

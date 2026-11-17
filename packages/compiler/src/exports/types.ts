@@ -15,6 +15,45 @@ export const EXPORTS_MANIFEST_FORMAT = "procedures-exports/1" as const;
 /** A JSON Schema (draft 2020-12). */
 export type ExportsJsonSchema = Record<string, unknown>;
 
+/**
+ * The keyword of the JSON Schema of a sub-program: a function parameter that one call of a pure
+ * procedure gives (d40-language-ops). Its value is an `ExportsProgram`.
+ */
+export const PROGRAM_KEYWORD = "x-procedures-program" as const;
+
+/**
+ * The function that a sub-program stands for. The sub-program is one call of a pure procedure,
+ * as data: `{ "$proc": [...], "input": {...} }`. It reads each parameter as `{ "$ref": "<name>" }`.
+ */
+export interface ExportsProgram {
+  /** The names of the parameters of the function, in order. */
+  readonly params: readonly string[];
+  /** The JSON Schema of each parameter, in order: the values that the package gives to the function. */
+  readonly inputs: readonly ExportsJsonSchema[];
+  /** The JSON Schema of the result: the value that the function gives to the package. */
+  readonly output: ExportsJsonSchema;
+  /** True: the type of the result has `undefined` and no `null`, so the function gives `undefined` for `null`. */
+  readonly undefinedForNull?: true;
+}
+
+/**
+ * The keyword of the JSON Schema of a constructed input: a parameter whose value is not JSON. A
+ * pure function of the package makes the value from JSON before each call. Its value is an
+ * `ExportsConstruct`.
+ */
+export const CONSTRUCT_KEYWORD = "x-procedures-construct" as const;
+
+/**
+ * The function that makes the value of a constructed input. The input value is an object with one
+ * property for each parameter of the function, for example `{ "seed": 7 }` for `random(seed)`.
+ */
+export interface ExportsConstruct {
+  /** The name of the export that makes the value. */
+  readonly function: string;
+  /** The names of the parameters of the function, in order: the properties of the input value. */
+  readonly params: readonly string[];
+}
+
 /** The manifest of the procedures of one entry of a package. */
 export interface ExportsManifest {
   readonly format: typeof EXPORTS_MANIFEST_FORMAT;
@@ -65,7 +104,11 @@ export interface ExportProcedure {
 
 /** The reasons why a public function has no procedure. */
 export type ExportExemptionReason =
-  /** A parameter is a function: a declarative program gives it as a call (d40-language-ops). */
+  /**
+   * A parameter is a function that a sub-program cannot give. Such a function has more than one
+   * signature or a type parameter or a rest parameter. Or its result is a promise or no value, or it
+   * has a type that is not JSON.
+   */
   | "function-parameter"
   /** An input is not JSON, for example a `Map`, a `bigint` or a class instance. */
   | "input-not-json"

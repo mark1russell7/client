@@ -1,0 +1,35 @@
+# The public API of @procedures/generators
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The command `api-report check` compares this file with the built .d.ts files.
+# To accept a change of the API, start the build, then `api-report update`, and review the diff.
+
+## . (dist/index.d.ts): names
+
+generatorsManifest: dist/manifest.d.ts#manifest
+generatorsModule: dist/module.d.ts#generatorsModule
+registerGeneratorsProcedures: dist/module.d.ts#registerGeneratorsProcedures
+
+## ./module (dist/module.d.ts): names
+
+default: dist/module.d.ts#generatorsModule
+generatorsManifest: dist/manifest.d.ts#manifest
+generatorsModule: dist/module.d.ts#generatorsModule
+registerGeneratorsProcedures: dist/module.d.ts#registerGeneratorsProcedures
+
+## ./register (dist/register.d.ts): names
+
+generatorsManifest: dist/manifest.d.ts#manifest
+generatorsModule: dist/module.d.ts#generatorsModule
+registerGeneratorsProcedures: dist/module.d.ts#registerGeneratorsProcedures
+
+## Declarations
+
+### dist/manifest.d.ts#manifest
+export declare const manifest: ExportsManifest;
+
+### dist/module.d.ts#generatorsModule
+export declare const generatorsModule: ProcedureModule;
+
+### dist/module.d.ts#registerGeneratorsProcedures
+export declare function registerGeneratorsProcedures(registry?: ProcedureRegistry): void;

@@ -17,6 +17,18 @@ export interface Tree {
 
 export type Side = "less" | "greater" | "two-sided";
 
+/** A side or no side: a named union with an undefined member. */
+export type MaybeSide = Side | undefined;
+
+/** A distribution: a named union with a member that holds the union again. */
+export type Spec = { readonly kind: "fixed"; readonly value: number } | { readonly kind: "mix"; readonly parts: readonly Spec[] };
+
+/** A type that grows at each level: each level is a new type, so it has no end. */
+export interface Grow<T> {
+  readonly value: T;
+  readonly next: Grow<T[]>;
+}
+
 export interface Options {
   readonly side?: Side;
   readonly level?: number;
@@ -26,6 +38,12 @@ export interface Options {
 /** A shape: a named type with a method is not JSON. */
 export interface Shape {
   area(): number;
+}
+
+/** A handler: a named type with a callback. */
+export interface Handler {
+  readonly name: string;
+  readonly run: (value: number) => number;
 }
 
 /** A note: a property with an undefined member can be absent. */
@@ -49,6 +67,10 @@ export declare const LIMIT = 10;
  * @param a The first number.
  */
 export declare function add(a: number, b: number): number;
+/** The difference of two numbers. */
+export declare function minus(a: number, b: number): number;
+/** True when a number is over a limit. */
+export declare function above(value: number, limit: number): boolean;
 /** The distance of a point from the origin, at a level. */
 export declare function norm(point: Point, options?: Options): number;
 /** The sum of each number. */
@@ -69,10 +91,26 @@ export declare function flip(side: Side | null): Side | null;
 export declare function strict(flag: true, mode: 1 | 2): "yes";
 /** A count of the keys of a map: a Map is not JSON. */
 export declare function keys(map: Map<string, number>): number;
-/** A callback is not JSON. */
+/** A callback with JSON values: a sub-program gives it. */
 export declare function apply(values: readonly number[], fn: (value: number) => number): number[];
-/** An option with a callback is not JSON. */
+/** An option with a callback: a sub-program gives it. */
 export declare function sortBy(values: readonly number[], options: { readonly compare: (a: number, b: number) => number }): number[];
+/** A callback with two parameters. */
+export declare function findIndex(values: readonly number[], predicate: (value: number, index: number) => boolean): number;
+/** An optional callback whose result can be undefined: a sub-program gives undefined for null. */
+export declare function choose(a: number, b: number, score?: (a: number, b: number) => number | undefined): number;
+/** A callback in a named type. */
+export declare function useHandler(handler: Handler, value: number): number;
+/** A named type with a callback is not JSON in an output. */
+export declare function handlerOf(name: string): Handler;
+/** A callback that gives a promise: a sub-program gives its value at once, so it cannot. */
+export declare function later(values: readonly number[], fn: (value: number) => Promise<number>): Promise<number[]>;
+/** A callback with no value. */
+export declare function each(values: readonly number[], fn: (value: number) => void): void;
+/** A generic callback. */
+export declare function twice(fn: <T>(value: T) => T): number;
+/** A callback with a parameter that is not JSON. */
+export declare function sizeOf(fn: (map: Map<string, number>) => number): number;
 /** A counter: the output is a class instance. */
 export declare function counter(): Counter;
 /** Two signatures. */
@@ -100,3 +138,63 @@ export declare function unset(value: undefined): number;
 export { vanished } from "./missing.js";
 /** A tuple with an undefined item: JSON gives null for it. */
 export declare function lookup(key: string): [string, undefined];
+/** The number of fixed parts of a distribution. */
+export declare function weight(spec: Spec): number;
+/** The side of a sign, or undefined for zero. */
+export declare function sideOf(sign: number): MaybeSide;
+/** The first value of a type with no end. */
+export declare function grow(value: Grow<number>): number;
+/** A die with a seed: an object with a method, so it is not JSON. */
+export interface Die {
+  readonly seed: number;
+  roll(): number;
+}
+/** A die from a seed: the factory of a constructed input. The faces are not JSON, so the input stops before them. */
+export declare function die(seed: number, faces?: Map<number, number>): Die;
+/** The rolls of a die: a constructed input. */
+export declare function rolls(count: number, die: Die): number[];
+/** One roll, or 0 with no die: an optional constructed input. */
+export declare function maybeRoll(die?: Die): number;
+/** A coin: two functions give it. */
+export interface Coin {
+  flip(): boolean;
+}
+/** A coin from a seed. */
+export declare function coin(seed: number): Coin;
+/** The other coin from a seed. */
+export declare function fairCoin(seed: number): Coin;
+/** One flip: the overlay names the factory of the coin. */
+export declare function flips(coin: Coin): boolean;
+/** A function parameter whose result is a function: a sub-program gives JSON, so it cannot give it. */
+export declare function curried(make: (seed: number) => () => number): number;
+/** A factor or a function of each value: a union with a sub-program. */
+export declare function scale(values: readonly number[], factor: number | ((value: number) => number)): number[];
+/** The steps of a value, in order: an array of sub-programs. */
+export declare function chain(value: number, steps: readonly ((value: number) => number)[]): number;
+/** An item with a name and a size. */
+export interface Named {
+  readonly name: string;
+  readonly size: number;
+}
+/** The key of each item: a sub-program that reads the fields of its parameter. */
+export declare function sizes(items: readonly Named[], key: (item: Named) => number): number[];
+/** A property that is not JSON. */
+export declare function stamp(record: { readonly at: bigint }): number;
+/** A union of two types that are not JSON: no factory makes it. */
+export declare function either(value: Die | Coin): number;
+/** A bag of numbers. Its factory takes a set, so the factory has no JSON input. */
+export interface Bag {
+  take(): number;
+}
+/** A bag from a set: not a factory of a constructed input. */
+export declare function bag(items: Set<number>): Bag;
+/** One number of a bag: no factory makes the bag from JSON. */
+export declare function draw(bag: Bag): number;
+/** A deck of cards. */
+export interface Deck {
+  deal(): number;
+}
+/** A deck from a seed and cards: the input of the factory stops at the rest parameter. */
+export declare function deck(seed: number, ...cards: number[]): Deck;
+/** The first card of a deck: a constructed input. */
+export declare function deal(deck: Deck): number;

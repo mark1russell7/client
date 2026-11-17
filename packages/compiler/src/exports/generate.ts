@@ -15,11 +15,15 @@ import ts from "typescript-api";
 import type * as TS from "typescript-api";
 import type { Effects } from "@procedures/client/browser";
 import {
+  CONSTRUCT_KEYWORD,
   EXPORTS_MANIFEST_FORMAT,
+  PROGRAM_KEYWORD,
   type ExportExemption,
   type ExportProcedure,
+  type ExportsConstruct,
   type ExportsJsonSchema,
   type ExportsManifest,
+  type ExportsProgram,
 } from "./types.js";
 
 /** The data that a package adds to the generated manifest: the overlay. */
@@ -28,6 +32,11 @@ export interface ExportsOverlay {
   readonly effects?: Effects;
   /** The changes for single functions, by the name of the export. */
   readonly functions?: Readonly<Record<string, ExportsFunctionOverlay>>;
+  /**
+   * The function that makes a constructed input, by the name of its type, for example
+   * `{ "Random": "random" }`. It is necessary only when more than one pure function gives the type.
+   */
+  readonly constructors?: Readonly<Record<string, string>>;
 }
 
 /** The overlay of one function. */
@@ -79,6 +88,21 @@ class NotJson extends Error {
   }
 }
 
+/** A pure function of the package that gives a type that is not JSON: it makes a constructed input. */
+interface Factory {
+  readonly name: string;
+  readonly signature: TS.Signature;
+}
+
+/** The JSON input of a factory: the schema of a constructed input, and the call that makes the value. */
+interface FactoryInput {
+  readonly schema: ExportsJsonSchema;
+  readonly construct: ExportsConstruct;
+}
+
+/** The deepest schema that the generator makes. A deeper type fails closed. */
+const MAX_DEPTH = 64;
+
 /** The names of the global object types that have no JSON form. */
 const NOT_JSON_GLOBALS = new Set([
   "Date", "Map", "Set", "WeakMap", "WeakSet", "WeakRef", "RegExp", "Promise", "Error",
@@ -122,6 +146,7 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
 
   const defs = new Map<string, ExportsJsonSchema>();
   const defNames = new Map<TS.Type, string>();
+  let depth = 0;
   const procedures: ExportProcedure[] = [];
   const exempt: ExportExemption[] = [];
   const classes: string[] = [];
@@ -130,6 +155,9 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
   const overlay = options.overlay ?? {};
 
   const exports = [...checker.getExportsOfModule(moduleSymbol)].sort((a, b) => compare(a.name, b.name));
+  const factories = factoriesOf(exports);
+  // A factory whose input reaches its own type has no input: null
+  const factoryInputs = new Map<Factory, FactoryInput | null>();
   for (const exported of exports) {
     const symbol = exported.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(exported) : exported;
     const name = exported.name;
@@ -203,13 +231,20 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
         schema = schemaOf(parameterType, false);
       } catch (error) {
         if (!(error instanceof NotJson)) throw error;
-        return {
-          name,
-          reason: error.isFunction ? "function-parameter" : "input-not-json",
-          detail: error.detail(parameterName),
-        };
+        // A value that is not JSON can come from a pure function of the package: a constructed input
+        const constructed = error.isFunction ? undefined : constructedSchema(parameterType);
+        if (constructed === undefined || "problem" in constructed) {
+          const problem = constructed !== undefined ? `. ${constructed.problem}` : "";
+          return {
+            name,
+            reason: error.isFunction ? "function-parameter" : "input-not-json",
+            detail: `${error.detail(parameterName)}${problem}`,
+          };
+        }
+        schema = constructed;
       }
-      const description = text(parameter.getDocumentationComment(checker));
+      const own = text(parameter.getDocumentationComment(checker));
+      const description = own && CONSTRUCT_KEYWORD in schema ? `${own} ${String(schema["description"])}` : own;
       properties[parameterName] = description ? { ...schema, description } : schema;
       if (parameterDeclaration.dotDotDotToken) rest = parameterName;
       else params.push(parameterName);
@@ -231,6 +266,9 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
       if (!(error instanceof NotJson)) throw error;
       return { name, reason: "output-not-json", detail: error.detail() };
     }
+    // A named type serves inputs and outputs, so a function in it can reach an output as a sub-program
+    const programAt = programPath(output);
+    if (programAt !== undefined) return { name, reason: "output-not-json", detail: programAt ? `${programAt}: a function` : "a function" };
 
     const description = firstParagraph(text(symbol.getDocumentationComment(checker)));
     return {
@@ -254,10 +292,106 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
   }
 
   /**
+   * The factories of the package, by the type that they give. A factory is a public function with
+   * one signature and no type parameter. Its effects are pure, and it gives an object at once.
+   */
+  function factoriesOf(all: readonly TS.Symbol[]): Map<TS.Type, Factory[]> {
+    const found = new Map<TS.Type, Factory[]>();
+    for (const exported of all) {
+      const symbol = exported.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(exported) : exported;
+      if (!symbol.declarations?.length || !(symbol.flags & (ts.SymbolFlags.Function | ts.SymbolFlags.Variable))) continue;
+      const signatures = checker.getTypeOfSymbolAtLocation(symbol, source!).getCallSignatures();
+      if (signatures.length !== 1 || signatures[0]!.getTypeParameters()?.length) continue;
+      if (!isPure(overlay.functions?.[exported.name]?.effects ?? overlay.effects)) continue;
+      const made = signatures[0]!.getReturnType();
+      if (!(made.flags & ts.TypeFlags.Object) || promisedType(made) !== undefined) continue;
+      found.set(made, [...(found.get(made) ?? []), { name: exported.name, signature: signatures[0]! }]);
+    }
+    return found;
+  }
+
+  /**
+   * The schema of a constructed input: the JSON input of the one factory that gives the type of the
+   * parameter. The result is undefined when no factory gives the type. It is a problem when more
+   * than one factory gives it and the overlay does not name one.
+   */
+  function constructedSchema(type: TS.Type): ExportsJsonSchema | { readonly problem: string } | undefined {
+    // An optional parameter has the type `T | undefined`
+    const defined = type.isUnion() ? type.types.filter((member) => !(member.flags & (ts.TypeFlags.Undefined | ts.TypeFlags.Void))) : [type];
+    if (defined.length !== 1) return undefined;
+    const made = defined[0]!;
+    const candidates = (factories.get(made) ?? []).filter((factory) => factoryInput(factory) !== undefined);
+    if (candidates.length === 0) return undefined;
+    const typeName = checker.typeToString(made);
+    const named = overlay.constructors?.[typeName];
+    const factory = named === undefined ? (candidates.length === 1 ? candidates[0] : undefined) : candidates.find((candidate) => candidate.name === named);
+    if (factory === undefined) {
+      return {
+        problem:
+          named === undefined
+            ? `The functions ${candidates.map((candidate) => candidate.name).join(", ")} give ${typeName}: overlay.constructors names one`
+            : `overlay.constructors names ${named} for ${typeName}, but ${named} is not a pure function that gives it from JSON`,
+      };
+    }
+    const { schema, construct } = factoryInput(factory)!;
+    const call = `${factory.name}(${construct.params.join(", ")})`;
+    return { ...schema, description: `The input of ${factory.name}: the procedure makes the ${typeName} with ${call} before the call.`, [CONSTRUCT_KEYWORD]: construct };
+  }
+
+  /**
+   * The JSON input of a factory: its parameters up to the first optional parameter that is not JSON.
+   * The result is undefined when a parameter that is not optional is not JSON.
+   */
+  function factoryInput(factory: Factory): FactoryInput | undefined {
+    if (factoryInputs.has(factory)) return factoryInputs.get(factory) ?? undefined;
+    factoryInputs.set(factory, null);
+    const params: string[] = [];
+    const properties: Record<string, ExportsJsonSchema> = {};
+    const required: string[] = [];
+    for (const [index, parameter] of factory.signature.getParameters().entries()) {
+      const declaration = parameter.valueDeclaration;
+      if (!declaration || !ts.isParameter(declaration)) return undefined;
+      // A rest parameter is optional, and a constructed input has no spread
+      if (declaration.dotDotDotToken) break;
+      const optional = checker.isOptionalParameter(declaration);
+      let schema: ExportsJsonSchema;
+      try {
+        schema = schemaOf(checker.getTypeOfSymbolAtLocation(parameter, declaration), false);
+      } catch (error) {
+        if (!(error instanceof NotJson)) throw error;
+        if (optional) break;
+        return undefined;
+      }
+      const parameterName = ts.isIdentifier(declaration.name) ? declaration.name.text : `arg${index}`;
+      const description = text(parameter.getDocumentationComment(checker));
+      properties[parameterName] = description ? { ...schema, description } : schema;
+      params.push(parameterName);
+      if (!optional) required.push(parameterName);
+    }
+    const input: FactoryInput = {
+      schema: { type: "object", properties, ...(required.length ? { required } : {}), additionalProperties: false },
+      construct: { function: factory.name, params },
+    };
+    factoryInputs.set(factory, input);
+    return input;
+  }
+
+  /**
    * The schema of a type. `output` is true for the output and its items: there an `undefined`
    * member gives `null`, as in JSON. A property with an `undefined` member is optional.
    */
   function schemaOf(type: TS.Type, output: boolean): ExportsJsonSchema {
+    // A generic type can grow at each level, for example Nest<Nest<T>>: such a type fails closed
+    if (depth >= MAX_DEPTH) throw new NotJson(`a type deeper than ${MAX_DEPTH} levels`, false);
+    depth++;
+    try {
+      return typeSchema(type, output);
+    } finally {
+      depth--;
+    }
+  }
+
+  function typeSchema(type: TS.Type, output: boolean): ExportsJsonSchema {
     const flags = type.flags;
     // A type that does not resolve is the error type of the checker: the check fails closed
     if (flags & ts.TypeFlags.Any && (type as { intrinsicName?: string }).intrinsicName === "error") {
@@ -289,7 +423,17 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
   }
 
   function unionSchema(type: TS.UnionType, output: boolean): ExportsJsonSchema {
-    let members = type.types;
+    // A named union goes into $defs as a named object does. This also ends a cycle through it.
+    const named = definitionName(type);
+    if (named === undefined) return membersSchema(type.types, output);
+    // The definition serves inputs and outputs, so it has no undefined member: an output adds null
+    const defined = type.types.filter((member) => !(member.flags & (ts.TypeFlags.Undefined | ts.TypeFlags.Void)));
+    const reference = definition(type, named, () => membersSchema(defined, false));
+    return output && defined.length < type.types.length ? { anyOf: [reference, { type: "null" }] } : reference;
+  }
+
+  function membersSchema(all: readonly TS.Type[], output: boolean): ExportsJsonSchema {
+    let members = all;
     // An optional property or parameter has `T | undefined`: its schema is the schema of T
     const defined = members.filter((member) => !(member.flags & (ts.TypeFlags.Undefined | ts.TypeFlags.Void)));
     const hasUndefined = defined.length < members.length;
@@ -313,6 +457,7 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
 
   function objectSchema(type: TS.Type, output: boolean): ExportsJsonSchema {
     if (type.getCallSignatures().length > 0 || type.getConstructSignatures().length > 0) {
+      if (!output) return programSchema(type);
       throw new NotJson(checker.typeToString(type), true);
     }
     const symbol = type.getSymbol() ?? type.aliasSymbol;
@@ -331,22 +476,24 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
 
     // A named type goes into $defs one time, and a reference stands for it. This also ends a cycle.
     const named = definitionName(type);
-    if (named !== undefined) {
-      const existing = defNames.get(type);
-      if (existing !== undefined) return { $ref: `#/$defs/${existing}` };
-      const key = uniqueName(named);
-      defNames.set(type, key);
-      defs.set(key, {});
-      try {
-        defs.set(key, plainObjectSchema(type));
-      } catch (error) {
-        defs.delete(key);
-        defNames.delete(type);
-        throw error;
-      }
-      return { $ref: `#/$defs/${key}` };
+    return named !== undefined ? definition(type, named, () => plainObjectSchema(type)) : plainObjectSchema(type);
+  }
+
+  /** A reference to the definition of a named type. The first reference builds the definition. */
+  function definition(type: TS.Type, named: string, build: () => ExportsJsonSchema): ExportsJsonSchema {
+    const existing = defNames.get(type);
+    if (existing !== undefined) return { $ref: `#/$defs/${existing}` };
+    const key = uniqueName(named);
+    defNames.set(type, key);
+    defs.set(key, {});
+    try {
+      defs.set(key, build());
+    } catch (error) {
+      defs.delete(key);
+      defNames.delete(type);
+      throw error;
     }
-    return plainObjectSchema(type);
+    return { $ref: `#/$defs/${key}` };
   }
 
   function plainObjectSchema(type: TS.Type): ExportsJsonSchema {
@@ -377,6 +524,105 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
     const stringIndex = checker.getIndexInfoOfType(type, ts.IndexKind.String);
     if (stringIndex) schema["additionalProperties"] = schemaOf(stringIndex.type, false);
     return schema;
+  }
+
+  /**
+   * The schema of a function in an input: a sub-program, one call of a pure procedure as data
+   * (d40-language-ops). The function has one signature with no type parameter and no rest
+   * parameter. Its parameters and its result are JSON, and its result is not a promise.
+   */
+  function programSchema(type: TS.Type): ExportsJsonSchema {
+    const what = checker.typeToString(type);
+    const signatures = type.getCallSignatures();
+    const signature = signatures[0];
+    if (
+      signature === undefined ||
+      signatures.length > 1 ||
+      type.getConstructSignatures().length > 0 ||
+      checker.getPropertiesOfType(type).length > 0 ||
+      (signature.getTypeParameters()?.length ?? 0) > 0
+    ) {
+      throw new NotJson(what, true);
+    }
+    try {
+      const params: string[] = [];
+      const inputs: ExportsJsonSchema[] = [];
+      for (const [index, parameter] of signature.getParameters().entries()) {
+        const declaration = parameter.valueDeclaration;
+        if (!declaration || !ts.isParameter(declaration) || declaration.dotDotDotToken) throw new NotJson(what, true);
+        params.push(ts.isIdentifier(declaration.name) ? declaration.name.text : `arg${index}`);
+        // The package gives these values to the function, as it gives an output
+        inputs.push(schemaOf(checker.getTypeOfSymbolAtLocation(parameter, declaration), true));
+      }
+      const result = signature.getReturnType();
+      if (promisedType(result) || result.flags & (ts.TypeFlags.Void | ts.TypeFlags.Undefined)) throw new NotJson(what, true);
+      // The function gives this value to the package, as an input does
+      const resultSchema = schemaOf(result, false);
+      // A sub-program gives JSON, so it cannot give a function to the package
+      if (programPath(resultSchema) !== undefined) throw new NotJson(what, true);
+      const hasNull = result.isUnion() && result.types.some((member) => (member.flags & ts.TypeFlags.Null) !== 0);
+      const program: ExportsProgram = {
+        params,
+        inputs,
+        output: resultSchema,
+        ...(hasUndefinedMember(result) && !hasNull ? { undefinedForNull: true as const } : {}),
+      };
+      const reads = params.length ? ` It reads each parameter as {"$ref": "<name>"}: ${params.join(", ")}.` : "";
+      return {
+        type: "object",
+        description: `One call of a pure procedure, as data, for the function ${what}.${reads}`,
+        required: ["$proc"],
+        properties: {
+          $proc: { type: "array", items: { type: "string" }, minItems: 1 },
+          input: {},
+          $when: { const: "$never" },
+        },
+        [PROGRAM_KEYWORD]: program,
+      };
+    } catch (error) {
+      throw error instanceof NotJson ? new NotJson(what, true) : error;
+    }
+  }
+
+  /**
+   * This function gives the path from a schema to its first sub-program, through the definitions.
+   * The path of the schema itself is `""`. The result is `undefined` when the schema has no sub-program.
+   */
+  function programPath(schema: ExportsJsonSchema): string | undefined {
+    const seen = new Set<string>();
+    const visit = (node: unknown, path: readonly string[]): string | undefined => {
+      if (node === null || typeof node !== "object") return undefined;
+      if (Array.isArray(node)) {
+        for (const item of node) {
+          const found = visit(item, path);
+          if (found !== undefined) return found;
+        }
+        return undefined;
+      }
+      const record = node as Record<string, unknown>;
+      // path-check: a position in the input schema, the property names, not a procedure path
+      if (PROGRAM_KEYWORD in record) return path.join(".");
+      const ref = record["$ref"];
+      if (typeof ref === "string" && ref.startsWith("#/$defs/")) {
+        const key = ref.slice("#/$defs/".length);
+        if (seen.has(key)) return undefined;
+        seen.add(key);
+        return visit(defs.get(key), path);
+      }
+      const properties = record["properties"];
+      if (properties !== null && typeof properties === "object") {
+        for (const [key, value] of Object.entries(properties)) {
+          const found = visit(value, [...path, key]);
+          if (found !== undefined) return found;
+        }
+      }
+      for (const key of ["items", "prefixItems", "additionalProperties", "anyOf"]) {
+        const found = visit(record[key], path);
+        if (found !== undefined) return found;
+      }
+      return undefined;
+    };
+    return visit(schema, []);
   }
 
   // A bare undefined does not get here: schemaOf refuses it in a property
@@ -419,4 +665,9 @@ function firstParagraph(comment: string): string {
 /** A comparison of two names by code unit, the same on each platform. */
 function compare(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/** True when the effects read nothing and change nothing. */
+function isPure(effects: Effects | undefined): boolean {
+  return effects?.reads !== undefined && effects.reads.length === 0 && effects.writes !== undefined && effects.writes.length === 0;
 }

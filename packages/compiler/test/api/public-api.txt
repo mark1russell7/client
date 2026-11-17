@@ -10,6 +10,7 @@ type ArrayNode: dist/ir.d.ts#ArrayNode
 type Binding: dist/ir.d.ts#Binding
 type BindingKind: dist/ir.d.ts#BindingKind
 type BodyEffects: dist/effects.d.ts#BodyEffects
+CONSTRUCT_KEYWORD: dist/exports/types.d.ts#CONSTRUCT_KEYWORD
 type CallExplanation: dist/explain.d.ts#CallExplanation
 CallExplanationOutput: dist/types.d.ts#CallExplanationOutput
 type CallKind: dist/explain.d.ts#CallKind
@@ -41,9 +42,11 @@ type ExportExemption: dist/exports/types.d.ts#ExportExemption
 type ExportExemptionReason: dist/exports/types.d.ts#ExportExemptionReason
 type ExportOthers: dist/exports/types.d.ts#ExportOthers
 type ExportProcedure: dist/exports/types.d.ts#ExportProcedure
+type ExportsConstruct: dist/exports/types.d.ts#ExportsConstruct
 type ExportsJsonSchema: dist/exports/types.d.ts#ExportsJsonSchema
 type ExportsManifest: dist/exports/types.d.ts#ExportsManifest
 type ExportsModuleOptions: dist/exports/load.d.ts#ExportsModuleOptions
+type ExportsProgram: dist/exports/types.d.ts#ExportsProgram
 type FactsOptions: dist/facts.d.ts#FactsOptions
 type FailNode: dist/ir.d.ts#FailNode
 type IRNode: dist/ir.d.ts#IRNode
@@ -67,6 +70,7 @@ type OpenRpcContentDescriptor: dist/openrpc.d.ts#OpenRpcContentDescriptor
 type OpenRpcDocument: dist/openrpc.d.ts#OpenRpcDocument
 type OpenRpcMethod: dist/openrpc.d.ts#OpenRpcMethod
 type OpenRpcOptions: dist/openrpc.d.ts#OpenRpcOptions
+PROGRAM_KEYWORD: dist/exports/types.d.ts#PROGRAM_KEYWORD
 type ParallelNode: dist/ir.d.ts#ParallelNode
 type Pointer: dist/ir.d.ts#Pointer
 type ProcedureFacts: dist/facts.d.ts#ProcedureFacts
@@ -359,6 +363,7 @@ export interface ExportsFunctionOverlay {
 export interface ExportsOverlay {
     readonly effects?: Effects;
     readonly functions?: Readonly<Record<string, ExportsFunctionOverlay>>;
+    readonly constructors?: Readonly<Record<string, string>>;
 }
 
 ### dist/exports/generate.d.ts#GenerateExportsOptions
@@ -387,6 +392,9 @@ export declare function exportOutputSchema(manifest: ExportsManifest, procedure:
 
 ### dist/exports/load.d.ts#exportsModule
 export declare function exportsModule(manifest: ExportsManifest, functions: Readonly<Record<string, unknown>>, options?: ExportsModuleOptions): ProcedureModule;
+
+### dist/exports/types.d.ts#CONSTRUCT_KEYWORD
+export declare const CONSTRUCT_KEYWORD: "x-procedures-construct";
 
 ### dist/exports/types.d.ts#EXPORTS_MANIFEST_FORMAT
 export declare const EXPORTS_MANIFEST_FORMAT: "procedures-exports/1";
@@ -428,6 +436,12 @@ export interface ExportProcedure {
     readonly generics?: readonly string[];
 }
 
+### dist/exports/types.d.ts#ExportsConstruct
+export interface ExportsConstruct {
+    readonly function: string;
+    readonly params: readonly string[];
+}
+
 ### dist/exports/types.d.ts#ExportsJsonSchema
 export type ExportsJsonSchema = Record<string, unknown>;
 
@@ -443,6 +457,17 @@ export interface ExportsManifest {
     readonly exempt: readonly ExportExemption[];
     readonly others: ExportOthers;
 }
+
+### dist/exports/types.d.ts#ExportsProgram
+export interface ExportsProgram {
+    readonly params: readonly string[];
+    readonly inputs: readonly ExportsJsonSchema[];
+    readonly output: ExportsJsonSchema;
+    readonly undefinedForNull?: true;
+}
+
+### dist/exports/types.d.ts#PROGRAM_KEYWORD
+export declare const PROGRAM_KEYWORD: "x-procedures-program";
 
 ### dist/facts.d.ts#Definition
 export interface Definition {

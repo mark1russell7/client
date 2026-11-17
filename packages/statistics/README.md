@@ -16,11 +16,12 @@ A host registers the procedures with `createRegistry(statisticsModule)`, or with
 
 ## Procedures
 
-The package has 74 procedures in the namespace `statistics`, one for each function of the library with JSON inputs and a JSON output. Each procedure has no effects: it reads nothing and writes nothing.
+The package has 81 procedures in the namespace `statistics`, one for each function of the library with JSON inputs and a JSON output. Each procedure has no effects: it reads nothing and writes nothing.
 
 - The input is an object with one property for each parameter of the function, by its name.
 - The JSON Schemas of the input and the output come from the types. The descriptions come from the doc comments.
 - An output of `undefined` is `null`, as in JSON.
+- A function parameter is a sub-program: one call of a pure procedure, as data. The next section gives an example.
 
 `statisticsManifest` gives the names, the schemas and the effects of each procedure.
 
@@ -35,18 +36,27 @@ const output = await invokePath(["statistics", "wilson"], { k: 8, n: 10 }, { reg
 const interval = await outputValue(output); // { low: 0.49, high: 0.94 }
 ```
 
+## A statistic as a sub-program
+
+The statistic of `bootstrap` is a function. Its procedure takes one call of a statistics procedure, as data. The call reads the parameter `sample` with `$ref`:
+
+```ts
+await client.exec(["statistics", "bootstrap"], {
+  data: [3, 1, 4, 1, 5, 9, 2, 6],
+  statistic: { $proc: ["statistics", "mean"], input: { values: { $ref: "sample" } }, $when: "$never" },
+  options: { runs: 200, seed: 7 },
+});
+```
+
+The statistic of `bootstrapClusters`, `bootstrapStrata`, `bootstrapTwo`, `pairedPermutation` and `twoSamplePermutation` is a sub-program too. So are the cluster of `bootstrapClusters` and the option `information` of `choosePair`. A sub-program uses only pure procedures, so it changes nothing. The README of `@procedures/compiler` gives the rules.
+
 ## The functions with no procedure
 
-8 functions of the library have no procedure. The manifest gives each one with its reason:
+1 function of the library has no procedure. The manifest gives it with its reason:
 
 | Function | Reason | The cause |
 | --- | --- | --- |
-| `bootstrap`, `bootstrapClusters`, `bootstrapStrata`, `bootstrapTwo` | `function-parameter` | The statistic or the cluster is a function. |
-| `choosePair` | `function-parameter` | The option `information` is a function. |
-| `pairedPermutation`, `twoSamplePermutation` | `function-parameter` | The option `statistic` is a function. |
 | `runningOf` | `input-not-json` | The values are an `Iterable`, not an array. |
-
-A function parameter becomes a call of a program in a later release.
 
 ## Update the manifest
 
@@ -57,6 +67,16 @@ node scripts/wraps.ts generate --package statistics
 ```
 
 The command writes `src/manifest.ts`. It also raises the ratchet of the library in `wraps.coverage.json`. CI starts `node scripts/wraps.ts check`. The check fails when the manifest is not current, or when the share of the functions with a procedure falls.
+
+## The gate of a pure wrap
+
+The wrap is pure: its `wrap.json` has `"pure": true`. So `node scripts/wraps.ts check` also examines these conditions:
+
+- Each procedure has no effects.
+- The field `client.browser` lists `.`, `./module` and `./register`.
+- A program of `wraps.programs.json` uses a procedure of the wrap.
+
+The programs of `wraps.programs.json`, at the root of the repository, use the procedures of the pure wraps, also across libraries. The check starts each program two times. The two results must be equal, and equal to the recorded result. An update of a library can change a result on purpose. Then start `node scripts/wraps.ts generate` with no `--package`. Give the reason in the pull request.
 
 ## License
 

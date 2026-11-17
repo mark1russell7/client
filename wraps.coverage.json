@@ -1,6 +1,10 @@
 {
+  "@mark1russell7/rigor-generators": {
+    "procedures": 23,
+    "functions": 31
+  },
   "@mark1russell7/rigor-statistics": {
-    "procedures": 74,
+    "procedures": 81,
     "functions": 82
   }
 }
